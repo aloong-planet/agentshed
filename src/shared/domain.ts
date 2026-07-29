@@ -69,6 +69,39 @@ export interface GlobalLayer {
   codexConfigSummary: string | null
 }
 
+/** 项目详情里的一个 skill(生效视图条目) */
+export interface ProjectSkillEntry {
+  name: string
+  description: string | null
+  /** project=项目级目录;global=全局层生效 */
+  level: 'project' | 'global'
+  side: AgentSide
+  symlink: boolean
+  /** 全局条目被同侧同名项目级遮蔽 */
+  shadowed: boolean
+  /** 项目级条目遮蔽了同侧同名全局 */
+  shadows: boolean
+}
+
+/** 项目级 MCP(.mcp.json)条目 */
+export interface ProjectMcpEntry {
+  name: string
+  /** 由项目键 enabled/disabledMcpjsonServers 合成;未出现在任一清单时为 null(默认态) */
+  enabled: boolean | null
+}
+
+/** 项目详情(按需经 IPC 拉取,不进全景快照) */
+export interface ProjectDetail {
+  path: string
+  skills: ProjectSkillEntry[]
+  mcp: ProjectMcpEntry[]
+  configs: {
+    claudeMd: string | null
+    agentsMd: string | null
+    settingsSummary: string | null
+  }
+}
+
 /** 全景快照:一次扫描的完整产出(随票 02-07 增量扩展) */
 export interface Snapshot {
   scannedAt: number
