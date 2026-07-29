@@ -1,8 +1,8 @@
 <!doctype html>
-<!-- 原型(UI)· 票03:项目详情"装了什么"。
+<!-- 原型(UI)· 票03+05:项目详情"装了什么"+ 产物 tab(内嵌,不跳独立页)。
      问题:tab 分栏下 Skills(两层来源/遮蔽/软链)、Plugins(仅 Claude)、MCP(多来源)、
-     配置文件只读渲染各自的行密度与标注怎么呈现。
-     交互:tab 切换;Skills 里可看到遮蔽/软链标注;配置 tab 内切换文件。 -->
+     配置只读渲染的行密度;产物用「类型 chips + 时间倒序平铺列表」是否比手风琴/次级 tab 清晰。
+     交互:tab 切换;产物 tab 内 chips 筛选、点条目开阅读浮层(Esc/遮罩关);配置内切文件。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -62,6 +62,23 @@
   .md h3{font-size:13px;margin-bottom:6px}
   .md code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px}
   .none{color:var(--text-2);padding:20px;text-align:center}
+  .chips{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+  .chips span{font-size:11px;border:1px solid var(--line-strong);border-radius:999px;padding:2px 10px;
+    cursor:pointer;color:var(--text-2)}
+  .chips span.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+  .alist{background:var(--card);border:1px solid var(--line);border-radius:9px}
+  .ai{display:flex;align-items:center;gap:9px;padding:8px 14px;border-top:1px solid var(--line);cursor:pointer}
+  .ai:first-child{border-top:0}
+  .ai:hover{background:var(--accent-soft)}
+  .ai .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ai .ty{font-size:10px;border-radius:4px;padding:1px 6px;background:var(--line);color:var(--text-2);flex:none}
+  .ai .d{font-size:11px;color:var(--text-2);flex:none;font-variant-numeric:tabular-nums}
+  .mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:10}
+  .reader{position:fixed;top:8vh;left:50%;transform:translateX(-50%);width:min(680px,88vw);max-height:80vh;
+    overflow:auto;background:var(--card);border:1px solid var(--line-strong);border-radius:12px;
+    padding:22px 26px;z-index:11;display:none;line-height:1.8;font-size:12.5px}
+  .reader h2{font-size:15px;margin-bottom:4px}
+  .reader .meta{font-size:11px;color:var(--text-2);margin-bottom:12px}
 </style>
 </head>
 <body>
@@ -81,7 +98,7 @@
       <div class="tabs" id="tabs">
         <span class="tab on" data-t="skills">Skills</span><span class="tab" data-t="plugins">Plugins</span>
         <span class="tab" data-t="mcp">MCP</span><span class="tab" data-t="cfg">配置</span>
-        <span class="tab" style="opacity:.55" title="见产物原型" data-goto="artifacts/artifacts" data-goto-href="../artifacts/prototype-artifacts.html">产物 ↗</span><span class="tab" style="opacity:.55" title="见 Token 面板原型" data-goto="token-stats/token-panel" data-goto-href="../token-stats/prototype-token-panel.html">会话·Token ↗</span>
+        <span class="tab" data-t="arts">产物</span><span class="tab" style="opacity:.55" title="见 Token 面板原型" data-goto="token-stats/token-panel" data-goto-href="../token-stats/prototype-token-panel.html">会话·Token ↗</span>
       </div>
     </div>
     <div class="body">
@@ -136,6 +153,11 @@
             <span class="ds">[mcp_servers.computer-use]</span><span class="src">Codex</span></div>
         </div>
       </div>
+      <div data-p="arts" style="display:none">
+        <div class="chips" id="achips"><span class="on" data-c="全部">全部</span><span data-c="ADR">ADR</span><span data-c="CONTEXT">CONTEXT.md</span><span data-c="features">features</span><span data-c="postmortems">postmortems</span><span data-c="prototypes">prototypes</span></div>
+        <div class="alist" id="alist"></div>
+        <div class="none" style="font-size:12px;padding:12px">非八步项目在此显示「未按约定沉淀」空态(不视为错误)</div>
+      </div>
       <div data-p="cfg" style="display:none">
         <div class="cfg-switch" id="cfgs">
           <span class="on">CLAUDE.md</span><span>AGENTS.md</span><span>settings 摘要</span>
@@ -149,12 +171,49 @@
       </div>
     </div>
   </div>
+  <div class="mask" id="amask"></div>
+  <div class="reader" id="areader"></div>
 <script>
   document.getElementById('tabs').addEventListener('click',e=>{
     const t=e.target.closest('.tab');if(!t||!t.dataset.t)return;
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
     document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
   });
+  // 产物:类型 chips + 时间倒序平铺列表(内嵌,不跳独立页)
+  const ARTS=[
+    {t:'屏幕权限 preflight 堵死授权入口',ty:'postmortems',d:'07-24'},
+    {t:'CONTEXT.md(术语 14 条)',ty:'CONTEXT',d:'07-20'},
+    {t:'截图与标注',ty:'features',d:'07-18'},
+    {t:'ADR-0017 消息领域模型收敛为单一数据源',ty:'ADR',d:'07-12'},
+    {t:'消息状态机(可驾驶)',ty:'prototypes',d:'07-10'},
+    {t:'运行期发现丢失(IGMP 老化疑云)',ty:'postmortems',d:'07-08'},
+    {t:'局域网发现',ty:'features',d:'07-02'},
+    {t:'ADR-0013 文档按腐烂速度分类',ty:'ADR',d:'06-28'},
+  ];
+  let afilter='全部';
+  function renderArts(){
+    const list=ARTS.filter(a=>afilter==='全部'||a.ty===afilter);
+    document.getElementById('alist').innerHTML=list.map(a=>
+      `<div class="ai" data-at="${a.t}"><span class="t">${a.t}</span><span class="ty">${a.ty}</span><span class="d">${a.d}</span></div>`).join('')
+      ||'<div class="ai" style="cursor:default;color:var(--text-2)">该类无产物</div>';
+  }
+  document.getElementById('achips').addEventListener('click',e=>{
+    if(!e.target.dataset.c)return;
+    document.querySelectorAll('#achips span').forEach(s=>s.classList.toggle('on',s===e.target));
+    afilter=e.target.dataset.c;renderArts();
+  });
+  document.getElementById('alist').addEventListener('click',e=>{
+    const it=e.target.closest('.ai[data-at]');if(!it)return;
+    document.getElementById('amask').style.display='block';
+    const r=document.getElementById('areader');r.style.display='block';
+    r.innerHTML=`<h2>${it.dataset.at}</h2><div class="meta">Transfer · Markdown 只读渲染;相对路径图片按项目目录解析,失败降级纯文本;prototypes 的 HTML 外开系统浏览器</div>
+      <p><b>Context</b>:主/渲染进程各自维护消息副本,IPC 边界出现两类漂移……</p>
+      <p><b>Decision</b>:领域模型收敛为单一数据源,类型单点导出……</p>`;
+  });
+  const acls=()=>{document.getElementById('amask').style.display='none';document.getElementById('areader').style.display='none'};
+  document.getElementById('amask').onclick=acls;
+  addEventListener('keydown',e=>{if(e.key==='Escape')acls()});
+  renderArts();
   document.getElementById('cfgs').addEventListener('click',e=>{
     if(e.target.tagName!=='SPAN')return;
     document.querySelectorAll('#cfgs span').forEach(x=>x.classList.toggle('on',x===e.target));

@@ -30,6 +30,10 @@
   .rfr:hover{color:var(--accent);border-color:var(--accent)}
   .rfr.busy{animation:spin 1s linear infinite;pointer-events:none;color:var(--accent)}
   @keyframes spin{to{transform:rotate(360deg)}}
+  .fseg{display:flex;gap:4px;padding:2px 14px 4px}
+  .fseg span{font-size:11px;border:1px solid var(--line-strong);border-radius:999px;padding:2px 10px;
+    cursor:pointer;color:var(--text-2)}
+  .fseg span.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
   .opts{display:flex;align-items:center;gap:6px;padding:2px 14px 6px;font-size:11.5px;color:var(--text-2)}
   .opts label{display:flex;align-items:center;gap:4px;cursor:pointer}
   .list{flex:1;overflow:auto;padding:2px 8px}
@@ -64,6 +68,7 @@
   </div>
   <div class="side">
     <div class="sh"><input id="q" placeholder="🔍 搜索项目…"><button class="rfr" id="rfr" title="刷新">↻</button></div>
+    <div class="fseg" id="fseg"><span class="on" data-f="all">全部</span><span data-f="c">Claude</span><span data-f="x">Codex</span></div>
     <div class="opts"><label><input type="checkbox" id="showStale">显示失效项目</label>
       <span id="cnt" style="margin-left:auto"></span></div>
     <div class="list" id="list"></div>
@@ -87,7 +92,7 @@
     {n:'New project',    sides:['x'],     last:'2月前',  ses:1,  ord:7, stale:true},
     {n:'fe',             sides:['x'],     last:'2月前',  ses:2,  ord:8, stale:true},
   ];
-  let hidden=new Set(['csv-debug-viewer']), sel='Transfer', showHidden=false;
+  let hidden=new Set(['csv-debug-viewer']), sel='Transfer', showHidden=false, sideFilter='all';
   const list=document.getElementById('list'),hEntry=document.getElementById('hEntry'),
         hPanel=document.getElementById('hPanel'),q=document.getElementById('q'),
         showStale=document.getElementById('showStale'),cnt=document.getElementById('cnt');
@@ -104,6 +109,7 @@
     const kw=q.value.trim().toLowerCase();
     const vis=DATA.filter(p=>!hidden.has(p.n))
       .filter(p=>showStale.checked||!p.stale)
+      .filter(p=>sideFilter==='all'||p.sides.includes(sideFilter))
       .filter(p=>!kw||p.n.toLowerCase().includes(kw))
       .sort((a,b)=>a.ord-b.ord);
     list.innerHTML=vis.map(p=>rowHTML(p,false)).join('')||'<div style="padding:30px 10px;text-align:center;color:var(--text-2)">无匹配项目</div>';
@@ -122,6 +128,11 @@
     if(e.target.closest('#hEntry')){showHidden=!showHidden;render();}
   });
   q.oninput=render; showStale.onchange=render;
+  document.getElementById('fseg').addEventListener('click',e=>{
+    if(!e.target.dataset.f)return;
+    document.querySelectorAll('#fseg span').forEach(s=>s.classList.toggle('on',s===e.target));
+    sideFilter=e.target.dataset.f;render();
+  });
   // 刷新去重:进行中忽略再次点击
   const rfr=document.getElementById('rfr');
   rfr.onclick=()=>{if(rfr.classList.contains('busy'))return;
