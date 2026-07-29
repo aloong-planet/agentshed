@@ -16,6 +16,9 @@ const api = {
   setHidden: (args: SetHiddenArgs): Promise<void> => ipcRenderer.invoke(CMD.setHidden, args),
   getProjectDetail: (path: string): Promise<ProjectDetail> =>
     ipcRenderer.invoke(CMD.getProjectDetail, path) as Promise<ProjectDetail>,
+  readArtifact: (file: string): Promise<string> =>
+    ipcRenderer.invoke(CMD.readArtifact, file) as Promise<string>,
+  openArtifact: (file: string): Promise<void> => ipcRenderer.invoke(CMD.openArtifact, file),
   onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
     const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))
     ipcRenderer.on(EVT.snapshot, listener)

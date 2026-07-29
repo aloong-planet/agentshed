@@ -140,6 +140,17 @@ export interface ProjectMcpEntry {
   enabled: boolean | null
 }
 
+/** 产物五类(八步流程约定;.scratch 施工文档不计) */
+export type ArtifactType = 'adr' | 'context' | 'features' | 'postmortems' | 'prototypes'
+
+export interface ArtifactEntry {
+  type: ArtifactType
+  title: string
+  /** 绝对路径(读取/外开经主进程白名单校验) */
+  file: string
+  mtimeMs: number
+}
+
 /** 项目详情(按需经 IPC 拉取,不进全景快照) */
 export interface ProjectDetail {
   path: string
@@ -152,6 +163,8 @@ export interface ProjectDetail {
   }
   /** 概览 tab 数据(主进程从 token 引擎附上;引擎未就绪时 null) */
   stats: ProjectStats | null
+  /** 产物(五类,时间倒序) */
+  artifacts: ArtifactEntry[]
 }
 
 /** 全景快照:一次扫描的完整产出(随票 02-07 增量扩展) */

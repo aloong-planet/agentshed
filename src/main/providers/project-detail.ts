@@ -5,6 +5,7 @@ import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ProjectDetail, ProjectMcpEntry, ProjectSkillEntry, AgentSide } from '@shared/domain'
 import type { ScanRoots } from './types'
+import { readArtifacts } from './artifacts'
 
 const MAX_CONFIG_BYTES = 200_000
 
@@ -18,7 +19,8 @@ export function readProjectDetail(roots: ScanRoots, projectPath: string): Projec
       agentsMd: readTextCapped(join(projectPath, 'AGENTS.md')),
       settingsSummary: settingsSummary(roots, projectPath)
     },
-    stats: null
+    stats: null,
+    artifacts: readArtifacts(projectPath)
   }
 }
 

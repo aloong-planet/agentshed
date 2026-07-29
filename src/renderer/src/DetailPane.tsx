@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { marked } from 'marked'
-import type { ProjectDetail, ProjectSkillEntry, Snapshot } from '@shared/domain'
+import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot } from '@shared/domain'
 import { emptyTokenStats } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
 import { fmtAgo } from './ProjectsPane'
@@ -62,12 +62,7 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
             {tab === 'plugins' && <PluginsTab snap={snap} />}
             {tab === 'mcp' && <McpTab detail={detail} />}
             {tab === 'cfg' && <CfgTab detail={detail} />}
-            {tab === 'arts' && (
-              <div className="empty">
-                <div className="big">📚</div>
-                <div>产物(票 05 填充)</div>
-              </div>
-            )}
+            {tab === 'arts' && <ArtifactsTab detail={detail} snap={snap} />}
           </>
         )}
       </div>
@@ -197,6 +192,67 @@ function McpTab({ detail }: { detail: ProjectDetail }): JSX.Element {
             </div>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+const ART_LABELS: Record<ArtifactType, string> = {
+  adr: 'ADR',
+  context: 'CONTEXT.md',
+  features: 'features',
+  postmortems: 'postmortems',
+  prototypes: 'prototypes'
+}
+
+function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
+  const [filter, setFilter] = useState<'all' | ArtifactType>('all')
+  const [reader, setReader] = useState<{ item: ArtifactEntry; html: string } | null>(null)
+  const list = detail.artifacts.filter((a) => filter === 'all' || a.type === filter)
+
+  async function open(item: ArtifactEntry): Promise<void> {
+    if (item.type === 'prototypes') {
+      await window.agentshed.openArtifact(item.file)
+      return
+    }
+    const md = await window.agentshed.readArtifact(item.file)
+    setReader({ item, html: marked.parse(md, { async: false }) as string })
+  }
+
+  return (
+    <div>
+      <div className="chips">
+        {(['all', 'adr', 'context', 'features', 'postmortems', 'prototypes'] as const).map((f) => (
+          <button key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>
+            {f === 'all' ? '全部' : ART_LABELS[f]}
+          </button>
+        ))}
+      </div>
+      {detail.artifacts.length === 0 ? (
+        <div className="none">未按约定沉淀(非八步项目;不视为错误)</div>
+      ) : list.length === 0 ? (
+        <div className="none">该类无产物</div>
+      ) : (
+        <div className="card">
+          {list.map((a) => (
+            <button className="it ai" key={a.file} onClick={() => void open(a)} title={a.file}>
+              <span className="t">{a.title}</span>
+              {a.type === 'prototypes' && <span className="pill ln">HTML → 浏览器</span>}
+              <span className="pill glb">{ART_LABELS[a.type]}</span>
+              <span className="src mono">{fmtAgo(a.mtimeMs, snap.scannedAt)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {reader && (
+        <>
+          <div className="mask" onClick={() => setReader(null)} />
+          <div className="reader">
+            <h2>{reader.item.title}</h2>
+            <div className="meta mono">{reader.item.file}</div>
+            <div className="md" dangerouslySetInnerHTML={{ __html: reader.html }} />
+          </div>
+        </>
       )}
     </div>
   )
