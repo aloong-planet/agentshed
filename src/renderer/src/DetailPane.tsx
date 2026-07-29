@@ -4,12 +4,14 @@ import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Sna
 import { emptyTokenStats } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
 import { fmtAgo } from './ProjectsPane'
+import { toast } from './Toast'
 
 type Tab = 'ov' | 'skills' | 'plugins' | 'mcp' | 'cfg' | 'arts'
 
 export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JSX.Element {
   const [tab, setTab] = useState<Tab>('ov')
   const [detail, setDetail] = useState<ProjectDetail | null>(null)
+  const [reload, setReload] = useState(0)
   const entry = snap.projects.find((p) => p.path === path)
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
     return () => {
       alive = false
     }
-  }, [path, snap.scannedAt])
+  }, [path, snap.scannedAt, reload])
 
   if (!entry) return <div className="empty">项目不在快照中(刷新后重试)</div>
 
@@ -58,7 +60,9 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
         ) : (
           <>
             {tab === 'ov' && <OverviewTab detail={detail} snap={snap} />}
-            {tab === 'skills' && <SkillsTab detail={detail} />}
+            {tab === 'skills' && (
+              <SkillsTab detail={detail} onChanged={() => setReload((v) => v + 1)} />
+            )}
             {tab === 'plugins' && <PluginsTab snap={snap} />}
             {tab === 'mcp' && <McpTab detail={detail} />}
             {tab === 'cfg' && <CfgTab detail={detail} />}
@@ -99,7 +103,13 @@ function OverviewTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }
   )
 }
 
-function SkillRow({ s }: { s: ProjectSkillEntry }): JSX.Element {
+function SkillRow({
+  s,
+  onUninstall
+}: {
+  s: ProjectSkillEntry
+  onUninstall?: () => void
+}): JSX.Element {
   return (
     <div className={`it ${s.shadowed ? 'shadowed' : ''}`}>
       <span className="nm mono">{s.name}</span>
@@ -110,11 +120,23 @@ function SkillRow({ s }: { s: ProjectSkillEntry }): JSX.Element {
       {s.shadows && <span className="pill shadow">遮蔽全局</span>}
       {s.shadowed && <span className="pill shadow">被项目级遮蔽</span>}
       <span className="ds">{s.description ?? ''}</span>
+      {onUninstall && (
+        <button className="ins" onClick={onUninstall}>
+          卸载
+        </button>
+      )}
     </div>
   )
 }
 
-function SkillsTab({ detail }: { detail: ProjectDetail }): JSX.Element {
+function SkillsTab({
+  detail,
+  onChanged
+}: {
+  detail: ProjectDetail
+  onChanged: () => void
+}): JSX.Element {
+  const [confirm, setConfirm] = useState<ProjectSkillEntry | null>(null)
   const groups = useMemo(() => {
     const g = {
       clProject: [] as ProjectSkillEntry[],
@@ -128,13 +150,31 @@ function SkillsTab({ detail }: { detail: ProjectDetail }): JSX.Element {
     }
     return g
   }, [detail])
+  async function doUninstall(s: ProjectSkillEntry): Promise<void> {
+    setConfirm(null)
+    const r = await window.agentshed.uninstallSkill({
+      skillName: s.name,
+      side: s.side,
+      targetProjectPath: detail.path
+    })
+    if (r.ok) toast('ok', `已卸载 ${s.name}(仅局部刷新该项目)`)
+    else toast('err', `卸载失败:${r.message}`)
+    onChanged()
+  }
+  const delPath =
+    confirm &&
+    `${detail.path}/${confirm.side === 'claude' ? '.claude' : '.agents'}/skills/${confirm.name}/`
   const section = (title: string, items: ProjectSkillEntry[]): JSX.Element | null =>
     items.length === 0 ? null : (
       <div key={title}>
         <div className="grp-t">{title}({items.length})</div>
         <div className="card">
           {items.map((s) => (
-            <SkillRow key={`${s.side}-${s.level}-${s.name}`} s={s} />
+            <SkillRow
+              key={`${s.side}-${s.level}-${s.name}`}
+              s={s}
+              onUninstall={s.level === 'project' ? () => setConfirm(s) : undefined}
+            />
           ))}
         </div>
       </div>
@@ -147,6 +187,24 @@ function SkillsTab({ detail }: { detail: ProjectDetail }): JSX.Element {
       {section('项目级 · .agents/skills', groups.cxProject)}
       {section('全局层 · Codex', groups.cxGlobal)}
       {!any && <div className="none">该项目无生效 skills</div>}
+      {confirm && (
+        <>
+          <div className="mask" onClick={() => setConfirm(null)} />
+          <div className="reader dlg">
+            <h2>卸载项目级 skill?</h2>
+            <p className="dlg-p">将删除以下目录(项目 git 状态由你自行处理;不做副本差异检测):</p>
+            <pre className="md mono dlg-path">{delPath}</pre>
+            <div className="dlg-btns">
+              <button className="cfg-btn" onClick={() => setConfirm(null)}>
+                取消
+              </button>
+              <button className="cfg-btn danger" onClick={() => void doUninstall(confirm)}>
+                删除
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

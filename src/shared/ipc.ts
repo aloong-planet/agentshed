@@ -12,7 +12,11 @@ export const CMD = {
   /** 读产物 Markdown(仅限详情列出过的文件,主进程白名单校验) */
   readArtifact: 'agentshed:read-artifact',
   /** 外开产物(prototypes HTML → 系统默认打开;同白名单) */
-  openArtifact: 'agentshed:open-artifact'
+  openArtifact: 'agentshed:open-artifact',
+  /** 从全局库安装 skill 到项目(复制落地) */
+  installSkill: 'agentshed:install-skill',
+  /** 卸载项目级 skill 副本 */
+  uninstallSkill: 'agentshed:uninstall-skill'
 } as const
 
 export const EVT = {
@@ -24,3 +28,13 @@ export interface SetHiddenArgs {
   projectPath: string
   hidden: boolean
 }
+
+export interface SkillOpArgs {
+  skillName: string
+  side: 'claude' | 'codex'
+  targetProjectPath: string
+}
+
+export type SkillOpResult =
+  | { ok: true }
+  | { ok: false; reason: string; message: string }

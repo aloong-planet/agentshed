@@ -3,6 +3,7 @@ import type { Snapshot } from '@shared/domain'
 import { ProjectsPane } from './ProjectsPane'
 import { AgentsPane } from './AgentsPane'
 import { DetailPane } from './DetailPane'
+import { Toasts } from './Toast'
 
 type Dim = 'agents' | 'projects'
 
@@ -86,6 +87,7 @@ export function App(): JSX.Element {
           />
         )}
       </main>
+      <Toasts />
     </div>
   )
 }

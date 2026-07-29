@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { marked } from 'marked'
 import type { Snapshot } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
+import { toast } from './Toast'
 
 type Tab = 'token' | 'skills' | 'plugins' | 'mcp' | 'cfg'
 
@@ -96,13 +97,39 @@ function SideCard({
 }
 
 function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
+  const [openFor, setOpenFor] = useState<string | null>(null)
   if (snap.global.skills.length === 0) return <Empty msg="两侧全局库均为空" />
+  const targets = snap.projects
+    .filter((p) => !p.stale)
+    .sort((a, b) => (b.lastSessionAt ?? 0) - (a.lastSessionAt ?? 0))
+
+  async function install(skill: (typeof snap.global.skills)[number], projectPath: string): Promise<void> {
+    setOpenFor(null)
+    const project = snap.projects.find((p) => p.path === projectPath)
+    if (!project) return
+    // 装到 skill 可用侧与项目所属侧的交集(双侧都符合就两侧都装)
+    const sides = skill.sides.filter((s) => project.sides.includes(s))
+    if (sides.length === 0) {
+      toast('err', `${project.name} 不属于该 skill 所在的 agent 侧`)
+      return
+    }
+    for (const side of sides) {
+      const r = await window.agentshed.installSkill({
+        skillName: skill.name,
+        side,
+        targetProjectPath: projectPath
+      })
+      if (r.ok) toast('ok', `已安装 ${skill.name} → ${project.name}(${side});仅局部刷新该项目`)
+      else toast('err', `${skill.name} → ${project.name}(${side}):${r.message}`)
+    }
+  }
+
   return (
     <div>
       <div className="grp-t">合并单列 · 徽标=该侧是否存在 · 安装源(只读)</div>
       <div className="card">
         {snap.global.skills.map((s) => (
-          <div className="it" key={s.name}>
+          <div className="it rel" key={s.name}>
             <span className="nm mono">{s.name}</span>
             <span className="bdg">
               {s.sides.includes('claude') ? <span className="badge cl">CL</span> : <span className="badge miss">—</span>}
@@ -111,6 +138,23 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
             {(s.symlink.claude || s.symlink.codex) && <span className="pill ln">⤷ 软链</span>}
             {s.differs && <span className="diff">两侧有差异</span>}
             <span className="ds">{s.description ?? ''}</span>
+            <button className="ins" onClick={() => setOpenFor(openFor === s.name ? null : s.name)}>
+              安装到…
+            </button>
+            {openFor === s.name && (
+              <div className="pop">
+                <div className="pop-t">选择目标项目(复制落地;失效项目已排除)</div>
+                {targets.map((p) => (
+                  <button className="pop-p" key={p.path} onClick={() => void install(s, p.path)}>
+                    <span className="t">{p.name}</span>
+                    <span className="bdg">
+                      {p.sides.includes('claude') && <span className="badge cl">CL</span>}
+                      {p.sides.includes('codex') && <span className="badge cx">CX</span>}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
