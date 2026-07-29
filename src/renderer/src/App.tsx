@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Snapshot } from '@shared/domain'
 import { ProjectsPane } from './ProjectsPane'
+import { AgentsPane } from './AgentsPane'
 
 type Dim = 'agents' | 'projects'
 
@@ -59,7 +60,11 @@ export function App(): JSX.Element {
       </nav>
       <main className="stage">
         {dim === 'agents' ? (
-          <AgentsPlaceholder snap={snap} />
+          snap === null ? (
+            <ScanningHint />
+          ) : (
+            <AgentsPane snap={snap} />
+          )
         ) : snap === null ? (
           <ScanningHint />
         ) : (
@@ -76,22 +81,6 @@ export function App(): JSX.Element {
           />
         )}
       </main>
-    </div>
-  )
-}
-
-function AgentsPlaceholder({ snap }: { snap: Snapshot | null }): JSX.Element {
-  if (!snap) return <ScanningHint />
-  return (
-    <div className="empty">
-      <div className="big">🛖</div>
-      <div>
-        Agents 全局页(占位,票 07)
-        <br />
-        <span className="badge cl">CLAUDE</span> {snap.sides.claude.detected ? '已检测' : '未检测到'}
-        {'  ·  '}
-        <span className="badge cx">CODEX</span> {snap.sides.codex.detected ? '已检测' : '未检测到'}
-      </div>
     </div>
   )
 }
