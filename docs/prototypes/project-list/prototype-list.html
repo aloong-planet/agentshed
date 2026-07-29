@@ -25,10 +25,7 @@
   .sh input{flex:1;padding:6px 10px;border:1px solid var(--line-strong);border-radius:7px;
     background:var(--bg);color:var(--text);font:inherit;outline:none}
   .sh input:focus{border-color:var(--accent)}
-  .rfr{border:1px solid var(--line-strong);background:var(--bg);color:var(--text-2);border-radius:7px;
-    width:30px;cursor:pointer;font-size:13px}
-  .rfr:hover{color:var(--accent);border-color:var(--accent)}
-  .rfr.busy{animation:spin 1s linear infinite;pointer-events:none;color:var(--accent)}
+  .ri.busy{animation:spin 1s linear infinite;pointer-events:none;color:var(--accent)}
   @keyframes spin{to{transform:rotate(360deg)}}
   .fseg{display:flex;gap:4px;padding:2px 14px 4px}
   .fseg span{font-size:11px;border:1px solid var(--line-strong);border-radius:999px;padding:2px 10px;
@@ -65,9 +62,10 @@
   <div class="rail">
     <div class="ri" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html">🤖</div>
     <div class="ri on" title="Projects">📁</div>
+    <div class="ri" id="grfr" title="全局刷新(去重:进行中忽略再次点击)" style="margin-top:auto;margin-bottom:6px">↻</div>
   </div>
   <div class="side">
-    <div class="sh"><input id="q" placeholder="🔍 搜索项目…"><button class="rfr" id="rfr" title="刷新">↻</button></div>
+    <div class="sh"><input id="q" placeholder="🔍 搜索项目…"></div>
     <div class="fseg" id="fseg"><span class="on" data-f="all">全部</span><span data-f="c">Claude</span><span data-f="x">Codex</span></div>
     <div class="opts"><label><input type="checkbox" id="showStale">显示失效项目</label>
       <span id="cnt" style="margin-left:auto"></span></div>
@@ -133,10 +131,10 @@
     document.querySelectorAll('#fseg span').forEach(s=>s.classList.toggle('on',s===e.target));
     sideFilter=e.target.dataset.f;render();
   });
-  // 刷新去重:进行中忽略再次点击
-  const rfr=document.getElementById('rfr');
-  rfr.onclick=()=>{if(rfr.classList.contains('busy'))return;
-    rfr.classList.add('busy');setTimeout(()=>rfr.classList.remove('busy'),1500);};
+  // 全局刷新(rail 底部)去重:进行中忽略再次点击
+  const grfr=document.getElementById('grfr');
+  grfr.onclick=()=>{if(grfr.classList.contains('busy'))return;
+    grfr.classList.add('busy');setTimeout(()=>grfr.classList.remove('busy'),1500);};
   render();
 </script>
 <script>
