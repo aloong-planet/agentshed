@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CMD, EVT, type SetHiddenArgs } from '@shared/ipc'
 import type { ProjectStats, Snapshot } from '@shared/domain'
@@ -57,11 +58,24 @@ ipcMain.handle(CMD.getSnapshot, async () => {
   return doScan()
 })
 ipcMain.handle(CMD.refresh, async () => doScan())
+// 产物文件白名单:只允许读/外开「详情里列出过」的文件,堵任意路径读取口
+const artifactWhitelist = new Set<string>()
+
 ipcMain.handle(CMD.getProjectDetail, (_e, path: unknown) => {
   if (typeof path !== 'string' || path === '') throw new Error('getProjectDetail 参数不合契约')
   const detail = readProjectDetail(realRoots(), path)
   detail.stats = perProjectStats.get(mergeKey(path)) ?? null
+  for (const a of detail.artifacts) artifactWhitelist.add(a.file)
   return detail
+})
+ipcMain.handle(CMD.readArtifact, (_e, file: unknown) => {
+  if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw new Error('产物路径不在白名单')
+  const raw = readFileSync(file, 'utf8')
+  return raw.length > 500_000 ? `${raw.slice(0, 500_000)}\n…(已截断)` : raw
+})
+ipcMain.handle(CMD.openArtifact, async (_e, file: unknown) => {
+  if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw new Error('产物路径不在白名单')
+  await shell.openPath(file)
 })
 ipcMain.handle(CMD.setHidden, (_e, args: unknown) => {
   const a = args as SetHiddenArgs

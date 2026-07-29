@@ -8,7 +8,11 @@ export const CMD = {
   /** 手动隐藏/取消隐藏项目 */
   setHidden: 'agentshed:set-hidden',
   /** 按需拉取项目详情 */
-  getProjectDetail: 'agentshed:get-project-detail'
+  getProjectDetail: 'agentshed:get-project-detail',
+  /** 读产物 Markdown(仅限详情列出过的文件,主进程白名单校验) */
+  readArtifact: 'agentshed:read-artifact',
+  /** 外开产物(prototypes HTML → 系统默认打开;同白名单) */
+  openArtifact: 'agentshed:open-artifact'
 } as const
 
 export const EVT = {
