@@ -1,0 +1,138 @@
+/* 主题变量:原型同款色板,浅/深随系统 */
+:root {
+  --bg: #f7f8f9;
+  --card: #ffffff;
+  --text: #37352f;
+  --text-2: #787774;
+  --line: #e8eaed;
+  --line-strong: #d9dce0;
+  --accent: #8a67ab;
+  --accent-soft: #f0ebf6;
+  --ok-bg: #dcfce7;
+  --ok-fg: #166534;
+  --warn-fg: #b3552f;
+  --err-bg: #fee2e2;
+  --err-fg: #991b1b;
+  --cl-bg: #e8e0f3;
+  --cl-fg: #6b4f92;
+  --cx-bg: #dcefe4;
+  --cx-fg: #1f7a4d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #18191b;
+    --card: #1f2124;
+    --text: #e6e6e5;
+    --text-2: #9b9a97;
+    --line: #2a2c30;
+    --line-strong: #34373c;
+    --accent: #a084c7;
+    --accent-soft: #2c2733;
+    --ok-bg: #12301d;
+    --ok-fg: #86efac;
+    --err-bg: #2a1416;
+    --err-fg: #fca5a5;
+    --cl-bg: #3a3153;
+    --cl-fg: #c9b3ec;
+    --cx-bg: #1d3a2b;
+    --cx-fg: #7fd6a4;
+  }
+}
+* {
+  box-sizing: border-box;
+  margin: 0;
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+}
+
+/* ── 布局骨架:rail + 内容 ── */
+.app {
+  display: flex;
+  height: 100%;
+}
+.rail {
+  width: 48px;
+  flex: none;
+  background: var(--card);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+  gap: 6px;
+}
+.rail .ri {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--text-2);
+  background: transparent;
+}
+.rail .ri:hover {
+  background: var(--accent-soft);
+}
+.rail .ri.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.rail .ri.grfr {
+  margin-top: auto;
+  margin-bottom: 10px;
+}
+.rail .ri.busy {
+  animation: spin 1s linear infinite;
+  pointer-events: none;
+  color: var(--accent);
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.stage {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+/* ── 通用件 ── */
+.badge {
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 1px 4px;
+  letter-spacing: 0.2px;
+}
+.badge.cl {
+  background: var(--cl-bg);
+  color: var(--cl-fg);
+}
+.badge.cx {
+  background: var(--cx-bg);
+  color: var(--cx-fg);
+}
+.empty {
+  margin: auto;
+  text-align: center;
+  color: var(--text-2);
+  line-height: 2;
+}
+.empty .big {
+  font-size: 34px;
+}
