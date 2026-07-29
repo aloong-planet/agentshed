@@ -1,8 +1,8 @@
 <!doctype html>
-<!-- 原型(UI)· 票05:八步产物全景(双视图)。
-     问题:同一份产物索引的两种组织——项目详情内按类型分栏 vs 全局聚合页按类型手风琴,
-     形态差多少、条目行含哪些字段;Markdown 阅读态怎么进出。
-     交互:顶部切双视图;手风琴折叠;点条目开阅读浮层(Esc/点遮罩关)。 -->
+<!-- 原型(UI)· 票05:八步产物全景(icon rail 的「产物」维度页,占全宽)。
+     问题:全局聚合手风琴铺满整幅后的密度;与详情页产物 tab(双视图的另一半)的关系;
+     Markdown 阅读态怎么进出。
+     交互:顶部切双视图对比;手风琴折叠;点条目开阅读浮层(Esc/点遮罩关)。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -14,12 +14,12 @@
     --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
-  .side{width:230px;flex:none;background:var(--card);border-right:1px solid var(--line);
-    padding:10px 8px;color:var(--text-2);display:flex;flex-direction:column}
-  .row{padding:7px 10px;border-radius:6px}.row.sel{background:var(--accent-soft);color:var(--text);outline:1px solid var(--accent)}
-  .bottom{margin-top:auto;border-top:1px solid var(--line);padding-top:8px}
-  .entry{padding:7px 10px;border-radius:6px;cursor:pointer}
-  .entry.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
+  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2)}
+  .rail .ri:hover{background:var(--accent-soft)}
+  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
   .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
   .head{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
   .head b{font-size:15px}
@@ -52,13 +52,14 @@
 </style>
 </head>
 <body>
-  <div class="side">
-    <div class="row">agentshed</div><div class="row sel" id="prjRow">Transfer</div><div class="row">openclaw-v3</div>
-    <div class="bottom"><div class="entry">⚙ 全局库</div><div class="entry on" id="galEntry">📚 产物聚合</div></div>
+  <div class="rail">
+    <div class="ri" title="项目">🏠</div>
+    <div class="ri" title="全局库">⚙</div>
+    <div class="ri on" title="产物">📚</div>
   </div>
   <div class="main">
     <div class="head"><b id="title">产物聚合 · 全部项目</b>
-      <span class="seg" id="seg"><span class="on">全局聚合</span><span>项目内视图(Transfer)</span></span></div>
+      <span class="seg" id="seg"><span class="on">全局聚合</span><span>项目内视图(=详情页产物 tab)</span></span></div>
     <div class="body" id="body"></div>
   </div>
   <div class="mask" id="mask"></div>

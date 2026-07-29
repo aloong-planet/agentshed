@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- 原型(UI)· 票06:全局库页与装卸交互。
+<!-- 原型(UI)· 票06:全局库页与装卸交互(icon rail 的「全局库」维度页,占全宽)。
      问题:合并单列+侧徽标(已选型)下两侧差异怎么读;「安装到…」目标选择器、
      同名阻止、失效项目禁用、卸载确认弹窗各自的形态与时机。
      交互:行内「安装到…」弹选择器(失效项目置灰;装到 Transfer 的 tdd 触发同名阻止);
@@ -15,12 +15,12 @@
     --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
-  .side{width:230px;flex:none;background:var(--card);border-right:1px solid var(--line);
-    padding:10px 8px;color:var(--text-2);display:flex;flex-direction:column}
-  .row{padding:7px 10px;border-radius:6px}
-  .bottom{margin-top:auto;border-top:1px solid var(--line);padding-top:8px}
-  .entry{padding:7px 10px;border-radius:6px;cursor:pointer}
-  .entry.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
+  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2)}
+  .rail .ri:hover{background:var(--accent-soft)}
+  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
   .main{flex:1;min-width:0;overflow:auto;padding:16px 22px}
   h2{font-size:15px;margin-bottom:2px}
   .sub{font-size:11.5px;color:var(--text-2);margin-bottom:14px}
@@ -69,9 +69,10 @@
 </style>
 </head>
 <body>
-  <div class="side">
-    <div class="row">agentshed</div><div class="row">Transfer</div><div class="row">openclaw-v3</div>
-    <div class="bottom"><div class="entry on">⚙ 全局库</div><div class="entry">📚 产物聚合</div></div>
+  <div class="rail">
+    <div class="ri" title="项目">🏠</div>
+    <div class="ri on" title="全局库">⚙</div>
+    <div class="ri" title="产物">📚</div>
   </div>
   <div class="main">
     <h2>全局库(合并单列 · 只读,内容变更不经 app)</h2>

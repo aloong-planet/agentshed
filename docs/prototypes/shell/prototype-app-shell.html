@@ -1,8 +1,8 @@
 <!doctype html>
-<!-- 原型(UI)· 票01:Electron 骨架的双栏壳。
-     问题:空壳阶段的布局骨架长什么样——左栏(搜索/列表区/底部全局入口)与右侧空态、
+<!-- 原型(UI)· 票01:icon rail + 双栏的壳。
+     问题:三维度(项目/全局库/产物)提为最左窄 rail 后,壳的骨架长什么样;
      启动扫描态如何呈现(渐进填充前不显示"空"误导)。
-     交互:点「模拟扫描完成」在扫描态/就绪空态间切换。 -->
+     交互:点「模拟扫描完成」在扫描态/就绪空态间切换;rail 为静态示意(维度页见对应原型)。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -14,6 +14,12 @@
     --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
+  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2)}
+  .rail .ri:hover{background:var(--accent-soft)}
+  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
   .side{width:250px;flex:none;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column}
   .search{margin:12px 12px 8px;padding:6px 10px;border:1px solid var(--line-strong);border-radius:7px;
     color:var(--text-2);background:var(--bg)}
@@ -22,9 +28,6 @@
     background-size:200% 100%;animation:sh 1.2s infinite}
   @keyframes sh{to{background-position:-200% 0}}
   .side-empty{color:var(--text-2);text-align:center;padding:40px 16px;line-height:1.8;font-size:12.5px}
-  .bottom{border-top:1px solid var(--line);padding:8px}
-  .entry{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--text-2)}
-  .entry:hover{background:var(--accent-soft);color:var(--accent)}
   .main{flex:1;display:flex;flex-direction:column}
   .topbar{height:44px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 16px}
   .topbar b{font-size:13px}
@@ -41,13 +44,14 @@
 </style>
 </head>
 <body>
+  <div class="rail">
+    <div class="ri on" title="项目">🏠</div>
+    <div class="ri" title="全局库">⚙</div>
+    <div class="ri" title="产物">📚</div>
+  </div>
   <div class="side">
     <div class="search">🔍 搜索项目…</div>
     <div class="list" id="list"></div>
-    <div class="bottom">
-      <div class="entry">⚙ 全局库</div>
-      <div class="entry">📚 产物聚合</div>
-    </div>
   </div>
   <div class="main">
     <div class="topbar"><b>Agentshed</b>

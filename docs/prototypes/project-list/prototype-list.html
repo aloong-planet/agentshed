@@ -1,7 +1,7 @@
 <!doctype html>
-<!-- 原型(UI)· 票02:项目图鉴列表。
+<!-- 原型(UI)· 票02:项目图鉴列表(icon rail 之内的项目维度)。
      问题:并集列表的行密度与徽标怎么摆;失效过滤开关、手动隐藏/恢复、搜索、
-     活跃度排序在左栏里如何共存不打架。
+     活跃度排序在纯项目栏里如何共存不打架(全局入口已移入最左 rail,不再挤在列表底部)。
      交互:搜索、勾选"显示失效"、行悬停出隐藏按钮、「已隐藏 N 项」展开恢复、刷新去重(连点无效)。 -->
 <html lang="zh-CN">
 <head>
@@ -14,6 +14,12 @@
     --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
+  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2)}
+  .rail .ri:hover{background:var(--accent-soft)}
+  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
   .side{width:270px;flex:none;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column}
   .sh{display:flex;gap:6px;margin:12px 12px 6px}
   .sh input{flex:1;padding:6px 10px;border:1px solid var(--line-strong);border-radius:7px;
@@ -46,15 +52,17 @@
   .hidden-entry:hover{background:var(--accent-soft);color:var(--accent)}
   .hidden-panel{margin:0 8px 6px;border:1px dashed var(--line-strong);border-radius:7px;padding:4px}
   .hidden-panel .row{opacity:.75}
-  .bottom{border-top:1px solid var(--line);padding:8px}
-  .entry{padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--text-2)}
-  .entry:hover{background:var(--accent-soft);color:var(--accent)}
   .main{flex:1;display:flex;flex-direction:column}
   .topbar{height:44px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px}
   .empty{margin:auto;text-align:center;color:var(--text-2);line-height:2}
 </style>
 </head>
 <body>
+  <div class="rail">
+    <div class="ri on" title="项目">🏠</div>
+    <div class="ri" title="全局库">⚙</div>
+    <div class="ri" title="产物">📚</div>
+  </div>
   <div class="side">
     <div class="sh"><input id="q" placeholder="🔍 搜索项目…"><button class="rfr" id="rfr" title="刷新">↻</button></div>
     <div class="opts"><label><input type="checkbox" id="showStale">显示失效项目</label>
@@ -62,7 +70,6 @@
     <div class="list" id="list"></div>
     <div class="hidden-entry" id="hEntry"></div>
     <div class="hidden-panel" id="hPanel" style="display:none"></div>
-    <div class="bottom"><div class="entry">⚙ 全局库</div><div class="entry">📚 产物聚合</div></div>
   </div>
   <div class="main">
     <div class="topbar"><b>Agentshed</b></div>
