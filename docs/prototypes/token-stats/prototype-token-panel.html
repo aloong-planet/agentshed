@@ -1,0 +1,125 @@
+<!doctype html>
+<!-- 原型(UI)· 票04:Token 统计与会话列表。
+     问题:详情头部 token 概览(总量/模型拆分/cache 单列)+ 30 天趋势的密度与形态;
+     会话 tab 的元数据列表长什么样(不渲染内容);两侧口径分列怎么呈现不误导。
+     交互:趋势条悬停出数值;模型拆分/侧别切换;会话行悬停。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 — Token 面板与会话列表</title>
+<style>
+  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .side{width:230px;flex:none;background:var(--card);border-right:1px solid var(--line);padding:10px 8px;color:var(--text-2)}
+  .row{padding:7px 10px;border-radius:6px}
+  .row.sel{background:var(--accent-soft);color:var(--text);outline:1px solid var(--accent)}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:auto}
+  .head{padding:14px 20px;border-bottom:1px solid var(--line)}
+  .h1{font-size:16px;font-weight:700;margin-bottom:10px}
+  .stats{display:flex;gap:14px;flex-wrap:wrap}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 14px;min-width:118px}
+  .stat .k{font-size:10.5px;color:var(--text-2);margin-bottom:3px}
+  .stat .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+  .stat .s{font-size:10.5px;color:var(--text-2);margin-top:2px}
+  .stat.cache{border-style:dashed}
+  .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;margin-left:auto;align-self:center}
+  .seg span{padding:4px 11px;font-size:11.5px;color:var(--text-2);cursor:pointer}
+  .seg span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .sec{padding:14px 20px}
+  .sec h4{font-size:12px;color:var(--text-2);margin-bottom:10px;display:flex}
+  .chart{display:flex;align-items:flex-end;gap:3px;height:110px;background:var(--card);
+    border:1px solid var(--line);border-radius:9px;padding:12px}
+  .bar{flex:1;background:var(--accent);opacity:.75;border-radius:2px 2px 0 0;min-height:2px;position:relative;cursor:pointer}
+  .bar:hover{opacity:1}
+  .bar:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+    background:#1b1b1f;color:#fff;font-size:10.5px;padding:4px 8px;border-radius:5px;white-space:nowrap;z-index:5}
+  .bar.x{background:#3ba272}
+  .models{display:flex;flex-direction:column;gap:7px}
+  .m{display:flex;align-items:center;gap:10px}
+  .m .nm{width:150px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;flex:none}
+  .m .tr{flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+  .m .tr i{display:block;height:100%;background:var(--accent)}
+  .m.x .tr i{background:#3ba272}
+  .m .num{width:70px;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--text-2)}
+  .ses{background:var(--card);border:1px solid var(--line);border-radius:9px}
+  .se{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);cursor:default}
+  .se:last-child{border-bottom:0}
+  .se:hover{background:var(--accent-soft)}
+  .se .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .se .d{font-size:11px;color:var(--text-2);flex:none;font-variant-numeric:tabular-nums}
+  .se .tok{font-size:11px;color:var(--text-2);flex:none;width:74px;text-align:right;font-variant-numeric:tabular-nums}
+  .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px;flex:none}
+  .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
+  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  .note{font-size:11px;color:var(--text-2);margin-top:8px;line-height:1.6}
+</style>
+</head>
+<body>
+  <div class="side"><div class="row">agentshed</div><div class="row sel">Transfer</div><div class="row">openclaw-v3</div></div>
+  <div class="main">
+    <div class="head">
+      <div class="h1">Transfer — Token</div>
+      <div class="stats">
+        <div class="stat"><div class="k">累计总量(两侧合计)</div><div class="v">7.6M</div>
+          <div class="s">Claude 5.5M · Codex 2.1M</div></div>
+        <div class="stat"><div class="k">输入 / 输出</div><div class="v">6.9M / 0.7M</div>
+          <div class="s">各侧原生口径分列</div></div>
+        <div class="stat cache"><div class="k">cache 命中(单列,不计入总量)</div><div class="v">48.2M</div>
+          <div class="s">读 47.1M · 写 1.1M</div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <h4>近 30 天趋势(本地时区,日粒度)<span class="seg" id="seg"><span class="on">合计</span><span>Claude</span><span>Codex</span></span></h4>
+      <div class="chart" id="chart"></div>
+      <div class="note">悬停看单日数值;无会话的日期为零高度。</div>
+    </div>
+    <div class="sec">
+      <h4>按模型拆分</h4>
+      <div class="models">
+        <div class="m"><span class="nm">claude-fable-5</span><span class="tr"><i style="width:64%"></i></span><span class="num">3.5M</span></div>
+        <div class="m"><span class="nm">claude-opus-5</span><span class="tr"><i style="width:33%"></i></span><span class="num">1.8M</span></div>
+        <div class="m"><span class="nm">claude-haiku-4-5</span><span class="tr"><i style="width:4%"></i></span><span class="num">0.2M</span></div>
+        <div class="m x"><span class="nm">gpt-5.5-codex</span><span class="tr"><i style="width:38%"></i></span><span class="num">2.1M</span></div>
+      </div>
+    </div>
+    <div class="sec">
+      <h4>会话(主线程,元数据即止;subagent 会话计 token 不列出)</h4>
+      <div class="ses">
+        <div class="se"><span class="b c">CL</span><span class="t">MAS 上架支持:构建线与独立 bundle id</span><span class="tok">312k</span><span class="d">3天前</span></div>
+        <div class="se"><span class="b c">CL</span><span class="t">屏幕录制权限 preflight 修复</span><span class="tok">188k</span><span class="d">5天前</span></div>
+        <div class="se"><span class="b x">CX</span><span class="t">迁移 Claude Code skills 到 Codex</span><span class="tok">96k</span><span class="d">9天前</span></div>
+        <div class="se"><span class="b c">CL</span><span class="t">消息领域模型收敛为单一数据源</span><span class="tok">421k</span><span class="d">12天前</span></div>
+        <div class="se"><span class="b x">CX</span><span class="t">确认 computer use 功能</span><span class="tok">44k</span><span class="d">16天前</span></div>
+      </div>
+    </div>
+  </div>
+<script>
+  // 30 天 mock:两侧分列,悬停出数值;切换合计/单侧
+  const days=[...Array(30)].map((_,i)=>{
+    const c=i%7===3?0:Math.round(30+Math.random()*260);
+    const x=i%5===2?Math.round(20+Math.random()*120):0;
+    return {d:`7/${i+1}`,c,x};
+  });
+  const chart=document.getElementById('chart');
+  let mode='合计';
+  function render(){
+    const max=Math.max(...days.map(v=>mode==='Claude'?v.c:mode==='Codex'?v.x:v.c+v.x),1);
+    chart.innerHTML=days.map(v=>{
+      const val=mode==='Claude'?v.c:mode==='Codex'?v.x:v.c+v.x;
+      const cls=mode==='Codex'?'bar x':'bar';
+      return `<div class="${cls}" style="height:${Math.round(val/max*100)}%" data-tip="${v.d} · ${val}k tok"></div>`;
+    }).join('');
+  }
+  document.getElementById('seg').addEventListener('click',e=>{
+    if(e.target.tagName!=='SPAN')return;
+    document.querySelectorAll('#seg span').forEach(s=>s.classList.toggle('on',s===e.target));
+    mode=e.target.textContent;render();
+  });
+  render();
+</script>
+</body>
+</html>

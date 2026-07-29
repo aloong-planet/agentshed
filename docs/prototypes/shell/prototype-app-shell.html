@@ -1,0 +1,83 @@
+<!doctype html>
+<!-- 原型(UI)· 票01:Electron 骨架的双栏壳。
+     问题:空壳阶段的布局骨架长什么样——左栏(搜索/列表区/底部全局入口)与右侧空态、
+     启动扫描态如何呈现(渐进填充前不显示"空"误导)。
+     交互:点「模拟扫描完成」在扫描态/就绪空态间切换。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 — 双栏壳与扫描态</title>
+<style>
+  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .side{width:250px;flex:none;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column}
+  .search{margin:12px 12px 8px;padding:6px 10px;border:1px solid var(--line-strong);border-radius:7px;
+    color:var(--text-2);background:var(--bg)}
+  .list{flex:1;overflow:auto;padding:4px 8px}
+  .skel{height:30px;border-radius:6px;margin:6px 4px;background:linear-gradient(90deg,var(--line) 25%,var(--bg) 50%,var(--line) 75%);
+    background-size:200% 100%;animation:sh 1.2s infinite}
+  @keyframes sh{to{background-position:-200% 0}}
+  .side-empty{color:var(--text-2);text-align:center;padding:40px 16px;line-height:1.8;font-size:12.5px}
+  .bottom{border-top:1px solid var(--line);padding:8px}
+  .entry{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--text-2)}
+  .entry:hover{background:var(--accent-soft);color:var(--accent)}
+  .main{flex:1;display:flex;flex-direction:column}
+  .topbar{height:44px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 16px}
+  .topbar b{font-size:13px}
+  .scanpill{margin-left:auto;font-size:12px;color:var(--text-2);display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:blink 1s infinite alternate}
+  @keyframes blink{to{opacity:.25}}
+  .stage{flex:1;display:flex}
+  .empty{margin:auto;text-align:center;color:var(--text-2);line-height:2}
+  .empty .big{font-size:34px}
+  button.demo{position:fixed;right:14px;bottom:14px;z-index:9;font:inherit;font-size:12px;
+    border:1px solid var(--line-strong);background:var(--card);color:var(--text-2);
+    border-radius:999px;padding:7px 14px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+  button.demo:hover{color:var(--accent);border-color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="side">
+    <div class="search">🔍 搜索项目…</div>
+    <div class="list" id="list"></div>
+    <div class="bottom">
+      <div class="entry">⚙ 全局库</div>
+      <div class="entry">📚 产物聚合</div>
+    </div>
+  </div>
+  <div class="main">
+    <div class="topbar"><b>Agentshed</b>
+      <span class="scanpill" id="pill"><span class="dot"></span>正在扫描 Claude Code / Codex…</span>
+    </div>
+    <div class="stage"><div class="empty" id="stageMsg">
+      <div class="big">🛖</div>
+      <div>扫描完成前不显示空列表,避免"没有项目"的误导</div>
+    </div></div>
+  </div>
+  <button class="demo" id="toggle">模拟扫描完成</button>
+<script>
+  const list=document.getElementById('list'),pill=document.getElementById('pill'),
+        msg=document.getElementById('stageMsg'),btn=document.getElementById('toggle');
+  let scanning=true;
+  function render(){
+    if(scanning){
+      list.innerHTML='<div class="skel"></div>'.repeat(7);
+      pill.style.display='flex';
+      msg.innerHTML='<div class="big">🛖</div><div>扫描完成前不显示空列表,避免"没有项目"的误导</div>';
+      btn.textContent='模拟扫描完成';
+    }else{
+      list.innerHTML='<div class="side-empty">未检测到任何 agent 数据<br>(本机没有 Claude Code / Codex,<br>或注册表为空)</div>';
+      pill.style.display='none';
+      msg.innerHTML='<div class="big">🛖</div><div>就绪空态:引导页占位<br><span style="font-size:12px">列表有数据时,这里显示「选择一个项目」</span></div>';
+      btn.textContent='模拟重新扫描';
+    }
+  }
+  btn.onclick=()=>{scanning=!scanning;render()};
+  render();
+</script>
+</body>
+</html>

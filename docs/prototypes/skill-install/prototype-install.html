@@ -1,0 +1,154 @@
+<!doctype html>
+<!-- 原型(UI)· 票06:全局库页与装卸交互。
+     问题:合并单列+侧徽标(已选型)下两侧差异怎么读;「安装到…」目标选择器、
+     同名阻止、失效项目禁用、卸载确认弹窗各自的形态与时机。
+     交互:行内「安装到…」弹选择器(失效项目置灰;装到 Transfer 的 tdd 触发同名阻止);
+     下方"项目级副本"区演示卸载确认弹窗(含完整路径)。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 — 全局库与装卸</title>
+<style>
+  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .side{width:230px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    padding:10px 8px;color:var(--text-2);display:flex;flex-direction:column}
+  .row{padding:7px 10px;border-radius:6px}
+  .bottom{margin-top:auto;border-top:1px solid var(--line);padding-top:8px}
+  .entry{padding:7px 10px;border-radius:6px;cursor:pointer}
+  .entry.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .main{flex:1;min-width:0;overflow:auto;padding:16px 22px}
+  h2{font-size:15px;margin-bottom:2px}
+  .sub{font-size:11.5px;color:var(--text-2);margin-bottom:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:20px}
+  .it{display:flex;align-items:center;gap:8px;padding:9px 14px;border-top:1px solid var(--line);position:relative}
+  .it:first-child{border-top:0}
+  .nm{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;width:200px;flex:none}
+  .ds{flex:1;min-width:0;color:var(--text-2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bdg{display:flex;gap:3px;flex:none;width:74px}
+  .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
+  .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
+  .b.miss{border:1px dashed var(--line-strong);color:var(--text-2);background:transparent;font-weight:400}
+  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  .pill{font-size:10px;border-radius:4px;padding:1px 6px;flex:none}
+  .pill.ln{border:1px dashed var(--line-strong);color:var(--text-2)}
+  .diff{font-size:10px;color:#b3552f;flex:none}
+  .ins{font:inherit;font-size:11.5px;border:1px solid var(--line-strong);background:var(--bg);color:var(--text-2);
+    border-radius:6px;padding:3px 10px;cursor:pointer;flex:none}
+  .ins:hover{color:var(--accent);border-color:var(--accent)}
+  .pop{position:absolute;right:10px;top:calc(100% - 4px);z-index:8;background:var(--card);
+    border:1px solid var(--line-strong);border-radius:9px;box-shadow:0 8px 26px rgba(0,0,0,.18);
+    min-width:230px;padding:6px;display:none}
+  .pop.open{display:block}
+  .pop .t{font-size:10.5px;color:var(--text-2);padding:4px 8px}
+  .pop .p{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:6px;cursor:pointer}
+  .pop .p:hover{background:var(--accent-soft)}
+  .pop .p.dis{color:var(--text-2);cursor:not-allowed;opacity:.55}
+  .pop .p.dis:hover{background:none}
+  .pop .why{margin-left:auto;font-size:10px;color:#b3552f}
+  .pop .have{margin-left:auto;font-size:10px;color:var(--text-2)}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:30;display:none;
+    border-radius:9px;padding:10px 16px;font-size:12.5px;box-shadow:0 8px 26px rgba(0,0,0,.25)}
+  .toast.ok{background:#dcfce7;color:#166534;border:1px solid #86efac}
+  .toast.err{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+  .mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:20}
+  .dlg{position:fixed;top:30vh;left:50%;transform:translateX(-50%);width:min(460px,92vw);z-index:21;display:none;
+    background:var(--card);border:1px solid var(--line-strong);border-radius:12px;padding:20px 22px}
+  .dlg h3{font-size:14px;margin-bottom:8px}
+  .dlg p{font-size:12.5px;color:var(--text-2);line-height:1.7;margin-bottom:6px}
+  .dlg code{display:block;background:var(--bg);border:1px solid var(--line);border-radius:6px;
+    padding:7px 10px;font-size:11.5px;margin:8px 0 14px;word-break:break-all}
+  .dlg .btns{display:flex;justify-content:flex-end;gap:8px}
+  .dlg button{font:inherit;font-size:12.5px;border-radius:7px;padding:6px 14px;cursor:pointer;border:1px solid var(--line-strong);background:var(--bg);color:var(--text)}
+  .dlg button.danger{background:#b91c1c;border-color:#b91c1c;color:#fff}
+  .uheader{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:12px;color:var(--text-2)}
+</style>
+</head>
+<body>
+  <div class="side">
+    <div class="row">agentshed</div><div class="row">Transfer</div><div class="row">openclaw-v3</div>
+    <div class="bottom"><div class="entry on">⚙ 全局库</div><div class="entry">📚 产物聚合</div></div>
+  </div>
+  <div class="main">
+    <h2>全局库(合并单列 · 只读,内容变更不经 app)</h2>
+    <div class="sub">徽标 = 该侧全局库是否存在;两侧同名但内容有差异时标「差异」;⤷ = 软链(安装时解引用复制为真文件)</div>
+    <div class="card" id="lib"></div>
+
+    <h2>Transfer · 项目级副本(演示卸载,实际入口在项目详情 Skills 分栏)</h2>
+    <div class="card">
+      <div class="uheader">项目级 · .claude/skills(仅项目级可卸;全局层 skill 无卸载入口)</div>
+      <div class="it"><span class="nm">ui-design</span><span class="ds">项目专属 UI 走查规范</span>
+        <button class="ins" id="uni">卸载</button></div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div class="mask" id="mask"></div>
+  <div class="dlg" id="dlg"></div>
+<script>
+  // 目标项目 mock:has = 已装同名(选择器内直接标示);stale 置灰
+  const PROJECTS=[
+    {n:'agentshed',stale:false,has:[]},
+    {n:'Transfer',stale:false,has:['tdd','ui-design']},
+    {n:'openclaw-v3',stale:false,has:[]},
+    {n:'New project',stale:true,has:[]},
+  ];
+  const LIB=[
+    {n:'tdd',ds:'红先于绿,覆盖来自 spec 失败模式节',c:1,x:1,diff:true},
+    {n:'grilling',ds:'按依赖分批的需求逼问',c:1,x:1,diff:true},
+    {n:'decision-form',ds:'批量决策外部表单(含渲染器脚本)',c:0,x:1},
+    {n:'review-code',ds:'四层法 review',c:1,x:0},
+    {n:'github-ops',ds:'GitHub 产出规范(无 AI 署名)',c:1,x:1,ln:true},
+    {n:'electron-scaffold',ds:'新 Electron 项目一次性基础设施',c:1,x:1},
+  ];
+  const lib=document.getElementById('lib');
+  lib.innerHTML=LIB.map((s,i)=>`<div class="it">
+      <span class="nm">${s.n}</span>
+      <span class="bdg">${s.c?'<span class="b c">CL</span>':'<span class="b miss">—</span>'}${s.x?'<span class="b x">CX</span>':'<span class="b miss">—</span>'}</span>
+      ${s.ln?'<span class="pill ln">⤷ 软链</span>':''}${s.diff?'<span class="diff">两侧有差异</span>':''}
+      <span class="ds">${s.ds}</span>
+      <button class="ins" data-i="${i}">安装到…</button>
+      <div class="pop" id="pop-${i}">
+        <div class="t">选择目标项目(复制落地)</div>
+        ${PROJECTS.map(p=>{
+          const has=p.has.includes(s.n);
+          return `<div class="p ${p.stale?'dis':''}" data-s="${s.n}" data-p="${p.n}" data-has="${has?1:0}" ${p.stale?'':''}>
+            ${p.n}${p.stale?'<span class="why">失效,禁用</span>':has?'<span class="have">已装同名</span>':''}</div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+  function toast(msg,ok){const t=document.getElementById('toast');
+    t.textContent=msg;t.className='toast '+(ok?'ok':'err');t.style.display='block';
+    clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2600);}
+  document.body.addEventListener('click',e=>{
+    const btn=e.target.closest('.ins[data-i]');
+    document.querySelectorAll('.pop').forEach(p=>{if(!btn||p.id!=='pop-'+btn.dataset.i)p.classList.remove('open')});
+    if(btn){document.getElementById('pop-'+btn.dataset.i).classList.toggle('open');return;}
+    const p=e.target.closest('.pop .p');
+    if(p){
+      if(p.classList.contains('dis'))return;
+      p.closest('.pop').classList.remove('open');
+      if(p.dataset.has==='1'){toast(`⚠ ${p.dataset.p} 已有同名 skill「${p.dataset.s}」,已阻止,不覆盖`,false);}
+      else{toast(`✓ 已安装 ${p.dataset.s} → ${p.dataset.p}(复制落地;仅局部刷新该项目)`,true);}
+      return;
+    }
+  });
+  // 卸载确认:显示完整删除路径
+  const mask=document.getElementById('mask'),dlg=document.getElementById('dlg');
+  document.getElementById('uni').onclick=()=>{
+    mask.style.display='block';dlg.style.display='block';
+    dlg.innerHTML=`<h3>卸载项目级 skill?</h3>
+      <p>将删除以下目录(项目 git 状态由你自行处理;不做副本差异检测):</p>
+      <code>~/CascadeProjects/Transfer/.claude/skills/ui-design/</code>
+      <div class="btns"><button id="dlg-c">取消</button><button class="danger" id="dlg-y">删除</button></div>`;
+    document.getElementById('dlg-c').onclick=close;
+    document.getElementById('dlg-y').onclick=()=>{close();toast('✓ 已卸载 ui-design(仅局部刷新 Transfer)',true);};
+  };
+  function close(){mask.style.display='none';dlg.style.display='none'}
+  mask.onclick=close;
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+%% title: 刷新生命周期(去重与原子写)
+%%{init: {
+  'theme': 'base',
+  'htmlLabels': false,
+  'state': { 'htmlLabels': false },
+  'flowchart': { 'htmlLabels': false },
+  'themeVariables': {
+    'primaryColor': '#ECECFF',
+    'primaryBorderColor': '#D5D5FF',
+    'primaryTextColor': '#000000',
+    'lineColor': '#757575',
+    'textColor': '#212121',
+    'edgeLabelBackground': 'transparent',
+    'noteBkgColor': '#FFF6B8',
+    'noteBorderColor': '#E4C800',
+    'noteTextColor': '#5C5100',
+    'tertiaryColor': '#f5f5f5',
+    'background': '#FFFFFF'
+  }
+}}%%
+stateDiagram-v2
+  direction LR
+  [*] --> idle: app 启动
+  idle --> scanning: refresh
+  scanning --> writing: parse_done(全部文件处理完)
+  writing --> idle: write_done
+  scanning --> quit: app_quit
+  writing --> quit: app_quit
+  idle --> quit: app_quit
+  quit --> [*]
+  note right of scanning
+    scanning 中再来 refresh 一律忽略(去重)
+    坏行跳过计数,不弃整个文件
+  end note
+  note right of writing
+    原子写:临时文件 + rename
+    quit 打断也不产生半截缓存
+  end note

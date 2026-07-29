@@ -1,0 +1,45 @@
+%% title: 装卸操作状态机(防护路径全覆盖)
+%%{init: {
+  'theme': 'base',
+  'htmlLabels': false,
+  'state': { 'htmlLabels': false },
+  'flowchart': { 'htmlLabels': false },
+  'themeVariables': {
+    'primaryColor': '#ECECFF',
+    'primaryBorderColor': '#D5D5FF',
+    'primaryTextColor': '#000000',
+    'lineColor': '#757575',
+    'textColor': '#212121',
+    'edgeLabelBackground': 'transparent',
+    'noteBkgColor': '#FFF6B8',
+    'noteBorderColor': '#E4C800',
+    'noteTextColor': '#5C5100',
+    'tertiaryColor': '#f5f5f5',
+    'background': '#FFFFFF'
+  }
+}}%%
+stateDiagram-v2
+  direction LR
+  [*] --> validating: 发起安装(选定 skill+目标)
+  [*] --> confirming: 发起卸载(项目级副本)
+  validating --> copying: target_ok
+  validating --> conflict_blocked: conflict_found(同名阻止)
+  validating --> cancelled: target_stale(失效项目)
+  copying --> installed: copy_ok
+  copying --> failed_cleaned: copy_fail(清理半成品)
+  confirming --> deleting: confirm
+  confirming --> cancelled: cancel
+  deleting --> uninstalled: delete_done
+  installed --> [*]
+  conflict_blocked --> [*]
+  failed_cleaned --> [*]
+  uninstalled --> [*]
+  cancelled --> [*]
+  note right of copying
+    解引用深拷贝,落地必为真文件
+    失败即清理,不留残缺目录
+  end note
+  note right of confirming
+    确认弹窗显示完整删除路径
+    全局层 skill 无卸载入口(库只读)
+  end note

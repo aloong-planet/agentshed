@@ -1,0 +1,126 @@
+<!doctype html>
+<!-- 原型(UI)· 票02:项目图鉴列表。
+     问题:并集列表的行密度与徽标怎么摆;失效过滤开关、手动隐藏/恢复、搜索、
+     活跃度排序在左栏里如何共存不打架。
+     交互:搜索、勾选"显示失效"、行悬停出隐藏按钮、「已隐藏 N 项」展开恢复、刷新去重(连点无效)。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 — 项目图鉴列表</title>
+<style>
+  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .side{width:270px;flex:none;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column}
+  .sh{display:flex;gap:6px;margin:12px 12px 6px}
+  .sh input{flex:1;padding:6px 10px;border:1px solid var(--line-strong);border-radius:7px;
+    background:var(--bg);color:var(--text);font:inherit;outline:none}
+  .sh input:focus{border-color:var(--accent)}
+  .rfr{border:1px solid var(--line-strong);background:var(--bg);color:var(--text-2);border-radius:7px;
+    width:30px;cursor:pointer;font-size:13px}
+  .rfr:hover{color:var(--accent);border-color:var(--accent)}
+  .rfr.busy{animation:spin 1s linear infinite;pointer-events:none;color:var(--accent)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .opts{display:flex;align-items:center;gap:6px;padding:2px 14px 6px;font-size:11.5px;color:var(--text-2)}
+  .opts label{display:flex;align-items:center;gap:4px;cursor:pointer}
+  .list{flex:1;overflow:auto;padding:2px 8px}
+  .row{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:7px;cursor:pointer;position:relative}
+  .row:hover{background:var(--accent-soft)}
+  .row.sel{background:var(--accent-soft);outline:1px solid var(--accent)}
+  .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row.stale .nm{color:var(--text-2);text-decoration:line-through}
+  .meta{font-size:10.5px;color:var(--text-2);flex:none;font-variant-numeric:tabular-nums}
+  .bdg{flex:none;display:flex;gap:2px}
+  .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px;letter-spacing:.2px}
+  .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
+  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  .stale-tag{font-size:9.5px;color:#b3552f;border:1px solid #e0a184;border-radius:3px;padding:0 4px;flex:none}
+  .hide-btn{display:none;position:absolute;right:6px;border:0;background:var(--card);color:var(--text-2);
+    border-radius:5px;font-size:11px;cursor:pointer;padding:2px 6px;box-shadow:0 1px 5px rgba(0,0,0,.15)}
+  .row:hover .hide-btn{display:block}
+  .hide-btn:hover{color:var(--accent)}
+  .hidden-entry{margin:4px 8px;padding:6px 10px;font-size:11.5px;color:var(--text-2);cursor:pointer;border-radius:6px}
+  .hidden-entry:hover{background:var(--accent-soft);color:var(--accent)}
+  .hidden-panel{margin:0 8px 6px;border:1px dashed var(--line-strong);border-radius:7px;padding:4px}
+  .hidden-panel .row{opacity:.75}
+  .bottom{border-top:1px solid var(--line);padding:8px}
+  .entry{padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--text-2)}
+  .entry:hover{background:var(--accent-soft);color:var(--accent)}
+  .main{flex:1;display:flex;flex-direction:column}
+  .topbar{height:44px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px}
+  .empty{margin:auto;text-align:center;color:var(--text-2);line-height:2}
+</style>
+</head>
+<body>
+  <div class="side">
+    <div class="sh"><input id="q" placeholder="🔍 搜索项目…"><button class="rfr" id="rfr" title="刷新">↻</button></div>
+    <div class="opts"><label><input type="checkbox" id="showStale">显示失效项目</label>
+      <span id="cnt" style="margin-left:auto"></span></div>
+    <div class="list" id="list"></div>
+    <div class="hidden-entry" id="hEntry"></div>
+    <div class="hidden-panel" id="hPanel" style="display:none"></div>
+    <div class="bottom"><div class="entry">⚙ 全局库</div><div class="entry">📚 产物聚合</div></div>
+  </div>
+  <div class="main">
+    <div class="topbar"><b>Agentshed</b></div>
+    <div class="empty"><div style="font-size:34px">👈</div><div>选择一个项目查看详情</div></div>
+  </div>
+<script>
+  // 活跃度 = 最近会话时间(排序键)+ 会话数;stale = 注册表有、磁盘无
+  const DATA=[
+    {n:'agentshed',      sides:['c'],     last:'今天',   ses:5,  ord:0},
+    {n:'chatgpt-token',  sides:['x'],     last:'昨天',   ses:3,  ord:1},
+    {n:'openclaw-v3',    sides:['c'],     last:'2天前',  ses:41, ord:2},
+    {n:'Transfer',       sides:['c','x'], last:'3天前',  ses:128,ord:3},
+    {n:'AI-Learning',    sides:['x'],     last:'5天前',  ses:9,  ord:4},
+    {n:'aloong-tools',   sides:['c'],     last:'7天前',  ses:22, ord:5},
+    {n:'csv-debug-viewer',sides:['c'],    last:'1月前',  ses:6,  ord:6},
+    {n:'New project',    sides:['x'],     last:'2月前',  ses:1,  ord:7, stale:true},
+    {n:'fe',             sides:['x'],     last:'2月前',  ses:2,  ord:8, stale:true},
+  ];
+  let hidden=new Set(['csv-debug-viewer']), sel='Transfer', showHidden=false;
+  const list=document.getElementById('list'),hEntry=document.getElementById('hEntry'),
+        hPanel=document.getElementById('hPanel'),q=document.getElementById('q'),
+        showStale=document.getElementById('showStale'),cnt=document.getElementById('cnt');
+  function rowHTML(p,inHidden){
+    return `<div class="row ${p.stale?'stale':''} ${sel===p.n&&!inHidden?'sel':''}" data-n="${p.n}">
+      <span class="nm">${p.n}</span>
+      ${p.stale?'<span class="stale-tag">失效</span>':''}
+      <span class="meta">${p.last} · ${p.ses}</span>
+      <span class="bdg">${p.sides.map(s=>`<span class="b ${s}">${s==='c'?'CL':'CX'}</span>`).join('')}</span>
+      <button class="hide-btn" data-h="${p.n}">${inHidden?'恢复':'隐藏'}</button>
+    </div>`;
+  }
+  function render(){
+    const kw=q.value.trim().toLowerCase();
+    const vis=DATA.filter(p=>!hidden.has(p.n))
+      .filter(p=>showStale.checked||!p.stale)
+      .filter(p=>!kw||p.n.toLowerCase().includes(kw))
+      .sort((a,b)=>a.ord-b.ord);
+    list.innerHTML=vis.map(p=>rowHTML(p,false)).join('')||'<div style="padding:30px 10px;text-align:center;color:var(--text-2)">无匹配项目</div>';
+    const hid=DATA.filter(p=>hidden.has(p.n));
+    hEntry.textContent=hid.length?`▸ 已隐藏 ${hid.length} 项${showHidden?'(点击收起)':'(点击展开)'}`:'';
+    hPanel.style.display=showHidden&&hid.length?'block':'none';
+    hPanel.innerHTML=hid.map(p=>rowHTML(p,true)).join('');
+    const staleN=DATA.filter(p=>p.stale&&!hidden.has(p.n)).length;
+    cnt.textContent=showStale.checked?'':`已过滤 ${staleN} 个失效`;
+  }
+  document.body.addEventListener('click',e=>{
+    const h=e.target.closest('.hide-btn');
+    if(h){const n=h.dataset.h; hidden.has(n)?hidden.delete(n):hidden.add(n); render(); return;}
+    const r=e.target.closest('.row');
+    if(r&&!r.closest('.hidden-panel')){sel=r.dataset.n;render();return;}
+    if(e.target.closest('#hEntry')){showHidden=!showHidden;render();}
+  });
+  q.oninput=render; showStale.onchange=render;
+  // 刷新去重:进行中忽略再次点击
+  const rfr=document.getElementById('rfr');
+  rfr.onclick=()=>{if(rfr.classList.contains('busy'))return;
+    rfr.classList.add('busy');setTimeout(()=>rfr.classList.remove('busy'),1500);};
+  render();
+</script>
+</body>
+</html>

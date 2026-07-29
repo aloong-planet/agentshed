@@ -1,0 +1,159 @@
+<!doctype html>
+<!-- 原型(UI)· 票03:项目详情"装了什么"。
+     问题:tab 分栏下 Skills(两层来源/遮蔽/软链)、Plugins(仅 Claude)、MCP(多来源)、
+     配置文件只读渲染各自的行密度与标注怎么呈现。
+     交互:tab 切换;Skills 里可看到遮蔽/软链标注;配置 tab 内切换文件。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 — 项目详情:装了什么</title>
+<style>
+  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .side{width:230px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;padding:10px 8px;gap:2px;color:var(--text-2)}
+  .row{padding:7px 10px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row.sel{background:var(--accent-soft);color:var(--text);outline:1px solid var(--accent)}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .head{padding:14px 20px 0;border-bottom:1px solid var(--line)}
+  .h1{display:flex;align-items:center;gap:9px}
+  .h1 b{font-size:16px}
+  .b{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 5px}
+  .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
+  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  .path{font-size:11px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;margin:4px 0 10px}
+  .tabs{display:flex;gap:2px}
+  .tab{padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;color:var(--text-2);font-size:12.5px}
+  .tab:hover{color:var(--text)}
+  .tab.on{background:var(--bg);color:var(--accent);font-weight:600;border:1px solid var(--line);border-bottom-color:var(--bg)}
+  .body{flex:1;overflow:auto;padding:16px 20px}
+  .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:16px}
+  .it{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line)}
+  .it:last-child{border-bottom:0}
+  .it .nm{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+  .it .ds{flex:1;min-width:0;color:var(--text-2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pill{font-size:10px;border-radius:4px;padding:1px 6px;flex:none}
+  .pill.glb{background:var(--line);color:var(--text-2)}
+  .pill.prj{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .pill.ln{border:1px dashed var(--line-strong);color:var(--text-2)}
+  .pill.shadow{background:#fff6b8;color:#5c5100}
+  .pill.off{border:1px solid var(--line-strong);color:var(--text-2)}
+  .pill.on{background:#dcfce7;color:#166534}
+  @media (prefers-color-scheme:dark){.pill.shadow{background:#3a3316;color:#f0dd8a}.pill.on{background:#12301d;color:#86efac}}
+  .it.shadowed .nm,.it.shadowed .ds{color:var(--text-2);opacity:.62}
+  .src{font-size:10.5px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;flex:none}
+  .cfg-switch{display:flex;gap:6px;margin-bottom:10px}
+  .cfg-switch span{padding:4px 10px;border:1px solid var(--line-strong);border-radius:6px;cursor:pointer;
+    font-size:12px;color:var(--text-2)}
+  .cfg-switch span.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+  .md{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:16px 18px;
+    line-height:1.75;font-size:12.5px;max-height:52vh;overflow:auto}
+  .md h3{font-size:13px;margin-bottom:6px}
+  .md code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px}
+  .none{color:var(--text-2);padding:20px;text-align:center}
+</style>
+</head>
+<body>
+  <div class="side">
+    <div class="row">agentshed</div><div class="row">chatgpt-token</div>
+    <div class="row">openclaw-v3</div><div class="row sel">Transfer</div>
+    <div class="row">AI-Learning</div><div class="row">aloong-tools</div>
+  </div>
+  <div class="main">
+    <div class="head">
+      <div class="h1"><b>Transfer</b><span class="b c">CLAUDE</span><span class="b x">CODEX</span></div>
+      <div class="path">~/CascadeProjects/Transfer</div>
+      <div class="tabs" id="tabs">
+        <span class="tab on" data-t="skills">Skills</span><span class="tab" data-t="plugins">Plugins</span>
+        <span class="tab" data-t="mcp">MCP</span><span class="tab" data-t="cfg">配置</span>
+        <span class="tab" style="opacity:.4">产物(票05)</span><span class="tab" style="opacity:.4">会话(票04)</span>
+      </div>
+    </div>
+    <div class="body">
+      <div data-p="skills">
+        <div class="grp-t">项目级 · .claude/skills(2)</div>
+        <div class="card">
+          <div class="it"><span class="nm">ui-design</span><span class="pill prj">项目级</span>
+            <span class="ds">项目专属 UI 走查规范</span></div>
+          <div class="it"><span class="nm">tdd</span><span class="pill prj">项目级</span><span class="pill shadow">遮蔽全局</span>
+            <span class="ds">红先于绿,覆盖来自 spec 失败模式节</span></div>
+        </div>
+        <div class="grp-t">全局层 · Claude(4 / 26)</div>
+        <div class="card">
+          <div class="it shadowed"><span class="nm">tdd</span><span class="pill glb">全局</span><span class="pill shadow">被项目级遮蔽</span>
+            <span class="ds">红先于绿(全局版)</span></div>
+          <div class="it"><span class="nm">review-code</span><span class="pill glb">全局</span>
+            <span class="ds">四层法 review</span></div>
+          <div class="it"><span class="nm">grilling</span><span class="pill glb">全局</span>
+            <span class="ds">按依赖分批的需求逼问</span></div>
+          <div class="it"><span class="nm">to-tickets</span><span class="pill glb">全局</span><span class="pill ln">⤷ 软链</span>
+            <span class="ds">切 tracer-bullet 纵切票</span></div>
+        </div>
+        <div class="grp-t">全局层 · Codex(2 / 23)</div>
+        <div class="card">
+          <div class="it"><span class="nm">decision-form</span><span class="pill glb">全局</span>
+            <span class="ds">批量决策外部表单</span></div>
+          <div class="it"><span class="nm">github-ops</span><span class="pill glb">全局</span><span class="pill ln">⤷ 软链</span>
+            <span class="ds">GitHub 产出规范(无 AI 署名)</span></div>
+        </div>
+      </div>
+      <div data-p="plugins" style="display:none">
+        <div class="grp-t">Claude plugins(仅展示,不装卸)</div>
+        <div class="card">
+          <div class="it"><span class="nm">chrome-devtools-mcp</span><span class="pill on">已启用</span>
+            <span class="ds">marketplace: chrome-devtools-plugins · scope: user</span><span class="src">v1.6.0</span></div>
+          <div class="it"><span class="nm">example-disabled</span><span class="pill off">未启用</span>
+            <span class="ds">示意:已安装未启用的形态</span><span class="src">v0.9.2</span></div>
+        </div>
+        <div class="grp-t">Codex</div>
+        <div class="none">Codex 无 plugins 概念(该分组仅 Claude 侧显示)</div>
+      </div>
+      <div data-p="mcp" style="display:none">
+        <div class="grp-t">MCP Servers(按来源标注)</div>
+        <div class="card">
+          <div class="it"><span class="nm">chrome-devtools</span><span class="pill glb">plugin 自带</span>
+            <span class="ds">来自 chrome-devtools-mcp 插件</span><span class="src">Claude</span></div>
+          <div class="it"><span class="nm">figma</span><span class="pill prj">项目 .mcp.json</span>
+            <span class="ds">示意:项目级 MCP,受 enabled/disabled 开关控制</span><span class="src">Claude</span></div>
+          <div class="it"><span class="nm">node_repl</span><span class="pill glb">config.toml</span>
+            <span class="ds">[mcp_servers.node_repl]</span><span class="src">Codex</span></div>
+          <div class="it"><span class="nm">computer-use</span><span class="pill glb">config.toml</span>
+            <span class="ds">[mcp_servers.computer-use]</span><span class="src">Codex</span></div>
+        </div>
+      </div>
+      <div data-p="cfg" style="display:none">
+        <div class="cfg-switch" id="cfgs">
+          <span class="on">CLAUDE.md</span><span>AGENTS.md</span><span>settings 摘要</span>
+        </div>
+        <div class="md" id="cfgbody">
+          <h3># Transfer — 项目约定</h3>
+          <p>按内容的腐烂速度分类,各有唯一归宿——写文档前先定它属于哪类:</p>
+          <p>术语/不变量 → 根目录 <code>CONTEXT.md</code>;架构决策 → <code>docs/adr/</code>,只追加不改写;
+          运维手册 → <code>docs/ops/</code> 就地更新;功能目录 → <code>docs/features/</code>…(只读渲染,滚动容器内)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+  document.getElementById('tabs').addEventListener('click',e=>{
+    const t=e.target.closest('.tab');if(!t||!t.dataset.t)return;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+    document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
+  });
+  document.getElementById('cfgs').addEventListener('click',e=>{
+    if(e.target.tagName!=='SPAN')return;
+    document.querySelectorAll('#cfgs span').forEach(x=>x.classList.toggle('on',x===e.target));
+    const b=document.getElementById('cfgbody');
+    const w=e.target.textContent;
+    b.innerHTML=w==='CLAUDE.md'?'<h3># Transfer — 项目约定</h3><p>按内容的腐烂速度分类…(只读渲染)</p>'
+      :w==='AGENTS.md'?'<h3># AGENTS.md</h3><p>Codex 侧项目说明…(只读渲染;不存在时显示"无")</p>'
+      :'<h3>settings 摘要</h3><p><code>enabledMcpjsonServers: [figma]</code><br><code>allowedTools: …</code>(从 ~/.claude.json 项目键提取的只读摘要)</p>';
+  });
+</script>
+</body>
+</html>

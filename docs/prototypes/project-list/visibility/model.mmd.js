@@ -1,0 +1,8 @@
+// 派生文件:由 sync-mmd.mjs 从本目录 *.mmd 生成,勿手改;改图请改 .mmd 后重跑脚本。
+window.MERMAID_SOURCES = window.MERMAID_SOURCES || {};
+window.MERMAID_SOURCES["project-list/visibility"] = [
+  {
+    "title": "项目可见性状态机(失效过滤与手动隐藏正交)",
+    "src": "%% title: 项目可见性状态机(失效过滤与手动隐藏正交)\n%%{init: {\n  'theme': 'base',\n  'htmlLabels': false,\n  'state': { 'htmlLabels': false },\n  'flowchart': { 'htmlLabels': false },\n  'themeVariables': {\n    'primaryColor': '#ECECFF',\n    'primaryBorderColor': '#D5D5FF',\n    'primaryTextColor': '#000000',\n    'lineColor': '#757575',\n    'textColor': '#212121',\n    'edgeLabelBackground': 'transparent',\n    'noteBkgColor': '#FFF6B8',\n    'noteBorderColor': '#E4C800',\n    'noteTextColor': '#5C5100',\n    'tertiaryColor': '#f5f5f5',\n    'background': '#FFFFFF'\n  }\n}}%%\nstateDiagram-v2\n  direction LR\n  [*] --> normal: 扫描发现注册\n  [*] --> stale: 发现注册但目录缺失\n  normal --> stale: scan_missing\n  stale --> normal: scan_restored\n  normal --> hidden: hide\n  hidden --> normal: unhide\n  stale --> stale_hidden: hide\n  stale_hidden --> stale: unhide\n  hidden --> stale_hidden: scan_missing\n  stale_hidden --> hidden: scan_restored\n  normal --> removed: registry_removed\n  stale --> removed: registry_removed\n  hidden --> removed: registry_removed\n  stale_hidden --> removed: registry_removed\n  removed --> [*]\n  note right of removed\n    注册表条目被清即彻底退场(终态)\n    失效≠移除:失效仍在注册表里\n  end note"
+  }
+];

@@ -1,0 +1,32 @@
+%% title: 增量扫描管线(纯函数流程)
+%%{init: {
+  'theme': 'base',
+  'htmlLabels': false,
+  'state': { 'htmlLabels': false },
+  'flowchart': { 'htmlLabels': false },
+  'themeVariables': {
+    'primaryColor': '#ECECFF',
+    'primaryBorderColor': '#D5D5FF',
+    'primaryTextColor': '#000000',
+    'lineColor': '#757575',
+    'textColor': '#212121',
+    'edgeLabelBackground': 'transparent',
+    'noteBkgColor': '#FFF6B8',
+    'noteBorderColor': '#E4C800',
+    'noteTextColor': '#5C5100',
+    'tertiaryColor': '#f5f5f5',
+    'background': '#FFFFFF'
+  }
+}}%%
+flowchart TD
+  A[触发:启动 / 手动刷新] --> B[枚举两侧会话文件]
+  B --> C{缓存键命中?<br/>路径 + mtime + size}
+  C -- 命中 --> D[复用已算聚合]
+  C -- 未命中 --> E[流式逐行解析<br/>坏行跳过不弃文件]
+  E --> F{会话归属}
+  F -- Claude --> G[项目编码目录 → 项目<br/>正向映射不反解]
+  F -- Codex --> H[首行 session_meta.cwd → 项目<br/>subagent:计 token 不入列表]
+  G --> I[聚合:总量 / 按模型 / 日粒度]
+  H --> I
+  D --> I
+  I --> J[原子写缓存<br/>临时文件 + rename]

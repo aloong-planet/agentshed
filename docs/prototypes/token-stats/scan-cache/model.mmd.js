@@ -1,0 +1,12 @@
+// 派生文件:由 sync-mmd.mjs 从本目录 *.mmd 生成,勿手改;改图请改 .mmd 后重跑脚本。
+window.MERMAID_SOURCES = window.MERMAID_SOURCES || {};
+window.MERMAID_SOURCES["token-stats/scan-cache"] = [
+  {
+    "title": "刷新生命周期(去重与原子写)",
+    "src": "%% title: 刷新生命周期(去重与原子写)\n%%{init: {\n  'theme': 'base',\n  'htmlLabels': false,\n  'state': { 'htmlLabels': false },\n  'flowchart': { 'htmlLabels': false },\n  'themeVariables': {\n    'primaryColor': '#ECECFF',\n    'primaryBorderColor': '#D5D5FF',\n    'primaryTextColor': '#000000',\n    'lineColor': '#757575',\n    'textColor': '#212121',\n    'edgeLabelBackground': 'transparent',\n    'noteBkgColor': '#FFF6B8',\n    'noteBorderColor': '#E4C800',\n    'noteTextColor': '#5C5100',\n    'tertiaryColor': '#f5f5f5',\n    'background': '#FFFFFF'\n  }\n}}%%\nstateDiagram-v2\n  direction LR\n  [*] --> idle: app 启动\n  idle --> scanning: refresh\n  scanning --> writing: parse_done(全部文件处理完)\n  writing --> idle: write_done\n  scanning --> quit: app_quit\n  writing --> quit: app_quit\n  idle --> quit: app_quit\n  quit --> [*]\n  note right of scanning\n    scanning 中再来 refresh 一律忽略(去重)\n    坏行跳过计数,不弃整个文件\n  end note\n  note right of writing\n    原子写:临时文件 + rename\n    quit 打断也不产生半截缓存\n  end note"
+  },
+  {
+    "title": "增量扫描管线(纯函数流程)",
+    "src": "%% title: 增量扫描管线(纯函数流程)\n%%{init: {\n  'theme': 'base',\n  'htmlLabels': false,\n  'state': { 'htmlLabels': false },\n  'flowchart': { 'htmlLabels': false },\n  'themeVariables': {\n    'primaryColor': '#ECECFF',\n    'primaryBorderColor': '#D5D5FF',\n    'primaryTextColor': '#000000',\n    'lineColor': '#757575',\n    'textColor': '#212121',\n    'edgeLabelBackground': 'transparent',\n    'noteBkgColor': '#FFF6B8',\n    'noteBorderColor': '#E4C800',\n    'noteTextColor': '#5C5100',\n    'tertiaryColor': '#f5f5f5',\n    'background': '#FFFFFF'\n  }\n}}%%\nflowchart TD\n  A[触发:启动 / 手动刷新] --> B[枚举两侧会话文件]\n  B --> C{缓存键命中?<br/>路径 + mtime + size}\n  C -- 命中 --> D[复用已算聚合]\n  C -- 未命中 --> E[流式逐行解析<br/>坏行跳过不弃文件]\n  E --> F{会话归属}\n  F -- Claude --> G[项目编码目录 → 项目<br/>正向映射不反解]\n  F -- Codex --> H[首行 session_meta.cwd → 项目<br/>subagent:计 token 不入列表]\n  G --> I[聚合:总量 / 按模型 / 日粒度]\n  H --> I\n  D --> I\n  I --> J[原子写缓存<br/>临时文件 + rename]"
+  }
+];
