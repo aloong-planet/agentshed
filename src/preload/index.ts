@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { CMD, EVT, type SetHiddenArgs } from '@shared/ipc'
+import { CMD, EVT, type SetHiddenArgs, type SkillOpArgs, type SkillOpResult } from '@shared/ipc'
 import type { ProjectDetail, Snapshot } from '@shared/domain'
 import { validateSnapshot } from '@shared/validate'
 
@@ -19,6 +19,10 @@ const api = {
   readArtifact: (file: string): Promise<string> =>
     ipcRenderer.invoke(CMD.readArtifact, file) as Promise<string>,
   openArtifact: (file: string): Promise<void> => ipcRenderer.invoke(CMD.openArtifact, file),
+  installSkill: (args: SkillOpArgs): Promise<SkillOpResult> =>
+    ipcRenderer.invoke(CMD.installSkill, args) as Promise<SkillOpResult>,
+  uninstallSkill: (args: SkillOpArgs): Promise<SkillOpResult> =>
+    ipcRenderer.invoke(CMD.uninstallSkill, args) as Promise<SkillOpResult>,
   onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
     const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))
     ipcRenderer.on(EVT.snapshot, listener)

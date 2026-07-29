@@ -1,13 +1,14 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { CMD, EVT, type SetHiddenArgs } from '@shared/ipc'
+import { CMD, EVT, type SetHiddenArgs, type SkillOpArgs } from '@shared/ipc'
 import type { ProjectStats, Snapshot } from '@shared/domain'
 import { assertSnapshot } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { scan } from './providers/scan'
 import { readProjectDetail } from './providers/project-detail'
 import { TokenEngine } from './providers/token-stats'
+import { installSkill, uninstallSkill } from './providers/install'
 import { realRoots } from './roots'
 import { HiddenStore } from './hidden-store'
 
@@ -77,6 +78,19 @@ ipcMain.handle(CMD.openArtifact, async (_e, file: unknown) => {
   if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw new Error('产物路径不在白名单')
   await shell.openPath(file)
 })
+function checkSkillOpArgs(args: unknown): SkillOpArgs {
+  const a = args as SkillOpArgs
+  if (
+    typeof a?.skillName !== 'string' ||
+    (a?.side !== 'claude' && a?.side !== 'codex') ||
+    typeof a?.targetProjectPath !== 'string'
+  ) {
+    throw new Error('skill 装卸参数不合契约')
+  }
+  return a
+}
+ipcMain.handle(CMD.installSkill, (_e, args: unknown) => installSkill(realRoots(), checkSkillOpArgs(args)))
+ipcMain.handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallSkill(checkSkillOpArgs(args)))
 ipcMain.handle(CMD.setHidden, (_e, args: unknown) => {
   const a = args as SetHiddenArgs
   if (typeof a?.projectPath !== 'string' || typeof a?.hidden !== 'boolean') {
