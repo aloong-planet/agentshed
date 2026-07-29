@@ -45,9 +45,9 @@
 </head>
 <body>
   <div class="rail">
-    <div class="ri on" title="项目">🏠</div>
-    <div class="ri" title="全局库">⚙</div>
-    <div class="ri" title="产物">📚</div>
+    <div class="ri on" title="项目(图鉴列表原型)" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">🏠</div>
+    <div class="ri" title="全局库" data-goto="skill-install/install" data-goto-href="../skill-install/prototype-install.html">⚙</div>
+    <div class="ri" title="产物" data-goto="artifacts/artifacts" data-goto-href="../artifacts/prototype-artifacts.html">📚</div>
   </div>
   <div class="side">
     <div class="search">🔍 搜索项目…</div>
@@ -82,6 +82,15 @@
   }
   btn.onclick=()=>{scanning=!scanning;render()};
   render();
+</script>
+<script>
+  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+  });
 </script>
 </body>
 </html>

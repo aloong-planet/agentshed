@@ -66,9 +66,9 @@
 </head>
 <body>
   <div class="rail">
-    <div class="ri on" title="项目">🏠</div>
-    <div class="ri" title="全局库">⚙</div>
-    <div class="ri" title="产物">📚</div>
+    <div class="ri on" title="项目(图鉴列表原型)" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">🏠</div>
+    <div class="ri" title="全局库" data-goto="skill-install/install" data-goto-href="../skill-install/prototype-install.html">⚙</div>
+    <div class="ri" title="产物" data-goto="artifacts/artifacts" data-goto-href="../artifacts/prototype-artifacts.html">📚</div>
   </div>
   <div class="side">
     <div class="row">agentshed</div><div class="row">chatgpt-token</div>
@@ -82,7 +82,7 @@
       <div class="tabs" id="tabs">
         <span class="tab on" data-t="skills">Skills</span><span class="tab" data-t="plugins">Plugins</span>
         <span class="tab" data-t="mcp">MCP</span><span class="tab" data-t="cfg">配置</span>
-        <span class="tab" style="opacity:.4">产物(票05)</span><span class="tab" style="opacity:.4">会话(票04)</span>
+        <span class="tab" style="opacity:.55" title="见产物原型" data-goto="artifacts/artifacts" data-goto-href="../artifacts/prototype-artifacts.html">产物 ↗</span><span class="tab" style="opacity:.55" title="见 Token 面板原型" data-goto="token-stats/token-panel" data-goto-href="../token-stats/prototype-token-panel.html">会话·Token ↗</span>
       </div>
     </div>
     <div class="body">
@@ -164,6 +164,15 @@
     b.innerHTML=w==='CLAUDE.md'?'<h3># Transfer — 项目约定</h3><p>按内容的腐烂速度分类…(只读渲染)</p>'
       :w==='AGENTS.md'?'<h3># AGENTS.md</h3><p>Codex 侧项目说明…(只读渲染;不存在时显示"无")</p>'
       :'<h3>settings 摘要</h3><p><code>enabledMcpjsonServers: [figma]</code><br><code>allowedTools: …</code>(从 ~/.claude.json 项目键提取的只读摘要)</p>';
+  });
+</script>
+<script>
+  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
   });
 </script>
 </body>

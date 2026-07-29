@@ -66,11 +66,11 @@
 </head>
 <body>
   <div class="rail">
-    <div class="ri on" title="项目">🏠</div>
-    <div class="ri" title="全局库">⚙</div>
-    <div class="ri" title="产物">📚</div>
+    <div class="ri on" title="项目(图鉴列表原型)" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">🏠</div>
+    <div class="ri" title="全局库" data-goto="skill-install/install" data-goto-href="../skill-install/prototype-install.html">⚙</div>
+    <div class="ri" title="产物" data-goto="artifacts/artifacts" data-goto-href="../artifacts/prototype-artifacts.html">📚</div>
   </div>
-  <div class="side"><div class="row">agentshed</div><div class="row sel">Transfer</div><div class="row">openclaw-v3</div></div>
+  <div class="side"><div class="row" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html" title="打开详情" style="cursor:pointer">agentshed</div><div class="row sel" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html" title="打开详情" style="cursor:pointer">Transfer</div><div class="row" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html" title="打开详情" style="cursor:pointer">openclaw-v3</div></div>
   <div class="main">
     <div class="head">
       <div class="h1">Transfer — Token</div>
@@ -131,6 +131,15 @@
     mode=e.target.textContent;render();
   });
   render();
+</script>
+<script>
+  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+  });
 </script>
 </body>
 </html>

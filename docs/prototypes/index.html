@@ -100,6 +100,12 @@
     location.hash = keys[n]; e.preventDefault();
   });
 
+  // 接收 iframe 内原型的跳转请求(file:// 下子页与壳异源,不能直接改父 hash,走 postMessage)
+  addEventListener('message', (e) => {
+    const t = e.data && e.data.type === 'proto-nav' && e.data.target;
+    if (t && find(t)) location.hash = t;
+  });
+
   const init = decodeURIComponent(location.hash.slice(1));
   show(find(init) ? init : (P.length ? key(P[0]) : ''));
   if (!location.hash && P.length) location.hash = key(P[0]);

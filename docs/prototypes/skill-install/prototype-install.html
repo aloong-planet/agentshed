@@ -70,16 +70,16 @@
 </head>
 <body>
   <div class="rail">
-    <div class="ri" title="项目">🏠</div>
+    <div class="ri" title="项目(图鉴列表原型)" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">🏠</div>
     <div class="ri on" title="全局库">⚙</div>
-    <div class="ri" title="产物">📚</div>
+    <div class="ri" title="产物" data-goto="artifacts/artifacts" data-goto-href="../artifacts/prototype-artifacts.html">📚</div>
   </div>
   <div class="main">
     <h2>全局库(合并单列 · 只读,内容变更不经 app)</h2>
     <div class="sub">徽标 = 该侧全局库是否存在;两侧同名但内容有差异时标「差异」;⤷ = 软链(安装时解引用复制为真文件)</div>
     <div class="card" id="lib"></div>
 
-    <h2>Transfer · 项目级副本(演示卸载,实际入口在项目详情 Skills 分栏)</h2>
+    <h2>Transfer · 项目级副本(演示卸载,实际入口在<span style="color:var(--accent);cursor:pointer" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html">项目详情 ↗</span> Skills 分栏)</h2>
     <div class="card">
       <div class="uheader">项目级 · .claude/skills(仅项目级可卸;全局层 skill 无卸载入口)</div>
       <div class="it"><span class="nm">ui-design</span><span class="ds">项目专属 UI 走查规范</span>
@@ -150,6 +150,15 @@
   };
   function close(){mask.style.display='none';dlg.style.display='none'}
   mask.onclick=close;
+</script>
+<script>
+  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+  });
 </script>
 </body>
 </html>

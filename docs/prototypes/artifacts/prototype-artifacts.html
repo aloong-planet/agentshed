@@ -53,8 +53,8 @@
 </head>
 <body>
   <div class="rail">
-    <div class="ri" title="项目">🏠</div>
-    <div class="ri" title="全局库">⚙</div>
+    <div class="ri" title="项目(图鉴列表原型)" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">🏠</div>
+    <div class="ri" title="全局库" data-goto="skill-install/install" data-goto-href="../skill-install/prototype-install.html">⚙</div>
     <div class="ri on" title="产物">📚</div>
   </div>
   <div class="main">
@@ -121,6 +121,15 @@
     view=e.target.textContent.startsWith('全局')?'global':'project';render();
   });
   render();
+</script>
+<script>
+  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+  });
 </script>
 </body>
 </html>
