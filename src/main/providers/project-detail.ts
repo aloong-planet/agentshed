@@ -17,7 +17,8 @@ export function readProjectDetail(roots: ScanRoots, projectPath: string): Projec
       claudeMd: readTextCapped(join(projectPath, 'CLAUDE.md')),
       agentsMd: readTextCapped(join(projectPath, 'AGENTS.md')),
       settingsSummary: settingsSummary(roots, projectPath)
-    }
+    },
+    stats: null
   }
 }
 

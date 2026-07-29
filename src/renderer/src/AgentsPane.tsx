@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { marked } from 'marked'
 import type { Snapshot } from '@shared/domain'
+import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
 
 type Tab = 'token' | 'skills' | 'plugins' | 'mcp' | 'cfg'
 
@@ -21,6 +22,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
             cls="cl"
             detected={snap.sides.claude.detected}
             error={snap.sides.claude.error}
+            total={snap.tokens.bySide.claude.total}
             sub={`${clCount} 项目 · ${clSkills} 全局 skills`}
           />
           <SideCard
@@ -28,6 +30,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
             cls="cx"
             detected={snap.sides.codex.detected}
             error={snap.sides.codex.error}
+            total={snap.tokens.bySide.codex.total}
             sub={`${cxCount} 项目 · ${cxSkills} 全局 skills`}
           />
         </div>
@@ -49,9 +52,11 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
       </header>
       <div className="pane-body">
         {tab === 'token' && (
-          <div className="empty">
-            <div className="big">▤</div>
-            <div>Token 汇总(票 04 接入数据)</div>
+          <div>
+            <TotalsCards stats={snap.tokens} note="含已隐藏/失效项目" />
+            <TrendChart stats={snap.tokens} anchor={snap.scannedAt} />
+            <div className="grp-t">按模型拆分(跨项目;Codex 侧为会话主模型近似)</div>
+            <ModelBars stats={snap.tokens} />
           </div>
         )}
         {tab === 'skills' && <SkillsTab snap={snap} />}
@@ -68,12 +73,14 @@ function SideCard({
   cls,
   detected,
   error,
+  total,
   sub
 }: {
   label: string
   cls: 'cl' | 'cx'
   detected: boolean
   error?: string
+  total: number
   sub: string
 }): JSX.Element {
   return (
@@ -82,6 +89,7 @@ function SideCard({
         <span className={`badge ${cls}`}>{label}</span>
         {detected ? '已检测' : '未检测到'}
       </div>
+      <div className="v">{fmtTok(total)}</div>
       {error ? <div className="stat-err">注册表异常:{error}</div> : <div className="s">{sub}</div>}
     </div>
   )

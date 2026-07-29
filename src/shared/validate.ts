@@ -57,6 +57,17 @@ export function validateSnapshot(v: unknown): ValidateResult {
     if (g[nullable] !== null && typeof g[nullable] !== 'string')
       return fail(`global.${nullable}`, '需为 string|null')
   }
+
+  const tk = v['tokens']
+  if (!isRecord(tk)) return fail('tokens', '缺失')
+  const bySide = tk['bySide']
+  if (!isRecord(bySide)) return fail('tokens.bySide', '需为对象')
+  for (const side of AGENT_SIDES) {
+    const t = bySide[side]
+    if (!isRecord(t) || typeof t['total'] !== 'number') return fail(`tokens.bySide.${side}`, '缺失或无 total')
+  }
+  if (!Array.isArray(tk['byModel']) || !Array.isArray(tk['byDay']))
+    return fail('tokens.byModel/byDay', '需为数组')
   return { ok: true }
 }
 

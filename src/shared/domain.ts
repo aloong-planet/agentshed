@@ -69,6 +69,56 @@ export interface GlobalLayer {
   codexConfigSummary: string | null
 }
 
+/** token 计数(口径:total = input + output;cache 读写单列不计入) */
+export interface TokenTotals {
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite: number
+  total: number
+}
+
+export interface ModelUsage {
+  model: string
+  side: AgentSide
+  total: number
+}
+
+/** 日粒度(本地时区)用量 */
+export interface DayUsage {
+  day: string
+  claude: number
+  codex: number
+}
+
+export interface TokenStats {
+  bySide: Record<AgentSide, TokenTotals>
+  byModel: ModelUsage[]
+  byDay: DayUsage[]
+}
+
+/** 会话元数据(不渲染内容) */
+export interface SessionMeta {
+  side: AgentSide
+  title: string
+  at: number | null
+  tokens: number
+}
+
+/** 单项目统计(概览 tab 数据) */
+export interface ProjectStats {
+  tokens: TokenStats
+  sessions: SessionMeta[]
+}
+
+export function emptyTotals(): TokenTotals {
+  return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
+}
+
+export function emptyTokenStats(): TokenStats {
+  return { bySide: { claude: emptyTotals(), codex: emptyTotals() }, byModel: [], byDay: [] }
+}
+
 /** 项目详情里的一个 skill(生效视图条目) */
 export interface ProjectSkillEntry {
   name: string
@@ -100,6 +150,8 @@ export interface ProjectDetail {
     agentsMd: string | null
     settingsSummary: string | null
   }
+  /** 概览 tab 数据(主进程从 token 引擎附上;引擎未就绪时 null) */
+  stats: ProjectStats | null
 }
 
 /** 全景快照:一次扫描的完整产出(随票 02-07 增量扩展) */
@@ -108,6 +160,8 @@ export interface Snapshot {
   sides: Record<AgentSide, SideInfo>
   projects: ProjectEntry[]
   global: GlobalLayer
+  /** 跨项目 token 汇总(口径:含已隐藏与失效项目) */
+  tokens: TokenStats
 }
 
 /** 空快照(扫描前/两侧均未检测到时的基态) */
@@ -123,6 +177,7 @@ export function emptySnapshot(scannedAt: number): Snapshot {
       claudeGlobalMd: null,
       codexAgentsMd: null,
       codexConfigSummary: null
-    }
+    },
+    tokens: emptyTokenStats()
   }
 }
