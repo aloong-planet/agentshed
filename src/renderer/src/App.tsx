@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Snapshot } from '@shared/domain'
 import { ProjectsPane } from './ProjectsPane'
 import { AgentsPane } from './AgentsPane'
+import { DetailPane } from './DetailPane'
 
 type Dim = 'agents' | 'projects'
 
@@ -73,10 +74,14 @@ export function App(): JSX.Element {
             selected={selected}
             onSelect={setSelected}
             detail={
-              <div className="empty">
-                <div className="big">👈</div>
-                <div>{selected ? `已选中 ${selected}(详情:票 03)` : '选择一个项目查看详情'}</div>
-              </div>
+              selected ? (
+                <DetailPane snap={snap} path={selected} />
+              ) : (
+                <div className="empty">
+                  <div className="big">👈</div>
+                  <div>选择一个项目查看详情</div>
+                </div>
+              )
             }
           />
         )}

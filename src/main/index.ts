@@ -4,6 +4,7 @@ import { CMD, EVT, type SetHiddenArgs } from '@shared/ipc'
 import type { Snapshot } from '@shared/domain'
 import { assertSnapshot } from '@shared/validate'
 import { scan } from './providers/scan'
+import { readProjectDetail } from './providers/project-detail'
 import { realRoots } from './roots'
 import { HiddenStore } from './hidden-store'
 
@@ -44,6 +45,10 @@ ipcMain.handle(CMD.getSnapshot, async () => {
   return doScan()
 })
 ipcMain.handle(CMD.refresh, async () => doScan())
+ipcMain.handle(CMD.getProjectDetail, (_e, path: unknown) => {
+  if (typeof path !== 'string' || path === '') throw new Error('getProjectDetail 参数不合契约')
+  return readProjectDetail(realRoots(), path)
+})
 ipcMain.handle(CMD.setHidden, (_e, args: unknown) => {
   const a = args as SetHiddenArgs
   if (typeof a?.projectPath !== 'string' || typeof a?.hidden !== 'boolean') {

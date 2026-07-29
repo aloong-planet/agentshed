@@ -6,7 +6,9 @@ export const CMD = {
   /** 全局刷新(rail 底部 ↻;进行中重复调用被去重) */
   refresh: 'agentshed:refresh',
   /** 手动隐藏/取消隐藏项目 */
-  setHidden: 'agentshed:set-hidden'
+  setHidden: 'agentshed:set-hidden',
+  /** 按需拉取项目详情 */
+  getProjectDetail: 'agentshed:get-project-detail'
 } as const
 
 export const EVT = {

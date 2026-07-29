@@ -538,3 +538,43 @@ body {
 .md ol {
   padding-left: 20px;
 }
+
+/* ── 项目详情 ── */
+.det-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.det-title h1 {
+  font-size: 16px;
+  margin: 0;
+}
+.det-path {
+  font-size: 11px;
+  color: var(--text-2);
+  margin: 4px 0 10px;
+}
+.pill.prj {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.pill.glb {
+  background: var(--line);
+  color: var(--text-2);
+}
+.pill.shadow {
+  background: #fff6b8;
+  color: #5c5100;
+}
+@media (prefers-color-scheme: dark) {
+  .pill.shadow {
+    background: #3a3316;
+    color: #f0dd8a;
+  }
+}
+.it.shadowed .nm,
+.it.shadowed .ds {
+  color: var(--text-2);
+  opacity: 0.62;
+}

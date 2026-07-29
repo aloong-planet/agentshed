@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { CMD, EVT, type SetHiddenArgs } from '@shared/ipc'
-import type { Snapshot } from '@shared/domain'
+import type { ProjectDetail, Snapshot } from '@shared/domain'
 import { validateSnapshot } from '@shared/validate'
 
 // renderer 入口处的契约校验:主进程发来的快照不合契约就抛,不静默渲染 undefined
@@ -14,6 +14,8 @@ const api = {
   getSnapshot: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.getSnapshot)),
   refresh: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.refresh)),
   setHidden: (args: SetHiddenArgs): Promise<void> => ipcRenderer.invoke(CMD.setHidden, args),
+  getProjectDetail: (path: string): Promise<ProjectDetail> =>
+    ipcRenderer.invoke(CMD.getProjectDetail, path) as Promise<ProjectDetail>,
   onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
     const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))
     ipcRenderer.on(EVT.snapshot, listener)
