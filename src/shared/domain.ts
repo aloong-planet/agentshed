@@ -7,6 +7,8 @@ export type AgentSide = 'claude' | 'codex'
 export interface SideInfo {
   /** 该侧数据目录是否存在于本机 */
   detected: boolean
+  /** 注册表解析失败时的降级说明(该侧数据为空但 app 不崩) */
+  error?: string
 }
 
 /** 项目:任一 agent 侧注册表记录过的工作目录(两侧并集,一目录一项目) */

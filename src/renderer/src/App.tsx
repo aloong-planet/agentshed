@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Snapshot } from '@shared/domain'
+import { ProjectsPane } from './ProjectsPane'
 
 type Dim = 'agents' | 'projects'
 
@@ -7,6 +8,7 @@ export function App(): JSX.Element {
   const [dim, setDim] = useState<Dim>('agents')
   const [snap, setSnap] = useState<Snapshot | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [selected, setSelected] = useState<string | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -56,7 +58,23 @@ export function App(): JSX.Element {
         </button>
       </nav>
       <main className="stage">
-        {dim === 'agents' ? <AgentsPlaceholder snap={snap} /> : <ProjectsPlaceholder snap={snap} />}
+        {dim === 'agents' ? (
+          <AgentsPlaceholder snap={snap} />
+        ) : snap === null ? (
+          <ScanningHint />
+        ) : (
+          <ProjectsPane
+            snap={snap}
+            selected={selected}
+            onSelect={setSelected}
+            detail={
+              <div className="empty">
+                <div className="big">👈</div>
+                <div>{selected ? `已选中 ${selected}(详情:票 03)` : '选择一个项目查看详情'}</div>
+              </div>
+            }
+          />
+        )}
       </main>
     </div>
   )
@@ -74,16 +92,6 @@ function AgentsPlaceholder({ snap }: { snap: Snapshot | null }): JSX.Element {
         {'  ·  '}
         <span className="badge cx">CODEX</span> {snap.sides.codex.detected ? '已检测' : '未检测到'}
       </div>
-    </div>
-  )
-}
-
-function ProjectsPlaceholder({ snap }: { snap: Snapshot | null }): JSX.Element {
-  if (!snap) return <ScanningHint />
-  return (
-    <div className="empty">
-      <div className="big">📁</div>
-      <div>Projects 维度(占位,票 02)— 当前快照 {snap.projects.length} 个项目</div>
     </div>
   )
 }

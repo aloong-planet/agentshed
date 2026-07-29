@@ -24,6 +24,8 @@ export function validateSnapshot(v: unknown): ValidateResult {
     const s = sides[side]
     if (!isRecord(s)) return fail(`sides.${side}`, '缺失')
     if (typeof s['detected'] !== 'boolean') return fail(`sides.${side}.detected`, '需为 boolean')
+    if (s['error'] !== undefined && typeof s['error'] !== 'string')
+      return fail(`sides.${side}.error`, '需为 string|undefined`')
   }
 
   const projects = v['projects']

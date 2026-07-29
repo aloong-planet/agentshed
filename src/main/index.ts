@@ -1,10 +1,11 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'node:path'
-import { CMD, EVT } from '@shared/ipc'
+import { CMD, EVT, type SetHiddenArgs } from '@shared/ipc'
 import type { Snapshot } from '@shared/domain'
 import { assertSnapshot } from '@shared/validate'
 import { scan } from './providers/scan'
 import { realRoots } from './roots'
+import { HiddenStore } from './hidden-store'
 
 // 单实例锁:第二个实例什么都没初始化,直接 exit 最安全(quit 会走 before-quit 可能卡住)
 const gotTheLock = app.requestSingleInstanceLock()
@@ -13,6 +14,7 @@ if (!gotTheLock) {
 }
 
 let mainWindow: BrowserWindow | null = null
+let hiddenStore: HiddenStore | null = null
 
 // ── 快照与刷新(去重:进行中忽略再次触发)──
 let current: Snapshot | null = null
@@ -22,7 +24,10 @@ async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
   inflight = (async () => {
     try {
-      const snap = await scan(realRoots(), { now: () => Date.now() })
+      const snap = await scan(realRoots(), {
+        now: () => Date.now(),
+        isHidden: (p) => hiddenStore?.isHidden(p) ?? false
+      })
       assertSnapshot(snap)
       current = snap
       mainWindow?.webContents.send(EVT.snapshot, snap)
@@ -39,6 +44,22 @@ ipcMain.handle(CMD.getSnapshot, async () => {
   return doScan()
 })
 ipcMain.handle(CMD.refresh, async () => doScan())
+ipcMain.handle(CMD.setHidden, (_e, args: unknown) => {
+  const a = args as SetHiddenArgs
+  if (typeof a?.projectPath !== 'string' || typeof a?.hidden !== 'boolean') {
+    throw new Error('setHidden 参数不合契约')
+  }
+  hiddenStore?.setHidden(a.projectPath, a.hidden)
+  // 局部更新快照并广播,不触发全量重扫
+  if (current) {
+    for (const p of current.projects) {
+      if (p.path.toLowerCase() === a.projectPath.replace(/\/+$/, '').toLowerCase()) {
+        p.hidden = a.hidden
+      }
+    }
+    mainWindow?.webContents.send(EVT.snapshot, current)
+  }
+})
 
 const PRELOAD = join(__dirname, '../preload/index.cjs')
 
@@ -70,6 +91,7 @@ app.on('second-instance', () => {
 
 void app.whenReady().then(() => {
   if (!gotTheLock) return
+  hiddenStore = new HiddenStore(app.getPath('userData'))
   createWindow()
   void doScan()
   app.on('activate', () => {

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { CMD, EVT } from '@shared/ipc'
+import { CMD, EVT, type SetHiddenArgs } from '@shared/ipc'
 import type { Snapshot } from '@shared/domain'
 import { validateSnapshot } from '@shared/validate'
 
@@ -13,6 +13,7 @@ function checked(snap: unknown): Snapshot {
 const api = {
   getSnapshot: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.getSnapshot)),
   refresh: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.refresh)),
+  setHidden: (args: SetHiddenArgs): Promise<void> => ipcRenderer.invoke(CMD.setHidden, args),
   onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
     const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))
     ipcRenderer.on(EVT.snapshot, listener)
