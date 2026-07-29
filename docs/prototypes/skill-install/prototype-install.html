@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- 原型(UI)· 票06:全局库页与装卸交互(icon rail 的「全局库」维度页,占全宽)。
+<!-- 原型(UI)· 票06:装卸交互(挂在 Agents 页 Skills 分栏=安装源之上)。
      问题:合并单列+侧徽标(已选型)下两侧差异怎么读;「安装到…」目标选择器、
      同名阻止、失效项目禁用、卸载确认弹窗各自的形态与时机。
      交互:行内「安装到…」弹选择器(失效项目置灰;装到 Transfer 的 tdd 触发同名阻止);
@@ -70,12 +70,11 @@
 </head>
 <body>
   <div class="rail">
-    <div class="ri" title="项目(图鉴列表原型)" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">🏠</div>
-    <div class="ri on" title="全局库">⚙</div>
-    <div class="ri" title="产物" data-goto="artifacts/artifacts" data-goto-href="../artifacts/prototype-artifacts.html">📚</div>
+    <div class="ri on" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html">🤖</div>
+    <div class="ri" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">📁</div>
   </div>
   <div class="main">
-    <h2>全局库(合并单列 · 只读,内容变更不经 app)</h2>
+    <h2>Agents · 全局 Skills(安装源 · 合并单列 · 只读,内容变更不经 app)</h2>
     <div class="sub">徽标 = 该侧全局库是否存在;两侧同名但内容有差异时标「差异」;⤷ = 软链(安装时解引用复制为真文件)</div>
     <div class="card" id="lib"></div>
 

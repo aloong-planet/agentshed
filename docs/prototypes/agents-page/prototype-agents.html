@@ -1,0 +1,166 @@
+<!doctype html>
+<!-- 原型(UI)· 票07:Agents 全局页(默认落地,icon rail「Agents」维度,占全宽)。
+     问题:CC/Codex 的全局面貌(配置/skills/plugins/MCP/token 汇总)在一页里怎么分栏;
+     plugins 仅 CC 有、MCP 来源两侧异构时,分栏怎么不歪。
+     交互:tab 切换;配置内切文件;Skills 分栏的装卸交互跳 skill-install 原型。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 — Agents 全局页</title>
+<style>
+  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
+  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2)}
+  .rail .ri:hover{background:var(--accent-soft)}
+  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+  .head{padding:14px 22px 0;border-bottom:1px solid var(--line)}
+  .h1{font-size:16px;font-weight:700;margin-bottom:10px}
+  .stats{display:flex;gap:14px;margin-bottom:12px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 14px;min-width:150px}
+  .stat .k{font-size:10.5px;color:var(--text-2);margin-bottom:3px;display:flex;align-items:center;gap:6px}
+  .stat .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+  .stat .s{font-size:10.5px;color:var(--text-2);margin-top:2px}
+  .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
+  .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
+  .b.miss{border:1px dashed var(--line-strong);color:var(--text-2);background:transparent;font-weight:400}
+  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  .tabs{display:flex;gap:2px}
+  .tab{padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;color:var(--text-2);font-size:12.5px}
+  .tab:hover{color:var(--text)}
+  .tab.on{background:var(--bg);color:var(--accent);font-weight:600;border:1px solid var(--line);border-bottom-color:var(--bg)}
+  .body{flex:1;overflow:auto;padding:16px 22px}
+  .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:16px}
+  .it{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line)}
+  .it:last-child{border-bottom:0}
+  .it .nm{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;width:180px;flex:none}
+  .it .ds{flex:1;min-width:0;color:var(--text-2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bdg{display:flex;gap:3px;flex:none;width:74px}
+  .pill{font-size:10px;border-radius:4px;padding:1px 6px;flex:none}
+  .pill.ln{border:1px dashed var(--line-strong);color:var(--text-2)}
+  .pill.on{background:#dcfce7;color:#166534}
+  @media (prefers-color-scheme:dark){.pill.on{background:#12301d;color:#86efac}}
+  .diff{font-size:10px;color:#b3552f;flex:none}
+  .src{font-size:10.5px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;flex:none}
+  .jump{color:var(--accent);cursor:pointer;font-size:11.5px;font-weight:400;text-transform:none;letter-spacing:0}
+  .cfg-switch{display:flex;gap:6px;margin-bottom:10px}
+  .cfg-switch span{padding:4px 10px;border:1px solid var(--line-strong);border-radius:6px;cursor:pointer;
+    font-size:12px;color:var(--text-2)}
+  .cfg-switch span.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+  .md{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:16px 18px;
+    line-height:1.75;font-size:12.5px;max-height:52vh;overflow:auto}
+  .md h3{font-size:13px;margin-bottom:6px}
+  .md code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px}
+  .none{color:var(--text-2);padding:16px;text-align:center;font-size:12px}
+</style>
+</head>
+<body>
+  <div class="rail">
+    <div class="ri on" title="Agents(默认落地)">🤖</div>
+    <div class="ri" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">📁</div>
+  </div>
+  <div class="main">
+    <div class="head">
+      <div class="h1">Agents</div>
+      <div class="stats">
+        <div class="stat"><div class="k"><span class="b c">CLAUDE CODE</span>已检测</div>
+          <div class="v">11.2M</div><div class="s">46 项目 · 26 全局 skills · 近30天 ▂▃▅▇▅</div></div>
+        <div class="stat"><div class="k"><span class="b x">CODEX</span>已检测</div>
+          <div class="v">4.8M</div><div class="s">18 项目 · 23 全局 skills · 近30天 ▁▂▃▂▄</div></div>
+      </div>
+      <div class="tabs" id="tabs">
+        <span class="tab on" data-t="skills">Skills(全局库)</span><span class="tab" data-t="plugins">Plugins</span>
+        <span class="tab" data-t="mcp">MCP</span><span class="tab" data-t="cfg">配置</span>
+      </div>
+    </div>
+    <div class="body">
+      <div data-p="skills">
+        <div class="grp-t">合并单列 · 徽标=该侧是否存在 · 安装源(只读)
+          <span class="jump" data-goto="skill-install/install" data-goto-href="../skill-install/prototype-install.html">装卸交互演示 ↗</span></div>
+        <div class="card">
+          <div class="it"><span class="nm">tdd</span>
+            <span class="bdg"><span class="b c">CL</span><span class="b x">CX</span></span>
+            <span class="diff">两侧有差异</span><span class="ds">红先于绿,覆盖来自 spec 失败模式节</span></div>
+          <div class="it"><span class="nm">grilling</span>
+            <span class="bdg"><span class="b c">CL</span><span class="b x">CX</span></span>
+            <span class="diff">两侧有差异</span><span class="ds">按依赖分批的需求逼问</span></div>
+          <div class="it"><span class="nm">decision-form</span>
+            <span class="bdg"><span class="b miss">—</span><span class="b x">CX</span></span>
+            <span class="ds">批量决策外部表单(含渲染器脚本)</span></div>
+          <div class="it"><span class="nm">review-code</span>
+            <span class="bdg"><span class="b c">CL</span><span class="b miss">—</span></span>
+            <span class="ds">四层法 review</span></div>
+          <div class="it"><span class="nm">github-ops</span>
+            <span class="bdg"><span class="b c">CL</span><span class="b x">CX</span></span>
+            <span class="pill ln">⤷ 软链</span><span class="ds">GitHub 产出规范(无 AI 署名)</span></div>
+        </div>
+      </div>
+      <div data-p="plugins" style="display:none">
+        <div class="grp-t"><span class="b c">CLAUDE CODE</span>plugins(user-scope 全局,只读)</div>
+        <div class="card">
+          <div class="it"><span class="nm">chrome-devtools-mcp</span><span class="pill on">已启用</span>
+            <span class="ds">marketplace: chrome-devtools-plugins · scope: user</span><span class="src">v1.6.0</span></div>
+        </div>
+        <div class="grp-t"><span class="b x">CODEX</span></div>
+        <div class="none">Codex 无 plugins 概念,该分组仅 CC 侧显示</div>
+      </div>
+      <div data-p="mcp" style="display:none">
+        <div class="grp-t"><span class="b c">CLAUDE CODE</span>全局 MCP</div>
+        <div class="card">
+          <div class="it"><span class="nm">chrome-devtools</span><span class="src">plugin 自带</span>
+            <span class="ds">来自 chrome-devtools-mcp 插件</span></div>
+          <div class="it"><span class="nm">(全局 mcpServers)</span><span class="src">~/.claude.json</span>
+            <span class="ds">当前为空——项目级 .mcp.json 的归属在项目详情</span></div>
+        </div>
+        <div class="grp-t"><span class="b x">CODEX</span>config.toml [mcp_servers.*]</div>
+        <div class="card">
+          <div class="it"><span class="nm">node_repl</span><span class="src">config.toml</span>
+            <span class="ds">[mcp_servers.node_repl]</span></div>
+          <div class="it"><span class="nm">computer-use</span><span class="src">config.toml</span>
+            <span class="ds">[mcp_servers.computer-use]</span></div>
+        </div>
+      </div>
+      <div data-p="cfg" style="display:none">
+        <div class="cfg-switch" id="cfgs">
+          <span class="on">全局 CLAUDE.md</span><span>全局 AGENTS.md</span><span>config.toml 摘要</span>
+        </div>
+        <div class="md" id="cfgbody">
+          <h3># 全局 CLAUDE.md</h3>
+          <p>- always use pnpm as package management tool for js projects.</p>
+          <p>- 开发新功能:八步流程(骨架)……(只读渲染,滚动容器内)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+  document.getElementById('tabs').addEventListener('click',e=>{
+    const t=e.target.closest('.tab');if(!t||!t.dataset.t)return;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+    document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
+  });
+  document.getElementById('cfgs').addEventListener('click',e=>{
+    if(e.target.tagName!=='SPAN')return;
+    document.querySelectorAll('#cfgs span').forEach(x=>x.classList.toggle('on',x===e.target));
+    const b=document.getElementById('cfgbody');const w=e.target.textContent;
+    b.innerHTML=w.includes('CLAUDE')?'<h3># 全局 CLAUDE.md</h3><p>- always use pnpm…<br>- 八步流程骨架……(只读渲染)</p>'
+      :w.includes('AGENTS')?'<h3># 全局 AGENTS.md</h3><p>Codex 全局说明……(只读渲染;缺失显示"无")</p>'
+      :'<h3>config.toml 摘要</h3><p><code>model = …</code><br><code>[projects."…"] trust_level</code> 共 18 条<br><code>[mcp_servers.*]</code> 2 段(只读摘要)</p>';
+  });
+  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+  });
+</script>
+</body>
+</html>

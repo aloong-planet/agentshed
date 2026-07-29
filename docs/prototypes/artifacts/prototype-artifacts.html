@@ -1,8 +1,7 @@
 <!doctype html>
-<!-- 原型(UI)· 票05:八步产物全景(icon rail 的「产物」维度页,占全宽)。
-     问题:全局聚合手风琴铺满整幅后的密度;与详情页产物 tab(双视图的另一半)的关系;
-     Markdown 阅读态怎么进出。
-     交互:顶部切双视图对比;手风琴折叠;点条目开阅读浮层(Esc/点遮罩关)。 -->
+<!-- 原型(UI)· 票05:项目详情的产物 tab(跨项目聚合已裁定伪需求删除,产物只活在项目内)。
+     问题:项目内五类手风琴的密度;非八步项目的空态;Markdown 阅读态怎么进出。
+     交互:手风琴折叠;点条目开阅读浮层(Esc/点遮罩关)。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -53,13 +52,11 @@
 </head>
 <body>
   <div class="rail">
-    <div class="ri" title="项目(图鉴列表原型)" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">🏠</div>
-    <div class="ri" title="全局库" data-goto="skill-install/install" data-goto-href="../skill-install/prototype-install.html">⚙</div>
-    <div class="ri on" title="产物">📚</div>
+    <div class="ri" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html">🤖</div>
+    <div class="ri on" title="Projects(回列表)" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">📁</div>
   </div>
   <div class="main">
-    <div class="head"><b id="title">产物聚合 · 全部项目</b>
-      <span class="seg" id="seg"><span class="on">全局聚合</span><span>项目内视图(=详情页产物 tab)</span></span></div>
+    <div class="head"><b id="title">Transfer · 产物(项目详情 tab 演示)</b></div>
     <div class="body" id="body"></div>
   </div>
   <div class="mask" id="mask"></div>
@@ -83,10 +80,9 @@
       {t:'消息状态机(可驾驶)',p:'Transfer',d:'07-10',ext:'logic'},
       {t:'产物双视图(本页)',p:'agentshed',d:'07-29',ext:'html'}],
   };
-  const body=document.getElementById('body'),title=document.getElementById('title');
-  let view='global';
+  const body=document.getElementById('body');
+  let view='project';
   function render(){
-    title.textContent=view==='global'?'产物聚合 · 全部项目':'Transfer · 产物';
     body.innerHTML=Object.entries(A).map(([k,items])=>{
       const list=view==='global'?items:items.filter(i=>i.p==='Transfer');
       const inner=list.length?list.map(i=>
@@ -115,11 +111,6 @@
   const close=()=>{document.getElementById('mask').style.display='none';document.getElementById('reader').style.display='none'};
   document.getElementById('mask').onclick=close;
   addEventListener('keydown',e=>{if(e.key==='Escape')close()});
-  document.getElementById('seg').addEventListener('click',e=>{
-    if(e.target.tagName!=='SPAN')return;
-    document.querySelectorAll('#seg span').forEach(s=>s.classList.toggle('on',s===e.target));
-    view=e.target.textContent.startsWith('全局')?'global':'project';render();
-  });
   render();
 </script>
 <script>
