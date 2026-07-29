@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { marked } from 'marked'
 import type { ProjectDetail, ProjectSkillEntry, Snapshot } from '@shared/domain'
+import { emptyTokenStats } from '@shared/domain'
+import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
+import { fmtAgo } from './ProjectsPane'
 
 type Tab = 'ov' | 'skills' | 'plugins' | 'mcp' | 'cfg' | 'arts'
 
@@ -54,12 +57,7 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
           <div className="none">读取中…</div>
         ) : (
           <>
-            {tab === 'ov' && (
-              <div className="empty">
-                <div className="big">▤</div>
-                <div>概览(token/趋势/会话,票 04 填充)</div>
-              </div>
-            )}
+            {tab === 'ov' && <OverviewTab detail={detail} snap={snap} />}
             {tab === 'skills' && <SkillsTab detail={detail} />}
             {tab === 'plugins' && <PluginsTab snap={snap} />}
             {tab === 'mcp' && <McpTab detail={detail} />}
@@ -73,6 +71,35 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+function OverviewTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
+  const stats = detail.stats ?? { tokens: emptyTokenStats(), sessions: [] }
+  return (
+    <div>
+      <TotalsCards stats={stats.tokens} />
+      <TrendChart stats={stats.tokens} anchor={snap.scannedAt} />
+      <div className="grp-t">按模型拆分</div>
+      <ModelBars stats={stats.tokens} />
+      <div className="grp-t">会话(主线程,元数据即止;subagent 计 token 不列出)</div>
+      {stats.sessions.length === 0 ? (
+        <div className="none">该项目暂无会话</div>
+      ) : (
+        <div className="card">
+          {stats.sessions.map((s, i) => (
+            <div className="se" key={i}>
+              <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
+                {s.side === 'claude' ? 'CL' : 'CX'}
+              </span>
+              <span className="t">{s.title}</span>
+              <span className="tok">{fmtTok(s.tokens)}</span>
+              <span className="d">{fmtAgo(s.at, snap.scannedAt)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

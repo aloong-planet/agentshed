@@ -2,11 +2,7 @@
 // 原子写:临时文件 + rename,中断不产半截文件。路径按合并键(去尾斜杠+小写)匹配。
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-
-function mergeKey(p: string): string {
-  const stripped = p.replace(/\/+$/, '')
-  return (stripped === '' ? '/' : stripped).toLowerCase()
-}
+import { mergeKey } from '@shared/path-key'
 
 export class HiddenStore {
   private readonly file: string

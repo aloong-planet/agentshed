@@ -1,10 +1,12 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'node:path'
 import { CMD, EVT, type SetHiddenArgs } from '@shared/ipc'
-import type { Snapshot } from '@shared/domain'
+import type { ProjectStats, Snapshot } from '@shared/domain'
 import { assertSnapshot } from '@shared/validate'
+import { mergeKey } from '@shared/path-key'
 import { scan } from './providers/scan'
 import { readProjectDetail } from './providers/project-detail'
+import { TokenEngine } from './providers/token-stats'
 import { realRoots } from './roots'
 import { HiddenStore } from './hidden-store'
 
@@ -16,6 +18,8 @@ if (!gotTheLock) {
 
 let mainWindow: BrowserWindow | null = null
 let hiddenStore: HiddenStore | null = null
+let tokenEngine: TokenEngine | null = null
+let perProjectStats = new Map<string, ProjectStats>()
 
 // ── 快照与刷新(去重:进行中忽略再次触发)──
 let current: Snapshot | null = null
@@ -29,6 +33,14 @@ async function doScan(): Promise<Snapshot> {
         now: () => Date.now(),
         isHidden: (p) => hiddenStore?.isHidden(p) ?? false
       })
+      if (tokenEngine) {
+        const claudePaths = snap.projects
+          .filter((p) => p.sides.includes('claude'))
+          .map((p) => p.path)
+        const t = await tokenEngine.build(realRoots(), claudePaths)
+        snap.tokens = t.global
+        perProjectStats = t.perProject
+      }
       assertSnapshot(snap)
       current = snap
       mainWindow?.webContents.send(EVT.snapshot, snap)
@@ -47,7 +59,9 @@ ipcMain.handle(CMD.getSnapshot, async () => {
 ipcMain.handle(CMD.refresh, async () => doScan())
 ipcMain.handle(CMD.getProjectDetail, (_e, path: unknown) => {
   if (typeof path !== 'string' || path === '') throw new Error('getProjectDetail 参数不合契约')
-  return readProjectDetail(realRoots(), path)
+  const detail = readProjectDetail(realRoots(), path)
+  detail.stats = perProjectStats.get(mergeKey(path)) ?? null
+  return detail
 })
 ipcMain.handle(CMD.setHidden, (_e, args: unknown) => {
   const a = args as SetHiddenArgs
@@ -97,6 +111,7 @@ app.on('second-instance', () => {
 void app.whenReady().then(() => {
   if (!gotTheLock) return
   hiddenStore = new HiddenStore(app.getPath('userData'))
+  tokenEngine = new TokenEngine(app.getPath('userData'))
   createWindow()
   void doScan()
   app.on('activate', () => {

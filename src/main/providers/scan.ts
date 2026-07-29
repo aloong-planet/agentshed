@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
 import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
 import { emptySnapshot } from '@shared/domain'
+import { mergeKey, normalizePath } from '@shared/path-key'
 import type { ScanRoots } from './types'
 import { readClaudeRegistry, readClaudeActivity } from './claude'
 import { readCodexRegistry, readCodexSessions } from './codex'
@@ -14,15 +15,6 @@ export interface ScanDeps {
   now: () => number
   /** 手动隐藏查询(注入 HiddenStore;缺省视为无隐藏) */
   isHidden?: (projectPath: string) => boolean
-}
-
-/** 合并键:去尾斜杠 + 小写(macOS 大小写不敏感);展示保留首次出现的原始写法 */
-function mergeKey(p: string): string {
-  return normalizePath(p).toLowerCase()
-}
-function normalizePath(p: string): string {
-  const stripped = p.replace(/\/+$/, '')
-  return stripped === '' ? '/' : stripped
 }
 
 export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
