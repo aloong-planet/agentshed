@@ -311,3 +311,230 @@ body {
 .hidden-panel .row {
   opacity: 0.75;
 }
+
+/* ── 全宽页(Agents)与详情共用件 ── */
+.pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pane-head {
+  padding: 14px 22px 0;
+  border-bottom: 1px solid var(--line);
+}
+.pane-head h1 {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+.stats {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.stat {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px 14px;
+  min-width: 168px;
+}
+.stat .k {
+  font-size: 10.5px;
+  color: var(--text-2);
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stat .v {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.stat .s {
+  font-size: 10.5px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.stat.cache {
+  border-style: dashed;
+}
+.stat-err {
+  font-size: 10.5px;
+  color: var(--err-fg);
+  margin-top: 2px;
+  max-width: 320px;
+}
+.tabs {
+  display: flex;
+  gap: 2px;
+}
+.tab {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 13px;
+  border: 1px solid transparent;
+  border-radius: 7px 7px 0 0;
+  cursor: pointer;
+  color: var(--text-2);
+  background: transparent;
+}
+.tab:hover {
+  color: var(--text);
+}
+.tab.on {
+  background: var(--bg);
+  color: var(--accent);
+  font-weight: 600;
+  border-color: var(--line);
+  border-bottom-color: var(--bg);
+}
+.pane-body {
+  flex: 1;
+  overflow: auto;
+  padding: 16px 22px;
+}
+.grp-t {
+  font-size: 11px;
+  color: var(--text-2);
+  margin: 2px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  margin-bottom: 16px;
+}
+.it {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.it:last-child {
+  border-bottom: 0;
+}
+.it .nm {
+  font-size: 12.5px;
+  width: 200px;
+  flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.it .ds {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.it .src {
+  font-size: 10.5px;
+  color: var(--text-2);
+  flex: none;
+}
+.mono {
+  font-family: ui-monospace, Menlo, monospace;
+}
+.badge.miss {
+  border: 1px dashed var(--line-strong);
+  color: var(--text-2);
+  background: transparent;
+  font-weight: 400;
+}
+.pill {
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  flex: none;
+}
+.pill.ln {
+  border: 1px dashed var(--line-strong);
+  color: var(--text-2);
+}
+.pill.on {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+.pill.off {
+  border: 1px solid var(--line-strong);
+  color: var(--text-2);
+}
+.diff {
+  font-size: 10px;
+  color: var(--warn-fg);
+  flex: none;
+}
+.none {
+  color: var(--text-2);
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 9px;
+}
+.cfg-switch {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.cfg-switch button {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-2);
+  background: transparent;
+}
+.cfg-switch button.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.md {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 16px 18px;
+  line-height: 1.75;
+  font-size: 12.5px;
+  overflow: auto;
+}
+.md h1,
+.md h2,
+.md h3 {
+  font-size: 13.5px;
+  margin: 10px 0 6px;
+}
+.md code {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 11.5px;
+}
+.md pre {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  overflow-x: auto;
+}
+.md ul,
+.md ol {
+  padding-left: 20px;
+}

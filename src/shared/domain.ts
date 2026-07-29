@@ -27,11 +27,54 @@ export interface ProjectEntry {
   sessionCount: number
 }
 
+/** 全局库中的一个 skill(两侧合并单列) */
+export interface GlobalSkill {
+  name: string
+  /** SKILL.md frontmatter 的 description;无则 null */
+  description: string | null
+  sides: AgentSide[]
+  /** 各侧是否为软链(安装时解引用复制) */
+  symlink: Record<AgentSide, boolean>
+  /** 两侧同名且 SKILL.md 内容不同 */
+  differs: boolean
+}
+
+/** Claude plugin(user-scope 全局,只读) */
+export interface PluginEntry {
+  name: string
+  version: string | null
+  scope: string | null
+  enabled: boolean
+  installPath: string | null
+}
+
+/** 全局 MCP server(按来源标注) */
+export interface McpServerEntry {
+  name: string
+  side: AgentSide
+  /** 'global-config'(~/.claude.json)| 'plugin'(plugin.json 自带)| 'config.toml' */
+  source: 'global-config' | 'plugin' | 'config.toml'
+}
+
+/** Agents 全局层(票07) */
+export interface GlobalLayer {
+  skills: GlobalSkill[]
+  plugins: PluginEntry[]
+  mcp: McpServerEntry[]
+  /** 全局 CLAUDE.md 内容(缺失 null,超长截断) */
+  claudeGlobalMd: string | null
+  /** Codex 全局 AGENTS.md 内容 */
+  codexAgentsMd: string | null
+  /** config.toml 只读摘要(model + 计数) */
+  codexConfigSummary: string | null
+}
+
 /** 全景快照:一次扫描的完整产出(随票 02-07 增量扩展) */
 export interface Snapshot {
   scannedAt: number
   sides: Record<AgentSide, SideInfo>
   projects: ProjectEntry[]
+  global: GlobalLayer
 }
 
 /** 空快照(扫描前/两侧均未检测到时的基态) */
@@ -39,6 +82,14 @@ export function emptySnapshot(scannedAt: number): Snapshot {
   return {
     scannedAt,
     sides: { claude: { detected: false }, codex: { detected: false } },
-    projects: []
+    projects: [],
+    global: {
+      skills: [],
+      plugins: [],
+      mcp: [],
+      claudeGlobalMd: null,
+      codexAgentsMd: null,
+      codexConfigSummary: null
+    }
   }
 }

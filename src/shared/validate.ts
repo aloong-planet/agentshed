@@ -47,6 +47,16 @@ export function validateSnapshot(v: unknown): ValidateResult {
       return fail(`${at}.lastSessionAt`, '需为 number|null')
     if (typeof p['sessionCount'] !== 'number') return fail(`${at}.sessionCount`, '需为 number')
   }
+
+  const g = v['global']
+  if (!isRecord(g)) return fail('global', '缺失')
+  for (const arr of ['skills', 'plugins', 'mcp'] as const) {
+    if (!Array.isArray(g[arr])) return fail(`global.${arr}`, '需为数组')
+  }
+  for (const nullable of ['claudeGlobalMd', 'codexAgentsMd', 'codexConfigSummary'] as const) {
+    if (g[nullable] !== null && typeof g[nullable] !== 'string')
+      return fail(`global.${nullable}`, '需为 string|null')
+  }
   return { ok: true }
 }
 

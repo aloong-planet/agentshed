@@ -7,6 +7,7 @@ import { emptySnapshot } from '@shared/domain'
 import type { ScanRoots } from './types'
 import { readClaudeRegistry, readClaudeActivity } from './claude'
 import { readCodexRegistry, readCodexSessions } from './codex'
+import { readGlobalLayer } from './global'
 
 export interface ScanDeps {
   /** 时钟注入,测试可控 */
@@ -76,5 +77,6 @@ export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> 
   }
 
   snap.projects = [...byKey.values()]
+  snap.global = readGlobalLayer(roots)
   return snap
 }
