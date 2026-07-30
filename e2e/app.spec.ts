@@ -263,10 +263,48 @@ for (const mount of TREND_MOUNTS) {
     await expect(win.locator('.chart .col').first()).toBeVisible()
     await expect(win.locator('.chart .col')).toHaveCount(30)
 
-    // ① x 轴日期标签存在且非空
-    const labels = await win.locator('.xaxis span').allTextContents()
-    expect(labels.length).toBe(30)
-    expect(labels.filter((t) => t.trim() !== '').length).toBeGreaterThanOrEqual(5)
+    // ① x 轴几何检验:标签集合 = 当前视图数据日(默认窗宽放得下全部标签),
+    //    互不重叠、不越出轴容器、逐标钉对应柱中心(首尾贴边 clamp 例外)。
+    //    禁止用"span 数量/非空数"冒充可见——重叠与越界的标签也非空。
+    //    已知缺口:窗口缩放的 ResizeObserver 接线与 resize+刷新并发未自动化
+    //    (补测条件:electron setBounds 的稳定驱动;简略逻辑本身由 axis.test.ts 覆盖)。
+    const checkAxis = (): Promise<string[]> => win.evaluate(() => {
+      const axisEl = document.querySelector('.xaxis') as HTMLElement | null
+      const chartEl = document.querySelector('.chart') as HTMLElement | null
+      if (!axisEl || !chartEl) return ['no-mount']
+      const problems: string[] = []
+      const aR = axisEl.getBoundingClientRect()
+      const spans = Array.from(axisEl.children) as HTMLElement[]
+      const cols = Array.from(chartEl.children) as HTMLElement[]
+      const dataCols = cols.filter((c) => c.querySelector('.sp'))
+      if (spans.length !== dataCols.length)
+        problems.push(`标签数 ${spans.length} ≠ 数据柱数 ${dataCols.length}`)
+      let prevRight = -Infinity
+      for (const s of spans) {
+        const r = s.getBoundingClientRect()
+        if (r.left < prevRight + 1) problems.push(`重叠:${s.textContent}`)
+        prevRight = r.right
+        if (r.left < aR.left - 0.5 || r.right > aR.right + 0.5) problems.push(`越界:${s.textContent}`)
+        const day = s.getAttribute('data-day')
+        const col = cols.find((c) => c.getAttribute('data-day') === day)
+        if (!col) {
+          problems.push(`无对应柱:${s.textContent}`)
+          continue
+        }
+        const cR = col.getBoundingClientRect()
+        const off = Math.abs((cR.left + cR.right) / 2 - (r.left + r.right) / 2)
+        const atEdge = r.left <= aR.left + 1.5 || r.right >= aR.right - 1.5
+        if (off > 1 && !atEdge) problems.push(`偏移 ${off.toFixed(1)}px:${s.textContent}`)
+      }
+      return problems
+    })
+    expect(await checkAxis()).toEqual([])
+
+    // 视图切换后轴跟随当前视图的数据日(合计→Claude→合计,往返无残留)
+    for (const m of ['Claude', '合计']) {
+      await win.locator('.grp-t .seg button', { hasText: m }).click()
+      expect(await checkAxis(), `切到 ${m} 后`).toEqual([])
+    }
 
     // ② 悬停提示的**几何检验**:按同款定位造真实元素,逐级祖先查裁剪盒。
     //    禁止用"data-tip 属性存在"冒充可见——被裁掉的提示框也有属性。

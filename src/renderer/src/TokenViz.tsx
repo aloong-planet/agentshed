@@ -1,6 +1,6 @@
 // Token 可视化共用件:数字格式化、汇总卡、30 天趋势条形图、模型拆分条。
 // 概览 tab(项目)与 Agents 页 Token 分栏共用,数据同源仅分组键不同。
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TokenStats, TokenTotals } from '@shared/domain'
 
 export function fmtTok(n: number): string {
@@ -38,7 +38,8 @@ export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string 
   )
 }
 
-import { buildTrendBars, type TrendMode } from '@shared/trend'
+import { buildTrendBars, type TrendBar, type TrendMode } from '@shared/trend'
+import { layoutAxisLabels } from '@shared/axis'
 import { PROVIDER_ORDER, providerOf } from '@shared/provider'
 
 /** provider → CSS 类后缀(配色见 theme.css) */
@@ -61,8 +62,24 @@ export function TrendChart({
   archivedDays?: string[]
 }): JSX.Element {
   const [mode, setMode] = useState<TrendMode>('合计')
-  const bars = buildTrendBars(stats.byDay, anchor, mode, archivedDays)
+  const bars = useMemo(
+    () => buildTrendBars(stats.byDay, anchor, mode, archivedDays),
+    [stats, anchor, mode, archivedDays]
+  )
   const max = Math.max(...bars.map((b) => b.total), 1)
+  const chartRef = useRef<HTMLDivElement>(null)
+  const axisRef = useRef<HTMLDivElement>(null)
+  // 轴标签钉真实柱中心,须在柱渲染后量 DOM 排布;宽度变化仅重排轴(柱 flex 自适应)
+  useEffect(() => {
+    const chart = chartRef.current
+    const axis = axisRef.current
+    if (!chart || !axis) return
+    const relayout = (): void => renderAxisInto(axis, chart, bars)
+    relayout()
+    const ro = new ResizeObserver(relayout)
+    ro.observe(chart)
+    return () => ro.disconnect()
+  }, [bars])
   // 图例只列窗口内真实出现过的 provider(顺序沿用固定序)
   const usedProviders = PROVIDER_ORDER.filter((p) => bars.some((b) => b.segments.some((s) => s.provider === p)))
 
@@ -78,13 +95,14 @@ export function TrendChart({
           ))}
         </span>
       </div>
-      <div className="chart">
+      <div className="chart" ref={chartRef}>
         {bars.map((b) => (
           <div
             key={b.day}
             className={`col ${b.archived ? 'arch' : ''}`}
             style={{ height: `${Math.max(1.5, Math.round((b.total / max) * 100))}%` }}
             data-tip={tipOf(b)}
+            data-day={b.day}
           >
             {b.segments.map((sg) => (
               <div
@@ -96,11 +114,7 @@ export function TrendChart({
           </div>
         ))}
       </div>
-      <div className="xaxis">
-        {bars.map((b, i) => (
-          <span key={b.day}>{i % 5 === 0 ? b.label : ''}</span>
-        ))}
-      </div>
+      <div className="xaxis" ref={axisRef} />
       {mode === '合计' && usedProviders.length > 0 && (
         <div className="legend">
           {usedProviders.map((p) => (
@@ -114,6 +128,34 @@ export function TrendChart({
       )}
     </div>
   )
+}
+
+// 文本测宽复用单个 canvas,字体取自轴容器计算样式(与 CSS 单一事实)
+let measureCtx: CanvasRenderingContext2D | null = null
+function axisMeasurer(axis: HTMLElement): (text: string) => number {
+  if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d')
+  const cs = getComputedStyle(axis)
+  const ctx = measureCtx
+  if (!ctx) return (t) => t.length * 6
+  ctx.font = `${cs.fontSize} ${cs.fontFamily}`
+  return (t) => ctx.measureText(t).width
+}
+
+/** 把标签排布结果写进轴容器(绝对定位 span,data-day 与柱对应) */
+function renderAxisInto(axis: HTMLElement, chart: HTMLElement, bars: TrendBar[]): void {
+  const width = axis.clientWidth
+  const cols = Array.from(chart.children) as HTMLElement[]
+  if (!width || cols.length !== bars.length) return
+  // 柱中心用 rect 相对轴容器换算——不依赖 offsetParent(柱的定位祖先并非 chart)
+  const axisLeft = axis.getBoundingClientRect().left
+  const centers = cols.map((c) => {
+    const r = c.getBoundingClientRect()
+    return r.left + r.width / 2 - axisLeft
+  })
+  const labels = layoutAxisLabels(bars, centers, width, axisMeasurer(axis))
+  axis.innerHTML = labels
+    .map((l) => `<span style="left:${l.left.toFixed(1)}px" data-day="${bars[l.index].day}">${l.text}</span>`)
+    .join('')
 }
 
 /** 悬停明细:当日合计 + 各侧数值与占比(多行,CSS 用 white-space:pre 渲染) */
