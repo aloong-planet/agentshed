@@ -24,6 +24,10 @@ _Avoid_: 市场、marketplace
 将 skill 从全局库以完整复制落地到项目自有目录;卸载即删除项目内副本,项目自持不依赖全局库存续。
 _Avoid_: 软链、同步
 
+**生效视图(Effective view)**:
+项目详情的 skills 口径——项目级条目与该侧全局层生效项并列呈现,同名时标注遮蔽关系(项目级压过全局)。
+_Avoid_: 已装列表
+
 **产物(Artifact)**:
 项目内按八步流程约定沉淀的五类文档:ADR、CONTEXT.md、功能目录(features)、踩坑复盘(postmortems)、原型(prototypes)。施工文档(.scratch)不算产物。
 _Avoid_: 文档(泛称)

@@ -72,19 +72,15 @@ export class TokenEngine {
     const aggs: FileAgg[] = []
     const seen: Record<string, { sig: string; agg: FileAgg }> = {}
 
-    // ── Claude:项目编码目录下的 *.jsonl ──
+    // ── Claude:项目编码目录——顶层 *.jsonl 为会话(入列表),
+    //    嵌套 jsonl(如 <session>/subagents/agent-*.jsonl)计 token 不入列表 ──
     for (const projectPath of claudeProjectPaths) {
       const dir = join(roots.claudeHome, 'projects', encodeClaudeProjectDir(projectPath))
       if (!existsSync(dir)) continue
-      let names: string[]
-      try {
-        names = readdirSync(dir).filter((n) => n.endsWith('.jsonl'))
-      } catch {
-        continue
-      }
-      for (const name of names) {
-        const file = join(dir, name)
-        const agg = await this.aggFor(file, () => parseClaudeFile(file, mergeKey(projectPath)))
+      for (const { file, nested } of listClaudeJsonl(dir)) {
+        const agg = await this.aggFor(file, () =>
+          parseClaudeFile(file, mergeKey(projectPath), !nested)
+        )
         if (agg) {
           aggs.push(agg)
           seen[file] = { sig: sigOf(file) ?? '', agg }
@@ -116,6 +112,29 @@ export class TokenEngine {
     if (cached && cached.sig === sig) return cached.agg
     return parse()
   }
+}
+
+/** 项目编码目录下全部 jsonl:顶层=会话,嵌套=subagent 等转写 */
+function listClaudeJsonl(root: string): Array<{ file: string; nested: boolean }> {
+  const out: Array<{ file: string; nested: boolean }> = []
+  const walk = (dir: string, nested: boolean): void => {
+    let entries
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const e of entries) {
+      const p = join(dir, e.name)
+      if (e.isDirectory()) {
+        walk(p, true)
+        continue
+      }
+      if (e.name.endsWith('.jsonl')) out.push({ file: p, nested })
+    }
+  }
+  walk(root, false)
+  return out
 }
 
 function sigOf(file: string): string | null {
@@ -219,7 +238,7 @@ async function eachLine(file: string, onLine: (obj: Record<string, unknown>) => 
 
 const TITLE_MAX = 60
 
-async function parseClaudeFile(file: string, projectKey: string): Promise<FileAgg | null> {
+async function parseClaudeFile(file: string, projectKey: string, listed = true): Promise<FileAgg | null> {
   const totals = emptyTotals()
   const byModel: Record<string, number> = {}
   const byDay: Record<string, number> = {}
@@ -283,7 +302,7 @@ async function parseClaudeFile(file: string, projectKey: string): Promise<FileAg
       title: title ?? file.split('/').pop()?.replace(/\.jsonl$/, '') ?? '会话',
       at: lastAt ?? fallbackAt,
       tokens: totals.total,
-      listed: true
+      listed
     }
   }
 }

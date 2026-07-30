@@ -142,6 +142,34 @@ describe('Claude 聚合', () => {
   })
 })
 
+describe('Claude subagent 转写', () => {
+  it('<session>/subagents/*.jsonl 的 usage 计入项目与全局,但不产生会话条目', async () => {
+    mkClaudeSession(proj, 'main.jsonl', [
+      userLine('主会话'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
+    ])
+    const subDir = join(
+      dir,
+      '.claude',
+      'projects',
+      encodeClaudeProjectDir(proj),
+      'some-session-uuid',
+      'subagents'
+    )
+    mkdirSync(subDir, { recursive: true })
+    writeFileSync(
+      join(subDir, 'agent-x.jsonl'),
+      `${usageLine('claude-haiku-4-5', '2026-07-30T03:00:00Z', 1000, 200)}\n`
+    )
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.claude.total).toBe(1215)
+    const p = r.perProject.get(proj.toLowerCase())
+    expect(p?.tokens.bySide.claude.total).toBe(1215)
+    expect(p?.sessions).toHaveLength(1)
+    expect(p?.sessions[0].title).toContain('主会话')
+  })
+})
+
 describe('Codex 聚合', () => {
   it('取末条 token_count 累计;模型取 turn_context;标题经 session_index 映射', async () => {
     const id = '019fa9a1-380e-7af3-af7d-8505cedf1ec2'

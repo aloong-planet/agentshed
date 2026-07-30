@@ -274,7 +274,13 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
       return
     }
     const md = await window.agentshed.readArtifact(item.file)
-    setReader({ item, html: marked.parse(md, { async: false }) as string })
+    // 相对路径图片按产物所在目录解析(打包版 file:// 下可加载;dev 下受混合内容限制可能不显示)
+    const baseDir = item.file.slice(0, item.file.lastIndexOf('/'))
+    const rewritten = md.replace(
+      /!\[([^\]]*)\]\((?!https?:\/\/|file:\/\/|data:|\/)([^)]+)\)/g,
+      (_m, alt: string, rel: string) => `![${alt}](file://${baseDir}/${rel})`
+    )
+    setReader({ item, html: marked.parse(rewritten, { async: false }) as string })
   }
 
   return (
