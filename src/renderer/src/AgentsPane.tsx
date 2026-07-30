@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { marked } from 'marked'
+import { renderMarkdown } from './md'
 import type { Snapshot } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
 import { toast } from './Toast'
@@ -246,7 +246,7 @@ function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
     const md =
       which === 'cl' ? snap.global.claudeGlobalMd : which === 'cx' ? snap.global.codexAgentsMd : null
     if (md === null) return null
-    return marked.parse(md, { async: false })
+    return renderMarkdown(md)
   }, [which, snap])
   return (
     <div>

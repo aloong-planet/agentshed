@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { marked } from 'marked'
+import { renderMarkdown } from './md'
 import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot } from '@shared/domain'
 import { emptyTokenStats } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
@@ -285,7 +285,7 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
       /!\[([^\]]*)\]\((?!https?:\/\/|file:\/\/|data:|\/)([^)]+)\)/g,
       (_m, alt: string, rel: string) => `![${alt}](file://${baseDir}/${rel})`
     )
-    setReader({ item, html: marked.parse(rewritten, { async: false }) as string })
+    setReader({ item, html: renderMarkdown(rewritten) })
   }
 
   return (
@@ -331,7 +331,7 @@ function CfgTab({ detail }: { detail: ProjectDetail }): JSX.Element {
   const [which, setWhich] = useState<'cl' | 'cx' | 'settings'>('cl')
   const html = useMemo(() => {
     const md = which === 'cl' ? detail.configs.claudeMd : which === 'cx' ? detail.configs.agentsMd : null
-    return md === null ? null : marked.parse(md, { async: false })
+    return md === null ? null : renderMarkdown(md)
   }, [which, detail])
   return (
     <div>
