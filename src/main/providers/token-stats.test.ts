@@ -1,7 +1,7 @@
 // 票04+修正轮:token 聚合引擎(ccusage 对齐,2026-07-30)——
 // 全树扫描(与注册表无关)、message.id+requestId 去重(sidechain 回退)、
 // 总量四项全加、synthetic 不入模型桶、流式坏行跳过、增量缓存。
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync, existsSync, readdirSync } from 'node:fs'
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -283,6 +283,51 @@ describe('Codex 聚合(ccusage 口径)', () => {
     const p = r.perProject.get(proj.toLowerCase())
     expect(p?.sessions.filter((s) => s.side === 'codex')).toHaveLength(1)
     expect(p?.tokens.bySide.codex.total).toBe(1115)
+  })
+})
+
+describe('缓存版本迁移(真 bug 回归)', () => {
+  it('旧格式缓存(Codex agg 无 events 字段)不崩,按新结构重算', async () => {
+    mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    const rollout = mkCodexRollout('rollout-old-019f900.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
+      { input: 30, cached: 0, output: 5 }
+    ])
+    // 手工写入上一版结构的缓存:Codex 条目只有 totals/byDay,没有 events
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    const st = statSync(rollout)
+    writeFileSync(
+      join(dir, 'cache', 'token-cache.json'),
+      JSON.stringify({
+        version: 2,
+        files: {
+          [rollout]: {
+            sig: `${st.mtimeMs}:${st.size}`,
+            agg: {
+              kind: 'codex',
+              projectKey: proj.toLowerCase(),
+              listed: true,
+              title: '旧格式',
+              at: 1,
+              model: 'gpt-5.6-sol',
+              totals: { input: 999, output: 0, cacheRead: 0, cacheWrite: 0, total: 999 },
+              byDay: { '2026-07-30': 999 }
+            }
+          }
+        }
+      })
+    )
+    const r = await engine().build(roots(), [proj])
+    // 不崩,且数字来自重算(35)而非旧缓存的 999
+    expect(r.global.bySide.codex.total).toBe(35)
+    expect(r.global.bySide.claude.total).toBe(15)
+  })
+
+  it('缓存文件是垃圾内容时不崩,全量重算', async () => {
+    mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    writeFileSync(join(dir, 'cache', 'token-cache.json'), '{"version":3,"files":{"x":{"sig":"1:1","agg":{"kind":"claude"}}}}')
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.claude.total).toBe(15)
   })
 })
 
