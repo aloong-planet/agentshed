@@ -219,3 +219,86 @@ test('provider 品牌配色生效:段与图例色一致,深浅模式各有取值
   expect(l.errors).toEqual([])
   await close(l)
 })
+
+/**
+ * 趋势图的每个使用点都跑同一组断言。
+ * 新增使用点只需往这个列表加一行——避免"测了一处漏一处"(2026-07-30 的漏改教训)。
+ */
+const TREND_MOUNTS = [
+  {
+    name: 'Agents 页 Token 分栏',
+    async goto(win: import('@playwright/test').Page) {
+      await win.locator('.pane-head .tabs .tab', { hasText: 'Token' }).click()
+    }
+  },
+  {
+    name: '项目详情 概览分栏',
+    async goto(win: import('@playwright/test').Page) {
+      await win.locator('.rail .ri').nth(1).click()
+      const rows = win.locator('.side .row')
+      // count() 是即时读取,须等渲染完成——直接 count 会把"还没渲染"误判成"没有项目"
+      try {
+        await rows.first().waitFor({ state: 'visible', timeout: 8000 })
+      } catch {
+        return false // 本机确实无项目
+      }
+      await rows.first().click()
+      await win.locator('.pane-head .tabs .tab', { hasText: '概览' }).click()
+      return true
+    }
+  }
+]
+
+for (const mount of TREND_MOUNTS) {
+  test(`趋势图[${mount.name}]:日期轴在位,悬停提示不被祖先裁剪`, async () => {
+    const l = await launch()
+    const win = await l.app.firstWindow()
+    const ok = await mount.goto(win)
+    if (ok === false) {
+      // 本机确实无项目:显式 skip,不伪装成通过的绿
+      await close(l)
+      test.skip(true, `${mount.name}:本机无项目数据,无法验证`)
+      return
+    }
+    await expect(win.locator('.chart .col').first()).toBeVisible()
+    await expect(win.locator('.chart .col')).toHaveCount(30)
+
+    // ① x 轴日期标签存在且非空
+    const labels = await win.locator('.xaxis span').allTextContents()
+    expect(labels.length).toBe(30)
+    expect(labels.filter((t) => t.trim() !== '').length).toBeGreaterThanOrEqual(5)
+
+    // ② 悬停提示的**几何检验**:按同款定位造真实元素,逐级祖先查裁剪盒。
+    //    禁止用"data-tip 属性存在"冒充可见——被裁掉的提示框也有属性。
+    const clipped = await win.evaluate(() => {
+      const col = document.querySelectorAll('.chart .col')[15] as HTMLElement | undefined
+      if (!col) return 'no-col'
+      const probe = document.createElement('div')
+      probe.textContent = col.getAttribute('data-tip') ?? ''
+      probe.style.cssText =
+        'position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);white-space:pre;font-size:11px;padding:5px 9px'
+      col.appendChild(probe)
+      const pr = probe.getBoundingClientRect()
+      let hit: string | null = null
+      let el: HTMLElement | null = col.parentElement
+      while (el && el !== document.body) {
+        const cs = getComputedStyle(el)
+        if (cs.overflow !== 'visible') {
+          const er = el.getBoundingClientRect()
+          if (pr.top < er.top || pr.left < er.left || pr.right > er.right) hit = el.className || el.tagName
+        }
+        el = el.parentElement
+      }
+      probe.remove()
+      return hit
+    })
+    expect(clipped).toBeNull()
+
+    // ③ 提示内容是多行明细(合计 + 至少一个 provider 行)
+    const tip = await win.locator('.chart .col').nth(15).getAttribute('data-tip')
+    expect(tip).toContain('合计')
+
+    expect(l.errors).toEqual([])
+    await close(l)
+  })
+}

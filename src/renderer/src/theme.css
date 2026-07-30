@@ -627,10 +627,14 @@ body {
   display: flex;
   flex-direction: column-reverse;
   justify-content: flex-start;
-  border-radius: 2px 2px 0 0;
-  overflow: hidden;
   position: relative;
+  /* 不可 overflow:hidden——会裁掉定位在柱外的 tooltip 伪元素;
+     圆角改由最顶部那一段承担 */
+  overflow: visible;
   min-height: 2px;
+}
+.col .sp:last-child {
+  border-radius: 2px 2px 0 0;
 }
 .col:hover {
   outline: 1px solid var(--accent);
@@ -658,11 +662,25 @@ body {
 .col:hover .sp {
   opacity: 1;
 }
+/* x 轴日期(每 5 根标一个) */
+.xaxis {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+}
+.xaxis span {
+  flex: 1;
+  text-align: center;
+  font-size: 9.5px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+}
 .legend {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin: -6px 0 14px;
+  margin: 6px 0 14px;
   font-size: 11.5px;
   color: var(--text-2);
 }

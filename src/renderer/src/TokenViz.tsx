@@ -96,6 +96,11 @@ export function TrendChart({
           </div>
         ))}
       </div>
+      <div className="xaxis">
+        {bars.map((b, i) => (
+          <span key={b.day}>{i % 5 === 0 ? b.label : ''}</span>
+        ))}
+      </div>
       {mode === '合计' && usedProviders.length > 0 && (
         <div className="legend">
           {usedProviders.map((p) => (

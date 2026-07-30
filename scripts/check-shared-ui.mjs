@@ -123,7 +123,9 @@ function checkBlock(block, withCross) {
       if (!withCross && !f.startsWith('docs/prototypes/')) continue
       const css = read(f)
       if (css === null) continue
-      const blocks = css.match(new RegExp(`\\${inv.selector}\\s*\\{[^}]*\\}`, 'g')) ?? []
+      // 先剥注释再匹配:注释里提及被禁声明(如"不可 overflow:hidden——…")不算违规
+      const stripped = css.replace(/\/\*[\s\S]*?\*\//g, '')
+      const blocks = stripped.match(new RegExp(`\\${inv.selector}\\s*\\{[^}]*\\}`, 'g')) ?? []
       if (blocks.some((b) => inv.forbid.test(b))) {
         problems.push(`${f}:${inv.selector} 违反不变量(${inv.why})`)
       }
