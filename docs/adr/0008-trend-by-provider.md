@@ -25,8 +25,4 @@
 
 ## 来源
 
-用户 review 原型后的裁定(2026-07-30);本机 9 模型量级分布实测。
-
-> 引用修正(2026-07-30):原文引的 `docs/prototypes/token-stacked/` 已并入
-> `docs/prototypes/agents-page/prototype-agents.html`(同一张图不在多处维护),
-> 被否决方案的代价说明保留在本条「备选项」段。
+用户 review 三个方案后的裁定(2026-07-30);本机实测的模型量级分布:9 个模型跨 5 个数量级(claude-opus-4-8 3072M ~ gpt-5.2-codex 11k),这是"按模型分段会出现不可见薄段"的依据。
