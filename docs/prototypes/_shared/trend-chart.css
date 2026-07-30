@@ -1,0 +1,105 @@
+/* 共享:provider 堆叠趋势图(被多个原型页引用,改此一处即可全部生效)。
+   对应真 app 的 TrendChart 组件 —— 原型与实现都保持"一份源、多处引用"。 */
+:root {
+  --p-anthropic: #d97757;
+  --p-openai: #10a37f;
+  --p-google: #4285f4;
+  --p-other: #9aa0a6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --p-anthropic: #e8916f;
+    --p-openai: #2fc79f;
+    --p-google: #6ba3f7;
+    --p-other: #adb2b8;
+  }
+}
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px;
+}
+/* 柱体不可 overflow:hidden——会裁掉定位在柱外的 tooltip 伪元素;
+   圆角改由最顶部那一段承担 */
+.col {
+  flex: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  position: relative;
+  overflow: visible;
+  min-height: 2px;
+}
+.col:hover {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+.sp {
+  width: 100%;
+}
+.col .sp:last-child {
+  border-radius: 2px 2px 0 0;
+}
+.sp.anthropic { background: var(--p-anthropic); opacity: 0.9 }
+.sp.openai    { background: var(--p-openai);    opacity: 0.9 }
+.sp.google    { background: var(--p-google);    opacity: 0.9 }
+.sp.other     { background: var(--p-other);     opacity: 0.9 }
+.col:hover .sp { opacity: 1 }
+.col.arch .sp {
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 3px,
+    rgba(255, 255, 255, 0.45) 3px, rgba(255, 255, 255, 0.45) 6px);
+}
+.col[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1b1b1f;
+  color: #fff;
+  font-size: 11.5px;
+  line-height: 1.5;
+  padding: 7px 10px;
+  border-radius: 6px;
+  white-space: pre;
+  text-align: left;
+  z-index: 20;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+.xaxis {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+}
+.xaxis span {
+  flex: 1;
+  text-align: center;
+  font-size: 9.5px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 8px 0 12px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.legend .lg { display: flex; align-items: center; gap: 6px }
+.legend .sw { width: 10px; height: 10px; border-radius: 3px }
+.legend .sw.anthropic { background: var(--p-anthropic) }
+.legend .sw.openai    { background: var(--p-openai) }
+.legend .sw.google    { background: var(--p-google) }
+.legend .sw.other     { background: var(--p-other) }
+.legend .lg-note { margin-left: auto }
+/* 按模型拆分条同用 provider 品牌色 */
+.m.anthropic .tr i { background: var(--p-anthropic) }
+.m.openai .tr i    { background: var(--p-openai) }
+.m.google .tr i    { background: var(--p-google) }

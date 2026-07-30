@@ -9,6 +9,8 @@
 <head>
 <meta charset="utf-8">
 <title>原型 — Agents 全局页</title>
+<!-- 趋势图为共享件:改 _shared/trend-chart.{css,js} 即对所有引用它的原型生效 -->
+<link rel="stylesheet" href="../_shared/trend-chart.css">
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
     --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
@@ -62,16 +64,10 @@
   .md h3{font-size:13px;margin-bottom:6px}
   .md code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px}
   .none{color:var(--text-2);padding:16px;text-align:center;font-size:12px}
+  .chart{height:130px}
   .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;margin-left:auto}
   .seg span{padding:4px 11px;font-size:11.5px;color:var(--text-2);cursor:pointer}
   .seg span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
-  .chart{display:flex;align-items:flex-end;gap:3px;height:130px;background:var(--card);
-    border:1px solid var(--line);border-radius:9px;padding:12px}
-  .bar{flex:1;background:var(--accent);opacity:.75;border-radius:2px 2px 0 0;min-height:2px;position:relative;cursor:pointer}
-  .bar:hover{opacity:1}
-  .bar:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
-    background:#1b1b1f;color:#fff;font-size:10.5px;padding:4px 8px;border-radius:5px;white-space:nowrap;z-index:5}
-  .bar.x{background:#3ba272}
   .models{display:flex;flex-direction:column;gap:7px}
   .m{display:flex;align-items:center;gap:10px}
   .m .nm2{width:150px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;flex:none}
@@ -79,36 +75,7 @@
   .m .tr i{display:block;height:100%;background:var(--accent)}
   .m.x .tr i{background:#3ba272}
   .m .num{width:70px;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--text-2)}
-  /* provider 品牌主色(数据色,独立于 UI 强调色) */
-  :root{--p-anthropic:#d97757;--p-openai:#10a37f;--p-google:#4285f4;--p-other:#9aa0a6}
-  @media (prefers-color-scheme:dark){:root{--p-anthropic:#e8916f;--p-openai:#2fc79f;
-    --p-google:#6ba3f7;--p-other:#adb2b8}}
-  .col{flex:1;display:flex;flex-direction:column-reverse;justify-content:flex-start;
-    border-radius:2px 2px 0 0;overflow:hidden;position:relative;min-height:2px}
-  .col:hover{outline:1px solid var(--accent);outline-offset:1px}
-  .sp{width:100%}
-  .sp.anthropic{background:var(--p-anthropic);opacity:.9}
-  .sp.openai{background:var(--p-openai);opacity:.9}
-  .sp.google{background:var(--p-google);opacity:.9}
-  .sp.other{background:var(--p-other);opacity:.9}
-  .col:hover .sp{opacity:1}
-  .col.arch .sp{background-image:repeating-linear-gradient(45deg,transparent,transparent 3px,
-    rgba(255,255,255,.45) 3px,rgba(255,255,255,.45) 6px)}
-  .col[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);
-    left:50%;transform:translateX(-50%);background:#1b1b1f;color:#fff;font-size:11.5px;line-height:1.5;
-    padding:7px 10px;border-radius:6px;white-space:pre;text-align:left;z-index:20;pointer-events:none;
-    box-shadow:0 4px 14px rgba(0,0,0,.28)}
-  .legend{display:flex;align-items:center;gap:14px;margin:8px 0 4px;font-size:11.5px;color:var(--text-2)}
-  .legend .lg{display:flex;align-items:center;gap:6px}
-  .legend .sw{width:10px;height:10px;border-radius:3px}
-  .legend .sw.anthropic{background:var(--p-anthropic)}
-  .legend .sw.openai{background:var(--p-openai)}
-  .legend .sw.google{background:var(--p-google)}
-  .legend .sw.other{background:var(--p-other)}
-  .legend .lg-note{margin-left:auto}
-  .m.anthropic .tr i{background:var(--p-anthropic)}
-  .m.openai .tr i{background:var(--p-openai)}
-  .m.google .tr i{background:var(--p-google)}
+
 
 </style>
 </head>
@@ -138,6 +105,7 @@
         <div class="grp-t">近 30 天趋势(本地时区 · 日粒度 · 跨全部项目)
           <span class="seg" id="tseg"><span class="on">合计</span><span>Claude</span><span>Codex</span></span></div>
         <div class="chart" id="chart"></div>
+        <div class="xaxis" id="txaxis"></div>
         <div class="legend" id="tlegend"></div>
         <div class="grp-t" style="margin-top:18px">按模型拆分(跨项目;条形同用 provider 品牌色)</div>
         <div class="models">
@@ -206,50 +174,14 @@
       </div>
     </div>
   </div>
+<script src="../_shared/trend-chart.js"></script>
 <script>
 
-  // ── 趋势:按 provider 堆叠(与真 app 同形态;裁定见 ADR-0008)──
-  const PROVIDERS=['Anthropic','OpenAI','Google','其他'];
-  const PCLS={Anthropic:'anthropic',OpenAI:'openai',Google:'google','其他':'other'};
-  const rnd=(s=>()=>(s=(s*9301+49297)%233280)/233280)(11);
-  const fmtT=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'k':String(n);
-  const days=[...Array(30)].map((_,i)=>{
-    const d=new Date(Date.now()-(29-i)*86400000);
-    const by={}; const sc=0.2+rnd()*1.8;
-    by.Anthropic=Math.round(9e7*sc);
-    if(rnd()<0.7) by.OpenAI=Math.round(2.5e7*sc*(0.3+rnd()));
-    if([2,8,16].includes(i)) by.Google=Math.round(1.2e7*(0.4+rnd()));  // 演示某 agent 混用别家模型
-    return {label:`${d.getMonth()+1}/${d.getDate()}`,by,archived:i<4};
-  });
-  let tmode='合计';
-  function segsOf(day){
-    if(tmode!=='合计'){
-      const p=tmode==='Claude'?'Anthropic':'OpenAI';
-      const v=day.by[p]??0; return v>0?[{p,v}]:[];
-    }
-    return PROVIDERS.map(p=>({p,v:day.by[p]??0})).filter(s=>s.v>0);
-  }
-  function renderChart(){
-    const rows=days.map(d=>{const segs=segsOf(d);return{d,segs,total:segs.reduce((s,x)=>s+x.v,0)}});
-    const max=Math.max(...rows.map(r=>r.total),1);
-    document.getElementById('chart').innerHTML=rows.map(r=>{
-      const tip=[`${r.d.label} · 合计 ${fmtT(r.total)}${r.d.archived?' · 归档(源文件已清理)':''}`,
-        ...(r.total===0?['无用量']:r.segs.map(s=>`${s.p}  ${fmtT(s.v)}  ${Math.round(s.v/r.total*100)}%`))].join('\n');
-      const sp=r.segs.map(s=>`<div class="sp ${PCLS[s.p]}" style="height:${s.v/r.total*100}%"></div>`).join('');
-      return `<div class="col ${r.d.archived?'arch':''}" style="height:${Math.max(1.5,r.total/max*100)}%" data-tip="${tip.replace(/"/g,'&quot;')}">${sp}</div>`;
-    }).join('');
-    const used=PROVIDERS.filter(p=>rows.some(r=>r.segs.some(s=>s.p===p)));
-    document.getElementById('tlegend').innerHTML = tmode==='合计'
-      ? used.map(p=>`<span class="lg"><span class="sw ${PCLS[p]}"></span>${p}</span>`).join('')+
-        '<span class="lg-note">柱高=当日总量,分段=各 provider 占比;斜纹=归档段</span>'
-      : '<span class="lg-note">单侧视图:仅该 agent 侧用量</span>';
-  }
-  document.getElementById('tseg').addEventListener('click',e=>{
-    if(e.target.tagName!=='SPAN')return;
-    document.querySelectorAll('#tseg span').forEach(s=>s.classList.toggle('on',s===e.target));
-    tmode=e.target.textContent;renderChart();
-  });
-  renderChart();
+  // 趋势图:共享件渲染(逻辑与样式在 _shared/trend-chart.*,与其他原型页同源)
+  TrendChartProto.mount(
+    { chart: 'chart', xaxis: 'txaxis', legend: 'tlegend', seg: 'tseg' },
+    TrendChartProto.mockDays(11, { scale: 9e7, withGoogle: true, archivedFirst: 4 })
+  )
 
   document.getElementById('tabs').addEventListener('click',e=>{
     const t=e.target.closest('.tab');if(!t||!t.dataset.t)return;
