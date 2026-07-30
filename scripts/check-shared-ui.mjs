@@ -7,6 +7,12 @@
 //
 // 新增一种共享块 = 往 SHARED_BLOCKS 加一条;新增一个使用点 = 在页面加声明属性。
 // 两者都不需要改本脚本的逻辑。
+//
+// ── 检查分档(与"先原型、确认后实现"的工作流对齐)──
+//   默认:只查**原型侧**规则。原型改完等用户确认期间,真代码尚未跟进是预期状态,
+//         此时报"原型与 app 不一致"是噪音,红久了会被忽略(破窗)。
+//   --cross:加查**原型↔真代码一致性**(CSS 不变量在 app 侧的部分、组件必需 props)。
+//         落实现之后跑,也是 pnpm verify 里跑的档位。
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -41,6 +47,7 @@ const SHARED_BLOCKS = [
 const GLOBAL_RULES = [
   {
     name: 'provider 品牌色不得在组件里硬编码(应走 CSS 变量)',
+    cross: true,
     check() {
       const bad = []
       const BRAND = ['#d97757', '#10a37f', '#4285f4']
@@ -85,7 +92,7 @@ function prototypeHtmls() {
   return out
 }
 
-function checkBlock(block) {
+function checkBlock(block, withCross) {
   const problems = []
   const users = []
 
@@ -110,9 +117,10 @@ function checkBlock(block) {
     }
   }
 
-  // ② 样式不变量
+  // ② 样式不变量(app 侧的文件属跨端档)
   for (const inv of block.cssInvariants ?? []) {
     for (const f of inv.files) {
+      if (!withCross && !f.startsWith('docs/prototypes/')) continue
       const css = read(f)
       if (css === null) continue
       const blocks = css.match(new RegExp(`\\${inv.selector}\\s*\\{[^}]*\\}`, 'g')) ?? []
@@ -122,8 +130,8 @@ function checkBlock(block) {
     }
   }
 
-  // ③ app 侧组件的每个使用点
-  if (block.appComponent) {
+  // ③ app 侧组件的每个使用点(跨端档)
+  if (withCross && block.appComponent) {
     const { name, requiredProps } = block.appComponent
     for (const f of appSources()) {
       const src = read(f) ?? ''
@@ -147,9 +155,12 @@ function appSources() {
     .map((n) => join('src/renderer/src', n))
 }
 
+const withCross = process.argv.includes('--cross')
+console.log(withCross ? '档位:原型 + 跨端一致性' : '档位:仅原型(跨端检查用 --cross,落实现后再跑)')
+
 let failed = 0
 for (const block of SHARED_BLOCKS) {
-  const { problems, users } = checkBlock(block)
+  const { problems, users } = checkBlock(block, withCross)
   if (problems.length) {
     failed += problems.length
     console.error(`✗ 共享块 ${block.id}(${block.label})`)
@@ -159,6 +170,7 @@ for (const block of SHARED_BLOCKS) {
   }
 }
 for (const r of GLOBAL_RULES) {
+  if (r.cross && !withCross) continue
   const problems = r.check()
   if (problems.length) {
     failed += problems.length
