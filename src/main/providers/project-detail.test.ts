@@ -54,6 +54,16 @@ describe('skills 生效视图', () => {
     expect(map['codex:global:github-ops']).toMatchObject({ shadowed: false })
   })
 
+  it('Codex 侧同名不遮蔽:两条都标「同名共存」,不标遮蔽(源码级证据:仅按路径去重)', () => {
+    mkSkill(join(proj, '.agents', 'skills'), 'grilling', '项目版')
+    mkSkill(join(dir, '.agents', 'skills'), 'grilling', '全局版')
+    const d = readProjectDetail(roots(), proj)
+    const project = d.skills.find((s) => s.side === 'codex' && s.level === 'project')
+    const global = d.skills.find((s) => s.side === 'codex' && s.level === 'global')
+    expect(project).toMatchObject({ shadows: false, coexists: true })
+    expect(global).toMatchObject({ shadowed: false, coexists: true })
+  })
+
   it('项目级软链 skill 带 symlink 标记', () => {
     mkSkill(join(dir, '.agents', 'skills'), 'shared', '共享')
     mkdirSync(join(proj, '.claude', 'skills'), { recursive: true })

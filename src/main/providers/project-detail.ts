@@ -1,6 +1,8 @@
-// 项目详情读取(票03):skills 生效视图(项目级+全局,遮蔽/软链)、项目级 MCP、配置只读。
-// 遮蔽语义:同侧同名时项目级压过全局(Claude 侧有既往佐证;Codex 侧为同规则假设,
-// 待核事实见 .scratch/v1/requirements.md——实证不同再改标注)。
+// 项目详情读取(票03):skills 生效视图(项目级+全局)、项目级 MCP、配置只读。
+// 同名语义按侧区分(2026-07-30 源码级核实):
+//   Claude:项目级遮蔽全局(shadows/shadowed);
+//   Codex:不遮蔽,仅按路径去重、同名共存且两个都生效(coexists;openai/codex
+//   root_loader.rs 只按 path 去重,官方文档明言 "doesn't merge them")。
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ProjectDetail, ProjectMcpEntry, ProjectSkillEntry, AgentSide } from '@shared/domain'
@@ -75,6 +77,7 @@ function readEffectiveSkills(roots: ScanRoots, projectPath: string): ProjectSkil
   for (const { side, projectDir, globalDir } of sides) {
     const project = listSkills(projectDir)
     const global = listSkills(globalDir)
+    const shadowing = side === 'claude' // Codex 同名共存,不遮蔽
     for (const [name, s] of [...project.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       out.push({
         name,
@@ -83,7 +86,8 @@ function readEffectiveSkills(roots: ScanRoots, projectPath: string): ProjectSkil
         side,
         symlink: s.symlink,
         shadowed: false,
-        shadows: global.has(name)
+        shadows: shadowing && global.has(name),
+        coexists: !shadowing && global.has(name)
       })
     }
     for (const [name, s] of [...global.entries()].sort(([a], [b]) => a.localeCompare(b))) {
@@ -93,8 +97,9 @@ function readEffectiveSkills(roots: ScanRoots, projectPath: string): ProjectSkil
         level: 'global',
         side,
         symlink: s.symlink,
-        shadowed: project.has(name),
-        shadows: false
+        shadowed: shadowing && project.has(name),
+        shadows: false,
+        coexists: !shadowing && project.has(name)
       })
     }
   }

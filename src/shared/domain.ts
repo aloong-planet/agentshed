@@ -69,7 +69,11 @@ export interface GlobalLayer {
   codexConfigSummary: string | null
 }
 
-/** token 计数(口径:total = input + output;cache 读写单列不计入) */
+/**
+ * token 计数。总量口径(ADR-0005,对齐 ccusage):
+ * Claude:total = input + output + cacheRead + cacheWrite(四项全加);
+ * Codex:total = input + output + cacheWrite(input 已含 cached,不重复加)。
+ */
 export interface TokenTotals {
   input: number
   output: number
@@ -127,10 +131,12 @@ export interface ProjectSkillEntry {
   level: 'project' | 'global'
   side: AgentSide
   symlink: boolean
-  /** 全局条目被同侧同名项目级遮蔽 */
+  /** 全局条目被同侧同名项目级遮蔽(仅 Claude 侧语义) */
   shadowed: boolean
-  /** 项目级条目遮蔽了同侧同名全局 */
+  /** 项目级条目遮蔽了同侧同名全局(仅 Claude 侧语义) */
   shadows: boolean
+  /** Codex 侧同名共存(两个都生效,纯名调用会歧义;源码级证实不遮蔽) */
+  coexists: boolean
 }
 
 /** 项目级 MCP(.mcp.json)条目 */

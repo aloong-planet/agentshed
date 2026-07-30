@@ -6,5 +6,6 @@
 |---|---|---|
 | [0001](0001-ipc-contract-single-source.md) | IPC 契约单一类型源与双侧运行时校验 | 已接受 |
 | [0002](0002-dual-seam-testing.md) | 双 seam 测试策略(数据层注入 + IPC 契约) | 已接受 |
-| [0003](0003-token-accounting.md) | Token 统计口径 | 已接受 |
+| [0003](0003-token-accounting.md) | Token 统计口径 | 已被 0005 取代 |
 | [0004](0004-skill-install-by-copy.md) | Skills 安装复制落地(拒绝软链) | 已接受 |
+| [0005](0005-token-ccusage-alignment.md) | Token 统计对齐 ccusage(全树+去重+四项口径) | 已接受 |

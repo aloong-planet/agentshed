@@ -30,7 +30,7 @@ export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string 
         <div className="s">各侧原生口径分列</div>
       </div>
       <div className="stat cache">
-        <div className="k">cache 命中(单列,不计入总量)</div>
+        <div className="k">其中 cache(ccusage 口径已计入总量)</div>
         <div className="v">{fmtTok(sum('cacheRead'))}</div>
         <div className="s">读 {fmtTok(sum('cacheRead'))} · 写 {fmtTok(sum('cacheWrite'))}</div>
       </div>
