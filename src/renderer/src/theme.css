@@ -17,6 +17,11 @@
   --cl-fg: #6b4f92;
   --cx-bg: #dcefe4;
   --cx-fg: #1f7a4d;
+  /* provider 品牌主色(数据色,独立于 UI 强调色 --accent) */
+  --p-anthropic: #d97757;
+  --p-openai: #10a37f;
+  --p-google: #4285f4;
+  --p-other: #9aa0a6;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -36,6 +41,11 @@
     --cl-fg: #c9b3ec;
     --cx-bg: #1d3a2b;
     --cx-fg: #7fd6a4;
+    /* 深色底提亮,保持与背景的对比 */
+    --p-anthropic: #e8916f;
+    --p-openai: #2fc79f;
+    --p-google: #6ba3f7;
+    --p-other: #adb2b8;
   }
 }
 * {
@@ -630,20 +640,20 @@ body {
   width: 100%;
 }
 .sp.anthropic {
-  background: var(--accent);
-  opacity: 0.85;
+  background: var(--p-anthropic);
+  opacity: 0.9;
 }
 .sp.openai {
-  background: #3ba272;
-  opacity: 0.85;
+  background: var(--p-openai);
+  opacity: 0.9;
 }
 .sp.google {
-  background: #d08a3e;
-  opacity: 0.85;
+  background: var(--p-google);
+  opacity: 0.9;
 }
 .sp.other {
-  background: #9aa0a6;
-  opacity: 0.85;
+  background: var(--p-other);
+  opacity: 0.9;
 }
 .col:hover .sp {
   opacity: 1;
@@ -667,16 +677,16 @@ body {
   border-radius: 3px;
 }
 .legend .sw.anthropic {
-  background: var(--accent);
+  background: var(--p-anthropic);
 }
 .legend .sw.openai {
-  background: #3ba272;
+  background: var(--p-openai);
 }
 .legend .sw.google {
-  background: #d08a3e;
+  background: var(--p-google);
 }
 .legend .sw.other {
-  background: #9aa0a6;
+  background: var(--p-other);
 }
 .legend .lg-note {
   margin-left: auto;
@@ -710,10 +720,16 @@ body {
 .m .tr i {
   display: block;
   height: 100%;
-  background: var(--accent);
+  background: var(--p-other);
 }
-.m.x .tr i {
-  background: #3ba272;
+.m.anthropic .tr i {
+  background: var(--p-anthropic);
+}
+.m.openai .tr i {
+  background: var(--p-openai);
+}
+.m.google .tr i {
+  background: var(--p-google);
 }
 .m .num {
   width: 64px;
