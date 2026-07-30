@@ -71,18 +71,19 @@
   pointer-events: none;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
 }
+/* x 轴:只标数据日,标签绝对定位钉柱中心(JS 量 DOM 排布),首尾出界 clamp——
+   不能用 flex 等分格:格子会被压得比文字窄导致两侧裁字,且与柱区 padding 错位 */
 .xaxis {
-  display: flex;
-  gap: 3px;
+  position: relative;
   margin-top: 4px;
-}
-.xaxis span {
-  flex: 1;
-  text-align: center;
+  height: 14px;
   font-size: 9.5px;
   color: var(--text-2);
+}
+.xaxis span {
+  position: absolute;
+  top: 0;
   white-space: nowrap;
-  overflow: hidden;
 }
 .legend {
   display: flex;
