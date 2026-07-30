@@ -933,3 +933,22 @@ body {
   z-index: 20;
   pointer-events: none;
 }
+
+/* 归档段:数值来自本地归档(源会话文件已被 agent 清理),用斜纹与实时数据区分 */
+.bar.arch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 3px,
+    rgba(255, 255, 255, 0.45) 3px,
+    rgba(255, 255, 255, 0.45) 6px
+  );
+}
+.arch-note {
+  font-size: 11px;
+  color: var(--text-2);
+  margin: -6px 0 12px;
+  padding: 6px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 7px;
+}

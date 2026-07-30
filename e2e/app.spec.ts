@@ -133,3 +133,40 @@ test('全局刷新连点被去重,刷新后仍无错误', async () => {
   expect(l.errors).toEqual([])
   await close(l)
 })
+
+test('归档:预置历史归档文件 → 趋势含归档段并有说明,主进程无错误', async () => {
+  // 造一条源文件早已不存在的历史行(模拟 agent 清理掉旧会话后的状态)
+  const userData = makeUserData()
+  writeFileSync(
+    join(userData, 'usage-archive.json'),
+    JSON.stringify({
+      version: 1,
+      rows: [
+        {
+          day: '2020-01-01',
+          side: 'claude',
+          projectKey: '/legacy',
+          model: 'claude-legacy',
+          input: 1,
+          output: 1,
+          cacheRead: 0,
+          cacheWrite: 0,
+          total: 12345
+        }
+      ]
+    })
+  )
+  const errors: string[] = []
+  const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] })
+  app.process().stderr?.on('data', (b: Buffer) => {
+    const t = b.toString()
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败/.test(t)) errors.push(t)
+  })
+  const win = await app.firstWindow()
+  await expect(win.locator('.pane-head h1')).toHaveText('Agents')
+  // 归档说明条出现(该天源文件不存在 → 计入 archivedDays)
+  await expect(win.locator('.arch-note')).toBeVisible()
+  expect(errors).toEqual([])
+  await app.close()
+  rmSync(userData, { recursive: true, force: true })
+})

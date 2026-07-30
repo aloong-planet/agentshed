@@ -41,7 +41,17 @@ export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string 
 type Mode = '合计' | 'Claude' | 'Codex'
 
 /** 近 30 天(以 scannedAt 为锚)日粒度趋势;合计/单侧切换 */
-export function TrendChart({ stats, anchor }: { stats: TokenStats; anchor: number }): JSX.Element {
+export function TrendChart({
+  stats,
+  anchor,
+  archivedDays = []
+}: {
+  stats: TokenStats
+  anchor: number
+  /** 源会话文件已被 agent 清理、数值来自本地归档的天 */
+  archivedDays?: string[]
+}): JSX.Element {
+  const archived = new Set(archivedDays)
   const [mode, setMode] = useState<Mode>('合计')
   const days: Array<{ day: string; label: string; v: number }> = []
   const byDay = new Map(stats.byDay.map((d) => [d.day, d]))
@@ -71,9 +81,9 @@ export function TrendChart({ stats, anchor }: { stats: TokenStats; anchor: numbe
         {days.map((d) => (
           <div
             key={d.day}
-            className={`bar ${mode === 'Codex' ? 'x' : ''}`}
+            className={`bar ${mode === 'Codex' ? 'x' : ''} ${archived.has(d.day) ? 'arch' : ''}`}
             style={{ height: `${Math.max(2, Math.round((d.v / max) * 100))}%` }}
-            data-tip={`${d.label} · ${fmtTok(d.v)} tok`}
+            data-tip={`${d.label} · ${fmtTok(d.v)} tok${archived.has(d.day) ? ' · 归档(源文件已清理)' : ''}`}
           />
         ))}
       </div>

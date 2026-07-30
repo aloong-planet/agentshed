@@ -65,7 +65,13 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
         {tab === 'token' && (
           <div>
             <TotalsCards stats={snap.tokens} note="含已隐藏/失效项目" />
-            <TrendChart stats={snap.tokens} anchor={snap.scannedAt} />
+            <TrendChart stats={snap.tokens} anchor={snap.scannedAt} archivedDays={snap.archivedDays} />
+            {snap.archivedDays.length > 0 && (
+              <div className="arch-note">
+                其中 {snap.archivedDays.length} 天(最早 {snap.archivedDays[0]})源会话文件已被 agent
+                自动清理,数值来自本地归档(斜纹柱)
+              </div>
+            )}
             <div className="grp-t">按模型拆分(跨项目;Codex 侧为会话主模型近似)</div>
             <ModelBars stats={snap.tokens} />
           </div>
