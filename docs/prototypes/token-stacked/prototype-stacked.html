@@ -1,202 +1,158 @@
 <!doctype html>
-<!-- 原型(UI)· 趋势图改堆叠柱(按模型分段)。
-     问题:①9 个模型如何配色才能一眼分两侧又分模型 ②当天模型多时薄段怎么处理
-     ③悬停粒度(整柱明细 vs 单段)④图例放哪、要不要可交互。
-     **裁定(2026-07-30):选定方案 C** —— 只分 Claude/Codex 两段。理由见页内说明。
-     A/B 保留为被否决方案的记录(9 模型配色与薄段合并的代价)。
-     交互:顶部三个方案切换(A 侧色阶+Top5合并 / B 每模型独立色 / C 已选定);
-     悬停任意柱出当日明细;点图例项高亮该模型在所有柱中的段。 -->
+<!-- 原型(UI)· 趋势图堆叠柱(按 provider 分段)。
+     裁定(2026-07-30):柱高 = 当日总 token,柱内按 **provider(模型提供方)** 分段,
+     段高 = 该 provider 当日占比。provider 由模型名推断(claude-*→Anthropic,
+     gpt-/o1-/o3-/codex-*→OpenAI,gemini-*→Google,其余→其他),
+     因此与 agent 侧解耦——将来某 agent 接了别家模型,分段自然跟着变。
+     被否决:按模型分段(9+ 模型撞色、薄段需合并、模型增减导致图例抖动);
+              按 agent 侧分段(语义错位:侧≠提供方)。
+     交互:悬停任意柱出当日各 provider 明细;顶部可切合计/单侧。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>原型 — 趋势堆叠柱(按模型)</title>
+<title>原型 — 趋势堆叠柱(按 provider)</title>
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
-    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;
+    --anthropic:#8a67ab;--openai:#3ba272;--google:#d08a3e;--other:#9aa0a6}
   @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
-    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;
+    --anthropic:#a084c7}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{background:var(--bg);color:var(--text);font-size:13px;padding:22px;max-width:1100px;margin:0 auto}
   h1{font-size:16px;margin-bottom:6px}
-  .q{color:var(--text-2);line-height:1.7;margin-bottom:16px;font-size:12.5px}
-  .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;margin-bottom:14px}
-  .seg button{font:inherit;font-size:12px;padding:5px 12px;border:0;cursor:pointer;color:var(--text-2);background:transparent}
+  .q{color:var(--text-2);line-height:1.75;margin-bottom:16px;font-size:12.5px}
+  .q b{color:var(--text)}
+  .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px;text-transform:uppercase;
+    letter-spacing:.5px;display:flex;align-items:center;gap:8px}
+  .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;margin-left:auto}
+  .seg button{font:inherit;font-size:11px;padding:3px 10px;border:0;cursor:pointer;color:var(--text-2);background:transparent}
   .seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
-  .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
   .chart{display:flex;align-items:flex-end;gap:3px;height:150px;background:var(--card);
-    border:1px solid var(--line);border-radius:9px;padding:12px;position:relative}
-  .col{flex:1;display:flex;flex-direction:column-reverse;justify-content:flex-start;height:100%;
-    position:relative;cursor:pointer;border-radius:2px 2px 0 0;overflow:hidden}
+    border:1px solid var(--line);border-radius:9px;padding:12px}
+  .col{flex:1;display:flex;flex-direction:column-reverse;justify-content:flex-start;
+    border-radius:2px 2px 0 0;overflow:hidden;position:relative;min-height:2px}
   .col:hover{outline:1px solid var(--accent);outline-offset:1px}
-  .sp{width:100%;transition:opacity .12s}
-  .col.dim .sp{opacity:.25}
-  .col .sp.hi{opacity:1}
-  .tip{position:fixed;z-index:30;background:#1b1b1f;color:#fff;font-size:11.5px;line-height:1.6;
-    padding:8px 11px;border-radius:7px;pointer-events:none;display:none;box-shadow:0 6px 22px rgba(0,0,0,.3);min-width:190px}
-  .tip .d{font-weight:600;margin-bottom:4px}
-  .tip .r{display:flex;align-items:center;gap:6px;white-space:nowrap}
-  .tip .sw{width:9px;height:9px;border-radius:2px;flex:none}
-  .tip .v{margin-left:auto;font-variant-numeric:tabular-nums;opacity:.85}
-  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0 18px}
-  .lg{display:flex;align-items:center;gap:6px;font-size:11.5px;cursor:pointer;color:var(--text-2);
-    padding:2px 6px;border-radius:5px}
-  .lg:hover{background:var(--accent-soft)}
-  .lg.off{opacity:.4}
-  .lg .sw{width:10px;height:10px;border-radius:3px;flex:none}
-  .lg .mono{font-family:ui-monospace,Menlo,monospace}
-  .note{font-size:12px;color:var(--text-2);border:1px dashed var(--line-strong);border-radius:8px;
-    padding:10px 12px;line-height:1.75;margin-bottom:16px}
-  .note b{color:var(--text)}
+  .sp{width:100%}
+  .sp.anthropic{background:var(--anthropic);opacity:.85}
+  .sp.openai{background:var(--openai);opacity:.85}
+  .sp.google{background:var(--google);opacity:.85}
+  .sp.other{background:var(--other);opacity:.85}
+  .col:hover .sp{opacity:1}
+  /* 归档段(源会话文件已被 agent 清理)用斜纹区分 */
+  .col.arch .sp{background-image:repeating-linear-gradient(45deg,transparent,transparent 3px,
+    rgba(255,255,255,.45) 3px,rgba(255,255,255,.45) 6px)}
+  .col[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);
+    left:50%;transform:translateX(-50%);background:#1b1b1f;color:#fff;font-size:11.5px;line-height:1.5;
+    padding:7px 10px;border-radius:6px;white-space:pre;text-align:left;z-index:20;pointer-events:none;
+    box-shadow:0 4px 14px rgba(0,0,0,.28)}
+  .legend{display:flex;align-items:center;gap:14px;margin:8px 0 16px;font-size:11.5px;color:var(--text-2)}
+  .legend .lg{display:flex;align-items:center;gap:6px}
+  .legend .sw{width:10px;height:10px;border-radius:3px}
+  .legend .sw.anthropic{background:var(--anthropic)}
+  .legend .sw.openai{background:var(--openai)}
+  .legend .sw.google{background:var(--google)}
+  .legend .sw.other{background:var(--other)}
+  .legend .lg-note{margin-left:auto}
   .xaxis{display:flex;gap:3px;margin-top:4px}
   .xaxis span{flex:1;text-align:center;font-size:9.5px;color:var(--text-2)}
+  .note{font-size:12px;color:var(--text-2);border:1px dashed var(--line-strong);border-radius:8px;
+    padding:10px 12px;line-height:1.75;margin-top:16px}
+  .note b{color:var(--text)}
 </style>
 </head>
 <body>
-  <h1>近 30 天趋势 — 堆叠柱(按模型占比)</h1>
-  <div class="q">柱高 = 当日总 token;柱内按模型分段,段高 = 该模型当日占比,段数随当天实际用到的模型数变化。
-    下方三个方案切换,请 review 配色/薄段/悬停三处决策。</div>
+  <h1>近 30 天趋势 — 按 provider 堆叠</h1>
+  <div class="q"><b>柱高</b> = 当日总 token;<b>分段</b> = 各 provider(模型提供方)当日占比。
+    provider 由模型名推断,与 agent 侧解耦:同一 agent 若接了多家模型,柱内会出现多段。
+    第 3、9、17 根柱含 Google 段即演示此情形(某 agent 混用 gemini)。</div>
 
-  <div class="seg" id="seg">
-    <button data-m="A">A 侧色阶 + Top5 合并(未采纳)</button>
-    <button data-m="B">B 每模型独立色(未采纳)</button>
-    <button class="on" data-m="C">C 只分两侧 ✓ 已采纳</button>
+  <div class="grp-t">合计 · 日粒度 · 本地时区
+    <span class="seg" id="seg">
+      <button class="on" data-m="合计">合计</button>
+      <button data-m="Claude">Claude</button>
+      <button data-m="Codex">Codex</button>
+    </span>
   </div>
-
-  <div class="note" id="note"></div>
-
-  <div class="grp-t">合计 · 日粒度 · 本地时区</div>
   <div class="chart" id="chart"></div>
   <div class="xaxis" id="xaxis"></div>
   <div class="legend" id="legend"></div>
-  <div class="tip" id="tip"></div>
+
+  <div class="note">
+    <b>为什么不按模型分段</b>:实测本机 9 个模型,量级跨 5 个数量级(3072M ~ 11k),
+    直接堆叠会出现看不见的 1px 薄段,需引入「Top N + 其他」合并规则;且模型增减会让图例与配色抖动。
+    「当天哪个模型在烧」由下方的「按模型拆分」条形图回答,两图各司其职。<br>
+    <b>为什么不按 agent 侧分段</b>:侧(Claude Code / Codex)是工具,provider 是模型提供方,
+    两者当前恰好一一对应,但语义不同——按 provider 划分在将来 agent 混用模型时不需要改图。
+  </div>
 
 <script>
-  // ── mock:9 个模型(取自真实截图),30 天 ──
-  const MODELS = [
-    { n: 'claude-opus-4-8',        side: 'c', w: 3072 },
-    { n: 'gpt-5.6-sol',            side: 'x', w: 596 },
-    { n: 'claude-opus-5',          side: 'c', w: 435 },
-    { n: 'claude-fable-5',         side: 'c', w: 286 },
-    { n: 'codex-auto-review',      side: 'x', w: 75 },
-    { n: 'claude-haiku-4-5',       side: 'c', w: 22 },
-    { n: 'claude-opus-4-5',        side: 'c', w: 1.2 },
-    { n: 'claude-opus-4-6',        side: 'c', w: 0.27 },
-    { n: 'gpt-5.2-codex',          side: 'x', w: 0.011 }
-  ]
-  // 侧色阶:Claude 紫由深到浅,Codex 绿由深到浅;"其他"灰
-  const PURPLE = ['#6b4f92', '#8a67ab', '#a586c4', '#c0a8d8', '#d8caea', '#ece3f4']
-  const GREEN  = ['#1f7a4d', '#2f9d68', '#4cb883', '#7fd0a6', '#b3e5cb']
-  const GREY   = '#b9bcc2'
-  // B 方案:每模型一个独立色相
-  const DISTINCT = ['#6b4f92','#2f9d68','#c2683f','#3f7cc2','#b0447a','#8a9a2b','#4aa6a6','#a05fc0','#c9a227']
-
-  let cIdx = 0, xIdx = 0
-  MODELS.forEach((m) => { m.color = m.side === 'c' ? PURPLE[Math.min(cIdx++, PURPLE.length - 1)] : GREEN[Math.min(xIdx++, GREEN.length - 1)] })
-  MODELS.forEach((m, i) => { m.distinct = DISTINCT[i % DISTINCT.length] })
-
-  // 30 天数据:每天随机启用一部分模型,权重贴近真实分布
-  const rnd = (seed => () => (seed = (seed * 9301 + 49297) % 233280) / 233280)(7)
-  const DAYS = [...Array(30)].map((_, i) => {
-    const d = new Date(Date.now() - (29 - i) * 86400000)
-    const label = `${d.getMonth() + 1}/${d.getDate()}`
-    const active = MODELS.filter((m, k) => k === 0 || rnd() < (m.w > 100 ? 0.75 : m.w > 10 ? 0.4 : 0.15))
-    const parts = active.map((m) => ({ model: m, v: Math.round(m.w * (0.15 + rnd() * 1.8) * 1000) }))
-    return { label, parts, total: parts.reduce((s, p) => s + p.v, 0) }
-  })
-  const MAXT = Math.max(...DAYS.map((d) => d.total))
-
+  const PROVIDERS = ['Anthropic', 'OpenAI', 'Google', '其他']
+  const CLS = { Anthropic: 'anthropic', OpenAI: 'openai', Google: 'google', 其他: 'other' }
+  const rnd = (seed => () => (seed = (seed * 9301 + 49297) % 233280) / 233280)(11)
   const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n)
 
-  const NOTES = {
-    A: '<b>方案 A(推荐)</b>:同侧同色系分色阶(Claude 紫、Codex 绿),一眼分得清"两侧比例"与"侧内模型";当天模型多于 5 个时,尾部小份额合并为灰色「其他」段——避免出现 1px 薄段。图例点击可高亮/隐藏。',
-    B: '<b>方案 B</b>:每个模型一个独立色相,模型辨识度最高;代价:失去"两侧一眼可分"的信息,9 个色相在小柱上容易撞色,且新增模型要继续扩色板。',
-    C: '<b>方案 C(已采纳)</b>:只分 Claude/Codex 两段,柱高=当日总量、分段=两侧占比。最干净且不随模型增减而变;代价:回答不了"当天哪个模型在烧"(该问题由下方「按模型拆分」条形图回答)。'
-  }
-
-  let mode = 'C', hidden = new Set(), highlight = null
-
-  function segmentsFor(day) {
-    let parts = day.parts.filter((p) => !hidden.has(p.model.n))
-    if (mode === 'C') {
-      const c = parts.filter((p) => p.model.side === 'c').reduce((s, p) => s + p.v, 0)
-      const x = parts.filter((p) => p.model.side === 'x').reduce((s, p) => s + p.v, 0)
-      return [c && { name: 'Claude', color: PURPLE[1], v: c }, x && { name: 'Codex', color: GREEN[1], v: x }].filter(Boolean)
+  // 30 天 mock:Anthropic 为主、OpenAI 次之;少数几天混入 Google 演示多 provider
+  const DAYS = [...Array(30)].map((_, i) => {
+    const d = new Date(Date.now() - (29 - i) * 86400000)
+    const byProvider = {}
+    const scale = 0.2 + rnd() * 1.8
+    byProvider.Anthropic = Math.round(90_000_000 * scale)
+    if (rnd() < 0.7) byProvider.OpenAI = Math.round(25_000_000 * scale * (0.3 + rnd()))
+    if ([2, 8, 16].includes(i)) byProvider.Google = Math.round(12_000_000 * (0.4 + rnd()))
+    if (i === 22) byProvider['其他'] = 3_000_000
+    return {
+      day: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+      label: `${d.getMonth() + 1}/${d.getDate()}`,
+      byProvider,
+      // 前 4 天演示「归档段」(源会话已被 agent 清理)
+      archived: i < 4
     }
-    parts = [...parts].sort((a, b) => b.v - a.v)
-    const key = mode === 'A' ? 'color' : 'distinct'
-    if (mode === 'A' && parts.length > 5) {
-      const head = parts.slice(0, 5).map((p) => ({ name: p.model.n, color: p.model[key], v: p.v }))
-      const rest = parts.slice(5).reduce((s, p) => s + p.v, 0)
-      return [...head, { name: `其他 ${parts.length - 5} 个模型`, color: GREY, v: rest }]
+  })
+
+  let mode = '合计'
+
+  function segmentsOf(day) {
+    if (mode !== '合计') {
+      // 单侧筛选:该侧总量退化为单段(Claude→Anthropic,Codex→OpenAI)
+      const p = mode === 'Claude' ? 'Anthropic' : 'OpenAI'
+      const v = day.byProvider[p] ?? 0
+      return v > 0 ? [{ provider: p, value: v }] : []
     }
-    return parts.map((p) => ({ name: p.model.n, color: p.model[key], v: p.v }))
+    return PROVIDERS.map((p) => ({ provider: p, value: day.byProvider[p] ?? 0 })).filter((s) => s.value > 0)
   }
 
   function render() {
-    document.getElementById('note').innerHTML = NOTES[mode]
-    const chart = document.getElementById('chart')
-    chart.innerHTML = ''
-    DAYS.forEach((day, di) => {
-      const col = document.createElement('div')
-      col.className = 'col'
-      const segs = segmentsFor(day)
-      const total = segs.reduce((s, x) => s + x.v, 0)
-      const hPct = Math.max(1.5, (total / MAXT) * 100)
-      col.style.height = hPct + '%'
-      segs.forEach((sg) => {
-        const el = document.createElement('div')
-        el.className = 'sp' + (highlight && sg.name === highlight ? ' hi' : '')
-        el.style.background = sg.color
-        el.style.height = (total ? (sg.v / total) * 100 : 0) + '%'
-        col.appendChild(el)
-      })
-      if (highlight && !segs.some((s) => s.name === highlight)) col.classList.add('dim')
-      col.addEventListener('mousemove', (e) => showTip(e, day, segs, total))
-      col.addEventListener('mouseleave', hideTip)
-      chart.appendChild(col)
+    const rows = DAYS.map((d) => {
+      const segs = segmentsOf(d)
+      return { d, segs, total: segs.reduce((s, x) => s + x.value, 0) }
     })
+    const max = Math.max(...rows.map((r) => r.total), 1)
+    document.getElementById('chart').innerHTML = rows.map((r) => {
+      const tip = [
+        `${r.d.label} · 合计 ${fmt(r.total)}${r.d.archived ? ' · 归档(源文件已清理)' : ''}`,
+        ...(r.total === 0 ? ['无用量'] : r.segs.map((s) =>
+          `${s.provider}  ${fmt(s.value)}  ${Math.round((s.value / r.total) * 100)}%`))
+      ].join('\n')
+      const segs = r.segs.map((s) =>
+        `<div class="sp ${CLS[s.provider]}" style="height:${(s.value / r.total) * 100}%"></div>`).join('')
+      return `<div class="col ${r.d.archived ? 'arch' : ''}" style="height:${Math.max(1.5, (r.total / max) * 100)}%"
+        data-tip="${tip.replace(/"/g, '&quot;')}">${segs}</div>`
+    }).join('')
     document.getElementById('xaxis').innerHTML = DAYS.map((d, i) => `<span>${i % 5 === 0 ? d.label : ''}</span>`).join('')
 
-    const legend = document.getElementById('legend')
-    const items = mode === 'C'
-      ? [{ name: 'Claude', color: PURPLE[1] }, { name: 'Codex', color: GREEN[1] }]
-      : MODELS.map((m) => ({ name: m.n, color: mode === 'A' ? m.color : m.distinct }))
-        .concat(mode === 'A' ? [{ name: '其他(尾部小份额)', color: GREY }] : [])
-    legend.innerHTML = items.map((it) =>
-      `<span class="lg ${hidden.has(it.name) ? 'off' : ''}" data-n="${it.name}">
-        <span class="sw" style="background:${it.color}"></span><span class="mono">${it.name}</span></span>`).join('')
+    const used = PROVIDERS.filter((p) => rows.some((r) => r.segs.some((s) => s.provider === p)))
+    document.getElementById('legend').innerHTML = mode === '合计'
+      ? used.map((p) => `<span class="lg"><span class="sw ${CLS[p]}"></span>${p}</span>`).join('') +
+        '<span class="lg-note">柱高=当日总量,分段=各 provider 占比;斜纹=归档段</span>'
+      : '<span class="lg-note">单侧视图:仅该 agent 侧用量</span>'
   }
-
-  function showTip(e, day, segs, total) {
-    const tip = document.getElementById('tip')
-    tip.style.display = 'block'
-    tip.innerHTML = `<div class="d">${day.label} · 合计 ${fmt(total)}</div>` +
-      [...segs].reverse().map((s) =>
-        `<div class="r"><span class="sw" style="background:${s.color}"></span><span class="mono">${s.name}</span>
-         <span class="v">${fmt(s.v)} · ${total ? Math.round((s.v / total) * 100) : 0}%</span></div>`).join('')
-    const pad = 14
-    tip.style.left = Math.min(e.clientX + pad, innerWidth - tip.offsetWidth - 8) + 'px'
-    tip.style.top = Math.max(8, e.clientY - tip.offsetHeight - pad) + 'px'
-  }
-  function hideTip() { document.getElementById('tip').style.display = 'none' }
 
   document.getElementById('seg').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return
     document.querySelectorAll('#seg button').forEach((x) => x.classList.toggle('on', x === b))
-    mode = b.dataset.m; hidden.clear(); highlight = null; render()
+    mode = b.dataset.m; render()
   })
-  document.getElementById('legend').addEventListener('click', (e) => {
-    const lg = e.target.closest('.lg'); if (!lg) return
-    const n = lg.dataset.n
-    if (hidden.has(n)) hidden.delete(n); else hidden.add(n)
-    render()
-  })
-  document.getElementById('legend').addEventListener('mouseover', (e) => {
-    const lg = e.target.closest('.lg'); if (!lg) return
-    highlight = lg.dataset.n; render()
-  })
-  document.getElementById('legend').addEventListener('mouseleave', () => { highlight = null; render() })
-
   render()
 </script>
 </body>

@@ -1,12 +1,13 @@
 // 趋势柱分段(纯函数,两端共用、可单测):
 // 合计模式下每根柱按 agent 侧堆叠(Claude 在下、Codex 在上),单侧模式退化为单段。
 // 零值不产生空段;窗口固定近 30 天,按本地时区切日。
-import type { AgentSide, DayUsage } from './domain'
+import type { DayUsage } from './domain'
+import { PROVIDER_ORDER, type Provider } from './provider'
 
 export type TrendMode = '合计' | 'Claude' | 'Codex'
 
 export interface TrendSegment {
-  side: AgentSide
+  provider: Provider
   value: number
 }
 
@@ -42,15 +43,25 @@ export function buildTrendBars(
     const at = new Date(anchorMs - i * 86_400_000)
     const day = localDay(at.getTime())
     const row = index.get(day)
-    const claude = mode === 'Codex' ? 0 : (row?.claude ?? 0)
-    const codex = mode === 'Claude' ? 0 : (row?.codex ?? 0)
     const segments: TrendSegment[] = []
-    if (claude > 0) segments.push({ side: 'claude', value: claude })
-    if (codex > 0) segments.push({ side: 'codex', value: codex })
+    let total = 0
+    if (mode === '合计') {
+      // 按 provider 分段,顺序固定(图例与堆叠不随当日数据抖动)
+      for (const p of PROVIDER_ORDER) {
+        const v = row?.byProvider?.[p] ?? 0
+        if (v > 0) segments.push({ provider: p, value: v })
+        total += v
+      }
+    } else {
+      // 单侧筛选:该侧总量退化为单段,provider 取该侧主 provider
+      const v = mode === 'Claude' ? (row?.claude ?? 0) : (row?.codex ?? 0)
+      total = v
+      if (v > 0) segments.push({ provider: mode === 'Claude' ? 'Anthropic' : 'OpenAI', value: v })
+    }
     bars.push({
       day,
       label: `${at.getMonth() + 1}/${at.getDate()}`,
-      total: claude + codex,
+      total,
       segments,
       archived: archived.has(day)
     })

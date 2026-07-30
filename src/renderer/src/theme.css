@@ -629,12 +629,20 @@ body {
 .sp {
   width: 100%;
 }
-.sp.claude {
+.sp.anthropic {
   background: var(--accent);
   opacity: 0.85;
 }
-.sp.codex {
+.sp.openai {
   background: #3ba272;
+  opacity: 0.85;
+}
+.sp.google {
+  background: #d08a3e;
+  opacity: 0.85;
+}
+.sp.other {
+  background: #9aa0a6;
   opacity: 0.85;
 }
 .col:hover .sp {
@@ -658,11 +666,17 @@ body {
   height: 10px;
   border-radius: 3px;
 }
-.legend .sw.claude {
+.legend .sw.anthropic {
   background: var(--accent);
 }
-.legend .sw.codex {
+.legend .sw.openai {
   background: #3ba272;
+}
+.legend .sw.google {
+  background: #d08a3e;
+}
+.legend .sw.other {
+  background: #9aa0a6;
 }
 .legend .lg-note {
   margin-left: auto;

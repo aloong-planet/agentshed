@@ -4,7 +4,12 @@ import { buildTrendBars } from './trend'
 import type { DayUsage } from './domain'
 
 const anchor = Date.parse('2026-07-30T12:00:00Z')
-const day = (d: string, claude: number, codex: number): DayUsage => ({ day: d, claude, codex })
+const day = (d: string, claude: number, codex: number, byProvider?: Record<string, number>): DayUsage => ({
+  day: d,
+  claude,
+  codex,
+  byProvider: byProvider ?? { Anthropic: claude, OpenAI: codex }
+})
 /** 取锚点当天的本地日键,免受运行时区影响 */
 function localDay(ms: number): string {
   const d = new Date(ms)
@@ -22,26 +27,38 @@ describe('buildTrendBars', () => {
     expect(bars[28].day).toBe(yesterday)
   })
 
-  it('合计模式:两侧都有量 → 两段,Claude 在下、Codex 在上,段值与总量一致', () => {
+  it('合计模式:按 provider 分段,顺序固定 Anthropic→OpenAI→…,段值与总量一致', () => {
     const bars = buildTrendBars([day(today, 300, 100)], anchor, '合计', [])
     const b = bars[29]
     expect(b.total).toBe(400)
-    expect(b.segments.map((s) => s.side)).toEqual(['claude', 'codex'])
+    expect(b.segments.map((s) => s.provider)).toEqual(['Anthropic', 'OpenAI'])
     expect(b.segments.map((s) => s.value)).toEqual([300, 100])
   })
 
-  it('合计模式:只有一侧有量 → 只出一段(零值不产生空段)', () => {
-    const bars = buildTrendBars([day(today, 300, 0)], anchor, '合计', [])
-    expect(bars[29].segments).toEqual([{ side: 'claude', value: 300 }])
+  it('同一 agent 用了多家 provider 时按 provider 拆(不按 agent 侧)', () => {
+    // 例:某 agent 既用 claude-* 又用 gemini-*(byProvider 由引擎按模型名归并)
+    const bars = buildTrendBars(
+      [day(today, 300, 0, { Anthropic: 200, Google: 100 })],
+      anchor,
+      '合计',
+      []
+    )
+    expect(bars[29].segments.map((s) => s.provider)).toEqual(['Anthropic', 'Google'])
+    expect(bars[29].total).toBe(300)
   })
 
-  it('单侧模式:只算该侧,另一侧不进段也不进总量', () => {
+  it('合计模式:只有一个 provider 有量 → 只出一段(零值不产生空段)', () => {
+    const bars = buildTrendBars([day(today, 300, 0)], anchor, '合计', [])
+    expect(bars[29].segments).toEqual([{ provider: 'Anthropic', value: 300 }])
+  })
+
+  it('单侧模式(按 agent 侧筛选)仍可用:只算该侧,段退化为单段', () => {
     const cl = buildTrendBars([day(today, 300, 100)], anchor, 'Claude', [])
     expect(cl[29].total).toBe(300)
-    expect(cl[29].segments).toEqual([{ side: 'claude', value: 300 }])
+    expect(cl[29].segments).toEqual([{ provider: 'Anthropic', value: 300 }])
     const cx = buildTrendBars([day(today, 300, 100)], anchor, 'Codex', [])
     expect(cx[29].total).toBe(100)
-    expect(cx[29].segments).toEqual([{ side: 'codex', value: 100 }])
+    expect(cx[29].segments).toEqual([{ provider: 'OpenAI', value: 100 }])
   })
 
   it('无数据的天:总量 0、无段', () => {

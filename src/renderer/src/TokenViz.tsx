@@ -39,8 +39,15 @@ export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string 
 }
 
 import { buildTrendBars, type TrendMode } from '@shared/trend'
+import { PROVIDER_ORDER } from '@shared/provider'
 
-const SIDE_LABEL = { claude: 'Claude', codex: 'Codex' } as const
+/** provider → CSS 类后缀(配色见 theme.css) */
+const PROVIDER_CLASS: Record<string, string> = {
+  Anthropic: 'anthropic',
+  OpenAI: 'openai',
+  Google: 'google',
+  其他: 'other'
+}
 
 /** 近 30 天(以 scannedAt 为锚)日粒度趋势;合计模式按两侧堆叠 */
 export function TrendChart({
@@ -56,6 +63,8 @@ export function TrendChart({
   const [mode, setMode] = useState<TrendMode>('合计')
   const bars = buildTrendBars(stats.byDay, anchor, mode, archivedDays)
   const max = Math.max(...bars.map((b) => b.total), 1)
+  // 图例只列窗口内真实出现过的 provider(顺序沿用固定序)
+  const usedProviders = PROVIDER_ORDER.filter((p) => bars.some((b) => b.segments.some((s) => s.provider === p)))
 
   return (
     <div>
@@ -79,25 +88,23 @@ export function TrendChart({
           >
             {b.segments.map((sg) => (
               <div
-                key={sg.side}
-                className={`sp ${sg.side}`}
+                key={sg.provider}
+                className={`sp ${PROVIDER_CLASS[sg.provider] ?? 'other'}`}
                 style={{ height: `${b.total ? (sg.value / b.total) * 100 : 0}%` }}
               />
             ))}
           </div>
         ))}
       </div>
-      {mode === '合计' && (
+      {mode === '合计' && usedProviders.length > 0 && (
         <div className="legend">
-          <span className="lg">
-            <span className="sw claude" />
-            Claude
-          </span>
-          <span className="lg">
-            <span className="sw codex" />
-            Codex
-          </span>
-          <span className="lg-note">柱高=当日总量,分段=两侧占比</span>
+          {usedProviders.map((p) => (
+            <span className="lg" key={p}>
+              <span className={`sw ${PROVIDER_CLASS[p] ?? 'other'}`} />
+              {p}
+            </span>
+          ))}
+          <span className="lg-note">柱高=当日总量,分段=各 provider 占比</span>
         </div>
       )}
     </div>
@@ -109,7 +116,7 @@ function tipOf(b: ReturnType<typeof buildTrendBars>[number]): string {
   const head = `${b.label} · 合计 ${fmtTok(b.total)}${b.archived ? ' · 归档(源文件已清理)' : ''}`
   if (b.total === 0) return `${head}\n无用量`
   const lines = b.segments.map(
-    (s) => `${SIDE_LABEL[s.side]}  ${fmtTok(s.value)}  ${Math.round((s.value / b.total) * 100)}%`
+    (s) => `${s.provider}  ${fmtTok(s.value)}  ${Math.round((s.value / b.total) * 100)}%`
   )
   return [head, ...lines].join('\n')
 }
