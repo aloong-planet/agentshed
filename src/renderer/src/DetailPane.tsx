@@ -90,7 +90,7 @@ function OverviewTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }
           {stats.sessions.map((s, i) => (
             <div className="se" key={i}>
               <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
-                {s.side === 'claude' ? 'CL' : 'CX'}
+                {s.side === 'claude' ? 'CC' : 'CX'}
               </span>
               <span className="t">{s.title}</span>
               <span className="tok">{fmtTok(s.tokens)}</span>
@@ -119,6 +119,11 @@ function SkillRow({
       {s.symlink && <span className="pill ln">⤷ 软链</span>}
       {s.shadows && <span className="pill shadow">遮蔽全局</span>}
       {s.shadowed && <span className="pill shadow">被项目级遮蔽</span>}
+      {s.coexists && (
+        <span className="pill shadow" title="Codex 同名不遮蔽:两个都生效,纯名字调用会歧义">
+          同名共存
+        </span>
+      )}
       <span className="ds">{s.description ?? ''}</span>
       {onUninstall && (
         <button className="ins" onClick={onUninstall}>

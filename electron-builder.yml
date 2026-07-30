@@ -1,4 +1,5 @@
-appId: com.loong.agentshed
+# 非商城版(DMG/Windows)appId;MAS 版用 agentshed.aloongplanet.com(上架时在 mas 构建段覆盖)
+appId: agentshed.aloong.com
 productName: Agentshed
 
 directories:
