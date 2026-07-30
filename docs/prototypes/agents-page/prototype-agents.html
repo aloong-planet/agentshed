@@ -2,7 +2,9 @@
 <!-- 原型(UI)· 票07:Agents 全局页(默认落地,icon rail「Agents」维度,占全宽)。
      问题:CC/Codex 的全局面貌(配置/skills/plugins/MCP/token 汇总)在一页里怎么分栏;
      plugins 仅 CC 有、MCP 来源两侧异构时,分栏怎么不歪。
-     交互:tab 切换;配置内切文件;Skills 分栏的装卸交互跳 skill-install 原型。 -->
+     趋势图为 provider 堆叠柱(裁定见 ADR-0008;原独立的 token-stacked 原型已并入此处)。
+     交互:tab 切换;趋势切合计/单侧、悬停出各 provider 明细;配置内切文件;
+     Skills 分栏的装卸交互跳 skill-install 原型。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -77,6 +79,37 @@
   .m .tr i{display:block;height:100%;background:var(--accent)}
   .m.x .tr i{background:#3ba272}
   .m .num{width:70px;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--text-2)}
+  /* provider 品牌主色(数据色,独立于 UI 强调色) */
+  :root{--p-anthropic:#d97757;--p-openai:#10a37f;--p-google:#4285f4;--p-other:#9aa0a6}
+  @media (prefers-color-scheme:dark){:root{--p-anthropic:#e8916f;--p-openai:#2fc79f;
+    --p-google:#6ba3f7;--p-other:#adb2b8}}
+  .col{flex:1;display:flex;flex-direction:column-reverse;justify-content:flex-start;
+    border-radius:2px 2px 0 0;overflow:hidden;position:relative;min-height:2px}
+  .col:hover{outline:1px solid var(--accent);outline-offset:1px}
+  .sp{width:100%}
+  .sp.anthropic{background:var(--p-anthropic);opacity:.9}
+  .sp.openai{background:var(--p-openai);opacity:.9}
+  .sp.google{background:var(--p-google);opacity:.9}
+  .sp.other{background:var(--p-other);opacity:.9}
+  .col:hover .sp{opacity:1}
+  .col.arch .sp{background-image:repeating-linear-gradient(45deg,transparent,transparent 3px,
+    rgba(255,255,255,.45) 3px,rgba(255,255,255,.45) 6px)}
+  .col[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);
+    left:50%;transform:translateX(-50%);background:#1b1b1f;color:#fff;font-size:11.5px;line-height:1.5;
+    padding:7px 10px;border-radius:6px;white-space:pre;text-align:left;z-index:20;pointer-events:none;
+    box-shadow:0 4px 14px rgba(0,0,0,.28)}
+  .legend{display:flex;align-items:center;gap:14px;margin:8px 0 4px;font-size:11.5px;color:var(--text-2)}
+  .legend .lg{display:flex;align-items:center;gap:6px}
+  .legend .sw{width:10px;height:10px;border-radius:3px}
+  .legend .sw.anthropic{background:var(--p-anthropic)}
+  .legend .sw.openai{background:var(--p-openai)}
+  .legend .sw.google{background:var(--p-google)}
+  .legend .sw.other{background:var(--p-other)}
+  .legend .lg-note{margin-left:auto}
+  .m.anthropic .tr i{background:var(--p-anthropic)}
+  .m.openai .tr i{background:var(--p-openai)}
+  .m.google .tr i{background:var(--p-google)}
+
 </style>
 </head>
 <body>
@@ -102,16 +135,17 @@
     </div>
     <div class="body">
       <div data-p="token">
-        <div class="grp-t">近 30 天趋势(本地时区 · 日粒度 · 跨全部项目)<span class="jump" style="margin-left:8px;color:var(--accent);cursor:pointer;font-size:11px;text-transform:none;letter-spacing:0" data-goto="token-stats/stacked" data-goto-href="../token-stacked/prototype-stacked.html">此处为旧版单色示意,最新形态(按 provider 堆叠)↗</span>
+        <div class="grp-t">近 30 天趋势(本地时区 · 日粒度 · 跨全部项目)
           <span class="seg" id="tseg"><span class="on">合计</span><span>Claude</span><span>Codex</span></span></div>
         <div class="chart" id="chart"></div>
-        <div class="grp-t" style="margin-top:18px">按模型拆分(跨项目)</div>
+        <div class="legend" id="tlegend"></div>
+        <div class="grp-t" style="margin-top:18px">按模型拆分(跨项目;条形同用 provider 品牌色)</div>
         <div class="models">
-          <div class="m"><span class="nm2">claude-fable-5</span><span class="tr"><i style="width:58%"></i></span><span class="num">6.5M</span></div>
-          <div class="m"><span class="nm2">claude-opus-5</span><span class="tr"><i style="width:36%"></i></span><span class="num">4.1M</span></div>
-          <div class="m"><span class="nm2">claude-haiku-4-5</span><span class="tr"><i style="width:5%"></i></span><span class="num">0.6M</span></div>
-          <div class="m x"><span class="nm2">gpt-5.5-codex</span><span class="tr"><i style="width:38%"></i></span><span class="num">4.3M</span></div>
-          <div class="m x"><span class="nm2">gpt-5.5</span><span class="tr"><i style="width:4%"></i></span><span class="num">0.5M</span></div>
+          <div class="m anthropic"><span class="nm2">claude-fable-5</span><span class="tr"><i style="width:58%"></i></span><span class="num">6.5M</span></div>
+          <div class="m anthropic"><span class="nm2">claude-opus-5</span><span class="tr"><i style="width:36%"></i></span><span class="num">4.1M</span></div>
+          <div class="m anthropic"><span class="nm2">claude-haiku-4-5</span><span class="tr"><i style="width:5%"></i></span><span class="num">0.6M</span></div>
+          <div class="m openai"><span class="nm2">gpt-5.5-codex</span><span class="tr"><i style="width:38%"></i></span><span class="num">4.3M</span></div>
+          <div class="m openai"><span class="nm2">gpt-5.5</span><span class="tr"><i style="width:4%"></i></span><span class="num">0.5M</span></div>
         </div>
       </div>
       <div data-p="skills" style="display:none">
@@ -173,21 +207,42 @@
     </div>
   </div>
 <script>
-  // 30 天 mock:两侧分列,悬停出数值;合计/单侧切换
+
+  // ── 趋势:按 provider 堆叠(与真 app 同形态;裁定见 ADR-0008)──
+  const PROVIDERS=['Anthropic','OpenAI','Google','其他'];
+  const PCLS={Anthropic:'anthropic',OpenAI:'openai',Google:'google','其他':'other'};
+  const rnd=(s=>()=>(s=(s*9301+49297)%233280)/233280)(11);
+  const fmtT=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'k':String(n);
   const days=[...Array(30)].map((_,i)=>{
-    const c=i%7===3?0:Math.round(80+Math.random()*520);
-    const x=i%5===2?Math.round(40+Math.random()*260):0;
-    return {d:`7/${i+1}`,c,x};
+    const d=new Date(Date.now()-(29-i)*86400000);
+    const by={}; const sc=0.2+rnd()*1.8;
+    by.Anthropic=Math.round(9e7*sc);
+    if(rnd()<0.7) by.OpenAI=Math.round(2.5e7*sc*(0.3+rnd()));
+    if([2,8,16].includes(i)) by.Google=Math.round(1.2e7*(0.4+rnd()));  // 演示某 agent 混用别家模型
+    return {label:`${d.getMonth()+1}/${d.getDate()}`,by,archived:i<4};
   });
   let tmode='合计';
+  function segsOf(day){
+    if(tmode!=='合计'){
+      const p=tmode==='Claude'?'Anthropic':'OpenAI';
+      const v=day.by[p]??0; return v>0?[{p,v}]:[];
+    }
+    return PROVIDERS.map(p=>({p,v:day.by[p]??0})).filter(s=>s.v>0);
+  }
   function renderChart(){
-    const chart=document.getElementById('chart');
-    const max=Math.max(...days.map(v=>tmode==='Claude'?v.c:tmode==='Codex'?v.x:v.c+v.x),1);
-    chart.innerHTML=days.map(v=>{
-      const val=tmode==='Claude'?v.c:tmode==='Codex'?v.x:v.c+v.x;
-      const cls=tmode==='Codex'?'bar x':'bar';
-      return `<div class="${cls}" style="height:${Math.round(val/max*100)}%" data-tip="${v.d} · ${val}k tok"></div>`;
+    const rows=days.map(d=>{const segs=segsOf(d);return{d,segs,total:segs.reduce((s,x)=>s+x.v,0)}});
+    const max=Math.max(...rows.map(r=>r.total),1);
+    document.getElementById('chart').innerHTML=rows.map(r=>{
+      const tip=[`${r.d.label} · 合计 ${fmtT(r.total)}${r.d.archived?' · 归档(源文件已清理)':''}`,
+        ...(r.total===0?['无用量']:r.segs.map(s=>`${s.p}  ${fmtT(s.v)}  ${Math.round(s.v/r.total*100)}%`))].join('\n');
+      const sp=r.segs.map(s=>`<div class="sp ${PCLS[s.p]}" style="height:${s.v/r.total*100}%"></div>`).join('');
+      return `<div class="col ${r.d.archived?'arch':''}" style="height:${Math.max(1.5,r.total/max*100)}%" data-tip="${tip.replace(/"/g,'&quot;')}">${sp}</div>`;
     }).join('');
+    const used=PROVIDERS.filter(p=>rows.some(r=>r.segs.some(s=>s.p===p)));
+    document.getElementById('tlegend').innerHTML = tmode==='合计'
+      ? used.map(p=>`<span class="lg"><span class="sw ${PCLS[p]}"></span>${p}</span>`).join('')+
+        '<span class="lg-note">柱高=当日总量,分段=各 provider 占比;斜纹=归档段</span>'
+      : '<span class="lg-note">单侧视图:仅该 agent 侧用量</span>';
   }
   document.getElementById('tseg').addEventListener('click',e=>{
     if(e.target.tagName!=='SPAN')return;
@@ -195,6 +250,7 @@
     tmode=e.target.textContent;renderChart();
   });
   renderChart();
+
   document.getElementById('tabs').addEventListener('click',e=>{
     const t=e.target.closest('.tab');if(!t||!t.dataset.t)return;
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
