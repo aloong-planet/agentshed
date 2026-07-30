@@ -170,3 +170,24 @@ test('归档:预置历史归档文件 → 趋势含归档段并有说明,主进�
   await app.close()
   rmSync(userData, { recursive: true, force: true })
 })
+
+test('趋势图为堆叠柱:柱内按两侧分段,切单侧后只剩一种段', async () => {
+  const l = await launch()
+  const win = await l.app.firstWindow()
+  // 合计模式:至少有一根柱含 Claude 段(本机有真实数据)
+  const cols = win.locator('.chart .col')
+  await expect(cols).toHaveCount(30)
+  const claudeSegs = win.locator('.chart .col .sp.claude')
+  await expect(claudeSegs.first()).toBeVisible()
+  // 图例两项
+  await expect(win.locator('.legend .lg .sw.claude')).toBeVisible()
+  await expect(win.locator('.legend .lg .sw.codex')).toBeVisible()
+  // 切到 Claude:不应再出现 codex 段
+  await win.locator('.grp-t .seg button', { hasText: 'Claude' }).click()
+  await expect(win.locator('.chart .col .sp.codex')).toHaveCount(0)
+  // 切回合计,图例回来
+  await win.locator('.grp-t .seg button', { hasText: '合计' }).click()
+  await expect(win.locator('.legend')).toBeVisible()
+  expect(l.errors).toEqual([])
+  await close(l)
+})
