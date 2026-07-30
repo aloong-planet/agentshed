@@ -25,4 +25,8 @@
 
 ## 来源
 
-用户 review 原型后的裁定(2026-07-30);原型 `docs/prototypes/token-stacked/prototype-stacked.html` 内含被否决方案的代价说明;本机 9 模型量级分布实测。
+用户 review 原型后的裁定(2026-07-30);本机 9 模型量级分布实测。
+
+> 引用修正(2026-07-30):原文引的 `docs/prototypes/token-stacked/` 已并入
+> `docs/prototypes/agents-page/prototype-agents.html`(同一张图不在多处维护),
+> 被否决方案的代价说明保留在本条「备选项」段。

@@ -108,6 +108,32 @@
   .se .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .se .d{font-size:11px;color:var(--text-2);flex:none;font-variant-numeric:tabular-nums}
   .se .tok{font-size:11px;color:var(--text-2);flex:none;width:64px;text-align:right;font-variant-numeric:tabular-nums}
+  :root{--p-anthropic:#d97757;--p-openai:#10a37f;--p-google:#4285f4;--p-other:#9aa0a6}
+  @media (prefers-color-scheme:dark){:root{--p-anthropic:#e8916f;--p-openai:#2fc79f;
+    --p-google:#6ba3f7;--p-other:#adb2b8}}
+  .col{flex:1;display:flex;flex-direction:column-reverse;justify-content:flex-start;
+    border-radius:2px 2px 0 0;overflow:hidden;position:relative;min-height:2px}
+  .col:hover{outline:1px solid var(--accent);outline-offset:1px}
+  .sp{width:100%}
+  .sp.anthropic{background:var(--p-anthropic);opacity:.9}
+  .sp.openai{background:var(--p-openai);opacity:.9}
+  .sp.google{background:var(--p-google);opacity:.9}
+  .sp.other{background:var(--p-other);opacity:.9}
+  .col:hover .sp{opacity:1}
+  .col[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);
+    left:50%;transform:translateX(-50%);background:#1b1b1f;color:#fff;font-size:11.5px;line-height:1.5;
+    padding:7px 10px;border-radius:6px;white-space:pre;text-align:left;z-index:20;pointer-events:none;
+    box-shadow:0 4px 14px rgba(0,0,0,.28)}
+  .legend{display:flex;align-items:center;gap:14px;margin:8px 0 12px;font-size:11.5px;color:var(--text-2)}
+  .legend .lg{display:flex;align-items:center;gap:6px}
+  .legend .sw{width:10px;height:10px;border-radius:3px}
+  .legend .sw.anthropic{background:var(--p-anthropic)}
+  .legend .sw.openai{background:var(--p-openai)}
+  .legend .sw.google{background:var(--p-google)}
+  .legend .lg-note{margin-left:auto}
+  .m.anthropic .tr i{background:var(--p-anthropic)}
+  .m.openai .tr i{background:var(--p-openai)}
+
 </style>
 </head>
 <body>
@@ -141,14 +167,15 @@
           <div class="stat cache"><div class="k">cache 命中(单列,不计入总量)</div><div class="v">48.2M</div>
             <div class="s">读 47.1M · 写 1.1M</div></div>
         </div>
-        <div class="grp-t">近 30 天趋势(本地时区,日粒度)<span class="jump" style="margin-left:8px;color:var(--accent);cursor:pointer;font-size:11px;text-transform:none;letter-spacing:0" data-goto="token-stats/stacked" data-goto-href="../token-stacked/prototype-stacked.html">此处为旧版单色示意,最新形态(按 provider 堆叠)↗</span>
+        <div class="grp-t">近 30 天趋势(本地时区,日粒度)
           <span class="seg" id="ovseg"><span class="on">合计</span><span>Claude</span><span>Codex</span></span></div>
         <div class="chart" id="ovchart"></div>
+        <div class="legend" id="ovlegend"></div>
         <div class="grp-t">按模型拆分</div>
         <div class="models">
-          <div class="m"><span class="nm2">claude-fable-5</span><span class="tr"><i style="width:64%"></i></span><span class="num">3.5M</span></div>
-          <div class="m"><span class="nm2">claude-opus-5</span><span class="tr"><i style="width:33%"></i></span><span class="num">1.8M</span></div>
-          <div class="m x"><span class="nm2">gpt-5.5-codex</span><span class="tr"><i style="width:38%"></i></span><span class="num">2.1M</span></div>
+          <div class="m anthropic"><span class="nm2">claude-fable-5</span><span class="tr"><i style="width:64%"></i></span><span class="num">3.5M</span></div>
+          <div class="m anthropic"><span class="nm2">claude-opus-5</span><span class="tr"><i style="width:33%"></i></span><span class="num">1.8M</span></div>
+          <div class="m openai"><span class="nm2">gpt-5.5-codex</span><span class="tr"><i style="width:38%"></i></span><span class="num">2.1M</span></div>
         </div>
         <div class="grp-t">会话(主线程,元数据即止;subagent 计 token 不列出)</div>
         <div class="card">
@@ -235,20 +262,37 @@
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
     document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
   });
-  // 概览(默认 tab):30 天趋势 mock,合计/单侧切换
+  // 概览趋势:按 provider 堆叠(与 Agents 页同形态;裁定见 ADR-0008)
+  const PROVIDERS=['Anthropic','OpenAI','Google','其他'];
+  const PCLS={Anthropic:'anthropic',OpenAI:'openai',Google:'google','其他':'other'};
+  const rnd=(s=>()=>(s=(s*9301+49297)%233280)/233280)(5);
+  const fmtT=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'k':String(n);
   const days=[...Array(30)].map((_,i)=>{
-    const c=i%7===3?0:Math.round(30+Math.random()*260);
-    const x=i%5===2?Math.round(20+Math.random()*120):0;
-    return {d:`7/${i+1}`,c,x};
+    const d=new Date(Date.now()-(29-i)*86400000);
+    const by={}; const sc=0.2+rnd()*1.6;
+    by.Anthropic=Math.round(4e6*sc);
+    if(rnd()<0.5) by.OpenAI=Math.round(1.5e6*sc*(0.3+rnd()));
+    return {label:`${d.getMonth()+1}/${d.getDate()}`,by};
   });
   let ovmode='合计';
+  function ovSegs(day){
+    if(ovmode!=='合计'){const p=ovmode==='Claude'?'Anthropic':'OpenAI';const v=day.by[p]??0;return v>0?[{p,v}]:[]}
+    return PROVIDERS.map(p=>({p,v:day.by[p]??0})).filter(s=>s.v>0);
+  }
   function renderOvChart(){
-    const chart=document.getElementById('ovchart');
-    const max=Math.max(...days.map(v=>ovmode==='Claude'?v.c:ovmode==='Codex'?v.x:v.c+v.x),1);
-    chart.innerHTML=days.map(v=>{
-      const val=ovmode==='Claude'?v.c:ovmode==='Codex'?v.x:v.c+v.x;
-      return `<div class="${ovmode==='Codex'?'bar x':'bar'}" style="height:${Math.round(val/max*100)}%" data-tip="${v.d} · ${val}k tok"></div>`;
+    const rows=days.map(d=>{const segs=ovSegs(d);return{d,segs,total:segs.reduce((s,x)=>s+x.v,0)}});
+    const max=Math.max(...rows.map(r=>r.total),1);
+    document.getElementById('ovchart').innerHTML=rows.map(r=>{
+      const tip=[`${r.d.label} · 合计 ${fmtT(r.total)}`,
+        ...(r.total===0?['无用量']:r.segs.map(s=>`${s.p}  ${fmtT(s.v)}  ${Math.round(s.v/r.total*100)}%`))].join('\n');
+      const sp=r.segs.map(s=>`<div class="sp ${PCLS[s.p]}" style="height:${s.v/r.total*100}%"></div>`).join('');
+      return `<div class="col" style="height:${Math.max(1.5,r.total/max*100)}%" data-tip="${tip.replace(/"/g,'&quot;')}">${sp}</div>`;
     }).join('');
+    const used=PROVIDERS.filter(p=>rows.some(r=>r.segs.some(s=>s.p===p)));
+    document.getElementById('ovlegend').innerHTML= ovmode==='合计'
+      ? used.map(p=>`<span class="lg"><span class="sw ${PCLS[p]}"></span>${p}</span>`).join('')+
+        '<span class="lg-note">柱高=当日总量,分段=各 provider 占比</span>'
+      : '<span class="lg-note">单侧视图</span>';
   }
   document.getElementById('ovseg').addEventListener('click',e=>{
     if(e.target.tagName!=='SPAN')return;
