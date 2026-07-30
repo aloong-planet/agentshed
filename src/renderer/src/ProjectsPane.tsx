@@ -123,7 +123,7 @@ function Row({
         {fmtAgo(p.lastSessionAt, now)} · {p.sessionCount}
       </span>
       <span className="bdg">
-        {p.sides.includes('claude') && <span className="badge cl">CL</span>}
+        {p.sides.includes('claude') && <span className="badge cl">CC</span>}
         {p.sides.includes('codex') && <span className="badge cx">CX</span>}
       </span>
       <button

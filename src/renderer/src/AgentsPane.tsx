@@ -142,7 +142,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
           <div className="it rel" key={s.name}>
             <span className="nm mono">{s.name}</span>
             <span className="bdg">
-              {s.sides.includes('claude') ? <span className="badge cl">CL</span> : <span className="badge miss">—</span>}
+              {s.sides.includes('claude') ? <span className="badge cl">CC</span> : <span className="badge miss">—</span>}
               {s.sides.includes('codex') ? <span className="badge cx">CX</span> : <span className="badge miss">—</span>}
             </span>
             {(s.symlink.claude || s.symlink.codex) && <span className="pill ln">⤷ 软链</span>}
@@ -158,7 +158,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                   <button className="pop-p" key={p.path} onClick={() => void install(s, p.path)}>
                     <span className="t">{p.name}</span>
                     <span className="bdg">
-                      {p.sides.includes('claude') && <span className="badge cl">CL</span>}
+                      {p.sides.includes('claude') && <span className="badge cl">CC</span>}
                       {p.sides.includes('codex') && <span className="badge cx">CX</span>}
                     </span>
                   </button>

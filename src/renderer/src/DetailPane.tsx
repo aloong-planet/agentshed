@@ -90,7 +90,7 @@ function OverviewTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }
           {stats.sessions.map((s, i) => (
             <div className="se" key={i}>
               <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
-                {s.side === 'claude' ? 'CL' : 'CX'}
+                {s.side === 'claude' ? 'CC' : 'CX'}
               </span>
               <span className="t">{s.title}</span>
               <span className="tok">{fmtTok(s.tokens)}</span>

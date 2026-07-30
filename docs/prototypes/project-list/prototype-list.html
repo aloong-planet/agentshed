@@ -99,7 +99,7 @@
       <span class="nm" ${inHidden?'':'data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html" title="打开详情"'}>${p.n}</span>
       ${p.stale?'<span class="stale-tag">失效</span>':''}
       <span class="meta">${p.last} · ${p.ses}</span>
-      <span class="bdg">${p.sides.map(s=>`<span class="b ${s}">${s==='c'?'CL':'CX'}</span>`).join('')}</span>
+      <span class="bdg">${p.sides.map(s=>`<span class="b ${s}">${s==='c'?'CC':'CX'}</span>`).join('')}</span>
       <button class="hide-btn" data-h="${p.n}">${inHidden?'恢复':'隐藏'}</button>
     </div>`;
   }
