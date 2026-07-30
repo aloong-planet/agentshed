@@ -39,7 +39,7 @@ export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string 
 }
 
 import { buildTrendBars, type TrendMode } from '@shared/trend'
-import { PROVIDER_ORDER } from '@shared/provider'
+import { PROVIDER_ORDER, providerOf } from '@shared/provider'
 
 /** provider → CSS 类后缀(配色见 theme.css) */
 const PROVIDER_CLASS: Record<string, string> = {
@@ -127,7 +127,7 @@ export function ModelBars({ stats }: { stats: TokenStats }): JSX.Element {
   return (
     <div className="models">
       {stats.byModel.map((m) => (
-        <div className={`m ${m.side === 'codex' ? 'x' : ''}`} key={`${m.side}:${m.model}`}>
+        <div className={`m ${PROVIDER_CLASS[providerOf(m.model)] ?? 'other'}`} key={`${m.side}:${m.model}`}>
           <span className="nm2 mono">{m.model}</span>
           <span className="tr">
             <i style={{ width: `${Math.max(1, Math.round((m.total / max) * 100))}%` }} />

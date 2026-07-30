@@ -190,3 +190,32 @@ test('趋势图为堆叠柱:柱内按 provider 分段,切单侧后只剩该侧 p
   expect(l.errors).toEqual([])
   await close(l)
 })
+
+test('provider 品牌配色生效:段与图例色一致,深浅模式各有取值', async () => {
+  const l = await launch()
+  const win = await l.app.firstWindow()
+  const read = async (): Promise<Record<string, string>> =>
+    win.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement)
+      return {
+        anthropic: cs.getPropertyValue('--p-anthropic').trim(),
+        openai: cs.getPropertyValue('--p-openai').trim(),
+        google: cs.getPropertyValue('--p-google').trim()
+      }
+    })
+  const light = await read()
+  expect(light.anthropic.toLowerCase()).toBe('#d97757')
+  expect(light.openai.toLowerCase()).toBe('#10a37f')
+  expect(light.google.toLowerCase()).toBe('#4285f4')
+  // 段与图例取同一变量
+  const segBg = await win.locator('.chart .col .sp.anthropic').first().evaluate((el) => getComputedStyle(el).backgroundColor)
+  const lgBg = await win.locator('.legend .lg .sw.anthropic').first().evaluate((el) => getComputedStyle(el).backgroundColor)
+  expect(segBg).toBe(lgBg)
+  // 深色模式另有一套(提亮)
+  await win.emulateMedia({ colorScheme: 'dark' })
+  const dark = await read()
+  expect(dark.anthropic.toLowerCase()).not.toBe(light.anthropic.toLowerCase())
+  expect(dark.openai.toLowerCase()).not.toBe(light.openai.toLowerCase())
+  expect(l.errors).toEqual([])
+  await close(l)
+})

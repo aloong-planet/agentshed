@@ -6,6 +6,8 @@
      因此与 agent 侧解耦——将来某 agent 接了别家模型,分段自然跟着变。
      被否决:按模型分段(9+ 模型撞色、薄段需合并、模型增减导致图例抖动);
               按 agent 侧分段(语义错位:侧≠提供方)。
+     配色:各 provider 品牌主色(Anthropic 橙 #D97757 / OpenAI 绿 #10A37F /
+     Gemini 蓝 #4285F4 / 其他灰),深色模式各自提亮;数据色独立于 UI 强调色。
      交互:悬停任意柱出当日各 provider 明细;顶部可切合计/单侧。 -->
 <html lang="zh-CN">
 <head>
@@ -14,10 +16,11 @@
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
     --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;
-    --anthropic:#8a67ab;--openai:#3ba272;--google:#d08a3e;--other:#9aa0a6}
+    /* provider 品牌主色 */
+    --anthropic:#d97757;--openai:#10a37f;--google:#4285f4;--other:#9aa0a6}
   @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
     --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;
-    --anthropic:#a084c7}}
+    --anthropic:#e8916f;--openai:#2fc79f;--google:#6ba3f7;--other:#adb2b8}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{background:var(--bg);color:var(--text);font-size:13px;padding:22px;max-width:1100px;margin:0 auto}
   h1{font-size:16px;margin-bottom:6px}
@@ -34,10 +37,10 @@
     border-radius:2px 2px 0 0;overflow:hidden;position:relative;min-height:2px}
   .col:hover{outline:1px solid var(--accent);outline-offset:1px}
   .sp{width:100%}
-  .sp.anthropic{background:var(--anthropic);opacity:.85}
-  .sp.openai{background:var(--openai);opacity:.85}
-  .sp.google{background:var(--google);opacity:.85}
-  .sp.other{background:var(--other);opacity:.85}
+  .sp.anthropic{background:var(--anthropic);opacity:.9}
+  .sp.openai{background:var(--openai);opacity:.9}
+  .sp.google{background:var(--google);opacity:.9}
+  .sp.other{background:var(--other);opacity:.9}
   .col:hover .sp{opacity:1}
   /* 归档段(源会话文件已被 agent 清理)用斜纹区分 */
   .col.arch .sp{background-image:repeating-linear-gradient(45deg,transparent,transparent 3px,
