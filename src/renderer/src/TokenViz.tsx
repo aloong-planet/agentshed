@@ -38,9 +38,11 @@ export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string 
   )
 }
 
-type Mode = '合计' | 'Claude' | 'Codex'
+import { buildTrendBars, type TrendMode } from '@shared/trend'
 
-/** 近 30 天(以 scannedAt 为锚)日粒度趋势;合计/单侧切换 */
+const SIDE_LABEL = { claude: 'Claude', codex: 'Codex' } as const
+
+/** 近 30 天(以 scannedAt 为锚)日粒度趋势;合计模式按两侧堆叠 */
 export function TrendChart({
   stats,
   anchor,
@@ -51,20 +53,10 @@ export function TrendChart({
   /** 源会话文件已被 agent 清理、数值来自本地归档的天 */
   archivedDays?: string[]
 }): JSX.Element {
-  const archived = new Set(archivedDays)
-  const [mode, setMode] = useState<Mode>('合计')
-  const days: Array<{ day: string; label: string; v: number }> = []
-  const byDay = new Map(stats.byDay.map((d) => [d.day, d]))
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(anchor - i * 86_400_000)
-    const p = (n: number): string => String(n).padStart(2, '0')
-    const key = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-    const row = byDay.get(key)
-    const v =
-      mode === 'Claude' ? (row?.claude ?? 0) : mode === 'Codex' ? (row?.codex ?? 0) : (row?.claude ?? 0) + (row?.codex ?? 0)
-    days.push({ day: key, label: `${d.getMonth() + 1}/${d.getDate()}`, v })
-  }
-  const max = Math.max(...days.map((d) => d.v), 1)
+  const [mode, setMode] = useState<TrendMode>('合计')
+  const bars = buildTrendBars(stats.byDay, anchor, mode, archivedDays)
+  const max = Math.max(...bars.map((b) => b.total), 1)
+
   return (
     <div>
       <div className="grp-t">
@@ -78,17 +70,48 @@ export function TrendChart({
         </span>
       </div>
       <div className="chart">
-        {days.map((d) => (
+        {bars.map((b) => (
           <div
-            key={d.day}
-            className={`bar ${mode === 'Codex' ? 'x' : ''} ${archived.has(d.day) ? 'arch' : ''}`}
-            style={{ height: `${Math.max(2, Math.round((d.v / max) * 100))}%` }}
-            data-tip={`${d.label} · ${fmtTok(d.v)} tok${archived.has(d.day) ? ' · 归档(源文件已清理)' : ''}`}
-          />
+            key={b.day}
+            className={`col ${b.archived ? 'arch' : ''}`}
+            style={{ height: `${Math.max(1.5, Math.round((b.total / max) * 100))}%` }}
+            data-tip={tipOf(b)}
+          >
+            {b.segments.map((sg) => (
+              <div
+                key={sg.side}
+                className={`sp ${sg.side}`}
+                style={{ height: `${b.total ? (sg.value / b.total) * 100 : 0}%` }}
+              />
+            ))}
+          </div>
         ))}
       </div>
+      {mode === '合计' && (
+        <div className="legend">
+          <span className="lg">
+            <span className="sw claude" />
+            Claude
+          </span>
+          <span className="lg">
+            <span className="sw codex" />
+            Codex
+          </span>
+          <span className="lg-note">柱高=当日总量,分段=两侧占比</span>
+        </div>
+      )}
     </div>
   )
+}
+
+/** 悬停明细:当日合计 + 各侧数值与占比(多行,CSS 用 white-space:pre 渲染) */
+function tipOf(b: ReturnType<typeof buildTrendBars>[number]): string {
+  const head = `${b.label} · 合计 ${fmtTok(b.total)}${b.archived ? ' · 归档(源文件已清理)' : ''}`
+  if (b.total === 0) return `${head}\n无用量`
+  const lines = b.segments.map(
+    (s) => `${SIDE_LABEL[s.side]}  ${fmtTok(s.value)}  ${Math.round((s.value / b.total) * 100)}%`
+  )
+  return [head, ...lines].join('\n')
 }
 
 export function ModelBars({ stats }: { stats: TokenStats }): JSX.Element {

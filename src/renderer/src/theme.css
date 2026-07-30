@@ -612,18 +612,60 @@ body {
   padding: 10px;
   margin-bottom: 14px;
 }
-.bar {
+.col {
   flex: 1;
-  background: var(--accent);
-  opacity: 0.75;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
   border-radius: 2px 2px 0 0;
+  overflow: hidden;
+  position: relative;
   min-height: 2px;
 }
-.bar:hover {
+.col:hover {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+.sp {
+  width: 100%;
+}
+.sp.claude {
+  background: var(--accent);
+  opacity: 0.85;
+}
+.sp.codex {
+  background: #3ba272;
+  opacity: 0.85;
+}
+.col:hover .sp {
   opacity: 1;
 }
-.bar.x {
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: -6px 0 14px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.legend .lg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend .sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.legend .sw.claude {
+  background: var(--accent);
+}
+.legend .sw.codex {
   background: #3ba272;
+}
+.legend .lg-note {
+  margin-left: auto;
 }
 .models {
   display: flex;
@@ -902,10 +944,7 @@ body {
 }
 
 /* 即时数据提示:原生 title 有约 1s 延迟,图表悬浮需立刻出数 */
-.bar {
-  position: relative;
-}
-.bar[data-tip]:hover::after {
+.col[data-tip]:hover::after {
   content: attr(data-tip);
   position: absolute;
   bottom: calc(100% + 7px);
@@ -917,12 +956,13 @@ body {
   line-height: 1.4;
   padding: 5px 9px;
   border-radius: 6px;
-  white-space: nowrap;
+  white-space: pre;
   z-index: 20;
   pointer-events: none;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  text-align: left;
 }
-.bar[data-tip]:hover::before {
+.col[data-tip]:hover::before {
   content: '';
   position: absolute;
   bottom: calc(100% + 2px);
@@ -935,7 +975,7 @@ body {
 }
 
 /* 归档段:数值来自本地归档(源会话文件已被 agent 清理),用斜纹与实时数据区分 */
-.bar.arch {
+.col.arch .sp {
   background-image: repeating-linear-gradient(
     45deg,
     transparent,
