@@ -9,3 +9,4 @@
 | [0003](0003-token-accounting.md) | Token 统计口径 | 已被 0005 取代 |
 | [0004](0004-skill-install-by-copy.md) | Skills 安装复制落地(拒绝软链) | 已接受 |
 | [0005](0005-token-ccusage-alignment.md) | Token 统计对齐 ccusage(全树+去重+四项口径) | 已接受 |
+| [0006](0006-codex-usage-accounting.md) | Codex 用量统计口径(双数据根+fork 重放剥离) | 已接受 |

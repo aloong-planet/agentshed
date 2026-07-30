@@ -122,6 +122,23 @@ describe('活跃度', () => {
     expect(snap.projects[0].lastSessionAt).toBe(5000 * 1000)
   })
 
+  it('首行超长(实测 base_instructions 可达 42KB)仍能取到 cwd 归属', async () => {
+    const p = mkProject('cx-huge')
+    writeCodexRegistry([p])
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const meta = {
+      timestamp: '2026-07-30T00:00:00Z',
+      type: 'session_meta',
+      payload: { cwd: p, base_instructions: { text: 'x'.repeat(40000) } }
+    }
+    const f = join(d, 'rollout-huge.jsonl')
+    writeFileSync(f, `${JSON.stringify(meta)}\n{"type":"other"}\n`)
+    utimesSync(f, 3000, 3000)
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.projects[0].sessionCount).toBe(1)
+  })
+
   it('rollout 首行损坏 → 跳过该文件不抛错', async () => {
     const p = mkProject('cx-broken')
     writeCodexRegistry([p])

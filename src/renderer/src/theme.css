@@ -900,3 +900,36 @@ body {
   color: var(--err-fg);
   border: 1px solid var(--err-fg);
 }
+
+/* 即时数据提示:原生 title 有约 1s 延迟,图表悬浮需立刻出数 */
+.bar {
+  position: relative;
+}
+.bar[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1b1b1f;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 5px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+  z-index: 20;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+.bar[data-tip]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1b1b1f;
+  z-index: 20;
+  pointer-events: none;
+}
