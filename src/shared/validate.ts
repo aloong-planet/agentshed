@@ -68,6 +68,7 @@ export function validateSnapshot(v: unknown): ValidateResult {
   }
   if (!Array.isArray(tk['byModel']) || !Array.isArray(tk['byDay']))
     return fail('tokens.byModel/byDay', '需为数组')
+  if (!Array.isArray(v['archivedDays'])) return fail('archivedDays', '需为数组')
   return { ok: true }
 }
 

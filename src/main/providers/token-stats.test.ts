@@ -369,3 +369,29 @@ describe('增量缓存', () => {
     expect(r2.global.bySide.claude.total).toBe(150)
   })
 })
+
+describe('归档行输出(供 UsageArchive 持久化)', () => {
+  it('build 产出 天×侧×项目×模型 的行,与 byDay 合计一致;liveDays 为本次可见的天', async () => {
+    mkClaudeFile('a.jsonl', [
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5),
+      usageLine('claude-opus-5', '2026-07-30T03:00:00Z', 20, 10)
+    ])
+    mkCodexRollout('rollout-r-019f100.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [
+      { input: 40, cached: 0, output: 0 }
+    ])
+    const r = await engine().build(roots(), [proj])
+    // 行覆盖两侧、两个 Claude 模型
+    const sides = new Set(r.rows.map((x) => x.side))
+    expect(sides).toEqual(new Set(['claude', 'codex']))
+    const models = new Set(r.rows.filter((x) => x.side === 'claude').map((x) => x.model))
+    expect(models).toEqual(new Set(['claude-fable-5', 'claude-opus-5']))
+    // 行合计 == 全局合计
+    const rowTotal = r.rows.reduce((s, x) => s + x.total, 0)
+    expect(rowTotal).toBe(r.global.bySide.claude.total + r.global.bySide.codex.total)
+    // 项目归属带上
+    expect(r.rows.every((x) => x.projectKey === proj.toLowerCase())).toBe(true)
+    // liveDays 非空且包含行里的天
+    expect(r.liveDays.size).toBeGreaterThan(0)
+    for (const x of r.rows) expect(r.liveDays.has(x.day)).toBe(true)
+  })
+})

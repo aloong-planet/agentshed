@@ -79,7 +79,7 @@ function OverviewTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }
   return (
     <div>
       <TotalsCards stats={stats.tokens} />
-      <TrendChart stats={stats.tokens} anchor={snap.scannedAt} />
+      <TrendChart stats={stats.tokens} anchor={snap.scannedAt} archivedDays={snap.archivedDays} />
       <div className="grp-t">按模型拆分</div>
       <ModelBars stats={stats.tokens} />
       <div className="grp-t">会话(主线程,元数据即止;subagent 计 token 不列出)</div>

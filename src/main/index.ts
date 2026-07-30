@@ -8,6 +8,7 @@ import { mergeKey } from '@shared/path-key'
 import { scan } from './providers/scan'
 import { readProjectDetail } from './providers/project-detail'
 import { TokenEngine } from './providers/token-stats'
+import { UsageArchive } from './providers/archive'
 import { installSkill, uninstallSkill } from './providers/install'
 import { realRoots } from './roots'
 import { HiddenStore } from './hidden-store'
@@ -21,6 +22,7 @@ if (!gotTheLock) {
 let mainWindow: BrowserWindow | null = null
 let hiddenStore: HiddenStore | null = null
 let tokenEngine: TokenEngine | null = null
+let archive: UsageArchive | null = null
 let perProjectStats = new Map<string, ProjectStats>()
 
 // ── 快照与刷新(去重:进行中忽略再次触发)──
@@ -42,6 +44,23 @@ async function doScan(): Promise<Snapshot> {
         const t = await tokenEngine.build(realRoots(), claudePaths)
         snap.tokens = t.global
         perProjectStats = t.perProject
+        // 归档:实时值覆盖仍可见的天,已被 agent 清理的天从归档补回趋势
+        if (archive) {
+          archive.merge(t.rows, t.liveDays)
+          const archivedDays = archive.archivedOnlyDays(t.liveDays)
+          snap.archivedDays = archivedDays
+          if (archivedDays.length) {
+            const set = new Set(archivedDays)
+            const byDay = new Map(snap.tokens.byDay.map((d) => [d.day, d]))
+            for (const r of archive.rows()) {
+              if (!set.has(r.day)) continue
+              const d = byDay.get(r.day) ?? { day: r.day, claude: 0, codex: 0 }
+              d[r.side] += r.total
+              byDay.set(r.day, d)
+            }
+            snap.tokens.byDay = [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : 1))
+          }
+        }
       }
       assertSnapshot(snap)
       current = snap
@@ -140,6 +159,7 @@ void app.whenReady().then(() => {
   if (!gotTheLock) return
   hiddenStore = new HiddenStore(app.getPath('userData'))
   tokenEngine = new TokenEngine(app.getPath('userData'))
+  archive = new UsageArchive(app.getPath('userData'))
   createWindow()
   void doScan()
   app.on('activate', () => {

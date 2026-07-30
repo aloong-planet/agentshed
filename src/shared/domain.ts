@@ -179,8 +179,10 @@ export interface Snapshot {
   sides: Record<AgentSide, SideInfo>
   projects: ProjectEntry[]
   global: GlobalLayer
-  /** 跨项目 token 汇总(口径:含已隐藏与失效项目) */
+  /** 跨项目 token 汇总(口径:含已隐藏与失效项目;含归档补齐的历史天) */
   tokens: TokenStats
+  /** 仅存在于归档、源会话文件已被 agent 清理的天(UI 标注历史段) */
+  archivedDays: string[]
 }
 
 /** 空快照(扫描前/两侧均未检测到时的基态) */
@@ -197,6 +199,7 @@ export function emptySnapshot(scannedAt: number): Snapshot {
       codexAgentsMd: null,
       codexConfigSummary: null
     },
-    tokens: emptyTokenStats()
+    tokens: emptyTokenStats(),
+    archivedDays: []
   }
 }
