@@ -73,7 +73,7 @@ export function TrendChart({ stats, anchor }: { stats: TokenStats; anchor: numbe
             key={d.day}
             className={`bar ${mode === 'Codex' ? 'x' : ''}`}
             style={{ height: `${Math.max(2, Math.round((d.v / max) * 100))}%` }}
-            title={`${d.label} · ${fmtTok(d.v)} tok`}
+            data-tip={`${d.label} · ${fmtTok(d.v)} tok`}
           />
         ))}
       </div>

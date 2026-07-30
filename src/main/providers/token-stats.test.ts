@@ -63,12 +63,14 @@ function mkCodexRollout(
   cwd: string,
   tsIso: string,
   model: string,
-  totals: Array<{ input: number; cached: number; output: number }>,
+  /** 每轮增量(last_token_usage),按各自时间戳归日 */
+  turns: Array<{ input: number; cached: number; output: number; at?: string }>,
   subagent = false,
   atSec = 2000
 ): string {
   const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
   mkdirSync(d, { recursive: true })
+  let acc = { input: 0, cached: 0, output: 0 }
   const lines = [
     JSON.stringify({
       timestamp: tsIso,
@@ -76,27 +78,40 @@ function mkCodexRollout(
       payload: subagent ? { cwd, thread_source: 'subagent' } : { cwd }
     }),
     JSON.stringify({ timestamp: tsIso, type: 'turn_context', payload: { model, cwd } }),
-    ...totals.map((t) =>
-      JSON.stringify({
-        timestamp: tsIso,
-        type: 'token_count',
-        info: {
-          total_token_usage: {
-            input_tokens: t.input,
-            cached_input_tokens: t.cached,
-            cache_write_input_tokens: 0,
-            output_tokens: t.output,
-            total_tokens: t.input + t.output
+    // 真实形状:顶层 type=event_msg,数据在 payload.info(payload.type=token_count)
+    ...turns.map((t) => {
+      acc = { input: acc.input + t.input, cached: acc.cached + t.cached, output: acc.output + t.output }
+      return JSON.stringify({
+        timestamp: t.at ?? tsIso,
+        type: 'event_msg',
+        payload: {
+          type: 'token_count',
+          info: {
+            last_token_usage: {
+              input_tokens: t.input,
+              cached_input_tokens: t.cached,
+              cache_write_input_tokens: 0,
+              output_tokens: t.output,
+              total_tokens: t.input + t.output
+            },
+            total_token_usage: {
+              input_tokens: acc.input,
+              cached_input_tokens: acc.cached,
+              cache_write_input_tokens: 0,
+              output_tokens: acc.output,
+              total_tokens: acc.input + acc.output
+            }
           }
         }
       })
-    )
+    })
   ]
   const f = join(d, file)
   writeFileSync(f, `${lines.join('\n')}\n`)
   utimesSync(f, atSec, atSec)
   return f
 }
+
 function writeIndex(entries: Array<{ id: string; name: string }>): void {
   mkdirSync(join(dir, '.codex'), { recursive: true })
   writeFileSync(
@@ -192,6 +207,29 @@ describe('Claude 聚合(ccusage 口径)', () => {
     expect(r.global.byModel).toHaveLength(0)
   })
 
+  it('cache_creation 明细优先:存在 ephemeral 明细时取 5m+1h 之和,不用扁平字段', async () => {
+    // 实测真实数据(2026-07-13)存在明细与扁平不等的行,ccusage 取明细
+    const line = JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-07-30T02:00:00Z',
+      message: {
+        id: 'm1',
+        model: 'claude-fable-5',
+        usage: {
+          input_tokens: 10,
+          output_tokens: 5,
+          cache_read_input_tokens: 0,
+          cache_creation_input_tokens: 100,
+          cache_creation: { ephemeral_5m_input_tokens: 40, ephemeral_1h_input_tokens: 507 }
+        }
+      }
+    })
+    mkClaudeFile('cc.jsonl', [line])
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.claude.cacheWrite).toBe(547)
+    expect(r.global.bySide.claude.total).toBe(562)
+  })
+
   it('坏行跳过不弃文件', async () => {
     mkClaudeFile('b.jsonl', ['not json {{{', usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
     const r = await engine().build(roots(), [proj])
@@ -199,24 +237,37 @@ describe('Claude 聚合(ccusage 口径)', () => {
   })
 })
 
-describe('Codex 聚合', () => {
-  it('取末条 token_count 累计(input 已含 cached,不重复相加);模型取 turn_context;标题经 session_index 映射', async () => {
+describe('Codex 聚合(ccusage 口径)', () => {
+  it('逐轮 last_token_usage 增量累加;input 净化(减 cached)、cached 单列;模型取 turn_context;标题经 session_index', async () => {
     const id = '019fa9a1-380e-7af3-af7d-8505cedf1ec2'
-    mkCodexRollout(`rollout-2026-07-30T00-49-03-${id}.jsonl`, proj, '2026-07-30T00:49:03Z', 'gpt-5.5-codex', [
+    mkCodexRollout(`rollout-2026-07-30T00-49-03-${id}.jsonl`, proj, '2026-07-30T00:49:03Z', 'gpt-5.6-sol', [
       { input: 100, cached: 80, output: 10 },
-      { input: 500, cached: 400, output: 30 }
+      { input: 400, cached: 320, output: 20 }
     ])
     writeIndex([{ id, name: '迁移 skills' }])
     const r = await engine().build(roots(), [proj])
-    expect(r.global.bySide.codex).toMatchObject({ input: 500, output: 30, cacheRead: 400, total: 530 })
+    // 原 input 合计 500(含 cached 400)→ 净 input 100、cacheRead 400、output 30;total 四项全加 = 530
+    expect(r.global.bySide.codex).toMatchObject({ input: 100, output: 30, cacheRead: 400, total: 530 })
     const models = Object.fromEntries(r.global.byModel.map((m) => [`${m.side}:${m.model}`, m.total]))
-    expect(models['codex:gpt-5.5-codex']).toBe(530)
+    expect(models['codex:gpt-5.6-sol']).toBe(530)
     const p = r.perProject.get(proj.toLowerCase())
     expect(p?.sessions.find((s) => s.side === 'codex')?.title).toBe('迁移 skills')
   })
 
+  it('跨天会话按事件时间戳分摊到各自日期(不再整会话堆在首日)', async () => {
+    // 用相隔 24h 的两个时间戳,确保在任何本地时区都跨日
+    mkCodexRollout('rollout-cross-019f003.jsonl', proj, '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 0, output: 0, at: '2026-07-29T12:00:00Z' },
+      { input: 200, cached: 0, output: 0, at: '2026-07-30T12:00:00Z' }
+    ])
+    const r = await engine().build(roots(), [proj])
+    const byDay = Object.fromEntries(r.global.byDay.map((d) => [d.day, d.codex]))
+    expect(Object.keys(byDay).length).toBe(2)
+    expect(Object.values(byDay).reduce((a, b) => a + b, 0)).toBe(300)
+  })
+
   it('subagent 会话 token 计入、不进会话列表', async () => {
-    mkCodexRollout('rollout-main-019f001.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.5-codex', [
+    mkCodexRollout('rollout-main-019f001.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
       { input: 10, cached: 0, output: 5 }
     ])
     mkCodexRollout(
