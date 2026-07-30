@@ -11,3 +11,4 @@
 | [0005](0005-token-ccusage-alignment.md) | Token 统计对齐 ccusage(全树+去重+四项口径) | 已接受 |
 | [0006](0006-codex-usage-accounting.md) | Codex 用量统计口径(双数据根+fork 重放剥离) | 已接受 |
 | [0007](0007-usage-archive.md) | 用量历史归档(抗 agent 自动清理) | 已接受 |
+| [0008](0008-trend-by-provider.md) | 趋势柱按 provider 分段 | 已接受 |

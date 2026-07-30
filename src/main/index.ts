@@ -5,6 +5,7 @@ import { CMD, EVT, type SetHiddenArgs, type SkillOpArgs } from '@shared/ipc'
 import type { ProjectStats, Snapshot } from '@shared/domain'
 import { assertSnapshot } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
+import { providerOf } from '@shared/provider'
 import { scan } from './providers/scan'
 import { readProjectDetail } from './providers/project-detail'
 import { TokenEngine } from './providers/token-stats'
@@ -54,8 +55,10 @@ async function doScan(): Promise<Snapshot> {
             const byDay = new Map(snap.tokens.byDay.map((d) => [d.day, d]))
             for (const r of archive.rows()) {
               if (!set.has(r.day)) continue
-              const d = byDay.get(r.day) ?? { day: r.day, claude: 0, codex: 0 }
+              const d = byDay.get(r.day) ?? { day: r.day, claude: 0, codex: 0, byProvider: {} }
               d[r.side] += r.total
+              const prov = providerOf(r.model)
+              d.byProvider[prov] = (d.byProvider[prov] ?? 0) + r.total
               byDay.set(r.day, d)
             }
             snap.tokens.byDay = [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : 1))

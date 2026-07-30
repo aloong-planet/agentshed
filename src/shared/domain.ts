@@ -91,8 +91,11 @@ export interface ModelUsage {
 /** 日粒度(本地时区)用量 */
 export interface DayUsage {
   day: string
+  /** 按 agent 侧(供单侧筛选) */
   claude: number
   codex: number
+  /** 按 provider(模型提供方)分解 —— 趋势柱分段依据;键见 shared/provider.ts */
+  byProvider: Record<string, number>
 }
 
 export interface TokenStats {
