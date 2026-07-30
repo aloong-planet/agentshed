@@ -100,7 +100,7 @@ ipcMain.handle(CMD.setHidden, (_e, args: unknown) => {
   // 局部更新快照并广播,不触发全量重扫
   if (current) {
     for (const p of current.projects) {
-      if (p.path.toLowerCase() === a.projectPath.replace(/\/+$/, '').toLowerCase()) {
+      if (mergeKey(p.path) === mergeKey(a.projectPath)) {
         p.hidden = a.hidden
       }
     }

@@ -52,6 +52,16 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
         </nav>
       </header>
       <div className="pane-body">
+        {!snap.sides.claude.detected && !snap.sides.codex.detected && (
+          <div className="empty">
+            <div className="big">🛖</div>
+            <div>
+              本机未检测到 Claude Code 或 Codex 的数据目录
+              <br />
+              安装并使用任一 agent 后,点 rail 底部 ↻ 刷新即可看到全景
+            </div>
+          </div>
+        )}
         {tab === 'token' && (
           <div>
             <TotalsCards stats={snap.tokens} note="含已隐藏/失效项目" />
