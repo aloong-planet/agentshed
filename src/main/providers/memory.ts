@@ -3,6 +3,7 @@
 // Codex 全局记忆探测式:目录非空才入列(C6),仅目录枚举不解析结构。
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { parse as parseToml } from 'smol-toml'
 import type { MemoryFileMeta, MemorySummaryEntry, ProjectEntry, ProjectMemory } from '@shared/domain'
 import type { ScanRoots } from './types'
 import { encodeClaudeProjectDir } from './claude'
@@ -33,23 +34,35 @@ function listMdFiles(dir: string): MemoryFileMeta[] {
 }
 
 /**
- * Codex 记忆开关(C6):config.toml 的 [features] 节内 memories = true。
- * 节界定按行扫描:进入 [features] 后到下一个 [ 头为止;[memories] 配置节与
- * 其他位置的同名键不得误判(spec C6 修订)。config 缺失/不可读 → 未开启。
+ * Codex 记忆开关(C6):features 表下的 memories 键为 true——
+ * `[features]` 节与 `features.memories = true` 点键两种写法等价,须都识别,
+ * 故 TOML 解析优先;存量非标准 config 解析失败时退化为 [features] 节行扫描。
+ * [memories] 配置节与其他位置的同名键不得误判。config 缺失/不可读 → 未开启。
  */
 export function readCodexMemoriesEnabled(codexHome: string): boolean {
   const raw = readTextCapped(join(codexHome, 'config.toml'))
   if (raw === null) return false
-  let inFeatures = false
-  for (const line of raw.split('\n')) {
-    const header = /^\s*\[([^\]]+)\]\s*$/.exec(line)
-    if (header) {
-      inFeatures = header[1].trim() === 'features'
-      continue
+  try {
+    const parsed = parseToml(raw) as Record<string, unknown>
+    const features = parsed['features']
+    return (
+      typeof features === 'object' &&
+      features !== null &&
+      (features as Record<string, unknown>)['memories'] === true
+    )
+  } catch {
+    // 行扫描兜底:进入 [features] 节后到下一个 [ 头为止
+    let inFeatures = false
+    for (const line of raw.split('\n')) {
+      const header = /^\s*\[([^\]]+)\]\s*$/.exec(line)
+      if (header) {
+        inFeatures = header[1].trim() === 'features'
+        continue
+      }
+      if (inFeatures && /^\s*memories\s*=\s*true\s*(#.*)?$/.test(line)) return true
     }
-    if (inFeatures && /^\s*memories\s*=\s*true\s*(#.*)?$/.test(line)) return true
+    return false
   }
-  return false
 }
 
 export function readMemorySummary(roots: ScanRoots, projects: ProjectEntry[]): MemorySummaryEntry[] {

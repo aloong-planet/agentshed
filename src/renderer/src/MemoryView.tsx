@@ -19,7 +19,7 @@ function CodexMemoryNote({ snap }: { snap: Snapshot }): JSX.Element | null {
     <div className="none" style={{ textAlign: 'left', padding: '4px 2px' }}>
       {snap.global.codexMemoriesEnabled
         ? 'Codex 记忆已开启,暂无内容。'
-        : 'Codex 记忆功能未开启——在 ~/.codex/config.toml 设置 [features] memories = true 可开启(实验性)。'}
+        : 'Codex 记忆功能未开启——可在 Codex 内用 /memories 命令,或「设置 → 个性化 → Enable memories」开启(实验性)。'}
     </div>
   )
 }

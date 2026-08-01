@@ -398,7 +398,7 @@ function renderMemory(){
     }).join('')
     $('tabBody').innerHTML = `<div class="grp-t">按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件开抽屉</div>
       <div class="card">${listHtml}</div>
-      <div class="note">Codex 记忆按开关三态(C6 修订):未开启 → 提示「在 ~/.codex/config.toml 设 [features] memories = true」;已开启无内容 → 「暂无内容」;有内容 → 上方条目行(未开启但有遗留文件时如实列出并附注)。文件内容按需读取,不进快照。</div>`
+      <div class="note">Codex 记忆按开关三态(C6 修订):未开启 → 提示「在 Codex 内用 /memories 命令,或“设置 → 个性化 → Enable memories”开启(实验性)」;已开启无内容 → 「暂无内容」;有内容 → 上方条目行(未开启但有遗留文件时如实列出并附注)。文件内容按需读取,不进快照。</div>`
     return
   }
   const topics = MEMORY_DETAIL.topics.map((t,i)=>
