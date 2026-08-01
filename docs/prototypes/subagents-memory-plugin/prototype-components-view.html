@@ -21,8 +21,9 @@
        无 MEMORY.md 仅 topic、stale 项目、Codex 全局记忆行、命名空间 skills 条目。
      交互:页内切全局页/详情页;tab 切换;Subagents/topic 点行开抽屉(Esc/点遮罩关,
        抽屉内切 Claude/Codex);Plugins 点行展开收起。写操作无。
-     演示基建(非设计的一部分,勿实现):带 data-demo-harness 标记 + 暗色 .demo-seg
-       样式的控件(页切换、Codex 记忆四态开关)是原型脚手架;被评判的设计不含它们。 -->
+     演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于
+       页面内容流,同多方案变体切换条形态)承载页切换与 Codex 记忆四态开关;
+       被评判的设计不含它们。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -43,14 +44,16 @@
   .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
   .head{padding:14px 22px 0;border-bottom:1px solid var(--line)}
   .h1{font-size:16px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:10px}
-  /* 演示基建(harness):非设计的一部分——统一暗色高对比样式 + data-demo-harness 标记,
-     与被评判设计视觉隔离(prototype skill UI.md 演示基建条款);模型读取原型时按此过滤 */
-  .demo-seg{display:inline-flex;align-items:center;gap:2px;background:#26262b;border-radius:999px;
-    padding:3px 8px 3px 10px;font-size:10.5px;font-weight:400;box-shadow:0 2px 8px rgba(0,0,0,.25)}
-  .demo-seg .dl{color:#8a8a92;margin-right:4px;font-weight:700;letter-spacing:.5px}
-  .demo-seg span[data-v]{padding:2px 8px;border-radius:999px;cursor:pointer;color:#b8b8bf}
-  .demo-seg span[data-v]:hover{color:#fff}
-  .demo-seg span[data-v].on{background:#4a4a52;color:#fff;font-weight:600}
+  /* 演示基建(harness):非设计的一部分——独立悬浮层(固定底部居中,同多方案变体切换条),
+     绝不嵌入页面内容流;data-demo-harness 标记供模型/脚本过滤(UI.md 演示基建条款) */
+  .harness{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:60;
+    display:flex;align-items:center;gap:4px;background:#26262b;border-radius:999px;
+    padding:6px 14px;font-size:11px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+  .harness .dl{color:#8a8a92;margin:0 4px 0 6px;font-weight:700;letter-spacing:.5px}
+  .harness span[data-v]{padding:3px 9px;border-radius:999px;cursor:pointer;color:#b8b8bf}
+  .harness span[data-v]:hover{color:#fff}
+  .harness span[data-v].on{background:#4a4a52;color:#fff;font-weight:600}
+  .harness .sep{width:1px;height:14px;background:#4a4a52;margin:0 4px}
   .stats{display:flex;gap:14px;margin-bottom:12px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 14px;min-width:150px}
   .stat .k{font-size:10.5px;color:var(--text-2);margin-bottom:3px;display:flex;align-items:center;gap:6px}
@@ -65,7 +68,7 @@
   .tab:hover{color:var(--text)}
   .tab.on{background:var(--bg);color:var(--accent);font-weight:600;border:1px solid var(--line);border-bottom-color:var(--bg)}
   .tab.dim{opacity:.45;cursor:default}
-  .body{flex:1;overflow:auto;padding:16px 22px}
+  .body{flex:1;overflow:auto;padding:16px 22px 64px} /* 底部留白:悬浮演示条不遮内容 */
   .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:16px;overflow:hidden}
   .it{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line);cursor:pointer}
@@ -128,6 +131,8 @@
     <div class="head" id="head"></div>
     <div class="body" id="tabBody"></div>
   </div>
+  <!-- 演示基建悬浮层:非设计的一部分,独立于产品页面 -->
+  <div class="harness" id="harness" data-demo-harness></div>
 
 <script>
 /* ── mock 数据(刻意覆盖 spec 失败模式表) ── */
@@ -250,8 +255,7 @@ function renderHead(){
   const tabs = (list)=>list.map(([t,l,dim])=>`<span class="tab ${dim?'dim':TAB===t?'on':''}" ${dim?'':`onclick="setTab('${t}')"`}>${l}</span>`).join('')
   if (PAGE==='global') {
     $('head').innerHTML = `
-      <div class="h1">Agents
-        <span class="demo-seg" data-demo-harness><span class="dl">演示·页</span><span data-v class="on">全局页</span><span data-v onclick="setPage('detail')">详情页 ▸ superpowers-demo</span></span></div>
+      <div class="h1">Agents</div>
       <div class="stats">
         <div class="stat"><div class="k"><span class="b c">CLAUDE CODE</span>已检测</div>
           <div class="v">11.2M</div><div class="s">46 项目 · 26 全局 skills · 5 subagents</div></div>
@@ -261,8 +265,7 @@ function renderHead(){
       <div class="tabs">${tabs([['token','Token',1],['skills','Skills'],['subagents','Subagents'],['plugins','Plugins'],['mcp','MCP',1],['memory','Memory'],['cfg','配置',1]])}</div>`
   } else {
     $('head').innerHTML = `
-      <div class="h1">superpowers-demo <span class="b c">CLAUDE</span>
-        <span class="demo-seg" data-demo-harness><span class="dl">演示·页</span><span data-v onclick="setPage('global')">全局页</span><span data-v class="on">详情页</span></span></div>
+      <div class="h1">superpowers-demo <span class="b c">CLAUDE</span></div>
       <div class="det-path">/Users/loong_zhou/CascadeProjects/superpowers-demo</div>
       <div class="tabs">${tabs([['ov','概览',1],['skills','Skills'],['subagents','Subagents'],['plugins','Plugins'],['mcp','MCP',1],['memory','Memory'],['cfg','配置',1],['arts','产物',1]])}</div>`
   }
@@ -412,12 +415,10 @@ function renderMemory(){
       CXMEM==='off-has' ? `<div class="note">Codex 记忆功能当前未开启,上方为目录中的遗留文件。</div>` :
       CXMEM==='on-empty' ? `<div class="note">Codex 记忆已开启,暂无内容。</div>` :
       `<div class="note">Codex 记忆功能未开启——可在 Codex 内用 /memories 命令,或「设置 → 个性化 → Enable memories」开启(实验性)。</div>`
-    const seg = (v,label)=>`<span data-v class="${CXMEM===v?'on':''}" onclick="setCxmem('${v}')">${label}</span>`
-    $('tabBody').innerHTML = `<div class="grp-t">按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件开抽屉
-        <span class="demo-seg" data-demo-harness style="margin-left:auto"><span class="dl">演示·Codex 记忆</span>${seg('on-has','开·有内容')}${seg('on-empty','开·无内容')}${seg('off-empty','关·无内容')}${seg('off-has','关·遗留文件')}</span></div>
+    $('tabBody').innerHTML = `<div class="grp-t">按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件开抽屉</div>
       <div class="card">${listHtml}</div>
       ${cxNote}
-      <div class="note">「演示·Codex 记忆」为原型演示基建,非功能:真实判定 = config.toml features.memories × 目录内容,app 内无此开关。文件内容按需读取,不进快照。</div>`
+      <div class="note">Codex 记忆四种组合经底部悬浮演示条切换(原型基建,非功能):真实判定 = config.toml features.memories × 目录内容,app 内无此开关。文件内容按需读取,不进快照。</div>`
     return
   }
   const topics = MEMORY_DETAIL.topics.map((t,i)=>
@@ -457,10 +458,22 @@ function openReader(kind, i, j){
 function setSide(s){ SIDE=s; const panel=$('reader'); if (panel) panel.innerHTML = readerHtml() }
 function closeReader(){ ['mask','reader'].forEach(id=>{ const el=$(id); if(el) el.remove() }); READER=null }
 
+/** 演示基建悬浮层:页切换常驻;Codex 记忆四态仅在全局页 Memory 分栏时追加 */
+function renderHarness(){
+  const pseg = (v,label,on)=>`<span data-v class="${on?'on':''}" onclick="setPage('${v}')">${label}</span>`
+  const cseg = (v,label)=>`<span data-v class="${CXMEM===v?'on':''}" onclick="setCxmem('${v}')">${label}</span>`
+  let html = `<span class="dl">演示·页</span>${pseg('global','全局页',PAGE==='global')}${pseg('detail','详情页 ▸ superpowers-demo',PAGE==='detail')}`
+  if (PAGE==='global' && TAB==='memory') {
+    html += `<span class="sep"></span><span class="dl">演示·Codex 记忆</span>${cseg('on-has','开·有内容')}${cseg('on-empty','开·无内容')}${cseg('off-empty','关·无内容')}${cseg('off-has','关·遗留文件')}`
+  }
+  $('harness').innerHTML = html
+}
+
 function render(){
   closeReader()
   renderHead()
   renderBody()
+  renderHarness()
 }
 document.addEventListener('keydown',(e)=>{ if (e.key==='Escape') closeReader() })
 render()
