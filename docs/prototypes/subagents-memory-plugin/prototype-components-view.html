@@ -220,6 +220,8 @@ const SKILLS_DETAIL = [
 /* ── 状态 ── */
 let PAGE = 'global'            // global | detail
 let TAB = 'subagents'          // subagents | memory | plugins | skills
+let CXMEM = 'on-has'           // 演示开关:Codex 记忆四种组合(实现由 config 开关 × 目录内容决定)
+function setCxmem(v){ CXMEM=v; render() }
 let EXP = new Set()            // Plugins 行展开集合
 let SIDE = 'c'                 // 抽屉内双端切换
 let READER = null              // 抽屉上下文 {kind:'subagent'|'topic', i}
@@ -389,16 +391,26 @@ function renderPlugins(){
 
 function renderMemory(){
   if (PAGE==='global'){
-    const rows = memoryRows()
+    // 演示开关:Codex 行是否入列由「有无内容」决定;附注由「开关 × 内容」四种组合决定(同实现)
+    const showCxRow = CXMEM==='on-has' || CXMEM==='off-has'
+    const rows = memoryRows().filter(r=>!r.data.codex || showCxRow)
     const listHtml = rows.map(r=>{
       const expHtml = EXP.has(r.i) ? `<div class="exp">${r.data.files.map((t,j)=>
         `<div class="it" style="padding:6px 0" onclick="openReader('gmem',${r.i},${j})">
            <span class="nm" style="flex:1">${esc(t.f)}</span><span class="src">${t.at}</span></div>`).join('')}</div>` : ''
       return `<div class="it" onclick="toggleExp(${r.i})">${r.html}</div>${expHtml}`
     }).join('')
-    $('tabBody').innerHTML = `<div class="grp-t">按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件开抽屉</div>
+    const cxNote =
+      CXMEM==='on-has' ? '' :
+      CXMEM==='off-has' ? `<div class="note">Codex 记忆功能当前未开启,上方为目录中的遗留文件。</div>` :
+      CXMEM==='on-empty' ? `<div class="note">Codex 记忆已开启,暂无内容。</div>` :
+      `<div class="note">Codex 记忆功能未开启——可在 Codex 内用 /memories 命令,或「设置 → 个性化 → Enable memories」开启(实验性)。</div>`
+    const seg = (v,label)=>`<span class="${CXMEM===v?'on':''}" onclick="setCxmem('${v}')">${label}</span>`
+    $('tabBody').innerHTML = `<div class="grp-t">按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件开抽屉
+        <span class="sideseg" style="margin-left:auto">${seg('on-has','开·有内容')}${seg('on-empty','开·无内容')}${seg('off-empty','关·无内容')}${seg('off-has','关·遗留文件')}</span></div>
       <div class="card">${listHtml}</div>
-      <div class="note">Codex 记忆按开关三态(C6 修订):未开启 → 提示「在 Codex 内用 /memories 命令,或“设置 → 个性化 → Enable memories”开启(实验性)」;已开启无内容 → 「暂无内容」;有内容 → 上方条目行(未开启但有遗留文件时如实列出并附注)。文件内容按需读取,不进快照。</div>`
+      ${cxNote}
+      <div class="note">↑ 右上为演示开关:Codex 记忆的四种组合(实现由 config.toml features.memories × 目录内容判定)。文件内容按需读取,不进快照。</div>`
     return
   }
   const topics = MEMORY_DETAIL.topics.map((t,i)=>
