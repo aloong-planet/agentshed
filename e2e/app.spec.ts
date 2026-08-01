@@ -52,6 +52,9 @@ test('冷启动:Agents 页为默认落地,两侧汇总卡渲染,主进程无错�
   // 汇总卡两张(CC / CODEX)
   await expect(win.locator('.pane-head .stats .stat')).toHaveCount(2)
   await expect(win.locator('.badge.cc, .badge.cl').first()).toBeVisible()
+  // #18:打包版渲染页必须跑在 app:// 上而非 file://(回退到 file:// 会静默丢掉
+  // "可读范围锁死在产物目录"的保护,只有断言协议才拦得住)
+  expect(win.url()).toMatch(/^app:\/\//)
   expect(l.errors).toEqual([])
   await close(l)
 })

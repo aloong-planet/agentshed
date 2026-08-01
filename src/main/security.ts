@@ -18,7 +18,9 @@ export function isAppUrl(url: string, appBase: string | undefined): boolean {
   } catch {
     return false // 不可解析一律不放行
   }
-  if (appBase === undefined) return u.protocol === 'file:' // prod:仅本地渲染产物
+  // prod:渲染页跑在 app://bundle(#18 起不再用 file://)。仍接受 file: 是为了
+  // 覆盖 devtools/内部页等边缘载入,它们不承载本 app 的 IPC 面。
+  if (appBase === undefined) return u.protocol === 'app:' || u.protocol === 'file:'
   try {
     return u.origin === new URL(appBase).origin // 比 origin,不用 startsWith
   } catch {
@@ -84,6 +86,60 @@ export function assertTrustedSender(
   if (senderUrl === undefined || !isAppUrl(senderUrl, appBase)) {
     throw new Error(`IPC 调用方不可信:${senderUrl ?? '(无 sender)'}`)
   }
+}
+
+/**
+ * #7 CSP。本应用渲染他人写的 markdown,CSP 是消毒之外的第二道:
+ * 消毒剥 script,CSP 兜住"漏网的执行"与"外联请求"(如 <img src="http://tracker">
+ * 会真的发出去,是隐私泄漏)。
+ *
+ * 两套策略:prod 严格;dev 必须放宽——vite HMR 用 inline script 与 ws 连接,
+ * 严格策略下开发环境直接跑不起来(放宽仅限 dev,打包产物不受影响)。
+ */
+export function cspFor(isDev: boolean): string {
+  const base = [
+    "default-src 'self'",
+    "img-src 'self' data:", // 本地图片与内联 data:;**不含 http(s)** → 外部追踪图被拦
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "frame-src 'none'", // 不允许任何 iframe(连带消除子框架导航面)
+    "base-uri 'none'",
+    "form-action 'none'"
+  ]
+  if (isDev) {
+    // vite:inline script + eval(HMR)+ ws 连接 + 注入的 style
+    return [
+      ...base,
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "connect-src 'self' ws: http://localhost:*"
+    ].join('; ')
+  }
+  return [...base, "script-src 'self'", "style-src 'self' 'unsafe-inline'", "connect-src 'self'"].join(
+    '; '
+  )
+}
+
+/** 把 CSP 注入到该 session 的所有响应头上(比 <meta> 可靠:meta 对部分指令无效) */
+export function installCsp(
+  ses: {
+    webRequest: {
+      onHeadersReceived: (
+        cb: (
+          d: { responseHeaders?: Record<string, string[]> },
+          done: (r: { responseHeaders: Record<string, string[]> }) => void
+        ) => void
+      ) => void
+    }
+  },
+  isDev: boolean
+): void {
+  const csp = cspFor(isDev)
+  ses.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: { ...(details.responseHeaders ?? {}), 'Content-Security-Policy': [csp] }
+    })
+  })
 }
 
 /** #5 权限:只读本地应用不需要任何权限,请求与查询全 deny */

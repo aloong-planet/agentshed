@@ -4,7 +4,7 @@
 // setWindowOpenHandler、没写 will-navigate"时**静默放行**(恰是本项目曾经的形态)。
 // 即没有任何现成工具能守住这类回归,故判定层做成纯函数并在此固化。
 import { describe, it, expect } from 'vitest'
-import { isAppUrl, externalOpenTarget, assertTrustedSender } from './security'
+import { isAppUrl, externalOpenTarget, assertTrustedSender, cspFor } from './security'
 
 const DEV = 'http://localhost:5173'
 
@@ -20,7 +20,8 @@ describe('isAppUrl(导航放行判定 · #13)', () => {
     expect(isAppUrl('https://localhost:5173/x', DEV)).toBe(false) // 协议不同即不同 origin
   })
 
-  it('prod(无 dev base):只放行 file:,其余一律拒绝', () => {
+  it('prod(无 dev base):放行 app://(#18 起的渲染页)与 file:,其余一律拒绝', () => {
+    expect(isAppUrl('app://bundle/index.html', undefined)).toBe(true)
     expect(isAppUrl('file:///app/out/renderer/index.html', undefined)).toBe(true)
     expect(isAppUrl('https://example.com', undefined)).toBe(false)
     expect(isAppUrl('http://localhost:5173/', undefined)).toBe(false)
@@ -62,6 +63,40 @@ describe('externalOpenTarget(交系统浏览器的白名单 · #15)', () => {
   it('不可解析 → 拒绝', () => {
     expect(externalOpenTarget('')).toBeNull()
     expect(externalOpenTarget('://x')).toBeNull()
+  })
+})
+
+describe('cspFor(内容安全策略 · #7)', () => {
+  it('prod:不放 unsafe-eval / unsafe-inline script,外联被 default-src self 挡住', () => {
+    const p = cspFor(false)
+    expect(p).toContain("script-src 'self'")
+    expect(p).not.toContain('unsafe-eval')
+    expect(p).not.toMatch(/script-src[^;]*unsafe-inline/)
+    expect(p).toContain("default-src 'self'")
+  })
+
+  it('两档都禁 object/frame/base-uri/form-action(消除子框架与表单外发面)', () => {
+    for (const p of [cspFor(true), cspFor(false)]) {
+      expect(p).toContain("object-src 'none'")
+      expect(p).toContain("frame-src 'none'")
+      expect(p).toContain("base-uri 'none'")
+      expect(p).toContain("form-action 'none'")
+    }
+  })
+
+  it('img-src 不含 http(s):markdown 里的外部追踪图不得外联(隐私)', () => {
+    for (const p of [cspFor(true), cspFor(false)]) {
+      const img = /img-src ([^;]*)/.exec(p)?.[1] ?? ''
+      expect(img).toContain("'self'")
+      expect(img).toContain('data:')
+      expect(img).not.toMatch(/https?:/)
+    }
+  })
+
+  it('dev:放宽给 vite HMR(inline+eval+ws),否则开发环境跑不起来', () => {
+    const d = cspFor(true)
+    expect(d).toContain('unsafe-eval')
+    expect(d).toContain('ws:')
   })
 })
 

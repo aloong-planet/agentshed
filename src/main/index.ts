@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, session, shell } from 'electron'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CMD, EVT, type SetHiddenArgs, type SkillOpArgs } from '@shared/ipc'
@@ -11,9 +11,25 @@ import { readProjectDetail } from './providers/project-detail'
 import { TokenEngine } from './providers/token-stats'
 import { UsageArchive } from './providers/archive'
 import { installSkill, uninstallSkill } from './providers/install'
+import { APP_HOST, registerAppProtocol } from './app-protocol'
 import { realRoots } from './roots'
-import { assertTrustedSender, installNavigationGuards, installPermissionGuards } from './security'
+import {
+  assertTrustedSender,
+  installCsp,
+  installNavigationGuards,
+  installPermissionGuards
+} from './security'
 import { HiddenStore } from './hidden-store'
+
+// app:// scheme 必须在 app ready **之前**注册特权(#18);dev 走 vite http,不加载
+// app://,注册也无副作用。standard=非 opaque origin(安全上下文 + storage 快路径),
+// secure=等价 https,supportFetchAPI=modulepreload 需要。
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'app',
+    privileges: { standard: true, secure: true, supportFetchAPI: true }
+  }
+])
 
 // 单实例锁:第二个实例什么都没初始化,直接 exit 最安全(quit 会走 before-quit 可能卡住)
 const gotTheLock = app.requestSingleInstanceLock()
@@ -166,7 +182,7 @@ function createWindow(): void {
   if (process.env['ELECTRON_RENDERER_URL']) {
     void mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    void mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    void mainWindow.loadURL(`app://${APP_HOST}/index.html`) // #18:不用 file://
   }
 }
 
@@ -187,6 +203,9 @@ app.on('web-contents-created', (_e, contents) => {
 void app.whenReady().then(() => {
   if (!gotTheLock) return
   installPermissionGuards(session.defaultSession)
+  installCsp(session.defaultSession, Boolean(process.env['ELECTRON_RENDERER_URL']))
+  // handler 必须在建窗(loadURL app://…)之前注册;__dirname = out/main,产物在 out/renderer
+  registerAppProtocol(join(__dirname, '../renderer'))
   hiddenStore = new HiddenStore(app.getPath('userData'))
   tokenEngine = new TokenEngine(app.getPath('userData'))
   archive = new UsageArchive(app.getPath('userData'))
