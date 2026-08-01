@@ -3,11 +3,15 @@
      问题:概览(token 卡/30天趋势/模型拆分/会话列表)作为进入项目的第一眼是否成立;
      Skills 两层来源/遮蔽/软链、Plugins、MCP 多来源、配置只读的行密度;
      产物「类型 chips + 平铺列表」是否清晰。
-     交互:tab 切换;概览内趋势切侧;产物 chips 筛选与阅读浮层;配置内切文件。
-     已失效(部分,2026-08-01):模型已演进——实现新增 Subagents/Memory 分栏、
-       Plugins 有效启用集与内含组件展开、Skills 插件内含组;本原型未同步,
-       详情页新分栏形态见实现与 docs/features/(subagents-view/memory-view/
-       plugins-view);同步归宿 = 后续将新分栏并入本原型(同 #17 并入先例)。 -->
+     交互:tab 切换;概览内趋势切侧;产物 chips 筛选与阅读浮层;配置内切文件;
+       Subagents/Memory topic 点行开抽屉(Esc/点遮罩关);Plugins 点行展开内含组件。
+     v2 并入(2026-08-01,spec subagents-memory-plugin):新增 Subagents 与 Memory
+       分栏、Plugins 改有效启用集(local>project>user)+按侧分组+内含组件展开、
+       Skills 加插件内含组;详情页的组件形态以本原型为准(功能原型已收敛为
+       只演示全局页)。
+     Subagents 生效视图要点:项目级可存在(.claude/agents/*.md 与 .codex/agents/
+       *.toml),两侧同名均为**项目级遮蔽**用户级——与 skills 的 Codex 同名共存
+       语义相反;Codex 侧同名键取 toml name 字段,故跨文件名也遮蔽。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -108,7 +112,31 @@
   .se .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .se .d{font-size:11px;color:var(--text-2);flex:none;font-variant-numeric:tabular-nums}
   .se .tok{font-size:11px;color:var(--text-2);flex:none;width:64px;text-align:right;font-variant-numeric:tabular-nums}
-
+  /* v2 组件分栏(Subagents/Memory/Plugins 展开):与 Agents 页同款形态 */
+  .it.row-btn{cursor:pointer}
+  .it.row-btn:hover{background:var(--accent-soft)}
+  .pill.warn{background:#fdecdc;color:#b3552f}
+  .pill.plg{border:1px solid var(--accent);color:var(--accent)}
+  @media (prefers-color-scheme:dark){.pill.warn{background:#3c2417;color:#f0a884}}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,86vw);background:var(--card);
+    border-left:1px solid var(--line-strong);z-index:11;padding:20px 24px;overflow:auto;
+    box-shadow:-8px 0 24px rgba(0,0,0,.12);display:none}
+  .drawer h2{font-size:14px;margin-bottom:2px;font-family:ui-monospace,Menlo,monospace}
+  .drawer .meta{font-size:11px;color:var(--text-2);margin-bottom:12px}
+  .drawer .raw{line-height:1.7;border-top:1px solid var(--line);padding-top:10px;white-space:pre-wrap;
+    font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+  .kv{display:grid;grid-template-columns:110px 1fr;gap:4px 10px;font-size:12px;margin:10px 0;
+    border:1px solid var(--line);border-radius:7px;padding:10px 12px}
+  .kv .k2{color:var(--text-2)}
+  .exp{padding:4px 14px 12px 36px;border-bottom:1px solid var(--line);background:var(--bg)}
+  .exp:last-child{border-bottom:0}
+  .sect{margin:8px 0 2px;font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px}
+  .chip{display:inline-block;font-size:11px;font-family:ui-monospace,Menlo,monospace;border:1px solid var(--line-strong);
+    border-radius:5px;padding:2px 7px;margin:2px 4px 2px 0;color:var(--text)}
+  .chip.bad{border-style:dashed;color:var(--text-2)}
+  .note{font-size:11px;color:var(--text-2);margin:-6px 0 10px}
+  .sub-list{padding:2px 14px 8px 36px;background:var(--bg);border-bottom:1px solid var(--line)}
+  .sub-list .it{padding:6px 0;border-bottom:0}
 
 </style>
 </head>
@@ -129,7 +157,9 @@
       <div class="path">~/CascadeProjects/Transfer</div>
       <div class="tabs" id="tabs">
         <span class="tab on" data-t="ov">概览</span><span class="tab" data-t="skills">Skills</span>
+        <span class="tab" data-t="subagents">Subagents</span>
         <span class="tab" data-t="plugins">Plugins</span><span class="tab" data-t="mcp">MCP</span>
+        <span class="tab" data-t="memory">Memory</span>
         <span class="tab" data-t="cfg">配置</span><span class="tab" data-t="arts">产物</span>
       </div>
     </div>
@@ -188,17 +218,84 @@
           <div class="it"><span class="nm">github-ops</span><span class="pill glb">全局</span><span class="pill ln">⤷ 软链</span>
             <span class="ds">GitHub 产出规范(无 AI 署名)</span></div>
         </div>
+        <div class="grp-t">插件内含 · 本项目有效启用(命名空间调用,只读无装卸)</div>
+        <div class="card">
+          <div class="it"><span class="nm">superpowers:brainstorming</span><span class="pill plg">插件</span>
+            <span class="ds">Explores intent before implementation.</span></div>
+          <div class="it"><span class="nm">superpowers:test-driven-development</span><span class="pill plg">插件</span>
+            <span class="ds">Red before green.</span></div>
+        </div>
+      </div>
+      <div data-p="subagents" style="display:none">
+        <div class="grp-t">生效视图 · 两侧同名均为项目级遮蔽(subagents 语义;与 skills 的 Codex 同名共存相反) · 点条目开抽屉</div>
+        <div class="grp-t">项目级 · .claude/agents(1)</div>
+        <div class="card">
+          <div class="it row-btn" data-sa="0"><span class="nm">code-reviewer</span><span class="b c">CC</span>
+            <span class="pill prj">项目级</span><span class="pill shadow">遮蔽同名</span>
+            <span class="ds">(项目定制版)只审 src/ 与 tests/,输出中文</span></div>
+        </div>
+        <div class="grp-t">项目级 · .codex/agents(1)</div>
+        <div class="card">
+          <div class="it row-btn" data-sa="1"><span class="nm">explorer</span><span class="b x">CX</span>
+            <span class="pill prj">项目级</span><span class="pill warn">覆盖内置</span><span class="pill shadow">遮蔽同名</span>
+            <span class="ds">项目级 explorer:覆盖内置,并遮蔽用户级同名(键取 toml name 字段)</span></div>
+        </div>
+        <div class="grp-t">全局层 · Claude(3)</div>
+        <div class="card">
+          <div class="it row-btn shadowed" data-sa="2"><span class="nm">code-reviewer</span><span class="b c">CC</span>
+            <span class="pill glb">全局</span><span class="pill shadow">被项目级遮蔽</span>
+            <span class="ds">Expert code review specialist.(未生效)</span></div>
+          <div class="it row-btn" data-sa="3"><span class="nm">debugger</span><span class="b c">CC</span>
+            <span class="pill glb">全局</span><span class="ds">Debugging specialist for errors, test failures…</span></div>
+          <div class="it row-btn" data-sa="4"><span class="nm">docs-writer</span><span class="b c">CC</span>
+            <span class="pill glb">全局</span><span class="ds">Technical writer for API docs and guides.</span></div>
+        </div>
+        <div class="grp-t">全局层 · Codex(2)</div>
+        <div class="card">
+          <div class="it row-btn shadowed" data-sa="5"><span class="nm">explorer</span><span class="b x">CX</span>
+            <span class="pill glb">全局</span><span class="pill shadow">被项目级遮蔽</span>
+            <span class="ds">用户级 explorer(未生效)</span></div>
+          <div class="it row-btn" data-sa="6"><span class="nm">code-reviewer</span><span class="b x">CX</span>
+            <span class="pill glb">全局</span><span class="ds">Expert code review specialist.(Codex 侧全局,与 Claude 侧各自成行)</span></div>
+        </div>
+      </div>
+      <div data-p="memory" style="display:none">
+        <div class="grp-t">MEMORY.md(自动记忆主文件,直接渲染——同配置 tab 模式)</div>
+        <div class="md">
+          <h3>MEMORY</h3>
+          <p>· 用户偏好 pnpm;dev 模式勿重启(热重载)。<br>
+          · 验证网关:<code>pnpm verify</code> = typecheck + 单测 + e2e + 冒烟。<br>
+          · IPC 契约单一出处 shared/domain.ts,validate.ts 必须同步扩展。</p>
+        </div>
+        <div class="grp-t">Topic 文件(2) · 点击开抽屉查看</div>
+        <div class="card">
+          <div class="it row-btn" data-mt="0"><span class="nm" style="flex:1">pr-merge-needs-confirmation.md</span>
+            <span class="src">今天</span></div>
+          <div class="it row-btn" data-mt="1"><span class="nm" style="flex:1">shell-snapshot-vars-gotcha.md</span>
+            <span class="src">1周前</span></div>
+        </div>
+        <div class="note">无记忆时显示空态;纯 Codex 侧项目提示「Memory 为 Claude 侧机制(Codex 记忆是全局的,见 Agents 页)」。文件内容按需读取,不进快照。</div>
       </div>
       <div data-p="plugins" style="display:none">
-        <div class="grp-t">Claude plugins(仅展示,不装卸)</div>
-        <div class="card">
-          <div class="it"><span class="nm">chrome-devtools-mcp</span><span class="pill on">已启用</span>
-            <span class="ds">marketplace: chrome-devtools-plugins · scope: user</span><span class="src">v1.6.0</span></div>
-          <div class="it"><span class="nm">example-disabled</span><span class="pill off">未启用</span>
-            <span class="ds">示意:已安装未启用的形态</span><span class="src">v0.9.2</span></div>
+        <div class="grp-t">按侧分组 · Claude 组:本项目有效启用集(local &gt; project &gt; user) · 点条目展开内含组件</div>
+        <div class="grp-t"><span class="b c">CLAUDE CODE</span></div>
+        <div class="card" id="plist">
+          <div class="it row-btn" data-pg="0"><span class="nm">chrome-devtools-mcp@chrome-devtools-plugins</span>
+            <span class="src">v1.6.0</span><span class="pill on">启用</span>
+            <span class="ds">启用判定来自 user 层 · user</span></div>
+          <div class="it row-btn" data-pg="1"><span class="nm">superpowers@claude-plugins-official</span>
+            <span class="src">v6.2.0</span><span class="pill on">启用</span>
+            <span class="ds">启用判定来自 project 层 · project · Transfer</span></div>
+          <div class="it row-btn" data-pg="2"><span class="nm">tdd-guard@community</span>
+            <span class="src">v2.4.1</span><span class="pill off">未启用</span>
+            <span class="ds">禁用判定来自 project 层(压过 user) · user / project · gone-proj(项目已失联) · 2 条安装记录</span></div>
         </div>
-        <div class="grp-t">Codex</div>
-        <div class="none">Codex 无 plugins 概念(该分组仅 Claude 侧显示)</div>
+        <div class="grp-t"><span class="b x">CODEX</span>(缓存目录非空才显示本组)</div>
+        <div class="card">
+          <div class="it"><span class="nm">codex-helper@local</span><span class="src">v0.3.2</span>
+            <span class="ds">仅缓存枚举</span></div>
+        </div>
+        <div class="note">Codex 组仅列缓存中存在的插件;启用态与内含组件语义本期不建模;Codex 插件为全局生效,无项目级启用语义。</div>
       </div>
       <div data-p="mcp" style="display:none">
         <div class="grp-t">MCP Servers(按来源标注)</div>
@@ -233,6 +330,8 @@
   </div>
   <div class="mask" id="amask"></div>
   <div class="reader" id="areader"></div>
+  <div class="mask" id="dmask"></div>
+  <div class="drawer" id="drawer"></div>
 <script src="../_shared/trend-chart.js"></script>
 <script>
   document.getElementById('tabs').addEventListener('click',e=>{
@@ -281,6 +380,64 @@
   document.getElementById('amask').onclick=acls;
   addEventListener('keydown',e=>{if(e.key==='Escape')acls()});
   renderArts();
+
+  // ── v2 组件:Subagents/Memory 抽屉、Plugins 行内展开(形态同 Agents 页) ──
+  const SUBAGENTS=[
+    {n:'code-reviewer',lv:'项目级 · Claude',fl:'压过同名低层定义',
+     kv:[['tools','Read, Grep, Glob, Bash'],['model','—(继承)']],
+     body:'You are a senior code reviewer for THIS repo.\n只审 src/ 与 tests/,输出中文。\n(项目级定制,mock 略)'},
+    {n:'explorer',lv:'项目级 · Codex',fl:'覆盖内置(default/worker/explorer 之一被替换);压过用户级同名',
+     kv:[['model','—'],['sandbox_mode','read-only']],
+     body:'Explore this repository conservatively…\n(项目级 toml;键取 name 字段,故文件名可任意)'},
+    {n:'code-reviewer',lv:'全局 · Claude',fl:'被项目级定义遮蔽(未生效)',
+     kv:[['tools','Read, Grep, Glob, Bash'],['model','—(继承)']],
+     body:'You are a senior code reviewer ensuring high standards…(全局版原文)'},
+    {n:'debugger',lv:'全局 · Claude',fl:'',
+     kv:[['tools','Read, Edit, Bash, Grep, Glob'],['model','—(继承)']],
+     body:'You are an expert debugger…(mock 略)'},
+    {n:'docs-writer',lv:'全局 · Claude',fl:'',
+     kv:[['tools','Read, Write, Grep'],['model','claude-haiku-4-5']],
+     body:'You write clear, concise technical documentation…(mock 略)'},
+    {n:'explorer',lv:'全局 · Codex',fl:'被项目级定义遮蔽(未生效)',
+     kv:[['model','—'],['sandbox_mode','read-only']],body:'(用户级 toml 原文,mock 略)'},
+    {n:'code-reviewer',lv:'全局 · Codex',fl:'',
+     kv:[['model','—(default_subagent_model)'],['sandbox_mode','—']],
+     body:'You are a senior code reviewer…(developer_instructions 三引号块)'}
+  ];
+  const MTOPICS=[
+    {f:'pr-merge-needs-confirmation.md',at:'今天',body:'# PR 合并需确认\n\n开 PR 即停,等用户确认后才准合并——开 PR 不构成合并授权。'},
+    {f:'shell-snapshot-vars-gotcha.md',at:'1周前',body:'# shell snapshot 环境变量坑\n\n…(mock 略)'}
+  ];
+  const PCONTENTS=[
+    '<div class="sect">安装记录</div><span class="chip">user</span>'+
+      '<div class="sect">内含 skills(命名空间调用)</div><span class="chip">chrome-devtools-mcp:a11y-debugging</span><span class="chip">chrome-devtools-mcp:troubleshooting</span><span class="chip">+4</span>'+
+      '<div class="sect">内含 MCP servers</div><span class="chip">chrome-devtools</span>',
+    '<div class="sect">安装记录</div><span class="chip">project · Transfer</span>'+
+      '<div class="sect">内含 skills(命名空间调用)</div><span class="chip">superpowers:brainstorming</span><span class="chip">superpowers:test-driven-development</span><span class="chip">+12</span>'+
+      '<div class="sect">内含 hooks(事件摘要)</div><span class="chip">SessionStart × 1</span>',
+    '<div class="sect">安装记录</div><span class="chip">user</span><span class="chip bad">project · gone-proj(项目已失联)</span>'+
+      '<div class="sect">内含 hooks(事件摘要)</div><span class="chip">PreToolUse × 2</span>'
+  ];
+  const dmask=document.getElementById('dmask'),drawer=document.getElementById('drawer');
+  function openDrawer(html){ dmask.style.display='block'; drawer.style.display='block'; drawer.innerHTML=html }
+  function closeDrawer(){ dmask.style.display='none'; drawer.style.display='none' }
+  dmask.onclick=closeDrawer;
+  addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
+  document.querySelector('.body').addEventListener('click',e=>{
+    const sa=e.target.closest('[data-sa]');
+    if(sa){ const a=SUBAGENTS[+sa.dataset.sa];
+      openDrawer(`<h2>${a.n}</h2><div class="meta">${a.lv}${a.fl?' · '+a.fl:''}</div>
+        <div class="kv">${a.kv.map(([k,v])=>`<span class="k2">${k}</span><span>${v}</span>`).join('')}</div>
+        <div class="raw">${a.body}</div>`); return }
+    const mt=e.target.closest('[data-mt]');
+    if(mt){ const t=MTOPICS[+mt.dataset.mt];
+      openDrawer(`<h2>${t.f}</h2><div class="meta">topic 文件 · ${t.at}</div><div class="raw">${t.body}</div>`); return }
+    const pg=e.target.closest('[data-pg]');
+    if(pg){ const i=+pg.dataset.pg, next=pg.nextElementSibling;
+      if(next&&next.classList.contains('exp')){ next.remove(); return }
+      pg.insertAdjacentHTML('afterend',`<div class="exp">${PCONTENTS[i]}</div>`); return }
+  });
+
   document.getElementById('cfgs').addEventListener('click',e=>{
     if(e.target.tagName!=='SPAN')return;
     document.querySelectorAll('#cfgs span').forEach(x=>x.classList.toggle('on',x===e.target));
