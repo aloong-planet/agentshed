@@ -19,11 +19,12 @@
      mock 刻意覆盖:双端同名合并、单侧条目、toml 解析失败、覆盖内置、
        project-scope 插件(全局页未启用/详情页生效)、多安装记录、缓存缺失、
        无 MEMORY.md 仅 topic、stale 项目、Codex 全局记忆行、命名空间 skills 条目。
-     交互:页内切全局页/详情页;tab 切换;Subagents/topic 点行开抽屉(Esc/点遮罩关,
-       抽屉内切 Claude/Codex);Plugins 点行展开收起。写操作无。
+     交互:tab 切换;Subagents/topic 点行开抽屉(Esc/点遮罩关,抽屉内切 Claude/Codex);
+       Plugins 点行展开收起。写操作无。
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于
-       页面内容流,同多方案变体切换条形态)承载页切换与 Codex 记忆四态开关;
-       被评判的设计不含它们。 -->
+       页面内容流)仅承载当前功能模块的开关——Codex 记忆四态,且仅在 Memory
+       分栏出现,其余时候整条隐藏;被评判的设计不含它。页切换组已按用户裁定
+       移除(2026-08-01),详情页形态无 UI 入口,控制台 setPage('detail') 可达。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -458,15 +459,21 @@ function openReader(kind, i, j){
 function setSide(s){ SIDE=s; const panel=$('reader'); if (panel) panel.innerHTML = readerHtml() }
 function closeReader(){ ['mask','reader'].forEach(id=>{ const el=$(id); if(el) el.remove() }); READER=null }
 
-/** 演示基建悬浮层:页切换常驻;Codex 记忆四态仅在全局页 Memory 分栏时追加 */
+/**
+ * 演示基建悬浮层:仅体现当前功能模块的切换(2026-08-01 用户裁定,页切换组已移除)。
+ * 当前唯一开关组 = Codex 记忆四态(仅全局页 Memory 分栏);无开关组时整条隐藏。
+ * 详情页形态无 UI 入口,需要时控制台 setPage('detail') 可达。
+ */
 function renderHarness(){
-  const pseg = (v,label,on)=>`<span data-v class="${on?'on':''}" onclick="setPage('${v}')">${label}</span>`
   const cseg = (v,label)=>`<span data-v class="${CXMEM===v?'on':''}" onclick="setCxmem('${v}')">${label}</span>`
-  let html = `<span class="dl">演示·页</span>${pseg('global','全局页',PAGE==='global')}${pseg('detail','详情页 ▸ superpowers-demo',PAGE==='detail')}`
+  const el = $('harness')
   if (PAGE==='global' && TAB==='memory') {
-    html += `<span class="sep"></span><span class="dl">演示·Codex 记忆</span>${cseg('on-has','开·有内容')}${cseg('on-empty','开·无内容')}${cseg('off-empty','关·无内容')}${cseg('off-has','关·遗留文件')}`
+    el.style.display = ''
+    el.innerHTML = `<span class="dl">演示·Codex 记忆</span>${cseg('on-has','开·有内容')}${cseg('on-empty','开·无内容')}${cseg('off-empty','关·无内容')}${cseg('off-has','关·遗留文件')}`
+  } else {
+    el.style.display = 'none'
+    el.innerHTML = ''
   }
-  $('harness').innerHTML = html
 }
 
 function render(){
