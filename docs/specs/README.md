@@ -11,8 +11,13 @@
 
 | Spec | 对应功能 |
 |---|---|
+| [agents-overview](agents-overview.md) | [Agents 全局页](../features/agents-overview.md) |
+| [projects-list](projects-list.md) | [项目全景列表](../features/projects-list.md) |
+| [project-detail](project-detail.md) | [项目详情](../features/project-detail.md) |
 | [subagents-view](subagents-view.md) | [Subagents 查看](../features/subagents-view.md) |
 | [memory-view](memory-view.md) | [Memory 查看](../features/memory-view.md) |
 | [plugins-view](plugins-view.md) | [Plugins 视图](../features/plugins-view.md) |
+| [token-stats](token-stats.md) | [Token 统计](../features/token-stats.md) |
+| [skill-install](skill-install.md) | [Skills 装卸](../features/skill-install.md) |
 
-> 存量说明:本目录自 2026-08-01 建立(spec 转为持久产物),此前功能的 spec 已随 `.scratch/` 丢弃——它们的现行行为见 `docs/features/`,边界记录缺失,后续改到那些功能时按本规则补建。
+> 补建说明:本目录自 2026-08-01 建立(spec 转为持久产物)。此前功能的 spec 已随 `.scratch/` 丢弃,已按 features + 既有测试用例 + 代码行为**逆向补建**(各篇头部标注)——边界条目均有对应测试可信,但当初的需求推理过程无法复原;与实现冲突时以实现为准并就地改写。
