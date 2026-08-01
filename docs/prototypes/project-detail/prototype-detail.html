@@ -118,7 +118,9 @@
   .pill.warn{background:#fdecdc;color:#b3552f}
   .pill.plg{border:1px solid var(--accent);color:var(--accent)}
   @media (prefers-color-scheme:dark){.pill.warn{background:#3c2417;color:#f0a884}}
-  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,86vw);background:var(--card);
+  /* 抽屉宽 = min(固定宽, 右侧内容区 80%);内容区 = 视口 - rail(48) - 侧栏(230),
+     窄窗时不再盖住整个内容区(2026-08-02 bug) */
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,calc((100vw - 278px) * .8));background:var(--card);
     border-left:1px solid var(--line-strong);z-index:11;padding:20px 24px;overflow:auto;
     box-shadow:-8px 0 24px rgba(0,0,0,.12);display:none}
   .drawer h2{font-size:14px;margin-bottom:2px;font-family:ui-monospace,Menlo,monospace}
@@ -261,12 +263,17 @@
       </div>
       <div data-p="memory" style="display:none">
         <div class="grp-t">MEMORY.md(自动记忆主文件,直接渲染——同配置 tab 模式)</div>
-        <div class="md">
-          <h3>MEMORY</h3>
-          <p>· 用户偏好 pnpm;dev 模式勿重启(热重载)。<br>
-          · 验证网关:<code>pnpm verify</code> = typecheck + 单测 + e2e + 冒烟。<br>
-          · IPC 契约单一出处 shared/domain.ts,validate.ts 必须同步扩展。</p>
+        <!-- 真实形态:主文件是索引,条目为指向同目录 topic 的相对链接 -->
+        <div class="md" id="memmain">
+          <h3>Memory Index</h3>
+          <ul>
+            <li><a href="pr-merge-needs-confirmation.md">开 PR 后等确认才合并</a> — 开 PR 不构成合并授权</li>
+            <li><a href="shell-snapshot-vars-gotcha.md">shell snapshot 环境变量坑</a> — 快照不带自定义变量</li>
+            <li><a href="missing-file.md">已删除的条目</a> — 目标不在可读范围的形态</li>
+            <li><a href="https://code.claude.com/docs">外部文档</a> — 外链交系统浏览器</li>
+          </ul>
         </div>
+        <div class="note">主文件里的相对链接指向同目录 topic 文件:点击在 app 内打开抽屉(不导航整窗);目标不存在时提示"目标不在可读范围";外部链接交系统浏览器。</div>
         <div class="grp-t">Topic 文件(2) · 点击开抽屉查看</div>
         <div class="card">
           <div class="it row-btn" data-mt="0"><span class="nm" style="flex:1">pr-merge-needs-confirmation.md</span>
@@ -311,7 +318,8 @@
         </div>
       </div>
       <div data-p="arts" style="display:none">
-        <div class="chips" id="achips"><span class="on" data-c="全部">全部</span><span data-c="ADR">ADR</span><span data-c="CONTEXT">CONTEXT.md</span><span data-c="features">features</span><span data-c="postmortems">postmortems</span><span data-c="prototypes">prototypes</span></div>
+        <!-- 六类,顺序 = 自顶向下的推导链:术语→决策→需求→界面→能力→教训 -->
+        <div class="chips" id="achips"><span class="on" data-c="全部">全部</span><span data-c="CONTEXT">CONTEXT.md</span><span data-c="ADR">ADR</span><span data-c="specs">specs</span><span data-c="prototypes">prototypes</span><span data-c="features">features</span><span data-c="postmortems">postmortems</span></div>
         <div class="alist" id="alist"></div>
         <div class="none" style="font-size:12px;padding:12px">非八步项目在此显示「未按约定沉淀」空态(不视为错误)</div>
       </div>
@@ -349,10 +357,12 @@
   const ARTS=[
     {t:'屏幕权限 preflight 堵死授权入口',ty:'postmortems',d:'07-24'},
     {t:'CONTEXT.md(术语 14 条)',ty:'CONTEXT',d:'07-20'},
+    {t:'截图与标注',ty:'specs',d:'07-19'},
     {t:'截图与标注',ty:'features',d:'07-18'},
     {t:'ADR-0017 消息领域模型收敛为单一数据源',ty:'ADR',d:'07-12'},
     {t:'消息状态机(可驾驶)',ty:'prototypes',d:'07-10'},
     {t:'运行期发现丢失(IGMP 老化疑云)',ty:'postmortems',d:'07-08'},
+    {t:'局域网发现',ty:'specs',d:'07-03'},
     {t:'局域网发现',ty:'features',d:'07-02'},
     {t:'ADR-0013 文档按腐烂速度分类',ty:'ADR',d:'06-28'},
   ];
@@ -423,7 +433,19 @@
   function closeDrawer(){ dmask.style.display='none'; drawer.style.display='none' }
   dmask.onclick=closeDrawer;
   addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
+  // 渲染出的 markdown 链接:一律拦截,不让整窗导航(app state 会全丢)
   document.querySelector('.body').addEventListener('click',e=>{
+    const a=e.target.closest('.md a[href]');
+    if(a){ e.preventDefault();
+      const href=a.getAttribute('href');
+      if(/^https?:/.test(href)){ openDrawer(`<h2>外部链接</h2><div class="meta">${href}</div>
+        <div class="none">交系统浏览器打开(app 不导航)。</div>`); return }
+      const i=MTOPICS.findIndex(t=>t.f===href);
+      if(i<0){ openDrawer(`<h2>${href}</h2><div class="meta">相对链接</div>
+        <div class="none">目标不在可读范围(文件不存在或未列入本项目产物/记忆)。</div>`); return }
+      const t=MTOPICS[i];
+      openDrawer(`<h2>${t.f}</h2><div class="meta">topic 文件 · ${t.at} · 经主文件链接打开</div><div class="raw">${t.body}</div>`);
+      return }
     const sa=e.target.closest('[data-sa]');
     if(sa){ const a=SUBAGENTS[+sa.dataset.sa];
       openDrawer(`<h2>${a.n}</h2><div class="meta">${a.lv}${a.fl?' · '+a.fl:''}</div>

@@ -1,4 +1,5 @@
-// 八步产物扫描(票05):五类识别,项目详情内展示;.scratch 天然不在 docs/ 下不计。
+// 八步产物扫描(票05;2026-08-01 加 specs 共六类):项目详情内展示。
+// .scratch 里的 tickets 天然不在 docs/ 下,不计入产物。
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import type { ArtifactEntry, ArtifactType } from '@shared/domain'
@@ -10,6 +11,7 @@ export function readArtifacts(projectPath: string): ArtifactEntry[] {
   if (existsSync(context)) out.push(mdEntry('context', context))
 
   collectMd(out, 'adr', join(projectPath, 'docs', 'adr'))
+  collectMd(out, 'specs', join(projectPath, 'docs', 'specs'))
   collectMd(out, 'features', join(projectPath, 'docs', 'features'))
   collectMd(out, 'postmortems', join(projectPath, 'docs', 'postmortems'))
   collectPrototypes(out, join(projectPath, 'docs', 'prototypes'))

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { renderMarkdown } from './md'
 import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot } from '@shared/domain'
-import { emptyTokenStats } from '@shared/domain'
+import { ARTIFACT_ORDER, emptyTokenStats } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
 import { ProjectSubagentsTab } from './SubagentsView'
 import { ProjectMemoryTab } from './MemoryView'
+import { dirOf, handleMdClick } from './md-links'
 import { ProjectPluginsTab } from './PluginsView'
 import { fmtAgo } from './ProjectsPane'
 import { toast } from './Toast'
@@ -252,12 +253,14 @@ function McpTab({ detail }: { detail: ProjectDetail }): JSX.Element {
   )
 }
 
+/** chips 顺序取 ARTIFACT_ORDER 单一出处;标签只做展示名映射 */
 const ART_LABELS: Record<ArtifactType, string> = {
-  adr: 'ADR',
   context: 'CONTEXT.md',
+  adr: 'ADR',
+  specs: 'specs',
+  prototypes: 'prototypes',
   features: 'features',
-  postmortems: 'postmortems',
-  prototypes: 'prototypes'
+  postmortems: 'postmortems'
 }
 
 function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
@@ -283,7 +286,7 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
   return (
     <div>
       <div className="chips">
-        {(['all', 'adr', 'context', 'features', 'postmortems', 'prototypes'] as const).map((f) => (
+        {(['all', ...ARTIFACT_ORDER] as const).map((f) => (
           <button key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>
             {f === 'all' ? '全部' : ART_LABELS[f]}
           </button>
@@ -311,7 +314,27 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
           <div className="reader">
             <h2>{reader.item.title}</h2>
             <div className="meta mono">{reader.item.file}</div>
-            <div className="md" dangerouslySetInnerHTML={{ __html: reader.html }} />
+            <div
+              className="md"
+              onClick={(e) =>
+                handleMdClick(
+                  e,
+                  {
+                    baseDir: dirOf(reader.item.file),
+                    readable: detail.artifacts.map((a) => a.file)
+                  },
+                  {
+                    // 产物间交叉引用(如 spec ↔ features)在阅读器内跳转,不导航整窗
+                    internal: (file) => {
+                      const a = detail.artifacts.find((x) => x.file === file)
+                      if (a) void open(a)
+                    },
+                    unresolved: (reason) => toast('err', reason)
+                  }
+                )
+              }
+              dangerouslySetInnerHTML={{ __html: reader.html }}
+            />
           </div>
         </>
       )}

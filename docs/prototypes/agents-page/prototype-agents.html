@@ -90,7 +90,8 @@
   .pill.off{border:1px solid var(--line-strong);color:var(--text-2)}
   @media (prefers-color-scheme:dark){.pill.warn{background:#3c2417;color:#f0a884}}
   .mask{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:40;display:none}
-  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,86vw);background:var(--card);
+  /* 抽屉宽 = min(固定宽, 右侧内容区 80%);本页内容区 = 视口 - rail(48),无侧栏 */
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,calc((100vw - 48px) * .8));background:var(--card);
     border-left:1px solid var(--line-strong);z-index:41;padding:20px 24px;overflow:auto;
     box-shadow:-8px 0 24px rgba(0,0,0,.12);display:none}
   .drawer h2{font-size:14px;margin-bottom:2px;font-family:ui-monospace,Menlo,monospace}

@@ -284,8 +284,21 @@ export interface ProjectMcpEntry {
   enabled: boolean | null
 }
 
-/** 产物五类(八步流程约定;.scratch 施工文档不计) */
-export type ArtifactType = 'adr' | 'context' | 'features' | 'postmortems' | 'prototypes'
+/**
+ * 产物六类(八步流程约定;.scratch 里的 tickets 是施工文档,不计)。
+ * 顺序是契约:自顶向下的推导链——术语与不变量 → 架构决策 → 需求与边界 →
+ * 界面形态 → 当前能力 → 事后教训。读取与 UI 同取此常量,不各自排一次。
+ */
+export const ARTIFACT_ORDER = [
+  'context',
+  'adr',
+  'specs',
+  'prototypes',
+  'features',
+  'postmortems'
+] as const
+
+export type ArtifactType = (typeof ARTIFACT_ORDER)[number]
 
 export interface ArtifactEntry {
   type: ArtifactType
