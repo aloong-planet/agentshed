@@ -118,7 +118,9 @@
   .pill.warn{background:#fdecdc;color:#b3552f}
   .pill.plg{border:1px solid var(--accent);color:var(--accent)}
   @media (prefers-color-scheme:dark){.pill.warn{background:#3c2417;color:#f0a884}}
-  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,86vw);background:var(--card);
+  /* 抽屉宽 = min(固定宽, 右侧内容区 80%);内容区 = 视口 - rail(48) - 侧栏(230),
+     窄窗时不再盖住整个内容区(2026-08-02 bug) */
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,calc((100vw - 278px) * .8));background:var(--card);
     border-left:1px solid var(--line-strong);z-index:11;padding:20px 24px;overflow:auto;
     box-shadow:-8px 0 24px rgba(0,0,0,.12);display:none}
   .drawer h2{font-size:14px;margin-bottom:2px;font-family:ui-monospace,Menlo,monospace}

@@ -69,6 +69,12 @@ body {
 .app {
   display: flex;
   height: 100%;
+  /* 左侧固定件宽度:抽屉据此算内容区。Agents 维度只有 rail(48) */
+  --chrome-w: 48px;
+}
+/* Projects 维度多一列项目侧栏(272) */
+.app.dim-projects {
+  --chrome-w: 320px;
 }
 .rail {
   width: 48px;
@@ -874,7 +880,10 @@ body {
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(680px, 86vw);
+  /* 宽度 = min(固定宽, 右侧内容区 80%)。内容区 = 视口 - 左侧固定件(--chrome-w,
+     由维度决定:Agents 只有 rail,Projects 还有项目侧栏)。此前用 86vw(相对视口),
+     窄窗时抽屉会盖满整个内容区(2026-08-02 bug)。 */
+  width: min(680px, calc((100vw - var(--chrome-w, 48px)) * 0.8));
   background: var(--card);
   border-left: 1px solid var(--line-strong);
   z-index: 11;

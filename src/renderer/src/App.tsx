@@ -36,7 +36,7 @@ export function App(): JSX.Element {
   }
 
   return (
-    <div className="app">
+    <div className={`app dim-${dim}`}>
       <nav className="rail">
         <button
           className={`ri ${dim === 'agents' ? 'on' : ''}`}

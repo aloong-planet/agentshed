@@ -341,6 +341,29 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
   await expect(win.locator('.toast')).toBeVisible()
   expect(win.url()).toBe(urlBefore)
 
+  // ⑦ 抽屉宽度 = min(680, 右侧内容区 80%):窄窗下不得盖满内容区(2026-08-02 bug)。
+  //    几何检验,不看 CSS 声明——声明对了但变量没接线照样会盖满。
+  const drawerGeom = async (): Promise<{ pane: number; drawer: number; left: number; paneLeft: number }> =>
+    win.evaluate(() => {
+      const d = document.querySelector('.drawer') as HTMLElement
+      const pane = document.querySelector('.stage .pane') as HTMLElement
+      const dr = d.getBoundingClientRect()
+      const pr = pane.getBoundingClientRect()
+      return { pane: pr.width, drawer: dr.width, left: dr.left, paneLeft: pr.left }
+    })
+  for (const [w, label] of [
+    [1400, '宽窗'],
+    [900, '窄窗']
+  ] as const) {
+    await win.setViewportSize({ width: w, height: 800 })
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
+    await win.locator('.it.row-btn', { hasText: 'pitfalls.md' }).click()
+    const g = await drawerGeom()
+    expect(Math.abs(g.drawer - Math.min(680, g.pane * 0.8)), `${label}:宽度规则`).toBeLessThan(2)
+    expect(g.left, `${label}:抽屉不得盖满内容区`).toBeGreaterThan(g.paneLeft + 1)
+    await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  }
+
   expect(errors).toEqual([])
   await app.close()
   rmSync(userData, { recursive: true, force: true })
