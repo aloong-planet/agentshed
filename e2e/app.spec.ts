@@ -206,6 +206,9 @@ test('provider 品牌配色生效:段与图例色一致,深浅模式各有取值
         google: cs.getPropertyValue('--p-google').trim()
       }
     })
+  // 必须先等样式表真正应用再读 CSS 变量:直接读会拿到空串(样式未加载完)。
+  // 这个竞态一直在,只是 app:// 改变了加载时序后才稳定暴露——用渲染完成的元素做闸。
+  await expect(win.locator('.chart .col').first()).toBeVisible()
   const light = await read()
   expect(light.anthropic.toLowerCase()).toBe('#d97757')
   expect(light.openai.toLowerCase()).toBe('#10a37f')
