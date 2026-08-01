@@ -3,14 +3,22 @@ import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AgentSide, GlobalLayer, GlobalSkill, McpServerEntry, PluginEntry } from '@shared/domain'
 import type { ScanRoots } from './types'
-
-const MAX_CONFIG_BYTES = 200_000
+import { readGlobalSubagents } from './subagents'
+import { readClaudePlugins, readCodexPlugins } from './plugins'
+import { readCodexMemoriesEnabled } from './memory'
+import { fmField, readTextCapped } from './read-utils'
 
 export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
+  // plugins 只读一次,skills 并入与 MCP 来源都消费它(review-code 重构项 #1:去 3 次重复扫描)
+  const plugins = readClaudePlugins(roots.claudeHome)
   return {
-    skills: readGlobalSkills(roots),
-    plugins: readClaudePlugins(roots.claudeHome),
-    mcp: readGlobalMcp(roots),
+    skills: readGlobalSkills(roots, plugins),
+    subagents: readGlobalSubagents(roots),
+    memory: [], // 依赖项目注册表,由 scan 在 projects 之后填充(见 scan.ts)
+    codexMemoriesEnabled: readCodexMemoriesEnabled(roots.codexHome),
+    plugins,
+    codexPlugins: readCodexPlugins(roots.codexHome),
+    mcp: readGlobalMcp(roots, plugins),
     claudeGlobalMd: readTextCapped(join(roots.claudeHome, 'CLAUDE.md')),
     codexAgentsMd: readTextCapped(join(roots.codexHome, 'AGENTS.md')),
     codexConfigSummary: summarizeCodexConfig(join(roots.codexHome, 'config.toml'))
@@ -46,22 +54,16 @@ function readSkillDir(base: string): Map<string, SideSkill> {
     const skillMd = join(p, 'SKILL.md')
     if (!existsSync(skillMd)) continue // 非 skill 目录(如散文件)跳过
     const content = readTextCapped(skillMd)
-    out.set(e.name, { description: extractDescription(content), symlink, content })
+    out.set(e.name, { description: fmField(content, 'description'), symlink, content })
   }
   return out
 }
 
-function extractDescription(content: string | null): string | null {
-  if (!content) return null
-  const m = /^description:\s*["']?(.+?)["']?\s*$/m.exec(content)
-  return m ? m[1] : null
-}
-
-function readGlobalSkills(roots: ScanRoots): GlobalSkill[] {
+function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill[] {
   const claude = readSkillDir(join(roots.claudeHome, 'skills'))
   const codex = readSkillDir(roots.agentsSkillsDir)
   const names = [...new Set([...claude.keys(), ...codex.keys()])].sort()
-  return names.map((name) => {
+  const disk: GlobalSkill[] = names.map((name) => {
     const cl = claude.get(name)
     const cx = codex.get(name)
     const sides: AgentSide[] = []
@@ -72,50 +74,36 @@ function readGlobalSkills(roots: ScanRoots): GlobalSkill[] {
       description: cl?.description ?? cx?.description ?? null,
       sides,
       symlink: { claude: cl?.symlink ?? false, codex: cx?.symlink ?? false },
-      differs: Boolean(cl && cx && cl.content !== cx.content)
+      differs: Boolean(cl && cx && cl.content !== cx.content),
+      origin: 'disk',
+      pluginName: null
     }
   })
-}
-
-// ── plugins ──
-
-function readClaudePlugins(claudeHome: string): PluginEntry[] {
-  const file = join(claudeHome, 'plugins', 'installed_plugins.json')
-  if (!existsSync(file)) return []
-  let enabled: Record<string, unknown> = {}
-  try {
-    const settings: unknown = JSON.parse(readFileSync(join(claudeHome, 'settings.json'), 'utf8'))
-    const e = (settings as Record<string, unknown>)?.['enabledPlugins']
-    if (typeof e === 'object' && e !== null) enabled = e as Record<string, unknown>
-  } catch {
-    // settings 缺失/损坏:全部视为未启用
-  }
-  try {
-    const raw: unknown = JSON.parse(readFileSync(file, 'utf8'))
-    const plugins = (raw as Record<string, unknown>)?.['plugins']
-    if (typeof plugins !== 'object' || plugins === null) return []
-    const out: PluginEntry[] = []
-    for (const [name, installs] of Object.entries(plugins as Record<string, unknown>)) {
-      const first = Array.isArray(installs) ? (installs[0] as Record<string, unknown>) : undefined
-      out.push({
-        name,
-        version: typeof first?.['version'] === 'string' ? (first['version'] as string) : null,
-        scope: typeof first?.['scope'] === 'string' ? (first['scope'] as string) : null,
-        enabled: enabled[name] === true,
-        installPath: typeof first?.['installPath'] === 'string' ? (first['installPath'] as string) : null
+  // G1(全局页口径):user 层启用插件的内含 skills 并入——命名空间条目,不参与遮蔽(G2)
+  const fromPlugins: GlobalSkill[] = []
+  for (const p of plugins) {
+    if (!p.enabled || p.contents.missing) continue
+    const ns = p.name.split('@')[0]
+    for (const s of p.contents.skills) {
+      fromPlugins.push({
+        name: `${ns}:${s.name}`,
+        description: s.description,
+        sides: ['claude'],
+        symlink: { claude: false, codex: false },
+        differs: false,
+        origin: 'plugin',
+        pluginName: p.name
       })
     }
-    return out.sort((a, b) => a.name.localeCompare(b.name))
-  } catch {
-    return []
   }
+  return [...disk, ...fromPlugins.sort((a, b) => a.name.localeCompare(b.name))]
 }
 
 // ── MCP ──
 
 const MCP_HEADER = /^\s*\[mcp_servers\.([^\]"]+)\]\s*$/
 
-function readGlobalMcp(roots: ScanRoots): McpServerEntry[] {
+function readGlobalMcp(roots: ScanRoots, plugins: PluginEntry[]): McpServerEntry[] {
   const out: McpServerEntry[] = []
   // Claude 全局 mcpServers(~/.claude.json 顶层)
   try {
@@ -128,7 +116,7 @@ function readGlobalMcp(roots: ScanRoots): McpServerEntry[] {
     // 注册表缺失/损坏:该来源为空
   }
   // plugin 自带(installPath/.claude-plugin/plugin.json 的 mcpServers)
-  for (const plugin of readClaudePlugins(roots.claudeHome)) {
+  for (const plugin of plugins) {
     if (!plugin.installPath) continue
     try {
       const pj: unknown = JSON.parse(
@@ -158,16 +146,6 @@ function readGlobalMcp(roots: ScanRoots): McpServerEntry[] {
 }
 
 // ── 配置只读 ──
-
-function readTextCapped(file: string): string | null {
-  if (!existsSync(file)) return null
-  try {
-    const raw = readFileSync(file, 'utf8')
-    return raw.length > MAX_CONFIG_BYTES ? `${raw.slice(0, MAX_CONFIG_BYTES)}\n…(已截断)` : raw
-  } catch {
-    return null
-  }
-}
 
 function summarizeCodexConfig(configFile: string): string | null {
   const raw = readTextCapped(configFile)

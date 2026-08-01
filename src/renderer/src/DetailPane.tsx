@@ -3,10 +3,13 @@ import { renderMarkdown } from './md'
 import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot } from '@shared/domain'
 import { emptyTokenStats } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
+import { ProjectSubagentsTab } from './SubagentsView'
+import { ProjectMemoryTab } from './MemoryView'
+import { ProjectPluginsTab } from './PluginsView'
 import { fmtAgo } from './ProjectsPane'
 import { toast } from './Toast'
 
-type Tab = 'ov' | 'skills' | 'plugins' | 'mcp' | 'cfg' | 'arts'
+type Tab = 'ov' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'cfg' | 'arts'
 
 export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JSX.Element {
   const [tab, setTab] = useState<Tab>('ov')
@@ -42,8 +45,10 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
             [
               ['ov', '概览'],
               ['skills', 'Skills'],
+              ['subagents', 'Subagents'],
               ['plugins', 'Plugins'],
               ['mcp', 'MCP'],
+              ['memory', 'Memory'],
               ['cfg', '配置'],
               ['arts', '产物']
             ] as const
@@ -63,8 +68,16 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
             {tab === 'skills' && (
               <SkillsTab detail={detail} onChanged={() => setReload((v) => v + 1)} />
             )}
-            {tab === 'plugins' && <PluginsTab snap={snap} />}
+            {tab === 'subagents' && <ProjectSubagentsTab detail={detail} />}
+            {tab === 'plugins' && <ProjectPluginsTab detail={detail} snap={snap} />}
             {tab === 'mcp' && <McpTab detail={detail} />}
+            {tab === 'memory' && (
+              <ProjectMemoryTab
+                detail={detail}
+                hasClaudeSide={entry.sides.includes('claude')}
+                anchor={snap.scannedAt}
+              />
+            )}
             {tab === 'cfg' && <CfgTab detail={detail} />}
             {tab === 'arts' && <ArtifactsTab detail={detail} snap={snap} />}
           </>
@@ -113,8 +126,8 @@ function SkillRow({
   return (
     <div className={`it ${s.shadowed ? 'shadowed' : ''}`}>
       <span className="nm mono">{s.name}</span>
-      <span className={`pill ${s.level === 'project' ? 'prj' : 'glb'}`}>
-        {s.level === 'project' ? '项目级' : '全局'}
+      <span className={`pill ${s.level === 'project' ? 'prj' : s.level === 'plugin' ? 'plg' : 'glb'}`}>
+        {s.level === 'project' ? '项目级' : s.level === 'plugin' ? '插件' : '全局'}
       </span>
       {s.symlink && <span className="pill ln">⤷ 软链</span>}
       {s.shadows && <span className="pill shadow">遮蔽全局</span>}
@@ -147,10 +160,12 @@ function SkillsTab({
       clProject: [] as ProjectSkillEntry[],
       clGlobal: [] as ProjectSkillEntry[],
       cxProject: [] as ProjectSkillEntry[],
-      cxGlobal: [] as ProjectSkillEntry[]
+      cxGlobal: [] as ProjectSkillEntry[],
+      plugin: [] as ProjectSkillEntry[] // 插件内含:命名空间条目,只读(G3)
     }
     for (const s of detail.skills) {
-      if (s.side === 'claude') (s.level === 'project' ? g.clProject : g.clGlobal).push(s)
+      if (s.level === 'plugin') g.plugin.push(s)
+      else if (s.side === 'claude') (s.level === 'project' ? g.clProject : g.clGlobal).push(s)
       else (s.level === 'project' ? g.cxProject : g.cxGlobal).push(s)
     }
     return g
@@ -191,6 +206,7 @@ function SkillsTab({
       {section('全局层 · Claude', groups.clGlobal)}
       {section('项目级 · .agents/skills', groups.cxProject)}
       {section('全局层 · Codex', groups.cxGlobal)}
+      {section('插件内含 · 本项目有效启用(命名空间调用,只读)', groups.plugin)}
       {!any && <div className="none">该项目无生效 skills</div>}
       {confirm && (
         <>
@@ -209,30 +225,6 @@ function SkillsTab({
             </div>
           </div>
         </>
-      )}
-    </div>
-  )
-}
-
-function PluginsTab({ snap }: { snap: Snapshot }): JSX.Element {
-  return (
-    <div>
-      <div className="grp-t">
-        <span className="badge cl">CLAUDE CODE</span> plugins(user-scope 全局,生效于所有项目;只读)
-      </div>
-      {snap.global.plugins.length === 0 ? (
-        <div className="none">未安装任何 plugin</div>
-      ) : (
-        <div className="card">
-          {snap.global.plugins.map((p) => (
-            <div className="it" key={p.name}>
-              <span className="nm mono">{p.name}</span>
-              <span className={`pill ${p.enabled ? 'on' : 'off'}`}>{p.enabled ? '已启用' : '未启用'}</span>
-              <span className="ds">scope: {p.scope ?? '—'}</span>
-              <span className="src mono">{p.version ? `v${p.version}` : ''}</span>
-            </div>
-          ))}
-        </div>
       )}
     </div>
   )

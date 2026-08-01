@@ -92,9 +92,9 @@ describe('plugins(仅 Claude,只读)', () => {
     const byName = Object.fromEntries(snap.global.plugins.map((p) => [p.name, p]))
     expect(byName['chrome-devtools-mcp@chrome-devtools-plugins']).toMatchObject({
       version: '1.6.0',
-      scope: 'user',
       enabled: true
     })
+    expect(byName['chrome-devtools-mcp@chrome-devtools-plugins'].installs[0].scope).toBe('user')
     expect(byName['disabled-one@mp'].enabled).toBe(false)
   })
 })

@@ -66,6 +66,8 @@ async function doScan(): Promise<Snapshot> {
         }
       }
       assertSnapshot(snap)
+      // memory 文件加入按需读取白名单(与产物同一不变量:快照列出过的文件才可读)
+      for (const m of snap.global.memory) for (const f of m.files) artifactWhitelist.add(f.file)
       current = snap
       mainWindow?.webContents.send(EVT.snapshot, snap)
       return snap
@@ -89,6 +91,7 @@ ipcMain.handle(CMD.getProjectDetail, (_e, path: unknown) => {
   const detail = readProjectDetail(realRoots(), path)
   detail.stats = perProjectStats.get(mergeKey(path)) ?? null
   for (const a of detail.artifacts) artifactWhitelist.add(a.file)
+  for (const t of detail.memory.topics) artifactWhitelist.add(t.file)
   return detail
 })
 ipcMain.handle(CMD.readArtifact, (_e, file: unknown) => {
