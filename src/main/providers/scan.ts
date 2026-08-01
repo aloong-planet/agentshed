@@ -9,6 +9,7 @@ import type { ScanRoots } from './types'
 import { readClaudeRegistry, readClaudeActivity } from './claude'
 import { readCodexRegistry, readCodexSessions } from './codex'
 import { readGlobalLayer } from './global'
+import { readMemorySummary } from './memory'
 
 export interface ScanDeps {
   /** 时钟注入,测试可控 */
@@ -70,5 +71,7 @@ export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> 
 
   snap.projects = [...byKey.values()]
   snap.global = readGlobalLayer(roots)
+  // memory 汇总依赖项目注册表(C5),故在 projects 之后单独填充
+  snap.global.memory = readMemorySummary(roots, snap.projects)
   return snap
 }

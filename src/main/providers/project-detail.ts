@@ -5,16 +5,53 @@
 //   root_loader.rs 只按 path 去重,官方文档明言 "doesn't merge them")。
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import type { ProjectDetail, ProjectMcpEntry, ProjectSkillEntry, AgentSide } from '@shared/domain'
+import type {
+  ProjectDetail,
+  ProjectMcpEntry,
+  ProjectPluginEntry,
+  ProjectSkillEntry,
+  AgentSide
+} from '@shared/domain'
 import type { ScanRoots } from './types'
 import { readArtifacts } from './artifacts'
+import { readEffectiveSubagents } from './subagents'
+import { readProjectMemory } from './memory'
+import { readProjectPlugins } from './plugins'
+import { fmField, readTextCapped } from './read-utils'
 
-const MAX_CONFIG_BYTES = 200_000
+/** G1(详情页口径):本项目有效启用插件的内含 skills → 命名空间条目(level=plugin,不参与遮蔽) */
+function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] {
+  const out: ProjectSkillEntry[] = []
+  for (const p of plugins) {
+    if (!p.enabled || p.contents.missing) continue
+    const ns = p.name.split('@')[0]
+    for (const s of p.contents.skills) {
+      out.push({
+        name: `${ns}:${s.name}`,
+        description: s.description,
+        level: 'plugin',
+        side: 'claude',
+        symlink: false,
+        shadowed: false,
+        shadows: false,
+        coexists: false,
+        origin: 'plugin',
+        pluginName: p.name
+      })
+    }
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name))
+}
 
 export function readProjectDetail(roots: ScanRoots, projectPath: string): ProjectDetail {
+  // plugins 只读一次:plugins 字段与 skills 并入共同消费(review-code 重构项 #1)
+  const plugins = readProjectPlugins(roots, projectPath)
   return {
     path: projectPath,
-    skills: readEffectiveSkills(roots, projectPath),
+    skills: readEffectiveSkills(roots, projectPath, plugins),
+    subagents: readEffectiveSubagents(roots, projectPath),
+    memory: readProjectMemory(roots, projectPath),
+    plugins,
     mcp: readProjectMcp(roots, projectPath),
     configs: {
       claudeMd: readTextCapped(join(projectPath, 'CLAUDE.md')),
@@ -53,14 +90,16 @@ function listSkills(base: string): Map<string, RawSkill> {
     }
     const md = join(p, 'SKILL.md')
     if (!existsSync(md)) continue
-    const content = readTextCapped(md)
-    const desc = content ? /^description:\s*["']?(.+?)["']?\s*$/m.exec(content)?.[1] ?? null : null
-    out.set(e.name, { description: desc, symlink })
+    out.set(e.name, { description: fmField(readTextCapped(md), 'description'), symlink })
   }
   return out
 }
 
-function readEffectiveSkills(roots: ScanRoots, projectPath: string): ProjectSkillEntry[] {
+function readEffectiveSkills(
+  roots: ScanRoots,
+  projectPath: string,
+  plugins: ProjectPluginEntry[]
+): ProjectSkillEntry[] {
   const sides: Array<{ side: AgentSide; projectDir: string; globalDir: string }> = [
     {
       side: 'claude',
@@ -87,7 +126,9 @@ function readEffectiveSkills(roots: ScanRoots, projectPath: string): ProjectSkil
         symlink: s.symlink,
         shadowed: false,
         shadows: shadowing && global.has(name),
-        coexists: !shadowing && global.has(name)
+        coexists: !shadowing && global.has(name),
+        origin: 'disk',
+        pluginName: null
       })
     }
     for (const [name, s] of [...global.entries()].sort(([a], [b]) => a.localeCompare(b))) {
@@ -99,11 +140,13 @@ function readEffectiveSkills(roots: ScanRoots, projectPath: string): ProjectSkil
         symlink: s.symlink,
         shadowed: shadowing && project.has(name),
         shadows: false,
-        coexists: !shadowing && project.has(name)
+        coexists: !shadowing && project.has(name),
+        origin: 'disk',
+        pluginName: null
       })
     }
   }
-  return out
+  return [...out, ...pluginSkillEntries(plugins)]
 }
 
 // ── 项目级 MCP ──
@@ -161,12 +204,3 @@ function asStringArray(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
 }
 
-function readTextCapped(file: string): string | null {
-  if (!existsSync(file)) return null
-  try {
-    const raw = readFileSync(file, 'utf8')
-    return raw.length > MAX_CONFIG_BYTES ? `${raw.slice(0, MAX_CONFIG_BYTES)}\n…(已截断)` : raw
-  } catch {
-    return null
-  }
-}

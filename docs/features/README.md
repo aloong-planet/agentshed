@@ -9,6 +9,9 @@
 |---|---|
 | [Agents 全局页](agents-overview.md) | 默认落地页:两侧 agent 的全局面貌与总消耗一眼可见 |
 | [项目全景列表](projects-list.md) | 两侧注册项目的并集列表,可筛可搜可隐藏 |
-| [项目详情](project-detail.md) | 单项目装了什么:skills 生效视图、MCP、配置与产物 |
+| [项目详情](project-detail.md) | 单项目装了什么:各组件生效视图、MCP、配置与产物 |
+| [Subagents 查看](subagents-view.md) | 两侧 subagent 定义合并查看,项目内谁生效一目了然 |
+| [Memory 查看](memory-view.md) | agent 记住了每个项目的什么,汇总与全文可查 |
+| [Plugins 视图](plugins-view.md) | 插件按侧分组、各视角启用状态如实、内含组件可展开 |
 | [Token 统计](token-stats.md) | 每项目与跨项目的 token 消耗、趋势与会话轨迹 |
 | [Skills 装卸](skill-install.md) | 从全局库给指定项目安装/卸载 skills,全程有防护 |

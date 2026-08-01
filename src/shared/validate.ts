@@ -50,7 +50,7 @@ export function validateSnapshot(v: unknown): ValidateResult {
 
   const g = v['global']
   if (!isRecord(g)) return fail('global', '缺失')
-  for (const arr of ['skills', 'plugins', 'mcp'] as const) {
+  for (const arr of ['skills', 'subagents', 'memory', 'plugins', 'codexPlugins', 'mcp'] as const) {
     if (!Array.isArray(g[arr])) return fail(`global.${arr}`, '需为数组')
   }
   for (const nullable of ['claudeGlobalMd', 'codexAgentsMd', 'codexConfigSummary'] as const) {

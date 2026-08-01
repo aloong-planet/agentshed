@@ -13,3 +13,4 @@
 | [0007](0007-usage-archive.md) | 用量历史归档(抗 agent 自动清理) | 已接受 |
 | [0008](0008-trend-by-provider.md) | 趋势柱按 provider 分段 | 已接受 |
 | [0009](0009-trend-xaxis-data-days.md) | 趋势图 x 轴只标数据日的层级日期标签 | 已接受 |
+| [0010](0010-plugin-skills-in-effective-view.md) | 插件内含 skills 并入生效视图(命名空间隔离、启用态过滤) | 已接受 |

@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react'
 import { renderMarkdown } from './md'
 import type { Snapshot } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
+import { GlobalSubagentsTab } from './SubagentsView'
+import { GlobalMemoryTab } from './MemoryView'
+import { GlobalPluginsTab } from './PluginsView'
 import { toast } from './Toast'
 
-type Tab = 'token' | 'skills' | 'plugins' | 'mcp' | 'cfg'
+type Tab = 'token' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'cfg'
 
 export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
   const [tab, setTab] = useState<Tab>('token')
@@ -39,9 +42,11 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
           {(
             [
               ['token', 'Token'],
-              ['skills', 'Skills(全局库)'],
+              ['skills', 'Skills'],
+              ['subagents', 'Subagents'],
               ['plugins', 'Plugins'],
               ['mcp', 'MCP'],
+              ['memory', 'Memory'],
               ['cfg', '配置']
             ] as const
           ).map(([t, label]) => (
@@ -77,8 +82,10 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
           </div>
         )}
         {tab === 'skills' && <SkillsTab snap={snap} />}
-        {tab === 'plugins' && <PluginsTab snap={snap} />}
+        {tab === 'subagents' && <GlobalSubagentsTab snap={snap} />}
+        {tab === 'plugins' && <GlobalPluginsTab snap={snap} />}
         {tab === 'mcp' && <McpTab snap={snap} />}
+        {tab === 'memory' && <GlobalMemoryTab snap={snap} />}
         {tab === 'cfg' && <CfgTab snap={snap} />}
       </div>
     </div>
@@ -142,7 +149,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
 
   return (
     <div>
-      <div className="grp-t">合并单列 · 徽标=该侧是否存在 · 安装源(只读)</div>
+      <div className="grp-t">合并单列 · 徽标=该侧是否存在 · 来源:全局库(可装卸)/插件(只读)</div>
       <div className="card">
         {snap.global.skills.map((s) => (
           <div className="it rel" key={s.name}>
@@ -151,13 +158,16 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
               {s.sides.includes('claude') ? <span className="badge cl">CC</span> : <span className="badge miss">—</span>}
               {s.sides.includes('codex') ? <span className="badge cx">CX</span> : <span className="badge miss">—</span>}
             </span>
+            {s.origin === 'plugin' && <span className="pill plg">插件</span>}
             {(s.symlink.claude || s.symlink.codex) && <span className="pill ln">⤷ 软链</span>}
             {s.differs && <span className="diff">两侧有差异</span>}
             <span className="ds">{s.description ?? ''}</span>
-            <button className="ins" onClick={() => setOpenFor(openFor === s.name ? null : s.name)}>
-              安装到…
-            </button>
-            {openFor === s.name && (
+            {s.origin === 'disk' && (
+              <button className="ins" onClick={() => setOpenFor(openFor === s.name ? null : s.name)}>
+                安装到…
+              </button>
+            )}
+            {openFor === s.name && s.origin === 'disk' && (
               <div className="pop">
                 <div className="pop-t">选择目标项目(复制落地;失效项目已排除)</div>
                 {targets.map((p) => (
@@ -174,34 +184,6 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
           </div>
         ))}
       </div>
-    </div>
-  )
-}
-
-function PluginsTab({ snap }: { snap: Snapshot }): JSX.Element {
-  return (
-    <div>
-      <div className="grp-t">
-        <span className="badge cl">CLAUDE CODE</span> plugins(user-scope 全局,只读)
-      </div>
-      {snap.global.plugins.length === 0 ? (
-        <Empty msg="未安装任何 plugin" />
-      ) : (
-        <div className="card">
-          {snap.global.plugins.map((p) => (
-            <div className="it" key={p.name}>
-              <span className="nm mono">{p.name}</span>
-              <span className={`pill ${p.enabled ? 'on' : 'off'}`}>{p.enabled ? '已启用' : '未启用'}</span>
-              <span className="ds">scope: {p.scope ?? '—'}</span>
-              <span className="src mono">{p.version ? `v${p.version}` : ''}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="grp-t" style={{ marginTop: 14 }}>
-        <span className="badge cx">CODEX</span>
-      </div>
-      <div className="none">Codex 无 plugins 概念,该分组仅 Claude 侧显示</div>
     </div>
   )
 }

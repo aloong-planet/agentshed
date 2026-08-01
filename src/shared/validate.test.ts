@@ -28,6 +28,16 @@ describe('validateSnapshot', () => {
     expect(validateSnapshot('x').ok).toBe(false)
   })
 
+  it('拒收缺 v2 组件数组的快照(subagents/memory/codexPlugins 漏同步即在边界暴露,R1)', () => {
+    for (const field of ['subagents', 'memory', 'codexPlugins'] as const) {
+      const snap = emptySnapshot(1) as unknown as { global: Record<string, unknown> }
+      delete snap.global[field]
+      const r = validateSnapshot(snap)
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.error).toContain(field)
+    }
+  })
+
   it('拒收缺字段的快照并指出路径', () => {
     const bad = { scannedAt: 1, sides: { claude: { detected: true } }, projects: [] }
     const r = validateSnapshot(bad)

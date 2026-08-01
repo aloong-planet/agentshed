@@ -8,4 +8,5 @@ window.PROTOTYPES = [
   { module: 'token-stats',   type: 'logic', id: 'scan-cache',   name: '增量扫描与刷新生命周期', path: 'token-stats/scan-cache/index.html' },
   { module: 'skill-install', type: 'ui',    id: 'install',      name: 'Agents·Skills 装卸交互', path: 'skill-install/prototype-install.html' },
   { module: 'skill-install', type: 'logic', id: 'install-flow', name: '装卸操作状态机',       path: 'skill-install/install-flow/index.html' },
+  { module: 'subagents-memory-plugin', type: 'ui', id: 'components-view', name: 'Subagents/Memory/Plugin 分栏', path: 'subagents-memory-plugin/prototype-components-view.html' },
 ];

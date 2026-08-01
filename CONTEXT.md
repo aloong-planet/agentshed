@@ -25,8 +25,24 @@ _Avoid_: 市场、marketplace
 _Avoid_: 软链、同步
 
 **生效视图(Effective view)**:
-项目详情的 skills 口径——项目级条目与该侧全局层生效项并列呈现,同名时标注遮蔽关系(项目级压过全局)。
+项目详情的组件口径(skills/subagents 通用)——项目级条目与该侧全局层生效项并列呈现,同名时按该侧语义标注遮蔽/共存关系;skills 生效视图并含有效启用插件的内含 skills(命名空间隔离,不参与遮蔽)。
 _Avoid_: 已装列表
+
+**Subagent(子代理)**:
+agent 定义文件所描述的专职助手(Claude:agents/*.md;Codex:agents/*.toml),被委派子任务时在独立上下文运行。与「agent 侧」严格区分:侧是数据来源端,subagent 是侧内的一类组件。
+_Avoid_: agent(裸称,与 agent 侧混淆)
+
+**Memory(记忆)**:
+agent 自动生成的跨会话笔记,生成态内容,本产品只读展示。Claude 侧 per-project(MEMORY.md + topic 文件);Codex 侧为全局目录,探测式展示(非空才显示)。
+_Avoid_: 笔记(泛称);CLAUDE.md(人工指令,属配置)
+
+**有效启用集(Effective enabled plugins)**:
+某项目视角下实际生效的插件集合:enabledPlugins 按 local > project > user 层级合并后为 true 者。全局页口径取 user 层。
+_Avoid_: 已安装(安装≠启用)
+
+**插件内含组件(Plugin-bundled components)**:
+插件包内自带的 skills/subagents/hooks/MCP 等,随插件启停整体生效;发现路径 = 目录约定与 manifest 声明字段的合并。
+_Avoid_: 插件功能(泛称)
 
 **产物(Artifact)**:
 项目内按八步流程约定沉淀的五类文档:ADR、CONTEXT.md、功能目录(features)、踩坑复盘(postmortems)、原型(prototypes)。施工文档(.scratch)不算产物。
@@ -47,3 +63,4 @@ _Avoid_: 有量日、活跃日
 
 - **AgentDex(旧名)作废**:产品原定位「只读图鉴」;2026-07-29 需求分析裁定转为「全景 + 装卸管理」动手型,触发命名备胎条款,更名 Agentshed。「图鉴」不再用作产品定位词,改用「全景」。
 - **「双视图/产物聚合」作废**(2026-07-30):跨项目按类型聚合产物裁定为伪需求——产物是项目内上下文文档,仅在项目详情内展示;跨项目检索的归宿是未来的全局搜索,不设聚合页。
+- **Codex 同名语义按组件而异,不可望文类推**(2026-08-01,均源码级核实):skills 两级同名**共存**(root_loader.rs 只按路径去重),subagents 两级同名**项目级遮蔽**(agent_roles.rs 按 config layer 覆盖,同层重名先者优先)。生效视图的遮蔽标注必须按组件取各自语义。
