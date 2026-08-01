@@ -129,13 +129,13 @@ describe('Memory 全局汇总', () => {
     expect(snap.global.codexMemoriesEnabled).toBe(true)
   })
 
-  it('C6 config 含非标准 TOML(解析失败)→ 行扫描兜底仍能识别 [features] 节', async () => {
+  it('C6 config 解析失败 → 未开启:Codex 本身也读不了该 config,不从坏文件抢救语义', async () => {
     writeFileSync(
       join(dir, '.codex', 'config.toml'),
       'broken = "unterminated\n[features]\nmemories = true\n'
     )
     const snap = await scan(roots(), { now: () => 1 })
-    expect(snap.global.codexMemoriesEnabled).toBe(true)
+    expect(snap.global.codexMemoriesEnabled).toBe(false)
   })
 
   it('C6 Codex memories 目录空 → 无 codex 条目;非空 → 探测式入列', async () => {

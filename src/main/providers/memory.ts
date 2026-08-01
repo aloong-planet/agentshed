@@ -35,9 +35,9 @@ function listMdFiles(dir: string): MemoryFileMeta[] {
 
 /**
  * Codex 记忆开关(C6):features 表下的 memories 键为 true——
- * `[features]` 节与 `features.memories = true` 点键两种写法等价,须都识别,
- * 故 TOML 解析优先;存量非标准 config 解析失败时退化为 [features] 节行扫描。
- * [memories] 配置节与其他位置的同名键不得误判。config 缺失/不可读 → 未开启。
+ * `[features]` 节与 `features.memories = true` 点键两种写法等价,TOML 解析识别。
+ * 解析失败 → 未开启:Codex 本身也读不了该 config,从坏文件抢救语义是假信号
+ * (判定类降级以目标系统的实际行为为准)。config 缺失/不可读同为未开启。
  */
 export function readCodexMemoriesEnabled(codexHome: string): boolean {
   const raw = readTextCapped(join(codexHome, 'config.toml'))
@@ -51,16 +51,6 @@ export function readCodexMemoriesEnabled(codexHome: string): boolean {
       (features as Record<string, unknown>)['memories'] === true
     )
   } catch {
-    // 行扫描兜底:进入 [features] 节后到下一个 [ 头为止
-    let inFeatures = false
-    for (const line of raw.split('\n')) {
-      const header = /^\s*\[([^\]]+)\]\s*$/.exec(line)
-      if (header) {
-        inFeatures = header[1].trim() === 'features'
-        continue
-      }
-      if (inFeatures && /^\s*memories\s*=\s*true\s*(#.*)?$/.test(line)) return true
-    }
     return false
   }
 }
