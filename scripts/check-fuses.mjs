@@ -16,7 +16,8 @@ const NAMES = [
   'asarIntegrity',
   'onlyLoadAppFromAsar',
   'v8Snapshot',
-  'fileProtocolPrivileges'
+  'fileProtocolPrivileges',
+  'wasmTrapHandlers' // Electron 41 追加(index 8);fuses 只追加不重排,故按下标读长期安全
 ]
 /** 期望值:与 electron-builder.yml 的 electronFuses 段一致,两处不符即报错 */
 const EXPECT = {
