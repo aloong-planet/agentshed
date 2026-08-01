@@ -102,6 +102,27 @@ describe('Memory 全局汇总', () => {
     expect(snap.global.memory[0].hidden).toBe(true)
   })
 
+  it('C6 三态:开关检测限定 [features] 节,不被 [memories] 配置节误判', async () => {
+    // 无 config → 未开启
+    let snap = await scan(roots(), { now: () => 1 })
+    expect(snap.global.codexMemoriesEnabled).toBe(false)
+    // [memories] 配置节里的键与顶层同名键都不算开启(防误判)
+    writeFileSync(
+      join(dir, '.codex', 'config.toml'),
+      'memories = true\n[memories]\nuse_memories = true\n[other]\nmemories = true\n'
+    )
+    snap = await scan(roots(), { now: () => 1 })
+    expect(snap.global.codexMemoriesEnabled).toBe(false)
+    // [features] 节内 memories = true → 开启
+    writeFileSync(join(dir, '.codex', 'config.toml'), '[features]\nmemories = true\n[memories]\nuse_memories = true\n')
+    snap = await scan(roots(), { now: () => 1 })
+    expect(snap.global.codexMemoriesEnabled).toBe(true)
+    // [features] 节内显式 false → 未开启
+    writeFileSync(join(dir, '.codex', 'config.toml'), '[features]\nmemories = false\n')
+    snap = await scan(roots(), { now: () => 1 })
+    expect(snap.global.codexMemoriesEnabled).toBe(false)
+  })
+
   it('C6 Codex memories 目录空 → 无 codex 条目;非空 → 探测式入列', async () => {
     mkdirSync(join(dir, '.codex', 'memories'), { recursive: true })
     let snap = await scan(roots(), { now: () => 1 })

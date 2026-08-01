@@ -5,6 +5,7 @@ import type { AgentSide, GlobalLayer, GlobalSkill, McpServerEntry, PluginEntry }
 import type { ScanRoots } from './types'
 import { readGlobalSubagents } from './subagents'
 import { readClaudePlugins, readCodexPlugins } from './plugins'
+import { readCodexMemoriesEnabled } from './memory'
 import { fmField, readTextCapped } from './read-utils'
 
 export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
@@ -14,6 +15,7 @@ export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
     skills: readGlobalSkills(roots, plugins),
     subagents: readGlobalSubagents(roots),
     memory: [], // 依赖项目注册表,由 scan 在 projects 之后填充(见 scan.ts)
+    codexMemoriesEnabled: readCodexMemoriesEnabled(roots.codexHome),
     plugins,
     codexPlugins: readCodexPlugins(roots.codexHome),
     mcp: readGlobalMcp(roots, plugins),

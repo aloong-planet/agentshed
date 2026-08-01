@@ -32,6 +32,26 @@ function listMdFiles(dir: string): MemoryFileMeta[] {
   return out
 }
 
+/**
+ * Codex 记忆开关(C6):config.toml 的 [features] 节内 memories = true。
+ * 节界定按行扫描:进入 [features] 后到下一个 [ 头为止;[memories] 配置节与
+ * 其他位置的同名键不得误判(spec C6 修订)。config 缺失/不可读 → 未开启。
+ */
+export function readCodexMemoriesEnabled(codexHome: string): boolean {
+  const raw = readTextCapped(join(codexHome, 'config.toml'))
+  if (raw === null) return false
+  let inFeatures = false
+  for (const line of raw.split('\n')) {
+    const header = /^\s*\[([^\]]+)\]\s*$/.exec(line)
+    if (header) {
+      inFeatures = header[1].trim() === 'features'
+      continue
+    }
+    if (inFeatures && /^\s*memories\s*=\s*true\s*(#.*)?$/.test(line)) return true
+  }
+  return false
+}
+
 export function readMemorySummary(roots: ScanRoots, projects: ProjectEntry[]): MemorySummaryEntry[] {
   const out: MemorySummaryEntry[] = []
   for (const p of projects) {

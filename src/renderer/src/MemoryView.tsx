@@ -5,12 +5,36 @@ import type { MemoryFileMeta, MemorySummaryEntry, ProjectDetail, Snapshot } from
 import { renderMarkdown } from './md'
 import { fmtAgo } from './ProjectsPane'
 
+/** C6 三态:未开启 → 开启提示;开启无内容 → 暂无内容;有内容 → 条目行(在列表中) */
+function CodexMemoryNote({ snap }: { snap: Snapshot }): JSX.Element | null {
+  const hasRow = snap.global.memory.some((m) => m.side === 'codex')
+  if (hasRow) {
+    return snap.global.codexMemoriesEnabled ? null : (
+      <div className="none" style={{ textAlign: 'left', padding: '4px 2px' }}>
+        Codex 记忆功能当前未开启,上方为目录中的遗留文件。
+      </div>
+    )
+  }
+  return (
+    <div className="none" style={{ textAlign: 'left', padding: '4px 2px' }}>
+      {snap.global.codexMemoriesEnabled
+        ? 'Codex 记忆已开启,暂无内容。'
+        : 'Codex 记忆功能未开启——在 ~/.codex/config.toml 设置 [features] memories = true 可开启(实验性)。'}
+    </div>
+  )
+}
+
 export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
   // 展开态键 = 侧+项目路径:快照刷新重排后展开行不错位(review-code 重构项 #4)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState<{ entry: MemorySummaryEntry; file: MemoryFileMeta } | null>(null)
   if (snap.global.memory.length === 0)
-    return <div className="none">所有项目均无自动记忆(且 Codex 全局记忆目录为空)</div>
+    return (
+      <div>
+        <div className="none">所有项目均无自动记忆</div>
+        <CodexMemoryNote snap={snap} />
+      </div>
+    )
 
   function toggle(key: string): void {
     const next = new Set(expanded)
@@ -56,9 +80,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
           )
         })}
       </div>
-      <div className="none" style={{ textAlign: 'left', padding: '4px 2px' }}>
-        Codex 全局记忆为探测式:目录为空时整行不出现;文件内容按需读取,不进快照。
-      </div>
+      <CodexMemoryNote snap={snap} />
       {open && (
         <MemoryFileDrawer
           title={open.file.name}

@@ -165,6 +165,8 @@ export interface GlobalLayer {
   subagents: SubagentEntry[]
   /** Memory 汇总(按最近修改倒序;仅元数据与文件名,内容按需读取) */
   memory: MemorySummaryEntry[]
+  /** Codex 记忆开关(config.toml [features] memories;C6 三态展示的判定依据) */
+  codexMemoriesEnabled: boolean
   plugins: PluginEntry[]
   /** Codex 插件(探测式:缓存目录空则为空数组,UI 整组不显示) */
   codexPlugins: CodexPluginEntry[]
@@ -334,6 +336,7 @@ export function emptySnapshot(scannedAt: number): Snapshot {
       skills: [],
       subagents: [],
       memory: [],
+      codexMemoriesEnabled: false,
       plugins: [],
       codexPlugins: [],
       mcp: [],

@@ -57,6 +57,8 @@ export function validateSnapshot(v: unknown): ValidateResult {
     if (g[nullable] !== null && typeof g[nullable] !== 'string')
       return fail(`global.${nullable}`, '需为 string|null')
   }
+  if (typeof g['codexMemoriesEnabled'] !== 'boolean')
+    return fail('global.codexMemoriesEnabled', '需为 boolean')
 
   const tk = v['tokens']
   if (!isRecord(tk)) return fail('tokens', '缺失')
