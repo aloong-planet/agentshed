@@ -1,7 +1,10 @@
 <!doctype html>
 <!-- 原型(UI)· Subagents/Memory/Plugin 三分栏(spec: subagents-memory-plugin)。
+     单页职责:只演示「Agents 全局页」的新分栏形态;详情页形态归 project-detail
+       原型(2026-08-01 用户指正:此前内嵌了第二个详情页,与既有 project-detail
+       原型重复——已剥离,详情页新分栏的同步归宿见该原型页头注记)。
      问题:长内容(subagent 原文/memory 内容/插件内含组件)的承载结构。
-     裁决(2026-08-01 用户定稿):列表全宽;Subagents/Memory topic 点行直接开
+     裁决(2026-08-01 用户定稿):列表全宽;Subagents/Memory 文件点行直接开
        reader 抽屉(元数据 kv + 双端切换 + 原文,双端切换在抽屉内原地刷新);
        Plugins 行内展开内含组件(展开即内容,非中转);Skills 无详情。
        曾对比过 master-detail 双栏与「行内展开元数据+浮层」两案,均否——
@@ -12,19 +15,16 @@
        (MEMORY.md+topic),点文件开抽屉看内容;内容按需读取不进快照。
      实现对齐(2026-08-01 三,防腐烂同步):徽标改 app 约定 CC/CX+缺失虚线;
        新增「不可读」降级态(A8)与安装记录「项目已失联」(E2);Plugins 行次级
-       文案改逐条安装记录;Skills 全局页仅插件条目带来源徽标、按钮沿用
-       「安装到…」;详情 Skills 真实应用为分组结构(此处平铺示意);抽屉 Esc 关闭。
-     覆盖的界面点:全局页 Subagents/Memory 分栏、详情页 Subagents/Memory 分栏、
-       Plugins 行展开与 scope 标注(两页)、Skills 更名+来源徽标(两页)。
-     mock 刻意覆盖:双端同名合并、单侧条目、toml 解析失败、覆盖内置、
-       project-scope 插件(全局页未启用/详情页生效)、多安装记录、缓存缺失、
-       无 MEMORY.md 仅 topic、stale 项目、Codex 全局记忆行、命名空间 skills 条目。
-     交互:tab 切换;Subagents/topic 点行开抽屉(Esc/点遮罩关,抽屉内切 Claude/Codex);
-       Plugins 点行展开收起。写操作无。
+       文案改逐条安装记录;Skills 仅插件条目带来源徽标、按钮沿用「安装到…」;
+       抽屉 Esc 关闭;Codex 记忆按开关四态展示(C6 修订)。
+     mock 刻意覆盖:双端同名合并、单侧条目、toml 解析失败、不可读、覆盖内置、
+       project-scope 插件、多安装记录、缓存缺失、项目已失联、无 MEMORY.md 仅
+       topic、stale/hidden 项目、Codex 全局记忆行、命名空间 skills 条目。
+     交互:tab 切换;Subagents/memory 文件点行开抽屉(Esc/点遮罩关,抽屉内切
+       Claude/Codex);Plugins 点行展开收起。写操作无。
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于
        页面内容流)仅承载当前功能模块的开关——Codex 记忆四态,且仅在 Memory
-       分栏出现,其余时候整条隐藏;被评判的设计不含它。页切换组已按用户裁定
-       移除(2026-08-01),详情页形态无 UI 入口,控制台 setPage('detail') 可达。 -->
+       分栏出现,其余时候整条隐藏;被评判的设计不含它。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -54,15 +54,14 @@
   .harness span[data-v]{padding:3px 9px;border-radius:999px;cursor:pointer;color:#b8b8bf}
   .harness span[data-v]:hover{color:#fff}
   .harness span[data-v].on{background:#4a4a52;color:#fff;font-weight:600}
-  .harness .sep{width:1px;height:14px;background:#4a4a52;margin:0 4px}
   .stats{display:flex;gap:14px;margin-bottom:12px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 14px;min-width:150px}
   .stat .k{font-size:10.5px;color:var(--text-2);margin-bottom:3px;display:flex;align-items:center;gap:6px}
   .stat .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
   .stat .s{font-size:10.5px;color:var(--text-2);margin-top:2px}
-  .det-path{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2);margin-bottom:10px}
   .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
   .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
+  .b.miss{border:1px dashed var(--line-strong);color:var(--text-2);background:transparent;font-weight:400}
   @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
   .tabs{display:flex;gap:2px;flex-wrap:wrap}
   .tab{padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;color:var(--text-2);font-size:12.5px}
@@ -82,7 +81,6 @@
   .pill.on{background:#dcfce7;color:#166534}
   .pill.off{border:1px solid var(--line-strong);color:var(--text-2)}
   .pill.warn{background:#fdecdc;color:#b3552f}
-  .pill.glb{background:var(--accent-soft);color:var(--accent)}
   .pill.plg{border:1px solid var(--accent);color:var(--accent)}
   @media (prefers-color-scheme:dark){.pill.on{background:#12301d;color:#86efac}.pill.warn{background:#3c2417;color:#f0a884}}
   .src{font-size:10.5px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;flex:none}
@@ -95,10 +93,9 @@
   .sideseg{display:inline-flex;border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;margin:0 0 8px}
   .sideseg span{padding:3px 10px;font-size:11px;color:var(--text-2);cursor:pointer}
   .sideseg span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
-  /* Plugins 行内展开 */
+  /* Plugins/Memory 行内展开 */
   .exp{padding:4px 14px 12px 36px;border-bottom:1px solid var(--line);background:var(--bg)}
   .exp:last-child{border-bottom:0}
-  .exp .kv{background:var(--card)}
   .btn{display:inline-block;border:1px solid var(--accent);color:var(--accent);border-radius:6px;
     padding:3px 10px;font-size:11.5px;cursor:pointer;background:transparent;margin:2px 6px 2px 0}
   .btn:hover{background:var(--accent-soft)}
@@ -108,12 +105,6 @@
     border-left:1px solid var(--line-strong);z-index:41;padding:20px 24px;overflow:auto;box-shadow:-8px 0 24px rgba(0,0,0,.12)}
   .reader h2{font-size:14px;margin-bottom:2px;font-family:ui-monospace,Menlo,monospace}
   .reader .meta{font-size:11px;color:var(--text-2);margin-bottom:12px}
-  /* memory 主体(同配置 tab:直接渲染) */
-  .md{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:16px 18px;
-    line-height:1.75;font-size:12.5px;margin-bottom:14px}
-  .md h3{font-size:13px;margin:0 0 6px}
-  .md ul{padding-left:18px}
-  .md code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px}
   /* 插件展开的内含组件小节 */
   .sect{margin:8px 0 2px;font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px}
   .chip{display:inline-block;font-size:11px;font-family:ui-monospace,Menlo,monospace;border:1px solid var(--line-strong);
@@ -124,8 +115,8 @@
 </head>
 <body>
   <div class="rail">
-    <div class="ri" id="riAgents" title="Agents">🤖</div>
-    <div class="ri" id="riProjects" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">📁</div>
+    <div class="ri on" title="Agents">🤖</div>
+    <div class="ri" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">📁</div>
     <div class="ri" title="全局刷新" style="margin-top:auto;margin-bottom:6px">↻</div>
   </div>
   <div class="main">
@@ -136,8 +127,8 @@
   <div class="harness" id="harness" data-demo-harness></div>
 
 <script>
-/* ── mock 数据(刻意覆盖 spec 失败模式表) ── */
-const SUBAGENTS_GLOBAL = [
+/* ── mock 数据(刻意覆盖 spec 失败模式表;仅全局页) ── */
+const SUBAGENTS = [
   { name:'code-reviewer', sides:['c','x'], desc:'Expert code review specialist. Proactively reviews code for quality, security, and maintainability.',
     cl:{tools:'Read, Grep, Glob, Bash', model:'—(继承)', body:'You are a senior code reviewer ensuring high standards of code quality and security.\n\nWhen invoked:\n1. Run git diff to see recent changes\n2. Focus on modified files\n3. Begin review immediately\n\nReview checklist:\n- Code is simple and readable\n- Functions and variables are well-named\n- No duplicated code\n- Proper error handling\n- No exposed secrets or API keys\n- Input validation implemented\n- Good test coverage\n- Performance considerations addressed\n\nProvide feedback organized by priority:\n- Critical issues (must fix)\n- Warnings (should fix)\n- Suggestions (consider improving)'},
     cx:{model:'—(default_subagent_model)', sandbox:'—', body:'You are a senior code reviewer ensuring high standards of code quality and security.\n\nWhen invoked:\n1. Run git diff to see recent changes\n2. Focus on modified files\n3. Begin review immediately\n(与 Claude 侧同文,developer_instructions 三引号块)'} },
@@ -154,17 +145,7 @@ const SUBAGENTS_GLOBAL = [
   { name:'(broken.toml)', sides:['x'], parseError:true, desc:null, cl:null, cx:null },
   { name:'locked', sides:['c'], unreadable:true, desc:null, cl:null, cx:null } // A8:文件存在但不可读
 ]
-const SUBAGENTS_DETAIL = [
-  { name:'code-reviewer', side:'c', level:'project', shadows:true, desc:'(项目级定制版)只审 src/ 与 tests/,输出中文。',
-    body:'You are a senior code reviewer for THIS repo…(项目级定制,mock 略)' },
-  { name:'code-reviewer', side:'c', level:'global', shadowed:true, desc:'Expert code review specialist.(被项目级遮蔽)',
-    body:'(同全局条目原文)' },
-  { name:'data-scientist', side:'c', level:'global', desc:'Data analysis expert for SQL queries…', body:'(同全局条目原文)' },
-  { name:'debugger', side:'c', level:'global', desc:'Debugging specialist…', body:'(同全局条目原文)' },
-  { name:'explorer', side:'x', level:'project', overridesBuiltin:true, shadows:true, desc:'项目级 explorer(覆盖内置,并遮蔽用户级同名)。', body:'(项目级 toml,mock 略)' },
-  { name:'code-reviewer', side:'x', level:'global', desc:'Expert code review specialist.', body:'(用户级 toml 原文)' }
-]
-const MEMORY_GLOBAL = [
+const MEMORY = [
   { proj:'agentshed', path:'~/CascadeProjects/agentshed', hasMain:true, topics:1, at:'2 小时前',
     files:[ {f:'MEMORY.md', at:'2 小时前', body:'# MEMORY\n\n- 用户偏好 pnpm;dev 模式勿重启(热重载)。\n- 验证网关:pnpm verify = typecheck + 单测 + e2e + 冒烟。\n- IPC 契约单一出处 shared/domain.ts(ADR-0001)。'},
             {f:'pr-merge-needs-confirmation.md', at:'2 小时前', body:'# PR 合并需确认\n\n开 PR 即停,等用户确认后才准合并——开 PR 不构成合并授权。'} ] },
@@ -182,63 +163,43 @@ const MEMORY_GLOBAL = [
     files:[ {f:'2026-07-26-consolidated.md', at:'5 天前', body:'(Codex 生成态记忆,原文查看,mock 略)'},
             {f:'recent-inputs.md', at:'5 天前', body:'(mock 略)'} ] }
 ]
-const MEMORY_DETAIL = {
-  main:'<h3>MEMORY.md</h3><ul><li>用户偏好 pnpm;dev 模式勿重启(热重载)。</li><li>验证网关:<code>pnpm verify</code> = typecheck + 单测 + e2e + 冒烟。</li><li>IPC 契约单一出处 shared/domain.ts(ADR-0001),validate.ts 必须同步扩展。</li></ul>',
-  topics:[ { f:'pr-merge-needs-confirmation.md', at:'2 小时前', body:'# PR 合并需确认\n\n开 PR 即停,等用户确认后才准合并——开 PR 不构成合并授权。\n默认 squash 保持 master 线性,合并后删除远程分支。' } ]
-}
-// 次级文案与实现一致:逐条安装记录(scope · 项目,失联标注)+ 记录数;详情页前缀"启用/禁用判定来自 X 层"
+// 次级文案与实现一致:user 层启用口径;逐条安装记录(scope · 项目,失联标注)+ 记录数
 const PLUGINS = [
-  { name:'chrome-devtools-mcp@chrome-devtools-plugins', ver:'1.6.0',
+  { name:'chrome-devtools-mcp@chrome-devtools-plugins', ver:'1.6.0', enabled:true, why:'user',
     installs:[{scope:'user'}],
-    enabled:{global:true, detail:true}, whyGlobal:'user', whyDetail:'启用判定来自 user 层 · user',
     contents:{ skills:['a11y-debugging','chrome-devtools','memory-leak-debugging','troubleshooting','+2'],
       agents:[], hooks:[], mcp:['chrome-devtools'] } },
-  { name:'superpowers@claude-plugins-official', ver:'6.2.0',
+  { name:'superpowers@claude-plugins-official', ver:'6.2.0', enabled:false, why:'project · superpowers-demo',
     installs:[{scope:'project', proj:'superpowers-demo'}],
-    enabled:{global:false, detail:true}, whyGlobal:'project · superpowers-demo',
-    whyDetail:'启用判定来自 project 层 · project · superpowers-demo',
     contents:{ skills:['brainstorming','test-driven-development','systematic-debugging','writing-plans','+10'],
       agents:[], hooks:['SessionStart × 1(matcher: startup|clear|compact)'], mcp:[] } },
-  { name:'tdd-guard@community', ver:'2.4.1',
-    installs:[{scope:'user'}, {scope:'project', proj:'gone-proj', projMissing:true}], // E2:归属项目已失联
-    enabled:{global:false, detail:false},
-    whyGlobal:'user / project · gone-proj(项目已失联) · 2 条安装记录',
-    whyDetail:'禁用判定来自 project 层 · user / project · gone-proj(项目已失联) · 2 条安装记录',
+  { name:'tdd-guard@community', ver:'2.4.1', enabled:false,
+    why:'user / project · gone-proj(项目已失联) · 2 条安装记录',
+    installs:[{scope:'user'}, {scope:'project', proj:'gone-proj', projMissing:true}], // E2
     contents:{ skills:[], agents:[], hooks:['PreToolUse × 2(Write|Edit)'], mcp:[] } },
-  { name:'ghost-plugin@somewhere', ver:'0.1.0',
+  { name:'ghost-plugin@somewhere', ver:'0.1.0', enabled:false, why:'user',
     installs:[{scope:'user', missing:true}],
-    enabled:{global:false, detail:false}, whyGlobal:'user', whyDetail:'任何层均未提及 · user',
     contents:null }
 ]
 const PLUGINS_CODEX = [ // 缓存枚举口径:cache/<marketplace>/<plugin>/<version>;仅列存在
   { name:'codex-helper', mkt:'local', ver:'0.3.2', versions:1 },
   { name:'superpowers', mkt:'claude-plugins-official', ver:'6.2.0', versions:2 }
 ]
-const SKILLS_GLOBAL = [
+const SKILLS = [
   { name:'codebase-design', origin:'disk', sides:['c','x'], desc:'Shared vocabulary for designing deep modules.' },
   { name:'diagnosing-bugs', origin:'disk', sides:['c','x'], desc:'Diagnosis loop for hard bugs and performance regressions.' },
   { name:'github-ops', origin:'disk', sides:['c','x'], desc:'Rules for ANY GitHub operation.' },
-  { name:'chrome-devtools-mcp:a11y-debugging', origin:'plugin', plugin:'chrome-devtools-mcp', sides:['c'], desc:'Accessibility debugging via Chrome DevTools MCP.(插件条目,无装卸)' },
-  { name:'chrome-devtools-mcp:troubleshooting', origin:'plugin', plugin:'chrome-devtools-mcp', sides:['c'], desc:'Troubleshoot MCP connection issues.(插件条目)' }
-]
-const SKILLS_DETAIL = [
-  { name:'github-ops', origin:'disk', level:'project', sides:['c'], desc:'(项目级安装,遮蔽全局)', shadows:true },
-  { name:'github-ops', origin:'disk', level:'global', sides:['c'], desc:'Rules for ANY GitHub operation.(被遮蔽)', shadowed:true },
-  { name:'codebase-design', origin:'disk', level:'global', sides:['c','x'], desc:'Shared vocabulary for designing deep modules.' },
-  { name:'superpowers:brainstorming', origin:'plugin', plugin:'superpowers', level:'plugin', sides:['c'], desc:'Explores intent before implementation.(本项目有效启用 → 出现)' },
-  { name:'superpowers:test-driven-development', origin:'plugin', plugin:'superpowers', level:'plugin', sides:['c'], desc:'Red before green.(插件条目)' },
-  { name:'chrome-devtools-mcp:a11y-debugging', origin:'plugin', plugin:'chrome-devtools-mcp', level:'plugin', sides:['c'], desc:'(user 层启用 → 详情页同样出现)' }
+  { name:'chrome-devtools-mcp:a11y-debugging', origin:'plugin', sides:['c'], desc:'Accessibility debugging via Chrome DevTools MCP.(插件条目,无装卸)' },
+  { name:'chrome-devtools-mcp:troubleshooting', origin:'plugin', sides:['c'], desc:'Troubleshoot MCP connection issues.(插件条目)' }
 ]
 
 /* ── 状态 ── */
-let PAGE = 'global'            // global | detail
 let TAB = 'subagents'          // subagents | memory | plugins | skills
 let CXMEM = 'on-has'           // 演示开关:Codex 记忆四种组合(实现由 config 开关 × 目录内容决定)
 function setCxmem(v){ CXMEM=v; render() }
-let EXP = new Set()            // Plugins 行展开集合
+let EXP = new Set()            // Plugins/Memory 行展开集合
 let SIDE = 'c'                 // 抽屉内双端切换
-let READER = null              // 抽屉上下文 {kind:'subagent'|'topic', i}
-function setPage(p){ PAGE=p; EXP.clear(); render() }
+let READER = null              // 抽屉上下文 {kind:'subagent'|'gmem', i, j}
 function setTab(t){ TAB=t; EXP.clear(); render() }
 
 /* ── 渲染 ── */
@@ -250,78 +211,49 @@ function sideB(sides){
   return (sides.includes('c')?'<span class="b c">CC</span>':'<span class="b miss">—</span>')
        + (sides.includes('x')?'<span class="b x">CX</span>':'<span class="b miss">—</span>')
 }
-function sideB1(side){ return side==='x'?'<span class="b x">CX</span>':'<span class="b c">CC</span>' }
 
 function renderHead(){
   const tabs = (list)=>list.map(([t,l,dim])=>`<span class="tab ${dim?'dim':TAB===t?'on':''}" ${dim?'':`onclick="setTab('${t}')"`}>${l}</span>`).join('')
-  if (PAGE==='global') {
-    $('head').innerHTML = `
-      <div class="h1">Agents</div>
-      <div class="stats">
-        <div class="stat"><div class="k"><span class="b c">CLAUDE CODE</span>已检测</div>
-          <div class="v">11.2M</div><div class="s">46 项目 · 26 全局 skills · 5 subagents</div></div>
-        <div class="stat"><div class="k"><span class="b x">CODEX</span>已检测</div>
-          <div class="v">4.8M</div><div class="s">18 项目 · 23 全局 skills · 4 subagents</div></div>
-      </div>
-      <div class="tabs">${tabs([['token','Token',1],['skills','Skills'],['subagents','Subagents'],['plugins','Plugins'],['mcp','MCP',1],['memory','Memory'],['cfg','配置',1]])}</div>`
-  } else {
-    $('head').innerHTML = `
-      <div class="h1">superpowers-demo <span class="b c">CLAUDE</span></div>
-      <div class="det-path">/Users/loong_zhou/CascadeProjects/superpowers-demo</div>
-      <div class="tabs">${tabs([['ov','概览',1],['skills','Skills'],['subagents','Subagents'],['plugins','Plugins'],['mcp','MCP',1],['memory','Memory'],['cfg','配置',1],['arts','产物',1]])}</div>`
-  }
-  $('riAgents').classList.toggle('on', PAGE==='global')
-  $('riProjects').classList.toggle('on', PAGE==='detail')
+  $('head').innerHTML = `
+    <div class="h1">Agents</div>
+    <div class="stats">
+      <div class="stat"><div class="k"><span class="b c">CLAUDE CODE</span>已检测</div>
+        <div class="v">11.2M</div><div class="s">46 项目 · 26 全局 skills · 5 subagents</div></div>
+      <div class="stat"><div class="k"><span class="b x">CODEX</span>已检测</div>
+        <div class="v">4.8M</div><div class="s">18 项目 · 23 全局 skills · 4 subagents</div></div>
+    </div>
+    <div class="tabs">${tabs([['token','Token',1],['skills','Skills'],['subagents','Subagents'],['plugins','Plugins'],['mcp','MCP',1],['memory','Memory'],['cfg','配置',1]])}</div>`
 }
 
 /* — 行构造 — */
 function subagentRows(){
-  const data = PAGE==='global' ? SUBAGENTS_GLOBAL : SUBAGENTS_DETAIL
-  return data.map((a,i)=>{
-    const badges = PAGE==='global' ? sideB(a.sides) : sideB1(a.side)
-    const lv = a.level ? (a.level==='project' ? pill('glb','项目级') : pill('ln','全局')) : ''
+  return SUBAGENTS.map((a,i)=>{
     const flags = [
       a.parseError ? pill('warn','解析失败') : '',
       a.unreadable ? pill('warn','不可读') : '',
-      a.overridesBuiltin ? pill('warn','覆盖内置') : '',
-      a.shadows ? pill('on','遮蔽同名') : '',
-      a.shadowed ? pill('off','被项目级遮蔽') : ''
+      a.overridesBuiltin ? pill('warn','覆盖内置') : ''
     ].join('')
     return { i, html:`<span class="nm" style="width:190px">${esc(a.name)}</span>
-      <span style="display:flex;gap:3px;width:46px;flex:none">${badges}</span>${lv}${flags}
+      <span style="display:flex;gap:3px;width:64px;flex:none">${sideB(a.sides)}</span>${flags}
       <span class="ds">${a.desc?esc(a.desc):'<i>(无 description)</i>'}</span>`, data:a }
   })
 }
 function memoryRows(){
-  return MEMORY_GLOBAL.map((m,i)=>({ i, data:m, html:`
+  return MEMORY.map((m,i)=>({ i, data:m, html:`
     <span class="nm" style="width:190px">${esc(m.proj)}</span>
     <span style="display:flex;gap:3px;flex:none">${m.codex?'<span class="b x">CX</span>':'<span class="b c">CC</span>'}</span>
     ${m.stale?pill('warn','失效'):''}${m.hidden?pill('off','已隐藏'):''}
     <span class="ds">${m.hasMain===null?'(全局记忆目录)':m.hasMain?'MEMORY.md':'无 MEMORY.md'} · ${m.topics} topic</span>
     <span class="src">${m.at}</span>` }))
 }
-function pluginRows(){
-  return PLUGINS.map((p,i)=>{
-    const en = PAGE==='global' ? p.enabled.global : p.enabled.detail
-    const why = PAGE==='global' ? (p.whyGlobal||p.why) : (p.whyDetail||p.why)
-    return { i, data:p, html:`
-      <span class="nm" style="width:270px">${esc(p.name)}</span>
-      <span class="src">v${p.ver}</span>
-      ${en?pill('on','启用'):pill('off','未启用')}
-      <span class="ds">${esc(why)}${p.installs.length>1?` · ${p.installs.length} 条安装记录`:''}</span>` }
-  })
-}
 function skillRows(){
-  const data = PAGE==='global' ? SKILLS_GLOBAL : SKILLS_DETAIL
-  // 全局页:仅插件条目带来源徽标(磁盘行以「安装到…」按钮自证全局库身份);
-  // 详情页:真实应用为分组结构(项目级/全局层/插件内含各一组),此处平铺示意,行内 pill 同真实分组行
-  return data.map((s,i)=>({ i, data:s, html:`
+  // 仅插件条目带来源徽标(磁盘行以「安装到…」按钮自证全局库身份)
+  return SKILLS.map((s)=>`<div class="it" onclick="void 0">
     <span class="nm" style="width:270px">${esc(s.name)}</span>
     <span style="display:flex;gap:3px;width:64px;flex:none">${sideB(s.sides)}</span>
-    ${s.origin==='plugin'?pill('plg','插件'):PAGE==='detail'?(s.level==='project'?pill('glb','项目级'):pill('ln','全局')):''}
-    ${s.shadows?pill('on','遮蔽全局'):''}${s.shadowed?pill('off','被项目级遮蔽'):''}
+    ${s.origin==='plugin'?pill('plg','插件'):''}
     <span class="ds">${esc(s.desc)}</span>
-    ${s.origin!=='plugin'?'<span class="btn" onclick="event.stopPropagation()">安装到…</span>':''}` }))
+    ${s.origin!=='plugin'?'<span class="btn" onclick="event.stopPropagation()">安装到…</span>':''}</div>`).join('')
 }
 
 /* — 抽屉内容 — */
@@ -330,14 +262,6 @@ function subagentDetailHtml(a){
     <div class="none">文件无法解析(损坏或语法错误);Codex 本身也不会加载它。其余条目不受影响。</div>`
   if (a.unreadable) return `<h2>${esc(a.name)}</h2><div class="meta">文件不可读(权限或 IO 异常)</div>
     <div class="none">条目保留不静默消失——静默消失会污染同名条目的遮蔽判定(A8)。</div>`
-  if (!a.cl && !a.cx) { // 详情页条目形态:单侧 + level + body
-    return `<h2>${esc(a.name)}</h2><div class="meta">${a.desc?esc(a.desc):''}</div>
-      <div class="kv"><span class="k2">来源</span><span>${a.level==='project'?'项目级':'全局'} · ${a.side==='x'?'Codex':'Claude'}</span>
-      ${a.overridesBuiltin?'<span class="k2">覆盖内置</span><span>是(default/worker/explorer 之一被替换)</span>':''}
-      ${a.shadows?'<span class="k2">遮蔽</span><span>压过同名低层定义</span>':''}
-      ${a.shadowed?'<span class="k2">被遮蔽</span><span>同名项目级定义生效</span>':''}</div>
-      <div class="mdv">${esc(a.body)}</div>`
-  }
   const both = a.cl && a.cx
   const seg = both ? `<span class="sideseg"><span class="${SIDE==='c'?'on':''}" onclick="setSide('c')">Claude(.md)</span><span class="${SIDE==='x'?'on':''}" onclick="setSide('x')">Codex(.toml)</span></span>` : ''
   const cur = both ? (SIDE==='c'?a.cl:a.cx) : (a.cl||a.cx)
@@ -358,100 +282,78 @@ function pluginDetailHtml(p){
     ${sect('内含 MCP servers',p.contents.mcp)}
     ${!p.contents.skills.length&&!p.contents.agents.length&&!p.contents.hooks.length&&!p.contents.mcp.length?'<div class="none">四类均无</div>':''}`
 }
-function topicDetailHtml(t){
-  return `<h2>${esc(t.f)}</h2><div class="meta">topic 文件 · ${t.at}</div><div class="mdv">${esc(t.body)}</div>`
-}
 
 /* — tab 主体 — */
 function renderBody(){
-  let rows, note='', onRow
-  if (TAB==='subagents'){ rows=subagentRows(); onRow=(i)=>`openReader('subagent',${i})`
-    note = PAGE==='global'?'双端合并单列 · 同名一行(不做 diff) · 点条目开抽屉看完整定义':'生效视图 · Claude/Codex 均为项目级遮蔽(subagents 语义,与 skills 的 Codex 共存不同)' }
   if (TAB==='plugins'){ renderPlugins(); return }
-  if (TAB==='skills'){ rows=skillRows(); onRow=()=>'void 0'
-    note = '更名「Skills」· 来源徽标:全局库 / 项目级 / 插件(命名空间,只读无装卸)' }
   if (TAB==='memory'){ renderMemory(); return }
-
-  const listHtml = rows.map(r=>{
-    let expHtml = ''
-    if (TAB==='plugins' && EXP.has(r.i)) expHtml = `<div class="exp">${pluginDetailHtml(r.data)}</div>`
-    return `<div class="it" onclick="${onRow(r.i)}">${r.html}</div>${expHtml}`
-  }).join('')
-  $('tabBody').innerHTML = `<div class="grp-t">${note}</div><div class="card">${listHtml}</div>`
+  if (TAB==='skills'){
+    $('tabBody').innerHTML = `<div class="grp-t">更名「Skills」· 来源徽标:插件条目(命名空间,只读无装卸)</div>
+      <div class="card">${skillRows()}</div>`
+    return
+  }
+  const listHtml = subagentRows().map(r=>`<div class="it" onclick="openReader('subagent',${r.i})">${r.html}</div>`).join('')
+  $('tabBody').innerHTML = `<div class="grp-t">双端合并单列 · 同名一行(不做 diff) · 点条目开抽屉看完整定义</div>
+    <div class="card">${listHtml}</div>`
 }
 
 function renderPlugins(){
-  const note = PAGE==='global'
-    ? '按侧分组 · Claude 组:user 层启用口径,逐条安装记录不合并,点条目展开内含组件'
-    : '按侧分组 · Claude 组:本项目有效启用集(local > project > user)'
-  const clHtml = pluginRows().map(r=>{
-    const expHtml = EXP.has(r.i) ? `<div class="exp">${pluginDetailHtml(r.data)}</div>` : ''
-    return `<div class="it" onclick="toggleExp(${r.i})">${r.html}</div>${expHtml}`
+  const clHtml = PLUGINS.map((p,i)=>{
+    const expHtml = EXP.has(i) ? `<div class="exp">${pluginDetailHtml(p)}</div>` : ''
+    return `<div class="it" onclick="toggleExp(${i})">
+      <span class="nm" style="width:270px">${esc(p.name)}</span>
+      <span class="src">v${p.ver}</span>
+      ${p.enabled?pill('on','已启用'):pill('off','未启用')}
+      <span class="ds">${esc(p.why)}</span></div>${expHtml}`
   }).join('')
   const cxHtml = PLUGINS_CODEX.map(p=>`<div class="it" style="cursor:default">
     <span class="nm" style="width:270px">${esc(p.name)}@${esc(p.mkt)}</span>
     <span class="src">v${p.ver}${p.versions>1?` (${p.versions} 个版本缓存)`:''}</span>
     <span class="ds">仅缓存枚举</span></div>`).join('')
-  $('tabBody').innerHTML = `<div class="grp-t">${note}</div>
+  $('tabBody').innerHTML = `<div class="grp-t">按侧分组 · Claude 组:user 层启用口径,逐条安装记录不合并,点条目展开内含组件</div>
     <div class="grp-t"><span class="b c">CLAUDE CODE</span></div>
     <div class="card">${clHtml}</div>
     ${PLUGINS_CODEX.length ? `<div class="grp-t"><span class="b x">CODEX</span>(目录非空才显示本组)</div>
     <div class="card">${cxHtml}</div>
-    <div class="note">Codex 组仅列缓存中存在的插件(名称/marketplace/版本);启用态与内含组件语义本期不建模${PAGE==='detail'?';Codex 插件为全局生效,无项目级启用语义':''}。</div>` : ''}`
+    <div class="note">Codex 组仅列缓存中存在的插件(名称/marketplace/版本);启用态与内含组件语义本期不建模。</div>` : ''}`
 }
 
 function renderMemory(){
-  if (PAGE==='global'){
-    // 演示开关:Codex 行是否入列由「有无内容」决定;附注由「开关 × 内容」四种组合决定(同实现)
-    const showCxRow = CXMEM==='on-has' || CXMEM==='off-has'
-    const rows = memoryRows().filter(r=>!r.data.codex || showCxRow)
-    const listHtml = rows.map(r=>{
-      const expHtml = EXP.has(r.i) ? `<div class="exp">${r.data.files.map((t,j)=>
-        `<div class="it" style="padding:6px 0" onclick="openReader('gmem',${r.i},${j})">
-           <span class="nm" style="flex:1">${esc(t.f)}</span><span class="src">${t.at}</span></div>`).join('')}</div>` : ''
-      return `<div class="it" onclick="toggleExp(${r.i})">${r.html}</div>${expHtml}`
-    }).join('')
-    const cxNote =
-      CXMEM==='on-has' ? '' :
-      CXMEM==='off-has' ? `<div class="note">Codex 记忆功能当前未开启,上方为目录中的遗留文件。</div>` :
-      CXMEM==='on-empty' ? `<div class="note">Codex 记忆已开启,暂无内容。</div>` :
-      `<div class="note">Codex 记忆功能未开启——可在 Codex 内用 /memories 命令,或「设置 → 个性化 → Enable memories」开启(实验性)。</div>`
-    $('tabBody').innerHTML = `<div class="grp-t">按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件开抽屉</div>
-      <div class="card">${listHtml}</div>
-      ${cxNote}
-      <div class="note">Codex 记忆四种组合经底部悬浮演示条切换(原型基建,非功能):真实判定 = config.toml features.memories × 目录内容,app 内无此开关。文件内容按需读取,不进快照。</div>`
-    return
-  }
-  const topics = MEMORY_DETAIL.topics.map((t,i)=>
-    `<div class="it" onclick="openReader('topic',${i})"><span class="nm" style="flex:1">${esc(t.f)}</span><span class="src">${t.at}</span></div>`).join('')
-  $('tabBody').innerHTML = `<div class="grp-t">MEMORY.md(自动记忆主文件,直接渲染——同配置 tab 模式)</div>
-    <div class="md">${MEMORY_DETAIL.main}</div>
-    <div class="grp-t">Topic 文件(${MEMORY_DETAIL.topics.length}) · 点击开抽屉查看</div>
-    <div class="card">${topics}</div>`
+  // 演示开关:Codex 行是否入列由「有无内容」决定;附注由「开关 × 内容」四种组合决定(同实现)
+  const showCxRow = CXMEM==='on-has' || CXMEM==='off-has'
+  const rows = memoryRows().filter(r=>!r.data.codex || showCxRow)
+  const listHtml = rows.map(r=>{
+    const expHtml = EXP.has(r.i) ? `<div class="exp">${r.data.files.map((t,j)=>
+      `<div class="it" style="padding:6px 0" onclick="openReader('gmem',${r.i},${j})">
+         <span class="nm" style="flex:1">${esc(t.f)}</span><span class="src">${t.at}</span></div>`).join('')}</div>` : ''
+    return `<div class="it" onclick="toggleExp(${r.i})">${r.html}</div>${expHtml}`
+  }).join('')
+  const cxNote =
+    CXMEM==='on-has' ? '' :
+    CXMEM==='off-has' ? `<div class="note">Codex 记忆功能当前未开启,上方为目录中的遗留文件。</div>` :
+    CXMEM==='on-empty' ? `<div class="note">Codex 记忆已开启,暂无内容。</div>` :
+    `<div class="note">Codex 记忆功能未开启——可在 Codex 内用 /memories 命令,或「设置 → 个性化 → Enable memories」开启(实验性)。</div>`
+  $('tabBody').innerHTML = `<div class="grp-t">按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件开抽屉</div>
+    <div class="card">${listHtml}</div>
+    ${cxNote}
+    <div class="note">Codex 记忆四种组合经底部悬浮演示条切换(原型基建,非功能):真实判定 = config.toml features.memories × 目录内容,app 内无此开关。文件内容按需读取,不进快照。</div>`
 }
 
-/* — Plugins 展开 — */
+/* — Plugins/Memory 展开 — */
 function toggleExp(i){ EXP.has(i)?EXP.delete(i):EXP.add(i); render() }
 
 /* — reader 抽屉(点行直开;双端切换在抽屉内原地刷新) — */
 function readerHtml(){
   if (!READER) return ''
-  if (READER.kind==='subagent'){
-    const a = (PAGE==='global'?SUBAGENTS_GLOBAL:SUBAGENTS_DETAIL)[READER.i]
-    return subagentDetailHtml(a)
-  }
-  if (READER.kind==='gmem'){
-    const m = MEMORY_GLOBAL[READER.i], t = m.files[READER.j]
-    return `<h2>${esc(t.f)}</h2><div class="meta">${esc(m.proj)} · ${esc(m.path)}/memory · ${t.at}</div>
-      <div class="mdv">${esc(t.body)}</div>`
-  }
-  return topicDetailHtml(MEMORY_DETAIL.topics[READER.i])
+  if (READER.kind==='subagent') return subagentDetailHtml(SUBAGENTS[READER.i])
+  const m = MEMORY[READER.i], t = m.files[READER.j]
+  return `<h2>${esc(t.f)}</h2><div class="meta">${esc(m.proj)} · ${esc(m.path)}/memory · ${t.at}</div>
+    <div class="mdv">${esc(t.body)}</div>`
 }
 function openReader(kind, i, j){
   closeReader()
   READER = { kind, i, j }
-  if (kind==='subagent'){ const a=(PAGE==='global'?SUBAGENTS_GLOBAL:SUBAGENTS_DETAIL)[i]
-    SIDE = a && a.cl ? 'c' : 'x' }
+  if (kind==='subagent'){ const a=SUBAGENTS[i]; SIDE = a && a.cl ? 'c' : 'x' }
   const mask=document.createElement('div'); mask.className='mask'; mask.id='mask'; mask.onclick=closeReader
   const panel=document.createElement('div'); panel.className='reader'; panel.id='reader'; panel.innerHTML=readerHtml()
   document.body.appendChild(mask); document.body.appendChild(panel)
@@ -460,14 +362,13 @@ function setSide(s){ SIDE=s; const panel=$('reader'); if (panel) panel.innerHTML
 function closeReader(){ ['mask','reader'].forEach(id=>{ const el=$(id); if(el) el.remove() }); READER=null }
 
 /**
- * 演示基建悬浮层:仅体现当前功能模块的切换(2026-08-01 用户裁定,页切换组已移除)。
- * 当前唯一开关组 = Codex 记忆四态(仅全局页 Memory 分栏);无开关组时整条隐藏。
- * 详情页形态无 UI 入口,需要时控制台 setPage('detail') 可达。
+ * 演示基建悬浮层:仅体现当前功能模块的切换(2026-08-01 用户裁定)。
+ * 当前唯一开关组 = Codex 记忆四态(仅 Memory 分栏);无开关组时整条隐藏。
  */
 function renderHarness(){
   const cseg = (v,label)=>`<span data-v class="${CXMEM===v?'on':''}" onclick="setCxmem('${v}')">${label}</span>`
   const el = $('harness')
-  if (PAGE==='global' && TAB==='memory') {
+  if (TAB==='memory') {
     el.style.display = ''
     el.innerHTML = `<span class="dl">演示·Codex 记忆</span>${cseg('on-has','开·有内容')}${cseg('on-empty','开·无内容')}${cseg('off-empty','关·无内容')}${cseg('off-has','关·遗留文件')}`
   } else {
