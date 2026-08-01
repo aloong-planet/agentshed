@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { MemoryFileMeta, MemorySummaryEntry, ProjectDetail, Snapshot } from '@shared/domain'
 import { renderMarkdown } from './md'
+import { dirOf, handleMdClick } from './md-links'
+import { toast } from './Toast'
 import { fmtAgo } from './ProjectsPane'
 
 /** C6 三态:未开启 → 开启提示;开启无内容 → 暂无内容;有内容 → 条目行(在列表中) */
@@ -108,6 +110,8 @@ export function ProjectMemoryTab({
     () => (detail.memory.main === null ? null : renderMarkdown(detail.memory.main)),
     [detail]
   )
+  // 主文件与 topic 同目录;topic 路径即该目录下的可读清单
+  const mainDir = detail.memory.topics[0] ? dirOf(detail.memory.topics[0].file) : ''
   if (detail.memory.main === null && detail.memory.topics.length === 0) {
     return (
       <div className="none">
@@ -123,7 +127,23 @@ export function ProjectMemoryTab({
       {html === null ? (
         <div className="none">无 MEMORY.md(仅 topic 文件)</div>
       ) : (
-        <div className="md" dangerouslySetInnerHTML={{ __html: html }} />
+        <div
+          className="md"
+          onClick={(e) =>
+            handleMdClick(
+              e,
+              { baseDir: mainDir, readable: detail.memory.topics.map((t) => t.file) },
+              {
+                internal: (file) => {
+                  const t = detail.memory.topics.find((x) => x.file === file)
+                  if (t) setOpen(t)
+                },
+                unresolved: (reason) => toast('err', reason)
+              }
+            )
+          }
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
       )}
       <div className="grp-t">Topic 文件({detail.memory.topics.length}) · 点击查看</div>
       {detail.memory.topics.length === 0 ? (

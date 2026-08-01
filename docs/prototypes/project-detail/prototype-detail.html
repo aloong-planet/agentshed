@@ -261,12 +261,17 @@
       </div>
       <div data-p="memory" style="display:none">
         <div class="grp-t">MEMORY.md(自动记忆主文件,直接渲染——同配置 tab 模式)</div>
-        <div class="md">
-          <h3>MEMORY</h3>
-          <p>· 用户偏好 pnpm;dev 模式勿重启(热重载)。<br>
-          · 验证网关:<code>pnpm verify</code> = typecheck + 单测 + e2e + 冒烟。<br>
-          · IPC 契约单一出处 shared/domain.ts,validate.ts 必须同步扩展。</p>
+        <!-- 真实形态:主文件是索引,条目为指向同目录 topic 的相对链接 -->
+        <div class="md" id="memmain">
+          <h3>Memory Index</h3>
+          <ul>
+            <li><a href="pr-merge-needs-confirmation.md">开 PR 后等确认才合并</a> — 开 PR 不构成合并授权</li>
+            <li><a href="shell-snapshot-vars-gotcha.md">shell snapshot 环境变量坑</a> — 快照不带自定义变量</li>
+            <li><a href="missing-file.md">已删除的条目</a> — 目标不在可读范围的形态</li>
+            <li><a href="https://code.claude.com/docs">外部文档</a> — 外链交系统浏览器</li>
+          </ul>
         </div>
+        <div class="note">主文件里的相对链接指向同目录 topic 文件:点击在 app 内打开抽屉(不导航整窗);目标不存在时提示"目标不在可读范围";外部链接交系统浏览器。</div>
         <div class="grp-t">Topic 文件(2) · 点击开抽屉查看</div>
         <div class="card">
           <div class="it row-btn" data-mt="0"><span class="nm" style="flex:1">pr-merge-needs-confirmation.md</span>
@@ -426,7 +431,19 @@
   function closeDrawer(){ dmask.style.display='none'; drawer.style.display='none' }
   dmask.onclick=closeDrawer;
   addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
+  // 渲染出的 markdown 链接:一律拦截,不让整窗导航(app state 会全丢)
   document.querySelector('.body').addEventListener('click',e=>{
+    const a=e.target.closest('.md a[href]');
+    if(a){ e.preventDefault();
+      const href=a.getAttribute('href');
+      if(/^https?:/.test(href)){ openDrawer(`<h2>外部链接</h2><div class="meta">${href}</div>
+        <div class="none">交系统浏览器打开(app 不导航)。</div>`); return }
+      const i=MTOPICS.findIndex(t=>t.f===href);
+      if(i<0){ openDrawer(`<h2>${href}</h2><div class="meta">相对链接</div>
+        <div class="none">目标不在可读范围(文件不存在或未列入本项目产物/记忆)。</div>`); return }
+      const t=MTOPICS[i];
+      openDrawer(`<h2>${t.f}</h2><div class="meta">topic 文件 · ${t.at} · 经主文件链接打开</div><div class="raw">${t.body}</div>`);
+      return }
     const sa=e.target.closest('[data-sa]');
     if(sa){ const a=SUBAGENTS[+sa.dataset.sa];
       openDrawer(`<h2>${a.n}</h2><div class="meta">${a.lv}${a.fl?' · '+a.fl:''}</div>

@@ -5,6 +5,7 @@ import { ARTIFACT_ORDER, emptyTokenStats } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
 import { ProjectSubagentsTab } from './SubagentsView'
 import { ProjectMemoryTab } from './MemoryView'
+import { dirOf, handleMdClick } from './md-links'
 import { ProjectPluginsTab } from './PluginsView'
 import { fmtAgo } from './ProjectsPane'
 import { toast } from './Toast'
@@ -313,7 +314,27 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
           <div className="reader">
             <h2>{reader.item.title}</h2>
             <div className="meta mono">{reader.item.file}</div>
-            <div className="md" dangerouslySetInnerHTML={{ __html: reader.html }} />
+            <div
+              className="md"
+              onClick={(e) =>
+                handleMdClick(
+                  e,
+                  {
+                    baseDir: dirOf(reader.item.file),
+                    readable: detail.artifacts.map((a) => a.file)
+                  },
+                  {
+                    // 产物间交叉引用(如 spec ↔ features)在阅读器内跳转,不导航整窗
+                    internal: (file) => {
+                      const a = detail.artifacts.find((x) => x.file === file)
+                      if (a) void open(a)
+                    },
+                    unresolved: (reason) => toast('err', reason)
+                  }
+                )
+              }
+              dangerouslySetInnerHTML={{ __html: reader.html }}
+            />
           </div>
         </>
       )}

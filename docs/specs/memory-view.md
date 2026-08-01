@@ -41,6 +41,7 @@ agent 会自动积累跨会话记忆并影响后续行为,但内容藏在编码�
 - D3 subagent 级 memory(`agents/<name>/memory/`)不读取(Out of Scope,分栏不显示)。
 - D4 纯 Codex 侧项目 → 空态并说明「Memory 为 Claude 侧机制」(Codex 记忆是全局的,不入项目详情)。
 - D5 memory 目录下的子目录不当作文件列出(只读顶层 .md)。
+- D6 主文件里的**相对链接**(索引指向同目录 topic)点击后:目标在可读清单内 → app 内开抽屉;不在 → 明确提示"目标不在可读范围";**任何情况都不得让整窗导航**——渲染出的链接若放行默认行为会丢光 app state(2026-08-02 bug)。外部 http(s) 链接交系统浏览器。
 
 **跨切面回归点**
 - R1 IPC 契约(validate)必须与领域类型的新字段同步扩展(cache-crash 复盘同款教训)。

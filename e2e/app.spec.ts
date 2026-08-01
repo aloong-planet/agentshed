@@ -269,7 +269,10 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
   // demo 项目的 memory
   const enc = demo.replace(/[^A-Za-z0-9]/g, '-')
   mkdirSync(join(home, '.claude', 'projects', enc, 'memory'), { recursive: true })
-  writeFileSync(join(home, '.claude', 'projects', enc, 'memory', 'MEMORY.md'), '# 记忆主文件\n- 要点甲')
+  writeFileSync(
+    join(home, '.claude', 'projects', enc, 'memory', 'MEMORY.md'),
+    '# 记忆主文件\n- 要点甲\n- [踩坑](pitfalls.md) 有效相对链接\n- [已删条目](gone.md) 失效目标\n'
+  )
   writeFileSync(join(home, '.claude', 'projects', enc, 'memory', 'pitfalls.md'), '# 踩坑\n独特内容乙')
 
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
@@ -326,6 +329,17 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
   // ⑤ 详情 Memory:MEMORY.md 主体直接渲染
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
   await expect(win.locator('.pane-body .md')).toContainText('要点甲')
+
+  // ⑥ 主文件里的相对链接:点击**不得导航整窗**(2026-08-02 bug 回归点),
+  //    有效目标在 app 内开抽屉;失效目标提示且仍不导航。
+  const urlBefore = win.url()
+  await win.locator('.pane-body .md a', { hasText: '踩坑' }).click()
+  await expect(win.locator('.drawer .raw')).toContainText('独特内容乙')
+  expect(win.url()).toBe(urlBefore)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await win.locator('.pane-body .md a', { hasText: '已删' }).click()
+  await expect(win.locator('.toast')).toBeVisible()
+  expect(win.url()).toBe(urlBefore)
 
   expect(errors).toEqual([])
   await app.close()

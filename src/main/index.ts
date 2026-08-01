@@ -147,6 +147,22 @@ function createWindow(): void {
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+  // 导航兜底(2026-08-02):渲染出的文档链接若放行,整窗会导航走——dev 下 vite 回落
+  // index.html 表现为"退回主页",打包版留白屏,两者都丢光 app state。此处一律拦截,
+  // 只放行 app 自身的载入地址;http(s) 交系统浏览器。这层挡住所有渲染点(含未来新增的)。
+  const isAppUrl = (url: string): boolean => {
+    const base = process.env['ELECTRON_RENDERER_URL']
+    return base ? url.startsWith(base) : url.startsWith('file://')
+  }
+  mainWindow.webContents.on('will-navigate', (e, url) => {
+    if (isAppUrl(url)) return
+    e.preventDefault()
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
+  })
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
+    return { action: 'deny' } // 一律不开新窗口
+  })
   if (process.env['ELECTRON_RENDERER_URL']) {
     void mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
