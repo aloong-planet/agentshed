@@ -57,7 +57,7 @@ export function ProjectSubagentsTab({ detail }: { detail: ProjectDetail }): JSX.
             <span className={`pill ${s.level === 'project' ? 'prj' : 'glb'}`}>
               {s.level === 'project' ? '项目级' : '全局'}
             </span>
-            {s.detail.error && <span className="pill warn">解析失败</span>}
+            {s.detail.error && <span className="pill warn">{errLabel(s.detail.error)}</span>}
             {s.overridesBuiltin && <span className="pill warn">覆盖内置</span>}
             {s.shadows && <span className="pill shadow">遮蔽同名</span>}
             {s.shadowed && <span className="pill shadow">被项目级遮蔽</span>}
@@ -87,10 +87,15 @@ function toDrawerEntry(p: ProjectSubagentEntry): SubagentEntry {
   }
 }
 
+export function errLabel(error: string | null | undefined): string {
+  return error?.includes('不可读') ? '不可读' : '解析失败'
+}
+
 export function SubagentFlags({ s }: { s: { overridesBuiltin?: boolean; claude?: SubagentSideDetail | null; codex?: SubagentSideDetail | null } }): JSX.Element {
+  const err = s.claude?.error ?? s.codex?.error
   return (
     <>
-      {(s.claude?.error || s.codex?.error) && <span className="pill warn">解析失败</span>}
+      {err && <span className="pill warn">{errLabel(err)}</span>}
       {s.overridesBuiltin && <span className="pill warn">覆盖内置</span>}
     </>
   )

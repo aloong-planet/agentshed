@@ -24,11 +24,23 @@ function listFiles(dir: string, ext: string): string[] {
   }
 }
 
+/** 文件在列表里但读不出内容(权限等)→ 保留条目并标注:静默消失会污染同名遮蔽判定(A8) */
+const UNREADABLE: Omit<SubagentSideDetail, 'content'> = {
+  description: null,
+  tools: null,
+  model: null,
+  sandbox: null,
+  error: '文件不可读(权限或 IO 异常)'
+}
+
 function readClaudeSide(dir: string): Map<string, SubagentSideDetail> {
   const out = new Map<string, SubagentSideDetail>()
   for (const f of listFiles(dir, '.md')) {
     const content = readTextCapped(join(dir, f))
-    if (content === null) continue
+    if (content === null) {
+      out.set(basename(f, '.md'), { content: null, ...UNREADABLE })
+      continue
+    }
     out.set(basename(f, '.md'), {
       content,
       description: fmField(content, 'description'),
@@ -45,7 +57,11 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
   const out = new Map<string, SubagentSideDetail>()
   for (const f of listFiles(dir, '.toml')) {
     const content = readTextCapped(join(dir, f))
-    if (content === null) continue
+    if (content === null) {
+      // 名不可知(文件读不了),以文件名占位;无法参与按 name 的遮蔽判定,但不静默消失
+      out.set(`(${f})`, { content: null, ...UNREADABLE })
+      continue
+    }
     let parsed: Record<string, unknown>
     try {
       parsed = parseToml(content)

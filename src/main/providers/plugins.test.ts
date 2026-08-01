@@ -296,6 +296,22 @@ describe('G 系列:插件内含 skills 并入 Skills 生效视图', () => {
 })
 
 describe('E8 Codex 插件缓存枚举', () => {
+  it('E10 单个 marketplace 目录不可读 → 跳过该目录,其余 marketplace 照常枚举(不整组清空)', async () => {
+    // chmod 000 在 root 下不拦截读取,该环境显式 skip 不造假绿
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return
+    const cache = join(dir, '.codex', 'plugins', 'cache')
+    mkdirSync(join(cache, 'good', 'ok-plugin', '1.0.0'), { recursive: true })
+    mkdirSync(join(cache, 'broken', 'x', '1.0.0'), { recursive: true })
+    const { chmodSync } = await import('node:fs')
+    chmodSync(join(cache, 'broken'), 0o000)
+    try {
+      const snap = await scan(roots(), { now: () => 1 })
+      expect(snap.global.codexPlugins.map((p) => p.name)).toContain('ok-plugin')
+    } finally {
+      chmodSync(join(cache, 'broken'), 0o755) // 恢复,免得 afterEach 清理失败
+    }
+  })
+
   it('三层目录枚举;多版本取最高并计数;缓存根缺失/空 → 空数组', async () => {
     let snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.codexPlugins).toEqual([])

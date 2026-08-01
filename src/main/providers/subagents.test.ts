@@ -1,8 +1,8 @@
 // Subagents 全局分栏(spec: subagents-memory-plugin 序列 A):
 // 双端合并单列;键语义 Claude=文件名、Codex=toml name 字段;解析失败降级不崩。
-// 已知缺口:①A7 恶意内容消毒由既有 md.test.ts(renderMarkdown/DOMPurify)与
-//   React 文本节点转义覆盖,此处不重复;②文件存在但不可读(权限)当前静默跳过
-//   (review-code 记录项 #6),补测条件:chmod 000 fixture(平台敏感,root 下需 skip)。
+// 已知缺口:A7 恶意内容消毒由既有 md.test.ts(renderMarkdown/DOMPurify)与
+//   React 文本节点转义覆盖,此处不重复。
+// 不可读文件(A8)用 chmod 000 fixture 覆盖:root 下 chmod 不拦截读取,显式跳过。
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -121,6 +121,41 @@ describe('全局 subagents', () => {
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.subagents.find((s) => s.name === 'explorer')?.overridesBuiltin).toBe(true)
     expect(snap.global.subagents.find((s) => s.name === 'other')?.overridesBuiltin).toBe(false)
+  })
+
+  it('A8 文件存在但不可读 → 条目保留并标"不可读",不静默消失', async () => {
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return // root 下 chmod 不拦截
+    mkClaudeAgent('locked', `---\ndescription: d\n---\nbody`)
+    const { chmodSync } = await import('node:fs')
+    const f = join(dir, '.claude', 'agents', 'locked.md')
+    chmodSync(f, 0o000)
+    try {
+      const snap = await scan(roots(), { now: () => 1 })
+      const s = snap.global.subagents.find((x) => x.name === 'locked')
+      expect(s?.claude?.error).toMatch(/不可读/)
+    } finally {
+      chmodSync(f, 0o644)
+    }
+  })
+
+  it('A8 项目级文件不可读时仍参与遮蔽判定(不因静默消失而误标全局条目生效)', async () => {
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return
+    mkClaudeAgent('code-reviewer', CL_MD)
+    const proj = join(dir, 'shadow-proj')
+    mkdirSync(join(proj, '.claude', 'agents'), { recursive: true })
+    const pf = join(proj, '.claude', 'agents', 'code-reviewer.md')
+    writeFileSync(pf, `---\ndescription: 项目版\n---\nx`)
+    const { chmodSync } = await import('node:fs')
+    chmodSync(pf, 0o000)
+    try {
+      const detail = readProjectDetail(roots(), proj)
+      const globalEntry = detail.subagents.find(
+        (s) => s.name === 'code-reviewer' && s.level === 'global' && s.side === 'claude'
+      )
+      expect(globalEntry?.shadowed).toBe(true)
+    } finally {
+      chmodSync(pf, 0o644)
+    }
   })
 
   it('A1 两侧 agents 目录均缺失 → 空数组不崩', async () => {

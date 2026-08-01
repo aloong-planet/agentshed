@@ -2,7 +2,7 @@
 // 安装记录来自 installed_plugins.json(全量保留,E1);
 // 启用态分层:全局页取 user 层(E4),项目视角按 local > project > user 合并(F1),
 // 某层文件缺失/损坏即跳过该层降级(F2)。
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, type Dirent } from 'node:fs'
 import { basename, join, resolve, sep } from 'node:path'
 import type {
   CodexPluginEntry,
@@ -177,30 +177,35 @@ export function readPluginContents(installPath: string | null): PluginContents {
 
 // ── Codex 插件缓存枚举(E8:仅列存在,启用态/展开不建模) ──
 
+/** 单层安全枚举:该层不可读只影响该层,不向同层其他条目逃逸(E10) */
+function safeDirents(dir: string): Dirent[] {
+  try {
+    return readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+}
+
 export function readCodexPlugins(codexHome: string): CodexPluginEntry[] {
   const cache = join(codexHome, 'plugins', 'cache')
   if (!existsSync(cache)) return []
   const out: CodexPluginEntry[] = []
-  try {
-    for (const mkt of readdirSync(cache, { withFileTypes: true })) {
-      if (!mkt.isDirectory()) continue
-      for (const plug of readdirSync(join(cache, mkt.name), { withFileTypes: true })) {
-        if (!plug.isDirectory()) continue
-        const versions = readdirSync(join(cache, mkt.name, plug.name), { withFileTypes: true })
-          .filter((v) => v.isDirectory())
-          .map((v) => v.name)
-          .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
-        if (versions.length === 0) continue
-        out.push({
-          name: plug.name,
-          marketplace: mkt.name,
-          version: versions[0],
-          cachedVersions: versions.length
-        })
-      }
+  for (const mkt of safeDirents(cache)) {
+    if (!mkt.isDirectory()) continue
+    for (const plug of safeDirents(join(cache, mkt.name))) {
+      if (!plug.isDirectory()) continue
+      const versions = safeDirents(join(cache, mkt.name, plug.name))
+        .filter((v) => v.isDirectory())
+        .map((v) => v.name)
+        .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+      if (versions.length === 0) continue
+      out.push({
+        name: plug.name,
+        marketplace: mkt.name,
+        version: versions[0],
+        cachedVersions: versions.length
+      })
     }
-  } catch {
-    return []
   }
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }
