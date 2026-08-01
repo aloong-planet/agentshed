@@ -1,6 +1,6 @@
 // Subagents 分栏(spec: subagents-memory-plugin):全局 tab + 定义抽屉。
 // 承载结构按原型裁决:点行直开抽屉;双端切换在抽屉内原地刷新,不关闭抽屉。
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type {
   AgentSide,
   ProjectDetail,
@@ -115,6 +115,14 @@ export function SubagentDrawer({
   const both = entry.claude !== null && entry.codex !== null
   const [side, setSide] = useState<AgentSide>(entry.claude ? 'claude' : 'codex')
   const cur = side === 'claude' ? entry.claude : entry.codex
+  useEffect(() => {
+    // 原型确认交互:Esc 与遮罩点击等价关闭
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
   return (
     <>
       <div className="mask" onClick={onClose} />

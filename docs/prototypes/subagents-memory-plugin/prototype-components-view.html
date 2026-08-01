@@ -10,6 +10,10 @@
        Codex 组探测式(缓存目录非空才显示),仅列存在,启用态/展开不建模。
      裁决补充(2026-08-01 二):全局 Memory 行不跳详情页——行内展开文件列表
        (MEMORY.md+topic),点文件开抽屉看内容;内容按需读取不进快照。
+     实现对齐(2026-08-01 三,防腐烂同步):徽标改 app 约定 CC/CX+缺失虚线;
+       新增「不可读」降级态(A8)与安装记录「项目已失联」(E2);Plugins 行次级
+       文案改逐条安装记录;Skills 全局页仅插件条目带来源徽标、按钮沿用
+       「安装到…」;详情 Skills 真实应用为分组结构(此处平铺示意);抽屉 Esc 关闭。
      覆盖的界面点:全局页 Subagents/Memory 分栏、详情页 Subagents/Memory 分栏、
        Plugins 行展开与 scope 标注(两页)、Skills 更名+来源徽标(两页)。
      mock 刻意覆盖:双端同名合并、单侧条目、toml 解析失败、覆盖内置、
@@ -134,7 +138,8 @@ const SUBAGENTS_GLOBAL = [
     cl:{tools:'Read, Write, Grep', model:'claude-haiku-4-5', body:'You write clear, concise technical documentation…(mock 略)'}, cx:null },
   { name:'explorer', sides:['x'], overridesBuiltin:true, desc:'自定义 explorer:偏保守的只读探索。(覆盖内置示例)',
     cl:null, cx:{model:'—', sandbox:'read-only', body:'Explore the repository conservatively…(mock 略)'} },
-  { name:'(broken.toml)', sides:['x'], parseError:true, desc:null, cl:null, cx:null }
+  { name:'(broken.toml)', sides:['x'], parseError:true, desc:null, cl:null, cx:null },
+  { name:'locked', sides:['c'], unreadable:true, desc:null, cl:null, cx:null } // A8:文件存在但不可读
 ]
 const SUBAGENTS_DETAIL = [
   { name:'code-reviewer', side:'c', level:'project', shadows:true, desc:'(项目级定制版)只审 src/ 与 tests/,输出中文。',
@@ -168,25 +173,28 @@ const MEMORY_DETAIL = {
   main:'<h3>MEMORY.md</h3><ul><li>用户偏好 pnpm;dev 模式勿重启(热重载)。</li><li>验证网关:<code>pnpm verify</code> = typecheck + 单测 + e2e + 冒烟。</li><li>IPC 契约单一出处 shared/domain.ts(ADR-0001),validate.ts 必须同步扩展。</li></ul>',
   topics:[ { f:'pr-merge-needs-confirmation.md', at:'2 小时前', body:'# PR 合并需确认\n\n开 PR 即停,等用户确认后才准合并——开 PR 不构成合并授权。\n默认 squash 保持 master 线性,合并后删除远程分支。' } ]
 }
+// 次级文案与实现一致:逐条安装记录(scope · 项目,失联标注)+ 记录数;详情页前缀"启用/禁用判定来自 X 层"
 const PLUGINS = [
   { name:'chrome-devtools-mcp@chrome-devtools-plugins', ver:'1.6.0',
-    installs:[{scope:'user', at:'~/.claude/plugins/cache/chrome-devtools-plugins/…/1.6.0'}],
-    enabled:{global:true, detail:true}, why:'user 层启用',
+    installs:[{scope:'user'}],
+    enabled:{global:true, detail:true}, whyGlobal:'user', whyDetail:'启用判定来自 user 层 · user',
     contents:{ skills:['a11y-debugging','chrome-devtools','memory-leak-debugging','troubleshooting','+2'],
       agents:[], hooks:[], mcp:['chrome-devtools'] } },
   { name:'superpowers@claude-plugins-official', ver:'6.2.0',
-    installs:[{scope:'project', proj:'superpowers-demo', at:'~/.claude/plugins/cache/claude-plugins-official/superpowers/6.2.0'}],
-    enabled:{global:false, detail:true}, whyGlobal:'未启用(user 层)· 安装于 1 项目', whyDetail:'本项目启用(project 层)',
+    installs:[{scope:'project', proj:'superpowers-demo'}],
+    enabled:{global:false, detail:true}, whyGlobal:'project · superpowers-demo',
+    whyDetail:'启用判定来自 project 层 · project · superpowers-demo',
     contents:{ skills:['brainstorming','test-driven-development','systematic-debugging','writing-plans','+10'],
       agents:[], hooks:['SessionStart × 1(matcher: startup|clear|compact)'], mcp:[] } },
   { name:'tdd-guard@community', ver:'2.4.1',
-    installs:[{scope:'user', at:'~/.claude/plugins/cache/community/tdd-guard/2.4.1'},
-              {scope:'project', proj:'superpowers-demo', at:'(同上)'}],
-    enabled:{global:false, detail:false}, whyGlobal:'user 层显式禁用 · 多安装记录示例', whyDetail:'项目层显式禁用(压过 user)',
+    installs:[{scope:'user'}, {scope:'project', proj:'gone-proj', projMissing:true}], // E2:归属项目已失联
+    enabled:{global:false, detail:false},
+    whyGlobal:'user / project · gone-proj(项目已失联) · 2 条安装记录',
+    whyDetail:'禁用判定来自 project 层 · user / project · gone-proj(项目已失联) · 2 条安装记录',
     contents:{ skills:[], agents:[], hooks:['PreToolUse × 2(Write|Edit)'], mcp:[] } },
   { name:'ghost-plugin@somewhere', ver:'0.1.0',
-    installs:[{scope:'user', at:'(缓存目录已被清理)', missing:true}],
-    enabled:{global:false, detail:false}, whyGlobal:'安装目录缺失', whyDetail:'安装目录缺失',
+    installs:[{scope:'user', missing:true}],
+    enabled:{global:false, detail:false}, whyGlobal:'user', whyDetail:'任何层均未提及 · user',
     contents:null }
 ]
 const PLUGINS_CODEX = [ // 缓存枚举口径:cache/<marketplace>/<plugin>/<version>;仅列存在
@@ -222,7 +230,12 @@ function setTab(t){ TAB=t; EXP.clear(); render() }
 const $ = (id)=>document.getElementById(id)
 const esc = (s)=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function pill(cls,txt){ return `<span class="pill ${cls}">${txt}</span>` }
-function sideB(sides){ return (sides.includes('c')?'<span class="b c">C</span>':'')+(sides.includes('x')?'<span class="b x">X</span>':'') }
+// app 约定徽标:CC/CX,缺失侧虚线占位(对齐 Skills 分栏既有形态)
+function sideB(sides){
+  return (sides.includes('c')?'<span class="b c">CC</span>':'<span class="b miss">—</span>')
+       + (sides.includes('x')?'<span class="b x">CX</span>':'<span class="b miss">—</span>')
+}
+function sideB1(side){ return side==='x'?'<span class="b x">CX</span>':'<span class="b c">CC</span>' }
 
 function renderHead(){
   const tabs = (list)=>list.map(([t,l,dim])=>`<span class="tab ${dim?'dim':TAB===t?'on':''}" ${dim?'':`onclick="setTab('${t}')"`}>${l}</span>`).join('')
@@ -252,13 +265,14 @@ function renderHead(){
 function subagentRows(){
   const data = PAGE==='global' ? SUBAGENTS_GLOBAL : SUBAGENTS_DETAIL
   return data.map((a,i)=>{
-    const badges = PAGE==='global' ? sideB(a.sides) : sideB([a.side])
+    const badges = PAGE==='global' ? sideB(a.sides) : sideB1(a.side)
     const lv = a.level ? (a.level==='project' ? pill('glb','项目级') : pill('ln','全局')) : ''
     const flags = [
       a.parseError ? pill('warn','解析失败') : '',
+      a.unreadable ? pill('warn','不可读') : '',
       a.overridesBuiltin ? pill('warn','覆盖内置') : '',
       a.shadows ? pill('on','遮蔽同名') : '',
-      a.shadowed ? pill('off','被遮蔽') : ''
+      a.shadowed ? pill('off','被项目级遮蔽') : ''
     ].join('')
     return { i, html:`<span class="nm" style="width:190px">${esc(a.name)}</span>
       <span style="display:flex;gap:3px;width:46px;flex:none">${badges}</span>${lv}${flags}
@@ -268,7 +282,7 @@ function subagentRows(){
 function memoryRows(){
   return MEMORY_GLOBAL.map((m,i)=>({ i, data:m, html:`
     <span class="nm" style="width:190px">${esc(m.proj)}</span>
-    <span style="display:flex;gap:3px;flex:none">${m.codex?'<span class="b x">CODEX</span>':'<span class="b c">C</span>'}</span>
+    <span style="display:flex;gap:3px;flex:none">${m.codex?'<span class="b x">CX</span>':'<span class="b c">CC</span>'}</span>
     ${m.stale?pill('warn','失效'):''}${m.hidden?pill('off','已隐藏'):''}
     <span class="ds">${m.hasMain===null?'(全局记忆目录)':m.hasMain?'MEMORY.md':'无 MEMORY.md'} · ${m.topics} topic</span>
     <span class="src">${m.at}</span>` }))
@@ -286,19 +300,23 @@ function pluginRows(){
 }
 function skillRows(){
   const data = PAGE==='global' ? SKILLS_GLOBAL : SKILLS_DETAIL
+  // 全局页:仅插件条目带来源徽标(磁盘行以「安装到…」按钮自证全局库身份);
+  // 详情页:真实应用为分组结构(项目级/全局层/插件内含各一组),此处平铺示意,行内 pill 同真实分组行
   return data.map((s,i)=>({ i, data:s, html:`
     <span class="nm" style="width:270px">${esc(s.name)}</span>
-    <span style="display:flex;gap:3px;width:46px;flex:none">${sideB(s.sides)}</span>
-    ${s.origin==='plugin'?pill('plg','插件'):s.level==='project'?pill('glb','项目级'):pill('ln','全局库')}
-    ${s.shadows?pill('on','遮蔽'):''}${s.shadowed?pill('off','被遮蔽'):''}
+    <span style="display:flex;gap:3px;width:64px;flex:none">${sideB(s.sides)}</span>
+    ${s.origin==='plugin'?pill('plg','插件'):PAGE==='detail'?(s.level==='project'?pill('glb','项目级'):pill('ln','全局')):''}
+    ${s.shadows?pill('on','遮蔽全局'):''}${s.shadowed?pill('off','被项目级遮蔽'):''}
     <span class="ds">${esc(s.desc)}</span>
-    ${s.origin!=='plugin'?'<span class="btn" onclick="event.stopPropagation()">装到项目…</span>':''}` }))
+    ${s.origin!=='plugin'?'<span class="btn" onclick="event.stopPropagation()">安装到…</span>':''}` }))
 }
 
 /* — 抽屉内容 — */
 function subagentDetailHtml(a){
   if (a.parseError) return `<h2>${esc(a.name)}</h2><div class="meta">Codex toml 解析失败</div>
     <div class="none">文件无法解析(损坏或语法错误);Codex 本身也不会加载它。其余条目不受影响。</div>`
+  if (a.unreadable) return `<h2>${esc(a.name)}</h2><div class="meta">文件不可读(权限或 IO 异常)</div>
+    <div class="none">条目保留不静默消失——静默消失会污染同名条目的遮蔽判定(A8)。</div>`
   if (!a.cl && !a.cx) { // 详情页条目形态:单侧 + level + body
     return `<h2>${esc(a.name)}</h2><div class="meta">${a.desc?esc(a.desc):''}</div>
       <div class="kv"><span class="k2">来源</span><span>${a.level==='project'?'项目级':'全局'} · ${a.side==='x'?'Codex':'Claude'}</span>
@@ -318,7 +336,7 @@ function subagentDetailHtml(a){
 }
 function pluginDetailHtml(p){
   if (!p.contents) return `<div class="none">安装目录缺失(缓存已清理)——仅注册表记录可见,内含组件无法读取。</div>`
-  const inst = p.installs.map(r=>`<div class="chip ${r.missing?'bad':''}">${r.scope}${r.proj?` · ${r.proj}`:''}</div>`).join('')
+  const inst = p.installs.map(r=>`<div class="chip ${r.missing?'bad':''}">${r.scope}${r.proj?` · ${r.proj}`:''}${r.projMissing?'(项目已失联)':''}</div>`).join('')
   const sect = (t,items,ns)=> items.length ? `<div class="sect">${t}</div>`+items.map(x=>`<span class="chip">${ns?ns+':':''}${esc(x)}</span>`).join('') : ''
   return `<div class="sect">安装记录</div>${inst}
     ${sect('内含 skills(命名空间调用)',p.contents.skills, p.name.split('@')[0])}

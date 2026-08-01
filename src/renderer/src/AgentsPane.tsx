@@ -15,6 +15,8 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
   const cxCount = snap.projects.filter((p) => p.sides.includes('codex')).length
   const clSkills = snap.global.skills.filter((s) => s.sides.includes('claude')).length
   const cxSkills = snap.global.skills.filter((s) => s.sides.includes('codex')).length
+  const clSubs = snap.global.subagents.filter((s) => s.sides.includes('claude')).length
+  const cxSubs = snap.global.subagents.filter((s) => s.sides.includes('codex')).length
 
   return (
     <div className="pane">
@@ -27,7 +29,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
             detected={snap.sides.claude.detected}
             error={snap.sides.claude.error}
             total={snap.tokens.bySide.claude.total}
-            sub={`${clCount} 项目 · ${clSkills} 全局 skills`}
+            sub={`${clCount} 项目 · ${clSkills} 全局 skills · ${clSubs} subagents`}
           />
           <SideCard
             label="CODEX"
@@ -35,7 +37,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
             detected={snap.sides.codex.detected}
             error={snap.sides.codex.error}
             total={snap.tokens.bySide.codex.total}
-            sub={`${cxCount} 项目 · ${cxSkills} 全局 skills`}
+            sub={`${cxCount} 项目 · ${cxSkills} 全局 skills · ${cxSubs} subagents`}
           />
         </div>
         <nav className="tabs">

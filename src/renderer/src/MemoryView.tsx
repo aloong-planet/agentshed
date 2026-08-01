@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { MemoryFileMeta, MemorySummaryEntry, ProjectDetail, Snapshot } from '@shared/domain'
 import { renderMarkdown } from './md'
+import { fmtAgo } from './ProjectsPane'
 
 export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
   // 展开态键 = 侧+项目路径:快照刷新重排后展开行不错位(review-code 重构项 #4)
@@ -37,7 +38,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
                 {m.side === 'codex' ? '全局记忆目录' : m.hasMain ? 'MEMORY.md' : '无 MEMORY.md'} ·{' '}
                 {m.files.filter((f) => f.name !== 'MEMORY.md').length} topic
               </span>
-              <span className="src mono">{fmtMtime(m.lastModified)}</span>
+              <span className="src mono">{fmtAgo(m.lastModified, snap.scannedAt)}</span>
             </button>
             {expanded.has(key) && (
               <div className="sub-list">
@@ -46,7 +47,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
                     <span className="nm mono" style={{ flex: 1 }}>
                       {f.name}
                     </span>
-                    <span className="src mono">{fmtMtime(f.mtimeMs)}</span>
+                    <span className="src mono">{fmtAgo(f.mtimeMs, snap.scannedAt)}</span>
                   </button>
                 ))}
               </div>
@@ -61,7 +62,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
       {open && (
         <MemoryFileDrawer
           title={open.file.name}
-          meta={`${open.entry.projectName} · ${fmtMtime(open.file.mtimeMs)}`}
+          meta={`${open.entry.projectName} · ${fmtAgo(open.file.mtimeMs, snap.scannedAt)}`}
           file={open.file.file}
           onClose={() => setOpen(null)}
         />
@@ -73,10 +74,12 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
 /** 详情页 Memory tab:MEMORY.md 主体直接渲染(同配置 tab 模式),topic 点开抽屉(D 序列) */
 export function ProjectMemoryTab({
   detail,
-  hasClaudeSide
+  hasClaudeSide,
+  anchor
 }: {
   detail: ProjectDetail
   hasClaudeSide: boolean
+  anchor: number
 }): JSX.Element {
   const [open, setOpen] = useState<MemoryFileMeta | null>(null)
   const html = useMemo(
@@ -110,7 +113,7 @@ export function ProjectMemoryTab({
               <span className="nm mono" style={{ flex: 1 }}>
                 {t.name}
               </span>
-              <span className="src mono">{fmtMtime(t.mtimeMs)}</span>
+              <span className="src mono">{fmtAgo(t.mtimeMs, anchor)}</span>
             </button>
           ))}
         </div>
@@ -118,7 +121,7 @@ export function ProjectMemoryTab({
       {open && (
         <MemoryFileDrawer
           title={open.name}
-          meta={`topic 文件 · ${fmtMtime(open.mtimeMs)}`}
+          meta={`topic 文件 · ${fmtAgo(open.mtimeMs, anchor)}`}
           file={open.file}
           onClose={() => setOpen(null)}
         />
@@ -141,6 +144,13 @@ export function MemoryFileDrawer({
 }): JSX.Element {
   const [content, setContent] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
   useEffect(() => {
     let alive = true
     window.agentshed
@@ -171,9 +181,4 @@ export function MemoryFileDrawer({
       </div>
     </>
   )
-}
-
-function fmtMtime(ms: number | null): string {
-  if (ms === null) return ''
-  return new Date(ms).toLocaleDateString()
 }

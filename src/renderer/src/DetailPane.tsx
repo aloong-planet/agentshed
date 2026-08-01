@@ -72,7 +72,11 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
             {tab === 'plugins' && <ProjectPluginsTab detail={detail} snap={snap} />}
             {tab === 'mcp' && <McpTab detail={detail} />}
             {tab === 'memory' && (
-              <ProjectMemoryTab detail={detail} hasClaudeSide={entry.sides.includes('claude')} />
+              <ProjectMemoryTab
+                detail={detail}
+                hasClaudeSide={entry.sides.includes('claude')}
+                anchor={snap.scannedAt}
+              />
             )}
             {tab === 'cfg' && <CfgTab detail={detail} />}
             {tab === 'arts' && <ArtifactsTab detail={detail} snap={snap} />}
