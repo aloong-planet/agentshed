@@ -293,6 +293,28 @@ test('会话分栏:列出会话、可切排序、预热会话不入列', async (
   await close(l)
 })
 
+test('会话分栏:排序选择在切走分栏后仍然记得', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .seg button', { hasText: '最早在前' }).click()
+  await expect(win.locator('.pane-body .grp-t')).toContainText('正序')
+
+  // 切走再切回:tab 是条件渲染,组件会被卸载,组件内 useState 存不住
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await expect(win.locator('.pane-body .grp-t')).toContainText('正序')
+  await expect(
+    win.locator('.pane-body .se .t').first(),
+    '切回来应保持"最早在前",第一行是较早的那条'
+  ).toHaveText('Codex 侧的提问')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 test('会话分栏:无会话项目出空态;概览会话卡可点入本分栏', async () => {
   const l = await launch(undefined, mkEmptyProjectHome())
   const win = await l.app.firstWindow()

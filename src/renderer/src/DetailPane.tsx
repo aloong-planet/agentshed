@@ -142,12 +142,31 @@ function OverviewTab({
 }
 
 /**
+ * 会话分栏的排序选择,活在本次运行内。
+ *
+ * 为什么是模块级变量而不是组件 state:tab 是条件渲染,切走即卸载,组件内的
+ * useState 存不住。为什么不提到 DetailPane:那会让父组件开始持有各分栏的
+ * 内部状态,下一个分栏要留状态就再加一个字段。为什么不落盘:它是本次浏览的
+ * 习惯,不是设置。为什么不上 store:全仓没有 store 也没有 Context,一个
+ * boolean、一个消费者,建 store 是提前抽象。
+ *
+ * 出现**第二个**需要跨卸载存活的视图偏好时,把它提升成一个 view-prefs 模块
+ * (那时仍不需要 store 库)。在此之前它就该是这么小。
+ * 代价:切项目也保留——排序是看的方式,不是项目的属性,故意如此。
+ */
+let sessionsRecentFirst = true
+
+/**
  * 会话分栏:本项目的全部会话,默认最近活动在前。
  * 排序只换呈现顺序——provider 层已按 at 倒序排好,正序取其反转而不重排,
  * 免得 UI 与 provider 各持一套比较器(含 at 为 null 时的处置)而悄悄分叉。
  */
 function SessionsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
-  const [recentFirst, setRecentFirst] = useState(true)
+  const [recentFirst, setRecentFirst] = useState(sessionsRecentFirst)
+  const choose = (v: boolean): void => {
+    sessionsRecentFirst = v
+    setRecentFirst(v)
+  }
   const sessions = detail.stats?.sessions ?? []
   const list = recentFirst ? sessions : [...sessions].reverse()
 
@@ -159,10 +178,10 @@ function SessionsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }
       <div className="grp-t">
         按最近活动时间{recentFirst ? '倒序' : '正序'} · {sessions.length} 个会话
         <span className="seg">
-          <button className={recentFirst ? 'on' : ''} onClick={() => setRecentFirst(true)}>
+          <button className={recentFirst ? 'on' : ''} onClick={() => choose(true)}>
             最近在前
           </button>
-          <button className={recentFirst ? '' : 'on'} onClick={() => setRecentFirst(false)}>
+          <button className={recentFirst ? '' : 'on'} onClick={() => choose(false)}>
             最早在前
           </button>
         </span>
