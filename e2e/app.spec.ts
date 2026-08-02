@@ -267,6 +267,11 @@ test('会话分栏:列出会话、可切排序、预热会话不入列', async (
   // 预热会话的标题不得出现
   await expect(win.locator('.pane-body .card')).not.toContainText('Warmup')
 
+  // 项目列表那个数字与本分栏必须同源:fixture 有 3 个会话文件(含 1 个预热),
+  // 只有 2 个入列。改动前项目列表读的是文件数管线,会显示 3 —— 同一个概念两个数字。
+  const meta = (await win.locator('.side .row .meta').first().innerText()).trim()
+  expect(meta, `项目列表的会话数应与会话分栏一致,实际: ${meta}`).toMatch(/(^|\D)2$/)
+
   // 默认最近在前:第一行是较晚活动的那条
   const titleOf = async (i: number): Promise<string> =>
     (await rows.nth(i).locator('.t').innerText()).trim()
