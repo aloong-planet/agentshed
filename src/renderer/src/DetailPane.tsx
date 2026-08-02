@@ -92,8 +92,12 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
   )
 }
 
-/** 概览只露最近几条,全量在「会话」分栏(项目可有数百条会话) */
-const OVERVIEW_SESSIONS = 5
+/**
+ * 概览只露最近几条,全量在「会话」分栏(项目可有数百条会话)。
+ * 取 4 与已确认的原型一致(docs/prototypes/project-detail 的概览会话卡),
+ * 不是随手拍的数——改它等于改已确认的界面。
+ */
+const OVERVIEW_SESSIONS = 4
 
 function OverviewTab({
   detail,
