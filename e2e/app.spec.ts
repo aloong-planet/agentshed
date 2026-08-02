@@ -144,7 +144,9 @@ function mkUsageHome(): string {
       // 真实提问:没有它这条会话按 spec A3a 不入列
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'user_message', message: 'Codex 侧的提问' } }),
       turn(localDayOffset(2), 900, 150),
-      turn(localDayOffset(0), 400, 80)
+      // 停在昨天:与 Claude 侧(今天)拉开差距,"最近在前"才有得可判。
+      // 两侧同时间戳的话,排序断言只能证明 reverse 有效,证不了按时间排。
+      turn(localDayOffset(1), 400, 80)
     ].join('\n') + '\n'
   )
   return home
@@ -275,15 +277,16 @@ test('会话分栏:列出会话、可切排序、预热会话不入列', async (
   // 默认最近在前:第一行是较晚活动的那条
   const titleOf = async (i: number): Promise<string> =>
     (await rows.nth(i).locator('.t').innerText()).trim()
-  const firstDesc = await titleOf(0)
-  const lastDesc = await titleOf(1)
-  expect(firstDesc).not.toBe(lastDesc)
+  // fixture 里 Claude 侧最后活动在今天、Codex 侧在昨天 —— 断言的是**具体哪条在前**,
+  // 不是"两条不一样"。后者在时间戳相同时也成立,证不了按时间排序。
+  expect(await titleOf(0)).toBe('示例提问')
+  expect(await titleOf(1)).toBe('Codex 侧的提问')
 
   // 切最早在前 → 顺序翻转,条数不变
   await win.locator('.pane-body .seg button', { hasText: '最早在前' }).click()
   await expect(rows).toHaveCount(2)
-  expect(await titleOf(0)).toBe(lastDesc)
-  expect(await titleOf(1)).toBe(firstDesc)
+  expect(await titleOf(0)).toBe('Codex 侧的提问')
+  expect(await titleOf(1)).toBe('示例提问')
   await expect(win.locator('.pane-body .grp-t')).toContainText('正序')
 
   expect(l.errors).toEqual([])
