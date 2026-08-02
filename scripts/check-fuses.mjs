@@ -26,7 +26,8 @@ const EXPECT = {
   nodeCliInspect: 'DISABLED',
   onlyLoadAppFromAsar: 'ENABLED',
   cookieEncryption: 'ENABLED',
-  asarIntegrity: 'ENABLED'
+  asarIntegrity: 'ENABLED',
+  fileProtocolPrivileges: 'DISABLED' // 无 file:// 页面加载,特权是纯余量
 }
 
 function findApp() {

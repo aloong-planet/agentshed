@@ -25,7 +25,7 @@
 | 16 | 跟最新 Electron | ✅ **43.2.0**(2026-08-02 从 35.7.5 升级) | 升级后已重跑全量 verify + 打包 + fuses 校验。**勘误**:fuse wire 长度由 8 增至 9(Electron 41 追加 `wasmTrapHandlers` 于 index 8),前 8 位**位置未变**故 6 条断言仍成立;fuses.json5 明载"只追加不重排",按下标读长期安全 |
 | **17** | IPC sender 校验 | ✅ 全部 handler 经 `handle()` 包装器 | `index.ts handle()` + `assertTrustedSender`;**包装器保证新增 handler 自动受校验** |
 | **18** | 避免 file:// | ✅ 渲染页跑 `app://bundle` | `app-protocol.ts`;单测覆盖编码穿越;e2e 断言打包版 URL 以 `app://` 开头 |
-| **19** | Fuses | ✅ 6 项 | `electron-builder.yml electronFuses`;`scripts/check-fuses.mjs` **读产物二进制**校验 |
+| **19** | Fuses | ✅ **7 项**(含关闭 `grantFileProtocolExtraPrivileges`) | `electron-builder.yml electronFuses`;`scripts/check-fuses.mjs` **读产物二进制**校验 |
 | 20 | preload 不裸暴露 API | ✅ 暴露包装函数,回调丢弃 `IpcRendererEvent` | `preload/index.ts`(核实无需改动) |
 
 ## 固化的门禁(工具不可靠,这才是防线)
@@ -38,11 +38,11 @@
 
 ## 待办(不在本次改动面,已定归宿)
 
-- **`grantFileProtocolExtraPrivileges` fuse 仍为 ENABLED**(index 7)。本项目已完整满足 #18(打包版走 `app://bundle`、dev 走 http、代码内无 `file://` 页面加载),官方对这种形态建议关掉此 fuse。**影响面**:它约束的是"从 `file://` 加载的**页面**"的额外特权;`app-protocol.ts` 在主进程内用 `net.fetch(file://…)` 读盘属另一条路径,理论上不受影响,**但须实测验证而非推断**。**建议**:另开任务(改 electron-builder.yml 一行 + 打包 e2e 验证 app:// 与读盘均正常 + 更新本台账),不在安全清单这轮顺手改。
 - **Electron 44 的前瞻命中**:渲染进程 `clipboard` 模块将被移除(40 已废弃)。本项目当前未在渲染层用 clipboard;将来若加"复制内容"功能,直接走 preload + contextBridge 或 W3C Async Clipboard API。
 
 ## 已知取舍
 
 - **CSP 的 dev 档放宽**(`unsafe-inline`/`unsafe-eval`/`ws:`):vite HMR 必需,仅 dev 生效,打包产物用严格档。
 - **`isAppUrl` 的 prod 分支同时接受 `app:` 与 `file:`**:后者覆盖 devtools/内部页等边缘载入,它们不承载本 app 的 IPC 面。
+- **`grantFileProtocolExtraPrivileges` 已关闭**(2026-08-02 实测):它约束的是"从 `file://` 加载的**页面**"的额外特权,而主进程内 `net.fetch(file://…)` 读盘是另一条路径——关闭后 e2e 11/11 通过(`app://` 页面加载、产物/记忆文件按需读盘均正常),推断已被实测证实。
 - **`will-frame-navigate` 是官方清单的缺口**(清单只提 `will-navigate`,而它只管主框架),本项目两者都挂。

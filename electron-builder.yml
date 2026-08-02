@@ -24,6 +24,10 @@ electronFuses:
   onlyLoadAppFromAsar: true # 只从 asar 加载 app,防旁路替换未打包目录
   enableCookieEncryption: true # cookie 落盘加密
   enableEmbeddedAsarIntegrityValidation: true # asar 完整性校验(macOS/Windows)
+  # 关掉 file:// 页面的额外特权:本 app 渲染页跑 app://(prod)与 http(dev),
+  # 代码内无 file:// 页面加载,故该特权是纯余量。注意它约束的是"从 file:// 加载的
+  # **页面**",主进程内 net.fetch(file://…) 读盘是另一条路径——已实测两者均正常。
+  grantFileProtocolExtraPrivileges: false
 
 # v1 macOS 先行:本机未签名 DMG(arm64);签名/公证/多架构进遗留清单
 mac:
