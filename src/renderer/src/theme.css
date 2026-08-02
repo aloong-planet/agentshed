@@ -1179,3 +1179,28 @@ body {
   border: 1px dashed var(--line-strong);
   border-radius: 7px;
 }
+
+/* 会话行做成按钮(概览里点进「会话」分栏);沿用 .it.row-btn 同款重置 */
+.se.row-btn {
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  color: inherit;
+}
+.se.row-btn:last-child {
+  border-bottom: 0;
+}
+.se.row-btn:hover {
+  background: var(--accent-soft);
+}
+/* 分栏底部的口径说明(与原型 .note 同名) */
+.note {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--text-2);
+  margin: 8px 2px 0;
+}
