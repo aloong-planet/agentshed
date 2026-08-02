@@ -11,7 +11,13 @@
        只演示全局页)。
      Subagents 生效视图要点:项目级可存在(.claude/agents/*.md 与 .codex/agents/
        *.toml),两侧同名均为**项目级遮蔽**用户级——与 skills 的 Codex 同名共存
-       语义相反;Codex 侧同名键取 toml name 字段,故跨文件名也遮蔽。 -->
+       语义相反;Codex 侧同名键取 toml name 字段,故跨文件名也遮蔽。
+     v3 并入(2026-08-02,spec session-view):新增「会话」分栏——会话列表(默认按最近
+       活动倒序,可切最早在前;排序对列表与命中分组同时生效)+ 搜索入口 + 按会话分组的
+       命中结果;点会话行跳会话页原型(session-view/session,提问索引与整轮展开在那边)。
+       概览的会话卡同步改为可点入,其「元数据即止」的旧口径由本功能推翻。
+     演示基建(非设计的一部分,勿实现):底部悬浮条 [演示·会话分栏] 两态
+       (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -139,6 +145,47 @@
   .note{font-size:11px;color:var(--text-2);margin:-6px 0 10px}
   .sub-list{padding:2px 14px 8px 36px;background:var(--bg);border-bottom:1px solid var(--line)}
   .sub-list .it{padding:6px 0;border-bottom:0}
+  /* v3 会话分栏:搜索行 + 会话列表 + 按会话分组的命中 */
+  .sbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .sbar input{flex:1;min-width:0;padding:6px 11px;border:1px solid var(--line-strong);border-radius:7px;
+    background:var(--card);color:var(--text);font-size:12.5px;outline:none}
+  .sbar input:focus{border-color:var(--accent)}
+  .scope{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;flex:none}
+  .scope span{padding:5px 11px;font-size:11.5px;color:var(--text-2);cursor:pointer}
+  .scope span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .sess{display:flex;align-items:center;gap:9px;padding:7px 14px;border-top:1px solid var(--line);
+    cursor:pointer;font-variant-numeric:tabular-nums}
+  .sess:first-child{border-top:0}
+  .sess:hover{background:var(--accent-soft)}
+  .sess .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sess .n,.sess .tok,.sess .d{font-size:11px;color:var(--text-2);flex:none;text-align:right}
+  .sess .n{width:56px}.sess .tok{width:48px}.sess .d{width:50px}
+  .pill.fork{border:1px solid var(--line-strong);color:var(--text-2)}
+  .pill.forkq{border:1px dashed #d79a5b;color:#b3703a}
+  .pill.big{background:var(--line);color:var(--text-2)}
+  .pill.clean{border:1px dotted var(--line-strong);color:var(--text-2)}
+  @media (prefers-color-scheme:dark){.pill.forkq{border-color:#8a5f34;color:#f0bd8c}}
+  .shead{font-size:11.5px;color:var(--text-2);margin:0 2px 8px;display:flex;align-items:center;gap:10px}
+  .grp{background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:9px}
+  .grp .gh{display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+  .grp .gh:hover{background:var(--accent-soft)}
+  .grp .gh .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+  .hit{display:flex;gap:9px;padding:5px 14px 5px 32px;cursor:pointer;font-variant-numeric:tabular-nums}
+  .hit:hover{background:var(--accent-soft)}
+  .hit .idx{width:20px;flex:none;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2)}
+  .hit .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hit .d{font-size:11px;color:var(--text-2);flex:none}
+  .hit .bd{font-size:10px;border-radius:4px;padding:0 5px;background:var(--line);color:var(--text-2);flex:none}
+  mark{background:#fff2a8;color:inherit;border-radius:2px;padding:0 1px}
+  @media (prefers-color-scheme:dark){mark{background:#4d451a;color:#f6e9a8}}
+  /* 演示基建(非设计的一部分) */
+  .harness{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#22252a;
+    color:#c9ccd1;border-radius:999px;padding:5px 8px;display:none;align-items:center;gap:6px;
+    font-size:11px;z-index:40;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+  .harness.on{display:flex}
+  .harness .hl{color:#7f858d;padding:0 4px;white-space:nowrap}
+  .harness .hb{padding:3px 9px;border-radius:999px;cursor:pointer;color:#c9ccd1;white-space:nowrap}
+  .harness .hb.on{background:#4a4f57;color:#fff}
 
 </style>
 </head>
@@ -162,6 +209,7 @@
         <span class="tab" data-t="subagents">Subagents</span>
         <span class="tab" data-t="plugins">Plugins</span><span class="tab" data-t="mcp">MCP</span>
         <span class="tab" data-t="memory">Memory</span>
+        <span class="tab" data-t="sessions">会话</span>
         <span class="tab" data-t="cfg">配置</span><span class="tab" data-t="arts">产物</span>
       </div>
     </div>
@@ -186,13 +234,22 @@
           <div class="m anthropic"><span class="nm2">claude-opus-5</span><span class="tr"><i style="width:33%"></i></span><span class="num">1.8M</span></div>
           <div class="m openai"><span class="nm2">gpt-5.5-codex</span><span class="tr"><i style="width:38%"></i></span><span class="num">2.1M</span></div>
         </div>
-        <div class="grp-t">会话(主线程,元数据即止;subagent 计 token 不列出)</div>
+        <!-- v3:不再「元数据即止」——概览列最近 4 个,点行直达会话页;全部去会话分栏 -->
+        <div class="grp-t">最近会话(主线程;subagent 计 token 但不单独入列,在主会话内展开)</div>
         <div class="card">
-          <div class="se"><span class="b c" style="flex:none">CC</span><span class="t">MAS 上架支持:构建线与独立 bundle id</span><span class="tok">312k</span><span class="d">3天前</span></div>
-          <div class="se"><span class="b c" style="flex:none">CC</span><span class="t">屏幕录制权限 preflight 修复</span><span class="tok">188k</span><span class="d">5天前</span></div>
-          <div class="se"><span class="b x" style="flex:none">CX</span><span class="t">迁移 Claude Code skills 到 Codex</span><span class="tok">96k</span><span class="d">9天前</span></div>
-          <div class="se"><span class="b c" style="flex:none">CC</span><span class="t">消息领域模型收敛为单一数据源</span><span class="tok">421k</span><span class="d">12天前</span></div>
+          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">MAS 上架支持:构建线与独立 bundle id</span><span class="tok">312k</span><span class="d">3天前</span></div>
+          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">屏幕录制权限 preflight 修复</span><span class="tok">188k</span><span class="d">5天前</span></div>
+          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b x" style="flex:none">CX</span><span class="t">迁移 Claude Code skills 到 Codex</span><span class="tok">96k</span><span class="d">9天前</span></div>
+          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">消息领域模型收敛为单一数据源</span><span class="tok">421k</span><span class="d">12天前</span></div>
         </div>
+        <div class="note">共 7 个会话 —— 全部与搜索见「会话」分栏。</div>
+      </div>
+      <div data-p="sessions" style="display:none">
+        <div class="sbar">
+          <input id="sq" placeholder="在本项目的 7 个会话里搜索…">
+          <span class="scope" id="sscope"><span class="on" data-sc="q">搜提问</span><span data-sc="all">全文</span></span>
+        </div>
+        <div id="sres"></div>
       </div>
       <div data-p="skills" style="display:none">
         <div class="grp-t">项目级 · .claude/skills(2)</div>
@@ -340,12 +397,20 @@
   <div class="reader" id="areader"></div>
   <div class="mask" id="dmask"></div>
   <div class="drawer" id="drawer"></div>
+  <!-- 演示基建:mock 状态开关,非设计的一部分,勿实现;仅在会话分栏出现 -->
+  <div class="harness" id="harness" data-demo-harness>
+    <span class="hl">演示·会话分栏</span>
+    <span class="hb on" data-se="has">有会话</span>
+    <span class="hb" data-se="empty">空态</span>
+  </div>
 <script src="../_shared/trend-chart.js"></script>
 <script>
   document.getElementById('tabs').addEventListener('click',e=>{
     const t=e.target.closest('.tab');if(!t||!t.dataset.t)return;
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
     document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
+    // 演示基建只在相关分栏出现
+    document.getElementById('harness').classList.toggle('on',t.dataset.t==='sessions');
   });
   // 趋势图:共享件渲染(与 Agents 页同源)
   TrendChartProto.mount(
@@ -459,6 +524,101 @@
       if(next&&next.classList.contains('exp')){ next.remove(); return }
       pg.insertAdjacentHTML('afterend',`<div class="exp">${PCONTENTS[i]}</div>`); return }
   });
+
+  // ── v3 会话分栏:列表(最近活动倒序)+ 搜索(默认搜提问,可切全文)+ 按会话分组的命中 ──
+  const GOTO='data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html"';
+  const SESS=[
+    {b:'c',s:'CC',t:'MAS 上架支持:构建线与独立 bundle id',n:42,tok:'312k',d:'3天前',p:''},
+    {b:'c',s:'CC',t:'屏幕录制权限 preflight 修复',n:7,tok:'188k',d:'5天前',p:''},
+    {b:'x',s:'CX',t:'迁移 Claude Code skills 到 Codex',n:18,tok:'96k',d:'9天前',
+     p:'<span class="pill fork">⑂ fork</span>'},
+    {b:'x',s:'CX',t:'把 openclaw 的网关拆出来单独跑',n:24,tok:'140k',d:'10天前',
+     p:'<span class="pill forkq">⑂? 剥离存疑</span><span class="pill glb">标题取首条提问</span>'},
+    {b:'c',s:'CC',t:'消息领域模型收敛为单一数据源',n:96,tok:'421k',d:'12天前',
+     p:'<span class="pill big">133 MB</span>'},
+    {b:'c',s:'CC',t:'会话导出格式讨论',n:3,tok:'22k',d:'14天前',p:''},
+    {b:'c',s:'CC',t:'帮我把 CI 的缓存打开',n:11,tok:'61k',d:'21天前',
+     p:'<span class="pill clean">标题已清洗</span>'},
+  ];
+  // dup=fork 重放副本(Codex 54.7% 字节是它);body=只在回答正文里命中,仅「全文」范围可见
+  const CORPUS=[
+    {s:0,n:'01',q:'帮我看下 MAS 上架要改什么,现在的 electron-builder 配置能直接用吗?',d:'14:02'},
+    {s:0,n:'02',q:'构建线怎么和现在的分开?我不想为了 MAS 把 DMG 那条线也改掉',d:'14:09'},
+    {s:0,n:'03',q:'那 bundle id 呢?两个 id 会不会让用户装出两份?',d:'14:31'},
+    {s:0,n:'04',q:'沙箱权限为啥报错?entitlements 里 network.client 已经打开了',d:'15:02'},
+    {s:0,n:'05',q:'帮我把 notarize 脚本改成两条线各自一份',d:'15:40'},
+    {s:0,n:'09',q:'notarize 失败了,看下日志',d:'16:22'},
+    {s:0,n:'04',q:'(回答正文)notarization 与 App Store 审核是两条互斥路径,MAS 线不触发',d:'15:05',body:1},
+    {s:1,n:'03',q:'权限弹窗为啥不出来?TCC 那边要先 preflight 一次',d:'07-24'},
+    {s:1,n:'11',q:'签名和 notarize 分两步跑会不会有问题',d:'07-24'},
+    {s:2,n:'02',q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样',d:'09-14'},
+    {s:2,n:'05',q:'skills 的 frontmatter 字段两侧差在哪',d:'09-14'},
+    {s:2,n:'02',q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样',d:'09-12',dup:1},
+    {s:2,n:'02',q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样',d:'09-11',dup:1},
+    {s:3,n:'07',q:'网关拆出来之后权限怎么算,还要不要单独申请',d:'09-13'},
+    {s:3,n:'07',q:'网关拆出来之后权限怎么算,还要不要单独申请',d:'09-10',dup:1},
+    {s:4,n:'12',q:'导出的时候消息副本要不要去重',d:'07-12'},
+    {s:4,n:'44',q:'(回答正文)这里和 notarize 无关,是签名链的问题',d:'07-12',body:1},
+    {s:5,n:'01',q:'会话导出成 Markdown 的话工具调用怎么放',d:'07-10'},
+    {s:6,n:'02',q:'缓存打开之后 CI 会不会拿到旧的 node_modules',d:'06-30'},
+  ];
+  let sq='', scope='q', sempty=false, sorder='desc';   // desc=最近活动在前(spec A1 默认)
+  const sordSeg=()=>`<span class="seg" data-sord><span class="${sorder==='desc'?'on':''}" data-so="desc">最近在前</span>`+
+    `<span class="${sorder==='asc'?'on':''}" data-so="asc">最早在前</span></span>`;
+  const hl=(s,k)=>!k?esc2(s):esc2(s).replace(new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),m=>`<mark>${m}</mark>`);
+  const esc2=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  function renderSessions(){
+    const box=document.getElementById('sres'), bar=document.querySelector('.sbar');
+    if(sempty){ bar.style.display='none';
+      box.innerHTML=`<div class="none">该项目还没有会话记录。<br>
+        <span style="font-size:11.5px">Claude Code / Codex 在此目录下开过对话后会自动出现。</span></div>`; return }
+    bar.style.display='flex';
+    // SESS 存的就是最近活动倒序;正序=整体翻转(排序只换呈现顺序,不改任何计数)
+    const list=sorder==='desc'?SESS:[...SESS].reverse();
+    if(!sq.trim()){
+      box.innerHTML=`<div class="shead"><span>按<b>最近活动时间</b>${sorder==='desc'?'倒序':'正序'} · 7 个会话</span>${sordSeg()}</div>
+        <div class="card">${list.map(x=>
+          `<div class="sess" ${GOTO}><span class="b ${x.b}" style="flex:none">${x.s}</span>
+            <span class="t">${esc2(x.t)}</span>${x.p}
+            <span class="n">${x.n} 提问</span><span class="tok">${x.tok}</span><span class="d">${x.d}</span></div>`).join('')}</div>
+        <div class="note">只列已注册项目的会话;subagent 会话不单独入列(在主会话内就地展开)。<br>
+          「最近活动」= 文件内最大时间戳——Codex 侧原先取首个时间戳,fork 会话会误报为重放时刻。</div>`;
+      return;
+    }
+    const k=sq.trim();
+    const all=CORPUS.filter(c=>(scope==='all'||!c.body) && c.q.toLowerCase().includes(k.toLowerCase()));
+    const hits=all.filter(c=>!c.dup), folded=all.length-hits.length;
+    if(!hits.length){ box.innerHTML=`<div class="shead"><span>没有命中。默认只搜提问,试试切到「全文」。</span></div>`; return }
+    const bys=new Map(); hits.forEach(h=>{ if(!bys.has(h.s))bys.set(h.s,[]); bys.get(h.s).push(h) });
+    const groups=sorder==='desc'?[...bys]:[...bys].reverse();   // 命中分组同用一个排序
+    box.innerHTML=`<div class="shead"><span>找到 <b>${hits.length}</b> 条 · ${bys.size} 个会话
+        ${folded?` · 已折叠 <b>${folded}</b> 条 fork 重放副本`:''}</span>${sordSeg()}</div>`+
+      groups.map(([si,list])=>{ const x=SESS[si];
+        return `<div class="grp"><div class="gh" ${GOTO}><span class="b ${x.b}" style="flex:none">${x.s}</span>
+          <span class="t">${esc2(x.t)}</span>${x.p}<span class="d" style="font-size:11px;color:var(--text-2)">${list.length} 条命中</span></div>
+          ${list.map(h=>`<div class="hit" ${GOTO}><span class="idx">${h.n}</span>
+            <span class="t">${hl(h.q,k)}</span>${h.body?'<span class="bd">正文</span>':''}
+            <span class="d">${h.d}</span></div>`).join('')}</div>`;
+      }).join('');
+  }
+  document.getElementById('sq').addEventListener('input',e=>{ sq=e.target.value; renderSessions() });
+  document.getElementById('sres').addEventListener('click',e=>{
+    const so=e.target.closest('[data-so]'); if(!so) return;
+    e.stopPropagation();                       // 别让排序点击落到底下的会话行上
+    if(so.dataset.so!==sorder){ sorder=so.dataset.so; renderSessions() }
+  },true);
+  document.getElementById('sscope').addEventListener('click',e=>{
+    if(!e.target.dataset.sc)return;
+    document.querySelectorAll('#sscope span').forEach(s=>s.classList.toggle('on',s===e.target));
+    scope=e.target.dataset.sc; renderSessions();
+  });
+  document.getElementById('harness').addEventListener('click',e=>{
+    const b=e.target.closest('.hb'); if(!b) return;
+    document.querySelectorAll('[data-se]').forEach(x=>x.classList.toggle('on',x===b));
+    sempty=b.dataset.se==='empty'; renderSessions();
+  });
+  renderSessions();
 
   document.getElementById('cfgs').addEventListener('click',e=>{
     if(e.target.tagName!=='SPAN')return;

@@ -1,0 +1,736 @@
+<!doctype html>
+<!-- 原型(UI)· spec docs/specs/session-view.md:会话页(打开某个会话之后)。
+     问题:① 提问作为主索引、单行密排在真实长度(42/24/18 条)下是否真的可扫;
+       ② 点提问就地展开整轮(思考/正文/工具折叠/subagent)的层次是否清楚不糊;
+       ③ 两侧完整度不对等与不可还原部分的标注是否够显眼(不能假装一致、不能谎称完整);
+       ④ 导出入口位置。
+     方向:A「两屏导航 + 就地展开时间线」——2026-08-02 用户选定,对比过
+       B 二级双栏(四栏挤正文)与 C 答案抽屉(答案与上下文割裂)。
+       提问密度选定「单行索引式」。会话列表与搜索在项目详情原型的「会话」分栏。
+     提问列表一次给全:spec B4 的「不整读」指不整读 jsonl 正文,提问文本+偏移本身
+       只有几十 KB——没有分页/续取语义,别在实现里引入。
+     默认 0 轮展开:进来全部折叠,点哪轮取哪轮。
+     交互:点提问行就地展开/收起(展开态铺提问全文);工具块二次展开看入参与返回;
+       subagent 块展开看内部步骤;日期分组行可点折叠;正序/倒序切换(序号恒为原始轮次号,
+       不随排序变;已展开的轮次跨排序保持);导出下拉只做视觉反馈不落数据;‹返回 跳回项目详情。
+     mock 完整度:标 ★ 的轮次构造了完整入参/返回与 subagent 内部步骤,其余轮次只到
+       「一句回答 + 工具行」——展开填充轮会看到说明,不是设计的一部分。
+     演示基建(非设计的一部分,勿实现):底部悬浮条
+       [演示·会话数据] 三态(Claude 主会话 / Codex fork / Codex fork·父会话缺失)——
+         真实判定来自被打开的会话本身(fork 前缀剥离依赖父文件是否在扫描集内);
+       [演示·取回状态] 两态(索引就绪 / 索引失效)——真实判定是取回前按
+         路径+mtime+size 签名校验一次,不符则只重建该文件索引。app 内均无此控件。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 — 会话页:提问索引与整轮展开</title>
+<style>
+  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
+  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2)}
+  .rail .ri:hover{background:var(--accent-soft)}
+  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
+  .side{width:230px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;padding:10px 8px;gap:2px;color:var(--text-2)}
+  .row{padding:7px 10px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row.sel{background:var(--accent-soft);color:var(--text);outline:1px solid var(--accent)}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .head{padding:12px 20px 12px;border-bottom:1px solid var(--line);background:var(--card)}
+  .back{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2);
+    cursor:pointer;padding:2px 7px 2px 4px;border-radius:6px;margin-bottom:7px}
+  .back:hover{background:var(--accent-soft);color:var(--accent)}
+  .h1{display:flex;align-items:center;gap:9px}
+  .h1 b{font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .b{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 5px;flex:none}
+  .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
+  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  .meta{font-size:11px;color:var(--text-2);margin-top:5px;font-variant-numeric:tabular-nums}
+  /* 导出入口:与标题同排右端,整个会话只此一处「写」动作 */
+  .exportwrap{margin-left:auto;position:relative;flex:none}
+  .btn{border:1px solid var(--line-strong);background:var(--card);color:var(--text);
+    border-radius:7px;padding:4px 11px;font-size:12px;cursor:pointer}
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .menu{position:absolute;right:0;top:30px;width:268px;background:var(--card);z-index:9;
+    border:1px solid var(--line-strong);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.14);
+    padding:5px;display:none}
+  .menu.open{display:block}
+  .menu .mi{padding:7px 10px;border-radius:6px;cursor:pointer;font-size:12.5px}
+  .menu .mi:hover{background:var(--accent-soft)}
+  .menu .mi .sub2{font-size:11px;color:var(--text-2);margin-top:2px}
+  .menu .mfoot{border-top:1px solid var(--line);margin-top:4px;padding:8px 10px 4px;
+    font-size:11px;color:var(--text-2);line-height:1.65}
+  /* 会话级横幅:分叉归一 / fork 重放剥离 / 剥离存疑——语义强度分三档 */
+  .banner{display:flex;gap:8px;border-radius:8px;padding:8px 12px;font-size:11.5px;
+    line-height:1.65;margin-bottom:10px;border:1px solid var(--line)}
+  .banner .bi{flex:none}
+  .banner.info{background:var(--accent-soft);border-color:var(--accent)}
+  .banner.risk{background:#fdf3e3;border-color:#e0b483;color:#7a4d1c}
+  @media (prefers-color-scheme:dark){.banner.risk{background:#33251a;border-color:#7a5330;color:#f0bd8c}}
+  .banner a{color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+  .body{flex:1;overflow:auto;padding:14px 20px 90px}
+  .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  /* 列表头一行:计数 + 全部收起/展开 + 正序倒序 */
+  .qbar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .qbar .grp-t{margin:0}
+  .qtools{margin-left:auto;display:flex;align-items:center;gap:9px}
+  .lnk{font-size:11.5px;color:var(--text-2);cursor:pointer}
+  .lnk:hover{color:var(--accent)}
+  .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden}
+  .seg span{padding:3px 10px;font-size:11px;color:var(--text-2);cursor:pointer}
+  .seg span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .qlist{background:var(--card);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  /* 会话跨天时单行索引只有 HH:MM 会失真 → 按日分组,分组行可点折叠 */
+  .daygrp{border-top:1px solid var(--line)}
+  .daygrp:first-child{border-top:0}
+  .dayhd{display:flex;align-items:center;gap:7px;padding:4px 13px;font-size:10.5px;
+    color:var(--text-2);background:var(--bg);cursor:pointer;letter-spacing:.3px}
+  .dayhd:hover{color:var(--text)}
+  .dayhd .cv::before{content:'▾';font-size:9px}
+  .daygrp.fold .dayhd .cv::before{content:'▸'}
+  .daygrp.fold .daybody{display:none}
+  /* 提问行 = 主索引:单行密排,序号/文本/本轮体量/时间,一屏可扫二十余条 */
+  .q{display:flex;align-items:center;gap:9px;padding:4px 13px;border-top:1px solid var(--line);
+    cursor:pointer;font-variant-numeric:tabular-nums}
+  .q:hover{background:var(--accent-soft)}
+  .q .cv{width:9px;flex:none;color:var(--text-2);font-size:10px}
+  .q .idx{width:20px;flex:none;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2)}
+  .q .txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .q .c{font-size:10.5px;color:var(--text-2);flex:none}
+  .q .tm{font-size:11px;color:var(--text-2);flex:none;width:44px;text-align:right}
+  /* 展开时提问行自己铺开全文(不在下面再复述一遍) */
+  .q.open{background:var(--accent-soft);align-items:flex-start;padding-top:8px;padding-bottom:8px}
+  .q.open .txt{font-weight:600;white-space:pre-wrap;overflow:visible;line-height:1.65}
+  .q.open .cv,.q.open .idx,.q.open .c,.q.open .tm{margin-top:1px}
+  /* 展开态:整轮内容(助手正文 + 工具 + subagent) */
+  .turn{display:none;padding:2px 13px 14px 42px;background:var(--bg);border-top:1px solid var(--line)}
+  .turn.on{display:block}
+  .ans{line-height:1.8;margin:8px 0}
+  .ans code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px}
+  .blk{border:1px solid var(--line);border-radius:7px;background:var(--card);margin:5px 0}
+  .bh{display:flex;align-items:center;gap:7px;padding:5px 10px;cursor:pointer;font-size:12px}
+  .bh:hover{background:var(--accent-soft)}
+  .bh .cv::before{content:'▸';color:var(--text-2);font-size:10px}
+  .blk.open .bh .cv::before{content:'▾'}
+  .bh .nm{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;flex:none}
+  .bh .sum{flex:1;min-width:0;color:var(--text-2);font-size:11.5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bb{display:none;border-top:1px solid var(--line);padding:8px 12px 10px;font-size:11.5px;line-height:1.7}
+  .blk.open .bb{display:block}
+  .bb .lb{font-size:10.5px;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin:6px 0 3px}
+  .bb .lb:first-child{margin-top:0}
+  .bb pre{font-family:ui-monospace,Menlo,monospace;font-size:11px;line-height:1.65;
+    background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:7px 9px;
+    white-space:pre-wrap;word-break:break-all;max-height:170px;overflow:auto}
+  .blk.think{border-style:dashed}
+  .blk.sub{border-color:var(--accent)}
+  .blk.sub .bh{color:var(--accent)}
+  .step{display:flex;gap:8px;padding:3px 0;border-top:1px dashed var(--line)}
+  .step:first-of-type{border-top:0}
+  .step .sn{width:18px;flex:none;color:var(--text-2);font-family:ui-monospace,Menlo,monospace}
+  .rt{padding:2px 0 2px 12px;border-left:2px solid var(--line-strong);margin:3px 0;color:var(--text-2)}
+  /* 不可还原/被截断/加密:一律显式标注,不静默 */
+  .warn{border:1px dashed #d79a5b;background:#fdf3e3;color:#7a4d1c;border-radius:6px;
+    padding:6px 9px;font-size:11px;line-height:1.65;margin:6px 0}
+  @media (prefers-color-scheme:dark){.warn{background:#33251a;border-color:#8a5f34;color:#f0bd8c}}
+  .mockgap{font-size:11px;color:var(--text-2);border:1px dotted var(--line-strong);
+    border-radius:5px;padding:5px 8px;line-height:1.6}
+  .fetched{font-size:10.5px;color:var(--text-2);margin-top:8px}
+  .rebuild{font-size:11.5px;color:var(--text-2);padding:12px 0}
+  .note{font-size:11px;color:var(--text-2);line-height:1.7;margin:12px 2px 0}
+  .toast{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);background:#2c2f34;color:#fff;
+    font-size:12px;padding:7px 14px;border-radius:8px;z-index:30;opacity:0;transition:opacity .18s}
+  .toast.on{opacity:1}
+  /* ── 演示基建(非设计的一部分)── */
+  .harness{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#22252a;
+    color:#c9ccd1;border-radius:999px;padding:5px 8px;display:flex;align-items:center;gap:6px;
+    font-size:11px;z-index:40;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+  .harness .hl{color:#7f858d;padding:0 4px;white-space:nowrap}
+  .harness .hb{padding:3px 9px;border-radius:999px;cursor:pointer;color:#c9ccd1;white-space:nowrap}
+  .harness .hb.on{background:#4a4f57;color:#fff}
+  .harness .hsep{width:1px;height:14px;background:#3c4046;margin:0 3px}
+</style>
+</head>
+<body>
+  <div class="rail">
+    <div class="ri" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html">🤖</div>
+    <div class="ri on" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">📁</div>
+    <div class="ri" title="全局刷新(两维度共用)" style="margin-top:auto;margin-bottom:6px">↻</div>
+  </div>
+  <div class="side">
+    <div class="row">agentshed</div><div class="row">chatgpt-token</div>
+    <div class="row">openclaw-v3</div><div class="row sel">Transfer</div>
+    <div class="row">AI-Learning</div><div class="row">aloong-tools</div>
+  </div>
+  <div class="main">
+    <div class="head">
+      <div class="back" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html">‹ 返回 Transfer · 会话</div>
+      <div class="h1">
+        <span class="b c" id="hbadge">CC</span><b id="htitle">…</b>
+        <span class="exportwrap">
+          <button class="btn" id="expbtn">导出 ▾</button>
+          <div class="menu" id="expmenu"></div>
+        </span>
+      </div>
+      <div class="meta" id="hmeta">…</div>
+    </div>
+    <div class="body">
+      <div id="banners"></div>
+      <div class="qbar">
+        <span class="grp-t" id="qhead">提问(主干)</span>
+        <span class="qtools">
+          <span class="lnk" id="foldall">全部收起</span>
+          <span class="seg" id="qorder"><span class="on" data-o="asc">正序</span><span data-o="desc">倒序</span></span>
+        </span>
+      </div>
+      <div class="qlist" id="qlist"></div>
+      <div class="note">
+        主干只列人类提问,harness 噪声不进渲染(<code>task_reminder</code> / <code>file-history-snapshot</code> /
+        <code>token_count</code> / <code>thread_settings_applied</code> 等按显示白名单一律不显示)。<br>
+        提问一次列全(文本+偏移只有几十 KB);点提问才按字节区间取该轮正文,
+        133 MB 的会话与 3 MB 的会话取回耗时相同。
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <!-- 演示基建:mock 状态开关,非设计的一部分,勿实现 -->
+  <div class="harness" data-demo-harness>
+    <span class="hl">演示·会话数据</span>
+    <span class="hb on" data-ds="claude">Claude 主会话</span>
+    <span class="hb" data-ds="codex">Codex fork</span>
+    <span class="hb" data-ds="orphan">Codex fork·父会话缺失</span>
+    <span class="hsep"></span>
+    <span class="hl">演示·取回状态</span>
+    <span class="hb on" data-fs="ok">索引就绪</span>
+    <span class="hb" data-fs="stale">索引失效</span>
+  </div>
+
+<script>
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // 填充轮的压缩写法:[序号, 日, 时间, 提问, 工具数, subagent 数, 一句回答, [[工具名,摘要],…]]
+  const L = (n,d,t,txt,tools,subs,a,tl) => ({n,d,t,txt,tools,subs,a,tl:tl||[]});
+
+  const TOOL_READ = {type:'tool',nm:'Read',sum:'electron-builder.yml · 1–120 行',
+    input:'{ "file_path": "build/electron-builder.yml", "limit": 120 }',
+    output:'appId: com.aloong.transfer\nmac:\n  category: public.app-category.productivity\n  hardenedRuntime: true\n  entitlements: build/entitlements.mac.plist\n  target: [dmg, zip]\n…(共 118 行)'};
+
+  // ── Claude 主会话:42 条提问,跨两天;★ 的轮次构造了完整内容 ──
+  const CLAUDE = {
+    badge:'c', side:'CC', title:'MAS 上架支持:构建线与独立 bundle id',
+    meta:'Claude Code · 42 提问 · 312k tok · 8.4 MB · 最后活动 3 天前',
+    banners:[{k:'info',i:'⑂',t:'本会话有 <b>2 处分叉</b>。已按最后一条消息沿父链回溯到根渲染这一条链——即「这次对话最终长什么样」;被放弃的分支不显示。'}],
+    qs:[
+      // ★ 01
+      {n:'01',d:'7月29日 周三',t:'09:12',tools:3,subs:0,
+       txt:'帮我看下 MAS 上架要改什么,现在的 electron-builder 配置能直接用吗?',
+       turn:[
+        {type:'think',size:'0.9k',body:'先确认现在的打包配置长什么样,再对照 MAS 的额外要求(沙箱、provisioning profile、独立 appId)。不要直接改,先给出差异清单。'},
+        {type:'text',body:'不能直接用。MAS 与现在的 DMG/zip 是两条互斥的构建目标,主要差三处:<code>appId</code> 必须独立、必须开 App Sandbox 并挂 provisioning profile、<code>hardenedRuntime</code> 在 MAS 线上由 Apple 接管。'},
+        TOOL_READ,
+        {type:'tool',nm:'Read',sum:'package.json · scripts 段',
+         input:'{ "file_path": "package.json" }',
+         output:'"scripts": {\n  "dist:mac": "electron-builder --mac",\n  "dist:mas": "—(尚不存在)"\n}'},
+        {type:'tool',nm:'Grep',sum:'"mas" · 0 处命中',
+         input:'{ "pattern": "\\\\bmas\\\\b", "path": "build/" }',
+         output:'(no matches)'}
+       ]},
+      // ★ 02
+      {n:'02',d:'7月29日 周三',t:'09:31',tools:11,subs:1,
+       txt:'构建线怎么和现在的分开?我不想为了 MAS 把 DMG 那条线也改掉,两条得能各自跑。',
+       turn:[
+        {type:'think',size:'3.2k',body:'两条线并存的做法有三种:①同一份 yml 用 --config 覆盖片段;②两份完整 yml;③一份基线 + 一份 mas 增量。\n③ 的问题是 electron-builder 的 config 合并对数组是替换不是拼接,target 数组会整块被换掉——这点容易踩。\n倾向 ② 两份完整配置,重复几行胜过一个隐式的合并规则。先让 subagent 把现有构建脚本的调用面摸清楚,别改漏 CI。'},
+        {type:'text',body:'走两份完整配置:<code>electron-builder.yml</code> 保持不动,新增 <code>electron-builder.mas.yml</code>,脚本各自入口。理由是 electron-builder 的配置合并对数组是<b>整块替换</b>,增量式写法在 <code>target</code> 上会静默出错。'},
+        {type:'sub',nm:'explorer',sum:'12 步 · 41k tok · 摸清构建脚本的全部调用面',
+         prompt:'摸清仓库里所有会触发 electron-builder 的入口:npm scripts、CI workflow、发版脚本,列出各自传了什么参数。',
+         steps:[['1','Glob  .github/workflows/*.yml → 3 个'],['2','Read  release.yml · 触发 dist:mac'],
+                ['3','Grep  "electron-builder" → 6 处'],['4','Read  scripts/notarize.js'],
+                ['…','(略 7 步)'],['12','汇总返回']],
+         ret:'调用面共 4 处:package.json#dist:mac、release.yml、scripts/local-pack.sh、docs/ops/release.md 的手工步骤。全部只传 --mac,没有传 --config,新增第二条线不会影响它们。'},
+        TOOL_READ,
+        {type:'tool',nm:'Edit',sum:'build/electron-builder.mas.yml · 新建 46 行',
+         input:'{ "file_path": "build/electron-builder.mas.yml", "content": "appId: com.aloong.transfer.mas\\nmac:\\n  target: [mas]\\n…" }',
+         output:'已创建(46 行)'},
+        {type:'tool',nm:'Bash',sum:'pnpm dist:mas --dir · 退出码 0',
+         input:'{ "command": "pnpm dist:mas --dir" }',
+         output:'• electron-builder  version=25.1.8\n• building        target=mas arch=arm64\n• signing         identity=3rd Party Mac Developer Application\n✔ done in 41.2s'}
+       ]},
+      // ★ 03(0 工具,纯文本回答)
+      {n:'03',d:'7月29日 周三',t:'09:58',tools:0,subs:0,
+       txt:'那 bundle id 呢?两个 id 会不会让用户装出两份?',
+       turn:[
+        {type:'text',body:'会,而且这是<b>预期行为</b>。MAS 版与直分发版在系统眼里就是两个 app,各自独立的容器与偏好。想让它们共享数据得走 App Group,那是另一件事。'}
+       ]},
+      L('04','7月29日 周三','10:07','App Group 怎么配,两个版本能共享数据吗',2,0,
+        '能,但两个 id 都要加进同一个 App Group,并且直分发版也得开沙箱——为了共享数据把直分发版拖进沙箱,通常不划算。',
+        [['Read','build/entitlements.mas.plist'],['Grep','"application-groups" · 0 处命中']]),
+      L('05','7月29日 周三','10:23','provisioning profile 从哪拿,要不要每次构建重新下',1,0,
+        '从 Developer 后台按 app id 生成一次,放进 build/ 并提交(它不含私钥)。过期前不用重下。',
+        [['Bash','security cms -D -i embedded.provisionprofile']]),
+      L('06','7月29日 周三','10:41','entitlements 两条线各一份还是共用一份',2,0,
+        '各一份。MAS 那份必须有 app-sandbox 与 application-identifier,直分发那份不能有——共用会两边都不对。',
+        [['Read','build/entitlements.mac.plist'],['Edit','build/entitlements.mas.plist · +4 −0']]),
+      // ★ 07(多行粘贴 + 被截断的工具结果)
+      {n:'07',d:'7月29日 周三',t:'11:02',tools:6,subs:0,
+       txt:'沙箱权限为啥报错?我把 entitlements 里 com.apple.security.network.client 打开了,启动还是连不上本地网关,日志我贴下面:\n\n[gateway] connect ECONNREFUSED 127.0.0.1:8787\n[gateway] retry 1/5 …',
+       turn:[
+        {type:'think',size:'1.4k',body:'network.client 管的是出站到公网。回环地址在沙箱里另算——127.0.0.1 的出站也要 network.client,但监听端要 network.server。这里是本机另一个进程在监听,所以问题多半不在 entitlements,而在网关根本没起来。'},
+        {type:'text',body:'ECONNREFUSED 不是权限被拒(那会是 <code>EPERM</code>/超时),是<b>对端没在监听</b>。沙箱把网关子进程的启动路径也拦了——沙箱应用不能 spawn 容器外的可执行文件。'},
+        {type:'tool',nm:'Bash',sum:'xcrun notarytool log · 返回 1.2 MB,已被截断',trunc:true,
+         input:'{ "command": "xcrun notarytool log <id> --keychain-profile transfer" }',
+         output:'{"logFormatVersion":1,"jobId":"…","status":"Accepted","issues":[\n  {"severity":"warning","path":"Transfer.app/Contents/Frameworks/…"},\n  {"severity":"warning","path":"Transfer.app/Contents/Frameworks/…"},\n… [此处被 agent 截断] …'},
+        {type:'tool',nm:'Read',sum:'build/entitlements.mas.plist · 12 行',
+         input:'{ "file_path": "build/entitlements.mas.plist" }',
+         output:'<key>com.apple.security.app-sandbox</key><true/>\n<key>com.apple.security.network.client</key><true/>'}
+       ]},
+      L('08','7月29日 周三','11:35','那网关子进程在沙箱里到底还能不能起',3,0,
+        '能,前提是可执行文件在 bundle 内且一起被签名。指向 bundle 外的路径一律被拒。',
+        [['Bash','ls Contents/MacOS'],['Bash','codesign -dv --entitlements - Transfer.app'],['Read','src/main/gateway/spawn.ts']]),
+      L('09','7月29日 周三','11:47','换成 XPC 呢',0,0,
+        'XPC 是沙箱下的正路,但要把网关改成 XPC service 的形态并单独打包进 bundle,改动比挪二进制大得多。'),
+      L('10','7月29日 周三','13:05','XPC service 要单独签名吗',1,0,
+        '不用手动签,electron-builder 会把 Contents/XPCServices 下的东西一并签进去——前提是它在 bundle 里。',
+        [['Bash','codesign -dvvv Contents/XPCServices/gateway.xpc']]),
+      L('11','7月29日 周三','13:22','帮我把网关改成 XPC service 试试',18,1,
+        '骨架搭好了:新增 gateway.xpc,主进程通过 NSXPCConnection 调用。本地能跑通,但冷启动多了约 120ms。',
+        [['Edit','src/main/gateway/xpc.ts · 新建 132 行'],['Edit','build/electron-builder.mas.yml · +6 −0'],
+         ['Bash','pnpm dist:mas --dir · 退出码 0'],['Bash','open dist/mas/Transfer.app · 冷启动 1.34s']]),
+      L('12','7月29日 周三','14:10','报错了:The connection to service named com.aloong.transfer.gateway was invalidated',4,0,
+        'Info.plist 里 XPCService 的 ServiceType 没写,默认按 Application 处理,launchd 找不到它。',
+        [['Read','Contents/XPCServices/gateway.xpc/Contents/Info.plist'],['Edit','Info.plist · +2 −0'],
+         ['Bash','重新打包 · 退出码 0'],['Bash','连接成功']]),
+      L('13','7月29日 周三','14:28','launchd plist 要放哪个目录',0,0,
+        'XPC service 不用自己写 launchd plist——它由 bundle 内的 Info.plist 声明,系统按需拉起。'),
+      L('14','7月29日 周三','14:52','这样改完直分发版会不会受影响',5,0,
+        '会。直分发版现在也走 XPC 了,但它本来不需要——建议按 target 分流,直分发保留子进程路径。',
+        [['Grep','"xpc" · 11 处'],['Read','src/main/gateway/index.ts']]),
+      // ★ 15
+      {n:'15',d:'7月29日 周三',t:'15:14',tools:22,subs:2,
+       txt:'帮我把 notarize 脚本改成两条线各自一份,MAS 那条根本不需要 notarize。',
+       turn:[
+        {type:'think',size:'2.1k',body:'MAS 走 App Store 审核,不走 notarization。现在 afterSign 钩子是无条件挂的,MAS 构建时会白跑一次并失败。把钩子改成按 target 判断。'},
+        {type:'text',body:'已拆开:<code>scripts/notarize.js</code> 开头读 <code>context.electronPlatformName</code> 与 target,命中 <code>mas</code> 直接 return。MAS 线上再也不会触发 notarization。'},
+        {type:'sub',nm:'general-purpose',sum:'9 步 · 18k tok · 核对 CI 里的 notarize 环境变量',
+         prompt:'核对 CI 里 notarize 相关的环境变量在两条构建线上分别需要哪些,缺哪个会静默跳过。',
+         steps:[['1','Read  .github/workflows/release.yml'],['2','Grep  "APPLE_" → 4 个变量'],
+                ['…','(略 6 步)'],['9','汇总返回']],
+         ret:'DMG 线需要 APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID;缺任一 electron-builder 会静默跳过 notarize 且退出码为 0——这是最危险的一条。MAS 线一个都不需要。'},
+        {type:'sub',nm:'code-reviewer',sum:'6 步 · 11k tok · 审改动',
+         prompt:'审 scripts/notarize.js 的改动,重点看提前 return 会不会把 DMG 线也短路。',
+         steps:[['1','Read  scripts/notarize.js'],['2','Read  git diff'],['…','(略 3 步)'],['6','汇总返回']],
+         ret:'提前 return 的判据用的是 target 而非 appId,DMG 线不受影响。一处建议:return 前打一行日志,否则「跳过了」与「跑了但没配变量」在 CI 输出里看不出区别。'},
+        {type:'tool',nm:'Edit',sum:'scripts/notarize.js · +9 −2',
+         input:'{ "file_path": "scripts/notarize.js", "old_string": "module.exports = async function (context) {", "new_string": "module.exports = async function (context) {\\n  if (context.targets?.some(t => t.name === \'mas\')) {\\n    console.log(\'[notarize] MAS 构建,跳过\')\\n    return\\n  }" }',
+         output:'已应用'},
+        {type:'tool',nm:'Bash',sum:'pnpm dist:mas · 退出码 0 · 未触发 notarize',
+         input:'{ "command": "pnpm dist:mas" }',
+         output:'• building        target=mas\n[notarize] MAS 构建,跳过\n✔ done in 96.4s'}
+       ]},
+      // ★ 16
+      {n:'16',d:'7月29日 周三',t:'15:58',tools:4,subs:0,
+       txt:'CI 里怎么注入证书?我不想把 p12 提交进仓库。',
+       turn:[
+        {type:'text',body:'base64 进 secret,workflow 里解到临时 keychain,job 结束删掉。<code>electron-builder</code> 认 <code>CSC_LINK</code>/<code>CSC_KEY_PASSWORD</code>,直接喂 base64 串也行,不用落盘。'},
+        {type:'tool',nm:'Edit',sum:'.github/workflows/release.yml · +7 −0',
+         input:'{ "file_path": ".github/workflows/release.yml", "old_string": "      - run: pnpm dist:mac", "new_string": "      - env:\\n          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}\\n          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}\\n        run: pnpm dist:mac" }',
+         output:'已应用'}
+       ]},
+      L('17','7月29日 周三','16:20','secrets 名字用什么约定',0,0,
+        '按「用途_类型」:MAC_CERT_P12_BASE64 / MAC_CERT_PASSWORD / MAS_CERT_P12_BASE64——两条线的证书本来就不是同一张。'),
+      L('18','7月29日 周三','16:33','base64 那步在 macos runner 上是 base64 -D 还是 -d',1,0,
+        'macOS 的 base64 用 -D(大写)。写 -d 在 GNU coreutils 上才对,runner 上会报 invalid option。',
+        [['Bash','base64 --help']]),
+      L('19','7月29日 周三','16:49','临时 keychain job 结束不删会怎样',0,0,
+        'GitHub 托管 runner 是一次性的,不删也不会泄漏;但自托管 runner 会留下,建议无条件加 always() 的清理步骤。'),
+      L('20','7月29日 周三','17:02','现在 CI 跑一次要多久',2,0,
+        '两条线串行 14 分钟,其中 notarize 等待占 6 分钟。改并行 job 能压到 9 分钟。',
+        [['Bash','gh run list --limit 5'],['Bash','gh run view 18823 --json jobs']]),
+      L('21','7月29日 周三','17:15','能不能只在 tag 上跑 MAS 那条',3,0,
+        '能。把 MAS job 的 if 设成 startsWith(github.ref, \'refs/tags/\'),日常 push 只跑 DMG。',
+        [['Read','.github/workflows/release.yml'],['Edit','release.yml · +3 −1'],['Bash','actionlint · 无错']]),
+      L('22','7月29日 周三','17:40','App Store Connect 那边要先建 app 记录吗',0,0,
+        '要。bundle id 必须先在 Developer 后台注册,再在 App Store Connect 建 app,否则 Transporter 会拒收。'),
+      L('23','7月29日 周三','18:02','版本号和 build number 的规则是什么',2,0,
+        'version 可以重复上传但 build 必须单调递增,且同一 version 下的 build 不能回退。建议 build 用 CI run number。',
+        [['Read','package.json'],['Edit','electron-builder.mas.yml · buildVersion 取 CI run number']]),
+      L('24','7月30日 周四','09:20','昨天那条 XPC 的改动我 revert 了,还是走子进程吧',4,0,
+        '已 revert。子进程路线的唯一硬要求是二进制在 bundle 内——下面把它挪进去。',
+        [['Bash','git revert 8f2a1c3'],['Bash','pnpm test · 142 passed'],['Read','src/main/gateway/index.ts']]),
+      L('25','7月30日 周四','09:34','那就把子进程挪进 bundle 里',6,0,
+        '挪到 Contents/Resources/gateway,extraResources 配好,启动路径改成 process.resourcesPath 拼接。',
+        [['Edit','electron-builder.mas.yml · extraResources +5'],['Edit','src/main/gateway/spawn.ts · +8 −3'],
+         ['Bash','pnpm dist:mas --dir · 退出码 0']]),
+      L('26','7月30日 周四','09:51','Contents/MacOS 还是 Contents/Resources',0,0,
+        'Resources。MacOS 目录按约定只放主可执行文件,多放东西 App Store 审核会挑。'),
+      L('27','7月30日 周四','10:12','挪进去之后签名顺序有讲究吗',1,0,
+        '有,由内向外:先签内嵌二进制与 framework,最后签 app 本体。顺序反了外层签名会立刻失效。',
+        [['Bash','codesign -dvvv --deep Transfer.app']]),
+      L('28','7月30日 周四','10:30','帮我把打包脚本按这个顺序改一遍',14,0,
+        '改成显式的三段签名,并加了一步 codesign --verify --deep --strict 做闸门。',
+        [['Edit','scripts/sign.sh · 新建 41 行'],['Edit','electron-builder.mas.yml · afterSign 换成 sign.sh'],
+         ['Bash','pnpm dist:mas · 退出码 0'],['Bash','codesign --verify --deep --strict · 通过']]),
+      L('29','7月30日 周四','11:02','codesign --verify 过了但 spctl 不过',3,0,
+        '正常。spctl 评估的是 Gatekeeper 策略,MAS 包不走 Gatekeeper 分发路径,所以判定不适用。',
+        [['Bash','spctl -a -vvv Transfer.app'],['Bash','codesign --verify --deep --strict · 通过']]),
+      L('30','7月30日 周四','11:18','spctl 对 MAS 包本来就不适用?',0,0,
+        '对。MAS 包的验证发生在 App Store 侧,本地只能验签名完整性,不能验分发策略。'),
+      L('31','7月30日 周四','11:33','那怎么验证 MAS 包是对的',2,0,
+        '本地验签名 + Transporter 的 verify 子命令做上传前校验,这是上传前能做的全部。',
+        [['Bash','xcrun altool --validate-app'],['Bash','validation succeeded']]),
+      L('32','7月30日 周四','11:50','Transporter 传上去了,等审核',0,0,'收到。'),
+      L('33','7月30日 周四','13:40','被拒了,理由是 ITMS-90238',1,0,
+        'ITMS-90238 = 无效的签名 / 有未签名的内嵌二进制。基本就是刚才挪进去的 gateway 没被签到。',
+        [['Bash','codesign -dv Contents/Resources/gateway · code object is not signed at all']]),
+      L('34','7月30日 周四','13:52','这个错通常是什么原因',0,0,
+        '三种:内嵌二进制漏签、签名用错证书(用了 Developer ID 而不是 3rd Party Mac Developer)、签名顺序反了。这次是第一种。'),
+      L('35','7月30日 周四','14:15','帮我查下哪个 framework 没签',9,1,
+        '只有 Resources/gateway 一个没签——sign.sh 的 glob 只覆盖了 Frameworks/,没覆盖 Resources/。',
+        [['Bash','find Transfer.app -type f -perm +111'],['Bash','逐个 codesign -dv · 1 个未签'],
+         ['Edit','scripts/sign.sh · glob 扩到 Resources/'],['Bash','重新打包并验签 · 通过']]),
+      L('36','7月30日 周四','14:48','重签之后要重新打包吗',0,0,
+        '要。改了 bundle 内容就得整包重签重打,单独 codesign 补一刀会让外层签名失效。'),
+      L('37','7月30日 周四','15:05','传第二遍了',0,0,'收到。'),
+      L('38','7月30日 周四','15:30','过了。上架后自动更新怎么办,MAS 版不能用 electron-updater 吧',2,0,
+        '不能。MAS 版禁止自更新,更新完全由 App Store 接管;代码里要按 target 把 updater 整块关掉,否则审核会因为「非 App Store 更新机制」被拒。',
+        [['Grep','"electron-updater" · 4 处'],['Edit','src/main/updater.ts · MAS 下不注册']]),
+      L('39','7月30日 周四','15:44','那 MAS 版就完全靠 App Store 更新',0,0,
+        '对。也因此 MAS 版发版节奏会比直分发版慢一个审核周期,两条线的版本号会长期不齐。'),
+      L('40','7月30日 周四','16:02','两个版本的用户数据目录要不要分开',1,0,
+        '不用刻意分——沙箱已经把 MAS 版关进独立容器了,目录天然不同。反倒是要想清楚要不要做一次性迁移。',
+        [['Bash','ls ~/Library/Containers/com.aloong.transfer.mas']]),
+      L('41','7月30日 周四','16:20','已经装了直分发版的用户再装 MAS 版会怎样',0,0,
+        '两个 app 并存,数据不互通,Dock 上出现两个图标。要避免就得在 MAS 版首启时提示并引导迁移。'),
+      L('42','7月30日 周四','16:38','把今天这些整理成一份发版清单',5,0,
+        '已写入 docs/ops/release-mas.md:证书与 profile、两条构建线、签名顺序、上传前校验、被拒后的排查表。',
+        [['Write','docs/ops/release-mas.md · 新建 86 行'],['Read','docs/ops/release.md'],
+         ['Edit','docs/ops/release.md · 加交叉引用']])
+    ]
+  };
+
+  // ── Codex fork 会话:18 条提问 ──
+  const CODEX = {
+    badge:'x', side:'CX', title:'迁移 Claude Code skills 到 Codex',
+    meta:'Codex · 18 提问 · 96k tok · 3.1 MB(其中 54% 为 fork 重放副本)· 最后活动 9 天前',
+    banners:[{k:'info',i:'⑂',t:'本会话 fork 自 <a>《skills 目录结构与命名》</a>——重放前缀已剥离,下面只展示本次 fork 之后的新内容。<b>更早的历史见该会话</b>。'}],
+    qs:[
+      {n:'01',d:'9月14日 周日',t:'10:22',tools:2,subs:0,
+       txt:'上次 notarize 那套还能复用吗?Codex 这边的 skill 目录结构和 Claude 不一样。',
+       turn:[
+        {type:'reason',titles:['对比两侧 skill 目录约定','确认 frontmatter 字段差异','给出可复用范围']},
+        {type:'text',body:'脚本能复用,组织方式不能。Codex 侧是 <code>~/.codex/skills/&lt;name&gt;/SKILL.md</code>,没有 Claude 的 <code>allowed-tools</code> 字段,写了会被忽略而不是报错。'},
+        {type:'tool',nm:'shell',sum:'ls ~/.codex/skills · 23 项',
+         input:'{ "command": ["bash","-lc","ls ~/.codex/skills"] }',
+         output:'decision-form\ngithub-ops\n…(共 23 项)'},
+        {type:'tool',nm:'read_file',sum:'~/.codex/skills/github-ops/SKILL.md · 40 行',
+         input:'{ "path": "~/.codex/skills/github-ops/SKILL.md" }',
+         output:'---\nname: github-ops\ndescription: …\n---\n…'}
+       ]},
+      {n:'02',d:'9月14日 周日',t:'10:41',tools:7,subs:1,
+       txt:'那就批量搬过去,frontmatter 里 Claude 独有的字段要剥掉。',
+       turn:[
+        {type:'reason',titles:['枚举待迁移 skill','设计 frontmatter 过滤','逐个写入并校验']},
+        {type:'text',body:'共 26 个,剥掉 <code>allowed-tools</code> 与 <code>model</code> 两个字段后写入。有 3 个 skill 正文里引用了 Claude 专属工具名,已在文件头加了标注,没有自动改写正文。'},
+        {type:'sub',nm:'worker',sum:'14 步 · 22k tok · 批量迁移',
+         prompt:'把 ~/.claude/skills 下 26 个 skill 迁到 ~/.codex/skills,剥掉 allowed-tools 与 model 字段。',
+         steps:[['1','list  ~/.claude/skills → 26'],['2','逐个读取 frontmatter'],['…','(略 11 步)'],['14','汇总返回']],
+         ret:'26 个全部写入成功;3 个正文含 Claude 专属工具名(Task/NotebookEdit),已在文件头加标注,未改写正文。'},
+        {type:'tool',nm:'apply_patch',sum:'~/.codex/skills/tdd/SKILL.md · 新建',
+         input:'*** Add File: ~/.codex/skills/tdd/SKILL.md\n+---\n+name: tdd\n+…',
+         output:'Success. Updated the following files:\nA ~/.codex/skills/tdd/SKILL.md'}
+       ]},
+      {n:'03',d:'9月14日 周日',t:'11:05',tools:0,subs:0,
+       txt:'装完怎么验证真的被加载了?',
+       turn:[
+        {type:'reason',titles:['回忆 skill 加载时机']},
+        {type:'text',body:'新开一个会话,skill 清单在启动时枚举一次;当前会话里加的不会生效。'}
+       ]},
+      L('04','9月14日 周日','11:18','skill 名字冲突了怎么办',1,0,
+        '同名后加载的覆盖先加载的,不报错。建议迁移时先跑一遍重名检查。',[['shell','comm -12 两侧清单 · 3 个重名']]),
+      L('05','9月14日 周日','11:30','Codex 这边有没有项目级 skill',2,0,
+        '有,.codex/skills/ 放项目目录下即可,与用户级并存。',[['shell','ls .codex/skills'],['read_file','.codex/config.toml']]),
+      L('06','9月14日 周日','11:52','那项目级和全局同名是遮蔽还是共存',0,0,
+        'skills 是共存(两条都出现在清单里);subagents 才是项目级遮蔽用户级——两者语义相反,别记混。'),
+      L('07','9月14日 周日','13:10','AGENTS.md 和 CLAUDE.md 能不能共用一份',1,0,
+        '内容能共用,文件不能——两边各自只读自己那个文件名。',[['read_file','AGENTS.md']]),
+      L('08','9月14日 周日','13:26','用软链行不行',0,0,'行,两边都跟随软链。'),
+      L('09','9月14日 周日','13:41','软链在 Codex 这边会被跟随吗',2,0,
+        '会。实测把 AGENTS.md 软链到 CLAUDE.md,内容正常读到。',[['shell','ln -s CLAUDE.md AGENTS.md'],['read_file','AGENTS.md · 内容一致']]),
+      L('10','9月14日 周日','14:02','帮我把 26 个 skill 里引用 Claude 工具名的地方列出来',5,0,
+        '3 个文件、共 7 处:Task ×4、NotebookEdit ×2、WebFetch ×1。',
+        [['shell','rg -n "\\b(Task|NotebookEdit|WebFetch)\\b" ~/.codex/skills'],['read_file','research/SKILL.md']]),
+      L('11','9月14日 周日','14:20','Task 这个工具 Codex 有对应的吗',0,0,
+        '没有同名的。Codex 侧派 subagent 走 .codex/agents 定义 + 运行时调用,不是一个叫 Task 的工具。'),
+      L('12','9月14日 周日','14:35','那 subagent 怎么派',1,0,
+        '在 config.toml 里声明 agent,运行时按名字调用;默认三个内置(default/worker/explorer)可被同名覆盖。',
+        [['read_file','~/.codex/config.toml']]),
+      L('13','9月14日 周日','14:58','.codex/agents 下面放 toml?',1,0,'对,一个 agent 一个 .toml。',[['shell','ls .codex/agents']]),
+      L('14','9月14日 周日','15:12','toml 里 name 字段和文件名不一致会怎样',0,0,
+        '以 name 字段为准,文件名只是文件名。所以跨文件名也会发生同名遮蔽——这点容易踩。'),
+      L('15','9月14日 周日','15:30','帮我建三个项目级 agent',6,0,
+        '建了 explorer / reviewer / migrator 三个,sandbox_mode 都设成 read-only。',
+        [['apply_patch','.codex/agents/explorer.toml · 新建'],['apply_patch','.codex/agents/reviewer.toml · 新建'],
+         ['apply_patch','.codex/agents/migrator.toml · 新建']]),
+      L('16','9月14日 周日','15:55','sandbox_mode 有哪几种取值',1,0,
+        'read-only / workspace-write / danger-full-access 三种。',[['read_file','config 文档片段']]),
+      L('17','9月14日 周日','16:10','read-only 的 agent 能不能读项目外的文件',0,0,
+        '能读,read-only 限的是写不是读的范围;要限范围得另外配。'),
+      L('18','9月14日 周日','16:24','都弄完了,帮我写个迁移记录',3,0,
+        '写进 docs/ops/codex-migration.md:字段差异表、重名清单、7 处待人工改写的工具名引用。',
+        [['apply_patch','docs/ops/codex-migration.md · 新建 52 行'],['read_file','docs/ops/README.md']])
+    ]
+  };
+
+  // ── Codex fork·父会话缺失:24 条提问,跨两天 ──
+  const ORPHAN = {
+    badge:'x', side:'CX', title:'把 openclaw 的网关拆出来单独跑',
+    meta:'Codex · 24 提问 · 140k tok · 4.6 MB · 最后活动 10 天前 · 无 thread_name,标题取首条提问',
+    banners:[{k:'risk',i:'⑂?',t:'<b>重放前缀剥离不确定</b>:本会话 fork 自一个<b>不在扫描集内</b>的父会话(父文件已被清理,或属未注册项目),只能按启发式剥离——<b>可能多剥(丢消息)或少剥(重复)</b>,请对照原文核对。不静默剥错是这里唯一能给的保证。'}],
+    qs:[
+      {n:'01',d:'9月13日 周六',t:'20:04',tools:5,subs:0,
+       txt:'把网关从主进程里拆出来单独跑,进程间怎么通?现在是直接函数调用。',
+       turn:[
+        {type:'reason',titles:['盘点当前调用点','对比 IPC 与本地 socket','给出迁移顺序']},
+        {type:'text',body:'走本地 socket 而不是 Electron IPC——网关将来要能脱离 app 单独起,绑死 IPC 就退不回去了。'},
+        {type:'tool',nm:'shell',sum:'rg "gateway\\." src/ · 23 处',
+         input:'{ "command": ["bash","-lc","rg -n \'gateway\\\\.\' src/ | wc -l"] }',
+         output:'23'},
+        {type:'tool',nm:'read_file',sum:'src/main/gateway/index.ts · 210 行',
+         input:'{ "path": "src/main/gateway/index.ts" }',
+         output:'export class Gateway {\n  start() { … }\n…(共 210 行)'}
+       ]},
+      {n:'02',d:'9月13日 周六',t:'20:31',tools:0,subs:0,
+       txt:'网关拆出来之后权限怎么算,还要不要单独申请?',
+       turn:[
+        {type:'reason',titles:['回忆 TCC 归属规则']},
+        {type:'text',body:'TCC 按<b>发起进程所属的 app bundle</b> 记账。子进程仍在同一 bundle 内 → 沿用主 app 的授权,不用单独申请。真拆成独立 app 就要重新申请。'}
+       ]},
+      {n:'03',d:'9月13日 周六',t:'21:12',tools:8,subs:1,
+       txt:'那退出的时候怎么保证网关也被收掉?现在 kill 主进程会留孤儿。',
+       turn:[
+        {type:'reason',titles:['列举孤儿进程成因','对比几种收尸方式']},
+        {type:'text',body:'父进程正常退出走显式 kill;被 SIGKILL 时父没机会执行任何代码,只能让子进程自己看父 pid,发现变成 1 就自杀。'},
+        {type:'sub',nm:'worker',sum:'11 步 · 19k tok · 验证三种退出路径',
+         prompt:'验证正常退出 / SIGTERM / SIGKILL 三种路径下网关子进程是否都被回收。',
+         steps:[['1','起主进程 + 网关'],['2','正常退出 → 已回收'],['3','SIGTERM → 已回收'],
+                ['…','(略 7 步)'],['11','汇总返回']],
+         ret:'SIGKILL 路径下网关存活 30s 后才被自检回收;把自检间隔从 30s 降到 2s 可接受。'}
+       ]},
+      L('04','9月13日 周六','21:30','unix socket 放哪个路径',1,0,
+        '放 app 的 container 里,不要放 /tmp——沙箱下 /tmp 是重定向过的,两个进程看到的不是同一个。',
+        [['read_file','src/main/paths.ts']]),
+      L('05','9月13日 周六','21:44','沙箱下能写 tmp 吗',0,0,'能写,但写的是容器内的私有 tmp,跨进程共享要靠 container 路径。'),
+      L('06','9月13日 周六','22:01','那就放 container 里',3,0,'改好了,路径由主进程算出来后通过环境变量传给网关。',
+        [['apply_patch','src/main/paths.ts · +6 −1'],['apply_patch','src/main/gateway/spawn.ts · +3 −0'],
+         ['shell','pnpm test · 通过']]),
+      L('07','9月13日 周六','22:15','协议用什么,JSON lines?',0,0,'JSON lines 够用,而且崩了之后从下一行恢复很简单。'),
+      L('08','9月13日 周六','22:30','要不要加长度前缀',0,0,
+        '不用。JSON lines 靠换行分帧,加长度前缀等于两套分帧,反而容易不一致。'),
+      L('09','9月13日 周六','22:44','断线重连谁负责',2,0,'主进程负责——它知道网关该不该在跑。网关只管被动接受连接。',
+        [['read_file','src/main/gateway/client.ts'],['apply_patch','client.ts · 加指数退避重连']]),
+      L('10','9月13日 周六','23:02','网关先起还是 app 先起',0,0,
+        'app 先起,拉网关,然后轮询 socket 就绪。反过来会出现网关空转等不到人。'),
+      L('11','9月13日 周六','23:15','端口冲突怎么办',0,0,'unix socket 不占端口,只需处理同名文件残留——启动前 unlink 一次。'),
+      L('12','9月13日 周六','23:30','帮我把现在的直接调用改成 socket 调用',16,1,
+        '23 处调用点全改完,加了一层薄封装,调用方签名没变。',
+        [['apply_patch','src/main/gateway/rpc.ts · 新建 118 行'],['shell','rg 逐个替换 · 23 处'],
+         ['shell','pnpm test · 142 passed'],['shell','手工冒烟 · 通过']]),
+      L('13','9月14日 周日','09:05','昨天那版跑起来了但延迟高了',2,0,'实测单次往返 38ms,主要是每次调用都新建连接。',
+        [['shell','跑 100 次采样'],['read_file','src/main/gateway/rpc.ts']]),
+      L('14','9月14日 周日','09:20','是不是每次都新建连接',0,0,'是。rpc.ts 里连接是函数内局部变量,调用结束就关了。'),
+      L('15','9月14日 周日','09:38','改成长连接',4,0,'改成模块级单例连接 + 断线重建,往返降到 3ms。',
+        [['apply_patch','rpc.ts · +21 −9'],['shell','跑 100 次采样 · p50 3ms'],['shell','pnpm test · 通过']]),
+      L('16','9月14日 周日','09:55','现在 3ms,可以接受',0,0,'好。'),
+      L('17','9月14日 周日','10:10','日志怎么分开',1,0,'网关自己写一份,主进程不转发——转发会让时间戳失真。',[['read_file','src/main/log.ts']]),
+      L('18','9月14日 周日','10:28','网关的日志也要进同一个文件吗',0,0,
+        '不要。同文件多进程追加在 macOS 上不保证原子,超过 PIPE_BUF 就会交错。'),
+      L('19','9月14日 周日','10:45','帮我加个 --gateway-only 的启动参数',7,0,'加好了,--gateway-only 跳过窗口创建,只起网关。',
+        [['apply_patch','src/main/index.ts · +12 −2'],['apply_patch','src/main/cli.ts · 新建'],
+         ['shell','node dist/main --gateway-only · 起来了']]),
+      L('20','9月14日 周日','11:02','这样能不能单独调试网关',0,0,'能,而且可以直接挂 --inspect,不受 Electron 主进程调试的限制。'),
+      L('21','9月14日 周日','11:20','打包的时候网关二进制要不要单独签',1,0,
+        '要,而且必须在签 app 本体之前签——顺序反了外层签名失效。',[['shell','codesign -dvvv Contents/Resources/gateway']]),
+      L('22','9月14日 周日','11:40','那 notarize 呢',0,0,'整包 notarize 一次即可,内嵌二进制不用单独提交。'),
+      L('23','9月14日 周日','12:02','都验证过了',0,0,'好。'),
+      L('24','9月14日 周日','12:15','帮我把这些写进 ops 文档',4,0,
+        '写进 docs/ops/gateway-split.md:进程模型、socket 路径、退出回收、签名顺序。',
+        [['apply_patch','docs/ops/gateway-split.md · 新建 64 行'],['read_file','docs/ops/README.md']])
+    ]
+  };
+
+  const DATA = {claude:CLAUDE, codex:CODEX, orphan:ORPHAN};
+  let cur='claude', fetchState='ok', order='asc';
+  const loaded=new Set();          // 已取回过的轮次(索引失效只在首次取回时重建)
+  const openTurns=new Set();       // 已展开的轮次(跨排序切换保持)
+  const foldedDays=new Set();      // 已折叠的日期分组
+
+  function toolHtml(b){
+    return `<div class="blk"><div class="bh"><i class="cv"></i>🔧<span class="nm">${b.nm}</span>
+      <span class="sum">${esc(b.sum)}</span></div>
+      <div class="bb">${b.lite
+        ? `<div class="mockgap">本原型只为标注的几轮构造了完整入参/返回(Claude:01 02 03 07 15 16;Codex:01 02 03)。
+             这里是填充轮,只到「一句回答 + 工具行」——mock 的边界,不是设计的一部分。</div>`
+        : `<div class="lb">入参</div><pre>${esc(b.input)}</pre>
+           <div class="lb">返回</div><pre>${esc(b.output)}</pre>
+           ${b.trunc?`<div class="warn">返回超过 agent 的单条上限,transcript 里<b>只存了截断版</b>。原文旁挂在
+             <code>tool-results/*.txt</code>,但记录中<b>没有指向它的引用链</b>,无法定位 →
+             这里展示的就是截断版,不谎称完整。</div>`:''}`}</div></div>`;
+  }
+  function subHtml(b){
+    return `<div class="blk sub"><div class="bh"><i class="cv"></i>🤖<span class="nm">subagent · ${b.nm}</span>
+      <span class="sum">${esc(b.sum)}</span></div>
+      <div class="bb"><div class="lb">派发 prompt</div><pre>${esc(b.prompt)}</pre>
+      <div class="lb">内部步骤</div>
+      ${b.steps.map(([n,s])=>`<div class="step"><span class="sn">${n}</span><span>${esc(s)}</span></div>`).join('')}
+      <div class="lb">返回主会话</div><pre>${esc(b.ret)}</pre></div></div>`;
+  }
+  function blockHtml(b){
+    if(b.type==='think') return `<div class="blk think"><div class="bh"><i class="cv"></i>💭<span class="nm">思考</span>
+      <span class="sum">${b.size} · 明文可得</span></div><div class="bb">${esc(b.body).replace(/\n/g,'<br>')}</div></div>`;
+    if(b.type==='reason') return `<div class="blk think"><div class="bh"><i class="cv"></i>💭<span class="nm">推理</span>
+      <span class="sum">仅 ${b.titles.length} 条小标题 · 正文不可得</span></div>
+      <div class="bb"><div class="warn">Codex 的推理正文是 <code>encrypted_content</code>,<b>永远拿不到</b>。
+        下面是记录里仅有的明文小标题(<code>agent_reasoning</code>)——与 Claude 侧的明文思考<b>不对等</b>,不假装一致。</div>
+        ${b.titles.map(t=>`<div class="rt">${esc(t)}</div>`).join('')}</div></div>`;
+    if(b.type==='text') return `<div class="ans">${b.body}</div>`;
+    if(b.type==='tool') return toolHtml(b);
+    if(b.type==='sub')  return subHtml(b);
+    return '';
+  }
+  // 填充轮:一句回答 + 工具行(工具体内说明 mock 边界)
+  function liteTurn(q){
+    return [{type:'text',body:q.a}].concat(
+      (q.tl||[]).map(([nm,sum])=>({type:'tool',nm,sum,lite:true})),
+      q.subs?[{type:'sub',nm:'worker',sum:`${q.subs} 次派发 · 内部步骤未构造`,prompt:'(填充轮)',
+               steps:[['…','(填充轮:mock 未构造)']],ret:'(填充轮)'}]:[]);
+  }
+  function turnHtml(q){
+    return `${(q.turn||liteTurn(q)).map(blockHtml).join('')}
+      <div class="fetched">⚡ 按需取回 3 ms · 只读了本轮所在的字节区间,与文件总大小无关</div>`;
+  }
+
+  function dayGroups(qs){
+    const days=[]; qs.forEach((q,i)=>{
+      const g=days[days.length-1];
+      (g&&g.d===q.d)?g.items.push([q,i]):days.push({d:q.d,items:[[q,i]]});
+    });
+    if(order==='desc'){ days.reverse(); days.forEach(g=>g.items.reverse()) }
+    return days;
+  }
+  function render(reset){
+    const d=DATA[cur];
+    if(reset){ loaded.clear(); openTurns.clear(); foldedDays.clear() }
+    document.getElementById('hbadge').className='b '+d.badge;
+    document.getElementById('hbadge').textContent=d.side;
+    document.getElementById('htitle').textContent=d.title;
+    document.getElementById('hmeta').textContent=d.meta;
+    document.getElementById('banners').innerHTML=d.banners.map(b=>
+      `<div class="banner ${b.k}"><span class="bi">${b.i}</span><span>${b.t}</span></div>`).join('');
+    const days=dayGroups(d.qs);
+    document.getElementById('qhead').textContent=
+      `提问(主干)· ${d.qs.length} 条 · ${days.length} 天`;
+    document.getElementById('foldall').textContent=
+      foldedDays.size===days.length?'全部展开':'全部收起';
+    // 序号恒为原始轮次号(data-q 也是原始下标),排序只换呈现顺序
+    document.getElementById('qlist').innerHTML=days.map(g=>
+      `<div class="daygrp${foldedDays.has(g.d)?' fold':''}" data-day="${g.d}">
+        <div class="dayhd"><i class="cv"></i>${g.d} · ${g.items.length} 条</div>
+        <div class="daybody">${g.items.map(([q,i])=>{
+          const on=openTurns.has(i);
+          return `<div class="q${on?' open':''}" data-q="${i}"><i class="cv">${on?'▾':'▸'}</i>
+            <span class="idx">${q.n}</span>
+            <span class="txt">${esc(q.txt)}</span>
+            ${q.tools?`<span class="c">${q.tools} 🔧</span>`:'<span class="c" style="opacity:.45">0 🔧</span>'}
+            ${q.subs?`<span class="c">${q.subs} 🤖</span>`:''}
+            <span class="tm">${q.t}</span></div>
+          <div class="turn${on?' on':''}" data-turn="${i}">${on?turnHtml(q):''}</div>`;
+        }).join('')}</div></div>`).join('');
+    if(reset) document.querySelector('.body').scrollTop=0;
+  }
+
+  document.getElementById('qlist').addEventListener('click',e=>{
+    const bh=e.target.closest('.bh');
+    if(bh){ bh.parentElement.classList.toggle('open'); return }
+    const hd=e.target.closest('.dayhd');
+    if(hd){ const grp=hd.parentElement, day=grp.dataset.day;
+      grp.classList.toggle('fold');
+      grp.classList.contains('fold')?foldedDays.add(day):foldedDays.delete(day);
+      document.getElementById('foldall').textContent=
+        foldedDays.size===document.querySelectorAll('.daygrp').length?'全部展开':'全部收起';
+      return }
+    const row=e.target.closest('.q'); if(!row) return;
+    const i=+row.dataset.q, box=document.querySelector(`[data-turn="${i}"]`);
+    if(row.classList.contains('open')){
+      row.classList.remove('open'); row.querySelector('.cv').textContent='▸';
+      box.classList.remove('on'); openTurns.delete(i); return;
+    }
+    row.classList.add('open'); row.querySelector('.cv').textContent='▾'; box.classList.add('on');
+    openTurns.add(i);
+    const key=cur+':'+i;
+    if(fetchState==='stale' && !loaded.has(key)){
+      box.innerHTML=`<div class="rebuild">索引签名不符(文件被追加或重写)→ 正在<b>只重建该文件</b>的索引…</div>`;
+      setTimeout(()=>{ loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]); },900);
+    } else { loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]) }
+  });
+
+  // 导出:入口只此一处;默认与浏览心智一致(已展开的那些)
+  const menu=document.getElementById('expmenu');
+  document.getElementById('expbtn').addEventListener('click',e=>{
+    e.stopPropagation();
+    const open=document.querySelectorAll('.q.open').length, d=DATA[cur];
+    menu.innerHTML=`<div class="mi" data-ex="opened">导出提问 + 已展开的回答
+        <div class="sub2">${d.qs.length} 条提问 · ${open} 轮已展开的回答</div></div>
+      <div class="mi" data-ex="all">导出全部 ${d.qs.length} 轮
+        <div class="sub2">含全部工具调用与 subagent 过程</div></div>
+      <div class="mfoot">Markdown · 内联图片用 data: URI。<br>
+        不可还原处在文中显式标注:${cur==='claude'?'被截断的工具结果':'推理密文 · 重放段的真实时间'}。</div>`;
+    menu.classList.toggle('open');
+  });
+  document.addEventListener('click',()=>menu.classList.remove('open'));
+  menu.addEventListener('click',e=>{
+    const mi=e.target.closest('[data-ex]'); if(!mi) return;
+    toast(mi.dataset.ex==='all'?'已生成 Markdown(全量)— 原型不落文件':'已生成 Markdown(提问 + 已展开)— 原型不落文件');
+  });
+  let tt;
+  function toast(s){ const el=document.getElementById('toast'); el.textContent=s; el.classList.add('on');
+    clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),1900) }
+
+  // 正序/倒序:只换呈现顺序,序号与已展开的轮次都不变
+  document.getElementById('qorder').addEventListener('click',e=>{
+    if(!e.target.dataset.o||e.target.dataset.o===order) return;
+    document.querySelectorAll('#qorder span').forEach(s=>s.classList.toggle('on',s===e.target));
+    order=e.target.dataset.o; render(false);
+  });
+  document.getElementById('foldall').addEventListener('click',()=>{
+    const days=dayGroups(DATA[cur].qs);
+    foldedDays.size===days.length?foldedDays.clear():days.forEach(g=>foldedDays.add(g.d));
+    render(false);
+  });
+
+  // 演示基建的开关
+  document.querySelector('[data-demo-harness]').addEventListener('click',e=>{
+    const b=e.target.closest('.hb'); if(!b) return;
+    if(b.dataset.ds){ cur=b.dataset.ds;
+      document.querySelectorAll('[data-ds]').forEach(x=>x.classList.toggle('on',x===b)); render(true) }
+    if(b.dataset.fs){ fetchState=b.dataset.fs;
+      document.querySelectorAll('[data-fs]').forEach(x=>x.classList.toggle('on',x===b)) }
+  });
+
+  render(true);
+</script>
+<script>
+  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+  });
+</script>
+</body>
+</html>

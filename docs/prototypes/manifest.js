@@ -5,6 +5,7 @@ window.PROTOTYPES = [
   { module: 'project-list',  type: 'ui',    id: 'list',         name: '项目图鉴列表',         path: 'project-list/prototype-list.html' },
   { module: 'project-list',  type: 'logic', id: 'visibility',   name: '项目可见性状态机',     path: 'project-list/visibility/index.html' },
   { module: 'project-detail',type: 'ui',    id: 'detail',       name: '详情:装了什么',       path: 'project-detail/prototype-detail.html' },
+  { module: 'session-view',  type: 'ui',    id: 'session',      name: '会话页:提问索引与整轮展开', path: 'session-view/prototype-session.html' },
   { module: 'token-stats',   type: 'logic', id: 'scan-cache',   name: '增量扫描与刷新生命周期', path: 'token-stats/scan-cache/index.html' },
   { module: 'skill-install', type: 'ui',    id: 'install',      name: 'Agents·Skills 装卸交互', path: 'skill-install/prototype-install.html' },
   { module: 'skill-install', type: 'logic', id: 'install-flow', name: '装卸操作状态机',       path: 'skill-install/install-flow/index.html' },
