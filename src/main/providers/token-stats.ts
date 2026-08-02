@@ -77,7 +77,7 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg
  * (路径, mtime, size) 命中,文件没变就直接返回旧值——新算法对存量文件永不生效。
  * fixture 用全新缓存必过,真实用户看不到修复,是典型假绿。
  * v4:Codex 的 at 由首个时间戳改为文件内最大时间戳。
- * v5:FileAgg 加 file(会话身份)。
+ * v5:FileAgg 加 file(会话身份);Claude 的 at 改为对全部行取最大(此前只看 usage 行)。
  */
 const CACHE_VERSION = 5
 
@@ -515,6 +515,10 @@ function listJsonl(root: string): Array<{ file: string; nested: boolean }> {
 function isWellFormedAgg(agg: unknown): agg is FileAgg {
   if (typeof agg !== 'object' || agg === null) return false
   const a = agg as Record<string, unknown>
+  // file 是会话身份,缺了会一路流到契约层抛掉整份详情(上层逃逸)。
+  // **给 FileAgg 加必填字段时,这里同步加一条**——版本号只拦得住跨版本,
+  // 同版本内的手工损坏与漂移只有这道守卫。
+  if (typeof a['file'] !== 'string' || a['file'] === '') return false
   if (a['kind'] === 'claude') return Array.isArray(a['entries'])
   if (a['kind'] === 'codex') return Array.isArray(a['events'])
   return false
@@ -580,10 +584,13 @@ async function parseClaudeFile(
         const t = text.trim().replace(/\s+/g, ' ')
         if (t) title = t.length > TITLE_MAX ? `${t.slice(0, TITLE_MAX)}…` : t
       }
-      const usage = msg?.['usage'] as Record<string, unknown> | undefined
-      if (!usage) return
+      // 时间戳在 usage 判断**之前**取:at = 文件内最大时间戳(与 Codex 侧同义)。
+      // 只看 usage 行会漏掉用户消息——它没有 usage 字段,而"用户最后问的那句话"
+      // 正是最后活动。实测 118 个真实会话,45% 的末行时间戳晚于末条 usage 行。
       const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp'] as string) : NaN
       if (!Number.isNaN(ts)) lastAt = lastAt === null ? ts : Math.max(lastAt, ts)
+      const usage = msg?.['usage'] as Record<string, unknown> | undefined
+      if (!usage) return
       const rawModel = typeof msg?.['model'] === 'string' ? (msg['model'] as string) : null
       entries.push([
         typeof msg?.['id'] === 'string' ? (msg['id'] as string) : null,

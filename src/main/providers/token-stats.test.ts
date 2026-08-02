@@ -46,8 +46,8 @@ function usageLine(model: string, tsIso: string, inTok: number, outTok: number, 
     }
   })
 }
-function userLine(text: string): string {
-  return JSON.stringify({ type: 'user', message: { role: 'user', content: text } })
+function userLine(text: string, tsIso?: string): string {
+  return JSON.stringify({ type: 'user', timestamp: tsIso, message: { role: 'user', content: text } })
 }
 /** 在 projects/<encodedDir>/ 下造会话文件;encodedDir 缺省取真实项目路径的编码 */
 function mkClaudeFile(rel: string, lines: string[], atSec = 1000, encodedDir?: string): string {
@@ -391,6 +391,32 @@ describe('会话 at = 文件内最大时间戳(两侧同义)', () => {
     expect(sessions[0].file.endsWith('main.jsonl')).toBe(true)
   })
 
+  // review 实测发现(2026-08-02):抽样 118 个真实 Claude 会话,53 个(45%)的
+  // 最后一行时间戳晚于最后一条 usage 行,最大差 203 秒。根因是**用户消息没有
+  // usage 字段**——用户最后问的那句话,按"只看 usage 行"的口径根本看不见。
+  it('Claude:末尾是用户消息(无 usage)时,at 取它而不是上一条助手回复', async () => {
+    mkClaudeFile('trailing-user.jsonl', [
+      userLine('第一问', '2026-07-30T10:00:00Z'),
+      usageLine('claude-fable-5', '2026-07-30T10:00:30Z', 10, 5),
+      userLine('追问,然后我就走了', '2026-07-30T10:03:53Z')
+    ])
+    const r = await engine().build(roots(), [proj])
+    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => x.side === 'claude')
+    expect(s?.at, 'at 应为最后一条用户消息的时间,不是最后一条 usage 行').toBe(
+      Date.parse('2026-07-30T10:03:53Z')
+    )
+  })
+
+  it('Claude:一条 usage 都没有的会话,at 仍取文件内最大时间戳而非退回 mtime', async () => {
+    mkClaudeFile('no-usage.jsonl', [userLine('只问了一句就崩了', '2026-07-30T11:22:33Z')], 1000)
+    const r = await engine().build(roots(), [proj])
+    // 该文件不产生 token,但仍是一条会话
+    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => x.title.includes('崩了'))
+    expect(s?.at, 'mtime 是 1000 秒(1970),文件内有真实时间戳就不该退回它').toBe(
+      Date.parse('2026-07-30T11:22:33Z')
+    )
+  })
+
   it('Claude 侧维持最大时间戳语义(回归)', async () => {
     mkClaudeFile('a.jsonl', [
       userLine('第一问'),
@@ -478,6 +504,43 @@ describe('缓存版本迁移(真 bug 回归)', () => {
       .get(proj.toLowerCase())
       ?.sessions.find((x) => x.side === 'codex')
     expect(s?.at, '版本号必须随算法变更一起升,否则旧值被沿用').toBe(Date.parse('2026-07-30T18:30:00Z'))
+  })
+
+  // review 发现:isWellFormedAgg 是**同版本内**损坏/漂移的护栏,加了 file 却没加进去。
+  // 逃逸面是上层——一条缺 file 的缓存条目会让 SessionMeta.file 为 undefined,
+  // 契约校验抛出,整个 getProjectDetail 挂掉(skills/memory/plugins/产物全没了)。
+  // 修完后逃逸面降为自伤:该文件重算一次。
+  it('同版本缓存里条目缺 file → 只重算该文件,不污染整份详情', async () => {
+    const cl = mkClaudeFile('wellformed.jsonl', [
+      userLine('x'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
+    ])
+    const st = statSync(cl)
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    writeFileSync(
+      join(dir, 'cache', 'token-cache.json'),
+      JSON.stringify({
+        version: 5, // 当前版本:版本号拦不住它,只能靠 isWellFormedAgg
+        files: {
+          [cl]: {
+            sig: `${st.mtimeMs}:${st.size}`,
+            agg: {
+              kind: 'claude',
+              // file 缺失 —— 手工损坏 / 未来重构漏字段的形态
+              projectKey: proj.toLowerCase(),
+              listed: true,
+              title: 'x',
+              at: 1,
+              entries: [[null, null, 0, 10, 5, 0, 0, 'claude-fable-5', '2026-07-30']]
+            }
+          }
+        }
+      })
+    )
+    const s = (await engine().build(roots(), [proj])).perProject
+      .get(proj.toLowerCase())
+      ?.sessions.find((x) => x.side === 'claude')
+    expect(s?.file, '缺字段的缓存条目必须被判不合格并重算,不能把 undefined 放行到契约层').toBe(cl)
   })
 
   it('缓存文件是垃圾内容时不崩,全量重算', async () => {
