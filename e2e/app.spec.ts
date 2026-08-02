@@ -20,14 +20,25 @@ interface Launched {
   app: ElectronApplication
   errors: string[]
   userData: string
+  /** 本次用的 fixture home(有则随 close 一并清理) */
+  home?: string
 }
 
-async function launch(cacheContent?: string): Promise<Launched> {
+/**
+ * home 为 fixture 目录时经 AGENTSHED_HOME_OVERRIDE 注入(见 src/main/roots.ts)。
+ * **凡断言具体数据的用例都必须传 home**——不传就读开发机真实 ~/.claude,
+ * 结果取决于跑测试的人有多少会话记录:自己机器上绿、CI 与新机器上红。
+ */
+async function launch(cacheContent?: string, home?: string): Promise<Launched> {
   const userData = makeUserData(cacheContent)
   const errors: string[] = []
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, NODE_ENV: 'production' }
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      ...(home ? { AGENTSHED_HOME_OVERRIDE: home } : {})
+    }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
@@ -36,12 +47,92 @@ async function launch(cacheContent?: string): Promise<Launched> {
       errors.push(t.trim())
     }
   })
-  return { app, errors, userData }
+  return { app, errors, userData, home }
 }
 
 async function close(l: Launched): Promise<void> {
   await l.app.close()
   rmSync(l.userData, { recursive: true, force: true })
+  if (l.home) rmSync(l.home, { recursive: true, force: true })
+}
+
+/** 本地日(与主进程 localDay 同口径);趋势窗口是「近 30 天」,时间戳必须相对 now 算 */
+function localDayOffset(daysAgo: number): Date {
+  const d = new Date()
+  d.setDate(d.getDate() - daysAgo)
+  d.setHours(12, 0, 0, 0) // 正午,避开时区把日期推到窗口外
+  return d
+}
+
+/**
+ * 造一个带两侧用量的 fixture home:Claude(→ Anthropic 段)+ Codex(→ OpenAI 段)。
+ * 趋势图按 provider 分段,所以两侧都要有,否则「切到 Claude 侧后 OpenAI 段归零」
+ * 这条断言在没有 OpenAI 数据时会**恒真**——测不出任何东西。
+ */
+function mkUsageHome(): string {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-usage-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+
+  // Claude:projects 全树扫描,目录名与注册表无关(未注册目录也计入全局)
+  const enc = proj.replace(/[^a-zA-Z0-9]/g, '-') // 与 encodeClaudeProjectDir 同规则
+  const cdir = join(home, '.claude', 'projects', enc)
+  mkdirSync(cdir, { recursive: true })
+  const usage = (model: string, at: Date, inTok: number, outTok: number): string =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: at.toISOString(),
+      message: {
+        model,
+        usage: {
+          input_tokens: inTok,
+          output_tokens: outTok,
+          cache_read_input_tokens: 0,
+          cache_creation_input_tokens: 0
+        }
+      }
+    })
+  writeFileSync(
+    join(cdir, 'a.jsonl'),
+    [
+      JSON.stringify({ type: 'user', timestamp: localDayOffset(2).toISOString(), message: { role: 'user', content: '示例提问' } }),
+      usage('claude-fable-5', localDayOffset(2), 1200, 300),
+      usage('claude-opus-5', localDayOffset(1), 800, 200),
+      usage('claude-fable-5', localDayOffset(0), 500, 100)
+    ].join('\n') + '\n'
+  )
+
+  // Codex:sessions 全树,首行 session_meta 的 cwd 决定归属
+  const sdir = join(home, '.codex', 'sessions', '2026', '01', '01')
+  mkdirSync(sdir, { recursive: true })
+  const turn = (at: Date, inTok: number, outTok: number): string =>
+    JSON.stringify({
+      timestamp: at.toISOString(),
+      type: 'event_msg',
+      payload: {
+        type: 'token_count',
+        info: {
+          last_token_usage: {
+            input_tokens: inTok,
+            cached_input_tokens: 0,
+            cache_write_input_tokens: 0,
+            output_tokens: outTok,
+            total_tokens: inTok + outTok
+          }
+        }
+      }
+    })
+  writeFileSync(
+    join(sdir, 'rollout-019fb0c0-1111-7af3-af7d-8505cedf1ec2.jsonl'),
+    [
+      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'session_meta', payload: { cwd: proj } }),
+      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
+      turn(localDayOffset(2), 900, 150),
+      turn(localDayOffset(0), 400, 80)
+    ].join('\n') + '\n'
+  )
+  return home
 }
 
 test('冷启动:Agents 页为默认落地,两侧汇总卡渲染,主进程无错误', async () => {
@@ -102,25 +193,36 @@ test('Agents 页七个 tab 逐个切换均渲染,无错误', async () => {
   await close(l)
 })
 
-test('切到 Projects:列表或空态渲染;选中项目后详情六 tab 可切换', async () => {
-  const l = await launch()
+// 原本是一条 if/else:有真实项目走 A 分支,没有走 B 分支。后果是**覆盖面不确定**
+// ——开发机永远走 A,CI 永远走 B,没有任何一台机器把两条都测到;而 B 分支从没被
+// 执行过,里面的 locator 同时命中侧栏与主区两个空态(strict mode violation),
+// 写完就没跑过。拆成两条各自预置 fixture home 的确定性用例。
+test('切到 Projects:有项目时出行,选中后详情各 tab 可切换', async () => {
+  const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
-  // 有真实项目则出行,否则出空态——两者都算通过(不依赖本机数据)
   const rows = win.locator('.side .row')
-  const hasRows = (await rows.count()) > 0
-  if (hasRows) {
-    await rows.first().click()
-    const tabs = win.locator('.pane-head .tabs .tab')
-    await expect(tabs.first()).toBeVisible()
-    const n = await tabs.count()
-    for (let i = 0; i < n; i++) {
-      await tabs.nth(i).click()
-      await expect(win.locator('.pane-body')).toBeVisible()
-    }
-  } else {
-    await expect(win.locator('.list-empty, .empty')).toBeVisible()
+  await expect(rows).toHaveCount(1)
+  await rows.first().click()
+  const tabs = win.locator('.pane-head .tabs .tab')
+  await expect(tabs.first()).toBeVisible()
+  const n = await tabs.count()
+  expect(n).toBeGreaterThan(0)
+  for (let i = 0; i < n; i++) {
+    await tabs.nth(i).click()
+    await expect(win.locator('.pane-body')).toBeVisible()
   }
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('切到 Projects:一个项目都没有时出侧栏空态', async () => {
+  const l = await launch(undefined, mkdtempSync(join(tmpdir(), 'agentshed-e2e-nohome-')))
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.side .row')).toHaveCount(0)
+  // 限定在侧栏内:主区另有一个 .empty(「选择一个项目查看详情」),不限定就多命中
+  await expect(win.locator('.side .list-empty')).toBeVisible()
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -175,15 +277,18 @@ test('归档:预置历史归档文件 → 趋势含归档段并有说明,主进�
 })
 
 test('趋势图为堆叠柱:柱内按 provider 分段,切单侧后只剩该侧 provider 段', async () => {
-  const l = await launch()
+  const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
-  // 合计模式:至少有一根柱含 Claude 段(本机有真实数据)
+  // 合计模式:fixture 预置了两侧用量 → Anthropic 与 OpenAI 段都该在
   const cols = win.locator('.chart .col')
   await expect(cols).toHaveCount(30)
   const anthropicSegs = win.locator('.chart .col .sp.anthropic')
   await expect(anthropicSegs.first()).toBeVisible()
   // 图例按 provider(至少 Anthropic 一项)
   await expect(win.locator('.legend .lg .sw.anthropic')).toBeVisible()
+  // 先钉住「切换前 OpenAI 段确实存在」——否则下面那条归零断言在无 Codex
+  // 数据时恒真,测不出任何东西(原来读真实 home 时就有这个隐患)
+  expect(await win.locator('.chart .col .sp.openai').count()).toBeGreaterThan(0)
   // 切到 Claude 侧:不应再出现 OpenAI 段
   await win.locator('.grp-t .seg button', { hasText: 'Claude' }).click()
   await expect(win.locator('.chart .col .sp.openai')).toHaveCount(0)
@@ -195,7 +300,7 @@ test('趋势图为堆叠柱:柱内按 provider 分段,切单侧后只剩该侧 p
 })
 
 test('provider 品牌配色生效:段与图例色一致,深浅模式各有取值', async () => {
-  const l = await launch()
+  const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   const read = async (): Promise<Record<string, string>> =>
     win.evaluate(() => {
@@ -392,32 +497,26 @@ const TREND_MOUNTS = [
     async goto(win: import('@playwright/test').Page) {
       await win.locator('.rail .ri').nth(1).click()
       const rows = win.locator('.side .row')
-      // count() 是即时读取,须等渲染完成——直接 count 会把"还没渲染"误判成"没有项目"
-      try {
-        await rows.first().waitFor({ state: 'visible', timeout: 8000 })
-      } catch {
-        return false // 本机确实无项目
-      }
+      // fixture home 保证有且只有一个项目,不再需要"本机没项目就 skip"的分支
+      await rows.first().waitFor({ state: 'visible', timeout: 8000 })
       await rows.first().click()
       await win.locator('.pane-head .tabs .tab', { hasText: '概览' }).click()
-      return true
     }
   }
 ]
 
 for (const mount of TREND_MOUNTS) {
   test(`趋势图[${mount.name}]:日期轴在位,悬停提示不被祖先裁剪`, async () => {
-    const l = await launch()
+    // 必须喂 fixture 数据:无数据时「标签数 === 数据柱数」是 0 === 0,
+    // 整套几何断言空过——跑了但什么都没验证。项目详情那条更直接:
+    // 没项目就被 skip 掉,在 CI 上等于零覆盖。
+    const l = await launch(undefined, mkUsageHome())
     const win = await l.app.firstWindow()
-    const ok = await mount.goto(win)
-    if (ok === false) {
-      // 本机确实无项目:显式 skip,不伪装成通过的绿
-      await close(l)
-      test.skip(true, `${mount.name}:本机无项目数据,无法验证`)
-      return
-    }
+    await mount.goto(win)
     await expect(win.locator('.chart .col').first()).toBeVisible()
     await expect(win.locator('.chart .col')).toHaveCount(30)
+    // 先钉住确实有数据柱,否则下面按数据柱做的几何检验会因空集合而恒真
+    expect(await win.locator('.chart .col .sp').count()).toBeGreaterThan(0)
 
     // ① x 轴几何检验:标签集合 = 当前视图数据日(默认窗宽放得下全部标签),
     //    互不重叠、不越出轴容器、逐标钉对应柱中心(首尾贴边 clamp 例外)。

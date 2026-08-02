@@ -214,12 +214,15 @@ export interface TokenStats {
   byDay: DayUsage[]
 }
 
-/** 会话元数据(不渲染内容) */
+/** 会话元数据 */
 export interface SessionMeta {
   side: AgentSide
   title: string
+  /** 最后活动时间 = 文件内最大时间戳(两侧同义;与走 mtime 的项目活跃度是两条管线) */
   at: number | null
   tokens: number
+  /** 源文件绝对路径 —— 会话的身份。凭它定位并读取内容(读取经主进程白名单校验) */
+  file: string
 }
 
 /** 单项目统计(概览 tab 数据) */

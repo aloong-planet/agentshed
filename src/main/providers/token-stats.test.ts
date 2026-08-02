@@ -46,8 +46,8 @@ function usageLine(model: string, tsIso: string, inTok: number, outTok: number, 
     }
   })
 }
-function userLine(text: string): string {
-  return JSON.stringify({ type: 'user', message: { role: 'user', content: text } })
+function userLine(text: string, tsIso?: string): string {
+  return JSON.stringify({ type: 'user', timestamp: tsIso, message: { role: 'user', content: text } })
 }
 /** 在 projects/<encodedDir>/ 下造会话文件;encodedDir 缺省取真实项目路径的编码 */
 function mkClaudeFile(rel: string, lines: string[], atSec = 1000, encodedDir?: string): string {
@@ -105,6 +105,55 @@ function mkCodexRollout(
         }
       })
     })
+  ]
+  const f = join(d, file)
+  writeFileSync(f, `${lines.join('\n')}\n`)
+  utimesSync(f, atSec, atSec)
+  return f
+}
+
+/**
+ * fork 会话:session_meta 带 id/forked_from_id;首行时间戳 = 重放时刻。
+ * 形态经真实样本核实(2026-08-02,本机 ~/.codex 里的两个 fork 会话):顶层
+ * timestamp/type/payload,payload 含 id + forked_from_id + cwd。真实数据另有
+ * session_id / parent_thread_id / thread_source / base_instructions 等字段,
+ * 本 fixture 只保留被读取的那些(那些字段各有既有测试覆盖)。
+ */
+function mkCodexFork(
+  file: string,
+  cwd: string,
+  o: { id: string; parentId: string; forkedAtIso: string },
+  model: string,
+  turns: Array<{ input: number; cached: number; output: number; at?: string }>,
+  atSec = 2000
+): string {
+  const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+  mkdirSync(d, { recursive: true })
+  const lines = [
+    JSON.stringify({
+      timestamp: o.forkedAtIso,
+      type: 'session_meta',
+      payload: { cwd, id: o.id, forked_from_id: o.parentId }
+    }),
+    JSON.stringify({ timestamp: o.forkedAtIso, type: 'turn_context', payload: { model, cwd } }),
+    ...turns.map((t) =>
+      JSON.stringify({
+        timestamp: t.at ?? o.forkedAtIso,
+        type: 'event_msg',
+        payload: {
+          type: 'token_count',
+          info: {
+            last_token_usage: {
+              input_tokens: t.input,
+              cached_input_tokens: t.cached,
+              cache_write_input_tokens: 0,
+              output_tokens: t.output,
+              total_tokens: t.input + t.output
+            }
+          }
+        }
+      })
+    )
   ]
   const f = join(d, file)
   writeFileSync(f, `${lines.join('\n')}\n`)
@@ -286,6 +335,106 @@ describe('Codex 聚合(ccusage 口径)', () => {
   })
 })
 
+// 票 session-view/01:两侧 at 语义原本相反(Claude 取最大、Codex 取首个),
+// 统一为「文件内最大时间戳」= 最后活动。Codex 侧尤甚——fork 会话的首个
+// 时间戳是重放时刻,拿它当活动时间既不是开始也不是结束。
+describe('会话 at = 文件内最大时间戳(两侧同义)', () => {
+  it('Codex 跨天会话取最后一轮的时间戳,不是首行的', async () => {
+    mkCodexRollout('rollout-at-019fb01.jsonl', proj, '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
+      { input: 10, cached: 0, output: 5, at: '2026-07-29T12:00:00Z' },
+      { input: 20, cached: 0, output: 5, at: '2026-07-30T18:30:00Z' }
+    ])
+    const r = await engine().build(roots(), [proj])
+    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => x.side === 'codex')
+    expect(s?.at).toBe(Date.parse('2026-07-30T18:30:00Z'))
+  })
+
+  it('Codex fork 会话的 at 不是重放时刻,而是本会话最后活动', async () => {
+    const parentId = '019fa9a1-380e-7af3-af7d-8505cedf1ec2'
+    const childId = '019fb0b0-1111-7af3-af7d-8505cedf1ec2'
+    mkCodexRollout(`rollout-parent-${parentId}.jsonl`, proj, '2026-07-28T09:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 0, output: 10, at: '2026-07-28T09:00:00Z' }
+    ])
+    // 子会话在 07-29 fork:首行时间戳是重放时刻,真正的新活动发生在 07-31
+    mkCodexFork(
+      `rollout-child-${childId}.jsonl`,
+      proj,
+      { id: childId, parentId, forkedAtIso: '2026-07-29T09:00:00Z' },
+      'gpt-5.6-sol',
+      [
+        { input: 100, cached: 0, output: 10, at: '2026-07-29T09:00:00Z' }, // 重放父历史
+        { input: 50, cached: 0, output: 5, at: '2026-07-31T20:00:00Z' } // 本次新内容
+      ]
+    )
+    const r = await engine().build(roots(), [proj])
+    const child = r.perProject
+      .get(proj.toLowerCase())
+      ?.sessions.filter((x) => x.side === 'codex')
+      .find((x) => x.at === Date.parse('2026-07-31T20:00:00Z'))
+    expect(child, 'fork 子会话的 at 应为 07-31 最后活动,而非 07-29 重放时刻').toBeDefined()
+  })
+
+  it('每条会话带得回源文件(两侧),且指向真实存在的文件', async () => {
+    const cl = mkClaudeFile('ident.jsonl', [
+      userLine('提问一'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
+    ])
+    const cx = mkCodexRollout('rollout-ident-019fb02.jsonl', proj, '2026-07-30T03:00:00Z', 'gpt-5.6-sol', [
+      { input: 10, cached: 0, output: 5 }
+    ])
+    const sessions = (await engine().build(roots(), [proj])).perProject.get(proj.toLowerCase())?.sessions ?? []
+    expect(sessions.map((s) => s.file).sort()).toEqual([cl, cx].sort())
+    for (const s of sessions) expect(existsSync(s.file), `${s.file} 应存在`).toBe(true)
+  })
+
+  it('subagent / 嵌套文件不入列,故不会带出多余的身份', async () => {
+    mkClaudeFile('main.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    mkClaudeFile('sess/subagents/agent-x.jsonl', [
+      usageLine('claude-fable-5', '2026-07-30T02:01:00Z', 20, 5, { sidechain: true })
+    ])
+    const sessions = (await engine().build(roots(), [proj])).perProject.get(proj.toLowerCase())?.sessions ?? []
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0].file.endsWith('main.jsonl')).toBe(true)
+  })
+
+  // review 实测发现(2026-08-02):抽样 118 个真实 Claude 会话,53 个(45%)的
+  // 最后一行时间戳晚于最后一条 usage 行,最大差 203 秒。根因是**用户消息没有
+  // usage 字段**——用户最后问的那句话,按"只看 usage 行"的口径根本看不见。
+  it('Claude:末尾是用户消息(无 usage)时,at 取它而不是上一条助手回复', async () => {
+    mkClaudeFile('trailing-user.jsonl', [
+      userLine('第一问', '2026-07-30T10:00:00Z'),
+      usageLine('claude-fable-5', '2026-07-30T10:00:30Z', 10, 5),
+      userLine('追问,然后我就走了', '2026-07-30T10:03:53Z')
+    ])
+    const r = await engine().build(roots(), [proj])
+    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => x.side === 'claude')
+    expect(s?.at, 'at 应为最后一条用户消息的时间,不是最后一条 usage 行').toBe(
+      Date.parse('2026-07-30T10:03:53Z')
+    )
+  })
+
+  it('Claude:一条 usage 都没有的会话,at 仍取文件内最大时间戳而非退回 mtime', async () => {
+    mkClaudeFile('no-usage.jsonl', [userLine('只问了一句就崩了', '2026-07-30T11:22:33Z')], 1000)
+    const r = await engine().build(roots(), [proj])
+    // 该文件不产生 token,但仍是一条会话
+    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => x.title.includes('崩了'))
+    expect(s?.at, 'mtime 是 1000 秒(1970),文件内有真实时间戳就不该退回它').toBe(
+      Date.parse('2026-07-30T11:22:33Z')
+    )
+  })
+
+  it('Claude 侧维持最大时间戳语义(回归)', async () => {
+    mkClaudeFile('a.jsonl', [
+      userLine('第一问'),
+      usageLine('claude-fable-5', '2026-07-29T10:00:00Z', 10, 5),
+      usageLine('claude-fable-5', '2026-07-31T22:00:00Z', 10, 5)
+    ])
+    const r = await engine().build(roots(), [proj])
+    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => x.side === 'claude')
+    expect(s?.at).toBe(Date.parse('2026-07-31T22:00:00Z'))
+  })
+})
+
 describe('缓存版本迁移(真 bug 回归)', () => {
   it('旧格式缓存(Codex agg 无 events 字段)不崩,按新结构重算', async () => {
     mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
@@ -320,6 +469,84 @@ describe('缓存版本迁移(真 bug 回归)', () => {
     // 不崩,且数字来自重算(35)而非旧缓存的 999
     expect(r.global.bySide.codex.total).toBe(35)
     expect(r.global.bySide.claude.total).toBe(15)
+  })
+
+  // 假绿防线:改的是"某字段怎么算出来的"而非结构时,签名照样命中、形状照样合法,
+  // 旧值会一路流到界面。fixture 用全新缓存必过,存量用户看不到修复。
+  it('上一版缓存里结构合法但算法已过时的值,不得被沿用(v3 的 Codex at=首时间戳)', async () => {
+    const rollout = mkCodexRollout('rollout-staleat-019f901.jsonl', proj, '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
+      { input: 10, cached: 0, output: 5, at: '2026-07-29T12:00:00Z' },
+      { input: 20, cached: 0, output: 5, at: '2026-07-30T18:30:00Z' }
+    ])
+    const st = statSync(rollout)
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    writeFileSync(
+      join(dir, 'cache', 'token-cache.json'),
+      JSON.stringify({
+        version: 3, // 上一版:结构与现版完全一致,只是 at 按旧算法(首时间戳)算出
+        files: {
+          [rollout]: {
+            sig: `${st.mtimeMs}:${st.size}`,
+            agg: {
+              kind: 'codex',
+              projectKey: proj.toLowerCase(),
+              listed: true,
+              title: 'stale',
+              at: Date.parse('2026-07-29T12:00:00Z'),
+              model: 'gpt-5.6-sol',
+              sessionId: null,
+              parentId: null,
+              forkedAt: null,
+              events: [
+                [Date.parse('2026-07-29T12:00:00Z'), 10, 0, 5, 0],
+                [Date.parse('2026-07-30T18:30:00Z'), 20, 0, 5, 0]
+              ]
+            }
+          }
+        }
+      })
+    )
+    const s = (await engine().build(roots(), [proj])).perProject
+      .get(proj.toLowerCase())
+      ?.sessions.find((x) => x.side === 'codex')
+    expect(s?.at, '版本号必须随算法变更一起升,否则旧值被沿用').toBe(Date.parse('2026-07-30T18:30:00Z'))
+  })
+
+  // review 发现:isWellFormedAgg 是**同版本内**损坏/漂移的护栏,加了 file 却没加进去。
+  // 逃逸面是上层——一条缺 file 的缓存条目会让 SessionMeta.file 为 undefined,
+  // 契约校验抛出,整个 getProjectDetail 挂掉(skills/memory/plugins/产物全没了)。
+  // 修完后逃逸面降为自伤:该文件重算一次。
+  it('同版本缓存里条目缺 file → 只重算该文件,不污染整份详情', async () => {
+    const cl = mkClaudeFile('wellformed.jsonl', [
+      userLine('x'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
+    ])
+    const st = statSync(cl)
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    writeFileSync(
+      join(dir, 'cache', 'token-cache.json'),
+      JSON.stringify({
+        version: 5, // 当前版本:版本号拦不住它,只能靠 isWellFormedAgg
+        files: {
+          [cl]: {
+            sig: `${st.mtimeMs}:${st.size}`,
+            agg: {
+              kind: 'claude',
+              // file 缺失 —— 手工损坏 / 未来重构漏字段的形态
+              projectKey: proj.toLowerCase(),
+              listed: true,
+              title: 'x',
+              at: 1,
+              entries: [[null, null, 0, 10, 5, 0, 0, 'claude-fable-5', '2026-07-30']]
+            }
+          }
+        }
+      })
+    )
+    const s = (await engine().build(roots(), [proj])).perProject
+      .get(proj.toLowerCase())
+      ?.sessions.find((x) => x.side === 'claude')
+    expect(s?.file, '缺字段的缓存条目必须被判不合格并重算,不能把 undefined 放行到契约层').toBe(cl)
   })
 
   it('缓存文件是垃圾内容时不崩,全量重算', async () => {
