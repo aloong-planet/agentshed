@@ -66,7 +66,9 @@ function mkCodexRollout(
   /** 每轮增量(last_token_usage),按各自时间戳归日 */
   turns: Array<{ input: number; cached: number; output: number; at?: string }>,
   subagent = false,
-  atSec = 2000
+  atSec = 2000,
+  /** 真实提问;传 null 造"无人问过任何东西"的会话(spec A3a) */
+  userMsg: string | null = '示例提问'
 ): string {
   const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
   mkdirSync(d, { recursive: true })
@@ -78,6 +80,9 @@ function mkCodexRollout(
       payload: subagent ? { cwd, thread_source: 'subagent' } : { cwd }
     }),
     JSON.stringify({ timestamp: tsIso, type: 'turn_context', payload: { model, cwd } }),
+    ...(userMsg === null
+      ? []
+      : [JSON.stringify({ timestamp: tsIso, type: 'event_msg', payload: { type: 'user_message', message: userMsg } })]),
     // 真实形状:顶层 type=event_msg,数据在 payload.info(payload.type=token_count)
     ...turns.map((t) => {
       acc = { input: acc.input + t.input, cached: acc.cached + t.cached, output: acc.output + t.output }
@@ -136,6 +141,11 @@ function mkCodexFork(
       payload: { cwd, id: o.id, forked_from_id: o.parentId }
     }),
     JSON.stringify({ timestamp: o.forkedAtIso, type: 'turn_context', payload: { model, cwd } }),
+    JSON.stringify({
+      timestamp: o.forkedAtIso,
+      type: 'event_msg',
+      payload: { type: 'user_message', message: 'fork 后的提问' }
+    }),
     ...turns.map((t) =>
       JSON.stringify({
         timestamp: t.at ?? o.forkedAtIso,
@@ -226,6 +236,7 @@ describe('Claude 聚合(ccusage 口径)', () => {
 
   it('sidechain 重放(同 message.id 新 requestId)跨文件去重,保留非 sidechain', async () => {
     mkClaudeFile('main.jsonl', [
+      userLine('主会话的提问'),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 100, 50, { id: 'm1', requestId: 'r1' })
     ])
     mkClaudeFile('sess/subagents/agent-x.jsonl', [
@@ -388,7 +399,7 @@ describe('会话 at = 文件内最大时间戳(两侧同义)', () => {
   })
 
   it('subagent / 嵌套文件不入列,故不会带出多余的身份', async () => {
-    mkClaudeFile('main.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    mkClaudeFile('main.jsonl', [userLine('主会话的提问'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
     mkClaudeFile('sess/subagents/agent-x.jsonl', [
       usageLine('claude-fable-5', '2026-07-30T02:01:00Z', 20, 5, { sidechain: true })
     ])
@@ -620,5 +631,73 @@ describe('归档行输出(供 UsageArchive 持久化)', () => {
     // liveDays 非空且包含行里的天
     expect(r.liveDays.size).toBeGreaterThan(0)
     for (const x of r.rows) expect(r.liveDays.has(x.day)).toBe(true)
+  })
+})
+
+// 票 session-view/02:标题剥噪声 + 无真实提问的会话不入列(spec A3a/A4)。
+// 噪声形态取自真实采样(297 个会话:Warmup 188、cron 92、caveat 13、slash 2),
+// 不是照调研期清单造的。
+describe('会话标题与入列口径', () => {
+  it('Claude:只有 Warmup 的会话不入列,但 token 照计', async () => {
+    mkClaudeFile('warm.jsonl', [
+      userLine('Warmup'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 100, 50)
+    ])
+    mkClaudeFile('real.jsonl', [
+      userLine('帮我看下这个 bug'),
+      usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 10, 5)
+    ])
+    const r = await engine().build(roots(), [proj])
+    const p = r.perProject.get(proj.toLowerCase())
+    expect(p?.sessions.map((s) => s.title)).toEqual(['帮我看下这个 bug'])
+    // 预热会话的 token 一分不少(与 subagent 同口径)
+    expect(p?.tokens.bySide.claude.total).toBe(165)
+    expect(r.global.bySide.claude.total).toBe(165)
+  })
+
+  it('Claude:噪声连着好几条时继续往后找,标题取第一条真实提问', async () => {
+    mkClaudeFile('noisy.jsonl', [
+      userLine('<local-command-caveat>Caveat: …</local-command-caveat>'),
+      userLine('<command-name>/clear</command-name> <command-message>clear</command-message> <command-args></command-args>'),
+      userLine('继续会话查看功能:读 spec'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
+    ])
+    const r = await engine().build(roots(), [proj])
+    expect(r.perProject.get(proj.toLowerCase())?.sessions[0].title).toBe('继续会话查看功能:读 spec')
+  })
+
+  it('Claude:cron 会话入列,标题是方括号后面的真实指令', async () => {
+    mkClaudeFile('cron.jsonl', [
+      userLine('[cron:95a214a4-0021-44ea-a831-f5c851b11d77 hackernews-daily-top5] 取今日最热门的 5 个话题'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
+    ])
+    const r = await engine().build(roots(), [proj])
+    expect(r.perProject.get(proj.toLowerCase())?.sessions[0].title).toBe('取今日最热门的 5 个话题')
+  })
+
+  it('Codex:没有 user_message 的会话不入列,token 照计', async () => {
+    mkCodexRollout('rollout-nouser-019fc01.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol',
+      [{ input: 100, cached: 0, output: 20 }], false, 2000, null)
+    const r = await engine().build(roots(), [proj])
+    const p = r.perProject.get(proj.toLowerCase())
+    expect(p?.sessions.filter((s) => s.side === 'codex')).toHaveLength(0)
+    expect(p?.tokens.bySide.codex.total).toBe(120)
+  })
+
+  it('Codex:thread_name 优先于首条提问', async () => {
+    const id = '019fc0a2-380e-7af3-af7d-8505cedf1ec2'
+    mkCodexRollout(`rollout-named-${id}.jsonl`, proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol',
+      [{ input: 10, cached: 0, output: 5 }], false, 2000, '首条提问原文')
+    writeIndex([{ id, name: '线程名' }])
+    const r = await engine().build(roots(), [proj])
+    expect(r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.side === 'codex')?.title).toBe('线程名')
+  })
+
+  it('Codex:无 thread_name 时退回首条真实提问(噪声同样剥)', async () => {
+    mkCodexRollout('rollout-unnamed-019fc03.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol',
+      [{ input: 10, cached: 0, output: 5 }], false, 2000,
+      '[cron:abc daily] 每天跑一遍回归')
+    const r = await engine().build(roots(), [proj])
+    expect(r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.side === 'codex')?.title).toBe('每天跑一遍回归')
   })
 })
