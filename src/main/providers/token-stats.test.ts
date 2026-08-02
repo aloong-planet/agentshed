@@ -112,7 +112,13 @@ function mkCodexRollout(
   return f
 }
 
-/** fork 会话:session_meta 带 id/forked_from_id;首行时间戳 = 重放时刻,晚于被重放的父历史 */
+/**
+ * fork 会话:session_meta 带 id/forked_from_id;首行时间戳 = 重放时刻。
+ * 形态经真实样本核实(2026-08-02,本机 ~/.codex 里的两个 fork 会话):顶层
+ * timestamp/type/payload,payload 含 id + forked_from_id + cwd。真实数据另有
+ * session_id / parent_thread_id / thread_source / base_instructions 等字段,
+ * 本 fixture 只保留被读取的那些(那些字段各有既有测试覆盖)。
+ */
 function mkCodexFork(
   file: string,
   cwd: string,

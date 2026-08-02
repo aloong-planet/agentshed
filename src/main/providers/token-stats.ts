@@ -672,6 +672,9 @@ async function parseCodexFile(
     projectKey,
     listed: !meta.subagent,
     title: (id ? titles.get(id) : undefined) ?? stem,
+    // 没有 mtime 兜底(Claude 侧有)——不是遗漏:Codex 的 session_meta 必带顶层
+    // timestamp(真实样本核实),首行不可解析时 readCodexSessions 直接跳过该文件、
+    // 根本不会走到这里。所以 lastTs 为 null 是不可达分支,不为它加兜底代码。
     at: lastTs,
     model,
     sessionId: meta.sessionId,
