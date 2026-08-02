@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# 同一分支的新推送取消上一次未跑完的运行
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 快检:秒级反馈,失败就不用等 e2e 了
+  checks:
+    name: typecheck + 单测 + 共享件一致性
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm check:ui
+
+  # e2e 驱动真实 Electron。跑 ubuntu 而非 macos:本仓库私有,macOS runner
+  # 按 10 倍计费,而 e2e 断言的是 IPC 全链路/契约校验/渲染几何,都与平台无关。
+  # macOS 专属面(签名、公证、TCC 权限)本来就不在 e2e 覆盖内,由本地 verify 与发版流程守。
+  e2e:
+    name: e2e(Electron)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Electron 与 Chromium 共用同一批系统库;交给 playwright 装,别手写 apt 包名
+      # (包名随 ubuntu 版本漂移,如 libasound2 → libasound2t64)
+      - run: pnpm exec playwright install-deps chromium
+      # Electron 需要显示服务;-a 自动挑空闲 display 号
+      - run: xvfb-run -a pnpm e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+# 不在 CI 里跑 smoke:scripts/smoke.sh 依赖 macOS 进程名(Electron.app/Contents/MacOS/Electron)
+# 且刻意跑在真实 userData 上——它的价值就在于环境状态依赖,搬进干净的 CI 容器等于把它变成
+# e2e 的劣化版。迁移类场景由 e2e 的独立 userData + 预置缓存覆盖(见 2026-07-30 复盘)。
