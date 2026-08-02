@@ -368,6 +368,29 @@ describe('会话 at = 文件内最大时间戳(两侧同义)', () => {
     expect(child, 'fork 子会话的 at 应为 07-31 最后活动,而非 07-29 重放时刻').toBeDefined()
   })
 
+  it('每条会话带得回源文件(两侧),且指向真实存在的文件', async () => {
+    const cl = mkClaudeFile('ident.jsonl', [
+      userLine('提问一'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
+    ])
+    const cx = mkCodexRollout('rollout-ident-019fb02.jsonl', proj, '2026-07-30T03:00:00Z', 'gpt-5.6-sol', [
+      { input: 10, cached: 0, output: 5 }
+    ])
+    const sessions = (await engine().build(roots(), [proj])).perProject.get(proj.toLowerCase())?.sessions ?? []
+    expect(sessions.map((s) => s.file).sort()).toEqual([cl, cx].sort())
+    for (const s of sessions) expect(existsSync(s.file), `${s.file} 应存在`).toBe(true)
+  })
+
+  it('subagent / 嵌套文件不入列,故不会带出多余的身份', async () => {
+    mkClaudeFile('main.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    mkClaudeFile('sess/subagents/agent-x.jsonl', [
+      usageLine('claude-fable-5', '2026-07-30T02:01:00Z', 20, 5, { sidechain: true })
+    ])
+    const sessions = (await engine().build(roots(), [proj])).perProject.get(proj.toLowerCase())?.sessions ?? []
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0].file.endsWith('main.jsonl')).toBe(true)
+  })
+
   it('Claude 侧维持最大时间戳语义(回归)', async () => {
     mkClaudeFile('a.jsonl', [
       userLine('第一问'),

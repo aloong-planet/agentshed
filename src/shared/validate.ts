@@ -79,3 +79,33 @@ export function assertSnapshot(v: unknown): asserts v is Snapshot {
   const r = validateSnapshot(v)
   if (!r.ok) throw new Error(`快照契约校验失败 — ${r.error}`)
 }
+
+/**
+ * 项目详情里的统计块(概览 tab 数据)。**只覆盖 sessions**——getProjectDetail
+ * 整条通道此前无边界校验(既有缺口,非本次引入);这里不造大而全的校验器,
+ * 只钉住会话元数据:file 是会话的身份,渲染层拿它回请内容,缺失或空串就是
+ * 一条读不了的会话,必须在边界暴露而不是渲染成 undefined 再去读 cwd。
+ */
+export function validateProjectStats(v: unknown): ValidateResult {
+  if (!isRecord(v)) return fail('stats', '不是对象')
+  const sessions = v['sessions']
+  if (!Array.isArray(sessions)) return fail('stats.sessions', '需为数组')
+  for (let i = 0; i < sessions.length; i++) {
+    const s: unknown = sessions[i]
+    const at = `stats.sessions[${i}]`
+    if (!isRecord(s)) return fail(at, '不是对象')
+    if (typeof s['side'] !== 'string' || !AGENT_SIDES.has(s['side']))
+      return fail(`${at}.side`, `非法 side: ${String(s['side'])}`)
+    if (typeof s['title'] !== 'string') return fail(`${at}.title`, '需为 string')
+    if (s['at'] !== null && typeof s['at'] !== 'number') return fail(`${at}.at`, '需为 number|null')
+    if (typeof s['tokens'] !== 'number') return fail(`${at}.tokens`, '需为 number')
+    if (typeof s['file'] !== 'string' || s['file'] === '') return fail(`${at}.file`, '需为非空 string')
+  }
+  return { ok: true }
+}
+
+/** 主进程出口:同 assertSnapshot,契约破坏直接抛 */
+export function assertProjectStats(v: unknown): void {
+  const r = validateProjectStats(v)
+  if (!r.ok) throw new Error(`项目统计契约校验失败 — ${r.error}`)
+}

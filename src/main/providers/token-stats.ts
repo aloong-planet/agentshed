@@ -38,6 +38,8 @@ type PackedEntry = [
 
 interface ClaudeFileAgg {
   kind: 'claude'
+  /** 源文件绝对路径 —— 会话身份,随 SessionMeta 出到渲染层 */
+  file: string
   projectKey: string
   listed: boolean
   title: string
@@ -50,6 +52,8 @@ type CodexEvent = [number | null, number, number, number, number]
 
 interface CodexFileAgg {
   kind: 'codex'
+  /** 源文件绝对路径 —— 会话身份,随 SessionMeta 出到渲染层 */
+  file: string
   projectKey: string
   listed: boolean
   title: string
@@ -73,8 +77,9 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg
  * (路径, mtime, size) 命中,文件没变就直接返回旧值——新算法对存量文件永不生效。
  * fixture 用全新缓存必过,真实用户看不到修复,是典型假绿。
  * v4:Codex 的 at 由首个时间戳改为文件内最大时间戳。
+ * v5:FileAgg 加 file(会话身份)。
  */
-const CACHE_VERSION = 4
+const CACHE_VERSION = 5
 
 interface CacheShape {
   version: typeof CACHE_VERSION
@@ -351,7 +356,8 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       side: 'claude',
       title: agg.title,
       at: agg.at,
-      tokens: perFileTokens.get(fileIdx) ?? 0
+      tokens: perFileTokens.get(fileIdx) ?? 0,
+      file: agg.file
     })
   })
 
@@ -425,7 +431,7 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       if (totals.total > 0) addModel(p.tokens, 'codex', a.model, totals.total)
       for (const [day, v] of Object.entries(byDay)) addDay(p.tokens, 'codex', day, v, a.model)
       if (a.listed) {
-        p.sessions.push({ side: 'codex', title: a.title, at: a.at, tokens: totals.total })
+        p.sessions.push({ side: 'codex', title: a.title, at: a.at, tokens: totals.total, file: a.file })
       }
     }
   }
@@ -603,6 +609,7 @@ async function parseClaudeFile(
   })()
   return {
     kind: 'claude',
+    file,
     projectKey,
     listed,
     title: title ?? file.split('/').pop()?.replace(/\.jsonl$/, '') ?? '会话',
@@ -654,6 +661,7 @@ async function parseCodexFile(
   const stem = file.split('/').pop()?.replace(/\.jsonl$/, '') ?? '会话'
   return {
     kind: 'codex',
+    file,
     projectKey,
     listed: !meta.subagent,
     title: (id ? titles.get(id) : undefined) ?? stem,

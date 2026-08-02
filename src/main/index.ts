@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CMD, EVT, type SetHiddenArgs, type SkillOpArgs } from '@shared/ipc'
 import type { ProjectStats, Snapshot } from '@shared/domain'
-import { assertSnapshot } from '@shared/validate'
+import { assertSnapshot, assertProjectStats } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { providerOf } from '@shared/provider'
 import { scan } from './providers/scan'
@@ -122,6 +122,8 @@ handle(CMD.getProjectDetail, (_e, path: unknown) => {
   if (typeof path !== 'string' || path === '') throw new Error('getProjectDetail 参数不合契约')
   const detail = readProjectDetail(realRoots(), path)
   detail.stats = perProjectStats.get(mergeKey(path)) ?? null
+  // 会话元数据出口校验:file 是会话身份,缺失就是一条读不了的会话,在边界暴露
+  if (detail.stats) assertProjectStats(detail.stats)
   for (const a of detail.artifacts) artifactWhitelist.add(a.file)
   for (const t of detail.memory.topics) artifactWhitelist.add(t.file)
   return detail
