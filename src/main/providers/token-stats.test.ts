@@ -112,6 +112,49 @@ function mkCodexRollout(
   return f
 }
 
+/** fork 会话:session_meta 带 id/forked_from_id;首行时间戳 = 重放时刻,晚于被重放的父历史 */
+function mkCodexFork(
+  file: string,
+  cwd: string,
+  o: { id: string; parentId: string; forkedAtIso: string },
+  model: string,
+  turns: Array<{ input: number; cached: number; output: number; at?: string }>,
+  atSec = 2000
+): string {
+  const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+  mkdirSync(d, { recursive: true })
+  const lines = [
+    JSON.stringify({
+      timestamp: o.forkedAtIso,
+      type: 'session_meta',
+      payload: { cwd, id: o.id, forked_from_id: o.parentId }
+    }),
+    JSON.stringify({ timestamp: o.forkedAtIso, type: 'turn_context', payload: { model, cwd } }),
+    ...turns.map((t) =>
+      JSON.stringify({
+        timestamp: t.at ?? o.forkedAtIso,
+        type: 'event_msg',
+        payload: {
+          type: 'token_count',
+          info: {
+            last_token_usage: {
+              input_tokens: t.input,
+              cached_input_tokens: t.cached,
+              cache_write_input_tokens: 0,
+              output_tokens: t.output,
+              total_tokens: t.input + t.output
+            }
+          }
+        }
+      })
+    )
+  ]
+  const f = join(d, file)
+  writeFileSync(f, `${lines.join('\n')}\n`)
+  utimesSync(f, atSec, atSec)
+  return f
+}
+
 function writeIndex(entries: Array<{ id: string; name: string }>): void {
   mkdirSync(join(dir, '.codex'), { recursive: true })
   writeFileSync(
@@ -286,6 +329,57 @@ describe('Codex 聚合(ccusage 口径)', () => {
   })
 })
 
+// 票 session-view/01:两侧 at 语义原本相反(Claude 取最大、Codex 取首个),
+// 统一为「文件内最大时间戳」= 最后活动。Codex 侧尤甚——fork 会话的首个
+// 时间戳是重放时刻,拿它当活动时间既不是开始也不是结束。
+describe('会话 at = 文件内最大时间戳(两侧同义)', () => {
+  it('Codex 跨天会话取最后一轮的时间戳,不是首行的', async () => {
+    mkCodexRollout('rollout-at-019fb01.jsonl', proj, '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
+      { input: 10, cached: 0, output: 5, at: '2026-07-29T12:00:00Z' },
+      { input: 20, cached: 0, output: 5, at: '2026-07-30T18:30:00Z' }
+    ])
+    const r = await engine().build(roots(), [proj])
+    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => x.side === 'codex')
+    expect(s?.at).toBe(Date.parse('2026-07-30T18:30:00Z'))
+  })
+
+  it('Codex fork 会话的 at 不是重放时刻,而是本会话最后活动', async () => {
+    const parentId = '019fa9a1-380e-7af3-af7d-8505cedf1ec2'
+    const childId = '019fb0b0-1111-7af3-af7d-8505cedf1ec2'
+    mkCodexRollout(`rollout-parent-${parentId}.jsonl`, proj, '2026-07-28T09:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 0, output: 10, at: '2026-07-28T09:00:00Z' }
+    ])
+    // 子会话在 07-29 fork:首行时间戳是重放时刻,真正的新活动发生在 07-31
+    mkCodexFork(
+      `rollout-child-${childId}.jsonl`,
+      proj,
+      { id: childId, parentId, forkedAtIso: '2026-07-29T09:00:00Z' },
+      'gpt-5.6-sol',
+      [
+        { input: 100, cached: 0, output: 10, at: '2026-07-29T09:00:00Z' }, // 重放父历史
+        { input: 50, cached: 0, output: 5, at: '2026-07-31T20:00:00Z' } // 本次新内容
+      ]
+    )
+    const r = await engine().build(roots(), [proj])
+    const child = r.perProject
+      .get(proj.toLowerCase())
+      ?.sessions.filter((x) => x.side === 'codex')
+      .find((x) => x.at === Date.parse('2026-07-31T20:00:00Z'))
+    expect(child, 'fork 子会话的 at 应为 07-31 最后活动,而非 07-29 重放时刻').toBeDefined()
+  })
+
+  it('Claude 侧维持最大时间戳语义(回归)', async () => {
+    mkClaudeFile('a.jsonl', [
+      userLine('第一问'),
+      usageLine('claude-fable-5', '2026-07-29T10:00:00Z', 10, 5),
+      usageLine('claude-fable-5', '2026-07-31T22:00:00Z', 10, 5)
+    ])
+    const r = await engine().build(roots(), [proj])
+    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => x.side === 'claude')
+    expect(s?.at).toBe(Date.parse('2026-07-31T22:00:00Z'))
+  })
+})
+
 describe('缓存版本迁移(真 bug 回归)', () => {
   it('旧格式缓存(Codex agg 无 events 字段)不崩,按新结构重算', async () => {
     mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
@@ -320,6 +414,47 @@ describe('缓存版本迁移(真 bug 回归)', () => {
     // 不崩,且数字来自重算(35)而非旧缓存的 999
     expect(r.global.bySide.codex.total).toBe(35)
     expect(r.global.bySide.claude.total).toBe(15)
+  })
+
+  // 假绿防线:改的是"某字段怎么算出来的"而非结构时,签名照样命中、形状照样合法,
+  // 旧值会一路流到界面。fixture 用全新缓存必过,存量用户看不到修复。
+  it('上一版缓存里结构合法但算法已过时的值,不得被沿用(v3 的 Codex at=首时间戳)', async () => {
+    const rollout = mkCodexRollout('rollout-staleat-019f901.jsonl', proj, '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
+      { input: 10, cached: 0, output: 5, at: '2026-07-29T12:00:00Z' },
+      { input: 20, cached: 0, output: 5, at: '2026-07-30T18:30:00Z' }
+    ])
+    const st = statSync(rollout)
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    writeFileSync(
+      join(dir, 'cache', 'token-cache.json'),
+      JSON.stringify({
+        version: 3, // 上一版:结构与现版完全一致,只是 at 按旧算法(首时间戳)算出
+        files: {
+          [rollout]: {
+            sig: `${st.mtimeMs}:${st.size}`,
+            agg: {
+              kind: 'codex',
+              projectKey: proj.toLowerCase(),
+              listed: true,
+              title: 'stale',
+              at: Date.parse('2026-07-29T12:00:00Z'),
+              model: 'gpt-5.6-sol',
+              sessionId: null,
+              parentId: null,
+              forkedAt: null,
+              events: [
+                [Date.parse('2026-07-29T12:00:00Z'), 10, 0, 5, 0],
+                [Date.parse('2026-07-30T18:30:00Z'), 20, 0, 5, 0]
+              ]
+            }
+          }
+        }
+      })
+    )
+    const s = (await engine().build(roots(), [proj])).perProject
+      .get(proj.toLowerCase())
+      ?.sessions.find((x) => x.side === 'codex')
+    expect(s?.at, '版本号必须随算法变更一起升,否则旧值被沿用').toBe(Date.parse('2026-07-30T18:30:00Z'))
   })
 
   it('缓存文件是垃圾内容时不崩,全量重算', async () => {
