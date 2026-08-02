@@ -149,4 +149,23 @@ describe('活跃度', () => {
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.projects[0].sessionCount).toBe(1)
   })
+
+  // 两条管线的分界(2026-08-02 定案,spec session-view A1):
+  // 项目活跃度走**文件 mtime**,会话列表的 SessionMeta.at 走**文件内最大时间戳**。
+  // 两者刻意不统一——mtime 是全库近千文件的廉价近似,改成读内容会把项目列表的
+  // 首屏成本抬到与全量扫描同级。下面这条钉住分界,防止后人"顺手统一"。
+  it('活跃度取 mtime,不受文件内时间戳影响', async () => {
+    const p = mkProject('mtime-only')
+    writeCodexRegistry([p])
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    // 文件内时间戳远在未来(2030),mtime 却是 3000 秒 —— 活跃度必须报 mtime
+    const meta = { timestamp: '2030-01-01T00:00:00Z', type: 'session_meta', payload: { cwd: p } }
+    const evt = { timestamp: '2030-06-01T00:00:00Z', type: 'event_msg', payload: { type: 'token_count' } }
+    const f = join(d, 'rollout-future.jsonl')
+    writeFileSync(f, `${JSON.stringify(meta)}\n${JSON.stringify(evt)}\n`)
+    utimesSync(f, 3000, 3000)
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.projects[0].lastSessionAt, '活跃度是 mtime 管线,不读文件内时间戳').toBe(3000 * 1000)
+  })
 })
