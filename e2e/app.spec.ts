@@ -52,6 +52,9 @@ test('冷启动:Agents 页为默认落地,两侧汇总卡渲染,主进程无错�
   // 汇总卡两张(CC / CODEX)
   await expect(win.locator('.pane-head .stats .stat')).toHaveCount(2)
   await expect(win.locator('.badge.cc, .badge.cl').first()).toBeVisible()
+  // #18:打包版渲染页必须跑在 app:// 上而非 file://(回退到 file:// 会静默丢掉
+  // "可读范围锁死在产物目录"的保护,只有断言协议才拦得住)
+  expect(win.url()).toMatch(/^app:\/\//)
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -203,6 +206,9 @@ test('provider 品牌配色生效:段与图例色一致,深浅模式各有取值
         google: cs.getPropertyValue('--p-google').trim()
       }
     })
+  // 必须先等样式表真正应用再读 CSS 变量:直接读会拿到空串(样式未加载完)。
+  // 这个竞态一直在,只是 app:// 改变了加载时序后才稳定暴露——用渲染完成的元素做闸。
+  await expect(win.locator('.chart .col').first()).toBeVisible()
   const light = await read()
   expect(light.anthropic.toLowerCase()).toBe('#d97757')
   expect(light.openai.toLowerCase()).toBe('#10a37f')
