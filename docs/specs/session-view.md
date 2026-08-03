@@ -47,7 +47,12 @@
   | `<local-command-*>…`(caveat 免责声明 / stdout 命令输出) | caveat 13/297;stdout 7/144 | 整条丢弃(**按族匹配前缀**,同一机制还会产出兄弟标签) |
   | `<command-message>…</command-message><command-name>/x</command-name><command-args>真实内容</command-args>` | 2/297 | **取 `command-args` 的内容**;为空(如 `/clear`)则整条丢弃 |
   | `Base directory for this skill: …` | 常见于 slash 命令之后 | 整条丢弃(skill 正文注入) |
-  ⚠️ 调研期列的「Conversation info」在本次 297 个会话的采样里**未出现**,不为没见过的形态写剥离逻辑(无法用真实样本验证)。
+  ⚠️ **调研期列的「Conversation info」是真的,我第一次查漏了**(2026-08-03 复查修正):它存在于 6 个文件,形态是
+  `Conversation info (untrusted metadata):` + 一段 ```json 元数据块 + **后面才是真人说的话**——与 cron 同类,整条丢会丢掉真提问。
+  同族还有 `Continue this conversation using the OpenClaw transcript…`(19 个文件),真人那句嵌在 `<next_user_message>` 里、且前面还套着若干机器前缀块(`[Inter-session message]` / `Untrusted context` / `System:` 行)。
+  **两者都不实现**,理由不是"没见过",而是:它们只出现在**未注册项目** `.openclaw/workspace` 里,按 A2 根本不会进任何会话分栏——为永远不显示的会话写剥离逻辑是死代码,且会随 OpenClaw 的格式腐烂。
+  哪天 OpenClaw 在已注册项目里留下同款注入,再按上面记下的形态实现(样本已存证,不必重新调研)。
+  🔬 第一次漏掉它的原因:采样按 mtime 倒序取最近 300 个文件,而这些是 7 月 15 日的旧文件——**采样偏向了最近**。同一轮里这是第二次栽在采样方式上(另一次是回扫时忘了排序)。
   ⚠️ 噪声不止出现在首条:caveat 之后常跟 `<command-name>/clear</command-name>`,真实提问在第三条。**必须逐条向后找,不能只看首条。**
   ⚠️ 噪声**分层**:`<local-command-stdout>` 是剥掉前几层之后才浮出来的第二层——只采样"每个会话的首条消息"看不见它,必须拿实现好的剥离函数回扫真实数据、检查**产出的标题**才发现。新增剥离规则后要再扫一遍。
   ⚠️ `[Image #N] <真提问>` **不是噪声**(采样仅 1 例):方括号后是真实提问,且整体可读,不为只见过一次的形态写规则。
