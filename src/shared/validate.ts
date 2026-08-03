@@ -1,6 +1,7 @@
 // IPC 边界的快照 schema 校验:主进程发出前与 renderer 收到时各校验一次,
 // 契约漂移在边界立刻暴露而非渲染成 undefined。手写结构校验,零依赖。
 import type { Snapshot } from './domain'
+import { ARTIFACT_ORDER } from './domain'
 
 export type ValidateResult = { ok: true } | { ok: false; error: string }
 
@@ -108,4 +109,134 @@ export function validateProjectStats(v: unknown): ValidateResult {
 export function assertProjectStats(v: unknown): void {
   const r = validateProjectStats(v)
   if (!r.ok) throw new Error(`项目统计契约校验失败 — ${r.error}`)
+}
+
+// ── 项目详情(getProjectDetail 通道)──
+// 快照两端各校验一次,而这条通道此前完全没有校验(preload 里直接 as ProjectDetail),
+// 于是任一字段漂移都渲染成 undefined 而不是在边界暴露——现象离原因很远,排查极贵。
+//
+// **深度取"渲染层无保护读取的字段"**,不是把每片叶子都验一遍:这类校验 fail-closed,
+// 一次误拒就是整个详情页打不开,过严比漏验更容易咬人。故枚举、必填标量、可空字段的
+// 类型都验;而 PluginContents / SubagentSideDetail 这类只验它在不在、是不是对的容器,
+// 内部叶子交给渲染层自己的空值处理(它们本来就按可缺失写的)。
+
+const SKILL_LEVELS = new Set(['project', 'global', 'plugin'])
+const SUBAGENT_LEVELS = new Set(['project', 'global'])
+const ORIGINS = new Set(['disk', 'plugin'])
+const ENABLED_FROM = new Set(['local', 'project', 'user'])
+const ARTIFACT_TYPES: ReadonlySet<string> = new Set(ARTIFACT_ORDER)
+
+function str(v: unknown): boolean {
+  return typeof v === 'string'
+}
+function strOrNull(v: unknown): boolean {
+  return v === null || typeof v === 'string'
+}
+
+/** 数组字段:逐元素跑 check,错误路径带下标 */
+function eachOf(
+  v: unknown,
+  at: string,
+  check: (el: Record<string, unknown>, at: string) => ValidateResult | null
+): ValidateResult | null {
+  if (!Array.isArray(v)) return fail(at, '需为数组')
+  for (let i = 0; i < v.length; i++) {
+    const el: unknown = v[i]
+    const p = `${at}[${i}]`
+    if (!isRecord(el)) return fail(p, '不是对象')
+    const r = check(el, p)
+    if (r) return r
+  }
+  return null
+}
+
+export function validateProjectDetail(v: unknown): ValidateResult {
+  if (!isRecord(v)) return fail('detail', '不是对象')
+  if (typeof v['path'] !== 'string' || v['path'] === '') return fail('detail.path', '需为非空 string')
+
+  const skills = eachOf(v['skills'], 'detail.skills', (s, at) => {
+    if (!str(s['name'])) return fail(`${at}.name`, '需为 string')
+    if (!strOrNull(s['description'])) return fail(`${at}.description`, '需为 string|null')
+    if (!SKILL_LEVELS.has(s['level'] as string)) return fail(`${at}.level`, `非法 level: ${String(s['level'])}`)
+    if (!AGENT_SIDES.has(s['side'] as string)) return fail(`${at}.side`, `非法 side: ${String(s['side'])}`)
+    for (const b of ['symlink', 'shadowed', 'shadows', 'coexists'] as const) {
+      if (typeof s[b] !== 'boolean') return fail(`${at}.${b}`, '需为 boolean')
+    }
+    if (!ORIGINS.has(s['origin'] as string)) return fail(`${at}.origin`, `非法 origin: ${String(s['origin'])}`)
+    if (!strOrNull(s['pluginName'])) return fail(`${at}.pluginName`, '需为 string|null')
+    return null
+  })
+  if (skills) return skills
+
+  const subagents = eachOf(v['subagents'], 'detail.subagents', (a, at) => {
+    if (!str(a['name'])) return fail(`${at}.name`, '需为 string')
+    if (!AGENT_SIDES.has(a['side'] as string)) return fail(`${at}.side`, `非法 side: ${String(a['side'])}`)
+    if (!SUBAGENT_LEVELS.has(a['level'] as string)) return fail(`${at}.level`, `非法 level: ${String(a['level'])}`)
+    if (!strOrNull(a['description'])) return fail(`${at}.description`, '需为 string|null')
+    if (!isRecord(a['detail'])) return fail(`${at}.detail`, '需为对象')
+    for (const b of ['shadows', 'shadowed', 'overridesBuiltin'] as const) {
+      if (typeof a[b] !== 'boolean') return fail(`${at}.${b}`, '需为 boolean')
+    }
+    return null
+  })
+  if (subagents) return subagents
+
+  const mem = v['memory']
+  if (!isRecord(mem)) return fail('detail.memory', '需为对象')
+  if (!strOrNull(mem['main'])) return fail('detail.memory.main', '需为 string|null')
+  const topics = eachOf(mem['topics'], 'detail.memory.topics', (t, at) => {
+    if (!str(t['name'])) return fail(`${at}.name`, '需为 string')
+    if (typeof t['file'] !== 'string' || t['file'] === '') return fail(`${at}.file`, '需为非空 string')
+    if (typeof t['mtimeMs'] !== 'number') return fail(`${at}.mtimeMs`, '需为 number')
+    return null
+  })
+  if (topics) return topics
+
+  const plugins = eachOf(v['plugins'], 'detail.plugins', (p, at) => {
+    if (!str(p['name'])) return fail(`${at}.name`, '需为 string')
+    if (!strOrNull(p['version'])) return fail(`${at}.version`, '需为 string|null')
+    if (typeof p['enabled'] !== 'boolean') return fail(`${at}.enabled`, '需为 boolean')
+    if (p['enabledFrom'] !== null && !ENABLED_FROM.has(p['enabledFrom'] as string))
+      return fail(`${at}.enabledFrom`, `非法 enabledFrom: ${String(p['enabledFrom'])}`)
+    if (!Array.isArray(p['installs'])) return fail(`${at}.installs`, '需为数组')
+    if (!isRecord(p['contents'])) return fail(`${at}.contents`, '需为对象')
+    return null
+  })
+  if (plugins) return plugins
+
+  const mcp = eachOf(v['mcp'], 'detail.mcp', (m, at) => {
+    if (!str(m['name'])) return fail(`${at}.name`, '需为 string')
+    if (m['enabled'] !== null && typeof m['enabled'] !== 'boolean')
+      return fail(`${at}.enabled`, '需为 boolean|null')
+    return null
+  })
+  if (mcp) return mcp
+
+  const cfg = v['configs']
+  if (!isRecord(cfg)) return fail('detail.configs', '需为对象')
+  for (const k of ['claudeMd', 'agentsMd', 'settingsSummary'] as const) {
+    if (!strOrNull(cfg[k])) return fail(`detail.configs.${k}`, '需为 string|null')
+  }
+
+  const artifacts = eachOf(v['artifacts'], 'detail.artifacts', (a, at) => {
+    if (!ARTIFACT_TYPES.has(a['type'] as string)) return fail(`${at}.type`, `非法 type: ${String(a['type'])}`)
+    if (!str(a['title'])) return fail(`${at}.title`, '需为 string')
+    if (typeof a['file'] !== 'string' || a['file'] === '') return fail(`${at}.file`, '需为非空 string')
+    if (typeof a['mtimeMs'] !== 'number') return fail(`${at}.mtimeMs`, '需为 number')
+    return null
+  })
+  if (artifacts) return artifacts
+
+  // stats 复用既有校验器,不另起一套会话口径
+  if (v['stats'] !== null) {
+    const r = validateProjectStats(v['stats'])
+    if (!r.ok) return r
+  }
+  return { ok: true }
+}
+
+/** 主进程出口:同 assertSnapshot,契约破坏直接抛 */
+export function assertProjectDetail(v: unknown): void {
+  const r = validateProjectDetail(v)
+  if (!r.ok) throw new Error(`项目详情契约校验失败 — ${r.error}`)
 }
