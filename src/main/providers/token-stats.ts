@@ -80,8 +80,12 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg
  * v4:Codex 的 at 由首个时间戳改为文件内最大时间戳。
  * v5:FileAgg 加 file(会话身份);Claude 的 at 改为对全部行取最大(此前只看 usage 行)。
  * v6:标题剥离 harness 噪声;无真实提问的会话 listed=false。
+ *
+ * **导出仅供测试**——让守卫测试能用 `CACHE_VERSION - 1` 构造"紧邻上一版"的缓存,
+ * 而不是硬编码一个会随版本号增长而失效的字面量。产线代码不得据它做分支判断:
+ * 唯一的版本比较在 loadCache 里,多一处就多一处会漂移的口径。
  */
-const CACHE_VERSION = 6
+export const CACHE_VERSION = 6
 
 interface CacheShape {
   version: typeof CACHE_VERSION
