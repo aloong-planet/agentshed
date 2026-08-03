@@ -193,6 +193,7 @@ function SessionsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }
               {s.side === 'claude' ? 'CC' : 'CX'}
             </span>
             <span className="t">{s.title}</span>
+            <span className="n">{s.questionCount} 提问</span>
             <span className="tok">{fmtTok(s.tokens)}</span>
             <span className="d">{fmtAgo(s.at, snap.scannedAt)}</span>
           </div>

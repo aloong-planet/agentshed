@@ -82,7 +82,9 @@ describe('validateSnapshot', () => {
 describe('validateProjectStats(会话元数据)', () => {
   const ok = {
     tokens: emptyTokenStats(),
-    sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/.claude/projects/e/a.jsonl' }]
+    sessions: [
+      { side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/.claude/projects/e/a.jsonl', questionCount: 3 }
+    ]
   }
 
   it('放行合法载荷', () => {
@@ -94,14 +96,24 @@ describe('validateProjectStats(会话元数据)', () => {
   })
 
   it('拒收缺 file 的会话并指出路径', () => {
-    const bad = { ...ok, sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10 }] }
+    const bad = { ...ok, sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, questionCount: 3 }] }
     const r = validateProjectStats(bad)
     expect(r.ok).toBe(false)
     expect(r.ok === false && r.error).toContain('sessions[0].file')
   })
 
+  it('拒收缺 questionCount 的会话并指出路径', () => {
+    const bad = {
+      ...ok,
+      sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/a.jsonl' }]
+    }
+    const r = validateProjectStats(bad)
+    expect(r.ok).toBe(false)
+    expect(r.ok === false && r.error).toContain('sessions[0].questionCount')
+  })
+
   it('拒收空字符串 file——空串不是标识,拿它去读会落到 cwd', () => {
-    const bad = { ...ok, sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '' }] }
+    const bad = { ...ok, sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '', questionCount: 3 }] }
     expect(validateProjectStats(bad).ok).toBe(false)
   })
 

@@ -794,6 +794,15 @@ body {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+/* 提问条数:与 tok/d 同一档次的次要计量,右对齐等宽对齐成列(原型 .sess .n) */
+.se .n {
+  font-size: 11px;
+  color: var(--text-2);
+  flex: none;
+  width: 56px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── 产物 tab ── */
 .chips {

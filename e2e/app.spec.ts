@@ -102,6 +102,14 @@ function mkUsageHome(): string {
     [
       JSON.stringify({ type: 'user', timestamp: localDayOffset(2).toISOString(), message: { role: 'user', content: '示例提问' } }),
       usage('claude-fable-5', localDayOffset(2), 1200, 300),
+      // 第二条真实提问 —— 让两侧的提问条数不相等,条数断言才分得出"真读到了"
+      // 与"两边都恰好是 1"。中间夹一条工具回灌,它不算提问(spec B1)。
+      JSON.stringify({
+        type: 'user',
+        timestamp: localDayOffset(1).toISOString(),
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: '工具返回' }] }
+      }),
+      JSON.stringify({ type: 'user', timestamp: localDayOffset(1).toISOString(), message: { role: 'user', content: '第二个提问' } }),
       usage('claude-opus-5', localDayOffset(1), 800, 200),
       usage('claude-fable-5', localDayOffset(0), 500, 100)
     ].join('\n') + '\n'
@@ -288,6 +296,30 @@ test('会话分栏:列出会话、可切排序、预热会话不入列', async (
   expect(await titleOf(0)).toBe('Codex 侧的提问')
   expect(await titleOf(1)).toBe('示例提问')
   await expect(win.locator('.pane-body .grp-t')).toContainText('正序')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 session-view/03a:提问条数上行。两条会话的条数**故意不相等**——都写 1 的话,
+// 断言分不出"真按会话读到了"与"两边碰巧一样"。
+test('会话分栏:每行显示本会话的真实提问条数', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+
+  const rows = win.locator('.pane-body .card .se')
+  await expect(rows).toHaveCount(2)
+  const countOf = async (i: number): Promise<string> =>
+    (await rows.nth(i).locator('.n').innerText()).trim()
+
+  // 默认最近在前:第 0 行是 Claude 侧(2 条真实提问,中间那条 tool_result 不算),
+  // 第 1 行是 Codex 侧(1 条)
+  expect(await rows.nth(0).locator('.t').innerText()).toBe('示例提问')
+  expect(await countOf(0), 'Claude 侧两条真实提问,工具回灌不计入').toBe('2 提问')
+  expect(await countOf(1), 'Codex 侧一条真实提问').toBe('1 提问')
 
   expect(l.errors).toEqual([])
   await close(l)
