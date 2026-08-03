@@ -295,6 +295,23 @@ describe('Claude 聚合(ccusage 口径)', () => {
     const r = await engine().build(roots(), [proj])
     expect(r.global.bySide.claude.total).toBe(15)
   })
+
+  // 票 03a:坏行的降级必须**只自伤**——不许连累同一文件里它前后的提问。
+  // 活跃会话正写到半行就是这个形态,不是假想。
+  it('提问之间夹坏行:该行跳过,前后提问都还在且条数不受影响', async () => {
+    mkClaudeFile('mid-bad.jsonl', [
+      userLine('第一个提问'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5),
+      '{"type":"user","message":{"role":"user","content":"半行写到一', // 半行,解析不出
+      userLine('第二个提问'),
+      usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 10, 5)
+    ])
+    const s = (await engine().build(roots(), [proj])).perProject
+      .get(proj.toLowerCase())
+      ?.sessions.find((x) => x.file.endsWith('mid-bad.jsonl'))
+    expect(s?.questionCount, '坏行不该吃掉它前后的提问').toBe(2)
+    expect(s?.title).toBe('第一个提问')
+  })
 })
 
 describe('Codex 聚合(ccusage 口径)', () => {
@@ -597,6 +614,29 @@ describe('缓存版本迁移(真 bug 回归)', () => {
     expect(keysOf('codex')).toEqual([
       'at', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'parentId', 'projectKey', 'questions', 'sessionId', 'title'
     ])
+  })
+
+  // 票 03a 的立票前提(spec D2a):索引**只存偏移,连截断预览都不存**。
+  // 理由是全库进每次启动都读的缓存里,提问文本占全文约 9.5%,是 MB 级负担。
+  // 没有这道断言,后人"顺手存个预览方便搜索"不会红——那正是这条决定要防的事。
+  it('缓存里不含任何提问文本(只存偏移)', async () => {
+    const uniq = '独一无二的提问文本CANARY7391'
+    mkClaudeFile('notext.jsonl', [
+      userLine(uniq),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
+    ])
+    await engine().build(roots(), [proj])
+    const raw = readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')
+    const cache = JSON.parse(raw) as { files: Record<string, { agg: Record<string, unknown> }> }
+    const hit = Object.values(cache.files).find((f) => String(f.agg['file']).endsWith('notext.jsonl'))
+    // 先证明这条真进了缓存,否则下面的"找不到文本"是空过
+    expect(hit, '该文件应在缓存里').toBeDefined()
+    expect((hit as { agg: Record<string, unknown> }).agg['questions']).toHaveLength(1)
+    // title 是设计上要存的(会话列表要显示),提问**正文**不存;
+    // 这里用一段只出现在提问里、不会成为标题以外任何东西的串来判定。
+    const questionsJson = JSON.stringify((hit as { agg: Record<string, unknown> }).agg['questions'])
+    expect(questionsJson, '索引里出现了提问文本').not.toContain('CANARY')
+    expect(questionsJson, '索引应当只有数字与 null').toMatch(/^\[\[[\d,\s.enull-]*\]\]$/)
   })
 
   it('缓存文件是垃圾内容时不崩,全量重算', async () => {

@@ -219,6 +219,9 @@ describe('提问提取(Codex 侧)', () => {
         { type: 'response_item', timestamp: TS, payload: { type: 'custom_tool_call', name: 'exec', input: 'ls' } },
         { type: 'response_item', timestamp: TS, payload: { type: 'custom_tool_call', name: 'apply_patch', input: 'p' } },
         { type: 'response_item', timestamp: TS, payload: { type: 'function_call', name: 'wait', arguments: '{}' } },
+        // tool_search_call:全库枚举出的第三种调用记录(25 次,配套 tool_search_output)。
+        // 120 文件的采样里没有它 —— 正面枚举靠采样会漏,换成全量才看见。
+        { type: 'response_item', timestamp: TS, payload: { type: 'tool_search_call', name: 'search' } },
         { type: 'response_item', timestamp: TS, payload: { type: 'function_call', name: 'spawn_agent', namespace: 'collaboration', arguments: '{"task_name":"t"}' } },
         // 返回值不重复计数
         { type: 'response_item', timestamp: TS, payload: { type: 'custom_tool_call_output', output: 'ok' } },
@@ -226,7 +229,7 @@ describe('提问提取(Codex 侧)', () => {
       ],
       async (file) => {
         const [rec] = await indexOf(file, 'codex')
-        expect(rec[4]).toBe(3) // exec + apply_patch + wait
+        expect(rec[4]).toBe(4) // exec + apply_patch + wait + tool_search
         expect(rec[5]).toBe(1) // spawn_agent
       }
     )

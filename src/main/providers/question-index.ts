@@ -23,7 +23,11 @@ export interface QuestionIndexer {
    * 不会出现"标题有值但提问数为 0"这类同概念两个数字的分歧(spec A1 同类教训)。
    */
   firstQuestionRaw(): string | null
-  /** 收尾:末轮的止点 = 文件长度 */
+  /**
+   * 收尾:末轮的止点 = 最后一条**可解析**行的终点(调用方传入)。
+   * 刻意不取文件字节大小:活跃会话可能正写到半行,那半行既解析不出也不该被切进
+   * 轮次区间——取最后一条完整行的终点,按需取回时读到的永远是成形的内容。
+   */
   done(fileEnd: number): QuestionRec[]
 }
 
@@ -39,8 +43,14 @@ const CODEX_DISPATCH = 'spawn_agent'
 
 /** Codex 的工具调用记录在 response_item 上;event_msg 那一路是同一批调用的 UI 事件镜像,
  * 只取一路才不会重复计数(与 spec「双写流二选一」同一个理由,只是这里选 response_item
- * ——它是模型实际发出的调用记录,event_msg 侧只有 *_end 事件、缺 function_call 的对应项)。 */
-const CODEX_CALL_TYPES = new Set(['custom_tool_call', 'function_call'])
+ * ——它是模型实际发出的调用记录,event_msg 侧只有 *_end 事件、缺 function_call 的对应项)。
+ *
+ * 三种取自**全库枚举**(278 个文件 / 62,912 条带 payload 的行)的 response_item 全谱:
+ * message 10311 · reasoning 6075 · custom_tool_call 3400 · function_call 1883 ·
+ * agent_message 54 · **tool_search_call 25**,以及各自的 *_output。
+ * `tool_search_call` 在 120 文件的采样里一次都没出现——正面枚举靠采样会漏,
+ * 是 review 时改用全量才看见的。 */
+const CODEX_CALL_TYPES = new Set(['custom_tool_call', 'function_call', 'tool_search_call'])
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
