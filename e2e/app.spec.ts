@@ -33,16 +33,17 @@ interface Launched {
  *      全量重扫真实数据(本机 638MB)。这会把用例推到断言超时的边缘——2026-08-02
  *      升 CACHE_VERSION 后,仅剩的两条读真实 home 的用例就是这么红的。
  */
-async function launch(cacheContent?: string, home?: string): Promise<Launched> {
+/**
+ * `home` **必填**(2026-08-03 从可选改为必填):省略它 app 就去扫开发者的真实 `~/.claude`,
+ * 用例结果随各人的数据量而变——CI 上 home 是空的所以照绿,本地却会超时挂掉。
+ * 靠"记得传"守不住,交给 typecheck。
+ */
+async function launch(cacheContent: string | undefined, home: string): Promise<Launched> {
   const userData = makeUserData(cacheContent)
   const errors: string[] = []
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
-    env: {
-      ...process.env,
-      NODE_ENV: 'production',
-      ...(home ? { AGENTSHED_HOME_OVERRIDE: home } : {})
-    }
+    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
@@ -406,7 +407,15 @@ test('归档:预置历史归档文件 → 趋势含归档段并有说明,主进�
     })
   )
   const errors: string[] = []
-  const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] })
+  // 必须给 fixture home:本用例只关心 userData 里的归档文件,却因为没注入 home 而去扫
+  // **开发者的真实 ~/.claude**;又因为 makeUserData() 每次都是全新临时目录,token 缓存
+  // 恒为冷,于是首屏耗时随各人的数据量走。CI 上 home 是空的所以一直绿,本机 600MB+
+  // 数据下本地实测三次挂两次(2026-08-03,票 03a)。
+  // 这是本文件开头那条纪律的漏网之鱼——它没走 launch(),直接调了 electron.launch。
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: mkEmptyProjectHome() }
+  })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
     if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败/.test(t)) errors.push(t)
