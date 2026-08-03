@@ -16,6 +16,13 @@
        活动倒序,可切最早在前;排序对列表与命中分组同时生效)+ 搜索入口 + 按会话分组的
        命中结果;点会话行跳会话页原型(session-view/session,提问索引与整轮展开在那边)。
        概览的会话卡同步改为可点入,其「元数据即止」的旧口径由本功能推翻。
+     v3.1(2026-08-02,票 02 实现期定案,原型同步):
+       - 概览的最近会话**上限 5 条**,底部标注总数;点行进「会话」分栏(票 04 改为直达会话页)。
+       - 会话分栏的**排序选择跨分栏切换保留**:切去别的分栏再回来仍是上次的选择。
+         本原型天然如此(切 tab 只切 display,排序状态是模块级的),app 里 tab 是条件渲染、
+         组件会被卸载,故用模块级变量另行实现——两边行为一致,机制不同。
+       - 预热会话(只有一条 Warmup、无任何真实提问)不入列,token 照计:实测某项目
+         1511 个会话里 1004 个是这种,照列则三分之二的行是 uuid 文件名。
      演示基建(非设计的一部分,勿实现):底部悬浮条 [演示·会话分栏] 两态
        (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。 -->
 <html lang="zh-CN">
@@ -235,12 +242,13 @@
           <div class="m openai"><span class="nm2">gpt-5.5-codex</span><span class="tr"><i style="width:38%"></i></span><span class="num">2.1M</span></div>
         </div>
         <!-- v3:不再「元数据即止」——概览列最近 4 个,点行直达会话页;全部去会话分栏 -->
-        <div class="grp-t">最近会话(主线程;subagent 计 token 但不单独入列,在主会话内展开)</div>
+        <div class="grp-t">最近会话(上限 5 条;subagent 与预热会话计 token 但不单独入列)</div>
         <div class="card">
           <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">MAS 上架支持:构建线与独立 bundle id</span><span class="tok">312k</span><span class="d">3天前</span></div>
           <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">屏幕录制权限 preflight 修复</span><span class="tok">188k</span><span class="d">5天前</span></div>
           <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b x" style="flex:none">CX</span><span class="t">迁移 Claude Code skills 到 Codex</span><span class="tok">96k</span><span class="d">9天前</span></div>
           <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">消息领域模型收敛为单一数据源</span><span class="tok">421k</span><span class="d">12天前</span></div>
+          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">会话导出格式讨论</span><span class="tok">22k</span><span class="d">14天前</span></div>
         </div>
         <div class="note">共 7 个会话 —— 全部与搜索见「会话」分栏。</div>
       </div>
@@ -582,7 +590,7 @@
           `<div class="sess" ${GOTO}><span class="b ${x.b}" style="flex:none">${x.s}</span>
             <span class="t">${esc2(x.t)}</span>${x.p}
             <span class="n">${x.n} 提问</span><span class="tok">${x.tok}</span><span class="d">${x.d}</span></div>`).join('')}</div>
-        <div class="note">只列已注册项目的会话;subagent 会话不单独入列(在主会话内就地展开)。<br>
+        <div class="note">只列已注册项目的会话;subagent 与预热会话不单独入列,但 token 仍计入统计——故此处条数与 token 卡的分母不是同一个。<br>
           「最近活动」= 文件内最大时间戳——Codex 侧原先取首个时间戳,fork 会话会误报为重放时刻。</div>`;
       return;
     }
