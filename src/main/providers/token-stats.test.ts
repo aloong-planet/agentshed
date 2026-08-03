@@ -1,11 +1,11 @@
 // 票04+修正轮:token 聚合引擎(ccusage 对齐,2026-07-30)——
 // 全树扫描(与注册表无关)、message.id+requestId 去重(sidechain 回退)、
 // 总量四项全加、synthetic 不入模型桶、流式坏行跳过、增量缓存。
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { TokenEngine } from './token-stats'
+import { CACHE_VERSION, TokenEngine } from './token-stats'
 import { encodeClaudeProjectDir } from './claude'
 import type { ScanRoots } from './types'
 
@@ -484,7 +484,13 @@ describe('缓存版本迁移(真 bug 回归)', () => {
 
   // 假绿防线:改的是"某字段怎么算出来的"而非结构时,签名照样命中、形状照样合法,
   // 旧值会一路流到界面。fixture 用全新缓存必过,存量用户看不到修复。
-  it('上一版缓存里结构合法但算法已过时的值,不得被沿用(v3 的 Codex at=首时间戳)', async () => {
+  //
+  // ⚠️ 这条测的是**版本失效机制本身**(上一版的缓存会被拒),不是"作者记得升号"。
+  //    后者任何单测都测不到:漏升号在被测代码里**不留任何痕迹**,而 fixture 写的是
+  //    `CACHE_VERSION - 1`,版本号无论是几它都比当前小一档,永远匹配不上。
+  //    实测确认:把 CACHE_VERSION 从 6 退回 5(模拟漏升),本用例仍然绿。
+  //    形状变更那一半由下面的字段集指纹兜住;算法变更那一半只能靠流程(见 spec)。
+  it('紧邻上一版的缓存里、结构完全合法但算法已过时的值,不得被沿用', async () => {
     const rollout = mkCodexRollout('rollout-staleat-019f901.jsonl', proj, '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
       { input: 10, cached: 0, output: 5, at: '2026-07-29T12:00:00Z' },
       { input: 20, cached: 0, output: 5, at: '2026-07-30T18:30:00Z' }
@@ -494,12 +500,18 @@ describe('缓存版本迁移(真 bug 回归)', () => {
     writeFileSync(
       join(dir, 'cache', 'token-cache.json'),
       JSON.stringify({
-        version: 3, // 上一版:结构与现版完全一致,只是 at 按旧算法(首时间戳)算出
+        // 用相对版本号而非字面量:硬编码 3 的话,版本号涨到 6、7 之后这条就退化成
+        // 旁边那条"很旧的版本被拒",而"紧邻上一版被拒"没人管——漏升号照样抓不到。
+        version: CACHE_VERSION - 1,
         files: {
           [rollout]: {
             sig: `${st.mtimeMs}:${st.size}`,
+            // 除版本号外**一切合法**——尤其 file 不能少:isWellFormedAgg 会因缺字段
+            // 判它不合格并重算,那样即使版本检查被整个删掉本用例也照样绿,
+            // 就测不到"版本号"这个机制本身了。
             agg: {
               kind: 'codex',
+              file: rollout,
               projectKey: proj.toLowerCase(),
               listed: true,
               title: 'stale',
@@ -558,6 +570,32 @@ describe('缓存版本迁移(真 bug 回归)', () => {
       .get(proj.toLowerCase())
       ?.sessions.find((x) => x.side === 'claude')
     expect(s?.file, '缺字段的缓存条目必须被判不合格并重算,不能把 undefined 放行到契约层').toBe(cl)
+  })
+
+  // 形状变更漏升号的唯一自动防线:字段集变了这条就红,作者被迫顺带想一下版本号。
+  // 断言对象取**落盘的缓存**——它正是版本号要保护的那个东西,不是旁路。
+  // 覆盖面写明:只管字段增删,不管某字段的算法变更(那种不改字段集,指纹照旧)。
+  it('FileAgg 字段集变化必须被察觉(形状变更是漏升号唯一测得到的一半)', async () => {
+    mkClaudeFile('shape.jsonl', [
+      userLine('提问'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
+    ])
+    mkCodexRollout('rollout-shape-019fd01.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
+      { input: 10, cached: 0, output: 5 }
+    ])
+    await engine().build(roots(), [proj])
+    const cache = JSON.parse(readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')) as {
+      files: Record<string, { agg: Record<string, unknown> }>
+    }
+    const keysOf = (kind: string): string[] => {
+      const hit = Object.values(cache.files).find((f) => f.agg['kind'] === kind)
+      expect(hit, `缓存里应有 ${kind} 条目`).toBeDefined()
+      return Object.keys((hit as { agg: Record<string, unknown> }).agg).sort()
+    }
+    expect(keysOf('claude')).toEqual(['at', 'entries', 'file', 'kind', 'listed', 'projectKey', 'title'])
+    expect(keysOf('codex')).toEqual(
+      ['at', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'parentId', 'projectKey', 'sessionId', 'title']
+    )
   })
 
   it('缓存文件是垃圾内容时不崩,全量重算', async () => {
