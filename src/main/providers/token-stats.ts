@@ -21,7 +21,7 @@ import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessions } from './codex'
 import { eachJsonlLine } from './jsonl'
 import { makeQuestionIndexer, type QuestionRec } from './question-index'
-import { titleFrom } from './session-title'
+import { clipTitle } from './session-title'
 import type { ScanRoots } from './types'
 import type { UsageRow } from './archive'
 
@@ -611,10 +611,10 @@ async function parseClaudeFile(
     }
   })()
   const questions = idx.done(fileEnd)
-  const firstRaw = idx.firstQuestionRaw()
-  // 噪声逐条剥离,找不到就继续往后看(caveat 之后常跟 /clear,真提问在第三条)
-  // ——索引器已经做完这件事,这里只负责成型。形态见 session-title.ts。
-  const title = firstRaw === null ? null : titleFrom([firstRaw])
+  // 索引器已经剥完噪声、也已按末叶回溯滤过,这里只负责截断成型。
+  // **不要再过一遍 realUserText**——剥离不幂等,见 session-title.ts。
+  const first = idx.firstQuestionText()
+  const title = first === null ? null : clipTitle(first)
   return {
     kind: 'claude',
     file,
@@ -677,8 +677,8 @@ async function parseCodexFile(
   const id = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/.exec(file)?.[1]
   const stem = file.split('/').pop()?.replace(/\.jsonl$/, '') ?? '会话'
   const questions = idx.done(fileEnd)
-  const firstRaw = idx.firstQuestionRaw()
-  const realTitle = firstRaw === null ? null : titleFrom([firstRaw])
+  const first = idx.firstQuestionText()
+  const realTitle = first === null ? null : clipTitle(first)
   return {
     kind: 'codex',
     file,

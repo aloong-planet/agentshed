@@ -56,13 +56,14 @@ export function realUserText(raw: string): string | null {
   return t
 }
 
-/** 消息序列 → 标题。逐条向后找第一条真实提问(噪声常连续出现);全是噪声返回 null */
-export function titleFrom(messages: readonly string[]): string | null {
-  for (const m of messages) {
-    const t = realUserText(m)
-    if (t === null) continue
-    const cp = [...t]
-    return cp.length > TITLE_MAX ? `${cp.slice(0, TITLE_MAX).join('')}…` : t
-  }
-  return null
+/**
+ * 已剥噪声的提问 → 标题(按码点截断,中文不被截半)。
+ *
+ * 与 `realUserText` 分开是**必须**的,不是为了好看:剥离对同一段文本不是幂等的
+ * ——`[cron:x] Warmup` 剥一次得 `Warmup`,再剥一次就变成 null。调用方拿到的若已是
+ * 剥离后的文本,只能走这里,不能再过一遍 `realUserText`。
+ */
+export function clipTitle(t: string): string {
+  const cp = [...t]
+  return cp.length > TITLE_MAX ? `${cp.slice(0, TITLE_MAX).join('')}…` : t
 }

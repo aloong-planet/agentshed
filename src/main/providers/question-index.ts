@@ -18,11 +18,12 @@ export interface QuestionIndexer {
   /** 逐行喂入,顺序与文件一致 */
   line(obj: Record<string, unknown>, start: number, end: number): void
   /**
-   * 首条真实提问的**原始**消息文本(未剥噪声、未截断);一条都没有则 null。
-   * 标题由它经 titleFrom 生成——这样"哪一行算首条提问"只有索引器一个判断点,
-   * 不会出现"标题有值但提问数为 0"这类同概念两个数字的分歧(spec A1 同类教训)。
+   * 首条真实提问**剥噪声之后**的文本(未截断);一条都没有则 null。
+   * 调用方直接 `clipTitle` 成标题,**不要再过一遍 `realUserText`**——剥离不幂等。
+   * 这样"哪一行算首条提问"只有索引器一个判断点,不会出现"标题有值但提问数为 0"
+   * 这类同概念两个数字的分歧(spec A1 同类教训);末叶回溯把首条滤掉时标题同步改。
    */
-  firstQuestionRaw(): string | null
+  firstQuestionText(): string | null
   /**
    * 收尾:末轮的止点 = 最后一条**可解析**行的终点(调用方传入)。
    * 刻意不取文件字节大小:活跃会话可能正写到半行,那半行既解析不出也不该被切进
@@ -117,19 +118,46 @@ export function makeQuestionIndexer(side: 'claude' | 'codex'): QuestionIndexer {
   const questionOf = side === 'claude' ? claudeQuestion : codexQuestion
   const countsOf = side === 'claude' ? claudeCounts : codexCounts
   const out: QuestionRec[] = []
+  /** 与 out 平行:每条提问所在行的 uuid(无则 null),供末叶回溯过滤 */
+  const qUuid: Array<string | null> = []
+  /** 与 out 平行:**剥噪声之后**的提问文本,只为过滤后重新定首条标题用。
+   * 不存原文的截断版:`<command-args>` 这类包装的真实内容实测可远在第 4054 字符,
+   * 先截再剥会让剥离规则找不到标签,标题变成一段包装垃圾。**只在内存里,不进缓存。** */
+  const qHead: string[] = []
+  /** Claude 主链的 uuid → 父。**父取 `parentUuid ?? logicalParentUuid`** */
+  const parentOf = new Map<string, string | null>()
+  /** 最后一条**非 sidechain** 行的 uuid —— 回溯的起点 */
+  let lastMainUuid: string | null = null
   let firstRaw: string | null = null
 
   return {
     line(obj, start, end) {
+      // 末叶回溯的图只在 Claude 侧建,且只收主链行:sidechain 是 subagent 自己的
+      // 转写,其 parentUuid 恒为 null、子节点只指向 sidechain 内部,混进来会把
+      // 回溯起点带到 subagent 的链上(实测 69% 的文件末行正是 sidechain 行)。
+      if (side === 'claude' && obj['isSidechain'] !== true) {
+        const u = obj['uuid']
+        if (typeof u === 'string') {
+          const p = obj['parentUuid']
+          const lp = obj['logicalParentUuid']
+          // 压缩边界(type=system, subtype=compact_boundary)的 parentUuid 断开,
+          // logicalParentUuid 才是它到压缩前历史的桥。不桥接的话实测最坏一例
+          // 346 条提问只剩 44 条——压缩前的历史全被当成"被放弃的分支"。
+          parentOf.set(u, typeof p === 'string' ? p : typeof lp === 'string' ? lp : null)
+          lastMainUuid = u
+        }
+      }
       const raw = questionOf(obj)
       // 噪声不算提问(与标题剥离同一套规则):否则只含 Warmup 的会话会报出
       // "1 提问"却按 spec A3a 不入列,同一个概念两个数字
-      if (raw !== null && realUserText(raw) !== null) {
+      const clean = raw === null ? null : realUserText(raw)
+      if (clean !== null) {
         const prev = out[out.length - 1]
         if (prev) prev[2] = start
-        else firstRaw = raw
         const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp']) : NaN
         out.push([start, end, end, Number.isNaN(ts) ? null : ts, 0, 0])
+        qUuid.push(typeof obj['uuid'] === 'string' ? obj['uuid'] : null)
+        qHead.push(clean)
         return
       }
       const cur = out[out.length - 1]
@@ -139,13 +167,39 @@ export function makeQuestionIndexer(side: 'claude' | 'codex'): QuestionIndexer {
       cur[4] += tools
       cur[5] += subagents
     },
-    firstQuestionRaw() {
+    firstQuestionText() {
       return firstRaw
     },
     done(fileEnd) {
+      // 先给**原始**末条补上文件终点,再过滤:末条若落在被放弃的分支上,
+      // 这个延长就该随它一起消失,而不是让存活的前一条把废弃内容吃进自己的轮次。
       const last = out[out.length - 1]
       if (last && fileEnd > last[2]) last[2] = fileEnd
-      return out
+
+      let kept = out
+      let keptHeads = qHead
+      if (side === 'claude' && lastMainUuid !== null) {
+        const chain = new Set<string>()
+        let cur: string | null = lastMainUuid
+        while (cur !== null && !chain.has(cur)) {
+          chain.add(cur)
+          cur = parentOf.get(cur) ?? null
+        }
+        kept = []
+        keptHeads = []
+        for (let i = 0; i < out.length; i++) {
+          const u = qUuid[i]
+          // 无 uuid 的提问无从判断在不在链上 —— 按不漏原则保留(漏掉真提问,
+          // 比多留一条被放弃的更违背"找到我提过的那个问题"这个立命之本)
+          if (u === null || chain.has(u)) {
+            kept.push(out[i])
+            keptHeads.push(qHead[i])
+          }
+        }
+      }
+      // 标题与条数同源:过滤后重新取首条,免得标题来自一条已被丢弃的提问
+      firstRaw = keptHeads.length > 0 ? keptHeads[0] : null
+      return kept
     }
   }
 }

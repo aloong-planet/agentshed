@@ -247,3 +247,180 @@ describe('提问提取(Codex 侧)', () => {
     })
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────
+// 票 03b:Claude 分叉 —— 沿父链从最后一条回溯到根,只留这条链(spec B3)
+//
+// fixture 形态全部取自真实数据枚举(全库 1481 个有 uuid 链的会话文件):
+//   - 分叉(某父多子)27 个文件;多叶 29 个文件
+//   - **末行是 sidechain 的 1015 个(69%)** —— sidechain 的 parentUuid 恒为 null
+//   - 压缩边界 `type=system, subtype=compact_boundary`,parentUuid=null 且带
+//     logicalParentUuid —— 不桥接它,最坏一例 346 条提问只剩 44 条
+// ─────────────────────────────────────────────────────────────────────────
+
+/** 带 uuid 链的用户提问行 */
+const cq = (uuid: string, parentUuid: string | null, text: string, extra: Record<string, unknown> = {}): unknown => ({
+  type: 'user',
+  uuid,
+  parentUuid,
+  timestamp: TS,
+  message: { role: 'user', content: text },
+  ...extra
+})
+/** 助手行(占位,让链有中间节点) */
+const ca = (uuid: string, parentUuid: string | null): unknown => ({
+  type: 'assistant',
+  uuid,
+  parentUuid,
+  timestamp: TS,
+  message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }] }
+})
+/** 真实形态:压缩边界。parentUuid 断开,logicalParentUuid 指回压缩前 */
+const cCompact = (uuid: string, logicalParentUuid: string): unknown => ({
+  type: 'system',
+  subtype: 'compact_boundary',
+  uuid,
+  parentUuid: null,
+  logicalParentUuid,
+  timestamp: TS,
+  content: 'Conversation compacted',
+  compactMetadata: { trigger: 'auto' }
+})
+
+async function textsOf(objs: unknown[]): Promise<number[]> {
+  return withLines(objs, async (file) => (await indexOf(file, 'claude')).map((r) => r[0]))
+}
+
+describe('Claude 分叉:末叶回溯', () => {
+  test('线性会话:全部提问都在链上,一条不少', async () => {
+    const objs = [cq('u1', null, '问一'), ca('a1', 'u1'), cq('u2', 'a1', '问二'), ca('a2', 'u2'), cq('u3', 'a2', '问三')]
+    await withLines(objs, async (file) => {
+      expect(await indexOf(file, 'claude')).toHaveLength(3)
+    })
+  })
+
+  test('分叉:被放弃的那支上的提问不计入', async () => {
+    // u2 与 u2b 同父 a1;最后一条是 u3(在 u2 这一支下)→ u2b 被放弃
+    const objs = [
+      cq('u1', null, '问一'),
+      ca('a1', 'u1'),
+      cq('u2b', 'a1', '走岔的问'),
+      ca('a2b', 'u2b'),
+      cq('u2', 'a1', '问二'),
+      ca('a2', 'u2'),
+      cq('u3', 'a2', '问三')
+    ]
+    await withLines(objs, async (file) => {
+      const recs = await indexOf(file, 'claude')
+      expect(recs).toHaveLength(3)
+      // 被放弃那条的偏移不应出现
+      const abandoned = JSON.stringify(objs[2])
+      const raw = readFileSync(file)
+      for (const r of recs) {
+        expect(raw.subarray(r[0], r[1]).toString('utf8').trim()).not.toBe(abandoned)
+      }
+    })
+  })
+
+  test('末行是 sidechain:回溯起点取最后一条非 sidechain 行,不掉进 subagent 链', async () => {
+    const objs = [
+      cq('u1', null, '问一'),
+      ca('a1', 'u1'),
+      cq('u2', 'a1', '问二'),
+      // subagent 转写:parentUuid 恒 null,自成一链,且排在文件最后
+      { ...(cq('s1', null, 'subagent 的提示词') as Record<string, unknown>), isSidechain: true, agentId: 'ag1' },
+      { ...(ca('s2', 's1') as Record<string, unknown>), isSidechain: true, agentId: 'ag1' }
+    ]
+    await withLines(objs, async (file) => {
+      expect(await indexOf(file, 'claude')).toHaveLength(2)
+    })
+  })
+
+  test('压缩边界:靠 logicalParentUuid 桥接,压缩前的提问不丢', async () => {
+    const objs = [
+      cq('u1', null, '压缩前问一'),
+      ca('a1', 'u1'),
+      cq('u2', 'a1', '压缩前问二'),
+      ca('a2', 'u2'),
+      cCompact('cb1', 'a2'),
+      cq('u3', 'cb1', '压缩后问三')
+    ]
+    await withLines(objs, async (file) => {
+      const recs = await indexOf(file, 'claude')
+      expect(recs, '不桥接 logicalParentUuid 的话只剩压缩后那 1 条').toHaveLength(3)
+    })
+  })
+
+  test('两次压缩:两道边界都要桥过去', async () => {
+    const objs = [
+      cq('u1', null, '第一段'),
+      cCompact('cb1', 'u1'),
+      cq('u2', 'cb1', '第二段'),
+      cCompact('cb2', 'u2'),
+      cq('u3', 'cb2', '第三段')
+    ]
+    expect(await textsOf(objs)).toHaveLength(3)
+  })
+
+  test('没有 uuid 的行不参与回溯,也不让整份索引塌掉', async () => {
+    // 真实文件里 session_meta 之类的行没有 uuid
+    const objs = [cUser('无 uuid 的提问'), cq('u1', null, '有 uuid 的提问')]
+    await withLines(objs, async (file) => {
+      const recs = await indexOf(file, 'claude')
+      expect(recs, '无 uuid 的提问无从判断在不在链上,按不漏原则保留').toHaveLength(2)
+    })
+  })
+
+  test('整份文件都没有 uuid(旧格式):退化为全保留', async () => {
+    await withLines([cUser('问一'), cUser('问二')], async (file) => {
+      expect(await indexOf(file, 'claude')).toHaveLength(2)
+    })
+  })
+
+  test('Codex 侧不做末叶回溯:uuid 字段对它无意义', async () => {
+    await withLines([xUser('问一'), xUser('问二')], async (file) => {
+      expect(await indexOf(file, 'codex')).toHaveLength(2)
+    })
+  })
+})
+
+describe('标题与提问集合同源(末叶回溯之后)', () => {
+  async function firstTextOf(objs: unknown[]): Promise<string | null> {
+    return withLines(objs, async (file) => {
+      const idx = makeQuestionIndexer('claude')
+      let fileEnd = 0
+      await eachJsonlLine(file, (obj, start, end) => {
+        idx.line(obj, start, end)
+        fileEnd = end
+      })
+      idx.done(fileEnd)
+      return idx.firstQuestionText()
+    })
+  }
+
+  test('首条提问落在被放弃的分支上 → 标题取存活的那条,不是被丢弃的那条', async () => {
+    // u1b 是文件里最早的提问,但它这一支被放弃;存活链是 u1 → a1 → u2
+    const objs = [
+      ca('root', null),
+      cq('u1b', 'root', '走岔的第一问'),
+      cq('u1', 'root', '真正的第一问'),
+      ca('a1', 'u1'),
+      cq('u2', 'a1', '第二问')
+    ]
+    expect(await firstTextOf(objs)).toBe('真正的第一问')
+    await withLines(objs, async (file) => {
+      expect(await indexOf(file, 'claude')).toHaveLength(2)
+    })
+  })
+
+  test('全部提问都被滤掉 → 标题为 null(会话据此不入列)', async () => {
+    // 唯一的提问在被放弃的分支上,存活链只有助手行
+    const objs = [ca('root', null), cq('u1b', 'root', '走岔的问'), ca('a1', 'root'), ca('a2', 'a1')]
+    expect(await firstTextOf(objs)).toBeNull()
+  })
+
+  test('标题不被二次剥离:cron 剥出的内容恰好是 Warmup 时仍保留', async () => {
+    // 回归 clipTitle 与 realUserText 分家的理由:二次剥会把它变成 null
+    expect(await firstTextOf([cq('u1', null, '[cron:abc 定时] Warmup')])).toBe('Warmup')
+  })
+})
