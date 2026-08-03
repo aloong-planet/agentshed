@@ -1,0 +1,249 @@
+import { describe, expect, test } from 'vitest'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { eachJsonlLine } from './jsonl'
+import { makeQuestionIndexer, type QuestionRec } from './question-index'
+
+/**
+ * 驱动方式与两个 parser 里的接线一致:eachJsonlLine 逐行喂给 indexer,末尾 done(文件长度)。
+ *
+ * **已知缺口(变异检验实测,不是没写)**:
+ * 1. parser 里那三行接线本身无行为测试,只由 typecheck 兜住;补测条件是 parser 可注入行流。
+ * 2. `claudeQuestion` 里"text 段为空 → 返回 null"这个分支**不可被行为区分**:改成返回
+ *    空串后全部测试仍绿,因为调用方的 `realUserText('')` 同样判 null。保留它是为了函数
+ *    契约自洽(不是提问就还 null),不是为了行为差异——别为它编一个测试来充数。
+ */
+async function indexOf(file: string, side: 'claude' | 'codex'): Promise<QuestionRec[]> {
+  const idx = makeQuestionIndexer(side)
+  let fileEnd = 0
+  await eachJsonlLine(file, (obj, start, end) => {
+    idx.line(obj, start, end)
+    fileEnd = end
+  })
+  return idx.done(fileEnd)
+}
+
+function withLines<T>(objs: unknown[], fn: (file: string) => Promise<T>): Promise<T> {
+  const dir = mkdtempSync(join(tmpdir(), 'qidx-'))
+  const file = join(dir, 's.jsonl')
+  writeFileSync(file, objs.map((o) => JSON.stringify(o)).join('\n') + '\n')
+  return fn(file).finally(() => rmSync(dir, { recursive: true, force: true }))
+}
+
+const TS = '2026-08-01T10:00:00.000Z'
+const cUser = (text: string, extra: Record<string, unknown> = {}): unknown => ({
+  type: 'user',
+  timestamp: TS,
+  message: { role: 'user', content: text },
+  ...extra
+})
+/** 真实形态:助手行的 tool_use 段;Agent/Task 的入参恒为 description/prompt/subagent_type */
+const cTool = (name: string): unknown => ({
+  type: 'assistant',
+  timestamp: TS,
+  message: {
+    role: 'assistant',
+    content: [{ type: 'tool_use', id: 'tu_1', name, input: name === 'Bash' ? { command: 'ls' } : { description: 'd', prompt: 'p', subagent_type: 'general-purpose' } }]
+  }
+})
+const xUser = (message: string): unknown => ({
+  type: 'event_msg',
+  timestamp: TS,
+  payload: { type: 'user_message', message }
+})
+
+describe('提问提取(Claude 侧)', () => {
+  // 三种 content 数组形态取自全库枚举(12,734 个数组,组合只有这三种):
+  // (tool_result) 12541 / (text) 142 / (image,text) 51
+  test('content 为 string 与 [{type:text}] 都算提问,工具回灌不算', async () => {
+    await withLines(
+      [
+        cUser('第一个真问题'),
+        { type: 'user', timestamp: TS, message: { role: 'user', content: [{ type: 'text', text: '第二个真问题' }] } },
+        { type: 'user', timestamp: TS, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: '工具返回' }] } }
+      ],
+      async (file) => {
+        expect(await indexOf(file, 'claude')).toHaveLength(2)
+      }
+    )
+  })
+
+  test('image + text 混排算提问,只取 text 段(真实形态,全库 51 例)', async () => {
+    await withLines(
+      [
+        {
+          type: 'user',
+          timestamp: TS,
+          message: {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBOR' } },
+              { type: 'text', text: '这张图里的报错是什么' }
+            ]
+          }
+        }
+      ],
+      async (file) => {
+        expect(await indexOf(file, 'claude')).toHaveLength(1)
+      }
+    )
+  })
+
+  test('sidechain 行不算提问——那是 subagent 自己的转写,不是人问的', async () => {
+    await withLines([cUser('人问的'), cUser('subagent 的派发提示词', { isSidechain: true, agentId: 'a1' })], async (file) => {
+      expect(await indexOf(file, 'claude')).toHaveLength(1)
+    })
+  })
+
+  test('harness 噪声不算提问(与标题剥离同一套规则)', async () => {
+    await withLines(
+      [
+        cUser('Warmup'),
+        cUser('<local-command-caveat>免责声明</local-command-caveat>'),
+        cUser('Base directory for this skill: /x'),
+        cUser('<command-message>m</command-message><command-name>/clear</command-name><command-args></command-args>'),
+        cUser('[cron:abc 定时] 真正的指令'),
+        cUser('这是真问题')
+      ],
+      async (file) => {
+        // 只有 cron(剥方括号后有正文)与末条算数
+        expect(await indexOf(file, 'claude')).toHaveLength(2)
+      }
+    )
+  })
+
+  test('整份文件没有真实提问 → 空索引', async () => {
+    await withLines([cUser('Warmup'), cTool('Bash')], async (file) => {
+      expect(await indexOf(file, 'claude')).toEqual([])
+    })
+  })
+})
+
+describe('轮次切分与偏移', () => {
+  test('轮次 = 本条提问之后到下一条提问之前;末轮到文件末尾', async () => {
+    const objs = [cUser('问题一'), cTool('Bash'), cUser('问题二'), cTool('Read')]
+    await withLines(objs, async (file) => {
+      const recs = await indexOf(file, 'claude')
+      const size = readFileSync(file).length
+      expect(recs).toHaveLength(2)
+      // 提问区间紧贴该行;轮次从提问行之后开始
+      expect(recs[0][0]).toBe(0)
+      expect(recs[0][2]).toBe(recs[1][0]) // 第一轮止 == 第二条提问起
+      expect(recs[1][2]).toBe(size) // 末轮止 == 文件长度
+    })
+  })
+
+  test('锚:按 [轮次起,轮次止) 切出来的,恰是该提问之后、下条提问之前的全部行', async () => {
+    const objs = [cUser('问题一'), cTool('Bash'), cTool('Agent'), cUser('问题二'), cTool('Read')]
+    await withLines(objs, async (file) => {
+      const recs = await indexOf(file, 'claude')
+      const raw = readFileSync(file)
+      const parseRange = (from: number, to: number): unknown[] =>
+        raw
+          .subarray(from, to)
+          .toString('utf8')
+          .split('\n')
+          .filter((l) => l.trim())
+          .map((l) => JSON.parse(l))
+      // 全解析口径:提问在原始序列里的下标 → 到下一条提问之间的那些行
+      expect(parseRange(recs[0][1], recs[0][2])).toEqual([objs[1], objs[2]])
+      expect(parseRange(recs[1][1], recs[1][2])).toEqual([objs[4]])
+      // 提问自身的区间也要切得回来
+      expect(JSON.parse(raw.subarray(recs[0][0], recs[0][1]).toString('utf8'))).toEqual(objs[0])
+    })
+  })
+
+  test('提问行的时间戳进索引;无时间戳则为 null', async () => {
+    await withLines([cUser('有时间'), { type: 'user', message: { role: 'user', content: '无时间' } }], async (file) => {
+      const recs = await indexOf(file, 'claude')
+      expect(recs[0][3]).toBe(Date.parse(TS))
+      expect(recs[1][3]).toBeNull()
+    })
+  })
+})
+
+describe('本轮体量计数', () => {
+  test('Claude:Agent 与 Task 都计 subagent,其余 tool_use 计工具', async () => {
+    // 全库实测:Agent 152 次 / Task 4 次,两代同一个派发工具,入参同为
+    // description+prompt+subagent_type
+    await withLines([cUser('问'), cTool('Bash'), cTool('Read'), cTool('Agent'), cTool('Task')], async (file) => {
+      const [rec] = await indexOf(file, 'claude')
+      expect(rec[4]).toBe(2) // 工具:Bash + Read
+      expect(rec[5]).toBe(2) // subagent:Agent + Task
+    })
+  })
+
+  test('Claude:sidechain 行里的工具不计入父轮——那是 subagent 自己干的活', async () => {
+    const side = { ...(cTool('Bash') as Record<string, unknown>), isSidechain: true, agentId: 'a1' }
+    await withLines([cUser('问'), cTool('Agent'), side, side], async (file) => {
+      const [rec] = await indexOf(file, 'claude')
+      expect(rec[4]).toBe(0)
+      expect(rec[5]).toBe(1)
+    })
+  })
+
+  test('计数按轮归属,不串轮', async () => {
+    await withLines([cUser('一'), cTool('Bash'), cUser('二'), cTool('Bash'), cTool('Read')], async (file) => {
+      const recs = await indexOf(file, 'claude')
+      expect(recs.map((r) => r[4])).toEqual([1, 2])
+    })
+  })
+
+  test('首条提问之前的行不计入任何轮', async () => {
+    await withLines([cTool('Bash'), cUser('问'), cTool('Read')], async (file) => {
+      const recs = await indexOf(file, 'claude')
+      expect(recs).toHaveLength(1)
+      expect(recs[0][4]).toBe(1)
+    })
+  })
+})
+
+describe('提问提取(Codex 侧)', () => {
+  test('取 event_msg/user_message,不取 response_item/message', async () => {
+    await withLines(
+      [
+        xUser('人问的'),
+        { type: 'response_item', timestamp: TS, payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<environment_context>注入</environment_context>' }] } }
+      ],
+      async (file) => {
+        expect(await indexOf(file, 'codex')).toHaveLength(1)
+      }
+    )
+  })
+
+  test('custom_tool_call 与 function_call 计工具,spawn_agent 计 subagent', async () => {
+    await withLines(
+      [
+        xUser('问'),
+        { type: 'response_item', timestamp: TS, payload: { type: 'custom_tool_call', name: 'exec', input: 'ls' } },
+        { type: 'response_item', timestamp: TS, payload: { type: 'custom_tool_call', name: 'apply_patch', input: 'p' } },
+        { type: 'response_item', timestamp: TS, payload: { type: 'function_call', name: 'wait', arguments: '{}' } },
+        // tool_search_call:全库枚举出的第三种调用记录(25 次,配套 tool_search_output)。
+        // 120 文件的采样里没有它 —— 正面枚举靠采样会漏,换成全量才看见。
+        { type: 'response_item', timestamp: TS, payload: { type: 'tool_search_call', name: 'search' } },
+        { type: 'response_item', timestamp: TS, payload: { type: 'function_call', name: 'spawn_agent', namespace: 'collaboration', arguments: '{"task_name":"t"}' } },
+        // 返回值不重复计数
+        { type: 'response_item', timestamp: TS, payload: { type: 'custom_tool_call_output', output: 'ok' } },
+        { type: 'response_item', timestamp: TS, payload: { type: 'function_call_output', output: 'ok' } }
+      ],
+      async (file) => {
+        const [rec] = await indexOf(file, 'codex')
+        expect(rec[4]).toBe(4) // exec + apply_patch + wait + tool_search
+        expect(rec[5]).toBe(1) // spawn_agent
+      }
+    )
+  })
+
+  test('Codex 噪声提问同样剥离', async () => {
+    await withLines([xUser('Warmup'), xUser('真问题')], async (file) => {
+      expect(await indexOf(file, 'codex')).toHaveLength(1)
+    })
+  })
+
+  test('侧别不串:Claude 的行不会被 Codex 规则算成提问', async () => {
+    await withLines([cUser('claude 的提问')], async (file) => {
+      expect(await indexOf(file, 'codex')).toEqual([])
+    })
+  })
+})

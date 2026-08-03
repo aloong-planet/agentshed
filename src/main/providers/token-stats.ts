@@ -11,8 +11,7 @@
 //   模型取末条 turn_context(会话主模型近似)。
 // - 增量缓存存"条目级"数据(去重必须跨文件,在聚合层做,不能缓存去重后的结果);
 //   按(路径, mtime, size)键,原子写。统计含隐藏/失效项目。
-import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
-import { createInterface } from 'node:readline'
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AgentSide, ProjectStats, TokenStats, TokenTotals } from '@shared/domain'
 import { emptyTokenStats, emptyTotals } from '@shared/domain'
@@ -20,6 +19,8 @@ import { mergeKey } from '@shared/path-key'
 import { providerOf } from '@shared/provider'
 import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessions } from './codex'
+import { eachJsonlLine } from './jsonl'
+import { makeQuestionIndexer, type QuestionRec } from './question-index'
 import { titleFrom } from './session-title'
 import type { ScanRoots } from './types'
 import type { UsageRow } from './archive'
@@ -45,6 +46,8 @@ interface ClaudeFileAgg {
   listed: boolean
   title: string
   at: number | null
+  /** 提问索引(不含提问文本,见 question-index.ts) */
+  questions: QuestionRec[]
   entries: PackedEntry[]
 }
 
@@ -63,6 +66,8 @@ interface CodexFileAgg {
   sessionId: string | null
   parentId: string | null
   forkedAt: number | null
+  /** 提问索引(不含提问文本,见 question-index.ts) */
+  questions: QuestionRec[]
   /** 逐轮增量事件(last_token_usage);fork 重放前缀在 combine 阶段剥离 */
   events: CodexEvent[]
 }
@@ -80,12 +85,14 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg
  * v4:Codex 的 at 由首个时间戳改为文件内最大时间戳。
  * v5:FileAgg 加 file(会话身份);Claude 的 at 改为对全部行取最大(此前只看 usage 行)。
  * v6:标题剥离 harness 噪声;无真实提问的会话 listed=false。
+ * v7:FileAgg 加 questions(提问索引);标题与 listed 改由索引器同源判定
+ *     ——顺带把 sidechain 行排除出"人类提问",此前它可能被当成首条提问。
  *
  * **导出仅供测试**——让守卫测试能用 `CACHE_VERSION - 1` 构造"紧邻上一版"的缓存,
  * 而不是硬编码一个会随版本号增长而失效的字面量。产线代码不得据它做分支判断:
  * 唯一的版本比较在 loadCache 里,多一处就多一处会漂移的口径。
  */
-export const CACHE_VERSION = 6
+export const CACHE_VERSION = 7
 
 interface CacheShape {
   version: typeof CACHE_VERSION
@@ -363,7 +370,8 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       title: agg.title,
       at: agg.at,
       tokens: perFileTokens.get(fileIdx) ?? 0,
-      file: agg.file
+      file: agg.file,
+      questionCount: agg.questions.length
     })
   })
 
@@ -437,7 +445,15 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       if (totals.total > 0) addModel(p.tokens, 'codex', a.model, totals.total)
       for (const [day, v] of Object.entries(byDay)) addDay(p.tokens, 'codex', day, v, a.model)
       if (a.listed) {
-        p.sessions.push({ side: 'codex', title: a.title, at: a.at, tokens: totals.total, file: a.file })
+        p.sessions.push({
+          side: 'codex',
+          title: a.title,
+          at: a.at,
+          tokens: totals.total,
+          file: a.file,
+          // fork 会话此数含重放前缀里的提问,偏大——剥离是票 03b 的事(spec B2)
+          questionCount: a.questions.length
+        })
       }
     }
   }
@@ -525,6 +541,7 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   // **给 FileAgg 加必填字段时,这里同步加一条**——版本号只拦得住跨版本,
   // 同版本内的手工损坏与漂移只有这道守卫。
   if (typeof a['file'] !== 'string' || a['file'] === '') return false
+  if (!Array.isArray(a['questions'])) return false
   if (a['kind'] === 'claude') return Array.isArray(a['entries'])
   if (a['kind'] === 'codex') return Array.isArray(a['events'])
   return false
@@ -546,19 +563,6 @@ function localDay(ms: number): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
-async function eachLine(file: string, onLine: (obj: Record<string, unknown>) => void): Promise<void> {
-  const rl = createInterface({ input: createReadStream(file, { encoding: 'utf8' }), crlfDelay: Infinity })
-  for await (const line of rl) {
-    if (!line.trim()) continue
-    try {
-      const obj: unknown = JSON.parse(line)
-      if (typeof obj === 'object' && obj !== null) onLine(obj as Record<string, unknown>)
-    } catch {
-      // 坏行跳过(活跃会话写入中/损坏)
-    }
-  }
-}
-
 const SYNTHETIC = '<synthetic>'
 
 async function parseClaudeFile(
@@ -567,30 +571,15 @@ async function parseClaudeFile(
   listed: boolean
 ): Promise<ClaudeFileAgg | null> {
   const entries: PackedEntry[] = []
-  // 首条**真实**提问(噪声已剥);为 null 表示整个会话没有人问过任何东西
-  let title: string | null = null
   let lastAt: number | null = null
+  // 提问索引与标题同源:哪一行算"首条真实提问"只有索引器一个判断点
+  const idx = makeQuestionIndexer('claude')
+  let fileEnd = 0
   try {
-    await eachLine(file, (obj) => {
+    await eachJsonlLine(file, (obj, start, end) => {
+      idx.line(obj, start, end)
+      fileEnd = end
       const msg = obj['message'] as Record<string, unknown> | undefined
-      if (title === null && obj['type'] === 'user' && msg) {
-        const c = msg['content']
-        const text =
-          typeof c === 'string'
-            ? c
-            : Array.isArray(c)
-              ? c
-                  .map((seg) =>
-                    typeof (seg as Record<string, unknown>)?.['text'] === 'string'
-                      ? ((seg as Record<string, unknown>)['text'] as string)
-                      : ''
-                  )
-                  .join(' ')
-              : ''
-        // 噪声逐条剥离,找不到就继续往后看(caveat 之后常跟 /clear,
-        // 真提问在第三条)——不能只看首条。形态见 session-title.ts。
-        title = titleFrom([text])
-      }
       // 时间戳在 usage 判断**之前**取:at = 文件内最大时间戳(与 Codex 侧同义)。
       // 只看 usage 行会漏掉用户消息——它没有 usage 字段,而"用户最后问的那句话"
       // 正是最后活动。实测 118 个真实会话,45% 的末行时间戳晚于末条 usage 行。
@@ -621,6 +610,11 @@ async function parseClaudeFile(
       return null
     }
   })()
+  const questions = idx.done(fileEnd)
+  const firstRaw = idx.firstQuestionRaw()
+  // 噪声逐条剥离,找不到就继续往后看(caveat 之后常跟 /clear,真提问在第三条)
+  // ——索引器已经做完这件事,这里只负责成型。形态见 session-title.ts。
+  const title = firstRaw === null ? null : titleFrom([firstRaw])
   return {
     kind: 'claude',
     file,
@@ -628,9 +622,10 @@ async function parseClaudeFile(
     // 没有任何真实提问的会话不入列(spec A3a)。实测某项目 1511 个会话里
     // 1004 个只有一条 Warmup —— 照列会让 66% 的行是 uuid 文件名,而本功能
     // 要回答的正是"我提过的那个问题在哪"。token 照计,与 subagent 同口径。
-    listed: listed && title !== null,
+    listed: listed && questions.length > 0,
     title: title ?? file.split('/').pop()?.replace(/\.jsonl$/, '') ?? '会话',
     at: lastAt ?? fallbackAt,
+    questions,
     entries
   }
 }
@@ -642,27 +637,23 @@ async function parseCodexFile(
   titles: Map<string, string>
 ): Promise<CodexFileAgg | null> {
   const events: CodexEvent[] = []
-  // 首条真实提问(与 Claude 侧同一套剥离规则);决定本会话是否入列
-  let realTitle: string | null = null
   let model = 'unknown'
   // at = 文件内最大时间戳(与 Claude 侧同义 = 最后活动)。此前取首个时间戳,
   // 对 fork 会话尤其错——首行时间戳是重放时刻,既不是开始也不是结束。
   let lastTs: number | null = null
+  // 提问索引与标题同源(与 Claude 侧同一套剥离规则),并决定本会话是否入列
+  const idx = makeQuestionIndexer('codex')
+  let fileEnd = 0
   try {
-    await eachLine(file, (obj) => {
+    await eachJsonlLine(file, (obj, start, end) => {
+      idx.line(obj, start, end)
+      fileEnd = end
       const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp'] as string) : NaN
       if (!Number.isNaN(ts)) lastTs = lastTs === null ? ts : Math.max(lastTs, ts)
       const payload = obj['payload'] as Record<string, unknown> | undefined
       if (obj['type'] === 'turn_context') {
         const m = payload?.['model']
         if (typeof m === 'string') model = m
-      }
-      // 人类提问取 event_msg/user_message(实测 payload 有 message 字段);
-      // **不用 response_item/message** —— 后者混入 environment_context 与
-      // AGENTS.md 注入内容,不是人写的
-      if (realTitle === null && obj['type'] === 'event_msg' && payload?.['type'] === 'user_message') {
-        const m = payload['message']
-        if (typeof m === 'string') realTitle = titleFrom([m])
       }
       // 真实形状:顶层 type=event_msg,数据在 payload.info(payload.type=token_count);
       // 取 last_token_usage 逐轮增量(同一轮可能重复上报,由 fork 剥离与差值口径处理)
@@ -685,12 +676,15 @@ async function parseCodexFile(
   }
   const id = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/.exec(file)?.[1]
   const stem = file.split('/').pop()?.replace(/\.jsonl$/, '') ?? '会话'
+  const questions = idx.done(fileEnd)
+  const firstRaw = idx.firstQuestionRaw()
+  const realTitle = firstRaw === null ? null : titleFrom([firstRaw])
   return {
     kind: 'codex',
     file,
     projectKey,
     // 与 Claude 侧同口径(spec A3a):没有任何真实提问的会话不入列,token 照计
-    listed: !meta.subagent && realTitle !== null,
+    listed: !meta.subagent && questions.length > 0,
     // 标题优先 thread_name(Codex 自己起的名字比首条提问更概括),无则退回首条提问
     title: (id ? titles.get(id) : undefined) ?? realTitle ?? stem,
     // 没有 mtime 兜底(Claude 侧有)——不是遗漏:Codex 的 session_meta 必带顶层
@@ -701,6 +695,7 @@ async function parseCodexFile(
     sessionId: meta.sessionId,
     parentId: meta.parentId,
     forkedAt: meta.forkedAt,
+    questions,
     events
   }
 }

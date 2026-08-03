@@ -57,6 +57,17 @@ done
 DOWN_MS=$(( $(now_ms) - T2 ))
 [ "$LEFT" != "0" ] && pkill -9 -f "$PAT" 2>/dev/null
 
-if [ -n "$ERRS" ]; then echo "SMOKE_FAIL 主进程有错误:"; echo "$ERRS"; exit 1; fi
-[ "$LEFT" != "0" ] && { echo "SMOKE_FAIL: 孤儿防护未生效(${EXIT_TIMEOUT}s 内 electron 未自退)"; exit 1; }
+# 失败一律带上下文再退:只 echo 命中的那几行,等于把现场丢了——
+# 2026-08-03 抖过一次,复现三次都没复现出来,而那次的输出已无从查起。
+if [ -n "$ERRS" ]; then
+  echo "SMOKE_FAIL 主进程有错误:"; echo "$ERRS"
+  echo "--- $LOG 末 25 行 ---"; tail -25 "$LOG"
+  exit 1
+fi
+if [ "$LEFT" != "0" ]; then
+  echo "SMOKE_FAIL: 孤儿防护未生效(${EXIT_TIMEOUT}s 内 electron 未自退)"
+  echo "--- 仍在的进程 ---"; pgrep -fl "$PAT"
+  echo "--- $LOG 末 25 行 ---"; tail -25 "$LOG"
+  exit 1
+fi
 echo "SMOKE_OK: 启动 ${UP_MS}ms · 首扫 ${READY_MS}ms · 杀父后自退 ${DOWN_MS}ms;无错误、无孤儿"

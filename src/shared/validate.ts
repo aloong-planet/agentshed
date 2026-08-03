@@ -101,6 +101,7 @@ export function validateProjectStats(v: unknown): ValidateResult {
     if (s['at'] !== null && typeof s['at'] !== 'number') return fail(`${at}.at`, '需为 number|null')
     if (typeof s['tokens'] !== 'number') return fail(`${at}.tokens`, '需为 number')
     if (typeof s['file'] !== 'string' || s['file'] === '') return fail(`${at}.file`, '需为非空 string')
+    if (typeof s['questionCount'] !== 'number') return fail(`${at}.questionCount`, '需为 number')
   }
   return { ok: true }
 }
