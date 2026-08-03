@@ -26,8 +26,12 @@ interface Launched {
 
 /**
  * home 为 fixture 目录时经 AGENTSHED_HOME_OVERRIDE 注入(见 src/main/roots.ts)。
- * **凡断言具体数据的用例都必须传 home**——不传就读开发机真实 ~/.claude,
- * 结果取决于跑测试的人有多少会话记录:自己机器上绿、CI 与新机器上红。
+ *
+ * **一律传 home,没有例外。** 不传就读开发机真实 ~/.claude,两种坏处:
+ *   1. 断言数据的用例结果取决于跑测试的人有多少会话记录——自己机器上绿、CI 上红;
+ *   2. 就算只断言通用 UI,每个用例都是独立 userData,缓存必然是空的,于是每次都要
+ *      全量重扫真实数据(本机 638MB)。这会把用例推到断言超时的边缘——2026-08-02
+ *      升 CACHE_VERSION 后,仅剩的两条读真实 home 的用例就是这么红的。
  */
 async function launch(cacheContent?: string, home?: string): Promise<Launched> {
   const userData = makeUserData(cacheContent)
@@ -103,6 +107,15 @@ function mkUsageHome(): string {
     ].join('\n') + '\n'
   )
 
+  // 预热会话:只有一条 Warmup,有 token 但没人问过任何东西(spec A3a → 不入列)
+  writeFileSync(
+    join(cdir, 'warmup.jsonl'),
+    [
+      JSON.stringify({ type: 'user', timestamp: localDayOffset(1).toISOString(), message: { role: 'user', content: 'Warmup' } }),
+      usage('claude-fable-5', localDayOffset(1), 300, 60)
+    ].join('\n') + '\n'
+  )
+
   // Codex:sessions 全树,首行 session_meta 的 cwd 决定归属
   const sdir = join(home, '.codex', 'sessions', '2026', '01', '01')
   mkdirSync(sdir, { recursive: true })
@@ -128,15 +141,28 @@ function mkUsageHome(): string {
     [
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'session_meta', payload: { cwd: proj } }),
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
+      // 真实提问:没有它这条会话按 spec A3a 不入列
+      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'user_message', message: 'Codex 侧的提问' } }),
       turn(localDayOffset(2), 900, 150),
-      turn(localDayOffset(0), 400, 80)
+      // 停在昨天:与 Claude 侧(今天)拉开差距,"最近在前"才有得可判。
+      // 两侧同时间戳的话,排序断言只能证明 reverse 有效,证不了按时间排。
+      turn(localDayOffset(1), 400, 80)
     ].join('\n') + '\n'
   )
   return home
 }
 
+/** 有注册项目、但该项目一个会话都没有 —— 会话分栏的空态 */
+function mkEmptyProjectHome(): string {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-noses-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  return home
+}
+
 test('冷启动:Agents 页为默认落地,两侧汇总卡渲染,主进程无错误', async () => {
-  const l = await launch()
+  const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await expect(win.locator('.rail .ri').first()).toBeVisible()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
@@ -170,7 +196,7 @@ test('旧格式缓存启动不崩(线上崩溃回归):快照仍渲染,主进程�
       }
     }
   })
-  const l = await launch(legacy)
+  const l = await launch(legacy, mkUsageHome())
   const win = await l.app.firstWindow()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
   await expect(win.locator('.pane-head .stats .stat')).toHaveCount(2)
@@ -179,7 +205,7 @@ test('旧格式缓存启动不崩(线上崩溃回归):快照仍渲染,主进程�
 })
 
 test('Agents 页七个 tab 逐个切换均渲染,无错误', async () => {
-  const l = await launch()
+  const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   const tabs = win.locator('.pane-head .tabs .tab')
   // count() 是即时读取,须先等渲染完成再计数
@@ -227,8 +253,94 @@ test('切到 Projects:一个项目都没有时出侧栏空态', async () => {
   await close(l)
 })
 
+// 票 session-view/02:会话分栏。fixture home 造两侧会话 + 一个只有 Warmup 的
+// 预热会话(spec A3a:不入列但 token 照计),断言列表、排序、口径说明与空态。
+test('会话分栏:列出会话、可切排序、预热会话不入列', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+
+  // fixture 里 Claude 侧 2 个(1 真实 + 1 预热)、Codex 侧 1 个 → 只应列出 2 个
+  const rows = win.locator('.pane-body .card .se')
+  await expect(rows).toHaveCount(2)
+  await expect(win.locator('.pane-body .grp-t')).toContainText('2 个会话')
+  // 预热会话的标题不得出现
+  await expect(win.locator('.pane-body .card')).not.toContainText('Warmup')
+
+  // 项目列表那个数字与本分栏必须同源:fixture 有 3 个会话文件(含 1 个预热),
+  // 只有 2 个入列。改动前项目列表读的是文件数管线,会显示 3 —— 同一个概念两个数字。
+  const meta = (await win.locator('.side .row .meta').first().innerText()).trim()
+  expect(meta, `项目列表的会话数应与会话分栏一致,实际: ${meta}`).toMatch(/(^|\D)2$/)
+
+  // 默认最近在前:第一行是较晚活动的那条
+  const titleOf = async (i: number): Promise<string> =>
+    (await rows.nth(i).locator('.t').innerText()).trim()
+  // fixture 里 Claude 侧最后活动在今天、Codex 侧在昨天 —— 断言的是**具体哪条在前**,
+  // 不是"两条不一样"。后者在时间戳相同时也成立,证不了按时间排序。
+  expect(await titleOf(0)).toBe('示例提问')
+  expect(await titleOf(1)).toBe('Codex 侧的提问')
+
+  // 切最早在前 → 顺序翻转,条数不变
+  await win.locator('.pane-body .seg button', { hasText: '最早在前' }).click()
+  await expect(rows).toHaveCount(2)
+  expect(await titleOf(0)).toBe('Codex 侧的提问')
+  expect(await titleOf(1)).toBe('示例提问')
+  await expect(win.locator('.pane-body .grp-t')).toContainText('正序')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('会话分栏:排序选择在切走分栏后仍然记得', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .seg button', { hasText: '最早在前' }).click()
+  await expect(win.locator('.pane-body .grp-t')).toContainText('正序')
+
+  // 切走再切回:tab 是条件渲染,组件会被卸载,组件内 useState 存不住
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await expect(win.locator('.pane-body .grp-t')).toContainText('正序')
+  await expect(
+    win.locator('.pane-body .se .t').first(),
+    '切回来应保持"最早在前",第一行是较早的那条'
+  ).toHaveText('Codex 侧的提问')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('会话分栏:无会话项目出空态;概览会话卡可点入本分栏', async () => {
+  const l = await launch(undefined, mkEmptyProjectHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await expect(win.locator('.pane-body .none')).toContainText('暂无会话')
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('概览的会话卡点一下进「会话」分栏', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  // 概览是默认分栏,直接点第一张会话卡
+  await win.locator('.pane-body .se.row-btn').first().click()
+  await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('会话')
+  await expect(win.locator('.pane-body .grp-t')).toContainText('个会话')
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 test('全局刷新连点被去重,刷新后仍无错误', async () => {
-  const l = await launch()
+  const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   const refresh = win.locator('.rail .ri.grfr')
   await refresh.click()

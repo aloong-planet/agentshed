@@ -10,7 +10,7 @@ import { ProjectPluginsTab } from './PluginsView'
 import { fmtAgo } from './ProjectsPane'
 import { toast } from './Toast'
 
-type Tab = 'ov' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'cfg' | 'arts'
+type Tab = 'ov' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'cfg' | 'arts'
 
 export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JSX.Element {
   const [tab, setTab] = useState<Tab>('ov')
@@ -50,6 +50,7 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
               ['plugins', 'Plugins'],
               ['mcp', 'MCP'],
               ['memory', 'Memory'],
+              ['sessions', '会话'],
               ['cfg', '配置'],
               ['arts', '产物']
             ] as const
@@ -65,7 +66,9 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
           <div className="none">读取中…</div>
         ) : (
           <>
-            {tab === 'ov' && <OverviewTab detail={detail} snap={snap} />}
+            {tab === 'ov' && (
+              <OverviewTab detail={detail} snap={snap} onOpenSessions={() => setTab('sessions')} />
+            )}
             {tab === 'skills' && (
               <SkillsTab detail={detail} onChanged={() => setReload((v) => v + 1)} />
             )}
@@ -79,6 +82,7 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
                 anchor={snap.scannedAt}
               />
             )}
+            {tab === 'sessions' && <SessionsTab detail={detail} snap={snap} />}
             {tab === 'cfg' && <CfgTab detail={detail} />}
             {tab === 'arts' && <ArtifactsTab detail={detail} snap={snap} />}
           </>
@@ -88,7 +92,22 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
   )
 }
 
-function OverviewTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
+/**
+ * 概览只露最近几条,全量在「会话」分栏(项目可有数百条会话)。
+ * 取 5 与已确认的原型一致(docs/prototypes/project-detail 的概览会话卡),
+ * 不是随手拍的数——改它等于改已确认的界面,原型要同步。
+ */
+const OVERVIEW_SESSIONS = 5
+
+function OverviewTab({
+  detail,
+  snap,
+  onOpenSessions
+}: {
+  detail: ProjectDetail
+  snap: Snapshot
+  onOpenSessions: () => void
+}): JSX.Element {
   const stats = detail.stats ?? { tokens: emptyTokenStats(), sessions: [] }
   return (
     <div>
@@ -96,23 +115,94 @@ function OverviewTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }
       <TrendChart stats={stats.tokens} anchor={snap.scannedAt} archivedDays={snap.archivedDays} />
       <div className="grp-t">按模型拆分</div>
       <ModelBars stats={stats.tokens} />
-      <div className="grp-t">会话(主线程,元数据即止;subagent 计 token 不列出)</div>
+      <div className="grp-t">最近会话</div>
       {stats.sessions.length === 0 ? (
         <div className="none">该项目暂无会话</div>
       ) : (
-        <div className="card">
-          {stats.sessions.map((s, i) => (
-            <div className="se" key={i}>
-              <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
-                {s.side === 'claude' ? 'CC' : 'CX'}
-              </span>
-              <span className="t">{s.title}</span>
-              <span className="tok">{fmtTok(s.tokens)}</span>
-              <span className="d">{fmtAgo(s.at, snap.scannedAt)}</span>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="card">
+            {stats.sessions.slice(0, OVERVIEW_SESSIONS).map((s) => (
+              <button className="se row-btn" key={s.file} onClick={onOpenSessions}>
+                <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
+                  {s.side === 'claude' ? 'CC' : 'CX'}
+                </span>
+                <span className="t">{s.title}</span>
+                <span className="tok">{fmtTok(s.tokens)}</span>
+                <span className="d">{fmtAgo(s.at, snap.scannedAt)}</span>
+              </button>
+            ))}
+          </div>
+          <div className="note">
+            共 {stats.sessions.length} 个会话 —— 全部见「会话」分栏。
+          </div>
+        </>
       )}
+    </div>
+  )
+}
+
+/**
+ * 会话分栏的排序选择,活在本次运行内。
+ *
+ * 为什么是模块级变量而不是组件 state:tab 是条件渲染,切走即卸载,组件内的
+ * useState 存不住。为什么不提到 DetailPane:那会让父组件开始持有各分栏的
+ * 内部状态,下一个分栏要留状态就再加一个字段。为什么不落盘:它是本次浏览的
+ * 习惯,不是设置。为什么不上 store:全仓没有 store 也没有 Context,一个
+ * boolean、一个消费者,建 store 是提前抽象。
+ *
+ * 出现**第二个**需要跨卸载存活的视图偏好时,把它提升成一个 view-prefs 模块
+ * (那时仍不需要 store 库)。在此之前它就该是这么小。
+ * 代价:切项目也保留——排序是看的方式,不是项目的属性,故意如此。
+ */
+let sessionsRecentFirst = true
+
+/**
+ * 会话分栏:本项目的全部会话,默认最近活动在前。
+ * 排序只换呈现顺序——provider 层已按 at 倒序排好,正序取其反转而不重排,
+ * 免得 UI 与 provider 各持一套比较器(含 at 为 null 时的处置)而悄悄分叉。
+ */
+function SessionsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
+  const [recentFirst, setRecentFirst] = useState(sessionsRecentFirst)
+  const choose = (v: boolean): void => {
+    sessionsRecentFirst = v
+    setRecentFirst(v)
+  }
+  const sessions = detail.stats?.sessions ?? []
+  const list = recentFirst ? sessions : [...sessions].reverse()
+
+  if (sessions.length === 0) {
+    return <div className="none">该项目暂无会话。两侧 agent 在此目录下开过对话后会自动出现。</div>
+  }
+  return (
+    <div>
+      <div className="grp-t">
+        按最近活动时间{recentFirst ? '倒序' : '正序'} · {sessions.length} 个会话
+        <span className="seg">
+          <button className={recentFirst ? 'on' : ''} onClick={() => choose(true)}>
+            最近在前
+          </button>
+          <button className={recentFirst ? '' : 'on'} onClick={() => choose(false)}>
+            最早在前
+          </button>
+        </span>
+      </div>
+      <div className="card">
+        {list.map((s) => (
+          <div className="se" key={s.file}>
+            <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
+              {s.side === 'claude' ? 'CC' : 'CX'}
+            </span>
+            <span className="t">{s.title}</span>
+            <span className="tok">{fmtTok(s.tokens)}</span>
+            <span className="d">{fmtAgo(s.at, snap.scannedAt)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="note">
+        只列已注册项目的会话;subagent 与预热会话不单独入列,但 token 仍计入统计——
+        故此处条数与上方 token 卡的分母不是同一个。<br />
+        「最近活动」取文件内最大时间戳,与项目列表的活跃度(取文件 mtime)是两条管线。
+      </div>
     </div>
   )
 }

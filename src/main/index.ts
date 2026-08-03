@@ -62,6 +62,13 @@ async function doScan(): Promise<Snapshot> {
         const t = await tokenEngine.build(realRoots(), claudePaths)
         snap.tokens = t.global
         perProjectStats = t.perProject
+        // 会话数与会话分栏同源。scan() 给的是**文件数**(含预热与 subagent),
+        // 而分栏按 spec A3a/A3 只列真会话——两个数字都叫"会话数"就会打架
+        // (实测某项目 1511 vs 507)。这里回填,数据是上面刚算完的,零额外开销。
+        // 只在 token 引擎跑过时回填:引擎缺席时保留文件数,不让整列归零。
+        for (const p of snap.projects) {
+          p.sessionCount = t.perProject.get(mergeKey(p.path))?.sessions.length ?? 0
+        }
         // 归档:实时值覆盖仍可见的天,已被 agent 清理的天从归档补回趋势
         if (archive) {
           archive.merge(t.rows, t.liveDays)
