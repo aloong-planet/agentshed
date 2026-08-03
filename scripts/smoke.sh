@@ -15,7 +15,13 @@ PAT="CascadeProjects/agentshed/node_modules.*Electron.app/Contents/MacOS/Electro
 CACHE="$HOME/Library/Application Support/agentshed/token-cache.json"
 
 START_TIMEOUT=30   # 实测 ~1.1s 出进程
-READY_TIMEOUT=60   # 首扫要读真实数据(本机 600MB+),冷盘更久,给足
+READY_TIMEOUT=180  # 首扫要读真实数据(本机 600MB+);**升 CACHE_VERSION 后的首次**
+                   # 要整份重算,且 verify 里它紧跟 e2e(刚跑完 18 次 Electron 启动
+                   # + 一次 build,页缓存被冲掉),实测这一次远慢于单跑时的 ~6s。
+                   # 2026-08-03 与 08-04 各红过一次,两次都恰在升号后的首个 verify。
+                   # ⚠️ 这是相关性,不是已证实的因果:两次的失败日志都被调用方的 grep
+                   # 过滤掉了,没抓到当时的实际耗时。下次再红,**直接看原始输出**
+                   # (die() 会打印日志末 25 行),据实测量再调这个值。
 EXIT_TIMEOUT=15    # 实测 ~1.4s:主进程按 1s 轮询父存活(见 src/main/index.ts),加退出开销
 
 now_ms() { echo $(( $(date +%s%N) / 1000000 )); }
