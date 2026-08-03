@@ -215,6 +215,12 @@ export interface TokenStats {
 }
 
 /** 会话元数据 */
+/**
+ * 会话的 fork 状态。三态在数据上必须可区分,不是同一字段的两种成色:
+ * 「不是 fork」与「是 fork 但剥不准」对用户的含义完全不同,后者要提示对照原文。
+ */
+export type ForkState = 'none' | 'stripped' | 'uncertain'
+
 export interface SessionMeta {
   side: AgentSide
   title: string
@@ -223,11 +229,10 @@ export interface SessionMeta {
   tokens: number
   /** 源文件绝对路径 —— 会话的身份。凭它定位并读取内容(读取经主进程白名单校验) */
   file: string
-  /**
-   * 本会话的真实人类提问条数(harness 噪声已剥,与标题同源)。
-   * ⚠️ fork/分叉会话此数偏大:重放前缀里的提问尚未剥离(spec B2/B3,票 03b)。
-   */
+  /** 本会话的真实人类提问条数(harness 噪声已剥、被放弃的分支与重放前缀已除,与标题同源) */
   questionCount: number
+  /** fork 与重放剥离的确定性,决定列表上出不出 ⑂ / ⑂? 标记 */
+  forkState: ForkState
 }
 
 /** 单项目统计(概览 tab 数据) */

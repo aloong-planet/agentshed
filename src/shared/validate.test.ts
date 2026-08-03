@@ -83,7 +83,7 @@ describe('validateProjectStats(会话元数据)', () => {
   const ok = {
     tokens: emptyTokenStats(),
     sessions: [
-      { side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/.claude/projects/e/a.jsonl', questionCount: 3 }
+      { side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/.claude/projects/e/a.jsonl', questionCount: 3, forkState: 'none' }
     ]
   }
 
@@ -96,7 +96,7 @@ describe('validateProjectStats(会话元数据)', () => {
   })
 
   it('拒收缺 file 的会话并指出路径', () => {
-    const bad = { ...ok, sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, questionCount: 3 }] }
+    const bad = { ...ok, sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, questionCount: 3, forkState: 'none' }] }
     const r = validateProjectStats(bad)
     expect(r.ok).toBe(false)
     expect(r.ok === false && r.error).toContain('sessions[0].file')
@@ -105,15 +105,32 @@ describe('validateProjectStats(会话元数据)', () => {
   it('拒收缺 questionCount 的会话并指出路径', () => {
     const bad = {
       ...ok,
-      sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/a.jsonl' }]
+      sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/a.jsonl', forkState: 'none' }]
     }
     const r = validateProjectStats(bad)
     expect(r.ok).toBe(false)
     expect(r.ok === false && r.error).toContain('sessions[0].questionCount')
   })
 
+  it('拒收非法 forkState 并指出路径——三态是枚举,不能是任意串', () => {
+    const bad = {
+      ...ok,
+      sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/a.jsonl', questionCount: 3, forkState: '存疑' }]
+    }
+    const r = validateProjectStats(bad)
+    expect(r.ok).toBe(false)
+    expect(r.ok === false && r.error).toContain('sessions[0].forkState')
+  })
+
+  it('三种合法 forkState 都放行', () => {
+    for (const st of ['none', 'stripped', 'uncertain']) {
+      const v = { ...ok, sessions: [{ ...(ok.sessions[0] as object), forkState: st }] }
+      expect(validateProjectStats(v).ok, st).toBe(true)
+    }
+  })
+
   it('拒收空字符串 file——空串不是标识,拿它去读会落到 cwd', () => {
-    const bad = { ...ok, sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '', questionCount: 3 }] }
+    const bad = { ...ok, sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '', questionCount: 3, forkState: 'none' }] }
     expect(validateProjectStats(bad).ok).toBe(false)
   })
 

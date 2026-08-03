@@ -561,7 +561,20 @@ describe('缓存版本迁移(真 bug 回归)', () => {
   // **空过**,再也测不到 isWellFormedAgg。(本用例原本写死 5,升到 7 时就已经空过了。)
   it.each([
     ['file', { projectKey: 'X', listed: true, title: '缓存里的陈旧标题', at: 1, questions: [] }],
-    ['questions', { file: 'X', projectKey: 'X', listed: true, title: '缓存里的陈旧标题', at: 1 }]
+    ['questions', { file: 'X', projectKey: 'X', listed: true, title: '缓存里的陈旧标题', at: 1 }],
+    // 票 03b:记录元数从 6 变 7(加内容指纹)。旧记录读出来第 7 位是 undefined,
+    // 而 undefined === undefined 会让 Codex 重放指纹校验恒真、进而盲剥。
+    [
+      'questions 记录少一位(旧元数)',
+      {
+        file: 'X',
+        projectKey: 'X',
+        listed: true,
+        title: '缓存里的陈旧标题',
+        at: 1,
+        questions: [[0, 10, 20, 1, 0, 0]]
+      }
+    ]
   ])('同版本缓存里条目缺 %s → 只重算该文件,不污染整份详情', async (_missing, partial) => {
     const cl = mkClaudeFile('wellformed.jsonl', [
       userLine('x'),

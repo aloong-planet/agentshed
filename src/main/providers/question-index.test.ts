@@ -424,3 +424,118 @@ describe('标题与提问集合同源(末叶回溯之后)', () => {
     expect(await firstTextOf([cq('u1', null, '[cron:abc 定时] Warmup')])).toBe('Warmup')
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────
+// 票 03b:Codex 重放前缀剥离(spec B2)
+//
+// **本机真实数据里真 fork 数为 0**(244 个 Codex 会话,9 个带 parent 的全是
+// subagent 线程,按 A3 不入列)——所以这一组只有 fixture 覆盖,拿不到真实样本。
+// 依据是机制而非样本:① 重放确实会复制 user_message(4 组 subagent 父子对实测
+// 逐条相同);② 重放**改写时间戳**(4/4 例),所以认不出重放段只能靠内容指纹;
+// ③ 突发启发式与 token 侧同源(ccusage replay.rs:重放是程序一次写入,行间隔
+// 近零,而真人提问是人的节奏)。
+// ─────────────────────────────────────────────────────────────────────────
+import { fingerprint, stripReplayPrefix, type ForkState } from './question-index'
+
+/** 造一条索引记录:只有时间戳与指纹参与剥离判定,偏移随便给 */
+const rec = (ts: number, text: string): QuestionRec => [0, 1, 2, ts, 0, 0, fingerprint(text)]
+
+function strip(
+  child: QuestionRec[],
+  parent: QuestionRec[] | null,
+  forkedAt: number | null,
+  isFork = true
+): { n: number; state: ForkState } {
+  const r = stripReplayPrefix(child, parent, forkedAt, isFork)
+  return { n: r.questions.length, state: r.state }
+}
+
+describe('Codex 重放前缀剥离', () => {
+  const T = (m: number): number => Date.parse(`2026-08-01T10:${String(m).padStart(2, '0')}:00Z`)
+
+  test('不是 fork → 原样返回,状态 none', () => {
+    const c = [rec(T(1), '问一'), rec(T(2), '问二')]
+    expect(strip(c, null, null, false)).toEqual({ n: 2, state: 'none' })
+  })
+
+  test('「不是 fork」与「父缺失」必须给出不同状态,不是同一字段的两种成色', () => {
+    const c = [rec(T(1), '问一'), rec(T(9), '问二')]
+    expect(strip(c, null, null, false).state).toBe('none')
+    expect(strip(c, null, T(1), true).state).toBe('uncertain')
+  })
+
+  test('整段都像突发也绝不剥空——留最后一条,宁可多显示不要整个会话消失', () => {
+    const ms = (x: number): number => Date.parse('2026-08-01T10:00:00Z') + x
+    const c = [rec(ms(0), 'A'), rec(ms(100), 'B'), rec(ms(200), 'C')]
+    expect(strip(c, null, ms(0))).toEqual({ n: 1, state: 'uncertain' })
+  })
+
+  test('父在扫描集内且指纹逐条吻合 → 剥掉重放段,状态 stripped', () => {
+    const p = [rec(T(1), '父问一'), rec(T(2), '父问二'), rec(T(9), '父 fork 之后才有的问')]
+    // 子会话重放了 fork 时刻(T(5))之前的两条,时间戳被改写,但内容不变
+    const c = [rec(T(5), '父问一'), rec(T(5), '父问二'), rec(T(6), '子的新问')]
+    expect(strip(c, p, T(5))).toEqual({ n: 1, state: 'stripped' })
+  })
+
+  test('指纹对不上 → 不剥,状态 uncertain(宁可显示重复,不静默丢真提问)', () => {
+    const p = [rec(T(1), '父问一'), rec(T(2), '父问二')]
+    const c = [rec(T(5), '完全不同的开头'), rec(T(6), '子的新问')]
+    expect(strip(c, p, T(5))).toEqual({ n: 2, state: 'uncertain' })
+  })
+
+  test('只吻合一部分 → 按吻合的那部分剥,但仍标 uncertain', () => {
+    const p = [rec(T(1), '父问一'), rec(T(2), '父问二'), rec(T(3), '父问三')]
+    const c = [rec(T(5), '父问一'), rec(T(5), '对不上了'), rec(T(6), '子的新问')]
+    expect(strip(c, p, T(5))).toEqual({ n: 2, state: 'uncertain' })
+  })
+
+  test('三代 fork 链:孙会话按它自己的父(子会话)剥,不越级找祖父', () => {
+    const g = [rec(T(1), 'A')]
+    const c = [rec(T(5), 'A'), rec(T(6), 'B')] // 子:剥掉 A 后剩 B
+    const gc = [rec(T(8), 'A'), rec(T(8), 'B'), rec(T(9), 'C')] // 孙重放了子的全部
+    expect(strip(c, g, T(5))).toEqual({ n: 1, state: 'stripped' })
+    expect(strip(gc, c, T(8))).toEqual({ n: 1, state: 'stripped' })
+  })
+
+  test('父缺失 → 突发启发式:开头那串近乎同时的提问算重放,状态 uncertain', () => {
+    // 重放是程序一次写入,行间隔近零;真人提问是人的节奏
+    const ms = (x: number): number => Date.parse('2026-08-01T10:00:00Z') + x
+    const c = [rec(ms(0), 'A'), rec(ms(120), 'B'), rec(ms(240), 'C'), rec(ms(600_000), '真人问的')]
+    expect(strip(c, null, ms(0))).toEqual({ n: 1, state: 'uncertain' })
+  })
+
+  test('父缺失且提问节奏正常 → 一条都不剥', () => {
+    const c = [rec(T(1), 'A'), rec(T(9), 'B')]
+    expect(strip(c, null, T(1))).toEqual({ n: 2, state: 'uncertain' })
+  })
+
+  test('父存在但自身没有提问 → 无从校验,不剥并标 uncertain', () => {
+    const c = [rec(T(5), 'A')]
+    expect(strip(c, [], T(5))).toEqual({ n: 1, state: 'uncertain' })
+  })
+
+  test('剥离不改动保留下来那些记录的偏移', () => {
+    const p = [rec(T(1), 'A')]
+    const c: QuestionRec[] = [rec(T(5), 'A'), [111, 222, 333, T(6), 2, 1, fingerprint('B')]]
+    const r = stripReplayPrefix(c, p, T(5), true)
+    expect(r.questions[0]).toEqual([111, 222, 333, T(6), 2, 1, fingerprint('B')])
+  })
+})
+
+describe('内容指纹', () => {
+  test('同文同指纹,异文异指纹', () => {
+    expect(fingerprint('同一段话')).toBe(fingerprint('同一段话'))
+    expect(fingerprint('甲')).not.toBe(fingerprint('乙'))
+  })
+
+  test('是 32 位无符号整数,不可从中还原文本', () => {
+    const fp = fingerprint('一段较长的中文提问内容,用来确认输出仍是个小整数')
+    expect(Number.isInteger(fp)).toBe(true)
+    expect(fp).toBeGreaterThanOrEqual(0)
+    expect(fp).toBeLessThanOrEqual(0xffffffff)
+  })
+
+  test('空串也有确定值,不抛', () => {
+    expect(typeof fingerprint('')).toBe('number')
+  })
+})
