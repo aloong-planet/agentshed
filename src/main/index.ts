@@ -37,6 +37,18 @@ if (!gotTheLock) {
   app.exit(0)
 }
 
+// 测试静音(e2e/smoke 注入,与 AGENTSHED_HOME_OVERRIDE 同类 seam;生产不设此变量):
+// 一轮本地验证要起二十来个实例,macOS 上每次启动都激活抢前台,期间用户没法干别的。
+// **实测 activation policy 拦不住**(accessory / dock.hide 下仍 12-13/15 tick 抢台
+// ——抢台来自 BrowserWindow 默认 show 的 makeKey+激活,不是 Dock),所以静音模式
+// 直接不显示窗口:Playwright 走 CDP 驱动,DOM/布局断言不需要窗口可见;配套关掉
+// backgroundThrottling,免得隐藏窗口的定时器降频给测试引入新的时序 flake。
+const QUIET = process.platform === 'darwin' && Boolean(process.env['AGENTSHED_NO_FOREGROUND'])
+if (QUIET) {
+  app.setActivationPolicy('accessory')
+  app.dock?.hide()
+}
+
 let mainWindow: BrowserWindow | null = null
 let hiddenStore: HiddenStore | null = null
 let tokenEngine: TokenEngine | null = null
@@ -184,7 +196,13 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 520,
     title: 'Agentshed',
-    webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true }
+    show: !QUIET,
+    webPreferences: {
+      preload: PRELOAD,
+      contextIsolation: true,
+      sandbox: true,
+      backgroundThrottling: !QUIET
+    }
   })
   mainWindow.on('closed', () => {
     mainWindow = null

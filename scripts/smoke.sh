@@ -59,7 +59,8 @@ done | tr '\n' ' ')
 
 REAL_BEFORE=$(stat -f %m "$REAL_CACHE" 2>/dev/null || echo 0)
 
-pnpm dev -- --user-data-dir="$SMOKE_UD" > "$LOG" 2>&1 &
+# AGENTSHED_NO_FOREGROUND:测试静音,不抢前台(见 src/main/index.ts)
+AGENTSHED_NO_FOREGROUND=1 pnpm dev -- --user-data-dir="$SMOKE_UD" > "$LOG" 2>&1 &
 DEVPID=$!
 T0=$(now_ms)
 until alive; do

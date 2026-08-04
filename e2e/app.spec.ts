@@ -43,7 +43,13 @@ async function launch(cacheContent: string | undefined, home: string): Promise<L
   const errors: string[] = []
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home }
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      AGENTSHED_HOME_OVERRIDE: home,
+      // 测试静音:不抢前台(macOS accessory 策略,见 src/main/index.ts)
+      AGENTSHED_NO_FOREGROUND: '1'
+    }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
@@ -465,7 +471,12 @@ test('归档:预置历史归档文件 → 趋势含归档段并有说明,主进�
   // 这是本文件开头那条纪律的漏网之鱼——它没走 launch(),直接调了 electron.launch。
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: mkEmptyProjectHome() }
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      AGENTSHED_HOME_OVERRIDE: mkEmptyProjectHome(),
+      AGENTSHED_NO_FOREGROUND: '1'
+    }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
@@ -594,7 +605,13 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
   const errors: string[] = []
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home }
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      AGENTSHED_HOME_OVERRIDE: home,
+      // 测试静音:不抢前台(macOS accessory 策略,见 src/main/index.ts)
+      AGENTSHED_NO_FOREGROUND: '1'
+    }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
