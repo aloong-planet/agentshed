@@ -87,6 +87,8 @@ export function assertSnapshot(v: unknown): asserts v is Snapshot {
  * 只钉住会话元数据:file 是会话的身份,渲染层拿它回请内容,缺失或空串就是
  * 一条读不了的会话,必须在边界暴露而不是渲染成 undefined 再去读 cwd。
  */
+const FORK_STATES = new Set(['none', 'stripped', 'uncertain'])
+
 export function validateProjectStats(v: unknown): ValidateResult {
   if (!isRecord(v)) return fail('stats', '不是对象')
   const sessions = v['sessions']
@@ -102,6 +104,8 @@ export function validateProjectStats(v: unknown): ValidateResult {
     if (typeof s['tokens'] !== 'number') return fail(`${at}.tokens`, '需为 number')
     if (typeof s['file'] !== 'string' || s['file'] === '') return fail(`${at}.file`, '需为非空 string')
     if (typeof s['questionCount'] !== 'number') return fail(`${at}.questionCount`, '需为 number')
+    if (typeof s['forkState'] !== 'string' || !FORK_STATES.has(s['forkState']))
+      return fail(`${at}.forkState`, `非法 forkState: ${String(s['forkState'])}`)
   }
   return { ok: true }
 }

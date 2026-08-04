@@ -480,6 +480,29 @@ body {
   border: 1px dashed var(--line-strong);
   color: var(--text-2);
 }
+/* fork 与剥离存疑(原型 .pill.fork / .pill.forkq):实线=确定,虚线+暖色=存疑 */
+.pill.fork {
+  border: 1px solid var(--line-strong);
+  color: var(--text-2);
+}
+.pill.forkq {
+  border: 1px dashed #d79a5b;
+  color: #b3703a;
+}
+@media (prefers-color-scheme: dark) {
+  .pill.forkq {
+    border-color: #8a5f34;
+    color: #f0bd8c;
+  }
+}
+:root[data-theme='dark'] .pill.forkq {
+  border-color: #8a5f34;
+  color: #f0bd8c;
+}
+:root[data-theme='light'] .pill.forkq {
+  border-color: #d79a5b;
+  color: #b3703a;
+}
 .pill.on {
   background: var(--ok-bg);
   color: var(--ok-fg);

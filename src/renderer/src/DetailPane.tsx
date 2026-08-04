@@ -193,6 +193,16 @@ function SessionsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }
               {s.side === 'claude' ? 'CC' : 'CX'}
             </span>
             <span className="t">{s.title}</span>
+            {s.forkState === 'stripped' && (
+              <span className="pill fork" title="本会话 fork 自另一个会话,开头的重放前缀已剥离">
+                ⑂ fork
+              </span>
+            )}
+            {s.forkState === 'uncertain' && (
+              <span className="pill forkq" title="父会话不在扫描集内或与父校验不符,重放前缀只能按启发式剥离——可能少剥(重复)">
+                ⑂? 剥离存疑
+              </span>
+            )}
             <span className="n">{s.questionCount} 提问</span>
             <span className="tok">{fmtTok(s.tokens)}</span>
             <span className="d">{fmtAgo(s.at, snap.scannedAt)}</span>

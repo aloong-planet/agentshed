@@ -3,7 +3,7 @@
 // Warmup 188、[cron:…] 92、caveat 13、slash 命令 2;调研期清单里的
 // 「Conversation info」在采样里未出现,故不为它写规则。
 import { describe, it, expect } from 'vitest'
-import { realUserText, titleFrom } from './session-title'
+import { clipTitle, realUserText } from './session-title'
 
 describe('realUserText(单条消息 → 真实提问 | null)', () => {
   it('普通提问原样返回,并归一空白', () => {
@@ -75,33 +75,24 @@ describe('realUserText(单条消息 → 真实提问 | null)', () => {
   })
 })
 
-describe('titleFrom(消息序列 → 标题)', () => {
-  // 真实形态:caveat 之后跟 /clear,真正的提问在第三条——必须逐条向后找
-  it('噪声不止一条时继续向后找', () => {
-    expect(
-      titleFrom([
-        '<local-command-caveat>Caveat: …</local-command-caveat>',
-        '<command-name>/clear</command-name> <command-message>clear</command-message> <command-args></command-args>',
-        '继续会话查看功能:读 spec',
-        '再来一句'
-      ])
-    ).toBe('继续会话查看功能:读 spec')
+describe('clipTitle(已剥噪声的提问 → 标题)', () => {
+  // 「逐条向后找首条真实提问」这一职责 2026-08-04(票 03b)移交给索引器,
+  // 覆盖在 question-index.test.ts(噪声不算提问 / 整份没有真实提问 → 空索引)。
+  // 这里只剩截断,以及一条防回归:clipTitle **不得**再做剥离。
+  it('超长标题按码点截断并加省略号', () => {
+    const t = clipTitle('长'.repeat(200))
+    expect([...t]).toHaveLength(61)
+    expect(t.endsWith('…')).toBe(true)
   })
 
-  it('全是噪声 → null(调用方据此判定不入列)', () => {
-    expect(titleFrom(['Warmup'])).toBeNull()
-    expect(titleFrom([])).toBeNull()
-    expect(titleFrom(['Warmup', '<local-command-caveat>x</local-command-caveat>'])).toBeNull()
+  it('不足上限的标题原样返回,不加省略号', () => {
+    expect(clipTitle('短问题')).toBe('短问题')
   })
 
-  it('超长标题截断并加省略号', () => {
-    const t = titleFrom(['长'.repeat(200)])
-    expect(t).not.toBeNull()
-    expect([...(t as string)].length).toBeLessThanOrEqual(61)
-    expect(t?.endsWith('…')).toBe(true)
-  })
-
-  it('不足上限的标题不加省略号', () => {
-    expect(titleFrom(['短问题'])).toBe('短问题')
+  it('不再做剥离——剥离不幂等,二次剥会把已剥出的内容当噪声丢掉', () => {
+    // `[cron:x] Warmup` 经 realUserText 剥出 'Warmup';若 clipTitle 再剥一次
+    // 就会变成 null,会话凭空掉出列表。
+    expect(realUserText('[cron:abc 定时] Warmup')).toBe('Warmup')
+    expect(clipTitle('Warmup')).toBe('Warmup')
   })
 })

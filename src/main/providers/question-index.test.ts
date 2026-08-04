@@ -247,3 +247,295 @@ describe('提问提取(Codex 侧)', () => {
     })
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────
+// 票 03b:Claude 分叉 —— 沿父链从最后一条回溯到根,只留这条链(spec B3)
+//
+// fixture 形态全部取自真实数据枚举(全库 1481 个有 uuid 链的会话文件):
+//   - 分叉(某父多子)27 个文件;多叶 29 个文件
+//   - **末行是 sidechain 的 1015 个(69%)** —— sidechain 的 parentUuid 恒为 null
+//   - 压缩边界 `type=system, subtype=compact_boundary`,parentUuid=null 且带
+//     logicalParentUuid —— 不桥接它,最坏一例 346 条提问只剩 44 条
+// ─────────────────────────────────────────────────────────────────────────
+
+/** 带 uuid 链的用户提问行 */
+const cq = (uuid: string, parentUuid: string | null, text: string, extra: Record<string, unknown> = {}): unknown => ({
+  type: 'user',
+  uuid,
+  parentUuid,
+  timestamp: TS,
+  message: { role: 'user', content: text },
+  ...extra
+})
+/** 助手行(占位,让链有中间节点) */
+const ca = (uuid: string, parentUuid: string | null): unknown => ({
+  type: 'assistant',
+  uuid,
+  parentUuid,
+  timestamp: TS,
+  message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }] }
+})
+/** 真实形态:压缩边界。parentUuid 断开,logicalParentUuid 指回压缩前 */
+const cCompact = (uuid: string, logicalParentUuid: string): unknown => ({
+  type: 'system',
+  subtype: 'compact_boundary',
+  uuid,
+  parentUuid: null,
+  logicalParentUuid,
+  timestamp: TS,
+  content: 'Conversation compacted',
+  compactMetadata: { trigger: 'auto' }
+})
+
+async function textsOf(objs: unknown[]): Promise<number[]> {
+  return withLines(objs, async (file) => (await indexOf(file, 'claude')).map((r) => r[0]))
+}
+
+describe('Claude 分叉:末叶回溯', () => {
+  test('线性会话:全部提问都在链上,一条不少', async () => {
+    const objs = [cq('u1', null, '问一'), ca('a1', 'u1'), cq('u2', 'a1', '问二'), ca('a2', 'u2'), cq('u3', 'a2', '问三')]
+    await withLines(objs, async (file) => {
+      expect(await indexOf(file, 'claude')).toHaveLength(3)
+    })
+  })
+
+  test('分叉:被放弃的那支上的提问不计入', async () => {
+    // u2 与 u2b 同父 a1;最后一条是 u3(在 u2 这一支下)→ u2b 被放弃
+    const objs = [
+      cq('u1', null, '问一'),
+      ca('a1', 'u1'),
+      cq('u2b', 'a1', '走岔的问'),
+      ca('a2b', 'u2b'),
+      cq('u2', 'a1', '问二'),
+      ca('a2', 'u2'),
+      cq('u3', 'a2', '问三')
+    ]
+    await withLines(objs, async (file) => {
+      const recs = await indexOf(file, 'claude')
+      expect(recs).toHaveLength(3)
+      // 被放弃那条的偏移不应出现
+      const abandoned = JSON.stringify(objs[2])
+      const raw = readFileSync(file)
+      for (const r of recs) {
+        expect(raw.subarray(r[0], r[1]).toString('utf8').trim()).not.toBe(abandoned)
+      }
+    })
+  })
+
+  test('末行是 sidechain:回溯起点取最后一条非 sidechain 行,不掉进 subagent 链', async () => {
+    const objs = [
+      cq('u1', null, '问一'),
+      ca('a1', 'u1'),
+      cq('u2', 'a1', '问二'),
+      // subagent 转写:parentUuid 恒 null,自成一链,且排在文件最后
+      { ...(cq('s1', null, 'subagent 的提示词') as Record<string, unknown>), isSidechain: true, agentId: 'ag1' },
+      { ...(ca('s2', 's1') as Record<string, unknown>), isSidechain: true, agentId: 'ag1' }
+    ]
+    await withLines(objs, async (file) => {
+      expect(await indexOf(file, 'claude')).toHaveLength(2)
+    })
+  })
+
+  test('压缩边界:靠 logicalParentUuid 桥接,压缩前的提问不丢', async () => {
+    const objs = [
+      cq('u1', null, '压缩前问一'),
+      ca('a1', 'u1'),
+      cq('u2', 'a1', '压缩前问二'),
+      ca('a2', 'u2'),
+      cCompact('cb1', 'a2'),
+      cq('u3', 'cb1', '压缩后问三')
+    ]
+    await withLines(objs, async (file) => {
+      const recs = await indexOf(file, 'claude')
+      expect(recs, '不桥接 logicalParentUuid 的话只剩压缩后那 1 条').toHaveLength(3)
+    })
+  })
+
+  test('两次压缩:两道边界都要桥过去', async () => {
+    const objs = [
+      cq('u1', null, '第一段'),
+      cCompact('cb1', 'u1'),
+      cq('u2', 'cb1', '第二段'),
+      cCompact('cb2', 'u2'),
+      cq('u3', 'cb2', '第三段')
+    ]
+    expect(await textsOf(objs)).toHaveLength(3)
+  })
+
+  test('没有 uuid 的行不参与回溯,也不让整份索引塌掉', async () => {
+    // 真实文件里 session_meta 之类的行没有 uuid
+    const objs = [cUser('无 uuid 的提问'), cq('u1', null, '有 uuid 的提问')]
+    await withLines(objs, async (file) => {
+      const recs = await indexOf(file, 'claude')
+      expect(recs, '无 uuid 的提问无从判断在不在链上,按不漏原则保留').toHaveLength(2)
+    })
+  })
+
+  test('整份文件都没有 uuid(旧格式):退化为全保留', async () => {
+    await withLines([cUser('问一'), cUser('问二')], async (file) => {
+      expect(await indexOf(file, 'claude')).toHaveLength(2)
+    })
+  })
+
+  test('Codex 侧不做末叶回溯:uuid 字段对它无意义', async () => {
+    await withLines([xUser('问一'), xUser('问二')], async (file) => {
+      expect(await indexOf(file, 'codex')).toHaveLength(2)
+    })
+  })
+})
+
+describe('标题与提问集合同源(末叶回溯之后)', () => {
+  async function firstTextOf(objs: unknown[]): Promise<string | null> {
+    return withLines(objs, async (file) => {
+      const idx = makeQuestionIndexer('claude')
+      let fileEnd = 0
+      await eachJsonlLine(file, (obj, start, end) => {
+        idx.line(obj, start, end)
+        fileEnd = end
+      })
+      idx.done(fileEnd)
+      return idx.firstQuestionText()
+    })
+  }
+
+  test('首条提问落在被放弃的分支上 → 标题取存活的那条,不是被丢弃的那条', async () => {
+    // u1b 是文件里最早的提问,但它这一支被放弃;存活链是 u1 → a1 → u2
+    const objs = [
+      ca('root', null),
+      cq('u1b', 'root', '走岔的第一问'),
+      cq('u1', 'root', '真正的第一问'),
+      ca('a1', 'u1'),
+      cq('u2', 'a1', '第二问')
+    ]
+    expect(await firstTextOf(objs)).toBe('真正的第一问')
+    await withLines(objs, async (file) => {
+      expect(await indexOf(file, 'claude')).toHaveLength(2)
+    })
+  })
+
+  test('全部提问都被滤掉 → 标题为 null(会话据此不入列)', async () => {
+    // 唯一的提问在被放弃的分支上,存活链只有助手行
+    const objs = [ca('root', null), cq('u1b', 'root', '走岔的问'), ca('a1', 'root'), ca('a2', 'a1')]
+    expect(await firstTextOf(objs)).toBeNull()
+  })
+
+  test('标题不被二次剥离:cron 剥出的内容恰好是 Warmup 时仍保留', async () => {
+    // 回归 clipTitle 与 realUserText 分家的理由:二次剥会把它变成 null
+    expect(await firstTextOf([cq('u1', null, '[cron:abc 定时] Warmup')])).toBe('Warmup')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// 票 03b:Codex 重放前缀剥离(spec B2)
+//
+// **本机真实数据里真 fork 数为 0**(244 个 Codex 会话,9 个带 parent 的全是
+// subagent 线程,按 A3 不入列)——所以这一组只有 fixture 覆盖,拿不到真实样本。
+// 依据是机制而非样本:① 重放确实会复制 user_message(4 组 subagent 父子对实测
+// 逐条相同);② 重放**改写时间戳**(4/4 例),所以认不出重放段只能靠内容指纹;
+// ③ 突发启发式与 token 侧同源(ccusage replay.rs:重放是程序一次写入,行间隔
+// 近零,而真人提问是人的节奏)。
+// ─────────────────────────────────────────────────────────────────────────
+import { fingerprint, stripReplayPrefix, type ForkState } from './question-index'
+
+/** 造一条索引记录:只有时间戳与指纹参与剥离判定,偏移随便给 */
+const rec = (ts: number, text: string): QuestionRec => [0, 1, 2, ts, 0, 0, fingerprint(text)]
+
+function strip(
+  child: QuestionRec[],
+  parent: QuestionRec[] | null,
+  forkedAt: number | null,
+  isFork = true
+): { n: number; state: ForkState } {
+  const r = stripReplayPrefix(child, parent, forkedAt, isFork)
+  return { n: r.questions.length, state: r.state }
+}
+
+describe('Codex 重放前缀剥离', () => {
+  const T = (m: number): number => Date.parse(`2026-08-01T10:${String(m).padStart(2, '0')}:00Z`)
+
+  test('不是 fork → 原样返回,状态 none', () => {
+    const c = [rec(T(1), '问一'), rec(T(2), '问二')]
+    expect(strip(c, null, null, false)).toEqual({ n: 2, state: 'none' })
+  })
+
+  test('「不是 fork」与「父缺失」必须给出不同状态,不是同一字段的两种成色', () => {
+    const c = [rec(T(1), '问一'), rec(T(9), '问二')]
+    expect(strip(c, null, null, false).state).toBe('none')
+    expect(strip(c, null, T(1), true).state).toBe('uncertain')
+  })
+
+  test('整段都像突发也绝不剥空——留最后一条,宁可多显示不要整个会话消失', () => {
+    const ms = (x: number): number => Date.parse('2026-08-01T10:00:00Z') + x
+    const c = [rec(ms(0), 'A'), rec(ms(100), 'B'), rec(ms(200), 'C')]
+    expect(strip(c, null, ms(0))).toEqual({ n: 1, state: 'uncertain' })
+  })
+
+  test('父在扫描集内且指纹逐条吻合 → 剥掉重放段,状态 stripped', () => {
+    const p = [rec(T(1), '父问一'), rec(T(2), '父问二'), rec(T(9), '父 fork 之后才有的问')]
+    // 子会话重放了 fork 时刻(T(5))之前的两条,时间戳被改写,但内容不变
+    const c = [rec(T(5), '父问一'), rec(T(5), '父问二'), rec(T(6), '子的新问')]
+    expect(strip(c, p, T(5))).toEqual({ n: 1, state: 'stripped' })
+  })
+
+  test('指纹对不上 → 不剥,状态 uncertain(宁可显示重复,不静默丢真提问)', () => {
+    const p = [rec(T(1), '父问一'), rec(T(2), '父问二')]
+    const c = [rec(T(5), '完全不同的开头'), rec(T(6), '子的新问')]
+    expect(strip(c, p, T(5))).toEqual({ n: 2, state: 'uncertain' })
+  })
+
+  test('只吻合一部分 → 按吻合的那部分剥,但仍标 uncertain', () => {
+    const p = [rec(T(1), '父问一'), rec(T(2), '父问二'), rec(T(3), '父问三')]
+    const c = [rec(T(5), '父问一'), rec(T(5), '对不上了'), rec(T(6), '子的新问')]
+    expect(strip(c, p, T(5))).toEqual({ n: 2, state: 'uncertain' })
+  })
+
+  test('三代 fork 链:孙会话按它自己的父(子会话)剥,不越级找祖父', () => {
+    const g = [rec(T(1), 'A')]
+    const c = [rec(T(5), 'A'), rec(T(6), 'B')] // 子:剥掉 A 后剩 B
+    const gc = [rec(T(8), 'A'), rec(T(8), 'B'), rec(T(9), 'C')] // 孙重放了子的全部
+    expect(strip(c, g, T(5))).toEqual({ n: 1, state: 'stripped' })
+    expect(strip(gc, c, T(8))).toEqual({ n: 1, state: 'stripped' })
+  })
+
+  test('父缺失 → 突发启发式:开头那串近乎同时的提问算重放,状态 uncertain', () => {
+    // 重放是程序一次写入,行间隔近零;真人提问是人的节奏
+    const ms = (x: number): number => Date.parse('2026-08-01T10:00:00Z') + x
+    const c = [rec(ms(0), 'A'), rec(ms(120), 'B'), rec(ms(240), 'C'), rec(ms(600_000), '真人问的')]
+    expect(strip(c, null, ms(0))).toEqual({ n: 1, state: 'uncertain' })
+  })
+
+  test('父缺失且提问节奏正常 → 一条都不剥', () => {
+    const c = [rec(T(1), 'A'), rec(T(9), 'B')]
+    expect(strip(c, null, T(1))).toEqual({ n: 2, state: 'uncertain' })
+  })
+
+  test('父存在但自身没有提问 → 无从校验,不剥并标 uncertain', () => {
+    const c = [rec(T(5), 'A')]
+    expect(strip(c, [], T(5))).toEqual({ n: 1, state: 'uncertain' })
+  })
+
+  test('剥离不改动保留下来那些记录的偏移', () => {
+    const p = [rec(T(1), 'A')]
+    const c: QuestionRec[] = [rec(T(5), 'A'), [111, 222, 333, T(6), 2, 1, fingerprint('B')]]
+    const r = stripReplayPrefix(c, p, T(5), true)
+    expect(r.questions[0]).toEqual([111, 222, 333, T(6), 2, 1, fingerprint('B')])
+  })
+})
+
+describe('内容指纹', () => {
+  test('同文同指纹,异文异指纹', () => {
+    expect(fingerprint('同一段话')).toBe(fingerprint('同一段话'))
+    expect(fingerprint('甲')).not.toBe(fingerprint('乙'))
+  })
+
+  test('是 32 位无符号整数,不可从中还原文本', () => {
+    const fp = fingerprint('一段较长的中文提问内容,用来确认输出仍是个小整数')
+    expect(Number.isInteger(fp)).toBe(true)
+    expect(fp).toBeGreaterThanOrEqual(0)
+    expect(fp).toBeLessThanOrEqual(0xffffffff)
+  })
+
+  test('空串也有确定值,不抛', () => {
+    expect(typeof fingerprint('')).toBe('number')
+  })
+})

@@ -11,17 +11,17 @@
 //   模型取末条 turn_context(会话主模型近似)。
 // - 增量缓存存"条目级"数据(去重必须跨文件,在聚合层做,不能缓存去重后的结果);
 //   按(路径, mtime, size)键,原子写。统计含隐藏/失效项目。
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AgentSide, ProjectStats, TokenStats, TokenTotals } from '@shared/domain'
+import type { AgentSide, ProjectStats, SessionMeta, TokenStats, TokenTotals } from '@shared/domain'
 import { emptyTokenStats, emptyTotals } from '@shared/domain'
 import { mergeKey } from '@shared/path-key'
 import { providerOf } from '@shared/provider'
 import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessions } from './codex'
 import { eachJsonlLine } from './jsonl'
-import { makeQuestionIndexer, type QuestionRec } from './question-index'
-import { titleFrom } from './session-title'
+import { makeQuestionIndexer, stripReplayPrefix, type QuestionRec } from './question-index'
+import { clipTitle, realUserText } from './session-title'
 import type { ScanRoots } from './types'
 import type { UsageRow } from './archive'
 
@@ -87,12 +87,16 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg
  * v6:标题剥离 harness 噪声;无真实提问的会话 listed=false。
  * v7:FileAgg 加 questions(提问索引);标题与 listed 改由索引器同源判定
  *     ——顺带把 sidechain 行排除出"人类提问",此前它可能被当成首条提问。
+ * v8:QuestionRec 由 6 元变 7 元(加内容指纹),且内容本身也变了(Claude 末叶回溯
+ *     滤掉被放弃分支上的提问)。**这个号尤其不能漏**:旧缓存的记录没有第 7 位,
+ *     读出来是 undefined,而 `undefined === undefined` 会让 Codex 的重放指纹校验
+ *     全部"通过"并盲剥——静默剥错正是票 03b 要防的那件事。
  *
  * **导出仅供测试**——让守卫测试能用 `CACHE_VERSION - 1` 构造"紧邻上一版"的缓存,
  * 而不是硬编码一个会随版本号增长而失效的字面量。产线代码不得据它做分支判断:
  * 唯一的版本比较在 loadCache 里,多一处就多一处会漂移的口径。
  */
-export const CACHE_VERSION = 7
+export const CACHE_VERSION = 8
 
 interface CacheShape {
   version: typeof CACHE_VERSION
@@ -106,6 +110,13 @@ export interface TokenBuildResult {
   rows: UsageRow[]
   /** 本次扫描仍能看到源数据的天(归档冲突规则用) */
   liveDays: Set<string>
+  /**
+   * 需要重新起标题的会话:Codex fork 剥掉重放前缀后,原标题取自一条**已经不展示**的
+   * 提问(95% 的 Codex 会话没有 thread_name,都走首条提问回退,所以这不是边角情况)。
+   * 标题与提问集合必须同源——同一个概念两个数字是 spec A1 记过的教训。
+   * 只带偏移不带文本:文本由 build() 按区间现读,与 spec D2a 一致。
+   */
+  retitle: Array<{ session: SessionMeta; file: string; start: number; end: number }>
 }
 
 export class TokenEngine {
@@ -197,7 +208,9 @@ export class TokenEngine {
 
     this.cache = { version: CACHE_VERSION, files: seen }
     this.persist()
-    return combine(aggs)
+    const result = combine(aggs)
+    await retitleStripped(result.retitle)
+    return result
   }
 
   private async aggFor(file: string, parse: () => Promise<FileAgg | null>): Promise<FileAgg | null> {
@@ -207,6 +220,28 @@ export class TokenEngine {
     // 除版本号外再校验条目形状:同版本内的手工损坏/未来漂移一律重算,不让缺字段流进聚合层
     if (cached && cached.sig === sig && isWellFormedAgg(cached.agg)) return cached.agg
     return parse()
+  }
+}
+
+/**
+ * 按字节区间现读那一行,重新起标题。只对被剥掉重放前缀的 Codex fork 会话跑,
+ * 数量极少(本机真实数据为 0),每个只读一行,不构成扫描开销。
+ * 读失败就保留原标题——降级只自伤:一个会话标题旧,不牵连别的会话、不拖垮扫描。
+ */
+async function retitleStripped(items: TokenBuildResult['retitle']): Promise<void> {
+  for (const it of items) {
+    try {
+      const buf: Buffer[] = []
+      const rs = createReadStream(it.file, { start: it.start, end: Math.max(it.start, it.end - 1) })
+      for await (const c of rs as AsyncIterable<Buffer>) buf.push(c)
+      const obj: unknown = JSON.parse(Buffer.concat(buf).toString('utf8'))
+      const msg = (obj as Record<string, unknown>)?.['payload'] as Record<string, unknown> | undefined
+      const text = typeof msg?.['message'] === 'string' ? (msg['message'] as string) : null
+      const clean = text === null ? null : realUserText(text)
+      if (clean !== null) it.session.title = clipTitle(clean)
+    } catch {
+      // 保留原标题
+    }
   }
 }
 
@@ -270,6 +305,7 @@ function dedupeClaude(files: Array<{ agg: ClaudeFileAgg; fileIdx: number }>): Ke
 }
 
 function combine(aggs: FileAgg[]): TokenBuildResult {
+  const retitle: TokenBuildResult['retitle'] = []
   const global = emptyTokenStats()
   // 归档行累积:键 天|侧|项目|模型
   const rowMap = new Map<string, UsageRow>()
@@ -371,7 +407,9 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       at: agg.at,
       tokens: perFileTokens.get(fileIdx) ?? 0,
       file: agg.file,
-      questionCount: agg.questions.length
+      questionCount: agg.questions.length,
+      // Claude 侧的分叉在索引阶段就由末叶回溯消解了,不存在"重放前缀"这回事
+      forkState: 'none'
     })
   })
 
@@ -445,15 +483,31 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       if (totals.total > 0) addModel(p.tokens, 'codex', a.model, totals.total)
       for (const [day, v] of Object.entries(byDay)) addDay(p.tokens, 'codex', day, v, a.model)
       if (a.listed) {
-        p.sessions.push({
+        // 展示口径的剥离**在这里做**,不在 parser 里:它要看父会话的索引,而缓存是
+        // 按文件存的,parser 阶段拿不到父。也**不复用 token 侧那个 start**——
+        // 计量口径是去重、展示口径是"这次对话看起来什么样",语义不同(票 03b 验收)。
+        const forkParent = a.parentId ? bySessionId.get(a.parentId) : undefined
+        const shown = stripReplayPrefix(
+          a.questions,
+          forkParent && forkParent !== a ? forkParent.questions : null,
+          a.forkedAt,
+          a.parentId !== null
+        )
+        const meta: SessionMeta = {
           side: 'codex',
           title: a.title,
           at: a.at,
           tokens: totals.total,
           file: a.file,
-          // fork 会话此数含重放前缀里的提问,偏大——剥离是票 03b 的事(spec B2)
-          questionCount: a.questions.length
-        })
+          questionCount: shown.questions.length,
+          forkState: shown.state
+        }
+        p.sessions.push(meta)
+        // 剥掉了开头若干条 → 原标题来自一条不再展示的提问,按存活首条重起
+        if (shown.questions.length > 0 && shown.questions.length < a.questions.length) {
+          const first = shown.questions[0]
+          retitle.push({ session: meta, file: a.file, start: first[0], end: first[1] })
+        }
       }
     }
   }
@@ -473,7 +527,7 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     p.tokens.byDay.sort((x, y) => (x.day < y.day ? -1 : 1))
     p.sessions.sort((x, y) => (y.at ?? 0) - (x.at ?? 0))
   }
-  return { global, perProject, rows: [...rowMap.values()], liveDays }
+  return { global, perProject, rows: [...rowMap.values()], liveDays, retitle }
 }
 
 /** 重写突发(ccusage detect_rewritten_burst 同规则):前两个事件间隔 ≤1s 即认定
@@ -541,7 +595,11 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   // **给 FileAgg 加必填字段时,这里同步加一条**——版本号只拦得住跨版本,
   // 同版本内的手工损坏与漂移只有这道守卫。
   if (typeof a['file'] !== 'string' || a['file'] === '') return false
-  if (!Array.isArray(a['questions'])) return false
+  const qs = a['questions']
+  if (!Array.isArray(qs)) return false
+  // 记录**元数**也要守:版本号只拦跨版本,同版本内的手工损坏与未来漂移只有这道闸。
+  // 少一位会让指纹比对退化成 undefined === undefined,恒真,于是盲剥。
+  if (qs.length > 0 && (!Array.isArray(qs[0]) || (qs[0] as unknown[]).length !== 7)) return false
   if (a['kind'] === 'claude') return Array.isArray(a['entries'])
   if (a['kind'] === 'codex') return Array.isArray(a['events'])
   return false
@@ -611,10 +669,10 @@ async function parseClaudeFile(
     }
   })()
   const questions = idx.done(fileEnd)
-  const firstRaw = idx.firstQuestionRaw()
-  // 噪声逐条剥离,找不到就继续往后看(caveat 之后常跟 /clear,真提问在第三条)
-  // ——索引器已经做完这件事,这里只负责成型。形态见 session-title.ts。
-  const title = firstRaw === null ? null : titleFrom([firstRaw])
+  // 索引器已经剥完噪声、也已按末叶回溯滤过,这里只负责截断成型。
+  // **不要再过一遍 realUserText**——剥离不幂等,见 session-title.ts。
+  const first = idx.firstQuestionText()
+  const title = first === null ? null : clipTitle(first)
   return {
     kind: 'claude',
     file,
@@ -677,8 +735,8 @@ async function parseCodexFile(
   const id = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/.exec(file)?.[1]
   const stem = file.split('/').pop()?.replace(/\.jsonl$/, '') ?? '会话'
   const questions = idx.done(fileEnd)
-  const firstRaw = idx.firstQuestionRaw()
-  const realTitle = firstRaw === null ? null : titleFrom([firstRaw])
+  const first = idx.firstQuestionText()
+  const realTitle = first === null ? null : clipTitle(first)
   return {
     kind: 'codex',
     file,

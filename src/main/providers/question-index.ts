@@ -3,26 +3,112 @@
 // **不存提问文本,连截断预览也不存**(spec D2a):提问约占全文 9.5%,全库进每次启动
 // 都读的缓存是 MB 级负担;而 39.7% 的提问超过 60 字,截断预览既漏正文又会在搜索处
 // 退化成第二套语料。文本一律按区间现读(热缓存实测 23ms)。
+import type { ForkState } from '@shared/domain'
 import { realUserText } from './session-title'
 
 /**
  * 一条提问的索引,紧凑数组编码进缓存:
- * `[提问行起, 提问行止, 本轮止, 时间戳, 工具数, subagent 数]`
+ * `[提问行起, 提问行止, 本轮止, 时间戳, 工具数, subagent 数, 内容指纹]`
  *
  * - 提问自身 = `[0, 1)`;本轮内容 = `[1, 2)`(该提问之后到下一条提问之前,spec C1)。
  * - 偏移是**字节**,可直接喂 `createReadStream(file, { start, end })`。
+ * - **内容指纹**是 32 位整数,不可逆推文本、也无法用于搜索,只为认出 Codex 的
+ *   重放段(见 `stripReplayPrefix`)。这是对 spec D2a「只存偏移」的一处必要放宽:
+ *   重放会**改写时间戳**(真实样本 4/4 例证实),不存任何内容衍生物就只能按条数
+ *   盲剥,而盲剥正是票 03b 要防的"静默剥错"。D2a 的两条理由——体积、别搞出第二套
+ *   搜索语料——都不受影响:每条 4 字节,且指纹搜不了东西。
  */
-export type QuestionRec = [number, number, number, number | null, number, number]
+export type QuestionRec = [number, number, number, number | null, number, number, number]
+
+
+/**
+ * 内容指纹(FNV-1a 32 位)。只求"同文同值、异文极可能异值",不求密码学强度——
+ * 用途仅限于逐条比对子会话开头与父会话是否为同一批提问。
+ */
+export function fingerprint(text: string): number {
+  let h = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i)
+    // FNV 质数 16777619;用移位相加避免 32 位溢出丢精度
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0
+  }
+  return h >>> 0
+}
+
+/** 重放突发的判据:相邻两条提问间隔 ≤ 此值即视为程序一次性写入而非真人节奏。
+ * 与 token 侧的 BURST_PAUSE_MS 同源(ccusage replay.rs),但**各算各的**——
+ * 计量口径是去重、展示口径是"这次对话看起来什么样",不得互相复用结论(票 03b 验收)。 */
+const BURST_GAP_MS = 1000
+
+/**
+ * 剥掉 Codex fork 会话开头的重放前缀,只留本次 fork 之后的新内容(spec B2)。
+ *
+ * **失败方向决定了这里的保守取向**(CONTEXT 不变量「按失败方向定严格度」):
+ * 多剥 → 真提问静默消失,用户无从察觉;少剥 → 显示重复,用户一眼看见,且有
+ * 存疑标记解释。所以校验不过就**不剥**,绝不赌。
+ *
+ * @param parent 父会话的索引;父不在扫描集内时传 null
+ * @param forkedAt 子会话 session_meta 的时间戳 = fork 时刻
+ */
+export type { ForkState }
+
+export function stripReplayPrefix(
+  child: readonly QuestionRec[],
+  parent: readonly QuestionRec[] | null,
+  forkedAt: number | null,
+  /** 本会话是不是 fork。**必须单独给**:`parent === null` 同时对应"不是 fork"
+   * 与"是 fork 但父不在扫描集内"两种情形,而它们的状态一个 none 一个 uncertain
+   * ——票 03b 明确要求这两条在数据上可区分,不能是同一字段的两种成色。 */
+  isFork: boolean
+): { questions: QuestionRec[]; state: ForkState } {
+  if (!isFork) return { questions: [...child], state: 'none' }
+
+  if (parent === null) {
+    // 父缺失:只能按"重放是程序一次写入、行间隔近零"这个机制退化处理
+    // n = 开头这一串连续"间隔近零"的提问有几条(首条自成一段的起点)
+    let n = child.length === 0 ? 0 : 1
+    while (n < child.length) {
+      const a = child[n - 1][3]
+      const b = child[n][3]
+      if (a === null || b === null || b - a > BURST_GAP_MS) break
+      n++
+    }
+    // 只有一条、且它后面没有"真人节奏"那条作对照时,不构成突发证据
+    if (n === 1) n = 0
+    // **绝不剥空**:整段都像突发时,既可能是"这次 fork 没产生新内容",也可能是
+    // 启发式误判(比如真人连着粘了几条)。前者留一条只是多显示一条,后者剥空则是
+    // 整个会话凭空消失——按失败方向取前者。
+    if (n >= child.length) n = Math.max(0, child.length - 1)
+    return { questions: child.slice(n), state: 'uncertain' }
+  }
+
+  // 父会话在 fork 时刻之前的提问,就是被本会话重放的那些
+  const replayLen =
+    forkedAt === null
+      ? parent.length
+      : parent.findIndex((q) => q[3] !== null && (q[3] as number) > forkedAt) === -1
+        ? parent.length
+        : parent.findIndex((q) => q[3] !== null && (q[3] as number) > forkedAt)
+
+  // 逐条**按内容指纹**核对(时间戳被重放改写过,靠不住)
+  let n = 0
+  while (n < replayLen && n < child.length && child[n][6] === parent[n][6]) n++
+
+  // 全段吻合才算确定;一条都对不上或只对上一部分,都按存疑处理
+  const state: ForkState = n === replayLen && replayLen > 0 ? 'stripped' : 'uncertain'
+  return { questions: child.slice(n), state }
+}
 
 export interface QuestionIndexer {
   /** 逐行喂入,顺序与文件一致 */
   line(obj: Record<string, unknown>, start: number, end: number): void
   /**
-   * 首条真实提问的**原始**消息文本(未剥噪声、未截断);一条都没有则 null。
-   * 标题由它经 titleFrom 生成——这样"哪一行算首条提问"只有索引器一个判断点,
-   * 不会出现"标题有值但提问数为 0"这类同概念两个数字的分歧(spec A1 同类教训)。
+   * 首条真实提问**剥噪声之后**的文本(未截断);一条都没有则 null。
+   * 调用方直接 `clipTitle` 成标题,**不要再过一遍 `realUserText`**——剥离不幂等。
+   * 这样"哪一行算首条提问"只有索引器一个判断点,不会出现"标题有值但提问数为 0"
+   * 这类同概念两个数字的分歧(spec A1 同类教训);末叶回溯把首条滤掉时标题同步改。
    */
-  firstQuestionRaw(): string | null
+  firstQuestionText(): string | null
   /**
    * 收尾:末轮的止点 = 最后一条**可解析**行的终点(调用方传入)。
    * 刻意不取文件字节大小:活跃会话可能正写到半行,那半行既解析不出也不该被切进
@@ -117,19 +203,46 @@ export function makeQuestionIndexer(side: 'claude' | 'codex'): QuestionIndexer {
   const questionOf = side === 'claude' ? claudeQuestion : codexQuestion
   const countsOf = side === 'claude' ? claudeCounts : codexCounts
   const out: QuestionRec[] = []
+  /** 与 out 平行:每条提问所在行的 uuid(无则 null),供末叶回溯过滤 */
+  const qUuid: Array<string | null> = []
+  /** 与 out 平行:**剥噪声之后**的提问文本,只为过滤后重新定首条标题用。
+   * 不存原文的截断版:`<command-args>` 这类包装的真实内容实测可远在第 4054 字符,
+   * 先截再剥会让剥离规则找不到标签,标题变成一段包装垃圾。**只在内存里,不进缓存。** */
+  const qHead: string[] = []
+  /** Claude 主链的 uuid → 父。**父取 `parentUuid ?? logicalParentUuid`** */
+  const parentOf = new Map<string, string | null>()
+  /** 最后一条**非 sidechain** 行的 uuid —— 回溯的起点 */
+  let lastMainUuid: string | null = null
   let firstRaw: string | null = null
 
   return {
     line(obj, start, end) {
+      // 末叶回溯的图只在 Claude 侧建,且只收主链行:sidechain 是 subagent 自己的
+      // 转写,其 parentUuid 恒为 null、子节点只指向 sidechain 内部,混进来会把
+      // 回溯起点带到 subagent 的链上(实测 69% 的文件末行正是 sidechain 行)。
+      if (side === 'claude' && obj['isSidechain'] !== true) {
+        const u = obj['uuid']
+        if (typeof u === 'string') {
+          const p = obj['parentUuid']
+          const lp = obj['logicalParentUuid']
+          // 压缩边界(type=system, subtype=compact_boundary)的 parentUuid 断开,
+          // logicalParentUuid 才是它到压缩前历史的桥。不桥接的话实测最坏一例
+          // 346 条提问只剩 44 条——压缩前的历史全被当成"被放弃的分支"。
+          parentOf.set(u, typeof p === 'string' ? p : typeof lp === 'string' ? lp : null)
+          lastMainUuid = u
+        }
+      }
       const raw = questionOf(obj)
       // 噪声不算提问(与标题剥离同一套规则):否则只含 Warmup 的会话会报出
       // "1 提问"却按 spec A3a 不入列,同一个概念两个数字
-      if (raw !== null && realUserText(raw) !== null) {
+      const clean = raw === null ? null : realUserText(raw)
+      if (clean !== null) {
         const prev = out[out.length - 1]
         if (prev) prev[2] = start
-        else firstRaw = raw
         const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp']) : NaN
-        out.push([start, end, end, Number.isNaN(ts) ? null : ts, 0, 0])
+        out.push([start, end, end, Number.isNaN(ts) ? null : ts, 0, 0, fingerprint(clean)])
+        qUuid.push(typeof obj['uuid'] === 'string' ? obj['uuid'] : null)
+        qHead.push(clean)
         return
       }
       const cur = out[out.length - 1]
@@ -139,13 +252,39 @@ export function makeQuestionIndexer(side: 'claude' | 'codex'): QuestionIndexer {
       cur[4] += tools
       cur[5] += subagents
     },
-    firstQuestionRaw() {
+    firstQuestionText() {
       return firstRaw
     },
     done(fileEnd) {
+      // 先给**原始**末条补上文件终点,再过滤:末条若落在被放弃的分支上,
+      // 这个延长就该随它一起消失,而不是让存活的前一条把废弃内容吃进自己的轮次。
       const last = out[out.length - 1]
       if (last && fileEnd > last[2]) last[2] = fileEnd
-      return out
+
+      let kept = out
+      let keptHeads = qHead
+      if (side === 'claude' && lastMainUuid !== null) {
+        const chain = new Set<string>()
+        let cur: string | null = lastMainUuid
+        while (cur !== null && !chain.has(cur)) {
+          chain.add(cur)
+          cur = parentOf.get(cur) ?? null
+        }
+        kept = []
+        keptHeads = []
+        for (let i = 0; i < out.length; i++) {
+          const u = qUuid[i]
+          // 无 uuid 的提问无从判断在不在链上 —— 按不漏原则保留(漏掉真提问,
+          // 比多留一条被放弃的更违背"找到我提过的那个问题"这个立命之本)
+          if (u === null || chain.has(u)) {
+            kept.push(out[i])
+            keptHeads.push(qHead[i])
+          }
+        }
+      }
+      // 标题与条数同源:过滤后重新取首条,免得标题来自一条已被丢弃的提问
+      firstRaw = keptHeads.length > 0 ? keptHeads[0] : null
+      return kept
     }
   }
 }

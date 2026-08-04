@@ -161,6 +161,57 @@ function mkUsageHome(): string {
   return home
 }
 
+/**
+ * 票 03b:Codex fork 的 fixture home。
+ * **本机真实数据里真 fork 数为 0**(244 个会话中 9 个带 parent 的全是 subagent,
+ * 按 A3 不入列),所以这条路径只能靠构造覆盖——形态照 codex.ts 实际读的字段来:
+ * payload.id / payload.forked_from_id / 顶层 timestamp 当 fork 时刻。
+ */
+function mkForkHome(): string {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-fork-'))
+  const proj = join(home, 'fork-proj')
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const sdir = join(home, '.codex', 'sessions', '2026', '01', '01')
+  mkdirSync(sdir, { recursive: true })
+
+  const PARENT = '019fb0c0-aaaa-7af3-af7d-8505cedf1ec2'
+  const q = (at: Date, message: string): string =>
+    JSON.stringify({ timestamp: at.toISOString(), type: 'event_msg', payload: { type: 'user_message', message } })
+  const usage = (at: Date, inTok: number, outTok: number): string =>
+    JSON.stringify({
+      timestamp: at.toISOString(),
+      type: 'event_msg',
+      payload: {
+        type: 'token_count',
+        info: { last_token_usage: { input_tokens: inTok, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: outTok, total_tokens: inTok + outTok } }
+      }
+    })
+  const meta = (at: Date, id: string, extra: Record<string, unknown> = {}): string =>
+    JSON.stringify({ timestamp: at.toISOString(), type: 'session_meta', payload: { cwd: proj, id, ...extra } })
+  const ctx = (at: Date): string =>
+    JSON.stringify({ timestamp: at.toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } })
+
+  // 父会话:两条提问
+  writeFileSync(
+    join(sdir, `rollout-${PARENT}.jsonl`),
+    [meta(localDayOffset(4), PARENT), ctx(localDayOffset(4)), q(localDayOffset(4), '父会话第一问'), usage(localDayOffset(4), 500, 100), q(localDayOffset(3), '父会话第二问'), usage(localDayOffset(3), 300, 60)].join('\n') + '\n'
+  )
+  // 子会话:fork 自父,重放了父的两条(时间戳被改写),再加一条新的 → 应剩 1 条、标 ⑂ fork
+  const CHILD = '019fb0c0-bbbb-7af3-af7d-8505cedf1ec2'
+  writeFileSync(
+    join(sdir, `rollout-${CHILD}.jsonl`),
+    [meta(localDayOffset(2), CHILD, { forked_from_id: PARENT }), ctx(localDayOffset(2)), q(localDayOffset(2), '父会话第一问'), q(localDayOffset(2), '父会话第二问'), q(localDayOffset(2), '子会话的新问'), usage(localDayOffset(2), 200, 40)].join('\n') + '\n'
+  )
+  // 孤儿 fork:父不在扫描集内 → 只能启发式,标 ⑂? 剥离存疑
+  const ORPHAN = '019fb0c0-cccc-7af3-af7d-8505cedf1ec2'
+  writeFileSync(
+    join(sdir, `rollout-${ORPHAN}.jsonl`),
+    [meta(localDayOffset(1), ORPHAN, { forked_from_id: '019fb0c0-dead-7af3-af7d-8505cedf1ec2' }), ctx(localDayOffset(1)), q(localDayOffset(1), '孤儿会话的问'), usage(localDayOffset(1), 100, 20)].join('\n') + '\n'
+  )
+  return home
+}
+
 /** 有注册项目、但该项目一个会话都没有 —— 会话分栏的空态 */
 function mkEmptyProjectHome(): string {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-noses-'))
@@ -748,3 +799,36 @@ for (const mount of TREND_MOUNTS) {
     await close(l)
   })
 }
+
+// 票 session-view/03b:fork 与剥离存疑两种标记
+test('会话分栏:fork 会话剥掉重放前缀并标 ⑂ fork;父缺失的标 ⑂? 剥离存疑', async () => {
+  const l = await launch(undefined, mkForkHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+
+  const rows = win.locator('.pane-body .card .se')
+  await expect(rows).toHaveCount(3)
+
+  const rowOf = (title: string): ReturnType<typeof win.locator> =>
+    win.locator('.pane-body .card .se').filter({ hasText: title })
+
+  // 父会话:不是 fork,两条提问,无标记
+  await expect(rowOf('父会话第一问').locator('.n')).toHaveText('2 提问')
+  await expect(rowOf('父会话第一问').locator('.pill')).toHaveCount(0)
+
+  // 子会话:重放的两条被剥掉,只剩自己那条;标 ⑂ fork
+  const child = rowOf('子会话的新问')
+  await expect(child.locator('.n'), '重放前缀未剥离的话会是 3 提问').toHaveText('1 提问')
+  await expect(child.locator('.pill.fork')).toHaveText('⑂ fork')
+  await expect(child.locator('.pill.forkq')).toHaveCount(0)
+
+  // 孤儿 fork:父不在扫描集内,标存疑而不是确定
+  const orphan = rowOf('孤儿会话的问')
+  await expect(orphan.locator('.pill.forkq')).toContainText('剥离存疑')
+  await expect(orphan.locator('.pill.fork')).toHaveCount(0)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})

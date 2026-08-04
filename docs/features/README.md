@@ -14,5 +14,5 @@
 | [Memory 查看](memory-view.md) | agent 记住了每个项目的什么,汇总与全文可查 |
 | [Plugins 视图](plugins-view.md) | 插件按侧分组、各视角启用状态如实、内含组件可展开 |
 | [Token 统计](token-stats.md) | 每项目与跨项目的 token 消耗、趋势与会话轨迹 |
-| [会话查看](session-view.md) | 项目下的会话列表:标题取首条真实提问,带提问条数(分批上线中) |
+| [会话查看](session-view.md) | 项目下的会话列表:标题取首条真实提问,带提问条数与 fork 标记(分批上线中) |
 | [Skills 装卸](skill-install.md) | 从全局库给指定项目安装/卸载 skills,全程有防护 |
