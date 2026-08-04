@@ -56,6 +56,8 @@ jobs:
             test-results/
           retention-days: 7
 
-# 不在 CI 里跑 smoke:scripts/smoke.sh 依赖 macOS 进程名(Electron.app/Contents/MacOS/Electron)
-# 且刻意跑在真实 userData 上——它的价值就在于环境状态依赖,搬进干净的 CI 容器等于把它变成
-# e2e 的劣化版。迁移类场景由 e2e 的独立 userData + 预置缓存覆盖(见 2026-07-30 复盘)。
+# 不在 CI 里跑 smoke:scripts/smoke.sh 是 macOS 本地专用——BSD stat(-f %m)、macOS 进程路径
+# (Electron.app/Contents/MacOS/Electron),且它的价值在于扫**开发机的真实 ~/.claude 数据**
+# (600MB+ 真实形态);CI 容器 home 是空的,搬进去等于 e2e 的劣化版。
+# (userData 自 2026-08-04 起已隔离,不再是"跑在真实 userData 上"——那句旧理由已作废;
+#  迁移类场景由 e2e 的独立 userData + 预置缓存覆盖。)

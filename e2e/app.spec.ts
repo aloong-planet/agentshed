@@ -32,6 +32,13 @@ interface Launched {
  *   2. 就算只断言通用 UI,每个用例都是独立 userData,缓存必然是空的,于是每次都要
  *      全量重扫真实数据(本机 638MB)。这会把用例推到断言超时的边缘——2026-08-02
  *      升 CACHE_VERSION 后,仅剩的两条读真实 home 的用例就是这么红的。
+ *
+ * **测试静音(AGENTSHED_NO_FOREGROUND)**:本地 macOS 上窗口不显示,免得 18 个实例
+ * 轮番抢前台;CI 的 xvfb 不受影响(seam 有 darwin 守卫)。有效性已验:DOM 文本/几何/
+ * 计算样式/toBeVisible 都走 layout 与 CDP,与窗口是否上屏无关(两类已知可红的变异在
+ * 隐藏体制下重放仍红,2026-08-04)。**边界:真焦点语义除外**——document.hasFocus()、
+ * autofocus、:focus 样式在隐藏窗口下不同;将来写输入框类用例(如票 08 搜索)时,
+ * 要么经 CDP 显式聚焦,要么该用例单独去掉此变量,不许沉默依赖窗口聚焦。
  */
 /**
  * `home` **必填**(2026-08-03 从可选改为必填):省略它 app 就去扫开发者的真实 `~/.claude`,
@@ -43,7 +50,13 @@ async function launch(cacheContent: string | undefined, home: string): Promise<L
   const errors: string[] = []
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home }
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      AGENTSHED_HOME_OVERRIDE: home,
+      // 测试静音:不抢前台(macOS accessory 策略,见 src/main/index.ts)
+      AGENTSHED_NO_FOREGROUND: '1'
+    }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
@@ -465,7 +478,12 @@ test('归档:预置历史归档文件 → 趋势含归档段并有说明,主进�
   // 这是本文件开头那条纪律的漏网之鱼——它没走 launch(),直接调了 electron.launch。
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: mkEmptyProjectHome() }
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      AGENTSHED_HOME_OVERRIDE: mkEmptyProjectHome(),
+      AGENTSHED_NO_FOREGROUND: '1'
+    }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
@@ -594,7 +612,13 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
   const errors: string[] = []
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home }
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      AGENTSHED_HOME_OVERRIDE: home,
+      // 测试静音:不抢前台(macOS accessory 策略,见 src/main/index.ts)
+      AGENTSHED_NO_FOREGROUND: '1'
+    }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
