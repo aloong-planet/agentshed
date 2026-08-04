@@ -102,3 +102,28 @@ describe('readRanges(按字节区间读,绝不整读)', () => {
     await expect(readRanges(join(tmpdir(), 'no-such-rr', 'x.jsonl'), [{ start: 0, end: 1 }])).rejects.toThrow()
   })
 })
+
+describe('mapLimit 的错误收敛(review 发现的 unhandledRejection 口)', () => {
+  test('某项抛错后,拒绝要等全部在飞任务落定——不留无人监听的悬空 promise', async () => {
+    let active = 0
+    let stillRunningAtReject = -1
+    await mapLimit([0, 1], 2, async (n) => {
+      active++
+      try {
+        if (n === 0) {
+          await new Promise((r) => setTimeout(r, 1))
+          throw new Error('boom')
+        }
+        await new Promise((r) => setTimeout(r, 40))
+        return n
+      } finally {
+        active--
+      }
+    }).catch(() => {
+      stillRunningAtReject = active
+    })
+    // 拒绝传出时另一个任务必须已经结束:否则它随后的失败(如 fd 已被 finally 关闭
+    // 导致的 EBADF)就是 unhandledRejection——smoke 的错误 grep 恰好抓这个词
+    expect(stillRunningAtReject).toBe(0)
+  })
+})

@@ -856,6 +856,14 @@ describe('sessionQuestions(会话页服务)', () => {
     expect(r.questions).toHaveLength(1)
   })
 
+  it('缓存里有、文件却被删了:明确报错,不静默空列表(维度1 补:spec 失败路径)', async () => {
+    const cl = mkClaudeFile('gone.jsonl', [userLine('问'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
+    const e = engine()
+    await e.build(roots(), [proj])
+    rmSync(cl)
+    await expect(e.sessionQuestions(roots(), cl)).rejects.toThrow('不可读')
+  })
+
   it('不在缓存里的文件:拒绝(调用方引导刷新),不静默空列表', async () => {
     const e = engine()
     await e.build(roots(), [proj])
@@ -870,5 +878,31 @@ describe('sessionQuestions(会话页服务)', () => {
     const t = await e.build(roots(), [proj])
     expect(t.sessionFiles.has(cl)).toBe(true)
     expect(t.sessionFiles.has(nested)).toBe(true)
+  })
+
+  it('未注册项目的会话不进白名单——读端不宽于 UI 可达面(spec A2,review 收窄)', async () => {
+    // 未注册:编码目录不在 claudePaths 映射里 → projectKey=''
+    const orphan = mkClaudeFile('orphan.jsonl', [
+      userLine('未注册项目里的提问'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)
+    ], 1000, '-Users-nobody-unregistered')
+    const orphanNested = mkClaudeFile('sub/agent-o.jsonl', [
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)
+    ], 1000, '-Users-nobody-unregistered')
+    const e = engine()
+    const t = await e.build(roots(), [proj])
+    expect(t.sessionFiles.has(orphan), '未注册项目的入列会话不该可读').toBe(false)
+    expect(t.sessionFiles.has(orphanNested), '未注册项目的嵌套转写同样不该可读').toBe(false)
+    // codex 侧的"未注册"不体现在 projectKey(它是 cwd 直接算的,恒非空)——
+    // 必须按显式注册集过滤,claude 那套 ''-判据在这侧是假守卫
+    const cxOrphan = mkCodexRollout(
+      'rollout-orphan-019f9999-aaaa-7000-8000-000000000009.jsonl',
+      join(dir, 'not-registered-proj'),
+      '2026-07-30T01:00:00Z',
+      'gpt-5.6-sol',
+      [{ input: 10, cached: 0, output: 5 }]
+    )
+    const t2 = await engine().build(roots(), [proj], new Set([proj.toLowerCase()]))
+    expect(t2.sessionFiles.has(cxOrphan), '未注册 cwd 的 codex 会话不该可读').toBe(false)
   })
 })

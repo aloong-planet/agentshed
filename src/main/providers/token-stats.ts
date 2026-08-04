@@ -164,7 +164,20 @@ export class TokenEngine {
    * claudeProjectPaths 仅用于「编码目录名 → 项目」归属映射;
    * 全局统计对 projects 全树生效,与该清单无关。
    */
-  async build(roots: ScanRoots, claudeProjectPaths: string[]): Promise<TokenBuildResult> {
+  async build(
+    roots: ScanRoots,
+    claudeProjectPaths: string[],
+    /**
+     * 已注册项目的合并键集合(注册表并集,含失效项目——它们的详情仍可打开)。
+     * 白名单只收注册集内的会话:claude 的 projectKey 本就来自注册表映射,
+     * ''-判据与之等价;**codex 的 projectKey 是 cwd 直接算的、恒非空**,
+     * 不传显式集合就分不出注册与否。缺省(测试便利)按"非空即注册"近似,
+     * 主进程必须传真实集合。
+     */
+    registeredKeys?: ReadonlySet<string>
+  ): Promise<TokenBuildResult> {
+    const isRegistered = (key: string): boolean =>
+      registeredKeys ? registeredKeys.has(key) : key !== ''
     const aggs: FileAgg[] = []
     const seen: Record<string, { sig: string; agg: FileAgg }> = {}
     const sessionFiles = new Set<string>()
@@ -191,7 +204,9 @@ export class TokenEngine {
           if (agg) {
             aggs.push(agg)
             seen[file] = { sig: sigOf(file) ?? '', agg }
-            if (nested || agg.listed) sessionFiles.add(file)
+            // 白名单不宽于 UI 可达面:未注册项目的会话 UI 永远不展示(spec A2),
+            // 读端也不放行——嵌套转写同理,它们的父会话都不可见
+            if (isRegistered(projectKey) && (nested || agg.listed)) sessionFiles.add(file)
           }
         }
       }
@@ -211,7 +226,7 @@ export class TokenEngine {
       if (agg) {
         aggs.push(agg)
         seen[s.file] = { sig: sigOf(s.file) ?? '', agg }
-        if (s.subagent || agg.listed) sessionFiles.add(s.file)
+        if (isRegistered(agg.projectKey) && (s.subagent || agg.listed)) sessionFiles.add(s.file)
       }
     }
 

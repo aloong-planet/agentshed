@@ -79,7 +79,8 @@ async function doScan(): Promise<Snapshot> {
         const claudePaths = snap.projects
           .filter((p) => p.sides.includes('claude'))
           .map((p) => p.path)
-        const t = await tokenEngine.build(realRoots(), claudePaths)
+        const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
+        const t = await tokenEngine.build(realRoots(), claudePaths, registered)
         snap.tokens = t.global
         perProjectStats = t.perProject
         // 会话数与会话分栏同源。scan() 给的是**文件数**(含预热与 subagent),

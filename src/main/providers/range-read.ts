@@ -14,14 +14,28 @@ export async function mapLimit<T, R>(
 ): Promise<R[]> {
   const out = new Array<R>(items.length)
   let next = 0
+  let firstErr: unknown
+  let failed = false
   const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
     for (;;) {
       const i = next++
-      if (i >= items.length) return
-      out[i] = await fn(items[i], i)
+      if (i >= items.length || failed) return
+      try {
+        out[i] = await fn(items[i], i)
+      } catch (e) {
+        if (!failed) {
+          failed = true
+          firstErr = e
+        }
+        return
+      }
     }
   })
+  // 等**全部**在飞任务落定再抛(allSettled 语义):Promise.all 会在首错时立刻拒绝,
+  // 留下无人监听的在飞 promise——它们随后的失败(如 fd 已被调用方 finally 关闭导致
+  // 的 EBADF)就是 unhandledRejection,会被 smoke 的错误 grep 放大成门禁红。
   await Promise.all(workers)
+  if (failed) throw firstErr
   return out
 }
 
