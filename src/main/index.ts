@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, protocol, session, shell } from 'electron'
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { CMD, EVT, type SetHiddenArgs, type SkillOpArgs } from '@shared/ipc'
 import type { ProjectStats, SessionPage, Snapshot } from '@shared/domain'
@@ -23,7 +23,6 @@ import {
   sessionReadTarget
 } from './security'
 import { HiddenStore } from './hidden-store'
-import { statSync } from 'node:fs'
 
 // app:// scheme 必须在 app ready **之前**注册特权(#18);dev 走 vite http,不加载
 // app://,注册也无副作用。standard=非 opaque origin(安全上下文 + storage 快路径),
