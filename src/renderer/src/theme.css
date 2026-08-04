@@ -1236,3 +1236,74 @@ body {
   color: var(--text-2);
   margin: 8px 2px 0;
 }
+
+/* ── 会话页(票 04;原型 session-view/prototype-session.html)── */
+.sback {
+  background: none;
+  border: 0;
+  padding: 0 0 6px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-2);
+  cursor: pointer;
+  display: block;
+}
+.sback:hover {
+  color: var(--accent);
+}
+.stitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.smeta {
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 4px;
+}
+.qbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+/* 提问行 = 主索引:单行密排,序号/文本/本轮体量/时间(原型 .q;点开取整轮是 05) */
+.qlist .q {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 13px;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.qlist .q:last-child {
+  border-bottom: 0;
+}
+.qlist .q .idx {
+  width: 20px;
+  flex: none;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-2);
+}
+/* 省略号是显示层截断:数据侧是全文,展开时铺得出来(spec D2a 推论) */
+.qlist .q .txt {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qlist .q .c {
+  font-size: 10.5px;
+  color: var(--text-2);
+  flex: none;
+}
+.qlist .q .tm {
+  font-size: 11px;
+  color: var(--text-2);
+  flex: none;
+  width: 44px;
+  text-align: right;
+}

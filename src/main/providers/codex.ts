@@ -85,6 +85,9 @@ function readFirstLine(file: string): string | null {
   }
 }
 
+/** 单文件版:读首行 session_meta。票 04 的单文件索引重建走这里,与全量扫描同源 */
+export const readCodexSessionMeta = (file: string): CodexSessionMeta | null => readHead(file)
+
 function readHead(file: string): CodexSessionMeta | null {
   try {
     {

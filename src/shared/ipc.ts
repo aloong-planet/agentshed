@@ -9,6 +9,8 @@ export const CMD = {
   setHidden: 'agentshed:set-hidden',
   /** 按需拉取项目详情 */
   getProjectDetail: 'agentshed:get-project-detail',
+  /** 会话页:提问索引 + 按区间现读的文本(票 04;区间读通路,不复用产物整读) */
+  getSessionPage: 'agentshed:get-session-page',
   /** 读产物 Markdown(仅限详情列出过的文件,主进程白名单校验) */
   readArtifact: 'agentshed:read-artifact',
   /** 外开产物(prototypes HTML → 系统默认打开;同白名单) */

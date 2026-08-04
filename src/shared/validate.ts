@@ -89,6 +89,40 @@ export function assertSnapshot(v: unknown): asserts v is Snapshot {
  */
 const FORK_STATES = new Set(['none', 'stripped', 'uncertain'])
 
+// ── 会话页(getSessionPage 通道,票 04)──
+// 与快照/详情同规矩:主进程出口 assert 一次,preload 入口再校验一次。
+export function validateSessionPage(v: unknown): ValidateResult {
+  if (!isRecord(v)) return fail('page', '不是对象')
+  if (typeof v['file'] !== 'string' || v['file'] === '') return fail('page.file', '需为非空 string')
+  if (typeof v['side'] !== 'string' || !AGENT_SIDES.has(v['side']))
+    return fail('page.side', `非法 side: ${String(v['side'])}`)
+  if (typeof v['title'] !== 'string') return fail('page.title', '需为 string')
+  if (v['at'] !== null && typeof v['at'] !== 'number') return fail('page.at', '需为 number|null')
+  if (typeof v['tokens'] !== 'number') return fail('page.tokens', '需为 number')
+  if (typeof v['bytes'] !== 'number') return fail('page.bytes', '需为 number')
+  if (typeof v['forkState'] !== 'string' || !FORK_STATES.has(v['forkState']))
+    return fail('page.forkState', `非法 forkState: ${String(v['forkState'])}`)
+  const qs = v['questions']
+  if (!Array.isArray(qs)) return fail('page.questions', '需为数组')
+  for (let i = 0; i < qs.length; i++) {
+    const q: unknown = qs[i]
+    const at = `page.questions[${i}]`
+    if (!isRecord(q)) return fail(at, '不是对象')
+    if (typeof q['i'] !== 'number') return fail(`${at}.i`, '需为 number')
+    if (typeof q['text'] !== 'string') return fail(`${at}.text`, '需为 string')
+    if (q['at'] !== null && typeof q['at'] !== 'number') return fail(`${at}.at`, '需为 number|null')
+    if (typeof q['tools'] !== 'number') return fail(`${at}.tools`, '需为 number')
+    if (typeof q['subagents'] !== 'number') return fail(`${at}.subagents`, '需为 number')
+  }
+  return { ok: true }
+}
+
+/** 主进程出口:契约破坏直接抛(与 assertSnapshot 同风格) */
+export function assertSessionPage(v: unknown): void {
+  const r = validateSessionPage(v)
+  if (!r.ok) throw new Error(`会话页契约校验失败 — ${r.error}`)
+}
+
 export function validateProjectStats(v: unknown): ValidateResult {
   if (!isRecord(v)) return fail('stats', '不是对象')
   const sessions = v['sessions']

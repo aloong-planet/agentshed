@@ -114,3 +114,51 @@ describe('assertTrustedSender(IPC 调用方校验 · #17)', () => {
     expect(() => assertTrustedSender(undefined, DEV)).toThrow(/不可信/)
   })
 })
+
+// ── 票 04:会话文件读取白名单(区间读通路的入口守卫)──
+import { sessionReadTarget } from './security'
+
+describe('sessionReadTarget(会话读白名单判定)', () => {
+  const wl = new Set([
+    '/Users/x/.claude/projects/-e/a.jsonl',
+    '/Users/x/.codex/sessions/2026/01/01/rollout-1.jsonl'
+  ])
+
+  it('白名单内的精确路径放行,原样返回', () => {
+    expect(sessionReadTarget(wl, '/Users/x/.claude/projects/-e/a.jsonl')).toBe(
+      '/Users/x/.claude/projects/-e/a.jsonl'
+    )
+  })
+
+  it('非 string / 空串拒收', () => {
+    expect(sessionReadTarget(wl, 42)).toBeNull()
+    expect(sessionReadTarget(wl, null)).toBeNull()
+    expect(sessionReadTarget(wl, '')).toBeNull()
+  })
+
+  it('路径穿越向量拒收:.. 段无法与任何精确成员相等', () => {
+    expect(sessionReadTarget(wl, '/Users/x/.claude/projects/-e/../-e/a.jsonl')).toBeNull()
+    expect(sessionReadTarget(wl, '/Users/x/.claude/projects/-e/a.jsonl/../a.jsonl')).toBeNull()
+  })
+
+  it('前缀相似向量拒收:成员是另一路径的前缀不构成放行', () => {
+    expect(sessionReadTarget(wl, '/Users/x/.claude/projects/-e/a.jsonl2')).toBeNull()
+    expect(sessionReadTarget(wl, '/Users/x/.claude/projects/-e/a.jsonl/x')).toBeNull()
+  })
+
+  it('编码穿越向量拒收:%2e%2e 等编码形式不被解码后比较', () => {
+    expect(sessionReadTarget(wl, '/Users/x/.claude/projects/%2e%2e/-e/a.jsonl')).toBeNull()
+  })
+
+  it('Unicode 归一化变体拒收(fail-closed 方向):NFD 串与 NFC 成员不相等', () => {
+    // macOS 文件系统对归一化不敏感,NFD 变体可能打开同一文件——但精确匹配下
+    // 我们直接拒绝变体,方向是把"同一文件的另一种写法"拒之门外,不是放进来。
+    const nfd = '/Users/x/.claude/projects/-é/a.jsonl'.normalize('NFD')
+    const wl2 = new Set(['/Users/x/.claude/projects/-é/a.jsonl'.normalize('NFC')])
+    expect(sessionReadTarget(wl2, nfd)).toBeNull()
+  })
+
+  it('空白名单一切拒收', () => {
+    expect(sessionReadTarget(new Set<string>(), '/Users/x/.claude/projects/-e/a.jsonl')).toBeNull()
+  })
+})

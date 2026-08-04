@@ -199,6 +199,16 @@ function codexCounts(obj: Record<string, unknown>): { tools: number; subagents: 
   return p?.['name'] === CODEX_DISPATCH ? { tools: 0, subagents: 1 } : { tools: 1, subagents: 0 }
 }
 
+/**
+ * 一行 → 展示用的提问全文(已剥噪声);不是提问则 null。
+ * 与索引器同一套判定(claudeQuestion/codexQuestion + realUserText)——会话页按
+ * 区间读回原始行后经这里出文本,保证"列表数的"与"页面显示的"永远是同一批。
+ */
+export function questionTextAt(side: 'claude' | 'codex', obj: Record<string, unknown>): string | null {
+  const raw = (side === 'claude' ? claudeQuestion : codexQuestion)(obj)
+  return raw === null ? null : realUserText(raw)
+}
+
 export function makeQuestionIndexer(side: 'claude' | 'codex'): QuestionIndexer {
   const questionOf = side === 'claude' ? claudeQuestion : codexQuestion
   const countsOf = side === 'claude' ? claudeCounts : codexCounts

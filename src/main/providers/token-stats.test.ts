@@ -793,3 +793,82 @@ describe('会话标题与入列口径', () => {
     expect(r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.side === 'codex')?.title).toBe('每天跑一遍回归')
   })
 })
+
+// ── 票 04:sessionQuestions(会话页服务:签名校验 / 单文件重建 / 剥离同源)──
+import { appendFileSync } from 'node:fs'
+
+describe('sessionQuestions(会话页服务)', () => {
+  it('签名一致:直接用缓存索引,给出侧别/条数/forkState', async () => {
+    const cl = mkClaudeFile('sq.jsonl', [
+      userLine('问一', '2026-07-30T02:00:00Z'),
+      usageLine('claude-fable-5', '2026-07-30T02:00:10Z', 10, 5),
+      userLine('问二', '2026-07-30T03:00:00Z')
+    ])
+    const e = engine()
+    await e.build(roots(), [proj])
+    const r = await e.sessionQuestions(roots(), cl)
+    expect(r.side).toBe('claude')
+    expect(r.questions).toHaveLength(2)
+    expect(r.forkState).toBe('none')
+  })
+
+  it('签名变了:只重建该文件的索引,并把新索引回写缓存(落盘可见)', async () => {
+    const cl = mkClaudeFile('sq2.jsonl', [userLine('问一', '2026-07-30T02:00:00Z')])
+    const e = engine()
+    await e.build(roots(), [proj])
+    appendFileSync(cl, userLine('问二', '2026-07-30T04:00:00Z') + '\n') // size 变 → 签名不符
+    const r = await e.sessionQuestions(roots(), cl)
+    expect(r.questions, '重建后应看到追加的提问').toHaveLength(2)
+    // 回写断言:落盘缓存里该文件的索引与签名都已更新——这是"下次不用再重建"的证据
+    const cache = JSON.parse(readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')) as {
+      files: Record<string, { sig: string; agg: { questions: unknown[] } }>
+    }
+    expect(cache.files[cl].agg.questions).toHaveLength(2)
+    const st = statSync(cl)
+    expect(cache.files[cl].sig).toBe(`${st.mtimeMs}:${st.size}`)
+  })
+
+  it('codex fork:剥离与列表同源(stripped + 只剩新提问)', async () => {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const q = (ts: string, m: string): string =>
+      JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })
+    const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
+      JSON.stringify({ timestamp: ts, type: 'session_meta', payload: { cwd: proj, id, ...extra } })
+    const PARENT = '019f0000-aaaa-7000-8000-000000000001'
+    const CHILD = '019f0000-bbbb-7000-8000-000000000002'
+    const parentFile = join(d, `rollout-${PARENT}.jsonl`)
+    const childFile = join(d, `rollout-${CHILD}.jsonl`)
+    writeFileSync(parentFile, [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', '父问一')].join('\n') + '\n')
+    writeFileSync(
+      childFile,
+      [
+        meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
+        q('2026-07-30T02:00:00Z', '父问一'), // 重放(时间戳被改写,内容相同)
+        q('2026-07-30T02:00:05Z', '子的新问')
+      ].join('\n') + '\n'
+    )
+    const e = engine()
+    await e.build(roots(), [proj])
+    const r = await e.sessionQuestions(roots(), childFile)
+    expect(r.side).toBe('codex')
+    expect(r.forkState).toBe('stripped')
+    expect(r.questions).toHaveLength(1)
+  })
+
+  it('不在缓存里的文件:拒绝(调用方引导刷新),不静默空列表', async () => {
+    const e = engine()
+    await e.build(roots(), [proj])
+    await expect(e.sessionQuestions(roots(), join(dir, 'nope.jsonl'))).rejects.toThrow()
+  })
+
+  it('build 顺带产出会话读白名单:listed 与 subagent/嵌套文件都在,其余不在', async () => {
+    const cl = mkClaudeFile('wl.jsonl', [userLine('问'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
+    // 嵌套(subagent 转写):listed=false,但 07 要展开它 → 必须进白名单
+    const nested = mkClaudeFile('sub/agent-x.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
+    const e = engine()
+    const t = await e.build(roots(), [proj])
+    expect(t.sessionFiles.has(cl)).toBe(true)
+    expect(t.sessionFiles.has(nested)).toBe(true)
+  })
+})
