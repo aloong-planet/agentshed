@@ -100,6 +100,9 @@ READY_MS=$(( $(now_ms) - T1 ))
 ERRS=$(grep -iE "Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败|uncaught" "$LOG" | head -5)
 
 EPID=$(pgrep -g "$DEVPID" -f "$PAT" | head -1)
+# 竞态守卫:app 可能写完就绪产物后立刻崩——EPID 取不到时,杀父与孤儿检查整段
+# 空转,若日志又没有错误行就是假绿。就绪后进程必须还活着,不在即失败。
+[ -z "$EPID" ] && die "就绪产物已写出,但 electron 进程已消失(写完即崩?)"
 PARENT=$(ps -o ppid= -p "$EPID" | tr -d ' ')
 T2=$(now_ms)
 kill -9 "$PARENT" 2>/dev/null

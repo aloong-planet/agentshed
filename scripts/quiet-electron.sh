@@ -22,7 +22,10 @@ PLIST="$DST/Electron.app/Contents/Info.plist"
 
 [ -f "$SRC/version" ] || { echo "quiet-electron: 找不到 $SRC/version(electron 未安装?)" >&2; exit 1; }
 
-if [ -f "$DST/version" ] && [ "$(cat "$DST/version")" = "$(cat "$SRC/version")" ] \
+# 快路径判据含完成标记:标记在**全部步骤成功后**才落——否则 codesign 若在
+# plist 写入之后失败,下次快路径拿版本+plist 判"已就绪",会永远放行一份
+# 签名无效的副本(arm64 直接起不来),且没人知道要去删缓存。
+if [ -f "$DST/.quiet-ok" ] && [ "$(cat "$DST/version")" = "$(cat "$SRC/version")" ] \
    && /usr/libexec/PlistBuddy -c "Print :LSUIElement" "$PLIST" >/dev/null 2>&1; then
   exit 0
 fi
@@ -35,7 +38,9 @@ cp -Rc "$SRC" "$DST" 2>/dev/null || cp -R "$SRC" "$DST"
 /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST" 2>/dev/null \
   || /usr/libexec/PlistBuddy -c "Set :LSUIElement true" "$PLIST"
 
-# 改了 plist 即破签名封条;arm64 要求有效(至少 adhoc)签名,原件本就是 adhoc
-codesign --force -s - "$DST/Electron.app" 2>/dev/null
+# 改了 plist 即破签名封条;arm64 要求有效(至少 adhoc)签名,原件本就是 adhoc。
+# 不吞 stderr:set -e 下失败要带着原因死,而不是静默留半成品
+codesign --force -s - "$DST/Electron.app"
 
+touch "$DST/.quiet-ok"   # 完成标记最后落,快路径以它为准
 echo "quiet-electron: 副本就绪($(cat "$DST/version"))"
