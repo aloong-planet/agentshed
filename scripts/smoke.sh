@@ -59,7 +59,15 @@ done | tr '\n' ' ')
 
 REAL_BEFORE=$(stat -f %m "$REAL_CACHE" 2>/dev/null || echo 0)
 
-# AGENTSHED_NO_FOREGROUND:测试静音,不抢前台(见 src/main/index.ts)
+# 测试静音两件套(见 src/main/index.ts 与 scripts/quiet-electron.sh):
+#   AGENTSHED_NO_FOREGROUND —— 窗口不显示,不抢前台焦点;
+#   ELECTRON_OVERRIDE_DIST_PATH —— 用 LSUIElement=true 的副本,Dock 图标连闪现都没有
+#   (图标在原生引导期就按 plist 注册,JS 的 dock.hide() 追不上)。
+bash scripts/quiet-electron.sh
+export ELECTRON_OVERRIDE_DIST_PATH="$PWD/node_modules/.cache/electron-quiet/dist"
+# electron-vite **不经过** electron/index.js(自读 path.txt 拼路径,实测 lib 源码),
+# 上面那个变量对它无效;它认的是自家的 ELECTRON_EXEC_PATH,两个都给
+export ELECTRON_EXEC_PATH="$PWD/node_modules/.cache/electron-quiet/dist/Electron.app/Contents/MacOS/Electron"
 AGENTSHED_NO_FOREGROUND=1 pnpm dev -- --user-data-dir="$SMOKE_UD" > "$LOG" 2>&1 &
 DEVPID=$!
 T0=$(now_ms)
