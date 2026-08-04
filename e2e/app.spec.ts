@@ -489,6 +489,42 @@ test('会话页:fork 会话只显示剥离后的提问', async () => {
   await close(l)
 })
 
+// 票 04:白名单拒收的**接线级**证据——经真 IPC 发非法路径,必须被 handler 拒绝。
+// 纯函数单测只证明"函数会拒",这里证明"handler 真的在用它拒"。两个方向都断言:
+// 白名单外的绝对路径拒,穿越形态拒;合法路径能过(同一会话页 e2e 已覆盖)。
+test('IPC 面:白名单外的路径经真通道调用被拒,错误里不含文件内容', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+
+  const attempt = (p: string): Promise<string> =>
+    win.evaluate(async (path) => {
+      try {
+        await (window as unknown as { agentshed: { getSessionPage: (f: string) => Promise<unknown> } })
+          .agentshed.getSessionPage(path)
+        return 'ALLOWED'
+      } catch (e) {
+        return e instanceof Error ? e.message : String(e)
+      }
+    }, p)
+
+  const r1 = await attempt('/etc/hosts')
+  expect(r1, '系统文件必须被拒').not.toBe('ALLOWED')
+  expect(r1).toContain('白名单')
+  // 错误信息不回显任何文件内容(hosts 常含 localhost 行)
+  expect(r1).not.toContain('localhost')
+
+  const r2 = await attempt('/tmp/../etc/hosts')
+  expect(r2, '穿越形态必须被拒').not.toBe('ALLOWED')
+
+  // 本测故意制造 handler 错误,不能断言 errors 为空——改为正向断言:
+  // 主进程侧恰好两次拒绝、全是白名单错、没混进别的错误类型
+  expect(l.errors).toHaveLength(2)
+  for (const e of l.errors) expect(e).toContain('白名单')
+  await close(l)
+})
+
 // 票 04:省略号是 CSS 显示层截断,数据侧是全文(spec D2a 推论)。
 // 用超过一行宽度的长提问坐实:DOM 文本 = 全文,渲染框宽 < 文本天然宽。
 test('会话页:长提问单行截断只发生在显示层,DOM 里是全文', async () => {

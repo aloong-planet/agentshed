@@ -1,8 +1,9 @@
 // Electron 宿主安全守卫的判定层(清单 #13/#14/#15/#12)。
-// ── 已知缺口(2026-08-04,票 04):sessionReadTarget 在 getSessionPage handler 里的
-// 三行接线(白名单拒收→引擎调用→契约 assert)无单元级行为测试——缺 IPC 测试装置,
-// 与 getProjectDetail 两端接线的既有缺口同类,补测条件相同(preload/main 的 IPC 装置)。
-// 纯函数判定本身全向量覆盖;e2e 走通了合法路径的全链路,非法路径只有纯函数层证据。
+// ── 接线覆盖现状(2026-08-04,票 04):sessionReadTarget 的**拒收接线**已有端到端
+// 证据——e2e「IPC 面」用 page.evaluate 经真 IPC 发非法路径,断言 handler 拒绝
+// (变异检验:把守卫从 handler 拿掉该测即红)。仍缺的只剩出口 assertSessionPage
+// 与 !tokenEngine 两行的单元级行为测试(缺 IPC 装置,与 getProjectDetail 既有
+// 缺口同类);前者有 preload 侧第二道校验兜着,后者是启动竞态窗口的自伤路径。
 // 为什么要有这套测试:调研(2026-08-02)确认——官方运行时 Security Warnings **不覆盖**
 // 第 12~14 条(源码注释明标"未实现"),Electronegativity 已停更且在"只写了
 // setWindowOpenHandler、没写 will-navigate"时**静默放行**(恰是本项目曾经的形态)。
