@@ -1,12 +1,14 @@
 import { app, BrowserWindow, ipcMain, protocol, session, shell } from 'electron'
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { CMD, EVT, type SetHiddenArgs, type SkillOpArgs } from '@shared/ipc'
-import type { ProjectStats, Snapshot } from '@shared/domain'
-import { assertSnapshot, assertProjectDetail } from '@shared/validate'
+import type { ProjectStats, SessionPage, Snapshot } from '@shared/domain'
+import { assertSnapshot, assertProjectDetail, assertSessionPage } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { providerOf } from '@shared/provider'
 import { scan } from './providers/scan'
+import { readRanges } from './providers/range-read'
+import { questionTextAt } from './providers/question-index'
 import { readProjectDetail } from './providers/project-detail'
 import { TokenEngine } from './providers/token-stats'
 import { UsageArchive } from './providers/archive'
@@ -17,7 +19,8 @@ import {
   assertTrustedSender,
   installCsp,
   installNavigationGuards,
-  installPermissionGuards
+  installPermissionGuards,
+  sessionReadTarget
 } from './security'
 import { HiddenStore } from './hidden-store'
 
@@ -54,6 +57,11 @@ let hiddenStore: HiddenStore | null = null
 let tokenEngine: TokenEngine | null = null
 let archive: UsageArchive | null = null
 let perProjectStats = new Map<string, ProjectStats>()
+// 会话读白名单(票 04):主进程扫描时自己产出的精确路径 Set,区间读只认它。
+// 含入列会话与 subagent/嵌套转写(07 要展开后者)。
+let sessionWhitelist = new Set<string>()
+// file → tokens:会话页头的消耗数,与列表同源(同一趟 build 算出的 SessionMeta)
+let sessionTokens = new Map<string, number>()
 
 // ── 快照与刷新(去重:进行中忽略再次触发)──
 let current: Snapshot | null = null
@@ -71,7 +79,8 @@ async function doScan(): Promise<Snapshot> {
         const claudePaths = snap.projects
           .filter((p) => p.sides.includes('claude'))
           .map((p) => p.path)
-        const t = await tokenEngine.build(realRoots(), claudePaths)
+        const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
+        const t = await tokenEngine.build(realRoots(), claudePaths, registered)
         snap.tokens = t.global
         perProjectStats = t.perProject
         // 会话数与会话分栏同源。scan() 给的是**文件数**(含预热与 subagent),
@@ -81,6 +90,10 @@ async function doScan(): Promise<Snapshot> {
         for (const p of snap.projects) {
           p.sessionCount = t.perProject.get(mergeKey(p.path))?.sessions.length ?? 0
         }
+        sessionWhitelist = t.sessionFiles
+        const tok = new Map<string, number>()
+        for (const ps of t.perProject.values()) for (const s of ps.sessions) tok.set(s.file, s.tokens)
+        sessionTokens = tok
         // 归档:实时值覆盖仍可见的天,已被 agent 清理的天从归档补回趋势
         if (archive) {
           archive.merge(t.rows, t.liveDays)
@@ -147,6 +160,38 @@ handle(CMD.getProjectDetail, (_e, path: unknown) => {
   for (const a of detail.artifacts) artifactWhitelist.add(a.file)
   for (const t of detail.memory.topics) artifactWhitelist.add(t.file)
   return detail
+})
+handle(CMD.getSessionPage, async (_e, raw: unknown) => {
+  // 白名单在最前:不合法的路径连 stat 都不做(fail-closed,判定纯函数见 security.ts)
+  const file = sessionReadTarget(sessionWhitelist, raw)
+  if (!file) throw new Error('会话路径不在白名单(先打开项目详情或全局刷新)')
+  if (!tokenEngine) throw new Error('扫描引擎未就绪')
+  const q = await tokenEngine.sessionQuestions(realRoots(), file)
+  // 文本按区间现读(spec D2a:索引里没有文本);readRanges 绝不整读
+  const { texts } = await readRanges(file, q.questions.map((r) => ({ start: r[0], end: r[1] })))
+  const questions = q.questions.map((rec, idx) => {
+    // 单行坏了只自伤:该条显示占位,不连累其余提问、不拖垮整页
+    let text: string | null = null
+    try {
+      const obj: unknown = JSON.parse(texts[idx].trim())
+      if (typeof obj === 'object' && obj !== null) text = questionTextAt(q.side, obj as Record<string, unknown>)
+    } catch {
+      text = null
+    }
+    return { i: idx + 1, text: text ?? '(该行已无法读取)', at: rec[3], tools: rec[4], subagents: rec[5] }
+  })
+  const page: SessionPage = {
+    file,
+    side: q.side,
+    title: q.title,
+    at: q.at,
+    tokens: sessionTokens.get(file) ?? 0,
+    bytes: statSync(file).size,
+    forkState: q.forkState,
+    questions
+  }
+  assertSessionPage(page)
+  return page
 })
 handle(CMD.readArtifact, (_e, file: unknown) => {
   if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw new Error('产物路径不在白名单')

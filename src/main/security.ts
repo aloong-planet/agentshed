@@ -150,3 +150,20 @@ export function installPermissionGuards(session: {
   session.setPermissionRequestHandler((_wc, _perm, callback) => callback(false))
   session.setPermissionCheckHandler(() => false)
 }
+
+/**
+ * 会话文件读取白名单判定(票 04,区间读通路的入口守卫)。
+ *
+ * 白名单是主进程扫描时自己产出的**精确路径 Set**(与 artifactWhitelist 同模式),
+ * 不是前缀规则:精确匹配下路径穿越在结构上不可能——同一字符串只能打开同一文件,
+ * `..`/编码/归一化变体全都因"字符串不相等"被拒,失败方向 fail-closed
+ * (最坏是把同一文件的另一种写法拒之门外,绝不会把别的文件放进来)。
+ * 放行时原样返回成员字符串,调用方持它读文件,不再有第二次解释。
+ */
+export function sessionReadTarget(
+  whitelist: ReadonlySet<string>,
+  raw: unknown
+): string | null {
+  if (typeof raw !== 'string' || raw === '') return null
+  return whitelist.has(raw) ? raw : null
+}

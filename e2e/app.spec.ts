@@ -423,15 +423,142 @@ test('会话分栏:无会话项目出空态;概览会话卡可点入本分栏', 
   await close(l)
 })
 
-test('概览的会话卡点一下进「会话」分栏', async () => {
+// 票 04:概览会话卡从「进分栏」改为**直达会话页**(02 留下的中间态在此收口,原型 v3 明写)
+test('概览的会话卡点一下直达会话页', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  // 概览是默认分栏,直接点第一张会话卡
+  // 概览是默认分栏,直接点第一张会话卡(最近的 = Claude 侧「示例提问」)
   await win.locator('.pane-body .se.row-btn').first().click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('示例提问')
+  await expect(win.locator('.sback')).toContainText('返回')
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 04:会话页——从分栏进入,行字段齐全,一次列全无分页语义,返回落在会话分栏
+test('会话页:列出全部提问,字段齐全,返回回到会话分栏', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+
+  // 页头:徽标 + 标题 + meta(与列表同源的数字)
+  await expect(win.locator('.pane-head .badge.cl')).toHaveText('CC')
+  await expect(win.locator('.pane-head .stitle')).toHaveText('示例提问')
+  await expect(win.locator('.smeta')).toContainText('2 提问')
+  await expect(win.locator('.smeta')).toContainText('tok')
+
+  // 行:序号 / 全文 / 工具计数 / 时间;两条真实提问,工具回灌不算
+  const qs = win.locator('.qlist .q')
+  await expect(qs).toHaveCount(2)
+  await expect(qs.nth(0).locator('.idx')).toHaveText('01')
+  await expect(qs.nth(0).locator('.txt')).toHaveText('示例提问')
+  await expect(qs.nth(1).locator('.txt')).toHaveText('第二个提问')
+  await expect(qs.nth(0).locator('.tm')).not.toHaveText('—')
+  await expect(win.locator('.qbar .grp-t')).toContainText('提问(主干)· 2 条')
+
+  // 一次列全:不出现任何分页/续取语义(spec 界面决策:任何分页语义都是实现缺口伪装设计)
+  await expect(win.locator('.pane-body')).not.toContainText('加载')
+  await expect(win.locator('.pane-body')).not.toContainText('更多')
+
+  // 返回:落在「会话」分栏,不是概览(原型:‹ 返回 <项目> · 会话)
+  await win.locator('.sback').click()
   await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('会话')
   await expect(win.locator('.pane-body .grp-t')).toContainText('个会话')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 04:fork 会话的会话页与列表同源——重放前缀剥掉后只剩新提问
+test('会话页:fork 会话只显示剥离后的提问', async () => {
+  const l = await launch(undefined, mkForkHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se', { hasText: '子会话的新问' }).click()
+  const qs = win.locator('.qlist .q')
+  await expect(qs).toHaveCount(1)
+  await expect(qs.first().locator('.txt')).toHaveText('子会话的新问')
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 04:白名单拒收的**接线级**证据——经真 IPC 发非法路径,必须被 handler 拒绝。
+// 纯函数单测只证明"函数会拒",这里证明"handler 真的在用它拒"。两个方向都断言:
+// 白名单外的绝对路径拒,穿越形态拒;合法路径能过(同一会话页 e2e 已覆盖)。
+test('IPC 面:白名单外的路径经真通道调用被拒,错误里不含文件内容', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+
+  const attempt = (p: string): Promise<string> =>
+    win.evaluate(async (path) => {
+      try {
+        await (window as unknown as { agentshed: { getSessionPage: (f: string) => Promise<unknown> } })
+          .agentshed.getSessionPage(path)
+        return 'ALLOWED'
+      } catch (e) {
+        return e instanceof Error ? e.message : String(e)
+      }
+    }, p)
+
+  const r1 = await attempt('/etc/hosts')
+  expect(r1, '系统文件必须被拒').not.toBe('ALLOWED')
+  expect(r1).toContain('白名单')
+  // 错误信息不回显任何文件内容(hosts 常含 localhost 行)
+  expect(r1).not.toContain('localhost')
+
+  const r2 = await attempt('/tmp/../etc/hosts')
+  expect(r2, '穿越形态必须被拒').not.toBe('ALLOWED')
+
+  // 本测故意制造 handler 错误,不能断言 errors 为空——改为正向断言:
+  // 主进程侧恰好两次拒绝、全是白名单错、没混进别的错误类型
+  expect(l.errors).toHaveLength(2)
+  for (const e of l.errors) expect(e).toContain('白名单')
+  await close(l)
+})
+
+// 票 04:省略号是 CSS 显示层截断,数据侧是全文(spec D2a 推论)。
+// 用超过一行宽度的长提问坐实:DOM 文本 = 全文,渲染框宽 < 文本天然宽。
+test('会话页:长提问单行截断只发生在显示层,DOM 里是全文', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-long-'))
+  const proj = join(home, 'long-proj')
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const enc = proj.replace(/[^a-zA-Z0-9]/g, '-')
+  const cdir = join(home, '.claude', 'projects', enc)
+  mkdirSync(cdir, { recursive: true })
+  const LONG = '这是一条特意写得很长的提问,'.repeat(30) + '结尾标记XYZ'
+  writeFileSync(
+    join(cdir, 'long.jsonl'),
+    [
+      JSON.stringify({ type: 'user', timestamp: localDayOffset(1).toISOString(), message: { role: 'user', content: LONG } }),
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: localDayOffset(1).toISOString(),
+        message: { model: 'claude-fable-5', usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }
+      })
+    ].join('\n') + '\n'
+  )
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se').first().click()
+  const txt = win.locator('.qlist .q .txt').first()
+  // 数据层:全文都在 DOM 里
+  await expect(txt).toHaveText(LONG)
+  // 显示层:单行截断确实发生(内容宽度溢出渲染框)
+  const clipped = await txt.evaluate((el) => el.scrollWidth > el.clientWidth)
+  expect(clipped, '长文本应在显示层被截断(scrollWidth > clientWidth)').toBe(true)
   expect(l.errors).toEqual([])
   await close(l)
 })

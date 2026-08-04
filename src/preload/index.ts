@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { CMD, EVT, type SetHiddenArgs, type SkillOpArgs, type SkillOpResult } from '@shared/ipc'
-import type { ProjectDetail, Snapshot } from '@shared/domain'
-import { validateSnapshot, validateProjectDetail } from '@shared/validate'
+import type { ProjectDetail, SessionPage, Snapshot } from '@shared/domain'
+import { validateSnapshot, validateProjectDetail, validateSessionPage } from '@shared/validate'
 
 // renderer 入口处的契约校验:主进程发来的快照不合契约就抛,不静默渲染 undefined
 function checked(snap: unknown): Snapshot {
@@ -22,6 +22,13 @@ const api = {
     const r = validateProjectDetail(d)
     if (!r.ok) throw new Error(`收到不合契约的项目详情 — ${r.error}`)
     return d as ProjectDetail
+  },
+  // 会话页:与快照/详情同规矩,两端各校验一次(这一侧抓结构化克隆的损耗)
+  getSessionPage: async (file: string): Promise<SessionPage> => {
+    const p: unknown = await ipcRenderer.invoke(CMD.getSessionPage, file)
+    const r = validateSessionPage(p)
+    if (!r.ok) throw new Error(`收到不合契约的会话页 — ${r.error}`)
+    return p as SessionPage
   },
   readArtifact: (file: string): Promise<string> =>
     ipcRenderer.invoke(CMD.readArtifact, file) as Promise<string>,

@@ -266,3 +266,44 @@ describe('validateProjectDetail —— 拒收并指出字段路径', () => {
     expect(errOf(r)).toContain('sessions[0].file')
   })
 })
+
+// ── 票 04:会话页载荷(getSessionPage 通道,两端各校验一次)──
+import { validateSessionPage } from './validate'
+
+describe('validateSessionPage(会话页载荷)', () => {
+  const okPage = {
+    file: '/Users/x/.claude/projects/-e/a.jsonl',
+    side: 'claude',
+    title: '标题',
+    at: 1,
+    tokens: 10,
+    bytes: 2048,
+    forkState: 'none',
+    questions: [{ i: 1, text: '问一', at: 1, tools: 2, subagents: 0 }]
+  }
+
+  it('放行合法载荷,含 questions 为空的基态与 at 为 null', () => {
+    expect(validateSessionPage(okPage).ok).toBe(true)
+    expect(validateSessionPage({ ...okPage, questions: [], at: null }).ok).toBe(true)
+    expect(validateSessionPage({ ...okPage, questions: [{ i: 1, text: 't', at: null, tools: 0, subagents: 0 }] }).ok).toBe(true)
+  })
+
+  it('拒收非法 side / forkState 并指出路径', () => {
+    const r1 = validateSessionPage({ ...okPage, side: 'gemini' })
+    expect(r1.ok === false && r1.error).toContain('side')
+    const r2 = validateSessionPage({ ...okPage, forkState: '存疑' })
+    expect(r2.ok === false && r2.error).toContain('forkState')
+  })
+
+  it('拒收缺字段的提问项并带下标路径', () => {
+    const r = validateSessionPage({ ...okPage, questions: [{ i: 1, at: 1, tools: 0, subagents: 0 }] })
+    expect(r.ok).toBe(false)
+    expect(r.ok === false && r.error).toContain('questions[0].text')
+  })
+
+  it('拒收 questions 非数组 / 空 file / 计数非 number', () => {
+    expect(validateSessionPage({ ...okPage, questions: '不是数组' }).ok).toBe(false)
+    expect(validateSessionPage({ ...okPage, file: '' }).ok).toBe(false)
+    expect(validateSessionPage({ ...okPage, questions: [{ i: 1, text: 't', at: 1, tools: '2', subagents: 0 }] }).ok).toBe(false)
+  })
+})

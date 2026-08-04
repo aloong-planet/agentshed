@@ -12,8 +12,20 @@ import { toast } from './Toast'
 
 type Tab = 'ov' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'cfg' | 'arts'
 
-export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JSX.Element {
-  const [tab, setTab] = useState<Tab>('ov')
+export function DetailPane({
+  snap,
+  path,
+  initialTab,
+  onOpenSession
+}: {
+  snap: Snapshot
+  path: string
+  /** 从会话页返回时落在「会话」分栏(原型口径);平时不传,落概览 */
+  initialTab?: Tab
+  /** 打开会话页(票 04:概览卡与分栏行都直达) */
+  onOpenSession: (file: string) => void
+}): JSX.Element {
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'ov')
   const [detail, setDetail] = useState<ProjectDetail | null>(null)
   const [reload, setReload] = useState(0)
   const entry = snap.projects.find((p) => p.path === path)
@@ -67,7 +79,7 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
         ) : (
           <>
             {tab === 'ov' && (
-              <OverviewTab detail={detail} snap={snap} onOpenSessions={() => setTab('sessions')} />
+              <OverviewTab detail={detail} snap={snap} onOpenSession={onOpenSession} />
             )}
             {tab === 'skills' && (
               <SkillsTab detail={detail} onChanged={() => setReload((v) => v + 1)} />
@@ -82,7 +94,7 @@ export function DetailPane({ snap, path }: { snap: Snapshot; path: string }): JS
                 anchor={snap.scannedAt}
               />
             )}
-            {tab === 'sessions' && <SessionsTab detail={detail} snap={snap} />}
+            {tab === 'sessions' && <SessionsTab detail={detail} snap={snap} onOpenSession={onOpenSession} />}
             {tab === 'cfg' && <CfgTab detail={detail} />}
             {tab === 'arts' && <ArtifactsTab detail={detail} snap={snap} />}
           </>
@@ -102,11 +114,11 @@ const OVERVIEW_SESSIONS = 5
 function OverviewTab({
   detail,
   snap,
-  onOpenSessions
+  onOpenSession
 }: {
   detail: ProjectDetail
   snap: Snapshot
-  onOpenSessions: () => void
+  onOpenSession: (file: string) => void
 }): JSX.Element {
   const stats = detail.stats ?? { tokens: emptyTokenStats(), sessions: [] }
   return (
@@ -122,7 +134,7 @@ function OverviewTab({
         <>
           <div className="card">
             {stats.sessions.slice(0, OVERVIEW_SESSIONS).map((s) => (
-              <button className="se row-btn" key={s.file} onClick={onOpenSessions}>
+              <button className="se row-btn" key={s.file} onClick={() => onOpenSession(s.file)}>
                 <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
                   {s.side === 'claude' ? 'CC' : 'CX'}
                 </span>
@@ -161,7 +173,15 @@ let sessionsRecentFirst = true
  * 排序只换呈现顺序——provider 层已按 at 倒序排好,正序取其反转而不重排,
  * 免得 UI 与 provider 各持一套比较器(含 at 为 null 时的处置)而悄悄分叉。
  */
-function SessionsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
+function SessionsTab({
+  detail,
+  snap,
+  onOpenSession
+}: {
+  detail: ProjectDetail
+  snap: Snapshot
+  onOpenSession: (file: string) => void
+}): JSX.Element {
   const [recentFirst, setRecentFirst] = useState(sessionsRecentFirst)
   const choose = (v: boolean): void => {
     sessionsRecentFirst = v
@@ -188,7 +208,7 @@ function SessionsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }
       </div>
       <div className="card">
         {list.map((s) => (
-          <div className="se" key={s.file}>
+          <button className="se row-btn" key={s.file} onClick={() => onOpenSession(s.file)}>
             <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
               {s.side === 'claude' ? 'CC' : 'CX'}
             </span>
@@ -206,7 +226,7 @@ function SessionsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }
             <span className="n">{s.questionCount} 提问</span>
             <span className="tok">{fmtTok(s.tokens)}</span>
             <span className="d">{fmtAgo(s.at, snap.scannedAt)}</span>
-          </div>
+          </button>
         ))}
       </div>
       <div className="note">

@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
-import { makeQuestionIndexer, type QuestionRec } from './question-index'
+import { makeQuestionIndexer, questionTextAt, type QuestionRec } from './question-index'
 
 /**
  * 驱动方式与两个 parser 里的接线一致:eachJsonlLine 逐行喂给 indexer,末尾 done(文件长度)。
@@ -537,5 +537,31 @@ describe('内容指纹', () => {
 
   test('空串也有确定值,不抛', () => {
     expect(typeof fingerprint('')).toBe('number')
+  })
+})
+
+describe('questionTextAt(会话页展示文本,与索引同一套判定)', () => {
+  test('claude:剥噪声后的全文(cron 前缀剥掉,正文保留)', () => {
+    const obj = cUser('[cron:abc 定时] 真正的指令') as Record<string, unknown>
+    expect(questionTextAt('claude', obj)).toBe('真正的指令')
+  })
+
+  test('codex:user_message 原文剥噪声', () => {
+    const obj = xUser('  两端有空白的提问  ') as Record<string, unknown>
+    expect(questionTextAt('codex', obj)).toBe('两端有空白的提问')
+  })
+
+  test('非提问行一律 null:工具回灌 / 助手行 / sidechain / 纯噪声', () => {
+    expect(questionTextAt('claude', cTool('Bash') as Record<string, unknown>)).toBeNull()
+    expect(
+      questionTextAt('claude', {
+        type: 'user',
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't', content: 'x' }] }
+      })
+    ).toBeNull()
+    expect(questionTextAt('claude', cUser('Warmup') as Record<string, unknown>)).toBeNull()
+    expect(
+      questionTextAt('claude', { ...(cUser('派发词') as Record<string, unknown>), isSidechain: true })
+    ).toBeNull()
   })
 })

@@ -3,6 +3,7 @@ import type { Snapshot } from '@shared/domain'
 import { ProjectsPane } from './ProjectsPane'
 import { AgentsPane } from './AgentsPane'
 import { DetailPane } from './DetailPane'
+import { SessionPane } from './SessionPane'
 import { Toasts } from './Toast'
 
 type Dim = 'agents' | 'projects'
@@ -12,6 +13,15 @@ export function App(): JSX.Element {
   const [snap, setSnap] = useState<Snapshot | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
+  // 会话页视图态(票 04):非空时项目详情区整块换成会话页;换项目即退出
+  const [openSession, setOpenSession] = useState<string | null>(null)
+  // 从会话页返回时回到「会话」分栏(原型:‹ 返回 <项目> · 会话),而非概览
+  const [backToSessions, setBackToSessions] = useState(false)
+  const selectProject = (p: string | null): void => {
+    setSelected(p)
+    setOpenSession(null)
+    setBackToSessions(false)
+  }
 
   useEffect(() => {
     let alive = true
@@ -73,10 +83,28 @@ export function App(): JSX.Element {
           <ProjectsPane
             snap={snap}
             selected={selected}
-            onSelect={setSelected}
+            onSelect={selectProject}
             detail={
-              selected ? (
-                <DetailPane snap={snap} path={selected} />
+              selected && openSession ? (
+                <SessionPane
+                  file={openSession}
+                  projectName={snap.projects.find((p) => p.path === selected)?.name ?? selected}
+                  now={snap.scannedAt}
+                  onBack={() => {
+                    setOpenSession(null)
+                    setBackToSessions(true)
+                  }}
+                />
+              ) : selected ? (
+                <DetailPane
+                  snap={snap}
+                  path={selected}
+                  initialTab={backToSessions ? 'sessions' : undefined}
+                  onOpenSession={(f) => {
+                    setOpenSession(f)
+                    setBackToSessions(false)
+                  }}
+                />
               ) : (
                 <div className="empty">
                   <div className="big">👈</div>

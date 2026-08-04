@@ -235,6 +235,31 @@ export interface SessionMeta {
   forkState: ForkState
 }
 
+/** 会话页的一条提问(票 04)。文本按字节区间现读——索引与缓存里都没有文本(spec D2a) */
+export interface SessionQuestion {
+  /** 展示序号,1 起,恒为本会话展示集合内的原始轮次号(排序切换不重编) */
+  i: number
+  text: string
+  at: number | null
+  /** 本轮工具调用数(不含 subagent 派发) */
+  tools: number
+  /** 本轮 subagent 派发数 */
+  subagents: number
+}
+
+/** 会话页载荷(getSessionPage 通道;自包含,渲染层不需要再拼别处的数据) */
+export interface SessionPage {
+  file: string
+  side: AgentSide
+  title: string
+  at: number | null
+  tokens: number
+  /** 源文件字节数(页头体量展示用) */
+  bytes: number
+  forkState: ForkState
+  questions: SessionQuestion[]
+}
+
 /** 单项目统计(概览 tab 数据) */
 export interface ProjectStats {
   tokens: TokenStats

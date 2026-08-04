@@ -12,13 +12,13 @@
 // - 增量缓存存"条目级"数据(去重必须跨文件,在聚合层做,不能缓存去重后的结果);
 //   按(路径, mtime, size)键,原子写。统计含隐藏/失效项目。
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import type { AgentSide, ProjectStats, SessionMeta, TokenStats, TokenTotals } from '@shared/domain'
+import { dirname, join } from 'node:path'
+import type { AgentSide, ForkState, ProjectStats, SessionMeta, TokenStats, TokenTotals } from '@shared/domain'
 import { emptyTokenStats, emptyTotals } from '@shared/domain'
 import { mergeKey } from '@shared/path-key'
 import { providerOf } from '@shared/provider'
 import { encodeClaudeProjectDir } from './claude'
-import { readCodexSessions } from './codex'
+import { readCodexSessionMeta, readCodexSessions } from './codex'
 import { eachJsonlLine } from './jsonl'
 import { makeQuestionIndexer, stripReplayPrefix, type QuestionRec } from './question-index'
 import { clipTitle, realUserText } from './session-title'
@@ -117,6 +117,12 @@ export interface TokenBuildResult {
    * 只带偏移不带文本:文本由 build() 按区间现读,与 spec D2a 一致。
    */
   retitle: Array<{ session: SessionMeta; file: string; start: number; end: number }>
+  /**
+   * 会话读白名单(票 04):**入列会话 + subagent/嵌套转写**。后者虽不入列表
+   * (spec A3/A3a),但票 07 要在轮内展开它们——口径若写成"只允许已列出的",
+   * 07 会被自己的白名单挡住(票 04 明写的坑)。主进程按它做区间读的入口校验。
+   */
+  sessionFiles: Set<string>
 }
 
 export class TokenEngine {
@@ -158,9 +164,23 @@ export class TokenEngine {
    * claudeProjectPaths 仅用于「编码目录名 → 项目」归属映射;
    * 全局统计对 projects 全树生效,与该清单无关。
    */
-  async build(roots: ScanRoots, claudeProjectPaths: string[]): Promise<TokenBuildResult> {
+  async build(
+    roots: ScanRoots,
+    claudeProjectPaths: string[],
+    /**
+     * 已注册项目的合并键集合(注册表并集,含失效项目——它们的详情仍可打开)。
+     * 白名单只收注册集内的会话:claude 的 projectKey 本就来自注册表映射,
+     * ''-判据与之等价;**codex 的 projectKey 是 cwd 直接算的、恒非空**,
+     * 不传显式集合就分不出注册与否。缺省(测试便利)按"非空即注册"近似,
+     * 主进程必须传真实集合。
+     */
+    registeredKeys?: ReadonlySet<string>
+  ): Promise<TokenBuildResult> {
+    const isRegistered = (key: string): boolean =>
+      registeredKeys ? registeredKeys.has(key) : key !== ''
     const aggs: FileAgg[] = []
     const seen: Record<string, { sig: string; agg: FileAgg }> = {}
+    const sessionFiles = new Set<string>()
 
     // 编码目录名 → 项目合并键
     const encToProject = new Map<string, string>()
@@ -184,6 +204,9 @@ export class TokenEngine {
           if (agg) {
             aggs.push(agg)
             seen[file] = { sig: sigOf(file) ?? '', agg }
+            // 白名单不宽于 UI 可达面:未注册项目的会话 UI 永远不展示(spec A2),
+            // 读端也不放行——嵌套转写同理,它们的父会话都不可见
+            if (isRegistered(projectKey) && (nested || agg.listed)) sessionFiles.add(file)
           }
         }
       }
@@ -203,12 +226,14 @@ export class TokenEngine {
       if (agg) {
         aggs.push(agg)
         seen[s.file] = { sig: sigOf(s.file) ?? '', agg }
+        if (isRegistered(agg.projectKey) && (s.subagent || agg.listed)) sessionFiles.add(s.file)
       }
     }
 
     this.cache = { version: CACHE_VERSION, files: seen }
     this.persist()
     const result = combine(aggs)
+    result.sessionFiles = sessionFiles
     await retitleStripped(result.retitle)
     return result
   }
@@ -221,7 +246,73 @@ export class TokenEngine {
     if (cached && cached.sig === sig && isWellFormedAgg(cached.agg)) return cached.agg
     return parse()
   }
+
+  /**
+   * 会话页服务(票 04):给出某个已扫描会话的提问索引与 fork 状态。
+   * - 取回前按(路径, mtime, size)签名校验;不符则**只重建该文件**的索引并回写
+   *   缓存(spec C4),不全量重扫。
+   * - Codex fork 的剥离与列表**同源**(同一个 stripReplayPrefix、同一个父查找),
+   *   不复用 token 计量侧的剥离结论——计量是去重口径,展示是"这次对话长什么样"。
+   * - 只服务白名单里的文件;不在缓存中的文件直接拒绝,由调用方引导刷新。
+   */
+  async sessionQuestions(
+    roots: ScanRoots,
+    file: string
+  ): Promise<{ side: AgentSide; questions: QuestionRec[]; forkState: ForkState; title: string; at: number | null }> {
+    const cached = this.cache.files[file]
+    if (!cached) throw new Error('会话不在索引中,请先全局刷新')
+    const sig = sigOf(file)
+    if (sig === null) throw new Error('会话文件已不可读(被移动或删除?)')
+    let agg = cached.agg
+    if (cached.sig !== sig || !isWellFormedAgg(agg)) {
+      // 侧别按数据根判定,不信可能已损坏的缓存条目
+      const claudeRoot = join(roots.claudeHome, 'projects')
+      let fresh: FileAgg | null
+      if (file.startsWith(claudeRoot)) {
+        // 顶层 = 会话(可入列),更深 = subagent 等嵌套转写——与 listJsonl 同口径。
+        // projectKey 沿用旧值:它只影响归属统计,下一次全量扫描会重算;这里只为提问索引。
+        const listedBase = dirname(dirname(file)) === claudeRoot
+        // 类型上两支都有 projectKey;运行时缓存可能损坏(isWellFormedAgg 为 false 才走到这),再兜一层
+        const oldKey = typeof agg.projectKey === 'string' ? agg.projectKey : ''
+        fresh = await parseClaudeFile(file, oldKey, listedBase)
+      } else {
+        const meta = readCodexSessionMeta(file)
+        if (!meta) throw new Error('会话首行元数据不可读,无法重建索引')
+        fresh = await parseCodexFile(
+          file,
+          mergeKey(meta.cwd),
+          { subagent: meta.subagent, sessionId: meta.sessionId, parentId: meta.parentId, forkedAt: meta.forkedAt },
+          readCodexIndex(roots.codexHome)
+        )
+      }
+      if (!fresh) throw new Error('会话文件解析失败')
+      agg = fresh
+      this.cache.files[file] = { sig, agg }
+      this.persist()
+    }
+    if (agg.kind === 'claude') {
+      // Claude 的分叉在索引阶段就由末叶回溯消解,没有"重放前缀"这回事
+      return { side: 'claude', questions: agg.questions, forkState: 'none', title: agg.title, at: agg.at }
+    }
+    let parent: FileAgg | undefined
+    if (agg.parentId) {
+      for (const v of Object.values(this.cache.files)) {
+        if (v.agg.kind === 'codex' && v.agg.sessionId === agg.parentId && v.agg !== agg) {
+          parent = v.agg
+          break
+        }
+      }
+    }
+    const shown = stripReplayPrefix(
+      agg.questions,
+      parent && parent.kind === 'codex' ? parent.questions : null,
+      agg.forkedAt,
+      agg.parentId !== null
+    )
+    return { side: 'codex', questions: shown.questions, forkState: shown.state, title: agg.title, at: agg.at }
+  }
 }
+
 
 /**
  * 按字节区间现读那一行,重新起标题。只对被剥掉重放前缀的 Codex fork 会话跑,
@@ -527,7 +618,7 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     p.tokens.byDay.sort((x, y) => (x.day < y.day ? -1 : 1))
     p.sessions.sort((x, y) => (y.at ?? 0) - (x.at ?? 0))
   }
-  return { global, perProject, rows: [...rowMap.values()], liveDays, retitle }
+  return { global, perProject, rows: [...rowMap.values()], liveDays, retitle, sessionFiles: new Set<string>() }
 }
 
 /** 重写突发(ccusage detect_rewritten_burst 同规则):前两个事件间隔 ≤1s 即认定
