@@ -1307,3 +1307,60 @@ body {
   width: 44px;
   text-align: right;
 }
+/* 票 05:点提问就地展开整轮(原型 .q.open / .turn / .ans / .fetched / .rebuild) */
+.qlist .q {
+  cursor: pointer;
+}
+.qlist .q:hover {
+  background: var(--accent-soft);
+}
+.qlist .q .cv {
+  width: 9px;
+  flex: none;
+  color: var(--text-2);
+  font-size: 10px;
+  font-style: normal;
+}
+.qlist .q.open {
+  background: var(--accent-soft);
+  align-items: flex-start;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+/* 展开时提问行自己铺开全文(多行粘贴原样展开),不另设复述块(spec 界面决策) */
+.qlist .q.open .txt {
+  font-weight: 600;
+  white-space: pre-wrap;
+  overflow: visible;
+  line-height: 1.65;
+}
+.qlist .q.open .cv,
+.qlist .q.open .idx,
+.qlist .q.open .c,
+.qlist .q.open .tm {
+  margin-top: 1px;
+}
+.qlist .turn {
+  padding: 2px 13px 14px 42px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.qlist > :last-child {
+  border-bottom: 0;
+}
+.turn .ans {
+  line-height: 1.8;
+  margin: 8px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.turn .fetched {
+  font-size: 10.5px;
+  color: var(--text-2);
+  margin-top: 8px;
+}
+.turn .tnote {
+  font-size: 11.5px;
+  color: var(--text-2);
+  padding: 12px 0;
+}

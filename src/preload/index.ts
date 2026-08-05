@@ -1,7 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { CMD, EVT, type SetHiddenArgs, type SkillOpArgs, type SkillOpResult } from '@shared/ipc'
-import type { ProjectDetail, SessionPage, Snapshot } from '@shared/domain'
-import { validateSnapshot, validateProjectDetail, validateSessionPage } from '@shared/validate'
+import {
+  CMD,
+  EVT,
+  type SessionTurnArgs,
+  type SetHiddenArgs,
+  type SkillOpArgs,
+  type SkillOpResult
+} from '@shared/ipc'
+import type { ProjectDetail, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
+import {
+  validateSnapshot,
+  validateProjectDetail,
+  validateSessionPage,
+  validateSessionTurn
+} from '@shared/validate'
 
 // renderer 入口处的契约校验:主进程发来的快照不合契约就抛,不静默渲染 undefined
 function checked(snap: unknown): Snapshot {
@@ -29,6 +41,16 @@ const api = {
     const r = validateSessionPage(p)
     if (!r.ok) throw new Error(`收到不合契约的会话页 — ${r.error}`)
     return p as SessionPage
+  },
+  // 票 05:轮次按需取回。fresh 是只读谓词(要不要先亮"重建中"),取回本身在主进程侧
+  // 完成签名校验与必要的单文件重建
+  sessionFresh: (file: string): Promise<boolean> =>
+    ipcRenderer.invoke(CMD.sessionFresh, file) as Promise<boolean>,
+  getSessionTurn: async (args: SessionTurnArgs): Promise<SessionTurn> => {
+    const t: unknown = await ipcRenderer.invoke(CMD.getSessionTurn, args)
+    const r = validateSessionTurn(t)
+    if (!r.ok) throw new Error(`收到不合契约的单轮载荷 — ${r.error}`)
+    return t as SessionTurn
   },
   readArtifact: (file: string): Promise<string> =>
     ipcRenderer.invoke(CMD.readArtifact, file) as Promise<string>,

@@ -1,6 +1,6 @@
 // Seam 2(IPC 契约):快照 schema 校验的行为测试——好载荷放行、坏载荷拒收并给出路径。
 import { describe, it, expect } from 'vitest'
-import { validateSnapshot, validateProjectStats, validateProjectDetail } from './validate'
+import { validateSnapshot, validateProjectStats, validateProjectDetail, validateSessionTurn } from './validate'
 import { emptySnapshot, emptyTokenStats } from './domain'
 
 describe('validateSnapshot', () => {
@@ -305,5 +305,35 @@ describe('validateSessionPage(会话页载荷)', () => {
     expect(validateSessionPage({ ...okPage, questions: '不是数组' }).ok).toBe(false)
     expect(validateSessionPage({ ...okPage, file: '' }).ok).toBe(false)
     expect(validateSessionPage({ ...okPage, questions: [{ i: 1, text: 't', at: 1, tools: '2', subagents: 0 }] }).ok).toBe(false)
+  })
+})
+
+describe('validateSessionTurn(单轮取回载荷,票 05)', () => {
+  const ok = {
+    blocks: [{ kind: 'text', role: 'assistant', at: 1754300000000, body: '回答正文' }],
+    bytesRead: 2048
+  }
+
+  it('放行合法载荷;空 blocks 也合法(该轮没有正文)', () => {
+    expect(validateSessionTurn(ok).ok).toBe(true)
+    expect(validateSessionTurn({ blocks: [], bytesRead: 0 }).ok).toBe(true)
+    expect(validateSessionTurn({ blocks: [{ ...ok.blocks[0], at: null }], bytesRead: 1 }).ok).toBe(true)
+  })
+
+  it('拒收缺 bytesRead / blocks 非数组,并指出路径', () => {
+    const r1 = validateSessionTurn({ blocks: [] })
+    expect(r1.ok === false && r1.error).toContain('bytesRead')
+    const r2 = validateSessionTurn({ blocks: '不是数组', bytesRead: 0 })
+    expect(r2.ok === false && r2.error).toContain('blocks')
+  })
+
+  it('拒收非法块:kind 未知 / body 非 string / at 非 number|null', () => {
+    const bad1 = { blocks: [{ kind: 'video', role: 'assistant', at: null, body: 'x' }], bytesRead: 1 }
+    const r1 = validateSessionTurn(bad1)
+    expect(r1.ok === false && r1.error).toContain('blocks[0]')
+    const bad2 = { blocks: [{ kind: 'text', role: 'assistant', at: null, body: 42 }], bytesRead: 1 }
+    expect(validateSessionTurn(bad2).ok).toBe(false)
+    const bad3 = { blocks: [{ kind: 'text', role: 'assistant', at: '昨天', body: 'x' }], bytesRead: 1 }
+    expect(validateSessionTurn(bad3).ok).toBe(false)
   })
 })

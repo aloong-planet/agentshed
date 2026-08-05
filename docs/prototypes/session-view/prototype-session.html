@@ -18,8 +18,12 @@
      演示基建(非设计的一部分,勿实现):底部悬浮条
        [演示·会话数据] 三态(Claude 主会话 / Codex fork / Codex fork·父会话缺失)——
          真实判定来自被打开的会话本身(fork 前缀剥离依赖父文件是否在扫描集内);
-       [演示·取回状态] 两态(索引就绪 / 索引失效)——真实判定是取回前按
-         路径+mtime+size 签名校验一次,不符则只重建该文件索引。app 内均无此控件。 -->
+       [演示·取回状态] 三态(索引就绪 / 索引失效 / 单轮失败)——真实判定是取回前按
+         路径+mtime+size 签名校验一次,不符则只重建该文件索引;单轮读取失败只自伤该轮,
+         再点可重试。app 内均无此控件。
+     状态补齐(2026-08-06,实现期回补经用户确认):① 取回中(首次取回的瞬时提示,
+       已取回的轮再展开为即时);② 单轮失败(该轮显示错误,不连累其余轮次);
+       ③ 空轮(没有正文回复的轮只出取回脚注,不造占位);④ 取回脚注含实际读取字节数。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -210,6 +214,7 @@
     <span class="hl">演示·取回状态</span>
     <span class="hb on" data-fs="ok">索引就绪</span>
     <span class="hb" data-fs="stale">索引失效</span>
+    <span class="hb" data-fs="error">单轮失败</span>
   </div>
 
 <script>
@@ -559,7 +564,10 @@
       L('23','9月14日 周日','12:02','都验证过了',0,0,'好。'),
       L('24','9月14日 周日','12:15','帮我把这些写进 ops 文档',4,0,
         '写进 docs/ops/gateway-split.md:进程模型、socket 路径、退出回收、签名顺序。',
-        [['apply_patch','docs/ops/gateway-split.md · 新建 64 行'],['read_file','docs/ops/README.md']])
+        [['apply_patch','docs/ops/gateway-split.md · 新建 64 行'],['read_file','docs/ops/README.md']]),
+      // 空轮(2026-08-06 补):问完就走,这一轮没有任何正文回复——
+      // 展开后只出取回脚注,不造占位文案
+      {...L('25','9月14日 周日','12:30','好,今天收工',0,0,''), turn:[]}
     ]
   };
 
@@ -611,7 +619,7 @@
   }
   function turnHtml(q){
     return `${(q.turn||liteTurn(q)).map(blockHtml).join('')}
-      <div class="fetched">⚡ 按需取回 3 ms · 只读了本轮所在的字节区间,与文件总大小无关</div>`;
+      <div class="fetched">⚡ 按需取回 3 ms · 只读本轮区间 1.2 KB,与文件总大小无关</div>`;
   }
 
   function dayGroups(qs){
@@ -672,10 +680,23 @@
     row.classList.add('open'); row.querySelector('.cv').textContent='▾'; box.classList.add('on');
     openTurns.add(i);
     const key=cur+':'+i;
-    if(fetchState==='stale' && !loaded.has(key)){
+    // 已取回的轮:再展开为即时(数据留在内存,收起不丢)
+    if(loaded.has(key)){ box.innerHTML=turnHtml(DATA[cur].qs[i]); return }
+    if(fetchState==='error'){
+      // 单轮失败只自伤:该轮显示错误,不连累其余轮次;不记 loaded,再点即重试
+      box.innerHTML=`<div class="rebuild">取回中…</div>`;
+      setTimeout(()=>{ box.innerHTML=
+        `<div class="rebuild">这一轮取不回来:会话文件已不可读(被移动或删除?)</div>` },350);
+      return;
+    }
+    if(fetchState==='stale'){
       box.innerHTML=`<div class="rebuild">索引签名不符(文件被追加或重写)→ 正在<b>只重建该文件</b>的索引…</div>`;
       setTimeout(()=>{ loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]); },900);
-    } else { loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]) }
+      return;
+    }
+    // 索引就绪:首次取回仍有一次真实往返——瞬时「取回中…」再出内容
+    box.innerHTML=`<div class="rebuild">取回中…</div>`;
+    setTimeout(()=>{ loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]); },350);
   });
 
   // 导出:入口只此一处;默认与浏览心智一致(已展开的那些)

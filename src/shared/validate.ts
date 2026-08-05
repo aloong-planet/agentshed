@@ -123,6 +123,34 @@ export function assertSessionPage(v: unknown): void {
   if (!r.ok) throw new Error(`会话页契约校验失败 — ${r.error}`)
 }
 
+// ── 单轮取回(getSessionTurn 通道,票 05)──
+// 本票 kind 只有 text;票 07 扩块类型时此处同步扩(白名单校验,未知 kind 在边界拒收)
+const TURN_KINDS = new Set(['text'])
+
+export function validateSessionTurn(v: unknown): ValidateResult {
+  if (!isRecord(v)) return fail('turn', '不是对象')
+  if (typeof v['bytesRead'] !== 'number') return fail('turn.bytesRead', '需为 number')
+  const blocks = v['blocks']
+  if (!Array.isArray(blocks)) return fail('turn.blocks', '需为数组')
+  for (let i = 0; i < blocks.length; i++) {
+    const b: unknown = blocks[i]
+    const at = `turn.blocks[${i}]`
+    if (!isRecord(b)) return fail(at, '不是对象')
+    if (typeof b['kind'] !== 'string' || !TURN_KINDS.has(b['kind']))
+      return fail(`${at}.kind`, `非法 kind: ${String(b['kind'])}`)
+    if (b['role'] !== 'assistant') return fail(`${at}.role`, `非法 role: ${String(b['role'])}`)
+    if (b['at'] !== null && typeof b['at'] !== 'number') return fail(`${at}.at`, '需为 number|null')
+    if (typeof b['body'] !== 'string') return fail(`${at}.body`, '需为 string')
+  }
+  return { ok: true }
+}
+
+/** 主进程出口:同 assertSnapshot,契约破坏直接抛 */
+export function assertSessionTurn(v: unknown): void {
+  const r = validateSessionTurn(v)
+  if (!r.ok) throw new Error(`单轮载荷契约校验失败 — ${r.error}`)
+}
+
 export function validateProjectStats(v: unknown): ValidateResult {
   if (!isRecord(v)) return fail('stats', '不是对象')
   const sessions = v['sessions']

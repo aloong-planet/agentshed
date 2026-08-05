@@ -260,6 +260,25 @@ export interface SessionPage {
   questions: SessionQuestion[]
 }
 
+/**
+ * 会话轮次的归一化块(票 05):两侧各自的原始行统一成这个模型,渲染层只认它。
+ * 本票只有正文(text);工具调用/推理块等 kind 由票 07 扩展。
+ */
+export interface TurnTextBlock {
+  kind: 'text'
+  role: 'assistant'
+  at: number | null
+  body: string
+}
+export type TurnBlock = TurnTextBlock
+
+/** 单轮取回载荷(getSessionTurn 通道) */
+export interface SessionTurn {
+  blocks: TurnBlock[]
+  /** 本次实际读取的字节数——「没有整读」的证据,也是界面脚注的数据 */
+  bytesRead: number
+}
+
 /** 单项目统计(概览 tab 数据) */
 export interface ProjectStats {
   tokens: TokenStats
