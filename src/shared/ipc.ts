@@ -11,6 +11,10 @@ export const CMD = {
   getProjectDetail: 'agentshed:get-project-detail',
   /** 会话页:提问索引 + 按区间现读的文本(票 04;区间读通路,不复用产物整读) */
   getSessionPage: 'agentshed:get-session-page',
+  /** 会话索引是否与磁盘一致(票 05;只读谓词,渲染层据此展示重建中间态) */
+  sessionFresh: 'agentshed:session-fresh',
+  /** 按需取回一轮:提问下标 → 该轮区间现读 + 归一化块(票 05) */
+  getSessionTurn: 'agentshed:get-session-turn',
   /** 读产物 Markdown(仅限详情列出过的文件,主进程白名单校验) */
   readArtifact: 'agentshed:read-artifact',
   /** 外开产物(prototypes HTML → 系统默认打开;同白名单) */
@@ -29,6 +33,12 @@ export const EVT = {
 export interface SetHiddenArgs {
   projectPath: string
   hidden: boolean
+}
+
+export interface SessionTurnArgs {
+  file: string
+  /** 提问下标,0 起,对应会话页展示集合(getSessionPage.questions 的顺序) */
+  i: number
 }
 
 export interface SkillOpArgs {

@@ -252,6 +252,18 @@ export class TokenEngine {
   }
 
   /**
+   * 会话文件的索引是否仍与磁盘一致(签名 + 形状)。只读谓词,不触发重建——
+   * 渲染层据它决定要不要先展示"正在只重建该文件索引"的中间态(票 05),
+   * 随后的 sessionQuestions 才做真正的重建。两步之间文件再变也无妨:重建幂等。
+   */
+  isFresh(file: string): boolean {
+    const cached = this.cache.files[file]
+    if (!cached) return false
+    const sig = sigOf(file)
+    return sig !== null && cached.sig === sig && isWellFormedAgg(cached.agg)
+  }
+
+  /**
    * 会话页服务(票 04):给出某个已扫描会话的提问索引与 fork 状态。
    * - 取回前按(路径, mtime, size)签名校验;不符则**只重建该文件**的索引并回写
    *   缓存(spec C4),不全量重扫。

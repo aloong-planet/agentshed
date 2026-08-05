@@ -1,14 +1,15 @@
 import { app, BrowserWindow, ipcMain, protocol, session, shell } from 'electron'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { CMD, EVT, type SetHiddenArgs, type SkillOpArgs } from '@shared/ipc'
-import type { ProjectStats, SessionPage, Snapshot } from '@shared/domain'
-import { assertSnapshot, assertProjectDetail, assertSessionPage } from '@shared/validate'
+import { CMD, EVT, type SessionTurnArgs, type SetHiddenArgs, type SkillOpArgs } from '@shared/ipc'
+import type { ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
+import { assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { providerOf } from '@shared/provider'
 import { scan } from './providers/scan'
 import { readRanges } from './providers/range-read'
 import { questionTextAt } from './providers/question-index'
+import { turnBlocksFromText } from './providers/turn-content'
 import { readProjectDetail } from './providers/project-detail'
 import { TokenEngine } from './providers/token-stats'
 import { UsageArchive } from './providers/archive'
@@ -192,6 +193,30 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
   }
   assertSessionPage(page)
   return page
+})
+handle(CMD.sessionFresh, (_e, raw: unknown) => {
+  // 同一道白名单在最前(fail-closed);谓词只读,不触发重建
+  const file = sessionReadTarget(sessionWhitelist, raw)
+  if (!file) throw new Error('会话路径不在白名单(先打开项目详情或全局刷新)')
+  return tokenEngine ? tokenEngine.isFresh(file) : false
+})
+handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
+  const a = raw as SessionTurnArgs
+  const file = sessionReadTarget(sessionWhitelist, a?.file)
+  if (!file) throw new Error('会话路径不在白名单(先打开项目详情或全局刷新)')
+  if (typeof a?.i !== 'number' || !Number.isInteger(a.i) || a.i < 0)
+    throw new Error('getSessionTurn 参数不合契约:i 需为非负整数')
+  if (!tokenEngine) throw new Error('扫描引擎未就绪')
+  // 区间来自主进程自己的索引(签名不符时 sessionQuestions 单文件重建),
+  // 不接受渲染层直接给字节区间——通道能取的只有"某条提问的那一轮"
+  const q = await tokenEngine.sessionQuestions(realRoots(), file)
+  if (a.i >= q.questions.length) throw new Error(`轮次下标越界:${a.i}(共 ${q.questions.length} 轮)`)
+  const rec = q.questions[a.i]
+  // 整轮 = 提问之后到下一条提问之前([轮次起, 轮次止);提问全文页面已有,不重复取)
+  const { texts, bytesRead } = await readRanges(file, [{ start: rec[1], end: rec[2] }])
+  const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, texts[0]), bytesRead }
+  assertSessionTurn(turn)
+  return turn
 })
 handle(CMD.readArtifact, (_e, file: unknown) => {
   if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw new Error('产物路径不在白名单')

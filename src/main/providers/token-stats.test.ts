@@ -927,6 +927,21 @@ describe('sessionQuestions(会话页服务)', () => {
     expect(r.questions).toHaveLength(1)
   })
 
+  // 票 05:isFresh 是渲染层"要不要展示重建中间态"的判据(只读谓词,不触发重建)
+  it('isFresh:构建后为真;文件被追加后为假;未知/已删文件为假', async () => {
+    const cl = mkClaudeFile('fresh.jsonl', [userLine('问', '2026-07-30T02:00:00Z')])
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect(e.isFresh(cl)).toBe(true)
+    appendFileSync(cl, userLine('又一问', '2026-07-30T03:00:00Z') + '\n')
+    expect(e.isFresh(cl), '追加后签名不符,应为假').toBe(false)
+    expect(e.isFresh(join(dir, 'nope.jsonl')), '不在索引中的文件为假').toBe(false)
+    const gone = mkClaudeFile('fresh-gone.jsonl', [userLine('问', '2026-07-30T02:00:00Z')])
+    await e.build(roots(), [proj])
+    rmSync(gone)
+    expect(e.isFresh(gone), '文件已删为假').toBe(false)
+  })
+
   it('缓存里有、文件却被删了:明确报错,不静默空列表(维度1 补:spec 失败路径)', async () => {
     const cl = mkClaudeFile('gone.jsonl', [userLine('问'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
     const e = engine()

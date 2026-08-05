@@ -1,7 +1,7 @@
 // E2E:用 Playwright 驱动真实 Electron(build 产物),覆盖单测测不到的装配层——
 // IPC 全链路、渲染、维度切换、tab 切换、刷新去重,并断言主进程零错误输出。
 // 关键场景:**旧格式缓存启动**(2026-07-30 线上崩溃的形态,单测已锁,这里再守全链路)。
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
@@ -115,6 +115,16 @@ function mkUsageHome(): string {
     join(cdir, 'a.jsonl'),
     [
       JSON.stringify({ type: 'user', timestamp: localDayOffset(2).toISOString(), message: { role: 'user', content: '示例提问' } }),
+      // 真实形态:助手行同时带 content(正文段)与 usage;票 05 的展开断言用这段正文
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: localDayOffset(2).toISOString(),
+        message: {
+          model: 'claude-fable-5',
+          content: [{ type: 'text', text: '这是第一轮的回答正文' }],
+          usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
+        }
+      }),
       usage('claude-fable-5', localDayOffset(2), 1200, 300),
       // 第二条真实提问 —— 让两侧的提问条数不相等,条数断言才分得出"真读到了"
       // 与"两边都恰好是 1"。中间夹一条工具回灌,它不算提问(spec B1)。
@@ -559,6 +569,71 @@ test('会话页:长提问单行截断只发生在显示层,DOM 里是全文', as
   // 显示层:单行截断确实发生(内容宽度溢出渲染框)
   const clipped = await txt.evaluate((el) => el.scrollWidth > el.clientWidth)
   expect(clipped, '长文本应在显示层被截断(scrollWidth > clientWidth)').toBe(true)
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 05:点提问就地展开整轮正文,按需取回;默认 0 轮展开(预展开等于把「按需取」作废)
+test('会话页:默认全部折叠;点提问展开整轮正文与取回脚注,再点收起', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+
+  // 默认 0 轮展开
+  await expect(win.locator('.qlist .q')).toHaveCount(2)
+  await expect(win.locator('.turn')).toHaveCount(0)
+
+  // 点第一条:提问行自己铺开(.open,不另设复述块),下面出整轮正文 + 取回脚注
+  await win.locator('.qlist .q').first().click()
+  await expect(win.locator('.qlist .q.open .txt')).toHaveText('示例提问')
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
+
+  // 展开第二条不影响第一条(各轮独立);第二轮没有正文,脚注照出(不造假的占位)
+  await win.locator('.qlist .q').nth(1).click()
+  await expect(win.locator('.qlist .q.open')).toHaveCount(2)
+  await expect(win.locator('.turn')).toHaveCount(2)
+  await expect(win.locator('.turn .ans')).toHaveCount(1)
+
+  // 再点第一条:收起,其余不动
+  await win.locator('.qlist .q').first().click()
+  await expect(win.locator('.turn')).toHaveCount(1)
+  await expect(win.locator('.qlist .q.open')).toHaveCount(1)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 05:签名不符 → 只重建该文件的索引,重建完出内容(不干等、不报错)。
+// 中间态文案是瞬时的,e2e 不赌时序;这里断言的是链路结果正确与主进程零错误。
+test('会话页:文件被追加(签名不符)后点提问,仍取回正确的整轮内容', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const sess = join(home, '.claude', 'projects', enc, 'a.jsonl')
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+  await expect(win.locator('.qlist .q')).toHaveCount(2)
+
+  // 页面打开后文件被追加:size 变 → 签名不符,首次取回走单文件重建
+  appendFileSync(
+    sess,
+    JSON.stringify({
+      type: 'user',
+      timestamp: localDayOffset(0).toISOString(),
+      message: { role: 'user', content: '追加的第三问' }
+    }) + '\n'
+  )
+  await win.locator('.qlist .q').first().click()
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
+
   expect(l.errors).toEqual([])
   await close(l)
 })

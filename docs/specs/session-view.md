@@ -163,7 +163,9 @@
   **另外**:给 `FileAgg` 加必填字段时,`isWellFormedAgg` 要同步加一条。版本号只拦得住跨版本,同版本内的手工损坏与漂移只有那道守卫——漏掉会让缺字段一路流到契约层,抛掉整份详情(上层逃逸)。
 - **并发读**:共享的有界并发读工具,默认 4;区间读路径统一走它(见 D2b)。现有 token 扫描仍串行,本期不动。
 - **两侧归一化**:公共模型 = `{时间, 角色, 文本, 工具调用(名/入参/出参), 推理块?}`。Codex 侧需先做两件 Claude 不需要的:双写流二选一(取 `event_msg`)、剥 fork 重放前缀。
-- **IPC**:会话列表搭 `getProjectDetail`;**`getSessionPage`(票 04 已建)**返回自包含的会话页载荷(标题/体量/forkState/提问文本),文本由主进程按字节区间现读——`readArtifact` 的整读 500KB 上限通路不复用。按需取回答(05)将复用同一条区间读通路。
+  **落地形态(2026-08-05,票 05)**:模型为 kind 可辨识联合(`TurnBlock`),05 先落 `text`(正文,时间/角色/文本),工具调用与推理块等 kind 由 07 扩展;IPC 边界按 kind 白名单校验,未知 kind 拒收。正文载体依据全量枚举:Claude 主链 assistant 段类型全谱仅 tool_use/text/thinking 三种,正文=`text` 段;Codex 正文=`event_msg/agent_message`(message 恒 string),与提问侧同走 event_msg 一路。本票不出块的类型均已枚举且归宿在 07;**07 落 C8 显示白名单时必须带"未知类型可发现"的留痕**,不得静默丢(CONTEXT 白名单类不变量)。
+- **IPC**:会话列表搭 `getProjectDetail`;**`getSessionPage`(票 04 已建)**返回自包含的会话页载荷(标题/体量/forkState/提问文本),文本由主进程按字节区间现读——`readArtifact` 的整读 500KB 上限通路不复用。
+  **按需取回答(票 05 已建)**:`getSessionTurn(file, i)`——区间只能来自主进程自己的索引(渲染层给不了字节区间),白名单同一道 `sessionReadTarget` 在最前;载荷带 `bytesRead` 作"没有整读"的证据。配套 `sessionFresh(file)` 只读谓词:渲染层据它决定是否先亮"正在只重建该文件索引"的中间态,重建本身仍由取回调用触发(幂等,两步间文件再变无害)。
 - **预取**(可选优化):提问列表移动时预取相邻若干轮,把"点了就有"变成"点之前就有"。
 
 ## Testing Decisions
