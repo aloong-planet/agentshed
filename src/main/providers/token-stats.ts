@@ -63,6 +63,9 @@ interface CodexFileAgg {
   title: string
   at: number | null
   model: string
+  /** 标题是否来自 session_index 的 thread_name。retitle 只许改"来自首条提问"的
+   * 标题——thread_name 的优先级(spec A4)不因剥离而失效。 */
+  titleFromThread: boolean
   sessionId: string | null
   parentId: string | null
   forkedAt: number | null
@@ -91,12 +94,13 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg
  *     滤掉被放弃分支上的提问)。**这个号尤其不能漏**:旧缓存的记录没有第 7 位,
  *     读出来是 undefined,而 `undefined === undefined` 会让 Codex 的重放指纹校验
  *     全部"通过"并盲剥——静默剥错正是票 03b 要防的那件事。
+ * v9:CodexFileAgg 加 titleFromThread(retitle 不得顶掉 thread_name,spec A4 优先级)。
  *
  * **导出仅供测试**——让守卫测试能用 `CACHE_VERSION - 1` 构造"紧邻上一版"的缓存,
  * 而不是硬编码一个会随版本号增长而失效的字面量。产线代码不得据它做分支判断:
  * 唯一的版本比较在 loadCache 里,多一处就多一处会漂移的口径。
  */
-export const CACHE_VERSION = 8
+export const CACHE_VERSION = 9
 
 interface CacheShape {
   version: typeof CACHE_VERSION
@@ -584,20 +588,28 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
           a.forkedAt,
           a.parentId !== null
         )
-        const meta: SessionMeta = {
-          side: 'codex',
-          title: a.title,
-          at: a.at,
-          tokens: totals.total,
-          file: a.file,
-          questionCount: shown.questions.length,
-          forkState: shown.state
-        }
-        p.sessions.push(meta)
-        // 剥掉了开头若干条 → 原标题来自一条不再展示的提问,按存活首条重起
-        if (shown.questions.length > 0 && shown.questions.length < a.questions.length) {
-          const first = shown.questions[0]
-          retitle.push({ session: meta, file: a.file, start: first[0], end: first[1] })
+        // 已验证剥空(每条提问都经指纹核实为重放、fork 后无新提问)的会话不入列,
+        // token 照计(2026-08-05 裁定,与 A3a 同构)。剥空只能出自指纹校验路径:
+        // 启发式绝不剥空,本就没提问的会话 listed 在解析期已是 false。白名单仍按
+        // 剥前口径——其内容全是已可读父会话的重放,不扩大读端暴露面,而收窄要把
+        // 白名单决策挪到 combine 之后,改动面大于收益。
+        if (shown.questions.length > 0) {
+          const meta: SessionMeta = {
+            side: 'codex',
+            title: a.title,
+            at: a.at,
+            tokens: totals.total,
+            file: a.file,
+            questionCount: shown.questions.length,
+            forkState: shown.state
+          }
+          p.sessions.push(meta)
+          // 剥掉了开头若干条、且原标题来自首条提问 → 按存活首条重起;
+          // thread_name 的优先级(spec A4)不因剥离而失效
+          if (!a.titleFromThread && shown.questions.length < a.questions.length) {
+            const first = shown.questions[0]
+            retitle.push({ session: meta, file: a.file, start: first[0], end: first[1] })
+          }
         }
       }
     }
@@ -692,7 +704,8 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   // 少一位会让指纹比对退化成 undefined === undefined,恒真,于是盲剥。
   if (qs.length > 0 && (!Array.isArray(qs[0]) || (qs[0] as unknown[]).length !== 7)) return false
   if (a['kind'] === 'claude') return Array.isArray(a['entries'])
-  if (a['kind'] === 'codex') return Array.isArray(a['events'])
+  // titleFromThread 缺失(undefined)是假 false:会让 thread_name 会话被 retitle 顶掉
+  if (a['kind'] === 'codex') return Array.isArray(a['events']) && typeof a['titleFromThread'] === 'boolean'
   return false
 }
 
@@ -828,6 +841,7 @@ async function parseCodexFile(
   const questions = idx.done(fileEnd)
   const first = idx.firstQuestionText()
   const realTitle = first === null ? null : clipTitle(first)
+  const threadName = id ? titles.get(id) : undefined
   return {
     kind: 'codex',
     file,
@@ -835,7 +849,8 @@ async function parseCodexFile(
     // 与 Claude 侧同口径(spec A3a):没有任何真实提问的会话不入列,token 照计
     listed: !meta.subagent && questions.length > 0,
     // 标题优先 thread_name(Codex 自己起的名字比首条提问更概括),无则退回首条提问
-    title: (id ? titles.get(id) : undefined) ?? realTitle ?? stem,
+    title: threadName ?? realTitle ?? stem,
+    titleFromThread: threadName !== undefined,
     // 没有 mtime 兜底(Claude 侧有)——不是遗漏:Codex 的 session_meta 必带顶层
     // timestamp(真实样本核实),首行不可解析时 readCodexSessions 直接跳过该文件、
     // 根本不会走到这里。所以 lastTs 为 null 是不可达分支,不为它加兜底代码。
