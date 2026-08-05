@@ -509,9 +509,25 @@ describe('Codex 重放前缀剥离', () => {
     expect(strip(c, null, T(1))).toEqual({ n: 2, state: 'uncertain' })
   })
 
+  test('父缺失且开头时间戳乱序(负差)→ 不算突发,一条不剥', () => {
+    // 负差不是"程序一次写入"的证据(一次写入的时间戳单调),与 token 侧
+    // skipRewrittenBurst 同规则:遇负差即终止。失败方向是多剥 → 真提问静默消失。
+    const ms = (x: number): number => Date.parse('2026-08-01T10:00:00Z') + x
+    const c = [rec(ms(1000), 'A'), rec(ms(400), 'B'), rec(ms(500), 'C')]
+    expect(strip(c, null, ms(0))).toEqual({ n: 3, state: 'uncertain' })
+  })
+
   test('父存在但自身没有提问 → 无从校验,不剥并标 uncertain', () => {
     const c = [rec(T(5), 'A')]
     expect(strip(c, [], T(5))).toEqual({ n: 1, state: 'uncertain' })
+  })
+
+  test('子会话是父重放段的严格前缀:全部吻合也可剥空,但标 uncertain(未及 replayLen)', () => {
+    // 指纹路径的另一种剥空:每条都验过是重放,只是比父的重放段短。
+    // 与 stripped 剥空同样不入列(combine 按 shown 为空判,不看 state)。
+    const p = [rec(T(1), 'A'), rec(T(2), 'B')]
+    const c = [rec(T(5), 'A')]
+    expect(strip(c, p, T(5))).toEqual({ n: 0, state: 'uncertain' })
   })
 
   test('剥离不改动保留下来那些记录的偏移', () => {

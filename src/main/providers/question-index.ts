@@ -70,7 +70,9 @@ export function stripReplayPrefix(
     while (n < child.length) {
       const a = child[n - 1][3]
       const b = child[n][3]
-      if (a === null || b === null || b - a > BURST_GAP_MS) break
+      // 负差(乱序)即终止,与 token 侧 skipRewrittenBurst 同规则:程序一次写入的
+      // 时间戳单调,乱序不构成突发证据,而失败方向(多剥 → 静默消失)禁止赌
+      if (a === null || b === null || b - a < 0 || b - a > BURST_GAP_MS) break
       n++
     }
     // 只有一条、且它后面没有"真人节奏"那条作对照时,不构成突发证据

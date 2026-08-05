@@ -625,7 +625,7 @@ describe('缓存版本迁移(真 bug 回归)', () => {
       'at', 'entries', 'file', 'kind', 'listed', 'projectKey', 'questions', 'title'
     ])
     expect(keysOf('codex')).toEqual([
-      'at', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'parentId', 'projectKey', 'questions', 'sessionId', 'title'
+      'at', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'parentId', 'projectKey', 'questions', 'sessionId', 'title', 'titleFromThread'
     ])
   })
 
@@ -791,6 +791,77 @@ describe('会话标题与入列口径', () => {
       '[cron:abc daily] 每天跑一遍回归')
     const r = await engine().build(roots(), [proj])
     expect(r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.side === 'codex')?.title).toBe('每天跑一遍回归')
+  })
+
+  // 03 回溯 review R1:retitle 只该在"原标题来自首条提问"时重起;
+  // thread_name 的优先级(spec A4)不因剥离而失效。
+  it('Codex:剥过前缀的 fork 有 thread_name 时,标题仍是 thread_name,不被存活首问顶掉', async () => {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const q = (ts: string, m: string): string =>
+      JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })
+    const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
+      JSON.stringify({ timestamp: ts, type: 'session_meta', payload: { cwd: proj, id, ...extra } })
+    const PARENT = '019f0000-aaaa-7000-8000-000000000011'
+    const CHILD = '019f0000-bbbb-7000-8000-000000000012'
+    writeFileSync(
+      join(d, `rollout-${PARENT}.jsonl`),
+      [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', '父问一')].join('\n') + '\n'
+    )
+    writeFileSync(
+      join(d, `rollout-${CHILD}.jsonl`),
+      [
+        meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
+        q('2026-07-30T02:00:00Z', '父问一'), // 重放(时间戳被改写,内容相同)
+        q('2026-07-30T02:00:05Z', '子的新问')
+      ].join('\n') + '\n'
+    )
+    writeIndex([{ id: CHILD, name: 'fork 线程名' }])
+    const r = await engine().build(roots(), [proj])
+    const child = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.forkState === 'stripped')
+    expect(child, '剥离过的子会话应在列(还有存活提问)').toBeDefined()
+    expect(child?.title, 'thread_name 优先(A4),retitle 不得顶掉它').toBe('fork 线程名')
+  })
+
+  // 03 回溯 review R3(2026-08-05 用户裁定):已验证剥空(纯重放、指纹全段吻合、
+  // 无新提问)的 fork 不入列,token 照计——与 A3a「没有可找的提问就不入列」同构。
+  // 剥空只能出自指纹校验路径:启发式绝不剥空,子会话本就没提问时 listed 在解析期已 false。
+  it('Codex:纯重放 fork(已验证剥空)不入列,token 照计', async () => {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const q = (ts: string, m: string): string =>
+      JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })
+    const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
+      JSON.stringify({ timestamp: ts, type: 'session_meta', payload: { cwd: proj, id, ...extra } })
+    const usage = (ts: string, input: number, output: number): string =>
+      JSON.stringify({
+        timestamp: ts,
+        type: 'event_msg',
+        payload: {
+          type: 'token_count',
+          info: { last_token_usage: { input_tokens: input, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: output, total_tokens: input + output } }
+        }
+      })
+    const PARENT = '019f0000-aaaa-7000-8000-000000000021'
+    const CHILD = '019f0000-bbbb-7000-8000-000000000022'
+    const childFile = join(d, `rollout-${CHILD}.jsonl`)
+    writeFileSync(
+      join(d, `rollout-${PARENT}.jsonl`),
+      [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', '父问一')].join('\n') + '\n'
+    )
+    writeFileSync(
+      childFile,
+      [
+        meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
+        q('2026-07-30T02:00:00Z', '父问一'), // 全部提问都是重放,fork 后没产生新提问
+        usage('2026-07-30T02:00:01Z', 100, 20)
+      ].join('\n') + '\n'
+    )
+    const r = await engine().build(roots(), [proj])
+    const p = r.perProject.get(proj.toLowerCase())
+    expect(p?.sessions.find((s) => s.file === childFile), '剥空的 fork 不该入列').toBeUndefined()
+    expect(p?.sessions.filter((s) => s.side === 'codex'), '父会话照常在列').toHaveLength(1)
+    expect(p?.tokens.bySide.codex.total, '不入列不等于不计 token').toBe(120)
   })
 })
 
