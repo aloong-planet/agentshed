@@ -22,14 +22,15 @@ function formatDate(ms: number): string {
   return `${y}-${m}-${day}`
 }
 
-function extLabel(path: string): string {
+function extKind(path: string): { label: string; kind: string } {
   const base = path.split('/').pop() || path
-  if (/\.md$/i.test(base)) return 'MD'
-  if (/\.(sh|bash|zsh)$/i.test(base)) return 'SH'
-  if (/\.(js|ts|mjs|cjs)$/i.test(base)) return 'JS'
-  if (/\.(ya?ml|toml|json)$/i.test(base)) return 'CFG'
+  if (/\.md$/i.test(base)) return { label: 'MD', kind: 'md' }
+  if (/\.(sh|bash|zsh)$/i.test(base)) return { label: 'SH', kind: 'sh' }
+  if (/\.(js|ts|mjs|cjs)$/i.test(base)) return { label: 'JS', kind: 'js' }
+  if (/\.(ya?ml|toml|json)$/i.test(base)) return { label: 'CFG', kind: 'cfg' }
   const i = base.lastIndexOf('.')
-  return (i >= 0 ? base.slice(i + 1) : '?').slice(0, 3).toUpperCase()
+  const ext = (i >= 0 ? base.slice(i + 1) : '?').slice(0, 3).toUpperCase()
+  return { label: ext, kind: 'oth' }
 }
 
 export interface SkillExpandBlockProps {
@@ -208,22 +209,23 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
               </div>
               <div className="files">
                 {files.length === 0 && <div className="empty">包内无可预览文本文件</div>}
-                {files.map((f) => (
-                  <button type="button" key={f.absPath} onClick={() => setDrawer(f)}>
-                    <span className="name-cell">
-                      <span className={`ic ${/\.md$/i.test(f.path) ? 'md' : ''}`}>
-                        {extLabel(f.path)}
+                {files.map((f) => {
+                  const { label, kind } = extKind(f.path)
+                  return (
+                    <button type="button" key={f.absPath} onClick={() => setDrawer(f)}>
+                      <span className="name-cell">
+                        <span className={`ic ${kind}`}>{label}</span>
+                        <span className="path mono" title={f.path}>
+                          {f.path}
+                        </span>
+                        {f.path === 'SKILL.md' && <span className="tag">入口</span>}
                       </span>
-                      <span className="path mono" title={f.path}>
-                        {f.path}
-                      </span>
-                      {f.path === 'SKILL.md' && <span className="tag">入口</span>}
-                    </span>
-                    <span className="meta lines">{f.lines.toLocaleString('zh-CN')}</span>
-                    <span className="meta">{formatSize(f.bytes)}</span>
-                    <span className="meta">{formatDate(f.mtimeMs)}</span>
-                  </button>
-                ))}
+                      <span className="meta lines">{f.lines.toLocaleString('zh-CN')}</span>
+                      <span className="meta">{formatSize(f.bytes)}</span>
+                      <span className="meta">{formatDate(f.mtimeMs)}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}

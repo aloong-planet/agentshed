@@ -1663,25 +1663,41 @@ body {
   border-left-color: var(--accent);
 }
 .files button .name-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* 类型徽标:横向 pill,禁止换行(固定 22×22 会把 MD 挤成两行像坏图标) */
 .files button .ic {
-  width: 22px;
-  height: 22px;
   flex: none;
-  border-radius: 6px;
-  display: flex;
+  min-width: 28px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  white-space: nowrap;
   background: var(--bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   color: var(--text-2);
   font-family: ui-monospace, Menlo, monospace;
+  box-sizing: border-box;
 }
 .files button .ic.md {
   background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
   color: var(--accent-deep);
+}
+.files button .ic.cfg {
+  background: var(--bg);
+  border-color: var(--line-strong);
+  color: var(--text-2);
+}
+.files button .ic.sh {
+  background: var(--ok-bg);
+  border-color: color-mix(in srgb, var(--ok-fg) 25%, var(--line));
+  color: var(--ok-fg);
 }
 .files button .path {
   min-width: 0;
