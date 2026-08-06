@@ -1,0 +1,823 @@
+<!doctype html>
+<!-- 原型(UI)· Skills 包预览 — 主列表折叠展示包内文件，点文件开抽屉读内容。
+     演示基建:底栏切方案 + 昼夜(data-demo-harness)。共享:md-preview。 -->
+<html lang="zh-CN" data-scheme="blue" data-mode="system">
+<head>
+<meta charset="utf-8">
+<title>原型 — Skills 包预览 · 列表折叠 + 文件抽屉</title>
+<link rel="stylesheet" href="../_shared/md-preview.css">
+<style>
+  /* ── 雾蓝 · 浅 ── */
+  html[data-scheme="blue"] {
+    --bg: #f6f5f3;
+    --card: #fffcf9;
+    --text: #2c2a28;
+    --text-2: #6f6b66;
+    --line: #e8e4de;
+    --line-strong: #d4cfc7;
+    --accent: #4a6fa5;
+    --accent-deep: #3a5a88;
+    --accent-soft: #eef2f7;
+    --warn: #a65d3f;
+    --warn-bg: #fdf6f2;
+    --warn-border: #efd5c8;
+    --tree-bg: #f0eeea;
+    --top-grad-from: #faf8f5;
+    --drawer-shadow: -12px 0 40px rgba(40, 50, 70, 0.12);
+    --cl-bg: #e4ebf5; --cl-fg: #3a5a88;
+    --cx-bg: #e2efe8; --cx-fg: #2d6b52;
+    --gb-bg: #e8eef2; --gb-fg: #3d6f7a;
+    --t-md-h1: #3a5a88;
+    --t-md-h2: #4a6fa5;
+    --t-md-h3: #5d82b0;
+    --t-md-link: #4a6fa5;
+    --t-md-code-bg: #eef1f5;
+    --t-md-code-border: #d8e0ea;
+    --t-md-code-fg: #3a5070;
+    --t-md-pre-bg: #2b303b;
+    --t-md-pre-fg: #e8e6ef;
+    --t-md-pre-comment: #8b8a97;
+    --t-md-pre-string: #7dcea0;
+    --t-md-pre-kw: #9bb8e0;
+    --t-md-quote: #6f6b66;
+    --t-md-quote-bar: #4a6fa5;
+    --t-md-quote-bg: #eef2f7;
+    --t-md-table-head: #eef2f7;
+    --t-md-th: #3a5a88;
+    --t-md-hr: #c5d0e0;
+    --t-md-raw-bg: #f7f6f4;
+    --t-md-bar-from: #f7f8fa;
+    --mask: rgba(30, 28, 40, 0.35);
+  }
+  /* ── 雾蓝 · 深 ── */
+  html[data-scheme="blue"][data-mode="dark"],
+  html[data-scheme="blue"][data-mode="system"] {
+    /* system 的深色由下方 media 覆盖；此处仅 dark 强制 */
+  }
+  @media (prefers-color-scheme: dark) {
+    html[data-scheme="blue"][data-mode="system"] { color-scheme: dark; }
+  }
+  html[data-scheme="blue"][data-mode="dark"],
+  html[data-scheme="blue"][data-mode="system"] {
+    /* light tokens stay as default above; dark overrides: */
+  }
+  @media (prefers-color-scheme: dark) {
+    html[data-scheme="blue"][data-mode="system"] {
+      --bg: #16181c;
+      --card: #1c1f24;
+      --text: #e6e4e0;
+      --text-2: #9a9690;
+      --line: #2a2e34;
+      --line-strong: #3a4048;
+      --accent: #7a9dc4;
+      --accent-deep: #a8c0dc;
+      --accent-soft: #1e2a38;
+      --warn: #e08a6a;
+      --warn-bg: #2a221f;
+      --warn-border: #4a3530;
+      --tree-bg: #14161a;
+      --top-grad-from: #1a1e24;
+      --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.45);
+      --cl-bg: #243448; --cl-fg: #a8c0dc;
+      --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
+      --gb-bg: #1a3340; --gb-fg: #8ec8d4;
+      --t-md-h1: #a8c0dc;
+      --t-md-h2: #7a9dc4;
+      --t-md-h3: #8aadc8;
+      --t-md-link: #8aadc8;
+      --t-md-code-bg: #243040;
+      --t-md-code-border: #354858;
+      --t-md-code-fg: #b8cce0;
+      --t-md-pre-bg: #12151a;
+      --t-md-pre-fg: #e0e4ea;
+      --t-md-pre-comment: #8b909a;
+      --t-md-pre-string: #8fd4a8;
+      --t-md-pre-kw: #9bb8e0;
+      --t-md-quote: #9a9690;
+      --t-md-quote-bar: #7a9dc4;
+      --t-md-quote-bg: #1e2a38;
+      --t-md-table-head: #1e2a38;
+      --t-md-th: #a8c0dc;
+      --t-md-hr: #3a4858;
+      --t-md-raw-bg: #14171c;
+      --t-md-bar-from: #1a1e24;
+      --mask: rgba(0, 0, 0, 0.5);
+    }
+  }
+  html[data-scheme="blue"][data-mode="dark"] {
+    --bg: #16181c;
+    --card: #1c1f24;
+    --text: #e6e4e0;
+    --text-2: #9a9690;
+    --line: #2a2e34;
+    --line-strong: #3a4048;
+    --accent: #7a9dc4;
+    --accent-deep: #a8c0dc;
+    --accent-soft: #1e2a38;
+    --warn: #e08a6a;
+    --warn-bg: #2a221f;
+    --warn-border: #4a3530;
+    --tree-bg: #14161a;
+    --top-grad-from: #1a1e24;
+    --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.45);
+    --cl-bg: #243448; --cl-fg: #a8c0dc;
+    --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
+    --gb-bg: #1a3340; --gb-fg: #8ec8d4;
+    --t-md-h1: #a8c0dc;
+    --t-md-h2: #7a9dc4;
+    --t-md-h3: #8aadc8;
+    --t-md-link: #8aadc8;
+    --t-md-code-bg: #243040;
+    --t-md-code-border: #354858;
+    --t-md-code-fg: #b8cce0;
+    --t-md-pre-bg: #12151a;
+    --t-md-pre-fg: #e0e4ea;
+    --t-md-pre-comment: #8b909a;
+    --t-md-pre-string: #8fd4a8;
+    --t-md-pre-kw: #9bb8e0;
+    --t-md-quote: #9a9690;
+    --t-md-quote-bar: #7a9dc4;
+    --t-md-quote-bg: #1e2a38;
+    --t-md-table-head: #1e2a38;
+    --t-md-th: #a8c0dc;
+    --t-md-hr: #3a4858;
+    --t-md-raw-bg: #14171c;
+    --t-md-bar-from: #1a1e24;
+    --mask: rgba(0, 0, 0, 0.5);
+  }
+
+  /* ── 琥珀褐 · 浅 ── */
+  html[data-scheme="amber"] {
+    --bg: #f7f3ec;
+    --card: #fffcf7;
+    --text: #3a342c;
+    --text-2: #7a7268;
+    --line: #e8e0d4;
+    --line-strong: #d6ccbc;
+    --accent: #6b5220;
+    --accent-deep: #534018;
+    --accent-soft: #f3ead4;
+    --warn: #9c4e32;
+    --warn-bg: #fbf3ee;
+    --warn-border: #e8d0c4;
+    --tree-bg: #f0e9dc;
+    --top-grad-from: #faf6ef;
+    --drawer-shadow: -12px 0 40px rgba(60, 45, 25, 0.12);
+    --cl-bg: #ebe4d8; --cl-fg: #6b5220;
+    --cx-bg: #e2efe8; --cx-fg: #2d6b52;
+    --gb-bg: #e8eef2; --gb-fg: #3d6f7a;
+    --t-md-h1: #534018;
+    --t-md-h2: #6b5220;
+    --t-md-h3: #8b6914;
+    --t-md-link: #6b5220;
+    --t-md-code-bg: #f0e9dc;
+    --t-md-code-border: #e0d4c0;
+    --t-md-code-fg: #5a451c;
+    --t-md-pre-bg: #2f2c28;
+    --t-md-pre-fg: #efe8dc;
+    --t-md-pre-comment: #9a9286;
+    --t-md-pre-string: #b8d4a0;
+    --t-md-pre-kw: #d4b878;
+    --t-md-quote: #7a7268;
+    --t-md-quote-bar: #8b6914;
+    --t-md-quote-bg: #f3ead4;
+    --t-md-table-head: #f3ead4;
+    --t-md-th: #534018;
+    --t-md-hr: #d6ccbc;
+    --t-md-raw-bg: #f9f5ee;
+    --t-md-bar-from: #faf6ef;
+    --mask: rgba(40, 32, 20, 0.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    html[data-scheme="amber"][data-mode="system"] {
+      --bg: #1a1714;
+      --card: #221e1a;
+      --text: #ebe4d8;
+      --text-2: #a09888;
+      --line: #332e28;
+      --line-strong: #453e36;
+      --accent: #c4a46a;
+      --accent-deep: #ddc48e;
+      --accent-soft: #2e2820;
+      --warn: #e08a6a;
+      --warn-bg: #2a221f;
+      --warn-border: #4a3530;
+      --tree-bg: #16130f;
+      --top-grad-from: #1e1a16;
+      --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.5);
+      --cl-bg: #3a3228; --cl-fg: #ddc48e;
+      --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
+      --gb-bg: #1a3340; --gb-fg: #8ec8d4;
+      --t-md-h1: #ddc48e;
+      --t-md-h2: #c4a46a;
+      --t-md-h3: #d4b878;
+      --t-md-link: #d4b878;
+      --t-md-code-bg: #2e2820;
+      --t-md-code-border: #453e36;
+      --t-md-code-fg: #e0d0a8;
+      --t-md-pre-bg: #12100e;
+      --t-md-pre-fg: #efe8dc;
+      --t-md-pre-comment: #9a9286;
+      --t-md-pre-string: #b8d4a0;
+      --t-md-pre-kw: #d4b878;
+      --t-md-quote: #a09888;
+      --t-md-quote-bar: #c4a46a;
+      --t-md-quote-bg: #2e2820;
+      --t-md-table-head: #2e2820;
+      --t-md-th: #ddc48e;
+      --t-md-hr: #453e36;
+      --t-md-raw-bg: #16130f;
+      --t-md-bar-from: #1e1a16;
+      --mask: rgba(0, 0, 0, 0.55);
+    }
+  }
+  html[data-scheme="amber"][data-mode="dark"] {
+    --bg: #1a1714;
+    --card: #221e1a;
+    --text: #ebe4d8;
+    --text-2: #a09888;
+    --line: #332e28;
+    --line-strong: #453e36;
+    --accent: #c4a46a;
+    --accent-deep: #ddc48e;
+    --accent-soft: #2e2820;
+    --warn: #e08a6a;
+    --warn-bg: #2a221f;
+    --warn-border: #4a3530;
+    --tree-bg: #16130f;
+    --top-grad-from: #1e1a16;
+    --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.5);
+    --cl-bg: #3a3228; --cl-fg: #ddc48e;
+    --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
+    --gb-bg: #1a3340; --gb-fg: #8ec8d4;
+    --t-md-h1: #ddc48e;
+    --t-md-h2: #c4a46a;
+    --t-md-h3: #d4b878;
+    --t-md-link: #d4b878;
+    --t-md-code-bg: #2e2820;
+    --t-md-code-border: #453e36;
+    --t-md-code-fg: #e0d0a8;
+    --t-md-pre-bg: #12100e;
+    --t-md-pre-fg: #efe8dc;
+    --t-md-pre-comment: #9a9286;
+    --t-md-pre-string: #b8d4a0;
+    --t-md-pre-kw: #d4b878;
+    --t-md-quote: #a09888;
+    --t-md-quote-bar: #c4a46a;
+    --t-md-quote-bg: #2e2820;
+    --t-md-table-head: #2e2820;
+    --t-md-th: #ddc48e;
+    --t-md-hr: #453e36;
+    --t-md-raw-bg: #16130f;
+    --t-md-bar-from: #1e1a16;
+    --mask: rgba(0, 0, 0, 0.55);
+  }
+  /* light 强制：system 下若用户强制 light，覆盖 media dark */
+  html[data-mode="light"] {
+    color-scheme: light;
+  }
+  html[data-mode="dark"] {
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",system-ui,sans-serif}
+  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .main{flex:1;min-width:0;overflow:auto;padding:18px 22px 100px}
+  h2.page-h{font-size:16px;font-weight:700;color:var(--accent);margin:0 0 4px;letter-spacing:-.02em}
+  .sub{font-size:12px;color:var(--text-2);margin-bottom:14px;line-height:1.55}
+  .sub b{color:var(--text)}
+  .sec-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);margin:18px 0 8px}
+  .sec-h:first-of-type{margin-top:0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;
+    box-shadow:0 1px 2px rgba(40,50,60,.04);overflow:hidden}
+  /* skill 块:顶栏 + 可折叠文件 */
+  .sk{border-top:1px solid var(--line)}
+  .sk:first-child{border-top:0}
+  .sk-head{display:flex;align-items:center;gap:8px;padding:10px 14px;width:100%;text-align:left;
+    background:none;border:0;color:inherit;font:inherit}
+  .sk-head.disk{cursor:pointer}
+  .sk-head.disk:hover{background:var(--accent-soft)}
+  .sk-head.plugin{cursor:default;opacity:.9}
+  .chev{width:18px;flex:none;color:var(--text-2);font-size:11px;transition:transform .15s;text-align:center}
+  .sk.open .chev{transform:rotate(90deg);color:var(--accent)}
+  .nm{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;width:150px;flex:none;font-weight:600;color:var(--accent-deep)}
+  .ds{flex:1;min-width:0;color:var(--text-2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bdg{display:flex;gap:3px;flex:none}
+  .b{font-size:9px;font-weight:700;border-radius:4px;padding:2px 5px}
+  .b.cl{background:var(--cl-bg);color:var(--cl-fg)}
+  .b.cx{background:var(--cx-bg);color:var(--cx-fg)}
+  .b.gb{background:var(--gb-bg);color:var(--gb-fg)}
+  .b.miss{border:1px dashed var(--line-strong);color:var(--text-2);background:transparent;font-weight:400}
+  .pill{font-size:10px;border-radius:5px;padding:2px 7px;flex:none}
+  .pill.ln{border:1px dashed var(--line-strong);color:var(--text-2)}
+  .pill.plg{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .pill.lv{border:1px solid var(--line-strong);color:var(--text-2)}
+  .ins{font:inherit;font-size:11.5px;border:1px solid var(--line-strong);background:var(--bg);color:var(--text-2);
+    border-radius:7px;padding:4px 11px;cursor:pointer;flex:none}
+  .ins:hover{color:var(--accent);border-color:var(--accent)}
+  .sk-body{display:none;padding:0 12px 12px 32px;background:var(--tree-bg);border-top:1px solid var(--line)}
+  .sk.open .sk-body{display:block}
+  .sk-sides{display:flex;gap:4px;padding:10px 0 6px}
+  .sk-sides button{
+    font:inherit;font-size:11px;font-weight:600;border:1px solid var(--line-strong);
+    background:var(--card);color:var(--text-2);border-radius:7px;padding:3px 10px;cursor:pointer}
+  .sk-sides button.on{background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent)}
+  .sk-tip{
+    font-size:11.5px;color:var(--warn);background:var(--warn-bg);border:1px solid var(--warn-border);
+    border-radius:8px;padding:7px 10px;line-height:1.45;margin:6px 0 8px}
+  .files-card{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    margin-top:4px}
+  .files-sum{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:8px 12px;font-size:11.5px;color:var(--text-2);
+    border-bottom:1px solid var(--line);background:var(--bg)}
+  .files-sum b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+  .files-sum .dot{opacity:.45}
+  .files-head{
+    display:grid;grid-template-columns:minmax(0,1fr) 64px 72px 108px;
+    gap:8px;padding:6px 12px;font-size:10.5px;font-weight:600;letter-spacing:.03em;
+    text-transform:uppercase;color:var(--text-2);border-bottom:1px solid var(--line)}
+  .files-head span:not(:first-child){text-align:right}
+  .files{display:flex;flex-direction:column;padding:4px 0}
+  .files button{
+    display:grid;grid-template-columns:minmax(0,1fr) 64px 72px 108px;
+    gap:8px;align-items:center;width:100%;text-align:left;font:inherit;
+    font-size:12px;border:0;background:transparent;color:var(--text);
+    padding:8px 12px;cursor:pointer;border-left:3px solid transparent}
+  .files button:hover{background:var(--accent-soft);border-left-color:var(--accent)}
+  .files button:hover .path{color:var(--accent-deep)}
+  .files button .name-cell{display:flex;align-items:center;gap:8px;min-width:0}
+  .files button .ic{
+    width:22px;height:22px;flex:none;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:800;letter-spacing:-.02em;background:var(--bg);border:1px solid var(--line);
+    color:var(--text-2);font-family:ui-monospace,Menlo,monospace}
+  .files button .ic.md{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,var(--line));
+    color:var(--accent-deep)}
+  .files button .ic.sh{background:var(--ok-bg,#dcfce7);border-color:color-mix(in srgb,#166534 20%,var(--line));
+    color:#166534}
+  .files button .path{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font-family:ui-monospace,Menlo,monospace;font-size:12px}
+  .files button .tag{font-size:9px;font-weight:700;color:var(--accent);background:var(--accent-soft);
+    border-radius:4px;padding:1px 5px;flex:none}
+  .files button .meta{font-size:11.5px;color:var(--text-2);font-variant-numeric:tabular-nums;
+    font-family:ui-monospace,Menlo,monospace;text-align:right;white-space:nowrap}
+  .files button .meta.lines{font-weight:600;color:var(--text)}
+  .files .empty{font-size:12px;color:var(--text-2);padding:12px}
+  .note{font-size:11.5px;color:var(--text-2);margin-top:14px;padding:12px 14px;border:1px dashed var(--line-strong);
+    border-radius:10px;line-height:1.55;background:var(--card)}
+  .swatches{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .swatch{width:22px;height:22px;border-radius:6px;border:1px solid var(--line-strong)}
+  .toast{position:fixed;bottom:86px;left:50%;transform:translateX(-50%);z-index:40;
+    background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:10px;padding:10px 16px;font-size:12.5px;display:none}
+  .mask{position:fixed;inset:0;background:var(--mask);backdrop-filter:blur(2px);z-index:20}
+  .err{color:var(--warn);padding:14px;font-size:12.5px}
+
+  /* 抽屉:只读文件详情(文件树在主列表) */
+  .drawer{
+    position:fixed;top:0;right:0;bottom:0;z-index:21;width:min(720px,94vw);
+    display:flex;flex-direction:column;
+    background:var(--card);box-shadow:var(--drawer-shadow);
+    border-left:1px solid var(--line-strong);
+  }
+  .drawer-close{
+    position:absolute;top:12px;right:12px;z-index:2;
+    width:32px;height:32px;border-radius:8px;border:1px solid var(--line);
+    background:var(--bg);color:var(--text-2);cursor:pointer;font-size:16px;line-height:1;
+  }
+  .drawer-close:hover{color:var(--accent);border-color:var(--accent)}
+  .d-top{
+    flex:none;padding:16px 48px 12px 18px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,var(--top-grad-from) 0%,var(--card) 100%);
+  }
+  .d-title{font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;color:var(--accent);margin:0 0 4px}
+  .d-meta{font-size:12px;color:var(--text-2);line-height:1.45}
+  .d-body{flex:1;min-height:0;display:flex;padding:10px}
+
+  .md-preview{
+    --md-h1: var(--t-md-h1);
+    --md-h2: var(--t-md-h2);
+    --md-h3: var(--t-md-h3);
+    --md-link: var(--t-md-link);
+    --md-code-bg: var(--t-md-code-bg);
+    --md-code-border: var(--t-md-code-border);
+    --md-pre-bg: var(--t-md-pre-bg);
+    --md-pre-fg: var(--t-md-pre-fg);
+    --md-pre-comment: var(--t-md-pre-comment);
+    --md-pre-string: var(--t-md-pre-string);
+    --md-pre-kw: var(--t-md-pre-kw);
+    --md-quote: var(--t-md-quote);
+    --md-quote-bar: var(--t-md-quote-bar);
+    --md-table-head: var(--t-md-table-head);
+    --md-th: var(--t-md-th);
+    border-color: var(--line);
+    background: var(--card);
+  }
+  .md-preview-bar{
+    background: linear-gradient(180deg, var(--t-md-bar-from) 0%, var(--card) 100%);
+    border-bottom-color: var(--line);
+  }
+  .md-preview-bar .md-preview-name{ color: var(--t-md-h2); }
+  .md-preview-seg{ background: var(--bg); border-color: var(--line-strong); }
+  .md-preview-seg button.on{ color: var(--t-md-h1); }
+  .md-preview-body.raw{ background: var(--t-md-raw-bg); color: var(--text); }
+  .md-preview-body.preview{ background: var(--card); color: var(--text); }
+  .md-preview-body.preview h1{ border-bottom-color: var(--t-md-hr); }
+  .md-preview-body.preview code{ color: var(--t-md-code-fg); }
+  .md-preview-body.preview blockquote{
+    background: linear-gradient(90deg, var(--t-md-quote-bg) 0%, transparent 100%);
+  }
+  .md-preview-body.preview hr{
+    background: linear-gradient(90deg, transparent, var(--t-md-hr), transparent);
+  }
+  .md-preview-body.preview a{ color: var(--t-md-link); border-bottom-color: color-mix(in srgb, var(--t-md-link) 35%, transparent); }
+  .md-preview-body.preview strong{ color: var(--accent-deep); }
+
+  [data-demo-harness]{
+    position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50;
+    display:flex;align-items:center;gap:6px;padding:8px 12px;
+    background:rgba(28,26,24,.92);color:#efece6;border-radius:999px;
+    box-shadow:0 8px 28px rgba(0,0,0,.3);backdrop-filter:blur(10px);
+    font-size:12px;max-width:98vw;flex-wrap:wrap;justify-content:center}
+  [data-demo-harness] .tag{
+    font-size:10px;font-weight:700;letter-spacing:.04em;color:#b0a898;
+    border-right:1px solid rgba(255,255,255,.12);padding-right:10px;white-space:nowrap}
+  [data-demo-harness] .sep{width:1px;height:18px;background:rgba(255,255,255,.12);margin:0 2px}
+  [data-demo-harness] button{
+    font:inherit;font-size:11.5px;font-weight:600;border:0;background:transparent;
+    color:#b0a898;padding:5px 10px;border-radius:999px;cursor:pointer;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:6px}
+  [data-demo-harness] button .dot{
+    width:10px;height:10px;border-radius:50%;border:1px solid rgba(255,255,255,.25)}
+  [data-demo-harness] button.on{background:rgba(255,255,255,.12);color:#fff}
+</style>
+<script src="../vendor/marked.umd.js"></script>
+<script src="../_shared/md-preview.js"></script>
+<script src="./skill-packages-fixture.js"></script>
+</head>
+<body>
+  <div class="main">
+    <h2 class="page-h">Skills 包预览</h2>
+    <div class="sub">
+      磁盘 skill <b>点行折叠/展开</b>，包内文件表含<strong>行数 / 大小 / 修改日期</strong>；
+      <b>点文件</b>开抽屉读详情（md 默认可预览）。插件行不可展开。
+    </div>
+    <div class="sec-h">全局 · Agents Skills</div>
+    <div class="card" id="global"></div>
+    <div class="sec-h">项目详情 · Skills（同名只见项目级）</div>
+    <div class="card" id="detail"></div>
+    <div class="note" id="theme-note"></div>
+  </div>
+  <div class="toast" id="toast">已记录:安装交互</div>
+  <div id="overlay"></div>
+
+  <div data-demo-harness>
+    <span class="tag">演示·配色</span>
+    <button type="button" data-scheme="blue" class="on"><span class="dot" style="background:#4a6fa5"></span>雾蓝</button>
+    <button type="button" data-scheme="amber"><span class="dot" style="background:#6b5220"></span>琥珀褐</button>
+    <span class="sep"></span>
+    <span class="tag" style="border:0;padding:0 4px 0 0">昼夜</span>
+    <button type="button" data-mode="system" class="on">跟随系统</button>
+    <button type="button" data-mode="light">强制浅</button>
+    <button type="button" data-mode="dark">强制深</button>
+  </div>
+
+<script>
+  const SCHEMES = {
+    blue: {
+      name: '雾蓝',
+      blurb: '暖灰纸底 + 冷静蓝强调；深色为同色相提亮，适合长文。',
+      sw: ['#fffcf9', '#eef2f7', '#4a6fa5', '#2b303b']
+    },
+    amber: {
+      name: '琥珀褐',
+      blurb: '暖纸 + 褐强调，纸书感；深色为暖深底 + 提亮琥珀。',
+      sw: ['#fffcf7', '#f3ead4', '#6b5220', '#2f2c28']
+    }
+  }
+  const MODES = {
+    system: '跟随系统（prefers-color-scheme）',
+    light: '强制浅色',
+    dark: '强制深色'
+  }
+
+  function parseHash() {
+    // #blue | #blue-dark | #amber-light | #amber-system
+    const h = (location.hash || '#blue-system').replace(/^#/, '')
+    const [s, m] = h.split('-')
+    const scheme = s === 'amber' ? 'amber' : 'blue'
+    const mode = m === 'light' || m === 'dark' || m === 'system' ? m : 'system'
+    return { scheme, mode }
+  }
+
+  let { scheme, mode } = parseHash()
+
+  const SIDE_ORDER = ['claude', 'codex', 'grok']
+  const SIDE_LABEL = { claude: 'Claude', codex: 'Codex', grok: 'Grok' }
+  const SIDE_BADGE = { claude: 'CC', codex: 'CX', grok: 'GB' }
+  const SIDE_CLASS = { claude: 'cl', codex: 'cx', grok: 'gb' }
+  const PACKAGES = window.SKILL_PACKAGES || {}
+
+  function badges(sides) {
+    return SIDE_ORDER.map((s) => {
+      const on = sides.includes(s)
+      return `<span class="b ${on ? SIDE_CLASS[s] : 'miss'}">${on ? SIDE_BADGE[s] : '—'}</span>`
+    }).join('')
+  }
+  function toast(msg) {
+    const t = document.getElementById('toast')
+    t.textContent = msg || '已记录:安装交互'
+    t.style.display = 'block'
+    clearTimeout(toast._tm)
+    toast._tm = setTimeout(() => { t.style.display = 'none' }, 1400)
+  }
+  function listFiles(pack) {
+    return Object.keys(pack.files || {}).sort((a, b) => {
+      if (a === 'SKILL.md') return -1
+      if (b === 'SKILL.md') return 1
+      return a.localeCompare(b)
+    })
+  }
+
+  function lineCount(text) {
+    if (!text) return 0
+    // 末行无换行也计一行
+    return text.replace(/\n$/, '').split('\n').length
+  }
+  function formatSize(bytes) {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+  function formatLines(n) {
+    return `${n.toLocaleString('zh-CN')} 行`
+  }
+  /** 原型用稳定伪 mtime(无真实 fs);实现期换成真实 mtime */
+  function mockMtime(skill, side, path) {
+    let h = 0
+    const s = `${side}:${skill}:${path}`
+    for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) >>> 0
+    // 2025-11 → 2026-08 之间的稳定日期
+    const day = h % 280
+    const d = new Date(Date.UTC(2025, 10, 1 + day, 8 + (h % 10), (h >> 3) % 60))
+    const y = d.getUTCFullYear()
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const dd = String(d.getUTCDate()).padStart(2, '0')
+    return `${y}-${m}-${dd}`
+  }
+  function extKind(path) {
+    const base = path.split('/').pop() || path
+    if (/\.md$/i.test(base)) return { kind: 'md', label: 'MD' }
+    if (/\.(sh|bash|zsh)$/i.test(base)) return { kind: 'sh', label: 'SH' }
+    if (/\.(js|ts|mjs|cjs)$/i.test(base)) return { kind: 'js', label: 'JS' }
+    if (/\.(ya?ml|toml|json)$/i.test(base)) return { kind: 'cfg', label: 'CFG' }
+    const ext = (base.includes('.') ? base.split('.').pop() : '?').slice(0, 3).toUpperCase()
+    return { kind: 'oth', label: ext }
+  }
+
+  function applyTheme() {
+    document.documentElement.setAttribute('data-scheme', scheme)
+    document.documentElement.setAttribute('data-mode', mode)
+    location.hash = `${scheme}-${mode}`
+    // 只动演示 harness,勿伤 md-preview 等业务按钮
+    document.querySelectorAll('[data-demo-harness] [data-scheme]').forEach((b) => {
+      b.classList.toggle('on', b.getAttribute('data-scheme') === scheme)
+    })
+    document.querySelectorAll('[data-demo-harness] [data-mode]').forEach((b) => {
+      b.classList.toggle('on', b.getAttribute('data-mode') === mode)
+    })
+    const info = SCHEMES[scheme]
+    document.getElementById('theme-note').innerHTML =
+      `<b>${info.name}</b> · ${MODES[mode]} — ${info.blurb}
+       <div class="swatches">${info.sw.map((c) =>
+         `<span class="swatch" style="background:${c}"></span>`).join('')}</div>`
+    if (window.__drawerReopen) window.__drawerReopen()
+  }
+
+  document.querySelectorAll('[data-demo-harness] [data-scheme]').forEach((b) => {
+    b.onclick = () => { scheme = b.getAttribute('data-scheme'); applyTheme() }
+  })
+  document.querySelectorAll('[data-demo-harness] [data-mode]').forEach((b) => {
+    b.onclick = () => { mode = b.getAttribute('data-mode'); applyTheme() }
+  })
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (mode === 'system' && window.__drawerReopen) window.__drawerReopen()
+  })
+
+  function openFileDrawer({ skill, side, file, levelLabel }) {
+    const key = `${side}:${skill}`
+    const pack = PACKAGES[key]
+    const opts = { skill, side, file, levelLabel }
+    window.__drawerReopen = () => openFileDrawer(opts)
+    const overlay = document.getElementById('overlay')
+    let mdCtl = null
+
+    if (!pack || !pack.files || pack.files[file] == null) {
+      overlay.innerHTML = `<div class="mask" data-close></div>
+        <div class="drawer"><button class="drawer-close" data-close>×</button>
+        <div class="err">文件不可读: ${skill} / ${file}</div></div>`
+    } else {
+      const text = pack.files[file]
+      const sideLab = SIDE_LABEL[side] || side
+      const meta = [
+        levelLabel || '全局库',
+        sideLab,
+        file
+      ].join(' · ')
+      overlay.innerHTML = `
+        <div class="mask" data-close></div>
+        <div class="drawer">
+          <button class="drawer-close" data-close title="关闭">×</button>
+          <div class="d-top">
+            <div class="d-title">${skill}</div>
+            <div class="d-meta">${meta}</div>
+          </div>
+          <div class="d-body">
+            <div class="d-pane" id="md-pane" data-shared-block="md-preview" style="flex:1;min-width:0;display:flex;width:100%"></div>
+          </div>
+        </div>`
+      const pane = document.getElementById('md-pane')
+      const m = (window.MdPreview && MdPreview.isMarkdown(file)) ? 'preview' : 'raw'
+      mdCtl = MdPreview.mount(pane, { name: file, text, mode: m })
+    }
+
+    const close = () => {
+      if (mdCtl) { mdCtl.destroy(); mdCtl = null }
+      overlay.innerHTML = ''
+      window.onkeydown = null
+      window.__drawerReopen = null
+    }
+    overlay.querySelectorAll('[data-close]').forEach((el) => { el.onclick = close })
+    window.onkeydown = (e) => { if (e.key === 'Escape') close() }
+  }
+
+  function sortedSides(sides) {
+    return sides.slice().sort((a, b) => SIDE_ORDER.indexOf(a) - SIDE_ORDER.indexOf(b))
+  }
+
+  function renderFileList(container, { skill, side, levelLabel }) {
+    const key = `${side}:${skill}`
+    const pack = PACKAGES[key]
+    container.innerHTML = ''
+    if (!pack) {
+      container.innerHTML = `<div class="empty">无包数据（${key}）</div>`
+      return
+    }
+    if (pack.deep) {
+      const tip = document.createElement('div')
+      tip.className = 'sk-tip'
+      tip.innerHTML = `按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill。
+        <br><span style="opacity:.85">更深路径未列入: ${(pack.deepPaths || []).join(', ') || '…'}</span>`
+      container.appendChild(tip)
+    }
+    const names = listFiles(pack)
+    const card = document.createElement('div')
+    card.className = 'files-card'
+    if (!names.length) {
+      card.innerHTML = '<div class="empty">包内无可预览文本文件</div>'
+      container.appendChild(card)
+      return
+    }
+
+    let totalBytes = 0
+    let totalLines = 0
+    const rows = names.map((n) => {
+      const text = pack.files[n] || ''
+      // 原型 UTF-8 近似:中文等按 1 码元计,够展示密度
+      const bytes = new TextEncoder().encode(text).length
+      const lines = lineCount(text)
+      totalBytes += bytes
+      totalLines += lines
+      return { n, bytes, lines, mtime: mockMtime(skill, side, n), kind: extKind(n) }
+    })
+
+    const sum = document.createElement('div')
+    sum.className = 'files-sum'
+    sum.innerHTML = `
+      <span><b>${rows.length}</b> 个文件</span>
+      <span class="dot">·</span>
+      <span>共 <b>${formatLines(totalLines)}</b></span>
+      <span class="dot">·</span>
+      <span><b>${formatSize(totalBytes)}</b></span>
+      <span class="dot">·</span>
+      <span>${SIDE_LABEL[side] || side}${levelLabel ? ' · ' + levelLabel : ''}</span>`
+    card.appendChild(sum)
+
+    const head = document.createElement('div')
+    head.className = 'files-head'
+    head.innerHTML = '<span>文件</span><span>行数</span><span>大小</span><span>修改日期</span>'
+    card.appendChild(head)
+
+    const wrap = document.createElement('div')
+    wrap.className = 'files'
+    rows.forEach((r) => {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.innerHTML = `
+        <span class="name-cell">
+          <span class="ic ${r.kind.kind}">${r.kind.label}</span>
+          <span class="path" title="${r.n}">${r.n}</span>
+          ${r.n === 'SKILL.md' ? '<span class="tag">入口</span>' : ''}
+        </span>
+        <span class="meta lines">${r.lines.toLocaleString('zh-CN')}</span>
+        <span class="meta">${formatSize(r.bytes)}</span>
+        <span class="meta">${r.mtime}</span>`
+      btn.onclick = (e) => {
+        e.stopPropagation()
+        openFileDrawer({ skill, side, file: r.n, levelLabel })
+      }
+      wrap.appendChild(btn)
+    })
+    card.appendChild(wrap)
+    container.appendChild(card)
+  }
+
+  function mountSkillBlock(parent, s, { levelLabel, showInstall }) {
+    const root = document.createElement('div')
+    root.className = 'sk'
+    const disk = s.origin === 'disk'
+    const sides = sortedSides(s.sides || [])
+    let side = sides[0] || 'claude'
+
+    const head = document.createElement(disk ? 'button' : 'div')
+    head.type = disk ? 'button' : undefined
+    head.className = 'sk-head ' + (disk ? 'disk' : 'plugin')
+    head.innerHTML = `
+      <span class="chev">${disk ? '▸' : '·'}</span>
+      <span class="nm">${s.name}</span>
+      <span class="bdg">${badges(sides)}</span>
+      ${s.origin === 'plugin' ? '<span class="pill plg">插件</span>' : ''}
+      ${s.level === 'project' ? '<span class="pill lv">项目级</span>' : ''}
+      ${s.level === 'global' ? '<span class="pill lv">全局层</span>' : ''}
+      ${s.symlink ? '<span class="pill ln">⤷ 软链</span>' : ''}
+      <span class="ds">${s.description}</span>
+      ${disk && showInstall ? '<button type="button" class="ins" data-ins>安装到…</button>' : ''}
+      ${disk && s.level === 'project' ? '<button type="button" class="ins" data-un>卸载</button>' : ''}`
+
+    const body = document.createElement('div')
+    body.className = 'sk-body'
+
+    if (disk) {
+      const filesHost = document.createElement('div')
+      if (sides.length > 1) {
+        const seg = document.createElement('div')
+        seg.className = 'sk-sides'
+        sides.forEach((sid) => {
+          const b = document.createElement('button')
+          b.type = 'button'
+          b.textContent = SIDE_LABEL[sid] || sid
+          b.className = sid === side ? 'on' : ''
+          b.onclick = (e) => {
+            e.stopPropagation()
+            side = sid
+            seg.querySelectorAll('button').forEach((x) => {
+              x.classList.toggle('on', x === b)
+            })
+            renderFileList(filesHost, { skill: s.name, side, levelLabel })
+          }
+          seg.appendChild(b)
+        })
+        body.appendChild(seg)
+      }
+      body.appendChild(filesHost)
+
+      head.onclick = () => {
+        const open = root.classList.toggle('open')
+        if (open) renderFileList(filesHost, { skill: s.name, side, levelLabel })
+      }
+      const ins = head.querySelector('[data-ins]')
+      if (ins) ins.onclick = (e) => { e.stopPropagation(); toast('已记录:安装到…') }
+      const un = head.querySelector('[data-un]')
+      if (un) un.onclick = (e) => { e.stopPropagation(); toast('已记录:卸载') }
+    }
+
+    root.appendChild(head)
+    root.appendChild(body)
+    parent.appendChild(root)
+  }
+
+  const GLOBAL = [
+    { name: 'github-ops', description: '完整真实包 · 点行展开文件 · 点文件开抽屉', sides: ['claude', 'codex', 'grok'], origin: 'disk', symlink: true },
+    { name: 'deep-demo', description: '深度>2 提示（展开后可见）', sides: ['claude', 'codex'], origin: 'disk', symlink: false },
+    { name: 'tdd', description: 'Test-driven development…', sides: ['claude'], origin: 'disk', symlink: false },
+    { name: 'superpowers:brainstorming', description: '插件 · 不可展开/预览', sides: ['claude'], origin: 'plugin', symlink: false }
+  ]
+  // 详情:同名 github-ops 只列项目级;tdd 仅全局;无被遮蔽全局行
+  const DETAIL = [
+    { name: 'github-ops', description: '项目级覆盖全局 · 只展示这一行', sides: ['claude'], origin: 'disk', level: 'project', symlink: false },
+    { name: 'tdd', description: '仅全局有 · 仍列出可展开', sides: ['claude'], origin: 'disk', level: 'global', symlink: false }
+  ]
+
+  const gEl = document.getElementById('global')
+  GLOBAL.forEach((s) => mountSkillBlock(gEl, s, { levelLabel: '全局库', showInstall: true }))
+  const dEl = document.getElementById('detail')
+  DETAIL.forEach((s) => mountSkillBlock(dEl, s, {
+    levelLabel: s.level === 'project' ? '项目级' : '全局层',
+    showInstall: false
+  }))
+
+  applyTheme()
+</script>
+</body>
+</html>
