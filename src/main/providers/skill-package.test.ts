@@ -74,6 +74,20 @@ describe('listSkillPackageFiles', () => {
     expect(listing.files.map((f) => f.path)).toEqual(['SKILL.md'])
   })
 
+  it('空包与缺 SKILL.md:不崩,列表如实', () => {
+    const empty = join(dir, 'empty-pack')
+    mkdirSync(empty, { recursive: true })
+    const l1 = listSkillPackageFiles(empty)
+    expect(l1.files).toEqual([])
+    expect(l1.deep).toBe(false)
+
+    // 包损坏(无 SKILL.md):其余文本仍列出,不伪造入口(C5)
+    const noEntry = join(dir, 'no-entry')
+    mkPack(noEntry, { 'notes.txt': 'hi\n' })
+    const l2 = listSkillPackageFiles(noEntry)
+    expect(l2.files.map((f) => f.path)).toEqual(['notes.txt'])
+  })
+
   it('跟随软链 skill 根', () => {
     const real = join(dir, 'real-skill')
     mkPack(real, { 'SKILL.md': '---\ndescription: via link\n---\n' })
@@ -99,5 +113,19 @@ describe('resolveSkillRoot + isUnderKnownSkillRoots', () => {
     expect(isUnderKnownSkillRoots(abs!, r)).toBe(true)
     expect(resolveSkillRoot({ side: 'claude', name: '../x', scope: 'global', roots: r })).toBeNull()
     expect(resolveSkillRoot({ side: 'claude', name: 'plug:x', scope: 'global', roots: r })).toBeNull()
+  })
+
+  it('isUnderKnownSkillRoots:包外 / skills 根自身 / 非直接子目录一律拒绝(C9 fail-closed)', () => {
+    const r = roots()
+    mkdirSync(join(r.claudeHome, 'skills', 'tdd', 'references'), { recursive: true })
+    const outside = join(dir, 'elsewhere', 'tdd')
+    mkdirSync(outside, { recursive: true })
+    expect(isUnderKnownSkillRoots(outside, r)).toBe(false)
+    expect(isUnderKnownSkillRoots(join(r.claudeHome, 'skills'), r)).toBe(false)
+    expect(isUnderKnownSkillRoots(join(r.claudeHome, 'skills', 'tdd', 'references'), r)).toBe(false)
+    // 未传 projectPath 时,项目级目录不在允许集
+    mkdirSync(join(dir, 'proj', '.claude', 'skills', 'x'), { recursive: true })
+    expect(isUnderKnownSkillRoots(join(dir, 'proj', '.claude', 'skills', 'x'), r)).toBe(false)
+    expect(isUnderKnownSkillRoots(join(dir, 'proj', '.claude', 'skills', 'x'), r, join(dir, 'proj'))).toBe(true)
   })
 })

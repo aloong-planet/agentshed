@@ -172,6 +172,8 @@ handle(CMD.refresh, async () => doScan())
 const artifactWhitelist = new Set<string>()
 /** skills-view:展开列举登记的精确可读路径 */
 const skillFileWhitelist = new Set<string>()
+/** skills-view C9:项目级列举只对「打开过详情」的项目放行(fail-closed,同 session 白名单模式) */
+const openedProjects = new Set<string>()
 
 handle(CMD.getProjectDetail, (_e, path: unknown) => {
   if (typeof path !== 'string' || path === '') throw new Error('getProjectDetail 参数不合契约')
@@ -182,6 +184,7 @@ handle(CMD.getProjectDetail, (_e, path: unknown) => {
   assertProjectDetail(detail)
   for (const a of detail.artifacts) artifactWhitelist.add(a.file)
   for (const t of detail.memory.topics) artifactWhitelist.add(t.file)
+  openedProjects.add(path)
   return detail
 })
 handle(CMD.getSessionPage, async (_e, raw: unknown) => {
@@ -295,6 +298,9 @@ function checkListSkillFilesArgs(args: unknown): ListSkillFilesArgs {
 }
 handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
   const a = checkListSkillFilesArgs(args)
+  if (a.scope === 'project' && !openedProjects.has(a.projectPath as string)) {
+    throw new Error('项目未打开(先打开项目详情)')
+  }
   const roots = realRoots()
   const root = resolveSkillRoot({
     side: a.side,
