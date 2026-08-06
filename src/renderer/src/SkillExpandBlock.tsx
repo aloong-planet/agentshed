@@ -35,7 +35,6 @@ function extKind(path: string): { label: string; kind: string } {
 
 export interface SkillExpandBlockProps {
   name: string
-  description: string | null
   /** 可展开的侧(磁盘);插件传空 */
   sides: AgentSide[]
   origin: 'disk' | 'plugin'
@@ -53,7 +52,6 @@ export interface SkillExpandBlockProps {
 export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   const {
     name,
-    description,
     sides,
     origin,
     symlink,
@@ -146,7 +144,6 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         {level === 'project' && <span className="pill prj">项目级</span>}
         {level === 'global' && <span className="pill glb">全局</span>}
         {symlink && <span className="pill ln">⤷ 软链</span>}
-        <span className="ds">{description ?? ''}</span>
         {installSlot}
         {uninstallSlot}
       </div>

@@ -260,7 +260,6 @@ function SkillRow({
   return (
     <SkillExpandBlock
       name={s.name}
-      description={s.description}
       sides={[s.side]}
       origin="disk"
       symlink={s.symlink}

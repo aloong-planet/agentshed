@@ -159,7 +159,6 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
           <div className="rel" key={s.name}>
             <SkillExpandBlock
               name={s.name}
-              description={s.description}
               sides={s.origin === 'disk' ? s.sides : []}
               origin={s.origin}
               symlink={s.symlink.claude || s.symlink.codex}
