@@ -28,7 +28,11 @@ export const CMD = {
   /** 读 app 偏好(外观方案等) */
   getPrefs: 'agentshed:get-prefs',
   /** 设置外观方案(全 app) */
-  setScheme: 'agentshed:set-scheme'
+  setScheme: 'agentshed:set-scheme',
+  /** 展开 skill 时列举包内可预览文件(登记白名单) */
+  listSkillFiles: 'agentshed:list-skill-files',
+  /** 读 skill 包内已登记文件正文 */
+  readSkillFile: 'agentshed:read-skill-file'
 } as const
 
 export const EVT = {
@@ -63,5 +67,33 @@ export interface SkillOpArgs {
 export type SkillOpResult =
   | { ok: true }
   | { ok: false; reason: string; message: string }
+
+/** 列举 skill 包:全局库或项目级 */
+export interface ListSkillFilesArgs {
+  side: 'claude' | 'codex'
+  name: string
+  scope: 'global' | 'project'
+  /** scope=project 时必填 */
+  projectPath?: string
+}
+
+export interface SkillFileEntry {
+  path: string
+  absPath: string
+  bytes: number
+  lines: number
+  mtimeMs: number
+}
+
+export interface ListSkillFilesResult {
+  files: SkillFileEntry[]
+  deep: boolean
+  deepPaths: string[]
+  deepHint: string
+}
+
+export interface ReadSkillFileArgs {
+  absPath: string
+}
 
 export type { AppearanceScheme, Prefs } from './appearance'

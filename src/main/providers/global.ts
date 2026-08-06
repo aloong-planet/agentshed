@@ -1,12 +1,21 @@
-// Agents 全局层读取(票07):全局 skills(合并/软链/差异)、plugins、全局 MCP、配置只读。
+// Agents 全局层读取(票07):全局 skills(合并/软链)、plugins、全局 MCP、配置只读。
+// skills-view:已拆除跨侧 content diff(differs)。
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AgentSide, GlobalLayer, GlobalSkill, McpServerEntry, PluginEntry } from '@shared/domain'
+import type {
+  AgentSide,
+  GlobalLayer,
+  GlobalSkill,
+  McpServerEntry,
+  PluginEntry,
+  SkillPkgStats
+} from '@shared/domain'
 import type { ScanRoots } from './types'
 import { readGlobalSubagents } from './subagents'
 import { readClaudePlugins, readCodexPlugins } from './plugins'
 import { readCodexMemoriesEnabled } from './memory'
 import { fmField, readTextCapped } from './read-utils'
+import { statSkillPackage } from './skill-package'
 
 export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
   // plugins 只读一次,skills 并入与 MCP 来源都消费它(review-code 重构项 #1:去 3 次重复扫描)
@@ -30,7 +39,7 @@ export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
 interface SideSkill {
   description: string | null
   symlink: boolean
-  content: string | null
+  pkg: SkillPkgStats | null
 }
 
 function readSkillDir(base: string): Map<string, SideSkill> {
@@ -53,8 +62,9 @@ function readSkillDir(base: string): Map<string, SideSkill> {
     }
     const skillMd = join(p, 'SKILL.md')
     if (!existsSync(skillMd)) continue // 非 skill 目录(如散文件)跳过
+    // 只读 frontmatter description;正文按需读(skills-view),不再为跨侧 diff 保全文
     const content = readTextCapped(skillMd)
-    out.set(e.name, { description: fmField(content, 'description'), symlink, content })
+    out.set(e.name, { description: fmField(content, 'description'), symlink, pkg: statSkillPackage(p) })
   }
   return out
 }
@@ -74,7 +84,7 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
       description: cl?.description ?? cx?.description ?? null,
       sides,
       symlink: { claude: cl?.symlink ?? false, codex: cx?.symlink ?? false },
-      differs: Boolean(cl && cx && cl.content !== cx.content),
+      pkg: { claude: cl?.pkg ?? null, codex: cx?.pkg ?? null },
       origin: 'disk',
       pluginName: null
     }
@@ -90,7 +100,7 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
         description: s.description,
         sides: ['claude'],
         symlink: { claude: false, codex: false },
-        differs: false,
+        pkg: { claude: null, codex: null },
         origin: 'plugin',
         pluginName: p.name
       })

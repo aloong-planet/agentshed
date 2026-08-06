@@ -1,4 +1,4 @@
-// 票03:项目详情"装了什么"——skills 生效视图(项目级+全局,遮蔽/软链)、
+// 票03:项目详情"装了什么"——skills 生效视图(同名只见项目级,skills-view B1)、
 // 项目级 MCP(.mcp.json + enabled/disabled 开关)、配置只读。
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
@@ -35,7 +35,7 @@ afterEach(() => {
 })
 
 describe('skills 生效视图', () => {
-  it('项目级(两侧目录)+ 全局层并列;同名时项目级 shadows、全局级 shadowed', () => {
+  it('同侧同名只列项目级;仅全局有的仍列全局层(skills-view B1)', () => {
     mkSkill(join(proj, '.claude', 'skills'), 'ui-design', '项目专属')
     mkSkill(join(proj, '.claude', 'skills'), 'tdd', '项目版 tdd')
     mkSkill(join(dir, '.claude', 'skills'), 'tdd', '全局版 tdd')
@@ -46,22 +46,24 @@ describe('skills 生效视图', () => {
     const key = (s: { name: string; level: string; side: string }): string =>
       `${s.side}:${s.level}:${s.name}`
     const map = Object.fromEntries(d.skills.map((s) => [key(s), s]))
-    expect(map['claude:project:ui-design']).toMatchObject({ shadows: false })
-    expect(map['claude:project:tdd']).toMatchObject({ shadows: true, description: '项目版 tdd' })
-    expect(map['claude:global:tdd']).toMatchObject({ shadowed: true })
-    expect(map['claude:global:review-code']).toMatchObject({ shadowed: false })
+    expect(map['claude:project:ui-design']).toBeTruthy()
+    expect(map['claude:project:tdd']).toMatchObject({ description: '项目版 tdd' })
+    expect(map['claude:project:tdd'].pkg?.files).toBe(1)
+    expect(map['claude:project:tdd'].pkg!.bytes).toBeGreaterThan(0)
+    expect(map['claude:global:tdd']).toBeUndefined()
+    expect(map['claude:global:review-code']).toBeTruthy()
     expect(map['codex:project:decision-form']).toBeTruthy()
-    expect(map['codex:global:github-ops']).toMatchObject({ shadowed: false })
+    expect(map['codex:global:github-ops']).toBeTruthy()
   })
 
-  it('Codex 侧同名不遮蔽:两条都标「同名共存」,不标遮蔽(源码级证据:仅按路径去重)', () => {
+  it('Codex 侧同名也只列项目级(列表展示与 Claude 统一)', () => {
     mkSkill(join(proj, '.agents', 'skills'), 'grilling', '项目版')
     mkSkill(join(dir, '.agents', 'skills'), 'grilling', '全局版')
     const d = readProjectDetail(roots(), proj)
-    const project = d.skills.find((s) => s.side === 'codex' && s.level === 'project')
-    const global = d.skills.find((s) => s.side === 'codex' && s.level === 'global')
-    expect(project).toMatchObject({ shadows: false, coexists: true })
-    expect(global).toMatchObject({ shadowed: false, coexists: true })
+    const project = d.skills.find((s) => s.side === 'codex' && s.level === 'project' && s.name === 'grilling')
+    const global = d.skills.find((s) => s.side === 'codex' && s.level === 'global' && s.name === 'grilling')
+    expect(project).toBeTruthy()
+    expect(global).toBeUndefined()
   })
 
   it('项目级软链 skill 带 symlink 标记', () => {

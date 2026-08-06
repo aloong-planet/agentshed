@@ -9,6 +9,7 @@ import { dirOf, handleMdClick } from './md-links'
 import { ProjectPluginsTab } from './PluginsView'
 import { fmtAgo } from './ProjectsPane'
 import { toast } from './Toast'
+import { SkillExpandBlock } from './SkillExpandBlock'
 
 type Tab = 'ov' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'cfg' | 'arts'
 
@@ -395,32 +396,48 @@ function Highlight({ text, needle }: { text: string; needle: string }): JSX.Elem
 
 function SkillRow({
   s,
+  projectPath,
   onUninstall
 }: {
   s: ProjectSkillEntry
+  projectPath: string
   onUninstall?: () => void
 }): JSX.Element {
+  if (s.origin === 'plugin' || s.level === 'plugin') {
+    return (
+      <div className="it">
+        <span className="nm mono">{s.name}</span>
+        <span className="pill plg">插件</span>
+      </div>
+    )
+  }
   return (
-    <div className={`it ${s.shadowed ? 'shadowed' : ''}`}>
-      <span className="nm mono">{s.name}</span>
-      <span className={`pill ${s.level === 'project' ? 'prj' : s.level === 'plugin' ? 'plg' : 'glb'}`}>
-        {s.level === 'project' ? '项目级' : s.level === 'plugin' ? '插件' : '全局'}
-      </span>
-      {s.symlink && <span className="pill ln">⤷ 软链</span>}
-      {s.shadows && <span className="pill shadow">遮蔽全局</span>}
-      {s.shadowed && <span className="pill shadow">被项目级遮蔽</span>}
-      {s.coexists && (
-        <span className="pill shadow" title="Codex 同名不遮蔽:两个都生效,纯名字调用会歧义">
-          同名共存
-        </span>
-      )}
-      <span className="ds">{s.description ?? ''}</span>
-      {onUninstall && (
-        <button className="ins" onClick={onUninstall}>
-          卸载
-        </button>
-      )}
-    </div>
+    <SkillExpandBlock
+      name={s.name}
+      sides={[s.side]}
+      origin="disk"
+      symlink={s.symlink}
+      level={s.level === 'project' ? 'project' : 'global'}
+      levelLabel={s.level === 'project' ? '项目级' : '全局层'}
+      scope={s.level === 'project' ? 'project' : 'global'}
+      projectPath={s.level === 'project' ? projectPath : undefined}
+      fixedSide={s.side}
+      pkgBySide={{ [s.side]: s.pkg }}
+      uninstallSlot={
+        onUninstall ? (
+          <button
+            type="button"
+            className="ins"
+            onClick={(e) => {
+              e.stopPropagation()
+              onUninstall()
+            }}
+          >
+            卸载
+          </button>
+        ) : undefined
+      }
+    />
   )
 }
 
@@ -465,11 +482,12 @@ function SkillsTab({
     items.length === 0 ? null : (
       <div key={title}>
         <div className="grp-t">{title}({items.length})</div>
-        <div className="card">
+        <div className="card sk-card">
           {items.map((s) => (
             <SkillRow
               key={`${s.side}-${s.level}-${s.name}`}
               s={s}
+              projectPath={detail.path}
               onUninstall={s.level === 'project' ? () => setConfirm(s) : undefined}
             />
           ))}

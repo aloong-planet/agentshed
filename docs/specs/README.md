@@ -19,6 +19,7 @@
 | [plugins-view](plugins-view.md) | [Plugins 视图](../features/plugins-view.md) |
 | [token-stats](token-stats.md) | [Token 统计](../features/token-stats.md) |
 | [skill-install](skill-install.md) | [Skills 装卸](../features/skill-install.md) |
+| [skills-view](skills-view.md) | [Skills 查看](../features/skills-view.md) |
 | [appearance](appearance.md) | [外观主题](../features/appearance.md) |
 
 > 补建说明:本目录自 2026-08-01 建立(spec 转为持久产物)。此前功能的 spec 已随 `.scratch/` 丢弃,已按 features + 既有测试用例 + 代码行为**逆向补建**(各篇头部标注)——边界条目均有对应测试可信,但当初的需求推理过程无法复原;与实现冲突时以实现为准并就地改写。

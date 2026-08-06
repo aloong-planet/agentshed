@@ -1,4 +1,4 @@
-// 票07:Agents 全局层——全局 skills(合并/软链/差异)、plugins、全局 MCP(三来源)、配置只读。
+// 票07:Agents 全局层——全局 skills(合并/软链)、plugins、全局 MCP(三来源)、配置只读。
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -42,17 +42,24 @@ describe('全局 skills(全局库)', () => {
     const snap = await scan(roots(), { now: () => 1 })
     const byName = Object.fromEntries(snap.global.skills.map((s) => [s.name, s]))
     expect(byName['tdd'].sides).toEqual(['claude', 'codex'])
-    expect(byName['tdd'].differs).toBe(false)
+    expect(byName['tdd']).not.toHaveProperty('differs')
     expect(byName['review-code'].sides).toEqual(['claude'])
     expect(byName['review-code'].description).toBe('四层法')
     expect(byName['decision-form'].sides).toEqual(['codex'])
+    // 行内包统计:该侧有包给数字,无定义侧为 null
+    expect(byName['tdd'].pkg.claude?.files).toBe(1)
+    expect(byName['tdd'].pkg.claude!.bytes).toBeGreaterThan(0)
+    expect(byName['decision-form'].pkg.claude).toBeNull()
+    expect(byName['decision-form'].pkg.codex?.files).toBe(1)
   })
 
-  it('两侧同名但 SKILL.md 内容不同 → differs=true', async () => {
+  it('两侧同名内容不同仍合并一行(无 differs 信号)', async () => {
     mkSkill(join(dir, '.claude', 'skills'), 'grilling', SKILL_MD('分批', 'A 版'))
     mkSkill(join(dir, '.agents', 'skills'), 'grilling', SKILL_MD('一次一问', 'B 版'))
     const snap = await scan(roots(), { now: () => 1 })
-    expect(snap.global.skills[0].differs).toBe(true)
+    const s = snap.global.skills.find((x) => x.name === 'grilling')
+    expect(s?.sides).toEqual(['claude', 'codex'])
+    expect(s).not.toHaveProperty('differs')
   })
 
   it('软链 skill 标记 symlink(按侧)', async () => {
@@ -63,8 +70,6 @@ describe('全局 skills(全局库)', () => {
     const s = snap.global.skills.find((x) => x.name === 'grill-me')
     expect(s?.symlink.claude).toBe(true)
     expect(s?.symlink.codex).toBe(false)
-    // 软链指向同一实体 → 内容一致
-    expect(s?.differs).toBe(false)
   })
 })
 

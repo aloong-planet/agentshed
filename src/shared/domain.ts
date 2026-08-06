@@ -32,6 +32,12 @@ export interface ProjectEntry {
  * G 系列:origin=plugin 的条目来自有效启用插件的内含 skills——命名空间名(plugin:skill),
  * 不参与磁盘同名遮蔽(G2),sides 恒 claude(G4),不可装卸(G3,ADR-0004 装卸仅限全局库)。
  */
+/** skill 包聚合统计(行内展示):可预览文本文件数与总字节;扫描 stat 即得,不读内容 */
+export interface SkillPkgStats {
+  files: number
+  bytes: number
+}
+
 export interface GlobalSkill {
   name: string
   /** SKILL.md frontmatter 的 description;无则 null */
@@ -39,8 +45,8 @@ export interface GlobalSkill {
   sides: AgentSide[]
   /** 各侧是否为软链(安装时解引用复制) */
   symlink: Record<AgentSide, boolean>
-  /** 两侧同名且 SKILL.md 内容不同 */
-  differs: boolean
+  /** 各侧包统计;该侧无定义或不可读为 null(插件条目恒 null) */
+  pkg: Record<AgentSide, SkillPkgStats | null>
   origin: 'disk' | 'plugin'
   pluginName: string | null
 }
@@ -388,12 +394,8 @@ export interface ProjectSkillEntry {
   level: 'project' | 'global' | 'plugin'
   side: AgentSide
   symlink: boolean
-  /** 全局条目被同侧同名项目级遮蔽(仅 Claude 侧语义) */
-  shadowed: boolean
-  /** 项目级条目遮蔽了同侧同名全局(仅 Claude 侧语义) */
-  shadows: boolean
-  /** Codex 侧同名共存(两个都生效,纯名调用会歧义;源码级证实不遮蔽) */
-  coexists: boolean
+  /** 本行对应包的统计;插件条目/不可读为 null */
+  pkg: SkillPkgStats | null
   origin: 'disk' | 'plugin'
   pluginName: string | null
 }

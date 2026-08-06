@@ -1,8 +1,6 @@
-// 项目详情读取(票03):skills 生效视图(项目级+全局)、项目级 MCP、配置只读。
-// 同名语义按侧区分(2026-07-30 源码级核实):
-//   Claude:项目级遮蔽全局(shadows/shadowed);
-//   Codex:不遮蔽,仅按路径去重、同名共存且两个都生效(coexists;openai/codex
-//   root_loader.rs 只按 path 去重,官方文档明言 "doesn't merge them")。
+// 项目详情读取(票03):skills 生效视图(同侧同名只列项目级,skills-view B1)、
+// 项目级 MCP、配置只读。各侧运行时同名语义(Claude 遮蔽 / Codex 共存,2026-07-30
+// 源码级核实)见 CONTEXT「Codex 同名语义按组件而异」;本列表不再输出遮蔽/共存字段。
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type {
@@ -10,7 +8,8 @@ import type {
   ProjectMcpEntry,
   ProjectPluginEntry,
   ProjectSkillEntry,
-  AgentSide
+  AgentSide,
+  SkillPkgStats
 } from '@shared/domain'
 import type { ScanRoots } from './types'
 import { readArtifacts } from './artifacts'
@@ -18,6 +17,7 @@ import { readEffectiveSubagents } from './subagents'
 import { readProjectMemory } from './memory'
 import { readProjectPlugins } from './plugins'
 import { fmField, readTextCapped } from './read-utils'
+import { statSkillPackage } from './skill-package'
 
 /** G1(详情页口径):本项目有效启用插件的内含 skills → 命名空间条目(level=plugin,不参与遮蔽) */
 function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] {
@@ -32,9 +32,7 @@ function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] 
         level: 'plugin',
         side: 'claude',
         symlink: false,
-        shadowed: false,
-        shadows: false,
-        coexists: false,
+        pkg: null,
         origin: 'plugin',
         pluginName: p.name
       })
@@ -68,6 +66,7 @@ export function readProjectDetail(roots: ScanRoots, projectPath: string): Projec
 interface RawSkill {
   description: string | null
   symlink: boolean
+  pkg: SkillPkgStats | null
 }
 
 function listSkills(base: string): Map<string, RawSkill> {
@@ -90,7 +89,7 @@ function listSkills(base: string): Map<string, RawSkill> {
     }
     const md = join(p, 'SKILL.md')
     if (!existsSync(md)) continue
-    out.set(e.name, { description: fmField(readTextCapped(md), 'description'), symlink })
+    out.set(e.name, { description: fmField(readTextCapped(md), 'description'), symlink, pkg: statSkillPackage(p) })
   }
   return out
 }
@@ -112,11 +111,11 @@ function readEffectiveSkills(
       globalDir: roots.agentsSkillsDir
     }
   ]
+  // skills-view B1:同侧同名只展示项目级(列表展示口径;运行时语义见 CONTEXT)
   const out: ProjectSkillEntry[] = []
   for (const { side, projectDir, globalDir } of sides) {
     const project = listSkills(projectDir)
     const global = listSkills(globalDir)
-    const shadowing = side === 'claude' // Codex 同名共存,不遮蔽
     for (const [name, s] of [...project.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       out.push({
         name,
@@ -124,23 +123,20 @@ function readEffectiveSkills(
         level: 'project',
         side,
         symlink: s.symlink,
-        shadowed: false,
-        shadows: shadowing && global.has(name),
-        coexists: !shadowing && global.has(name),
+        pkg: s.pkg,
         origin: 'disk',
         pluginName: null
       })
     }
     for (const [name, s] of [...global.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      if (project.has(name)) continue // 被项目级覆盖,不并行列出
       out.push({
         name,
         description: s.description,
         level: 'global',
         side,
         symlink: s.symlink,
-        shadowed: shadowing && project.has(name),
-        shadows: false,
-        coexists: !shadowing && project.has(name),
+        pkg: s.pkg,
         origin: 'disk',
         pluginName: null
       })

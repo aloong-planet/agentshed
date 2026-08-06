@@ -6,7 +6,7 @@
 "这个项目装了哪些能力、有什么约定、沉淀了什么"是产品原点问题。详情页以九个分栏回答:概览(默认)、Skills、Subagents、Plugins、MCP、Memory、配置、产物、会话。
 
 ## 能力
-- Skills 生效视图:项目级与全局层并列分组,同名时项目级标「遮蔽全局」、全局级标「被项目级遮蔽」;软链有标记;项目级条目可卸载;另含本项目有效启用插件的内含 skills 组(只读,见 [Plugins 视图](plugins-view.md))
+- Skills 生效视图:同侧同名只展示项目级(不并列被覆盖的全局);仅全局有的仍列出;磁盘 skill 可折叠预览包内文件(见 [Skills 查看](skills-view.md));软链有标记;项目级可卸载;插件内含 skills 组只读(见 [Plugins 视图](plugins-view.md))
 - Subagents 生效视图:项目级与全局层并列,两侧同名均为项目级遮蔽(见 [Subagents 查看](subagents-view.md))
 - Plugins:本项目视角的有效启用状态与内含组件展开(见 [Plugins 视图](plugins-view.md))
 - MCP:项目 .mcp.json 的 servers 及其启用/禁用/默认状态;无则提示去 Agents 页看全局
