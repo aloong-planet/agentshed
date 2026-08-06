@@ -882,6 +882,11 @@ test('会话搜索:默认搜提问命中分组;正文词切全文才命中;点�
   // 默认搜提问:命中 1 条,分组带会话头;大小写不敏感
   await win.locator('.sbar input').fill('示例提问')
   await expect(win.locator('.grp')).toHaveCount(1)
+  // 回归:命中组的 button 必须重置 UA 默认样式(漏写会在暗色下露白底黑字)
+  for (const sel of ['.grp .gh', '.grp .hit']) {
+    const bg = await win.locator(sel).first().evaluate((el) => getComputedStyle(el).backgroundColor)
+    expect(bg, `${sel} 应为透明背景而非 UA buttonface`).toBe('rgba(0, 0, 0, 0)')
+  }
   await expect(win.locator('.grp .gh .t')).toContainText('示例提问')
   await expect(win.locator('.grp .hit')).toHaveCount(1)
   await expect(win.locator('.grp .hit mark').first()).toContainText('示例提问')

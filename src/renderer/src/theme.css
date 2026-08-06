@@ -1546,6 +1546,24 @@ body {
   margin-bottom: 9px;
   overflow: hidden;
 }
+/* row-btn 的 UA 重置按宿主类逐一组合写(与 .it.row-btn/.se.row-btn 同模式)——
+   漏写会在暗色主题下露出浏览器默认的白底黑字 button。
+   本规则与 .grp .gh 同优先级且在其后:border 一体声明,免得 border:0 吃掉组头下边线 */
+.gh.row-btn {
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: inherit;
+}
+.hit.row-btn {
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+}
 .grp .gh {
   display: flex;
   align-items: center;
