@@ -5,7 +5,9 @@ import {
   type SessionTurnArgs,
   type SetHiddenArgs,
   type SkillOpArgs,
-  type SkillOpResult
+  type SkillOpResult,
+  type Prefs,
+  type AppearanceScheme
 } from '@shared/ipc'
 import type { ProjectDetail, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import {
@@ -59,6 +61,9 @@ const api = {
     ipcRenderer.invoke(CMD.installSkill, args) as Promise<SkillOpResult>,
   uninstallSkill: (args: SkillOpArgs): Promise<SkillOpResult> =>
     ipcRenderer.invoke(CMD.uninstallSkill, args) as Promise<SkillOpResult>,
+  getPrefs: (): Promise<Prefs> => ipcRenderer.invoke(CMD.getPrefs) as Promise<Prefs>,
+  setScheme: (scheme: AppearanceScheme): Promise<Prefs> =>
+    ipcRenderer.invoke(CMD.setScheme, scheme) as Promise<Prefs>,
   onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
     const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))
     ipcRenderer.on(EVT.snapshot, listener)

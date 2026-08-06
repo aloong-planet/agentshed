@@ -1,5 +1,7 @@
-/* 主题变量:原型同款色板,浅/深随系统 */
+/* 主题变量:外观方案(purple|blue|amber)×昼夜(系统)。全 app 只引用这些 token。
+   见 docs/specs/appearance.md。CC/CX 与 provider 色不随 scheme 改色相。 */
 :root {
+  /* 默认 = 紫(现网);无 data-scheme 或 purple 时 */
   --bg: #f7f8f9;
   --card: #ffffff;
   --text: #37352f;
@@ -7,6 +9,7 @@
   --line: #e8eaed;
   --line-strong: #d9dce0;
   --accent: #8a67ab;
+  --accent-deep: #6b4f92;
   --accent-soft: #f0ebf6;
   --ok-bg: #dcfce7;
   --ok-fg: #166534;
@@ -23,6 +26,30 @@
   --p-google: #4285f4;
   --p-other: #9aa0a6;
 }
+/* 雾蓝 · 浅 */
+html[data-scheme='blue'] {
+  --bg: #f6f5f3;
+  --card: #fffcf9;
+  --text: #2c2a28;
+  --text-2: #6f6b66;
+  --line: #e8e4de;
+  --line-strong: #d4cfc7;
+  --accent: #4a6fa5;
+  --accent-deep: #3a5a88;
+  --accent-soft: #eef2f7;
+}
+/* 琥珀褐 · 浅 */
+html[data-scheme='amber'] {
+  --bg: #f7f3ec;
+  --card: #fffcf7;
+  --text: #3a342c;
+  --text-2: #7a7268;
+  --line: #e8e0d4;
+  --line-strong: #d6ccbc;
+  --accent: #6b5220;
+  --accent-deep: #534018;
+  --accent-soft: #f3ead4;
+}
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #18191b;
@@ -32,6 +59,7 @@
     --line: #2a2c30;
     --line-strong: #34373c;
     --accent: #a084c7;
+    --accent-deep: #c9b3ec;
     --accent-soft: #2c2733;
     --ok-bg: #12301d;
     --ok-fg: #86efac;
@@ -46,6 +74,28 @@
     --p-openai: #2fc79f;
     --p-google: #6ba3f7;
     --p-other: #adb2b8;
+  }
+  html[data-scheme='blue'] {
+    --bg: #16181c;
+    --card: #1c1f24;
+    --text: #e6e4e0;
+    --text-2: #9a9690;
+    --line: #2a2e34;
+    --line-strong: #3a4048;
+    --accent: #7a9dc4;
+    --accent-deep: #a8c0dc;
+    --accent-soft: #1e2a38;
+  }
+  html[data-scheme='amber'] {
+    --bg: #1a1714;
+    --card: #221e1a;
+    --text: #ebe4d8;
+    --text-2: #a09888;
+    --line: #332e28;
+    --line-strong: #453e36;
+    --accent: #c4a46a;
+    --accent-deep: #ddc48e;
+    --accent-soft: #2e2820;
   }
 }
 * {

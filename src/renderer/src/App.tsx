@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Snapshot } from '@shared/domain'
+import { DEFAULT_SCHEME, type AppearanceScheme } from '@shared/appearance'
 import { ProjectsPane } from './ProjectsPane'
 import { AgentsPane } from './AgentsPane'
 import { DetailPane } from './DetailPane'
@@ -7,6 +8,10 @@ import { SessionPane } from './SessionPane'
 import { Toasts } from './Toast'
 
 type Dim = 'agents' | 'projects'
+
+function applyScheme(scheme: AppearanceScheme): void {
+  document.documentElement.dataset.scheme = scheme
+}
 
 export function App(): JSX.Element {
   const [dim, setDim] = useState<Dim>('agents')
@@ -24,7 +29,11 @@ export function App(): JSX.Element {
   }
 
   useEffect(() => {
+    applyScheme(DEFAULT_SCHEME)
     let alive = true
+    void window.agentshed.getPrefs().then((p) => {
+      if (alive) applyScheme(p.scheme)
+    })
     void window.agentshed.getSnapshot().then((s) => {
       if (alive) setSnap(s)
     })
