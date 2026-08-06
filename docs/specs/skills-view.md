@@ -1,7 +1,7 @@
 # Skills 查看
 
-> 关联: features 待建(`skills-view`) · [skill-install](skill-install.md)(装卸) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0002 · ADR-0004 · ADR-0010  
-> 状态:**实现中 / 已交付主路径**(2026-08-06 原型门过;折叠预览+列举读+拆除 differs+详情同名覆盖)。
+> 关联: [features/skills-view](../features/skills-view.md) · [skill-install](skill-install.md)(装卸) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0002 · ADR-0004 · ADR-0010  
+> 状态:**已交付**(2026-08-06 原型门过;折叠预览+列举读+行内包统计+拆除 differs+详情同名覆盖)。
 
 ## Problem Statement
 
@@ -48,7 +48,7 @@ Skills 以 **Skill 包**(目录,入口 `SKILL.md`,可附引用与脚本)存在�
 - B1 **同侧同名覆盖展示**:对每一 `side`,若项目级存在名 `N`,则**不列出**该侧全局层的 `N`;只列项目级那一行。Claude 的「项目遮蔽全局」与 Codex 的「运行时同名共存」在**本列表**上统一成同一展示:只见项目级。
 - B2 **仅全局有的名**:该侧全局层照常列出(level=global),可预览;无「被遮蔽」行可点。
 - B3 **仅项目有的名**:只列项目级,可预览,可卸载(既有)。
-- B4 列表**不再**为 skills 展示 `shadows` / `shadowed` / `coexists` 徽标(同名全局行已不出现,这些徽标无承载对象)。领域字段若仍为其它逻辑保留,不得作为 skills 分栏可见信号;本功能实现期以「列表不输出被覆盖的全局行」为验收,优先在组装生效列表时过滤,而不是先输出再靠 UI 藏。
+- B4 列表**不再**为 skills 展示 `shadows` / `shadowed` / `coexists` 徽标(同名全局行已不出现,这些徽标无承载对象)。本功能实现期以「列表不输出被覆盖的全局行」为验收,过滤在组装生效列表时完成;三个字段实现期一度保留为恒 false,**2026-08-07 收尾时已从 `ProjectSkillEntry` 契约删除**(全库无消费者、从未持久化;subagents 的同名字段不受影响,R8)。
 - B5 磁盘列表中的每一行(过滤后的项目级 + 未被覆盖的全局层)→ **可预览**。
 - B6 项目详情行已绑定单一 `side` → 抽屉**不出现**侧切换;只展示该行对应包。
 - B7 插件内含组 → 同 A4,v1 不可预览;插件命名空间名与磁盘同名**并存不互盖**(既有 ADR-0010,不参与 B1 的同名覆盖)。

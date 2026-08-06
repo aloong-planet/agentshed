@@ -322,9 +322,7 @@ export function validateProjectDetail(v: unknown): ValidateResult {
     if (!strOrNull(s['description'])) return fail(`${at}.description`, '需为 string|null')
     if (!SKILL_LEVELS.has(s['level'] as string)) return fail(`${at}.level`, `非法 level: ${String(s['level'])}`)
     if (!AGENT_SIDES.has(s['side'] as string)) return fail(`${at}.side`, `非法 side: ${String(s['side'])}`)
-    for (const b of ['symlink', 'shadowed', 'shadows', 'coexists'] as const) {
-      if (typeof s[b] !== 'boolean') return fail(`${at}.${b}`, '需为 boolean')
-    }
+    if (typeof s['symlink'] !== 'boolean') return fail(`${at}.symlink`, '需为 boolean')
     const pkg = s['pkg']
     if (pkg !== null) {
       if (!isRecord(pkg)) return fail(`${at}.pkg`, '需为 null 或对象')

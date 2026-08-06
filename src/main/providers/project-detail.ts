@@ -1,8 +1,6 @@
-// 项目详情读取(票03):skills 生效视图(项目级+全局)、项目级 MCP、配置只读。
-// 同名语义按侧区分(2026-07-30 源码级核实):
-//   Claude:项目级遮蔽全局(shadows/shadowed);
-//   Codex:不遮蔽,仅按路径去重、同名共存且两个都生效(coexists;openai/codex
-//   root_loader.rs 只按 path 去重,官方文档明言 "doesn't merge them")。
+// 项目详情读取(票03):skills 生效视图(同侧同名只列项目级,skills-view B1)、
+// 项目级 MCP、配置只读。各侧运行时同名语义(Claude 遮蔽 / Codex 共存,2026-07-30
+// 源码级核实)见 CONTEXT「Codex 同名语义按组件而异」;本列表不再输出遮蔽/共存字段。
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type {
@@ -34,9 +32,6 @@ function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] 
         level: 'plugin',
         side: 'claude',
         symlink: false,
-        shadowed: false,
-        shadows: false,
-        coexists: false,
         pkg: null,
         origin: 'plugin',
         pluginName: p.name
@@ -128,9 +123,6 @@ function readEffectiveSkills(
         level: 'project',
         side,
         symlink: s.symlink,
-        shadowed: false,
-        shadows: false,
-        coexists: false,
         pkg: s.pkg,
         origin: 'disk',
         pluginName: null
@@ -144,9 +136,6 @@ function readEffectiveSkills(
         level: 'global',
         side,
         symlink: s.symlink,
-        shadowed: false,
-        shadows: false,
-        coexists: false,
         pkg: s.pkg,
         origin: 'disk',
         pluginName: null

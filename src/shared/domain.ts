@@ -394,12 +394,6 @@ export interface ProjectSkillEntry {
   level: 'project' | 'global' | 'plugin'
   side: AgentSide
   symlink: boolean
-  /** 全局条目被同侧同名项目级遮蔽(仅 Claude 侧语义) */
-  shadowed: boolean
-  /** 项目级条目遮蔽了同侧同名全局(仅 Claude 侧语义) */
-  shadows: boolean
-  /** Codex 侧同名共存(两个都生效,纯名调用会歧义;源码级证实不遮蔽) */
-  coexists: boolean
   /** 本行对应包的统计;插件条目/不可读为 null */
   pkg: SkillPkgStats | null
   origin: 'disk' | 'plugin'

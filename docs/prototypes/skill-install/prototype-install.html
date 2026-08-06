@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- 原型(UI)· 票06:装卸交互(挂在 Agents 页 Skills 分栏=安装源之上)。
-     问题:合并单列+侧徽标(已选型)下两侧差异怎么读;「安装到…」目标选择器、
-     同名阻止、失效项目禁用、卸载确认弹窗各自的形态与时机。
+     问题:「安装到…」目标选择器、同名阻止、失效项目禁用、卸载确认弹窗各自的形态与时机。
+     (原「两侧差异怎么读」已随 skills-view 拆除跨侧 diff 作废,2026-08-07 同步。)
      交互:行内「安装到…」弹选择器(失效项目置灰;装到 Transfer 的 tdd 触发同名阻止);
      下方"项目级副本"区演示卸载确认弹窗(含完整路径)。 -->
 <html lang="zh-CN">
@@ -36,7 +36,6 @@
   @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
   .pill{font-size:10px;border-radius:4px;padding:1px 6px;flex:none}
   .pill.ln{border:1px dashed var(--line-strong);color:var(--text-2)}
-  .diff{font-size:10px;color:#b3552f;flex:none}
   .ins{font:inherit;font-size:11.5px;border:1px solid var(--line-strong);background:var(--bg);color:var(--text-2);
     border-radius:6px;padding:3px 10px;cursor:pointer;flex:none}
   .ins:hover{color:var(--accent);border-color:var(--accent)}
@@ -76,7 +75,7 @@
   </div>
   <div class="main">
     <h2>Agents · 全局 Skills(安装源 · 合并单列 · 只读,内容变更不经 app)</h2>
-    <div class="sub">徽标 = 该侧全局库是否存在;两侧同名但内容有差异时标「差异」;⤷ = 软链(安装时解引用复制为真文件)</div>
+    <div class="sub">徽标 = 该侧全局库是否存在;⤷ = 软链(安装时解引用复制为真文件);不做跨侧内容 diff(skills-view 拆除)</div>
     <div class="card" id="lib"></div>
 
     <h2>Transfer · 项目级副本(演示卸载,实际入口在<span style="color:var(--accent);cursor:pointer" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html">项目详情 ↗</span> Skills 分栏)</h2>
@@ -98,8 +97,8 @@
     {n:'New project',stale:true,has:[]},
   ];
   const LIB=[
-    {n:'tdd',ds:'红先于绿,覆盖来自 spec 失败模式节',c:1,x:1,diff:true},
-    {n:'grilling',ds:'按依赖分批的需求逼问',c:1,x:1,diff:true},
+    {n:'tdd',ds:'红先于绿,覆盖来自 spec 失败模式节',c:1,x:1},
+    {n:'grilling',ds:'按依赖分批的需求逼问',c:1,x:1},
     {n:'decision-form',ds:'批量决策外部表单(含渲染器脚本)',c:0,x:1},
     {n:'review-code',ds:'四层法 review',c:1,x:0},
     {n:'github-ops',ds:'GitHub 产出规范(无 AI 署名)',c:1,x:1,ln:true},
@@ -109,7 +108,7 @@
   lib.innerHTML=LIB.map((s,i)=>`<div class="it">
       <span class="nm">${s.n}</span>
       <span class="bdg">${s.c?'<span class="b c">CC</span>':'<span class="b miss">—</span>'}${s.x?'<span class="b x">CX</span>':'<span class="b miss">—</span>'}</span>
-      ${s.ln?'<span class="pill ln">⤷ 软链</span>':''}${s.diff?'<span class="diff">两侧有差异</span>':''}
+      ${s.ln?'<span class="pill ln">⤷ 软链</span>':''}
       <span class="ds">${s.ds}</span>
       <button class="ins" data-i="${i}">安装到…</button>
       <div class="pop" id="pop-${i}">

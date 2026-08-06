@@ -162,8 +162,7 @@ function okDetail(): Record<string, unknown> {
     skills: [
       {
         name: 'tdd', description: null, level: 'project', side: 'claude',
-        symlink: false, shadowed: false, shadows: true, coexists: false,
-        pkg: { files: 1, bytes: 10 },
+        symlink: false, pkg: { files: 1, bytes: 10 },
         origin: 'disk', pluginName: null
       }
     ],
@@ -247,7 +246,7 @@ describe('validateProjectDetail —— 拒收并指出字段路径', () => {
   })
 
   it('布尔字段被写成别的类型', () => {
-    expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].shadowed = 'yes' }))).toContain('skills[0].shadowed')
+    expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].symlink = 'yes' }))).toContain('skills[0].symlink')
     expect(errOf(bad((d) => { (d.plugins as Array<Record<string, unknown>>)[0].enabled = 1 }))).toContain('plugins[0].enabled')
   })
 
