@@ -253,7 +253,6 @@ function SkillRow({
       <div className="it">
         <span className="nm mono">{s.name}</span>
         <span className="pill plg">插件</span>
-        <span className="ds">{s.description ?? ''}</span>
       </div>
     )
   }
