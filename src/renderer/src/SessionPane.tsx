@@ -114,8 +114,9 @@ export function SessionPane({
   /** 已展开的轮次(数组下标);默认 0 轮展开——预展开等于把「按需取」作废 */
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
   const [turns, setTurns] = useState<ReadonlyMap<number, TurnState>>(new Map())
-  /** 提问排序(票 06):默认正序;序号恒原始轮次号,排序只换呈现顺序 */
-  const [order, setOrder] = useState<QuestionOrder>('asc')
+  /** 提问排序(票 06):默认倒序(2026-08-06 用户裁定,最新提问先见);
+   * 序号恒原始轮次号,排序只换呈现顺序 */
+  const [order, setOrder] = useState<QuestionOrder>('desc')
   /** 已折叠的日期组(键 = 组标签);展开状态与它独立——重开该天仍是展开的 */
   const [folded, setFolded] = useState<ReadonlySet<string>>(new Set())
   // 换会话后仍在飞的取回不得落进新会话的状态里
@@ -128,7 +129,7 @@ export function SessionPane({
     setErr(null)
     setOpen(new Set())
     setTurns(new Map())
-    setOrder('asc')
+    setOrder('desc')
     setFolded(new Set())
     window.agentshed.getSessionPage(file).then(
       (p) => {

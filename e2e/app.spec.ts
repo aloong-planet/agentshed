@@ -462,12 +462,13 @@ test('会话页:列出全部提问,字段齐全,返回回到会话分栏', async
   await expect(win.locator('.smeta')).toContainText('2 提问')
   await expect(win.locator('.smeta')).toContainText('tok')
 
-  // 行:序号 / 全文 / 工具计数 / 时间;两条真实提问,工具回灌不算
+  // 行:序号 / 全文 / 工具计数 / 时间;两条真实提问,工具回灌不算。
+  // 默认倒序(2026-08-06 裁定):最新的 02 在前,序号仍是原始轮次号
   const qs = win.locator('.qlist .q')
   await expect(qs).toHaveCount(2)
-  await expect(qs.nth(0).locator('.idx')).toHaveText('01')
-  await expect(qs.nth(0).locator('.txt')).toHaveText('示例提问')
-  await expect(qs.nth(1).locator('.txt')).toHaveText('第二个提问')
+  await expect(qs.nth(0).locator('.idx')).toHaveText('02')
+  await expect(qs.nth(0).locator('.txt')).toHaveText('第二个提问')
+  await expect(qs.nth(1).locator('.txt')).toHaveText('示例提问')
   await expect(qs.nth(0).locator('.tm')).not.toHaveText('—')
   await expect(win.locator('.qbar .grp-t')).toContainText('提问(主干)· 2 条')
 
@@ -586,20 +587,21 @@ test('会话页:默认全部折叠;点提问展开整轮正文与取回脚注,�
   await expect(win.locator('.qlist .q')).toHaveCount(2)
   await expect(win.locator('.turn')).toHaveCount(0)
 
-  // 点第一条:提问行自己铺开(.open,不另设复述块),下面出整轮正文 + 取回脚注
-  await win.locator('.qlist .q').first().click()
+  // 点 01(默认倒序,首行是 02——按文本定位不赌位置):提问行自己铺开(.open,
+  // 不另设复述块),下面出整轮正文 + 取回脚注
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
   await expect(win.locator('.qlist .q.open .txt')).toHaveText('示例提问')
   await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
   await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
 
-  // 展开第二条不影响第一条(各轮独立);第二轮没有正文,脚注照出(不造假的占位)
-  await win.locator('.qlist .q').nth(1).click()
+  // 展开另一条不影响已开的(各轮独立);第二轮没有正文,脚注照出(不造假的占位)
+  await win.locator('.qlist .q', { hasText: '第二个提问' }).click()
   await expect(win.locator('.qlist .q.open')).toHaveCount(2)
   await expect(win.locator('.turn')).toHaveCount(2)
   await expect(win.locator('.turn .ans')).toHaveCount(1)
 
-  // 再点第一条:收起,其余不动
-  await win.locator('.qlist .q').first().click()
+  // 再点 01:收起,其余不动
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
   await expect(win.locator('.turn')).toHaveCount(1)
   await expect(win.locator('.qlist .q.open')).toHaveCount(1)
 
@@ -621,11 +623,13 @@ test('会话页:跨天分组可折叠;倒序组与组内同翻、序号不变;�
   await expect(win.locator('.dayhd').first()).toContainText('1 条')
   await expect(win.locator('.qbar .grp-t')).toContainText('2 天')
 
-  // 展开第一条(序号 01),然后切倒序:仍展开、序号不变、组序与组内一起翻
-  await win.locator('.qlist .q').first().click()
+  // 默认倒序(2026-08-06 用户裁定):首行是最新的 02
+  await expect(win.locator('.qlist .q').first().locator('.idx'), '默认倒序,首行应是 02').toHaveText('02')
+  // 展开 01,然后切正序:仍展开、序号不变、组序与组内一起翻
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
   await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
-  await win.locator('.qbar .seg button', { hasText: '倒序' }).click()
-  await expect(win.locator('.qlist .q').first().locator('.idx'), '倒序后首行应是原 02').toHaveText('02')
+  await win.locator('.qbar .seg button', { hasText: '正序' }).click()
+  await expect(win.locator('.qlist .q').first().locator('.idx'), '正序后首行应是原 01').toHaveText('01')
   const openRow = win.locator('.qlist .q.open')
   await expect(openRow, '已展开的轮次跨排序保持').toHaveCount(1)
   await expect(openRow.locator('.idx'), '序号恒为原始轮次号').toHaveText('01')
@@ -707,7 +711,7 @@ test('会话页:文件被追加(签名不符)后点提问,仍取回正确的整�
       message: { role: 'user', content: '追加的第三问' }
     }) + '\n'
   )
-  await win.locator('.qlist .q').first().click()
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
   await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
   await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
 

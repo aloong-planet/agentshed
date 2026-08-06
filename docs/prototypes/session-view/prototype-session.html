@@ -190,7 +190,7 @@
         <span class="grp-t" id="qhead">提问(主干)</span>
         <span class="qtools">
           <span class="lnk" id="foldall">全部收起</span>
-          <span class="seg" id="qorder"><span class="on" data-o="asc">正序</span><span data-o="desc">倒序</span></span>
+          <span class="seg" id="qorder"><span data-o="asc">正序</span><span class="on" data-o="desc">倒序</span></span>
         </span>
       </div>
       <div class="qlist" id="qlist"></div>
@@ -572,7 +572,7 @@
   };
 
   const DATA = {claude:CLAUDE, codex:CODEX, orphan:ORPHAN};
-  let cur='claude', fetchState='ok', order='asc';
+  let cur='claude', fetchState='ok', order='desc'; // 默认倒序(2026-08-06 用户裁定)
   const loaded=new Set();          // 已取回过的轮次(索引失效只在首次取回时重建)
   const openTurns=new Set();       // 已展开的轮次(跨排序切换保持)
   const foldedDays=new Set();      // 已折叠的日期分组
