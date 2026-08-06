@@ -279,6 +279,9 @@ describe('validateSessionPage(会话页载荷)', () => {
     tokens: 10,
     bytes: 2048,
     forkState: 'none',
+    forkPoints: 0,
+    forkParentTitle: null,
+    forkParentFile: null,
     questions: [{ i: 1, text: '问一', at: 1, tools: 2, subagents: 0 }]
   }
 
@@ -305,6 +308,26 @@ describe('validateSessionPage(会话页载荷)', () => {
     expect(validateSessionPage({ ...okPage, questions: '不是数组' }).ok).toBe(false)
     expect(validateSessionPage({ ...okPage, file: '' }).ok).toBe(false)
     expect(validateSessionPage({ ...okPage, questions: [{ i: 1, text: 't', at: 1, tools: '2', subagents: 0 }] }).ok).toBe(false)
+  })
+
+  // 票 06:横幅数据面三字段
+  it('放行 stripped 页带父标题/父文件;拒收缺 forkPoints 或类型不对的', () => {
+    const stripped = {
+      ...okPage,
+      side: 'codex',
+      forkState: 'stripped',
+      forkParentTitle: '父会话标题',
+      forkParentFile: '/Users/x/.codex/sessions/2026/07/30/rollout-x.jsonl'
+    }
+    expect(validateSessionPage(stripped).ok).toBe(true)
+    const noFp = { ...okPage } as Record<string, unknown>
+    delete noFp['forkPoints']
+    const r1 = validateSessionPage(noFp)
+    expect(r1.ok === false && r1.error).toContain('forkPoints')
+    const r2 = validateSessionPage({ ...okPage, forkParentTitle: 42 })
+    expect(r2.ok === false && r2.error).toContain('forkParentTitle')
+    const r3 = validateSessionPage({ ...okPage, forkParentFile: 42 })
+    expect(r3.ok === false && r3.error).toContain('forkParentFile')
   })
 })
 

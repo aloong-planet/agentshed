@@ -607,6 +607,83 @@ test('会话页:默认全部折叠;点提问展开整轮正文与取回脚注,�
   await close(l)
 })
 
+// 票 06:日期分组折叠 + 正序/倒序 + 展开跨排序保持
+test('会话页:跨天分组可折叠;倒序组与组内同翻、序号不变;展开跨排序保持', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+
+  // 两天两组,组头带当日条数;qhead 带天数
+  await expect(win.locator('.daygrp')).toHaveCount(2)
+  await expect(win.locator('.dayhd').first()).toContainText('1 条')
+  await expect(win.locator('.qbar .grp-t')).toContainText('2 天')
+
+  // 展开第一条(序号 01),然后切倒序:仍展开、序号不变、组序与组内一起翻
+  await win.locator('.qlist .q').first().click()
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await win.locator('.qbar .seg button', { hasText: '倒序' }).click()
+  await expect(win.locator('.qlist .q').first().locator('.idx'), '倒序后首行应是原 02').toHaveText('02')
+  const openRow = win.locator('.qlist .q.open')
+  await expect(openRow, '已展开的轮次跨排序保持').toHaveCount(1)
+  await expect(openRow.locator('.idx'), '序号恒为原始轮次号').toHaveText('01')
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+
+  // 折叠 01 所在的那天:该天的行连同已展开的轮一并隐藏;重开仍是展开的。
+  // 折叠后 .q.open 不再渲染,故先记下组头日期,重开时按日期重定位
+  const day01hd = win.locator('.daygrp', { has: win.locator('.q.open') }).locator('.dayhd')
+  const dayLabel = (await day01hd.innerText()).split(' · ')[0].trim()
+  await day01hd.click()
+  await expect(win.locator('.q.open')).toHaveCount(0)
+  await expect(win.locator('.turn')).toHaveCount(0)
+  await win.locator('.dayhd', { hasText: dayLabel }).click()
+  await expect(win.locator('.q.open')).toHaveCount(1)
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+
+  // 全部收起 → 标签翻转、全部行隐藏;全部展开还原
+  await win.locator('.qbar .lnk').click()
+  await expect(win.locator('.qlist .q')).toHaveCount(0)
+  await expect(win.locator('.qbar .lnk')).toHaveText('全部展开')
+  await win.locator('.qbar .lnk').click()
+  await expect(win.locator('.qlist .q')).toHaveCount(2)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 06:顶部横幅三档——stripped info(父标题可点直达父会话)与孤儿 risk
+test('会话页横幅:fork 已剥离标 info 且父标题直达;父缺失标 risk 且明说对照核对', async () => {
+  const l = await launch(undefined, mkForkHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+
+  // 子会话(已剥离):info 横幅带父标题,点击直达父会话页
+  await win.locator('.pane-body .card .se', { hasText: '子会话的新问' }).click()
+  const info = win.locator('.banner.info')
+  await expect(info).toContainText('fork 自')
+  await expect(info).toContainText('父会话第一问')
+  await expect(info).toContainText('重放前缀已剥离')
+  await info.locator('a').click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('父会话第一问')
+  // 父会话不是 fork:无任何横幅
+  await expect(win.locator('.banner')).toHaveCount(0)
+
+  // 孤儿 fork:risk 横幅,明说可能多剥/少剥、请对照核对——不给假确定感
+  await win.locator('.sback').click()
+  await win.locator('.pane-body .card .se', { hasText: '孤儿会话的问' }).click()
+  const risk = win.locator('.banner.risk')
+  await expect(risk).toContainText('不在扫描集内')
+  await expect(risk).toContainText('可能多剥(丢消息)或少剥(重复)')
+  await expect(risk).toContainText('请对照原文核对')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // 票 05:签名不符 → 只重建该文件的索引,重建完出内容(不干等、不报错)。
 // 中间态文案是瞬时的,e2e 不赌时序;这里断言的是链路结果正确与主进程零错误。
 test('会话页:文件被追加(签名不符)后点提问,仍取回正确的整轮内容', async () => {

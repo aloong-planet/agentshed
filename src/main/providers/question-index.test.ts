@@ -384,6 +384,79 @@ describe('Claude 分叉:末叶回溯', () => {
   })
 })
 
+describe('分叉处数(forkPoints,票 06 横幅信号)', () => {
+  async function fpOf(objs: unknown[]): Promise<number> {
+    return withLines(objs, async (file) => {
+      const idx = makeQuestionIndexer('claude')
+      let fileEnd = 0
+      await eachJsonlLine(file, (obj, start, end) => {
+        idx.line(obj, start, end)
+        fileEnd = end
+      })
+      idx.done(fileEnd)
+      return idx.forkPoints()
+    })
+  }
+
+  test('线性会话:0 处分叉', async () => {
+    expect(await fpOf([cq('u1', null, '问一'), ca('a1', 'u1'), cq('u2', 'a1', '问二')])).toBe(0)
+  })
+
+  test('某父两子 = 1 处;两个这样的父 = 2 处', async () => {
+    const one = [cq('u1', null, '问'), ca('a1', 'u1'), cq('u2b', 'a1', '岔'), cq('u2', 'a1', '正')]
+    expect(await fpOf(one)).toBe(1)
+    const two = [
+      cq('u1', null, '问'),
+      ca('a1', 'u1'),
+      cq('u2b', 'a1', '岔一'),
+      cq('u2', 'a1', '正'),
+      ca('a2', 'u2'),
+      cq('u3b', 'a2', '岔二'),
+      cq('u3', 'a2', '正二')
+    ]
+    expect(await fpOf(two)).toBe(2)
+  })
+
+  test('同父三子仍是 1 处分叉(数分叉点,不数分支数)', async () => {
+    expect(
+      await fpOf([cq('u1', null, '问'), ca('a1', 'u1'), cq('x', 'a1', '岔一'), cq('y', 'a1', '岔二'), cq('z', 'a1', '正')])
+    ).toBe(1)
+  })
+
+  test('sidechain 行不进回溯图,也不制造分叉', async () => {
+    const s = (u: string, p: string | null): unknown => ({
+      ...(cq(u, p, 'subagent 行') as Record<string, unknown>),
+      isSidechain: true,
+      agentId: 'ag'
+    })
+    // 两条 sidechain 与主链行同父:主链本身线性
+    expect(await fpOf([cq('u1', null, '问'), ca('a1', 'u1'), s('s1', 'a1'), s('s2', 'a1'), cq('u2', 'a1', '问二')])).toBe(0)
+  })
+
+  test('压缩边界的桥是单链,不算分叉', async () => {
+    expect(
+      await fpOf([cq('u1', null, '一段'), ca('a1', 'u1'), cCompact('cb1', 'a1'), cq('u2', 'cb1', '二段')])
+    ).toBe(0)
+  })
+
+  test('无 uuid 的旧格式文件:0', async () => {
+    expect(await fpOf([cUser('问一'), cUser('问二')])).toBe(0)
+  })
+
+  test('Codex 侧恒 0(无末叶回溯)', async () => {
+    await withLines([xUser('问')], async (file) => {
+      const idx = makeQuestionIndexer('codex')
+      let fileEnd = 0
+      await eachJsonlLine(file, (obj, start, end) => {
+        idx.line(obj, start, end)
+        fileEnd = end
+      })
+      idx.done(fileEnd)
+      expect(idx.forkPoints()).toBe(0)
+    })
+  })
+})
+
 describe('标题与提问集合同源(末叶回溯之后)', () => {
   async function firstTextOf(objs: unknown[]): Promise<string | null> {
     return withLines(objs, async (file) => {

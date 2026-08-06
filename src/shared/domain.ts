@@ -257,6 +257,11 @@ export interface SessionPage {
   /** 源文件字节数(页头体量展示用) */
   bytes: number
   forkState: ForkState
+  /** Claude 主链分叉处数(>0 时出"分叉已归一"info 横幅);Codex 恒 0(票 06) */
+  forkPoints: number
+  /** Codex fork 且父在扫描集内时的父会话标题/文件(横幅引用与跳转);其余为 null */
+  forkParentTitle: string | null
+  forkParentFile: string | null
   questions: SessionQuestion[]
 }
 
