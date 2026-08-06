@@ -869,6 +869,53 @@ test('会话页富内容(Codex):推理密文标注、工具配对、spawn 不可
   await close(l)
 })
 
+// 票 08:会话搜索——默认搜提问、全文开关、命中分组、直达提问。
+// 输入用 fill()(经 CDP 设值,不依赖窗口聚焦语义;app.spec 头部注记的 :focus
+// 断言边界不在本用例内)。
+test('会话搜索:默认搜提问命中分组;正文词切全文才命中;点命中直达该提问', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+
+  // 默认搜提问:命中 1 条,分组带会话头;大小写不敏感
+  await win.locator('.sbar input').fill('示例提问')
+  await expect(win.locator('.grp')).toHaveCount(1)
+  // 回归:命中组的 button 必须重置 UA 默认样式(漏写会在暗色下露白底黑字)
+  for (const sel of ['.grp .gh', '.grp .hit']) {
+    const bg = await win.locator(sel).first().evaluate((el) => getComputedStyle(el).backgroundColor)
+    expect(bg, `${sel} 应为透明背景而非 UA buttonface`).toBe('rgba(0, 0, 0, 0)')
+  }
+  await expect(win.locator('.grp .gh .t')).toContainText('示例提问')
+  await expect(win.locator('.grp .hit')).toHaveCount(1)
+  await expect(win.locator('.grp .hit mark').first()).toContainText('示例提问')
+  await expect(win.locator('.shead')).toContainText('找到 1 条 · 1 个会话')
+
+  // 正文里的词(第一轮回答正文)在提问模式不命中 → 可行动空态
+  await win.locator('.sbar input').fill('第一轮的回答正文')
+  await expect(win.locator('.shead')).toContainText('默认只搜提问,试试切到「全文」')
+  // 切全文:命中并标「正文」
+  await win.locator('.scope span', { hasText: '全文' }).click()
+  await expect(win.locator('.grp .hit')).toHaveCount(1)
+  await expect(win.locator('.grp .hit .bd')).toHaveText('正文')
+
+  // 点命中直达该会话的该条提问(01 行进入视口;默认倒序下它在列表尾部)。
+  // 定位高亮(2026-08-06 原型确认):脉冲 located + 焦点竖条 focused;
+  // 点击任意提问行后竖条清除。10s 脉冲的播完态不在此等待(时序不赌)。
+  await win.locator('.grp .hit').click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('示例提问')
+  const row01 = win.locator('.qlist .q', { hasText: '示例提问' })
+  await expect(row01).toBeInViewport()
+  await expect(row01).toHaveClass(/located/)
+  await expect(row01).toHaveClass(/focused/)
+  await win.locator('.qlist .q', { hasText: '第二个提问' }).click()
+  await expect(row01).not.toHaveClass(/focused/)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 test('全局刷新连点被去重,刷新后仍无错误', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()

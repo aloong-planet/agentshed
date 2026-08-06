@@ -97,12 +97,15 @@ function Banners({
 
 export function SessionPane({
   file,
+  focusQ,
   projectName,
   now,
   onBack,
   onOpenSession
 }: {
   file: string
+  /** 搜索命中直达(票 08):加载后滚动定位到该序号的提问行;null/未传不定位 */
+  focusQ?: number | null
   projectName: string
   /** 相对时间的基准(快照时间,与列表同源) */
   now: number
@@ -120,9 +123,19 @@ export function SessionPane({
   const [order, setOrder] = useState<QuestionOrder>('desc')
   /** 已折叠的日期组(键 = 组标签);展开状态与它独立——重开该天仍是展开的 */
   const [folded, setFolded] = useState<ReadonlySet<string>>(new Set())
+  /** 定位焦点(票 08,2026-08-06 原型确认):搜索直达的行,竖条常驻到点击任意行 */
+  const [focused, setFocused] = useState<number | null>(null)
+  /** 脉冲是否已播完:播完只留竖条——切排序等重挂载时不得再闪一次 10s */
+  const [pulseDone, setPulseDone] = useState(false)
   // 换会话后仍在飞的取回不得落进新会话的状态里
   const fileRef = useRef(file)
   fileRef.current = file
+
+  useEffect(() => {
+    setFocused(focusQ ?? null)
+    setPulseDone(false)
+    // 依赖含 focusQ:同一会话页内点另一条命中(file 不变)也要重新定位
+  }, [file, focusQ])
 
   useEffect(() => {
     let alive = true
@@ -173,6 +186,8 @@ export function SessionPane({
   }
 
   const toggle = (i: number): void => {
+    // 点击任意提问行即视为注意力转移:清定位竖条(原型确认的清除时机)
+    setFocused(null)
     const was = open.has(i)
     setOpen((prev) => {
       const n = new Set(prev)
@@ -192,7 +207,21 @@ export function SessionPane({
     const st = turns.get(idx)
     return (
       <Fragment key={q.i}>
-        <div className={`q${on ? ' open' : ''}`} onClick={() => toggle(idx)}>
+        <div
+          className={`q${on ? ' open' : ''}${
+            focused === q.i ? `${pulseDone ? '' : ' located'} focused` : ''
+          }`}
+          onClick={() => toggle(idx)}
+          onAnimationEnd={focused === q.i ? (): void => setPulseDone(true) : undefined}
+          ref={
+            focusQ != null && q.i === focusQ
+              ? (el): void => {
+                  // 搜索直达:挂载后滚到该行
+                  el?.scrollIntoView({ block: 'center' })
+                }
+              : undefined
+          }
+        >
           <i className="cv">{on ? '▾' : '▸'}</i>
           <span className="idx">{String(q.i).padStart(2, '0')}</span>
           <span className="txt">{q.text}</span>

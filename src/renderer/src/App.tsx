@@ -21,12 +21,15 @@ export function App(): JSX.Element {
   const [selected, setSelected] = useState<string | null>(null)
   // 会话页视图态(票 04):非空时项目详情区整块换成会话页;换项目即退出
   const [openSession, setOpenSession] = useState<string | null>(null)
+  // 票 08:搜索命中直达——打开会话页时定位到第几条提问(1 起;null = 不定位)
+  const [openFocusQ, setOpenFocusQ] = useState<number | null>(null)
   // 从会话页返回时回到「会话」分栏(原型:‹ 返回 <项目> · 会话),而非概览
   const [backToSessions, setBackToSessions] = useState(false)
   const [scheme, setScheme] = useState<AppearanceScheme>(DEFAULT_SCHEME)
   const selectProject = (p: string | null): void => {
     setSelected(p)
     setOpenSession(null)
+    setOpenFocusQ(null)
     setBackToSessions(false)
   }
 
@@ -123,21 +126,27 @@ export function App(): JSX.Element {
               selected && openSession ? (
                 <SessionPane
                   file={openSession}
+                  focusQ={openFocusQ}
                   projectName={snap.projects.find((p) => p.path === selected)?.name ?? selected}
                   now={snap.scannedAt}
                   onBack={() => {
                     setOpenSession(null)
+                    setOpenFocusQ(null)
                     setBackToSessions(true)
                   }}
-                  onOpenSession={(f) => setOpenSession(f)}
+                  onOpenSession={(f) => {
+                    setOpenSession(f)
+                    setOpenFocusQ(null)
+                  }}
                 />
               ) : selected ? (
                 <DetailPane
                   snap={snap}
                   path={selected}
                   initialTab={backToSessions ? 'sessions' : undefined}
-                  onOpenSession={(f) => {
+                  onOpenSession={(f, q) => {
                     setOpenSession(f)
+                    setOpenFocusQ(q ?? null)
                     setBackToSessions(false)
                   }}
                 />

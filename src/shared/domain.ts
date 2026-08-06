@@ -336,6 +336,36 @@ export interface SessionTurn {
   bytesRead: number
 }
 
+/** 搜索命中(票 08;searchSessions 通道) */
+export interface SearchHit {
+  /** 提问序号(展示集合内,1 起,与会话页同源) */
+  i: number
+  /** 提问全文(命中行经解析后的干净文本) */
+  text: string
+  at: number | null
+  /** true = 命中在该轮的回答/工具正文里(仅全文模式产生) */
+  inBody: boolean
+  /** 正文命中的上下文片段(提问命中为 null;提取失败也为 null,渲染层退化) */
+  snippet: string | null
+}
+
+export interface SearchGroup {
+  file: string
+  title: string
+  side: AgentSide
+  forkState: ForkState
+  at: number | null
+  hits: SearchHit[]
+}
+
+export interface SearchResult {
+  groups: SearchGroup[]
+  totalHits: number
+  sessionCount: number
+  /** 展示区间之外的命中数(fork 重放副本 / 被放弃分支 / 首问前噪声区) */
+  folded: number
+}
+
 /** 单项目统计(概览 tab 数据) */
 export interface ProjectStats {
   tokens: TokenStats

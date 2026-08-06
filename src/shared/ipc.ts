@@ -15,6 +15,8 @@ export const CMD = {
   sessionFresh: 'agentshed:session-fresh',
   /** 按需取回一轮:提问下标 → 该轮区间现读 + 归一化块(票 05) */
   getSessionTurn: 'agentshed:get-session-turn',
+  /** 本项目会话搜索:默认搜提问,可切全文(票 08;区间读粗筛,不建索引) */
+  searchSessions: 'agentshed:search-sessions',
   /** 读产物 Markdown(仅限详情列出过的文件,主进程白名单校验) */
   readArtifact: 'agentshed:read-artifact',
   /** 外开产物(prototypes HTML → 系统默认打开;同白名单) */
@@ -43,6 +45,13 @@ export interface SessionTurnArgs {
   file: string
   /** 提问下标,0 起,对应会话页展示集合(getSessionPage.questions 的顺序) */
   i: number
+}
+
+export interface SearchSessionsArgs {
+  /** 项目路径(会话集合由主进程按它取,渲染层给不了文件路径) */
+  path: string
+  needle: string
+  fullText: boolean
 }
 
 export interface SkillOpArgs {
