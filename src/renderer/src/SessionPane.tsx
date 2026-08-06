@@ -7,6 +7,7 @@ import type { SessionPage, SessionTurn } from '@shared/domain'
 import { fmtAgo } from './ProjectsPane'
 import { fmtTok } from './TokenViz'
 import { dayGroups, groupable, type QuestionOrder } from './question-groups'
+import { BlockView } from './TurnBlocks'
 
 function fmtMB(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -213,9 +214,7 @@ export function SessionPane({
             {st?.s === 'ready' && (
               <>
                 {st.turn.blocks.map((b, bi) => (
-                  <div className="ans" key={bi}>
-                    {b.body}
-                  </div>
+                  <BlockView b={b} key={bi} />
                 ))}
                 <div className="fetched">
                   ⚡ 按需取回 {st.ms} ms · 只读本轮区间 {fmtBytes(st.turn.bytesRead)}

@@ -1632,3 +1632,144 @@ body {
   color: var(--text-2);
   padding: 12px 0;
 }
+/* 票 07:轮内块(原型 .blk/.bh/.bb/.step/.rt/.warn/.unknown) */
+.turn .blk {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--card);
+  margin: 5px 0;
+}
+.turn .bh {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.turn .bh:hover {
+  background: var(--accent-soft);
+}
+.turn .bh .cv {
+  color: var(--text-2);
+  font-size: 10px;
+  font-style: normal;
+  flex: none;
+}
+.turn .bh .nm {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11.5px;
+  flex: none;
+}
+.turn .bh .sum {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.turn .bb {
+  border-top: 1px solid var(--line);
+  padding: 8px 12px 10px;
+  font-size: 11.5px;
+  line-height: 1.7;
+}
+.turn .bb .lb {
+  font-size: 10.5px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 6px 0 3px;
+}
+.turn .bb .lb:first-child {
+  margin-top: 0;
+}
+.turn .bb pre {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.65;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 7px 9px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 170px;
+  overflow: auto;
+}
+.turn .blk.think {
+  border-style: dashed;
+}
+.turn .blk.sub {
+  border-color: var(--accent);
+}
+.turn .blk.sub .bh {
+  color: var(--accent);
+}
+.turn .bb .tk {
+  white-space: pre-wrap;
+}
+.turn .step {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+  border-top: 1px dashed var(--line);
+}
+.turn .step:first-of-type {
+  border-top: 0;
+}
+.turn .step .sn {
+  width: 18px;
+  flex: none;
+  color: var(--text-2);
+  font-family: ui-monospace, Menlo, monospace;
+}
+.turn .rt {
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--line-strong);
+  margin: 3px 0;
+  color: var(--text-2);
+}
+/* 不可还原/被截断/加密/不可归位:一律显式标注,不静默 */
+.turn .warn {
+  border: 1px dashed #d79a5b;
+  background: #fdf3e3;
+  color: #7a4d1c;
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 11px;
+  line-height: 1.65;
+  margin: 6px 0;
+}
+@media (prefers-color-scheme: dark) {
+  .turn .warn {
+    background: #33251a;
+    border-color: #8a5f34;
+    color: #f0bd8c;
+  }
+}
+:root[data-theme='dark'] .turn .warn {
+  background: #33251a;
+  border-color: #8a5f34;
+  color: #f0bd8c;
+}
+:root[data-theme='light'] .turn .warn {
+  background: #fdf3e3;
+  border-color: #d79a5b;
+  color: #7a4d1c;
+}
+.turn .mnote {
+  font-size: 11px;
+  color: var(--text-2);
+}
+.turn .unknown {
+  font-size: 11px;
+  color: var(--text-2);
+  border: 1px dotted var(--line-strong);
+  border-radius: 7px;
+  padding: 7px 10px;
+  margin: 8px 0;
+  line-height: 1.7;
+}

@@ -115,16 +115,54 @@ function mkUsageHome(): string {
     join(cdir, 'a.jsonl'),
     [
       JSON.stringify({ type: 'user', timestamp: localDayOffset(2).toISOString(), message: { role: 'user', content: '示例提问' } }),
-      // 真实形态:助手行同时带 content(正文段)与 usage;票 05 的展开断言用这段正文
+      // 真实形态:助手行同时带 content(正文段)与 usage;票 05 的展开断言用这段正文。
+      // 票 07:同行混排 thinking/text/tool_use(全量枚举的段全谱),供富内容断言
       JSON.stringify({
         type: 'assistant',
         timestamp: localDayOffset(2).toISOString(),
         message: {
           model: 'claude-fable-5',
-          content: [{ type: 'text', text: '这是第一轮的回答正文' }],
+          content: [
+            { type: 'thinking', thinking: '先看一眼目录结构' },
+            { type: 'text', text: '这是第一轮的回答正文' },
+            { type: 'tool_use', id: 'tu_e2e_1', name: 'Bash', input: { command: 'ls -la src' } }
+          ],
           usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
         }
       }),
+      // 工具返回:含 tool-results/ 旁挂路径 → 截断标注(spec C7,机制性判据)
+      JSON.stringify({
+        type: 'user',
+        timestamp: localDayOffset(2).toISOString(),
+        message: {
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_1', content: '共 12 个文件\noutput saved to: /x/tool-results/e2e.txt' }]
+        }
+      }),
+      // subagent 派发 → 轮内 sidechain 步骤 → 带 toolUseResult.agentId 的返回(实测链路)
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: localDayOffset(2).toISOString(),
+        message: {
+          role: 'assistant',
+          content: [{ type: 'tool_use', id: 'tu_e2e_ag', name: 'Agent', input: { description: '查日志', prompt: '查一下今天的日志', subagent_type: 'debugger' } }]
+        }
+      }),
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: localDayOffset(2).toISOString(),
+        isSidechain: true,
+        agentId: 'ag_e2e',
+        message: { role: 'assistant', content: [{ type: 'tool_use', id: 'stu1', name: 'Bash', input: { command: 'tail -5 app.log' } }] }
+      }),
+      JSON.stringify({
+        type: 'user',
+        timestamp: localDayOffset(2).toISOString(),
+        toolUseResult: { agentId: 'ag_e2e', status: 'completed' },
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_ag', content: [{ type: 'text', text: '日志干净,没有异常' }] }] }
+      }),
+      // 显示白名单外的未知类型 → 留痕不静默丢(spec C8)
+      JSON.stringify({ type: 'agent_snapshot', timestamp: localDayOffset(2).toISOString(), payload: { blob: 'x' } }),
       usage('claude-fable-5', localDayOffset(2), 1200, 300),
       // 第二条真实提问 —— 让两侧的提问条数不相等,条数断言才分得出"真读到了"
       // 与"两边都恰好是 1"。中间夹一条工具回灌,它不算提问(spec B1)。
@@ -175,6 +213,34 @@ function mkUsageHome(): string {
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
       // 真实提问:没有它这条会话按 spec A3a 不入列
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'user_message', message: 'Codex 侧的提问' } }),
+      // 票 07:推理小标题 / 工具配对 / spawn_agent(不可归位)/ 未知 event 留痕
+      JSON.stringify({
+        timestamp: localDayOffset(2).toISOString(),
+        type: 'response_item',
+        payload: { type: 'reasoning', id: 'r1', summary: [{ type: 'summary_text', text: '对比两侧目录约定' }, { type: 'summary_text', text: '确认字段差异' }], encrypted_content: 'gAAA' }
+      }),
+      JSON.stringify({
+        timestamp: localDayOffset(2).toISOString(),
+        type: 'response_item',
+        payload: { type: 'custom_tool_call', id: 'ri1', call_id: 'c_e2e', name: 'exec', input: 'rg skills -l', status: 'completed' }
+      }),
+      JSON.stringify({
+        timestamp: localDayOffset(2).toISOString(),
+        type: 'response_item',
+        payload: { type: 'custom_tool_call_output', call_id: 'c_e2e', output: '7 个文件' }
+      }),
+      JSON.stringify({
+        timestamp: localDayOffset(2).toISOString(),
+        type: 'response_item',
+        payload: { type: 'function_call', id: 'ri2', call_id: 'c_sp', name: 'spawn_agent', namespace: 'collaboration', arguments: '{"task_name":"迁移检查"}' }
+      }),
+      JSON.stringify({
+        timestamp: localDayOffset(2).toISOString(),
+        type: 'response_item',
+        payload: { type: 'function_call_output', call_id: 'c_sp', output: '子任务已建' }
+      }),
+      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'exotic_event', data: 1 } }),
+      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'agent_message', message: '两侧目录约定不同,详见对比。' } }),
       turn(localDayOffset(2), 900, 150),
       // 停在昨天:与 Claude 侧(今天)拉开差距,"最近在前"才有得可判。
       // 两侧同时间戳的话,排序断言只能证明 reverse 有效,证不了按时间排。
@@ -714,6 +780,90 @@ test('会话页:文件被追加(签名不符)后点提问,仍取回正确的整�
   await win.locator('.qlist .q', { hasText: '示例提问' }).click()
   await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
   await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 07:轮内富内容——工具折叠/二次展开、思考块、subagent 归位、截断标注、未知留痕
+test('会话页富内容(Claude):思考/工具/subagent 块默认折叠,展开见全文与标注', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
+
+  // 正文 + 三个折叠块头(思考/Bash/subagent),默认全折叠(.bb 不渲染)
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await expect(win.locator('.turn .blk')).toHaveCount(3)
+  await expect(win.locator('.turn .bb')).toHaveCount(0)
+
+  // 思考块:明文可得
+  const think = win.locator('.turn .blk.think')
+  await expect(think.locator('.nm')).toHaveText('思考')
+  await think.locator('.bh').click()
+  await expect(think.locator('.bb')).toContainText('先看一眼目录结构')
+
+  // 工具块:二次展开见入参/返回;截断 warn(返回里带 tool-results/ 旁挂路径)
+  const tool = win.locator('.turn .blk', { has: win.locator('.nm', { hasText: 'Bash' }) }).first()
+  await expect(tool.locator('.sum')).toContainText('ls -la src')
+  await tool.locator('.bh').click()
+  await expect(tool.locator('pre').nth(0)).toContainText('ls -la src')
+  await expect(tool.locator('pre').nth(1)).toContainText('共 12 个文件')
+  await expect(tool.locator('.warn')).toContainText('只存了截断版')
+
+  // subagent 块:派发 prompt 与返回;内部步骤无稳定引用链 → 显式未归位标注
+  // (2026-08-06 实测:四条候选连接键全部排除,不做猜测性配对)
+  const sub = win.locator('.turn .blk.sub')
+  await expect(sub.locator('.nm')).toContainText('debugger')
+  await sub.locator('.bh').click()
+  await expect(sub.locator('pre').nth(0)).toContainText('查一下今天的日志')
+  await expect(sub.locator('.step')).toHaveCount(0)
+  await expect(sub.locator('.warn')).toContainText('稳定引用链')
+  await expect(sub.locator('pre').nth(1)).toContainText('日志干净')
+
+  // 未知类型留痕:不静默丢
+  await expect(win.locator('.turn .unknown')).toContainText('1 条未识别记录')
+  await expect(win.locator('.turn .unknown')).toContainText('agent_snapshot')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('会话页富内容(Codex):推理密文标注、工具配对、spawn 不可归位标注、未知事件留痕', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Codex 侧的提问' }).click()
+  await win.locator('.qlist .q', { hasText: 'Codex 侧的提问' }).click()
+
+  await expect(win.locator('.turn .ans')).toContainText('两侧目录约定不同')
+
+  // 推理块:仅小标题,warn 明说正文加密不可得
+  const reason = win.locator('.turn .blk.think')
+  await expect(reason.locator('.sum')).toContainText('仅 2 条小标题')
+  await reason.locator('.bh').click()
+  await expect(reason.locator('.warn')).toContainText('encrypted_content')
+  await expect(reason.locator('.rt')).toHaveCount(2)
+
+  // 工具块:call_id 配对的入参/返回
+  const tool = win.locator('.turn .blk', { has: win.locator('.nm', { hasText: 'exec' }) }).first()
+  await tool.locator('.bh').click()
+  await expect(tool.locator('pre').nth(0)).toContainText('rg skills -l')
+  await expect(tool.locator('pre').nth(1)).toContainText('7 个文件')
+
+  // spawn_agent:sub 块,子线程无引用链不归位(2026-08-06 裁定)
+  const sub = win.locator('.turn .blk.sub')
+  await sub.locator('.bh').click()
+  await expect(sub.locator('.warn')).toContainText('稳定引用链')
+  await expect(sub.locator('pre').nth(1)).toContainText('子任务已建')
+
+  // 未知 event 留痕(三层白名单之一)
+  await expect(win.locator('.turn .unknown')).toContainText('event_msg/exotic_event')
 
   expect(l.errors).toEqual([])
   await close(l)

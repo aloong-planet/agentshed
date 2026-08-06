@@ -130,7 +130,7 @@ export interface QuestionIndexer {
  * 不改用"入参含 subagent_type"这个看似更机制化的判据:全库反查它会把一次
  * `TaskCreate` 误算进来,又漏掉 5 次没传该可选参的 `Agent`。日后再改名只会少算,
  * 不会错算——展示的是体量数字,少算不污染其他轮。 */
-const CLAUDE_DISPATCH = new Set(['Agent', 'Task'])
+export const CLAUDE_DISPATCH = new Set(['Agent', 'Task'])
 
 /** Codex 侧派发 subagent 的 function_call 名(真实样本:namespace=collaboration) */
 const CODEX_DISPATCH = 'spawn_agent'

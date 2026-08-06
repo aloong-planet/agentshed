@@ -266,8 +266,8 @@ export interface SessionPage {
 }
 
 /**
- * 会话轮次的归一化块(票 05):两侧各自的原始行统一成这个模型,渲染层只认它。
- * 本票只有正文(text);工具调用/推理块等 kind 由票 07 扩展。
+ * 会话轮次的归一化块(票 05 立模型,票 07 扩全):两侧各自的原始行统一成这个
+ * 模型,渲染层只认它。顺序 = 源文件行序(行内按 思考→正文→工具 的段序)。
  */
 export interface TurnTextBlock {
   kind: 'text'
@@ -275,7 +275,59 @@ export interface TurnTextBlock {
   at: number | null
   body: string
 }
-export type TurnBlock = TurnTextBlock
+/** Claude 明文思考(thinking 段);Codex 侧没有这个 kind——推理走 reason */
+export interface TurnThinkBlock {
+  kind: 'think'
+  at: number | null
+  body: string
+}
+/** Codex 推理:只有明文小标题,正文是 encrypted_content 永远不可得(spec C6) */
+export interface TurnReasonBlock {
+  kind: 'reason'
+  at: number | null
+  titles: string[]
+}
+export interface TurnToolBlock {
+  kind: 'tool'
+  at: number | null
+  name: string
+  /** 一行摘要(入参截断),折叠态显示 */
+  summary: string
+  input: string
+  /** 无返回(运行中/记录缺失)为 null */
+  output: string | null
+  /** Claude:transcript 只存截断版,原文旁挂 tool-results/ 不读(spec C7,2026-08-06 裁定) */
+  truncated: boolean
+}
+export interface TurnSubStep {
+  kind: 'text' | 'tool'
+  label: string
+}
+export interface TurnSubBlock {
+  kind: 'sub'
+  at: number | null
+  /** 派发名(Claude 取 subagent_type,无则工具名;Codex 恒 spawn_agent) */
+  name: string
+  prompt: string
+  /** 内部步骤:Claude 从轮内 sidechain 行按 agentId 归组;Codex 无引用链恒空 */
+  steps: TurnSubStep[]
+  result: string | null
+  /** Codex:子线程转写无稳定引用链,未归位(2026-08-06 裁定,界面标注) */
+  unlinked: boolean
+}
+/** 显示白名单外的未知类型留痕(spec C8):不渲染内容,但绝不静默丢 */
+export interface TurnUnknownBlock {
+  kind: 'unknown'
+  count: number
+  types: string[]
+}
+export type TurnBlock =
+  | TurnTextBlock
+  | TurnThinkBlock
+  | TurnReasonBlock
+  | TurnToolBlock
+  | TurnSubBlock
+  | TurnUnknownBlock
 
 /** 单轮取回载荷(getSessionTurn 通道) */
 export interface SessionTurn {
