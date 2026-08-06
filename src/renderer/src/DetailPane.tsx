@@ -422,6 +422,7 @@ function SkillRow({
       scope={s.level === 'project' ? 'project' : 'global'}
       projectPath={s.level === 'project' ? projectPath : undefined}
       fixedSide={s.side}
+      pkgBySide={{ [s.side]: s.pkg }}
       uninstallSlot={
         onUninstall ? (
           <button

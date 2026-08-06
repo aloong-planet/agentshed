@@ -1971,7 +1971,9 @@ mark {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  /* 8px:视觉行高约 32px,对齐其它分栏的 .it 行(9px+纯文本);skills 行内容盒
+     因 pill/按钮更高,padding 少 1px 补偿(2026-08-06 原型定稿) */
+  padding: 8px 14px;
   width: 100%;
   text-align: left;
   background: none;
@@ -1991,7 +1993,14 @@ mark {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.sk-head .ins { margin-left: auto; }
+/* 行内包统计(文件数/大小)承担右推;装卸按钮排其后 */
+.sk-meta {
+  margin-left: auto;
+  flex: none;
+  font-size: 11px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
 .chev {
   width: 18px;
   flex: none;
@@ -2001,12 +2010,14 @@ mark {
   text-align: center;
 }
 .sk.open .chev { transform: rotate(90deg); color: var(--accent); }
+/* 展开区平铺(2026-08-06 原型定稿):零缩进,内容与行头同一条 14px 基线,
+   靠上下边线 + 底色区隔;不再套内层卡片 */
 .sk-body {
-  padding: 0 12px 12px 32px;
+  padding: 0;
   background: var(--bg);
   border-top: 1px solid var(--line);
 }
-.sk-sides { display: flex; gap: 4px; padding: 10px 0 6px; }
+.sk-sides { display: flex; gap: 4px; padding: 8px 14px 4px; }
 .sk-sides button {
   font: inherit;
   font-size: 11px;
@@ -2031,33 +2042,13 @@ mark {
   border-radius: 8px;
   padding: 7px 10px;
   line-height: 1.45;
-  margin: 6px 0 8px;
+  margin: 8px 14px;
 }
-.files-card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-  margin-top: 4px;
-}
-.files-sum {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 8px 12px;
-  font-size: 11.5px;
-  color: var(--text-2);
-  border-bottom: 1px solid var(--line);
-  background: var(--bg);
-}
-.files-sum b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-.files-sum .dot { opacity: 0.45; }
 .files-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 64px 72px 108px;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 5px 14px;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -2079,7 +2070,7 @@ mark {
   border: 0;
   background: transparent;
   color: var(--text);
-  padding: 8px 12px;
+  padding: 7px 14px;
   cursor: pointer;
   border-left: 3px solid transparent;
 }
@@ -2155,7 +2146,7 @@ mark {
   white-space: nowrap;
 }
 .files button .meta.lines { font-weight: 600; color: var(--text); }
-.files .empty { font-size: 12px; color: var(--text-2); padding: 12px; }
+.files .empty { font-size: 12px; color: var(--text-2); padding: 12px 14px; }
 
 .skill-drawer.drawer {
   /* 定位/阴影/z-index 继承 .drawer;宽度必须沿用 chrome-w 公式(94vw 会重现

@@ -1233,11 +1233,14 @@ test('Skills 查看:全局展开读包;详情同名只见项目级;插件行不�
   const l = await launch(undefined, home)
   const win = await l.app.firstWindow()
 
-  // ① 全局 Skills:点行展开文件表;点 SKILL.md 开抽屉,md 默认预览(frontmatter 卡片 + 正文)
+  // ① 全局 Skills:折叠行即有包统计(文件数/大小,不含行数);点行展开文件表;
+  //    点 SKILL.md 开抽屉,md 默认预览(frontmatter 卡片 + 正文)
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   const tdd = win.locator('.sk', { hasText: 'tdd' })
+  await expect(tdd.locator('.sk-meta')).toContainText('2 个文件')
   await tdd.locator('.sk-head').click()
   await expect(tdd.locator('.files-card')).toBeVisible()
+  await expect(tdd.locator('.files-sum')).toHaveCount(0) // 汇总条已上行,展开区不再重复
   await tdd.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.skill-drawer .md-fm')).toContainText('红先于绿')
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('全局正文甲')
@@ -1262,6 +1265,7 @@ test('Skills 查看:全局展开读包;详情同名只见项目级;插件行不�
   await expect(detTdd).toHaveCount(1)
   await expect(detTdd.locator('.pill.prj')).toBeVisible()
   await expect(detTdd.locator('.pill.glb')).toHaveCount(0)
+  await expect(detTdd.locator('.sk-meta')).toContainText('1 个文件')
   await expect(
     win.locator('.pane-body .sk', { hasText: 'review-code' }).locator('.pill.glb')
   ).toBeVisible()

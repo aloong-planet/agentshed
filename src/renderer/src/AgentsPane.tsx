@@ -164,6 +164,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
               symlink={s.symlink.claude || s.symlink.codex}
               scope="global"
               levelLabel="全局库"
+              pkgBySide={s.pkg}
               installSlot={
                 s.origin === 'disk' ? (
                   <button

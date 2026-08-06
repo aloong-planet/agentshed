@@ -163,6 +163,7 @@ function okDetail(): Record<string, unknown> {
       {
         name: 'tdd', description: null, level: 'project', side: 'claude',
         symlink: false, shadowed: false, shadows: true, coexists: false,
+        pkg: { files: 1, bytes: 10 },
         origin: 'disk', pluginName: null
       }
     ],
@@ -236,6 +237,10 @@ describe('validateProjectDetail —— 拒收并指出字段路径', () => {
   it('枚举值非法', () => {
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].level = 'workspace' }))).toContain('skills[0].level')
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].side = 'gemini' }))).toContain('skills[0].side')
+    // pkg:null 合法;非对象/字段非数字拒收
+    expect(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].pkg = null }).ok).toBe(true)
+    expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].pkg = 'big' }))).toContain('skills[0].pkg')
+    expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].pkg = { files: '1', bytes: 2 } }))).toContain('skills[0].pkg')
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].origin = 'net' }))).toContain('skills[0].origin')
     expect(errOf(bad((d) => { (d.plugins as Array<Record<string, unknown>>)[0].enabledFrom = 'team' }))).toContain('plugins[0].enabledFrom')
     expect(errOf(bad((d) => { (d.artifacts as Array<Record<string, unknown>>)[0].type = '随笔' }))).toContain('artifacts[0].type')

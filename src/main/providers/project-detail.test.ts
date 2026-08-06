@@ -48,6 +48,8 @@ describe('skills 生效视图', () => {
     const map = Object.fromEntries(d.skills.map((s) => [key(s), s]))
     expect(map['claude:project:ui-design']).toBeTruthy()
     expect(map['claude:project:tdd']).toMatchObject({ description: '项目版 tdd' })
+    expect(map['claude:project:tdd'].pkg?.files).toBe(1)
+    expect(map['claude:project:tdd'].pkg!.bytes).toBeGreaterThan(0)
     expect(map['claude:global:tdd']).toBeUndefined()
     expect(map['claude:global:review-code']).toBeTruthy()
     expect(map['codex:project:decision-form']).toBeTruthy()

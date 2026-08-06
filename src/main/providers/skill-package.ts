@@ -113,14 +113,16 @@ function relPosix(from: string, to: string): string {
   return relative(from, to).split(sep).join('/')
 }
 
-/**
- * 枚举 skill 包内可预览文本文件。
- * depth = 相对路径段数-? skill 根下文件 SKILL.md depth 0; references/a.md depth 1; a/b/c.md depth 2.
- * Spec: 深度 ≤ 2 才入列表;更深收集到 deepPaths。
- */
-export function listSkillPackageFiles(rootAbs: string): SkillPackageListing {
-  const root = realpathSync(rootAbs)
-  const files: SkillFileMeta[] = []
+interface WalkedFile {
+  rel: string
+  abs: string
+  bytes: number
+  mtimeMs: number
+}
+
+/** stat-only 遍历(不读内容):列举与行内统计共用同一套 扩展名/垃圾目录/深度 规则 */
+function walkFiles(root: string): { files: WalkedFile[]; deepPaths: string[] } {
+  const files: WalkedFile[] = []
   const deepPaths: string[] = []
 
   function walk(dir: string): void {
@@ -155,37 +157,60 @@ export function listSkillPackageFiles(rootAbs: string): SkillPackageListing {
         deepPaths.push(rel)
         continue
       }
-      let text = ''
-      try {
-        text = readFileSync(abs, 'utf8')
-      } catch {
-        continue
-      }
-      // 行数按全文;展示可截断读取在 read 通道
-      const bytes = Buffer.byteLength(text, 'utf8')
-      files.push({
-        path: rel,
-        absPath: abs,
-        bytes,
-        lines: lineCount(text),
-        mtimeMs: st.mtimeMs
-      })
+      files.push({ rel, abs, bytes: st.size, mtimeMs: st.mtimeMs })
     }
   }
 
   walk(root)
+  return { files, deepPaths }
+}
+
+/**
+ * 枚举 skill 包内可预览文本文件(展开时调用;补每文件行数,需读内容)。
+ * depth = 相对路径段数:SKILL.md=1;references/a.md=2;a/b/c.md=3 超限。
+ * Spec: 深度 ≤ 2 才入列表;更深收集到 deepPaths。
+ */
+export function listSkillPackageFiles(rootAbs: string): SkillPackageListing {
+  const root = realpathSync(rootAbs)
+  const walked = walkFiles(root)
+  const files: SkillFileMeta[] = []
+  for (const f of walked.files) {
+    let text: string
+    try {
+      // 行数按全文;展示可截断读取在 read 通道
+      text = readFileSync(f.abs, 'utf8')
+    } catch {
+      continue
+    }
+    files.push({ path: f.rel, absPath: f.abs, bytes: f.bytes, lines: lineCount(text), mtimeMs: f.mtimeMs })
+  }
   files.sort((a, b) => {
     if (a.path === 'SKILL.md') return -1
     if (b.path === 'SKILL.md') return 1
     return a.path.localeCompare(b.path)
   })
-  deepPaths.sort()
+  const deepPaths = [...walked.deepPaths].sort()
   return {
     root,
     files,
     deep: deepPaths.length > 0,
     deepPaths
   }
+}
+
+/**
+ * 行内包统计(扫描时调用):文件数 + 总字节,stat 即得、零内容读。
+ * 与列举同一套过滤规则,保证行上数字与展开表格一致。不可读 → null。
+ */
+export function statSkillPackage(rootAbs: string): { files: number; bytes: number } | null {
+  let root: string
+  try {
+    root = realpathSync(rootAbs)
+  } catch {
+    return null
+  }
+  const { files } = walkFiles(root)
+  return { files: files.length, bytes: files.reduce((a, f) => a + f.bytes, 0) }
 }
 
 const READ_CAP = 500_000

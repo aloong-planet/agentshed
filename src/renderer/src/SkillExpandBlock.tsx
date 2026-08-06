@@ -1,6 +1,6 @@
 // skills-view:磁盘 skill 折叠文件表 + 点文件开抽屉
 import { useState } from 'react'
-import type { AgentSide } from '@shared/domain'
+import type { AgentSide, SkillPkgStats } from '@shared/domain'
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
 import { SkillFileDrawer } from './SkillFileDrawer'
 import { toast } from './Toast'
@@ -45,6 +45,8 @@ export interface SkillExpandBlockProps {
   projectPath?: string
   /** 详情行已绑死一侧时固定,不展示侧切换 */
   fixedSide?: AgentSide
+  /** 各侧包统计(行内展示);切侧时行上数字随动 */
+  pkgBySide?: Partial<Record<AgentSide, SkillPkgStats | null>>
   installSlot?: JSX.Element
   uninstallSlot?: JSX.Element
 }
@@ -60,6 +62,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
     scope,
     projectPath,
     fixedSide,
+    pkgBySide,
     installSlot,
     uninstallSlot
   } = props
@@ -108,8 +111,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   }
 
   const files = listing?.files ?? []
-  const totalBytes = files.reduce((a, f) => a + f.bytes, 0)
-  const totalLines = files.reduce((a, f) => a + f.lines, 0)
+  const pkg = pkgBySide?.[side] ?? null
 
   return (
     <div className={`sk ${open ? 'open' : ''}`}>
@@ -146,6 +148,11 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         {level === 'project' && <span className="pill prj">项目级</span>}
         {level === 'global' && <span className="pill glb">全局</span>}
         {symlink && <span className="pill ln">⤷ 软链</span>}
+        {disk && (
+          <span className="sk-meta">
+            {pkg ? `${pkg.files} 个文件 · ${formatSize(pkg.bytes)}` : ''}
+          </span>
+        )}
         {installSlot}
         {uninstallSlot}
       </div>
@@ -190,24 +197,6 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
           )}
           {!loading && !listErr && listing && (
             <div className="files-card">
-              <div className="files-sum">
-                <span>
-                  <b>{files.length}</b> 个文件
-                </span>
-                <span className="dot">·</span>
-                <span>
-                  共 <b>{totalLines.toLocaleString('zh-CN')} 行</b>
-                </span>
-                <span className="dot">·</span>
-                <span>
-                  <b>{formatSize(totalBytes)}</b>
-                </span>
-                <span className="dot">·</span>
-                <span>
-                  {SIDE_LABEL[side]}
-                  {levelLabel ? ` · ${levelLabel}` : ''}
-                </span>
-              </div>
               <div className="files-head">
                 <span>文件</span>
                 <span>行数</span>

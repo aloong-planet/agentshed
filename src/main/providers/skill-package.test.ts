@@ -6,6 +6,7 @@ import {
   listSkillPackageFiles,
   resolveSkillRoot,
   isUnderKnownSkillRoots,
+  statSkillPackage,
   SKILL_DEEP_HINT
 } from './skill-package'
 import type { ScanRoots } from './types'
@@ -86,6 +87,22 @@ describe('listSkillPackageFiles', () => {
     mkPack(noEntry, { 'notes.txt': 'hi\n' })
     const l2 = listSkillPackageFiles(noEntry)
     expect(l2.files.map((f) => f.path)).toEqual(['notes.txt'])
+  })
+
+  it('statSkillPackage:与列举同一套过滤规则计数;不可读根 → null', () => {
+    const pack = join(dir, 'stat-pack')
+    mkPack(pack, {
+      'SKILL.md': '# s\n',
+      'references/a.md': 'aa\n',
+      'references/nested/deep.md': 'no\n',
+      'node_modules/x/no.md': 'no\n'
+    })
+    const st = statSkillPackage(pack)!
+    expect(st.files).toBe(2) // SKILL.md + references/a.md;深层与垃圾目录不计
+    expect(st.bytes).toBeGreaterThan(0)
+    // 行上数字与展开表格一致(同一套规则)
+    expect(st.files).toBe(listSkillPackageFiles(pack).files.length)
+    expect(statSkillPackage(join(dir, 'missing'))).toBeNull()
   })
 
   it('跟随软链 skill 根', () => {

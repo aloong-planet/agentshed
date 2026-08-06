@@ -10,7 +10,8 @@ import type {
   ProjectMcpEntry,
   ProjectPluginEntry,
   ProjectSkillEntry,
-  AgentSide
+  AgentSide,
+  SkillPkgStats
 } from '@shared/domain'
 import type { ScanRoots } from './types'
 import { readArtifacts } from './artifacts'
@@ -18,6 +19,7 @@ import { readEffectiveSubagents } from './subagents'
 import { readProjectMemory } from './memory'
 import { readProjectPlugins } from './plugins'
 import { fmField, readTextCapped } from './read-utils'
+import { statSkillPackage } from './skill-package'
 
 /** G1(详情页口径):本项目有效启用插件的内含 skills → 命名空间条目(level=plugin,不参与遮蔽) */
 function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] {
@@ -35,6 +37,7 @@ function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] 
         shadowed: false,
         shadows: false,
         coexists: false,
+        pkg: null,
         origin: 'plugin',
         pluginName: p.name
       })
@@ -68,6 +71,7 @@ export function readProjectDetail(roots: ScanRoots, projectPath: string): Projec
 interface RawSkill {
   description: string | null
   symlink: boolean
+  pkg: SkillPkgStats | null
 }
 
 function listSkills(base: string): Map<string, RawSkill> {
@@ -90,7 +94,7 @@ function listSkills(base: string): Map<string, RawSkill> {
     }
     const md = join(p, 'SKILL.md')
     if (!existsSync(md)) continue
-    out.set(e.name, { description: fmField(readTextCapped(md), 'description'), symlink })
+    out.set(e.name, { description: fmField(readTextCapped(md), 'description'), symlink, pkg: statSkillPackage(p) })
   }
   return out
 }
@@ -127,6 +131,7 @@ function readEffectiveSkills(
         shadowed: false,
         shadows: false,
         coexists: false,
+        pkg: s.pkg,
         origin: 'disk',
         pluginName: null
       })
@@ -142,6 +147,7 @@ function readEffectiveSkills(
         shadowed: false,
         shadows: false,
         coexists: false,
+        pkg: s.pkg,
         origin: 'disk',
         pluginName: null
       })

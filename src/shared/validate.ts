@@ -325,6 +325,12 @@ export function validateProjectDetail(v: unknown): ValidateResult {
     for (const b of ['symlink', 'shadowed', 'shadows', 'coexists'] as const) {
       if (typeof s[b] !== 'boolean') return fail(`${at}.${b}`, '需为 boolean')
     }
+    const pkg = s['pkg']
+    if (pkg !== null) {
+      if (!isRecord(pkg)) return fail(`${at}.pkg`, '需为 null 或对象')
+      if (typeof pkg['files'] !== 'number' || typeof pkg['bytes'] !== 'number')
+        return fail(`${at}.pkg`, 'files/bytes 需为 number')
+    }
     if (!ORIGINS.has(s['origin'] as string)) return fail(`${at}.origin`, `非法 origin: ${String(s['origin'])}`)
     if (!strOrNull(s['pluginName'])) return fail(`${at}.pluginName`, '需为 string|null')
     return null

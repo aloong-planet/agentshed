@@ -46,6 +46,11 @@ describe('全局 skills(全局库)', () => {
     expect(byName['review-code'].sides).toEqual(['claude'])
     expect(byName['review-code'].description).toBe('四层法')
     expect(byName['decision-form'].sides).toEqual(['codex'])
+    // 行内包统计:该侧有包给数字,无定义侧为 null
+    expect(byName['tdd'].pkg.claude?.files).toBe(1)
+    expect(byName['tdd'].pkg.claude!.bytes).toBeGreaterThan(0)
+    expect(byName['decision-form'].pkg.claude).toBeNull()
+    expect(byName['decision-form'].pkg.codex?.files).toBe(1)
   })
 
   it('两侧同名内容不同仍合并一行(无 differs 信号)', async () => {
