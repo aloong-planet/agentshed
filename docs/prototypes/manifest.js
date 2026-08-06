@@ -10,4 +10,5 @@ window.PROTOTYPES = [
   { module: 'skill-install', type: 'ui',    id: 'install',      name: 'Agents·Skills 装卸交互', path: 'skill-install/prototype-install.html' },
   { module: 'skill-install', type: 'logic', id: 'install-flow', name: '装卸操作状态机',       path: 'skill-install/install-flow/index.html' },
   { module: 'skills-view',   type: 'ui',    id: 'skills-preview', name: 'Skills 包预览(折叠+抽屉)', path: 'skills-view/prototype-skills-preview.html' },
+  { module: 'appearance',    type: 'ui',    id: 'settings',       name: '设置·外观三选一',      path: 'appearance/prototype-settings.html' },
 ];
