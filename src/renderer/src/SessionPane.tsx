@@ -350,7 +350,7 @@ export function SessionPane({
             </div>
             <div className="note">
               主干只列人类提问,harness 噪声不进渲染;提问一次列全(文本按字节区间现读,
-              与文件大小无关)。点提问就地展开该轮回答;工具调用与 subagent 过程是下一步功能。
+              与文件大小无关)。点提问就地展开整轮:正文、工具调用、subagent 派发与推理块。
             </div>
           </>
         )}
