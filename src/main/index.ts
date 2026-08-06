@@ -1,7 +1,15 @@
 import { app, BrowserWindow, ipcMain, protocol, session, shell } from 'electron'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { CMD, EVT, type SessionTurnArgs, type SetHiddenArgs, type SkillOpArgs } from '@shared/ipc'
+import {
+  CMD,
+  EVT,
+  type SessionTurnArgs,
+  type SetHiddenArgs,
+  type SkillOpArgs,
+  type ListSkillFilesArgs,
+  type ListSkillFilesResult
+} from '@shared/ipc'
 import type { ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import { assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
@@ -26,6 +34,13 @@ import {
 import { HiddenStore } from './hidden-store'
 import { PrefsStore } from './prefs-store'
 import { DEFAULT_SCHEME, isAppearanceScheme } from '@shared/appearance'
+import {
+  isUnderKnownSkillRoots,
+  listSkillPackageFiles,
+  readSkillFileText,
+  resolveSkillRoot,
+  SKILL_DEEP_HINT
+} from './providers/skill-package'
 
 // app:// scheme 必须在 app ready **之前**注册特权(#18);dev 走 vite http,不加载
 // app://,注册也无副作用。standard=非 opaque origin(安全上下文 + storage 快路径),
@@ -153,6 +168,8 @@ handle(CMD.getSnapshot, async () => {
 handle(CMD.refresh, async () => doScan())
 // 产物文件白名单:只允许读/外开「详情里列出过」的文件,堵任意路径读取口
 const artifactWhitelist = new Set<string>()
+/** skills-view:展开列举登记的精确可读路径 */
+const skillFileWhitelist = new Set<string>()
 
 handle(CMD.getProjectDetail, (_e, path: unknown) => {
   if (typeof path !== 'string' || path === '') throw new Error('getProjectDetail 参数不合契约')
@@ -243,6 +260,54 @@ function checkSkillOpArgs(args: unknown): SkillOpArgs {
 }
 handle(CMD.installSkill, (_e, args: unknown) => installSkill(realRoots(), checkSkillOpArgs(args)))
 handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallSkill(checkSkillOpArgs(args)))
+
+function checkListSkillFilesArgs(args: unknown): ListSkillFilesArgs {
+  const a = args as ListSkillFilesArgs
+  if (
+    typeof a?.name !== 'string' ||
+    (a?.side !== 'claude' && a?.side !== 'codex') ||
+    (a?.scope !== 'global' && a?.scope !== 'project')
+  ) {
+    throw new Error('listSkillFiles 参数不合契约')
+  }
+  if (a.scope === 'project' && typeof a.projectPath !== 'string') {
+    throw new Error('listSkillFiles project 缺少 projectPath')
+  }
+  return a
+}
+handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
+  const a = checkListSkillFilesArgs(args)
+  const roots = realRoots()
+  const root = resolveSkillRoot({
+    side: a.side,
+    name: a.name,
+    scope: a.scope,
+    projectPath: a.projectPath,
+    roots
+  })
+  if (!root || !isUnderKnownSkillRoots(root, roots, a.projectPath)) {
+    throw new Error('skill 包不可用或不在允许根下')
+  }
+  const listing = listSkillPackageFiles(root)
+  for (const f of listing.files) skillFileWhitelist.add(f.absPath)
+  return {
+    files: listing.files,
+    deep: listing.deep,
+    deepPaths: listing.deepPaths,
+    deepHint: SKILL_DEEP_HINT
+  }
+})
+handle(CMD.readSkillFile, (_e, args: unknown): string => {
+  const a = args as { absPath?: unknown }
+  if (typeof a?.absPath !== 'string' || !a.absPath) throw new Error('readSkillFile 参数不合契约')
+  if (!skillFileWhitelist.has(a.absPath)) throw new Error('skill 文件路径不在白名单')
+  try {
+    return readSkillFileText(a.absPath)
+  } catch {
+    throw new Error('skill 文件不可读')
+  }
+})
+
 handle(CMD.getPrefs, () => prefsStore?.get() ?? { scheme: DEFAULT_SCHEME })
 handle(CMD.setScheme, (_e, scheme: unknown) => {
   if (!isAppearanceScheme(scheme)) throw new Error('外观方案不合契约')

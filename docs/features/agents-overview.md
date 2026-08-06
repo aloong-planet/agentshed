@@ -6,7 +6,7 @@
 ## 能力
 - 顶部两张汇总卡:各侧检测状态、token 累计总量、项目数与全局 skills 数;某侧注册表损坏时降级显示错误说明,另一侧不受影响
 - Token 分栏(默认):近 30 天日粒度趋势大图(合计/单侧切换)、跨项目按模型拆分;汇总口径含已隐藏与失效项目并有标注
-- Skills 分栏:两侧全局库合并单列,侧徽标标示各侧是否存在,软链有标记,两侧同名内容不同时标「差异」;全局库条目可发起「安装到…」;含来源徽标区分全局库与插件条目(后者见 [Plugins 视图](plugins-view.md))
+- Skills 分栏:两侧全局库合并单列,侧徽标标示各侧是否存在,软链有标记;不做跨侧内容 diff;磁盘 skill 可折叠预览包内文件(见 [Skills 查看](skills-view.md));全局库条目可发起「安装到…」;插件条目只读摘要(见 [Plugins 视图](plugins-view.md))
 - Subagents 分栏:两侧 subagent 定义合并查看(见 [Subagents 查看](subagents-view.md))
 - Plugins 分栏:按侧分组的插件清单与内含组件展开(见 [Plugins 视图](plugins-view.md))
 - MCP 分栏:两侧全局 MCP 按来源归类(全局配置 / plugin 自带 / config.toml)

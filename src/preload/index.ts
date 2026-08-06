@@ -7,7 +7,10 @@ import {
   type SkillOpArgs,
   type SkillOpResult,
   type Prefs,
-  type AppearanceScheme
+  type AppearanceScheme,
+  type ListSkillFilesArgs,
+  type ListSkillFilesResult,
+  type ReadSkillFileArgs
 } from '@shared/ipc'
 import type { ProjectDetail, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import {
@@ -69,6 +72,10 @@ const api = {
     ipcRenderer.invoke(CMD.installSkill, args) as Promise<SkillOpResult>,
   uninstallSkill: (args: SkillOpArgs): Promise<SkillOpResult> =>
     ipcRenderer.invoke(CMD.uninstallSkill, args) as Promise<SkillOpResult>,
+  listSkillFiles: (args: ListSkillFilesArgs): Promise<ListSkillFilesResult> =>
+    ipcRenderer.invoke(CMD.listSkillFiles, args) as Promise<ListSkillFilesResult>,
+  readSkillFile: (args: ReadSkillFileArgs): Promise<string> =>
+    ipcRenderer.invoke(CMD.readSkillFile, args) as Promise<string>,
   // 与重载荷同规矩:preload 再校一次,拦 IPC 结构化克隆/形态漂移
   getPrefs: async (): Promise<Prefs> => checkedPrefs(await ipcRenderer.invoke(CMD.getPrefs)),
   setScheme: async (scheme: AppearanceScheme): Promise<Prefs> =>

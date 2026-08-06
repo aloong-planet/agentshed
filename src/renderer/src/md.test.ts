@@ -36,4 +36,16 @@ describe('renderMarkdown', () => {
     expect(html).toContain('href="https://example.com"')
     expect(html).toContain('src="data:image/png;base64,AAAA"')
   })
+
+  it('YAML frontmatter 拆成键值卡片后再渲染正文', () => {
+    const html = renderMarkdown(
+      '---\nname: github-ops\ndescription: "Rules"\nwhen_to_use: "Activate"\n---\n\n# 标题\n'
+    )
+    expect(html).toContain('md-fm')
+    expect(html).toContain('md-fm-k')
+    expect(html).toContain('name')
+    expect(html).toContain('github-ops')
+    expect(html).toContain('when_to_use')
+    expect(html).toContain('<h1>')
+  })
 })

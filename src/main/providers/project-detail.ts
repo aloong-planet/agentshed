@@ -112,11 +112,11 @@ function readEffectiveSkills(
       globalDir: roots.agentsSkillsDir
     }
   ]
+  // skills-view B1:同侧同名只展示项目级(列表展示口径;运行时语义见 CONTEXT)
   const out: ProjectSkillEntry[] = []
   for (const { side, projectDir, globalDir } of sides) {
     const project = listSkills(projectDir)
     const global = listSkills(globalDir)
-    const shadowing = side === 'claude' // Codex 同名共存,不遮蔽
     for (const [name, s] of [...project.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       out.push({
         name,
@@ -125,22 +125,23 @@ function readEffectiveSkills(
         side,
         symlink: s.symlink,
         shadowed: false,
-        shadows: shadowing && global.has(name),
-        coexists: !shadowing && global.has(name),
+        shadows: false,
+        coexists: false,
         origin: 'disk',
         pluginName: null
       })
     }
     for (const [name, s] of [...global.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      if (project.has(name)) continue // 被项目级覆盖,不并行列出
       out.push({
         name,
         description: s.description,
         level: 'global',
         side,
         symlink: s.symlink,
-        shadowed: shadowing && project.has(name),
+        shadowed: false,
         shadows: false,
-        coexists: !shadowing && project.has(name),
+        coexists: false,
         origin: 'disk',
         pluginName: null
       })

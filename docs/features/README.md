@@ -16,4 +16,5 @@
 | [Token 统计](token-stats.md) | 每项目与跨项目的 token 消耗、趋势与会话轨迹 |
 | [会话查看](session-view.md) | 项目下的会话列表:标题取首条真实提问,带提问条数与 fork 标记(分批上线中) |
 | [Skills 装卸](skill-install.md) | 从全局库给指定项目安装/卸载 skills,全程有防护 |
+| [Skills 查看](skills-view.md) | 折叠预览 skill 包内文件与正文(无跨侧 diff) |
 | [外观主题](appearance.md) | 全 app 配色方案(紫/雾蓝/琥珀褐),浅深跟系统 |

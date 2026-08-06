@@ -6,6 +6,7 @@ import { GlobalSubagentsTab } from './SubagentsView'
 import { GlobalMemoryTab } from './MemoryView'
 import { GlobalPluginsTab } from './PluginsView'
 import { toast } from './Toast'
+import { SkillExpandBlock } from './SkillExpandBlock'
 
 type Tab = 'token' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'cfg'
 
@@ -132,7 +133,6 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
     setOpenFor(null)
     const project = snap.projects.find((p) => p.path === projectPath)
     if (!project) return
-    // 装到 skill 可用侧与项目所属侧的交集(双侧都符合就两侧都装)
     const sides = skill.sides.filter((s) => project.sides.includes(s))
     if (sides.length === 0) {
       toast('err', `${project.name} 不属于该 skill 所在的 agent 侧`)
@@ -151,24 +151,35 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
 
   return (
     <div>
-      <div className="grp-t">合并单列 · 徽标=该侧是否存在 · 来源:全局库(可装卸)/插件(只读)</div>
-      <div className="card">
+      <div className="grp-t">
+        合并单列 · 点行展开包内文件 · 点文件预览 · 无跨侧 diff · 插件只读
+      </div>
+      <div className="card sk-card">
         {snap.global.skills.map((s) => (
-          <div className="it rel" key={s.name}>
-            <span className="nm mono">{s.name}</span>
-            <span className="bdg">
-              {s.sides.includes('claude') ? <span className="badge cl">CC</span> : <span className="badge miss">—</span>}
-              {s.sides.includes('codex') ? <span className="badge cx">CX</span> : <span className="badge miss">—</span>}
-            </span>
-            {s.origin === 'plugin' && <span className="pill plg">插件</span>}
-            {(s.symlink.claude || s.symlink.codex) && <span className="pill ln">⤷ 软链</span>}
-            {s.differs && <span className="diff">两侧有差异</span>}
-            <span className="ds">{s.description ?? ''}</span>
-            {s.origin === 'disk' && (
-              <button className="ins" onClick={() => setOpenFor(openFor === s.name ? null : s.name)}>
-                安装到…
-              </button>
-            )}
+          <div className="rel" key={s.name}>
+            <SkillExpandBlock
+              name={s.name}
+              description={s.description}
+              sides={s.origin === 'disk' ? s.sides : []}
+              origin={s.origin}
+              symlink={s.symlink.claude || s.symlink.codex}
+              scope="global"
+              levelLabel="全局库"
+              installSlot={
+                s.origin === 'disk' ? (
+                  <button
+                    type="button"
+                    className="ins"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpenFor(openFor === s.name ? null : s.name)
+                    }}
+                  >
+                    安装到…
+                  </button>
+                ) : undefined
+              }
+            />
             {openFor === s.name && s.origin === 'disk' && (
               <div className="pop">
                 <div className="pop-t">选择目标项目(复制落地;失效项目已排除)</div>

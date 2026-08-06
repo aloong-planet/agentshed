@@ -39,8 +39,6 @@ export interface GlobalSkill {
   sides: AgentSide[]
   /** 各侧是否为软链(安装时解引用复制) */
   symlink: Record<AgentSide, boolean>
-  /** 两侧同名且 SKILL.md 内容不同 */
-  differs: boolean
   origin: 'disk' | 'plugin'
   pluginName: string | null
 }

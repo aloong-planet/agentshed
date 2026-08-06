@@ -1,4 +1,5 @@
-// Agents 全局层读取(票07):全局 skills(合并/软链/差异)、plugins、全局 MCP、配置只读。
+// Agents 全局层读取(票07):全局 skills(合并/软链)、plugins、全局 MCP、配置只读。
+// skills-view:已拆除跨侧 content diff(differs)。
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AgentSide, GlobalLayer, GlobalSkill, McpServerEntry, PluginEntry } from '@shared/domain'
@@ -30,7 +31,6 @@ export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
 interface SideSkill {
   description: string | null
   symlink: boolean
-  content: string | null
 }
 
 function readSkillDir(base: string): Map<string, SideSkill> {
@@ -53,8 +53,9 @@ function readSkillDir(base: string): Map<string, SideSkill> {
     }
     const skillMd = join(p, 'SKILL.md')
     if (!existsSync(skillMd)) continue // 非 skill 目录(如散文件)跳过
+    // 只读 frontmatter description;正文按需读(skills-view),不再为跨侧 diff 保全文
     const content = readTextCapped(skillMd)
-    out.set(e.name, { description: fmField(content, 'description'), symlink, content })
+    out.set(e.name, { description: fmField(content, 'description'), symlink })
   }
   return out
 }
@@ -74,7 +75,6 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
       description: cl?.description ?? cx?.description ?? null,
       sides,
       symlink: { claude: cl?.symlink ?? false, codex: cx?.symlink ?? false },
-      differs: Boolean(cl && cx && cl.content !== cx.content),
       origin: 'disk',
       pluginName: null
     }
@@ -90,7 +90,6 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
         description: s.description,
         sides: ['claude'],
         symlink: { claude: false, codex: false },
-        differs: false,
         origin: 'plugin',
         pluginName: p.name
       })
