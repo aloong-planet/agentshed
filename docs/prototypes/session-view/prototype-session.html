@@ -3,7 +3,7 @@
      问题:① 提问作为主索引、单行密排在真实长度(42/24/18 条)下是否真的可扫;
        ② 点提问就地展开整轮(思考/正文/工具折叠/subagent)的层次是否清楚不糊;
        ③ 两侧完整度不对等与不可还原部分的标注是否够显眼(不能假装一致、不能谎称完整);
-       ④ 导出入口位置。
+       ④ ~~导出入口位置~~(2026-08-06 用户裁定废弃导出功能,原型已同步移除)。
      方向:A「两屏导航 + 就地展开时间线」——2026-08-02 用户选定,对比过
        B 二级双栏(四栏挤正文)与 C 答案抽屉(答案与上下文割裂)。
        提问密度选定「单行索引式」。会话列表与搜索在项目详情原型的「会话」分栏。
@@ -12,7 +12,7 @@
      默认 0 轮展开:进来全部折叠,点哪轮取哪轮。
      交互:点提问行就地展开/收起(展开态铺提问全文);工具块二次展开看入参与返回;
        subagent 块展开看内部步骤;日期分组行可点折叠;正序/倒序切换(序号恒为原始轮次号,
-       不随排序变;已展开的轮次跨排序保持);导出下拉只做视觉反馈不落数据;‹返回 跳回项目详情。
+       不随排序变;已展开的轮次跨排序保持);‹返回 跳回项目详情。
      mock 完整度:标 ★ 的轮次构造了完整入参/返回与 subagent 内部步骤,其余轮次只到
        「一句回答 + 工具行」——展开填充轮会看到说明,不是设计的一部分。
      演示基建(非设计的一部分,勿实现):底部悬浮条
@@ -56,20 +56,6 @@
   .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
   @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
   .meta{font-size:11px;color:var(--text-2);margin-top:5px;font-variant-numeric:tabular-nums}
-  /* 导出入口:与标题同排右端,整个会话只此一处「写」动作 */
-  .exportwrap{margin-left:auto;position:relative;flex:none}
-  .btn{border:1px solid var(--line-strong);background:var(--card);color:var(--text);
-    border-radius:7px;padding:4px 11px;font-size:12px;cursor:pointer}
-  .btn:hover{border-color:var(--accent);color:var(--accent)}
-  .menu{position:absolute;right:0;top:30px;width:268px;background:var(--card);z-index:9;
-    border:1px solid var(--line-strong);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.14);
-    padding:5px;display:none}
-  .menu.open{display:block}
-  .menu .mi{padding:7px 10px;border-radius:6px;cursor:pointer;font-size:12.5px}
-  .menu .mi:hover{background:var(--accent-soft)}
-  .menu .mi .sub2{font-size:11px;color:var(--text-2);margin-top:2px}
-  .menu .mfoot{border-top:1px solid var(--line);margin-top:4px;padding:8px 10px 4px;
-    font-size:11px;color:var(--text-2);line-height:1.65}
   /* 会话级横幅:分叉归一 / fork 重放剥离 / 剥离存疑——语义强度分三档 */
   .banner{display:flex;gap:8px;border-radius:8px;padding:8px 12px;font-size:11.5px;
     line-height:1.65;margin-bottom:10px;border:1px solid var(--line)}
@@ -159,9 +145,6 @@
   .unknown{font-size:11px;color:var(--text-2);border:1px dotted var(--line-strong);
     border-radius:7px;padding:7px 10px;margin:8px 0;line-height:1.7}
   .note{font-size:11px;color:var(--text-2);line-height:1.7;margin:12px 2px 0}
-  .toast{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);background:#2c2f34;color:#fff;
-    font-size:12px;padding:7px 14px;border-radius:8px;z-index:30;opacity:0;transition:opacity .18s}
-  .toast.on{opacity:1}
   /* ── 演示基建(非设计的一部分)── */
   .harness{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#22252a;
     color:#c9ccd1;border-radius:999px;padding:5px 8px;display:flex;align-items:center;gap:6px;
@@ -188,10 +171,6 @@
       <div class="back" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html">‹ 返回 Transfer · 会话</div>
       <div class="h1">
         <span class="b c" id="hbadge">CC</span><b id="htitle">…</b>
-        <span class="exportwrap">
-          <button class="btn" id="expbtn">导出 ▾</button>
-          <div class="menu" id="expmenu"></div>
-        </span>
       </div>
       <div class="meta" id="hmeta">…</div>
     </div>
@@ -213,7 +192,6 @@
       </div>
     </div>
   </div>
-  <div class="toast" id="toast"></div>
 
   <!-- 演示基建:mock 状态开关,非设计的一部分,勿实现 -->
   <div class="harness" data-demo-harness>
@@ -720,28 +698,6 @@
     box.innerHTML=`<div class="rebuild">取回中…</div>`;
     setTimeout(()=>{ loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]); },350);
   });
-
-  // 导出:入口只此一处;默认与浏览心智一致(已展开的那些)
-  const menu=document.getElementById('expmenu');
-  document.getElementById('expbtn').addEventListener('click',e=>{
-    e.stopPropagation();
-    const open=document.querySelectorAll('.q.open').length, d=DATA[cur];
-    menu.innerHTML=`<div class="mi" data-ex="opened">导出提问 + 已展开的回答
-        <div class="sub2">${d.qs.length} 条提问 · ${open} 轮已展开的回答</div></div>
-      <div class="mi" data-ex="all">导出全部 ${d.qs.length} 轮
-        <div class="sub2">含全部工具调用与 subagent 过程</div></div>
-      <div class="mfoot">Markdown · 内联图片用 data: URI。<br>
-        不可还原处在文中显式标注:${cur==='claude'?'被截断的工具结果':'推理密文 · 重放段的真实时间'}。</div>`;
-    menu.classList.toggle('open');
-  });
-  document.addEventListener('click',()=>menu.classList.remove('open'));
-  menu.addEventListener('click',e=>{
-    const mi=e.target.closest('[data-ex]'); if(!mi) return;
-    toast(mi.dataset.ex==='all'?'已生成 Markdown(全量)— 原型不落文件':'已生成 Markdown(提问 + 已展开)— 原型不落文件');
-  });
-  let tt;
-  function toast(s){ const el=document.getElementById('toast'); el.textContent=s; el.classList.add('on');
-    clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),1900) }
 
   // 正序/倒序:只换呈现顺序,序号与已展开的轮次都不变
   document.getElementById('qorder').addEventListener('click',e=>{
