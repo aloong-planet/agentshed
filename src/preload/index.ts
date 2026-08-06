@@ -5,7 +5,9 @@ import {
   type SessionTurnArgs,
   type SetHiddenArgs,
   type SkillOpArgs,
-  type SkillOpResult
+  type SkillOpResult,
+  type Prefs,
+  type AppearanceScheme
 } from '@shared/ipc'
 import type { ProjectDetail, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import {
@@ -14,6 +16,7 @@ import {
   validateSessionPage,
   validateSessionTurn
 } from '@shared/validate'
+import { parsePrefs } from '@shared/appearance'
 
 // renderer 入口处的契约校验:主进程发来的快照不合契约就抛,不静默渲染 undefined
 function checked(snap: unknown): Snapshot {
@@ -21,6 +24,13 @@ function checked(snap: unknown): Snapshot {
   if (!r.ok) throw new Error(`收到不合契约的快照 — ${r.error}`)
   return snap as Snapshot
 }
+
+function checkedPrefs(raw: unknown): Prefs {
+  const p = parsePrefs(raw)
+  if (!p) throw new Error('收到不合契约的偏好')
+  return p
+}
+
 
 const api = {
   getSnapshot: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.getSnapshot)),
@@ -59,6 +69,10 @@ const api = {
     ipcRenderer.invoke(CMD.installSkill, args) as Promise<SkillOpResult>,
   uninstallSkill: (args: SkillOpArgs): Promise<SkillOpResult> =>
     ipcRenderer.invoke(CMD.uninstallSkill, args) as Promise<SkillOpResult>,
+  // 与重载荷同规矩:preload 再校一次,拦 IPC 结构化克隆/形态漂移
+  getPrefs: async (): Promise<Prefs> => checkedPrefs(await ipcRenderer.invoke(CMD.getPrefs)),
+  setScheme: async (scheme: AppearanceScheme): Promise<Prefs> =>
+    checkedPrefs(await ipcRenderer.invoke(CMD.setScheme, scheme)),
   onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
     const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))
     ipcRenderer.on(EVT.snapshot, listener)

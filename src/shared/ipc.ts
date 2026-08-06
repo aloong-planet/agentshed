@@ -22,7 +22,11 @@ export const CMD = {
   /** 从全局库安装 skill 到项目(复制落地) */
   installSkill: 'agentshed:install-skill',
   /** 卸载项目级 skill 副本 */
-  uninstallSkill: 'agentshed:uninstall-skill'
+  uninstallSkill: 'agentshed:uninstall-skill',
+  /** 读 app 偏好(外观方案等) */
+  getPrefs: 'agentshed:get-prefs',
+  /** 设置外观方案(全 app) */
+  setScheme: 'agentshed:set-scheme'
 } as const
 
 export const EVT = {
@@ -50,3 +54,5 @@ export interface SkillOpArgs {
 export type SkillOpResult =
   | { ok: true }
   | { ok: false; reason: string; message: string }
+
+export type { AppearanceScheme, Prefs } from './appearance'
