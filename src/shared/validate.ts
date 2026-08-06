@@ -205,6 +205,48 @@ export function assertSessionTurn(v: unknown): void {
   if (!r.ok) throw new Error(`单轮载荷契约校验失败 — ${r.error}`)
 }
 
+// ── 搜索载荷(searchSessions 通道,票 08)──
+export function validateSearchResult(v: unknown): ValidateResult {
+  if (!isRecord(v)) return fail('search', '不是对象')
+  for (const k of ['totalHits', 'sessionCount', 'folded'] as const) {
+    if (typeof v[k] !== 'number') return fail(`search.${k}`, '需为 number')
+  }
+  const groups = v['groups']
+  if (!Array.isArray(groups)) return fail('search.groups', '需为数组')
+  for (let g = 0; g < groups.length; g++) {
+    const grp: unknown = groups[g]
+    const at = `search.groups[${g}]`
+    if (!isRecord(grp)) return fail(at, '不是对象')
+    if (typeof grp['file'] !== 'string' || grp['file'] === '') return fail(`${at}.file`, '需为非空 string')
+    if (typeof grp['title'] !== 'string') return fail(`${at}.title`, '需为 string')
+    if (typeof grp['side'] !== 'string' || !AGENT_SIDES.has(grp['side']))
+      return fail(`${at}.side`, `非法 side: ${String(grp['side'])}`)
+    if (typeof grp['forkState'] !== 'string' || !FORK_STATES.has(grp['forkState']))
+      return fail(`${at}.forkState`, `非法 forkState: ${String(grp['forkState'])}`)
+    if (grp['at'] !== null && typeof grp['at'] !== 'number') return fail(`${at}.at`, '需为 number|null')
+    const hits = grp['hits']
+    if (!Array.isArray(hits)) return fail(`${at}.hits`, '需为数组')
+    for (let h = 0; h < hits.length; h++) {
+      const hit: unknown = hits[h]
+      const hat = `${at}.hits[${h}]`
+      if (!isRecord(hit)) return fail(hat, '不是对象')
+      if (typeof hit['i'] !== 'number') return fail(`${hat}.i`, '需为 number')
+      if (typeof hit['text'] !== 'string') return fail(`${hat}.text`, '需为 string')
+      if (hit['at'] !== null && typeof hit['at'] !== 'number') return fail(`${hat}.at`, '需为 number|null')
+      if (typeof hit['inBody'] !== 'boolean') return fail(`${hat}.inBody`, '需为 boolean')
+      if (hit['snippet'] !== null && typeof hit['snippet'] !== 'string')
+        return fail(`${hat}.snippet`, '需为 string|null')
+    }
+  }
+  return { ok: true }
+}
+
+/** 主进程出口:同 assertSnapshot,契约破坏直接抛 */
+export function assertSearchResult(v: unknown): void {
+  const r = validateSearchResult(v)
+  if (!r.ok) throw new Error(`搜索载荷契约校验失败 — ${r.error}`)
+}
+
 export function validateProjectStats(v: unknown): ValidateResult {
   if (!isRecord(v)) return fail('stats', '不是对象')
   const sessions = v['sessions']

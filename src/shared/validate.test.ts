@@ -1,6 +1,6 @@
 // Seam 2(IPC 契约):快照 schema 校验的行为测试——好载荷放行、坏载荷拒收并给出路径。
 import { describe, it, expect } from 'vitest'
-import { validateSnapshot, validateProjectStats, validateProjectDetail, validateSessionTurn } from './validate'
+import { validateSnapshot, validateProjectStats, validateProjectDetail, validateSessionTurn, validateSearchResult } from './validate'
 import { emptySnapshot, emptyTokenStats } from './domain'
 
 describe('validateSnapshot', () => {
@@ -395,5 +395,54 @@ describe('validateSessionTurn —— 票 07 富内容块', () => {
 
   it('拒收未知 kind(白名单校验,07 之后的新 kind 要先过契约)', () => {
     expect(validateSessionTurn({ blocks: [{ kind: 'hologram' }], bytesRead: 1 }).ok).toBe(false)
+  })
+})
+
+describe('validateSearchResult(搜索载荷,票 08)', () => {
+  const ok = {
+    groups: [
+      {
+        file: '/Users/x/.claude/projects/-e/a.jsonl',
+        title: '标题',
+        side: 'claude',
+        forkState: 'none',
+        at: 1,
+        hits: [
+          { i: 1, text: '提问命中', at: 1, inBody: false, snippet: null },
+          { i: 1, text: '提问命中', at: null, inBody: true, snippet: '…上下文 magicword 上下文…' }
+        ]
+      }
+    ],
+    totalHits: 2,
+    sessionCount: 1,
+    folded: 3
+  }
+
+  it('放行合法载荷与空结果基态', () => {
+    expect(validateSearchResult(ok).ok).toBe(true)
+    expect(validateSearchResult({ groups: [], totalHits: 0, sessionCount: 0, folded: 0 }).ok).toBe(true)
+  })
+
+  it('拒收缺 folded / hits 项缺 inBody / snippet 类型错,并指出路径', () => {
+    const noFolded = { ...ok } as Record<string, unknown>
+    delete noFolded['folded']
+    const r1 = validateSearchResult(noFolded)
+    expect(r1.ok === false && r1.error).toContain('folded')
+    const badHit = JSON.parse(JSON.stringify(ok)) as typeof ok
+    delete (badHit.groups[0].hits[0] as unknown as Record<string, unknown>)['inBody']
+    const r2 = validateSearchResult(badHit)
+    expect(r2.ok === false && r2.error).toContain('hits[0]')
+    const badSnip = JSON.parse(JSON.stringify(ok)) as typeof ok
+    ;(badSnip.groups[0].hits[0] as unknown as Record<string, unknown>)['snippet'] = 42
+    expect(validateSearchResult(badSnip).ok).toBe(false)
+  })
+
+  it('拒收组级非法 forkState / 空 file', () => {
+    const b1 = JSON.parse(JSON.stringify(ok)) as typeof ok
+    ;(b1.groups[0] as unknown as Record<string, unknown>)['forkState'] = '存疑'
+    expect(validateSearchResult(b1).ok).toBe(false)
+    const b2 = JSON.parse(JSON.stringify(ok)) as typeof ok
+    ;(b2.groups[0] as unknown as Record<string, unknown>)['file'] = ''
+    expect(validateSearchResult(b2).ok).toBe(false)
   })
 })

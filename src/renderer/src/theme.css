@@ -1490,6 +1490,144 @@ body {
   width: 44px;
   text-align: right;
 }
+/* 票 08:会话分栏搜索(原型 .sbar/.scope/.shead/.grp/.gh/.hit/mark) */
+.sbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.sbar input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+.sbar input:focus {
+  border-color: var(--accent);
+}
+.scope {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  overflow: hidden;
+  flex: none;
+}
+.scope span {
+  padding: 5px 11px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.scope span.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.shead {
+  font-size: 11.5px;
+  color: var(--text-2);
+  margin: 0 2px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.grp {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  margin-bottom: 9px;
+  overflow: hidden;
+}
+.grp .gh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  width: 100%;
+}
+.grp .gh:hover {
+  background: var(--accent-soft);
+}
+.grp .gh .t {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  text-align: left;
+}
+.grp .gh .d,
+.grp .hit .d {
+  font-size: 11px;
+  color: var(--text-2);
+  flex: none;
+}
+.grp .hit {
+  display: flex;
+  gap: 9px;
+  padding: 5px 14px 5px 32px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  align-items: center;
+}
+.grp .hit:hover {
+  background: var(--accent-soft);
+}
+.grp .hit .idx {
+  width: 20px;
+  flex: none;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.grp .hit .t {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.grp .hit .bd {
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 0 5px;
+  background: var(--line);
+  color: var(--text-2);
+  flex: none;
+}
+mark {
+  background: #fff2a8;
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+@media (prefers-color-scheme: dark) {
+  mark {
+    background: #4d451a;
+    color: #f6e9a8;
+  }
+}
+:root[data-theme='dark'] mark {
+  background: #4d451a;
+  color: #f6e9a8;
+}
+:root[data-theme='light'] mark {
+  background: #fff2a8;
+  color: inherit;
+}
 /* 票 06:顶部三档横幅 + 日期分组 + 排序控件(原型 .banner / .daygrp / .dayhd) */
 .banner {
   display: flex;

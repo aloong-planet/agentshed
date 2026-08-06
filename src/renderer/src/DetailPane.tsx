@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { renderMarkdown } from './md'
-import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot } from '@shared/domain'
+import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot, SearchResult } from '@shared/domain'
 import { ARTIFACT_ORDER, emptyTokenStats } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
 import { ProjectSubagentsTab } from './SubagentsView'
@@ -22,8 +22,8 @@ export function DetailPane({
   path: string
   /** 从会话页返回时落在「会话」分栏(原型口径);平时不传,落概览 */
   initialTab?: Tab
-  /** 打开会话页(票 04:概览卡与分栏行都直达) */
-  onOpenSession: (file: string) => void
+  /** 打开会话页(票 04;票 08 起可带 focusQ 直达某条提问) */
+  onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'ov')
   const [detail, setDetail] = useState<ProjectDetail | null>(null)
@@ -180,7 +180,7 @@ function SessionsTab({
 }: {
   detail: ProjectDetail
   snap: Snapshot
-  onOpenSession: (file: string) => void
+  onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
   const [recentFirst, setRecentFirst] = useState(sessionsRecentFirst)
   const choose = (v: boolean): void => {
@@ -189,12 +189,116 @@ function SessionsTab({
   }
   const sessions = detail.stats?.sessions ?? []
   const list = recentFirst ? sessions : [...sessions].reverse()
+  // 票 08:搜索。默认只搜提问(小、干净、命中精准);全文是可选开关——开关的
+  // 立命理由是命中质量(全文会命中工具输出噪声),不是性能,文案不暗示它慢
+  const [needle, setNeedle] = useState('')
+  const [fullText, setFullText] = useState(false)
+  const [result, setResult] = useState<SearchResult | null>(null)
+  const seq = useRef(0)
+  useEffect(() => {
+    const k = needle.trim()
+    if (k === '') {
+      setResult(null)
+      return
+    }
+    const mine = ++seq.current
+    const t = setTimeout(() => {
+      window.agentshed.searchSessions({ path: detail.path, needle: k, fullText }).then(
+        (r) => {
+          if (seq.current === mine) setResult(r)
+        },
+        () => {
+          if (seq.current === mine) setResult(null)
+        }
+      )
+    }, 200)
+    return () => clearTimeout(t)
+  }, [needle, fullText, detail.path])
 
   if (sessions.length === 0) {
     return <div className="none">该项目暂无会话。两侧 agent 在此目录下开过对话后会自动出现。</div>
   }
+  const searching = needle.trim() !== ''
+  const groups = result === null ? [] : recentFirst ? result.groups : [...result.groups].reverse()
+  if (searching) {
+    return (
+      <div>
+        <SearchBar
+          needle={needle}
+          setNeedle={setNeedle}
+          fullText={fullText}
+          setFullText={setFullText}
+          count={sessions.length}
+        />
+        {result === null ? (
+          <div className="shead">搜索中…</div>
+        ) : result.totalHits === 0 ? (
+          <div className="shead">没有命中。默认只搜提问,试试切到「全文」。</div>
+        ) : (
+          <>
+            <div className="shead">
+              <span>
+                找到 <b>{result.totalHits}</b> 条 · {result.sessionCount} 个会话
+                {result.folded > 0 && (
+                  <>
+                    {' '}
+                    · 已折叠 <b>{result.folded}</b> 条重放或被放弃分支上的命中
+                  </>
+                )}
+              </span>
+              <span className="seg">
+                <button className={recentFirst ? 'on' : ''} onClick={() => choose(true)}>
+                  最近在前
+                </button>
+                <button className={recentFirst ? '' : 'on'} onClick={() => choose(false)}>
+                  最早在前
+                </button>
+              </span>
+            </div>
+            {groups.map((g) => (
+              <div className="grp" key={g.file}>
+                <button className="gh row-btn" onClick={() => onOpenSession(g.file)}>
+                  <span className={`badge ${g.side === 'claude' ? 'cl' : 'cx'}`}>
+                    {g.side === 'claude' ? 'CC' : 'CX'}
+                  </span>
+                  <span className="t">{g.title}</span>
+                  {g.forkState === 'stripped' && <span className="pill fork">⑂ fork</span>}
+                  {g.forkState === 'uncertain' && <span className="pill forkq">⑂? 剥离存疑</span>}
+                  <span className="d">{g.hits.length} 条命中</span>
+                </button>
+                {g.hits.map((h, hi) => (
+                  <button
+                    className="hit row-btn"
+                    key={`${h.i}-${h.inBody ? 'b' : 'q'}-${hi}`}
+                    onClick={() => onOpenSession(g.file, h.i)}
+                  >
+                    <span className="idx">{String(h.i).padStart(2, '0')}</span>
+                    <span className="t">
+                      <Highlight
+                        text={h.inBody && h.snippet !== null ? h.snippet : h.text}
+                        needle={needle.trim()}
+                      />
+                    </span>
+                    {h.inBody && <span className="bd">正文</span>}
+                    <span className="d">{fmtAgo(h.at, snap.scannedAt)}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    )
+  }
   return (
     <div>
+      <SearchBar
+        needle={needle}
+        setNeedle={setNeedle}
+        fullText={fullText}
+        setFullText={setFullText}
+        count={sessions.length}
+      />
       <div className="grp-t">
         按最近活动时间{recentFirst ? '倒序' : '正序'} · {sessions.length} 个会话
         <span className="seg">
@@ -236,6 +340,57 @@ function SessionsTab({
       </div>
     </div>
   )
+}
+
+/** 搜索行(票 08):输入 + 提问/全文范围切换(原型 .sbar/.scope) */
+function SearchBar({
+  needle,
+  setNeedle,
+  fullText,
+  setFullText,
+  count
+}: {
+  needle: string
+  setNeedle: (v: string) => void
+  fullText: boolean
+  setFullText: (v: boolean) => void
+  count: number
+}): JSX.Element {
+  return (
+    <div className="sbar">
+      <input
+        value={needle}
+        onChange={(e) => setNeedle(e.target.value)}
+        placeholder={`在本项目的 ${count} 个会话里搜索…`}
+      />
+      <span className="scope">
+        <span className={fullText ? '' : 'on'} onClick={() => setFullText(false)}>
+          提问
+        </span>
+        <span className={fullText ? 'on' : ''} onClick={() => setFullText(true)}>
+          全文
+        </span>
+      </span>
+    </div>
+  )
+}
+
+/** 命中文本高亮(大小写不敏感;纯文本切段,不经 HTML) */
+function Highlight({ text, needle }: { text: string; needle: string }): JSX.Element {
+  if (needle === '') return <>{text}</>
+  const lower = text.toLowerCase()
+  const k = needle.toLowerCase()
+  const parts: JSX.Element[] = []
+  let from = 0
+  for (let n = 0; ; n++) {
+    const i = lower.indexOf(k, from)
+    if (i === -1) break
+    if (i > from) parts.push(<span key={`t${n}`}>{text.slice(from, i)}</span>)
+    parts.push(<mark key={`m${n}`}>{text.slice(i, i + needle.length)}</mark>)
+    from = i + needle.length
+  }
+  parts.push(<span key="tail">{text.slice(from)}</span>)
+  return <>{parts}</>
 }
 
 function SkillRow({

@@ -46,28 +46,39 @@ export interface ByteRange {
 }
 
 /**
- * 读出各区间的 UTF-8 文本。`bytesRead` 是实际读取的总字节数——它是"没有整读"
- * 的**证据**,测试按它断言而不是按墙钟(墙钟受页缓存影响会飘)。
+ * 读出各区间的原始字节(搜索的字节匹配层用,票 08:粗筛不 decode)。
+ * `bytesRead` 是实际读取的总字节数——"没有整读"的**证据**,测试按它断言
+ * 而不是按墙钟(墙钟受页缓存影响会飘)。
  * 越过文件末尾的区间按实际可读截断;文件打不开则整体拒绝,由调用方降级。
  */
+export async function readRangeBuffers(
+  file: string,
+  ranges: readonly ByteRange[],
+  limit = 4
+): Promise<{ bufs: Buffer[]; bytesRead: number }> {
+  const fd = await open(file, 'r')
+  let bytesRead = 0
+  try {
+    const bufs = await mapLimit(ranges, limit, async (g) => {
+      const len = Math.max(0, g.end - g.start)
+      if (len === 0) return Buffer.alloc(0)
+      const buf = Buffer.alloc(len)
+      const r = await fd.read(buf, 0, len, g.start)
+      bytesRead += r.bytesRead
+      return buf.subarray(0, r.bytesRead)
+    })
+    return { bufs, bytesRead }
+  } finally {
+    await fd.close()
+  }
+}
+
+/** 读出各区间的 UTF-8 文本(readRangeBuffers 的 decode 皮) */
 export async function readRanges(
   file: string,
   ranges: readonly ByteRange[],
   limit = 4
 ): Promise<{ texts: string[]; bytesRead: number }> {
-  const fd = await open(file, 'r')
-  let bytesRead = 0
-  try {
-    const texts = await mapLimit(ranges, limit, async (g) => {
-      const len = Math.max(0, g.end - g.start)
-      if (len === 0) return ''
-      const buf = Buffer.alloc(len)
-      const r = await fd.read(buf, 0, len, g.start)
-      bytesRead += r.bytesRead
-      return buf.subarray(0, r.bytesRead).toString('utf8')
-    })
-    return { texts, bytesRead }
-  } finally {
-    await fd.close()
-  }
+  const { bufs, bytesRead } = await readRangeBuffers(file, ranges, limit)
+  return { texts: bufs.map((b) => b.toString('utf8')), bytesRead }
 }

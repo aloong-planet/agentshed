@@ -97,12 +97,15 @@ function Banners({
 
 export function SessionPane({
   file,
+  focusQ,
   projectName,
   now,
   onBack,
   onOpenSession
 }: {
   file: string
+  /** 搜索命中直达(票 08):加载后滚动定位到该序号的提问行;null/未传不定位 */
+  focusQ?: number | null
   projectName: string
   /** 相对时间的基准(快照时间,与列表同源) */
   now: number
@@ -192,7 +195,18 @@ export function SessionPane({
     const st = turns.get(idx)
     return (
       <Fragment key={q.i}>
-        <div className={`q${on ? ' open' : ''}`} onClick={() => toggle(idx)}>
+        <div
+          className={`q${on ? ' open' : ''}`}
+          onClick={() => toggle(idx)}
+          ref={
+            focusQ != null && q.i === focusQ
+              ? (el): void => {
+                  // 搜索直达:挂载后滚到该行(不新增视觉元素,不触原型门)
+                  el?.scrollIntoView({ block: 'center' })
+                }
+              : undefined
+          }
+        >
           <i className="cv">{on ? '▾' : '▸'}</i>
           <span className="idx">{String(q.i).padStart(2, '0')}</span>
           <span className="txt">{q.text}</span>
