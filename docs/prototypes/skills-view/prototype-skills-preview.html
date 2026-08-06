@@ -1,7 +1,11 @@
 <!doctype html>
 <!-- 原型(UI)· Skills 包预览 — 主列表折叠展示包内文件，点文件开抽屉读内容。
-     演示基建:底栏切方案 + 昼夜(data-demo-harness)。共享:md-preview。 -->
-<html lang="zh-CN" data-scheme="blue" data-mode="system">
+     演示基建:底栏切方案 + 昼夜 + 展开形式(data-demo-harness)。共享:md-preview。
+     2026-08-06 更新:①行密度对齐其它模块(视觉行高约 32px);②行不展示 description(已裁定);
+     ③展开区新增「平铺」形式(默认)——不缩进、表格满宽,与旧「缩进卡片」可切换对比;
+     ④包统计(文件数/大小,不含行数)上行内右侧,展开区撤销汇总条;⑤frontmatter 深浅随页面
+     data-mode(修共享块只认 OS 的 bug)。 -->
+<html lang="zh-CN" data-scheme="blue" data-mode="system" data-expand="flat">
 <head>
 <meta charset="utf-8">
 <title>原型 — Skills 包预览 · 列表折叠 + 文件抽屉</title>
@@ -293,15 +297,15 @@
   /* skill 块:顶栏 + 可折叠文件 */
   .sk{border-top:1px solid var(--line)}
   .sk:first-child{border-top:0}
-  .sk-head{display:flex;align-items:center;gap:8px;padding:10px 14px;width:100%;text-align:left;
+  .sk-head{display:flex;align-items:center;gap:8px;padding:8px 14px;width:100%;text-align:left;
     background:none;border:0;color:inherit;font:inherit}
   .sk-head.disk{cursor:pointer}
   .sk-head.disk:hover{background:var(--accent-soft)}
   .sk-head.plugin{cursor:default;opacity:.9}
   .chev{width:18px;flex:none;color:var(--text-2);font-size:11px;transition:transform .15s;text-align:center}
   .sk.open .chev{transform:rotate(90deg);color:var(--accent)}
-  .nm{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;width:150px;flex:none;font-weight:600;color:var(--accent-deep)}
-  .ds{flex:1;min-width:0;color:var(--text-2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nm{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;width:200px;flex:none;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .bdg{display:flex;gap:3px;flex:none}
   .b{font-size:9px;font-weight:700;border-radius:4px;padding:2px 5px}
   .b.cl{background:var(--cl-bg);color:var(--cl-fg)}
@@ -314,6 +318,8 @@
   .pill.lv{border:1px solid var(--line-strong);color:var(--text-2)}
   .ins{font:inherit;font-size:11.5px;border:1px solid var(--line-strong);background:var(--bg);color:var(--text-2);
     border-radius:7px;padding:4px 11px;cursor:pointer;flex:none}
+  /* 行内包统计(文件数/行数/大小):取代展开区的汇总条 */
+  .sk-meta{margin-left:auto;flex:none;font-size:11px;color:var(--text-2);font-variant-numeric:tabular-nums}
   .ins:hover{color:var(--accent);border-color:var(--accent)}
   .sk-body{display:none;padding:0 12px 12px 32px;background:var(--tree-bg);border-top:1px solid var(--line)}
   .sk.open .sk-body{display:block}
@@ -328,12 +334,6 @@
   .files-card{
     background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;
     margin-top:4px}
-  .files-sum{
-    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-    padding:8px 12px;font-size:11.5px;color:var(--text-2);
-    border-bottom:1px solid var(--line);background:var(--bg)}
-  .files-sum b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
-  .files-sum .dot{opacity:.45}
   .files-head{
     display:grid;grid-template-columns:minmax(0,1fr) 64px 72px 108px;
     gap:8px;padding:6px 12px;font-size:10.5px;font-weight:600;letter-spacing:.03em;
@@ -364,6 +364,15 @@
     font-family:ui-monospace,Menlo,monospace;text-align:right;white-space:nowrap}
   .files button .meta.lines{font-weight:600;color:var(--text)}
   .files .empty{font-size:12px;color:var(--text-2);padding:12px}
+  /* ── 展开形式 · 平铺(默认):展开区不缩进,表格作为卡片的满宽分段,
+     文件名列与行名对齐;区块靠上下边线 + tree-bg 底色区隔,不再套内层卡片 ── */
+  html[data-expand="flat"] .sk-body{padding:0}
+  html[data-expand="flat"] .sk-sides{padding:8px 14px 4px}
+  html[data-expand="flat"] .sk-tip{margin:8px 14px}
+  html[data-expand="flat"] .files-card{border:0;border-radius:0;margin-top:0;background:transparent}
+  html[data-expand="flat"] .files-head{padding:5px 14px}
+  html[data-expand="flat"] .files button{padding:7px 14px}
+  html[data-expand="flat"] .files .empty{padding:12px 14px}
   .note{font-size:11.5px;color:var(--text-2);margin-top:14px;padding:12px 14px;border:1px dashed var(--line-strong);
     border-radius:10px;line-height:1.55;background:var(--card)}
   .swatches{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
@@ -460,8 +469,9 @@
   <div class="main">
     <h2 class="page-h">Skills 包预览</h2>
     <div class="sub">
-      磁盘 skill <b>点行折叠/展开</b>，包内文件表含<strong>行数 / 大小 / 修改日期</strong>；
-      <b>点文件</b>开抽屉读详情（md 默认可预览）。插件行不可展开。
+      磁盘 skill 行内右侧直接给<strong>文件数 / 大小</strong>；<b>点行折叠/展开</b>文件表，
+      <b>点文件</b>开抽屉读详情（md 默认可预览）。插件行不可展开。行不展示 description。
+      底栏可切<b>展开形式</b>：平铺（满宽分段，推荐）vs 缩进卡片（现行）。
     </div>
     <div class="sec-h">全局 · Agents Skills</div>
     <div class="card" id="global"></div>
@@ -481,6 +491,10 @@
     <button type="button" data-mode="system" class="on">跟随系统</button>
     <button type="button" data-mode="light">强制浅</button>
     <button type="button" data-mode="dark">强制深</button>
+    <span class="sep"></span>
+    <span class="tag" style="border:0;padding:0 4px 0 0">展开形式</span>
+    <button type="button" data-expand="flat" class="on">平铺(推荐)</button>
+    <button type="button" data-expand="nest">缩进卡片(现行)</button>
   </div>
 
 <script>
@@ -550,9 +564,6 @@
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
-  function formatLines(n) {
-    return `${n.toLocaleString('zh-CN')} 行`
-  }
   /** 原型用稳定伪 mtime(无真实 fs);实现期换成真实 mtime */
   function mockMtime(skill, side, path) {
     let h = 0
@@ -600,6 +611,14 @@
   })
   document.querySelectorAll('[data-demo-harness] [data-mode]').forEach((b) => {
     b.onclick = () => { mode = b.getAttribute('data-mode'); applyTheme() }
+  })
+  document.querySelectorAll('[data-demo-harness] [data-expand]').forEach((b) => {
+    b.onclick = () => {
+      document.documentElement.setAttribute('data-expand', b.getAttribute('data-expand'))
+      document.querySelectorAll('[data-demo-harness] [data-expand]').forEach((x) => {
+        x.classList.toggle('on', x === b)
+      })
+    }
   })
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (mode === 'system' && window.__drawerReopen) window.__drawerReopen()
@@ -656,6 +675,19 @@
     return sides.slice().sort((a, b) => SIDE_ORDER.indexOf(a) - SIDE_ORDER.indexOf(b))
   }
 
+  /** 行内包统计:当前侧的 文件数 · 大小(2026-08-06 裁定不含行数——实现期 stat 即得,
+      不读内容;快照每侧只带两个数字,行数仍在展开表格逐文件展示) */
+  function statsText(skill, side) {
+    const pack = PACKAGES[`${side}:${skill}`]
+    if (!pack || !pack.files) return ''
+    const names = Object.keys(pack.files)
+    let bytes = 0
+    for (const n of names) {
+      bytes += new TextEncoder().encode(pack.files[n] || '').length
+    }
+    return `${names.length} 个文件 · ${formatSize(bytes)}`
+  }
+
   function renderFileList(container, { skill, side, levelLabel }) {
     const key = `${side}:${skill}`
     const pack = PACKAGES[key]
@@ -680,29 +712,14 @@
       return
     }
 
-    let totalBytes = 0
-    let totalLines = 0
+    // 汇总信息在折叠行上(.sk-meta),展开区不再重复汇总条
     const rows = names.map((n) => {
       const text = pack.files[n] || ''
       // 原型 UTF-8 近似:中文等按 1 码元计,够展示密度
       const bytes = new TextEncoder().encode(text).length
       const lines = lineCount(text)
-      totalBytes += bytes
-      totalLines += lines
       return { n, bytes, lines, mtime: mockMtime(skill, side, n), kind: extKind(n) }
     })
-
-    const sum = document.createElement('div')
-    sum.className = 'files-sum'
-    sum.innerHTML = `
-      <span><b>${rows.length}</b> 个文件</span>
-      <span class="dot">·</span>
-      <span>共 <b>${formatLines(totalLines)}</b></span>
-      <span class="dot">·</span>
-      <span><b>${formatSize(totalBytes)}</b></span>
-      <span class="dot">·</span>
-      <span>${SIDE_LABEL[side] || side}${levelLabel ? ' · ' + levelLabel : ''}</span>`
-    card.appendChild(sum)
 
     const head = document.createElement('div')
     head.className = 'files-head'
@@ -751,7 +768,7 @@
       ${s.level === 'project' ? '<span class="pill lv">项目级</span>' : ''}
       ${s.level === 'global' ? '<span class="pill lv">全局层</span>' : ''}
       ${s.symlink ? '<span class="pill ln">⤷ 软链</span>' : ''}
-      <span class="ds">${s.description}</span>
+      ${disk ? `<span class="sk-meta" data-meta>${statsText(s.name, side)}</span>` : ''}
       ${disk && showInstall ? '<button type="button" class="ins" data-ins>安装到…</button>' : ''}
       ${disk && s.level === 'project' ? '<button type="button" class="ins" data-un>卸载</button>' : ''}`
 
@@ -775,6 +792,8 @@
               x.classList.toggle('on', x === b)
             })
             renderFileList(filesHost, { skill: s.name, side, levelLabel })
+            const m = head.querySelector('[data-meta]')
+            if (m) m.textContent = statsText(s.name, side)
           }
           seg.appendChild(b)
         })

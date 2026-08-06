@@ -279,12 +279,14 @@
     background: linear-gradient(180deg, #24262a 0%, var(--card, #1f2124) 100%);
   }
   .md-preview-body.raw { background: #1a1b1e; }
+  /* 有页面 token(--bg/--line)的原型跟页面昼夜(data-mode)走;无 token 的独立页保持
+     OS 深色兜底。写死字面量会让「强制浅」下 frontmatter 仍是深底(2026-08-06 bug)。 */
   .md-preview-body.preview .md-fm {
-    background: #1a1b1e;
-    border-color: #2a2c30;
+    background: var(--bg, #1a1b1e);
+    border-color: var(--line, #2a2c30);
   }
   .md-preview-body.preview .md-fm-row {
-    border-top-color: #2a2c30;
+    border-top-color: var(--line, #2a2c30);
   }
   .md-preview-body.preview h1 { border-bottom-color: #3a3153; }
   .md-preview-body.preview strong { color: #e6e0f0; }
