@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import {
   CMD,
   EVT,
+  type SearchSessionsArgs,
   type SessionTurnArgs,
   type SetHiddenArgs,
   type SkillOpArgs,
@@ -11,13 +12,14 @@ import {
   type ListSkillFilesResult
 } from '@shared/ipc'
 import type { ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
-import { assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn } from '@shared/validate'
+import { assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { providerOf } from '@shared/provider'
 import { scan } from './providers/scan'
 import { readRanges } from './providers/range-read'
 import { questionTextAt } from './providers/question-index'
 import { turnBlocksFromText } from './providers/turn-content'
+import { searchProjectSessions } from './providers/search-sessions'
 import { readProjectDetail } from './providers/project-detail'
 import { TokenEngine } from './providers/token-stats'
 import { UsageArchive } from './providers/archive'
@@ -209,6 +211,9 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     tokens: sessionTokens.get(file) ?? 0,
     bytes: statSync(file).size,
     forkState: q.forkState,
+    forkPoints: q.forkPoints,
+    forkParentTitle: q.forkParentTitle,
+    forkParentFile: q.forkParentFile,
     questions
   }
   assertSessionPage(page)
@@ -237,6 +242,19 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, texts[0]), bytesRead }
   assertSessionTurn(turn)
   return turn
+})
+handle(CMD.searchSessions, async (_e, raw: unknown) => {
+  const a = raw as SearchSessionsArgs
+  if (typeof a?.path !== 'string' || a.path === '') throw new Error('searchSessions 参数不合契约:path')
+  if (typeof a?.needle !== 'string' || a.needle.length > 200)
+    throw new Error('searchSessions 参数不合契约:needle 需为 ≤200 字符的 string')
+  if (typeof a?.fullText !== 'boolean') throw new Error('searchSessions 参数不合契约:fullText')
+  if (!tokenEngine) throw new Error('扫描引擎未就绪')
+  // 会话集合来自主进程自身的统计(渲染层给不了文件路径);未注册项目自然为空
+  const sessions = perProjectStats.get(mergeKey(a.path))?.sessions ?? []
+  const r = await searchProjectSessions(tokenEngine, realRoots(), sessions, a.needle, a.fullText)
+  assertSearchResult(r)
+  return r
 })
 handle(CMD.readArtifact, (_e, file: unknown) => {
   if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw new Error('产物路径不在白名单')

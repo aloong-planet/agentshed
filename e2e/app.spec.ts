@@ -115,16 +115,54 @@ function mkUsageHome(): string {
     join(cdir, 'a.jsonl'),
     [
       JSON.stringify({ type: 'user', timestamp: localDayOffset(2).toISOString(), message: { role: 'user', content: '示例提问' } }),
-      // 真实形态:助手行同时带 content(正文段)与 usage;票 05 的展开断言用这段正文
+      // 真实形态:助手行同时带 content(正文段)与 usage;票 05 的展开断言用这段正文。
+      // 票 07:同行混排 thinking/text/tool_use(全量枚举的段全谱),供富内容断言
       JSON.stringify({
         type: 'assistant',
         timestamp: localDayOffset(2).toISOString(),
         message: {
           model: 'claude-fable-5',
-          content: [{ type: 'text', text: '这是第一轮的回答正文' }],
+          content: [
+            { type: 'thinking', thinking: '先看一眼目录结构' },
+            { type: 'text', text: '这是第一轮的回答正文' },
+            { type: 'tool_use', id: 'tu_e2e_1', name: 'Bash', input: { command: 'ls -la src' } }
+          ],
           usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
         }
       }),
+      // 工具返回:含 tool-results/ 旁挂路径 → 截断标注(spec C7,机制性判据)
+      JSON.stringify({
+        type: 'user',
+        timestamp: localDayOffset(2).toISOString(),
+        message: {
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_1', content: '共 12 个文件\noutput saved to: /x/tool-results/e2e.txt' }]
+        }
+      }),
+      // subagent 派发 → 轮内 sidechain 步骤 → 带 toolUseResult.agentId 的返回(实测链路)
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: localDayOffset(2).toISOString(),
+        message: {
+          role: 'assistant',
+          content: [{ type: 'tool_use', id: 'tu_e2e_ag', name: 'Agent', input: { description: '查日志', prompt: '查一下今天的日志', subagent_type: 'debugger' } }]
+        }
+      }),
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: localDayOffset(2).toISOString(),
+        isSidechain: true,
+        agentId: 'ag_e2e',
+        message: { role: 'assistant', content: [{ type: 'tool_use', id: 'stu1', name: 'Bash', input: { command: 'tail -5 app.log' } }] }
+      }),
+      JSON.stringify({
+        type: 'user',
+        timestamp: localDayOffset(2).toISOString(),
+        toolUseResult: { agentId: 'ag_e2e', status: 'completed' },
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_ag', content: [{ type: 'text', text: '日志干净,没有异常' }] }] }
+      }),
+      // 显示白名单外的未知类型 → 留痕不静默丢(spec C8)
+      JSON.stringify({ type: 'agent_snapshot', timestamp: localDayOffset(2).toISOString(), payload: { blob: 'x' } }),
       usage('claude-fable-5', localDayOffset(2), 1200, 300),
       // 第二条真实提问 —— 让两侧的提问条数不相等,条数断言才分得出"真读到了"
       // 与"两边都恰好是 1"。中间夹一条工具回灌,它不算提问(spec B1)。
@@ -175,6 +213,34 @@ function mkUsageHome(): string {
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
       // 真实提问:没有它这条会话按 spec A3a 不入列
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'user_message', message: 'Codex 侧的提问' } }),
+      // 票 07:推理小标题 / 工具配对 / spawn_agent(不可归位)/ 未知 event 留痕
+      JSON.stringify({
+        timestamp: localDayOffset(2).toISOString(),
+        type: 'response_item',
+        payload: { type: 'reasoning', id: 'r1', summary: [{ type: 'summary_text', text: '对比两侧目录约定' }, { type: 'summary_text', text: '确认字段差异' }], encrypted_content: 'gAAA' }
+      }),
+      JSON.stringify({
+        timestamp: localDayOffset(2).toISOString(),
+        type: 'response_item',
+        payload: { type: 'custom_tool_call', id: 'ri1', call_id: 'c_e2e', name: 'exec', input: 'rg skills -l', status: 'completed' }
+      }),
+      JSON.stringify({
+        timestamp: localDayOffset(2).toISOString(),
+        type: 'response_item',
+        payload: { type: 'custom_tool_call_output', call_id: 'c_e2e', output: '7 个文件' }
+      }),
+      JSON.stringify({
+        timestamp: localDayOffset(2).toISOString(),
+        type: 'response_item',
+        payload: { type: 'function_call', id: 'ri2', call_id: 'c_sp', name: 'spawn_agent', namespace: 'collaboration', arguments: '{"task_name":"迁移检查"}' }
+      }),
+      JSON.stringify({
+        timestamp: localDayOffset(2).toISOString(),
+        type: 'response_item',
+        payload: { type: 'function_call_output', call_id: 'c_sp', output: '子任务已建' }
+      }),
+      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'exotic_event', data: 1 } }),
+      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'agent_message', message: '两侧目录约定不同,详见对比。' } }),
       turn(localDayOffset(2), 900, 150),
       // 停在昨天:与 Claude 侧(今天)拉开差距,"最近在前"才有得可判。
       // 两侧同时间戳的话,排序断言只能证明 reverse 有效,证不了按时间排。
@@ -462,12 +528,13 @@ test('会话页:列出全部提问,字段齐全,返回回到会话分栏', async
   await expect(win.locator('.smeta')).toContainText('2 提问')
   await expect(win.locator('.smeta')).toContainText('tok')
 
-  // 行:序号 / 全文 / 工具计数 / 时间;两条真实提问,工具回灌不算
+  // 行:序号 / 全文 / 工具计数 / 时间;两条真实提问,工具回灌不算。
+  // 默认倒序(2026-08-06 裁定):最新的 02 在前,序号仍是原始轮次号
   const qs = win.locator('.qlist .q')
   await expect(qs).toHaveCount(2)
-  await expect(qs.nth(0).locator('.idx')).toHaveText('01')
-  await expect(qs.nth(0).locator('.txt')).toHaveText('示例提问')
-  await expect(qs.nth(1).locator('.txt')).toHaveText('第二个提问')
+  await expect(qs.nth(0).locator('.idx')).toHaveText('02')
+  await expect(qs.nth(0).locator('.txt')).toHaveText('第二个提问')
+  await expect(qs.nth(1).locator('.txt')).toHaveText('示例提问')
   await expect(qs.nth(0).locator('.tm')).not.toHaveText('—')
   await expect(win.locator('.qbar .grp-t')).toContainText('提问(主干)· 2 条')
 
@@ -586,22 +653,102 @@ test('会话页:默认全部折叠;点提问展开整轮正文与取回脚注,�
   await expect(win.locator('.qlist .q')).toHaveCount(2)
   await expect(win.locator('.turn')).toHaveCount(0)
 
-  // 点第一条:提问行自己铺开(.open,不另设复述块),下面出整轮正文 + 取回脚注
-  await win.locator('.qlist .q').first().click()
+  // 点 01(默认倒序,首行是 02——按文本定位不赌位置):提问行自己铺开(.open,
+  // 不另设复述块),下面出整轮正文 + 取回脚注
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
   await expect(win.locator('.qlist .q.open .txt')).toHaveText('示例提问')
   await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
   await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
 
-  // 展开第二条不影响第一条(各轮独立);第二轮没有正文,脚注照出(不造假的占位)
-  await win.locator('.qlist .q').nth(1).click()
+  // 展开另一条不影响已开的(各轮独立);第二轮没有正文,脚注照出(不造假的占位)
+  await win.locator('.qlist .q', { hasText: '第二个提问' }).click()
   await expect(win.locator('.qlist .q.open')).toHaveCount(2)
   await expect(win.locator('.turn')).toHaveCount(2)
   await expect(win.locator('.turn .ans')).toHaveCount(1)
 
-  // 再点第一条:收起,其余不动
-  await win.locator('.qlist .q').first().click()
+  // 再点 01:收起,其余不动
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
   await expect(win.locator('.turn')).toHaveCount(1)
   await expect(win.locator('.qlist .q.open')).toHaveCount(1)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 06:日期分组折叠 + 正序/倒序 + 展开跨排序保持
+test('会话页:跨天分组可折叠;倒序组与组内同翻、序号不变;展开跨排序保持', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+
+  // 两天两组,组头带当日条数;qhead 带天数
+  await expect(win.locator('.daygrp')).toHaveCount(2)
+  await expect(win.locator('.dayhd').first()).toContainText('1 条')
+  await expect(win.locator('.qbar .grp-t')).toContainText('2 天')
+
+  // 默认倒序(2026-08-06 用户裁定):首行是最新的 02
+  await expect(win.locator('.qlist .q').first().locator('.idx'), '默认倒序,首行应是 02').toHaveText('02')
+  // 展开 01,然后切正序:仍展开、序号不变、组序与组内一起翻
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await win.locator('.qbar .seg button', { hasText: '正序' }).click()
+  await expect(win.locator('.qlist .q').first().locator('.idx'), '正序后首行应是原 01').toHaveText('01')
+  const openRow = win.locator('.qlist .q.open')
+  await expect(openRow, '已展开的轮次跨排序保持').toHaveCount(1)
+  await expect(openRow.locator('.idx'), '序号恒为原始轮次号').toHaveText('01')
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+
+  // 折叠 01 所在的那天:该天的行连同已展开的轮一并隐藏;重开仍是展开的。
+  // 折叠后 .q.open 不再渲染,故先记下组头日期,重开时按日期重定位
+  const day01hd = win.locator('.daygrp', { has: win.locator('.q.open') }).locator('.dayhd')
+  const dayLabel = (await day01hd.innerText()).split(' · ')[0].trim()
+  await day01hd.click()
+  await expect(win.locator('.q.open')).toHaveCount(0)
+  await expect(win.locator('.turn')).toHaveCount(0)
+  await win.locator('.dayhd', { hasText: dayLabel }).click()
+  await expect(win.locator('.q.open')).toHaveCount(1)
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+
+  // 全部收起 → 标签翻转、全部行隐藏;全部展开还原
+  await win.locator('.qbar .lnk').click()
+  await expect(win.locator('.qlist .q')).toHaveCount(0)
+  await expect(win.locator('.qbar .lnk')).toHaveText('全部展开')
+  await win.locator('.qbar .lnk').click()
+  await expect(win.locator('.qlist .q')).toHaveCount(2)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 06:顶部横幅三档——stripped info(父标题可点直达父会话)与孤儿 risk
+test('会话页横幅:fork 已剥离标 info 且父标题直达;父缺失标 risk 且明说对照核对', async () => {
+  const l = await launch(undefined, mkForkHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+
+  // 子会话(已剥离):info 横幅带父标题,点击直达父会话页
+  await win.locator('.pane-body .card .se', { hasText: '子会话的新问' }).click()
+  const info = win.locator('.banner.info')
+  await expect(info).toContainText('fork 自')
+  await expect(info).toContainText('父会话第一问')
+  await expect(info).toContainText('重放前缀已剥离')
+  await info.locator('a').click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('父会话第一问')
+  // 父会话不是 fork:无任何横幅
+  await expect(win.locator('.banner')).toHaveCount(0)
+
+  // 孤儿 fork:risk 横幅,明说可能多剥/少剥、请对照核对——不给假确定感
+  await win.locator('.sback').click()
+  await win.locator('.pane-body .card .se', { hasText: '孤儿会话的问' }).click()
+  const risk = win.locator('.banner.risk')
+  await expect(risk).toContainText('不在扫描集内')
+  await expect(risk).toContainText('可能多剥(丢消息)或少剥(重复)')
+  await expect(risk).toContainText('请对照原文核对')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -630,9 +777,140 @@ test('会话页:文件被追加(签名不符)后点提问,仍取回正确的整�
       message: { role: 'user', content: '追加的第三问' }
     }) + '\n'
   )
-  await win.locator('.qlist .q').first().click()
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
   await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
   await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 07:轮内富内容——工具折叠/二次展开、思考块、subagent 归位、截断标注、未知留痕
+test('会话页富内容(Claude):思考/工具/subagent 块默认折叠,展开见全文与标注', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
+
+  // 正文 + 三个折叠块头(思考/Bash/subagent),默认全折叠(.bb 不渲染)
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await expect(win.locator('.turn .blk')).toHaveCount(3)
+  await expect(win.locator('.turn .bb')).toHaveCount(0)
+
+  // 思考块:明文可得
+  const think = win.locator('.turn .blk.think')
+  await expect(think.locator('.nm')).toHaveText('思考')
+  await think.locator('.bh').click()
+  await expect(think.locator('.bb')).toContainText('先看一眼目录结构')
+
+  // 工具块:二次展开见入参/返回;截断 warn(返回里带 tool-results/ 旁挂路径)
+  const tool = win.locator('.turn .blk', { has: win.locator('.nm', { hasText: 'Bash' }) }).first()
+  await expect(tool.locator('.sum')).toContainText('ls -la src')
+  await tool.locator('.bh').click()
+  await expect(tool.locator('pre').nth(0)).toContainText('ls -la src')
+  await expect(tool.locator('pre').nth(1)).toContainText('共 12 个文件')
+  await expect(tool.locator('.warn')).toContainText('只存了截断版')
+
+  // subagent 块:派发 prompt 与返回;内部步骤无稳定引用链 → 显式未归位标注
+  // (2026-08-06 实测:四条候选连接键全部排除,不做猜测性配对)
+  const sub = win.locator('.turn .blk.sub')
+  await expect(sub.locator('.nm')).toContainText('debugger')
+  await sub.locator('.bh').click()
+  await expect(sub.locator('pre').nth(0)).toContainText('查一下今天的日志')
+  await expect(sub.locator('.step')).toHaveCount(0)
+  await expect(sub.locator('.warn')).toContainText('稳定引用链')
+  await expect(sub.locator('pre').nth(1)).toContainText('日志干净')
+
+  // 未知类型留痕:不静默丢
+  await expect(win.locator('.turn .unknown')).toContainText('1 条未识别记录')
+  await expect(win.locator('.turn .unknown')).toContainText('agent_snapshot')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('会话页富内容(Codex):推理密文标注、工具配对、spawn 不可归位标注、未知事件留痕', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Codex 侧的提问' }).click()
+  await win.locator('.qlist .q', { hasText: 'Codex 侧的提问' }).click()
+
+  await expect(win.locator('.turn .ans')).toContainText('两侧目录约定不同')
+
+  // 推理块:仅小标题,warn 明说正文加密不可得
+  const reason = win.locator('.turn .blk.think')
+  await expect(reason.locator('.sum')).toContainText('仅 2 条小标题')
+  await reason.locator('.bh').click()
+  await expect(reason.locator('.warn')).toContainText('encrypted_content')
+  await expect(reason.locator('.rt')).toHaveCount(2)
+
+  // 工具块:call_id 配对的入参/返回
+  const tool = win.locator('.turn .blk', { has: win.locator('.nm', { hasText: 'exec' }) }).first()
+  await tool.locator('.bh').click()
+  await expect(tool.locator('pre').nth(0)).toContainText('rg skills -l')
+  await expect(tool.locator('pre').nth(1)).toContainText('7 个文件')
+
+  // spawn_agent:sub 块,子线程无引用链不归位(2026-08-06 裁定)
+  const sub = win.locator('.turn .blk.sub')
+  await sub.locator('.bh').click()
+  await expect(sub.locator('.warn')).toContainText('稳定引用链')
+  await expect(sub.locator('pre').nth(1)).toContainText('子任务已建')
+
+  // 未知 event 留痕(三层白名单之一)
+  await expect(win.locator('.turn .unknown')).toContainText('event_msg/exotic_event')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 08:会话搜索——默认搜提问、全文开关、命中分组、直达提问。
+// 输入用 fill()(经 CDP 设值,不依赖窗口聚焦语义;app.spec 头部注记的 :focus
+// 断言边界不在本用例内)。
+test('会话搜索:默认搜提问命中分组;正文词切全文才命中;点命中直达该提问', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+
+  // 默认搜提问:命中 1 条,分组带会话头;大小写不敏感
+  await win.locator('.sbar input').fill('示例提问')
+  await expect(win.locator('.grp')).toHaveCount(1)
+  // 回归:命中组的 button 必须重置 UA 默认样式(漏写会在暗色下露白底黑字)
+  for (const sel of ['.grp .gh', '.grp .hit']) {
+    const bg = await win.locator(sel).first().evaluate((el) => getComputedStyle(el).backgroundColor)
+    expect(bg, `${sel} 应为透明背景而非 UA buttonface`).toBe('rgba(0, 0, 0, 0)')
+  }
+  await expect(win.locator('.grp .gh .t')).toContainText('示例提问')
+  await expect(win.locator('.grp .hit')).toHaveCount(1)
+  await expect(win.locator('.grp .hit mark').first()).toContainText('示例提问')
+  await expect(win.locator('.shead')).toContainText('找到 1 条 · 1 个会话')
+
+  // 正文里的词(第一轮回答正文)在提问模式不命中 → 可行动空态
+  await win.locator('.sbar input').fill('第一轮的回答正文')
+  await expect(win.locator('.shead')).toContainText('默认只搜提问,试试切到「全文」')
+  // 切全文:命中并标「正文」
+  await win.locator('.scope span', { hasText: '全文' }).click()
+  await expect(win.locator('.grp .hit')).toHaveCount(1)
+  await expect(win.locator('.grp .hit .bd')).toHaveText('正文')
+
+  // 点命中直达该会话的该条提问(01 行进入视口;默认倒序下它在列表尾部)。
+  // 定位高亮(2026-08-06 原型确认):脉冲 located + 焦点竖条 focused;
+  // 点击任意提问行后竖条清除。10s 脉冲的播完态不在此等待(时序不赌)。
+  await win.locator('.grp .hit').click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('示例提问')
+  const row01 = win.locator('.qlist .q', { hasText: '示例提问' })
+  await expect(row01).toBeInViewport()
+  await expect(row01).toHaveClass(/located/)
+  await expect(row01).toHaveClass(/focused/)
+  await win.locator('.qlist .q', { hasText: '第二个提问' }).click()
+  await expect(row01).not.toHaveClass(/focused/)
 
   expect(l.errors).toEqual([])
   await close(l)

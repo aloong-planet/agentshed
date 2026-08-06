@@ -255,12 +255,17 @@ export interface SessionPage {
   /** 源文件字节数(页头体量展示用) */
   bytes: number
   forkState: ForkState
+  /** Claude 主链分叉处数(>0 时出"分叉已归一"info 横幅);Codex 恒 0(票 06) */
+  forkPoints: number
+  /** Codex fork 且父在扫描集内时的父会话标题/文件(横幅引用与跳转);其余为 null */
+  forkParentTitle: string | null
+  forkParentFile: string | null
   questions: SessionQuestion[]
 }
 
 /**
- * 会话轮次的归一化块(票 05):两侧各自的原始行统一成这个模型,渲染层只认它。
- * 本票只有正文(text);工具调用/推理块等 kind 由票 07 扩展。
+ * 会话轮次的归一化块(票 05 立模型,票 07 扩全):两侧各自的原始行统一成这个
+ * 模型,渲染层只认它。顺序 = 源文件行序(行内按 思考→正文→工具 的段序)。
  */
 export interface TurnTextBlock {
   kind: 'text'
@@ -268,13 +273,95 @@ export interface TurnTextBlock {
   at: number | null
   body: string
 }
-export type TurnBlock = TurnTextBlock
+/** Claude 明文思考(thinking 段);Codex 侧没有这个 kind——推理走 reason */
+export interface TurnThinkBlock {
+  kind: 'think'
+  at: number | null
+  body: string
+}
+/** Codex 推理:只有明文小标题,正文是 encrypted_content 永远不可得(spec C6) */
+export interface TurnReasonBlock {
+  kind: 'reason'
+  at: number | null
+  titles: string[]
+}
+export interface TurnToolBlock {
+  kind: 'tool'
+  at: number | null
+  name: string
+  /** 一行摘要(入参截断),折叠态显示 */
+  summary: string
+  input: string
+  /** 无返回(运行中/记录缺失)为 null */
+  output: string | null
+  /** Claude:transcript 只存截断版,原文旁挂 tool-results/ 不读(spec C7,2026-08-06 裁定) */
+  truncated: boolean
+}
+export interface TurnSubStep {
+  kind: 'text' | 'tool'
+  label: string
+}
+export interface TurnSubBlock {
+  kind: 'sub'
+  at: number | null
+  /** 派发名(Claude 取 subagent_type,无则工具名;Codex 恒 spawn_agent) */
+  name: string
+  prompt: string
+  /** 内部步骤:Claude 从轮内 sidechain 行按 agentId 归组;Codex 无引用链恒空 */
+  steps: TurnSubStep[]
+  result: string | null
+  /** Codex:子线程转写无稳定引用链,未归位(2026-08-06 裁定,界面标注) */
+  unlinked: boolean
+}
+/** 显示白名单外的未知类型留痕(spec C8):不渲染内容,但绝不静默丢 */
+export interface TurnUnknownBlock {
+  kind: 'unknown'
+  count: number
+  types: string[]
+}
+export type TurnBlock =
+  | TurnTextBlock
+  | TurnThinkBlock
+  | TurnReasonBlock
+  | TurnToolBlock
+  | TurnSubBlock
+  | TurnUnknownBlock
 
 /** 单轮取回载荷(getSessionTurn 通道) */
 export interface SessionTurn {
   blocks: TurnBlock[]
   /** 本次实际读取的字节数——「没有整读」的证据,也是界面脚注的数据 */
   bytesRead: number
+}
+
+/** 搜索命中(票 08;searchSessions 通道) */
+export interface SearchHit {
+  /** 提问序号(展示集合内,1 起,与会话页同源) */
+  i: number
+  /** 提问全文(命中行经解析后的干净文本) */
+  text: string
+  at: number | null
+  /** true = 命中在该轮的回答/工具正文里(仅全文模式产生) */
+  inBody: boolean
+  /** 正文命中的上下文片段(提问命中为 null;提取失败也为 null,渲染层退化) */
+  snippet: string | null
+}
+
+export interface SearchGroup {
+  file: string
+  title: string
+  side: AgentSide
+  forkState: ForkState
+  at: number | null
+  hits: SearchHit[]
+}
+
+export interface SearchResult {
+  groups: SearchGroup[]
+  totalHits: number
+  sessionCount: number
+  /** 展示区间之外的命中数(fork 重放副本 / 被放弃分支 / 首问前噪声区) */
+  folded: number
 }
 
 /** 单项目统计(概览 tab 数据) */

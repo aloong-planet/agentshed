@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import {
   CMD,
   EVT,
+  type SearchSessionsArgs,
   type SessionTurnArgs,
   type SetHiddenArgs,
   type SkillOpArgs,
@@ -12,12 +13,13 @@ import {
   type ListSkillFilesResult,
   type ReadSkillFileArgs
 } from '@shared/ipc'
-import type { ProjectDetail, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
+import type { ProjectDetail, SearchResult, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import {
   validateSnapshot,
   validateProjectDetail,
   validateSessionPage,
-  validateSessionTurn
+  validateSessionTurn,
+  validateSearchResult
 } from '@shared/validate'
 import { parsePrefs } from '@shared/appearance'
 
@@ -64,6 +66,13 @@ const api = {
     const r = validateSessionTurn(t)
     if (!r.ok) throw new Error(`收到不合契约的单轮载荷 — ${r.error}`)
     return t as SessionTurn
+  },
+  // 票 08:项目会话搜索(两端各校验一次,同快照规矩)
+  searchSessions: async (args: SearchSessionsArgs): Promise<SearchResult> => {
+    const r: unknown = await ipcRenderer.invoke(CMD.searchSessions, args)
+    const v = validateSearchResult(r)
+    if (!v.ok) throw new Error(`收到不合契约的搜索结果 — ${v.error}`)
+    return r as SearchResult
   },
   readArtifact: (file: string): Promise<string> =>
     ipcRenderer.invoke(CMD.readArtifact, file) as Promise<string>,

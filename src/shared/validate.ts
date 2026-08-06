@@ -102,6 +102,11 @@ export function validateSessionPage(v: unknown): ValidateResult {
   if (typeof v['bytes'] !== 'number') return fail('page.bytes', '需为 number')
   if (typeof v['forkState'] !== 'string' || !FORK_STATES.has(v['forkState']))
     return fail('page.forkState', `非法 forkState: ${String(v['forkState'])}`)
+  if (typeof v['forkPoints'] !== 'number') return fail('page.forkPoints', '需为 number')
+  if (v['forkParentTitle'] !== null && typeof v['forkParentTitle'] !== 'string')
+    return fail('page.forkParentTitle', '需为 string|null')
+  if (v['forkParentFile'] !== null && typeof v['forkParentFile'] !== 'string')
+    return fail('page.forkParentFile', '需为 string|null')
   const qs = v['questions']
   if (!Array.isArray(qs)) return fail('page.questions', '需为数组')
   for (let i = 0; i < qs.length; i++) {
@@ -123,9 +128,61 @@ export function assertSessionPage(v: unknown): void {
   if (!r.ok) throw new Error(`会话页契约校验失败 — ${r.error}`)
 }
 
-// ── 单轮取回(getSessionTurn 通道,票 05)──
-// 本票 kind 只有 text;票 07 扩块类型时此处同步扩(白名单校验,未知 kind 在边界拒收)
-const TURN_KINDS = new Set(['text'])
+// ── 单轮取回(getSessionTurn 通道,票 05 立,票 07 扩全)──
+// kind 白名单校验:未知 kind 在边界拒收——新增块类型必须先过契约
+const SUB_STEP_KINDS = new Set(['text', 'tool'])
+
+function validateTurnBlock(b: Record<string, unknown>, at: string): ValidateResult {
+  const kind = b['kind']
+  // unknown 是聚合块无时间;其余 kind 一律要求 at: number|null
+  if (kind !== 'unknown' && b['at'] !== null && typeof b['at'] !== 'number')
+    return fail(`${at}.at`, '需为 number|null')
+  switch (kind) {
+    case 'text':
+      if (b['role'] !== 'assistant') return fail(`${at}.role`, `非法 role: ${String(b['role'])}`)
+      if (typeof b['body'] !== 'string') return fail(`${at}.body`, '需为 string')
+      return { ok: true }
+    case 'think':
+      if (typeof b['body'] !== 'string') return fail(`${at}.body`, '需为 string')
+      return { ok: true }
+    case 'reason': {
+      const t = b['titles']
+      if (!Array.isArray(t) || t.some((x) => typeof x !== 'string')) return fail(`${at}.titles`, '需为 string 数组')
+      return { ok: true }
+    }
+    case 'tool':
+      if (typeof b['name'] !== 'string') return fail(`${at}.name`, '需为 string')
+      if (typeof b['summary'] !== 'string') return fail(`${at}.summary`, '需为 string')
+      if (typeof b['input'] !== 'string') return fail(`${at}.input`, '需为 string')
+      if (b['output'] !== null && typeof b['output'] !== 'string') return fail(`${at}.output`, '需为 string|null')
+      if (typeof b['truncated'] !== 'boolean') return fail(`${at}.truncated`, '需为 boolean')
+      return { ok: true }
+    case 'sub': {
+      if (typeof b['name'] !== 'string') return fail(`${at}.name`, '需为 string')
+      if (typeof b['prompt'] !== 'string') return fail(`${at}.prompt`, '需为 string')
+      if (b['result'] !== null && typeof b['result'] !== 'string') return fail(`${at}.result`, '需为 string|null')
+      if (typeof b['unlinked'] !== 'boolean') return fail(`${at}.unlinked`, '需为 boolean')
+      const steps = b['steps']
+      if (!Array.isArray(steps)) return fail(`${at}.steps`, '需为数组')
+      for (let j = 0; j < steps.length; j++) {
+        const s: unknown = steps[j]
+        if (!isRecord(s)) return fail(`${at}.steps[${j}]`, '不是对象')
+        if (typeof s['kind'] !== 'string' || !SUB_STEP_KINDS.has(s['kind']))
+          return fail(`${at}.steps[${j}].kind`, `非法 step kind: ${String(s['kind'])}`)
+        if (typeof s['label'] !== 'string') return fail(`${at}.steps[${j}].label`, '需为 string')
+      }
+      return { ok: true }
+    }
+    case 'unknown': {
+      if (typeof b['count'] !== 'number') return fail(`${at}.count`, '需为 number')
+      const t = b['types']
+      if (!Array.isArray(t) || t.some((x) => typeof x !== 'string')) return fail(`${at}.types`, '需为 string 数组')
+      return { ok: true }
+    }
+    default:
+      return fail(`${at}.kind`, `非法 kind: ${String(kind)}`)
+  }
+}
 
 export function validateSessionTurn(v: unknown): ValidateResult {
   if (!isRecord(v)) return fail('turn', '不是对象')
@@ -136,11 +193,8 @@ export function validateSessionTurn(v: unknown): ValidateResult {
     const b: unknown = blocks[i]
     const at = `turn.blocks[${i}]`
     if (!isRecord(b)) return fail(at, '不是对象')
-    if (typeof b['kind'] !== 'string' || !TURN_KINDS.has(b['kind']))
-      return fail(`${at}.kind`, `非法 kind: ${String(b['kind'])}`)
-    if (b['role'] !== 'assistant') return fail(`${at}.role`, `非法 role: ${String(b['role'])}`)
-    if (b['at'] !== null && typeof b['at'] !== 'number') return fail(`${at}.at`, '需为 number|null')
-    if (typeof b['body'] !== 'string') return fail(`${at}.body`, '需为 string')
+    const r = validateTurnBlock(b, at)
+    if (!r.ok) return r
   }
   return { ok: true }
 }
@@ -149,6 +203,48 @@ export function validateSessionTurn(v: unknown): ValidateResult {
 export function assertSessionTurn(v: unknown): void {
   const r = validateSessionTurn(v)
   if (!r.ok) throw new Error(`单轮载荷契约校验失败 — ${r.error}`)
+}
+
+// ── 搜索载荷(searchSessions 通道,票 08)──
+export function validateSearchResult(v: unknown): ValidateResult {
+  if (!isRecord(v)) return fail('search', '不是对象')
+  for (const k of ['totalHits', 'sessionCount', 'folded'] as const) {
+    if (typeof v[k] !== 'number') return fail(`search.${k}`, '需为 number')
+  }
+  const groups = v['groups']
+  if (!Array.isArray(groups)) return fail('search.groups', '需为数组')
+  for (let g = 0; g < groups.length; g++) {
+    const grp: unknown = groups[g]
+    const at = `search.groups[${g}]`
+    if (!isRecord(grp)) return fail(at, '不是对象')
+    if (typeof grp['file'] !== 'string' || grp['file'] === '') return fail(`${at}.file`, '需为非空 string')
+    if (typeof grp['title'] !== 'string') return fail(`${at}.title`, '需为 string')
+    if (typeof grp['side'] !== 'string' || !AGENT_SIDES.has(grp['side']))
+      return fail(`${at}.side`, `非法 side: ${String(grp['side'])}`)
+    if (typeof grp['forkState'] !== 'string' || !FORK_STATES.has(grp['forkState']))
+      return fail(`${at}.forkState`, `非法 forkState: ${String(grp['forkState'])}`)
+    if (grp['at'] !== null && typeof grp['at'] !== 'number') return fail(`${at}.at`, '需为 number|null')
+    const hits = grp['hits']
+    if (!Array.isArray(hits)) return fail(`${at}.hits`, '需为数组')
+    for (let h = 0; h < hits.length; h++) {
+      const hit: unknown = hits[h]
+      const hat = `${at}.hits[${h}]`
+      if (!isRecord(hit)) return fail(hat, '不是对象')
+      if (typeof hit['i'] !== 'number') return fail(`${hat}.i`, '需为 number')
+      if (typeof hit['text'] !== 'string') return fail(`${hat}.text`, '需为 string')
+      if (hit['at'] !== null && typeof hit['at'] !== 'number') return fail(`${hat}.at`, '需为 number|null')
+      if (typeof hit['inBody'] !== 'boolean') return fail(`${hat}.inBody`, '需为 boolean')
+      if (hit['snippet'] !== null && typeof hit['snippet'] !== 'string')
+        return fail(`${hat}.snippet`, '需为 string|null')
+    }
+  }
+  return { ok: true }
+}
+
+/** 主进程出口:同 assertSnapshot,契约破坏直接抛 */
+export function assertSearchResult(v: unknown): void {
+  const r = validateSearchResult(v)
+  if (!r.ok) throw new Error(`搜索载荷契约校验失败 — ${r.error}`)
 }
 
 export function validateProjectStats(v: unknown): ValidateResult {

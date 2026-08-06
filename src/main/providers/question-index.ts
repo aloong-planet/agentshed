@@ -117,6 +117,12 @@ export interface QuestionIndexer {
    * 轮次区间——取最后一条完整行的终点,按需取回时读到的永远是成形的内容。
    */
   done(fileEnd: number): QuestionRec[]
+  /**
+   * 主链分叉处数 = 被 ≥2 个主链节点当作父的节点个数(票 06 横幅信号:
+   * "本会话有 N 处分叉,被放弃的分支不显示")。数的是分叉点,不是分支数;
+   * sidechain 行不进图,压缩边界的桥是单链,都不制造分叉。Codex 侧恒 0。
+   */
+  forkPoints(): number
 }
 
 /** Claude 侧派发 subagent 的工具名。全库实测 Agent 152 次、Task 4 次——同一个工具的
@@ -124,7 +130,7 @@ export interface QuestionIndexer {
  * 不改用"入参含 subagent_type"这个看似更机制化的判据:全库反查它会把一次
  * `TaskCreate` 误算进来,又漏掉 5 次没传该可选参的 `Agent`。日后再改名只会少算,
  * 不会错算——展示的是体量数字,少算不污染其他轮。 */
-const CLAUDE_DISPATCH = new Set(['Agent', 'Task'])
+export const CLAUDE_DISPATCH = new Set(['Agent', 'Task'])
 
 /** Codex 侧派发 subagent 的 function_call 名(真实样本:namespace=collaboration) */
 const CODEX_DISPATCH = 'spawn_agent'
@@ -266,6 +272,15 @@ export function makeQuestionIndexer(side: 'claude' | 'codex'): QuestionIndexer {
     },
     firstQuestionText() {
       return firstRaw
+    },
+    forkPoints() {
+      const refs = new Map<string, number>()
+      for (const p of parentOf.values()) {
+        if (p !== null) refs.set(p, (refs.get(p) ?? 0) + 1)
+      }
+      let n = 0
+      for (const c of refs.values()) if (c >= 2) n++
+      return n
     },
     done(fileEnd) {
       // 先给**原始**末条补上文件终点,再过滤:末条若落在被放弃的分支上,

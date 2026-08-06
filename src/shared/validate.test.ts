@@ -1,6 +1,6 @@
 // Seam 2(IPC 契约):快照 schema 校验的行为测试——好载荷放行、坏载荷拒收并给出路径。
 import { describe, it, expect } from 'vitest'
-import { validateSnapshot, validateProjectStats, validateProjectDetail, validateSessionTurn } from './validate'
+import { validateSnapshot, validateProjectStats, validateProjectDetail, validateSessionTurn, validateSearchResult } from './validate'
 import { emptySnapshot, emptyTokenStats } from './domain'
 
 describe('validateSnapshot', () => {
@@ -279,6 +279,9 @@ describe('validateSessionPage(会话页载荷)', () => {
     tokens: 10,
     bytes: 2048,
     forkState: 'none',
+    forkPoints: 0,
+    forkParentTitle: null,
+    forkParentFile: null,
     questions: [{ i: 1, text: '问一', at: 1, tools: 2, subagents: 0 }]
   }
 
@@ -305,6 +308,26 @@ describe('validateSessionPage(会话页载荷)', () => {
     expect(validateSessionPage({ ...okPage, questions: '不是数组' }).ok).toBe(false)
     expect(validateSessionPage({ ...okPage, file: '' }).ok).toBe(false)
     expect(validateSessionPage({ ...okPage, questions: [{ i: 1, text: 't', at: 1, tools: '2', subagents: 0 }] }).ok).toBe(false)
+  })
+
+  // 票 06:横幅数据面三字段
+  it('放行 stripped 页带父标题/父文件;拒收缺 forkPoints 或类型不对的', () => {
+    const stripped = {
+      ...okPage,
+      side: 'codex',
+      forkState: 'stripped',
+      forkParentTitle: '父会话标题',
+      forkParentFile: '/Users/x/.codex/sessions/2026/07/30/rollout-x.jsonl'
+    }
+    expect(validateSessionPage(stripped).ok).toBe(true)
+    const noFp = { ...okPage } as Record<string, unknown>
+    delete noFp['forkPoints']
+    const r1 = validateSessionPage(noFp)
+    expect(r1.ok === false && r1.error).toContain('forkPoints')
+    const r2 = validateSessionPage({ ...okPage, forkParentTitle: 42 })
+    expect(r2.ok === false && r2.error).toContain('forkParentTitle')
+    const r3 = validateSessionPage({ ...okPage, forkParentFile: 42 })
+    expect(r3.ok === false && r3.error).toContain('forkParentFile')
   })
 })
 
@@ -335,5 +358,91 @@ describe('validateSessionTurn(单轮取回载荷,票 05)', () => {
     expect(validateSessionTurn(bad2).ok).toBe(false)
     const bad3 = { blocks: [{ kind: 'text', role: 'assistant', at: '昨天', body: 'x' }], bytesRead: 1 }
     expect(validateSessionTurn(bad3).ok).toBe(false)
+  })
+})
+
+describe('validateSessionTurn —— 票 07 富内容块', () => {
+  const okBlocks = [
+    { kind: 'text', role: 'assistant', at: 1, body: '正文' },
+    { kind: 'think', at: 1, body: '想' },
+    { kind: 'reason', at: null, titles: ['小标题'] },
+    { kind: 'tool', at: 1, name: 'Bash', summary: 'ls', input: 'ls', output: 'ok', truncated: false },
+    { kind: 'tool', at: 1, name: 'Read', summary: 'f', input: 'f', output: null, truncated: true },
+    {
+      kind: 'sub', at: 1, name: 'debugger', prompt: '查日志',
+      steps: [{ kind: 'text', label: '看日志' }, { kind: 'tool', label: 'Bash · tail' }],
+      result: '干净', unlinked: false
+    },
+    { kind: 'unknown', count: 2, types: ['agent_snapshot'] }
+  ]
+
+  it('放行全部七种块形态', () => {
+    expect(validateSessionTurn({ blocks: okBlocks, bytesRead: 1 }).ok).toBe(true)
+  })
+
+  it('拒收:tool 缺 name / sub 的 step kind 非法 / unknown.types 非 string 数组', () => {
+    const bad1 = { blocks: [{ kind: 'tool', at: 1, summary: 's', input: 'i', output: null, truncated: false }], bytesRead: 1 }
+    const r1 = validateSessionTurn(bad1)
+    expect(r1.ok === false && r1.error).toContain('blocks[0]')
+    const bad2 = {
+      blocks: [{ kind: 'sub', at: 1, name: 'x', prompt: '', steps: [{ kind: 'video', label: 'x' }], result: null, unlinked: false }],
+      bytesRead: 1
+    }
+    expect(validateSessionTurn(bad2).ok).toBe(false)
+    const bad3 = { blocks: [{ kind: 'unknown', count: 1, types: [42] }], bytesRead: 1 }
+    expect(validateSessionTurn(bad3).ok).toBe(false)
+  })
+
+  it('拒收未知 kind(白名单校验,07 之后的新 kind 要先过契约)', () => {
+    expect(validateSessionTurn({ blocks: [{ kind: 'hologram' }], bytesRead: 1 }).ok).toBe(false)
+  })
+})
+
+describe('validateSearchResult(搜索载荷,票 08)', () => {
+  const ok = {
+    groups: [
+      {
+        file: '/Users/x/.claude/projects/-e/a.jsonl',
+        title: '标题',
+        side: 'claude',
+        forkState: 'none',
+        at: 1,
+        hits: [
+          { i: 1, text: '提问命中', at: 1, inBody: false, snippet: null },
+          { i: 1, text: '提问命中', at: null, inBody: true, snippet: '…上下文 magicword 上下文…' }
+        ]
+      }
+    ],
+    totalHits: 2,
+    sessionCount: 1,
+    folded: 3
+  }
+
+  it('放行合法载荷与空结果基态', () => {
+    expect(validateSearchResult(ok).ok).toBe(true)
+    expect(validateSearchResult({ groups: [], totalHits: 0, sessionCount: 0, folded: 0 }).ok).toBe(true)
+  })
+
+  it('拒收缺 folded / hits 项缺 inBody / snippet 类型错,并指出路径', () => {
+    const noFolded = { ...ok } as Record<string, unknown>
+    delete noFolded['folded']
+    const r1 = validateSearchResult(noFolded)
+    expect(r1.ok === false && r1.error).toContain('folded')
+    const badHit = JSON.parse(JSON.stringify(ok)) as typeof ok
+    delete (badHit.groups[0].hits[0] as unknown as Record<string, unknown>)['inBody']
+    const r2 = validateSearchResult(badHit)
+    expect(r2.ok === false && r2.error).toContain('hits[0]')
+    const badSnip = JSON.parse(JSON.stringify(ok)) as typeof ok
+    ;(badSnip.groups[0].hits[0] as unknown as Record<string, unknown>)['snippet'] = 42
+    expect(validateSearchResult(badSnip).ok).toBe(false)
+  })
+
+  it('拒收组级非法 forkState / 空 file', () => {
+    const b1 = JSON.parse(JSON.stringify(ok)) as typeof ok
+    ;(b1.groups[0] as unknown as Record<string, unknown>)['forkState'] = '存疑'
+    expect(validateSearchResult(b1).ok).toBe(false)
+    const b2 = JSON.parse(JSON.stringify(ok)) as typeof ok
+    ;(b2.groups[0] as unknown as Record<string, unknown>)['file'] = ''
+    expect(validateSearchResult(b2).ok).toBe(false)
   })
 })

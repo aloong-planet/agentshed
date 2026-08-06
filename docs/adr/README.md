@@ -14,3 +14,4 @@
 | [0008](0008-trend-by-provider.md) | 趋势柱按 provider 分段 | 已接受 |
 | [0009](0009-trend-xaxis-data-days.md) | 趋势图 x 轴只标数据日的层级日期标签 | 已接受 |
 | [0010](0010-plugin-skills-in-effective-view.md) | 插件内含 skills 并入生效视图(命名空间隔离、启用态过滤) | 已接受 |
+| [0011](0011-question-index-in-token-cache.md) | 提问索引搭载于 token 计量缓存(单缓存双口径) | 已接受 |

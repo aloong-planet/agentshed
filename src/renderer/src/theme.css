@@ -1490,6 +1490,280 @@ body {
   width: 44px;
   text-align: right;
 }
+/* 票 08:会话分栏搜索(原型 .sbar/.scope/.shead/.grp/.gh/.hit/mark) */
+.sbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.sbar input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+.sbar input:focus {
+  border-color: var(--accent);
+}
+.scope {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  overflow: hidden;
+  flex: none;
+}
+.scope span {
+  padding: 5px 11px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.scope span.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.shead {
+  font-size: 11.5px;
+  color: var(--text-2);
+  margin: 0 2px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.grp {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  margin-bottom: 9px;
+  overflow: hidden;
+}
+/* row-btn 的 UA 重置按宿主类逐一组合写(与 .it.row-btn/.se.row-btn 同模式)——
+   漏写会在暗色主题下露出浏览器默认的白底黑字 button。
+   本规则与 .grp .gh 同优先级且在其后:border 一体声明,免得 border:0 吃掉组头下边线 */
+.gh.row-btn {
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: inherit;
+}
+.hit.row-btn {
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+}
+.grp .gh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  width: 100%;
+}
+.grp .gh:hover {
+  background: var(--accent-soft);
+}
+.grp .gh .t {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  text-align: left;
+}
+.grp .gh .d,
+.grp .hit .d {
+  font-size: 11px;
+  color: var(--text-2);
+  flex: none;
+}
+.grp .hit {
+  display: flex;
+  gap: 9px;
+  padding: 5px 14px 5px 32px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  align-items: center;
+}
+.grp .hit:hover {
+  background: var(--accent-soft);
+}
+.grp .hit .idx {
+  width: 20px;
+  flex: none;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.grp .hit .t {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.grp .hit .bd {
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 0 5px;
+  background: var(--line);
+  color: var(--text-2);
+  flex: none;
+}
+mark {
+  background: #fff2a8;
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+@media (prefers-color-scheme: dark) {
+  mark {
+    background: #4d451a;
+    color: #f6e9a8;
+  }
+}
+:root[data-theme='dark'] mark {
+  background: #4d451a;
+  color: #f6e9a8;
+}
+:root[data-theme='light'] mark {
+  background: #fff2a8;
+  color: inherit;
+}
+/* 票 08:搜索定位高亮(2026-08-06 原型确认)——进入时黄色脉冲驻留 10s
+   (前 8s 保持、末 2s 渐隐,mark 同族色,与 hover 的紫区分),脉冲后左缘
+   accent 竖条常驻,点击任意提问行清除。起色变量 scope 在 .q 上,
+   四段式与 mark/warn 同款(功能色不随外观方案变) */
+.qlist .q {
+  --locate-from: #fff2a8;
+}
+@media (prefers-color-scheme: dark) {
+  .qlist .q {
+    --locate-from: #4d451a;
+  }
+}
+:root[data-theme='dark'] .qlist .q {
+  --locate-from: #4d451a;
+}
+:root[data-theme='light'] .qlist .q {
+  --locate-from: #fff2a8;
+}
+@keyframes locate-pulse {
+  0%,
+  80% {
+    background: var(--locate-from);
+  }
+  100% {
+    background: transparent;
+  }
+}
+.qlist .q.located {
+  animation: locate-pulse 10s ease-out;
+}
+.qlist .q.focused {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+/* 票 06:顶部三档横幅 + 日期分组 + 排序控件(原型 .banner / .daygrp / .dayhd) */
+.banner {
+  display: flex;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  border: 1px solid transparent;
+  margin-bottom: 8px;
+  line-height: 1.7;
+}
+.banner .bi {
+  flex: none;
+}
+.banner.info {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.banner.risk {
+  background: #fdf3e3;
+  border-color: #e0b483;
+  color: #7a4d1c;
+}
+@media (prefers-color-scheme: dark) {
+  .banner.risk {
+    background: #33251a;
+    border-color: #7a5330;
+    color: #f0bd8c;
+  }
+}
+:root[data-theme='dark'] .banner.risk {
+  background: #33251a;
+  border-color: #7a5330;
+  color: #f0bd8c;
+}
+:root[data-theme='light'] .banner.risk {
+  background: #fdf3e3;
+  border-color: #e0b483;
+  color: #7a4d1c;
+}
+.banner a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.qbar .qctl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.qbar .lnk {
+  font-size: 11px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.qbar .lnk:hover {
+  color: var(--text);
+}
+.qlist .daygrp {
+  border-top: 1px solid var(--line);
+}
+.qlist .daygrp:first-child {
+  border-top: 0;
+}
+.qlist .dayhd {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 13px;
+  font-size: 10.5px;
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+}
+.qlist .dayhd:hover {
+  color: var(--text);
+}
+.qlist .dayhd .cv::before {
+  content: '▾';
+  font-size: 9px;
+}
+.qlist .daygrp.fold .dayhd .cv::before {
+  content: '▸';
+}
 /* 票 05:点提问就地展开整轮(原型 .q.open / .turn / .ans / .fetched / .rebuild) */
 .qlist .q {
   cursor: pointer;
@@ -1546,6 +1820,147 @@ body {
   font-size: 11.5px;
   color: var(--text-2);
   padding: 12px 0;
+}
+/* 票 07:轮内块(原型 .blk/.bh/.bb/.step/.rt/.warn/.unknown) */
+.turn .blk {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--card);
+  margin: 5px 0;
+}
+.turn .bh {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.turn .bh:hover {
+  background: var(--accent-soft);
+}
+.turn .bh .cv {
+  color: var(--text-2);
+  font-size: 10px;
+  font-style: normal;
+  flex: none;
+}
+.turn .bh .nm {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11.5px;
+  flex: none;
+}
+.turn .bh .sum {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.turn .bb {
+  border-top: 1px solid var(--line);
+  padding: 8px 12px 10px;
+  font-size: 11.5px;
+  line-height: 1.7;
+}
+.turn .bb .lb {
+  font-size: 10.5px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 6px 0 3px;
+}
+.turn .bb .lb:first-child {
+  margin-top: 0;
+}
+.turn .bb pre {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.65;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 7px 9px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 170px;
+  overflow: auto;
+}
+.turn .blk.think {
+  border-style: dashed;
+}
+.turn .blk.sub {
+  border-color: var(--accent);
+}
+.turn .blk.sub .bh {
+  color: var(--accent);
+}
+.turn .bb .tk {
+  white-space: pre-wrap;
+}
+.turn .step {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+  border-top: 1px dashed var(--line);
+}
+.turn .step:first-of-type {
+  border-top: 0;
+}
+.turn .step .sn {
+  width: 18px;
+  flex: none;
+  color: var(--text-2);
+  font-family: ui-monospace, Menlo, monospace;
+}
+.turn .rt {
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--line-strong);
+  margin: 3px 0;
+  color: var(--text-2);
+}
+/* 不可还原/被截断/加密/不可归位:一律显式标注,不静默 */
+.turn .warn {
+  border: 1px dashed #d79a5b;
+  background: #fdf3e3;
+  color: #7a4d1c;
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 11px;
+  line-height: 1.65;
+  margin: 6px 0;
+}
+@media (prefers-color-scheme: dark) {
+  .turn .warn {
+    background: #33251a;
+    border-color: #8a5f34;
+    color: #f0bd8c;
+  }
+}
+:root[data-theme='dark'] .turn .warn {
+  background: #33251a;
+  border-color: #8a5f34;
+  color: #f0bd8c;
+}
+:root[data-theme='light'] .turn .warn {
+  background: #fdf3e3;
+  border-color: #d79a5b;
+  color: #7a4d1c;
+}
+.turn .mnote {
+  font-size: 11px;
+  color: var(--text-2);
+}
+.turn .unknown {
+  font-size: 11px;
+  color: var(--text-2);
+  border: 1px dotted var(--line-strong);
+  border-radius: 7px;
+  padding: 7px 10px;
+  margin: 8px 0;
+  line-height: 1.7;
 }
 
 /* ── skills-view:折叠文件表 + 文件抽屉 ── */
