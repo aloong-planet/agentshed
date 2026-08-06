@@ -59,6 +59,24 @@ const GLOBAL_RULES = [
     }
   },
   {
+    // appearance C3:组件只绑 token;设置页 swatch 故意展示各方案样色,排除。
+    name: '组件内不得硬编码外观方案强调色(应走 --accent 系)',
+    cross: true,
+    check() {
+      const bad = []
+      const SCHEME = ['#8a67ab', '#a084c7', '#4a6fa5', '#3a5a88', '#6b5220', '#c4a46a']
+      const dir = join(ROOT, 'src/renderer/src')
+      for (const name of readdirSync(dir)) {
+        if (!name.endsWith('.tsx') && !name.endsWith('.ts')) continue
+        if (name === 'SettingsPane.tsx') continue
+        const f = `src/renderer/src/${name}`
+        const src = (read(f) ?? '').toLowerCase()
+        for (const c of SCHEME) if (src.includes(c)) bad.push(`${f}:硬编码方案色 ${c}`)
+      }
+      return bad
+    }
+  },
+  {
     name: '原型里的图表容器都要声明所属共享块(否则无法核对一致性)',
     check() {
       const bad = []

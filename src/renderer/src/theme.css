@@ -13,9 +13,23 @@
   --accent-soft: #f0ebf6;
   --ok-bg: #dcfce7;
   --ok-fg: #166534;
+  /* 语义色:不随 scheme 改色相(C2);可有 light/dark */
+  --warn-bg: #fdecdc;
   --warn-fg: #b3552f;
   --err-bg: #fee2e2;
   --err-fg: #991b1b;
+  /* 危险操作按钮(卸载确认等) */
+  --danger-bg: #b91c1c;
+  --danger-fg: #ffffff;
+  /* 存疑/风险 pill(fork 剥离存疑);暖色固定语义 */
+  --risk-border: #d79a5b;
+  --risk-fg: #b3703a;
+  /* 遮蔽/共存提示 pill */
+  --note-bg: #fff6b8;
+  --note-fg: #5c5100;
+  /* 图表悬浮 tip:固定深底高对比,不跟纸感走 */
+  --tip-bg: #1b1b1f;
+  --tip-fg: #ffffff;
   --cl-bg: #e8e0f3;
   --cl-fg: #6b4f92;
   --cx-bg: #dcefe4;
@@ -63,8 +77,18 @@ html[data-scheme='amber'] {
     --accent-soft: #2c2733;
     --ok-bg: #12301d;
     --ok-fg: #86efac;
+    --warn-bg: #3c2417;
+    --warn-fg: #f0a884;
     --err-bg: #2a1416;
     --err-fg: #fca5a5;
+    --danger-bg: #b91c1c;
+    --danger-fg: #ffffff;
+    --risk-border: #8a5f34;
+    --risk-fg: #f0bd8c;
+    --note-bg: #3a3316;
+    --note-fg: #f0dd8a;
+    --tip-bg: #1b1b1f;
+    --tip-fg: #ffffff;
     --cl-bg: #3a3153;
     --cl-fg: #c9b3ec;
     --cx-bg: #1d3a2b;
@@ -664,22 +688,8 @@ body {
   color: var(--text-2);
 }
 .pill.forkq {
-  border: 1px dashed #d79a5b;
-  color: #b3703a;
-}
-@media (prefers-color-scheme: dark) {
-  .pill.forkq {
-    border-color: #8a5f34;
-    color: #f0bd8c;
-  }
-}
-:root[data-theme='dark'] .pill.forkq {
-  border-color: #8a5f34;
-  color: #f0bd8c;
-}
-:root[data-theme='light'] .pill.forkq {
-  border-color: #d79a5b;
-  color: #b3703a;
+  border: 1px dashed var(--risk-border);
+  color: var(--risk-fg);
 }
 .pill.on {
   background: var(--ok-bg);
@@ -736,6 +746,13 @@ body {
 .md h3 {
   font-size: 13.5px;
   margin: 10px 0 6px;
+  color: var(--accent-deep);
+}
+.md a {
+  color: var(--accent);
+}
+.md a:hover {
+  color: var(--accent-deep);
 }
 .md code {
   background: var(--bg);
@@ -781,14 +798,8 @@ body {
   color: var(--text-2);
 }
 .pill.shadow {
-  background: #fff6b8;
-  color: #5c5100;
-}
-@media (prefers-color-scheme: dark) {
-  .pill.shadow {
-    background: #3a3316;
-    color: #f0dd8a;
-  }
+  background: var(--note-bg);
+  color: var(--note-fg);
 }
 .it.shadowed .nm,
 .it.shadowed .ds {
@@ -1153,18 +1164,12 @@ body {
   font-weight: 600;
 }
 .pill.warn {
-  background: #fdecdc;
-  color: #b3552f;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
 }
 .pill.plg {
   border: 1px solid var(--accent);
   color: var(--accent);
-}
-@media (prefers-color-scheme: dark) {
-  .pill.warn {
-    background: #3c2417;
-    color: #f0a884;
-  }
 }
 .it.row-btn {
   font: inherit;
@@ -1308,9 +1313,9 @@ body {
   color: var(--text);
 }
 .cfg-btn.danger {
-  background: #b91c1c;
-  border-color: #b91c1c;
-  color: #fff;
+  background: var(--danger-bg);
+  border-color: var(--danger-bg);
+  color: var(--danger-fg);
 }
 .toasts {
   position: fixed;
@@ -1347,8 +1352,8 @@ body {
   bottom: calc(100% + 7px);
   left: 50%;
   transform: translateX(-50%);
-  background: #1b1b1f;
-  color: #fff;
+  background: var(--tip-bg);
+  color: var(--tip-fg);
   font-size: 11px;
   line-height: 1.4;
   padding: 5px 9px;
@@ -1366,7 +1371,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: #1b1b1f;
+  border-top-color: var(--tip-bg);
   z-index: 20;
   pointer-events: none;
 }

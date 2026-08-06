@@ -9,7 +9,7 @@
 
 ## Solution
 
-作为默认落地页,把两侧 agent 的全局面貌汇成一屏:顶部两张侧汇总卡,下面按组件类型分栏(Token/Skills/Subagents/Plugins/MCP/Memory/配置)。全部只读,唯一的写操作是 Skills 装到项目(见 skill-install spec)。
+作为默认落地页,把两侧 agent 的全局面貌汇成一屏:顶部两张侧汇总卡,下面按组件类型分栏(Token/Skills/Subagents/Plugins/MCP/Memory/配置)。全部只读,唯一的写操作是 Skills 装到项目(见 skill-install spec)。**本 app 外观方案(紫/雾蓝/琥珀褐)不在本页配置分栏**,见 [appearance](appearance.md)(Rail 设置维)。
 
 ## User Stories
 
