@@ -119,6 +119,8 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         tabIndex={disk ? 0 : undefined}
         onClick={() => void toggle()}
         onKeyDown={(e) => {
+          // 行内动作按钮(装/卸)的键盘激活会冒泡到这里;只响应行自身,免得连带展开(A7)
+          if (e.target !== e.currentTarget) return
           if (disk && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault()
             void toggle()
@@ -176,8 +178,16 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
               )}
             </div>
           )}
-          {loading && <div className="files empty">列举中…</div>}
-          {listErr && <div className="files empty">{listErr}</div>}
+          {loading && (
+            <div className="files">
+              <div className="empty">列举中…</div>
+            </div>
+          )}
+          {listErr && (
+            <div className="files">
+              <div className="empty">{listErr}</div>
+            </div>
+          )}
           {!loading && !listErr && listing && (
             <div className="files-card">
               <div className="files-sum">
