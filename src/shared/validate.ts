@@ -102,6 +102,11 @@ export function validateSessionPage(v: unknown): ValidateResult {
   if (typeof v['bytes'] !== 'number') return fail('page.bytes', '需为 number')
   if (typeof v['forkState'] !== 'string' || !FORK_STATES.has(v['forkState']))
     return fail('page.forkState', `非法 forkState: ${String(v['forkState'])}`)
+  if (typeof v['forkPoints'] !== 'number') return fail('page.forkPoints', '需为 number')
+  if (v['forkParentTitle'] !== null && typeof v['forkParentTitle'] !== 'string')
+    return fail('page.forkParentTitle', '需为 string|null')
+  if (v['forkParentFile'] !== null && typeof v['forkParentFile'] !== 'string')
+    return fail('page.forkParentFile', '需为 string|null')
   const qs = v['questions']
   if (!Array.isArray(qs)) return fail('page.questions', '需为数组')
   for (let i = 0; i < qs.length; i++) {

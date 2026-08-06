@@ -1490,6 +1490,91 @@ body {
   width: 44px;
   text-align: right;
 }
+/* 票 06:顶部三档横幅 + 日期分组 + 排序控件(原型 .banner / .daygrp / .dayhd) */
+.banner {
+  display: flex;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  border: 1px solid transparent;
+  margin-bottom: 8px;
+  line-height: 1.7;
+}
+.banner .bi {
+  flex: none;
+}
+.banner.info {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.banner.risk {
+  background: #fdf3e3;
+  border-color: #e0b483;
+  color: #7a4d1c;
+}
+@media (prefers-color-scheme: dark) {
+  .banner.risk {
+    background: #33251a;
+    border-color: #7a5330;
+    color: #f0bd8c;
+  }
+}
+:root[data-theme='dark'] .banner.risk {
+  background: #33251a;
+  border-color: #7a5330;
+  color: #f0bd8c;
+}
+:root[data-theme='light'] .banner.risk {
+  background: #fdf3e3;
+  border-color: #e0b483;
+  color: #7a4d1c;
+}
+.banner a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.qbar .qctl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.qbar .lnk {
+  font-size: 11px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.qbar .lnk:hover {
+  color: var(--text);
+}
+.qlist .daygrp {
+  border-top: 1px solid var(--line);
+}
+.qlist .daygrp:first-child {
+  border-top: 0;
+}
+.qlist .dayhd {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 13px;
+  font-size: 10.5px;
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+}
+.qlist .dayhd:hover {
+  color: var(--text);
+}
+.qlist .dayhd .cv::before {
+  content: '▾';
+  font-size: 9px;
+}
+.qlist .daygrp.fold .dayhd .cv::before {
+  content: '▸';
+}
 /* 票 05:点提问就地展开整轮(原型 .q.open / .turn / .ans / .fetched / .rebuild) */
 .qlist .q {
   cursor: pointer;

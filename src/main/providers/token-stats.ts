@@ -48,6 +48,8 @@ interface ClaudeFileAgg {
   at: number | null
   /** 提问索引(不含提问文本,见 question-index.ts) */
   questions: QuestionRec[]
+  /** 主链分叉处数(票 06 横幅:"本会话有 N 处分叉";0 = 线性会话不出横幅) */
+  forkPoints: number
   entries: PackedEntry[]
 }
 
@@ -95,12 +97,13 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg
  *     读出来是 undefined,而 `undefined === undefined` 会让 Codex 的重放指纹校验
  *     全部"通过"并盲剥——静默剥错正是票 03b 要防的那件事。
  * v9:CodexFileAgg 加 titleFromThread(retitle 不得顶掉 thread_name,spec A4 优先级)。
+ * v10:ClaudeFileAgg 加 forkPoints(票 06 分叉横幅信号)。
  *
  * **导出仅供测试**——让守卫测试能用 `CACHE_VERSION - 1` 构造"紧邻上一版"的缓存,
  * 而不是硬编码一个会随版本号增长而失效的字面量。产线代码不得据它做分支判断:
  * 唯一的版本比较在 loadCache 里,多一处就多一处会漂移的口径。
  */
-export const CACHE_VERSION = 9
+export const CACHE_VERSION = 10
 
 interface CacheShape {
   version: typeof CACHE_VERSION
@@ -274,7 +277,19 @@ export class TokenEngine {
   async sessionQuestions(
     roots: ScanRoots,
     file: string
-  ): Promise<{ side: AgentSide; questions: QuestionRec[]; forkState: ForkState; title: string; at: number | null }> {
+  ): Promise<{
+    side: AgentSide
+    questions: QuestionRec[]
+    forkState: ForkState
+    title: string
+    at: number | null
+    /** Claude 主链分叉处数(横幅"本会话有 N 处分叉");Codex 恒 0 */
+    forkPoints: number
+    /** Codex fork 且父在扫描集内时的父会话标题/文件(stripped 与 uncertain 都给,
+     * 由渲染层按档呈现);父缺失或 Claude 侧为 null */
+    forkParentTitle: string | null
+    forkParentFile: string | null
+  }> {
     const cached = this.cache.files[file]
     if (!cached) throw new Error('会话不在索引中,请先全局刷新')
     const sig = sigOf(file)
@@ -308,7 +323,16 @@ export class TokenEngine {
     }
     if (agg.kind === 'claude') {
       // Claude 的分叉在索引阶段就由末叶回溯消解,没有"重放前缀"这回事
-      return { side: 'claude', questions: agg.questions, forkState: 'none', title: agg.title, at: agg.at }
+      return {
+        side: 'claude',
+        questions: agg.questions,
+        forkState: 'none',
+        title: agg.title,
+        at: agg.at,
+        forkPoints: agg.forkPoints,
+        forkParentTitle: null,
+        forkParentFile: null
+      }
     }
     let parent: FileAgg | undefined
     if (agg.parentId) {
@@ -325,7 +349,16 @@ export class TokenEngine {
       agg.forkedAt,
       agg.parentId !== null
     )
-    return { side: 'codex', questions: shown.questions, forkState: shown.state, title: agg.title, at: agg.at }
+    return {
+      side: 'codex',
+      questions: shown.questions,
+      forkState: shown.state,
+      title: agg.title,
+      at: agg.at,
+      forkPoints: 0,
+      forkParentTitle: parent?.title ?? null,
+      forkParentFile: parent?.file ?? null
+    }
   }
 }
 
@@ -715,7 +748,8 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   // 记录**元数**也要守:版本号只拦跨版本,同版本内的手工损坏与未来漂移只有这道闸。
   // 少一位会让指纹比对退化成 undefined === undefined,恒真,于是盲剥。
   if (qs.length > 0 && (!Array.isArray(qs[0]) || (qs[0] as unknown[]).length !== 7)) return false
-  if (a['kind'] === 'claude') return Array.isArray(a['entries'])
+  // forkPoints 缺失(undefined)会让横幅判定拿到假值,同版本内的损坏只有这道闸拦
+  if (a['kind'] === 'claude') return Array.isArray(a['entries']) && typeof a['forkPoints'] === 'number'
   // titleFromThread 缺失(undefined)是假 false:会让 thread_name 会话被 retitle 顶掉
   if (a['kind'] === 'codex') return Array.isArray(a['events']) && typeof a['titleFromThread'] === 'boolean'
   return false
@@ -792,6 +826,7 @@ async function parseClaudeFile(
   return {
     kind: 'claude',
     file,
+    forkPoints: idx.forkPoints(),
     projectKey,
     // 没有任何真实提问的会话不入列(spec A3a)。实测某项目 1511 个会话里
     // 1004 个只有一条 Warmup —— 照列会让 66% 的行是 uuid 文件名,而本功能

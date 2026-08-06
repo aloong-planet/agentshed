@@ -560,8 +560,11 @@ describe('缓存版本迁移(真 bug 回归)', () => {
   // 下次升号后 loadCache 会因版本不符先把整份缓存丢掉,该文件照样重算——用例转为
   // **空过**,再也测不到 isWellFormedAgg。(本用例原本写死 5,升到 7 时就已经空过了。)
   it.each([
-    ['file', { projectKey: 'X', listed: true, title: '缓存里的陈旧标题', at: 1, questions: [] }],
-    ['questions', { file: 'X', projectKey: 'X', listed: true, title: '缓存里的陈旧标题', at: 1 }],
+    // 各行只缺目标字段,其余齐全(含 forkPoints)——缺两个字段的 fixture 会让
+    // 守卫少查一条也照样红,测不出目标那条
+    ['file', { projectKey: 'X', listed: true, title: '缓存里的陈旧标题', at: 1, questions: [], forkPoints: 0 }],
+    ['questions', { file: 'X', projectKey: 'X', listed: true, title: '缓存里的陈旧标题', at: 1, forkPoints: 0 }],
+    ['forkPoints(票 06 横幅信号)', { file: 'X', projectKey: 'X', listed: true, title: '缓存里的陈旧标题', at: 1, questions: [] }],
     // 票 03b:记录元数从 6 变 7(加内容指纹)。旧记录读出来第 7 位是 undefined,
     // 而 undefined === undefined 会让 Codex 重放指纹校验恒真、进而盲剥。
     [
@@ -572,6 +575,7 @@ describe('缓存版本迁移(真 bug 回归)', () => {
         listed: true,
         title: '缓存里的陈旧标题',
         at: 1,
+        forkPoints: 0,
         questions: [[0, 10, 20, 1, 0, 0]]
       }
     ]
@@ -622,7 +626,7 @@ describe('缓存版本迁移(真 bug 回归)', () => {
       return Object.keys((hit as { agg: Record<string, unknown> }).agg).sort()
     }
     expect(keysOf('claude')).toEqual([
-      'at', 'entries', 'file', 'kind', 'listed', 'projectKey', 'questions', 'title'
+      'at', 'entries', 'file', 'forkPoints', 'kind', 'listed', 'projectKey', 'questions', 'title'
     ])
     expect(keysOf('codex')).toEqual([
       'at', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'parentId', 'projectKey', 'questions', 'sessionId', 'title', 'titleFromThread'
@@ -940,6 +944,56 @@ describe('sessionQuestions(会话页服务)', () => {
     await e.build(roots(), [proj])
     rmSync(gone)
     expect(e.isFresh(gone), '文件已删为假').toBe(false)
+  })
+
+  // 票 06:横幅数据面——claude 分叉处数;codex stripped 时带父标题与父文件
+  it('claude 有分叉:sessionQuestions 给出 forkPoints;线性会话为 0', async () => {
+    const q = (u: string, p: string | null, t: string): string =>
+      JSON.stringify({ type: 'user', uuid: u, parentUuid: p, timestamp: '2026-07-30T02:00:00Z', message: { role: 'user', content: t } })
+    const a = (u: string, p: string): string =>
+      JSON.stringify({ type: 'assistant', uuid: u, parentUuid: p, timestamp: '2026-07-30T02:00:01Z', message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }] } })
+    const forked = mkClaudeFile('forked.jsonl', [q('u1', null, '问一'), a('a1', 'u1'), q('u2b', 'a1', '走岔的'), q('u2', 'a1', '问二')])
+    const linear = mkClaudeFile('linear.jsonl', [q('v1', null, '问一'), a('b1', 'v1'), q('v2', 'b1', '问二')])
+    const e = engine()
+    await e.build(roots(), [proj])
+    expect((await e.sessionQuestions(roots(), forked)).forkPoints).toBe(1)
+    expect((await e.sessionQuestions(roots(), linear)).forkPoints).toBe(0)
+  })
+
+  it('codex stripped fork:带父会话标题与父文件;孤儿 fork 两者为 null', async () => {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const q = (ts: string, m: string): string =>
+      JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })
+    const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
+      JSON.stringify({ timestamp: ts, type: 'session_meta', payload: { cwd: proj, id, ...extra } })
+    const PARENT = '019f0000-aaaa-7000-8000-000000000031'
+    const CHILD = '019f0000-bbbb-7000-8000-000000000032'
+    const ORPHAN = '019f0000-cccc-7000-8000-000000000033'
+    const parentFile = join(d, `rollout-${PARENT}.jsonl`)
+    const childFile = join(d, `rollout-${CHILD}.jsonl`)
+    const orphanFile = join(d, `rollout-${ORPHAN}.jsonl`)
+    writeFileSync(parentFile, [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', '父问一')].join('\n') + '\n')
+    writeFileSync(
+      childFile,
+      [meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }), q('2026-07-30T02:00:00Z', '父问一'), q('2026-07-30T02:00:05Z', '子的新问')].join('\n') + '\n'
+    )
+    writeFileSync(
+      orphanFile,
+      [meta('2026-07-30T03:00:00Z', ORPHAN, { forked_from_id: '019f0000-dead-7000-8000-000000000099' }), q('2026-07-30T03:00:00Z', '孤儿的问')].join('\n') + '\n'
+    )
+    const e = engine()
+    await e.build(roots(), [proj])
+    const child = await e.sessionQuestions(roots(), childFile)
+    expect(child.forkState).toBe('stripped')
+    expect(child.forkParentTitle).toBe('父问一')
+    expect(child.forkParentFile).toBe(parentFile)
+    const orphan = await e.sessionQuestions(roots(), orphanFile)
+    expect(orphan.forkState).toBe('uncertain')
+    expect(orphan.forkParentTitle).toBeNull()
+    expect(orphan.forkParentFile).toBeNull()
+    // claude 侧无父概念,恒 null;forkPoints 对 codex 恒 0
+    expect(child.forkPoints).toBe(0)
   })
 
   it('缓存里有、文件却被删了:明确报错,不静默空列表(维度1 补:spec 失败路径)', async () => {

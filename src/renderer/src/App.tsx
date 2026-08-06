@@ -129,6 +129,7 @@ export function App(): JSX.Element {
                     setOpenSession(null)
                     setBackToSessions(true)
                   }}
+                  onOpenSession={(f) => setOpenSession(f)}
                 />
               ) : selected ? (
                 <DetailPane

@@ -462,12 +462,13 @@ test('会话页:列出全部提问,字段齐全,返回回到会话分栏', async
   await expect(win.locator('.smeta')).toContainText('2 提问')
   await expect(win.locator('.smeta')).toContainText('tok')
 
-  // 行:序号 / 全文 / 工具计数 / 时间;两条真实提问,工具回灌不算
+  // 行:序号 / 全文 / 工具计数 / 时间;两条真实提问,工具回灌不算。
+  // 默认倒序(2026-08-06 裁定):最新的 02 在前,序号仍是原始轮次号
   const qs = win.locator('.qlist .q')
   await expect(qs).toHaveCount(2)
-  await expect(qs.nth(0).locator('.idx')).toHaveText('01')
-  await expect(qs.nth(0).locator('.txt')).toHaveText('示例提问')
-  await expect(qs.nth(1).locator('.txt')).toHaveText('第二个提问')
+  await expect(qs.nth(0).locator('.idx')).toHaveText('02')
+  await expect(qs.nth(0).locator('.txt')).toHaveText('第二个提问')
+  await expect(qs.nth(1).locator('.txt')).toHaveText('示例提问')
   await expect(qs.nth(0).locator('.tm')).not.toHaveText('—')
   await expect(win.locator('.qbar .grp-t')).toContainText('提问(主干)· 2 条')
 
@@ -586,22 +587,102 @@ test('会话页:默认全部折叠;点提问展开整轮正文与取回脚注,�
   await expect(win.locator('.qlist .q')).toHaveCount(2)
   await expect(win.locator('.turn')).toHaveCount(0)
 
-  // 点第一条:提问行自己铺开(.open,不另设复述块),下面出整轮正文 + 取回脚注
-  await win.locator('.qlist .q').first().click()
+  // 点 01(默认倒序,首行是 02——按文本定位不赌位置):提问行自己铺开(.open,
+  // 不另设复述块),下面出整轮正文 + 取回脚注
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
   await expect(win.locator('.qlist .q.open .txt')).toHaveText('示例提问')
   await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
   await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
 
-  // 展开第二条不影响第一条(各轮独立);第二轮没有正文,脚注照出(不造假的占位)
-  await win.locator('.qlist .q').nth(1).click()
+  // 展开另一条不影响已开的(各轮独立);第二轮没有正文,脚注照出(不造假的占位)
+  await win.locator('.qlist .q', { hasText: '第二个提问' }).click()
   await expect(win.locator('.qlist .q.open')).toHaveCount(2)
   await expect(win.locator('.turn')).toHaveCount(2)
   await expect(win.locator('.turn .ans')).toHaveCount(1)
 
-  // 再点第一条:收起,其余不动
-  await win.locator('.qlist .q').first().click()
+  // 再点 01:收起,其余不动
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
   await expect(win.locator('.turn')).toHaveCount(1)
   await expect(win.locator('.qlist .q.open')).toHaveCount(1)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 06:日期分组折叠 + 正序/倒序 + 展开跨排序保持
+test('会话页:跨天分组可折叠;倒序组与组内同翻、序号不变;展开跨排序保持', async () => {
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+
+  // 两天两组,组头带当日条数;qhead 带天数
+  await expect(win.locator('.daygrp')).toHaveCount(2)
+  await expect(win.locator('.dayhd').first()).toContainText('1 条')
+  await expect(win.locator('.qbar .grp-t')).toContainText('2 天')
+
+  // 默认倒序(2026-08-06 用户裁定):首行是最新的 02
+  await expect(win.locator('.qlist .q').first().locator('.idx'), '默认倒序,首行应是 02').toHaveText('02')
+  // 展开 01,然后切正序:仍展开、序号不变、组序与组内一起翻
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await win.locator('.qbar .seg button', { hasText: '正序' }).click()
+  await expect(win.locator('.qlist .q').first().locator('.idx'), '正序后首行应是原 01').toHaveText('01')
+  const openRow = win.locator('.qlist .q.open')
+  await expect(openRow, '已展开的轮次跨排序保持').toHaveCount(1)
+  await expect(openRow.locator('.idx'), '序号恒为原始轮次号').toHaveText('01')
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+
+  // 折叠 01 所在的那天:该天的行连同已展开的轮一并隐藏;重开仍是展开的。
+  // 折叠后 .q.open 不再渲染,故先记下组头日期,重开时按日期重定位
+  const day01hd = win.locator('.daygrp', { has: win.locator('.q.open') }).locator('.dayhd')
+  const dayLabel = (await day01hd.innerText()).split(' · ')[0].trim()
+  await day01hd.click()
+  await expect(win.locator('.q.open')).toHaveCount(0)
+  await expect(win.locator('.turn')).toHaveCount(0)
+  await win.locator('.dayhd', { hasText: dayLabel }).click()
+  await expect(win.locator('.q.open')).toHaveCount(1)
+  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+
+  // 全部收起 → 标签翻转、全部行隐藏;全部展开还原
+  await win.locator('.qbar .lnk').click()
+  await expect(win.locator('.qlist .q')).toHaveCount(0)
+  await expect(win.locator('.qbar .lnk')).toHaveText('全部展开')
+  await win.locator('.qbar .lnk').click()
+  await expect(win.locator('.qlist .q')).toHaveCount(2)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// 票 06:顶部横幅三档——stripped info(父标题可点直达父会话)与孤儿 risk
+test('会话页横幅:fork 已剥离标 info 且父标题直达;父缺失标 risk 且明说对照核对', async () => {
+  const l = await launch(undefined, mkForkHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+
+  // 子会话(已剥离):info 横幅带父标题,点击直达父会话页
+  await win.locator('.pane-body .card .se', { hasText: '子会话的新问' }).click()
+  const info = win.locator('.banner.info')
+  await expect(info).toContainText('fork 自')
+  await expect(info).toContainText('父会话第一问')
+  await expect(info).toContainText('重放前缀已剥离')
+  await info.locator('a').click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('父会话第一问')
+  // 父会话不是 fork:无任何横幅
+  await expect(win.locator('.banner')).toHaveCount(0)
+
+  // 孤儿 fork:risk 横幅,明说可能多剥/少剥、请对照核对——不给假确定感
+  await win.locator('.sback').click()
+  await win.locator('.pane-body .card .se', { hasText: '孤儿会话的问' }).click()
+  const risk = win.locator('.banner.risk')
+  await expect(risk).toContainText('不在扫描集内')
+  await expect(risk).toContainText('可能多剥(丢消息)或少剥(重复)')
+  await expect(risk).toContainText('请对照原文核对')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -630,7 +711,7 @@ test('会话页:文件被追加(签名不符)后点提问,仍取回正确的整�
       message: { role: 'user', content: '追加的第三问' }
     }) + '\n'
   )
-  await win.locator('.qlist .q').first().click()
+  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
   await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
   await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
 

@@ -192,6 +192,9 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     tokens: sessionTokens.get(file) ?? 0,
     bytes: statSync(file).size,
     forkState: q.forkState,
+    forkPoints: q.forkPoints,
+    forkParentTitle: q.forkParentTitle,
+    forkParentFile: q.forkParentFile,
     questions
   }
   assertSessionPage(page)
