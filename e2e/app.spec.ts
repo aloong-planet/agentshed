@@ -900,11 +900,17 @@ test('会话搜索:默认搜提问命中分组;正文词切全文才命中;点�
   await expect(win.locator('.grp .hit')).toHaveCount(1)
   await expect(win.locator('.grp .hit .bd')).toHaveText('正文')
 
-  // 点命中直达该会话的该条提问(01 行进入视口;默认倒序下它在列表尾部)
+  // 点命中直达该会话的该条提问(01 行进入视口;默认倒序下它在列表尾部)。
+  // 定位高亮(2026-08-06 原型确认):脉冲 located + 焦点竖条 focused;
+  // 点击任意提问行后竖条清除。10s 脉冲的播完态不在此等待(时序不赌)。
   await win.locator('.grp .hit').click()
   await expect(win.locator('.pane-head .stitle')).toHaveText('示例提问')
   const row01 = win.locator('.qlist .q', { hasText: '示例提问' })
   await expect(row01).toBeInViewport()
+  await expect(row01).toHaveClass(/located/)
+  await expect(row01).toHaveClass(/focused/)
+  await win.locator('.qlist .q', { hasText: '第二个提问' }).click()
+  await expect(row01).not.toHaveClass(/focused/)
 
   expect(l.errors).toEqual([])
   await close(l)

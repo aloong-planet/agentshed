@@ -1646,6 +1646,39 @@ mark {
   background: #fff2a8;
   color: inherit;
 }
+/* 票 08:搜索定位高亮(2026-08-06 原型确认)——进入时黄色脉冲驻留 10s
+   (前 8s 保持、末 2s 渐隐,mark 同族色,与 hover 的紫区分),脉冲后左缘
+   accent 竖条常驻,点击任意提问行清除。起色变量 scope 在 .q 上,
+   四段式与 mark/warn 同款(功能色不随外观方案变) */
+.qlist .q {
+  --locate-from: #fff2a8;
+}
+@media (prefers-color-scheme: dark) {
+  .qlist .q {
+    --locate-from: #4d451a;
+  }
+}
+:root[data-theme='dark'] .qlist .q {
+  --locate-from: #4d451a;
+}
+:root[data-theme='light'] .qlist .q {
+  --locate-from: #fff2a8;
+}
+@keyframes locate-pulse {
+  0%,
+  80% {
+    background: var(--locate-from);
+  }
+  100% {
+    background: transparent;
+  }
+}
+.qlist .q.located {
+  animation: locate-pulse 10s ease-out;
+}
+.qlist .q.focused {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 /* 票 06:顶部三档横幅 + 日期分组 + 排序控件(原型 .banner / .daygrp / .dayhd) */
 .banner {
   display: flex;

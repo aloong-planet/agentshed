@@ -147,6 +147,15 @@
     border-radius:5px;padding:5px 8px;line-height:1.6}
   .fetched{font-size:10.5px;color:var(--text-2);margin-top:8px}
   .rebuild{font-size:11.5px;color:var(--text-2);padding:12px 0}
+  /* 搜索定位高亮(2026-08-06 提案 v2):进入时播一次黄色背景脉冲吸引视线
+     (mark 同族,与 hover 的紫区分),脉冲后**焦点竖条常驻**——左缘 3px accent,
+     不动布局、不与 hover/展开的背景撞;点击任意提问行即清除,离开页面自然清 */
+  :root{--locate-from:#fff2a8}
+  @media (prefers-color-scheme:dark){:root{--locate-from:#4d451a}}
+  /* 高亮驻留 10s(2026-08-06 用户裁定):前 8s 保持,末 2s 渐隐 */
+  @keyframes locate-pulse{0%,80%{background:var(--locate-from)}100%{background:transparent}}
+  .q.located{animation:locate-pulse 10s ease-out}
+  .q.focused{box-shadow:inset 3px 0 0 var(--accent)}
   .unknown{font-size:11px;color:var(--text-2);border:1px dotted var(--line-strong);
     border-radius:7px;padding:7px 10px;margin:8px 0;line-height:1.7}
   .note{font-size:11px;color:var(--text-2);line-height:1.7;margin:12px 2px 0}
@@ -217,6 +226,8 @@
     <span class="hb on" data-fs="ok">索引就绪</span>
     <span class="hb" data-fs="stale">索引失效</span>
     <span class="hb" data-fs="error">单轮失败</span>
+    <span class="hl">演示·搜索定位</span>
+    <span class="hb" data-locate="4">跳到 05 并高亮</span>
   </div>
 
 <script>
@@ -751,7 +762,18 @@
       document.querySelectorAll('[data-ds]').forEach(x=>x.classList.toggle('on',x===b)); render(true) }
     if(b.dataset.fs){ fetchState=b.dataset.fs;
       document.querySelectorAll('[data-fs]').forEach(x=>x.classList.toggle('on',x===b)) }
+    if(b.dataset.locate!==undefined){
+      const row=document.querySelector(`[data-q="${b.dataset.locate}"]`);
+      if(row){ row.scrollIntoView({block:'center',behavior:'smooth'});
+        document.querySelectorAll('.q.focused').forEach(x=>x.classList.remove('focused'));
+        row.classList.remove('located'); void row.offsetWidth;  // 重触发动画
+        row.classList.add('located'); row.classList.add('focused') }
+    }
   });
+  // 焦点竖条:点击任意提问行即清除(用户已转移注意)
+  document.getElementById('qlist').addEventListener('click',e=>{
+    if(e.target.closest('.q')) document.querySelectorAll('.q.focused').forEach(x=>x.classList.remove('focused'));
+  },true);
 
   render(true);
 </script>
