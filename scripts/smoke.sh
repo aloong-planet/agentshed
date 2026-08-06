@@ -19,7 +19,11 @@ set -u
 set -m   # 后台任务自成进程组:$! 即 pgid,探测与击杀都以此为界
 cd "$(dirname "$0")/.."
 LOG=/tmp/agentshed-smoke.log
-PAT="CascadeProjects/agentshed/node_modules.*Electron.app/Contents/MacOS/Electron"
+# 组内 Electron 主进程特征(quiet 副本与官方 dist 路径都含此段)。
+# **不要**把仓库绝对路径写进正则:worktree、/tmp→/private/tmp、pnpm 布局一变就假死
+# (2026-08-06:写死 CascadeProjects/agentshed 时 /tmp worktree 下 60s 误红)。
+# 组外实例靠 userData 隔离,不会进本组 pgid,故组内只认 Electron 二进制即可。
+ELECTRON_BIN='Electron.app/Contents/MacOS/Electron'
 SMOKE_UD=$(mktemp -d /tmp/agentshed-smoke-ud.XXXXXX)
 CACHE="$SMOKE_UD/token-cache.json"
 # 真实 userData 的缓存:仅作"重定向失效"的诊断对照,本脚本绝不写它
@@ -33,7 +37,7 @@ EXIT_TIMEOUT=15    # 实测 ~1.4s:主进程按 1s 轮询父存活(见 src/main/i
 
 now_ms() { echo $(( $(date +%s%N) / 1000000 )); }
 DEVPID=""
-alive() { [ -n "$DEVPID" ] && pgrep -g "$DEVPID" -f "$PAT" >/dev/null 2>&1; }
+alive() { [ -n "$DEVPID" ] && pgrep -g "$DEVPID" -f "$ELECTRON_BIN" >/dev/null 2>&1; }
 cleanup() {
   [ -n "$DEVPID" ] && kill -9 -- "-$DEVPID" 2>/dev/null
   rm -rf "$SMOKE_UD"
@@ -50,7 +54,8 @@ die() {
 
 # 已有实例只提示不拦截——隔离后共存是特性。按 comm 过滤,pgrep -f 会被
 # 别人 argv 里的路径字符串误报(如某个 pkill 命令行),路径匹配不等于进程本体。
-OTHERS=$(pgrep -f "$PAT|Agentshed.app/Contents/MacOS/Agentshed" 2>/dev/null | while read -r p; do
+# 提示范围:本产品 Agentshed.app,或 argv 含 agentshed 的 Electron(dev 实例)。
+OTHERS=$(pgrep -f "Agentshed.app/Contents/MacOS/Agentshed|agentshed.*$ELECTRON_BIN|$ELECTRON_BIN.*agentshed" 2>/dev/null | while read -r p; do
   case "$(ps -o comm= -p "$p" 2>/dev/null)" in
     *Electron | *Agentshed) echo "$p" ;;
   esac
@@ -99,7 +104,7 @@ READY_MS=$(( $(now_ms) - T1 ))
 
 ERRS=$(grep -iE "Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败|uncaught" "$LOG" | head -5)
 
-EPID=$(pgrep -g "$DEVPID" -f "$PAT" | head -1)
+EPID=$(pgrep -g "$DEVPID" -f "$ELECTRON_BIN" | head -1)
 # 竞态守卫:app 可能写完就绪产物后立刻崩——EPID 取不到时,杀父与孤儿检查整段
 # 空转,若日志又没有错误行就是假绿。就绪后进程必须还活着,不在即失败。
 [ -z "$EPID" ] && die "就绪产物已写出,但 electron 进程已消失(写完即崩?)"
@@ -124,7 +129,7 @@ if [ -n "$ERRS" ]; then
 fi
 if [ "$LEFT" != "0" ]; then
   echo "SMOKE_FAIL: 孤儿防护未生效(${EXIT_TIMEOUT}s 内 electron 未自退)"
-  echo "--- 本组仍在的进程 ---"; pgrep -g "$DEVPID" -fl "$PAT"
+  echo "--- 本组仍在的进程 ---"; pgrep -g "$DEVPID" -fl "$ELECTRON_BIN"
   KEEP="/tmp/agentshed-smoke-fail-$(date +%Y%m%d-%H%M%S).log"
   cp "$LOG" "$KEEP" 2>/dev/null && echo "完整日志已存:$KEEP"
   echo "--- $LOG 末 25 行 ---"; tail -25 "$LOG"

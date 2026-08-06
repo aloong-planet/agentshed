@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { APPEARANCE_SCHEMES, DEFAULT_SCHEME, isAppearanceScheme } from './appearance'
+import {
+  APPEARANCE_SCHEMES,
+  DEFAULT_SCHEME,
+  isAppearanceScheme,
+  parsePrefs
+} from './appearance'
 
 describe('appearance scheme 契约', () => {
   it('默认方案为 purple', () => {
@@ -18,5 +23,14 @@ describe('appearance scheme 契约', () => {
     expect(isAppearanceScheme('')).toBe(false)
     expect(isAppearanceScheme(null)).toBe(false)
     expect(isAppearanceScheme(1)).toBe(false)
+  })
+
+  it('parsePrefs 只收合法对象', () => {
+    expect(parsePrefs({ scheme: 'blue' })).toEqual({ scheme: 'blue' })
+    expect(parsePrefs({ scheme: 'purple', extra: 1 })).toEqual({ scheme: 'purple' })
+    expect(parsePrefs({ scheme: 'neon' })).toBeNull()
+    expect(parsePrefs({})).toBeNull()
+    expect(parsePrefs(null)).toBeNull()
+    expect(parsePrefs('purple')).toBeNull()
   })
 })
