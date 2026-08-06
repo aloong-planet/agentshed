@@ -128,9 +128,61 @@ export function assertSessionPage(v: unknown): void {
   if (!r.ok) throw new Error(`会话页契约校验失败 — ${r.error}`)
 }
 
-// ── 单轮取回(getSessionTurn 通道,票 05)──
-// 本票 kind 只有 text;票 07 扩块类型时此处同步扩(白名单校验,未知 kind 在边界拒收)
-const TURN_KINDS = new Set(['text'])
+// ── 单轮取回(getSessionTurn 通道,票 05 立,票 07 扩全)──
+// kind 白名单校验:未知 kind 在边界拒收——新增块类型必须先过契约
+const SUB_STEP_KINDS = new Set(['text', 'tool'])
+
+function validateTurnBlock(b: Record<string, unknown>, at: string): ValidateResult {
+  const kind = b['kind']
+  // unknown 是聚合块无时间;其余 kind 一律要求 at: number|null
+  if (kind !== 'unknown' && b['at'] !== null && typeof b['at'] !== 'number')
+    return fail(`${at}.at`, '需为 number|null')
+  switch (kind) {
+    case 'text':
+      if (b['role'] !== 'assistant') return fail(`${at}.role`, `非法 role: ${String(b['role'])}`)
+      if (typeof b['body'] !== 'string') return fail(`${at}.body`, '需为 string')
+      return { ok: true }
+    case 'think':
+      if (typeof b['body'] !== 'string') return fail(`${at}.body`, '需为 string')
+      return { ok: true }
+    case 'reason': {
+      const t = b['titles']
+      if (!Array.isArray(t) || t.some((x) => typeof x !== 'string')) return fail(`${at}.titles`, '需为 string 数组')
+      return { ok: true }
+    }
+    case 'tool':
+      if (typeof b['name'] !== 'string') return fail(`${at}.name`, '需为 string')
+      if (typeof b['summary'] !== 'string') return fail(`${at}.summary`, '需为 string')
+      if (typeof b['input'] !== 'string') return fail(`${at}.input`, '需为 string')
+      if (b['output'] !== null && typeof b['output'] !== 'string') return fail(`${at}.output`, '需为 string|null')
+      if (typeof b['truncated'] !== 'boolean') return fail(`${at}.truncated`, '需为 boolean')
+      return { ok: true }
+    case 'sub': {
+      if (typeof b['name'] !== 'string') return fail(`${at}.name`, '需为 string')
+      if (typeof b['prompt'] !== 'string') return fail(`${at}.prompt`, '需为 string')
+      if (b['result'] !== null && typeof b['result'] !== 'string') return fail(`${at}.result`, '需为 string|null')
+      if (typeof b['unlinked'] !== 'boolean') return fail(`${at}.unlinked`, '需为 boolean')
+      const steps = b['steps']
+      if (!Array.isArray(steps)) return fail(`${at}.steps`, '需为数组')
+      for (let j = 0; j < steps.length; j++) {
+        const s: unknown = steps[j]
+        if (!isRecord(s)) return fail(`${at}.steps[${j}]`, '不是对象')
+        if (typeof s['kind'] !== 'string' || !SUB_STEP_KINDS.has(s['kind']))
+          return fail(`${at}.steps[${j}].kind`, `非法 step kind: ${String(s['kind'])}`)
+        if (typeof s['label'] !== 'string') return fail(`${at}.steps[${j}].label`, '需为 string')
+      }
+      return { ok: true }
+    }
+    case 'unknown': {
+      if (typeof b['count'] !== 'number') return fail(`${at}.count`, '需为 number')
+      const t = b['types']
+      if (!Array.isArray(t) || t.some((x) => typeof x !== 'string')) return fail(`${at}.types`, '需为 string 数组')
+      return { ok: true }
+    }
+    default:
+      return fail(`${at}.kind`, `非法 kind: ${String(kind)}`)
+  }
+}
 
 export function validateSessionTurn(v: unknown): ValidateResult {
   if (!isRecord(v)) return fail('turn', '不是对象')
@@ -141,11 +193,8 @@ export function validateSessionTurn(v: unknown): ValidateResult {
     const b: unknown = blocks[i]
     const at = `turn.blocks[${i}]`
     if (!isRecord(b)) return fail(at, '不是对象')
-    if (typeof b['kind'] !== 'string' || !TURN_KINDS.has(b['kind']))
-      return fail(`${at}.kind`, `非法 kind: ${String(b['kind'])}`)
-    if (b['role'] !== 'assistant') return fail(`${at}.role`, `非法 role: ${String(b['role'])}`)
-    if (b['at'] !== null && typeof b['at'] !== 'number') return fail(`${at}.at`, '需为 number|null')
-    if (typeof b['body'] !== 'string') return fail(`${at}.body`, '需为 string')
+    const r = validateTurnBlock(b, at)
+    if (!r.ok) return r
   }
   return { ok: true }
 }

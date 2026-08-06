@@ -84,12 +84,16 @@
 - C1 取回粒度 = **整轮**:该提问之后到下一条提问之前的全部内容(助手回复、工具调用与返回、subagent 派发)。只取末段文本会丢上下文。
 - C2 **偏移索引**:扫描阶段(搭 token 统计那一趟)记录每条提问及其轮次的字节起止;点击时 `createReadStream(file, {start, end})` **只读该区间**,与文件总大小无关 → 毫秒级。
 - C3 subagent 在轮内**就地可展开**:Claude 的 `subagents/` 子文件与内联 sidechain 记录、Codex 的 subagent thread 都归到派发它的那一步下面。
+  **实测修正(2026-08-06,票 07):"归到派发那一步下面"在两侧都不可靠达成**——四条候选连接键全部实测排除:`toolUseResult.agentId`(7 位)与 sidechain `agentId`(17 位)不同名空间(0/225);dispatch 行无 `promptId`(0/202);`outputFile` 指向后台任务输出文件而非转写;sidechain 首行文本与 dispatch prompt 相等 0/1299;Codex `spawn_agent` 出参无 thread id。按「零样本不写规则」与「不做猜测性配对」:sub 块两侧统一为**派发入参 + 返回 + 未归位 warn**,sidechain 行不渲染(已知类型,完整转写在源文件/嵌套文件)。模型的 `steps` 字段与渲染通路保留——harness 未来提供连接键时可归位。
 - C4 索引失效(文件被追加/重写,签名不符)→ **只重建该文件**的索引,不全量重扫;取回前校验一次。
   **落地(2026-08-04,票 04)**:`engine.sessionQuestions` 每次取回先比签名,不符则单文件重解析并**回写缓存落盘**(下次不再重建);Codex fork 的展示剥离与列表同源(同一个 stripReplayPrefix + 父查找),不复用 token 计量侧的结论。
 - C5 展开的内容里,工具调用默认折叠(名称 + 一行摘要),可再展开看完整入参与返回。
-- C6 **两侧完整度不对等,须显式标注**:Codex 的推理正文是 `encrypted_content`(**永远拿不到**,只有 `agent_reasoning` 明文小标题);Claude 有 `thinking` 明文。不可假装一致。
-- C7 Claude 超大工具结果正文被截断,旁挂 `tool-results/*.txt` 且 transcript 内无引用链 → 展示截断版并标注,不谎称完整。
-- C8 harness 噪声不渲染:需一份显示白名单(Claude 18 种 type + 18 种 attachment、Codex 30+ 种 payload.type)。`task_reminder`/`file-history-snapshot`/`token_count`/`thread_settings_applied` 等一律不显示。
+- C6 **两侧完整度不对等,须显式标注**:Codex 的推理正文是 `encrypted_content`(**永远拿不到**,明文只有小标题);~~Claude 有 `thinking` 明文~~。不可假装一致。
+  **实测修正(2026-08-06,票 07):Claude 主链 thinking 全库 3312 段正文全为空**(只有 signature 占位)——两侧的思考/推理正文实测**都不可得**,Codex 尚有明文小标题(`response_item/reasoning.summary`,与 `event_msg/agent_reasoning` 互为镜像,取前者防双计),Claude 连小标题都没有。think 块机制保留(契约/渲染就绪),当前数据不产生。
+- C7 Claude 超大工具结果正文被截断,旁挂 `tool-results/*.txt` → 展示截断版并标注,不谎称完整。
+  **实测修正(2026-08-06,票 07)**:调研期记的"transcript 内无引用链"不成立——49 例旁挂引用**全部带完整路径**("output saved to: …/tool-results/x")。截断判据 = 返回文本含 `tool-results/` 路径(机制性:harness 旁挂目录;"truncated" 字样太泛不作判据)。**旁挂文件不读**(2026-08-06 用户裁定:不进读白名单,扩白名单是范围扩张且文件可能巨大),只展示截断版 + 标注。
+- C8 harness 噪声不渲染:需一份显示白名单。`task_reminder`/`file-history-snapshot`/`token_count`/`thread_settings_applied` 等一律不显示。
+  **落地(2026-08-06,票 07,实测全谱)**:Claude 顶层 18 种(内容载体仅 assistant/user,其余 16 种 known-noise;attachment **不需要内型白名单**——整体即 noise);Codex 三层:顶层 7 种、event_msg 15 种、response_item 9 种(正文取 event_msg/agent_message,工具与推理取 response_item 一路,`message`/`agent_message` 的 response_item 路是双写镜像不渲染)。**白名单外的未知类型留痕**(unknown 块,置于块序末尾,聚合条数与类型名;三层分别以 `event_msg/`、`response_item/` 前缀区分)——白名单类失败不可见,绝不静默丢(CONTEXT 不变量)。全库真实数据探针:未知留痕空集、工具配对率 99.94%。
 
 **序列 D:搜索**
 - D1 **默认搜提问**(小、干净、命中精准),全文搜索作为可选开关。
@@ -144,6 +148,7 @@
 - **不确定性的三档呈现**:会话级横幅分两级(info = 分叉已归一 / fork 前缀已剥离;risk = 父会话不在扫描集内、剥离存疑),轮内用 warn 块(工具结果被截断、Codex 推理密文)。**都不静默**。
   **落地(2026-08-06,票 06)**:分叉横幅的判据与数字 = 主链分叉处数(`forkPoints`,被 ≥2 主链节点引用的父节点数;>0 才出横幅);stripped 横幅带父会话标题,**可点直达父会话页**(父打不开时进本页错误态,只自伤);risk 横幅的原因短语按实情写——父缺失 = 只能启发式,有父但指纹没逐条对上 = 只剥掉了能通过校验的部分(同一 risk 形态的纯文案变体)。数据面:SessionPage 加 forkPoints / forkParentTitle / forkParentFile,ClaudeFileAgg 加 forkPoints(CACHE_VERSION 升号)。
 - **日期分组的启用判据(2026-08-06,票 06)**:**全部提问都有时间戳**才分组;任一缺失则整页平铺(降级到无分组形态)——不造"日期未知"组这种原型没有的形态,缺时间戳是罕见坏行,降级只需可用。同日被乱序时间戳隔开时按相邻归组(两组同标签、折叠互不串)。提问排序是页面内状态,离开会话页重置为正序(spec 未要求跨卸载保留)。
+- **轮内块(2026-08-06,票 07)**:工具/思考/推理/subagent 折叠块与未知留痕块按 2026-08-02 原型落地(unknown 形态 2026-08-06 回补经用户确认);块展开态在轮重渲染(切排序/折叠日)时重置,与原型同款。块内缺省文案(无返回记录/未返回/未归位 warn)按纯文案例外豁免原型门。
 - **轮内取回状态(2026-08-06 原型回补,票 05,用户确认)**:取回中 = 首次取回的瞬时提示,已取回的轮再展开为即时;单轮失败 = 该轮显示错误不连累他轮,再点即重试;空轮(无正文回复)只出取回脚注、不造占位;脚注含实际读取字节数。视觉均为轮内小号淡色文字(原型 `.rebuild` 同款)。
 - **概览分栏连带改动**:概览的会话卡改为可点入,其「元数据即止」的旧口径由本功能推翻。票 02 落地为**只列最近 5 条 + 底部标注总数**;**票 04 已把点击目标改为直达会话页**(02 的中间态收口),返回落在「会话」分栏。
 - **会话分栏的排序选择跨分栏切换保留**(2026-08-02 票 02 新增,原型未演示):tab 是条件渲染,切走即卸载,组件内 state 存不住。存在模块级变量里——不提到父组件(会让它开始收各分栏的内部状态)、不落盘(是浏览习惯不是设置)、不建 store(全仓无 store 无 Context,一个 boolean 一个消费者是提前抽象)。出现第二个需跨卸载存活的视图偏好时提升为 view-prefs 模块。**代价**:切项目也保留——排序是看的方式,不是项目的属性。

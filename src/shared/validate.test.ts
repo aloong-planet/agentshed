@@ -360,3 +360,40 @@ describe('validateSessionTurn(单轮取回载荷,票 05)', () => {
     expect(validateSessionTurn(bad3).ok).toBe(false)
   })
 })
+
+describe('validateSessionTurn —— 票 07 富内容块', () => {
+  const okBlocks = [
+    { kind: 'text', role: 'assistant', at: 1, body: '正文' },
+    { kind: 'think', at: 1, body: '想' },
+    { kind: 'reason', at: null, titles: ['小标题'] },
+    { kind: 'tool', at: 1, name: 'Bash', summary: 'ls', input: 'ls', output: 'ok', truncated: false },
+    { kind: 'tool', at: 1, name: 'Read', summary: 'f', input: 'f', output: null, truncated: true },
+    {
+      kind: 'sub', at: 1, name: 'debugger', prompt: '查日志',
+      steps: [{ kind: 'text', label: '看日志' }, { kind: 'tool', label: 'Bash · tail' }],
+      result: '干净', unlinked: false
+    },
+    { kind: 'unknown', count: 2, types: ['agent_snapshot'] }
+  ]
+
+  it('放行全部七种块形态', () => {
+    expect(validateSessionTurn({ blocks: okBlocks, bytesRead: 1 }).ok).toBe(true)
+  })
+
+  it('拒收:tool 缺 name / sub 的 step kind 非法 / unknown.types 非 string 数组', () => {
+    const bad1 = { blocks: [{ kind: 'tool', at: 1, summary: 's', input: 'i', output: null, truncated: false }], bytesRead: 1 }
+    const r1 = validateSessionTurn(bad1)
+    expect(r1.ok === false && r1.error).toContain('blocks[0]')
+    const bad2 = {
+      blocks: [{ kind: 'sub', at: 1, name: 'x', prompt: '', steps: [{ kind: 'video', label: 'x' }], result: null, unlinked: false }],
+      bytesRead: 1
+    }
+    expect(validateSessionTurn(bad2).ok).toBe(false)
+    const bad3 = { blocks: [{ kind: 'unknown', count: 1, types: [42] }], bytesRead: 1 }
+    expect(validateSessionTurn(bad3).ok).toBe(false)
+  })
+
+  it('拒收未知 kind(白名单校验,07 之后的新 kind 要先过契约)', () => {
+    expect(validateSessionTurn({ blocks: [{ kind: 'hologram' }], bytesRead: 1 }).ok).toBe(false)
+  })
+})
