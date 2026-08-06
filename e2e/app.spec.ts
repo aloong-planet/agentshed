@@ -1190,6 +1190,100 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
 })
 
 /**
+ * skills-view:磁盘 skill 折叠文件表 + 抽屉读正文(md 预览 / 非 md 原文)、
+ * 详情同侧同名只列项目级(B1)、插件行不可展开(A4)。fixture home 全链路。
+ */
+test('Skills 查看:全局展开读包;详情同名只见项目级;插件行不可展开', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
+  const demo = join(home, 'demo-proj')
+  mkdirSync(demo, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
+  // 全局库:tdd(含一层子目录脚本)+ review-code(仅全局)
+  const gskills = join(home, '.claude', 'skills')
+  mkdirSync(join(gskills, 'tdd', 'scripts'), { recursive: true })
+  writeFileSync(join(gskills, 'tdd', 'SKILL.md'), '---\ndescription: 红先于绿\n---\n\n全局正文甲\n')
+  writeFileSync(join(gskills, 'tdd', 'scripts', 'run.sh'), 'echo 独特脚本乙\n')
+  mkdirSync(join(gskills, 'review-code'), { recursive: true })
+  writeFileSync(join(gskills, 'review-code', 'SKILL.md'), '---\ndescription: 四层法\n---\n\n全局正文丁\n')
+  // 项目级同名 tdd:详情列表应只见这一份(B1)
+  mkdirSync(join(demo, '.claude', 'skills', 'tdd'), { recursive: true })
+  writeFileSync(
+    join(demo, '.claude', 'skills', 'tdd', 'SKILL.md'),
+    '---\ndescription: 项目版\n---\n\n项目版正文丙\n'
+  )
+  // user 层启用插件(含 skills)→ 全局 Skills 出插件命名空间行
+  const pkg = join(home, 'plug-pkg')
+  mkdirSync(join(pkg, '.claude-plugin'), { recursive: true })
+  writeFileSync(join(pkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'superpowers' }))
+  mkdirSync(join(pkg, 'skills', 'brainstorming'), { recursive: true })
+  writeFileSync(join(pkg, 'skills', 'brainstorming', 'SKILL.md'), '---\ndescription: 先问后做\n---\nx')
+  mkdirSync(join(home, '.claude', 'plugins'), { recursive: true })
+  writeFileSync(
+    join(home, '.claude', 'plugins', 'installed_plugins.json'),
+    JSON.stringify({
+      version: 2,
+      plugins: { 'superpowers@official': [{ scope: 'user', version: '1.0.0', installPath: pkg }] }
+    })
+  )
+  writeFileSync(
+    join(home, '.claude', 'settings.json'),
+    JSON.stringify({ enabledPlugins: { 'superpowers@official': true } })
+  )
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+
+  // ① 全局 Skills:点行展开文件表;点 SKILL.md 开抽屉,md 默认预览(frontmatter 卡片 + 正文)
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const tdd = win.locator('.sk', { hasText: 'tdd' })
+  await tdd.locator('.sk-head').click()
+  await expect(tdd.locator('.files-card')).toBeVisible()
+  await tdd.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.skill-drawer .md-fm')).toContainText('红先于绿')
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('全局正文甲')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // 点包内另一文本文件切换内容:非 md 无「原文|预览」切换钮,仅等宽原文
+  await tdd.locator('.files button', { hasText: 'scripts/run.sh' }).click()
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('独特脚本乙')
+  await expect(win.locator('.skill-drawer .md-preview-seg')).toHaveCount(0)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+
+  // ② 插件行不可展开(A4)
+  const plug = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
+  await expect(plug.locator('.sk-head.plugin')).toBeVisible()
+  await plug.locator('.sk-head').click()
+  await expect(plug.locator('.files-card')).toHaveCount(0)
+
+  // ③ 详情 Skills:同名只列项目级、无第二份全局行;仅全局有的仍列出;项目级行可预览
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'demo-proj' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const detTdd = win.locator('.pane-body .sk', { hasText: 'tdd' })
+  await expect(detTdd).toHaveCount(1)
+  await expect(detTdd.locator('.pill.prj')).toBeVisible()
+  await expect(detTdd.locator('.pill.glb')).toHaveCount(0)
+  await expect(
+    win.locator('.pane-body .sk', { hasText: 'review-code' }).locator('.pill.glb')
+  ).toBeVisible()
+  await detTdd.locator('.sk-head').click()
+  await detTdd.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('项目版正文丙')
+
+  // ④ 抽屉宽度沿用 chrome-w 公式(上限 720):窄窗不得盖满内容区(2026-08-02 bug 同源回归点)
+  await win.setViewportSize({ width: 900, height: 800 })
+  const g = await win.evaluate(() => {
+    const d = (document.querySelector('.skill-drawer') as HTMLElement).getBoundingClientRect()
+    const p = (document.querySelector('.stage .pane') as HTMLElement).getBoundingClientRect()
+    return { drawer: d.width, left: d.left, pane: p.width, paneLeft: p.left }
+  })
+  expect(Math.abs(g.drawer - Math.min(720, g.pane * 0.8))).toBeLessThan(2)
+  expect(g.left).toBeGreaterThan(g.paneLeft + 1)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/**
  * 趋势图的每个使用点都跑同一组断言。
  * 新增使用点只需往这个列表加一行——避免"测了一处漏一处"(2026-07-30 的漏改教训)。
  */
