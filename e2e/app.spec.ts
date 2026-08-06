@@ -1058,3 +1058,42 @@ test('会话分栏:fork 会话剥掉重放前缀并标 ⑂ fork;父缺失的标 
   expect(l.errors).toEqual([])
   await close(l)
 })
+
+
+// appearance 票 02:设置第三维 + 外观三选一;data-scheme 即时生效且进出设置不丢选中
+test('设置:外观三选一改 data-scheme;进出设置保留项目选中', async () => {
+  const l = await launch(undefined, mkEmptyProjectHome())
+  const win = await l.app.firstWindow()
+  await expect(win.locator('.rail .ri').first()).toBeVisible()
+  // 默认紫(无 prefs 或 purple);html 上有 data-scheme
+  await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('purple')
+
+  // 进 Projects 选中唯一项目
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.side .row').first()).toBeVisible()
+  await win.locator('.side .row').first().click()
+  await expect(win.locator('.side .row.sel')).toHaveCount(1)
+
+  // 设置维
+  await win.getByTitle('设置').click()
+  await expect(win.locator('.settings-h1')).toHaveText('设置')
+  await expect(win.locator('.scheme-card')).toHaveCount(3)
+  await expect(win.locator('.settings-foot')).toContainText('跟随')
+
+  // 点雾蓝 → data-scheme=blue
+  await win.locator('[data-scheme-option="blue"]').click()
+  await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('blue')
+  await expect(win.locator('[data-scheme-option="blue"]')).toHaveAttribute('aria-checked', 'true')
+
+  // 回 Projects:选中仍在;scheme 仍 blue(全 app)
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.side .row.sel')).toHaveCount(1)
+  await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('blue')
+  // 回 Agents 主区仍 blue
+  await win.locator('.rail .ri').first().click()
+  await expect(win.locator('.pane-head h1')).toHaveText('Agents')
+  await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('blue')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})

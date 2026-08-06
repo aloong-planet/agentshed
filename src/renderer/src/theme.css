@@ -159,6 +159,8 @@ body {
 }
 .rail .ri.grfr {
   margin-top: auto;
+}
+.rail .ri.set {
   margin-bottom: 10px;
 }
 .rail .ri.busy {
@@ -166,6 +168,132 @@ body {
   pointer-events: none;
   color: var(--accent);
 }
+
+/* ── 设置页(外观) ── */
+.settings {
+  flex: 1;
+  overflow: auto;
+  padding: 20px 28px 40px;
+  max-width: 720px;
+}
+.settings-h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 0 6px;
+}
+.settings-lead {
+  font-size: 12.5px;
+  color: var(--text-2);
+  margin: 0 0 22px;
+  line-height: 1.5;
+}
+.settings-sec-t {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  margin-bottom: 10px;
+}
+.scheme-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.scheme-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--card);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.scheme-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.scheme-card.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.scheme-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  flex: none;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scheme-card.on .scheme-radio {
+  border-color: var(--accent);
+}
+.scheme-card.on .scheme-radio::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.scheme-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.scheme-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-deep);
+}
+.scheme-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-left: 8px;
+}
+.scheme-desc {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+.scheme-swatches {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.scheme-sw {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+}
+.settings-foot {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px dashed var(--line-strong);
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.settings-foot b {
+  color: var(--text);
+  font-weight: 600;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

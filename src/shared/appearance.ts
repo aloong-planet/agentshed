@@ -9,6 +9,13 @@ export function isAppearanceScheme(v: unknown): v is AppearanceScheme {
   return typeof v === 'string' && (APPEARANCE_SCHEMES as readonly string[]).includes(v)
 }
 
+/** 设置页方案卡标题(中文) */
+export const SCHEME_LABEL: Record<AppearanceScheme, string> = {
+  purple: '紫',
+  blue: '雾蓝',
+  amber: '琥珀褐'
+}
+
 export interface Prefs {
   scheme: AppearanceScheme
 }

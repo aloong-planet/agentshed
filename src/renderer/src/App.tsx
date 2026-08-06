@@ -5,9 +5,10 @@ import { ProjectsPane } from './ProjectsPane'
 import { AgentsPane } from './AgentsPane'
 import { DetailPane } from './DetailPane'
 import { SessionPane } from './SessionPane'
-import { Toasts } from './Toast'
+import { SettingsPane } from './SettingsPane'
+import { Toasts, toast } from './Toast'
 
-type Dim = 'agents' | 'projects'
+type Dim = 'agents' | 'projects' | 'settings'
 
 function applyScheme(scheme: AppearanceScheme): void {
   document.documentElement.dataset.scheme = scheme
@@ -22,6 +23,7 @@ export function App(): JSX.Element {
   const [openSession, setOpenSession] = useState<string | null>(null)
   // 从会话页返回时回到「会话」分栏(原型:‹ 返回 <项目> · 会话),而非概览
   const [backToSessions, setBackToSessions] = useState(false)
+  const [scheme, setScheme] = useState<AppearanceScheme>(DEFAULT_SCHEME)
   const selectProject = (p: string | null): void => {
     setSelected(p)
     setOpenSession(null)
@@ -32,7 +34,9 @@ export function App(): JSX.Element {
     applyScheme(DEFAULT_SCHEME)
     let alive = true
     void window.agentshed.getPrefs().then((p) => {
-      if (alive) applyScheme(p.scheme)
+      if (!alive) return
+      setScheme(p.scheme)
+      applyScheme(p.scheme)
     })
     void window.agentshed.getSnapshot().then((s) => {
       if (alive) setSnap(s)
@@ -51,6 +55,19 @@ export function App(): JSX.Element {
       setSnap(await window.agentshed.refresh())
     } finally {
       setRefreshing(false)
+    }
+  }
+
+  async function onScheme(s: AppearanceScheme): Promise<void> {
+    // 先本地生效再落盘:无「仅设置页换肤」的中间态,失败则回读或 toast
+    setScheme(s)
+    applyScheme(s)
+    try {
+      const p = await window.agentshed.setScheme(s)
+      setScheme(p.scheme)
+      applyScheme(p.scheme)
+    } catch (e) {
+      toast('err', `保存外观失败:${String(e)}`)
     }
   }
 
@@ -78,9 +95,18 @@ export function App(): JSX.Element {
         >
           ↻
         </button>
+        <button
+          className={`ri set ${dim === 'settings' ? 'on' : ''}`}
+          title="设置"
+          onClick={() => setDim('settings')}
+        >
+          ⚙️
+        </button>
       </nav>
       <main className="stage">
-        {dim === 'agents' ? (
+        {dim === 'settings' ? (
+          <SettingsPane scheme={scheme} onScheme={(s) => void onScheme(s)} />
+        ) : dim === 'agents' ? (
           snap === null ? (
             <ScanningHint />
           ) : (
