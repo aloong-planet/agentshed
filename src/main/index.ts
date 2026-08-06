@@ -24,8 +24,6 @@ import {
   sessionReadTarget
 } from './security'
 import { HiddenStore } from './hidden-store'
-import { PrefsStore } from './prefs-store'
-import { isAppearanceScheme } from '@shared/appearance'
 
 // app:// scheme 必须在 app ready **之前**注册特权(#18);dev 走 vite http,不加载
 // app://,注册也无副作用。standard=非 opaque origin(安全上下文 + storage 快路径),
@@ -57,7 +55,6 @@ if (QUIET) {
 
 let mainWindow: BrowserWindow | null = null
 let hiddenStore: HiddenStore | null = null
-let prefsStore: PrefsStore | null = null
 let tokenEngine: TokenEngine | null = null
 let archive: UsageArchive | null = null
 let perProjectStats = new Map<string, ProjectStats>()
@@ -246,12 +243,6 @@ function checkSkillOpArgs(args: unknown): SkillOpArgs {
 }
 handle(CMD.installSkill, (_e, args: unknown) => installSkill(realRoots(), checkSkillOpArgs(args)))
 handle(CMD.uninstallSkill, (_e, args: unknown) => uninstallSkill(checkSkillOpArgs(args)))
-handle(CMD.getPrefs, () => prefsStore?.get() ?? { scheme: 'purple' as const })
-handle(CMD.setScheme, (_e, scheme: unknown) => {
-  if (!isAppearanceScheme(scheme)) throw new Error('外观方案不合契约')
-  if (!prefsStore) throw new Error('偏好存储未就绪')
-  return prefsStore.setScheme(scheme)
-})
 handle(CMD.setHidden, (_e, args: unknown) => {
   const a = args as SetHiddenArgs
   if (typeof a?.projectPath !== 'string' || typeof a?.hidden !== 'boolean') {
@@ -317,7 +308,6 @@ void app.whenReady().then(() => {
   // handler 必须在建窗(loadURL app://…)之前注册;__dirname = out/main,产物在 out/renderer
   registerAppProtocol(join(__dirname, '../renderer'))
   hiddenStore = new HiddenStore(app.getPath('userData'))
-  prefsStore = new PrefsStore(app.getPath('userData'))
   tokenEngine = new TokenEngine(app.getPath('userData'))
   archive = new UsageArchive(app.getPath('userData'))
   createWindow()
