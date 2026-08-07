@@ -107,7 +107,7 @@ function CodexGroup({ snap, detailNote }: { snap: Snapshot; detailNote?: boolean
       <div className="grp-t" style={{ marginTop: 14 }}>
         <span className="badge cx">CODEX</span> 缓存枚举
       </div>
-      <div className="card">
+      <div className="card plug-card">
         {snap.global.codexPlugins.map((p) => {
           const key = `${p.marketplace}/${p.name}`
           const expandable = p.skills.length > 0 // E8:仅 Skills 类目可展开
@@ -171,7 +171,7 @@ export function GlobalPluginsTab({ snap }: { snap: Snapshot }): JSX.Element {
       {snap.global.plugins.length === 0 ? (
         <div className="none">未安装任何 plugin</div>
       ) : (
-        <div className="card">
+        <div className="card plug-card">
           {snap.global.plugins.map((p) => (
             <div key={p.name}>
               <button className="it row-btn" onClick={() => toggle(p.name)}>
@@ -221,7 +221,7 @@ export function ProjectPluginsTab({
       {detail.plugins.length === 0 ? (
         <div className="none">未安装任何 plugin</div>
       ) : (
-        <div className="card">
+        <div className="card plug-card">
           {detail.plugins.map((p) => (
             <div key={p.name}>
               <button className="it row-btn" onClick={() => toggle(p.name)}>

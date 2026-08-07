@@ -1995,6 +1995,13 @@ mark {
   white-space: nowrap;
 }
 /* ── plugins-view:类目 tab + 插件 skill 行(2026-08-07 原型定稿) ── */
+/* 插件行名自适应(原型定稿即全名):.it .nm 的 200px 定宽是 skills 名列的几何,
+   插件名(name@marketplace)常超宽;空间不足时仍可收缩出省略号 */
+.plug-card .it .nm {
+  width: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+}
 .ptabs { display: flex; gap: 4px; margin: 10px 0 8px; }
 .ptab {
   font: inherit;
