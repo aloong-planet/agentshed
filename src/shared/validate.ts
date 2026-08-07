@@ -362,11 +362,26 @@ export function validateProjectDetail(v: unknown): ValidateResult {
   const plugins = eachOf(v['plugins'], 'detail.plugins', (p, at) => {
     if (!str(p['name'])) return fail(`${at}.name`, '需为 string')
     if (!strOrNull(p['version'])) return fail(`${at}.version`, '需为 string|null')
+    if (!strOrNull(p['installPath'])) return fail(`${at}.installPath`, '需为 string|null')
     if (typeof p['enabled'] !== 'boolean') return fail(`${at}.enabled`, '需为 boolean')
     if (p['enabledFrom'] !== null && !ENABLED_FROM.has(p['enabledFrom'] as string))
       return fail(`${at}.enabledFrom`, `非法 enabledFrom: ${String(p['enabledFrom'])}`)
     if (!Array.isArray(p['installs'])) return fail(`${at}.installs`, '需为数组')
-    if (!isRecord(p['contents'])) return fail(`${at}.contents`, '需为对象')
+    const contents = p['contents']
+    if (!isRecord(contents)) return fail(`${at}.contents`, '需为对象')
+    // 内含 skills 摘要(预览入口的元数据,H1/H6):漏校验即边界静默放过(R1)
+    const cskills = eachOf(contents['skills'], `${at}.contents.skills`, (s, sat) => {
+      if (!str(s['name'])) return fail(`${sat}.name`, '需为 string')
+      if (!strOrNull(s['description'])) return fail(`${sat}.description`, '需为 string|null')
+      const pkg = s['pkg']
+      if (pkg !== null) {
+        if (!isRecord(pkg)) return fail(`${sat}.pkg`, '需为 null 或对象')
+        if (typeof pkg['files'] !== 'number' || typeof pkg['bytes'] !== 'number')
+          return fail(`${sat}.pkg`, 'files/bytes 需为 number')
+      }
+      return null
+    })
+    if (cskills) return cskills
     return null
   })
   if (plugins) return plugins

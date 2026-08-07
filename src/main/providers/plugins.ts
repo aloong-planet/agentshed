@@ -10,10 +10,12 @@ import type {
   PluginEntry,
   PluginHookSummary,
   PluginInstallRecord,
+  PluginSkillSummary,
   ProjectPluginEntry
 } from '@shared/domain'
 import type { ScanRoots } from './types'
 import { fmField, readTextCapped } from './read-utils'
+import { statSkillPackage } from './skill-package'
 
 function readJson(file: string): Record<string, unknown> | null {
   if (!existsSync(file)) return null
@@ -106,23 +108,32 @@ function insideJoin(root: string, rel: string): string | null {
   return p === resolve(root) || p.startsWith(resolve(root) + sep) ? p : null
 }
 
+/** 包根下 skills 目录约定枚举(Claude/Codex 同构,E8);带 stat-only 包统计(H1) */
+function pluginSkillSummaries(installPath: string): PluginSkillSummary[] {
+  const skills: PluginSkillSummary[] = []
+  const skillsDir = join(installPath, 'skills')
+  if (!existsSync(skillsDir)) return skills
+  try {
+    for (const d of readdirSync(skillsDir, { withFileTypes: true })) {
+      if (!d.isDirectory() && !d.isSymbolicLink()) continue
+      const md = join(skillsDir, d.name, 'SKILL.md')
+      if (!existsSync(md)) continue
+      skills.push({
+        name: d.name,
+        description: fmField(readTextCapped(md), 'description'),
+        pkg: statSkillPackage(join(skillsDir, d.name))
+      })
+    }
+  } catch {
+    // skills 目录不可读:该类为空
+  }
+  return skills
+}
+
 export function readPluginContents(installPath: string | null): PluginContents {
   if (installPath === null || !existsSync(installPath)) return { ...EMPTY_CONTENTS }
   // skills:目录约定 skills/*/SKILL.md;单文件损坏 → 名称保留、描述空(E5)
-  const skills: PluginContents['skills'] = []
-  const skillsDir = join(installPath, 'skills')
-  if (existsSync(skillsDir)) {
-    try {
-      for (const d of readdirSync(skillsDir, { withFileTypes: true })) {
-        if (!d.isDirectory() && !d.isSymbolicLink()) continue
-        const md = join(skillsDir, d.name, 'SKILL.md')
-        if (!existsSync(md)) continue
-        skills.push({ name: d.name, description: fmField(readTextCapped(md), 'description') })
-      }
-    } catch {
-      // skills 目录不可读:该类为空
-    }
-  }
+  const skills = pluginSkillSummaries(installPath)
   // agents:目录约定 agents/*.md
   const agents: string[] = []
   const agentsDir = join(installPath, 'agents')
@@ -199,9 +210,12 @@ export function readCodexPlugins(codexHome: string): CodexPluginEntry[] {
         .map((v) => v.name)
         .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
       if (versions.length === 0) continue
+      const root = join(cache, mkt.name, plug.name, versions[0])
       out.push({
         name: plug.name,
         marketplace: mkt.name,
+        root,
+        skills: pluginSkillSummaries(root),
         version: versions[0],
         cachedVersions: versions.length
       })
@@ -231,6 +245,7 @@ export function readProjectPlugins(roots: ScanRoots, projectPath: string): Proje
     return {
       name,
       version: installs.find((r) => r.version !== null)?.version ?? null,
+      installPath,
       enabled,
       enabledFrom,
       installs,
