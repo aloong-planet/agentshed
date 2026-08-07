@@ -163,7 +163,7 @@ function okDetail(): Record<string, unknown> {
       {
         name: 'tdd', description: null, level: 'project', side: 'claude',
         symlink: false, pkg: { files: 1, bytes: 10 },
-        origin: 'disk', pluginName: null, pluginRoot: null
+        origin: 'disk', pluginName: null, pluginRoot: null, pluginSkillName: null
       }
     ],
     subagents: [

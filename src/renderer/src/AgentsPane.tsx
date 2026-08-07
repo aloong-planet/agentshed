@@ -159,13 +159,19 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
           <div className="rel" key={s.name}>
             <SkillExpandBlock
               name={s.name}
-              sides={s.sides}
-              origin={s.origin}
+              source={
+                s.origin === 'plugin'
+                  ? {
+                      kind: 'plugin',
+                      side: 'claude',
+                      pluginRoot: s.pluginRoot,
+                      bareName: s.pluginSkillName ?? s.name
+                    }
+                  : { kind: 'global', sides: s.sides }
+              }
               symlink={s.symlink.claude || s.symlink.codex}
-              scope="global"
               levelLabel={s.origin === 'plugin' ? '插件包' : '全局库'}
               pkgBySide={s.pkg}
-              pluginRoot={s.pluginRoot}
               installSlot={
                 s.origin === 'disk' ? (
                   <button

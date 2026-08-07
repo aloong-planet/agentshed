@@ -36,7 +36,8 @@ function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] 
         pkg: s.pkg,
         origin: 'plugin',
         pluginName: p.name,
-        pluginRoot: p.installPath
+        pluginRoot: p.installPath,
+        pluginSkillName: s.name
       })
     }
   }
@@ -128,7 +129,8 @@ function readEffectiveSkills(
         pkg: s.pkg,
         origin: 'disk',
         pluginName: null,
-        pluginRoot: null
+        pluginRoot: null,
+        pluginSkillName: null
       })
     }
     for (const [name, s] of [...global.entries()].sort(([a], [b]) => a.localeCompare(b))) {
@@ -142,7 +144,8 @@ function readEffectiveSkills(
         pkg: s.pkg,
         origin: 'disk',
         pluginName: null,
-        pluginRoot: null
+        pluginRoot: null,
+        pluginSkillName: null
       })
     }
   }

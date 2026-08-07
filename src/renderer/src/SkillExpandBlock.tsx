@@ -1,4 +1,4 @@
-// skills-view:磁盘 skill 折叠文件表 + 点文件开抽屉
+// skills-view:skill 折叠文件表 + 点文件开抽屉(磁盘与插件同权,A4/ADR-0012)
 import { useRef, useState } from 'react'
 import type { AgentSide, SkillPkgStats } from '@shared/domain'
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
@@ -9,44 +9,39 @@ import { toast } from './Toast'
 const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex' }
 const SIDE_ORDER: AgentSide[] = ['claude', 'codex']
 
+/**
+ * 列举来源(判别联合):三种来源各自的必填项由类型钉死,不再靠 optional props
+ * 的占用规则约定(scope=plugin 必带 pluginRoot 之类)。新增来源 = 加一个 variant。
+ */
+export type SkillSource =
+  | { kind: 'global'; sides: AgentSide[]; fixedSide?: AgentSide }
+  | { kind: 'project'; side: AgentSide; projectPath: string }
+  | {
+      kind: 'plugin'
+      side: AgentSide
+      /** 摘要同源包根(plugins-view H5);null=不可展开(fail-closed 展示) */
+      pluginRoot: string | null
+      /** 裸 skill 名(数据层随条目下发,不从命名空间名反解) */
+      bareName: string
+    }
+
 export interface SkillExpandBlockProps {
   name: string
-  /** 可展开的侧(磁盘);插件传空 */
-  sides: AgentSide[]
-  origin: 'disk' | 'plugin'
+  source: SkillSource
   symlink?: boolean
   levelLabel?: string
-  level?: 'project' | 'global' | 'plugin'
-  scope: 'global' | 'project'
-  projectPath?: string
-  /** 详情行已绑死一侧时固定,不展示侧切换 */
-  fixedSide?: AgentSide
+  level?: 'project' | 'global'
   /** 各侧包统计(行内展示);切侧时行上数字随动 */
   pkgBySide?: Partial<Record<AgentSide, SkillPkgStats | null>>
-  /** 插件条目的摘要同源包根(plugins-view H5);有值且统计可读时行可展开(A4/ADR-0012) */
-  pluginRoot?: string | null
   installSlot?: JSX.Element
   uninstallSlot?: JSX.Element
 }
 
 export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
-  const {
-    name,
-    sides,
-    origin,
-    symlink,
-    levelLabel,
-    level,
-    scope,
-    projectPath,
-    fixedSide,
-    pkgBySide,
-    pluginRoot,
-    installSlot,
-    uninstallSlot
-  } = props
-  const disk = origin === 'disk' && sides.length > 0
-  const sorted = SIDE_ORDER.filter((s) => sides.includes(s))
+  const { name, source, symlink, levelLabel, level, pkgBySide, installSlot, uninstallSlot } = props
+  const sidesArr = source.kind === 'global' ? source.sides : [source.side]
+  const fixedSide = source.kind === 'global' ? source.fixedSide : source.side
+  const sorted = SIDE_ORDER.filter((s) => sidesArr.includes(s))
   const [open, setOpen] = useState(false)
   const [side, setSide] = useState<AgentSide>(fixedSide ?? sorted[0] ?? 'claude')
   const [listing, setListing] = useState<ListSkillFilesResult | null>(null)
@@ -56,7 +51,8 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
 
   const pkg = pkgBySide?.[side] ?? null
   // A4/ADR-0012:插件命名空间行与磁盘同权——包根在登记集且统计可读才可展开
-  const expandable = disk || (origin === 'plugin' && pluginRoot != null && pkg !== null)
+  const expandable =
+    source.kind === 'plugin' ? source.pluginRoot != null && pkg !== null : sidesArr.length > 0
   // 竞态守卫:快速切侧时,旧侧请求的结果不得安到新侧名下(同层污染)
   const seq = useRef(0)
 
@@ -65,21 +61,18 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
     setLoading(true)
     setListErr(null)
     try {
-      // 命名空间条目名(ns:skill)在 IPC 里传裸 skill 名;包根定位由 pluginRoot 承担
-      const r =
-        origin === 'plugin'
-          ? await window.agentshed.listSkillFiles({
+      const r = await window.agentshed.listSkillFiles(
+        source.kind === 'plugin'
+          ? {
               side: forSide,
-              name: name.includes(':') ? name.slice(name.indexOf(':') + 1) : name,
+              name: source.bareName,
               scope: 'plugin',
-              pluginRoot: pluginRoot as string
-            })
-          : await window.agentshed.listSkillFiles({
-              side: forSide,
-              name,
-              scope,
-              projectPath
-            })
+              pluginRoot: source.pluginRoot as string
+            }
+          : source.kind === 'project'
+            ? { side: forSide, name, scope: 'project', projectPath: source.projectPath }
+            : { side: forSide, name, scope: 'global' }
+      )
       if (seq.current === my) setListing(r)
     } catch (e) {
       if (seq.current === my) {
@@ -127,7 +120,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         <span className="nm mono">{name}</span>
         <span className="bdg">
           {SIDE_ORDER.map((s) =>
-            sides.includes(s) ? (
+            sidesArr.includes(s) ? (
               <span key={s} className={`badge ${s === 'claude' ? 'cl' : 'cx'}`}>
                 {s === 'claude' ? 'CC' : 'CX'}
               </span>
@@ -138,15 +131,13 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
             )
           )}
         </span>
-        {origin === 'plugin' && <span className="pill plg">插件</span>}
+        {source.kind === 'plugin' && <span className="pill plg">插件</span>}
         {level === 'project' && <span className="pill prj">项目级</span>}
         {level === 'global' && <span className="pill glb">全局</span>}
         {symlink && <span className="pill ln">⤷ 软链</span>}
-        {(disk || origin === 'plugin') && (
-          <span className="sk-meta">
-            {pkg ? `${pkg.files} 个文件 · ${formatSize(pkg.bytes)}` : ''}
-          </span>
-        )}
+        <span className="sk-meta">
+          {pkg ? `${pkg.files} 个文件 · ${formatSize(pkg.bytes)}` : ''}
+        </span>
         {installSlot}
         {uninstallSlot}
       </div>
@@ -173,7 +164,10 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         <SkillFileDrawer
           skill={name}
           sideLabel={SIDE_LABEL[side]}
-          levelLabel={levelLabel ?? (scope === 'global' ? '全局库' : '项目')}
+          levelLabel={
+            levelLabel ??
+            (source.kind === 'plugin' ? '插件包' : source.kind === 'project' ? '项目' : '全局库')
+          }
           filePath={drawer.path}
           absPath={drawer.absPath}
           onClose={() => setDrawer(null)}

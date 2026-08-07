@@ -332,6 +332,7 @@ export function validateProjectDetail(v: unknown): ValidateResult {
     if (!ORIGINS.has(s['origin'] as string)) return fail(`${at}.origin`, `非法 origin: ${String(s['origin'])}`)
     if (!strOrNull(s['pluginName'])) return fail(`${at}.pluginName`, '需为 string|null')
     if (!strOrNull(s['pluginRoot'])) return fail(`${at}.pluginRoot`, '需为 string|null')
+    if (!strOrNull(s['pluginSkillName'])) return fail(`${at}.pluginSkillName`, '需为 string|null')
     return null
   })
   if (skills) return skills

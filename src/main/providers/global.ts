@@ -87,7 +87,8 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
       pkg: { claude: cl?.pkg ?? null, codex: cx?.pkg ?? null },
       origin: 'disk',
       pluginName: null,
-      pluginRoot: null
+      pluginRoot: null,
+      pluginSkillName: null
     }
   })
   // G1(全局页口径):user 层启用插件的内含 skills 并入——命名空间条目,不参与遮蔽(G2)
@@ -105,7 +106,8 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
         pkg: { claude: s.pkg, codex: null },
         origin: 'plugin',
         pluginName: p.name,
-        pluginRoot: p.installPath
+        pluginRoot: p.installPath,
+        pluginSkillName: s.name
       })
     }
   }
