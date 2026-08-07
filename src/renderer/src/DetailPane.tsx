@@ -408,12 +408,13 @@ function SkillRow({
     return (
       <SkillExpandBlock
         name={s.name}
-        sides={[s.side]}
-        origin="plugin"
-        scope="global"
-        fixedSide={s.side}
+        source={{
+          kind: 'plugin',
+          side: s.side,
+          pluginRoot: s.pluginRoot,
+          bareName: s.pluginSkillName ?? s.name
+        }}
         pkgBySide={{ [s.side]: s.pkg }}
-        pluginRoot={s.pluginRoot}
         levelLabel="插件包"
       />
     )
@@ -421,14 +422,14 @@ function SkillRow({
   return (
     <SkillExpandBlock
       name={s.name}
-      sides={[s.side]}
-      origin="disk"
+      source={
+        s.level === 'project'
+          ? { kind: 'project', side: s.side, projectPath }
+          : { kind: 'global', sides: [s.side], fixedSide: s.side }
+      }
       symlink={s.symlink}
       level={s.level === 'project' ? 'project' : 'global'}
       levelLabel={s.level === 'project' ? '项目级' : '全局层'}
-      scope={s.level === 'project' ? 'project' : 'global'}
-      projectPath={s.level === 'project' ? projectPath : undefined}
-      fixedSide={s.side}
       pkgBySide={{ [s.side]: s.pkg }}
       uninstallSlot={
         onUninstall ? (

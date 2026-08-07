@@ -51,6 +51,8 @@ export interface GlobalSkill {
   pluginName: string | null
   /** 插件条目的摘要同源包根(预览入口,plugins-view H5);磁盘条目为 null */
   pluginRoot: string | null
+  /** 插件条目的裸 skill 名(包内目录名;UI 与 IPC 不再从命名空间名反解);磁盘条目为 null */
+  pluginSkillName: string | null
 }
 
 /**
@@ -415,6 +417,8 @@ export interface ProjectSkillEntry {
   pluginName: string | null
   /** 插件条目的摘要同源包根(预览入口,plugins-view H5);磁盘条目为 null */
   pluginRoot: string | null
+  /** 插件条目的裸 skill 名(包内目录名;UI 与 IPC 不再从命名空间名反解);磁盘条目为 null */
+  pluginSkillName: string | null
 }
 
 /**
