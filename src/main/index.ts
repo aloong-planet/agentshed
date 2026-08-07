@@ -434,7 +434,10 @@ void app.whenReady().then(() => {
   // doScan(inflight 去重,E2);自动触发失败静默保留现快照等下个触发点(E3),
   // 手动 ↻ 的失败仍经 CMD.refresh 抛给调用方。参数环境注入是测试 seam(E5)。
   const autoScan = (): void => {
-    void doScan().catch(() => {})
+    void doScan().catch((e: unknown) => {
+      // E3:静默保留现快照,但失败要留痕——编程错误不许被无声吞掉
+      console.error('[auto-rescan] 扫描失败,保留现有快照:', e)
+    })
   }
   setInterval(autoScan, rescanIntervalMs(process.env['AGENTSHED_RESCAN_MS'], 300_000))
   const focusThrottleMs = rescanIntervalMs(process.env['AGENTSHED_FOCUS_RESCAN_MS'], 60_000)
