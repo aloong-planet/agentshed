@@ -1,0 +1,359 @@
+<!doctype html>
+<!-- 原型(UI)· plugins-view:插件 skill 原地预览 — 方向 A 四轮修订(2026-08-07):
+     首轮 chip 群 + 表中插被反馈「乱」;二轮改 skills 行式列表;三轮:①安装记录
+     上移插件名行内 ②类目标题升权重 ③缩进砍到 14px 基线;四轮(用户指示):
+     Skills/Subagents/Hooks/MCP 改为展开区内**类目 tab**(segment 形态区别于
+     页面级 tab;空类目不出 tab,默认落首个非空类目)。
+     Skills tab 为行式列表:每 skill 一行(名 + 描述 + 文件数·大小),点行折叠
+     展开文件表,与 Skills 分栏交互语法完全统一。
+     ADR-0012:预览与启用态解耦;Codex 组仅 skills 段展开、不并入 Skills 分栏。
+     mock 边界:多安装记录 / 未启用仍可审阅 / E6 整包缺失 / 单 skill 目录缺失置灰 /
+     深度>2 提示 / Codex 探测式。
+     文件表与 prototype-skills-preview.html(skills-view)同构——演化时两处同步。
+     共享块:md-preview(抽屉正文渲染)。
+     演示基建(data-demo-harness,非设计一部分,勿实现):底栏 浅/深 切换。
+     深色下抽屉 md 正文区细节配色跟系统(共享块 OS 分支),页面主体 token 跟底栏开关。 -->
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8">
+<title>原型 — Plugins · 插件 skill 原地预览</title>
+<link rel="stylesheet" href="../_shared/md-preview.css">
+<style>
+  html[data-mode="light"]{
+    --bg:#f7f8f9; --card:#ffffff; --text:#37352f; --text-2:#787774;
+    --line:#e8eaed; --line-strong:#d9dce0;
+    --accent:#8a67ab; --accent-deep:#6b4f92; --accent-soft:#f0ebf6;
+    --ok-bg:#dcfce7; --ok-fg:#166534; --warn-bg:#fdecdc; --warn-fg:#b3552f;
+    --mask:rgba(30,28,40,.35);
+  }
+  html[data-mode="dark"]{
+    --bg:#18191b; --card:#1f2124; --text:#e6e6e5; --text-2:#9b9a97;
+    --line:#2a2c30; --line-strong:#34373c;
+    --accent:#a084c7; --accent-deep:#c9b3ec; --accent-soft:#2c2733;
+    --ok-bg:#12301d; --ok-fg:#86efac; --warn-bg:#3c2417; --warn-fg:#f0a884;
+    --mask:rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  body{height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px;display:flex}
+  .main{flex:1;min-width:0;overflow:auto;padding:18px 22px 100px}
+  h2.page-h{font-size:16px;font-weight:700;color:var(--accent);margin:0 0 10px}
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .tab{font:inherit;font-size:12.5px;border:0;background:none;color:var(--text-2);padding:7px 12px;cursor:default;border-bottom:2px solid transparent}
+  .tab.on{color:var(--accent);font-weight:600;border-bottom-color:var(--accent)}
+  .sub{font-size:12px;color:var(--text-2);margin-bottom:14px;line-height:1.55}
+  .sub b{color:var(--text)}
+  .sec-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);margin:16px 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:14px;overflow:hidden}
+  /* 插件行(对齐现行 .it.row-btn 密度) */
+  .prow{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;
+    border:0;background:none;color:inherit;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--line)}
+  .prow:hover{background:var(--accent-soft)}
+  .prow .cv{width:14px;flex:none;color:var(--text-2);font-size:10px}
+  .prow .nm{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;flex:none}
+  .prow .ver{font-size:11px;color:var(--text-2);flex:none}
+  .pill{font-size:10px;border-radius:5px;padding:1px 6px;flex:none}
+  .pill.on{background:var(--ok-bg);color:var(--ok-fg)}
+  .pill.off{border:1px solid var(--line-strong);color:var(--text-2)}
+  .pill.src{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  /* 展开区:缩进与行头同一条 14px 基线 */
+  .exp{padding:2px 14px 12px 14px;background:var(--bg);border-bottom:1px solid var(--line)}
+  /* 类目 tab(展开区内 segment,样式区别于页面级 tab;空类目不出 tab) */
+  .ptabs{display:flex;gap:4px;margin:10px 0 8px}
+  .ptab{font:inherit;font-size:11.5px;font-weight:600;border:1px solid var(--line-strong);background:var(--card);
+    color:var(--text-2);border-radius:7px;padding:3px 10px;cursor:pointer}
+  .ptab .cnt{font-size:10.5px;margin-left:4px;opacity:.75}
+  .ptab.on{background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  /* 迷你 chip:插件行内安装记录 / 类目面板静态组件名 */
+  .mchip{border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-family:ui-monospace,Menlo,monospace;
+    font-size:10.5px;color:var(--text-2)}
+  .none{font-size:12px;color:var(--text-2);padding:10px 0}
+  .note{font-size:11px;color:var(--text-2);margin-top:8px;line-height:1.5}
+  /* skills 行式列表:与 Skills 分栏折叠语义同构 */
+  .psk-list{margin-top:2px;border:1px solid var(--line);border-radius:8px;background:var(--card);overflow:hidden}
+  .psk{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;
+    border:0;background:none;color:inherit;padding:7px 12px;cursor:pointer;border-top:1px solid var(--line)}
+  .psk-list>.psk:first-child{border-top:0}
+  .psk:hover{background:var(--accent-soft)}
+  .psk .cv{width:12px;flex:none;color:var(--text-2);font-size:10px}
+  .psk.on .cv{color:var(--accent)}
+  .psk .nm{font-family:ui-monospace,Menlo,monospace;font-size:12px;flex:none}
+  .psk .ds{flex:1;min-width:0;color:var(--text-2);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .psk .meta{flex:none;font-size:11px;color:var(--text-2);font-variant-numeric:tabular-nums}
+  .psk.dis{cursor:not-allowed;opacity:.5}
+  .psk-body{border-top:1px solid var(--line);background:var(--bg);padding:8px 12px}
+  .psk-body .files-wrap{border:0;border-radius:0;background:transparent;margin:0}
+  /* 文件表:与 skills-view 原型展开表同构(平铺,演化时两处同步) */
+  .files-wrap{border:1px solid var(--line);border-radius:8px;background:var(--card);overflow:hidden}
+  .files-head{display:grid;grid-template-columns:minmax(0,1fr) 64px 72px 108px;gap:8px;
+    padding:5px 12px;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
+    color:var(--text-2);border-bottom:1px solid var(--line)}
+  .files-head span:not(:first-child){text-align:right}
+  .files{display:flex;flex-direction:column;padding:3px 0 5px}
+  .files button{display:grid;grid-template-columns:minmax(0,1fr) 64px 72px 108px;gap:8px;align-items:center;
+    width:100%;text-align:left;font:inherit;font-size:12px;border:0;background:transparent;color:var(--text);
+    padding:6px 12px;cursor:pointer;border-left:3px solid transparent}
+  .files button:hover{background:var(--accent-soft);border-left-color:var(--accent)}
+  .files .ic{width:22px;height:22px;flex:none;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:800;background:var(--bg);border:1px solid var(--line);color:var(--text-2);
+    font-family:ui-monospace,Menlo,monospace}
+  .files .ic.md{background:var(--accent-soft);color:var(--accent-deep)}
+  .files .ic.sh{background:var(--ok-bg);color:var(--ok-fg)}
+  .files .name-cell{display:flex;align-items:center;gap:8px;min-width:0}
+  .files .path{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,Menlo,monospace}
+  .files .tag{font-size:9px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:1px 5px;flex:none}
+  .files .meta{font-size:11.5px;color:var(--text-2);font-variant-numeric:tabular-nums;font-family:ui-monospace,Menlo,monospace;text-align:right;white-space:nowrap}
+  .files .meta.lines{font-weight:600;color:var(--text)}
+  .sk-tip{font-size:11.5px;color:var(--warn-fg);background:var(--warn-bg);
+    border:1px solid var(--line-strong);border-radius:8px;padding:6px 10px;line-height:1.45;margin:8px 0 0}
+  /* 抽屉(对齐 app skill-drawer 简化形) */
+  .mask{position:fixed;inset:0;background:var(--mask);z-index:10}
+  .drawer{position:fixed;top:0;right:0;bottom:0;z-index:11;width:min(720px,80vw);display:flex;flex-direction:column;
+    background:var(--card);border-left:1px solid var(--line-strong);box-shadow:-8px 0 24px rgba(0,0,0,.12)}
+  .drawer-close{position:absolute;top:12px;right:12px;z-index:2;width:32px;height:32px;border-radius:8px;
+    border:1px solid var(--line);background:var(--bg);color:var(--text-2);cursor:pointer;font-size:16px;line-height:1}
+  .drawer-close:hover{color:var(--accent);border-color:var(--accent)}
+  .d-top{flex:none;padding:16px 48px 12px 18px;border-bottom:1px solid var(--line)}
+  .d-title{font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;color:var(--accent);margin:0 0 4px}
+  .d-meta{font-size:12px;color:var(--text-2);line-height:1.45}
+  .d-body{flex:1;min-height:0;display:flex;padding:10px}
+  .md-preview{--md-h1:var(--accent-deep);--md-h2:var(--accent-deep);--md-h3:var(--accent-deep);--md-link:var(--accent);
+    border-color:var(--line);background:var(--card)}
+  /* 演示 harness(非设计) */
+  [data-demo-harness]{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50;
+    display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(28,26,24,.92);color:#efece6;
+    border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.3);font-size:12px}
+  [data-demo-harness] .tag{font-size:10px;font-weight:700;letter-spacing:.04em;color:#b0a898;
+    border-right:1px solid rgba(255,255,255,.12);padding-right:10px}
+  [data-demo-harness] button{font:inherit;font-size:11.5px;font-weight:600;border:0;background:transparent;
+    color:#b0a898;padding:5px 10px;border-radius:999px;cursor:pointer}
+  [data-demo-harness] button.on{background:rgba(255,255,255,.12);color:#fff}
+</style>
+<script src="../vendor/marked.umd.js"></script>
+<script src="../_shared/md-preview.js"></script>
+</head>
+<body>
+  <div class="main">
+    <h2 class="page-h">Agents</h2>
+    <div class="tabs">
+      <button class="tab">Token</button><button class="tab">Skills</button><button class="tab">Subagents</button>
+      <button class="tab on">Plugins</button><button class="tab">MCP</button><button class="tab">Memory</button><button class="tab">配置</button>
+    </div>
+    <div class="sub">
+      插件行内直接给启用态与安装记录;展开后为<b>类目 tab</b>(Skills/Subagents/Hooks/MCP,空类目不出)。
+      Skills tab 是行式列表(名 + 描述 + 文件数·大小):<b>点行</b>折叠展开文件表,点文件开抽屉读正文——与
+      Skills 分栏同一套交互。<b>可读与启用态无关</b>(ADR-0012,启用前审阅);目录缺失的行置灰。Codex 组仅 Skills tab,不并入 Skills 分栏。
+    </div>
+
+    <div class="sec-h">Claude · 插件</div>
+    <div class="card" id="claude-list"></div>
+
+    <div class="sec-h">Codex · 插件(探测式,仅缓存枚举)</div>
+    <div class="card" id="codex-list"></div>
+
+    <div class="note">注:启用态判定来自 settings 分层合并(现行逻辑),本页为静态 mock;行可点性由「包根可读」决定,与启用无关。</div>
+  </div>
+  <div id="overlay"></div>
+
+  <div data-demo-harness>
+    <span class="tag">演示·昼夜</span>
+    <button type="button" data-mode="light" class="on">浅</button>
+    <button type="button" data-mode="dark">深</button>
+  </div>
+
+<script>
+  // ── mock 数据(边界优先) ──
+  const FILES = {
+    'superpowers:brainstorming': {
+      deep: ['references/nested/too-deep.md'],
+      files: {
+        'SKILL.md': '---\nname: brainstorming\ndescription: 先问后做——动手前把问题空间摊开\n---\n\n# Brainstorming\n\n先发散再收敛。**禁止**在第一轮就锁定方案。\n\n- 列出至少 3 个方向\n- 给每个方向找一个反例\n',
+        'references/patterns.md': '# 常用发散模式\n\n1. 逆向:如果必须失败,怎么做\n2. 极端:预算×10 / ÷10\n',
+        'scripts/collect.sh': '#!/bin/bash\n# 汇总头脑风暴产物\ncat ideas/*.md\n'
+      }
+    },
+    'superpowers:writing-plans': {
+      deep: [],
+      files: {
+        'SKILL.md': '---\nname: writing-plans\ndescription: 把共识写成可执行计划\n---\n\n# Writing Plans\n\n每步都要有验收判据。\n'
+      }
+    },
+    'content-tools:publish-wechat': {
+      deep: [],
+      files: {
+        'SKILL.md': '---\nname: publish-wechat\ndescription: 公众号排版与发布\n---\n\n# Publish WeChat\n\n> 未启用的插件也能审阅——启用前先看它指示 agent 做什么。\n\n1. markdown → 微信 HTML\n2. 生成封面\n'
+      }
+    },
+    'documents:documents': {
+      deep: [],
+      files: {
+        'SKILL.md': '---\nname: documents\ndescription: 文档创建与编辑(Codex 内置)\n---\n\n# Documents\n\nCodex 侧插件包,目录约定与 Claude 同构。\n',
+        'references/formats.md': '# 支持格式\n\ndocx / pdf / md\n'
+      }
+    }
+  }
+
+  const CLAUDE_PLUGINS = [
+    { name: 'superpowers@official', ver: 'v6.2.0', enabled: '启用 · user 层',
+      installs: ['user', 'project · demo-proj'],
+      skills: [
+        { key: 'superpowers:brainstorming', label: 'superpowers:brainstorming', desc: '先问后做——动手前把问题空间摊开' },
+        { key: 'superpowers:writing-plans', label: 'superpowers:writing-plans', desc: '把共识写成可执行计划' },
+        { key: null, label: 'superpowers:lost-skill', desc: '', disReason: '包内该 skill 目录不存在' }
+      ],
+      agents: ['code-reviewer'], hooks: ['SessionStart × 1'], mcp: ['browser-mcp'] },
+    { name: 'content-tools@local', ver: 'v0.3.1', enabled: null,
+      installs: ['user'],
+      skills: [{ key: 'content-tools:publish-wechat', label: 'content-tools:publish-wechat', desc: '公众号排版与发布' }],
+      agents: [], hooks: [],
+      note: '未启用插件的 skill 仍可审阅(ADR-0012:可读与启用态解耦;读取不改变任何状态)' },
+    { name: 'ghost@legacy', ver: 'v1.0.0', enabled: null,
+      installs: ['user'], missing: true,
+      skills: [{ key: null, label: 'ghost:old-skill', desc: '', disReason: '安装目录缺失(缓存已清理)' }],
+      agents: [], hooks: [] }
+  ]
+
+  const CODEX_PLUGINS = [
+    { name: 'documents', ver: 'v26.805.11740', market: 'openai-primary-runtime',
+      skills: [{ key: 'documents:documents', label: 'documents:documents', desc: '文档创建与编辑(Codex 内置)' }],
+      note: '探测式:无启用态语义,不并入 Skills 分栏(ADR-0012);仅缓存最高版本目录' }
+  ]
+
+  // ── 工具 ──
+  function fmtSize(b){ if(b<1024) return b+' B'; if(b<1048576) return (b/1024).toFixed(b<10240?1:0)+' KB'; return (b/1048576).toFixed(1)+' MB' }
+  function lineCount(t){ return t ? t.replace(/\n$/,'').split('\n').length : 0 }
+  function extKind(p){ const b=p.split('/').pop()||p;
+    if(/\.md$/i.test(b)) return {k:'md',l:'MD'}; if(/\.(sh|bash|zsh)$/i.test(b)) return {k:'sh',l:'SH'};
+    if(/\.(ya?ml|toml|json)$/i.test(b)) return {k:'cfg',l:'CFG'};
+    return {k:'oth',l:(b.includes('.')?b.split('.').pop():'?').slice(0,3).toUpperCase()} }
+  function mockDate(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*33+s.charCodeAt(i))>>>0;
+    const d=new Date(Date.UTC(2026,0,1+h%210)); return d.toISOString().slice(0,10) }
+  function pkgStats(key){ const p=FILES[key]; if(!p) return null
+    let bytes=0; const names=Object.keys(p.files)
+    names.forEach(n=>{ bytes+=new TextEncoder().encode(p.files[n]).length })
+    return { files:names.length, bytes } }
+
+  // ── 文件表(与 skills-view 原型同构) ──
+  function renderFiles(host, key){
+    const pack = FILES[key]
+    host.innerHTML = ''
+    if(!pack) return
+    const names = Object.keys(pack.files).sort((a,b)=> a==='SKILL.md'?-1 : b==='SKILL.md'?1 : a.localeCompare(b))
+    const wrap = document.createElement('div'); wrap.className='files-wrap'
+    wrap.innerHTML = '<div class="files-head"><span>文件</span><span>行数</span><span>大小</span><span>修改日期</span></div>'
+    const list = document.createElement('div'); list.className='files'
+    names.forEach(n=>{
+      const t = pack.files[n]; const k = extKind(n)
+      const b = document.createElement('button'); b.type='button'
+      b.innerHTML = `<span class="name-cell"><span class="ic ${k.k}">${k.l}</span><span class="path">${n}</span>${n==='SKILL.md'?'<span class="tag">入口</span>':''}</span>
+        <span class="meta lines">${lineCount(t)}</span><span class="meta">${fmtSize(new TextEncoder().encode(t).length)}</span><span class="meta">${mockDate(key+n)}</span>`
+      b.onclick = (e)=>{ e.stopPropagation(); openDrawer(key, n) }
+      list.appendChild(b)
+    })
+    wrap.appendChild(list); host.appendChild(wrap)
+    if(pack.deep.length){
+      const tip=document.createElement('div'); tip.className='sk-tip'
+      tip.textContent = '按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill。更深路径未列入: '+pack.deep.join(', ')
+      host.appendChild(tip)
+    }
+  }
+
+  // ── 抽屉(共享块 md-preview) ──
+  let mdCtl=null
+  function openDrawer(key, file){
+    const overlay=document.getElementById('overlay')
+    const text=FILES[key].files[file]
+    overlay.innerHTML = `<div class="mask" data-close></div>
+      <div class="drawer"><button class="drawer-close" data-close title="关闭">×</button>
+        <div class="d-top"><div class="d-title">${key}</div><div class="d-meta">插件包 · ${file}</div></div>
+        <div class="d-body"><div id="md-pane" data-shared-block="md-preview" style="flex:1;min-width:0;display:flex"></div></div></div>`
+    const mode = MdPreview.isMarkdown(file)?'preview':'raw'
+    mdCtl = MdPreview.mount(document.getElementById('md-pane'), {name:file, text, mode})
+    const close=()=>{ if(mdCtl){mdCtl.destroy();mdCtl=null} overlay.innerHTML=''; window.onkeydown=null }
+    overlay.querySelectorAll('[data-close]').forEach(el=>el.onclick=close)
+    window.onkeydown=(e)=>{ if(e.key==='Escape') close() }
+  }
+
+  // ── 插件行 + 展开区 ──
+  function mountPlugin(parent, p, side){
+    const row=document.createElement('button'); row.type='button'; row.className='prow'
+    row.innerHTML=`<span class="cv">▸</span><span class="nm">${p.name}</span><span class="ver">${p.ver}</span>
+      ${side==='codex' ? `<span class="pill src">${p.market}</span>` : (p.enabled?`<span class="pill on">${p.enabled}</span>`:'<span class="pill off">未启用</span>')}
+      ${p.missing?'<span class="pill off">安装目录缺失</span>':''}
+      ${(p.installs||[]).map(i=>`<span class="mchip">${i}</span>`).join('')}`
+    const exp=document.createElement('div'); exp.className='exp'; exp.style.display='none'
+    // 静态段经 seg() 追加;交互节点单独 appendChild——顺序不能反:
+    // appendChild 之后再 innerHTML+= 会重建 DOM、抹掉监听器(首版踩坑)
+    const seg=(html)=>{ const d=document.createElement('div'); d.innerHTML=html; while(d.firstChild) exp.appendChild(d.firstChild) }
+    if(p.missing) seg('<div class="none">安装目录缺失(缓存已清理)——仅注册表记录可见;skill 不可预览</div>')
+    // 类目 tab:空类目不出 tab(同 E5「某类缺失不显示」);默认落在首个非空类目
+    const panels=[]
+    if(p.skills.length){
+      const list=document.createElement('div'); list.className='psk-list'
+      p.skills.forEach(s=>{
+        const r=document.createElement('button'); r.type='button'
+        r.className='psk'+(s.key?'':' dis')
+        const stats = s.key ? pkgStats(s.key) : null
+        r.innerHTML=`<span class="cv">${s.key?'▸':'·'}</span><span class="nm">${s.label}</span>
+          <span class="ds">${s.desc||''}</span>
+          <span class="meta">${stats ? stats.files+' 个文件 · '+fmtSize(stats.bytes) : (s.disReason||'')}</span>`
+        const host=document.createElement('div'); host.className='psk-body'; host.style.display='none'
+        if(s.key){
+          r.onclick=(e)=>{
+            e.stopPropagation()
+            const open=host.style.display!=='none'
+            host.style.display=open?'none':'block'
+            if(!open) renderFiles(host, s.key); else host.innerHTML=''
+            r.querySelector('.cv').textContent=open?'▸':'▾'
+            r.classList.toggle('on', !open)
+          }
+        } else { r.title=s.disReason; r.onclick=(e)=>e.stopPropagation() }
+        list.appendChild(r); list.appendChild(host)
+      })
+      panels.push({label:'Skills', cnt:p.skills.length, node:list})
+    }
+    const chipPanel=(names)=>{ const d=document.createElement('div'); d.className='chips'
+      d.innerHTML=names.map(n=>`<span class="mchip">${n}</span>`).join(''); return d }
+    if(p.agents && p.agents.length) panels.push({label:'Subagents', cnt:p.agents.length, node:chipPanel(p.agents)})
+    if(p.hooks && p.hooks.length) panels.push({label:'Hooks', cnt:p.hooks.length, node:chipPanel(p.hooks)})
+    if(p.mcp && p.mcp.length) panels.push({label:'MCP', cnt:p.mcp.length, node:chipPanel(p.mcp)})
+    if(panels.length){
+      const bar=document.createElement('div'); bar.className='ptabs'
+      const host=document.createElement('div')
+      panels.forEach((pa,i)=>{
+        const b=document.createElement('button'); b.type='button'; b.className='ptab'+(i===0?' on':'')
+        b.innerHTML=`${pa.label}<span class="cnt">${pa.cnt}</span>`
+        b.onclick=(e)=>{
+          e.stopPropagation()
+          bar.querySelectorAll('.ptab').forEach(x=>x.classList.toggle('on',x===b))
+          host.innerHTML=''; host.appendChild(pa.node)
+        }
+        bar.appendChild(b)
+      })
+      host.appendChild(panels[0].node)
+      exp.appendChild(bar); exp.appendChild(host)
+    }
+    if(p.note) seg(`<div class="note">${p.note}</div>`)
+    row.onclick=()=>{
+      const open=exp.style.display!=='none'
+      exp.style.display=open?'none':'block'
+      row.querySelector('.cv').textContent=open?'▸':'▾'
+    }
+    parent.appendChild(row); parent.appendChild(exp)
+  }
+
+  CLAUDE_PLUGINS.forEach(p=>mountPlugin(document.getElementById('claude-list'), p, 'claude'))
+  CODEX_PLUGINS.forEach(p=>mountPlugin(document.getElementById('codex-list'), p, 'codex'))
+  // 默认展开首个插件并展开首个 skill 行,进页即见形态
+  document.querySelector('#claude-list .prow').click()
+  document.querySelector('#claude-list .psk').click()
+
+  document.querySelectorAll('[data-demo-harness] [data-mode]').forEach(b=>{
+    b.onclick=()=>{
+      document.documentElement.setAttribute('data-mode', b.dataset.mode)
+      document.querySelectorAll('[data-demo-harness] [data-mode]').forEach(x=>x.classList.toggle('on',x===b))
+    }
+  })
+</script>
+</body>
+</html>

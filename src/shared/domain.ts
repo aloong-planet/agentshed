@@ -45,10 +45,12 @@ export interface GlobalSkill {
   sides: AgentSide[]
   /** 各侧是否为软链(安装时解引用复制) */
   symlink: Record<AgentSide, boolean>
-  /** 各侧包统计;该侧无定义或不可读为 null(插件条目恒 null) */
+  /** 各侧包统计;该侧无定义或不可读为 null */
   pkg: Record<AgentSide, SkillPkgStats | null>
   origin: 'disk' | 'plugin'
   pluginName: string | null
+  /** 插件条目的摘要同源包根(预览入口,plugins-view H5);磁盘条目为 null */
+  pluginRoot: string | null
 }
 
 /**
@@ -117,9 +119,16 @@ export interface PluginHookSummary {
   matchers: number
 }
 
+/** 插件内含 skill 摘要(plugins-view H1/H6):pkg=包统计(stat-only);不可读为 null(行置灰判定) */
+export interface PluginSkillSummary {
+  name: string
+  description: string | null
+  pkg: SkillPkgStats | null
+}
+
 /** 插件内含组件摘要(E5:目录约定 + manifest 声明字段合并;E6:目录缺失 missing) */
 export interface PluginContents {
-  skills: Array<{ name: string; description: string | null }>
+  skills: PluginSkillSummary[]
   agents: string[]
   hooks: PluginHookSummary[]
   mcp: string[]
@@ -137,10 +146,14 @@ export interface PluginEntry {
   contents: PluginContents
 }
 
-/** Codex 插件(E8:仅缓存三层目录枚举;启用态/内含组件语义未接入,不建模) */
+/** Codex 插件(E8:缓存三层目录枚举 + 最高版本包根下 skills 枚举;启用态语义未接入,不建模) */
 export interface CodexPluginEntry {
   name: string
   marketplace: string
+  /** 最高版本缓存目录(摘要同源包根,H5);不可得为 null */
+  root: string | null
+  /** 内含 skills(仅此一类,ADR-0012;目录约定与 Claude 同构) */
+  skills: PluginSkillSummary[]
   /** 缓存中最高版本 */
   version: string | null
   cachedVersions: number
@@ -150,6 +163,8 @@ export interface CodexPluginEntry {
 export interface ProjectPluginEntry {
   name: string
   version: string | null
+  /** 摘要同源包根(与 contents 扫描同一条 installPath,H5);无有效记录为 null */
+  installPath: string | null
   enabled: boolean
   /** 启用/禁用判定来自哪一层;任何层都未提及为 null */
   enabledFrom: 'local' | 'project' | 'user' | null
@@ -394,10 +409,12 @@ export interface ProjectSkillEntry {
   level: 'project' | 'global' | 'plugin'
   side: AgentSide
   symlink: boolean
-  /** 本行对应包的统计;插件条目/不可读为 null */
+  /** 本行对应包的统计;不可读为 null */
   pkg: SkillPkgStats | null
   origin: 'disk' | 'plugin'
   pluginName: string | null
+  /** 插件条目的摘要同源包根(预览入口,plugins-view H5);磁盘条目为 null */
+  pluginRoot: string | null
 }
 
 /**

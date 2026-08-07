@@ -404,11 +404,18 @@ function SkillRow({
   onUninstall?: () => void
 }): JSX.Element {
   if (s.origin === 'plugin' || s.level === 'plugin') {
+    // A4/ADR-0012:插件命名空间行与磁盘同权展开预览;仍无装卸(G3)
     return (
-      <div className="it">
-        <span className="nm mono">{s.name}</span>
-        <span className="pill plg">插件</span>
-      </div>
+      <SkillExpandBlock
+        name={s.name}
+        sides={[s.side]}
+        origin="plugin"
+        scope="global"
+        fixedSide={s.side}
+        pkgBySide={{ [s.side]: s.pkg }}
+        pluginRoot={s.pluginRoot}
+        levelLabel="插件包"
+      />
     )
   }
   return (

@@ -1118,12 +1118,13 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
   await expect(win.locator('.drawer .kv')).toContainText('sandbox_mode')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // 抽屉盖住窗口中心,点左侧可见 mask 区
 
-  // ② 全局 Plugins:F3 之一——user 层未启用;展开可见内含 skills 与 hooks 摘要
+  // ② 全局 Plugins:F3 之一——user 层未启用;展开为类目 tab,Skills 默认、Hooks 切换可见
   await tab('Plugins').click()
   const plugRow = win.locator('.it.row-btn', { hasText: 'superpowers@official' })
   await expect(plugRow).toContainText('未启用')
   await plugRow.click()
   await expect(win.locator('.exp-area')).toContainText('superpowers:brainstorming')
+  await win.locator('.exp-area .ptab', { hasText: 'Hooks' }).click()
   await expect(win.locator('.exp-area')).toContainText('SessionStart × 1')
 
   // ③ 全局 Memory:行展开文件列表,点文件抽屉经白名单按需读取
@@ -1142,9 +1143,12 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
   await expect(detRow).toContainText('启用')
   await expect(detRow).toContainText('project 层')
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
-  const nsSkill = win.locator('.it', { hasText: 'superpowers:brainstorming' })
+  const nsSkill = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
   await expect(nsSkill).toBeVisible()
   await expect(nsSkill.locator('.ins')).toHaveCount(0) // G3:插件条目无装卸按钮
+  // A4/ADR-0012:命名空间行与磁盘同权展开预览
+  await nsSkill.locator('.sk-head').click()
+  await expect(nsSkill.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
   // ⑤ 详情 Memory:MEMORY.md 主体直接渲染
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
   await expect(win.locator('.pane-body .md')).toContainText('要点甲')
@@ -1264,11 +1268,14 @@ test('Skills 查看:全局展开读包;详情同名只见项目级;插件行不�
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('软链正文戊')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
-  // ② 插件行不可展开(A4)
+  // ② 插件命名空间行:与磁盘同权展开预览(A4,ADR-0012 推翻 v1 排除;行内统计同权)
   const plug = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
-  await expect(plug.locator('.sk-head.plugin')).toBeVisible()
+  await expect(plug.locator('.sk-meta')).toContainText('1 个文件')
   await plug.locator('.sk-head').click()
-  await expect(plug.locator('.files-card')).toHaveCount(0)
+  await plug.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.skill-drawer .md-fm')).toContainText('先问后做')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await plug.locator('.sk-head').click() // 收起,不干扰后续定位
 
   // ③ 详情 Skills:同名只列项目级、无第二份全局行;仅全局有的仍列出;项目级行可预览
   await win.locator('.rail .ri').nth(1).click()
@@ -1295,6 +1302,106 @@ test('Skills 查看:全局展开读包;详情同名只见项目级;插件行不�
   })
   expect(Math.abs(g.drawer - Math.min(720, g.pane * 0.8))).toBeLessThan(2)
   expect(g.left).toBeGreaterThan(g.paneLeft + 1)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/**
+ * plugins-view 序列 H:插件 skill 原地预览——类目 tab、行式列表、可读与启用态无关、
+ * 缺失置灰、Codex 组仅 Skills tab。fixture home 全链路。
+ */
+test('插件 skill 原地预览:tab 展开读包;未启用可读;缺失置灰;Codex 组', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
+  const demo = join(home, 'demo-proj')
+  mkdirSync(demo, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
+  // 启用插件:2 个 skill + 1 个 hooks(类目 tab 需要多类)
+  const sp = join(home, 'pkg-sp')
+  mkdirSync(join(sp, '.claude-plugin'), { recursive: true })
+  writeFileSync(join(sp, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'superpowers' }))
+  mkdirSync(join(sp, 'skills', 'brainstorming'), { recursive: true })
+  writeFileSync(
+    join(sp, 'skills', 'brainstorming', 'SKILL.md'),
+    '---\ndescription: 先问后做\n---\n\n插件正文甲\n'
+  )
+  mkdirSync(join(sp, 'skills', 'writing-plans'), { recursive: true })
+  writeFileSync(join(sp, 'skills', 'writing-plans', 'SKILL.md'), '---\ndescription: 写计划\n---\nx\n')
+  mkdirSync(join(sp, 'hooks'), { recursive: true })
+  writeFileSync(
+    join(sp, 'hooks', 'hooks.json'),
+    JSON.stringify({ hooks: { SessionStart: [{ matcher: 'startup', hooks: [] }] } })
+  )
+  // 未启用插件:1 个 skill(H4:仍可读)
+  const ct = join(home, 'pkg-ct')
+  mkdirSync(join(ct, '.claude-plugin'), { recursive: true })
+  writeFileSync(join(ct, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'content-tools' }))
+  mkdirSync(join(ct, 'skills', 'publish'), { recursive: true })
+  writeFileSync(join(ct, 'skills', 'publish', 'SKILL.md'), '---\ndescription: 发布\n---\n\n未启用也可审阅乙\n')
+  // 整包缺失插件(E6)
+  mkdirSync(join(home, '.claude', 'plugins'), { recursive: true })
+  writeFileSync(
+    join(home, '.claude', 'plugins', 'installed_plugins.json'),
+    JSON.stringify({
+      version: 2,
+      plugins: {
+        'superpowers@official': [{ scope: 'user', version: '1.0.0', installPath: sp }],
+        'content-tools@local': [{ scope: 'user', version: '0.1.0', installPath: ct }],
+        'ghost@legacy': [{ scope: 'user', version: '1.0.0', installPath: join(home, 'gone') }]
+      }
+    })
+  )
+  writeFileSync(
+    join(home, '.claude', 'settings.json'),
+    JSON.stringify({ enabledPlugins: { 'superpowers@official': true } })
+  )
+  // Codex 缓存:最高版本含 skills(E8)
+  const cxBase = join(home, '.codex', 'plugins', 'cache', 'openai-bundled', 'documents')
+  mkdirSync(join(cxBase, '2.0.0', 'skills', 'documents'), { recursive: true })
+  writeFileSync(
+    join(cxBase, '2.0.0', 'skills', 'documents', 'SKILL.md'),
+    '---\ndescription: 文档\n---\n\nCodex 正文丙\n'
+  )
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
+
+  // ① 启用插件:行内安装记录 chip;展开类目 tab;Skills 行式列表带统计;点行→文件表→抽屉
+  const spRow = win.locator('.it.row-btn', { hasText: 'superpowers@official' })
+  await expect(spRow.locator('.chip', { hasText: 'user' })).toBeVisible()
+  await spRow.click()
+  const spExp = win.locator('.exp-area').first()
+  await expect(spExp.locator('.ptab')).toHaveText(['Skills2', 'Hooks1'])
+  const bRow = spExp.locator('.psk', { hasText: 'superpowers:brainstorming' })
+  await expect(bRow.locator('.meta')).toContainText('1 个文件')
+  await bRow.click()
+  await spExp.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('插件正文甲')
+  await expect(win.locator('.skill-drawer .d-meta')).toContainText('插件包')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await spRow.click() // 收起,后续 .files 定位不被本行的表抢占
+
+  // ② 未启用插件的 skill 仍可读(H4/ADR-0012)
+  await win.locator('.it.row-btn', { hasText: 'content-tools@local' }).click()
+  const ctRow = win.locator('.psk', { hasText: 'content-tools:publish' })
+  await ctRow.click()
+  await win.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('未启用也可审阅乙')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await win.locator('.it.row-btn', { hasText: 'content-tools@local' }).click() // 收起
+
+  // ③ 整包缺失(E6):展开为缺失横幅,无类目 tab
+  await win.locator('.it.row-btn', { hasText: 'ghost@legacy' }).click()
+  await expect(win.locator('.exp-area.none', { hasText: '安装目录缺失' })).toBeVisible()
+
+  // ④ Codex 组:仅 Skills tab,点行读包
+  const cxRow = win.locator('.it.row-btn', { hasText: 'documents@openai-bundled' })
+  await cxRow.click()
+  const cxPsk = win.locator('.psk', { hasText: 'documents:documents' })
+  await cxPsk.click()
+  await win.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Codex 正文丙')
 
   expect(l.errors).toEqual([])
   await close(l)

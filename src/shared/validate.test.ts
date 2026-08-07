@@ -163,7 +163,7 @@ function okDetail(): Record<string, unknown> {
       {
         name: 'tdd', description: null, level: 'project', side: 'claude',
         symlink: false, pkg: { files: 1, bytes: 10 },
-        origin: 'disk', pluginName: null
+        origin: 'disk', pluginName: null, pluginRoot: null
       }
     ],
     subagents: [
@@ -176,9 +176,9 @@ function okDetail(): Record<string, unknown> {
     memory: { main: null, topics: [{ name: 'a.md', file: '/Users/x/a.md', mtimeMs: 1 }] },
     plugins: [
       {
-        name: 'superpowers@official', version: '6.2.0', enabled: true, enabledFrom: 'project',
+        name: 'superpowers@official', version: '6.2.0', installPath: '/cache/sp', enabled: true, enabledFrom: 'project',
         installs: [{ scope: 'project', projectPath: '/Users/x/proj', projectMissing: false, installPath: null, version: null }],
-        contents: { skills: [{ name: 'brainstorming', description: null }], agents: [], hooks: [], mcp: [], missing: false }
+        contents: { skills: [{ name: 'brainstorming', description: null, pkg: { files: 1, bytes: 8 } }], agents: [], hooks: [], mcp: [], missing: false }
       }
     ],
     mcp: [{ name: 'figma', enabled: null }],

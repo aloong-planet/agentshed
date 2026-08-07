@@ -1,37 +1,13 @@
 // skills-view:磁盘 skill 折叠文件表 + 点文件开抽屉
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { AgentSide, SkillPkgStats } from '@shared/domain'
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
 import { SkillFileDrawer } from './SkillFileDrawer'
+import { SkillFilesTable, formatSize } from './SkillFilesTable'
 import { toast } from './Toast'
 
 const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex' }
 const SIDE_ORDER: AgentSide[] = ['claude', 'codex']
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function formatDate(ms: number): string {
-  const d = new Date(ms)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function extKind(path: string): { label: string; kind: string } {
-  const base = path.split('/').pop() || path
-  if (/\.md$/i.test(base)) return { label: 'MD', kind: 'md' }
-  if (/\.(sh|bash|zsh)$/i.test(base)) return { label: 'SH', kind: 'sh' }
-  if (/\.(js|ts|mjs|cjs)$/i.test(base)) return { label: 'JS', kind: 'js' }
-  if (/\.(ya?ml|toml|json)$/i.test(base)) return { label: 'CFG', kind: 'cfg' }
-  const i = base.lastIndexOf('.')
-  const ext = (i >= 0 ? base.slice(i + 1) : '?').slice(0, 3).toUpperCase()
-  return { label: ext, kind: 'oth' }
-}
 
 export interface SkillExpandBlockProps {
   name: string
@@ -47,6 +23,8 @@ export interface SkillExpandBlockProps {
   fixedSide?: AgentSide
   /** 各侧包统计(行内展示);切侧时行上数字随动 */
   pkgBySide?: Partial<Record<AgentSide, SkillPkgStats | null>>
+  /** 插件条目的摘要同源包根(plugins-view H5);有值且统计可读时行可展开(A4/ADR-0012) */
+  pluginRoot?: string | null
   installSlot?: JSX.Element
   uninstallSlot?: JSX.Element
 }
@@ -63,6 +41,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
     projectPath,
     fixedSide,
     pkgBySide,
+    pluginRoot,
     installSlot,
     uninstallSlot
   } = props
@@ -75,28 +54,46 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   const [listErr, setListErr] = useState<string | null>(null)
   const [drawer, setDrawer] = useState<SkillFileEntry | null>(null)
 
+  const pkg = pkgBySide?.[side] ?? null
+  // A4/ADR-0012:插件命名空间行与磁盘同权——包根在登记集且统计可读才可展开
+  const expandable = disk || (origin === 'plugin' && pluginRoot != null && pkg !== null)
+  // 竞态守卫:快速切侧时,旧侧请求的结果不得安到新侧名下(同层污染)
+  const seq = useRef(0)
+
   async function load(forSide: AgentSide): Promise<void> {
+    const my = ++seq.current
     setLoading(true)
     setListErr(null)
     try {
-      const r = await window.agentshed.listSkillFiles({
-        side: forSide,
-        name,
-        scope,
-        projectPath
-      })
-      setListing(r)
+      // 命名空间条目名(ns:skill)在 IPC 里传裸 skill 名;包根定位由 pluginRoot 承担
+      const r =
+        origin === 'plugin'
+          ? await window.agentshed.listSkillFiles({
+              side: forSide,
+              name: name.includes(':') ? name.slice(name.indexOf(':') + 1) : name,
+              scope: 'plugin',
+              pluginRoot: pluginRoot as string
+            })
+          : await window.agentshed.listSkillFiles({
+              side: forSide,
+              name,
+              scope,
+              projectPath
+            })
+      if (seq.current === my) setListing(r)
     } catch (e) {
-      setListing(null)
-      setListErr(String(e))
+      if (seq.current === my) {
+        setListing(null)
+        setListErr(String(e))
+      }
       toast('err', `列举失败:${String(e)}`)
     } finally {
-      setLoading(false)
+      if (seq.current === my) setLoading(false)
     }
   }
 
   async function toggle(): Promise<void> {
-    if (!disk) return
+    if (!expandable) return
     if (open) {
       setOpen(false)
       return
@@ -110,26 +107,23 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
     await load(s)
   }
 
-  const files = listing?.files ?? []
-  const pkg = pkgBySide?.[side] ?? null
-
   return (
     <div className={`sk ${open ? 'open' : ''}`}>
       <div
-        className={`sk-head ${disk ? 'disk' : 'plugin'}`}
-        role={disk ? 'button' : undefined}
-        tabIndex={disk ? 0 : undefined}
+        className={`sk-head ${expandable ? 'disk' : 'plugin'}`}
+        role={expandable ? 'button' : undefined}
+        tabIndex={expandable ? 0 : undefined}
         onClick={() => void toggle()}
         onKeyDown={(e) => {
           // 行内动作按钮(装/卸)的键盘激活会冒泡到这里;只响应行自身,免得连带展开(A7)
           if (e.target !== e.currentTarget) return
-          if (disk && (e.key === 'Enter' || e.key === ' ')) {
+          if (expandable && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault()
             void toggle()
           }
         }}
       >
-        <span className="chev">{disk ? '▸' : '·'}</span>
+        <span className="chev">{expandable ? '▸' : '·'}</span>
         <span className="nm mono">{name}</span>
         <span className="bdg">
           {SIDE_ORDER.map((s) =>
@@ -148,7 +142,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         {level === 'project' && <span className="pill prj">项目级</span>}
         {level === 'global' && <span className="pill glb">全局</span>}
         {symlink && <span className="pill ln">⤷ 软链</span>}
-        {disk && (
+        {(disk || origin === 'plugin') && (
           <span className="sk-meta">
             {pkg ? `${pkg.files} 个文件 · ${formatSize(pkg.bytes)}` : ''}
           </span>
@@ -156,7 +150,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         {installSlot}
         {uninstallSlot}
       </div>
-      {open && disk && (
+      {open && expandable && (
         <div className="sk-body" onClick={(e) => e.stopPropagation()}>
           {!fixedSide && sorted.length > 1 && (
             <div className="sk-sides">
@@ -172,59 +166,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
               ))}
             </div>
           )}
-          {listing?.deep && (
-            <div className="sk-tip">
-              {listing.deepHint}
-              {listing.deepPaths.length > 0 && (
-                <>
-                  <br />
-                  <span style={{ opacity: 0.85 }}>
-                    更深路径未列入: {listing.deepPaths.join(', ')}
-                  </span>
-                </>
-              )}
-            </div>
-          )}
-          {loading && (
-            <div className="files">
-              <div className="empty">列举中…</div>
-            </div>
-          )}
-          {listErr && (
-            <div className="files">
-              <div className="empty">{listErr}</div>
-            </div>
-          )}
-          {!loading && !listErr && listing && (
-            <div className="files-card">
-              <div className="files-head">
-                <span>文件</span>
-                <span>行数</span>
-                <span>大小</span>
-                <span>修改日期</span>
-              </div>
-              <div className="files">
-                {files.length === 0 && <div className="empty">包内无可预览文本文件</div>}
-                {files.map((f) => {
-                  const { label, kind } = extKind(f.path)
-                  return (
-                    <button type="button" key={f.absPath} onClick={() => setDrawer(f)}>
-                      <span className="name-cell">
-                        <span className={`ic ${kind}`}>{label}</span>
-                        <span className="path mono" title={f.path}>
-                          {f.path}
-                        </span>
-                        {f.path === 'SKILL.md' && <span className="tag">入口</span>}
-                      </span>
-                      <span className="meta lines">{f.lines.toLocaleString('zh-CN')}</span>
-                      <span className="meta">{formatSize(f.bytes)}</span>
-                      <span className="meta">{formatDate(f.mtimeMs)}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+          <SkillFilesTable listing={listing} loading={loading} error={listErr} onOpen={setDrawer} />
         </div>
       )}
       {drawer && (

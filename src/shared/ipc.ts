@@ -68,13 +68,15 @@ export type SkillOpResult =
   | { ok: true }
   | { ok: false; reason: string; message: string }
 
-/** 列举 skill 包:全局库或项目级 */
+/** 列举 skill 包:全局库、项目级或插件包(plugins-view H8) */
 export interface ListSkillFilesArgs {
   side: 'claude' | 'codex'
   name: string
-  scope: 'global' | 'project'
+  scope: 'global' | 'project' | 'plugin'
   /** scope=project 时必填 */
   projectPath?: string
+  /** scope=plugin 时必填:摘要同源包根,须命中扫描登记集(fail-closed) */
+  pluginRoot?: string
 }
 
 export interface SkillFileEntry {

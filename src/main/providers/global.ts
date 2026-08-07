@@ -86,7 +86,8 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
       symlink: { claude: cl?.symlink ?? false, codex: cx?.symlink ?? false },
       pkg: { claude: cl?.pkg ?? null, codex: cx?.pkg ?? null },
       origin: 'disk',
-      pluginName: null
+      pluginName: null,
+      pluginRoot: null
     }
   })
   // G1(全局页口径):user 层启用插件的内含 skills 并入——命名空间条目,不参与遮蔽(G2)
@@ -100,9 +101,11 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
         description: s.description,
         sides: ['claude'],
         symlink: { claude: false, codex: false },
-        pkg: { claude: null, codex: null },
+        // G3 同权预览(ADR-0012):统计与包根来自内含组件摘要同一次扫描(H5)
+        pkg: { claude: s.pkg, codex: null },
         origin: 'plugin',
-        pluginName: p.name
+        pluginName: p.name,
+        pluginRoot: p.installPath
       })
     }
   }

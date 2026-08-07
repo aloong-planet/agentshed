@@ -163,8 +163,9 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
               origin={s.origin}
               symlink={s.symlink.claude || s.symlink.codex}
               scope="global"
-              levelLabel="全局库"
+              levelLabel={s.origin === 'plugin' ? '插件包' : '全局库'}
               pkgBySide={s.pkg}
+              pluginRoot={s.pluginRoot}
               installSlot={
                 s.origin === 'disk' ? (
                   <button

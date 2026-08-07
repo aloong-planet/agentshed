@@ -32,9 +32,11 @@ function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] 
         level: 'plugin',
         side: 'claude',
         symlink: false,
-        pkg: null,
+        // G3 同权预览(ADR-0012):统计与包根来自内含组件摘要同一次扫描(H5)
+        pkg: s.pkg,
         origin: 'plugin',
-        pluginName: p.name
+        pluginName: p.name,
+        pluginRoot: p.installPath
       })
     }
   }
@@ -125,7 +127,8 @@ function readEffectiveSkills(
         symlink: s.symlink,
         pkg: s.pkg,
         origin: 'disk',
-        pluginName: null
+        pluginName: null,
+        pluginRoot: null
       })
     }
     for (const [name, s] of [...global.entries()].sort(([a], [b]) => a.localeCompare(b))) {
@@ -138,7 +141,8 @@ function readEffectiveSkills(
         symlink: s.symlink,
         pkg: s.pkg,
         origin: 'disk',
-        pluginName: null
+        pluginName: null,
+        pluginRoot: null
       })
     }
   }

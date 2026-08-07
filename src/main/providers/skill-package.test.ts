@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {
   listSkillPackageFiles,
   resolveSkillRoot,
+  resolvePluginSkillRoot,
   isUnderKnownSkillRoots,
   statSkillPackage,
   SKILL_DEEP_HINT
@@ -177,5 +178,20 @@ describe('resolveSkillRoot + isUnderKnownSkillRoots', () => {
     mkdirSync(join(dir, 'proj', '.claude', 'skills', 'x'), { recursive: true })
     expect(isUnderKnownSkillRoots(join(dir, 'proj', '.claude', 'skills', 'x'), r)).toBe(false)
     expect(isUnderKnownSkillRoots(join(dir, 'proj', '.claude', 'skills', 'x'), r, join(dir, 'proj'))).toBe(true)
+  })
+})
+
+describe('resolvePluginSkillRoot(plugins-view H8)', () => {
+  it('包根下 skills/<名> 解析;name 消毒;缺失/悬空 → null', () => {
+    const root = join(dir, 'plug-pkg')
+    mkPack(root, { 'skills/brainstorming/SKILL.md': '# b\n' })
+    const abs = resolvePluginSkillRoot(root, 'brainstorming')
+    expect(abs).toBeTruthy()
+    expect(listSkillPackageFiles(abs!).files.map((f) => f.path)).toEqual(['SKILL.md'])
+    expect(resolvePluginSkillRoot(root, '../escape')).toBeNull()
+    expect(resolvePluginSkillRoot(root, 'a/b')).toBeNull()
+    expect(resolvePluginSkillRoot(root, '')).toBeNull()
+    expect(resolvePluginSkillRoot(root, 'gone')).toBeNull()
+    expect(resolvePluginSkillRoot(join(dir, 'no-such-root'), 'brainstorming')).toBeNull()
   })
 })
