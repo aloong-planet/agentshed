@@ -37,7 +37,6 @@ import { HiddenStore } from './hidden-store'
 import { PrefsStore } from './prefs-store'
 import { DEFAULT_SCHEME, isAppearanceScheme } from '@shared/appearance'
 import {
-  isUnderKnownSkillRoots,
   listSkillPackageFiles,
   readSkillFileText,
   resolveSkillRoot,
@@ -302,6 +301,7 @@ handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
     throw new Error('项目未打开(先打开项目详情)')
   }
   const roots = realRoots()
+  // 容器检查(C9,作用于解析前入口)在 resolveSkillRoot 内完成
   const root = resolveSkillRoot({
     side: a.side,
     name: a.name,
@@ -309,7 +309,7 @@ handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
     projectPath: a.projectPath,
     roots
   })
-  if (!root || !isUnderKnownSkillRoots(root, roots, a.projectPath)) {
+  if (!root) {
     throw new Error('skill 包不可用或不在允许根下')
   }
   const listing = listSkillPackageFiles(root)

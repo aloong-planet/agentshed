@@ -1,6 +1,6 @@
 // skills-view:包内文件列举 + 读正文。深度/扩展名/垃圾目录;软链跟随;精确白名单由调用方登记。
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { join, relative, sep } from 'node:path'
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { basename, dirname, join, relative, sep } from 'node:path'
 import type { AgentSide } from '@shared/domain'
 import type { ScanRoots } from './types'
 
@@ -90,6 +90,8 @@ export function resolveSkillRoot(args: ResolveSkillRootArgs): string | null {
         : join(projectPath, '.agents', 'skills', name)
   }
   if (!existsSync(root)) return null
+  // 容器检查在**解析前的入口**上做(C9);跟随软链只发生在其后
+  if (!isUnderKnownSkillRoots(root, roots, projectPath)) return null
   try {
     // 跟随软链到真实目录
     return realpathSync(root)
@@ -220,15 +222,27 @@ export function readSkillFileText(absPath: string): string {
   return raw.length > READ_CAP ? `${raw.slice(0, READ_CAP)}\n…(已截断)` : raw
 }
 
-/** 已知 skills 根下的单一 skill 目录(跟随软链后) */
+/**
+ * 容器检查作用于**解析前的入口**:入口须是已知 skills 根下的单段条目。
+ * 入口可以是软链且目标不设限(A6)——只在枚举/读取时跟随。
+ * 判定用 realpath(dirname(入口)),**不解析最后一段**:先解析整条路径会把父目录
+ * 变成软链目标的父目录,软链装 skill(目标在根外)就会被误拒(2026-08-07 bug)。
+ */
 export function isUnderKnownSkillRoots(
-  absRoot: string,
+  entryAbs: string,
   roots: ScanRoots,
   projectPath?: string
 ): boolean {
-  let real: string
   try {
-    real = realpathSync(absRoot)
+    lstatSync(entryAbs)
+  } catch {
+    return false
+  }
+  const name = basename(entryAbs)
+  if (!name || name === '.' || name === '..') return false
+  let realParent: string
+  try {
+    realParent = realpathSync(dirname(entryAbs))
   } catch {
     return false
   }
@@ -240,11 +254,7 @@ export function isUnderKnownSkillRoots(
   for (const base of allowed) {
     if (!existsSync(base)) continue
     try {
-      const realBase = realpathSync(base)
-      if (!real.startsWith(realBase + sep)) continue
-      const rest = real.slice(realBase.length + 1)
-      // 必须是 base 下的直接子目录
-      if (rest && !rest.includes(sep) && rest !== '..') return true
+      if (realpathSync(base) === realParent) return true
     } catch {
       /* */
     }

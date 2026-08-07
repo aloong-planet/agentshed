@@ -132,6 +132,39 @@ describe('resolveSkillRoot + isUnderKnownSkillRoots', () => {
     expect(resolveSkillRoot({ side: 'claude', name: 'plug:x', scope: 'global', roots: r })).toBeNull()
   })
 
+  it('软链入口:目标在所有已知根之外仍放行(decision-form 形态;容器检查作用于解析前入口)', () => {
+    const r = roots()
+    // 真实包在普通仓库目录(所有已知根之外)——软链装 skill 的最常见形态
+    const target = join(dir, 'repo', 'skills', 'decision-form')
+    mkPack(target, { 'SKILL.md': '---\ndescription: 表单\n---\n决策表正文\n' })
+    mkdirSync(r.agentsSkillsDir, { recursive: true })
+    symlinkSync(target, join(r.agentsSkillsDir, 'decision-form'))
+    // 入口(软链本身)必须过容器检查——A6:目标不设限
+    expect(isUnderKnownSkillRoots(join(r.agentsSkillsDir, 'decision-form'), r)).toBe(true)
+    const abs = resolveSkillRoot({ side: 'codex', name: 'decision-form', scope: 'global', roots: r })
+    expect(abs).toBeTruthy()
+    expect(listSkillPackageFiles(abs!).files.some((f) => f.path === 'SKILL.md')).toBe(true)
+  })
+
+  it('软链入口:目标在另一已知根内也放行(codebase-design 形态,锁现状)', () => {
+    const r = roots()
+    const real = join(r.agentsSkillsDir, 'codebase-design')
+    mkPack(real, { 'SKILL.md': '# cd\n' })
+    mkdirSync(join(r.claudeHome, 'skills'), { recursive: true })
+    symlinkSync(real, join(r.claudeHome, 'skills', 'codebase-design'))
+    expect(isUnderKnownSkillRoots(join(r.claudeHome, 'skills', 'codebase-design'), r)).toBe(true)
+    expect(
+      resolveSkillRoot({ side: 'claude', name: 'codebase-design', scope: 'global', roots: r })
+    ).toBeTruthy()
+  })
+
+  it('悬空软链 → null(不崩、不放行)', () => {
+    const r = roots()
+    mkdirSync(r.agentsSkillsDir, { recursive: true })
+    symlinkSync(join(dir, 'gone'), join(r.agentsSkillsDir, 'dangling'))
+    expect(resolveSkillRoot({ side: 'codex', name: 'dangling', scope: 'global', roots: r })).toBeNull()
+  })
+
   it('isUnderKnownSkillRoots:包外 / skills 根自身 / 非直接子目录一律拒绝(C9 fail-closed)', () => {
     const r = roots()
     mkdirSync(join(r.claudeHome, 'skills', 'tdd', 'references'), { recursive: true })

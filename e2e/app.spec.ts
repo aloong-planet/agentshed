@@ -1,7 +1,7 @@
 // E2E:用 Playwright 驱动真实 Electron(build 产物),覆盖单测测不到的装配层——
 // IPC 全链路、渲染、维度切换、tab 切换、刷新去重,并断言主进程零错误输出。
 // 关键场景:**旧格式缓存启动**(2026-07-30 线上崩溃的形态,单测已锁,这里再守全链路)。
-import { appendFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, mkdirSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
@@ -1205,6 +1205,11 @@ test('Skills 查看:全局展开读包;详情同名只见项目级;插件行不�
   writeFileSync(join(gskills, 'tdd', 'scripts', 'run.sh'), 'echo 独特脚本乙\n')
   mkdirSync(join(gskills, 'review-code'), { recursive: true })
   writeFileSync(join(gskills, 'review-code', 'SKILL.md'), '---\ndescription: 四层法\n---\n\n全局正文丁\n')
+  // 软链 skill:目标在所有已知 skills 根之外(dotfiles/monorepo 形态,2026-08-07 bug 回归点)
+  const linkTarget = join(home, 'repo', 'skills', 'linked-skill')
+  mkdirSync(linkTarget, { recursive: true })
+  writeFileSync(join(linkTarget, 'SKILL.md'), '---\ndescription: 链装\n---\n\n软链正文戊\n')
+  symlinkSync(linkTarget, join(gskills, 'linked-skill'))
   // 项目级同名 tdd:详情列表应只见这一份(B1)
   mkdirSync(join(demo, '.claude', 'skills', 'tdd'), { recursive: true })
   writeFileSync(
@@ -1249,6 +1254,14 @@ test('Skills 查看:全局展开读包;详情同名只见项目级;插件行不�
   await tdd.locator('.files button', { hasText: 'scripts/run.sh' }).click()
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('独特脚本乙')
   await expect(win.locator('.skill-drawer .md-preview-seg')).toHaveCount(0)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+
+  // ①b 软链 skill(目标在根外):行有软链徽标,展开与读文件全链路可用(A6)
+  const linked = win.locator('.sk', { hasText: 'linked-skill' })
+  await expect(linked.locator('.pill.ln')).toBeVisible()
+  await linked.locator('.sk-head').click()
+  await linked.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('软链正文戊')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
   // ② 插件行不可展开(A4)
