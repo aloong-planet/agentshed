@@ -2,7 +2,7 @@
 // 每行 名+描述+包统计,点行折叠展开文件表,点文件开抽屉;可读与启用态无关(ADR-0012)。
 // 不可读(包根缺失/统计为 null)行置灰不可点(H6,fail 早于点击);原生 disabled 不出
 // title,故用类名置灰保留提示。
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { PluginSkillSummary } from '@shared/domain'
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
 import { SkillFileDrawer } from './SkillFileDrawer'
@@ -27,26 +27,34 @@ export function PluginSkillList({
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [drawer, setDrawer] = useState<{ f: SkillFileEntry; skill: string } | null>(null)
+  // 竞态守卫:快速换行时,旧请求的结果不得安到新行名下(同层污染)
+  const seq = useRef(0)
 
   async function toggle(name: string): Promise<void> {
     if (openName === name) {
+      seq.current++
       setOpenName(null)
       setListing(null)
       return
     }
+    const my = ++seq.current
     setOpenName(name)
     setListing(null)
     setErr(null)
     setLoading(true)
     try {
-      setListing(
-        await window.agentshed.listSkillFiles({ side, name, scope: 'plugin', pluginRoot: root! })
-      )
+      const r = await window.agentshed.listSkillFiles({
+        side,
+        name,
+        scope: 'plugin',
+        pluginRoot: root!
+      })
+      if (seq.current === my) setListing(r)
     } catch (e) {
-      setErr(String(e))
+      if (seq.current === my) setErr(String(e))
       toast('err', `列举失败:${String(e)}`)
     } finally {
-      setLoading(false)
+      if (seq.current === my) setLoading(false)
     }
   }
 

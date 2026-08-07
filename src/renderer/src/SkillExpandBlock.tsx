@@ -1,5 +1,5 @@
 // skills-view:磁盘 skill 折叠文件表 + 点文件开抽屉
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { AgentSide, SkillPkgStats } from '@shared/domain'
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
 import { SkillFileDrawer } from './SkillFileDrawer'
@@ -57,8 +57,11 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   const pkg = pkgBySide?.[side] ?? null
   // A4/ADR-0012:插件命名空间行与磁盘同权——包根在登记集且统计可读才可展开
   const expandable = disk || (origin === 'plugin' && pluginRoot != null && pkg !== null)
+  // 竞态守卫:快速切侧时,旧侧请求的结果不得安到新侧名下(同层污染)
+  const seq = useRef(0)
 
   async function load(forSide: AgentSide): Promise<void> {
+    const my = ++seq.current
     setLoading(true)
     setListErr(null)
     try {
@@ -77,13 +80,15 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
               scope,
               projectPath
             })
-      setListing(r)
+      if (seq.current === my) setListing(r)
     } catch (e) {
-      setListing(null)
-      setListErr(String(e))
+      if (seq.current === my) {
+        setListing(null)
+        setListErr(String(e))
+      }
       toast('err', `列举失败:${String(e)}`)
     } finally {
-      setLoading(false)
+      if (seq.current === my) setLoading(false)
     }
   }
 
