@@ -39,6 +39,7 @@ import { DEFAULT_SCHEME, isAppearanceScheme } from '@shared/appearance'
 import {
   listSkillPackageFiles,
   readSkillFileText,
+  resolvePluginSkillRoot,
   resolveSkillRoot,
   SKILL_DEEP_HINT
 } from './providers/skill-package'
@@ -137,6 +138,9 @@ async function doScan(): Promise<Snapshot> {
       assertSnapshot(snap)
       // memory 文件加入按需读取白名单(与产物同一不变量:快照列出过的文件才可读)
       for (const m of snap.global.memory) for (const f of m.files) artifactWhitelist.add(f.file)
+      // 插件包根登记集(plugins-view H8):列举入口必须命中,fail-closed
+      for (const p of snap.global.plugins) if (p.installPath) pluginRootWhitelist.add(p.installPath)
+      for (const c of snap.global.codexPlugins) if (c.root) pluginRootWhitelist.add(c.root)
       current = snap
       mainWindow?.webContents.send(EVT.snapshot, snap)
       return snap
@@ -173,6 +177,8 @@ const artifactWhitelist = new Set<string>()
 const skillFileWhitelist = new Set<string>()
 /** skills-view C9:项目级列举只对「打开过详情」的项目放行(fail-closed,同 session 白名单模式) */
 const openedProjects = new Set<string>()
+/** plugins-view H8:插件包根登记集——扫描/详情登记的摘要同源包根才可列举 */
+const pluginRootWhitelist = new Set<string>()
 
 handle(CMD.getProjectDetail, (_e, path: unknown) => {
   if (typeof path !== 'string' || path === '') throw new Error('getProjectDetail 参数不合契约')
@@ -184,6 +190,7 @@ handle(CMD.getProjectDetail, (_e, path: unknown) => {
   for (const a of detail.artifacts) artifactWhitelist.add(a.file)
   for (const t of detail.memory.topics) artifactWhitelist.add(t.file)
   openedProjects.add(path)
+  for (const p of detail.plugins) if (p.installPath) pluginRootWhitelist.add(p.installPath)
   return detail
 })
 handle(CMD.getSessionPage, async (_e, raw: unknown) => {
@@ -286,29 +293,40 @@ function checkListSkillFilesArgs(args: unknown): ListSkillFilesArgs {
   if (
     typeof a?.name !== 'string' ||
     (a?.side !== 'claude' && a?.side !== 'codex') ||
-    (a?.scope !== 'global' && a?.scope !== 'project')
+    (a?.scope !== 'global' && a?.scope !== 'project' && a?.scope !== 'plugin')
   ) {
     throw new Error('listSkillFiles 参数不合契约')
   }
   if (a.scope === 'project' && typeof a.projectPath !== 'string') {
     throw new Error('listSkillFiles project 缺少 projectPath')
   }
+  if (a.scope === 'plugin' && typeof a.pluginRoot !== 'string') {
+    throw new Error('listSkillFiles plugin 缺少 pluginRoot')
+  }
   return a
 }
 handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
   const a = checkListSkillFilesArgs(args)
-  if (a.scope === 'project' && !openedProjects.has(a.projectPath as string)) {
-    throw new Error('项目未打开(先打开项目详情)')
+  let root: string | null
+  if (a.scope === 'plugin') {
+    // H8:包根必须命中扫描登记集(fail-closed);skill 名消毒在 resolver 内
+    if (!pluginRootWhitelist.has(a.pluginRoot as string)) {
+      throw new Error('插件包根不在登记集(先刷新或打开详情)')
+    }
+    root = resolvePluginSkillRoot(a.pluginRoot as string, a.name)
+  } else {
+    if (a.scope === 'project' && !openedProjects.has(a.projectPath as string)) {
+      throw new Error('项目未打开(先打开项目详情)')
+    }
+    // 容器检查(C9,作用于解析前入口)在 resolveSkillRoot 内完成
+    root = resolveSkillRoot({
+      side: a.side,
+      name: a.name,
+      scope: a.scope,
+      projectPath: a.projectPath,
+      roots: realRoots()
+    })
   }
-  const roots = realRoots()
-  // 容器检查(C9,作用于解析前入口)在 resolveSkillRoot 内完成
-  const root = resolveSkillRoot({
-    side: a.side,
-    name: a.name,
-    scope: a.scope,
-    projectPath: a.projectPath,
-    roots
-  })
   if (!root) {
     throw new Error('skill 包不可用或不在允许根下')
   }

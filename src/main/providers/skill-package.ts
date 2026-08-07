@@ -100,6 +100,23 @@ export function resolveSkillRoot(args: ResolveSkillRootArgs): string | null {
   }
 }
 
+/**
+ * 插件 skill 包根解析(plugins-view H8):入口 = 插件包根下 skills/<名>。
+ * 包根是否在扫描登记集由 handler 层校验(fail-closed);此处只管名消毒、
+ * 存在性与软链跟随(与 resolveSkillRoot 同纪律)。
+ */
+export function resolvePluginSkillRoot(pluginRoot: string, name: string): string | null {
+  if (!name || name.includes('..') || name.includes('/') || name.includes('\\') || name.includes(':'))
+    return null
+  const entry = join(pluginRoot, 'skills', name)
+  if (!existsSync(entry)) return null
+  try {
+    return realpathSync(entry)
+  } catch {
+    return null
+  }
+}
+
 function isTextFile(name: string): boolean {
   const i = name.lastIndexOf('.')
   if (i < 0) return false
