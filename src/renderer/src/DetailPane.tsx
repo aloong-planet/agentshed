@@ -31,8 +31,12 @@ export function DetailPane({
   const [reload, setReload] = useState(0)
   const entry = snap.projects.find((p) => p.path === path)
 
+  // 换血式更新(project-detail A3):读取态只在换项目时;快照更新(手动 ↻/自动保鲜)
+  // 与局部刷新静默替换已渲染内容,分栏本地态(展开/搜索/滚动)不因刷新丢失
   useEffect(() => {
     setDetail(null)
+  }, [path])
+  useEffect(() => {
     let alive = true
     void window.agentshed.getProjectDetail(path).then((d) => {
       if (alive) setDetail(d)

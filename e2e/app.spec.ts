@@ -1408,6 +1408,82 @@ test('插件 skill 原地预览:tab 展开读包;未启用可读;缺失置灰;Co
 })
 
 /**
+ * token-stats 序列 E:快照自动保鲜——短间隔注入(E5)驱动定时兜底全链路:
+ * 追加会话数据后不点 ↻ 自动出现;期间打开的详情分栏本地态经换血保留(A3)。
+ * 聚焦触发不在此驱动(隐藏窗口体制下焦点语义不可靠,见文件头注),
+ * 其节流判定由 rescan 单测锁,扫描入口与定时共用。
+ */
+test('自动保鲜:新会话免手动刷新自动出现;详情展开态不因刷新丢失', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
+  const demo = join(home, 'demo-proj')
+  mkdirSync(demo, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
+  const gskills = join(home, '.claude', 'skills')
+  mkdirSync(join(gskills, 'tdd'), { recursive: true })
+  writeFileSync(join(gskills, 'tdd', 'SKILL.md'), '---\ndescription: 红先于绿\n---\n\n保态正文己\n')
+  const enc = demo.replace(/[^a-zA-Z0-9]/g, '-')
+  const cdir = join(home, '.claude', 'projects', enc)
+  mkdirSync(cdir, { recursive: true })
+  const usage = (at: Date, out: number): string =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: at.toISOString(),
+      message: {
+        model: 'claude-fable-5',
+        usage: { input_tokens: 10, output_tokens: out, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
+      }
+    })
+  writeFileSync(join(cdir, 'a.jsonl'), usage(new Date(Date.now() - 3600e3), 111111) + '\n')
+
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
+  const errors: string[] = []
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      AGENTSHED_HOME_OVERRIDE: home,
+      AGENTSHED_NO_FOREGROUND: '1',
+      AGENTSHED_RESCAN_MS: '1500' // E5 测试 seam:兜底间隔缩短驱动全链路
+    }
+  })
+  app.process().stderr?.on('data', (b: Buffer) => {
+    const t = b.toString()
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败/.test(t)) errors.push(t)
+  })
+  const win = await app.firstWindow()
+  const total = win.locator('.stats .v').first()
+  await expect(total).not.toHaveText(/^0(\s|$)/, { timeout: 15_000 })
+  const t0 = await total.textContent()
+
+  // 打开详情 Skills 并展开全局层行——它将经历若干次自动刷新
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'demo-proj' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const tddRow = win.locator('.pane-body .sk', { hasText: 'tdd' })
+  await tddRow.locator('.sk-head').click()
+  await expect(tddRow.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
+
+  // 追加"新产生"的会话数据;不点 ↻,等 ≥2 个兜底周期
+  writeFileSync(join(cdir, 'b.jsonl'), usage(new Date(), 555555) + '\n')
+  await win.waitForTimeout(4000)
+  // 换血保态(A3):展开的文件表在多轮自动刷新后仍在,未闪回读取态
+  await expect(tddRow.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
+  await expect(win.locator('.pane-body .none', { hasText: '读取中' })).toHaveCount(0)
+
+  // 数据自动出现(E1 定时兜底):回 Agents 页,合计已变——全程未点 ↻
+  await win.locator('.rail .ri').nth(0).click()
+  await expect
+    .poll(async () => (await total.textContent()) !== t0, { timeout: 15_000, intervals: [500] })
+    .toBe(true)
+
+  expect(errors).toEqual([])
+  await app.close()
+  rmSync(userData, { recursive: true, force: true })
+  rmSync(home, { recursive: true, force: true })
+})
+
+/**
  * 趋势图的每个使用点都跑同一组断言。
  * 新增使用点只需往这个列表加一行——避免"测了一处漏一处"(2026-07-30 的漏改教训)。
  */

@@ -34,6 +34,7 @@ import {
   sessionReadTarget
 } from './security'
 import { HiddenStore } from './hidden-store'
+import { rescanIntervalMs, shouldRescanOnFocus } from './rescan'
 import { PrefsStore } from './prefs-store'
 import { DEFAULT_SCHEME, isAppearanceScheme } from '@shared/appearance'
 import {
@@ -87,6 +88,8 @@ let sessionTokens = new Map<string, number>()
 // ── 快照与刷新(去重:进行中忽略再次触发)──
 let current: Snapshot | null = null
 let inflight: Promise<Snapshot> | null = null
+/** 上次成功扫描时刻;聚焦触发的节流基准(token-stats E1) */
+let lastScanAt: number | null = null
 
 async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
@@ -136,6 +139,7 @@ async function doScan(): Promise<Snapshot> {
         }
       }
       assertSnapshot(snap)
+      lastScanAt = Date.now() // 聚焦节流的基准(token-stats E1)
       // memory 文件加入按需读取白名单(与产物同一不变量:快照列出过的文件才可读)
       for (const m of snap.global.memory) for (const f of m.files) artifactWhitelist.add(f.file)
       // 插件包根登记集(plugins-view H8):列举入口必须命中,fail-closed
@@ -426,6 +430,17 @@ void app.whenReady().then(() => {
   archive = new UsageArchive(app.getPath('userData'))
   createWindow()
   void doScan()
+  // 快照自动保鲜(token-stats 序列 E):聚焦(节流)+ 定时兜底,与手动 ↻ 共用
+  // doScan(inflight 去重,E2);自动触发失败静默保留现快照等下个触发点(E3),
+  // 手动 ↻ 的失败仍经 CMD.refresh 抛给调用方。参数环境注入是测试 seam(E5)。
+  const autoScan = (): void => {
+    void doScan().catch(() => {})
+  }
+  setInterval(autoScan, rescanIntervalMs(process.env['AGENTSHED_RESCAN_MS'], 300_000))
+  const focusThrottleMs = rescanIntervalMs(process.env['AGENTSHED_FOCUS_RESCAN_MS'], 60_000)
+  app.on('browser-window-focus', () => {
+    if (shouldRescanOnFocus(Date.now(), lastScanAt, focusThrottleMs)) autoScan()
+  })
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
