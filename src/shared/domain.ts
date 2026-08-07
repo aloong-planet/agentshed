@@ -45,10 +45,12 @@ export interface GlobalSkill {
   sides: AgentSide[]
   /** 各侧是否为软链(安装时解引用复制) */
   symlink: Record<AgentSide, boolean>
-  /** 各侧包统计;该侧无定义或不可读为 null(插件条目恒 null) */
+  /** 各侧包统计;该侧无定义或不可读为 null */
   pkg: Record<AgentSide, SkillPkgStats | null>
   origin: 'disk' | 'plugin'
   pluginName: string | null
+  /** 插件条目的摘要同源包根(预览入口,plugins-view H5);磁盘条目为 null */
+  pluginRoot: string | null
 }
 
 /**
@@ -407,10 +409,12 @@ export interface ProjectSkillEntry {
   level: 'project' | 'global' | 'plugin'
   side: AgentSide
   symlink: boolean
-  /** 本行对应包的统计;插件条目/不可读为 null */
+  /** 本行对应包的统计;不可读为 null */
   pkg: SkillPkgStats | null
   origin: 'disk' | 'plugin'
   pluginName: string | null
+  /** 插件条目的摘要同源包根(预览入口,plugins-view H5);磁盘条目为 null */
+  pluginRoot: string | null
 }
 
 /**

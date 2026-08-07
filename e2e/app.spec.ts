@@ -1143,9 +1143,12 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
   await expect(detRow).toContainText('启用')
   await expect(detRow).toContainText('project 层')
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
-  const nsSkill = win.locator('.it', { hasText: 'superpowers:brainstorming' })
+  const nsSkill = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
   await expect(nsSkill).toBeVisible()
   await expect(nsSkill.locator('.ins')).toHaveCount(0) // G3:插件条目无装卸按钮
+  // A4/ADR-0012:命名空间行与磁盘同权展开预览
+  await nsSkill.locator('.sk-head').click()
+  await expect(nsSkill.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
   // ⑤ 详情 Memory:MEMORY.md 主体直接渲染
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
   await expect(win.locator('.pane-body .md')).toContainText('要点甲')
@@ -1265,11 +1268,14 @@ test('Skills 查看:全局展开读包;详情同名只见项目级;插件行不�
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('软链正文戊')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
-  // ② 插件行不可展开(A4)
+  // ② 插件命名空间行:与磁盘同权展开预览(A4,ADR-0012 推翻 v1 排除;行内统计同权)
   const plug = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
-  await expect(plug.locator('.sk-head.plugin')).toBeVisible()
+  await expect(plug.locator('.sk-meta')).toContainText('1 个文件')
   await plug.locator('.sk-head').click()
-  await expect(plug.locator('.files-card')).toHaveCount(0)
+  await plug.locator('.files button', { hasText: 'SKILL.md' }).click()
+  await expect(win.locator('.skill-drawer .md-fm')).toContainText('先问后做')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await plug.locator('.sk-head').click() // 收起,不干扰后续定位
 
   // ③ 详情 Skills:同名只列项目级、无第二份全局行;仅全局有的仍列出;项目级行可预览
   await win.locator('.rail .ri').nth(1).click()

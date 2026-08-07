@@ -23,6 +23,8 @@ export interface SkillExpandBlockProps {
   fixedSide?: AgentSide
   /** 各侧包统计(行内展示);切侧时行上数字随动 */
   pkgBySide?: Partial<Record<AgentSide, SkillPkgStats | null>>
+  /** 插件条目的摘要同源包根(plugins-view H5);有值且统计可读时行可展开(A4/ADR-0012) */
+  pluginRoot?: string | null
   installSlot?: JSX.Element
   uninstallSlot?: JSX.Element
 }
@@ -39,6 +41,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
     projectPath,
     fixedSide,
     pkgBySide,
+    pluginRoot,
     installSlot,
     uninstallSlot
   } = props
@@ -51,16 +54,29 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   const [listErr, setListErr] = useState<string | null>(null)
   const [drawer, setDrawer] = useState<SkillFileEntry | null>(null)
 
+  const pkg = pkgBySide?.[side] ?? null
+  // A4/ADR-0012:插件命名空间行与磁盘同权——包根在登记集且统计可读才可展开
+  const expandable = disk || (origin === 'plugin' && pluginRoot != null && pkg !== null)
+
   async function load(forSide: AgentSide): Promise<void> {
     setLoading(true)
     setListErr(null)
     try {
-      const r = await window.agentshed.listSkillFiles({
-        side: forSide,
-        name,
-        scope,
-        projectPath
-      })
+      // 命名空间条目名(ns:skill)在 IPC 里传裸 skill 名;包根定位由 pluginRoot 承担
+      const r =
+        origin === 'plugin'
+          ? await window.agentshed.listSkillFiles({
+              side: forSide,
+              name: name.includes(':') ? name.slice(name.indexOf(':') + 1) : name,
+              scope: 'plugin',
+              pluginRoot: pluginRoot as string
+            })
+          : await window.agentshed.listSkillFiles({
+              side: forSide,
+              name,
+              scope,
+              projectPath
+            })
       setListing(r)
     } catch (e) {
       setListing(null)
@@ -72,7 +88,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   }
 
   async function toggle(): Promise<void> {
-    if (!disk) return
+    if (!expandable) return
     if (open) {
       setOpen(false)
       return
@@ -86,25 +102,23 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
     await load(s)
   }
 
-  const pkg = pkgBySide?.[side] ?? null
-
   return (
     <div className={`sk ${open ? 'open' : ''}`}>
       <div
-        className={`sk-head ${disk ? 'disk' : 'plugin'}`}
-        role={disk ? 'button' : undefined}
-        tabIndex={disk ? 0 : undefined}
+        className={`sk-head ${expandable ? 'disk' : 'plugin'}`}
+        role={expandable ? 'button' : undefined}
+        tabIndex={expandable ? 0 : undefined}
         onClick={() => void toggle()}
         onKeyDown={(e) => {
           // 行内动作按钮(装/卸)的键盘激活会冒泡到这里;只响应行自身,免得连带展开(A7)
           if (e.target !== e.currentTarget) return
-          if (disk && (e.key === 'Enter' || e.key === ' ')) {
+          if (expandable && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault()
             void toggle()
           }
         }}
       >
-        <span className="chev">{disk ? '▸' : '·'}</span>
+        <span className="chev">{expandable ? '▸' : '·'}</span>
         <span className="nm mono">{name}</span>
         <span className="bdg">
           {SIDE_ORDER.map((s) =>
@@ -123,7 +137,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         {level === 'project' && <span className="pill prj">项目级</span>}
         {level === 'global' && <span className="pill glb">全局</span>}
         {symlink && <span className="pill ln">⤷ 软链</span>}
-        {disk && (
+        {(disk || origin === 'plugin') && (
           <span className="sk-meta">
             {pkg ? `${pkg.files} 个文件 · ${formatSize(pkg.bytes)}` : ''}
           </span>
@@ -131,7 +145,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         {installSlot}
         {uninstallSlot}
       </div>
-      {open && disk && (
+      {open && expandable && (
         <div className="sk-body" onClick={(e) => e.stopPropagation()}>
           {!fixedSide && sorted.length > 1 && (
             <div className="sk-sides">

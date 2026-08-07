@@ -254,6 +254,9 @@ describe('G 系列:插件内含 skills 并入 Skills 生效视图', () => {
     expect(pluginSkills.map((s) => s.name).sort()).toEqual(['pkg:broken-skill', 'pkg:good-skill'])
     expect(pluginSkills[0].sides).toEqual(['claude'])
     expect(pluginSkills[0].pluginName).toBe('pkg@mp')
+    // G3 同权预览:并入条目带包统计与摘要同源包根(ADR-0012)
+    expect(pluginSkills[0].pkg.claude?.files).toBeGreaterThanOrEqual(1)
+    expect(pluginSkills[0].pluginRoot).toBe(pkg)
   })
 
   it('G2 与磁盘同名 skill 互不遮蔽:命名空间隔离,两条独立条目并存', async () => {
@@ -290,6 +293,9 @@ describe('G 系列:插件内含 skills 并入 Skills 生效视图', () => {
     const ps = d.skills.filter((s) => s.origin === 'plugin')
     expect(ps.map((s) => s.name).sort()).toEqual(['pkg:broken-skill', 'pkg:good-skill'])
     expect(ps[0].level).toBe('plugin')
+    // G3 同权预览:详情插件条目带包统计与摘要同源包根(ADR-0012)
+    expect(ps[0].pkg?.files).toBeGreaterThanOrEqual(1)
+    expect(ps[0].pluginRoot).toBeTruthy()
     // 其他项目详情:不出现
     const other = join(dir, 'other')
     mkdirSync(other, { recursive: true })
