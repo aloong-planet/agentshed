@@ -3,35 +3,11 @@ import { useState } from 'react'
 import type { AgentSide, SkillPkgStats } from '@shared/domain'
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
 import { SkillFileDrawer } from './SkillFileDrawer'
+import { SkillFilesTable, formatSize } from './SkillFilesTable'
 import { toast } from './Toast'
 
 const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex' }
 const SIDE_ORDER: AgentSide[] = ['claude', 'codex']
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function formatDate(ms: number): string {
-  const d = new Date(ms)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function extKind(path: string): { label: string; kind: string } {
-  const base = path.split('/').pop() || path
-  if (/\.md$/i.test(base)) return { label: 'MD', kind: 'md' }
-  if (/\.(sh|bash|zsh)$/i.test(base)) return { label: 'SH', kind: 'sh' }
-  if (/\.(js|ts|mjs|cjs)$/i.test(base)) return { label: 'JS', kind: 'js' }
-  if (/\.(ya?ml|toml|json)$/i.test(base)) return { label: 'CFG', kind: 'cfg' }
-  const i = base.lastIndexOf('.')
-  const ext = (i >= 0 ? base.slice(i + 1) : '?').slice(0, 3).toUpperCase()
-  return { label: ext, kind: 'oth' }
-}
 
 export interface SkillExpandBlockProps {
   name: string
@@ -110,7 +86,6 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
     await load(s)
   }
 
-  const files = listing?.files ?? []
   const pkg = pkgBySide?.[side] ?? null
 
   return (
@@ -172,59 +147,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
               ))}
             </div>
           )}
-          {listing?.deep && (
-            <div className="sk-tip">
-              {listing.deepHint}
-              {listing.deepPaths.length > 0 && (
-                <>
-                  <br />
-                  <span style={{ opacity: 0.85 }}>
-                    更深路径未列入: {listing.deepPaths.join(', ')}
-                  </span>
-                </>
-              )}
-            </div>
-          )}
-          {loading && (
-            <div className="files">
-              <div className="empty">列举中…</div>
-            </div>
-          )}
-          {listErr && (
-            <div className="files">
-              <div className="empty">{listErr}</div>
-            </div>
-          )}
-          {!loading && !listErr && listing && (
-            <div className="files-card">
-              <div className="files-head">
-                <span>文件</span>
-                <span>行数</span>
-                <span>大小</span>
-                <span>修改日期</span>
-              </div>
-              <div className="files">
-                {files.length === 0 && <div className="empty">包内无可预览文本文件</div>}
-                {files.map((f) => {
-                  const { label, kind } = extKind(f.path)
-                  return (
-                    <button type="button" key={f.absPath} onClick={() => setDrawer(f)}>
-                      <span className="name-cell">
-                        <span className={`ic ${kind}`}>{label}</span>
-                        <span className="path mono" title={f.path}>
-                          {f.path}
-                        </span>
-                        {f.path === 'SKILL.md' && <span className="tag">入口</span>}
-                      </span>
-                      <span className="meta lines">{f.lines.toLocaleString('zh-CN')}</span>
-                      <span className="meta">{formatSize(f.bytes)}</span>
-                      <span className="meta">{formatDate(f.mtimeMs)}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+          <SkillFilesTable listing={listing} loading={loading} error={listErr} onOpen={setDrawer} />
         </div>
       )}
       {drawer && (
