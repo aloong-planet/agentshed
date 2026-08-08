@@ -1,13 +1,23 @@
 <!doctype html>
-<!-- 原型(UI)· appearance:设置第三维;外观三选一(紫默认/雾蓝/琥珀褐)×系统昼夜。
-     主题色对整 app 生效(rail + Agents/Projects 示意 + 设置页)。 -->
-<html lang="zh-CN" data-scheme="purple">
+<!-- 原型(UI)· appearance:设置页两节——
+     语言(跟随系统 + 六选一)/ 外观(模式:跟随系统·浅色·深色 × 配色:紫·雾蓝·琥珀褐)。
+     两处「跟随系统」是同一个模型:偏好是策略,生效值由系统解析,系统变则界面变;选定具体值即锁定。
+
+     明暗:本原型在浏览器里跑、没有 Electron,只能用 JS 写 <html data-theme> 来模拟切换。
+     真代码不走这条路——Electron 的 nativeTheme.themeSource('system'|'light'|'dark')会直接
+     改变 prefers-color-scheme 的求值结果,现有媒体查询零改动即生效,且 macOS 窗口边框与
+     原生菜单一并跟随(纯 CSS 方案做不到这点)。此处的 data-theme 仅是原型载体的替身。
+
+     演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条两组开关。
+     真实来源:语言 = app.getPreferredSystemLanguages();明暗 = prefers-color-scheme 媒体查询。
+     app 内没有这两个控件,此处仅为让「跟随系统」的解析结果在任意宿主环境下都可见。 -->
+<html lang="zh-CN" data-scheme="purple" data-theme="light">
 <head>
 <meta charset="utf-8">
-<title>原型 — 设置 · 外观(紫/雾蓝/琥珀褐)</title>
+<title>原型 — 设置 · 语言与外观</title>
 <style>
-  /* ── 紫(现网默认) · 浅 ── */
-  html[data-scheme="purple"] {
+  /* ── 紫(现网默认) ── */
+  html[data-scheme="purple"][data-theme="light"] {
     --bg: #f7f8f9;
     --card: #ffffff;
     --text: #37352f;
@@ -17,28 +27,28 @@
     --accent: #8a67ab;
     --accent-deep: #6b4f92;
     --accent-soft: #f0ebf6;
+    --shadow: 0 8px 24px rgba(55, 53, 47, .14);
     --ok-bg: #dcfce7; --ok-fg: #166534;
     --cl-bg: #e8e0f3; --cl-fg: #6b4f92;
     --cx-bg: #dcefe4; --cx-fg: #1f7a4d;
   }
-  @media (prefers-color-scheme: dark) {
-    html[data-scheme="purple"] {
-      --bg: #18191b;
-      --card: #1f2124;
-      --text: #e6e6e5;
-      --text-2: #9b9a97;
-      --line: #2a2c30;
-      --line-strong: #34373c;
-      --accent: #a084c7;
-      --accent-deep: #c9b3ec;
-      --accent-soft: #2c2733;
-      --ok-bg: #12301d; --ok-fg: #86efac;
-      --cl-bg: #3a3153; --cl-fg: #c9b3ec;
-      --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
-    }
+  html[data-scheme="purple"][data-theme="dark"] {
+    --bg: #18191b;
+    --card: #1f2124;
+    --text: #e6e6e5;
+    --text-2: #9b9a97;
+    --line: #2a2c30;
+    --line-strong: #34373c;
+    --accent: #a084c7;
+    --accent-deep: #c9b3ec;
+    --accent-soft: #2c2733;
+    --shadow: 0 8px 24px rgba(0, 0, 0, .55);
+    --ok-bg: #12301d; --ok-fg: #86efac;
+    --cl-bg: #3a3153; --cl-fg: #c9b3ec;
+    --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
   }
-  /* ── 雾蓝 · 浅 ── */
-  html[data-scheme="blue"] {
+  /* ── 雾蓝 ── */
+  html[data-scheme="blue"][data-theme="light"] {
     --bg: #f6f5f3;
     --card: #fffcf9;
     --text: #2c2a28;
@@ -48,28 +58,28 @@
     --accent: #4a6fa5;
     --accent-deep: #3a5a88;
     --accent-soft: #eef2f7;
+    --shadow: 0 8px 24px rgba(44, 42, 40, .14);
     --ok-bg: #dcfce7; --ok-fg: #166534;
     --cl-bg: #e4ebf5; --cl-fg: #3a5a88;
     --cx-bg: #e2efe8; --cx-fg: #2d6b52;
   }
-  @media (prefers-color-scheme: dark) {
-    html[data-scheme="blue"] {
-      --bg: #16181c;
-      --card: #1c1f24;
-      --text: #e6e4e0;
-      --text-2: #9a9690;
-      --line: #2a2e34;
-      --line-strong: #3a4048;
-      --accent: #7a9dc4;
-      --accent-deep: #a8c0dc;
-      --accent-soft: #1e2a38;
-      --ok-bg: #12301d; --ok-fg: #86efac;
-      --cl-bg: #243448; --cl-fg: #a8c0dc;
-      --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
-    }
+  html[data-scheme="blue"][data-theme="dark"] {
+    --bg: #16181c;
+    --card: #1c1f24;
+    --text: #e6e4e0;
+    --text-2: #9a9690;
+    --line: #2a2e34;
+    --line-strong: #3a4048;
+    --accent: #7a9dc4;
+    --accent-deep: #a8c0dc;
+    --accent-soft: #1e2a38;
+    --shadow: 0 8px 24px rgba(0, 0, 0, .55);
+    --ok-bg: #12301d; --ok-fg: #86efac;
+    --cl-bg: #243448; --cl-fg: #a8c0dc;
+    --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
   }
-  /* ── 琥珀褐 · 浅 ── */
-  html[data-scheme="amber"] {
+  /* ── 琥珀褐 ── */
+  html[data-scheme="amber"][data-theme="light"] {
     --bg: #f7f3ec;
     --card: #fffcf7;
     --text: #3a342c;
@@ -79,28 +89,28 @@
     --accent: #6b5220;
     --accent-deep: #534018;
     --accent-soft: #f3ead4;
+    --shadow: 0 8px 24px rgba(58, 52, 44, .14);
     --ok-bg: #dcfce7; --ok-fg: #166534;
     --cl-bg: #ebe4d8; --cl-fg: #6b5220;
     --cx-bg: #e2efe8; --cx-fg: #2d6b52;
   }
-  @media (prefers-color-scheme: dark) {
-    html[data-scheme="amber"] {
-      --bg: #1a1714;
-      --card: #221e1a;
-      --text: #ebe4d8;
-      --text-2: #a09888;
-      --line: #332e28;
-      --line-strong: #453e36;
-      --accent: #c4a46a;
-      --accent-deep: #ddc48e;
-      --accent-soft: #2e2820;
-      --ok-bg: #12301d; --ok-fg: #86efac;
-      --cl-bg: #3a3228; --cl-fg: #ddc48e;
-      --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
-    }
+  html[data-scheme="amber"][data-theme="dark"] {
+    --bg: #1a1714;
+    --card: #221e1a;
+    --text: #ebe4d8;
+    --text-2: #a09888;
+    --line: #332e28;
+    --line-strong: #453e36;
+    --accent: #c4a46a;
+    --accent-deep: #ddc48e;
+    --accent-soft: #2e2820;
+    --shadow: 0 8px 24px rgba(0, 0, 0, .55);
+    --ok-bg: #12301d; --ok-fg: #86efac;
+    --cl-bg: #3a3228; --cl-fg: #ddc48e;
+    --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
   }
 
-  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",system-ui,sans-serif}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC","Hiragino Sans",system-ui,sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
 
   .rail{
@@ -141,149 +151,530 @@
   .side .row.on{background:var(--accent-soft);color:var(--accent-deep);font-weight:600}
   .detail{flex:1;padding:20px 22px;color:var(--text-2);font-size:12.5px;line-height:1.6}
 
-  .settings{flex:1;overflow:auto;padding:20px 28px 40px;max-width:720px}
+  .settings{flex:1;overflow:auto;padding:20px 28px 60px;max-width:720px}
   .settings .h1{font-size:18px;margin-bottom:6px}
   .settings .lead{font-size:12.5px;color:var(--text-2);margin-bottom:22px;line-height:1.5}
   .sec-t{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);margin-bottom:10px}
-  .scheme-grid{display:flex;flex-direction:column;gap:10px}
-  .scheme{
-    display:flex;align-items:flex-start;gap:14px;width:100%;text-align:left;
-    padding:14px 16px;border:1px solid var(--line-strong);border-radius:12px;
-    background:var(--card);cursor:pointer;color:inherit;font:inherit}
-  .scheme:hover{border-color:var(--accent);background:var(--accent-soft)}
-  .scheme.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
-  .scheme .radio{
-    width:18px;height:18px;border-radius:50%;border:2px solid var(--line-strong);
-    flex:none;margin-top:2px;display:flex;align-items:center;justify-content:center}
-  .scheme.on .radio{border-color:var(--accent)}
-  .scheme.on .radio::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--accent)}
-  .scheme .name{font-size:14px;font-weight:700;color:var(--accent-deep);margin-bottom:4px}
-  .scheme .badge{font-size:10px;font-weight:600;color:var(--text-2);margin-left:8px}
-  .scheme .desc{font-size:12px;color:var(--text-2);line-height:1.45}
-  .scheme .swatches{display:flex;gap:6px;margin-top:10px}
-  .scheme .sw{width:20px;height:20px;border-radius:6px;border:1px solid var(--line-strong)}
-  .foot{margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--bg);
+  .sec{margin-bottom:24px}
+
+  /* ── 设置行:标签在左、控件在右。语言与外观共用同一形态 ── */
+  .field{background:var(--card);border:1px solid var(--line-strong);border-radius:12px}
+  .frow{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px}
+  .frow + .frow{border-top:1px solid var(--line)}
+  .flabel{font-size:13px;font-weight:600;flex:none}
+
+  .lang-trigger{
+    display:flex;align-items:center;gap:10px;min-width:230px;justify-content:space-between;
+    padding:8px 12px;border:1px solid var(--line-strong);border-radius:8px;background:var(--bg);
+    color:inherit;font:inherit;font-size:12.5px;cursor:pointer}
+  .lang-trigger:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .lang-trigger:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .lang-trigger[aria-expanded="true"]{border-color:var(--accent);background:var(--accent-soft)}
+  .lang-trigger .cur{font-weight:600;display:flex;align-items:baseline;gap:6px;min-width:0}
+  .lang-trigger .cur .eff{font-weight:400;font-size:11.5px;color:var(--text-2)}
+  .lang-trigger .chev{flex:none;color:var(--text-2);display:flex;transition:transform .15s}
+  .lang-trigger[aria-expanded="true"] .chev{transform:rotate(180deg)}
+
+  /* 浮层用 fixed:设置页容器是 overflow:auto,absolute 会被它裁掉 */
+  .lang-pop{
+    position:fixed;z-index:60;display:none;min-width:262px;padding:4px;
+    background:var(--card);border:1px solid var(--line-strong);border-radius:10px;box-shadow:var(--shadow)}
+  .lang-pop.open{display:block}
+  .lang-opt{
+    display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:7px;
+    background:transparent;color:inherit;font:inherit;font-size:12.5px;cursor:pointer;text-align:left}
+  .lang-opt:hover,.lang-opt.cursor{background:var(--accent-soft)}
+  .lang-opt .n{flex:1;font-weight:600}
+  .lang-opt .e{color:var(--text-2);font-size:11.5px}
+  .lang-opt .ck{flex:none;color:var(--accent);display:flex;visibility:hidden}
+  .lang-opt.on .ck{visibility:visible}
+  .lang-opt.on .n{color:var(--accent-deep)}
+  .lang-pop .sep{height:1px;background:var(--line);margin:4px 8px}
+
+  /* 分段控件:沿用真代码 theme.css 的 .seg 形态(inline-flex + 外框 + overflow 裁剪 +
+     选中态 accent-soft),尺寸按设置页语境略放大(真代码是图表工具栏用的 11px/3px) */
+  .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden}
+  .seg button{
+    font:inherit;font-size:12px;padding:5px 13px;border:0;cursor:pointer;
+    color:var(--text-2);background:transparent}
+  .seg button:hover{color:var(--text);background:var(--bg)}
+  .seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+  /* 配色:横排小卡,只留色块 + 名称(紧凑化时去掉了整句描述) */
+  .pal-grid{display:flex;gap:8px}
+  .pal{
+    display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 11px;
+    border:1px solid var(--line-strong);border-radius:9px;background:var(--bg);
+    cursor:pointer;color:inherit;font:inherit}
+  .pal:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .pal.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
+  .pal:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .pal .sw-row{display:flex;gap:3px}
+  .pal .sw{width:13px;height:13px;border-radius:4px;border:1px solid var(--line-strong)}
+  .pal .pal-n{font-size:11.5px;font-weight:600;color:var(--text-2);white-space:nowrap}
+  .pal.on .pal-n{color:var(--accent-deep)}
+
+  .foot{margin-top:10px;padding:11px 14px;border-radius:10px;background:var(--bg);
     border:1px dashed var(--line-strong);font-size:12px;color:var(--text-2);line-height:1.5}
   .foot b{color:var(--text);font-weight:600}
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:30;
+  .toast{position:fixed;bottom:64px;left:50%;transform:translateX(-50%);z-index:80;
     background:var(--ok-bg);color:var(--ok-fg);border-radius:10px;padding:10px 16px;font-size:12.5px;display:none}
-  .note{margin-top:24px;padding:12px 14px;border:1px dashed var(--line-strong);border-radius:10px;
+  .note{margin-top:22px;padding:12px 14px;border:1px dashed var(--line-strong);border-radius:10px;
     font-size:11.5px;color:var(--text-2);line-height:1.55}
+  .note b{color:var(--text)}
+
+  /* ── 演示基建(非设计的一部分):独立悬浮层,刻意不复用被评判控件的样式 ── */
+  .demo-bar{
+    position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:90;
+    display:flex;align-items:center;gap:9px;padding:7px 12px;border-radius:999px;
+    background:#1c1c1e;color:#e8e8ea;font-size:11.5px;box-shadow:0 6px 20px rgba(0,0,0,.38)}
+  .demo-bar .tag{font-weight:700;color:#8e8e93;letter-spacing:.03em;flex:none}
+  .demo-bar .vr{width:1px;height:16px;background:#3a3a3c;flex:none}
+  .demo-bar select{
+    background:#2c2c2e;color:#e8e8ea;border:1px solid #3a3a3c;border-radius:7px;
+    padding:4px 8px;font:inherit;font-size:11.5px;cursor:pointer}
+  .demo-bar .out{color:#8e8e93}
+  .demo-bar .out b{color:#e8e8ea;font-weight:600}
 </style>
 </head>
 <body>
   <nav class="rail">
-    <button type="button" class="ri" data-dim="agents" title="Agents">🤖</button>
-    <button type="button" class="ri" data-dim="projects" title="Projects">📁</button>
-    <button type="button" class="ri grfr" title="全局刷新" id="refresh">↻</button>
-    <button type="button" class="ri set on" data-dim="settings" title="设置">⚙️</button>
+    <button type="button" class="ri" data-dim="agents" data-tip="agents">🤖</button>
+    <button type="button" class="ri" data-dim="projects" data-tip="projects">📁</button>
+    <button type="button" class="ri grfr" data-tip="refresh" id="refresh">↻</button>
+    <button type="button" class="ri set on" data-dim="settings" data-tip="settings">⚙️</button>
   </nav>
   <main class="stage" id="stage"></main>
+  <div class="lang-pop" id="langPop" role="listbox"></div>
   <div class="toast" id="toast"></div>
-<script>
-  let dim = 'settings'
-  let scheme = 'purple'
 
-  const SCHEMES = {
-    purple: {
-      name: '紫',
-      badge: '默认',
-      desc: '现网品牌紫。安装后的默认外观，与历史版本一致。',
-      sw: ['#ffffff', '#f0ebf6', '#8a67ab', '#2c2733']
+  <div class="demo-bar" data-demo-harness id="demoBar">
+    <span class="tag">演示 ·</span>
+    <label for="sysSel">系统语言</label>
+    <select id="sysSel"></select>
+    <span class="vr"></span>
+    <label for="sysTheme">系统明暗</label>
+    <select id="sysTheme">
+      <option value="light">浅色</option>
+      <option value="dark">深色</option>
+    </select>
+    <span class="vr"></span>
+    <span class="out" id="sysOut"></span>
+  </div>
+<script>
+  /* ── 图标:内联 SVG(Lucide 官方 path)。新增图标位守 /ui-design 第 3 节;
+        存量字符图标(🤖 📁 ↻ ⚙️ 等)按裁定另票处理(issue #51),本轮不动。 ── */
+  const SVG_CHEVRON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
+  const SVG_CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+
+  const LANGS = ['zh', 'en', 'fr', 'es', 'ru', 'ja']
+  /** 语言选择器取值域 = 跟随系统 + 六语。'system' 是偏好值,不是一种语言 */
+  const OPTIONS = ['system', ...LANGS]
+  /** 外观模式取值域,与语言同构:'system' 是策略,light/dark 是锁定值 */
+  const MODES = ['system', 'light', 'dark']
+
+  const T = {
+    zh: {
+      native: '简体中文', english: 'Chinese (Simplified)', htmlLang: 'zh-CN',
+      settings: '设置',
+      lead: '本 app 偏好，对整个界面生效。不写入 Claude / Codex 配置。',
+      secLang: '语言', ifaceLang: '界面语言', followSystem: '跟随系统',
+      langFoot: '选择「跟随系统」时，界面语言随 macOS 的偏好语言变化；偏好语言均不在支持范围内时使用英文。',
+      secAppear: '外观', modeLabel: '模式', paletteLabel: '配色',
+      light: '浅色', dark: '深色',
+      schemeNames: { purple: '紫', blue: '雾蓝', amber: '琥珀褐' },
+      appearFoot: (b) => `模式选「${b('跟随系统')}」时，明暗随 macOS 外观变化。配色与明暗彼此独立、可任意组合；未选择时用紫。切换后立即对整个 app 生效，无需保存。`,
+      rail: { agents: 'Agents', projects: 'Projects', refresh: '全局刷新', settings: '设置' },
+      agentsSub: '示意 · 当前主题应已全局生效（含强调色与卡片底）',
+      tabs: ['Skills', 'Token', '配置'],
+      search: '搜索项目…',
+      detail: '项目详情示意。列表选中高亮与标题色随主题方案变化；CC/CX 语义色保持独立。',
+      toastScheme: (n) => `配色已切换为「${n}」`,
+      toastMode: (n) => `外观模式：${n}`,
+      toastLang: (n) => `界面语言已切换为 ${n}`,
+      toastFollowSystem: (n) => `已设为跟随系统 · 当前为 ${n}`,
+      toastRefresh: '全局刷新（示意）'
     },
-    blue: {
-      name: '雾蓝',
-      badge: '',
-      desc: '暖灰纸底 + 冷静蓝强调，适合长时间阅读。',
-      sw: ['#fffcf9', '#eef2f7', '#4a6fa5', '#2b303b']
+    en: {
+      native: 'English', english: 'English', htmlLang: 'en',
+      settings: 'Settings',
+      lead: 'Preferences for this app only. They apply to the whole interface and are never written to your Claude or Codex configuration.',
+      secLang: 'Language', ifaceLang: 'Interface language', followSystem: 'Follow system',
+      langFoot: 'With “Follow system”, the interface follows your macOS preferred languages; English is used when none of them is supported.',
+      secAppear: 'Appearance', modeLabel: 'Mode', paletteLabel: 'Palette',
+      light: 'Light', dark: 'Dark',
+      schemeNames: { purple: 'Purple', blue: 'Mist Blue', amber: 'Amber Brown' },
+      appearFoot: (b) => `With mode set to “${b('Follow system')}”, light and dark follow your macOS appearance. Palette and light/dark are independent and combine freely; Purple is used when nothing is chosen. Changes apply across the whole app immediately — no saving needed.`,
+      rail: { agents: 'Agents', projects: 'Projects', refresh: 'Refresh all', settings: 'Settings' },
+      agentsSub: 'Preview · the current theme should already apply app-wide (accent and card surfaces)',
+      tabs: ['Skills', 'Token', 'Config'],
+      search: 'Search projects…',
+      detail: 'Project detail preview. Selection highlight and heading colour follow the scheme; the CC / CX semantic colours stay independent.',
+      toastScheme: (n) => `Palette switched to “${n}”`,
+      toastMode: (n) => `Appearance mode: ${n}`,
+      toastLang: (n) => `Interface language switched to ${n}`,
+      toastFollowSystem: (n) => `Now following the system · currently ${n}`,
+      toastRefresh: 'Refresh all (preview)'
     },
-    amber: {
-      name: '琥珀褐',
-      badge: '',
-      desc: '暖纸底 + 褐强调，更接近纸书质感。',
-      sw: ['#fffcf7', '#f3ead4', '#6b5220', '#2f2c28']
+    fr: {
+      native: 'Français', english: 'French', htmlLang: 'fr',
+      settings: 'Réglages',
+      lead: 'Préférences propres à cette app. Elles s’appliquent à toute l’interface et ne sont jamais écrites dans votre configuration Claude ou Codex.',
+      secLang: 'Langue', ifaceLang: 'Langue de l’interface', followSystem: 'Suivre le système',
+      langFoot: 'Avec « Suivre le système », l’interface suit vos langues préférées macOS ; l’anglais est utilisé si aucune n’est prise en charge.',
+      secAppear: 'Apparence', modeLabel: 'Mode', paletteLabel: 'Palette',
+      light: 'Clair', dark: 'Sombre',
+      schemeNames: { purple: 'Violet', blue: 'Bleu brume', amber: 'Ambre' },
+      appearFoot: (b) => `Avec le mode « ${b('Suivre le système')} », le clair et le sombre suivent l’apparence macOS. La palette et le mode sont indépendants et se combinent librement ; Violet est utilisé par défaut. Les changements s’appliquent immédiatement à toute l’app, sans enregistrement.`,
+      rail: { agents: 'Agents', projects: 'Projets', refresh: 'Tout actualiser', settings: 'Réglages' },
+      agentsSub: 'Aperçu · le thème actuel devrait déjà s’appliquer à toute l’app (accent et fonds de cartes)',
+      tabs: ['Skills', 'Token', 'Configuration'],
+      search: 'Rechercher des projets…',
+      detail: 'Aperçu du détail de projet. La sélection et la couleur du titre suivent le thème ; les couleurs sémantiques CC / CX restent indépendantes.',
+      toastScheme: (n) => `Palette basculée sur « ${n} »`,
+      toastMode: (n) => `Mode d’apparence : ${n}`,
+      toastLang: (n) => `Langue de l’interface changée pour ${n}`,
+      toastFollowSystem: (n) => `Suit désormais le système · actuellement ${n}`,
+      toastRefresh: 'Tout actualiser (aperçu)'
+    },
+    es: {
+      native: 'Español', english: 'Spanish', htmlLang: 'es',
+      settings: 'Ajustes',
+      lead: 'Preferencias exclusivas de esta app. Se aplican a toda la interfaz y nunca se escriben en tu configuración de Claude o Codex.',
+      secLang: 'Idioma', ifaceLang: 'Idioma de la interfaz', followSystem: 'Seguir el sistema',
+      langFoot: 'Con «Seguir el sistema», la interfaz sigue tus idiomas preferidos de macOS; se usa el inglés si ninguno es compatible.',
+      secAppear: 'Apariencia', modeLabel: 'Modo', paletteLabel: 'Paleta',
+      light: 'Claro', dark: 'Oscuro',
+      schemeNames: { purple: 'Violeta', blue: 'Azul niebla', amber: 'Ámbar' },
+      appearFoot: (b) => `Con el modo «${b('Seguir el sistema')}», el claro y el oscuro siguen la apariencia de macOS. La paleta y el modo son independientes y se combinan libremente; se usa Violeta si no eliges nada. Los cambios se aplican de inmediato en toda la app, sin necesidad de guardar.`,
+      rail: { agents: 'Agents', projects: 'Proyectos', refresh: 'Actualizar todo', settings: 'Ajustes' },
+      agentsSub: 'Vista previa · el tema actual ya debería aplicarse en toda la app (acento y fondos de tarjeta)',
+      tabs: ['Skills', 'Token', 'Configuración'],
+      search: 'Buscar proyectos…',
+      detail: 'Vista previa del detalle de proyecto. El resaltado de selección y el color del título siguen el tema; los colores semánticos CC / CX se mantienen independientes.',
+      toastScheme: (n) => `Paleta cambiada a «${n}»`,
+      toastMode: (n) => `Modo de apariencia: ${n}`,
+      toastLang: (n) => `Idioma de la interfaz cambiado a ${n}`,
+      toastFollowSystem: (n) => `Ahora sigue el sistema · actualmente ${n}`,
+      toastRefresh: 'Actualizar todo (vista previa)'
+    },
+    ru: {
+      native: 'Русский', english: 'Russian', htmlLang: 'ru',
+      settings: 'Настройки',
+      lead: 'Параметры только этого приложения. Они применяются ко всему интерфейсу и никогда не записываются в конфигурацию Claude или Codex.',
+      secLang: 'Язык', ifaceLang: 'Язык интерфейса', followSystem: 'Следовать системе',
+      langFoot: 'При выборе «Следовать системе» интерфейс следует предпочитаемым языкам macOS; если ни один из них не поддерживается, используется английский.',
+      secAppear: 'Оформление', modeLabel: 'Режим', paletteLabel: 'Палитра',
+      light: 'Светлый', dark: 'Тёмный',
+      schemeNames: { purple: 'Фиолетовая', blue: 'Туманно-синяя', amber: 'Янтарная' },
+      appearFoot: (b) => `Когда режим — «${b('Следовать системе')}», светлое и тёмное оформление следует настройкам macOS. Палитра и режим независимы и сочетаются свободно; без выбора используется фиолетовая. Изменения применяются сразу во всём приложении — сохранять не нужно.`,
+      rail: { agents: 'Agents', projects: 'Проекты', refresh: 'Обновить всё', settings: 'Настройки' },
+      agentsSub: 'Пример · текущая тема уже должна действовать во всём приложении (акцент и фон карточек)',
+      tabs: ['Skills', 'Token', 'Конфигурация'],
+      search: 'Поиск проектов…',
+      detail: 'Пример страницы проекта. Подсветка выбора и цвет заголовка следуют схеме; семантические цвета CC / CX остаются независимыми.',
+      toastScheme: (n) => `Палитра переключена на «${n}»`,
+      toastMode: (n) => `Режим оформления: ${n}`,
+      toastLang: (n) => `Язык интерфейса переключён на ${n}`,
+      toastFollowSystem: (n) => `Теперь следует системе · сейчас ${n}`,
+      toastRefresh: 'Обновить всё (пример)'
+    },
+    ja: {
+      native: '日本語', english: 'Japanese', htmlLang: 'ja',
+      settings: '設定',
+      lead: 'この app 固有の設定です。インターフェース全体に適用され、Claude や Codex の設定には書き込まれません。',
+      secLang: '言語', ifaceLang: 'インターフェースの言語', followSystem: 'システムに従う',
+      langFoot: '「システムに従う」を選ぶと、インターフェースは macOS の優先言語に従います。いずれも対応していない場合は英語になります。',
+      secAppear: '外観', modeLabel: 'モード', paletteLabel: 'パレット',
+      light: 'ライト', dark: 'ダーク',
+      schemeNames: { purple: 'パープル', blue: 'ミストブルー', amber: 'アンバー' },
+      appearFoot: (b) => `モードを「${b('システムに従う')}」にすると、明暗は macOS の外観に従います。パレットと明暗は独立していて自由に組み合わせられます。未選択の場合はパープルです。変更は保存不要で app 全体にすぐ反映されます。`,
+      rail: { agents: 'Agents', projects: 'Projects', refresh: 'すべて更新', settings: '設定' },
+      agentsSub: 'プレビュー · 現在のテーマは app 全体に適用されているはずです（アクセント色とカード面）',
+      tabs: ['Skills', 'Token', '設定'],
+      search: 'プロジェクトを検索…',
+      detail: 'プロジェクト詳細のプレビュー。選択のハイライトと見出し色はスキームに追従し、CC / CX の意味色は独立を保ちます。',
+      toastScheme: (n) => `パレットを「${n}」に切り替えました`,
+      toastMode: (n) => `外観モード：${n}`,
+      toastLang: (n) => `インターフェースの言語を ${n} に変更しました`,
+      toastFollowSystem: (n) => `システムに従う設定にしました · 現在は ${n}`,
+      toastRefresh: 'すべて更新（プレビュー）'
     }
   }
 
-  function toast(msg) {
-    const t = document.getElementById('toast')
-    t.textContent = msg
-    t.style.display = 'block'
-    clearTimeout(toast._tm)
-    toast._tm = setTimeout(() => { t.style.display = 'none' }, 1600)
+  /** 色板预览取样(card / accent-soft / accent / text),按明暗两套——
+      色板是所见即所得的预览,深色下若仍显示浅色取样会与实际界面不符。
+      值直接取自上方各主题变量块,改主题色须同步改这里。 */
+  const SWATCHES = {
+    light: {
+      purple: ['#ffffff', '#f0ebf6', '#8a67ab', '#37352f'],
+      blue: ['#fffcf9', '#eef2f7', '#4a6fa5', '#2c2a28'],
+      amber: ['#fffcf7', '#f3ead4', '#6b5220', '#3a342c']
+    },
+    dark: {
+      purple: ['#1f2124', '#2c2733', '#a084c7', '#e6e6e5'],
+      blue: ['#1c1f24', '#1e2a38', '#7a9dc4', '#e6e4e0'],
+      amber: ['#221e1a', '#2e2820', '#c4a46a', '#ebe4d8']
+    }
   }
 
-  function applyScheme() {
-    document.documentElement.setAttribute('data-scheme', scheme)
+  /* ── 演示工装数据(非设计的一部分):模拟 app.getPreferredSystemLanguages() 的返回。
+        每一档对应 spec「启动与语言决定」里的一条边界。 ── */
+  const SYS_CASES = [
+    { id: 'zh',    label: '简体中文 [zh-Hans-CN]',        list: ['zh-Hans-CN'] },
+    { id: 'en',    label: '英文 [en-US]',                  list: ['en-US'] },
+    { id: 'frCA',  label: '加拿大法语 [fr-CA] · 地区变体',  list: ['fr-CA'] },
+    { id: 'ja',    label: '日语 [ja-JP]',                  list: ['ja-JP'] },
+    { id: 'ko',    label: '韩语 [ko-KR] · 不支持',          list: ['ko-KR'] },
+    { id: 'koFr',  label: '[ko, fr, en] · 取首个受支持',    list: ['ko-KR', 'fr-FR', 'en-US'] },
+    { id: 'empty', label: '空列表 [] · 探测失败',           list: [] }
+  ]
+
+  let dim = 'settings'
+  /** 三个偏好:配色、外观模式、语言。后两者的 'system' 都是策略而非快照 */
+  let scheme = 'purple'
+  let modePref = 'system'
+  let langPref = 'system'
+  let sysCase = 'zh'
+  let mockSystemDark = false   // 演示工装:替代真实 prefers-color-scheme
+  let popOpen = false
+  let cursor = 0
+
+  /** 系统偏好语言列表 → 生效语言:按优先级取首个受支持者,全不中回退英文 */
+  function resolveSystem(list) {
+    for (const tag of list) {
+      const primary = String(tag).split('-')[0].toLowerCase()
+      if (LANGS.includes(primary)) return primary
+    }
+    return 'en'
   }
+
+  const sysList = () => (SYS_CASES.find((c) => c.id === sysCase) || SYS_CASES[0]).list
+  const effLang = () => (langPref === 'system' ? resolveSystem(sysList()) : langPref)
+  /** 外观模式 → 生效明暗。与语言同构:偏好是策略,生效值才是最终落到 DOM 上的东西 */
+  const effTheme = () => (modePref === 'system' ? (mockSystemDark ? 'dark' : 'light') : modePref)
+  const t = () => T[effLang()]
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  const modeName = (id) => (id === 'system' ? t().followSystem : id === 'light' ? t().light : t().dark)
+
+  function toast(msg) {
+    const el = document.getElementById('toast')
+    el.textContent = msg
+    el.style.display = 'block'
+    clearTimeout(toast._tm)
+    toast._tm = setTimeout(() => { el.style.display = 'none' }, 2200)
+  }
+
+  function applyScheme() { document.documentElement.setAttribute('data-scheme', scheme) }
+  /** 生效明暗写到 <html data-theme>,沿用真代码 theme.css 已有的 :root[data-theme] 约定 */
+  function applyTheme() { document.documentElement.setAttribute('data-theme', effTheme()) }
+
+  function applyLang() {
+    document.documentElement.setAttribute('lang', t().htmlLang)
+    document.querySelectorAll('.rail [data-tip]').forEach((b) => {
+      b.setAttribute('title', t().rail[b.getAttribute('data-tip')])
+    })
+  }
+
+  function applyAll() { applyScheme(); applyTheme(); applyLang(); renderDemoOut() }
 
   function setDim(d) {
     dim = d
+    closePop()
     document.querySelectorAll('.rail [data-dim]').forEach((b) => {
       b.classList.toggle('on', b.getAttribute('data-dim') === d)
     })
     render()
   }
 
+  /* ── 语言下拉浮层:fixed 定位,按触发器 rect 贴合 ── */
+  function positionPop() {
+    const trig = document.getElementById('langTrigger')
+    const pop = document.getElementById('langPop')
+    if (!trig) return
+    const r = trig.getBoundingClientRect()
+    const h = pop.offsetHeight
+    const below = window.innerHeight - r.bottom
+    pop.style.left = `${Math.max(8, r.right - pop.offsetWidth)}px`
+    pop.style.top = below >= h + 12 ? `${r.bottom + 6}px` : `${Math.max(8, r.top - h - 6)}px`
+  }
+
+  function renderPop() {
+    const pop = document.getElementById('langPop')
+    const resolved = resolveSystem(sysList())
+    pop.innerHTML = OPTIONS.map((id, i) => {
+      const on = id === langPref
+      const cur = i === cursor
+      const isSys = id === 'system'
+      const name = isSys ? t().followSystem : T[id].native
+      const side = isSys ? T[resolved].native : T[id].english
+      const row = `
+        <button type="button" role="option" class="lang-opt ${on ? 'on' : ''} ${cur ? 'cursor' : ''}"
+                aria-selected="${on}" data-lang="${id}">
+          <span class="n">${esc(name)}</span>
+          <span class="e">${esc(side)}</span>
+          <span class="ck">${SVG_CHECK}</span>
+        </button>`
+      return isSys ? row + '<div class="sep"></div>' : row
+    }).join('')
+    pop.querySelectorAll('[data-lang]').forEach((b) => {
+      b.onclick = () => setLang(b.getAttribute('data-lang'))
+    })
+  }
+
+  function openPop() {
+    popOpen = true
+    cursor = OPTIONS.indexOf(langPref)
+    const pop = document.getElementById('langPop')
+    renderPop()
+    pop.classList.add('open')
+    positionPop()
+    document.getElementById('langTrigger').setAttribute('aria-expanded', 'true')
+  }
+
+  function closePop() {
+    popOpen = false
+    document.getElementById('langPop').classList.remove('open')
+    const trig = document.getElementById('langTrigger')
+    if (trig) trig.setAttribute('aria-expanded', 'false')
+  }
+
+  function setLang(id) {
+    const same = id === langPref
+    langPref = id
+    closePop()
+    applyAll()
+    render()
+    if (!same) {
+      const eff = T[effLang()].native
+      toast(id === 'system' ? t().toastFollowSystem(eff) : t().toastLang(eff))
+    }
+    document.getElementById('langTrigger')?.focus()
+  }
+
+  function setMode(id) {
+    if (id === modePref) return
+    modePref = id
+    applyAll()
+    render()
+    toast(t().toastMode(id === 'system'
+      ? `${t().followSystem} · ${effTheme() === 'dark' ? t().dark : t().light}`
+      : modeName(id)))
+  }
+
+  function setScheme(id) {
+    if (id === scheme) return
+    scheme = id
+    applyAll()
+    render()
+    toast(t().toastScheme(t().schemeNames[scheme]))
+  }
+
   function renderSettings() {
+    const d = t()
+    const bold = (s) => `<b>${esc(s)}</b>`
+    const following = langPref === 'system'
     return `
-      <div class="settings">
-        <div class="h1">设置</div>
-        <div class="lead">本 app 偏好，对整个界面生效。不写入 Claude / Codex 配置。</div>
-        <div class="sec-t">外观</div>
-        <div class="scheme-grid">
-          ${['purple', 'blue', 'amber'].map((id) => {
-            const s = SCHEMES[id]
-            const on = scheme === id
-            return `
-              <button type="button" class="scheme ${on ? 'on' : ''}" data-scheme="${id}">
-                <span class="radio"></span>
-                <span>
-                  <div class="name">${s.name}${s.badge ? `<span class="badge">${s.badge}</span>` : ''}</div>
-                  <div class="desc">${s.desc}</div>
-                  <div class="swatches">${s.sw.map((c) => `<span class="sw" style="background:${c}"></span>`).join('')}</div>
+      <div class="settings" id="settingsPane">
+        <div class="h1">${esc(d.settings)}</div>
+        <div class="lead">${esc(d.lead)}</div>
+
+        <div class="sec">
+          <div class="sec-t">${esc(d.secLang)}</div>
+          <div class="field">
+            <div class="frow">
+              <span class="flabel">${esc(d.ifaceLang)}</span>
+              <button type="button" class="lang-trigger" id="langTrigger"
+                      aria-haspopup="listbox" aria-expanded="false">
+                <span class="cur">
+                  ${esc(following ? d.followSystem : d.native)}
+                  ${following ? `<span class="eff">${esc(T[effLang()].native)}</span>` : ''}
                 </span>
-              </button>`
-          }).join('')}
+                <span class="chev">${SVG_CHEVRON}</span>
+              </button>
+            </div>
+          </div>
+          <div class="foot">${esc(d.langFoot)}</div>
         </div>
-        <div class="foot">
-          <b>浅色 / 深色</b>跟随 macOS 系统外观。切换方案后立即对整个 app 生效，无需保存。
+
+        <div class="sec">
+          <div class="sec-t">${esc(d.secAppear)}</div>
+          <div class="field">
+            <div class="frow">
+              <span class="flabel">${esc(d.modeLabel)}</span>
+              <span class="seg" role="radiogroup" aria-label="${esc(d.modeLabel)}">
+                ${MODES.map((m) => `
+                  <button type="button" role="radio" aria-checked="${m === modePref}"
+                          class="${m === modePref ? 'on' : ''}" data-mode="${m}">${esc(modeName(m))}</button>
+                `).join('')}
+              </span>
+            </div>
+            <div class="frow">
+              <span class="flabel">${esc(d.paletteLabel)}</span>
+              <div class="pal-grid" role="radiogroup" aria-label="${esc(d.paletteLabel)}">
+                ${['purple', 'blue', 'amber'].map((id) => `
+                  <button type="button" role="radio" aria-checked="${id === scheme}"
+                          class="pal ${id === scheme ? 'on' : ''}" data-scheme="${id}">
+                    <span class="sw-row">${SWATCHES[effTheme()][id].map((c) => `<span class="sw" style="background:${c}"></span>`).join('')}</span>
+                    <span class="pal-n">${esc(d.schemeNames[id])}</span>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="foot">${d.appearFoot(bold)}</div>
         </div>
+
         <div class="note">
-          <b>验收</b>：① 三选一含默认紫 ② 切换后 rail/Agents/Projects 示意同步变色
-          ③ ⚙️ 为第三维 ④ 系统深色下三套均有 dark 表
+          <b>验收</b>：① 明暗三选一，选「浅色 / 深色」后<b>不再随系统变</b>，选「跟随系统」则跟着变
+          ② 用底部演示条改系统明暗验证上一条；语言与明暗两个「跟随系统」互不干扰
+          ③ 外观压缩为一张卡两行（模式 / 配色），配色卡去掉了整句描述，只留色块 + 名称
+          ④ 3 配色 × 2 明暗 = 6 种组合都要能看：浮层边框与投影、选中态、CC/CX 语义色均可辨
+          ⑥ 色板取样随明暗切换——深色下三张卡应呈深色系，不再出现纯白色块
+          ⑤ 语言浮层不被设置页 overflow:auto 裁掉，键盘七项循环<br>
+          <b>实现要点</b>：真代码用 Electron 的 <code>nativeTheme.themeSource</code>（官方三态：
+          Follow OS / Light / Dark），它直接改变 <code>prefers-color-scheme</code> 的求值结果——
+          现有 theme.css 的媒体查询<b>零改动</b>即生效，macOS 窗口边框与原生菜单也一并跟随。
+          本页的 <code>data-theme</code> 只是浏览器里没有 Electron 时的替身，<b>勿照抄进实现</b>。<br>
+          <b>已确认</b>（2026-08-08）：配色卡去掉整句描述、只留色块 + 名称，「默认为紫」移入段末说明；
+          语言分节置于外观之前；整体形态定稿。<br>
+          <b>演示基建</b>：底部悬浮条不是设计的一部分，勿实现。真实来源是
+          <code>app.getPreferredSystemLanguages()</code> 与 <code>prefers-color-scheme</code>。
         </div>
       </div>`
   }
 
   function renderAgents() {
+    const d = t()
     return `
       <div class="pane">
         <div class="h1">Agents</div>
-        <div class="sub">示意 · 当前主题应已全局生效（含强调色与卡片底）</div>
+        <div class="sub">${esc(d.agentsSub)}</div>
         <div class="stats">
           <div class="stat"><div class="k"><span class="b c">CC</span> Claude</div><div class="v">12.4M</div></div>
           <div class="stat"><div class="k"><span class="b x">CX</span> Codex</div><div class="v">3.1M</div></div>
         </div>
-        <div class="tabs"><div class="tab on">Skills</div><div class="tab">Token</div><div class="tab">配置</div></div>
+        <div class="tabs">${d.tabs.map((x, i) => `<div class="tab ${i === 0 ? 'on' : ''}">${esc(x)}</div>`).join('')}</div>
         <div class="card">
           <div class="it"><span class="nm">github-ops</span><span class="b c">CC</span><span class="b x">CX</span><span class="ds">Rules for ANY GitHub operation…</span></div>
-          <div class="it"><span class="nm">tdd</span><span class="b c">CC</span><span class="ds">红先于绿</span></div>
+          <div class="it"><span class="nm">tdd</span><span class="b c">CC</span><span class="ds">Red before green</span></div>
         </div>
       </div>`
   }
 
   function renderProjects() {
+    const d = t()
     return `
       <div class="split">
         <div class="side">
-          <div class="search">🔍 搜索项目…</div>
+          <div class="search">🔍 ${esc(d.search)}</div>
           <div class="row on">agentshed</div>
           <div class="row">Transfer</div>
         </div>
         <div class="detail">
           <div class="h1" style="margin-bottom:8px">agentshed</div>
-          项目详情示意。列表选中高亮与标题色随主题方案变化；CC/CX 语义色保持独立。
+          ${esc(d.detail)}
         </div>
       </div>`
   }
@@ -294,22 +685,75 @@
     else if (dim === 'projects') stage.innerHTML = renderProjects()
     else stage.innerHTML = renderAgents()
 
-    stage.querySelectorAll('[data-scheme]').forEach((btn) => {
-      btn.onclick = () => {
-        scheme = btn.getAttribute('data-scheme')
-        applyScheme()
-        render()
-        toast(`已切换为「${SCHEMES[scheme].name}」· 全 app 生效`)
-      }
+    stage.querySelectorAll('[data-scheme]').forEach((b) => {
+      b.onclick = () => setScheme(b.getAttribute('data-scheme'))
     })
+    stage.querySelectorAll('[data-mode]').forEach((b) => {
+      b.onclick = () => setMode(b.getAttribute('data-mode'))
+    })
+
+    const trig = document.getElementById('langTrigger')
+    if (trig) {
+      trig.onclick = (e) => { e.stopPropagation(); popOpen ? closePop() : openPop() }
+      trig.onkeydown = (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+          // 打开用的这一下不得再冒泡给浮层导航监听器,否则同一次按键既开又移一格
+          if (!popOpen) { e.preventDefault(); e.stopPropagation(); openPop() }
+        }
+      }
+    }
+    // 设置页滚动时浮层会脱锚(fixed 不跟随滚动容器),直接关闭
+    const pane = document.getElementById('settingsPane')
+    if (pane) pane.onscroll = () => { if (popOpen) closePop() }
   }
+
+  /* ── 演示工装接线(data-demo-harness) ── */
+  function renderDemoOut() {
+    const out = document.getElementById('sysOut')
+    const lg = T[effLang()].native
+    const th = effTheme() === 'dark' ? '深色' : '浅色'
+    out.innerHTML = `→ 生效 <b>${esc(lg)}</b> · <b>${esc(th)}</b>`
+  }
+
+  const sel = document.getElementById('sysSel')
+  sel.innerHTML = SYS_CASES.map((c) => `<option value="${c.id}">${c.label}</option>`).join('')
+  sel.value = sysCase
+  sel.onchange = () => {
+    sysCase = sel.value
+    applyAll(); render()
+    toast(langPref === 'system'
+      ? `演示：系统语言已改 · 界面随之变为 ${T[effLang()].native}`
+      : `演示：系统语言已改 · 但偏好锁定为 ${T[langPref].native}，界面不变`)
+  }
+
+  const selTheme = document.getElementById('sysTheme')
+  selTheme.value = mockSystemDark ? 'dark' : 'light'
+  selTheme.onchange = () => {
+    mockSystemDark = selTheme.value === 'dark'
+    applyAll(); render()
+    toast(modePref === 'system'
+      ? `演示：系统明暗已改 · 界面随之变为${effTheme() === 'dark' ? '深色' : '浅色'}`
+      : `演示：系统明暗已改 · 但模式锁定为${modeName(modePref)}，界面不变`)
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (!popOpen) return
+    if (e.key === 'Escape') { e.preventDefault(); closePop(); document.getElementById('langTrigger')?.focus() }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); cursor = (cursor + 1) % OPTIONS.length; renderPop(); positionPop() }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); cursor = (cursor - 1 + OPTIONS.length) % OPTIONS.length; renderPop(); positionPop() }
+    else if (e.key === 'Enter') { e.preventDefault(); setLang(OPTIONS[cursor]) }
+  })
+  document.addEventListener('click', (e) => {
+    if (popOpen && !e.target.closest('#langPop') && !e.target.closest('#langTrigger')) closePop()
+  })
+  window.addEventListener('resize', () => { if (popOpen) positionPop() })
 
   document.querySelectorAll('.rail [data-dim]').forEach((b) => {
     b.onclick = () => setDim(b.getAttribute('data-dim'))
   })
-  document.getElementById('refresh').onclick = () => toast('全局刷新（示意）')
+  document.getElementById('refresh').onclick = () => toast(t().toastRefresh)
 
-  applyScheme()
+  applyAll()
   setDim('settings')
 </script>
 </body>
