@@ -34,6 +34,39 @@ export const ru: Locale = {
 
   toast: {
     languageSwitched: (name) => `Язык интерфейса переключён на ${name}`,
-    languageFollowSystem: (name) => `Теперь следует системе · сейчас ${name}`
+    languageFollowSystem: (name) => `Теперь следует системе · сейчас ${name}`,
+    saveSchemeFailed: 'Не удалось сохранить палитру',
+    saveModeFailed: 'Не удалось сохранить режим оформления',
+    saveLanguageFailed: 'Не удалось сохранить язык'
+  },
+
+  errors: {
+    badArgs: (channel, field) =>
+      field
+        ? `Недопустимые аргументы вызова: ${channel} (поле ${field})`
+        : `Недопустимые аргументы вызова: ${channel}`,
+    sessionNotWhitelisted:
+      'Этой сессии нет в списке разрешённых — сначала откройте сведения о проекте или обновите',
+    engineNotReady: 'Движок сканирования ещё не готов — повторите попытку чуть позже',
+    turnOutOfRange: (i, total) => `Индекс хода вне диапазона: ${i} (всего ходов: ${total})`,
+    artifactNotWhitelisted: 'Этого пути к продукту нет в списке разрешённых',
+    pluginRootNotRegistered:
+      'Корень этого плагина не зарегистрирован — сначала обновите или откройте сведения',
+    projectNotOpened: 'Проект не открыт — сначала откройте сведения о нём',
+    skillPackageUnavailable: 'Пакет skill недоступен или находится вне разрешённых корней',
+    skillFileNotWhitelisted: 'Этого пути к файлу skill нет в списке разрешённых',
+    skillFileUnreadable: 'Не удаётся прочитать файл skill',
+    sessionNotIndexed: 'Эта сессия не проиндексирована — сначала выполните полное обновление',
+    sessionFileUnreadable: 'Файл сессии больше не читается (перемещён или удалён?)',
+    sessionMetaUnreadable:
+      'Первая строка сессии не читается, поэтому индекс невозможно перестроить',
+    sessionParseFailed: 'Не удалось разобрать файл сессии',
+    prefsStoreNotReady: 'Хранилище настроек не готово',
+    invalidPref: (field) => `Недопустимое значение настройки: ${field}`
+  },
+
+  subagentError: {
+    unreadable: 'Не читается',
+    parseFailed: 'Ошибка разбора'
   }
 }

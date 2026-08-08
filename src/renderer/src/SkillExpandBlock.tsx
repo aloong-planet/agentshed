@@ -5,6 +5,8 @@ import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
 import { SkillFileDrawer } from './SkillFileDrawer'
 import { SkillFilesTable, formatSize } from './SkillFilesTable'
 import { toast } from './Toast'
+import { errorText } from '@shared/error-text'
+import { useLanguage } from './language'
 
 const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex' }
 const SIDE_ORDER: AgentSide[] = ['claude', 'codex']
@@ -42,6 +44,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   const sidesArr = source.kind === 'global' ? source.sides : [source.side]
   const fixedSide = source.kind === 'global' ? source.fixedSide : source.side
   const sorted = SIDE_ORDER.filter((s) => sidesArr.includes(s))
+  const lang = useLanguage()
   const [open, setOpen] = useState(false)
   const [side, setSide] = useState<AgentSide>(fixedSide ?? sorted[0] ?? 'claude')
   const [listing, setListing] = useState<ListSkillFilesResult | null>(null)
@@ -79,7 +82,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         setListing(null)
         setListErr(String(e))
       }
-      toast('err', `列举失败:${String(e)}`)
+      toast('err', `列举失败:${errorText(lang, e)}`)
     } finally {
       if (seq.current === my) setLoading(false)
     }

@@ -8,6 +8,8 @@ import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
 import { SkillFileDrawer } from './SkillFileDrawer'
 import { SkillFilesTable, formatSize } from './SkillFilesTable'
 import { toast } from './Toast'
+import { errorText } from '@shared/error-text'
+import { useLanguage } from './language'
 
 export function PluginSkillList({
   ns,
@@ -22,6 +24,7 @@ export function PluginSkillList({
   root: string | null
   skills: PluginSkillSummary[]
 }): JSX.Element {
+  const lang = useLanguage()
   const [openName, setOpenName] = useState<string | null>(null)
   const [listing, setListing] = useState<ListSkillFilesResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -52,7 +55,7 @@ export function PluginSkillList({
       if (seq.current === my) setListing(r)
     } catch (e) {
       if (seq.current === my) setErr(String(e))
-      toast('err', `列举失败:${String(e)}`)
+      toast('err', `列举失败:${errorText(lang, e)}`)
     } finally {
       if (seq.current === my) setLoading(false)
     }

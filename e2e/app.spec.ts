@@ -5,6 +5,7 @@ import { appendFileSync, mkdtempSync, mkdirSync, symlinkSync, writeFileSync, rmS
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
+import { ERR } from '../src/shared/errors'
 
 /** 每个用例独立 userData,互不污染;可预置缓存文件 */
 function makeUserData(cacheContent?: string): string {
@@ -591,7 +592,10 @@ test('IPC 面:白名单外的路径经真通道调用被拒,错误里不含文�
 
   const r1 = await attempt('/etc/hosts')
   expect(r1, '系统文件必须被拒').not.toBe('ALLOWED')
-  expect(r1).toContain('白名单')
+  // 断言**错误码**而不是中文措辞:跨 IPC 的失败自票 05 起只带码与参数,
+  // 措辞由渲染层按当前语言生成。守的性质没变(被拒 + 不回显文件内容),
+  // 换的只是断言对象——拿措辞当断言对象,正是 ADR-0015 要消灭的耦合
+  expect(r1).toContain(ERR.sessionNotWhitelisted)
   // 错误信息不回显任何文件内容(hosts 常含 localhost 行)
   expect(r1).not.toContain('localhost')
 
@@ -601,7 +605,7 @@ test('IPC 面:白名单外的路径经真通道调用被拒,错误里不含文�
   // 本测故意制造 handler 错误,不能断言 errors 为空——改为正向断言:
   // 主进程侧恰好两次拒绝、全是白名单错、没混进别的错误类型
   expect(l.errors).toHaveLength(2)
-  for (const e of l.errors) expect(e).toContain('白名单')
+  for (const e of l.errors) expect(e).toContain(ERR.sessionNotWhitelisted)
   await close(l)
 })
 

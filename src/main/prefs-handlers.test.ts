@@ -8,9 +8,23 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { DEFAULT_PREFS } from '@shared/prefs'
+import { ERR, decodeAppError } from '@shared/errors'
 import { PrefsStore } from './prefs-store'
 import type { ThemeSourceTarget } from './appearance-mode'
 import { createPrefsHandlers } from './prefs-handlers'
+
+/**
+ * 取抛出错误的结构化码。断言码而非措辞:措辞已经交给渲染层按语言生成,
+ * 拿它当断言对象等于把 UI 文案钉进主进程测试(ADR-0015 要消灭的正是这种耦合)。
+ */
+function codeOf(fn: () => unknown): string | null {
+  try {
+    fn()
+    return null
+  } catch (e) {
+    return decodeAppError(e)?.code ?? null
+  }
+}
 
 describe('偏好 handler', () => {
   let dir: string
@@ -55,22 +69,22 @@ describe('偏好 handler', () => {
   })
 
   it('setMode:非法值抛错,且**不得把非法值透给 themeSource**', () => {
-    expect(() => handlers().setMode('auto')).toThrow('外观模式不合契约')
+    expect(codeOf(() => handlers().setMode('auto'))).toBe(ERR.invalidPref)
     expect(theme.themeSource).toBe('system')
   })
 
   it('setMode:偏好存储未就绪时抛错,且不碰 themeSource', () => {
     // 校验顺序要紧:存储没就绪就设了 themeSource,等于界面变了却什么都没记住
     const h = createPrefsHandlers({ store: () => null, theme })
-    expect(() => h.setMode('dark')).toThrow('偏好存储未就绪')
+    expect(codeOf(() => h.setMode('dark'))).toBe(ERR.prefsStoreNotReady)
     expect(theme.themeSource).toBe('system')
   })
 
   it('setScheme / setLanguage:合法值落盘,非法值抛错', () => {
     expect(handlers().setScheme('blue').scheme).toBe('blue')
     expect(handlers().setLanguage('ja').language).toBe('ja')
-    expect(() => handlers().setScheme('neon')).toThrow('外观方案不合契约')
-    expect(() => handlers().setLanguage('ko')).toThrow('界面语言不合契约')
+    expect(codeOf(() => handlers().setScheme('neon'))).toBe(ERR.invalidPref)
+    expect(codeOf(() => handlers().setLanguage('ko'))).toBe(ERR.invalidPref)
     // 非法调用不得留下痕迹
     expect(new PrefsStore(dir).get()).toEqual({ scheme: 'blue', language: 'ja', mode: 'system' })
   })

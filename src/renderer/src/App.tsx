@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { Snapshot } from '@shared/domain'
 import type { Prefs } from '@shared/prefs'
 import { backfillPrefs, type PrefKey } from './prefs-backfill'
+import { errorText } from '@shared/error-text'
+import { LanguageProvider } from './language'
 import {
   DEFAULT_MODE,
   DEFAULT_SCHEME,
@@ -105,7 +107,7 @@ export function App(): JSX.Element {
       setScheme(p.scheme)
       applyScheme(p.scheme)
     } catch (e) {
-      toast('err', `保存外观失败:${String(e)}`)
+      toast('err', `${t.toast.saveSchemeFailed}:${errorText(lang, e)}`)
     }
   }
 
@@ -118,7 +120,7 @@ export function App(): JSX.Element {
       const p = await window.agentshed.setMode(m)
       setMode(p.mode)
     } catch (e) {
-      toast('err', `保存外观模式失败:${String(e)}`)
+      toast('err', `${t.toast.saveModeFailed}:${errorText(lang, e)}`)
     }
   }
 
@@ -142,11 +144,12 @@ export function App(): JSX.Element {
       const p = await window.agentshed.setLanguage(next)
       setLangPref(p.language)
     } catch (e) {
-      toast('err', `保存语言失败:${String(e)}`)
+      toast('err', `${t.toast.saveLanguageFailed}:${errorText(lang, e)}`)
     }
   }
 
   return (
+    <LanguageProvider lang={lang}>
     <div className={`app dim-${dim}`}>
       <nav className="rail">
         <button
@@ -242,6 +245,7 @@ export function App(): JSX.Element {
       </main>
       <Toasts />
     </div>
+    </LanguageProvider>
   )
 }
 

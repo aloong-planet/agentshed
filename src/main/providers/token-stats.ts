@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path'
 import type { AgentSide, ForkState, ProjectStats, SessionMeta, TokenStats, TokenTotals } from '@shared/domain'
 import { emptyTokenStats, emptyTotals } from '@shared/domain'
 import { mergeKey } from '@shared/path-key'
+import { ERR, appError } from '@shared/errors'
 import { providerOf } from '@shared/provider'
 import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessionMeta, readCodexSessions } from './codex'
@@ -291,9 +292,9 @@ export class TokenEngine {
     forkParentFile: string | null
   }> {
     const cached = this.cache.files[file]
-    if (!cached) throw new Error('会话不在索引中,请先全局刷新')
+    if (!cached) throw appError(ERR.sessionNotIndexed)
     const sig = sigOf(file)
-    if (sig === null) throw new Error('会话文件已不可读(被移动或删除?)')
+    if (sig === null) throw appError(ERR.sessionFileUnreadable)
     let agg = cached.agg
     if (cached.sig !== sig || !isWellFormedAgg(agg)) {
       // 侧别按数据根判定,不信可能已损坏的缓存条目
@@ -308,7 +309,7 @@ export class TokenEngine {
         fresh = await parseClaudeFile(file, oldKey, listedBase)
       } else {
         const meta = readCodexSessionMeta(file)
-        if (!meta) throw new Error('会话首行元数据不可读,无法重建索引')
+        if (!meta) throw appError(ERR.sessionMetaUnreadable)
         fresh = await parseCodexFile(
           file,
           mergeKey(meta.cwd),
@@ -316,7 +317,7 @@ export class TokenEngine {
           readCodexIndex(roots.codexHome)
         )
       }
-      if (!fresh) throw new Error('会话文件解析失败')
+      if (!fresh) throw appError(ERR.sessionParseFailed)
       agg = fresh
       this.cache.files[file] = { sig, agg }
       this.persist()

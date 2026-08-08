@@ -30,7 +30,8 @@ const UNREADABLE: Omit<SubagentSideDetail, 'content'> = {
   tools: null,
   model: null,
   sandbox: null,
-  error: '文件不可读(权限或 IO 异常)'
+  error: '文件不可读(权限或 IO 异常)',
+  errorKind: 'unreadable' as const
 }
 
 function readClaudeSide(dir: string): Map<string, SubagentSideDetail> {
@@ -47,7 +48,8 @@ function readClaudeSide(dir: string): Map<string, SubagentSideDetail> {
       tools: fmField(content, 'tools'),
       model: fmField(content, 'model'),
       sandbox: null,
-      error: null
+      error: null,
+      errorKind: null
     })
   }
   return out
@@ -72,7 +74,8 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
         tools: null,
         model: null,
         sandbox: null,
-        error: `toml 解析失败:${String(err).slice(0, 120)}`
+        error: `toml 解析失败:${String(err).slice(0, 120)}`,
+        errorKind: 'parse-failed' as const
       })
       continue
     }
@@ -85,7 +88,8 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
         tools: null,
         model: str('model'),
         sandbox: str('sandbox_mode'),
-        error: '缺有效 name 字段(Codex 不加载此文件)'
+        error: '缺有效 name 字段(Codex 不加载此文件)',
+        errorKind: 'parse-failed' as const
       })
       continue
     }
@@ -97,7 +101,8 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
       tools: null,
       model: str('model'),
       sandbox: str('sandbox_mode'),
-      error: null
+      error: null,
+      errorKind: null
     })
   }
   return out

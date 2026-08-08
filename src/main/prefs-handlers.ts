@@ -9,6 +9,7 @@
 import { isAppearanceMode, isAppearanceScheme } from '@shared/appearance'
 import { isLanguagePreference } from '@shared/i18n'
 import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
+import { ERR, appError } from '@shared/errors'
 import { applyAppearanceMode, type ThemeSourceTarget } from './appearance-mode'
 import type { PrefsStore } from './prefs-store'
 
@@ -33,7 +34,7 @@ export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
   /** 取存储;未就绪就抛——写类操作没有"先记在内存里回头补"的语义 */
   const required = (): PrefsStore => {
     const s = deps.store()
-    if (!s) throw new Error('偏好存储未就绪')
+    if (!s) throw appError(ERR.prefsStoreNotReady)
     return s
   }
 
@@ -42,17 +43,17 @@ export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
     getPrefs: () => deps.store()?.get() ?? { ...DEFAULT_PREFS },
 
     setScheme: (scheme) => {
-      if (!isAppearanceScheme(scheme)) throw new Error('外观方案不合契约')
+      if (!isAppearanceScheme(scheme)) throw appError(ERR.invalidPref, { field: 'scheme' })
       return required().setScheme(scheme)
     },
 
     setLanguage: (language) => {
-      if (!isLanguagePreference(language)) throw new Error('界面语言不合契约')
+      if (!isLanguagePreference(language)) throw appError(ERR.invalidPref, { field: 'language' })
       return required().setLanguage(language)
     },
 
     setMode: (mode) => {
-      if (!isAppearanceMode(mode)) throw new Error('外观模式不合契约')
+      if (!isAppearanceMode(mode)) throw appError(ERR.invalidPref, { field: 'mode' })
       // 校验与就绪检查都在设 themeSource **之前**:非法值不得透给 themeSource,
       // 存储没就绪也不该"界面变了却什么都没记住"。
       const store = required()

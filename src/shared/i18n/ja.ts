@@ -34,6 +34,36 @@ export const ja: Locale = {
 
   toast: {
     languageSwitched: (name) => `インターフェースの言語を ${name} に変更しました`,
-    languageFollowSystem: (name) => `システムに従う設定にしました · 現在は ${name}`
+    languageFollowSystem: (name) => `システムに従う設定にしました · 現在は ${name}`,
+    saveSchemeFailed: 'パレットの保存に失敗しました',
+    saveModeFailed: '外観モードの保存に失敗しました',
+    saveLanguageFailed: '言語の保存に失敗しました'
+  },
+
+  errors: {
+    badArgs: (channel, field) =>
+      field ? `呼び出し引数が不正です：${channel}（フィールド ${field}）` : `呼び出し引数が不正です：${channel}`,
+    sessionNotWhitelisted:
+      'このセッションは許可リストにありません。先にプロジェクトの詳細を開くか、更新してください',
+    engineNotReady: 'スキャンエンジンの準備ができていません。少し待って再試行してください',
+    turnOutOfRange: (i, total) => `ターン番号が範囲外です：${i}（全 ${total} ターン）`,
+    artifactNotWhitelisted: 'この成果物のパスは許可リストにありません',
+    pluginRootNotRegistered:
+      'このプラグインのパッケージルートは登録されていません。先に更新するか詳細を開いてください',
+    projectNotOpened: 'プロジェクトが開かれていません。先に詳細を開いてください',
+    skillPackageUnavailable: 'skill パッケージが利用できないか、許可されたルートの外にあります',
+    skillFileNotWhitelisted: 'この skill ファイルのパスは許可リストにありません',
+    skillFileUnreadable: 'skill ファイルを読み取れません',
+    sessionNotIndexed: 'このセッションはインデックスにありません。先に全体を更新してください',
+    sessionFileUnreadable: 'セッションファイルが読み取れなくなりました（移動または削除？）',
+    sessionMetaUnreadable: 'セッションの先頭行が読み取れないため、インデックスを再構築できません',
+    sessionParseFailed: 'セッションファイルの解析に失敗しました',
+    prefsStoreNotReady: '設定の保存領域が準備できていません',
+    invalidPref: (field) => `設定値が不正です：${field}`
+  },
+
+  subagentError: {
+    unreadable: '読み取り不可',
+    parseFailed: '解析失敗'
   }
 }
