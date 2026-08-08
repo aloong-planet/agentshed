@@ -17,5 +17,5 @@
 | [0011](0011-question-index-in-token-cache.md) | 提问索引搭载于 token 计量缓存(单缓存双口径) | 已接受 |
 | [0012](0012-plugin-skill-preview-decoupled-from-enablement.md) | 插件 skill 预览与启用态解耦;Codex 不并入生效视图 | 已接受 |
 | [0013](0013-ui-language-set-and-i18n-scope.md) | 界面语言集与 i18n 范围边界(六语全 LTR、不承诺 RTL) | 已接受 |
-| [0014](0014-self-built-typed-i18n-layer.md) | 自建 typed i18n 层(拒绝通用 i18n 框架) | 提议 |
+| [0014](0014-self-built-typed-i18n-layer.md) | 自建 typed i18n 层(拒绝通用 i18n 框架) | 已接受 |
 | [0015](0015-structured-ipc-errors.md) | 跨 IPC 的失败以错误码与参数传递,措辞留给 renderer | 已接受 |
