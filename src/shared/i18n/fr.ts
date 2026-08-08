@@ -40,6 +40,25 @@ export const fr: Locale = {
     saveLanguageFailed: 'Échec de l’enregistrement de la langue'
   },
 
+  skillDeepHint: 'La bonne pratique est une profondeur de référence de skill inférieure à 2 — envisagez de restructurer ce skill',
+  codexConfig: (model, projects, mcp) =>
+    `model = ${model}\nprojects : ${projects}\nmcp_servers : ${mcp}`,
+  /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  label: {
+    providerOther: 'Autre',
+    trendTotal: 'Total'
+  },
+
+  placeholder: {
+    unreadableLine: '(cette ligne n’est plus lisible)',
+    untitledSession: '(session sans titre)',
+    unknownTool: '(outil inconnu)',
+    unknown: '(inconnu)',
+    notSet: 'Non défini',
+    codexGlobalMemory: '(mémoire globale Codex)',
+    truncated: '…(tronqué)'
+  },
+
   errors: {
     badArgs: (channel, field) =>
       field
@@ -77,11 +96,17 @@ export const fr: Locale = {
     skillCopyMissing: 'La copie au niveau du projet n’existe pas',
     skillConflict: 'La cible possède déjà un skill de ce nom au niveau du projet — rien n’a été écrasé',
     skillCopyFailed: (detail) => `Échec de la copie, nettoyage effectué : ${detail}`,
-    skillDeleteFailed: (detail) => `Échec de la suppression : ${detail}`
+    skillDeleteFailed: (detail) => `Échec de la suppression : ${detail}`,
+    registryProjectsInvalid: 'La clé projects du registre est absente ou n’est pas un objet',
+    registryParseFailed: (detail) => `Échec de l’analyse du registre : ${detail}`,
+    subagentUnreadable: 'Le fichier est illisible (permissions ou erreur d’E/S)',
+    subagentTomlFailed: (detail) => `Échec de l’analyse du toml : ${detail}`,
+    subagentMissingName: 'Champ name valide absent (Codex ne chargera pas ce fichier)'
   },
 
   subagentError: {
     unreadable: 'Illisible',
-    parseFailed: 'Échec d’analyse'
+    parseFailed: 'Échec d’analyse',
+    detail: (msg) => `${msg}. Les autres entrées ne sont pas affectées.`
   }
 }

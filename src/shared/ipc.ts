@@ -97,7 +97,6 @@ export interface ListSkillFilesResult {
   files: SkillFileEntry[]
   deep: boolean
   deepPaths: string[]
-  deepHint: string
 }
 
 export interface ReadSkillFileArgs {

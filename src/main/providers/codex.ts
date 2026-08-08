@@ -3,6 +3,7 @@
 import { readFileSync, existsSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs'
 import { join } from 'node:path'
 import type { RegistryResult } from './claude'
+import { ERR } from '@shared/errors'
 
 const PROJECT_HEADER = /^\s*\[projects\."(.+)"\]\s*$/
 
@@ -145,6 +146,10 @@ export function readCodexRegistry(codexHome: string): RegistryResult {
     }
     return { detected: true, paths }
   } catch (err) {
-    return { detected: true, paths: [], error: `注册表解析失败:${String(err)}` }
+    return {
+      detected: true,
+      paths: [],
+      error: { code: ERR.registryParseFailed, params: { detail: String(err) } }
+    }
   }
 }

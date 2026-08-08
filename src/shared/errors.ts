@@ -74,7 +74,19 @@ export const ERR = {
   /** 复制失败已清理(params.detail 为底层错误串) */
   skillCopyFailed: 'skill-copy-failed',
   /** 删除失败(params.detail) */
-  skillDeleteFailed: 'skill-delete-failed'
+  skillDeleteFailed: 'skill-delete-failed',
+
+  // ── 数据字段里的失败(票 07):不是抛出的错误,而是随快照下发的探测/解析结果 ──
+  /** agent 注册表的 projects 键缺失或非对象 */
+  registryProjectsInvalid: 'registry-projects-invalid',
+  /** 注册表解析失败(params.detail) */
+  registryParseFailed: 'registry-parse-failed',
+  /** subagent 定义文件不可读(权限或 IO 异常) */
+  subagentUnreadable: 'subagent-unreadable',
+  /** subagent 的 toml 解析失败(params.detail) */
+  subagentTomlFailed: 'subagent-toml-failed',
+  /** subagent 缺有效 name 字段(Codex 不加载此文件) */
+  subagentMissingName: 'subagent-missing-name'
 } as const
 
 export type ErrorCode = (typeof ERR)[keyof typeof ERR]

@@ -65,10 +65,10 @@ describe('全局 subagents', () => {
     expect(s.sides).toEqual(['claude', 'codex'])
     expect(s.description).toBe('Expert code review specialist.')
     expect(s.claude?.tools).toBe('Read, Grep, Glob, Bash')
-    expect(s.claude?.content).toContain('senior code reviewer')
+    expect(s.claude?.content?.text).toContain('senior code reviewer')
     expect(s.codex?.model).toBe('gpt-5.5')
     expect(s.codex?.sandbox).toBe('read-only')
-    expect(s.codex?.content).toContain('developer_instructions')
+    expect(s.codex?.content?.text).toContain('developer_instructions')
   })
 
   it('单侧条目各自成行;Codex 键取 toml name 字段而非文件名', async () => {
@@ -88,7 +88,7 @@ describe('全局 subagents', () => {
     expect(s.name).toBe('bare')
     expect(s.description).toBeNull()
     expect(s.claude?.tools).toBeNull()
-    expect(s.claude?.content).toContain('just a prompt body')
+    expect(s.claude?.content?.text).toContain('just a prompt body')
   })
 
   it('A2 Codex toml 损坏 → 解析失败条目(文件名占位),其余条目不受影响', async () => {
@@ -104,7 +104,8 @@ describe('全局 subagents', () => {
     mkCodexAgent('noname.toml', `description = "d"\ndeveloper_instructions = "x"\n`)
     const snap = await scan(roots(), { now: () => 1 })
     const s = snap.global.subagents.find((x) => x.name === '(noname.toml)')
-    expect(s?.codex?.error).toMatch(/name/)
+    // 断错误码而非措辞:措辞已交给渲染层按语言生成(ADR-0015,票 07 扩到数据字段)
+    expect(s?.codex?.error?.code).toBe(ERR.subagentMissingName)
   })
 
   it('同层内两文件同 name → 先者优先(按文件名序,agent_roles.rs 同层重名跳过后来者)', async () => {
@@ -132,7 +133,7 @@ describe('全局 subagents', () => {
     try {
       const snap = await scan(roots(), { now: () => 1 })
       const s = snap.global.subagents.find((x) => x.name === 'locked')
-      expect(s?.claude?.error).toMatch(/不可读/)
+      expect(s?.claude?.error?.code).toBe(ERR.subagentUnreadable)
     } finally {
       chmodSync(f, 0o644)
     }
@@ -167,14 +168,16 @@ describe('全局 subagents', () => {
     mkClaudeAgent('big', `---\ndescription: d\n---\n${'x'.repeat(250_000)}`)
     const snap = await scan(roots(), { now: () => 1 })
     const s = snap.global.subagents[0]
-    expect(s.claude?.content?.length).toBeLessThan(210_000)
-    expect(s.claude?.content).toContain('已截断')
+    expect(s.claude?.content?.text.length).toBeLessThan(210_000)
+    // 主进程只报告是否被截断,「…(已截断)」由渲染层按当前语言追加(票 07)
+    expect(s.claude?.content?.truncated).toBe(true)
   })
 })
 
 // ── 项目详情生效视图(序列 B)——注意:subagents 两侧均为项目级遮蔽,
 // 与 skills 的 Codex 同名共存语义相反(agent_roles.rs 层覆盖,源码级核实) ──
 import { readProjectDetail } from './project-detail'
+import { ERR } from '@shared/errors'
 
 function mkProjAgent(proj: string, side: 'claude' | 'codex', file: string, content: string): void {
   const d = join(proj, side === 'claude' ? '.claude' : '.codex', 'agents')

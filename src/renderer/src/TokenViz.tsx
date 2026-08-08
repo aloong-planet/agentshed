@@ -41,6 +41,7 @@ export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string 
 import { buildTrendBars, TREND_MODE_LABEL, type TrendBar, type TrendMode } from '@shared/trend'
 import { layoutAxisLabels } from '@shared/axis'
 import { PROVIDER_ORDER, PROVIDER_LABEL, providerOf } from '@shared/provider'
+import { useDict } from './language'
 
 /** provider → CSS 类后缀(配色见 theme.css) */
 const PROVIDER_CLASS: Record<string, string> = {
@@ -61,6 +62,7 @@ export function TrendChart({
   /** 源会话文件已被 agent 清理、数值来自本地归档的天 */
   archivedDays?: string[]
 }): JSX.Element {
+  const t = useDict()
   const [mode, setMode] = useState<TrendMode>('total')
   const bars = useMemo(
     () => buildTrendBars(stats.byDay, anchor, mode, archivedDays),
@@ -90,7 +92,7 @@ export function TrendChart({
         <span className="seg">
           {(['total', 'Claude', 'Codex'] as const).map((m) => (
             <button key={m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)}>
-              {TREND_MODE_LABEL[m]}
+              {TREND_MODE_LABEL[m] ?? t.label.trendTotal}
             </button>
           ))}
         </span>
@@ -101,7 +103,7 @@ export function TrendChart({
             key={b.day}
             className={`col ${b.archived ? 'arch' : ''}`}
             style={{ height: `${Math.max(1.5, Math.round((b.total / max) * 100))}%` }}
-            data-tip={tipOf(b)}
+            data-tip={tipOf(b, t.label.providerOther)}
             data-day={b.day}
           >
             {b.segments.map((sg) => (
@@ -120,7 +122,7 @@ export function TrendChart({
           {usedProviders.map((p) => (
             <span className="lg" key={p}>
               <span className={`sw ${PROVIDER_CLASS[p] ?? 'other'}`} />
-              {PROVIDER_LABEL[p]}
+              {PROVIDER_LABEL[p] ?? t.label.providerOther}
             </span>
           ))}
           <span className="lg-note">柱高=当日总量,分段=各 provider 占比</span>
@@ -159,11 +161,12 @@ function renderAxisInto(axis: HTMLElement, chart: HTMLElement, bars: TrendBar[])
 }
 
 /** 悬停明细:当日合计 + 各侧数值与占比(多行,CSS 用 white-space:pre 渲染) */
-function tipOf(b: ReturnType<typeof buildTrendBars>[number]): string {
+function tipOf(b: ReturnType<typeof buildTrendBars>[number], otherLabel: string): string {
   const head = `${b.label} · 合计 ${fmtTok(b.total)}${b.archived ? ' · 归档(源文件已清理)' : ''}`
   if (b.total === 0) return `${head}\n无用量`
   const lines = b.segments.map(
-    (s) => `${PROVIDER_LABEL[s.provider]}  ${fmtTok(s.value)}  ${Math.round((s.value / b.total) * 100)}%`
+    (s) =>
+      `${PROVIDER_LABEL[s.provider] ?? otherLabel}  ${fmtTok(s.value)}  ${Math.round((s.value / b.total) * 100)}%`
   )
   return [head, ...lines].join('\n')
 }

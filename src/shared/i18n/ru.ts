@@ -40,6 +40,25 @@ export const ru: Locale = {
     saveLanguageFailed: 'Не удалось сохранить язык'
   },
 
+  skillDeepHint: 'По рекомендациям глубина ссылок skill должна быть меньше 2 — стоит переработать этот skill',
+  codexConfig: (model, projects, mcp) =>
+    `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
+  /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  label: {
+    providerOther: 'Прочие',
+    trendTotal: 'Итого'
+  },
+
+  placeholder: {
+    unreadableLine: '(эту строку больше не прочитать)',
+    untitledSession: '(сессия без названия)',
+    unknownTool: '(неизвестный инструмент)',
+    unknown: '(неизвестно)',
+    notSet: 'Не задано',
+    codexGlobalMemory: '(глобальная память Codex)',
+    truncated: '…(обрезано)'
+  },
+
   errors: {
     badArgs: (channel, field) =>
       field
@@ -76,11 +95,17 @@ export const ru: Locale = {
     skillCopyMissing: 'Копия уровня проекта не существует',
     skillConflict: 'В цели уже есть skill с таким именем на уровне проекта — ничего не перезаписано',
     skillCopyFailed: (detail) => `Копирование не удалось, выполнена очистка: ${detail}`,
-    skillDeleteFailed: (detail) => `Не удалось удалить: ${detail}`
+    skillDeleteFailed: (detail) => `Не удалось удалить: ${detail}`,
+    registryProjectsInvalid: 'Ключ projects в реестре отсутствует или не является объектом',
+    registryParseFailed: (detail) => `Не удалось разобрать реестр: ${detail}`,
+    subagentUnreadable: 'Файл не читается (права доступа или ошибка ввода-вывода)',
+    subagentTomlFailed: (detail) => `Не удалось разобрать toml: ${detail}`,
+    subagentMissingName: 'Нет корректного поля name (Codex не загрузит этот файл)'
   },
 
   subagentError: {
     unreadable: 'Не читается',
-    parseFailed: 'Ошибка разбора'
+    parseFailed: 'Ошибка разбора',
+    detail: (msg) => `${msg}. Остальные записи не затронуты.`
   }
 }

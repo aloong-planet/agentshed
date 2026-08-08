@@ -164,7 +164,7 @@ describe('项目详情 memory', () => {
       'topic-a.md': { body: 'topic 正文', mtime: 2_000 }
     })
     const detail = readProjectDetail(roots(), pa)
-    expect(detail.memory.main).toContain('# 主文件内容')
+    expect(detail.memory.main?.text).toContain('# 主文件内容')
     expect(detail.memory.topics.map((t) => t.name)).toEqual(['topic-a.md'])
     expect(JSON.stringify(detail.memory.topics)).not.toContain('topic 正文')
   })

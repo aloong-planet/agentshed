@@ -45,7 +45,7 @@ interface ClaudeFileAgg {
   file: string
   projectKey: string
   listed: boolean
-  title: string
+  title: string | null
   at: number | null
   /** 提问索引(不含提问文本,见 question-index.ts) */
   questions: QuestionRec[]
@@ -63,7 +63,7 @@ interface CodexFileAgg {
   file: string
   projectKey: string
   listed: boolean
-  title: string
+  title: string | null
   at: number | null
   model: string
   /** 标题是否来自 session_index 的 thread_name。retitle 只许改"来自首条提问"的
@@ -282,7 +282,7 @@ export class TokenEngine {
     side: AgentSide
     questions: QuestionRec[]
     forkState: ForkState
-    title: string
+    title: string | null
     at: number | null
     /** Claude 主链分叉处数(横幅"本会话有 N 处分叉");Codex 恒 0 */
     forkPoints: number
@@ -833,7 +833,7 @@ async function parseClaudeFile(
     // 1004 个只有一条 Warmup —— 照列会让 66% 的行是 uuid 文件名,而本功能
     // 要回答的正是"我提过的那个问题在哪"。token 照计,与 subagent 同口径。
     listed: listed && questions.length > 0,
-    title: title ?? file.split('/').pop()?.replace(/\.jsonl$/, '') ?? '会话',
+    title: title ?? file.split('/').pop()?.replace(/\.jsonl$/, '') ?? null,
     at: lastAt ?? fallbackAt,
     questions,
     entries
@@ -885,7 +885,7 @@ async function parseCodexFile(
     return null
   }
   const id = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/.exec(file)?.[1]
-  const stem = file.split('/').pop()?.replace(/\.jsonl$/, '') ?? '会话'
+  const stem = file.split('/').pop()?.replace(/\.jsonl$/, '') ?? null
   const questions = idx.done(fileEnd)
   const first = idx.firstQuestionText()
   const realTitle = first === null ? null : clipTitle(first)

@@ -8,7 +8,7 @@ import { toast } from './Toast'
 import { fmtAgo } from './ProjectsPane'
 import { errorText } from '@shared/error-text'
 import { appError } from '@shared/errors'
-import { useLanguage } from './language'
+import { useLanguage, useDict } from './language'
 
 /** C6 三态:未开启 → 开启提示;开启无内容 → 暂无内容;有内容 → 条目行(在列表中) */
 function CodexMemoryNote({ snap }: { snap: Snapshot }): JSX.Element | null {
@@ -30,6 +30,7 @@ function CodexMemoryNote({ snap }: { snap: Snapshot }): JSX.Element | null {
 }
 
 export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
+  const t = useDict()
   // 展开态键 = 侧+项目路径:快照刷新重排后展开行不错位(review-code 重构项 #4)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState<{ entry: MemorySummaryEntry; file: MemoryFileMeta } | null>(null)
@@ -57,7 +58,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
           return (
           <div key={key}>
             <button className="it row-btn" onClick={() => toggle(key)}>
-              <span className="nm mono">{m.projectName}</span>
+              <span className="nm mono">{m.projectName ?? t.placeholder.codexGlobalMemory}</span>
               <span className={`badge ${m.side === 'claude' ? 'cl' : 'cx'}`}>
                 {m.side === 'claude' ? 'CC' : 'CX'}
               </span>
@@ -89,7 +90,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
       {open && (
         <MemoryFileDrawer
           title={open.file.name}
-          meta={`${open.entry.projectName} · ${fmtAgo(open.file.mtimeMs, snap.scannedAt)}`}
+          meta={`${open.entry.projectName ?? t.placeholder.codexGlobalMemory} · ${fmtAgo(open.file.mtimeMs, snap.scannedAt)}`}
           file={open.file.file}
           onClose={() => setOpen(null)}
         />
@@ -108,10 +109,18 @@ export function ProjectMemoryTab({
   hasClaudeSide: boolean
   anchor: number
 }): JSX.Element {
+  const t = useDict()
   const lang = useLanguage()
   const [open, setOpen] = useState<MemoryFileMeta | null>(null)
   const html = useMemo(
-    () => (detail.memory.main === null ? null : renderMarkdown(detail.memory.main)),
+    () =>
+      detail.memory.main === null
+        ? null
+        : renderMarkdown(
+            detail.memory.main.truncated
+              ? `${detail.memory.main.text}\n${t.placeholder.truncated}`
+              : detail.memory.main.text
+          ),
     [detail]
   )
   // 主文件与 topic 同目录;topic 路径即该目录下的可读清单
@@ -188,6 +197,7 @@ export function MemoryFileDrawer({
   file: string
   onClose: () => void
 }): JSX.Element {
+  const t = useDict()
   const [content, setContent] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   useEffect(() => {
@@ -202,7 +212,7 @@ export function MemoryFileDrawer({
     window.agentshed
       .readArtifact(file)
       .then((raw) => {
-        if (alive) setContent(raw)
+        if (alive) setContent(raw.truncated ? `${raw.text}\n${t.placeholder.truncated}` : raw.text)
       })
       .catch((e: unknown) => {
         if (alive) setErr(`文件不可读:${String(e)}`)

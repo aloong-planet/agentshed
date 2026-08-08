@@ -12,7 +12,7 @@ import { toast } from './Toast'
 import { SkillExpandBlock } from './SkillExpandBlock'
 import { errorText } from '@shared/error-text'
 import { appError } from '@shared/errors'
-import { useLanguage } from './language'
+import { useLanguage, useDict } from './language'
 
 type Tab = 'ov' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'cfg' | 'arts'
 
@@ -128,6 +128,7 @@ function OverviewTab({
   snap: Snapshot
   onOpenSession: (file: string) => void
 }): JSX.Element {
+  const t = useDict()
   const stats = detail.stats ?? { tokens: emptyTokenStats(), sessions: [] }
   return (
     <div>
@@ -146,7 +147,7 @@ function OverviewTab({
                 <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
                   {s.side === 'claude' ? 'CC' : 'CX'}
                 </span>
-                <span className="t">{s.title}</span>
+                <span className="t">{s.title ?? t.placeholder.untitledSession}</span>
                 <span className="tok">{fmtTok(s.tokens)}</span>
                 <span className="d">{fmtAgo(s.at, snap.scannedAt)}</span>
               </button>
@@ -190,6 +191,7 @@ function SessionsTab({
   snap: Snapshot
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
+  const t = useDict()
   const [recentFirst, setRecentFirst] = useState(sessionsRecentFirst)
   const choose = (v: boolean): void => {
     sessionsRecentFirst = v
@@ -269,7 +271,7 @@ function SessionsTab({
                   <span className={`badge ${g.side === 'claude' ? 'cl' : 'cx'}`}>
                     {g.side === 'claude' ? 'CC' : 'CX'}
                   </span>
-                  <span className="t">{g.title}</span>
+                  <span className="t">{g.title ?? t.placeholder.untitledSession}</span>
                   {g.forkState === 'stripped' && <span className="pill fork">⑂ fork</span>}
                   {g.forkState === 'uncertain' && <span className="pill forkq">⑂? 剥离存疑</span>}
                   <span className="d">{g.hits.length} 条命中</span>
@@ -283,7 +285,11 @@ function SessionsTab({
                     <span className="idx">{String(h.i).padStart(2, '0')}</span>
                     <span className="t">
                       <Highlight
-                        text={h.inBody && h.snippet !== null ? h.snippet : h.text}
+                        text={
+                          h.inBody && h.snippet !== null
+                            ? h.snippet
+                            : (h.text ?? t.placeholder.unreadableLine)
+                        }
                         needle={needle.trim()}
                       />
                     </span>
@@ -324,7 +330,7 @@ function SessionsTab({
             <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
               {s.side === 'claude' ? 'CC' : 'CX'}
             </span>
-            <span className="t">{s.title}</span>
+            <span className="t">{s.title ?? t.placeholder.untitledSession}</span>
             {s.forkState === 'stripped' && (
               <span className="pill fork" title="本会话 fork 自另一个会话,开头的重放前缀已剥离">
                 ⑂ fork
@@ -574,6 +580,7 @@ const ART_LABELS: Record<ArtifactType, string> = {
 }
 
 function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
+  const t = useDict()
   const lang = useLanguage()
   const [filter, setFilter] = useState<'all' | ArtifactType>('all')
   const [reader, setReader] = useState<{ item: ArtifactEntry; html: string } | null>(null)
@@ -584,7 +591,9 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
       await window.agentshed.openArtifact(item.file)
       return
     }
-    const md = await window.agentshed.readArtifact(item.file)
+    const cap = await window.agentshed.readArtifact(item.file)
+    // 截断标记由渲染层按当前语言追加(票 07)
+    const md = cap.truncated ? `${cap.text}\n${t.placeholder.truncated}` : cap.text
     // 相对路径图片按产物所在目录解析(打包版 file:// 下可加载;dev 下受混合内容限制可能不显示)
     const baseDir = item.file.slice(0, item.file.lastIndexOf('/'))
     const rewritten = md.replace(
@@ -654,11 +663,14 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
 }
 
 function CfgTab({ detail }: { detail: ProjectDetail }): JSX.Element {
+  const t = useDict()
   const [which, setWhich] = useState<'cl' | 'cx' | 'settings'>('cl')
   const html = useMemo(() => {
     const md = which === 'cl' ? detail.configs.claudeMd : which === 'cx' ? detail.configs.agentsMd : null
-    return md === null ? null : renderMarkdown(md)
-  }, [which, detail])
+    if (md === null) return null
+    // 截断标记由渲染层按当前语言追加(票 07)
+    return renderMarkdown(md.truncated ? `${md.text}\n${t.placeholder.truncated}` : md.text)
+  }, [which, detail, t])
   return (
     <div>
       <div className="cfg-switch">

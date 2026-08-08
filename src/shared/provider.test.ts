@@ -44,9 +44,11 @@ describe('providerOf', () => {
     // 值已脱敏为语言无关标识符,界面文字改由这张表提供。
     // 遍历 PROVIDER_ORDER 而非硬写几条:将来加 provider 却漏配显示名时这里会红。
     for (const p of PROVIDER_ORDER) {
-      expect(PROVIDER_LABEL[p], `provider ${p} 缺显示名`).toBeTruthy()
+      // other 的显示名随界面语言变化,故表里是 null、由渲染层从字典取(票 07);
+      // 这里断的是"键在表里",不是"值非空"——后者对 other 已不成立
+      expect(PROVIDER_LABEL, `provider ${p} 缺显示名`).toHaveProperty(p)
     }
     expect(Object.keys(PROVIDER_LABEL).sort()).toEqual([...PROVIDER_ORDER].sort())
-    expect(PROVIDER_LABEL.other).toBe('其他')
+    expect(PROVIDER_LABEL.other).toBeNull()
   })
 })

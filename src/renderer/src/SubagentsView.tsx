@@ -10,7 +10,9 @@ import type {
   SubagentSideDetail
 } from '@shared/domain'
 import type { Locale } from '@shared/i18n'
-import { useDict } from './language'
+import { useDict, useLanguage } from './language'
+import { ERR, appError } from '@shared/errors'
+import { errorText } from '@shared/error-text'
 
 export function GlobalSubagentsTab({ snap }: { snap: Snapshot }): JSX.Element {
   const [open, setOpen] = useState<SubagentEntry | null>(null)
@@ -61,7 +63,7 @@ export function ProjectSubagentsTab({ detail }: { detail: ProjectDetail }): JSX.
               {s.level === 'project' ? '项目级' : '全局'}
             </span>
             {s.detail.error && (
-              <span className="pill warn">{errLabel(s.detail.errorKind, t)}</span>
+              <span className="pill warn">{errLabel(s.detail.error, t)}</span>
             )}
             {s.overridesBuiltin && <span className="pill warn">覆盖内置</span>}
             {s.shadows && <span className="pill shadow">遮蔽同名</span>}
@@ -99,8 +101,8 @@ function toDrawerEntry(p: ProjectSubagentEntry): SubagentEntry {
  * 措辞一改该分支就静默失效、且没有任何测试会红(ADR-0015 点名的隐患)。
  * 现在类别是语言无关的枚举,措辞怎么改都不影响分支。
  */
-export function errLabel(kind: SubagentSideDetail['errorKind'], t: Locale): string {
-  return kind === 'unreadable' ? t.subagentError.unreadable : t.subagentError.parseFailed
+export function errLabel(err: SubagentSideDetail['error'], t: Locale): string {
+  return err?.code === ERR.subagentUnreadable ? t.subagentError.unreadable : t.subagentError.parseFailed
 }
 
 export function SubagentFlags({ s }: { s: { overridesBuiltin?: boolean; claude?: SubagentSideDetail | null; codex?: SubagentSideDetail | null } }): JSX.Element {
@@ -109,7 +111,7 @@ export function SubagentFlags({ s }: { s: { overridesBuiltin?: boolean; claude?:
   const err = side?.error
   return (
     <>
-      {err && <span className="pill warn">{errLabel(side?.errorKind ?? null, t)}</span>}
+      {err && <span className="pill warn">{errLabel(err, t)}</span>}
       {s.overridesBuiltin && <span className="pill warn">覆盖内置</span>}
     </>
   )
@@ -126,6 +128,8 @@ export function SubagentDrawer({
   /** 额外元信息行(详情页生效视图用:来源层级/遮蔽说明) */
   meta?: string
 }): JSX.Element {
+  const t = useDict()
+  const lang = useLanguage()
   const both = entry.claude !== null && entry.codex !== null
   const [side, setSide] = useState<AgentSide>(entry.claude ? 'claude' : 'codex')
   const cur = side === 'claude' ? entry.claude : entry.codex
@@ -156,7 +160,7 @@ export function SubagentDrawer({
         {cur === null ? (
           <div className="none">该侧无定义</div>
         ) : cur.error !== null ? (
-          <div className="none">{cur.error};其余条目不受影响。</div>
+          <div className="none">{t.subagentError.detail(errorText(lang, appError(cur.error.code, cur.error.params)))}</div>
         ) : (
           <>
             <div className="kv">
@@ -176,7 +180,13 @@ export function SubagentDrawer({
                 </>
               )}
             </div>
-            {cur.content !== null && <div className="raw mono">{cur.content}</div>}
+            {cur.content !== null && (
+              <div className="raw mono">
+                {cur.content.truncated
+                  ? `${cur.content.text}\n${t.placeholder.truncated}`
+                  : cur.content.text}
+              </div>
+            )}
           </>
         )}
       </div>

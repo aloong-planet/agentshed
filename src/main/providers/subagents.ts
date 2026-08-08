@@ -8,7 +8,8 @@ import { join, basename } from 'node:path'
 import { parse as parseToml } from 'smol-toml'
 import type { AgentSide, ProjectSubagentEntry, SubagentEntry, SubagentSideDetail } from '@shared/domain'
 import type { ScanRoots } from './types'
-import { fmField, readTextCapped } from './read-utils'
+import { fmField, readCapped } from './read-utils'
+import { ERR } from '@shared/errors'
 
 /** Codex 内置 role(role.rs built_in::configs);自定义同名即覆盖内置 */
 const CODEX_BUILTINS = new Set(['default', 'worker', 'explorer'])
@@ -30,26 +31,24 @@ const UNREADABLE: Omit<SubagentSideDetail, 'content'> = {
   tools: null,
   model: null,
   sandbox: null,
-  error: '文件不可读(权限或 IO 异常)',
-  errorKind: 'unreadable' as const
+  error: { code: ERR.subagentUnreadable, params: {} }
 }
 
 function readClaudeSide(dir: string): Map<string, SubagentSideDetail> {
   const out = new Map<string, SubagentSideDetail>()
   for (const f of listFiles(dir, '.md')) {
-    const content = readTextCapped(join(dir, f))
+    const content = readCapped(join(dir, f))
     if (content === null) {
       out.set(basename(f, '.md'), { content: null, ...UNREADABLE })
       continue
     }
     out.set(basename(f, '.md'), {
       content,
-      description: fmField(content, 'description'),
-      tools: fmField(content, 'tools'),
-      model: fmField(content, 'model'),
+      description: fmField(content.text, 'description'),
+      tools: fmField(content.text, 'tools'),
+      model: fmField(content.text, 'model'),
       sandbox: null,
-      error: null,
-      errorKind: null
+      error: null
     })
   }
   return out
@@ -58,7 +57,7 @@ function readClaudeSide(dir: string): Map<string, SubagentSideDetail> {
 function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
   const out = new Map<string, SubagentSideDetail>()
   for (const f of listFiles(dir, '.toml')) {
-    const content = readTextCapped(join(dir, f))
+    const content = readCapped(join(dir, f))
     if (content === null) {
       // 名不可知(文件读不了),以文件名占位;无法参与按 name 的遮蔽判定,但不静默消失
       out.set(`(${f})`, { content: null, ...UNREADABLE })
@@ -66,7 +65,7 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
     }
     let parsed: Record<string, unknown>
     try {
-      parsed = parseToml(content)
+      parsed = parseToml(content.text)
     } catch (err) {
       out.set(`(${f})`, {
         content,
@@ -74,8 +73,7 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
         tools: null,
         model: null,
         sandbox: null,
-        error: `toml 解析失败:${String(err).slice(0, 120)}`,
-        errorKind: 'parse-failed' as const
+        error: { code: ERR.subagentTomlFailed, params: { detail: String(err).slice(0, 120) } }
       })
       continue
     }
@@ -88,8 +86,7 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
         tools: null,
         model: str('model'),
         sandbox: str('sandbox_mode'),
-        error: '缺有效 name 字段(Codex 不加载此文件)',
-        errorKind: 'parse-failed' as const
+        error: { code: ERR.subagentMissingName, params: {} }
       })
       continue
     }
@@ -101,8 +98,7 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
       tools: null,
       model: str('model'),
       sandbox: str('sandbox_mode'),
-      error: null,
-      errorKind: null
+      error: null
     })
   }
   return out

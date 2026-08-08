@@ -7,8 +7,7 @@ import {
   resolveSkillRoot,
   resolvePluginSkillRoot,
   isUnderKnownSkillRoots,
-  statSkillPackage,
-  SKILL_DEEP_HINT
+  statSkillPackage
 } from './skill-package'
 import type { ScanRoots } from './types'
 
@@ -58,7 +57,8 @@ describe('listSkillPackageFiles', () => {
     expect(paths).not.toContain('bin/tool.png')
     expect(listing.deep).toBe(true)
     expect(listing.deepPaths).toContain('references/nested/too-deep.md')
-    expect(SKILL_DEEP_HINT.length).toBeGreaterThan(10)
+    // 提示文案已移到渲染层(票 07),主进程只传 deep 这个判定结果——
+    // 断言点随之从「文案存在」变为「判定为真」
     const skill = listing.files.find((f) => f.path === 'SKILL.md')!
     expect(skill.lines).toBeGreaterThanOrEqual(3)
     expect(skill.bytes).toBeGreaterThan(0)

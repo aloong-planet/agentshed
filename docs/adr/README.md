@@ -19,3 +19,4 @@
 | [0013](0013-ui-language-set-and-i18n-scope.md) | 界面语言集与 i18n 范围边界(六语全 LTR、不承诺 RTL) | 已接受 |
 | [0014](0014-self-built-typed-i18n-layer.md) | 自建 typed i18n 层(拒绝通用 i18n 框架) | 已接受 |
 | [0015](0015-structured-ipc-errors.md) | 跨 IPC 的失败以错误码与参数传递,措辞留给 renderer | 已接受 |
+| [0016](0016-no-natural-language-across-ipc.md) | 主进程不产出面向用户的自然语言(不止失败信息) | 已接受 |

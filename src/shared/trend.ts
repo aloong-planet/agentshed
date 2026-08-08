@@ -7,9 +7,12 @@ import { PROVIDER_ORDER, type Provider } from './provider'
 /** 值是语言无关标识符,界面文字见 TREND_MODE_LABEL */
 export type TrendMode = 'total' | 'Claude' | 'Codex'
 
-/** 界面显示名。Claude / Codex 是产品名各语言通用,只有 total 需要随界面语言变化 */
-export const TREND_MODE_LABEL: Record<TrendMode, string> = {
-  total: '合计',
+/**
+ * 界面显示名。Claude / Codex 是产品名、各语言通用;
+ * **只有 `total` 随界面语言变化**,故此处留 null,由渲染层从字典取(票 07)。
+ */
+export const TREND_MODE_LABEL: Record<TrendMode, string | null> = {
+  total: null,
   Claude: 'Claude',
   Codex: 'Codex'
 }

@@ -1,6 +1,7 @@
 // skills-view:点文件开抽屉读正文;md 默认可预览(frontmatter 卡片+消毒 HTML)。
 import { useEffect, useState } from 'react'
 import { isMarkdownName, renderMarkdown } from './md'
+import { useDict } from './language'
 
 export interface SkillFileDrawerProps {
   skill: string
@@ -19,6 +20,7 @@ export function SkillFileDrawer({
   absPath,
   onClose
 }: SkillFileDrawerProps): JSX.Element {
+  const dict = useDict()
   const canPreview = isMarkdownName(filePath)
   const [mode, setMode] = useState<'raw' | 'preview'>(canPreview ? 'preview' : 'raw')
   const [text, setText] = useState<string | null>(null)
@@ -31,8 +33,8 @@ export function SkillFileDrawer({
     setMode(isMarkdownName(filePath) ? 'preview' : 'raw')
     void window.agentshed
       .readSkillFile({ absPath })
-      .then((t) => {
-        if (alive) setText(t)
+      .then((cap) => {
+        if (alive) setText(cap.truncated ? `${cap.text}\n${dict.placeholder.truncated}` : cap.text)
       })
       .catch((e: unknown) => {
         if (alive) setErr(String(e))

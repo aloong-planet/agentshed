@@ -40,6 +40,25 @@ export const en: Locale = {
     saveLanguageFailed: 'Failed to save the language'
   },
 
+  skillDeepHint: 'Best practice is a skill reference depth below 2 — consider restructuring this skill',
+  codexConfig: (model, projects, mcp) =>
+    `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
+  /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  label: {
+    providerOther: 'Other',
+    trendTotal: 'Total'
+  },
+
+  placeholder: {
+    unreadableLine: '(this line can no longer be read)',
+    untitledSession: '(untitled session)',
+    unknownTool: '(unknown tool)',
+    unknown: '(unknown)',
+    notSet: 'Not set',
+    codexGlobalMemory: '(Codex global memory)',
+    truncated: '…(truncated)'
+  },
+
   errors: {
     badArgs: (channel, field) =>
       field ? `Invalid call arguments: ${channel} (field ${field})` : `Invalid call arguments: ${channel}`,
@@ -73,11 +92,17 @@ export const en: Locale = {
     skillCopyMissing: 'The project-level copy does not exist',
     skillConflict: 'The target already has a project-level skill with this name — nothing was overwritten',
     skillCopyFailed: (detail) => `Copy failed and was cleaned up: ${detail}`,
-    skillDeleteFailed: (detail) => `Delete failed: ${detail}`
+    skillDeleteFailed: (detail) => `Delete failed: ${detail}`,
+    registryProjectsInvalid: 'The registry’s projects key is missing or not an object',
+    registryParseFailed: (detail) => `Failed to parse the registry: ${detail}`,
+    subagentUnreadable: 'The file cannot be read (permissions or I/O error)',
+    subagentTomlFailed: (detail) => `Failed to parse the toml: ${detail}`,
+    subagentMissingName: 'No valid name field (Codex will not load this file)'
   },
 
   subagentError: {
     unreadable: 'Unreadable',
-    parseFailed: 'Parse failed'
+    parseFailed: 'Parse failed',
+    detail: (msg) => `${msg}. Other entries are unaffected.`
   }
 }

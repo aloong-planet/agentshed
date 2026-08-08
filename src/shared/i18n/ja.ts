@@ -40,6 +40,25 @@ export const ja: Locale = {
     saveLanguageFailed: '言語の保存に失敗しました'
   },
 
+  skillDeepHint: 'ベストプラクティスでは skill の参照深度は 2 未満です。この skill の見直しを検討してください',
+  codexConfig: (model, projects, mcp) =>
+    `model = ${model}\nprojects：${projects}\nmcp_servers：${mcp}`,
+  /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  label: {
+    providerOther: 'その他',
+    trendTotal: '合計'
+  },
+
+  placeholder: {
+    unreadableLine: '（この行は読み取れません）',
+    untitledSession: '（無題のセッション）',
+    unknownTool: '（不明なツール）',
+    unknown: '（不明）',
+    notSet: '未設定',
+    codexGlobalMemory: '（Codex グローバルメモリ）',
+    truncated: '…（切り詰めました）'
+  },
+
   errors: {
     badArgs: (channel, field) =>
       field ? `呼び出し引数が不正です：${channel}（フィールド ${field}）` : `呼び出し引数が不正です：${channel}`,
@@ -73,11 +92,17 @@ export const ja: Locale = {
     skillCopyMissing: 'プロジェクト単位のコピーが存在しません',
     skillConflict: '対象には同名のプロジェクト単位 skill が既にあります。上書きせず中止しました',
     skillCopyFailed: (detail) => `コピーに失敗し、後始末しました：${detail}`,
-    skillDeleteFailed: (detail) => `削除に失敗しました：${detail}`
+    skillDeleteFailed: (detail) => `削除に失敗しました：${detail}`,
+    registryProjectsInvalid: 'レジストリの projects キーが無いか、オブジェクトではありません',
+    registryParseFailed: (detail) => `レジストリの解析に失敗しました：${detail}`,
+    subagentUnreadable: 'ファイルを読み取れません（権限または I/O エラー）',
+    subagentTomlFailed: (detail) => `toml の解析に失敗しました：${detail}`,
+    subagentMissingName: '有効な name フィールドがありません（Codex はこのファイルを読み込みません）'
   },
 
   subagentError: {
     unreadable: '読み取り不可',
-    parseFailed: '解析失敗'
+    parseFailed: '解析失敗',
+    detail: (msg) => `${msg}。他の項目には影響ありません。`
   }
 }
