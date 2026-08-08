@@ -1684,6 +1684,174 @@ test('设置:外观三选一改 data-scheme;进出设置保留项目选中', asy
 })
 
 /**
+ * 外观模式(i18n 票 04)。
+ *
+ * **这里测什么、不测什么**:测「选了某个模式 → 生效明暗随之改变」以及界面形态;
+ * **不测**「锁定后系统外观再变界面不受影响」——测试环境改不了真实系统外观,而用
+ * themeSource 自己去模拟"系统变化"是循环论证(测的是我们刚设的值)。那条归人工验收。
+ */
+
+/**
+ * 外观模式专用启动口:**必须**关掉 Playwright 自己的 prefers-color-scheme 模拟。
+ *
+ * `electron.launch` 默认 `colorScheme: 'light'`,它给页面下发 Emulation 把
+ * prefers-color-scheme 钉死;themeSource 改了也透不到渲染层,媒体查询恒为 light。
+ * **这条是实测撞出来的**:主进程侧已是 `themeSource='dark'` / `shouldUseDarkColors=true`,
+ * 渲染层却仍 `matchMedia(...).matches === false`、body 底色仍是浅的——
+ * 即"实现是对的,被测试工装挡住了"。`'no-override'` 撤掉模拟,让真值透下来。
+ *
+ * 其余用例保持默认(模拟 light):它们不测明暗,钉死反而更稳,免得结果随跑测试的人的
+ * 系统外观而变——与把测试语言钉死为中文是同一个理由。本组用例每次断言前都显式选定
+ * 模式,故不受开发机系统外观影响。
+ *
+ * 撤销模拟用 `null`(本版 Playwright 类型里表达"重置为系统默认"的那个值);
+ * 文档另提的 `'no-override'` 运行期同样有效,但不在本版类型联合内,typecheck 会红。
+ */
+async function launchAppearance(home: string): Promise<Launched> {
+  const userData = makeUserData()
+  const errors: string[] = []
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    colorScheme: null,
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      AGENTSHED_HOME_OVERRIDE: home,
+      AGENTSHED_NO_FOREGROUND: '1',
+      AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'
+    }
+  })
+  app.process().stderr?.on('data', (b: Buffer) => {
+    const t = b.toString()
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败/.test(t)) {
+      errors.push(t.trim())
+    }
+  })
+  return { app, errors, userData, home }
+}
+
+/** 界面此刻的生效明暗:themeSource 改变会直接改变这个媒体查询的求值结果 */
+async function effectiveDark(win: Awaited<ReturnType<ElectronApplication['firstWindow']>>): Promise<boolean> {
+  return win.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)
+}
+
+/** 各配色卡的**纸面取样**(第一格 = --card),按 CSS 计算值读回 */
+async function paperSwatches(
+  win: Awaited<ReturnType<ElectronApplication['firstWindow']>>
+): Promise<string[]> {
+  return win.evaluate(() =>
+    [...document.querySelectorAll('[data-scheme-option]')].map((card) => {
+      const sw = card.querySelector('.scheme-sw')
+      return sw ? getComputedStyle(sw).backgroundColor : ''
+    })
+  )
+}
+
+/** rgb(...) → 相对亮度粗算(0=黑 1=白);只用来分辨"浅色取样"与"深色取样" */
+function luminance(rgb: string): number {
+  const m = rgb.match(/\d+/g)
+  if (!m || m.length < 3) return NaN
+  const [r, g, b] = m.slice(0, 3).map(Number)
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+}
+
+test('外观:一张卡两行(模式 + 配色);配色卡只剩色块与名称', async () => {
+  const l = await launch(undefined, mkEmptyProjectHome())
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await win.getByTitle('设置').click()
+
+  // 一张卡两行:上行模式、下行配色
+  const field = win.getByTestId('appearance-field')
+  await expect(field.locator('.frow')).toHaveCount(2)
+  const rows = field.locator('.frow')
+  await expect(rows.nth(0).getByTestId('mode-seg').locator('button')).toHaveCount(3)
+  await expect(rows.nth(1).locator('[data-scheme-option]')).toHaveCount(3)
+
+  // 配色卡**不含整句描述**:整卡可见文本恰好等于方案名。
+  // 用 toHaveText 全等而不是"不含某句"——后者只能否掉我想得到的那一句
+  await expect(win.locator('[data-scheme-option="purple"]')).toHaveText('紫')
+  await expect(win.locator('[data-scheme-option="blue"]')).toHaveText('雾蓝')
+  await expect(win.locator('[data-scheme-option="amber"]')).toHaveText('琥珀褐')
+
+  // 「默认为紫」移入段末说明
+  await expect(win.getByTestId('appearance-foot')).toContainText('紫')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('外观模式:锁定浅/深改变生效明暗,色板取样随之切换', async () => {
+  const l = await launchAppearance(mkEmptyProjectHome())
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await win.getByTitle('设置').click()
+
+  // 默认「跟随系统」被选中
+  await expect(win.locator('[data-mode-option="system"]')).toHaveAttribute('aria-checked', 'true')
+
+  // 锁定深色 → 生效明暗为深
+  await win.locator('[data-mode-option="dark"]').click()
+  await expect.poll(async () => effectiveDark(win)).toBe(true)
+  await expect(win.locator('[data-mode-option="dark"]')).toHaveAttribute('aria-checked', 'true')
+  const dark = await paperSwatches(win)
+
+  // 锁定浅色 → 生效明暗为浅
+  await win.locator('[data-mode-option="light"]').click()
+  await expect.poll(async () => effectiveDark(win)).toBe(false)
+  const light = await paperSwatches(win)
+
+  // 先钉集合非空:下面两个 for 若遍历空数组,循环体一次都不执行,
+  // 断言全部落空却照样绿——两条都要守,只守一条等于另一条可以凭空通过
+  expect(dark).toHaveLength(3)
+  expect(light).toHaveLength(3)
+
+  // 取样随生效明暗切换:深色态的纸面取样必须是深的,不能仍显示浅色那套。
+  // 断言只针对**纸面取样**(第一格),不是"深色下没有任何接近纯白的格子"——
+  // 第四格取的是 --text,深色下本就该接近纯白,那不是 bug
+  for (const c of dark) expect(luminance(c)).toBeLessThan(0.3)
+  for (const c of light) expect(luminance(c)).toBeGreaterThan(0.9)
+  expect(dark).not.toEqual(light)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('外观:3 配色 × 2 生效明暗六种组合均成立', async () => {
+  const l = await launchAppearance(mkEmptyProjectHome())
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await win.getByTitle('设置').click()
+
+  for (const mode of ['light', 'dark'] as const) {
+    await win.locator(`[data-mode-option="${mode}"]`).click()
+    await expect.poll(async () => effectiveDark(win)).toBe(mode === 'dark')
+    for (const scheme of ['purple', 'blue', 'amber'] as const) {
+      await win.locator(`[data-scheme-option="${scheme}"]`).click()
+      await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe(scheme)
+      const vars = await win.evaluate(() => {
+        const cs = getComputedStyle(document.documentElement)
+        const body = getComputedStyle(document.body)
+        return {
+          bg: cs.getPropertyValue('--bg').trim(),
+          text: cs.getPropertyValue('--text').trim(),
+          accent: cs.getPropertyValue('--accent').trim(),
+          bodyBg: body.backgroundColor,
+          bodyFg: body.color
+        }
+      })
+      // 关键主题变量有值
+      for (const v of [vars.bg, vars.text, vars.accent]) expect(v).not.toBe('')
+      // 前景与背景可区分(否则这一组合下界面是"看不见的字")
+      expect(Math.abs(luminance(vars.bodyBg) - luminance(vars.bodyFg))).toBeGreaterThan(0.3)
+    }
+  }
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/**
  * 界面语言(i18n 票 03)。
  *
  * 系统偏好语言经 AGENTSHED_SYSTEM_LANGUAGES 注入(见 src/main/system-language.ts)——

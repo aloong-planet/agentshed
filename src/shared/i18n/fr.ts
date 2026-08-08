@@ -21,17 +21,15 @@ export const fr: Locale = {
     languageFoot:
       'Avec « Suivre le système », l’interface suit vos langues préférées macOS ; l’anglais est utilisé si aucune n’est prise en charge.',
     sectionAppearance: 'Apparence',
-    badgeDefault: 'Par défaut',
+    mode: 'Mode',
+    modeLight: 'Clair',
+    modeDark: 'Sombre',
+    palette: 'Palette',
     appearanceFoot:
-      'Le mode clair / sombre suit l’apparence système de macOS. Les changements de thème s’appliquent immédiatement à toute l’app, sans enregistrement.',
+      'Avec le mode « Suivre le système », le clair et le sombre suivent l’apparence macOS ; choisir Clair ou Sombre verrouille l’app, quelles que soient les modifications du système. La palette et le mode sont indépendants et se combinent librement ; Violet est utilisé par défaut. Les changements s’appliquent immédiatement à toute l’app, sans enregistrement.',
     schemePurple: 'Violet',
     schemeBlue: 'Bleu brume',
-    schemeAmber: 'Ambre',
-    schemePurpleDesc:
-      'Le violet de la marque. Apparence par défaut après installation, identique aux versions précédentes.',
-    schemeBlueDesc:
-      'Fond papier gris chaud et accent bleu apaisant, confortable pour de longues lectures.',
-    schemeAmberDesc: 'Fond papier chaud et accent brun, plus proche du toucher d’un livre imprimé.'
+    schemeAmber: 'Ambre'
   },
 
   toast: {

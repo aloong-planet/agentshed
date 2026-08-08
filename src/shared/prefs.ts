@@ -3,18 +3,28 @@
 // 各偏好项自身的类型定义在各自的领域模块(外观方案见 ./appearance,界面语言见 ./i18n),
 // 本文件只负责把它们组装成一份偏好并守住跨进程入口。偏好项会持续增加,故独立成文件——
 // 放在某个领域模块里会让那个模块名不副实。
-import { DEFAULT_SCHEME, isAppearanceScheme, type AppearanceScheme } from './appearance'
+import {
+  DEFAULT_MODE,
+  DEFAULT_SCHEME,
+  isAppearanceMode,
+  isAppearanceScheme,
+  type AppearanceMode,
+  type AppearanceScheme
+} from './appearance'
 import { DEFAULT_LANGUAGE_PREFERENCE, isLanguagePreference, type LanguagePreference } from './i18n'
 
 export interface Prefs {
   scheme: AppearanceScheme
   /** 持久化的是**偏好**(可为「跟随系统」),不是解析出的生效语言 */
   language: LanguagePreference
+  /** 同上:持久化的是策略(可为「跟随系统」),不是当刻求值出的生效明暗 */
+  mode: AppearanceMode
 }
 
 export const DEFAULT_PREFS: Prefs = {
   scheme: DEFAULT_SCHEME,
-  language: DEFAULT_LANGUAGE_PREFERENCE
+  language: DEFAULT_LANGUAGE_PREFERENCE,
+  mode: DEFAULT_MODE
 }
 
 /**
@@ -29,7 +39,9 @@ export function parsePrefs(raw: unknown): Prefs | null {
   const r = raw as Record<string, unknown>
   const scheme = r['scheme']
   const language = r['language']
+  const mode = r['mode']
   if (!isAppearanceScheme(scheme)) return null
   if (!isLanguagePreference(language)) return null
-  return { scheme, language }
+  if (!isAppearanceMode(mode)) return null
+  return { scheme, language, mode }
 }

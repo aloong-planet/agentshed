@@ -8,6 +8,7 @@ import {
   type SkillOpArgs,
   type SkillOpResult,
   type Prefs,
+  type AppearanceMode,
   type AppearanceScheme,
   type LanguagePreference,
   type ListSkillFilesArgs,
@@ -117,6 +118,8 @@ const api = {
     checkedPrefs(await ipcRenderer.invoke(CMD.setScheme, scheme)),
   setLanguage: async (language: LanguagePreference): Promise<Prefs> =>
     checkedPrefs(await ipcRenderer.invoke(CMD.setLanguage, language)),
+  setMode: async (mode: AppearanceMode): Promise<Prefs> =>
+    checkedPrefs(await ipcRenderer.invoke(CMD.setMode, mode)),
   onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
     const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))
     ipcRenderer.on(EVT.snapshot, listener)

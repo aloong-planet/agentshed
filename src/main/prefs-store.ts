@@ -1,7 +1,14 @@
 // app 自有偏好(userData/prefs.json)。绝不写 agent 配置。原子写同 HiddenStore。
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { DEFAULT_SCHEME, isAppearanceScheme, type AppearanceScheme } from '@shared/appearance'
+import {
+  DEFAULT_MODE,
+  DEFAULT_SCHEME,
+  isAppearanceMode,
+  isAppearanceScheme,
+  type AppearanceMode,
+  type AppearanceScheme
+} from '@shared/appearance'
 import {
   DEFAULT_LANGUAGE_PREFERENCE,
   isLanguagePreference,
@@ -38,6 +45,12 @@ export class PrefsStore {
     return this.get()
   }
 
+  setMode(mode: AppearanceMode): Prefs {
+    this.prefs = { ...this.prefs, mode }
+    this.persist()
+    return this.get()
+  }
+
   /**
    * 读取时**逐字段降级**:某一项非法只回落该项,不牵连其他偏好。
    * 这是「降级只准自伤」不变量在偏好上的落地——早先只有一个字段时,
@@ -51,9 +64,11 @@ export class PrefsStore {
       const r = raw as Record<string, unknown>
       const scheme = r['scheme']
       const language = r['language']
+      const mode = r['mode']
       return {
         scheme: isAppearanceScheme(scheme) ? scheme : DEFAULT_SCHEME,
-        language: isLanguagePreference(language) ? language : DEFAULT_LANGUAGE_PREFERENCE
+        language: isLanguagePreference(language) ? language : DEFAULT_LANGUAGE_PREFERENCE,
+        mode: isAppearanceMode(mode) ? mode : DEFAULT_MODE
       }
     } catch {
       return { ...DEFAULT_PREFS }

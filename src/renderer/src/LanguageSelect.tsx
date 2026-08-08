@@ -103,64 +103,67 @@ export function LanguageSelect({
   }, [open, pref])
 
   return (
-    <div className="lang-field">
-      <span className="lang-label">{t.settings.interfaceLanguage}</span>
-      <button
-        type="button"
-        className="lang-trigger"
-        ref={trigRef}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        data-testid="language-trigger"
-        onClick={(e) => {
-          e.stopPropagation()
-          open ? setOpen(false) : openPop()
-        }}
-        onKeyDown={(e) => {
-          if (open) return
-          if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
-            // 打开用的这一下不得再冒泡给浮层的导航监听器,
-            // 否则同一次按键既打开又移动一格,高亮落不到当前选中项上
-            e.preventDefault()
+    // .field / .frow 是设置页的行形态,与外观段共用同一套(语言段只有一行)
+    <div className="field">
+      <div className="frow">
+        <span className="flabel">{t.settings.interfaceLanguage}</span>
+        <button
+          type="button"
+          className="lang-trigger"
+          ref={trigRef}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          data-testid="language-trigger"
+          onClick={(e) => {
             e.stopPropagation()
-            openPop()
-          }
-        }}
-      >
-        <span className="cur">
-          {mainLabel(pref)}
-          {pref === 'system' && <span className="eff">{dictOf(effective).languageName}</span>}
-        </span>
-        <span className="chev">
-          <ChevronDown />
-        </span>
-      </button>
+            open ? setOpen(false) : openPop()
+          }}
+          onKeyDown={(e) => {
+            if (open) return
+            if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+              // 打开用的这一下不得再冒泡给浮层的导航监听器,
+              // 否则同一次按键既打开又移动一格,高亮落不到当前选中项上
+              e.preventDefault()
+              e.stopPropagation()
+              openPop()
+            }
+          }}
+        >
+          <span className="cur">
+            {mainLabel(pref)}
+            {pref === 'system' && <span className="eff">{dictOf(effective).languageName}</span>}
+          </span>
+          <span className="chev">
+            <ChevronDown />
+          </span>
+        </button>
 
-      {open && (
-        <div className="lang-pop" ref={popRef} role="listbox" data-testid="language-pop">
-          {OPTIONS.map((o, i) => (
-            <div key={o}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={o === pref}
-                className={`lang-opt${o === pref ? ' on' : ''}${i === cursor ? ' cursor' : ''}`}
-                data-lang={o}
-                onMouseEnter={() => setCursor(i)}
-                onClick={() => pick(o)}
-              >
-                <span className="n">{mainLabel(o)}</span>
-                <span className="e">{sideLabel(o)}</span>
-                <span className="ck">
-                  <Check />
-                </span>
-              </button>
-              {/* 分隔线:「跟随系统」是策略,其后六项是取值,性质不同 */}
-              {o === 'system' && <div className="lang-sep" />}
-            </div>
-          ))}
-        </div>
-      )}
+        {open && (
+          <div className="lang-pop" ref={popRef} role="listbox" data-testid="language-pop">
+            {OPTIONS.map((o, i) => (
+              <div key={o}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={o === pref}
+                  className={`lang-opt${o === pref ? ' on' : ''}${i === cursor ? ' cursor' : ''}`}
+                  data-lang={o}
+                  onMouseEnter={() => setCursor(i)}
+                  onClick={() => pick(o)}
+                >
+                  <span className="n">{mainLabel(o)}</span>
+                  <span className="e">{sideLabel(o)}</span>
+                  <span className="ck">
+                    <Check />
+                  </span>
+                </button>
+                {/* 分隔线:「跟随系统」是策略,其后六项是取值,性质不同 */}
+                {o === 'system' && <div className="lang-sep" />}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

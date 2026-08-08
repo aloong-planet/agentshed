@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { Snapshot } from '@shared/domain'
-import { DEFAULT_SCHEME, type AppearanceScheme } from '@shared/appearance'
+import {
+  DEFAULT_MODE,
+  DEFAULT_SCHEME,
+  type AppearanceMode,
+  type AppearanceScheme
+} from '@shared/appearance'
 import { dictOf, effectiveLanguage, type Language, type LanguagePreference } from '@shared/i18n'
 import { ProjectsPane } from './ProjectsPane'
 import { AgentsPane } from './AgentsPane'
@@ -31,6 +36,9 @@ export function App(): JSX.Element {
   // 从会话页返回时回到「会话」分栏(原型:‹ 返回 <项目> · 会话),而非概览
   const [backToSessions, setBackToSessions] = useState(false)
   const [scheme, setScheme] = useState<AppearanceScheme>(DEFAULT_SCHEME)
+  // 模式只用来渲染分段控件的选中态:生效明暗由主进程的 themeSource 决定,
+  // 渲染层不据此写任何 DOM 属性(见 docs/specs/appearance.md 的实现决策)
+  const [mode, setMode] = useState<AppearanceMode>(DEFAULT_MODE)
   // 生效语言由主进程在窗口创建时算好经启动参数带来,**首帧即正确**——
   // 若改成 mount 后异步取,首帧会是默认语言、随后整页文字跳变一次。
   const [lang, setLang] = useState<Language>(window.agentshed.initialLanguage)
@@ -53,6 +61,7 @@ export function App(): JSX.Element {
       setScheme(p.scheme)
       applyScheme(p.scheme)
       setLangPref(p.language)
+      setMode(p.mode)
     })
     void window.agentshed.getSnapshot().then((s) => {
       if (alive) setSnap(s)
@@ -84,6 +93,18 @@ export function App(): JSX.Element {
       applyScheme(p.scheme)
     } catch (e) {
       toast('err', `保存外观失败:${String(e)}`)
+    }
+  }
+
+  async function onMode(m: AppearanceMode): Promise<void> {
+    // 与外观方案不同:明暗的生效由主进程设 themeSource 完成,渲染层无处可"先本地生效"。
+    // 故先乐观更新选中态,落盘结果回来再以它为准
+    setMode(m)
+    try {
+      const p = await window.agentshed.setMode(m)
+      setMode(p.mode)
+    } catch (e) {
+      toast('err', `保存外观模式失败:${String(e)}`)
     }
   }
 
@@ -147,6 +168,8 @@ export function App(): JSX.Element {
           <SettingsPane
               scheme={scheme}
               onScheme={(s) => void onScheme(s)}
+              mode={mode}
+              onMode={(m) => void onMode(m)}
               language={langPref}
               effectiveLang={lang}
               onLanguage={(l) => void onLanguage(l)}

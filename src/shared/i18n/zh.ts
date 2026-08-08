@@ -27,14 +27,15 @@ export const zh = {
     followSystem: '跟随系统',
     languageFoot: '选择「跟随系统」时,界面语言随 macOS 的偏好语言变化;偏好语言均不在支持范围内时使用英文。',
     sectionAppearance: '外观',
-    badgeDefault: '默认',
-    appearanceFoot: '浅色 / 深色跟随 macOS 系统外观。切换方案后立即对整个 app 生效,无需保存。',
+    mode: '模式',
+    modeLight: '浅色',
+    modeDark: '深色',
+    palette: '配色',
+    appearanceFoot:
+      '模式选「跟随系统」时,明暗随 macOS 外观变化;选浅色或深色即锁定,系统再变也不影响。配色与明暗彼此独立、可任意组合,未选择时用紫。切换后立即对整个 app 生效,无需保存。',
     schemePurple: '紫',
     schemeBlue: '雾蓝',
-    schemeAmber: '琥珀褐',
-    schemePurpleDesc: '现网品牌紫。安装后的默认外观,与历史版本一致。',
-    schemeBlueDesc: '暖灰纸底 + 冷静蓝强调,适合长时间阅读。',
-    schemeAmberDesc: '暖纸底 + 褐强调,更接近纸书质感。'
+    schemeAmber: '琥珀褐'
   },
 
   toast: {
