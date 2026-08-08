@@ -32,6 +32,15 @@ export const en: Locale = {
     schemeAmber: 'Amber Brown'
   },
 
+  menu: {
+    about: 'About Agentshed', hide: 'Hide Agentshed', hideOthers: 'Hide Others',
+    unhide: 'Show All', quit: 'Quit Agentshed',
+    edit: 'Edit', undo: 'Undo', redo: 'Redo', cut: 'Cut', copy: 'Copy', paste: 'Paste', selectAll: 'Select All',
+    view: 'View', reload: 'Reload', toggleDevTools: 'Developer Tools', resetZoom: 'Actual Size',
+    zoomIn: 'Zoom In', zoomOut: 'Zoom Out', fullscreen: 'Enter Full Screen',
+    window: 'Window', minimize: 'Minimize', close: 'Close'
+  },
+
   toast: {
     languageSwitched: (name) => `Interface language switched to ${name}`,
     languageFollowSystem: (name) => `Now following the system · currently ${name}`,

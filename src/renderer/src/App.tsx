@@ -56,6 +56,8 @@ export function App(): JSX.Element {
   // 闭包捕获的是 mount 时的旧值。同 LanguageSelect 里 cursorRef 的用法。
   const prefsRef = useRef<Prefs>({ scheme, language: langPref, mode })
   prefsRef.current = { scheme, language: langPref, mode }
+  // refresh 每次渲染都是新函数,而菜单监听只在 mount 装一次——用 ref 取最新的那个
+  const refreshRef = useRef<() => Promise<void>>(async () => {})
   const selectProject = (p: string | null): void => {
     setSelected(p)
     setOpenSession(null)
@@ -81,9 +83,15 @@ export function App(): JSX.Element {
       if (alive) setSnap(s)
     })
     const off = window.agentshed.onSnapshot((s) => setSnap(s))
+    // 应用菜单的两个入口(票 13):行为与 rail 上的同名操作完全一致,
+    // 走同一个 state/函数,不另起一套
+    const offSettings = window.agentshed.onMenuOpenSettings(() => setDim('settings'))
+    const offRefresh = window.agentshed.onMenuRefresh(() => void refreshRef.current())
     return () => {
       alive = false
       off()
+      offSettings()
+      offRefresh()
     }
   }, [])
 
@@ -147,6 +155,8 @@ export function App(): JSX.Element {
       toast('err', `${t.toast.saveLanguageFailed}:${errorText(lang, e)}`)
     }
   }
+
+  refreshRef.current = refresh
 
   return (
     <LanguageProvider lang={lang}>

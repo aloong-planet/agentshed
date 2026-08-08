@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, protocol, session, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, nativeTheme, protocol, session, shell } from 'electron'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -38,6 +38,7 @@ import { rescanIntervalMs, shouldRescanOnFocus } from './rescan'
 import { PrefsStore } from './prefs-store'
 import { applyAppearanceMode } from './appearance-mode'
 import { createPrefsHandlers } from './prefs-handlers'
+import { buildMenuTemplate } from './app-menu'
 import { ERR, appError } from '@shared/errors'
 import { effectiveLanguage, type Language } from '@shared/i18n'
 import { LANG_ARG, SYS_LANGS_ARG } from '@shared/ipc'
@@ -367,7 +368,13 @@ handle(CMD.readSkillFile, (_e, args: unknown): CappedText => {
 const prefsHandlers = createPrefsHandlers({ store: () => prefsStore, theme: nativeTheme })
 handle(CMD.getPrefs, () => prefsHandlers.getPrefs())
 handle(CMD.setScheme, (_e, scheme: unknown) => prefsHandlers.setScheme(scheme))
-handle(CMD.setLanguage, (_e, language: unknown) => prefsHandlers.setLanguage(language))
+handle(CMD.setLanguage, (_e, language: unknown) => {
+  const next = prefsHandlers.setLanguage(language)
+  // **菜单必须重建**,不能只在启动时构造一次(票 13):它是原生控件,
+  // 文案不会随渲染层的语言变化自动更新
+  applyMenu()
+  return next
+})
 handle(CMD.setMode, (_e, mode: unknown) => prefsHandlers.setMode(mode))
 handle(CMD.setHidden, (_e, args: unknown) => {
   const a = args as SetHiddenArgs
@@ -387,6 +394,19 @@ handle(CMD.setHidden, (_e, args: unknown) => {
 })
 
 const PRELOAD = join(__dirname, '../preload/index.cjs')
+
+/** 按当前生效语言重建应用菜单;语言变更后必须再调一次 */
+function applyMenu(): void {
+  const send = (channel: string) => (): void => mainWindow?.webContents.send(channel)
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate(
+      buildMenuTemplate(initialLanguage(), {
+        openSettings: send(EVT.menuOpenSettings),
+        refresh: send(EVT.menuRefresh)
+      })
+    )
+  )
+}
 
 /** 窗口创建时刻的生效语言 = 偏好 + 系统语言列表。偏好为「跟随系统」时才看系统 */
 function initialLanguage(): Language {
@@ -454,6 +474,7 @@ void app.whenReady().then(() => {
   tokenEngine = new TokenEngine(app.getPath('userData'))
   archive = new UsageArchive(app.getPath('userData'))
   createWindow()
+  applyMenu()
   void doScan()
   // 快照自动保鲜(token-stats 序列 E):聚焦(节流)+ 定时兜底,与手动 ↻ 共用
   // doScan(inflight 去重,E2);自动触发失败静默保留现快照等下个触发点(E3),

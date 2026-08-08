@@ -32,6 +32,15 @@ export const ja: Locale = {
     schemeAmber: 'アンバー'
   },
 
+  menu: {
+    about: 'Agentshed について', hide: 'Agentshed を隠す', hideOthers: 'ほかを隠す',
+    unhide: 'すべてを表示', quit: 'Agentshed を終了',
+    edit: '編集', undo: '取り消す', redo: 'やり直す', cut: 'カット', copy: 'コピー', paste: 'ペースト', selectAll: 'すべてを選択',
+    view: '表示', reload: '再読み込み', toggleDevTools: '開発者ツール', resetZoom: '実際のサイズ',
+    zoomIn: '拡大', zoomOut: '縮小', fullscreen: 'フルスクリーンにする',
+    window: 'ウインドウ', minimize: 'しまう', close: '閉じる'
+  },
+
   toast: {
     languageSwitched: (name) => `インターフェースの言語を ${name} に変更しました`,
     languageFollowSystem: (name) => `システムに従う設定にしました · 現在は ${name}`,
