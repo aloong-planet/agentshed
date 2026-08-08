@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Snapshot } from '@shared/domain'
+import type { Prefs } from '@shared/prefs'
+import { backfillPrefs, type PrefKey } from './prefs-backfill'
 import {
   DEFAULT_MODE,
   DEFAULT_SCHEME,
@@ -45,6 +47,13 @@ export function App(): JSX.Element {
   // 语言偏好(可为「跟随系统」)只有选择器要用,异步取即可,不影响首帧文字
   const [langPref, setLangPref] = useState<LanguagePreference>('system')
   const t = dictOf(lang)
+  // 用户已亲手改过的偏好项:mount 时那次 getPrefs 的回声不得覆盖它们(#61)。
+  // 逐项记而不是记一个总开关,理由见 backfillPrefs。
+  const touchedPrefs = useRef<Set<PrefKey>>(new Set())
+  // 三个偏好 state 的实时镜像:回填发生在 effect 的回调里,而该 effect 依赖为空、
+  // 闭包捕获的是 mount 时的旧值。同 LanguageSelect 里 cursorRef 的用法。
+  const prefsRef = useRef<Prefs>({ scheme, language: langPref, mode })
+  prefsRef.current = { scheme, language: langPref, mode }
   const selectProject = (p: string | null): void => {
     setSelected(p)
     setOpenSession(null)
@@ -58,10 +67,13 @@ export function App(): JSX.Element {
     let alive = true
     void window.agentshed.getPrefs().then((p) => {
       if (!alive) return
-      setScheme(p.scheme)
-      applyScheme(p.scheme)
-      setLangPref(p.language)
-      setMode(p.mode)
+      // 这份回声读的是**发出请求那一刻**的磁盘状态;用户若抢在它 resolve 之前改了
+      // 某项,那一项以本地为准,其余仍采用回声(#61)
+      const next = backfillPrefs(prefsRef.current, p, touchedPrefs.current)
+      setScheme(next.scheme)
+      applyScheme(next.scheme)
+      setLangPref(next.language)
+      setMode(next.mode)
     })
     void window.agentshed.getSnapshot().then((s) => {
       if (alive) setSnap(s)
@@ -85,6 +97,7 @@ export function App(): JSX.Element {
 
   async function onScheme(s: AppearanceScheme): Promise<void> {
     // 先本地生效再落盘:无「仅设置页换肤」的中间态,失败则回读或 toast
+    touchedPrefs.current.add('scheme')
     setScheme(s)
     applyScheme(s)
     try {
@@ -99,6 +112,7 @@ export function App(): JSX.Element {
   async function onMode(m: AppearanceMode): Promise<void> {
     // 与外观方案不同:明暗的生效由主进程设 themeSource 完成,渲染层无处可"先本地生效"。
     // 故先乐观更新选中态,落盘结果回来再以它为准
+    touchedPrefs.current.add('mode')
     setMode(m)
     try {
       const p = await window.agentshed.setMode(m)
@@ -112,6 +126,7 @@ export function App(): JSX.Element {
     // 生效语言在本地算得出(系统语言列表随窗口创建带来),故先立即生效再落盘,
     // 与外观方案同规矩:不留「设置页已变、别处没变」的中间态
     const eff = effectiveLanguage(next, window.agentshed.systemLanguages)
+    touchedPrefs.current.add('language')
     setLangPref(next)
     setLang(eff)
     applyLang(eff)

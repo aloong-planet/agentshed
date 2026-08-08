@@ -43,8 +43,136 @@ const SHARED_BLOCKS = [
   }
 ]
 
+// ── 设置页色板取样 ↔ theme.css 的一致性(issue #59)──
+// 设置页的三张配色卡各画 4 个色块,取样口径是 --card / --accent-soft / --accent / --text,
+// 按生效明暗两套。这 24 个值只能**手抄**:getComputedStyle 在运行时只读得到当前生效的
+// 那一套变量,读不到另外两个方案、另一种明暗的值,TS 也 import 不了 CSS 变量。
+// 于是"改了主题色却漏改取样表"没有任何东西会红——色板预览与实际观感不符,且是静默的。
+// 这条规则就是那个"会红的东西"。
+
+/** 取样口径:色块从左到右依次取这四个变量,顺序即语义 */
+const SWATCH_VARS = ['card', 'accent-soft', 'accent', 'text']
+/** 三个配色方案在 theme.css 里的选择器(浅色块与深色块共用同一组选择器) */
+const SCHEME_SELECTORS = {
+  purple: ':root',
+  blue: "html[data-scheme='blue']",
+  amber: "html[data-scheme='amber']"
+}
+
+const stripCssComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '')
+
+/** 从 open(某个 `{` 或 `[` 的下标)起做括号配对,返回其内部文本;不配对返回 null */
+function balancedBody(src, open) {
+  const pairs = { '{': '}', '[': ']' }
+  const close = pairs[src[open]]
+  if (!close) return null
+  let depth = 0
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === src[open]) depth++
+    else if (src[i] === close) {
+      depth--
+      if (depth === 0) return src.slice(open + 1, i)
+    }
+  }
+  return null
+}
+
+/** 取字面选择器/键名后紧跟的那个块的内部文本 */
+function bodyAfter(src, literal, opener = '{') {
+  const at = src.indexOf(literal)
+  if (at < 0) return null
+  const open = src.indexOf(opener, at + literal.length)
+  return open < 0 ? null : balancedBody(src, open)
+}
+
+/**
+ * 把 theme.css 拆成「深色媒体查询内」与「其余」两部分。
+ * theme.css 里不止一处 `@media (prefers-color-scheme: dark)`(另有 mark / 提问定位等四处),
+ * 故不能只取第一处:深色部分取全部媒体块的**并集**,浅色部分是把它们整段挖掉后的剩余。
+ */
+function splitByColorScheme(css) {
+  const re = /@media\s*\(\s*prefers-color-scheme:\s*dark\s*\)\s*\{/g
+  let darkParts = ''
+  let light = ''
+  let cursor = 0
+  let m
+  while ((m = re.exec(css))) {
+    const open = css.indexOf('{', m.index + m[0].length - 1)
+    const body = balancedBody(css, open)
+    if (body === null) continue
+    const end = open + 1 + body.length + 1
+    light += css.slice(cursor, m.index)
+    darkParts += `\n${body}`
+    cursor = end
+    re.lastIndex = end
+  }
+  light += css.slice(cursor)
+  return { light, dark: darkParts }
+}
+
+/** 从一段 CSS 文本里取某选择器块下的四个取样变量值 */
+function swatchFromCss(cssPart, selector) {
+  const body = bodyAfter(cssPart, selector)
+  if (body === null) return null
+  return SWATCH_VARS.map((v) => {
+    const m = body.match(new RegExp(`--${v}\\s*:\\s*([^;]+);`))
+    return m ? m[1].trim().toLowerCase() : null
+  })
+}
+
+/** 从 SettingsPane 的 SCHEME_SWATCH 里取某明暗某方案的四个值 */
+function swatchFromTsx(tsx, mode, scheme) {
+  const table = bodyAfter(tsx, 'SCHEME_SWATCH')
+  if (table === null) return null
+  const modeBody = bodyAfter(table, `${mode}:`)
+  if (modeBody === null) return null
+  const arr = bodyAfter(modeBody, `${scheme}:`, '[')
+  if (arr === null) return null
+  return arr
+    .split(',')
+    .map((s) => s.trim().replace(/^['"]|['"]$/g, '').toLowerCase())
+    .filter((s) => s.length > 0)
+}
+
 /** 全局规则:与具体块无关的通用约束 */
 const GLOBAL_RULES = [
+  {
+    name: '设置页色板取样与 theme.css 的主题变量一致(改主题色不得漏改取样表)',
+    cross: true,
+    check() {
+      const bad = []
+      const cssRaw = read('src/renderer/src/theme.css')
+      const tsx = read('src/renderer/src/SettingsPane.tsx')
+      // 读不到文件本身就是问题:静默跳过等于这条规则在文件被改名后自动失效
+      if (cssRaw === null) return ['读不到 src/renderer/src/theme.css']
+      if (tsx === null) return ['读不到 src/renderer/src/SettingsPane.tsx']
+      const { light, dark } = splitByColorScheme(stripCssComments(cssRaw))
+      for (const [mode, part] of [['light', light], ['dark', dark]]) {
+        for (const [scheme, selector] of Object.entries(SCHEME_SELECTORS)) {
+          const want = swatchFromCss(part, selector)
+          const got = swatchFromTsx(tsx, mode, scheme)
+          if (want === null || want.some((v) => v === null)) {
+            bad.push(`theme.css:${mode}.${scheme}(${selector})取不全 ${SWATCH_VARS.join('/')}`)
+            continue
+          }
+          if (got === null) {
+            bad.push(`SettingsPane.tsx:SCHEME_SWATCH.${mode}.${scheme} 取不到`)
+            continue
+          }
+          if (got.length !== want.length) {
+            bad.push(`${mode}.${scheme}:取样 ${got.length} 格,theme.css 有 ${want.length} 个变量`)
+            continue
+          }
+          want.forEach((w, i) => {
+            if (w !== got[i]) {
+              bad.push(`${mode}.${scheme} 第 ${i + 1} 格(--${SWATCH_VARS[i]}):theme.css=${w},取样表=${got[i]}`)
+            }
+          })
+        }
+      }
+      return bad
+    }
+  },
   {
     name: 'provider 品牌色不得在组件里硬编码(应走 CSS 变量)',
     cross: true,
