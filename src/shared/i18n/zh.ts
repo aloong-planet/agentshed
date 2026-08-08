@@ -38,6 +38,21 @@ export const zh = {
     schemeAmber: '琥珀褐'
   },
 
+  /** 应用菜单(票 13)。应用名 Agentshed 各语不变(ADR-0013) */
+  menu: {
+    about: '关于 Agentshed',
+    hide: '隐藏 Agentshed',
+    hideOthers: '隐藏其他',
+    unhide: '全部显示',
+    quit: '退出 Agentshed',
+    edit: '编辑',
+    undo: '撤销', redo: '重做', cut: '剪切', copy: '拷贝', paste: '粘贴', selectAll: '全选',
+    view: '显示',
+    reload: '重新载入', toggleDevTools: '开发者工具', resetZoom: '实际大小',
+    zoomIn: '放大', zoomOut: '缩小', fullscreen: '进入全屏幕',
+    window: '窗口', minimize: '最小化', close: '关闭'
+  },
+
   toast: {
     /** 切到某个具体语言 */
     languageSwitched: (name: string) => `界面语言已切换为 ${name}`,

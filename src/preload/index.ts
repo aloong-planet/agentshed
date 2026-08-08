@@ -122,6 +122,17 @@ const api = {
     checkedPrefs(await ipcRenderer.invoke(CMD.setLanguage, language)),
   setMode: async (mode: AppearanceMode): Promise<Prefs> =>
     checkedPrefs(await ipcRenderer.invoke(CMD.setMode, mode)),
+  /** 应用菜单的两个入口(票 13):行为与界面上的同名操作一致 */
+  onMenuOpenSettings: (cb: () => void): (() => void) => {
+    const l = (): void => cb()
+    ipcRenderer.on(EVT.menuOpenSettings, l)
+    return () => ipcRenderer.removeListener(EVT.menuOpenSettings, l)
+  },
+  onMenuRefresh: (cb: () => void): (() => void) => {
+    const l = (): void => cb()
+    ipcRenderer.on(EVT.menuRefresh, l)
+    return () => ipcRenderer.removeListener(EVT.menuRefresh, l)
+  },
   onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
     const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))
     ipcRenderer.on(EVT.snapshot, listener)

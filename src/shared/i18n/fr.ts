@@ -32,6 +32,15 @@ export const fr: Locale = {
     schemeAmber: 'Ambre'
   },
 
+  menu: {
+    about: 'À propos d’Agentshed', hide: 'Masquer Agentshed', hideOthers: 'Masquer les autres',
+    unhide: 'Tout afficher', quit: 'Quitter Agentshed',
+    edit: 'Édition', undo: 'Annuler', redo: 'Rétablir', cut: 'Couper', copy: 'Copier', paste: 'Coller', selectAll: 'Tout sélectionner',
+    view: 'Présentation', reload: 'Recharger', toggleDevTools: 'Outils de développement', resetZoom: 'Taille réelle',
+    zoomIn: 'Agrandir', zoomOut: 'Réduire', fullscreen: 'Passer en plein écran',
+    window: 'Fenêtre', minimize: 'Réduire', close: 'Fermer'
+  },
+
   toast: {
     languageSwitched: (name) => `Langue de l’interface changée pour ${name}`,
     languageFollowSystem: (name) => `Suit désormais le système · actuellement ${name}`,

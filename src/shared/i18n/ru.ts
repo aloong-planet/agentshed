@@ -33,6 +33,15 @@ export const ru: Locale = {
     schemeAmber: 'Янтарная'
   },
 
+  menu: {
+    about: 'О программе Agentshed', hide: 'Скрыть Agentshed', hideOthers: 'Скрыть остальные',
+    unhide: 'Показать все', quit: 'Завершить Agentshed',
+    edit: 'Правка', undo: 'Отменить', redo: 'Повторить', cut: 'Вырезать', copy: 'Копировать', paste: 'Вставить', selectAll: 'Выбрать все',
+    view: 'Вид', reload: 'Перезагрузить', toggleDevTools: 'Инструменты разработчика', resetZoom: 'Фактический размер',
+    zoomIn: 'Увеличить', zoomOut: 'Уменьшить', fullscreen: 'Перейти в полноэкранный режим',
+    window: 'Окно', minimize: 'Свернуть', close: 'Закрыть'
+  },
+
   toast: {
     languageSwitched: (name) => `Язык интерфейса переключён на ${name}`,
     languageFollowSystem: (name) => `Теперь следует системе · сейчас ${name}`,

@@ -42,7 +42,11 @@ export const CMD = {
 
 export const EVT = {
   /** 主进程推送新快照(刷新完成) */
-  snapshot: 'agentshed:snapshot'
+  snapshot: 'agentshed:snapshot',
+  /** 应用菜单触发「设置」(票 13):与 rail ⚙️ 同一个操作,由渲染层切维 */
+  menuOpenSettings: 'agentshed:menu-open-settings',
+  /** 应用菜单触发「全局刷新」:与 rail ↻ 同一个操作 */
+  menuRefresh: 'agentshed:menu-refresh'
 } as const
 
 export interface SetHiddenArgs {
