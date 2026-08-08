@@ -10,29 +10,30 @@ export function fmtTok(n: number): string {
 }
 
 export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string }): JSX.Element {
+  const t = useDict()
   const cl = stats.bySide.claude
   const cx = stats.bySide.codex
   const sum = (f: keyof TokenTotals): number => cl[f] + cx[f]
   return (
     <div className="stats">
       <div className="stat">
-        <div className="k">累计总量(两侧合计{note ? ` · ${note}` : ''})</div>
+        <div className="k">{t.token.totalCard(note ?? '')}</div>
         <div className="v">{fmtTok(sum('total'))}</div>
         <div className="s">
           Claude {fmtTok(cl.total)} · Codex {fmtTok(cx.total)}
         </div>
       </div>
       <div className="stat">
-        <div className="k">输入 / 输出</div>
+        <div className="k">{t.token.inOut}</div>
         <div className="v">
           {fmtTok(sum('input'))} / {fmtTok(sum('output'))}
         </div>
-        <div className="s">各侧原生口径分列</div>
+        <div className="s">{t.token.inOutNote}</div>
       </div>
       <div className="stat cache">
-        <div className="k">其中 cache(ccusage 口径已计入总量)</div>
+        <div className="k">{t.token.cacheCard}</div>
         <div className="v">{fmtTok(sum('cacheRead'))}</div>
-        <div className="s">读 {fmtTok(sum('cacheRead'))} · 写 {fmtTok(sum('cacheWrite'))}</div>
+        <div className="s">{t.token.cacheReadWrite(fmtTok(sum('cacheRead')), fmtTok(sum('cacheWrite')))}</div>
       </div>
     </div>
   )
@@ -41,6 +42,7 @@ export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string 
 import { buildTrendBars, TREND_MODE_LABEL, type TrendBar, type TrendMode } from '@shared/trend'
 import { layoutAxisLabels } from '@shared/axis'
 import { PROVIDER_ORDER, PROVIDER_LABEL, providerOf } from '@shared/provider'
+import type { Locale } from '@shared/i18n'
 import { useDict } from './language'
 
 /** provider → CSS 类后缀(配色见 theme.css) */
@@ -88,7 +90,7 @@ export function TrendChart({
   return (
     <div>
       <div className="grp-t">
-        近 30 天趋势(本地时区 · 日粒度)
+        {t.token.trendTitle}
         <span className="seg">
           {(['total', 'Claude', 'Codex'] as const).map((m) => (
             <button key={m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)}>
@@ -103,7 +105,7 @@ export function TrendChart({
             key={b.day}
             className={`col ${b.archived ? 'arch' : ''}`}
             style={{ height: `${Math.max(1.5, Math.round((b.total / max) * 100))}%` }}
-            data-tip={tipOf(b, t.label.providerOther)}
+            data-tip={tipOf(b, t.label.providerOther, t)}
             data-day={b.day}
           >
             {b.segments.map((sg) => (
@@ -125,7 +127,7 @@ export function TrendChart({
               {PROVIDER_LABEL[p] ?? t.label.providerOther}
             </span>
           ))}
-          <span className="lg-note">柱高=当日总量,分段=各 provider 占比</span>
+          <span className="lg-note">{t.token.legendNote}</span>
         </div>
       )}
     </div>
@@ -161,9 +163,13 @@ function renderAxisInto(axis: HTMLElement, chart: HTMLElement, bars: TrendBar[])
 }
 
 /** 悬停明细:当日合计 + 各侧数值与占比(多行,CSS 用 white-space:pre 渲染) */
-function tipOf(b: ReturnType<typeof buildTrendBars>[number], otherLabel: string): string {
-  const head = `${b.label} · 合计 ${fmtTok(b.total)}${b.archived ? ' · 归档(源文件已清理)' : ''}`
-  if (b.total === 0) return `${head}\n无用量`
+function tipOf(
+  b: ReturnType<typeof buildTrendBars>[number],
+  otherLabel: string,
+  t: Locale
+): string {
+  const head = `${t.token.tipTotal(b.label, fmtTok(b.total))}${b.archived ? t.token.tipArchived : ''}`
+  if (b.total === 0) return `${head}\n${t.token.tipNoUsage}`
   const lines = b.segments.map(
     (s) =>
       `${PROVIDER_LABEL[s.provider] ?? otherLabel}  ${fmtTok(s.value)}  ${Math.round((s.value / b.total) * 100)}%`
@@ -172,7 +178,8 @@ function tipOf(b: ReturnType<typeof buildTrendBars>[number], otherLabel: string)
 }
 
 export function ModelBars({ stats }: { stats: TokenStats }): JSX.Element {
-  if (stats.byModel.length === 0) return <div className="none">暂无模型数据</div>
+  const t = useDict()
+  if (stats.byModel.length === 0) return <div className="none">{t.token.noModelData}</div>
   const max = Math.max(...stats.byModel.map((m) => m.total), 1)
   return (
     <div className="models">
