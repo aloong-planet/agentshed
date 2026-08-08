@@ -9,6 +9,8 @@ import type {
   SubagentEntry,
   SubagentSideDetail
 } from '@shared/domain'
+import type { Locale } from '@shared/i18n'
+import { useDict } from './language'
 
 export function GlobalSubagentsTab({ snap }: { snap: Snapshot }): JSX.Element {
   const [open, setOpen] = useState<SubagentEntry | null>(null)
@@ -37,6 +39,7 @@ export function GlobalSubagentsTab({ snap }: { snap: Snapshot }): JSX.Element {
 
 /** 详情页生效视图 tab:两侧均为项目级遮蔽(与 skills 的 Codex 共存不同,见 domain 注释) */
 export function ProjectSubagentsTab({ detail }: { detail: ProjectDetail }): JSX.Element {
+  const t = useDict()
   const [open, setOpen] = useState<ProjectSubagentEntry | null>(null)
   if (detail.subagents.length === 0)
     return <div className="none">项目级与全局层均无 subagent 定义</div>
@@ -57,7 +60,9 @@ export function ProjectSubagentsTab({ detail }: { detail: ProjectDetail }): JSX.
             <span className={`pill ${s.level === 'project' ? 'prj' : 'glb'}`}>
               {s.level === 'project' ? '项目级' : '全局'}
             </span>
-            {s.detail.error && <span className="pill warn">{errLabel(s.detail.error)}</span>}
+            {s.detail.error && (
+              <span className="pill warn">{errLabel(s.detail.errorKind, t)}</span>
+            )}
             {s.overridesBuiltin && <span className="pill warn">覆盖内置</span>}
             {s.shadows && <span className="pill shadow">遮蔽同名</span>}
             {s.shadowed && <span className="pill shadow">被项目级遮蔽</span>}
@@ -87,15 +92,24 @@ function toDrawerEntry(p: ProjectSubagentEntry): SubagentEntry {
   }
 }
 
-export function errLabel(error: string | null | undefined): string {
-  return error?.includes('不可读') ? '不可读' : '解析失败'
+/**
+ * 失败类别 → 展示标签。
+ *
+ * **按类别判,不按措辞判**:早先这里写的是 `error.includes('不可读')`,
+ * 措辞一改该分支就静默失效、且没有任何测试会红(ADR-0015 点名的隐患)。
+ * 现在类别是语言无关的枚举,措辞怎么改都不影响分支。
+ */
+export function errLabel(kind: SubagentSideDetail['errorKind'], t: Locale): string {
+  return kind === 'unreadable' ? t.subagentError.unreadable : t.subagentError.parseFailed
 }
 
 export function SubagentFlags({ s }: { s: { overridesBuiltin?: boolean; claude?: SubagentSideDetail | null; codex?: SubagentSideDetail | null } }): JSX.Element {
-  const err = s.claude?.error ?? s.codex?.error
+  const t = useDict()
+  const side = s.claude?.error ? s.claude : s.codex
+  const err = side?.error
   return (
     <>
-      {err && <span className="pill warn">{errLabel(err)}</span>}
+      {err && <span className="pill warn">{errLabel(side?.errorKind ?? null, t)}</span>}
       {s.overridesBuiltin && <span className="pill warn">覆盖内置</span>}
     </>
   )

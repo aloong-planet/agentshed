@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { CACHE_VERSION, TokenEngine } from './token-stats'
 import { encodeClaudeProjectDir } from './claude'
+import { ERR, decodeAppError } from '@shared/errors'
 import type { ScanRoots } from './types'
 
 let dir: string
@@ -1001,7 +1002,10 @@ describe('sessionQuestions(会话页服务)', () => {
     const e = engine()
     await e.build(roots(), [proj])
     rmSync(cl)
-    await expect(e.sessionQuestions(roots(), cl)).rejects.toThrow('不可读')
+    // 断言**错误码**而不是中文措辞:措辞已交给渲染层按语言生成(ADR-0015)
+    await expect(e.sessionQuestions(roots(), cl)).rejects.toSatisfy(
+      (err: unknown) => decodeAppError(err)?.code === ERR.sessionFileUnreadable
+    )
   })
 
   it('不在缓存里的文件:拒绝(调用方引导刷新),不静默空列表', async () => {

@@ -70,6 +70,13 @@ export interface SubagentSideDetail {
   sandbox: string | null
   /** 该侧文件存在但解析失败/缺有效 name 的说明;正常为 null */
   error: string | null
+  /**
+   * 失败类别(**语言无关**),供渲染层判分支。
+   * 与 `error` 分工:那个是给人看的详情,这个是给程序用的。
+   * 早先渲染层靠 `error.includes('不可读')` 判分支——措辞一改就静默失效且没有测试会红
+   * (ADR-0015 点名的隐患)。
+   */
+  errorKind: 'unreadable' | 'parse-failed' | null
 }
 
 /** 全局 subagent(两侧合并单列;不做跨侧内容 diff——格式异构,不造假信号) */

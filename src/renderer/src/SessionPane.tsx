@@ -8,6 +8,8 @@ import { fmtAgo } from './ProjectsPane'
 import { fmtTok } from './TokenViz'
 import { dayGroups, groupable, type QuestionOrder } from './question-groups'
 import { BlockView } from './TurnBlocks'
+import { errorText } from '@shared/error-text'
+import { useLanguage } from './language'
 
 function fmtMB(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -33,7 +35,9 @@ type TurnState =
   | { s: 'loading' }
   | { s: 'rebuilding' }
   | { s: 'ready'; turn: SessionTurn; ms: number }
-  | { s: 'error'; msg: string }
+  // 以**原始错误**持有而不是已成句的字符串:成句发生在渲染时,
+  // 语言切换后同一个错误会按新语言重新渲染(spec「切换语言」节)
+  | { s: 'error'; raw: unknown }
 
 /** 顶部横幅三档(票 06):info 两种、risk 一种;文案按数据实情写,不给假确定感 */
 function Banners({
@@ -113,8 +117,10 @@ export function SessionPane({
   /** 横幅里的父会话跳转(App 层换会话);不传则父标题为纯文本 */
   onOpenSession?: (file: string) => void
 }): JSX.Element {
+  const lang = useLanguage()
   const [page, setPage] = useState<SessionPage | null>(null)
-  const [err, setErr] = useState<string | null>(null)
+  // 同上:存原始错误,渲染时才成句
+  const [err, setErr] = useState<{ raw: unknown } | null>(null)
   /** 已展开的轮次(数组下标);默认 0 轮展开——预展开等于把「按需取」作废 */
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
   const [turns, setTurns] = useState<ReadonlyMap<number, TurnState>>(new Map())
@@ -150,7 +156,7 @@ export function SessionPane({
         if (alive) setPage(p)
       },
       (e: unknown) => {
-        if (alive) setErr(e instanceof Error ? e.message : String(e))
+        if (alive) setErr({ raw: e })
       }
     )
     return () => {
@@ -181,7 +187,7 @@ export function SessionPane({
     } catch (e) {
       if (fileRef.current !== f) return
       // 单轮失败只自伤:该轮显示错误,不连累其余轮次、不拖垮整页
-      setTurn(i, { s: 'error', msg: e instanceof Error ? e.message : String(e) })
+      setTurn(i, { s: 'error', raw: e })
     }
   }
 
@@ -239,7 +245,9 @@ export function SessionPane({
                 索引签名不符(文件被追加或重写)→ 正在<b>只重建该文件</b>的索引…
               </div>
             )}
-            {st?.s === 'error' && <div className="tnote">这一轮取不回来:{st.msg}</div>}
+            {st?.s === 'error' && (
+              <div className="tnote">这一轮取不回来:{errorText(lang, st.raw)}</div>
+            )}
             {st?.s === 'ready' && (
               <>
                 {st.turn.blocks.map((b, bi) => (
@@ -283,7 +291,7 @@ export function SessionPane({
       </header>
       <div className="pane-body">
         {err !== null ? (
-          <div className="none">会话打不开:{err}</div>
+          <div className="none">会话打不开:{errorText(lang, err.raw)}</div>
         ) : page === null ? (
           <div className="none">读取中…</div>
         ) : (

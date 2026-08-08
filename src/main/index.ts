@@ -38,6 +38,7 @@ import { rescanIntervalMs, shouldRescanOnFocus } from './rescan'
 import { PrefsStore } from './prefs-store'
 import { applyAppearanceMode } from './appearance-mode'
 import { createPrefsHandlers } from './prefs-handlers'
+import { ERR, appError } from '@shared/errors'
 import { effectiveLanguage, type Language } from '@shared/i18n'
 import { LANG_ARG, SYS_LANGS_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
@@ -190,7 +191,7 @@ const openedProjects = new Set<string>()
 const pluginRootWhitelist = new Set<string>()
 
 handle(CMD.getProjectDetail, (_e, path: unknown) => {
-  if (typeof path !== 'string' || path === '') throw new Error('getProjectDetail 参数不合契约')
+  if (typeof path !== 'string' || path === '') throw appError(ERR.badArgs, { channel: 'getProjectDetail', field: 'path' })
   const detail = readProjectDetail(realRoots(), path)
   detail.stats = perProjectStats.get(mergeKey(path)) ?? null
   // 出口校验:契约漂移在边界抛,而不是渲染成 undefined(与快照同规矩)。
@@ -205,8 +206,8 @@ handle(CMD.getProjectDetail, (_e, path: unknown) => {
 handle(CMD.getSessionPage, async (_e, raw: unknown) => {
   // 白名单在最前:不合法的路径连 stat 都不做(fail-closed,判定纯函数见 security.ts)
   const file = sessionReadTarget(sessionWhitelist, raw)
-  if (!file) throw new Error('会话路径不在白名单(先打开项目详情或全局刷新)')
-  if (!tokenEngine) throw new Error('扫描引擎未就绪')
+  if (!file) throw appError(ERR.sessionNotWhitelisted)
+  if (!tokenEngine) throw appError(ERR.engineNotReady)
   const q = await tokenEngine.sessionQuestions(realRoots(), file)
   // 文本按区间现读(spec D2a:索引里没有文本);readRanges 绝不整读
   const { texts } = await readRanges(file, q.questions.map((r) => ({ start: r[0], end: r[1] })))
@@ -240,20 +241,20 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
 handle(CMD.sessionFresh, (_e, raw: unknown) => {
   // 同一道白名单在最前(fail-closed);谓词只读,不触发重建
   const file = sessionReadTarget(sessionWhitelist, raw)
-  if (!file) throw new Error('会话路径不在白名单(先打开项目详情或全局刷新)')
+  if (!file) throw appError(ERR.sessionNotWhitelisted)
   return tokenEngine ? tokenEngine.isFresh(file) : false
 })
 handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   const a = raw as SessionTurnArgs
   const file = sessionReadTarget(sessionWhitelist, a?.file)
-  if (!file) throw new Error('会话路径不在白名单(先打开项目详情或全局刷新)')
+  if (!file) throw appError(ERR.sessionNotWhitelisted)
   if (typeof a?.i !== 'number' || !Number.isInteger(a.i) || a.i < 0)
-    throw new Error('getSessionTurn 参数不合契约:i 需为非负整数')
-  if (!tokenEngine) throw new Error('扫描引擎未就绪')
+    throw appError(ERR.badArgs, { channel: 'getSessionTurn', field: 'i' })
+  if (!tokenEngine) throw appError(ERR.engineNotReady)
   // 区间来自主进程自己的索引(签名不符时 sessionQuestions 单文件重建),
   // 不接受渲染层直接给字节区间——通道能取的只有"某条提问的那一轮"
   const q = await tokenEngine.sessionQuestions(realRoots(), file)
-  if (a.i >= q.questions.length) throw new Error(`轮次下标越界:${a.i}(共 ${q.questions.length} 轮)`)
+  if (a.i >= q.questions.length) throw appError(ERR.turnOutOfRange, { i: a.i, total: q.questions.length })
   const rec = q.questions[a.i]
   // 整轮 = 提问之后到下一条提问之前([轮次起, 轮次止);提问全文页面已有,不重复取)
   const { texts, bytesRead } = await readRanges(file, [{ start: rec[1], end: rec[2] }])
@@ -263,11 +264,11 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
 })
 handle(CMD.searchSessions, async (_e, raw: unknown) => {
   const a = raw as SearchSessionsArgs
-  if (typeof a?.path !== 'string' || a.path === '') throw new Error('searchSessions 参数不合契约:path')
+  if (typeof a?.path !== 'string' || a.path === '') throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'path' })
   if (typeof a?.needle !== 'string' || a.needle.length > 200)
-    throw new Error('searchSessions 参数不合契约:needle 需为 ≤200 字符的 string')
-  if (typeof a?.fullText !== 'boolean') throw new Error('searchSessions 参数不合契约:fullText')
-  if (!tokenEngine) throw new Error('扫描引擎未就绪')
+    throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'needle' })
+  if (typeof a?.fullText !== 'boolean') throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'fullText' })
+  if (!tokenEngine) throw appError(ERR.engineNotReady)
   // 会话集合来自主进程自身的统计(渲染层给不了文件路径);未注册项目自然为空
   const sessions = perProjectStats.get(mergeKey(a.path))?.sessions ?? []
   const r = await searchProjectSessions(tokenEngine, realRoots(), sessions, a.needle, a.fullText)
@@ -275,12 +276,12 @@ handle(CMD.searchSessions, async (_e, raw: unknown) => {
   return r
 })
 handle(CMD.readArtifact, (_e, file: unknown) => {
-  if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw new Error('产物路径不在白名单')
+  if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw appError(ERR.artifactNotWhitelisted)
   const raw = readFileSync(file, 'utf8')
   return raw.length > 500_000 ? `${raw.slice(0, 500_000)}\n…(已截断)` : raw
 })
 handle(CMD.openArtifact, async (_e, file: unknown) => {
-  if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw new Error('产物路径不在白名单')
+  if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw appError(ERR.artifactNotWhitelisted)
   await shell.openPath(file)
 })
 function checkSkillOpArgs(args: unknown): SkillOpArgs {
@@ -290,7 +291,7 @@ function checkSkillOpArgs(args: unknown): SkillOpArgs {
     (a?.side !== 'claude' && a?.side !== 'codex') ||
     typeof a?.targetProjectPath !== 'string'
   ) {
-    throw new Error('skill 装卸参数不合契约')
+    throw appError(ERR.badArgs, { channel: 'skillOp' })
   }
   return a
 }
@@ -304,13 +305,13 @@ function checkListSkillFilesArgs(args: unknown): ListSkillFilesArgs {
     (a?.side !== 'claude' && a?.side !== 'codex') ||
     (a?.scope !== 'global' && a?.scope !== 'project' && a?.scope !== 'plugin')
   ) {
-    throw new Error('listSkillFiles 参数不合契约')
+    throw appError(ERR.badArgs, { channel: 'listSkillFiles' })
   }
   if (a.scope === 'project' && typeof a.projectPath !== 'string') {
-    throw new Error('listSkillFiles project 缺少 projectPath')
+    throw appError(ERR.badArgs, { channel: 'listSkillFiles', field: 'projectPath' })
   }
   if (a.scope === 'plugin' && typeof a.pluginRoot !== 'string') {
-    throw new Error('listSkillFiles plugin 缺少 pluginRoot')
+    throw appError(ERR.badArgs, { channel: 'listSkillFiles', field: 'pluginRoot' })
   }
   return a
 }
@@ -320,12 +321,12 @@ handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
   if (a.scope === 'plugin') {
     // H8:包根必须命中扫描登记集(fail-closed);skill 名消毒在 resolver 内
     if (!pluginRootWhitelist.has(a.pluginRoot as string)) {
-      throw new Error('插件包根不在登记集(先刷新或打开详情)')
+      throw appError(ERR.pluginRootNotRegistered)
     }
     root = resolvePluginSkillRoot(a.pluginRoot as string, a.name)
   } else {
     if (a.scope === 'project' && !openedProjects.has(a.projectPath as string)) {
-      throw new Error('项目未打开(先打开项目详情)')
+      throw appError(ERR.projectNotOpened)
     }
     // 容器检查(C9,作用于解析前入口)在 resolveSkillRoot 内完成
     root = resolveSkillRoot({
@@ -337,7 +338,7 @@ handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
     })
   }
   if (!root) {
-    throw new Error('skill 包不可用或不在允许根下')
+    throw appError(ERR.skillPackageUnavailable)
   }
   const listing = listSkillPackageFiles(root)
   for (const f of listing.files) skillFileWhitelist.add(f.absPath)
@@ -350,12 +351,12 @@ handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
 })
 handle(CMD.readSkillFile, (_e, args: unknown): string => {
   const a = args as { absPath?: unknown }
-  if (typeof a?.absPath !== 'string' || !a.absPath) throw new Error('readSkillFile 参数不合契约')
-  if (!skillFileWhitelist.has(a.absPath)) throw new Error('skill 文件路径不在白名单')
+  if (typeof a?.absPath !== 'string' || !a.absPath) throw appError(ERR.badArgs, { channel: 'readSkillFile', field: 'absPath' })
+  if (!skillFileWhitelist.has(a.absPath)) throw appError(ERR.skillFileNotWhitelisted)
   try {
     return readSkillFileText(a.absPath)
   } catch {
-    throw new Error('skill 文件不可读')
+    throw appError(ERR.skillFileUnreadable)
   }
 })
 
@@ -369,7 +370,7 @@ handle(CMD.setMode, (_e, mode: unknown) => prefsHandlers.setMode(mode))
 handle(CMD.setHidden, (_e, args: unknown) => {
   const a = args as SetHiddenArgs
   if (typeof a?.projectPath !== 'string' || typeof a?.hidden !== 'boolean') {
-    throw new Error('setHidden 参数不合契约')
+    throw appError(ERR.badArgs, { channel: 'setHidden' })
   }
   hiddenStore?.setHidden(a.projectPath, a.hidden)
   // 局部更新快照并广播,不触发全量重扫

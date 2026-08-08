@@ -34,6 +34,39 @@ export const es: Locale = {
 
   toast: {
     languageSwitched: (name) => `Idioma de la interfaz cambiado a ${name}`,
-    languageFollowSystem: (name) => `Ahora sigue el sistema · actualmente ${name}`
+    languageFollowSystem: (name) => `Ahora sigue el sistema · actualmente ${name}`,
+    saveSchemeFailed: 'No se pudo guardar la paleta',
+    saveModeFailed: 'No se pudo guardar el modo de apariencia',
+    saveLanguageFailed: 'No se pudo guardar el idioma'
+  },
+
+  errors: {
+    badArgs: (channel, field) =>
+      field
+        ? `Argumentos de llamada no válidos: ${channel} (campo ${field})`
+        : `Argumentos de llamada no válidos: ${channel}`,
+    sessionNotWhitelisted:
+      'Esta sesión no está en la lista permitida: abre antes el detalle del proyecto o actualiza',
+    engineNotReady: 'El motor de escaneo aún no está listo: inténtalo de nuevo en un momento',
+    turnOutOfRange: (i, total) => `Índice de turno fuera de rango: ${i} (de ${total} turnos)`,
+    artifactNotWhitelisted: 'Esta ruta de artefacto no está en la lista permitida',
+    pluginRootNotRegistered:
+      'La raíz de este plugin no está registrada: actualiza o abre antes el detalle',
+    projectNotOpened: 'El proyecto no está abierto: abre antes su detalle',
+    skillPackageUnavailable: 'El paquete de skill no está disponible o queda fuera de las raíces permitidas',
+    skillFileNotWhitelisted: 'Esta ruta de archivo de skill no está en la lista permitida',
+    skillFileUnreadable: 'No se puede leer el archivo de skill',
+    sessionNotIndexed: 'Esta sesión no está indexada: haz antes una actualización global',
+    sessionFileUnreadable: 'Ya no se puede leer el archivo de sesión (¿movido o eliminado?)',
+    sessionMetaUnreadable:
+      'La primera línea de la sesión no se puede leer, así que no es posible reconstruir el índice',
+    sessionParseFailed: 'No se pudo analizar el archivo de sesión',
+    prefsStoreNotReady: 'El almacén de preferencias no está listo',
+    invalidPref: (field) => `Valor de preferencia no válido: ${field}`
+  },
+
+  subagentError: {
+    unreadable: 'Ilegible',
+    parseFailed: 'Error de análisis'
   }
 }

@@ -42,6 +42,40 @@ export const zh = {
     /** 切到某个具体语言 */
     languageSwitched: (name: string) => `界面语言已切换为 ${name}`,
     /** 切到「跟随系统」——必须说明当前解析成了哪种语言,否则用户看不出实际效果 */
-    languageFollowSystem: (name: string) => `已设为跟随系统 · 当前为 ${name}`
+    languageFollowSystem: (name: string) => `已设为跟随系统 · 当前为 ${name}`,
+    /** 偏好落盘失败(界面已切换,重启后恢复) */
+    saveSchemeFailed: '保存配色失败',
+    saveModeFailed: '保存外观模式失败',
+    saveLanguageFailed: '保存语言失败'
+  },
+
+  /**
+   * 跨进程失败的措辞(见 ADR-0015)。键与 shared/errors.ts 的错误码一一对应。
+   * 参数只承载语言无关的东西(通道名、字段名、路径、数字),措辞在这里成句。
+   */
+  errors: {
+    badArgs: (channel: string, field: string) =>
+      field ? `调用参数不合契约:${channel}(字段 ${field})` : `调用参数不合契约:${channel}`,
+    sessionNotWhitelisted: '会话路径不在白名单,请先打开项目详情或全局刷新',
+    engineNotReady: '扫描引擎未就绪,请稍候再试',
+    turnOutOfRange: (i: number, total: number) => `轮次下标越界:${i}(共 ${total} 轮)`,
+    artifactNotWhitelisted: '产物路径不在白名单',
+    pluginRootNotRegistered: '插件包根不在登记集,请先刷新或打开详情',
+    projectNotOpened: '项目未打开,请先打开项目详情',
+    skillPackageUnavailable: 'skill 包不可用或不在允许根下',
+    skillFileNotWhitelisted: 'skill 文件路径不在白名单',
+    skillFileUnreadable: 'skill 文件不可读',
+    sessionNotIndexed: '会话不在索引中,请先全局刷新',
+    sessionFileUnreadable: '会话文件已不可读(被移动或删除?)',
+    sessionMetaUnreadable: '会话首行元数据不可读,无法重建索引',
+    sessionParseFailed: '会话文件解析失败',
+    prefsStoreNotReady: '偏好存储未就绪',
+    invalidPref: (field: string) => `偏好取值不合契约:${field}`
+  },
+
+  /** subagent 定义文件的读取失败,作为**数据字段**随快照下发(不是抛出的错误) */
+  subagentError: {
+    unreadable: '不可读',
+    parseFailed: '解析失败'
   }
 } as const

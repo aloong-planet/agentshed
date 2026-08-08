@@ -34,6 +34,36 @@ export const en: Locale = {
 
   toast: {
     languageSwitched: (name) => `Interface language switched to ${name}`,
-    languageFollowSystem: (name) => `Now following the system · currently ${name}`
+    languageFollowSystem: (name) => `Now following the system · currently ${name}`,
+    saveSchemeFailed: 'Failed to save the palette',
+    saveModeFailed: 'Failed to save the appearance mode',
+    saveLanguageFailed: 'Failed to save the language'
+  },
+
+  errors: {
+    badArgs: (channel, field) =>
+      field ? `Invalid call arguments: ${channel} (field ${field})` : `Invalid call arguments: ${channel}`,
+    sessionNotWhitelisted:
+      'This session is not in the allowed list — open the project details or refresh first',
+    engineNotReady: 'The scan engine is not ready yet — please try again shortly',
+    turnOutOfRange: (i, total) => `Turn index out of range: ${i} (of ${total} turns)`,
+    artifactNotWhitelisted: 'This artifact path is not in the allowed list',
+    pluginRootNotRegistered:
+      'This plugin package root is not registered — refresh or open the details first',
+    projectNotOpened: 'The project is not open — open the project details first',
+    skillPackageUnavailable: 'The skill package is unavailable or outside the allowed roots',
+    skillFileNotWhitelisted: 'This skill file path is not in the allowed list',
+    skillFileUnreadable: 'The skill file cannot be read',
+    sessionNotIndexed: 'This session is not indexed — refresh everything first',
+    sessionFileUnreadable: 'The session file can no longer be read (moved or deleted?)',
+    sessionMetaUnreadable: 'The first line of the session is unreadable, so the index cannot be rebuilt',
+    sessionParseFailed: 'Failed to parse the session file',
+    prefsStoreNotReady: 'The preference store is not ready',
+    invalidPref: (field) => `Invalid preference value: ${field}`
+  },
+
+  subagentError: {
+    unreadable: 'Unreadable',
+    parseFailed: 'Parse failed'
   }
 }
