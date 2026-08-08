@@ -29,6 +29,7 @@ export function DetailPane({
   /** 打开会话页(票 04;票 08 起可带 focusQ 直达某条提问) */
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
+  const t = useDict()
   const [tab, setTab] = useState<Tab>(initialTab ?? 'ov')
   const [detail, setDetail] = useState<ProjectDetail | null>(null)
   const [reload, setReload] = useState(0)
@@ -49,7 +50,7 @@ export function DetailPane({
     }
   }, [path, snap.scannedAt, reload])
 
-  if (!entry) return <div className="empty">项目不在快照中(刷新后重试)</div>
+  if (!entry) return <div className="empty">{t.detail.notInSnapshot}</div>
 
   return (
     <div className="pane">
@@ -58,21 +59,21 @@ export function DetailPane({
           <h1>{entry.name}</h1>
           {entry.sides.includes('claude') && <span className="badge cl">CLAUDE</span>}
           {entry.sides.includes('codex') && <span className="badge cx">CODEX</span>}
-          {entry.stale && <span className="stale-tag">失效</span>}
+          {entry.stale && <span className="stale-tag">{t.detail.staleTag}</span>}
         </div>
         <div className="det-path mono">{entry.path}</div>
         <nav className="tabs">
           {(
             [
-              ['ov', '概览'],
+              ['ov', t.detail.tabOverview],
               ['skills', 'Skills'],
               ['subagents', 'Subagents'],
               ['plugins', 'Plugins'],
               ['mcp', 'MCP'],
               ['memory', 'Memory'],
-              ['sessions', '会话'],
-              ['cfg', '配置'],
-              ['arts', '产物']
+              ['sessions', t.detail.tabSessions],
+              ['cfg', t.detail.tabCfg],
+              ['arts', t.detail.tabArts]
             ] as const
           ).map(([t, label]) => (
             <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
@@ -83,7 +84,7 @@ export function DetailPane({
       </header>
       <div className="pane-body">
         {detail === null ? (
-          <div className="none">读取中…</div>
+          <div className="none">{t.detail.loading}</div>
         ) : (
           <>
             {tab === 'ov' && (
@@ -134,11 +135,11 @@ function OverviewTab({
     <div>
       <TotalsCards stats={stats.tokens} />
       <TrendChart stats={stats.tokens} anchor={snap.scannedAt} archivedDays={snap.archivedDays} />
-      <div className="grp-t">按模型拆分</div>
+      <div className="grp-t">{t.detail.byModel}</div>
       <ModelBars stats={stats.tokens} />
-      <div className="grp-t">最近会话</div>
+      <div className="grp-t">{t.detail.recentSessions}</div>
       {stats.sessions.length === 0 ? (
-        <div className="none">该项目暂无会话</div>
+        <div className="none">{t.detail.noSessions}</div>
       ) : (
         <>
           <div className="card">
@@ -154,7 +155,7 @@ function OverviewTab({
             ))}
           </div>
           <div className="note">
-            共 {stats.sessions.length} 个会话 —— 全部见「会话」分栏。
+            {t.detail.sessionCountNote(stats.sessions.length)}
           </div>
         </>
       )}
@@ -226,7 +227,7 @@ function SessionsTab({
   }, [needle, fullText, detail.path])
 
   if (sessions.length === 0) {
-    return <div className="none">该项目暂无会话。两侧 agent 在此目录下开过对话后会自动出现。</div>
+    return <div className="none">{t.detail.noSessionsHint}</div>
   }
   const searching = needle.trim() !== ''
   const groups = result === null ? [] : recentFirst ? result.groups : [...result.groups].reverse()
@@ -241,27 +242,27 @@ function SessionsTab({
           count={sessions.length}
         />
         {result === null ? (
-          <div className="shead">搜索中…</div>
+          <div className="shead">{t.detail.searching}</div>
         ) : result.totalHits === 0 ? (
-          <div className="shead">没有命中。默认只搜提问,试试切到「全文」。</div>
+          <div className="shead">{t.detail.noHits}</div>
         ) : (
           <>
             <div className="shead">
               <span>
-                找到 <b>{result.totalHits}</b> 条 · {result.sessionCount} 个会话
+                {t.detail.hitsFound(result.totalHits, result.sessionCount)}
                 {result.folded > 0 && (
                   <>
                     {' '}
-                    · 已折叠 <b>{result.folded}</b> 条重放或被放弃分支上的命中
+                    {t.detail.folded(result.folded)}
                   </>
                 )}
               </span>
               <span className="seg">
                 <button className={recentFirst ? 'on' : ''} onClick={() => choose(true)}>
-                  最近在前
+                  {t.detail.recentFirst}
                 </button>
                 <button className={recentFirst ? '' : 'on'} onClick={() => choose(false)}>
-                  最早在前
+                  {t.detail.oldestFirst}
                 </button>
               </span>
             </div>
@@ -273,8 +274,8 @@ function SessionsTab({
                   </span>
                   <span className="t">{g.title ?? t.placeholder.untitledSession}</span>
                   {g.forkState === 'stripped' && <span className="pill fork">⑂ fork</span>}
-                  {g.forkState === 'uncertain' && <span className="pill forkq">⑂? 剥离存疑</span>}
-                  <span className="d">{g.hits.length} 条命中</span>
+                  {g.forkState === 'uncertain' && <span className="pill forkq">{t.detail.forkUncertain}</span>}
+                  <span className="d">{t.detail.hitCount(g.hits.length)}</span>
                 </button>
                 {g.hits.map((h, hi) => (
                   <button
@@ -293,7 +294,7 @@ function SessionsTab({
                         needle={needle.trim()}
                       />
                     </span>
-                    {h.inBody && <span className="bd">正文</span>}
+                    {h.inBody && <span className="bd">{t.detail.inBody}</span>}
                     <span className="d">{fmtAgo(h.at, snap.scannedAt)}</span>
                   </button>
                 ))}
@@ -314,13 +315,13 @@ function SessionsTab({
         count={sessions.length}
       />
       <div className="grp-t">
-        按最近活动时间{recentFirst ? '倒序' : '正序'} · {sessions.length} 个会话
+        {t.detail.sortNote(recentFirst ? t.detail.descending : t.detail.ascending, sessions.length)}
         <span className="seg">
           <button className={recentFirst ? 'on' : ''} onClick={() => choose(true)}>
-            最近在前
+            {t.detail.recentFirst}
           </button>
           <button className={recentFirst ? '' : 'on'} onClick={() => choose(false)}>
-            最早在前
+            {t.detail.oldestFirst}
           </button>
         </span>
       </div>
@@ -332,25 +333,25 @@ function SessionsTab({
             </span>
             <span className="t">{s.title ?? t.placeholder.untitledSession}</span>
             {s.forkState === 'stripped' && (
-              <span className="pill fork" title="本会话 fork 自另一个会话,开头的重放前缀已剥离">
+              <span className="pill fork" title={t.detail.forkTip}>
                 ⑂ fork
               </span>
             )}
             {s.forkState === 'uncertain' && (
-              <span className="pill forkq" title="父会话不在扫描集内或与父校验不符,重放前缀只能按启发式剥离——可能少剥(重复)">
-                ⑂? 剥离存疑
+              <span className="pill forkq" title={t.detail.forkUncertainTip}>
+                {t.detail.forkUncertain}
               </span>
             )}
-            <span className="n">{s.questionCount} 提问</span>
+            <span className="n">{t.detail.questionCount(s.questionCount)}</span>
             <span className="tok">{fmtTok(s.tokens)}</span>
             <span className="d">{fmtAgo(s.at, snap.scannedAt)}</span>
           </button>
         ))}
       </div>
       <div className="note">
-        只列已注册项目的会话;subagent 与预热会话不单独入列,但 token 仍计入统计——
-        故此处条数与上方 token 卡的分母不是同一个。<br />
-        「最近活动」取文件内最大时间戳,与项目列表的活跃度(取文件 mtime)是两条管线。
+        {t.detail.sessionsFoot}
+        <br />
+        {t.detail.sessionsFoot2}
       </div>
     </div>
   )
@@ -370,19 +371,20 @@ function SearchBar({
   setFullText: (v: boolean) => void
   count: number
 }): JSX.Element {
+  const t = useDict()
   return (
     <div className="sbar">
       <input
         value={needle}
         onChange={(e) => setNeedle(e.target.value)}
-        placeholder={`在本项目的 ${count} 个会话里搜索…`}
+        placeholder={t.detail.searchPlaceholder(count)}
       />
       <span className="scope">
         <span className={fullText ? '' : 'on'} onClick={() => setFullText(false)}>
-          提问
+          {t.detail.scopeQuestions}
         </span>
         <span className={fullText ? 'on' : ''} onClick={() => setFullText(true)}>
-          全文
+          {t.detail.scopeFullText}
         </span>
       </span>
     </div>
@@ -416,6 +418,7 @@ function SkillRow({
   projectPath: string
   onUninstall?: () => void
 }): JSX.Element {
+  const t = useDict()
   if (s.origin === 'plugin' || s.level === 'plugin') {
     // A4/ADR-0012:插件命名空间行与磁盘同权展开预览;仍无装卸(G3)
     return (
@@ -428,7 +431,7 @@ function SkillRow({
           bareName: s.pluginSkillName ?? s.name
         }}
         pkgBySide={{ [s.side]: s.pkg }}
-        levelLabel="插件包"
+        levelLabel={t.detail.levelPlugin}
       />
     )
   }
@@ -442,7 +445,7 @@ function SkillRow({
       }
       symlink={s.symlink}
       level={s.level === 'project' ? 'project' : 'global'}
-      levelLabel={s.level === 'project' ? '项目级' : '全局层'}
+      levelLabel={s.level === 'project' ? t.detail.levelProject : t.detail.levelGlobal}
       pkgBySide={{ [s.side]: s.pkg }}
       uninstallSlot={
         onUninstall ? (
@@ -454,7 +457,7 @@ function SkillRow({
               onUninstall()
             }}
           >
-            卸载
+            {t.detail.uninstall}
           </button>
         ) : undefined
       }
@@ -469,6 +472,7 @@ function SkillsTab({
   detail: ProjectDetail
   onChanged: () => void
 }): JSX.Element {
+  const t = useDict()
   const lang = useLanguage()
   const [confirm, setConfirm] = useState<ProjectSkillEntry | null>(null)
   const groups = useMemo(() => {
@@ -493,8 +497,8 @@ function SkillsTab({
       side: s.side,
       targetProjectPath: detail.path
     })
-    if (r.ok) toast('ok', `已卸载 ${s.name}(仅局部刷新该项目)`)
-    else toast('err', `卸载失败:${errorText(lang, appError(r.reason, r.params))}`)
+    if (r.ok) toast('ok', t.detail.uninstalled(s.name))
+    else toast('err', t.detail.uninstallFailed(errorText(lang, appError(r.reason, r.params))))
     onChanged()
   }
   const delPath =
@@ -519,25 +523,25 @@ function SkillsTab({
   const any = detail.skills.length > 0
   return (
     <div>
-      {section('项目级 · .claude/skills', groups.clProject)}
-      {section('全局层 · Claude', groups.clGlobal)}
-      {section('项目级 · .agents/skills', groups.cxProject)}
-      {section('全局层 · Codex', groups.cxGlobal)}
-      {section('插件内含 · 本项目有效启用(命名空间调用,只读)', groups.plugin)}
-      {!any && <div className="none">该项目无生效 skills</div>}
+      {section(t.detail.secClaudeProject, groups.clProject)}
+      {section(t.detail.secClaudeGlobal, groups.clGlobal)}
+      {section(t.detail.secCodexProject, groups.cxProject)}
+      {section(t.detail.secCodexGlobal, groups.cxGlobal)}
+      {section(t.detail.secPlugin, groups.plugin)}
+      {!any && <div className="none">{t.detail.noSkills}</div>}
       {confirm && (
         <>
           <div className="mask" onClick={() => setConfirm(null)} />
           <div className="reader dlg">
-            <h2>卸载项目级 skill?</h2>
-            <p className="dlg-p">将删除以下目录(项目 git 状态由你自行处理;不做副本差异检测):</p>
+            <h2>{t.detail.confirmTitle}</h2>
+            <p className="dlg-p">{t.detail.confirmBody}</p>
             <pre className="md mono dlg-path">{delPath}</pre>
             <div className="dlg-btns">
               <button className="cfg-btn" onClick={() => setConfirm(null)}>
-                取消
+                {t.detail.cancel}
               </button>
               <button className="cfg-btn danger" onClick={() => void doUninstall(confirm)}>
-                删除
+                {t.detail.del}
               </button>
             </div>
           </div>
@@ -548,18 +552,23 @@ function SkillsTab({
 }
 
 function McpTab({ detail }: { detail: ProjectDetail }): JSX.Element {
+  const t = useDict()
   return (
     <div>
-      <div className="grp-t">项目级 · .mcp.json(enabled/disabled 来自项目设置)</div>
+      <div className="grp-t">{t.detail.mcpTitle}</div>
       {detail.mcp.length === 0 ? (
-        <div className="none">项目无 .mcp.json;全局 MCP 见 Agents 页</div>
+        <div className="none">{t.detail.noMcp}</div>
       ) : (
         <div className="card">
           {detail.mcp.map((m) => (
             <div className="it" key={m.name}>
               <span className="nm mono">{m.name}</span>
               <span className={`pill ${m.enabled === true ? 'on' : m.enabled === false ? 'off' : 'glb'}`}>
-                {m.enabled === true ? '已启用' : m.enabled === false ? '已禁用' : '默认'}
+                {m.enabled === true
+                  ? t.detail.mcpEnabled
+                  : m.enabled === false
+                    ? t.detail.mcpDisabled
+                    : t.detail.mcpDefault}
               </span>
             </div>
           ))}
@@ -608,20 +617,20 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
       <div className="chips">
         {(['all', ...ARTIFACT_ORDER] as const).map((f) => (
           <button key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>
-            {f === 'all' ? '全部' : ART_LABELS[f]}
+            {f === 'all' ? t.detail.filterAll : ART_LABELS[f]}
           </button>
         ))}
       </div>
       {detail.artifacts.length === 0 ? (
-        <div className="none">未按约定沉淀(非八步项目;不视为错误)</div>
+        <div className="none">{t.detail.noArtifacts}</div>
       ) : list.length === 0 ? (
-        <div className="none">该类无产物</div>
+        <div className="none">{t.detail.noArtifactsOfType}</div>
       ) : (
         <div className="card">
           {list.map((a) => (
             <button className="it ai" key={a.file} onClick={() => void open(a)} title={a.file}>
               <span className="t">{a.title}</span>
-              {a.type === 'prototypes' && <span className="pill ln">HTML → 浏览器</span>}
+              {a.type === 'prototypes' && <span className="pill ln">{t.detail.openInBrowser}</span>}
               <span className="pill glb">{ART_LABELS[a.type]}</span>
               <span className="src mono">{fmtAgo(a.mtimeMs, snap.scannedAt)}</span>
             </button>
@@ -678,7 +687,7 @@ function CfgTab({ detail }: { detail: ProjectDetail }): JSX.Element {
           [
             ['cl', 'CLAUDE.md'],
             ['cx', 'AGENTS.md'],
-            ['settings', 'settings 摘要']
+            ['settings', t.detail.settingsSummary]
           ] as const
         ).map(([w, label]) => (
           <button key={w} className={which === w ? 'on' : ''} onClick={() => setWhich(w)}>
@@ -688,12 +697,12 @@ function CfgTab({ detail }: { detail: ProjectDetail }): JSX.Element {
       </div>
       {which === 'settings' ? (
         detail.configs.settingsSummary === null ? (
-          <div className="none">项目键无可展示设置</div>
+          <div className="none">{t.detail.noSettings}</div>
         ) : (
           <pre className="md mono">{detail.configs.settingsSummary}</pre>
         )
       ) : html === null ? (
-        <div className="none">文件不存在</div>
+        <div className="none">{t.detail.fileMissing}</div>
       ) : (
         <div className="md" dangerouslySetInnerHTML={{ __html: html }} />
       )}

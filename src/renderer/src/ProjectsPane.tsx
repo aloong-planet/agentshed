@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
+import { useDict } from './language'
 
 /** 相对时间(展示用):今天/昨天/N天前/N月前 */
 export function fmtAgo(ms: number | null, now: number): string {
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.Element {
+  const t = useDict()
   const [kw, setKw] = useState('')
   const [sideFilter, setSideFilter] = useState<'all' | AgentSide>('all')
   const [showStale, setShowStale] = useState(false)
@@ -49,7 +51,8 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
           <input
             value={kw}
             onChange={(e) => setKw(e.target.value)}
-            placeholder="🔍 搜索项目…"
+            // 图标字符留在组件内,不进六份语言字典(票 08 AC;SVG 化见 #51)
+            placeholder={`🔍 ${t.projects.searchPlaceholder}`}
           />
         </div>
         <div className="fseg">
@@ -59,7 +62,7 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
               className={sideFilter === f ? 'on' : ''}
               onClick={() => setSideFilter(f)}
             >
-              {f === 'all' ? '全部' : f === 'claude' ? 'Claude' : 'Codex'}
+              {f === 'all' ? t.projects.filterAll : f === 'claude' ? 'Claude' : 'Codex'}
             </button>
           ))}
         </div>
@@ -70,19 +73,20 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
               checked={showStale}
               onChange={(e) => setShowStale(e.target.checked)}
             />
-            显示失效项目
+            {t.projects.showStale}
           </label>
-          {!showStale && staleFiltered > 0 && <span className="cnt">已过滤 {staleFiltered} 个失效</span>}
+          {!showStale && staleFiltered > 0 && <span className="cnt">{t.projects.staleFiltered(staleFiltered)}</span>}
         </div>
         <div className="list">
           {visible.map((p) => (
             <Row key={p.path} p={p} now={now} selected={selected === p.path} onSelect={onSelect} />
           ))}
-          {visible.length === 0 && <div className="list-empty">无匹配项目</div>}
+          {visible.length === 0 && <div className="list-empty">{t.projects.noMatch}</div>}
         </div>
         {hiddenList.length > 0 && (
           <button className="hidden-entry" onClick={() => setShowHidden((v) => !v)}>
-            ▸ 已隐藏 {hiddenList.length} 项{showHidden ? '(点击收起)' : '(点击展开)'}
+            ▸ {t.projects.hiddenCount(hiddenList.length)}
+            {showHidden ? t.projects.collapseHint : t.projects.expandHint}
           </button>
         )}
         {showHidden && hiddenList.length > 0 && (
@@ -111,6 +115,7 @@ function Row({
   onSelect: (path: string) => void
   inHidden?: boolean
 }): JSX.Element {
+  const t = useDict()
   return (
     <div
       className={`row ${p.stale ? 'stale' : ''} ${selected ? 'sel' : ''}`}
@@ -118,7 +123,7 @@ function Row({
       title={p.path}
     >
       <span className="nm">{p.name}</span>
-      {p.stale && <span className="stale-tag">失效</span>}
+      {p.stale && <span className="stale-tag">{t.projects.staleTag}</span>}
       <span className="meta">
         {fmtAgo(p.lastSessionAt, now)} · {p.sessionCount}
       </span>
@@ -133,7 +138,7 @@ function Row({
           void window.agentshed.setHidden({ projectPath: p.path, hidden: !inHidden ? true : false })
         }}
       >
-        {inHidden ? '恢复' : '隐藏'}
+        {inHidden ? t.projects.restore : t.projects.hide}
       </button>
     </div>
   )
