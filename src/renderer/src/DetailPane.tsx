@@ -10,6 +10,9 @@ import { ProjectPluginsTab } from './PluginsView'
 import { fmtAgo } from './ProjectsPane'
 import { toast } from './Toast'
 import { SkillExpandBlock } from './SkillExpandBlock'
+import { errorText } from '@shared/error-text'
+import { appError } from '@shared/errors'
+import { useLanguage } from './language'
 
 type Tab = 'ov' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'cfg' | 'arts'
 
@@ -460,6 +463,7 @@ function SkillsTab({
   detail: ProjectDetail
   onChanged: () => void
 }): JSX.Element {
+  const lang = useLanguage()
   const [confirm, setConfirm] = useState<ProjectSkillEntry | null>(null)
   const groups = useMemo(() => {
     const g = {
@@ -484,7 +488,7 @@ function SkillsTab({
       targetProjectPath: detail.path
     })
     if (r.ok) toast('ok', `已卸载 ${s.name}(仅局部刷新该项目)`)
-    else toast('err', `卸载失败:${r.message}`)
+    else toast('err', `卸载失败:${errorText(lang, appError(r.reason, r.params))}`)
     onChanged()
   }
   const delPath =
@@ -570,6 +574,7 @@ const ART_LABELS: Record<ArtifactType, string> = {
 }
 
 function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
+  const lang = useLanguage()
   const [filter, setFilter] = useState<'all' | ArtifactType>('all')
   const [reader, setReader] = useState<{ item: ArtifactEntry; html: string } | null>(null)
   const list = detail.artifacts.filter((a) => filter === 'all' || a.type === filter)
@@ -635,7 +640,7 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
                       const a = detail.artifacts.find((x) => x.file === file)
                       if (a) void open(a)
                     },
-                    unresolved: (reason) => toast('err', reason)
+                    unresolved: (code) => toast('err', errorText(lang, appError(code)))
                   }
                 )
               }

@@ -3,11 +3,13 @@
 // 回落 index.html 表现为"退回主页",打包版留白屏;两者都丢掉全部 app state。
 // 故渲染出的链接一律不放行默认行为,由此函数裁决归宿;白名单(详情列出过的文件)
 // 是 internal 的唯一放行依据,与产物读取通道同一不变量。
+import { ERR, type ErrorCode } from '@shared/errors'
 export type MdLinkTarget =
   | { kind: 'internal'; file: string }
   | { kind: 'external'; url: string }
   | { kind: 'anchor' }
-  | { kind: 'unresolved'; reason: string }
+  // 归宿不明的链接:带**错误码**而非成句原因,措辞由渲染层按当前语言生成
+  | { kind: 'unresolved'; code: ErrorCode }
 
 /** 无 node:path 的最小归一:处理 . 与 ..,不解析软链(白名单本就按真实路径登记) */
 function resolveRelative(dir: string, rel: string): string {
@@ -29,11 +31,12 @@ export function resolveMdLink(href: string, baseDir: string, readable: string[])
   if (href.startsWith('#')) return { kind: 'anchor' }
   if (/^https?:\/\//i.test(href)) return { kind: 'external', url: href }
   // 其余带协议的一律拒绝(javascript:/file:/data: 等);消毒层已挡一部分,这里是第二道
-  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return { kind: 'unresolved', reason: '不支持的链接协议' }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href))
+    return { kind: 'unresolved', code: ERR.linkProtocolUnsupported }
   const path = href.split('#')[0]
   if (path === '') return { kind: 'anchor' }
   const abs = resolveRelative(baseDir, path)
-  if (!readable.includes(abs)) return { kind: 'unresolved', reason: '目标不在可读范围' }
+  if (!readable.includes(abs)) return { kind: 'unresolved', code: ERR.linkOutOfScope }
   return { kind: 'internal', file: abs }
 }
 
@@ -51,7 +54,7 @@ export function dirOf(file: string): string {
 export function handleMdClick(
   e: { target: EventTarget | null; preventDefault: () => void },
   ctx: { baseDir: string; readable: string[] },
-  on: { internal: (file: string) => void; unresolved: (reason: string) => void }
+  on: { internal: (file: string) => void; unresolved: (code: ErrorCode) => void }
 ): void {
   const el = (e.target as HTMLElement | null)?.closest?.('a[href]')
   const href = el?.getAttribute('href')
@@ -62,6 +65,6 @@ export function handleMdClick(
     on.internal(t.file)
   } else if (t.kind === 'unresolved') {
     e.preventDefault()
-    on.unresolved(t.reason)
+    on.unresolved(t.code)
   }
 }

@@ -18,8 +18,13 @@ const n = (p: ErrorParams, k: string): number => {
 /**
  * 把 catch 到的任意东西渲染成当前语言的一句话。
  *
- * 解不出结构化载荷的(票 06 之前尚未迁移的旧式错误、以及任何意外值)**原样显示**——
- * 与改造前 `String(e)` 的表现一致,不崩、不空白。
+ * **兜底的性质自票 06 起变了**:此前它是"旧式协议兼容分支"——迁移未完成,跨进程还会
+ * 传中文成句错误。票 06 收口后**已无任何跨进程生产者走这条路**(全库检索坐实:
+ * `src/` 内除测试外 `throw new Error` 为 0 处,契约字段亦无成句 message)。
+ *
+ * 保留它是因为剩下的入口是**非协议错误**:渲染层自身的 TypeError、第三方库抛出的东西——
+ * 这些永远不会有错误码。删掉兜底会让它们变成空白,而"报错时二次报错"比一句难看的
+ * 原文更坏。故这不再是兼容分支,而是非协议异常的最后一道显示保障。
  */
 export function errorText(lang: Language, raw: unknown): string {
   const err = decodeAppError(raw)
@@ -61,6 +66,32 @@ export function errorText(lang: Language, raw: unknown): string {
       return t.prefsStoreNotReady
     case ERR.invalidPref:
       return t.invalidPref(s(p, 'field'))
+    case ERR.contractMissing:
+      return t.contractMissing(s(p, 'path'))
+    case ERR.contractType:
+      return t.contractType(s(p, 'path'), s(p, 'expect'))
+    case ERR.contractEnum:
+      return t.contractEnum(s(p, 'path'), s(p, 'value'))
+    case ERR.untrustedSender:
+      return t.untrustedSender(s(p, 'sender'))
+    case ERR.linkProtocolUnsupported:
+      return t.linkProtocolUnsupported
+    case ERR.linkOutOfScope:
+      return t.linkOutOfScope
+    case ERR.skillBadName:
+      return t.skillBadName
+    case ERR.skillStaleTarget:
+      return t.skillStaleTarget
+    case ERR.skillMissingSource:
+      return t.skillMissingSource(s(p, 'name'))
+    case ERR.skillCopyMissing:
+      return t.skillCopyMissing
+    case ERR.skillConflict:
+      return t.skillConflict
+    case ERR.skillCopyFailed:
+      return t.skillCopyFailed(s(p, 'detail'))
+    case ERR.skillDeleteFailed:
+      return t.skillDeleteFailed(s(p, 'detail'))
     default:
       return exhaustive(err.code)
   }

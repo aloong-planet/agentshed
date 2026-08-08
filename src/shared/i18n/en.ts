@@ -59,7 +59,21 @@ export const en: Locale = {
     sessionMetaUnreadable: 'The first line of the session is unreadable, so the index cannot be rebuilt',
     sessionParseFailed: 'Failed to parse the session file',
     prefsStoreNotReady: 'The preference store is not ready',
-    invalidPref: (field) => `Invalid preference value: ${field}`
+    invalidPref: (field) => `Invalid preference value: ${field}`,
+    contractMissing: (path) => `Received an invalid payload: ${path} is missing`,
+    contractType: (path, expect) => `Received an invalid payload: ${path} should be ${expect}`,
+    contractEnum: (path, value) =>
+      `Received an invalid payload: the value ${value} at ${path} is out of range`,
+    untrustedSender: (sender) => `Untrusted IPC caller: ${sender}`,
+    linkProtocolUnsupported: 'Unsupported link protocol',
+    linkOutOfScope: 'The link target is outside the readable scope',
+    skillBadName: 'Invalid skill name',
+    skillStaleTarget: 'The target is a stale project (its directory no longer exists)',
+    skillMissingSource: (name) => `No such skill in the global library: ${name}`,
+    skillCopyMissing: 'The project-level copy does not exist',
+    skillConflict: 'The target already has a project-level skill with this name — nothing was overwritten',
+    skillCopyFailed: (detail) => `Copy failed and was cleaned up: ${detail}`,
+    skillDeleteFailed: (detail) => `Delete failed: ${detail}`
   },
 
   subagentError: {

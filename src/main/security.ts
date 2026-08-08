@@ -9,6 +9,7 @@
 //     此处一律 new URL() 比 origin。
 import { shell } from 'electron'
 import type { WebContents } from 'electron'
+import { ERR, appError } from '@shared/errors'
 
 /** 是否本 app 自身的地址(唯一放行导航的依据)。dev 传 ELECTRON_RENDERER_URL,prod 传 undefined */
 export function isAppUrl(url: string, appBase: string | undefined): boolean {
@@ -84,7 +85,7 @@ export function assertTrustedSender(
   appBase: string | undefined
 ): void {
   if (senderUrl === undefined || !isAppUrl(senderUrl, appBase)) {
-    throw new Error(`IPC 调用方不可信:${senderUrl ?? '(无 sender)'}`)
+    throw appError(ERR.untrustedSender, { sender: senderUrl ?? '' })
   }
 }
 

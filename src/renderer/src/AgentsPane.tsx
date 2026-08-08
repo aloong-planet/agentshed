@@ -7,6 +7,9 @@ import { GlobalMemoryTab } from './MemoryView'
 import { GlobalPluginsTab } from './PluginsView'
 import { toast } from './Toast'
 import { SkillExpandBlock } from './SkillExpandBlock'
+import { errorText } from '@shared/error-text'
+import { appError } from '@shared/errors'
+import { useLanguage } from './language'
 
 type Tab = 'token' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'cfg'
 
@@ -123,6 +126,7 @@ function SideCard({
 }
 
 function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
+  const lang = useLanguage()
   const [openFor, setOpenFor] = useState<string | null>(null)
   if (snap.global.skills.length === 0) return <Empty msg="两侧全局库均为空" />
   const targets = snap.projects
@@ -145,7 +149,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
         targetProjectPath: projectPath
       })
       if (r.ok) toast('ok', `已安装 ${skill.name} → ${project.name}(${side});仅局部刷新该项目`)
-      else toast('err', `${skill.name} → ${project.name}(${side}):${r.message}`)
+      else toast('err', `${skill.name} → ${project.name}(${side}):${errorText(lang, appError(r.reason, r.params))}`)
     }
   }
 

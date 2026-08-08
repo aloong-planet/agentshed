@@ -4,6 +4,7 @@ import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AgentSide } from '@shared/domain'
 import type { ScanRoots } from './types'
+import { ERR, type ErrorCode, type ErrorParams } from '@shared/errors'
 
 export interface InstallArgs {
   skillName: string
@@ -13,7 +14,9 @@ export interface InstallArgs {
 
 export type OpResult =
   | { ok: true }
-  | { ok: false; reason: 'conflict' | 'stale-target' | 'missing-source' | 'bad-name' | 'copy-failed'; message: string }
+  // 失败只带**码 + 参数**,不带成句 message:措辞由渲染层按当前语言生成(ADR-0015)。
+  // reason 早先就是语言无关的枚举,本次去掉与它并列的中文 message。
+  | { ok: false; reason: ErrorCode; params?: ErrorParams }
 
 /** skill 名只允许单段目录名(堵路径穿越) */
 function badName(name: string): boolean {
@@ -30,16 +33,16 @@ function globalSkillDir(roots: ScanRoots, side: AgentSide, name: string): string
 
 export function installSkill(roots: ScanRoots, args: InstallArgs): OpResult {
   const { skillName, side, targetProjectPath } = args
-  if (badName(skillName)) return { ok: false, reason: 'bad-name', message: '非法 skill 名' }
+  if (badName(skillName)) return { ok: false, reason: ERR.skillBadName }
   if (!existsSync(targetProjectPath))
-    return { ok: false, reason: 'stale-target', message: '目标是失效项目(目录不存在)' }
+    return { ok: false, reason: ERR.skillStaleTarget }
   const source = globalSkillDir(roots, side, skillName)
   if (!existsSync(join(source, 'SKILL.md')))
-    return { ok: false, reason: 'missing-source', message: `全局库无此 skill:${skillName}` }
+    return { ok: false, reason: ERR.skillMissingSource, params: { name: skillName } }
   const targetBase = projectSkillsDir(side, targetProjectPath)
   const target = join(targetBase, skillName)
   if (existsSync(target))
-    return { ok: false, reason: 'conflict', message: `目标已有同名项目级 skill,已阻止不覆盖` }
+    return { ok: false, reason: ERR.skillConflict }
 
   const tmp = join(targetBase, `.${skillName}.installing-${process.pid}`)
   try {
@@ -54,7 +57,7 @@ export function installSkill(roots: ScanRoots, args: InstallArgs): OpResult {
     } catch {
       // 清理失败不再连锁
     }
-    return { ok: false, reason: 'copy-failed', message: `复制失败已清理:${String(err)}` }
+    return { ok: false, reason: ERR.skillCopyFailed, params: { detail: String(err) } }
   }
 }
 
@@ -66,14 +69,14 @@ export interface UninstallArgs {
 
 export function uninstallSkill(args: UninstallArgs): OpResult {
   const { skillName, side, targetProjectPath } = args
-  if (badName(skillName)) return { ok: false, reason: 'bad-name', message: '非法 skill 名' }
+  if (badName(skillName)) return { ok: false, reason: ERR.skillBadName }
   const target = join(projectSkillsDir(side, targetProjectPath), skillName)
   if (!existsSync(target))
-    return { ok: false, reason: 'missing-source', message: '项目级副本不存在' }
+    return { ok: false, reason: ERR.skillCopyMissing }
   try {
     rmSync(target, { recursive: true, force: true })
     return { ok: true }
   } catch (err) {
-    return { ok: false, reason: 'copy-failed', message: `删除失败:${String(err)}` }
+    return { ok: false, reason: ERR.skillDeleteFailed, params: { detail: String(err) } }
   }
 }
