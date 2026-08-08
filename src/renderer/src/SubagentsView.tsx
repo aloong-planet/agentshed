@@ -15,12 +15,13 @@ import { ERR, appError } from '@shared/errors'
 import { errorText } from '@shared/error-text'
 
 export function GlobalSubagentsTab({ snap }: { snap: Snapshot }): JSX.Element {
+  const t = useDict()
   const [open, setOpen] = useState<SubagentEntry | null>(null)
   if (snap.global.subagents.length === 0)
-    return <div className="none">两侧均无 subagent 定义(~/.claude/agents 与 ~/.codex/agents)</div>
+    return <div className="none">{t.subagents.noneGlobal}</div>
   return (
     <div>
-      <div className="grp-t">双端合并单列 · 同名一行(不做内容 diff) · 点条目看完整定义</div>
+      <div className="grp-t">{t.subagents.globalHint}</div>
       <div className="card">
         {snap.global.subagents.map((s) => (
           <button className="it row-btn" key={s.name} onClick={() => setOpen(s)}>
@@ -30,7 +31,7 @@ export function GlobalSubagentsTab({ snap }: { snap: Snapshot }): JSX.Element {
               {s.sides.includes('codex') ? <span className="badge cx">CX</span> : <span className="badge miss">—</span>}
             </span>
             <SubagentFlags s={s} />
-            <span className="ds">{s.description ?? '(无 description)'}</span>
+            <span className="ds">{s.description ?? t.subagents.noDescription}</span>
           </button>
         ))}
       </div>
@@ -44,10 +45,10 @@ export function ProjectSubagentsTab({ detail }: { detail: ProjectDetail }): JSX.
   const t = useDict()
   const [open, setOpen] = useState<ProjectSubagentEntry | null>(null)
   if (detail.subagents.length === 0)
-    return <div className="none">项目级与全局层均无 subagent 定义</div>
+    return <div className="none">{t.subagents.noneProject}</div>
   return (
     <div>
-      <div className="grp-t">生效视图 · Claude/Codex 均为项目级遮蔽 · 点条目看完整定义</div>
+      <div className="grp-t">{t.subagents.projectHint}</div>
       <div className="card">
         {detail.subagents.map((s, i) => (
           <button
@@ -60,14 +61,14 @@ export function ProjectSubagentsTab({ detail }: { detail: ProjectDetail }): JSX.
               {s.side === 'claude' ? 'CC' : 'CX'}
             </span>
             <span className={`pill ${s.level === 'project' ? 'prj' : 'glb'}`}>
-              {s.level === 'project' ? '项目级' : '全局'}
+              {s.level === 'project' ? t.subagents.levelProject : t.subagents.levelGlobal}
             </span>
             {s.detail.error && (
               <span className="pill warn">{errLabel(s.detail.error, t)}</span>
             )}
-            {s.overridesBuiltin && <span className="pill warn">覆盖内置</span>}
-            {s.shadows && <span className="pill shadow">遮蔽同名</span>}
-            {s.shadowed && <span className="pill shadow">被项目级遮蔽</span>}
+            {s.overridesBuiltin && <span className="pill warn">{t.subagents.overridesBuiltin}</span>}
+            {s.shadows && <span className="pill shadow">{t.subagents.shadows}</span>}
+            {s.shadowed && <span className="pill shadow">{t.subagents.shadowed}</span>}
             <span className="ds">{s.description ?? ''}</span>
           </button>
         ))}
@@ -75,7 +76,7 @@ export function ProjectSubagentsTab({ detail }: { detail: ProjectDetail }): JSX.
       {open && (
         <SubagentDrawer
           entry={toDrawerEntry(open)}
-          meta={`${open.level === 'project' ? '项目级' : '全局'} · ${open.side === 'claude' ? 'Claude' : 'Codex'}${open.shadows ? ' · 压过同名低层定义' : ''}${open.shadowed ? ' · 被项目级定义遮蔽(未生效)' : ''}`}
+          meta={`${open.level === 'project' ? t.subagents.levelProject : t.subagents.levelGlobal} · ${open.side === 'claude' ? 'Claude' : 'Codex'}${open.shadows ? t.subagents.metaShadows : ''}${open.shadowed ? t.subagents.metaShadowed : ''}`}
           onClose={() => setOpen(null)}
         />
       )}
@@ -112,7 +113,7 @@ export function SubagentFlags({ s }: { s: { overridesBuiltin?: boolean; claude?:
   return (
     <>
       {err && <span className="pill warn">{errLabel(err, t)}</span>}
-      {s.overridesBuiltin && <span className="pill warn">覆盖内置</span>}
+      {s.overridesBuiltin && <span className="pill warn">{t.subagents.overridesBuiltin}</span>}
     </>
   )
 }
@@ -158,7 +159,7 @@ export function SubagentDrawer({
           </div>
         )}
         {cur === null ? (
-          <div className="none">该侧无定义</div>
+          <div className="none">{t.subagents.noSideDef}</div>
         ) : cur.error !== null ? (
           <div className="none">{t.subagentError.detail(errorText(lang, appError(cur.error.code, cur.error.params)))}</div>
         ) : (
@@ -169,7 +170,7 @@ export function SubagentDrawer({
                   <span className="k2">tools</span>
                   <span>{cur.tools ?? '—'}</span>
                   <span className="k2">model</span>
-                  <span>{cur.model ?? '—(继承)'}</span>
+                  <span>{cur.model ?? t.subagents.inherited}</span>
                 </>
               ) : (
                 <>

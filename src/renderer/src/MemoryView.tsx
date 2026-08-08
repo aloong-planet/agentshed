@@ -12,19 +12,20 @@ import { useLanguage, useDict } from './language'
 
 /** C6 三态:未开启 → 开启提示;开启无内容 → 暂无内容;有内容 → 条目行(在列表中) */
 function CodexMemoryNote({ snap }: { snap: Snapshot }): JSX.Element | null {
+  const t = useDict()
   const hasRow = snap.global.memory.some((m) => m.side === 'codex')
   if (hasRow) {
     return snap.global.codexMemoriesEnabled ? null : (
       <div className="none" style={{ textAlign: 'left', padding: '4px 2px' }}>
-        Codex 记忆功能当前未开启,上方为目录中的遗留文件。
+        {t.memory.codexLegacy}
       </div>
     )
   }
   return (
     <div className="none" style={{ textAlign: 'left', padding: '4px 2px' }}>
       {snap.global.codexMemoriesEnabled
-        ? 'Codex 记忆已开启,暂无内容。'
-        : 'Codex 记忆功能未开启——可在 Codex 内用 /memories 命令,或「设置 → 个性化 → Enable memories」开启(实验性)。'}
+        ? t.memory.codexEmpty
+        : t.memory.codexDisabled}
     </div>
   )
 }
@@ -37,7 +38,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
   if (snap.global.memory.length === 0)
     return (
       <div>
-        <div className="none">所有项目均无自动记忆</div>
+        <div className="none">{t.memory.noneGlobal}</div>
         <CodexMemoryNote snap={snap} />
       </div>
     )
@@ -51,7 +52,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
 
   return (
     <div>
-      <div className="grp-t">按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件看内容</div>
+      <div className="grp-t">{t.memory.globalHint}</div>
       <div className="card">
         {snap.global.memory.map((m) => {
           const key = `${m.side}-${m.projectPath ?? 'codex'}`
@@ -62,10 +63,15 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
               <span className={`badge ${m.side === 'claude' ? 'cl' : 'cx'}`}>
                 {m.side === 'claude' ? 'CC' : 'CX'}
               </span>
-              {m.stale && <span className="pill warn">失效</span>}
-              {m.hidden && <span className="pill off">已隐藏</span>}
+              {m.stale && <span className="pill warn">{t.memory.stale}</span>}
+              {m.hidden && <span className="pill off">{t.memory.hidden}</span>}
               <span className="ds">
-                {m.side === 'codex' ? '全局记忆目录' : m.hasMain ? 'MEMORY.md' : '无 MEMORY.md'} ·{' '}
+                {m.side === 'codex'
+                  ? t.memory.codexGlobalDir
+                  : m.hasMain
+                    ? 'MEMORY.md'
+                    : t.memory.noMainFile}{' '}
+                ·{' '}
                 {m.files.filter((f) => f.name !== 'MEMORY.md').length} topic
               </span>
               <span className="src mono">{fmtAgo(m.lastModified, snap.scannedAt)}</span>
@@ -129,16 +135,16 @@ export function ProjectMemoryTab({
     return (
       <div className="none">
         {hasClaudeSide
-          ? '该项目暂无自动记忆'
-          : 'Memory 为 Claude 侧机制(Codex 记忆是全局的,见全局页 Memory 分栏)'}
+          ? t.memory.noneProject
+          : t.memory.claudeOnly}
       </div>
     )
   }
   return (
     <div>
-      <div className="grp-t">MEMORY.md(自动记忆主文件)</div>
+      <div className="grp-t">{t.memory.mainTitle}</div>
       {html === null ? (
-        <div className="none">无 MEMORY.md(仅 topic 文件)</div>
+        <div className="none">{t.memory.noMain}</div>
       ) : (
         <div
           className="md"
@@ -158,9 +164,9 @@ export function ProjectMemoryTab({
           dangerouslySetInnerHTML={{ __html: html }}
         />
       )}
-      <div className="grp-t">Topic 文件({detail.memory.topics.length}) · 点击查看</div>
+      <div className="grp-t">{t.memory.topicsTitle(detail.memory.topics.length)}</div>
       {detail.memory.topics.length === 0 ? (
-        <div className="none">无 topic 文件</div>
+        <div className="none">{t.memory.noTopics}</div>
       ) : (
         <div className="card">
           {detail.memory.topics.map((t) => (
@@ -176,7 +182,7 @@ export function ProjectMemoryTab({
       {open && (
         <MemoryFileDrawer
           title={open.name}
-          meta={`topic 文件 · ${fmtAgo(open.mtimeMs, anchor)}`}
+          meta={t.memory.topicMeta(fmtAgo(open.mtimeMs, anchor))}
           file={open.file}
           onClose={() => setOpen(null)}
         />
@@ -197,6 +203,7 @@ export function MemoryFileDrawer({
   file: string
   onClose: () => void
 }): JSX.Element {
+  const lang = useLanguage()
   const t = useDict()
   const [content, setContent] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -215,7 +222,7 @@ export function MemoryFileDrawer({
         if (alive) setContent(raw.truncated ? `${raw.text}\n${t.placeholder.truncated}` : raw.text)
       })
       .catch((e: unknown) => {
-        if (alive) setErr(`文件不可读:${String(e)}`)
+        if (alive) setErr(t.memory.unreadable(errorText(lang, e)))
       })
     return () => {
       alive = false
@@ -230,7 +237,7 @@ export function MemoryFileDrawer({
         {err !== null ? (
           <div className="none">{err}</div>
         ) : content === null ? (
-          <div className="none">读取中…</div>
+          <div className="none">{t.memory.loading}</div>
         ) : (
           <div className="raw mono">{content}</div>
         )}

@@ -45,6 +45,70 @@ export const ru: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  skills: {
+    listFailed: (detail) => `Не удалось перечислить: ${detail}`,
+    pillPlugin: 'Плагин', pillProject: 'Проект', pillGlobal: 'Глобально', pillSymlink: '⤷ ссылка',
+    pkgSummary: (files, size) => `файлов: ${files} · ${size}`,
+    srcPluginPkg: 'Пакет плагина', srcProject: 'Проект', srcGlobal: 'Глобальная библиотека',
+    listing: 'Перечисление…',
+    deeperPaths: (paths) => `Более глубокие пути не перечислены: ${paths}`,
+    colFile: 'Файл', colLines: 'Строк', colSize: 'Размер', colMtime: 'Изменён',
+    noPreviewable: 'В пакете нет текстовых файлов для предпросмотра',
+    tagEntry: 'Точка входа', close: 'Закрыть', raw: 'Исходник', preview: 'Предпросмотр',
+    loading: 'Загрузка…', emptyFile: 'Пустой файл',
+    installMissing: 'Каталог установки отсутствует', pkgUnreadable: 'Пакет skill не читается'
+  },
+
+  subagents: {
+    noneGlobal: 'Определений subagent нет ни с одной стороны (~/.claude/agents и ~/.codex/agents)',
+    globalHint: 'Обе стороны в одном списке · одинаковые имена в одной строке (без diff содержимого) · нажмите для полного определения',
+    noDescription: '(нет description)',
+    noneProject: 'Определений subagent нет ни на уровне проекта, ни глобально',
+    projectHint: 'Действующий вид · на обеих сторонах уровень проекта перекрывает · нажмите для полного определения',
+    levelProject: 'Проект', levelGlobal: 'Глобально',
+    overridesBuiltin: 'Замещает встроенное', shadows: 'Перекрывает одноимённое', shadowed: 'Перекрыто уровнем проекта',
+    metaShadows: ' · перекрывает одноимённое определение нижнего уровня',
+    metaShadowed: ' · перекрыто определением уровня проекта (не действует)',
+    noSideDef: 'С этой стороны определения нет', inherited: '— (унаследовано)'
+  },
+
+  memory: {
+    codexLegacy: 'Память Codex сейчас отключена; выше — оставшиеся файлы в каталоге.',
+    codexEmpty: 'Память Codex включена, но пуста.',
+    codexDisabled: 'Память Codex отключена — включите её командой /memories внутри Codex либо через «Настройки → Персонализация → Enable memories» (экспериментально).',
+    noneGlobal: 'Ни в одном проекте нет автоматической памяти',
+    globalHint: 'По времени изменения, сначала новые · включая устаревшие и скрытые (со значком) · нажмите на строку, чтобы увидеть файлы, на файл — содержимое',
+    stale: 'Устарел', hidden: 'Скрыт',
+    codexGlobalDir: 'Каталог глобальной памяти', noMainFile: 'Нет MEMORY.md',
+    noneProject: 'В этом проекте пока нет автоматической памяти',
+    claudeOnly: 'Memory — механизм стороны Claude (память Codex глобальна, см. вкладку Memory на глобальной странице)',
+    mainTitle: 'MEMORY.md (главный файл автоматической памяти)',
+    noMain: 'Нет MEMORY.md (только файлы topic)',
+    topicsTitle: (n) => `Файлы topic (${n}) · нажмите, чтобы открыть`,
+    noTopics: 'Нет файлов topic',
+    topicMeta: (ago) => `файл topic · ${ago}`,
+    unreadable: (detail) => `Файл не читается: ${detail}`,
+    loading: 'Загрузка…'
+  },
+
+  plugins: {
+    projectMissing: '(проект потерян)',
+    installMissing: 'Каталог установки отсутствует (кэш очищен) — видна только запись реестра, вложенные компоненты прочитать нельзя',
+    noBundled: 'Ни одного из четырёх типов вложенных компонентов',
+    codexCacheEnum: 'перечисление кэша',
+    cachedVersions: (n) => `(версий в кэше: ${n})`,
+    cacheOnly: 'только перечисление кэша',
+    codexFoot: 'В группе Codex перечислены только плагины, присутствующие в кэше; семантики включения нет, вложенные skills можно предпросмотреть, но они не попадают во вкладку Skills',
+    codexFootDetail: '; плагины Codex действуют глобально, без семантики включения на уровне проекта',
+    claudeGlobalHint: 'Основание включения: слой user · нажмите, чтобы раскрыть вложенные компоненты',
+    noPlugins: 'Плагины не установлены',
+    enabled: 'Включён', notEnabled: 'Не включён',
+    claudeProjectHint: 'Основание включения: действующий набор этого проекта (local > project > user)',
+    enabledShort: 'Включён', disabledShort: 'Отключён',
+    noLayerMentions: 'Не упомянут ни в одном слое',
+    verdictFrom: (verdict, layer) => `${verdict} — решение принято на ${layer}`,
+    layerLocal: 'слое local', layerProject: 'слое project', layerUser: 'слое user'
+  },
   session: {
     forkPoints: (n) =>
       `В этой сессии **${n} точек ветвления**. Показанная цепочка построена от последнего сообщения к корню по родительским связям — то есть «как в итоге выглядит этот диалог»; заброшенные ветки не показаны.`,

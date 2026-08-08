@@ -44,6 +44,70 @@ export const es: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  skills: {
+    listFailed: (detail) => `Error al listar: ${detail}`,
+    pillPlugin: 'Plugin', pillProject: 'Proyecto', pillGlobal: 'Global', pillSymlink: '⤷ enlace',
+    pkgSummary: (files, size) => `${files} archivos · ${size}`,
+    srcPluginPkg: 'Paquete de plugin', srcProject: 'Proyecto', srcGlobal: 'Biblioteca global',
+    listing: 'Listando…',
+    deeperPaths: (paths) => `Rutas más profundas no listadas: ${paths}`,
+    colFile: 'Archivo', colLines: 'Líneas', colSize: 'Tamaño', colMtime: 'Modificado',
+    noPreviewable: 'No hay archivos de texto previsualizables en el paquete',
+    tagEntry: 'Entrada', close: 'Cerrar', raw: 'Original', preview: 'Vista previa',
+    loading: 'Cargando…', emptyFile: 'Archivo vacío',
+    installMissing: 'Falta el directorio de instalación', pkgUnreadable: 'Paquete de skill ilegible'
+  },
+
+  subagents: {
+    noneGlobal: 'No hay definiciones de subagent en ninguno de los dos lados (~/.claude/agents y ~/.codex/agents)',
+    globalHint: 'Ambos lados en una sola lista · mismo nombre en una fila (sin diff de contenido) · haz clic para ver la definición completa',
+    noDescription: '(sin description)',
+    noneProject: 'No hay definiciones de subagent ni de proyecto ni globales',
+    projectHint: 'Vista efectiva · en ambos lados el nivel de proyecto tapa · haz clic para ver la definición completa',
+    levelProject: 'Proyecto', levelGlobal: 'Global',
+    overridesBuiltin: 'Sustituye al integrado', shadows: 'Tapa el mismo nombre', shadowed: 'Tapado por el nivel de proyecto',
+    metaShadows: ' · prevalece sobre una definición de nivel inferior con el mismo nombre',
+    metaShadowed: ' · tapado por una definición de nivel de proyecto (sin efecto)',
+    noSideDef: 'Sin definición en este lado', inherited: '— (heredado)'
+  },
+
+  memory: {
+    codexLegacy: 'La memoria de Codex está desactivada; lo de arriba son archivos residuales del directorio.',
+    codexEmpty: 'La memoria de Codex está activada pero vacía.',
+    codexDisabled: 'La memoria de Codex está desactivada: actívala con el comando /memories dentro de Codex, o en Ajustes → Personalización → Enable memories (experimental).',
+    noneGlobal: 'Ningún proyecto tiene memoria automática',
+    globalHint: 'Por modificación más reciente · incluye obsoletos/ocultos (con distintivo) · haz clic en una fila para sus archivos y en un archivo para su contenido',
+    stale: 'Obsoleto', hidden: 'Oculto',
+    codexGlobalDir: 'Directorio de memoria global', noMainFile: 'Sin MEMORY.md',
+    noneProject: 'Este proyecto aún no tiene memoria automática',
+    claudeOnly: 'Memory es un mecanismo del lado Claude (la memoria de Codex es global: mira la pestaña Memory de la página global)',
+    mainTitle: 'MEMORY.md (archivo principal de memoria automática)',
+    noMain: 'Sin MEMORY.md (solo archivos topic)',
+    topicsTitle: (n) => `Archivos topic (${n}) · haz clic para ver`,
+    noTopics: 'Sin archivos topic',
+    topicMeta: (ago) => `archivo topic · ${ago}`,
+    unreadable: (detail) => `No se puede leer el archivo: ${detail}`,
+    loading: 'Cargando…'
+  },
+
+  plugins: {
+    projectMissing: '(proyecto perdido)',
+    installMissing: 'Falta el directorio de instalación (caché limpiada): solo se ve el registro; los componentes incluidos no se pueden leer',
+    noBundled: 'Ninguno de los cuatro tipos de componentes incluidos',
+    codexCacheEnum: 'enumeración de caché',
+    cachedVersions: (n) => `(${n} versiones en caché)`,
+    cacheOnly: 'solo enumeración de caché',
+    codexFoot: 'El grupo Codex solo lista los plugins presentes en la caché; no hay semántica de activación, y los skills incluidos se pueden previsualizar pero no se fusionan en la pestaña Skills',
+    codexFootDetail: '; los plugins de Codex son de efecto global, sin semántica de activación por proyecto',
+    claudeGlobalHint: 'Criterio de activación: capa user · haz clic para desplegar los componentes incluidos',
+    noPlugins: 'No hay ningún plugin instalado',
+    enabled: 'Habilitado', notEnabled: 'No habilitado',
+    claudeProjectHint: 'Criterio de activación: conjunto efectivo de este proyecto (local > project > user)',
+    enabledShort: 'Habilitado', disabledShort: 'Deshabilitado',
+    noLayerMentions: 'No se menciona en ninguna capa',
+    verdictFrom: (verdict, layer) => `${verdict}: decidido por la ${layer}`,
+    layerLocal: 'capa local', layerProject: 'capa project', layerUser: 'capa user'
+  },
   session: {
     forkPoints: (n) =>
       `Esta sesión tiene **${n} puntos de bifurcación**. La cadena mostrada se traza desde el último mensaje hacia la raíz siguiendo los enlaces al padre, es decir «cómo queda finalmente esta conversación»; las ramas abandonadas no se muestran.`,

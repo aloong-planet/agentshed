@@ -43,7 +43,7 @@ export function SkillFilesTable({
   if (loading) {
     return (
       <div className="files">
-        <div className="empty">列举中…</div>
+        <div className="empty">{t.skills.listing}</div>
       </div>
     )
   }
@@ -63,20 +63,20 @@ export function SkillFilesTable({
           {listing.deepPaths.length > 0 && (
             <>
               <br />
-              <span style={{ opacity: 0.85 }}>更深路径未列入: {listing.deepPaths.join(', ')}</span>
+              <span style={{ opacity: 0.85 }}>{t.skills.deeperPaths(listing.deepPaths.join(', '))}</span>
             </>
           )}
         </div>
       )}
       <div className="files-card">
         <div className="files-head">
-          <span>文件</span>
-          <span>行数</span>
-          <span>大小</span>
-          <span>修改日期</span>
+          <span>{t.skills.colFile}</span>
+          <span>{t.skills.colLines}</span>
+          <span>{t.skills.colSize}</span>
+          <span>{t.skills.colMtime}</span>
         </div>
         <div className="files">
-          {listing.files.length === 0 && <div className="empty">包内无可预览文本文件</div>}
+          {listing.files.length === 0 && <div className="empty">{t.skills.noPreviewable}</div>}
           {listing.files.map((f) => {
             const { label, kind } = extKind(f.path)
             return (
@@ -86,7 +86,7 @@ export function SkillFilesTable({
                   <span className="path mono" title={f.path}>
                     {f.path}
                   </span>
-                  {f.path === 'SKILL.md' && <span className="tag">入口</span>}
+                  {f.path === 'SKILL.md' && <span className="tag">{t.skills.tagEntry}</span>}
                 </span>
                 <span className="meta lines">{f.lines.toLocaleString('zh-CN')}</span>
                 <span className="meta">{formatSize(f.bytes)}</span>

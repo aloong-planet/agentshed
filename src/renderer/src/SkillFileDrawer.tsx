@@ -58,7 +58,7 @@ export function SkillFileDrawer({
     <>
       <div className="mask" onClick={onClose} />
       <div className="drawer skill-drawer">
-        <button type="button" className="drawer-close" onClick={onClose} title="关闭">
+        <button type="button" className="drawer-close" onClick={onClose} title={dict.skills.close}>
           ×
         </button>
         <div className="d-top">
@@ -78,22 +78,22 @@ export function SkillFileDrawer({
                     className={mode === 'raw' ? 'on' : ''}
                     onClick={() => setMode('raw')}
                   >
-                    原文
+                    {dict.skills.raw}
                   </button>
                   <button
                     type="button"
                     className={mode === 'preview' ? 'on' : ''}
                     onClick={() => setMode('preview')}
                   >
-                    预览
+                    {dict.skills.preview}
                   </button>
                 </div>
               )}
             </div>
             <div className={`md-preview-body ${showPreview ? 'preview' : 'raw'}`}>
               {err && <div className="md-preview-empty">{err}</div>}
-              {!err && text === null && <div className="md-preview-empty">加载中…</div>}
-              {!err && text === '' && <div className="md-preview-empty">空文件</div>}
+              {!err && text === null && <div className="md-preview-empty">{dict.skills.loading}</div>}
+              {!err && text === '' && <div className="md-preview-empty">{dict.skills.emptyFile}</div>}
               {!err && text !== null && text !== '' && showPreview && (
                 <div dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }} />
               )}
