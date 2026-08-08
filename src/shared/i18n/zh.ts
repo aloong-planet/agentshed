@@ -59,6 +59,45 @@ export const zh = {
   /** Codex config.toml 摘要:主进程只传字段,这里组装成句(票 07) */
   codexConfig: (model: string, projects: number, mcp: number) =>
     `model = ${model}\nprojects: ${projects} 条\nmcp_servers: ${mcp} 段`,
+  /** Agents 全局页与应用外壳(票 11) */
+  agents: {
+    sideSummary: (projects: number, skills: number, subagents: number) =>
+      `${projects} 项目 · ${skills} 全局 skills · ${subagents} subagents`,
+    tabCfg: '配置',
+    notDetected: '本机未检测到 Claude Code 或 Codex 的数据目录',
+    notDetectedHint: '安装并使用任一 agent 后,点 rail 底部 ↻ 刷新即可看到全景',
+    totalsNote: '含已隐藏/失效项目',
+    archivedNote: (days: number, earliest: string) =>
+      `其中 ${days} 天(最早 ${earliest})源会话文件已被 agent 自动清理,数值来自本地归档(斜纹柱)`,
+    byModel: '按模型拆分(跨项目;Codex 侧为会话主模型近似)',
+    detected: '已检测',
+    undetected: '未检测到',
+    emptyGlobalLib: '两侧全局库均为空',
+    sideMismatch: (project: string) => `${project} 不属于该 skill 所在的 agent 侧`,
+    installed: (skill: string, project: string, side: string) =>
+      `已安装 ${skill} → ${project}(${side});仅局部刷新该项目`,
+    skillsHint: '合并单列 · 点行展开包内文件 · 点文件预览 · 无跨侧 diff · 插件只读',
+    levelPluginPkg: '插件包',
+    levelGlobalLib: '全局库',
+    installTo: '安装到…',
+    pickTarget: '选择目标项目(复制落地;失效项目已排除)',
+    srcGlobalConfig: '全局配置',
+    srcPlugin: 'plugin 自带',
+    globalMcp: '全局 MCP',
+    noGlobalMcp: '无全局 MCP(项目级 .mcp.json 的归属在项目详情)',
+    noMcpSection: 'config.toml 无 mcp_servers 段',
+    cfgClaudeMd: '全局 CLAUDE.md',
+    cfgAgentsMd: '全局 AGENTS.md',
+    cfgToml: 'config.toml 摘要',
+    tomlMissing: 'config.toml 不存在',
+    fileMissing: '文件不存在'
+  },
+
+  /** 应用外壳(票 11) */
+  shell: {
+    pickProject: '选择一个项目查看详情',
+    scanning: '正在扫描 Claude Code / Codex…(扫描完成前不显示空列表)'
+  },
   /** Skills 包预览与文件抽屉(票 10) */
   skills: {
     listFailed: (detail: string) => `列举失败:${detail}`,
