@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import type { TurnBlock } from '@shared/domain'
 import { useDict } from './language'
+import { RichText } from './RichText'
 
 function firstLine(s: string, max = 72): string {
   const t = s.split('\n')[0].trim()
@@ -45,16 +46,15 @@ export function BlockView({ b }: { b: TurnBlock }): JSX.Element {
       return <div className="ans">{b.body}</div>
     case 'think':
       return (
-        <Fold cls="think" icon="💭" nm="思考" sum={`${[...b.body].length} 字 · 明文可得`}>
+        <Fold cls="think" icon="💭" nm={t.turn.thinking} sum={t.turn.thinkingSum([...b.body].length)}>
           <div className="tk">{b.body}</div>
         </Fold>
       )
     case 'reason':
       return (
-        <Fold cls="think" icon="💭" nm="推理" sum={`仅 ${b.titles.length} 条小标题 · 正文不可得`}>
+        <Fold cls="think" icon="💭" nm={t.turn.reasoning} sum={t.turn.reasoningSum(b.titles.length)}>
           <div className="warn">
-            Codex 的推理正文是 <code>encrypted_content</code>,<b>永远拿不到</b>
-            。下面是记录里仅有的明文小标题——与 Claude 侧的明文思考<b>不对等</b>,不假装一致。
+            <RichText text={t.turn.reasoningNote} />
           </div>
           {b.titles.map((t, i) => (
             <div className="rt" key={i}>
@@ -66,14 +66,13 @@ export function BlockView({ b }: { b: TurnBlock }): JSX.Element {
     case 'tool':
       return (
         <Fold cls="" icon="🔧" nm={b.name ?? t.placeholder.unknownTool} sum={b.summary}>
-          <div className="lb">入参</div>
-          <pre>{b.input || '(空)'}</pre>
-          <div className="lb">返回</div>
-          {b.output === null ? <div className="mnote">(无返回记录)</div> : <pre>{b.output}</pre>}
+          <div className="lb">{t.turn.input}</div>
+          <pre>{b.input || t.turn.empty}</pre>
+          <div className="lb">{t.turn.output}</div>
+          {b.output === null ? <div className="mnote">{t.turn.noOutput}</div> : <pre>{b.output}</pre>}
           {b.truncated && (
             <div className="warn">
-              返回超过 agent 的单条上限,transcript 里<b>只存了截断版</b>;原文旁挂在{' '}
-              <code>tool-results/</code> 下(路径见上文),本产品不读它——这里展示的就是截断版,不谎称完整。
+              <RichText text={t.turn.truncatedNote} />
             </div>
           )}
         </Fold>
@@ -84,13 +83,13 @@ export function BlockView({ b }: { b: TurnBlock }): JSX.Element {
           cls="sub"
           icon="🤖"
           nm={`subagent · ${b.name}`}
-          sum={b.result !== null ? firstLine(b.result) : `${b.steps.length} 步 · 未返回`}
+          sum={b.result !== null ? firstLine(b.result) : t.turn.subSteps(b.steps.length)}
         >
-          <div className="lb">派发 prompt</div>
-          <pre>{b.prompt || '(空)'}</pre>
+          <div className="lb">{t.turn.dispatchPrompt}</div>
+          <pre>{b.prompt || t.turn.empty}</pre>
           {b.steps.length > 0 ? (
             <>
-              <div className="lb">内部步骤</div>
+              <div className="lb">{t.turn.innerSteps}</div>
               {b.steps.map((s, i) => (
                 <div className="step" key={i}>
                   <span className="sn">{i + 1}</span>
@@ -100,19 +99,17 @@ export function BlockView({ b }: { b: TurnBlock }): JSX.Element {
             </>
           ) : (
             <div className="warn">
-              这次派发的内部步骤在记录中<b>没有稳定引用链</b>可归位到此处(两侧实测皆然)
-              ——未展示,不做猜测性配对;完整转写在其独立文件中(如有)。
+              <RichText text={t.turn.unlinkedNote} />
             </div>
           )}
-          <div className="lb">返回主会话</div>
-          {b.result === null ? <div className="mnote">(未返回)</div> : <pre>{b.result}</pre>}
+          <div className="lb">{t.turn.backToMain}</div>
+          {b.result === null ? <div className="mnote">{t.turn.noReturn}</div> : <pre>{b.result}</pre>}
         </Fold>
       )
     case 'unknown':
       return (
         <div className="unknown">
-          ▧ 本轮有 <b>{b.count} 条未识别记录</b>(类型:{b.types.join('、')}
-          )——原样保留在源文件中,未渲染。这通常意味着 agent 更新引入了新记录类型。
+          <RichText text={t.turn.unknownRecords(b.count, b.types.join(t.turn.typeSeparator))} />
         </div>
       )
   }

@@ -59,6 +59,62 @@ export const zh = {
   /** Codex config.toml 摘要:主进程只传字段,这里组装成句(票 07) */
   codexConfig: (model: string, projects: number, mcp: number) =>
     `model = ${model}\nprojects: ${projects} 条\nmcp_servers: ${mcp} 段`,
+  /** 会话页与轮内块(票 09)。带 ** 与 ` 的是富文本标记,见 RichText */
+  session: {
+    forkPoints: (n: number) =>
+      `本会话有 **${n} 处分叉**。已按最后一条消息沿父链回溯到根渲染这一条链——即「这次对话最终长什么样」;被放弃的分支不显示。`,
+    forkedFrom: '本会话 fork 自',
+    anotherSession: '另一会话',
+    forkedFromTail: '——重放前缀已剥离,下面只展示本次 fork 之后的新内容。**更早的历史见该会话**。',
+    stripUncertainOrphan:
+      '**重放前缀剥离不确定**:本会话 fork 自一个**不在扫描集内**的父会话(父文件已被清理,或属未注册项目),只能按启发式剥离——**可能多剥(丢消息)或少剥(重复)**,请对照原文核对。不静默剥错是这里唯一能给的保证。',
+    stripUncertainMismatch: (parent: string) =>
+      `**重放前缀剥离不确定**:重放段与父会话《${parent}》没有逐条对上(父日志可能被重写),只剥掉了**能通过校验的部分**——开头可能与父会话重复或缺失,请对照原文核对。`,
+    fetching: '取回中…',
+    rebuilding: '索引签名不符(文件被追加或重写)→ 正在**只重建该文件**的索引…',
+    turnFailed: (detail: string) => `这一轮取不回来:${detail}`,
+    fetchedNote: (ms: number, bytes: string) =>
+      `⚡ 按需取回 ${ms} ms · 只读本轮区间 ${bytes},与文件总大小无关`,
+    back: (project: string) => `‹ 返回 ${project} · 会话`,
+    headMeta: (side: string, questions: number, tok: string, mb: string, ago: string) =>
+      `${side} · ${questions} 提问 · ${tok} tok · ${mb} · 最后活动 ${ago}`,
+    cannotOpen: (detail: string) => `会话打不开:${detail}`,
+    loading: '读取中…',
+    mainline: (n: number, days: string) => `提问(主干)· ${n} 条${days}`,
+    dayCount: (n: number) => ` · ${n} 天`,
+    expandAll: '全部展开',
+    collapseAll: '全部收起',
+    ascending: '正序',
+    descending: '倒序',
+    dayGroup: (day: string, n: number) => `${day} · ${n} 条`,
+    foot: '主干只列人类提问,harness 噪声不进渲染;提问一次列全(文本按字节区间现读,与文件大小无关)。点提问就地展开整轮:正文、工具调用、subagent 派发与推理块。'
+  },
+
+  /** 轮内块(票 09) */
+  turn: {
+    typeSeparator: '、',
+    thinking: '思考',
+    thinkingSum: (chars: number) => `${chars} 字 · 明文可得`,
+    reasoning: '推理',
+    reasoningSum: (n: number) => `仅 ${n} 条小标题 · 正文不可得`,
+    reasoningNote:
+      'Codex 的推理正文是 `encrypted_content`,**永远拿不到**。下面是记录里仅有的明文小标题——与 Claude 侧的明文思考**不对等**,不假装一致。',
+    input: '入参',
+    output: '返回',
+    empty: '(空)',
+    noOutput: '(无返回记录)',
+    truncatedNote:
+      '返回超过 agent 的单条上限,transcript 里**只存了截断版**;原文旁挂在 `tool-results/` 下(路径见上文),本产品不读它——这里展示的就是截断版,不谎称完整。',
+    subSteps: (n: number) => `${n} 步 · 未返回`,
+    dispatchPrompt: '派发 prompt',
+    innerSteps: '内部步骤',
+    unlinkedNote:
+      '这次派发的内部步骤在记录中**没有稳定引用链**可归位到此处(两侧实测皆然)——未展示,不做猜测性配对;完整转写在其独立文件中(如有)。',
+    backToMain: '返回主会话',
+    noReturn: '(未返回)',
+    unknownRecords: (count: number, types: string) =>
+      `▧ 本轮有 **${count} 条未识别记录**(类型:${types})——原样保留在源文件中,未渲染。这通常意味着 agent 更新引入了新记录类型。`
+  },
   /** 项目详情各分栏(票 08) */
   detail: {
     notInSnapshot: '项目不在快照中(刷新后重试)',

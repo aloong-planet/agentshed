@@ -9,7 +9,8 @@ import { fmtTok } from './TokenViz'
 import { dayGroups, groupable, type QuestionOrder } from './question-groups'
 import { BlockView } from './TurnBlocks'
 import { errorText } from '@shared/error-text'
-import { useLanguage } from './language'
+import { useDict, useLanguage } from './language'
+import { RichText } from './RichText'
 
 function fmtMB(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -47,13 +48,13 @@ function Banners({
   page: SessionPage
   onOpenSession?: (file: string) => void
 }): JSX.Element | null {
+  const t = useDict()
   if (page.side === 'claude' && page.forkPoints > 0) {
     return (
       <div className="banner info">
         <span className="bi">⑂</span>
         <span>
-          本会话有 <b>{page.forkPoints} 处分叉</b>
-          。已按最后一条消息沿父链回溯到根渲染这一条链——即「这次对话最终长什么样」;被放弃的分支不显示。
+          <RichText text={t.session.forkPoints(page.forkPoints)} />
         </span>
       </div>
     )
@@ -63,15 +64,15 @@ function Banners({
       <div className="banner info">
         <span className="bi">⑂</span>
         <span>
-          本会话 fork 自{' '}
+          {t.session.forkedFrom}{' '}
           {page.forkParentFile !== null && onOpenSession ? (
             <a onClick={() => onOpenSession(page.forkParentFile as string)}>
-              《{page.forkParentTitle ?? '另一会话'}》
+              《{page.forkParentTitle ?? t.session.anotherSession}》
             </a>
           ) : (
-            <>《{page.forkParentTitle ?? '另一会话'}》</>
+            <>《{page.forkParentTitle ?? t.session.anotherSession}》</>
           )}
-          ——重放前缀已剥离,下面只展示本次 fork 之后的新内容。<b>更早的历史见该会话</b>。
+          <RichText text={t.session.forkedFromTail} />
         </span>
       </div>
     )
@@ -82,15 +83,15 @@ function Banners({
         <span className="bi">⑂?</span>
         {page.forkParentFile === null ? (
           <span>
-            <b>重放前缀剥离不确定</b>:本会话 fork 自一个<b>不在扫描集内</b>
-            的父会话(父文件已被清理,或属未注册项目),只能按启发式剥离——
-            <b>可能多剥(丢消息)或少剥(重复)</b>,请对照原文核对。不静默剥错是这里唯一能给的保证。
+            <RichText text={t.session.stripUncertainOrphan} />
           </span>
         ) : (
           <span>
-            <b>重放前缀剥离不确定</b>:重放段与父会话《{page.forkParentTitle ?? '另一会话'}
-            》没有逐条对上(父日志可能被重写),只剥掉了<b>能通过校验的部分</b>——
-            开头可能与父会话重复或缺失,请对照原文核对。
+            <RichText
+              text={t.session.stripUncertainMismatch(
+                page.forkParentTitle ?? t.session.anotherSession
+              )}
+            />
           </span>
         )}
       </div>
@@ -117,6 +118,7 @@ export function SessionPane({
   /** 横幅里的父会话跳转(App 层换会话);不传则父标题为纯文本 */
   onOpenSession?: (file: string) => void
 }): JSX.Element {
+  const t = useDict()
   const lang = useLanguage()
   const [page, setPage] = useState<SessionPage | null>(null)
   // 同上:存原始错误,渲染时才成句
@@ -239,14 +241,14 @@ export function SessionPane({
         </div>
         {on && (
           <div className="turn">
-            {(!st || st.s === 'loading') && <div className="tnote">取回中…</div>}
+            {(!st || st.s === 'loading') && <div className="tnote">{t.session.fetching}</div>}
             {st?.s === 'rebuilding' && (
               <div className="tnote">
-                索引签名不符(文件被追加或重写)→ 正在<b>只重建该文件</b>的索引…
+                <RichText text={t.session.rebuilding} />
               </div>
             )}
             {st?.s === 'error' && (
-              <div className="tnote">这一轮取不回来:{errorText(lang, st.raw)}</div>
+              <div className="tnote">{t.session.turnFailed(errorText(lang, st.raw))}</div>
             )}
             {st?.s === 'ready' && (
               <>
@@ -254,8 +256,7 @@ export function SessionPane({
                   <BlockView b={b} key={bi} />
                 ))}
                 <div className="fetched">
-                  ⚡ 按需取回 {st.ms} ms · 只读本轮区间 {fmtBytes(st.turn.bytesRead)}
-                  ,与文件总大小无关
+                  {t.session.fetchedNote(st.ms, fmtBytes(st.turn.bytesRead))}
                 </div>
               </>
             )}
@@ -272,7 +273,7 @@ export function SessionPane({
     <div className="pane">
       <header className="pane-head">
         <button className="sback" onClick={onBack}>
-          ‹ 返回 {projectName} · 会话
+          {t.session.back(projectName)}
         </button>
         {page && (
           <>
@@ -283,23 +284,31 @@ export function SessionPane({
               <h1 className="stitle">{page.title}</h1>
             </div>
             <div className="smeta">
-              {page.side === 'claude' ? 'Claude Code' : 'Codex'} · {page.questions.length} 提问 ·{' '}
-              {fmtTok(page.tokens)} tok · {fmtMB(page.bytes)} · 最后活动 {fmtAgo(page.at, now)}
+              {t.session.headMeta(
+                page.side === 'claude' ? 'Claude Code' : 'Codex',
+                page.questions.length,
+                fmtTok(page.tokens),
+                fmtMB(page.bytes),
+                fmtAgo(page.at, now)
+              )}
             </div>
           </>
         )}
       </header>
       <div className="pane-body">
         {err !== null ? (
-          <div className="none">会话打不开:{errorText(lang, err.raw)}</div>
+          <div className="none">{t.session.cannotOpen(errorText(lang, err.raw))}</div>
         ) : page === null ? (
-          <div className="none">读取中…</div>
+          <div className="none">{t.session.loading}</div>
         ) : (
           <>
             <Banners page={page} onOpenSession={onOpenSession} />
             <div className="qbar">
               <span className="grp-t">
-                提问(主干)· {page.questions.length} 条{grouped ? ` · ${groups.length} 天` : ''}
+                {t.session.mainline(
+                  page.questions.length,
+                  grouped ? t.session.dayCount(groups.length) : ''
+                )}
               </span>
               <span className="qctl">
                 {grouped && (
@@ -313,15 +322,15 @@ export function SessionPane({
                       )
                     }
                   >
-                    {folded.size === groups.length ? '全部展开' : '全部收起'}
+                    {folded.size === groups.length ? t.session.expandAll : t.session.collapseAll}
                   </span>
                 )}
                 <span className="seg">
                   <button className={order === 'asc' ? 'on' : ''} onClick={() => setOrder('asc')}>
-                    正序
+                    {t.session.ascending}
                   </button>
                   <button className={order === 'desc' ? 'on' : ''} onClick={() => setOrder('desc')}>
-                    倒序
+                    {t.session.descending}
                   </button>
                 </span>
               </span>
@@ -344,7 +353,7 @@ export function SessionPane({
                           }
                         >
                           <i className="cv" />
-                          {g.day} · {g.items.length} 条
+                          {t.session.dayGroup(g.day, g.items.length)}
                         </div>
                         {/* 折叠只藏呈现:展开/取回状态原样保留,重开该天仍是展开的 */}
                         {!isFolded && g.items.map(({ q, idx }) => row(q, idx))}
@@ -357,8 +366,7 @@ export function SessionPane({
                   ).map(({ q, idx }) => row(q, idx))}
             </div>
             <div className="note">
-              主干只列人类提问,harness 噪声不进渲染;提问一次列全(文本按字节区间现读,
-              与文件大小无关)。点提问就地展开整轮:正文、工具调用、subagent 派发与推理块。
+              {t.session.foot}
             </div>
           </>
         )}

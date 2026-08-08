@@ -44,6 +44,60 @@ export const en: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  session: {
+    forkPoints: (n) =>
+      `This session has **${n} fork points**. The chain shown is traced from the last message back along the parent links to the root — i.e. "what this conversation finally looks like"; abandoned branches are not shown.`,
+    forkedFrom: 'This session was forked from',
+    anotherSession: 'another session',
+    forkedFromTail: '— the replayed prefix has been stripped, so only what follows this fork is shown below. **See that session for the earlier history**.',
+    stripUncertainOrphan:
+      '**Uncertain prefix stripping**: this session was forked from a parent **outside the scan set** (its file was cleaned up, or it belongs to an unregistered project), so stripping could only be heuristic — **it may have stripped too much (losing messages) or too little (duplicates)**. Please check against the original. Not failing silently is the only guarantee available here.',
+    stripUncertainMismatch: (parent) =>
+      `**Uncertain prefix stripping**: the replayed segment does not line up entry by entry with the parent session “${parent}” (the parent log may have been rewritten), so only **the part that passes verification** was stripped — the beginning may duplicate the parent or be missing. Please check against the original.`,
+    fetching: 'Fetching…',
+    rebuilding: 'Index signature mismatch (the file was appended to or rewritten) → rebuilding the index for **this file only**…',
+    turnFailed: (detail) => `This turn could not be fetched: ${detail}`,
+    fetchedNote: (ms, bytes) =>
+      `⚡ Fetched on demand in ${ms} ms · read only this turn’s byte range, ${bytes} — independent of total file size`,
+    back: (project) => `‹ Back to ${project} · Sessions`,
+    headMeta: (side, questions, tok, mb, ago) =>
+      `${side} · ${questions} questions · ${tok} tok · ${mb} · last active ${ago}`,
+    cannotOpen: (detail) => `Cannot open this session: ${detail}`,
+    loading: 'Loading…',
+    mainline: (n, days) => `Questions (main line) · ${n}${days}`,
+    dayCount: (n) => ` · ${n} days`,
+    expandAll: 'Expand all',
+    collapseAll: 'Collapse all',
+    ascending: 'Oldest first',
+    descending: 'Newest first',
+    dayGroup: (day, n) => `${day} · ${n}`,
+    foot: 'The main line lists only human questions; harness noise is not rendered. All questions are listed at once (their text is read by byte range on demand, independent of file size). Click a question to expand the whole turn in place: body, tool calls, subagent dispatches and reasoning blocks.'
+  },
+
+  turn: {
+    typeSeparator: ', ',
+    thinking: 'Thinking',
+    thinkingSum: (chars) => `${chars} chars · plain text available`,
+    reasoning: 'Reasoning',
+    reasoningSum: (n) => `only ${n} headings · body unavailable`,
+    reasoningNote:
+      'Codex reasoning bodies are `encrypted_content` and are **never obtainable**. Below are the only plain-text headings in the record — **not equivalent** to Claude’s plain-text thinking, and not pretended to be.',
+    input: 'Input',
+    output: 'Output',
+    empty: '(empty)',
+    noOutput: '(no output recorded)',
+    truncatedNote:
+      'The output exceeded the agent’s per-entry cap, so the transcript **only stored a truncated version**; the original sits alongside under `tool-results/` (path shown above) and this product does not read it — what you see here is the truncated version, not claimed to be complete.',
+    subSteps: (n) => `${n} steps · no result`,
+    dispatchPrompt: 'Dispatch prompt',
+    innerSteps: 'Inner steps',
+    unlinkedNote:
+      'The inner steps of this dispatch have **no stable reference chain** in the record that would place them here (measured on both sides) — they are not shown, and no speculative pairing is made; the full transcript is in its own file, if any.',
+    backToMain: 'Back to main session',
+    noReturn: '(no result)',
+    unknownRecords: (count, types) =>
+      `▧ This turn contains **${count} unrecognised records** (types: ${types}) — kept as-is in the source file, not rendered. This usually means an agent update introduced a new record type.`
+  },
   detail: {
     notInSnapshot: 'This project is not in the snapshot (refresh and try again)',
     staleTag: 'Stale',

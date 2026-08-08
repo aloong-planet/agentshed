@@ -44,6 +44,60 @@ export const ja: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects：${projects}\nmcp_servers：${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  session: {
+    forkPoints: (n) =>
+      `このセッションには **${n} 箇所の分岐**があります。最後のメッセージから親リンクをたどってルートまで遡った 1 本の鎖を表示しています —— つまり「この対話が最終的にどうなったか」です。破棄された分岐は表示しません。`,
+    forkedFrom: 'このセッションの fork 元:',
+    anotherSession: '別のセッション',
+    forkedFromTail: '—— リプレイ部分は除去済みで、以下はこの fork 以降の新しい内容のみです。**それ以前の履歴はそのセッションを参照してください**。',
+    stripUncertainOrphan:
+      '**リプレイ除去に不確かさがあります**:このセッションは**スキャン対象外**の親から fork されており（親ファイルが削除済み、または未登録プロジェクト）、ヒューリスティックにしか除去できません —— **除去しすぎ（メッセージの欠落）や除去不足（重複）の可能性があります**。原文と照合してください。黙って誤らないことが、ここで保証できる唯一のことです。',
+    stripUncertainMismatch: (parent) =>
+      `**リプレイ除去に不確かさがあります**:リプレイ部分が親セッション『${parent}』と 1 件ずつ一致しません（親ログが書き換えられた可能性）。**検証を通った部分**のみ除去したため、冒頭が親と重複しているか欠けている可能性があります。原文と照合してください。`,
+    fetching: '取得中…',
+    rebuilding: 'インデックスの署名が不一致（ファイルが追記または書き換え）→ **このファイルのみ**インデックスを再構築中…',
+    turnFailed: (detail) => `このターンを取得できませんでした：${detail}`,
+    fetchedNote: (ms, bytes) =>
+      `⚡ オンデマンド取得 ${ms} ms · このターンのバイト範囲 ${bytes} のみ読み取り（ファイル全体のサイズとは無関係）`,
+    back: (project) => `‹ ${project} に戻る · セッション`,
+    headMeta: (side, questions, tok, mb, ago) =>
+      `${side} · ${questions} 質問 · ${tok} tok · ${mb} · 最終アクティビティ ${ago}`,
+    cannotOpen: (detail) => `セッションを開けません：${detail}`,
+    loading: '読み込み中…',
+    mainline: (n, days) => `質問（主系列）· ${n} 件${days}`,
+    dayCount: (n) => ` · ${n} 日`,
+    expandAll: 'すべて展開',
+    collapseAll: 'すべて折りたたみ',
+    ascending: '昇順',
+    descending: '降順',
+    dayGroup: (day, n) => `${day} · ${n} 件`,
+    foot: '主系列には人間の質問のみを載せ、harness のノイズは描画しません。質問は一度にすべて列挙します（本文はバイト範囲でオンデマンドに読むため、ファイルサイズとは無関係です）。質問をクリックするとその場でターン全体を展開します:本文、ツール呼び出し、subagent への委譲、推論ブロック。'
+  },
+
+  turn: {
+    typeSeparator: '、',
+    thinking: '思考',
+    thinkingSum: (chars) => `${chars} 文字 · 平文が取得可能`,
+    reasoning: '推論',
+    reasoningSum: (n) => `小見出し ${n} 件のみ · 本文は取得不可`,
+    reasoningNote:
+      'Codex の推論本文は `encrypted_content` であり、**決して取得できません**。以下は記録に残る平文の小見出しのみです —— Claude 側の平文思考とは**対等ではなく**、同じであるかのようには扱いません。',
+    input: '入力',
+    output: '戻り値',
+    empty: '（空）',
+    noOutput: '（戻り値の記録なし）',
+    truncatedNote:
+      '戻り値が agent の 1 件あたりの上限を超えたため、transcript には**切り詰め版のみ**が保存されています。原文は `tool-results/` 配下（パスは上記）に併置されますが、本製品はそれを読みません —— ここに表示しているのは切り詰め版であり、完全であるとは主張しません。',
+    subSteps: (n) => `${n} ステップ · 戻り値なし`,
+    dispatchPrompt: '委譲 prompt',
+    innerSteps: '内部ステップ',
+    unlinkedNote:
+      'この委譲の内部ステップは、記録上ここへ紐付けられる**安定した参照の連鎖がありません**（両サイドで実測）。表示せず、推測による対応付けも行いません。完全な転写は（あれば）独立したファイルにあります。',
+    backToMain: 'メインセッションに戻る',
+    noReturn: '（戻り値なし）',
+    unknownRecords: (count, types) =>
+      `▧ このターンには**未識別の記録が ${count} 件**あります（種類：${types}）—— ソースファイルにはそのまま残っており、描画していません。通常は agent の更新で新しい記録種別が入ったことを意味します。`
+  },
   detail: {
     notInSnapshot: 'このプロジェクトはスナップショットにありません（更新して再試行してください）',
     staleTag: '失効',
