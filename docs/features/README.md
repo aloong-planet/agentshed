@@ -18,3 +18,4 @@
 | [Skills 装卸](skill-install.md) | 从全局库给指定项目安装/卸载 skills,全程有防护 |
 | [Skills 查看](skills-view.md) | 折叠预览 skill 包内文件与正文(无跨侧 diff) |
 | [外观主题](appearance.md) | 全 app 配色方案(紫/雾蓝/琥珀褐),浅深跟系统 |
+| [界面语言](i18n.md) | 界面六语可切换,默认跟随系统偏好语言 |

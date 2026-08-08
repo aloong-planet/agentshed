@@ -2,7 +2,14 @@
 // 本文件在 node 环境下运行(vitest 全局配置),能跑通即证明 i18n 层不依赖 DOM/React
 // ——主进程构建应用菜单时用的是同一套模块。
 import { describe, it, expect } from 'vitest'
-import { LANGUAGES, resolveLanguage, plural, dictOf, isLanguage } from './index'
+import {
+  LANGUAGES,
+  resolveLanguage,
+  effectiveLanguage,
+  plural,
+  dictOf,
+  isLanguage
+} from './index'
 
 describe('resolveLanguage', () => {
   it('遍历整个列表取首个受支持者,而非首项不中就回退', () => {
@@ -32,6 +39,22 @@ describe('resolveLanguage', () => {
     // 入参来自平台 API,类型声明不构成运行时保证
     expect(resolveLanguage([null as unknown as string, 'fr'])).toBe('fr')
     expect(resolveLanguage([123 as unknown as string])).toBe('en')
+  })
+})
+
+describe('effectiveLanguage(偏好 → 生效语言)', () => {
+  it('偏好为具体语言时锁定,系统列表完全不参与', () => {
+    // 「跟随系统」是策略、具体语言是锁定——这条区分是整个模型的支点。
+    // 若实现漏掉分支、无条件走系统解析,下面三条都会红。
+    expect(effectiveLanguage('ja', ['fr-FR', 'en-US'])).toBe('ja')
+    expect(effectiveLanguage('ja', [])).toBe('ja')
+    expect(effectiveLanguage('ja', null)).toBe('ja')
+  })
+
+  it('偏好为跟随系统时,按系统列表解析', () => {
+    expect(effectiveLanguage('system', ['ko-KR', 'fr-FR', 'en-US'])).toBe('fr')
+    expect(effectiveLanguage('system', ['ko-KR'])).toBe('en')
+    expect(effectiveLanguage('system', [])).toBe('en')
   })
 })
 
