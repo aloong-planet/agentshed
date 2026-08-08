@@ -44,6 +44,60 @@ export const fr: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects : ${projects}\nmcp_servers : ${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  session: {
+    forkPoints: (n) =>
+      `Cette session comporte **${n} points de bifurcation**. La chaîne affichée remonte du dernier message jusqu’à la racine via les liens parents — c’est-à-dire « à quoi ressemble finalement cette conversation » ; les branches abandonnées ne sont pas affichées.`,
+    forkedFrom: 'Cette session est issue de',
+    anotherSession: 'une autre session',
+    forkedFromTail: '— le préfixe rejoué a été retiré, seul ce qui suit cette bifurcation est affiché ci-dessous. **L’historique antérieur se trouve dans cette session**.',
+    stripUncertainOrphan:
+      '**Retrait du préfixe incertain** : cette session est issue d’un parent **hors du périmètre analysé** (fichier nettoyé ou projet non enregistré), le retrait n’a donc pu être qu’heuristique — **il a pu retirer trop (perte de messages) ou trop peu (doublons)**. Vérifiez avec l’original. Ne pas échouer en silence est la seule garantie possible ici.',
+    stripUncertainMismatch: (parent) =>
+      `**Retrait du préfixe incertain** : le segment rejoué ne correspond pas entrée par entrée à la session parente « ${parent} » (le journal parent a pu être réécrit), seule **la partie vérifiable** a été retirée — le début peut faire doublon avec le parent ou manquer. Vérifiez avec l’original.`,
+    fetching: 'Récupération…',
+    rebuilding: 'Signature d’index non concordante (fichier complété ou réécrit) → reconstruction de l’index **de ce fichier uniquement**…',
+    turnFailed: (detail) => `Ce tour n’a pas pu être récupéré : ${detail}`,
+    fetchedNote: (ms, bytes) =>
+      `⚡ Récupéré à la demande en ${ms} ms · lecture de la seule plage d’octets de ce tour, ${bytes} — indépendant de la taille du fichier`,
+    back: (project) => `‹ Retour à ${project} · Sessions`,
+    headMeta: (side, questions, tok, mb, ago) =>
+      `${side} · ${questions} questions · ${tok} tok · ${mb} · dernière activité ${ago}`,
+    cannotOpen: (detail) => `Impossible d’ouvrir cette session : ${detail}`,
+    loading: 'Chargement…',
+    mainline: (n, days) => `Questions (fil principal) · ${n}${days}`,
+    dayCount: (n) => ` · ${n} jours`,
+    expandAll: 'Tout déplier',
+    collapseAll: 'Tout replier',
+    ascending: 'Plus anciennes d’abord',
+    descending: 'Plus récentes d’abord',
+    dayGroup: (day, n) => `${day} · ${n}`,
+    foot: 'Le fil principal ne liste que les questions humaines ; le bruit du harness n’est pas rendu. Toutes les questions sont listées d’un coup (leur texte est lu à la demande par plage d’octets, indépendamment de la taille du fichier). Cliquez sur une question pour déplier le tour entier sur place : corps, appels d’outils, délégations à des subagents et blocs de raisonnement.'
+  },
+
+  turn: {
+    typeSeparator: ', ',
+    thinking: 'Réflexion',
+    thinkingSum: (chars) => `${chars} caractères · texte clair disponible`,
+    reasoning: 'Raisonnement',
+    reasoningSum: (n) => `seulement ${n} intertitres · corps indisponible`,
+    reasoningNote:
+      'Le corps du raisonnement de Codex est `encrypted_content` et **restera inaccessible**. Ci-dessous les seuls intertitres en clair présents dans l’enregistrement — **non équivalents** à la réflexion en clair du côté Claude, et on ne prétend pas le contraire.',
+    input: 'Entrée',
+    output: 'Retour',
+    empty: '(vide)',
+    noOutput: '(aucun retour enregistré)',
+    truncatedNote:
+      'Le retour dépassait la limite par entrée de l’agent : la transcription **ne contient qu’une version tronquée** ; l’original est déposé sous `tool-results/` (chemin ci-dessus) et ce produit ne le lit pas — ce qui est affiché ici est la version tronquée, sans prétendre à l’exhaustivité.',
+    subSteps: (n) => `${n} étapes · sans retour`,
+    dispatchPrompt: 'Prompt de délégation',
+    innerSteps: 'Étapes internes',
+    unlinkedNote:
+      'Les étapes internes de cette délégation n’ont **aucune chaîne de référence stable** dans l’enregistrement permettant de les rattacher ici (constaté des deux côtés) — elles ne sont pas affichées et aucun appariement spéculatif n’est fait ; la transcription complète se trouve dans son propre fichier, le cas échéant.',
+    backToMain: 'Retour à la session principale',
+    noReturn: '(sans retour)',
+    unknownRecords: (count, types) =>
+      `▧ Ce tour contient **${count} enregistrements non reconnus** (types : ${types}) — conservés tels quels dans le fichier source, non rendus. Cela signifie généralement qu’une mise à jour de l’agent a introduit un nouveau type.`
+  },
   detail: {
     notInSnapshot: 'Ce projet n’est pas dans l’instantané (actualisez puis réessayez)',
     staleTag: 'Obsolète',

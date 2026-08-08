@@ -44,6 +44,60 @@ export const es: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  session: {
+    forkPoints: (n) =>
+      `Esta sesión tiene **${n} puntos de bifurcación**. La cadena mostrada se traza desde el último mensaje hacia la raíz siguiendo los enlaces al padre, es decir «cómo queda finalmente esta conversación»; las ramas abandonadas no se muestran.`,
+    forkedFrom: 'Esta sesión se bifurcó de',
+    anotherSession: 'otra sesión',
+    forkedFromTail: '— el prefijo repetido ya se recortó, así que abajo solo se muestra lo posterior a esta bifurcación. **El historial anterior está en esa sesión**.',
+    stripUncertainOrphan:
+      '**Recorte del prefijo dudoso**: esta sesión se bifurcó de un padre **fuera del conjunto analizado** (su archivo se limpió o pertenece a un proyecto no registrado), así que el recorte solo pudo ser heurístico: **puede haber recortado de más (perdiendo mensajes) o de menos (duplicados)**. Compruébalo con el original. No fallar en silencio es la única garantía posible aquí.',
+    stripUncertainMismatch: (parent) =>
+      `**Recorte del prefijo dudoso**: el segmento repetido no coincide entrada por entrada con la sesión padre «${parent}» (el registro padre pudo reescribirse), así que solo se recortó **la parte que supera la verificación**: el comienzo puede duplicar al padre o faltar. Compruébalo con el original.`,
+    fetching: 'Recuperando…',
+    rebuilding: 'La firma del índice no coincide (el archivo se amplió o reescribió) → reconstruyendo el índice **solo de este archivo**…',
+    turnFailed: (detail) => `No se pudo recuperar este turno: ${detail}`,
+    fetchedNote: (ms, bytes) =>
+      `⚡ Recuperado bajo demanda en ${ms} ms · se leyó solo el rango de bytes de este turno, ${bytes}, con independencia del tamaño del archivo`,
+    back: (project) => `‹ Volver a ${project} · Sesiones`,
+    headMeta: (side, questions, tok, mb, ago) =>
+      `${side} · ${questions} preguntas · ${tok} tok · ${mb} · última actividad ${ago}`,
+    cannotOpen: (detail) => `No se puede abrir la sesión: ${detail}`,
+    loading: 'Cargando…',
+    mainline: (n, days) => `Preguntas (línea principal) · ${n}${days}`,
+    dayCount: (n) => ` · ${n} días`,
+    expandAll: 'Desplegar todo',
+    collapseAll: 'Plegar todo',
+    ascending: 'Más antiguas primero',
+    descending: 'Más recientes primero',
+    dayGroup: (day, n) => `${day} · ${n}`,
+    foot: 'La línea principal solo lista preguntas humanas; el ruido del harness no se renderiza. Todas las preguntas se listan de una vez (su texto se lee bajo demanda por rango de bytes, con independencia del tamaño del archivo). Haz clic en una pregunta para desplegar el turno completo ahí mismo: cuerpo, llamadas a herramientas, delegaciones a subagents y bloques de razonamiento.'
+  },
+
+  turn: {
+    typeSeparator: ', ',
+    thinking: 'Pensamiento',
+    thinkingSum: (chars) => `${chars} caracteres · texto claro disponible`,
+    reasoning: 'Razonamiento',
+    reasoningSum: (n) => `solo ${n} subtítulos · cuerpo no disponible`,
+    reasoningNote:
+      'El cuerpo del razonamiento de Codex es `encrypted_content` y **nunca podrá obtenerse**. Abajo están los únicos subtítulos en texto claro del registro: **no son equivalentes** al pensamiento en claro del lado Claude, y no se finge que lo sean.',
+    input: 'Entrada',
+    output: 'Retorno',
+    empty: '(vacío)',
+    noOutput: '(sin retorno registrado)',
+    truncatedNote:
+      'El retorno superó el límite por entrada del agent, así que la transcripción **solo guardó una versión truncada**; el original queda al lado en `tool-results/` (ruta arriba) y este producto no lo lee: lo que se muestra aquí es la versión truncada, sin afirmar que esté completa.',
+    subSteps: (n) => `${n} pasos · sin retorno`,
+    dispatchPrompt: 'Prompt de delegación',
+    innerSteps: 'Pasos internos',
+    unlinkedNote:
+      'Los pasos internos de esta delegación **no tienen una cadena de referencias estable** en el registro que permita ubicarlos aquí (comprobado en ambos lados): no se muestran y no se hace emparejamiento especulativo; la transcripción completa está en su propio archivo, si existe.',
+    backToMain: 'Volver a la sesión principal',
+    noReturn: '(sin retorno)',
+    unknownRecords: (count, types) =>
+      `▧ Este turno tiene **${count} registros no reconocidos** (tipos: ${types}): se conservan tal cual en el archivo de origen y no se renderizan. Suele significar que una actualización del agent introdujo un tipo nuevo.`
+  },
   detail: {
     notInSnapshot: 'Este proyecto no está en la instantánea (actualiza e inténtalo de nuevo)',
     staleTag: 'Obsoleto',
