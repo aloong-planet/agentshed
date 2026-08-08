@@ -8,8 +8,8 @@ import { GlobalPluginsTab } from './PluginsView'
 import { toast } from './Toast'
 import { SkillExpandBlock } from './SkillExpandBlock'
 import { errorText } from '@shared/error-text'
-import { appError } from '@shared/errors'
-import { useLanguage } from './language'
+import { appError, type AppError } from '@shared/errors'
+import { useLanguage, useDict } from './language'
 
 type Tab = 'token' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'cfg'
 
@@ -109,10 +109,11 @@ function SideCard({
   label: string
   cls: 'cl' | 'cx'
   detected: boolean
-  error?: string
+  error?: AppError
   total: number
   sub: string
 }): JSX.Element {
+  const lang = useLanguage()
   return (
     <div className="stat">
       <div className="k">
@@ -120,7 +121,11 @@ function SideCard({
         {detected ? '已检测' : '未检测到'}
       </div>
       <div className="v">{fmtTok(total)}</div>
-      {error ? <div className="stat-err">注册表异常:{error}</div> : <div className="s">{sub}</div>}
+      {error ? (
+        <div className="stat-err">{errorText(lang, appError(error.code, error.params))}</div>
+      ) : (
+        <div className="s">{sub}</div>
+      )}
     </div>
   )
 }
@@ -253,13 +258,15 @@ function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
 }
 
 function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
+  const t = useDict()
   const [which, setWhich] = useState<'cl' | 'cx' | 'toml'>('cl')
   const html = useMemo(() => {
     const md =
       which === 'cl' ? snap.global.claudeGlobalMd : which === 'cx' ? snap.global.codexAgentsMd : null
     if (md === null) return null
-    return renderMarkdown(md)
-  }, [which, snap])
+    // 截断标记由渲染层按当前语言追加(票 07):主进程只报告是否被截断
+    return renderMarkdown(md.truncated ? `${md.text}\n${t.placeholder.truncated}` : md.text)
+  }, [which, snap, t])
   return (
     <div>
       <div className="cfg-switch">
@@ -279,7 +286,13 @@ function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
         snap.global.codexConfigSummary === null ? (
           <Empty msg="config.toml 不存在" />
         ) : (
-          <pre className="md mono">{snap.global.codexConfigSummary}</pre>
+          <pre className="md mono">
+            {t.codexConfig(
+              snap.global.codexConfigSummary.model ?? t.placeholder.notSet,
+              snap.global.codexConfigSummary.projectCount,
+              snap.global.codexConfigSummary.mcpCount
+            )}
+          </pre>
         )
       ) : html === null ? (
         <Empty msg="文件不存在" />

@@ -11,7 +11,7 @@ import {
   type ListSkillFilesArgs,
   type ListSkillFilesResult
 } from '@shared/ipc'
-import type { ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
+import type { CappedText, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import { assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { providerOf } from '@shared/provider'
@@ -47,8 +47,7 @@ import {
   listSkillPackageFiles,
   readSkillFileText,
   resolvePluginSkillRoot,
-  resolveSkillRoot,
-  SKILL_DEEP_HINT
+  resolveSkillRoot
 } from './providers/skill-package'
 
 // app:// scheme 必须在 app ready **之前**注册特权(#18);dev 走 vite http,不加载
@@ -220,7 +219,8 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     } catch {
       text = null
     }
-    return { i: idx + 1, text: text ?? '(该行已无法读取)', at: rec[3], tools: rec[4], subagents: rec[5] }
+    // 读不到就传 null:措辞归渲染层(票 07),主进程不产出面向用户的自然语言
+    return { i: idx + 1, text, at: rec[3], tools: rec[4], subagents: rec[5] }
   })
   const page: SessionPage = {
     file,
@@ -278,7 +278,10 @@ handle(CMD.searchSessions, async (_e, raw: unknown) => {
 handle(CMD.readArtifact, (_e, file: unknown) => {
   if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw appError(ERR.artifactNotWhitelisted)
   const raw = readFileSync(file, 'utf8')
-  return raw.length > 500_000 ? `${raw.slice(0, 500_000)}\n…(已截断)` : raw
+  // 只报告是否被截断,标记由渲染层按语言追加(票 07)
+  return raw.length > 500_000
+    ? { text: raw.slice(0, 500_000), truncated: true }
+    : { text: raw, truncated: false }
 })
 handle(CMD.openArtifact, async (_e, file: unknown) => {
   if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw appError(ERR.artifactNotWhitelisted)
@@ -346,10 +349,9 @@ handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
     files: listing.files,
     deep: listing.deep,
     deepPaths: listing.deepPaths,
-    deepHint: SKILL_DEEP_HINT
   }
 })
-handle(CMD.readSkillFile, (_e, args: unknown): string => {
+handle(CMD.readSkillFile, (_e, args: unknown): CappedText => {
   const a = args as { absPath?: unknown }
   if (typeof a?.absPath !== 'string' || !a.absPath) throw appError(ERR.badArgs, { channel: 'readSkillFile', field: 'absPath' })
   if (!skillFileWhitelist.has(a.absPath)) throw appError(ERR.skillFileNotWhitelisted)

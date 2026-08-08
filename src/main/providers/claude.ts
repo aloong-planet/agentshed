@@ -1,11 +1,13 @@
 // Claude Code 侧数据读取:注册表(~/.claude.json 的 projects 键)。
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { ERR, type AppError } from '@shared/errors'
 
 export interface RegistryResult {
   detected: boolean
   paths: string[]
-  error?: string
+  /** 探测失败:码 + 参数,不含自然语言(票 07) */
+  error?: AppError
 }
 
 export function readClaudeRegistry(configFile: string): RegistryResult {
@@ -17,11 +19,15 @@ export function readClaudeRegistry(configFile: string): RegistryResult {
         ? (raw as Record<string, unknown>)['projects']
         : undefined
     if (typeof projects !== 'object' || projects === null) {
-      return { detected: true, paths: [], error: 'projects 键缺失或非对象' }
+      return { detected: true, paths: [], error: { code: ERR.registryProjectsInvalid, params: {} } }
     }
     return { detected: true, paths: Object.keys(projects) }
   } catch (err) {
-    return { detected: true, paths: [], error: `注册表解析失败:${String(err)}` }
+    return {
+      detected: true,
+      paths: [],
+      error: { code: ERR.registryParseFailed, params: { detail: String(err) } }
+    }
   }
 }
 

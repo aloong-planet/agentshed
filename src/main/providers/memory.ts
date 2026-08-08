@@ -7,7 +7,7 @@ import { parse as parseToml } from 'smol-toml'
 import type { MemoryFileMeta, MemorySummaryEntry, ProjectEntry, ProjectMemory } from '@shared/domain'
 import type { ScanRoots } from './types'
 import { encodeClaudeProjectDir } from './claude'
-import { readTextCapped } from './read-utils'
+import { readCapped, readTextCapped } from './read-utils'
 
 /** 目录下顶层 .md 文件的元数据(不递归;subagent 级 memory 子目录不读,Out of Scope) */
 function listMdFiles(dir: string): MemoryFileMeta[] {
@@ -76,7 +76,7 @@ export function readMemorySummary(roots: ScanRoots, projects: ProjectEntry[]): M
     out.push({
       side: 'codex',
       projectPath: null,
-      projectName: '(Codex 全局记忆)',
+      projectName: null,
       hasMain: false,
       files: codexFiles,
       lastModified: Math.max(...codexFiles.map((f) => f.mtimeMs)),
@@ -92,6 +92,6 @@ export function readMemorySummary(roots: ScanRoots, projects: ProjectEntry[]): M
 export function readProjectMemory(roots: ScanRoots, projectPath: string): ProjectMemory {
   const dir = join(roots.claudeHome, 'projects', encodeClaudeProjectDir(projectPath), 'memory')
   const files = listMdFiles(dir)
-  const main = files.some((f) => f.name === 'MEMORY.md') ? readTextCapped(join(dir, 'MEMORY.md')) : null
+  const main = files.some((f) => f.name === 'MEMORY.md') ? readCapped(join(dir, 'MEMORY.md')) : null
   return { main, topics: files.filter((f) => f.name !== 'MEMORY.md') }
 }

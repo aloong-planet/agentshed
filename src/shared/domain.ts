@@ -1,6 +1,25 @@
 // 领域模型:IPC 两端共用的单一类型来源(吸取 Transfer 消息模型漂移教训)。
 // 术语对齐 CONTEXT.md:项目/失效项目/agent 侧/全局库/项目级安装/产物/活跃度/会话。
 
+import type { AppError } from './errors'
+
+/**
+ * 有上限的文本读取结果(票 07)。
+ * 主进程**只传是否被截断**,「…(已截断)」这类标记由渲染层按当前语言追加——
+ * 早先标记是在主进程拼进正文的,那等于把界面文案固化在跨进程边界之外。
+ */
+export interface CodexConfigSummary {
+  /** null = 未设置 */
+  model: string | null
+  projectCount: number
+  mcpCount: number
+}
+
+export interface CappedText {
+  text: string
+  truncated: boolean
+}
+
 export type AgentSide = 'claude' | 'codex'
 
 /** 单侧 agent 的检测信息 */
@@ -8,7 +27,8 @@ export interface SideInfo {
   /** 该侧数据目录是否存在于本机 */
   detected: boolean
   /** 注册表解析失败时的降级说明(该侧数据为空但 app 不崩) */
-  error?: string
+  /** 探测失败信息:码 + 参数,不含自然语言(票 07) */
+  error?: AppError
 }
 
 /** 项目:任一 agent 侧注册表记录过的工作目录(两侧并集,一目录一项目) */
@@ -61,22 +81,21 @@ export interface GlobalSkill {
  */
 export interface SubagentSideDetail {
   /** 完整定义原文(超长截断);解析失败时为原始文本或 null */
-  content: string | null
+  content: CappedText | null
   description: string | null
   /** 仅 Claude 侧:frontmatter tools */
   tools: string | null
   model: string | null
   /** 仅 Codex 侧:sandbox_mode */
   sandbox: string | null
-  /** 该侧文件存在但解析失败/缺有效 name 的说明;正常为 null */
-  error: string | null
   /**
-   * 失败类别(**语言无关**),供渲染层判分支。
-   * 与 `error` 分工:那个是给人看的详情,这个是给程序用的。
-   * 早先渲染层靠 `error.includes('不可读')` 判分支——措辞一改就静默失效且没有测试会红
-   * (ADR-0015 点名的隐患)。
+   * 该侧文件存在但解析失败/缺有效 name 时的失败信息;正常为 null。
+   *
+   * **码 + 参数,不含自然语言**(票 07 把 ADR-0015 的口径扩到数据字段):措辞与分支判定
+   * 都由渲染层按码决定。票 05 曾用一个并列的 `errorKind` 字段过渡,本票收掉——
+   * 一个结构化字段同时承担"给人看"与"给程序判"两件事,不必两份真相。
    */
-  errorKind: 'unreadable' | 'parse-failed' | null
+  error: AppError | null
 }
 
 /** 全局 subagent(两侧合并单列;不做跨侧内容 diff——格式异构,不造假信号) */
@@ -102,7 +121,8 @@ export interface MemoryFileMeta {
 export interface MemorySummaryEntry {
   side: AgentSide
   projectPath: string | null
-  projectName: string
+  /** **null = 无项目归属**(如 Codex 全局记忆),显示名由渲染层出(票 07) */
+  projectName: string | null
   /** MEMORY.md 是否存在(Codex 全局条目恒 false) */
   hasMain: boolean
   files: MemoryFileMeta[]
@@ -113,7 +133,8 @@ export interface MemorySummaryEntry {
 
 /** 单条插件安装记录(E1:多条记录不合并,scope 非 user/project 时原样标注 E3) */
 export interface PluginInstallRecord {
-  scope: string
+  /** **null = 未知**;措辞由渲染层出(票 07) */
+  scope: string | null
   /** project-scope 的归属项目;其余为 null */
   projectPath: string | null
   /** 归属项目目录已不存在(E2:原样显示并标"项目已失联") */
@@ -202,11 +223,12 @@ export interface GlobalLayer {
   codexPlugins: CodexPluginEntry[]
   mcp: McpServerEntry[]
   /** 全局 CLAUDE.md 内容(缺失 null,超长截断) */
-  claudeGlobalMd: string | null
+  claudeGlobalMd: CappedText | null
   /** Codex 全局 AGENTS.md 内容 */
-  codexAgentsMd: string | null
+  codexAgentsMd: CappedText | null
   /** config.toml 只读摘要(model + 计数) */
-  codexConfigSummary: string | null
+  /** Codex config.toml 摘要:**结构化字段**,成句由渲染层组装(票 07) */
+  codexConfigSummary: CodexConfigSummary | null
 }
 
 /**
@@ -253,7 +275,8 @@ export type ForkState = 'none' | 'stripped' | 'uncertain'
 
 export interface SessionMeta {
   side: AgentSide
-  title: string
+  /** **null = 无标题**,兜底措辞由渲染层出(票 07) */
+  title: string | null
   /** 最后活动时间 = 文件内最大时间戳(两侧同义;与走 mtime 的项目活跃度是两条管线) */
   at: number | null
   tokens: number
@@ -269,7 +292,8 @@ export interface SessionMeta {
 export interface SessionQuestion {
   /** 展示序号,1 起,恒为本会话展示集合内的原始轮次号(排序切换不重编) */
   i: number
-  text: string
+  /** 提问全文;**null = 该行读不到**,措辞由渲染层出(票 07) */
+  text: string | null
   at: number | null
   /** 本轮工具调用数(不含 subagent 派发) */
   tools: number
@@ -281,7 +305,8 @@ export interface SessionQuestion {
 export interface SessionPage {
   file: string
   side: AgentSide
-  title: string
+  /** **null = 无标题**,兜底措辞由渲染层出(票 07) */
+  title: string | null
   at: number | null
   tokens: number
   /** 源文件字节数(页头体量展示用) */
@@ -320,7 +345,8 @@ export interface TurnReasonBlock {
 export interface TurnToolBlock {
   kind: 'tool'
   at: number | null
-  name: string
+  /** **null = 未知工具**,措辞由渲染层出(票 07) */
+  name: string | null
   /** 一行摘要(入参截断),折叠态显示 */
   summary: string
   input: string
@@ -337,7 +363,8 @@ export interface TurnSubBlock {
   kind: 'sub'
   at: number | null
   /** 派发名(Claude 取 subagent_type,无则工具名;Codex 恒 spawn_agent) */
-  name: string
+  /** 派发名;**null = 未知工具**,措辞由渲染层出(票 07) */
+  name: string | null
   prompt: string
   /** 内部步骤:Claude 从轮内 sidechain 行按 agentId 归组;Codex 无引用链恒空 */
   steps: TurnSubStep[]
@@ -371,7 +398,8 @@ export interface SearchHit {
   /** 提问序号(展示集合内,1 起,与会话页同源) */
   i: number
   /** 提问全文(命中行经解析后的干净文本) */
-  text: string
+  /** 提问全文;**null = 该行读不到**,措辞由渲染层出(票 07) */
+  text: string | null
   at: number | null
   /** true = 命中在该轮的回答/工具正文里(仅全文模式产生) */
   inBody: boolean
@@ -381,7 +409,8 @@ export interface SearchHit {
 
 export interface SearchGroup {
   file: string
-  title: string
+  /** **null = 无标题**,兜底措辞由渲染层出(票 07) */
+  title: string | null
   side: AgentSide
   forkState: ForkState
   at: number | null
@@ -447,7 +476,7 @@ export interface ProjectSubagentEntry {
 /** 项目详情的 Memory(D 序列):MEMORY.md 内容直出,topic 仅元数据(内容按需读取) */
 export interface ProjectMemory {
   /** MEMORY.md 内容(超长截断);不存在为 null */
-  main: string | null
+  main: CappedText | null
   topics: MemoryFileMeta[]
 }
 
@@ -491,8 +520,8 @@ export interface ProjectDetail {
   plugins: ProjectPluginEntry[]
   mcp: ProjectMcpEntry[]
   configs: {
-    claudeMd: string | null
-    agentsMd: string | null
+    claudeMd: CappedText | null
+    agentsMd: CappedText | null
     settingsSummary: string | null
   }
   /** 概览 tab 数据(主进程从 token 引擎附上;引擎未就绪时 null) */

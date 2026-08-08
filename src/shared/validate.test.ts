@@ -206,7 +206,8 @@ describe('validateProjectDetail —— 放行(误拒会让详情页整个打不�
 
   it('放行各可空字段取到非 null 值', () => {
     const d = okDetail()
-    ;(d.configs as Record<string, unknown>).claudeMd = '# 项目约定'
+    // configs.claudeMd 自票 07 起是 CappedText(正文 + 是否被截断)
+    ;(d.configs as Record<string, unknown>).claudeMd = { text: '# 项目约定', truncated: false }
     ;(d.mcp as Array<Record<string, unknown>>)[0].enabled = false
     ;(d.plugins as Array<Record<string, unknown>>)[0].enabledFrom = null
     ;(d.plugins as Array<Record<string, unknown>>)[0].version = null

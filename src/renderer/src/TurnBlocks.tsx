@@ -3,6 +3,7 @@
 // 不可还原处(推理密文、截断工具结果、不可归位的子线程)一律 warn 显式标注,不静默。
 import { useState } from 'react'
 import type { TurnBlock } from '@shared/domain'
+import { useDict } from './language'
 
 function firstLine(s: string, max = 72): string {
   const t = s.split('\n')[0].trim()
@@ -38,6 +39,7 @@ function Fold({
 }
 
 export function BlockView({ b }: { b: TurnBlock }): JSX.Element {
+  const t = useDict()
   switch (b.kind) {
     case 'text':
       return <div className="ans">{b.body}</div>
@@ -63,7 +65,7 @@ export function BlockView({ b }: { b: TurnBlock }): JSX.Element {
       )
     case 'tool':
       return (
-        <Fold cls="" icon="🔧" nm={b.name} sum={b.summary}>
+        <Fold cls="" icon="🔧" nm={b.name ?? t.placeholder.unknownTool} sum={b.summary}>
           <div className="lb">入参</div>
           <pre>{b.input || '(空)'}</pre>
           <div className="lb">返回</div>

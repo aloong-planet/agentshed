@@ -40,6 +40,25 @@ export const es: Locale = {
     saveLanguageFailed: 'No se pudo guardar el idioma'
   },
 
+  skillDeepHint: 'La buena práctica es una profundidad de referencia de skill menor que 2: considera reestructurar este skill',
+  codexConfig: (model, projects, mcp) =>
+    `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
+  /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  label: {
+    providerOther: 'Otros',
+    trendTotal: 'Total'
+  },
+
+  placeholder: {
+    unreadableLine: '(esta línea ya no se puede leer)',
+    untitledSession: '(sesión sin título)',
+    unknownTool: '(herramienta desconocida)',
+    unknown: '(desconocido)',
+    notSet: 'Sin definir',
+    codexGlobalMemory: '(memoria global de Codex)',
+    truncated: '…(truncado)'
+  },
+
   errors: {
     badArgs: (channel, field) =>
       field
@@ -76,11 +95,17 @@ export const es: Locale = {
     skillCopyMissing: 'No existe la copia a nivel de proyecto',
     skillConflict: 'El destino ya tiene un skill con ese nombre a nivel de proyecto: no se sobrescribió nada',
     skillCopyFailed: (detail) => `La copia falló y se limpió: ${detail}`,
-    skillDeleteFailed: (detail) => `Error al eliminar: ${detail}`
+    skillDeleteFailed: (detail) => `Error al eliminar: ${detail}`,
+    registryProjectsInvalid: 'La clave projects del registro falta o no es un objeto',
+    registryParseFailed: (detail) => `No se pudo analizar el registro: ${detail}`,
+    subagentUnreadable: 'No se puede leer el archivo (permisos o error de E/S)',
+    subagentTomlFailed: (detail) => `No se pudo analizar el toml: ${detail}`,
+    subagentMissingName: 'Falta un campo name válido (Codex no cargará este archivo)'
   },
 
   subagentError: {
     unreadable: 'Ilegible',
-    parseFailed: 'Error de análisis'
+    parseFailed: 'Error de análisis',
+    detail: (msg) => `${msg}. Las demás entradas no se ven afectadas.`
   }
 }

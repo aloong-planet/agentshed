@@ -8,13 +8,12 @@ import type {
   GlobalSkill,
   McpServerEntry,
   PluginEntry,
-  SkillPkgStats
-} from '@shared/domain'
+  SkillPkgStats, CodexConfigSummary } from '@shared/domain'
 import type { ScanRoots } from './types'
 import { readGlobalSubagents } from './subagents'
 import { readClaudePlugins, readCodexPlugins } from './plugins'
 import { readCodexMemoriesEnabled } from './memory'
-import { fmField, readTextCapped } from './read-utils'
+import { fmField, readCapped, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
 
 export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
@@ -28,8 +27,8 @@ export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
     plugins,
     codexPlugins: readCodexPlugins(roots.codexHome),
     mcp: readGlobalMcp(roots, plugins),
-    claudeGlobalMd: readTextCapped(join(roots.claudeHome, 'CLAUDE.md')),
-    codexAgentsMd: readTextCapped(join(roots.codexHome, 'AGENTS.md')),
+    claudeGlobalMd: readCapped(join(roots.claudeHome, 'CLAUDE.md')),
+    codexAgentsMd: readCapped(join(roots.codexHome, 'AGENTS.md')),
     codexConfigSummary: summarizeCodexConfig(join(roots.codexHome, 'config.toml'))
   }
 }
@@ -162,11 +161,13 @@ function readGlobalMcp(roots: ScanRoots, plugins: PluginEntry[]): McpServerEntry
 
 // ── 配置只读 ──
 
-function summarizeCodexConfig(configFile: string): string | null {
+/** 只产结构化字段;成句(含「条」「段」这类量词)由渲染层按当前语言组装(票 07) */
+function summarizeCodexConfig(configFile: string): CodexConfigSummary | null {
   const raw = readTextCapped(configFile)
   if (raw === null) return null
-  const model = /^model\s*=\s*"(.+)"\s*$/m.exec(raw)?.[1] ?? '未设置'
-  const projectCount = raw.split('\n').filter((l) => /^\s*\[projects\."/.test(l)).length
-  const mcpCount = raw.split('\n').filter((l) => MCP_HEADER.test(l)).length
-  return `model = ${model}\nprojects: ${projectCount} 条\nmcp_servers: ${mcpCount} 段`
+  return {
+    model: /^model\s*=\s*"(.+)"\s*$/m.exec(raw)?.[1] ?? null,
+    projectCount: raw.split('\n').filter((l) => /^\s*\[projects\."/.test(l)).length,
+    mcpCount: raw.split('\n').filter((l) => MCP_HEADER.test(l)).length
+  }
 }

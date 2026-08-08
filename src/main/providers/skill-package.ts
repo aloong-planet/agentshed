@@ -3,6 +3,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSyn
 import { basename, dirname, join, relative, sep } from 'node:path'
 import type { AgentSide } from '@shared/domain'
 import type { ScanRoots } from './types'
+import type { CappedText } from '@shared/domain'
 
 /** 包内相对路径最多段数(SKILL.md=1;references/foo.md=2;references/nested/x.md=3 超限) */
 export const SKILL_MAX_SEGMENTS = 2
@@ -41,8 +42,7 @@ export const SKILL_SKIP_DIR_NAMES = new Set([
   '.svn'
 ])
 
-export const SKILL_DEEP_HINT =
-  '按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill'
+// 提示文案已移到渲染层(票 07):主进程只传 `deep` 这个判定结果
 
 export interface SkillFileMeta {
   /** 包内相对路径,POSIX 风格 */
@@ -234,9 +234,11 @@ export function statSkillPackage(rootAbs: string): { files: number; bytes: numbe
 
 const READ_CAP = 500_000
 
-export function readSkillFileText(absPath: string): string {
+export function readSkillFileText(absPath: string): CappedText {
   const raw = readFileSync(absPath, 'utf8')
-  return raw.length > READ_CAP ? `${raw.slice(0, READ_CAP)}\n…(已截断)` : raw
+  return raw.length > READ_CAP
+    ? { text: raw.slice(0, READ_CAP), truncated: true }
+    : { text: raw, truncated: false }
 }
 
 /**

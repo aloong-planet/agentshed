@@ -15,7 +15,7 @@ import {
   type ListSkillFilesResult,
   type ReadSkillFileArgs
 } from '@shared/ipc'
-import type { ProjectDetail, SearchResult, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
+import type { CappedText, ProjectDetail, SearchResult, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import {
   contractError,
   validateSnapshot,
@@ -103,8 +103,8 @@ const api = {
     if (!v.ok) throw contractError('searchResult', v.failure)
     return r as SearchResult
   },
-  readArtifact: (file: string): Promise<string> =>
-    ipcRenderer.invoke(CMD.readArtifact, file) as Promise<string>,
+  readArtifact: (file: string): Promise<CappedText> =>
+    ipcRenderer.invoke(CMD.readArtifact, file) as Promise<CappedText>,
   openArtifact: (file: string): Promise<void> => ipcRenderer.invoke(CMD.openArtifact, file),
   installSkill: (args: SkillOpArgs): Promise<SkillOpResult> =>
     ipcRenderer.invoke(CMD.installSkill, args) as Promise<SkillOpResult>,
@@ -112,8 +112,8 @@ const api = {
     ipcRenderer.invoke(CMD.uninstallSkill, args) as Promise<SkillOpResult>,
   listSkillFiles: (args: ListSkillFilesArgs): Promise<ListSkillFilesResult> =>
     ipcRenderer.invoke(CMD.listSkillFiles, args) as Promise<ListSkillFilesResult>,
-  readSkillFile: (args: ReadSkillFileArgs): Promise<string> =>
-    ipcRenderer.invoke(CMD.readSkillFile, args) as Promise<string>,
+  readSkillFile: (args: ReadSkillFileArgs): Promise<CappedText> =>
+    ipcRenderer.invoke(CMD.readSkillFile, args) as Promise<CappedText>,
   // 与重载荷同规矩:preload 再校一次,拦 IPC 结构化克隆/形态漂移
   getPrefs: async (): Promise<Prefs> => checkedPrefs(await ipcRenderer.invoke(CMD.getPrefs)),
   setScheme: async (scheme: AppearanceScheme): Promise<Prefs> =>

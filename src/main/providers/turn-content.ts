@@ -176,9 +176,9 @@ function claudeAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
         } else if (s['type'] === 'text' && typeof s['text'] === 'string') {
           texts.push(s['text'])
         } else if (s['type'] === 'tool_use' && typeof s['id'] === 'string') {
-          const name = typeof s['name'] === 'string' ? s['name'] : '(未知工具)'
+          const name = typeof s['name'] === 'string' ? s['name'] : null
           const input = asRecord(s['input'])
-          if (CLAUDE_DISPATCH.has(name)) {
+          if (name !== null && CLAUDE_DISPATCH.has(name)) {
             const sub: TurnSubBlock = {
               kind: 'sub',
               at,

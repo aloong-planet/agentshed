@@ -30,6 +30,15 @@ const failEnum = (path: string, value: string): ValidateResult => ({
   failure: { kind: 'enum', path, value }
 })
 
+/** CappedText:{ text: string; truncated: boolean }(票 07) */
+function isCapped(v: unknown): boolean {
+  return isRecord(v) && typeof v['text'] === 'string' && typeof v['truncated'] === 'boolean'
+}
+/** AppError:{ code: string; params: object }(票 07 把它带进数据字段) */
+function isAppErr(v: unknown): boolean {
+  return isRecord(v) && typeof v['code'] === 'string' && isRecord(v['params'])
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
@@ -44,8 +53,8 @@ export function validateSnapshot(v: unknown): ValidateResult {
     const s = sides[side]
     if (!isRecord(s)) return failMissing(`sides.${side}`)
     if (typeof s['detected'] !== 'boolean') return failType(`sides.${side}.detected`, 'boolean')
-    if (s['error'] !== undefined && typeof s['error'] !== 'string')
-      return failType(`sides.${side}.error`, 'string|undefined')
+    if (s['error'] !== undefined && !isAppErr(s['error']))
+      return failType(`sides.${side}.error`, 'AppError|undefined')
   }
 
   const projects = v['projects']
@@ -73,10 +82,12 @@ export function validateSnapshot(v: unknown): ValidateResult {
   for (const arr of ['skills', 'subagents', 'memory', 'plugins', 'codexPlugins', 'mcp'] as const) {
     if (!Array.isArray(g[arr])) return failType(`global.${arr}`, 'array')
   }
-  for (const nullable of ['claudeGlobalMd', 'codexAgentsMd', 'codexConfigSummary'] as const) {
-    if (g[nullable] !== null && typeof g[nullable] !== 'string')
-      return failType(`global.${nullable}`, 'string|null')
+  for (const capped of ['claudeGlobalMd', 'codexAgentsMd'] as const) {
+    if (g[capped] !== null && !isCapped(g[capped]))
+      return failType(`global.${capped}`, 'CappedText|null')
   }
+  if (g['codexConfigSummary'] !== null && !isRecord(g['codexConfigSummary']))
+    return failType('global.codexConfigSummary', 'object|null')
   if (typeof g['codexMemoriesEnabled'] !== 'boolean')
     return failType('global.codexMemoriesEnabled', 'boolean')
 
@@ -127,7 +138,7 @@ export function validateSessionPage(v: unknown): ValidateResult {
   if (typeof v['file'] !== 'string' || v['file'] === '') return failType('page.file', 'string(non-empty)')
   if (typeof v['side'] !== 'string' || !AGENT_SIDES.has(v['side']))
     return failEnum('page.side', String(v['side']))
-  if (typeof v['title'] !== 'string') return failType('page.title', 'string')
+  if (!strOrNull(v['title'])) return failType('page.title', 'string|null')
   if (v['at'] !== null && typeof v['at'] !== 'number') return failType('page.at', 'number|null')
   if (typeof v['tokens'] !== 'number') return failType('page.tokens', 'number')
   if (typeof v['bytes'] !== 'number') return failType('page.bytes', 'number')
@@ -145,7 +156,7 @@ export function validateSessionPage(v: unknown): ValidateResult {
     const at = `page.questions[${i}]`
     if (!isRecord(q)) return failType(at, 'object')
     if (typeof q['i'] !== 'number') return failType(`${at}.i`, 'number')
-    if (typeof q['text'] !== 'string') return failType(`${at}.text`, 'string')
+    if (!strOrNull(q['text'])) return failType(`${at}.text`, 'string|null')
     if (q['at'] !== null && typeof q['at'] !== 'number') return failType(`${at}.at`, 'number|null')
     if (typeof q['tools'] !== 'number') return failType(`${at}.tools`, 'number')
     if (typeof q['subagents'] !== 'number') return failType(`${at}.subagents`, 'number')
@@ -249,7 +260,7 @@ export function validateSearchResult(v: unknown): ValidateResult {
     const at = `search.groups[${g}]`
     if (!isRecord(grp)) return failType(at, 'object')
     if (typeof grp['file'] !== 'string' || grp['file'] === '') return failType(`${at}.file`, 'string(non-empty)')
-    if (typeof grp['title'] !== 'string') return failType(`${at}.title`, 'string')
+    if (!strOrNull(grp['title'])) return failType(`${at}.title`, 'string|null')
     if (typeof grp['side'] !== 'string' || !AGENT_SIDES.has(grp['side']))
       return failEnum(`${at}.side`, String(grp['side']))
     if (typeof grp['forkState'] !== 'string' || !FORK_STATES.has(grp['forkState']))
@@ -262,7 +273,7 @@ export function validateSearchResult(v: unknown): ValidateResult {
       const hat = `${at}.hits[${h}]`
       if (!isRecord(hit)) return failType(hat, 'object')
       if (typeof hit['i'] !== 'number') return failType(`${hat}.i`, 'number')
-      if (typeof hit['text'] !== 'string') return failType(`${hat}.text`, 'string')
+      if (!strOrNull(hit['text'])) return failType(`${hat}.text`, 'string|null')
       if (hit['at'] !== null && typeof hit['at'] !== 'number') return failType(`${hat}.at`, 'number|null')
       if (typeof hit['inBody'] !== 'boolean') return failType(`${hat}.inBody`, 'boolean')
       if (hit['snippet'] !== null && typeof hit['snippet'] !== 'string')
@@ -288,7 +299,7 @@ export function validateProjectStats(v: unknown): ValidateResult {
     if (!isRecord(s)) return failType(at, 'object')
     if (typeof s['side'] !== 'string' || !AGENT_SIDES.has(s['side']))
       return failEnum(`${at}.side`, String(s['side']))
-    if (typeof s['title'] !== 'string') return failType(`${at}.title`, 'string')
+    if (!strOrNull(s['title'])) return failType(`${at}.title`, 'string|null')
     if (s['at'] !== null && typeof s['at'] !== 'number') return failType(`${at}.at`, 'number|null')
     if (typeof s['tokens'] !== 'number') return failType(`${at}.tokens`, 'number')
     if (typeof s['file'] !== 'string' || s['file'] === '') return failType(`${at}.file`, 'string(non-empty)')
@@ -383,7 +394,7 @@ export function validateProjectDetail(v: unknown): ValidateResult {
 
   const mem = v['memory']
   if (!isRecord(mem)) return failType('detail.memory', 'object')
-  if (!strOrNull(mem['main'])) return failType('detail.memory.main', 'string|null')
+  if (mem['main'] !== null && !isCapped(mem['main'])) return failType('detail.memory.main', 'CappedText|null')
   const topics = eachOf(mem['topics'], 'detail.memory.topics', (t, at) => {
     if (!str(t['name'])) return failType(`${at}.name`, 'string')
     if (typeof t['file'] !== 'string' || t['file'] === '') return failType(`${at}.file`, 'string(non-empty)')
@@ -429,9 +440,10 @@ export function validateProjectDetail(v: unknown): ValidateResult {
 
   const cfg = v['configs']
   if (!isRecord(cfg)) return failType('detail.configs', 'object')
-  for (const k of ['claudeMd', 'agentsMd', 'settingsSummary'] as const) {
-    if (!strOrNull(cfg[k])) return failType(`detail.configs.${k}`, 'string|null')
+  for (const k of ['claudeMd', 'agentsMd'] as const) {
+    if (cfg[k] !== null && !isCapped(cfg[k])) return failType(`detail.configs.${k}`, 'CappedText|null')
   }
+  if (!strOrNull(cfg['settingsSummary'])) return failType('detail.configs.settingsSummary', 'string|null')
 
   const artifacts = eachOf(v['artifacts'], 'detail.artifacts', (a, at) => {
     if (!ARTIFACT_TYPES.has(a['type'] as string)) return failEnum(`${at}.type`, String(a['type']))

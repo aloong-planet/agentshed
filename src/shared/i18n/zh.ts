@@ -53,6 +53,28 @@ export const zh = {
    * 跨进程失败的措辞(见 ADR-0015)。键与 shared/errors.ts 的错误码一一对应。
    * 参数只承载语言无关的东西(通道名、字段名、路径、数字),措辞在这里成句。
    */
+  /** 主进程传 null 时由渲染层补的占位措辞(票 07) */
+  /** skill 引用深度提示(票 07:主进程只传判定结果,文案在这里) */
+  skillDeepHint: '按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill',
+  /** Codex config.toml 摘要:主进程只传字段,这里组装成句(票 07) */
+  codexConfig: (model: string, projects: number, mcp: number) =>
+    `model = ${model}\nprojects: ${projects} 条\nmcp_servers: ${mcp} 段`,
+  /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  label: {
+    providerOther: '其他',
+    trendTotal: '合计'
+  },
+
+  placeholder: {
+    unreadableLine: '(该行已无法读取)',
+    untitledSession: '(无标题会话)',
+    unknownTool: '(未知工具)',
+    unknown: '(未知)',
+    notSet: '未设置',
+    codexGlobalMemory: '(Codex 全局记忆)',
+    truncated: '…(已截断)'
+  },
+
   errors: {
     badArgs: (channel: string, field: string) =>
       field ? `调用参数不合契约:${channel}(字段 ${field})` : `调用参数不合契约:${channel}`,
@@ -84,12 +106,18 @@ export const zh = {
     skillCopyMissing: '项目级副本不存在',
     skillConflict: '目标已有同名项目级 skill,已阻止不覆盖',
     skillCopyFailed: (detail: string) => `复制失败已清理:${detail}`,
-    skillDeleteFailed: (detail: string) => `删除失败:${detail}`
+    skillDeleteFailed: (detail: string) => `删除失败:${detail}`,
+    registryProjectsInvalid: '注册表的 projects 键缺失或不是对象',
+    registryParseFailed: (detail: string) => `注册表解析失败:${detail}`,
+    subagentUnreadable: '文件不可读(权限或 IO 异常)',
+    subagentTomlFailed: (detail: string) => `toml 解析失败:${detail}`,
+    subagentMissingName: '缺有效 name 字段(Codex 不加载此文件)'
   },
 
   /** subagent 定义文件的读取失败,作为**数据字段**随快照下发(不是抛出的错误) */
   subagentError: {
     unreadable: '不可读',
-    parseFailed: '解析失败'
+    parseFailed: '解析失败',
+    detail: (msg: string) => `${msg};其余条目不受影响。`
   }
 } as const

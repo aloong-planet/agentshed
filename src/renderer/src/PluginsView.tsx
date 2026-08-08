@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import type { PluginContents, PluginInstallRecord, ProjectDetail, Snapshot } from '@shared/domain'
 import { PluginSkillList } from './PluginSkillList'
+import { useDict } from './language'
 
 /** 路径尾段(renderer 无 node:path;显示用途,不做规范化) */
 function basename(p: string): string {
@@ -16,11 +17,12 @@ function basename(p: string): string {
 
 /** 安装记录 chips(行内,E1/E2) */
 function InstallChips({ installs }: { installs: PluginInstallRecord[] }): JSX.Element {
+  const t = useDict()
   return (
     <>
       {installs.map((r, i) => (
         <span className="chip" key={i}>
-          {r.scope}
+          {r.scope ?? t.placeholder.unknown}
           {r.projectPath ? ` · ${basename(r.projectPath)}` : ''}
           {r.projectMissing ? '(项目已失联)' : ''}
         </span>

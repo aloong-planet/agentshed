@@ -154,7 +154,7 @@ export async function searchProjectSessions(
         const parsed = parseQ(t)
         hits.push({
           i: t + 1,
-          text: parsed?.text ?? '(该行已无法读取)',
+          text: parsed?.text ?? null,
           at: parsed?.at ?? recs[t][3],
           inBody: true,
           snippet: bodySnippet.get(t) ?? null

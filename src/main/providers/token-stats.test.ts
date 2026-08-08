@@ -446,7 +446,7 @@ describe('会话 at = 文件内最大时间戳(两侧同义)', () => {
     mkClaudeFile('no-usage.jsonl', [userLine('只问了一句就崩了', '2026-07-30T11:22:33Z')], 1000)
     const r = await engine().build(roots(), [proj])
     // 该文件不产生 token,但仍是一条会话
-    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => x.title.includes('崩了'))
+    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => (x.title ?? '').includes('崩了'))
     expect(s?.at, 'mtime 是 1000 秒(1970),文件内有真实时间戳就不该退回它').toBe(
       Date.parse('2026-07-30T11:22:33Z')
     )

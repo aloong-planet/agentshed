@@ -7,20 +7,21 @@
 import { describe, it, expect } from 'vitest'
 import { dictOf, LANGUAGES } from '@shared/i18n'
 import { errLabel } from './SubagentsView'
+import { ERR } from '@shared/errors'
 
-describe('errLabel(按类别判分支)', () => {
+describe('errLabel(按错误码判分支)', () => {
   it('unreadable 与 parse-failed 取到各自的措辞', () => {
     for (const lang of LANGUAGES) {
       const t = dictOf(lang)
-      expect(errLabel('unreadable', t)).toBe(t.subagentError.unreadable)
-      expect(errLabel('parse-failed', t)).toBe(t.subagentError.parseFailed)
+      expect(errLabel({ code: ERR.subagentUnreadable, params: {} }, t)).toBe(t.subagentError.unreadable)
+      expect(errLabel({ code: ERR.subagentTomlFailed, params: {} }, t)).toBe(t.subagentError.parseFailed)
     }
   })
 
   it('两类标签互不相同(否则分支等于没分)', () => {
     for (const lang of LANGUAGES) {
       const t = dictOf(lang)
-      expect(errLabel('unreadable', t)).not.toBe(errLabel('parse-failed', t))
+      expect(errLabel({ code: ERR.subagentUnreadable, params: {} }, t)).not.toBe(errLabel({ code: ERR.subagentTomlFailed, params: {} }, t))
     }
   })
 

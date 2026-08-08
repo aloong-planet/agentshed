@@ -50,7 +50,7 @@ function readInstalled(claudeHome: string): InstalledPlugin[] {
       const str = (k: string): string | null => (typeof rec[k] === 'string' ? (rec[k] as string) : null)
       const projectPath = str('projectPath')
       return {
-        scope: str('scope') ?? '(未知)',
+        scope: str('scope') ?? null,
         projectPath,
         projectMissing: projectPath !== null && !existsSync(projectPath),
         installPath: str('installPath'),

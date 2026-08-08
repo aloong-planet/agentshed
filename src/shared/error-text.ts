@@ -92,6 +92,16 @@ export function errorText(lang: Language, raw: unknown): string {
       return t.skillCopyFailed(s(p, 'detail'))
     case ERR.skillDeleteFailed:
       return t.skillDeleteFailed(s(p, 'detail'))
+    case ERR.registryProjectsInvalid:
+      return t.registryProjectsInvalid
+    case ERR.registryParseFailed:
+      return t.registryParseFailed(s(p, 'detail'))
+    case ERR.subagentUnreadable:
+      return t.subagentUnreadable
+    case ERR.subagentTomlFailed:
+      return t.subagentTomlFailed(s(p, 'detail'))
+    case ERR.subagentMissingName:
+      return t.subagentMissingName
     default:
       return exhaustive(err.code)
   }

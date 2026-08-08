@@ -151,11 +151,15 @@ describe('全局配置只读', () => {
       'model = "gpt-5.5-codex"\n[projects."/a"]\ntrust_level = "trusted"\n[mcp_servers.node_repl]\ncommand="node"\n'
     )
     const snap = await scan(roots(), { now: () => 1 })
-    expect(snap.global.claudeGlobalMd).toContain('全局规矩')
-    expect(snap.global.codexAgentsMd).toContain('Codex 全局')
-    expect(snap.global.codexConfigSummary).toContain('gpt-5.5-codex')
-    expect(snap.global.codexConfigSummary).toContain('projects: 1')
-    expect(snap.global.codexConfigSummary).toContain('mcp_servers: 1')
+    expect(snap.global.claudeGlobalMd?.text).toContain('全局规矩')
+    expect(snap.global.codexAgentsMd?.text).toContain('Codex 全局')
+    // 摘要现在是结构化字段,成句由渲染层组装(票 07)——断字段比断句子更稳:
+    // 措辞改了不该让这条红,计数错了才该红
+    expect(snap.global.codexConfigSummary).toEqual({
+      model: 'gpt-5.5-codex',
+      projectCount: 1,
+      mcpCount: 1
+    })
   })
 
   it('全部缺失 → null,不抛错', async () => {

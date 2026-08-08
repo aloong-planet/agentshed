@@ -16,7 +16,7 @@ import { readArtifacts } from './artifacts'
 import { readEffectiveSubagents } from './subagents'
 import { readProjectMemory } from './memory'
 import { readProjectPlugins } from './plugins'
-import { fmField, readTextCapped } from './read-utils'
+import { fmField, readCapped, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
 
 /** G1(详情页口径):本项目有效启用插件的内含 skills → 命名空间条目(level=plugin,不参与遮蔽) */
@@ -55,8 +55,8 @@ export function readProjectDetail(roots: ScanRoots, projectPath: string): Projec
     plugins,
     mcp: readProjectMcp(roots, projectPath),
     configs: {
-      claudeMd: readTextCapped(join(projectPath, 'CLAUDE.md')),
-      agentsMd: readTextCapped(join(projectPath, 'AGENTS.md')),
+      claudeMd: readCapped(join(projectPath, 'CLAUDE.md')),
+      agentsMd: readCapped(join(projectPath, 'AGENTS.md')),
       settingsSummary: settingsSummary(roots, projectPath)
     },
     stats: null,

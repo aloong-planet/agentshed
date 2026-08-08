@@ -1,6 +1,7 @@
 // skills-view/plugins-view 共用:skill 包内文件表(表头/文件行/深度提示/加载与错误态)。
 // 磁盘 skill 展开区与插件 skill 展开区必须一致演化(spec H2 与序列 C 同规),故单一组件。
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
+import { useDict } from './language'
 
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -38,6 +39,7 @@ export function SkillFilesTable({
   error: string | null
   onOpen: (f: SkillFileEntry) => void
 }): JSX.Element | null {
+  const t = useDict()
   if (loading) {
     return (
       <div className="files">
@@ -57,7 +59,7 @@ export function SkillFilesTable({
     <>
       {listing.deep && (
         <div className="sk-tip">
-          {listing.deepHint}
+          {t.skillDeepHint}
           {listing.deepPaths.length > 0 && (
             <>
               <br />

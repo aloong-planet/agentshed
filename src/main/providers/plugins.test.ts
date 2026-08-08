@@ -82,7 +82,7 @@ describe('全局 plugins:scope 语义修复', () => {
     const snap = await scan(roots(), { now: () => 1 })
     const byName = Object.fromEntries(snap.global.plugins.map((p) => [p.name, p]))
     expect(byName['a@mp'].installs[0].scope).toBe('local')
-    expect(byName['b@mp'].installs[0].scope).toBe('(未知)')
+    expect(byName['b@mp'].installs[0].scope).toBeNull()
   })
 
   it('E4 全局页启用口径取 user 层:缺失与显式 false 均为未启用', async () => {

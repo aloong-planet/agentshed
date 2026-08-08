@@ -11,12 +11,15 @@ export type Provider = 'Anthropic' | 'OpenAI' | 'Google' | 'other'
 /** 图例与堆叠的固定顺序(不随当日数据抖动) */
 export const PROVIDER_ORDER: Provider[] = ['Anthropic', 'OpenAI', 'Google', 'other']
 
-/** 界面显示名。三家厂商名各语言通用,只有 other 需要随界面语言变化 */
-export const PROVIDER_LABEL: Record<Provider, string> = {
+/**
+ * 界面显示名。三家厂商名是专有名词、各语言通用,故直接在此;
+ * **只有 `other` 随界面语言变化**,故此处留 null,由渲染层从字典取(票 07)。
+ */
+export const PROVIDER_LABEL: Record<Provider, string | null> = {
   Anthropic: 'Anthropic',
   OpenAI: 'OpenAI',
   Google: 'Google',
-  other: '其他'
+  other: null
 }
 
 export function providerOf(model: string | null | undefined): Provider {
