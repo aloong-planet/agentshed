@@ -36,9 +36,9 @@ import {
 import { HiddenStore } from './hidden-store'
 import { rescanIntervalMs, shouldRescanOnFocus } from './rescan'
 import { PrefsStore } from './prefs-store'
-import { isAppearanceMode, isAppearanceScheme } from '@shared/appearance'
 import { applyAppearanceMode } from './appearance-mode'
-import { effectiveLanguage, isLanguagePreference, type Language } from '@shared/i18n'
+import { createPrefsHandlers } from './prefs-handlers'
+import { effectiveLanguage, type Language } from '@shared/i18n'
 import { LANG_ARG, SYS_LANGS_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
 import { systemPreferredLanguages } from './system-language'
@@ -359,28 +359,13 @@ handle(CMD.readSkillFile, (_e, args: unknown): string => {
   }
 })
 
-handle(CMD.getPrefs, () => prefsStore?.get() ?? { ...DEFAULT_PREFS })
-handle(CMD.setScheme, (_e, scheme: unknown) => {
-  if (!isAppearanceScheme(scheme)) throw new Error('外观方案不合契约')
-  if (!prefsStore) throw new Error('偏好存储未就绪')
-  return prefsStore.setScheme(scheme)
-})
-handle(CMD.setLanguage, (_e, language: unknown) => {
-  if (!isLanguagePreference(language)) throw new Error('界面语言不合契约')
-  if (!prefsStore) throw new Error('偏好存储未就绪')
-  return prefsStore.setLanguage(language)
-})
-handle(CMD.setMode, (_e, mode: unknown) => {
-  if (!isAppearanceMode(mode)) throw new Error('外观模式不合契约')
-  if (!prefsStore) throw new Error('偏好存储未就绪')
-  // **先生效再落盘**,与外观方案(序列 A2)和语言同规矩:themeSource 改变会直接改变
-  // prefers-color-scheme 的求值结果,媒体查询随之重算,无需重载窗口(序列 B7)。
-  // 顺序要紧——反过来写的话,落盘失败(磁盘满/只读)会抛在设 themeSource 之前,
-  // 于是渲染层已乐观勾上「深色」、界面却还是浅的,提示说失败、界面也没变,双重挫败。
-  // 现在的顺序下失败只丢持久化:本次有效,重启回到磁盘上的旧值。
-  applyAppearanceMode(nativeTheme, mode)
-  return prefsStore.setMode(mode)
-})
+// 偏好类 handler 的逻辑在 ./prefs-handlers(可注入、有单测);这里只做接线。
+// store 传取值函数而非实例:prefsStore 要到 whenReady 才赋值,而通道此刻就注册了。
+const prefsHandlers = createPrefsHandlers({ store: () => prefsStore, theme: nativeTheme })
+handle(CMD.getPrefs, () => prefsHandlers.getPrefs())
+handle(CMD.setScheme, (_e, scheme: unknown) => prefsHandlers.setScheme(scheme))
+handle(CMD.setLanguage, (_e, language: unknown) => prefsHandlers.setLanguage(language))
+handle(CMD.setMode, (_e, mode: unknown) => prefsHandlers.setMode(mode))
 handle(CMD.setHidden, (_e, args: unknown) => {
   const a = args as SetHiddenArgs
   if (typeof a?.projectPath !== 'string' || typeof a?.hidden !== 'boolean') {
