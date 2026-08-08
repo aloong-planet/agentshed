@@ -18,6 +18,8 @@
 | [memory-view](memory-view.md) | [Memory 查看](../features/memory-view.md) |
 | [plugins-view](plugins-view.md) | [Plugins 视图](../features/plugins-view.md) |
 | [token-stats](token-stats.md) | [Token 统计](../features/token-stats.md) |
+| [session-view](session-view.md) | [会话查看](../features/session-view.md) |
+| [i18n](i18n.md) | [界面多语言](../features/i18n.md) |
 | [skill-install](skill-install.md) | [Skills 装卸](../features/skill-install.md) |
 | [skills-view](skills-view.md) | [Skills 查看](../features/skills-view.md) |
 | [appearance](appearance.md) | [外观主题](../features/appearance.md) |
