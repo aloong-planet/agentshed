@@ -11,11 +11,8 @@ import { BlockView } from './TurnBlocks'
 import { errorText } from '@shared/error-text'
 import { useDict, useLanguage } from './language'
 import { RichText } from './RichText'
+import { formatBytes } from '@shared/format'
 
-function fmtMB(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 function fmtHM(ms: number | null): string {
   if (ms === null) return '—'
@@ -24,12 +21,6 @@ function fmtHM(ms: number | null): string {
   return `${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-/** 轮内脚注的读取量:B 级精确显示(小轮次常在几百字节,进位会显得像整读) */
-function fmtBytes(n: number): string {
-  if (n < 1024) return `${n} B`
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`
-}
 
 /** 单轮取回的界面状态(票 05):就地展开,取哪轮读哪轮 */
 type TurnState =
@@ -256,7 +247,7 @@ export function SessionPane({
                   <BlockView b={b} key={bi} />
                 ))}
                 <div className="fetched">
-                  {t.session.fetchedNote(st.ms, fmtBytes(st.turn.bytesRead))}
+                  {t.session.fetchedNote(st.ms, formatBytes(lang, st.turn.bytesRead))}
                 </div>
               </>
             )}
@@ -267,7 +258,7 @@ export function SessionPane({
   }
 
   const grouped = page !== null && groupable(page.questions)
-  const groups = page !== null && grouped ? dayGroups(page.questions, order) : []
+  const groups = page !== null && grouped ? dayGroups(lang, page.questions, order) : []
 
   return (
     <div className="pane">
@@ -288,8 +279,8 @@ export function SessionPane({
                 page.side === 'claude' ? 'Claude Code' : 'Codex',
                 page.questions.length,
                 fmtTok(page.tokens),
-                fmtMB(page.bytes),
-                fmtAgo(page.at, now)
+                formatBytes(lang, page.bytes),
+                fmtAgo(lang, page.at, now)
               )}
             </div>
           </>

@@ -129,6 +129,7 @@ function OverviewTab({
   snap: Snapshot
   onOpenSession: (file: string) => void
 }): JSX.Element {
+  const lang = useLanguage()
   const t = useDict()
   const stats = detail.stats ?? { tokens: emptyTokenStats(), sessions: [] }
   return (
@@ -150,7 +151,7 @@ function OverviewTab({
                 </span>
                 <span className="t">{s.title ?? t.placeholder.untitledSession}</span>
                 <span className="tok">{fmtTok(s.tokens)}</span>
-                <span className="d">{fmtAgo(s.at, snap.scannedAt)}</span>
+                <span className="d">{fmtAgo(lang, s.at, snap.scannedAt)}</span>
               </button>
             ))}
           </div>
@@ -192,6 +193,7 @@ function SessionsTab({
   snap: Snapshot
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
+  const lang = useLanguage()
   const t = useDict()
   const [recentFirst, setRecentFirst] = useState(sessionsRecentFirst)
   const choose = (v: boolean): void => {
@@ -295,7 +297,7 @@ function SessionsTab({
                       />
                     </span>
                     {h.inBody && <span className="bd">{t.detail.inBody}</span>}
-                    <span className="d">{fmtAgo(h.at, snap.scannedAt)}</span>
+                    <span className="d">{fmtAgo(lang, h.at, snap.scannedAt)}</span>
                   </button>
                 ))}
               </div>
@@ -344,7 +346,7 @@ function SessionsTab({
             )}
             <span className="n">{t.detail.questionCount(s.questionCount)}</span>
             <span className="tok">{fmtTok(s.tokens)}</span>
-            <span className="d">{fmtAgo(s.at, snap.scannedAt)}</span>
+            <span className="d">{fmtAgo(lang, s.at, snap.scannedAt)}</span>
           </button>
         ))}
       </div>
@@ -632,7 +634,7 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
               <span className="t">{a.title}</span>
               {a.type === 'prototypes' && <span className="pill ln">{t.detail.openInBrowser}</span>}
               <span className="pill glb">{ART_LABELS[a.type]}</span>
-              <span className="src mono">{fmtAgo(a.mtimeMs, snap.scannedAt)}</span>
+              <span className="src mono">{fmtAgo(lang, a.mtimeMs, snap.scannedAt)}</span>
             </button>
           ))}
         </div>

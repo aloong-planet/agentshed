@@ -140,7 +140,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         {level === 'global' && <span className="pill glb">{t.skills.pillGlobal}</span>}
         {symlink && <span className="pill ln">{t.skills.pillSymlink}</span>}
         <span className="sk-meta">
-          {pkg ? t.skills.pkgSummary(pkg.files, formatSize(pkg.bytes)) : ''}
+          {pkg ? t.skills.pkgSummary(pkg.files, formatSize(lang, pkg.bytes)) : ''}
         </span>
         {installSlot}
         {uninstallSlot}

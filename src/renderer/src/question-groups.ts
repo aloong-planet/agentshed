@@ -1,6 +1,8 @@
 // 提问列表的日期分组(票 06):跨天会话单行索引只有 HH:MM 会失真,
 // 分组行同时承担"这是哪天"。纯函数,渲染层直接消费。
 import type { SessionQuestion } from '@shared/domain'
+import type { Language } from '@shared/i18n'
+import { dayLabel as localeDayLabel } from '@shared/format'
 
 export type QuestionOrder = 'asc' | 'desc'
 
@@ -22,22 +24,27 @@ export function groupable(qs: readonly SessionQuestion[]): boolean {
   return qs.length > 0 && qs.every((q) => q.at !== null)
 }
 
-const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'] as const
-
-/** 本地时区,与原型同格式:'8月4日 周二' */
-export function dayLabel(ms: number): string {
-  const d = new Date(ms)
-  return `${d.getMonth() + 1}月${d.getDate()}日 ${WEEKDAYS[d.getDay()]}`
+/**
+ * 本地时区的日期标签,按当前语言(票 12)。
+ * **同一语言下对同一天必须稳定**——本函数的输出被 `dayGroups` 当分组键用,
+ * 标签抖动会把同一天拆成两组。
+ */
+export function dayLabel(lang: Language, ms: number): string {
+  return localeDayLabel(lang, ms)
 }
 
 /**
  * 按日分组(同日相邻归组;输入顺序 = 原始轮次顺序)。
  * desc 时**组与组内一起翻**——只翻组不翻组内会出现"日期倒序而组内正序"。
  */
-export function dayGroups(qs: readonly SessionQuestion[], order: QuestionOrder): DayGroup[] {
+export function dayGroups(
+  lang: Language,
+  qs: readonly SessionQuestion[],
+  order: QuestionOrder
+): DayGroup[] {
   const groups: DayGroup[] = []
   qs.forEach((q, idx) => {
-    const day = dayLabel(q.at as number)
+    const day = dayLabel(lang, q.at as number)
     const last = groups[groups.length - 1]
     if (last && last.day === day) last.items.push({ q, idx })
     else groups.push({ day, id: `${day}#${idx}`, items: [{ q, idx }] })

@@ -84,7 +84,7 @@ export function PluginSkillList({
               </span>
               <span className="ds">{s.description ?? ''}</span>
               <span className="meta">
-                {s.pkg ? t.skills.pkgSummary(s.pkg.files, formatSize(s.pkg.bytes)) : reason}
+                {s.pkg ? t.skills.pkgSummary(s.pkg.files, formatSize(lang, s.pkg.bytes)) : reason}
               </span>
             </button>
             {on && (

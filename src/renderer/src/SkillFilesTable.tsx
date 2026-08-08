@@ -1,12 +1,13 @@
 // skills-view/plugins-view 共用:skill 包内文件表(表头/文件行/深度提示/加载与错误态)。
 // 磁盘 skill 展开区与插件 skill 展开区必须一致演化(spec H2 与序列 C 同规),故单一组件。
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
-import { useDict } from './language'
+import type { Language } from '@shared/i18n'
+import { formatBytes } from '@shared/format'
+import { useDict, useLanguage } from './language'
 
-export function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+/** 包体积:数值按语言、单位符号不翻译(票 12) */
+export function formatSize(lang: Language, bytes: number): string {
+  return formatBytes(lang, bytes)
 }
 
 function formatDate(ms: number): string {
@@ -39,6 +40,7 @@ export function SkillFilesTable({
   error: string | null
   onOpen: (f: SkillFileEntry) => void
 }): JSX.Element | null {
+  const lang = useLanguage()
   const t = useDict()
   if (loading) {
     return (
@@ -89,7 +91,7 @@ export function SkillFilesTable({
                   {f.path === 'SKILL.md' && <span className="tag">{t.skills.tagEntry}</span>}
                 </span>
                 <span className="meta lines">{f.lines.toLocaleString('zh-CN')}</span>
-                <span className="meta">{formatSize(f.bytes)}</span>
+                <span className="meta">{formatSize(lang, f.bytes)}</span>
                 <span className="meta">{formatDate(f.mtimeMs)}</span>
               </button>
             )
