@@ -34,7 +34,7 @@ describe('validateSnapshot', () => {
       delete snap.global[field]
       const r = validateSnapshot(snap)
       expect(r.ok).toBe(false)
-      if (!r.ok) expect(r.error).toContain(field)
+      if (!r.ok) expect(r.failure.path).toContain(field)
     }
   })
 
@@ -42,7 +42,7 @@ describe('validateSnapshot', () => {
     const bad = { scannedAt: 1, sides: { claude: { detected: true } }, projects: [] }
     const r = validateSnapshot(bad)
     expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error).toContain('sides.codex')
+    if (!r.ok) expect(r.failure.path).toContain('sides.codex')
   })
 
   it('拒收项目条目里的非法 side', () => {
@@ -58,7 +58,7 @@ describe('validateSnapshot', () => {
     })
     const r = validateSnapshot(snap)
     expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error).toContain('sides')
+    if (!r.ok) expect(r.failure.path).toContain('sides')
   })
 
   it('拒收 lastSessionAt 类型错误(string 冒充时间戳)', () => {
@@ -99,7 +99,7 @@ describe('validateProjectStats(会话元数据)', () => {
     const bad = { ...ok, sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, questionCount: 3, forkState: 'none' }] }
     const r = validateProjectStats(bad)
     expect(r.ok).toBe(false)
-    expect(r.ok === false && r.error).toContain('sessions[0].file')
+    expect(r.ok === false && r.failure.path).toContain('sessions[0].file')
   })
 
   it('拒收缺 questionCount 的会话并指出路径', () => {
@@ -109,7 +109,7 @@ describe('validateProjectStats(会话元数据)', () => {
     }
     const r = validateProjectStats(bad)
     expect(r.ok).toBe(false)
-    expect(r.ok === false && r.error).toContain('sessions[0].questionCount')
+    expect(r.ok === false && r.failure.path).toContain('sessions[0].questionCount')
   })
 
   it('拒收非法 forkState 并指出路径——三态是枚举,不能是任意串', () => {
@@ -119,7 +119,7 @@ describe('validateProjectStats(会话元数据)', () => {
     }
     const r = validateProjectStats(bad)
     expect(r.ok).toBe(false)
-    expect(r.ok === false && r.error).toContain('sessions[0].forkState')
+    expect(r.ok === false && r.failure.path).toContain('sessions[0].forkState')
   })
 
   it('三种合法 forkState 都放行', () => {
@@ -218,7 +218,7 @@ describe('validateProjectDetail —— 拒收并指出字段路径', () => {
   const bad = (mut: (d: Record<string, unknown>) => void): ReturnType<typeof validateProjectDetail> => {
     const d = okDetail(); mut(d); return validateProjectDetail(d)
   }
-  const errOf = (r: ReturnType<typeof validateProjectDetail>): string => (r.ok ? '' : r.error)
+  const errOf = (r: ReturnType<typeof validateProjectDetail>): string => (r.ok ? '' : r.failure.path)
 
   it('非对象 / 缺 path', () => {
     expect(validateProjectDetail(null).ok).toBe(false)
@@ -297,15 +297,15 @@ describe('validateSessionPage(会话页载荷)', () => {
 
   it('拒收非法 side / forkState 并指出路径', () => {
     const r1 = validateSessionPage({ ...okPage, side: 'gemini' })
-    expect(r1.ok === false && r1.error).toContain('side')
+    expect(r1.ok === false && r1.failure.path).toContain('side')
     const r2 = validateSessionPage({ ...okPage, forkState: '存疑' })
-    expect(r2.ok === false && r2.error).toContain('forkState')
+    expect(r2.ok === false && r2.failure.path).toContain('forkState')
   })
 
   it('拒收缺字段的提问项并带下标路径', () => {
     const r = validateSessionPage({ ...okPage, questions: [{ i: 1, at: 1, tools: 0, subagents: 0 }] })
     expect(r.ok).toBe(false)
-    expect(r.ok === false && r.error).toContain('questions[0].text')
+    expect(r.ok === false && r.failure.path).toContain('questions[0].text')
   })
 
   it('拒收 questions 非数组 / 空 file / 计数非 number', () => {
@@ -327,11 +327,11 @@ describe('validateSessionPage(会话页载荷)', () => {
     const noFp = { ...okPage } as Record<string, unknown>
     delete noFp['forkPoints']
     const r1 = validateSessionPage(noFp)
-    expect(r1.ok === false && r1.error).toContain('forkPoints')
+    expect(r1.ok === false && r1.failure.path).toContain('forkPoints')
     const r2 = validateSessionPage({ ...okPage, forkParentTitle: 42 })
-    expect(r2.ok === false && r2.error).toContain('forkParentTitle')
+    expect(r2.ok === false && r2.failure.path).toContain('forkParentTitle')
     const r3 = validateSessionPage({ ...okPage, forkParentFile: 42 })
-    expect(r3.ok === false && r3.error).toContain('forkParentFile')
+    expect(r3.ok === false && r3.failure.path).toContain('forkParentFile')
   })
 })
 
@@ -349,15 +349,15 @@ describe('validateSessionTurn(单轮取回载荷,票 05)', () => {
 
   it('拒收缺 bytesRead / blocks 非数组,并指出路径', () => {
     const r1 = validateSessionTurn({ blocks: [] })
-    expect(r1.ok === false && r1.error).toContain('bytesRead')
+    expect(r1.ok === false && r1.failure.path).toContain('bytesRead')
     const r2 = validateSessionTurn({ blocks: '不是数组', bytesRead: 0 })
-    expect(r2.ok === false && r2.error).toContain('blocks')
+    expect(r2.ok === false && r2.failure.path).toContain('blocks')
   })
 
   it('拒收非法块:kind 未知 / body 非 string / at 非 number|null', () => {
     const bad1 = { blocks: [{ kind: 'video', role: 'assistant', at: null, body: 'x' }], bytesRead: 1 }
     const r1 = validateSessionTurn(bad1)
-    expect(r1.ok === false && r1.error).toContain('blocks[0]')
+    expect(r1.ok === false && r1.failure.path).toContain('blocks[0]')
     const bad2 = { blocks: [{ kind: 'text', role: 'assistant', at: null, body: 42 }], bytesRead: 1 }
     expect(validateSessionTurn(bad2).ok).toBe(false)
     const bad3 = { blocks: [{ kind: 'text', role: 'assistant', at: '昨天', body: 'x' }], bytesRead: 1 }
@@ -387,7 +387,7 @@ describe('validateSessionTurn —— 票 07 富内容块', () => {
   it('拒收:tool 缺 name / sub 的 step kind 非法 / unknown.types 非 string 数组', () => {
     const bad1 = { blocks: [{ kind: 'tool', at: 1, summary: 's', input: 'i', output: null, truncated: false }], bytesRead: 1 }
     const r1 = validateSessionTurn(bad1)
-    expect(r1.ok === false && r1.error).toContain('blocks[0]')
+    expect(r1.ok === false && r1.failure.path).toContain('blocks[0]')
     const bad2 = {
       blocks: [{ kind: 'sub', at: 1, name: 'x', prompt: '', steps: [{ kind: 'video', label: 'x' }], result: null, unlinked: false }],
       bytesRead: 1
@@ -431,11 +431,11 @@ describe('validateSearchResult(搜索载荷,票 08)', () => {
     const noFolded = { ...ok } as Record<string, unknown>
     delete noFolded['folded']
     const r1 = validateSearchResult(noFolded)
-    expect(r1.ok === false && r1.error).toContain('folded')
+    expect(r1.ok === false && r1.failure.path).toContain('folded')
     const badHit = JSON.parse(JSON.stringify(ok)) as typeof ok
     delete (badHit.groups[0].hits[0] as unknown as Record<string, unknown>)['inBody']
     const r2 = validateSearchResult(badHit)
-    expect(r2.ok === false && r2.error).toContain('hits[0]')
+    expect(r2.ok === false && r2.failure.path).toContain('hits[0]')
     const badSnip = JSON.parse(JSON.stringify(ok)) as typeof ok
     ;(badSnip.groups[0].hits[0] as unknown as Record<string, unknown>)['snippet'] = 42
     expect(validateSearchResult(badSnip).ok).toBe(false)

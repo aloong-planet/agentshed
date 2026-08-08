@@ -1,4 +1,5 @@
 // IPC 契约:channel 名与载荷类型的单一出处。两端只从此处导入,禁止各自定义。
+import type { ErrorCode, ErrorParams } from './errors'
 
 export const CMD = {
   /** 取当前快照(无则触发首扫) */
@@ -70,7 +71,8 @@ export interface SkillOpArgs {
 
 export type SkillOpResult =
   | { ok: true }
-  | { ok: false; reason: string; message: string }
+  // 失败只带**码 + 参数**,不带成句 message(ADR-0015):措辞由渲染层按当前语言生成。
+  | { ok: false; reason: ErrorCode; params?: ErrorParams }
 
 /** 列举 skill 包:全局库、项目级或插件包(plugins-view H8) */
 export interface ListSkillFilesArgs {
@@ -116,5 +118,6 @@ export const LANG_ARG = '--agentshed-language='
 export const SYS_LANGS_ARG = '--agentshed-system-languages='
 
 export type { AppearanceMode, AppearanceScheme } from './appearance'
+export type { ErrorCode, ErrorParams } from './errors'
 export type { Prefs } from './prefs'
 export type { Language, LanguagePreference } from './i18n'

@@ -63,7 +63,21 @@ export const fr: Locale = {
       'La première ligne de la session est illisible, impossible de reconstruire l’index',
     sessionParseFailed: 'Échec de l’analyse du fichier de session',
     prefsStoreNotReady: 'Le stockage des préférences n’est pas prêt',
-    invalidPref: (field) => `Valeur de préférence non conforme : ${field}`
+    invalidPref: (field) => `Valeur de préférence non conforme : ${field}`,
+    contractMissing: (path) => `Charge utile non conforme reçue : ${path} est absent`,
+    contractType: (path, expect) => `Charge utile non conforme reçue : ${path} devrait être ${expect}`,
+    contractEnum: (path, value) =>
+      `Charge utile non conforme reçue : la valeur ${value} en ${path} est hors plage`,
+    untrustedSender: (sender) => `Appelant IPC non fiable : ${sender}`,
+    linkProtocolUnsupported: 'Protocole de lien non pris en charge',
+    linkOutOfScope: 'La cible du lien est hors de la portée lisible',
+    skillBadName: 'Nom de skill invalide',
+    skillStaleTarget: 'La cible est un projet obsolète (son dossier n’existe plus)',
+    skillMissingSource: (name) => `Aucun skill de ce nom dans la bibliothèque globale : ${name}`,
+    skillCopyMissing: 'La copie au niveau du projet n’existe pas',
+    skillConflict: 'La cible possède déjà un skill de ce nom au niveau du projet — rien n’a été écrasé',
+    skillCopyFailed: (detail) => `Échec de la copie, nettoyage effectué : ${detail}`,
+    skillDeleteFailed: (detail) => `Échec de la suppression : ${detail}`
   },
 
   subagentError: {

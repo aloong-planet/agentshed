@@ -6,6 +6,9 @@ import { renderMarkdown } from './md'
 import { dirOf, handleMdClick } from './md-links'
 import { toast } from './Toast'
 import { fmtAgo } from './ProjectsPane'
+import { errorText } from '@shared/error-text'
+import { appError } from '@shared/errors'
+import { useLanguage } from './language'
 
 /** C6 三态:未开启 → 开启提示;开启无内容 → 暂无内容;有内容 → 条目行(在列表中) */
 function CodexMemoryNote({ snap }: { snap: Snapshot }): JSX.Element | null {
@@ -105,6 +108,7 @@ export function ProjectMemoryTab({
   hasClaudeSide: boolean
   anchor: number
 }): JSX.Element {
+  const lang = useLanguage()
   const [open, setOpen] = useState<MemoryFileMeta | null>(null)
   const html = useMemo(
     () => (detail.memory.main === null ? null : renderMarkdown(detail.memory.main)),
@@ -138,7 +142,7 @@ export function ProjectMemoryTab({
                   const t = detail.memory.topics.find((x) => x.file === file)
                   if (t) setOpen(t)
                 },
-                unresolved: (reason) => toast('err', reason)
+                unresolved: (code) => toast('err', errorText(lang, appError(code)))
               }
             )
           }

@@ -112,16 +112,17 @@ describe('assertTrustedSender(IPC 调用方校验 · #17)', () => {
   })
 
   it('外部页面抛错(被导航走的 renderer 仍持通道 → 这层挡住)', () => {
-    expect(() => assertTrustedSender('https://evil.com/', DEV)).toThrow(/不可信/)
+    expect(() => assertTrustedSender('https://evil.com/', DEV)).toThrow(ERR.untrustedSender)
   })
 
   it('无 sender(frame 已销毁等)按不可信处理', () => {
-    expect(() => assertTrustedSender(undefined, DEV)).toThrow(/不可信/)
+    expect(() => assertTrustedSender(undefined, DEV)).toThrow(ERR.untrustedSender)
   })
 })
 
 // ── 票 04:会话文件读取白名单(区间读通路的入口守卫)──
 import { sessionReadTarget } from './security'
+import { ERR } from '@shared/errors'
 
 describe('sessionReadTarget(会话读白名单判定)', () => {
   const wl = new Set([

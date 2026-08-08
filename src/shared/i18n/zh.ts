@@ -70,7 +70,21 @@ export const zh = {
     sessionMetaUnreadable: '会话首行元数据不可读,无法重建索引',
     sessionParseFailed: '会话文件解析失败',
     prefsStoreNotReady: '偏好存储未就绪',
-    invalidPref: (field: string) => `偏好取值不合契约:${field}`
+    invalidPref: (field: string) => `偏好取值不合契约:${field}`,
+    contractMissing: (path: string) => `收到不合契约的载荷:缺少 ${path}`,
+    contractType: (path: string, expect: string) => `收到不合契约的载荷:${path} 应为 ${expect}`,
+    contractEnum: (path: string, value: string) =>
+      `收到不合契约的载荷:${path} 的取值 ${value} 不在允许范围内`,
+    untrustedSender: (sender: string) => `IPC 调用方不可信:${sender}`,
+    linkProtocolUnsupported: '不支持的链接协议',
+    linkOutOfScope: '链接目标不在可读范围',
+    skillBadName: '非法 skill 名',
+    skillStaleTarget: '目标是失效项目(目录不存在)',
+    skillMissingSource: (name: string) => `全局库无此 skill:${name}`,
+    skillCopyMissing: '项目级副本不存在',
+    skillConflict: '目标已有同名项目级 skill,已阻止不覆盖',
+    skillCopyFailed: (detail: string) => `复制失败已清理:${detail}`,
+    skillDeleteFailed: (detail: string) => `删除失败:${detail}`
   },
 
   /** subagent 定义文件的读取失败,作为**数据字段**随快照下发(不是抛出的错误) */

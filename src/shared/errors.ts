@@ -44,7 +44,37 @@ export const ERR = {
   /** 偏好存储未就绪 */
   prefsStoreNotReady: 'prefs-store-not-ready',
   /** 偏好取值不合契约(params.field:scheme / language / mode) */
-  invalidPref: 'invalid-pref'
+  invalidPref: 'invalid-pref',
+  /** 跨进程载荷的契约校验:某字段缺失(params.what 载荷名、params.path 字段路径) */
+  contractMissing: 'contract-missing',
+  /**
+   * 契约校验:字段类型不符。
+   * params.expect 是**类型记法**(`string|null` / `array` / `object`),语言无关、**不翻译**——
+   * 与 KB / MB / ms 这类单位符号同一处置:它是记法不是自然语言。
+   */
+  contractType: 'contract-type',
+  /** 契约校验:枚举字段收到不在取值域内的值(params.value 为实际收到的值) */
+  contractEnum: 'contract-enum',
+  /** IPC 调用方不可信(params.sender) */
+  untrustedSender: 'untrusted-sender',
+  /** 渲染内容里的链接协议不受支持 */
+  linkProtocolUnsupported: 'link-protocol-unsupported',
+  /** 渲染内容里的链接目标不在可读范围 */
+  linkOutOfScope: 'link-out-of-scope',
+  /** skill 名不合法 */
+  skillBadName: 'skill-bad-name',
+  /** 目标是失效项目(目录不存在) */
+  skillStaleTarget: 'skill-stale-target',
+  /** 全局库无此 skill(params.name) */
+  skillMissingSource: 'skill-missing-source',
+  /** 项目级副本不存在 */
+  skillCopyMissing: 'skill-copy-missing',
+  /** 目标已有同名项目级 skill,已阻止不覆盖 */
+  skillConflict: 'skill-conflict',
+  /** 复制失败已清理(params.detail 为底层错误串) */
+  skillCopyFailed: 'skill-copy-failed',
+  /** 删除失败(params.detail) */
+  skillDeleteFailed: 'skill-delete-failed'
 } as const
 
 export type ErrorCode = (typeof ERR)[keyof typeof ERR]

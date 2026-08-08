@@ -17,6 +17,7 @@ import {
 } from '@shared/ipc'
 import type { ProjectDetail, SearchResult, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import {
+  contractError,
   validateSnapshot,
   validateProjectDetail,
   validateSessionPage,
@@ -24,19 +25,20 @@ import {
   validateSearchResult
 } from '@shared/validate'
 import { parsePrefs } from '@shared/prefs'
+import { ERR, appError } from '@shared/errors'
 import { FALLBACK_LANGUAGE, isLanguage, type Language } from '@shared/i18n'
 import { LANG_ARG, SYS_LANGS_ARG } from '@shared/ipc'
 
 // renderer 入口处的契约校验:主进程发来的快照不合契约就抛,不静默渲染 undefined
 function checked(snap: unknown): Snapshot {
   const r = validateSnapshot(snap)
-  if (!r.ok) throw new Error(`收到不合契约的快照 — ${r.error}`)
+  if (!r.ok) throw contractError('snapshot', r.failure)
   return snap as Snapshot
 }
 
 function checkedPrefs(raw: unknown): Prefs {
   const p = parsePrefs(raw)
-  if (!p) throw new Error('收到不合契约的偏好')
+  if (!p) throw appError(ERR.contractType, { path: 'prefs', expect: 'Prefs' })
   return p
 }
 
@@ -74,14 +76,14 @@ const api = {
   getProjectDetail: async (path: string): Promise<ProjectDetail> => {
     const d: unknown = await ipcRenderer.invoke(CMD.getProjectDetail, path)
     const r = validateProjectDetail(d)
-    if (!r.ok) throw new Error(`收到不合契约的项目详情 — ${r.error}`)
+    if (!r.ok) throw contractError('projectDetail', r.failure)
     return d as ProjectDetail
   },
   // 会话页:与快照/详情同规矩,两端各校验一次(这一侧抓结构化克隆的损耗)
   getSessionPage: async (file: string): Promise<SessionPage> => {
     const p: unknown = await ipcRenderer.invoke(CMD.getSessionPage, file)
     const r = validateSessionPage(p)
-    if (!r.ok) throw new Error(`收到不合契约的会话页 — ${r.error}`)
+    if (!r.ok) throw contractError('sessionPage', r.failure)
     return p as SessionPage
   },
   // 票 05:轮次按需取回。fresh 是只读谓词(要不要先亮"重建中"),取回本身在主进程侧
@@ -91,14 +93,14 @@ const api = {
   getSessionTurn: async (args: SessionTurnArgs): Promise<SessionTurn> => {
     const t: unknown = await ipcRenderer.invoke(CMD.getSessionTurn, args)
     const r = validateSessionTurn(t)
-    if (!r.ok) throw new Error(`收到不合契约的单轮载荷 — ${r.error}`)
+    if (!r.ok) throw contractError('sessionTurn', r.failure)
     return t as SessionTurn
   },
   // 票 08:项目会话搜索(两端各校验一次,同快照规矩)
   searchSessions: async (args: SearchSessionsArgs): Promise<SearchResult> => {
     const r: unknown = await ipcRenderer.invoke(CMD.searchSessions, args)
     const v = validateSearchResult(r)
-    if (!v.ok) throw new Error(`收到不合契约的搜索结果 — ${v.error}`)
+    if (!v.ok) throw contractError('searchResult', v.failure)
     return r as SearchResult
   },
   readArtifact: (file: string): Promise<string> =>

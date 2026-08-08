@@ -62,7 +62,21 @@ export const es: Locale = {
       'La primera línea de la sesión no se puede leer, así que no es posible reconstruir el índice',
     sessionParseFailed: 'No se pudo analizar el archivo de sesión',
     prefsStoreNotReady: 'El almacén de preferencias no está listo',
-    invalidPref: (field) => `Valor de preferencia no válido: ${field}`
+    invalidPref: (field) => `Valor de preferencia no válido: ${field}`,
+    contractMissing: (path) => `Se recibió una carga no válida: falta ${path}`,
+    contractType: (path, expect) => `Se recibió una carga no válida: ${path} debería ser ${expect}`,
+    contractEnum: (path, value) =>
+      `Se recibió una carga no válida: el valor ${value} en ${path} está fuera de rango`,
+    untrustedSender: (sender) => `Llamante IPC no confiable: ${sender}`,
+    linkProtocolUnsupported: 'Protocolo de enlace no admitido',
+    linkOutOfScope: 'El destino del enlace está fuera del alcance legible',
+    skillBadName: 'Nombre de skill no válido',
+    skillStaleTarget: 'El destino es un proyecto obsoleto (su carpeta ya no existe)',
+    skillMissingSource: (name) => `No hay ningún skill con ese nombre en la biblioteca global: ${name}`,
+    skillCopyMissing: 'No existe la copia a nivel de proyecto',
+    skillConflict: 'El destino ya tiene un skill con ese nombre a nivel de proyecto: no se sobrescribió nada',
+    skillCopyFailed: (detail) => `La copia falló y se limpió: ${detail}`,
+    skillDeleteFailed: (detail) => `Error al eliminar: ${detail}`
   },
 
   subagentError: {

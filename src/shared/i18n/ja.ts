@@ -59,7 +59,21 @@ export const ja: Locale = {
     sessionMetaUnreadable: 'セッションの先頭行が読み取れないため、インデックスを再構築できません',
     sessionParseFailed: 'セッションファイルの解析に失敗しました',
     prefsStoreNotReady: '設定の保存領域が準備できていません',
-    invalidPref: (field) => `設定値が不正です：${field}`
+    invalidPref: (field) => `設定値が不正です：${field}`,
+    contractMissing: (path) => `契約に合わないペイロードを受信しました：${path} がありません`,
+    contractType: (path, expect) => `契約に合わないペイロードを受信しました：${path} は ${expect} である必要があります`,
+    contractEnum: (path, value) =>
+      `契約に合わないペイロードを受信しました：${path} の値 ${value} は許容範囲外です`,
+    untrustedSender: (sender) => `信頼できない IPC 呼び出し元：${sender}`,
+    linkProtocolUnsupported: 'サポートされていないリンクプロトコルです',
+    linkOutOfScope: 'リンク先が読み取り可能な範囲外です',
+    skillBadName: '不正な skill 名です',
+    skillStaleTarget: '対象は失効したプロジェクトです（ディレクトリが存在しません）',
+    skillMissingSource: (name) => `グローバルライブラリにその skill はありません：${name}`,
+    skillCopyMissing: 'プロジェクト単位のコピーが存在しません',
+    skillConflict: '対象には同名のプロジェクト単位 skill が既にあります。上書きせず中止しました',
+    skillCopyFailed: (detail) => `コピーに失敗し、後始末しました：${detail}`,
+    skillDeleteFailed: (detail) => `削除に失敗しました：${detail}`
   },
 
   subagentError: {

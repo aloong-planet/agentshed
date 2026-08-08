@@ -2,6 +2,7 @@
 // 纯函数 seam:给定 href + 当前文档目录 + 可读文件清单 → 归宿裁决;点击拦截本身在 UI 层。
 import { describe, it, expect } from 'vitest'
 import { resolveMdLink } from './md-links'
+import { ERR } from '@shared/errors'
 
 const READABLE = [
   '/p/.claude/projects/enc/memory/pr-merge.md',
@@ -36,7 +37,7 @@ describe('resolveMdLink', () => {
   it('目标不在可读清单 → 明确拒绝(不静默无反应,也不放行导航)', () => {
     expect(resolveMdLink('missing.md', MEM_DIR, READABLE)).toEqual({
       kind: 'unresolved',
-      reason: '目标不在可读范围'
+      code: ERR.linkOutOfScope
     })
   })
 

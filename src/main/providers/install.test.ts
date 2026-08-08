@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { installSkill, uninstallSkill } from './install'
 import type { ScanRoots } from './types'
+import { ERR } from '@shared/errors'
 
 let dir: string
 let proj: string
@@ -67,7 +68,7 @@ describe('installSkill', () => {
     mkdirSync(join(proj, '.claude', 'skills', 'tdd'), { recursive: true })
     writeFileSync(join(proj, '.claude', 'skills', 'tdd', 'SKILL.md'), '项目自有版')
     const r = installSkill(roots(), { skillName: 'tdd', side: 'claude', targetProjectPath: proj })
-    expect(r).toMatchObject({ ok: false, reason: 'conflict' })
+    expect(r).toMatchObject({ ok: false, reason: ERR.skillConflict })
     expect(readFileSync(join(proj, '.claude', 'skills', 'tdd', 'SKILL.md'), 'utf8')).toBe('项目自有版')
   })
 
@@ -78,12 +79,12 @@ describe('installSkill', () => {
       side: 'claude',
       targetProjectPath: join(dir, 'work', 'ghost')
     })
-    expect(r).toMatchObject({ ok: false, reason: 'stale-target' })
+    expect(r).toMatchObject({ ok: false, reason: ERR.skillStaleTarget })
   })
 
   it('源缺失 → missing-source,且不留半成品目录', () => {
     const r = installSkill(roots(), { skillName: 'nope', side: 'claude', targetProjectPath: proj })
-    expect(r).toMatchObject({ ok: false, reason: 'missing-source' })
+    expect(r).toMatchObject({ ok: false, reason: ERR.skillMissingSource })
     const skillsDir = join(proj, '.claude', 'skills')
     if (existsSync(skillsDir)) {
       expect(readdirSync(skillsDir)).toEqual([])
