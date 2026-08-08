@@ -42,8 +42,9 @@ export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string 
 import { buildTrendBars, TREND_MODE_LABEL, type TrendBar, type TrendMode } from '@shared/trend'
 import { layoutAxisLabels } from '@shared/axis'
 import { PROVIDER_ORDER, PROVIDER_LABEL, providerOf } from '@shared/provider'
-import type { Locale } from '@shared/i18n'
-import { useDict } from './language'
+import type { Language, Locale } from '@shared/i18n'
+import { monthDay } from '@shared/format'
+import { useDict, useLanguage } from './language'
 
 /** provider → CSS 类后缀(配色见 theme.css) */
 const PROVIDER_CLASS: Record<string, string> = {
@@ -64,6 +65,7 @@ export function TrendChart({
   /** 源会话文件已被 agent 清理、数值来自本地归档的天 */
   archivedDays?: string[]
 }): JSX.Element {
+  const lang = useLanguage()
   const t = useDict()
   const [mode, setMode] = useState<TrendMode>('total')
   const bars = useMemo(
@@ -78,12 +80,12 @@ export function TrendChart({
     const chart = chartRef.current
     const axis = axisRef.current
     if (!chart || !axis) return
-    const relayout = (): void => renderAxisInto(axis, chart, bars)
+    const relayout = (): void => renderAxisInto(axis, chart, bars, lang)
     relayout()
     const ro = new ResizeObserver(relayout)
     ro.observe(chart)
     return () => ro.disconnect()
-  }, [bars])
+  }, [bars, lang])
   // 图例只列窗口内真实出现过的 provider(顺序沿用固定序)
   const usedProviders = PROVIDER_ORDER.filter((p) => bars.some((b) => b.segments.some((s) => s.provider === p)))
 
@@ -146,7 +148,12 @@ function axisMeasurer(axis: HTMLElement): (text: string) => number {
 }
 
 /** 把标签排布结果写进轴容器(绝对定位 span,data-day 与柱对应) */
-function renderAxisInto(axis: HTMLElement, chart: HTMLElement, bars: TrendBar[]): void {
+function renderAxisInto(
+  axis: HTMLElement,
+  chart: HTMLElement,
+  bars: TrendBar[],
+  lang: Language
+): void {
   const width = axis.clientWidth
   const cols = Array.from(chart.children) as HTMLElement[]
   if (!width || cols.length !== bars.length) return
@@ -156,7 +163,9 @@ function renderAxisInto(axis: HTMLElement, chart: HTMLElement, bars: TrendBar[])
     const r = c.getBoundingClientRect()
     return r.left + r.width / 2 - axisLeft
   })
-  const labels = layoutAxisLabels(bars, centers, width, axisMeasurer(axis))
+  const labels = layoutAxisLabels(bars, centers, width, axisMeasurer(axis), (mon, dom) =>
+    monthDay(lang, mon, dom)
+  )
   axis.innerHTML = labels
     .map((l) => `<span style="left:${l.left.toFixed(1)}px" data-day="${bars[l.index].day}">${l.text}</span>`)
     .join('')

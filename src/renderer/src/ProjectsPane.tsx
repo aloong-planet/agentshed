@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react'
 import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
-import { useDict } from './language'
+import type { Language } from '@shared/i18n'
+import { relativeDays } from '@shared/format'
+import { useDict, useLanguage } from './language'
 
-/** 相对时间(展示用):今天/昨天/N天前/N月前 */
-export function fmtAgo(ms: number | null, now: number): string {
+/**
+ * 相对时间(展示用):今天 / 昨天 / N 天前 / N 月前,按当前语言(票 12)。
+ * 措辞由 `Intl.RelativeTimeFormat` 生成,不拼「N + 天前」——各语言的量词位置与
+ * 复数形式不同,拼接必错。
+ */
+export function fmtAgo(lang: Language, ms: number | null, now: number): string {
   if (ms === null) return '—'
-  const days = Math.floor((now - ms) / 86_400_000)
-  if (days <= 0) return '今天'
-  if (days === 1) return '昨天'
-  if (days < 30) return `${days}天前`
-  return `${Math.floor(days / 30)}月前`
+  return relativeDays(lang, Math.floor((now - ms) / 86_400_000))
 }
 
 interface Props {
@@ -115,6 +117,7 @@ function Row({
   onSelect: (path: string) => void
   inHidden?: boolean
 }): JSX.Element {
+  const lang = useLanguage()
   const t = useDict()
   return (
     <div
@@ -125,7 +128,7 @@ function Row({
       <span className="nm">{p.name}</span>
       {p.stale && <span className="stale-tag">{t.projects.staleTag}</span>}
       <span className="meta">
-        {fmtAgo(p.lastSessionAt, now)} · {p.sessionCount}
+        {fmtAgo(lang, p.lastSessionAt, now)} · {p.sessionCount}
       </span>
       <span className="bdg">
         {p.sides.includes('claude') && <span className="badge cl">CC</span>}

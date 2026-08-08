@@ -19,7 +19,12 @@ export function layoutAxisLabels(
   bars: Array<Pick<TrendBar, 'day' | 'total'>>,
   centers: number[],
   width: number,
-  measure: (text: string) => number
+  measure: (text: string) => number,
+  /**
+   * 月/日的成串方式(票 12)。注入而非在此调 Intl:本模块是**纯函数**,
+   * 两端共用且单测不带语言环境;默认保持既有的 `M/D` 语序,渲染层传本地化版本。
+   */
+  monthDay: (mon: number, dom: number) => string = (mon, dom) => `${mon}/${dom}`
 ): AxisLabel[] {
   interface Cand extends AxisLabel {
     mon: number
@@ -36,7 +41,7 @@ export function layoutAxisLabels(
   for (;;) {
     let prevMon: number | null = null
     for (const c of act) {
-      c.text = prevMon === c.mon ? String(c.dom) : `${c.mon}/${c.dom}`
+      c.text = prevMon === c.mon ? String(c.dom) : monthDay(c.mon, c.dom)
       c.w = measure(c.text)
       // 钉柱中心,首尾出界贴边 clamp(留 1px 边距)
       c.left = Math.min(Math.max(centers[c.index] - c.w / 2, 1), width - 1 - c.w)

@@ -31,6 +31,7 @@ function CodexMemoryNote({ snap }: { snap: Snapshot }): JSX.Element | null {
 }
 
 export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
+  const lang = useLanguage()
   const t = useDict()
   // 展开态键 = 侧+项目路径:快照刷新重排后展开行不错位(review-code 重构项 #4)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -74,7 +75,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
                 ·{' '}
                 {m.files.filter((f) => f.name !== 'MEMORY.md').length} topic
               </span>
-              <span className="src mono">{fmtAgo(m.lastModified, snap.scannedAt)}</span>
+              <span className="src mono">{fmtAgo(lang, m.lastModified, snap.scannedAt)}</span>
             </button>
             {expanded.has(key) && (
               <div className="sub-list">
@@ -83,7 +84,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
                     <span className="nm mono" style={{ flex: 1 }}>
                       {f.name}
                     </span>
-                    <span className="src mono">{fmtAgo(f.mtimeMs, snap.scannedAt)}</span>
+                    <span className="src mono">{fmtAgo(lang, f.mtimeMs, snap.scannedAt)}</span>
                   </button>
                 ))}
               </div>
@@ -96,7 +97,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
       {open && (
         <MemoryFileDrawer
           title={open.file.name}
-          meta={`${open.entry.projectName ?? t.placeholder.codexGlobalMemory} · ${fmtAgo(open.file.mtimeMs, snap.scannedAt)}`}
+          meta={`${open.entry.projectName ?? t.placeholder.codexGlobalMemory} · ${fmtAgo(lang, open.file.mtimeMs, snap.scannedAt)}`}
           file={open.file.file}
           onClose={() => setOpen(null)}
         />
@@ -174,7 +175,7 @@ export function ProjectMemoryTab({
               <span className="nm mono" style={{ flex: 1 }}>
                 {t.name}
               </span>
-              <span className="src mono">{fmtAgo(t.mtimeMs, anchor)}</span>
+              <span className="src mono">{fmtAgo(lang, t.mtimeMs, anchor)}</span>
             </button>
           ))}
         </div>
@@ -182,7 +183,7 @@ export function ProjectMemoryTab({
       {open && (
         <MemoryFileDrawer
           title={open.name}
-          meta={t.memory.topicMeta(fmtAgo(open.mtimeMs, anchor))}
+          meta={t.memory.topicMeta(fmtAgo(lang, open.mtimeMs, anchor))}
           file={open.file}
           onClose={() => setOpen(null)}
         />
