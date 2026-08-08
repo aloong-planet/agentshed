@@ -37,8 +37,10 @@ import { HiddenStore } from './hidden-store'
 import { rescanIntervalMs, shouldRescanOnFocus } from './rescan'
 import { PrefsStore } from './prefs-store'
 import { isAppearanceScheme } from '@shared/appearance'
-import { isLanguagePreference } from '@shared/i18n'
+import { effectiveLanguage, isLanguagePreference, type Language } from '@shared/i18n'
+import { LANG_ARG, SYS_LANGS_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
+import { systemPreferredLanguages } from './system-language'
 import {
   listSkillPackageFiles,
   readSkillFileText,
@@ -386,6 +388,12 @@ handle(CMD.setHidden, (_e, args: unknown) => {
 
 const PRELOAD = join(__dirname, '../preload/index.cjs')
 
+/** 窗口创建时刻的生效语言 = 偏好 + 系统语言列表。偏好为「跟随系统」时才看系统 */
+function initialLanguage(): Language {
+  const pref = prefsStore?.get().language ?? DEFAULT_PREFS.language
+  return effectiveLanguage(pref, systemPreferredLanguages())
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1100,
@@ -398,7 +406,14 @@ function createWindow(): void {
       preload: PRELOAD,
       contextIsolation: true,
       sandbox: true,
-      backgroundThrottling: !QUIET
+      backgroundThrottling: !QUIET,
+      // 生效语言随窗口一同创建,让 renderer **首帧**就能用上正确语言。
+      // 走 IPC 异步取的话首帧必然是默认语言,整页文字随后跳变一次——
+      // 换外观方案只是变色不易察觉,换语言是全部文字都变,必须避免。
+      additionalArguments: [
+        `${LANG_ARG}${initialLanguage()}`,
+        `${SYS_LANGS_ARG}${systemPreferredLanguages().join(',')}`
+      ]
     }
   })
   mainWindow.on('closed', () => {

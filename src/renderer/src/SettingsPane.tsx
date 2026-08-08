@@ -1,15 +1,9 @@
-// 设置第三维 · 外观方案(全 app)。界面点对齐原型 docs/prototypes/appearance。
-import {
-  APPEARANCE_SCHEMES,
-  SCHEME_LABEL,
-  type AppearanceScheme
-} from '@shared/appearance'
-
-const SCHEME_DESC: Record<AppearanceScheme, string> = {
-  purple: '现网品牌紫。安装后的默认外观。',
-  blue: '暖灰纸底 + 冷静蓝强调，适合长时间阅读。',
-  amber: '暖纸底 + 褐强调，更接近纸书质感。'
-}
+// 设置第三维 · 界面语言 + 外观方案(均对全 app 生效)。界面点对齐原型 docs/prototypes/appearance。
+// 语言分节置于外观之前:它决定本页其余内容怎么读。
+import type { JSX } from 'react'
+import { APPEARANCE_SCHEMES, type AppearanceScheme } from '@shared/appearance'
+import { dictOf, type Language, type LanguagePreference } from '@shared/i18n'
+import { LanguageSelect } from './LanguageSelect'
 
 // swatch 仅作方案卡示意色,不参与运行时主题计算
 const SCHEME_SWATCH: Record<AppearanceScheme, string[]> = {
@@ -20,18 +14,40 @@ const SCHEME_SWATCH: Record<AppearanceScheme, string[]> = {
 
 export function SettingsPane({
   scheme,
-  onScheme
+  onScheme,
+  language,
+  effectiveLang,
+  onLanguage
 }: {
   scheme: AppearanceScheme
   onScheme: (s: AppearanceScheme) => void
+  language: LanguagePreference
+  effectiveLang: Language
+  onLanguage: (l: LanguagePreference) => void
 }): JSX.Element {
+  const t = dictOf(effectiveLang).settings
+  const schemeName: Record<AppearanceScheme, string> = {
+    purple: t.schemePurple,
+    blue: t.schemeBlue,
+    amber: t.schemeAmber
+  }
+  const schemeDesc: Record<AppearanceScheme, string> = {
+    purple: t.schemePurpleDesc,
+    blue: t.schemeBlueDesc,
+    amber: t.schemeAmberDesc
+  }
+
   return (
     <div className="settings">
-      <h1 className="settings-h1">设置</h1>
-      <p className="settings-lead">本 app 偏好，对整个界面生效。不写入 Claude / Codex 配置。</p>
+      <h1 className="settings-h1">{t.title}</h1>
+      <p className="settings-lead">{t.lead}</p>
 
-      <div className="settings-sec-t">外观</div>
-      <div className="scheme-grid" role="radiogroup" aria-label="外观方案">
+      <div className="settings-sec-t">{t.sectionLanguage}</div>
+      <LanguageSelect pref={language} effective={effectiveLang} onChange={onLanguage} />
+      <p className="settings-foot" data-testid="language-foot">{t.languageFoot}</p>
+
+      <div className="settings-sec-t settings-sec-gap">{t.sectionAppearance}</div>
+      <div className="scheme-grid" role="radiogroup" aria-label={t.sectionAppearance}>
         {APPEARANCE_SCHEMES.map((id) => {
           const on = scheme === id
           return (
@@ -47,10 +63,10 @@ export function SettingsPane({
               <span className="scheme-radio" aria-hidden />
               <span className="scheme-body">
                 <span className="scheme-name">
-                  {SCHEME_LABEL[id]}
-                  {id === 'purple' ? <span className="scheme-badge">默认</span> : null}
+                  {schemeName[id]}
+                  {id === 'purple' ? <span className="scheme-badge">{t.badgeDefault}</span> : null}
                 </span>
-                <span className="scheme-desc">{SCHEME_DESC[id]}</span>
+                <span className="scheme-desc">{schemeDesc[id]}</span>
                 <span className="scheme-swatches">
                   {SCHEME_SWATCH[id].map((c) => (
                     <span key={c} className="scheme-sw" style={{ background: c }} />
@@ -61,9 +77,7 @@ export function SettingsPane({
           )
         })}
       </div>
-      <p className="settings-foot">
-        <b>浅色 / 深色</b>跟随 macOS 系统外观。切换方案后立即生效，无需保存。
-      </p>
+      <p className="settings-foot" data-testid="appearance-foot">{t.appearanceFoot}</p>
     </div>
   )
 }

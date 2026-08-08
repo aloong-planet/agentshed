@@ -12,6 +12,8 @@
   --accent-deep: #6b4f92;
   --accent-soft: #f0ebf6;
   --ok-bg: #dcfce7;
+  /* 浮层投影:与 --ok-* 同级的中性语义变量,三配色共用,只分浅/深 */
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.14);
   --ok-fg: #166534;
   /* 语义色:不随 scheme 改色相(C2);可有 light/dark */
   --warn-bg: #fdecdc;
@@ -76,6 +78,8 @@ html[data-scheme='amber'] {
     --accent-deep: #c9b3ec;
     --accent-soft: #2c2733;
     --ok-bg: #12301d;
+    /* 浮层投影:与 --ok-* 同级的中性语义变量,三配色共用,只分浅/深 */
+    --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.55);
     --ok-fg: #86efac;
     --warn-bg: #3c2417;
     --warn-fg: #f0a884;
@@ -2379,3 +2383,130 @@ mark {
   margin: 0.9em 0 0.35em;
 }
 .skill-md .md-preview-body.preview a { color: var(--accent); }
+
+/* ── 设置页 · 界面语言选择器 ──
+   交互态(hover / focus-visible / 展开)的 base 值全部落在这里,不写进组件内联
+   style:内联样式优先级高于任何 class 选择器,伪类规则会被整条压死且不报错。 */
+.settings-sec-gap {
+  margin-top: 26px;
+}
+.lang-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 13px 16px;
+}
+.lang-label {
+  font-size: 13px;
+  font-weight: 600;
+  flex: none;
+}
+.lang-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 230px;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.lang-trigger:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.lang-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.lang-trigger[aria-expanded='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.lang-trigger .cur {
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.lang-trigger .cur .eff {
+  font-weight: 400;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.lang-trigger .chev {
+  flex: none;
+  color: var(--text-2);
+  display: flex;
+  transition: transform 0.15s;
+}
+.lang-trigger[aria-expanded='true'] .chev {
+  transform: rotate(180deg);
+}
+
+/* 浮层用 fixed:设置页容器是 overflow:auto,普通绝对定位会被它裁掉 */
+.lang-pop {
+  position: fixed;
+  z-index: 60;
+  min-width: 262px;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-pop);
+}
+.lang-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+}
+.lang-opt:hover,
+.lang-opt.cursor {
+  background: var(--accent-soft);
+}
+.lang-opt .n {
+  flex: 1;
+  font-weight: 600;
+}
+.lang-opt .e {
+  color: var(--text-2);
+  font-size: 11.5px;
+}
+.lang-opt .ck {
+  flex: none;
+  color: var(--accent);
+  display: flex;
+  visibility: hidden;
+}
+.lang-opt.on .ck {
+  visibility: visible;
+}
+.lang-opt.on .n {
+  color: var(--accent-deep);
+}
+/* 分隔线:「跟随系统」是策略,其后六项是取值,性质不同 */
+.lang-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 8px;
+}

@@ -100,6 +100,19 @@ export interface ReadSkillFileArgs {
   absPath: string
 }
 
+/**
+ * 生效语言经窗口创建参数传给 preload 的前缀。
+ * 走这条同步通道而非 IPC,是为了让 renderer 首帧即有正确语言(见 createWindow 注释)。
+ */
+export const LANG_ARG = '--agentshed-language='
+
+/**
+ * 系统偏好语言列表(逗号分隔)经同一条通道传给 preload。
+ * renderer 需要它才能在用户选「跟随系统」时**本地算出**生效语言并立即生效,
+ * 不必为一次切换多跑一趟 IPC。语言标签本身不含逗号,故分隔符安全。
+ */
+export const SYS_LANGS_ARG = '--agentshed-system-languages='
+
 export type { AppearanceScheme } from './appearance'
 export type { Prefs } from './prefs'
 export type { Language, LanguagePreference } from './i18n'
