@@ -44,6 +44,34 @@ export const ja: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects：${projects}\nmcp_servers：${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  agents: {
+    sideSummary: (projects, skills, subagents) => `${projects} プロジェクト · ${skills} グローバル skills · ${subagents} subagents`,
+    tabCfg: '設定',
+    notDetected: 'このマシンで Claude Code または Codex のデータディレクトリを検出できませんでした',
+    notDetectedHint: 'いずれかの agent をインストールして使ったあと、rail 下部の ↻ を押して更新すると全体像が見えます',
+    totalsNote: '非表示/失効プロジェクトを含む',
+    archivedNote: (days, earliest) => `うち ${days} 日（最古 ${earliest}）は元のセッションファイルが agent により自動削除済みで、数値はローカルアーカイブ由来です（斜線の棒）`,
+    byModel: 'モデル別（プロジェクト横断。Codex 側はセッションの主モデルの近似）',
+    detected: '検出済み', undetected: '未検出',
+    emptyGlobalLib: '両サイドのグローバルライブラリとも空です',
+    sideMismatch: (project) => `${project} はこの skill が属する agent サイドではありません`,
+    installed: (skill, project, side) => `${skill} を ${project}（${side}）にインストールしました。更新はこのプロジェクトのみです`,
+    skillsHint: '1 列に統合 · 行をクリックでパッケージ内ファイル · ファイルをクリックでプレビュー · サイド間 diff なし · プラグインは読み取り専用',
+    levelPluginPkg: 'プラグインパッケージ', levelGlobalLib: 'グローバルライブラリ',
+    installTo: 'インストール先…',
+    pickTarget: '対象プロジェクトを選択（コピーで設置。失効プロジェクトは除外済み）',
+    srcGlobalConfig: 'グローバル設定', srcPlugin: 'plugin 同梱',
+    globalMcp: 'グローバル MCP',
+    noGlobalMcp: 'グローバル MCP はありません（プロジェクト単位の .mcp.json はプロジェクト詳細にあります）',
+    noMcpSection: 'config.toml に mcp_servers セクションがありません',
+    cfgClaudeMd: 'グローバル CLAUDE.md', cfgAgentsMd: 'グローバル AGENTS.md', cfgToml: 'config.toml の要約',
+    tomlMissing: 'config.toml が存在しません', fileMissing: 'ファイルが存在しません'
+  },
+
+  shell: {
+    pickProject: 'プロジェクトを選択すると詳細が表示されます',
+    scanning: 'Claude Code / Codex をスキャン中…（完了するまで空のリストは表示しません）'
+  },
   skills: {
     listFailed: (detail) => `列挙に失敗しました：${detail}`,
     pillPlugin: 'プラグイン', pillProject: 'プロジェクト単位', pillGlobal: 'グローバル', pillSymlink: '⤷ シンボリックリンク',

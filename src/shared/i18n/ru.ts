@@ -45,6 +45,34 @@ export const ru: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  agents: {
+    sideSummary: (projects, skills, subagents) => `проектов: ${projects} · глобальных skills: ${skills} · subagents: ${subagents}`,
+    tabCfg: 'Конфигурация',
+    notDetected: 'На этой машине не найден каталог данных Claude Code или Codex',
+    notDetectedHint: 'Установите и используйте любой из агентов, затем нажмите ↻ внизу рейла, чтобы обновить и увидеть обзор',
+    totalsNote: 'включая скрытые и устаревшие проекты',
+    archivedNote: (days, earliest) => `Для ${days} из этих дней (самый ранний ${earliest}) исходные файлы сессий уже удалены агентом автоматически; значения взяты из локального архива (штрихованные столбцы)`,
+    byModel: 'По моделям (по всем проектам; на стороне Codex — приближение основной модели сессии)',
+    detected: 'Обнаружено', undetected: 'Не обнаружено',
+    emptyGlobalLib: 'Обе глобальные библиотеки пусты',
+    sideMismatch: (project) => `${project} не относится к той стороне агента, где находится этот skill`,
+    installed: (skill, project, side) => `${skill} установлен → ${project} (${side}); обновлён только этот проект`,
+    skillsHint: 'Объединено в один список · нажмите строку, чтобы увидеть файлы пакета · файл — для предпросмотра · без diff между сторонами · плагины только для чтения',
+    levelPluginPkg: 'Пакет плагина', levelGlobalLib: 'Глобальная библиотека',
+    installTo: 'Установить в…',
+    pickTarget: 'Выберите целевой проект (установка копированием; устаревшие проекты исключены)',
+    srcGlobalConfig: 'глобальная конфигурация', srcPlugin: 'в составе плагина',
+    globalMcp: 'глобальный MCP',
+    noGlobalMcp: 'Глобального MCP нет (файлы .mcp.json уровня проекта относятся к деталям проекта)',
+    noMcpSection: 'В config.toml нет секции mcp_servers',
+    cfgClaudeMd: 'Глобальный CLAUDE.md', cfgAgentsMd: 'Глобальный AGENTS.md', cfgToml: 'сводка config.toml',
+    tomlMissing: 'config.toml не существует', fileMissing: 'Файл не существует'
+  },
+
+  shell: {
+    pickProject: 'Выберите проект, чтобы увидеть детали',
+    scanning: 'Сканирование Claude Code / Codex… (пустой список не показывается до конца сканирования)'
+  },
   skills: {
     listFailed: (detail) => `Не удалось перечислить: ${detail}`,
     pillPlugin: 'Плагин', pillProject: 'Проект', pillGlobal: 'Глобально', pillSymlink: '⤷ ссылка',

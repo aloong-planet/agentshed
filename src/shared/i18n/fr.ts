@@ -44,6 +44,34 @@ export const fr: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects : ${projects}\nmcp_servers : ${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  agents: {
+    sideSummary: (projects, skills, subagents) => `${projects} projets · ${skills} skills globaux · ${subagents} subagents`,
+    tabCfg: 'Configuration',
+    notDetected: 'Aucun dossier de données Claude Code ou Codex détecté sur cette machine',
+    notDetectedHint: 'Installez et utilisez l’un des agents, puis cliquez sur ↻ en bas du rail pour actualiser et voir la vue d’ensemble',
+    totalsNote: 'inclut les projets masqués/obsolètes',
+    archivedNote: (days, earliest) => `Pour ${days} de ces jours (le plus ancien ${earliest}), les fichiers de session source ont été nettoyés automatiquement par l’agent ; les valeurs viennent de l’archive locale (barres hachurées)`,
+    byModel: 'Par modèle (tous projets ; côté Codex, approximation du modèle principal de la session)',
+    detected: 'Détecté', undetected: 'Non détecté',
+    emptyGlobalLib: 'Les deux bibliothèques globales sont vides',
+    sideMismatch: (project) => `${project} n’appartient pas au côté agent où réside ce skill`,
+    installed: (skill, project, side) => `${skill} installé → ${project} (${side}) ; seul ce projet a été actualisé`,
+    skillsHint: 'Fusionné en une liste · cliquez une ligne pour les fichiers du paquet · cliquez un fichier pour l’aperçu · pas de diff inter-côtés · les plugins sont en lecture seule',
+    levelPluginPkg: 'Paquet de plugin', levelGlobalLib: 'Bibliothèque globale',
+    installTo: 'Installer dans…',
+    pickTarget: 'Choisissez un projet cible (installation par copie ; projets obsolètes exclus)',
+    srcGlobalConfig: 'configuration globale', srcPlugin: 'fourni par le plugin',
+    globalMcp: 'MCP global',
+    noGlobalMcp: 'Aucun MCP global (les .mcp.json de niveau projet relèvent du détail du projet)',
+    noMcpSection: 'config.toml n’a pas de section mcp_servers',
+    cfgClaudeMd: 'CLAUDE.md global', cfgAgentsMd: 'AGENTS.md global', cfgToml: 'résumé de config.toml',
+    tomlMissing: 'config.toml n’existe pas', fileMissing: 'Le fichier n’existe pas'
+  },
+
+  shell: {
+    pickProject: 'Sélectionnez un projet pour voir son détail',
+    scanning: 'Analyse de Claude Code / Codex… (aucune liste vide n’est affichée avant la fin)'
+  },
   skills: {
     listFailed: (detail) => `Échec du listage : ${detail}`,
     pillPlugin: 'Plugin', pillProject: 'Projet', pillGlobal: 'Global', pillSymlink: '⤷ lien',

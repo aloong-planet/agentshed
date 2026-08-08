@@ -44,6 +44,34 @@ export const en: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  agents: {
+    sideSummary: (projects, skills, subagents) => `${projects} projects · ${skills} global skills · ${subagents} subagents`,
+    tabCfg: 'Config',
+    notDetected: 'No Claude Code or Codex data directory detected on this machine',
+    notDetectedHint: 'Install and use either agent, then click ↻ at the bottom of the rail to refresh and see the overview',
+    totalsNote: 'includes hidden/stale projects',
+    archivedNote: (days, earliest) => `${days} of those days (earliest ${earliest}) had their source session files auto-cleaned by the agent; the numbers come from the local archive (hatched bars)`,
+    byModel: 'By model (across projects; the Codex side approximates each session’s main model)',
+    detected: 'Detected', undetected: 'Not detected',
+    emptyGlobalLib: 'Both global libraries are empty',
+    sideMismatch: (project) => `${project} does not belong to the agent side this skill lives on`,
+    installed: (skill, project, side) => `Installed ${skill} → ${project} (${side}); only this project was refreshed`,
+    skillsHint: 'Merged into one list · click a row for package files · click a file to preview · no cross-side diff · plugins are read-only',
+    levelPluginPkg: 'Plugin package', levelGlobalLib: 'Global library',
+    installTo: 'Install to…',
+    pickTarget: 'Choose a target project (installed by copy; stale projects excluded)',
+    srcGlobalConfig: 'global config', srcPlugin: 'bundled with plugin',
+    globalMcp: 'global MCP',
+    noGlobalMcp: 'No global MCP (project-level .mcp.json belongs to the project details)',
+    noMcpSection: 'config.toml has no mcp_servers section',
+    cfgClaudeMd: 'Global CLAUDE.md', cfgAgentsMd: 'Global AGENTS.md', cfgToml: 'config.toml summary',
+    tomlMissing: 'config.toml does not exist', fileMissing: 'File does not exist'
+  },
+
+  shell: {
+    pickProject: 'Select a project to see its details',
+    scanning: 'Scanning Claude Code / Codex… (no empty list is shown until the scan finishes)'
+  },
   skills: {
     listFailed: (detail) => `Listing failed: ${detail}`,
     pillPlugin: 'Plugin', pillProject: 'Project', pillGlobal: 'Global', pillSymlink: '⤷ symlink',

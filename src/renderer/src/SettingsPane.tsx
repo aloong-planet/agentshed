@@ -8,8 +8,9 @@ import {
   type AppearanceMode,
   type AppearanceScheme
 } from '@shared/appearance'
-import { dictOf, type Language, type LanguagePreference } from '@shared/i18n'
+import { dictOf, type LanguagePreference } from '@shared/i18n'
 import { LanguageSelect } from './LanguageSelect'
+import { useLanguage } from './language'
 
 // 色板预览取样(--card / --accent-soft / --accent / --text),按生效明暗**两套**:
 // 色板是所见即所得的预览,深色下仍显示浅色取样就与实际观感不符。
@@ -56,7 +57,6 @@ export function SettingsPane({
   mode,
   onMode,
   language,
-  effectiveLang,
   onLanguage
 }: {
   scheme: AppearanceScheme
@@ -64,10 +64,11 @@ export function SettingsPane({
   mode: AppearanceMode
   onMode: (m: AppearanceMode) => void
   language: LanguagePreference
-  effectiveLang: Language
   onLanguage: (l: LanguagePreference) => void
 }): JSX.Element {
-  const t = dictOf(effectiveLang).settings
+  // 语言从 context 取,不再逐层 prop 传(票 05 引入 context 后的收敛,票 11 AC)
+  const lang = useLanguage()
+  const t = dictOf(lang).settings
   const dark = useEffectiveDark()
   const schemeName: Record<AppearanceScheme, string> = {
     purple: t.schemePurple,
@@ -88,7 +89,7 @@ export function SettingsPane({
       <p className="settings-lead">{t.lead}</p>
 
       <div className="settings-sec-t">{t.sectionLanguage}</div>
-      <LanguageSelect pref={language} effective={effectiveLang} onChange={onLanguage} />
+      <LanguageSelect pref={language} effective={lang} onChange={onLanguage} />
       <p className="settings-foot" data-testid="language-foot">{t.languageFoot}</p>
 
       <div className="settings-sec-t settings-sec-gap">{t.sectionAppearance}</div>

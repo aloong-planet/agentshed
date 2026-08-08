@@ -3,7 +3,7 @@ import type { Snapshot } from '@shared/domain'
 import type { Prefs } from '@shared/prefs'
 import { backfillPrefs, type PrefKey } from './prefs-backfill'
 import { errorText } from '@shared/error-text'
-import { LanguageProvider } from './language'
+import { LanguageProvider, useDict } from './language'
 import {
   DEFAULT_MODE,
   DEFAULT_SCHEME,
@@ -189,7 +189,6 @@ export function App(): JSX.Element {
               mode={mode}
               onMode={(m) => void onMode(m)}
               language={langPref}
-              effectiveLang={lang}
               onLanguage={(l) => void onLanguage(l)}
             />
         ) : dim === 'agents' ? (
@@ -236,7 +235,7 @@ export function App(): JSX.Element {
               ) : (
                 <div className="empty">
                   <div className="big">👈</div>
-                  <div>选择一个项目查看详情</div>
+                  <div>{t.shell.pickProject}</div>
                 </div>
               )
             }
@@ -250,10 +249,11 @@ export function App(): JSX.Element {
 }
 
 function ScanningHint(): JSX.Element {
+  const t = useDict()
   return (
     <div className="empty">
       <div className="big">🛖</div>
-      <div>正在扫描 Claude Code / Codex…(扫描完成前不显示空列表)</div>
+      <div>{t.shell.scanning}</div>
     </div>
   )
 }

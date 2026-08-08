@@ -14,6 +14,7 @@ import { useLanguage, useDict } from './language'
 type Tab = 'token' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'cfg'
 
 export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
+  const t = useDict()
   const [tab, setTab] = useState<Tab>('token')
   const clCount = snap.projects.filter((p) => p.sides.includes('claude')).length
   const cxCount = snap.projects.filter((p) => p.sides.includes('codex')).length
@@ -33,7 +34,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
             detected={snap.sides.claude.detected}
             error={snap.sides.claude.error}
             total={snap.tokens.bySide.claude.total}
-            sub={`${clCount} 项目 · ${clSkills} 全局 skills · ${clSubs} subagents`}
+            sub={t.agents.sideSummary(clCount, clSkills, clSubs)}
           />
           <SideCard
             label="CODEX"
@@ -41,7 +42,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
             detected={snap.sides.codex.detected}
             error={snap.sides.codex.error}
             total={snap.tokens.bySide.codex.total}
-            sub={`${cxCount} 项目 · ${cxSkills} 全局 skills · ${cxSubs} subagents`}
+            sub={t.agents.sideSummary(cxCount, cxSkills, cxSubs)}
           />
         </div>
         <nav className="tabs">
@@ -53,7 +54,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
               ['plugins', 'Plugins'],
               ['mcp', 'MCP'],
               ['memory', 'Memory'],
-              ['cfg', '配置']
+              ['cfg', t.agents.tabCfg]
             ] as const
           ).map(([t, label]) => (
             <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
@@ -67,23 +68,22 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
           <div className="empty">
             <div className="big">🛖</div>
             <div>
-              本机未检测到 Claude Code 或 Codex 的数据目录
+              {t.agents.notDetected}
               <br />
-              安装并使用任一 agent 后,点 rail 底部 ↻ 刷新即可看到全景
+              {t.agents.notDetectedHint}
             </div>
           </div>
         )}
         {tab === 'token' && (
           <div>
-            <TotalsCards stats={snap.tokens} note="含已隐藏/失效项目" />
+            <TotalsCards stats={snap.tokens} note={t.agents.totalsNote} />
             <TrendChart stats={snap.tokens} anchor={snap.scannedAt} archivedDays={snap.archivedDays} />
             {snap.archivedDays.length > 0 && (
               <div className="arch-note">
-                其中 {snap.archivedDays.length} 天(最早 {snap.archivedDays[0]})源会话文件已被 agent
-                自动清理,数值来自本地归档(斜纹柱)
+                {t.agents.archivedNote(snap.archivedDays.length, snap.archivedDays[0])}
               </div>
             )}
-            <div className="grp-t">按模型拆分(跨项目;Codex 侧为会话主模型近似)</div>
+            <div className="grp-t">{t.agents.byModel}</div>
             <ModelBars stats={snap.tokens} />
           </div>
         )}
@@ -113,12 +113,13 @@ function SideCard({
   total: number
   sub: string
 }): JSX.Element {
+  const t = useDict()
   const lang = useLanguage()
   return (
     <div className="stat">
       <div className="k">
         <span className={`badge ${cls}`}>{label}</span>
-        {detected ? '已检测' : '未检测到'}
+        {detected ? t.agents.detected : t.agents.undetected}
       </div>
       <div className="v">{fmtTok(total)}</div>
       {error ? (
@@ -131,9 +132,10 @@ function SideCard({
 }
 
 function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
+  const t = useDict()
   const lang = useLanguage()
   const [openFor, setOpenFor] = useState<string | null>(null)
-  if (snap.global.skills.length === 0) return <Empty msg="两侧全局库均为空" />
+  if (snap.global.skills.length === 0) return <Empty msg={t.agents.emptyGlobalLib} />
   const targets = snap.projects
     .filter((p) => !p.stale)
     .sort((a, b) => (b.lastSessionAt ?? 0) - (a.lastSessionAt ?? 0))
@@ -144,7 +146,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
     if (!project) return
     const sides = skill.sides.filter((s) => project.sides.includes(s))
     if (sides.length === 0) {
-      toast('err', `${project.name} 不属于该 skill 所在的 agent 侧`)
+      toast('err', t.agents.sideMismatch(project.name))
       return
     }
     for (const side of sides) {
@@ -153,7 +155,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
         side,
         targetProjectPath: projectPath
       })
-      if (r.ok) toast('ok', `已安装 ${skill.name} → ${project.name}(${side});仅局部刷新该项目`)
+      if (r.ok) toast('ok', t.agents.installed(skill.name, project.name, side))
       else toast('err', `${skill.name} → ${project.name}(${side}):${errorText(lang, appError(r.reason, r.params))}`)
     }
   }
@@ -161,7 +163,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
   return (
     <div>
       <div className="grp-t">
-        合并单列 · 点行展开包内文件 · 点文件预览 · 无跨侧 diff · 插件只读
+        {t.agents.skillsHint}
       </div>
       <div className="card sk-card">
         {snap.global.skills.map((s) => (
@@ -179,7 +181,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                   : { kind: 'global', sides: s.sides }
               }
               symlink={s.symlink.claude || s.symlink.codex}
-              levelLabel={s.origin === 'plugin' ? '插件包' : '全局库'}
+              levelLabel={s.origin === 'plugin' ? t.agents.levelPluginPkg : t.agents.levelGlobalLib}
               pkgBySide={s.pkg}
               installSlot={
                 s.origin === 'disk' ? (
@@ -191,14 +193,14 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                       setOpenFor(openFor === s.name ? null : s.name)
                     }}
                   >
-                    安装到…
+                    {t.agents.installTo}
                   </button>
                 ) : undefined
               }
             />
             {openFor === s.name && s.origin === 'disk' && (
               <div className="pop">
-                <div className="pop-t">选择目标项目(复制落地;失效项目已排除)</div>
+                <div className="pop-t">{t.agents.pickTarget}</div>
                 {targets.map((p) => (
                   <button className="pop-p" key={p.path} onClick={() => void install(s, p.path)}>
                     <span className="t">{p.name}</span>
@@ -218,16 +220,21 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
 }
 
 function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
+  const t = useDict()
   const claude = snap.global.mcp.filter((m) => m.side === 'claude')
   const codex = snap.global.mcp.filter((m) => m.side === 'codex')
-  const srcLabel = { 'global-config': '全局配置', plugin: 'plugin 自带', 'config.toml': 'config.toml' }
+  const srcLabel = {
+    'global-config': t.agents.srcGlobalConfig,
+    plugin: t.agents.srcPlugin,
+    'config.toml': 'config.toml'
+  }
   return (
     <div>
       <div className="grp-t">
-        <span className="badge cl">CLAUDE CODE</span> 全局 MCP
+        <span className="badge cl">CLAUDE CODE</span> {t.agents.globalMcp}
       </div>
       {claude.length === 0 ? (
-        <Empty msg="无全局 MCP(项目级 .mcp.json 的归属在项目详情)" />
+        <Empty msg={t.agents.noGlobalMcp} />
       ) : (
         <div className="card">
           {claude.map((m, i) => (
@@ -242,7 +249,7 @@ function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
         <span className="badge cx">CODEX</span> config.toml [mcp_servers.*]
       </div>
       {codex.length === 0 ? (
-        <Empty msg="config.toml 无 mcp_servers 段" />
+        <Empty msg={t.agents.noMcpSection} />
       ) : (
         <div className="card">
           {codex.map((m, i) => (
@@ -272,9 +279,9 @@ function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
       <div className="cfg-switch">
         {(
           [
-            ['cl', '全局 CLAUDE.md'],
-            ['cx', '全局 AGENTS.md'],
-            ['toml', 'config.toml 摘要']
+            ['cl', t.agents.cfgClaudeMd],
+            ['cx', t.agents.cfgAgentsMd],
+            ['toml', t.agents.cfgToml]
           ] as const
         ).map(([w, label]) => (
           <button key={w} className={which === w ? 'on' : ''} onClick={() => setWhich(w)}>
@@ -284,7 +291,7 @@ function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
       </div>
       {which === 'toml' ? (
         snap.global.codexConfigSummary === null ? (
-          <Empty msg="config.toml 不存在" />
+          <Empty msg={t.agents.tomlMissing} />
         ) : (
           <pre className="md mono">
             {t.codexConfig(
@@ -295,7 +302,7 @@ function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
           </pre>
         )
       ) : html === null ? (
-        <Empty msg="文件不存在" />
+        <Empty msg={t.agents.fileMissing} />
       ) : (
         <div className="md" dangerouslySetInnerHTML={{ __html: html }} />
       )}
