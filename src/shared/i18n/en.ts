@@ -21,15 +21,15 @@ export const en: Locale = {
     languageFoot:
       'With “Follow system”, the interface follows your macOS preferred languages; English is used when none of them is supported.',
     sectionAppearance: 'Appearance',
-    badgeDefault: 'Default',
+    mode: 'Mode',
+    modeLight: 'Light',
+    modeDark: 'Dark',
+    palette: 'Palette',
     appearanceFoot:
-      'Light / dark follows your macOS system appearance. Scheme changes apply across the whole app immediately — no saving needed.',
+      'With mode set to “Follow system”, light and dark follow your macOS appearance; choosing Light or Dark locks the app regardless of later system changes. Palette and light/dark are independent and combine freely; Purple is used when nothing is chosen. Changes apply across the whole app immediately — no saving needed.',
     schemePurple: 'Purple',
     schemeBlue: 'Mist Blue',
-    schemeAmber: 'Amber Brown',
-    schemePurpleDesc: 'The brand purple. The default appearance after install, matching earlier versions.',
-    schemeBlueDesc: 'Warm grey paper with a calm blue accent — easy on the eyes over long sessions.',
-    schemeAmberDesc: 'Warm paper with a brown accent — closer to the feel of a printed book.'
+    schemeAmber: 'Amber Brown'
   },
 
   toast: {

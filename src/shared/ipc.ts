@@ -29,6 +29,8 @@ export const CMD = {
   getPrefs: 'agentshed:get-prefs',
   /** 设置外观方案(全 app) */
   setScheme: 'agentshed:set-scheme',
+  /** 设置外观模式(可为「跟随系统」;主进程据此设 nativeTheme.themeSource) */
+  setMode: 'agentshed:set-mode',
   /** 设置界面语言偏好(可为「跟随系统」) */
   setLanguage: 'agentshed:set-language',
   /** 展开 skill 时列举包内可预览文件(登记白名单) */
@@ -113,6 +115,6 @@ export const LANG_ARG = '--agentshed-language='
  */
 export const SYS_LANGS_ARG = '--agentshed-system-languages='
 
-export type { AppearanceScheme } from './appearance'
+export type { AppearanceMode, AppearanceScheme } from './appearance'
 export type { Prefs } from './prefs'
 export type { Language, LanguagePreference } from './i18n'

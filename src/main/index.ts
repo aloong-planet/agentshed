@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, protocol, session, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeTheme, protocol, session, shell } from 'electron'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -36,7 +36,8 @@ import {
 import { HiddenStore } from './hidden-store'
 import { rescanIntervalMs, shouldRescanOnFocus } from './rescan'
 import { PrefsStore } from './prefs-store'
-import { isAppearanceScheme } from '@shared/appearance'
+import { isAppearanceMode, isAppearanceScheme } from '@shared/appearance'
+import { applyAppearanceMode } from './appearance-mode'
 import { effectiveLanguage, isLanguagePreference, type Language } from '@shared/i18n'
 import { LANG_ARG, SYS_LANGS_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
@@ -369,6 +370,17 @@ handle(CMD.setLanguage, (_e, language: unknown) => {
   if (!prefsStore) throw new Error('偏好存储未就绪')
   return prefsStore.setLanguage(language)
 })
+handle(CMD.setMode, (_e, mode: unknown) => {
+  if (!isAppearanceMode(mode)) throw new Error('外观模式不合契约')
+  if (!prefsStore) throw new Error('偏好存储未就绪')
+  // **先生效再落盘**,与外观方案(序列 A2)和语言同规矩:themeSource 改变会直接改变
+  // prefers-color-scheme 的求值结果,媒体查询随之重算,无需重载窗口(序列 B7)。
+  // 顺序要紧——反过来写的话,落盘失败(磁盘满/只读)会抛在设 themeSource 之前,
+  // 于是渲染层已乐观勾上「深色」、界面却还是浅的,提示说失败、界面也没变,双重挫败。
+  // 现在的顺序下失败只丢持久化:本次有效,重启回到磁盘上的旧值。
+  applyAppearanceMode(nativeTheme, mode)
+  return prefsStore.setMode(mode)
+})
 handle(CMD.setHidden, (_e, args: unknown) => {
   const a = args as SetHiddenArgs
   if (typeof a?.projectPath !== 'string' || typeof a?.hidden !== 'boolean') {
@@ -448,6 +460,9 @@ void app.whenReady().then(() => {
   registerAppProtocol(join(__dirname, '../renderer'))
   hiddenStore = new HiddenStore(app.getPath('userData'))
   prefsStore = new PrefsStore(app.getPath('userData'))
+  // 必须在建窗**之前**:themeSource 决定首帧的 prefers-color-scheme 求值结果,
+  // 建窗后再设会先渲染一帧系统明暗、随后整页跳变一次(spec 实现决策)
+  applyAppearanceMode(nativeTheme, prefsStore.get().mode)
   tokenEngine = new TokenEngine(app.getPath('userData'))
   archive = new UsageArchive(app.getPath('userData'))
   createWindow()
