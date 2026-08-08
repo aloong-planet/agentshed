@@ -55,7 +55,10 @@ async function launch(cacheContent: string | undefined, home: string): Promise<L
       NODE_ENV: 'production',
       AGENTSHED_HOME_OVERRIDE: home,
       // 测试静音:不抢前台(macOS accessory 策略,见 src/main/index.ts)
-      AGENTSHED_NO_FOREGROUND: '1'
+      AGENTSHED_NO_FOREGROUND: '1',
+      // 把测试语言钉死为中文:界面语言默认跟随系统,不钉的话
+      // 所有按中文文案定位的既有断言都会随跑测试的人的系统语言而变
+      AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'
     }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
@@ -962,7 +965,10 @@ test('归档:预置历史归档文件 → 趋势含归档段并有说明,主进�
       ...process.env,
       NODE_ENV: 'production',
       AGENTSHED_HOME_OVERRIDE: mkEmptyProjectHome(),
-      AGENTSHED_NO_FOREGROUND: '1'
+      AGENTSHED_NO_FOREGROUND: '1',
+      // 把测试语言钉死为中文:界面语言默认跟随系统,不钉的话
+      // 所有按中文文案定位的既有断言都会随跑测试的人的系统语言而变
+      AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'
     }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
@@ -1097,7 +1103,10 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
       NODE_ENV: 'production',
       AGENTSHED_HOME_OVERRIDE: home,
       // 测试静音:不抢前台(macOS accessory 策略,见 src/main/index.ts)
-      AGENTSHED_NO_FOREGROUND: '1'
+      AGENTSHED_NO_FOREGROUND: '1',
+      // 把测试语言钉死为中文:界面语言默认跟随系统,不钉的话
+      // 所有按中文文案定位的既有断言都会随跑测试的人的系统语言而变
+      AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'
     }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
@@ -1444,6 +1453,9 @@ test('自动保鲜:新会话免手动刷新自动出现;详情展开态不因刷
       NODE_ENV: 'production',
       AGENTSHED_HOME_OVERRIDE: home,
       AGENTSHED_NO_FOREGROUND: '1',
+      // 把测试语言钉死为中文:界面语言默认跟随系统,不钉的话
+      // 所有按中文文案定位的既有断言都会随跑测试的人的系统语言而变
+      AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN',
       AGENTSHED_RESCAN_MS: '1500' // E5 测试 seam:兜底间隔缩短驱动全链路
     }
   })
@@ -1650,7 +1662,8 @@ test('设置:外观三选一改 data-scheme;进出设置保留项目选中', asy
   await win.getByTitle('设置').click()
   await expect(win.locator('.settings-h1')).toHaveText('设置')
   await expect(win.locator('.scheme-card')).toHaveCount(3)
-  await expect(win.locator('.settings-foot')).toContainText('跟随')
+  // 设置页现有两处脚注(语言 / 外观),按语义定位而非类名——类名此刻已不唯一
+  await expect(win.getByTestId('appearance-foot')).toContainText('跟随')
 
   // 点雾蓝 → data-scheme=blue
   await win.locator('[data-scheme-option="blue"]').click()
@@ -1668,4 +1681,147 @@ test('设置:外观三选一改 data-scheme;进出设置保留项目选中', asy
 
   expect(l.errors).toEqual([])
   await close(l)
+})
+
+/**
+ * 界面语言(i18n 票 03)。
+ *
+ * 系统偏好语言经 AGENTSHED_SYSTEM_LANGUAGES 注入(见 src/main/system-language.ts)——
+ * 「跟随系统」的行为依赖系统语言,而系统语言在测试里改不了,没有这个口子就只能
+ * 靠人反复改系统设置来验证。
+ */
+async function launchWithLangs(sysLangs: string): Promise<Launched> {
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
+  const home = mkEmptyProjectHome()
+  const errors: string[] = []
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      AGENTSHED_HOME_OVERRIDE: home,
+      AGENTSHED_NO_FOREGROUND: '1',
+      AGENTSHED_SYSTEM_LANGUAGES: sysLangs
+    }
+  })
+  app.process().stderr?.on('data', (b: Buffer) => {
+    const t = b.toString()
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败/.test(t)) {
+      errors.push(t.trim())
+    }
+  })
+  return { app, errors, userData, home }
+}
+
+test('界面语言:跟随系统按整个列表解析,首帧即生效', async () => {
+  // [ko, fr, en]:韩语不受支持,应继续往后取到法语——而不是首项不中就回退英文。
+  // 单元素列表分不出这两种实现,故这里必须用多元素。
+  const l = await launchWithLangs('ko-KR,fr-FR,en-US')
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  // 默认偏好是「跟随系统」,故界面应为法语
+  await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Réglages')
+  expect(await win.evaluate(() => document.documentElement.lang)).toBe('fr')
+  await l.app.close()
+  rmSync(l.userData, { recursive: true, force: true })
+})
+
+test('界面语言:系统语言不受支持时回退英文', async () => {
+  const l = await launchWithLangs('ko-KR')
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Settings')
+  await l.app.close()
+  rmSync(l.userData, { recursive: true, force: true })
+})
+
+test('语言选择器:七项含跟随系统与分隔线、切换即时生效并落盘', async () => {
+  const l = await launchWithLangs('zh-Hans-CN')
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await win.locator('.ri.set').click()
+
+  // 语言分节在外观之前:断 DOM 顺序,不靠肉眼看截图
+  const secs = win.locator('.settings-sec-t')
+  await expect(secs.first()).toHaveText('语言')
+  await expect(secs.nth(1)).toHaveText('外观')
+
+  // 触发器显示「跟随系统」+ 当前解析结果
+  const trig = win.getByTestId('language-trigger')
+  await expect(trig).toContainText('跟随系统')
+  await expect(trig).toContainText('简体中文')
+
+  await trig.click()
+  const pop = win.getByTestId('language-pop')
+  await expect(pop.locator('.lang-opt')).toHaveCount(7)
+  await expect(pop.locator('.lang-sep')).toHaveCount(1)
+  // 首项是策略且显示解析出的语言;它不是「一种语言」
+  await expect(pop.locator('.lang-opt').first()).toContainText('跟随系统')
+  await expect(pop.locator('.lang-opt').first()).toContainText('简体中文')
+
+  // 浮层不被设置页 overflow:auto 裁掉:四角与中心命中测试,属性存在不算数
+  const visible = await win.evaluate(() => {
+    const pop = document.querySelector('[data-testid="language-pop"]') as HTMLElement
+    const r = pop.getBoundingClientRect()
+    const hit = (x: number, y: number): boolean => pop.contains(document.elementFromPoint(x, y))
+    return (
+      hit(r.left + r.width / 2, r.top + r.height / 2) &&
+      hit(r.left + 6, r.top + 6) &&
+      hit(r.right - 6, r.top + 6) &&
+      hit(r.left + 6, r.bottom - 6) &&
+      hit(r.right - 6, r.bottom - 6)
+    )
+  })
+  expect(visible).toBe(true)
+
+  // 切到日语:整页即时改语言,含侧边栏悬停提示
+  await pop.locator('[data-lang="ja"]').click()
+  await expect(win.locator('.settings-h1')).toHaveText('設定')
+  await expect(win.locator('.ri.set')).toHaveAttribute('title', '設定')
+  expect(await win.evaluate(() => document.documentElement.lang)).toBe('ja')
+
+  expect(l.errors).toEqual([])
+  await l.app.close()
+  rmSync(l.userData, { recursive: true, force: true })
+})
+
+test('语言选择器键盘:展开时高亮停在当前选中项,不因开合多走一格', async () => {
+  const l = await launchWithLangs('zh-Hans-CN')
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await win.locator('.ri.set').click()
+
+  // **先切到非首项**再验证高亮位置:若当前选中就是第 0 项,
+  // 「高亮停在选中项」与「高亮没被设置」的结果都是 0,断言分不出对错
+  const trig = win.getByTestId('language-trigger')
+  await trig.click()
+  await win.getByTestId('language-pop').locator('[data-lang="ru"]').click()
+  await expect(win.locator('.settings-h1')).toHaveText('Настройки')
+
+  // 鼠标移开再测键盘:上一步是用鼠标点选的,指针还停在浮层原位置上,
+  // 浮层再次展开时会落在某一项上触发 hover 高亮,把键盘游标顶掉——
+  // 那是符合预期的鼠标行为,但会让这条键盘断言测到错误的对象
+  await win.mouse.move(0, 0)
+  await trig.focus()
+  await win.keyboard.press('ArrowDown')
+  const pop = win.getByTestId('language-pop')
+  await expect(pop).toBeVisible()
+  // 俄语在 OPTIONS 中的下标是 5(system + zh en fr es ru)
+  await expect(pop.locator('.lang-opt.cursor')).toHaveAttribute('data-lang', 'ru')
+
+  // ↑ 一格到西语,回车选定
+  await win.keyboard.press('ArrowUp')
+  await expect(pop.locator('.lang-opt.cursor')).toHaveAttribute('data-lang', 'es')
+  await win.keyboard.press('Enter')
+  await expect(win.locator('.settings-h1')).toHaveText('Ajustes')
+
+  // Esc 关闭且不改语言
+  await trig.click()
+  await win.keyboard.press('Escape')
+  await expect(win.getByTestId('language-pop')).toHaveCount(0)
+  await expect(win.locator('.settings-h1')).toHaveText('Ajustes')
+
+  expect(l.errors).toEqual([])
+  await l.app.close()
+  rmSync(l.userData, { recursive: true, force: true })
 })

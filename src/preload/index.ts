@@ -23,6 +23,8 @@ import {
   validateSearchResult
 } from '@shared/validate'
 import { parsePrefs } from '@shared/prefs'
+import { FALLBACK_LANGUAGE, isLanguage, type Language } from '@shared/i18n'
+import { LANG_ARG, SYS_LANGS_ARG } from '@shared/ipc'
 
 // renderer 入口处的契约校验:主进程发来的快照不合契约就抛,不静默渲染 undefined
 function checked(snap: unknown): Snapshot {
@@ -38,7 +40,30 @@ function checkedPrefs(raw: unknown): Prefs {
 }
 
 
+/**
+ * 生效语言:主进程在窗口创建时经启动参数带过来,**同步可得**。
+ * 走这条而非 IPC,是为了让 renderer 首帧就用上正确语言——异步取的话首帧是默认
+ * 语言、随后整页文字跳变一次。参数缺失或不合法时回退英文,与解析层同口径。
+ */
+function initialLanguage(): Language {
+  const arg = process.argv.find((a) => a.startsWith(LANG_ARG))
+  const v = arg?.slice(LANG_ARG.length)
+  return isLanguage(v) ? v : FALLBACK_LANGUAGE
+}
+
+function systemLanguages(): string[] {
+  const arg = process.argv.find((a) => a.startsWith(SYS_LANGS_ARG))
+  return (arg?.slice(SYS_LANGS_ARG.length) ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+}
+
 const api = {
+  /** 首帧即可用的生效语言(非偏好——偏好走 getPrefs) */
+  initialLanguage: initialLanguage(),
+  /** 启动时的系统偏好语言列表:选「跟随系统」时 renderer 据此本地算生效语言 */
+  systemLanguages: systemLanguages(),
   getSnapshot: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.getSnapshot)),
   refresh: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.refresh)),
   setHidden: (args: SetHiddenArgs): Promise<void> => ipcRenderer.invoke(CMD.setHidden, args),

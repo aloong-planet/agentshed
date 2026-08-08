@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Snapshot } from '@shared/domain'
 import { DEFAULT_SCHEME, type AppearanceScheme } from '@shared/appearance'
+import { dictOf, effectiveLanguage, type Language, type LanguagePreference } from '@shared/i18n'
 import { ProjectsPane } from './ProjectsPane'
 import { AgentsPane } from './AgentsPane'
 import { DetailPane } from './DetailPane'
@@ -12,6 +13,10 @@ type Dim = 'agents' | 'projects' | 'settings'
 
 function applyScheme(scheme: AppearanceScheme): void {
   document.documentElement.dataset.scheme = scheme
+}
+
+function applyLang(lang: Language): void {
+  document.documentElement.lang = dictOf(lang).htmlLang
 }
 
 export function App(): JSX.Element {
@@ -26,6 +31,12 @@ export function App(): JSX.Element {
   // 从会话页返回时回到「会话」分栏(原型:‹ 返回 <项目> · 会话),而非概览
   const [backToSessions, setBackToSessions] = useState(false)
   const [scheme, setScheme] = useState<AppearanceScheme>(DEFAULT_SCHEME)
+  // 生效语言由主进程在窗口创建时算好经启动参数带来,**首帧即正确**——
+  // 若改成 mount 后异步取,首帧会是默认语言、随后整页文字跳变一次。
+  const [lang, setLang] = useState<Language>(window.agentshed.initialLanguage)
+  // 语言偏好(可为「跟随系统」)只有选择器要用,异步取即可,不影响首帧文字
+  const [langPref, setLangPref] = useState<LanguagePreference>('system')
+  const t = dictOf(lang)
   const selectProject = (p: string | null): void => {
     setSelected(p)
     setOpenSession(null)
@@ -35,11 +46,13 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     applyScheme(DEFAULT_SCHEME)
+    applyLang(window.agentshed.initialLanguage)
     let alive = true
     void window.agentshed.getPrefs().then((p) => {
       if (!alive) return
       setScheme(p.scheme)
       applyScheme(p.scheme)
+      setLangPref(p.language)
     })
     void window.agentshed.getSnapshot().then((s) => {
       if (alive) setSnap(s)
@@ -74,33 +87,56 @@ export function App(): JSX.Element {
     }
   }
 
+  async function onLanguage(next: LanguagePreference): Promise<void> {
+    // 生效语言在本地算得出(系统语言列表随窗口创建带来),故先立即生效再落盘,
+    // 与外观方案同规矩:不留「设置页已变、别处没变」的中间态
+    const eff = effectiveLanguage(next, window.agentshed.systemLanguages)
+    setLangPref(next)
+    setLang(eff)
+    applyLang(eff)
+    // 提示用**切换后**的语言写,否则刚切到法语却弹一句中文
+    const nt = dictOf(eff)
+    toast(
+      'ok',
+      next === 'system'
+        ? nt.toast.languageFollowSystem(nt.languageName)
+        : nt.toast.languageSwitched(nt.languageName)
+    )
+    try {
+      const p = await window.agentshed.setLanguage(next)
+      setLangPref(p.language)
+    } catch (e) {
+      toast('err', `保存语言失败:${String(e)}`)
+    }
+  }
+
   return (
     <div className={`app dim-${dim}`}>
       <nav className="rail">
         <button
           className={`ri ${dim === 'agents' ? 'on' : ''}`}
-          title="Agents"
+          title={t.rail.agents}
           onClick={() => setDim('agents')}
         >
           🤖
         </button>
         <button
           className={`ri ${dim === 'projects' ? 'on' : ''}`}
-          title="Projects"
+          title={t.rail.projects}
           onClick={() => setDim('projects')}
         >
           📁
         </button>
         <button
           className={`ri grfr ${refreshing ? 'busy' : ''}`}
-          title="全局刷新"
+          title={t.rail.refresh}
           onClick={() => void refresh()}
         >
           ↻
         </button>
         <button
           className={`ri set ${dim === 'settings' ? 'on' : ''}`}
-          title="设置"
+          title={t.rail.settings}
           onClick={() => setDim('settings')}
         >
           ⚙️
@@ -108,7 +144,13 @@ export function App(): JSX.Element {
       </nav>
       <main className="stage">
         {dim === 'settings' ? (
-          <SettingsPane scheme={scheme} onScheme={(s) => void onScheme(s)} />
+          <SettingsPane
+              scheme={scheme}
+              onScheme={(s) => void onScheme(s)}
+              language={langPref}
+              effectiveLang={lang}
+              onLanguage={(l) => void onLanguage(l)}
+            />
         ) : dim === 'agents' ? (
           snap === null ? (
             <ScanningHint />
