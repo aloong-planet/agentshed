@@ -59,6 +59,98 @@ export const zh = {
   /** Codex config.toml 摘要:主进程只传字段,这里组装成句(票 07) */
   codexConfig: (model: string, projects: number, mcp: number) =>
     `model = ${model}\nprojects: ${projects} 条\nmcp_servers: ${mcp} 段`,
+  /** Skills 包预览与文件抽屉(票 10) */
+  skills: {
+    listFailed: (detail: string) => `列举失败:${detail}`,
+    pillPlugin: '插件',
+    pillProject: '项目级',
+    pillGlobal: '全局',
+    pillSymlink: '⤷ 软链',
+    pkgSummary: (files: number, size: string) => `${files} 个文件 · ${size}`,
+    srcPluginPkg: '插件包',
+    srcProject: '项目',
+    srcGlobal: '全局库',
+    listing: '列举中…',
+    deeperPaths: (paths: string) => `更深路径未列入: ${paths}`,
+    colFile: '文件',
+    colLines: '行数',
+    colSize: '大小',
+    colMtime: '修改日期',
+    noPreviewable: '包内无可预览文本文件',
+    tagEntry: '入口',
+    close: '关闭',
+    raw: '原文',
+    preview: '预览',
+    loading: '加载中…',
+    emptyFile: '空文件',
+    installMissing: '安装目录缺失',
+    pkgUnreadable: 'skill 包不可读'
+  },
+
+  /** Subagents 视图(票 10) */
+  subagents: {
+    noneGlobal: '两侧均无 subagent 定义(~/.claude/agents 与 ~/.codex/agents)',
+    globalHint: '双端合并单列 · 同名一行(不做内容 diff) · 点条目看完整定义',
+    noDescription: '(无 description)',
+    noneProject: '项目级与全局层均无 subagent 定义',
+    projectHint: '生效视图 · Claude/Codex 均为项目级遮蔽 · 点条目看完整定义',
+    levelProject: '项目级',
+    levelGlobal: '全局',
+    overridesBuiltin: '覆盖内置',
+    shadows: '遮蔽同名',
+    shadowed: '被项目级遮蔽',
+    metaShadows: ' · 压过同名低层定义',
+    metaShadowed: ' · 被项目级定义遮蔽(未生效)',
+    noSideDef: '该侧无定义',
+    inherited: '—(继承)'
+  },
+
+  /** Memory 视图(票 10) */
+  memory: {
+    codexLegacy: 'Codex 记忆功能当前未开启,上方为目录中的遗留文件。',
+    codexEmpty: 'Codex 记忆已开启,暂无内容。',
+    codexDisabled:
+      'Codex 记忆功能未开启——可在 Codex 内用 /memories 命令,或「设置 → 个性化 → Enable memories」开启(实验性)。',
+    noneGlobal: '所有项目均无自动记忆',
+    globalHint: '按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件看内容',
+    stale: '失效',
+    hidden: '已隐藏',
+    codexGlobalDir: '全局记忆目录',
+    noMainFile: '无 MEMORY.md',
+    noneProject: '该项目暂无自动记忆',
+    claudeOnly: 'Memory 为 Claude 侧机制(Codex 记忆是全局的,见全局页 Memory 分栏)',
+    mainTitle: 'MEMORY.md(自动记忆主文件)',
+    noMain: '无 MEMORY.md(仅 topic 文件)',
+    topicsTitle: (n: number) => `Topic 文件(${n}) · 点击查看`,
+    noTopics: '无 topic 文件',
+    topicMeta: (ago: string) => `topic 文件 · ${ago}`,
+    unreadable: (detail: string) => `文件不可读:${detail}`,
+    loading: '读取中…'
+  },
+
+  /** Plugins 视图(票 10) */
+  plugins: {
+    projectMissing: '(项目已失联)',
+    installMissing: '安装目录缺失(缓存已清理)——仅注册表记录可见,内含组件无法读取',
+    noBundled: '四类内含组件均无',
+    codexCacheEnum: '缓存枚举',
+    cachedVersions: (n: number) => `(${n} 个版本缓存)`,
+    cacheOnly: '仅缓存枚举',
+    codexFoot: 'Codex 组仅列缓存中存在的插件;无启用态语义,内含 skills 可预览但不并入 Skills 分栏',
+    codexFootDetail: ';Codex 插件为全局生效,无项目级启用语义',
+    claudeGlobalHint: '启用口径:user 层 · 点条目展开内含组件',
+    noPlugins: '未安装任何 plugin',
+    enabled: '已启用',
+    notEnabled: '未启用',
+    claudeProjectHint: '启用口径:本项目有效启用集(local > project > user)',
+    enabledShort: '启用',
+    disabledShort: '禁用',
+    noLayerMentions: '任何层均未提及',
+    verdictFrom: (verdict: string, layer: string) => `${verdict}判定来自 ${layer}`,
+    layerLocal: 'local 层',
+    layerProject: 'project 层',
+    layerUser: 'user 层'
+  },
   /** 会话页与轮内块(票 09)。带 ** 与 ` 的是富文本标记,见 RichText */
   session: {
     forkPoints: (n: number) =>

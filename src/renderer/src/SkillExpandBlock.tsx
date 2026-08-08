@@ -6,7 +6,7 @@ import { SkillFileDrawer } from './SkillFileDrawer'
 import { SkillFilesTable, formatSize } from './SkillFilesTable'
 import { toast } from './Toast'
 import { errorText } from '@shared/error-text'
-import { useLanguage } from './language'
+import { useLanguage, useDict } from './language'
 
 const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex' }
 const SIDE_ORDER: AgentSide[] = ['claude', 'codex']
@@ -40,6 +40,7 @@ export interface SkillExpandBlockProps {
 }
 
 export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
+  const t = useDict()
   const { name, source, symlink, levelLabel, level, pkgBySide, installSlot, uninstallSlot } = props
   const sidesArr = source.kind === 'global' ? source.sides : [source.side]
   const fixedSide = source.kind === 'global' ? source.fixedSide : source.side
@@ -82,7 +83,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         setListing(null)
         setListErr(String(e))
       }
-      toast('err', `列举失败:${errorText(lang, e)}`)
+      toast('err', t.skills.listFailed(errorText(lang, e)))
     } finally {
       if (seq.current === my) setLoading(false)
     }
@@ -134,12 +135,12 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
             )
           )}
         </span>
-        {source.kind === 'plugin' && <span className="pill plg">插件</span>}
-        {level === 'project' && <span className="pill prj">项目级</span>}
-        {level === 'global' && <span className="pill glb">全局</span>}
-        {symlink && <span className="pill ln">⤷ 软链</span>}
+        {source.kind === 'plugin' && <span className="pill plg">{t.skills.pillPlugin}</span>}
+        {level === 'project' && <span className="pill prj">{t.skills.pillProject}</span>}
+        {level === 'global' && <span className="pill glb">{t.skills.pillGlobal}</span>}
+        {symlink && <span className="pill ln">{t.skills.pillSymlink}</span>}
         <span className="sk-meta">
-          {pkg ? `${pkg.files} 个文件 · ${formatSize(pkg.bytes)}` : ''}
+          {pkg ? t.skills.pkgSummary(pkg.files, formatSize(pkg.bytes)) : ''}
         </span>
         {installSlot}
         {uninstallSlot}
@@ -169,7 +170,11 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
           sideLabel={SIDE_LABEL[side]}
           levelLabel={
             levelLabel ??
-            (source.kind === 'plugin' ? '插件包' : source.kind === 'project' ? '项目' : '全局库')
+            (source.kind === 'plugin'
+              ? t.skills.srcPluginPkg
+              : source.kind === 'project'
+                ? t.skills.srcProject
+                : t.skills.srcGlobal)
           }
           filePath={drawer.path}
           absPath={drawer.absPath}

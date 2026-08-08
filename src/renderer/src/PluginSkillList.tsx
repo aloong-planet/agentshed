@@ -9,7 +9,7 @@ import { SkillFileDrawer } from './SkillFileDrawer'
 import { SkillFilesTable, formatSize } from './SkillFilesTable'
 import { toast } from './Toast'
 import { errorText } from '@shared/error-text'
-import { useLanguage } from './language'
+import { useLanguage, useDict } from './language'
 
 export function PluginSkillList({
   ns,
@@ -24,6 +24,7 @@ export function PluginSkillList({
   root: string | null
   skills: PluginSkillSummary[]
 }): JSX.Element {
+  const t = useDict()
   const lang = useLanguage()
   const [openName, setOpenName] = useState<string | null>(null)
   const [listing, setListing] = useState<ListSkillFilesResult | null>(null)
@@ -55,7 +56,7 @@ export function PluginSkillList({
       if (seq.current === my) setListing(r)
     } catch (e) {
       if (seq.current === my) setErr(String(e))
-      toast('err', `列举失败:${errorText(lang, e)}`)
+      toast('err', t.skills.listFailed(errorText(lang, e)))
     } finally {
       if (seq.current === my) setLoading(false)
     }
@@ -66,7 +67,7 @@ export function PluginSkillList({
       {skills.map((s) => {
         const readable = root !== null && s.pkg !== null
         const on = openName === s.name
-        const reason = root === null ? '安装目录缺失' : 'skill 包不可读'
+        const reason = root === null ? t.skills.installMissing : t.skills.pkgUnreadable
         return (
           <div key={s.name}>
             <button
@@ -83,7 +84,7 @@ export function PluginSkillList({
               </span>
               <span className="ds">{s.description ?? ''}</span>
               <span className="meta">
-                {s.pkg ? `${s.pkg.files} 个文件 · ${formatSize(s.pkg.bytes)}` : reason}
+                {s.pkg ? t.skills.pkgSummary(s.pkg.files, formatSize(s.pkg.bytes)) : reason}
               </span>
             </button>
             {on && (
@@ -103,7 +104,7 @@ export function PluginSkillList({
         <SkillFileDrawer
           skill={drawer.skill}
           sideLabel={side === 'claude' ? 'Claude' : 'Codex'}
-          levelLabel="插件包"
+          levelLabel={t.skills.srcPluginPkg}
           filePath={drawer.f.path}
           absPath={drawer.f.absPath}
           onClose={() => setDrawer(null)}

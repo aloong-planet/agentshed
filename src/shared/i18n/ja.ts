@@ -44,6 +44,70 @@ export const ja: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects：${projects}\nmcp_servers：${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  skills: {
+    listFailed: (detail) => `列挙に失敗しました：${detail}`,
+    pillPlugin: 'プラグイン', pillProject: 'プロジェクト単位', pillGlobal: 'グローバル', pillSymlink: '⤷ シンボリックリンク',
+    pkgSummary: (files, size) => `${files} ファイル · ${size}`,
+    srcPluginPkg: 'プラグインパッケージ', srcProject: 'プロジェクト', srcGlobal: 'グローバルライブラリ',
+    listing: '列挙中…',
+    deeperPaths: (paths) => `より深いパスは未収録: ${paths}`,
+    colFile: 'ファイル', colLines: '行数', colSize: 'サイズ', colMtime: '更新日時',
+    noPreviewable: 'パッケージ内にプレビュー可能なテキストファイルがありません',
+    tagEntry: 'エントリ', close: '閉じる', raw: '原文', preview: 'プレビュー',
+    loading: '読み込み中…', emptyFile: '空のファイル',
+    installMissing: 'インストール先ディレクトリがありません', pkgUnreadable: 'skill パッケージを読み取れません'
+  },
+
+  subagents: {
+    noneGlobal: '両サイドとも subagent 定義がありません（~/.claude/agents と ~/.codex/agents）',
+    globalHint: '両サイドを 1 列に統合 · 同名は 1 行（内容 diff は行いません）· 行をクリックで完全な定義',
+    noDescription: '（description なし）',
+    noneProject: 'プロジェクト単位・グローバルとも subagent 定義がありません',
+    projectHint: '有効ビュー · Claude/Codex ともプロジェクト単位が優先 · 行をクリックで完全な定義',
+    levelProject: 'プロジェクト単位', levelGlobal: 'グローバル',
+    overridesBuiltin: '組み込みを上書き', shadows: '同名を隠す', shadowed: 'プロジェクト単位に隠される',
+    metaShadows: ' · 同名の下位定義を上回ります',
+    metaShadowed: ' · プロジェクト単位の定義に隠されています（無効）',
+    noSideDef: 'このサイドに定義はありません', inherited: '—（継承）'
+  },
+
+  memory: {
+    codexLegacy: 'Codex のメモリ機能は現在無効です。上記はディレクトリに残っているファイルです。',
+    codexEmpty: 'Codex のメモリは有効ですが、内容がありません。',
+    codexDisabled: 'Codex のメモリ機能が無効です —— Codex 内で /memories コマンド、または「設定 → パーソナライズ → Enable memories」で有効にできます（実験的）。',
+    noneGlobal: 'どのプロジェクトにも自動メモリがありません',
+    globalHint: '更新の新しい順 · 失効/非表示を含む（バッジ付き）· 行をクリックでファイル一覧、ファイルをクリックで内容',
+    stale: '失効', hidden: '非表示',
+    codexGlobalDir: 'グローバルメモリのディレクトリ', noMainFile: 'MEMORY.md なし',
+    noneProject: 'このプロジェクトにはまだ自動メモリがありません',
+    claudeOnly: 'Memory は Claude 側の仕組みです（Codex のメモリはグローバルで、グローバルページの Memory タブを参照）',
+    mainTitle: 'MEMORY.md（自動メモリの主ファイル）',
+    noMain: 'MEMORY.md はありません（topic ファイルのみ）',
+    topicsTitle: (n) => `topic ファイル（${n}）· クリックで表示`,
+    noTopics: 'topic ファイルはありません',
+    topicMeta: (ago) => `topic ファイル · ${ago}`,
+    unreadable: (detail) => `ファイルを読み取れません：${detail}`,
+    loading: '読み込み中…'
+  },
+
+  plugins: {
+    projectMissing: '（プロジェクトが見つかりません）',
+    installMissing: 'インストール先ディレクトリがありません（キャッシュ削除済み）—— レジストリの記録のみ参照可能で、同梱コンポーネントは読み取れません',
+    noBundled: '4 種類の同梱コンポーネントはいずれもありません',
+    codexCacheEnum: 'キャッシュ列挙',
+    cachedVersions: (n) => `（キャッシュ ${n} バージョン）`,
+    cacheOnly: 'キャッシュ列挙のみ',
+    codexFoot: 'Codex 群はキャッシュに存在するプラグインのみを列挙します。有効/無効の意味論はなく、同梱 skills はプレビューできますが Skills タブには統合されません',
+    codexFootDetail: '。Codex のプラグインはグローバルに有効で、プロジェクト単位の有効化の意味論はありません',
+    claudeGlobalHint: '有効判定の基準：user 層 · 行をクリックで同梱コンポーネントを展開',
+    noPlugins: 'プラグインは 1 つもインストールされていません',
+    enabled: '有効', notEnabled: '未有効',
+    claudeProjectHint: '有効判定の基準：本プロジェクトの有効集合（local > project > user）',
+    enabledShort: '有効', disabledShort: '無効',
+    noLayerMentions: 'どの層にも記載なし',
+    verdictFrom: (verdict, layer) => `${verdict}判定は ${layer} 由来`,
+    layerLocal: 'local 層', layerProject: 'project 層', layerUser: 'user 層'
+  },
   session: {
     forkPoints: (n) =>
       `このセッションには **${n} 箇所の分岐**があります。最後のメッセージから親リンクをたどってルートまで遡った 1 本の鎖を表示しています —— つまり「この対話が最終的にどうなったか」です。破棄された分岐は表示しません。`,

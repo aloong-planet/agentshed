@@ -24,7 +24,7 @@ function InstallChips({ installs }: { installs: PluginInstallRecord[] }): JSX.El
         <span className="chip" key={i}>
           {r.scope ?? t.placeholder.unknown}
           {r.projectPath ? ` · ${basename(r.projectPath)}` : ''}
-          {r.projectMissing ? '(项目已失联)' : ''}
+          {r.projectMissing ? t.plugins.projectMissing : ''}
         </span>
       ))}
     </>
@@ -44,9 +44,10 @@ function PluginExpand({
   root: string | null
   contents: PluginContents
 }): JSX.Element {
+  const t = useDict()
   const [tab, setTab] = useState(0)
   if (contents.missing)
-    return <div className="exp-area none">安装目录缺失(缓存已清理)——仅注册表记录可见,内含组件无法读取</div>
+    return <div className="exp-area none">{t.plugins.installMissing}</div>
   const chips = (names: string[]): JSX.Element => (
     <div className="chips">
       {names.map((n) => (
@@ -73,7 +74,7 @@ function PluginExpand({
     })
   if (contents.mcp.length > 0)
     panels.push({ label: 'MCP', cnt: contents.mcp.length, node: chips(contents.mcp) })
-  if (panels.length === 0) return <div className="exp-area none">四类内含组件均无</div>
+  if (panels.length === 0) return <div className="exp-area none">{t.plugins.noBundled}</div>
   const cur = Math.min(tab, panels.length - 1)
   return (
     <div className="exp-area">
@@ -96,6 +97,7 @@ function PluginExpand({
 }
 
 function CodexGroup({ snap, detailNote }: { snap: Snapshot; detailNote?: boolean }): JSX.Element | null {
+  const t = useDict()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   if (snap.global.codexPlugins.length === 0) return null // 探测式:空则整组不显示
   function toggle(key: string): void {
@@ -107,7 +109,7 @@ function CodexGroup({ snap, detailNote }: { snap: Snapshot; detailNote?: boolean
   return (
     <>
       <div className="grp-t" style={{ marginTop: 14 }}>
-        <span className="badge cx">CODEX</span> 缓存枚举
+        <span className="badge cx">CODEX</span> {t.plugins.codexCacheEnum}
       </div>
       <div className="card plug-card">
         {snap.global.codexPlugins.map((p) => {
@@ -120,9 +122,9 @@ function CodexGroup({ snap, detailNote }: { snap: Snapshot; detailNote?: boolean
               </span>
               <span className="src mono">
                 {p.version ? `v${p.version}` : ''}
-                {p.cachedVersions > 1 ? `(${p.cachedVersions} 个版本缓存)` : ''}
+                {p.cachedVersions > 1 ? t.plugins.cachedVersions(p.cachedVersions) : ''}
               </span>
-              <span className="ds">仅缓存枚举</span>
+              <span className="ds">{t.plugins.cacheOnly}</span>
             </>
           )
           return (
@@ -150,14 +152,15 @@ function CodexGroup({ snap, detailNote }: { snap: Snapshot; detailNote?: boolean
         })}
       </div>
       <div className="none" style={{ textAlign: 'left', padding: '4px 2px' }}>
-        Codex 组仅列缓存中存在的插件;无启用态语义,内含 skills 可预览但不并入 Skills 分栏
-        {detailNote ? ';Codex 插件为全局生效,无项目级启用语义' : ''}。
+        {t.plugins.codexFoot}
+        {detailNote ? t.plugins.codexFootDetail : ''}
       </div>
     </>
   )
 }
 
 export function GlobalPluginsTab({ snap }: { snap: Snapshot }): JSX.Element {
+  const t = useDict()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   function toggle(name: string): void {
     const next = new Set(expanded)
@@ -168,10 +171,10 @@ export function GlobalPluginsTab({ snap }: { snap: Snapshot }): JSX.Element {
   return (
     <div>
       <div className="grp-t">
-        <span className="badge cl">CLAUDE CODE</span> 启用口径:user 层 · 点条目展开内含组件
+        <span className="badge cl">CLAUDE CODE</span> {t.plugins.claudeGlobalHint}
       </div>
       {snap.global.plugins.length === 0 ? (
-        <div className="none">未安装任何 plugin</div>
+        <div className="none">{t.plugins.noPlugins}</div>
       ) : (
         <div className="card plug-card">
           {snap.global.plugins.map((p) => (
@@ -179,7 +182,7 @@ export function GlobalPluginsTab({ snap }: { snap: Snapshot }): JSX.Element {
               <button className="it row-btn" onClick={() => toggle(p.name)}>
                 <span className="nm mono">{p.name}</span>
                 <span className="src mono">{p.version ? `v${p.version}` : ''}</span>
-                <span className={`pill ${p.enabled ? 'on' : 'off'}`}>{p.enabled ? '已启用' : '未启用'}</span>
+                <span className={`pill ${p.enabled ? 'on' : 'off'}`}>{p.enabled ? t.plugins.enabled : t.plugins.notEnabled}</span>
                 <InstallChips installs={p.installs} />
               </button>
               {expanded.has(p.name) && (
@@ -199,7 +202,7 @@ export function GlobalPluginsTab({ snap }: { snap: Snapshot }): JSX.Element {
   )
 }
 
-const FROM_LABEL = { local: 'local 层', project: 'project 层', user: 'user 层' } as const
+
 
 export function ProjectPluginsTab({
   detail,
@@ -208,6 +211,7 @@ export function ProjectPluginsTab({
   detail: ProjectDetail
   snap: Snapshot
 }): JSX.Element {
+  const t = useDict()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   function toggle(name: string): void {
     const next = new Set(expanded)
@@ -218,10 +222,10 @@ export function ProjectPluginsTab({
   return (
     <div>
       <div className="grp-t">
-        <span className="badge cl">CLAUDE CODE</span> 启用口径:本项目有效启用集(local &gt; project &gt; user)
+        <span className="badge cl">CLAUDE CODE</span> {t.plugins.claudeProjectHint}
       </div>
       {detail.plugins.length === 0 ? (
-        <div className="none">未安装任何 plugin</div>
+        <div className="none">{t.plugins.noPlugins}</div>
       ) : (
         <div className="card plug-card">
           {detail.plugins.map((p) => (
@@ -229,12 +233,19 @@ export function ProjectPluginsTab({
               <button className="it row-btn" onClick={() => toggle(p.name)}>
                 <span className="nm mono">{p.name}</span>
                 <span className="src mono">{p.version ? `v${p.version}` : ''}</span>
-                <span className={`pill ${p.enabled ? 'on' : 'off'}`}>{p.enabled ? '启用' : '未启用'}</span>
+                <span className={`pill ${p.enabled ? 'on' : 'off'}`}>{p.enabled ? t.plugins.enabledShort : t.plugins.notEnabled}</span>
                 <InstallChips installs={p.installs} />
                 <span className="ds">
                   {p.enabledFrom === null
-                    ? '任何层均未提及'
-                    : `${p.enabled ? '启用' : '禁用'}判定来自 ${FROM_LABEL[p.enabledFrom]}`}
+                    ? t.plugins.noLayerMentions
+                    : t.plugins.verdictFrom(
+                        p.enabled ? t.plugins.enabledShort : t.plugins.disabledShort,
+                        p.enabledFrom === 'local'
+                          ? t.plugins.layerLocal
+                          : p.enabledFrom === 'project'
+                            ? t.plugins.layerProject
+                            : t.plugins.layerUser
+                      )}
                 </span>
               </button>
               {expanded.has(p.name) && (

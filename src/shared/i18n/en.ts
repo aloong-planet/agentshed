@@ -44,6 +44,70 @@ export const en: Locale = {
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
   /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  skills: {
+    listFailed: (detail) => `Listing failed: ${detail}`,
+    pillPlugin: 'Plugin', pillProject: 'Project', pillGlobal: 'Global', pillSymlink: '⤷ symlink',
+    pkgSummary: (files, size) => `${files} files · ${size}`,
+    srcPluginPkg: 'Plugin package', srcProject: 'Project', srcGlobal: 'Global library',
+    listing: 'Listing…',
+    deeperPaths: (paths) => `Deeper paths not listed: ${paths}`,
+    colFile: 'File', colLines: 'Lines', colSize: 'Size', colMtime: 'Modified',
+    noPreviewable: 'No previewable text files in this package',
+    tagEntry: 'Entry', close: 'Close', raw: 'Raw', preview: 'Preview',
+    loading: 'Loading…', emptyFile: 'Empty file',
+    installMissing: 'Install directory missing', pkgUnreadable: 'Skill package unreadable'
+  },
+
+  subagents: {
+    noneGlobal: 'No subagent definitions on either side (~/.claude/agents and ~/.codex/agents)',
+    globalHint: 'Both sides merged into one list · same name on one row (no content diff) · click a row for the full definition',
+    noDescription: '(no description)',
+    noneProject: 'No subagent definitions at project or global level',
+    projectHint: 'Effective view · project level shadows on both Claude and Codex · click a row for the full definition',
+    levelProject: 'Project', levelGlobal: 'Global',
+    overridesBuiltin: 'Overrides built-in', shadows: 'Shadows same name', shadowed: 'Shadowed by project level',
+    metaShadows: ' · overrides a lower-level definition of the same name',
+    metaShadowed: ' · shadowed by a project-level definition (not in effect)',
+    noSideDef: 'No definition on this side', inherited: '— (inherited)'
+  },
+
+  memory: {
+    codexLegacy: 'Codex memory is currently disabled; the entries above are leftover files in the directory.',
+    codexEmpty: 'Codex memory is enabled but empty.',
+    codexDisabled: 'Codex memory is disabled — enable it with the /memories command inside Codex, or via Settings → Personalization → Enable memories (experimental).',
+    noneGlobal: 'No automatic memory in any project',
+    globalHint: 'Newest first · includes stale/hidden (badged) · click a row for its files, click a file for its content',
+    stale: 'Stale', hidden: 'Hidden',
+    codexGlobalDir: 'Global memory directory', noMainFile: 'No MEMORY.md',
+    noneProject: 'No automatic memory in this project yet',
+    claudeOnly: 'Memory is a Claude-side mechanism (Codex memory is global — see the Memory tab on the global page)',
+    mainTitle: 'MEMORY.md (main automatic memory file)',
+    noMain: 'No MEMORY.md (topic files only)',
+    topicsTitle: (n) => `Topic files (${n}) · click to view`,
+    noTopics: 'No topic files',
+    topicMeta: (ago) => `topic file · ${ago}`,
+    unreadable: (detail) => `File cannot be read: ${detail}`,
+    loading: 'Loading…'
+  },
+
+  plugins: {
+    projectMissing: '(project lost)',
+    installMissing: 'Install directory missing (cache cleaned up) — only the registry record is visible; bundled components cannot be read',
+    noBundled: 'None of the four bundled component types',
+    codexCacheEnum: 'cache enumeration',
+    cachedVersions: (n) => `(${n} cached versions)`,
+    cacheOnly: 'cache enumeration only',
+    codexFoot: 'The Codex group lists only plugins present in the cache; there is no enabled/disabled semantics, and bundled skills can be previewed but are not merged into the Skills tab',
+    codexFootDetail: '; Codex plugins take effect globally, with no project-level enablement semantics',
+    claudeGlobalHint: 'Enablement basis: user layer · click a row to expand bundled components',
+    noPlugins: 'No plugins installed',
+    enabled: 'Enabled', notEnabled: 'Not enabled',
+    claudeProjectHint: 'Enablement basis: this project’s effective set (local > project > user)',
+    enabledShort: 'Enabled', disabledShort: 'Disabled',
+    noLayerMentions: 'Not mentioned in any layer',
+    verdictFrom: (verdict, layer) => `${verdict} — decided by the ${layer}`,
+    layerLocal: 'local layer', layerProject: 'project layer', layerUser: 'user layer'
+  },
   session: {
     forkPoints: (n) =>
       `This session has **${n} fork points**. The chain shown is traced from the last message back along the parent links to the root — i.e. "what this conversation finally looks like"; abandoned branches are not shown.`,
