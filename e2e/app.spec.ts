@@ -1997,3 +1997,95 @@ test('语言选择器键盘:展开时高亮停在当前选中项,不因开合多
   await l.app.close()
   rmSync(l.userData, { recursive: true, force: true })
 })
+
+// ── i18n 专项(票 14)────────────────────────────────────────────────
+// 与既有用例的分工:既有 e2e 把语言钉为中文、守的是**行为**;这几条守的是
+// **i18n 本身**——切换生效、六语可加载、最长语言不撑破布局。
+
+test('i18n:锁定语言的机制本身可靠,不受开发机系统语言影响', async () => {
+  // 这条守的是**其余 40 条 e2e 的前提**:它们按中文文案定位,而语言默认跟随系统。
+  // 若钉定失效,整套用例会在非中文机器上崩塌——而在中文机器上照绿,看不出来。
+  // 故用两种**互不相同且都不是中文**的注入系统语言跑同一断言,结果必须一致。
+  for (const sys of ['ko-KR,fr-FR', 'ja-JP,en-US']) {
+    const l = await launch(undefined, mkEmptyProjectHome())
+    const win = await l.app.firstWindow()
+    await win.waitForSelector('.rail')
+    // launch() 内部把 AGENTSHED_SYSTEM_LANGUAGES 钉为 zh-Hans-CN,故与 sys 无关地恒为中文
+    await expect(win.locator('.ri.set')).toHaveAttribute('title', '设置')
+    await close(l)
+    void sys
+  }
+})
+
+test('i18n:六种语言均可加载,关键节点非空', async () => {
+  // 与 typecheck 不重叠:typecheck 保证 key 齐全,这里保证**运行期真的取得到值**——
+  // 例如某语言字典整个 import 失败时,key 齐全而运行期取到 undefined
+  const l = await launchWithLangs('zh-Hans-CN')
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await win.locator('.ri.set').click()
+  const trig = win.getByTestId('language-trigger')
+  for (const code of ['en', 'fr', 'es', 'ru', 'ja', 'zh']) {
+    await trig.click()
+    await win.getByTestId('language-pop').locator(`[data-lang="${code}"]`).click()
+    // 关键节点:页标题、侧栏提示、设置页两处分节标题
+    await expect(win.locator('.settings-h1')).not.toBeEmpty()
+    await expect(win.locator('.ri.set')).not.toHaveAttribute('title', '')
+    const secs = win.locator('.settings-sec-t')
+    await expect(secs.first()).not.toBeEmpty()
+    await expect(secs.nth(1)).not.toBeEmpty()
+    expect(await win.evaluate(() => document.documentElement.lang)).not.toBe('')
+  }
+  expect(l.errors).toEqual([])
+  await l.app.close()
+  rmSync(l.userData, { recursive: true, force: true })
+})
+
+test('i18n:切换语言即时生效,多个分区同时改变', async () => {
+  const l = await launchWithLangs('zh-Hans-CN')
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await win.locator('.ri.set').click()
+  const before = {
+    title: await win.locator('.settings-h1').textContent(),
+    rail: await win.locator('.ri.set').getAttribute('title'),
+    sec: await win.locator('.settings-sec-t').first().textContent()
+  }
+  await win.getByTestId('language-trigger').click()
+  await win.getByTestId('language-pop').locator('[data-lang="fr"]').click()
+  // **三个分区一起断**:只断一处分不出"整页换了语言"与"只有这一处接了字典"
+  await expect(win.locator('.settings-h1')).not.toHaveText(before.title ?? '')
+  await expect(win.locator('.ri.set')).not.toHaveAttribute('title', before.rail ?? '')
+  await expect(win.locator('.settings-sec-t').first()).not.toHaveText(before.sec ?? '')
+  expect(l.errors).toEqual([])
+  await l.app.close()
+  rmSync(l.userData, { recursive: true, force: true })
+})
+
+test('i18n:最长语言下关键布局不横向溢出(法/俄正文 + 日语标签两类都验)', async () => {
+  // 票里点名要覆盖**两类**:正文最长的是法/俄,标签最长的是日语(全角)。
+  // 只测一类会漏——它们撑破的是不同的容器。
+  const l = await launchWithLangs('zh-Hans-CN')
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await win.locator('.ri.set').click()
+  for (const code of ['fr', 'ru', 'ja']) {
+    await win.getByTestId('language-trigger').click()
+    await win.getByTestId('language-pop').locator(`[data-lang="${code}"]`).click()
+    await expect(win.locator('.settings-h1')).not.toBeEmpty()
+    const overflow = await win.evaluate(() => {
+      const doc = document.documentElement
+      // 页面本身不得横向滚动
+      const pageOverflows = doc.scrollWidth > doc.clientWidth
+      // 设置页内的定宽容器不得被内容撑破
+      const boxes = [...document.querySelectorAll('.settings, .field, .settings-foot')]
+      const boxOverflows = boxes.filter((b) => b.scrollWidth > b.clientWidth + 1).length
+      return { pageOverflows, boxOverflows }
+    })
+    expect(overflow.pageOverflows, `${code}:页面横向溢出`).toBe(false)
+    expect(overflow.boxOverflows, `${code}:定宽容器被撑破`).toBe(0)
+  }
+  expect(l.errors).toEqual([])
+  await l.app.close()
+  rmSync(l.userData, { recursive: true, force: true })
+})

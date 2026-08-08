@@ -14,9 +14,10 @@
     "test:watch": "vitest",
     "dist:mac": "electron-vite build && electron-builder --mac --publish never -c.mac.notarize=false",
     "e2e": "electron-vite build && playwright test",
-    "verify": "pnpm typecheck && pnpm test && pnpm check:ui && pnpm e2e && pnpm smoke",
+    "verify": "pnpm typecheck && pnpm test && pnpm check:ui && pnpm check:i18n && pnpm e2e && pnpm smoke",
     "smoke": "bash scripts/smoke.sh",
-    "check:ui": "node scripts/check-shared-ui.mjs --cross"
+    "check:ui": "node scripts/check-shared-ui.mjs --cross",
+    "check:i18n": "node scripts/check-i18n.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",
