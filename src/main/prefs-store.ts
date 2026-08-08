@@ -1,12 +1,13 @@
 // app 自有偏好(userData/prefs.json)。绝不写 agent 配置。原子写同 HiddenStore。
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { DEFAULT_SCHEME, isAppearanceScheme, type AppearanceScheme } from '@shared/appearance'
 import {
-  DEFAULT_SCHEME,
-  isAppearanceScheme,
-  type AppearanceScheme,
-  type Prefs
-} from '@shared/appearance'
+  DEFAULT_LANGUAGE_PREFERENCE,
+  isLanguagePreference,
+  type LanguagePreference
+} from '@shared/i18n'
+import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
 
 export type { Prefs }
 
@@ -26,21 +27,36 @@ export class PrefsStore {
   }
 
   setScheme(scheme: AppearanceScheme): Prefs {
-    this.prefs = { scheme }
+    this.prefs = { ...this.prefs, scheme }
     this.persist()
     return this.get()
   }
 
+  setLanguage(language: LanguagePreference): Prefs {
+    this.prefs = { ...this.prefs, language }
+    this.persist()
+    return this.get()
+  }
+
+  /**
+   * 读取时**逐字段降级**:某一项非法只回落该项,不牵连其他偏好。
+   * 这是「降级只准自伤」不变量在偏好上的落地——早先只有一个字段时,
+   * 「整份回默认」与「逐字段回默认」表现相同,加了第二个字段后两者就分道扬镳了。
+   */
   private load(): Prefs {
-    if (!existsSync(this.file)) return { scheme: DEFAULT_SCHEME }
+    if (!existsSync(this.file)) return { ...DEFAULT_PREFS }
     try {
       const raw: unknown = JSON.parse(readFileSync(this.file, 'utf8'))
-      if (typeof raw !== 'object' || raw === null) return { scheme: DEFAULT_SCHEME }
-      const scheme = (raw as Record<string, unknown>)['scheme']
-      if (isAppearanceScheme(scheme)) return { scheme }
-      return { scheme: DEFAULT_SCHEME }
+      if (typeof raw !== 'object' || raw === null) return { ...DEFAULT_PREFS }
+      const r = raw as Record<string, unknown>
+      const scheme = r['scheme']
+      const language = r['language']
+      return {
+        scheme: isAppearanceScheme(scheme) ? scheme : DEFAULT_SCHEME,
+        language: isLanguagePreference(language) ? language : DEFAULT_LANGUAGE_PREFERENCE
+      }
     } catch {
-      return { scheme: DEFAULT_SCHEME }
+      return { ...DEFAULT_PREFS }
     }
   }
 

@@ -25,10 +25,12 @@ export const CMD = {
   installSkill: 'agentshed:install-skill',
   /** 卸载项目级 skill 副本 */
   uninstallSkill: 'agentshed:uninstall-skill',
-  /** 读 app 偏好(外观方案等) */
+  /** 读 app 偏好(外观方案、界面语言等) */
   getPrefs: 'agentshed:get-prefs',
   /** 设置外观方案(全 app) */
   setScheme: 'agentshed:set-scheme',
+  /** 设置界面语言偏好(可为「跟随系统」) */
+  setLanguage: 'agentshed:set-language',
   /** 展开 skill 时列举包内可预览文件(登记白名单) */
   listSkillFiles: 'agentshed:list-skill-files',
   /** 读 skill 包内已登记文件正文 */
@@ -98,4 +100,6 @@ export interface ReadSkillFileArgs {
   absPath: string
 }
 
-export type { AppearanceScheme, Prefs } from './appearance'
+export type { AppearanceScheme } from './appearance'
+export type { Prefs } from './prefs'
+export type { Language, LanguagePreference } from './i18n'

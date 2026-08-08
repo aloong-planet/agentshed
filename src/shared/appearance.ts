@@ -16,14 +16,4 @@ export const SCHEME_LABEL: Record<AppearanceScheme, string> = {
   amber: '琥珀褐'
 }
 
-export interface Prefs {
-  scheme: AppearanceScheme
-}
-
-/** IPC/preload 入口:把 unknown 收成 Prefs;不合契约返回 null(不抛,由调用方决定文案)。 */
-export function parsePrefs(raw: unknown): Prefs | null {
-  if (typeof raw !== 'object' || raw === null) return null
-  const scheme = (raw as Record<string, unknown>)['scheme']
-  if (!isAppearanceScheme(scheme)) return null
-  return { scheme }
-}
+// 偏好的组装与跨进程校验见 ./prefs —— 本文件只管外观方案本身。

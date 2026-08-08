@@ -36,7 +36,9 @@ import {
 import { HiddenStore } from './hidden-store'
 import { rescanIntervalMs, shouldRescanOnFocus } from './rescan'
 import { PrefsStore } from './prefs-store'
-import { DEFAULT_SCHEME, isAppearanceScheme } from '@shared/appearance'
+import { isAppearanceScheme } from '@shared/appearance'
+import { isLanguagePreference } from '@shared/i18n'
+import { DEFAULT_PREFS } from '@shared/prefs'
 import {
   listSkillPackageFiles,
   readSkillFileText,
@@ -354,11 +356,16 @@ handle(CMD.readSkillFile, (_e, args: unknown): string => {
   }
 })
 
-handle(CMD.getPrefs, () => prefsStore?.get() ?? { scheme: DEFAULT_SCHEME })
+handle(CMD.getPrefs, () => prefsStore?.get() ?? { ...DEFAULT_PREFS })
 handle(CMD.setScheme, (_e, scheme: unknown) => {
   if (!isAppearanceScheme(scheme)) throw new Error('外观方案不合契约')
   if (!prefsStore) throw new Error('偏好存储未就绪')
   return prefsStore.setScheme(scheme)
+})
+handle(CMD.setLanguage, (_e, language: unknown) => {
+  if (!isLanguagePreference(language)) throw new Error('界面语言不合契约')
+  if (!prefsStore) throw new Error('偏好存储未就绪')
+  return prefsStore.setLanguage(language)
 })
 handle(CMD.setHidden, (_e, args: unknown) => {
   const a = args as SetHiddenArgs

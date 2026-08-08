@@ -9,6 +9,7 @@ import {
   type SkillOpResult,
   type Prefs,
   type AppearanceScheme,
+  type LanguagePreference,
   type ListSkillFilesArgs,
   type ListSkillFilesResult,
   type ReadSkillFileArgs
@@ -21,7 +22,7 @@ import {
   validateSessionTurn,
   validateSearchResult
 } from '@shared/validate'
-import { parsePrefs } from '@shared/appearance'
+import { parsePrefs } from '@shared/prefs'
 
 // renderer 入口处的契约校验:主进程发来的快照不合契约就抛,不静默渲染 undefined
 function checked(snap: unknown): Snapshot {
@@ -89,6 +90,8 @@ const api = {
   getPrefs: async (): Promise<Prefs> => checkedPrefs(await ipcRenderer.invoke(CMD.getPrefs)),
   setScheme: async (scheme: AppearanceScheme): Promise<Prefs> =>
     checkedPrefs(await ipcRenderer.invoke(CMD.setScheme, scheme)),
+  setLanguage: async (language: LanguagePreference): Promise<Prefs> =>
+    checkedPrefs(await ipcRenderer.invoke(CMD.setLanguage, language)),
   onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
     const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))
     ipcRenderer.on(EVT.snapshot, listener)
