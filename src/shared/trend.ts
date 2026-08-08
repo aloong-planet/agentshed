@@ -4,7 +4,15 @@
 import type { DayUsage } from './domain'
 import { PROVIDER_ORDER, type Provider } from './provider'
 
-export type TrendMode = '合计' | 'Claude' | 'Codex'
+/** 值是语言无关标识符,界面文字见 TREND_MODE_LABEL */
+export type TrendMode = 'total' | 'Claude' | 'Codex'
+
+/** 界面显示名。Claude / Codex 是产品名各语言通用,只有 total 需要随界面语言变化 */
+export const TREND_MODE_LABEL: Record<TrendMode, string> = {
+  total: '合计',
+  Claude: 'Claude',
+  Codex: 'Codex'
+}
 
 export interface TrendSegment {
   provider: Provider
@@ -45,7 +53,7 @@ export function buildTrendBars(
     const row = index.get(day)
     const segments: TrendSegment[] = []
     let total = 0
-    if (mode === '合计') {
+    if (mode === 'total') {
       // 按 provider 分段,顺序固定(图例与堆叠不随当日数据抖动)
       for (const p of PROVIDER_ORDER) {
         const v = row?.byProvider?.[p] ?? 0

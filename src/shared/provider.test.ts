@@ -1,6 +1,6 @@
 // 模型名 → provider 推断(趋势按 provider 分段的依据)
 import { describe, it, expect } from 'vitest'
-import { providerOf, PROVIDER_ORDER } from './provider'
+import { providerOf, PROVIDER_ORDER, PROVIDER_LABEL } from './provider'
 
 describe('providerOf', () => {
   it('Anthropic:claude-* 及带厂商前缀的变体', () => {
@@ -22,10 +22,13 @@ describe('providerOf', () => {
     expect(providerOf('gemini-3-pro')).toBe('Google')
   })
 
-  it('未知/空 → 其他', () => {
-    expect(providerOf('')).toBe('其他')
-    expect(providerOf(null)).toBe('其他')
-    expect(providerOf('llama-4-70b')).toBe('其他')
+  it('未知/空 → other', () => {
+    expect(providerOf('')).toBe('other')
+    expect(providerOf(null)).toBe('other')
+    expect(providerOf('llama-4-70b')).toBe('other')
+    // <synthetic>:取自真实会话数据的形态(Claude Code 给合成消息打的标记),
+    // 尖括号包裹、不是常规模型名——想象 fixture 想不出这种写法,故单列一条
+    expect(providerOf('<synthetic>')).toBe('other')
   })
 
   it('大小写不敏感', () => {
@@ -34,6 +37,16 @@ describe('providerOf', () => {
   })
 
   it('展示顺序固定(图例与堆叠顺序稳定,不随当日数据抖动)', () => {
-    expect(PROVIDER_ORDER).toEqual(['Anthropic', 'OpenAI', 'Google', '其他'])
+    expect(PROVIDER_ORDER).toEqual(['Anthropic', 'OpenAI', 'Google', 'other'])
+  })
+
+  it('每个 provider 都有显示名,且顺序全集无遗漏', () => {
+    // 值已脱敏为语言无关标识符,界面文字改由这张表提供。
+    // 遍历 PROVIDER_ORDER 而非硬写几条:将来加 provider 却漏配显示名时这里会红。
+    for (const p of PROVIDER_ORDER) {
+      expect(PROVIDER_LABEL[p], `provider ${p} 缺显示名`).toBeTruthy()
+    }
+    expect(Object.keys(PROVIDER_LABEL).sort()).toEqual([...PROVIDER_ORDER].sort())
+    expect(PROVIDER_LABEL.other).toBe('其他')
   })
 })
