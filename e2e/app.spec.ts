@@ -728,20 +728,22 @@ test('the session page: everything collapsed by default; clicking a question exp
   await expect(win.locator('.qlist .q')).toHaveCount(2)
   await expect(win.locator('.turn')).toHaveCount(0)
 
-  // 点 01(默认倒序,首行是 02——按文本定位不赌位置):提问行自己铺开(.open,
-  // 不另设复述块),下面出整轮正文 + 取回脚注
+  // Click 01 (descending by default, so 02 is the first row — located by text rather than betting on
+  // position): the question row unfolds itself (.open,
+  // with no separate restating block), and below it come the whole turn plus the fetch footnote
   await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
   await expect(win.locator('.qlist .q.open .txt')).toHaveText('Sample question')
   await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
   await expect(win.locator('.turn .fetched')).toContainText("read only this turn\u2019s byte range")
 
-  // 展开另一条不影响已开的(各轮独立);第二轮没有正文,脚注照出(不造假的占位)
+  // Expanding another does not affect the one already open (turns are independent); the second turn has no
+  // prose and still gets its footnote (no fake placeholder)
   await win.locator('.qlist .q', { hasText: 'Second question' }).click()
   await expect(win.locator('.qlist .q.open')).toHaveCount(2)
   await expect(win.locator('.turn')).toHaveCount(2)
   await expect(win.locator('.turn .ans')).toHaveCount(1)
 
-  // 再点 01:收起,其余不动
+  // Click 01 again: it collapses and nothing else moves
   await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
   await expect(win.locator('.turn')).toHaveCount(1)
   await expect(win.locator('.qlist .q.open')).toHaveCount(1)
@@ -750,7 +752,7 @@ test('the session page: everything collapsed by default; clicking a question exp
   await close(l)
 })
 
-// 票 06:日期分组折叠 + 正序/倒序 + 展开跨排序保持
+// Ticket 06: day grouping with collapse + ascending/descending + expansion surviving a sort change
 test('the session page: day groups collapse; descending reverses both the groups and their contents while the numbers stay; expansion survives a sort change', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
@@ -759,14 +761,15 @@ test('the session page: day groups collapse; descending reverses both the groups
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
   await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
 
-  // 两天两组,组头带当日条数;qhead 带天数
+  // Two days, two groups, with each header carrying that day's count; qhead carries the day count
   await expect(win.locator('.daygrp')).toHaveCount(2)
   await expect(win.locator('.dayhd').first()).toContainText(' · 1')
   await expect(win.locator('.qbar .grp-t')).toContainText('2 days')
 
-  // 默认倒序(2026-08-06 用户裁定):首行是最新的 02
+  // Descending by default (the user's ruling, 2026-08-06): the first row is the newest, 02
   await expect(win.locator('.qlist .q').first().locator('.idx'), 'descending by default, so the first row should be 02').toHaveText('02')
-  // 展开 01,然后切正序:仍展开、序号不变、组序与组内一起翻
+  // Expand 01, then switch to ascending: it stays expanded, the index is unchanged, and the group order and
+  // their contents both reverse
   await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
   await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
   await win.locator('.qbar .seg button', { hasText: 'Oldest first' }).click()
@@ -776,8 +779,10 @@ test('the session page: day groups collapse; descending reverses both the groups
   await expect(openRow.locator('.idx'), 'the index is always the original turn number').toHaveText('01')
   await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
 
-  // 折叠 01 所在的那天:该天的行连同已展开的轮一并隐藏;重开仍是展开的。
-  // 折叠后 .q.open 不再渲染,故先记下组头日期,重开时按日期重定位
+  // Collapse the day 01 is on: that day's rows and the expanded turn are hidden together, and reopening
+  // still shows it expanded.
+  // After collapsing, .q.open no longer renders, so note the group header date first and relocate by date on
+  // reopening
   const day01hd = win.locator('.daygrp', { has: win.locator('.q.open') }).locator('.dayhd')
   const dayLabel = (await day01hd.innerText()).split(' · ')[0].trim()
   await day01hd.click()
@@ -787,7 +792,7 @@ test('the session page: day groups collapse; descending reverses both the groups
   await expect(win.locator('.q.open')).toHaveCount(1)
   await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
 
-  // 全部收起 → 标签翻转、全部行隐藏;全部展开还原
+  // Collapse all → the label flips and every row hides; expand all restores it
   await win.locator('.qbar .lnk').click()
   await expect(win.locator('.qlist .q')).toHaveCount(0)
   await expect(win.locator('.qbar .lnk')).toHaveText('Expand all')
@@ -798,7 +803,8 @@ test('the session page: day groups collapse; descending reverses both the groups
   await close(l)
 })
 
-// 票 06:顶部横幅三档——stripped info(父标题可点直达父会话)与孤儿 risk
+// Ticket 06: the three tiers of top banner — stripped info (with the parent title clicking through to the
+// parent session) and the orphan risk
 test('the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source', async () => {
   const l = await launch(undefined, mkForkHome())
   const win = await l.app.firstWindow()
@@ -806,7 +812,8 @@ test('the session page banner: a stripped fork gets info with the parent title c
   await win.locator('.side .row').first().click()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
 
-  // 子会话(已剥离):info 横幅带父标题,点击直达父会话页
+  // The child (already stripped): an info banner carrying the parent title, clicking through to the parent
+  // session page
   await win.locator('.pane-body .card .se', { hasText: 'Child new question' }).click()
   const info = win.locator('.banner.info')
   await expect(info).toContainText('forked from')
@@ -814,10 +821,11 @@ test('the session page banner: a stripped fork gets info with the parent title c
   await expect(info).toContainText('replayed prefix has been stripped')
   await info.locator('a').click()
   await expect(win.locator('.pane-head .stitle')).toHaveText('Parent first question')
-  // 父会话不是 fork:无任何横幅
+  // The parent is not a fork: no banner at all
   await expect(win.locator('.banner')).toHaveCount(0)
 
-  // 孤儿 fork:risk 横幅,明说可能多剥/少剥、请对照核对——不给假确定感
+  // An orphan fork: a risk banner saying outright it may have stripped too much or too little and to check
+  // against the source — offering no false certainty
   await win.locator('.sback').click()
   await win.locator('.pane-body .card .se', { hasText: 'Orphan session question' }).click()
   const risk = win.locator('.banner.risk')
@@ -829,8 +837,10 @@ test('the session page banner: a stripped fork gets info with the parent title c
   await close(l)
 })
 
-// 票 05:签名不符 → 只重建该文件的索引,重建完出内容(不干等、不报错)。
-// 中间态文案是瞬时的,e2e 不赌时序;这里断言的是链路结果正确与主进程零错误。
+// Ticket 05: a signature mismatch → rebuild only that file's index and show the content once rebuilt (no
+// blank wait, no error).
+// The interim copy is momentary and e2e does not bet on timing; what is asserted is that the chain
+// produces the right result with no main-process error.
 test('the session page: after the file is appended to (so the signature mismatches), clicking a question still fetches the correct whole turn', async () => {
   const home = mkUsageHome()
   const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
@@ -843,7 +853,8 @@ test('the session page: after the file is appended to (so the signature mismatch
   await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
   await expect(win.locator('.qlist .q')).toHaveCount(2)
 
-  // 页面打开后文件被追加:size 变 → 签名不符,首次取回走单文件重建
+  // The file is appended to after the page opens: the size changes → the signature mismatches, and the first
+  // fetch goes through a single-file rebuild
   appendFileSync(
     sess,
     JSON.stringify({
@@ -860,7 +871,8 @@ test('the session page: after the file is appended to (so the signature mismatch
   await close(l)
 })
 
-// 票 07:轮内富内容——工具折叠/二次展开、思考块、subagent 归位、截断标注、未知留痕
+// Ticket 07: in-turn rich content — tool blocks collapsing and expanding again, the thinking block,
+// subagent attribution, the truncation label, and unknown traces
 test('session page rich content (Claude): the thinking, tool and subagent blocks are collapsed by default and expand to the full text with their labels', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
@@ -870,18 +882,20 @@ test('session page rich content (Claude): the thinking, tool and subagent blocks
   await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
   await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
 
-  // 正文 + 三个折叠块头(思考/Bash/subagent),默认全折叠(.bb 不渲染)
+  // The prose plus three collapsed block headers (thinking / Bash / subagent), all collapsed by default
+  // (.bb does not render)
   await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
   await expect(win.locator('.turn .blk')).toHaveCount(3)
   await expect(win.locator('.turn .bb')).toHaveCount(0)
 
-  // 思考块:明文可得
+  // The thinking block: plaintext available
   const think = win.locator('.turn .blk.think')
   await expect(think.locator('.nm')).toHaveText('Thinking')
   await think.locator('.bh').click()
   await expect(think.locator('.bb')).toContainText('Take a look at the directory layout')
 
-  // 工具块:二次展开见入参/返回;截断 warn(返回里带 tool-results/ 旁挂路径)
+  // The tool block: expanding again shows the arguments and return; the truncation warning (the return
+  // carries a tool-results/ sidecar path)
   const tool = win.locator('.turn .blk', { has: win.locator('.nm', { hasText: 'Bash' }) }).first()
   await expect(tool.locator('.sum')).toContainText('ls -la src')
   await tool.locator('.bh').click()
@@ -889,8 +903,9 @@ test('session page rich content (Claude): the thinking, tool and subagent blocks
   await expect(tool.locator('pre').nth(1)).toContainText('12 files in total')
   await expect(tool.locator('.warn')).toContainText('only stored a truncated version')
 
-  // subagent 块:派发 prompt 与返回;内部步骤无稳定引用链 → 显式未归位标注
-  // (2026-08-06 实测:四条候选连接键全部排除,不做猜测性配对)
+  // The subagent block: the dispatch prompt and the return; the inner steps have no stable reference chain →
+  // an explicit unattributed label
+  // (measured 2026-08-06: all four candidate join keys were excluded, so no speculative pairing is made)
   const sub = win.locator('.turn .blk.sub')
   await expect(sub.locator('.nm')).toContainText('debugger')
   await sub.locator('.bh').click()
@@ -899,7 +914,7 @@ test('session page rich content (Claude): the thinking, tool and subagent blocks
   await expect(sub.locator('.warn')).toContainText('stable reference chain')
   await expect(sub.locator('pre').nth(1)).toContainText('Logs are clean')
 
-  // 未知类型留痕:不静默丢
+  // Unknown types leave a trace: nothing is silently dropped
   await expect(win.locator('.turn .unknown')).toContainText('1 unrecognised records')
   await expect(win.locator('.turn .unknown')).toContainText('agent_snapshot')
 
@@ -918,35 +933,38 @@ test('session page rich content (Codex): the encrypted-reasoning label, tool pai
 
   await expect(win.locator('.turn .ans')).toContainText('The two sides use different directory conventions')
 
-  // 推理块:仅小标题,warn 明说正文加密不可得
+  // The reasoning block: sub-headings only, with a warning saying outright the body is encrypted and
+  // unobtainable
   const reason = win.locator('.turn .blk.think')
   await expect(reason.locator('.sum')).toContainText('only 2 headings')
   await reason.locator('.bh').click()
   await expect(reason.locator('.warn')).toContainText('encrypted_content')
   await expect(reason.locator('.rt')).toHaveCount(2)
 
-  // 工具块:call_id 配对的入参/返回
+  // The tool block: arguments and return paired by call_id
   const tool = win.locator('.turn .blk', { has: win.locator('.nm', { hasText: 'exec' }) }).first()
   await tool.locator('.bh').click()
   await expect(tool.locator('pre').nth(0)).toContainText('rg skills -l')
   await expect(tool.locator('pre').nth(1)).toContainText('7 files')
 
-  // spawn_agent:sub 块,子线程无引用链不归位(2026-08-06 裁定)
+  // spawn_agent: a sub block whose sub-thread has no reference chain and is unattributed (ruled 2026-08-06)
   const sub = win.locator('.turn .blk.sub')
   await sub.locator('.bh').click()
   await expect(sub.locator('.warn')).toContainText('stable reference chain')
   await expect(sub.locator('pre').nth(1)).toContainText('Sub-task created')
 
-  // 未知 event 留痕(三层白名单之一)
+  // An unknown event leaves a trace (one of the three allow-list layers)
   await expect(win.locator('.turn .unknown')).toContainText('event_msg/exotic_event')
 
   expect(l.errors).toEqual([])
   await close(l)
 })
 
-// 票 08:会话搜索——默认搜提问、全文开关、命中分组、直达提问。
-// 输入用 fill()(经 CDP 设值,不依赖窗口聚焦语义;app.spec 头部注记的 :focus
-// 断言边界不在本用例内)。
+// Ticket 08: session search — questions by default, the full-text toggle, hits grouped, and going straight
+// to a question.
+// Input uses fill() (setting the value through CDP without depending on window focus semantics; the
+// :focus assertion boundary noted in this file's header
+// does not apply to this case).
 test('session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
@@ -954,10 +972,11 @@ test('session search: questions by default with hits grouped; a body word only h
   await win.locator('.side .row').first().click()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
 
-  // 默认搜提问:命中 1 条,分组带会话头;大小写不敏感
+  // Questions by default: 1 hit, grouped with a session header; case-insensitive
   await win.locator('.sbar input').fill('Sample question')
   await expect(win.locator('.grp')).toHaveCount(1)
-  // 回归:命中组的 button 必须重置 UA 默认样式(漏写会在暗色下露白底黑字)
+  // A regression guard: a hit group's button must reset the UA default styles (missing it exposes
+  // black-on-white in dark mode)
   for (const sel of ['.grp .gh', '.grp .hit']) {
     const bg = await win.locator(sel).first().evaluate((el) => getComputedStyle(el).backgroundColor)
     expect(bg, `${sel} should have a transparent background rather than the UA buttonface`).toBe('rgba(0, 0, 0, 0)')
@@ -967,17 +986,20 @@ test('session search: questions by default with hits grouped; a body word only h
   await expect(win.locator('.grp .hit mark').first()).toContainText('Sample question')
   await expect(win.locator('.shead')).toContainText('Found 1 hits · 1 sessions')
 
-  // 正文里的词(第一轮回答正文)在提问模式不命中 → 可行动空态
+  // A word in the body (the first turn reply body) does not hit in question mode → an actionable empty state
   await win.locator('.sbar input').fill('First turn reply body')
   await expect(win.locator('.shead')).toContainText('Only questions are searched by default')
-  // 切全文:命中并标「正文」
+  // Switch to full text: it hits and is marked as a body hit
   await win.locator('.scope span', { hasText: 'Full text' }).click()
   await expect(win.locator('.grp .hit')).toHaveCount(1)
   await expect(win.locator('.grp .hit .bd')).toHaveText('Body')
 
-  // 点命中直达该会话的该条提问(01 行进入视口;默认倒序下它在列表尾部)。
-  // 定位高亮(2026-08-06 原型确认):脉冲 located + 焦点竖条 focused;
-  // 点击任意提问行后竖条清除。10s 脉冲的播完态不在此等待(时序不赌)。
+  // Clicking a hit goes straight to that question in that session (row 01 comes into view; under the default
+  // descending order it is at the list's end).
+  // The locating highlight (confirmed by the prototype on 2026-08-06): the located pulse plus the focused
+  // bar;
+  // clicking any question row clears the bar. The end of the 10s pulse is not waited for here (no betting on
+  // timing).
   await win.locator('.grp .hit').click()
   await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
   const row01 = win.locator('.qlist .q', { hasText: 'Sample question' })
