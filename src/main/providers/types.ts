@@ -1,12 +1,14 @@
-// 数据层 Provider 接口(seam 1):数据根目录可注入,测试喂 fixture,生产取真实位置。
+// The data layer provider interface (seam 1): the data roots are injectable, so tests feed fixtures and
+// production takes the real locations.
 
 export interface ScanRoots {
-  /** Claude Code 数据根(生产:~/.claude;注册表在 ~/.claude.json,见 claudeConfigFile) */
+  /** Claude Code's data root (production: ~/.claude; the registry is in ~/.claude.json, see
+   * claudeConfigFile) */
   claudeHome: string
-  /** Claude 注册表文件(生产:~/.claude.json) */
+  /** Claude's registry file (production: ~/.claude.json) */
   claudeConfigFile: string
-  /** Codex 数据根(生产:~/.codex;注册表在其 config.toml) */
+  /** Codex's data root (production: ~/.codex; the registry is in its config.toml) */
   codexHome: string
-  /** Codex/共享全局 skills 目录(生产:~/.agents/skills) */
+  /** The Codex / shared global skills directory (production: ~/.agents/skills) */
   agentsSkillsDir: string
 }

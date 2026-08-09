@@ -1,5 +1,6 @@
-// 扫描引擎入口(seam 1):给定数据根目录 → 全景快照。
-// 票02:注册表并集(徽标/失效/路径规范化)。会话活跃度、skills 等随后续票增量落此层。
+// The scan engine entry point (seam 1): given the data roots → the overview snapshot.
+// Ticket 02: the registry union (badges / staleness / path normalisation). Session activity, skills and
+// the rest land in this layer incrementally in later tickets.
 import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
 import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
@@ -12,9 +13,9 @@ import { readGlobalLayer } from './global'
 import { readMemorySummary } from './memory'
 
 export interface ScanDeps {
-  /** 时钟注入,测试可控 */
+  /** An injected clock, controllable in tests */
   now: () => number
-  /** 手动隐藏查询(注入 HiddenStore;缺省视为无隐藏) */
+  /** The manual-hiding lookup (an injected HiddenStore; the default treats nothing as hidden) */
   isHidden?: (projectPath: string) => boolean
 }
 
@@ -50,7 +51,8 @@ export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> 
   for (const p of claude.paths) add(p, 'claude')
   for (const p of codex.paths) add(p, 'codex')
 
-  // 活跃度:Claude 按编码目录 readdir;Codex 按 rollout 首行 cwd 归属(subagent 不计)
+  // Activity: Claude uses a readdir of the encoded directory; Codex attributes by the rollout's first-line
+  // cwd (subagents excluded)
   const codexSessions = readCodexSessions(roots.codexHome)
   const codexByKey = new Map<string, { count: number; last: number | null }>()
   for (const s of codexSessions) {
@@ -71,7 +73,7 @@ export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> 
 
   snap.projects = [...byKey.values()]
   snap.global = readGlobalLayer(roots)
-  // memory 汇总依赖项目注册表(C5),故在 projects 之后单独填充
+  // The memory summary depends on the project registry (C5), so it is filled in separately after projects
   snap.global.memory = readMemorySummary(roots, snap.projects)
   return snap
 }

@@ -1,23 +1,32 @@
-// jsonl 逐行读取,并给出每行在文件里的**字节**区间。
+// Read jsonl line by line, giving each line's **byte** range within the file.
 //
-// 为什么不用 readline:它只交还字符串,拿不到字节偏移;而"点提问按需取回整轮"的
-// 前提正是能对源文件做 createReadStream({ start, end })(spec C2),偏移必须是字节。
-// 事后用 Buffer.byteLength(line) 补算也不行——readline 吃掉了行尾(\n 还是 \r\n
-// 无从分辨),补出来的偏移会逐行累积漂移。
+// Why not readline: it hands back strings only, with no byte offsets — and the premise of "click a
+// question and fetch its whole turn on demand"
+// is being able to call createReadStream({ start, end }) on the source file (spec C2), where the offsets
+// have to be bytes.
+// Computing them afterwards with Buffer.byteLength(line) does not work either — readline eats the line
+// ending (with no way to tell \n from \r\n),
+// so the reconstructed offsets drift cumulatively line by line.
 //
-// 按 0x0A 切分对 UTF-8 是安全的:多字节序列的每个续字节恒 ≥ 0x80,\n 不可能出现在
-// 某个字符内部。因此只在换行处切 Buffer、整行到齐才 decode,多字节字符跨读取块也不会腰斩。
+// Splitting on 0x0A is safe for UTF-8: every continuation byte of a multi-byte sequence is ≥ 0x80, so \n
+// can never appear
+// inside a character. So the Buffer is only split at newlines and decoded once a whole line has arrived,
+// and a multi-byte character spanning read chunks is never cut in half.
 import { createReadStream } from 'node:fs'
 
 const NEWLINE = 0x0a
 
 /**
- * @param onLine 每条**能解析成对象**的行调用一次。
- *   `start` = 该行首字节偏移;`end` = 行尾符之后的偏移(末行无行尾符时即文件长度)。
- *   即 [start, end) 切出来是"整行 + 它的行尾符",相邻两行首尾相接、不重不漏。
- *   空行、坏行、顶层非对象的行一律跳过(活跃会话可能正写到半行),但它们占的字节
- *   照常计入偏移——跳过只自伤,不打乱其后各行。
- * @throws 文件打不开时抛出,由调用方决定降级(整份文件弃用还是记零)。
+ * @param onLine Called once per line that **parses into an object**.
+ *   `start` = that line's first byte offset; `end` = the offset after the line ending (the file length
+ *   when the last line has none).
+ *   So [start, end) slices out "the whole line plus its line ending", and adjacent lines meet end to end
+ *   with no overlap and no gap.
+ *   Empty lines, bad lines and lines whose top level is not an object are all skipped (an active session
+ *   may be mid-line), but the bytes they occupy
+ *   still count toward the offsets — skipping only hurts itself and does not disturb the lines after it.
+ * @throws When the file cannot be opened, leaving the caller to decide how to degrade (discard the whole
+ *   file, or record zero).
  */
 export async function eachJsonlLine(
   file: string,
@@ -31,12 +40,12 @@ export async function eachJsonlLine(
       const obj: unknown = JSON.parse(text)
       if (typeof obj === 'object' && obj !== null) onLine(obj as Record<string, unknown>, start, end)
     } catch {
-      // 坏行跳过(活跃会话写入中/损坏)
+      // Skip bad lines (an active session mid-write, or corruption)
     }
   }
 
   let pending: Buffer | null = null
-  /** pending 首字节在文件中的偏移 */
+  /** The offset of pending's first byte within the file */
   let base = 0
   const stream: AsyncIterable<Buffer> = createReadStream(file)
   for await (const chunk of stream) {

@@ -1,17 +1,21 @@
 #!/bin/bash
-# 造一份「测试静音」的 Electron dist 副本:Info.plist 加 LSUIElement=true。
+# Build a "test-silenced" copy of the Electron dist: Info.plist gains LSUIElement=true.
 #
-# 为什么改 plist 而不是 JS:Dock 图标在 Electron **原生引导期**就按 plist 注册了,
-# app.dock.hide() 要到几百毫秒后的主进程 JS 才执行——每个实例都"闪现→消失",
-# e2e 的 18 个实例连着跑就是 Dock 持续抖动。LSUIElement=true 让它从注册那一刻
-# 起就是 UIElement(无 Dock 图标、无菜单栏),不存在闪现窗口期。
+# Why the plist rather than JS: the Dock icon is registered from the plist during Electron's **native
+# bootstrap**,
+# while app.dock.hide() only runs in main-process JS hundreds of milliseconds later — so every instance
+# flashes and disappears,
+# and e2e's 18 instances back to back make the Dock jitter continuously. LSUIElement=true makes it a
+# UIElement from the moment
+# it registers (no Dock icon, no menu bar), so there is no window in which to flash.
 #
-# 不动原件:副本放 node_modules/.cache/electron-quiet/,测试经
-# ELECTRON_OVERRIDE_DIST_PATH 指过来(electron/index.js 原生支持);
-# 正常 pnpm dev 与打包版仍走原件,Dock 行为不变。
+# The original is untouched: the copy lives in node_modules/.cache/electron-quiet/ and tests point at it
+# through ELECTRON_OVERRIDE_DIST_PATH (natively supported by electron/index.js);
+# a normal pnpm dev and the packaged build still use the original, with unchanged Dock behaviour.
 #
-# 幂等 + 版本感知:副本版本与原件一致且 plist 已含标记 → 直接退出;
-# Electron 升级后自动重建。仅 macOS 需要;其他平台空操作。
+# Idempotent and version-aware: if the copy's version matches the original and the plist already carries
+# the marker → exit immediately;
+# it rebuilds automatically after an Electron upgrade. Needed on macOS only; a no-op elsewhere.
 set -euo pipefail
 [ "$(uname)" = "Darwin" ] || exit 0
 cd "$(dirname "$0")/.."
@@ -22,9 +26,11 @@ PLIST="$DST/Electron.app/Contents/Info.plist"
 
 [ -f "$SRC/version" ] || { echo "quiet-electron: cannot find $SRC/version (electron not installed?)" >&2; exit 1; }
 
-# 快路径判据含完成标记:标记在**全部步骤成功后**才落——否则 codesign 若在
-# plist 写入之后失败,下次快路径拿版本+plist 判"已就绪",会永远放行一份
-# 签名无效的副本(arm64 直接起不来),且没人知道要去删缓存。
+# The fast path's criterion includes a completion marker, which only lands **after every step has
+# succeeded** — otherwise, if codesign failed
+# after the plist was written, the next fast path would judge "ready" from the version plus the plist and
+# forever admit a copy with
+# an invalid signature (which simply will not start on arm64), with nobody knowing to clear the cache.
 if [ -f "$DST/.quiet-ok" ] && [ "$(cat "$DST/version")" = "$(cat "$SRC/version")" ] \
    && /usr/libexec/PlistBuddy -c "Print :LSUIElement" "$PLIST" >/dev/null 2>&1; then
   exit 0
@@ -32,15 +38,17 @@ fi
 
 rm -rf "$DST"
 mkdir -p "$(dirname "$DST")"
-# APFS 写时复制,秒级近零磁盘;非 APFS 卷退回普通拷贝
+# APFS copy-on-write: seconds and near-zero disk; a non-APFS volume falls back to an ordinary copy
 cp -Rc "$SRC" "$DST" 2>/dev/null || cp -R "$SRC" "$DST"
 
 /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST" 2>/dev/null \
   || /usr/libexec/PlistBuddy -c "Set :LSUIElement true" "$PLIST"
 
-# 改了 plist 即破签名封条;arm64 要求有效(至少 adhoc)签名,原件本就是 adhoc。
-# 不吞 stderr:set -e 下失败要带着原因死,而不是静默留半成品
+# Editing the plist breaks the signature seal; arm64 requires a valid (at least ad-hoc) signature, and
+# the original is ad-hoc anyway.
+# stderr is not swallowed: under set -e a failure should die with its reason rather than silently leaving
+# something half-finished
 codesign --force -s - "$DST/Electron.app"
 
-touch "$DST/.quiet-ok"   # 完成标记最后落,快路径以它为准
+touch "$DST/.quiet-ok"   # The completion marker lands last, and the fast path goes by it
 echo "quiet-electron: copy ready ($(cat "$DST/version"))"

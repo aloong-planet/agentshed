@@ -24,9 +24,10 @@ export function DetailPane({
 }: {
   snap: Snapshot
   path: string
-  /** 从会话页返回时落在「会话」分栏(原型口径);平时不传,落概览 */
+  /** Returning from a session page lands on the "Sessions" section (the prototype's rule); normally not
+   * passed, landing on the overview */
   initialTab?: Tab
-  /** 打开会话页(票 04;票 08 起可带 focusQ 直达某条提问) */
+  /** Open a session page (ticket 04; since ticket 08 it can carry focusQ to go straight to a question) */
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
   const t = useDict()
@@ -35,8 +36,10 @@ export function DetailPane({
   const [reload, setReload] = useState(0)
   const entry = snap.projects.find((p) => p.path === path)
 
-  // 换血式更新(project-detail A3):读取态只在换项目时;快照更新(手动 ↻/自动保鲜)
-  // 与局部刷新静默替换已渲染内容,分栏本地态(展开/搜索/滚动)不因刷新丢失
+  // Transfusion updates (project-detail A3): the loading state appears only when switching project; a
+  // snapshot update (manual ↻ / automatic refresh)
+  // and a partial refresh silently replace the rendered content, so a section's local state (expansion,
+  // search, scroll) survives the refresh
   useEffect(() => {
     setDetail(null)
   }, [path])
@@ -114,9 +117,11 @@ export function DetailPane({
 }
 
 /**
- * 概览只露最近几条,全量在「会话」分栏(项目可有数百条会话)。
- * 取 5 与已确认的原型一致(docs/prototypes/project-detail 的概览会话卡),
- * 不是随手拍的数——改它等于改已确认的界面,原型要同步。
+ * The overview shows only the most recent few; everything is in the "Sessions" section (a project can
+ * have hundreds of sessions).
+ * The 5 matches the confirmed prototype (the overview session card in docs/prototypes/project-detail),
+ * not a number picked at random — changing it changes a confirmed UI, and the prototype must be updated
+ * with it.
  */
 const OVERVIEW_SESSIONS = 5
 
@@ -165,24 +170,30 @@ function OverviewTab({
 }
 
 /**
- * 会话分栏的排序选择,活在本次运行内。
+ * The sessions section's sort choice, living for this run only.
  *
- * 为什么是模块级变量而不是组件 state:tab 是条件渲染,切走即卸载,组件内的
- * useState 存不住。为什么不提到 DetailPane:那会让父组件开始持有各分栏的
- * 内部状态,下一个分栏要留状态就再加一个字段。为什么不落盘:它是本次浏览的
- * 习惯,不是设置。为什么不上 store:全仓没有 store 也没有 Context,一个
- * boolean、一个消费者,建 store 是提前抽象。
+ * Why a module-level variable rather than component state: the tabs are conditionally rendered, so
+ * switching away unmounts and
+ * useState cannot hold it. Why not lift it to DetailPane: that would start the parent holding each
+ * section's
+ * internal state, and the next section wanting to keep state would add another field. Why not persist
+ * it: it is a habit of this browsing
+ * session, not a setting. Why no store: the repository has neither a store nor Context, and one
+ * boolean with one consumer makes a store premature abstraction.
  *
- * 出现**第二个**需要跨卸载存活的视图偏好时,把它提升成一个 view-prefs 模块
- * (那时仍不需要 store 库)。在此之前它就该是这么小。
- * 代价:切项目也保留——排序是看的方式,不是项目的属性,故意如此。
+ * When a **second** view preference needs to survive unmounting, promote this into a view-prefs module
+ * (still without a store library). Until then it should be exactly this small.
+ * The cost: it survives switching project too — the sort is a way of looking, not a property of a
+ * project, and that is deliberate.
  */
 let sessionsRecentFirst = true
 
 /**
- * 会话分栏:本项目的全部会话,默认最近活动在前。
- * 排序只换呈现顺序——provider 层已按 at 倒序排好,正序取其反转而不重排,
- * 免得 UI 与 provider 各持一套比较器(含 at 为 null 时的处置)而悄悄分叉。
+ * The sessions section: all of this project's sessions, most recent activity first by default.
+ * The sort only changes the presentation order — the provider layer already sorted by `at` descending,
+ * and ascending is its reverse rather than a re-sort,
+ * so the UI and the provider do not each hold their own comparator (including how a null `at` is handled)
+ * and quietly diverge.
  */
 function SessionsTab({
   detail,
@@ -202,8 +213,10 @@ function SessionsTab({
   }
   const sessions = detail.stats?.sessions ?? []
   const list = recentFirst ? sessions : [...sessions].reverse()
-  // 票 08:搜索。默认只搜提问(小、干净、命中精准);全文是可选开关——开关的
-  // 立命理由是命中质量(全文会命中工具输出噪声),不是性能,文案不暗示它慢
+  // Ticket 08: search. Questions only by default (small, clean, precise hits); full text is an optional
+  // toggle — the reason
+  // the toggle exists is hit quality (full text hits tool output noise), not performance, and the copy
+  // must not imply it is slow
   const [needle, setNeedle] = useState('')
   const [fullText, setFullText] = useState(false)
   const [result, setResult] = useState<SearchResult | null>(null)
@@ -359,7 +372,8 @@ function SessionsTab({
   )
 }
 
-/** 搜索行(票 08):输入 + 提问/全文范围切换(原型 .sbar/.scope) */
+/** The search row (ticket 08): the input + the questions/full-text scope toggle (the prototype's
+ * .sbar/.scope) */
 function SearchBar({
   needle,
   setNeedle,
@@ -393,7 +407,7 @@ function SearchBar({
   )
 }
 
-/** 命中文本高亮(大小写不敏感;纯文本切段,不经 HTML) */
+/** Highlighting matched text (case-insensitive; split as plain text, never through HTML) */
 function Highlight({ text, needle }: { text: string; needle: string }): JSX.Element {
   if (needle === '') return <>{text}</>
   const lower = text.toLowerCase()
@@ -422,7 +436,8 @@ function SkillRow({
 }): JSX.Element {
   const t = useDict()
   if (s.origin === 'plugin' || s.level === 'plugin') {
-    // A4/ADR-0012:插件命名空间行与磁盘同权展开预览;仍无装卸(G3)
+    // A4/ADR-0012: plugin namespace rows expand and preview on equal footing with on-disk ones; still no
+    // install or uninstall (G3)
     return (
       <SkillExpandBlock
         name={s.name}
@@ -483,7 +498,7 @@ function SkillsTab({
       clGlobal: [] as ProjectSkillEntry[],
       cxProject: [] as ProjectSkillEntry[],
       cxGlobal: [] as ProjectSkillEntry[],
-      plugin: [] as ProjectSkillEntry[] // 插件内含:命名空间条目,只读(G3)
+      plugin: [] as ProjectSkillEntry[] // Plugin-bundled: namespaced entries, read-only (G3)
     }
     for (const s of detail.skills) {
       if (s.level === 'plugin') g.plugin.push(s)
@@ -580,7 +595,7 @@ function McpTab({ detail }: { detail: ProjectDetail }): JSX.Element {
   )
 }
 
-/** chips 顺序取 ARTIFACT_ORDER 单一出处;标签只做展示名映射 */
+/** The chips' order comes from ARTIFACT_ORDER as the single source; the labels only map display names */
 const ART_LABELS: Record<ArtifactType, string> = {
   context: 'CONTEXT.md',
   adr: 'ADR',
@@ -603,9 +618,10 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
       return
     }
     const cap = await window.agentshed.readArtifact(item.file)
-    // 截断标记由渲染层按当前语言追加(票 07)
+    // The truncation marker is appended by the renderer in the current language (ticket 07)
     const md = cap.truncated ? `${cap.text}\n${t.placeholder.truncated}` : cap.text
-    // 相对路径图片按产物所在目录解析(打包版 file:// 下可加载;dev 下受混合内容限制可能不显示)
+    // Relative-path images resolve against the artifact's own directory (they load under the packaged
+    // build's file://; in dev, mixed-content restrictions may prevent them showing)
     const baseDir = item.file.slice(0, item.file.lastIndexOf('/'))
     const rewritten = md.replace(
       /!\[([^\]]*)\]\((?!https?:\/\/|file:\/\/|data:|\/)([^)]+)\)/g,
@@ -655,7 +671,8 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
                     readable: detail.artifacts.map((a) => a.file)
                   },
                   {
-                    // 产物间交叉引用(如 spec ↔ features)在阅读器内跳转,不导航整窗
+                    // Cross-references between artifacts (spec ↔ features, say) navigate inside the
+                    // reader, never the whole window
                     internal: (file) => {
                       const a = detail.artifacts.find((x) => x.file === file)
                       if (a) void open(a)
@@ -679,7 +696,7 @@ function CfgTab({ detail }: { detail: ProjectDetail }): JSX.Element {
   const html = useMemo(() => {
     const md = which === 'cl' ? detail.configs.claudeMd : which === 'cx' ? detail.configs.agentsMd : null
     if (md === null) return null
-    // 截断标记由渲染层按当前语言追加(票 07)
+    // The truncation marker is appended by the renderer in the current language (ticket 07)
     return renderMarkdown(md.truncated ? `${md.text}\n${t.placeholder.truncated}` : md.text)
   }, [which, detail, t])
   return (

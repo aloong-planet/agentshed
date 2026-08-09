@@ -1,17 +1,22 @@
-// 渲染出的 markdown 链接的归宿判定。
-// 背景(2026-08-02 bug):相对链接未被拦截时,点击会让**整窗导航**——dev 下 vite
-// 回落 index.html 表现为"退回主页",打包版留白屏;两者都丢掉全部 app state。
-// 故渲染出的链接一律不放行默认行为,由此函数裁决归宿;白名单(详情列出过的文件)
-// 是 internal 的唯一放行依据,与产物读取通道同一不变量。
+// Deciding where a rendered markdown link goes.
+// Background (a 2026-08-02 bug): with relative links left unintercepted, clicking one **navigates the
+// whole window** — in dev, vite
+// falling back to index.html looks like "returning to the home page", and the packaged build leaves a
+// blank screen; both lose all app state.
+// So a rendered link never gets its default behaviour, and this function decides its destination; the
+// allow-list (files the detail page listed)
+// is the only basis for admitting an internal link, the same invariant as the artifact read channel.
 import { ERR, type ErrorCode } from '@shared/errors'
 export type MdLinkTarget =
   | { kind: 'internal'; file: string }
   | { kind: 'external'; url: string }
   | { kind: 'anchor' }
-  // 归宿不明的链接:带**错误码**而非成句原因,措辞由渲染层按当前语言生成
+  // A link with no clear destination: carries an **error code** rather than a whole-sentence reason, with
+  // the renderer producing the wording in the current language
   | { kind: 'unresolved'; code: ErrorCode }
 
-/** 无 node:path 的最小归一:处理 . 与 ..,不解析软链(白名单本就按真实路径登记) */
+/** A minimal normalisation without node:path: handles . and .., without resolving symlinks (the
+ * allow-list registers real paths anyway) */
 function resolveRelative(dir: string, rel: string): string {
   const parts = dir.split('/').filter(Boolean)
   for (const seg of rel.split('/')) {
@@ -23,14 +28,15 @@ function resolveRelative(dir: string, rel: string): string {
 }
 
 /**
- * @param href 链接原始值
- * @param baseDir 当前文档所在目录(绝对路径)
- * @param readable 可读文件白名单(详情/快照列出过的绝对路径)
+ * @param href The link's raw value
+ * @param baseDir The current document's directory (an absolute path)
+ * @param readable The readable file allow-list (absolute paths a detail page or snapshot has listed)
  */
 export function resolveMdLink(href: string, baseDir: string, readable: string[]): MdLinkTarget {
   if (href.startsWith('#')) return { kind: 'anchor' }
   if (/^https?:\/\//i.test(href)) return { kind: 'external', url: href }
-  // 其余带协议的一律拒绝(javascript:/file:/data: 等);消毒层已挡一部分,这里是第二道
+  // Anything else carrying a protocol is refused (javascript:, file:, data: and so on); the sanitising
+  // layer already blocks some, and this is the second line
   if (/^[a-z][a-z0-9+.-]*:/i.test(href))
     return { kind: 'unresolved', code: ERR.linkProtocolUnsupported }
   const path = href.split('#')[0]
@@ -40,16 +46,19 @@ export function resolveMdLink(href: string, baseDir: string, readable: string[])
   return { kind: 'internal', file: abs }
 }
 
-/** 文件所在目录(同上,不依赖 node:path) */
+/** A file's directory (as above, without node:path) */
 export function dirOf(file: string): string {
   const i = file.lastIndexOf('/')
   return i <= 0 ? '/' : file.slice(0, i)
 }
 
 /**
- * 渲染出的 markdown 容器上的点击处理:internal/unresolved 拦下自行处理;
- * external 与 anchor **故意放行**——external 由主进程 will-navigate 守卫接管
- * (拦截并交系统浏览器),anchor 走浏览器默认滚动,都不是导航逃逸。
+ * Click handling on a rendered markdown container: internal and unresolved are intercepted and handled
+ * here;
+ * external and anchor are **deliberately let through** — external is taken over by the main process's
+ * will-navigate guard
+ * (which intercepts it and hands it to the system browser), and anchor uses the browser's default
+ * scrolling; neither is a navigation escape.
  */
 export function handleMdClick(
   e: { target: EventTarget | null; preventDefault: () => void },

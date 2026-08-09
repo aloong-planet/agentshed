@@ -1,39 +1,57 @@
 #!/bin/bash
-# dev 冒烟:启动 → 等它真正跑完一趟扫描 → 抓主进程错误 → 杀父进程验孤儿防护。
+# The dev smoke run: start → wait for it to actually finish one scan → catch main-process errors → kill
+# the parent to verify orphan protection.
 #
-# **与已开着的实例共存**(2026-08-04 改,根因复盘见 docs/postmortems/2026-08-04-smoke-silent-lock-exit.md):
-#   - userData 隔离:dev app 经 `pnpm dev -- --user-data-dir=<临时目录>` 启动(实测
-#     electron-vite 透传该参且 Electron 认它——e2e 同机制,真实归档零污染已核实)。
-#     single-instance lock 按 userData 界定作用域,隔离后与用户开着的 app 互不抢锁
-#     ——此前锁被占时本脚本起的 app 会 app.exit(0) 静默假死,三次误红的根因。
-#   - 进程组隔离:set -m 让后台任务自成进程组,所有探测/击杀只认自己这棵树
-#     (pgrep/kill 按 pgid),永不误伤用户的实例。
-#   - 扫描的数据仍是真实 ~/.claude(那是 HOME 的事,与 userData 无关);每次全新
-#     userData = 每次都走确定性的全量扫(~6s)——门禁要确定性,不要热缓存的快。
-#     「旧格式缓存迁移」场景归 e2e(预置缓存 fixture),本就不该指望冒烟撞上。
+# **Coexists with an already-running instance** (changed 2026-08-04; the root cause postmortem is in
+# docs/postmortems/2026-08-04-smoke-silent-lock-exit.md):
+#   - userData isolation: the dev app starts via `pnpm dev -- --user-data-dir=<temp dir>` (measured:
+#     electron-vite passes the argument through and Electron honours it — e2e uses the same mechanism,
+#     and zero pollution of the real archive has been verified).
+#     The single-instance lock is scoped by userData, so once isolated it does not contend with the
+#     user's running app
+#     — previously, with the lock taken, the app this script started would app.exit(0) and die silently,
+#     which is the root cause of three false reds.
+#   - Process group isolation: set -m puts background jobs in their own process group, so every probe and
+#     kill only touches our own tree
+#     (pgrep/kill by pgid), never harming the user's instance.
+#   - The data scanned is still the real ~/.claude (that is HOME's business, unrelated to userData); a
+#     fresh
+#     userData every time = a deterministic full scan every time (~6s) — a gate wants determinism, not
+#     the speed of a warm cache.
+#     The "migrating an old-format cache" scenario belongs to e2e (with a seeded cache fixture) and was
+#     never something smoke should be expected to stumble into.
 #
-# 一律轮询到条件成立,不用固定 sleep(2026-08-03 改):
-#   误红比慢更贵:门禁抖过几次,"重跑一下就好"就成了习惯,它也就不再是门禁。
-# 超时按实测量级留足余量,并把实际耗时打出来——将来变慢看得见,不会悄悄逼近超时。
+# Always poll until the condition holds rather than using a fixed sleep (changed 2026-08-03):
+#   a false red costs more than slowness: once a gate has flickered a few times, "just run it again"
+#   becomes the habit, and it stops being a gate.
+# Timeouts leave ample headroom over the measured magnitude, and the actual durations are printed — so a
+# future slowdown is visible rather than quietly creeping toward the timeout.
 set -u
-set -m   # 后台任务自成进程组:$! 即 pgid,探测与击杀都以此为界
+set -m   # Background jobs get their own process group: $! is the pgid, bounding every probe and kill
 cd "$(dirname "$0")/.."
 LOG=/tmp/agentshed-smoke.log
-# 组内 Electron 主进程特征(quiet 副本与官方 dist 路径都含此段)。
-# **不要**把仓库绝对路径写进正则:worktree、/tmp→/private/tmp、pnpm 布局一变就假死
-# (2026-08-06:写死 CascadeProjects/agentshed 时 /tmp worktree 下 60s 误红)。
-# 组外实例靠 userData 隔离,不会进本组 pgid,故组内只认 Electron 二进制即可。
+# The signature of an Electron main process in our group (both the quiet copy and the official dist path
+# contain this segment).
+# **Do not** put the repository's absolute path in the regex: a worktree, /tmp→/private/tmp, or a pnpm
+# layout change makes it hang
+# (2026-08-06: with CascadeProjects/agentshed hard-coded, a /tmp worktree gave a 60s false red).
+# Instances outside the group are isolated by userData and never enter our pgid, so recognising the
+# Electron binary is enough within the group.
 ELECTRON_BIN='Electron.app/Contents/MacOS/Electron'
 SMOKE_UD=$(mktemp -d /tmp/agentshed-smoke-ud.XXXXXX)
 CACHE="$SMOKE_UD/token-cache.json"
-# 真实 userData 的缓存:仅作"重定向失效"的诊断对照,本脚本绝不写它
+# The real userData's cache: used only as a diagnostic control for "the redirect broke"; this script
+# never writes it
 REAL_CACHE="$HOME/Library/Application Support/agentshed/token-cache.json"
 
-START_TIMEOUT=60   # 全新 userData 首启,实测 ~1.1s 出进程;留足余量
-READY_TIMEOUT=60   # 全量扫真实数据实测 ~6s(600MB+),十倍余量。
-                   # 历史教训:超时曾三次误红,真因不是慢是**死**(锁被占静默退出)
-                   # ——如今 userData 隔离后没有锁可抢,走到超时的都是真超时。
-EXIT_TIMEOUT=15    # 实测 ~1.4s:主进程按 1s 轮询父存活(见 src/main/index.ts),加退出开销
+START_TIMEOUT=60   # First launch on a fresh userData; measured ~1.1s to a process, with ample headroom
+READY_TIMEOUT=60   # A full scan of real data measures ~6s (600MB+), a tenfold margin.
+                   # A historical lesson: this timeout gave three false reds whose real cause was not
+                   # slowness but **death** (a taken lock and a silent exit)
+                   # — now that userData is isolated there is no lock to contend for, so anything that
+                   # reaches the timeout is a real timeout.
+EXIT_TIMEOUT=15    # Measured ~1.4s: the main process polls its parent every 1s (see
+                   # src/main/index.ts), plus the cost of exiting
 
 now_ms() { echo $(( $(date +%s%N) / 1000000 )); }
 DEVPID=""
@@ -44,7 +62,8 @@ cleanup() {
 }
 die() {
   echo "SMOKE_FAIL: $1"
-  # 现场必须留档:三次排查全因调用方 grep 掉了这段输出而无证可查(2026-08-04 复盘)
+  # The scene has to be preserved: three investigations had no evidence because the caller grepped this
+  # output away (the 2026-08-04 postmortem)
   KEEP="/tmp/agentshed-smoke-fail-$(date +%Y%m%d-%H%M%S).log"
   cp "$LOG" "$KEEP" 2>/dev/null && echo "Full log saved to: $KEEP"
   tail -25 "$LOG"
@@ -52,9 +71,12 @@ die() {
   exit 1
 }
 
-# 已有实例只提示不拦截——隔离后共存是特性。按 comm 过滤,pgrep -f 会被
-# 别人 argv 里的路径字符串误报(如某个 pkill 命令行),路径匹配不等于进程本体。
-# 提示范围:本产品 Agentshed.app,或 argv 含 agentshed 的 Electron(dev 实例)。
+# An existing instance is only reported, never blocked — coexistence is a feature once isolated. Filter
+# by comm, since pgrep -f gets false positives from
+# path strings in other processes' argv (a pkill command line, say) — matching a path is not the same as
+# matching the process itself.
+# The reporting scope: this product's Agentshed.app, or an Electron whose argv contains agentshed (a dev
+# instance).
 OTHERS=$(pgrep -f "Agentshed.app/Contents/MacOS/Agentshed|agentshed.*$ELECTRON_BIN|$ELECTRON_BIN.*agentshed" 2>/dev/null | while read -r p; do
   case "$(ps -o comm= -p "$p" 2>/dev/null)" in
     *Electron | *Agentshed) echo "$p" ;;
@@ -64,14 +86,15 @@ done | tr '\n' ' ')
 
 REAL_BEFORE=$(stat -f %m "$REAL_CACHE" 2>/dev/null || echo 0)
 
-# 测试静音两件套(见 src/main/index.ts 与 scripts/quiet-electron.sh):
-#   AGENTSHED_NO_FOREGROUND —— 窗口不显示,不抢前台焦点;
-#   ELECTRON_OVERRIDE_DIST_PATH —— 用 LSUIElement=true 的副本,Dock 图标连闪现都没有
-#   (图标在原生引导期就按 plist 注册,JS 的 dock.hide() 追不上)。
+# The two pieces of test silencing (see src/main/index.ts and scripts/quiet-electron.sh):
+#   AGENTSHED_NO_FOREGROUND — the window is not shown and does not steal foreground focus;
+#   ELECTRON_OVERRIDE_DIST_PATH — use the LSUIElement=true copy, so the Dock icon does not even flash
+#   (the icon is registered from the plist during native bootstrap, and JS's dock.hide() cannot catch up).
 bash scripts/quiet-electron.sh
 export ELECTRON_OVERRIDE_DIST_PATH="$PWD/node_modules/.cache/electron-quiet/dist"
-# electron-vite **不经过** electron/index.js(自读 path.txt 拼路径,实测 lib 源码),
-# 上面那个变量对它无效;它认的是自家的 ELECTRON_EXEC_PATH,两个都给
+# electron-vite **does not go through** electron/index.js (it reads path.txt and assembles the path
+# itself, measured in the lib source),
+# so that variable has no effect on it; it honours its own ELECTRON_EXEC_PATH, so both are set
 export ELECTRON_EXEC_PATH="$PWD/node_modules/.cache/electron-quiet/dist/Electron.app/Contents/MacOS/Electron"
 AGENTSHED_NO_FOREGROUND=1 pnpm dev -- --user-data-dir="$SMOKE_UD" > "$LOG" 2>&1 &
 DEVPID=$!
@@ -82,16 +105,19 @@ until alive; do
 done
 UP_MS=$(( $(now_ms) - T0 ))
 
-# 就绪判据取「扫描完成」:app 每趟扫描结束原子写 token-cache.json(隔离目录内,
-# 全新目录首扫必写),mtime 出现即扫描真跑通;静默失败则超时报红。
+# The readiness criterion is "the scan finished": the app atomically writes token-cache.json at the end
+# of every scan (inside the isolated directory,
+# where a fresh directory guarantees the first scan writes), so an mtime appearing means the scan really
+# ran; a silent failure goes red on the timeout.
 T1=$(now_ms)
 until [ "$(stat -f %m "$CACHE" 2>/dev/null || echo 0)" -gt 0 ]; do
   if ! alive; then
     die "electron started and then exited (main process crash? see the log below)"
   fi
   if (( $(now_ms) - T1 > READY_TIMEOUT * 1000 )); then
-    # 判别诊断:隔离缓存没动而真实缓存动了 = --user-data-dir 透传失效
-    # (electron-vite 升级弃透传之类),app 跑去写真实 userData 了
+    # A discriminating diagnosis: the isolated cache untouched while the real one moved =
+    # --user-data-dir pass-through broke
+    # (an electron-vite upgrade dropping it, say), and the app went off to write the real userData
     REAL_NOW=$(stat -f %m "$REAL_CACHE" 2>/dev/null || echo 0)
     if [ "$REAL_NOW" -gt "$REAL_BEFORE" ]; then
       die "userData redirection failed: the isolated cache was not updated but the real one was — check that pnpm dev forwards --user-data-dir"
@@ -105,8 +131,10 @@ READY_MS=$(( $(now_ms) - T1 ))
 ERRS=$(grep -iE "Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|uncaught" "$LOG" | head -5)
 
 EPID=$(pgrep -g "$DEVPID" -f "$ELECTRON_BIN" | head -1)
-# 竞态守卫:app 可能写完就绪产物后立刻崩——EPID 取不到时,杀父与孤儿检查整段
-# 空转,若日志又没有错误行就是假绿。就绪后进程必须还活着,不在即失败。
+# A race guard: the app may crash right after writing the readiness artifact — with no EPID, the
+# kill-parent and orphan checks
+# would both spin on nothing, and if the log also has no error line that is a false green. After
+# readiness the process must still be alive; if not, fail.
 [ -z "$EPID" ] && die "the ready artifact was written but the electron process is gone (crashed right after writing?)"
 PARENT=$(ps -o ppid= -p "$EPID" | tr -d ' ')
 T2=$(now_ms)
@@ -118,7 +146,7 @@ while (( $(now_ms) - T2 <= EXIT_TIMEOUT * 1000 )); do
 done
 DOWN_MS=$(( $(now_ms) - T2 ))
 
-# 失败一律带上下文再退:只 echo 命中的那几行,等于把现场丢了(2026-08-03 教训)
+# Always exit with context: echoing only the matching lines throws the scene away (the 2026-08-03 lesson)
 if [ -n "$ERRS" ]; then
   echo "SMOKE_FAIL main process reported errors:"; echo "$ERRS"
   KEEP="/tmp/agentshed-smoke-fail-$(date +%Y%m%d-%H%M%S).log"

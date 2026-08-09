@@ -1,5 +1,6 @@
-// 提问列表的日期分组(票 06):跨天会话单行索引只有 HH:MM 会失真,
-// 分组行同时承担"这是哪天"。纯函数,渲染层直接消费。
+// Day grouping for the question list (ticket 06): in a session spanning days, a single-line index showing
+// only HH:MM distorts,
+// so the group row also carries "which day this is". A pure function, consumed directly by the renderer.
 import type { SessionQuestion } from '@shared/domain'
 import type { Language } from '@shared/i18n'
 import { dayLabel as localeDayLabel } from '@shared/format'
@@ -8,34 +9,41 @@ export type QuestionOrder = 'asc' | 'desc'
 
 export interface DayGroup {
   day: string
-  /** 折叠状态与 React key 的键:同日被时间戳乱序隔开时会出现两个同标签组,
-   * day 本身不唯一——用组首元素的原始下标补齐 */
+  /** The key for collapse state and the React key: when out-of-order timestamps separate one day, two
+   * groups with the same label appear,
+   * so day alone is not unique — the group's first element's original index completes it */
   id: string
-  /** idx = 提问在展示集合里的原始下标(展开状态的键);q.i 是显示序号,恒为原始轮次号 */
+  /** idx = the question's original index within the displayed set (the key for expansion state); q.i is
+   * the display index, always the original turn number */
   items: Array<{ q: SessionQuestion; idx: number }>
 }
 
 /**
- * 全部提问都有时间戳才启用日期分组;缺任一则整页平铺(降级到无分组形态)。
- * 不造"日期未知"组——那是一个没在原型里出现过的形态,而缺时间戳在真实数据里
- * 是罕见的坏行,降级只需可用,不值得为它发明界面。
+ * Day grouping applies only when every question has a timestamp; if any is missing, the whole page is
+ * flat (degrading to the ungrouped form).
+ * No "unknown date" group is invented — that form never appeared in the prototype, and a missing timestamp
+ * in real data
+ * is a rare bad line; degrading merely has to be usable, and is not worth inventing a UI for.
  */
 export function groupable(qs: readonly SessionQuestion[]): boolean {
   return qs.length > 0 && qs.every((q) => q.at !== null)
 }
 
 /**
- * 本地时区的日期标签,按当前语言(票 12)。
- * **同一语言下对同一天必须稳定**——本函数的输出被 `dayGroups` 当分组键用,
- * 标签抖动会把同一天拆成两组。
+ * The date label in the local time zone, in the current language (ticket 12).
+ * **It must be stable for the same day within one language** — this function's output is used by
+ * `dayGroups` as the grouping key,
+ * and a churning label would split one day into two groups.
  */
 export function dayLabel(lang: Language, ms: number): string {
   return localeDayLabel(lang, ms)
 }
 
 /**
- * 按日分组(同日相邻归组;输入顺序 = 原始轮次顺序)。
- * desc 时**组与组内一起翻**——只翻组不翻组内会出现"日期倒序而组内正序"。
+ * Group by day (adjacent entries of the same day group together; the input order = the original turn
+ * order).
+ * When descending, **the groups and their contents are both reversed** — reversing only the groups would
+ * give descending dates with ascending contents.
  */
 export function dayGroups(
   lang: Language,

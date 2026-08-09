@@ -1,5 +1,6 @@
-// Codex 侧数据读取:注册表(config.toml 的 [projects."<path>"] 段)。
-// 不引 TOML 依赖:只需段头里的路径,逐行正则提取;段内内容(trust_level)当前不消费。
+// Reading Codex-side data: the registry (the [projects."<path>"] sections in config.toml).
+// No TOML dependency: only the paths in the section headers are needed, extracted line by line with a
+// regex; the section contents (trust_level) are not consumed at present.
 import { readFileSync, existsSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs'
 import { join } from 'node:path'
 import type { RegistryResult } from './claude'
@@ -8,29 +9,32 @@ import { ERR } from '@shared/errors'
 const PROJECT_HEADER = /^\s*\[projects\."(.+)"\]\s*$/
 
 export interface CodexSessionMeta {
-  /** rollout 文件绝对路径 */
+  /** The rollout file's absolute path */
   file: string
-  /** 归属项目路径(首行 session_meta.payload.cwd) */
+  /** The owning project's path (the first line's session_meta.payload.cwd) */
   cwd: string
-  /** 是否 subagent 线程(不计入会话数/活跃时间) */
+  /** Whether this is a subagent thread (not counted toward session counts or activity time) */
   subagent: boolean
-  /** 文件 mtime(epoch ms) */
+  /** The file's mtime (epoch ms) */
   mtimeMs: number
-  /** 本会话 id(payload.id) */
+  /** This session's id (payload.id) */
   sessionId: string | null
-  /** 父会话 id:payload.forked_from_id 或 source.subagent.thread_spawn.parent_thread_id */
+  /** The parent session's id: payload.forked_from_id or
+   * source.subagent.thread_spawn.parent_thread_id */
   parentId: string | null
-  /** fork 时刻(顶层 timestamp,epoch ms);父会话此刻之前的用量即被本会话重放的历史 */
+  /** The fork moment (the top-level timestamp, epoch ms); the parent's usage before it is the history
+   * this session replays */
   forkedAt: number | null
 }
 
 /**
- * 递归遍历 codexHome/sessions 下全部 .jsonl,读每个文件首行取 cwd 归属。
- * 首行损坏/缺 cwd 的文件跳过(不弃整个扫描)。
+ * Walk every .jsonl under codexHome/sessions recursively, reading each file's first line for its cwd
+ * attribution.
+ * A file whose first line is corrupt or has no cwd is skipped (without abandoning the whole scan).
  */
 export function readCodexSessions(codexHome: string): CodexSessionMeta[] {
   const out: CodexSessionMeta[] = []
-  // 两个数据根(与 ccusage codex paths.rs 一致):归档会话同样计入统计
+  // Two data roots (matching ccusage's codex paths.rs): archived sessions count toward the statistics too
   for (const name of ['sessions', 'archived_sessions']) {
     const root = join(codexHome, name)
     if (existsSync(root)) walk(root, out)
@@ -57,7 +61,8 @@ function walk(dir: string, out: CodexSessionMeta[]): void {
   }
 }
 
-/** 首行长度实测可达 42KB(session_meta 内嵌 base_instructions),必须读到换行为止再解析 */
+/** The first line measures up to 42 KB (session_meta embeds base_instructions), so it must be read up to
+ * the newline before parsing */
 const HEAD_CHUNK = 64 * 1024
 const HEAD_MAX = 4 * 1024 * 1024
 
@@ -78,7 +83,8 @@ function readFirstLine(file: string): string | null {
       }
       chunks.push(slice)
       offset += n
-      if (offset >= HEAD_MAX) return null // 无换行的异常大文件:放弃,不吃内存
+      if (offset >= HEAD_MAX) return null // An abnormally large file with no newline: give up rather than
+      // eating memory
     }
     return chunks.length ? Buffer.concat(chunks).toString('utf8') : null
   } finally {
@@ -86,7 +92,8 @@ function readFirstLine(file: string): string | null {
   }
 }
 
-/** 单文件版:读首行 session_meta。票 04 的单文件索引重建走这里,与全量扫描同源 */
+/** The single-file version: read the first line's session_meta. Ticket 04's single-file index rebuild
+ * goes through here, sharing its source with the full scan */
 export const readCodexSessionMeta = (file: string): CodexSessionMeta | null => readHead(file)
 
 function readHead(file: string): CodexSessionMeta | null {
@@ -109,8 +116,10 @@ function readHead(file: string): CodexSessionMeta | null {
           | undefined)?.['thread_spawn'] as Record<string, unknown> | undefined
       )?.['parent_thread_id']
       const forked = pl['forked_from_id']
-      // 只认这两处(与 ccusage replay.rs 一致):payload.parent_thread_id 不算 fork 关系,
-      // 它在同线程的续写会话里也出现,误当父会剥掉本会话自己的用量。
+      // Only these two count (matching ccusage's replay.rs): payload.parent_thread_id is not a fork
+      // relationship,
+      // since it also appears in a continuation session on the same thread, and mistaking it for the
+      // parent would strip this session's own usage.
       const parentId =
         typeof forked === 'string' && forked !== ''
           ? forked

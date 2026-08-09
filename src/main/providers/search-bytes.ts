@@ -1,12 +1,18 @@
-// 字节级子串搜索(票 08,spec D2):在原始 UTF-8 Buffer 上找 needle 的全部命中,
-// ASCII 字母大小写不敏感——**不整体 decode + toLowerCase**(实测 391ms,比搜索
-// 本身贵 17 倍)。做法:
-// - needle 无 ASCII 字母 → 直接 Buffer.indexOf 循环(SIMD 快路径,实测 27ms/92MB);
-// - 有字母 → 选**锚**做 indexOf 粗筛,再对候选位置做大小写折叠的逐字节精确比较。
-//   锚选 needle 中最长的"无字母"字节段(中文/数字/符号,大小写无关可直接 indexOf);
-//   全字母 needle 用首字母的大小写两个变体各自 indexOf 扫描。
-// UTF-8 安全:多字节字符的每个字节 ≥0x80,折叠只动 0x41-0x5A/0x61-0x7A,
-// 不会把中文字节误折;needle 与文本都是合法 UTF-8,跨字符字节序列不构成合法 needle。
+// Byte-level substring search (ticket 08, spec D2): find every hit of a needle in a raw UTF-8 Buffer,
+// case-insensitive for ASCII letters — **without decoding + toLowerCase over everything** (measured
+// 391 ms, 17× the cost of
+// the search itself). The approach:
+// - a needle with no ASCII letters → a plain Buffer.indexOf loop (the SIMD fast path, measured
+//   27 ms per 92 MB);
+// - with letters → pick an **anchor** for a coarse indexOf pass, then compare candidate positions byte by
+//   byte with case folding.
+//   The anchor is the longest letter-free byte run in the needle (wide characters, digits, symbols —
+//   case-independent, so indexOf works directly);
+//   an all-letter needle scans with both cases of its first letter.
+// UTF-8 safe: every byte of a multi-byte character is ≥0x80 while folding only touches
+// 0x41-0x5A/0x61-0x7A,
+// so a multi-byte character is never folded by mistake; both the needle and the text are valid UTF-8, and
+// a byte sequence spanning characters is not a valid needle.
 const A = 0x41
 const Z = 0x5a
 const a = 0x61
@@ -16,7 +22,7 @@ const isUpper = (b: number): boolean => b >= A && b <= Z
 const isAlpha = (b: number): boolean => isUpper(b) || (b >= a && b <= z)
 const fold = (b: number): number => (isUpper(b) ? b + 32 : b)
 
-/** 候选位置精确比较:buf[pos..] 与已折叠的 needle 逐字节折叠比对 */
+/** Exact comparison at a candidate position: fold buf[pos..] byte by byte against the pre-folded needle */
 function foldEq(buf: Buffer, pos: number, needleFolded: Buffer): boolean {
   if (pos < 0 || pos + needleFolded.length > buf.length) return false
   for (let i = 0; i < needleFolded.length; i++) {
@@ -25,7 +31,7 @@ function foldEq(buf: Buffer, pos: number, needleFolded: Buffer): boolean {
   return true
 }
 
-/** needle 中最长的连续"无 ASCII 字母"字节段(作大小写无关的 indexOf 锚) */
+/** The longest run of consecutive letter-free bytes in the needle (the case-independent indexOf anchor) */
 function bestAnchor(needle: Buffer): { start: number; len: number } {
   let bestStart = 0
   let bestLen = 0
@@ -47,8 +53,8 @@ function bestAnchor(needle: Buffer): { start: number; len: number } {
 }
 
 /**
- * 返回 needle 在 buf 中的全部命中字节偏移(允许重叠,逐字节推进)。
- * ASCII 字母大小写不敏感;空 needle 返回空。
+ * Return every byte offset in buf where the needle hits (overlaps allowed, advancing one byte at a time).
+ * Case-insensitive for ASCII letters; an empty needle returns nothing.
  */
 export function searchBytes(buf: Buffer, needle: string): number[] {
   if (needle === '') return []
@@ -58,7 +64,7 @@ export function searchBytes(buf: Buffer, needle: string): number[] {
 
   const anchor = bestAnchor(nRaw)
   if (anchor.len === nRaw.length) {
-    // 全程无字母:直接 SIMD indexOf 快路径
+    // No letters anywhere: take the SIMD indexOf fast path directly
     let from = 0
     for (;;) {
       const i = buf.indexOf(nRaw, from)
@@ -70,7 +76,7 @@ export function searchBytes(buf: Buffer, needle: string): number[] {
   }
 
   if (anchor.len > 0) {
-    // 用无字母段做锚:indexOf 粗筛 → 折叠精确比较
+    // Use the letter-free run as the anchor: a coarse indexOf pass → an exact folded comparison
     const anchorBuf = nRaw.subarray(anchor.start, anchor.start + anchor.len)
     let from = 0
     for (;;) {
@@ -83,7 +89,8 @@ export function searchBytes(buf: Buffer, needle: string): number[] {
     return out
   }
 
-  // 全字母 needle:首字母大小写双变体各自扫描,合并去重后精确比较
+  // An all-letter needle: scan with both cases of the first letter, then merge, deduplicate and compare
+  // exactly
   const lo = nFolded[0]
   const hi = isUpper(lo - 32) ? lo - 32 : lo
   const candidates: number[] = []

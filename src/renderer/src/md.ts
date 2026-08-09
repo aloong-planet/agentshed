@@ -1,7 +1,9 @@
-// Markdown → 消毒后 HTML 的唯一出口:所有 dangerouslySetInnerHTML 必须经此。
-// DOMPurify 默认 URI 白名单不含 file:,而产物阅读器把相对图片重写为 file://(打包版可加载),
-// 故显式扩展 ALLOWED_URI_REGEXP;脚本/事件属性/javascript: 仍按默认剥除。
-// skills-view:YAML frontmatter 拆成键值卡片后再渲染正文。
+// The single exit from markdown to sanitised HTML: every dangerouslySetInnerHTML must come through here.
+// DOMPurify's default URI allow-list excludes file:, while the artifact reader rewrites relative images to
+// file:// (which the packaged build can load),
+// so ALLOWED_URI_REGEXP is extended explicitly; scripts, event attributes and javascript: are still
+// stripped by default.
+// skills-view: YAML frontmatter is split into a key-value card before the body is rendered.
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
 

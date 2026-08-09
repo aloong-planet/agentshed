@@ -1,14 +1,20 @@
-// 图标模块:全部为内联 SVG,统一由 Icon 包装。
+// The icon module: everything is inline SVG, wrapped uniformly by Icon.
 //
-// **为什么不用 emoji / Unicode 字符当图标**:字符的字形由系统字体决定,不同字符
-// 的视觉重量与基线各不相同,同一行里并排就会高低不齐、大小不一;跨平台与跨字体
-// 渲染也不一致。更麻烦的是着色——字符走的是文字颜色,主题切换时与其余界面元素
-// 的行为对不齐,而内联 SVG 用 currentColor 天然跟随。
+// **Why emoji and Unicode characters are not used as icons**: a character's glyph is decided by the
+// system font, and different characters
+// have different visual weights and baselines, so side by side on one row they sit at different heights
+// and sizes; rendering also differs
+// across platforms and fonts. Colouring is worse still — a character takes the text colour, so on a theme
+// switch it behaves differently from
+// the rest of the UI, whereas inline SVG follows naturally through currentColor.
 //
-// **新增图标的做法**:把图标库(Lucide)官方该图标的**内部元素**抄进来,套用下面的
-// Icon 包装。不引第三方图标库运行时依赖,不整段贴 `<svg>` 标签,不在路径上写死颜色。
+// **How to add an icon**: copy the **internal elements** of that icon from the icon library (Lucide) and
+// wrap them in the
+// Icon component below. No third-party icon library runtime dependency, no pasting a whole `<svg>` tag,
+// and no hard-coded colours on the paths.
 //
-// 注:本仓库存量还有一批用字符充当图标的位置,它们不在本模块内,迁移另有专门任务。
+// Note: the repository still has a number of places using characters as icons; they are outside this
+// module, and a separate task covers migrating them.
 import type { JSX, ReactNode } from 'react'
 
 function Icon({
@@ -38,7 +44,7 @@ function Icon({
   )
 }
 
-/** Lucide chevron-down —— 下拉触发器的展开指示 */
+/** Lucide chevron-down — the dropdown trigger's expand indicator */
 export function ChevronDown({ size }: { size?: number }): JSX.Element {
   return (
     <Icon size={size} strokeWidth={2.2}>
@@ -47,7 +53,7 @@ export function ChevronDown({ size }: { size?: number }): JSX.Element {
   )
 }
 
-/** Lucide check —— 列表中当前选中项的标记 */
+/** Lucide check — the marker for the currently selected item in a list */
 export function Check({ size }: { size?: number }): JSX.Element {
   return (
     <Icon size={size} strokeWidth={2.5}>

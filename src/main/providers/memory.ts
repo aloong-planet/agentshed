@@ -1,6 +1,8 @@
-// Memory 读取(spec: subagents-memory-plugin 序列 C/D)。
-// 全局汇总以项目注册表为准(C5),仅元数据+文件名进快照(C8),内容经白名单按需读取;
-// Codex 全局记忆探测式:目录非空才入列(C6),仅目录枚举不解析结构。
+// Reading Memory (spec: subagents-memory-plugin, sequences C/D).
+// The global summary follows the project registry (C5), only metadata and filenames enter the snapshot
+// (C8), and contents are read on demand through the allow-list;
+// Codex global memory is probe-style: it is listed only when the directory is non-empty (C6), and only
+// the directory is enumerated with no structural parsing.
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseToml } from 'smol-toml'
@@ -9,7 +11,8 @@ import type { ScanRoots } from './types'
 import { encodeClaudeProjectDir } from './claude'
 import { readCapped, readTextCapped } from './read-utils'
 
-/** 目录下顶层 .md 文件的元数据(不递归;subagent 级 memory 子目录不读,Out of Scope) */
+/** Metadata for the top-level .md files in a directory (not recursive; subagent-level memory
+ * subdirectories are not read — Out of Scope) */
 function listMdFiles(dir: string): MemoryFileMeta[] {
   if (!existsSync(dir)) return []
   let names: string[]
@@ -27,17 +30,20 @@ function listMdFiles(dir: string): MemoryFileMeta[] {
       if (!st.isFile()) continue
       out.push({ name, file, mtimeMs: st.mtimeMs })
     } catch {
-      // 扫描间隙被删:跳过
+      // Deleted between scans: skip it
     }
   }
   return out
 }
 
 /**
- * Codex 记忆开关(C6):features 表下的 memories 键为 true——
- * `[features]` 节与 `features.memories = true` 点键两种写法等价,TOML 解析识别。
- * 解析失败 → 未开启:Codex 本身也读不了该 config,从坏文件抢救语义是假信号
- * (判定类降级以目标系统的实际行为为准)。config 缺失/不可读同为未开启。
+ * The Codex memory toggle (C6): the memories key under the features table being true —
+ * the `[features]` section and the `features.memories = true` dotted key are equivalent forms, both
+ * recognised by the TOML parse.
+ * A parse failure → not enabled: Codex itself cannot read that config either, and salvaging semantics
+ * from a broken file is a false signal
+ * (a degraded judgement follows the target system's actual behaviour). A missing or unreadable config
+ * likewise counts as not enabled.
  */
 export function readCodexMemoriesEnabled(codexHome: string): boolean {
   const raw = readTextCapped(join(codexHome, 'config.toml'))
@@ -59,7 +65,7 @@ export function readMemorySummary(roots: ScanRoots, projects: ProjectEntry[]): M
   const out: MemorySummaryEntry[] = []
   for (const p of projects) {
     const files = listMdFiles(join(roots.claudeHome, 'projects', encodeClaudeProjectDir(p.path), 'memory'))
-    if (files.length === 0) continue // C2:空目录/无目录不入列
+    if (files.length === 0) continue // C2: an empty or absent directory is not listed
     out.push({
       side: 'claude',
       projectPath: p.path,
@@ -84,11 +90,12 @@ export function readMemorySummary(roots: ScanRoots, projects: ProjectEntry[]): M
       hidden: false
     })
   }
-  // C4:按最近修改倒序
+  // C4: most recently modified first
   return out.sort((a, b) => (b.lastModified ?? 0) - (a.lastModified ?? 0))
 }
 
-/** 项目详情 Memory(D 序列):MEMORY.md 内容直出(截断),topic 仅元数据 */
+/** Project detail's Memory (sequence D): MEMORY.md's contents are emitted directly (truncated), and
+ * topics carry metadata only */
 export function readProjectMemory(roots: ScanRoots, projectPath: string): ProjectMemory {
   const dir = join(roots.claudeHome, 'projects', encodeClaudeProjectDir(projectPath), 'memory')
   const files = listMdFiles(dir)

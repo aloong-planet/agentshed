@@ -1,4 +1,5 @@
-// app 自有偏好(userData/prefs.json)。绝不写 agent 配置。原子写同 HiddenStore。
+// The app's own preferences (userData/prefs.json). Never the agent configuration. Atomic writes as in
+// HiddenStore.
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -52,9 +53,11 @@ export class PrefsStore {
   }
 
   /**
-   * 读取时**逐字段降级**:某一项非法只回落该项,不牵连其他偏好。
-   * 这是「降级只准自伤」不变量在偏好上的落地——早先只有一个字段时,
-   * 「整份回默认」与「逐字段回默认」表现相同,加了第二个字段后两者就分道扬镳了。
+   * Reading degrades **per field**: one invalid entry falls back on its own without affecting the others.
+   * This is the "degradation may only hurt itself" invariant applied to preferences — back when there was
+   * only one field,
+   * "revert the whole thing" and "revert per field" behaved identically, and they parted ways the moment
+   * a second field was added.
    */
   private load(): Prefs {
     if (!existsSync(this.file)) return { ...DEFAULT_PREFS }
