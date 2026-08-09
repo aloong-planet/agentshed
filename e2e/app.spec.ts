@@ -587,7 +587,7 @@ test('the session page: every question is listed with complete fields, and back 
   // 返回:落在「会话」分栏,不是概览(原型:‹ 返回 <项目> · 会话)
   await win.locator('.sback').click()
   await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
-  await expect(win.locator('.pane-body .grp-t')).toContainText('sessions in total')
+  await expect(win.locator('.pane-body .grp-t')).toContainText('2 sessions')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -1446,7 +1446,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
 
   // ③ 整包缺失(E6):展开为缺失横幅,无类目 tab
   await win.locator('.it.row-btn', { hasText: 'ghost@legacy' }).click()
-  await expect(win.locator('.exp-area.none', { hasText: '安装目录缺失' })).toBeVisible()
+  await expect(win.locator('.exp-area.none', { hasText: 'Install directory missing' })).toBeVisible()
 
   // ④ Codex 组:仅 Skills tab,点行读包
   const cxRow = win.locator('.it.row-btn', { hasText: 'documents@openai-bundled' })
@@ -1546,13 +1546,13 @@ test('automatic refresh: a new session appears without a manual refresh, and the
  */
 const TREND_MOUNTS = [
   {
-    name: 'Agents 页 Token 分栏',
+    name: 'Agents page · Token tab',
     async goto(win: import('@playwright/test').Page) {
       await win.locator('.pane-head .tabs .tab', { hasText: 'Token' }).click()
     }
   },
   {
-    name: '项目详情 概览分栏',
+    name: 'project detail · Overview tab',
     async goto(win: import('@playwright/test').Page) {
       await win.locator('.rail .ri').nth(1).click()
       const rows = win.locator('.side .row')
@@ -1955,9 +1955,11 @@ test('the language selector: seven items including follow-system and the divider
   await win.locator('.ri.set').click()
 
   // 语言分节在外观之前:断 DOM 顺序,不靠肉眼看截图
+  // This case deliberately launches with a Chinese system language, so the section
+  // titles it asserts on are the Chinese UI copy — not an untranslated leftover.
   const secs = win.locator('.settings-sec-t')
-  await expect(secs.first()).toHaveText('Language')
-  await expect(secs.nth(1)).toHaveText('Appearance')
+  await expect(secs.first()).toHaveText('语言')
+  await expect(secs.nth(1)).toHaveText('外观')
 
   // 触发器显示「跟随系统」+ 当前解析结果
   const trig = win.getByTestId('language-trigger')
@@ -2051,7 +2053,8 @@ test('i18n: the language-locking mechanism itself is reliable, unaffected by the
     const l = await launch(undefined, mkEmptyProjectHome())
     const win = await l.app.firstWindow()
     await win.waitForSelector('.rail')
-    // launch() 内部把 AGENTSHED_SYSTEM_LANGUAGES 钉为 zh-Hans-CN,故与 sys 无关地恒为中文
+    // launch() pins AGENTSHED_SYSTEM_LANGUAGES to en-US internally, so this is always English
+    // regardless of sys
     await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Settings')
     await close(l)
     void sys
