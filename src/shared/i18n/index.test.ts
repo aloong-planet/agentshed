@@ -21,7 +21,7 @@ describe('resolveLanguage', () => {
     expect(resolveLanguage(['pt-BR', 'ru', 'en'])).toBe('ru')
   })
 
-  it('按主子标签匹配地区与脚本变体', () => {
+  it('region and script variants match on the primary subtag', () => {
     expect(resolveLanguage(['zh-Hans-CN'])).toBe('zh')
     expect(resolveLanguage(['fr-CA'])).toBe('fr')
     expect(resolveLanguage(['es-419'])).toBe('es')
@@ -43,7 +43,7 @@ describe('resolveLanguage', () => {
   })
 })
 
-describe('effectiveLanguage(偏好 → 生效语言)', () => {
+describe('effectiveLanguage (preference → effective language)', () => {
   it('偏好为具体语言时锁定,系统List完全不参与', () => {
     // 「跟随系统」是策略、具体语言是锁定——这条区分是整个模型的支点。
     // 若实现漏掉分支、无条件走系统解析,下面三条都会红。
@@ -66,7 +66,7 @@ describe('plural', () => {
   // other 是必填项(类型强制):俄语的 other 用于小数,如 1.5 сессии
   const ruForms = { one: 'сессия', few: 'сессии', many: 'сессий', other: 'сессии' }
 
-  it('俄语四型:1=one, 2=few, 5=many, 21=one, 0=many', () => {
+  it('Russian has four forms: 1=one, 2=few, 5=many, 21=one, 0=many', () => {
     expect(plural('ru', 1, ruForms)).toBe('сессия')
     expect(plural('ru', 2, ruForms)).toBe('сессии')
     expect(plural('ru', 5, ruForms)).toBe('сессий')
@@ -74,7 +74,7 @@ describe('plural', () => {
     expect(plural('ru', 0, ruForms)).toBe('сессий')
   })
 
-  it('法语 0 用单数,英语 0 用复数——同一个 0 因语言而异', () => {
+  it('French uses the singular for 0 and English the plural — the same 0 differs by language', () => {
     const fr = { one: 'session', other: 'sessions' }
     const en = { one: 'session', other: 'sessions' }
     expect(plural('fr', 0, fr)).toBe('session')
@@ -84,19 +84,19 @@ describe('plural', () => {
     expect(plural('fr', 2, fr)).toBe('sessions')
   })
 
-  it('中文与日语无复数变化,一律 other', () => {
-    expect(plural('zh', 1, { other: '个会话' })).toBe('个会话')
-    expect(plural('zh', 5, { other: '个会话' })).toBe('个会话')
-    expect(plural('ja', 5, { other: '件' })).toBe('件')
+  it('Chinese and Japanese have no plural inflection and always use other', () => {
+    expect(plural('zh', 1, { other: ' sessions' })).toBe(' sessions')
+    expect(plural('zh', 5, { other: ' sessions' })).toBe(' sessions')
+    expect(plural('ja', 5, { other: ' items' })).toBe(' items')
   })
 
-  it('调用方未给出该分型时回落 other', () => {
+  it('a form the caller did not supply falls back to other', () => {
     expect(plural('ru', 2, { other: 'x' })).toBe('x')
   })
 })
 
-describe('字典', () => {
-  it('六语齐备,母语名互不相同', () => {
+describe('dictionary', () => {
+  it('all six languages are present with distinct native names', () => {
     const names = LANGUAGES.map((l) => dictOf(l).languageName)
     expect(names).toHaveLength(6)
     // 互不相同:复制某个单语文件改成另一种语言时忘改 languageName,
@@ -104,7 +104,7 @@ describe('字典', () => {
     expect(new Set(names).size).toBe(6)
   })
 
-  it('每种语言都有可用作 Intl locale 的 htmlLang', () => {
+  it('every language has an htmlLang usable as an Intl locale', () => {
     for (const l of LANGUAGES) {
       const tag = dictOf(l).htmlLang
       expect(tag, `${l} 缺 htmlLang`).toBeTruthy()
@@ -114,7 +114,7 @@ describe('字典', () => {
     }
   })
 
-  it('isLanguage 只认六语,且大小写敏感', () => {
+  it('isLanguage accepts only the six languages, case-sensitively', () => {
     expect(isLanguage('fr')).toBe(true)
     expect(isLanguage('ko')).toBe(false)
     expect(isLanguage('FR')).toBe(false)

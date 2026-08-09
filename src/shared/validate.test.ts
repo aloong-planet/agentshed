@@ -118,7 +118,7 @@ describe('validateProjectStats (session metadata)', () => {
   it('refuses an invalid forkState and points at the path — the three states are an enum, not an arbitrary string', () => {
     const bad = {
       ...ok,
-      sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/a.jsonl', questionCount: 3, forkState: '存疑' }]
+      sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/a.jsonl', questionCount: 3, forkState: 'bogus-state' }]
     }
     const r = validateProjectStats(bad)
     expect(r.ok).toBe(false)
@@ -139,7 +139,7 @@ describe('validateProjectStats (session metadata)', () => {
 
   it('refuses an invalid side and a wrongly typed at', () => {
     expect(validateProjectStats({ ...ok, sessions: [{ ...ok.sessions[0], side: 'gemini' }] }).ok).toBe(false)
-    expect(validateProjectStats({ ...ok, sessions: [{ ...ok.sessions[0], at: '昨天' }] }).ok).toBe(false)
+    expect(validateProjectStats({ ...ok, sessions: [{ ...ok.sessions[0], at: 'yesterday' }] }).ok).toBe(false)
   })
 
   it('refuses a sessions that is not an array', () => {
@@ -179,7 +179,7 @@ function okDetail(): Record<string, unknown> {
     ],
     subagents: [
       {
-        name: 'code-reviewer', side: 'codex', level: 'global', description: '审代码',
+        name: 'code-reviewer', side: 'codex', level: 'global', description: 'review code',
         detail: { content: null, description: null, tools: null, model: null, sandbox: null, error: null },
         shadows: false, shadowed: false, overridesBuiltin: false
       }
@@ -254,7 +254,7 @@ describe('validateProjectDetail — refusing, and pointing at the field path', (
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].pkg = { files: '1', bytes: 2 } }))).toContain('skills[0].pkg')
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].origin = 'net' }))).toContain('skills[0].origin')
     expect(errOf(bad((d) => { (d.plugins as Array<Record<string, unknown>>)[0].enabledFrom = 'team' }))).toContain('plugins[0].enabledFrom')
-    expect(errOf(bad((d) => { (d.artifacts as Array<Record<string, unknown>>)[0].type = '随笔' }))).toContain('artifacts[0].type')
+    expect(errOf(bad((d) => { (d.artifacts as Array<Record<string, unknown>>)[0].type = 'essay' }))).toContain('artifacts[0].type')
   })
 
   it('a boolean field written as another type', () => {
@@ -290,7 +290,7 @@ describe('validateSessionPage (the session page payload)', () => {
   const okPage = {
     file: '/Users/x/.claude/projects/-e/a.jsonl',
     side: 'claude',
-    title: '标题',
+    title: 'title',
     at: 1,
     tokens: 10,
     bytes: 2048,
@@ -298,7 +298,7 @@ describe('validateSessionPage (the session page payload)', () => {
     forkPoints: 0,
     forkParentTitle: null,
     forkParentFile: null,
-    questions: [{ i: 1, text: '问一', at: 1, tools: 2, subagents: 0 }]
+    questions: [{ i: 1, text: 'question one', at: 1, tools: 2, subagents: 0 }]
   }
 
   it('admits a valid payload, including the base state with empty questions and a null at', () => {
@@ -310,7 +310,7 @@ describe('validateSessionPage (the session page payload)', () => {
   it('refuses an invalid side or forkState and points at the path', () => {
     const r1 = validateSessionPage({ ...okPage, side: 'gemini' })
     expect(r1.ok === false && r1.failure.path).toContain('side')
-    const r2 = validateSessionPage({ ...okPage, forkState: '存疑' })
+    const r2 = validateSessionPage({ ...okPage, forkState: 'bogus-state' })
     expect(r2.ok === false && r2.failure.path).toContain('forkState')
   })
 
@@ -321,7 +321,7 @@ describe('validateSessionPage (the session page payload)', () => {
   })
 
   it('refuses a non-array questions, an empty file, or a non-numeric count', () => {
-    expect(validateSessionPage({ ...okPage, questions: '不是数组' }).ok).toBe(false)
+    expect(validateSessionPage({ ...okPage, questions: 'not an array' }).ok).toBe(false)
     expect(validateSessionPage({ ...okPage, file: '' }).ok).toBe(false)
     expect(validateSessionPage({ ...okPage, questions: [{ i: 1, text: 't', at: 1, tools: '2', subagents: 0 }] }).ok).toBe(false)
   })
@@ -332,7 +332,7 @@ describe('validateSessionPage (the session page payload)', () => {
       ...okPage,
       side: 'codex',
       forkState: 'stripped',
-      forkParentTitle: '父会话标题',
+      forkParentTitle: 'parent session title',
       forkParentFile: '/Users/x/.codex/sessions/2026/07/30/rollout-x.jsonl'
     }
     expect(validateSessionPage(stripped).ok).toBe(true)
@@ -362,7 +362,7 @@ describe('validateSessionTurn (the single-turn fetch payload, ticket 05)', () =>
   it('refuses a missing bytesRead or a non-array blocks, and points at the path', () => {
     const r1 = validateSessionTurn({ blocks: [] })
     expect(r1.ok === false && r1.failure.path).toContain('bytesRead')
-    const r2 = validateSessionTurn({ blocks: '不是数组', bytesRead: 0 })
+    const r2 = validateSessionTurn({ blocks: 'not an array', bytesRead: 0 })
     expect(r2.ok === false && r2.failure.path).toContain('blocks')
   })
 
@@ -372,7 +372,7 @@ describe('validateSessionTurn (the single-turn fetch payload, ticket 05)', () =>
     expect(r1.ok === false && r1.failure.path).toContain('blocks[0]')
     const bad2 = { blocks: [{ kind: 'text', role: 'assistant', at: null, body: 42 }], bytesRead: 1 }
     expect(validateSessionTurn(bad2).ok).toBe(false)
-    const bad3 = { blocks: [{ kind: 'text', role: 'assistant', at: '昨天', body: 'x' }], bytesRead: 1 }
+    const bad3 = { blocks: [{ kind: 'text', role: 'assistant', at: 'yesterday', body: 'x' }], bytesRead: 1 }
     expect(validateSessionTurn(bad3).ok).toBe(false)
   })
 })
@@ -380,14 +380,14 @@ describe('validateSessionTurn (the single-turn fetch payload, ticket 05)', () =>
 describe('validateSessionTurn — ticket 07\'s rich content blocks', () => {
   const okBlocks = [
     { kind: 'text', role: 'assistant', at: 1, body: 'body' },
-    { kind: 'think', at: 1, body: '想' },
-    { kind: 'reason', at: null, titles: ['小标题'] },
+    { kind: 'think', at: 1, body: 'thinking' },
+    { kind: 'reason', at: null, titles: ['sub-heading'] },
     { kind: 'tool', at: 1, name: 'Bash', summary: 'ls', input: 'ls', output: 'ok', truncated: false },
     { kind: 'tool', at: 1, name: 'Read', summary: 'f', input: 'f', output: null, truncated: true },
     {
-      kind: 'sub', at: 1, name: 'debugger', prompt: '查日志',
-      steps: [{ kind: 'text', label: '看日志' }, { kind: 'tool', label: 'Bash · tail' }],
-      result: '干净', unlinked: false
+      kind: 'sub', at: 1, name: 'debugger', prompt: 'check logs',
+      steps: [{ kind: 'text', label: 'look at logs' }, { kind: 'tool', label: 'Bash · tail' }],
+      result: 'clean', unlinked: false
     },
     { kind: 'unknown', count: 2, types: ['agent_snapshot'] }
   ]
@@ -419,13 +419,13 @@ describe('validateSearchResult (the search payload, ticket 08)', () => {
     groups: [
       {
         file: '/Users/x/.claude/projects/-e/a.jsonl',
-        title: '标题',
+        title: 'title',
         side: 'claude',
         forkState: 'none',
         at: 1,
         hits: [
-          { i: 1, text: '提问命中', at: 1, inBody: false, snippet: null },
-          { i: 1, text: '提问命中', at: null, inBody: true, snippet: '…上下文 magicword 上下文…' }
+          { i: 1, text: 'question hit', at: 1, inBody: false, snippet: null },
+          { i: 1, text: 'question hit', at: null, inBody: true, snippet: '…context magicword context…' }
         ]
       }
     ],
@@ -455,7 +455,7 @@ describe('validateSearchResult (the search payload, ticket 08)', () => {
 
   it('refuses an invalid group-level forkState or an empty file', () => {
     const b1 = JSON.parse(JSON.stringify(ok)) as typeof ok
-    ;(b1.groups[0] as unknown as Record<string, unknown>)['forkState'] = '存疑'
+    ;(b1.groups[0] as unknown as Record<string, unknown>)['forkState'] = 'bogus-state'
     expect(validateSearchResult(b1).ok).toBe(false)
     const b2 = JSON.parse(JSON.stringify(ok)) as typeof ok
     ;(b2.groups[0] as unknown as Record<string, unknown>)['file'] = ''
