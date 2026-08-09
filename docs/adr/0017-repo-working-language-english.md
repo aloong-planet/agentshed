@@ -52,6 +52,11 @@ language).
   the comments is this repository's least replaceable asset
 - Positive: the language boundary becomes decidable ("everything in the repo except the READMEs and
   the i18n dictionaries is English") instead of the current rule, memorised case by case per file type
+- Positive: the boundary is enforced by a gate rather than by vigilance — `scripts/check-lang.mjs` reads
+  `git ls-files` and fails on any Chinese outside an allow-list whose every entry carries an exact line
+  count. It was added after the conversion produced two defect classes no behavioural test could catch:
+  blanket string replacement splattering into neighbouring context (the fixture and its assertion break
+  together, so the tests stay green), and a hand-picked search scope silently excluding whole file types.
 - Negative: **the one-off cost is large** (~5100 lines), and translation quality cannot be verified
   by any automation — the same disease as the six-language product copy: a gate can prove
   "not empty", never "translated correctly"
