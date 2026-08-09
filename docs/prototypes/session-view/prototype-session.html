@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- 原型(UI)· spec docs/specs/session-view.md:会话页(打开某个会话之后)。
+<!-- A UI prototype · spec docs/specs/session-view.md: the session page (after opening a session).
      问题:① 提问作为主索引、单行密排在真实长度(42/24/18 条)下是否真的可扫;
        ② 点提问就地展开整轮(思考/正文/工具折叠/subagent)的层次是否清楚不糊;
        ③ 两侧完整度不对等与不可还原部分的标注是否够显眼(不能假装一致、不能谎称完整);
@@ -56,7 +56,8 @@
   .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
   @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
   .meta{font-size:11px;color:var(--text-2);margin-top:5px;font-variant-numeric:tabular-nums}
-  /* 会话级横幅:分叉归一 / fork 重放剥离 / 剥离存疑——语义强度分三档 */
+  /* Session-level banners: branches resolved / a fork replay stripped / an uncertain strip — three tiers of
+     semantic strength */
   .banner{display:flex;gap:8px;border-radius:8px;padding:8px 12px;font-size:11.5px;
     line-height:1.65;margin-bottom:10px;border:1px solid var(--line)}
   .banner .bi{flex:none}
@@ -66,7 +67,7 @@
   .banner a{color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
   .body{flex:1;overflow:auto;padding:14px 20px 90px}
   .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px;text-transform:uppercase;letter-spacing:.5px}
-  /* 列表头一行:计数 + 全部收起/展开 + 正序倒序 */
+  /* The list header row: the count + collapse/expand all + ascending/descending */
   .qbar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
   .qbar .grp-t{margin:0}
   .qtools{margin-left:auto;display:flex;align-items:center;gap:9px}
@@ -76,7 +77,8 @@
   .seg span{padding:3px 10px;font-size:11px;color:var(--text-2);cursor:pointer}
   .seg span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
   .qlist{background:var(--card);border:1px solid var(--line);border-radius:9px;overflow:hidden}
-  /* 会话跨天时单行索引只有 HH:MM 会失真 → 按日分组,分组行可点折叠 */
+  /* When a session spans days, a single-line index showing only HH:MM distorts → group by day, with the
+     group row clickable to collapse */
   .daygrp{border-top:1px solid var(--line)}
   .daygrp:first-child{border-top:0}
   .dayhd{display:flex;align-items:center;gap:7px;padding:4px 13px;font-size:10.5px;
@@ -85,7 +87,8 @@
   .dayhd .cv::before{content:'▾';font-size:9px}
   .daygrp.fold .dayhd .cv::before{content:'▸'}
   .daygrp.fold .daybody{display:none}
-  /* 提问行 = 主索引:单行密排,序号/文本/本轮体量/时间,一屏可扫二十余条 */
+  /* A question row = the primary index: a dense single line with the number, text, turn volume and time, so
+     twenty-odd fit on one screen */
   .q{display:flex;align-items:center;gap:9px;padding:4px 13px;border-top:1px solid var(--line);
     cursor:pointer;font-variant-numeric:tabular-nums}
   .q:hover{background:var(--accent-soft)}
@@ -94,11 +97,11 @@
   .q .txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .q .c{font-size:10.5px;color:var(--text-2);flex:none}
   .q .tm{font-size:11px;color:var(--text-2);flex:none;width:44px;text-align:right}
-  /* 展开时提问行自己铺开全文(不在下面再复述一遍) */
+  /* On expansion the question row unfolds its own full text (rather than restating it below) */
   .q.open{background:var(--accent-soft);align-items:flex-start;padding-top:8px;padding-bottom:8px}
   .q.open .txt{font-weight:600;white-space:pre-wrap;overflow:visible;line-height:1.65}
   .q.open .cv,.q.open .idx,.q.open .c,.q.open .tm{margin-top:1px}
-  /* 展开态:整轮内容(助手正文 + 工具 + subagent) */
+  /* The expanded state: the whole turn (assistant prose + tools + subagents) */
   .turn{display:none;padding:2px 13px 14px 42px;background:var(--bg);border-top:1px solid var(--line)}
   .turn.on{display:block}
   .ans{line-height:1.8;margin:8px 0}
@@ -125,7 +128,7 @@
   .step:first-of-type{border-top:0}
   .step .sn{width:18px;flex:none;color:var(--text-2);font-family:ui-monospace,Menlo,monospace}
   .rt{padding:2px 0 2px 12px;border-left:2px solid var(--line-strong);margin:3px 0;color:var(--text-2)}
-  /* 不可还原/被截断/加密:一律显式标注,不静默 */
+  /* Unrecoverable / truncated / encrypted: always labelled explicitly, never silently */
   .warn{border:1px dashed #d79a5b;background:#fdf3e3;color:#7a4d1c;border-radius:6px;
     padding:6px 9px;font-size:11px;line-height:1.65;margin:6px 0}
   @media (prefers-color-scheme:dark){.warn{background:#33251a;border-color:#8a5f34;color:#f0bd8c}}
@@ -133,19 +136,20 @@
     border-radius:5px;padding:5px 8px;line-height:1.6}
   .fetched{font-size:10.5px;color:var(--text-2);margin-top:8px}
   .rebuild{font-size:11.5px;color:var(--text-2);padding:12px 0}
-  /* 搜索定位高亮(2026-08-06 提案 v2):进入时播一次黄色背景脉冲吸引视线
+  /* The search locating highlight (proposal v2, 2026-08-06): a yellow background pulse plays once on arrival
+     to draw the eye
      (mark 同族,与 hover 的紫区分),脉冲后**焦点竖条常驻**——左缘 3px accent,
      不动布局、不与 hover/展开的背景撞;点击任意提问行即清除,离开页面自然清 */
   :root{--locate-from:#fff2a8}
   @media (prefers-color-scheme:dark){:root{--locate-from:#4d451a}}
-  /* 高亮驻留 10s(2026-08-06 用户裁定):前 8s 保持,末 2s 渐隐 */
+  /* The highlight holds for 10s (the user's ruling, 2026-08-06): 8s steady, fading over the last 2s */
   @keyframes locate-pulse{0%,80%{background:var(--locate-from)}100%{background:transparent}}
   .q.located{animation:locate-pulse 10s ease-out}
   .q.focused{box-shadow:inset 3px 0 0 var(--accent)}
   .unknown{font-size:11px;color:var(--text-2);border:1px dotted var(--line-strong);
     border-radius:7px;padding:7px 10px;margin:8px 0;line-height:1.7}
   .note{font-size:11px;color:var(--text-2);line-height:1.7;margin:12px 2px 0}
-  /* ── 演示基建(非设计的一部分)── */
+  /* ── The demo harness (not part of the design) ── */
   .harness{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#22252a;
     color:#c9ccd1;border-radius:999px;padding:5px 8px;display:flex;align-items:center;gap:6px;
     font-size:11px;z-index:40;box-shadow:0 6px 20px rgba(0,0,0,.3)}
@@ -193,7 +197,7 @@
     </div>
   </div>
 
-  <!-- 演示基建:mock 状态开关,非设计的一部分,勿实现 -->
+  <!-- The demo harness: mock state switches, not part of the design and not to be implemented -->
   <div class="harness" data-demo-harness>
     <span class="hl">演示·会话数据</span>
     <span class="hb on" data-ds="claude">Claude 主会话</span>
@@ -210,14 +214,15 @@
 
 <script>
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  // 填充轮的压缩写法:[序号, 日, 时间, 提问, 工具数, subagent 数, 一句回答, [[工具名,摘要],…]]
+  // The compact form for filler turns: [index, day, time, question, tool count, subagent count, a one-line
+  // answer, [[tool name, summary], …]]
   const L = (n,d,t,txt,tools,subs,a,tl) => ({n,d,t,txt,tools,subs,a,tl:tl||[]});
 
   const TOOL_READ = {type:'tool',nm:'Read',sum:'electron-builder.yml · 1–120 行',
     input:'{ "file_path": "build/electron-builder.yml", "limit": 120 }',
     output:'appId: com.aloong.transfer\nmac:\n  category: public.app-category.productivity\n  hardenedRuntime: true\n  entitlements: build/entitlements.mac.plist\n  target: [dmg, zip]\n…(共 118 行)'};
 
-  // ── Claude 主会话:42 条提问,跨两天;★ 的轮次构造了完整内容 ──
+  // ── The Claude main session: 42 questions across two days; the ★ turns have full content constructed ──
   const CLAUDE = {
     badge:'c', side:'CC', title:'MAS 上架支持:构建线与独立 bundle id',
     meta:'Claude Code · 42 提问 · 312k tok · 8.4 MB · 最后活动 3 天前',
@@ -257,7 +262,7 @@
          input:'{ "command": "pnpm dist:mas --dir" }',
          output:'• electron-builder  version=25.1.8\n• building        target=mas arch=arm64\n• signing         identity=3rd Party Mac Developer Application\n✔ done in 41.2s'}
        ]},
-      // ★ 03(0 工具,纯文本回答)
+      // ★ 03 (0 tools, a plain text answer)
       {n:'03',d:'7月29日 周三',t:'09:58',tools:0,subs:0,
        txt:'那 bundle id 呢?两个 id 会不会让用户装出两份?',
        turn:[
@@ -272,7 +277,7 @@
       L('06','7月29日 周三','10:41','entitlements 两条线各一份还是共用一份',2,0,
         '各一份。MAS 那份必须有 app-sandbox 与 application-identifier,直分发那份不能有——共用会两边都不对。',
         [['Read','build/entitlements.mac.plist'],['Edit','build/entitlements.mas.plist · +4 −0']]),
-      // ★ 07(多行粘贴 + 被截断的工具结果)
+      // ★ 07 (a multi-line paste plus a truncated tool result)
       {n:'07',d:'7月29日 周三',t:'11:02',tools:6,subs:0,
        txt:'沙箱权限为啥报错?我把 entitlements 里 com.apple.security.network.client 打开了,启动还是连不上本地网关,日志我贴下面:\n\n[gateway] connect ECONNREFUSED 127.0.0.1:8787\n[gateway] retry 1/5 …',
        turn:[
@@ -409,7 +414,7 @@
     ]
   };
 
-  // ── Codex fork 会话:18 条提问 ──
+  // ── A Codex fork session: 18 questions ──
   const CODEX = {
     badge:'x', side:'CX', title:'迁移 Claude Code skills 到 Codex',
     meta:'Codex · 18 提问 · 96k tok · 3.1 MB(其中 54% 为 fork 重放副本)· 最后活动 9 天前',
@@ -482,7 +487,7 @@
     ]
   };
 
-  // ── Codex fork·父会话缺失:24 条提问,跨两天 ──
+  // ── A Codex fork with a missing parent: 24 questions across two days ──
   const ORPHAN = {
     badge:'x', side:'CX', title:'把 openclaw 的网关拆出来单独跑',
     meta:'Codex · 24 提问 · 140k tok · 4.6 MB · 最后活动 10 天前 · 无 thread_name,标题取首条提问',
@@ -556,10 +561,11 @@
       L('24','9月14日 周日','12:15','帮我把这些写进 ops 文档',4,0,
         '写进 docs/ops/gateway-split.md:进程模型、socket 路径、退出回收、签名顺序。',
         [['apply_patch','docs/ops/gateway-split.md · 新建 64 行'],['read_file','docs/ops/README.md']]),
-      // 空轮(2026-08-06 补):问完就走,这一轮没有任何正文回复——
-      // 展开后只出取回脚注,不造占位文案
+      // An empty turn (added 2026-08-06): asked and left, so this turn has no prose reply at all —
+      // expanding shows only the fetch footnote, with no invented placeholder copy
       {...L('25','9月14日 周日','12:30','好,今天收工',0,0,''), turn:[]},
-      // 未知类型留痕示例(2026-08-06,票 07):白名单外的新记录类型不静默丢
+      // An unknown-type trace example (2026-08-06, ticket 07): a new record type outside the allow-list is not
+  // silently dropped
       {...L('26','9月14日 周日','12:41','顺手看下日志里有没有异常',1,0,''),
        turn:[{type:'text',body:'日志干净,没有异常。'},
              {type:'unknown',count:2,types:['agent_snapshot']}]}
@@ -603,14 +609,16 @@
     if(b.type==='text') return `<div class="ans">${b.body}</div>`;
     if(b.type==='tool') return toolHtml(b);
     if(b.type==='sub')  return subHtml(b);
-    // 未知类型留痕(2026-08-06,票 07):显示白名单外的新类型不静默丢——
-    // 留一行可发现的痕迹,类型名点出,内容不渲染(原样留在源文件里)
+    // An unknown-type trace (2026-08-06, ticket 07): a new type outside the display allow-list is not silently
+      // dropped —
+    // it leaves one discoverable line naming the type, with the content unrendered (kept as it is in the
+      // source file)
     if(b.type==='unknown') return `<div class="unknown">▧ 本轮有 <b>${b.count} 条未识别记录</b>
       (类型:${b.types.map(esc).join('、')})——原样保留在源文件中,未渲染。
       这通常意味着 agent 更新引入了新记录类型。</div>`;
     return '';
   }
-  // 填充轮:一句回答 + 工具行(工具体内说明 mock 边界)
+  // A filler turn: a one-line answer plus tool rows (the tool bodies state the mock boundaries)
   function liteTurn(q){
     return [{type:'text',body:q.a}].concat(
       (q.tl||[]).map(([nm,sum])=>({type:'tool',nm,sum,lite:true})),
@@ -644,7 +652,8 @@
       `提问(主干)· ${d.qs.length} 条 · ${days.length} 天`;
     document.getElementById('foldall').textContent=
       foldedDays.size===days.length?'全部展开':'全部收起';
-    // 序号恒为原始轮次号(data-q 也是原始下标),排序只换呈现顺序
+    // The number is always the original turn number (data-q is the original index too), and the sort only
+    // changes the presentation order
     document.getElementById('qlist').innerHTML=days.map(g=>
       `<div class="daygrp${foldedDays.has(g.d)?' fold':''}" data-day="${g.d}">
         <div class="dayhd"><i class="cv"></i>${g.d} · ${g.items.length} 条</div>
@@ -680,10 +689,12 @@
     row.classList.add('open'); row.querySelector('.cv').textContent='▾'; box.classList.add('on');
     openTurns.add(i);
     const key=cur+':'+i;
-    // 已取回的轮:再展开为即时(数据留在内存,收起不丢)
+    // An already-fetched turn: re-expanding is instant (the data stays in memory and collapsing does not lose
+      // it)
     if(loaded.has(key)){ box.innerHTML=turnHtml(DATA[cur].qs[i]); return }
     if(fetchState==='error'){
-      // 单轮失败只自伤:该轮显示错误,不连累其余轮次;不记 loaded,再点即重试
+      // A single turn's failure only hurts itself: that turn shows an error without affecting the others; it is
+      // not marked loaded, so clicking again retries
       box.innerHTML=`<div class="rebuild">取回中…</div>`;
       setTimeout(()=>{ box.innerHTML=
         `<div class="rebuild">这一轮取不回来:会话文件已不可读(被移动或删除?)</div>` },350);
@@ -694,12 +705,14 @@
       setTimeout(()=>{ loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]); },900);
       return;
     }
-    // 索引就绪:首次取回仍有一次真实往返——瞬时「取回中…」再出内容
+    // The index is ready: the first fetch still makes one real round trip — a momentary "fetching…" and then
+      // the content
     box.innerHTML=`<div class="rebuild">取回中…</div>`;
     setTimeout(()=>{ loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]); },350);
   });
 
-  // 正序/倒序:只换呈现顺序,序号与已展开的轮次都不变
+  // Ascending/descending: only the presentation order changes, leaving the numbers and any expanded turns
+    // untouched
   document.getElementById('qorder').addEventListener('click',e=>{
     if(!e.target.dataset.o||e.target.dataset.o===order) return;
     document.querySelectorAll('#qorder span').forEach(s=>s.classList.toggle('on',s===e.target));
@@ -711,7 +724,7 @@
     render(false);
   });
 
-  // 演示基建的开关
+  // The demo harness's switches
   document.querySelector('[data-demo-harness]').addEventListener('click',e=>{
     const b=e.target.closest('.hb'); if(!b) return;
     if(b.dataset.ds){ cur=b.dataset.ds;
@@ -726,7 +739,7 @@
         row.classList.add('located'); row.classList.add('focused') }
     }
   });
-  // 焦点竖条:点击任意提问行即清除(用户已转移注意)
+  // The focus bar: cleared by clicking any question row (the user has moved on)
   document.getElementById('qlist').addEventListener('click',e=>{
     if(e.target.closest('.q')) document.querySelectorAll('.q.focused').forEach(x=>x.classList.remove('focused'));
   },true);
@@ -734,7 +747,8 @@
   render(true);
 </script>
 <script>
-  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
+  // navigates to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;
