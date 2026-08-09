@@ -104,7 +104,7 @@ async function close(l: Launched): Promise<void> {
 function localDayOffset(daysAgo: number): Date {
   const d = new Date()
   d.setDate(d.getDate() - daysAgo)
-  d.setHours(12, 0, 0, 0) // 正午,避开时区把日期推到窗口外
+  d.setHours(12, 0, 0, 0) // Midday, so no time zone pushes the date outside the window
   return d
 }
 
@@ -123,7 +123,7 @@ function mkUsageHome(): string {
 
   // Claude: a whole-tree scan of projects, with directory names unrelated to the registry (an unregistered
 // directory counts toward the global total too)
-  const enc = proj.replace(/[^a-zA-Z0-9]/g, '-') // 与 encodeClaudeProjectDir 同规则
+  const enc = proj.replace(/[^a-zA-Z0-9]/g, '-') // The same rule as encodeClaudeProjectDir
   const cdir = join(home, '.claude', 'projects', enc)
   mkdirSync(cdir, { recursive: true })
   const usage = (model: string, at: Date, inTok: number, outTok: number): string =>
@@ -1234,7 +1234,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(win.locator('.drawer .kv')).toContainText('Read, Grep')
   await win.locator('.drawer .sideseg button', { hasText: 'Codex' }).click()
   await expect(win.locator('.drawer .kv')).toContainText('sandbox_mode')
-  await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // 抽屉盖住窗口中心,点左侧可见 mask 区
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // The drawer covers the window centre, so click the visible mask on the left
 
   // (2) Global Plugins: F3's first half — not enabled at the user layer; expanding gives category tabs,
   // with Skills by default and Hooks visible on switching
@@ -1253,7 +1253,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await memRow.click()
   await win.locator('.sub-list .it.row-btn', { hasText: 'pitfalls.md' }).click()
   await expect(win.locator('.drawer .raw')).toContainText('Unique content B')
-  await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // 抽屉盖住窗口中心,点左侧可见 mask 区
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // The drawer covers the window centre, so click the visible mask on the left
 
   // (4) The demo detail page: F3's second half — enabled at the project layer; the Skills tab contains the
   // plugin namespace entry (read-only)
@@ -1266,7 +1266,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   const nsSkill = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
   await expect(nsSkill).toBeVisible()
-  await expect(nsSkill.locator('.ins')).toHaveCount(0) // G3:插件条目无装卸按钮
+  await expect(nsSkill.locator('.ins')).toHaveCount(0) // G3: a plugin entry has no install or uninstall button
   // A4/ADR-0012: a namespace row expands and previews on equal footing with an on-disk one
   await nsSkill.locator('.sk-head').click()
   await expect(nsSkill.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
@@ -1379,7 +1379,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(tdd.locator('.sk-meta')).toContainText('2 files')
   await tdd.locator('.sk-head').click()
   await expect(tdd.locator('.files-card')).toBeVisible()
-  await expect(tdd.locator('.files-sum')).toHaveCount(0) // 汇总条已上行,展开区不再重复
+  await expect(tdd.locator('.files-sum')).toHaveCount(0) // The summary moved onto the row, so the expanded area no longer repeats it
   await tdd.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.skill-drawer .md-fm')).toContainText('Red before green')
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Global body A')
@@ -1408,7 +1408,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await plug.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.skill-drawer .md-fm')).toContainText('Ask before acting')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
-  await plug.locator('.sk-head').click() // 收起,不干扰后续定位
+  await plug.locator('.sk-head').click() // Collapse, so it does not interfere with later locators
 
   // (3) Detail Skills: a same-name pair lists only the project level with no second global row; names
   //     present only globally are still listed; project-level rows preview
@@ -1517,7 +1517,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Plugin body A')
   await expect(win.locator('.skill-drawer .d-meta')).toContainText('Plugin package')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
-  await spRow.click() // 收起,后续 .files 定位不被本行的表抢占
+  await spRow.click() // Collapse, so a later .files locator is not taken by this row's table
 
   // (2) A disabled plugin's skill is still readable (H4/ADR-0012)
   await win.locator('.it.row-btn', { hasText: 'content-tools@local' }).click()
@@ -1526,7 +1526,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   await win.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Readable while disabled B')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
-  await win.locator('.it.row-btn', { hasText: 'content-tools@local' }).click() // 收起
+  await win.locator('.it.row-btn', { hasText: 'content-tools@local' }).click() // Collapse
 
   // (3) A wholly missing package (E6): expanding gives the missing banner and no category tabs
   await win.locator('.it.row-btn', { hasText: 'ghost@legacy' }).click()
@@ -1589,7 +1589,7 @@ test('automatic refresh: a new session appears without a manual refresh, and the
       // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
 // the tests
       AGENTSHED_SYSTEM_LANGUAGES: 'en-US',
-      AGENTSHED_RESCAN_MS: '1500' // E5 测试 seam:兜底间隔缩短驱动全链路
+      AGENTSHED_RESCAN_MS: '1500' // The E5 test seam: a shortened backstop interval drives the whole chain
     }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
@@ -1861,8 +1861,10 @@ test('settings: the three appearance choices change data-scheme, and entering an
  * explicitly selects a mode before every assertion,
  * so it is unaffected by the development machine's system appearance.
  *
- * 撤销模拟用 `null`(本版 Playwright 类型里表达"重置为系统默认"的那个值);
- * Docs另提的 `'no-override'` 运行期同样有效,但不在本版类型联合内,typecheck 会红。
+ * `null` removes the emulation (the value that expresses "reset to the system default" in this version's
+ * Playwright types);
+ * the `'no-override'` the docs also mention works at runtime but is not in this version's type union, so
+ * typecheck would go red.
  */
 async function launchAppearance(home: string): Promise<Launched> {
   const userData = makeUserData()
@@ -1887,12 +1889,13 @@ async function launchAppearance(home: string): Promise<Launched> {
   return { app, errors, userData, home }
 }
 
-/** 界面此刻的生效明暗:themeSource 改变会直接改变这个媒体查询的求值结果 */
+/** The UI's effective light/dark right now: a themeSource change directly changes how this media query
+ * evaluates */
 async function effectiveDark(win: Awaited<ReturnType<ElectronApplication['firstWindow']>>): Promise<boolean> {
   return win.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)
 }
 
-/** 各配色卡的**纸面取样**(第一格 = --card),按 CSS 计算值读回 */
+/** Each scheme card's **paper sample** (the first swatch = --card), read back from the computed CSS */
 async function paperSwatches(
   win: Awaited<ReturnType<ElectronApplication['firstWindow']>>
 ): Promise<string[]> {
@@ -1904,7 +1907,8 @@ async function paperSwatches(
   )
 }
 
-/** rgb(...) → 相对亮度粗算(0=黑 1=白);只用来分辨"浅色取样"与"深色取样" */
+/** rgb(...) → a rough relative luminance (0=black, 1=white); used only to tell a light sample from a dark
+ * one */
 function luminance(rgb: string): number {
   const m = rgb.match(/\d+/g)
   if (!m || m.length < 3) return NaN
@@ -1918,20 +1922,22 @@ test('appearance: one card with two rows (mode + colour scheme); the scheme card
   await win.waitForSelector('.rail')
   await win.getByTitle('Settings').click()
 
-  // 一张卡两行:上行模式、下行配色
+  // One card with two rows: mode on top, colour scheme below
   const field = win.getByTestId('appearance-field')
   await expect(field.locator('.frow')).toHaveCount(2)
   const rows = field.locator('.frow')
   await expect(rows.nth(0).getByTestId('mode-seg').locator('button')).toHaveCount(3)
   await expect(rows.nth(1).locator('[data-scheme-option]')).toHaveCount(3)
 
-  // 配色卡**不含整句描述**:整卡可见文本恰好等于方案名。
-  // 用 toHaveText 全等而不是"不含某句"——后者只能否掉我想得到的那一句
+  // The scheme cards **carry no full-sentence description**: a card's visible text equals the scheme name
+  // exactly.
+  // toHaveText for exact equality rather than "does not contain some sentence" — the latter can only rule
+  // out the one sentence I happened to think of
   await expect(win.locator('[data-scheme-option="purple"]')).toHaveText('Purple')
   await expect(win.locator('[data-scheme-option="blue"]')).toHaveText('Mist Blue')
   await expect(win.locator('[data-scheme-option="amber"]')).toHaveText('Amber Brown')
 
-  // 「默认为紫」移入段末说明
+  // "Purple is the default" moved into the closing explanation
   await expect(win.getByTestId('appearance-foot')).toContainText('Purple')
 
   expect(l.errors).toEqual([])
@@ -1944,28 +1950,32 @@ test('appearance mode: locking light or dark changes the effective light/dark, a
   await win.waitForSelector('.rail')
   await win.getByTitle('Settings').click()
 
-  // 默认「跟随系统」被选中
+  // "Follow system" is selected by default
   await expect(win.locator('[data-mode-option="system"]')).toHaveAttribute('aria-checked', 'true')
 
-  // 锁定深色 → 生效明暗为深
+  // Locking dark → the effective light/dark is dark
   await win.locator('[data-mode-option="dark"]').click()
   await expect.poll(async () => effectiveDark(win)).toBe(true)
   await expect(win.locator('[data-mode-option="dark"]')).toHaveAttribute('aria-checked', 'true')
   const dark = await paperSwatches(win)
 
-  // 锁定浅色 → 生效明暗为浅
+  // Locking light → the effective light/dark is light
   await win.locator('[data-mode-option="light"]').click()
   await expect.poll(async () => effectiveDark(win)).toBe(false)
   const light = await paperSwatches(win)
 
-  // 先钉集合非空:下面两个 for 若遍历空数组,循环体一次都不执行,
-  // 断言全部落空却照样绿——两条都要守,只守一条等于另一条可以凭空通过
+  // Pin down that the set is non-empty first: if the two loops below iterated an empty array, their bodies
+  // would never run,
+  // every assertion would fall through and it would still be green — both have to be guarded, or one of
+  // them passes for free
   expect(dark).toHaveLength(3)
   expect(light).toHaveLength(3)
 
-  // 取样随生效明暗切换:深色态的纸面取样必须是深的,不能仍显示浅色那套。
-  // 断言只针对**纸面取样**(第一格),不是"深色下没有任何接近纯白的格子"——
-  // 第四格取的是 --text,深色下本就该接近纯白,那不是 bug
+  // The samples follow the effective light/dark: in dark mode the paper sample must be dark rather than
+  // still showing the light set.
+  // The assertion targets the **paper sample** (the first swatch) only, not "no swatch is near-white in
+  // dark mode" —
+  // the fourth swatch takes --text, which should be near-white in dark mode, and that is not a bug
   for (const c of dark) expect(luminance(c)).toBeLessThan(0.3)
   for (const c of light) expect(luminance(c)).toBeGreaterThan(0.9)
   expect(dark).not.toEqual(light)
@@ -1997,9 +2007,9 @@ test('appearance: all six combinations of 3 colour schemes × 2 effective light/
           bodyFg: body.color
         }
       })
-      // 关键主题变量有值
+      // The key theme variables have values
       for (const v of [vars.bg, vars.text, vars.accent]) expect(v).not.toBe('')
-      // 前景与背景可区分(否则这一组合下界面是"看不见的字")
+      // The foreground and background are distinguishable (otherwise this combination gives invisible text)
       expect(Math.abs(luminance(vars.bodyBg) - luminance(vars.bodyFg))).toBeGreaterThan(0.3)
     }
   }
@@ -2009,11 +2019,13 @@ test('appearance: all six combinations of 3 colour schemes × 2 effective light/
 })
 
 /**
- * 界面语言(i18n 票 03)。
+ * UI language (i18n ticket 03).
  *
- * 系统偏好语言经 AGENTSHED_SYSTEM_LANGUAGES 注入(见 src/main/system-language.ts)——
- * 「跟随系统」的行为依赖系统语言,而系统语言在测试里改不了,没有这个口子就只能
- * 靠人反复改系统设置来验证。
+ * The system's preferred languages are injected through AGENTSHED_SYSTEM_LANGUAGES (see
+ * src/main/system-language.ts) —
+ * "follow system" behaviour depends on the system language, which cannot be changed in tests, and without
+ * this hatch the only way
+ * to verify it would be a human repeatedly changing system settings.
  */
 async function launchWithLangs(sysLangs: string): Promise<Launched> {
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
@@ -2039,12 +2051,13 @@ async function launchWithLangs(sysLangs: string): Promise<Launched> {
 }
 
 test('UI language: following the system resolves against the whole list, and applies on the first frame', async () => {
-  // [ko, fr, en]:韩语不受支持,应继续往后取到法语——而不是首项不中就回退英文。
-  // 单元素列表分不出这两种实现,故这里必须用多元素。
+  // [ko, fr, en]: Korean is unsupported, so it should carry on to French — not fall back to English because
+  // the first entry missed.
+  // A single-element list cannot tell the two implementations apart, so this has to use several.
   const l = await launchWithLangs('ko-KR,fr-FR,en-US')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
-  // 默认偏好是「跟随系统」,故界面应为法语
+  // The default preference is "follow system", so the UI should be French
   await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Réglages')
   expect(await win.evaluate(() => document.documentElement.lang)).toBe('fr')
   await l.app.close()
@@ -2066,14 +2079,14 @@ test('the language selector: seven items including follow-system and the divider
   await win.waitForSelector('.rail')
   await win.locator('.ri.set').click()
 
-  // 语言分节在外观之前:断 DOM 顺序,不靠肉眼看截图
+  // The language section comes before appearance: assert the DOM order rather than eyeballing a screenshot
   // This case deliberately launches with a Chinese system language, so the section
   // titles it asserts on are the Chinese UI copy — not an untranslated leftover.
   const secs = win.locator('.settings-sec-t')
   await expect(secs.first()).toHaveText('语言')
   await expect(secs.nth(1)).toHaveText('外观')
 
-  // 触发器显示「跟随系统」+ 当前解析结果
+  // The trigger shows "follow system" plus the current resolution
   const trig = win.getByTestId('language-trigger')
   await expect(trig).toContainText('跟随系统')
   await expect(trig).toContainText('简体中文')
@@ -2082,11 +2095,12 @@ test('the language selector: seven items including follow-system and the divider
   const pop = win.getByTestId('language-pop')
   await expect(pop.locator('.lang-opt')).toHaveCount(7)
   await expect(pop.locator('.lang-sep')).toHaveCount(1)
-  // 首项是策略且显示解析出的语言;它不是「一种语言」
+  // The first item is a policy showing the resolved language; it is not "a language"
   await expect(pop.locator('.lang-opt').first()).toContainText('跟随系统')
   await expect(pop.locator('.lang-opt').first()).toContainText('简体中文')
 
-  // 浮层不被设置页 overflow:auto 裁掉:四角与中心命中测试,属性存在不算数
+  // The overlay is not clipped by the settings page's overflow:auto: hit tests at all four corners and the
+  // centre, since an attribute existing does not count
   const visible = await win.evaluate(() => {
     const pop = document.querySelector('[data-testid="language-pop"]') as HTMLElement
     const r = pop.getBoundingClientRect()
@@ -2101,7 +2115,7 @@ test('the language selector: seven items including follow-system and the divider
   })
   expect(visible).toBe(true)
 
-  // 切到日语:整页即时改语言,含侧边栏悬停提示
+  // Switch to Japanese: the whole page changes language immediately, sidebar tooltips included
   await pop.locator('[data-lang="ja"]').click()
   await expect(win.locator('.settings-h1')).toHaveText('設定')
   await expect(win.locator('.ri.set')).toHaveAttribute('title', '設定')
@@ -2118,31 +2132,35 @@ test('the language selector by keyboard: opening leaves the highlight on the cur
   await win.waitForSelector('.rail')
   await win.locator('.ri.set').click()
 
-  // **先切到非首项**再验证高亮位置:若当前选中就是第 0 项,
-  // 「高亮停在选中项」与「高亮没被设置」的结果都是 0,断言分不出对错
+  // **Switch to a non-first item first**, then verify where the highlight sits: if the current selection
+  // were item 0,
+  // "the highlight stays on the selection" and "the highlight was never set" would both give 0, and the
+  // assertion could not tell them apart
   const trig = win.getByTestId('language-trigger')
   await trig.click()
   await win.getByTestId('language-pop').locator('[data-lang="ru"]').click()
   await expect(win.locator('.settings-h1')).toHaveText('Настройки')
 
-  // 鼠标移开再测键盘:上一步是用鼠标点选的,指针还停在浮层原位置上,
-  // 浮层再次展开时会落在某一项上触发 hover 高亮,把键盘游标顶掉——
-  // 那是符合预期的鼠标行为,但会让这条键盘断言测到错误的对象
+  // Move the mouse away before testing the keyboard: the previous step selected with the mouse and the
+  // pointer is still where the overlay was,
+  // so reopening the overlay would land on an item, trigger a hover highlight and displace the keyboard
+  // cursor —
+  // which is correct mouse behaviour but would make this keyboard assertion test the wrong thing
   await win.mouse.move(0, 0)
   await trig.focus()
   await win.keyboard.press('ArrowDown')
   const pop = win.getByTestId('language-pop')
   await expect(pop).toBeVisible()
-  // 俄语在 OPTIONS 中的下标是 5(system + zh en fr es ru)
+  // Russian's index in OPTIONS is 5 (system + zh en fr es ru)
   await expect(pop.locator('.lang-opt.cursor')).toHaveAttribute('data-lang', 'ru')
 
-  // ↑ 一格到西语,回车选定
+  // ↑ one step to Spanish, then Enter to select
   await win.keyboard.press('ArrowUp')
   await expect(pop.locator('.lang-opt.cursor')).toHaveAttribute('data-lang', 'es')
   await win.keyboard.press('Enter')
   await expect(win.locator('.settings-h1')).toHaveText('Ajustes')
 
-  // Esc 关闭且不改语言
+  // Esc closes without changing the language
   await trig.click()
   await win.keyboard.press('Escape')
   await expect(win.getByTestId('language-pop')).toHaveCount(0)
@@ -2153,14 +2171,19 @@ test('the language selector by keyboard: opening leaves the highlight on the cur
   rmSync(l.userData, { recursive: true, force: true })
 })
 
-// ── i18n 专项(票 14)────────────────────────────────────────────────
-// 与既有用例的分工:既有 e2e 把语言钉为中文、守的是**行为**;这几条守的是
-// **i18n 本身**——切换生效、六语可加载、最长语言不撑破布局。
+// ── Dedicated i18n cases (ticket 14) ─────────────────────────────────
+// The division of labour with the existing cases: the existing e2e pins the language and guards
+// **behaviour**; these guard
+// **i18n itself** — a switch taking effect, all six languages loading, and the longest language not
+// bursting the layout.
 
 test('i18n: the language-locking mechanism itself is reliable, unaffected by the development machine\'s system language', async () => {
-  // 这条守的是**其余 40 条 e2e 的前提**:它们按中文文案定位,而语言默认跟随系统。
-  // 若钉定失效,整套用例会在非中文机器上崩塌——而在中文机器上照绿,看不出来。
-  // 故用两种**互不相同且都不是中文**的注入系统语言跑同一断言,结果必须一致。
+  // This guards **the premise of the other 40 e2e cases**: they locate by UI copy, while the language
+  // follows the system by default.
+  // If the pinning broke, the whole suite would collapse on a machine with a different system language —
+  // while staying green on a matching one, invisibly.
+  // So the same assertion runs under two injected system languages that **differ from each other and from
+  // the pinned one**, and the results must agree.
   for (const sys of ['ko-KR,fr-FR', 'ja-JP,en-US']) {
     const l = await launch(undefined, mkEmptyProjectHome())
     const win = await l.app.firstWindow()
@@ -2174,8 +2197,10 @@ test('i18n: the language-locking mechanism itself is reliable, unaffected by the
 })
 
 test('i18n: all six languages load, with the key nodes non-empty', async () => {
-  // 与 typecheck 不重叠:typecheck 保证 key 齐全,这里保证**运行期真的取得到值**——
-  // 例如某语言字典整个 import 失败时,key 齐全而运行期取到 undefined
+  // Not overlapping with typecheck: typecheck guarantees the keys are complete, and this guarantees **a
+  // value really is obtained at runtime** —
+  // for instance, if one language's dictionary failed to import entirely, the keys would be complete while
+  // runtime read undefined
   const l = await launchWithLangs('zh-Hans-CN')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -2184,7 +2209,7 @@ test('i18n: all six languages load, with the key nodes non-empty', async () => {
   for (const code of ['en', 'fr', 'es', 'ru', 'ja', 'zh']) {
     await trig.click()
     await win.getByTestId('language-pop').locator(`[data-lang="${code}"]`).click()
-    // 关键节点:页标题、侧栏提示、设置页两处分节标题
+    // The key nodes: the page title, the sidebar tooltips, and the settings page's two section titles
     await expect(win.locator('.settings-h1')).not.toBeEmpty()
     await expect(win.locator('.ri.set')).not.toHaveAttribute('title', '')
     const secs = win.locator('.settings-sec-t')
@@ -2209,7 +2234,8 @@ test('i18n: switching languages applies immediately, changing several areas at o
   }
   await win.getByTestId('language-trigger').click()
   await win.getByTestId('language-pop').locator('[data-lang="fr"]').click()
-  // **三个分区一起断**:只断一处分不出"整页换了语言"与"只有这一处接了字典"
+  // **Assert three areas together**: asserting one cannot distinguish "the whole page changed language" from
+  // "only this one place is wired to the dictionaries"
   await expect(win.locator('.settings-h1')).not.toHaveText(before.title ?? '')
   await expect(win.locator('.ri.set')).not.toHaveAttribute('title', before.rail ?? '')
   await expect(win.locator('.settings-sec-t').first()).not.toHaveText(before.sec ?? '')
@@ -2219,8 +2245,9 @@ test('i18n: switching languages applies immediately, changing several areas at o
 })
 
 test('i18n: key layouts do not overflow horizontally in the longest language (both French/Russian prose and Japanese labels are checked)', async () => {
-  // 票里点名要覆盖**两类**:正文最长的是法/俄,标签最长的是日语(全角)。
-  // 只测一类会漏——它们撑破的是不同的容器。
+  // The ticket names **two classes** to cover: French and Russian are longest for prose, and Japanese is
+  // longest for labels (full-width).
+  // Testing one class would miss the other — they burst different containers.
   const l = await launchWithLangs('zh-Hans-CN')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -2231,9 +2258,9 @@ test('i18n: key layouts do not overflow horizontally in the longest language (bo
     await expect(win.locator('.settings-h1')).not.toBeEmpty()
     const overflow = await win.evaluate(() => {
       const doc = document.documentElement
-      // 页面本身不得横向滚动
+      // The page itself must not scroll horizontally
       const pageOverflows = doc.scrollWidth > doc.clientWidth
-      // 设置页内的定宽容器不得被内容撑破
+      // The settings page's fixed-width containers must not be burst by their content
       const boxes = [...document.querySelectorAll('.settings, .field, .settings-foot')]
       const boxOverflows = boxes.filter((b) => b.scrollWidth > b.clientWidth + 1).length
       return { pageOverflows, boxOverflows }
