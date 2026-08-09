@@ -1,4 +1,4 @@
-/* 共享块 md-preview:Markdown 原文/预览切换 + 有色预览排版。
+/* The shared md-preview block: a markdown raw/preview toggle plus coloured preview typography.
    挂载点声明 data-shared-block="md-preview"。 */
 .md-preview {
   --md-h1: #6b4f92;
@@ -102,7 +102,7 @@
   color: var(--text, #37352f);
   background: var(--card, #fff);
 }
-/* YAML frontmatter:键值分行,字号更小,与正文区分 */
+/* YAML frontmatter: keys and values on separate lines, in a smaller size to distinguish them from the body */
 .md-preview-body.preview .md-fm {
   margin: 0 0 1em;
   padding: 8px 10px;
@@ -279,7 +279,8 @@
     background: linear-gradient(180deg, #24262a 0%, var(--card, #1f2124) 100%);
   }
   .md-preview-body.raw { background: #1a1b1e; }
-  /* 有页面 token(--bg/--line)的原型跟页面昼夜(data-mode)走;无 token 的独立页保持
+  /* Prototypes that have page tokens (--bg/--line) follow the page's light/dark (data-mode); a standalone
+     page without tokens keeps
      OS 深色兜底。写死字面量会让「强制浅」下 frontmatter 仍是深底(2026-08-06 bug)。 */
   .md-preview-body.preview .md-fm {
     background: var(--bg, #1a1b1e);

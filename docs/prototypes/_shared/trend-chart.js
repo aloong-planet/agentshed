@@ -1,6 +1,8 @@
-// 共享:provider 堆叠趋势图渲染器(被多个原型页引用,改此一处全部生效)。
-// file:// 下 ES module import 受 CORS 限制,故挂 window 而非 export(同 logic-page 模板规矩)。
-// 对应真 app 的 TrendChart 组件;裁定见 ADR-0008。
+// Shared: the provider-stacked trend chart renderer (referenced by several prototype pages, so changing it
+// here changes all of them).
+// Under file:// an ES module import is blocked by CORS, so it hangs off window rather than exporting (the
+// same rule as the logic-page template).
+// It corresponds to the real app's TrendChart component; the ruling is in ADR-0008.
 ;(function () {
   const PROVIDERS = ['Anthropic', 'OpenAI', 'Google', '其他']
   const CLS = { Anthropic: 'anthropic', OpenAI: 'openai', Google: 'google', 其他: 'other' }
@@ -9,7 +11,8 @@
     return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n)
   }
 
-  /** 生成 30 天 mock;opts.scale 控制量级,opts.withGoogle 演示某 agent 混用别家模型 */
+  /** Generate 30 days of mock data; opts.scale controls the magnitude and opts.withGoogle demonstrates an
+   * agent mixing in another vendor's models */
   function mockDays(seed, opts) {
     const o = opts || {}
     const rnd = ((s) => () => (s = (s * 9301 + 49297) % 233280) / 233280)(seed)
@@ -24,13 +27,16 @@
     })
   }
 
-  // ── x 轴:只标数据日(当前视图下 total>0 的日子),无等距补白 ──
-  // 首个可见标签、以及月份变化后的首个可见标签用 M/D,其余只标日数字;
-  // 放不下时同优先级从右往左隔一简略;标签钉真实柱中心(量 DOM,轴柱天然对齐),首尾出界 clamp。
+  // ── The x axis: data days only (days with total > 0 under the current view), with no evenly spaced
+  // filler ──
+  // The first visible label, and the first visible label after a month change, use M/D; the rest show the
+  // day number alone;
+  // when space runs out, thin every other one from right to left at equal priority; labels are pinned to
+  // real bar centres (measured from the DOM, so the axis and bars align naturally) and clamped at the ends.
   let measureCtx = null
   function measurerOf(axisEl) {
     if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d')
-    // 字体取自轴容器计算样式,与 CSS 单一事实
+    // The font comes from the axis container's computed style, a single source of truth with the CSS
     const cs = getComputedStyle(axisEl)
     measureCtx.font = `${cs.fontSize} ${cs.fontFamily}`
     return (t) => measureCtx.measureText(t).width
@@ -42,13 +48,15 @@
     if (!W || cols.length !== rows.length) return
     const MINGAP = 4
     const measureText = measurerOf(axisEl)
-    // 柱中心用 getBoundingClientRect 相对轴容器换算——不依赖 offsetParent(柱的定位祖先并非 chart)
+    // Bar centres are converted from getBoundingClientRect relative to the axis container — not relying on
+    // offsetParent (a bar's positioned ancestor is not the chart)
     const axisLeft = axisEl.getBoundingClientRect().left
     const act = []
     rows.forEach((r, i) => {
       if (r.total > 0) act.push({ i, mon: r.d.mon, dom: r.d.dom })
     })
-    // 文本依赖"上一个可见标签的月份",简略又会改变文本 → 循环到稳定(只删不增,必收敛)
+    // The text depends on "the previous visible label's month" and thinning changes the text → iterate to a
+    // fixed point (it only removes, never adds, so it must converge)
     for (let pass = 0; pass < 6; pass++) {
       let prevMon = null
       for (const c of act) {
@@ -86,9 +94,9 @@
   }
 
   /**
-   * 渲染一处趋势图。
-   * @param {{chart:string, xaxis:string, legend:string, seg:string}} ids 各 DOM 容器 id
-   * @param {Array} days mockDays 的产物
+   * Render one trend chart.
+   * @param {{chart:string, xaxis:string, legend:string, seg:string}} ids The DOM container ids
+   * @param {Array} days What mockDays produced
    */
   function mount(ids, days) {
     let mode = '合计'
@@ -132,7 +140,7 @@
       }
     }
 
-    // 宽度变化只重排轴(柱子 flex 自适应,无需重画)
+    // A width change re-lays out only the axis (the bars flex on their own and need no redraw)
     if (ids.xaxis && typeof ResizeObserver !== 'undefined') {
       new ResizeObserver(() => {
         if (lastRows) renderAxis($(ids.xaxis), $(ids.chart), lastRows)
