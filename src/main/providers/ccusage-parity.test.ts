@@ -2,7 +2,7 @@
 // baseline):
 //   npx ccusage@latest daily --by-agent --json > /tmp/ccusage-until29.json
 // Note: ccusage 20.x is a multi-agent aggregator (claude/codex/gemini/openclaw),
-// 必须取 agents[] 里 agent==='claude' 的分解,否则会把别的 CLI 用量算进基准。
+// The agent==='claude' breakdown inside agents[] must be used, or another CLI's usage lands in the baseline.
 //   PARITY=1 pnpm vitest run scripts/ccusage-parity.test.ts
 import { readFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
@@ -12,8 +12,8 @@ import { TokenEngine } from './token-stats'
 
 const run = process.env['PARITY'] === '1'
 
-describe.skipIf(!run)('ccusage 对账', () => {
-  it('逐日与总量一致', async () => {
+describe.skipIf(!run)('ccusage reconciliation', () => {
+  it('day-by-day and totals agree', async () => {
     const ref = JSON.parse(readFileSync('/tmp/ccusage-until29.json', 'utf8'))
     const home = homedir()
     const roots = {
@@ -36,7 +36,7 @@ describe.skipIf(!run)('ccusage 对账', () => {
         (cl.inputTokens ?? 0) + (cl.outputTokens ?? 0) + (cl.cacheReadTokens ?? 0) + (cl.cacheCreationTokens ?? 0)
       theirs.set(row.period, total)
     }
-    const days = [...theirs.keys()].sort() // 只比对基准覆盖的日期(排除采样后新增的今天)
+    const days = [...theirs.keys()].sort() // Compare only the days the baseline covers (excluding today, added after sampling)
     const diffs: string[] = []
     for (const day of days) {
       const a = mine.get(day) ?? 0
@@ -44,12 +44,12 @@ describe.skipIf(!run)('ccusage 对账', () => {
       if (a !== b) diffs.push(`${day} ours=${a} ccusage=${b} diff=${a - b}`)
     }
     const refTotal = [...theirs.values()].reduce((a, b) => a + b, 0)
-    console.log(`总量: ours=${r.global.bySide.claude.total} ccusage(claude)=${refTotal} diff=${r.global.bySide.claude.total - refTotal}`)
-    console.log(`天数: ours=${mine.size} ccusage=${theirs.size};不一致 ${diffs.length}/${days.length}`)
+    console.log(`total: ours=${r.global.bySide.claude.total} ccusage(claude)=${refTotal} diff=${r.global.bySide.claude.total - refTotal}`)
+    console.log(`days: ours=${mine.size} ccusage=${theirs.size}; mismatched ${diffs.length}/${days.length}`)
     for (const d of diffs.slice(0, 20)) console.log(d)
     expect(diffs).toEqual([])
 
-    // Codex 侧同口径对账
+    // The same reconciliation on the Codex side
     const cxMine = new Map(r.global.byDay.map((d) => [d.day, d.codex]))
     const cxTheirs = new Map<string, number>()
     for (const row of ref.daily as any[]) {
@@ -66,7 +66,7 @@ describe.skipIf(!run)('ccusage 对账', () => {
       const b = cxTheirs.get(day) ?? 0
       if (a !== b) cxDiffs.push(`${day} ours=${a} ccusage=${b} diff=${a - b}`)
     }
-    console.log(`Codex: ours天数=${[...cxMine].filter(([, v]) => v > 0).length} ccusage天数=${cxTheirs.size};不一致 ${cxDiffs.length}/${cxTheirs.size}`)
+    console.log(`Codex: ours days=${[...cxMine].filter(([, v]) => v > 0).length} ccusage days=${cxTheirs.size}; mismatched ${cxDiffs.length}/${cxTheirs.size}`)
     for (const d of cxDiffs.slice(0, 15)) console.log(d)
     expect(cxDiffs).toEqual([])
   }, 600_000)

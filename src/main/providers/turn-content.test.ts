@@ -59,8 +59,8 @@ const cU = (content: unknown[], extra: Record<string, unknown> = {}): unknown =>
 
 describe('Claude prose and thinking (ticket 05 behaviour preserved + the think block)', () => {
   test('a text segment yields a prose block; several text segments on one line merge into one; whitespace yields nothing', () => {
-    expect(blocks('claude', [cA([{ type: 'text', text: '答一' }])])).toEqual([
-      { kind: 'text', role: 'assistant', at: AT, body: '答一' }
+    expect(blocks('claude', [cA([{ type: 'text', text: 'answer one' }])])).toEqual([
+      { kind: 'text', role: 'assistant', at: AT, body: 'answer one' }
     ])
     expect(blocks('claude', [cA([{ type: 'text', text: 'A' }, { type: 'text', text: 'B' }])])).toEqual([
       { kind: 'text', role: 'assistant', at: AT, body: 'A\nB' }
@@ -71,13 +71,13 @@ describe('Claude prose and thinking (ticket 05 behaviour preserved + the think b
   test('a thinking segment yields a think block, with the within-line order thinking → prose → tools', () => {
     const bs = blocks('claude', [
       cA([
-        { type: 'thinking', thinking: '想一想' },
-        { type: 'text', text: '答案' },
+        { type: 'thinking', thinking: 'thinking it over' },
+        { type: 'text', text: 'the answer' },
         { type: 'tool_use', id: 'tu1', name: 'Bash', input: { command: 'ls' } }
       ])
     ])
     expect(bs.map((b) => b.kind)).toEqual(['think', 'text', 'tool'])
-    expect(bs[0]).toEqual({ kind: 'think', at: AT, body: '想一想' })
+    expect(bs[0]).toEqual({ kind: 'think', at: AT, body: 'thinking it over' })
   })
 })
 
@@ -85,7 +85,7 @@ describe('Claude tool blocks (tool_use ↔ tool_result paired by id)', () => {
   test('pairs the arguments with the return; a one-line summary; an output never fed back is null', () => {
     const bs = blocks('claude', [
       cA([{ type: 'tool_use', id: 'tu1', name: 'Bash', input: { command: 'ls -la' } }]),
-      cU([{ type: 'tool_result', tool_use_id: 'tu1', content: '共 3 个文件' }]),
+      cU([{ type: 'tool_result', tool_use_id: 'tu1', content: '3 files in total' }]),
       cA([{ type: 'tool_use', id: 'tu2', name: 'Read', input: { file_path: '/a.ts' } }])
     ])
     expect(bs).toHaveLength(2)
@@ -94,7 +94,7 @@ describe('Claude tool blocks (tool_use ↔ tool_result paired by id)', () => {
     expect(t1.name).toBe('Bash')
     expect(t1.summary).toContain('ls -la')
     expect(t1.input).toContain('ls -la')
-    expect(t1.output).toBe('共 3 个文件')
+    expect(t1.output).toBe('3 files in total')
     expect(t1.truncated).toBe(false)
     expect(t2.output).toBeNull()
   })
@@ -102,9 +102,9 @@ describe('Claude tool blocks (tool_use ↔ tool_result paired by id)', () => {
   test('when tool_result content is an array of segments, the text segments are joined', () => {
     const bs = blocks('claude', [
       cA([{ type: 'tool_use', id: 'tu1', name: 'Grep', input: { pattern: 'x' } }]),
-      cU([{ type: 'tool_result', tool_use_id: 'tu1', content: [{ type: 'text', text: '命中 1' }, { type: 'text', text: '命中 2' }] }])
+      cU([{ type: 'tool_result', tool_use_id: 'tu1', content: [{ type: 'text', text: 'hit 1' }, { type: 'text', text: 'hit 2' }] }])
     ])
-    expect((bs[0] as Extract<TurnBlock, { kind: 'tool' }>).output).toBe('命中 1\n命中 2')
+    expect((bs[0] as Extract<TurnBlock, { kind: 'tool' }>).output).toBe('hit 1\nhit 2')
   })
 
   test('the truncation criterion: a return containing a tool-results/ sidecar path → truncated, without pretending it is complete', () => {
@@ -119,33 +119,33 @@ describe('Claude tool blocks (tool_use ↔ tool_result paired by id)', () => {
 describe('Claude subagent blocks (dispatch + return + the unattributed label; no grouping without a sample)', () => {
   test('the dispatch name comes from subagent_type; prompt and result pair up; unlinked is always true (measured: no join key)', () => {
     const bs = blocks('claude', [
-      cA([{ type: 'tool_use', id: 'tu1', name: 'Agent', input: { description: '查日志', prompt: '查一下日志', subagent_type: 'debugger' } }]),
+      cA([{ type: 'tool_use', id: 'tu1', name: 'Agent', input: { description: 'check logs', prompt: 'check the logs', subagent_type: 'debugger' } }]),
       // A sidechain line within the turn: no stable reference chain to a dispatch, so it is neither
       // rendered nor grouped
-      cA([{ type: 'text', text: '我先看日志文件' }], { isSidechain: true, agentId: 'a1b2c3d4e5f6a7b8c' }),
-      cU([{ type: 'tool_result', tool_use_id: 'tu1', content: [{ type: 'text', text: '日志干净' }] }], {
-        toolUseResult: { agentId: 'ac50856', status: 'completed', prompt: '查一下日志' }
+      cA([{ type: 'text', text: 'let me look at the log file first' }], { isSidechain: true, agentId: 'a1b2c3d4e5f6a7b8c' }),
+      cU([{ type: 'tool_result', tool_use_id: 'tu1', content: [{ type: 'text', text: 'logs are clean' }] }], {
+        toolUseResult: { agentId: 'ac50856', status: 'completed', prompt: 'check the logs' }
       })
     ])
     expect(bs).toHaveLength(1)
     const sub = bs[0] as Extract<TurnBlock, { kind: 'sub' }>
     expect(sub.kind).toBe('sub')
     expect(sub.name).toBe('debugger')
-    expect(sub.prompt).toBe('查一下日志')
-    expect(sub.result).toBe('日志干净')
+    expect(sub.prompt).toBe('check the logs')
+    expect(sub.result).toBe('logs are clean')
     expect(sub.steps).toEqual([])
     expect(sub.unlinked).toBe(true)
   })
 
   test('with no subagent_type the dispatch name falls back to the tool name; with nothing fed back, result is null', () => {
-    const bs = blocks('claude', [cA([{ type: 'tool_use', id: 'tu1', name: 'Task', input: { prompt: '干活' } }])])
+    const bs = blocks('claude', [cA([{ type: 'tool_use', id: 'tu1', name: 'Task', input: { prompt: 'do the work' } }])])
     const sub = bs[0] as Extract<TurnBlock, { kind: 'sub' }>
     expect(sub.name).toBe('Task')
     expect(sub.result).toBeNull()
   })
 
   test('a sidechain line yields no block and no unknown count — a known type whose full transcript is in the source or a nested file', () => {
-    expect(blocks('claude', [cA([{ type: 'text', text: '子代理的话' }], { isSidechain: true, agentId: 'ag-x' })])).toEqual([])
+    expect(blocks('claude', [cA([{ type: 'text', text: 'what the subagent said' }], { isSidechain: true, agentId: 'ag-x' })])).toEqual([])
   })
 })
 
@@ -164,7 +164,7 @@ describe('the Claude display allow-list and unknown traces (the whole 18-type to
 
   test('a new type outside the allow-list leaves a trace: the type name is named, the count accumulates, and it goes at the end of the block order', () => {
     const bs = blocks('claude', [
-      cA([{ type: 'text', text: '正文' }]),
+      cA([{ type: 'text', text: 'body' }]),
       { type: 'agent_snapshot', timestamp: TS },
       { type: 'agent_snapshot', timestamp: TS },
       { type: 'new_thing', timestamp: TS }
@@ -216,14 +216,14 @@ describe('Codex tool blocks (paired by call_id; both the input and arguments fie
 describe('Codex reasoning blocks (reasoning.summary is a plaintext sub-heading; the body is encrypted and unobtainable)', () => {
   test('a non-empty summary yields a reason block; an empty array yields none (64% are empty in the full enumeration)', () => {
     const bs = blocks('codex', [
-      xRI({ type: 'reasoning', id: 'r1', summary: [{ type: 'summary_text', text: '**先对比目录**' }, { type: 'summary_text', text: '再看差异' }], encrypted_content: 'gAAA…' }),
+      xRI({ type: 'reasoning', id: 'r1', summary: [{ type: 'summary_text', text: '**compare the directories first**' }, { type: 'summary_text', text: 'then look at the differences' }], encrypted_content: 'gAAA…' }),
       xRI({ type: 'reasoning', id: 'r2', summary: [], encrypted_content: 'gAAA…' })
     ])
-    expect(bs).toEqual([{ kind: 'reason', at: AT, titles: ['**先对比目录**', '再看差异'] }])
+    expect(bs).toEqual([{ kind: 'reason', at: AT, titles: ['**compare the directories first**', 'then look at the differences'] }])
   })
 
   test('event_msg/agent_reasoning is a mirror and yields no block (to avoid double counting)', () => {
-    expect(blocks('codex', [xEvent({ type: 'agent_reasoning', text: '小标题' })])).toEqual([])
+    expect(blocks('codex', [xEvent({ type: 'agent_reasoning', text: 'sub-heading' })])).toEqual([])
   })
 })
 
@@ -237,7 +237,7 @@ describe('the Codex display allow-list and unknown traces', () => {
         { type: 'turn_context', timestamp: TS, payload: { model: 'x' } },
         { type: 'world_state', timestamp: TS },
         xRI({ type: 'message', role: 'assistant', content: [] }),
-        xRI({ type: 'agent_message', message: '镜像' })
+        xRI({ type: 'agent_message', message: 'mirror' })
       ])
     ).toEqual([])
   })
@@ -256,9 +256,9 @@ describe('the Codex display allow-list and unknown traces', () => {
 
 describe('bad lines and side attribution (ticket 05 behaviour preserved)', () => {
   test('a bad line only hurts itself; the sides do not cross over', () => {
-    const raw = [JSON.stringify(cA([{ type: 'text', text: '好行' }])), '{ 坏行'].join('\n')
+    const raw = [JSON.stringify(cA([{ type: 'text', text: 'good line' }])), '{ bad line'].join('\n')
     expect(turnBlocksFromText('claude', raw)).toHaveLength(1)
-    expect(blocks('codex', [cA([{ type: 'text', text: 'claude 行' }])])).toEqual([{ kind: 'unknown', count: 1, types: ['assistant'] }])
+    expect(blocks('codex', [cA([{ type: 'text', text: 'claude line' }])])).toEqual([{ kind: 'unknown', count: 1, types: ['assistant'] }])
   })
 })
 
@@ -288,12 +288,12 @@ const aLine = (t: string): string => JSON.stringify(cA([{ type: 'text', text: t 
 describe('a range fetch agrees with a full parse (the anchor)', () => {
   test('for every turn: the blocks from the offset path == the corresponding turn\'s blocks from the whole-file path', async () => {
     const raw = [
-      uLine('问一'),
-      aLine('答一'),
+      uLine('question one'),
+      aLine('answer one'),
       JSON.stringify(cA([{ type: 'tool_use', id: 'tu1', name: 'Bash', input: { command: 'ls' } }])),
       JSON.stringify(cU([{ type: 'tool_result', tool_use_id: 'tu1', content: 'ok' }])),
-      uLine('问二'),
-      aLine('答二')
+      uLine('question two'),
+      aLine('answer two')
     ].join('\n') + '\n'
     await withFile(raw, async (file) => {
       const recs = await indexFile(file, 'claude')
@@ -310,9 +310,9 @@ describe('a range fetch agrees with a full parse (the anchor)', () => {
   })
 
   test('a single turn\'s bytes read is independent of the total file size (no wall clock, as ticket 05 established)', async () => {
-    const turn1 = [uLine('问一'), aLine('答一')].join('\n') + '\n'
-    const small = turn1 + [uLine('问二'), aLine('答二')].join('\n') + '\n'
-    const big = turn1 + [uLine('问二'), aLine('大'.repeat((5 * 1024 * 1024) / 3))].join('\n') + '\n'
+    const turn1 = [uLine('question one'), aLine('answer one')].join('\n') + '\n'
+    const small = turn1 + [uLine('question two'), aLine('answer two')].join('\n') + '\n'
+    const big = turn1 + [uLine('question two'), aLine('x'.repeat((5 * 1024 * 1024) / 3))].join('\n') + '\n'
     const bytesOfTurn1 = async (text: string): Promise<number> =>
       withFile(text, async (file) => {
         const recs = await indexFile(file, 'claude')

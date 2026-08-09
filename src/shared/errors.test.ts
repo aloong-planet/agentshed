@@ -30,7 +30,7 @@ describe('encodeAppError / decodeAppError', () => {
   })
 
   it('paths and non-ASCII text in the parameters round-trip verbatim, undamaged by escaping', () => {
-    const err: AppError = { code: ERR.badArgs, params: { channel: '会话/页 a"b\\c', field: 'i' } }
+    const err: AppError = { code: ERR.badArgs, params: { channel: 'sessions/page →a"b\\c€', field: 'i' } }
     expect(decodeAppError(wrap(encodeAppError(err)))).toEqual(err)
   })
 
@@ -38,8 +38,8 @@ describe('encodeAppError / decodeAppError', () => {
     // Ticket 05 migrated only the main process's main throw sites, leaving preload and the contract layer
     // to ticket 06;
     // during migration the renderer has to cope with both, without crashing and without going blank
-    expect(decodeAppError('会话打不开')).toBeNull()
-    expect(decodeAppError(wrap('偏好存储未就绪'))).toBeNull()
+    expect(decodeAppError('cannot open session')).toBeNull()
+    expect(decodeAppError(wrap('preference storage not ready'))).toBeNull()
     expect(decodeAppError('')).toBeNull()
   })
 
@@ -55,7 +55,7 @@ describe('encodeAppError / decodeAppError', () => {
   it('bad JSON after the marker returns null rather than throwing', () => {
     // The escape surface: a parse failure should degrade to "display it as an old-style error", never blow
     // up a whole render
-    expect(decodeAppError('agentshed-error:{不是 JSON')).toBeNull()
+    expect(decodeAppError('agentshed-error:{not JSON')).toBeNull()
   })
 
   it('a code outside the enum returns null rather than passing an unknown code through', () => {

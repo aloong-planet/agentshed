@@ -4,7 +4,7 @@ import { dayGroups, dayLabel, groupable } from './question-groups'
 
 const q = (i: number, at: number | null): SessionQuestion => ({
   i,
-  text: `问${i}`,
+  text: `q${i}`,
   at,
   tools: 0,
   subagents: 0

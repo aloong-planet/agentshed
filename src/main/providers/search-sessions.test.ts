@@ -71,26 +71,26 @@ async function run(
 
 describe('question mode (the default): searches questions only, with hits grouped by session', () => {
   it('hit groups, indices and text; a session with no hits gets no group; case-insensitive', async () => {
-    mkClaude('a.jsonl', [uL('帮我看下 Notarize 配置'), aL('好的'), uL('第二个问题与此无关')])
-    mkClaude('b.jsonl', [uL('别的话题')])
+    mkClaude('a.jsonl', [uL('check the Notarize config for me'), aL('sure'), uL('a second, unrelated question')])
+    mkClaude('b.jsonl', [uL('another topic')])
     const r = await run('notarize', false)
     expect(r.sessionCount).toBe(1)
     expect(r.totalHits).toBe(1)
     expect(r.folded).toBe(0)
     expect(r.groups).toHaveLength(1)
     expect(r.groups[0].hits[0]).toMatchObject({ i: 1, inBody: false })
-    expect(r.groups[0].hits[0].text).toContain('Notarize 配置')
+    expect(r.groups[0].hits[0].text).toContain('Notarize config')
   })
 
   it('a word in the body does not hit in question mode (questions only by default)', async () => {
-    mkClaude('a.jsonl', [uL('一个提问'), aL('回答里有 notarize 这个词')])
+    mkClaude('a.jsonl', [uL('a question'), aL('the answer contains the word notarize')])
     const r = await run('notarize', false)
     expect(r.totalHits).toBe(0)
     expect(r.groups).toHaveLength(0)
   })
 
   it('an empty needle returns an empty result without erroring', async () => {
-    mkClaude('a.jsonl', [uL('提问')])
+    mkClaude('a.jsonl', [uL('question')])
     const r = await run('  ', false)
     expect(r.totalHits).toBe(0)
   })
@@ -98,18 +98,18 @@ describe('question mode (the default): searches questions only, with hits groupe
 
 describe('full-text mode: read whole and match, map hits to turns, fold anything outside the displayed range', () => {
   it('a body hit maps to its turn: the inBody marker plus a snippet containing the keyword', async () => {
-    mkClaude('a.jsonl', [uL('问一'), aL('答案正文里藏着 magicword 这个词'), uL('问二'), aL('无关')])
+    mkClaude('a.jsonl', [uL('question one'), aL('the answer body hides the word magicword'), uL('question two'), aL('unrelated')])
     const r = await run('magicword', true)
     expect(r.totalHits).toBe(1)
     const hit = r.groups[0].hits[0]
     expect(hit.i).toBe(1)
     expect(hit.inBody).toBe(true)
-    expect(hit.text).toContain('问一')
+    expect(hit.text).toContain('question one')
     expect(hit.snippet).toContain('magicword')
   })
 
   it('one question hit and one body hit within a turn; several body hits in one turn are reported once', async () => {
-    mkClaude('a.jsonl', [uL('magicword 在提问里'), aL('正文也有 magicword'), aL('再来一次 magicword')])
+    mkClaude('a.jsonl', [uL('magicword in the question'), aL('the body has magicword too'), aL('magicword once more')])
     const r = await run('magicword', true)
     expect(r.groups[0].hits).toHaveLength(2)
     expect(r.groups[0].hits.map((h) => h.inBody).sort()).toEqual([false, true])
@@ -126,14 +126,14 @@ describe('full-text mode: read whole and match, map hits to turns, fold anything
     const CHILD = '019f0000-bbbb-7000-8000-000000000042'
     writeFileSync(
       join(d, `rollout-${PARENT}.jsonl`),
-      [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'magicword 在父会话里')].join('\n') + '\n'
+      [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'magicword in the parent session')].join('\n') + '\n'
     )
     writeFileSync(
       join(d, `rollout-${CHILD}.jsonl`),
       [
         meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
-        q('2026-07-30T02:00:00Z', 'magicword 在父会话里'), // A replay copy
-        q('2026-07-30T02:00:05Z', '子会话的新问')
+        q('2026-07-30T02:00:00Z', 'magicword in the parent session'), // A replay copy
+        q('2026-07-30T02:00:05Z', 'child new question')
       ].join('\n') + '\n'
     )
     const r = await run('magicword', true)

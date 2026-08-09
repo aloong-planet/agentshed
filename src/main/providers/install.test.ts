@@ -65,12 +65,12 @@ describe('installSkill', () => {
   })
 
   it('same-name blocking: the target already has a project-level skill of that name → conflict, not overwritten', () => {
-    mkGlobalSkill('claude', 'tdd', '全局版')
+    mkGlobalSkill('claude', 'tdd', 'global version')
     mkdirSync(join(proj, '.claude', 'skills', 'tdd'), { recursive: true })
-    writeFileSync(join(proj, '.claude', 'skills', 'tdd', 'SKILL.md'), '项目自有版')
+    writeFileSync(join(proj, '.claude', 'skills', 'tdd', 'SKILL.md'), 'project own version')
     const r = installSkill(roots(), { skillName: 'tdd', side: 'claude', targetProjectPath: proj })
     expect(r).toMatchObject({ ok: false, reason: ERR.skillConflict })
-    expect(readFileSync(join(proj, '.claude', 'skills', 'tdd', 'SKILL.md'), 'utf8')).toBe('项目自有版')
+    expect(readFileSync(join(proj, '.claude', 'skills', 'tdd', 'SKILL.md'), 'utf8')).toBe('project own version')
   })
 
   it('a stale project is refused (the target directory does not exist)', () => {

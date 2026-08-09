@@ -13,22 +13,24 @@ import {
 } from './index'
 
 describe('resolveLanguage', () => {
-  it('遍历整个列表取首个受支持者,而非首项不中就回退', () => {
-    // 这是本函数最易写错的一条:错误实现只看首项,不中就回退英文。
-    // 两种实现对**单元素**列表的输出完全相同,只有多元素列表能区分它们,
-    // 所以这里必须用多元素输入,否则这条断言抓不到任何东西。
+  it('iterate the whole list for the first supported one rather than falling back when the first misses', () => {
+    // The easiest thing to get wrong here: a wrong implementation looks only at the first entry and falls
+    // back to English when it misses.
+    // The two implementations agree exactly on a **single-element** list and only a multi-element one can
+    // tell them apart,
+    // so this has to use multi-element input or the assertion catches nothing.
     expect(resolveLanguage(['ko', 'fr', 'en'])).toBe('fr')
     expect(resolveLanguage(['pt-BR', 'ru', 'en'])).toBe('ru')
   })
 
-  it('按主子标签匹配地区与脚本变体', () => {
+  it('region and script variants match on the primary subtag', () => {
     expect(resolveLanguage(['zh-Hans-CN'])).toBe('zh')
     expect(resolveLanguage(['fr-CA'])).toBe('fr')
     expect(resolveLanguage(['es-419'])).toBe('es')
     expect(resolveLanguage(['EN-GB'])).toBe('en')
   })
 
-  it('空列表 / 全不受支持 / 空值 → 回退英文', () => {
+  it('an empty list / nothing supported / a null value → fall back to English', () => {
     expect(resolveLanguage([])).toBe('en')
     expect(resolveLanguage(['ko'])).toBe('en')
     expect(resolveLanguage(['pt-BR'])).toBe('en')
@@ -36,23 +38,24 @@ describe('resolveLanguage', () => {
     expect(resolveLanguage(undefined)).toBe('en')
   })
 
-  it('列表混入非字符串元素时跳过该项,不崩', () => {
-    // 入参来自平台 API,类型声明不构成运行时保证
+  it('a non-string element in the list is skipped without crashing', () => {
+    // The argument comes from a platform API, and a type declaration is no runtime guarantee
     expect(resolveLanguage([null as unknown as string, 'fr'])).toBe('fr')
     expect(resolveLanguage([123 as unknown as string])).toBe('en')
   })
 })
 
-describe('effectiveLanguage(偏好 → 生效语言)', () => {
-  it('偏好为具体语言时锁定,系统列表完全不参与', () => {
-    // 「跟随系统」是策略、具体语言是锁定——这条区分是整个模型的支点。
-    // 若实现漏掉分支、无条件走系统解析,下面三条都会红。
+describe('effectiveLanguage (preference → effective language)', () => {
+  it('a specific language preference locks it, with the system list playing no part', () => {
+    // "Follow system" is a policy and a specific language is a lock — that distinction is the pivot of the
+  // whole model.
+    // If an implementation missed the branch and always resolved from the system, all three below go red.
     expect(effectiveLanguage('ja', ['fr-FR', 'en-US'])).toBe('ja')
     expect(effectiveLanguage('ja', [])).toBe('ja')
     expect(effectiveLanguage('ja', null)).toBe('ja')
   })
 
-  it('偏好为跟随系统时,按系统列表解析', () => {
+  it('a follow-system preference resolves against the system list', () => {
     expect(effectiveLanguage('system', ['ko-KR', 'fr-FR', 'en-US'])).toBe('fr')
     expect(effectiveLanguage('system', ['ko-KR'])).toBe('en')
     expect(effectiveLanguage('system', [])).toBe('en')
@@ -60,13 +63,13 @@ describe('effectiveLanguage(偏好 → 生效语言)', () => {
 })
 
 describe('plural', () => {
-  // 期望值取自对 Intl.PluralRules 的**实测**(见下方各条注释标注的分型),
-  // 不是照记忆写的——俄语 0 归 many 而非 other、21 归 one 而非 many,
-  // 都是凭直觉容易写反的地方。
-  // other 是必填项(类型强制):俄语的 other 用于小数,如 1.5 сессии
+  // The expectations come from **measuring** Intl.PluralRules (the categories are noted per case below),
+  // not from memory — Russian putting 0 in many rather than other, and 21 in one rather than many,
+  // are both easy to get backwards from intuition.
+  // other is required (enforced by the type): Russian uses other for decimals, such as 1.5 сессии
   const ruForms = { one: 'сессия', few: 'сессии', many: 'сессий', other: 'сессии' }
 
-  it('俄语四型:1=one, 2=few, 5=many, 21=one, 0=many', () => {
+  it('Russian has four forms: 1=one, 2=few, 5=many, 21=one, 0=many', () => {
     expect(plural('ru', 1, ruForms)).toBe('сессия')
     expect(plural('ru', 2, ruForms)).toBe('сессии')
     expect(plural('ru', 5, ruForms)).toBe('сессий')
@@ -74,47 +77,47 @@ describe('plural', () => {
     expect(plural('ru', 0, ruForms)).toBe('сессий')
   })
 
-  it('法语 0 用单数,英语 0 用复数——同一个 0 因语言而异', () => {
+  it('French uses the singular for 0 and English the plural — the same 0 differs by language', () => {
     const fr = { one: 'session', other: 'sessions' }
     const en = { one: 'session', other: 'sessions' }
     expect(plural('fr', 0, fr)).toBe('session')
     expect(plural('en', 0, en)).toBe('sessions')
-    // 两条并列才有意义:若实现把规则写死成某一种,必有一条会红
+    // The two only mean something side by side: if an implementation hard-coded one rule, one of them goes red
     expect(plural('fr', 1, fr)).toBe('session')
     expect(plural('fr', 2, fr)).toBe('sessions')
   })
 
-  it('中文与日语无复数变化,一律 other', () => {
-    expect(plural('zh', 1, { other: '个会话' })).toBe('个会话')
-    expect(plural('zh', 5, { other: '个会话' })).toBe('个会话')
-    expect(plural('ja', 5, { other: '件' })).toBe('件')
+  it('Chinese and Japanese have no plural inflection and always use other', () => {
+    expect(plural('zh', 1, { other: ' sessions' })).toBe(' sessions')
+    expect(plural('zh', 5, { other: ' sessions' })).toBe(' sessions')
+    expect(plural('ja', 5, { other: ' items' })).toBe(' items')
   })
 
-  it('调用方未给出该分型时回落 other', () => {
+  it('a form the caller did not supply falls back to other', () => {
     expect(plural('ru', 2, { other: 'x' })).toBe('x')
   })
 })
 
-describe('字典', () => {
-  it('六语齐备,母语名互不相同', () => {
+describe('dictionary', () => {
+  it('all six languages are present with distinct native names', () => {
     const names = LANGUAGES.map((l) => dictOf(l).languageName)
     expect(names).toHaveLength(6)
-    // 互不相同:复制某个单语文件改成另一种语言时忘改 languageName,
-    // typecheck 不会红(类型只要求 string),只有这条会红
+    // All distinct: copying one language file into another and forgetting to change languageName
+    // does not go red at typecheck (the type only requires string) — only this case does
     expect(new Set(names).size).toBe(6)
   })
 
-  it('每种语言都有可用作 Intl locale 的 htmlLang', () => {
+  it('every language has an htmlLang usable as an Intl locale', () => {
     for (const l of LANGUAGES) {
       const tag = dictOf(l).htmlLang
-      expect(tag, `${l} 缺 htmlLang`).toBeTruthy()
-      // 拿它真去构造一次 Intl 对象:htmlLang 同时被 plural 用作 locale tag,
-      // 写成非法值会让复数在运行期抛错,而不是安静地不生效
+      expect(tag, `${l} has no htmlLang`).toBeTruthy()
+      // Really construct an Intl object with it: htmlLang doubles as the locale tag for plurals,
+      // so an invalid value makes plurals throw at runtime rather than quietly doing nothing
       expect(() => new Intl.PluralRules(tag)).not.toThrow()
     }
   })
 
-  it('isLanguage 只认六语,且大小写敏感', () => {
+  it('isLanguage accepts only the six languages, case-sensitively', () => {
     expect(isLanguage('fr')).toBe(true)
     expect(isLanguage('ko')).toBe(false)
     expect(isLanguage('FR')).toBe(false)

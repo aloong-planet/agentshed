@@ -43,8 +43,8 @@ describe('resolveAppPath', () => {
   })
 
   it('non-ASCII and space-containing paths map correctly after decoding', () => {
-    expect(resolveAppPath(ROOT, u('/%E4%B8%AD%E6%96%87%20a.html'))).toBe(
-      '/app/out/renderer/中文 a.html'
+    expect(resolveAppPath(ROOT, u('/caf%C3%A9%20a.html'))).toBe(
+      '/app/out/renderer/café a.html'
     )
   })
 })

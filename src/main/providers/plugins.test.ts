@@ -187,9 +187,9 @@ function mkPluginPkg(root: string): void {
   )
   // skills: one normal and one broken (with no description line)
   mkdirSync(join(root, 'skills', 'good-skill'), { recursive: true })
-  writeFileSync(join(root, 'skills', 'good-skill', 'SKILL.md'), '---\ndescription: 好技能\n---\nbody')
+  writeFileSync(join(root, 'skills', 'good-skill', 'SKILL.md'), '---\ndescription: good skill\n---\nbody')
   mkdirSync(join(root, 'skills', 'broken-skill'), { recursive: true })
-  writeFileSync(join(root, 'skills', 'broken-skill', 'SKILL.md'), ' 二进制垃圾')
+  writeFileSync(join(root, 'skills', 'broken-skill', 'SKILL.md'), ' binary garbage')
   // agents
   mkdirSync(join(root, 'agents'), { recursive: true })
   writeFileSync(join(root, 'agents', 'helper.md'), '---\ndescription: h\n---\nx')
@@ -205,7 +205,7 @@ describe('expanding a plugin\'s bundled components', () => {
     expect(c.missing).toBe(false)
     expect(c.skills.map(({ name, description }) => ({ name, description }))).toEqual([
       { name: 'broken-skill', description: null },
-      { name: 'good-skill', description: '好技能' }
+      { name: 'good-skill', description: 'good skill' }
     ])
     // H1: each summary carries stat-only package stats
     expect(c.skills[0].pkg?.files).toBeGreaterThanOrEqual(1)
@@ -274,7 +274,7 @@ describe('the G series: a plugin\'s bundled skills joining the Skills effective 
     // An on-disk global library skill with the same base name
     const sd = join(dir, '.claude', 'skills', 'good-skill')
     mkdirSync(sd, { recursive: true })
-    writeFileSync(join(sd, 'SKILL.md'), '---\ndescription: 磁盘版\n---\nx')
+    writeFileSync(join(sd, 'SKILL.md'), '---\ndescription: on-disk version\n---\nx')
     const snap = await scan(roots(), { now: () => 1 })
     const names = snap.global.skills.map((s) => s.name)
     expect(names).toContain('good-skill')
@@ -355,7 +355,7 @@ describe('plugin skill preview: enumeration and stats (plugins-view H1/H5/E8)', 
   it('Claude contents.skills carries package stats; a wholly missing package sets missing with skills empty', async () => {
     const pkg = join(dir, 'cache', 'sp')
     mkdirSync(join(pkg, 'skills', 'brainstorming', 'references'), { recursive: true })
-    writeFileSync(join(pkg, 'skills', 'brainstorming', 'SKILL.md'), '---\ndescription: 先问后做\n---\n正文\n')
+    writeFileSync(join(pkg, 'skills', 'brainstorming', 'SKILL.md'), '---\ndescription: ask before acting\n---\nbody\n')
     writeFileSync(join(pkg, 'skills', 'brainstorming', 'references', 'a.md'), 'x\n')
     mkInstalled({
       'sp@official': [{ scope: 'user', installPath: pkg, version: '1.0.0' }],
@@ -364,7 +364,7 @@ describe('plugin skill preview: enumeration and stats (plugins-view H1/H5/E8)', 
     const snap = await scan(roots(), { now: () => 1 })
     const sp = snap.global.plugins.find((p) => p.name === 'sp@official')!
     const sk = sp.contents.skills[0]
-    expect(sk).toMatchObject({ name: 'brainstorming', description: '先问后做' })
+    expect(sk).toMatchObject({ name: 'brainstorming', description: 'ask before acting' })
     expect(sk.pkg?.files).toBe(2)
     expect(sk.pkg!.bytes).toBeGreaterThan(0)
     const ghost = snap.global.plugins.find((p) => p.name === 'ghost@old')!

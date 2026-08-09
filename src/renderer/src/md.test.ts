@@ -6,9 +6,9 @@ import { renderMarkdown } from './md'
 
 describe('renderMarkdown', () => {
   it('ordinary markdown renders to HTML', () => {
-    const html = renderMarkdown('# 标题\n\n**加粗**')
+    const html = renderMarkdown('# Heading\n\n**bold**')
     expect(html).toContain('<h1>')
-    expect(html).toContain('<strong>加粗</strong>')
+    expect(html).toContain('<strong>bold</strong>')
   })
 
   it('strips <script>', () => {
@@ -28,7 +28,7 @@ describe('renderMarkdown', () => {
   })
 
   it('admits file:// images (the form an artifact\'s relative path rewrites to)', () => {
-    const html = renderMarkdown('![图](file:///Users/x/docs/adr/img.png)')
+    const html = renderMarkdown('![img](file:///Users/x/docs/adr/img.png)')
     expect(html).toContain('src="file:///Users/x/docs/adr/img.png"')
   })
 
@@ -40,7 +40,7 @@ describe('renderMarkdown', () => {
 
   it('YAML frontmatter is split into a key-value card before the body is rendered', () => {
     const html = renderMarkdown(
-      '---\nname: github-ops\ndescription: "Rules"\nwhen_to_use: "Activate"\n---\n\n# 标题\n'
+      '---\nname: github-ops\ndescription: "Rules"\nwhen_to_use: "Activate"\n---\n\n# Heading\n'
     )
     expect(html).toContain('md-fm')
     expect(html).toContain('md-fm-k')

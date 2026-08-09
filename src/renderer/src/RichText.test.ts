@@ -16,11 +16,11 @@ const html = (text: string): string => renderToStaticMarkup(createElement(RichTe
 
 describe('RichText', () => {
   it('**bold** renders as <b>', () => {
-    expect(html('前**中**后')).toBe('<span>前</span><b>中</b><span>后</span>')
+    expect(html('pre**mid**post')).toBe('<span>pre</span><b>mid</b><span>post</span>')
   })
 
   it('`code` renders as <code>', () => {
-    expect(html('见 `encrypted_content` 字段')).toContain('<code>encrypted_content</code>')
+    expect(html('see the `encrypted_content` field')).toContain('<code>encrypted_content</code>')
   })
 
   it('emphasis holds at the start, middle and end of a sentence', () => {
@@ -28,21 +28,21 @@ describe('RichText', () => {
     // moves with them.
     // An implementation assuming the marker is always in the middle (a fixed three-way split, say) would
     // miss the start and end
-    expect(html('**开头**其余')).toBe('<b>开头</b><span>其余</span>')
-    expect(html('其余**结尾**')).toBe('<span>其余</span><b>结尾</b>')
+    expect(html('**start**rest')).toBe('<b>start</b><span>rest</span>')
+    expect(html('rest**end**')).toBe('<span>rest</span><b>end</b>')
   })
 
   it('several emphases in one sentence each hold', () => {
-    expect(html('**甲**与**乙**')).toBe('<b>甲</b><span>与</span><b>乙</b>')
+    expect(html('**A**and**B**')).toBe('<b>A</b><span>and</span><b>B</b>')
   })
 
   it('with no markers the output is verbatim, swallowing nothing', () => {
-    expect(html('普通一句话')).toBe('<span>普通一句话</span>')
+    expect(html('an ordinary sentence')).toBe('<span>an ordinary sentence</span>')
   })
 
   it('a lone marker character is not treated as a marker and displays as is', () => {
     // A single asterisk in the wording should not derange the whole sentence
-    expect(html('折扣 5*3 元')).toBe('<span>折扣 5*3 元</span>')
+    expect(html('discount 5*3 off')).toBe('<span>discount 5*3 off</span>')
   })
 
   it('HTML special characters are escaped and produce no tags', () => {

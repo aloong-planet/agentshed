@@ -57,7 +57,7 @@ describe('the global Memory summary', () => {
     mkdirSync(pa)
     mkdirSync(pb)
     register([pa, pb])
-    mkMemory(pa, { 'MEMORY.md': { body: '# 主文件', mtime: 1_000 }, 'topic.md': { body: 't', mtime: 2_000 } })
+    mkMemory(pa, { 'MEMORY.md': { body: '# Main file', mtime: 1_000 }, 'topic.md': { body: 't', mtime: 2_000 } })
     mkMemory(pb, { 'only-topic.md': { body: 't', mtime: 9_000 } }) // C3: no MEMORY.md, topics only
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.memory).toHaveLength(2)
@@ -70,7 +70,7 @@ describe('the global Memory summary', () => {
     expect(files.map((f) => f.name).sort()).toEqual(['MEMORY.md', 'topic.md'])
     expect(files[0].file.startsWith('/')).toBe(true)
     expect(files.every((f) => typeof f.mtimeMs === 'number')).toBe(true)
-    expect(JSON.stringify(snap.global.memory)).not.toContain('# 主文件') // Contents do not enter the snapshot
+    expect(JSON.stringify(snap.global.memory)).not.toContain('# Main file') // Contents do not enter the snapshot
   })
 
   it('C2 an existing but empty memory directory → not listed; no memory directory → not listed', async () => {
@@ -164,13 +164,13 @@ describe('project detail memory', () => {
     mkdirSync(pa)
     register([pa])
     mkMemory(pa, {
-      'MEMORY.md': { body: '# 主文件内容', mtime: 1_000 },
-      'topic-a.md': { body: 'topic 正文', mtime: 2_000 }
+      'MEMORY.md': { body: '# Main file body', mtime: 1_000 },
+      'topic-a.md': { body: 'topic body', mtime: 2_000 }
     })
     const detail = readProjectDetail(roots(), pa)
-    expect(detail.memory.main?.text).toContain('# 主文件内容')
+    expect(detail.memory.main?.text).toContain('# Main file body')
     expect(detail.memory.topics.map((t) => t.name)).toEqual(['topic-a.md'])
-    expect(JSON.stringify(detail.memory.topics)).not.toContain('topic 正文')
+    expect(JSON.stringify(detail.memory.topics)).not.toContain('topic body')
   })
 
   it('D1 no memory directory → main null and topics empty (the UI empty state)', () => {

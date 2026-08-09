@@ -40,7 +40,9 @@ function assertRoundTrip(file: string, hits: Hit[]): void {
 
 describe('eachJsonlLine — byte offsets', () => {
   test('offsets count bytes, not characters: multi-byte content does not shift the following lines', async () => {
-    const lines = [{ i: 0, t: '中文提问' }, { i: 1, t: 'ascii' }, { i: 2, t: 'emoji 🚀 混排' }]
+    // '—' and '→' are 3-byte UTF-8; the emoji is 4-byte. Multi-byte characters are what this suite is about,
+    // so the fixtures use non-ASCII deliberately.
+    const lines = [{ i: 0, t: '—question—' }, { i: 1, t: 'ascii' }, { i: 2, t: 'emoji 🚀 mixed' }]
     const text = lines.map((o) => JSON.stringify(o)).join('\n') + '\n'
     await withFile(text, async (file) => {
       const hits = await collect(file)
@@ -57,7 +59,7 @@ describe('eachJsonlLine — byte offsets', () => {
   })
 
   test('the ranges meet end to end, with no overlap and no gap', async () => {
-    const text = [1, 2, 3, 4].map((i) => JSON.stringify({ i, t: '内容'.repeat(i) })).join('\n') + '\n'
+    const text = [1, 2, 3, 4].map((i) => JSON.stringify({ i, t: '→←'.repeat(i) })).join('\n') + '\n'
     await withFile(text, async (file) => {
       const hits = await collect(file)
       for (let i = 1; i < hits.length; i++) expect(hits[i].start).toBe(hits[i - 1].end)
@@ -75,13 +77,13 @@ describe('eachJsonlLine — byte offsets', () => {
       const head = boundary - 1 - prefix.length // The second line's start
       const filler = `{"p":"${'a'.repeat(head - 9)}"}\n` // {"p":""} takes 8 bytes + \n
       expect(Buffer.byteLength(filler)).toBe(head)
-      const second = `${prefix}${'中'.repeat(50)}"}\n`
+      const second = `${prefix}${'→'.repeat(50)}"}\n`
       // This character's first byte lands at boundary-1 and its remaining two bytes land in the next chunk
       expect(Buffer.byteLength(filler + prefix)).toBe(boundary - 1)
       await withFile(filler + second, async (file) => {
         const hits = await collect(file)
         expect(hits).toHaveLength(2)
-        expect(hits[1].obj['t']).toBe('中'.repeat(50))
+        expect(hits[1].obj['t']).toBe('→'.repeat(50))
         assertRoundTrip(file, hits)
       })
     }
@@ -89,7 +91,7 @@ describe('eachJsonlLine — byte offsets', () => {
 
   test('a long file whose line lengths vary byte by byte: every line slices back verbatim', async () => {
     const lines: string[] = []
-    for (let i = 0; i < 12000; i++) lines.push(JSON.stringify({ i, t: '中'.repeat(i % 37) + 'x'.repeat(i % 7) }))
+    for (let i = 0; i < 12000; i++) lines.push(JSON.stringify({ i, t: '→'.repeat(i % 37) + 'x'.repeat(i % 7) }))
     const text = lines.join('\n') + '\n'
     expect(Buffer.byteLength(text)).toBeGreaterThan(800_000)
     await withFile(text, async (file) => {
@@ -101,7 +103,7 @@ describe('eachJsonlLine — byte offsets', () => {
   })
 
   test('CRLF line endings: the offsets include \\r\\n and the content still parses', async () => {
-    const text = [{ i: 0, t: '中' }, { i: 1 }].map((o) => JSON.stringify(o)).join('\r\n') + '\r\n'
+    const text = [{ i: 0, t: '→' }, { i: 1 }].map((o) => JSON.stringify(o)).join('\r\n') + '\r\n'
     await withFile(text, async (file) => {
       const hits = await collect(file)
       expect(hits).toHaveLength(2)
@@ -111,7 +113,7 @@ describe('eachJsonlLine — byte offsets', () => {
   })
 
   test('a last line with no newline: still emitted, with its end at the file length', async () => {
-    const text = JSON.stringify({ i: 0 }) + '\n' + JSON.stringify({ i: 1, t: '末行无换行' })
+    const text = JSON.stringify({ i: 0 }) + '\n' + JSON.stringify({ i: 1, t: 'last line, no newline' })
     await withFile(text, async (file) => {
       const hits = await collect(file)
       expect(hits.map((h) => h.obj['i'])).toEqual([0, 1])
@@ -122,8 +124,8 @@ describe('eachJsonlLine — byte offsets', () => {
 
   test('empty and bad lines are skipped without disturbing the offsets of the lines after them', async () => {
     const good0 = JSON.stringify({ i: 0 })
-    const bad = '{ 这不是 JSON'
-    const good1 = JSON.stringify({ i: 1, t: '坏行之后' })
+    const bad = '{ not JSON'
+    const good1 = JSON.stringify({ i: 1, t: 'after the bad line' })
     const text = `${good0}\n\n${bad}\n   \n${good1}\n`
     await withFile(text, async (file) => {
       const hits = await collect(file)
