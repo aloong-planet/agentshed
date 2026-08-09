@@ -6,7 +6,8 @@ export default defineConfig({
     alias: { '@shared': resolve('src/shared') }
   },
   test: {
-    // 数据层与契约校验均为纯 Node 模块,不依赖 Electron / jsdom
+    // The data layer and the contract validation are pure Node modules, depending on neither Electron nor
+    // jsdom
     environment: 'node',
     include: ['src/**/*.test.ts'],
     globals: false

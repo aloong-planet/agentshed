@@ -12,7 +12,7 @@ export default defineConfig({
     resolve: { alias: { '@shared': shared } },
     build: {
       rollupOptions: {
-        // preload 用 CJS(sandbox/contextIsolation 下 Electron 需要 .cjs)
+        // The preload uses CJS (Electron requires .cjs under sandbox and contextIsolation)
         output: { format: 'cjs', entryFileNames: 'index.cjs' }
       }
     }
