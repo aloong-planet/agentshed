@@ -263,7 +263,7 @@ function mkUsageHome(): string {
       JSON.stringify({
         timestamp: localDayOffset(2).toISOString(),
         type: 'response_item',
-        payload: { type: 'custom_tool_call_output', call_id: 'c_e2e', output: '7 个文件' }
+        payload: { type: 'custom_tool_call_output', call_id: 'c_e2e', output: '7 files' }
       }),
       JSON.stringify({
         timestamp: localDayOffset(2).toISOString(),
@@ -456,7 +456,7 @@ test('the sessions section: sessions are listed, the sort switches, and warmup s
   // fixture 里 Claude 侧 2 个(1 真实 + 1 预热)、Codex 侧 1 个 → 只应列出 2 个
   const rows = win.locator('.pane-body .card .se')
   await expect(rows).toHaveCount(2)
-  await expect(win.locator('.pane-body .grp-t')).toContainText('2 个会话')
+  await expect(win.locator('.pane-body .grp-t')).toContainText('2 sessions')
   // 预热会话的标题不得出现
   await expect(win.locator('.pane-body .card')).not.toContainText('Warmup')
 
@@ -501,8 +501,8 @@ test('the sessions section: each row shows that session\'s real question count',
   // 默认最近在前:第 0 行是 Claude 侧(2 条真实提问,中间那条 tool_result 不算),
   // 第 1 行是 Codex 侧(1 条)
   expect(await rows.nth(0).locator('.t').innerText()).toBe('Sample question')
-  expect(await countOf(0), 'Claude 侧两条真实提问,工具回灌不计入').toBe('2 提问')
-  expect(await countOf(1), 'Codex 侧一条真实提问').toBe('1 提问')
+  expect(await countOf(0), 'Claude 侧两条真实提问,工具回灌不计入').toBe('2 questions')
+  expect(await countOf(1), 'Codex 侧一条真实提问').toBe('1 questions')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -567,7 +567,7 @@ test('the session page: every question is listed with complete fields, and back 
   // 页头:徽标 + 标题 + meta(与列表同源的数字)
   await expect(win.locator('.pane-head .badge.cl')).toHaveText('CC')
   await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
-  await expect(win.locator('.smeta')).toContainText('2 提问')
+  await expect(win.locator('.smeta')).toContainText('2 questions')
   await expect(win.locator('.smeta')).toContainText('tok')
 
   // 行:序号 / 全文 / 工具计数 / 时间;两条真实提问,工具回灌不算。
@@ -578,11 +578,11 @@ test('the session page: every question is listed with complete fields, and back 
   await expect(qs.nth(0).locator('.txt')).toHaveText('Second question')
   await expect(qs.nth(1).locator('.txt')).toHaveText('Sample question')
   await expect(qs.nth(0).locator('.tm')).not.toHaveText('—')
-  await expect(win.locator('.qbar .grp-t')).toContainText('提问(主干)· 2 条')
+  await expect(win.locator('.qbar .grp-t')).toContainText('Questions (main line) · 2')
 
   // 一次列全:不出现任何分页/续取语义(spec 界面决策:任何分页语义都是实现缺口伪装设计)
-  await expect(win.locator('.pane-body')).not.toContainText('加载')
-  await expect(win.locator('.pane-body')).not.toContainText('更多')
+  await expect(win.locator('.pane-body')).not.toContainText('Loading')
+  await expect(win.locator('.pane-body')).not.toContainText('more')
 
   // 返回:落在「会话」分栏,不是概览(原型:‹ 返回 <项目> · 会话)
   await win.locator('.sback').click()
@@ -703,7 +703,7 @@ test('the session page: everything collapsed by default; clicking a question exp
   await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
   await expect(win.locator('.qlist .q.open .txt')).toHaveText('Sample question')
   await expect(win.locator('.turn .ans')).toHaveText(['这是First turn reply body'])
-  await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
+  await expect(win.locator('.turn .fetched')).toContainText("read only this turn\u2019s byte range")
 
   // 展开另一条不影响已开的(各轮独立);第二轮没有正文,脚注照出(不造假的占位)
   await win.locator('.qlist .q', { hasText: 'Second question' }).click()
@@ -731,8 +731,8 @@ test('the session page: day groups collapse; descending reverses both the groups
 
   // 两天两组,组头带当日条数;qhead 带天数
   await expect(win.locator('.daygrp')).toHaveCount(2)
-  await expect(win.locator('.dayhd').first()).toContainText('1 条')
-  await expect(win.locator('.qbar .grp-t')).toContainText('2 天')
+  await expect(win.locator('.dayhd').first()).toContainText(' · 1')
+  await expect(win.locator('.qbar .grp-t')).toContainText('2 days')
 
   // 默认倒序(2026-08-06 用户裁定):首行是最新的 02
   await expect(win.locator('.qlist .q').first().locator('.idx'), '默认倒序,首行应是 02').toHaveText('02')
@@ -793,7 +793,7 @@ test('the session page banner: a stripped fork gets info with the parent title c
   const risk = win.locator('.banner.risk')
   await expect(risk).toContainText('outside the scan set')
   await expect(risk).toContainText('duplicates')
-  await expect(risk).toContainText('请对照原文核对')
+  await expect(risk).toContainText('Please check against the original')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -824,7 +824,7 @@ test('the session page: after the file is appended to (so the signature mismatch
   )
   await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
   await expect(win.locator('.turn .ans')).toHaveText(['这是First turn reply body'])
-  await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
+  await expect(win.locator('.turn .fetched')).toContainText("read only this turn\u2019s byte range")
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -870,7 +870,7 @@ test('session page rich content (Claude): the thinking, tool and subagent blocks
   await expect(sub.locator('pre').nth(1)).toContainText('Logs are clean')
 
   // 未知类型留痕:不静默丢
-  await expect(win.locator('.turn .unknown')).toContainText('1 条未识别记录')
+  await expect(win.locator('.turn .unknown')).toContainText('1 unrecognised records')
   await expect(win.locator('.turn .unknown')).toContainText('agent_snapshot')
 
   expect(l.errors).toEqual([])
@@ -890,7 +890,7 @@ test('session page rich content (Codex): the encrypted-reasoning label, tool pai
 
   // 推理块:仅小标题,warn 明说正文加密不可得
   const reason = win.locator('.turn .blk.think')
-  await expect(reason.locator('.sum')).toContainText('仅 2 条小标题')
+  await expect(reason.locator('.sum')).toContainText('only 2 headings')
   await reason.locator('.bh').click()
   await expect(reason.locator('.warn')).toContainText('encrypted_content')
   await expect(reason.locator('.rt')).toHaveCount(2)
@@ -899,7 +899,7 @@ test('session page rich content (Codex): the encrypted-reasoning label, tool pai
   const tool = win.locator('.turn .blk', { has: win.locator('.nm', { hasText: 'exec' }) }).first()
   await tool.locator('.bh').click()
   await expect(tool.locator('pre').nth(0)).toContainText('rg skills -l')
-  await expect(tool.locator('pre').nth(1)).toContainText('7 个文件')
+  await expect(tool.locator('pre').nth(1)).toContainText('7 files')
 
   // spawn_agent:sub 块,子线程无引用链不归位(2026-08-06 裁定)
   const sub = win.locator('.turn .blk.sub')
@@ -935,7 +935,7 @@ test('session search: questions by default with hits grouped; a body word only h
   await expect(win.locator('.grp .gh .t')).toContainText('Sample question')
   await expect(win.locator('.grp .hit')).toHaveCount(1)
   await expect(win.locator('.grp .hit mark').first()).toContainText('Sample question')
-  await expect(win.locator('.shead')).toContainText('找到 1 条 · 1 个会话')
+  await expect(win.locator('.shead')).toContainText('Found 1 hits · 1 sessions')
 
   // 正文里的词(第一轮回答正文)在提问模式不命中 → 可行动空态
   await win.locator('.sbar input').fill('First turn reply body')
@@ -1194,7 +1194,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
   const detRow = win.locator('.it.row-btn', { hasText: 'superpowers@official' })
   await expect(detRow).toContainText('Enabled')
-  await expect(detRow).toContainText('project 层')
+  await expect(detRow).toContainText('project')
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   const nsSkill = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
   await expect(nsSkill).toBeVisible()
@@ -1299,7 +1299,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   //    点 SKILL.md 开抽屉,md 默认预览(frontmatter 卡片 + 正文)
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   const tdd = win.locator('.sk', { hasText: 'tdd' })
-  await expect(tdd.locator('.sk-meta')).toContainText('2 个文件')
+  await expect(tdd.locator('.sk-meta')).toContainText('2 files')
   await tdd.locator('.sk-head').click()
   await expect(tdd.locator('.files-card')).toBeVisible()
   await expect(tdd.locator('.files-sum')).toHaveCount(0) // 汇总条已上行,展开区不再重复
@@ -1323,7 +1323,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
 
   // ② 插件命名空间行:与磁盘同权展开预览(A4,ADR-0012 推翻 v1 排除;行内统计同权)
   const plug = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
-  await expect(plug.locator('.sk-meta')).toContainText('1 个文件')
+  await expect(plug.locator('.sk-meta')).toContainText('1 files')
   await plug.locator('.sk-head').click()
   await plug.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.skill-drawer .md-fm')).toContainText('Ask before acting')
@@ -1338,7 +1338,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(detTdd).toHaveCount(1)
   await expect(detTdd.locator('.pill.prj')).toBeVisible()
   await expect(detTdd.locator('.pill.glb')).toHaveCount(0)
-  await expect(detTdd.locator('.sk-meta')).toContainText('1 个文件')
+  await expect(detTdd.locator('.sk-meta')).toContainText('1 files')
   await expect(
     win.locator('.pane-body .sk', { hasText: 'review-code' }).locator('.pill.glb')
   ).toBeVisible()
@@ -1427,7 +1427,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   const spExp = win.locator('.exp-area').first()
   await expect(spExp.locator('.ptab')).toHaveText(['Skills2', 'Hooks1'])
   const bRow = spExp.locator('.psk', { hasText: 'superpowers:brainstorming' })
-  await expect(bRow.locator('.meta')).toContainText('1 个文件')
+  await expect(bRow.locator('.meta')).toContainText('1 files')
   await bRow.click()
   await spExp.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Plugin body A')
@@ -1670,12 +1670,12 @@ test('the sessions section: a fork session has its replay prefix stripped and is
     win.locator('.pane-body .card .se').filter({ hasText: title })
 
   // 父会话:不是 fork,两条提问,无标记
-  await expect(rowOf('Parent first question').locator('.n')).toHaveText('2 提问')
+  await expect(rowOf('Parent first question').locator('.n')).toHaveText('2 questions')
   await expect(rowOf('Parent first question').locator('.pill')).toHaveCount(0)
 
   // 子会话:重放的两条被剥掉,只剩自己那条;标 ⑂ fork
   const child = rowOf('Child new question')
-  await expect(child.locator('.n'), '重放前缀未剥离的话会是 3 提问').toHaveText('1 提问')
+  await expect(child.locator('.n'), '重放前缀未剥离的话会是 3 提问').toHaveText('1 questions')
   await expect(child.locator('.pill.fork')).toHaveText('⑂ fork')
   await expect(child.locator('.pill.forkq')).toHaveCount(0)
 
