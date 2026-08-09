@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- 原型(UI)· 票02:项目图鉴列表(icon rail 之内的项目维度)。
+<!-- A UI prototype · ticket 02: the project list (the projects dimension inside the icon rail).
      问题:并集列表的行密度与徽标怎么摆;失效过滤开关、手动隐藏/恢复、搜索、
      活跃度排序在纯项目栏里如何共存不打架(全局入口已移入最左 rail,不再挤在列表底部)。
      交互:搜索、勾选"显示失效"、行悬停出隐藏按钮、「已隐藏 N 项」展开恢复、刷新去重(连点无效)。 -->
@@ -78,7 +78,8 @@
     <div class="empty"><div style="font-size:34px">👈</div><div>选择一个项目查看详情</div></div>
   </div>
 <script>
-  // 活跃度 = 最近会话时间(排序键)+ 会话数;stale = 注册表有、磁盘无
+  // Activity = the most recent session time (the sort key) + the session count; stale = in the registry,
+  // absent from disk
   const DATA=[
     {n:'agentshed',      sides:['c'],     last:'今天',   ses:5,  ord:0},
     {n:'chatgpt-token',  sides:['x'],     last:'昨天',   ses:3,  ord:1},
@@ -131,14 +132,16 @@
     document.querySelectorAll('#fseg span').forEach(s=>s.classList.toggle('on',s===e.target));
     sideFilter=e.target.dataset.f;render();
   });
-  // 全局刷新(rail 底部)去重:进行中忽略再次点击
+  // Global refresh (at the bottom of the rail) is deduplicated: repeat clicks while one is in flight are
+  // ignored
   const grfr=document.getElementById('grfr');
   grfr.onclick=()=>{if(grfr.classList.contains('busy'))return;
     grfr.classList.add('busy');setTimeout(()=>grfr.classList.remove('busy'),1500);};
   render();
 </script>
 <script>
-  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
+  // navigates to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;

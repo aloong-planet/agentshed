@@ -1,5 +1,7 @@
-// 装卸操作状态机(票06)。规则只在 reduce;legal 是派生查询;非法事件静默忽略。
-// UI 端的"失效项目禁用"只是入口收窄;target_stale 防线在模型里同样成立(reduce 拒绝进入复制)。
+// The install/uninstall state machine (ticket 06). The rules live only in reduce; legal is a derived
+// query; an illegal event is silently ignored.
+// The UI's "stale projects are disabled" is only a narrowed entry point; the target_stale defence also
+// holds in the model (reduce refuses to enter the copy step).
 
 /** @typedef {'validating'|'copying'|'installed'|'conflict_blocked'|'failed_cleaned'|'confirming'|'deleting'|'uninstalled'|'cancelled'} Status */
 /**
@@ -9,7 +11,7 @@
  * @property {'install'|'uninstall'} kind
  * @property {string} skill
  * @property {string} target
- * @property {string|null} note  终局说明(清理/阻止原因等)
+ * @property {string|null} note  The final explanation (the cleanup or blocking reason, and so on)
  */
 /** @typedef {{type:'target_ok'}|{type:'conflict_found'}|{type:'target_stale'}|{type:'copy_ok'}|{type:'copy_fail'}|{type:'confirm'}|{type:'cancel'}|{type:'delete_done'}} Action */
 
@@ -17,7 +19,7 @@
 const TERMINAL = new Set(['installed', 'conflict_blocked', 'failed_cleaned', 'uninstalled', 'cancelled']);
 
 /**
- * 入场:发起一次装/卸操作。
+ * Entry: an install or uninstall operation begins.
  * @param {'install'|'uninstall'} kind
  * @returns {OpState}
  */

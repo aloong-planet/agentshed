@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- 原型(UI)· 票01:icon rail + 双栏的壳。
+<!-- A UI prototype · ticket 01: the shell with an icon rail and two columns.
      问题:两维度(Agents 默认落地 / Projects)rail 下,壳的骨架长什么样;
      启动扫描态如何呈现(渐进填充前不显示"空"误导)——骨架屏模式两维度通用,
      此处以 Projects 列表侧演示,实际启动时首先出现在 Agents 页。
@@ -85,7 +85,8 @@
   render();
 </script>
 <script>
-  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
+  // navigates to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;

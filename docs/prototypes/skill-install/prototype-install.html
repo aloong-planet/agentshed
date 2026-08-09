@@ -1,5 +1,6 @@
 <!doctype html>
-<!-- 原型(UI)· 票06:装卸交互(挂在 Agents 页 Skills 分栏=安装源之上)。
+<!-- A UI prototype · ticket 06: the install/uninstall interaction (hung off the Agents page's Skills tab,
+     which is the install source).
      问题:「安装到…」目标选择器、同名阻止、失效项目禁用、卸载确认弹窗各自的形态与时机。
      (原「两侧差异怎么读」已随 skills-view 拆除跨侧 diff 作废,2026-08-07 同步。)
      交互:行内「安装到…」弹选择器(失效项目置灰;装到 Transfer 的 tdd 触发同名阻止);
@@ -89,7 +90,8 @@
   <div class="mask" id="mask"></div>
   <div class="dlg" id="dlg"></div>
 <script>
-  // 目标项目 mock:has = 已装同名(选择器内直接标示);stale 置灰
+  // The target project mock: has = a same-named skill is already installed (marked inside the picker);
+  // stale is greyed out
   const PROJECTS=[
     {n:'agentshed',stale:false,has:[]},
     {n:'Transfer',stale:false,has:['tdd','ui-design']},
@@ -136,7 +138,7 @@
       return;
     }
   });
-  // 卸载确认:显示完整删除路径
+  // The uninstall confirmation: show the full path to be deleted
   const mask=document.getElementById('mask'),dlg=document.getElementById('dlg');
   document.getElementById('uni').onclick=()=>{
     mask.style.display='block';dlg.style.display='block';
@@ -151,7 +153,8 @@
   mask.onclick=close;
 </script>
 <script>
-  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
+  // navigates to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;

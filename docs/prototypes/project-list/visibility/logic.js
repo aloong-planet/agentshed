@@ -1,20 +1,23 @@
-// 项目可见性状态机(票02)。约定见 prototype skill 的 STATE-MACHINE.md:
-// 零 I/O、零 DOM;规则只在 reduce,legal 是派生查询;非法事件静默忽略(返回原状态+illegal 原因)。
+// The project visibility state machine (ticket 02). The conventions are in the prototype skill's
+// STATE-MACHINE.md:
+// zero I/O and zero DOM; the rules live only in reduce and legal is a derived query; an illegal event is
+// silently ignored (returning the original state plus an illegal reason).
 
 /** @typedef {'normal'|'stale'|'hidden'|'stale_hidden'|'removed'} Status */
 /**
  * @typedef {Object} ProjState
  * @property {Status} status
- * @property {string|null} illegal 上一个被拒绝的非法事件(现实中静默忽略;原型里外显)
+ * @property {string|null} illegal The last illegal event refused (silently ignored in reality; surfaced in
+ *                                 the prototype)
  */
 /** @typedef {{type:'scan_missing'}|{type:'scan_restored'}|{type:'hide'}|{type:'unhide'}|{type:'registry_removed'}} Action */
 
-/** 终态集合:只此一处定义 @type {ReadonlySet<Status>} */
+/** The set of terminal states: defined only here @type {ReadonlySet<Status>} */
 const TERMINAL = new Set(['removed']);
 
 /**
- * 入场:扫描发现注册表条目。
- * @param {boolean} missing 发现时磁盘目录是否已缺失
+ * Entry: the scan finds a registry entry.
+ * @param {boolean} missing Whether the directory was already missing on disk when found
  * @returns {ProjState}
  */
 function initial(missing) {
@@ -22,7 +25,7 @@ function initial(missing) {
 }
 
 /**
- * 唯一的规则出处。
+ * The single source of the rules.
  * @param {ProjState} s
  * @param {Action} a
  * @returns {ProjState}
@@ -57,7 +60,7 @@ function reduce(s, a) {
   }
 }
 
-/** 每种事件的代表样例 @type {Action[]} */
+/** A representative example of each event @type {Action[]} */
 const ALL_ACTIONS = [
   { type: 'scan_missing' },
   { type: 'scan_restored' },
@@ -67,7 +70,8 @@ const ALL_ACTIONS = [
 ];
 
 /**
- * 准入条件查询:对每个事件试跑 reduce,被 deny 即非法。规则永远只有 reduce 一处。
+ * The admission query: try reduce for each event, and a denial means illegal. The rules only ever live in
+ * reduce.
  * @param {ProjState|null} s
  * @returns {Record<string,{legal:boolean, why:string|null}>}
  */
@@ -85,7 +89,8 @@ function legal(s) {
 }
 
 /**
- * 派生:该状态下项目出现在 UI 的哪里(唯一出处,面板引用,不重写)。
+ * Derived: where a project in this state appears in the UI (the single source, referenced by the panel and
+ * never rewritten).
  * @param {Status} status
  * @returns {string}
  */
