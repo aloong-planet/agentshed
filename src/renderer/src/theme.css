@@ -1,7 +1,8 @@
-/* 主题变量:外观方案(purple|blue|amber)×昼夜(系统)。全 app 只引用这些 token。
-   见 docs/specs/appearance.md。CC/CX 与 provider 色不随 scheme 改色相。 */
+/* Theme variables: colour scheme (purple|blue|amber) × light/dark (from the system). The whole app
+   references only these tokens. See docs/specs/appearance.md. The CC/CX and provider colours do not
+   change hue with the scheme. */
 :root {
-  /* 默认 = 紫(现网);无 data-scheme 或 purple 时 */
+  /* The default = purple (as shipped); used when there is no data-scheme, or when it is purple */
   --bg: #f7f8f9;
   --card: #ffffff;
   --text: #37352f;
@@ -12,37 +13,38 @@
   --accent-deep: #6b4f92;
   --accent-soft: #f0ebf6;
   --ok-bg: #dcfce7;
-  /* 浮层投影:与 --ok-* 同级的中性语义变量,三配色共用,只分浅/深 */
+  /* Overlay shadow: a neutral semantic variable at the same level as --ok-*, shared by all three schemes and
+     differing only between light and dark */
   --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.14);
   --ok-fg: #166534;
-  /* 语义色:不随 scheme 改色相(C2);可有 light/dark */
+  /* Semantic colours: their hue does not change with the scheme (C2); they may differ between light and dark */
   --warn-bg: #fdecdc;
   --warn-fg: #b3552f;
   --err-bg: #fee2e2;
   --err-fg: #991b1b;
-  /* 危险操作按钮(卸载确认等) */
+  /* Destructive action buttons (the uninstall confirmation and the like) */
   --danger-bg: #b91c1c;
   --danger-fg: #ffffff;
-  /* 存疑/风险 pill(fork 剥离存疑);暖色固定语义 */
+  /* The uncertain/risk pill (an uncertain fork strip); a warm colour with fixed meaning */
   --risk-border: #d79a5b;
   --risk-fg: #b3703a;
-  /* 遮蔽/共存提示 pill */
+  /* The shadowing / coexistence pill */
   --note-bg: #fff6b8;
   --note-fg: #5c5100;
-  /* 图表悬浮 tip:固定深底高对比,不跟纸感走 */
+  /* The chart hover tooltip: a fixed dark background with high contrast, not following the paper feel */
   --tip-bg: #1b1b1f;
   --tip-fg: #ffffff;
   --cl-bg: #e8e0f3;
   --cl-fg: #6b4f92;
   --cx-bg: #dcefe4;
   --cx-fg: #1f7a4d;
-  /* provider 品牌主色(数据色,独立于 UI 强调色 --accent) */
+  /* Provider brand colours (data colours, independent of the UI accent --accent) */
   --p-anthropic: #d97757;
   --p-openai: #10a37f;
   --p-google: #4285f4;
   --p-other: #9aa0a6;
 }
-/* 雾蓝 · 浅 */
+/* Mist blue · light */
 html[data-scheme='blue'] {
   --bg: #f6f5f3;
   --card: #fffcf9;
@@ -54,7 +56,7 @@ html[data-scheme='blue'] {
   --accent-deep: #3a5a88;
   --accent-soft: #eef2f7;
 }
-/* 琥珀褐 · 浅 */
+/* Amber brown · light */
 html[data-scheme='amber'] {
   --bg: #f7f3ec;
   --card: #fffcf7;
@@ -78,7 +80,8 @@ html[data-scheme='amber'] {
     --accent-deep: #c9b3ec;
     --accent-soft: #2c2733;
     --ok-bg: #12301d;
-    /* 浮层投影:与 --ok-* 同级的中性语义变量,三配色共用,只分浅/深 */
+    /* Overlay shadow: a neutral semantic variable at the same level as --ok-*, shared by all three schemes and
+     differing only between light and dark */
     --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.55);
     --ok-fg: #86efac;
     --warn-bg: #3c2417;
@@ -97,7 +100,7 @@ html[data-scheme='amber'] {
     --cl-fg: #c9b3ec;
     --cx-bg: #1d3a2b;
     --cx-fg: #7fd6a4;
-    /* 深色底提亮,保持与背景的对比 */
+    /* Lightened on a dark background to keep the contrast */
     --p-anthropic: #e8916f;
     --p-openai: #2fc79f;
     --p-google: #6ba3f7;
@@ -143,14 +146,15 @@ body {
   overflow: hidden;
 }
 
-/* ── 布局骨架:rail + 内容 ── */
+/* ── The layout skeleton: rail + content ── */
 .app {
   display: flex;
   height: 100%;
-  /* 左侧固定件宽度:抽屉据此算内容区。Agents 维度只有 rail(48) */
+  /* The width of the fixed elements on the left; the drawer computes the content area from it. The Agents
+     dimension has only the rail (48) */
   --chrome-w: 48px;
 }
-/* Projects 维度多一列项目侧栏(272) */
+/* The Projects dimension adds a project sidebar column (272) */
 .app.dim-projects {
   --chrome-w: 320px;
 }
@@ -197,7 +201,7 @@ body {
   color: var(--accent);
 }
 
-/* ── 设置页(外观) ── */
+/* ── The settings page (appearance) ── */
 .settings {
   flex: 1;
   overflow: auto;
@@ -224,7 +228,8 @@ body {
   color: var(--text-2);
   margin-bottom: 10px;
 }
-/* 配色卡(紧凑形态):色块 + 名称,不含整句描述;「默认为紫」在段末说明里 */
+/* Colour scheme cards (the compact form): a swatch and a name with no full-sentence description; "purple is
+     the default" lives in the closing explanation */
 .scheme-grid {
   display: flex;
   gap: 8px;
@@ -300,7 +305,7 @@ body {
   display: flex;
 }
 
-/* ── 通用件 ── */
+/* ── Shared pieces ── */
 .badge {
   font-size: 9px;
   font-weight: 700;
@@ -326,7 +331,7 @@ body {
   font-size: 34px;
 }
 
-/* ── Projects 列表栏 ── */
+/* ── The Projects list column ── */
 .side {
   width: 272px;
   flex: none;
@@ -501,7 +506,7 @@ body {
   opacity: 0.75;
 }
 
-/* ── 全宽页(Agents)与详情共用件 ── */
+/* ── Pieces shared by the full-width page (Agents) and the detail page ── */
 .pane {
   flex: 1;
   min-width: 0;
@@ -653,7 +658,8 @@ body {
   border: 1px dashed var(--line-strong);
   color: var(--text-2);
 }
-/* fork 与剥离存疑(原型 .pill.fork / .pill.forkq):实线=确定,虚线+暖色=存疑 */
+/* Fork and uncertain strip (the prototype's .pill.fork / .pill.forkq): a solid line = certain, a dashed
+     line plus a warm colour = uncertain */
 .pill.fork {
   border: 1px solid var(--line-strong);
   color: var(--text-2);
@@ -744,7 +750,7 @@ body {
   padding-left: 20px;
 }
 
-/* ── 项目详情 ── */
+/* ── Project detail ── */
 .det-title {
   display: flex;
   align-items: center;
@@ -778,7 +784,7 @@ body {
   opacity: 0.62;
 }
 
-/* ── Token 可视化 ── */
+/* ── Token visualisation ── */
 .seg {
   display: inline-flex;
   border: 1px solid var(--line-strong);
@@ -817,8 +823,8 @@ body {
   flex-direction: column-reverse;
   justify-content: flex-start;
   position: relative;
-  /* 不可 overflow:hidden——会裁掉定位在柱外的 tooltip 伪元素;
-     圆角改由最顶部那一段承担 */
+  /* Must not use overflow:hidden — it would clip the tooltip pseudo-element positioned outside the bar;
+     the rounded corner is carried by the topmost segment instead */
   overflow: visible;
   min-height: 2px;
 }
@@ -851,9 +857,11 @@ body {
 .col:hover .sp {
   opacity: 1;
 }
-/* x 轴:只标数据日,标签绝对定位钉柱中心(JS 量 DOM 排布),首尾出界 clamp——
-   不能用 flex 等分格:格子会被压得比文字窄导致两侧裁字,且与柱区 padding 错位。
-   字号/颜色放容器上:JS 测宽读容器计算样式,与此处保持单一事实 */
+  /* The x axis: data days only, with labels absolutely positioned on bar centres (JS measures the DOM
+     layout) and the ends clamped — equal flex cells cannot be used: a cell gets squeezed narrower than its
+     text and clips both sides, and it misaligns with the bar area padding.
+     The font size and colour live on the container: JS reads the container's computed style when measuring,
+     keeping a single source of truth with this rule */
 .xaxis {
   position: relative;
   margin-top: 4px;
@@ -977,7 +985,8 @@ body {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-/* 提问条数:与 tok/d 同一档次的次要计量,右对齐等宽对齐成列(原型 .sess .n) */
+/* The question count: a secondary measure at the same level as tok/d, right-aligned and monospaced into a
+     column (the prototype's .sess .n) */
 .se .n {
   font-size: 11px;
   color: var(--text-2);
@@ -987,7 +996,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── 产物 tab ── */
+/* ── The artifacts tab ── */
 .chips {
   display: flex;
   gap: 4px;
@@ -1066,15 +1075,17 @@ body {
   padding: 0;
 }
 
-/* ── 定义抽屉(subagents/memory;与 .reader 弹层分开,按原型为右侧抽屉) ── */
+/* ── The definition drawer (subagents/memory; separate from the .reader overlay, a right-hand drawer per the
+   prototype) ── */
 .drawer {
   position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
-  /* 宽度 = min(固定宽, 右侧内容区 80%)。内容区 = 视口 - 左侧固定件(--chrome-w,
-     由维度决定:Agents 只有 rail,Projects 还有项目侧栏)。此前用 86vw(相对视口),
-     窄窗时抽屉会盖满整个内容区(2026-08-02 bug)。 */
+  /* Width = min(a fixed width, 80% of the right-hand content area). The content area = the viewport minus the
+     fixed elements on the left (--chrome-w, decided by the dimension: Agents has only the rail, Projects also
+     has the project sidebar). It previously used 86vw (relative to the viewport), so in a narrow window the
+     drawer covered the entire content area (a 2026-08-02 bug). */
   width: min(680px, calc((100vw - var(--chrome-w, 48px)) * 0.8));
   background: var(--card);
   border-left: 1px solid var(--line-strong);
@@ -1167,7 +1178,8 @@ body {
   padding: 6px 0;
 }
 .exp-area {
-  /* 14px:与行头同基线(2026-08-07 plugins 原型定稿,原 36px 缩进被裁) */
+  /* 14px: the same baseline as the row header (finalised with the plugins prototype on 2026-08-07; the
+     original 36px indent was cut) */
   padding: 4px 14px 12px 14px;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
@@ -1193,7 +1205,7 @@ body {
   color: var(--text);
 }
 
-/* ── 装卸交互 ── */
+/* ── Install and uninstall interaction ── */
 .it.rel {
   position: relative;
 }
@@ -1317,7 +1329,8 @@ body {
   border: 1px solid var(--err-fg);
 }
 
-/* 即时数据提示:原生 title 有约 1s 延迟,图表悬浮需立刻出数 */
+/* An instant data tooltip: the native title has about a 1s delay, and a chart hover has to show numbers
+     immediately */
 .col[data-tip]:hover::after {
   content: attr(data-tip);
   position: absolute;
@@ -1348,7 +1361,8 @@ body {
   pointer-events: none;
 }
 
-/* 归档段:数值来自本地归档(源会话文件已被 agent 清理),用斜纹与实时数据区分 */
+/* Archived spans: the values come from the local archive (the source session files were cleaned up by the
+     agent), distinguished from live data by hatching */
 .col.arch .sp {
   background-image: repeating-linear-gradient(
     45deg,
@@ -1367,7 +1381,8 @@ body {
   border-radius: 7px;
 }
 
-/* 会话行做成按钮(概览里点进「会话」分栏);沿用 .it.row-btn 同款重置 */
+/* Session rows are buttons (clicking through to the Sessions tab from the overview); reusing the same reset
+     as .it.row-btn */
 .se.row-btn {
   font: inherit;
   text-align: left;
@@ -1384,7 +1399,7 @@ body {
 .se.row-btn:hover {
   background: var(--accent-soft);
 }
-/* 分栏底部的口径说明(与原型 .note 同名) */
+/* The explanation of the accounting at the bottom of the tab (named .note as in the prototype) */
 .note {
   font-size: 11px;
   line-height: 1.7;
@@ -1392,7 +1407,7 @@ body {
   margin: 8px 2px 0;
 }
 
-/* ── 会话页(票 04;原型 session-view/prototype-session.html)── */
+/* ── The session page (ticket 04; the prototype is session-view/prototype-session.html) ── */
 .sback {
   background: none;
   border: 0;
@@ -1423,7 +1438,8 @@ body {
   justify-content: space-between;
   margin-bottom: 8px;
 }
-/* 提问行 = 主索引:单行密排,序号/文本/本轮体量/时间(原型 .q;点开取整轮是 05) */
+/* A question row = the primary index: a dense single line with the number, text, turn volume and time (the
+     prototype's .q; expanding to fetch a whole turn is ticket 05) */
 .qlist .q {
   display: flex;
   align-items: center;
@@ -1442,7 +1458,8 @@ body {
   font-size: 11px;
   color: var(--text-2);
 }
-/* 省略号是显示层截断:数据侧是全文,展开时铺得出来(spec D2a 推论) */
+/* The ellipsis is display-layer truncation: the data side holds the full text and lays it out on expansion
+     (a corollary of spec D2a) */
 .qlist .q .txt {
   flex: 1;
   min-width: 0;
@@ -1462,7 +1479,7 @@ body {
   width: 44px;
   text-align: right;
 }
-/* 票 08:会话分栏搜索(原型 .sbar/.scope/.shead/.grp/.gh/.hit/mark) */
+/* Ticket 08: search in the sessions tab (the prototype's .sbar/.scope/.shead/.grp/.gh/.hit/mark) */
 .sbar {
   display: flex;
   align-items: center;
@@ -1518,9 +1535,10 @@ body {
   margin-bottom: 9px;
   overflow: hidden;
 }
-/* row-btn 的 UA 重置按宿主类逐一组合写(与 .it.row-btn/.se.row-btn 同模式)——
-   漏写会在暗色主题下露出浏览器默认的白底黑字 button。
-   本规则与 .grp .gh 同优先级且在其后:border 一体声明,免得 border:0 吃掉组头下边线 */
+  /* The UA reset for row-btn is written per host class combination (the same pattern as .it.row-btn and
+     .se.row-btn) — missing one exposes the browser's default black-on-white button in the dark theme.
+     This rule has the same specificity as .grp .gh and comes after it: the border is declared as one, so
+     border:0 does not eat the group header's bottom line */
 .gh.row-btn {
   font: inherit;
   text-align: left;
@@ -1618,10 +1636,11 @@ mark {
   background: #fff2a8;
   color: inherit;
 }
-/* 票 08:搜索定位高亮(2026-08-06 原型确认)——进入时黄色脉冲驻留 10s
-   (前 8s 保持、末 2s 渐隐,mark 同族色,与 hover 的紫区分),脉冲后左缘
-   accent 竖条常驻,点击任意提问行清除。起色变量 scope 在 .q 上,
-   四段式与 mark/warn 同款(功能色不随外观方案变) */
+  /* Ticket 08: the search locating highlight (confirmed by the prototype on 2026-08-06) — on arrival a
+     yellow pulse holds for 10s (8s steady, fading over the last 2s, in the same colour family as mark and
+     distinct from hover's purple); after the pulse an accent bar stays at the left edge, cleared by clicking
+     any question row. The colour variables are scoped on .q, in the same four-part form as mark/warn
+     (functional colours do not change with the colour scheme) */
 .qlist .q {
   --locate-from: #fff2a8;
 }
@@ -1651,7 +1670,8 @@ mark {
 .qlist .q.focused {
   box-shadow: inset 3px 0 0 var(--accent);
 }
-/* 票 06:顶部三档横幅 + 日期分组 + 排序控件(原型 .banner / .daygrp / .dayhd) */
+/* Ticket 06: the three tiers of top banner + day grouping + the sort control (the prototype's .banner /
+     .daygrp / .dayhd) */
 .banner {
   display: flex;
   gap: 8px;
@@ -1736,7 +1756,8 @@ mark {
 .qlist .daygrp.fold .dayhd .cv::before {
   content: '▸';
 }
-/* 票 05:点提问就地展开整轮(原型 .q.open / .turn / .ans / .fetched / .rebuild) */
+/* Ticket 05: clicking a question expands the whole turn in place (the prototype's .q.open / .turn / .ans /
+     .fetched / .rebuild) */
 .qlist .q {
   cursor: pointer;
 }
@@ -1756,7 +1777,8 @@ mark {
   padding-top: 8px;
   padding-bottom: 8px;
 }
-/* 展开时提问行自己铺开全文(多行粘贴原样展开),不另设复述块(spec 界面决策) */
+/* On expansion the question row unfolds its own full text (a multi-line paste expands as written), with no
+     separate restating block (the spec's UI decision) */
 .qlist .q.open .txt {
   font-weight: 600;
   white-space: pre-wrap;
@@ -1793,7 +1815,7 @@ mark {
   color: var(--text-2);
   padding: 12px 0;
 }
-/* 票 07:轮内块(原型 .blk/.bh/.bb/.step/.rt/.warn/.unknown) */
+/* Ticket 07: in-turn blocks (the prototype's .blk/.bh/.bb/.step/.rt/.warn/.unknown) */
 .turn .blk {
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -1893,7 +1915,7 @@ mark {
   margin: 3px 0;
   color: var(--text-2);
 }
-/* 不可还原/被截断/加密/不可归位:一律显式标注,不静默 */
+/* Unrecoverable / truncated / encrypted / unattributable: always labelled explicitly, never silently */
 .turn .warn {
   border: 1px dashed #d79a5b;
   background: #fdf3e3;
@@ -1935,7 +1957,7 @@ mark {
   line-height: 1.7;
 }
 
-/* ── skills-view:折叠文件表 + 文件抽屉 ── */
+/* ── skills-view: the collapsible file table + the file drawer ── */
 .sk-card { overflow: hidden; }
 .sk { border-top: 1px solid var(--line); }
 .sk:first-child { border-top: 0; }
@@ -1943,8 +1965,9 @@ mark {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* 8px:视觉行高约 32px,对齐其它分栏的 .it 行(9px+纯文本);skills 行内容盒
-     因 pill/按钮更高,padding 少 1px 补偿(2026-08-06 原型定稿) */
+  /* 8px: a visual row height of about 32px, aligned with the .it rows in other tabs (9px plus plain text);
+     a skills row's content box is taller because of its pills and buttons, so it gets 1px less padding to
+     compensate (finalised with the prototype on 2026-08-06) */
   padding: 8px 14px;
   width: 100%;
   text-align: left;
@@ -1956,7 +1979,8 @@ mark {
 .sk-head.disk { cursor: pointer; }
 .sk-head.disk:hover { background: var(--accent-soft); }
 .sk-head.plugin { cursor: default; opacity: 0.92; }
-/* 行名与动作按钮沿用 .it 行的列几何(200px 名列;按钮靠右) */
+  /* The row name and action buttons reuse the column geometry of an .it row (a 200px name column, buttons
+     on the right) */
 .sk-head .nm {
   font-size: 12.5px;
   width: 200px;
@@ -1965,9 +1989,10 @@ mark {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* ── plugins-view:类目 tab + 插件 skill 行(2026-08-07 原型定稿) ── */
-/* 插件行名自适应(原型定稿即全名):.it .nm 的 200px 定宽是 skills 名列的几何,
-   插件名(name@marketplace)常超宽;空间不足时仍可收缩出省略号 */
+/* ── plugins-view: category tabs + plugin skill rows (finalised with the prototype on 2026-08-07) ── */
+  /* Plugin row names size to their content (the finalised prototype shows the full name): the 200px fixed
+     width of .it .nm is the geometry of the skills name column, and a plugin name (name@marketplace) often
+     exceeds it; it can still shrink to an ellipsis when space runs short */
 .plug-card .it .nm {
   width: auto;
   flex: 0 1 auto;
@@ -2036,7 +2061,8 @@ mark {
   padding: 8px 12px;
 }
 
-/* 行内包统计(文件数/大小)承担右推;装卸按钮排其后 */
+  /* The inline package stats (file count / size) do the pushing to the right; the install and uninstall
+     buttons come after them */
 .sk-meta {
   margin-left: auto;
   flex: none;
@@ -2053,8 +2079,9 @@ mark {
   text-align: center;
 }
 .sk.open .chev { transform: rotate(90deg); color: var(--accent); }
-/* 展开区平铺(2026-08-06 原型定稿):零缩进,内容与行头同一条 14px 基线,
-   靠上下边线 + 底色区隔;不再套内层卡片 */
+  /* The expanded area is flat (finalised with the prototype on 2026-08-06): zero indentation, with the
+     content on the same 14px baseline as the row header, separated by top and bottom borders plus a
+     background; no inner card any more */
 .sk-body {
   padding: 0;
   background: var(--bg);
@@ -2123,7 +2150,8 @@ mark {
 }
 .files button:hover .path { color: var(--accent-deep); }
 .files button .name-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
-/* 类型徽标:横向 pill,禁止换行(固定 22×22 会把 MD 挤成两行像坏图标) */
+  /* Type badges: a horizontal pill that must not wrap (a fixed 22×22 would squeeze MD onto two lines and
+     look like a broken icon) */
 .files button .ic {
   flex: none;
   min-width: 28px;
@@ -2192,8 +2220,9 @@ mark {
 .files .empty { font-size: 12px; color: var(--text-2); padding: 12px 14px; }
 
 .skill-drawer.drawer {
-  /* 定位/阴影/z-index 继承 .drawer;宽度必须沿用 chrome-w 公式(94vw 会重现
-     2026-08-02 窄窗盖满内容区 bug),仅放宽固定宽到 720 供读长行 */
+  /* Positioning, shadow and z-index are inherited from .drawer; the width must reuse the chrome-w formula
+     (94vw would reproduce the 2026-08-02 bug where a narrow window's drawer covered the content area), and
+     only the fixed width is relaxed to 720 for reading long lines */
   width: min(720px, calc((100vw - var(--chrome-w, 48px)) * 0.8));
   display: flex;
   flex-direction: column;
@@ -2351,13 +2380,15 @@ mark {
 }
 .skill-md .md-preview-body.preview a { color: var(--accent); }
 
-/* ── 设置页 · 行形态与界面语言选择器 ──
-   交互态(hover / focus-visible / 展开)的 base 值全部落在这里,不写进组件内联
-   style:内联样式优先级高于任何 class 选择器,伪类规则会被整条压死且不报错。 */
+/* ── The settings page · row forms and the UI language selector ──
+   The base values for every interaction state (hover / focus-visible / open) live here and are never
+   written into a component's inline style: inline styles outrank any class selector, so a pseudo-class
+   rule would be silently overridden in its entirety. */
 .settings-sec-gap {
   margin-top: 26px;
 }
-/* 设置行:标签在左、控件在右。语言段一行,外观段两行(模式 / 配色),共用同一形态 */
+  /* A settings row: the label on the left, the control on the right. The language section has one row and
+     the appearance section two (mode / colour scheme), sharing the same form */
 .field {
   background: var(--card);
   border: 1px solid var(--line-strong);
@@ -2378,9 +2409,10 @@ mark {
   font-weight: 600;
   flex: none;
 }
-/* 模式三段控件沿用既有 .seg 形态(见「Token 可视化」段),这里只按设置页语境放大
-   尺寸——那边是图表工具栏用的 11px / 3px 10px。hover 用 :not(.on) 排除选中项,
-   否则它与 `.seg button.on` 同特异性、又排在后面,会把选中态的底色盖掉。 */
+  /* The mode's three-segment control reuses the existing .seg form (see the "Token visualisation" section)
+     and only scales it up for the settings page context — there it is 11px / 3px 10px for the chart toolbar.
+     The hover uses :not(.on) to exclude the selected item, which otherwise has the same specificity as
+     `.seg button.on` and comes after it, covering the selected state's background. */
 .seg-field button {
   font-size: 12px;
   padding: 5px 13px;
@@ -2442,7 +2474,8 @@ mark {
   transform: rotate(180deg);
 }
 
-/* 浮层用 fixed:设置页容器是 overflow:auto,普通绝对定位会被它裁掉 */
+  /* The overlay is fixed: the settings page container is overflow:auto, which would clip an ordinary
+     absolutely positioned element */
 .lang-pop {
   position: fixed;
   z-index: 60;
@@ -2492,7 +2525,7 @@ mark {
 .lang-opt.on .n {
   color: var(--accent-deep);
 }
-/* 分隔线:「跟随系统」是策略,其后六项是取值,性质不同 */
+  /* The divider: "follow system" is a policy and the six after it are values — different in kind */
 .lang-sep {
   height: 1px;
   background: var(--line);
