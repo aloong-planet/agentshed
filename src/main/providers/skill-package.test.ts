@@ -37,7 +37,7 @@ function mkPack(root: string, files: Record<string, string>): void {
 }
 
 describe('listSkillPackageFiles', () => {
-  it('列出顶层与一层子目录文本;更深进 deepPaths', () => {
+  it('lists text at the top level and one subdirectory down; anything deeper goes to deepPaths', () => {
     const pack = join(dir, 'pack')
     mkPack(pack, {
       'SKILL.md': '---\nname: x\n---\n\n# Hi\n',
@@ -57,15 +57,16 @@ describe('listSkillPackageFiles', () => {
     expect(paths).not.toContain('bin/tool.png')
     expect(listing.deep).toBe(true)
     expect(listing.deepPaths).toContain('references/nested/too-deep.md')
-    // 提示文案已移到渲染层(票 07),主进程只传 deep 这个判定结果——
-    // 断言点随之从「文案存在」变为「判定为真」
+    // The notice copy moved to the renderer (ticket 07) and the main process only passes the `deep`
+    // verdict —
+    // so the assertion moved from "the copy is present" to "the verdict is true"
     const skill = listing.files.find((f) => f.path === 'SKILL.md')!
     expect(skill.lines).toBeGreaterThanOrEqual(3)
     expect(skill.bytes).toBeGreaterThan(0)
     expect(skill.mtimeMs).toBeGreaterThan(0)
   })
 
-  it('跳过 node_modules 与 .git', () => {
+  it('skips node_modules and .git', () => {
     const pack = join(dir, 'pack2')
     mkPack(pack, {
       'SKILL.md': '# s\n',
@@ -76,21 +77,22 @@ describe('listSkillPackageFiles', () => {
     expect(listing.files.map((f) => f.path)).toEqual(['SKILL.md'])
   })
 
-  it('空包与缺 SKILL.md:不崩,列表如实', () => {
+  it('an empty package and a missing SKILL.md: no crash, and the list is truthful', () => {
     const empty = join(dir, 'empty-pack')
     mkdirSync(empty, { recursive: true })
     const l1 = listSkillPackageFiles(empty)
     expect(l1.files).toEqual([])
     expect(l1.deep).toBe(false)
 
-    // 包损坏(无 SKILL.md):其余文本仍列出,不伪造入口(C5)
+    // A broken package (no SKILL.md): the other text files are still listed and no entry point is
+    // fabricated (C5)
     const noEntry = join(dir, 'no-entry')
     mkPack(noEntry, { 'notes.txt': 'hi\n' })
     const l2 = listSkillPackageFiles(noEntry)
     expect(l2.files.map((f) => f.path)).toEqual(['notes.txt'])
   })
 
-  it('statSkillPackage:与列举同一套过滤规则计数;不可读根 → null', () => {
+  it('statSkillPackage: counts by the same filtering rules as enumeration; an unreadable root → null', () => {
     const pack = join(dir, 'stat-pack')
     mkPack(pack, {
       'SKILL.md': '# s\n',
@@ -99,14 +101,14 @@ describe('listSkillPackageFiles', () => {
       'node_modules/x/no.md': 'no\n'
     })
     const st = statSkillPackage(pack)!
-    expect(st.files).toBe(2) // SKILL.md + references/a.md;深层与垃圾目录不计
+    expect(st.files).toBe(2) // SKILL.md + references/a.md; deeper files and junk directories do not count
     expect(st.bytes).toBeGreaterThan(0)
-    // 行上数字与展开表格一致(同一套规则)
+    // The row's numbers match the expanded table (the same rules)
     expect(st.files).toBe(listSkillPackageFiles(pack).files.length)
     expect(statSkillPackage(join(dir, 'missing'))).toBeNull()
   })
 
-  it('跟随软链 skill 根', () => {
+  it('follows a symlinked skill root', () => {
     const real = join(dir, 'real-skill')
     mkPack(real, { 'SKILL.md': '---\ndescription: via link\n---\n' })
     const link = join(dir, 'link-skill')
@@ -117,7 +119,7 @@ describe('listSkillPackageFiles', () => {
 })
 
 describe('resolveSkillRoot + isUnderKnownSkillRoots', () => {
-  it('解析全局/项目路径并校验落在 skills 根下', () => {
+  it('resolves global and project paths and validates they land under a skills root', () => {
     const r = roots()
     mkdirSync(join(r.claudeHome, 'skills', 'tdd'), { recursive: true })
     writeFileSync(join(r.claudeHome, 'skills', 'tdd', 'SKILL.md'), '#\n')
@@ -133,21 +135,22 @@ describe('resolveSkillRoot + isUnderKnownSkillRoots', () => {
     expect(resolveSkillRoot({ side: 'claude', name: 'plug:x', scope: 'global', roots: r })).toBeNull()
   })
 
-  it('软链入口:目标在所有已知根之外仍放行(decision-form 形态;容器检查作用于解析前入口)', () => {
+  it('a symlinked entry point: admitted even when the target is outside every known root (the container check applies to the entry point before resolution)', () => {
     const r = roots()
-    // 真实包在普通仓库目录(所有已知根之外)——软链装 skill 的最常见形态
+    // The real package lives in an ordinary repository directory, outside every known root — the most
+    // common shape of a symlink-installed skill
     const target = join(dir, 'repo', 'skills', 'decision-form')
     mkPack(target, { 'SKILL.md': '---\ndescription: 表单\n---\n决策表正文\n' })
     mkdirSync(r.agentsSkillsDir, { recursive: true })
     symlinkSync(target, join(r.agentsSkillsDir, 'decision-form'))
-    // 入口(软链本身)必须过容器检查——A6:目标不设限
+    // The entry point (the symlink itself) must pass the container check — A6: the target is unconstrained
     expect(isUnderKnownSkillRoots(join(r.agentsSkillsDir, 'decision-form'), r)).toBe(true)
     const abs = resolveSkillRoot({ side: 'codex', name: 'decision-form', scope: 'global', roots: r })
     expect(abs).toBeTruthy()
     expect(listSkillPackageFiles(abs!).files.some((f) => f.path === 'SKILL.md')).toBe(true)
   })
 
-  it('软链入口:目标在另一已知根内也放行(codebase-design 形态,锁现状)', () => {
+  it('a symlinked entry point: also admitted when the target is inside another known root (pinning the current behaviour)', () => {
     const r = roots()
     const real = join(r.agentsSkillsDir, 'codebase-design')
     mkPack(real, { 'SKILL.md': '# cd\n' })
@@ -159,14 +162,14 @@ describe('resolveSkillRoot + isUnderKnownSkillRoots', () => {
     ).toBeTruthy()
   })
 
-  it('悬空软链 → null(不崩、不放行)', () => {
+  it('a dangling symlink → null (no crash, not admitted)', () => {
     const r = roots()
     mkdirSync(r.agentsSkillsDir, { recursive: true })
     symlinkSync(join(dir, 'gone'), join(r.agentsSkillsDir, 'dangling'))
     expect(resolveSkillRoot({ side: 'codex', name: 'dangling', scope: 'global', roots: r })).toBeNull()
   })
 
-  it('isUnderKnownSkillRoots:包外 / skills 根自身 / 非直接子目录一律拒绝(C9 fail-closed)', () => {
+  it('isUnderKnownSkillRoots: outside a package, a skills root itself, and anything not a direct subdirectory are all refused (C9 fail-closed)', () => {
     const r = roots()
     mkdirSync(join(r.claudeHome, 'skills', 'tdd', 'references'), { recursive: true })
     const outside = join(dir, 'elsewhere', 'tdd')
@@ -174,7 +177,7 @@ describe('resolveSkillRoot + isUnderKnownSkillRoots', () => {
     expect(isUnderKnownSkillRoots(outside, r)).toBe(false)
     expect(isUnderKnownSkillRoots(join(r.claudeHome, 'skills'), r)).toBe(false)
     expect(isUnderKnownSkillRoots(join(r.claudeHome, 'skills', 'tdd', 'references'), r)).toBe(false)
-    // 未传 projectPath 时,项目级目录不在允许集
+    // Without a projectPath, the project-level directory is not in the allowed set
     mkdirSync(join(dir, 'proj', '.claude', 'skills', 'x'), { recursive: true })
     expect(isUnderKnownSkillRoots(join(dir, 'proj', '.claude', 'skills', 'x'), r)).toBe(false)
     expect(isUnderKnownSkillRoots(join(dir, 'proj', '.claude', 'skills', 'x'), r, join(dir, 'proj'))).toBe(true)
@@ -182,7 +185,7 @@ describe('resolveSkillRoot + isUnderKnownSkillRoots', () => {
 })
 
 describe('resolvePluginSkillRoot(plugins-view H8)', () => {
-  it('包根下 skills/<名> 解析;name 消毒;缺失/悬空 → null', () => {
+  it('resolves skills/<name> under a package root; the name is sanitised; missing or dangling → null', () => {
     const root = join(dir, 'plug-pkg')
     mkPack(root, { 'skills/brainstorming/SKILL.md': '# b\n' })
     const abs = resolvePluginSkillRoot(root, 'brainstorming')

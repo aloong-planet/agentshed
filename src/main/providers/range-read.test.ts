@@ -11,8 +11,8 @@ function withFile<T>(content: Buffer | string, fn: (file: string) => Promise<T>)
   return fn(file).finally(() => rmSync(dir, { recursive: true, force: true }))
 }
 
-describe('mapLimit(有界并发,spec D2b 共享工具)', () => {
-  test('结果顺序与输入一致,与完成顺序无关', async () => {
+describe('mapLimit (bounded concurrency, the shared utility of spec D2b)', () => {
+  test('results come back in input order, regardless of completion order', async () => {
     const delays = [30, 5, 20, 1]
     const out = await mapLimit(delays, 2, async (d) => {
       await new Promise((r) => setTimeout(r, d))
@@ -21,7 +21,7 @@ describe('mapLimit(有界并发,spec D2b 共享工具)', () => {
     expect(out).toEqual([300, 50, 200, 10])
   })
 
-  test('并发数不超过上限(实测峰值,不是信文档)', async () => {
+  test('concurrency never exceeds the cap (the peak is measured, not taken on trust)', async () => {
     let now = 0
     let peak = 0
     await mapLimit(Array.from({ length: 12 }, (_, i) => i), 4, async () => {
@@ -31,11 +31,12 @@ describe('mapLimit(有界并发,spec D2b 共享工具)', () => {
       now--
     })
     expect(peak).toBeLessThanOrEqual(4)
-    // 反向防空过:上限真的被用起来了(串行的话峰值恒 1)
+    // A reverse check against a vacuous pass: the cap really is being used (running serially would peg
+    // the peak at 1)
     expect(peak).toBeGreaterThan(1)
   })
 
-  test('某项抛错则整体拒绝,但不吊死其余任务', async () => {
+  test('one item throwing rejects the whole call without hanging the remaining tasks', async () => {
     await expect(
       mapLimit([1, 2, 3], 2, async (n) => {
         if (n === 2) throw new Error('boom')
@@ -44,15 +45,17 @@ describe('mapLimit(有界并发,spec D2b 共享工具)', () => {
     ).rejects.toThrow('boom')
   })
 
-  test('空输入返回空数组', async () => {
+  test('empty input returns an empty array', async () => {
     expect(await mapLimit([], 4, async (x) => x)).toEqual([])
   })
 })
 
-describe('readRanges(按字节区间读,绝不整读)', () => {
-  test('不整读:12MB 文件读 3 个小区间,读取字节数 == 区间之和', async () => {
-    // 票 04 验收的机制化表述:耗时与文件大小无关的原因是读取量与文件大小无关。
-    // 断言字节数而非墙钟——墙钟受页缓存影响会飘(票里明写)。
+describe('readRanges (reading by byte range, never reading whole)', () => {
+  test('never reads whole: 3 small ranges from a 12 MB file read exactly the sum of those ranges', async () => {
+    // Ticket 04's acceptance stated mechanically: the reason the duration is independent of file size is
+    // that the volume read is independent of file size.
+    // The byte count is asserted rather than wall-clock time — wall clock drifts with the page cache (as
+    // the ticket states explicitly).
     const chunk = Buffer.alloc(1024 * 1024, 0x61) // 'a'
     const big = Buffer.concat(Array.from({ length: 12 }, () => chunk))
     const marks: Array<[number, string]> = [
@@ -65,13 +68,13 @@ describe('readRanges(按字节区间读,绝不整读)', () => {
       const ranges = marks.map(([pos]) => ({ start: pos, end: Math.min(pos + 6, big.length) }))
       const r = await readRanges(file, ranges)
       expect(r.bytesRead).toBe(ranges.reduce((n, g) => n + (g.end - g.start), 0))
-      expect(r.bytesRead).toBeLessThan(64) // 12MB 文件只读了几十字节
+      expect(r.bytesRead).toBeLessThan(64) // Only tens of bytes read out of a 12 MB file
       expect(r.texts[0].startsWith('开头')).toBe(true)
       expect(r.texts[1].startsWith('中段')).toBe(true)
     })
   })
 
-  test('区间即字节区间:多字节字符按偏移原样切回', async () => {
+  test('a range is a byte range: a multi-byte character slices back verbatim by offset', async () => {
     const line = JSON.stringify({ t: '中文提问内容' })
     await withFile(line, async (file) => {
       const r = await readRanges(file, [{ start: 0, end: Buffer.byteLength(line) }])
@@ -79,7 +82,7 @@ describe('readRanges(按字节区间读,绝不整读)', () => {
     })
   })
 
-  test('越过文件末尾的区间按实际可读截断,不抛也不补零', async () => {
+  test('a range past the end of the file is truncated to what is readable, without throwing or zero-padding', async () => {
     await withFile('abcdef', async (file) => {
       const r = await readRanges(file, [{ start: 4, end: 100 }])
       expect(r.texts[0]).toBe('ef')
@@ -87,7 +90,7 @@ describe('readRanges(按字节区间读,绝不整读)', () => {
     })
   })
 
-  test('多区间保持输入顺序', async () => {
+  test('several ranges keep their input order', async () => {
     await withFile('0123456789', async (file) => {
       const r = await readRanges(file, [
         { start: 8, end: 10 },
@@ -98,13 +101,13 @@ describe('readRanges(按字节区间读,绝不整读)', () => {
     })
   })
 
-  test('文件不存在:拒绝而非静默空数组', async () => {
+  test('a missing file: refused rather than a silent empty array', async () => {
     await expect(readRanges(join(tmpdir(), 'no-such-rr', 'x.jsonl'), [{ start: 0, end: 1 }])).rejects.toThrow()
   })
 })
 
-describe('mapLimit 的错误收敛(review 发现的 unhandledRejection 口)', () => {
-  test('某项抛错后,拒绝要等全部在飞任务落定——不留无人监听的悬空 promise', async () => {
+describe('mapLimit\'s error convergence (the unhandledRejection hole review found)', () => {
+  test('after one item throws, the rejection waits for every in-flight task to settle — leaving no dangling promise with no listener', async () => {
     let active = 0
     let stillRunningAtReject = -1
     await mapLimit([0, 1], 2, async (n) => {
@@ -122,8 +125,9 @@ describe('mapLimit 的错误收敛(review 发现的 unhandledRejection 口)', ()
     }).catch(() => {
       stillRunningAtReject = active
     })
-    // 拒绝传出时另一个任务必须已经结束:否则它随后的失败(如 fd 已被 finally 关闭
-    // 导致的 EBADF)就是 unhandledRejection——smoke 的错误 grep 恰好抓这个词
+    // By the time the rejection propagates, the other task must have finished: otherwise its later failure
+    // (an EBADF because finally already closed the fd,
+    // say) is an unhandledRejection — and smoke's error grep catches exactly that word
     expect(stillRunningAtReject).toBe(0)
   })
 })

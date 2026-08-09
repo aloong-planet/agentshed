@@ -1,6 +1,7 @@
-// 对账工具(非产线测试;默认跳过,需真实数据与 ccusage 基准):
+// A reconciliation tool (not a production-line test; skipped by default, requiring real data and a ccusage
+// baseline):
 //   npx ccusage@latest daily --by-agent --json > /tmp/ccusage-until29.json
-// 注意:ccusage 20.x 是多 agent 聚合器(claude/codex/gemini/openclaw),
+// Note: ccusage 20.x is a multi-agent aggregator (claude/codex/gemini/openclaw),
 // 必须取 agents[] 里 agent==='claude' 的分解,否则会把别的 CLI 用量算进基准。
 //   PARITY=1 pnpm vitest run scripts/ccusage-parity.test.ts
 import { readFileSync, mkdtempSync, rmSync } from 'node:fs'
