@@ -6,13 +6,18 @@ import { eachJsonlLine } from './jsonl'
 import { makeQuestionIndexer, questionTextAt, type QuestionRec } from './question-index'
 
 /**
- * 驱动方式与两个 parser 里的接线一致:eachJsonlLine 逐行喂给 indexer,末尾 done(文件长度)。
+ * Driven the same way as the wiring in the two parsers: eachJsonlLine feeds the indexer line by line, then
+ * done(file length) at the end.
  *
- * **已知缺口(变异检验实测,不是没写)**:
- * 1. parser 里那三行接线本身无行为测试,只由 typecheck 兜住;补测条件是 parser 可注入行流。
- * 2. `claudeQuestion` 里"text 段为空 → 返回 null"这个分支**不可被行为区分**:改成返回
- *    空串后全部测试仍绿,因为调用方的 `realUserText('')` 同样判 null。保留它是为了函数
- *    契约自洽(不是提问就还 null),不是为了行为差异——别为它编一个测试来充数。
+ * **Known gaps (established by mutation, not simply unwritten)**:
+ * 1. those three lines of wiring in the parsers have no behavioural test of their own and are backstopped
+ *    only by typecheck; covering them requires the parsers to accept an injectable line stream.
+ * 2. the "an empty text segment → return null" branch inside `claudeQuestion` is **behaviourally
+ *    indistinguishable**: changing it to return
+ *    an empty string leaves every test green, because the caller's `realUserText('')` judges it null too.
+ *    It is kept for the function's
+ *    own contract to be self-consistent (not a question → return null), not for a behavioural difference —
+ *    do not invent a test to pad it out.
  */
 async function indexOf(file: string, side: 'claude' | 'codex'): Promise<QuestionRec[]> {
   const idx = makeQuestionIndexer(side)
@@ -38,7 +43,8 @@ const cUser = (text: string, extra: Record<string, unknown> = {}): unknown => ({
   message: { role: 'user', content: text },
   ...extra
 })
-/** 真实形态:助手行的 tool_use 段;Agent/Task 的入参恒为 description/prompt/subagent_type */
+/** The real shape: an assistant line's tool_use segment; Agent and Task always take
+ * description/prompt/subagent_type */
 const cTool = (name: string): unknown => ({
   type: 'assistant',
   timestamp: TS,
@@ -53,10 +59,11 @@ const xUser = (message: string): unknown => ({
   payload: { type: 'user_message', message }
 })
 
-describe('提问提取(Claude 侧)', () => {
-  // 三种 content 数组形态取自全库枚举(12,734 个数组,组合只有这三种):
+describe('question extraction (the Claude side)', () => {
+  // The three content array shapes come from a full enumeration (12,734 arrays, with only these three
+  // combinations):
   // (tool_result) 12541 / (text) 142 / (image,text) 51
-  test('content 为 string 与 [{type:text}] 都算提问,工具回灌不算', async () => {
+  test('content as a string and as [{type:text}] both count as questions; a tool result fed back does not', async () => {
     await withLines(
       [
         cUser('第一个真问题'),
@@ -69,7 +76,7 @@ describe('提问提取(Claude 侧)', () => {
     )
   })
 
-  test('image + text 混排算提问,只取 text 段(真实形态,全库 51 例)', async () => {
+  test('image mixed with text counts as a question, taking the text segment only (a real shape, 51 cases across the repository)', async () => {
     await withLines(
       [
         {
@@ -90,13 +97,13 @@ describe('提问提取(Claude 侧)', () => {
     )
   })
 
-  test('sidechain 行不算提问——那是 subagent 自己的转写,不是人问的', async () => {
+  test('a sidechain line is not a question — that is a subagent\'s own transcript, not something a human asked', async () => {
     await withLines([cUser('人问的'), cUser('subagent 的派发提示词', { isSidechain: true, agentId: 'a1' })], async (file) => {
       expect(await indexOf(file, 'claude')).toHaveLength(1)
     })
   })
 
-  test('harness 噪声不算提问(与标题剥离同一套规则)', async () => {
+  test('harness noise is not a question (the same rules as title stripping)', async () => {
     await withLines(
       [
         cUser('Warmup'),
@@ -107,34 +114,34 @@ describe('提问提取(Claude 侧)', () => {
         cUser('这是真问题')
       ],
       async (file) => {
-        // 只有 cron(剥方括号后有正文)与末条算数
+        // Only the cron one (which has content after the bracket is stripped) and the last one count
         expect(await indexOf(file, 'claude')).toHaveLength(2)
       }
     )
   })
 
-  test('整份文件没有真实提问 → 空索引', async () => {
+  test('a whole file with no real question → an empty index', async () => {
     await withLines([cUser('Warmup'), cTool('Bash')], async (file) => {
       expect(await indexOf(file, 'claude')).toEqual([])
     })
   })
 })
 
-describe('轮次切分与偏移', () => {
-  test('轮次 = 本条提问之后到下一条提问之前;末轮到文件末尾', async () => {
+describe('turn splitting and offsets', () => {
+  test('a turn = from after this question up to the next one; the last turn runs to the end of the file', async () => {
     const objs = [cUser('问题一'), cTool('Bash'), cUser('问题二'), cTool('Read')]
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
       const size = readFileSync(file).length
       expect(recs).toHaveLength(2)
-      // 提问区间紧贴该行;轮次从提问行之后开始
+      // The question's range hugs its line; the turn starts after the question line
       expect(recs[0][0]).toBe(0)
       expect(recs[0][2]).toBe(recs[1][0]) // 第一轮止 == 第二条提问起
       expect(recs[1][2]).toBe(size) // 末轮止 == 文件长度
     })
   })
 
-  test('锚:按 [轮次起,轮次止) 切出来的,恰是该提问之后、下条提问之前的全部行', async () => {
+  test('the anchor: what [turn start, turn end) slices out is exactly every line after this question and before the next', async () => {
     const objs = [cUser('问题一'), cTool('Bash'), cTool('Agent'), cUser('问题二'), cTool('Read')]
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
@@ -146,15 +153,15 @@ describe('轮次切分与偏移', () => {
           .split('\n')
           .filter((l) => l.trim())
           .map((l) => JSON.parse(l))
-      // 全解析口径:提问在原始序列里的下标 → 到下一条提问之间的那些行
+      // The full-parse rule: from the question's index in the original sequence up to the next question
       expect(parseRange(recs[0][1], recs[0][2])).toEqual([objs[1], objs[2]])
       expect(parseRange(recs[1][1], recs[1][2])).toEqual([objs[4]])
-      // 提问自身的区间也要切得回来
+      // The question's own range has to slice back too
       expect(JSON.parse(raw.subarray(recs[0][0], recs[0][1]).toString('utf8'))).toEqual(objs[0])
     })
   })
 
-  test('提问行的时间戳进索引;无时间戳则为 null', async () => {
+  test('the question line\'s timestamp enters the index; null when there is none', async () => {
     await withLines([cUser('有时间'), { type: 'user', message: { role: 'user', content: '无时间' } }], async (file) => {
       const recs = await indexOf(file, 'claude')
       expect(recs[0][3]).toBe(Date.parse(TS))
@@ -163,9 +170,10 @@ describe('轮次切分与偏移', () => {
   })
 })
 
-describe('本轮体量计数', () => {
-  test('Claude:Agent 与 Task 都计 subagent,其余 tool_use 计工具', async () => {
-    // 全库实测:Agent 152 次 / Task 4 次,两代同一个派发工具,入参同为
+describe('per-turn volume counting', () => {
+  test('Claude: both Agent and Task count as subagents, and other tool_use segments count as tools', async () => {
+    // Measured across the repository: Agent 152 times, Task 4 — two generations of the same dispatch tool,
+    // both taking
     // description+prompt+subagent_type
     await withLines([cUser('问'), cTool('Bash'), cTool('Read'), cTool('Agent'), cTool('Task')], async (file) => {
       const [rec] = await indexOf(file, 'claude')
@@ -174,7 +182,7 @@ describe('本轮体量计数', () => {
     })
   })
 
-  test('Claude:sidechain 行里的工具不计入父轮——那是 subagent 自己干的活', async () => {
+  test('Claude: tools on a sidechain line do not count toward the parent turn — that is the subagent\'s own work', async () => {
     const side = { ...(cTool('Bash') as Record<string, unknown>), isSidechain: true, agentId: 'a1' }
     await withLines([cUser('问'), cTool('Agent'), side, side], async (file) => {
       const [rec] = await indexOf(file, 'claude')
@@ -183,14 +191,14 @@ describe('本轮体量计数', () => {
     })
   })
 
-  test('计数按轮归属,不串轮', async () => {
+  test('counts are attributed per turn and do not cross over', async () => {
     await withLines([cUser('一'), cTool('Bash'), cUser('二'), cTool('Bash'), cTool('Read')], async (file) => {
       const recs = await indexOf(file, 'claude')
       expect(recs.map((r) => r[4])).toEqual([1, 2])
     })
   })
 
-  test('首条提问之前的行不计入任何轮', async () => {
+  test('lines before the first question count toward no turn', async () => {
     await withLines([cTool('Bash'), cUser('问'), cTool('Read')], async (file) => {
       const recs = await indexOf(file, 'claude')
       expect(recs).toHaveLength(1)
@@ -199,8 +207,8 @@ describe('本轮体量计数', () => {
   })
 })
 
-describe('提问提取(Codex 侧)', () => {
-  test('取 event_msg/user_message,不取 response_item/message', async () => {
+describe('question extraction (the Codex side)', () => {
+  test('takes event_msg/user_message, not response_item/message', async () => {
     await withLines(
       [
         xUser('人问的'),
@@ -212,18 +220,20 @@ describe('提问提取(Codex 侧)', () => {
     )
   })
 
-  test('custom_tool_call 与 function_call 计工具,spawn_agent 计 subagent', async () => {
+  test('custom_tool_call and function_call count as tools, spawn_agent counts as a subagent', async () => {
     await withLines(
       [
         xUser('问'),
         { type: 'response_item', timestamp: TS, payload: { type: 'custom_tool_call', name: 'exec', input: 'ls' } },
         { type: 'response_item', timestamp: TS, payload: { type: 'custom_tool_call', name: 'apply_patch', input: 'p' } },
         { type: 'response_item', timestamp: TS, payload: { type: 'function_call', name: 'wait', arguments: '{}' } },
-        // tool_search_call:全库枚举出的第三种调用记录(25 次,配套 tool_search_output)。
-        // 120 文件的采样里没有它 —— 正面枚举靠采样会漏,换成全量才看见。
+        // tool_search_call: the third kind of call record the full enumeration turned up (25 times, with
+        // its tool_search_output counterpart).
+        // It was absent from a 120-file sample — a positive enumeration based on sampling misses things,
+        // and it only became visible on the full set.
         { type: 'response_item', timestamp: TS, payload: { type: 'tool_search_call', name: 'search' } },
         { type: 'response_item', timestamp: TS, payload: { type: 'function_call', name: 'spawn_agent', namespace: 'collaboration', arguments: '{"task_name":"t"}' } },
-        // 返回值不重复计数
+        // The return values are not counted again
         { type: 'response_item', timestamp: TS, payload: { type: 'custom_tool_call_output', output: 'ok' } },
         { type: 'response_item', timestamp: TS, payload: { type: 'function_call_output', output: 'ok' } }
       ],
@@ -235,13 +245,13 @@ describe('提问提取(Codex 侧)', () => {
     )
   })
 
-  test('Codex 噪声提问同样剥离', async () => {
+  test('Codex noise questions are stripped too', async () => {
     await withLines([xUser('Warmup'), xUser('真问题')], async (file) => {
       expect(await indexOf(file, 'codex')).toHaveLength(1)
     })
   })
 
-  test('侧别不串:Claude 的行不会被 Codex 规则算成提问', async () => {
+  test('the sides do not cross over: a Claude line is never counted as a question by the Codex rules', async () => {
     await withLines([cUser('claude 的提问')], async (file) => {
       expect(await indexOf(file, 'codex')).toEqual([])
     })
@@ -249,16 +259,17 @@ describe('提问提取(Codex 侧)', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────
-// 票 03b:Claude 分叉 —— 沿父链从最后一条回溯到根,只留这条链(spec B3)
+// Ticket 03b: Claude branches — walk the parent chain back from the last entry to the root and keep only
+// that chain (spec B3)
 //
-// fixture 形态全部取自真实数据枚举(全库 1481 个有 uuid 链的会话文件):
-//   - 分叉(某父多子)27 个文件;多叶 29 个文件
-//   - **末行是 sidechain 的 1015 个(69%)** —— sidechain 的 parentUuid 恒为 null
-//   - 压缩边界 `type=system, subtype=compact_boundary`,parentUuid=null 且带
-//     logicalParentUuid —— 不桥接它,最坏一例 346 条提问只剩 44 条
+// Every fixture shape comes from enumerating real data (1481 session files with a uuid chain):
+//   - branches (one parent, several children) in 27 files; several leaves in 29 files
+//   - **1015 files (69%) end on a sidechain line** — a sidechain's parentUuid is always null
+//   - the compaction boundary `type=system, subtype=compact_boundary` has parentUuid=null and carries
+//     logicalParentUuid — without bridging it, the worst case collapsed 346 questions to 44
 // ─────────────────────────────────────────────────────────────────────────
 
-/** 带 uuid 链的用户提问行 */
+/** A user question line with a uuid chain */
 const cq = (uuid: string, parentUuid: string | null, text: string, extra: Record<string, unknown> = {}): unknown => ({
   type: 'user',
   uuid,
@@ -267,7 +278,7 @@ const cq = (uuid: string, parentUuid: string | null, text: string, extra: Record
   message: { role: 'user', content: text },
   ...extra
 })
-/** 助手行(占位,让链有中间节点) */
+/** An assistant line (a placeholder giving the chain an intermediate node) */
 const ca = (uuid: string, parentUuid: string | null): unknown => ({
   type: 'assistant',
   uuid,
@@ -275,7 +286,8 @@ const ca = (uuid: string, parentUuid: string | null): unknown => ({
   timestamp: TS,
   message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }] }
 })
-/** 真实形态:压缩边界。parentUuid 断开,logicalParentUuid 指回压缩前 */
+/** The real shape: a compaction boundary. parentUuid is broken and logicalParentUuid points back before
+ * the compaction */
 const cCompact = (uuid: string, logicalParentUuid: string): unknown => ({
   type: 'system',
   subtype: 'compact_boundary',
@@ -291,16 +303,16 @@ async function textsOf(objs: unknown[]): Promise<number[]> {
   return withLines(objs, async (file) => (await indexOf(file, 'claude')).map((r) => r[0]))
 }
 
-describe('Claude 分叉:末叶回溯', () => {
-  test('线性会话:全部提问都在链上,一条不少', async () => {
+describe('Claude branches: the last-leaf walk-back', () => {
+  test('a linear session: every question is on the chain, none lost', async () => {
     const objs = [cq('u1', null, '问一'), ca('a1', 'u1'), cq('u2', 'a1', '问二'), ca('a2', 'u2'), cq('u3', 'a2', '问三')]
     await withLines(objs, async (file) => {
       expect(await indexOf(file, 'claude')).toHaveLength(3)
     })
   })
 
-  test('分叉:被放弃的那支上的提问不计入', async () => {
-    // u2 与 u2b 同父 a1;最后一条是 u3(在 u2 这一支下)→ u2b 被放弃
+  test('a branch: questions on the abandoned side do not count', async () => {
+    // u2 and u2b share the parent a1; the last entry is u3 (under the u2 side) → u2b is abandoned
     const objs = [
       cq('u1', null, '问一'),
       ca('a1', 'u1'),
@@ -313,7 +325,7 @@ describe('Claude 分叉:末叶回溯', () => {
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
       expect(recs).toHaveLength(3)
-      // 被放弃那条的偏移不应出现
+      // The abandoned entry's offset should not appear
       const abandoned = JSON.stringify(objs[2])
       const raw = readFileSync(file)
       for (const r of recs) {
@@ -322,12 +334,13 @@ describe('Claude 分叉:末叶回溯', () => {
     })
   })
 
-  test('末行是 sidechain:回溯起点取最后一条非 sidechain 行,不掉进 subagent 链', async () => {
+  test('a file ending on a sidechain: the walk-back starts from the last non-sidechain line and does not fall into the subagent chain', async () => {
     const objs = [
       cq('u1', null, '问一'),
       ca('a1', 'u1'),
       cq('u2', 'a1', '问二'),
-      // subagent 转写:parentUuid 恒 null,自成一链,且排在文件最后
+      // A subagent's transcript: parentUuid is always null, it forms its own chain, and it sits at the end
+      // of the file
       { ...(cq('s1', null, 'subagent 的提示词') as Record<string, unknown>), isSidechain: true, agentId: 'ag1' },
       { ...(ca('s2', 's1') as Record<string, unknown>), isSidechain: true, agentId: 'ag1' }
     ]
@@ -336,7 +349,7 @@ describe('Claude 分叉:末叶回溯', () => {
     })
   })
 
-  test('压缩边界:靠 logicalParentUuid 桥接,压缩前的提问不丢', async () => {
+  test('a compaction boundary: bridged by logicalParentUuid, so pre-compaction questions are not lost', async () => {
     const objs = [
       cq('u1', null, '压缩前问一'),
       ca('a1', 'u1'),
@@ -351,7 +364,7 @@ describe('Claude 分叉:末叶回溯', () => {
     })
   })
 
-  test('两次压缩:两道边界都要桥过去', async () => {
+  test('two compactions: both boundaries have to be bridged', async () => {
     const objs = [
       cq('u1', null, '第一段'),
       cCompact('cb1', 'u1'),
@@ -362,8 +375,8 @@ describe('Claude 分叉:末叶回溯', () => {
     expect(await textsOf(objs)).toHaveLength(3)
   })
 
-  test('没有 uuid 的行不参与回溯,也不让整份索引塌掉', async () => {
-    // 真实文件里 session_meta 之类的行没有 uuid
+  test('lines with no uuid take no part in the walk-back and do not collapse the whole index', async () => {
+    // In a real file, lines such as session_meta have no uuid
     const objs = [cUser('无 uuid 的提问'), cq('u1', null, '有 uuid 的提问')]
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
@@ -371,20 +384,20 @@ describe('Claude 分叉:末叶回溯', () => {
     })
   })
 
-  test('整份文件都没有 uuid(旧格式):退化为全保留', async () => {
+  test('a whole file with no uuid (an old format): degrades to keeping everything', async () => {
     await withLines([cUser('问一'), cUser('问二')], async (file) => {
       expect(await indexOf(file, 'claude')).toHaveLength(2)
     })
   })
 
-  test('Codex 侧不做末叶回溯:uuid 字段对它无意义', async () => {
+  test('no last-leaf walk-back on the Codex side: the uuid field is meaningless there', async () => {
     await withLines([xUser('问一'), xUser('问二')], async (file) => {
       expect(await indexOf(file, 'codex')).toHaveLength(2)
     })
   })
 })
 
-describe('分叉处数(forkPoints,票 06 横幅信号)', () => {
+describe('the branch point count (forkPoints, ticket 06\'s banner signal)', () => {
   async function fpOf(objs: unknown[]): Promise<number> {
     return withLines(objs, async (file) => {
       const idx = makeQuestionIndexer('claude')
@@ -398,11 +411,11 @@ describe('分叉处数(forkPoints,票 06 横幅信号)', () => {
     })
   }
 
-  test('线性会话:0 处分叉', async () => {
+  test('a linear session: 0 branch points', async () => {
     expect(await fpOf([cq('u1', null, '问一'), ca('a1', 'u1'), cq('u2', 'a1', '问二')])).toBe(0)
   })
 
-  test('某父两子 = 1 处;两个这样的父 = 2 处', async () => {
+  test('one parent with two children = 1; two such parents = 2', async () => {
     const one = [cq('u1', null, '问'), ca('a1', 'u1'), cq('u2b', 'a1', '岔'), cq('u2', 'a1', '正')]
     expect(await fpOf(one)).toBe(1)
     const two = [
@@ -417,33 +430,33 @@ describe('分叉处数(forkPoints,票 06 横幅信号)', () => {
     expect(await fpOf(two)).toBe(2)
   })
 
-  test('同父三子仍是 1 处分叉(数分叉点,不数分支数)', async () => {
+  test('one parent with three children is still 1 branch point (points are counted, not branches)', async () => {
     expect(
       await fpOf([cq('u1', null, '问'), ca('a1', 'u1'), cq('x', 'a1', '岔一'), cq('y', 'a1', '岔二'), cq('z', 'a1', '正')])
     ).toBe(1)
   })
 
-  test('sidechain 行不进回溯图,也不制造分叉', async () => {
+  test('sidechain lines do not enter the walk-back graph and create no branch', async () => {
     const s = (u: string, p: string | null): unknown => ({
       ...(cq(u, p, 'subagent 行') as Record<string, unknown>),
       isSidechain: true,
       agentId: 'ag'
     })
-    // 两条 sidechain 与主链行同父:主链本身线性
+    // Two sidechains share a parent with a main-chain line: the main chain itself is linear
     expect(await fpOf([cq('u1', null, '问'), ca('a1', 'u1'), s('s1', 'a1'), s('s2', 'a1'), cq('u2', 'a1', '问二')])).toBe(0)
   })
 
-  test('压缩边界的桥是单链,不算分叉', async () => {
+  test('the compaction boundary bridge is a single chain and is not a branch', async () => {
     expect(
       await fpOf([cq('u1', null, '一段'), ca('a1', 'u1'), cCompact('cb1', 'a1'), cq('u2', 'cb1', '二段')])
     ).toBe(0)
   })
 
-  test('无 uuid 的旧格式文件:0', async () => {
+  test('an old-format file with no uuid: 0', async () => {
     expect(await fpOf([cUser('问一'), cUser('问二')])).toBe(0)
   })
 
-  test('Codex 侧恒 0(无末叶回溯)', async () => {
+  test('always 0 on the Codex side (no last-leaf walk-back)', async () => {
     await withLines([xUser('问')], async (file) => {
       const idx = makeQuestionIndexer('codex')
       let fileEnd = 0
@@ -457,7 +470,7 @@ describe('分叉处数(forkPoints,票 06 横幅信号)', () => {
   })
 })
 
-describe('标题与提问集合同源(末叶回溯之后)', () => {
+describe('the title and the question set share a source (after the last-leaf walk-back)', () => {
   async function firstTextOf(objs: unknown[]): Promise<string | null> {
     return withLines(objs, async (file) => {
       const idx = makeQuestionIndexer('claude')
@@ -471,8 +484,9 @@ describe('标题与提问集合同源(末叶回溯之后)', () => {
     })
   }
 
-  test('首条提问落在被放弃的分支上 → 标题取存活的那条,不是被丢弃的那条', async () => {
-    // u1b 是文件里最早的提问,但它这一支被放弃;存活链是 u1 → a1 → u2
+  test('the first question landing on an abandoned branch → the title comes from a surviving one, not the discarded one', async () => {
+    // u1b is the earliest question in the file but its side is abandoned; the surviving chain is
+    // u1 → a1 → u2
     const objs = [
       ca('root', null),
       cq('u1b', 'root', '走岔的第一问'),
@@ -486,31 +500,37 @@ describe('标题与提问集合同源(末叶回溯之后)', () => {
     })
   })
 
-  test('全部提问都被滤掉 → 标题为 null(会话据此不入列)', async () => {
-    // 唯一的提问在被放弃的分支上,存活链只有助手行
+  test('every question filtered out → the title is null (and the session is not listed as a result)', async () => {
+    // The only question is on the abandoned branch, and the surviving chain has only assistant lines
     const objs = [ca('root', null), cq('u1b', 'root', '走岔的问'), ca('a1', 'root'), ca('a2', 'a1')]
     expect(await firstTextOf(objs)).toBeNull()
   })
 
-  test('标题不被二次剥离:cron 剥出的内容恰好是 Warmup 时仍保留', async () => {
-    // 回归 clipTitle 与 realUserText 分家的理由:二次剥会把它变成 null
+  test('the title is not stripped twice: content a cron strip produced is kept even when it happens to be Warmup', async () => {
+    // A regression guard for why clipTitle and realUserText are separate: a second strip would turn it into
+    // null
     expect(await firstTextOf([cq('u1', null, '[cron:abc 定时] Warmup')])).toBe('Warmup')
   })
 })
 
 // ─────────────────────────────────────────────────────────────────────────
-// 票 03b:Codex 重放前缀剥离(spec B2)
+// Ticket 03b: stripping the Codex replay prefix (spec B2)
 //
-// **本机真实数据里真 fork 数为 0**(244 个 Codex 会话,9 个带 parent 的全是
-// subagent 线程,按 A3 不入列)——所以这一组只有 fixture 覆盖,拿不到真实样本。
-// 依据是机制而非样本:① 重放确实会复制 user_message(4 组 subagent 父子对实测
-// 逐条相同);② 重放**改写时间戳**(4/4 例),所以认不出重放段只能靠内容指纹;
-// ③ 突发启发式与 token 侧同源(ccusage replay.rs:重放是程序一次写入,行间隔
-// 近零,而真人提问是人的节奏)。
+// **There are 0 real forks in this machine's real data** (of 244 Codex sessions, all 9 with a parent are
+// subagent threads, unlisted per A3) — so this group has fixture coverage only, with no real sample
+// available.
+// The grounds are mechanism rather than sample: (1) a replay really does copy user_message (4 subagent
+// parent-child pairs measured
+// identical entry by entry); (2) a replay **rewrites the timestamps** (4 of 4), so a replayed span can only
+// be recognised by content fingerprint;
+// (3) the burst heuristic shares its source with the token side (ccusage replay.rs: a replay is written by
+// a program in one go, with line gaps
+// near zero, whereas a human's questions follow a human rhythm).
 // ─────────────────────────────────────────────────────────────────────────
 import { fingerprint, stripReplayPrefix, type ForkState } from './question-index'
 
-/** 造一条索引记录:只有时间戳与指纹参与剥离判定,偏移随便给 */
+/** Build one index record: only the timestamp and fingerprint take part in the strip judgement, so the
+ * offsets can be anything */
 const rec = (ts: number, text: string): QuestionRec => [0, 1, 2, ts, 0, 0, fingerprint(text)]
 
 function strip(
@@ -523,87 +543,92 @@ function strip(
   return { n: r.questions.length, state: r.state }
 }
 
-describe('Codex 重放前缀剥离', () => {
+describe('stripping the Codex replay prefix', () => {
   const T = (m: number): number => Date.parse(`2026-08-01T10:${String(m).padStart(2, '0')}:00Z`)
 
-  test('不是 fork → 原样返回,状态 none', () => {
+  test('not a fork → returned as is, state none', () => {
     const c = [rec(T(1), '问一'), rec(T(2), '问二')]
     expect(strip(c, null, null, false)).toEqual({ n: 2, state: 'none' })
   })
 
-  test('「不是 fork」与「父缺失」必须给出不同状态,不是同一字段的两种成色', () => {
+  test('"not a fork" and "the parent is missing" must give different states, not two shades of one field', () => {
     const c = [rec(T(1), '问一'), rec(T(9), '问二')]
     expect(strip(c, null, null, false).state).toBe('none')
     expect(strip(c, null, T(1), true).state).toBe('uncertain')
   })
 
-  test('整段都像突发也绝不剥空——留最后一条,宁可多显示不要整个会话消失', () => {
+  test('even when the whole span looks like a burst it is never stripped empty — the last entry is kept, preferring one extra row to an entire session vanishing', () => {
     const ms = (x: number): number => Date.parse('2026-08-01T10:00:00Z') + x
     const c = [rec(ms(0), 'A'), rec(ms(100), 'B'), rec(ms(200), 'C')]
     expect(strip(c, null, ms(0))).toEqual({ n: 1, state: 'uncertain' })
   })
 
-  test('父在扫描集内且指纹逐条吻合 → 剥掉重放段,状态 stripped', () => {
+  test('the parent is in the scan set and the fingerprints match entry by entry → the replayed span is stripped, state stripped', () => {
     const p = [rec(T(1), '父问一'), rec(T(2), '父问二'), rec(T(9), '父 fork 之后才有的问')]
-    // 子会话重放了 fork 时刻(T(5))之前的两条,时间戳被改写,但内容不变
+    // The child replayed the two entries before the fork moment (T(5)), with rewritten timestamps but
+    // unchanged content
     const c = [rec(T(5), '父问一'), rec(T(5), '父问二'), rec(T(6), '子的新问')]
     expect(strip(c, p, T(5))).toEqual({ n: 1, state: 'stripped' })
   })
 
-  test('指纹对不上 → 不剥,状态 uncertain(宁可显示重复,不静默丢真提问)', () => {
+  test('the fingerprints do not match → nothing is stripped, state uncertain (preferring visible duplicates to silently losing a real question)', () => {
     const p = [rec(T(1), '父问一'), rec(T(2), '父问二')]
     const c = [rec(T(5), '完全不同的开头'), rec(T(6), '子的新问')]
     expect(strip(c, p, T(5))).toEqual({ n: 2, state: 'uncertain' })
   })
 
-  test('只吻合一部分 → 按吻合的那部分剥,但仍标 uncertain', () => {
+  test('only part matches → strip the part that matched, but still label it uncertain', () => {
     const p = [rec(T(1), '父问一'), rec(T(2), '父问二'), rec(T(3), '父问三')]
     const c = [rec(T(5), '父问一'), rec(T(5), '对不上了'), rec(T(6), '子的新问')]
     expect(strip(c, p, T(5))).toEqual({ n: 2, state: 'uncertain' })
   })
 
-  test('三代 fork 链:孙会话按它自己的父(子会话)剥,不越级找祖父', () => {
+  test('a three-generation fork chain: the grandchild strips against its own parent (the child), never reaching past it to the grandparent', () => {
     const g = [rec(T(1), 'A')]
-    const c = [rec(T(5), 'A'), rec(T(6), 'B')] // 子:剥掉 A 后剩 B
-    const gc = [rec(T(8), 'A'), rec(T(8), 'B'), rec(T(9), 'C')] // 孙重放了子的全部
+    const c = [rec(T(5), 'A'), rec(T(6), 'B')] // The child: stripping A leaves B
+    const gc = [rec(T(8), 'A'), rec(T(8), 'B'), rec(T(9), 'C')] // The grandchild replayed all of the child
     expect(strip(c, g, T(5))).toEqual({ n: 1, state: 'stripped' })
     expect(strip(gc, c, T(8))).toEqual({ n: 1, state: 'stripped' })
   })
 
-  test('父缺失 → 突发启发式:开头那串近乎同时的提问算重放,状态 uncertain', () => {
-    // 重放是程序一次写入,行间隔近零;真人提问是人的节奏
+  test('the parent is missing → the burst heuristic: the opening run of near-simultaneous questions counts as a replay, state uncertain', () => {
+    // A replay is written by a program in one go with near-zero line gaps; a human's questions follow a
+    // human rhythm
     const ms = (x: number): number => Date.parse('2026-08-01T10:00:00Z') + x
     const c = [rec(ms(0), 'A'), rec(ms(120), 'B'), rec(ms(240), 'C'), rec(ms(600_000), '真人问的')]
     expect(strip(c, null, ms(0))).toEqual({ n: 1, state: 'uncertain' })
   })
 
-  test('父缺失且提问节奏正常 → 一条都不剥', () => {
+  test('the parent is missing and the question rhythm is normal → nothing is stripped', () => {
     const c = [rec(T(1), 'A'), rec(T(9), 'B')]
     expect(strip(c, null, T(1))).toEqual({ n: 2, state: 'uncertain' })
   })
 
-  test('父缺失且开头时间戳乱序(负差)→ 不算突发,一条不剥', () => {
-    // 负差不是"程序一次写入"的证据(一次写入的时间戳单调),与 token 侧
-    // skipRewrittenBurst 同规则:遇负差即终止。失败方向是多剥 → 真提问静默消失。
+  test('the parent is missing and the opening timestamps are out of order (a negative difference) → not a burst, nothing is stripped', () => {
+    // A negative difference is not evidence of "written by a program in one go" (a single write has
+    // monotonic timestamps); the same rule as the token side's
+    // skipRewrittenBurst: stop at a negative difference. The direction of failure is stripping too much →
+    // a real question silently disappears.
     const ms = (x: number): number => Date.parse('2026-08-01T10:00:00Z') + x
     const c = [rec(ms(1000), 'A'), rec(ms(400), 'B'), rec(ms(500), 'C')]
     expect(strip(c, null, ms(0))).toEqual({ n: 3, state: 'uncertain' })
   })
 
-  test('父存在但自身没有提问 → 无从校验,不剥并标 uncertain', () => {
+  test('the parent exists but has no questions of its own → nothing to check against, so nothing is stripped and it is labelled uncertain', () => {
     const c = [rec(T(5), 'A')]
     expect(strip(c, [], T(5))).toEqual({ n: 1, state: 'uncertain' })
   })
 
-  test('子会话是父重放段的严格前缀:全部吻合也可剥空,但标 uncertain(未及 replayLen)', () => {
-    // 指纹路径的另一种剥空:每条都验过是重放,只是比父的重放段短。
-    // 与 stripped 剥空同样不入列(combine 按 shown 为空判,不看 state)。
+  test('the child is a strict prefix of the parent\'s replayed span: a full match can still strip it empty, but it is labelled uncertain (it never reached replayLen)', () => {
+    // The other way the fingerprint path strips empty: every entry was verified as a replay, it is just
+    // shorter than the parent's replayed span.
+    // Like a stripped empty result, it is not listed (combine judges on shown being empty, not on state).
     const p = [rec(T(1), 'A'), rec(T(2), 'B')]
     const c = [rec(T(5), 'A')]
     expect(strip(c, p, T(5))).toEqual({ n: 0, state: 'uncertain' })
   })
 
-  test('剥离不改动保留下来那些记录的偏移', () => {
+  test('stripping does not alter the offsets of the records it keeps', () => {
     const p = [rec(T(1), 'A')]
     const c: QuestionRec[] = [rec(T(5), 'A'), [111, 222, 333, T(6), 2, 1, fingerprint('B')]]
     const r = stripReplayPrefix(c, p, T(5), true)
@@ -611,36 +636,36 @@ describe('Codex 重放前缀剥离', () => {
   })
 })
 
-describe('内容指纹', () => {
-  test('同文同指纹,异文异指纹', () => {
+describe('the content fingerprint', () => {
+  test('the same text gives the same fingerprint, different text a different one', () => {
     expect(fingerprint('同一段话')).toBe(fingerprint('同一段话'))
     expect(fingerprint('甲')).not.toBe(fingerprint('乙'))
   })
 
-  test('是 32 位无符号整数,不可从中还原文本', () => {
+  test('it is a 32-bit unsigned integer from which the text cannot be recovered', () => {
     const fp = fingerprint('一段较长的中文提问内容,用来确认输出仍是个小整数')
     expect(Number.isInteger(fp)).toBe(true)
     expect(fp).toBeGreaterThanOrEqual(0)
     expect(fp).toBeLessThanOrEqual(0xffffffff)
   })
 
-  test('空串也有确定值,不抛', () => {
+  test('an empty string has a definite value and does not throw', () => {
     expect(typeof fingerprint('')).toBe('number')
   })
 })
 
-describe('questionTextAt(会话页展示文本,与索引同一套判定)', () => {
-  test('claude:剥噪声后的全文(cron 前缀剥掉,正文保留)', () => {
+describe('questionTextAt (the session page\'s display text, judged the same way as the index)', () => {
+  test('claude: the full text after noise stripping (the cron prefix goes, the body stays)', () => {
     const obj = cUser('[cron:abc 定时] 真正的指令') as Record<string, unknown>
     expect(questionTextAt('claude', obj)).toBe('真正的指令')
   })
 
-  test('codex:user_message 原文剥噪声', () => {
+  test('codex: the user_message source with noise stripped', () => {
     const obj = xUser('  两端有空白的提问  ') as Record<string, unknown>
     expect(questionTextAt('codex', obj)).toBe('两端有空白的提问')
   })
 
-  test('非提问行一律 null:工具回灌 / 助手行 / sidechain / 纯噪声', () => {
+  test('a non-question line is always null: a tool result fed back, an assistant line, a sidechain, pure noise', () => {
     expect(questionTextAt('claude', cTool('Bash') as Record<string, unknown>)).toBeNull()
     expect(
       questionTextAt('claude', {

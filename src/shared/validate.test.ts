@@ -1,15 +1,16 @@
-// Seam 2(IPC 契约):快照 schema 校验的行为测试——好载荷放行、坏载荷拒收并给出路径。
+// Seam 2 (the IPC contract): behavioural tests of snapshot schema validation — a good payload is admitted,
+// a bad one is refused with a path.
 import { describe, it, expect } from 'vitest'
 import { validateSnapshot, validateProjectStats, validateProjectDetail, validateSessionTurn, validateSearchResult } from './validate'
 import { emptySnapshot, emptyTokenStats } from './domain'
 
 describe('validateSnapshot', () => {
-  it('放行合法快照(空快照即合法基态)', () => {
+  it('admits a valid snapshot (an empty snapshot is a valid base state)', () => {
     const r = validateSnapshot(emptySnapshot(1234))
     expect(r.ok).toBe(true)
   })
 
-  it('放行带项目的快照', () => {
+  it('admits a snapshot containing projects', () => {
     const snap = emptySnapshot(1)
     snap.projects.push({
       path: '/Users/x/proj',
@@ -23,12 +24,12 @@ describe('validateSnapshot', () => {
     expect(validateSnapshot(snap).ok).toBe(true)
   })
 
-  it('拒收非对象', () => {
+  it('refuses a non-object', () => {
     expect(validateSnapshot(null).ok).toBe(false)
     expect(validateSnapshot('x').ok).toBe(false)
   })
 
-  it('拒收缺 v2 组件数组的快照(subagents/memory/codexPlugins 漏同步即在边界暴露,R1)', () => {
+  it('refuses a snapshot missing the v2 component arrays (forgetting to sync subagents/memory/codexPlugins surfaces at the boundary, R1)', () => {
     for (const field of ['subagents', 'memory', 'codexPlugins'] as const) {
       const snap = emptySnapshot(1) as unknown as { global: Record<string, unknown> }
       delete snap.global[field]
@@ -38,14 +39,14 @@ describe('validateSnapshot', () => {
     }
   })
 
-  it('拒收缺字段的快照并指出路径', () => {
+  it('refuses a snapshot with a missing field and points at the path', () => {
     const bad = { scannedAt: 1, sides: { claude: { detected: true } }, projects: [] }
     const r = validateSnapshot(bad)
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.failure.path).toContain('sides.codex')
   })
 
-  it('拒收项目条目里的非法 side', () => {
+  it('refuses an invalid side on a project entry', () => {
     const snap = emptySnapshot(1) as unknown as Record<string, unknown>
     ;(snap['projects'] as unknown[]).push({
       path: '/p',
@@ -61,7 +62,7 @@ describe('validateSnapshot', () => {
     if (!r.ok) expect(r.failure.path).toContain('sides')
   })
 
-  it('拒收 lastSessionAt 类型错误(string 冒充时间戳)', () => {
+  it('refuses a wrongly typed lastSessionAt (a string posing as a timestamp)', () => {
     const snap = emptySnapshot(1) as unknown as { projects: unknown[] }
     snap.projects.push({
       path: '/p',
@@ -76,10 +77,12 @@ describe('validateSnapshot', () => {
   })
 })
 
-// 票 session-view/01:会话元数据带源文件标识。会话走的是 getProjectDetail 通道,
-// 该通道此前完全没有边界校验(preload 里直接 as ProjectDetail)——不在本票造
-// 大而全的 ProjectDetail 校验器,只覆盖本票新增的这部分。
-describe('validateProjectStats(会话元数据)', () => {
+// Ticket session-view/01: session metadata carries its source file identity. Sessions travel over the
+// getProjectDetail channel,
+// which had no boundary validation at all (the preload simply did `as ProjectDetail`) — this ticket does
+// not build
+// an exhaustive ProjectDetail validator and covers only this ticket's addition.
+describe('validateProjectStats (session metadata)', () => {
   const ok = {
     tokens: emptyTokenStats(),
     sessions: [
@@ -87,22 +90,22 @@ describe('validateProjectStats(会话元数据)', () => {
     ]
   }
 
-  it('放行合法载荷', () => {
+  it('admits a valid payload', () => {
     expect(validateProjectStats(ok).ok).toBe(true)
   })
 
-  it('放行 sessions 为空的项目', () => {
+  it('admits a project with no sessions', () => {
     expect(validateProjectStats({ tokens: emptyTokenStats(), sessions: [] }).ok).toBe(true)
   })
 
-  it('拒收缺 file 的会话并指出路径', () => {
+  it('refuses a session with no file and points at the path', () => {
     const bad = { ...ok, sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, questionCount: 3, forkState: 'none' }] }
     const r = validateProjectStats(bad)
     expect(r.ok).toBe(false)
     expect(r.ok === false && r.failure.path).toContain('sessions[0].file')
   })
 
-  it('拒收缺 questionCount 的会话并指出路径', () => {
+  it('refuses a session with no questionCount and points at the path', () => {
     const bad = {
       ...ok,
       sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/a.jsonl', forkState: 'none' }]
@@ -112,7 +115,7 @@ describe('validateProjectStats(会话元数据)', () => {
     expect(r.ok === false && r.failure.path).toContain('sessions[0].questionCount')
   })
 
-  it('拒收非法 forkState 并指出路径——三态是枚举,不能是任意串', () => {
+  it('refuses an invalid forkState and points at the path — the three states are an enum, not an arbitrary string', () => {
     const bad = {
       ...ok,
       sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '/Users/x/a.jsonl', questionCount: 3, forkState: '存疑' }]
@@ -122,40 +125,48 @@ describe('validateProjectStats(会话元数据)', () => {
     expect(r.ok === false && r.failure.path).toContain('sessions[0].forkState')
   })
 
-  it('三种合法 forkState 都放行', () => {
+  it('all three valid forkStates are admitted', () => {
     for (const st of ['none', 'stripped', 'uncertain']) {
       const v = { ...ok, sessions: [{ ...(ok.sessions[0] as object), forkState: st }] }
       expect(validateProjectStats(v).ok, st).toBe(true)
     }
   })
 
-  it('拒收空字符串 file——空串不是标识,拿它去读会落到 cwd', () => {
+  it('refuses an empty-string file — an empty string is not an identity, and reading with it lands on cwd', () => {
     const bad = { ...ok, sessions: [{ side: 'claude', title: 't', at: 1, tokens: 10, file: '', questionCount: 3, forkState: 'none' }] }
     expect(validateProjectStats(bad).ok).toBe(false)
   })
 
-  it('拒收非法 side 与 at 类型错误', () => {
+  it('refuses an invalid side and a wrongly typed at', () => {
     expect(validateProjectStats({ ...ok, sessions: [{ ...ok.sessions[0], side: 'gemini' }] }).ok).toBe(false)
     expect(validateProjectStats({ ...ok, sessions: [{ ...ok.sessions[0], at: '昨天' }] }).ok).toBe(false)
   })
 
-  it('拒收 sessions 不是数组', () => {
+  it('refuses a sessions that is not an array', () => {
     expect(validateProjectStats({ tokens: emptyTokenStats(), sessions: null }).ok).toBe(false)
   })
 })
 
-// 票 contract-guards/01:ProjectDetail 的边界校验。
+// Ticket contract-guards/01: ProjectDetail's boundary validation.
 //
-// 【已知缺口,如实标注】校验器本身有 24 条用例 + 一次真实数据全量扫(38 个注册
-// 项目,0 误拒),但**两处接线没有行为测试**:主进程出口的 assertProjectDetail
-// 与 preload 入口的校验,都只在"删掉后 typecheck 因未用 import 报错"这一层被兜住。
-// 要真测得给 preload/main 建 electron IPC 的测试装置——本票不铺,补测条件是那套
-// 装置到位。真实数据扫描里 mcp 一项**始终为空**(本机无项目级 MCP 配置),
-// 那条分支只有 fixture 覆盖。
-// 快照有两端各校验一次,而详情这条通道此前完全没有——preload 里直接 as ProjectDetail。
+// [A known gap, stated honestly] The validator itself has 24 cases plus one full scan over real data
+// (38 registered
+// projects, 0 false refusals), but **two wiring points have no behavioural test**: the main process's
+// exit assertProjectDetail
+// and the validation at the preload's entry, both of which are only backstopped by "removing it makes
+// typecheck complain about an unused import".
+// Really testing them needs an electron IPC test harness for preload and main — not built in this ticket,
+// and the condition for covering them is that
+// harness existing. In the real-data scan the mcp field was **always empty** (this machine has no
+// project-level MCP configuration),
+// so that branch has fixture coverage only.
+// The snapshot is validated at each end, while this detail channel had nothing — the preload simply did
+// `as ProjectDetail`.
 //
-// ⚠️ 这类校验是 **fail-closed** 的:一次误拒就是整个详情页打不开。所以"合法载荷
-//    必须放行"和"坏载荷必须拒收"同等重要,下面两组用例数量相当。
+// ⚠️ This kind of validation is **fail-closed**: one false refusal means the whole detail page will not
+//    open. So "a valid payload
+//    must be admitted" matters as much as "a bad payload must be refused", and the two groups below are
+//    comparable in size.
 function okDetail(): Record<string, unknown> {
   return {
     path: '/Users/x/proj',
@@ -188,25 +199,25 @@ function okDetail(): Record<string, unknown> {
   }
 }
 
-describe('validateProjectDetail —— 放行(误拒会让详情页整个打不开)', () => {
-  it('放行完整合法载荷', () => {
+describe('validateProjectDetail — admitting (a false refusal stops the whole detail page opening)', () => {
+  it('admits a complete valid payload', () => {
     expect(validateProjectDetail(okDetail())).toEqual({ ok: true })
   })
 
-  it('放行各数组为空的基态(新项目/无组件项目的常态)', () => {
+  it('admits the base state with every array empty (the norm for a new project or one with no components)', () => {
     const d = { ...okDetail(), skills: [], subagents: [], plugins: [], mcp: [], artifacts: [],
       memory: { main: null, topics: [] } }
     expect(validateProjectDetail(d).ok).toBe(true)
   })
 
-  it('放行 stats 非 null(概览有数据时)', () => {
+  it('admits a non-null stats (when the overview has data)', () => {
     const d = { ...okDetail(), stats: { tokens: emptyTokenStats(), sessions: [] } }
     expect(validateProjectDetail(d).ok).toBe(true)
   })
 
-  it('放行各可空字段取到非 null 值', () => {
+  it('admits nullable fields holding non-null values', () => {
     const d = okDetail()
-    // configs.claudeMd 自票 07 起是 CappedText(正文 + 是否被截断)
+    // configs.claudeMd has been a CappedText since ticket 07 (the body plus whether it was truncated)
     ;(d.configs as Record<string, unknown>).claudeMd = { text: '# 项目约定', truncated: false }
     ;(d.mcp as Array<Record<string, unknown>>)[0].enabled = false
     ;(d.plugins as Array<Record<string, unknown>>)[0].enabledFrom = null
@@ -215,29 +226,29 @@ describe('validateProjectDetail —— 放行(误拒会让详情页整个打不�
   })
 })
 
-describe('validateProjectDetail —— 拒收并指出字段路径', () => {
+describe('validateProjectDetail — refusing, and pointing at the field path', () => {
   const bad = (mut: (d: Record<string, unknown>) => void): ReturnType<typeof validateProjectDetail> => {
     const d = okDetail(); mut(d); return validateProjectDetail(d)
   }
   const errOf = (r: ReturnType<typeof validateProjectDetail>): string => (r.ok ? '' : r.failure.path)
 
-  it('非对象 / 缺 path', () => {
+  it('a non-object, or a missing path', () => {
     expect(validateProjectDetail(null).ok).toBe(false)
     expect(errOf(bad((d) => { delete d.path }))).toContain('path')
   })
 
-  it('顶层数组缺失 —— 漏同步新分栏时在边界暴露', () => {
+  it('a missing top-level array — forgetting to sync a new section surfaces at the boundary', () => {
     for (const k of ['skills', 'subagents', 'plugins', 'mcp', 'artifacts']) {
       const r = bad((d) => { delete d[k] })
-      expect(r.ok, `${k} 缺失应被拒`).toBe(false)
+      expect(r.ok, `a missing ${k} should be refused`).toBe(false)
       expect(errOf(r)).toContain(k)
     }
   })
 
-  it('枚举值非法', () => {
+  it('an invalid enum value', () => {
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].level = 'workspace' }))).toContain('skills[0].level')
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].side = 'gemini' }))).toContain('skills[0].side')
-    // pkg:null 合法;非对象/字段非数字拒收
+    // pkg: null is valid; a non-object or non-numeric field is refused
     expect(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].pkg = null }).ok).toBe(true)
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].pkg = 'big' }))).toContain('skills[0].pkg')
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].pkg = { files: '1', bytes: 2 } }))).toContain('skills[0].pkg')
@@ -246,24 +257,24 @@ describe('validateProjectDetail —— 拒收并指出字段路径', () => {
     expect(errOf(bad((d) => { (d.artifacts as Array<Record<string, unknown>>)[0].type = '随笔' }))).toContain('artifacts[0].type')
   })
 
-  it('布尔字段被写成别的类型', () => {
+  it('a boolean field written as another type', () => {
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].symlink = 'yes' }))).toContain('skills[0].symlink')
     expect(errOf(bad((d) => { (d.plugins as Array<Record<string, unknown>>)[0].enabled = 1 }))).toContain('plugins[0].enabled')
   })
 
-  it('可空字段被写成非 string|null', () => {
+  it('a nullable field written as something other than string|null', () => {
     expect(errOf(bad((d) => { (d.configs as Record<string, unknown>).agentsMd = 42 }))).toContain('configs.agentsMd')
     expect(errOf(bad((d) => { (d.memory as Record<string, unknown>).main = {} }))).toContain('memory.main')
   })
 
-  it('嵌套结构缺失', () => {
+  it('a missing nested structure', () => {
     expect(errOf(bad((d) => { delete (d.subagents as Array<Record<string, unknown>>)[0].detail }))).toContain('subagents[0].detail')
     expect(errOf(bad((d) => { delete (d.plugins as Array<Record<string, unknown>>)[0].contents }))).toContain('plugins[0].contents')
     expect(errOf(bad((d) => { delete (d.memory as Record<string, unknown>).topics }))).toContain('memory.topics')
     expect(errOf(bad((d) => { delete d.configs }))).toContain('configs')
   })
 
-  it('stats 复用 validateProjectStats,错误路径带 stats 前缀', () => {
+  it('stats reuses validateProjectStats, with the error path carrying the stats prefix', () => {
     const r = bad((d) => {
       d.stats = { tokens: emptyTokenStats(), sessions: [{ side: 'claude', title: 't', at: 1, tokens: 0 }] }
     })
@@ -272,10 +283,10 @@ describe('validateProjectDetail —— 拒收并指出字段路径', () => {
   })
 })
 
-// ── 票 04:会话页载荷(getSessionPage 通道,两端各校验一次)──
+// ── Ticket 04: the session page payload (the getSessionPage channel, validated at each end) ──
 import { validateSessionPage } from './validate'
 
-describe('validateSessionPage(会话页载荷)', () => {
+describe('validateSessionPage (the session page payload)', () => {
   const okPage = {
     file: '/Users/x/.claude/projects/-e/a.jsonl',
     side: 'claude',
@@ -290,33 +301,33 @@ describe('validateSessionPage(会话页载荷)', () => {
     questions: [{ i: 1, text: '问一', at: 1, tools: 2, subagents: 0 }]
   }
 
-  it('放行合法载荷,含 questions 为空的基态与 at 为 null', () => {
+  it('admits a valid payload, including the base state with empty questions and a null at', () => {
     expect(validateSessionPage(okPage).ok).toBe(true)
     expect(validateSessionPage({ ...okPage, questions: [], at: null }).ok).toBe(true)
     expect(validateSessionPage({ ...okPage, questions: [{ i: 1, text: 't', at: null, tools: 0, subagents: 0 }] }).ok).toBe(true)
   })
 
-  it('拒收非法 side / forkState 并指出路径', () => {
+  it('refuses an invalid side or forkState and points at the path', () => {
     const r1 = validateSessionPage({ ...okPage, side: 'gemini' })
     expect(r1.ok === false && r1.failure.path).toContain('side')
     const r2 = validateSessionPage({ ...okPage, forkState: '存疑' })
     expect(r2.ok === false && r2.failure.path).toContain('forkState')
   })
 
-  it('拒收缺字段的提问项并带下标路径', () => {
+  it('refuses a question item with a missing field, carrying its index in the path', () => {
     const r = validateSessionPage({ ...okPage, questions: [{ i: 1, at: 1, tools: 0, subagents: 0 }] })
     expect(r.ok).toBe(false)
     expect(r.ok === false && r.failure.path).toContain('questions[0].text')
   })
 
-  it('拒收 questions 非数组 / 空 file / 计数非 number', () => {
+  it('refuses a non-array questions, an empty file, or a non-numeric count', () => {
     expect(validateSessionPage({ ...okPage, questions: '不是数组' }).ok).toBe(false)
     expect(validateSessionPage({ ...okPage, file: '' }).ok).toBe(false)
     expect(validateSessionPage({ ...okPage, questions: [{ i: 1, text: 't', at: 1, tools: '2', subagents: 0 }] }).ok).toBe(false)
   })
 
-  // 票 06:横幅数据面三字段
-  it('放行 stripped 页带父标题/父文件;拒收缺 forkPoints 或类型不对的', () => {
+  // Ticket 06: the banner's three data fields
+  it('admits a stripped page carrying the parent title and file; refuses a missing or wrongly typed forkPoints', () => {
     const stripped = {
       ...okPage,
       side: 'codex',
@@ -336,26 +347,26 @@ describe('validateSessionPage(会话页载荷)', () => {
   })
 })
 
-describe('validateSessionTurn(单轮取回载荷,票 05)', () => {
+describe('validateSessionTurn (the single-turn fetch payload, ticket 05)', () => {
   const ok = {
     blocks: [{ kind: 'text', role: 'assistant', at: 1754300000000, body: '回答正文' }],
     bytesRead: 2048
   }
 
-  it('放行合法载荷;空 blocks 也合法(该轮没有正文)', () => {
+  it('admits a valid payload; empty blocks are valid too (that turn has no prose)', () => {
     expect(validateSessionTurn(ok).ok).toBe(true)
     expect(validateSessionTurn({ blocks: [], bytesRead: 0 }).ok).toBe(true)
     expect(validateSessionTurn({ blocks: [{ ...ok.blocks[0], at: null }], bytesRead: 1 }).ok).toBe(true)
   })
 
-  it('拒收缺 bytesRead / blocks 非数组,并指出路径', () => {
+  it('refuses a missing bytesRead or a non-array blocks, and points at the path', () => {
     const r1 = validateSessionTurn({ blocks: [] })
     expect(r1.ok === false && r1.failure.path).toContain('bytesRead')
     const r2 = validateSessionTurn({ blocks: '不是数组', bytesRead: 0 })
     expect(r2.ok === false && r2.failure.path).toContain('blocks')
   })
 
-  it('拒收非法块:kind 未知 / body 非 string / at 非 number|null', () => {
+  it('refuses an invalid block: an unknown kind, a non-string body, or an at that is not number|null', () => {
     const bad1 = { blocks: [{ kind: 'video', role: 'assistant', at: null, body: 'x' }], bytesRead: 1 }
     const r1 = validateSessionTurn(bad1)
     expect(r1.ok === false && r1.failure.path).toContain('blocks[0]')
@@ -366,7 +377,7 @@ describe('validateSessionTurn(单轮取回载荷,票 05)', () => {
   })
 })
 
-describe('validateSessionTurn —— 票 07 富内容块', () => {
+describe('validateSessionTurn — ticket 07\'s rich content blocks', () => {
   const okBlocks = [
     { kind: 'text', role: 'assistant', at: 1, body: '正文' },
     { kind: 'think', at: 1, body: '想' },
@@ -381,11 +392,11 @@ describe('validateSessionTurn —— 票 07 富内容块', () => {
     { kind: 'unknown', count: 2, types: ['agent_snapshot'] }
   ]
 
-  it('放行全部七种块形态', () => {
+  it('admits all seven block shapes', () => {
     expect(validateSessionTurn({ blocks: okBlocks, bytesRead: 1 }).ok).toBe(true)
   })
 
-  it('拒收:tool 缺 name / sub 的 step kind 非法 / unknown.types 非 string 数组', () => {
+  it('refuses: a tool with no name, a sub whose step kind is invalid, or an unknown.types that is not a string array', () => {
     const bad1 = { blocks: [{ kind: 'tool', at: 1, summary: 's', input: 'i', output: null, truncated: false }], bytesRead: 1 }
     const r1 = validateSessionTurn(bad1)
     expect(r1.ok === false && r1.failure.path).toContain('blocks[0]')
@@ -398,12 +409,12 @@ describe('validateSessionTurn —— 票 07 富内容块', () => {
     expect(validateSessionTurn(bad3).ok).toBe(false)
   })
 
-  it('拒收未知 kind(白名单校验,07 之后的新 kind 要先过契约)', () => {
+  it('refuses an unknown kind (allow-list validation: a kind added after 07 has to pass the contract first)', () => {
     expect(validateSessionTurn({ blocks: [{ kind: 'hologram' }], bytesRead: 1 }).ok).toBe(false)
   })
 })
 
-describe('validateSearchResult(搜索载荷,票 08)', () => {
+describe('validateSearchResult (the search payload, ticket 08)', () => {
   const ok = {
     groups: [
       {
@@ -423,12 +434,12 @@ describe('validateSearchResult(搜索载荷,票 08)', () => {
     folded: 3
   }
 
-  it('放行合法载荷与空结果基态', () => {
+  it('admits a valid payload and the empty-result base state', () => {
     expect(validateSearchResult(ok).ok).toBe(true)
     expect(validateSearchResult({ groups: [], totalHits: 0, sessionCount: 0, folded: 0 }).ok).toBe(true)
   })
 
-  it('拒收缺 folded / hits 项缺 inBody / snippet 类型错,并指出路径', () => {
+  it('refuses a missing folded, a hit with no inBody, or a wrongly typed snippet, and points at the path', () => {
     const noFolded = { ...ok } as Record<string, unknown>
     delete noFolded['folded']
     const r1 = validateSearchResult(noFolded)
@@ -442,7 +453,7 @@ describe('validateSearchResult(搜索载荷,票 08)', () => {
     expect(validateSearchResult(badSnip).ok).toBe(false)
   })
 
-  it('拒收组级非法 forkState / 空 file', () => {
+  it('refuses an invalid group-level forkState or an empty file', () => {
     const b1 = JSON.parse(JSON.stringify(ok)) as typeof ok
     ;(b1.groups[0] as unknown as Record<string, unknown>)['forkState'] = '存疑'
     expect(validateSearchResult(b1).ok).toBe(false)
