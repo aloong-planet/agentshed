@@ -1474,7 +1474,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   writeFileSync(join(ct, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'content-tools' }))
   mkdirSync(join(ct, 'skills', 'publish'), { recursive: true })
   writeFileSync(join(ct, 'skills', 'publish', 'SKILL.md'), '---\ndescription: Publish\n---\n\nReadable while disabled B\n')
-  // 整包缺失插件(E6)
+  // A plugin whose whole package is missing (E6)
   mkdirSync(join(home, '.claude', 'plugins'), { recursive: true })
   writeFileSync(
     join(home, '.claude', 'plugins', 'installed_plugins.json'),
@@ -1491,7 +1491,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
     join(home, '.claude', 'settings.json'),
     JSON.stringify({ enabledPlugins: { 'superpowers@official': true } })
   )
-  // Codex 缓存:最高版本含 skills(E8)
+  // The Codex cache: the highest version contains skills (E8)
   const cxBase = join(home, '.codex', 'plugins', 'cache', 'openai-bundled', 'documents')
   mkdirSync(join(cxBase, '2.0.0', 'skills', 'documents'), { recursive: true })
   writeFileSync(
@@ -1503,7 +1503,8 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   const win = await l.app.firstWindow()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
 
-  // ① 启用插件:行内安装记录 chip;展开类目 tab;Skills 行式列表带统计;点行→文件表→抽屉
+  // (1) An enabled plugin: inline installation record chips; expanding gives category tabs; the Skills row
+  //     list carries stats; row → file table → drawer
   const spRow = win.locator('.it.row-btn', { hasText: 'superpowers@official' })
   await expect(spRow.locator('.chip', { hasText: 'user' })).toBeVisible()
   await spRow.click()
@@ -1518,7 +1519,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await spRow.click() // 收起,后续 .files 定位不被本行的表抢占
 
-  // ② 未启用插件的 skill 仍可读(H4/ADR-0012)
+  // (2) A disabled plugin's skill is still readable (H4/ADR-0012)
   await win.locator('.it.row-btn', { hasText: 'content-tools@local' }).click()
   const ctRow = win.locator('.psk', { hasText: 'content-tools:publish' })
   await ctRow.click()
@@ -1527,11 +1528,11 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await win.locator('.it.row-btn', { hasText: 'content-tools@local' }).click() // 收起
 
-  // ③ 整包缺失(E6):展开为缺失横幅,无类目 tab
+  // (3) A wholly missing package (E6): expanding gives the missing banner and no category tabs
   await win.locator('.it.row-btn', { hasText: 'ghost@legacy' }).click()
   await expect(win.locator('.exp-area.none', { hasText: 'Install directory missing' })).toBeVisible()
 
-  // ④ Codex 组:仅 Skills tab,点行读包
+  // (4) The Codex group: a Skills tab only, with a row click reading the package
   const cxRow = win.locator('.it.row-btn', { hasText: 'documents@openai-bundled' })
   await cxRow.click()
   const cxPsk = win.locator('.psk', { hasText: 'documents:documents' })
@@ -1544,10 +1545,14 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
 })
 
 /**
- * token-stats 序列 E:快照自动保鲜——短间隔注入(E5)驱动定时兜底全链路:
- * 追加会话数据后不点 ↻ 自动出现;期间打开的详情分栏本地态经换血保留(A3)。
- * 聚焦触发不在此驱动(隐藏窗口体制下焦点语义不可靠,见文件头注),
- * 其节流判定由 rescan 单测锁,扫描入口与定时共用。
+ * token-stats sequence E: automatic snapshot refresh — a short interval injected (E5) drives the timed
+ * backstop end to end:
+ * appended session data appears without clicking ↻, and an open detail tab's local state survives the
+ * transfusion (A3).
+ * The focus trigger is not driven here (focus semantics are unreliable under the hidden-window regime, see
+ * the file header),
+ * its throttle judgement is pinned by the rescan unit tests, and it shares its scan entry point with the
+ * timer.
  */
 test('automatic refresh: a new session appears without a manual refresh, and the detail page\'s expansion state survives it', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
@@ -1596,7 +1601,7 @@ test('automatic refresh: a new session appears without a manual refresh, and the
   await expect(total).not.toHaveText(/^0(\s|$)/, { timeout: 15_000 })
   const t0 = await total.textContent()
 
-  // 打开详情 Skills 并展开全局层行——它将经历若干次自动刷新
+  // Open detail Skills and expand a global-layer row — it will go through several automatic refreshes
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row', { hasText: 'demo-proj' }).click()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
@@ -1604,14 +1609,16 @@ test('automatic refresh: a new session appears without a manual refresh, and the
   await tddRow.locator('.sk-head').click()
   await expect(tddRow.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
 
-  // 追加"新产生"的会话数据;不点 ↻,等 ≥2 个兜底周期
+  // Append "newly produced" session data; do not click ↻, and wait at least 2 backstop cycles
   writeFileSync(join(cdir, 'b.jsonl'), usage(new Date(), 555555) + '\n')
   await win.waitForTimeout(4000)
-  // 换血保态(A3):展开的文件表在多轮自动刷新后仍在,未闪回读取态
+  // State survives the transfusion (A3): the expanded file table is still there after several automatic
+  // refreshes, with no flash back to the loading state
   await expect(tddRow.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
   await expect(win.locator('.pane-body .none', { hasText: 'Loading' })).toHaveCount(0)
 
-  // 数据自动出现(E1 定时兜底):回 Agents 页,合计已变——全程未点 ↻
+  // The data appears on its own (E1's timed backstop): back on the Agents page the total has changed — with
+  // ↻ never clicked
   await win.locator('.rail .ri').nth(0).click()
   await expect
     .poll(async () => (await total.textContent()) !== t0, { timeout: 15_000, intervals: [500] })
@@ -1624,8 +1631,9 @@ test('automatic refresh: a new session appears without a manual refresh, and the
 })
 
 /**
- * 趋势图的每个使用点都跑同一组断言。
- * 新增使用点只需往这个列表加一行——避免"测了一处漏一处"(2026-07-30 的漏改教训)。
+ * Every use site of the trend chart runs the same set of assertions.
+ * A new use site only needs one more line in this list — avoiding "one place tested, another missed" (the
+ * lesson of the 2026-07-30 missed edit).
  */
 const TREND_MOUNTS = [
   {
@@ -1639,7 +1647,8 @@ const TREND_MOUNTS = [
     async goto(win: import('@playwright/test').Page) {
       await win.locator('.rail .ri').nth(1).click()
       const rows = win.locator('.side .row')
-      // fixture home 保证有且只有一个项目,不再需要"本机没项目就 skip"的分支
+      // The fixture home guarantees exactly one project, so the "skip if this machine has no project" branch is
+    // no longer needed
       await rows.first().waitFor({ state: 'visible', timeout: 8000 })
       await rows.first().click()
       await win.locator('.pane-head .tabs .tab', { hasText: 'Overview' }).click()
@@ -1649,22 +1658,29 @@ const TREND_MOUNTS = [
 
 for (const mount of TREND_MOUNTS) {
   test(`the trend chart [${mount.name}]: the date axis is in place and the hover tooltip is not clipped by an ancestor`, async () => {
-    // 必须喂 fixture 数据:无数据时「标签数 === 数据柱数」是 0 === 0,
-    // 整套几何断言空过——跑了但什么都没验证。项目详情那条更直接:
-    // 没项目就被 skip 掉,在 CI 上等于零覆盖。
+    // Fixture data is mandatory: with no data, "label count === data bar count" is 0 === 0 and
+    // the whole geometric assertion set passes vacuously — it runs and verifies nothing. The project detail
+    // one is even more direct:
+    // with no project it was skipped, which in CI meant zero coverage.
     const l = await launch(undefined, mkUsageHome())
     const win = await l.app.firstWindow()
     await mount.goto(win)
     await expect(win.locator('.chart .col').first()).toBeVisible()
     await expect(win.locator('.chart .col')).toHaveCount(30)
-    // 先钉住确实有数据柱,否则下面按数据柱做的几何检验会因空集合而恒真
+    // Pin down that there really are data bars first, or the geometric checks below would be tautologically
+    // true over an empty set
     expect(await win.locator('.chart .col .sp').count()).toBeGreaterThan(0)
 
-    // ① x 轴几何检验:标签集合 = 当前视图数据日(默认窗宽放得下全部标签),
-    //    互不重叠、不越出轴容器、逐标钉对应柱中心(首尾贴边 clamp 例外)。
-    //    禁止用"span 数量/非空数"冒充可见——重叠与越界的标签也非空。
-    //    已知缺口:窗口缩放的 ResizeObserver 接线与 resize+刷新并发未自动化
-    //    (补测条件:electron setBounds 的稳定驱动;简略逻辑本身由 axis.test.ts 覆盖)。
+    // (1) The x axis geometric check: the label set = the current view's data days (the default window width
+    //     fits every label),
+    //     with no overlap, nothing outside the axis container, and each label pinned to its bar centre (the
+    //     clamped first and last being the exception).
+    //     Using "the span count / the non-empty count" as a stand-in for visible is forbidden — overlapping
+    //     and out-of-bounds labels are non-empty too.
+    //     A known gap: the window-resize ResizeObserver wiring and resize-plus-refresh concurrency are not
+    //     automated
+    //     (the condition for covering them: a stable driver for electron setBounds; the thinning logic itself
+    //     is covered by axis.test.ts).
     const checkAxis = (): Promise<string[]> => win.evaluate(() => {
       const axisEl = document.querySelector('.xaxis') as HTMLElement | null
       const chartEl = document.querySelector('.chart') as HTMLElement | null
@@ -1697,14 +1713,17 @@ for (const mount of TREND_MOUNTS) {
     })
     expect(await checkAxis()).toEqual([])
 
-    // 视图切换后轴跟随当前视图的数据日(合计→Claude→合计,往返无残留)
+    // After a view switch the axis follows the current view's data days (combined → Claude → combined, with
+    // no residue either way)
     for (const m of ['Claude', 'Total']) {
       await win.locator('.grp-t .seg button', { hasText: m }).click()
       expect(await checkAxis(), `after switching to ${m}`).toEqual([])
     }
 
-    // ② 悬停提示的**几何检验**:按同款定位造真实元素,逐级祖先查裁剪盒。
-    //    禁止用"data-tip 属性存在"冒充可见——被裁掉的提示框也有属性。
+    // (2) The **geometric check** on the hover tooltip: build a real element positioned the same way and walk
+    //     the ancestors for a clipping box.
+    //     Using "the data-tip attribute exists" as a stand-in for visible is forbidden — a clipped tooltip has
+    //     the attribute too.
     const clipped = await win.evaluate(() => {
       const col = document.querySelectorAll('.chart .col')[15] as HTMLElement | undefined
       if (!col) return 'no-col'
@@ -1729,7 +1748,7 @@ for (const mount of TREND_MOUNTS) {
     })
     expect(clipped).toBeNull()
 
-    // ③ 提示内容是多行明细(合计 + 至少一个 provider 行)
+    // (3) The tooltip content is a multi-line breakdown (the total plus at least one provider row)
     const tip = await win.locator('.chart .col').nth(15).getAttribute('data-tip')
     expect(tip).toContain('total')
 
@@ -1738,7 +1757,7 @@ for (const mount of TREND_MOUNTS) {
   })
 }
 
-// 票 session-view/03b:fork 与剥离存疑两种标记
+// Ticket session-view/03b: the fork and uncertain-strip markers
 test('the sessions section: a fork session has its replay prefix stripped and is marked ⑂ fork; one with a missing parent is marked ⑂? strip uncertain', async () => {
   const l = await launch(undefined, mkForkHome())
   const win = await l.app.firstWindow()
@@ -1752,17 +1771,17 @@ test('the sessions section: a fork session has its replay prefix stripped and is
   const rowOf = (title: string): ReturnType<typeof win.locator> =>
     win.locator('.pane-body .card .se').filter({ hasText: title })
 
-  // 父会话:不是 fork,两条提问,无标记
+  // The parent: not a fork, two questions, no marker
   await expect(rowOf('Parent first question').locator('.n')).toHaveText('2 questions')
   await expect(rowOf('Parent first question').locator('.pill')).toHaveCount(0)
 
-  // 子会话:重放的两条被剥掉,只剩自己那条;标 ⑂ fork
+  // The child: the two replayed entries are stripped leaving only its own, marked ⑂ fork
   const child = rowOf('Child new question')
   await expect(child.locator('.n'), 'it would read 3 questions if the replay prefix were not stripped').toHaveText('1 questions')
   await expect(child.locator('.pill.fork')).toHaveText('⑂ fork')
   await expect(child.locator('.pill.forkq')).toHaveCount(0)
 
-  // 孤儿 fork:父不在扫描集内,标存疑而不是确定
+  // An orphan fork: its parent is outside the scan set, so it is marked uncertain rather than certain
   const orphan = rowOf('Orphan session question')
   await expect(orphan.locator('.pill.forkq')).toContainText('uncertain strip')
   await expect(orphan.locator('.pill.fork')).toHaveCount(0)
@@ -1772,37 +1791,39 @@ test('the sessions section: a fork session has its replay prefix stripped and is
 })
 
 
-// appearance 票 02:设置第三维 + 外观三选一;data-scheme 即时生效且进出设置不丢选中
+// appearance ticket 02: the settings third dimension + the three appearance choices; data-scheme applies
+// immediately and entering and leaving settings does not lose the selection
 test('settings: the three appearance choices change data-scheme, and entering and leaving settings keeps the selected project', async () => {
   const l = await launch(undefined, mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await expect(win.locator('.rail .ri').first()).toBeVisible()
-  // 默认紫(无 prefs 或 purple);html 上有 data-scheme
+  // Purple by default (no prefs, or purple); html carries data-scheme
   await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('purple')
 
-  // 进 Projects 选中唯一项目
+  // Go to Projects and select the only project
   await win.locator('.rail .ri').nth(1).click()
   await expect(win.locator('.side .row').first()).toBeVisible()
   await win.locator('.side .row').first().click()
   await expect(win.locator('.side .row.sel')).toHaveCount(1)
 
-  // 设置维
+  // The settings dimension
   await win.getByTitle('Settings').click()
   await expect(win.locator('.settings-h1')).toHaveText('Settings')
   await expect(win.locator('.scheme-card')).toHaveCount(3)
-  // 设置页现有两处脚注(语言 / 外观),按语义定位而非类名——类名此刻已不唯一
+  // The settings page now has two footnotes (language / appearance), located by meaning rather than class
+  // name — the class name is no longer unique
   await expect(win.getByTestId('appearance-foot')).toContainText('Follow')
 
-  // 点雾蓝 → data-scheme=blue
+  // Click mist blue → data-scheme=blue
   await win.locator('[data-scheme-option="blue"]').click()
   await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('blue')
   await expect(win.locator('[data-scheme-option="blue"]')).toHaveAttribute('aria-checked', 'true')
 
-  // 回 Projects:选中仍在;scheme 仍 blue(全 app)
+  // Back to Projects: the selection is still there and the scheme is still blue (app-wide)
   await win.locator('.rail .ri').nth(1).click()
   await expect(win.locator('.side .row.sel')).toHaveCount(1)
   await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('blue')
-  // 回 Agents 主区仍 blue
+  // Back on the Agents main area it is still blue
   await win.locator('.rail .ri').first().click()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
   await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('blue')
@@ -1812,25 +1833,33 @@ test('settings: the three appearance choices change data-scheme, and entering an
 })
 
 /**
- * 外观模式(i18n 票 04)。
+ * Appearance mode (i18n ticket 04).
  *
- * **这里测什么、不测什么**:测「选了某个模式 → 生效明暗随之改变」以及界面形态;
- * **不测**「锁定后系统外观再变界面不受影响」——测试环境改不了真实系统外观,而用
- * themeSource 自己去模拟"系统变化"是循环论证(测的是我们刚设的值)。那条归人工验收。
+ * **What is and is not tested here**: it tests "choosing a mode changes the effective light/dark" and the
+ * UI form;
+ * it **does not test** "after locking, later system appearance changes do not affect the UI" — the test
+ * environment cannot change the real system appearance, and using
+ * themeSource itself to simulate a "system change" is circular (it tests the value we just set). That one
+ * is accepted by hand.
  */
 
 /**
- * 外观模式专用启动口:**必须**关掉 Playwright 自己的 prefers-color-scheme 模拟。
+ * A launch helper dedicated to appearance mode: Playwright's own prefers-color-scheme emulation **must**
+ * be turned off.
  *
- * `electron.launch` 默认 `colorScheme: 'light'`,它给页面下发 Emulation 把
- * prefers-color-scheme 钉死;themeSource 改了也透不到渲染层,媒体查询恒为 light。
- * **这条是实测撞出来的**:主进程侧已是 `themeSource='dark'` / `shouldUseDarkColors=true`,
- * 渲染层却仍 `matchMedia(...).matches === false`、body 底色仍是浅的——
- * 即"实现是对的,被测试工装挡住了"。`'no-override'` 撤掉模拟,让真值透下来。
+ * `electron.launch` defaults to `colorScheme: 'light'`, sending the page an Emulation that pins
+ * prefers-color-scheme; a themeSource change never reaches the renderer and the media query stays light.
+ * **This was hit by measurement**: the main process side was already `themeSource='dark'` /
+ * `shouldUseDarkColors=true`,
+ * while the renderer still had `matchMedia(...).matches === false` and a light body background —
+ * that is, "the implementation is right and the test harness is masking it". `'no-override'` removes the
+ * emulation and lets the real value through.
  *
- * 其余用例保持默认(模拟 light):它们不测明暗,钉死反而更稳,免得结果随跑测试的人的
- * 系统外观而变——与把测试语言钉死为中文是同一个理由。本组用例每次断言前都显式选定
- * 模式,故不受开发机系统外观影响。
+ * Other cases keep the default (emulating light): they do not test light/dark, and pinning it is steadier,
+ * so results do not vary with the
+ * system appearance of whoever runs them — the same reason as pinning the test language. This group
+ * explicitly selects a mode before every assertion,
+ * so it is unaffected by the development machine's system appearance.
  *
  * 撤销模拟用 `null`(本版 Playwright 类型里表达"重置为系统默认"的那个值);
  * Docs另提的 `'no-override'` 运行期同样有效,但不在本版类型联合内,typecheck 会红。
