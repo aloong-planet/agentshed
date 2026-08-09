@@ -1,13 +1,16 @@
-// E2E:用 Playwright 驱动真实 Electron(build 产物),覆盖单测测不到的装配层——
-// IPC 全链路、渲染、维度切换、tab 切换、刷新去重,并断言主进程零错误输出。
-// 关键场景:**旧格式缓存启动**(2026-07-30 线上崩溃的形态,单测已锁,这里再守全链路)。
+// E2E: Playwright driving a real Electron (the build output), covering the assembly layer unit tests
+// cannot reach —
+// the whole IPC chain, rendering, dimension switching, tab switching and refresh deduplication, while
+// asserting the main process emits no errors.
+// The key scenario: **starting with an old-format cache** (the shape of the 2026-07-30 production crash;
+// the unit tests pin it and this guards the whole chain again).
 import { appendFileSync, mkdtempSync, mkdirSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { ERR } from '../src/shared/errors'
 
-/** 每个用例独立 userData,互不污染;可预置缓存文件 */
+/** Each case gets its own userData with no cross-contamination; a cache file can be seeded */
 function makeUserData(cacheContent?: string): string {
   const dir = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
   if (cacheContent !== undefined) {
@@ -21,30 +24,41 @@ interface Launched {
   app: ElectronApplication
   errors: string[]
   userData: string
-  /** 本次用的 fixture home(有则随 close 一并清理) */
+  /** The fixture home used this time (cleaned up with close if there is one) */
   home?: string
 }
 
 /**
- * home 为 fixture 目录时经 AGENTSHED_HOME_OVERRIDE 注入(见 src/main/roots.ts)。
+ * A fixture directory as home is injected through AGENTSHED_HOME_OVERRIDE (see src/main/roots.ts).
  *
- * **一律传 home,没有例外。** 不传就读开发机真实 ~/.claude,两种坏处:
- *   1. 断言数据的用例结果取决于跑测试的人有多少会话记录——自己机器上绿、CI 上红;
- *   2. 就算只断言通用 UI,每个用例都是独立 userData,缓存必然是空的,于是每次都要
- *      全量重扫真实数据(本机 638MB)。这会把用例推到断言超时的边缘——2026-08-02
- *      升 CACHE_VERSION 后,仅剩的两条读真实 home 的用例就是这么红的。
+ * **Always pass home, without exception.** Omitting it reads the development machine's real ~/.claude,
+ * which is bad in two ways:
+ *   1. a data-asserting case's result depends on how many sessions whoever runs it has — green on their
+ *      machine, red in CI;
+ *   2. even when only asserting generic UI, every case has its own userData so the cache is always empty,
+ *      meaning every run does
+ *      a full rescan of real data (638 MB on this machine). That pushes cases to the edge of the
+ *      assertion timeout — after the 2026-08-02
+ *      CACHE_VERSION bump, the only two remaining cases reading the real home went red exactly this way.
  *
- * **测试静音(AGENTSHED_NO_FOREGROUND)**:本地 macOS 上窗口不显示,免得 18 个实例
- * 轮番抢前台;CI 的 xvfb 不受影响(seam 有 darwin 守卫)。有效性已验:DOM 文本/几何/
- * 计算样式/toBeVisible 都走 layout 与 CDP,与窗口是否上屏无关(两类已知可红的变异在
- * 隐藏体制下重放仍红,2026-08-04)。**边界:真焦点语义除外**——document.hasFocus()、
- * autofocus、:focus 样式在隐藏窗口下不同;将来写输入框类用例(如票 08 搜索)时,
- * 要么经 CDP 显式聚焦,要么该用例单独去掉此变量,不许沉默依赖窗口聚焦。
+ * **Test silencing (AGENTSHED_NO_FOREGROUND)**: on local macOS the window is not shown, so 18 instances
+ * do not take turns
+ * stealing the foreground; CI's xvfb is unaffected (the seam has a darwin guard). Its validity has been
+ * verified: DOM text, geometry,
+ * computed styles and toBeVisible all go through layout and CDP, independent of whether the window is on
+ * screen (two known red-able mutations replayed
+ * red under the hidden regime, 2026-08-04). **The boundary: real focus semantics are the exception** —
+ * document.hasFocus(),
+ * autofocus and :focus styles behave differently in a hidden window; when writing input-box cases (ticket
+ * 08's search, say),
+ * either focus explicitly through CDP or drop this variable for that case alone — never depend silently on
+ * window focus.
  */
 /**
- * `home` **必填**(2026-08-03 从可选改为必填):省略它 app 就去扫开发者的真实 `~/.claude`,
- * 用例结果随各人的数据量而变——CI 上 home 是空的所以照绿,本地却会超时挂掉。
- * 靠"记得传"守不住,交给 typecheck。
+ * `home` is **required** (changed from optional on 2026-08-03): omitting it makes the app scan the
+ * developer's real `~/.claude`,
+ * so results vary with each person's data volume — green in CI where home is empty, timing out locally.
+ * "Remembering to pass it" cannot hold the line, so typecheck does.
  */
 async function launch(cacheContent: string | undefined, home: string): Promise<Launched> {
   const userData = makeUserData(cacheContent)
@@ -55,19 +69,23 @@ async function launch(cacheContent: string | undefined, home: string): Promise<L
       ...process.env,
       NODE_ENV: 'production',
       AGENTSHED_HOME_OVERRIDE: home,
-      // 测试静音:不抢前台(macOS accessory 策略,见 src/main/index.ts)
+      // Test silencing: do not steal the foreground (the macOS accessory policy, see src/main/index.ts)
       AGENTSHED_NO_FOREGROUND: '1',
-      // 把测试语言钉死为中文:界面语言默认跟随系统,不钉的话
-      // 所有按中文文案定位的既有断言都会随跑测试的人的系统语言而变
+      // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
+      // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
+// the tests
       AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'
     }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    // 主进程未捕获错误 / IPC handler 异常 / 任何结构化失败都算失败信号。
-    // `agentshed-error:` 是票 05 起所有跨进程失败的共同标记——它取代了原先按
-    // 「契约校验失败」这条中文措辞匹配的写法:那条措辞在票 06 后已不复存在,
-    // 模式因此成了死模式,再也匹配不到任何东西(探测网被悄悄削弱)。
+    // An uncaught main-process error, an IPC handler exception, or any structured failure all count as a
+// failure signal.
+    // `agentshed-error:` is the marker common to every cross-process failure since ticket 05 — it replaced the
+// earlier match on
+    // the Chinese wording "契约校验失败", which no longer exists after ticket 06,
+    // so that pattern had become a dead pattern that could never match anything again (silently weakening the
+// detection net).
     if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) {
       errors.push(t.trim())
     }
@@ -81,7 +99,8 @@ async function close(l: Launched): Promise<void> {
   if (l.home) rmSync(l.home, { recursive: true, force: true })
 }
 
-/** 本地日(与主进程 localDay 同口径);趋势窗口是「近 30 天」,时间戳必须相对 now 算 */
+/** The local day (the same rule as the main process's localDay); the trend window is the last 30 days, so
+ * timestamps have to be computed relative to now */
 function localDayOffset(daysAgo: number): Date {
   const d = new Date()
   d.setDate(d.getDate() - daysAgo)
@@ -90,9 +109,11 @@ function localDayOffset(daysAgo: number): Date {
 }
 
 /**
- * 造一个带两侧用量的 fixture home:Claude(→ Anthropic 段)+ Codex(→ OpenAI 段)。
- * 趋势图按 provider 分段,所以两侧都要有,否则「切到 Claude 侧后 OpenAI 段归零」
- * 这条断言在没有 OpenAI 数据时会**恒真**——测不出任何东西。
+ * Build a fixture home with usage on both sides: Claude (→ the Anthropic segment) + Codex (→ the OpenAI
+ * segment).
+ * The trend chart segments by provider, so both are needed — otherwise "switching to the Claude side zeroes
+ * the OpenAI segment"
+ * would be **tautologically true** with no OpenAI data, testing nothing at all.
  */
 function mkUsageHome(): string {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-usage-'))
@@ -100,7 +121,8 @@ function mkUsageHome(): string {
   mkdirSync(proj, { recursive: true })
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
 
-  // Claude:projects 全树扫描,目录名与注册表无关(未注册目录也计入全局)
+  // Claude: a whole-tree scan of projects, with directory names unrelated to the registry (an unregistered
+// directory counts toward the global total too)
   const enc = proj.replace(/[^a-zA-Z0-9]/g, '-') // 与 encodeClaudeProjectDir 同规则
   const cdir = join(home, '.claude', 'projects', enc)
   mkdirSync(cdir, { recursive: true })
@@ -122,8 +144,10 @@ function mkUsageHome(): string {
     join(cdir, 'a.jsonl'),
     [
       JSON.stringify({ type: 'user', timestamp: localDayOffset(2).toISOString(), message: { role: 'user', content: '示例提问' } }),
-      // 真实形态:助手行同时带 content(正文段)与 usage;票 05 的展开断言用这段正文。
-      // 票 07:同行混排 thinking/text/tool_use(全量枚举的段全谱),供富内容断言
+      // The real shape: an assistant line carries both content (the prose segments) and usage; ticket 05's
+// expansion assertions use that prose.
+      // Ticket 07: thinking/text/tool_use mixed on one line (the whole segment spectrum from the full
+// enumeration), for the rich content assertions
       JSON.stringify({
         type: 'assistant',
         timestamp: localDayOffset(2).toISOString(),
@@ -137,7 +161,8 @@ function mkUsageHome(): string {
           usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
         }
       }),
-      // 工具返回:含 tool-results/ 旁挂路径 → 截断标注(spec C7,机制性判据)
+      // A tool return containing a tool-results/ sidecar path → the truncation label (spec C7, a
+// mechanism-based criterion)
       JSON.stringify({
         type: 'user',
         timestamp: localDayOffset(2).toISOString(),
@@ -146,7 +171,8 @@ function mkUsageHome(): string {
           content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_1', content: '共 12 个文件\noutput saved to: /x/tool-results/e2e.txt' }]
         }
       }),
-      // subagent 派发 → 轮内 sidechain 步骤 → 带 toolUseResult.agentId 的返回(实测链路)
+      // A subagent dispatch → a sidechain step within the turn → a return carrying toolUseResult.agentId (the
+// measured chain)
       JSON.stringify({
         type: 'assistant',
         timestamp: localDayOffset(2).toISOString(),
@@ -168,11 +194,13 @@ function mkUsageHome(): string {
         toolUseResult: { agentId: 'ag_e2e', status: 'completed' },
         message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_ag', content: [{ type: 'text', text: '日志干净,没有异常' }] }] }
       }),
-      // 显示白名单外的未知类型 → 留痕不静默丢(spec C8)
+      // An unknown type outside the display allow-list → a trace rather than a silent drop (spec C8)
       JSON.stringify({ type: 'agent_snapshot', timestamp: localDayOffset(2).toISOString(), payload: { blob: 'x' } }),
       usage('claude-fable-5', localDayOffset(2), 1200, 300),
-      // 第二条真实提问 —— 让两侧的提问条数不相等,条数断言才分得出"真读到了"
-      // 与"两边都恰好是 1"。中间夹一条工具回灌,它不算提问(spec B1)。
+      // A second real question — making the two sides' question counts differ, so the count assertion can
+// distinguish "really read"
+      // from "both happen to be 1". A tool result is fed back in between, which does not count as a question
+// (spec B1).
       JSON.stringify({
         type: 'user',
         timestamp: localDayOffset(1).toISOString(),
@@ -184,7 +212,7 @@ function mkUsageHome(): string {
     ].join('\n') + '\n'
   )
 
-  // 预热会话:只有一条 Warmup,有 token 但没人问过任何东西(spec A3a → 不入列)
+  // A warmup session: a single Warmup with tokens but nothing anyone asked (spec A3a → not listed)
   writeFileSync(
     join(cdir, 'warmup.jsonl'),
     [
@@ -193,7 +221,7 @@ function mkUsageHome(): string {
     ].join('\n') + '\n'
   )
 
-  // Codex:sessions 全树,首行 session_meta 的 cwd 决定归属
+  // Codex: a whole-tree scan of sessions, with the first line's session_meta cwd deciding attribution
   const sdir = join(home, '.codex', 'sessions', '2026', '01', '01')
   mkdirSync(sdir, { recursive: true })
   const turn = (at: Date, inTok: number, outTok: number): string =>
@@ -218,9 +246,10 @@ function mkUsageHome(): string {
     [
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'session_meta', payload: { cwd: proj } }),
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
-      // 真实提问:没有它这条会话按 spec A3a 不入列
+      // A real question: without it this session is not listed per spec A3a
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'user_message', message: 'Codex 侧的提问' } }),
-      // 票 07:推理小标题 / 工具配对 / spawn_agent(不可归位)/ 未知 event 留痕
+      // Ticket 07: reasoning sub-headings / tool pairing / spawn_agent (unattributable) / traces of unknown
+// events
       JSON.stringify({
         timestamp: localDayOffset(2).toISOString(),
         type: 'response_item',
@@ -249,8 +278,10 @@ function mkUsageHome(): string {
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'exotic_event', data: 1 } }),
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'agent_message', message: '两侧目录约定不同,详见对比。' } }),
       turn(localDayOffset(2), 900, 150),
-      // 停在昨天:与 Claude 侧(今天)拉开差距,"最近在前"才有得可判。
-      // 两侧同时间戳的话,排序断言只能证明 reverse 有效,证不了按时间排。
+      // Stopping at yesterday: putting distance from the Claude side (today), so "newest first" has something to
+// judge.
+      // With identical timestamps on both sides, the sort assertion could only prove reverse works, not that it
+// sorts by time.
       turn(localDayOffset(1), 400, 80)
     ].join('\n') + '\n'
   )
@@ -258,10 +289,12 @@ function mkUsageHome(): string {
 }
 
 /**
- * 票 03b:Codex fork 的 fixture home。
- * **本机真实数据里真 fork 数为 0**(244 个会话中 9 个带 parent 的全是 subagent,
- * 按 A3 不入列),所以这条路径只能靠构造覆盖——形态照 codex.ts 实际读的字段来:
- * payload.id / payload.forked_from_id / 顶层 timestamp 当 fork 时刻。
+ * Ticket 03b: the fixture home for a Codex fork.
+ * **There are 0 real forks in this machine's real data** (of 244 sessions, all 9 with a parent are
+ * subagents,
+ * unlisted per A3), so this path can only be covered by construction — shaped by the fields codex.ts
+ * actually reads:
+ * payload.id / payload.forked_from_id / the top-level timestamp as the fork moment.
  */
 function mkForkHome(): string {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-fork-'))
@@ -288,18 +321,19 @@ function mkForkHome(): string {
   const ctx = (at: Date): string =>
     JSON.stringify({ timestamp: at.toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } })
 
-  // 父会话:两条提问
+  // The parent session: two questions
   writeFileSync(
     join(sdir, `rollout-${PARENT}.jsonl`),
     [meta(localDayOffset(4), PARENT), ctx(localDayOffset(4)), q(localDayOffset(4), '父会话第一问'), usage(localDayOffset(4), 500, 100), q(localDayOffset(3), '父会话第二问'), usage(localDayOffset(3), 300, 60)].join('\n') + '\n'
   )
-  // 子会话:fork 自父,重放了父的两条(时间戳被改写),再加一条新的 → 应剩 1 条、标 ⑂ fork
+  // The child: forked from the parent, replaying its two entries (with rewritten timestamps) plus one new
+// one → 1 should remain, marked ⑂ fork
   const CHILD = '019fb0c0-bbbb-7af3-af7d-8505cedf1ec2'
   writeFileSync(
     join(sdir, `rollout-${CHILD}.jsonl`),
     [meta(localDayOffset(2), CHILD, { forked_from_id: PARENT }), ctx(localDayOffset(2)), q(localDayOffset(2), '父会话第一问'), q(localDayOffset(2), '父会话第二问'), q(localDayOffset(2), '子会话的新问'), usage(localDayOffset(2), 200, 40)].join('\n') + '\n'
   )
-  // 孤儿 fork:父不在扫描集内 → 只能启发式,标 ⑂? 剥离存疑
+  // An orphan fork: the parent is not in the scan set → the heuristic only, marked ⑂? strip uncertain
   const ORPHAN = '019fb0c0-cccc-7af3-af7d-8505cedf1ec2'
   writeFileSync(
     join(sdir, `rollout-${ORPHAN}.jsonl`),
@@ -308,7 +342,7 @@ function mkForkHome(): string {
   return home
 }
 
-/** 有注册项目、但该项目一个会话都没有 —— 会话分栏的空态 */
+/** A registered project with no sessions at all — the sessions section's empty state */
 function mkEmptyProjectHome(): string {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-noses-'))
   const proj = join(home, 'demo-proj')
@@ -317,22 +351,23 @@ function mkEmptyProjectHome(): string {
   return home
 }
 
-test('冷启动:Agents 页为默认落地,两侧汇总卡渲染,主进程无错误', async () => {
+test('cold start: the Agents page is the default landing, both summary cards render, and the main process reports no errors', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await expect(win.locator('.rail .ri').first()).toBeVisible()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
-  // 汇总卡两张(CC / CODEX)
+  // Two summary cards (CC / CODEX)
   await expect(win.locator('.pane-head .stats .stat')).toHaveCount(2)
   await expect(win.locator('.badge.cc, .badge.cl').first()).toBeVisible()
-  // #18:打包版渲染页必须跑在 app:// 上而非 file://(回退到 file:// 会静默丢掉
-  // "可读范围锁死在产物目录"的保护,只有断言协议才拦得住)
+  // #18: the packaged build's renderer page must run on app:// rather than file:// (falling back to file://
+// silently loses
+  // the "readable range locked to the build directory" protection, and only asserting the protocol catches it)
   expect(win.url()).toMatch(/^app:\/\//)
   expect(l.errors).toEqual([])
   await close(l)
 })
 
-test('旧格式缓存启动不崩(线上崩溃回归):快照仍渲染,主进程无错误', async () => {
+test('an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors', async () => {
   // 上一版结构:Codex agg 只有 totals/byDay,无 events;version 号也是旧的
   const legacy = JSON.stringify({
     version: 2,
@@ -360,7 +395,7 @@ test('旧格式缓存启动不崩(线上崩溃回归):快照仍渲染,主进程�
   await close(l)
 })
 
-test('Agents 页七个 tab 逐个切换均渲染,无错误', async () => {
+test('all seven Agents page tabs render as they are switched through, with no errors', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   const tabs = win.locator('.pane-head .tabs .tab')
@@ -379,7 +414,7 @@ test('Agents 页七个 tab 逐个切换均渲染,无错误', async () => {
 // ——开发机永远走 A,CI 永远走 B,没有任何一台机器把两条都测到;而 B 分支从没被
 // 执行过,里面的 locator 同时命中侧栏与主区两个空态(strict mode violation),
 // 写完就没跑过。拆成两条各自预置 fixture home 的确定性用例。
-test('切到 Projects:有项目时出行,选中后详情各 tab 可切换', async () => {
+test('switching to Projects: rows appear when there are projects, and the detail tabs switch once one is selected', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -398,7 +433,7 @@ test('切到 Projects:有项目时出行,选中后详情各 tab 可切换', asyn
   await close(l)
 })
 
-test('切到 Projects:一个项目都没有时出侧栏空态', async () => {
+test('switching to Projects: the sidebar shows its empty state when there are no projects at all', async () => {
   const l = await launch(undefined, mkdtempSync(join(tmpdir(), 'agentshed-e2e-nohome-')))
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -411,7 +446,7 @@ test('切到 Projects:一个项目都没有时出侧栏空态', async () => {
 
 // 票 session-view/02:会话分栏。fixture home 造两侧会话 + 一个只有 Warmup 的
 // 预热会话(spec A3a:不入列但 token 照计),断言列表、排序、口径说明与空态。
-test('会话分栏:列出会话、可切排序、预热会话不入列', async () => {
+test('the sessions section: sessions are listed, the sort switches, and warmup sessions are not listed', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -451,7 +486,7 @@ test('会话分栏:列出会话、可切排序、预热会话不入列', async (
 
 // 票 session-view/03a:提问条数上行。两条会话的条数**故意不相等**——都写 1 的话,
 // 断言分不出"真按会话读到了"与"两边碰巧一样"。
-test('会话分栏:每行显示本会话的真实提问条数', async () => {
+test('the sessions section: each row shows that session\'s real question count', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -473,7 +508,7 @@ test('会话分栏:每行显示本会话的真实提问条数', async () => {
   await close(l)
 })
 
-test('会话分栏:排序选择在切走分栏后仍然记得', async () => {
+test('the sessions section: the sort choice is remembered after switching away', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -495,7 +530,7 @@ test('会话分栏:排序选择在切走分栏后仍然记得', async () => {
   await close(l)
 })
 
-test('会话分栏:无会话项目出空态;概览会话卡可点入本分栏', async () => {
+test('the sessions section: a project with no sessions shows an empty state, and the overview session card clicks through to this section', async () => {
   const l = await launch(undefined, mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -507,7 +542,7 @@ test('会话分栏:无会话项目出空态;概览会话卡可点入本分栏', 
 })
 
 // 票 04:概览会话卡从「进分栏」改为**直达会话页**(02 留下的中间态在此收口,原型 v3 明写)
-test('概览的会话卡点一下直达会话页', async () => {
+test('one click on the overview session card goes straight to the session page', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -521,7 +556,7 @@ test('概览的会话卡点一下直达会话页', async () => {
 })
 
 // 票 04:会话页——从分栏进入,行字段齐全,一次列全无分页语义,返回落在会话分栏
-test('会话页:列出全部提问,字段齐全,返回回到会话分栏', async () => {
+test('the session page: every question is listed with complete fields, and back returns to the sessions section', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -559,7 +594,7 @@ test('会话页:列出全部提问,字段齐全,返回回到会话分栏', async
 })
 
 // 票 04:fork 会话的会话页与列表同源——重放前缀剥掉后只剩新提问
-test('会话页:fork 会话只显示剥离后的提问', async () => {
+test('the session page: a fork session shows only the questions left after stripping', async () => {
   const l = await launch(undefined, mkForkHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -576,7 +611,7 @@ test('会话页:fork 会话只显示剥离后的提问', async () => {
 // 票 04:白名单拒收的**接线级**证据——经真 IPC 发非法路径,必须被 handler 拒绝。
 // 纯函数单测只证明"函数会拒",这里证明"handler 真的在用它拒"。两个方向都断言:
 // 白名单外的绝对路径拒,穿越形态拒;合法路径能过(同一会话页 e2e 已覆盖)。
-test('IPC 面:白名单外的路径经真通道调用被拒,错误里不含文件内容', async () => {
+test('the IPC surface: a path outside the allow-list is refused over the real channel, and the error carries no file content', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -614,7 +649,7 @@ test('IPC 面:白名单外的路径经真通道调用被拒,错误里不含文�
 
 // 票 04:省略号是 CSS 显示层截断,数据侧是全文(spec D2a 推论)。
 // 用超过一行宽度的长提问坐实:DOM 文本 = 全文,渲染框宽 < 文本天然宽。
-test('会话页:长提问单行截断只发生在显示层,DOM 里是全文', async () => {
+test('the session page: a long question\'s single-line truncation happens only in the display layer, with the full text in the DOM', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-long-'))
   const proj = join(home, 'long-proj')
   mkdirSync(proj, { recursive: true })
@@ -651,7 +686,7 @@ test('会话页:长提问单行截断只发生在显示层,DOM 里是全文', as
 })
 
 // 票 05:点提问就地展开整轮正文,按需取回;默认 0 轮展开(预展开等于把「按需取」作废)
-test('会话页:默认全部折叠;点提问展开整轮正文与取回脚注,再点收起', async () => {
+test('the session page: everything collapsed by default; clicking a question expands the whole turn with its fetch footnote, and clicking again collapses it', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -686,7 +721,7 @@ test('会话页:默认全部折叠;点提问展开整轮正文与取回脚注,�
 })
 
 // 票 06:日期分组折叠 + 正序/倒序 + 展开跨排序保持
-test('会话页:跨天分组可折叠;倒序组与组内同翻、序号不变;展开跨排序保持', async () => {
+test('the session page: day groups collapse; descending reverses both the groups and their contents while the numbers stay; expansion survives a sort change', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -734,7 +769,7 @@ test('会话页:跨天分组可折叠;倒序组与组内同翻、序号不变;�
 })
 
 // 票 06:顶部横幅三档——stripped info(父标题可点直达父会话)与孤儿 risk
-test('会话页横幅:fork 已剥离标 info 且父标题直达;父缺失标 risk 且明说对照核对', async () => {
+test('the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source', async () => {
   const l = await launch(undefined, mkForkHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -766,7 +801,7 @@ test('会话页横幅:fork 已剥离标 info 且父标题直达;父缺失标 ris
 
 // 票 05:签名不符 → 只重建该文件的索引,重建完出内容(不干等、不报错)。
 // 中间态文案是瞬时的,e2e 不赌时序;这里断言的是链路结果正确与主进程零错误。
-test('会话页:文件被追加(签名不符)后点提问,仍取回正确的整轮内容', async () => {
+test('the session page: after the file is appended to (so the signature mismatches), clicking a question still fetches the correct whole turn', async () => {
   const home = mkUsageHome()
   const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
   const sess = join(home, '.claude', 'projects', enc, 'a.jsonl')
@@ -796,7 +831,7 @@ test('会话页:文件被追加(签名不符)后点提问,仍取回正确的整�
 })
 
 // 票 07:轮内富内容——工具折叠/二次展开、思考块、subagent 归位、截断标注、未知留痕
-test('会话页富内容(Claude):思考/工具/subagent 块默认折叠,展开见全文与标注', async () => {
+test('session page rich content (Claude): the thinking, tool and subagent blocks are collapsed by default and expand to the full text with their labels', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -842,7 +877,7 @@ test('会话页富内容(Claude):思考/工具/subagent 块默认折叠,展开�
   await close(l)
 })
 
-test('会话页富内容(Codex):推理密文标注、工具配对、spawn 不可归位标注、未知事件留痕', async () => {
+test('session page rich content (Codex): the encrypted-reasoning label, tool pairing, the unattributable spawn label, and traces of unknown events', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -882,7 +917,7 @@ test('会话页富内容(Codex):推理密文标注、工具配对、spawn 不可
 // 票 08:会话搜索——默认搜提问、全文开关、命中分组、直达提问。
 // 输入用 fill()(经 CDP 设值,不依赖窗口聚焦语义;app.spec 头部注记的 :focus
 // 断言边界不在本用例内)。
-test('会话搜索:默认搜提问命中分组;正文词切全文才命中;点命中直达该提问', async () => {
+test('session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -926,7 +961,7 @@ test('会话搜索:默认搜提问命中分组;正文词切全文才命中;点�
   await close(l)
 })
 
-test('全局刷新连点被去重,刷新后仍无错误', async () => {
+test('repeated clicks on global refresh are deduplicated, with no errors after the refresh', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   const refresh = win.locator('.rail .ri.grfr')
@@ -938,7 +973,7 @@ test('全局刷新连点被去重,刷新后仍无错误', async () => {
   await close(l)
 })
 
-test('归档:预置历史归档文件 → 趋势含归档段并有说明,主进程无错误', async () => {
+test('the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors', async () => {
   // 造一条源文件早已不存在的历史行(模拟 agent 清理掉旧会话后的状态)
   const userData = makeUserData()
   writeFileSync(
@@ -973,8 +1008,9 @@ test('归档:预置历史归档文件 → 趋势含归档段并有说明,主进�
       NODE_ENV: 'production',
       AGENTSHED_HOME_OVERRIDE: mkEmptyProjectHome(),
       AGENTSHED_NO_FOREGROUND: '1',
-      // 把测试语言钉死为中文:界面语言默认跟随系统,不钉的话
-      // 所有按中文文案定位的既有断言都会随跑测试的人的系统语言而变
+      // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
+      // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
+// the tests
       AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'
     }
   })
@@ -991,7 +1027,7 @@ test('归档:预置历史归档文件 → 趋势含归档段并有说明,主进�
   rmSync(userData, { recursive: true, force: true })
 })
 
-test('趋势图为堆叠柱:柱内按 provider 分段,切单侧后只剩该侧 provider 段', async () => {
+test('the trend chart is stacked bars: segmented by provider within a bar, and switching to a single side leaves only that side\'s provider segments', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   // 合计模式:fixture 预置了两侧用量 → Anthropic 与 OpenAI 段都该在
@@ -1014,7 +1050,7 @@ test('趋势图为堆叠柱:柱内按 provider 分段,切单侧后只剩该侧 p
   await close(l)
 })
 
-test('provider 品牌配色生效:段与图例色一致,深浅模式各有取值', async () => {
+test('the provider brand colours apply: the segments and the legend match, with their own values in light and dark', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   const read = async (): Promise<Record<string, string>> =>
@@ -1050,7 +1086,7 @@ test('provider 品牌配色生效:段与图例色一致,深浅模式各有取值
  * v2 组件(Subagents/Memory/Plugins):预置 fixture home(AGENTSHED_HOME_OVERRIDE 注入)
  * 全链路断言 F3 双向场景与新分栏渲染——不依赖本机真实数据。
  */
-test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全链路', async () => {
+test('F3 plus the new sections: a project-scope plugin displays correctly both ways; the Subagents and Memory drawers work end to end', async () => {
   // 造 fixture home:demo 项目 + project-scope 插件(含 skills/hooks)+ 双端 subagents + memory
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
   const demo = join(home, 'demo-proj')
@@ -1109,10 +1145,11 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
       ...process.env,
       NODE_ENV: 'production',
       AGENTSHED_HOME_OVERRIDE: home,
-      // 测试静音:不抢前台(macOS accessory 策略,见 src/main/index.ts)
+      // Test silencing: do not steal the foreground (the macOS accessory policy, see src/main/index.ts)
       AGENTSHED_NO_FOREGROUND: '1',
-      // 把测试语言钉死为中文:界面语言默认跟随系统,不钉的话
-      // 所有按中文文案定位的既有断言都会随跑测试的人的系统语言而变
+      // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
+      // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
+// the tests
       AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'
     }
   })
@@ -1213,7 +1250,7 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
  * skills-view:磁盘 skill 折叠文件表 + 抽屉读正文(md 预览 / 非 md 原文)、
  * 详情同侧同名只列项目级(B1)、插件行不可展开(A4)。fixture home 全链路。
  */
-test('Skills 查看:全局展开读包;详情同名只见项目级;插件行不可展开', async () => {
+test('Skills view: expanding globally reads the package; a same-name pair in detail shows only the project level; plugin rows do not expand', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
   const demo = join(home, 'demo-proj')
   mkdirSync(demo, { recursive: true })
@@ -1327,7 +1364,7 @@ test('Skills 查看:全局展开读包;详情同名只见项目级;插件行不�
  * plugins-view 序列 H:插件 skill 原地预览——类目 tab、行式列表、可读与启用态无关、
  * 缺失置灰、Codex 组仅 Skills tab。fixture home 全链路。
  */
-test('插件 skill 原地预览:tab 展开读包;未启用可读;缺失置灰;Codex 组', async () => {
+test('previewing a plugin skill in place: the tab expands and reads the package; a disabled plugin is readable; a missing one is greyed out; the Codex group', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
   const demo = join(home, 'demo-proj')
   mkdirSync(demo, { recursive: true })
@@ -1429,7 +1466,7 @@ test('插件 skill 原地预览:tab 展开读包;未启用可读;缺失置灰;Co
  * 聚焦触发不在此驱动(隐藏窗口体制下焦点语义不可靠,见文件头注),
  * 其节流判定由 rescan 单测锁,扫描入口与定时共用。
  */
-test('自动保鲜:新会话免手动刷新自动出现;详情展开态不因刷新丢失', async () => {
+test('automatic refresh: a new session appears without a manual refresh, and the detail page\'s expansion state survives it', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
   const demo = join(home, 'demo-proj')
   mkdirSync(demo, { recursive: true })
@@ -1460,8 +1497,9 @@ test('自动保鲜:新会话免手动刷新自动出现;详情展开态不因刷
       NODE_ENV: 'production',
       AGENTSHED_HOME_OVERRIDE: home,
       AGENTSHED_NO_FOREGROUND: '1',
-      // 把测试语言钉死为中文:界面语言默认跟随系统,不钉的话
-      // 所有按中文文案定位的既有断言都会随跑测试的人的系统语言而变
+      // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
+      // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
+// the tests
       AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN',
       AGENTSHED_RESCAN_MS: '1500' // E5 测试 seam:兜底间隔缩短驱动全链路
     }
@@ -1527,7 +1565,7 @@ const TREND_MOUNTS = [
 ]
 
 for (const mount of TREND_MOUNTS) {
-  test(`趋势图[${mount.name}]:日期轴在位,悬停提示不被祖先裁剪`, async () => {
+  test(`the trend chart [${mount.name}]: the date axis is in place and the hover tooltip is not clipped by an ancestor`, async () => {
     // 必须喂 fixture 数据:无数据时「标签数 === 数据柱数」是 0 === 0,
     // 整套几何断言空过——跑了但什么都没验证。项目详情那条更直接:
     // 没项目就被 skip 掉,在 CI 上等于零覆盖。
@@ -1618,7 +1656,7 @@ for (const mount of TREND_MOUNTS) {
 }
 
 // 票 session-view/03b:fork 与剥离存疑两种标记
-test('会话分栏:fork 会话剥掉重放前缀并标 ⑂ fork;父缺失的标 ⑂? 剥离存疑', async () => {
+test('the sessions section: a fork session has its replay prefix stripped and is marked ⑂ fork; one with a missing parent is marked ⑂? strip uncertain', async () => {
   const l = await launch(undefined, mkForkHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -1652,7 +1690,7 @@ test('会话分栏:fork 会话剥掉重放前缀并标 ⑂ fork;父缺失的标 
 
 
 // appearance 票 02:设置第三维 + 外观三选一;data-scheme 即时生效且进出设置不丢选中
-test('设置:外观三选一改 data-scheme;进出设置保留项目选中', async () => {
+test('settings: the three appearance choices change data-scheme, and entering and leaving settings keeps the selected project', async () => {
   const l = await launch(undefined, mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await expect(win.locator('.rail .ri').first()).toBeVisible()
@@ -1762,7 +1800,7 @@ function luminance(rgb: string): number {
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
 }
 
-test('外观:一张卡两行(模式 + 配色);配色卡只剩色块与名称', async () => {
+test('appearance: one card with two rows (mode + colour scheme); the scheme cards keep only a swatch and a name', async () => {
   const l = await launch(undefined, mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -1788,7 +1826,7 @@ test('外观:一张卡两行(模式 + 配色);配色卡只剩色块与名称', a
   await close(l)
 })
 
-test('外观模式:锁定浅/深改变生效明暗,色板取样随之切换', async () => {
+test('appearance mode: locking light or dark changes the effective light/dark, and the palette samples follow', async () => {
   const l = await launchAppearance(mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -1824,7 +1862,7 @@ test('外观模式:锁定浅/深改变生效明暗,色板取样随之切换', as
   await close(l)
 })
 
-test('外观:3 配色 × 2 生效明暗六种组合均成立', async () => {
+test('appearance: all six combinations of 3 colour schemes × 2 effective light/dark hold', async () => {
   const l = await launchAppearance(mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -1888,7 +1926,7 @@ async function launchWithLangs(sysLangs: string): Promise<Launched> {
   return { app, errors, userData, home }
 }
 
-test('界面语言:跟随系统按整个列表解析,首帧即生效', async () => {
+test('UI language: following the system resolves against the whole list, and applies on the first frame', async () => {
   // [ko, fr, en]:韩语不受支持,应继续往后取到法语——而不是首项不中就回退英文。
   // 单元素列表分不出这两种实现,故这里必须用多元素。
   const l = await launchWithLangs('ko-KR,fr-FR,en-US')
@@ -1901,7 +1939,7 @@ test('界面语言:跟随系统按整个列表解析,首帧即生效', async () 
   rmSync(l.userData, { recursive: true, force: true })
 })
 
-test('界面语言:系统语言不受支持时回退英文', async () => {
+test('UI language: falls back to English when the system language is unsupported', async () => {
   const l = await launchWithLangs('ko-KR')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -1910,7 +1948,7 @@ test('界面语言:系统语言不受支持时回退英文', async () => {
   rmSync(l.userData, { recursive: true, force: true })
 })
 
-test('语言选择器:七项含跟随系统与分隔线、切换即时生效并落盘', async () => {
+test('the language selector: seven items including follow-system and the divider, with a switch applying immediately and persisting', async () => {
   const l = await launchWithLangs('zh-Hans-CN')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -1960,7 +1998,7 @@ test('语言选择器:七项含跟随系统与分隔线、切换即时生效并�
   rmSync(l.userData, { recursive: true, force: true })
 })
 
-test('语言选择器键盘:展开时高亮停在当前选中项,不因开合多走一格', async () => {
+test('the language selector by keyboard: opening leaves the highlight on the current selection rather than moving an extra step', async () => {
   const l = await launchWithLangs('zh-Hans-CN')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -2005,7 +2043,7 @@ test('语言选择器键盘:展开时高亮停在当前选中项,不因开合多
 // 与既有用例的分工:既有 e2e 把语言钉为中文、守的是**行为**;这几条守的是
 // **i18n 本身**——切换生效、六语可加载、最长语言不撑破布局。
 
-test('i18n:锁定语言的机制本身可靠,不受开发机系统语言影响', async () => {
+test('i18n: the language-locking mechanism itself is reliable, unaffected by the development machine\'s system language', async () => {
   // 这条守的是**其余 40 条 e2e 的前提**:它们按中文文案定位,而语言默认跟随系统。
   // 若钉定失效,整套用例会在非中文机器上崩塌——而在中文机器上照绿,看不出来。
   // 故用两种**互不相同且都不是中文**的注入系统语言跑同一断言,结果必须一致。
@@ -2020,7 +2058,7 @@ test('i18n:锁定语言的机制本身可靠,不受开发机系统语言影响',
   }
 })
 
-test('i18n:六种语言均可加载,关键节点非空', async () => {
+test('i18n: all six languages load, with the key nodes non-empty', async () => {
   // 与 typecheck 不重叠:typecheck 保证 key 齐全,这里保证**运行期真的取得到值**——
   // 例如某语言字典整个 import 失败时,key 齐全而运行期取到 undefined
   const l = await launchWithLangs('zh-Hans-CN')
@@ -2044,7 +2082,7 @@ test('i18n:六种语言均可加载,关键节点非空', async () => {
   rmSync(l.userData, { recursive: true, force: true })
 })
 
-test('i18n:切换语言即时生效,多个分区同时改变', async () => {
+test('i18n: switching languages applies immediately, changing several areas at once', async () => {
   const l = await launchWithLangs('zh-Hans-CN')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -2065,7 +2103,7 @@ test('i18n:切换语言即时生效,多个分区同时改变', async () => {
   rmSync(l.userData, { recursive: true, force: true })
 })
 
-test('i18n:最长语言下关键布局不横向溢出(法/俄正文 + 日语标签两类都验)', async () => {
+test('i18n: key layouts do not overflow horizontally in the longest language (both French/Russian prose and Japanese labels are checked)', async () => {
   // 票里点名要覆盖**两类**:正文最长的是法/俄,标签最长的是日语(全角)。
   // 只测一类会漏——它们撑破的是不同的容器。
   const l = await launchWithLangs('zh-Hans-CN')
