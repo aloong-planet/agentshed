@@ -482,7 +482,9 @@ void app.whenReady().then(() => {
   const autoScan = (): void => {
     void doScan().catch((e: unknown) => {
       // E3:静默保留现快照,但失败要留痕——编程错误不许被无声吞掉
-      console.error('[auto-rescan] 扫描失败,保留现有快照:', e)
+      // 英文:应用日志会随用户的问题反馈流出去(贴进 issue),读者不一定懂中文;
+      // 构建期脚本的输出留在开发者本机,不同此理
+      console.error('[auto-rescan] scan failed, keeping the current snapshot:', e)
     })
   }
   setInterval(autoScan, rescanIntervalMs(process.env['AGENTSHED_RESCAN_MS'], 300_000))
