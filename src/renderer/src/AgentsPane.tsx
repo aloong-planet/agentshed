@@ -271,7 +271,8 @@ function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
     const md =
       which === 'cl' ? snap.global.claudeGlobalMd : which === 'cx' ? snap.global.codexAgentsMd : null
     if (md === null) return null
-    // 截断标记由渲染层按当前语言追加(票 07):主进程只报告是否被截断
+    // The truncation marker is appended by the renderer in the current language (ticket 07): the main
+    // process only reports whether it was truncated
     return renderMarkdown(md.truncated ? `${md.text}\n${t.placeholder.truncated}` : md.text)
   }, [which, snap, t])
   return (

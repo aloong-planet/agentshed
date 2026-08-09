@@ -1,11 +1,15 @@
-// 偏好类 IPC handler 的**逻辑**(issue #60)。
+// The **logic** of the preference IPC handlers (issue #60).
 //
-// 从 index.ts 抽出来的目的只有一个:让这些行为测得到。它们此前只由 index.ts 里的
-// 语句次序保证,而 index.ts 是装配层、按 ADR-0002 刻意不单测——于是「先设 themeSource
-// 再落盘」这种顺序性要求没有任何测试会红。抽成接受注入的工厂后,同一套行为可以在
-// 不引 Electron 的前提下驱动(store 与 themeSource 目标都从参数进)。
+// Extracted from index.ts for one reason only: to make these behaviours testable. They were previously
+// guaranteed only by the order of statements in index.ts,
+// and index.ts is the assembly layer, deliberately not unit tested per ADR-0002 — so an ordering
+// requirement such as "set themeSource
+// before persisting" had no test that would go red. Turned into a factory taking injections, the same
+// behaviour can be driven
+// without pulling in Electron (both the store and the themeSource target come in as parameters).
 //
-// index.ts 那边只剩接线:把真的 prefsStore 与 nativeTheme 传进来,再挂到通道上。
+// index.ts is left with only the wiring: pass in the real prefsStore and nativeTheme, then hang them on
+// the channels.
 import { isAppearanceMode, isAppearanceScheme } from '@shared/appearance'
 import { isLanguagePreference } from '@shared/i18n'
 import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
@@ -15,11 +19,13 @@ import type { PrefsStore } from './prefs-store'
 
 export interface PrefsHandlerDeps {
   /**
-   * **惰性取**:主进程的 prefsStore 是模块级变量,直到 `app.whenReady()` 才赋值,
-   * 而 handler 在那之前就已注册。传实例会永远拿到 null,故传取值函数。
+   * **Fetched lazily**: the main process's prefsStore is a module-level variable, not assigned until
+   * `app.whenReady()`,
+   * while the handlers are registered before that. Passing an instance would always get null, hence a
+   * getter.
    */
   store: () => PrefsStore | null
-  /** 真实现是 Electron 的 nativeTheme;测试传同形替身 */
+  /** The real implementation is Electron's nativeTheme; tests pass a same-shaped stand-in */
   theme: ThemeSourceTarget
 }
 
@@ -31,7 +37,8 @@ export interface PrefsHandlers {
 }
 
 export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
-  /** 取存储;未就绪就抛——写类操作没有"先记在内存里回头补"的语义 */
+  /** Get the store; throw if it is not ready — a write has no "remember it in memory and catch up
+   * later" semantics */
   const required = (): PrefsStore => {
     const s = deps.store()
     if (!s) throw appError(ERR.prefsStoreNotReady)
@@ -39,7 +46,8 @@ export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
   }
 
   return {
-    // 读操作不抛:首帧可能早于 whenReady 的赋值,抛错会让渲染层一个偏好都拿不到
+    // Reads do not throw: the first frame may precede whenReady's assignment, and throwing would leave
+    // the renderer with no preferences at all
     getPrefs: () => deps.store()?.get() ?? { ...DEFAULT_PREFS },
 
     setScheme: (scheme) => {
@@ -54,13 +62,18 @@ export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
 
     setMode: (mode) => {
       if (!isAppearanceMode(mode)) throw appError(ERR.invalidPref, { field: 'mode' })
-      // 校验与就绪检查都在设 themeSource **之前**:非法值不得透给 themeSource,
-      // 存储没就绪也不该"界面变了却什么都没记住"。
+      // Validation and the readiness check both come **before** setting themeSource: an invalid value
+      // must not reach themeSource,
+      // and an unready store must not produce "the UI changed but nothing was remembered".
       const store = required()
-      // **先生效再落盘**,与配色(spec 序列 A2)、语言同规矩。顺序要紧:反过来写的话,
-      // 落盘失败(磁盘满/只读)会抛在设 themeSource 之前,于是渲染层已乐观勾上所选模式、
-      // 界面却没变,提示说失败、界面也不动,双重挫败。现在的顺序下失败只丢持久化:
-      // 本次有效,重启回到磁盘上的旧值。这条由 prefs-handlers.test.ts 钉住。
+      // **Apply first, then persist**, the same rule as the colour scheme (spec sequence A2) and
+      // language. The order matters: written the other way round,
+      // a persistence failure (a full or read-only disk) would throw before themeSource is set, so the
+      // renderer would have optimistically ticked the chosen mode
+      // while the UI did not change — the notice says it failed and the UI does not move either, a double
+      // frustration. In the current order a failure loses only the persistence:
+      // it works for this session and reverts to the on-disk value after a restart. Pinned by
+      // prefs-handlers.test.ts.
       applyAppearanceMode(deps.theme, mode)
       return store.setMode(mode)
     }

@@ -1,29 +1,46 @@
-// 轮次内容归一化(票 05 立正文,票 07 扩全):把整轮区间里两侧各自的原始行,
-// 统一成公共消息模型(TurnBlock),渲染层只认这个模型,不各写一套。
+// Turn content normalisation (ticket 05 established prose, ticket 07 completed it): each side's raw
+// lines within a turn range are
+// unified into a common message model (TurnBlock), and the renderer knows only that model rather than
+// one per side.
 //
-// 规则依据 = 全量枚举(2026-08-05/06,CONTEXT 不变量「形态集合必须全量枚举」):
-// - Claude(2131 文件):顶层 type 全谱 18 种(KNOWN 集);assistant 段全谱
-//   text/tool_use/thinking(主链 thinking 全库 3312 段**全部为空**,只有 signature
-//   占位——明文思考正文不落主链,think 块机制保留但当前数据不产生);
-//   tool_result 按 tool_use_id 配对(19,711/19,711 命中)。
-//   **subagent 内部步骤不归位**(2026-08-06 实测):四条候选连接键全部排除——
-//   toolUseResult.agentId(7 位)与 sidechain.agentId(17 位)不同名空间 0/225 命中;
-//   dispatch 行无 promptId(0/202);outputFile 指向后台任务输出非转写;sidechain
-//   首行文本与 dispatch prompt 相等 0/1299。零样本不写归组规则(CONTEXT 不变量),
-//   sub 块两侧统一:派发入参 + 返回 + 未归位标注,sidechain 行不渲染(已知类型,
-//   其完整转写在源文件/嵌套文件中)。
-//   截断判据 = 返回文本含 tool-results/ 旁挂路径(机制性:harness 旁挂目录;
-//   spec C7 原记"无引用链"经实测修正——路径存在,但旁挂文件不进读白名单,
-//   只展示截断版并标注,2026-08-06 用户裁定)。
-// - Codex(296 文件):顶层 7 种;response_item 9 种——调用入参在
+// The rules are grounded in a full enumeration (2026-08-05/06; the CONTEXT invariant "a set of shapes
+// must come from a full enumeration"):
+// - Claude (2131 files): 18 top-level types in the whole spectrum (the KNOWN set); the whole assistant
+//   segment spectrum is
+//   text/tool_use/thinking (all 3312 main-chain thinking segments in the repository are **empty**, with
+//   only a signature
+//   placeholder — plaintext thinking bodies do not land on the main chain, so the think block mechanism
+//   is retained but current data produces none);
+//   tool_result pairs by tool_use_id (19,711/19,711 matched).
+//   **Subagent internal steps are not attributed** (measured 2026-08-06): all four candidate join keys
+//   were excluded —
+//   toolUseResult.agentId (7 digits) and sidechain.agentId (17 digits) are different namespaces, 0/225
+//   matched;
+//   dispatch lines have no promptId (0/202); outputFile points at a background task's output, not a
+//   transcript; a sidechain's
+//   first-line text equals the dispatch prompt in 0/1299 cases. No grouping rule is written without a
+//   sample (a CONTEXT invariant),
+//   so the sub block is unified on both sides: the dispatch arguments + the return + an unattributed
+//   label, with sidechain lines not rendered (a known type,
+//   whose full transcript is in the source or a nested file).
+//   The truncation criterion = the return text contains a tool-results/ sidecar path (mechanism-based:
+//   the harness's sidecar directory;
+//   spec C7's original "no reference chain" was corrected by measurement — the path is there, but the
+//   sidecar file does not enter the read allow-list,
+//   and only the truncated version is shown with a label; the user ruled on 2026-08-06).
+// - Codex (296 files): 7 top-level types; 9 response_item types — the call arguments are on
 //   custom_tool_call.input / function_call.arguments / tool_search_call.arguments,
-//   出参按 call_id 配对(恒在);reasoning.summary = [{type:'summary_text',text}]
-//   明文小标题(64% 为空,空不出块),正文 encrypted_content 永不可得(spec C6);
-//   event_msg 15 种,正文取 agent_message,agent_reasoning 是 reasoning 的镜像
-//   不渲染防双计;spawn_agent 出参无 thread id → 子线程不可归位,sub 块标
-//   unlinked(2026-08-06 用户裁定,不做启发式硬配)。
-// - 白名单外的未知类型一律留痕(unknown 块,置于块序末尾)——spec C8:
-//   白名单类失败不可见,绝不静默丢(CONTEXT 不变量「按失败方向定严格度」)。
+//   and the outputs pair by call_id (always present); reasoning.summary = [{type:'summary_text',text}]
+//   is a plaintext sub-heading (64% empty, and an empty one produces no block), while the body,
+//   encrypted_content, is never obtainable (spec C6);
+//   15 event_msg types, with prose taken from agent_message; agent_reasoning is a mirror of reasoning
+//   and is not rendered, to avoid double counting; spawn_agent's output has no thread id → the
+//   sub-thread cannot be attributed and the sub block is marked
+//   unlinked (the user ruled on 2026-08-06 against forcing a heuristic pairing).
+// - Unknown types outside the allow-list always leave a trace (an unknown block placed at the end of the
+//   block order) — spec C8:
+//   allow-list failures are invisible, so nothing is ever silently dropped (the CONTEXT invariant
+//   "strictness follows the direction of failure").
 import type { AgentSide, TurnBlock, TurnSubBlock, TurnToolBlock } from '@shared/domain'
 import { CLAUDE_DISPATCH } from './question-index'
 
@@ -36,13 +53,13 @@ function atOf(obj: Record<string, unknown>): number | null {
   return Number.isNaN(ts) ? null : ts
 }
 
-/** 折叠态一行摘要:首行、限长 */
+/** The one-line summary shown while collapsed: the first line, length-limited */
 function oneLine(s: string, max = 88): string {
   const t = s.split('\n')[0].trim()
   return t.length > max ? `${t.slice(0, max)}…` : t
 }
 
-/** 工具入参对象 → 展示文本(对象序列化;已是字符串则原样) */
+/** A tool's argument object → display text (objects are serialised; a string is passed through) */
 function inputText(v: unknown): string {
   if (typeof v === 'string') return v
   if (v === undefined || v === null) return ''
@@ -53,7 +70,8 @@ function inputText(v: unknown): string {
   }
 }
 
-/** Claude tool_result 内容 → 文本(string 或 text 段数组;其余形态序列化兜底) */
+/** Claude tool_result content → text (a string or an array of text segments; anything else falls back to
+ * serialisation) */
 function resultText(v: unknown): string {
   if (typeof v === 'string') return v
   if (Array.isArray(v)) {
@@ -65,11 +83,12 @@ function resultText(v: unknown): string {
   return inputText(v)
 }
 
-/** 截断判据:harness 把超限原文旁挂到 tool-results/ 并在正文留路径(机制性) */
+/** The truncation criterion: the harness puts oversized originals in a tool-results/ sidecar and leaves
+ * the path in the body (mechanism-based) */
 const TRUNC_MARK = 'tool-results/'
 
-// ── Claude 顶层 type 全谱(2026-08-06 全量枚举 2131 文件,18 种)──
-// assistant/user 是内容载体;其余 16 种为 known-noise:不渲染、不留痕。
+// ── The whole Claude top-level type spectrum (a full enumeration of 2131 files on 2026-08-06, 18 types) ──
+// assistant/user carry content; the other 16 are known noise: neither rendered nor traced.
 const CLAUDE_KNOWN = new Set([
   'assistant',
   'user',
@@ -91,7 +110,7 @@ const CLAUDE_KNOWN = new Set([
   'frame-link'
 ])
 
-// ── Codex 三层全谱(2026-08-05/06 全量枚举 296 文件)──
+// ── Codex's whole three-layer spectrum (a full enumeration of 296 files on 2026-08-05/06) ──
 const CODEX_TOP_KNOWN = new Set([
   'event_msg',
   'response_item',
@@ -157,8 +176,10 @@ function claudeAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
   const u: Unknowns = { counts: new Map() }
 
   for (const o of objs) {
-    // sidechain 行不渲染:它是 subagent 的转写,而它与哪次派发对应在记录中
-    // 没有稳定引用链(见文件头实测),不做猜测性归组——已知类型,不留痕
+    // Sidechain lines are not rendered: they are a subagent's transcript, and which dispatch they belong
+    // to has
+    // no stable reference chain in the records (see the measurements in the file header), so no
+    // speculative grouping is done — a known type, no trace
     if (o['isSidechain'] === true) continue
     const t = String(o['type'])
     if (t === 'assistant') {
@@ -171,7 +192,7 @@ function claudeAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
         const s = asRecord(seg)
         if (!s) continue
         if (s['type'] === 'thinking' && typeof s['thinking'] === 'string' && s['thinking'].trim()) {
-          // 行内顺序 = 思考 → 正文 → 工具(真实段序即如此)
+          // The within-line order = thinking → prose → tools (which is the real segment order)
           out.push({ kind: 'think', at, body: s['thinking'] })
         } else if (s['type'] === 'text' && typeof s['text'] === 'string') {
           texts.push(s['text'])
@@ -191,7 +212,8 @@ function claudeAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
                     : '',
               steps: [],
               result: null,
-              // 两侧统一:内部步骤无稳定引用链可归位(见文件头实测),显式标注
+              // Unified on both sides: internal steps have no stable reference chain to attribute them
+              // by (see the measurements in the file header), so it is labelled explicitly
               unlinked: true
             }
             subById.set(s['id'], sub)
@@ -236,7 +258,7 @@ function claudeAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
       continue
     }
     if (!CLAUDE_KNOWN.has(t)) noteUnknown(u, t)
-    // known-noise(16 种):不渲染、不留痕
+    // Known noise (16 types): neither rendered nor traced
   }
 
   return [...out, ...unknownBlock(u)]
@@ -258,7 +280,7 @@ function codexAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
       } else if (!CODEX_EVENT_KNOWN.has(pt)) {
         noteUnknown(u, `event_msg/${pt}`)
       }
-      // 其余 event_msg(含 agent_reasoning 镜像)为 known-noise
+      // The remaining event_msg types (including the agent_reasoning mirror) are known noise
       continue
     }
     if (top === 'response_item') {
@@ -308,19 +330,20 @@ function codexAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
       } else if (!CODEX_RI_KNOWN.has(pt)) {
         noteUnknown(u, `response_item/${pt}`)
       }
-      // message / agent_message(response_item 路)是双写镜像,known-noise
+      // message / agent_message on the response_item path are double-write mirrors, known noise
       continue
     }
     if (!CODEX_TOP_KNOWN.has(top)) noteUnknown(u, top)
-    // 其余顶层(turn_context/session_meta/world_state 等)为 known-noise
+    // The remaining top-level types (turn_context/session_meta/world_state and so on) are known noise
   }
 
   return [...out, ...unknownBlock(u)]
 }
 
 /**
- * 整轮区间的原始文本 → 块序列(顺序与文件一致)。
- * 坏行只自伤:跳过该行,不断链、不抛——活跃会话的区间尾部可能是半行。
+ * A whole turn range's raw text → a block sequence (in the file's order).
+ * A bad line only hurts itself: skip it without breaking the chain and without throwing — an active
+ * session's range may end mid-line.
  */
 export function turnBlocksFromText(side: AgentSide, raw: string): TurnBlock[] {
   const objs: Array<Record<string, unknown>> = []
@@ -330,7 +353,7 @@ export function turnBlocksFromText(side: AgentSide, raw: string): TurnBlock[] {
       const obj: unknown = JSON.parse(line)
       if (typeof obj === 'object' && obj !== null) objs.push(obj as Record<string, unknown>)
     } catch {
-      // 坏行跳过
+      // Skip bad lines
     }
   }
   return side === 'claude' ? claudeAssemble(objs) : codexAssemble(objs)

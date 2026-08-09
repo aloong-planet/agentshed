@@ -1,11 +1,13 @@
-// skills-view:包内文件列举 + 读正文。深度/扩展名/垃圾目录;软链跟随;精确白名单由调用方登记。
+// skills-view: enumerating a package's files and reading their contents. Depth / extensions / junk
+// directories; symlinks are followed; the caller registers the exact allow-list.
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, join, relative, sep } from 'node:path'
 import type { AgentSide } from '@shared/domain'
 import type { ScanRoots } from './types'
 import type { CappedText } from '@shared/domain'
 
-/** 包内相对路径最多段数(SKILL.md=1;references/foo.md=2;references/nested/x.md=3 超限) */
+/** The maximum number of segments in a relative path inside a package (SKILL.md=1; references/foo.md=2;
+ * references/nested/x.md=3 is over the limit) */
 export const SKILL_MAX_SEGMENTS = 2
 
 export const SKILL_TEXT_EXTS = new Set([
@@ -42,12 +44,12 @@ export const SKILL_SKIP_DIR_NAMES = new Set([
   '.svn'
 ])
 
-// 提示文案已移到渲染层(票 07):主进程只传 `deep` 这个判定结果
+// The notice copy moved to the renderer (ticket 07): the main process only passes the `deep` verdict
 
 export interface SkillFileMeta {
-  /** 包内相对路径,POSIX 风格 */
+  /** The relative path inside the package, POSIX style */
   path: string
-  /** 绝对路径(登记白名单用) */
+  /** The absolute path (for registering in the allow-list) */
   absPath: string
   bytes: number
   lines: number
@@ -75,7 +77,7 @@ export interface ResolveSkillRootArgs {
 export function resolveSkillRoot(args: ResolveSkillRootArgs): string | null {
   const { side, name, scope, projectPath, roots } = args
   if (!name || name.includes('..') || name.includes('/') || name.includes('\\')) return null
-  if (name.includes(':')) return null // 插件命名空间,v1 不预览
+  if (name.includes(':')) return null // A plugin namespace; not previewable in v1
   let root: string
   if (scope === 'global') {
     root =
@@ -90,10 +92,11 @@ export function resolveSkillRoot(args: ResolveSkillRootArgs): string | null {
         : join(projectPath, '.agents', 'skills', name)
   }
   if (!existsSync(root)) return null
-  // 容器检查在**解析前的入口**上做(C9);跟随软链只发生在其后
+  // The container check applies to **the entry point before resolution** (C9); symlinks are only
+  // followed afterwards
   if (!isUnderKnownSkillRoots(root, roots, projectPath)) return null
   try {
-    // 跟随软链到真实目录
+    // Follow the symlink to the real directory
     return realpathSync(root)
   } catch {
     return null
@@ -101,9 +104,11 @@ export function resolveSkillRoot(args: ResolveSkillRootArgs): string | null {
 }
 
 /**
- * 插件 skill 包根解析(plugins-view H8):入口 = 插件包根下 skills/<名>。
- * 包根是否在扫描登记集由 handler 层校验(fail-closed);此处只管名消毒、
- * 存在性与软链跟随(与 resolveSkillRoot 同纪律)。
+ * Resolving a plugin skill's package root (plugins-view H8): the entry point = skills/<name> under the
+ * plugin's package root.
+ * Whether the package root is in the scan's registration set is validated at the handler layer
+ * (fail-closed); this only handles name sanitising,
+ * existence and symlink following (the same discipline as resolveSkillRoot).
  */
 export function resolvePluginSkillRoot(pluginRoot: string, name: string): string | null {
   if (!name || name.includes('..') || name.includes('/') || name.includes('\\') || name.includes(':'))
@@ -139,7 +144,8 @@ interface WalkedFile {
   mtimeMs: number
 }
 
-/** stat-only 遍历(不读内容):列举与行内统计共用同一套 扩展名/垃圾目录/深度 规则 */
+/** A stat-only walk (contents not read): enumeration and the inline stats share one set of
+ * extension / junk-directory / depth rules */
 function walkFiles(root: string): { files: WalkedFile[]; deepPaths: string[] } {
   const files: WalkedFile[] = []
   const deepPaths: string[] = []
@@ -157,7 +163,7 @@ function walkFiles(root: string): { files: WalkedFile[]; deepPaths: string[] } {
       const abs = join(dir, e.name)
       let st
       try {
-        // 跟随软链
+        // Follow the symlink
         st = statSync(abs)
       } catch {
         continue
@@ -170,7 +176,8 @@ function walkFiles(root: string): { files: WalkedFile[]; deepPaths: string[] } {
       if (!isTextFile(e.name)) continue
       const rel = relPosix(root, abs)
       if (rel.startsWith('..')) continue
-      // 与原型 deep-demo:顶层+一层子目录可列;更深只提示
+      // Matching the prototype's deep-demo: the top level plus one subdirectory level are listable, and
+      // anything deeper only gets a notice
       const segments = rel.split('/').length
       if (segments > SKILL_MAX_SEGMENTS) {
         deepPaths.push(rel)
@@ -185,9 +192,11 @@ function walkFiles(root: string): { files: WalkedFile[]; deepPaths: string[] } {
 }
 
 /**
- * 枚举 skill 包内可预览文本文件(展开时调用;补每文件行数,需读内容)。
- * depth = 相对路径段数:SKILL.md=1;references/a.md=2;a/b/c.md=3 超限。
- * Spec: 深度 ≤ 2 才入列表;更深收集到 deepPaths。
+ * Enumerate a skill package's previewable text files (called on expansion; it adds a per-file line
+ * count, which requires reading contents).
+ * depth = the number of relative path segments: SKILL.md=1; references/a.md=2; a/b/c.md=3 is over the
+ * limit.
+ * Spec: only depth ≤ 2 enters the list; anything deeper is collected into deepPaths.
  */
 export function listSkillPackageFiles(rootAbs: string): SkillPackageListing {
   const root = realpathSync(rootAbs)
@@ -196,7 +205,7 @@ export function listSkillPackageFiles(rootAbs: string): SkillPackageListing {
   for (const f of walked.files) {
     let text: string
     try {
-      // 行数按全文;展示可截断读取在 read 通道
+      // The line count covers the whole file; truncated reading for display happens on the read channel
       text = readFileSync(f.abs, 'utf8')
     } catch {
       continue
@@ -218,8 +227,9 @@ export function listSkillPackageFiles(rootAbs: string): SkillPackageListing {
 }
 
 /**
- * 行内包统计(扫描时调用):文件数 + 总字节,stat 即得、零内容读。
- * 与列举同一套过滤规则,保证行上数字与展开表格一致。不可读 → null。
+ * Inline package stats (called during the scan): file count + total bytes, obtainable by stat alone with
+ * zero content reads.
+ * The same filtering rules as enumeration, so the row's numbers match the expanded table. Unreadable → null.
  */
 export function statSkillPackage(rootAbs: string): { files: number; bytes: number } | null {
   let root: string
@@ -242,10 +252,14 @@ export function readSkillFileText(absPath: string): CappedText {
 }
 
 /**
- * 容器检查作用于**解析前的入口**:入口须是已知 skills 根下的单段条目。
- * 入口可以是软链且目标不设限(A6)——只在枚举/读取时跟随。
- * 判定用 realpath(dirname(入口)),**不解析最后一段**:先解析整条路径会把父目录
- * 变成软链目标的父目录,软链装 skill(目标在根外)就会被误拒(2026-08-07 bug)。
+ * The container check applies to **the entry point before resolution**: the entry point must be a
+ * single-segment entry under a known skills root.
+ * The entry point may be a symlink and its target is unconstrained (A6) — it is only followed during
+ * enumeration and reading.
+ * The judgement uses realpath(dirname(entry)) and **does not resolve the last segment**: resolving the
+ * whole path first turns the parent directory
+ * into the symlink target's parent, so a symlink-installed skill whose target is outside the root would
+ * be wrongly refused (a 2026-08-07 bug).
  */
 export function isUnderKnownSkillRoots(
   entryAbs: string,

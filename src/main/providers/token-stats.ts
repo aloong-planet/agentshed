@@ -1,16 +1,20 @@
-// Token 聚合引擎(ccusage 对齐版,2026-07-30;源码级依据见 ADR-0005):
-// - Claude:递归扫 claudeHome/projects **全树**(与项目注册表无关,未注册目录计入全局);
-//   逐 usage 行成条目,聚合层跨文件去重——精确键 message.id+requestId,任一方 isSidechain
-//   时回退 message.id-only(subagent 会以新 requestId 重放父消息);保留非 sidechain、
-//   其次 token 四项和更大的一条。总量口径 = input+output+cacheRead+cacheWrite 四项全加;
-//   model 为 '<synthetic>' 或缺失的条目计总量、不入模型桶。
-// - Codex:逐轮 last_token_usage 增量事件(payload.type=token_count in event_msg);
-//   fork/subagent 会话会重放父会话历史,按 ccusage replay.rs 同规则剥离——取父会话
-//   fork 时刻前的事件序列,与子会话开头逐条按值匹配跳过(首条即不匹配则不剥);
-//   口径:input 净化(减 cached)、cached 计 cacheRead、total 四项全加;
-//   模型取末条 turn_context(会话主模型近似)。
-// - 增量缓存存"条目级"数据(去重必须跨文件,在聚合层做,不能缓存去重后的结果);
-//   按(路径, mtime, size)键,原子写。统计含隐藏/失效项目。
+// The token aggregation engine (aligned with ccusage, 2026-07-30; the source-level basis is in ADR-0005):
+// - Claude: recursively scan **the whole tree** under claudeHome/projects (independent of the project
+//   registry; unregistered directories count toward the global total);
+//   each usage line becomes an entry, and the aggregation layer deduplicates across files — the exact
+//   key is message.id+requestId, falling back to message.id-only when either side is isSidechain
+//   (a subagent replays its parent's messages under a new requestId); keep the non-sidechain one,
+//   otherwise the one with the larger four-field token sum. The total rule = input+output+cacheRead+cacheWrite;
+//   entries whose model is '<synthetic>' or missing count toward the total but do not enter a model bucket.
+// - Codex: per-turn last_token_usage increment events (payload.type=token_count inside event_msg);
+//   a fork or subagent session replays its parent's history, stripped by the same rules as ccusage's
+//   replay.rs — take the parent's event sequence before the fork moment and skip entries at the start
+//   of the child that match it by value (if the very first does not match, strip nothing);
+//   accounting: sanitise input (subtract cached), count cached as cacheRead, sum all four as total;
+//   the model comes from the last turn_context (an approximation of the session's primary model).
+// - The incremental cache stores entry-level data (deduplication has to happen across files, in the
+//   aggregation layer, so a deduplicated result cannot be what is cached);
+//   keyed by (path, mtime, size), written atomically. The statistics include hidden and stale projects.
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { AgentSide, ForkState, ProjectStats, SessionMeta, TokenStats, TokenTotals } from '@shared/domain'
@@ -26,7 +30,7 @@ import { clipTitle, realUserText } from './session-title'
 import type { ScanRoots } from './types'
 import type { UsageRow } from './archive'
 
-/** Claude 单条 usage(紧凑数组编码进缓存):[mid, rid, sc, in, out, cr, cw, model, day] */
+/** One Claude usage entry (encoded into the cache as a compact array): [mid, rid, sc, in, out, cr, cw, model, day] */
 type PackedEntry = [
   string | null,
   string | null,
@@ -41,68 +45,78 @@ type PackedEntry = [
 
 interface ClaudeFileAgg {
   kind: 'claude'
-  /** 源文件绝对路径 —— 会话身份,随 SessionMeta 出到渲染层 */
+  /** The source file's absolute path — the session's identity, sent to the renderer with SessionMeta */
   file: string
   projectKey: string
   listed: boolean
   title: string | null
   at: number | null
-  /** 提问索引(不含提问文本,见 question-index.ts) */
+  /** The question index (with no question text, see question-index.ts) */
   questions: QuestionRec[]
-  /** 主链分叉处数(票 06 横幅:"本会话有 N 处分叉";0 = 线性会话不出横幅) */
+  /** The number of branch points on the main chain (ticket 06's banner: "this session has N branch points"; 0 = a linear session, no banner) */
   forkPoints: number
   entries: PackedEntry[]
 }
 
-/** Codex 单轮用量事件:[ts, input, cached, output, cacheWrite] */
+/** One Codex per-turn usage event: [ts, input, cached, output, cacheWrite] */
 type CodexEvent = [number | null, number, number, number, number]
 
 interface CodexFileAgg {
   kind: 'codex'
-  /** 源文件绝对路径 —— 会话身份,随 SessionMeta 出到渲染层 */
+  /** The source file's absolute path — the session's identity, sent to the renderer with SessionMeta */
   file: string
   projectKey: string
   listed: boolean
   title: string | null
   at: number | null
   model: string
-  /** 标题是否来自 session_index 的 thread_name。retitle 只许改"来自首条提问"的
-   * 标题——thread_name 的优先级(spec A4)不因剥离而失效。 */
+  /** Whether the title came from session_index's thread_name. A retitle may only change a title that
+   * came from the first question — thread_name's priority (spec A4) is not invalidated by stripping. */
   titleFromThread: boolean
   sessionId: string | null
   parentId: string | null
   forkedAt: number | null
-  /** 提问索引(不含提问文本,见 question-index.ts) */
+  /** The question index (with no question text, see question-index.ts) */
   questions: QuestionRec[]
-  /** 逐轮增量事件(last_token_usage);fork 重放前缀在 combine 阶段剥离 */
+  /** Per-turn increment events (last_token_usage); a fork's replay prefix is stripped in the combine stage */
   events: CodexEvent[]
 }
 
 type FileAgg = ClaudeFileAgg | CodexFileAgg
 
 /**
- * 缓存结构版本。**改动 FileAgg 形状必须同时升此号**——否则旧缓存会被当新结构读,
- * 字段缺失处直接崩(2026-07-30 线上事故:Codex agg 从 totals/byDay 改为 events
- * 未升版本,旧缓存命中后 a.events 为 undefined)。
+ * The cache structure version. **Changing FileAgg's shape requires bumping this at the same time** —
+ * otherwise an old cache is read as the new structure and crashes where a field is missing (the
+ * 2026-07-30 production incident: the Codex agg changed from totals/byDay to events
+ * without a version bump, and after the old cache hit, a.events was undefined).
  *
- * **改动 FileAgg 里某字段的算出方式,同样必须升号**(2026-08-02 补):缓存按
- * (路径, mtime, size) 命中,文件没变就直接返回旧值——新算法对存量文件永不生效。
- * fixture 用全新缓存必过,真实用户看不到修复,是典型假绿。
- * v4:Codex 的 at 由首个时间戳改为文件内最大时间戳。
- * v5:FileAgg 加 file(会话身份);Claude 的 at 改为对全部行取最大(此前只看 usage 行)。
- * v6:标题剥离 harness 噪声;无真实提问的会话 listed=false。
- * v7:FileAgg 加 questions(提问索引);标题与 listed 改由索引器同源判定
- *     ——顺带把 sidechain 行排除出"人类提问",此前它可能被当成首条提问。
- * v8:QuestionRec 由 6 元变 7 元(加内容指纹),且内容本身也变了(Claude 末叶回溯
- *     滤掉被放弃分支上的提问)。**这个号尤其不能漏**:旧缓存的记录没有第 7 位,
- *     读出来是 undefined,而 `undefined === undefined` 会让 Codex 的重放指纹校验
- *     全部"通过"并盲剥——静默剥错正是票 03b 要防的那件事。
- * v9:CodexFileAgg 加 titleFromThread(retitle 不得顶掉 thread_name,spec A4 优先级)。
- * v10:ClaudeFileAgg 加 forkPoints(票 06 分叉横幅信号)。
+ * **Changing how a field in FileAgg is computed also requires a bump** (added 2026-08-02): the cache
+ * hits on (path, mtime, size), so an unchanged file returns the old value directly and the new
+ * algorithm never takes effect for existing files.
+ * Fixtures with a fresh cache always pass, real users never see the fix — a textbook false green.
+ * v4: Codex's `at` changed from the first timestamp to the largest timestamp in the file.
+ * v5: FileAgg gained `file` (the session's identity); Claude's `at` now takes the maximum over all
+ *     lines (it previously looked only at usage lines).
+ * v6: titles strip harness noise; a session with no real question gets listed=false.
+ * v7: FileAgg gained `questions` (the question index); the title and `listed` are now judged from the
+ *     same source, the indexer
+ *     — which incidentally excluded sidechain lines from "human questions"; one could previously be
+ *     taken for the first question.
+ * v8: QuestionRec went from 6 elements to 7 (adding the content fingerprint), and the contents changed
+ *     too (Claude's last-leaf walk-back
+ *     filters out questions on abandoned branches). **This bump especially must not be missed**: an old
+ *     cache's records have no 7th element,
+ *     which reads back as undefined, and `undefined === undefined` would make Codex's replay
+ *     fingerprint check "pass" every time and strip blindly — a silent mis-strip being exactly what
+ *     ticket 03b exists to prevent.
+ * v9: CodexFileAgg gained titleFromThread (a retitle must not displace thread_name, spec A4's priority).
+ * v10: ClaudeFileAgg gained forkPoints (ticket 06's branch banner signal).
  *
- * **导出仅供测试**——让守卫测试能用 `CACHE_VERSION - 1` 构造"紧邻上一版"的缓存,
- * 而不是硬编码一个会随版本号增长而失效的字面量。产线代码不得据它做分支判断:
- * 唯一的版本比较在 loadCache 里,多一处就多一处会漂移的口径。
+ * **Exported for tests only** — so a guard test can build an "immediately previous version" cache with
+ * `CACHE_VERSION - 1`
+ * rather than hard-coding a literal that goes stale as the version grows. Production code must not
+ * branch on it:
+ * the only version comparison is in loadCache, and a second one would be a second rule that can drift.
  */
 export const CACHE_VERSION = 10
 
@@ -114,21 +128,24 @@ interface CacheShape {
 export interface TokenBuildResult {
   global: TokenStats
   perProject: Map<string, ProjectStats>
-  /** 归档行(天×侧×项目×模型),供 UsageArchive 持久化 */
+  /** Archive rows (day × side × project × model), for UsageArchive to persist */
   rows: UsageRow[]
-  /** 本次扫描仍能看到源数据的天(归档冲突规则用) */
+  /** The days whose source data this scan can still see (used by the archive conflict rule) */
   liveDays: Set<string>
   /**
-   * 需要重新起标题的会话:Codex fork 剥掉重放前缀后,原标题取自一条**已经不展示**的
-   * 提问(95% 的 Codex 会话没有 thread_name,都走首条提问回退,所以这不是边角情况)。
-   * 标题与提问集合必须同源——同一个概念两个数字是 spec A1 记过的教训。
-   * 只带偏移不带文本:文本由 build() 按区间现读,与 spec D2a 一致。
+   * Sessions needing a new title: once a Codex fork's replay prefix is stripped, the original title
+   * came from a question that is **no longer displayed** (95% of Codex sessions have no thread_name and
+   * fall back to the first question, so this is not a corner case).
+   * The title and the question set must share a source — the same concept with two numbers is the
+   * lesson recorded in spec A1.
+   * Only offsets, no text: build() reads the text live by range, consistent with spec D2a.
    */
   retitle: Array<{ session: SessionMeta; file: string; start: number; end: number }>
   /**
-   * 会话读白名单(票 04):**入列会话 + subagent/嵌套转写**。后者虽不入列表
-   * (spec A3/A3a),但票 07 要在轮内展开它们——口径若写成"只允许已列出的",
-   * 07 会被自己的白名单挡住(票 04 明写的坑)。主进程按它做区间读的入口校验。
+   * The session read allow-list (ticket 04): **listed sessions + subagent and nested transcripts**.
+   * The latter do not enter the list (spec A3/A3a), but ticket 07 needs to expand them inside a turn —
+   * writing the rule as "only what is already listed" would have blocked 07 with our own allow-list
+   * (a trap ticket 04 wrote down explicitly). The main process validates range-read entry points against it.
    */
   sessionFiles: Set<string>
 }
@@ -156,7 +173,7 @@ export class TokenEngine {
         return raw as unknown as CacheShape
       }
     } catch {
-      // 缓存缺失/损坏/旧版:全量重算
+      // Cache missing / corrupt / an old version: recompute everything
     }
     return { version: CACHE_VERSION, files: {} }
   }
@@ -169,18 +186,22 @@ export class TokenEngine {
   }
 
   /**
-   * claudeProjectPaths 仅用于「编码目录名 → 项目」归属映射;
-   * 全局统计对 projects 全树生效,与该清单无关。
+   * claudeProjectPaths is used only for the "encoded directory name → project" attribution mapping;
+   * the global statistics cover the whole projects tree and are independent of that list.
    */
   async build(
     roots: ScanRoots,
     claudeProjectPaths: string[],
     /**
-     * 已注册项目的合并键集合(注册表并集,含失效项目——它们的详情仍可打开)。
-     * 白名单只收注册集内的会话:claude 的 projectKey 本就来自注册表映射,
-     * ''-判据与之等价;**codex 的 projectKey 是 cwd 直接算的、恒非空**,
-     * 不传显式集合就分不出注册与否。缺省(测试便利)按"非空即注册"近似,
-     * 主进程必须传真实集合。
+     * The set of merge keys for registered projects (the registry union, including stale ones — their
+     * detail pages still open).
+     * The allow-list admits only sessions in the registered set: Claude's projectKey already comes from
+     * the registry mapping,
+     * so the ''-emptiness criterion is equivalent for it; **Codex's projectKey is computed straight from
+     * cwd and is never empty**,
+     * so without an explicit set there is no telling registered from not. The default (for test
+     * convenience) approximates it as "non-empty means registered",
+     * and the main process must pass the real set.
      */
     registeredKeys?: ReadonlySet<string>
   ): Promise<TokenBuildResult> {
@@ -190,11 +211,11 @@ export class TokenEngine {
     const seen: Record<string, { sig: string; agg: FileAgg }> = {}
     const sessionFiles = new Set<string>()
 
-    // 编码目录名 → 项目合并键
+    // Encoded directory name → the project's merge key
     const encToProject = new Map<string, string>()
     for (const p of claudeProjectPaths) encToProject.set(encodeClaudeProjectDir(p), mergeKey(p))
 
-    // ── Claude:projects 全树 ──
+    // ── Claude: the whole projects tree ──
     const projectsRoot = join(roots.claudeHome, 'projects')
     if (existsSync(projectsRoot)) {
       let dirs: string[] = []
@@ -212,15 +233,17 @@ export class TokenEngine {
           if (agg) {
             aggs.push(agg)
             seen[file] = { sig: sigOf(file) ?? '', agg }
-            // 白名单不宽于 UI 可达面:未注册项目的会话 UI 永远不展示(spec A2),
-            // 读端也不放行——嵌套转写同理,它们的父会话都不可见
+            // The allow-list is no wider than what the UI can reach: an unregistered project's sessions
+            // are never displayed (spec A2),
+            // so the read side does not admit them either — the same goes for nested transcripts, whose
+            // parent sessions are all invisible
             if (isRegistered(projectKey) && (nested || agg.listed)) sessionFiles.add(file)
           }
         }
       }
     }
 
-    // ── Codex:sessions 全树,首行 cwd 归属 ──
+    // ── Codex: the whole sessions tree, attributed by the first line's cwd ──
     const titles = readCodexIndex(roots.codexHome)
     for (const s of readCodexSessions(roots.codexHome)) {
       const agg = await this.aggFor(s.file, () =>
@@ -250,15 +273,19 @@ export class TokenEngine {
     const sig = sigOf(file)
     if (sig === null) return null
     const cached = this.cache.files[file]
-    // 除版本号外再校验条目形状:同版本内的手工损坏/未来漂移一律重算,不让缺字段流进聚合层
+    // Beyond the version, validate each entry's shape: manual corruption or future drift within one
+    // version is always recomputed, so a missing field never flows into the aggregation layer
     if (cached && cached.sig === sig && isWellFormedAgg(cached.agg)) return cached.agg
     return parse()
   }
 
   /**
-   * 会话文件的索引是否仍与磁盘一致(签名 + 形状)。只读谓词,不触发重建——
-   * 渲染层据它决定要不要先展示"正在只重建该文件索引"的中间态(票 05),
-   * 随后的 sessionQuestions 才做真正的重建。两步之间文件再变也无妨:重建幂等。
+   * Whether a session file's index still matches disk (signature + shape). A read-only predicate that
+   * triggers no rebuild —
+   * the renderer uses it to decide whether to show the interim "rebuilding the index for this file only"
+   * state (ticket 05),
+   * and the sessionQuestions call that follows does the actual rebuild. The file changing between the
+   * two steps is harmless: the rebuild is idempotent.
    */
   isFresh(file: string): boolean {
     const cached = this.cache.files[file]
@@ -268,12 +295,16 @@ export class TokenEngine {
   }
 
   /**
-   * 会话页服务(票 04):给出某个已扫描会话的提问索引与 fork 状态。
-   * - 取回前按(路径, mtime, size)签名校验;不符则**只重建该文件**的索引并回写
-   *   缓存(spec C4),不全量重扫。
-   * - Codex fork 的剥离与列表**同源**(同一个 stripReplayPrefix、同一个父查找),
-   *   不复用 token 计量侧的剥离结论——计量是去重口径,展示是"这次对话长什么样"。
-   * - 只服务白名单里的文件;不在缓存中的文件直接拒绝,由调用方引导刷新。
+   * The session page service (ticket 04): give a scanned session's question index and fork state.
+   * - Validate the (path, mtime, size) signature before fetching; on a mismatch, **rebuild only that
+   *   file's** index and write
+   *   the cache back (spec C4), without a full rescan.
+   * - A Codex fork's stripping **shares its source** with the list (the same stripReplayPrefix and the
+   *   same parent lookup),
+   *   rather than reusing the token metering side's conclusions — metering is a deduplication rule,
+   *   display is "what this conversation looks like".
+   * - Serves only allow-listed files; a file not in the cache is refused outright and the caller
+   *   guides the user to refresh.
    */
   async sessionQuestions(
     roots: ScanRoots,
@@ -284,10 +315,11 @@ export class TokenEngine {
     forkState: ForkState
     title: string | null
     at: number | null
-    /** Claude 主链分叉处数(横幅"本会话有 N 处分叉");Codex 恒 0 */
+    /** The number of branch points on Claude's main chain (the "this session has N branch points" banner); always 0 for Codex */
     forkPoints: number
-    /** Codex fork 且父在扫描集内时的父会话标题/文件(stripped 与 uncertain 都给,
-     * 由渲染层按档呈现);父缺失或 Claude 侧为 null */
+    /** For a Codex fork whose parent is in the scan set, the parent session's title and file (given for
+     * both stripped and uncertain, with the renderer presenting them per tier); null when the parent is
+     * missing or on the Claude side */
     forkParentTitle: string | null
     forkParentFile: string | null
   }> {
@@ -297,14 +329,17 @@ export class TokenEngine {
     if (sig === null) throw appError(ERR.sessionFileUnreadable)
     let agg = cached.agg
     if (cached.sig !== sig || !isWellFormedAgg(agg)) {
-      // 侧别按数据根判定,不信可能已损坏的缓存条目
+      // The side is judged from the data root, not trusted to a possibly corrupt cache entry
       const claudeRoot = join(roots.claudeHome, 'projects')
       let fresh: FileAgg | null
       if (file.startsWith(claudeRoot)) {
-        // 顶层 = 会话(可入列),更深 = subagent 等嵌套转写——与 listJsonl 同口径。
-        // projectKey 沿用旧值:它只影响归属统计,下一次全量扫描会重算;这里只为提问索引。
+        // Top level = a session (listable), deeper = a subagent or other nested transcript — the same
+        // rule as listJsonl.
+        // projectKey keeps its old value: it only affects attribution statistics and the next full scan
+        // recomputes it; here it exists only for the question index.
         const listedBase = dirname(dirname(file)) === claudeRoot
-        // 类型上两支都有 projectKey;运行时缓存可能损坏(isWellFormedAgg 为 false 才走到这),再兜一层
+        // Both branches have projectKey in the types; the runtime cache may be corrupt (we only reach
+        // here when isWellFormedAgg is false), so add one more layer of defence
         const oldKey = typeof agg.projectKey === 'string' ? agg.projectKey : ''
         fresh = await parseClaudeFile(file, oldKey, listedBase)
       } else {
@@ -323,7 +358,8 @@ export class TokenEngine {
       this.persist()
     }
     if (agg.kind === 'claude') {
-      // Claude 的分叉在索引阶段就由末叶回溯消解,没有"重放前缀"这回事
+      // Claude's branches are resolved by the last-leaf walk-back at indexing time, so there is no such
+      // thing as a "replay prefix" here
       return {
         side: 'claude',
         questions: agg.questions,
@@ -365,9 +401,12 @@ export class TokenEngine {
 
 
 /**
- * 按字节区间现读那一行,重新起标题。只对被剥掉重放前缀的 Codex fork 会话跑,
- * 数量极少(本机真实数据为 0),每个只读一行,不构成扫描开销。
- * 读失败就保留原标题——降级只自伤:一个会话标题旧,不牵连别的会话、不拖垮扫描。
+ * Read that line live by byte range and derive a new title. Runs only for Codex fork sessions whose
+ * replay prefix was stripped,
+ * of which there are very few (0 in this machine's real data), each reading a single line, so it adds
+ * no meaningful scan cost.
+ * A read failure keeps the original title — degradation only hurts itself: one session has a stale
+ * title, without affecting other sessions or dragging down the scan.
  */
 async function retitleStripped(items: TokenBuildResult['retitle']): Promise<void> {
   for (const it of items) {
@@ -381,12 +420,12 @@ async function retitleStripped(items: TokenBuildResult['retitle']): Promise<void
       const clean = text === null ? null : realUserText(text)
       if (clean !== null) it.session.title = clipTitle(clean)
     } catch {
-      // 保留原标题
+      // Keep the original title
     }
   }
 }
 
-// ── 聚合(含跨文件去重)──
+// ── Aggregation (including cross-file deduplication) ──
 
 interface KeptEntry {
   e: PackedEntry
@@ -397,7 +436,7 @@ function entryTotal(e: PackedEntry): number {
   return e[3] + e[4] + e[5] + e[6]
 }
 
-/** 非 sidechain 优先;其次四项和更大者 */
+/** Non-sidechain wins; otherwise the one with the larger four-field sum */
 function shouldReplace(oldE: PackedEntry, cand: PackedEntry): boolean {
   if (oldE[2] !== cand[2]) return oldE[2] === 1 && cand[2] === 0
   return entryTotal(cand) > entryTotal(oldE)
@@ -425,7 +464,7 @@ function dedupeClaude(files: Array<{ agg: ClaudeFileAgg; fileIdx: number }>): Ke
       const exact = `${mid} ${e[1] ?? ''}`
       let matchIdx = byExact.get(exact)
       if (matchIdx === undefined) {
-        // sidechain 回退:任一方是 sidechain 时按 message.id-only 匹配
+        // Sidechain fallback: match by message.id-only when either side is a sidechain
         for (const i of byMid.get(mid) ?? []) {
           if (kept[i].e[2] === 1 || e[2] === 1) {
             matchIdx = i
@@ -448,7 +487,7 @@ function dedupeClaude(files: Array<{ agg: ClaudeFileAgg; fileIdx: number }>): Ke
 function combine(aggs: FileAgg[]): TokenBuildResult {
   const retitle: TokenBuildResult['retitle'] = []
   const global = emptyTokenStats()
-  // 归档行累积:键 天|侧|项目|模型
+  // Accumulate archive rows: keyed day|side|project|model
   const rowMap = new Map<string, UsageRow>()
   const liveDays = new Set<string>()
   const addRow = (
@@ -503,7 +542,7 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     globalDays.set(day, d)
   }
 
-  // ── Claude:条目级去重后聚合 ──
+  // ── Claude: deduplicate at entry level, then aggregate ──
   const claudeFiles: Array<{ agg: ClaudeFileAgg; fileIdx: number }> = []
   aggs.forEach((a, i) => {
     if (a.kind === 'claude') claudeFiles.push({ agg: a, fileIdx: i })
@@ -539,7 +578,7 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       if (e[8] !== null) addDay(p.tokens, 'claude', e[8], t, e[7] ?? '')
     }
   }
-  // Claude 会话条目(顶层文件;tokens = 去重后该文件保留条目之和)
+  // Claude session entries (top-level files; tokens = the sum of the entries this file keeps after dedup)
   claudeFiles.forEach(({ agg, fileIdx }) => {
     if (!agg.listed || !agg.projectKey) return
     projectOf(agg.projectKey).sessions.push({
@@ -549,12 +588,13 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       tokens: perFileTokens.get(fileIdx) ?? 0,
       file: agg.file,
       questionCount: agg.questions.length,
-      // Claude 侧的分叉在索引阶段就由末叶回溯消解了,不存在"重放前缀"这回事
+      // Claude's branches are resolved by the last-leaf walk-back at indexing time, so there is no such
+      // thing as a "replay prefix"
       forkState: 'none'
     })
   })
 
-  // ── Codex:先剥 fork/subagent 重放前缀,再逐事件聚合 ──
+  // ── Codex: strip the fork/subagent replay prefix first, then aggregate event by event ──
   const codexAggs = aggs.filter((a): a is CodexFileAgg => a.kind === 'codex')
   const bySessionId = new Map<string, CodexFileAgg>()
   for (const a of codexAggs) {
@@ -568,12 +608,14 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     if (a.parentId) {
       const parent = bySessionId.get(a.parentId)
       if (!parent || parent === a) {
-        // 父日志不在扫描集:退化为「重写突发」启发式
+        // The parent log is not in the scan set: degrade to the "rewrite burst" heuristic
         start = skipRewrittenBurst(a.events)
       } else {
-        // 父会话在 fork 时刻之前的事件即被本会话重放的历史。
-        // 与 ccusage 一致:按「首个时间戳晚于 fork 时刻」的位置截断,而非全量过滤
-        // (父事件时间戳非严格有序时两者不等价,过滤会剥多)。
+        // The parent session's events before the fork moment are the history this session replays.
+        // Consistent with ccusage: cut at the first timestamp later than the fork moment rather than
+        // filtering everything
+        // (the two are not equivalent when the parent's event timestamps are not strictly ordered, and
+        // filtering would strip too much).
         let replayLen = parent.events.length
         if (a.forkedAt !== null) {
           const pos = parent.events.findIndex((e) => e[0] !== null && e[0] > (a.forkedAt as number))
@@ -583,7 +625,8 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
         while (start < a.events.length && start < prefix.length && sameUsage(prefix[start], a.events[start])) {
           start++
         }
-        // 首条即不匹配 → 父流锚不住这次重放(日志被重写),退化为突发启发式
+        // The very first does not match → the parent stream cannot anchor this replay (the log was
+        // rewritten), so degrade to the burst heuristic
         if (start === 0) start = skipRewrittenBurst(a.events)
       }
     }
@@ -607,7 +650,8 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       globalModels.set(`codex:${a.model}`, (globalModels.get(`codex:${a.model}`) ?? 0) + totals.total)
     }
     for (const [day, v] of Object.entries(byDay)) {
-      // 四项按该天占总量的比例分摊(Codex 增量事件已按天聚合,细分四项无独立来源)
+      // The four fields are apportioned by that day's share of the total (Codex increment events are
+      // already aggregated by day, and the four fields have no independent source)
       const ratio = totals.total > 0 ? v / totals.total : 0
       addRow(day, 'codex', a.projectKey, a.model, {
         input: Math.round(totals.input * ratio),
@@ -624,9 +668,12 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       if (totals.total > 0) addModel(p.tokens, 'codex', a.model, totals.total)
       for (const [day, v] of Object.entries(byDay)) addDay(p.tokens, 'codex', day, v, a.model)
       if (a.listed) {
-        // 展示口径的剥离**在这里做**,不在 parser 里:它要看父会话的索引,而缓存是
-        // 按文件存的,parser 阶段拿不到父。也**不复用 token 侧那个 start**——
-        // 计量口径是去重、展示口径是"这次对话看起来什么样",语义不同(票 03b 验收)。
+        // The display-side stripping happens **here**, not in the parser: it needs the parent session's
+        // index, and the cache is
+        // stored per file, so the parser cannot reach the parent. It also **does not reuse the token
+        // side's `start`** —
+        // metering is a deduplication rule and display is "what this conversation looks like"; they mean
+        // different things (ticket 03b's acceptance).
         const forkParent = a.parentId ? bySessionId.get(a.parentId) : undefined
         const shown = stripReplayPrefix(
           a.questions,
@@ -634,11 +681,15 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
           a.forkedAt,
           a.parentId !== null
         )
-        // 已验证剥空(每条提问都经指纹核实为重放、fork 后无新提问)的会话不入列,
-        // token 照计(2026-08-05 裁定,与 A3a 同构)。剥空只能出自指纹校验路径:
-        // 启发式绝不剥空,本就没提问的会话 listed 在解析期已是 false。白名单仍按
-        // 剥前口径——其内容全是已可读父会话的重放,不扩大读端暴露面,而收窄要把
-        // 白名单决策挪到 combine 之后,改动面大于收益。
+        // A session verified to have been stripped empty (every question fingerprint-verified as a replay,
+        // with no new question after the fork) is not listed,
+        // and its tokens still count (ruled 2026-08-05, structurally identical to A3a). Stripping empty
+        // can only come from the fingerprint path:
+        // the heuristic never strips empty, and a session that never had questions already has
+        // listed=false from parse time. The allow-list still follows
+        // the pre-strip rule — its contents are entirely replays of an already-readable parent session,
+        // so it does not widen the read exposure surface, while narrowing it would mean moving
+        // the allow-list decision after combine, a bigger change than the benefit.
         if (shown.questions.length > 0) {
           const meta: SessionMeta = {
             side: 'codex',
@@ -650,8 +701,9 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
             forkState: shown.state
           }
           p.sessions.push(meta)
-          // 剥掉了开头若干条、且原标题来自首条提问 → 按存活首条重起;
-          // thread_name 的优先级(spec A4)不因剥离而失效
+          // Some leading entries were stripped and the original title came from the first question →
+          // re-derive it from the first survivor;
+          // thread_name's priority (spec A4) is not invalidated by stripping
           if (!a.titleFromThread && shown.questions.length < a.questions.length) {
             const first = shown.questions[0]
             retitle.push({ session: meta, file: a.file, start: first[0], end: first[1] })
@@ -679,8 +731,8 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
   return { global, perProject, rows: [...rowMap.values()], liveDays, retitle, sessionFiles: new Set<string>() }
 }
 
-/** 重写突发(ccusage detect_rewritten_burst 同规则):前两个事件间隔 ≤1s 即认定
- * 开头是复制来的历史,连续跳到间隔 >1s 处 */
+/** A rewrite burst (the same rule as ccusage's detect_rewritten_burst): if the first two events are
+ * ≤1s apart, treat the start as copied history and skip forward to the first gap > 1s */
 const BURST_PAUSE_MS = 1000
 
 function skipRewrittenBurst(events: CodexEvent[]): number {
@@ -711,9 +763,9 @@ function addTotals(into: TokenTotals, from: TokenTotals): void {
   into.total += from.total
 }
 
-// ── 文件枚举与解析 ──
+// ── File enumeration and parsing ──
 
-/** 目录下全部 jsonl:顶层=会话,嵌套=subagent 等转写 */
+/** Every jsonl under a directory: top level = a session, nested = a subagent or other transcript */
 function listJsonl(root: string): Array<{ file: string; nested: boolean }> {
   const out: Array<{ file: string; nested: boolean }> = []
   const walk = (dir: string, nested: boolean): void => {
@@ -736,22 +788,27 @@ function listJsonl(root: string): Array<{ file: string; nested: boolean }> {
   return out
 }
 
-/** 缓存条目是否符合当前 FileAgg 形状(聚合层依赖的数组字段必须在) */
+/** Whether a cache entry matches the current FileAgg shape (the array fields the aggregation layer depends on must be present) */
 function isWellFormedAgg(agg: unknown): agg is FileAgg {
   if (typeof agg !== 'object' || agg === null) return false
   const a = agg as Record<string, unknown>
-  // file 是会话身份,缺了会一路流到契约层抛掉整份详情(上层逃逸)。
-  // **给 FileAgg 加必填字段时,这里同步加一条**——版本号只拦得住跨版本,
-  // 同版本内的手工损坏与漂移只有这道守卫。
+  // `file` is the session's identity; missing it flows all the way to the contract layer and throws away
+  // the whole detail payload (upward escape).
+  // **When adding a required field to FileAgg, add a line here at the same time** — the version number
+  // only catches across versions,
+  // and manual corruption or drift within one version is caught only by this guard.
   if (typeof a['file'] !== 'string' || a['file'] === '') return false
   const qs = a['questions']
   if (!Array.isArray(qs)) return false
-  // 记录**元数**也要守:版本号只拦跨版本,同版本内的手工损坏与未来漂移只有这道闸。
-  // 少一位会让指纹比对退化成 undefined === undefined,恒真,于是盲剥。
+  // The record's **arity** needs guarding too: the version number only catches across versions, and
+  // manual corruption or future drift within one version is caught only by this gate.
+  // One element short degrades the fingerprint comparison into undefined === undefined, which is always
+  // true, and so strips blindly.
   if (qs.length > 0 && (!Array.isArray(qs[0]) || (qs[0] as unknown[]).length !== 7)) return false
-  // forkPoints 缺失(undefined)会让横幅判定拿到假值,同版本内的损坏只有这道闸拦
+  // A missing forkPoints (undefined) gives the banner judgement a false value, and corruption within one
+  // version is caught only by this gate
   if (a['kind'] === 'claude') return Array.isArray(a['entries']) && typeof a['forkPoints'] === 'number'
-  // titleFromThread 缺失(undefined)是假 false:会让 thread_name 会话被 retitle 顶掉
+  // A missing titleFromThread (undefined) is a false false: it lets a retitle displace a thread_name session
   if (a['kind'] === 'codex') return Array.isArray(a['events']) && typeof a['titleFromThread'] === 'boolean'
   return false
 }
@@ -765,7 +822,7 @@ function sigOf(file: string): string | null {
   }
 }
 
-/** 本地时区日键 YYYY-MM-DD(spec:趋势按本地时区切日) */
+/** A local-time-zone day key, YYYY-MM-DD (spec: the trend cuts days in local time) */
 function localDay(ms: number): string {
   const d = new Date(ms)
   const p = (n: number): string => String(n).padStart(2, '0')
@@ -781,7 +838,8 @@ async function parseClaudeFile(
 ): Promise<ClaudeFileAgg | null> {
   const entries: PackedEntry[] = []
   let lastAt: number | null = null
-  // 提问索引与标题同源:哪一行算"首条真实提问"只有索引器一个判断点
+  // The question index and the title share a source: only the indexer decides which line is "the first
+  // real question"
   const idx = makeQuestionIndexer('claude')
   let fileEnd = 0
   try {
@@ -789,9 +847,12 @@ async function parseClaudeFile(
       idx.line(obj, start, end)
       fileEnd = end
       const msg = obj['message'] as Record<string, unknown> | undefined
-      // 时间戳在 usage 判断**之前**取:at = 文件内最大时间戳(与 Codex 侧同义)。
-      // 只看 usage 行会漏掉用户消息——它没有 usage 字段,而"用户最后问的那句话"
-      // 正是最后活动。实测 118 个真实会话,45% 的末行时间戳晚于末条 usage 行。
+      // The timestamp is taken **before** the usage check: at = the largest timestamp in the file (the
+      // same meaning as on the Codex side).
+      // Looking only at usage lines misses user messages — they have no usage field, and "the last thing
+      // the user asked"
+      // is exactly the last activity. Measured over 118 real sessions, 45% have a last-line timestamp
+      // later than the last usage line.
       const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp'] as string) : NaN
       if (!Number.isNaN(ts)) lastAt = lastAt === null ? ts : Math.max(lastAt, ts)
       const usage = msg?.['usage'] as Record<string, unknown> | undefined
@@ -820,8 +881,9 @@ async function parseClaudeFile(
     }
   })()
   const questions = idx.done(fileEnd)
-  // 索引器已经剥完噪声、也已按末叶回溯滤过,这里只负责截断成型。
-  // **不要再过一遍 realUserText**——剥离不幂等,见 session-title.ts。
+  // The indexer has already stripped the noise and filtered by the last-leaf walk-back; this is only
+  // responsible for truncating into shape.
+  // **Do not run realUserText again** — stripping is not idempotent, see session-title.ts.
   const first = idx.firstQuestionText()
   const title = first === null ? null : clipTitle(first)
   return {
@@ -829,9 +891,12 @@ async function parseClaudeFile(
     file,
     forkPoints: idx.forkPoints(),
     projectKey,
-    // 没有任何真实提问的会话不入列(spec A3a)。实测某项目 1511 个会话里
-    // 1004 个只有一条 Warmup —— 照列会让 66% 的行是 uuid 文件名,而本功能
-    // 要回答的正是"我提过的那个问题在哪"。token 照计,与 subagent 同口径。
+    // A session with no real question at all is not listed (spec A3a). Measured: of one project's 1511
+    // sessions,
+    // 1004 have a single Warmup — listing them would make 66% of the rows uuid filenames, while what this
+    // feature
+    // answers is exactly "where is that question I asked". The tokens still count, the same rule as
+    // subagents.
     listed: listed && questions.length > 0,
     title: title ?? file.split('/').pop()?.replace(/\.jsonl$/, '') ?? null,
     at: lastAt ?? fallbackAt,
@@ -848,10 +913,13 @@ async function parseCodexFile(
 ): Promise<CodexFileAgg | null> {
   const events: CodexEvent[] = []
   let model = 'unknown'
-  // at = 文件内最大时间戳(与 Claude 侧同义 = 最后活动)。此前取首个时间戳,
-  // 对 fork 会话尤其错——首行时间戳是重放时刻,既不是开始也不是结束。
+  // at = the largest timestamp in the file (the same meaning as on the Claude side = last activity). It
+  // previously took the first timestamp,
+  // which is especially wrong for a fork session — the first line's timestamp is the replay moment,
+  // neither the start nor the end.
   let lastTs: number | null = null
-  // 提问索引与标题同源(与 Claude 侧同一套剥离规则),并决定本会话是否入列
+  // The question index and the title share a source (the same stripping rules as the Claude side), and
+  // decide whether this session is listed
   const idx = makeQuestionIndexer('codex')
   let fileEnd = 0
   try {
@@ -865,8 +933,9 @@ async function parseCodexFile(
         const m = payload?.['model']
         if (typeof m === 'string') model = m
       }
-      // 真实形状:顶层 type=event_msg,数据在 payload.info(payload.type=token_count);
-      // 取 last_token_usage 逐轮增量(同一轮可能重复上报,由 fork 剥离与差值口径处理)
+      // The real shape: top-level type=event_msg with the data in payload.info (payload.type=token_count);
+      // take last_token_usage as a per-turn increment (one turn may be reported more than once, which
+      // fork stripping and the difference rule handle)
       if (payload?.['type'] !== 'token_count') return
       const info = payload['info'] as Record<string, unknown> | undefined
       const usage = (info?.['last_token_usage'] ?? info?.['total_token_usage']) as
@@ -894,14 +963,18 @@ async function parseCodexFile(
     kind: 'codex',
     file,
     projectKey,
-    // 与 Claude 侧同口径(spec A3a):没有任何真实提问的会话不入列,token 照计
+    // The same rule as the Claude side (spec A3a): a session with no real question is not listed, and its
+    // tokens still count
     listed: !meta.subagent && questions.length > 0,
-    // 标题优先 thread_name(Codex 自己起的名字比首条提问更概括),无则退回首条提问
+    // The title prefers thread_name (the name Codex gave itself summarises better than the first
+    // question), falling back to the first question
     title: threadName ?? realTitle ?? stem,
     titleFromThread: threadName !== undefined,
-    // 没有 mtime 兜底(Claude 侧有)——不是遗漏:Codex 的 session_meta 必带顶层
-    // timestamp(真实样本核实),首行不可解析时 readCodexSessions 直接跳过该文件、
-    // 根本不会走到这里。所以 lastTs 为 null 是不可达分支,不为它加兜底代码。
+    // There is no mtime fallback (the Claude side has one) — not an omission: Codex's session_meta always
+    // carries a top-level
+    // timestamp (verified against real samples), and when the first line will not parse readCodexSessions
+    // skips the file outright and
+    // never reaches here. So lastTs being null is an unreachable branch, and no fallback is written for it.
     at: lastTs,
     model,
     sessionId: meta.sessionId,
@@ -925,11 +998,11 @@ function readCodexIndex(codexHome: string): Map<string, string> {
         const name = (obj as Record<string, unknown>)?.['thread_name']
         if (typeof id === 'string' && typeof name === 'string') out.set(id, name)
       } catch {
-        // 坏行跳过
+        // Skip bad lines
       }
     }
   } catch {
-    // 索引不可读:标题走文件名回退
+    // The index cannot be read: the title falls back to the filename
   }
   return out
 }
@@ -939,9 +1012,11 @@ function num(v: unknown): number {
 }
 
 /**
- * cache 写入量:存在 cache_creation 明细对象时取 ephemeral_5m + ephemeral_1h 之和,
- * 否则取扁平 cache_creation_input_tokens(与 ccusage TokenUsageRaw::cache_creation_token_count 同规则)。
- * 真实数据实测两者可不等(2026-07-13 有 2 行差 894)。
+ * Cache write volume: where a cache_creation breakdown object exists, take the sum of ephemeral_5m and
+ * ephemeral_1h,
+ * otherwise take the flat cache_creation_input_tokens (the same rule as ccusage's
+ * TokenUsageRaw::cache_creation_token_count).
+ * Measured against real data, the two can differ (2 lines on 2026-07-13 differ by 894).
  */
 function cacheCreationOf(usage: Record<string, unknown>): number {
   const detail = usage['cache_creation']

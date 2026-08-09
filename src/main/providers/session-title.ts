@@ -1,17 +1,23 @@
-// 会话标题:从人类消息里剥掉 harness 噪声,取第一条真实提问(seam 1 纯函数)。
+// Session titles: strip harness noise out of human messages and take the first real question (a seam 1
+// pure function).
 //
-// **噪声形态取自真实采样,不是照清单想象**(2026-08-02,297 个真实 Claude 会话):
-//   Warmup 188 · [cron:…] 92 · local-command-* 20 · slash 命令 2。
-// 其中 `<local-command-stdout>` 是剥掉前面几层之后才浮出来的第二层噪声——
-// 只采样"首条消息"看不到它,必须拿真函数扫一遍剥离后的结果才发现。
-// 调研期 spec 列过的「Conversation info」在采样里**未出现**,不为没见过的形态写
-// 规则——写了也无法用真实样本验证,只是把想象固化成代码。
+// **The noise shapes come from real sampling, not from imagining a list** (2026-08-02, 297 real Claude
+// sessions):
+//   Warmup 188 · [cron:…] 92 · local-command-* 20 · slash commands 2.
+// Of these, `<local-command-stdout>` is a second layer of noise that only surfaces after the earlier
+// layers are stripped —
+// sampling "the first message" cannot see it, and it was only found by running the real function over
+// the stripped results.
+// The "Conversation info" the research-phase spec listed **did not appear** in the sample, and we write
+// no rule for a shape we have not
+// seen — a rule we cannot verify against a real sample only freezes imagination into code.
 //
-// 两处容易想错的地方,都由真实数据纠正:
-//   - `[cron:…]` 后面跟的是**真正的指令**,整条丢会丢掉真提问,只能剥方括号;
-//   - slash 命令的用户输入在 `<command-args>` 里,不在标签外。
+// Two places intuition gets wrong, both corrected by real data:
+//   - what follows `[cron:…]` is **the actual instruction**, so discarding the whole message discards a
+//     real question; only the bracket may be stripped;
+//   - a slash command's user input is inside `<command-args>`, not outside the tag.
 
-/** 标题上限(按码点算,中文不被截半) */
+/** The title cap (counted in code points, so a wide character is never cut in half) */
 export const TITLE_MAX = 60
 
 const CARGS = /<command-args>([\s\S]*?)<\/command-args>/
@@ -22,32 +28,37 @@ function normalize(raw: string): string {
 }
 
 /**
- * 一条人类消息 → 其中的真实提问;整条都是噪声时返回 null。
- * 调用方据 null 判断"这条不算提问"(既影响标题,也影响会话是否入列)。
+ * One human message → the real question inside it; null when the whole thing is noise.
+ * The caller uses null to judge "this does not count as a question" (which affects both the title and
+ * whether the session is listed).
  */
 export function realUserText(raw: string): string | null {
   const t = normalize(raw)
   if (!t) return null
 
-  // 预热会话:整条消息就是这一个词。只在**完全相等**时算噪声——
-  // 真提问里出现这个词(如"Warmup 这个词是哪来的?")不能被误伤。
+  // A warmup session: the whole message is that one word. It only counts as noise on **exact
+  // equality** —
+  // a real question containing the word ("where does the word Warmup come from?") must not be caught.
   if (t === 'Warmup') return null
 
-  // `<local-command-*>` 是 harness 包裹输入框 `!` 命令执行留下的痕迹,整族都不是人写的:
-  // 实测见到 caveat(13/297,命令执行前的免责声明)与 stdout(7/144,命令输出)两种,
-  // 按族匹配而非逐个枚举——同一机制产出的兄弟标签将来还会有。
+  // `<local-command-*>` is the trace the harness leaves when wrapping a `!` command from the input box,
+  // and no member of the family is human-written:
+  // measured, we have seen caveat (13/297, the disclaimer before a command runs) and stdout (7/144, the
+  // command output),
+  // and we match by family rather than enumerating — the same mechanism will produce more sibling tags.
   if (t.startsWith('<local-command-')) return null
-  // slash 命令触发的 skill 正文注入,以 user 身份出现但不是人写的
+  // A skill body injected by a slash command, which appears as the user but was not written by one
   if (t.startsWith('Base directory for this skill:')) return null
 
-  // slash 命令:真实输入只在 command-args 里;没有该标签或内容为空 → 只是命令调用
+  // A slash command: the real input is only inside command-args; no such tag, or empty content, means it
+  // is just the command invocation
   if (t.includes('<command-name>')) {
     const inner = CARGS.exec(t)?.[1]
     const v = inner === undefined ? '' : normalize(inner)
     return v || null
   }
 
-  // cron:方括号是 harness 加的前缀,后面才是用户写的指令
+  // cron: the bracket is a prefix the harness added, and what follows is the instruction the user wrote
   if (CRON.test(t)) {
     const rest = normalize(t.replace(CRON, ''))
     return rest || null
@@ -57,11 +68,13 @@ export function realUserText(raw: string): string | null {
 }
 
 /**
- * 已剥噪声的提问 → 标题(按码点截断,中文不被截半)。
+ * A noise-stripped question → a title (truncated by code point, so a wide character is never cut in half).
  *
- * 与 `realUserText` 分开是**必须**的,不是为了好看:剥离对同一段文本不是幂等的
- * ——`[cron:x] Warmup` 剥一次得 `Warmup`,再剥一次就变成 null。调用方拿到的若已是
- * 剥离后的文本,只能走这里,不能再过一遍 `realUserText`。
+ * Keeping this separate from `realUserText` is **necessary**, not cosmetic: stripping is not idempotent
+ * over the same text
+ * — `[cron:x] Warmup` strips once to `Warmup` and a second time to null. If what the caller holds is
+ * already
+ * stripped text, it must come through here and must not go through `realUserText` again.
  */
 export function clipTitle(t: string): string {
   const cp = [...t]

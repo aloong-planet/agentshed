@@ -5,9 +5,11 @@ import { relativeDays } from '@shared/format'
 import { useDict, useLanguage } from './language'
 
 /**
- * 相对时间(展示用):今天 / 昨天 / N 天前 / N 月前,按当前语言(票 12)。
- * 措辞由 `Intl.RelativeTimeFormat` 生成,不拼「N + 天前」——各语言的量词位置与
- * 复数形式不同,拼接必错。
+ * Relative time (for display): today / yesterday / N days ago / N months ago, in the current language
+ * (ticket 12).
+ * The wording comes from `Intl.RelativeTimeFormat` rather than concatenating "N + days ago" — the
+ * position of the measure word and
+ * the plural form differ per language, so concatenation is bound to be wrong.
  */
 export function fmtAgo(lang: Language, ms: number | null, now: number): string {
   if (ms === null) return '—'
@@ -18,7 +20,7 @@ interface Props {
   snap: Snapshot
   selected: string | null
   onSelect: (path: string) => void
-  /** 详情区域(票03 填充;当前占位) */
+  /** The detail area (filled in by ticket 03; currently a placeholder) */
   detail: React.ReactNode
 }
 
@@ -53,7 +55,8 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
           <input
             value={kw}
             onChange={(e) => setKw(e.target.value)}
-            // 图标字符留在组件内,不进六份语言字典(票 08 AC;SVG 化见 #51)
+            // The icon character stays inside the component and does not enter the six dictionaries
+            // (ticket 08 AC; converting it to SVG is #51)
             placeholder={`🔍 ${t.projects.searchPlaceholder}`}
           />
         </div>

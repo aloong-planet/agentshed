@@ -29,7 +29,8 @@ import { ERR, appError } from '@shared/errors'
 import { FALLBACK_LANGUAGE, isLanguage, type Language } from '@shared/i18n'
 import { LANG_ARG, SYS_LANGS_ARG } from '@shared/ipc'
 
-// renderer 入口处的契约校验:主进程发来的快照不合契约就抛,不静默渲染 undefined
+// Contract validation at the renderer's entry: a snapshot from the main process that does not meet the
+// contract throws rather than silently rendering undefined
 function checked(snap: unknown): Snapshot {
   const r = validateSnapshot(snap)
   if (!r.ok) throw contractError('snapshot', r.failure)
@@ -44,9 +45,12 @@ function checkedPrefs(raw: unknown): Prefs {
 
 
 /**
- * 生效语言:主进程在窗口创建时经启动参数带过来,**同步可得**。
- * 走这条而非 IPC,是为了让 renderer 首帧就用上正确语言——异步取的话首帧是默认
- * 语言、随后整页文字跳变一次。参数缺失或不合法时回退英文,与解析层同口径。
+ * The effective language: the main process passes it in through the launch arguments at window creation,
+ * so it is **available synchronously**.
+ * This path rather than IPC is what gives the renderer the correct language on its first frame —
+ * fetching it asynchronously would make the first frame the default
+ * language and then jump the whole page once. A missing or invalid argument falls back to English, the
+ * same rule as the resolution layer.
  */
 function initialLanguage(): Language {
   const arg = process.argv.find((a) => a.startsWith(LANG_ARG))
@@ -63,31 +67,36 @@ function systemLanguages(): string[] {
 }
 
 const api = {
-  /** 首帧即可用的生效语言(非偏好——偏好走 getPrefs) */
+  /** The effective language, available on the first frame (not the preference — that goes through getPrefs) */
   initialLanguage: initialLanguage(),
-  /** 启动时的系统偏好语言列表:选「跟随系统」时 renderer 据此本地算生效语言 */
+  /** The system's preferred language list at startup: the renderer computes the effective language
+   * locally from it when "follow system" is selected */
   systemLanguages: systemLanguages(),
   getSnapshot: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.getSnapshot)),
   refresh: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.refresh)),
   setHidden: (args: SetHiddenArgs): Promise<void> => ipcRenderer.invoke(CMD.setHidden, args),
-  // 与快照同规矩:两端各校验一次。主进程那次抓"我们生成错了",这一次抓 IPC
-  // 传输本身的损耗——结构化克隆会丢掉 undefined 属性,主进程看着对、渲染层收到
-  // 的却缺字段,只有入口这一侧看得见。
+  // The same rule as the snapshot: validated once at each end. The main process's pass catches "we
+  // generated it wrong", this one catches the losses of
+  // IPC transport itself — structured clone drops undefined properties, so the main process sees it as
+  // correct while the renderer receives
+  // a missing field, which only this entry side can see.
   getProjectDetail: async (path: string): Promise<ProjectDetail> => {
     const d: unknown = await ipcRenderer.invoke(CMD.getProjectDetail, path)
     const r = validateProjectDetail(d)
     if (!r.ok) throw contractError('projectDetail', r.failure)
     return d as ProjectDetail
   },
-  // 会话页:与快照/详情同规矩,两端各校验一次(这一侧抓结构化克隆的损耗)
+  // The session page: the same rule as the snapshot and detail, validated at each end (this side catches
+  // structured clone's losses)
   getSessionPage: async (file: string): Promise<SessionPage> => {
     const p: unknown = await ipcRenderer.invoke(CMD.getSessionPage, file)
     const r = validateSessionPage(p)
     if (!r.ok) throw contractError('sessionPage', r.failure)
     return p as SessionPage
   },
-  // 票 05:轮次按需取回。fresh 是只读谓词(要不要先亮"重建中"),取回本身在主进程侧
-  // 完成签名校验与必要的单文件重建
+  // Ticket 05: fetching a turn on demand. `fresh` is a read-only predicate (whether to show "rebuilding"
+  // first), while the fetch itself does
+  // the signature check and any single-file rebuild on the main process side
   sessionFresh: (file: string): Promise<boolean> =>
     ipcRenderer.invoke(CMD.sessionFresh, file) as Promise<boolean>,
   getSessionTurn: async (args: SessionTurnArgs): Promise<SessionTurn> => {
@@ -96,7 +105,7 @@ const api = {
     if (!r.ok) throw contractError('sessionTurn', r.failure)
     return t as SessionTurn
   },
-  // 票 08:项目会话搜索(两端各校验一次,同快照规矩)
+  // Ticket 08: project session search (validated at each end, the same rule as the snapshot)
   searchSessions: async (args: SearchSessionsArgs): Promise<SearchResult> => {
     const r: unknown = await ipcRenderer.invoke(CMD.searchSessions, args)
     const v = validateSearchResult(r)
@@ -114,7 +123,8 @@ const api = {
     ipcRenderer.invoke(CMD.listSkillFiles, args) as Promise<ListSkillFilesResult>,
   readSkillFile: (args: ReadSkillFileArgs): Promise<CappedText> =>
     ipcRenderer.invoke(CMD.readSkillFile, args) as Promise<CappedText>,
-  // 与重载荷同规矩:preload 再校一次,拦 IPC 结构化克隆/形态漂移
+  // The same rule as the heavy payloads: the preload validates again, catching structured clone losses
+  // and shape drift
   getPrefs: async (): Promise<Prefs> => checkedPrefs(await ipcRenderer.invoke(CMD.getPrefs)),
   setScheme: async (scheme: AppearanceScheme): Promise<Prefs> =>
     checkedPrefs(await ipcRenderer.invoke(CMD.setScheme, scheme)),
@@ -122,7 +132,8 @@ const api = {
     checkedPrefs(await ipcRenderer.invoke(CMD.setLanguage, language)),
   setMode: async (mode: AppearanceMode): Promise<Prefs> =>
     checkedPrefs(await ipcRenderer.invoke(CMD.setMode, mode)),
-  /** 应用菜单的两个入口(票 13):行为与界面上的同名操作一致 */
+  /** The application menu's two entry points (ticket 13): they behave identically to the same-named
+   * operations in the UI */
   onMenuOpenSettings: (cb: () => void): (() => void) => {
     const l = (): void => cb()
     ipcRenderer.on(EVT.menuOpenSettings, l)

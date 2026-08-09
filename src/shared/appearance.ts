@@ -1,4 +1,5 @@
-// 外观:**模式**(明暗)×**配色**(强调色/纸感)两维正交。见 docs/specs/appearance.md。
+// Appearance: **mode** (light/dark) × **colour scheme** (accent / paper feel), two orthogonal
+// dimensions. See docs/specs/appearance.md.
 
 export const APPEARANCE_SCHEMES = ['purple', 'blue', 'amber'] as const
 export type AppearanceScheme = (typeof APPEARANCE_SCHEMES)[number]
@@ -10,14 +11,18 @@ export function isAppearanceScheme(v: unknown): v is AppearanceScheme {
 }
 
 /**
- * 外观模式:用户对界面明暗的偏好。
+ * Appearance mode: the user's preference for a light or dark UI.
  *
- * `'system'` 与语言偏好的「跟随系统」同构——是一条**持续生效的策略,不是选中当刻的
- * 明暗快照**;选 light / dark 即锁定,系统外观再变也不影响。由它与系统外观共同决定的
- * **生效明暗**才是最终渲染的值,生效明暗本身不被持久化。
+ * `'system'` is structurally identical to the language preference's "follow system" — a **continuously
+ * applied policy, not a snapshot of
+ * the light/dark at the moment of selection**; choosing light or dark locks it and later system
+ * appearance changes have no effect. What it and the system appearance together decide,
+ * the **effective light/dark**, is what actually renders, and it is never persisted itself.
  *
- * 取值刻意与 Electron `nativeTheme.themeSource` 的三态**同名**,故映射即恒等;
- * 两边取值域不再对齐时由 typecheck 拦下,机制见 src/main/appearance-mode.ts。
+ * The values are deliberately named the same as Electron `nativeTheme.themeSource`'s three states, so
+ * the mapping is the identity;
+ * typecheck catches it if the two value domains ever diverge — the mechanism is in
+ * src/main/appearance-mode.ts.
  */
 export const APPEARANCE_MODES = ['system', 'light', 'dark'] as const
 export type AppearanceMode = (typeof APPEARANCE_MODES)[number]
@@ -28,7 +33,9 @@ export function isAppearanceMode(v: unknown): v is AppearanceMode {
   return typeof v === 'string' && (APPEARANCE_MODES as readonly string[]).includes(v)
 }
 
-// 方案的展示名已随界面文案一并进入 i18n 字典(settings.scheme*),
-// 此处不再保留单语标签表——它在本次改动中失去了唯一使用者。
+// The schemes' display names moved into the i18n dictionaries along with the rest of the UI copy
+// (settings.scheme*),
+// so no single-language label table is kept here — it lost its only consumer in that change.
 
-// 偏好的组装与跨进程校验见 ./prefs —— 本文件只管外观方案本身。
+// Assembling the preferences and validating them across processes is in ./prefs — this file covers only
+// appearance itself.

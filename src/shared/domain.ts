@@ -1,20 +1,24 @@
-// 领域模型:IPC 两端共用的单一类型来源(吸取 Transfer 消息模型漂移教训)。
-// 术语对齐 CONTEXT.md:项目/失效项目/agent 侧/全局库/项目级安装/产物/活跃度/会话。
+// Domain model: the single type source shared by both ends of the IPC boundary (learned from
+// Transfer's message model drift).
+// Terminology follows CONTEXT.md: project / stale project / agent side / global library /
+// project install / artifact / activity / session.
 
 import type { AppError } from './errors'
 
-/**
- * 有上限的文本读取结果(票 07)。
- * 主进程**只传是否被截断**,「…(已截断)」这类标记由渲染层按当前语言追加——
- * 早先标记是在主进程拼进正文的,那等于把界面文案固化在跨进程边界之外。
- */
+/** Codex config.toml summary: **structured fields**; the renderer composes the sentence (ticket 07) */
 export interface CodexConfigSummary {
-  /** null = 未设置 */
+  /** null = not set */
   model: string | null
   projectCount: number
   mcpCount: number
 }
 
+/**
+ * A bounded text read result (ticket 07).
+ * The main process **only reports whether it was truncated**; a marker such as "…(truncated)" is
+ * appended by the renderer in the current language — the marker used to be spliced into the body by
+ * the main process, which froze UI copy outside the process boundary.
+ */
 export interface CappedText {
   text: string
   truncated: boolean
@@ -22,108 +26,116 @@ export interface CappedText {
 
 export type AgentSide = 'claude' | 'codex'
 
-/** 单侧 agent 的检测信息 */
+/** Detection information for one agent side */
 export interface SideInfo {
-  /** 该侧数据目录是否存在于本机 */
+  /** Whether that side's data directory exists on this machine */
   detected: boolean
-  /** 注册表解析失败时的降级说明(该侧数据为空但 app 不崩) */
-  /** 探测失败信息:码 + 参数,不含自然语言(票 07) */
+  /**
+   * Probe failure: a code plus parameters, containing no natural language (ticket 07).
+   * On a registry parse failure that side's data is empty but the app does not crash.
+   */
   error?: AppError
 }
 
-/** 项目:任一 agent 侧注册表记录过的工作目录(两侧并集,一目录一项目) */
+/** Project: a working directory recorded in either agent side's registry (union of both sides, one directory to one project) */
 export interface ProjectEntry {
-  /** 规范化绝对路径(唯一键) */
+  /** Normalised absolute path (the unique key) */
   path: string
-  /** 目录名(展示用) */
+  /** Directory name (for display) */
   name: string
   sides: AgentSide[]
-  /** 失效:注册表仍有记录但磁盘目录已不存在 */
+  /** Stale: still in the registry, but the directory no longer exists on disk */
   stale: boolean
-  /** 手动隐藏(存 app 自有存储,不写 agent 配置) */
+  /** Manually hidden (in the app's own storage, never written to the agent configuration) */
   hidden: boolean
-  /** 活跃度:最近会话时间(epoch ms;无会话为 null)与会话数 */
+  /** Activity: most recent session time (epoch ms; null with no sessions) and session count */
   lastSessionAt: number | null
   sessionCount: number
 }
 
-/**
- * 全局库中的一个 skill(两侧合并单列)。
- * G 系列:origin=plugin 的条目来自有效启用插件的内含 skills——命名空间名(plugin:skill),
- * 不参与磁盘同名遮蔽(G2),sides 恒 claude(G4),不可装卸(G3,ADR-0004 装卸仅限全局库)。
- */
-/** skill 包聚合统计(行内展示):可预览文本文件数与总字节;扫描 stat 即得,不读内容 */
+/** Aggregate stats for a skill package (shown inline): previewable text file count and total bytes; obtained by `stat` during the scan, without reading contents */
 export interface SkillPkgStats {
   files: number
   bytes: number
 }
 
+/**
+ * One skill in the global library (both sides merged into one column).
+ * The G series: an entry with origin=plugin comes from an effectively enabled plugin's bundled
+ * skills — a namespaced name (plugin:skill), not taking part in on-disk same-name shadowing (G2),
+ * with sides always claude (G4), and not installable or uninstallable (G3; ADR-0004 confines
+ * install/uninstall to the global library).
+ */
 export interface GlobalSkill {
   name: string
-  /** SKILL.md frontmatter 的 description;无则 null */
+  /** The description from SKILL.md's frontmatter; null if absent */
   description: string | null
   sides: AgentSide[]
-  /** 各侧是否为软链(安装时解引用复制) */
+  /** Whether each side is a symlink (dereferenced and copied on install) */
   symlink: Record<AgentSide, boolean>
-  /** 各侧包统计;该侧无定义或不可读为 null */
+  /** Package stats per side; null where that side has no definition or it cannot be read */
   pkg: Record<AgentSide, SkillPkgStats | null>
   origin: 'disk' | 'plugin'
   pluginName: string | null
-  /** 插件条目的摘要同源包根(预览入口,plugins-view H5);磁盘条目为 null */
+  /** A plugin entry's summary-source package root (the preview entry point, plugins-view H5); null for on-disk entries */
   pluginRoot: string | null
-  /** 插件条目的裸 skill 名(包内目录名;UI 与 IPC 不再从命名空间名反解);磁盘条目为 null */
+  /** A plugin entry's bare skill name (the directory name inside the package; the UI and IPC no longer parse it back out of the namespaced name); null for on-disk entries */
   pluginSkillName: string | null
 }
 
 /**
- * Subagent 单侧详情。键语义按侧不同(源码级核实 2026-07-31):
- * Claude=文件名(去 .md),Codex=toml 内 name 字段(agent_roles.rs,无效 name 的文件 Codex 不加载)。
+ * Per-side subagent detail. The key means different things per side (verified at source level
+ * 2026-07-31): Claude = the filename (minus .md), Codex = the `name` field inside the toml
+ * (agent_roles.rs; Codex does not load a file with an invalid name).
  */
 export interface SubagentSideDetail {
-  /** 完整定义原文(超长截断);解析失败时为原始文本或 null */
+  /** The full definition as written (truncated when oversized); the raw text or null on a parse failure */
   content: CappedText | null
   description: string | null
-  /** 仅 Claude 侧:frontmatter tools */
+  /** Claude side only: frontmatter tools */
   tools: string | null
   model: string | null
-  /** 仅 Codex 侧:sandbox_mode */
+  /** Codex side only: sandbox_mode */
   sandbox: string | null
   /**
-   * 该侧文件存在但解析失败/缺有效 name 时的失败信息;正常为 null。
+   * Failure information for when that side's file exists but will not parse or has no valid name;
+   * null when normal.
    *
-   * **码 + 参数,不含自然语言**(票 07 把 ADR-0015 的口径扩到数据字段):措辞与分支判定
-   * 都由渲染层按码决定。票 05 曾用一个并列的 `errorKind` 字段过渡,本票收掉——
-   * 一个结构化字段同时承担"给人看"与"给程序判"两件事,不必两份真相。
+   * **A code plus parameters, containing no natural language** (ticket 07 widened ADR-0015's rule to
+   * data fields): both the wording and the branch decision are made by the renderer from the code.
+   * Ticket 05 used a parallel `errorKind` field as a transition, which this ticket removed — one
+   * structured field carries both "for people to read" and "for the program to judge on", and two
+   * sources of truth are not needed.
    */
   error: AppError | null
 }
 
-/** 全局 subagent(两侧合并单列;不做跨侧内容 diff——格式异构,不造假信号) */
+/** A global subagent (both sides merged into one column; no cross-side content diff — the formats differ, and we do not manufacture false signals) */
 export interface SubagentEntry {
   name: string
   sides: AgentSide[]
-  /** 展示描述:Claude 侧优先 */
+  /** The description to display: the Claude side takes priority */
   description: string | null
   claude: SubagentSideDetail | null
   codex: SubagentSideDetail | null
-  /** Codex 名与内置(default/worker/explorer)同名 → 自定义覆盖内置(role.rs 语义) */
+  /** A Codex name matching a built-in (default/worker/explorer) → the custom one overrides the built-in (role.rs semantics) */
   overridesBuiltin: boolean
 }
 
 export interface MemoryFileMeta {
   name: string
-  /** 绝对路径:按需读取的白名单键(内容不进快照,见 spec C8) */
+  /** Absolute path: the allow-list key for on-demand reading (contents do not enter the snapshot, see spec C8) */
   file: string
   mtimeMs: number
 }
 
-/** Memory 全局汇总条目(Claude 为 per-project;Codex 为全局目录,projectPath=null) */
+/** A Memory summary entry (Claude is per-project; Codex is a global directory, so projectPath=null) */
 export interface MemorySummaryEntry {
   side: AgentSide
   projectPath: string | null
-  /** **null = 无项目归属**(如 Codex 全局记忆),显示名由渲染层出(票 07) */
+  /** **null = no owning project** (as with Codex global memory); the renderer produces the display name (ticket 07) */
   projectName: string | null
-  /** MEMORY.md 是否存在(Codex 全局条目恒 false) */
+  /** Whether MEMORY.md exists (always false for the Codex global entry) */
   hasMain: boolean
   files: MemoryFileMeta[]
   lastModified: number | null
@@ -131,13 +143,13 @@ export interface MemorySummaryEntry {
   hidden: boolean
 }
 
-/** 单条插件安装记录(E1:多条记录不合并,scope 非 user/project 时原样标注 E3) */
+/** One plugin installation record (E1: several records are not merged; E3: a scope other than user/project is labelled as written) */
 export interface PluginInstallRecord {
-  /** **null = 未知**;措辞由渲染层出(票 07) */
+  /** **null = unknown**; the renderer produces the wording (ticket 07) */
   scope: string | null
-  /** project-scope 的归属项目;其余为 null */
+  /** The owning project for project scope; null otherwise */
   projectPath: string | null
-  /** 归属项目目录已不存在(E2:原样显示并标"项目已失联") */
+  /** The owning project's directory no longer exists (E2: displayed as written and marked "project lost") */
   projectMissing: boolean
   installPath: string | null
   version: string | null
@@ -145,18 +157,18 @@ export interface PluginInstallRecord {
 
 export interface PluginHookSummary {
   event: string
-  /** matcher 组数量(E7:摘要即止,不渲染命令详情) */
+  /** The number of matcher groups (E7: a summary and no further — command details are not rendered) */
   matchers: number
 }
 
-/** 插件内含 skill 摘要(plugins-view H1/H6):pkg=包统计(stat-only);不可读为 null(行置灰判定) */
+/** A plugin's bundled skill summary (plugins-view H1/H6): pkg = package stats (stat-only); null when unreadable (which is what greys the row out) */
 export interface PluginSkillSummary {
   name: string
   description: string | null
   pkg: SkillPkgStats | null
 }
 
-/** 插件内含组件摘要(E5:目录约定 + manifest 声明字段合并;E6:目录缺失 missing) */
+/** A plugin's bundled component summary (E5: the directory convention merged with the manifest's declared fields; E6: a missing directory sets `missing`) */
 export interface PluginContents {
   skills: PluginSkillSummary[]
   agents: string[]
@@ -165,76 +177,74 @@ export interface PluginContents {
   missing: boolean
 }
 
-/** Claude plugin(全局层,只读)。enabled 为 user 层口径(E4);项目视角见 ProjectPluginEntry */
+/** A Claude plugin (global layer, read-only). `enabled` uses the user-layer rule (E4); for the project's viewpoint see ProjectPluginEntry */
 export interface PluginEntry {
   name: string
   version: string | null
   installs: PluginInstallRecord[]
   enabled: boolean
-  /** 首条有效 installPath(MCP/内含组件扫描用) */
+  /** The first valid installPath (used for scanning MCP and bundled components) */
   installPath: string | null
   contents: PluginContents
 }
 
-/** Codex 插件(E8:缓存三层目录枚举 + 最高版本包根下 skills 枚举;启用态语义未接入,不建模) */
+/** A Codex plugin (E8: enumerate the cache's three directory levels + the skills under the highest version's package root; enablement semantics are not wired up and are not modelled) */
 export interface CodexPluginEntry {
   name: string
   marketplace: string
-  /** 最高版本缓存目录(摘要同源包根,H5);不可得为 null */
+  /** The highest version's cache directory (the summary-source package root, H5); null when unobtainable */
   root: string | null
-  /** 内含 skills(仅此一类,ADR-0012;目录约定与 Claude 同构) */
+  /** Bundled skills (this category only, ADR-0012; the directory convention is the same as Claude's) */
   skills: PluginSkillSummary[]
-  /** 缓存中最高版本 */
+  /** The highest version in the cache */
   version: string | null
   cachedVersions: number
 }
 
-/** 项目详情的插件条目:有效启用 = enabledPlugins 按 local > project > user 合并(F1) */
+/** A plugin entry in project detail: effectively enabled = `enabledPlugins` merged local > project > user (F1) */
 export interface ProjectPluginEntry {
   name: string
   version: string | null
-  /** 摘要同源包根(与 contents 扫描同一条 installPath,H5);无有效记录为 null */
+  /** The summary-source package root (the same installPath the contents scan used, H5); null with no valid record */
   installPath: string | null
   enabled: boolean
-  /** 启用/禁用判定来自哪一层;任何层都未提及为 null */
+  /** Which layer the enabled/disabled judgement came from; null when no layer mentions it */
   enabledFrom: 'local' | 'project' | 'user' | null
   installs: PluginInstallRecord[]
   contents: PluginContents
 }
 
-/** 全局 MCP server(按来源标注) */
+/** A global MCP server (labelled by origin) */
 export interface McpServerEntry {
   name: string
   side: AgentSide
-  /** 'global-config'(~/.claude.json)| 'plugin'(plugin.json 自带)| 'config.toml' */
+  /** 'global-config' (~/.claude.json) | 'plugin' (bundled in plugin.json) | 'config.toml' */
   source: 'global-config' | 'plugin' | 'config.toml'
 }
 
-/** Agents 全局层(票07;subagents/memory 为 v2 组件扩展) */
+/** The Agents global layer (ticket 07; subagents/memory are v2 component extensions) */
 export interface GlobalLayer {
   skills: GlobalSkill[]
   subagents: SubagentEntry[]
-  /** Memory 汇总(按最近修改倒序;仅元数据与文件名,内容按需读取) */
+  /** The Memory summary (most recently modified first; metadata and filenames only, contents read on demand) */
   memory: MemorySummaryEntry[]
-  /** Codex 记忆开关(config.toml [features] memories;C6 三态展示的判定依据) */
+  /** The Codex memory toggle (config.toml [features] memories; the basis for C6's three-state display) */
   codexMemoriesEnabled: boolean
   plugins: PluginEntry[]
-  /** Codex 插件(探测式:缓存目录空则为空数组,UI 整组不显示) */
+  /** Codex plugins (probe-style: an empty cache directory gives an empty array and the UI hides the whole group) */
   codexPlugins: CodexPluginEntry[]
   mcp: McpServerEntry[]
-  /** 全局 CLAUDE.md 内容(缺失 null,超长截断) */
+  /** The global CLAUDE.md's contents (null when absent, truncated when oversized) */
   claudeGlobalMd: CappedText | null
-  /** Codex 全局 AGENTS.md 内容 */
+  /** The Codex global AGENTS.md's contents */
   codexAgentsMd: CappedText | null
-  /** config.toml 只读摘要(model + 计数) */
-  /** Codex config.toml 摘要:**结构化字段**,成句由渲染层组装(票 07) */
   codexConfigSummary: CodexConfigSummary | null
 }
 
 /**
- * token 计数。总量口径(ADR-0005,对齐 ccusage):
- * Claude:total = input + output + cacheRead + cacheWrite(四项全加);
- * Codex:total = input + output + cacheWrite(input 已含 cached,不重复加)。
+ * Token counts. The total rule (ADR-0005, aligned with ccusage):
+ * Claude: total = input + output + cacheRead + cacheWrite (all four summed);
+ * Codex: total = input + output + cacheWrite (its input already includes cached, so it is not added twice).
  */
 export interface TokenTotals {
   input: number
@@ -250,13 +260,13 @@ export interface ModelUsage {
   total: number
 }
 
-/** 日粒度(本地时区)用量 */
+/** Daily usage (local time zone) */
 export interface DayUsage {
   day: string
-  /** 按 agent 侧(供单侧筛选) */
+  /** By agent side (for the single-side filter) */
   claude: number
   codex: number
-  /** 按 provider(模型提供方)分解 —— 趋势柱分段依据;键见 shared/provider.ts */
+  /** Broken down by provider (the model vendor) — the basis for the trend bars' segmentation; the keys are in shared/provider.ts */
   byProvider: Record<string, number>
 }
 
@@ -266,63 +276,65 @@ export interface TokenStats {
   byDay: DayUsage[]
 }
 
-/** 会话元数据 */
 /**
- * 会话的 fork 状态。三态在数据上必须可区分,不是同一字段的两种成色:
- * 「不是 fork」与「是 fork 但剥不准」对用户的含义完全不同,后者要提示对照原文。
+ * A session's fork state. The three states have to be distinguishable in the data; they are not two
+ * shades of one field: "not a fork" and "a fork whose strip is not trustworthy" mean completely
+ * different things to the user, and the latter has to prompt them to check against the source.
  */
 export type ForkState = 'none' | 'stripped' | 'uncertain'
 
+/** Session metadata */
 export interface SessionMeta {
   side: AgentSide
-  /** **null = 无标题**,兜底措辞由渲染层出(票 07) */
+  /** **null = no title**; the renderer produces the fallback wording (ticket 07) */
   title: string | null
-  /** 最后活动时间 = 文件内最大时间戳(两侧同义;与走 mtime 的项目活跃度是两条管线) */
+  /** Last activity time = the largest timestamp inside the file (the same meaning on both sides; a separate pipeline from project activity, which uses mtime) */
   at: number | null
   tokens: number
-  /** 源文件绝对路径 —— 会话的身份。凭它定位并读取内容(读取经主进程白名单校验) */
+  /** The source file's absolute path — the session's identity. Contents are located and read by it (reads are validated against the main process's allow-list) */
   file: string
-  /** 本会话的真实人类提问条数(harness 噪声已剥、被放弃的分支与重放前缀已除,与标题同源) */
+  /** The number of real human questions in this session (harness noise stripped, abandoned branches and replay prefixes removed; shares its source with the title) */
   questionCount: number
-  /** fork 与重放剥离的确定性,决定列表上出不出 ⑂ / ⑂? 标记 */
+  /** How certain the fork and replay stripping is, which decides whether the list shows a ⑂ / ⑂? marker */
   forkState: ForkState
 }
 
-/** 会话页的一条提问(票 04)。文本按字节区间现读——索引与缓存里都没有文本(spec D2a) */
+/** One question on a session page (ticket 04). The text is read live by byte range — neither the index nor the cache holds any text (spec D2a) */
 export interface SessionQuestion {
-  /** 展示序号,1 起,恒为本会话展示集合内的原始轮次号(排序切换不重编) */
+  /** The display index, from 1, always the original turn number within this session's displayed set (a sort change does not renumber) */
   i: number
-  /** 提问全文;**null = 该行读不到**,措辞由渲染层出(票 07) */
+  /** The question in full; **null = that line could not be read**, and the renderer produces the wording (ticket 07) */
   text: string | null
   at: number | null
-  /** 本轮工具调用数(不含 subagent 派发) */
+  /** The number of tool calls in this turn (excluding subagent dispatches) */
   tools: number
-  /** 本轮 subagent 派发数 */
+  /** The number of subagent dispatches in this turn */
   subagents: number
 }
 
-/** 会话页载荷(getSessionPage 通道;自包含,渲染层不需要再拼别处的数据) */
+/** The session page payload (the getSessionPage channel; self-contained, so the renderer does not have to assemble data from elsewhere) */
 export interface SessionPage {
   file: string
   side: AgentSide
-  /** **null = 无标题**,兜底措辞由渲染层出(票 07) */
+  /** **null = no title**; the renderer produces the fallback wording (ticket 07) */
   title: string | null
   at: number | null
   tokens: number
-  /** 源文件字节数(页头体量展示用) */
+  /** The source file's byte count (for the volume display in the page header) */
   bytes: number
   forkState: ForkState
-  /** Claude 主链分叉处数(>0 时出"分叉已归一"info 横幅);Codex 恒 0(票 06) */
+  /** The number of branch points on Claude's main chain (> 0 shows the "branches resolved" info banner); always 0 for Codex (ticket 06) */
   forkPoints: number
-  /** Codex fork 且父在扫描集内时的父会话标题/文件(横幅引用与跳转);其余为 null */
+  /** For a Codex fork whose parent is in the scan set, the parent session's title and file (for the banner's reference and jump); null otherwise */
   forkParentTitle: string | null
   forkParentFile: string | null
   questions: SessionQuestion[]
 }
 
 /**
- * 会话轮次的归一化块(票 05 立模型,票 07 扩全):两侧各自的原始行统一成这个
- * 模型,渲染层只认它。顺序 = 源文件行序(行内按 思考→正文→工具 的段序)。
+ * The normalised blocks of a session turn (the model was established in ticket 05 and completed in
+ * ticket 07): each side's raw lines are unified into this model and the renderer knows only this.
+ * The order = the source file's line order (within a line, thinking → prose → tools).
  */
 export interface TurnTextBlock {
   kind: 'text'
@@ -330,13 +342,13 @@ export interface TurnTextBlock {
   at: number | null
   body: string
 }
-/** Claude 明文思考(thinking 段);Codex 侧没有这个 kind——推理走 reason */
+/** Claude's plaintext thinking (the thinking segment); the Codex side has no such kind — its reasoning goes through `reason` */
 export interface TurnThinkBlock {
   kind: 'think'
   at: number | null
   body: string
 }
-/** Codex 推理:只有明文小标题,正文是 encrypted_content 永远不可得(spec C6) */
+/** Codex reasoning: plaintext sub-headings only, since the body is `encrypted_content` and is never obtainable (spec C6) */
 export interface TurnReasonBlock {
   kind: 'reason'
   at: number | null
@@ -345,14 +357,14 @@ export interface TurnReasonBlock {
 export interface TurnToolBlock {
   kind: 'tool'
   at: number | null
-  /** **null = 未知工具**,措辞由渲染层出(票 07) */
+  /** **null = unknown tool**; the renderer produces the wording (ticket 07) */
   name: string | null
-  /** 一行摘要(入参截断),折叠态显示 */
+  /** A one-line summary (arguments truncated), shown while collapsed */
   summary: string
   input: string
-  /** 无返回(运行中/记录缺失)为 null */
+  /** null when there is no return (still running / the record is missing) */
   output: string | null
-  /** Claude:transcript 只存截断版,原文旁挂 tool-results/ 不读(spec C7,2026-08-06 裁定) */
+  /** Claude: the transcript holds only the truncated version, and the sidecar under tool-results/ is not read (spec C7, ruled 2026-08-06) */
   truncated: boolean
 }
 export interface TurnSubStep {
@@ -362,17 +374,16 @@ export interface TurnSubStep {
 export interface TurnSubBlock {
   kind: 'sub'
   at: number | null
-  /** 派发名(Claude 取 subagent_type,无则工具名;Codex 恒 spawn_agent) */
-  /** 派发名;**null = 未知工具**,措辞由渲染层出(票 07) */
+  /** The dispatch name (Claude takes subagent_type, falling back to the tool name; Codex is always spawn_agent); **null = unknown tool**, and the renderer produces the wording (ticket 07) */
   name: string | null
   prompt: string
-  /** 内部步骤:Claude 从轮内 sidechain 行按 agentId 归组;Codex 无引用链恒空 */
+  /** Internal steps: Claude groups the turn's sidechain lines by agentId; Codex has no reference chain and this is always empty */
   steps: TurnSubStep[]
   result: string | null
-  /** Codex:子线程转写无稳定引用链,未归位(2026-08-06 裁定,界面标注) */
+  /** Codex: a sub-thread's transcript has no stable reference chain and is unattributed (ruled 2026-08-06, labelled in the UI) */
   unlinked: boolean
 }
-/** 显示白名单外的未知类型留痕(spec C8):不渲染内容,但绝不静默丢 */
+/** A trace of unknown types outside the display allow-list (spec C8): their contents are not rendered, but they are never silently dropped */
 export interface TurnUnknownBlock {
   kind: 'unknown'
   count: number
@@ -386,30 +397,29 @@ export type TurnBlock =
   | TurnSubBlock
   | TurnUnknownBlock
 
-/** 单轮取回载荷(getSessionTurn 通道) */
+/** A single turn's fetch payload (the getSessionTurn channel) */
 export interface SessionTurn {
   blocks: TurnBlock[]
-  /** 本次实际读取的字节数——「没有整读」的证据,也是界面脚注的数据 */
+  /** The bytes actually read this time — evidence that nothing was read whole, and the data behind the UI footnote */
   bytesRead: number
 }
 
-/** 搜索命中(票 08;searchSessions 通道) */
+/** A search hit (ticket 08; the searchSessions channel) */
 export interface SearchHit {
-  /** 提问序号(展示集合内,1 起,与会话页同源) */
+  /** The question's index (within the displayed set, from 1, sharing its source with the session page) */
   i: number
-  /** 提问全文(命中行经解析后的干净文本) */
-  /** 提问全文;**null = 该行读不到**,措辞由渲染层出(票 07) */
+  /** The question in full (the clean text of the matching line after parsing); **null = that line could not be read**, and the renderer produces the wording (ticket 07) */
   text: string | null
   at: number | null
-  /** true = 命中在该轮的回答/工具正文里(仅全文模式产生) */
+  /** true = the hit is in that turn's answer or tool body (produced by full-text mode only) */
   inBody: boolean
-  /** 正文命中的上下文片段(提问命中为 null;提取失败也为 null,渲染层退化) */
+  /** The context snippet for a body hit (null for a question hit; also null when extraction fails, and the renderer degrades) */
   snippet: string | null
 }
 
 export interface SearchGroup {
   file: string
-  /** **null = 无标题**,兜底措辞由渲染层出(票 07) */
+  /** **null = no title**; the renderer produces the fallback wording (ticket 07) */
   title: string | null
   side: AgentSide
   forkState: ForkState
@@ -421,11 +431,11 @@ export interface SearchResult {
   groups: SearchGroup[]
   totalHits: number
   sessionCount: number
-  /** 展示区间之外的命中数(fork 重放副本 / 被放弃分支 / 首问前噪声区) */
+  /** Hits outside the displayed range (fork replay copies / abandoned branches / the noise before the first question) */
   folded: number
 }
 
-/** 单项目统计(概览 tab 数据) */
+/** One project's statistics (the data for the overview tab) */
 export interface ProjectStats {
   tokens: TokenStats
   sessions: SessionMeta[]
@@ -439,28 +449,29 @@ export function emptyTokenStats(): TokenStats {
   return { bySide: { claude: emptyTotals(), codex: emptyTotals() }, byModel: [], byDay: [] }
 }
 
-/** 项目详情里的一个 skill(生效视图条目;plugin 级=本项目有效启用插件的内含 skills) */
+/** One skill in project detail (an effective-view entry; the plugin level = the bundled skills of this project's effectively enabled plugins) */
 export interface ProjectSkillEntry {
   name: string
   description: string | null
-  /** project=项目级目录;global=全局层生效;plugin=插件内含(命名空间条目,不参与遮蔽) */
+  /** project = the project-level directory; global = in effect from the global layer; plugin = bundled with a plugin (a namespaced entry, not taking part in shadowing) */
   level: 'project' | 'global' | 'plugin'
   side: AgentSide
   symlink: boolean
-  /** 本行对应包的统计;不可读为 null */
+  /** Stats for this row's package; null when unreadable */
   pkg: SkillPkgStats | null
   origin: 'disk' | 'plugin'
   pluginName: string | null
-  /** 插件条目的摘要同源包根(预览入口,plugins-view H5);磁盘条目为 null */
+  /** A plugin entry's summary-source package root (the preview entry point, plugins-view H5); null for on-disk entries */
   pluginRoot: string | null
-  /** 插件条目的裸 skill 名(包内目录名;UI 与 IPC 不再从命名空间名反解);磁盘条目为 null */
+  /** A plugin entry's bare skill name (the directory name inside the package; the UI and IPC no longer parse it back out of the namespaced name); null for on-disk entries */
   pluginSkillName: string | null
 }
 
 /**
- * 项目详情里的一个 subagent(生效视图条目)。
- * 遮蔽语义:Claude 与 Codex 均为项目级遮蔽低层——与 skills 的 Codex 同名共存相反
- * (agent_roles.rs 按 config layer 覆盖,源码级核实 2026-07-31)。
+ * One subagent in project detail (an effective-view entry).
+ * Shadowing semantics: both Claude and Codex shadow the lower layer at the project level — the
+ * opposite of skills' Codex same-name coexistence (agent_roles.rs overrides by config layer,
+ * verified at source level 2026-07-31).
  */
 export interface ProjectSubagentEntry {
   name: string
@@ -473,24 +484,27 @@ export interface ProjectSubagentEntry {
   overridesBuiltin: boolean
 }
 
-/** 项目详情的 Memory(D 序列):MEMORY.md 内容直出,topic 仅元数据(内容按需读取) */
+/** Project detail's Memory (sequence D): MEMORY.md's contents are emitted directly, topics carry metadata only (contents read on demand) */
 export interface ProjectMemory {
-  /** MEMORY.md 内容(超长截断);不存在为 null */
+  /** MEMORY.md's contents (truncated when oversized); null when absent */
   main: CappedText | null
   topics: MemoryFileMeta[]
 }
 
-/** 项目级 MCP(.mcp.json)条目 */
+/** A project-level MCP (.mcp.json) entry */
 export interface ProjectMcpEntry {
   name: string
-  /** 由项目键 enabled/disabledMcpjsonServers 合成;未出现在任一清单时为 null(默认态) */
+  /** Synthesised from the project's enabled/disabledMcpjsonServers keys; null (the default state) when it appears in neither list */
   enabled: boolean | null
 }
 
 /**
- * 产物六类(八步流程约定;.scratch 里的 tickets 是施工文档,不计)。
- * 顺序是契约:自顶向下的推导链——术语与不变量 → 架构决策 → 需求与边界 →
- * 界面形态 → 当前能力 → 事后教训。读取与 UI 同取此常量,不各自排一次。
+ * The six artifact types (the eight-step process's convention; tickets under .scratch are working
+ * documents and do not count).
+ * The order is a contract: the top-down derivation chain — terminology and invariants →
+ * architectural decisions → requirements and boundaries → UI form → current capabilities →
+ * after-the-fact lessons. The reader and the UI both take this constant rather than each ordering
+ * it themselves.
  */
 export const ARTIFACT_ORDER = [
   'context',
@@ -506,12 +520,12 @@ export type ArtifactType = (typeof ARTIFACT_ORDER)[number]
 export interface ArtifactEntry {
   type: ArtifactType
   title: string
-  /** 绝对路径(读取/外开经主进程白名单校验) */
+  /** Absolute path (reading and opening externally are validated against the main process's allow-list) */
   file: string
   mtimeMs: number
 }
 
-/** 项目详情(按需经 IPC 拉取,不进全景快照) */
+/** Project detail (fetched over IPC on demand; it does not enter the overview snapshot) */
 export interface ProjectDetail {
   path: string
   skills: ProjectSkillEntry[]
@@ -524,25 +538,25 @@ export interface ProjectDetail {
     agentsMd: CappedText | null
     settingsSummary: string | null
   }
-  /** 概览 tab 数据(主进程从 token 引擎附上;引擎未就绪时 null) */
+  /** The overview tab's data (attached by the main process from the token engine; null when the engine is not ready) */
   stats: ProjectStats | null
-  /** 产物(五类,时间倒序) */
+  /** Artifacts (six types, most recent first) */
   artifacts: ArtifactEntry[]
 }
 
-/** 全景快照:一次扫描的完整产出(随票 02-07 增量扩展) */
+/** The overview snapshot: one scan's complete output (extended incrementally by tickets 02–07) */
 export interface Snapshot {
   scannedAt: number
   sides: Record<AgentSide, SideInfo>
   projects: ProjectEntry[]
   global: GlobalLayer
-  /** 跨项目 token 汇总(口径:含已隐藏与失效项目;含归档补齐的历史天) */
+  /** The cross-project token summary (rule: includes hidden and stale projects; includes historical days filled in from the archive) */
   tokens: TokenStats
-  /** 仅存在于归档、源会话文件已被 agent 清理的天(UI 标注历史段) */
+  /** Days that exist only in the archive, whose source session files the agent has cleaned up (the UI labels these historical spans) */
   archivedDays: string[]
 }
 
-/** 空快照(扫描前/两侧均未检测到时的基态) */
+/** An empty snapshot (the base state before a scan, or when neither side is detected) */
 export function emptySnapshot(scannedAt: number): Snapshot {
   return {
     scannedAt,

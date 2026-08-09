@@ -1,18 +1,21 @@
-// 趋势图 x 轴标签排布(纯函数,两端共用、注入测宽可单测):
-// 只标数据日(当前视图 total>0),无等距补白;首个可见标签与月份变化后的首个可见标签
-// 用 M/D,其余只标日数字;放不下时从右往左简略;标签钉柱中心,首尾出界 clamp。
+// Trend chart x axis label layout (a pure function shared by both ends, unit testable with measurement
+// injected):
+// label data days only (total > 0 under the current view) with no evenly spaced filler; the first
+// visible label and the first visible label after a month change
+// use M/D and the rest show the day number alone; when space runs out, thin from right to left; labels
+// are pinned to bar centres and clamped at the ends.
 import type { TrendBar } from './trend'
 
 export interface AxisLabel {
-  /** 对应柱索引(bars 下标) */
+  /** The corresponding bar index (an index into bars) */
   index: number
-  /** 'M/D'(首个可见/月份变化处)或 'D' */
+  /** 'M/D' (the first visible one, or at a month change) or 'D' */
   text: string
-  /** 标签左缘相对轴容器的 x(px) */
+  /** The label's left edge in x relative to the axis container (px) */
   left: number
 }
 
-/** 相邻标签最小净距(px) */
+/** The minimum clear gap between adjacent labels (px) */
 export const AXIS_MIN_GAP = 4
 
 export function layoutAxisLabels(
@@ -21,8 +24,10 @@ export function layoutAxisLabels(
   width: number,
   measure: (text: string) => number,
   /**
-   * 月/日的成串方式(票 12)。注入而非在此调 Intl:本模块是**纯函数**,
-   * 两端共用且单测不带语言环境;默认保持既有的 `M/D` 语序,渲染层传本地化版本。
+   * How month/day is turned into a string (ticket 12). Injected rather than calling Intl here: this
+   * module is a **pure function**,
+   * shared by both ends and unit tested without a locale environment; the default keeps the existing
+   * `M/D` order and the renderer passes a localised version.
    */
   monthDay: (mon: number, dom: number) => string = (mon, dom) => `${mon}/${dom}`
 ): AxisLabel[] {
@@ -36,14 +41,16 @@ export function layoutAxisLabels(
     if (b.total <= 0) return
     act.push({ index, mon: Number(b.day.slice(5, 7)), dom: Number(b.day.slice(8, 10)), text: '', w: 0, left: 0 })
   })
-  // 文本依赖"上一个可见标签的月份",简略又会改变文本宽度 → 排布与删除循环到不动点。
-  // 必终止:每轮要么无删除退出,要么至少删一个,act 单调缩短。
+  // The text depends on "the previous visible label's month", and thinning changes the text width →
+  // layout and removal iterate to a fixed point.
+  // Termination is guaranteed: each round either exits with no removal or removes at least one, so act
+  // shrinks monotonically.
   for (;;) {
     let prevMon: number | null = null
     for (const c of act) {
       c.text = prevMon === c.mon ? String(c.dom) : monthDay(c.mon, c.dom)
       c.w = measure(c.text)
-      // 钉柱中心,首尾出界贴边 clamp(留 1px 边距)
+      // Pinned to the bar centre, with the ends clamped to the edge (leaving a 1px margin)
       c.left = Math.min(Math.max(centers[c.index] - c.w / 2, 1), width - 1 - c.w)
       prevMon = c.mon
     }

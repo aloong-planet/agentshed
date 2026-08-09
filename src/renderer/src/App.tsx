@@ -33,30 +33,41 @@ export function App(): JSX.Element {
   const [snap, setSnap] = useState<Snapshot | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
-  // 会话页视图态(票 04):非空时项目详情区整块换成会话页;换项目即退出
+  // Session page view state (ticket 04): when non-empty, the project detail area is replaced wholesale
+  // by the session page; switching project exits it
   const [openSession, setOpenSession] = useState<string | null>(null)
-  // 票 08:搜索命中直达——打开会话页时定位到第几条提问(1 起;null = 不定位)
+  // Ticket 08: going straight to a search hit — which question to locate when the session page opens
+  // (from 1; null = no locating)
   const [openFocusQ, setOpenFocusQ] = useState<number | null>(null)
-  // 从会话页返回时回到「会话」分栏(原型:‹ 返回 <项目> · 会话),而非概览
+  // Returning from a session page lands on the "Sessions" section (the prototype: ‹ back to <project> ·
+  // Sessions) rather than the overview
   const [backToSessions, setBackToSessions] = useState(false)
   const [scheme, setScheme] = useState<AppearanceScheme>(DEFAULT_SCHEME)
-  // 模式只用来渲染分段控件的选中态:生效明暗由主进程的 themeSource 决定,
-  // 渲染层不据此写任何 DOM 属性(见 docs/specs/appearance.md 的实现决策)
+  // The mode is only used to render the segmented control's selected state: the effective light/dark is
+  // decided by the main process's themeSource,
+  // and the renderer writes no DOM attribute from it (see the implementation decisions in
+  // docs/specs/appearance.md)
   const [mode, setMode] = useState<AppearanceMode>(DEFAULT_MODE)
-  // 生效语言由主进程在窗口创建时算好经启动参数带来,**首帧即正确**——
-  // 若改成 mount 后异步取,首帧会是默认语言、随后整页文字跳变一次。
+  // The effective language is computed by the main process at window creation and passed in through the
+  // launch arguments, so it is **correct on the first frame** —
+  // fetching it asynchronously after mount would make the first frame the default language and then jump
+  // the whole page once.
   const [lang, setLang] = useState<Language>(window.agentshed.initialLanguage)
-  // 语言偏好(可为「跟随系统」)只有选择器要用,异步取即可,不影响首帧文字
+  // The language preference (which may be "follow system") is only needed by the selector, so fetching it
+  // asynchronously is fine and does not affect the first frame
   const [langPref, setLangPref] = useState<LanguagePreference>('system')
   const t = dictOf(lang)
-  // 用户已亲手改过的偏好项:mount 时那次 getPrefs 的回声不得覆盖它们(#61)。
-  // 逐项记而不是记一个总开关,理由见 backfillPrefs。
+  // Preferences the user has already changed by hand: the echo of the getPrefs call made at mount must
+  // not overwrite them (#61).
+  // Recorded per field rather than as a single flag; the reasoning is in backfillPrefs.
   const touchedPrefs = useRef<Set<PrefKey>>(new Set())
-  // 三个偏好 state 的实时镜像:回填发生在 effect 的回调里,而该 effect 依赖为空、
-  // 闭包捕获的是 mount 时的旧值。同 LanguageSelect 里 cursorRef 的用法。
+  // A live mirror of the three preference states: the backfill happens inside an effect callback, and
+  // that effect has an empty dependency list, so
+  // its closure captured the values as of mount. The same use as cursorRef in LanguageSelect.
   const prefsRef = useRef<Prefs>({ scheme, language: langPref, mode })
   prefsRef.current = { scheme, language: langPref, mode }
-  // refresh 每次渲染都是新函数,而菜单监听只在 mount 装一次——用 ref 取最新的那个
+  // `refresh` is a new function on every render while the menu listener is installed once at mount — a
+  // ref is used to reach the latest one
   const refreshRef = useRef<() => Promise<void>>(async () => {})
   const selectProject = (p: string | null): void => {
     setSelected(p)
@@ -71,8 +82,9 @@ export function App(): JSX.Element {
     let alive = true
     void window.agentshed.getPrefs().then((p) => {
       if (!alive) return
-      // 这份回声读的是**发出请求那一刻**的磁盘状态;用户若抢在它 resolve 之前改了
-      // 某项,那一项以本地为准,其余仍采用回声(#61)
+      // This echo reflects the disk state **at the moment the request was made**; if the user changed a
+      // field before it resolved,
+      // that field keeps the local value while the rest still take the echo (#61)
       const next = backfillPrefs(prefsRef.current, p, touchedPrefs.current)
       setScheme(next.scheme)
       applyScheme(next.scheme)
@@ -83,8 +95,9 @@ export function App(): JSX.Element {
       if (alive) setSnap(s)
     })
     const off = window.agentshed.onSnapshot((s) => setSnap(s))
-    // 应用菜单的两个入口(票 13):行为与 rail 上的同名操作完全一致,
-    // 走同一个 state/函数,不另起一套
+    // The application menu's two entry points (ticket 13): they behave exactly like the same-named
+    // operations on the rail,
+    // going through the same state and functions rather than a second set
     const offSettings = window.agentshed.onMenuOpenSettings(() => setDim('settings'))
     const offRefresh = window.agentshed.onMenuRefresh(() => void refreshRef.current())
     return () => {
@@ -106,7 +119,8 @@ export function App(): JSX.Element {
   }
 
   async function onScheme(s: AppearanceScheme): Promise<void> {
-    // 先本地生效再落盘:无「仅设置页换肤」的中间态,失败则回读或 toast
+    // Apply locally first, then persist: there is no intermediate state where only the settings page is
+    // reskinned; on failure, re-read or toast
     touchedPrefs.current.add('scheme')
     setScheme(s)
     applyScheme(s)
@@ -120,8 +134,9 @@ export function App(): JSX.Element {
   }
 
   async function onMode(m: AppearanceMode): Promise<void> {
-    // 与外观方案不同:明暗的生效由主进程设 themeSource 完成,渲染层无处可"先本地生效"。
-    // 故先乐观更新选中态,落盘结果回来再以它为准
+    // Unlike the colour scheme: light/dark takes effect when the main process sets themeSource, so the
+    // renderer has nowhere to "apply locally first".
+    // So the selected state is updated optimistically and the persistence result then wins
     touchedPrefs.current.add('mode')
     setMode(m)
     try {
@@ -133,14 +148,17 @@ export function App(): JSX.Element {
   }
 
   async function onLanguage(next: LanguagePreference): Promise<void> {
-    // 生效语言在本地算得出(系统语言列表随窗口创建带来),故先立即生效再落盘,
-    // 与外观方案同规矩:不留「设置页已变、别处没变」的中间态
+    // The effective language can be computed locally (the system language list arrives with the window),
+    // so it is applied immediately and then persisted,
+    // the same rule as the colour scheme: no intermediate state where the settings page changed and
+    // nothing else did
     const eff = effectiveLanguage(next, window.agentshed.systemLanguages)
     touchedPrefs.current.add('language')
     setLangPref(next)
     setLang(eff)
     applyLang(eff)
-    // 提示用**切换后**的语言写,否则刚切到法语却弹一句中文
+    // The notice is written in the language **after** the switch, or switching to French would pop up a
+    // sentence in the previous language
     const nt = dictOf(eff)
     toast(
       'ok',
