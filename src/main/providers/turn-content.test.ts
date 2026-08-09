@@ -9,22 +9,32 @@ import { turnBlocksFromText } from './turn-content'
 import type { TurnBlock } from '@shared/domain'
 
 // ─────────────────────────────────────────────────────────────────────────
-// 票 05 立正文模型,票 07 扩全(工具/思考/推理/subagent/未知留痕)。
+// Ticket 05 established the prose model and ticket 07 completed it (tool / thinking / reasoning /
+// subagent / unknown trace).
 //
-// 规则依据 = 全量枚举(2026-08-05 正文 + 2026-08-06 富内容,CONTEXT 不变量):
-// - Claude 2131 文件:顶层 type 全谱 18 种;assistant 段全谱 text/tool_use/thinking
-//   (主链 thinking 全库 3312 段全为空,think 块机制保留但当前数据不产生);
-//   tool_result 经 tool_use_id 配对(19,711/19,711 全部命中同文件已见 tool_use);
-//   **subagent 内部步骤不归位**:四条候选连接键实测全部排除(agentId 两种格式
-//   0/225、promptId 0/202、outputFile 指向后台任务输出、prompt 相等 0/1299),
-//   零样本不写归组规则——sub 块两侧统一为派发+返回+未归位标注;
-//   截断判据 = 正文含 tool-results/ 旁挂路径(49 例,机制性:harness 旁挂目录;
-//   "truncated" 字样太泛不作判据)。
-// - Codex 296 文件:顶层 7 种;response_item 9 种(调用 input/arguments,出参按
-//   call_id 配对恒在);event_msg 15 种;reasoning.summary = [{type:'summary_text',
-//   text}](64% 为空数组);agent_reasoning(event_msg)是 reasoning 的镜像,不渲染
-//   防双计;spawn_agent 出参无 thread id → 子线程不可归位(2026-08-06 用户裁定:
-//   显示派发与返回并标注,不做启发式硬配)。
+// The rules are grounded in a full enumeration (prose on 2026-08-05, rich content on 2026-08-06; a
+// CONTEXT invariant):
+// - Claude, 2131 files: 18 top-level types in the whole spectrum; the assistant segment spectrum is
+//   text/tool_use/thinking
+//   (all 3312 main-chain thinking segments in the repository are empty, so the think block mechanism is
+//   retained but current data produces none);
+//   tool_result pairs by tool_use_id (19,711/19,711 all matched a tool_use already seen in the same file);
+//   **subagent internal steps are not attributed**: all four candidate join keys were excluded by
+//   measurement (two agentId formats,
+//   0/225; promptId 0/202; outputFile pointing at a background task's output; prompt equality 0/1299),
+//   and no grouping rule is written without a sample — the sub block is unified on both sides as
+//   dispatch + return + an unattributed label;
+//   the truncation criterion = the body contains a tool-results/ sidecar path (49 cases,
+//   mechanism-based: the harness's sidecar directory;
+//   the word "truncated" is too generic to be a criterion).
+// - Codex, 296 files: 7 top-level types; 9 response_item types (calls carry input/arguments, and outputs
+//   pair by
+//   call_id, always present); 15 event_msg types; reasoning.summary = [{type:'summary_text',
+//   text}] (an empty array 64% of the time); agent_reasoning (event_msg) is a mirror of reasoning and is
+//   not rendered,
+//   to avoid double counting; spawn_agent's output has no thread id → the sub-thread cannot be attributed
+//   (the user ruled on 2026-08-06:
+//   show the dispatch and the return with a label, rather than forcing a heuristic pairing).
 // ─────────────────────────────────────────────────────────────────────────
 
 const TS = '2026-08-01T10:00:00.000Z'
@@ -33,7 +43,7 @@ const AT = Date.parse(TS)
 const blocks = (side: 'claude' | 'codex', objs: unknown[]): TurnBlock[] =>
   turnBlocksFromText(side, objs.map((o) => JSON.stringify(o)).join('\n') + '\n')
 
-// ── Claude 行构造器 ──
+// ── Claude line builders ──
 const cA = (content: unknown[], extra: Record<string, unknown> = {}): unknown => ({
   type: 'assistant',
   timestamp: TS,
@@ -47,8 +57,8 @@ const cU = (content: unknown[], extra: Record<string, unknown> = {}): unknown =>
   ...extra
 })
 
-describe('Claude 正文/思考(票 05 行为保持 + think 块)', () => {
-  test('text 段出正文块;同行多 text 段合一块;空白不出块', () => {
+describe('Claude prose and thinking (ticket 05 behaviour preserved + the think block)', () => {
+  test('a text segment yields a prose block; several text segments on one line merge into one; whitespace yields nothing', () => {
     expect(blocks('claude', [cA([{ type: 'text', text: '答一' }])])).toEqual([
       { kind: 'text', role: 'assistant', at: AT, body: '答一' }
     ])
@@ -58,7 +68,7 @@ describe('Claude 正文/思考(票 05 行为保持 + think 块)', () => {
     expect(blocks('claude', [cA([{ type: 'text', text: '  ' }])])).toEqual([])
   })
 
-  test('thinking 段出 think 块,行内顺序 = 思考 → 正文 → 工具', () => {
+  test('a thinking segment yields a think block, with the within-line order thinking → prose → tools', () => {
     const bs = blocks('claude', [
       cA([
         { type: 'thinking', thinking: '想一想' },
@@ -71,8 +81,8 @@ describe('Claude 正文/思考(票 05 行为保持 + think 块)', () => {
   })
 })
 
-describe('Claude 工具块(tool_use ↔ tool_result 按 id 配对)', () => {
-  test('配对出入参与返回;摘要一行;未回灌的 output 为 null', () => {
+describe('Claude tool blocks (tool_use ↔ tool_result paired by id)', () => {
+  test('pairs the arguments with the return; a one-line summary; an output never fed back is null', () => {
     const bs = blocks('claude', [
       cA([{ type: 'tool_use', id: 'tu1', name: 'Bash', input: { command: 'ls -la' } }]),
       cU([{ type: 'tool_result', tool_use_id: 'tu1', content: '共 3 个文件' }]),
@@ -89,7 +99,7 @@ describe('Claude 工具块(tool_use ↔ tool_result 按 id 配对)', () => {
     expect(t2.output).toBeNull()
   })
 
-  test('tool_result 内容为段数组时取 text 段拼接', () => {
+  test('when tool_result content is an array of segments, the text segments are joined', () => {
     const bs = blocks('claude', [
       cA([{ type: 'tool_use', id: 'tu1', name: 'Grep', input: { pattern: 'x' } }]),
       cU([{ type: 'tool_result', tool_use_id: 'tu1', content: [{ type: 'text', text: '命中 1' }, { type: 'text', text: '命中 2' }] }])
@@ -97,7 +107,7 @@ describe('Claude 工具块(tool_use ↔ tool_result 按 id 配对)', () => {
     expect((bs[0] as Extract<TurnBlock, { kind: 'tool' }>).output).toBe('命中 1\n命中 2')
   })
 
-  test('截断判据:返回含 tool-results/ 旁挂路径 → truncated,不谎称完整', () => {
+  test('the truncation criterion: a return containing a tool-results/ sidecar path → truncated, without pretending it is complete', () => {
     const bs = blocks('claude', [
       cA([{ type: 'tool_use', id: 'tu1', name: 'WebFetch', input: { url: 'https://x' } }]),
       cU([{ type: 'tool_result', tool_use_id: 'tu1', content: 'output saved to: /Users/x/.claude/projects/-p/s/tool-results/abc.txt\n\nPreview (first 2KB): …' }])
@@ -106,11 +116,12 @@ describe('Claude 工具块(tool_use ↔ tool_result 按 id 配对)', () => {
   })
 })
 
-describe('Claude subagent 块(派发 + 返回 + 未归位标注;归组零样本不做)', () => {
-  test('派发名取 subagent_type;prompt/result 配对;unlinked 恒真(实测无连接键)', () => {
+describe('Claude subagent blocks (dispatch + return + the unattributed label; no grouping without a sample)', () => {
+  test('the dispatch name comes from subagent_type; prompt and result pair up; unlinked is always true (measured: no join key)', () => {
     const bs = blocks('claude', [
       cA([{ type: 'tool_use', id: 'tu1', name: 'Agent', input: { description: '查日志', prompt: '查一下日志', subagent_type: 'debugger' } }]),
-      // 轮内的 sidechain 行:与哪次派发对应无稳定引用链,不渲染也不归组
+      // A sidechain line within the turn: no stable reference chain to a dispatch, so it is neither
+      // rendered nor grouped
       cA([{ type: 'text', text: '我先看日志文件' }], { isSidechain: true, agentId: 'a1b2c3d4e5f6a7b8c' }),
       cU([{ type: 'tool_result', tool_use_id: 'tu1', content: [{ type: 'text', text: '日志干净' }] }], {
         toolUseResult: { agentId: 'ac50856', status: 'completed', prompt: '查一下日志' }
@@ -126,20 +137,20 @@ describe('Claude subagent 块(派发 + 返回 + 未归位标注;归组零样本�
     expect(sub.unlinked).toBe(true)
   })
 
-  test('无 subagent_type 时派发名回退工具名;未回灌时 result 为 null', () => {
+  test('with no subagent_type the dispatch name falls back to the tool name; with nothing fed back, result is null', () => {
     const bs = blocks('claude', [cA([{ type: 'tool_use', id: 'tu1', name: 'Task', input: { prompt: '干活' } }])])
     const sub = bs[0] as Extract<TurnBlock, { kind: 'sub' }>
     expect(sub.name).toBe('Task')
     expect(sub.result).toBeNull()
   })
 
-  test('sidechain 行一律不出块也不计未知——已知类型,完整转写在源文件/嵌套文件', () => {
+  test('a sidechain line yields no block and no unknown count — a known type whose full transcript is in the source or a nested file', () => {
     expect(blocks('claude', [cA([{ type: 'text', text: '子代理的话' }], { isSidechain: true, agentId: 'ag-x' })])).toEqual([])
   })
 })
 
-describe('Claude 显示白名单与未知留痕(顶层 18 种全谱)', () => {
-  test('known-noise 不渲染也不留痕:system/attachment/file-history-snapshot/mode 等', () => {
+describe('the Claude display allow-list and unknown traces (the whole 18-type top-level spectrum)', () => {
+  test('known noise is neither rendered nor traced: system / attachment / file-history-snapshot / mode and the rest', () => {
     expect(
       blocks('claude', [
         { type: 'system', subtype: 'compact_boundary', timestamp: TS },
@@ -151,7 +162,7 @@ describe('Claude 显示白名单与未知留痕(顶层 18 种全谱)', () => {
     ).toEqual([])
   })
 
-  test('白名单外的新类型留痕:类型名点出、条数累计,置于块序末尾', () => {
+  test('a new type outside the allow-list leaves a trace: the type name is named, the count accumulates, and it goes at the end of the block order', () => {
     const bs = blocks('claude', [
       cA([{ type: 'text', text: '正文' }]),
       { type: 'agent_snapshot', timestamp: TS },
@@ -163,12 +174,12 @@ describe('Claude 显示白名单与未知留痕(顶层 18 种全谱)', () => {
   })
 })
 
-// ── Codex 行构造器 ──
+// ── Codex line builders ──
 const xEvent = (payload: Record<string, unknown>): unknown => ({ type: 'event_msg', timestamp: TS, payload })
 const xRI = (payload: Record<string, unknown>): unknown => ({ type: 'response_item', timestamp: TS, payload })
 
-describe('Codex 工具块(call_id 配对;input/arguments 两种入参字段)', () => {
-  test('custom_tool_call.input 与 function_call.arguments 都认;出参按 call_id 配对', () => {
+describe('Codex tool blocks (paired by call_id; both the input and arguments fields)', () => {
+  test('both custom_tool_call.input and function_call.arguments are honoured; outputs pair by call_id', () => {
     const bs = blocks('codex', [
       xRI({ type: 'custom_tool_call', id: 'r1', call_id: 'c1', name: 'exec', input: 'ls -la', status: 'completed' }),
       xRI({ type: 'custom_tool_call_output', call_id: 'c1', output: '3 files' }),
@@ -187,7 +198,7 @@ describe('Codex 工具块(call_id 配对;input/arguments 两种入参字段)', (
     expect(t3.output).toBeNull()
   })
 
-  test('spawn_agent 出 sub 块:unlinked 标注,子线程不归位(2026-08-06 裁定)', () => {
+  test('spawn_agent yields a sub block: the unlinked label, with the sub-thread unattributed (ruled 2026-08-06)', () => {
     const bs = blocks('codex', [
       xRI({ type: 'function_call', id: 'r1', call_id: 'c1', name: 'spawn_agent', namespace: 'collaboration', arguments: '{"task_name":"t1"}' }),
       xRI({ type: 'function_call_output', call_id: 'c1', output: '{"agent_id":"x"}' })
@@ -202,8 +213,8 @@ describe('Codex 工具块(call_id 配对;input/arguments 两种入参字段)', (
   })
 })
 
-describe('Codex 推理块(reasoning.summary 明文小标题;正文加密不可得)', () => {
-  test('summary 非空出 reason 块;空数组不出块(全量枚举 64% 为空)', () => {
+describe('Codex reasoning blocks (reasoning.summary is a plaintext sub-heading; the body is encrypted and unobtainable)', () => {
+  test('a non-empty summary yields a reason block; an empty array yields none (64% are empty in the full enumeration)', () => {
     const bs = blocks('codex', [
       xRI({ type: 'reasoning', id: 'r1', summary: [{ type: 'summary_text', text: '**先对比目录**' }, { type: 'summary_text', text: '再看差异' }], encrypted_content: 'gAAA…' }),
       xRI({ type: 'reasoning', id: 'r2', summary: [], encrypted_content: 'gAAA…' })
@@ -211,13 +222,13 @@ describe('Codex 推理块(reasoning.summary 明文小标题;正文加密不可�
     expect(bs).toEqual([{ kind: 'reason', at: AT, titles: ['**先对比目录**', '再看差异'] }])
   })
 
-  test('event_msg/agent_reasoning 是镜像,不出块(防双计)', () => {
+  test('event_msg/agent_reasoning is a mirror and yields no block (to avoid double counting)', () => {
     expect(blocks('codex', [xEvent({ type: 'agent_reasoning', text: '小标题' })])).toEqual([])
   })
 })
 
-describe('Codex 显示白名单与未知留痕', () => {
-  test('known-noise 不留痕:token_count/task_started/turn_context/world_state/双写镜像', () => {
+describe('the Codex display allow-list and unknown traces', () => {
+  test('known noise leaves no trace: token_count / task_started / turn_context / world_state / the double-write mirrors', () => {
     expect(
       blocks('codex', [
         xEvent({ type: 'token_count', info: {} }),
@@ -231,7 +242,7 @@ describe('Codex 显示白名单与未知留痕', () => {
     ).toEqual([])
   })
 
-  test('三个层级的未知类型都留痕:顶层 / event_msg 载荷 / response_item 载荷', () => {
+  test('unknown types at all three levels leave a trace: top level / the event_msg payload / the response_item payload', () => {
     const bs = blocks('codex', [
       { type: 'brand_new_top', timestamp: TS },
       xEvent({ type: 'shiny_event' }),
@@ -243,15 +254,16 @@ describe('Codex 显示白名单与未知留痕', () => {
   })
 })
 
-describe('坏行与侧别(票 05 行为保持)', () => {
-  test('坏行只自伤;侧别不串', () => {
+describe('bad lines and side attribution (ticket 05 behaviour preserved)', () => {
+  test('a bad line only hurts itself; the sides do not cross over', () => {
     const raw = [JSON.stringify(cA([{ type: 'text', text: '好行' }])), '{ 坏行'].join('\n')
     expect(turnBlocksFromText('claude', raw)).toHaveLength(1)
     expect(blocks('codex', [cA([{ type: 'text', text: 'claude 行' }])])).toEqual([{ kind: 'unknown', count: 1, types: ['assistant'] }])
   })
 })
 
-// ── 锚测试(票 05 验收保持):按偏移取回的整轮 = 全解析该文件后取对应轮次 ──
+// ── The anchor test (ticket 05's acceptance, preserved): a whole turn fetched by offset == the
+// corresponding turn from a full parse of the file ──
 
 function withFile<T>(text: string, fn: (file: string) => Promise<T>): Promise<T> {
   const dir = mkdtempSync(join(tmpdir(), 'turn-'))
@@ -273,8 +285,8 @@ async function indexFile(file: string, side: 'claude' | 'codex'): Promise<Questi
 const uLine = (t: string): string => JSON.stringify({ type: 'user', timestamp: TS, message: { role: 'user', content: t } })
 const aLine = (t: string): string => JSON.stringify(cA([{ type: 'text', text: t }]))
 
-describe('区间取回与全解析一致(锚)', () => {
-  test('每一轮:offset 通路的块 == 整文件切轮通路的对应轮块', async () => {
+describe('a range fetch agrees with a full parse (the anchor)', () => {
+  test('for every turn: the blocks from the offset path == the corresponding turn\'s blocks from the whole-file path', async () => {
     const raw = [
       uLine('问一'),
       aLine('答一'),
@@ -291,13 +303,13 @@ describe('区间取回与全解析一致(锚)', () => {
         const { texts } = await readRanges(file, [{ start: recs[i][1], end: recs[i][2] }])
         expect(turnBlocksFromText('claude', texts[0])).toEqual(turnBlocksFromText('claude', whole.texts[i]))
       }
-      // 第一轮:工具已配对(output 就位)
+      // The first turn: the tool is already paired (its output is in place)
       const t = turnBlocksFromText('claude', whole.texts[0]).find((b) => b.kind === 'tool')
       expect(t && t.kind === 'tool' && t.output).toBe('ok')
     })
   })
 
-  test('单轮取回的读取字节数与文件总大小无关(不用墙钟,票 05 保持)', async () => {
+  test('a single turn\'s bytes read is independent of the total file size (no wall clock, as ticket 05 established)', async () => {
     const turn1 = [uLine('问一'), aLine('答一')].join('\n') + '\n'
     const small = turn1 + [uLine('问二'), aLine('答二')].join('\n') + '\n'
     const big = turn1 + [uLine('问二'), aLine('大'.repeat((5 * 1024 * 1024) / 3))].join('\n') + '\n'

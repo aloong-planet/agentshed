@@ -1,8 +1,11 @@
-// Memory 全局汇总(spec: subagents-memory-plugin 序列 C):
-// 元数据+文件名列表进快照,内容不进(C8);以项目注册表为准(C5);Codex 探测式(C6)。
-// 已知缺口:①抽屉读取失败路径(文件被删/白名单拒绝→UI 报错不崩)属 UI 层,
-//   按 ADR-0002 不单测,e2e 覆盖正常读取链路,失败分支靠手测;
-//   ②D4 纯 Codex 项目的空态文案属 UI 层,同上。
+// The global Memory summary (spec: subagents-memory-plugin, sequence C):
+// metadata and the filename list enter the snapshot, contents do not (C8); the project registry is
+// authoritative (C5); Codex is probe-style (C6).
+// Known gaps: (1) the drawer read-failure path (a deleted file or an allow-list refusal → the UI reports
+// without crashing) is in the UI layer,
+//   not unit tested per ADR-0002, with e2e covering the normal read path and the failure branch tested by
+//   hand;
+//   (2) D4's empty-state copy for a Codex-only project is likewise UI layer.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -20,7 +23,8 @@ function roots(): ScanRoots {
     agentsSkillsDir: join(dir, '.agents', 'skills')
   }
 }
-/** 注册一个项目(写 ~/.claude.json projects 键)并可选造 memory 目录 */
+/** Register a project (writing the projects key in ~/.claude.json) and optionally create a memory
+ * directory */
 function register(projects: string[]): void {
   writeFileSync(
     join(dir, '.claude.json'),
@@ -46,18 +50,18 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-describe('Memory 全局汇总', () => {
-  it('C3/C4/C8 有 memory 的项目入列:元数据+文件名(含绝对路径与 mtime),不含内容;按最近修改倒序', async () => {
+describe('the global Memory summary', () => {
+  it('C3/C4/C8 a project with memories is listed: metadata and filenames (with absolute paths and mtimes), no contents; ordered by most recent modification', async () => {
     const pa = join(dir, 'proj-a')
     const pb = join(dir, 'proj-b')
     mkdirSync(pa)
     mkdirSync(pb)
     register([pa, pb])
     mkMemory(pa, { 'MEMORY.md': { body: '# 主文件', mtime: 1_000 }, 'topic.md': { body: 't', mtime: 2_000 } })
-    mkMemory(pb, { 'only-topic.md': { body: 't', mtime: 9_000 } }) // C3:无 MEMORY.md 仅 topic
+    mkMemory(pb, { 'only-topic.md': { body: 't', mtime: 9_000 } }) // C3: no MEMORY.md, topics only
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.memory).toHaveLength(2)
-    // 倒序:proj-b(9000) 在前
+    // Descending: proj-b (9000) comes first
     expect(snap.global.memory[0].projectPath).toBe(pb)
     expect(snap.global.memory[0].hasMain).toBe(false)
     expect(snap.global.memory[1].projectPath).toBe(pa)
@@ -66,10 +70,10 @@ describe('Memory 全局汇总', () => {
     expect(files.map((f) => f.name).sort()).toEqual(['MEMORY.md', 'topic.md'])
     expect(files[0].file.startsWith('/')).toBe(true)
     expect(files.every((f) => typeof f.mtimeMs === 'number')).toBe(true)
-    expect(JSON.stringify(snap.global.memory)).not.toContain('# 主文件') // 内容不进快照
+    expect(JSON.stringify(snap.global.memory)).not.toContain('# 主文件') // Contents do not enter the snapshot
   })
 
-  it('C2 memory 目录存在但为空 → 不入列;无 memory 目录 → 不入列', async () => {
+  it('C2 an existing but empty memory directory → not listed; no memory directory → not listed', async () => {
     const pa = join(dir, 'proj-a')
     mkdirSync(pa)
     register([pa])
@@ -78,14 +82,14 @@ describe('Memory 全局汇总', () => {
     expect(snap.global.memory).toEqual([])
   })
 
-  it('C5 编码目录在注册表无对应项目 → 不入列(以注册表为准)', async () => {
+  it('C5 an encoded directory with no matching project in the registry → not listed (the registry is authoritative)', async () => {
     mkMemory(join(dir, 'ghost-proj'), { 'MEMORY.md': { body: 'x', mtime: 1_000 } })
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.memory).toEqual([])
   })
 
-  it('C4 失效(stale)项目照常入列并带标记', async () => {
-    const gone = join(dir, 'deleted-proj') // 不创建目录 → stale
+  it('C4 a stale project is listed as usual with its marker', async () => {
+    const gone = join(dir, 'deleted-proj') // The directory is never created → stale
     register([gone])
     mkMemory(gone, { 'MEMORY.md': { body: 'x', mtime: 1_000 } })
     const snap = await scan(roots(), { now: () => 1 })
@@ -93,7 +97,7 @@ describe('Memory 全局汇总', () => {
     expect(snap.global.memory[0].stale).toBe(true)
   })
 
-  it('C4 已隐藏(hidden)项目照常入列并带标记', async () => {
+  it('C4 a hidden project is listed as usual with its marker', async () => {
     const pa = join(dir, 'proj-a')
     mkdirSync(pa)
     register([pa])
@@ -102,34 +106,34 @@ describe('Memory 全局汇总', () => {
     expect(snap.global.memory[0].hidden).toBe(true)
   })
 
-  it('C6 三态:开关检测限定 [features] 节,不被 [memories] 配置节误判', async () => {
-    // 无 config → 未开启
+  it('C6 the three states: toggle detection is confined to the [features] section and is not misled by a [memories] configuration section', async () => {
+    // No config → not enabled
     let snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.codexMemoriesEnabled).toBe(false)
-    // [memories] 配置节里的键与顶层同名键都不算开启(防误判)
+    // Neither a key inside a [memories] section nor a same-named top-level key counts as enabled
     writeFileSync(
       join(dir, '.codex', 'config.toml'),
       'memories = true\n[memories]\nuse_memories = true\n[other]\nmemories = true\n'
     )
     snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.codexMemoriesEnabled).toBe(false)
-    // [features] 节内 memories = true → 开启
+    // memories = true inside the [features] section → enabled
     writeFileSync(join(dir, '.codex', 'config.toml'), '[features]\nmemories = true\n[memories]\nuse_memories = true\n')
     snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.codexMemoriesEnabled).toBe(true)
-    // [features] 节内显式 false → 未开启
+    // An explicit false inside [features] → not enabled
     writeFileSync(join(dir, '.codex', 'config.toml'), '[features]\nmemories = false\n')
     snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.codexMemoriesEnabled).toBe(false)
   })
 
-  it('C6 点键写法 features.memories = true 与 [features] 节等价,须识别', async () => {
+  it('C6 the dotted form features.memories = true is equivalent to the [features] section and must be recognised', async () => {
     writeFileSync(join(dir, '.codex', 'config.toml'), 'model = "gpt-5.5"\nfeatures.memories = true\n')
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.codexMemoriesEnabled).toBe(true)
   })
 
-  it('C6 config 解析失败 → 未开启:Codex 本身也读不了该 config,不从坏文件抢救语义', async () => {
+  it('C6 a config parse failure → not enabled: Codex cannot read that config either, and we do not salvage semantics from a broken file', async () => {
     writeFileSync(
       join(dir, '.codex', 'config.toml'),
       'broken = "unterminated\n[features]\nmemories = true\n'
@@ -138,7 +142,7 @@ describe('Memory 全局汇总', () => {
     expect(snap.global.codexMemoriesEnabled).toBe(false)
   })
 
-  it('C6 Codex memories 目录空 → 无 codex 条目;非空 → 探测式入列', async () => {
+  it('C6 an empty Codex memories directory → no codex entry; non-empty → listed probe-style', async () => {
     mkdirSync(join(dir, '.codex', 'memories'), { recursive: true })
     let snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.memory.filter((m) => m.side === 'codex')).toEqual([])
@@ -151,11 +155,11 @@ describe('Memory 全局汇总', () => {
   })
 })
 
-// ── 项目详情 Memory(序列 D) ──
+// ── Project detail's Memory (sequence D) ──
 import { readProjectDetail } from './project-detail'
 
-describe('项目详情 memory', () => {
-  it('D2 MEMORY.md 内容直出;topic 仅元数据(内容走按需通道)', () => {
+describe('project detail memory', () => {
+  it('D2 MEMORY.md\'s contents are emitted directly; topics carry metadata only (contents go through the on-demand channel)', () => {
     const pa = join(dir, 'proj-a')
     mkdirSync(pa)
     register([pa])
@@ -169,7 +173,7 @@ describe('项目详情 memory', () => {
     expect(JSON.stringify(detail.memory.topics)).not.toContain('topic 正文')
   })
 
-  it('D1 无 memory 目录 → main null + topics 空(UI 空态)', () => {
+  it('D1 no memory directory → main null and topics empty (the UI empty state)', () => {
     const pa = join(dir, 'proj-a')
     mkdirSync(pa)
     register([pa])
@@ -178,7 +182,7 @@ describe('项目详情 memory', () => {
     expect(detail.memory.topics).toEqual([])
   })
 
-  it('D3 memory 下的子目录(如 subagent 级)不读取', () => {
+  it('D3 subdirectories under memory (such as subagent-level ones) are not read', () => {
     const pa = join(dir, 'proj-a')
     mkdirSync(pa)
     register([pa])
@@ -186,7 +190,7 @@ describe('项目详情 memory', () => {
     mkdirSync(
       join(dir, '.claude', 'projects', encodeClaudeProjectDir(pa), 'memory', 'sub.md'),
       { recursive: true }
-    ) // 同名目录混淆项:是目录不是文件,不得入列
+    ) // A same-named decoy: it is a directory rather than a file and must not be listed
     const detail = readProjectDetail(roots(), pa)
     expect(detail.memory.topics).toEqual([])
   })

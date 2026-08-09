@@ -1,4 +1,5 @@
-// 票07:Agents 全局层——全局 skills(合并/软链)、plugins、全局 MCP(三来源)、配置只读。
+// Ticket 07: the Agents global layer — global skills (merged, symlinks), plugins, global MCP (three
+// sources), and read-only configuration.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -25,7 +26,7 @@ const SKILL_MD = (desc: string, body = 'x'): string =>
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'agentshed-glb-'))
-  // 两侧存在的最小骨架
+  // The minimal skeleton for both sides existing
   writeFileSync(join(dir, '.claude.json'), JSON.stringify({ projects: {} }))
   mkdirSync(join(dir, '.codex'), { recursive: true })
 })
@@ -33,8 +34,8 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-describe('全局 skills(全局库)', () => {
-  it('两侧合并单列:同名合并双侧,单侧的带各自徽标;描述取 SKILL.md frontmatter', async () => {
+describe('global skills (the global library)', () => {
+  it('both sides merge into one column: the same name merges with both badges, a single-side entry gets its own; the description comes from SKILL.md frontmatter', async () => {
     mkSkill(join(dir, '.claude', 'skills'), 'tdd', SKILL_MD('红先于绿', 'same'))
     mkSkill(join(dir, '.agents', 'skills'), 'tdd', SKILL_MD('红先于绿', 'same'))
     mkSkill(join(dir, '.claude', 'skills'), 'review-code', SKILL_MD('四层法'))
@@ -46,14 +47,14 @@ describe('全局 skills(全局库)', () => {
     expect(byName['review-code'].sides).toEqual(['claude'])
     expect(byName['review-code'].description).toBe('四层法')
     expect(byName['decision-form'].sides).toEqual(['codex'])
-    // 行内包统计:该侧有包给数字,无定义侧为 null
+    // Inline package stats: a side with a package gets numbers, a side with no definition gets null
     expect(byName['tdd'].pkg.claude?.files).toBe(1)
     expect(byName['tdd'].pkg.claude!.bytes).toBeGreaterThan(0)
     expect(byName['decision-form'].pkg.claude).toBeNull()
     expect(byName['decision-form'].pkg.codex?.files).toBe(1)
   })
 
-  it('两侧同名内容不同仍合并一行(无 differs 信号)', async () => {
+  it('the same name with different contents on the two sides still merges onto one row (no differs signal)', async () => {
     mkSkill(join(dir, '.claude', 'skills'), 'grilling', SKILL_MD('分批', 'A 版'))
     mkSkill(join(dir, '.agents', 'skills'), 'grilling', SKILL_MD('一次一问', 'B 版'))
     const snap = await scan(roots(), { now: () => 1 })
@@ -62,7 +63,7 @@ describe('全局 skills(全局库)', () => {
     expect(s).not.toHaveProperty('differs')
   })
 
-  it('软链 skill 标记 symlink(按侧)', async () => {
+  it('a symlinked skill is marked symlink (per side)', async () => {
     mkSkill(join(dir, '.agents', 'skills'), 'grill-me', SKILL_MD('转发'))
     mkdirSync(join(dir, '.claude', 'skills'), { recursive: true })
     symlinkSync(join(dir, '.agents', 'skills', 'grill-me'), join(dir, '.claude', 'skills', 'grill-me'))
@@ -73,8 +74,8 @@ describe('全局 skills(全局库)', () => {
   })
 })
 
-describe('plugins(仅 Claude,只读)', () => {
-  it('installed_plugins.json + settings.json enabledPlugins → 名称/版本/scope/启用', async () => {
+describe('plugins (Claude only, read-only)', () => {
+  it('installed_plugins.json + settings.json enabledPlugins → name / version / scope / enablement', async () => {
     const pdir = join(dir, '.claude', 'plugins')
     mkdirSync(pdir, { recursive: true })
     writeFileSync(
@@ -104,13 +105,13 @@ describe('plugins(仅 Claude,只读)', () => {
   })
 })
 
-describe('全局 MCP(三来源)', () => {
-  it('Claude 全局 mcpServers + plugin 自带 + Codex config.toml 段', async () => {
+describe('global MCP (three sources)', () => {
+  it('Claude global mcpServers + those bundled with a plugin + the Codex config.toml section', async () => {
     writeFileSync(
       join(dir, '.claude.json'),
       JSON.stringify({ projects: {}, mcpServers: { figma: { command: 'x' } } })
     )
-    // plugin 自带:installPath/.claude-plugin/plugin.json 的 mcpServers
+    // Bundled with a plugin: the mcpServers in installPath/.claude-plugin/plugin.json
     const plugRoot = join(dir, 'plug-install')
     mkdirSync(join(plugRoot, '.claude-plugin'), { recursive: true })
     writeFileSync(
@@ -141,8 +142,8 @@ describe('全局 MCP(三来源)', () => {
   })
 })
 
-describe('全局配置只读', () => {
-  it('读全局 CLAUDE.md 与 AGENTS.md;缺失为 null;config.toml 摘要含 model 与计数', async () => {
+describe('read-only global configuration', () => {
+  it('reads the global CLAUDE.md and AGENTS.md; missing files are null; the config.toml summary carries the model and the counts', async () => {
     mkdirSync(join(dir, '.claude'), { recursive: true })
     writeFileSync(join(dir, '.claude', 'CLAUDE.md'), '# 全局规矩\n- pnpm\n')
     writeFileSync(join(dir, '.codex', 'AGENTS.md'), '# Codex 全局\n')
@@ -153,8 +154,9 @@ describe('全局配置只读', () => {
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.claudeGlobalMd?.text).toContain('全局规矩')
     expect(snap.global.codexAgentsMd?.text).toContain('Codex 全局')
-    // 摘要现在是结构化字段,成句由渲染层组装(票 07)——断字段比断句子更稳:
-    // 措辞改了不该让这条红,计数错了才该红
+    // The summary is structured fields now, with the renderer composing the sentence (ticket 07) —
+    // asserting fields is steadier than asserting a sentence:
+    // a wording change should not turn this red, only a wrong count should
     expect(snap.global.codexConfigSummary).toEqual({
       model: 'gpt-5.5-codex',
       projectCount: 1,
@@ -162,7 +164,7 @@ describe('全局配置只读', () => {
     })
   })
 
-  it('全部缺失 → null,不抛错', async () => {
+  it('everything missing → null, without throwing', async () => {
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.claudeGlobalMd).toBeNull()
     expect(snap.global.codexAgentsMd).toBeNull()

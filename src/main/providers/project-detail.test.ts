@@ -1,5 +1,6 @@
-// 票03:项目详情"装了什么"——skills 生效视图(同名只见项目级,skills-view B1)、
-// 项目级 MCP(.mcp.json + enabled/disabled 开关)、配置只读。
+// Ticket 03: project detail's "what is installed" — the skills effective view (a same-name pair shows only
+// the project level, skills-view B1),
+// project-level MCP (.mcp.json plus the enabled/disabled switches), and read-only configuration.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -34,8 +35,8 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-describe('skills 生效视图', () => {
-  it('同侧同名只列项目级;仅全局有的仍列全局层(skills-view B1)', () => {
+describe('the skills effective view', () => {
+  it('within one side a same-name pair lists only the project level; names present only globally are still listed from the global layer (skills-view B1)', () => {
     mkSkill(join(proj, '.claude', 'skills'), 'ui-design', '项目专属')
     mkSkill(join(proj, '.claude', 'skills'), 'tdd', '项目版 tdd')
     mkSkill(join(dir, '.claude', 'skills'), 'tdd', '全局版 tdd')
@@ -56,7 +57,7 @@ describe('skills 生效视图', () => {
     expect(map['codex:global:github-ops']).toBeTruthy()
   })
 
-  it('Codex 侧同名也只列项目级(列表展示与 Claude 统一)', () => {
+  it('a same name on the Codex side likewise lists only the project level (list presentation unified with Claude)', () => {
     mkSkill(join(proj, '.agents', 'skills'), 'grilling', '项目版')
     mkSkill(join(dir, '.agents', 'skills'), 'grilling', '全局版')
     const d = readProjectDetail(roots(), proj)
@@ -66,7 +67,7 @@ describe('skills 生效视图', () => {
     expect(global).toBeUndefined()
   })
 
-  it('项目级软链 skill 带 symlink 标记', () => {
+  it('a project-level symlinked skill carries the symlink marker', () => {
     mkSkill(join(dir, '.agents', 'skills'), 'shared', '共享')
     mkdirSync(join(proj, '.claude', 'skills'), { recursive: true })
     symlinkSync(join(dir, '.agents', 'skills', 'shared'), join(proj, '.claude', 'skills', 'shared'))
@@ -75,7 +76,7 @@ describe('skills 生效视图', () => {
     expect(s?.symlink).toBe(true)
   })
 
-  it('失效项目(目录不存在)→ 项目级为空、全局照常,不抛错', () => {
+  it('a stale project (its directory missing) → project level empty, global as usual, without throwing', () => {
     mkSkill(join(dir, '.claude', 'skills'), 'tdd', '全局')
     const d = readProjectDetail(roots(), join(dir, 'work', 'ghost'))
     expect(d.skills.filter((s) => s.level === 'project')).toHaveLength(0)
@@ -83,8 +84,8 @@ describe('skills 生效视图', () => {
   })
 })
 
-describe('项目级 MCP', () => {
-  it('.mcp.json servers + 项目键的 enabled/disabled 开关', () => {
+describe('project-level MCP', () => {
+  it('.mcp.json servers plus the enabled/disabled switches on the project key', () => {
     writeFileSync(
       join(proj, '.mcp.json'),
       JSON.stringify({ mcpServers: { figma: { command: 'x' }, sentry: { command: 'y' } } })
@@ -103,14 +104,14 @@ describe('项目级 MCP', () => {
     expect(map['sentry'].enabled).toBe(false)
   })
 
-  it('无 .mcp.json → 空列表', () => {
+  it('no .mcp.json → an empty list', () => {
     const d = readProjectDetail(roots(), proj)
     expect(d.mcp).toEqual([])
   })
 })
 
-describe('配置只读', () => {
-  it('项目 CLAUDE.md / AGENTS.md 内容;settings 摘要来自项目键', () => {
+describe('read-only configuration', () => {
+  it('the project CLAUDE.md / AGENTS.md contents; the settings summary comes from the project key', () => {
     writeFileSync(join(proj, 'CLAUDE.md'), '# 项目约定\n')
     writeFileSync(join(proj, 'AGENTS.md'), '# Codex 项目说明\n')
     writeFileSync(
@@ -126,7 +127,7 @@ describe('配置只读', () => {
     expect(d.configs.settingsSummary).toContain('figma')
   })
 
-  it('配置缺失 → null', () => {
+  it('missing configuration → null', () => {
     const d = readProjectDetail(roots(), proj)
     expect(d.configs.claudeMd).toBeNull()
     expect(d.configs.agentsMd).toBeNull()
