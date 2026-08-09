@@ -2027,9 +2027,9 @@ test('appearance: all six combinations of 3 colour schemes × 2 effective light/
  * this hatch the only way
  * to verify it would be a human repeatedly changing system settings.
  */
-async function launchWithLangs(sysLangs: string): Promise<Launched> {
+async function launchWithLangs(sysLangs: string, homeOverride?: string): Promise<Launched> {
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
-  const home = mkEmptyProjectHome()
+  const home = homeOverride ?? mkEmptyProjectHome()
   const errors: string[] = []
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
@@ -2271,4 +2271,80 @@ test('i18n: key layouts do not overflow horizontally in the longest language (bo
   expect(l.errors).toEqual([])
   await l.app.close()
   rmSync(l.userData, { recursive: true, force: true })
+})
+
+test('i18n: no label in the project-detail tab row or the skills rows wraps to a second line', async () => {
+  // The pre-existing overflow test covers the **settings page** only (`.settings`, `.field`,
+  // `.settings-foot`). Two of the tightest rows were unguarded, and both hold copy that varies a lot in
+  // width: the nine-tab row in project detail, and the `.sk-head` rows whose `.pill`s are `flex: none`.
+  //
+  // **What the failure actually looks like, measured rather than assumed.** The obvious guess — the row
+  // bursts its container and the page scrolls sideways — is wrong here, and every check built on it is
+  // vacuous:
+  //   - `.tabs` is width-auto, so its `scrollWidth` always equals its `clientWidth`.
+  //   - `body` is `overflow-x: hidden`, so `documentElement.scrollWidth > clientWidth` never fires.
+  //   - `.tab` is `white-space: normal` with `flex: 0 1 auto`, so an over-long label does not clip or
+  //     overflow its box. It **wraps and grows the row vertically** — measured at 34px → 268px for a label
+  //     14× too long, with `.pane-head` going 98px → 332px.
+  // So the property asserted is single-line-ness: in a healthy row every item is one line and therefore the
+  // same height, and any item whose text wrapped is taller than its siblings. That is resolution- and
+  // font-independent, and it is what actually changes when the copy gets too long.
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-ovf-'))
+  const demo = join(home, 'demo-proj')
+  mkdirSync(demo, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
+  // A project-level skill and a symlinked global one: between them the rows render the widest pill sets.
+  mkdirSync(join(demo, '.claude', 'skills', 'tdd'), { recursive: true })
+  writeFileSync(join(demo, '.claude', 'skills', 'tdd', 'SKILL.md'), '---\ndescription: d\n---\nx\n')
+  const linkTarget = join(home, 'repo', 'skills', 'linked-skill')
+  mkdirSync(linkTarget, { recursive: true })
+  writeFileSync(join(linkTarget, 'SKILL.md'), '---\ndescription: d\n---\nx\n')
+  mkdirSync(join(home, '.claude', 'skills'), { recursive: true })
+  symlinkSync(linkTarget, join(home, '.claude', 'skills', 'linked-skill'))
+
+  const l = await launchWithLangs('en-US', home)
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+
+  // Japanese is checked alongside the three long-prose languages because full-width labels grow differently
+  // from long words — the same reason the settings test covers both classes.
+  for (const code of ['fr', 'es', 'ru', 'ja']) {
+    await win.locator('.ri.set').click()
+    await win.getByTestId('language-trigger').click()
+    await win.getByTestId('language-pop').locator(`[data-lang="${code}"]`).click()
+    await expect(win.locator('.settings-h1')).not.toBeEmpty()
+
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row', { hasText: 'demo-proj' }).click()
+    await expect(win.locator('.pane-head .tabs .tab').first()).toBeVisible()
+    // "Skills" is a proper noun and is untranslated in every language, so this locator works throughout
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+    await expect(win.locator('.pane-body .sk').first()).toBeVisible()
+
+    const wrapped = await win.evaluate(() => {
+      // Count **line boxes**, not heights. Comparing an item's height against its siblings' looks right and
+      // is not: these rows are flex containers with the default `align-items: stretch`, so one wrapped label
+      // grows every sibling to the same height and a height comparison reports nothing. A Range over the
+      // element's contents yields one client rect per line box, which stretching does not affect.
+      const wraps = (items: HTMLElement[]): string[] =>
+        items
+          .filter((e) => {
+            const r = document.createRange()
+            r.selectNodeContents(e)
+            return r.getClientRects().length > 1
+          })
+          .map((e) => e.innerText.replace(/\s+/g, ' ').slice(0, 40))
+      const q = (sel: string): HTMLElement[] => [...document.querySelectorAll(sel)] as HTMLElement[]
+      return {
+        tabs: wraps(q('.pane-head .tabs .tab')),
+        pills: wraps(q('.pane-body .sk-head .pill'))
+      }
+    })
+    expect(wrapped.tabs, `${code}: a tab label wrapped onto a second line`).toEqual([])
+    expect(wrapped.pills, `${code}: a skills-row pill wrapped onto a second line`).toEqual([])
+  }
+  expect(l.errors).toEqual([])
+  await l.app.close()
+  rmSync(l.userData, { recursive: true, force: true })
+  rmSync(home, { recursive: true, force: true })
 })
