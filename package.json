@@ -1,7 +1,7 @@
 {
   "name": "agentshed",
   "version": "0.1.0",
-  "description": "你的 coding agents 工具棚:Claude Code 与 Codex 的项目全景与 skills 装卸",
+  "description": "Your coding agents shed: an overview of Claude Code and Codex projects, with skill install and uninstall",
   "license": "MIT",
   "main": "./out/main/index.js",
   "type": "module",

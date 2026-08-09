@@ -1,7 +1,9 @@
-// i18n 层核心:语言集、字典取用、系统语言解析、复数。
+// The i18n layer core: the language set, dictionary access, system language resolution, and plurals.
 //
-// 纯数据 + 纯函数,**不依赖 DOM 与 React**——主进程构建应用菜单时用的是同一套。
-// 各语言字典见同目录下的单语文件;结构契约见 ./types.ts。
+// Pure data and pure functions, **depending on neither the DOM nor React** — the main process builds the
+// application menu from the same modules.
+// Each language's dictionary is a single-language file in this directory; the structural contract is in
+// ./types.ts.
 import { zh } from './zh'
 import { en } from './en'
 import { fr } from './fr'
@@ -12,11 +14,11 @@ import type { Locale } from './types'
 
 export type { Locale } from './types'
 
-/** 支持的界面语言。全部左起横排,不含 RTL 语言(见 ADR-0013) */
+/** The supported UI languages. All left-to-right, with no RTL language (see ADR-0013) */
 export const LANGUAGES = ['zh', 'en', 'fr', 'es', 'ru', 'ja'] as const
 export type Language = (typeof LANGUAGES)[number]
 
-/** 系统语言不受支持、或探测失败时的兜底 */
+/** The fallback when the system language is unsupported or detection fails */
 export const FALLBACK_LANGUAGE: Language = 'en'
 
 const DICTS: Record<Language, Locale> = { zh, en, fr, es, ru, ja }
@@ -30,14 +32,17 @@ export function isLanguage(v: unknown): v is Language {
 }
 
 /**
- * 系统偏好语言列表 → 生效语言。
+ * The system's preferred language list → the effective language.
  *
- * 入参是 `app.getPreferredSystemLanguages()` 的返回:一个**按优先级排序的列表**,
- * 不是单个 locale。据此有两条容易写错的地方:
- *   ① 必须**遍历整个列表**取首个受支持者——`['ko','fr','en']` 应得法语,而不是
- *      "首项不受支持就回退英文"。两种实现对单元素列表的输出相同,只有多元素
- *      列表能区分,故测试必须用多元素输入。
- *   ② 标签可能带地区或脚本子标签(`zh-Hans-CN`、`fr-CA`),按**主子标签**匹配。
+ * The argument is what `app.getPreferredSystemLanguages()` returns: **a list in priority order**,
+ * not a single locale. Two things are easy to get wrong as a result:
+ *   1. **iterate the whole list** and take the first supported one — `['ko','fr','en']` must give French,
+ *      not
+ *      "the first entry is unsupported, so fall back to English". The two implementations agree on a
+ *      single-element list and only
+ *      a multi-element list can tell them apart, so the tests have to use multi-element input.
+ *   2. a tag may carry a region or script subtag (`zh-Hans-CN`, `fr-CA`), so match on the **primary
+ *      subtag**.
  */
 export function resolveLanguage(preferred: readonly string[] | null | undefined): Language {
   if (!preferred) return FALLBACK_LANGUAGE
@@ -50,11 +55,13 @@ export function resolveLanguage(preferred: readonly string[] | null | undefined)
 }
 
 /**
- * 语言偏好:被持久化的用户选择。
+ * The language preference: the user's persisted choice.
  *
- * `'system'` 是一条**持续生效的策略,不是选中当刻的语言快照**——系统语言此后改变,
- * 界面随之改变。把解析结果直接存成偏好会让它退化成一次性快照,且再也分不清
- * "他当初选了跟随系统"与"他当初手选了这个语言"。
+ * `'system'` is a **continuously applied policy, not a snapshot of the language at the moment of
+ * selection** — if the system language changes later,
+ * the UI changes with it. Storing the resolution as the preference would degrade it into a one-off
+ * snapshot, and would also make it impossible to tell
+ * "they chose follow system" from "they chose that language by hand".
  */
 export type LanguagePreference = 'system' | Language
 export const DEFAULT_LANGUAGE_PREFERENCE: LanguagePreference = 'system'
@@ -63,7 +70,8 @@ export function isLanguagePreference(v: unknown): v is LanguagePreference {
   return v === 'system' || isLanguage(v)
 }
 
-/** 语言偏好 + 系统偏好语言列表 → 生效语言。偏好是具体语言时,系统列表完全不参与 */
+/** The language preference + the system's preferred language list → the effective language. When the
+ * preference names a language, the system list plays no part at all */
 export function effectiveLanguage(
   pref: LanguagePreference,
   systemPreferred: readonly string[] | null | undefined
@@ -72,11 +80,13 @@ export function effectiveLanguage(
 }
 
 /**
- * 按目标语言的复数规则选词。
+ * Choose a word by the target language's plural rules.
  *
- * 规则取自平台内建的 `Intl.PluralRules`,**不自造规则表**——各语言的分型差异很大
- * (俄语四型、法语 0 用单数、日语无变化),手写必错且无法穷举。
- * 调用方给出该语言用得到的那几型即可,缺型回落 `other`。
+ * The rules come from the platform's built-in `Intl.PluralRules`, **never a hand-rolled rule table** —
+ * the categories differ enormously between languages
+ * (four forms in Russian, French using the singular for 0, no inflection in Japanese), so writing them by
+ * hand is bound to be wrong and cannot be exhaustive.
+ * The caller supplies whichever forms that language needs, and a missing form falls back to `other`.
  */
 export function plural(
   lang: Language,
@@ -84,7 +94,8 @@ export function plural(
   forms: Partial<Record<Intl.LDMLPluralRule, string>> & { other: string }
 ): string {
   const rule = new Intl.PluralRules(dictOf(lang).htmlLang).select(n)
-  // other 由类型强制必填,故这里的回落一定取得到值——不留「两者皆空则返回空串」
-  // 那种静默失败面:界面显示空白而没有任何东西会报错。
+  // `other` is required by the type, so this fallback always finds a value — leaving no "if both are empty
+  // return an empty string"
+  // silent failure surface, where the UI goes blank and nothing reports it.
   return forms[rule] ?? forms.other
 }

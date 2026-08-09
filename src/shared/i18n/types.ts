@@ -1,16 +1,24 @@
-// 字典的类型契约:由源语言(zh)的形状派生出其余五语必须满足的类型。
+// The dictionaries' type contract: the type the other five languages must satisfy, derived from the source
+// language's (zh) shape.
 //
-// 要同时做到两件互相拉扯的事:
-//   ① **放宽值**——源语言用 `as const` 后 `languageName` 的类型是字面量 `'简体中文'`,
-//      若直接用 `typeof zh` 标注英文字典,`'English'` 会因不匹配该字面量而报错。
-//   ② **不放宽结构**——key 集合必须与源语言完全一致,少一条要红,多一条也要红。
+// It has to do two things that pull against each other:
+//   1. **widen the values** — with `as const` on the source language, `languageName`'s type is the literal
+//      `'简体中文'`,
+//      so annotating the English dictionary with `typeof zh` directly would reject `'English'` for not
+//      matching that literal.
+//   2. **do not widen the structure** — the key set must match the source language exactly, going red on
+//      both a missing key and an extra one.
 //
-// Dict 逐个属性重写:函数保签名、嵌套对象递归、其余一律放宽成 string。
-// 函数分支必须排在对象分支**之前**——函数在类型系统里也满足 `extends object`,
-// 顺序颠倒会把带参文案错误地当成嵌套字典递归下去。
+// Dict rewrites property by property: functions keep their signature, nested objects recurse, and
+// everything else widens to string.
+// The function branch must come **before** the object branch — a function also satisfies `extends object`
+// in the type system,
+// so reversing the order would wrongly recurse into parameterised copy as if it were a nested dictionary.
 //
-// `-readonly` 去掉 `as const` 带来的只读修饰:各语言模块是独立声明的普通对象,
-// 不必强制只读;保留它只会让实现方被迫也写 as const,徒增噪音。
+// `-readonly` drops the readonly modifiers `as const` adds: each language module is an ordinary object
+// declared independently,
+// with no need to force readonly; keeping it would only force implementers to write as const too, adding
+// noise for nothing.
 export type Dict<T> = {
   -readonly [K in keyof T]: T[K] extends (...args: infer A) => string
     ? (...args: A) => string
@@ -19,5 +27,6 @@ export type Dict<T> = {
       : string
 }
 
-/** 其余五语的类型:结构锁死为源语言,值放宽。少一条 key 与多一条 key 都会 typecheck 失败 */
+/** The type for the other five languages: the structure is locked to the source language and the values
+ * are widened. Both a missing key and an extra one fail typecheck */
 export type Locale = Dict<typeof import('./zh').zh>

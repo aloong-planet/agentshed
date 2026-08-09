@@ -6,15 +6,15 @@ on:
   pull_request:
     branches: [master]
 
-# 同一分支的新推送取消上一次未跑完的运行
+# A new push on the same branch cancels the previous unfinished run
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # 快检:秒级反馈,失败就不用等 e2e 了
+  # The fast check: feedback in seconds, so a failure does not have to wait for e2e
   checks:
-    name: typecheck + 单测 + 共享件一致性
+    name: typecheck + unit tests + shared-piece consistency
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,9 +28,12 @@ jobs:
       - run: pnpm test
       - run: pnpm check:ui
 
-  # e2e 驱动真实 Electron。跑 ubuntu 而非 macos:本仓库私有,macOS runner
-  # 按 10 倍计费,而 e2e 断言的是 IPC 全链路/契约校验/渲染几何,都与平台无关。
-  # macOS 专属面(签名、公证、TCC 权限)本来就不在 e2e 覆盖内,由本地 verify 与发版流程守。
+  # e2e drives a real Electron. It runs on ubuntu rather than macos: this repository is private and a macOS
+  # runner
+  # bills at 10×, while what e2e asserts — the whole IPC chain, contract validation, render geometry — is
+  # platform-independent.
+  # The macOS-specific surface (signing, notarisation, TCC permissions) was never in e2e's coverage anyway;
+  # local verify and the release process guard it.
   e2e:
     name: e2e(Electron)
     runs-on: ubuntu-latest
@@ -42,10 +45,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Electron 与 Chromium 共用同一批系统库;交给 playwright 装,别手写 apt 包名
-      # (包名随 ubuntu 版本漂移,如 libasound2 → libasound2t64)
+      # Electron and Chromium share the same system libraries; let playwright install them rather than
+      # hand-writing apt package names
+      # (which drift with the ubuntu version, e.g. libasound2 → libasound2t64)
       - run: pnpm exec playwright install-deps chromium
-      # Electron 需要显示服务;-a 自动挑空闲 display 号
+      # Electron needs a display server; -a picks a free display number automatically
       - run: xvfb-run -a pnpm e2e
       - if: failure()
         uses: actions/upload-artifact@v4
@@ -56,8 +60,10 @@ jobs:
             test-results/
           retention-days: 7
 
-# 不在 CI 里跑 smoke:scripts/smoke.sh 是 macOS 本地专用——BSD stat(-f %m)、macOS 进程路径
-# (Electron.app/Contents/MacOS/Electron),且它的价值在于扫**开发机的真实 ~/.claude 数据**
-# (600MB+ 真实形态);CI 容器 home 是空的,搬进去等于 e2e 的劣化版。
-# (userData 自 2026-08-04 起已隔离,不再是"跑在真实 userData 上"——那句旧理由已作废;
-#  迁移类场景由 e2e 的独立 userData + 预置缓存覆盖。)
+# smoke does not run in CI: scripts/smoke.sh is macOS-local only — BSD stat (-f %m), macOS process paths
+# (Electron.app/Contents/MacOS/Electron) — and its value lies in scanning **the development machine's real
+# ~/.claude data**
+# (600MB+ of real shapes); a CI container's home is empty, so moving it there would be a degraded e2e.
+# (userData has been isolated since 2026-08-04, so it no longer "runs on the real userData" — that old
+# reason has lapsed;
+#  migration scenarios are covered by e2e's isolated userData plus a seeded cache.)
