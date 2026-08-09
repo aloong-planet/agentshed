@@ -1,146 +1,277 @@
-# 外观主题
+# Appearance
 
-> 关联: [features](../features/appearance.md) · 全 app UI token;产物 Markdown 跟 accent  
-> 两维正交:**模式**(跟随系统 / 浅色 / 深色,默认跟随系统)× **配色**(紫(默认) / 雾蓝 / 琥珀褐)。  
-> 最终视觉 = f(配色, 生效明暗);设置页与语言共用同一张偏好表,见 [i18n](i18n.md)。
+> Related: [features](../features/appearance.md) · app-wide UI tokens; artifact markdown follows the accent  
+> Two orthogonal dimensions: **mode** (follow system / light / dark, defaulting to follow system) ×
+> **colour scheme** (purple (default) / mist blue / amber brown).  
+> The final look = f(colour scheme, effective light/dark); the settings page shares one preferences
+> table with language, see [i18n](i18n.md).
 
 ## Problem Statement
 
-App 需跟随 macOS 昼夜模式,并允许用户在多套 UI 强调色/纸感之间选择。现有 `theme.css` 已用 CSS 变量 + `prefers-color-scheme` 做昼夜,但只有固定品牌紫。用户要保留**现网默认紫**,并增加**雾蓝、琥珀褐**等阅读向方案;切换后**对整个 app 生效**(rail、列表、详情、抽屉、未来 Skill 预览等),而非局部皮肤。
+The app needs to follow macOS's light/dark mode and let the user choose between several UI accent /
+paper feels. The existing `theme.css` already does light/dark with CSS variables and
+`prefers-color-scheme`, but only in a fixed brand purple. The user wants to keep **the shipped
+default purple** and add reading-oriented schemes such as **mist blue and amber brown**; a switch
+must apply to **the whole app** (rail, lists, detail, drawers, the future skill preview and so on)
+rather than being a partial skin.
 
 ## Solution
 
-采用 **方案 B**:
+Adopt **option B**:
 
-- **方案维** `scheme ∈ { purple, blue, amber }`:**用户可选**,持久化到 app 自有存储。  
-  - `purple` = 现网默认色板(浅 `#8a67ab` / 深 `#a084c7` 系)  
-  - `blue` = 雾蓝  
-  - `amber` = 琥珀褐  
-- **模式维** `mode ∈ { system, light, dark }`:**用户可选**,默认 `system`,持久化到同一份 app 自有偏好。  
-  `system` 是**策略而非快照**——选中它时明暗随 macOS 外观变化;选 `light` / `dark` 即锁定,系统再变也不影响,直到用户主动选回 `system`。  
-- **生效明暗** `light | dark` = `f(mode, 系统外观)`,是最终落到渲染上的值;它本身不被持久化(持久化的是 mode)。  
-- 最终视觉 = `f(scheme, 生效明暗)`。  
-- **全 app** 只引用 CSS 变量;禁止组件内写死方案色。语义色(CC/CX、provider、ok/err)不随 scheme 改色相。
+- **The scheme dimension** `scheme ∈ { purple, blue, amber }`: **user-selectable**, persisted to the
+  app's own storage.  
+  - `purple` = the shipped default palette (light `#8a67ab` / dark `#a084c7` family)  
+  - `blue` = mist blue  
+  - `amber` = amber brown  
+- **The mode dimension** `mode ∈ { system, light, dark }`: **user-selectable**, defaulting to
+  `system`, persisted in the same app-owned preferences.  
+  `system` is **a policy, not a snapshot** — while it is selected, light/dark follows the macOS
+  appearance; choosing `light` / `dark` locks it, and later system changes have no effect until the
+  user actively selects `system` again.  
+- **The effective light/dark** `light | dark` = `f(mode, system appearance)`, which is the value that
+  actually renders; it is not persisted itself (what is persisted is `mode`).  
+- The final look = `f(scheme, effective light/dark)`.  
+- **The whole app** references CSS variables only; hard-coding a scheme's colours inside a component
+  is forbidden. Semantic colours (CC/CX, provider, ok/err) do not change hue with the scheme.
 
 ## User Stories
 
-1. As a 用户, I want 在紫 / 雾蓝 / 琥珀褐之间选择外观, so that 可保留熟悉的默认紫,或改用更柔和的阅读向配色。  
-2. As a 用户, I want 切换后**整个 app**立即换色且重启仍保留, so that 体验一致、不用每次重选。  
-3. As a 用户, I want 浅/深默认跟系统外观, so that 与 macOS 其它 app 一致。  
-3b. As a 在亮环境用深色系统的人, I want 把 app 单独锁成浅色, so that 不必为了这一个 app 去改整个系统外观。  
-3c. As a 锁定了浅/深的人, I want 之后系统外观怎么变都不影响 app, so that 我的选择不被系统悄悄推翻。  
-3d. As a 用户, I want 能重新选回「跟随系统」, so that 锁定是可逆的。  
-4. As a 用户, I want 侧徽标(CC/CX)与 provider 图表色不随方案乱跳, so that 语义色保持可辨。  
-5. As a 开发者, I want 新界面只绑 token 名, so that 加方案不必改组件。
+1. As a user, I want to choose between purple / mist blue / amber brown, so that I can keep the
+   familiar default purple or move to a softer reading-oriented palette.  
+2. As a user, I want a switch to recolour **the whole app** immediately and survive a restart, so that
+   the experience is consistent and I do not have to choose again every time.  
+3. As a user, I want light/dark to follow the system appearance by default, so that it matches my
+   other macOS apps.  
+3b. As someone using a dark system in a bright room, I want to lock this app to light on its own, so
+   that I do not have to change the whole system appearance for one app.  
+3c. As someone who has locked light or dark, I want later system appearance changes not to affect the
+   app, so that my choice is not quietly overruled by the system.  
+3d. As a user, I want to be able to select "follow system" again, so that locking is reversible.  
+4. As a user, I want the side badges (CC/CX) and the provider chart colours not to jump around with
+   the scheme, so that semantic colours stay recognisable.  
+5. As a developer, I want a new UI to bind only to token names, so that adding a scheme does not
+   require changing components.
 
-## 失败模式与边界
+## Failure modes and boundaries
 
-**序列 A:选型与持久化**
+**Sequence A: selection and persistence**
 
-- A1 默认方案 = **`purple`(紫)**(首次安装、无存储文件时 = 现网观感)。  
-- A2 用户改为 `blue` / `amber` / 改回 `purple` → 立刻改 `document.documentElement.dataset.scheme`,并原子写入 userData。  
-- A3 重启后读出 scheme;非法值/损坏文件 → 回落 **`purple`**,不崩。  
-- A4 存储 = app `userData` 自有文件(与 `hidden.json` 同纪律:临时文件 + rename;**绝不写 agent 配置**)。字段 `scheme: "purple"|"blue"|"amber"`。  
-- A5 切换方案不触发全量重扫、不重载窗口(只改 DOM 属性 + CSS)。  
-- A6 **生效范围 = 整 app**:rail、Agents/Projects 主区、详情、会话页、toast、浮层/抽屉、设置页自身、未来 Skill 预览与 Markdown 预览中跟 accent 的部分。无「仅设置页换肤」的中间态。
+- A1 The default scheme = **`purple`** (a fresh install with no storage file looks like the shipped
+  build).  
+- A2 The user changes to `blue` / `amber` / back to `purple` → set
+  `document.documentElement.dataset.scheme` immediately and write atomically to userData.  
+- A3 On restart the scheme is read back; an invalid value or a corrupt file → fall back to
+  **`purple`**, no crash.  
+- A4 Storage = the app's own file in `userData` (the same discipline as `hidden.json`: a temporary
+  file + rename; **never written to the agent configuration**). Field:
+  `scheme: "purple"|"blue"|"amber"`.  
+- A5 Switching schemes triggers no full rescan and no window reload (only a DOM attribute and CSS).  
+- A6 **The scope of effect = the whole app**: the rail, the Agents/Projects main area, detail pages,
+  the session page, toasts, overlays and drawers, the settings page itself, and the accent-following
+  parts of the future skill preview and markdown preview. There is no intermediate state where "only
+  the settings page is reskinned".
 
-**序列 B:明暗模式**
+**Sequence B: light/dark mode**
 
-- B1 默认 `mode = system`;首次安装、无存储文件、字段非法或损坏 → 均落 `system`,不崩。  
-- B2 `mode = system` 时,系统外观变化 → 界面明暗随之变化;`scheme` 不受影响。  
-- B3 `mode = light | dark` 时,系统外观怎么变**界面都不变**。  
-- B4 从锁定态切回 `system` → 立即按当前系统外观重新求值,不保留此前锁定的明暗。  
-- B5 模式与配色**互相独立**:改模式不动配色,改配色不动模式;3 配色 × 2 生效明暗 = 6 种组合都须成立。  
-- B6 模式与界面语言的两个「跟随系统」**互不干扰**:改系统语言只影响语言,改系统外观只影响明暗。  
-- B7 切模式不触发全量重扫、不重载窗口。  
-- B8 窗口 chrome 与 macOS 原生菜单**一并跟随**所选模式(由 `nativeTheme` 承担,见实现决策);不出现「app 内是深色、窗口边框还是浅色」的割裂。  
-- B9 色板预览的取样**随生效明暗切换**:深色下三张配色卡应呈深色系,不得仍显示浅色取样(否则预览与实际观感不符)。
+- B1 The default `mode = system`; a fresh install, a missing storage file, or an invalid or corrupt
+  field all land on `system`, no crash.  
+- B2 With `mode = system`, a system appearance change → the UI's light/dark changes with it;
+  `scheme` is unaffected.  
+- B3 With `mode = light | dark`, **the UI does not change** however the system appearance changes.  
+- B4 Switching from a locked state back to `system` → re-evaluate immediately from the current system
+  appearance, without keeping the previously locked light/dark.  
+- B5 Mode and scheme are **independent**: changing one leaves the other alone; all 6 combinations of
+  3 schemes × 2 effective light/dark must hold.  
+- B6 The two "follow system" settings, mode and UI language, **do not interfere**: changing the system
+  language affects only the language, changing the system appearance affects only light/dark.  
+- B7 Switching modes triggers no full rescan and no window reload.  
+- B8 The window chrome and the macOS native menu **follow the chosen mode too** (delivered by
+  `nativeTheme`, see the implementation decisions), so there is never a split between a dark app and a
+  light window frame.  
+- B9 The palette preview's samples **follow the effective light/dark**: in dark mode the three scheme
+  cards must show dark-family colours rather than still showing light samples (or the preview would
+  not match what is actually seen).
 
-**序列 C:色板范围**
+**Sequence C: palette scope**
 
-- C1 **跟 scheme 走**(每方案各有 light/dark 表):  
+- C1 **Follows the scheme** (each scheme has its own light/dark table):  
   `--bg/--card/--text/--text-2/--line/--line-strong/--accent/--accent-soft/--accent-deep`  
-  及预览用 `--md-*`(若已落地)。  
-- C2 **不跟 scheme 走**(语义/数据色;可有 light/dark,三方案相同):  
-  - 侧徽标 CC/CX token  
-  - provider `--p-*`  
-  - `--ok-*` / `--err-*` / warn 语义(若与方案纸感冲突可微调亮度,色相不绑方案)  
-- C3 `theme.css` 内写死 hex 的局部样式 → 收进 token,避免换方案漏色。  
-- C4 Skill 预览与产物 Markdown:标题/链接等跟 `--accent` 系,与当前 scheme 一致。
+  and the preview's `--md-*` (where landed).  
+- C2 **Does not follow the scheme** (semantic / data colours; may have light/dark, identical across
+  the three schemes):  
+  - the CC/CX side badge tokens  
+  - the provider `--p-*`  
+  - `--ok-*` / `--err-*` / warn semantics (brightness may be nudged where it clashes with a scheme's
+    paper feel, but the hue is not bound to the scheme)  
+- C3 Local styles with hard-coded hex in `theme.css` → pulled into tokens, so no colour is missed when
+  the scheme changes.  
+- C4 Skill preview and artifact markdown: headings, links and so on follow the `--accent` family and
+  match the current scheme.
 
-**序列 D:设置入口**
+**Sequence D: the settings entry point**
 
-- D1 Rail **第三维「设置」**(`Dim = agents | projects | settings`)。  
-- D2 切到设置时主区为设置页。  
-- D3 设置页「外观」段为**一张卡两行**:上行「模式」= 三段控件(跟随系统 / 浅色 / 深色),下行「配色」= 三张色板卡。两行以分隔线相接,标签在左、控件在右,与「语言」段同一形态。  
-- D3a 配色卡为紧凑形态:**色块 + 名称**,不含整句描述;「默认为紫」这一信息移入该段下方说明文字。  
-- D4 刷新钮仍在 rail 底部区;与设置入口分组。  
-- D5 点选即时生效,无保存按钮。  
-- D6 进出设置不丢 `selected` 项目。
+- D1 The rail's **third dimension, "Settings"** (`Dim = agents | projects | settings`).  
+- D2 Switching to settings makes the main area the settings page.  
+- D3 The settings page's "Appearance" section is **one card with two rows**: the top row "Mode" = a
+  three-segment control (follow system / light / dark), the bottom row "Colour scheme" = three
+  palette cards. The two rows are joined by a divider, with the label on the left and the control on
+  the right, in the same form as the "Language" section.  
+- D3a The palette cards are compact: **a swatch plus a name**, with no full sentence of description;
+  the "purple is the default" information moves into the explanatory text below the section.  
+- D4 The refresh button stays in the rail's bottom area, grouped with the settings entry point.  
+- D5 A selection takes effect immediately, with no save button.  
+- D6 Entering and leaving settings does not lose the `selected` project.
 
-**跨切面**
+**Cross-cutting**
 
-- R1 Prefs:主进程存 + IPC `getPrefs` / `setScheme` / `setMode`(一种偏好一个 setter,与语言同形)。  
-- R2 契约:scheme 与 mode 各为三值枚举;跨进程入口收到未知值即拒绝写入,读本地文件时未知值则**逐字段**回落。  
-- R3 e2e:可选断言 `data-scheme` 切换。  
-- R4 实现色值:紫 = 现 `theme.css` 浅深表;雾蓝/琥珀褐 = 原型已列浅深表。
+- R1 Prefs: stored in the main process with IPC `getPrefs` / `setScheme` / `setMode` (one setter per
+  preference, the same shape as language).  
+- R2 Contract: scheme and mode are each a three-value enum; a cross-process entry point receiving an
+  unknown value refuses to write it, and reading the local file falls back **per field** on an unknown
+  value.  
+- R3 e2e: optionally assert the `data-scheme` switch.  
+- R4 Implementation colour values: purple = the current light/dark tables in `theme.css`; mist blue and
+  amber brown = the light/dark tables already listed in the prototype.
 
-## 界面决策
+## UI decisions
 
-- **入口**:Rail ⚙️ 设置第三维。  
-- **设置页顺序**:「语言」段在前,「外观」段在后。  
-- **外观段**:一张卡两行——「模式」三段控件 + 「配色」三张色板卡(色块 + 名称,无整句描述),下接一段说明(明暗跟随规则、两维独立、默认为紫)。  
-- **段末说明为纯文本,不含加粗**(2026-08-08 票 04 定案,与原型的一处有意偏离):原型把「跟随系统」四字加粗,而字典条目要携带内联标记就得把整句拆成三个碎片 key 分六语维护——这与 i18n 的「富文本不得拆碎片 key 拼接」约定和 ADR-0014「文案层不依赖 React」相抵。为一处装饰性加粗不值得破坏文案层形状;该段已用「」引号区分策略名与正文。  
-- **语言段与外观段共用同一套行形态类名**(卡片容器 + 行 + 左侧标签),不各写一份:两段是同一形态,分开写等于把同一组样式存两份,改一处必漏另一处。  
-- 分段控件沿用既有 `.seg` 形态(外框 + overflow 裁剪 + 选中态 accent-soft),尺寸按设置页语境略放大于图表工具栏中的用法。  
-- 点选即全 app 变色(含 rail 选中态),无保存按钮。  
-- 色板取样按生效明暗两套,预览所见即所得。  
-- Skill 预览抽屉布局仍为方案 A,见 skills-view。
+- **Entry point**: the rail's ⚙️ settings, the third dimension.  
+- **Settings page order**: the "Language" section first, "Appearance" second.  
+- **Appearance section**: one card with two rows — "Mode" as a three-segment control + "Colour scheme"
+  as three palette cards (swatch + name, no full sentence), followed by an explanatory paragraph (the
+  light/dark following rule, the two dimensions' independence, purple being the default).  
+- **The section's closing explanation is plain text with no bold** (settled in ticket 04 on 2026-08-08,
+  a deliberate deviation from the prototype): the prototype bolded the words "follow system", but for a
+  dictionary entry to carry inline markup the whole sentence would have to be split into three
+  fragment keys maintained in six languages — which conflicts with i18n's "rich text must not be
+  assembled from fragment keys" convention and with ADR-0014's "the copy layer does not depend on
+  React". Breaking the copy layer's shape for one decorative bold is not worth it; the paragraph
+  already distinguishes the policy name from the prose with quotation marks.  
+- **The Language and Appearance sections share one set of row-form class names** (card container + row
+  + left-hand label) rather than each writing its own: the two sections are the same form, and writing
+  them separately would store the same styles twice, so changing one would inevitably miss the other.  
+- The segmented control reuses the existing `.seg` form (outer frame + overflow clipping + an
+  accent-soft selected state), sized slightly larger than its use in the chart toolbar to suit the
+  settings page context.  
+- A selection recolours the whole app immediately (including the rail's selected state), with no save
+  button.  
+- Palette samples come in two sets by effective light/dark, so the preview is what you get.  
+- The skill preview drawer's layout is still option A, see skills-view.
 
 ## Implementation Decisions
 
-- CSS:`html[data-scheme="purple"|"blue"|"amber"]` + 各 scheme 下 `@media (prefers-color-scheme: dark)`。  
-- 启动设 `data-scheme`,缺省 `purple`。  
-- 组件零方案分支,只写 `var(--accent)` 等。  
+- CSS: `html[data-scheme="purple"|"blue"|"amber"]` plus a `@media (prefers-color-scheme: dark)` under
+  each scheme.  
+- Set `data-scheme` at startup, defaulting to `purple`.  
+- Components have zero scheme branches and write only `var(--accent)` and the like.  
 
-### 明暗模式由 nativeTheme 承担,CSS 零改动
+### Light/dark is delivered by nativeTheme, with zero CSS changes
 
-- 主进程按偏好设 `nativeTheme.themeSource = 'system' | 'light' | 'dark'`。Electron 官方定义了这一属性与「Follow OS / Light / Dark」三态的映射,设为 `light`/`dark` 会**直接改变 `prefers-color-scheme` 的求值结果**,因此既有媒体查询无需改写即可跟随;macOS 上窗口边框与原生菜单也一并跟随。
-  **已实测坐实**(2026-08-08 票 04):主进程侧 `themeSource='dark'` / `shouldUseDarkColors=true` 时,渲染层 `matchMedia('(prefers-color-scheme: dark)').matches` 为 `true`、body 底色取到深色表的值。
-- **偏好取值刻意与 `themeSource` 三态同名,故映射即恒等**;两边取值域不再对齐时须由 typecheck 拦下。落地要点:承接赋值的接口把属性类型写成 `NativeTheme['themeSource']` 而**不是**自有的 `AppearanceMode`——后者看着等价,**实测不设防**:对象属性的可赋值性是协变的,更宽的 `AppearanceMode` 照样满足接口,`nativeTheme` 传进来一声不吭。取 Electron 的类型后,那句赋值变成"写进 Electron 的取值域",赋值是不变检查,多出取值即报 `TS2322`。
-- **切换时先设 `themeSource` 再落盘**,与配色(序列 A2)、语言同规矩。顺序要紧:反过来写的话,落盘失败(磁盘满/只读)会抛在设 `themeSource` 之前,于是渲染层已乐观勾上所选模式、界面却没变,提示说失败、界面也不动,双重挫败。现在的顺序下失败只丢持久化——本次有效,重启回到磁盘上的旧值。
-- **明确不采用**渲染层自行计算明暗并写 DOM 属性(如 `data-theme`)的做法:那样需要每套深色值在媒体查询块与手动覆盖块各写一份(3 配色 × 2 = 6 份重复,改色必漏),窗口 chrome 也管不到,还多一处首帧闪烁风险。
-- `themeSource` 须在窗口内容渲染前设定,避免首帧明暗跳变。
-- 渲染层若需知道当前生效明暗(色板预览取样),读 `matchMedia('(prefers-color-scheme: dark)')` 即可——它会跟随 `themeSource` 变化,并可监听其 `change` 事件。
-- 偏好存储:`mode` 与 `scheme`、`language` 同表,复用既有原子写与降级策略;单字段非法只降级该字段。
+- The main process sets `nativeTheme.themeSource = 'system' | 'light' | 'dark'` from the preference.
+  Electron officially defines this property's mapping to the three "Follow OS / Light / Dark" states,
+  and setting it to `light`/`dark` **directly changes how `prefers-color-scheme` evaluates**, so the
+  existing media queries follow along without being rewritten; on macOS the window chrome and the
+  native menu follow too.
+  **Confirmed by measurement** (ticket 04, 2026-08-08): with `themeSource='dark'` /
+  `shouldUseDarkColors=true` on the main process side, the renderer's
+  `matchMedia('(prefers-color-scheme: dark)').matches` is `true` and the body background takes the
+  dark table's value.
+- **The preference's values are deliberately named the same as `themeSource`'s three states, so the
+  mapping is the identity**; if the two value domains ever diverge, typecheck must catch it. The
+  crucial detail: the interface receiving the assignment declares the property's type as
+  `NativeTheme['themeSource']` and **not** as our own `AppearanceMode` — the latter looks equivalent
+  and **measurably guards nothing**: an object property's assignability is covariant, so the wider
+  `AppearanceMode` still satisfies the interface and `nativeTheme` passes without a word. With
+  Electron's type, that assignment becomes "writing into Electron's value domain", the assignment is
+  an invariant check, and any extra value reports `TS2322`.
+- **On a switch, set `themeSource` before persisting**, the same rule as the colour scheme (sequence
+  A2) and language. The order matters: written the other way round, a persistence failure (a full or
+  read-only disk) would throw before `themeSource` is set, so the renderer would have optimistically
+  ticked the chosen mode while the UI did not change — the notice says it failed and the UI does not
+  move either, a double frustration. In the current order a failure loses only the persistence — it
+  works for this session and reverts to the on-disk value after a restart.
+- **Explicitly not adopted**: having the renderer compute light/dark itself and write a DOM attribute
+  (such as `data-theme`). That would require every dark value to be written twice, once in the media
+  query block and once in the manual override block (3 schemes × 2 = 6 duplicated sets, so a colour
+  change would inevitably miss one), it could not reach the window chrome, and it would add another
+  first-frame flicker risk.
+- `themeSource` must be set before the window's content renders, to avoid a first-frame light/dark
+  jump.
+- If the renderer needs to know the current effective light/dark (for the palette preview samples), it
+  reads `matchMedia('(prefers-color-scheme: dark)')` — which follows `themeSource` changes and whose
+  `change` event can be listened to.
+- Preference storage: `mode` shares a table with `scheme` and `language`, reusing the existing atomic
+  write and degradation strategy; an invalid single field degrades only that field.
 
-**遗留发现(不在本次改动面)**:`theme.css` 现有 4 组 `:root[data-theme='dark'|'light']` 规则(mark / 提问定位 / 风险横幅 / 轮内警告),排除 theme.css 自身后 git 全历史证明从未有任何代码设置过该属性,是**死代码**。采用 `nativeTheme` 方案后它们依然不会被触发。处置建议见「Out of Scope」。
+**A leftover finding (outside this change surface)**: `theme.css` has 4 sets of
+`:root[data-theme='dark'|'light']` rules (mark / question locating / risk banner / in-turn warning),
+and excluding `theme.css` itself, the whole of git history proves no code has ever set that attribute
+— they are **dead code**. Adopting the `nativeTheme` approach leaves them still untriggered. The
+recommended handling is in "Out of Scope".
 
 ## Testing Decisions
 
-- Prefs:`scheme` 默认 `purple`、`mode` 默认 `system`;三值读写、损坏/非法回落;**单字段非法不牵连其他字段**。  
-- 生效明暗推导为纯函数(`mode` + 系统外观 → `light|dark`),覆盖锁定/跟随/切回三条路径。  
-- IPC 校验。  
-- `data-scheme` 切换(轻测)。  
-- 不测像素。  
-- **写明暗 e2e 前必读**:Playwright 的 `electron.launch` **默认模拟 `prefers-color-scheme: light`**,会把媒体查询钉死,`themeSource` 改了也透不到渲染层。测明暗的用例必须传 `colorScheme: null` 撤掉模拟(文档另提的 `'no-override'` 运行期同样有效,但不在当前版本的类型联合内,typecheck 会红)。**这条踩过一次**:主进程侧已是 dark、渲染层媒体查询仍是 light,看起来像实现没生效,实为工装遮挡。其余用例保持默认模拟,免得结果随跑测试的人的系统外观而变。
-- **断言明暗要断两个方向**(锁定深 → 匹配深、锁定浅 → 匹配浅)。只断一个方向时,开发机系统外观恰好与之相同的那一半人会拿到**恒真通过**——本仓库的开发机就是深色,变异检验里"锁定深色"那句确实恒真,真正抓住变异的是"锁定浅色"那句。
-- **色板取样的断言只针对纸面取样(第一格)**,不是"深色下无接近纯白的取样":第四格取的是 `--text`,深色下本就该接近纯白,照字面写会是必然误报。
-- **已知测试缺口(不造假的绿)**:`nativeTheme.themeSource` 对窗口边框与 macOS 原生菜单的影响属于系统绘制,自动化测不到;可测的是"设了该属性"与"渲染层媒体查询随之改变",菜单与边框的实际观感只能人工验收。不得用前者冒充后者。
-- **同样不自动化的**:「锁定后系统外观再变不影响界面」。测试环境改不了真实系统外观,而用 `themeSource` 自己去模拟"系统变化"是循环论证——测的是我们刚设的值。归证据档,勿"补上这个缺失的用例"。
+- Prefs: `scheme` defaults to `purple`, `mode` defaults to `system`; three-value read/write, and
+  fallback on corruption or an invalid value; **an invalid single field does not drag down the
+  others**.  
+- Deriving the effective light/dark is a pure function (`mode` + system appearance → `light|dark`),
+  covering the locked / following / switching-back paths.  
+- IPC validation.  
+- The `data-scheme` switch (a light test).  
+- No pixel testing.  
+- **Read before writing a light/dark e2e**: Playwright's `electron.launch` **emulates
+  `prefers-color-scheme: light` by default**, which pins the media query, so a `themeSource` change
+  never reaches the renderer. A light/dark test case must pass `colorScheme: null` to remove the
+  emulation (the `'no-override'` the docs also mention works at runtime but is not in this version's
+  type union, so typecheck goes red). **This was hit once**: the main process side was already dark
+  while the renderer's media query was still light, which looked like the implementation not working
+  and was actually the test harness masking it. Other cases keep the default emulation, so results do
+  not vary with the system appearance of whoever runs the tests.
+- **Assert light/dark in both directions** (locked dark → matches dark, locked light → matches light).
+  Asserting one direction only gives a **tautological pass** to the half of people whose development
+  machine's system appearance happens to match — this repository's development machine is dark, and in
+  the mutation check the "locked dark" assertion was indeed tautological; what actually caught the
+  mutation was the "locked light" one.
+- **The palette sample assertion targets only the paper sample (the first swatch)**, not "no sample is
+  near-white in dark mode": the fourth swatch takes `--text`, which *should* be near-white in dark
+  mode, so the literal version would be a guaranteed false positive.
+- **A known test gap (no fake greens)**: `nativeTheme.themeSource`'s effect on the window chrome and
+  the macOS native menu is system-drawn and cannot be tested by automation; what is testable is "the
+  property was set" and "the renderer's media query changed accordingly", while the actual appearance
+  of the menu and the chrome can only be accepted by hand. The former must not be passed off as the
+  latter.
+- **Also not automated**: "after locking, later system appearance changes do not affect the UI". The
+  test environment cannot change the real system appearance, and using `themeSource` itself to
+  simulate a "system change" is circular — it tests the value we just set. Filed as evidence; do not
+  "add the missing test case".
 
 ## Out of Scope
 
-- 第四种方案、自定义色、主题市场。  
-- 按时间自动切换明暗(日出日落 / 定时)。  
-- 改 provider 品牌色、把 CC/CX 绑进 scheme。  
-- 与 skill 业务逻辑耦合(只共享 token)。  
-- **清理 `theme.css` 里 4 组死的 `:root[data-theme]` 规则**:证据已确凿(见实现决策),但删除波及 theme.css 四处不相邻区段,与本次改动面(设置页 + 主进程 themeSource)不重叠,按「既有 dead code 默认只提不删」暂留。已建票单独清理(含删除授权所需的完整证明与验收判据)。
+- A fourth scheme, custom colours, a theme marketplace.  
+- Switching light/dark automatically by time (sunrise/sunset or a schedule).  
+- Changing the provider brand colours, or binding CC/CX into the scheme.  
+- Coupling with skill business logic (only tokens are shared).  
+- **Cleaning up the 4 sets of dead `:root[data-theme]` rules in `theme.css`**: the evidence is
+  conclusive (see the implementation decisions), but deleting them touches four non-adjacent regions
+  of `theme.css` and does not overlap this change surface (the settings page + the main process's
+  `themeSource`), so per "existing dead code is raised, not deleted, by default" they stay. A separate
+  ticket has been filed to clean them up (carrying the full proof required to authorise deletion and
+  the acceptance criteria).
 
 ## Further Notes
 
-- **原型门(配色三选一部分):已过**(2026-08-06)。确认项:设置第三维 ⚙️;点选即全 app 变色、无保存按钮;三套均有 dark 表;CC/CX 语义色不随 scheme 改色相。  
-- **原型门(明暗模式 + 紧凑布局):已过**(2026-08-08)。确认项:模式三段控件(跟随系统 / 浅色 / 深色);外观压为一张卡两行;配色卡**去掉整句描述**、只留色块 + 名称,「默认为紫」移入段末说明;色板取样随生效明暗切换。结论内联在「界面决策」;持久文档不挂原型路径指针。  
-- 三配色 × 两生效明暗 = **6 态**手测;另加模式三态 × 系统外观两态的跟随/锁定矩阵。  
-- 原型受载体限制用 `data-theme` 模拟明暗切换(浏览器里没有 Electron),**该做法不进实现**——实现走 `nativeTheme.themeSource`。
-
+- **Prototype gate (the three-scheme part): passed** (2026-08-06). Confirmed: settings as the third
+  dimension ⚙️; a selection recolours the whole app with no save button; all three have dark tables;
+  CC/CX semantic colours do not change hue with the scheme.  
+- **Prototype gate (light/dark mode + the compact layout): passed** (2026-08-08). Confirmed: the mode
+  three-segment control (follow system / light / dark); appearance compressed into one card with two
+  rows; the palette cards **lose their full-sentence descriptions**, keeping only swatch + name, with
+  "purple is the default" moved into the section's closing explanation; palette samples following the
+  effective light/dark. The conclusions are inlined into "UI decisions"; persistent documents do not
+  carry pointers to prototype paths.  
+- 3 schemes × 2 effective light/dark = **6 states** to test by hand, plus the following/locking matrix
+  of 3 modes × 2 system appearances.  
+- The prototype simulated light/dark switching with `data-theme` because of its carrier's limits (there
+  is no Electron in a browser); **that approach does not enter the implementation** — the
+  implementation goes through `nativeTheme.themeSource`.

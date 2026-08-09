@@ -1,198 +1,587 @@
-# 会话查看
+# Session view
 
-> 关联: features 待建 · ADR-0002(双 seam) · ADR-0001(类型单源)
-> 状态:**第 2 步完成,原型门已过**(2026-08-02 用户确认五个界面点),可切票实现。
+> Related: features pending · ADR-0002 (dual seam) · ADR-0001 (single type source)
+> Status: **step 2 complete, prototype gate passed** (the user confirmed five UI points on 2026-08-02), ready to be cut into tickets.
 
 ## Problem Statement
 
-会话记录躺在两侧 agent 的数据目录里(本机 1948 个文件 / 689MB),用户无从回看"我之前问过什么、得到了什么答案"。现有产品只展示会话元数据(标题/时间/token),明确不渲染内容。
+Session records sit in the two agent sides' data directories (1948 files / 689 MB on this machine),
+with no way for a user to look back at "what did I ask before and what answer did I get". The current
+product shows only session metadata (title / time / tokens) and explicitly does not render contents.
 
-但真正的用户诉求不是"读完整对话"——**是"找到我提过的那个问题,然后看它的答案"**。完整 transcript 里九成以上是工具返回与 harness 噪声,人真正关心的提问只占一小部分(2026-08-02 复测:最大项目里人类提问行占全文字节 **9.5%**;第 1 步调研记的 3.8% 口径未标注,以此数为准)。
+But the real user need is not "read the whole conversation" — **it is "find that question I asked,
+then see its answer"**. More than nine tenths of a full transcript is tool returns and harness noise,
+and the questions people actually care about are a small fraction of it (re-measured 2026-08-02:
+human question lines account for **9.5%** of the bytes in the largest project; the 3.8% figure
+recorded during step 1 research had no stated basis, so this number is authoritative).
 
 ## Solution
 
-**提问是主索引,回答按需取**:项目详情新开「会话」分栏,列出会话 → 打开会话看**提问列表**(主干)→ 点提问按需取回该轮的完整内容(含工具调用与 subagent)。搜索默认搜提问。全部只读(~~导出 Markdown~~ 2026-08-06 用户裁定废弃,见 Out of Scope)。
+**Questions are the primary index, answers are fetched on demand**: project detail gains a "Sessions"
+section listing sessions → opening a session shows the **question list** (the trunk) → clicking a
+question fetches that turn's full contents on demand (including tool calls and subagents). Search
+looks at questions by default. Everything is read-only (~~export to Markdown~~ dropped by the user's
+ruling on 2026-08-06, see Out of Scope).
 
 ## User Stories
 
-1. As a 用户, I want 在项目详情看该项目的会话列表(按最近活动倒序), so that 我能定位到某次对话。
-2. As a 用户, I want 打开会话后先看到**我提过的问题列表**, so that 我能快速扫到目标,而不被工具输出淹没。
-3. As a 用户, I want 点某个提问就看到它的答案,且**快到无感**, so that 回看是流畅的浏览而不是等待。
-4. As a 用户, I want 展开的内容包含工具调用与 subagent 派发的完整过程, so that 我能排查"当时它到底做了什么"。
-5. As a 用户, I want 在本项目全部会话里搜索, so that 我能找到"我之前在这个项目讨论过 X"。
-6. ~~As a 用户, I want 导出为 Markdown, so that 我能存档或分享。~~(2026-08-06 用户裁定废弃)
+1. As a user, I want to see this project's session list in project detail (most recent activity
+   first), so that I can locate a particular conversation.
+2. As a user, I want to see **the list of questions I asked** first when I open a session, so that I
+   can scan for my target without being drowned in tool output.
+3. As a user, I want clicking a question to show its answer, and to be **fast enough not to notice**,
+   so that looking back is fluid browsing rather than waiting.
+4. As a user, I want the expanded contents to include the full process of tool calls and subagent
+   dispatches, so that I can investigate "what did it actually do back then".
+5. As a user, I want to search across all of this project's sessions, so that I can find "I discussed
+   X in this project before".
+6. ~~As a user, I want to export to Markdown, so that I can archive or share.~~ (dropped by the user's
+   ruling, 2026-08-06)
 
-## 失败模式与边界
+## Failure modes and boundaries
 
-**序列 A:会话列表**
-- A1 排序按**最近活动时间倒序**(可切最早在前)。⚠️ 需先修既有缺陷:`SessionMeta.at` 两侧语义不一致。**统一为"文件内最大时间戳"**。
-  **实现期修正(2026-08-02,票 01)**:调研期把 Claude 侧记成"全文件 usage 行时间戳最大值 = 最后活动",这个等号不成立——**两侧都是错的,不只 Codex**。
-  - Codex:取首个时间戳 = 会话开始;fork 会话里那更是**重放时刻**,既不是开始也不是结束。
-  - Claude:取"有 usage 的行"里的最大时间戳。**用户消息没有 `usage` 字段**,所以用户最后问的那句话对这个口径不可见。真实数据抽样 118 个会话,**53 个(45%)的末行时间戳晚于末条 usage 行**,最大差 203 秒;另有会话一条 usage 都没有,只能退回 mtime。
-  两侧均改为对**全部行**取最大时间戳。无时间戳时 Claude 退回 mtime、Codex 无兜底——后者是不可达分支(`session_meta` 必带顶层 timestamp,首行不可解析时该文件根本不进扫描集),故不为它加代码。
-  **修正(2026-08-02 代码核实)**:此改动**不**连带影响项目活跃度排序。`ProjectEntry.lastSessionAt` 走的是另一条管线,两侧都取**文件 mtime**,与 `SessionMeta.at` 无关。因此 A1 的爆炸半径只限于会话列表自身。
-  由此产生的口径分歧**明确保留**:会话分栏按文件内最大时间戳排,项目活跃度按 mtime 排——文件被 touch 而内容未变时两者会不一致。不统一的理由:mtime 是全库 1948 个文件的廉价近似,改成读内容会把项目列表的首屏成本抬到与全量扫描同级。
-  **仅限时间**(2026-08-02 票 02 补):**会话「数」两处必须同源**。A3a 落地后项目列表若继续显示文件数,同一个概念会出现两个数字(实测 1511 vs 507)。故 token 构建完成后用 `perProjectStats` 回填 `ProjectEntry.sessionCount`——数据是同一趟已算好的,零额外开销;引擎缺席时保留文件数,不让整列归零。时间仍走 mtime,不变。
-- A2 **未注册项目的会话不列出**(维持现有 `listed && projectKey` 口径)。
-- A3 subagent 会话不单独入列(维持现状),但在主会话内可展开(见 C3)。
-- A3a **不含任何真实人类提问的会话同样不入列,token 照计**(2026-08-02 票 02 实测后新增,用户裁定)——与 A3 对 subagent 的口径同构。
-  实测依据:会话数最多的项目 1511 个会话里 **1004 个(66%)只有一条 `Warmup`**,是 Claude Code 自开的预热会话,有 token 消耗(678 条 usage 行)却不含人问过的任何东西。若照列,该项目 66% 的行是 uuid 文件名,而本功能立命之本正是「找到我提过的那个问题」——预热会话里没有问题可找。
-  ⚠️ 由此**会话条数与 token 卡的分母对不上**,须在界面注明(与 subagent 那条并列说明)。
-- A4 标题:剥离已知噪声后取**首条真实用户消息**;Codex 优先 `thread_name`,无则同样取首条 `user_message`。剥完全无真实内容 → 退化到文件名(该会话按 A3a 也不入列)。
-  **噪声形态以真实采样为准**(2026-08-02 票 02 实测 297 个会话,调研期清单不完整):
-  | 形态 | 样本占比 | 处理 |
+**Sequence A: the session list**
+- A1 Sorted by **most recent activity time, descending** (switchable to oldest first). ⚠️ An existing
+  defect has to be fixed first: `SessionMeta.at` means different things on the two sides.
+  **Unified to "the largest timestamp inside the file".**
+  **Correction during implementation (2026-08-02, ticket 01)**: research recorded the Claude side as
+  "the largest timestamp among usage lines = last activity", and that equation does not hold —
+  **both sides were wrong, not just Codex**.
+  - Codex: took the first timestamp = the session's start; in a forked session that is in fact **the
+    replay moment**, neither the start nor the end.
+  - Claude: took the largest timestamp among lines that have usage. **User messages have no `usage`
+    field**, so the last thing the user asked is invisible to that measure. Sampling 118 real
+    sessions, **53 (45%) have a last-line timestamp later than the last usage line**, with a maximum
+    gap of 203 seconds; and some sessions have no usage line at all, leaving only mtime.
+  Both sides now take the largest timestamp over **all lines**. With no timestamp, Claude falls back to
+  mtime and Codex has no fallback — that is an unreachable branch (`session_meta` always carries a
+  top-level timestamp, and a file whose first line will not parse never enters the scan set), so no
+  code is written for it.
+  **Correction (verified in code 2026-08-02)**: this change does **not** affect the project activity
+  sort as a side effect. `ProjectEntry.lastSessionAt` goes down a different pipeline, taking **the
+  file mtime** on both sides, unrelated to `SessionMeta.at`. So A1's blast radius is confined to the
+  session list itself.
+  The resulting divergence is **deliberately kept**: the sessions section sorts by the largest
+  timestamp inside the file, project activity sorts by mtime — so the two disagree when a file is
+  touched without its contents changing. The reason for not unifying them: mtime is a cheap
+  approximation over 1948 files, and reading contents instead would push the project list's
+  first-paint cost up to the level of a full scan.
+  **Time only** (added by ticket 02, 2026-08-02): **the session *count* must share its source in both
+  places**. Once A3a landed, a project list still showing a file count would give the same concept two
+  different numbers (measured: 1511 vs 507). So after the token build, `perProjectStats` backfills
+  `ProjectEntry.sessionCount` — the data is already computed in that same pass, at zero extra cost;
+  when the engine is absent the file count is kept so the column does not go to zero. Time still uses
+  mtime, unchanged.
+- A2 **Unregistered projects' sessions are not listed** (keeping the existing `listed && projectKey`
+  rule).
+- A3 Subagent sessions do not get their own rows (unchanged) but can be expanded inside the main
+  session (see C3).
+- A3a **A session containing no real human question is likewise not listed, and its tokens still
+  count** (added after measurement in ticket 02, 2026-08-02, by the user's ruling) — structurally
+  identical to A3's rule for subagents.
+  The measurement behind it: in the project with the most sessions, **1004 of 1511 (66%) contain a
+  single `Warmup`** — warmup sessions Claude Code opened by itself, which consume tokens (678 usage
+  lines) but contain nothing anyone asked. Listing them would make 66% of that project's rows uuid
+  filenames, while this feature's whole reason for existing is "find that question I asked" — and a
+  warmup session has no question to find.
+  ⚠️ As a result **the session count and the token card's denominator do not match**, which must be
+  stated in the UI (alongside the subagent note).
+- A4 Title: after stripping known noise, take **the first real user message**; Codex prefers
+  `thread_name`, falling back to the first `user_message` the same way. If stripping leaves nothing
+  real → fall back to the filename (such a session is not listed anyway, per A3a).
+  **Noise shapes follow real sampling** (297 sessions measured in ticket 02, 2026-08-02; the
+  research-phase list was incomplete):
+  | Shape | Sample share | Handling |
   |---|---|---|
-  | `Warmup`(整条消息就这一个词) | 188/297 | 整条丢弃(**仅完全相等时**,真提问里出现该词不能误伤) |
-  | `[cron:<uuid> <名字>] <真正的指令>` | 92/297 | **只剥方括号,保留后面的指令**——它是真实提问 |
-  | `<local-command-*>…`(caveat 免责声明 / stdout 命令输出) | caveat 13/297;stdout 7/144 | 整条丢弃(**按族匹配前缀**,同一机制还会产出兄弟标签) |
-  | `<command-message>…</command-message><command-name>/x</command-name><command-args>真实内容</command-args>` | 2/297 | **取 `command-args` 的内容**;为空(如 `/clear`)则整条丢弃 |
-  | `Base directory for this skill: …` | 常见于 slash 命令之后 | 整条丢弃(skill 正文注入) |
-  ⚠️ **调研期列的「Conversation info」是真的,我第一次查漏了**(2026-08-03 复查修正):它存在于 6 个文件,形态是
-  `Conversation info (untrusted metadata):` + 一段 ```json 元数据块 + **后面才是真人说的话**——与 cron 同类,整条丢会丢掉真提问。
-  同族还有 `Continue this conversation using the OpenClaw transcript…`(19 个文件),真人那句嵌在 `<next_user_message>` 里、且前面还套着若干机器前缀块(`[Inter-session message]` / `Untrusted context` / `System:` 行)。
-  **两者都不实现**,理由不是"没见过",而是:它们只出现在**未注册项目** `.openclaw/workspace` 里,按 A2 根本不会进任何会话分栏——为永远不显示的会话写剥离逻辑是死代码,且会随 OpenClaw 的格式腐烂。
-  哪天 OpenClaw 在已注册项目里留下同款注入,再按上面记下的形态实现(样本已存证,不必重新调研)。
-  🔬 第一次漏掉它的原因:采样按 mtime 倒序取最近 300 个文件,而这些是 7 月 15 日的旧文件——**采样偏向了最近**。同一轮里这是第二次栽在采样方式上(另一次是回扫时忘了排序)。
-  ⚠️ 噪声不止出现在首条:caveat 之后常跟 `<command-name>/clear</command-name>`,真实提问在第三条。**必须逐条向后找,不能只看首条。**
-  ⚠️ 噪声**分层**:`<local-command-stdout>` 是剥掉前几层之后才浮出来的第二层——只采样"每个会话的首条消息"看不见它,必须拿实现好的剥离函数回扫真实数据、检查**产出的标题**才发现。新增剥离规则后要再扫一遍。
-  ⚠️ `[Image #N] <真提问>` **不是噪声**(采样仅 1 例):方括号后是真实提问,且整体可读,不为只见过一次的形态写规则。
-- A5 无会话项目 → 空态。
+  | `Warmup` (the whole message is that one word) | 188/297 | Discard the whole message (**only on exact equality**, so a real question containing the word is not caught) |
+  | `[cron:<uuid> <name>] <the actual instruction>` | 92/297 | **Strip only the bracket, keep the instruction after it** — that is a real question |
+  | `<local-command-*>…` (the caveat disclaimer / stdout command output) | caveat 13/297; stdout 7/144 | Discard the whole message (**match by family prefix**, since the same mechanism produces sibling tags) |
+  | `<command-message>…</command-message><command-name>/x</command-name><command-args>real content</command-args>` | 2/297 | **Take the contents of `command-args`**; if empty (e.g. `/clear`), discard the whole message |
+  | `Base directory for this skill: …` | Common after a slash command | Discard the whole message (injected skill body) |
+  ⚠️ **The "Conversation info" on the research list is real; I missed it the first time** (corrected on
+  recheck 2026-08-03): it exists in 6 files, in the form
+  `Conversation info (untrusted metadata):` + a ```json metadata block + **the human's actual words
+  after that** — the same class as cron, so discarding the whole message would discard a real question.
+  The same family also includes `Continue this conversation using the OpenClaw transcript…` (19
+  files), where the human's sentence is nested inside `<next_user_message>` behind several machine
+  prefix blocks (`[Inter-session message]` / `Untrusted context` / a `System:` line).
+  **Neither is implemented**, and the reason is not "never seen it" but that they only occur in
+  **unregistered projects** under `.openclaw/workspace`, which per A2 never enter any sessions section
+  — writing stripping logic for sessions that are never displayed is dead code, and it would rot along
+  with OpenClaw's format.
+  If OpenClaw ever leaves the same injection in a registered project, implement it from the shapes
+  recorded above (the samples are on file; no fresh research needed).
+  🔬 Why it was missed the first time: the sample took the most recent 300 files by descending mtime,
+  and these were old files from 15 July — **the sample was biased toward the recent**. That was the
+  second time in one round of being caught by the sampling method (the other was forgetting to sort
+  when scanning back).
+  ⚠️ Noise is not confined to the first message: a caveat is often followed by
+  `<command-name>/clear</command-name>`, with the real question third. **You have to walk forward
+  entry by entry, not just look at the first one.**
+  ⚠️ Noise is **layered**: `<local-command-stdout>` only surfaces as a second layer after the first few
+  are stripped — sampling "each session's first message" cannot see it, and it was only found by
+  running the finished stripping function back over real data and inspecting **the titles produced**.
+  Scan again after adding a stripping rule.
+  ⚠️ `[Image #N] <real question>` **is not noise** (1 instance in the sample): what follows the bracket
+  is a real question and the whole thing is readable, and we do not write rules for shapes seen once.
+- A5 A project with no sessions → an empty state.
 
-**序列 B:提问列表(打开会话)**
-- B1 主干只列**人类提问**:Claude 取 `type=user` 且 content 为 string 或数组里有 `text` 段;Codex 取 `event_msg/user_message`(**不用 `response_item/message`**——后者混入 `<environment_context>`/AGENTS.md 注入内容)。
-  **实现期修正(2026-08-03,票 03a)**,三处:
-  1. 「排除 `[{type:tool_result}]`」**不需要单独的守卫**,由"只取 text 段"这条规则本身达成。全库枚举 37,604 条数组 content,段类型组合只有 `(tool_result)` 12541 / `(text)` 194 / `(image,text)` 51 三种——**`tool_result` 从不与 `text` 同现**,且 `tool_result` 段自身没有 `text` 字段。再写一条 `some(type===tool_result)` 是不可达分支,已删。
-  2. **补:`isSidechain` 的行不算人类提问**——那是 subagent 自己的转写,它的"user 消息"是父会话派发给它的提示词。实测全库 1545 个文件里这条规则只改变 3 个的判定(都在 `.openclaw/workspace`,该项目未在 Claude 侧注册,按 A2 本就不入列),故对当前数据无可见影响,但口径必须先立对。
-  3. 提问识别与标题剥离**必须同源**:两者都用 `realUserText`,由同一个索引器决定"哪一行是首条真实提问"。分成两套判定必然漂移,后果是"标题有值但提问数为 0"这类同概念两个数字(A1 同类教训)。
-- B2 **Codex 重放前缀剥离**:只展示本次 fork 之后的新内容,顶部标注"fork 自 X · 更早历史见该会话"。剥离规则依赖父文件在扫描集内;不在时退化为启发式并**显式标注不确定**(不可静默剥错——剥多剥少都表现为可见的消息丢失/重复)。
-  **实现期落地(2026-08-04,票 03b)**:
-  - **靠内容指纹认重放段,不靠时间戳**——重放会**改写时间戳**(真实父子对 4/4 例证实),时间戳认不出重放。索引里每条提问带一个 32 位指纹(见 Implementation Decisions 里对 D2a 的放宽)。
-  - **失败方向决定保守取向**:多剥 → 真提问静默消失;少剥 → 显示重复且有标记解释。故**逐条指纹校验不过就不剥**;父缺失时按突发启发式(重放是程序一次写入、行间隔近零,与 token 侧同一机制但各算各的),且**绝不剥空**(整段都像突发时留最后一条——那既可能是"本次 fork 无新内容",也可能是启发式误判,后者剥空会让整个会话凭空消失)。突发判定遇时间戳**负差(乱序)即终止**,与 token 侧同规则——一次写入的时间戳单调,乱序不构成突发证据(2026-08-05 补,03 回溯 review R2)。
-  - **已验证剥空的 fork 不入列,token 照计**(2026-08-05 用户裁定,03 回溯 review R3):父在扫描集内、每条提问都经指纹核实为重放、fork 后无新提问的会话没有可找的提问,与 A3a 同构(含"子侧全段吻合但短于父重放段"的 uncertain 剥空——每条同样验过)。剥空只能出自指纹校验路径(启发式绝不剥空;本就没提问的会话在解析期已不入列)。读白名单仍按剥前口径——其内容全是已可读父会话的重放,不扩大读端暴露面,收窄需把白名单决策挪到 combine 之后,改动面大于收益。
-  - **剥离后的重起标题只针对"标题来自首条提问"的会话**(2026-08-05 修,03 回溯 review R1):thread_name 的优先级(A4)不因剥离而失效,缓存条目为此记录标题来源(CACHE_VERSION v9)。
-  - **展示口径的剥离在 `combine` 阶段做**,不在 parser:它要看父会话的索引,而缓存按文件存,parser 拿不到父。也**不复用 token 侧那个 `start`**——计量口径是去重,展示口径是"这次对话看起来什么样"。
-  - **三态在数据上可区分**:`none`(不是 fork)/ `stripped`(已校验剥离)/ `uncertain`(父缺失或校验不符),进 IPC 契约。
-  - **真实数据验证**:本机两个真实 fork,分别剥 100/181 与 18/100 条,剥掉的末条在父子两边逐字相同,保留的首条是真正的新提问。
-- B3 **Claude 分叉取末叶回溯**:沿父链从最后一条回溯到根,只渲染这条链(即"这次对话最终长什么样"),被放弃的分支不显示。
-  **实现期修正(2026-08-04,票 03b):字面算法在真实数据上是错的,两处**——
-  1. **起点不是"文件最后一条",是最后一条非 `isSidechain` 行**。全库 1481 个有 uuid 链的文件里 **1015 个(69%)末行是 sidechain 行**,其 `parentUuid` 恒为 null、子节点只指向 sidechain 内部;从它回溯会掉进 subagent 自己的链,主会话一条提问都取不到。
-  2. **父指针取 `parentUuid ?? logicalParentUuid`**。上下文压缩会插入一行 `type=system` / `subtype=compact_boundary`,它的 `parentUuid` 断开,`logicalParentUuid` 才是通往压缩前历史的桥。只认 `parentUuid` 的话,压缩前的全部历史会被误判为"被放弃的分支"——实测最坏一例 **346 条提问只剩 44 条**。桥接后 466 个含提问文件无一塌陷,该例 346 → 279。
-  真实数据上分叉本身不常见:27/1481 文件有分叉点,29 个有多叶。**无 uuid 的提问按不漏原则保留**——判断不了在不在链上时,漏掉真提问比多留一条被放弃的更违背本功能的立命之本。
-- B4 超大会话(实测最大 133MB / 19,060 行)**不整读**:提问列表只需提问文本与偏移,负载在几十 KB 量级。
+**Sequence B: the question list (opening a session)**
+- B1 The trunk lists **human questions only**: Claude takes `type=user` where content is a string or an
+  array containing a `text` segment; Codex takes `event_msg/user_message` (**not
+  `response_item/message`** — the latter mixes in `<environment_context>` / AGENTS.md injected
+  content).
+  **Corrections during implementation (2026-08-03, ticket 03a)**, three of them:
+  1. "Exclude `[{type:tool_result}]`" **needs no separate guard**; the rule "take only text segments"
+     achieves it. Enumerating all 37,604 array contents in the repository, the segment type
+     combinations are only `(tool_result)` 12541 / `(text)` 194 / `(image,text)` 51 — **`tool_result`
+     never co-occurs with `text`**, and a `tool_result` segment has no `text` field of its own. An
+     additional `some(type===tool_result)` is an unreachable branch and has been deleted.
+  2. **Added: lines with `isSidechain` do not count as human questions** — that is a subagent's own
+     transcript, whose "user message" is the prompt the parent session dispatched to it. Measured
+     across 1545 files, this rule changes the judgement for only 3 (all under `.openclaw/workspace`,
+     a project not registered on the Claude side and therefore not listed per A2), so it has no
+     visible effect on current data — but the rule has to be right first.
+  3. Question identification and title stripping **must share a source**: both use `realUserText`, and
+     one indexer decides "which line is the first real question". Two separate judgements would
+     inevitably drift, producing "the title has a value but the question count is 0" — the same
+     concept with two numbers (the same lesson as A1).
+- B2 **Codex replay prefix stripping**: show only what is new since this fork, with a note at the top
+  saying "forked from X · earlier history is in that session". The stripping rule depends on the
+  parent file being in the scan set; when it is not, degrade to a heuristic and **label the
+  uncertainty explicitly** (a wrong strip must never be silent — stripping too much or too little both
+  show up as visible lost or duplicated messages).
+  **Landed during implementation (2026-08-04, ticket 03b)**:
+  - **Identify the replayed span by content fingerprint, not by timestamp** — a replay **rewrites the
+    timestamps** (confirmed on 4 of 4 real parent-child pairs), so timestamps cannot recognise it.
+    Each question in the index carries a 32-bit fingerprint (see the relaxation of D2a in the
+    Implementation Decisions).
+  - **The direction of failure decides the conservative choice**: stripping too much → a real question
+    silently disappears; too little → duplicates, visibly, with a marker explaining them. So
+    **do not strip if the entry-by-entry fingerprint check does not pass**; when the parent is missing,
+    use the burst heuristic (a replay is written by a program in one go with near-zero inter-line
+    gaps, the same mechanism as the token side but computed independently), and **never strip it
+    empty** (if the whole span looks like a burst, keep the last entry — that could be either "this
+    fork has nothing new" or a heuristic misjudgement, and stripping empty on the latter would make an
+    entire session vanish). The burst judgement **stops at a negative (out-of-order) timestamp
+    difference**, the same rule as the token side — a single write's timestamps are monotonic, and
+    out-of-order ones are not evidence of a burst (added 2026-08-05, from ticket 03's retrospective
+    review R2).
+  - **A fork verified to have been stripped empty is not listed, and its tokens still count** (the
+    user's ruling 2026-08-05, from ticket 03's retrospective review R3): a session whose parent is in
+    the scan set, every one of whose questions is fingerprint-verified as a replay, and which has no
+    new question after the fork, has no question to find — structurally identical to A3a (including
+    the "uncertain" empty strip where the child's whole span matches but is shorter than the parent's
+    replayed span — each entry there is verified too). Stripping empty can only come from the
+    fingerprint path (the heuristic never strips empty; a session that never had questions was already
+    unlisted at parse time). The read allow-list still follows the pre-strip rule — its contents are
+    entirely replays of an already-readable parent session, so it does not widen the read exposure
+    surface, and narrowing it would mean moving the allow-list decision after `combine`, a bigger
+    change than the benefit.
+  - **Re-deriving the title after stripping applies only to sessions whose title comes from the first
+    question** (fixed 2026-08-05, from ticket 03's retrospective review R1): `thread_name`'s priority
+    (A4) is not invalidated by stripping, and the cache entry records the title's origin for this
+    purpose (CACHE_VERSION v9).
+  - **The display-side stripping happens in `combine`**, not in the parser: it needs the parent
+    session's index, and the cache is per file, so the parser cannot reach the parent. It also does
+    **not** reuse the token side's `start` — the metering rule is deduplication, the display rule is
+    "what this conversation looks like".
+  - **The three states are distinguishable in the data**: `none` (not a fork) / `stripped` (verified
+    and stripped) / `uncertain` (parent missing or the check did not match), and they enter the IPC
+    contract.
+  - **Verified against real data**: the two real forks on this machine stripped 100/181 and 18/100
+    entries respectively; the last stripped entry was byte-identical on both sides, and the first
+    retained one was a genuinely new question.
+- B3 **Claude branch resolution walks back from the last leaf**: follow the parent chain from the last
+  entry back to the root and render only that chain (i.e. "what this conversation finally became"),
+  without showing abandoned branches.
+  **Corrections during implementation (2026-08-04, ticket 03b): the literal algorithm is wrong on real
+  data, in two places** —
+  1. **The starting point is not "the file's last entry" but the last non-`isSidechain` line.** Of the
+     1481 files with a uuid chain, **1015 (69%) end on a sidechain line**, whose `parentUuid` is always
+     null and whose children point only within the sidechain; walking back from it falls into the
+     subagent's own chain and retrieves not a single question from the main session.
+  2. **The parent pointer is `parentUuid ?? logicalParentUuid`.** Context compaction inserts a
+     `type=system` / `subtype=compact_boundary` line whose `parentUuid` is broken, and
+     `logicalParentUuid` is the bridge to the pre-compaction history. Honouring only `parentUuid`
+     misjudges all pre-compaction history as "abandoned branches" — measured worst case, **346
+     questions collapsed to 44**. After bridging, none of the 466 files containing questions collapse,
+     and that case went 346 → 279.
+  Branching itself is not common in real data: 27 of 1481 files have a branch point and 29 have
+  several leaves. **Questions with no uuid are kept on the do-not-lose principle** — when we cannot
+  tell whether it is on the chain, losing a real question is a worse violation of this feature's
+  reason for existing than keeping one extra abandoned entry.
+- B4 A very large session (measured maximum 133 MB / 19,060 lines) is **never read whole**: the question
+  list needs only the question text and offsets, a payload in the tens of kilobytes.
 
-**序列 C:按需取回答(核心体验)**
-- C1 取回粒度 = **整轮**:该提问之后到下一条提问之前的全部内容(助手回复、工具调用与返回、subagent 派发)。只取末段文本会丢上下文。
-- C2 **偏移索引**:扫描阶段(搭 token 统计那一趟)记录每条提问及其轮次的字节起止;点击时 `createReadStream(file, {start, end})` **只读该区间**,与文件总大小无关 → 毫秒级。
-- C3 subagent 在轮内**就地可展开**:Claude 的 `subagents/` 子文件与内联 sidechain 记录、Codex 的 subagent thread 都归到派发它的那一步下面。
-  **实测修正(2026-08-06,票 07):"归到派发那一步下面"在两侧都不可靠达成**——四条候选连接键全部实测排除:`toolUseResult.agentId`(7 位)与 sidechain `agentId`(17 位)不同名空间(0/225);dispatch 行无 `promptId`(0/202);`outputFile` 指向后台任务输出文件而非转写;sidechain 首行文本与 dispatch prompt 相等 0/1299;Codex `spawn_agent` 出参无 thread id。按「零样本不写规则」与「不做猜测性配对」:sub 块两侧统一为**派发入参 + 返回 + 未归位 warn**,sidechain 行不渲染(已知类型,完整转写在源文件/嵌套文件)。模型的 `steps` 字段与渲染通路保留——harness 未来提供连接键时可归位。
-- C4 索引失效(文件被追加/重写,签名不符)→ **只重建该文件**的索引,不全量重扫;取回前校验一次。
-  **落地(2026-08-04,票 04)**:`engine.sessionQuestions` 每次取回先比签名,不符则单文件重解析并**回写缓存落盘**(下次不再重建);Codex fork 的展示剥离与列表同源(同一个 stripReplayPrefix + 父查找),不复用 token 计量侧的结论。
-- C5 展开的内容里,工具调用默认折叠(名称 + 一行摘要),可再展开看完整入参与返回。
-- C6 **两侧完整度不对等,须显式标注**:Codex 的推理正文是 `encrypted_content`(**永远拿不到**,明文只有小标题);~~Claude 有 `thinking` 明文~~。不可假装一致。
-  **实测修正(2026-08-06,票 07):Claude 主链 thinking 全库 3312 段正文全为空**(只有 signature 占位)——两侧的思考/推理正文实测**都不可得**,Codex 尚有明文小标题(`response_item/reasoning.summary`,与 `event_msg/agent_reasoning` 互为镜像,取前者防双计),Claude 连小标题都没有。think 块机制保留(契约/渲染就绪),当前数据不产生。
-- C7 Claude 超大工具结果正文被截断,旁挂 `tool-results/*.txt` → 展示截断版并标注,不谎称完整。
-  **实测修正(2026-08-06,票 07)**:调研期记的"transcript 内无引用链"不成立——49 例旁挂引用**全部带完整路径**("output saved to: …/tool-results/x")。截断判据 = 返回文本含 `tool-results/` 路径(机制性:harness 旁挂目录;"truncated" 字样太泛不作判据)。**旁挂文件不读**(2026-08-06 用户裁定:不进读白名单,扩白名单是范围扩张且文件可能巨大),只展示截断版 + 标注。
-- C8 harness 噪声不渲染:需一份显示白名单。`task_reminder`/`file-history-snapshot`/`token_count`/`thread_settings_applied` 等一律不显示。
-  **落地(2026-08-06,票 07,实测全谱)**:Claude 顶层 18 种(内容载体仅 assistant/user,其余 16 种 known-noise;attachment **不需要内型白名单**——整体即 noise);Codex 三层:顶层 7 种、event_msg 15 种、response_item 9 种(正文取 event_msg/agent_message,工具与推理取 response_item 一路,`message`/`agent_message` 的 response_item 路是双写镜像不渲染)。**白名单外的未知类型留痕**(unknown 块,置于块序末尾,聚合条数与类型名;三层分别以 `event_msg/`、`response_item/` 前缀区分)——白名单类失败不可见,绝不静默丢(CONTEXT 不变量)。全库真实数据探针:未知留痕空集、工具配对率 99.94%。
+**Sequence C: fetching answers on demand (the core experience)**
+- C1 The fetch granularity = **a whole turn**: everything from that question up to the next one
+  (assistant replies, tool calls and returns, subagent dispatches). Taking only the last text segment
+  loses the context.
+- C2 **Offset index**: during the scan (riding along with the token statistics), record each question's
+  and its turn's start and end byte offsets; on a click, `createReadStream(file, {start, end})`
+  **reads only that range**, independent of total file size → milliseconds.
+- C3 Subagents **expand in place inside the turn**: Claude's `subagents/` subfiles and inline sidechain
+  records, and Codex's subagent threads, all sit under the step that dispatched them.
+  **Correction from measurement (2026-08-06, ticket 07): "sitting under the dispatching step" cannot
+  be reliably achieved on either side** — all four candidate join keys were measured and excluded:
+  `toolUseResult.agentId` (7 digits) and sidechain `agentId` (17 digits) are different namespaces
+  (0/225); dispatch lines have no `promptId` (0/202); `outputFile` points at a background task's
+  output file rather than the transcript; a sidechain's first-line text equals the dispatch prompt in
+  0/1299 cases; and Codex's `spawn_agent` output has no thread id. Per "no rule without a sample" and
+  "no speculative pairing", the sub block on both sides is unified as **the dispatch arguments + the
+  return + an unattributed warning**, with sidechain lines not rendered (a known type whose full
+  transcript is in the source or nested file). The model's `steps` field and the rendering path are
+  retained — they can be attributed if the harness ever provides a join key.
+- C4 An invalid index (the file was appended to or rewritten, so the signature does not match) →
+  **rebuild the index for that file only**, without a full rescan; verify once before fetching.
+  **Landed (2026-08-04, ticket 04)**: `engine.sessionQuestions` compares the signature on every fetch
+  and, on a mismatch, re-parses that one file and **writes the cache back to disk** (so it is not
+  rebuilt again next time); the display-side stripping for a Codex fork shares its source with the
+  list (the same `stripReplayPrefix` and parent lookup), rather than reusing the token metering side's
+  conclusions.
+- C5 In the expanded contents, tool calls are collapsed by default (name + a one-line summary) and can
+  be expanded to see the full arguments and return.
+- C6 **The two sides' completeness is unequal and must be labelled explicitly**: Codex's reasoning body
+  is `encrypted_content` (**never obtainable**, with only plaintext sub-headings);
+  ~~Claude has plaintext `thinking`~~. We must not pretend they are the same.
+  **Correction from measurement (2026-08-06, ticket 07): all 3312 thinking segments on Claude's main
+  chain have an empty body** (only a signature placeholder) — measured, **neither side's thinking or
+  reasoning body is obtainable**; Codex at least has plaintext sub-headings
+  (`response_item/reasoning.summary`, a mirror of `event_msg/agent_reasoning`, taking the former to
+  avoid double counting), while Claude has not even a sub-heading. The think block mechanism is
+  retained (contract and rendering ready) but the current data produces none.
+- C7 A Claude tool result whose body was too large is truncated with a sidecar `tool-results/*.txt` →
+  display the truncated version with a label, without pretending it is complete.
+  **Correction from measurement (2026-08-06, ticket 07)**: the research-phase note "there is no
+  reference chain inside the transcript" is false — all 49 sidecar references **carry a full path**
+  ("output saved to: …/tool-results/x"). The truncation criterion = the return text contains a
+  `tool-results/` path (mechanism-based: the harness's sidecar directory; the word "truncated" is too
+  generic to be a criterion). **The sidecar file is not read** (the user's ruling 2026-08-06: it does
+  not enter the read allow-list, since widening it is scope creep and the files may be enormous) —
+  only the truncated version is shown, with a label.
+- C8 Harness noise is not rendered: this needs a display allow-list. `task_reminder` /
+  `file-history-snapshot` / `token_count` / `thread_settings_applied` and the like are never displayed.
+  **Landed (2026-08-06, ticket 07, with the full spectrum measured)**: Claude has 18 top-level types
+  (only assistant/user carry content, the other 16 are known noise; attachment **needs no inner-type
+  allow-list** — the whole thing is noise); Codex has three layers: 7 top-level types, 15 event_msg
+  types, 9 response_item types (prose comes from event_msg/agent_message, while tools and reasoning
+  come down the response_item path, and the response_item paths for `message` / `agent_message` are
+  double-write mirrors that are not rendered). **Unknown types outside the allow-list leave a trace**
+  (an unknown block placed at the end of the block order, aggregating the count and the type names,
+  with the three layers distinguished by `event_msg/` and `response_item/` prefixes) — allow-list
+  failures are invisible, so nothing is ever silently dropped (a CONTEXT invariant). Probes over the
+  whole repository's real data: the unknown trace set is empty, and the tool pairing rate is 99.94%.
 
-**序列 D:搜索**
-- D1 **默认搜提问**(小、干净、命中精准),全文搜索作为可选开关。
-- D2 不建倒排索引。**成本实测(2026-08-02,最大项目 92.5MB / 16 文件,热缓存)**:
-  搜提问 = 按偏移索引逐区间 `pread` + `Buffer.indexOf` 字节匹配 = **23ms**;全文搜索 = 整读 + 字节匹配 = **49ms**;p50 项目仅 0.6MB,亚毫秒。
-  关键在**不解析**:同样 92.5MB,逐行 `JSON.parse` 要 501ms,纯字节扫只要 27ms。**只对命中的区间才 decode + parse**。
-  ⚠️ **大小写不敏感不得整体 decode+toLowerCase**(实测 391ms,比搜索本身贵 17 倍)——ASCII needle 生成大小写变体做多次字节匹配,中文 needle 无此问题。
-  ⚠️ 以上为热缓存数字;冷启动首次搜索受磁盘 IO 限制,未实测。
-  推论:**全文搜索做成开关的理由是命中质量(全文会命中工具输出噪声),不是性能。**
-- D2a **缓存只存偏移与一个内容指纹,不存任何提问文本——连截断预览也不存**。
-  **指纹是 2026-08-04(票 03b)加的一处必要放宽**:Codex 重放改写时间戳,不存任何内容衍生物就只能按条数盲剥,而盲剥正是 B2 要防的静默剥错。每条 4 字节、不可逆推文本、也无法用于搜索,D2a 原本的两条理由(体积、别退化成第二套搜索语料)都不受影响。
-  以下为原始理由,仍然成立:提问文本一律按区间现读(提问列表与搜索走同一条读法)。
-  理由两面都不成立才这么定:存全文 → 提问占全文约 9.5%(最大项目实测),全库进每次启动都读的 `token-cache.json` 是 MB 级负担;存截断预览 → 实测 **39.7% 的提问超过 60 字**(>200 字 17%,>500 字 10.4%),预览既漏正文又要在搜索处退化成第二套语料。而现读只要 23ms,不值得为它留一份有损副本。
-  推论:列表行的省略号是**显示层截断**(CSS),不是数据层截断——展开时铺得出全文。
-- D2b **文件读走有界并发,默认 4**。抽成共享的并发读工具,新增的区间读路径(提问列表、搜索、按需取回)统一走它。
-  🔬 **4 是待测试确认项,不是定论**。热缓存实测(671.6MB / 1950 文件,10 核):纯读路径并发 1→310ms、2→153ms、**4→107ms**、8→88ms、16→79ms——4 拿到 74% 的收益,8 拿到 89%,拐点在 8。暂取 4 的理由是它等于 Node libuv 线程池默认大小,超过 4 需同时提 `UV_THREADPOOL_SIZE` 才兑现;而 `UV_THREADPOOL_SIZE=16` 在热缓存下实测**没变快反而略慢**(瓶颈是内存带宽不是线程池)。
-  ⚠️ 收益真正的所在是**冷盘队列深度**,而冷路径未实测(需重启或 `sudo purge` 清页缓存)。冷盘数据出来前不动这个 4。归宿见 `.scratch/scan-cold-start/`。
-- D3 全文搜索时须**去重**:Codex 54.7% 字节是 fork 重放副本,不去重会让同一句话在 fork 链每一代各报一次命中。
-- D4 命中结果定位到"哪个会话的哪条提问",点击直达。
-  **命中直达的定位高亮(2026-08-06 原型确认三轮后定稿)**:进入时黄色背景脉冲**驻留 10s**(前 8s 保持、末 2s 渐隐;mark 同族色,与 hover 的紫区分),脉冲后**左缘 3px accent 竖条常驻**,点击任意提问行清除;切排序等重挂载不重播脉冲(播完态记忆)。功能色走规则级四段式,不随外观方案变。
-  **落地(2026-08-06,票 08)**:`searchSessions(path, needle≤200, fullText)`——会话集合由主进程按项目统计自取,渲染层给不了文件路径;提问模式 = `readRangeBuffers` 原始字节区间粗筛(searchBytes 大小写折叠:无字母段作 indexOf 锚 / 全字母 needle 首字母双变体,绝不整体 decode+toLowerCase),只对命中区间 decode+parse,并用解析文本**复验**剔除 JSON 转义的字节级假命中(反向漏配是已知边界:needle 含引号/反斜杠/换行时 JSON 转义形态搜不到,关键词罕见,不为其做转义变体扫);全文模式 = 整读 + 命中偏移二分归轮,展示区间外(fork 已剥前缀 / 被放弃分支 / 首问前噪声区)计 folded 并在结果头报出;提问模式经 03b 剥离天然无重放副本。直达 = SessionPane focusQ 滚动定位,不新增视觉元素。搜索词不跨分栏保留(spec 未要求)。
+**Sequence D: search**
+- D1 **Questions are searched by default** (small, clean, precise hits), with full-text search as an
+  optional toggle.
+- D2 No inverted index is built. **Cost measured (2026-08-02, the largest project, 92.5 MB / 16 files,
+  warm cache)**:
+  searching questions = `pread` per range by the offset index + `Buffer.indexOf` byte matching =
+  **23 ms**; full-text search = read whole + byte matching = **49 ms**; the p50 project is only
+  0.6 MB, sub-millisecond.
+  The key is **not parsing**: over the same 92.5 MB, `JSON.parse` per line takes 501 ms while a pure
+  byte scan takes 27 ms. **Only matching ranges get decoded and parsed.**
+  ⚠️ **Case insensitivity must not decode + `toLowerCase` the whole thing** (measured 391 ms, 17× the
+  cost of the search itself) — generate case variants of an ASCII needle and do several byte matches
+  instead; a Chinese needle has no such problem.
+  ⚠️ The numbers above are warm-cache; a cold-start first search is disk-IO bound and was not measured.
+  Corollary: **full-text search is a toggle because of hit quality (full text hits tool output noise),
+  not because of performance.**
+- D2a **The cache stores offsets and one content fingerprint, and no question text at all — not even a
+  truncated preview.**
+  **The fingerprint is one necessary relaxation added on 2026-08-04 (ticket 03b)**: a Codex replay
+  rewrites the timestamps, so storing nothing derived from the content would leave only blind
+  stripping by count, and blind stripping is exactly the silent mis-strip B2 exists to prevent. Four
+  bytes per entry, not reversible into text, and unusable for search — so neither of D2a's original
+  reasons (size, and not degenerating into a second search corpus) is affected.
+  The original reasoning still holds: question text is always read from its range on demand (the
+  question list and search go down the same read path).
+  The decision was made only because neither alternative holds up: storing the full text → questions
+  are about 9.5% of the whole (measured on the largest project), and repository-wide that is a
+  megabyte-scale burden on `token-cache.json`, which is read on every startup; storing a truncated
+  preview → measured, **39.7% of questions exceed 60 characters** (>200 characters 17%, >500
+  characters 10.4%), so a preview both loses the body and degenerates into a second corpus at search
+  time. And reading on demand takes 23 ms, which is not worth keeping a lossy copy for.
+  Corollary: the ellipsis on a list row is **display-layer truncation** (CSS), not data-layer — the
+  full text can be laid out when it expands.
+- D2b **File reads go through bounded concurrency, defaulting to 4.** Extracted as a shared concurrent
+  read utility, and the new range-read paths (question list, search, on-demand fetch) all go through it.
+  🔬 **4 is a to-be-confirmed value, not a conclusion.** Warm-cache measurement (671.6 MB / 1950 files,
+  10 cores): the pure read path at concurrency 1 → 310 ms, 2 → 153 ms, **4 → 107 ms**, 8 → 88 ms,
+  16 → 79 ms — 4 captures 74% of the benefit and 8 captures 89%, with the knee at 8. The reason for
+  taking 4 for now is that it equals Node's default libuv thread pool size, and going beyond 4 requires
+  raising `UV_THREADPOOL_SIZE` at the same time to be realised; and `UV_THREADPOOL_SIZE=16` measured
+  **no faster and slightly slower** on a warm cache (the bottleneck is memory bandwidth, not the thread
+  pool).
+  ⚠️ The real benefit lies in **cold-disk queue depth**, and the cold path was not measured (it needs a
+  reboot or `sudo purge` to clear the page cache). Do not touch this 4 until cold-disk data exists.
+  Destination: `.scratch/scan-cold-start/`.
+- D3 Full-text search must **deduplicate**: 54.7% of Codex's bytes are fork replay copies, and without
+  deduplication the same sentence is reported once per generation of a fork chain.
+- D4 A hit locates "which question in which session", clickable to go straight there.
+  **The locating highlight for a hit (finalised after three rounds of prototype confirmation
+  2026-08-06)**: on arrival a yellow background pulse **holds for 10 s** (8 s steady, fading over the
+  last 2 s; in the same colour family as mark, distinct from hover's purple), after which a **3px
+  accent bar stays at the left edge**, cleared by clicking any question row; a remount such as changing
+  the sort does not replay the pulse (the played state is remembered). The functional colours follow
+  the rule-level four-part scheme and do not change with the colour scheme.
+  **Landed (2026-08-06, ticket 08)**: `searchSessions(path, needle≤200, fullText)` — the session set is
+  taken by the main process from its own per-project statistics, since the renderer cannot supply file
+  paths; question mode = a coarse pass over raw byte ranges from `readRangeBuffers` (`searchBytes` case
+  folding: a non-alphabetic segment as an `indexOf` anchor / for an all-alphabetic needle, two variants
+  of the first letter — never decode + `toLowerCase` the whole thing), decoding and parsing only the
+  matching ranges and **re-verifying with the parsed text** to eliminate byte-level false hits from
+  JSON escaping (the converse miss is a known boundary: a needle containing a quote, backslash or
+  newline will not be found in its JSON-escaped form — such keywords are rare and no escape-variant
+  scan is done for them); full-text mode = read whole + binary search of the hit offset back to its
+  turn, counting hits outside the displayed range (an already-stripped fork prefix / an abandoned
+  branch / the noise before the first question) as `folded` and reporting that in the results header;
+  question mode has no replay copies by construction, thanks to 03b's stripping. Going straight there =
+  `SessionPane focusQ` scroll positioning, with no new visual element. The search term is not preserved
+  across sections (the spec does not require it).
 
-**序列 E:导出(2026-08-06 用户裁定整体废弃,未实现;以下条目仅作决策存档,不再是需求)**
-- E1 默认导出**提问 + 已展开的回答**(与浏览心智一致),可选全量。
-- E2 格式 Markdown:元信息头 + 提问/回答 + 工具调用折叠块;内联图片用 data: URI(CSP 的 `img-src 'self' data:` 恰好允许)。
-- E3 不可还原的部分显式标注(Codex 推理密文、Claude 截断工具结果、Codex 重放段的真实时间)。
+**Sequence E: export (dropped entirely by the user's ruling 2026-08-06, never implemented; the entries
+below are archived as a decision record and are no longer requirements)**
+- E1 By default export **the questions plus the answers already expanded** (matching the browsing
+  mental model), with everything as an option.
+- E2 Format Markdown: a metadata header + questions/answers + collapsed tool call blocks; inline images
+  as data: URIs (which the CSP's `img-src 'self' data:` happens to allow).
+- E3 Explicitly label anything unrecoverable (Codex's encrypted reasoning, Claude's truncated tool
+  results, the real times in a Codex replayed span).
 
-**跨切面回归点**
-- R1 会话文件路径需进按需读取白名单(与产物/memory 同一不变量)。
-  **落地(2026-08-04,票 04)**:主进程扫描时产出的**精确路径 Set**(判定纯函数 `sessionReadTarget`,security.ts),白名单在 handler 最前、stat 之前。**口径 = 入列会话 + subagent/嵌套转写**——后者不入列表(A3/A3a)但票 07 要展开,写成"只允许已列出的"会挡住自己。精确匹配下穿越/前缀相似/编码/NFD 变体全因字符串不相等被拒,fail-closed(最坏是把同一文件的另一种写法拒之门外)。
-- R2 现有 token 统计的解析与缓存**不得被破坏**——本功能搭同一趟扫描的车,但口径独立(token 去重是计量口径,与展示去重语义不同)。
-  ⚠️ **别拿 `ccusage-parity` 当护栏**(2026-08-02 票 01 纠正):它是 `PARITY=1` 才启用、且依赖外部基准文件的对账工具,**从不在 `pnpm verify` 里执行**。
-  可行的核验方式:对**真实数据**跑 master 与本分支的前后对比,比 `byDay`/`bySide`/归档行数。注意当天数据会因为正在写盘而单调增长——只有排除当天后的比对才有意义(票 01 实测:三次采样当天单调递增,排除当天后三者完全一致)。
-  ⚠️ **归档行的四项分量不是稳定的比对量**(2026-08-04 票 03b 实测):Codex 归档行的 input/output/cacheRead/cacheWrite 是按 `当天量 / 该会话总量` 比例分摊再取整的,而一个**今天仍在被追加**的会话会让分母变大,于是它**历史天**的分量随之漂移——那天的 `total` 却不变。"排除当天"拦不住它,因为行属于过去、分母含今天。**同一份代码背靠背两跑就能测出这种漂移**。稳定的比对量是 `byDay` 与 `天|侧|项目|模型|总量`;用它们比对前,先跑一次同代码自比确认稳定。
-- R3 IPC 契约(validate)随新字段同步扩展。
+**Cross-cutting regression points**
+- R1 Session file paths must enter the on-demand read allow-list (the same invariant as artifacts and
+  memory).
+  **Landed (2026-08-04, ticket 04)**: the main process produces **an exact path Set** during the scan
+  (with the pure judging function `sessionReadTarget` in security.ts), and the allow-list check is the
+  first thing in the handler, before `stat`. **The rule = listed sessions + subagent and nested
+  transcripts** — the latter are not in the list (A3/A3a) but ticket 07 needs to expand them, so
+  writing it as "only what is already listed" would block ourselves. Under exact matching, traversal,
+  prefix lookalikes, encoding variants and NFD variants are all rejected because the strings are not
+  equal, which is fail-closed (the worst case is refusing another spelling of the same file).
+- R2 The existing token statistics parsing and caching **must not be broken** — this feature rides the
+  same scan pass, but the rules are independent (token deduplication is a metering rule and means
+  something different from display deduplication).
+  ⚠️ **Do not treat `ccusage-parity` as a guard rail** (corrected in ticket 01, 2026-08-02): it is a
+  reconciliation tool enabled only with `PARITY=1` and dependent on an external baseline file, and it
+  **never runs in `pnpm verify`**.
+  A workable verification: run master and this branch against **real data** and compare `byDay` /
+  `bySide` / archive row counts. Note that the current day's data grows monotonically because it is
+  being written — only a comparison excluding the current day is meaningful (measured in ticket 01:
+  three samples grew monotonically for the current day, and the three were identical once it was
+  excluded).
+  ⚠️ **The four component fields of an archive row are not a stable comparison quantity** (measured in
+  ticket 03b, 2026-08-04): a Codex archive row's input/output/cacheRead/cacheWrite are apportioned by
+  the ratio `that day's volume / that session's total` and then rounded, so a session **still being
+  appended to today** enlarges the denominator and makes its **historical days'** components drift —
+  while that day's `total` does not change. "Exclude the current day" does not stop it, because the row
+  belongs to the past while the denominator includes today. **Running the same code back to back twice
+  will surface this drift.** The stable comparison quantities are `byDay` and
+  `day | side | project | model | total`; before comparing with them, run a same-code self-comparison
+  once to confirm stability.
+- R3 The IPC contract (`validate`) is extended along with the new fields.
 
-## 界面决策(原型确认,2026-08-02)
+## UI decisions (prototype confirmed, 2026-08-02)
 
-- **承载结构 = 两屏导航 + 就地展开**:项目详情新增「会话」分栏(列表 + 搜索)→ 点会话行整块换成**会话页**(独立视图,带返回)→ 会话页里点提问**原地展开**整轮。
-  否决二级双栏(rail 48 + 项目侧栏 230 + 会话列表 240,正文只剩约 760px,装不下工具入参/返回);否决答案抽屉(答案与提问上下文割裂,连读几轮要反复开关)。
-- **提问列表 = 单行索引式**:一行 = 序号 + 提问(单行截断)+ 本轮体量(工具数 / subagent 数)+ 时间。
-  **一次列全,不分页、不「滚动续取」**——「不整读」指的是不整读 jsonl 正文,提问文本+偏移只有几十 KB。任何分页语义都是把 mock 缺口误当设计。
-- **默认展开 0 轮**:进来全部折叠,点哪轮取哪轮。预展开会作废「按需取」。
-- **展开态**:提问行**自己铺开全文**(多行粘贴原样展开),下面直接跟整轮内容——不另设一个复述提问的块。
-- **跨天分组**:会话跨天时单行索引只有 `HH:MM` 会失真 → 按日分组,分组行可点折叠;另有「全部收起 / 全部展开」。
-- **排序**:
-  - 提问列表 `正序 | 倒序`,**默认倒序**(2026-08-06 用户裁定改,原定正序;最新提问先见)。序号**恒为原始轮次号**,不随排序重编;**已展开的轮次跨排序保持**。
-    **口径澄清(2026-08-04,票 04)**:"原始轮次号"指**展示集合内**的轮次(1..N)。Claude 被放弃的分支、Codex 已剥的重放前缀不占号——它们本就不在"这次对话最终的样子"里;该语义由 03b 的过滤先于编号发生所决定。
-  - 会话列表 `最近在前 | 最早在前`,**默认最近在前**(见 A1)。排序对**列表与搜索命中分组同时生效**。
-- **会话列表行带提问条数**(原型 `.sess .n`,票 03a 落地):一行 = 侧标 + 标题 + `N 提问` + token + 最后活动。概览的最近会话行**不带**这个数字(原型即如此,概览要的是更粗的一眼)。
-  ~~⚠️ fork/分叉会话此数偏大:重放前缀里的提问尚未剥离~~(03b 已落地剥离与回溯,此中间态注记 2026-08-06 票 10 核销)。
-- **搜索命中 = 按会话分组**:组头是会话(带侧标与 fork 等状态),组内是命中的提问 + 高亮片段;结果头显示命中数、会话数、**被折叠的重放副本条数**。先回答「在哪次对话里」再回答「哪一条」。
-- ~~**导出入口**~~(2026-08-06 随导出功能废弃,原型已同步移除该按钮与菜单)。
-- **不确定性的三档呈现**:会话级横幅分两级(info = 分叉已归一 / fork 前缀已剥离;risk = 父会话不在扫描集内、剥离存疑),轮内用 warn 块(工具结果被截断、Codex 推理密文)。**都不静默**。
-  **落地(2026-08-06,票 06)**:分叉横幅的判据与数字 = 主链分叉处数(`forkPoints`,被 ≥2 主链节点引用的父节点数;>0 才出横幅);stripped 横幅带父会话标题,**可点直达父会话页**(父打不开时进本页错误态,只自伤);risk 横幅的原因短语按实情写——父缺失 = 只能启发式,有父但指纹没逐条对上 = 只剥掉了能通过校验的部分(同一 risk 形态的纯文案变体)。数据面:SessionPage 加 forkPoints / forkParentTitle / forkParentFile,ClaudeFileAgg 加 forkPoints(CACHE_VERSION 升号)。
-- **日期分组的启用判据(2026-08-06,票 06)**:**全部提问都有时间戳**才分组;任一缺失则整页平铺(降级到无分组形态)——不造"日期未知"组这种原型没有的形态,缺时间戳是罕见坏行,降级只需可用。同日被乱序时间戳隔开时按相邻归组(两组同标签、折叠互不串)。提问排序是页面内状态,离开会话页重置为正序(spec 未要求跨卸载保留)。
-- **轮内块(2026-08-06,票 07)**:工具/思考/推理/subagent 折叠块与未知留痕块按 2026-08-02 原型落地(unknown 形态 2026-08-06 回补经用户确认);块展开态在轮重渲染(切排序/折叠日)时重置,与原型同款。块内缺省文案(无返回记录/未返回/未归位 warn)按纯文案例外豁免原型门。
-- **轮内取回状态(2026-08-06 原型回补,票 05,用户确认)**:取回中 = 首次取回的瞬时提示,已取回的轮再展开为即时;单轮失败 = 该轮显示错误不连累他轮,再点即重试;空轮(无正文回复)只出取回脚注、不造占位;脚注含实际读取字节数。视觉均为轮内小号淡色文字(原型 `.rebuild` 同款)。
-- **概览分栏连带改动**:概览的会话卡改为可点入,其「元数据即止」的旧口径由本功能推翻。票 02 落地为**只列最近 5 条 + 底部标注总数**;**票 04 已把点击目标改为直达会话页**(02 的中间态收口),返回落在「会话」分栏。
-- **会话分栏的排序选择跨分栏切换保留**(2026-08-02 票 02 新增,原型未演示):tab 是条件渲染,切走即卸载,组件内 state 存不住。存在模块级变量里——不提到父组件(会让它开始收各分栏的内部状态)、不落盘(是浏览习惯不是设置)、不建 store(全仓无 store 无 Context,一个 boolean 一个消费者是提前抽象)。出现第二个需跨卸载存活的视图偏好时提升为 view-prefs 模块。**代价**:切项目也保留——排序是看的方式,不是项目的属性。
+- **Container structure = two-screen navigation + in-place expansion**: project detail gains a
+  "Sessions" section (list + search) → clicking a session row replaces the whole block with the
+  **session page** (an independent view with a back button) → inside the session page, clicking a
+  question **expands the whole turn in place**.
+  Rejected: a second-level two-column layout (rail 48 + project sidebar 230 + session list 240 leaves
+  about 760px for the body, not enough for tool arguments and returns); and an answer drawer (which
+  severs the answer from the question's context, so reading several turns means opening and closing
+  repeatedly).
+- **The question list = single-line index style**: a row = index + question (single-line truncation) +
+  that turn's volume (tool count / subagent count) + time.
+  **Listed all at once, with no pagination and no "scroll to load more"** — "never read whole" refers to
+  not reading the jsonl body whole; the question text plus offsets are only tens of kilobytes. Any
+  pagination semantics would be mistaking a mock's gap for a design.
+- **0 turns expanded by default**: everything is collapsed on entry, and clicking a turn fetches it.
+  Pre-expanding would defeat "fetch on demand".
+- **The expanded state**: the question row **unfolds its own full text** (multi-line paste expanded as
+  written), with the whole turn's contents directly below — no separate block restating the question.
+- **Grouping across days**: when a session spans days, a single-line index with only `HH:MM` distorts →
+  group by day, with the group row clickable to collapse; plus "collapse all / expand all".
+- **Sorting**:
+  - The question list `ascending | descending`, **descending by default** (changed by the user's ruling
+    2026-08-06, originally ascending; newest question first). The index is **always the original turn
+    number** and is never renumbered by the sort; **turns already expanded stay expanded across a sort
+    change**.
+    **Rule clarification (2026-08-04, ticket 04)**: "the original turn number" means the turn number
+    **within the displayed set** (1..N). Claude's abandoned branches and Codex's already-stripped
+    replay prefix take no number — they are not part of "what this conversation finally became" in the
+    first place; that semantics follows from 03b's filtering happening before numbering.
+  - The session list `newest first | oldest first`, **newest first by default** (see A1). The sort
+    applies to **the list and the search hit groups at the same time**.
+- **Session list rows carry a question count** (the prototype's `.sess .n`, landed in ticket 03a): a row
+  = side badge + title + `N questions` + tokens + last activity. The overview's recent session rows do
+  **not** carry this number (as in the prototype — the overview wants a coarser glance).
+  ~~⚠️ This number is too high for forked and branched sessions: questions in the replay prefix are not
+  yet stripped~~ (03b landed the stripping and the branch walk-back; this interim note was cleared by
+  ticket 10 on 2026-08-06).
+- **Search hits = grouped by session**: the group header is the session (with side badge and states such
+  as fork), and inside it are the matching questions + highlighted snippets; the results header shows
+  the hit count, the session count and **the number of folded replay copies**. Answer "in which
+  conversation" first, "which line" second.
+- ~~**The export entry point**~~ (removed along with the export feature on 2026-08-06; the prototype's
+  button and menu were removed to match).
+- **Three tiers of presenting uncertainty**: session-level banners come in two levels (info = branches
+  resolved / fork prefix stripped; risk = the parent session is not in the scan set, the strip is
+  uncertain), and in-turn uncertainty uses warn blocks (a truncated tool result, Codex's encrypted
+  reasoning). **None of them are silent.**
+  **Landed (2026-08-06, ticket 06)**: the branch banner's criterion and number = the count of branch
+  points on the main chain (`forkPoints`, the number of parent nodes referenced by ≥2 main-chain nodes;
+  a banner appears only when > 0); the stripped banner carries the parent session's title and is
+  **clickable to go straight to the parent's page** (if the parent will not open, this page enters an
+  error state, hurting only itself); the risk banner's reason phrase follows the facts — parent missing
+  = heuristic only; parent present but the fingerprints did not match entry by entry = only the part
+  that passed the check was stripped (copy variants of the same risk shape). Data side: SessionPage
+  gains forkPoints / forkParentTitle / forkParentFile, and ClaudeFileAgg gains forkPoints
+  (CACHE_VERSION bumped).
+- **When day grouping applies (2026-08-06, ticket 06)**: grouping happens only when **every question has
+  a timestamp**; if any is missing, the whole page is flat (degrading to the ungrouped form) — no
+  "unknown date" group is invented, since that form does not exist in the prototype and a missing
+  timestamp is a rare bad line where degrading merely has to be usable. When the same day is separated
+  by out-of-order timestamps, group by adjacency (two groups with the same label, whose collapsing does
+  not cross over). The question sort is page-local state and resets to ascending when leaving the
+  session page (the spec does not require it to survive unmounting).
+- **In-turn blocks (2026-08-06, ticket 07)**: the tool / thinking / reasoning / subagent collapsed
+  blocks and the unknown-trace block follow the 2026-08-02 prototype (the unknown form was
+  retro-added on 2026-08-06 with the user's confirmation); a block's expanded state resets when the
+  turn re-renders (on a sort change or collapsing a day), as in the prototype. The blocks' default copy
+  (no return record / no return / an unattributed warning) is exempted from the prototype gate as
+  pure-copy.
+- **In-turn fetch states (retro-added to the prototype 2026-08-06, ticket 05, confirmed by the user)**:
+  fetching = a momentary notice on the first fetch, with an already-fetched turn re-expanding
+  instantly; a single turn's failure = that turn shows an error without affecting the others, and
+  clicking again retries; an empty turn (no prose reply) shows only the fetch footnote and invents no
+  placeholder; the footnote includes the actual bytes read. Visually all of them are small, faint
+  in-turn text (the prototype's `.rebuild` style).
+- **A knock-on change to the overview section**: the overview's session card becomes clickable, and its
+  old "metadata and no further" rule is overturned by this feature. Ticket 02 landed it as **listing
+  only the 5 most recent + a total count at the bottom**; **ticket 04 changed the click target to go
+  straight to the session page** (closing 02's interim state), with the back button landing on the
+  "Sessions" section.
+- **The sessions section's sort choice survives switching sections** (added by ticket 02, 2026-08-02;
+  not demonstrated in the prototype): the tabs are conditionally rendered, so switching away unmounts
+  and component state cannot hold it. It lives in a module-level variable — not lifted to the parent
+  (which would start it collecting every section's internal state), not persisted to disk (it is a
+  browsing habit, not a setting), and no store (the repository has no store and no Context, and one
+  boolean with one consumer is premature abstraction). If a second view preference needs to survive
+  unmounting, promote it to a view-prefs module. **The cost**: it survives switching projects too — the
+  sort is a way of looking, not a property of a project.
 
 ## Implementation Decisions
 
-- **偏移索引**:扫描时记录 `{提问偏移, 轮次起止偏移, 时间, 本轮工具数/subagent 数}`——**不含提问文本**(见 D2a)。存进现有按 `路径+mtime+size` 签名的缓存。取回走字节区间流式读。
-  **落地实测(2026-08-03,票 03a,真实数据 1823 文件 / 287.8MB)**:缓存 4.87MB → 5.08MB(**+207KB / +4.3%**);全量冷扫 3537ms → **2916ms**、热缓存 174ms → **99ms**——不但没回退反而更快,因为行读取由 `readline` 换成按 `0x0A` 切 Buffer(顺带才拿得到字节偏移),省下的解码开销盖过了新增的逐行分类。
-  **轮次止点取「最后一条可解析行的终点」而非文件字节大小**:活跃会话可能正写到半行,那半行既解析不出也不该被切进区间。
-  **两侧的"本轮体量"判据(全库枚举,非采样)**:
-  - Claude 工具 = `tool_use` 段(全库唯一的调用段类型);subagent 派发 = 工具名 `Agent`(152 次)或 `Task`(4 次),同一工具的两代命名,入参同为 `description`+`prompt`+`subagent_type`。**不用"入参含 `subagent_type`"这个看似更机制化的判据**——全库反查它误收一次 `TaskCreate`,又漏掉 5 次没传该可选参的 `Agent`。sidechain 行里的工具归 subagent 那个数字,不重复计进父轮。
-  - Codex 工具 = `response_item` 的 `custom_tool_call` + `function_call` + **`tool_search_call`**;subagent 派发 = `function_call` 名 `spawn_agent`。只取 `response_item` 一路,`event_msg` 那一路是同一批调用的 UI 事件镜像(且只有 `*_end`,无 `*_begin`),两路都数会翻倍。
-    ⚠️ **`tool_search_call` 是 review 阶段才发现的**:120 文件采样里一次没出现,换成全量 278 文件 / 62,912 行枚举才看见。教训见 CONTEXT.md 不变量。
-  **`CACHE_VERSION` 何时必须升**(当前值与逐版变更记录**只在** token-stats.ts 的 CACHE_VERSION 注释里维护,此处不复制——写死会腐烂,2026-08-06 已烂过一次:spec 写 7 时代码已到 10):
-  1. 改 `FileAgg` **形状** —— 2026-07-30 有未升版本导致旧缓存字段缺失崩溃的事故先例。
-  2. 改 `FileAgg` 里某字段的**算出方式** —— 票 01 补:签名照样命中、形状照样合法,不升号则存量文件永远返回旧值;fixture 用全新缓存必过,真实用户看不到修复,是典型假绿。
-  **谁能抓到漏升号**(2026-08-03 实测厘清):
-  - 形状变更 → `FileAgg` **字段集指纹测试**(字段增删即红,作者被迫想一下版本号)。
-  - 算法变更 → **没有自动防线**。它在代码里不留痕迹,任何单测都察觉不到(相对版本号的 fixture 也不行:它永远比当前小一档,版本号是几都匹配不上)。只能靠改这类代码时自问一句"这是形状还是值"。
-  **另外**:给 `FileAgg` 加必填字段时,`isWellFormedAgg` 要同步加一条。版本号只拦得住跨版本,同版本内的手工损坏与漂移只有那道守卫——漏掉会让缺字段一路流到契约层,抛掉整份详情(上层逃逸)。
-- **并发读**:共享的有界并发读工具,默认 4;区间读路径统一走它(见 D2b)。现有 token 扫描仍串行,本期不动。
-- **两侧归一化**:公共模型 = `{时间, 角色, 文本, 工具调用(名/入参/出参), 推理块?}`。Codex 侧需先做两件 Claude 不需要的:双写流二选一(取 `event_msg`)、剥 fork 重放前缀。
-  **落地形态(2026-08-05,票 05)**:模型为 kind 可辨识联合(`TurnBlock`),05 先落 `text`(正文,时间/角色/文本),工具调用与推理块等 kind 由 07 扩展;IPC 边界按 kind 白名单校验,未知 kind 拒收。正文载体依据全量枚举:Claude 主链 assistant 段类型全谱仅 tool_use/text/thinking 三种,正文=`text` 段;Codex 正文=`event_msg/agent_message`(message 恒 string),与提问侧同走 event_msg 一路。本票不出块的类型均已枚举且归宿在 07;**07 落 C8 显示白名单时必须带"未知类型可发现"的留痕**,不得静默丢(CONTEXT 白名单类不变量)。
-- **IPC**:会话列表搭 `getProjectDetail`;**`getSessionPage`(票 04 已建)**返回自包含的会话页载荷(标题/体量/forkState/提问文本),文本由主进程按字节区间现读——`readArtifact` 的整读 500KB 上限通路不复用。
-  **按需取回答(票 05 已建)**:`getSessionTurn(file, i)`——区间只能来自主进程自己的索引(渲染层给不了字节区间),白名单同一道 `sessionReadTarget` 在最前;载荷带 `bytesRead` 作"没有整读"的证据。配套 `sessionFresh(file)` 只读谓词:渲染层据它决定是否先亮"正在只重建该文件索引"的中间态,重建本身仍由取回调用触发(幂等,两步间文件再变无害)。
-- **预取**(可选优化):提问列表移动时预取相邻若干轮,把"点了就有"变成"点之前就有"。
+- **Offset index**: the scan records `{question offset, turn start and end offsets, time, that turn's
+  tool and subagent counts}` — **with no question text** (see D2a). Stored in the existing cache keyed
+  by a `path + mtime + size` signature. Fetching streams the byte range.
+  **Measured after landing (2026-08-03, ticket 03a, real data 1823 files / 287.8 MB)**: the cache went
+  4.87 MB → 5.08 MB (**+207 KB / +4.3%**); a full cold scan went 3537 ms → **2916 ms** and a warm cache
+  174 ms → **99 ms** — not a regression but an improvement, because line reading switched from
+  `readline` to splitting a Buffer on `0x0A` (which is incidentally what makes the byte offsets
+  available), and the decoding overhead saved outweighs the added per-line classification.
+  **A turn's end point is "the end of the last parseable line", not the file's byte size**: an active
+  session may be mid-line, and that half line neither parses nor should be sliced into a range.
+  **The two sides' "turn volume" criteria (full enumeration, not sampling)**:
+  - Claude tools = `tool_use` segments (the only call segment type in the whole repository); a subagent
+    dispatch = the tool name `Agent` (152 occurrences) or `Task` (4), two generations of the same
+    tool's name, both taking `description` + `prompt` + `subagent_type`. **The seemingly more
+    mechanism-based criterion "the arguments contain `subagent_type`" is not used** — checking it back
+    across the repository wrongly admits one `TaskCreate` and misses 5 `Agent` calls that omitted the
+    optional parameter. Tools on sidechain lines count toward the subagent number and are not counted
+    again in the parent turn.
+  - Codex tools = `response_item`'s `custom_tool_call` + `function_call` + **`tool_search_call`**; a
+    subagent dispatch = a `function_call` named `spawn_agent`. Only the `response_item` path is taken;
+    the `event_msg` path is a UI event mirror of the same calls (and has only `*_end`, no `*_begin`),
+    so counting both would double it.
+    ⚠️ **`tool_search_call` was only found at review**: it never appeared once in a 120-file sample and
+    only became visible in a full enumeration of 278 files / 62,912 lines. The lesson is in CONTEXT.md's
+    invariants.
+  **When `CACHE_VERSION` must be bumped** (the current value and the per-version change log are
+  maintained **only** in the CACHE_VERSION comment in token-stats.ts and are not duplicated here —
+  hard-coding it rots, and it already did once: the spec said 7 when the code was at 10):
+  1. Changing `FileAgg`'s **shape** — there is a precedent from 2026-07-30 where not bumping the
+     version made an old cache crash on a missing field.
+  2. Changing **how a field in `FileAgg` is computed** — added by ticket 01: the signature still hits
+     and the shape is still valid, so without a bump existing files return the old value forever;
+     fixtures using a fresh cache always pass, real users never see the fix, and that is a textbook
+     false green.
+  **What can catch a missed bump** (clarified by measurement 2026-08-03):
+  - A shape change → the `FileAgg` **field set fingerprint test** (adding or removing a field goes red,
+    forcing the author to think about the version number).
+  - An algorithm change → **no automated defence**. It leaves no trace in the code and no unit test can
+    notice it (not even a fixture relative to the version number: it is always one notch below the
+    current one and will never match whatever the version is). The only thing available is asking
+    yourself "is this a shape or a value" when changing this kind of code.
+  **Also**: when adding a required field to `FileAgg`, add a line to `isWellFormedAgg` at the same time.
+  The version number only catches across versions, and manual corruption or drift within a version is
+  caught only by that guard — missing it lets a missing field flow all the way to the contract layer
+  and throw away the whole detail payload (upward escape).
+- **Concurrent reads**: a shared bounded-concurrency read utility, defaulting to 4; the range-read paths
+  all go through it (see D2b). The existing token scan stays serial and is untouched this round.
+- **Normalising the two sides**: the common model = `{time, role, text, tool call (name/args/result),
+  reasoning block?}`. The Codex side needs two things Claude does not: choosing one of the two written
+  streams (take `event_msg`) and stripping the fork replay prefix.
+  **The landed form (2026-08-05, ticket 05)**: the model is a discriminated union on `kind`
+  (`TurnBlock`); 05 landed `text` first (prose: time / role / text), with tool calls, reasoning blocks
+  and other kinds extended by 07; the IPC boundary validates against a kind allow-list and rejects
+  unknown kinds. The prose carrier follows from full enumeration: the entire spectrum of assistant
+  segment types on Claude's main chain is only tool_use / text / thinking, so prose = the `text`
+  segment; Codex prose = `event_msg/agent_message` (whose message is always a string), taking the same
+  event_msg path as the question side. Every type this ticket does not emit a block for has been
+  enumerated and assigned to 07; **when 07 lands C8's display allow-list it must carry the "unknown
+  types are discoverable" trace** and never silently drop (the CONTEXT allow-list invariant).
+- **IPC**: the session list rides on `getProjectDetail`; **`getSessionPage` (created in ticket 04)**
+  returns a self-contained session page payload (title / volume / forkState / question text), with the
+  text read live by the main process by byte range — `readArtifact`'s read-whole 500 KB path is not
+  reused.
+  **On-demand answer fetching (created in ticket 05)**: `getSessionTurn(file, i)` — the range can only
+  come from the main process's own index (the renderer cannot supply byte ranges), with the same
+  `sessionReadTarget` allow-list first; the payload carries `bytesRead` as evidence of "nothing was read
+  whole". The companion `sessionFresh(file)` is a read-only predicate: the renderer uses it to decide
+  whether to show the interim "rebuilding the index for this file only" state, while the rebuild itself
+  is still triggered by the fetch call (idempotent, and the file changing between the two steps is
+  harmless).
+- **Prefetching** (an optional optimisation): prefetch a few adjacent turns as the question list moves,
+  turning "there when you click" into "there before you click".
 
 ## Testing Decisions
 
-沿用 ADR-0002 双 seam:① providers 层 fixture 单测——提问提取(排除 tool_result)、Codex 双写选择、fork 前缀剥离、Claude 末叶回溯、标题清洗、偏移索引的取回正确性(按偏移读出的内容 = 全解析的对应轮次);② 契约校验往返;③ e2e 覆盖"打开会话 → 点提问 → 出答案"全链路。**fixture 至少一例取自真实样本形态**(两侧数据结构复杂度高,构造的 fixture 必然继承想象盲点)。
+Following ADR-0002's dual seam: (1) fixture unit tests at the providers layer — question extraction
+(excluding tool_result), the Codex double-write choice, fork prefix stripping, Claude's last-leaf walk
+back, title cleaning, and the offset index's fetch correctness (what is read by offset = the
+corresponding turn from a full parse); (2) the contract validation round trip; (3) e2e covering the
+whole chain of "open a session → click a question → the answer appears". **At least one fixture takes
+its shape from a real sample** (both sides' data structures are complex, and a constructed fixture
+would inevitably inherit the blind spots of my imagination).
 
 ## Out of Scope
 
-- 全局(跨项目)会话搜索——本期只做本项目。
-- 未注册项目的会话。
-- 会话内容的编辑、删除、resume。
-- Codex 推理正文(加密,不可能)、Claude 截断工具结果原文(旁挂文件无引用链)、Codex 重放段真实时间(须跨文件对齐)。
-- **导出功能整体**(2026-08-06 用户裁定废弃,含原定的 Markdown 导出与保真备份式导出;序列 E 仅存档)。
-- 首次运行本 app 前已被 agent 清理的会话。
+- Global (cross-project) session search — this round is within one project only.
+- Unregistered projects' sessions.
+- Editing, deleting or resuming session contents.
+- Codex's reasoning body (encrypted, impossible), Claude's truncated tool result originals (the sidecar
+  files have no reference chain), and the real times in a Codex replayed span (which would require
+  cross-file alignment).
+- **The export feature entirely** (dropped by the user's ruling 2026-08-06, including the planned
+  Markdown export and a fidelity-preserving backup export; sequence E is archived only).
+- Sessions the agent had already cleaned up before this app first ran.
 
 ## Further Notes
 
-- **原型门:已过**(2026-08-02)。五个界面点(会话列表 / 提问列表 / 展开态 / 搜索与命中 / ~~导出入口~~)全部原型化并经用户确认,结论已内联进上面的「界面决策」节;导出入口随功能废弃从原型移除(2026-08-06)。
-- **必须同步改写的既有约束**——已全部完成(2026-08-06 票 10 核销):`CONTEXT.md`「会话」术语已最终改写并新增「轮」;`docs/specs/token-stats.md` 与 `docs/specs/project-detail.md` 的 Out of Scope、`docs/features/project-detail.md` 的边界条均已更新(features/token-stats 经核对本就无需改)。
-- **事实调研的关键结论**(2026-08-02 实测):性能不是门槛(689MB 全扫 4.8s);真正约束是内存与渲染量,已由"提问主干 + 按需取"设计消解;两侧数据结构差异大且完整度天然不对等。
+- **Prototype gate: passed** (2026-08-02). All five UI points (session list / question list / expanded
+  state / search and hits / ~~export entry point~~) were prototyped and confirmed by the user, and the
+  conclusions are inlined into the "UI decisions" section above; the export entry point was removed
+  from the prototype along with the feature (2026-08-06).
+- **Existing constraints that had to be rewritten** — all done (cleared by ticket 10 on 2026-08-06):
+  `CONTEXT.md`'s "session" term has had its final rewrite and "turn" was added; the Out of Scope
+  sections of `docs/specs/token-stats.md` and `docs/specs/project-detail.md` and the boundary entries
+  of `docs/features/project-detail.md` have all been updated (features/token-stats was checked and
+  needed no change).
+- **The key conclusions of the factual research** (measured 2026-08-02): performance is not the
+  threshold (a full scan of 689 MB takes 4.8 s); the real constraints are memory and render volume,
+  both dissolved by the "question trunk + fetch on demand" design; and the two sides' data structures
+  differ greatly with inherently unequal completeness.
