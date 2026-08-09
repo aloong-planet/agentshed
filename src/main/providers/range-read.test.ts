@@ -59,26 +59,28 @@ describe('readRanges (reading by byte range, never reading whole)', () => {
     const chunk = Buffer.alloc(1024 * 1024, 0x61) // 'a'
     const big = Buffer.concat(Array.from({ length: 12 }, () => chunk))
     const marks: Array<[number, string]> = [
-      [0, '开头'],
-      [6 * 1024 * 1024, '中段'],
-      [12 * 1024 * 1024 - 5, '结尾']
+      [0, '→head'],
+      [6 * 1024 * 1024, '→mid'],
+      [12 * 1024 * 1024 - 5, '→end']
     ]
     for (const [pos, text] of marks) big.write(text, pos, 'utf8')
     await withFile(big, async (file) => {
-      const ranges = marks.map(([pos]) => ({ start: pos, end: Math.min(pos + 6, big.length) }))
+      const ranges = marks.map(([pos]) => ({ start: pos, end: Math.min(pos + 8, big.length) }))
       const r = await readRanges(file, ranges)
       expect(r.bytesRead).toBe(ranges.reduce((n, g) => n + (g.end - g.start), 0))
       expect(r.bytesRead).toBeLessThan(64) // Only tens of bytes read out of a 12 MB file
-      expect(r.texts[0].startsWith('开头')).toBe(true)
-      expect(r.texts[1].startsWith('中段')).toBe(true)
+      expect(r.texts[0].startsWith('→head')).toBe(true)
+      expect(r.texts[1].startsWith('→mid')).toBe(true)
     })
   })
 
   test('a range is a byte range: a multi-byte character slices back verbatim by offset', async () => {
-    const line = JSON.stringify({ t: '中文提问内容' })
+    // '→' is 3-byte UTF-8: without a multi-byte character, byte offsets and character offsets coincide and
+    // this case could not tell them apart.
+    const line = JSON.stringify({ t: '→multi→byte→content→' })
     await withFile(line, async (file) => {
       const r = await readRanges(file, [{ start: 0, end: Buffer.byteLength(line) }])
-      expect(JSON.parse(r.texts[0])).toEqual({ t: '中文提问内容' })
+      expect(JSON.parse(r.texts[0])).toEqual({ t: '→multi→byte→content→' })
     })
   })
 

@@ -8,7 +8,7 @@ import { clipTitle, realUserText } from './session-title'
 
 describe('realUserText (one message → the real question, or null)', () => {
   it('an ordinary question is returned as is, with whitespace normalised', () => {
-    expect(realUserText('  帮我修一个   布局 bug\n\n谢谢  ')).toBe('帮我修一个 布局 bug 谢谢')
+    expect(realUserText('  fix a   layout bug\n\nthanks  ')).toBe('fix a layout bug thanks')
   })
 
   it('whitespace and the empty string count as noise', () => {
@@ -23,15 +23,15 @@ describe('realUserText (one message → the real question, or null)', () => {
   })
 
   it('Warmup counts as noise only on exact equality — a real question containing the word is unaffected', () => {
-    expect(realUserText('Warmup 这个词是哪来的?')).toBe('Warmup 这个词是哪来的?')
+    expect(realUserText('where does the word Warmup come from?')).toBe('where does the word Warmup come from?')
   })
 
   // The real shape: what follows [cron:<uuid> <name>] is **the actual instruction** and must not be
   // discarded with it
   it('the cron marker: only the bracket is stripped, keeping the instruction after it', () => {
     expect(
-      realUserText('[cron:95a214a4-0021-44ea-a831-f5c851b11d77 hackernews-daily-top5] 用 Hacker News 官方 API 获取今日最热门的 5 个话题')
-    ).toBe('用 Hacker News 官方 API 获取今日最热门的 5 个话题')
+      realUserText('[cron:95a214a4-0021-44ea-a831-f5c851b11d77 hackernews-daily-top5] fetch today top 5 topics via the Hacker News API')
+    ).toBe('fetch today top 5 topics via the Hacker News API')
   })
 
   it('nothing after the cron marker → the whole message is discarded', () => {
@@ -51,20 +51,20 @@ describe('realUserText (one message → the real question, or null)', () => {
   })
 
   it('an image marker inside a real question is not noise — seen once, and no stripping rule is written for it', () => {
-    expect(realUserText('[Image #1] 这个图中日期显示稀疏')).toBe('[Image #1] 这个图中日期显示稀疏')
+    expect(realUserText('[Image #1] the dates in this chart look sparse')).toBe('[Image #1] the dates in this chart look sparse')
   })
 
   it('an injected skill body is discarded whole', () => {
-    expect(realUserText('Base directory for this skill: /Users/x/.claude/skills/tdd # TDD 红先于绿')).toBeNull()
+    expect(realUserText('Base directory for this skill: /Users/x/.claude/skills/tdd # TDD red before green')).toBeNull()
   })
 
   // The real shape: the user's actual input is inside command-args
   it('a slash command: take the contents of command-args', () => {
     expect(
       realUserText(
-        '<command-message>superpowers:brainstorming</command-message> <command-name>/superpowers:brainstorming</command-name> <command-args>我想开发一个自学用的 app</command-args>'
+        '<command-message>superpowers:brainstorming</command-message> <command-name>/superpowers:brainstorming</command-name> <command-args>I want to build a self-study app</command-args>'
       )
-    ).toBe('我想开发一个自学用的 app')
+    ).toBe('I want to build a self-study app')
   })
 
   it('a slash command with empty args (such as /clear) → the whole message is discarded', () => {
@@ -85,19 +85,21 @@ describe('clipTitle (a noise-stripped question → a title)', () => {
   // index).
   // What remains here is truncation, plus one regression guard: clipTitle **must not** strip again.
   it('an over-long title is truncated by code point with an ellipsis added', () => {
-    const t = clipTitle('长'.repeat(200))
+    // '★' is 3-byte UTF-8: clipTitle truncates by code point, and with an ASCII fixture a byte-based
+    // implementation would pass this case too.
+    const t = clipTitle('★'.repeat(200))
     expect([...t]).toHaveLength(61)
     expect(t.endsWith('…')).toBe(true)
   })
 
   it('a title under the cap is returned as is, with no ellipsis', () => {
-    expect(clipTitle('短问题')).toBe('短问题')
+    expect(clipTitle('★short★')).toBe('★short★')
   })
 
   it('no longer strips — stripping is not idempotent, and a second pass would discard the already-stripped content as noise', () => {
     // `[cron:x] Warmup` strips through realUserText to 'Warmup'; if clipTitle stripped again
     // it would become null and the session would vanish from the list.
-    expect(realUserText('[cron:abc 定时] Warmup')).toBe('Warmup')
+    expect(realUserText('[cron:abc scheduled] Warmup')).toBe('Warmup')
     expect(clipTitle('Warmup')).toBe('Warmup')
   })
 })
