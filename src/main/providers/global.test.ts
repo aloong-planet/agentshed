@@ -36,16 +36,16 @@ afterEach(() => {
 
 describe('global skills (the global library)', () => {
   it('both sides merge into one column: the same name merges with both badges, a single-side entry gets its own; the description comes from SKILL.md frontmatter', async () => {
-    mkSkill(join(dir, '.claude', 'skills'), 'tdd', SKILL_MD('红先于绿', 'same'))
-    mkSkill(join(dir, '.agents', 'skills'), 'tdd', SKILL_MD('红先于绿', 'same'))
-    mkSkill(join(dir, '.claude', 'skills'), 'review-code', SKILL_MD('四层法'))
-    mkSkill(join(dir, '.agents', 'skills'), 'decision-form', SKILL_MD('批量决策表单'))
+    mkSkill(join(dir, '.claude', 'skills'), 'tdd', SKILL_MD('red before green', 'same'))
+    mkSkill(join(dir, '.agents', 'skills'), 'tdd', SKILL_MD('red before green', 'same'))
+    mkSkill(join(dir, '.claude', 'skills'), 'review-code', SKILL_MD('four-layer method'))
+    mkSkill(join(dir, '.agents', 'skills'), 'decision-form', SKILL_MD('batch decision form'))
     const snap = await scan(roots(), { now: () => 1 })
     const byName = Object.fromEntries(snap.global.skills.map((s) => [s.name, s]))
     expect(byName['tdd'].sides).toEqual(['claude', 'codex'])
     expect(byName['tdd']).not.toHaveProperty('differs')
     expect(byName['review-code'].sides).toEqual(['claude'])
-    expect(byName['review-code'].description).toBe('四层法')
+    expect(byName['review-code'].description).toBe('four-layer method')
     expect(byName['decision-form'].sides).toEqual(['codex'])
     // Inline package stats: a side with a package gets numbers, a side with no definition gets null
     expect(byName['tdd'].pkg.claude?.files).toBe(1)
@@ -55,8 +55,8 @@ describe('global skills (the global library)', () => {
   })
 
   it('the same name with different contents on the two sides still merges onto one row (no differs signal)', async () => {
-    mkSkill(join(dir, '.claude', 'skills'), 'grilling', SKILL_MD('分批', 'A 版'))
-    mkSkill(join(dir, '.agents', 'skills'), 'grilling', SKILL_MD('一次一问', 'B 版'))
+    mkSkill(join(dir, '.claude', 'skills'), 'grilling', SKILL_MD('in batches', 'version A'))
+    mkSkill(join(dir, '.agents', 'skills'), 'grilling', SKILL_MD('one question at a time', 'version B'))
     const snap = await scan(roots(), { now: () => 1 })
     const s = snap.global.skills.find((x) => x.name === 'grilling')
     expect(s?.sides).toEqual(['claude', 'codex'])
@@ -64,7 +64,7 @@ describe('global skills (the global library)', () => {
   })
 
   it('a symlinked skill is marked symlink (per side)', async () => {
-    mkSkill(join(dir, '.agents', 'skills'), 'grill-me', SKILL_MD('转发'))
+    mkSkill(join(dir, '.agents', 'skills'), 'grill-me', SKILL_MD('forward'))
     mkdirSync(join(dir, '.claude', 'skills'), { recursive: true })
     symlinkSync(join(dir, '.agents', 'skills', 'grill-me'), join(dir, '.claude', 'skills', 'grill-me'))
     const snap = await scan(roots(), { now: () => 1 })
@@ -145,15 +145,15 @@ describe('global MCP (three sources)', () => {
 describe('read-only global configuration', () => {
   it('reads the global CLAUDE.md and AGENTS.md; missing files are null; the config.toml summary carries the model and the counts', async () => {
     mkdirSync(join(dir, '.claude'), { recursive: true })
-    writeFileSync(join(dir, '.claude', 'CLAUDE.md'), '# 全局规矩\n- pnpm\n')
-    writeFileSync(join(dir, '.codex', 'AGENTS.md'), '# Codex 全局\n')
+    writeFileSync(join(dir, '.claude', 'CLAUDE.md'), '# Global rules\n- pnpm\n')
+    writeFileSync(join(dir, '.codex', 'AGENTS.md'), '# Codex global\n')
     writeFileSync(
       join(dir, '.codex', 'config.toml'),
       'model = "gpt-5.5-codex"\n[projects."/a"]\ntrust_level = "trusted"\n[mcp_servers.node_repl]\ncommand="node"\n'
     )
     const snap = await scan(roots(), { now: () => 1 })
-    expect(snap.global.claudeGlobalMd?.text).toContain('全局规矩')
-    expect(snap.global.codexAgentsMd?.text).toContain('Codex 全局')
+    expect(snap.global.claudeGlobalMd?.text).toContain('Global rules')
+    expect(snap.global.codexAgentsMd?.text).toContain('Codex global')
     // The summary is structured fields now, with the renderer composing the sentence (ticket 07) —
     // asserting fields is steadier than asserting a sentence:
     // a wording change should not turn this red, only a wrong count should

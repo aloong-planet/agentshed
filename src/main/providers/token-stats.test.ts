@@ -308,17 +308,17 @@ describe('Claude aggregation (the ccusage rules)', () => {
   // An active session mid-write is exactly this shape, not a hypothetical.
   it('a bad line between questions: that line is skipped, the questions on either side remain, and the count is unaffected', async () => {
     mkClaudeFile('mid-bad.jsonl', [
-      userLine('第一个提问'),
+      userLine('first one提问'),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5),
       '{"type":"user","message":{"role":"user","content":"半行写到一', // 半行,解析不出
-      userLine('第二个提问'),
+      userLine('second one提问'),
       usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 10, 5)
     ])
     const s = (await engine().build(roots(), [proj])).perProject
       .get(proj.toLowerCase())
       ?.sessions.find((x) => x.file.endsWith('mid-bad.jsonl'))
     expect(s?.questionCount, '坏行不该吃掉它前后的提问').toBe(2)
-    expect(s?.title).toBe('第一个提问')
+    expect(s?.title).toBe('first one提问')
   })
 })
 
@@ -691,8 +691,8 @@ describe('cache version migration (a real bug regression)', () => {
     // The title is stored by design (the session list displays it) while the question **body** is not;
     // the judgement uses a string that appears only in a question and can be nothing but its title.
     const questionsJson = JSON.stringify((hit as { agg: Record<string, unknown> }).agg['questions'])
-    expect(questionsJson, '索引里出现了提问文本').not.toContain('CANARY')
-    expect(questionsJson, '索引应当只有数字与 null').toMatch(/^\[\[[\d,\s.enull-]*\]\]$/)
+    expect(questionsJson, 'Index里出现了提问文本').not.toContain('CANARY')
+    expect(questionsJson, 'Index应当只有数字与 null').toMatch(/^\[\[[\d,\s.enull-]*\]\]$/)
   })
 
   it('a cache file full of garbage does not crash and triggers a full recomputation', async () => {
@@ -986,7 +986,7 @@ describe('sessionQuestions (the session page service)', () => {
     expect(e.isFresh(cl)).toBe(true)
     appendFileSync(cl, userLine('又一问', '2026-07-30T03:00:00Z') + '\n')
     expect(e.isFresh(cl), '追加后签名不符,应为假').toBe(false)
-    expect(e.isFresh(join(dir, 'nope.jsonl')), '不在索引中的文件为假').toBe(false)
+    expect(e.isFresh(join(dir, 'nope.jsonl')), '不在Index中的文件为假').toBe(false)
     const gone = mkClaudeFile('fresh-gone.jsonl', [userLine('问', '2026-07-30T02:00:00Z')])
     await e.build(roots(), [proj])
     rmSync(gone)

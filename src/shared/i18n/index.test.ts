@@ -13,9 +13,9 @@ import {
 } from './index'
 
 describe('resolveLanguage', () => {
-  it('遍历整个列表取首个受支持者,而非首项不中就回退', () => {
+  it('遍历整个List取首个受支持者,而非首项不中就回退', () => {
     // 这是本函数最易写错的一条:错误实现只看首项,不中就回退英文。
-    // 两种实现对**单元素**列表的输出完全相同,只有多元素列表能区分它们,
+    // 两种实现对**单元素**List的输出完全相同,只有多元素List能区分它们,
     // 所以这里必须用多元素输入,否则这条断言抓不到任何东西。
     expect(resolveLanguage(['ko', 'fr', 'en'])).toBe('fr')
     expect(resolveLanguage(['pt-BR', 'ru', 'en'])).toBe('ru')
@@ -28,7 +28,7 @@ describe('resolveLanguage', () => {
     expect(resolveLanguage(['EN-GB'])).toBe('en')
   })
 
-  it('空列表 / 全不受支持 / 空值 → 回退英文', () => {
+  it('空List / 全不受支持 / 空值 → 回退英文', () => {
     expect(resolveLanguage([])).toBe('en')
     expect(resolveLanguage(['ko'])).toBe('en')
     expect(resolveLanguage(['pt-BR'])).toBe('en')
@@ -36,7 +36,7 @@ describe('resolveLanguage', () => {
     expect(resolveLanguage(undefined)).toBe('en')
   })
 
-  it('列表混入非字符串元素时跳过该项,不崩', () => {
+  it('List混入非字符串元素时跳过该项,不崩', () => {
     // 入参来自平台 API,类型声明不构成运行时保证
     expect(resolveLanguage([null as unknown as string, 'fr'])).toBe('fr')
     expect(resolveLanguage([123 as unknown as string])).toBe('en')
@@ -44,7 +44,7 @@ describe('resolveLanguage', () => {
 })
 
 describe('effectiveLanguage(偏好 → 生效语言)', () => {
-  it('偏好为具体语言时锁定,系统列表完全不参与', () => {
+  it('偏好为具体语言时锁定,系统List完全不参与', () => {
     // 「跟随系统」是策略、具体语言是锁定——这条区分是整个模型的支点。
     // 若实现漏掉分支、无条件走系统解析,下面三条都会红。
     expect(effectiveLanguage('ja', ['fr-FR', 'en-US'])).toBe('ja')
@@ -52,7 +52,7 @@ describe('effectiveLanguage(偏好 → 生效语言)', () => {
     expect(effectiveLanguage('ja', null)).toBe('ja')
   })
 
-  it('偏好为跟随系统时,按系统列表解析', () => {
+  it('偏好为跟随系统时,按系统List解析', () => {
     expect(effectiveLanguage('system', ['ko-KR', 'fr-FR', 'en-US'])).toBe('fr')
     expect(effectiveLanguage('system', ['ko-KR'])).toBe('en')
     expect(effectiveLanguage('system', [])).toBe('en')

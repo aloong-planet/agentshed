@@ -140,7 +140,7 @@ describe('resolveSkillRoot + isUnderKnownSkillRoots', () => {
     // The real package lives in an ordinary repository directory, outside every known root — the most
     // common shape of a symlink-installed skill
     const target = join(dir, 'repo', 'skills', 'decision-form')
-    mkPack(target, { 'SKILL.md': '---\ndescription: 表单\n---\n决策表正文\n' })
+    mkPack(target, { 'SKILL.md': '---\ndescription: form\n---\n决策表body\n' })
     mkdirSync(r.agentsSkillsDir, { recursive: true })
     symlinkSync(target, join(r.agentsSkillsDir, 'decision-form'))
     // The entry point (the symlink itself) must pass the container check — A6: the target is unconstrained

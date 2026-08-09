@@ -34,20 +34,20 @@ describe('readArtifacts', () => {
   })
 
   it('B2 specs is recognised by the same rules as the other five (docs/specs/*.md, README excluded)', () => {
-    w('docs/specs/memory-view.md', '# Memory 查看\n', 700)
-    w('docs/specs/README.md', '# Spec 索引\n', 800)
+    w('docs/specs/memory-view.md', '# Memory view\n', 700)
+    w('docs/specs/README.md', '# Spec index\n', 800)
     const items = readArtifacts(proj)
-    expect(items.map((i) => `${i.type}:${i.title}`)).toEqual(['specs:Memory 查看'])
+    expect(items.map((i) => `${i.type}:${i.title}`)).toEqual(['specs:Memory view'])
   })
 
   it('recognises all six types, takes the first # heading as the title, orders globally by time descending, and excludes README', () => {
-    w('CONTEXT.md', '# 术语表\n', 100)
-    w('docs/adr/0001-first.md', '# ADR-0001 定架构\n', 500)
-    w('docs/adr/README.md', '# 索引\n', 900)
-    w('docs/specs/shot.md', '# 截图(需求)\n', 600)
-    w('docs/features/shot.md', '# 截图\n', 300)
-    w('docs/postmortems/perm.md', '# 权限踩坑\n', 400)
-    w('docs/prototypes/list/prototype-list.html', '<title>列表</title>', 200)
+    w('CONTEXT.md', '# Glossary\n', 100)
+    w('docs/adr/0001-first.md', '# ADR-0001 settle the architecture\n', 500)
+    w('docs/adr/README.md', '# Index\n', 900)
+    w('docs/specs/shot.md', '# Screenshot (requirements)\n', 600)
+    w('docs/features/shot.md', '# Screenshot\n', 300)
+    w('docs/postmortems/perm.md', '# Permissions pitfall\n', 400)
+    w('docs/prototypes/list/prototype-list.html', '<title>List</title>', 200)
     const items = readArtifacts(proj)
     expect(items.map((i) => i.type)).toEqual([
       'specs',
@@ -57,16 +57,16 @@ describe('readArtifacts', () => {
       'prototypes',
       'context'
     ])
-    expect(items[0].title).toBe('截图(需求)') // The newest mtime (600) comes first — the list is ordered by time descending, independent of the type order
-    expect(items.find((i) => i.type === 'context')?.title).toBe('术语表')
-    expect(items.some((i) => i.title === '索引')).toBe(false)
+    expect(items[0].title).toBe('Screenshot (requirements)') // The newest mtime (600) comes first — the list is ordered by time descending, independent of the type order
+    expect(items.find((i) => i.type === 'context')?.title).toBe('Glossary')
+    expect(items.some((i) => i.title === 'Index')).toBe(false)
   })
 
   it('prototypes: collects .html recursively, excluding the root index.html and vendor; the title is the filename', () => {
-    w('docs/prototypes/index.html', '<title>画廊</title>', 100)
+    w('docs/prototypes/index.html', '<title>Gallery</title>', 100)
     w('docs/prototypes/vendor/mermaid.min.js', 'x', 100)
     w('docs/prototypes/agents/prototype-agents.html', '<title>Agents</title>', 200)
-    w('docs/prototypes/list/visibility/index.html', '<title>逻辑</title>', 300)
+    w('docs/prototypes/list/visibility/index.html', '<title>Logic</title>', 300)
     const items = readArtifacts(proj)
     const names = items.map((i) => i.title).sort()
     expect(names).toEqual(['list/visibility', 'prototype-agents'])
@@ -77,7 +77,7 @@ describe('readArtifacts', () => {
   })
 
   it('a markdown file with no heading falls back to its filename', () => {
-    w('docs/features/plain.md', '没有标题的正文\n', 100)
+    w('docs/features/plain.md', 'body with no heading\n', 100)
     expect(readArtifacts(proj)[0].title).toBe('plain')
   })
 })

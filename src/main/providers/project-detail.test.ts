@@ -37,18 +37,18 @@ afterEach(() => {
 
 describe('the skills effective view', () => {
   it('within one side a same-name pair lists only the project level; names present only globally are still listed from the global layer (skills-view B1)', () => {
-    mkSkill(join(proj, '.claude', 'skills'), 'ui-design', '项目专属')
-    mkSkill(join(proj, '.claude', 'skills'), 'tdd', '项目版 tdd')
-    mkSkill(join(dir, '.claude', 'skills'), 'tdd', '全局版 tdd')
-    mkSkill(join(dir, '.claude', 'skills'), 'review-code', '四层法')
-    mkSkill(join(proj, '.agents', 'skills'), 'decision-form', '项目级表单')
-    mkSkill(join(dir, '.agents', 'skills'), 'github-ops', '规范')
+    mkSkill(join(proj, '.claude', 'skills'), 'ui-design', 'project only')
+    mkSkill(join(proj, '.claude', 'skills'), 'tdd', 'project tdd')
+    mkSkill(join(dir, '.claude', 'skills'), 'tdd', 'global tdd')
+    mkSkill(join(dir, '.claude', 'skills'), 'review-code', 'four-layer method')
+    mkSkill(join(proj, '.agents', 'skills'), 'decision-form', 'project-level form')
+    mkSkill(join(dir, '.agents', 'skills'), 'github-ops', 'conventions')
     const d = readProjectDetail(roots(), proj)
     const key = (s: { name: string; level: string; side: string }): string =>
       `${s.side}:${s.level}:${s.name}`
     const map = Object.fromEntries(d.skills.map((s) => [key(s), s]))
     expect(map['claude:project:ui-design']).toBeTruthy()
-    expect(map['claude:project:tdd']).toMatchObject({ description: '项目版 tdd' })
+    expect(map['claude:project:tdd']).toMatchObject({ description: 'project tdd' })
     expect(map['claude:project:tdd'].pkg?.files).toBe(1)
     expect(map['claude:project:tdd'].pkg!.bytes).toBeGreaterThan(0)
     expect(map['claude:global:tdd']).toBeUndefined()
@@ -58,8 +58,8 @@ describe('the skills effective view', () => {
   })
 
   it('a same name on the Codex side likewise lists only the project level (list presentation unified with Claude)', () => {
-    mkSkill(join(proj, '.agents', 'skills'), 'grilling', '项目版')
-    mkSkill(join(dir, '.agents', 'skills'), 'grilling', '全局版')
+    mkSkill(join(proj, '.agents', 'skills'), 'grilling', 'project version')
+    mkSkill(join(dir, '.agents', 'skills'), 'grilling', 'global version')
     const d = readProjectDetail(roots(), proj)
     const project = d.skills.find((s) => s.side === 'codex' && s.level === 'project' && s.name === 'grilling')
     const global = d.skills.find((s) => s.side === 'codex' && s.level === 'global' && s.name === 'grilling')
@@ -68,7 +68,7 @@ describe('the skills effective view', () => {
   })
 
   it('a project-level symlinked skill carries the symlink marker', () => {
-    mkSkill(join(dir, '.agents', 'skills'), 'shared', '共享')
+    mkSkill(join(dir, '.agents', 'skills'), 'shared', 'shared')
     mkdirSync(join(proj, '.claude', 'skills'), { recursive: true })
     symlinkSync(join(dir, '.agents', 'skills', 'shared'), join(proj, '.claude', 'skills', 'shared'))
     const d = readProjectDetail(roots(), proj)
@@ -77,7 +77,7 @@ describe('the skills effective view', () => {
   })
 
   it('a stale project (its directory missing) → project level empty, global as usual, without throwing', () => {
-    mkSkill(join(dir, '.claude', 'skills'), 'tdd', '全局')
+    mkSkill(join(dir, '.claude', 'skills'), 'tdd', 'global')
     const d = readProjectDetail(roots(), join(dir, 'work', 'ghost'))
     expect(d.skills.filter((s) => s.level === 'project')).toHaveLength(0)
     expect(d.skills.filter((s) => s.level === 'global')).toHaveLength(1)
@@ -112,8 +112,8 @@ describe('project-level MCP', () => {
 
 describe('read-only configuration', () => {
   it('the project CLAUDE.md / AGENTS.md contents; the settings summary comes from the project key', () => {
-    writeFileSync(join(proj, 'CLAUDE.md'), '# 项目约定\n')
-    writeFileSync(join(proj, 'AGENTS.md'), '# Codex 项目说明\n')
+    writeFileSync(join(proj, 'CLAUDE.md'), '# Project conventions\n')
+    writeFileSync(join(proj, 'AGENTS.md'), '# Codex project notes\n')
     writeFileSync(
       join(dir, '.claude.json'),
       JSON.stringify({
@@ -121,8 +121,8 @@ describe('read-only configuration', () => {
       })
     )
     const d = readProjectDetail(roots(), proj)
-    expect(d.configs.claudeMd?.text).toContain('项目约定')
-    expect(d.configs.agentsMd?.text).toContain('Codex 项目说明')
+    expect(d.configs.claudeMd?.text).toContain('Project conventions')
+    expect(d.configs.agentsMd?.text).toContain('Codex project notes')
     expect(d.configs.settingsSummary).toContain('allowedTools')
     expect(d.configs.settingsSummary).toContain('figma')
   })

@@ -38,8 +38,8 @@ describe('encodeAppError / decodeAppError', () => {
     // Ticket 05 migrated only the main process's main throw sites, leaving preload and the contract layer
     // to ticket 06;
     // during migration the renderer has to cope with both, without crashing and without going blank
-    expect(decodeAppError('会话打不开')).toBeNull()
-    expect(decodeAppError(wrap('偏好存储未就绪'))).toBeNull()
+    expect(decodeAppError('cannot open session')).toBeNull()
+    expect(decodeAppError(wrap('preference storage not ready'))).toBeNull()
     expect(decodeAppError('')).toBeNull()
   })
 
@@ -55,7 +55,7 @@ describe('encodeAppError / decodeAppError', () => {
   it('bad JSON after the marker returns null rather than throwing', () => {
     // The escape surface: a parse failure should degrade to "display it as an old-style error", never blow
     // up a whole render
-    expect(decodeAppError('agentshed-error:{不是 JSON')).toBeNull()
+    expect(decodeAppError('agentshed-error:{not JSON')).toBeNull()
   })
 
   it('a code outside the enum returns null rather than passing an unknown code through', () => {

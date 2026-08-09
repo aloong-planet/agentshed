@@ -218,7 +218,7 @@ describe('validateProjectDetail — admitting (a false refusal stops the whole d
   it('admits nullable fields holding non-null values', () => {
     const d = okDetail()
     // configs.claudeMd has been a CappedText since ticket 07 (the body plus whether it was truncated)
-    ;(d.configs as Record<string, unknown>).claudeMd = { text: '# 项目约定', truncated: false }
+    ;(d.configs as Record<string, unknown>).claudeMd = { text: '# project conventions', truncated: false }
     ;(d.mcp as Array<Record<string, unknown>>)[0].enabled = false
     ;(d.plugins as Array<Record<string, unknown>>)[0].enabledFrom = null
     ;(d.plugins as Array<Record<string, unknown>>)[0].version = null
@@ -349,7 +349,7 @@ describe('validateSessionPage (the session page payload)', () => {
 
 describe('validateSessionTurn (the single-turn fetch payload, ticket 05)', () => {
   const ok = {
-    blocks: [{ kind: 'text', role: 'assistant', at: 1754300000000, body: '回答正文' }],
+    blocks: [{ kind: 'text', role: 'assistant', at: 1754300000000, body: '回答body' }],
     bytesRead: 2048
   }
 
@@ -379,7 +379,7 @@ describe('validateSessionTurn (the single-turn fetch payload, ticket 05)', () =>
 
 describe('validateSessionTurn — ticket 07\'s rich content blocks', () => {
   const okBlocks = [
-    { kind: 'text', role: 'assistant', at: 1, body: '正文' },
+    { kind: 'text', role: 'assistant', at: 1, body: 'body' },
     { kind: 'think', at: 1, body: '想' },
     { kind: 'reason', at: null, titles: ['小标题'] },
     { kind: 'tool', at: 1, name: 'Bash', summary: 'ls', input: 'ls', output: 'ok', truncated: false },

@@ -12,8 +12,8 @@ import { TokenEngine } from './token-stats'
 
 const run = process.env['PARITY'] === '1'
 
-describe.skipIf(!run)('ccusage 对账', () => {
-  it('逐日与总量一致', async () => {
+describe.skipIf(!run)('ccusage reconciliation', () => {
+  it('day-by-day and totals agree', async () => {
     const ref = JSON.parse(readFileSync('/tmp/ccusage-until29.json', 'utf8'))
     const home = homedir()
     const roots = {

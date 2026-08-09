@@ -87,7 +87,7 @@ describe('UsageArchive', () => {
 
   it('a corrupt archive file → degrades to empty without crashing (the next scan starts accumulating again)', () => {
     mkdirSync(join(dir, 'store'), { recursive: true })
-    writeFileSync(join(dir, 'store', 'usage-archive.json'), '{坏了')
+    writeFileSync(join(dir, 'store', 'usage-archive.json'), '{broken')
     const a = new UsageArchive(join(dir, 'store'))
     expect(a.rows()).toEqual([])
     a.merge([row('2026-07-01', '/p1', 'm1', 7)], new Set(['2026-07-01']))

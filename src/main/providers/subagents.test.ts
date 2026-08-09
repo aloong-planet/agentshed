@@ -113,11 +113,11 @@ describe('global subagents', () => {
   })
 
   it('two files with the same name in one layer → the first wins (by filename order, as agent_roles.rs skips the later duplicate)', async () => {
-    mkCodexAgent('a-first.toml', `name = "dup"\ndescription = "第一个"\ndeveloper_instructions = "A"\n`)
-    mkCodexAgent('b-second.toml', `name = "dup"\ndescription = "第二个"\ndeveloper_instructions = "B"\n`)
+    mkCodexAgent('a-first.toml', `name = "dup"\ndescription = "first one"\ndeveloper_instructions = "A"\n`)
+    mkCodexAgent('b-second.toml', `name = "dup"\ndescription = "second one"\ndeveloper_instructions = "B"\n`)
     const snap = await scan(roots(), { now: () => 1 })
     const d = snap.global.subagents.find((s) => s.name === 'dup')
-    expect(d?.codex?.description).toBe('第一个')
+    expect(d?.codex?.description).toBe('first one')
   })
 
   it('overriding a built-in: a Codex custom name in {default,worker,explorer} → overridesBuiltin', async () => {
@@ -149,7 +149,7 @@ describe('global subagents', () => {
     const proj = join(dir, 'shadow-proj')
     mkdirSync(join(proj, '.claude', 'agents'), { recursive: true })
     const pf = join(proj, '.claude', 'agents', 'code-reviewer.md')
-    writeFileSync(pf, `---\ndescription: 项目版\n---\nx`)
+    writeFileSync(pf, `---\ndescription: project version\n---\nx`)
     const { chmodSync } = await import('node:fs')
     chmodSync(pf, 0o000)
     try {
@@ -201,7 +201,7 @@ describe('project detail subagents effective view', () => {
   it('B2 Claude project level shadows the same name globally; global entries with other names stay in effect', async () => {
     mkClaudeAgent('code-reviewer', CL_MD)
     mkClaudeAgent('debugger', `---\ndescription: dbg\n---\nbody`)
-    mkProjAgent(proj, 'claude', 'code-reviewer.md', `---\ndescription: 项目定制版\n---\nlocal body`)
+    mkProjAgent(proj, 'claude', 'code-reviewer.md', `---\ndescription: project customised version\n---\nlocal body`)
     const detail = readProjectDetail(roots(), proj)
     const cr = detail.subagents.filter((s) => s.name === 'code-reviewer' && s.side === 'claude')
     expect(cr.find((s) => s.level === 'project')?.shadows).toBe(true)

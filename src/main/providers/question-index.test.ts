@@ -66,9 +66,9 @@ describe('question extraction (the Claude side)', () => {
   test('content as a string and as [{type:text}] both count as questions; a tool result fed back does not', async () => {
     await withLines(
       [
-        cUser('第一个真问题'),
-        { type: 'user', timestamp: TS, message: { role: 'user', content: [{ type: 'text', text: '第二个真问题' }] } },
-        { type: 'user', timestamp: TS, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: '工具返回' }] } }
+        cUser('first real question'),
+        { type: 'user', timestamp: TS, message: { role: 'user', content: [{ type: 'text', text: 'second real question' }] } },
+        { type: 'user', timestamp: TS, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'tool return' }] } }
       ],
       async (file) => {
         expect(await indexOf(file, 'claude')).toHaveLength(2)
@@ -86,7 +86,7 @@ describe('question extraction (the Claude side)', () => {
             role: 'user',
             content: [
               { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBOR' } },
-              { type: 'text', text: '这张图里的报错是什么' }
+              { type: 'text', text: 'what is the error in this screenshot' }
             ]
           }
         }
@@ -98,7 +98,7 @@ describe('question extraction (the Claude side)', () => {
   })
 
   test('a sidechain line is not a question — that is a subagent\'s own transcript, not something a human asked', async () => {
-    await withLines([cUser('人问的'), cUser('subagent 的派发提示词', { isSidechain: true, agentId: 'a1' })], async (file) => {
+    await withLines([cUser('asked by a human'), cUser('the subagent dispatch prompt', { isSidechain: true, agentId: 'a1' })], async (file) => {
       expect(await indexOf(file, 'claude')).toHaveLength(1)
     })
   })
@@ -107,11 +107,11 @@ describe('question extraction (the Claude side)', () => {
     await withLines(
       [
         cUser('Warmup'),
-        cUser('<local-command-caveat>免责声明</local-command-caveat>'),
+        cUser('<local-command-caveat>disclaimer</local-command-caveat>'),
         cUser('Base directory for this skill: /x'),
         cUser('<command-message>m</command-message><command-name>/clear</command-name><command-args></command-args>'),
-        cUser('[cron:abc 定时] 真正的指令'),
-        cUser('这是真问题')
+        cUser('[cron:abc scheduled] the actual instruction'),
+        cUser('this is a real question')
       ],
       async (file) => {
         // Only the cron one (which has content after the bracket is stripped) and the last one count
@@ -129,7 +129,7 @@ describe('question extraction (the Claude side)', () => {
 
 describe('turn splitting and offsets', () => {
   test('a turn = from after this question up to the next one; the last turn runs to the end of the file', async () => {
-    const objs = [cUser('问题一'), cTool('Bash'), cUser('问题二'), cTool('Read')]
+    const objs = [cUser('question one'), cTool('Bash'), cUser('问题二'), cTool('Read')]
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
       const size = readFileSync(file).length
@@ -142,7 +142,7 @@ describe('turn splitting and offsets', () => {
   })
 
   test('the anchor: what [turn start, turn end) slices out is exactly every line after this question and before the next', async () => {
-    const objs = [cUser('问题一'), cTool('Bash'), cTool('Agent'), cUser('问题二'), cTool('Read')]
+    const objs = [cUser('question one'), cTool('Bash'), cTool('Agent'), cUser('问题二'), cTool('Read')]
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
       const raw = readFileSync(file)
@@ -175,7 +175,7 @@ describe('per-turn volume counting', () => {
     // Measured across the repository: Agent 152 times, Task 4 — two generations of the same dispatch tool,
     // both taking
     // description+prompt+subagent_type
-    await withLines([cUser('问'), cTool('Bash'), cTool('Read'), cTool('Agent'), cTool('Task')], async (file) => {
+    await withLines([cUser('q'), cTool('Bash'), cTool('Read'), cTool('Agent'), cTool('Task')], async (file) => {
       const [rec] = await indexOf(file, 'claude')
       expect(rec[4]).toBe(2) // 工具:Bash + Read
       expect(rec[5]).toBe(2) // subagent:Agent + Task
@@ -184,7 +184,7 @@ describe('per-turn volume counting', () => {
 
   test('Claude: tools on a sidechain line do not count toward the parent turn — that is the subagent\'s own work', async () => {
     const side = { ...(cTool('Bash') as Record<string, unknown>), isSidechain: true, agentId: 'a1' }
-    await withLines([cUser('问'), cTool('Agent'), side, side], async (file) => {
+    await withLines([cUser('q'), cTool('Agent'), side, side], async (file) => {
       const [rec] = await indexOf(file, 'claude')
       expect(rec[4]).toBe(0)
       expect(rec[5]).toBe(1)
@@ -199,7 +199,7 @@ describe('per-turn volume counting', () => {
   })
 
   test('lines before the first question count toward no turn', async () => {
-    await withLines([cTool('Bash'), cUser('问'), cTool('Read')], async (file) => {
+    await withLines([cTool('Bash'), cUser('q'), cTool('Read')], async (file) => {
       const recs = await indexOf(file, 'claude')
       expect(recs).toHaveLength(1)
       expect(recs[0][4]).toBe(1)
@@ -211,8 +211,8 @@ describe('question extraction (the Codex side)', () => {
   test('takes event_msg/user_message, not response_item/message', async () => {
     await withLines(
       [
-        xUser('人问的'),
-        { type: 'response_item', timestamp: TS, payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<environment_context>注入</environment_context>' }] } }
+        xUser('asked by a human'),
+        { type: 'response_item', timestamp: TS, payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<environment_context>injected</environment_context>' }] } }
       ],
       async (file) => {
         expect(await indexOf(file, 'codex')).toHaveLength(1)
@@ -223,7 +223,7 @@ describe('question extraction (the Codex side)', () => {
   test('custom_tool_call and function_call count as tools, spawn_agent counts as a subagent', async () => {
     await withLines(
       [
-        xUser('问'),
+        xUser('q'),
         { type: 'response_item', timestamp: TS, payload: { type: 'custom_tool_call', name: 'exec', input: 'ls' } },
         { type: 'response_item', timestamp: TS, payload: { type: 'custom_tool_call', name: 'apply_patch', input: 'p' } },
         { type: 'response_item', timestamp: TS, payload: { type: 'function_call', name: 'wait', arguments: '{}' } },
@@ -252,7 +252,7 @@ describe('question extraction (the Codex side)', () => {
   })
 
   test('the sides do not cross over: a Claude line is never counted as a question by the Codex rules', async () => {
-    await withLines([cUser('claude 的提问')], async (file) => {
+    await withLines([cUser('a claude question')], async (file) => {
       expect(await indexOf(file, 'codex')).toEqual([])
     })
   })
@@ -305,7 +305,7 @@ async function textsOf(objs: unknown[]): Promise<number[]> {
 
 describe('Claude branches: the last-leaf walk-back', () => {
   test('a linear session: every question is on the chain, none lost', async () => {
-    const objs = [cq('u1', null, '问一'), ca('a1', 'u1'), cq('u2', 'a1', '问二'), ca('a2', 'u2'), cq('u3', 'a2', '问三')]
+    const objs = [cq('u1', null, 'question one'), ca('a1', 'u1'), cq('u2', 'a1', 'question two'), ca('a2', 'u2'), cq('u3', 'a2', 'question three')]
     await withLines(objs, async (file) => {
       expect(await indexOf(file, 'claude')).toHaveLength(3)
     })
@@ -314,13 +314,13 @@ describe('Claude branches: the last-leaf walk-back', () => {
   test('a branch: questions on the abandoned side do not count', async () => {
     // u2 and u2b share the parent a1; the last entry is u3 (under the u2 side) → u2b is abandoned
     const objs = [
-      cq('u1', null, '问一'),
+      cq('u1', null, 'question one'),
       ca('a1', 'u1'),
-      cq('u2b', 'a1', '走岔的问'),
+      cq('u2b', 'a1', 'question on the abandoned branch'),
       ca('a2b', 'u2b'),
-      cq('u2', 'a1', '问二'),
+      cq('u2', 'a1', 'question two'),
       ca('a2', 'u2'),
-      cq('u3', 'a2', '问三')
+      cq('u3', 'a2', 'question three')
     ]
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
@@ -336,12 +336,12 @@ describe('Claude branches: the last-leaf walk-back', () => {
 
   test('a file ending on a sidechain: the walk-back starts from the last non-sidechain line and does not fall into the subagent chain', async () => {
     const objs = [
-      cq('u1', null, '问一'),
+      cq('u1', null, 'question one'),
       ca('a1', 'u1'),
-      cq('u2', 'a1', '问二'),
+      cq('u2', 'a1', 'question two'),
       // A subagent's transcript: parentUuid is always null, it forms its own chain, and it sits at the end
       // of the file
-      { ...(cq('s1', null, 'subagent 的提示词') as Record<string, unknown>), isSidechain: true, agentId: 'ag1' },
+      { ...(cq('s1', null, 'the subagent prompt') as Record<string, unknown>), isSidechain: true, agentId: 'ag1' },
       { ...(ca('s2', 's1') as Record<string, unknown>), isSidechain: true, agentId: 'ag1' }
     ]
     await withLines(objs, async (file) => {
@@ -351,7 +351,7 @@ describe('Claude branches: the last-leaf walk-back', () => {
 
   test('a compaction boundary: bridged by logicalParentUuid, so pre-compaction questions are not lost', async () => {
     const objs = [
-      cq('u1', null, '压缩前问一'),
+      cq('u1', null, 'pre-compaction question one'),
       ca('a1', 'u1'),
       cq('u2', 'a1', '压缩前问二'),
       ca('a2', 'u2'),
@@ -360,7 +360,7 @@ describe('Claude branches: the last-leaf walk-back', () => {
     ]
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
-      expect(recs, '不桥接 logicalParentUuid 的话只剩压缩后那 1 条').toHaveLength(3)
+      expect(recs, 'without bridging logicalParentUuid only the 1 post-compaction entry remains').toHaveLength(3)
     })
   })
 
@@ -377,21 +377,21 @@ describe('Claude branches: the last-leaf walk-back', () => {
 
   test('lines with no uuid take no part in the walk-back and do not collapse the whole index', async () => {
     // In a real file, lines such as session_meta have no uuid
-    const objs = [cUser('无 uuid 的提问'), cq('u1', null, '有 uuid 的提问')]
+    const objs = [cUser('question with no uuid'), cq('u1', null, 'question with a uuid')]
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
-      expect(recs, '无 uuid 的提问无从判断在不在链上,按不漏原则保留').toHaveLength(2)
+      expect(recs, 'a question with no uuid cannot be judged on-chain, kept on the do-not-lose principle').toHaveLength(2)
     })
   })
 
   test('a whole file with no uuid (an old format): degrades to keeping everything', async () => {
-    await withLines([cUser('问一'), cUser('问二')], async (file) => {
+    await withLines([cUser('question one'), cUser('question two')], async (file) => {
       expect(await indexOf(file, 'claude')).toHaveLength(2)
     })
   })
 
   test('no last-leaf walk-back on the Codex side: the uuid field is meaningless there', async () => {
-    await withLines([xUser('问一'), xUser('问二')], async (file) => {
+    await withLines([xUser('question one'), xUser('question two')], async (file) => {
       expect(await indexOf(file, 'codex')).toHaveLength(2)
     })
   })
@@ -412,16 +412,16 @@ describe('the branch point count (forkPoints, ticket 06\'s banner signal)', () =
   }
 
   test('a linear session: 0 branch points', async () => {
-    expect(await fpOf([cq('u1', null, '问一'), ca('a1', 'u1'), cq('u2', 'a1', '问二')])).toBe(0)
+    expect(await fpOf([cq('u1', null, 'question one'), ca('a1', 'u1'), cq('u2', 'a1', 'question two')])).toBe(0)
   })
 
   test('one parent with two children = 1; two such parents = 2', async () => {
-    const one = [cq('u1', null, '问'), ca('a1', 'u1'), cq('u2b', 'a1', '岔'), cq('u2', 'a1', '正')]
+    const one = [cq('u1', null, 'q'), ca('a1', 'u1'), cq('u2b', 'a1', '岔'), cq('u2', 'a1', '正')]
     expect(await fpOf(one)).toBe(1)
     const two = [
-      cq('u1', null, '问'),
+      cq('u1', null, 'q'),
       ca('a1', 'u1'),
-      cq('u2b', 'a1', '岔一'),
+      cq('u2b', 'a1', 'branch one'),
       cq('u2', 'a1', '正'),
       ca('a2', 'u2'),
       cq('u3b', 'a2', '岔二'),
@@ -432,18 +432,18 @@ describe('the branch point count (forkPoints, ticket 06\'s banner signal)', () =
 
   test('one parent with three children is still 1 branch point (points are counted, not branches)', async () => {
     expect(
-      await fpOf([cq('u1', null, '问'), ca('a1', 'u1'), cq('x', 'a1', '岔一'), cq('y', 'a1', '岔二'), cq('z', 'a1', '正')])
+      await fpOf([cq('u1', null, 'q'), ca('a1', 'u1'), cq('x', 'a1', 'branch one'), cq('y', 'a1', '岔二'), cq('z', 'a1', '正')])
     ).toBe(1)
   })
 
   test('sidechain lines do not enter the walk-back graph and create no branch', async () => {
     const s = (u: string, p: string | null): unknown => ({
-      ...(cq(u, p, 'subagent 行') as Record<string, unknown>),
+      ...(cq(u, p, 'subagent line') as Record<string, unknown>),
       isSidechain: true,
       agentId: 'ag'
     })
     // Two sidechains share a parent with a main-chain line: the main chain itself is linear
-    expect(await fpOf([cq('u1', null, '问'), ca('a1', 'u1'), s('s1', 'a1'), s('s2', 'a1'), cq('u2', 'a1', '问二')])).toBe(0)
+    expect(await fpOf([cq('u1', null, 'q'), ca('a1', 'u1'), s('s1', 'a1'), s('s2', 'a1'), cq('u2', 'a1', 'question two')])).toBe(0)
   })
 
   test('the compaction boundary bridge is a single chain and is not a branch', async () => {
@@ -453,11 +453,11 @@ describe('the branch point count (forkPoints, ticket 06\'s banner signal)', () =
   })
 
   test('an old-format file with no uuid: 0', async () => {
-    expect(await fpOf([cUser('问一'), cUser('问二')])).toBe(0)
+    expect(await fpOf([cUser('question one'), cUser('question two')])).toBe(0)
   })
 
   test('always 0 on the Codex side (no last-leaf walk-back)', async () => {
-    await withLines([xUser('问')], async (file) => {
+    await withLines([xUser('q')], async (file) => {
       const idx = makeQuestionIndexer('codex')
       let fileEnd = 0
       await eachJsonlLine(file, (obj, start, end) => {
@@ -502,14 +502,14 @@ describe('the title and the question set share a source (after the last-leaf wal
 
   test('every question filtered out → the title is null (and the session is not listed as a result)', async () => {
     // The only question is on the abandoned branch, and the surviving chain has only assistant lines
-    const objs = [ca('root', null), cq('u1b', 'root', '走岔的问'), ca('a1', 'root'), ca('a2', 'a1')]
+    const objs = [ca('root', null), cq('u1b', 'root', 'question on the abandoned branch'), ca('a1', 'root'), ca('a2', 'a1')]
     expect(await firstTextOf(objs)).toBeNull()
   })
 
   test('the title is not stripped twice: content a cron strip produced is kept even when it happens to be Warmup', async () => {
     // A regression guard for why clipTitle and realUserText are separate: a second strip would turn it into
     // null
-    expect(await firstTextOf([cq('u1', null, '[cron:abc 定时] Warmup')])).toBe('Warmup')
+    expect(await firstTextOf([cq('u1', null, '[cron:abc scheduled] Warmup')])).toBe('Warmup')
   })
 })
 
@@ -547,12 +547,12 @@ describe('stripping the Codex replay prefix', () => {
   const T = (m: number): number => Date.parse(`2026-08-01T10:${String(m).padStart(2, '0')}:00Z`)
 
   test('not a fork → returned as is, state none', () => {
-    const c = [rec(T(1), '问一'), rec(T(2), '问二')]
+    const c = [rec(T(1), 'question one'), rec(T(2), 'question two')]
     expect(strip(c, null, null, false)).toEqual({ n: 2, state: 'none' })
   })
 
   test('"not a fork" and "the parent is missing" must give different states, not two shades of one field', () => {
-    const c = [rec(T(1), '问一'), rec(T(9), '问二')]
+    const c = [rec(T(1), 'question one'), rec(T(9), 'question two')]
     expect(strip(c, null, null, false).state).toBe('none')
     expect(strip(c, null, T(1), true).state).toBe('uncertain')
   })
@@ -564,22 +564,22 @@ describe('stripping the Codex replay prefix', () => {
   })
 
   test('the parent is in the scan set and the fingerprints match entry by entry → the replayed span is stripped, state stripped', () => {
-    const p = [rec(T(1), '父问一'), rec(T(2), '父问二'), rec(T(9), '父 fork 之后才有的问')]
+    const p = [rec(T(1), 'parent question one'), rec(T(2), 'parent question two'), rec(T(9), 'parent question after the fork')]
     // The child replayed the two entries before the fork moment (T(5)), with rewritten timestamps but
     // unchanged content
-    const c = [rec(T(5), '父问一'), rec(T(5), '父问二'), rec(T(6), '子的新问')]
+    const c = [rec(T(5), 'parent question one'), rec(T(5), 'parent question two'), rec(T(6), 'child new question')]
     expect(strip(c, p, T(5))).toEqual({ n: 1, state: 'stripped' })
   })
 
   test('the fingerprints do not match → nothing is stripped, state uncertain (preferring visible duplicates to silently losing a real question)', () => {
-    const p = [rec(T(1), '父问一'), rec(T(2), '父问二')]
-    const c = [rec(T(5), '完全不同的开头'), rec(T(6), '子的新问')]
+    const p = [rec(T(1), 'parent question one'), rec(T(2), 'parent question two')]
+    const c = [rec(T(5), 'a completely different opening'), rec(T(6), 'child new question')]
     expect(strip(c, p, T(5))).toEqual({ n: 2, state: 'uncertain' })
   })
 
   test('only part matches → strip the part that matched, but still label it uncertain', () => {
-    const p = [rec(T(1), '父问一'), rec(T(2), '父问二'), rec(T(3), '父问三')]
-    const c = [rec(T(5), '父问一'), rec(T(5), '对不上了'), rec(T(6), '子的新问')]
+    const p = [rec(T(1), 'parent question one'), rec(T(2), 'parent question two'), rec(T(3), 'parent question three')]
+    const c = [rec(T(5), 'parent question one'), rec(T(5), 'does not match'), rec(T(6), 'child new question')]
     expect(strip(c, p, T(5))).toEqual({ n: 2, state: 'uncertain' })
   })
 
@@ -595,7 +595,7 @@ describe('stripping the Codex replay prefix', () => {
     // A replay is written by a program in one go with near-zero line gaps; a human's questions follow a
     // human rhythm
     const ms = (x: number): number => Date.parse('2026-08-01T10:00:00Z') + x
-    const c = [rec(ms(0), 'A'), rec(ms(120), 'B'), rec(ms(240), 'C'), rec(ms(600_000), '真人问的')]
+    const c = [rec(ms(0), 'A'), rec(ms(120), 'B'), rec(ms(240), 'C'), rec(ms(600_000), 'asked by a human')]
     expect(strip(c, null, ms(0))).toEqual({ n: 1, state: 'uncertain' })
   })
 
@@ -638,12 +638,12 @@ describe('stripping the Codex replay prefix', () => {
 
 describe('the content fingerprint', () => {
   test('the same text gives the same fingerprint, different text a different one', () => {
-    expect(fingerprint('同一段话')).toBe(fingerprint('同一段话'))
-    expect(fingerprint('甲')).not.toBe(fingerprint('乙'))
+    expect(fingerprint('★ same text ★')).toBe(fingerprint('★ same text ★'))
+    expect(fingerprint('★A')).not.toBe(fingerprint('★B'))
   })
 
   test('it is a 32-bit unsigned integer from which the text cannot be recovered', () => {
-    const fp = fingerprint('一段较长的中文提问内容,用来确认输出仍是个小整数')
+    const fp = fingerprint('★ a fairly long question with multi-byte characters ★ to confirm the output is still a small integer')
     expect(Number.isInteger(fp)).toBe(true)
     expect(fp).toBeGreaterThanOrEqual(0)
     expect(fp).toBeLessThanOrEqual(0xffffffff)
@@ -656,13 +656,13 @@ describe('the content fingerprint', () => {
 
 describe('questionTextAt (the session page\'s display text, judged the same way as the index)', () => {
   test('claude: the full text after noise stripping (the cron prefix goes, the body stays)', () => {
-    const obj = cUser('[cron:abc 定时] 真正的指令') as Record<string, unknown>
-    expect(questionTextAt('claude', obj)).toBe('真正的指令')
+    const obj = cUser('[cron:abc scheduled] the actual instruction') as Record<string, unknown>
+    expect(questionTextAt('claude', obj)).toBe('the actual instruction')
   })
 
   test('codex: the user_message source with noise stripped', () => {
-    const obj = xUser('  两端有空白的提问  ') as Record<string, unknown>
-    expect(questionTextAt('codex', obj)).toBe('两端有空白的提问')
+    const obj = xUser('  question padded with spaces  ') as Record<string, unknown>
+    expect(questionTextAt('codex', obj)).toBe('question padded with spaces')
   })
 
   test('a non-question line is always null: a tool result fed back, an assistant line, a sidechain, pure noise', () => {
