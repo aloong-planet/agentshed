@@ -1,5 +1,6 @@
-// Memory 分栏(spec: subagents-memory-plugin 序列 C/D)。
-// 全局汇总:行内展开文件列表,点文件开抽屉;内容不进快照,经白名单通道按需读取(C8)。
+// The Memory section (spec: subagents-memory-plugin, sequences C/D).
+// The global summary: a row expands its file list inline and clicking a file opens a drawer; contents do
+// not enter the snapshot and are read on demand through the allow-listed channel (C8).
 import { useEffect, useMemo, useState } from 'react'
 import type { MemoryFileMeta, MemorySummaryEntry, ProjectDetail, Snapshot } from '@shared/domain'
 import { renderMarkdown } from './md'
@@ -10,7 +11,8 @@ import { errorText } from '@shared/error-text'
 import { appError } from '@shared/errors'
 import { useLanguage, useDict } from './language'
 
-/** C6 三态:未开启 → 开启提示;开启无内容 → 暂无内容;有内容 → 条目行(在列表中) */
+/** C6's three states: not enabled → how to enable it; enabled but empty → nothing yet; has content → an
+ * entry row (in the list) */
 function CodexMemoryNote({ snap }: { snap: Snapshot }): JSX.Element | null {
   const t = useDict()
   const hasRow = snap.global.memory.some((m) => m.side === 'codex')
@@ -33,7 +35,8 @@ function CodexMemoryNote({ snap }: { snap: Snapshot }): JSX.Element | null {
 export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
   const lang = useLanguage()
   const t = useDict()
-  // 展开态键 = 侧+项目路径:快照刷新重排后展开行不错位(review-code 重构项 #4)
+  // The expansion key = side + project path: an expanded row does not shift when a snapshot refresh
+  // reorders the list (review-code refactor item #4)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState<{ entry: MemorySummaryEntry; file: MemoryFileMeta } | null>(null)
   if (snap.global.memory.length === 0)
@@ -106,7 +109,8 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
   )
 }
 
-/** 详情页 Memory tab:MEMORY.md 主体直接渲染(同配置 tab 模式),topic 点开抽屉(D 序列) */
+/** The detail page's Memory tab: MEMORY.md's body is rendered directly (the same pattern as the
+ * Configuration tab) and topics open in a drawer (sequence D) */
 export function ProjectMemoryTab({
   detail,
   hasClaudeSide,
@@ -130,7 +134,7 @@ export function ProjectMemoryTab({
           ),
     [detail]
   )
-  // 主文件与 topic 同目录;topic 路径即该目录下的可读清单
+  // The main file and topics share a directory; the topic paths are that directory's readable list
   const mainDir = detail.memory.topics[0] ? dirOf(detail.memory.topics[0].file) : ''
   if (detail.memory.main === null && detail.memory.topics.length === 0) {
     return (
@@ -192,7 +196,8 @@ export function ProjectMemoryTab({
   )
 }
 
-/** 文件内容抽屉:经白名单通道按需读取;读取失败抽屉内报错不崩(C8) */
+/** The file contents drawer: read on demand through the allow-listed channel; a read failure reports
+ * inside the drawer without crashing (C8) */
 export function MemoryFileDrawer({
   title,
   meta,

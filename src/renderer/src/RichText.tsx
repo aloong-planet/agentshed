@@ -1,20 +1,28 @@
-// 富文本文案的渲染(票 09)。
+// Rendering rich-text copy (ticket 09).
 //
-// **为什么需要它**:会话页与轮内块里有十几条带内嵌强调的说明,而强调承载的是**警告语义**
-// (「永远拿不到」「可能多剥或少剥」「只存了截断版」),不是装饰。两条既有约束把常规做法堵死了:
-//   ① 本 feature 约定「富文本不得拆成碎片 key 拼接」——各语言语序不同,拼接必错;
-//   ② ADR-0014 定下文案层是纯数据 + 纯函数、**不依赖 React**,故字典条目不能返回 ReactNode。
+// **Why it is needed**: the session page and the in-turn blocks have a dozen or so explanations with
+// inline emphasis, and that emphasis carries **warning semantics**
+// ("never obtainable", "may have stripped too much or too little", "only the truncated version is
+// stored"), not decoration. Two existing constraints rule out the usual approaches:
+//   (1) this feature's convention that "rich text must not be assembled from fragment keys" — word order
+//       differs per language, so concatenation is bound to be wrong;
+//   (2) ADR-0014 settled that the copy layer is pure data plus pure functions and **does not depend on
+//       React**, so a dictionary entry cannot return a ReactNode.
 //
-// 解法是让字典仍存**一条完整的纯字符串**,用两个轻量标记承载强调,由本组件在渲染时解析:
-//   `**粗体**`  →  <b>
-//   `` `代码` ``  →  <code>
-// 一句话一个 key,六语各自完整,标记位置随各语言语序自然移动——这正是碎片 key 做不到的。
+// The solution is for the dictionary to still hold **one complete plain string**, carrying emphasis in
+// two lightweight markers that this component parses at render time:
+//   `**bold**`  →  <b>
+//   `` `code` ``  →  <code>
+// One key per sentence, complete in all six languages, with the markers moving naturally with each
+// language's word order — precisely what fragment keys cannot do.
 //
-// 刻意**不**支持嵌套与链接:本用途只需要这两种,支持更多等于在这里养一个 markdown 实现,
-// 而渲染 agent 生成内容自有既有的 markdown 通路(那条有消毒,这条没有,别混用)。
+// Nesting and links are deliberately **not** supported: this use needs only these two, and supporting
+// more would mean keeping a markdown implementation here,
+// while rendering agent-generated content already has its own markdown path (that one sanitises, this
+// one does not — do not mix them up).
 import type { JSX } from 'react'
 
-/** 按 `**粗体**` 与 `` `代码` `` 切段;两者不嵌套,先到先得 */
+/** Split on `**bold**` and `` `code` ``; the two do not nest, and first come first served */
 const TOKEN = /(\*\*[^*]+\*\*|`[^`]+`)/g
 
 export function RichText({ text }: { text: string }): JSX.Element {

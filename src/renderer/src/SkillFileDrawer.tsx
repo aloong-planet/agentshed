@@ -1,4 +1,5 @@
-// skills-view:点文件开抽屉读正文;md 默认可预览(frontmatter 卡片+消毒 HTML)。
+// skills-view: clicking a file opens a drawer to read it; markdown previews by default (a frontmatter
+// card + sanitised HTML).
 import { useEffect, useState } from 'react'
 import { isMarkdownName, renderMarkdown } from './md'
 import { useDict } from './language'

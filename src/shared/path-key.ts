@@ -1,5 +1,7 @@
-// 项目路径的规范化与合并键:唯一出处(scan/hidden-store/token 引擎共用)。
-// 合并键 = 去尾斜杠 + 小写(macOS 文件系统大小写不敏感);展示保留原始写法。
+// Project path normalisation and the merge key: the single source (shared by scan, hidden-store and the
+// token engine).
+// The merge key = trailing slash removed + lowercased (the macOS filesystem is case-insensitive);
+// display keeps the original spelling.
 
 export function normalizePath(p: string): string {
   const stripped = p.replace(/\/+$/, '')

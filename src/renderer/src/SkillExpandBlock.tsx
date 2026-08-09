@@ -1,4 +1,5 @@
-// skills-view:skill 折叠文件表 + 点文件开抽屉(磁盘与插件同权,A4/ADR-0012)
+// skills-view: a skill expands into a file table and clicking a file opens a drawer (on-disk and plugin
+// entries on equal footing, A4/ADR-0012)
 import { useRef, useState } from 'react'
 import type { AgentSide, SkillPkgStats } from '@shared/domain'
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
@@ -12,8 +13,9 @@ const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex'
 const SIDE_ORDER: AgentSide[] = ['claude', 'codex']
 
 /**
- * 列举来源(判别联合):三种来源各自的必填项由类型钉死,不再靠 optional props
- * 的占用规则约定(scope=plugin 必带 pluginRoot 之类)。新增来源 = 加一个 variant。
+ * The enumeration source (a discriminated union): each of the three sources has its required fields
+ * pinned by the type, rather than relying on a convention about which optional props
+ * are occupied (scope=plugin must carry pluginRoot, and so on). A new source = one more variant.
  */
 export type SkillSource =
   | { kind: 'global'; sides: AgentSide[]; fixedSide?: AgentSide }
@@ -21,9 +23,10 @@ export type SkillSource =
   | {
       kind: 'plugin'
       side: AgentSide
-      /** 摘要同源包根(plugins-view H5);null=不可展开(fail-closed 展示) */
+      /** The summary-source package root (plugins-view H5); null = not expandable (a fail-closed display) */
       pluginRoot: string | null
-      /** 裸 skill 名(数据层随条目下发,不从命名空间名反解) */
+      /** The bare skill name (sent down with the entry by the data layer, not parsed back out of the
+       * namespaced name) */
       bareName: string
     }
 
@@ -33,7 +36,7 @@ export interface SkillExpandBlockProps {
   symlink?: boolean
   levelLabel?: string
   level?: 'project' | 'global'
-  /** 各侧包统计(行内展示);切侧时行上数字随动 */
+  /** Per-side package stats (shown inline); the row's numbers follow when switching sides */
   pkgBySide?: Partial<Record<AgentSide, SkillPkgStats | null>>
   installSlot?: JSX.Element
   uninstallSlot?: JSX.Element
@@ -54,10 +57,12 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   const [drawer, setDrawer] = useState<SkillFileEntry | null>(null)
 
   const pkg = pkgBySide?.[side] ?? null
-  // A4/ADR-0012:插件命名空间行与磁盘同权——包根在登记集且统计可读才可展开
+  // A4/ADR-0012: plugin namespace rows are on equal footing with on-disk ones — expandable only when the
+  // package root is in the registration set and the stats are readable
   const expandable =
     source.kind === 'plugin' ? source.pluginRoot != null && pkg !== null : sidesArr.length > 0
-  // 竞态守卫:快速切侧时,旧侧请求的结果不得安到新侧名下(同层污染)
+  // A race guard: when sides change quickly, an old side's result must not be attributed to the new side
+  // (sideways pollution)
   const seq = useRef(0)
 
   async function load(forSide: AgentSide): Promise<void> {
@@ -112,7 +117,8 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         tabIndex={expandable ? 0 : undefined}
         onClick={() => void toggle()}
         onKeyDown={(e) => {
-          // 行内动作按钮(装/卸)的键盘激活会冒泡到这里;只响应行自身,免得连带展开(A7)
+          // Keyboard activation of the inline action buttons (install/uninstall) bubbles here; respond
+          // only to the row itself so it does not expand as a side effect (A7)
           if (e.target !== e.currentTarget) return
           if (expandable && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault()

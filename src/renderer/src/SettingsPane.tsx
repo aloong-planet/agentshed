@@ -1,6 +1,6 @@
-// 设置第三维 · 界面语言 + 外观(模式 × 配色),均对全 app 生效。
-// 界面点对齐原型 docs/prototypes/appearance/prototype-settings.html(2026-08-08 已确认)。
-// 语言分节置于外观之前:它决定本页其余内容怎么读。
+// The settings third dimension · UI language + appearance (mode × colour scheme), both applying app-wide.
+// The UI matches the prototype docs/prototypes/appearance/prototype-settings.html (confirmed 2026-08-08).
+// The language section comes before appearance: it determines how the rest of the page reads.
 import { useEffect, useState, type JSX } from 'react'
 import {
   APPEARANCE_MODES,
@@ -12,10 +12,14 @@ import { dictOf, type LanguagePreference } from '@shared/i18n'
 import { LanguageSelect } from './LanguageSelect'
 import { useLanguage } from './language'
 
-// 色板预览取样(--card / --accent-soft / --accent / --text),按生效明暗**两套**:
-// 色板是所见即所得的预览,深色下仍显示浅色取样就与实际观感不符。
-// 值抄自 theme.css 的各变量块,**改主题色须同步改这里**——没法在运行时读出来,
-// getComputedStyle 只能读当前生效的那一套,读不到另外两个方案的变量。
+// Palette preview samples (--card / --accent-soft / --accent / --text), in **two sets** by effective
+// light/dark:
+// the palette is a what-you-see-is-what-you-get preview, and showing light samples in dark mode would not
+// match what is actually seen.
+// The values are copied from theme.css's variable blocks, so **changing a theme colour means changing
+// this too** — they cannot be read at runtime,
+// since getComputedStyle can only read the set currently in effect, not the other two schemes'
+// variables.
 const SCHEME_SWATCH: Record<'light' | 'dark', Record<AppearanceScheme, string[]>> = {
   light: {
     purple: ['#ffffff', '#f0ebf6', '#8a67ab', '#37352f'],
@@ -32,18 +36,22 @@ const SCHEME_SWATCH: Record<'light' | 'dark', Record<AppearanceScheme, string[]>
 const DARK_QUERY = '(prefers-color-scheme: dark)'
 
 /**
- * 当前**生效明暗**。
+ * The current **effective light/dark**.
  *
- * 主进程按偏好设 `nativeTheme.themeSource`,它直接改变这个媒体查询的求值结果——
- * 故渲染层不自己算明暗、也不写 DOM 属性,读它即可;监听 change 便同时覆盖了
- * 「用户改模式」与「跟随系统时系统外观变了」两种来源,不必分别接线。
+ * The main process sets `nativeTheme.themeSource` from the preference, which directly changes how this
+ * media query evaluates —
+ * so the renderer neither computes light/dark itself nor writes a DOM attribute, and just reads it;
+ * listening for change covers both
+ * "the user changed the mode" and "the system appearance changed while following it", with no separate
+ * wiring needed.
  */
 function useEffectiveDark(): boolean {
   const [dark, setDark] = useState(() => window.matchMedia(DARK_QUERY).matches)
   useEffect(() => {
     const mq = window.matchMedia(DARK_QUERY)
     const onChange = (): void => setDark(mq.matches)
-    // 挂监听与读初值之间可能已经变过一次,补读一次免得停在旧值
+    // It may have changed between installing the listener and reading the initial value, so read once
+    // more rather than sitting on a stale one
     onChange()
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
@@ -66,7 +74,8 @@ export function SettingsPane({
   language: LanguagePreference
   onLanguage: (l: LanguagePreference) => void
 }): JSX.Element {
-  // 语言从 context 取,不再逐层 prop 传(票 05 引入 context 后的收敛,票 11 AC)
+  // The language comes from context rather than being threaded down as a prop (the convergence after
+  // ticket 05 introduced context; ticket 11 AC)
   const lang = useLanguage()
   const t = dictOf(lang).settings
   const dark = useEffectiveDark()
@@ -75,7 +84,8 @@ export function SettingsPane({
     blue: t.schemeBlue,
     amber: t.schemeAmber
   }
-  // 「跟随系统」与语言分节共用同一条文案:两处是同构的策略,措辞不该各说各的
+  // "Follow system" shares one piece of copy with the language section: the two are structurally
+  // identical policies and should not be worded differently
   const modeName: Record<AppearanceMode, string> = {
     system: t.followSystem,
     light: t.modeLight,
@@ -93,7 +103,7 @@ export function SettingsPane({
       <p className="settings-foot" data-testid="language-foot">{t.languageFoot}</p>
 
       <div className="settings-sec-t settings-sec-gap">{t.sectionAppearance}</div>
-      {/* 一张卡两行:上行模式、下行配色,与语言段同一形态 */}
+      {/* One card with two rows: mode on top, colour scheme below, the same form as the language section */}
       <div className="field" data-testid="appearance-field">
         <div className="frow">
           <span className="flabel">{t.mode}</span>
@@ -137,7 +147,8 @@ export function SettingsPane({
           </div>
         </div>
       </div>
-      {/* 紧凑化后配色卡不再带描述,「默认为紫」等信息落在这段说明里 */}
+      {/* After compacting, the palette cards carry no description, and information such as "purple is
+          the default" lands in this explanation */}
       <p className="settings-foot" data-testid="appearance-foot">{t.appearanceFoot}</p>
     </div>
   )

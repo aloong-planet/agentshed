@@ -1,8 +1,11 @@
-// app 自有偏好的契约(落地在 userData,**绝不写 agent 配置**)。
+// The contract for the app's own preferences (landed in userData, **never written to the agent
+// configuration**).
 //
-// 各偏好项自身的类型定义在各自的领域模块(外观方案见 ./appearance,界面语言见 ./i18n),
-// 本文件只负责把它们组装成一份偏好并守住跨进程入口。偏好项会持续增加,故独立成文件——
-// 放在某个领域模块里会让那个模块名不副实。
+// Each preference's own type is defined in its domain module (the colour scheme in ./appearance, the UI
+// language in ./i18n),
+// and this file only assembles them into one preferences object and guards the cross-process entry
+// point. Preferences keep being added, hence its own file —
+// putting it inside one domain module would make that module a misnomer.
 import {
   DEFAULT_MODE,
   DEFAULT_SCHEME,
@@ -15,9 +18,11 @@ import { DEFAULT_LANGUAGE_PREFERENCE, isLanguagePreference, type LanguagePrefere
 
 export interface Prefs {
   scheme: AppearanceScheme
-  /** 持久化的是**偏好**(可为「跟随系统」),不是解析出的生效语言 */
+  /** What is persisted is **the preference** (which may be "follow system"), not the resolved effective
+   * language */
   language: LanguagePreference
-  /** 同上:持久化的是策略(可为「跟随系统」),不是当刻求值出的生效明暗 */
+  /** As above: what is persisted is the policy (which may be "follow system"), not the effective
+   * light/dark evaluated at that moment */
   mode: AppearanceMode
 }
 
@@ -28,11 +33,14 @@ export const DEFAULT_PREFS: Prefs = {
 }
 
 /**
- * IPC / preload 入口:把 unknown 收成 Prefs;不合契约返回 null(不抛,由调用方决定文案)。
+ * The IPC / preload entry point: narrow an unknown into Prefs; return null when it does not meet the
+ * contract (without throwing — the caller decides the copy).
  *
- * 这里是**契约校验**,与读取本地文件时的降级是两回事:跨进程收到不合契约的值意味着
- * 协议被破坏,应当整体拒绝;而文件里某个字段坏掉只该降级该字段、不牵连其他偏好
- * (见 PrefsStore 的读取逻辑,以及「降级只准自伤」不变量)。
+ * This is **contract validation**, a different thing from degrading when reading the local file:
+ * receiving a value that does not meet the contract across a process boundary means
+ * the protocol is broken and the whole thing should be refused; whereas one broken field in the file
+ * should degrade only that field without affecting the others
+ * (see PrefsStore's read logic and the "degradation may only hurt itself" invariant).
  */
 export function parsePrefs(raw: unknown): Prefs | null {
   if (typeof raw !== 'object' || raw === null) return null

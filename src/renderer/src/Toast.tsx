@@ -1,4 +1,5 @@
-// 轻量 toast:各处经 window 自定义事件上报,App 顶层统一渲染。
+// A lightweight toast: reported from anywhere through a window custom event and rendered uniformly at
+// the top of App.
 import { useEffect, useState } from 'react'
 
 export interface ToastMsg {

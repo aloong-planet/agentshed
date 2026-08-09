@@ -1,7 +1,9 @@
-// plugins-view 序列 H:插件展开区 Skills tab 的行式列表——
-// 每行 名+描述+包统计,点行折叠展开文件表,点文件开抽屉;可读与启用态无关(ADR-0012)。
-// 不可读(包根缺失/统计为 null)行置灰不可点(H6,fail 早于点击);原生 disabled 不出
-// title,故用类名置灰保留提示。
+// plugins-view sequence H: the row list in a plugin expansion's Skills tab —
+// each row is name + description + package stats, clicking a row expands the file table, and clicking a
+// file opens a drawer; readability is independent of enablement (ADR-0012).
+// An unreadable row (missing package root / null stats) is greyed out and unclickable (H6, failing
+// before the click); a native disabled attribute shows no
+// title, so a class name is used to grey it out while keeping the tooltip.
 import { useRef, useState } from 'react'
 import type { PluginSkillSummary } from '@shared/domain'
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
@@ -17,10 +19,10 @@ export function PluginSkillList({
   root,
   skills
 }: {
-  /** 命名空间前缀(插件名 @ 前段) */
+  /** The namespace prefix (the plugin name before the @) */
   ns: string
   side: 'claude' | 'codex'
-  /** 摘要同源包根;null=安装目录缺失(整表置灰) */
+  /** The summary-source package root; null = the install directory is missing (the whole table is greyed out) */
   root: string | null
   skills: PluginSkillSummary[]
 }): JSX.Element {
@@ -31,7 +33,8 @@ export function PluginSkillList({
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [drawer, setDrawer] = useState<{ f: SkillFileEntry; skill: string } | null>(null)
-  // 竞态守卫:快速换行时,旧请求的结果不得安到新行名下(同层污染)
+  // A race guard: when rows change quickly, an old request's result must not be attributed to the new
+  // row (sideways pollution)
   const seq = useRef(0)
 
   async function toggle(name: string): Promise<void> {

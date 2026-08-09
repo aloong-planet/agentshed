@@ -1,15 +1,17 @@
-// 趋势柱分段(纯函数,两端共用、可单测):
-// 合计模式下每根柱按 agent 侧堆叠(Claude 在下、Codex 在上),单侧模式退化为单段。
-// 零值不产生空段;窗口固定近 30 天,按本地时区切日。
+// Trend bar segmentation (a pure function shared by both ends, unit testable):
+// in combined mode each bar stacks by agent side (Claude below, Codex above), and single-side mode
+// degenerates to one segment.
+// A zero value produces no empty segment; the window is a fixed last 30 days, cut by local time zone.
 import type { DayUsage } from './domain'
 import { PROVIDER_ORDER, type Provider } from './provider'
 
-/** 值是语言无关标识符,界面文字见 TREND_MODE_LABEL */
+/** The values are language-independent identifiers; for the UI text see TREND_MODE_LABEL */
 export type TrendMode = 'total' | 'Claude' | 'Codex'
 
 /**
- * 界面显示名。Claude / Codex 是产品名、各语言通用;
- * **只有 `total` 随界面语言变化**,故此处留 null,由渲染层从字典取(票 07)。
+ * Display names. Claude / Codex are product names and are the same in every language;
+ * **only `total` varies with the UI language**, so it is left null here and the renderer takes it from
+ * the dictionaries (ticket 07).
  */
 export const TREND_MODE_LABEL: Record<TrendMode, string | null> = {
   total: null,
@@ -23,13 +25,13 @@ export interface TrendSegment {
 }
 
 export interface TrendBar {
-  /** 本地日键 YYYY-MM-DD */
+  /** The local day key, YYYY-MM-DD */
   day: string
-  /** 展示用短标签 M/D */
+  /** The short display label, M/D */
   label: string
   total: number
   segments: TrendSegment[]
-  /** 源会话文件已被 agent 清理、数值来自本地归档 */
+  /** The source session files were cleaned up by the agent, and the values come from the local archive */
   archived: boolean
 }
 
@@ -57,14 +59,15 @@ export function buildTrendBars(
     const segments: TrendSegment[] = []
     let total = 0
     if (mode === 'total') {
-      // 按 provider 分段,顺序固定(图例与堆叠不随当日数据抖动)
+      // Segment by provider in a fixed order (the legend and the stacking do not churn with the day's data)
       for (const p of PROVIDER_ORDER) {
         const v = row?.byProvider?.[p] ?? 0
         if (v > 0) segments.push({ provider: p, value: v })
         total += v
       }
     } else {
-      // 单侧筛选:该侧总量退化为单段,provider 取该侧主 provider
+      // Single-side filter: that side's total degenerates to one segment, with the provider taken as that
+      // side's primary provider
       const v = mode === 'Claude' ? (row?.claude ?? 0) : (row?.codex ?? 0)
       total = v
       if (v > 0) segments.push({ provider: mode === 'Claude' ? 'Anthropic' : 'OpenAI', value: v })

@@ -1,51 +1,59 @@
-// IPC 契约:channel 名与载荷类型的单一出处。两端只从此处导入,禁止各自定义。
+// The IPC contract: the single source for channel names and payload types. Both ends import only from
+// here, and defining their own is forbidden.
 import type { ErrorCode, ErrorParams } from './errors'
 
 export const CMD = {
-  /** 取当前快照(无则触发首扫) */
+  /** Get the current snapshot (triggering the first scan if there is none) */
   getSnapshot: 'agentshed:get-snapshot',
-  /** 全局刷新(rail 底部 ↻;进行中重复调用被去重) */
+  /** Global refresh (the rail's bottom ↻; repeat calls while one is in flight are deduplicated) */
   refresh: 'agentshed:refresh',
-  /** 手动隐藏/取消隐藏项目 */
+  /** Manually hide or unhide a project */
   setHidden: 'agentshed:set-hidden',
-  /** 按需拉取项目详情 */
+  /** Fetch project detail on demand */
   getProjectDetail: 'agentshed:get-project-detail',
-  /** 会话页:提问索引 + 按区间现读的文本(票 04;区间读通路,不复用产物整读) */
+  /** The session page: the question index + text read live by range (ticket 04; a range-read path, not
+   * reusing the artifact read-whole one) */
   getSessionPage: 'agentshed:get-session-page',
-  /** 会话索引是否与磁盘一致(票 05;只读谓词,渲染层据此展示重建中间态) */
+  /** Whether the session index matches disk (ticket 05; a read-only predicate the renderer uses to show
+   * the rebuilding interim state) */
   sessionFresh: 'agentshed:session-fresh',
-  /** 按需取回一轮:提问下标 → 该轮区间现读 + 归一化块(票 05) */
+  /** Fetch one turn on demand: a question index → that turn's range read live + normalised blocks
+   * (ticket 05) */
   getSessionTurn: 'agentshed:get-session-turn',
-  /** 本项目会话搜索:默认搜提问,可切全文(票 08;区间读粗筛,不建索引) */
+  /** Search this project's sessions: questions by default, switchable to full text (ticket 08; a coarse
+   * range-read pass, no index built) */
   searchSessions: 'agentshed:search-sessions',
-  /** 读产物 Markdown(仅限详情列出过的文件,主进程白名单校验) */
+  /** Read an artifact's markdown (only files the detail page listed, validated against the main process's
+   * allow-list) */
   readArtifact: 'agentshed:read-artifact',
-  /** 外开产物(prototypes HTML → 系统默认打开;同白名单) */
+  /** Open an artifact externally (prototypes HTML → the system default application; the same allow-list) */
   openArtifact: 'agentshed:open-artifact',
-  /** 从全局库安装 skill 到项目(复制落地) */
+  /** Install a skill from the global library into a project (landed as a copy) */
   installSkill: 'agentshed:install-skill',
-  /** 卸载项目级 skill 副本 */
+  /** Uninstall a project-level skill copy */
   uninstallSkill: 'agentshed:uninstall-skill',
-  /** 读 app 偏好(外观方案、界面语言等) */
+  /** Read the app's preferences (colour scheme, UI language and so on) */
   getPrefs: 'agentshed:get-prefs',
-  /** 设置外观方案(全 app) */
+  /** Set the colour scheme (app-wide) */
   setScheme: 'agentshed:set-scheme',
-  /** 设置外观模式(可为「跟随系统」;主进程据此设 nativeTheme.themeSource) */
+  /** Set the appearance mode (which may be "follow system"; the main process sets
+   * nativeTheme.themeSource from it) */
   setMode: 'agentshed:set-mode',
-  /** 设置界面语言偏好(可为「跟随系统」) */
+  /** Set the UI language preference (which may be "follow system") */
   setLanguage: 'agentshed:set-language',
-  /** 展开 skill 时列举包内可预览文件(登记白名单) */
+  /** Enumerate a package's previewable files when a skill is expanded (registering the allow-list) */
   listSkillFiles: 'agentshed:list-skill-files',
-  /** 读 skill 包内已登记文件正文 */
+  /** Read the contents of a registered file inside a skill package */
   readSkillFile: 'agentshed:read-skill-file'
 } as const
 
 export const EVT = {
-  /** 主进程推送新快照(刷新完成) */
+  /** The main process pushes a new snapshot (a refresh completed) */
   snapshot: 'agentshed:snapshot',
-  /** 应用菜单触发「设置」(票 13):与 rail ⚙️ 同一个操作,由渲染层切维 */
+  /** The application menu triggered "Settings" (ticket 13): the same operation as the rail's ⚙️, with
+   * the renderer switching dimension */
   menuOpenSettings: 'agentshed:menu-open-settings',
-  /** 应用菜单触发「全局刷新」:与 rail ↻ 同一个操作 */
+  /** The application menu triggered "Refresh": the same operation as the rail's ↻ */
   menuRefresh: 'agentshed:menu-refresh'
 } as const
 
@@ -56,12 +64,14 @@ export interface SetHiddenArgs {
 
 export interface SessionTurnArgs {
   file: string
-  /** 提问下标,0 起,对应会话页展示集合(getSessionPage.questions 的顺序) */
+  /** The question index, from 0, into the session page's displayed set (the order of
+   * getSessionPage.questions) */
   i: number
 }
 
 export interface SearchSessionsArgs {
-  /** 项目路径(会话集合由主进程按它取,渲染层给不了文件路径) */
+  /** The project path (the main process takes the session set from it; the renderer cannot supply file
+   * paths) */
   path: string
   needle: string
   fullText: boolean
@@ -75,17 +85,20 @@ export interface SkillOpArgs {
 
 export type SkillOpResult =
   | { ok: true }
-  // 失败只带**码 + 参数**,不带成句 message(ADR-0015):措辞由渲染层按当前语言生成。
+  // A failure carries only **a code plus parameters**, never a whole-sentence message (ADR-0015): the
+  // renderer produces the wording in the current language.
   | { ok: false; reason: ErrorCode; params?: ErrorParams }
 
-/** 列举 skill 包:全局库、项目级或插件包(plugins-view H8) */
+/** Enumerate a skill package: from the global library, project level, or a plugin package
+ * (plugins-view H8) */
 export interface ListSkillFilesArgs {
   side: 'claude' | 'codex'
   name: string
   scope: 'global' | 'project' | 'plugin'
-  /** scope=project 时必填 */
+  /** Required when scope=project */
   projectPath?: string
-  /** scope=plugin 时必填:摘要同源包根,须命中扫描登记集(fail-closed) */
+  /** Required when scope=plugin: the summary-source package root, which must hit the scan's registration
+   * set (fail-closed) */
   pluginRoot?: string
 }
 
@@ -108,15 +121,18 @@ export interface ReadSkillFileArgs {
 }
 
 /**
- * 生效语言经窗口创建参数传给 preload 的前缀。
- * 走这条同步通道而非 IPC,是为了让 renderer 首帧即有正确语言(见 createWindow 注释)。
+ * The prefix by which the effective language is passed to the preload through the window's creation
+ * arguments.
+ * This synchronous channel rather than IPC is what gives the renderer the correct language on its first
+ * frame (see createWindow's comment).
  */
 export const LANG_ARG = '--agentshed-language='
 
 /**
- * 系统偏好语言列表(逗号分隔)经同一条通道传给 preload。
- * renderer 需要它才能在用户选「跟随系统」时**本地算出**生效语言并立即生效,
- * 不必为一次切换多跑一趟 IPC。语言标签本身不含逗号,故分隔符安全。
+ * The system's preferred language list (comma separated), passed to the preload through the same channel.
+ * The renderer needs it to **compute locally** the effective language when the user selects "follow
+ * system" and apply it immediately,
+ * without an extra IPC round trip per switch. Language tags contain no commas, so the separator is safe.
  */
 export const SYS_LANGS_ARG = '--agentshed-system-languages='
 

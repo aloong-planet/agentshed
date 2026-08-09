@@ -51,9 +51,11 @@ import {
   resolveSkillRoot
 } from './providers/skill-package'
 
-// app:// scheme 必须在 app ready **之前**注册特权(#18);dev 走 vite http,不加载
-// app://,注册也无副作用。standard=非 opaque origin(安全上下文 + storage 快路径),
-// secure=等价 https,supportFetchAPI=modulepreload 需要。
+// The app:// scheme must have its privileges registered **before** app ready (#18); dev goes over vite
+// http and does not load
+// app://, so registering has no side effect there. standard = a non-opaque origin (a secure context +
+// the storage fast path),
+// secure = equivalent to https, supportFetchAPI = required by modulepreload.
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'app',
@@ -61,18 +63,24 @@ protocol.registerSchemesAsPrivileged([
   }
 ])
 
-// 单实例锁:第二个实例什么都没初始化,直接 exit 最安全(quit 会走 before-quit 可能卡住)
+// The single-instance lock: a second instance has initialised nothing, so exiting outright is safest
+// (quit goes through before-quit and can hang)
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
   app.exit(0)
 }
 
-// 测试静音(e2e/smoke 注入,与 AGENTSHED_HOME_OVERRIDE 同类 seam;生产不设此变量):
-// 一轮本地验证要起二十来个实例,macOS 上每次启动都激活抢前台,期间用户没法干别的。
-// **实测 activation policy 拦不住**(accessory / dock.hide 下仍 12-13/15 tick 抢台
-// ——抢台来自 BrowserWindow 默认 show 的 makeKey+激活,不是 Dock),所以静音模式
-// 直接不显示窗口:Playwright 走 CDP 驱动,DOM/布局断言不需要窗口可见;配套关掉
-// backgroundThrottling,免得隐藏窗口的定时器降频给测试引入新的时序 flake。
+// Test silencing (injected by e2e and smoke, the same kind of seam as AGENTSHED_HOME_OVERRIDE; never set
+// in production):
+// one round of local verification starts a couple of dozen instances, and on macOS each launch activates
+// and steals the foreground, so the user can do nothing meanwhile.
+// **Measured: the activation policy does not stop it** (with accessory / dock.hide it still steals focus
+// on 12-13 of 15 ticks
+// — the theft comes from BrowserWindow's default show doing makeKey plus activation, not from the Dock),
+// so silent mode
+// simply does not show the window: Playwright drives over CDP, and DOM and layout assertions do not need
+// a visible window; backgroundThrottling is turned off alongside,
+// so a hidden window's throttled timers do not introduce new timing flakes into the tests.
 const QUIET = process.platform === 'darwin' && Boolean(process.env['AGENTSHED_NO_FOREGROUND'])
 if (QUIET) {
   app.setActivationPolicy('accessory')
@@ -85,16 +93,18 @@ let prefsStore: PrefsStore | null = null
 let tokenEngine: TokenEngine | null = null
 let archive: UsageArchive | null = null
 let perProjectStats = new Map<string, ProjectStats>()
-// 会话读白名单(票 04):主进程扫描时自己产出的精确路径 Set,区间读只认它。
-// 含入列会话与 subagent/嵌套转写(07 要展开后者)。
+// The session read allow-list (ticket 04): an exact path Set the main process produces during its own
+// scan, and the only thing range reads honour.
+// It contains listed sessions plus subagent and nested transcripts (07 needs to expand the latter).
 let sessionWhitelist = new Set<string>()
-// file → tokens:会话页头的消耗数,与列表同源(同一趟 build 算出的 SessionMeta)
+// file → tokens: the consumption figure in the session page header, sharing its source with the list
+// (the SessionMeta computed in the same build pass)
 let sessionTokens = new Map<string, number>()
 
-// ── 快照与刷新(去重:进行中忽略再次触发)──
+// ── Snapshot and refresh (deduplicated: a second trigger while one is in flight is ignored) ──
 let current: Snapshot | null = null
 let inflight: Promise<Snapshot> | null = null
-/** 上次成功扫描时刻;聚焦触发的节流基准(token-stats E1) */
+/** The last successful scan moment; the throttle baseline for focus triggers (token-stats E1) */
 let lastScanAt: number | null = null
 
 async function doScan(): Promise<Snapshot> {
@@ -113,10 +123,14 @@ async function doScan(): Promise<Snapshot> {
         const t = await tokenEngine.build(realRoots(), claudePaths, registered)
         snap.tokens = t.global
         perProjectStats = t.perProject
-        // 会话数与会话分栏同源。scan() 给的是**文件数**(含预热与 subagent),
-        // 而分栏按 spec A3a/A3 只列真会话——两个数字都叫"会话数"就会打架
-        // (实测某项目 1511 vs 507)。这里回填,数据是上面刚算完的,零额外开销。
-        // 只在 token 引擎跑过时回填:引擎缺席时保留文件数,不让整列归零。
+        // The session count shares its source with the sessions section. scan() gives a **file count**
+        // (including warmups and subagents),
+        // while the section lists only real sessions per spec A3a/A3 — two numbers both called "session
+        // count" would contradict each other
+        // (measured on one project: 1511 vs 507). Backfilled here from data just computed above, at zero
+        // extra cost.
+        // Only backfilled when the token engine has run: with the engine absent the file count is kept,
+        // so the column does not go to zero.
         for (const p of snap.projects) {
           p.sessionCount = t.perProject.get(mergeKey(p.path))?.sessions.length ?? 0
         }
@@ -124,7 +138,8 @@ async function doScan(): Promise<Snapshot> {
         const tok = new Map<string, number>()
         for (const ps of t.perProject.values()) for (const s of ps.sessions) tok.set(s.file, s.tokens)
         sessionTokens = tok
-        // 归档:实时值覆盖仍可见的天,已被 agent 清理的天从归档补回趋势
+        // Archive: live values overwrite the days still visible, and days the agent has cleaned up are
+        // filled back into the trend from the archive
         if (archive) {
           archive.merge(t.rows, t.liveDays)
           const archivedDays = archive.archivedOnlyDays(t.liveDays)
@@ -145,10 +160,12 @@ async function doScan(): Promise<Snapshot> {
         }
       }
       assertSnapshot(snap)
-      lastScanAt = Date.now() // 聚焦节流的基准(token-stats E1)
-      // memory 文件加入按需读取白名单(与产物同一不变量:快照列出过的文件才可读)
+      lastScanAt = Date.now() // The baseline for focus throttling (token-stats E1)
+      // Memory files join the on-demand read allow-list (the same invariant as artifacts: only files a
+      // snapshot listed can be read)
       for (const m of snap.global.memory) for (const f of m.files) artifactWhitelist.add(f.file)
-      // 插件包根登记集(plugins-view H8):列举入口必须命中,fail-closed
+      // The plugin package root registration set (plugins-view H8): an enumeration entry point must hit
+      // it, fail-closed
       for (const p of snap.global.plugins) if (p.installPath) pluginRootWhitelist.add(p.installPath)
       for (const c of snap.global.codexPlugins) if (c.root) pluginRootWhitelist.add(c.root)
       current = snap
@@ -162,9 +179,12 @@ async function doScan(): Promise<Snapshot> {
 }
 
 /**
- * IPC 注册的唯一入口(#17):所有 handler 经此包装,先校验 sender 再执行。
- * 用包装器而非逐个 handler 里加一行——**逐个加必然漏**,包装器让"新增 handler
- * 自动受校验"成为默认,漏接的形态是编译不过而不是静默无防护。
+ * The single entry point for IPC registration (#17): every handler goes through this wrapper, which
+ * validates the sender before executing.
+ * A wrapper rather than a line inside each handler — **doing it one by one inevitably misses one**, and
+ * the wrapper makes "a new handler
+ * is validated automatically" the default, so forgetting to wire one up fails compilation rather than
+ * silently leaving it undefended.
  */
 function handle<T>(
   channel: string,
@@ -181,21 +201,26 @@ handle(CMD.getSnapshot, async () => {
   return doScan()
 })
 handle(CMD.refresh, async () => doScan())
-// 产物文件白名单:只允许读/外开「详情里列出过」的文件,堵任意路径读取口
+// The artifact file allow-list: only files the detail page listed may be read or opened externally,
+// closing the arbitrary-path read hole
 const artifactWhitelist = new Set<string>()
-/** skills-view:展开列举登记的精确可读路径 */
+/** skills-view: the exact readable paths registered by an expansion enumeration */
 const skillFileWhitelist = new Set<string>()
-/** skills-view C9:项目级列举只对「打开过详情」的项目放行(fail-closed,同 session 白名单模式) */
+/** skills-view C9: project-level enumeration is admitted only for projects whose detail page has been
+ * opened (fail-closed, the same pattern as the session allow-list) */
 const openedProjects = new Set<string>()
-/** plugins-view H8:插件包根登记集——扫描/详情登记的摘要同源包根才可列举 */
+/** plugins-view H8: the plugin package root registration set — only a summary-source package root
+ * registered by the scan or detail may be enumerated */
 const pluginRootWhitelist = new Set<string>()
 
 handle(CMD.getProjectDetail, (_e, path: unknown) => {
   if (typeof path !== 'string' || path === '') throw appError(ERR.badArgs, { channel: 'getProjectDetail', field: 'path' })
   const detail = readProjectDetail(realRoots(), path)
   detail.stats = perProjectStats.get(mergeKey(path)) ?? null
-  // 出口校验:契约漂移在边界抛,而不是渲染成 undefined(与快照同规矩)。
-  // 覆盖整份详情,含 stats.sessions 那块(validateProjectDetail 内部复用其校验器)。
+  // Exit validation: contract drift throws at the boundary rather than rendering as undefined (the same
+  // rule as the snapshot).
+  // It covers the whole detail payload including the stats.sessions block (validateProjectDetail reuses
+  // that validator internally).
   assertProjectDetail(detail)
   for (const a of detail.artifacts) artifactWhitelist.add(a.file)
   for (const t of detail.memory.topics) artifactWhitelist.add(t.file)
@@ -204,15 +229,17 @@ handle(CMD.getProjectDetail, (_e, path: unknown) => {
   return detail
 })
 handle(CMD.getSessionPage, async (_e, raw: unknown) => {
-  // 白名单在最前:不合法的路径连 stat 都不做(fail-closed,判定纯函数见 security.ts)
+  // The allow-list comes first: an invalid path is not even stat-ed (fail-closed; the pure judging
+  // function is in security.ts)
   const file = sessionReadTarget(sessionWhitelist, raw)
   if (!file) throw appError(ERR.sessionNotWhitelisted)
   if (!tokenEngine) throw appError(ERR.engineNotReady)
   const q = await tokenEngine.sessionQuestions(realRoots(), file)
-  // 文本按区间现读(spec D2a:索引里没有文本);readRanges 绝不整读
+  // The text is read live by range (spec D2a: the index holds no text); readRanges never reads whole
   const { texts } = await readRanges(file, q.questions.map((r) => ({ start: r[0], end: r[1] })))
   const questions = q.questions.map((rec, idx) => {
-    // 单行坏了只自伤:该条显示占位,不连累其余提问、不拖垮整页
+    // A single bad line only hurts itself: that entry shows a placeholder without affecting the other
+    // questions or dragging down the page
     let text: string | null = null
     try {
       const obj: unknown = JSON.parse(texts[idx].trim())
@@ -220,7 +247,8 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     } catch {
       text = null
     }
-    // 读不到就传 null:措辞归渲染层(票 07),主进程不产出面向用户的自然语言
+    // Unreadable means passing null: the wording belongs to the renderer (ticket 07), and the main
+    // process emits no user-facing natural language
     return { i: idx + 1, text, at: rec[3], tools: rec[4], subagents: rec[5] }
   })
   const page: SessionPage = {
@@ -240,7 +268,7 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
   return page
 })
 handle(CMD.sessionFresh, (_e, raw: unknown) => {
-  // 同一道白名单在最前(fail-closed);谓词只读,不触发重建
+  // The same allow-list comes first (fail-closed); the predicate is read-only and triggers no rebuild
   const file = sessionReadTarget(sessionWhitelist, raw)
   if (!file) throw appError(ERR.sessionNotWhitelisted)
   return tokenEngine ? tokenEngine.isFresh(file) : false
@@ -252,12 +280,15 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   if (typeof a?.i !== 'number' || !Number.isInteger(a.i) || a.i < 0)
     throw appError(ERR.badArgs, { channel: 'getSessionTurn', field: 'i' })
   if (!tokenEngine) throw appError(ERR.engineNotReady)
-  // 区间来自主进程自己的索引(签名不符时 sessionQuestions 单文件重建),
-  // 不接受渲染层直接给字节区间——通道能取的只有"某条提问的那一轮"
+  // The range comes from the main process's own index (sessionQuestions rebuilds the single file when
+  // the signature does not match),
+  // and a byte range from the renderer is not accepted — all this channel can fetch is "the turn of a
+  // given question"
   const q = await tokenEngine.sessionQuestions(realRoots(), file)
   if (a.i >= q.questions.length) throw appError(ERR.turnOutOfRange, { i: a.i, total: q.questions.length })
   const rec = q.questions[a.i]
-  // 整轮 = 提问之后到下一条提问之前([轮次起, 轮次止);提问全文页面已有,不重复取)
+  // A whole turn = from after the question up to the next one ([turn start, turn end); the page already
+  // has the question in full, so it is not fetched again)
   const { texts, bytesRead } = await readRanges(file, [{ start: rec[1], end: rec[2] }])
   const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, texts[0]), bytesRead }
   assertSessionTurn(turn)
@@ -270,7 +301,8 @@ handle(CMD.searchSessions, async (_e, raw: unknown) => {
     throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'needle' })
   if (typeof a?.fullText !== 'boolean') throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'fullText' })
   if (!tokenEngine) throw appError(ERR.engineNotReady)
-  // 会话集合来自主进程自身的统计(渲染层给不了文件路径);未注册项目自然为空
+  // The session set comes from the main process's own statistics (the renderer cannot supply file
+  // paths); an unregistered project is naturally empty
   const sessions = perProjectStats.get(mergeKey(a.path))?.sessions ?? []
   const r = await searchProjectSessions(tokenEngine, realRoots(), sessions, a.needle, a.fullText)
   assertSearchResult(r)
@@ -279,7 +311,8 @@ handle(CMD.searchSessions, async (_e, raw: unknown) => {
 handle(CMD.readArtifact, (_e, file: unknown) => {
   if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw appError(ERR.artifactNotWhitelisted)
   const raw = readFileSync(file, 'utf8')
-  // 只报告是否被截断,标记由渲染层按语言追加(票 07)
+  // Only report whether it was truncated; the renderer appends the marker in the current language
+  // (ticket 07)
   return raw.length > 500_000
     ? { text: raw.slice(0, 500_000), truncated: true }
     : { text: raw, truncated: false }
@@ -323,7 +356,8 @@ handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
   const a = checkListSkillFilesArgs(args)
   let root: string | null
   if (a.scope === 'plugin') {
-    // H8:包根必须命中扫描登记集(fail-closed);skill 名消毒在 resolver 内
+    // H8: the package root must hit the scan's registration set (fail-closed); the skill name is
+    // sanitised inside the resolver
     if (!pluginRootWhitelist.has(a.pluginRoot as string)) {
       throw appError(ERR.pluginRootNotRegistered)
     }
@@ -332,7 +366,8 @@ handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
     if (a.scope === 'project' && !openedProjects.has(a.projectPath as string)) {
       throw appError(ERR.projectNotOpened)
     }
-    // 容器检查(C9,作用于解析前入口)在 resolveSkillRoot 内完成
+    // The container check (C9, applied to the entry point before resolution) happens inside
+    // resolveSkillRoot
     root = resolveSkillRoot({
       side: a.side,
       name: a.name,
@@ -363,15 +398,17 @@ handle(CMD.readSkillFile, (_e, args: unknown): CappedText => {
   }
 })
 
-// 偏好类 handler 的逻辑在 ./prefs-handlers(可注入、有单测);这里只做接线。
-// store 传取值函数而非实例:prefsStore 要到 whenReady 才赋值,而通道此刻就注册了。
+// The preference handlers' logic lives in ./prefs-handlers (injectable, unit tested); this only wires
+// them up.
+// `store` is passed as a getter rather than an instance: prefsStore is only assigned at whenReady, while
+// the channels are registered right now.
 const prefsHandlers = createPrefsHandlers({ store: () => prefsStore, theme: nativeTheme })
 handle(CMD.getPrefs, () => prefsHandlers.getPrefs())
 handle(CMD.setScheme, (_e, scheme: unknown) => prefsHandlers.setScheme(scheme))
 handle(CMD.setLanguage, (_e, language: unknown) => {
   const next = prefsHandlers.setLanguage(language)
-  // **菜单必须重建**,不能只在启动时构造一次(票 13):它是原生控件,
-  // 文案不会随渲染层的语言变化自动更新
+  // **The menu must be rebuilt**, not constructed once at startup (ticket 13): it is a native control,
+  // and its copy does not update automatically when the renderer's language changes
   applyMenu()
   return next
 })
@@ -382,7 +419,7 @@ handle(CMD.setHidden, (_e, args: unknown) => {
     throw appError(ERR.badArgs, { channel: 'setHidden' })
   }
   hiddenStore?.setHidden(a.projectPath, a.hidden)
-  // 局部更新快照并广播,不触发全量重扫
+  // Update the snapshot locally and broadcast, without triggering a full rescan
   if (current) {
     for (const p of current.projects) {
       if (mergeKey(p.path) === mergeKey(a.projectPath)) {
@@ -395,7 +432,8 @@ handle(CMD.setHidden, (_e, args: unknown) => {
 
 const PRELOAD = join(__dirname, '../preload/index.cjs')
 
-/** 按当前生效语言重建应用菜单;语言变更后必须再调一次 */
+/** Rebuild the application menu in the currently effective language; must be called again after a
+ * language change */
 function applyMenu(): void {
   const send = (channel: string) => (): void => mainWindow?.webContents.send(channel)
   Menu.setApplicationMenu(
@@ -408,7 +446,8 @@ function applyMenu(): void {
   )
 }
 
-/** 窗口创建时刻的生效语言 = 偏好 + 系统语言列表。偏好为「跟随系统」时才看系统 */
+/** The effective language at window creation = the preference + the system language list. The system is
+ * only consulted when the preference is "follow system" */
 function initialLanguage(): Language {
   const pref = prefsStore?.get().language ?? DEFAULT_PREFS.language
   return effectiveLanguage(pref, systemPreferredLanguages())
@@ -427,9 +466,12 @@ function createWindow(): void {
       contextIsolation: true,
       sandbox: true,
       backgroundThrottling: !QUIET,
-      // 生效语言随窗口一同创建,让 renderer **首帧**就能用上正确语言。
-      // 走 IPC 异步取的话首帧必然是默认语言,整页文字随后跳变一次——
-      // 换外观方案只是变色不易察觉,换语言是全部文字都变,必须避免。
+      // The effective language is created together with the window so the renderer has the correct
+      // language on its **first frame**.
+      // Fetching it asynchronously over IPC would make the first frame the default language and then
+      // jump the whole page once —
+      // a colour scheme change is just a recolour and is hard to notice, whereas a language change moves
+      // every word, and that has to be avoided.
       additionalArguments: [
         `${LANG_ARG}${initialLanguage()}`,
         `${SYS_LANGS_ARG}${systemPreferredLanguages().join(',')}`
@@ -442,7 +484,7 @@ function createWindow(): void {
   if (process.env['ELECTRON_RENDERER_URL']) {
     void mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    void mainWindow.loadURL(`app://${APP_HOST}/index.html`) // #18:不用 file://
+    void mainWindow.loadURL(`app://${APP_HOST}/index.html`) // #18: no file://
   }
 }
 
@@ -453,9 +495,11 @@ app.on('second-instance', () => {
   }
 })
 
-// 宿主安全守卫(官方 Security Checklist #5/#12/#13/#14/#15,判定层见 security.ts)。
-// 挂 web-contents-created 而非单个窗口:覆盖全部 webContents,新建的自动受管。
-// 判据与逐条现状见 docs/ops/electron-security.md。
+// Host security guards (the official Security Checklist #5/#12/#13/#14/#15; the decision layer is in
+// security.ts).
+// Hung off web-contents-created rather than a single window: this covers every webContents, and new ones
+// are governed automatically.
+// The criteria and the item-by-item status are in docs/ops/electron-security.md.
 app.on('web-contents-created', (_e, contents) => {
   installNavigationGuards(contents, process.env['ELECTRON_RENDERER_URL'])
 })
@@ -464,26 +508,33 @@ void app.whenReady().then(() => {
   if (!gotTheLock) return
   installPermissionGuards(session.defaultSession)
   installCsp(session.defaultSession, Boolean(process.env['ELECTRON_RENDERER_URL']))
-  // handler 必须在建窗(loadURL app://…)之前注册;__dirname = out/main,产物在 out/renderer
+  // Handlers must be registered before the window is built (loadURL app://…); __dirname = out/main, and
+  // the build output is in out/renderer
   registerAppProtocol(join(__dirname, '../renderer'))
   hiddenStore = new HiddenStore(app.getPath('userData'))
   prefsStore = new PrefsStore(app.getPath('userData'))
-  // 必须在建窗**之前**:themeSource 决定首帧的 prefers-color-scheme 求值结果,
-  // 建窗后再设会先渲染一帧系统明暗、随后整页跳变一次(spec 实现决策)
+  // Must come **before** building the window: themeSource decides how the first frame evaluates
+  // prefers-color-scheme,
+  // and setting it afterwards renders one frame in the system's light/dark and then jumps the whole page
+  // once (the spec's implementation decision)
   applyAppearanceMode(nativeTheme, prefsStore.get().mode)
   tokenEngine = new TokenEngine(app.getPath('userData'))
   archive = new UsageArchive(app.getPath('userData'))
   createWindow()
   applyMenu()
   void doScan()
-  // 快照自动保鲜(token-stats 序列 E):聚焦(节流)+ 定时兜底,与手动 ↻ 共用
-  // doScan(inflight 去重,E2);自动触发失败静默保留现快照等下个触发点(E3),
-  // 手动 ↻ 的失败仍经 CMD.refresh 抛给调用方。参数环境注入是测试 seam(E5)。
+  // Automatic snapshot refresh (token-stats sequence E): focus (throttled) + a timed backstop, sharing
+  // doScan with manual ↻ (in-flight deduplication, E2); an automatic trigger that fails silently keeps
+  // the current snapshot and waits for the next trigger (E3),
+  // while a manual ↻ failure is still thrown to the caller through CMD.refresh. Injecting the parameters
+  // from the environment is a test seam (E5).
   const autoScan = (): void => {
     void doScan().catch((e: unknown) => {
-      // E3:静默保留现快照,但失败要留痕——编程错误不许被无声吞掉
-      // 英文:应用日志会随用户的问题反馈流出去(贴进 issue),读者不一定懂中文;
-      // 构建期脚本的输出留在开发者本机,不同此理
+      // E3: silently keep the current snapshot, but leave a trace of the failure — a programming error
+      // must not be swallowed without a sound
+      // In English: application logs travel with a user's bug report (pasted into an issue) and their
+      // readers may not read Chinese;
+      // a build script's output stays on the developer's machine, where that reasoning does not apply
       console.error('[auto-rescan] scan failed, keeping the current snapshot:', e)
     })
   }
@@ -498,12 +549,14 @@ void app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  // 图鉴型工具无后台职责,全窗关闭即退出(含 macOS)
+  // A catalogue-style tool has no background duties, so closing every window quits (macOS included)
   app.quit()
 })
 
-// dev 下防孤儿:electron-vite(Ctrl+C)退出后不 kill electron,Electron 又吞 SIGINT——
-// 轮询父进程存活,父(vite)没了就退出,避免留 Dock 变僵尸。仅 dev。
+// Orphan prevention in dev: electron-vite (Ctrl+C) does not kill electron when it exits, and Electron
+// swallows SIGINT —
+// so poll the parent process and exit once the parent (vite) is gone, avoiding a zombie left in the
+// Dock. Dev only.
 if (process.env['ELECTRON_RENDERER_URL']) {
   const vitePid = process.ppid
   const parentWatch = setInterval(() => {

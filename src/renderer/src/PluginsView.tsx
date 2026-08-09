@@ -1,21 +1,25 @@
-// Plugins 分栏(spec: plugins-view 序列 E/F/H)。
-// 按侧分组两个 section,不做同名跨侧合并(E9);
-// Claude 组:全局页启用口径=user 层(E4),详情页=有效启用集 local > project > user(F1),
-//   安装记录 chips 在行内(E1),行点击展开类目 tab(E5),installPath 缺失降级(E6),
-//   hooks 仅事件摘要(E7);Skills tab 可原地预览包,与启用态无关(H 系列,ADR-0012);
-// Codex 组:探测式(缓存空则整组不显示),仅 Skills 类目可展开预览(E8)。
+// The Plugins section (spec: plugins-view, sequences E/F/H).
+// Two sections grouped by side, with no cross-side merging by name (E9);
+// the Claude group: the global page reads enablement at the user layer (E4) and the detail page uses the
+// effective enabled set, local > project > user (F1),
+//   installation record chips inline (E1), clicking a row expands the category tabs (E5), a missing
+//   installPath degrades (E6),
+//   hooks show an event summary only (E7); the Skills tab previews a package in place, independent of
+//   enablement (the H series, ADR-0012);
+// the Codex group is probe-style (an empty cache hides the whole group), with only the Skills category
+// expandable for preview (E8).
 import { useState } from 'react'
 import type { PluginContents, PluginInstallRecord, ProjectDetail, Snapshot } from '@shared/domain'
 import { PluginSkillList } from './PluginSkillList'
 import { useDict } from './language'
 
-/** 路径尾段(renderer 无 node:path;显示用途,不做规范化) */
+/** A path's last segment (the renderer has no node:path; for display only, with no normalisation) */
 function basename(p: string): string {
   const parts = p.split('/').filter(Boolean)
   return parts[parts.length - 1] ?? p
 }
 
-/** 安装记录 chips(行内,E1/E2) */
+/** Installation record chips (inline, E1/E2) */
 function InstallChips({ installs }: { installs: PluginInstallRecord[] }): JSX.Element {
   const t = useDict()
   return (
@@ -31,7 +35,8 @@ function InstallChips({ installs }: { installs: PluginInstallRecord[] }): JSX.El
   )
 }
 
-/** 展开区:类目 tab(Skills/Subagents/Hooks/MCP;空类目不出 tab,默认首个非空,E5) */
+/** The expanded area: category tabs (Skills/Subagents/Hooks/MCP; an empty category gets no tab, and the
+ * default is the first non-empty one, E5) */
 function PluginExpand({
   ns,
   side,
@@ -40,7 +45,7 @@ function PluginExpand({
 }: {
   ns: string
   side: 'claude' | 'codex'
-  /** 摘要同源包根(H5) */
+  /** The summary-source package root (H5) */
   root: string | null
   contents: PluginContents
 }): JSX.Element {
@@ -99,7 +104,7 @@ function PluginExpand({
 function CodexGroup({ snap, detailNote }: { snap: Snapshot; detailNote?: boolean }): JSX.Element | null {
   const t = useDict()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  if (snap.global.codexPlugins.length === 0) return null // 探测式:空则整组不显示
+  if (snap.global.codexPlugins.length === 0) return null // Probe-style: empty hides the whole group
   function toggle(key: string): void {
     const next = new Set(expanded)
     if (next.has(key)) next.delete(key)
@@ -114,7 +119,7 @@ function CodexGroup({ snap, detailNote }: { snap: Snapshot; detailNote?: boolean
       <div className="card plug-card">
         {snap.global.codexPlugins.map((p) => {
           const key = `${p.marketplace}/${p.name}`
-          const expandable = p.skills.length > 0 // E8:仅 Skills 类目可展开
+          const expandable = p.skills.length > 0 // E8: only the Skills category expands
           const row = (
             <>
               <span className="nm mono">

@@ -1,12 +1,15 @@
-// 界面语言选择器:标签 + 下拉触发器,展开为七项浮层(跟随系统 + 六语)。
+// The UI language selector: a label + a dropdown trigger, opening into a seven-item overlay (follow
+// system + six languages).
 //
-// 浮层用 **fixed** 定位并按触发器 rect 贴合:设置页容器是 overflow:auto,
-// 普通绝对定位元素会被它裁掉(原型里用同尺寸元素做过反面对照,确实被裁)。
+// The overlay is positioned **fixed** and aligned to the trigger's rect: the settings page container is
+// overflow:auto,
+// which clips an ordinary absolutely positioned element (a same-sized element was used as a negative
+// control in the prototype, and it was indeed clipped).
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { LANGUAGES, dictOf, type Language, type LanguagePreference } from '@shared/i18n'
 import { ChevronDown, Check } from './icons'
 
-/** 取值域:'system' 是策略,其余是锁定某一语言 */
+/** The value domain: 'system' is a policy, the rest lock a specific language */
 const OPTIONS: readonly LanguagePreference[] = ['system', ...LANGUAGES]
 
 export function LanguageSelect({
@@ -15,7 +18,7 @@ export function LanguageSelect({
   onChange
 }: {
   pref: LanguagePreference
-  /** 当前生效语言——「跟随系统」项要显示它解析成了哪种语言 */
+  /** The currently effective language — the "follow system" item shows which language it resolves to */
   effective: Language
   onChange: (next: LanguagePreference) => void
 }): JSX.Element {
@@ -23,8 +26,9 @@ export function LanguageSelect({
   const [cursor, setCursor] = useState(0)
   const trigRef = useRef<HTMLButtonElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
-  // 键盘监听只在开合时装卸一次,回车要读的当前游标走 ref——避免让 effect 依赖
-  // cursor 而在每次移动时装卸一遍监听器。
+  // The keyboard listener is installed and removed only on open and close, and the current cursor Enter
+  // needs to read goes through a ref — this avoids making the effect depend on
+  // cursor and reinstalling the listener on every move.
   const cursorRef = useRef(0)
   cursorRef.current = cursor
   const t = dictOf(effective)
@@ -48,7 +52,7 @@ export function LanguageSelect({
     if (o !== pref) onChange(o)
   }
 
-  // 贴合触发器:右缘对齐,下方空间不足时向上展开
+  // Align to the trigger: right edges aligned, opening upwards when there is not enough space below
   useLayoutEffect(() => {
     if (!open) return
     const place = (): void => {
@@ -90,7 +94,8 @@ export function LanguageSelect({
       const el = e.target as Node
       if (!popRef.current?.contains(el) && !trigRef.current?.contains(el)) setOpen(false)
     }
-    // 设置页滚动时浮层会脱锚(fixed 不跟随滚动容器),直接关闭
+    // Scrolling the settings page unanchors the overlay (fixed does not follow a scroll container), so
+    // just close it
     const onScroll = (): void => setOpen(false)
     document.addEventListener('keydown', onKey)
     document.addEventListener('click', onClick)
@@ -103,7 +108,8 @@ export function LanguageSelect({
   }, [open, pref])
 
   return (
-    // .field / .frow 是设置页的行形态,与外观段共用同一套(语言段只有一行)
+    // .field / .frow are the settings page's row forms, shared with the appearance section (the language
+    // section has only one row)
     <div className="field">
       <div className="frow">
         <span className="flabel">{t.settings.interfaceLanguage}</span>
@@ -121,8 +127,9 @@ export function LanguageSelect({
           onKeyDown={(e) => {
             if (open) return
             if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
-              // 打开用的这一下不得再冒泡给浮层的导航监听器,
-              // 否则同一次按键既打开又移动一格,高亮落不到当前选中项上
+              // The keystroke that opened it must not also bubble to the overlay's navigation listener,
+              // or one press would both open and move a step, leaving the highlight off the current
+              // selection
               e.preventDefault()
               e.stopPropagation()
               openPop()
@@ -157,7 +164,8 @@ export function LanguageSelect({
                     <Check />
                   </span>
                 </button>
-                {/* 分隔线:「跟随系统」是策略,其后六项是取值,性质不同 */}
+                {/* The divider: "follow system" is a policy and the six after it are values — different
+                    in kind */}
                 {o === 'system' && <div className="lang-sep" />}
               </div>
             ))}

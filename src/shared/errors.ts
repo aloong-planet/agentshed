@@ -1,91 +1,101 @@
-// 跨进程失败的单一类型源(ADR-0015):错误**码 + 参数**,不含任何自然语言。
-// 措辞在 renderer 按当前语言生成,见 i18n 字典的 `errors` 段。
+// The single type source for cross-process failures (ADR-0015): an error **code plus parameters**,
+// containing no natural language at all.
+// The wording is produced in the renderer in the current language, see the i18n dictionaries' `errors`
+// section.
 //
-// 这是 ADR-0001「shared 三件套」扩成的第四件,两端只从此处导入。
+// This is the fourth of ADR-0001's "three shared pieces", and both ends import only from here.
 //
-// ── 为什么载荷编进 message ──
-// Electron 把主进程抛出的 Error 跨 IPC 回传时,**自定义属性一律丢失**
-// (实测 `Object.getOwnPropertyNames(err)` 只剩 `stack` / `message`),
-// 且 message 会被包一层前缀:
-//   `Error invoking remote method 'agentshed:get-project-detail': Error: <原文>`
-// 所以 `e.code = …` 这种写法到不了对岸,只能把码与参数序列化进 message,
-// 解码时再从**被包裹的**串里按标记抠出来。
+// ── Why the payload is encoded into the message ──
+// When Electron sends an Error thrown by the main process back across IPC, **its custom properties are
+// all lost**
+// (measured: `Object.getOwnPropertyNames(err)` leaves only `stack` / `message`),
+// and the message is wrapped in a prefix:
+//   `Error invoking remote method 'agentshed:get-project-detail': Error: <the original>`
+// So `e.code = …` never reaches the other side; the code and parameters can only be serialised into the
+// message,
+// and decoding extracts them from **the wrapped** string by the marker.
 
-/** 错误码枚举。新增失败路径时必须在此登记,并补齐六语措辞——漏补即 typecheck 失败 */
+/** The error code enum. A new failure path must be registered here with all six languages' wording —
+ * missing one fails typecheck */
 export const ERR = {
-  /** 调用参数不合契约(编程错误;params.channel 必填,params.field 可选) */
+  /** The call arguments do not meet the contract (a programming error; params.channel is required,
+   * params.field optional) */
   badArgs: 'bad-args',
-  /** 会话路径不在白名单:需先打开项目详情或全局刷新 */
+  /** The session path is not allow-listed: open the project detail page or refresh globally first */
   sessionNotWhitelisted: 'session-not-whitelisted',
-  /** 扫描引擎尚未就绪 */
+  /** The scan engine is not ready yet */
   engineNotReady: 'engine-not-ready',
-  /** 轮次下标越界(params.i 与 params.total) */
+  /** The turn index is out of range (params.i and params.total) */
   turnOutOfRange: 'turn-out-of-range',
-  /** 产物路径不在白名单 */
+  /** The artifact path is not allow-listed */
   artifactNotWhitelisted: 'artifact-not-whitelisted',
-  /** 插件包根不在扫描登记集 */
+  /** The plugin package root is not in the scan's registration set */
   pluginRootNotRegistered: 'plugin-root-not-registered',
-  /** 项目详情尚未打开 */
+  /** The project detail page has not been opened yet */
   projectNotOpened: 'project-not-opened',
-  /** skill 包不可用或不在允许根下 */
+  /** The skill package is unavailable or not under an allowed root */
   skillPackageUnavailable: 'skill-package-unavailable',
-  /** skill 文件路径不在白名单 */
+  /** The skill file path is not allow-listed */
   skillFileNotWhitelisted: 'skill-file-not-whitelisted',
-  /** skill 文件不可读 */
+  /** The skill file cannot be read */
   skillFileUnreadable: 'skill-file-unreadable',
-  /** 会话不在索引中,需先全局刷新 */
+  /** The session is not in the index; refresh globally first */
   sessionNotIndexed: 'session-not-indexed',
-  /** 会话文件已不可读(被移动或删除) */
+  /** The session file can no longer be read (moved or deleted) */
   sessionFileUnreadable: 'session-file-unreadable',
-  /** 会话首行元数据不可读,无法重建索引 */
+  /** The session's first-line metadata cannot be read, so the index cannot be rebuilt */
   sessionMetaUnreadable: 'session-meta-unreadable',
-  /** 会话文件解析失败 */
+  /** The session file failed to parse */
   sessionParseFailed: 'session-parse-failed',
-  /** 偏好存储未就绪 */
+  /** Preference storage is not ready */
   prefsStoreNotReady: 'prefs-store-not-ready',
-  /** 偏好取值不合契约(params.field:scheme / language / mode) */
+  /** The preference value does not meet the contract (params.field: scheme / language / mode) */
   invalidPref: 'invalid-pref',
-  /** 跨进程载荷的契约校验:某字段缺失(params.what 载荷名、params.path 字段路径) */
+  /** Contract validation of a cross-process payload: a field is missing (params.what is the payload's
+   * name, params.path the field path) */
   contractMissing: 'contract-missing',
   /**
-   * 契约校验:字段类型不符。
-   * params.expect 是**类型记法**(`string|null` / `array` / `object`),语言无关、**不翻译**——
-   * 与 KB / MB / ms 这类单位符号同一处置:它是记法不是自然语言。
+   * Contract validation: the field type does not match.
+   * params.expect is **type notation** (`string|null` / `array` / `object`), language-independent and
+   * **not translated** —
+   * handled the same way as unit symbols like KB / MB / ms: it is notation, not natural language.
    */
   contractType: 'contract-type',
-  /** 契约校验:枚举字段收到不在取值域内的值(params.value 为实际收到的值) */
+  /** Contract validation: an enum field received a value outside its domain (params.value is what was
+   * actually received) */
   contractEnum: 'contract-enum',
-  /** IPC 调用方不可信(params.sender) */
+  /** The IPC caller is untrusted (params.sender) */
   untrustedSender: 'untrusted-sender',
-  /** 渲染内容里的链接协议不受支持 */
+  /** A link protocol inside rendered content is not supported */
   linkProtocolUnsupported: 'link-protocol-unsupported',
-  /** 渲染内容里的链接目标不在可读范围 */
+  /** A link target inside rendered content is outside the readable range */
   linkOutOfScope: 'link-out-of-scope',
-  /** skill 名不合法 */
+  /** The skill name is invalid */
   skillBadName: 'skill-bad-name',
-  /** 目标是失效项目(目录不存在) */
+  /** The target is a stale project (its directory does not exist) */
   skillStaleTarget: 'skill-stale-target',
-  /** 全局库无此 skill(params.name) */
+  /** The global library has no such skill (params.name) */
   skillMissingSource: 'skill-missing-source',
-  /** 项目级副本不存在 */
+  /** The project-level copy does not exist */
   skillCopyMissing: 'skill-copy-missing',
-  /** 目标已有同名项目级 skill,已阻止不覆盖 */
+  /** The target already has a project-level skill of the same name; blocked rather than overwritten */
   skillConflict: 'skill-conflict',
-  /** 复制失败已清理(params.detail 为底层错误串) */
+  /** The copy failed and was cleaned up (params.detail is the underlying error string) */
   skillCopyFailed: 'skill-copy-failed',
-  /** 删除失败(params.detail) */
+  /** The delete failed (params.detail) */
   skillDeleteFailed: 'skill-delete-failed',
 
-  // ── 数据字段里的失败(票 07):不是抛出的错误,而是随快照下发的探测/解析结果 ──
-  /** agent 注册表的 projects 键缺失或非对象 */
+  // ── Failures on data fields (ticket 07): not thrown errors, but probe and parse results sent down
+  // with the snapshot ──
+  /** The agent registry's projects key is missing or not an object */
   registryProjectsInvalid: 'registry-projects-invalid',
-  /** 注册表解析失败(params.detail) */
+  /** The registry failed to parse (params.detail) */
   registryParseFailed: 'registry-parse-failed',
-  /** subagent 定义文件不可读(权限或 IO 异常) */
+  /** The subagent definition file cannot be read (a permission or IO error) */
   subagentUnreadable: 'subagent-unreadable',
-  /** subagent 的 toml 解析失败(params.detail) */
+  /** The subagent's toml failed to parse (params.detail) */
   subagentTomlFailed: 'subagent-toml-failed',
-  /** subagent 缺有效 name 字段(Codex 不加载此文件) */
+  /** The subagent has no valid name field (Codex does not load this file) */
   subagentMissingName: 'subagent-missing-name'
 } as const
 
@@ -98,8 +108,9 @@ export function isErrorCode(v: unknown): v is ErrorCode {
 }
 
 /**
- * 错误参数。取值只允许**语言无关**的东西:标识符(通道名、字段名)、路径、数字。
- * 绝不放已成句的措辞——那正是本协议要消灭的东西。
+ * Error parameters. The values may only be **language-independent** things: identifiers (channel names,
+ * field names), paths and numbers.
+ * Never finished wording — that is precisely what this protocol exists to eliminate.
  */
 export type ErrorParams = Record<string, string | number>
 
@@ -109,8 +120,9 @@ export interface AppError {
 }
 
 /**
- * 载荷标记。取一个不会在自然语句里出现的前缀,解码时据此在被包裹的串中定位;
- * 载荷一律排在**末尾**,故从标记之后一直取到串尾。
+ * The payload marker. A prefix that will not occur in a natural sentence, used to locate the payload
+ * inside the wrapped string when decoding;
+ * the payload is always **last**, so everything from the marker to the end of the string is taken.
  */
 const MARKER = 'agentshed-error:'
 
@@ -118,18 +130,20 @@ export function encodeAppError(err: AppError): string {
   return MARKER + JSON.stringify({ code: err.code, params: err.params })
 }
 
-/** 主进程侧的便捷抛出口:`throw appError(ERR.engineNotReady)` */
+/** A convenience throw site for the main process: `throw appError(ERR.engineNotReady)` */
 export function appError(code: ErrorCode, params: ErrorParams = {}): Error {
   return new Error(encodeAppError({ code, params }))
 }
 
 /**
- * 从任意 catch 到的东西里解出结构化错误;解不出返回 `null`。
+ * Decode a structured error out of anything caught; returns `null` when it will not decode.
  *
- * 返回 null 的三类都**刻意不抛**——它们都该退化成"当旧式字符串错误原样显示":
- *   ① 迁移期尚未改造的旧式错误(票 06 才收口);
- *   ② 标记后跟着坏 JSON;
- *   ③ 码不在枚举内(透传未知码会让渲染层取不到措辞而显示空白,不如退回原样)。
+ * All three cases returning null **deliberately do not throw** — each should degrade to "display it as
+ * an old-style string error":
+ *   (1) an old-style error not yet converted during migration (closed only by ticket 06);
+ *   (2) bad JSON following the marker;
+ *   (3) a code outside the enum (passing an unknown code through would leave the renderer with no
+ *       wording and a blank display, so falling back to the original is better).
  */
 export function decodeAppError(raw: unknown): AppError | null {
   const text =
