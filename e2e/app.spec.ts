@@ -74,7 +74,7 @@ async function launch(cacheContent: string | undefined, home: string): Promise<L
       // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
       // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
 // the tests
-      AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'
+      AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
     }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
@@ -143,7 +143,7 @@ function mkUsageHome(): string {
   writeFileSync(
     join(cdir, 'a.jsonl'),
     [
-      JSON.stringify({ type: 'user', timestamp: localDayOffset(2).toISOString(), message: { role: 'user', content: '示例提问' } }),
+      JSON.stringify({ type: 'user', timestamp: localDayOffset(2).toISOString(), message: { role: 'user', content: 'Sample question' } }),
       // The real shape: an assistant line carries both content (the prose segments) and usage; ticket 05's
 // expansion assertions use that prose.
       // Ticket 07: thinking/text/tool_use mixed on one line (the whole segment spectrum from the full
@@ -154,8 +154,8 @@ function mkUsageHome(): string {
         message: {
           model: 'claude-fable-5',
           content: [
-            { type: 'thinking', thinking: '先看一眼目录结构' },
-            { type: 'text', text: '这是第一轮的回答正文' },
+            { type: 'thinking', thinking: 'Take a look at the directory layout' },
+            { type: 'text', text: '这是First turn reply body' },
             { type: 'tool_use', id: 'tu_e2e_1', name: 'Bash', input: { command: 'ls -la src' } }
           ],
           usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
@@ -168,7 +168,7 @@ function mkUsageHome(): string {
         timestamp: localDayOffset(2).toISOString(),
         message: {
           role: 'user',
-          content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_1', content: '共 12 个文件\noutput saved to: /x/tool-results/e2e.txt' }]
+          content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_1', content: '12 files in total\noutput saved to: /x/tool-results/e2e.txt' }]
         }
       }),
       // A subagent dispatch → a sidechain step within the turn → a return carrying toolUseResult.agentId (the
@@ -178,7 +178,7 @@ function mkUsageHome(): string {
         timestamp: localDayOffset(2).toISOString(),
         message: {
           role: 'assistant',
-          content: [{ type: 'tool_use', id: 'tu_e2e_ag', name: 'Agent', input: { description: '查日志', prompt: '查一下今天的日志', subagent_type: 'debugger' } }]
+          content: [{ type: 'tool_use', id: 'tu_e2e_ag', name: 'Agent', input: { description: 'check logs', prompt: 'Check today logs', subagent_type: 'debugger' } }]
         }
       }),
       JSON.stringify({
@@ -192,7 +192,7 @@ function mkUsageHome(): string {
         type: 'user',
         timestamp: localDayOffset(2).toISOString(),
         toolUseResult: { agentId: 'ag_e2e', status: 'completed' },
-        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_ag', content: [{ type: 'text', text: '日志干净,没有异常' }] }] }
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_e2e_ag', content: [{ type: 'text', text: 'Logs are clean, nothing unusual' }] }] }
       }),
       // An unknown type outside the display allow-list → a trace rather than a silent drop (spec C8)
       JSON.stringify({ type: 'agent_snapshot', timestamp: localDayOffset(2).toISOString(), payload: { blob: 'x' } }),
@@ -204,9 +204,9 @@ function mkUsageHome(): string {
       JSON.stringify({
         type: 'user',
         timestamp: localDayOffset(1).toISOString(),
-        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: '工具返回' }] }
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'Tool return' }] }
       }),
-      JSON.stringify({ type: 'user', timestamp: localDayOffset(1).toISOString(), message: { role: 'user', content: '第二个提问' } }),
+      JSON.stringify({ type: 'user', timestamp: localDayOffset(1).toISOString(), message: { role: 'user', content: 'Second question' } }),
       usage('claude-opus-5', localDayOffset(1), 800, 200),
       usage('claude-fable-5', localDayOffset(0), 500, 100)
     ].join('\n') + '\n'
@@ -247,13 +247,13 @@ function mkUsageHome(): string {
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'session_meta', payload: { cwd: proj } }),
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
       // A real question: without it this session is not listed per spec A3a
-      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'user_message', message: 'Codex 侧的提问' } }),
+      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'user_message', message: 'Codex side question' } }),
       // Ticket 07: reasoning sub-headings / tool pairing / spawn_agent (unattributable) / traces of unknown
 // events
       JSON.stringify({
         timestamp: localDayOffset(2).toISOString(),
         type: 'response_item',
-        payload: { type: 'reasoning', id: 'r1', summary: [{ type: 'summary_text', text: '对比两侧目录约定' }, { type: 'summary_text', text: '确认字段差异' }], encrypted_content: 'gAAA' }
+        payload: { type: 'reasoning', id: 'r1', summary: [{ type: 'summary_text', text: 'Compare both sides directory conventions' }, { type: 'summary_text', text: 'Confirm the field differences' }], encrypted_content: 'gAAA' }
       }),
       JSON.stringify({
         timestamp: localDayOffset(2).toISOString(),
@@ -268,15 +268,15 @@ function mkUsageHome(): string {
       JSON.stringify({
         timestamp: localDayOffset(2).toISOString(),
         type: 'response_item',
-        payload: { type: 'function_call', id: 'ri2', call_id: 'c_sp', name: 'spawn_agent', namespace: 'collaboration', arguments: '{"task_name":"迁移检查"}' }
+        payload: { type: 'function_call', id: 'ri2', call_id: 'c_sp', name: 'spawn_agent', namespace: 'collaboration', arguments: '{"task_name":"migration check"}' }
       }),
       JSON.stringify({
         timestamp: localDayOffset(2).toISOString(),
         type: 'response_item',
-        payload: { type: 'function_call_output', call_id: 'c_sp', output: '子任务已建' }
+        payload: { type: 'function_call_output', call_id: 'c_sp', output: 'Sub-task created' }
       }),
       JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'exotic_event', data: 1 } }),
-      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'agent_message', message: '两侧目录约定不同,详见对比。' } }),
+      JSON.stringify({ timestamp: localDayOffset(2).toISOString(), type: 'event_msg', payload: { type: 'agent_message', message: 'The two sides use different directory conventions; see the comparison.' } }),
       turn(localDayOffset(2), 900, 150),
       // Stopping at yesterday: putting distance from the Claude side (today), so "newest first" has something to
 // judge.
@@ -324,20 +324,20 @@ function mkForkHome(): string {
   // The parent session: two questions
   writeFileSync(
     join(sdir, `rollout-${PARENT}.jsonl`),
-    [meta(localDayOffset(4), PARENT), ctx(localDayOffset(4)), q(localDayOffset(4), '父会话第一问'), usage(localDayOffset(4), 500, 100), q(localDayOffset(3), '父会话第二问'), usage(localDayOffset(3), 300, 60)].join('\n') + '\n'
+    [meta(localDayOffset(4), PARENT), ctx(localDayOffset(4)), q(localDayOffset(4), 'Parent first question'), usage(localDayOffset(4), 500, 100), q(localDayOffset(3), 'Parent second question'), usage(localDayOffset(3), 300, 60)].join('\n') + '\n'
   )
   // The child: forked from the parent, replaying its two entries (with rewritten timestamps) plus one new
 // one → 1 should remain, marked ⑂ fork
   const CHILD = '019fb0c0-bbbb-7af3-af7d-8505cedf1ec2'
   writeFileSync(
     join(sdir, `rollout-${CHILD}.jsonl`),
-    [meta(localDayOffset(2), CHILD, { forked_from_id: PARENT }), ctx(localDayOffset(2)), q(localDayOffset(2), '父会话第一问'), q(localDayOffset(2), '父会话第二问'), q(localDayOffset(2), '子会话的新问'), usage(localDayOffset(2), 200, 40)].join('\n') + '\n'
+    [meta(localDayOffset(2), CHILD, { forked_from_id: PARENT }), ctx(localDayOffset(2)), q(localDayOffset(2), 'Parent first question'), q(localDayOffset(2), 'Parent second question'), q(localDayOffset(2), 'Child new question'), usage(localDayOffset(2), 200, 40)].join('\n') + '\n'
   )
   // An orphan fork: the parent is not in the scan set → the heuristic only, marked ⑂? strip uncertain
   const ORPHAN = '019fb0c0-cccc-7af3-af7d-8505cedf1ec2'
   writeFileSync(
     join(sdir, `rollout-${ORPHAN}.jsonl`),
-    [meta(localDayOffset(1), ORPHAN, { forked_from_id: '019fb0c0-dead-7af3-af7d-8505cedf1ec2' }), ctx(localDayOffset(1)), q(localDayOffset(1), '孤儿会话的问'), usage(localDayOffset(1), 100, 20)].join('\n') + '\n'
+    [meta(localDayOffset(1), ORPHAN, { forked_from_id: '019fb0c0-dead-7af3-af7d-8505cedf1ec2' }), ctx(localDayOffset(1)), q(localDayOffset(1), 'Orphan session question'), usage(localDayOffset(1), 100, 20)].join('\n') + '\n'
   )
   return home
 }
@@ -378,7 +378,7 @@ test('an old-format cache does not crash at startup (a production crash regressi
           kind: 'codex',
           projectKey: '/x',
           listed: true,
-          title: '旧格式',
+          title: 'old format',
           at: 1,
           model: 'gpt-5.6-sol',
           totals: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, total: 2 },
@@ -451,7 +451,7 @@ test('the sessions section: sessions are listed, the sort switches, and warmup s
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
 
   // fixture 里 Claude 侧 2 个(1 真实 + 1 预热)、Codex 侧 1 个 → 只应列出 2 个
   const rows = win.locator('.pane-body .card .se')
@@ -470,15 +470,15 @@ test('the sessions section: sessions are listed, the sort switches, and warmup s
     (await rows.nth(i).locator('.t').innerText()).trim()
   // fixture 里 Claude 侧最后活动在今天、Codex 侧在昨天 —— 断言的是**具体哪条在前**,
   // 不是"两条不一样"。后者在时间戳相同时也成立,证不了按时间排序。
-  expect(await titleOf(0)).toBe('示例提问')
-  expect(await titleOf(1)).toBe('Codex 侧的提问')
+  expect(await titleOf(0)).toBe('Sample question')
+  expect(await titleOf(1)).toBe('Codex side question')
 
   // 切最早在前 → 顺序翻转,条数不变
-  await win.locator('.pane-body .seg button', { hasText: '最早在前' }).click()
+  await win.locator('.pane-body .seg button', { hasText: 'Oldest first' }).click()
   await expect(rows).toHaveCount(2)
-  expect(await titleOf(0)).toBe('Codex 侧的提问')
-  expect(await titleOf(1)).toBe('示例提问')
-  await expect(win.locator('.pane-body .grp-t')).toContainText('正序')
+  expect(await titleOf(0)).toBe('Codex side question')
+  expect(await titleOf(1)).toBe('Sample question')
+  await expect(win.locator('.pane-body .grp-t')).toContainText('Oldest first')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -491,7 +491,7 @@ test('the sessions section: each row shows that session\'s real question count',
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
 
   const rows = win.locator('.pane-body .card .se')
   await expect(rows).toHaveCount(2)
@@ -500,7 +500,7 @@ test('the sessions section: each row shows that session\'s real question count',
 
   // 默认最近在前:第 0 行是 Claude 侧(2 条真实提问,中间那条 tool_result 不算),
   // 第 1 行是 Codex 侧(1 条)
-  expect(await rows.nth(0).locator('.t').innerText()).toBe('示例提问')
+  expect(await rows.nth(0).locator('.t').innerText()).toBe('Sample question')
   expect(await countOf(0), 'Claude 侧两条真实提问,工具回灌不计入').toBe('2 提问')
   expect(await countOf(1), 'Codex 侧一条真实提问').toBe('1 提问')
 
@@ -513,18 +513,18 @@ test('the sessions section: the sort choice is remembered after switching away',
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
-  await win.locator('.pane-body .seg button', { hasText: '最早在前' }).click()
-  await expect(win.locator('.pane-body .grp-t')).toContainText('正序')
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .seg button', { hasText: 'Oldest first' }).click()
+  await expect(win.locator('.pane-body .grp-t')).toContainText('Oldest first')
 
   // 切走再切回:tab 是条件渲染,组件会被卸载,组件内 useState 存不住
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
-  await expect(win.locator('.pane-body .grp-t')).toContainText('正序')
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await expect(win.locator('.pane-body .grp-t')).toContainText('Oldest first')
   await expect(
     win.locator('.pane-body .se .t').first(),
     '切回来应保持"最早在前",第一行是较早的那条'
-  ).toHaveText('Codex 侧的提问')
+  ).toHaveText('Codex side question')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -535,8 +535,8 @@ test('the sessions section: a project with no sessions shows an empty state, and
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
-  await expect(win.locator('.pane-body .none')).toContainText('暂无会话')
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await expect(win.locator('.pane-body .none')).toContainText('No sessions')
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -547,10 +547,10 @@ test('one click on the overview session card goes straight to the session page',
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  // 概览是默认分栏,直接点第一张会话卡(最近的 = Claude 侧「示例提问」)
+  // 概览是默认分栏,直接点第一张会话卡(最近的 = Claude 侧「Sample question」)
   await win.locator('.pane-body .se.row-btn').first().click()
-  await expect(win.locator('.pane-head .stitle')).toHaveText('示例提问')
-  await expect(win.locator('.sback')).toContainText('返回')
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
+  await expect(win.locator('.sback')).toContainText('Back to')
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -561,12 +561,12 @@ test('the session page: every question is listed with complete fields, and back 
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
-  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
 
   // 页头:徽标 + 标题 + meta(与列表同源的数字)
   await expect(win.locator('.pane-head .badge.cl')).toHaveText('CC')
-  await expect(win.locator('.pane-head .stitle')).toHaveText('示例提问')
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
   await expect(win.locator('.smeta')).toContainText('2 提问')
   await expect(win.locator('.smeta')).toContainText('tok')
 
@@ -575,8 +575,8 @@ test('the session page: every question is listed with complete fields, and back 
   const qs = win.locator('.qlist .q')
   await expect(qs).toHaveCount(2)
   await expect(qs.nth(0).locator('.idx')).toHaveText('02')
-  await expect(qs.nth(0).locator('.txt')).toHaveText('第二个提问')
-  await expect(qs.nth(1).locator('.txt')).toHaveText('示例提问')
+  await expect(qs.nth(0).locator('.txt')).toHaveText('Second question')
+  await expect(qs.nth(1).locator('.txt')).toHaveText('Sample question')
   await expect(qs.nth(0).locator('.tm')).not.toHaveText('—')
   await expect(win.locator('.qbar .grp-t')).toContainText('提问(主干)· 2 条')
 
@@ -586,8 +586,8 @@ test('the session page: every question is listed with complete fields, and back 
 
   // 返回:落在「会话」分栏,不是概览(原型:‹ 返回 <项目> · 会话)
   await win.locator('.sback').click()
-  await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('会话')
-  await expect(win.locator('.pane-body .grp-t')).toContainText('个会话')
+  await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
+  await expect(win.locator('.pane-body .grp-t')).toContainText('sessions in total')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -599,11 +599,11 @@ test('the session page: a fork session shows only the questions left after strip
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
-  await win.locator('.pane-body .card .se', { hasText: '子会话的新问' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Child new question' }).click()
   const qs = win.locator('.qlist .q')
   await expect(qs).toHaveCount(1)
-  await expect(qs.first().locator('.txt')).toHaveText('子会话的新问')
+  await expect(qs.first().locator('.txt')).toHaveText('Child new question')
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -657,7 +657,7 @@ test('the session page: a long question\'s single-line truncation happens only i
   const enc = proj.replace(/[^a-zA-Z0-9]/g, '-')
   const cdir = join(home, '.claude', 'projects', enc)
   mkdirSync(cdir, { recursive: true })
-  const LONG = '这是一条特意写得很长的提问,'.repeat(30) + '结尾标记XYZ'
+  const LONG = 'This is a deliberately very long question, '.repeat(30) + 'TAILMARKXYZ'
   writeFileSync(
     join(cdir, 'long.jsonl'),
     [
@@ -673,7 +673,7 @@ test('the session page: a long question\'s single-line truncation happens only i
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
   await win.locator('.pane-body .card .se').first().click()
   const txt = win.locator('.qlist .q .txt').first()
   // 数据层:全文都在 DOM 里
@@ -691,8 +691,8 @@ test('the session page: everything collapsed by default; clicking a question exp
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
-  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
 
   // 默认 0 轮展开
   await expect(win.locator('.qlist .q')).toHaveCount(2)
@@ -700,19 +700,19 @@ test('the session page: everything collapsed by default; clicking a question exp
 
   // 点 01(默认倒序,首行是 02——按文本定位不赌位置):提问行自己铺开(.open,
   // 不另设复述块),下面出整轮正文 + 取回脚注
-  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
-  await expect(win.locator('.qlist .q.open .txt')).toHaveText('示例提问')
-  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.qlist .q.open .txt')).toHaveText('Sample question')
+  await expect(win.locator('.turn .ans')).toHaveText(['这是First turn reply body'])
   await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
 
   // 展开另一条不影响已开的(各轮独立);第二轮没有正文,脚注照出(不造假的占位)
-  await win.locator('.qlist .q', { hasText: '第二个提问' }).click()
+  await win.locator('.qlist .q', { hasText: 'Second question' }).click()
   await expect(win.locator('.qlist .q.open')).toHaveCount(2)
   await expect(win.locator('.turn')).toHaveCount(2)
   await expect(win.locator('.turn .ans')).toHaveCount(1)
 
   // 再点 01:收起,其余不动
-  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
+  await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
   await expect(win.locator('.turn')).toHaveCount(1)
   await expect(win.locator('.qlist .q.open')).toHaveCount(1)
 
@@ -726,8 +726,8 @@ test('the session page: day groups collapse; descending reverses both the groups
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
-  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
 
   // 两天两组,组头带当日条数;qhead 带天数
   await expect(win.locator('.daygrp')).toHaveCount(2)
@@ -737,14 +737,14 @@ test('the session page: day groups collapse; descending reverses both the groups
   // 默认倒序(2026-08-06 用户裁定):首行是最新的 02
   await expect(win.locator('.qlist .q').first().locator('.idx'), '默认倒序,首行应是 02').toHaveText('02')
   // 展开 01,然后切正序:仍展开、序号不变、组序与组内一起翻
-  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
-  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
-  await win.locator('.qbar .seg button', { hasText: '正序' }).click()
+  await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['这是First turn reply body'])
+  await win.locator('.qbar .seg button', { hasText: 'Oldest first' }).click()
   await expect(win.locator('.qlist .q').first().locator('.idx'), '正序后首行应是原 01').toHaveText('01')
   const openRow = win.locator('.qlist .q.open')
   await expect(openRow, '已展开的轮次跨排序保持').toHaveCount(1)
   await expect(openRow.locator('.idx'), '序号恒为原始轮次号').toHaveText('01')
-  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await expect(win.locator('.turn .ans')).toHaveText(['这是First turn reply body'])
 
   // 折叠 01 所在的那天:该天的行连同已展开的轮一并隐藏;重开仍是展开的。
   // 折叠后 .q.open 不再渲染,故先记下组头日期,重开时按日期重定位
@@ -755,12 +755,12 @@ test('the session page: day groups collapse; descending reverses both the groups
   await expect(win.locator('.turn')).toHaveCount(0)
   await win.locator('.dayhd', { hasText: dayLabel }).click()
   await expect(win.locator('.q.open')).toHaveCount(1)
-  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await expect(win.locator('.turn .ans')).toHaveText(['这是First turn reply body'])
 
   // 全部收起 → 标签翻转、全部行隐藏;全部展开还原
   await win.locator('.qbar .lnk').click()
   await expect(win.locator('.qlist .q')).toHaveCount(0)
-  await expect(win.locator('.qbar .lnk')).toHaveText('全部展开')
+  await expect(win.locator('.qbar .lnk')).toHaveText('Expand all')
   await win.locator('.qbar .lnk').click()
   await expect(win.locator('.qlist .q')).toHaveCount(2)
 
@@ -774,25 +774,25 @@ test('the session page banner: a stripped fork gets info with the parent title c
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
 
   // 子会话(已剥离):info 横幅带父标题,点击直达父会话页
-  await win.locator('.pane-body .card .se', { hasText: '子会话的新问' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Child new question' }).click()
   const info = win.locator('.banner.info')
-  await expect(info).toContainText('fork 自')
-  await expect(info).toContainText('父会话第一问')
-  await expect(info).toContainText('重放前缀已剥离')
+  await expect(info).toContainText('forked from')
+  await expect(info).toContainText('Parent first question')
+  await expect(info).toContainText('replayed prefix has been stripped')
   await info.locator('a').click()
-  await expect(win.locator('.pane-head .stitle')).toHaveText('父会话第一问')
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Parent first question')
   // 父会话不是 fork:无任何横幅
   await expect(win.locator('.banner')).toHaveCount(0)
 
   // 孤儿 fork:risk 横幅,明说可能多剥/少剥、请对照核对——不给假确定感
   await win.locator('.sback').click()
-  await win.locator('.pane-body .card .se', { hasText: '孤儿会话的问' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Orphan session question' }).click()
   const risk = win.locator('.banner.risk')
-  await expect(risk).toContainText('不在扫描集内')
-  await expect(risk).toContainText('可能多剥(丢消息)或少剥(重复)')
+  await expect(risk).toContainText('outside the scan set')
+  await expect(risk).toContainText('duplicates')
   await expect(risk).toContainText('请对照原文核对')
 
   expect(l.errors).toEqual([])
@@ -809,8 +809,8 @@ test('the session page: after the file is appended to (so the signature mismatch
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
-  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
   await expect(win.locator('.qlist .q')).toHaveCount(2)
 
   // 页面打开后文件被追加:size 变 → 签名不符,首次取回走单文件重建
@@ -819,11 +819,11 @@ test('the session page: after the file is appended to (so the signature mismatch
     JSON.stringify({
       type: 'user',
       timestamp: localDayOffset(0).toISOString(),
-      message: { role: 'user', content: '追加的第三问' }
+      message: { role: 'user', content: 'Appended third question' }
     }) + '\n'
   )
-  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
-  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['这是First turn reply body'])
   await expect(win.locator('.turn .fetched')).toContainText('只读本轮区间')
 
   expect(l.errors).toEqual([])
@@ -836,38 +836,38 @@ test('session page rich content (Claude): the thinking, tool and subagent blocks
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
-  await win.locator('.pane-body .card .se', { hasText: '示例提问' }).click()
-  await win.locator('.qlist .q', { hasText: '示例提问' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
 
   // 正文 + 三个折叠块头(思考/Bash/subagent),默认全折叠(.bb 不渲染)
-  await expect(win.locator('.turn .ans')).toHaveText(['这是第一轮的回答正文'])
+  await expect(win.locator('.turn .ans')).toHaveText(['这是First turn reply body'])
   await expect(win.locator('.turn .blk')).toHaveCount(3)
   await expect(win.locator('.turn .bb')).toHaveCount(0)
 
   // 思考块:明文可得
   const think = win.locator('.turn .blk.think')
-  await expect(think.locator('.nm')).toHaveText('思考')
+  await expect(think.locator('.nm')).toHaveText('Thinking')
   await think.locator('.bh').click()
-  await expect(think.locator('.bb')).toContainText('先看一眼目录结构')
+  await expect(think.locator('.bb')).toContainText('Take a look at the directory layout')
 
   // 工具块:二次展开见入参/返回;截断 warn(返回里带 tool-results/ 旁挂路径)
   const tool = win.locator('.turn .blk', { has: win.locator('.nm', { hasText: 'Bash' }) }).first()
   await expect(tool.locator('.sum')).toContainText('ls -la src')
   await tool.locator('.bh').click()
   await expect(tool.locator('pre').nth(0)).toContainText('ls -la src')
-  await expect(tool.locator('pre').nth(1)).toContainText('共 12 个文件')
-  await expect(tool.locator('.warn')).toContainText('只存了截断版')
+  await expect(tool.locator('pre').nth(1)).toContainText('12 files in total')
+  await expect(tool.locator('.warn')).toContainText('only stored a truncated version')
 
   // subagent 块:派发 prompt 与返回;内部步骤无稳定引用链 → 显式未归位标注
   // (2026-08-06 实测:四条候选连接键全部排除,不做猜测性配对)
   const sub = win.locator('.turn .blk.sub')
   await expect(sub.locator('.nm')).toContainText('debugger')
   await sub.locator('.bh').click()
-  await expect(sub.locator('pre').nth(0)).toContainText('查一下今天的日志')
+  await expect(sub.locator('pre').nth(0)).toContainText('Check today logs')
   await expect(sub.locator('.step')).toHaveCount(0)
-  await expect(sub.locator('.warn')).toContainText('稳定引用链')
-  await expect(sub.locator('pre').nth(1)).toContainText('日志干净')
+  await expect(sub.locator('.warn')).toContainText('stable reference chain')
+  await expect(sub.locator('pre').nth(1)).toContainText('Logs are clean')
 
   // 未知类型留痕:不静默丢
   await expect(win.locator('.turn .unknown')).toContainText('1 条未识别记录')
@@ -882,11 +882,11 @@ test('session page rich content (Codex): the encrypted-reasoning label, tool pai
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
-  await win.locator('.pane-body .card .se', { hasText: 'Codex 侧的提问' }).click()
-  await win.locator('.qlist .q', { hasText: 'Codex 侧的提问' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Codex side question' }).click()
+  await win.locator('.qlist .q', { hasText: 'Codex side question' }).click()
 
-  await expect(win.locator('.turn .ans')).toContainText('两侧目录约定不同')
+  await expect(win.locator('.turn .ans')).toContainText('The two sides use different directory conventions')
 
   // 推理块:仅小标题,warn 明说正文加密不可得
   const reason = win.locator('.turn .blk.think')
@@ -904,8 +904,8 @@ test('session page rich content (Codex): the encrypted-reasoning label, tool pai
   // spawn_agent:sub 块,子线程无引用链不归位(2026-08-06 裁定)
   const sub = win.locator('.turn .blk.sub')
   await sub.locator('.bh').click()
-  await expect(sub.locator('.warn')).toContainText('稳定引用链')
-  await expect(sub.locator('pre').nth(1)).toContainText('子任务已建')
+  await expect(sub.locator('.warn')).toContainText('stable reference chain')
+  await expect(sub.locator('pre').nth(1)).toContainText('Sub-task created')
 
   // 未知 event 留痕(三层白名单之一)
   await expect(win.locator('.turn .unknown')).toContainText('event_msg/exotic_event')
@@ -922,39 +922,39 @@ test('session search: questions by default with hits grouped; a body word only h
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
 
   // 默认搜提问:命中 1 条,分组带会话头;大小写不敏感
-  await win.locator('.sbar input').fill('示例提问')
+  await win.locator('.sbar input').fill('Sample question')
   await expect(win.locator('.grp')).toHaveCount(1)
   // 回归:命中组的 button 必须重置 UA 默认样式(漏写会在暗色下露白底黑字)
   for (const sel of ['.grp .gh', '.grp .hit']) {
     const bg = await win.locator(sel).first().evaluate((el) => getComputedStyle(el).backgroundColor)
     expect(bg, `${sel} 应为透明背景而非 UA buttonface`).toBe('rgba(0, 0, 0, 0)')
   }
-  await expect(win.locator('.grp .gh .t')).toContainText('示例提问')
+  await expect(win.locator('.grp .gh .t')).toContainText('Sample question')
   await expect(win.locator('.grp .hit')).toHaveCount(1)
-  await expect(win.locator('.grp .hit mark').first()).toContainText('示例提问')
+  await expect(win.locator('.grp .hit mark').first()).toContainText('Sample question')
   await expect(win.locator('.shead')).toContainText('找到 1 条 · 1 个会话')
 
   // 正文里的词(第一轮回答正文)在提问模式不命中 → 可行动空态
-  await win.locator('.sbar input').fill('第一轮的回答正文')
-  await expect(win.locator('.shead')).toContainText('默认只搜提问,试试切到「全文」')
+  await win.locator('.sbar input').fill('First turn reply body')
+  await expect(win.locator('.shead')).toContainText('Only questions are searched by default')
   // 切全文:命中并标「正文」
-  await win.locator('.scope span', { hasText: '全文' }).click()
+  await win.locator('.scope span', { hasText: 'Full text' }).click()
   await expect(win.locator('.grp .hit')).toHaveCount(1)
-  await expect(win.locator('.grp .hit .bd')).toHaveText('正文')
+  await expect(win.locator('.grp .hit .bd')).toHaveText('Body')
 
   // 点命中直达该会话的该条提问(01 行进入视口;默认倒序下它在列表尾部)。
   // 定位高亮(2026-08-06 原型确认):脉冲 located + 焦点竖条 focused;
   // 点击任意提问行后竖条清除。10s 脉冲的播完态不在此等待(时序不赌)。
   await win.locator('.grp .hit').click()
-  await expect(win.locator('.pane-head .stitle')).toHaveText('示例提问')
-  const row01 = win.locator('.qlist .q', { hasText: '示例提问' })
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
+  const row01 = win.locator('.qlist .q', { hasText: 'Sample question' })
   await expect(row01).toBeInViewport()
   await expect(row01).toHaveClass(/located/)
   await expect(row01).toHaveClass(/focused/)
-  await win.locator('.qlist .q', { hasText: '第二个提问' }).click()
+  await win.locator('.qlist .q', { hasText: 'Second question' }).click()
   await expect(row01).not.toHaveClass(/focused/)
 
   expect(l.errors).toEqual([])
@@ -1011,7 +1011,7 @@ test('the archive: a seeded historical archive file → the trend includes an ar
       // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
       // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
 // the tests
-      AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'
+      AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
     }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
@@ -1044,7 +1044,7 @@ test('the trend chart is stacked bars: segmented by provider within a bar, and s
   await win.locator('.grp-t .seg button', { hasText: 'Claude' }).click()
   await expect(win.locator('.chart .col .sp.openai')).toHaveCount(0)
   // 切回合计,图例回来
-  await win.locator('.grp-t .seg button', { hasText: '合计' }).click()
+  await win.locator('.grp-t .seg button', { hasText: 'Total' }).click()
   await expect(win.locator('.legend')).toBeVisible()
   expect(l.errors).toEqual([])
   await close(l)
@@ -1097,7 +1097,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   mkdirSync(join(pkg, '.claude-plugin'), { recursive: true })
   writeFileSync(join(pkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'superpowers' }))
   mkdirSync(join(pkg, 'skills', 'brainstorming'), { recursive: true })
-  writeFileSync(join(pkg, 'skills', 'brainstorming', 'SKILL.md'), '---\ndescription: 先问后做\n---\nx')
+  writeFileSync(join(pkg, 'skills', 'brainstorming', 'SKILL.md'), '---\ndescription: Ask before acting\n---\nx')
   mkdirSync(join(pkg, 'hooks'), { recursive: true })
   writeFileSync(
     join(pkg, 'hooks', 'hooks.json'),
@@ -1121,21 +1121,21 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   mkdirSync(join(home, '.claude', 'agents'), { recursive: true })
   writeFileSync(
     join(home, '.claude', 'agents', 'code-reviewer.md'),
-    '---\ndescription: 审代码\ntools: Read, Grep\n---\nYou are a reviewer.'
+    '---\ndescription: Review code\ntools: Read, Grep\n---\nYou are a reviewer.'
   )
   mkdirSync(join(home, '.codex', 'agents'), { recursive: true })
   writeFileSync(
     join(home, '.codex', 'agents', 'code-reviewer.toml'),
-    'name = "code-reviewer"\ndescription = "审代码"\ndeveloper_instructions = "You are a reviewer."\n'
+    'name = "code-reviewer"\ndescription = "Review code"\ndeveloper_instructions = "You are a reviewer."\n'
   )
   // demo 项目的 memory
   const enc = demo.replace(/[^A-Za-z0-9]/g, '-')
   mkdirSync(join(home, '.claude', 'projects', enc, 'memory'), { recursive: true })
   writeFileSync(
     join(home, '.claude', 'projects', enc, 'memory', 'MEMORY.md'),
-    '# 记忆主文件\n- 要点甲\n- [踩坑](pitfalls.md) 有效相对链接\n- [已删条目](gone.md) 失效目标\n'
+    '# 记忆主文件\n- Key point A\n- [踩坑](pitfalls.md) 有效相对链接\n- [已删条目](gone.md) 失效目标\n'
   )
-  writeFileSync(join(home, '.claude', 'projects', enc, 'memory', 'pitfalls.md'), '# 踩坑\n独特内容乙')
+  writeFileSync(join(home, '.claude', 'projects', enc, 'memory', 'pitfalls.md'), '# 踩坑\nUnique content B')
 
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
   const errors: string[] = []
@@ -1150,7 +1150,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
       // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
       // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
 // the tests
-      AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'
+      AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
     }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
@@ -1174,7 +1174,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   // ② 全局 Plugins:F3 之一——user 层未启用;展开为类目 tab,Skills 默认、Hooks 切换可见
   await tab('Plugins').click()
   const plugRow = win.locator('.it.row-btn', { hasText: 'superpowers@official' })
-  await expect(plugRow).toContainText('未启用')
+  await expect(plugRow).toContainText('Not enabled')
   await plugRow.click()
   await expect(win.locator('.exp-area')).toContainText('superpowers:brainstorming')
   await win.locator('.exp-area .ptab', { hasText: 'Hooks' }).click()
@@ -1185,7 +1185,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   const memRow = win.locator('.it.row-btn', { hasText: 'demo-proj' })
   await memRow.click()
   await win.locator('.sub-list .it.row-btn', { hasText: 'pitfalls.md' }).click()
-  await expect(win.locator('.drawer .raw')).toContainText('独特内容乙')
+  await expect(win.locator('.drawer .raw')).toContainText('Unique content B')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // 抽屉盖住窗口中心,点左侧可见 mask 区
 
   // ④ demo 详情:F3 之二——project 层启用;Skills 分栏含插件命名空间条目(只读)
@@ -1193,7 +1193,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await win.locator('.side .row', { hasText: 'demo-proj' }).click()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
   const detRow = win.locator('.it.row-btn', { hasText: 'superpowers@official' })
-  await expect(detRow).toContainText('启用')
+  await expect(detRow).toContainText('Enabled')
   await expect(detRow).toContainText('project 层')
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   const nsSkill = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
@@ -1204,13 +1204,13 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(nsSkill.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
   // ⑤ 详情 Memory:MEMORY.md 主体直接渲染
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
-  await expect(win.locator('.pane-body .md')).toContainText('要点甲')
+  await expect(win.locator('.pane-body .md')).toContainText('Key point A')
 
   // ⑥ 主文件里的相对链接:点击**不得导航整窗**(2026-08-02 bug 回归点),
   //    有效目标在 app 内开抽屉;失效目标提示且仍不导航。
   const urlBefore = win.url()
   await win.locator('.pane-body .md a', { hasText: '踩坑' }).click()
-  await expect(win.locator('.drawer .raw')).toContainText('独特内容乙')
+  await expect(win.locator('.drawer .raw')).toContainText('Unique content B')
   expect(win.url()).toBe(urlBefore)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await win.locator('.pane-body .md a', { hasText: '已删' }).click()
@@ -1258,27 +1258,27 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   // 全局库:tdd(含一层子目录脚本)+ review-code(仅全局)
   const gskills = join(home, '.claude', 'skills')
   mkdirSync(join(gskills, 'tdd', 'scripts'), { recursive: true })
-  writeFileSync(join(gskills, 'tdd', 'SKILL.md'), '---\ndescription: 红先于绿\n---\n\n全局正文甲\n')
-  writeFileSync(join(gskills, 'tdd', 'scripts', 'run.sh'), 'echo 独特脚本乙\n')
+  writeFileSync(join(gskills, 'tdd', 'SKILL.md'), '---\ndescription: Red before green\n---\n\nGlobal body A\n')
+  writeFileSync(join(gskills, 'tdd', 'scripts', 'run.sh'), 'echo Unique script B\n')
   mkdirSync(join(gskills, 'review-code'), { recursive: true })
   writeFileSync(join(gskills, 'review-code', 'SKILL.md'), '---\ndescription: 四层法\n---\n\n全局正文丁\n')
   // 软链 skill:目标在所有已知 skills 根之外(dotfiles/monorepo 形态,2026-08-07 bug 回归点)
   const linkTarget = join(home, 'repo', 'skills', 'linked-skill')
   mkdirSync(linkTarget, { recursive: true })
-  writeFileSync(join(linkTarget, 'SKILL.md'), '---\ndescription: 链装\n---\n\n软链正文戊\n')
+  writeFileSync(join(linkTarget, 'SKILL.md'), '---\ndescription: 链装\n---\n\nSymlink body E\n')
   symlinkSync(linkTarget, join(gskills, 'linked-skill'))
   // 项目级同名 tdd:详情列表应只见这一份(B1)
   mkdirSync(join(demo, '.claude', 'skills', 'tdd'), { recursive: true })
   writeFileSync(
     join(demo, '.claude', 'skills', 'tdd', 'SKILL.md'),
-    '---\ndescription: 项目版\n---\n\n项目版正文丙\n'
+    '---\ndescription: 项目版\n---\n\nProject body C\n'
   )
   // user 层启用插件(含 skills)→ 全局 Skills 出插件命名空间行
   const pkg = join(home, 'plug-pkg')
   mkdirSync(join(pkg, '.claude-plugin'), { recursive: true })
   writeFileSync(join(pkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'superpowers' }))
   mkdirSync(join(pkg, 'skills', 'brainstorming'), { recursive: true })
-  writeFileSync(join(pkg, 'skills', 'brainstorming', 'SKILL.md'), '---\ndescription: 先问后做\n---\nx')
+  writeFileSync(join(pkg, 'skills', 'brainstorming', 'SKILL.md'), '---\ndescription: Ask before acting\n---\nx')
   mkdirSync(join(home, '.claude', 'plugins'), { recursive: true })
   writeFileSync(
     join(home, '.claude', 'plugins', 'installed_plugins.json'),
@@ -1304,12 +1304,12 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(tdd.locator('.files-card')).toBeVisible()
   await expect(tdd.locator('.files-sum')).toHaveCount(0) // 汇总条已上行,展开区不再重复
   await tdd.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-fm')).toContainText('红先于绿')
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('全局正文甲')
+  await expect(win.locator('.skill-drawer .md-fm')).toContainText('Red before green')
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Global body A')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // 点包内另一文本文件切换内容:非 md 无「原文|预览」切换钮,仅等宽原文
   await tdd.locator('.files button', { hasText: 'scripts/run.sh' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('独特脚本乙')
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Unique script B')
   await expect(win.locator('.skill-drawer .md-preview-seg')).toHaveCount(0)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
@@ -1318,7 +1318,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(linked.locator('.pill.ln')).toBeVisible()
   await linked.locator('.sk-head').click()
   await linked.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('软链正文戊')
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Symlink body E')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
   // ② 插件命名空间行:与磁盘同权展开预览(A4,ADR-0012 推翻 v1 排除;行内统计同权)
@@ -1326,7 +1326,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(plug.locator('.sk-meta')).toContainText('1 个文件')
   await plug.locator('.sk-head').click()
   await plug.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-fm')).toContainText('先问后做')
+  await expect(win.locator('.skill-drawer .md-fm')).toContainText('Ask before acting')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await plug.locator('.sk-head').click() // 收起,不干扰后续定位
 
@@ -1344,7 +1344,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   ).toBeVisible()
   await detTdd.locator('.sk-head').click()
   await detTdd.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('项目版正文丙')
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Project body C')
 
   // ④ 抽屉宽度沿用 chrome-w 公式(上限 720):窄窗不得盖满内容区(2026-08-02 bug 同源回归点)
   await win.setViewportSize({ width: 900, height: 800 })
@@ -1376,7 +1376,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   mkdirSync(join(sp, 'skills', 'brainstorming'), { recursive: true })
   writeFileSync(
     join(sp, 'skills', 'brainstorming', 'SKILL.md'),
-    '---\ndescription: 先问后做\n---\n\n插件正文甲\n'
+    '---\ndescription: Ask before acting\n---\n\nPlugin body A\n'
   )
   mkdirSync(join(sp, 'skills', 'writing-plans'), { recursive: true })
   writeFileSync(join(sp, 'skills', 'writing-plans', 'SKILL.md'), '---\ndescription: 写计划\n---\nx\n')
@@ -1390,7 +1390,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   mkdirSync(join(ct, '.claude-plugin'), { recursive: true })
   writeFileSync(join(ct, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'content-tools' }))
   mkdirSync(join(ct, 'skills', 'publish'), { recursive: true })
-  writeFileSync(join(ct, 'skills', 'publish', 'SKILL.md'), '---\ndescription: 发布\n---\n\n未启用也可审阅乙\n')
+  writeFileSync(join(ct, 'skills', 'publish', 'SKILL.md'), '---\ndescription: 发布\n---\n\nReadable while disabled B\n')
   // 整包缺失插件(E6)
   mkdirSync(join(home, '.claude', 'plugins'), { recursive: true })
   writeFileSync(
@@ -1413,7 +1413,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   mkdirSync(join(cxBase, '2.0.0', 'skills', 'documents'), { recursive: true })
   writeFileSync(
     join(cxBase, '2.0.0', 'skills', 'documents', 'SKILL.md'),
-    '---\ndescription: 文档\n---\n\nCodex 正文丙\n'
+    '---\ndescription: 文档\n---\n\nCodex body C\n'
   )
 
   const l = await launch(undefined, home)
@@ -1430,8 +1430,8 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   await expect(bRow.locator('.meta')).toContainText('1 个文件')
   await bRow.click()
   await spExp.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('插件正文甲')
-  await expect(win.locator('.skill-drawer .d-meta')).toContainText('插件包')
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Plugin body A')
+  await expect(win.locator('.skill-drawer .d-meta')).toContainText('Plugin package')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await spRow.click() // 收起,后续 .files 定位不被本行的表抢占
 
@@ -1440,7 +1440,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   const ctRow = win.locator('.psk', { hasText: 'content-tools:publish' })
   await ctRow.click()
   await win.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('未启用也可审阅乙')
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Readable while disabled B')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await win.locator('.it.row-btn', { hasText: 'content-tools@local' }).click() // 收起
 
@@ -1454,7 +1454,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   const cxPsk = win.locator('.psk', { hasText: 'documents:documents' })
   await cxPsk.click()
   await win.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Codex 正文丙')
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Codex body C')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -1473,7 +1473,7 @@ test('automatic refresh: a new session appears without a manual refresh, and the
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
   const gskills = join(home, '.claude', 'skills')
   mkdirSync(join(gskills, 'tdd'), { recursive: true })
-  writeFileSync(join(gskills, 'tdd', 'SKILL.md'), '---\ndescription: 红先于绿\n---\n\n保态正文己\n')
+  writeFileSync(join(gskills, 'tdd', 'SKILL.md'), '---\ndescription: Red before green\n---\n\n保态正文己\n')
   const enc = demo.replace(/[^a-zA-Z0-9]/g, '-')
   const cdir = join(home, '.claude', 'projects', enc)
   mkdirSync(cdir, { recursive: true })
@@ -1500,7 +1500,7 @@ test('automatic refresh: a new session appears without a manual refresh, and the
       // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
       // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
 // the tests
-      AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN',
+      AGENTSHED_SYSTEM_LANGUAGES: 'en-US',
       AGENTSHED_RESCAN_MS: '1500' // E5 测试 seam:兜底间隔缩短驱动全链路
     }
   })
@@ -1559,7 +1559,7 @@ const TREND_MOUNTS = [
       // fixture home 保证有且只有一个项目,不再需要"本机没项目就 skip"的分支
       await rows.first().waitFor({ state: 'visible', timeout: 8000 })
       await rows.first().click()
-      await win.locator('.pane-head .tabs .tab', { hasText: '概览' }).click()
+      await win.locator('.pane-head .tabs .tab', { hasText: 'Overview' }).click()
     }
   }
 ]
@@ -1615,7 +1615,7 @@ for (const mount of TREND_MOUNTS) {
     expect(await checkAxis()).toEqual([])
 
     // 视图切换后轴跟随当前视图的数据日(合计→Claude→合计,往返无残留)
-    for (const m of ['Claude', '合计']) {
+    for (const m of ['Claude', 'Total']) {
       await win.locator('.grp-t .seg button', { hasText: m }).click()
       expect(await checkAxis(), `切到 ${m} 后`).toEqual([])
     }
@@ -1648,7 +1648,7 @@ for (const mount of TREND_MOUNTS) {
 
     // ③ 提示内容是多行明细(合计 + 至少一个 provider 行)
     const tip = await win.locator('.chart .col').nth(15).getAttribute('data-tip')
-    expect(tip).toContain('合计')
+    expect(tip).toContain('Total')
 
     expect(l.errors).toEqual([])
     await close(l)
@@ -1661,7 +1661,7 @@ test('the sessions section: a fork session has its replay prefix stripped and is
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  await win.locator('.pane-head .tabs .tab', { hasText: '会话' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
 
   const rows = win.locator('.pane-body .card .se')
   await expect(rows).toHaveCount(3)
@@ -1670,18 +1670,18 @@ test('the sessions section: a fork session has its replay prefix stripped and is
     win.locator('.pane-body .card .se').filter({ hasText: title })
 
   // 父会话:不是 fork,两条提问,无标记
-  await expect(rowOf('父会话第一问').locator('.n')).toHaveText('2 提问')
-  await expect(rowOf('父会话第一问').locator('.pill')).toHaveCount(0)
+  await expect(rowOf('Parent first question').locator('.n')).toHaveText('2 提问')
+  await expect(rowOf('Parent first question').locator('.pill')).toHaveCount(0)
 
   // 子会话:重放的两条被剥掉,只剩自己那条;标 ⑂ fork
-  const child = rowOf('子会话的新问')
+  const child = rowOf('Child new question')
   await expect(child.locator('.n'), '重放前缀未剥离的话会是 3 提问').toHaveText('1 提问')
   await expect(child.locator('.pill.fork')).toHaveText('⑂ fork')
   await expect(child.locator('.pill.forkq')).toHaveCount(0)
 
   // 孤儿 fork:父不在扫描集内,标存疑而不是确定
-  const orphan = rowOf('孤儿会话的问')
-  await expect(orphan.locator('.pill.forkq')).toContainText('剥离存疑')
+  const orphan = rowOf('Orphan session question')
+  await expect(orphan.locator('.pill.forkq')).toContainText('uncertain strip')
   await expect(orphan.locator('.pill.fork')).toHaveCount(0)
 
   expect(l.errors).toEqual([])
@@ -1704,11 +1704,11 @@ test('settings: the three appearance choices change data-scheme, and entering an
   await expect(win.locator('.side .row.sel')).toHaveCount(1)
 
   // 设置维
-  await win.getByTitle('设置').click()
-  await expect(win.locator('.settings-h1')).toHaveText('设置')
+  await win.getByTitle('Settings').click()
+  await expect(win.locator('.settings-h1')).toHaveText('Settings')
   await expect(win.locator('.scheme-card')).toHaveCount(3)
   // 设置页现有两处脚注(语言 / 外观),按语义定位而非类名——类名此刻已不唯一
-  await expect(win.getByTestId('appearance-foot')).toContainText('跟随')
+  await expect(win.getByTestId('appearance-foot')).toContainText('Follow')
 
   // 点雾蓝 → data-scheme=blue
   await win.locator('[data-scheme-option="blue"]').click()
@@ -1763,7 +1763,7 @@ async function launchAppearance(home: string): Promise<Launched> {
       NODE_ENV: 'production',
       AGENTSHED_HOME_OVERRIDE: home,
       AGENTSHED_NO_FOREGROUND: '1',
-      AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'
+      AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
     }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
@@ -1804,7 +1804,7 @@ test('appearance: one card with two rows (mode + colour scheme); the scheme card
   const l = await launch(undefined, mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
-  await win.getByTitle('设置').click()
+  await win.getByTitle('Settings').click()
 
   // 一张卡两行:上行模式、下行配色
   const field = win.getByTestId('appearance-field')
@@ -1815,12 +1815,12 @@ test('appearance: one card with two rows (mode + colour scheme); the scheme card
 
   // 配色卡**不含整句描述**:整卡可见文本恰好等于方案名。
   // 用 toHaveText 全等而不是"不含某句"——后者只能否掉我想得到的那一句
-  await expect(win.locator('[data-scheme-option="purple"]')).toHaveText('紫')
-  await expect(win.locator('[data-scheme-option="blue"]')).toHaveText('雾蓝')
-  await expect(win.locator('[data-scheme-option="amber"]')).toHaveText('琥珀褐')
+  await expect(win.locator('[data-scheme-option="purple"]')).toHaveText('Purple')
+  await expect(win.locator('[data-scheme-option="blue"]')).toHaveText('Mist Blue')
+  await expect(win.locator('[data-scheme-option="amber"]')).toHaveText('Amber Brown')
 
   // 「默认为紫」移入段末说明
-  await expect(win.getByTestId('appearance-foot')).toContainText('紫')
+  await expect(win.getByTestId('appearance-foot')).toContainText('Purple')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -1830,7 +1830,7 @@ test('appearance mode: locking light or dark changes the effective light/dark, a
   const l = await launchAppearance(mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
-  await win.getByTitle('设置').click()
+  await win.getByTitle('Settings').click()
 
   // 默认「跟随系统」被选中
   await expect(win.locator('[data-mode-option="system"]')).toHaveAttribute('aria-checked', 'true')
@@ -1866,7 +1866,7 @@ test('appearance: all six combinations of 3 colour schemes × 2 effective light/
   const l = await launchAppearance(mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
-  await win.getByTitle('设置').click()
+  await win.getByTitle('Settings').click()
 
   for (const mode of ['light', 'dark'] as const) {
     await win.locator(`[data-mode-option="${mode}"]`).click()
@@ -1956,12 +1956,12 @@ test('the language selector: seven items including follow-system and the divider
 
   // 语言分节在外观之前:断 DOM 顺序,不靠肉眼看截图
   const secs = win.locator('.settings-sec-t')
-  await expect(secs.first()).toHaveText('语言')
-  await expect(secs.nth(1)).toHaveText('外观')
+  await expect(secs.first()).toHaveText('Language')
+  await expect(secs.nth(1)).toHaveText('Appearance')
 
   // 触发器显示「跟随系统」+ 当前解析结果
   const trig = win.getByTestId('language-trigger')
-  await expect(trig).toContainText('跟随系统')
+  await expect(trig).toContainText('Follow system')
   await expect(trig).toContainText('简体中文')
 
   await trig.click()
@@ -1969,7 +1969,7 @@ test('the language selector: seven items including follow-system and the divider
   await expect(pop.locator('.lang-opt')).toHaveCount(7)
   await expect(pop.locator('.lang-sep')).toHaveCount(1)
   // 首项是策略且显示解析出的语言;它不是「一种语言」
-  await expect(pop.locator('.lang-opt').first()).toContainText('跟随系统')
+  await expect(pop.locator('.lang-opt').first()).toContainText('Follow system')
   await expect(pop.locator('.lang-opt').first()).toContainText('简体中文')
 
   // 浮层不被设置页 overflow:auto 裁掉:四角与中心命中测试,属性存在不算数
@@ -2052,7 +2052,7 @@ test('i18n: the language-locking mechanism itself is reliable, unaffected by the
     const win = await l.app.firstWindow()
     await win.waitForSelector('.rail')
     // launch() 内部把 AGENTSHED_SYSTEM_LANGUAGES 钉为 zh-Hans-CN,故与 sys 无关地恒为中文
-    await expect(win.locator('.ri.set')).toHaveAttribute('title', '设置')
+    await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Settings')
     await close(l)
     void sys
   }
