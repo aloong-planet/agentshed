@@ -1026,7 +1026,8 @@ test('repeated clicks on global refresh are deduplicated, with no errors after t
 })
 
 test('the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors', async () => {
-  // 造一条源文件早已不存在的历史行(模拟 agent 清理掉旧会话后的状态)
+  // Build a historical row whose source file is long gone (simulating the state after the agent cleaned up
+  // old sessions)
   const userData = makeUserData()
   writeFileSync(
     join(userData, 'usage-archive.json'),
@@ -1048,11 +1049,15 @@ test('the archive: a seeded historical archive file → the trend includes an ar
     })
   )
   const errors: string[] = []
-  // 必须给 fixture home:本用例只关心 userData 里的归档文件,却因为没注入 home 而去扫
-  // **开发者的真实 ~/.claude**;又因为 makeUserData() 每次都是全新临时目录,token 缓存
-  // 恒为冷,于是首屏耗时随各人的数据量走。CI 上 home 是空的所以一直绿,本机 600MB+
-  // 数据下本地实测三次挂两次(2026-08-03,票 03a)。
-  // 这是本文件开头那条纪律的漏网之鱼——它没走 launch(),直接调了 electron.launch。
+  // A fixture home is mandatory: this case only cares about the archive file in userData, but without an
+  // injected home it scanned
+  // **the developer's real ~/.claude**; and since makeUserData() gives a fresh temporary directory every
+  // time, the token cache
+  // is always cold, so the first-paint time follows each person's data volume. CI stayed green because its
+  // home is empty, while locally with 600MB+
+  // of data it failed two runs out of three (2026-08-03, ticket 03a).
+  // This one slipped past the discipline stated at the top of this file — it did not go through launch()
+  // and called electron.launch directly.
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
     env: {
@@ -1072,7 +1077,7 @@ test('the archive: a seeded historical archive file → the trend includes an ar
   })
   const win = await app.firstWindow()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
-  // 归档说明条出现(该天源文件不存在 → 计入 archivedDays)
+  // The archive note appears (that day's source file is absent → it counts toward archivedDays)
   await expect(win.locator('.arch-note')).toBeVisible()
   expect(errors).toEqual([])
   await app.close()
@@ -1082,20 +1087,22 @@ test('the archive: a seeded historical archive file → the trend includes an ar
 test('the trend chart is stacked bars: segmented by provider within a bar, and switching to a single side leaves only that side\'s provider segments', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
-  // 合计模式:fixture 预置了两侧用量 → Anthropic 与 OpenAI 段都该在
+  // Combined mode: the fixture seeds usage on both sides → both the Anthropic and OpenAI segments should be
+  // present
   const cols = win.locator('.chart .col')
   await expect(cols).toHaveCount(30)
   const anthropicSegs = win.locator('.chart .col .sp.anthropic')
   await expect(anthropicSegs.first()).toBeVisible()
-  // 图例按 provider(至少 Anthropic 一项)
+  // The legend is by provider (with at least an Anthropic entry)
   await expect(win.locator('.legend .lg .sw.anthropic')).toBeVisible()
-  // 先钉住「切换前 OpenAI 段确实存在」——否则下面那条归零断言在无 Codex
-  // 数据时恒真,测不出任何东西(原来读真实 home 时就有这个隐患)
+  // Pin down "the OpenAI segment really exists before switching" first — otherwise the zeroing assertion
+  // below would be tautologically true
+  // with no Codex data and would test nothing (a hazard that existed back when it read the real home)
   expect(await win.locator('.chart .col .sp.openai').count()).toBeGreaterThan(0)
-  // 切到 Claude 侧:不应再出现 OpenAI 段
+  // Switch to the Claude side: no OpenAI segment should remain
   await win.locator('.grp-t .seg button', { hasText: 'Claude' }).click()
   await expect(win.locator('.chart .col .sp.openai')).toHaveCount(0)
-  // 切回合计,图例回来
+  // Switch back to combined and the legend returns
   await win.locator('.grp-t .seg button', { hasText: 'Total' }).click()
   await expect(win.locator('.legend')).toBeVisible()
   expect(l.errors).toEqual([])
@@ -1114,18 +1121,20 @@ test('the provider brand colours apply: the segments and the legend match, with 
         google: cs.getPropertyValue('--p-google').trim()
       }
     })
-  // 必须先等样式表真正应用再读 CSS 变量:直接读会拿到空串(样式未加载完)。
-  // 这个竞态一直在,只是 app:// 改变了加载时序后才稳定暴露——用渲染完成的元素做闸。
+  // Wait for the stylesheet to actually apply before reading CSS variables: reading directly gives an empty
+  // string (the styles have not finished loading).
+  // This race was always there and only surfaced reliably once app:// changed the load timing — a rendered
+  // element is used as the gate.
   await expect(win.locator('.chart .col').first()).toBeVisible()
   const light = await read()
   expect(light.anthropic.toLowerCase()).toBe('#d97757')
   expect(light.openai.toLowerCase()).toBe('#10a37f')
   expect(light.google.toLowerCase()).toBe('#4285f4')
-  // 段与图例取同一变量
+  // The segment and the legend take the same variable
   const segBg = await win.locator('.chart .col .sp.anthropic').first().evaluate((el) => getComputedStyle(el).backgroundColor)
   const lgBg = await win.locator('.legend .lg .sw.anthropic').first().evaluate((el) => getComputedStyle(el).backgroundColor)
   expect(segBg).toBe(lgBg)
-  // 深色模式另有一套(提亮)
+  // Dark mode has its own set (lightened)
   await win.emulateMedia({ colorScheme: 'dark' })
   const dark = await read()
   expect(dark.anthropic.toLowerCase()).not.toBe(light.anthropic.toLowerCase())
@@ -1135,16 +1144,19 @@ test('the provider brand colours apply: the segments and the legend match, with 
 })
 
 /**
- * v2 组件(Subagents/Memory/Plugins):预置 fixture home(AGENTSHED_HOME_OVERRIDE 注入)
- * 全链路断言 F3 双向场景与新分栏渲染——不依赖本机真实数据。
+ * The v2 components (Subagents/Memory/Plugins): with a seeded fixture home (injected through
+ * AGENTSHED_HOME_OVERRIDE),
+ * assert F3's two-way scenario and the new tabs' rendering end to end — without depending on this
+ * machine's real data.
  */
 test('F3 plus the new sections: a project-scope plugin displays correctly both ways; the Subagents and Memory drawers work end to end', async () => {
-  // 造 fixture home:demo 项目 + project-scope 插件(含 skills/hooks)+ 双端 subagents + memory
+  // Build the fixture home: a demo project + a project-scope plugin (with skills and hooks) + subagents on
+  // both sides + memory
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
   const demo = join(home, 'demo-proj')
   mkdirSync(demo, { recursive: true })
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
-  // 插件包(skills + hooks)
+  // The plugin package (skills + hooks)
   const pkg = join(home, 'plug-pkg')
   mkdirSync(join(pkg, '.claude-plugin'), { recursive: true })
   writeFileSync(join(pkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'superpowers' }))
@@ -1169,7 +1181,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   )
   mkdirSync(join(demo, '.claude'), { recursive: true })
   writeFileSync(join(demo, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'superpowers@official': true } }))
-  // 双端 subagents
+  // Subagents on both sides
   mkdirSync(join(home, '.claude', 'agents'), { recursive: true })
   writeFileSync(
     join(home, '.claude', 'agents', 'code-reviewer.md'),
@@ -1180,7 +1192,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
     join(home, '.codex', 'agents', 'code-reviewer.toml'),
     'name = "code-reviewer"\ndescription = "Review code"\ndeveloper_instructions = "You are a reviewer."\n'
   )
-  // demo 项目的 memory
+  // The demo project's memory
   const enc = demo.replace(/[^A-Za-z0-9]/g, '-')
   mkdirSync(join(home, '.claude', 'projects', enc, 'memory'), { recursive: true })
   writeFileSync(
@@ -1212,7 +1224,8 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   const win = await app.firstWindow()
   const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
 
-  // ① Subagents 分栏:双端同名合并一行,点行直开抽屉,抽屉内切双端
+  // (1) The Subagents tab: the same name on both sides merges onto one row, clicking it opens the drawer
+  // directly, and the drawer switches sides
   await tab('Subagents').click()
   const row = win.locator('.it.row-btn', { hasText: 'code-reviewer' })
   await expect(row).toHaveCount(1)
@@ -1223,7 +1236,8 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(win.locator('.drawer .kv')).toContainText('sandbox_mode')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // 抽屉盖住窗口中心,点左侧可见 mask 区
 
-  // ② 全局 Plugins:F3 之一——user 层未启用;展开为类目 tab,Skills 默认、Hooks 切换可见
+  // (2) Global Plugins: F3's first half — not enabled at the user layer; expanding gives category tabs,
+  // with Skills by default and Hooks visible on switching
   await tab('Plugins').click()
   const plugRow = win.locator('.it.row-btn', { hasText: 'superpowers@official' })
   await expect(plugRow).toContainText('Not enabled')
@@ -1232,7 +1246,8 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await win.locator('.exp-area .ptab', { hasText: 'Hooks' }).click()
   await expect(win.locator('.exp-area')).toContainText('SessionStart × 1')
 
-  // ③ 全局 Memory:行展开文件列表,点文件抽屉经白名单按需读取
+  // (3) Global Memory: a row expands its file list, and clicking a file reads it on demand through the
+  // allow-list into a drawer
   await tab('Memory').click()
   const memRow = win.locator('.it.row-btn', { hasText: 'demo-proj' })
   await memRow.click()
@@ -1240,7 +1255,8 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(win.locator('.drawer .raw')).toContainText('Unique content B')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // 抽屉盖住窗口中心,点左侧可见 mask 区
 
-  // ④ demo 详情:F3 之二——project 层启用;Skills 分栏含插件命名空间条目(只读)
+  // (4) The demo detail page: F3's second half — enabled at the project layer; the Skills tab contains the
+  // plugin namespace entry (read-only)
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row', { hasText: 'demo-proj' }).click()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
@@ -1251,15 +1267,17 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   const nsSkill = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
   await expect(nsSkill).toBeVisible()
   await expect(nsSkill.locator('.ins')).toHaveCount(0) // G3:插件条目无装卸按钮
-  // A4/ADR-0012:命名空间行与磁盘同权展开预览
+  // A4/ADR-0012: a namespace row expands and previews on equal footing with an on-disk one
   await nsSkill.locator('.sk-head').click()
   await expect(nsSkill.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
-  // ⑤ 详情 Memory:MEMORY.md 主体直接渲染
+  // (5) Detail Memory: MEMORY.md's body is rendered directly
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
   await expect(win.locator('.pane-body .md')).toContainText('Key point A')
 
-  // ⑥ 主文件里的相对链接:点击**不得导航整窗**(2026-08-02 bug 回归点),
-  //    有效目标在 app 内开抽屉;broken target提示且仍不导航。
+  // (6) A relative link in the main file: clicking it **must not navigate the whole window** (the
+  //     2026-08-02 bug regression point),
+  //     a valid target opens a drawer inside the app, and a broken target gets a notice while still not
+  //     navigating.
   const urlBefore = win.url()
   await win.locator('.pane-body .md a', { hasText: 'Pitfalls' }).click()
   await expect(win.locator('.drawer .raw')).toContainText('Unique content B')
@@ -1269,8 +1287,10 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(win.locator('.toast')).toBeVisible()
   expect(win.url()).toBe(urlBefore)
 
-  // ⑦ 抽屉宽度 = min(680, 右侧内容区 80%):narrow window下不得盖满内容区(2026-08-02 bug)。
-  //    几何检验,不看 CSS 声明——声明对了但变量没接线照样会盖满。
+  // (7) The drawer width = min(680, 80% of the right-hand content area): in a narrow window it must not
+  //     cover the whole content area (the 2026-08-02 bug).
+  //     A geometric check rather than reading the CSS declaration — a correct declaration with an unwired
+  //     variable would still cover it.
   const drawerGeom = async (): Promise<{ pane: number; drawer: number; left: number; paneLeft: number }> =>
     win.evaluate(() => {
       const d = document.querySelector('.drawer') as HTMLElement
@@ -1299,33 +1319,36 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
 })
 
 /**
- * skills-view:磁盘 skill 折叠文件表 + 抽屉读正文(md 预览 / 非 md 原文)、
- * 详情同侧同名只列项目级(B1)、插件行不可展开(A4)。fixture home 全链路。
+ * skills-view: an on-disk skill expands into a file table with a drawer for reading (markdown preview /
+ * raw for non-markdown),
+ * a same-side same-name pair in detail lists only the project level (B1), and plugin rows expand (A4).
+ * End to end with a fixture home.
  */
 test('Skills view: expanding globally reads the package; a same-name pair in detail shows only the project level; plugin rows do not expand', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
   const demo = join(home, 'demo-proj')
   mkdirSync(demo, { recursive: true })
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
-  // 全局库:tdd(含一层子目录脚本)+ review-code(仅全局)
+  // The global library: tdd (with a script one subdirectory down) + review-code (global only)
   const gskills = join(home, '.claude', 'skills')
   mkdirSync(join(gskills, 'tdd', 'scripts'), { recursive: true })
   writeFileSync(join(gskills, 'tdd', 'SKILL.md'), '---\ndescription: Red before green\n---\n\nGlobal body A\n')
   writeFileSync(join(gskills, 'tdd', 'scripts', 'run.sh'), 'echo Unique script B\n')
   mkdirSync(join(gskills, 'review-code'), { recursive: true })
   writeFileSync(join(gskills, 'review-code', 'SKILL.md'), '---\ndescription: Four-layer method\n---\n\nGlobal body D\n')
-  // 软链 skill:目标在所有已知 skills 根之外(dotfiles/monorepo 形态,2026-08-07 bug 回归点)
+  // A symlinked skill whose target is outside every known skills root (the dotfiles/monorepo shape, the
+  // 2026-08-07 bug regression point)
   const linkTarget = join(home, 'repo', 'skills', 'linked-skill')
   mkdirSync(linkTarget, { recursive: true })
   writeFileSync(join(linkTarget, 'SKILL.md'), '---\ndescription: Symlink install\n---\n\nSymlink body E\n')
   symlinkSync(linkTarget, join(gskills, 'linked-skill'))
-  // 项目级同名 tdd:详情列表应只见这一份(B1)
+  // A project-level tdd of the same name: the detail list should show only this one (B1)
   mkdirSync(join(demo, '.claude', 'skills', 'tdd'), { recursive: true })
   writeFileSync(
     join(demo, '.claude', 'skills', 'tdd', 'SKILL.md'),
     '---\ndescription: Project version\n---\n\nProject body C\n'
   )
-  // user 层启用插件(含 skills)→ 全局 Skills 出插件命名空间行
+  // A plugin enabled at the user layer (with skills) → the global Skills tab shows the plugin namespace row
   const pkg = join(home, 'plug-pkg')
   mkdirSync(join(pkg, '.claude-plugin'), { recursive: true })
   writeFileSync(join(pkg, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'superpowers' }))
@@ -1347,8 +1370,10 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   const l = await launch(undefined, home)
   const win = await l.app.firstWindow()
 
-  // ① 全局 Skills:折叠行即有包统计(文件数/大小,不含行数);点行展开文件表;
-  //    点 SKILL.md 开抽屉,md 默认预览(frontmatter 卡片 + 正文)
+  // (1) Global Skills: a collapsed row already carries package stats (file count / size, without line
+  //     counts); clicking a row expands the file table;
+  //     clicking SKILL.md opens the drawer, with markdown previewing by default (a frontmatter card plus
+  //     the body)
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   const tdd = win.locator('.sk', { hasText: 'tdd' })
   await expect(tdd.locator('.sk-meta')).toContainText('2 files')
@@ -1359,13 +1384,15 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(win.locator('.skill-drawer .md-fm')).toContainText('Red before green')
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Global body A')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
-  // 点包内另一文本文件切换内容:非 md 无「原文|预览」切换钮,仅等宽原文
+  // Clicking another text file in the package switches the content: non-markdown has no raw/preview toggle
+  // and shows monospace raw only
   await tdd.locator('.files button', { hasText: 'scripts/run.sh' }).click()
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Unique script B')
   await expect(win.locator('.skill-drawer .md-preview-seg')).toHaveCount(0)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
-  // ①b 软链 skill(目标在根外):行有软链徽标,展开与读文件全链路可用(A6)
+  // (1b) A symlinked skill whose target is outside the roots: the row carries the symlink badge, and
+  //      expanding and reading files work end to end (A6)
   const linked = win.locator('.sk', { hasText: 'linked-skill' })
   await expect(linked.locator('.pill.ln')).toBeVisible()
   await linked.locator('.sk-head').click()
@@ -1373,7 +1400,8 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Symlink body E')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
-  // ② 插件命名空间行:与磁盘同权展开预览(A4,ADR-0012 推翻 v1 排除;行内统计同权)
+  // (2) The plugin namespace row: expands and previews on equal footing with an on-disk one (A4; ADR-0012
+  //     overturned the v1 exclusion, and the inline stats are on equal footing too)
   const plug = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
   await expect(plug.locator('.sk-meta')).toContainText('1 files')
   await plug.locator('.sk-head').click()
@@ -1382,7 +1410,8 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await plug.locator('.sk-head').click() // 收起,不干扰后续定位
 
-  // ③ 详情 Skills:同名只列项目级、无第二份全局行;仅全局有的仍列出;项目级行可预览
+  // (3) Detail Skills: a same-name pair lists only the project level with no second global row; names
+  //     present only globally are still listed; project-level rows preview
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row', { hasText: 'demo-proj' }).click()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
@@ -1398,7 +1427,8 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await detTdd.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Project body C')
 
-  // ④ 抽屉宽度沿用 chrome-w 公式(上限 720):narrow window不得盖满内容区(2026-08-02 bug 同源回归点)
+  // (4) The drawer width reuses the chrome-w formula (capped at 720): in a narrow window it must not cover
+  //     the whole content area (the same-origin regression point as the 2026-08-02 bug)
   await win.setViewportSize({ width: 900, height: 800 })
   const g = await win.evaluate(() => {
     const d = (document.querySelector('.skill-drawer') as HTMLElement).getBoundingClientRect()
@@ -1413,15 +1443,16 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
 })
 
 /**
- * plugins-view 序列 H:插件 skill 原地预览——类目 tab、行式列表、可读与启用态无关、
- * 缺失置灰、Codex 组仅 Skills tab。fixture home 全链路。
+ * plugins-view sequence H: previewing a plugin skill in place — category tabs, a row list, readability
+ * independent of enablement,
+ * a greyed-out missing state, and the Codex group having only a Skills tab. End to end with a fixture home.
  */
 test('previewing a plugin skill in place: the tab expands and reads the package; a disabled plugin is readable; a missing one is greyed out; the Codex group', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
   const demo = join(home, 'demo-proj')
   mkdirSync(demo, { recursive: true })
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
-  // 启用插件:2 个 skill + 1 个 hooks(类目 tab 需要多类)
+  // An enabled plugin: 2 skills + 1 hooks (category tabs need more than one category)
   const sp = join(home, 'pkg-sp')
   mkdirSync(join(sp, '.claude-plugin'), { recursive: true })
   writeFileSync(join(sp, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'superpowers' }))
@@ -1437,7 +1468,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
     join(sp, 'hooks', 'hooks.json'),
     JSON.stringify({ hooks: { SessionStart: [{ matcher: 'startup', hooks: [] }] } })
   )
-  // 未启用插件:1 个 skill(H4:仍可读)
+  // A disabled plugin: 1 skill (H4: still readable)
   const ct = join(home, 'pkg-ct')
   mkdirSync(join(ct, '.claude-plugin'), { recursive: true })
   writeFileSync(join(ct, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'content-tools' }))
