@@ -46,7 +46,7 @@ die() {
   echo "SMOKE_FAIL: $1"
   # 现场必须留档:三次排查全因调用方 grep 掉了这段输出而无证可查(2026-08-04 复盘)
   KEEP="/tmp/agentshed-smoke-fail-$(date +%Y%m%d-%H%M%S).log"
-  cp "$LOG" "$KEEP" 2>/dev/null && echo "完整日志已存:$KEEP"
+  cp "$LOG" "$KEEP" 2>/dev/null && echo "Full log saved to: $KEEP"
   tail -25 "$LOG"
   cleanup
   exit 1
@@ -60,7 +60,7 @@ OTHERS=$(pgrep -f "Agentshed.app/Contents/MacOS/Agentshed|agentshed.*$ELECTRON_B
     *Electron | *Agentshed) echo "$p" ;;
   esac
 done | tr '\n' ' ')
-[ -n "$OTHERS" ] && echo "(检测到已有实例 pid=$OTHERS —— userData 已隔离,互不影响,不会误杀)"
+[ -n "$OTHERS" ] && echo "(existing instance detected, pid=$OTHERS — userData is isolated, so they do not affect each other and none will be killed by mistake)"
 
 REAL_BEFORE=$(stat -f %m "$REAL_CACHE" 2>/dev/null || echo 0)
 
@@ -77,7 +77,7 @@ AGENTSHED_NO_FOREGROUND=1 pnpm dev -- --user-data-dir="$SMOKE_UD" > "$LOG" 2>&1 
 DEVPID=$!
 T0=$(now_ms)
 until alive; do
-  (( $(now_ms) - T0 > START_TIMEOUT * 1000 )) && die "${START_TIMEOUT}s 内 electron 未启动(本组内)"
+  (( $(now_ms) - T0 > START_TIMEOUT * 1000 )) && die "electron did not start within ${START_TIMEOUT}s (in this process group)"
   sleep 0.2
 done
 UP_MS=$(( $(now_ms) - T0 ))
@@ -87,27 +87,27 @@ UP_MS=$(( $(now_ms) - T0 ))
 T1=$(now_ms)
 until [ "$(stat -f %m "$CACHE" 2>/dev/null || echo 0)" -gt 0 ]; do
   if ! alive; then
-    die "electron 启动后又退出了(主进程崩溃?看下方日志)"
+    die "electron started and then exited (main process crash? see the log below)"
   fi
   if (( $(now_ms) - T1 > READY_TIMEOUT * 1000 )); then
     # 判别诊断:隔离缓存没动而真实缓存动了 = --user-data-dir 透传失效
     # (electron-vite 升级弃透传之类),app 跑去写真实 userData 了
     REAL_NOW=$(stat -f %m "$REAL_CACHE" 2>/dev/null || echo 0)
     if [ "$REAL_NOW" -gt "$REAL_BEFORE" ]; then
-      die "userData 重定向失效:隔离缓存未更新,真实缓存却更新了——检查 pnpm dev 的 --user-data-dir 透传"
+      die "userData redirection failed: the isolated cache was not updated but the real one was — check that pnpm dev forwards --user-data-dir"
     fi
-    die "${READY_TIMEOUT}s 内未完成首次扫描(隔离缓存未更新)"
+    die "first scan did not finish within ${READY_TIMEOUT}s (isolated cache not updated)"
   fi
   sleep 0.3
 done
 READY_MS=$(( $(now_ms) - T1 ))
 
-ERRS=$(grep -iE "Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败|uncaught" "$LOG" | head -5)
+ERRS=$(grep -iE "Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|uncaught" "$LOG" | head -5)
 
 EPID=$(pgrep -g "$DEVPID" -f "$ELECTRON_BIN" | head -1)
 # 竞态守卫:app 可能写完就绪产物后立刻崩——EPID 取不到时,杀父与孤儿检查整段
 # 空转,若日志又没有错误行就是假绿。就绪后进程必须还活着,不在即失败。
-[ -z "$EPID" ] && die "就绪产物已写出,但 electron 进程已消失(写完即崩?)"
+[ -z "$EPID" ] && die "the ready artifact was written but the electron process is gone (crashed right after writing?)"
 PARENT=$(ps -o ppid= -p "$EPID" | tr -d ' ')
 T2=$(now_ms)
 kill -9 "$PARENT" 2>/dev/null
@@ -120,21 +120,21 @@ DOWN_MS=$(( $(now_ms) - T2 ))
 
 # 失败一律带上下文再退:只 echo 命中的那几行,等于把现场丢了(2026-08-03 教训)
 if [ -n "$ERRS" ]; then
-  echo "SMOKE_FAIL 主进程有错误:"; echo "$ERRS"
+  echo "SMOKE_FAIL main process reported errors:"; echo "$ERRS"
   KEEP="/tmp/agentshed-smoke-fail-$(date +%Y%m%d-%H%M%S).log"
-  cp "$LOG" "$KEEP" 2>/dev/null && echo "完整日志已存:$KEEP"
-  echo "--- $LOG 末 25 行 ---"; tail -25 "$LOG"
+  cp "$LOG" "$KEEP" 2>/dev/null && echo "Full log saved to: $KEEP"
+  echo "--- last 25 lines of $LOG ---"; tail -25 "$LOG"
   cleanup
   exit 1
 fi
 if [ "$LEFT" != "0" ]; then
-  echo "SMOKE_FAIL: 孤儿防护未生效(${EXIT_TIMEOUT}s 内 electron 未自退)"
-  echo "--- 本组仍在的进程 ---"; pgrep -g "$DEVPID" -fl "$ELECTRON_BIN"
+  echo "SMOKE_FAIL: orphan guard did not work (electron did not exit within ${EXIT_TIMEOUT}s)"
+  echo "--- processes still alive in this group ---"; pgrep -g "$DEVPID" -fl "$ELECTRON_BIN"
   KEEP="/tmp/agentshed-smoke-fail-$(date +%Y%m%d-%H%M%S).log"
-  cp "$LOG" "$KEEP" 2>/dev/null && echo "完整日志已存:$KEEP"
-  echo "--- $LOG 末 25 行 ---"; tail -25 "$LOG"
+  cp "$LOG" "$KEEP" 2>/dev/null && echo "Full log saved to: $KEEP"
+  echo "--- last 25 lines of $LOG ---"; tail -25 "$LOG"
   cleanup
   exit 1
 fi
 cleanup
-echo "SMOKE_OK: 启动 ${UP_MS}ms · 首扫 ${READY_MS}ms · 杀父后自退 ${DOWN_MS}ms;无错误、无孤儿"
+echo "SMOKE_OK: startup ${UP_MS}ms · first scan ${READY_MS}ms · self-exit after parent kill ${DOWN_MS}ms; no errors, no orphans"

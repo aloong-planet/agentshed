@@ -64,8 +64,11 @@ async function launch(cacheContent: string | undefined, home: string): Promise<L
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    // 主进程未捕获错误 / IPC handler 异常 / 契约校验失败都算失败信号
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败/.test(t)) {
+    // 主进程未捕获错误 / IPC handler 异常 / 任何结构化失败都算失败信号。
+    // `agentshed-error:` 是票 05 起所有跨进程失败的共同标记——它取代了原先按
+    // 「契约校验失败」这条中文措辞匹配的写法:那条措辞在票 06 后已不复存在,
+    // 模式因此成了死模式,再也匹配不到任何东西(探测网被悄悄削弱)。
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) {
       errors.push(t.trim())
     }
   })
@@ -977,7 +980,7 @@ test('归档:预置历史归档文件 → 趋势含归档段并有说明,主进�
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败/.test(t)) errors.push(t)
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) errors.push(t)
   })
   const win = await app.firstWindow()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
@@ -1115,7 +1118,7 @@ test('F3+新分栏:project-scope 插件双向显示;Subagents/Memory 抽屉全�
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败/.test(t)) errors.push(t)
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) errors.push(t)
   })
   const win = await app.firstWindow()
   const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
@@ -1465,7 +1468,7 @@ test('自动保鲜:新会话免手动刷新自动出现;详情展开态不因刷
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败/.test(t)) errors.push(t)
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) errors.push(t)
   })
   const win = await app.firstWindow()
   const total = win.locator('.stats .v').first()
@@ -1727,7 +1730,7 @@ async function launchAppearance(home: string): Promise<Launched> {
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败/.test(t)) {
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) {
       errors.push(t.trim())
     }
   })
@@ -1878,7 +1881,7 @@ async function launchWithLangs(sysLangs: string): Promise<Launched> {
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|契约校验失败/.test(t)) {
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) {
       errors.push(t.trim())
     }
   })

@@ -24,7 +24,7 @@ const read = (p) => (existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), 'ut
 const SHARED_BLOCKS = [
   {
     id: 'trend-chart',
-    label: 'provider 堆叠趋势图',
+    label: 'provider stacked trend chart',
     /** 声明使用它的页面必须引用的资源 */
     assets: ['_shared/trend-chart.css', '_shared/trend-chart.js'],
     /** 声明使用它的页面必须具备的挂载点(以 id 属性出现) */
@@ -35,7 +35,7 @@ const SHARED_BLOCKS = [
         files: ['docs/prototypes/_shared/trend-chart.css', 'src/renderer/src/theme.css'],
         selector: '.col',
         forbid: /overflow:\s*hidden/,
-        why: '柱体裁剪会切掉定位在柱外的 tooltip 伪元素'
+        why: 'clipping the bar cuts off the tooltip pseudo-element positioned outside it'
       }
     ],
     /** app 侧对应组件与必需 props */
@@ -140,58 +140,58 @@ const GLOBAL_RULES = [
     // 票 15 的 AC「任一入口都能到达其余五种」是**可判定属性**,故固化成门禁而非靠肉眼看
     // (2026-08-09 用户裁定)。它防的是:新增语种或改文件名时,漏补其余文件里的链接——
     // 那种漏没有任何别的东西会提醒,而读者只有点到死链才会发现。
-    name: 'README 六语互相可达(任一入口都能到达其余五种)',
+    name: 'READMEs in six languages reach each other (any entry point leads to the other five)',
     check() {
       const bad = []
       const FILES = ['README.md', 'README.en.md', 'README.fr.md', 'README.es.md', 'README.ru.md', 'README.ja.md']
       for (const f of FILES) {
         const src = read(f)
         if (src === null) {
-          bad.push(`缺少 ${f}`)
+          bad.push(`missing ${f}`)
           continue
         }
         const linked = new Set([...src.matchAll(/\]\((README[^)]*\.md)\)/g)].map((m) => m[1]))
         for (const other of FILES) {
-          if (other !== f && !linked.has(other)) bad.push(`${f}:未链到 ${other}`)
+          if (other !== f && !linked.has(other)) bad.push(`${f}: no link to ${other}`)
         }
         // 当前语言应是**唯一**的粗体项:零个 = 读者不知道自己在哪份,多个 = 复制粘贴时漏改
         const nav = src.split('\n').find((l) => l.includes('README.en.md') || l.includes('README.md)')) ?? ''
         const bold = (nav.match(/\*\*[^*]+\*\*/g) ?? []).length
-        if (bold !== 1) bad.push(`${f}:语言切换区应恰好一处粗体(当前 ${bold} 处)`)
+        if (bold !== 1) bad.push(`${f}: the language switcher must have exactly one bold entry (found ${bold})`)
       }
       return bad
     }
   },
   {
-    name: '设置页色板取样与 theme.css 的主题变量一致(改主题色不得漏改取样表)',
+    name: 'settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)',
     cross: true,
     check() {
       const bad = []
       const cssRaw = read('src/renderer/src/theme.css')
       const tsx = read('src/renderer/src/SettingsPane.tsx')
       // 读不到文件本身就是问题:静默跳过等于这条规则在文件被改名后自动失效
-      if (cssRaw === null) return ['读不到 src/renderer/src/theme.css']
-      if (tsx === null) return ['读不到 src/renderer/src/SettingsPane.tsx']
+      if (cssRaw === null) return ['cannot read src/renderer/src/theme.css']
+      if (tsx === null) return ['cannot read src/renderer/src/SettingsPane.tsx']
       const { light, dark } = splitByColorScheme(stripCssComments(cssRaw))
       for (const [mode, part] of [['light', light], ['dark', dark]]) {
         for (const [scheme, selector] of Object.entries(SCHEME_SELECTORS)) {
           const want = swatchFromCss(part, selector)
           const got = swatchFromTsx(tsx, mode, scheme)
           if (want === null || want.some((v) => v === null)) {
-            bad.push(`theme.css:${mode}.${scheme}(${selector})取不全 ${SWATCH_VARS.join('/')}`)
+            bad.push(`theme.css: ${mode}.${scheme} (${selector}) is missing some of ${SWATCH_VARS.join('/')}`)
             continue
           }
           if (got === null) {
-            bad.push(`SettingsPane.tsx:SCHEME_SWATCH.${mode}.${scheme} 取不到`)
+            bad.push(`SettingsPane.tsx: SCHEME_SWATCH.${mode}.${scheme} not found`)
             continue
           }
           if (got.length !== want.length) {
-            bad.push(`${mode}.${scheme}:取样 ${got.length} 格,theme.css 有 ${want.length} 个变量`)
+            bad.push(`${mode}.${scheme}: ${got.length} swatch(es) but theme.css has ${want.length} variables`)
             continue
           }
           want.forEach((w, i) => {
             if (w !== got[i]) {
-              bad.push(`${mode}.${scheme} 第 ${i + 1} 格(--${SWATCH_VARS[i]}):theme.css=${w},取样表=${got[i]}`)
+              bad.push(`${mode}.${scheme} swatch ${i + 1} (--${SWATCH_VARS[i]}): theme.css=${w}, swatch table=${got[i]}`)
             }
           })
         }
@@ -200,21 +200,21 @@ const GLOBAL_RULES = [
     }
   },
   {
-    name: 'provider 品牌色不得在组件里硬编码(应走 CSS 变量)',
+    name: 'provider brand colours must not be hard-coded in components (use CSS variables)',
     cross: true,
     check() {
       const bad = []
       const BRAND = ['#d97757', '#10a37f', '#4285f4']
       for (const f of ['src/renderer/src/TokenViz.tsx', 'src/renderer/src/DetailPane.tsx', 'src/renderer/src/AgentsPane.tsx']) {
         const src = (read(f) ?? '').toLowerCase()
-        for (const c of BRAND) if (src.includes(c)) bad.push(`${f}:硬编码 ${c}`)
+        for (const c of BRAND) if (src.includes(c)) bad.push(`${f}: hard-coded ${c}`)
       }
       return bad
     }
   },
   {
     // appearance C3:组件只绑 token;设置页 swatch 故意展示各方案样色,排除。
-    name: '组件内不得硬编码外观方案强调色(应走 --accent 系)',
+    name: 'components must not hard-code scheme accent colours (use the --accent family)',
     cross: true,
     check() {
       const bad = []
@@ -225,13 +225,13 @@ const GLOBAL_RULES = [
         if (name === 'SettingsPane.tsx') continue
         const f = `src/renderer/src/${name}`
         const src = (read(f) ?? '').toLowerCase()
-        for (const c of SCHEME) if (src.includes(c)) bad.push(`${f}:硬编码方案色 ${c}`)
+        for (const c of SCHEME) if (src.includes(c)) bad.push(`${f}: hard-coded scheme colour ${c}`)
       }
       return bad
     }
   },
   {
-    name: '原型里的图表容器都要声明所属共享块(否则无法核对一致性)',
+    name: 'every chart container in a prototype must declare its shared block (otherwise consistency cannot be checked)',
     check() {
       const bad = []
       for (const f of prototypeHtmls()) {
@@ -240,7 +240,7 @@ const GLOBAL_RULES = [
         if (charts === 0) continue
         const declared = (src.match(/data-shared-block="[^"]+"/g) ?? []).length
         if (declared < charts) {
-          bad.push(`${f}:${charts} 个图表容器,只有 ${declared} 个声明了 data-shared-block`)
+          bad.push(`${f}: ${charts} chart container(s) but only ${declared} declare data-shared-block`)
         }
       }
       return bad
@@ -274,17 +274,17 @@ function checkBlock(block, withCross) {
     if (!src.includes(`data-shared-block="${block.id}"`)) {
       // 反向检查:引用了资源却没声明 → 声明遗漏,一致性无从核对
       if (block.assets.some((a) => src.includes(a))) {
-        problems.push(`${f}:引用了 ${block.id} 的资源却未声明 data-shared-block="${block.id}"`)
+        problems.push(`${f}: references ${block.id} assets without declaring data-shared-block="${block.id}"`)
       }
       continue
     }
     users.push(f)
     for (const a of block.assets) {
-      if (!src.includes(a)) problems.push(`${f}:声明使用 ${block.id} 却未引用 ${a}`)
+      if (!src.includes(a)) problems.push(`${f}: declares ${block.id} but does not reference ${a}`)
     }
     for (const c of block.containers) {
       if (!new RegExp(`id="[^"]*${c}[^"]*"`).test(src)) {
-        problems.push(`${f}:声明使用 ${block.id} 却缺少 ${c} 挂载点`)
+        problems.push(`${f}: declares ${block.id} but is missing the ${c} mount point`)
       }
     }
   }
@@ -299,7 +299,7 @@ function checkBlock(block, withCross) {
       const stripped = css.replace(/\/\*[\s\S]*?\*\//g, '')
       const blocks = stripped.match(new RegExp(`\\${inv.selector}\\s*\\{[^}]*\\}`, 'g')) ?? []
       if (blocks.some((b) => inv.forbid.test(b))) {
-        problems.push(`${f}:${inv.selector} 违反不变量(${inv.why})`)
+        problems.push(`${f}: ${inv.selector} violates an invariant (${inv.why})`)
       }
     }
   }
@@ -312,7 +312,7 @@ function checkBlock(block, withCross) {
       const uses = src.match(new RegExp(`<${name}[^/]*/>`, 'gs')) ?? []
       for (const u of uses) {
         for (const p of requiredProps) {
-          if (!u.includes(p)) problems.push(`${f}:<${name}> 缺 ${p}`)
+          if (!u.includes(p)) problems.push(`${f}: <${name}> is missing ${p}`)
         }
       }
     }
@@ -330,17 +330,21 @@ function appSources() {
 }
 
 const withCross = process.argv.includes('--cross')
-console.log(withCross ? '档位:原型 + 跨端一致性' : '档位:仅原型(跨端检查用 --cross,落实现后再跑)')
+console.log(
+  withCross
+    ? 'mode: prototypes + cross-side consistency'
+    : 'mode: prototypes only (pass --cross for the cross-side checks, once the implementation has landed)'
+)
 
 let failed = 0
 for (const block of SHARED_BLOCKS) {
   const { problems, users } = checkBlock(block, withCross)
   if (problems.length) {
     failed += problems.length
-    console.error(`✗ 共享块 ${block.id}(${block.label})`)
+    console.error(`✗ shared block ${block.id} (${block.label})`)
     for (const p of problems) console.error(`    ${p}`)
   } else {
-    console.log(`✓ 共享块 ${block.id}(${block.label})— 使用点 ${users.length} 处均合规`)
+    console.log(`✓ shared block ${block.id} (${block.label}) — all ${users.length} usage site(s) compliant`)
   }
 }
 for (const r of GLOBAL_RULES) {
@@ -355,7 +359,7 @@ for (const r of GLOBAL_RULES) {
   }
 }
 if (failed) {
-  console.error(`\n共享 UI 检查失败:${failed} 项。每条都对应"某处该改没改"。`)
+  console.error(`\nShared-UI check failed: ${failed} problem(s). Each one means something that should have been updated wasn't.`)
   process.exit(1)
 }
-console.log('\n共享 UI 一致性检查通过')
+console.log('\nShared-UI consistency check passed')

@@ -46,19 +46,19 @@ function findApp() {
 
 const appPath = process.argv[2] ?? findApp()
 if (!appPath) {
-  console.error('未找到 .app 产物;先跑 pnpm build && npx electron-builder --dir')
+  console.error('No .app bundle found; run `pnpm build && npx electron-builder --dir` first')
   process.exit(2)
 }
 const bin = join(appPath, 'Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework')
 if (!existsSync(bin)) {
-  console.error(`Electron Framework 不存在:${bin}`)
+  console.error(`Electron Framework not found: ${bin}`)
   process.exit(2)
 }
 
 const buf = readFileSync(bin)
 const i = buf.indexOf(SENTINEL)
 if (i < 0) {
-  console.error('二进制里未找到 fuse wire —— fuses 根本没被写入')
+  console.error('No fuse wire found in the binary — the fuses were never written')
   process.exit(1)
 }
 const start = i + SENTINEL.length
@@ -74,10 +74,10 @@ for (const [name, want] of Object.entries(EXPECT)) {
   const got = actual[name]
   const ok = got === want
   if (!ok) bad++
-  console.log(`${ok ? '✓' : '✗'} ${name} = ${got}${ok ? '' : `(期望 ${want})`}`)
+  console.log(`${ok ? '✓' : '✗'} ${name} = ${got}${ok ? '' : ` (expected ${want})`}`)
 }
 if (bad) {
-  console.error(`\n${bad} 项与 electron-builder.yml 的 electronFuses 不符`)
+  console.error(`\n${bad} fuse(s) do not match electronFuses in electron-builder.yml`)
   process.exit(1)
 }
-console.log('\nFuses 校验通过')
+console.log('\nFuses check passed')
