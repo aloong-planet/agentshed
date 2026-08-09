@@ -30,7 +30,7 @@ describe('encodeAppError / decodeAppError', () => {
   })
 
   it('paths and non-ASCII text in the parameters round-trip verbatim, undamaged by escaping', () => {
-    const err: AppError = { code: ERR.badArgs, params: { channel: '会话/页 a"b\\c', field: 'i' } }
+    const err: AppError = { code: ERR.badArgs, params: { channel: 'sessions/page →a"b\\c€', field: 'i' } }
     expect(decodeAppError(wrap(encodeAppError(err)))).toEqual(err)
   })
 

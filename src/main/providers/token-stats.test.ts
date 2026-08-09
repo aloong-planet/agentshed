@@ -72,7 +72,7 @@ function mkCodexRollout(
   subagent = false,
   atSec = 2000,
   /** A real question; pass null to build a session nobody ever asked anything in (spec A3a) */
-  userMsg: string | null = '示例提问'
+  userMsg: string | null = 'sample question'
 ): string {
   const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
   mkdirSync(d, { recursive: true })
@@ -150,7 +150,7 @@ function mkCodexFork(
     JSON.stringify({
       timestamp: o.forkedAtIso,
       type: 'event_msg',
-      payload: { type: 'user_message', message: 'fork 后的提问' }
+      payload: { type: 'user_message', message: 'question after the fork' }
     }),
     ...turns.map((t) =>
       JSON.stringify({
@@ -203,7 +203,7 @@ function engine(): TokenEngine {
 describe('Claude aggregation (the ccusage rules)', () => {
   it('all four fields sum into the total; cache is listed separately; model buckets use the same rules; the title comes from the first user message', async () => {
     mkClaudeFile('a.jsonl', [
-      userLine('帮我修一个布局 bug,谢谢'),
+      userLine('fix a layout bug for me, thanks'),
       usageLine('claude-fable-5', '2026-07-29T10:00:00Z', 100, 50, { cacheRead: 7000, cacheWrite: 300 }),
       usageLine('claude-opus-5', '2026-07-30T02:00:00Z', 20, 10)
     ])
@@ -219,7 +219,7 @@ describe('Claude aggregation (the ccusage rules)', () => {
     expect(models['claude-fable-5']).toBe(7450)
     expect(models['claude-opus-5']).toBe(30)
     const p = r.perProject.get(proj.toLowerCase())
-    expect(p?.sessions[0].title).toContain('帮我修一个布局')
+    expect(p?.sessions[0].title).toContain('fix a layout')
     expect(p?.sessions[0].tokens).toBe(7480)
   })
 
@@ -242,7 +242,7 @@ describe('Claude aggregation (the ccusage rules)', () => {
 
   it('a sidechain replay (same message.id, new requestId) deduplicates across files, keeping the non-sidechain one', async () => {
     mkClaudeFile('main.jsonl', [
-      userLine('主会话的提问'),
+      userLine('a main session question'),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 100, 50, { id: 'm1', requestId: 'r1' })
     ])
     mkClaudeFile('sess/subagents/agent-x.jsonl', [
@@ -308,17 +308,17 @@ describe('Claude aggregation (the ccusage rules)', () => {
   // An active session mid-write is exactly this shape, not a hypothetical.
   it('a bad line between questions: that line is skipped, the questions on either side remain, and the count is unaffected', async () => {
     mkClaudeFile('mid-bad.jsonl', [
-      userLine('first one提问'),
+      userLine('first question'),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5),
-      '{"type":"user","message":{"role":"user","content":"半行写到一', // 半行,解析不出
-      userLine('second one提问'),
+      '{"type":"user","message":{"role":"user","content":"half a line written so f', // 半行,解析不出
+      userLine('second question'),
       usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 10, 5)
     ])
     const s = (await engine().build(roots(), [proj])).perProject
       .get(proj.toLowerCase())
       ?.sessions.find((x) => x.file.endsWith('mid-bad.jsonl'))
-    expect(s?.questionCount, '坏行不该吃掉它前后的提问').toBe(2)
-    expect(s?.title).toBe('first one提问')
+    expect(s?.questionCount, 'a bad line must not swallow the questions around it').toBe(2)
+    expect(s?.title).toBe('first question')
   })
 })
 
@@ -329,7 +329,7 @@ describe('Codex aggregation (the ccusage rules)', () => {
       { input: 100, cached: 80, output: 10 },
       { input: 400, cached: 320, output: 20 }
     ])
-    writeIndex([{ id, name: '迁移 skills' }])
+    writeIndex([{ id, name: 'migrate skills' }])
     const r = await engine().build(roots(), [proj])
     // Raw input totals 500 (including 400 cached) → net input 100, cacheRead 400, output 30; total across
     // all four = 530
@@ -337,7 +337,7 @@ describe('Codex aggregation (the ccusage rules)', () => {
     const models = Object.fromEntries(r.global.byModel.map((m) => [`${m.side}:${m.model}`, m.total]))
     expect(models['codex:gpt-5.6-sol']).toBe(530)
     const p = r.perProject.get(proj.toLowerCase())
-    expect(p?.sessions.find((s) => s.side === 'codex')?.title).toBe('迁移 skills')
+    expect(p?.sessions.find((s) => s.side === 'codex')?.title).toBe('migrate skills')
   })
 
   it('a session spanning midnight is apportioned to its respective dates by event timestamp (no longer piled onto the first day)', async () => {
@@ -411,12 +411,12 @@ describe('a session\'s at = the largest timestamp in the file (the same meaning 
       .get(proj.toLowerCase())
       ?.sessions.filter((x) => x.side === 'codex')
       .find((x) => x.at === Date.parse('2026-07-31T20:00:00Z'))
-    expect(child, 'fork 子会话的 at 应为 07-31 最后活动,而非 07-29 重放时刻').toBeDefined()
+    expect(child, 'a fork child at should be its 07-31 last activity, not the 07-29 replay moment').toBeDefined()
   })
 
   it('every session carries its source file back (on both sides), pointing at a file that really exists', async () => {
     const cl = mkClaudeFile('ident.jsonl', [
-      userLine('提问一'),
+      userLine('question one'),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
     ])
     const cx = mkCodexRollout('rollout-ident-019fb02.jsonl', proj, '2026-07-30T03:00:00Z', 'gpt-5.6-sol', [
@@ -428,7 +428,7 @@ describe('a session\'s at = the largest timestamp in the file (the same meaning 
   })
 
   it('subagent and nested files are not listed, so they bring no extra identities with them', async () => {
-    mkClaudeFile('main.jsonl', [userLine('主会话的提问'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    mkClaudeFile('main.jsonl', [userLine('a main session question'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
     mkClaudeFile('sess/subagents/agent-x.jsonl', [
       usageLine('claude-fable-5', '2026-07-30T02:01:00Z', 20, 5, { sidechain: true })
     ])
@@ -443,30 +443,30 @@ describe('a session\'s at = the largest timestamp in the file (the same meaning 
   // usage field** — so the last thing the user asked is invisible under a "usage lines only" rule.
   it('Claude: when the file ends on a user message (with no usage), at takes it rather than the previous assistant reply', async () => {
     mkClaudeFile('trailing-user.jsonl', [
-      userLine('第一问', '2026-07-30T10:00:00Z'),
+      userLine('first question', '2026-07-30T10:00:00Z'),
       usageLine('claude-fable-5', '2026-07-30T10:00:30Z', 10, 5),
-      userLine('追问,然后我就走了', '2026-07-30T10:03:53Z')
+      userLine('a follow-up, then I left', '2026-07-30T10:03:53Z')
     ])
     const r = await engine().build(roots(), [proj])
     const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => x.side === 'claude')
-    expect(s?.at, 'at 应为最后一条用户消息的时间,不是最后一条 usage 行').toBe(
+    expect(s?.at, 'at should be the last user message time, not the last usage line').toBe(
       Date.parse('2026-07-30T10:03:53Z')
     )
   })
 
   it('Claude: a session with no usage line at all still takes the largest timestamp in the file rather than falling back to mtime', async () => {
-    mkClaudeFile('no-usage.jsonl', [userLine('只问了一句就崩了', '2026-07-30T11:22:33Z')], 1000)
+    mkClaudeFile('no-usage.jsonl', [userLine('asked one thing then it crashed', '2026-07-30T11:22:33Z')], 1000)
     const r = await engine().build(roots(), [proj])
     // That file produces no tokens but is still a session
-    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => (x.title ?? '').includes('崩了'))
-    expect(s?.at, 'mtime 是 1000 秒(1970),文件内有真实时间戳就不该退回它').toBe(
+    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => (x.title ?? '').includes('crashed'))
+    expect(s?.at, 'the mtime is 1000s (1970); with a real timestamp inside the file it must not fall back to it').toBe(
       Date.parse('2026-07-30T11:22:33Z')
     )
   })
 
   it('the Claude side keeps the largest-timestamp semantics (a regression guard)', async () => {
     mkClaudeFile('a.jsonl', [
-      userLine('第一问'),
+      userLine('first question'),
       usageLine('claude-fable-5', '2026-07-29T10:00:00Z', 10, 5),
       usageLine('claude-fable-5', '2026-07-31T22:00:00Z', 10, 5)
     ])
@@ -497,7 +497,7 @@ describe('cache version migration (a real bug regression)', () => {
               kind: 'codex',
               projectKey: proj.toLowerCase(),
               listed: true,
-              title: '旧格式',
+              title: 'old format',
               at: 1,
               model: 'gpt-5.6-sol',
               totals: { input: 999, output: 0, cacheRead: 0, cacheWrite: 0, total: 999 },
@@ -573,7 +573,7 @@ describe('cache version migration (a real bug regression)', () => {
     const s = (await engine().build(roots(), [proj])).perProject
       .get(proj.toLowerCase())
       ?.sessions.find((x) => x.side === 'codex')
-    expect(s?.at, '版本号必须随算法变更一起升,否则旧值被沿用').toBe(Date.parse('2026-07-30T18:30:00Z'))
+    expect(s?.at, 'the version must be bumped with an algorithm change, or the old value is reused').toBe(Date.parse('2026-07-30T18:30:00Z'))
   })
 
   // Found at review: isWellFormedAgg is the guard rail for corruption and drift **within one version**,
@@ -592,25 +592,25 @@ describe('cache version migration (a real bug regression)', () => {
     // Each row is missing only its target field with the rest complete (forkPoints included) — a fixture
     // missing two fields would let
     // the guard go red even while checking one fewer, so the target check would go untested
-    ['file', { projectKey: 'X', listed: true, title: '缓存里的陈旧标题', at: 1, questions: [], forkPoints: 0 }],
-    ['questions', { file: 'X', projectKey: 'X', listed: true, title: '缓存里的陈旧标题', at: 1, forkPoints: 0 }],
-    ['forkPoints(票 06 横幅信号)', { file: 'X', projectKey: 'X', listed: true, title: '缓存里的陈旧标题', at: 1, questions: [] }],
+    ['file', { projectKey: 'X', listed: true, title: 'a stale title from the cache', at: 1, questions: [], forkPoints: 0 }],
+    ['questions', { file: 'X', projectKey: 'X', listed: true, title: 'a stale title from the cache', at: 1, forkPoints: 0 }],
+    ['forkPoints (ticket 06 banner signal)', { file: 'X', projectKey: 'X', listed: true, title: 'a stale title from the cache', at: 1, questions: [] }],
     // Ticket 03b: the record's arity went from 6 to 7 (adding the content fingerprint). An old record's
     // 7th element reads back as undefined,
     // and undefined === undefined makes Codex's replay fingerprint check always true and strips blindly.
     [
-      'questions 记录少一位(旧元数)',
+      'a questions record one element short (the old arity)',
       {
         file: 'X',
         projectKey: 'X',
         listed: true,
-        title: '缓存里的陈旧标题',
+        title: 'a stale title from the cache',
         at: 1,
         forkPoints: 0,
         questions: [[0, 10, 20, 1, 0, 0]]
       }
     ]
-  ])('同版本缓存里条目缺 %s → 只重算该文件,不污染整份详情', async (_missing, partial) => {
+  ])('an entry missing %s in a same-version cache → recompute that file only, without polluting the whole detail', async (_missing, partial) => {
     const cl = mkClaudeFile('wellformed.jsonl', [
       userLine('x'),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
@@ -630,12 +630,12 @@ describe('cache version migration (a real bug regression)', () => {
     const s = (await engine().build(roots(), [proj])).perProject
       .get(proj.toLowerCase())
       ?.sessions.find((x) => x.side === 'claude')
-    expect(s?.file, '缺字段的缓存条目必须被判不合格并重算,不能把 undefined 放行到契约层').toBe(cl)
+    expect(s?.file, 'a cache entry with a missing field must be judged invalid and recomputed, never letting undefined through to the contract layer').toBe(cl)
     // Assert the recomputation really happened: the cache holds a sentinel title while a real parse yields
     // the content of userLine.
     // Without this, "the entry was judged invalid" and "the cache never hit at all" are indistinguishable
     // in the result.
-    expect(s?.title, '必须是重新解析出的标题,不是缓存里那个').toBe('x')
+    expect(s?.title, 'it must be the freshly parsed title, not the cached one').toBe('x')
   })
 
   // The only automated defence against a missed bump on a shape change: this goes red when the field set
@@ -646,7 +646,7 @@ describe('cache version migration (a real bug regression)', () => {
   // computed (that leaves the field set, and the fingerprint, unchanged).
   it('a change to FileAgg\'s field set must be noticed (a shape change is the only half of a missed bump that is testable)', async () => {
     mkClaudeFile('shape.jsonl', [
-      userLine('提问'),
+      userLine('question'),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
     ])
     mkCodexRollout('rollout-shape-019fd01.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
@@ -676,7 +676,7 @@ describe('cache version migration (a real bug regression)', () => {
   // Without this assertion, a later "might as well store a preview to help search" would not go red — and
   // that is exactly what this decision exists to prevent.
   it('the cache contains no question text at all (offsets only)', async () => {
-    const uniq = '独一无二的提问文本CANARY7391'
+    const uniq = 'a unique question text CANARY7391'
     mkClaudeFile('notext.jsonl', [
       userLine(uniq),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
@@ -686,13 +686,13 @@ describe('cache version migration (a real bug regression)', () => {
     const cache = JSON.parse(raw) as { files: Record<string, { agg: Record<string, unknown> }> }
     const hit = Object.values(cache.files).find((f) => String(f.agg['file']).endsWith('notext.jsonl'))
     // First prove this really entered the cache, or the "no text found" below is a vacuous pass
-    expect(hit, '该文件应在缓存里').toBeDefined()
+    expect(hit, 'that file should be in the cache').toBeDefined()
     expect((hit as { agg: Record<string, unknown> }).agg['questions']).toHaveLength(1)
     // The title is stored by design (the session list displays it) while the question **body** is not;
     // the judgement uses a string that appears only in a question and can be nothing but its title.
     const questionsJson = JSON.stringify((hit as { agg: Record<string, unknown> }).agg['questions'])
-    expect(questionsJson, 'Index里出现了提问文本').not.toContain('CANARY')
-    expect(questionsJson, 'Index应当只有数字与 null').toMatch(/^\[\[[\d,\s.enull-]*\]\]$/)
+    expect(questionsJson, 'question text appeared in the index').not.toContain('CANARY')
+    expect(questionsJson, 'the index should hold only numbers and null').toMatch(/^\[\[[\d,\s.enull-]*\]\]$/)
   })
 
   it('a cache file full of garbage does not crash and triggers a full recomputation', async () => {
@@ -780,12 +780,12 @@ describe('session titles and the listing rules', () => {
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 100, 50)
     ])
     mkClaudeFile('real.jsonl', [
-      userLine('帮我看下这个 bug'),
+      userLine('take a look at this bug'),
       usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 10, 5)
     ])
     const r = await engine().build(roots(), [proj])
     const p = r.perProject.get(proj.toLowerCase())
-    expect(p?.sessions.map((s) => s.title)).toEqual(['帮我看下这个 bug'])
+    expect(p?.sessions.map((s) => s.title)).toEqual(['take a look at this bug'])
     // A warmup session's tokens are counted in full (the same rule as subagents)
     expect(p?.tokens.bySide.claude.total).toBe(165)
     expect(r.global.bySide.claude.total).toBe(165)
@@ -795,20 +795,20 @@ describe('session titles and the listing rules', () => {
     mkClaudeFile('noisy.jsonl', [
       userLine('<local-command-caveat>Caveat: …</local-command-caveat>'),
       userLine('<command-name>/clear</command-name> <command-message>clear</command-message> <command-args></command-args>'),
-      userLine('继续会话查看功能:读 spec'),
+      userLine('continue the session view feature: read the spec'),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
     ])
     const r = await engine().build(roots(), [proj])
-    expect(r.perProject.get(proj.toLowerCase())?.sessions[0].title).toBe('继续会话查看功能:读 spec')
+    expect(r.perProject.get(proj.toLowerCase())?.sessions[0].title).toBe('continue the session view feature: read the spec')
   })
 
   it('Claude: a cron session is listed, with the real instruction after the bracket as its title', async () => {
     mkClaudeFile('cron.jsonl', [
-      userLine('[cron:95a214a4-0021-44ea-a831-f5c851b11d77 hackernews-daily-top5] 取今日最热门的 5 个话题'),
+      userLine('[cron:95a214a4-0021-44ea-a831-f5c851b11d77 hackernews-daily-top5] fetch today top 5 topics'),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)
     ])
     const r = await engine().build(roots(), [proj])
-    expect(r.perProject.get(proj.toLowerCase())?.sessions[0].title).toBe('取今日最热门的 5 个话题')
+    expect(r.perProject.get(proj.toLowerCase())?.sessions[0].title).toBe('fetch today top 5 topics')
   })
 
   it('Codex: a session with no user_message is not listed, and its tokens still count', async () => {
@@ -823,18 +823,18 @@ describe('session titles and the listing rules', () => {
   it('Codex: thread_name takes priority over the first question', async () => {
     const id = '019fc0a2-380e-7af3-af7d-8505cedf1ec2'
     mkCodexRollout(`rollout-named-${id}.jsonl`, proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol',
-      [{ input: 10, cached: 0, output: 5 }], false, 2000, '首条提问原文')
-    writeIndex([{ id, name: '线程名' }])
+      [{ input: 10, cached: 0, output: 5 }], false, 2000, 'the first question as written')
+    writeIndex([{ id, name: 'thread name' }])
     const r = await engine().build(roots(), [proj])
-    expect(r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.side === 'codex')?.title).toBe('线程名')
+    expect(r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.side === 'codex')?.title).toBe('thread name')
   })
 
   it('Codex: with no thread_name it falls back to the first real question (noise stripped the same way)', async () => {
     mkCodexRollout('rollout-unnamed-019fc03.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol',
       [{ input: 10, cached: 0, output: 5 }], false, 2000,
-      '[cron:abc daily] 每天跑一遍回归')
+      '[cron:abc daily] run the regression once a day')
     const r = await engine().build(roots(), [proj])
-    expect(r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.side === 'codex')?.title).toBe('每天跑一遍回归')
+    expect(r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.side === 'codex')?.title).toBe('run the regression once a day')
   })
 
   // Ticket 03's retrospective review R1: a retitle should only happen when the original title came from
@@ -851,21 +851,21 @@ describe('session titles and the listing rules', () => {
     const CHILD = '019f0000-bbbb-7000-8000-000000000012'
     writeFileSync(
       join(d, `rollout-${PARENT}.jsonl`),
-      [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', '父问一')].join('\n') + '\n'
+      [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n'
     )
     writeFileSync(
       join(d, `rollout-${CHILD}.jsonl`),
       [
         meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
-        q('2026-07-30T02:00:00Z', '父问一'), // 重放(时间戳被改写,内容相同)
-        q('2026-07-30T02:00:05Z', '子的新问')
+        q('2026-07-30T02:00:00Z', 'parent question one'), // 重放(时间戳被改写,内容相同)
+        q('2026-07-30T02:00:05Z', 'child new question')
       ].join('\n') + '\n'
     )
-    writeIndex([{ id: CHILD, name: 'fork 线程名' }])
+    writeIndex([{ id: CHILD, name: 'fork thread name' }])
     const r = await engine().build(roots(), [proj])
     const child = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.forkState === 'stripped')
-    expect(child, '剥离过的子会话应在列(还有存活提问)').toBeDefined()
-    expect(child?.title, 'thread_name 优先(A4),retitle 不得顶掉它').toBe('fork 线程名')
+    expect(child, 'a stripped child should be listed (it still has surviving questions)').toBeDefined()
+    expect(child?.title, 'thread_name takes priority (A4) and a retitle must not displace it').toBe('fork thread name')
   })
 
   // Ticket 03's retrospective review R3 (the user's ruling, 2026-08-05): a fork verified to have been
@@ -895,21 +895,21 @@ describe('session titles and the listing rules', () => {
     const childFile = join(d, `rollout-${CHILD}.jsonl`)
     writeFileSync(
       join(d, `rollout-${PARENT}.jsonl`),
-      [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', '父问一')].join('\n') + '\n'
+      [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n'
     )
     writeFileSync(
       childFile,
       [
         meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
-        q('2026-07-30T02:00:00Z', '父问一'), // 全部提问都是重放,fork 后没产生新提问
+        q('2026-07-30T02:00:00Z', 'parent question one'), // 全部提问都是重放,fork 后没产生新提问
         usage('2026-07-30T02:00:01Z', 100, 20)
       ].join('\n') + '\n'
     )
     const r = await engine().build(roots(), [proj])
     const p = r.perProject.get(proj.toLowerCase())
-    expect(p?.sessions.find((s) => s.file === childFile), '剥空的 fork 不该入列').toBeUndefined()
-    expect(p?.sessions.filter((s) => s.side === 'codex'), '父会话照常在列').toHaveLength(1)
-    expect(p?.tokens.bySide.codex.total, '不入列不等于不计 token').toBe(120)
+    expect(p?.sessions.find((s) => s.file === childFile), 'a fork stripped empty should not be listed').toBeUndefined()
+    expect(p?.sessions.filter((s) => s.side === 'codex'), 'the parent session is listed as usual').toHaveLength(1)
+    expect(p?.tokens.bySide.codex.total, 'not being listed does not mean the tokens are not counted').toBe(120)
   })
 })
 
@@ -920,9 +920,9 @@ import { appendFileSync } from 'node:fs'
 describe('sessionQuestions (the session page service)', () => {
   it('a matching signature: the cached index is used directly, giving the side, the count and forkState', async () => {
     const cl = mkClaudeFile('sq.jsonl', [
-      userLine('问一', '2026-07-30T02:00:00Z'),
+      userLine('question one', '2026-07-30T02:00:00Z'),
       usageLine('claude-fable-5', '2026-07-30T02:00:10Z', 10, 5),
-      userLine('问二', '2026-07-30T03:00:00Z')
+      userLine('question two', '2026-07-30T03:00:00Z')
     ])
     const e = engine()
     await e.build(roots(), [proj])
@@ -933,12 +933,12 @@ describe('sessionQuestions (the session page service)', () => {
   })
 
   it('a changed signature: only that file\'s index is rebuilt, and the new index is written back to the cache (visible on disk)', async () => {
-    const cl = mkClaudeFile('sq2.jsonl', [userLine('问一', '2026-07-30T02:00:00Z')])
+    const cl = mkClaudeFile('sq2.jsonl', [userLine('question one', '2026-07-30T02:00:00Z')])
     const e = engine()
     await e.build(roots(), [proj])
-    appendFileSync(cl, userLine('问二', '2026-07-30T04:00:00Z') + '\n') // size 变 → 签名不符
+    appendFileSync(cl, userLine('question two', '2026-07-30T04:00:00Z') + '\n') // size 变 → 签名不符
     const r = await e.sessionQuestions(roots(), cl)
-    expect(r.questions, '重建后应看到追加的提问').toHaveLength(2)
+    expect(r.questions, 'after the rebuild the appended question should be visible').toHaveLength(2)
     // The write-back assertion: that file's index and signature in the persisted cache are both updated —
     // the evidence for "no rebuild needed next time"
     const cache = JSON.parse(readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')) as {
@@ -960,13 +960,13 @@ describe('sessionQuestions (the session page service)', () => {
     const CHILD = '019f0000-bbbb-7000-8000-000000000002'
     const parentFile = join(d, `rollout-${PARENT}.jsonl`)
     const childFile = join(d, `rollout-${CHILD}.jsonl`)
-    writeFileSync(parentFile, [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', '父问一')].join('\n') + '\n')
+    writeFileSync(parentFile, [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n')
     writeFileSync(
       childFile,
       [
         meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
-        q('2026-07-30T02:00:00Z', '父问一'), // 重放(时间戳被改写,内容相同)
-        q('2026-07-30T02:00:05Z', '子的新问')
+        q('2026-07-30T02:00:00Z', 'parent question one'), // 重放(时间戳被改写,内容相同)
+        q('2026-07-30T02:00:05Z', 'child new question')
       ].join('\n') + '\n'
     )
     const e = engine()
@@ -980,17 +980,17 @@ describe('sessionQuestions (the session page service)', () => {
   // Ticket 05: isFresh is the renderer's criterion for "should the rebuilding interim state be shown"
   // (a read-only predicate that triggers no rebuild)
   it('isFresh: true after a build; false once the file is appended to; false for an unknown or deleted file', async () => {
-    const cl = mkClaudeFile('fresh.jsonl', [userLine('问', '2026-07-30T02:00:00Z')])
+    const cl = mkClaudeFile('fresh.jsonl', [userLine('q', '2026-07-30T02:00:00Z')])
     const e = engine()
     await e.build(roots(), [proj])
     expect(e.isFresh(cl)).toBe(true)
-    appendFileSync(cl, userLine('又一问', '2026-07-30T03:00:00Z') + '\n')
-    expect(e.isFresh(cl), '追加后签名不符,应为假').toBe(false)
-    expect(e.isFresh(join(dir, 'nope.jsonl')), '不在Index中的文件为假').toBe(false)
-    const gone = mkClaudeFile('fresh-gone.jsonl', [userLine('问', '2026-07-30T02:00:00Z')])
+    appendFileSync(cl, userLine('another question', '2026-07-30T03:00:00Z') + '\n')
+    expect(e.isFresh(cl), 'after appending the signature mismatches, so false').toBe(false)
+    expect(e.isFresh(join(dir, 'nope.jsonl')), 'a file not in the index is false').toBe(false)
+    const gone = mkClaudeFile('fresh-gone.jsonl', [userLine('q', '2026-07-30T02:00:00Z')])
     await e.build(roots(), [proj])
     rmSync(gone)
-    expect(e.isFresh(gone), '文件已删为假').toBe(false)
+    expect(e.isFresh(gone), 'a deleted file is false').toBe(false)
   })
 
   // Ticket 06: the banner's data — Claude's branch point count, and for a stripped Codex fork the parent
@@ -1000,8 +1000,8 @@ describe('sessionQuestions (the session page service)', () => {
       JSON.stringify({ type: 'user', uuid: u, parentUuid: p, timestamp: '2026-07-30T02:00:00Z', message: { role: 'user', content: t } })
     const a = (u: string, p: string): string =>
       JSON.stringify({ type: 'assistant', uuid: u, parentUuid: p, timestamp: '2026-07-30T02:00:01Z', message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }] } })
-    const forked = mkClaudeFile('forked.jsonl', [q('u1', null, '问一'), a('a1', 'u1'), q('u2b', 'a1', '走岔的'), q('u2', 'a1', '问二')])
-    const linear = mkClaudeFile('linear.jsonl', [q('v1', null, '问一'), a('b1', 'v1'), q('v2', 'b1', '问二')])
+    const forked = mkClaudeFile('forked.jsonl', [q('u1', null, 'question one'), a('a1', 'u1'), q('u2b', 'a1', 'branched off'), q('u2', 'a1', 'question two')])
+    const linear = mkClaudeFile('linear.jsonl', [q('v1', null, 'question one'), a('b1', 'v1'), q('v2', 'b1', 'question two')])
     const e = engine()
     await e.build(roots(), [proj])
     expect((await e.sessionQuestions(roots(), forked)).forkPoints).toBe(1)
@@ -1021,20 +1021,20 @@ describe('sessionQuestions (the session page service)', () => {
     const parentFile = join(d, `rollout-${PARENT}.jsonl`)
     const childFile = join(d, `rollout-${CHILD}.jsonl`)
     const orphanFile = join(d, `rollout-${ORPHAN}.jsonl`)
-    writeFileSync(parentFile, [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', '父问一')].join('\n') + '\n')
+    writeFileSync(parentFile, [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n')
     writeFileSync(
       childFile,
-      [meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }), q('2026-07-30T02:00:00Z', '父问一'), q('2026-07-30T02:00:05Z', '子的新问')].join('\n') + '\n'
+      [meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }), q('2026-07-30T02:00:00Z', 'parent question one'), q('2026-07-30T02:00:05Z', 'child new question')].join('\n') + '\n'
     )
     writeFileSync(
       orphanFile,
-      [meta('2026-07-30T03:00:00Z', ORPHAN, { forked_from_id: '019f0000-dead-7000-8000-000000000099' }), q('2026-07-30T03:00:00Z', '孤儿的问')].join('\n') + '\n'
+      [meta('2026-07-30T03:00:00Z', ORPHAN, { forked_from_id: '019f0000-dead-7000-8000-000000000099' }), q('2026-07-30T03:00:00Z', 'orphan question')].join('\n') + '\n'
     )
     const e = engine()
     await e.build(roots(), [proj])
     const child = await e.sessionQuestions(roots(), childFile)
     expect(child.forkState).toBe('stripped')
-    expect(child.forkParentTitle).toBe('父问一')
+    expect(child.forkParentTitle).toBe('parent question one')
     expect(child.forkParentFile).toBe(parentFile)
     const orphan = await e.sessionQuestions(roots(), orphanFile)
     expect(orphan.forkState).toBe('uncertain')
@@ -1045,7 +1045,7 @@ describe('sessionQuestions (the session page service)', () => {
   })
 
   it('present in the cache but the file has been deleted: an explicit error rather than a silent empty list (a spec failure path)', async () => {
-    const cl = mkClaudeFile('gone.jsonl', [userLine('问'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
+    const cl = mkClaudeFile('gone.jsonl', [userLine('q'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
     const e = engine()
     await e.build(roots(), [proj])
     rmSync(cl)
@@ -1063,7 +1063,7 @@ describe('sessionQuestions (the session page service)', () => {
   })
 
   it('build also produces the session read allow-list: listed sessions and subagent/nested files are in it, nothing else is', async () => {
-    const cl = mkClaudeFile('wl.jsonl', [userLine('问'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
+    const cl = mkClaudeFile('wl.jsonl', [userLine('q'), usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
     // A nested file (a subagent transcript): listed=false, but 07 needs to expand it → it must be in the
     // allow-list
     const nested = mkClaudeFile('sub/agent-x.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)])
@@ -1076,7 +1076,7 @@ describe('sessionQuestions (the session page service)', () => {
   it('an unregistered project\'s sessions do not enter the allow-list — the read side is no wider than what the UI can reach (spec A2)', async () => {
     // Unregistered: the encoded directory is not in the claudePaths mapping → projectKey=''
     const orphan = mkClaudeFile('orphan.jsonl', [
-      userLine('未注册项目里的提问'),
+      userLine('a question in an unregistered project'),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 1, 1)
     ], 1000, '-Users-nobody-unregistered')
     const orphanNested = mkClaudeFile('sub/agent-o.jsonl', [
@@ -1084,8 +1084,8 @@ describe('sessionQuestions (the session page service)', () => {
     ], 1000, '-Users-nobody-unregistered')
     const e = engine()
     const t = await e.build(roots(), [proj])
-    expect(t.sessionFiles.has(orphan), '未注册项目的入列会话不该可读').toBe(false)
-    expect(t.sessionFiles.has(orphanNested), '未注册项目的嵌套转写同样不该可读').toBe(false)
+    expect(t.sessionFiles.has(orphan), 'a listed session of an unregistered project must not be readable').toBe(false)
+    expect(t.sessionFiles.has(orphanNested), 'a nested transcript of an unregistered project must not be readable either').toBe(false)
     // On the Codex side "unregistered" does not show up in projectKey (it is computed straight from cwd
     // and is never empty) —
     // so it has to be filtered against the explicit registered set; Claude's ''-emptiness criterion is a
@@ -1098,6 +1098,6 @@ describe('sessionQuestions (the session page service)', () => {
       [{ input: 10, cached: 0, output: 5 }]
     )
     const t2 = await engine().build(roots(), [proj], new Set([proj.toLowerCase()]))
-    expect(t2.sessionFiles.has(cxOrphan), '未注册 cwd 的 codex 会话不该可读').toBe(false)
+    expect(t2.sessionFiles.has(cxOrphan), 'a codex session with an unregistered cwd must not be readable').toBe(false)
   })
 })

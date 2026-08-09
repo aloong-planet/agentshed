@@ -129,7 +129,7 @@ describe('question extraction (the Claude side)', () => {
 
 describe('turn splitting and offsets', () => {
   test('a turn = from after this question up to the next one; the last turn runs to the end of the file', async () => {
-    const objs = [cUser('question one'), cTool('Bash'), cUser('问题二'), cTool('Read')]
+    const objs = [cUser('question one'), cTool('Bash'), cUser('question two'), cTool('Read')]
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
       const size = readFileSync(file).length
@@ -142,7 +142,7 @@ describe('turn splitting and offsets', () => {
   })
 
   test('the anchor: what [turn start, turn end) slices out is exactly every line after this question and before the next', async () => {
-    const objs = [cUser('question one'), cTool('Bash'), cTool('Agent'), cUser('问题二'), cTool('Read')]
+    const objs = [cUser('question one'), cTool('Bash'), cTool('Agent'), cUser('question two'), cTool('Read')]
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
       const raw = readFileSync(file)
@@ -162,7 +162,7 @@ describe('turn splitting and offsets', () => {
   })
 
   test('the question line\'s timestamp enters the index; null when there is none', async () => {
-    await withLines([cUser('有时间'), { type: 'user', message: { role: 'user', content: '无时间' } }], async (file) => {
+    await withLines([cUser('has time'), { type: 'user', message: { role: 'user', content: 'no time' } }], async (file) => {
       const recs = await indexOf(file, 'claude')
       expect(recs[0][3]).toBe(Date.parse(TS))
       expect(recs[1][3]).toBeNull()
@@ -192,7 +192,7 @@ describe('per-turn volume counting', () => {
   })
 
   test('counts are attributed per turn and do not cross over', async () => {
-    await withLines([cUser('一'), cTool('Bash'), cUser('二'), cTool('Bash'), cTool('Read')], async (file) => {
+    await withLines([cUser('one'), cTool('Bash'), cUser('two'), cTool('Bash'), cTool('Read')], async (file) => {
       const recs = await indexOf(file, 'claude')
       expect(recs.map((r) => r[4])).toEqual([1, 2])
     })
@@ -246,7 +246,7 @@ describe('question extraction (the Codex side)', () => {
   })
 
   test('Codex noise questions are stripped too', async () => {
-    await withLines([xUser('Warmup'), xUser('真问题')], async (file) => {
+    await withLines([xUser('Warmup'), xUser('real question')], async (file) => {
       expect(await indexOf(file, 'codex')).toHaveLength(1)
     })
   })
@@ -353,10 +353,10 @@ describe('Claude branches: the last-leaf walk-back', () => {
     const objs = [
       cq('u1', null, 'pre-compaction question one'),
       ca('a1', 'u1'),
-      cq('u2', 'a1', '压缩前问二'),
+      cq('u2', 'a1', 'pre-compaction question two'),
       ca('a2', 'u2'),
       cCompact('cb1', 'a2'),
-      cq('u3', 'cb1', '压缩后问三')
+      cq('u3', 'cb1', 'post-compaction question three')
     ]
     await withLines(objs, async (file) => {
       const recs = await indexOf(file, 'claude')
@@ -366,11 +366,11 @@ describe('Claude branches: the last-leaf walk-back', () => {
 
   test('two compactions: both boundaries have to be bridged', async () => {
     const objs = [
-      cq('u1', null, '第一段'),
+      cq('u1', null, 'segment one'),
       cCompact('cb1', 'u1'),
-      cq('u2', 'cb1', '第二段'),
+      cq('u2', 'cb1', 'segment two'),
       cCompact('cb2', 'u2'),
-      cq('u3', 'cb2', '第三段')
+      cq('u3', 'cb2', 'segment three')
     ]
     expect(await textsOf(objs)).toHaveLength(3)
   })
@@ -416,23 +416,23 @@ describe('the branch point count (forkPoints, ticket 06\'s banner signal)', () =
   })
 
   test('one parent with two children = 1; two such parents = 2', async () => {
-    const one = [cq('u1', null, 'q'), ca('a1', 'u1'), cq('u2b', 'a1', '岔'), cq('u2', 'a1', '正')]
+    const one = [cq('u1', null, 'q'), ca('a1', 'u1'), cq('u2b', 'a1', 'branch'), cq('u2', 'a1', 'main')]
     expect(await fpOf(one)).toBe(1)
     const two = [
       cq('u1', null, 'q'),
       ca('a1', 'u1'),
       cq('u2b', 'a1', 'branch one'),
-      cq('u2', 'a1', '正'),
+      cq('u2', 'a1', 'main'),
       ca('a2', 'u2'),
-      cq('u3b', 'a2', '岔二'),
-      cq('u3', 'a2', '正二')
+      cq('u3b', 'a2', 'branch two'),
+      cq('u3', 'a2', 'main two')
     ]
     expect(await fpOf(two)).toBe(2)
   })
 
   test('one parent with three children is still 1 branch point (points are counted, not branches)', async () => {
     expect(
-      await fpOf([cq('u1', null, 'q'), ca('a1', 'u1'), cq('x', 'a1', 'branch one'), cq('y', 'a1', '岔二'), cq('z', 'a1', '正')])
+      await fpOf([cq('u1', null, 'q'), ca('a1', 'u1'), cq('x', 'a1', 'branch one'), cq('y', 'a1', 'branch two'), cq('z', 'a1', 'main')])
     ).toBe(1)
   })
 
@@ -448,7 +448,7 @@ describe('the branch point count (forkPoints, ticket 06\'s banner signal)', () =
 
   test('the compaction boundary bridge is a single chain and is not a branch', async () => {
     expect(
-      await fpOf([cq('u1', null, '一段'), ca('a1', 'u1'), cCompact('cb1', 'a1'), cq('u2', 'cb1', '二段')])
+      await fpOf([cq('u1', null, 'seg one'), ca('a1', 'u1'), cCompact('cb1', 'a1'), cq('u2', 'cb1', 'seg two')])
     ).toBe(0)
   })
 
@@ -489,12 +489,12 @@ describe('the title and the question set share a source (after the last-leaf wal
     // u1 → a1 → u2
     const objs = [
       ca('root', null),
-      cq('u1b', 'root', '走岔的第一问'),
-      cq('u1', 'root', '真正的第一问'),
+      cq('u1b', 'root', 'first question on the abandoned branch'),
+      cq('u1', 'root', 'the real first question'),
       ca('a1', 'u1'),
-      cq('u2', 'a1', '第二问')
+      cq('u2', 'a1', 'second question')
     ]
-    expect(await firstTextOf(objs)).toBe('真正的第一问')
+    expect(await firstTextOf(objs)).toBe('the real first question')
     await withLines(objs, async (file) => {
       expect(await indexOf(file, 'claude')).toHaveLength(2)
     })
@@ -675,7 +675,7 @@ describe('questionTextAt (the session page\'s display text, judged the same way 
     ).toBeNull()
     expect(questionTextAt('claude', cUser('Warmup') as Record<string, unknown>)).toBeNull()
     expect(
-      questionTextAt('claude', { ...(cUser('派发词') as Record<string, unknown>), isSidechain: true })
+      questionTextAt('claude', { ...(cUser('dispatch prompt') as Record<string, unknown>), isSidechain: true })
     ).toBeNull()
   })
 })
