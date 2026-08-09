@@ -1,18 +1,33 @@
-# Agents 全局页
+# Agents overview
 
-## 概述
-同时使用 Claude Code 与 Codex 的用户,打开 app 第一眼想知道"两边各是什么状态、各烧了多少"。本页作为默认落地页,把两侧 agent 的全局面貌汇成一屏。
+## Overview
+Users running both Claude Code and Codex want to know, the moment the app opens, "what state is each
+side in and how much has each burned". This page is the default landing page and gathers both agent
+sides' global picture onto one screen.
 
-## 能力
-- 顶部两张汇总卡:各侧检测状态、token 累计总量、项目数与全局 skills 数;某侧注册表损坏时降级显示错误说明,另一侧不受影响
-- Token 分栏(默认):近 30 天日粒度趋势大图(合计/单侧切换)、跨项目按模型拆分;汇总口径含已隐藏与失效项目并有标注
-- Skills 分栏:两侧全局库合并单列,侧徽标标示各侧是否存在,软链有标记;不做跨侧内容 diff;磁盘 skill 可折叠预览包内文件(见 [Skills 查看](skills-view.md));全局库条目可发起「安装到…」;插件条目只读、可展开预览包(见 [Plugins 视图](plugins-view.md))
-- Subagents 分栏:两侧 subagent 定义合并查看(见 [Subagents 查看](subagents-view.md))
-- Plugins 分栏:按侧分组的插件清单与内含组件展开(见 [Plugins 视图](plugins-view.md))
-- MCP 分栏:两侧全局 MCP 按来源归类(全局配置 / plugin 自带 / config.toml)
-- Memory 分栏:各项目自动记忆的汇总与查看(见 [Memory 查看](memory-view.md))
-- 配置分栏:全局 CLAUDE.md、全局 AGENTS.md 渲染阅读,config.toml 只读摘要;缺失显示"无"
+## Capabilities
+- Two summary cards at the top: each side's detection status, cumulative token total, project count
+  and global skill count; if one side's registry is corrupt it degrades to an error explanation while
+  the other side is unaffected
+- Token section (the default): a large 30-day daily trend chart (switchable between combined and a
+  single side) and a cross-project model breakdown; the totals include hidden and stale projects and
+  say so
+- Skills section: both sides' global libraries merged into one column, with side badges showing which
+  sides have each entry and symlinks marked; no cross-side content diff; on-disk skills expand to
+  preview a package's files (see [Skills view](skills-view.md)); global library entries can start an
+  "Install to…" action; plugin entries are read-only and expand to preview the package (see
+  [Plugins view](plugins-view.md))
+- Subagents section: both sides' subagent definitions in one view (see
+  [Subagents view](subagents-view.md))
+- Plugins section: the plugin list grouped by side, with bundled components expandable (see
+  [Plugins view](plugins-view.md))
+- MCP section: both sides' global MCP servers grouped by origin (global config / bundled with a
+  plugin / config.toml)
+- Memory section: a summary of each project's automatic memories, with viewing (see
+  [Memory view](memory-view.md))
+- Configuration section: the global CLAUDE.md and global AGENTS.md rendered for reading, and a
+  read-only config.toml summary; missing files show "none"
 
-## 边界与不做
-- 全局库只读:库内容的增删改不经本 app
-- 某侧未安装时显示"未检测到",不报错
+## Boundaries and non-goals
+- The global library is read-only: its contents are never added to, changed or removed via this app
+- A side that is not installed shows "not detected" rather than an error

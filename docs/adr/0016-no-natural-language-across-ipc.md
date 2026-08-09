@@ -1,44 +1,83 @@
-# ADR-0016: 主进程不产出面向用户的自然语言(不止失败信息)
+# ADR-0016: The main process emits no user-facing natural language (not just failure text)
 
-- 状态: 已接受(2026-08-09)
+- Status: Accepted (2026-08-09)
 
-## 背景与问题
+## Context
 
-ADR-0015 把**跨 IPC 的失败**改成了码 + 参数,措辞留给 renderer。票 05 / 06 落地后,`src/` 内除测试外 `throw new Error` 归零,契约字段也不再带成句 message。
+ADR-0015 converted **failures crossing IPC** into a code plus parameters, leaving the wording to the
+renderer. After tickets 05 and 06 landed, `throw new Error` in `src/` outside tests is down to zero,
+and contract fields no longer carry whole-sentence messages.
 
-但全库检索(`grep -a`,规避 `token-stats.ts` 的 NUL 假阴性)显示,主进程仍有 **22 处**中文流向界面——它们**不是错误**,因而不在 ADR-0015 的字面覆盖内:
+But a whole-repository search (`grep -a`, to avoid the false negative caused by NUL bytes in
+`token-stats.ts`) shows the main process still has **22 sites** where Chinese flows to the UI —
+and they are **not errors**, so they fall outside ADR-0015's literal coverage:
 
-- 探测 / 解析失败的 `error` **数据字段**(注册表、subagent 定义),随快照下发而非抛出;
-- 占位与降级文本(`(该行已无法读取)`、`(未知工具)`、`未设置`、`(Codex 全局记忆)`);
-- 截断标记(`…(已截断)`),由主进程**拼进正文**;
-- 提示文案(skill 引用深度建议),作为常量经 IPC 下发;
-- 配置摘要模板(`projects: N 条 / mcp_servers: N 段`),量词在主进程成句;
-- 共享层的展示名表里随语言变化的两项(`其他` / `合计`)。
+- `error` **data fields** from failed probing or parsing (the registry, subagent definitions), sent
+  down with the snapshot rather than thrown;
+- placeholder and degraded text ("(this line can no longer be read)", "(unknown tool)", "not set",
+  "(Codex global memory)");
+- the truncation marker ("…(truncated)"), which the main process **splices into the body text**;
+- advisory copy (the skill reference depth suggestion), sent over IPC as a constant;
+- configuration summary templates ("projects: N entries / mcp_servers: N sections"), where the
+  quantifier is composed in the main process;
+- the two entries in the shared layer's display-name table that vary by language ("Other" / "Total").
 
-对非中文用户,这些与错误措辞一样是看不懂的中文。按 ADR-0015 的**字面范围**处理不到它们;而默默把该 ADR 的适用面从「失败」扩到「一切文案」,会让后人读 0015 时得不到这条更强的约束。
+To a non-Chinese user these are just as unreadable as the error wording was. ADR-0015's **literal
+scope** does not reach them; and quietly widening that ADR's applicability from "failures" to "all
+copy" would mean a later reader of 0015 never gets this stronger constraint.
 
-## 备选项
+## Options
 
-1. **把约束提升为:主进程与共享层不得产出任何面向用户的自然语言;跨 IPC 只传结构化信号,成句一律在 renderer**
-2. 扩写 ADR-0015 的决策段——否决:改的是一条**已接受**决策的适用范围,而非补充其后果;读者无从看出边界何时、因何变宽,也失去"当时只覆盖失败"这一事实
-3. 逐条把这些文案搬进 i18n 字典、仍由主进程取用——否决:主进程得持有当前界面语言并随切换重取,而语言是渲染层的状态;等于把 renderer 的关注点搬进主进程
-4. 只处理 `error` 数据字段(与 0015 最像的那类),其余留待——否决:占位符与截断标记恰恰是**最高频**出现在界面上的,留下它们等于这条线没有画
+1. **Raise the constraint to: the main process and the shared layer must not emit any user-facing
+   natural language; only structured signals cross IPC, and all sentence composition happens in the
+   renderer**
+2. Expand ADR-0015's Decision section — rejected: that changes the applicability of an **accepted**
+   decision rather than adding to its consequences; a reader would have no way to see when or why the
+   boundary widened, and the fact that it originally covered failures only would be lost
+3. Move this copy into the i18n dictionaries entry by entry and still have the main process read it —
+   rejected: the main process would then have to hold the current UI language and re-read it on every
+   switch, and language is renderer state; this moves a renderer concern into the main process
+4. Handle only the `error` data fields (the class most like 0015) and leave the rest — rejected: the
+   placeholders and the truncation marker are precisely the **most frequent** things on screen, so
+   leaving them means the line was never drawn
 
-## 决策
+## Decision
 
-选定**方案 1**:我们规定**主进程与共享层不得产出任何面向用户的自然语言**。跨 IPC 的载荷只携带结构化信号:错误码与参数、`null`(表示"此处无值")、布尔(如"是否被截断")、计数与字段值。所有成句——包括占位符、量词、截断标记、提示语——一律发生在 renderer,按当前生效语言生成。
+We choose **option 1**: we rule that **the main process and the shared layer must not emit any
+user-facing natural language**. Payloads crossing IPC carry structured signals only: error codes and
+parameters, `null` (meaning "no value here"), booleans (such as "was this truncated"), counts and
+field values. All sentence composition — including placeholders, quantifiers, truncation markers and
+advisory copy — happens in the renderer, in the currently effective language.
 
-判据是可执行的:对 `src/main`、`src/shared`、`src/preload` 做全库中文字面量检索(**必须 `grep -a`**),结果应只剩**不流向界面**的开发者日志。
+The criterion is executable: run a whole-repository Chinese literal search over `src/main`,
+`src/shared` and `src/preload` (**with `grep -a`**), and what remains should be only developer logs
+that never reach the UI.
 
-## 后果
+## Consequences
 
-- 正面:i18n 得以在 renderer 侧完全闭合,不留"一半界面能翻、一半不能"的窟窿
-- 正面:约束是可检索、可复核的,而不是靠 review 时人肉盯;票 14 的文案门禁可以直接把它变成 CI 断言
-- 正面:主进程与"当前界面语言"彻底解耦——它不需要知道用户在看哪种语言
-- 负面:一批数据字段的形状变复杂了(`string` → `CappedText` / `AppError` / `T | null`),消费端要多一步取值
-- 负面:"此处无值"与"值恰好是空串"必须在类型上分清,否则 `?? 占位符` 会误伤合法空值
-- 中性:开发者向日志(`console.*`)不在约束内——它们不流向界面,强行英文化只会让本地排查变难
+- Positive: i18n closes completely on the renderer side, with no "half the UI translates, half does
+  not" hole
+- Positive: the constraint is searchable and re-checkable rather than something a human has to watch
+  for at review; ticket 14's copy gate turns it directly into a CI assertion
+- Positive: the main process is fully decoupled from "the current UI language" — it does not need to
+  know which language the user is looking at
+- Negative: a number of data fields get more complex shapes (`string` → `CappedText` / `AppError` /
+  `T | null`), so consumers need one more step to read a value
+- Negative: "no value here" and "the value is legitimately an empty string" must be distinguished in
+  the types, or `?? placeholder` will clobber a legitimate empty value
+- Neutral: developer logs (`console.*`) were originally outside the constraint — they do not reach
+  the UI, and forcing them into English would only make local debugging harder.
+  **This clause was superseded on 2026-08-09 by ADR-0017**: the repository's working language is now
+  English, so terminal output including `console.*` is in English too. The reasoning above weighed
+  local debugging convenience for a solo Chinese-speaking developer; ADR-0017 weighs it against
+  non-Chinese contributors being able to read the repository at all, and rules the other way.
 
-## 来源
+## Sources
 
-2026-08-09 票 07 实施。改造前的全库枚举:`index.ts`(占位符、截断)、`search-sessions.ts`、`token-stats.ts`(标题兜底 ×2)、`skill-package.ts`(提示 + 截断)、`read-utils.ts`(截断)、`claude.ts` ×2、`codex.ts`、`memory.ts`、`global.ts` ×2、`subagents.ts` ×3、`plugins.ts`、`turn-content.ts`、`shared/trend.ts`、`shared/provider.ts`。改造后余 1 处 `console.error`,属上文中性条款。本条为 ADR-0015 的**范围扩展**,不改写它——0015 记录的是"失败信息"当时的决策与理由,仍然成立。
+Implementing ticket 07 on 2026-08-09. The whole-repository enumeration before conversion:
+`index.ts` (placeholders, truncation), `search-sessions.ts`, `token-stats.ts` (title fallback ×2),
+`skill-package.ts` (advisory + truncation), `read-utils.ts` (truncation), `claude.ts` ×2, `codex.ts`,
+`memory.ts`, `global.ts` ×2, `subagents.ts` ×3, `plugins.ts`, `turn-content.ts`, `shared/trend.ts`,
+`shared/provider.ts`. One `console.error` remained after conversion, covered by the neutral clause
+above. This ADR is a **scope extension** of ADR-0015 and does not rewrite it — 0015 records the
+decision and reasoning for failure information as they stood then, and those still hold.

@@ -1,28 +1,53 @@
-# ADR-0011: 提问索引搭载于 token 计量缓存(单缓存双口径)
+# ADR-0011: The question index rides on the token metering cache (one cache, two readings)
 
-- 状态: 已接受(2026-08-06,追认 2026-08-03 票 session-view/03a 实施时的既成决策)
+- Status: Accepted (2026-08-06, retroactively recording the decision already made while implementing
+  ticket session-view/03a on 2026-08-03)
 
-## 背景与问题
+## Context
 
-会话查看需要每文件的提问偏移索引(提问行与轮次的字节区间、时间戳、体量计数、内容指纹),且必须与扫描同趟产出——单独再扫一遍全库(本机 ~2000 文件 / 700MB)就把"搭 token 统计的车"的成本优势丢了。token 统计已有按(路径, mtime, size)签名的逐文件增量缓存(token-cache.json)。索引放哪:同一份缓存,还是独立缓存文件?
+Session viewing needs a per-file question offset index (the byte ranges of question lines and turns,
+timestamps, volume counts, content fingerprints), and it has to be produced in the same pass as the
+scan — scanning the whole library a second time (~2000 files / 700 MB on this machine) would throw
+away the cost advantage of riding along with the token statistics. Token statistics already have a
+per-file incremental cache keyed by a (path, mtime, size) signature (`token-cache.json`). Where does
+the index go: the same cache, or a separate cache file?
 
-## 备选项
+## Options
 
-1. **搭载进 token 缓存的 FileAgg(选定)**:一份缓存、一个签名、一趟扫描,展示与计量共享失效判定。
-2. 独立索引缓存文件——否决:两份缓存两套签名会漂移(同一文件在两边失效时刻不同),扫描要写两处,失效重建要判两次;换来的只是"展示侧改动不作废计量缓存"这一点隔离。
-3. 不缓存、打开会话页时现扫——否决:会话列表要全项目的 questionCount,现扫等于每次进详情页重读全部会话文件。
+1. **Ride along inside the token cache's `FileAgg` (chosen)**: one cache, one signature, one scan
+   pass; display and metering share the same invalidation judgement.
+2. A separate index cache file — rejected: two caches with two signatures drift (the same file
+   invalidates at different moments on each side), the scan has to write in two places, and a rebuild
+   has to be judged twice; all of which buys only the isolation of "a display-side change does not
+   invalidate the metering cache".
+3. No cache — scan on demand when the session page opens — rejected: the session list needs
+   `questionCount` for every project, so scanning on demand means re-reading every session file on
+   every visit to the detail page.
 
-## 决策
+## Decision
 
-选定**方案 1**。索引作为 FileAgg 字段(questions/forkPoints/titleFromThread 等)与计量数据同存,**不含提问文本**(spec session-view D2a:只存偏移与 4 字节指纹)。
+We choose **option 1**. The index is stored as `FileAgg` fields (`questions` / `forkPoints` /
+`titleFromThread` and so on) alongside the metering data, and **contains no question text**
+(spec session-view D2a: only offsets and a 4-byte fingerprint).
 
-**代价与联动规则**(选它就要认的):
+**The costs and coupled rules** (what choosing this commits us to):
 
-- 展示侧的形状或算法变动必须升 `CACHE_VERSION`,会**作废全库计量缓存**,触发一次全量重扫(实测热缓存 ~100ms、冷扫 ~3s)。v7-v10 四次升号皆为此类。
-- 缓存体积 +207KB / +4.3%(实测 1823 文件);冷扫反而 3537ms → 2916ms(行读取由 readline 换成按 0x0A 切 Buffer,省下的解码开销盖过新增的逐行分类)。
-- 同版本内的损坏/漂移由 `isWellFormedAgg` 守(加必填字段必须同步加校验);形状变动由字段集指纹测试逼作者想版本号;算法变动无自动防线,靠流程自问(见 spec Implementation Decisions)。
+- Any change to the display side's shape or algorithm must bump `CACHE_VERSION`, which
+  **invalidates the whole metering cache** and triggers a full rescan (measured: ~100 ms warm,
+  ~3 s cold). All four bumps from v7 to v10 were of this kind.
+- The cache grows by 207 KB / 4.3% (measured over 1823 files); the cold scan actually improved from
+  3537 ms to 2916 ms (line reading switched from `readline` to splitting a Buffer on `0x0A`, and the
+  decoding overhead saved outweighs the added per-line classification).
+- Corruption or drift within one version is guarded by `isWellFormedAgg` (adding a required field
+  means adding its check at the same time); shape changes are caught by a field-set fingerprint test
+  that forces the author to think about the version number; algorithm changes have no automated
+  defence and rely on the process question (see the spec's Implementation Decisions).
 
-## 后果
+## Consequences
 
-- 好:一趟扫描两个口径,签名失效判定单点;会话页的单文件重建(sessionQuestions)直接复用同一缓存条目。
-- 坏:展示与计量的缓存生命周期绑死——纯展示侧迭代也会让计量缓存全量重算;两口径字段混居一个结构,读代码时须留意"计量口径去重、展示口径剥离"互不复用结论(spec B2/R2 反复强调)。
+- Good: two readings from one scan pass, with a single point of signature invalidation; the session
+  page's single-file rebuild (`sessionQuestions`) reuses the same cache entry directly.
+- Bad: the display and metering cache lifecycles are welded together — a purely display-side
+  iteration forces a full metering recomputation; and the two readings' fields share one structure,
+  so reading the code requires keeping in mind that "metering deduplicates, display strips" and that
+  neither one's conclusions transfer to the other (emphasised repeatedly in spec B2/R2).

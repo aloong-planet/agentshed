@@ -1,9 +1,11 @@
-# 踩坑复盘(Postmortems)
+# Postmortems
 
-一坑一文件,只追加。**排查完真 bug 当次回补**:写清现象、根因、为什么没被测住、以及固化下来的防线。
+One file per trap, append-only. **Written the same time the real bug is diagnosed**: the symptom,
+the root cause, why no test caught it, and the defence that was put in place.
 
-| 日期 | 事件 |
+| Date | Event |
 |---|---|
-| 2026-07-30 | [缓存结构变更未升版本导致启动崩溃](2026-07-30-cache-version-crash.md) |
-| 2026-08-02 | [三道以为存在、实际不设防的防线](2026-08-02-guards-that-were-not-there.md)(算法变更漏升缓存版本号导致假绿、加字段漏进同版本守卫、把从不执行的测试当护栏) |
-| 2026-08-02 | [照清单实现 vs 照数据实现:噪声名单漏了六成](2026-08-02-noise-list-vs-real-data.md)(调研期清单漏掉占比 63% 的形态、列了一项不存在的;噪声分层,输入侧采样看不见第二层) |
+| 2026-07-30 | [A cache structure change without a version bump crashed startup](2026-07-30-cache-version-crash.md) |
+| 2026-08-02 | [Three defences we thought existed and that were not defending anything](2026-08-02-guards-that-were-not-there.md) (an algorithm change without a cache version bump giving a false green; a new field missed by the same-version guard; citing a test that never runs as a guard rail) |
+| 2026-08-02 | [Implementing from a list vs implementing from the data: the noise list missed 60%](2026-08-02-noise-list-vs-real-data.md) (the research-phase list missed a shape accounting for 63% and listed one that does not exist; noise is layered, and sampling the input side cannot see the second layer) |
+| 2026-08-04 | [Smoke went red three times: a silent lock exit, and the evidence destroyed three times over](2026-08-04-smoke-silent-lock-exit.md) |

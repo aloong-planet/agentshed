@@ -1,16 +1,28 @@
-# Memory 查看
+# Memory view
 
-## 概述
-agent 会自动积累跨会话记忆并影响后续行为,但内容藏在数据目录里,用户不知道"agent 记住了我项目的什么"。本功能在全局页汇总各项目的记忆,在项目详情展示记忆全文。
+## Overview
+Agents accumulate cross-session memories automatically and those memories shape later behaviour, but
+the content is buried in a data directory, so users do not know "what has the agent remembered about
+my project". This feature summarises each project's memories on the global page and shows them in
+full in project detail.
 
-## 能力
-- 全局页 Memory 分栏:列出有记忆的项目(有无主记忆文件、topic 数、最近修改),按最近修改倒序;失效/已隐藏项目照常入列并带徽标
-- 点行展开该项目的记忆文件列表;点文件打开抽屉查看内容;文件不可读时抽屉内报错不中断
-- Codex 全局记忆(不分项目)按开关三态展示:功能未开启时给出开启方法提示(不误报"无内容");已开启无内容时显示"暂无内容";有内容时以单独一行出现,可展开与查看(功能已关但留有旧文件时如实列出并附注)
-- 项目详情 Memory 分栏:主记忆文件(MEMORY.md)正文直接渲染;topic 文件列表点开抽屉查看
-- 纯 Codex 侧项目显示说明(记忆为 Claude 侧机制,Codex 记忆是全局的)
+## Capabilities
+- Global page Memory section: lists projects that have memories (whether there is a main memory file,
+  the topic count, the last modification), in reverse order of last modification; stale and hidden
+  projects are listed as usual with a badge
+- Clicking a row expands that project's memory file list; clicking a file opens a drawer to view it;
+  an unreadable file reports the error inside the drawer without interrupting
+- Codex global memory (not per project) is shown in three states according to the feature toggle:
+  when the feature is off, it explains how to turn it on (rather than falsely reporting "no
+  content"); when it is on with nothing in it, it shows "nothing yet"; when there is content it gets
+  its own row that expands and can be viewed (if the feature is off but old files remain, they are
+  listed truthfully with a note)
+- Project detail Memory section: the main memory file (MEMORY.md) is rendered directly; topic files
+  are listed and open in a drawer
+- A Codex-only project shows an explanation (memory is a Claude-side mechanism, and Codex memory is
+  global)
 
-## 边界与不做
-- 只读:不提供记忆的编辑与删除;记忆是 agent 生成态内容
-- subagent 级独立记忆不展示
-- 超长文件截断展示
+## Boundaries and non-goals
+- Read-only: no editing or deleting memories; memory is agent-generated content
+- Subagent-level private memories are not shown
+- Overly long files are truncated for display

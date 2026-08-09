@@ -1,117 +1,251 @@
 # Agentshed
 
-Claude Code 与 Codex 的桌面全景与管理工具:看清每个项目装了什么、烧了多少 token、沉淀了哪些产物,并从全局库向项目装卸 skills。本文件是领域词汇表。
+A desktop overview and management tool for Claude Code and Codex: see what each project has installed,
+how many tokens it has burned, and which artifacts it has accumulated — and install or remove skills
+from the global library. This file is the domain glossary.
 
-## Language(术语)
+## Language
 
-**项目(Project)**:
-任一 agent 侧注册表中记录过的工作目录;两侧取并集,一目录一项目。
-_Avoid_: 仓库、workspace
+**Project**:
+Any working directory recorded in either agent side's registry; the two sides are unioned, one
+directory to one project.
+_Avoid_: repository, workspace
 
-**失效项目(Stale project)**:
-注册表仍有记录但磁盘目录已不存在的项目;默认过滤不显示,可开关显示。
-_Avoid_: 死项目、无效项目
+**Stale project**:
+A project still recorded in a registry whose directory no longer exists on disk; filtered out by
+default, can be toggled on.
+_Avoid_: dead project, invalid project
 
-**agent 侧(Agent side)**:
-数据来源端,枚举:Claude Code、Codex。
-_Avoid_: 工具、CLI、平台
+**Agent side**:
+A data source. Enumerated: Claude Code, Codex.
+_Avoid_: tool, CLI, platform
 
-**全局库(Global library)**:
-agent 全局层的 skills 集合,项目级安装的唯一来源;对本产品只读,内容增删改不经 app。
-_Avoid_: 市场、marketplace
+**Global library**:
+The set of skills at an agent's global layer, and the only source for a project install. Read-only
+as far as this product is concerned — its contents are never added to, changed, or removed via the app.
+_Avoid_: marketplace, store
 
-**项目级安装(Project install)**:
-将 skill 从全局库以完整复制落地到项目自有目录;卸载即删除项目内副本,项目自持不依赖全局库存续。
-_Avoid_: 软链、同步
+**Project install**:
+Landing a skill from the global library into the project's own directory as a full copy. Uninstalling
+deletes the in-project copy; the project is self-contained and does not depend on the global library
+continuing to exist.
+_Avoid_: symlink, sync
 
-**生效视图(Effective view)**:
-项目详情的组件口径,skills 与 subagents 分野(skills-view B1)——subagents:项目级条目与该侧全局层生效项并列呈现,同名标注遮蔽;skills:同侧同名只展示项目级,不并列被覆盖的全局行、无遮蔽/共存徽标(列表展示口径,不改各侧运行时加载语义);skills 生效视图并含有效启用插件的内含 skills(命名空间隔离,不参与同名覆盖)。
-_Avoid_: 已装列表
+**Effective view**:
+The component listing shown on the project detail page. Skills and subagents diverge here
+(skills-view B1) — subagents: project-level entries are shown alongside the effective entries from
+that side's global layer, with same-name entries marked as shadowed; skills: within one side, a
+same-name pair shows only the project-level entry, with no shadowed global row and no
+shadowing/coexistence badge (this is a list *presentation* rule and does not change either side's
+runtime loading semantics). The skills effective view also includes skills bundled with effectively
+enabled plugins (namespace-isolated, not participating in same-name shadowing).
+_Avoid_: installed list
 
-**Subagent(子代理)**:
-agent 定义文件所描述的专职助手(Claude:agents/*.md;Codex:agents/*.toml),被委派子任务时在独立上下文运行。与「agent 侧」严格区分:侧是数据来源端,subagent 是侧内的一类组件。
-_Avoid_: agent(裸称,与 agent 侧混淆)
+**Subagent**:
+A specialised assistant described by an agent definition file (Claude: `agents/*.md`;
+Codex: `agents/*.toml`), which runs in its own context when delegated a subtask. Strictly distinct
+from "agent side": a side is a data source, a subagent is a kind of component within a side.
+_Avoid_: agent (bare, confusable with agent side)
 
-**Memory(记忆)**:
-agent 自动生成的跨会话笔记,生成态内容,本产品只读展示。Claude 侧 per-project(MEMORY.md + topic 文件);Codex 侧为全局目录,探测式展示(非空才显示)。
-_Avoid_: 笔记(泛称);CLAUDE.md(人工指令,属配置)
+**Memory**:
+Cross-session notes generated automatically by an agent. Generated content — this product only
+displays it. Per-project on the Claude side (`MEMORY.md` + topic files); a global directory on the
+Codex side, shown probe-style (only when non-empty).
+_Avoid_: notes (too general); `CLAUDE.md` (human-authored instructions — that is configuration)
 
-**有效启用集(Effective enabled plugins)**:
-某项目视角下实际生效的插件集合:enabledPlugins 按 local > project > user 层级合并后为 true 者。全局页口径取 user 层。
-_Avoid_: 已安装(安装≠启用)
+**Effective enabled plugins**:
+The set of plugins actually in effect from a given project's point of view: those resolving to true
+after `enabledPlugins` is merged across the local > project > user layers. The global page uses the
+user layer.
+_Avoid_: installed (installed ≠ enabled)
 
-**插件内含组件(Plugin-bundled components)**:
-插件包内自带的 skills/subagents/hooks/MCP 等,随插件启停整体生效;发现路径 = 目录约定与 manifest 声明字段的合并。
-_Avoid_: 插件功能(泛称)
+**Plugin-bundled components**:
+The skills / subagents / hooks / MCP servers shipped inside a plugin package, which come and go with
+the plugin as a unit. The discovery path is the union of the directory convention and the fields
+declared in the manifest.
+_Avoid_: plugin features (too general)
 
-**产物(Artifact)**:
-项目内按八步流程约定沉淀的五类文档:ADR、CONTEXT.md、功能目录(features)、踩坑复盘(postmortems)、原型(prototypes)。施工文档(.scratch)不算产物。
-_Avoid_: 文档(泛称)
+**Artifact**:
+The five kinds of document a project accumulates under the eight-step process: ADRs, `CONTEXT.md`,
+the feature catalogue (`features`), postmortems, and prototypes. Working documents (`.scratch`) are
+not artifacts.
+_Avoid_: docs (too general)
 
-**活跃度(Activity)**:
-项目列表的默认排序维度,由最近会话时间与会话数构成。其中「最近会话时间」取**会话文件的 mtime**,与会话自身的「最后活动时间」是**两条独立管线**;而「会话数」则**与会话列表同源**(只数真会话,不数预热与 subagent)——时间分家、数目同源,是刻意的不对称——后者取文件内最大时间戳(见「会话」)。两者刻意不统一:mtime 是全库近两千文件的廉价近似,改成读内容会把项目列表的首屏成本抬到与全量扫描同级;代价是文件被 touch 而内容未变时两者会不一致,已接受。
-_Avoid_: 把两个时间当同一个;"顺手统一"(有测试钉着分界)
+**Activity**:
+The default sort dimension of the project list, composed of most-recent-session time and session
+count. "Most-recent-session time" here is **the session file's mtime**, which is a **separate
+pipeline** from a session's own "last activity time"; "session count", however, **shares its source
+with the session list** (counting only real sessions, not warmups or subagents). Time diverges,
+count converges — the asymmetry is deliberate. The other pipeline takes the largest timestamp inside
+the file (see "Session"). The two are deliberately not unified: mtime is a cheap approximation over
+nearly two thousand files, and reading contents instead would push the project list's first-paint
+cost up to the level of a full scan. The price is that the two disagree when a file is touched
+without its contents changing. Accepted.
+_Avoid_: treating the two times as one; "unifying them while we're here" (tests pin the boundary)
 
-**会话(Session)**:
-agent 侧的一次对话记录,由其源文件绝对路径唯一标识。**不含任何真实人类提问的记录(agent 自开的预热会话、已验证剥空的纯重放 fork)不算可浏览的会话**,不入列表,但其 token 照计——与 subagent 同口径。其「最后活动时间」= **文件内最大时间戳**(两侧同义;与走 mtime 的项目活跃度是两条管线,见「活跃度」)。
-会话页以**提问为主索引**(全部真实提问一次列全,fork 重放前缀与被放弃分支不进主干),点提问按需取回该**轮**;本项目内可搜索(默认搜提问)。落地口径详见 `docs/specs/session-view.md`(2026-08-06 全量上线,导出功能废弃)。
-_Avoid_: 聊天记录
+**Session**:
+One conversation record on an agent side, uniquely identified by the absolute path of its source
+file. **A record containing no real human question at all (a warmup session the agent opened by
+itself, or a pure-replay fork verified to have been stripped empty) does not count as a browsable
+session**, and does not enter the list — but its tokens still count, the same rule as subagents.
+Its "last activity time" is **the largest timestamp inside the file** (same meaning on both sides;
+a separate pipeline from project activity, which uses mtime — see "Activity").
+The session page is **indexed primarily by question** (every real question listed once; fork replay
+prefixes and abandoned branches do not enter the trunk); clicking a question fetches that **turn** on
+demand. Searchable within a project (searches questions by default). The full specification is in
+`docs/specs/session-view.md` (fully shipped 2026-08-06; the export feature was dropped).
+_Avoid_: chat log
 
-**轮(Turn)**:
-一条真实提问到下一条真实提问之前的全部记录(助手正文、工具调用与返回、subagent 派发)。轮以源文件**字节区间**标识,按需取回只读该区间、与文件总大小无关;轮内容经公共块模型(正文/思考/推理/工具/子代理/未知留痕)归一化渲染,显示白名单外的未知类型留痕、绝不静默丢。
-_Avoid_: 消息对、问答对
+**Turn**:
+Everything recorded from one real question up to the next (assistant prose, tool calls and returns,
+subagent dispatches). A turn is identified by a **byte range** in the source file; fetching one on
+demand reads only that range and is independent of total file size. Turn contents are normalised
+through a common block model (prose / thinking / reasoning / tool / subagent / unknown-trace) for
+rendering; unknown types outside the display allow-list leave a trace and are never silently dropped.
+_Avoid_: message pair, question-answer pair
 
-**数据日(Data day)**:
-趋势窗口内、当前视图口径下当日合计 > 0 的日子;x 轴只为数据日出日期标签(见 ADR-0009)。
-_Avoid_: 有量日、活跃日
+**Data day**:
+A day within the trend window whose total under the current view is > 0. The x axis only emits date
+labels for data days (see ADR-0009).
+_Avoid_: non-zero day, active day
 
-**支持语言(Supported language)**:
-app 界面可切换的语言,枚举:简体中文、英文、法文、俄文、西班牙文、日文。六者皆左起横排,本产品不承诺 RTL(见 ADR-0013)。
-_Avoid_: 六大官方语言(本产品的六语不含阿拉伯语)、locale(泛称)
+**Supported language**:
+A language the app UI can be switched to. Enumerated: Simplified Chinese, English, French, Russian,
+Spanish, Japanese. All six are left-to-right; this product makes no RTL commitment (see ADR-0013).
+_Avoid_: the six official UN languages (this product's six exclude Arabic); locale (too general)
 
-**语言偏好(Language preference)**:
-用户在设置里选定并被持久化的值,取值为「跟随系统」或某一支持语言,默认「跟随系统」。「跟随系统」是一条**持续生效的策略**,不是选中当刻的语言快照——系统语言此后改变,界面随之改变。
-_Avoid_: 当前语言、已选语言(二者都未区分偏好与其解析结果)
+**Language preference**:
+The value the user selects in settings, which is persisted. Either "follow system" or one specific
+supported language; defaults to "follow system". "Follow system" is a **continuously applied policy**,
+not a snapshot of the language at the moment of selection — if the system language changes later,
+the UI changes with it.
+_Avoid_: current language, selected language (neither distinguishes the preference from its resolution)
 
-**生效语言(Effective language)**:
-界面此刻实际使用的语言,恒为某一支持语言。由语言偏好推导:偏好是具体语言即取之,偏好是「跟随系统」则按系统偏好语言列表逐项解析、取首个受支持者、全不中用英文。本身不被持久化。
-_Avoid_: 默认语言
+**Effective language**:
+The language the UI is actually using right now; always one specific supported language. Derived
+from the language preference: if the preference names a language, that one; if it is "follow system",
+resolve the system's preferred-language list in order, take the first supported one, and fall back to
+English if none match. Never persisted itself.
+_Avoid_: default language
 
-**源语言(Source language)**:
-简体中文;界面文案的唯一真相,新增文案先落源语言,其余五语由它派生并逐条对齐,不存在「暂时留空」的中间态。与「生效语言」严格区分:源语言是文案的**编写起点**,与用户此刻看到哪种语言无关。
-_Avoid_: 默认语言、主语言
+**Source language**:
+Simplified Chinese; the single source of truth for UI copy. New copy is written in the source
+language first, and the other five are derived from it and aligned entry by entry — there is no
+"temporarily blank" intermediate state. Strictly distinct from "effective language": the source
+language is where copy is **authored**, regardless of which language a user is looking at.
+_Avoid_: default language, primary language
 
-**外观模式(Appearance mode)**:
-用户对界面明暗的偏好,取值「跟随系统 / 浅色 / 深色」,默认跟随系统;与配色方案正交,两者可任意组合。与「语言偏好」同构——「跟随系统」是持续生效的策略而非快照,由它与系统外观共同决定的**生效明暗**才是最终渲染的值,生效明暗本身不被持久化。
-_Avoid_: 深色模式(只说了一半)、主题(与配色方案混淆)、昼夜
+**Appearance mode**:
+The user's preference for a light or dark UI. Either "follow system", "light", or "dark"; defaults to
+follow system. Orthogonal to the colour scheme — any combination is valid. Structurally identical to
+"language preference": "follow system" is a continuously applied policy, not a snapshot, and the
+**effective appearance** it produces together with the system appearance is what actually renders.
+The effective appearance is never persisted itself.
+_Avoid_: dark mode (states only half of it), theme (confusable with colour scheme), day/night
 
-**结构化错误(Structured error)**:
-跨 IPC 边界传递的失败信息,由错误码与参数构成,不含任何自然语言措辞;措辞在 renderer 按当前语言生成(见 ADR-0015)。
-_Avoid_: 错误消息、error message(裸称,暗示已成句)
+**Structured error**:
+Failure information crossing the IPC boundary, composed of an error code and parameters, containing
+no natural-language wording at all. The wording is produced in the renderer in the current language
+(see ADR-0015).
+_Avoid_: error message (bare, implies a finished sentence)
 
-## Invariants(不变量)
+## Invariants
 
-- **宿主安全守卫的判定层必须是可测纯函数(2026-08-02 定案)**:导航放行、外链白名单、IPC sender 校验、CSP 策略、协议路径解析——全部抽为纯函数并单测覆盖**绕过向量**(origin 前缀相似、大小写、userinfo、编码穿越)。理由:这类缺陷没有可靠的自动化门禁(Electron 官方运行时警告不覆盖导航/新窗口/webview;主流 SAST 已停更且有已证实漏报分支),自己的测试是唯一防线。逐条现状见 `docs/ops/electron-security.md`,清单与判据见 electron-scaffold skill。
+- **The decision layer of every host security guard must be a testable pure function (settled
+  2026-08-02)**: navigation allow/deny, external-link allow-listing, IPC sender validation, the CSP
+  policy, protocol path resolution — all extracted as pure functions with unit tests covering
+  **bypass vectors** (origin prefix lookalikes, casing, userinfo, encoded traversal). Rationale:
+  there is no reliable automated gate for this class of defect (Electron's official runtime warnings
+  do not cover navigation / new windows / webviews; the mainstream SAST tools are unmaintained and
+  have demonstrated blind branches), so our own tests are the only line of defence. The current state
+  item by item is in `docs/ops/electron-security.md`; the checklist and criteria are in the
+  electron-scaffold skill.
 
-- **渲染内容里的链接不得导航整窗(2026-08-02 定案)**:一切经 markdown 渲染进 app 的内容(记忆、配置、产物),其链接必须被拦截并自行裁决归宿——白名单内的在 app 内打开、外部链接交系统浏览器、其余明确提示;放行默认行为会让渲染进程整窗导航,丢光全部 app state。主进程 `will-navigate`/`setWindowOpenHandler` 是兜底守卫,新增渲染点无需重复接线但也不得绕过。
+- **A link inside rendered content must never navigate the whole window (settled 2026-08-02)**:
+  for any content rendered into the app through markdown (memories, configuration, artifacts), links
+  must be intercepted and their destination decided by us — allow-listed ones open inside the app,
+  external ones go to the system browser, anything else gets an explicit notice. Letting the default
+  behaviour through navigates the entire renderer window and loses all app state. The main process's
+  `will-navigate` / `setWindowOpenHandler` are a backstop; a new render site need not re-wire them,
+  but must not bypass them either.
 
-- **读 agent 生成的数据时,规则的依据只能是样本或机制(2026-08-03 定案)**:为某种数据形态写识别/剥离/放行规则,依据必须是**看过的真实样本**,或**说得清的产生机制**——只有一个名字(来自调研清单、文档、回忆)不构成依据。有机制可循时允许沿机制外推(如 `<local-command-*>` 观察到 caveat 与 stdout 两个成员,同属 harness 包裹 `!` 命令,按族前缀匹配);只有名字时,写出来的正则是三选一的猜测,而 fixture 只能按同一个猜测造——测试必过,却什么也没验证。
-  **推论:「把某类形态列全」是伪装成正面的否定结论(2026-08-03 票 03a 补)**。"Codex 的工具调用有这几种"读起来是正面枚举,实质是"没有别的种类"——这是否定判断,按 CLAUDE.md「否定结论要换手段」就不能靠采样。实例:120 个文件的采样给出 `custom_tool_call` + `function_call`,看着干净利落;换成全量 278 文件 / 62,912 行枚举,冒出第三种 `tool_search_call`(25 次)。采样里它一次都没出现,而漏掉它的后果是工具数长期偏少且**没有任何测试会红**——fixture 只会照着同一份采样造。
-  **判据**:凡要写成 `Set`/`switch`/白名单的形态集合,来源必须是**全量枚举**(把整个数据目录扫一遍统计),不是"我看过的那些"。全量枚举在本地数据上通常只要几秒,没有省的理由。
+- **When reading agent-generated data, a rule may only be grounded in a sample or in a mechanism
+  (settled 2026-08-03)**: to write a rule that recognises, strips, or admits some data shape, the
+  grounds must be **a real sample you have looked at** or **a mechanism you can articulate** — a name
+  alone (from a research list, from documentation, from memory) is not grounds. Where a mechanism
+  exists, extrapolating along it is allowed (e.g. `<local-command-*>`: caveat and stdout were both
+  observed, both are the harness wrapping a `!` command, so match by family prefix). With only a name,
+  the regex you write is a one-in-three guess, and the fixture can only be built on the same guess —
+  the test passes without having verified anything.
+  **Corollary: "listing every shape of X" is a negative conclusion in positive disguise (added
+  2026-08-03, ticket 03a).** "Codex tool calls come in these kinds" reads as positive enumeration but
+  actually asserts "there are no others" — a negative judgement, which per CLAUDE.md's "negative
+  conclusions require a different method" cannot rest on sampling. Case in point: a 120-file sample
+  gave `custom_tool_call` + `function_call`, looking clean and complete; a full enumeration over
+  278 files / 62,912 lines turned up a third, `tool_search_call` (25 occurrences). It never appeared
+  once in the sample, and the consequence of missing it would be a permanently undercounted tool
+  count that **no test would ever go red on** — the fixtures are built from the same sample.
+  **Criterion**: any set of shapes destined for a `Set` / `switch` / allow-list must come from a
+  **full enumeration** (scan the whole data directory and count), not from "the ones I happened to
+  look at". A full enumeration over local data usually takes seconds; there is no reason to skip it.
 
-  理由:调研期清单与真实数据的偏差是**双向**的。实测 297 个会话,清单漏掉了占 63% 的形态(`Warmup`),而清单里有的 `Conversation info` 我采样时又没采到——后者更坏,因为我据此写了"不存在"的断言进 spec(复查证明它存在,只是在按 mtime 排序的采样之外)。下否定结论的手段问题见 CLAUDE.md「否定结论要换手段」。
+  Rationale: the divergence between a research-phase list and real data goes **both ways**. Measuring
+  297 sessions showed the list had missed a shape accounting for 63% of them (`Warmup`), while
+  `Conversation info`, which was on the list, did not appear in my sample — the latter is worse,
+  because I wrote an assertion into the spec that it "does not exist" (a recheck proved it does; it
+  was simply outside a sample ordered by mtime). On method for negative conclusions, see CLAUDE.md.
 
-- **剥离类可以严格照样本,白名单类不行——按失败方向定严格度(2026-08-03 定案)**:同一条"只处理见过的形态",在两类逻辑上后果相反。
-  **剥离 / 过滤**(不匹配就保留)失败**可见**——漏一种噪声顶多标题难看,用户一眼看出来,故可严格照样本、宁缺毋滥。
-  **白名单 / 放行**(不匹配就丢弃)失败**不可见**——漏一种类型就是内容静默消失,没人知道少了什么。这类**不得只照样本**:白名单之外的未知类型必须留下可发现的痕迹,不许静默丢。
-  额外的理由:本产品是本地优先的,**每个用户的数据就是他自己的全集**;开发机上采的样本对别人机器的覆盖率是未知的。剥离逻辑上这不要紧,白名单上就是别人看不到本该看到的内容。
+- **Stripping may follow the sample strictly; allow-listing may not — strictness follows the
+  direction of failure (settled 2026-08-03)**: the same rule "only handle shapes we have seen" has
+  opposite consequences in the two cases.
+  **Stripping / filtering** (no match → keep) fails **visibly** — missing one kind of noise makes a
+  title ugly at worst, and the user sees it immediately. So it may follow the sample strictly and
+  err on the side of doing nothing.
+  **Allow-listing / admitting** (no match → discard) fails **invisibly** — missing one type means
+  content silently disappears and nobody knows what is gone. This class **must not follow the sample
+  only**: an unknown type outside the allow-list must leave a discoverable trace, never be silently
+  dropped.
+  A further reason: this product is local-first, and **each user's own data is their entire
+  universe**; the coverage of a sample taken on a dev machine over someone else's machine is unknown.
+  For stripping logic that does not matter; for an allow-list it means someone else cannot see
+  content they should.
 
-- **判定类降级以目标系统行为为准(2026-08-01 定案)**:凡展示"某功能是否开启/某配置是否生效"这类判定,读取失败或内容不可解析时,降级结论必须对齐**目标 agent 此时的实际行为**(它读不了 → 我们报未生效),不得从不可解析内容里抢救语义——抢救出的"已开启"是目标系统自己都看不到的假信号。(实例:C6 Codex config.toml 解析失败曾用行扫描兜底,已删。)
-- **降级只准自伤(故障逃逸面判据,2026-08-01 定案)**:读取/解析任一条目失败时,降级只准影响该条目自身的展示——不得向**同层**逃逸(清空或污染其他条目,含同名遮蔽判定这类跨条目计算),不得向**上层**逃逸(拖垮聚合视图或整次扫描)。评估此类缺陷"要不要修"的首要判据是**逃逸面**而非发生率:会逃逸的即需解决,只自伤的可记录缓办。(实例:A8 不可读 subagent 静默消失曾污染同名遮蔽判定;E10 单 marketplace 故障曾清空整组。)
+- **Degraded judgements follow the target system's behaviour (settled 2026-08-01)**: for any
+  judgement of the form "is this feature on / is this configuration in effect", when reading fails or
+  the content cannot be parsed, the degraded conclusion must match **what the target agent actually
+  does at that moment** (it cannot read the file → we report not in effect). Do not salvage semantics
+  out of unparseable content — a salvaged "enabled" is a false signal the target system itself cannot
+  see. (Case in point: C6, a line-scanning fallback for a failed Codex `config.toml` parse; removed.)
+- **Degradation may only hurt itself (fault escape surface criterion, settled 2026-08-01)**: when
+  reading or parsing any one entry fails, the degradation may only affect that entry's own display.
+  It must not escape **sideways** (emptying or polluting other entries, including cross-entry
+  computations such as same-name shadowing) and must not escape **upward** (dragging down an
+  aggregate view or an entire scan). The primary criterion for whether such a defect is worth fixing
+  is **the escape surface**, not its frequency: anything that escapes needs fixing, anything that
+  only hurts itself may be recorded and deferred. (Cases in point: A8, an unreadable subagent
+  silently disappearing and polluting the same-name shadowing judgement; E10, a single marketplace
+  failure emptying an entire group.)
 
-## Flagged ambiguities(已消解歧义)
+## Flagged ambiguities
 
-- **AgentDex(旧名)作废**:产品原定位「只读图鉴」;2026-07-29 需求分析裁定转为「全景 + 装卸管理」动手型,触发命名备胎条款,更名 Agentshed。「图鉴」不再用作产品定位词,改用「全景」。
-- **「六大官方语言」作废**(2026-08-08):需求原话为联合国六大官方语言,含阿拉伯语;裁定以日语替换阿语,语种数不变而全部左起横排,RTL 不在支持承诺内(理由与备选见 ADR-0013)。今后描述本产品语言支持一律用「六语」并列举,不用「六大官方语言」这一简称。
-- **「双视图/产物聚合」作废**(2026-07-30):跨项目按类型聚合产物裁定为伪需求——产物是项目内上下文文档,仅在项目详情内展示;跨项目检索的归宿是未来的全局搜索,不设聚合页。
-- **Codex 同名语义按组件而异,不可望文类推**(2026-08-01,均源码级核实):skills 两级同名**共存**(root_loader.rs 只按路径去重),subagents 两级同名**项目级遮蔽**(agent_roles.rs 按 config layer 覆盖,同层重名先者优先)。此为**运行时语义**;subagents 生效视图的遮蔽标注仍按各自语义取,skills **列表展示**自 skills-view(2026-08-06)起统一「同名只展示项目级」,不再按运行时语义标注(见「生效视图」词条)。
+- **"AgentDex" (former name) is retired**: the product was originally positioned as a read-only
+  catalogue; on 2026-07-29 requirements analysis ruled it a hands-on "overview + install/remove
+  management" tool, which triggered the naming-fallback clause and produced the name Agentshed.
+  "Catalogue" is no longer used to position the product; "overview" is used instead.
+- **"The six official UN languages" is retired (2026-08-08)**: the requirement as originally stated
+  named the six official UN languages, which include Arabic; the ruling replaced Arabic with
+  Japanese, keeping the count at six with all of them left-to-right, and RTL outside the support
+  commitment (rationale and options in ADR-0013). From now on, describe this product's language
+  support as "six languages" and enumerate them; do not use the shorthand.
+- **"Dual view / artifact aggregation" is retired (2026-07-30)**: aggregating artifacts by type
+  across projects was ruled a false requirement — artifacts are in-project context documents and are
+  shown only within project detail. Cross-project retrieval belongs to a future global search; there
+  will be no aggregation page.
+- **Codex same-name semantics differ per component and must not be extrapolated by analogy**
+  (2026-08-01, both verified at source level): two same-name skills across layers **coexist**
+  (`root_loader.rs` deduplicates by path only), whereas two same-name subagents **shadow at the
+  project level** (`agent_roles.rs` overrides by config layer; within one layer the first wins).
+  These are **runtime semantics**; the shadowing badges in the subagents effective view still follow
+  them, but the skills **list presentation** has, since skills-view (2026-08-06), uniformly shown
+  "only the project-level entry for a same-name pair" and no longer badges by runtime semantics
+  (see the "Effective view" entry).

@@ -1,41 +1,54 @@
-# ADR-0010: 插件内含 skills 并入生效视图(命名空间隔离、启用态过滤)
+# ADR-0010: Plugin-bundled skills join the effective view (namespace-isolated, filtered by enablement)
 
-- 状态: 已接受(2026-08-01,spec 对齐期用户拍板)
+- Status: Accepted (2026-08-01, decided by the user during spec alignment)
 
-## 背景与问题
+## Context
 
-插件可自带 skills,启用后与磁盘 skills 同样参与会话。查看器此前只展示磁盘 skills 目录,
-插件 skills 完全不可见——"当前会话可用的 skills"没有一处看全。并入生效视图需要回答:
-与磁盘同名怎么办、启用态怎么过滤、装卸边界是否扩大。
+A plugin can bundle its own skills, which take part in a session just like on-disk skills once the
+plugin is enabled. The viewer previously showed only the on-disk skills directory, so plugin skills
+were entirely invisible — there was nowhere to see the whole of "the skills available to this
+session". Joining them into the effective view raises three questions: what happens when a name
+collides with an on-disk skill, how enablement filters them, and whether the install/uninstall
+boundary widens.
 
-## 备选项
+## Options
 
-1. **并入 Skills 分栏:命名空间条目 + 启用态过滤 + 只读**
-2. 只在 Plugins 展开内显示,Skills 分栏口径不变——否决:同一能力两处口径不一致,
-   用户必然追问"为什么 Skills 里没有";"生效 skills 全集"是查看器的核心价值
-3. 并入且参与遮蔽判定——否决:官方语义是命名空间化(plugin:skill),与磁盘名天然
-   不冲突,造遮蔽信号即假信号
+1. **Join the Skills section: namespaced entries + enablement filtering + read-only**
+2. Show them only inside the expanded Plugins section and leave the Skills section as is — rejected:
+   the same capability would be described two different ways in two places, and the user would
+   inevitably ask "why isn't it in Skills"; "the complete set of effective skills" is the viewer's
+   core value
+3. Join them *and* let them take part in shadowing — rejected: the official semantics are namespaced
+   (`plugin:skill`), so they cannot collide with on-disk names by construction, and manufacturing a
+   shadowing signal would be manufacturing a false one
 
-## 决策
+## Decision
 
-选定**方案 1**:有效启用插件的内含 skills 以 `插件名:skill名` 命名空间条目并入
-Skills 生效视图。三条边界:
+We choose **option 1**: skills bundled with effectively enabled plugins join the Skills effective
+view as namespaced entries, `pluginName:skillName`. Three boundaries:
 
-- **命名空间隔离**:不参与磁盘 skills 的同名遮蔽判定,与同基名磁盘 skill 并存;
-- **启用态过滤**:按所在页口径——全局页取 user 层 enabledPlugins,项目详情取该项目
-  有效启用集(local > project > user 分层合并);未启用插件的 skills 仅 Plugins 展开可见;
-- **只读**:插件条目不提供装/卸(ADR-0004 的装卸仅限全局库,本决策不扩大其边界);
-  sides 恒为 Claude 侧(Codex 插件生态独立,不跨侧合并)。
+- **Namespace isolation**: they do not take part in on-disk skills' same-name shadowing, and coexist
+  with an on-disk skill of the same base name;
+- **Enablement filtering**: by the page's own rule — the global page takes `enabledPlugins` at the
+  user layer, project detail takes that project's effective enabled set (local > project > user
+  layered merge); skills of a disabled plugin are visible only inside the expanded Plugins section;
+- **Read-only**: plugin entries offer no install or uninstall (ADR-0004's install/uninstall covers
+  only the global library, and this decision does not widen that boundary); `sides` is always the
+  Claude side (the Codex plugin ecosystem is separate and is not merged across sides).
 
-分栏随之更名「Skills(全局库)」→「Skills」,条目以来源徽标(全局库/项目级/插件)区分。
+The section is renamed accordingly, from "Skills (global library)" to "Skills", with entries
+distinguished by a source badge (global library / project-level / plugin).
 
-## 后果
+## Consequences
 
-- 正面:"当前会话可用的 skills"一处看全;启用/禁用插件后刷新即反映;装卸语义零波及
-- 负面:Skills 分栏不再等于「全局库」,依赖该口径的旧心智需要徽标辅助纠正
-- 中性:插件 skills 的展示依赖插件启用态解析,项目详情多一次分层 settings 读取
+- Positive: "the skills available to this session" can be seen whole in one place; enabling or
+  disabling a plugin is reflected on the next refresh; install/uninstall semantics are untouched
+- Negative: the Skills section is no longer synonymous with "global library", and the old mental
+  model that relied on that needs the badges to correct it
+- Neutral: showing plugin skills depends on resolving plugin enablement, so project detail performs
+  one more layered settings read
 
-## 来源
+## Sources
 
-spec subagents-memory-plugin(G 序列);原型裁决 2026-08-01;官方 plugins 文档的
-命名空间语义;实现 PR(G1-G4 测试与 e2e 锁定)。
+The subagents-memory-plugin spec (the G series); the prototype ruling of 2026-08-01; the namespace
+semantics in the official plugins documentation; the implementation PR (G1–G4 tests plus e2e locks).

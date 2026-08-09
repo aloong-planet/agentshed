@@ -1,65 +1,113 @@
-# 照清单实现 vs 照数据实现:噪声名单漏了六成(2026-08-02)
+# Implementing from a list vs implementing from the data: the noise list missed 60% (2026-08-02)
 
-会话标题要剥掉 harness 噪声。spec 的调研期给了一份名单:caveat / command-message / cron 标记 / Conversation info。照它实现,单测会全绿,而**六成以上的标题仍然是错的**。
+Session titles have to be stripped of harness noise. The spec's research phase provided a list:
+caveat / command-message / the cron marker / Conversation info. Implementing from it makes the unit
+tests all green while **more than 60% of the titles are still wrong**.
 
-本条记录的不是某个 bug,而是**"照清单实现"这个动作本身的失效率**——后面还有 8 张票要读同一批 agent 生成的数据,这个教训会反复用到。
+What this entry records is not a particular bug but **the failure rate of the act of "implementing
+from a list"** — there are 8 more tickets ahead reading the same agent-generated data, and this
+lesson will be used repeatedly.
 
-## 名单与真实数据的差距
+## The gap between the list and the real data
 
-采样 297 个真实 Claude 会话的首条用户消息:
+Sampling the first user message of 297 real Claude sessions:
 
-| 形态 | 实际占比 | 在调研期名单里吗 |
+| Shape | Actual share | On the research list? |
 |---|---|---|
-| `Warmup`(整条消息就这一个词) | **188 / 297(63%)** | **没有** |
-| `[cron:<uuid> <名字>] <真正的指令>` | 92 / 297 | 有 |
-| `<local-command-caveat>…` | 13 / 297 | 有 |
-| `<command-message>…<command-args>真实内容</command-args>` | 2 / 297 | 有 |
-| `Base directory for this skill: …` | 常见 | **没有** |
-| `Conversation info (untrusted metadata):` + json 块 | **0 / 297 采样,实为 6 个文件** | 有(名单是对的,**是我的采样漏了**) |
+| `Warmup` (the whole message is that one word) | **188 / 297 (63%)** | **No** |
+| `[cron:<uuid> <name>] <the actual instruction>` | 92 / 297 | Yes |
+| `<local-command-caveat>…` | 13 / 297 | Yes |
+| `<command-message>…<command-args>real content</command-args>` | 2 / 297 | Yes |
+| `Base directory for this skill: …` | Common | **No** |
+| `Conversation info (untrusted metadata):` + a json block | **0 / 297 sampled, actually 6 files** | Yes (the list was right — **my sample missed it**) |
 
-名单**漏了占比最高的那一项**。照名单实现的结果:63% 的会话标题变成 uuid 文件名。
+The list **missed the single most common item**. The result of implementing from it: 63% of session
+titles become uuid filenames.
 
-**但名单也不是全错——`Conversation info` 那条是我的采样漏了。** 复查发现它真实存在(6 个文件),形态是 `Conversation info (untrusted metadata):` + 一段 json 元数据块 + **后面才是真人说的话**。我原本据"采样里没有"断言它不存在,并把这个断言写进了 spec 和本文——**这是个错误的否定结论,比漏项更坏**,因为它给了后人"已经查过、不存在"的假确定感。
+**But the list was not entirely wrong either — I was the one who missed `Conversation info`.**
+A recheck found it does exist (6 files), in the form of `Conversation info (untrusted metadata):` +
+a json metadata block + **the human's actual words after that**. I had asserted from "not in the
+sample" that it did not exist, and written that assertion into the spec and into this document —
+**that is a false negative conclusion, and it is worse than a missed item**, because it gives whoever
+comes next the false certainty of "already checked, it doesn't exist".
 
-漏掉的原因:采样按 mtime 倒序取最近 300 个文件,而这些是一个多月前的旧文件。**采样偏向了最近。**
+Why it was missed: the sample took the most recent 300 files by descending mtime, and these were
+files over a month old. **The sample was biased toward the recent.**
 
-## 两处"想当然"会写反的规则
+## Two rules that intuition gets backwards
 
-名单只给形态名字,不给结构。两处照直觉实现必然做错:
+The list gives shape names but no structure. Two of them are guaranteed to be implemented wrong from
+intuition:
 
-- **`[cron:…]`**:直觉是"这条是定时任务触发的,整条丢"。实际方括号后面跟的是**用户写的真正指令**,整条丢等于丢掉真提问。只能剥方括号。
-- **slash 命令**:直觉是"以 `<command-message>` 开头的整条丢"。实际用户输入在 `<command-args>` 里,丢了就把真提问一起丢了;而 `/clear` 这类 args 为空的才该整条丢。
+- **`[cron:…]`**: intuition says "this one was triggered by a scheduled job, drop the whole thing".
+  In reality what follows the bracket is **the actual instruction the user wrote**, so dropping the
+  whole thing drops a real question. Only the bracket may be stripped.
+- **Slash commands**: intuition says "anything starting with `<command-message>` gets dropped whole".
+  In reality the user's input is inside `<command-args>`, and dropping it takes a real question with
+  it; it is the ones with empty args, like `/clear`, that should be dropped whole.
 
-两者都只有看过真实样本才知道。
+Neither is knowable without looking at real samples.
 
-## 噪声是分层的:采样首条看不见第二层
+## Noise is layered: sampling first messages cannot see the second layer
 
-更隐蔽的一点:上面的采样是"每个会话的**首条**消息"。剥离规则实现完之后,拿真函数回扫真实数据、检查**产出的标题**,才浮出第二层——`<local-command-stdout>`(命令输出,7/144)。它从来不是首条,只有在 caveat 与 `/clear` 被剥掉之后才会顶上来成为标题。
+Something subtler: the sample above was "each session's **first** message". Only after the stripping
+rules were implemented, and the real function was run back over real data to inspect **the titles it
+produced**, did the second layer surface — `<local-command-stdout>` (command output, 7/144). It is
+never the first message; it only rises to become the title after caveat and `/clear` have been
+stripped.
 
-也就是说:**输入侧的采样不足以发现噪声,必须看输出侧**。
+In other words: **sampling the input side is not enough to find the noise; you have to look at the
+output side.**
 
-同一轮里这个坑踩了两次,方向相反:
-- 回扫 `local-command` 标签时**忘了按 mtime 排序**,取到另一批文件,报"没有";
-- 采样噪声形态时**按 mtime 排了序**,于是漏掉一个多月前的旧项目。
+The same trap was hit twice in one round, in opposite directions:
+- when scanning back for `local-command` tags I **forgot to sort by mtime**, got a different batch of
+  files, and reported "not there";
+- when sampling noise shapes I **did sort by mtime**, and so missed an old project from over a month
+  earlier.
 
-**"采样里没有"不等于"不存在"。** 负面结论比正面结论更需要交代采样方式——正面结论至少有个实例撑着,负面结论全靠采样覆盖率,而覆盖率恰恰是最容易被默认为"够了"的东西。要下"不存在"的结论,得用全库 grep 这类不依赖采样的手段。
+**"Not in the sample" is not "does not exist".** A negative conclusion needs its sampling method
+disclosed even more than a positive one — a positive conclusion has at least one instance behind it,
+while a negative one rests entirely on sampling coverage, and coverage is exactly the thing most
+readily assumed to be "enough". To conclude "does not exist", use something that does not depend on
+sampling, such as a whole-repository grep.
 
-## 固化的防线
+## Defences put in place
 
-- 剥离规则抽成纯函数(`session-title.ts`),文件头写明每条规则的**实测占比**与来源,而不是只写规则本身——后人改它时能看见依据的强度。
-- 只见过一次的形态**不写规则**:`[Image #N] <真提问>` 采样仅 1 例且整体可读,不为它加剥离。
-- **不写规则的理由要写对**:`Conversation info` 最初被跳过的理由是"没见过",而复查证明它存在——真正站得住的理由是**它只出现在未注册项目里,按 A2 根本不会显示**,写了是死代码。理由错了,结论碰巧对,下次就不会对。
-- 按**族**匹配而非枚举:`<local-command-*>` 观察到 caveat 与 stdout 两个成员,同一机制(harness 包裹输入框 `!` 命令)还会产出兄弟标签,用前缀匹配。
-- spec 的 A4 节改为一张**带实测占比的表**,并标注"调研期清单不完整"与"新增剥离规则后要再回扫一遍"。
+- The stripping rules were extracted into a pure function (`session-title.ts`), whose file header
+  records each rule's **measured share** and its source rather than just the rule — so whoever
+  changes it later can see how strong the evidence is.
+- A shape seen only once **gets no rule**: `[Image #N] <real question>` appeared once in the sample
+  and was readable as a whole, so no stripping was added for it.
+- **The reason for not writing a rule has to be the right reason**: `Conversation info` was
+  originally skipped for the reason "never seen it", and the recheck proved it exists — the reason
+  that actually holds is that **it only occurs in unregistered projects, which per A2 are never
+  displayed at all**, so a rule would be dead code. A wrong reason with an accidentally right
+  conclusion will not be right next time.
+- Match by **family** rather than by enumeration: `<local-command-*>` was observed with two members,
+  caveat and stdout, and the same mechanism (the harness wrapping a `!` command from the input box)
+  will produce sibling tags, so match by prefix.
+- The spec's section A4 was rewritten as **a table with measured shares**, annotated with "the
+  research-phase list is incomplete" and "scan back again after adding a stripping rule".
 
-## 教训
+## Lesson
 
-**调研期产出的"清单"是线索,不是规格。** 它由人回忆或抽查得来,漏项与虚项都不会自我暴露——尤其漏项:名单里没有的东西,你不会想起去找它。
+**A "list" produced during research is a lead, not a specification.** It comes from someone's recall
+or a spot check, and neither its omissions nor its phantoms announce themselves — omissions
+especially: you do not think to look for what is not on the list.
 
-可操作的判据三条:
+Three actionable criteria:
 
-1. 凡是读**他方生成**的数据(agent 产物、第三方配置、外部 API),实现前先自己采一遍样,**用占比说话**;清单与实测不符时以实测为准,并把差距写回 spec。
-2. 剥离/过滤类逻辑实现完之后,**拿真函数回扫真实数据看输出**。输入侧采样只能发现第一层。
-3. **要说"不存在",别用采样**。采样能证明存在,证不了不存在;下否定结论用全库 grep 这类不依赖覆盖率的手段,否则就老实写"本次采样未见"而不是"不存在"。
+1. For anything reading **someone else's generated** data (agent output, third-party configuration,
+   an external API), take your own sample before implementing and **argue with shares**; where the
+   list and the measurement disagree, the measurement wins, and the gap gets written back into the
+   spec.
+2. After implementing stripping or filtering logic, **run the real function back over real data and
+   look at the output**. Sampling the input side only finds the first layer.
+3. **To say "does not exist", do not use sampling.** Sampling can prove existence, never
+   non-existence; use something coverage-independent such as a whole-repository grep for a negative
+   conclusion, or else honestly write "not seen in this sample" instead of "does not exist".
 
-最后一条附带的元教训:**"不为没见过的形态写代码"这条原则本身没错,错在把"我没采到"当成了"它不存在"。** 原则约束的是**依据的强度**(要有样本或机制),不是给"我懒得查"发许可。
+A meta-lesson attached to the last one: **the principle "do not write code for shapes you have not
+seen" is not wrong; what was wrong was taking "I didn't sample it" for "it doesn't exist".** The
+principle constrains **the strength of the evidence** (there must be a sample or a mechanism); it is
+not a licence for "I couldn't be bothered to check".

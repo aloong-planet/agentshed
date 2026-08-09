@@ -1,29 +1,63 @@
-# ADR-0009: 趋势图 x 轴只标数据日的层级日期标签
+# ADR-0009: Trend x axis labels data days only, with hierarchical date labels
 
-- 状态: 已接受(2026-07-31)
+- Status: Accepted (2026-07-31)
 
-## 背景与问题
+## Context
 
-趋势图 x 轴原按固定索引每 5 根标一个日期:标出的日子与数据无关、末端四天(含今天)永远无标签、窄窗下 flex 等分格把标签裁成残字,且轴与柱区 padding 不一致导致整体错位半根柱宽。需要一种在稀疏与密集数据、宽窗与窄窗下都可读的标签方案。
+The trend chart's x axis originally labelled every 5th slot by fixed index: the days it labelled had
+nothing to do with the data, the last four days (including today) never got a label, in a narrow
+window the equal-flex cells clipped labels into fragments, and the axis and the bar area had
+different padding, offsetting the whole thing by half a bar width. We need a labelling scheme that
+stays readable across sparse and dense data and across wide and narrow windows.
 
-## 备选项
+## Options
 
-1. **层级日数字 + 只标数据日**:仅当前视图下有用量的日子出标签;首个可见标签与月份变化后的首个可见标签用 M/D,其余只标日数字;放不下从右往左隔一简略;标签钉柱中心,首尾出界 clamp(TradingView 日粒度轴 + ECharts hideOverlap 的组合式做法)
-2. 两行交错 M/D(Highcharts staggerLines)——否决:窄窗保全量最强(415px 仍可 30 天全标),但轴区增高约 11px,密集时两行文字视觉噪;原型并排对比后用户裁定不取
-3. 斜 45° M/D(Highcharts/matplotlib 经典降级)——否决:水平占位与文字长度无关是独特优势,但轴区增高约 14px、稀疏时也全斜排观感突兀,窄窗简略幅度反而最大;原型对比后用户裁定不取
-4. 等距标注 + 空日补白(含首尾必标)——否决:等距锚点与数据无关,复现"有数据的日子没日期"的原始问题;「空白首尾日补标窗口边界」单独做过开关对比,用户裁定不补
-5. 保持每 5 根一标——否决:即原始缺陷本身
+1. **Hierarchical day numbers, labelling data days only**: a label is emitted only for days with
+   usage under the current view; the first visible label, and the first visible label after a month
+   changes, use M/D, and the rest show the day number alone; when space runs out, thin from right to
+   left; labels are pinned to bar centres and clamped at the ends (a combination of TradingView's
+   day-granularity axis and ECharts' `hideOverlap`)
+2. Two staggered rows of M/D (Highcharts `staggerLines`) — rejected: the strongest at preserving all
+   labels in a narrow window (still labels 30 days at 415px), but it adds about 11px of axis height
+   and two rows of text are visually noisy when dense; the user ruled against it after a side-by-side
+   prototype comparison
+3. M/D at 45° (the Highcharts / matplotlib classic fallback) — rejected: its unique advantage is that
+   horizontal footprint is independent of text length, but it adds about 14px of axis height, looks
+   jarring when everything is slanted even for sparse data, and thins the most of the three in a
+   narrow window; the user ruled against it after the prototype comparison
+4. Evenly spaced labels with empty days filled in (always labelling first and last) — rejected: the
+   evenly spaced anchors have nothing to do with the data, reproducing the original "days with data
+   have no date" problem; "label the window boundaries even on empty first/last days" was compared
+   separately as a toggle and the user ruled against it
+5. Keep labelling every 5th slot — rejected: that is the original defect itself
 
-## 决策
+## Decision
 
-选定**方案 1**。数据日判定跟随当前视图口径(合计/单侧切换后标签集合与柱集合一致);月份上下文规则保证任何简略后新月份首个存活标签自动升回 M/D,跨月语义不丢;排布算法为纯函数(注入测宽),渲染端量真实柱心(viewport rect 相对轴容器换算,不依赖 offsetParent),ResizeObserver 跟随宽度仅重排轴。
+We choose **option 1**. Which days count as data days follows the current view (after switching
+between combined and single-side, the label set matches the bar set); the month-context rule
+guarantees that after any thinning, the first surviving label in a new month is promoted back to M/D
+so the cross-month meaning is never lost. The layout algorithm is a pure function (with measurement
+injected), and the renderer measures real bar centres (converting the viewport rect relative to the
+axis container, so it does not depend on `offsetParent`); a `ResizeObserver` re-lays out only the
+axis as the width changes.
 
-## 后果
+## Consequences
 
-- 正面:三个原始缺陷(稀疏无关标注、末端盲区、窄窗裁字/错位)全部消除;轴不增高;数据越密轴信息越接近完整刻度尺
-- 负面:极窄时相邻数据日会被简略(无首尾特权,今天也可能被丢);读裸日数字需向左找月份上下文
-- 中性:排布算法在 app(TS)与原型共享件(JS)各有一份——原型 file:// 零构建自包含约束下无法 import src,一致性由 check:ui 与确认门流程兜底,与趋势柱渲染两份的既有先例同构
+- Positive: all three original defects (labels unrelated to sparse data, the blind spot at the end,
+  clipping and misalignment in a narrow window) are gone; the axis does not grow taller; the denser
+  the data, the closer the axis is to a complete ruler
+- Negative: at extreme narrowness adjacent data days get thinned (there is no first/last privilege,
+  so even today can be dropped); reading a bare day number means looking left for the month context
+- Neutral: the layout algorithm exists in two copies, one in the app (TS) and one in the prototype's
+  shared piece (JS) — the prototypes' zero-build `file://` self-containment constraint makes
+  importing from `src` impossible, so consistency is backstopped by `check:ui` and the confirmation
+  gate, isomorphic to the existing precedent of the trend bar renderer also existing twice
 
-## 来源
+## Sources
 
-三形态并排原型对比(稀疏/成簇/密集 × 宽 640px/窄 415px + 宽度滑杆实测)与用户三轮裁决(2026-07-31);行业调研:Chart.js autoSkip、ECharts axisLabel.hideOverlap(v5.2)、TradingView lightweight-charts tick-marks 权重算法、Highcharts autoRotation/staggerLines;最小窗宽 800px 下详情页可用宽约 415px 的物理账(单行水平 M/D 全标需约 780px,不可行)。
+A side-by-side prototype comparison of three data shapes (sparse / clustered / dense × wide 640px /
+narrow 415px, plus a width slider), and three rounds of the user's rulings (2026-07-31); industry
+research: Chart.js `autoSkip`, ECharts `axisLabel.hideOverlap` (v5.2), TradingView lightweight-charts
+tick-mark weighting, Highcharts `autoRotation` / `staggerLines`; and the physical arithmetic that at
+the 800px minimum window width the detail page has about 415px usable (labelling every day as a
+single row of horizontal M/D needs about 780px, so it is infeasible).
