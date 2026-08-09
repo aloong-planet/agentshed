@@ -1,62 +1,106 @@
-# Subagents 查看
+# Subagents view
 
-> 关联: [features](../features/subagents-view.md) · ADR-0001(类型单源) · ADR-0002(双 seam)
+> Related: [features](../features/subagents-view.md) · ADR-0001 (single type source) · ADR-0002 (dual seam)
 
 ## Problem Statement
 
-两侧 agent 都支持自定义 subagent(专职助手定义),但定义散在两处目录、格式各异(Claude 的 md + frontmatter,Codex 的 toml),且项目级可覆盖用户级。用户无从知道"本机定义过哪些助手""某项目里实际生效的是哪个定义"。
+Both agent sides support custom subagents (specialised assistant definitions), but the definitions
+live in two different directories in two different formats (Claude's markdown + frontmatter, Codex's
+toml), and a project level can override the user level. A user has no way to know "which assistants
+are defined on this machine" or "which definition actually applies in this project".
 
 ## Solution
 
-全局页与项目详情页各设 Subagents 分栏:全局页两侧合并单列看全量,详情页按生效视图看遮蔽关系;点条目开抽屉查看完整定义原文。全部只读。
+Add a Subagents section to both the global page and the project detail page: the global page merges
+both sides into one column to see everything, and the detail page shows the effective view with the
+shadowing relationships; clicking an entry opens a drawer with the full definition as written.
+Everything is read-only.
 
 ## User Stories
 
-1. As a 用户, I want 在全局页看到两侧全部 subagent(合并单列、双端徽标), so that 我知道本机定义过哪些专职助手。
-2. As a 用户, I want 点条目查看完整定义原文(含 system prompt / developer_instructions)与元数据, so that 我能看清它的人设与工具面。
-3. As a 用户, I want 双端同名条目在抽屉内分侧切换查看, so that 我了解两侧配置是否等价(不提供机器 diff 信号——格式异构,diff 必然恒真)。
-4. As a 用户, I want 在项目详情看生效视图(项目级/全局级、遮蔽标注), so that 我知道在该项目里实际生效的是哪个定义。
-5. As a 用户, I want Codex 自定义名与内置(default/worker/explorer)同名时有「覆盖内置」标注, so that 我知道内置行为已被替换。
-6. As a 用户, I want 目录缺失、文件损坏或不可读时降级为空态/标注而非崩溃或静默消失, so that 查看器在任何机器上都能打开且信号可信。
+1. As a user, I want to see all subagents from both sides on the global page (one merged column, with
+   both-side badges), so that I know which specialised assistants are defined on this machine.
+2. As a user, I want to click an entry to see the full definition (including the system prompt /
+   developer_instructions) and metadata, so that I can see its persona and tool surface.
+3. As a user, I want an entry present on both sides to switch sides inside the drawer, so that I can
+   judge whether the two sides' configurations are equivalent (no machine diff signal is offered —
+   the formats differ, so a diff would be tautologically true).
+4. As a user, I want the effective view in project detail (project-level / global-level, with
+   shadowing labelled), so that I know which definition actually applies in that project.
+5. As a user, I want a Codex custom name colliding with a built-in (default/worker/explorer) to be
+   labelled "overrides built-in", so that I know the built-in behaviour has been replaced.
+6. As a user, I want a missing directory, corrupt file or unreadable file to degrade to an empty state
+   or a label rather than crashing or silently disappearing, so that the viewer opens on any machine
+   and its signals can be trusted.
 
-## 失败模式与边界
+## Failure modes and boundaries
 
-**序列 A:全局页 → Subagents 分栏**
-- A1 两侧 agents 目录均不存在/为空 → 空态文案,不崩。
-- A2 Codex toml 解析失败(损坏) → 该条目显示「解析失败」标注(文件名占位),其余正常。
-- A3 Codex toml 缺有效 `name` → 标为无效定义(Codex 本身不加载它)。
-- A4 Claude md 无 frontmatter/缺 description → 文件名为名,缺失字段留空。
-- A5 双端同名(键:Claude=文件名,Codex=toml `name` 字段) → 合并一行,双侧徽标,抽屉内分侧看原文;不设 differs 字段。
-- A6 定义文件超 200KB → 截断展示。
-- A7 原文含恶意 HTML → 经既有消毒渲染管线(回归点:PR #10 口径)。
-- A8 文件存在但不可读(权限/IO)→ 条目保留并标「不可读」,**不静默消失**——静默消失会污染同名条目的遮蔽判定(Claude 侧键=文件名仍参与判定;Codex 侧名不可知,仅列存在)。
-- A9 同层内两文件同 `name`(Codex)→ 先者优先(按文件名序;对齐 agent_roles.rs 同层 duplicate 跳过后来者)。
+**Sequence A: global page → Subagents section**
+- A1 Neither side's agents directory exists or both are empty → empty-state copy, no crash.
+- A2 Codex toml fails to parse (corrupt) → that entry shows a "parse failed" label (with the filename
+  as a placeholder), and the rest behave normally.
+- A3 Codex toml has no valid `name` → marked an invalid definition (Codex itself does not load it).
+- A4 Claude markdown with no frontmatter or no description → the filename becomes the name, missing
+  fields are left blank.
+- A5 The same name on both sides (key: Claude = filename, Codex = the toml `name` field) → merged onto
+  one row with both side badges, with the drawer showing each side's source; no `differs` field.
+- A6 A definition file over 200 KB → truncated for display.
+- A7 Source containing malicious HTML → goes through the existing sanitising render pipeline
+  (regression point: the PR #10 rules).
+- A8 The file exists but cannot be read (permissions / IO) → the entry stays with an "unreadable"
+  label, and **does not silently disappear** — silently disappearing would pollute the same-name
+  shadowing judgement (the Claude side's key is the filename, which still takes part; on the Codex
+  side the name is unknowable, so only its existence is listed).
+- A9 Two files in one layer with the same Codex `name` → the first wins (by filename order, matching
+  `agent_roles.rs`, which skips later duplicates within a layer).
 
-**序列 B:项目详情 → Subagents 分栏**
-- B1 项目无 `.claude/agents`/`.codex/agents` → 仅列全局生效项。
-- B2 Claude 同名:项目级遮蔽全局(shadows/shadowed)。
-- B3 Codex 同名:项目级遮蔽用户级(源码坐实 agent_roles.rs 按 config layer 覆盖,Project=25 > User=20)——**与 Codex skills 的同名共存语义相反**,实现注释必须按组件分开写。已知简化:字段级回填(项目级缺 description 从用户级继承)不建模。
-- B4 Codex 自定义名 ∈ {default, worker, explorer} → 「覆盖内置」徽标;内置本身不在磁盘,不列条目。
-- B5 失效(stale)项目 → 项目级目录读取自然为空,全局项照常。
+**Sequence B: project detail → Subagents section**
+- B1 The project has no `.claude/agents` / `.codex/agents` → only the global effective entries are
+  listed.
+- B2 Claude same name: the project level shadows the global one (shadows/shadowed).
+- B3 Codex same name: the project level shadows the user level (confirmed at source level —
+  `agent_roles.rs` overrides by config layer, Project=25 > User=20) — **the opposite of Codex skills'
+  same-name coexistence semantics**, so the implementation comments must be written per component.
+  Known simplification: field-level backfill (a project-level entry inheriting a missing description
+  from the user level) is not modelled.
+- B4 A Codex custom name ∈ {default, worker, explorer} → an "overrides built-in" badge; the built-ins
+  themselves are not on disk and get no entry.
+- B5 A stale project → reading the project-level directory naturally yields nothing, and the global
+  entries display as usual.
 
-**跨切面回归点**
-- R1 IPC 契约(validate)必须与领域类型的新字段同步扩展——漏加即边界静默放过(cache-crash 复盘同款教训,列为 review 检查项)。
-- R2 快照体积:subagent 原文进快照;本机量级(个位数文件 × 200KB cap)可接受,不做懒加载。
+**Cross-cutting regression points**
+- R1 The IPC contract (`validate`) must be extended along with any new domain type field — forgetting
+  means the boundary passes silently (the same lesson as the cache-crash postmortem; listed as a
+  review checklist item).
+- R2 Snapshot size: subagent source text enters the snapshot; at this machine's scale (single-digit
+  file counts × a 200 KB cap) that is acceptable and no lazy loading is done.
 
 ## Implementation Decisions
 
-- **类型**:全局合并条目(含分侧原文与字段)与生效视图条目(复用 shadows/shadowed 语义)分开建模;两者共用单侧详情结构。ADR-0001 类型单源,契约校验同步扩展。
-- **读取层**:经 ScanRoots 注入(可 fixture);Codex toml 走 **smol-toml** 解析,不写正则。
-- **承载结构(原型裁决)**:列表全宽;点行**直接开抽屉**(元数据 kv + 原文;双端切换段在抽屉内,切换时原地刷新不关闭;Esc 与遮罩点击等价关闭)。否决 master-detail 双栏(压缩列表信息密度)与「行内元数据展开 + 浮层」(展开是进抽屉的多余中转)。
-- **排序**:项目级先、组内名称序(同 skills)。
+- **Types**: the merged global entry (with per-side source text and fields) and the effective-view
+  entry (reusing the shadows/shadowed semantics) are modelled separately, sharing a per-side detail
+  structure. ADR-0001's single type source, with contract validation extended in step.
+- **Read layer**: injected through `ScanRoots` (so it can be fixtured); Codex toml is parsed with
+  **smol-toml**, never with a regex.
+- **Container structure (prototype ruling)**: a full-width list; clicking a row **opens the drawer
+  directly** (metadata key-values + source; the both-sides switch lives inside the drawer and
+  refreshes in place without closing; Esc and clicking the overlay are equivalent). Rejected:
+  master-detail two-column (compresses the list's information density) and "inline metadata expansion
+  + overlay" (the expansion is a redundant stop on the way to the drawer).
+- **Sorting**: project level first, then by name within each group (as with skills).
 
 ## Testing Decisions
 
-沿用 ADR-0002 双 seam,不新增:① providers 层 ScanRoots fixture 单测(覆盖失败模式表:损坏 toml、缺 name、同层重名、不可读文件、遮蔽判定);② 契约校验往返。好测试标准:只测 reader 外部行为(fixture 目录 → domain 条目),不测内部解析函数。不可读文件用 chmod 000 fixture,root 环境显式跳过。
+Following ADR-0002's dual seam, adding nothing new: (1) `ScanRoots` fixture unit tests at the
+providers layer (covering the failure mode table: corrupt toml, missing name, duplicate names within
+a layer, unreadable files, the shadowing judgement); (2) the contract validation round trip. The
+standard for a good test: exercise only the reader's external behaviour (fixture directory → domain
+entries), not its internal parsing functions. Unreadable files use a `chmod 000` fixture, explicitly
+skipped when running as root.
 
 ## Out of Scope
 
-- 一切写操作:subagent 的创建、编辑、删除。
-- Codex 遮蔽的字段级回填语义。
-- subagent 级独立 memory 目录(归 memory-view spec 的 Out of Scope)。
-- 内置 subagent 的枚举(不在磁盘,无来源可读)。
+- All write operations: creating, editing or deleting subagents.
+- Codex shadowing's field-level backfill semantics.
+- Subagent-level private memory directories (belongs to the memory-view spec's Out of Scope).
+- Enumerating built-in subagents (not on disk, no source to read).

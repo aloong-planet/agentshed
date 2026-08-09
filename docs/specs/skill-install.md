@@ -1,61 +1,87 @@
-# Skills 装卸
+# Skills install
 
-> 关联: [features](../features/skill-install.md) · ADR-0004(复制落地,拒绝软链) · ADR-0002(双 seam)
-> 补建说明:本篇为 2026-08-01 spec 转持久产物后**逆向补建**——边界条目从既有测试用例反推;落地方式的取舍见 ADR-0004,此处不复述。
+> Related: [features](../features/skill-install.md) · ADR-0004 (land by copy, symlinks rejected) · ADR-0002 (dual seam)
+> Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
+> artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases; the
+> trade-offs behind the landing method are in ADR-0004 and are not restated here.
 
 ## Problem Statement
 
-给项目配 skills 靠手工拷贝:容易拷错位置(两侧目录不同)、容易碰上软链(编辑穿透改到全局库)、中断后留下半成品目录被下次扫描误判为已安装。
+Setting up skills for a project meant copying by hand: easy to put in the wrong place (the two sides'
+directories differ), easy to trip over a symlink (editing follows through into the global library),
+and an interruption leaves a half-finished directory that the next scan mistakes for an installed
+skill.
 
 ## Solution
 
-以全局库为唯一安装源,向指定项目**复制落地**安装(源是软链也落地为真文件),项目副本自持;项目级副本可卸载。全局库本身只读。
+Make the global library the only install source and **land a copy** into the chosen project (a
+symlinked source lands as a real file), so the project's copy is self-contained; a project-level copy
+can be uninstalled. The global library itself is read-only.
 
 ## User Stories
 
-1. As a 用户, I want 在全局库条目上直接选目标项目安装, so that 我不用记两侧目录结构。
-2. As a 用户, I want 安装为完整复制且源软链被解引用, so that 项目副本自持、编辑不会穿透回全局库。
-3. As a 用户, I want 目标已有同名项目级 skill 时被阻止而不是被覆盖, so that 我的定制版不会被静默冲掉。
-4. As a 用户, I want 中断或失败时不留半成品, so that 下次扫描不会把残缺目录当成已安装。
-5. As a 用户, I want 卸载项目级副本前看到完整删除路径并确认, so that 我不会误删。
-6. As a 用户, I want 每次操作有明确成败提示且只局部刷新该项目, so that 反馈及时且不打断我在别处的浏览。
+1. As a user, I want to pick the target project straight from a global library entry, so that I do
+   not have to remember either side's directory structure.
+2. As a user, I want the install to be a full copy with symlinked sources dereferenced, so that the
+   project's copy is self-contained and editing does not follow through to the global library.
+3. As a user, I want to be blocked rather than overwritten when the target already has a
+   project-level skill of the same name, so that my customised version is not silently wiped.
+4. As a user, I want nothing half-finished left behind on interruption or failure, so that the next
+   scan does not mistake a broken directory for an installed skill.
+5. As a user, I want to see the full path to be deleted and confirm before uninstalling a
+   project-level copy, so that I do not delete the wrong thing.
+6. As a user, I want each operation to give an explicit success or failure notice and to refresh only
+   that project, so that feedback is prompt without interrupting my browsing elsewhere.
 
-## 失败模式与边界
+## Failure modes and boundaries
 
-**序列 A:安装**
-- A1 Claude 侧安装 → 复制到项目 `.claude/skills/`,内容完整。
-- A2 Codex 侧安装 → 落 `.agents/skills/`(两侧目录不同,不可互串)。
-- A3 源是软链 → **解引用复制为真目录**(ADR-0004)。
-- A4 目标已有同名项目级 skill → conflict,阻止并提示,不覆盖。
-- A5 目标项目目录不存在(失效项目)→ 拒绝并提示。
-- A6 源在全局库中缺失 → missing-source,且**不留半成品目录**(先复制到临时名再 rename,失败清理)。
-- A7 skill 名含路径穿越(`../` 等)→ 拒绝。
-- A8 skill 可用侧与项目所属侧的交集为空 → 提示项目不属于该侧,不装。
-- A9 双侧都符合 → 两侧都装,各自反馈成败。
+**Sequence A: install**
+- A1 Installing on the Claude side → copies into the project's `.claude/skills/`, contents intact.
+- A2 Installing on the Codex side → lands in `.agents/skills/` (the two sides' directories differ and
+  must not be crossed).
+- A3 The source is a symlink → **dereferenced and copied as a real directory** (ADR-0004).
+- A4 The target already has a project-level skill of the same name → conflict, blocked with a notice,
+  not overwritten.
+- A5 The target project directory does not exist (a stale project) → refused with a notice.
+- A6 The source is missing from the global library → missing-source, and **no half-finished directory
+  is left** (copy to a temporary name first, then rename; clean up on failure).
+- A7 A skill name containing path traversal (`../` and so on) → refused.
+- A8 The intersection of the skill's available sides and the project's sides is empty → a notice that
+  the project does not belong to that side, no install.
+- A9 Both sides qualify → install to both, each reporting its own success or failure.
 
-**序列 B:卸载**
-- B1 删除项目级副本;**全局库不受影响**。
-- B2 目标不存在 → 报错不抛异常(UI 显示失败提示)。
-- B3 名称穿越 → 拒绝。
-- B4 确认弹窗必须显示完整删除路径(用户看得见删的是什么)。
+**Sequence B: uninstall**
+- B1 Deletes the project-level copy; **the global library is unaffected**.
+- B2 The target does not exist → report an error rather than throwing (the UI shows a failure notice).
+- B3 Name traversal → refused.
+- B4 The confirmation dialog must show the full path to be deleted (the user can see what is going).
 
-**跨切面**
-- R1 装卸只碰全局库与项目 skills 目录,不触碰其它组件(插件条目无装卸入口 + level 卫兵双保险)。
-- R2 操作后只局部刷新该项目,不触发全局重扫。
+**Cross-cutting**
+- R1 Install and uninstall touch only the global library and the project's skills directory, and
+  nothing else (plugin entries have no install/uninstall entry point, plus a level guard as a second
+  line of defence).
+- R2 After an operation, only that project is refreshed; no global rescan is triggered.
 
 ## Implementation Decisions
 
-- **落地方式**:见 ADR-0004(复制落地;先复制到同目录临时名再 rename,失败清理)。
-- **侧目录**:Claude=`.claude/skills/`,Codex=`.agents/skills/`;安装侧 = skill 可用侧 ∩ 项目所属侧。
-- **名称校验**:路径穿越在装卸两端都拒绝(不信任调用方)。
+- **Landing method**: see ADR-0004 (land by copy; copy to a temporary name in the same directory
+  first, then rename, cleaning up on failure).
+- **Per-side directories**: Claude = `.claude/skills/`, Codex = `.agents/skills/`; the install sides
+  = the skill's available sides ∩ the project's sides.
+- **Name validation**: path traversal is refused at both the install and uninstall ends (the caller is
+  not trusted).
 
 ## Testing Decisions
 
-沿用 ADR-0002 双 seam:providers 层在临时 fixture 目录上**实测文件系统效果**(装完真的有文件、卸完真的没了、软链真的被解引用、失败真的没残留),不 mock fs。
+Following ADR-0002's dual seam: the providers layer **measures real filesystem effects** on a
+temporary fixture directory (after installing the files are really there, after uninstalling they are
+really gone, a symlink is really dereferenced, a failure really leaves no residue) rather than
+mocking `fs`.
 
 ## Out of Scope
 
-- 从本 app 增删全局库内容(全局库只读)。
-- plugins 的装卸(见 plugins-view spec 的 Out of Scope)。
-- 卸载时的副本差异检测(项目 git 状态由用户自行处理)。
-- 版本管理与更新提醒。
+- Adding to or removing from the global library via this app (it is read-only).
+- Installing or uninstalling plugins (see the plugins-view spec's Out of Scope).
+- Checking for divergence between copies when uninstalling (the project's git state is the user's to
+  handle).
+- Version management and update notifications.

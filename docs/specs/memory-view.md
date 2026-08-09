@@ -1,66 +1,121 @@
-# Memory 查看
+# Memory view
 
-> 关联: [features](../features/memory-view.md) · ADR-0001(类型单源) · ADR-0002(双 seam)
+> Related: [features](../features/memory-view.md) · ADR-0001 (single type source) · ADR-0002 (dual seam)
 
 ## Problem Statement
 
-agent 会自动积累跨会话记忆并影响后续行为,但内容藏在编码过的数据目录里(Claude 为 per-project,Codex 为全局且需手动开启),用户不知道"agent 记住了我项目的什么",也无从发现陈旧或意外的记忆。
+Agents accumulate cross-session memories automatically and those memories shape later behaviour, but
+the content is buried in an encoded data directory (per-project for Claude, global and requiring
+manual enabling for Codex), so users do not know "what has the agent remembered about my project" and
+have no way to spot a stale or unexpected memory.
 
 ## Solution
 
-全局页 Memory 分栏汇总各项目的记忆(元数据 + 文件列表,点行展开、点文件开抽屉看内容);项目详情页 Memory 分栏直接渲染该项目的主记忆文件并可查看 topic。全部只读——记忆是 agent 生成态内容。
+The global page's Memory section summarises each project's memories (metadata + file list, clicking a
+row expands and clicking a file opens a drawer with the content); the project detail page's Memory
+section renders that project's main memory file directly and can view topics. Everything is read-only
+— memory is agent-generated content.
 
 ## User Stories
 
-1. As a 用户, I want 在全局页看 Memory 汇总(哪些项目有记忆、topic 数、最近修改,按修改倒序), so that 我能发现陈旧或意外的记忆。
-2. As a 用户, I want 点行展开文件列表、点文件开抽屉看内容(不跳转别的页), so that 查看记忆不打断我在汇总页的浏览。
-3. As a 用户, I want 在项目详情看该项目的 Memory(主文件渲染 + topic 列表与查看), so that 我知道 agent 记住了这个项目的什么。
-4. As a 用户, I want Codex 记忆按开关状态给出准确提示(未开启时告诉我怎么开,而不是显示"无内容"), so that 我不会把"功能没开"误判成"没有记忆"。
-5. As a 用户, I want 文件缺失或不可读时降级为提示而非崩溃, so that 查看器在任何机器上都能打开。
+1. As a user, I want a Memory summary on the global page (which projects have memories, topic counts,
+   last modification, in reverse order of modification), so that I can spot stale or unexpected
+   memories.
+2. As a user, I want to click a row to expand the file list and click a file to open a drawer (without
+   navigating away), so that reading a memory does not interrupt my browsing of the summary page.
+3. As a user, I want to see a project's Memory in its detail page (the main file rendered + a topic
+   list I can view), so that I know what the agent remembers about this project.
+4. As a user, I want accurate guidance about Codex memory according to its toggle state (telling me
+   how to turn it on when it is off, rather than showing "no content"), so that I do not mistake "the
+   feature is off" for "there are no memories".
+5. As a user, I want a missing or unreadable file to degrade to a notice rather than crashing, so that
+   the viewer opens on any machine.
 
-## 失败模式与边界
+## Failure modes and boundaries
 
-**序列 C:全局页 → Memory 分栏**
-- C1 所有项目均无 memory → 空态。
-- C2 memory 目录存在但空 → 不算有记忆,不列。
-- C3 只有 topic 文件、无主记忆文件(本机 Transfer 项目实测形态) → 算有记忆,主文件位显示「无」。
-- C4 汇总集合口径:全部注册项目(含 stale/hidden,各带既有徽标)——避免"有记忆但不可见";排序按最近修改倒序。
-- C5 编码目录在注册表中无对应项目(残留) → 不列(汇总以项目注册表为准,复用既有编码映射,不新写解码)。
-- C6 **Codex 记忆三态**(需手动开启的实验功能,按开关 × 内容双重判定):
-  - 未开启(config.toml 的 features.memories 非 true,含 config 缺失)→ 显示**开启提示**(引导应用内路径:`/memories` 命令或「设置 → 个性化 → Enable memories」),不显示"无内容";
-  - 已开启但目录空 → 「已开启,暂无内容」;
-  - 有内容 → 单独一行全局条目(不论开关状态;未开启但有遗留文件时如实列出并附注)。
-  - 开关检测限定 features 表下的 memories 键(`[features]` 节与 `features.memories` 点键两种写法等价,均须识别),不得被 `[memories]` 配置节或其他位置的同名键误判;走 TOML 解析,**解析失败视为未开启**(Codex 本身也读不了该 config,从坏文件抢救语义是假信号——见 CONTEXT.md「判定类降级以目标系统行为为准」)。
-- C7 点行**行内展开文件列表**(主文件 + topic,含修改时间),不跳转详情页;点文件 → 抽屉展示内容。Codex 全局行同样可展开(目录枚举 + 原文查看,不解析结构)。
-- C8 汇总条目进快照的仅**元数据与文件名列表**——内容不进快照(防多项目全文撑大快照);内容点击时按需读取(复用产物读取通道的白名单机制,白名单扩展至 memory 目录;读取失败 → 抽屉内报"文件不可读",不崩)。
-- C9 展开态的键用项目路径而非列表下标——快照刷新重排后展开行不错位。
+**Sequence C: global page → Memory section**
+- C1 No project has any memory → empty state.
+- C2 The memory directory exists but is empty → does not count as having memories, not listed.
+- C3 Only topic files, no main memory file (the shape measured on this machine's Transfer project) →
+  counts as having memories, with the main file slot showing "none".
+- C4 The summary set: all registered projects (including stale and hidden, each with its existing
+  badge) — so nothing has memories yet is invisible; sorted by last modification, most recent first.
+- C5 An encoded directory with no corresponding project in the registry (a leftover) → not listed (the
+  summary follows the project registry and reuses the existing encoding mapping rather than writing a
+  new decoder).
+- C6 **Codex memory has three states** (an experimental feature requiring manual enabling, judged on
+  both the toggle and the content):
+  - Not enabled (`features.memories` in config.toml is not true, including a missing config) → show
+    **how to enable it** (pointing at the in-app path: the `/memories` command or "Settings →
+    Personalisation → Enable memories"), not "no content";
+  - Enabled but the directory is empty → "enabled, nothing yet";
+  - Has content → its own global row (regardless of the toggle; if it is off but old files remain,
+    list them truthfully with a note).
+  - Toggle detection is confined to the `memories` key under the `features` table (the `[features]`
+    section and the `features.memories` dotted key are equivalent forms and both must be recognised),
+    and must not be misled by a `[memories]` configuration section or a same-named key elsewhere; it
+    goes through a TOML parse, and **a parse failure counts as not enabled** (Codex itself cannot read
+    that config either, and salvaging semantics from a broken file is a false signal — see CONTEXT.md,
+    "degraded judgements follow the target system's behaviour").
+- C7 Clicking a row **expands the file list inline** (main file + topics, with modification times)
+  without navigating to a detail page; clicking a file → a drawer with the content. The Codex global
+  row expands the same way (directory enumeration + reading the source, with no structural parsing).
+- C8 What enters the snapshot for a summary entry is **only metadata and the file name list** — no
+  content (so many projects' full text does not balloon the snapshot); content is read on demand when
+  clicked (reusing the artifact read channel's allow-list mechanism, extended to memory directories;
+  a read failure → "file cannot be read" inside the drawer, no crash).
+- C9 The expansion state is keyed by project path rather than list index — so an expanded row does not
+  shift when a snapshot refresh reorders the list.
 
-**序列 D:项目详情 → Memory 分栏**
-- D1 无 memory → 空态文案。
-- D2 主记忆文件渲染(消毒同 subagents A7);topic 列表点开抽屉查看,单文件 200KB 截断。
-- D3 subagent 级 memory(`agents/<name>/memory/`)不读取(Out of Scope,分栏不显示)。
-- D4 纯 Codex 侧项目 → 空态并说明「Memory 为 Claude 侧机制」(Codex 记忆是全局的,不入项目详情)。
-- D5 memory 目录下的子目录不当作文件列出(只读顶层 .md)。
-- D6 主文件里的**相对链接**(索引指向同目录 topic)点击后:目标在可读清单内 → app 内开抽屉;不在 → 明确提示"目标不在可读范围";**任何情况都不得让整窗导航**——渲染出的链接若放行默认行为会丢光 app state(2026-08-02 bug)。外部 http(s) 链接交系统浏览器。
+**Sequence D: project detail → Memory section**
+- D1 No memory → empty-state copy.
+- D2 The main memory file is rendered (sanitised as in subagents A7); topics open in a drawer, with a
+  200 KB per-file truncation.
+- D3 Subagent-level memory (`agents/<name>/memory/`) is not read (Out of Scope, not shown in the
+  section).
+- D4 A Codex-only project → an empty state explaining that "memory is a Claude-side mechanism" (Codex
+  memory is global and does not enter project detail).
+- D5 Subdirectories under the memory directory are not listed as files (only top-level `.md` is read).
+- D6 Clicking a **relative link** in the main file (the index pointing at a topic in the same
+  directory): if the target is in the readable list → open a drawer in the app; if not → an explicit
+  "the target is outside the readable range" notice; **under no circumstances may the whole window
+  navigate** — letting a rendered link's default behaviour through loses all app state (a 2026-08-02
+  bug). External http(s) links go to the system browser.
 
-**跨切面回归点**
-- R1 IPC 契约(validate)必须与领域类型的新字段同步扩展(cache-crash 复盘同款教训)。
-- R2 时间显示统一用相对格式(对齐全 app 的 fmtAgo 约定),不用绝对日期。
+**Cross-cutting regression points**
+- R1 The IPC contract (`validate`) must be extended along with any new domain type field (the same
+  lesson as the cache-crash postmortem).
+- R2 Times are displayed uniformly in relative form (matching the app-wide `fmtAgo` convention),
+  never as absolute dates.
 
 ## Implementation Decisions
 
-- **类型**:汇总条目(元数据 + 文件名列表,内容不含)与项目详情条目(主文件内容 + topic 元数据)分开建模;ADR-0001 类型单源,契约校验同步扩展。
-- **读取层**:经 ScanRoots 注入;汇总以项目注册表为准并复用既有编码映射;Codex 侧仅目录枚举 + 开关检测(TOML 解析)。
-- **按需读取通道**:文件内容不进快照,复用既有产物读取的白名单机制(快照/详情列出过的文件才可读),白名单扩展至 memory 目录。
-- **承载结构(原型裁决)**:全局页点行展开文件列表→点文件开抽屉;详情页主文件直接渲染(同配置分栏模式)+ topic 抽屉。Esc 与遮罩点击等价关闭。
+- **Types**: the summary entry (metadata + file name list, no content) and the project detail entry
+  (main file content + topic metadata) are modelled separately; ADR-0001's single type source, with
+  contract validation extended in step.
+- **Read layer**: injected through `ScanRoots`; the summary follows the project registry and reuses
+  the existing encoding mapping; the Codex side is directory enumeration + toggle detection (a TOML
+  parse) only.
+- **On-demand read channel**: file contents do not enter the snapshot, reusing the existing artifact
+  read allow-list mechanism (only files listed in a snapshot or detail can be read), extended to
+  memory directories.
+- **Container structure (prototype ruling)**: on the global page, clicking a row expands the file list
+  and clicking a file opens a drawer; on the detail page, the main file is rendered directly (the same
+  pattern as the Configuration section) with topics in a drawer. Esc and clicking the overlay are
+  equivalent.
 
 ## Testing Decisions
 
-沿用 ADR-0002 双 seam:① providers 层 fixture 单测(覆盖 C 序列:空目录、仅 topic、stale/hidden、注册表残留、Codex 三态与点键写法、解析失败降级);② 契约校验往返。UI 层的抽屉读取失败路径不单测(按 ADR-0002 不单测 UI),e2e 覆盖正常读取链路。
+Following ADR-0002's dual seam: (1) fixture unit tests at the providers layer (covering sequence C:
+an empty directory, topics only, stale/hidden, registry leftovers, Codex's three states and the
+dotted-key form, degradation on a parse failure); (2) the contract validation round trip. The UI
+layer's drawer read-failure path is not unit tested (per ADR-0002 the UI is not unit tested), and e2e
+covers the normal read path.
 
 ## Out of Scope
 
-- 一切写操作:记忆的编辑与删除(记忆是 agent 生成态内容)。
-- subagent 级独立记忆目录。
-- Codex 记忆的结构建模(仅目录枚举与原文查看,不解析 durable entries/证据文件等内部结构)。
-- 记忆内容的检索与跨项目聚合。
+- All write operations: editing or deleting memories (memory is agent-generated content).
+- Subagent-level private memory directories.
+- Structural modelling of Codex memory (directory enumeration and reading the source only; no parsing
+  of durable entries, evidence files or other internal structure).
+- Searching memory contents and aggregating them across projects.
