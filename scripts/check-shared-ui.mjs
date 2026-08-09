@@ -137,6 +137,32 @@ function swatchFromTsx(tsx, mode, scheme) {
 /** 全局规则:与具体块无关的通用约束 */
 const GLOBAL_RULES = [
   {
+    // 票 15 的 AC「任一入口都能到达其余五种」是**可判定属性**,故固化成门禁而非靠肉眼看
+    // (2026-08-09 用户裁定)。它防的是:新增语种或改文件名时,漏补其余文件里的链接——
+    // 那种漏没有任何别的东西会提醒,而读者只有点到死链才会发现。
+    name: 'README 六语互相可达(任一入口都能到达其余五种)',
+    check() {
+      const bad = []
+      const FILES = ['README.md', 'README.en.md', 'README.fr.md', 'README.es.md', 'README.ru.md', 'README.ja.md']
+      for (const f of FILES) {
+        const src = read(f)
+        if (src === null) {
+          bad.push(`缺少 ${f}`)
+          continue
+        }
+        const linked = new Set([...src.matchAll(/\]\((README[^)]*\.md)\)/g)].map((m) => m[1]))
+        for (const other of FILES) {
+          if (other !== f && !linked.has(other)) bad.push(`${f}:未链到 ${other}`)
+        }
+        // 当前语言应是**唯一**的粗体项:零个 = 读者不知道自己在哪份,多个 = 复制粘贴时漏改
+        const nav = src.split('\n').find((l) => l.includes('README.en.md') || l.includes('README.md)')) ?? ''
+        const bold = (nav.match(/\*\*[^*]+\*\*/g) ?? []).length
+        if (bold !== 1) bad.push(`${f}:语言切换区应恰好一处粗体(当前 ${bold} 处)`)
+      }
+      return bad
+    }
+  },
+  {
     name: '设置页色板取样与 theme.css 的主题变量一致(改主题色不得漏改取样表)',
     cross: true,
     check() {

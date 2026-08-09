@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TokenStats, TokenTotals } from '@shared/domain'
 
+/**
+ * token 数的紧凑记法。**刻意不本地化**(2026-08-09 定案):k / M / B 是与 KB / MB / ms
+ * 同类的记法、各语言通用;换成 Intl 的 compact 会让中文变成「1240万」,那是另一个产品决定。
+ */
 export function fmtTok(n: number): string {
+  // 十亿档必须在百万档之前判:否则 12.4B 会显示成 12400.0M,五位数字读不出量级
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${Math.round(n / 1_000)}k`
   return String(n)

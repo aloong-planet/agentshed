@@ -32,12 +32,6 @@ const ALLOW = [
     // 去掉会红:测试里有中文断言、fixture 与用例名,它们不流向界面
     match: (rel) => rel.endsWith('.test.ts') || rel.endsWith('.test.tsx'),
     why: '测试文件:用例名、fixture 与断言中的中文不进产品界面'
-  },
-  {
-    // 去掉会红:这一行是开发者日志(stderr),用户看不到。
-    // ADR-0016 的中性条款明确把 console.* 排除在约束外
-    match: (rel, line) => rel === 'main/index.ts' && line.includes('console.error'),
-    why: '开发者日志(stderr),不流向界面;ADR-0016 中性条款'
   }
 ]
 
