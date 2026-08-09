@@ -1,9 +1,11 @@
-// 票 06:契约校验失败改为结构化(kind + path + 期望/取值),并映射到错误码。
+// Ticket 06: contract validation failures became structured (kind + path + expected/actual) and map to
+// error codes.
 //
-// **为什么单开一个文件**:validate.test.ts 原有的 41 条只断言 `failure.path`,
-// 对本次新增的 kind / expect / value 与载荷前缀**一条都没盯**——变异实测确认:
-// 把 expect 写死成 'string'、或把载荷前缀去掉,那 41 条**全绿**。
-// 这些用例补的正是那块空白。
+// **Why a separate file**: validate.test.ts's existing 41 cases assert only `failure.path`,
+// and watch **none** of the newly added kind / expect / value or the payload prefix — confirmed by
+// mutation:
+// hard-coding expect to 'string', or removing the payload prefix, leaves all 41 **green**.
+// These cases fill exactly that gap.
 import { describe, it, expect } from 'vitest'
 import {
   contractError,
@@ -15,12 +17,12 @@ import { ERR, decodeAppError } from './errors'
 import { emptySnapshot } from './domain'
 
 const failureOf = (r: ReturnType<typeof validateSnapshot>): ValidateFailure => {
-  if (r.ok) throw new Error('期望校验失败,却通过了')
+  if (r.ok) throw new Error('expected validation to fail, but it passed')
   return r.failure
 }
 
-describe('contractError:结构化失败 → 错误码', () => {
-  it('三种 kind 各映射到自己的码', () => {
+describe('contractError: a structured failure → an error code', () => {
+  it('each of the three kinds maps to its own code', () => {
     const missing = decodeAppError(contractError('snapshot', { kind: 'missing', path: 'a.b' }))
     const type = decodeAppError(contractError('snapshot', { kind: 'type', path: 'a.b', expect: 'number' }))
     const enm = decodeAppError(contractError('snapshot', { kind: 'enum', path: 'a.b', value: 'x' }))
@@ -29,14 +31,16 @@ describe('contractError:结构化失败 → 错误码', () => {
     expect(enm?.code).toBe(ERR.contractEnum)
   })
 
-  it('载荷名并进 path 前缀:定位信息里要看得出是哪份载荷', () => {
-    // 措辞用的是泛称「载荷」,若前缀丢了就再也分不出这是快照还是会话页——
-    // 变异实测:去掉前缀时 validate.test.ts 的 41 条全绿,只有这条会红
+  it('the payload name is folded into the path prefix: the locating information has to say which payload', () => {
+    // The wording uses the generic word "payload", so losing the prefix makes a snapshot and a session
+    // page indistinguishable —
+    // measured by mutation: with the prefix removed, validate.test.ts's 41 cases are all green and only
+    // this one goes red
     const e = decodeAppError(contractError('sessionPage', { kind: 'missing', path: 'questions[0].at' }))
     expect(e?.params['path']).toBe('sessionPage.questions[0].at')
   })
 
-  it('type 携带类型记法、enum 携带实际取值', () => {
+  it('type carries the type notation and enum carries the actual value', () => {
     const t = decodeAppError(contractError('snapshot', { kind: 'type', path: 'p', expect: 'string|null' }))
     expect(t?.params['expect']).toBe('string|null')
     const e = decodeAppError(contractError('snapshot', { kind: 'enum', path: 'p', value: 'gemini' }))
@@ -44,20 +48,21 @@ describe('contractError:结构化失败 → 错误码', () => {
   })
 })
 
-describe('validate 产出的失败形态', () => {
-  it('类型不符 → kind=type,且期望是该字段真正的类型记法', () => {
-    // 写死成某一个类型的实现会在这里红(变异实测过)
+describe('the failure shapes validate produces', () => {
+  it('a type mismatch → kind=type, with the expectation being that field\'s real type notation', () => {
+    // An implementation that hard-codes one type goes red here (verified by mutation)
     const f = failureOf(validateSnapshot({ ...emptySnapshot(1), scannedAt: 'nope' }))
     expect(f).toEqual({ kind: 'type', path: 'scannedAt', expect: 'number' })
   })
 
-  it('容器缺失 → kind=type 且期望容器类型,不是笼统的"缺失"', () => {
+  it('a missing container → kind=type with the container type expected, rather than a vague "missing"', () => {
     const f = failureOf(validateSnapshot({ ...emptySnapshot(1), projects: 'nope' }))
     expect(f).toEqual({ kind: 'type', path: 'projects', expect: 'array' })
   })
 
-  it('枚举越界 → kind=enum,且带上**实际收到的值**', () => {
-    // 带上实际值是这条的重点:只说"取值非法"不带值,排查时还得自己去翻数据
+  it('an out-of-domain enum → kind=enum, carrying **the value actually received**', () => {
+    // Carrying the actual value is the point: saying "invalid value" without it leaves the investigator
+    // digging through the data
     const r = validateSessionPage({
       file: '/a.jsonl', side: 'gemini', title: 't', at: 1, tokens: 0, bytes: 0,
       forkState: 'none', forkPoints: [], forkParentTitle: null, forkParentFile: null, questions: []

@@ -1,5 +1,6 @@
-// 归档:把日聚合结果持久化,源文件被 agent 清理后历史仍在。
-// 粒度 天×侧×项目×模型;冲突规则:源文件在→实时覆盖归档,源文件消失→保留归档值。
+// The archive: persist daily aggregates so history survives the agent cleaning up the source files.
+// Granularity is day × side × project × model; the conflict rule: source present → live values overwrite
+// the archive, source gone → the archived values are kept.
 import { mkdtempSync, rmSync, readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -28,7 +29,7 @@ const row = (day: string, project: string, model: string, total: number): UsageR
 })
 
 describe('UsageArchive', () => {
-  it('首次合并即落盘;重开实例读得回', () => {
+  it('the first merge persists; a new instance reads it back', () => {
     const a = new UsageArchive(join(dir, 'store'))
     a.merge([row('2026-07-01', '/p1', 'm1', 100)], new Set(['2026-07-01']))
     expect(existsSync(join(dir, 'store', 'usage-archive.json'))).toBe(true)
@@ -37,7 +38,7 @@ describe('UsageArchive', () => {
     expect(b.rows()[0].total).toBe(100)
   })
 
-  it('源文件仍在的天:实时值覆盖归档(口径修正能自动纠正历史)', () => {
+  it('a day whose source files remain: live values overwrite the archive (so an accounting fix corrects history automatically)', () => {
     const a = new UsageArchive(join(dir, 'store'))
     a.merge([row('2026-07-01', '/p1', 'm1', 100)], new Set(['2026-07-01']))
     a.merge([row('2026-07-01', '/p1', 'm1', 250)], new Set(['2026-07-01']))
@@ -46,17 +47,17 @@ describe('UsageArchive', () => {
     expect(r[0].total).toBe(250)
   })
 
-  it('源文件已消失的天:归档值保留,不被本次空扫描抹掉', () => {
+  it('a day whose source files are gone: the archived values are kept and not wiped by this empty scan', () => {
     const a = new UsageArchive(join(dir, 'store'))
     a.merge([row('2026-06-01', '/p1', 'm1', 999)], new Set(['2026-06-01']))
-    // 下一次扫描已看不到 6-01(文件被 agent 清理),liveDays 不含该天
+    // The next scan can no longer see 6-01 (the agent cleaned the files up), so liveDays excludes it
     a.merge([row('2026-07-01', '/p1', 'm1', 10)], new Set(['2026-07-01']))
     const days = a.rows().map((r) => r.day).sort()
     expect(days).toEqual(['2026-06-01', '2026-07-01'])
     expect(a.rows().find((r) => r.day === '2026-06-01')?.total).toBe(999)
   })
 
-  it('同一天内按 侧×项目×模型 分行,互不覆盖', () => {
+  it('within one day, rows split by side × project × model without overwriting each other', () => {
     const a = new UsageArchive(join(dir, 'store'))
     a.merge(
       [
@@ -71,20 +72,20 @@ describe('UsageArchive', () => {
     expect(a.rows().reduce((s, r) => s + r.total, 0)).toBe(100)
   })
 
-  it('归档覆盖的天集合可查(供 UI 标注历史段)', () => {
+  it('the set of days the archive covers is queryable (for the UI to label historical spans)', () => {
     const a = new UsageArchive(join(dir, 'store'))
     a.merge([row('2026-06-01', '/p1', 'm1', 5)], new Set(['2026-06-01']))
     a.merge([row('2026-07-01', '/p1', 'm1', 5)], new Set(['2026-07-01']))
     expect(a.archivedOnlyDays(new Set(['2026-07-01']))).toEqual(['2026-06-01'])
   })
 
-  it('原子写:目录内无临时文件残留', () => {
+  it('atomic writes: no temporary file is left in the directory', () => {
     const a = new UsageArchive(join(dir, 'store'))
     a.merge([row('2026-07-01', '/p1', 'm1', 1)], new Set(['2026-07-01']))
     expect(readdirSync(join(dir, 'store'))).toEqual(['usage-archive.json'])
   })
 
-  it('归档文件损坏 → 降级为空,不崩(下次扫描重新攒)', () => {
+  it('a corrupt archive file → degrades to empty without crashing (the next scan starts accumulating again)', () => {
     mkdirSync(join(dir, 'store'), { recursive: true })
     writeFileSync(join(dir, 'store', 'usage-archive.json'), '{坏了')
     const a = new UsageArchive(join(dir, 'store'))

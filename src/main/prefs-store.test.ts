@@ -1,4 +1,5 @@
-// 票 appearance 01:PrefsStore——app 自有 prefs.json,默认 purple,损坏/非法回落,原子写。
+// appearance ticket 01: PrefsStore — the app's own prefs.json, defaulting to purple, falling back on
+// corruption or invalid values, written atomically.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -14,7 +15,7 @@ describe('PrefsStore', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('无文件时默认 purple + 跟随系统语言 + 跟随系统明暗', () => {
+  it('with no file: purple + follow the system language + follow the system appearance', () => {
     expect(new PrefsStore(dir).get()).toEqual({
       scheme: 'purple',
       language: 'system',
@@ -22,28 +23,31 @@ describe('PrefsStore', () => {
     })
   })
 
-  it('setMode 持久化;「跟随系统」读回仍是「跟随系统」', () => {
+  it('setMode persists; "follow system" reads back as "follow system"', () => {
     const s = new PrefsStore(dir)
     s.setMode('dark')
     expect(new PrefsStore(dir).get().mode).toBe('dark')
-    // 与语言同构的关键一条:存的是**策略**不是当刻的明暗。若实现把「跟随系统」
-    // 落盘成写入当时求值出的 light/dark,这里会读回具体明暗值,
-    // 「跟随系统」就退化成一次性快照——系统外观再变,app 也不会跟了
+    // The key point, structurally identical to language: what is stored is the **policy**, not the
+    // light/dark of that moment. If the implementation persisted "follow system"
+    // as the light/dark evaluated at write time, this would read back a concrete value and
+    // "follow system" would degrade into a one-off snapshot — later system appearance changes would no
+    // longer be followed
     s.setMode('system')
     expect(new PrefsStore(dir).get().mode).toBe('system')
   })
 
-  it('setLanguage 持久化;「跟随系统」读回仍是「跟随系统」', () => {
+  it('setLanguage persists; "follow system" reads back as "follow system"', () => {
     const s = new PrefsStore(dir)
     s.setLanguage('fr')
     expect(new PrefsStore(dir).get().language).toBe('fr')
-    // 关键:存的是**偏好**不是解析结果。若实现把「跟随系统」落盘成当时解析出的
-    // 某个语言,这里会读回 'zh'/'en' 之类,「跟随系统」就退化成一次性快照了
+    // The key point: what is stored is the **preference**, not the resolution. If the implementation
+    // persisted "follow system" as whatever language it resolved to,
+    // this would read back 'zh' or 'en' and "follow system" would have degraded into a one-off snapshot
     s.setLanguage('system')
     expect(new PrefsStore(dir).get().language).toBe('system')
   })
 
-  it('改一项不动另一项', () => {
+  it('changing one field leaves the others alone', () => {
     const s = new PrefsStore(dir)
     s.setScheme('amber')
     s.setLanguage('ru')
@@ -52,25 +56,30 @@ describe('PrefsStore', () => {
     expect(new PrefsStore(dir).get()).toEqual({ scheme: 'blue', language: 'ru', mode: 'system' })
   })
 
-  it('语言与外观模式两个「跟随系统」互不干扰', () => {
-    // 二者在偏好层是**独立字段**,这条测的是"没有意外耦合"——
-    // 改语言把 mode 顶回默认、或改模式顺手重置语言,都会在这里红。
-    // 「系统外观变化能否传导到界面」不在此测,那是 Electron 的责任(见票 04 责任边界)
+  it('the two "follow system" settings, language and appearance mode, do not interfere', () => {
+    // They are **independent fields** at the preference layer, and this case tests for "no accidental
+    // coupling" —
+    // changing the language pushing mode back to its default, or changing the mode resetting the
+    // language, both go red here.
+    // "Whether a system appearance change propagates to the UI" is not tested here; that is Electron's
+    // responsibility (see ticket 04's responsibility boundary)
     const s = new PrefsStore(dir)
     s.setMode('dark')
     s.setLanguage('ja')
     expect(new PrefsStore(dir).get()).toEqual({ scheme: 'purple', language: 'ja', mode: 'dark' })
-    // 改语言不动 mode
+    // Changing the language leaves mode alone
     s.setLanguage('system')
     expect(new PrefsStore(dir).get().mode).toBe('dark')
-    // 改 mode 不动语言
+    // Changing the mode leaves the language alone
     s.setMode('light')
     expect(new PrefsStore(dir).get().language).toBe('system')
   })
 
-  it('单字段非法只降级该字段,不牵连另一项', () => {
-    // 「降级只准自伤」不变量:早先只有一个字段时,「整份回默认」与「逐字段回默认」
-    // 表现相同;加了第二个字段后两者才分道扬镳,故这条是新加字段必须带的测试
+  it('one invalid field degrades only itself, without affecting the others', () => {
+    // The "degradation may only hurt itself" invariant: back when there was only one field, "revert the
+    // whole thing" and "revert per field"
+    // behaved identically; they only parted ways once a second field was added, which is why every new
+    // field has to bring this test
     writeFileSync(
       join(dir, 'prefs.json'),
       JSON.stringify({ scheme: 'amber', language: 'ko', mode: 'dark' })
@@ -83,9 +92,10 @@ describe('PrefsStore', () => {
     expect(new PrefsStore(dir).get()).toEqual({ scheme: 'purple', language: 'ja', mode: 'dark' })
   })
 
-  it('mode 非法只降级 mode,语言与配色仍正确读出', () => {
-    // 票 04 AC:单条偏好非法只降级该条。构造 mode 非法而 language / scheme 合法的文件——
-    // 若实现改成"整份回默认",用户会同时丢掉配色与语言两个不相干的选择
+  it('an invalid mode degrades only mode, with the language and colour scheme still read correctly', () => {
+    // Ticket 04's AC: one invalid preference degrades only itself. Construct a file with an invalid mode
+    // but a valid language and scheme —
+    // if the implementation reverted the whole thing, the user would lose two unrelated choices at once
     writeFileSync(
       join(dir, 'prefs.json'),
       JSON.stringify({ scheme: 'amber', language: 'ru', mode: 'auto' })
@@ -93,8 +103,9 @@ describe('PrefsStore', () => {
     expect(new PrefsStore(dir).get()).toEqual({ scheme: 'amber', language: 'ru', mode: 'system' })
   })
 
-  it('旧版只有 scheme 的偏好文件:保留 scheme,补上语言与模式默认值', () => {
-    // 升级场景——本次新增字段前写下的文件必须仍能用,且不丢已有选择
+  it('an older preference file with only scheme: keeps scheme and fills in the language and mode defaults', () => {
+    // The upgrade case — a file written before these fields were added must still work without losing
+    // existing choices
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ scheme: 'blue' }))
     expect(new PrefsStore(dir).get()).toEqual({
       scheme: 'blue',
@@ -103,13 +114,13 @@ describe('PrefsStore', () => {
     })
   })
 
-  it('票 03 时代的偏好文件(scheme + language):保留两者,补上模式默认值', () => {
-    // 本票之前写下的文件,升级后不得丢掉已选语言
+  it('a ticket 03-era preference file (scheme + language): keeps both and fills in the mode default', () => {
+    // A file written before this ticket must not lose the chosen language on upgrade
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ scheme: 'amber', language: 'fr' }))
     expect(new PrefsStore(dir).get()).toEqual({ scheme: 'amber', language: 'fr', mode: 'system' })
   })
 
-  it('setScheme 持久化并可读回三值', () => {
+  it('setScheme persists and all three values read back', () => {
     const s = new PrefsStore(dir)
     s.setScheme('blue')
     expect(new PrefsStore(dir).get().scheme).toBe('blue')
@@ -119,7 +130,7 @@ describe('PrefsStore', () => {
     expect(new PrefsStore(dir).get().scheme).toBe('purple')
   })
 
-  it('损坏/非法 scheme 回落 purple 不抛', () => {
+  it('a corrupt or invalid scheme falls back to purple without throwing', () => {
     writeFileSync(join(dir, 'prefs.json'), 'not-json')
     expect(new PrefsStore(dir).get().scheme).toBe('purple')
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ scheme: 'neon' }))
@@ -130,7 +141,7 @@ describe('PrefsStore', () => {
     expect(new PrefsStore(dir).get().scheme).toBe('purple')
   })
 
-  it('合法文件读出;写入后磁盘为对象形态', () => {
+  it('a valid file reads back; after writing, the disk holds an object', () => {
     writeFileSync(
       join(dir, 'prefs.json'),
       JSON.stringify({ scheme: 'amber', language: 'ja', mode: 'light' }, null, 2)
@@ -142,7 +153,7 @@ describe('PrefsStore', () => {
     expect(raw).toEqual({ scheme: 'blue', language: 'ja', mode: 'light' })
   })
 
-  it('写入是原子的:目录中不残留临时文件', () => {
+  it('writes are atomic: no temporary file is left in the directory', () => {
     const s = new PrefsStore(dir)
     s.setScheme('blue')
     expect(readdirSync(dir)).toEqual(['prefs.json'])
