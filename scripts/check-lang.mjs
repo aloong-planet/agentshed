@@ -44,7 +44,7 @@ const ALLOW = [
   },
   {
     match: (f) => f === 'src/shared/i18n/ja.ts',
-    lines: 239,
+    lines: 237,
     why: 'the Japanese dictionary — its entries legitimately contain kanji'
   },
   {

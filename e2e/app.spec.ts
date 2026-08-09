@@ -515,7 +515,7 @@ test('the sessions section: each row shows that session\'s real question count',
   // and row 1 is the Codex side (1)
   expect(await rows.nth(0).locator('.t').innerText()).toBe('Sample question')
   expect(await countOf(0), 'two real questions on the Claude side; a tool result fed back does not count').toBe('2 questions')
-  expect(await countOf(1), 'one real question on the Codex side').toBe('1 questions')
+  expect(await countOf(1), 'one real question on the Codex side').toBe('1 question')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -915,7 +915,7 @@ test('session page rich content (Claude): the thinking, tool and subagent blocks
   await expect(sub.locator('pre').nth(1)).toContainText('Logs are clean')
 
   // Unknown types leave a trace: nothing is silently dropped
-  await expect(win.locator('.turn .unknown')).toContainText('1 unrecognised records')
+  await expect(win.locator('.turn .unknown')).toContainText('1 unrecognised record')
   await expect(win.locator('.turn .unknown')).toContainText('agent_snapshot')
 
   expect(l.errors).toEqual([])
@@ -984,7 +984,7 @@ test('session search: questions by default with hits grouped; a body word only h
   await expect(win.locator('.grp .gh .t')).toContainText('Sample question')
   await expect(win.locator('.grp .hit')).toHaveCount(1)
   await expect(win.locator('.grp .hit mark').first()).toContainText('Sample question')
-  await expect(win.locator('.shead')).toContainText('Found 1 hits · 1 sessions')
+  await expect(win.locator('.shead')).toContainText('Found 1 hit · 1 session')
 
   // A word in the body (the first turn reply body) does not hit in question mode → an actionable empty state
   await win.locator('.sbar input').fill('First turn reply body')
@@ -1403,7 +1403,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   // (2) The plugin namespace row: expands and previews on equal footing with an on-disk one (A4; ADR-0012
   //     overturned the v1 exclusion, and the inline stats are on equal footing too)
   const plug = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
-  await expect(plug.locator('.sk-meta')).toContainText('1 files')
+  await expect(plug.locator('.sk-meta')).toContainText('1 file')
   await plug.locator('.sk-head').click()
   await plug.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.skill-drawer .md-fm')).toContainText('Ask before acting')
@@ -1419,7 +1419,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(detTdd).toHaveCount(1)
   await expect(detTdd.locator('.pill.prj')).toBeVisible()
   await expect(detTdd.locator('.pill.glb')).toHaveCount(0)
-  await expect(detTdd.locator('.sk-meta')).toContainText('1 files')
+  await expect(detTdd.locator('.sk-meta')).toContainText('1 file')
   await expect(
     win.locator('.pane-body .sk', { hasText: 'review-code' }).locator('.pill.glb')
   ).toBeVisible()
@@ -1511,7 +1511,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   const spExp = win.locator('.exp-area').first()
   await expect(spExp.locator('.ptab')).toHaveText(['Skills2', 'Hooks1'])
   const bRow = spExp.locator('.psk', { hasText: 'superpowers:brainstorming' })
-  await expect(bRow.locator('.meta')).toContainText('1 files')
+  await expect(bRow.locator('.meta')).toContainText('1 file')
   await bRow.click()
   await spExp.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Plugin body A')
@@ -1777,7 +1777,7 @@ test('the sessions section: a fork session has its replay prefix stripped and is
 
   // The child: the two replayed entries are stripped leaving only its own, marked ⑂ fork
   const child = rowOf('Child new question')
-  await expect(child.locator('.n'), 'it would read 3 questions if the replay prefix were not stripped').toHaveText('1 questions')
+  await expect(child.locator('.n'), 'it would read 3 questions if the replay prefix were not stripped').toHaveText('1 question')
   await expect(child.locator('.pill.fork')).toHaveText('⑂ fork')
   await expect(child.locator('.pill.forkq')).toHaveCount(0)
 

@@ -25,9 +25,9 @@ export const en: Locale = {
     mode: 'Mode',
     modeLight: 'Light',
     modeDark: 'Dark',
-    palette: 'Palette',
+    palette: 'Colour scheme',
     appearanceFoot:
-      'With mode set to “Follow system”, light and dark follow your macOS appearance; choosing Light or Dark locks the app regardless of later system changes. Palette and light/dark are independent and combine freely; Purple is used when nothing is chosen. Changes apply across the whole app immediately — no saving needed.',
+      'With mode set to “Follow system”, light and dark follow your macOS appearance; choosing Light or Dark pins it regardless of later system changes. The colour scheme and light/dark are independent and combine freely; Purple is used when nothing is chosen. Changes apply across the whole app immediately — no saving needed.',
     schemePurple: 'Purple',
     schemeBlue: 'Mist Blue',
     schemeAmber: 'Amber Brown'
@@ -45,7 +45,7 @@ export const en: Locale = {
   toast: {
     languageSwitched: (name) => `Interface language switched to ${name}`,
     languageFollowSystem: (name) => `Now following the system · currently ${name}`,
-    saveSchemeFailed: 'Failed to save the palette',
+    saveSchemeFailed: 'Failed to save the colour scheme',
     saveModeFailed: 'Failed to save the appearance mode',
     saveLanguageFailed: 'Failed to save the language'
   },
@@ -114,11 +114,11 @@ export const en: Locale = {
   },
 
   memory: {
-    codexLegacy: 'Codex memory is currently disabled; the entries above are leftover files in the directory.',
+    codexLegacy: 'Codex memory is not enabled; the entries above are leftover files in the directory.',
     codexEmpty: 'Codex memory is enabled but empty.',
-    codexDisabled: 'Codex memory is disabled — enable it with the /memories command inside Codex, or via Settings → Personalization → Enable memories (experimental).',
+    codexDisabled: 'Codex memory is not enabled — turn it on with the /memories command inside Codex, or via Settings → Personalization → Enable memories (experimental).',
     noneGlobal: 'No automatic memory in any project',
-    globalHint: 'Newest first · includes stale/hidden (badged) · click a row for its files, click a file for its content',
+    globalHint: 'Most recently modified first · includes stale/hidden (badged) · click a row for its files, click a file for its content',
     stale: 'Stale', hidden: 'Hidden',
     codexGlobalDir: 'Global memory directory', noMainFile: 'No MEMORY.md',
     noneProject: 'No automatic memory in this project yet',
@@ -133,7 +133,7 @@ export const en: Locale = {
   },
 
   plugins: {
-    projectMissing: '(project lost)',
+    projectMissing: '(project stale)',
     installMissing: 'Install directory missing (cache cleaned up) — only the registry record is visible; bundled components cannot be read',
     noBundled: 'None of the four bundled component types',
     codexCacheEnum: 'cache enumeration',
@@ -297,7 +297,7 @@ export const en: Locale = {
     inOutNote: 'Listed per side in each side’s native terms',
     cacheCard: 'Of which cache (already counted in the total, ccusage convention)',
     cacheReadWrite: (read, write) => `Read ${read} · Write ${write}`,
-    trendTitle: 'Last 30 days (local time zone · daily)',
+    trendTitle: 'Last 30 days’ trend (local time zone · daily)',
     legendNote: 'Bar height = daily total; segments = share per provider',
     tipTotal: (label, total) => `${label} · total ${total}`,
     tipArchived: ' · archived (source files cleaned up)',
@@ -334,16 +334,16 @@ export const en: Locale = {
     skillPackageUnavailable: 'The skill package is unavailable or outside the allowed roots',
     skillFileNotWhitelisted: 'This skill file path is not in the allowed list',
     skillFileUnreadable: 'The skill file cannot be read',
-    sessionNotIndexed: 'This session is not indexed — refresh everything first',
+    sessionNotIndexed: 'This session is not indexed — use Refresh all first',
     sessionFileUnreadable: 'The session file can no longer be read (moved or deleted?)',
-    sessionMetaUnreadable: 'The first line of the session is unreadable, so the index cannot be rebuilt',
+    sessionMetaUnreadable: 'The session’s first-line metadata is unreadable, so the index cannot be rebuilt',
     sessionParseFailed: 'Failed to parse the session file',
     prefsStoreNotReady: 'The preference store is not ready',
     invalidPref: (field) => `Invalid preference value: ${field}`,
     contractMissing: (path) => `Received an invalid payload: ${path} is missing`,
     contractType: (path, expect) => `Received an invalid payload: ${path} should be ${expect}`,
     contractEnum: (path, value) =>
-      `Received an invalid payload: the value ${value} at ${path} is out of range`,
+      `Received an invalid payload: ${path} has the value ${value}, which is not one of the allowed values`,
     untrustedSender: (sender) => `Untrusted IPC caller: ${sender}`,
     linkProtocolUnsupported: 'Unsupported link protocol',
     linkOutOfScope: 'The link target is outside the readable scope',
@@ -351,7 +351,7 @@ export const en: Locale = {
     skillStaleTarget: 'The target is a stale project (its directory no longer exists)',
     skillMissingSource: (name) => `No such skill in the global library: ${name}`,
     skillCopyMissing: 'The project-level copy does not exist',
-    skillConflict: 'The target already has a project-level skill with this name — nothing was overwritten',
+    skillConflict: 'Blocked: the target already has a project-level skill with this name, and nothing was overwritten',
     skillCopyFailed: (detail) => `Copy failed and was cleaned up: ${detail}`,
     skillDeleteFailed: (detail) => `Delete failed: ${detail}`,
     registryProjectsInvalid: 'The registry’s projects key is missing or not an object',
