@@ -1,20 +1,46 @@
-# Plugins 视图
+# Plugins view
 
-> 关联决策: ADR-0010 · ADR-0012
+> Related decisions: ADR-0010 · ADR-0012
 
-## 概述
-插件可以装在用户级或只装给某个项目,包内还自带 skills、subagents、hooks、MCP 等组件——此前查看器把插件当纯全局概念且看不见包内组件,project-scope 安装会显示错。本功能按侧分组展示插件、如实呈现每条安装记录与各视角的启用状态,展开按类目查看内含组件,并可**原地预览插件内的 skill 包全文**(启用前审阅)。
+## Overview
+A plugin can be installed at the user level or only for one project, and its package bundles skills,
+subagents, hooks, MCP servers and other components — the viewer previously treated plugins as a
+purely global concept, could not see the bundled components, and got project-scope installs wrong.
+This feature groups plugins by side, reports each installation record and each viewpoint's enablement
+truthfully, expands to show bundled components by category, and can **preview a plugin's skill
+package in full, in place** (review before enabling).
 
-## 能力
-- 按侧分组两组:Claude Code 组与 Codex 组,同名插件不跨侧合并
-- Claude 组每行:名称、版本、启用状态、**行内逐条安装记录 chips**(作用域与归属项目;多条记录不合并;归属项目已不存在时标「项目已失联」)
-- 启用口径分页各异:全局页按用户层;项目详情按该项目实际生效层级(本地 > 项目 > 用户)合并,并注明启用/禁用判定来自哪一层——只装给某项目的插件,在该项目详情显示启用、其他地方如实显示未启用
-- 点行展开为**类目 tab**(Skills/Subagents/Hooks/MCP,空类目不出 tab):subagents 列名、hooks 事件摘要、MCP 列名;安装目录已被清理时整区标注"无法读取",列表行保留
-- **Skills tab 为行式列表**(名 + 描述 + 文件数·大小):点行展开包内文件表(每文件行数/大小/修改日期),点文件开抽屉读正文(Markdown 默认预览可切原文)——**与启用状态无关,未启用的插件也能审阅**;包不可读的行置灰
-- 有效启用插件的内含 skills 同时以「插件名:skill 名」条目出现在 Skills 分栏,带「插件」徽标、只读不可装卸,与磁盘同名 skill 并存互不遮蔽;该条目**与磁盘 skill 同权可展开预览**(行内统计/文件表/抽屉)
-- Codex 组为探测式:本机存在 Codex 插件缓存才显示,列名称/来源/版本(多版本缓存标注数量并取最高版本);**内含 skills 可展开预览**(仅 Skills 类目),但不并入 Skills 分栏(无启用态语义,不造假「生效中」信号)
+## Capabilities
+- Two groups by side: a Claude Code group and a Codex group; plugins with the same name are not
+  merged across sides
+- Each Claude row: name, version, enablement, and **inline chips for each installation record**
+  (scope and owning project; multiple records are not merged; if the owning project no longer exists
+  it is marked "project lost")
+- Enablement is read differently per page: the global page uses the user layer; project detail merges
+  the layers actually in effect for that project (local > project > user) and states which layer the
+  enabled/disabled judgement came from — a plugin installed for one project only shows as enabled in
+  that project's detail and truthfully as not enabled elsewhere
+- Clicking a row expands into **category tabs** (Skills/Subagents/Hooks/MCP; empty categories get no
+  tab): subagents by name, a hooks event summary, MCP servers by name; if the install directory has
+  been cleaned up, the whole area is marked "cannot be read" while the list row remains
+- **The Skills tab is a row list** (name + description + file count · size): clicking a row expands
+  the package's file table (per-file line count / size / modification date), and clicking a file opens
+  a drawer to read it (markdown previews by default and can be switched to raw) — **independent of
+  enablement, so a disabled plugin can be reviewed too**; a row whose package cannot be read is
+  greyed out
+- The skills bundled with effectively enabled plugins also appear in the Skills section as
+  "pluginName:skillName" entries, badged "plugin", read-only with no install or uninstall, coexisting
+  with an on-disk skill of the same name without shadowing either way; those entries **expand and
+  preview on equal footing with on-disk skills** (inline counts / file table / drawer)
+- The Codex group is probe-style: it appears only if a Codex plugin cache exists on this machine, and
+  lists name / origin / version (a multi-version cache notes the count and takes the highest version);
+  **bundled skills expand and preview** (the Skills category only), but do not join the Skills section
+  (there are no enablement semantics, and we do not fabricate an "in effect" signal)
 
-## 边界与不做
-- 只读:不提供插件的安装、卸载、启停;预览不改变任何启用状态
-- Codex 插件的启用状态与除 skills 外的内含组件不展示(语义未接入,不给不确定的信号)
-- hooks 只展示事件摘要,不展示命令内容;subagents/hooks/MCP 条目不可点击跳转或预览
+## Boundaries and non-goals
+- Read-only: no installing, uninstalling, enabling or disabling plugins; previewing changes no
+  enablement state
+- Codex plugins' enablement and their bundled components other than skills are not shown (the
+  semantics are not wired up, and we do not give uncertain signals)
+- Hooks show an event summary only, never command contents; subagent / hook / MCP entries are not
+  clickable and have no preview

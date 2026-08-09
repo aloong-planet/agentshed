@@ -1,74 +1,124 @@
-# 三道以为存在、实际不设防的防线(2026-08-02)
+# Three defences we thought existed and that were not defending anything (2026-08-02)
 
-在 session-view 票 01 的 review 里连查出三处「以为有护栏,实际没有」。三处独立发生、性质不同,但都是同一种自欺:**引用了一个名字,没有验证它真的在工作**。其中两处落在 `CACHE_VERSION` 上——与 [2026-07-30 缓存结构变更未升版本导致启动崩溃](2026-07-30-cache-version-crash.md) 同一个常量,是重犯。
+The review of session-view ticket 01 turned up three places in a row where "we thought there was a
+guard rail and there wasn't". The three happened independently and are different in kind, but they
+are all the same self-deception: **citing a name without verifying it was actually working.** Two of
+them land on `CACHE_VERSION` — the same constant as
+[the 2026-07-30 cache structure crash](2026-07-30-cache-version-crash.md), so this is a repeat.
 
-## 一、算法变更漏升版本号 → 假绿(比崩溃更坏)
+## 1. An algorithm change without a version bump → a false green (worse than a crash)
 
-### 现象
+### Symptom
 
-把 Codex 的 `SessionMeta.at` 从「首个时间戳」改成「文件内最大时间戳」,fixture 测试全绿。但对**存量用户**,这个修复永远不会生效。
+Codex's `SessionMeta.at` was changed from "the first timestamp" to "the largest timestamp in the
+file", and the fixture tests were all green. But for **existing users** this fix would never take
+effect.
 
-### 根因
+### Root cause
 
-token 缓存按(路径, mtime, size)命中。这次改的不是 `FileAgg` 的**结构**而是某字段的**算出方式**——签名照样命中、形状照样合法、`isWellFormedAgg` 照样放行,于是未变的文件一直返回按旧算法算出的旧值。
+The token cache hits on (path, mtime, size). What changed this time was not `FileAgg`'s **structure**
+but **how one field is computed** — the signature still hits, the shape is still valid,
+`isWellFormedAgg` still lets it through, and so an unchanged file keeps returning the old value
+computed by the old algorithm.
 
-2026-07-30 那次是改结构漏升号,表现为**崩溃**——响亮、当场暴露。这次是改算法漏升号,表现为**什么都不发生**:测试绿、UI 正常、数字看着合理,只是修复没到用户手里。
+The 2026-07-30 incident was a structure change without a bump, and it manifested as a **crash** —
+loud, exposed on the spot. This one was an algorithm change without a bump, and it manifested as
+**nothing happening at all**: green tests, a normal UI, plausible-looking numbers, and a fix that
+simply never reached users.
 
-### 为什么没被测住
+### Why no test caught it
 
-`CACHE_VERSION` 旁的注释只写了「改动 FileAgg **形状**必须同时升此号」——字面读下来,改算法不在其内。既有的两条缓存测试也都是结构维度的(旧结构不崩、垃圾内容重算),没有一条覆盖「结构合法但值过时」。
+The comment next to `CACHE_VERSION` said only "changing the **shape** of `FileAgg` requires bumping
+this at the same time" — read literally, an algorithm change is not covered. Both existing cache
+tests were structural too (an old structure does not crash; garbage content is recomputed), and
+neither covered "valid structure, stale value".
 
-而所有 fixture 都用临时 cacheDir,**每次都是空缓存**——这个盲区与 2026-07-30 那次是同一个:单测天然只覆盖冷启动。
+And every fixture uses a temporary `cacheDir`, so **the cache is always empty** — the same blind spot
+as 2026-07-30: unit tests inherently only cover cold start.
 
-### 固化的防线
+### Defences put in place
 
-- 注释补第二条触发条件:「改动 FileAgg 里某字段的**算出方式**,同样必须升号」,并写明失效形态是假绿而非崩溃。
-- 新增测试:构造一份**上一版**缓存,其结构与现版完全一致、只是 `at` 按旧算法算出,断言它必须被判失效重算。该测试经变异检验——把版本号退回一格,它确实红。
+- A second trigger condition was added to the comment: "changing **how a field in `FileAgg` is
+  computed** also requires a bump", stating that the failure mode is a false green rather than a
+  crash.
+- A test was added: construct a **previous version's** cache whose structure is identical to the
+  current one and whose `at` was merely computed by the old algorithm, and assert it must be judged
+  invalid and recomputed. The test was mutation-checked — rolling the version number back one notch
+  does make it red.
 
-## 二、给缓存加字段,漏加进同版本守卫
+## 2. A new cache field missed by the same-version guard
 
-### 现象
+### Symptom
 
-`SessionMeta` 加了 `file`(会话身份),`FileAgg` 两侧同步加,版本号也升了。但 `isWellFormedAgg` 没加。
+`SessionMeta` gained `file` (session identity), `FileAgg` gained it on both sides, and the version
+was bumped. But `isWellFormedAgg` was not updated.
 
-### 根因
+### Root cause
 
-`isWellFormedAgg` 是 2026-07-30 那次事故留下的防线,职责是拦**同版本内**的手工损坏与字段漂移(版本号只拦得住跨版本)。加必填字段却不加进这道守卫,等于新字段不受它保护。
+`isWellFormedAgg` is the defence left over from the 2026-07-30 incident, and its job is to catch
+manual corruption and field drift **within one version** (the version number only catches across
+versions). Adding a required field without adding it to this guard means the new field is not
+protected by it.
 
-后果不是自伤:缺 `file` → `SessionMeta.file` 为 undefined → 契约校验抛 → **整个 `getProjectDetail` 挂掉**,skills、subagents、memory、plugins、MCP、配置、产物一起没了。**上层逃逸**。
+The consequence is not self-harm: no `file` → `SessionMeta.file` is undefined → contract validation
+throws → **the whole of `getProjectDetail` dies**, taking skills, subagents, memory, plugins, MCP,
+configuration and artifacts with it. **Upward escape.**
 
-### 固化的防线
+### Defences put in place
 
-- `isWellFormedAgg` 加 `file` 校验,并在注释里写明「**给 FileAgg 加必填字段时,这里同步加一条**」——把隐式约定变成写下来的约定。
-- 新增测试:同版本缓存里条目缺 `file`,必须被判不合格并重算。经变异检验有效。
+- `isWellFormedAgg` now checks `file`, with a comment stating "**when adding a required field to
+  `FileAgg`, add a line here at the same time**" — turning an implicit convention into a written one.
+- A test was added: an entry missing `file` in a same-version cache must be judged invalid and
+  recomputed. Mutation-checked and effective.
 
-## 三、把一个从不执行的测试当作护栏引用
+## 3. Citing a test that never runs as a guard rail
 
-### 现象
+### Symptom
 
-spec 的跨切面回归点 R2 写着「现有 token 统计的解析与缓存不得被破坏」,票的验收项写着「与 ccusage 对齐测试全绿」。实现过程中我多次引用它作为 R2 已被守住的依据。
+The spec's cross-cutting regression point R2 says "the existing token statistics parsing and caching
+must not be broken", and the ticket's acceptance criterion said "the ccusage alignment tests are all
+green". During implementation I repeatedly cited it as evidence that R2 was held.
 
-它从来没跑过。
+It had never run.
 
-### 根因
+### Root cause
 
-`ccusage-parity.test.ts` 是 `describe.skipIf(!run)`,需要 `PARITY=1` **且**需要一份外部生成的 ccusage 基准 JSON。`pnpm verify` 里它永远显示 skipped。文件头第一行就写着「非产线测试;默认跳过」——我引用它时没读那一行。
+`ccusage-parity.test.ts` is `describe.skipIf(!run)`, needing `PARITY=1` **and** an externally
+generated ccusage baseline JSON. In `pnpm verify` it always shows as skipped. The very first line of
+the file says "not a production-line test; skipped by default" — I had not read that line when citing
+it.
 
-「测试文件存在」被当成了「测试在跑」。
+"The test file exists" had been taken for "the test is running".
 
-### 固化的防线
+### Defences put in place
 
-- spec R2 与相关票改写:明确标注别拿 `ccusage-parity` 当护栏,并给出可行的核验方式——**对真实数据跑改动前后的对比**,比 `byDay`/`bySide`/归档行数。
-- 实际执行了这个核验:`git worktree` 拉出 master,同一份脚本各跑一遍。结果**排除当天后完全一致**;当天数据因为本会话正在写盘而单调增长(三次采样 4534300163 → 4535088766 → 4536996108),这个噪声本身也测出来了,否则会被误读成回归。
+- The spec's R2 and the related tickets were rewritten to state explicitly that `ccusage-parity` is
+  not to be treated as a guard rail, and to give a workable verification instead: **run before and
+  after against real data and compare** `byDay` / `bySide` / archive row counts.
+- That verification was actually carried out: `git worktree` checked out master and the same script
+  was run on each. The results were **identical once the current day is excluded**; the current day's
+  data grew monotonically because this very session was writing to disk (three samples: 4534300163 →
+  4535088766 → 4536996108), and detecting that noise was itself part of the result — otherwise it
+  would have been misread as a regression.
 
-## 教训
+## Lesson
 
-**护栏的名字不是护栏。** 三处的共同形态是:存在一个叫得出名字的防护(版本号、守卫函数、对账测试),于是停止追问它在这次改动下是否真的生效。
+**The name of a guard rail is not a guard rail.** The shape shared by all three is: a protection
+exists that can be named (a version number, a guard function, a reconciliation test), and so the
+question of whether it actually works under *this* change stops being asked.
 
-三个可操作的判据:
+Three actionable criteria:
 
-1. **改了缓存里存的东西,先问"这次改的是形状还是值"** —— 两者都要升号,但只有前者会响亮地崩;后者静默失效,更需要测试。
-2. **给被持久化的结构加必填字段时,把"谁在校验这个结构"列全** —— 版本号与形状守卫是两道独立的网,加字段要同时穿过。
-3. **引用一个测试当依据前,先确认它这次真的执行了** —— 看运行报告里它是 passed 还是 skipped,而不是看文件在不在。
+1. **When changing what is stored in a cache, first ask "did I change the shape or the value"** —
+   both need a bump, but only the former crashes loudly; the latter fails silently and needs the test
+   more.
+2. **When adding a required field to a persisted structure, list everything that validates that
+   structure** — the version number and the shape guard are two independent nets, and a new field
+   must pass through both.
+3. **Before citing a test as evidence, confirm it actually ran this time** — look at whether the run
+   report says passed or skipped, not at whether the file exists.
 
-附带一条关于事实的:本次 review 还推翻了调研期写进 spec 的两条"事实"(活跃度会被连带影响、Claude 侧的 at 语义已经正确)。**调研期结论若没有 file:line 或实测支撑,实现期必须重验**——它们看起来和已核实的结论长得一模一样。
+One more, about facts: this review also overturned two "facts" written into the spec during research
+(that activity would be affected as a side effect, and that the Claude side's `at` semantics were
+already correct). **A research-phase conclusion with no file:line or measurement behind it must be
+re-verified at implementation time** — it looks exactly like a verified one.

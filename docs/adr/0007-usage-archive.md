@@ -1,28 +1,49 @@
-# ADR-0007: 用量历史归档
+# ADR-0007: Usage history archive
 
-- 状态: 已接受(2026-07-30)
+- Status: Accepted (2026-07-30)
 
-## 背景与问题
+## Context
 
-Claude Code 默认 `cleanupPeriodDays: 30`,超期会话文件被自动删除。本机实测:`~/.claude/projects` 1674 个文件只覆盖 2026-06-23 起 38 天,更早的已不存在;对照 Codex 不自动清理,数据回溯到 2026-02。所有基于"即时全扫会话文件"的统计工具(含 ccusage)都会随源文件被清而丢失历史——这不是工具能力问题,是数据没了。
+Claude Code defaults to `cleanupPeriodDays: 30`, and session files past that age are deleted
+automatically. Measured on this machine: the 1674 files in `~/.claude/projects` only cover the 38
+days from 2026-06-23; anything earlier is already gone. By contrast Codex does not clean up
+automatically, and its data goes back to 2026-02. Every statistics tool built on "scan all session
+files right now" (including ccusage) loses history as the source files are cleaned — this is not a
+capability problem, the data is simply gone.
 
-## 备选项
+## Options
 
-1. **app 侧持久化日聚合结果(天×侧×项目×模型),源文件消失后从归档补齐趋势**
-2. 只调大 `cleanupPeriodDays` 不做归档——否决:仅推迟问题,且会话文件按本机强度约 4 MB/天(一年 ~1.5 GB),不能无限放大;归档一天几十行、一年 <2 MB
-3. 复制会话文件到 app 自有目录——否决:重复占用同等磁盘,且会话原文含敏感内容,复制放大泄露面
-4. 只存天×侧(最精简)——否决(用户裁定):粒度可向上聚合、不可向下拆,存细了将来才有"某项目历史耗用""某模型占比变化"
+1. **Persist daily aggregates on the app side (day × side × project × model), and fill the trend from
+   the archive once the source files disappear**
+2. Just raise `cleanupPeriodDays` and skip the archive — rejected: that only defers the problem, and
+   at this machine's intensity session files run about 4 MB/day (~1.5 GB a year), so it cannot grow
+   without limit; the archive is a few dozen lines a day, under 2 MB a year
+3. Copy the session files into the app's own directory — rejected: it duplicates the same disk
+   footprint, and session transcripts contain sensitive content, so copying widens the exposure
+4. Store day × side only (the most minimal) — rejected (user's ruling): granularity can be
+   aggregated up but not split down, so storing it finely now is what makes "this project's
+   historical consumption" and "how this model's share changed" possible later
 
-## 决策
+## Decision
 
-选定**方案 1**,粒度天×侧×项目×模型。**冲突规则**:本次扫描仍能看到源数据的天(liveDays)整天以实时值**覆盖**归档——口径升级或修 bug 后历史自动纠正(如本轮 ccusage 对齐);源数据已消失的天保留归档值。UI 用斜纹柱与说明条标出归档段,不与实时数据混淆。
+We choose **option 1**, at day × side × project × model granularity. **Conflict rule**: for a day
+whose source data this scan can still see (a live day), the live values **overwrite** the archive for
+that whole day — so history corrects itself automatically after an accounting change or a bug fix
+(as in this round's ccusage alignment); days whose source data is gone keep their archived values.
+The UI marks archived spans with hatched bars and a note so they are not confused with live data.
 
-## 后果
+## Consequences
 
-- 正面:历史不再随 agent 清理消失;口径修正能回溯纠正仍可见的天;体量可忽略
-- 负面:归档只能从启用之日起攒,6 月之前已删的永远找不回;归档段的数值口径停留在写入当时(源文件已不在,无法重算)
-- 中性:Codex 侧四项(input/output/cache)按当天占比分摊(增量事件已按天聚合,四项无独立日粒度来源),total 精确、四项为近似
+- Positive: history no longer disappears with the agent's cleanup; accounting fixes retroactively
+  correct the days still visible; the size is negligible
+- Negative: the archive can only accumulate from the day it is enabled, so anything already deleted
+  before June is gone for good; and archived spans keep whatever accounting rules were in force when
+  they were written (the source files are gone, so they cannot be recomputed)
+- Neutral: on the Codex side the four fields (input/output/cache) are apportioned by that day's
+  ratios (the incremental events are already aggregated by day and there is no independent per-day
+  source for the four fields), so the total is exact and the four fields are approximate
 
-## 来源
+## Sources
 
-本机实测(会话文件跨度、按天体量、`cleanupPeriodDays` 未设置);ccusage 对账过程中"33 天 vs 81 天"的溯源。
+Measurement on this machine (session file span, daily volume, `cleanupPeriodDays` unset); tracing
+down the "33 days vs 81 days" discrepancy during ccusage reconciliation.

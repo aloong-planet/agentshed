@@ -1,16 +1,26 @@
-# 项目全景列表
+# Project list
 
-## 概述
-项目散在两套 agent 注册表里,想"看全我有哪些项目"要翻两处配置。本列表取两侧注册表并集,一目录一项目,按活跃度排好。
+## Overview
+Projects are scattered across two agent registries, so "see all the projects I have" means digging
+through two sets of configuration. This list takes the union of both registries, one directory to one
+project, sorted by activity.
 
-## 能力
-- 两侧注册的同一目录合并为一项,agent 侧徽标并列;尾斜杠/大小写差异不产生重复项
-- 默认按活跃度排序(最近会话时间),行内显示相对时间与会话数
-- 搜索框按名称/路径过滤;agent 侧筛选(全部/Claude/Codex)与搜索、失效过滤、隐藏叠加生效
-- 失效项目(注册表有、目录已删)默认过滤并显示计数,开关可显示,显示时名称划线加「失效」标
-- 行悬停出「隐藏」;已隐藏项目收进「已隐藏 N 项」入口,可展开恢复;隐藏是本 app 的浏览偏好,不写入任何 agent 配置
-- 点击项目名进入详情;rail 底部 ↻ 全局刷新(两维度共用,进行中重复点击被忽略)
+## Capabilities
+- The same directory registered on both sides merges into one entry with both agent side badges side
+  by side; trailing-slash and casing differences do not produce duplicates
+- Sorted by activity (most recent session time) by default, with the relative time and session count
+  shown on the row
+- The search box filters by name or path; the agent side filter (all / Claude / Codex) stacks with
+  search, the stale filter and hiding
+- Stale projects (in the registry, directory deleted) are filtered out by default with a count shown;
+  a toggle reveals them, struck through and marked "stale"
+- Hovering a row reveals "Hide"; hidden projects collect under a "N hidden" entry point that expands
+  to restore them. Hiding is a browsing preference of this app and is never written to any agent
+  configuration
+- Clicking a project name opens its detail page; ↻ at the bottom of the rail refreshes globally
+  (shared by both dimensions; repeat clicks while one is in flight are ignored)
 
-## 边界与不做
-- 不做文件实时监听:数据在启动扫描与手动刷新时更新
-- 打开后扫描完成前显示扫描态,不显示误导性的空列表
+## Boundaries and non-goals
+- No live file watching: data updates on the startup scan and on manual refresh
+- Before the scan finishes after opening, a scanning state is shown rather than a misleading empty
+  list

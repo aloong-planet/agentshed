@@ -1,62 +1,91 @@
-# 项目全景列表
+# Project list
 
-> 关联: [features](../features/projects-list.md) · ADR-0002(双 seam)
-> 补建说明:本篇为 2026-08-01 spec 转持久产物后**逆向补建**——需求与边界从 features、既有测试用例与代码行为反推,当初的推理过程已随 `.scratch/` 丢失。边界条目均有对应测试,可信;若与实现冲突以实现为准并就地改写本篇。
+> Related: [features](../features/projects-list.md) · ADR-0002 (dual seam)
+> Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
+> artifacts on 2026-08-01 — the requirements and boundaries were inferred from features, the existing
+> test cases and the code's behaviour, since the original reasoning was lost with `.scratch/`. The
+> boundary entries all have corresponding tests and are trustworthy; where one conflicts with the
+> implementation, the implementation wins and this document is rewritten in place.
 
 ## Problem Statement
 
-项目散在两套 agent 注册表里(Claude 的 `~/.claude.json` projects 键、Codex 的 config.toml `[projects.*]`),想"看全我有哪些项目"要翻两处配置,且同一目录在两侧各记一次。
+Projects are scattered across two agent registries (Claude's `projects` key in `~/.claude.json`,
+Codex's `[projects.*]` in `config.toml`), so "see all the projects I have" means digging through two
+sets of configuration, and the same directory is recorded once on each side.
 
 ## Solution
 
-取两侧注册表并集,一目录一项目、双侧徽标并列,按活跃度排序;提供搜索、侧筛选、失效过滤与隐藏,全部是本 app 的浏览偏好,不写回任何 agent 配置。
+Take the union of both registries, one directory to one project with both side badges side by side,
+sorted by activity; provide search, side filtering, stale filtering and hiding — all of which are
+this app's browsing preferences and are never written back to any agent configuration.
 
 ## User Stories
 
-1. As a 用户, I want 两侧注册的同一目录合并为一项并标明各侧, so that 我不用翻两处配置也不会看到重复项。
-2. As a 用户, I want 默认按活跃度(最近会话时间)排序并显示相对时间与会话数, so that 最近在做的项目排在最前。
-3. As a 用户, I want 按名称/路径搜索,并能按 agent 侧筛选, so that 项目多时能快速定位。
-4. As a 用户, I want 失效项目(注册表有、目录已删)默认收起但可显示, so that 列表干净的同时不丢失清理线索。
-5. As a 用户, I want 隐藏不关心的项目并可恢复, so that 长期不用的项目不干扰浏览——且这个偏好不污染 agent 配置。
-6. As a 用户, I want 扫描未完成时看到扫描态而非空列表, so that 我不会把"还没扫完"误判成"没有项目"。
+1. As a user, I want the same directory registered on both sides merged into one entry marked with
+   each side, so that I do not have to dig through two configurations and do not see duplicates.
+2. As a user, I want the default sort to be activity (most recent session time) with the relative
+   time and session count shown, so that what I have been working on lately is at the top.
+3. As a user, I want to search by name or path and filter by agent side, so that I can find things
+   quickly when there are many projects.
+4. As a user, I want stale projects (in the registry, directory deleted) collapsed by default but
+   revealable, so that the list stays clean without losing the cleanup lead.
+5. As a user, I want to hide projects I do not care about and restore them, so that long-unused
+   projects do not clutter my browsing — and this preference must not pollute the agent configuration.
+6. As a user, I want a scanning state rather than an empty list before the scan finishes, so that I do
+   not mistake "not scanned yet" for "no projects".
 
-## 失败模式与边界
+## Failure modes and boundaries
 
-**序列 A:启动扫描 → 列表呈现**
-- A1 两侧数据目录均不存在 → 空快照,双侧 detected=false,不抛错。
-- A2 仅一侧存在 → 该侧 detected=true,另一侧空态并存。
-- A3 某侧注册表 JSON/TOML 损坏 → 该侧降级为空并带错误说明,**另一侧照常**(单侧故障不清空全表)。
-- A4 同一目录两侧都注册 → 合并为一项、双徽标。
-- A5 路径尾斜杠/大小写差异 → 归一后不产生重复项。
-- A6 注册表有记录但目录已删 → 标为失效(stale),不从列表消失。
+**Sequence A: startup scan → list rendering**
+- A1 Neither side's data directory exists → an empty snapshot with `detected=false` on both sides, no
+  throw.
+- A2 Only one side exists → `detected=true` for that side, with the other's empty state alongside.
+- A3 One side's registry JSON/TOML is corrupt → that side degrades to empty with an error
+  explanation, and **the other behaves normally** (a single-side failure does not clear the whole
+  table).
+- A4 The same directory is registered on both sides → merged into one entry with both badges.
+- A5 Trailing-slash or casing differences in the path → normalised, producing no duplicates.
+- A6 A registry record whose directory has been deleted → marked stale, and does not vanish from the
+  list.
 
-**序列 B:活跃度计算**
-- B1 Claude 侧按编码目录下 `*.jsonl` 计数,最近会话时间取最大 mtime。
-- B2 Codex 侧读 rollout 首行 `cwd` 归属项目;首行超长(实测可达 42KB)仍要能取到。
-- B3 Codex subagent 线程不计入会话数,也不推高最近时间。
-- B4 rollout 首行损坏 → 跳过该文件,不抛错、不影响同目录其余会话。
-- B5 无会话项目 → 计数 0、最近时间 null(排序落末位,不报错)。
-- B6 双侧都有会话 → 计数取并集之和、时间取两侧最大。
+**Sequence B: activity computation**
+- B1 The Claude side counts `*.jsonl` under the encoded directory, taking the largest mtime as the
+  most recent session time.
+- B2 The Codex side reads a rollout's first line `cwd` for project attribution; an oversized first
+  line (measured up to 42 KB) must still be readable.
+- B3 Codex subagent threads do not count toward the session count and do not push the most recent
+  time up.
+- B4 A corrupt rollout first line → skip that file, no throw, and no effect on the other sessions in
+  the same directory.
+- B5 A project with no sessions → count 0, most recent time null (sorted last, not an error).
+- B6 Sessions on both sides → the count is the sum of the union and the time is the larger of the two.
 
-**序列 C:筛选与隐藏**
-- C1 搜索、侧筛选、失效过滤、隐藏四者**叠加**生效,不互相覆盖。
-- C2 隐藏状态存本 app 自有存储,**不写入任何 agent 配置**(卸载本 app 不影响 agent)。
-- C3 已隐藏项目收进独立入口并显示计数,可展开恢复。
-- C4 全局刷新进行中重复点击被忽略(去重,不并发扫描)。
+**Sequence C: filtering and hiding**
+- C1 Search, side filtering, stale filtering and hiding all **stack**, never overriding one another.
+- C2 The hidden state lives in this app's own storage and is **never written to any agent
+  configuration** (uninstalling this app does not affect the agents).
+- C3 Hidden projects collect under their own entry point with a count, expandable to restore.
+- C4 Repeat clicks on global refresh while one is in flight are ignored (deduplicated, no concurrent
+  scans).
 
 ## Implementation Decisions
 
-- **合并键**:路径规范化后作唯一键(尾斜杠、大小写归一),两侧并集;一目录一条目。
-- **活跃度**:Claude 走编码目录 readdir(不解析内容),Codex 走 rollout 首行 cwd 归属;subagent 线程排除。
-- **隐藏存储**:本 app 自有存储,与 agent 配置物理隔离。
-- **刷新**:全局刷新两维度共用,inflight 去重。
+- **Merge key**: the normalised path is the unique key (trailing slash and casing normalised), taking
+  the union of both sides; one directory, one entry.
+- **Activity**: Claude uses a `readdir` of the encoded directory (without parsing contents), Codex
+  attributes by the rollout's first-line `cwd`; subagent threads are excluded.
+- **Hidden state storage**: this app's own storage, physically isolated from the agent configuration.
+- **Refresh**: global refresh is shared by both dimensions, with in-flight deduplication.
 
 ## Testing Decisions
 
-沿用 ADR-0002 双 seam:providers 层 ScanRoots fixture 单测覆盖注册表并集、损坏降级、路径归一、活跃度归属与 subagent 排除;UI 交互(筛选叠加、隐藏入口)不单测,靠 e2e 与手测。
+Following ADR-0002's dual seam: `ScanRoots` fixture unit tests at the providers layer cover the
+registry union, corruption degradation, path normalisation, activity attribution and subagent
+exclusion; UI interactions (stacked filters, the hidden entry point) are not unit tested and rely on
+e2e and manual testing.
 
 ## Out of Scope
 
-- 文件实时监听:数据只在启动扫描与手动刷新时更新。
-- 从本 app 增删项目注册(注册表只读)。
-- 跨项目的内容检索。
+- Live file watching: data only updates on the startup scan and manual refresh.
+- Adding or removing project registrations from this app (the registries are read-only).
+- Cross-project content search.

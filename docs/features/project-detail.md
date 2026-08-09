@@ -1,20 +1,36 @@
-# 项目详情
+# Project detail
 
-> 关联决策: ADR-0004
+> Related decision: ADR-0004
 
-## 概述
-"这个项目装了哪些能力、有什么约定、沉淀了什么"是产品原点问题。详情页以九个分栏回答:概览(默认)、Skills、Subagents、Plugins、MCP、Memory、配置、产物、会话。
+## Overview
+"What capabilities does this project have installed, what conventions does it follow, and what has it
+accumulated" is the product's founding question. The detail page answers it across nine sections:
+Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Artifacts and Sessions.
 
-## 能力
-- Skills 生效视图:同侧同名只展示项目级(不并列被覆盖的全局);仅全局有的仍列出;磁盘 skill 可折叠预览包内文件(见 [Skills 查看](skills-view.md));软链有标记;项目级可卸载;插件内含 skills 组只读、可展开预览(见 [Plugins 视图](plugins-view.md))
-- Subagents 生效视图:项目级与全局层并列,两侧同名均为项目级遮蔽(见 [Subagents 查看](subagents-view.md))
-- Plugins:本项目视角的有效启用状态与内含组件展开(见 [Plugins 视图](plugins-view.md))
-- MCP:项目 .mcp.json 的 servers 及其启用/禁用/默认状态;无则提示去 Agents 页看全局
-- Memory:本项目自动记忆的全文查看(见 [Memory 查看](memory-view.md))
-- 配置:项目 CLAUDE.md 与 AGENTS.md 渲染阅读、settings 摘要;缺失显示"无"
-- 产物 tab:六类产物按时间倒序平铺,类型 chips 筛选;chips 按自顶向下的推导链排列(CONTEXT.md → ADR → specs → prototypes → features → postmortems);Markdown 点开浮层阅读,prototypes 的 HTML 用系统默认方式打开
-- 会话:本项目在两侧 agent 下的会话列表,可切排序、可搜索,点开看整场对话(见 [会话查看](session-view.md))
-- 失效项目仍可打开详情:项目级内容为空态、全局层照常
+## Capabilities
+- Skills effective view: within one side, a same-name pair shows only the project-level entry (the
+  shadowed global one is not listed alongside); anything that exists only globally is still listed;
+  on-disk skills expand to preview a package's files (see [Skills view](skills-view.md)); symlinks
+  are marked; project-level entries can be uninstalled; the plugin-bundled skills group is read-only
+  and expands to preview (see [Plugins view](plugins-view.md))
+- Subagents effective view: project-level and global-layer entries side by side, with same-name pairs
+  on either side shadowed at the project level (see [Subagents view](subagents-view.md))
+- Plugins: effective enablement from this project's point of view, with bundled components expandable
+  (see [Plugins view](plugins-view.md))
+- MCP: the servers in the project's `.mcp.json` and their enabled / disabled / default state; if
+  there are none, a pointer to the Agents page for the global ones
+- Memory: this project's automatic memories in full (see [Memory view](memory-view.md))
+- Configuration: the project's CLAUDE.md and AGENTS.md rendered for reading, plus a settings summary;
+  missing files show "none"
+- Artifacts tab: the six kinds of artifact laid out flat in reverse chronological order, filterable
+  by type chips; the chips are ordered by the top-down derivation chain (CONTEXT.md → ADR → specs →
+  prototypes → features → postmortems); markdown opens in an overlay for reading, and prototypes'
+  HTML opens with the system default application
+- Sessions: this project's sessions on both agent sides, with sorting and search, opening to the full
+  conversation (see [Session view](session-view.md))
+- A stale project's detail page still opens: project-level content shows empty states and the global
+  layer behaves as usual
 
-## 边界与不做
-- 非八步项目的产物栏显示"未按约定沉淀"空态,不视为错误
+## Boundaries and non-goals
+- For a project not following the eight-step process, the artifacts tab shows a "nothing accumulated
+  by convention" empty state, which is not treated as an error

@@ -1,16 +1,28 @@
-# Subagents 查看
+# Subagents view
 
-## 概述
-两侧 agent 都支持自定义 subagent(专职助手定义),但定义散在两处目录、格式各异,用户看不清"本机定义过哪些、某项目里实际生效的是哪个"。本功能在全局页与项目详情各设 Subagents 分栏,统一查看。
+## Overview
+Both agent sides support custom subagents (specialised assistant definitions), but the definitions
+live in two different directories in two different formats, so a user cannot see "which ones are
+defined on this machine, and which one actually applies in this project". This feature adds a
+Subagents section to both the global page and project detail for viewing them together.
 
-## 能力
-- 全局页:两侧定义合并单列,同名合并一行并带双侧徽标;单侧条目以虚线徽标标示缺失侧
-- 点击条目直接打开抽屉:元数据(Claude 侧 tools/model,Codex 侧 model/sandbox)与完整定义原文;双端条目在抽屉内切换两侧,切换时抽屉原地刷新不关闭
-- 双端同名不做内容比对(两侧格式异构,不给"是否一致"的信号)
-- 文件损坏、缺名称或不可读时,条目保留并带相应标注,其余条目与同名遮蔽判定不受影响
-- Codex 自定义名与内置助手(default/worker/explorer)相同时标「覆盖内置」
-- 项目详情:生效视图——项目级与全局层并列,两侧同名均为项目级遮蔽(被遮蔽条目置灰标注);与 Skills 的 Codex 同名共存语义不同,标注按组件各自取义
+## Capabilities
+- Global page: both sides' definitions merged into one column, with same-name entries merged onto one
+  row carrying both side badges; a single-side entry marks the missing side with a dashed badge
+- Clicking an entry opens a drawer directly: metadata (tools/model on the Claude side, model/sandbox
+  on the Codex side) and the full definition as written; an entry present on both sides can switch
+  sides inside the drawer, which refreshes in place without closing
+- Same-name entries on both sides are not compared by content (the two formats are different, so no
+  "are they the same" signal is offered)
+- When a file is corrupt, unnamed or unreadable, the entry stays with the appropriate label, and the
+  other entries and the same-name shadowing judgement are unaffected
+- A Codex custom name matching a built-in assistant (default/worker/explorer) is marked "overrides
+  built-in"
+- Project detail: the effective view — project-level and global-layer entries side by side, with
+  same-name pairs on either side shadowed at the project level (shadowed entries greyed out and
+  labelled); this differs from Skills' Codex same-name coexistence semantics, and each component's
+  labels follow its own meaning
 
-## 边界与不做
-- 只读:不提供 subagent 的创建、编辑、删除
-- 超长定义文件截断展示
+## Boundaries and non-goals
+- Read-only: no creating, editing or deleting subagents
+- Overly long definition files are truncated for display

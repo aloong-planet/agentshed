@@ -1,37 +1,79 @@
-# ADR-0014: 自建 typed i18n 层(拒绝通用 i18n 框架)
+# ADR-0014: Self-built typed i18n layer (general-purpose i18n frameworks rejected)
 
-- 状态: 已接受(2026-08-08)
+- Status: Accepted (2026-08-08)
 
-## 背景与问题
+## Context
 
-六语 × 约 400 个文案 key(见 ADR-0013),其中俄语有四种复数形式、法语与西语的复数规则各异、日语无复数变化。本仓库既有的类型纪律是「常量数组 + 派生 union + type guard + 手写契约校验」(见 ADR-0001、`shared/appearance.ts`),且本轮明确要求:漏译必须在**编译期**暴露,不接受运行期静默回退——这与 CONTEXT.md 既有的「白名单类失败不可见,不得静默丢」是同一条判断。
+Six languages × roughly 400 copy keys (see ADR-0013), where Russian has four plural forms, French and
+Spanish each have their own plural rules, and Japanese has no plural inflection. This repository's
+existing type discipline is "constant array + derived union + type guard + hand-written contract
+validation" (see ADR-0001 and `shared/appearance.ts`), and this round has an explicit requirement:
+a missing translation must surface **at compile time**, with no silent runtime fallback accepted —
+the same judgement as CONTEXT.md's existing "allow-list failures are invisible, so nothing may be
+silently dropped".
 
-## 备选项
+## Options
 
-1. **自建 typed i18n 层:中文为源语言,其余五语在类型上与源逐条对齐,复数直接用平台内建 `Intl.PluralRules`**
-2. i18next 26.3.6 + react-i18next 17.0.11——否决:key 是字符串字面量,拼错与漏译默认走静默回退链,与「缺失编译期红」的要求方向相反;即便用 `CustomTypeOptions` 声明合并拿到 key 类型安全,校验的也只是「key 在源里存在」,覆盖不到「某个语言少了一条」这个本轮真正要防的形态
-3. Lingui 6.6.0——否决:编译期宏提取与 ICU 复数确实对路,源码里还能直接写中文不必发明 key;但要给 electron-vite 接 macro 插件,并新增 `extract` / `compile` 两道构建步骤。为 400 个 key 增加一条构建管线,且该管线自身成为 verify 门禁的新故障面,不划算
-4. react-intl 10.1.20——否决:同方案 2 的 key 字符串问题;ICU 语法对本项目大量存在的内嵌 `<b>` / `<code>` 富文本片段并不比 JSX 更省
+1. **Build a typed i18n layer: Chinese as the source language, the other five aligned to it entry by
+   entry in the type system, plurals handled by the platform's built-in `Intl.PluralRules`**
+2. i18next 26.3.6 + react-i18next 17.0.11 — rejected: keys are string literals, and by default a
+   typo or a missing translation goes down a silent fallback chain, which is the opposite of the
+   "missing means compile error" requirement; even with `CustomTypeOptions` declaration merging for
+   key type safety, what gets checked is "the key exists in the source", which does not cover "one
+   language is missing an entry" — the very shape this round is meant to prevent
+3. Lingui 6.6.0 — rejected: compile-time macro extraction and ICU plurals are genuinely a good fit,
+   and it would even let the source write Chinese inline without inventing keys; but it needs a macro
+   plugin wired into electron-vite plus two new build steps, `extract` and `compile`. Adding a build
+   pipeline for 400 keys, where that pipeline itself becomes a new failure surface for the verify
+   gate, is not worth it
+4. react-intl 10.1.20 — rejected: the same key-string problem as option 2, and ICU syntax is no more
+   economical than JSX for the many embedded `<b>` / `<code>` rich-text fragments this project has
 
-## 决策
+## Decision
 
-选定**方案 1**:我们自建 i18n 层,不引入 i18n 运行时依赖。简体中文为源语言、唯一真相;其余五语的文案对象在类型上必须与源逐条对齐,少一条即 `pnpm typecheck` 失败。带数量的文案以函数形式承载,复数规则调用平台内建 `Intl.PluralRules`,不自造规则表。运行期万一取不到,回退英文并告警,不静默留空。
+We choose **option 1**: we build our own i18n layer and add no i18n runtime dependency. Simplified
+Chinese is the source language and the single source of truth; the other five languages' copy objects
+must align to it entry by entry in the type system, and one missing entry fails `pnpm typecheck`.
+Copy carrying a quantity is expressed as a function, and plural rules call the platform's built-in
+`Intl.PluralRules` rather than a hand-rolled rule table. If a lookup somehow fails at runtime, we fall
+back to English and warn — never silently blank.
 
-## 后果
+## Consequences
 
-- 正面:漏译与 key 拼错在 typecheck 即红,不依赖人肉核对,也不靠运行期发现
-- 正面:零新增运行时依赖;文案访问是普通属性读取,IDE 补全与跳转开箱可用
-- 正面:测试不需要 provider 包装,文案层就是纯数据与纯函数,与本仓库既有测试形态一致
-- 负面:插值、复数、回退链要自己维护,通用框架里现成的能力这里是自有代码,出 bug 得自己修
-- 负面:失去框架生态(翻译平台对接、按需分包);若将来语种或 key 数量增长一个数量级,可能需要重新评估
-- 中性:文案以 TS 模块而非 JSON 存放,好处是能写函数与类型,代价是外部译者无法直接编辑
+- Positive: missing translations and mistyped keys go red at typecheck, without relying on human
+  cross-checking or on discovery at runtime
+- Positive: zero new runtime dependencies; accessing copy is an ordinary property read, so IDE
+  completion and go-to-definition work out of the box
+- Positive: tests need no provider wrapper — the copy layer is pure data and pure functions, matching
+  this repository's existing test shape
+- Negative: interpolation, plurals and the fallback chain are ours to maintain; what a general-purpose
+  framework provides off the shelf is our own code here, and we fix our own bugs in it
+- Negative: we lose the framework ecosystem (translation platform integrations, on-demand bundle
+  splitting); if the language count or key count grows by an order of magnitude this may need
+  re-evaluating
+- Neutral: copy lives in TS modules rather than JSON, which buys functions and types at the cost of
+  external translators not being able to edit it directly
 
-## 来源
+## Sources
 
-2026-08-08 需求对齐会话。版本事实经当日 npm 实测:i18next 26.3.6、react-i18next 17.0.11、@lingui/react 6.6.0、react-intl 10.1.20。既有同构模式:`src/shared/appearance.ts:3-10`(常量数组 + 派生 union + type guard)。
+The requirements alignment session of 2026-08-08. Version facts measured against npm that day:
+i18next 26.3.6, react-i18next 17.0.11, @lingui/react 6.6.0, react-intl 10.1.20. The existing
+isomorphic pattern: `src/shared/appearance.ts:3-10` (constant array + derived union + type guard).
 
-**证据已闭环(2026-08-08 由「提议」升「已接受」)**:类型映射成立,方案无需修改。
+**Evidence closed (promoted from Proposed to Accepted on 2026-08-08)**: the type mapping works and
+the design needs no changes.
 
-做法是由源语言的形状派生一个映射类型,逐属性重写——函数保留原签名、嵌套对象递归、其余一律放宽为 `string`,并去掉 `as const` 带来的只读修饰。其余五语标注该类型即可:值能填各自语言的文字,而 key 集合被锁死。**函数分支必须排在对象分支之前**:函数在类型系统里同样满足 `extends object`,顺序颠倒会把带参文案当作嵌套字典递归下去。
+The technique is to derive a mapped type from the source language's shape, rewriting property by
+property — functions keep their original signature, nested objects recurse, and everything else is
+widened to `string`, dropping the readonly modifiers that `as const` adds. The other five languages
+just annotate with that type: the values can be their own language's text while the key set is
+locked. **The function branch must come before the object branch**: a function also satisfies
+`extends object` in the type system, so reversing the order would recurse into parameterised copy as
+if it were a nested dictionary.
 
-实测三项,且**两个方向的变异都确认会红**:少一条 key 报 `TS2741`(缺属性)、多一条 key 报 `TS2353`(未知属性)、值可填该语言自己的文字而非被迫匹配源语言字面量。只验证"补齐后能过"不构成证据——那不能区分"检查生效"与"根本没检查",故两个变异才是这条 ADR 成立与否的实际判据。
+Three things were measured, and **mutations in both directions were confirmed to go red**: one
+missing key reports `TS2741` (missing property), one extra key reports `TS2353` (unknown property),
+and values can hold that language's own text rather than being forced to match the source language's
+literal. Verifying only that "it passes once complete" is not evidence — that cannot distinguish
+"the check works" from "there is no check at all", which is why the two mutations are the actual
+criterion for whether this ADR holds.

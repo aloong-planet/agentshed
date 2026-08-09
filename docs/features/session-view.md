@@ -1,37 +1,107 @@
-# 会话查看
+# Session view
 
-## 概述
-会话记录躺在两侧 agent 的数据目录里,用户无从回看"我在这个项目里问过什么"。项目详情新增「会话」分栏,把该项目的会话列出来,一行一条,带上"这次对话有多少个我提的问题"。
+## Overview
+Session records sit in the two agent sides' data directories, with no way for a user to look back at
+"what did I ask in this project". Project detail gains a "Sessions" section listing that project's
+sessions, one per row, with "how many questions I asked in this conversation".
 
-## 能力
-- **会话页**:点会话行(分栏或概览卡)打开——顶部是返回、侧徽标、标题与体量信息(提问数/token/文件大小/最后活动),主体是这次对话的**全部真实提问**,一行一条(序号+提问+本轮工具与 subagent 数+时间)。提问一次列全,没有分页;长提问单行省略,但那只是显示截断,数据是全文
-- **点提问就地展开这一轮**:提问行自己铺开全文(多行原样展开),下面是这一轮的完整过程——助手正文、工具调用、subagent 派发、推理块;再点收起。进页时全部折叠,点哪轮取哪轮——每次只精确读取该轮所在的字节区间(展开处的脚注写着这次读了多少),打开 133MB 的会话和 3MB 的一样快
-- **工具调用默认折叠成一行**(名称 + 入参摘要),点开看完整入参与返回;返回被 agent 截断过的,明确标注 transcript 里只存了截断版(原文旁挂文件本产品不读),不谎称完整
-- **subagent 派发就地可看**:派发 prompt 与返回主会话的结果都在;内部步骤在两侧的记录里都没有稳定引用链能归位到具体某次派发——明说未展示、不做猜测性配对,不用猜的
-- **推理/思考如实呈现**:Codex 只有明文小标题,正文是加密内容永远拿不到——界面明说,不与完整思考混淆;Claude 的思考在记录里同样只有占位,没有正文
-- **没见过的记录类型不会被悄悄吞掉**:agent 更新引入新类型时,轮内会出现一行提示"本轮有 N 条未识别记录(类型:…)"——内容原样留在源文件里,你至少知道有东西没显示
-- 会话文件在页面打开期间被追加或重写时,点提问会先亮"正在只重建该文件索引"的提示,重建完直接出内容;重建只影响这一个会话
-- **跨天的会话按日分组**:分组行显示日期与当日条数,点它折叠/展开这一天;另有"全部收起 / 全部展开"。折叠只是收起来看不见——已展开的轮重开该天时还是展开的
-- **提问可正序/倒序**(默认倒序,最新的先见):序号永远是原始轮次号,不随排序重编;已展开的轮次切换排序后保持展开。个别提问缺时间戳的会话不分组,平铺显示
-- **页头下的横幅把这次对话的"不确定"讲清楚**:Claude 会话有过编辑重跑的,标注"本会话有 N 处分叉,被放弃的分支不显示";fork 会话标注"fork 自《某会话》,重放前缀已剥离",父会话标题可点直达;父会话不在扫描范围内(或对不上)的,用醒目的警示样式明说"可能多剥(丢消息)或少剥(重复),请对照原文核对"——不给假的确定感
-- 会话页打开很快且与会话大小无关:提问文本按字节位置精确读取,不整读文件
-- 项目详情的「会话」分栏:列出本项目在两侧 agent 下的会话,一行 = 侧徽标(CC/CX)+ 标题 + 提问条数 + token 消耗 + 最后活动相对时间
-- 标题取**第一条真实提问**——harness 噪声(预热消息、`[cron:…]` 前缀、slash 命令包装、skill 正文注入)已剥掉;Codex 侧优先用它自己起的会话名
-- 提问条数只数**真人问的**:工具回灌、subagent 自己的转写、噪声消息都不算;编辑重来后**被放弃的那条分支**上的提问也不算,只数"这次对话最终走成的样子"
-- fork 会话(从另一个会话分叉出来继续)开头会重放父会话的历史。列表上标 **⑂ fork**,条数只算本次 fork 之后的新提问;标题取剥离后的第一条真实提问(Codex 自己起的会话名仍然优先,不会被顶掉)
-- fork 之后**一个新提问都没产生**的会话(内容全是父会话历史的重放,且逐条核对过)不入列——它没有可找的提问,与预热会话同口径,token 照计
-- 父会话已被清理或不在扫描范围内时,重放段只能靠启发式识别,此时标 **⑂? 剥离存疑** ——宁可少剥(可能看到几条重复),也不静默丢掉真提问
-- 排序 `最近在前 | 最早在前`,默认最近在前;**切去别的分栏再回来仍是上次的选择**
-- 「最后活动」取会话文件内的最大时间戳,与项目列表的活跃度排序(取文件修改时间)是两个口径
-- 概览分栏的最近会话卡列最近 5 条并标总数,点任意一行**直达该会话的会话页**;从会话页返回落在「会话」分栏
-- **会话分栏顶部可搜本项目全部会话**:默认只搜提问——小、干净、命中精准;可切「全文」(全文会命中工具输出等噪声,这正是它做成开关的原因)。大小写不敏感
-- **命中按会话分组**:组头是会话(侧标、标题、fork 状态),组内是命中的提问与高亮片段;先回答"在哪次对话里",再回答"哪一条"。正文命中带「正文」标记与上下文片段
-- **点命中直达**该会话的那条提问:打开会话页滚动定位,该行黄色高亮驻留约 10 秒后淡出,左缘留一根紫色竖条标记"刚才跳到的是这行",点任意提问行即消失;排序开关与会话列表同一套,对命中分组同样生效
-- fork 重放副本与被放弃分支上的命中**不冒充结果**:全文搜索时这类命中被折叠,结果头报出折叠条数——同一句话不会在 fork 链每一代各报一次
-- 没有命中时明说"默认只搜提问,试试切到「全文」",不是空白
-- 该项目一个会话都没有时出空态
+## Capabilities
+- **Session page**: opened by clicking a session row (in the section or on the overview card) — at
+  the top are the back button, side badge, title and volume information (question count / tokens /
+  file size / last activity), and the body is **every real question** of that conversation, one per
+  row (index + question + that turn's tool and subagent counts + time). Every question is listed at
+  once, with no pagination; a long question is ellipsised on its row, but that is display truncation
+  only — the data is the full text
+- **Clicking a question expands that turn in place**: the question row itself unfolds to full text
+  (multi-line as written), and below it is that turn's complete process — assistant prose, tool
+  calls, subagent dispatches, reasoning blocks; click again to collapse. Everything is collapsed on
+  entry, and clicking a turn fetches only that turn — each one reads precisely the byte range it
+  occupies (the footnote in the expanded area says how much was read), so opening a 133 MB session is
+  as fast as a 3 MB one
+- **Tool calls collapse to a single line by default** (name + argument summary), and click to see the
+  full arguments and return. Where the agent truncated the return, it is stated explicitly that the
+  transcript only holds the truncated version (this product does not read the sidecar file), rather
+  than pretending it is complete
+- **Subagent dispatches are visible in place**: both the dispatch prompt and the result returned to
+  the main session are there; neither side's records contain a stable reference chain that would
+  attribute the internal steps to a specific dispatch — so we say they are not shown rather than
+  guessing at a pairing
+- **Reasoning and thinking are presented honestly**: Codex has only plaintext sub-headings, and the
+  body is encrypted content that can never be obtained — the UI says so rather than blurring it with
+  full reasoning; Claude's thinking is likewise only a placeholder in the records, with no body
+- **Record types we have not seen are never silently swallowed**: when an agent update introduces a
+  new type, a line appears in that turn saying "this turn has N unrecognised records (types: …)" —
+  the content stays as it is in the source file, and you at least know something is not shown
+- If the session file is appended to or rewritten while the page is open, clicking a question first
+  shows a "rebuilding the index for this file only" notice and then the content; the rebuild affects
+  only that one session
+- **Sessions spanning several days are grouped by day**: the group row shows the date and that day's
+  count, and clicking it collapses or expands the day; there is also "collapse all / expand all".
+  Collapsing only hides — a turn already expanded is still expanded when the day is reopened
+- **Questions sort ascending or descending** (descending by default, newest first): the index is
+  always the original turn number and is never renumbered by the sort; turns already expanded stay
+  expanded across a sort change. A session where individual questions lack timestamps is not grouped
+  and is shown flat
+- **The banner under the page header spells out this conversation's uncertainty**: a Claude session
+  with edited reruns is marked "this session has N branch points; abandoned branches are not shown";
+  a forked session is marked "forked from «some session», replayed prefix stripped", with the parent
+  title clickable to jump straight there; where the parent is not in scan scope (or does not match),
+  a prominent warning style says outright "the strip may have gone too far (losing messages) or not
+  far enough (duplicates) — please check against the source" rather than offering false certainty
+- The session page opens fast regardless of session size: question text is read at exact byte offsets
+  rather than by reading the whole file
+- Project detail's "Sessions" section lists this project's sessions on both agent sides, one row =
+  side badge (CC/CX) + title + question count + token consumption + last activity as a relative time
+- The title comes from the **first real question** — harness noise (warmup messages, `[cron:…]`
+  prefixes, slash command wrappers, injected skill bodies) has been stripped; on the Codex side the
+  session name it gave itself takes priority
+- The question count counts only **what a human asked**: tool results fed back in, a subagent's own
+  transcript, and noise messages do not count; nor do questions on **the branch abandoned** after an
+  edit and rerun — only "how this conversation finally went" is counted
+- A forked session (branched from another and continued) replays the parent's history at its start.
+  It is marked **⑂ fork** in the list, its count covers only questions new since the fork, and its
+  title comes from the first real question after stripping (a session name Codex gave itself still
+  takes priority and is not displaced)
+- A session that produced **no new question at all** after the fork (its content being entirely a
+  replay of the parent's history, verified entry by entry) does not enter the list — it has no
+  question to find, the same rule as warmup sessions, and its tokens still count
+- When the parent session has been cleaned up or is outside scan scope, the replayed span can only be
+  identified heuristically, and the session is marked **⑂? strip uncertain** — better to strip too
+  little (and see a few duplicates) than to silently drop a real question
+- Sorting is `newest first | oldest first`, newest first by default; **switching to another section
+  and back keeps your last choice**
+- "Last activity" is the largest timestamp inside the session file, which is a different measure from
+  the project list's activity sort (which uses the file modification time)
+- The overview section's recent sessions card lists the 5 most recent with a total count, and
+  clicking any row **goes straight to that session's page**; returning from a session page lands on
+  the "Sessions" section
+- **The top of the sessions section searches all of this project's sessions**: by default it searches
+  questions only — small, clean, precise hits; it can be switched to "full text" (which hits tool
+  output and other noise, which is exactly why it is a toggle). Case-insensitive
+- **Hits are grouped by session**: the group header is the session (side badge, title, fork status)
+  and inside it are the matching questions and highlighted snippets; it answers "in which
+  conversation" first and "which line" second. Body hits carry a "body" marker and a context snippet
+- **Clicking a hit goes straight to** that question in that session: the session page opens scrolled
+  into position, the row holds a yellow highlight for about 10 seconds before fading, and a purple
+  bar stays at the left edge to mark "this is the row you jumped to", disappearing when any question
+  row is clicked; the sort toggle is the same one as in the session list and applies to hit groups too
+- Hits in fork replay copies and on abandoned branches **do not masquerade as results**: in full-text
+  search such hits are collapsed and the results header reports how many were collapsed — the same
+  sentence is not reported once per generation of a fork chain
+- With no hits it says "questions only by default — try switching to full text" rather than showing
+  a blank
+- A project with no sessions at all gets an empty state
 
-## 边界与不做
-- 没有正文回复的轮(比如问完就关了)展开后只有取回脚注,不放假占位;工具返回未回灌的(异步工具跨轮)显示为无返回记录,真实返回在其物理所在的后续轮区间
-- 只列已注册项目的会话;**subagent 会话与预热会话(全程没有人问过任何东西的)不单独入列,但它们的 token 照常计入统计**——所以这里的会话条数与 token 卡的分母不是同一个,界面上有说明
-- 标 **⑂? 剥离存疑** 的会话开头**可能有几条重复的提问**:父会话不在扫描范围内,重放段无法逐条核对,只能按"这几条是不是几乎同时写入的"来判断。这是有意的取舍——反过来做会静默丢掉真提问,而那是看不见的
+## Boundaries and non-goals
+- A turn with no prose reply (for example, asking and then closing) expands to just the fetch
+  footnote rather than a fake placeholder; a tool return that was never fed back (an async tool
+  spanning turns) shows as having no return record, with the real return in the range of the later
+  turn it physically belongs to
+- Only registered projects' sessions are listed; **subagent sessions and warmup sessions (where
+  nobody asked anything at any point) do not get their own rows, but their tokens still count toward
+  the statistics** — so the session count here and the denominator on the token card are not the same
+  thing, and the UI says so
+- A session marked **⑂? strip uncertain** **may have a few duplicated questions** at its start: with
+  the parent outside scan scope the replayed span cannot be checked entry by entry, and the only
+  available judgement is "were these written at almost the same moment". This is a deliberate
+  trade-off — the other direction silently drops real questions, and that is invisible

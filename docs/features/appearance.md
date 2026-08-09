@@ -1,24 +1,39 @@
-# 外观主题
+# Appearance
 
-## 概述
-想让 app 的观感符合自己习惯的用户,可以分别决定界面的**明暗**与**配色**。两者互相独立、可任意组合,选完立即对整个界面生效,并在下次打开时保留。不写入 agent 配置。
+## Overview
+Users who want the app to look the way they are used to can decide its **light/dark mode** and its
+**colour scheme** separately. The two are independent and combine freely; a choice applies to the
+whole UI immediately and is still there next time the app opens. Nothing is written to the agent
+configuration.
 
-## 能力
-- 设置维(rail ⚙️)的「外观」分节为一张卡两行:上行「模式」,下行「配色」(该页另有「语言」分节,见[界面语言](i18n.md))
-- **模式**三选一:**跟随系统**(默认)、**浅色**、**深色**
-- 选「跟随系统」时,界面明暗随 macOS 系统外观变化;改了系统外观,app 随之改变
-- 选「浅色」或「深色」即**锁定**:此后系统外观怎么变都不影响 app,直到自己改回「跟随系统」
-- 从锁定改回「跟随系统」后,立即按当前系统外观重新决定明暗,不停留在此前锁定的那一种
-- **配色**三选一:**紫**(默认)、**雾蓝**、**琥珀褐**,每张卡以色块 + 名称呈现
-- 配色卡的色块按当前生效的明暗取样——深色下看到的就是深色版的样子,所见即所得
-- 模式与配色互不影响:改明暗不动配色,改配色不动明暗;3 配色 × 2 明暗共六种组合都成立
-- 切换后立即对**整个界面**生效(列表、详情、会话、toast、浮层/抽屉、Markdown 标题与链接等跟强调色的部分),无需保存按钮
-- 窗口边框与应用菜单一并跟随所选模式,不出现「app 内是深色、窗口边框还是浅色」的割裂
-- 两项偏好持久化,重启后保留
-- 进出设置不丢当前选中的项目
+## Capabilities
+- The "Appearance" section of the settings dimension (rail ⚙️) is one card with two rows: "Mode" on
+  top and "Colour scheme" below (the same page also has a "Language" section, see
+  [UI language](i18n.md))
+- Three **modes**: **follow system** (default), **light**, **dark**
+- With "follow system" selected, the UI's light/dark follows the macOS system appearance; change the
+  system appearance and the app changes with it
+- Choosing "light" or "dark" **locks** it: system appearance changes no longer affect the app until
+  you switch back to "follow system"
+- Switching from a locked mode back to "follow system" immediately re-decides from the current system
+  appearance rather than staying on the previously locked one
+- Three **colour schemes**: **purple** (default), **mist blue**, **amber brown**, each card showing a
+  swatch and a name
+- Swatches are sampled in the currently effective light/dark — what you see in dark mode is the dark
+  version, as it will actually look
+- Mode and colour scheme do not affect each other: changing one leaves the other alone, and all six
+  combinations of 3 schemes × 2 modes are valid
+- A switch applies to the **entire UI** immediately (lists, detail pages, sessions, toasts, overlays
+  and drawers, markdown headings and links, and everything else following the accent colour), with no
+  save button
+- The window chrome and the application menu follow the chosen mode too, so there is never a split
+  between a dark app and a light window frame
+- Both preferences are persisted and survive a restart
+- Entering and leaving settings does not lose the currently selected project
 
-## 边界与不做
-- 不改变 CC/CX 侧徽标与 provider 图表品牌色(语义色不随配色方案改色相)
-- 不写入 Claude/Codex 配置
-- 不按时间自动切换明暗(无日出日落、无定时)
-- 无自定义色、无第四种配色方案
+## Boundaries and non-goals
+- The CC/CX side badges and the provider chart's brand colours are unaffected (semantic colours do
+  not change hue with the colour scheme)
+- Nothing is written to the Claude / Codex configuration
+- Light/dark does not switch automatically by time of day (no sunrise/sunset, no schedule)
+- No custom colours, and no fourth colour scheme

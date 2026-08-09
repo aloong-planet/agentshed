@@ -1,28 +1,53 @@
-# ADR-0006: Codex 用量统计口径(ccusage 对齐)
+# ADR-0006: Codex usage accounting (aligned with ccusage)
 
-- 状态: 已接受(2026-07-30)
+- Status: Accepted (2026-07-30)
 
-## 背景与问题
+## Context
 
-首版 Codex 统计**恒为 0**,两个解析假设与真实数据不符:①rollout 首行含内嵌 base_instructions,实测 208 个文件里 206 个首行 >8KB(最大 42KB),固定 8KB 缓冲截断致 JSON 解析失败、整条会话丢弃;②token 事件的真实形状是顶层 `type:"event_msg"` + `payload.type:"token_count"` + `payload.info`,而实现匹配的是顶层 `type:"token_count"` + 顶层 `info`,**永不命中**。此外整会话累计记在首日,跨天会话归日错误。
+The first version of the Codex statistics was **always zero**, because two parsing assumptions did
+not match the real data: (1) the first line of a rollout contains embedded `base_instructions` — in
+practice 206 of 208 files have a first line larger than 8 KB (largest 42 KB), so a fixed 8 KB buffer
+truncated it, the JSON parse failed, and the whole session was discarded; (2) the real shape of a
+token event is a top-level `type:"event_msg"` plus `payload.type:"token_count"` plus `payload.info`,
+whereas the implementation matched a top-level `type:"token_count"` with a top-level `info`, which
+**never hits**. On top of that, a whole session's cumulative total was recorded on its first day, so
+sessions spanning midnight were attributed to the wrong day.
 
-## 备选项
+## Options
 
-1. **对齐 ccusage 的 codex adapter(源码级)**:两数据根 `sessions/` + `archived_sessions/`;逐轮 `last_token_usage` 增量按事件时间戳归日;fork/subagent 会话按 `forked_from_id` / `source.subagent.thread_spawn.parent_thread_id` 找父,取父会话 fork 时刻前的事件序列与子会话开头**逐条按值匹配**剥离重放;首条即不匹配则退化为「重写突发」启发式(前两事件间隔 ≤1s 即连续跳到间隔 >1s 处);口径 input 净化(减 cached)、cached 计 cacheRead、total 四项全加
-2. 取末条 `total_token_usage` 作会话总量——否决:跨天会话无法分摊,且 fork 重放导致重复计费(实测 07-28 会多算 4.6 倍)
-3. 逐轮 last 累加但不做 fork 剥离——否决:实测 07-28 多算 4.6 倍(449M vs 98M)
-4. 官方接口——(未留档,定位排除)Codex CLI 无用量查询命令,本地 rollout 的 token_count 事件即事实上的统计途径
+1. **Align with ccusage's codex adapter (at source level)**: two data roots, `sessions/` and
+   `archived_sessions/`; attribute each turn's `last_token_usage` increment to the day of its event
+   timestamp; for fork and subagent sessions find the parent via `forked_from_id` /
+   `source.subagent.thread_spawn.parent_thread_id`, then strip the replay by **matching entry by
+   entry by value** between the parent's event sequence before the fork point and the start of the
+   child session; if the very first entry does not match, fall back to a "rewrite burst" heuristic
+   (if the first two events are ≤1 s apart, skip forward to the first gap > 1 s); accounting-wise,
+   sanitise input (subtract cached), count cached as cacheRead, and sum all four fields as the total
+2. Take the last `total_token_usage` as the session total — rejected: sessions spanning midnight
+   cannot be apportioned, and fork replay double-bills (measured: 2026-07-28 over-counted by 4.6×)
+3. Sum per-turn `last` values but skip fork stripping — rejected: measured 4.6× over-count on
+   2026-07-28 (449M vs 98M)
+4. An official interface — (not documented at the time, excluded during scoping) the Codex CLI has no
+   usage query command; the `token_count` events in the local rollout are the de facto accounting path
 
-## 决策
+## Decision
 
-选定**方案 1**。archived_sessions 与 fork 剥离缺一不可:补前者使 07-21 从 38.6M 修正到 127.8M(基准 127.5M),后者使 07-28 从 449M 修正到 98.2M(基准 97.8M)。
+We choose **option 1**. `archived_sessions` and fork stripping are both indispensable: adding the
+former corrected 2026-07-21 from 38.6M to 127.8M (baseline 127.5M), and the latter corrected
+2026-07-28 from 449M to 98.2M (baseline 97.8M).
 
-## 后果
+## Consequences
 
-- 正面:Codex 从"完全无数据"到与 ccusage 逐日差 ≤1.2%;跨天会话正确分摊;fork/subagent 重放不再双计
-- 负面:仍有 ≤1.2% 系统性偏多——ccusage 另有 speed/service_tier 后缀、codex-auto-review 回退表、response_item 类事件等细节未复刻(见遗留清单)
-- 中性:模型名取末条 turn_context(会话主模型近似),多模型会话不精确
+- Positive: Codex went from "no data at all" to within ≤1.2% of ccusage day by day; sessions
+  spanning midnight are apportioned correctly; fork and subagent replays no longer double-count
+- Negative: a systematic ≤1.2% over-count remains — ccusage also handles speed/service_tier suffixes,
+  the codex-auto-review fallback table, `response_item` events and other details we have not
+  replicated (see the backlog)
+- Neutral: the model name is taken from the last `turn_context` (an approximation of the session's
+  primary model), which is imprecise for multi-model sessions
 
-## 来源
+## Sources
 
-ccusage 源码(rust/adapters/codex/src/{paths,replay,parser}.rs,main@2026-07-30)、本机 208 个 rollout 实测、逐日对账脚本 `src/main/providers/ccusage-parity.test.ts`(PARITY=1 运行)。
+The ccusage source (`rust/adapters/codex/src/{paths,replay,parser}.rs`, `main@2026-07-30`);
+measurement against 208 rollouts on this machine; the day-by-day reconciliation script
+`src/main/providers/ccusage-parity.test.ts` (run with `PARITY=1`).

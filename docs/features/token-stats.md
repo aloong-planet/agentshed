@@ -1,21 +1,39 @@
-# Token 统计
+# Token statistics
 
-> 关联决策: ADR-0003
+> Related decision: ADR-0003
 
-## 概述
-"哪个项目在烧我的额度、最近在烧什么"没有现成答案。本功能把两侧会话记录聚合成项目级与全局级两个视图,数字同源可对账。
+## Overview
 
-## 能力
-- 项目概览(进入项目的默认落点):累计总量卡(口径对齐 ccusage:Claude 总量含 cache 读写四项全加;Codex 为输入+输出+cache 写)、近 30 天日粒度趋势(本地时区;合计模式下每根柱按 provider(模型提供方)堆叠,柱高=当日总量、分段=各 provider 占比,悬停出各 provider 数值与百分比;图例只列出现过的 provider;可切单侧视图)、按模型拆分、会话列表(侧徽标、标题、token、相对时间)
-- 趋势图日期轴只标数据日(当前视图下有用量的日子),标签对准所属柱:首个与月份变化处显示"月/日",其余只显示日数字;切单侧视图后标签跟随该侧的数据日;窗口变窄放不下时自动疏减(相邻日隔一省略),任何窗宽下标签不重叠、不裁字、不越出图表
-- Agents 页 Token 分栏:跨项目同款趋势大图与模型拆分;汇总含已隐藏与失效项目并有标注
-- subagent 消耗计入统计,但不出现在会话列表;重复计费行(subagent 重放父消息)自动去重
-- 统计覆盖 agent 数据目录里的全部会话——包括已从注册表清除的历史项目(计入全局,不单列)
-- 历史归档:每次刷新把当日聚合结果留档,Claude Code 自动清理旧会话文件后,历史趋势仍在;归档段在图上以斜纹柱标出并附说明
-- 无会话项目显示零值与空态,不报错
+"Which project is burning my quota, and what has it been burning lately" had no ready answer. This
+feature aggregates both sides' session records into a project-level and a global view, whose numbers
+share a source and reconcile against each other.
 
-## 边界与不做
-- Codex 侧按模型拆分是"会话主模型"级近似
-- 不做美元成本估算
-- 归档只能从首次运行本应用之日起累积,更早且已被清理的会话无法找回
-- 会话内容的查看不在本功能内(在[会话查看](session-view.md))
+## Capabilities
+- Project overview (the default landing spot inside a project): a cumulative total card (accounting
+  aligned with ccusage — the Claude total sums all four fields including cache reads and writes;
+  Codex is input + output + cache writes), a 30-day daily trend (local time zone; in combined mode
+  each bar is stacked by provider, with bar height = that day's total and segments = each provider's
+  share, and hovering shows each provider's number and percentage; the legend lists only providers
+  that appear; a single side can be selected), a per-model breakdown, and a session list (side badge,
+  title, tokens, relative time)
+- The trend chart's date axis labels data days only (days with usage under the current view), with
+  labels aligned to their bar: the first one and any month change show "M/D", the rest show the day
+  number alone; after switching to a single side the labels follow that side's data days; when the
+  window is too narrow, labels thin automatically (dropping every other adjacent day), and at any
+  width they never overlap, clip, or spill outside the chart
+- The Agents page's Token section: the same large trend chart and model breakdown, across projects;
+  the totals include hidden and stale projects and say so
+- Subagent consumption counts toward the statistics but does not appear in the session list;
+  double-billed lines (a subagent replaying its parent's messages) are deduplicated automatically
+- The statistics cover every session in the agent data directories — including historical projects
+  already cleared from the registry (counted globally, not listed separately)
+- History archive: every refresh files away that day's aggregate, so the historical trend survives
+  Claude Code cleaning up old session files; archived spans are drawn as hatched bars with a note
+- Projects with no sessions show zeros and an empty state rather than an error
+
+## Boundaries and non-goals
+- The Codex per-model breakdown is an approximation at the level of the session's primary model
+- No dollar cost estimation
+- The archive can only accumulate from the first day this application ran; sessions older than that
+  and already cleaned up cannot be recovered
+- Viewing session contents is not part of this feature (see [Session view](session-view.md))

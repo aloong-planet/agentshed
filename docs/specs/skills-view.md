@@ -1,141 +1,303 @@
-# Skills 查看
+# Skills view
 
-> 关联: [features/skills-view](../features/skills-view.md) · [skill-install](skill-install.md)(装卸) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0002 · ADR-0004 · ADR-0010  
-> 状态:**已交付**(2026-08-06 原型门过;折叠预览+列举读+行内包统计+拆除 differs+详情同名覆盖)。
+> Related: [features/skills-view](../features/skills-view.md) · [skill-install](skill-install.md) (install/uninstall) · [agents-overview](agents-overview.md) · [project-detail](project-detail.md) · [plugins-view](plugins-view.md) · ADR-0001 · ADR-0002 · ADR-0004 · ADR-0010  
+> Status: **delivered** (prototype gate passed 2026-08-06; expand-to-preview + enumerate-and-read + inline package stats + `differs` removed + same-name override in detail).
 
 ## Problem Statement
 
-Skills 以 **Skill 包**(目录,入口 `SKILL.md`,可附引用与脚本)存在于各 **agent 侧**的全局库与项目目录里。产品已能列出名称与 frontmatter 描述、并从全局库安装到项目,但用户**打不开包内正文**:装前无法确认「这个 skill 让 agent 做什么」,装后无法对照项目级与全局层副本。侧数即将从 2 扩到 N(含 Grok 等),现有「两侧有差异」机器 diff 既不可扩展,也与 subagents「只切侧看原文、不做跨侧 diff」的纪律不一致。
+Skills exist as **skill packages** (a directory with `SKILL.md` as its entry point, optionally with
+references and scripts) in each **agent side's** global library and project directories. The product
+can already list names and frontmatter descriptions and install from the global library into a
+project, but the user **cannot open the contents of a package**: before installing there is no
+confirming "what does this skill make the agent do", and after installing there is no comparing the
+project-level and global-layer copies. The number of sides is about to grow from 2 to N (Grok among
+others), and the existing "the two sides differ" machine diff neither scales nor matches subagents'
+discipline of "switch sides and read the source, no cross-side diff".
 
 ## Solution
 
-在全局 Agents · Skills 与项目详情 · Skills 两条列表上,**磁盘来源**的 skill 行可**折叠展开**看包内文本文件列表(深度有界);**点文件**开抽屉读该文件正文(md 默认可预览)。载荷只带路径元数据;**展开时**再枚举文件并登记白名单,读文件时按需取正文。按 **N 侧**建模:有定义的侧才出徽标与展开区内切段,不写死两家。**废弃并拆除**跨 agent 侧的 skill 内容 diff(`differs` /「两侧有差异」)。
+On both lists — global Agents · Skills and project detail · Skills — a skill row from an **on-disk
+source** can **expand** to show the package's text files (bounded depth); **clicking a file** opens a
+drawer to read it (markdown previewable by default). The payload carries path metadata only;
+**on expansion** the files are enumerated and registered in the allow-list, and contents are fetched
+on demand when a file is read. Modelled for **N sides**: only sides with a definition get a badge and
+a segment in the expanded area — two vendors are not hard-coded. The cross-agent-side skill content
+diff (`differs` / "the two sides differ") is **retired and removed**.
 
-**项目详情展示口径(本功能一并定案)**:同一 **agent 侧**下,若项目级与全局层**同名**,列表**只展示项目级**(项目覆盖全局的展示),不并列被盖住的全局行,也不再标「遮蔽 / 被遮蔽 / 同名共存」。仅全局有、项目没有的名仍列全局层。此为**本 app 列表展示**规则;不改写各侧 agent 运行时加载语义的文档(Codex 运行时同名仍可能共存——见 CONTEXT,本 UI 选择不并排展示那份全局副本)。
+**The project detail presentation rule (settled as part of this feature)**: within one **agent side**,
+if a project-level and a global-layer entry have the **same name**, the list **shows only the
+project-level one** (the project overrides the global one for display purposes), without listing the
+covered global row alongside and without any "shadows / shadowed / coexists" label. Names that exist
+only globally are still listed from the global layer. This is a **presentation rule for this app's
+lists**; it does not rewrite the documentation of either side's runtime loading semantics (Codex may
+still coexist at runtime on a same-name pair — see CONTEXT; this UI simply chooses not to display
+that global copy alongside).
 
-插件来源条目自 2026-08-07 起**与磁盘 skill 同权可展开预览**(ADR-0012,推翻 v1 排除;包根与安全口径见 plugins-view spec 序列 H);仍无装卸。装卸行为不变,见 skill-install。
+Plugin-sourced entries have, since 2026-08-07, **expanded and previewed on equal footing with on-disk
+skills** (ADR-0012, overturning the v1 exclusion; the package root and security rules are in the
+plugins-view spec, sequence H); still with no install or uninstall. Install/uninstall behaviour is
+unchanged, see skill-install.
 
 ## User Stories
 
-1. As a 用户, I want 在全局 Skills 列表点开某个磁盘 skill 看 `SKILL.md` 全文, so that 装到项目前知道它指示 agent 做什么。
-2. As a 用户, I want 在同一抽屉里看到包内其它文本文件并点开阅读, so that 我能顺着 skill 的引用文档与脚本理解完整约定。
-3. As a 用户, I want 同名 skill 存在于多个 agent 侧时在抽屉内切换侧查看各自的包, so that 我能自行对照,而不依赖机器 diff 信号。
-4. As a 用户, I want 在项目详情只看到「这个项目里该侧最终以谁为准」的 skill 列表——同名时只见项目级, so that 我不被全局副本与遮蔽徽标干扰。
-5. As a 用户, I want 项目里没有的全局 skill 仍出现在详情列表并可预览, so that 我知道继承自全局层的能力。
-6. As a 用户, I want 软链 skill 跟随到真实包内容预览, so that 我看到的与 agent 实际加载的一致(软链徽标仍保留)。
-7. As a 用户, I want 点「安装到…」/「卸载」不误开预览, so that 装卸与阅读两条路径不互相干扰。
-8. As a 用户, I want 插件命名空间条目同样可展开预览包, so that 生效视图里的能力不用绕去 Plugins 分栏就能审阅(ADR-0012)。
-9. As a 用户, I want 包引用过深时得到最佳实践提示而非静默截断无说明, so that 我知道应改造该 skill 而不是怀疑 app 丢文件。
-10. As a 用户, I want 不再看到「两侧有差异」类角标, so that 产品不假装能在 N 侧之间给出可靠的成对 diff。
+1. As a user, I want to open an on-disk skill from the global Skills list and read `SKILL.md` in full,
+   so that I know what it instructs the agent to do before installing it into a project.
+2. As a user, I want to see the package's other text files in the same drawer and open them, so that I
+   can follow the skill's referenced documents and scripts to understand the whole convention.
+3. As a user, I want to switch sides inside the drawer when a same-name skill exists on several agent
+   sides, so that I can compare for myself rather than relying on a machine diff signal.
+4. As a user, I want project detail to show only "which one this side finally uses in this project" —
+   the project-level one when names collide — so that I am not distracted by global copies and
+   shadowing badges.
+5. As a user, I want global skills the project does not have to still appear in the detail list and be
+   previewable, so that I know which capabilities are inherited from the global layer.
+6. As a user, I want a symlinked skill to follow through to the real package's contents, so that what
+   I see matches what the agent actually loads (the symlink badge is retained).
+7. As a user, I want clicking "Install to…" / "Uninstall" not to open the preview by accident, so that
+   installing and reading do not interfere with each other.
+8. As a user, I want plugin namespace entries to expand and preview too, so that a capability in the
+   effective view can be reviewed without detouring to the Plugins section (ADR-0012).
+9. As a user, I want a best-practice notice when a package's references nest too deeply, rather than
+   silent truncation with no explanation, so that I know to restructure that skill rather than
+   suspecting the app of losing files.
+10. As a user, I want no more "the two sides differ" badges, so that the product does not pretend it
+    can give a reliable pairwise diff across N sides.
 
-## 失败模式与边界
+## Failure modes and boundaries
 
-**序列 A:全局页 → Skills 分栏 → 预览**
+**Sequence A: global page → Skills section → preview**
 
-- A1 磁盘 skill、至少一侧全局库有该名 → 整行可**折叠/展开**;展开后列出该侧包内可预览文本文件;默认侧 = `sides` 中按**稳定侧序**的第一个有定义侧。
-- A2 同名存在于多个侧 → **展开区内**出侧切换段,只渲染**实际有定义的侧**;切换后文件列表换成该侧包,行保持展开。
-- A3 仅一侧有定义 → 无侧切换段,直接列该侧文件。
-- A4 插件来源(`origin=plugin`) → **可展开/预览,与磁盘 skill 同权**(文件表/行内统计/抽屉;2026-08-07 ADR-0012 推翻 v1 排除;包根口径与安全登记见 plugins-view spec 序列 H);仍有「插件」徽标(列表行不展示 description,见界面决策);无装卸(既有 G3/ADR-0004)。
-- A5 列表**不再**出现跨侧内容 diff 角标;领域模型**删除** `differs`(或等价字段),扫描**不再**为 diff 比对各侧 `SKILL.md` 全文。
-- A6 软链目录 → 跟随解析后的真实包列举与读取;行上软链徽标保留。
-- A7 「安装到…」与折叠/点文件:动作按钮 `stopPropagation`;点按钮只装卸,不展开、不打开抽屉。
-- A8 点文件打开抽屉;包/文件已不存在或不可读 → 抽屉内明确错误,不崩列表。
-- A9 全局库两侧皆空 → 既有空态,无预览入口。
-- A10 深度 >2 → 展开区内提示文案;过深路径不入文件列表。
+- A1 An on-disk skill with that name in at least one side's global library → the whole row
+  **expands and collapses**; expanding lists that side's previewable text files; the default side =
+  the first side with a definition in `sides`, by **stable side order**.
+- A2 The same name on several sides → a side switcher segment appears **inside the expanded area**,
+  rendering only sides that **actually have a definition**; switching replaces the file list with that
+  side's package while the row stays expanded.
+- A3 Only one side has a definition → no side switcher; that side's files are listed directly.
+- A4 A plugin source (`origin=plugin`) → **expandable and previewable, on equal footing with on-disk
+  skills** (file table / inline stats / drawer; ADR-0012 overturned the v1 exclusion on 2026-08-07;
+  the package root rule and security registration are in the plugins-view spec, sequence H); the
+  "plugin" badge remains (list rows do not show the description, see the UI decisions); no install or
+  uninstall (the existing G3 / ADR-0004).
+- A5 The list **no longer** shows a cross-side content diff badge; the domain model **removes**
+  `differs` (or any equivalent field), and the scan **no longer** reads each side's `SKILL.md` in full
+  for diffing.
+- A6 A symlinked directory → enumerate and read the real package after resolution; the row's symlink
+  badge is retained.
+- A7 "Install to…" versus expanding and clicking files: the action buttons `stopPropagation`; clicking
+  a button only installs or uninstalls, and neither expands nor opens the drawer.
+- A8 Clicking a file opens the drawer; if the package or file no longer exists or cannot be read → an
+  explicit error inside the drawer, without crashing the list.
+- A9 Both sides' global libraries empty → the existing empty state, with no preview entry point.
+- A10 Depth > 2 → notice copy in the expanded area; over-deep paths do not enter the file list.
 
-**序列 B:项目详情 → Skills 分栏(列表口径 + 预览)**
+**Sequence B: project detail → Skills section (list rule + preview)**
 
-- B1 **同侧同名覆盖展示**:对每一 `side`,若项目级存在名 `N`,则**不列出**该侧全局层的 `N`;只列项目级那一行。Claude 的「项目遮蔽全局」与 Codex 的「运行时同名共存」在**本列表**上统一成同一展示:只见项目级。
-- B2 **仅全局有的名**:该侧全局层照常列出(level=global),可预览;无「被遮蔽」行可点。
-- B3 **仅项目有的名**:只列项目级,可预览,可卸载(既有)。
-- B4 列表**不再**为 skills 展示 `shadows` / `shadowed` / `coexists` 徽标(同名全局行已不出现,这些徽标无承载对象)。本功能实现期以「列表不输出被覆盖的全局行」为验收,过滤在组装生效列表时完成;三个字段实现期一度保留为恒 false,**2026-08-07 收尾时已从 `ProjectSkillEntry` 契约删除**(全库无消费者、从未持久化;subagents 的同名字段不受影响,R8)。
-- B5 磁盘列表中的每一行(过滤后的项目级 + 未被覆盖的全局层)→ **可预览**。
-- B6 项目详情行已绑定单一 `side` → 抽屉**不出现**侧切换;只展示该行对应包。
-- B7 插件内含组 → 同 A4 可预览;插件命名空间名与磁盘同名**并存不互盖**(既有 ADR-0010,不参与 B1 的同名覆盖)。
-- B8 失效项目 → 项目级目录自然为空;此时全局层全部按 B2 列出(无项目级可覆盖)。
-- B9 「卸载」按钮 stopPropagation,与预览不互抢。
-- B10 全局页 Skills **不受** B1 影响(全局页无「项目级覆盖」概念)。
+- B1 **Same-side same-name override**: for each `side`, if a project-level entry named `N` exists, that
+  side's global-layer `N` is **not listed**; only the project-level row is. Claude's "the project
+  shadows the global" and Codex's "same names coexist at runtime" are unified into the same
+  presentation **in this list**: only the project-level one is seen.
+- B2 **Names only present globally**: that side's global layer is listed as usual (level=global) and is
+  previewable; there is no "shadowed" row to click.
+- B3 **Names only present in the project**: only the project-level entry is listed, previewable and
+  uninstallable (as before).
+- B4 The list **no longer** shows `shadows` / `shadowed` / `coexists` badges for skills (the same-name
+  global row no longer appears, so those badges have nothing to attach to). This feature's acceptance
+  was "the list emits no covered global row", with the filtering done while assembling the effective
+  list; the three fields were briefly retained as constant false during implementation and were
+  **removed from the `ProjectSkillEntry` contract at wrap-up on 2026-08-07** (no consumer anywhere in
+  the repository, never persisted; subagents' identically named fields are unaffected, R8).
+- B5 Every row in the on-disk list (the filtered project-level ones plus the uncovered global-layer
+  ones) → **previewable**.
+- B6 A project detail row is already bound to a single `side` → the drawer has **no** side switcher;
+  it shows only that row's package.
+- B7 The plugin-bundled group → previewable as in A4; a plugin namespace name and an on-disk name
+  **coexist without covering each other** (the existing ADR-0010; they do not take part in B1's
+  same-name override).
+- B8 A stale project → the project-level directory is naturally empty, so every global-layer entry is
+  listed per B2 (there is no project-level entry to override them).
+- B9 The "Uninstall" button `stopPropagation`s and does not compete with the preview.
+- B10 The global page's Skills section is **unaffected** by B1 (there is no "project-level override"
+  concept on the global page).
 
-**序列 C:抽屉内 · 包列举与读文件**
+**Sequence C: inside the drawer · package enumeration and file reading**
 
-- C1 **展开 skill 行时**才枚举该侧 skill 根下的包内文件并登记可读白名单;点文件再按需读正文。列表/快照**不**预枚举全文或全文件路径列表;快照每侧只带**包聚合统计(文件数、总字节;stat 即得、不读内容;2026-08-06 修订,供行内展示)**与定位 skill 根所需的最小身份信息。
-- C2 列举规则:**深度 ≤ 2**(skill 根为深度 0;`references/foo.md` 为 1;`a/b/c.md` 为 3 则超出);仅**文本类扩展名**进入列表;排除已知垃圾目录名(如 `.git`、`node_modules`、`__pycache__`、`.DS_Store` 所在段)。
-- C3 若包内存在深度 > 2 的文本文件(在排除垃圾目录之后仍可见)→ **仍列出深度 ≤ 2 的文件**,并在抽屉内展示固定提示:**「按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill」**;不把深层文件列入可点列表。
-- C4 非文本 / 未进扩展名白名单的文件 → **列表不出现**(不提供系统打开入口,v1)。
-- C5 默认选中 `SKILL.md`;若缺失(包损坏)→ 抽屉内报错/说明,文件列表若仍有其它文本可点则允许点,但不假装主文件存在。
-- C6 点列表中另一文件 → 按需读取该文件全文(等宽纯文本),失败则抽屉内容区报「文件不可读」,不关抽屉。
-- C7 单文件读取截断口径与产物读取通道一致(过长尾注截断,不崩)。
-- C8 Esc 与遮罩点击等价关闭抽屉;关闭后白名单条目可保留到进程内(与 memory/产物同模式即可),不得变成任意路径可读。
-- C9 路径安全:可读路径必须是**本次列举登记的精确路径**;拒绝前缀穿越、编码变体、包外路径。容器检查作用于**解析前的入口**:skill 入口必须是已知 agent 技能根(各侧全局库 skills 目录,或已打开项目的项目级 skills 目录)下的单段条目——fail-closed;插件来源条目的包根走扫描登记集口径(plugins-view spec H8);入口为软链时**目标不设限**,仅在枚举/读取时跟随(A6;2026-08-07 修订钉死——曾因检查作用于解析后路径,根外目标的软链 skill 被误拒)。
+- C1 The package's files are enumerated and registered in the readable allow-list **when the skill row
+  is expanded**; contents are fetched on demand when a file is clicked. The list and the snapshot do
+  **not** pre-enumerate contents or full file path lists; the snapshot carries, per side, only
+  **aggregate package stats (file count, total bytes; obtainable by `stat` alone without reading
+  contents; revised 2026-08-06 for inline display)** and the minimum identity needed to locate the
+  skill root.
+- C2 Enumeration rules: **depth ≤ 2** (the skill root is depth 0; `references/foo.md` is 1; `a/b/c.md`
+  at 3 is out of bounds); only **text extensions** enter the list; known junk directory names are
+  excluded (any segment that is `.git`, `node_modules`, `__pycache__`, `.DS_Store` and the like).
+- C3 If the package contains text files deeper than 2 (still visible after excluding junk directories)
+  → **still list the files at depth ≤ 2** and show a fixed notice inside the drawer: **"as a matter of
+  best practice a skill's reference depth should not reach 2 — consider restructuring this skill"**;
+  the deeper files do not enter the clickable list.
+- C4 Non-text files, or files not on the extension allow-list → **do not appear in the list** (no
+  system-open entry point in v1).
+- C5 `SKILL.md` is selected by default; if it is missing (a broken package) → an error or explanation
+  inside the drawer, and the file list stays clickable if there are other text files, but the main file
+  is not pretended into existence.
+- C6 Clicking another file in the list → read that file in full on demand (monospace plain text); on
+  failure the drawer's content area reports "file cannot be read" without closing the drawer.
+- C7 Single-file read truncation follows the artifact read channel (an over-long file gets a
+  truncation footnote rather than crashing).
+- C8 Esc and clicking the overlay both close the drawer; after closing, allow-list entries may persist
+  for the process's lifetime (the same pattern as memory and artifacts), but must never become
+  arbitrary-path readability.
+- C9 Path security: a readable path must be **an exact path registered by this enumeration**; prefix
+  traversal, encoding variants and out-of-package paths are refused. The container check applies to
+  **the entry point before resolution**: a skill entry point must be a single-segment entry under a
+  known agent skills root (each side's global library skills directory, or an opened project's
+  project-level skills directory) — fail-closed; a plugin-sourced entry's package root follows the
+  scan registration set (plugins-view spec H8); when the entry point is a symlink, **its target is
+  unconstrained** and is followed only during enumeration and reading (A6; nailed down by the
+  2026-08-07 revision — checking the resolved path had previously caused a symlinked skill with an
+  out-of-root target to be wrongly refused).
 
-**序列 D:引入内容对宿主的能力**(原文 + Markdown 预览)
+**Sequence D: what imported content can do to the host** (raw + markdown preview)
 
-- D1 内容区 **原文 / 预览**:仅 Markdown 扩展名显示切换钮并默认预览;非 Markdown **不显示切换钮**,仅等宽原文。
-- D1b frontmatter:`---` 包裹的 YAML 头在预览中拆成键值分行卡片(字号约 12.5px),再渲染正文。
-- D2 预览走与产物阅读器同类的 **Markdown → 消毒 HTML** 管线(产线单一出口,禁止另起未消毒的 `dangerouslySetInnerHTML`)。
-- D3 预览中的**链接**:站内/file 白名单与外部 http(s) 归宿遵循既有「渲染链接不得导航整窗」不变量(CONTEXT);预览内点击不得丢 app state。
-- D4 预览中的**图片**:相对路径按 skill 包根解析且必须在白名单文件内;失败占位,不得借机读包外路径。
-- D5 超大文本:截断展示(C7),布局不撑破抽屉滚动区。
+- D1 The content area toggles **raw / preview**: only markdown extensions show the toggle and preview
+  by default; non-markdown shows **no toggle**, monospace raw only.
+- D1b Frontmatter: a YAML header wrapped in `---` is split in the preview into a card of key-value
+  rows (about 12.5px), with the body rendered after it.
+- D2 The preview goes through the same **markdown → sanitised HTML** pipeline as the artifact reader
+  (a single production exit; starting another unsanitised `dangerouslySetInnerHTML` is forbidden).
+- D3 **Links** in the preview: the in-app / file allow-list and the destination of external http(s)
+  links follow the existing "a rendered link must never navigate the whole window" invariant
+  (CONTEXT); clicking inside a preview must not lose app state.
+- D4 **Images** in the preview: relative paths resolve against the skill package root and must be
+  allow-listed files; on failure a placeholder is shown, and this must not become a way to read paths
+  outside the package.
+- D5 Oversized text: truncated for display (C7), with the layout not breaking the drawer's scroll area.
 
-**跨切面回归点**
+**Cross-cutting regression points**
 
-- R1 装卸(skill-install):预览不改变安装/卸载语义、路径与确认弹窗;仅多交互热区纪律(A7/B5)。
-- R2 插件 skills 并入(ADR-0010):并入条目与磁盘同权可预览(A4,ADR-0012);包根与安全口径归 plugins-view spec(H5/H8);并入口径本身不因预览改变(仅有效启用,G1)。
-- R3 IPC 契约:删除 `differs`;新增「打开 skill 包 / 列文件 / 读文件」所需字段与校验,与 ADR-0001 同步,漏加即边界静默放过。
-- R4 快照体积:skill **正文与包内文件列表不进**全局快照(与 memory「内容不进快照」同纪律);每侧仅文件数/总字节两个聚合数字进快照(C1);扫描阶段不再为 diff 保留全文。
-- R5 N 侧扩展:侧枚举、徽标、切段均由「该 skill 实际存在的侧」驱动,禁止 UI/契约写死恰好两个侧按钮;当前数据源仍可只有 Claude/Codex,但模型按 N 侧预留。
-- R6 既有「两侧有差异」文案:features / 原型 / 测试凡依赖 `differs` 的一并删除或改写,避免文档说谎。
-- R7 项目详情 Skills 旧口径「项目级与全局层并列 + 遮蔽/共存徽标」由 B1–B4 **推翻**;`docs/features/project-detail.md` 与相关测试在实现收尾同步改写。
-- R8 **Subagents 生效视图不随本规则改**:subagents 仍可并列项目级/全局层并标遮蔽(既有 subagents-view);仅 Skills 采用「同名只展示项目级」。
+- R1 Install/uninstall (skill-install): preview changes none of its semantics, paths or confirmation
+  dialog; it only adds hit-area discipline (A7/B5).
+- R2 The plugin skills join (ADR-0010): joined entries preview on equal footing with on-disk ones (A4,
+  ADR-0012); the package root and security rules belong to the plugins-view spec (H5/H8); the
+  inclusion rule itself is unchanged by preview (effectively enabled only, G1).
+- R3 The IPC contract: `differs` removed; the fields and validation for "open a skill package / list
+  files / read a file" added in step with ADR-0001 — forgetting means the boundary passes silently.
+- R4 Snapshot size: a skill's **contents and package file list do not enter** the global snapshot (the
+  same discipline as memory's "contents do not enter the snapshot"); only two aggregate numbers per
+  side, file count and total bytes, enter it (C1); the scan no longer retains full text for diffing.
+- R5 N-side extension: side enumeration, badges and segments are all driven by "the sides this skill
+  actually exists on"; hard-coding exactly two side buttons in the UI or the contract is forbidden.
+  The current data sources may still be only Claude and Codex, but the model is built for N.
+- R6 The existing "the two sides differ" copy: everything in features / prototypes / tests depending on
+  `differs` is deleted or rewritten, so the documentation does not lie.
+- R7 The old project detail Skills rule of "project-level and global-layer side by side + shadowing /
+  coexistence badges" is **overturned** by B1–B4; `docs/features/project-detail.md` and the related
+  tests are rewritten at implementation wrap-up.
+- R8 **The Subagents effective view does not change with this rule**: subagents may still list
+  project-level and global-layer side by side with shadowing labelled (the existing subagents-view);
+  only Skills adopts "same name shows the project-level entry only".
 
-## 界面决策(原型门已过 · 2026-08-06)
+## UI decisions (prototype gate passed · 2026-08-06)
 
-对齐 `docs/prototypes/skills-view/prototype-skills-preview.html` 现行效果:
+Matching the current behaviour of
+`docs/prototypes/skills-view/prototype-skills-preview.html`:
 
-- **承载**:列表全宽。磁盘 skill **点行折叠/展开**包内文件表;**点文件**开抽屉读正文。
-- **展开区**:表头「文件 / 行数 / 大小 / 修改日期」;类型徽标;`SKILL.md` 入口标;多侧时展开区内 **N 侧 segment**;深度 >2 提示在展开区;插件行与磁盘行同权展开(2026-08-07 ADR-0012)。**平铺**(2026-08-06 定稿):零缩进、无内层卡片、无汇总条,表头与文件行同行头 14px 基线。
-- **抽屉**:标题 = skill 名;说明 = 层级 · 侧 · 路径;正文全宽。
-- **Markdown 预览**:仅 `.md`/`.markdown`/`.mdx` 显示「原文 | 预览」(默认预览);其它类型无切换钮、仅原文。YAML frontmatter 拆成键值分行卡片(约 12.5px),正文再渲染。
-- **侧模型**:N 侧;无跨侧 diff 角标。
-- **项目详情**:同侧同名只保留项目级;无遮蔽/共存徽标。
-- **交互**:折叠/点文件与装卸互不抢。
-- **列表行不展示 description**(全局与详情、磁盘与插件行一律;2026-08-06 实现期裁定,偏离原型回写)——行 = 折叠箭头 + 名 + 侧徽标 + 来源/层级/软链 pill + 包统计 + 装卸按钮;skill 说明以展开文件表 + SKILL.md 预览承载。
-- **行内包统计**(2026-08-06 裁定):磁盘行右侧常显「N 个文件 · 大小」,**不含行数**(行数逐文件在展开表格);多侧切侧随动;插件行无。
-- **行密度**(2026-08-06 定稿):行 padding 8px,视觉行高约 32px,对齐其它分栏的行。
+- **Container**: a full-width list. An on-disk skill **expands and collapses on a row click** to show
+  the package's file table; **clicking a file** opens a drawer to read it.
+- **Expanded area**: headers "file / lines / size / modification date"; type badges; a marker on the
+  `SKILL.md` entry point; an **N-side segmented control** inside the expanded area when there are
+  several sides; the depth > 2 notice in the expanded area; plugin rows expand on equal footing with
+  on-disk rows (ADR-0012, 2026-08-07). **Flat** (finalised 2026-08-06): zero indentation, no inner
+  card, no summary bar, with the header and file rows sharing a 14px baseline.
+- **Drawer**: the title = the skill name; the subtitle = level · side · path; the body full width.
+- **Markdown preview**: only `.md` / `.markdown` / `.mdx` show "raw | preview" (preview by default);
+  other types have no toggle and show raw only. YAML frontmatter is split into a key-value row card
+  (about 12.5px), with the body rendered after it.
+- **Side model**: N sides; no cross-side diff badge.
+- **Project detail**: same side, same name keeps the project-level entry only; no shadowing or
+  coexistence badges.
+- **Interaction**: expanding / clicking files and install/uninstall do not compete.
+- **List rows do not show the description** (global and detail, on-disk and plugin rows alike; ruled
+  during implementation on 2026-08-06, a deviation from the prototype written back here) — a row =
+  the expansion arrow + name + side badges + source/level/symlink pills + package stats +
+  install/uninstall buttons; a skill's description is carried by expanding the file table and
+  previewing SKILL.md.
+- **Inline package stats** (ruled 2026-08-06): on-disk rows always show "N files · size" on the right,
+  **excluding line counts** (line counts are per file in the expanded table); they follow along when
+  switching sides; plugin rows have none.
+- **Row density** (finalised 2026-08-06): 8px row padding, a visual row height of about 32px, aligned
+  with the rows in other sections.
 
 ## Implementation Decisions
 
-- **模块边界**:本 spec 管 Skills 的**只读查看与预览**及列表信号(含拆除 diff);装卸仍归 skill-install;页面壳归 agents-overview / project-detail。
-- **取数**:列表/快照只带定位 skill 包所需的元数据(名、侧、来源、描述、软链、遮蔽等既有字段 + 打开预览所需根路径身份);**展开行时**列举包内文件并登记白名单,**点文件**再按路径按需读——复用与 memory/产物同一类「精确路径白名单 + 按需读」纪律,不新开任意路径读口。
-- **深度**:包内相对路径段数(不含 `.` / `..`)≤ 2 才入列表;更深只触发提示文案,不入列表。
-- **文本扩展名**(初表,实现期可微调但须单测钉住集合):`md` `txt` `json` `yml` `yaml` `toml` `sh` `bash` `zsh` `js` `ts` `mjs` `cjs` `jsx` `tsx` `py` `rb` `go` `rs` `css` `html` `svg`(svg 作文本读)等——以实现中的单一常量集合为准;未列出的扩展名不出现在列表。
-- **垃圾目录段名**(列举时跳过整棵子树):`.git` `node_modules` `__pycache__` `.DS_Store` 等,单一常量集合。
-- **跨侧 diff**:删除字段、比对逻辑、UI、测试;不保留 deprecated 兼容位。
-- **N 侧**:领域上 skill 的「存在侧」为列表/集合,而非写死的二元结构;新增 agent 侧时预览 UI 只增加可识别的侧,不改交互骨架。
-- **详情列表组装**:按侧分组时,全局层集合 = 该侧全局名集合 − 该侧项目级名集合;项目级全集保留。过滤发生在详情数据组装(或纯函数 selector),保证 IPC 出口与 UI 一致,避免「契约有行、界面藏行」。
+- **Module boundary**: this spec governs Skills' **read-only viewing and preview** and the list signals
+  (including removing the diff); install/uninstall still belongs to skill-install, and the page shells
+  to agents-overview / project-detail.
+- **Data fetching**: the list and the snapshot carry only the metadata needed to locate a skill package
+  (name, side, source, description, symlink, shadowing and the other existing fields + the root path
+  identity needed to open a preview); **on expanding a row** the package's files are enumerated and
+  registered in the allow-list, and **on clicking a file** the contents are read on demand by path —
+  reusing the same "exact path allow-list + read on demand" discipline as memory and artifacts, with
+  no new arbitrary-path read hole.
+- **Depth**: a relative path inside the package with ≤ 2 segments (excluding `.` / `..`) enters the
+  list; anything deeper only triggers the notice copy.
+- **Text extensions** (an initial set, adjustable during implementation but pinned by a unit test):
+  `md` `txt` `json` `yml` `yaml` `toml` `sh` `bash` `zsh` `js` `ts` `mjs` `cjs` `jsx` `tsx` `py` `rb`
+  `go` `rs` `css` `html` `svg` (svg read as text) and so on — the single constant set in the
+  implementation is authoritative; unlisted extensions do not appear in the list.
+- **Junk directory segment names** (whose whole subtree is skipped during enumeration): `.git`,
+  `node_modules`, `__pycache__`, `.DS_Store` and the like, as a single constant set.
+- **Cross-side diff**: the field, the comparison logic, the UI and the tests are all deleted; no
+  deprecated compatibility slot is retained.
+- **N sides**: in the domain, a skill's "sides it exists on" is a list or set rather than a hard-coded
+  binary structure; adding an agent side only adds a recognisable side to the preview UI, without
+  changing the interaction skeleton.
+- **Detail list assembly**: when grouping by side, the global-layer set = that side's global names −
+  that side's project-level names; the project-level set is kept whole. The filtering happens while
+  assembling the detail data (or in a pure selector), so the IPC exit and the UI agree and there is no
+  "the contract has a row, the UI hides it".
 
 ## Testing Decisions
 
-沿用 ADR-0002 双 seam:
+Following ADR-0002's dual seam:
 
-1. **providers / 安全 seam**:fixture 目录上测——列举深度截断与提示条件、扩展名过滤、垃圾目录跳过、软链跟随、包外路径拒绝、白名单未登记不可读、缺失 `SKILL.md`、空包;打开枚举不在扫描快照中预藏正文;**同侧同名时详情 skills 列表不含被覆盖的全局行**(Claude 与 Codex fixture 各至少一例)。
-2. **契约 seam**:`differs` 删除后的往返校验;预览相关新字段/命令的校验;插件条目无预览路径。
-3. **e2e**:全局或详情点开磁盘 skill → 见 `SKILL.md` 片段;点包内另一文本文件切换内容;插件行不可预览(若 fixture 可构);详情同名时界面不出现第二份全局行。
+1. **The providers / security seam**: tested on fixture directories — depth truncation and the notice
+   condition, extension filtering, junk directory skipping, symlink following, out-of-package path
+   refusal, an unregistered path being unreadable, a missing `SKILL.md`, an empty package; the open
+   enumeration does not pre-hide contents in the scan snapshot; **on a same-side same-name pair the
+   detail skills list contains no covered global row** (at least one Claude and one Codex fixture).
+2. **The contract seam**: round-trip validation after removing `differs`; validation of the new
+   preview-related fields and commands; plugin entries have no preview path.
+3. **e2e**: opening an on-disk skill from global or detail → see a fragment of `SKILL.md`; clicking
+   another text file in the package switches the content; plugin rows are not previewable (if a
+   fixture can be built); on a same-name pair in detail, no second global row appears in the UI.
 
-好测试:只断言外部行为(目录 → 列出的相对路径集合 / 读出的文本 / 拒绝原因),不测内部遍历实现细节。UI 抽屉动画不单测。
+A good test asserts only external behaviour (directory → the set of relative paths listed / the text
+read / the reason for refusal), never the internal traversal details. Drawer animations are not unit
+tested.
 
 ## Out of Scope
 
-- 跨 agent 侧的机器 diff / 并排 diff / `differs` 信号(已废弃,见 CONTEXT)。
-- 包内非文本的系统打开、资源缩略图。
-- 非 Markdown 文件的富文本预览(脚本高亮等);非文本仍不列出(C4)。
-- 从本 app 编辑 skill 或写回磁盘。
-- 全局库内容的增删(全局库只读);装卸细节见 skill-install。
-- 本票不接入新的 agent 侧数据源(如 Grok);只要求模型与 UI **按 N 侧可扩展**,当前仍消费既有侧。
+- Cross-agent-side machine diff / side-by-side diff / the `differs` signal (retired, see CONTEXT).
+- System-opening non-text files in a package, and asset thumbnails.
+- Rich-text preview of non-markdown files (script highlighting and so on); non-text files are still not
+  listed (C4).
+- Editing a skill from this app or writing back to disk.
+- Adding to or removing from the global library (it is read-only); install/uninstall details are in
+  skill-install.
+- Wiring up a new agent side's data source (such as Grok) in this ticket; it only requires the model
+  and the UI to be **extensible to N sides**, while still consuming the existing ones.
 
 ## Further Notes
 
-- **原型门:已过**(2026-08-06)。用户确认按现行原型效果实现(列表折叠文件表含行数/大小/日期;点文件开抽屉;md 预览含 frontmatter 卡片与仅 md 显示原文/预览)。
+- **Prototype gate: passed** (2026-08-06). The user confirmed implementing the prototype's current
+  behaviour (a list expanding into a file table with lines / size / date; clicking a file opens a
+  drawer; markdown preview with a frontmatter card, and raw/preview shown for markdown only).
 
-- **必须同步改写的既有描述**(实现收尾第 8 步,本 spec 先钉契约):`docs/features/agents-overview.md` 的「两侧同名内容不同时标差异」;skill-install 原型文案中的差异说明;任何测试标题依赖 `differs` 者。
-- **与 subagents-view 的平行**:切侧看原文、不做跨侧 diff——skills 与之对齐;差异仅在于 skill 是**包**故多文件列举与深度规则。
+- **Existing descriptions that must be rewritten** (at implementation wrap-up, step 8; this spec pins
+  the contract first): "same-name content differing between the two sides is badged" in
+  `docs/features/agents-overview.md`; the difference explanation in the skill-install prototype's copy;
+  any test title depending on `differs`.
+- **The parallel with subagents-view**: switch sides and read the source, no cross-side diff — skills
+  aligns with it; the only difference is that a skill is a **package**, hence the multi-file
+  enumeration and depth rules.

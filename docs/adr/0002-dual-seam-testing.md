@@ -1,27 +1,38 @@
-# ADR-0002: 双 seam 测试策略(数据层注入 + IPC 契约)
+# ADR-0002: Dual-seam testing strategy (data-layer injection + IPC contract)
 
-- 状态: 已接受(2026-07-29,需求分析期用户拍板)
+- Status: Accepted (2026-07-29, decided by the user during requirements analysis)
 
-## 备选项
+## Options
 
-1. **双 seam:数据层(根目录注入,fixture 喂假目录树)+ IPC 契约(schema 校验往返)**
-2. 数据层单一 seam——否决:用户明确要求契约层独立可测(Transfer IPC 漂移教训)
-3. Playwright 端到端为主——否决:重、脆、慢,首版功能面宽时维护成本最高
+1. **Two seams: the data layer (root directories injected, fixtures feeding a fake directory tree)
+   and the IPC contract (a schema validation round trip)**
+2. The data layer as the single seam — rejected: the user explicitly required the contract layer to
+   be independently testable (the lesson of Transfer's IPC drift)
+3. Playwright end-to-end as the primary approach — rejected: heavy, brittle and slow; with a wide
+   feature surface in the first release the maintenance cost is the highest of the three
 
-## 背景与问题
+## Context
 
-扫描引擎读两侧 agent 的真实数据目录,直接测真实目录不可复现;UI 层变化频繁不值得单测。需要确定测试站在哪两个公开边界上。
+The scan engine reads both agent sides' real data directories, and testing against real directories
+is not reproducible; the UI layer changes too often to be worth unit testing. We need to decide which
+two public boundaries the tests stand on.
 
-## 决策
+## Decision
 
-选定**方案 1**:我们把全部行为测试打在两个 seam 上——`ScanRoots` 注入使数据层可用临时 fixture 目录完整驱动(装卸在 fixture 上实测文件系统效果);`validate` 使契约独立于 Electron 可测。Electron 壳与 React UI 不单测,靠 dev 冒烟与手动清单。
+We choose **option 1**: all behavioural tests sit on two seams — injecting `ScanRoots` lets the data
+layer be driven end to end from a temporary fixture directory (install and uninstall are measured
+against the real filesystem on fixtures), and `validate` makes the contract testable independently of
+Electron. The Electron shell and the React UI are not unit tested; they are covered by the dev smoke
+run and a manual checklist.
 
-## 后果
+## Consequences
 
-- 正面:测试零 Electron 依赖、毫秒级、可复现;数据行为覆盖密(61 例)
-- 负面:UI 与主进程装配层(IPC handler 接线、刷新去重)无自动化覆盖,回归靠手测
-- 中性:fixture 构造代码占测试体量约一半
+- Positive: tests have zero Electron dependency, run in milliseconds, and are reproducible; data
+  behaviour is densely covered (61 cases)
+- Negative: the UI and the main process's assembly layer (IPC handler wiring, refresh deduplication)
+  have no automated coverage; regressions there are caught by hand
+- Neutral: fixture construction is about half the volume of the test code
 
-## 来源
+## Sources
 
-spec Testing Decisions(用户选定);tdd skill 的 seam 规则。
+The spec's Testing Decisions (chosen by the user); the seam rules in the tdd skill.

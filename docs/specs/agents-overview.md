@@ -1,55 +1,91 @@
-# Agents 全局页
+# Agents overview
 
-> 关联: [features](../features/agents-overview.md) · ADR-0001(类型单源) · ADR-0002(双 seam)
-> 补建说明:本篇为 2026-08-01 spec 转持久产物后**逆向补建**。各分栏的组件级需求与边界在对应 spec(subagents-view / memory-view / plugins-view / token-stats / skill-install),本篇只写**页面级**口径:分栏构成、汇总卡、单侧降级。
+> Related: [features](../features/agents-overview.md) · ADR-0001 (single type source) · ADR-0002 (dual seam)
+> Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
+> artifacts on 2026-08-01. Each section's component-level requirements and boundaries live in its own
+> spec (subagents-view / memory-view / plugins-view / token-stats / skill-install); this document
+> covers only **page-level** rules: which sections exist, the summary cards, and single-side
+> degradation.
 
 ## Problem Statement
 
-同时使用 Claude Code 与 Codex 的用户,打开 app 第一眼想知道"两边各是什么状态、各烧了多少、各装了什么"。这些信息散在两套目录结构里,格式与概念还不对称(如插件只有 Claude 有)。
+Users running both Claude Code and Codex want to know, the moment the app opens, "what state is each
+side in, how much has each burned, and what does each have installed". That information is scattered
+across two directory structures whose formats and concepts are not even symmetric (plugins, for
+instance, exist only on the Claude side).
 
 ## Solution
 
-作为默认落地页,把两侧 agent 的全局面貌汇成一屏:顶部两张侧汇总卡,下面按组件类型分栏(Token/Skills/Subagents/Plugins/MCP/Memory/配置)。全部只读,唯一的写操作是 Skills 装到项目(见 skill-install spec)。**本 app 外观方案(紫/雾蓝/琥珀褐)不在本页配置分栏**,见 [appearance](appearance.md)(Rail 设置维)。
+As the default landing page, gather both agent sides' global picture onto one screen: two per-side
+summary cards at the top and, below them, sections by component type
+(Token/Skills/Subagents/Plugins/MCP/Memory/Configuration). Everything is read-only; the one write
+operation is installing a skill into a project (see the skill-install spec). **This app's colour
+scheme (purple / mist blue / amber brown) is not configured in this page's Configuration section** —
+see [appearance](appearance.md) (the rail's settings dimension).
 
 ## User Stories
 
-1. As a 用户, I want 打开即见两侧的检测状态与 token 累计, so that 我一眼知道两边各是什么状态。
-2. As a 用户, I want 各类组件按分栏归置且两侧在同一分栏内对照, so that 我不用在两套目录概念间来回换算。
-3. As a 用户, I want 某侧数据损坏时该侧降级显示错误说明而另一侧照常, so that 单侧故障不让整页不可用。
-4. As a 用户, I want 某侧未安装时显示"未检测到"而非报错, so that 只用一侧的用户也能正常使用。
-5. As a 用户, I want 汇总口径(含已隐藏与失效项目)有明确标注, so that 数字对不上时我知道差在哪。
+1. As a user, I want to see both sides' detection status and cumulative tokens on opening, so that I
+   know each side's state at a glance.
+2. As a user, I want each component type in its own section with both sides side by side inside it,
+   so that I do not have to translate between two directory concepts.
+3. As a user, I want one side's corrupt data to degrade to an error explanation on that side while
+   the other carries on, so that a single-side failure does not make the whole page unusable.
+4. As a user, I want a side that is not installed to show "not detected" rather than an error, so
+   that someone using only one side can still use the app.
+5. As a user, I want the totals' accounting (including hidden and stale projects) stated explicitly,
+   so that when the numbers do not match I know where the difference is.
 
-## 失败模式与边界
+## Failure modes and boundaries
 
-**序列 A:页面加载**
-- A1 两侧均未检测到 → 整页空态引导(说明去装哪个 agent),不报错。
-- A2 单侧未检测到 → 该侧卡显示"未检测到",另一侧正常。
-- A3 单侧注册表损坏 → 该侧卡显示错误说明(替代统计行),另一侧不受影响。
-- A4 扫描未完成 → 扫描态,不显示误导性的空分栏。
+**Sequence A: page load**
+- A1 Neither side detected → a whole-page empty state with guidance (which agent to install), not an
+  error.
+- A2 One side not detected → that side's card shows "not detected", the other behaves normally.
+- A3 One side's registry corrupt → that side's card shows an error explanation (in place of the stats
+  row), the other side is unaffected.
+- A4 Scan not finished → a scanning state, not misleading empty sections.
 
-**序列 B:分栏构成与口径**
-- B1 分栏集合 = Token / Skills / Subagents / Plugins / MCP / Memory / 配置;新增组件类型时在此扩展(顺序按"用得多的靠前")。
-- B2 汇总卡副行显示该侧的项目数、全局 skills 数、subagents 数——口径与对应分栏一致。
-- B3 Token 汇总**含已隐藏与失效项目**并显式标注(与项目列表的默认过滤口径不同,必须写明避免对不上账)。
-- B4 两侧概念不对称的分栏(如 Plugins 的 Codex 组、Memory 的 Codex 全局条目)按各自 spec 的探测式规则处理,不为对称而造假信号。
-- B5 配置分栏:文件缺失显示"无"而非报错;超大文件截断。
+**Sequence B: sections and accounting**
+- B1 The set of sections = Token / Skills / Subagents / Plugins / MCP / Memory / Configuration; a new
+  component type extends this list (ordered most-used first).
+- B2 A summary card's secondary row shows that side's project count, global skill count and subagent
+  count — using the same accounting as the corresponding section.
+- B3 The Token totals **include hidden and stale projects** and say so explicitly (this differs from
+  the project list's default filtering, and it has to be stated or the numbers will not reconcile).
+- B4 Sections where the two sides' concepts are asymmetric (the Codex group under Plugins, the Codex
+  global entry under Memory) follow their own spec's probe-style rules, and no false signal is
+  manufactured for the sake of symmetry.
+- B5 Configuration section: a missing file shows "none" rather than an error; oversized files are
+  truncated.
 
-**跨切面**
-- R1 各分栏的组件级边界见对应 spec,本篇不重复;新增分栏时同步更新 B1 的分栏集合。
-- R2 全局刷新两维度共用,进行中重复点击去重。
+**Cross-cutting**
+- R1 Component-level boundaries live in each section's own spec and are not repeated here; adding a
+  section means updating B1's list.
+- R2 Global refresh is shared by both dimensions, and repeat clicks while one is in flight are
+  deduplicated.
 
 ## Implementation Decisions
 
-- **数据来源**:一次扫描产出全景快照,各分栏消费同一快照(不各自重扫);依赖项目注册表的部分(如 Memory 汇总)在项目列表就绪后填充。
-- **契约**:快照结构走 ADR-0001 类型单源 + 边界校验;新增分栏必须同步扩展校验(漏加即静默放过)。
-- **降级粒度**:按侧降级(单侧故障不影响另一侧),不整页失败。
+- **Data source**: one scan produces the overview snapshot and every section consumes that same
+  snapshot (no per-section rescans); the parts depending on the project registry (such as the Memory
+  summary) are filled in once the project list is ready.
+- **Contract**: the snapshot structure follows ADR-0001's single type source plus boundary
+  validation; adding a section requires extending the validation at the same time (forgetting means
+  it passes silently).
+- **Degradation granularity**: degrade per side (a single-side failure does not affect the other),
+  never fail the whole page.
 
 ## Testing Decisions
 
-沿用 ADR-0002 双 seam:providers 层 fixture 单测覆盖单侧缺失/损坏的降级与快照组装;契约校验往返;e2e 覆盖分栏逐个切换均渲染且主进程无错误(新增分栏须同步更新 tab 计数断言)。
+Following ADR-0002's dual seam: fixture unit tests at the providers layer cover single-side absence
+and corruption degradation and snapshot assembly; the contract validation round trip; e2e covers that
+switching through every section renders with no main-process errors (adding a section requires
+updating the tab count assertion).
 
 ## Out of Scope
 
-- 全局库/插件/记忆的写操作(唯一写操作是 Skills 装到项目)。
-- 跨组件的聚合视图与全局搜索。
-- 文件实时监听(启动扫描 + 手动刷新)。
+- Write operations on the global library / plugins / memories (the one write operation is installing
+  a skill into a project).
+- Cross-component aggregate views and global search.
+- Live file watching (startup scan + manual refresh only).

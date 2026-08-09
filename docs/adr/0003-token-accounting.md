@@ -1,28 +1,49 @@
-# ADR-0003: Token 统计口径
+# ADR-0003: Token accounting rules
 
-- 状态: 已被 ADR-0005 取代(总量口径、扫描范围与去重均由 0005 重定;subagent 计入/口径含隐藏失效/Codex 模型近似等仍然有效并被 0005 延续)
+- Status: Superseded by ADR-0005 (the total rule, the scan scope and deduplication were all
+  redefined by 0005; subagent inclusion, counting hidden and stale projects, and the Codex model
+  approximation remain valid and were carried forward by 0005)
 
-## 背景与问题
+## Context
 
-两侧会话数据口径异构:Claude 每条 assistant 消息带增量 usage(cache 字段独立),Codex 只有会话内**累计** total(input 含 cached),且 Codex 无逐消息模型字段。统计数字要跨两侧呈现且"同源可对账"。
+The two sides' session data use different shapes: Claude attaches incremental usage to every
+assistant message (with cache fields kept separate), whereas Codex only has a running **cumulative**
+total within a session (where input includes cached), and Codex has no per-message model field.
+The numbers have to be presented across both sides and be reconcilable against a common source.
 
-## 备选项
+## Options
 
-1. **总量 = input + output,cache 读写单列不计入;统计包含已隐藏与失效项目;subagent 消耗计入但不入会话列表;Codex 按模型拆分取会话末条 turn_context 的 model(近似);日切按本地时区**
-2. 汇总随列表过滤(隐藏项目不计)——否决:隐藏一个项目会改变"总消耗"这一事实数字,且缓存随浏览态失效
-3. 计入 cache 读为消耗——否决:cache 读与真实计费/负载不同量级,混入会把总量放大一个数量级失去意义
-4. 美元成本换算——暂缓:价格表需人工维护且两家计费口径(订阅 vs API、cache 价)对不齐;重启条件:出现可靠的价格数据源
+1. **Total = input + output, with cache reads and writes listed separately and excluded; statistics
+   include hidden and stale projects; subagent consumption counts but does not enter the session
+   list; the Codex model split takes the model from the session's last `turn_context`
+   (an approximation); days are cut in local time**
+2. Have the totals follow the list filters (hidden projects excluded) — rejected: hiding a project
+   would change "total consumption", which is a fact, and the cache would be invalidated by browsing
+   state
+3. Count cache reads as consumption — rejected: cache reads are of a different order of magnitude
+   from real billing or load; mixing them in inflates the total by an order of magnitude and makes it
+   meaningless
+4. Convert to a dollar cost — deferred: the price table needs manual maintenance and the two
+   vendors' billing models (subscription vs API, cache pricing) do not line up. Restart condition:
+   a reliable price data source appears
 
-## 决策
+## Decision
 
-选定**方案 1**,并接受 Codex 模型拆分为"会话主模型"级近似(累计口径下无法逐模型精确拆分),UI 标注近似性质。
+We choose **option 1**, accepting that the Codex model split is an approximation at the level of the
+session's primary model (a cumulative total cannot be split precisely per model), with the UI
+labelling it as approximate.
 
-## 后果
+## Consequences
 
-- 正面:两侧数字可比、全局与项目双视图同源可对账;口径不随浏览状态漂移
-- 负面:Codex 多模型会话(如 guardian 子线程换模型)拆分不精确;cache 消耗需单独看
-- 中性:Claude subagent 转写(`<session>/subagents/`)纳入统计是实现期实测补上的(初版遗漏,review 阶段修复)
+- Positive: the two sides' numbers are comparable, and the global and per-project views reconcile
+  against a common source; the accounting does not drift with browsing state
+- Negative: multi-model Codex sessions (e.g. a guardian sub-thread switching model) are split
+  imprecisely; cache consumption has to be read separately
+- Neutral: including Claude subagent transcripts (`<session>/subagents/`) was added during
+  implementation after measurement (missed in the first version, fixed at review)
 
-## 来源
+## Sources
 
-真实数据实测(usage 字段形状、token_count 累计语义、subagents 目录);spec「统计口径」条款(2026-07-30 用户拍板"全部计入")。
+Measurement against real data (the shape of the usage fields, the cumulative semantics of
+`token_count`, the subagents directory); the spec's accounting clause (the user's 2026-07-30 ruling
+of "count everything").

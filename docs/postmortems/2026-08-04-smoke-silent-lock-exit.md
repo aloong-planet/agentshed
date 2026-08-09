@@ -1,61 +1,79 @@
-# smoke 三次误红:静默退锁 + 证据三次被自己销毁
+# Smoke went red three times: a silent lock exit, and the evidence destroyed three times over
 
-## 现象
+## Symptom
 
-`pnpm verify` 里 smoke 间歇性红,报「READY_TIMEOUT 内未完成首次扫描(缓存未更新)」;
-单跑 `pnpm smoke` 从不复现。三次(2026-08-03 ×1、08-04 ×2),横跨两张票。
+Smoke went red intermittently inside `pnpm verify`, reporting "first scan did not complete within
+READY_TIMEOUT (cache not updated)"; running `pnpm smoke` on its own never reproduced it. Three times
+(2026-08-03 ×1, 08-04 ×2), across two tickets.
 
-## 根因(已确定性复现)
+## Root cause (reproduced deterministically)
 
 ```
-已有实例(用户开着的 app / 另一个 pnpm dev)持有真实 userData 的 single-instance lock
+An existing instance (the user's own app / another pnpm dev) holds the real userData's single-instance lock
     ↓
-smoke 起的 dev app 拿不到锁 → app.exit(0)          ← 静默,日志零错误
+The dev app smoke starts cannot get the lock → app.exit(0)          ← silent, zero errors in the log
     ↓
-启动闸的 pgrep 被【先前那个实例】满足                ← 假通过
+The startup gate's pgrep is satisfied by [that earlier instance]     ← false pass
     ↓
-就绪闸等一个已死的 app 写缓存 → 超时                ← 超时值调多大都没用
+The readiness gate waits for a dead app to write the cache → timeout ← no timeout value is large enough
 ```
 
-复现:先手动起一个 `pnpm dev`,再跑 smoke——精确复现全部签名(启动闸过、就绪超时、
-日志无错误)。历史上三次到底是谁持锁已不可考(当时证据没留下),但机制唯一。
+Reproduction: start a `pnpm dev` by hand first, then run smoke — every signature reproduces exactly
+(startup gate passes, readiness times out, no errors in the log). Who held the lock on each of the
+three historical occasions is no longer knowable (the evidence was not kept at the time), but the
+mechanism is the only one that fits.
 
-## 为什么误诊了三次
+## Why it was misdiagnosed three times
 
-1. **证据被自己销毁 ×3**:`die()` 明明打印日志末 25 行,但三次都被调用方
-   (`... | grep -E 'SMOKE_OK|Tests'`)过滤掉了。第三次是在明知前两次吃过这个亏
-   之后再犯的——**教训不在"知道",在"失败时的第一反应仍是筛出我要的行"**。
-2. **拿相关性当因果**:前两次失败都恰在升 CACHE_VERSION 后的首个 verify,于是
-   "升号→冷扫慢→超时"顺理成章,`READY_TIMEOUT` 60→180 并把这因果写进了注释、
-   合进了 master。第三次 180s(实测冷扫的 30 倍)照样红,因果被证伪——**证伪它的
-   恰恰是照着错误诊断调大的那个值**,算是便宜的运气。
-3. **"进程存在"是恒真量级的启动判据**:pgrep 分不出"我起的"和"本来就在的"。
-   单实例锁 + 静默退出把两个闸之间的因果链剪断了,而两个闸各自看都是"正常"。
+1. **The evidence was destroyed by my own hand ×3**: `die()` does print the last 25 lines of the log,
+   but all three times the caller filtered them out (`... | grep -E 'SMOKE_OK|Tests'`). The third time
+   happened after knowing the first two had been lost the same way — **the lesson is not in "knowing"
+   but in the fact that the first reflex on failure is still to filter for the lines I want**.
+2. **Correlation taken for causation**: the first two failures both happened on the first verify
+   after a `CACHE_VERSION` bump, so "bump → slow cold scan → timeout" followed naturally,
+   `READY_TIMEOUT` went 60 → 180, and that causal story was written into a comment and merged to
+   master. The third time it went red at 180 s anyway (30× the measured cold scan), falsifying the
+   causal story — **and what falsified it was the very value that had been raised on the strength of
+   the wrong diagnosis**, which counts as cheap luck.
+3. **"A process exists" is a startup criterion of tautological magnitude**: `pgrep` cannot tell "the
+   one I started" from "the one that was already there". The single-instance lock plus the silent
+   exit cut the causal chain between the two gates, and each gate looked "normal" on its own.
 
-## 修复(scripts/smoke.sh;第一版是 preflight 拦截,终版按用户裁定改为**共存**)
+## Fix (scripts/smoke.sh; the first version blocked in preflight, the final version was changed to **coexist** per the user's ruling)
 
-- **userData 隔离**:dev app 经 `pnpm dev -- --user-data-dir=<临时目录>` 启动
-  (实测 electron-vite 透传该参且 Electron 认它)。锁按 userData 界定作用域,
-  隔离后与用户开着的实例**互不抢锁**——用户不必再关掉自己的 app。
-  代价的如实记录:每次全新 userData = 每次全量扫(~6s,原热缓存 ~1s);
-  换来的是门禁确定性与零干扰。「旧缓存迁移」场景本就归 e2e。
-- **进程组隔离**:`set -m` 让后台任务自成进程组,探测/击杀全部按 pgid 只认
-  自己这棵树——此前的模式 pkill 在共存场景下会误杀用户的实例。
-- **就绪等待期检测进程死亡**:electron 中途退出立刻报"启动后又退出了",不再干等超时。
-- **重定向失效自诊断**:隔离缓存没动而真实缓存动了 = 透传断了(如 electron-vite
-  升级弃透传),报专门的错误而不是笼统超时。
-- **die() 留证**:失败时整份日志拷到 `/tmp/agentshed-smoke-fail-<时间戳>.log`,
-  不再依赖调用方不 grep。
-- READY_TIMEOUT 回 60(180 是按已证伪的诊断调的;无锁可抢后,走到超时的都是真超时)。
-- 已有实例只打一行提示(按 `ps -o comm=` 过滤,pgrep -f 会被别人 argv 里的路径
-  字符串误报——实测:验证用的后台 pkill 进程就中招)。
+- **userData isolation**: the dev app starts via `pnpm dev -- --user-data-dir=<temp dir>` (measured:
+  electron-vite passes the argument through and Electron honours it). The lock is scoped by userData,
+  so once isolated it **does not contend with the user's running instance** — the user no longer has
+  to close their own app.
+  Honest record of the cost: a fresh userData every time = a full scan every time (~6 s, versus ~1 s
+  with a warm cache); what it buys is gate determinism and zero interference. The "migrating an old
+  cache" scenario belonged to e2e anyway.
+- **Process group isolation**: `set -m` puts background jobs in their own process group, and probing
+  and killing go by pgid so they only ever touch our own tree — the previous pattern's `pkill` would
+  have killed the user's instance in the coexistence scenario.
+- **Detect process death during the readiness wait**: if electron exits partway, report "it started
+  and then exited" immediately instead of waiting out the timeout.
+- **Self-diagnose a broken redirect**: if the isolated cache is untouched while the real cache moves,
+  the pass-through is broken (e.g. an electron-vite upgrade dropping it), and that gets its own error
+  rather than a generic timeout.
+- **`die()` preserves evidence**: on failure the whole log is copied to
+  `/tmp/agentshed-smoke-fail-<timestamp>.log`, so it no longer depends on the caller not grepping.
+- `READY_TIMEOUT` back to 60 (180 had been set on the strength of a falsified diagnosis; with no lock
+  to contend for, anything that reaches the timeout is a real timeout).
+- An existing instance only prints one informational line (filtered by `ps -o comm=`, because
+  `pgrep -f` gets false positives from path strings in other processes' argv — measured: the
+  background `pkill` process used for verification was itself caught by it).
 
-四条失败分支 + 共存正路径全部强制触发/实测验证:无实例通过、开着实例通过且
-对方 pid 不变、中途死亡报专错、重定向失效报专错。
+All four failure branches plus the coexistence happy path were forced and verified: passing with no
+instance, passing with an instance running and that instance's pid unchanged, the specific error on
+mid-run death, and the specific error on a broken redirect.
 
-## 教训
+## Lessons
 
-- **门禁失败,第一动作是原样保存输出,分析是第二动作。** 筛选是分析手段,不是查看手段。
-- 排除"慢"的正确姿势就是这次的意外收获:把超时调到实测量级的 30 倍,还红,"慢"即出局。
-- 静默退出路径(`app.exit(0)` 这类)在测试脚本眼里与"正常运行"不可区分,
-  凡依赖"进程在/文件变"这类间接信号的闸,都要自问:**信号的主人是不是我起的那个进程?**
+- **When a gate fails, the first action is to save the output verbatim; analysis is the second
+  action.** Filtering is a means of analysis, not a means of looking.
+- The right way to rule out "slow" was this round's accidental gift: raise the timeout to 30× the
+  measured magnitude, and if it is still red, "slow" is out.
+- Silent exit paths (`app.exit(0)` and the like) are indistinguishable from "running normally" as far
+  as a test script is concerned. For any gate relying on an indirect signal such as "a process exists"
+  or "a file changed", ask: **does the signal belong to the process I started?**

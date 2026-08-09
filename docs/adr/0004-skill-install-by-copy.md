@@ -1,27 +1,40 @@
-# ADR-0004: Skills 安装复制落地(拒绝软链)
+# ADR-0004: Skills install by copy (symlinks rejected)
 
-- 状态: 已接受(2026-07-29,需求分析期用户拍板)
+- Status: Accepted (2026-07-29, decided by the user during requirements analysis)
 
-## 背景与问题
+## Context
 
-项目级安装需要把全局库中的 skill 落到项目目录。落地方式决定项目对全局库的依赖关系、git 可提交性,以及编辑时的波及面。
+A project install has to land a skill from the global library into the project's directory. How it
+lands determines the project's dependency on the global library, whether it can be committed to git,
+and the blast radius of editing it.
 
-## 备选项
+## Options
 
-1. **解引用深拷贝:先复制到同目录临时名再 rename,失败清理;源含软链时落地为真文件**
-2. 符号链接落地——否决:编辑会穿透软链改到全局库/另一端(本项目筹备期实测踩过);项目 git 里是链接不是内容;Windows 权限麻烦
-3. 直接 cpSync 到目标名——否决:复制中断留半成品目录,下次扫描会把残缺目录当已安装
+1. **Dereferencing deep copy: copy to a temporary name in the same directory first, then rename,
+   cleaning up on failure; symlinks in the source land as real files**
+2. Land as symlinks — rejected: editing follows the symlink through into the global library or the
+   other end (measured while preparing this project); what lands in the project's git is a link, not
+   content; and Windows permissions are awkward
+3. `cpSync` straight to the target name — rejected: an interrupted copy leaves a half-finished
+   directory, and the next scan takes that broken directory for an installed skill
 
-## 决策
+## Decision
 
-选定**方案 1**:我们以解引用深拷贝安装,项目副本自持、不依赖全局库存续;卸载即删项目副本,不做副本差异检测(二期);全局库对本产品永远只读。
+We choose **option 1**: installs are dereferencing deep copies, so the project's copy is
+self-contained and does not depend on the global library continuing to exist. Uninstalling deletes
+the project's copy. No divergence detection between copies (phase two). The global library is
+permanently read-only as far as this product is concerned.
 
-## 后果
+## Consequences
 
-- 正面:无穿透风险;项目可整体提交;任何时刻中断不产生残缺目录
-- 负面:全局库更新后项目副本不自动跟进(版本漂移提示留二期)
-- 中性:同名冲突一律阻止不覆盖,由用户先卸再装
+- Positive: no risk of edits following through; the project can be committed as a whole; an
+  interruption at any moment never produces a broken directory
+- Negative: a project's copy does not follow along when the global library is updated (a
+  version-drift notice is left to phase two)
+- Neutral: name collisions are always refused rather than overwritten — the user uninstalls first,
+  then installs
 
-## 来源
+## Sources
 
-spec 装卸条款(用户选定"复制落地");grilling 期软链穿透实测(2026-07-29)。
+The spec's install/uninstall clause (the user chose "land by copy"); the symlink pass-through
+measurement during grilling (2026-07-29).

@@ -1,22 +1,28 @@
-# ADR 索引
+# ADR index
 
-本仓库 ADR 规范:MADR minimal 五段体(背景/备选项/决策/后果/来源,全必填);「备选项」必填以留存排除过程;三态(提议|已接受|已被取代),已接受后只追加不改写,推翻另开新条;只收本项目架构决策(流程类约定不入);三门槛(难逆转、无上下文会费解、真实 trade-off)同时满足才落条目。
+ADR conventions for this repository: MADR minimal, five sections (Context / Options / Decision /
+Consequences / Sources), all mandatory. "Options" is mandatory so the elimination process is
+preserved. Three states (Proposed | Accepted | Superseded); once accepted, an ADR is only appended
+to, never rewritten — to reverse one, open a new entry. Only this project's architectural decisions
+belong here (process conventions do not). An entry is written only when all three thresholds are met:
+hard to reverse, baffling without context, and a real trade-off.
 
-| # | 决策 | 状态 |
+| # | Decision | Status |
 |---|---|---|
-| [0001](0001-ipc-contract-single-source.md) | IPC 契约单一类型源与双侧运行时校验 | 已接受 |
-| [0002](0002-dual-seam-testing.md) | 双 seam 测试策略(数据层注入 + IPC 契约) | 已接受 |
-| [0003](0003-token-accounting.md) | Token 统计口径 | 已被 0005 取代 |
-| [0004](0004-skill-install-by-copy.md) | Skills 安装复制落地(拒绝软链) | 已接受 |
-| [0005](0005-token-ccusage-alignment.md) | Token 统计对齐 ccusage(全树+去重+四项口径) | 已接受 |
-| [0006](0006-codex-usage-accounting.md) | Codex 用量统计口径(双数据根+fork 重放剥离) | 已接受 |
-| [0007](0007-usage-archive.md) | 用量历史归档(抗 agent 自动清理) | 已接受 |
-| [0008](0008-trend-by-provider.md) | 趋势柱按 provider 分段 | 已接受 |
-| [0009](0009-trend-xaxis-data-days.md) | 趋势图 x 轴只标数据日的层级日期标签 | 已接受 |
-| [0010](0010-plugin-skills-in-effective-view.md) | 插件内含 skills 并入生效视图(命名空间隔离、启用态过滤) | 已接受 |
-| [0011](0011-question-index-in-token-cache.md) | 提问索引搭载于 token 计量缓存(单缓存双口径) | 已接受 |
-| [0012](0012-plugin-skill-preview-decoupled-from-enablement.md) | 插件 skill 预览与启用态解耦;Codex 不并入生效视图 | 已接受 |
-| [0013](0013-ui-language-set-and-i18n-scope.md) | 界面语言集与 i18n 范围边界(六语全 LTR、不承诺 RTL) | 已接受 |
-| [0014](0014-self-built-typed-i18n-layer.md) | 自建 typed i18n 层(拒绝通用 i18n 框架) | 已接受 |
-| [0015](0015-structured-ipc-errors.md) | 跨 IPC 的失败以错误码与参数传递,措辞留给 renderer | 已接受 |
-| [0016](0016-no-natural-language-across-ipc.md) | 主进程不产出面向用户的自然语言(不止失败信息) | 已接受 |
+| [0001](0001-ipc-contract-single-source.md) | Single type source for the IPC contract, with runtime validation on both sides | Accepted |
+| [0002](0002-dual-seam-testing.md) | Dual-seam testing strategy (data-layer injection + IPC contract) | Accepted |
+| [0003](0003-token-accounting.md) | Token accounting rules | Superseded by 0005 |
+| [0004](0004-skill-install-by-copy.md) | Skills install by copy (symlinks rejected) | Accepted |
+| [0005](0005-token-ccusage-alignment.md) | Token accounting aligned with ccusage (whole tree + dedup + four-field rule) | Accepted |
+| [0006](0006-codex-usage-accounting.md) | Codex usage accounting (two data roots + fork replay stripping) | Accepted |
+| [0007](0007-usage-archive.md) | Usage history archive (resilient to the agent's own cleanup) | Accepted |
+| [0008](0008-trend-by-provider.md) | Trend bars segmented by provider | Accepted |
+| [0009](0009-trend-xaxis-data-days.md) | Trend x axis labels data days only, with hierarchical date labels | Accepted |
+| [0010](0010-plugin-skills-in-effective-view.md) | Plugin-bundled skills join the effective view (namespace-isolated, filtered by enablement) | Accepted |
+| [0011](0011-question-index-in-token-cache.md) | The question index rides on the token metering cache (one cache, two readings) | Accepted |
+| [0012](0012-plugin-skill-preview-decoupled-from-enablement.md) | Plugin skill preview decoupled from enablement; Codex does not join the effective view | Accepted |
+| [0013](0013-ui-language-set-and-i18n-scope.md) | UI language set and i18n scope boundary (six languages, all LTR, no RTL commitment) | Accepted |
+| [0014](0014-self-built-typed-i18n-layer.md) | Self-built typed i18n layer (general-purpose i18n frameworks rejected) | Accepted |
+| [0015](0015-structured-ipc-errors.md) | Failures cross IPC as an error code plus parameters; wording is left to the renderer | Accepted |
+| [0016](0016-no-natural-language-across-ipc.md) | The main process emits no user-facing natural language (not just failure text) | Accepted |
+| [0017](0017-repo-working-language-english.md) | Repository working language is English (comments, docs, test names, terminal output) | Accepted |

@@ -1,17 +1,27 @@
-# Skills 装卸
+# Skills install
 
-> 关联决策: ADR-0004
+> Related decision: ADR-0004
 
-## 概述
-给项目配 skills 靠手工拷贝,易拷错位置、易碰软链。本功能以全局库为唯一安装源,向指定项目复制落地安装,并可卸载项目级副本。
+## Overview
+Setting up skills for a project meant copying by hand, which is easy to put in the wrong place and
+easy to trip over symlinks. This feature makes the global library the only install source, lands a
+copy into a chosen project, and can uninstall the project-level copy.
 
-## 能力
-- Agents 页 Skills 分栏每行「安装到…」:弹出目标项目选择器(失效项目已排除,按活跃度排序);安装到该 skill 可用侧与项目所属侧的交集,双侧都符合则两侧都装
-- 安装为完整复制:项目副本自持,源是软链也落地为真文件;中断/失败自动清理,不留半成品
-- 目标已有同名项目级 skill 时阻止并提示,不覆盖
-- 项目详情 Skills 分栏中,项目级条目可「卸载」:确认弹窗显示完整删除路径,确认后删除副本
-- 每次操作有明确的成功/失败提示;完成后仅局部刷新该项目
+## Capabilities
+- "Install to…" on each row of the Agents page's Skills section: opens a target project picker (stale
+  projects excluded, sorted by activity); it installs to the intersection of the sides the skill is
+  available on and the sides the project belongs to, and installs to both when both qualify
+- Installing is a full copy: the project's copy is self-contained, and a symlinked source lands as a
+  real file; an interruption or failure cleans up automatically and leaves nothing half-finished
+- If the target already has a project-level skill of the same name, the install is refused with a
+  notice rather than overwriting
+- In project detail's Skills section, a project-level entry can be uninstalled: a confirmation dialog
+  shows the full path to be deleted, and confirming deletes the copy
+- Every operation gives an explicit success or failure notice; afterwards only that project is
+  refreshed
 
-## 边界与不做
-- 全局库只读:不从本 app 增删全局库内容;plugins 不支持装卸
-- 卸载不做副本差异检测;项目 git 状态由用户自行处理
+## Boundaries and non-goals
+- The global library is read-only: nothing is added to or removed from it via this app; plugins
+  cannot be installed or uninstalled
+- Uninstalling does not check for divergence between copies; the project's git state is the user's to
+  handle
