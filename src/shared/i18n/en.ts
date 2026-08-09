@@ -1,4 +1,5 @@
 import type { Locale } from './types'
+import { plural } from './plural'
 
 export const en: Locale = {
   languageName: 'English',
@@ -55,12 +56,14 @@ export const en: Locale = {
   /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
    * are not translated) */
   agents: {
-    sideSummary: (projects, skills, subagents) => `${projects} projects · ${skills} global skills · ${subagents} subagents`,
+    sideSummary: (projects, skills, subagents) =>
+      `${projects} ${plural('en', projects, { one: 'project', other: 'projects' })} · ${skills} global ${plural('en', skills, { one: 'skill', other: 'skills' })} · ${subagents} ${plural('en', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Config',
     notDetected: 'No Claude Code or Codex data directory detected on this machine',
     notDetectedHint: 'Install and use either agent, then click ↻ at the bottom of the rail to refresh and see the overview',
     totalsNote: 'includes hidden/stale projects',
-    archivedNote: (days, earliest) => `${days} of those days (earliest ${earliest}) had their source session files auto-cleaned by the agent; the numbers come from the local archive (hatched bars)`,
+    archivedNote: (days, earliest) =>
+      `For ${days} of those days (earliest ${earliest}) the source session files have already been auto-cleaned by the agent, so the numbers come from the local archive (hatched bars)`,
     byModel: 'By model (across projects; the Codex side approximates each session’s main model)',
     detected: 'Detected', undetected: 'Not detected',
     emptyGlobalLib: 'Both global libraries are empty',
@@ -85,7 +88,8 @@ export const en: Locale = {
   skills: {
     listFailed: (detail) => `Listing failed: ${detail}`,
     pillPlugin: 'Plugin', pillProject: 'Project', pillGlobal: 'Global', pillSymlink: '⤷ symlink',
-    pkgSummary: (files, size) => `${files} files · ${size}`,
+    pkgSummary: (files, size) =>
+      `${files} ${plural('en', files, { one: 'file', other: 'files' })} · ${size}`,
     srcPluginPkg: 'Plugin package', srcProject: 'Project', srcGlobal: 'Global library',
     listing: 'Listing…',
     deeperPaths: (paths) => `Deeper paths not listed: ${paths}`,
@@ -133,7 +137,7 @@ export const en: Locale = {
     installMissing: 'Install directory missing (cache cleaned up) — only the registry record is visible; bundled components cannot be read',
     noBundled: 'None of the four bundled component types',
     codexCacheEnum: 'cache enumeration',
-    cachedVersions: (n) => `(${n} cached versions)`,
+    cachedVersions: (n) => `(${n} cached ${plural('en', n, { one: 'version', other: 'versions' })})`,
     cacheOnly: 'cache enumeration only',
     codexFoot: 'The Codex group lists only plugins present in the cache; there is no enabled/disabled semantics, and bundled skills can be previewed but are not merged into the Skills tab',
     codexFootDetail: '; Codex plugins take effect globally, with no project-level enablement semantics',
@@ -148,7 +152,7 @@ export const en: Locale = {
   },
   session: {
     forkPoints: (n) =>
-      `This session has **${n} fork points**. The chain shown is traced from the last message back along the parent links to the root — i.e. "what this conversation finally looks like"; abandoned branches are not shown.`,
+      `This session has **${n} ${plural('en', n, { one: 'fork point', other: 'fork points' })}**. The chain shown is traced from the last message back along the parent links to the root — i.e. "what this conversation finally looks like"; abandoned branches are not shown.`,
     forkedFrom: 'This session was forked from',
     anotherSession: 'another session',
     parentTitle: (title) => `“${title}”`,
@@ -164,25 +168,28 @@ export const en: Locale = {
       `⚡ Fetched on demand in ${ms} ms · read only this turn’s byte range, ${bytes} — independent of total file size`,
     back: (project) => `‹ Back to ${project} · Sessions`,
     headMeta: (side, questions, tok, mb, ago) =>
-      `${side} · ${questions} questions · ${tok} tok · ${mb} · last active ${ago}`,
+      `${side} · ${questions} ${plural('en', questions, { one: 'question', other: 'questions' })} · ${tok} tok · ${mb} · last active ${ago}`,
     cannotOpen: (detail) => `Cannot open this session: ${detail}`,
     loading: 'Loading…',
-    mainline: (n, days) => `Questions (main line) · ${n}${days}`,
-    dayCount: (n) => ` · ${n} days`,
+    mainline: (n, days) =>
+      `Questions (main line) · ${n} ${plural('en', n, { one: 'question', other: 'questions' })}${days}`,
+    dayCount: (n) => ` · ${n} ${plural('en', n, { one: 'day', other: 'days' })}`,
     expandAll: 'Expand all',
     collapseAll: 'Collapse all',
     ascending: 'Oldest first',
     descending: 'Newest first',
-    dayGroup: (day, n) => `${day} · ${n}`,
+    dayGroup: (day, n) => `${day} · ${n} ${plural('en', n, { one: 'question', other: 'questions' })}`,
     foot: 'The main line lists only human questions; harness noise is not rendered. All questions are listed at once (their text is read by byte range on demand, independent of file size). Click a question to expand the whole turn in place: body, tool calls, subagent dispatches and reasoning blocks.'
   },
 
   turn: {
     typeSeparator: ', ',
     thinking: 'Thinking',
-    thinkingSum: (chars) => `${chars} chars · plain text available`,
+    thinkingSum: (chars) =>
+      `${chars} ${plural('en', chars, { one: 'char', other: 'chars' })} · plain text available`,
     reasoning: 'Reasoning',
-    reasoningSum: (n) => `only ${n} headings · body unavailable`,
+    reasoningSum: (n) =>
+      `only ${n} ${plural('en', n, { one: 'heading', other: 'headings' })} · body unavailable`,
     reasoningNote:
       'Codex reasoning bodies are `encrypted_content` and are **never obtainable**. Below are the only plain-text headings in the record — **not equivalent** to Claude’s plain-text thinking, and not pretended to be.',
     input: 'Input',
@@ -191,7 +198,7 @@ export const en: Locale = {
     noOutput: '(no output recorded)',
     truncatedNote:
       'The output exceeded the agent’s per-entry cap, so the transcript **only stored a truncated version**; the original sits alongside under `tool-results/` (path shown above) and this product does not read it — what you see here is the truncated version, not claimed to be complete.',
-    subSteps: (n) => `${n} steps · no result`,
+    subSteps: (n) => `${n} ${plural('en', n, { one: 'step', other: 'steps' })} · no result`,
     dispatchPrompt: 'Dispatch prompt',
     innerSteps: 'Inner steps',
     unlinkedNote:
@@ -199,7 +206,7 @@ export const en: Locale = {
     backToMain: 'Back to main session',
     noReturn: '(no result)',
     unknownRecords: (count, types) =>
-      `▧ This turn contains **${count} unrecognised records** (types: ${types}) — kept as-is in the source file, not rendered. This usually means an agent update introduced a new record type.`
+      `▧ This turn contains **${count} ${plural('en', count, { one: 'unrecognised record', other: 'unrecognised records' })}** (types: ${types}) — kept as-is in the source file, not rendered. This usually means an agent update introduced a new record type.`
   },
   detail: {
     notInSnapshot: 'This project is not in the snapshot (refresh and try again)',
@@ -214,26 +221,31 @@ export const en: Locale = {
     byModel: 'By model',
     recentSessions: 'Recent sessions',
     noSessions: 'No sessions in this project yet',
-    sessionCountNote: (n) => `${n} sessions in total — see the “Sessions” tab for all of them.`,
+    sessionCountNote: (n) =>
+      `${n} ${plural('en', n, { one: 'session', other: 'sessions' })} in total — see the “Sessions” tab for all of them.`,
     noSessionsHint: 'No sessions in this project yet. They appear automatically once either agent has a conversation in this directory.',
     searching: 'Searching…',
     noHits: 'No hits. Only questions are searched by default — try switching to “Full text”.',
-    hitsFound: (hits, sessions) => `Found ${hits} hits · ${sessions} sessions`,
-    folded: (n) => ` · ${n} hits folded away (replays or abandoned branches)`,
+    hitsFound: (hits, sessions) =>
+      `Found ${hits} ${plural('en', hits, { one: 'hit', other: 'hits' })} · ${sessions} ${plural('en', sessions, { one: 'session', other: 'sessions' })}`,
+    folded: (n) =>
+      ` · ${n} ${plural('en', n, { one: 'hit', other: 'hits' })} folded away (replays or abandoned branches)`,
     recentFirst: 'Newest first',
     oldestFirst: 'Oldest first',
     forkUncertain: '⑂? uncertain strip',
-    hitCount: (n) => `${n} hits`,
+    hitCount: (n) => `${n} ${plural('en', n, { one: 'hit', other: 'hits' })}`,
     inBody: 'Body',
-    sortNote: (order, n) => `By last activity, ${order} · ${n} sessions`,
+    sortNote: (order, n) =>
+      `By last activity, ${order} · ${n} ${plural('en', n, { one: 'session', other: 'sessions' })}`,
     descending: 'descending',
     ascending: 'ascending',
     forkTip: 'This session was forked from another; the replayed prefix has been stripped',
     forkUncertainTip: 'The parent session is outside the scan set or fails verification, so the replayed prefix could only be stripped heuristically — some may remain (duplicates)',
-    questionCount: (n) => `${n} questions`,
+    questionCount: (n) => `${n} ${plural('en', n, { one: 'question', other: 'questions' })}`,
     sessionsFoot: 'Only sessions of registered projects are listed; subagent and warm-up sessions are not listed separately, though their tokens still count — so this count and the denominator of the token cards above are not the same thing.',
     sessionsFoot2: '“Last activity” takes the largest timestamp inside the file, which is a different pipeline from the project list’s activity (which uses file mtime).',
-    searchPlaceholder: (n) => `Search across ${n} sessions in this project…`,
+    searchPlaceholder: (n) =>
+      `Search across ${n} ${plural('en', n, { one: 'session', other: 'sessions' })} in this project…`,
     scopeQuestions: 'Questions',
     scopeFullText: 'Full text',
     levelPlugin: 'Plugin package',
@@ -269,9 +281,10 @@ export const en: Locale = {
     searchPlaceholder: 'Search projects…',
     filterAll: 'All',
     showStale: 'Show stale projects',
-    staleFiltered: (n) => `${n} stale ${n === 1 ? 'project' : 'projects'} filtered out`,
+    staleFiltered: (n) =>
+      `${n} stale ${plural('en', n, { one: 'project', other: 'projects' })} filtered out`,
     noMatch: 'No matching projects',
-    hiddenCount: (n) => `${n} hidden ${n === 1 ? 'project' : 'projects'}`,
+    hiddenCount: (n) => `${n} hidden ${plural('en', n, { one: 'project', other: 'projects' })}`,
     expandHint: '(click to expand)',
     collapseHint: '(click to collapse)',
     staleTag: 'Stale',
@@ -312,7 +325,8 @@ export const en: Locale = {
     sessionNotWhitelisted:
       'This session is not in the allowed list — open the project details or refresh first',
     engineNotReady: 'The scan engine is not ready yet — please try again shortly',
-    turnOutOfRange: (i, total) => `Turn index out of range: ${i} (of ${total} turns)`,
+    turnOutOfRange: (i, total) =>
+      `Turn index out of range: ${i} (of ${total} ${plural('en', total, { one: 'turn', other: 'turns' })})`,
     artifactNotWhitelisted: 'This artifact path is not in the allowed list',
     pluginRootNotRegistered:
       'This plugin package root is not registered — refresh or open the details first',
