@@ -1,43 +1,44 @@
 // @vitest-environment jsdom
-// Markdown 渲染消毒:script/事件属性/javascript: 链接剥除;file:// 图片(产物相对图重写产物)放行。
+// Markdown render sanitising: scripts, event attributes and javascript: links are stripped; file:// images
+// (what an artifact's relative image rewrites to) are admitted.
 import { describe, it, expect } from 'vitest'
 import { renderMarkdown } from './md'
 
 describe('renderMarkdown', () => {
-  it('正常 Markdown 渲染为 HTML', () => {
+  it('ordinary markdown renders to HTML', () => {
     const html = renderMarkdown('# 标题\n\n**加粗**')
     expect(html).toContain('<h1>')
     expect(html).toContain('<strong>加粗</strong>')
   })
 
-  it('剥除 <script>', () => {
+  it('strips <script>', () => {
     const html = renderMarkdown('hi\n\n<script>alert(1)</script>')
     expect(html).not.toContain('<script')
     expect(html).not.toContain('alert(1)')
   })
 
-  it('剥除事件属性(onerror)', () => {
+  it('strips event attributes (onerror)', () => {
     const html = renderMarkdown('<img src="x" onerror="alert(1)">')
     expect(html).not.toContain('onerror')
   })
 
-  it('剥除 javascript: 链接', () => {
+  it('strips javascript: links', () => {
     const html = renderMarkdown('[x](javascript:alert(1))')
     expect(html).not.toContain('javascript:')
   })
 
-  it('放行 file:// 图片(产物相对路径重写后的形态)', () => {
+  it('admits file:// images (the form an artifact\'s relative path rewrites to)', () => {
     const html = renderMarkdown('![图](file:///Users/x/docs/adr/img.png)')
     expect(html).toContain('src="file:///Users/x/docs/adr/img.png"')
   })
 
-  it('放行 https 链接与 data: 图片', () => {
+  it('admits https links and data: images', () => {
     const html = renderMarkdown('[a](https://example.com) ![b](data:image/png;base64,AAAA)')
     expect(html).toContain('href="https://example.com"')
     expect(html).toContain('src="data:image/png;base64,AAAA"')
   })
 
-  it('YAML frontmatter 拆成键值卡片后再渲染正文', () => {
+  it('YAML frontmatter is split into a key-value card before the body is rendered', () => {
     const html = renderMarkdown(
       '---\nname: github-ops\ndescription: "Rules"\nwhen_to_use: "Activate"\n---\n\n# 标题\n'
     )

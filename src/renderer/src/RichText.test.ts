@@ -1,9 +1,12 @@
-// 票 09:富文本标记的解析。
+// Ticket 09: parsing the rich-text markers.
 //
-// 这条 seam 的价值在于**让一句话保持一个 key**——各语言语序不同,强调的位置随之移动,
-// 而碎片 key 拼接做不到这一点。故用例既验标记解析,也验"标记在句中任意位置都成立"。
+// This seam's value is **keeping one sentence to one key** — word order differs per language, so the
+// emphasis moves with it,
+// and fragment keys cannot do that. So these cases verify both the marker parsing and that "a marker holds
+// anywhere in the sentence".
 //
-// 用 createElement 而非 JSX:仓库的 vitest 只收 `*.test.ts`,不改配置去迁就一个测试。
+// createElement rather than JSX: the repository's vitest only picks up `*.test.ts`, and the configuration
+// is not bent for one test.
 import { describe, it, expect } from 'vitest'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -12,36 +15,39 @@ import { RichText } from './RichText'
 const html = (text: string): string => renderToStaticMarkup(createElement(RichText, { text }))
 
 describe('RichText', () => {
-  it('**粗体** 渲染成 <b>', () => {
+  it('**bold** renders as <b>', () => {
     expect(html('前**中**后')).toBe('<span>前</span><b>中</b><span>后</span>')
   })
 
-  it('`代码` 渲染成 <code>', () => {
+  it('`code` renders as <code>', () => {
     expect(html('见 `encrypted_content` 字段')).toContain('<code>encrypted_content</code>')
   })
 
-  it('强调位于句首、句中、句尾都成立', () => {
-    // 这条是本组件存在的理由:六语语序不同,强调的位置随之移动。
-    // 若实现假设标记只在中间(如用固定的三段切分),句首/句尾会漏
+  it('emphasis holds at the start, middle and end of a sentence', () => {
+    // This case is why the component exists: the six languages order words differently, so the emphasis
+    // moves with them.
+    // An implementation assuming the marker is always in the middle (a fixed three-way split, say) would
+    // miss the start and end
     expect(html('**开头**其余')).toBe('<b>开头</b><span>其余</span>')
     expect(html('其余**结尾**')).toBe('<span>其余</span><b>结尾</b>')
   })
 
-  it('同一句里多处强调各自成立', () => {
+  it('several emphases in one sentence each hold', () => {
     expect(html('**甲**与**乙**')).toBe('<b>甲</b><span>与</span><b>乙</b>')
   })
 
-  it('无标记时原样输出,不吞字', () => {
+  it('with no markers the output is verbatim, swallowing nothing', () => {
     expect(html('普通一句话')).toBe('<span>普通一句话</span>')
   })
 
-  it('落单的标记字符不当作标记,原样显示', () => {
-    // 措辞里出现单个星号不该让整句错乱
+  it('a lone marker character is not treated as a marker and displays as is', () => {
+    // A single asterisk in the wording should not derange the whole sentence
     expect(html('折扣 5*3 元')).toBe('<span>折扣 5*3 元</span>')
   })
 
-  it('HTML 特殊字符被转义,不产生标签', () => {
-    // 参数里可能带用户数据(会话标题等);走 JSX 文本节点即由 React 转义
+  it('HTML special characters are escaped and produce no tags', () => {
+    // The parameters may carry user data (a session title, say); going through a JSX text node lets React
+    // escape it
     expect(html('<img src=x onerror=1>')).not.toContain('<img ')
   })
 })
