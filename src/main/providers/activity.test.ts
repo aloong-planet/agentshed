@@ -1,5 +1,6 @@
-// 票02 纵切(b):活跃度——Claude 编码目录 readdir 计数/取时,Codex rollout 首行 cwd 归属,
-// subagent 线程不计入会话数。
+// Ticket 02 slice (b): activity — Claude counts and times from a readdir of the encoded directory, Codex
+// attributes by the rollout first line's cwd,
+// and subagent threads do not count toward the session count.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -32,7 +33,7 @@ function writeCodexRegistry(paths: string[]): void {
   const lines = paths.map((p) => `[projects."${p}"]\ntrust_level = "trusted"\n`).join('\n')
   writeFileSync(join(dir, '.codex', 'config.toml'), lines)
 }
-/** 造一个 Claude 会话 jsonl,mtime 设为 atSec(epoch 秒) */
+/** Build a Claude session jsonl with its mtime set to atSec (epoch seconds) */
 function mkClaudeSession(projectPath: string, file: string, atSec: number): void {
   const d = join(dir, '.claude', 'projects', encodeClaudeProjectDir(projectPath))
   mkdirSync(d, { recursive: true })
@@ -40,7 +41,8 @@ function mkClaudeSession(projectPath: string, file: string, atSec: number): void
   writeFileSync(f, '{"type":"x"}\n')
   utimesSync(f, atSec, atSec)
 }
-/** 造一个 Codex rollout,首行 session_meta 带 cwd;subagent 参数控制 thread_source */
+/** Build a Codex rollout whose first line session_meta carries a cwd; the subagent parameter controls
+ * thread_source */
 function mkCodexRollout(cwd: string, file: string, atSec: number, subagent = false): void {
   const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
   mkdirSync(d, { recursive: true })
@@ -62,7 +64,7 @@ afterEach(() => {
 })
 
 describe('encodeClaudeProjectDir', () => {
-  it('非字母数字全部替换为 -(实测规律:/ . _ 均转换)', () => {
+  it('every non-alphanumeric character becomes - (the measured rule: / . _ all convert)', () => {
     expect(encodeClaudeProjectDir('/Users/loong_zhou/CascadeProjects/Transfer')).toBe(
       '-Users-loong-zhou-CascadeProjects-Transfer'
     )
@@ -72,8 +74,8 @@ describe('encodeClaudeProjectDir', () => {
   })
 })
 
-describe('活跃度', () => {
-  it('Claude 会话:jsonl 计数 + 最大 mtime 为最近会话时间', async () => {
+describe('activity', () => {
+  it('Claude sessions: a jsonl count plus the largest mtime as the most recent session time', async () => {
     const p = mkProject('cl-act')
     writeClaudeRegistry([p])
     mkClaudeSession(p, 'a.jsonl', 1000)
@@ -83,7 +85,7 @@ describe('活跃度', () => {
     expect(snap.projects[0].lastSessionAt).toBe(2000 * 1000)
   })
 
-  it('无会话项目 → count=0,lastSessionAt=null', async () => {
+  it('a project with no sessions → count=0, lastSessionAt=null', async () => {
     const p = mkProject('no-act')
     writeClaudeRegistry([p])
     const snap = await scan(roots(), { now: () => 1 })
@@ -91,7 +93,7 @@ describe('活跃度', () => {
     expect(snap.projects[0].lastSessionAt).toBeNull()
   })
 
-  it('Codex 会话:读 rollout 首行 cwd 归属到项目', async () => {
+  it('Codex sessions: attributed to a project by the rollout first line\'s cwd', async () => {
     const p = mkProject('cx-act')
     writeCodexRegistry([p])
     mkCodexRollout(p, 'rollout-1.jsonl', 3000)
@@ -101,7 +103,7 @@ describe('活跃度', () => {
     expect(snap.projects[0].lastSessionAt).toBe(4000 * 1000)
   })
 
-  it('Codex subagent 线程不计入会话数,也不推高最近时间', async () => {
+  it('a Codex subagent thread does not count toward the session count and does not push the most recent time up', async () => {
     const p = mkProject('cx-sub')
     writeCodexRegistry([p])
     mkCodexRollout(p, 'rollout-main.jsonl', 3000)
@@ -111,7 +113,7 @@ describe('活跃度', () => {
     expect(snap.projects[0].lastSessionAt).toBe(3000 * 1000)
   })
 
-  it('双侧会话合并计数取并、时间取最大', async () => {
+  it('sessions on both sides merge, with the count as the union and the time as the larger', async () => {
     const p = mkProject('both-act')
     writeClaudeRegistry([p])
     writeCodexRegistry([p])
@@ -122,7 +124,7 @@ describe('活跃度', () => {
     expect(snap.projects[0].lastSessionAt).toBe(5000 * 1000)
   })
 
-  it('首行超长(实测 base_instructions 可达 42KB)仍能取到 cwd 归属', async () => {
+  it('an oversized first line (base_instructions measures up to 42 KB) still yields the cwd attribution', async () => {
     const p = mkProject('cx-huge')
     writeCodexRegistry([p])
     const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
@@ -139,7 +141,7 @@ describe('活跃度', () => {
     expect(snap.projects[0].sessionCount).toBe(1)
   })
 
-  it('rollout 首行损坏 → 跳过该文件不抛错', async () => {
+  it('a corrupt rollout first line → skip that file without throwing', async () => {
     const p = mkProject('cx-broken')
     writeCodexRegistry([p])
     const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
@@ -150,22 +152,26 @@ describe('活跃度', () => {
     expect(snap.projects[0].sessionCount).toBe(1)
   })
 
-  // 两条管线的分界(2026-08-02 定案,spec session-view A1):
-  // 项目活跃度走**文件 mtime**,会话列表的 SessionMeta.at 走**文件内最大时间戳**。
-  // 两者刻意不统一——mtime 是全库近千文件的廉价近似,改成读内容会把项目列表的
-  // 首屏成本抬到与全量扫描同级。下面这条钉住分界,防止后人"顺手统一"。
-  it('活跃度取 mtime,不受文件内时间戳影响', async () => {
+  // The boundary between two pipelines (settled 2026-08-02, spec session-view A1):
+  // project activity uses **the file's mtime**, while the session list's SessionMeta.at uses **the largest
+  // timestamp inside the file**.
+  // They are deliberately not unified — mtime is a cheap approximation over nearly a thousand files, and
+  // reading contents instead would push the project list's
+  // first-paint cost up to the level of a full scan. The case below pins the boundary against a later
+  // "unify them while we are here".
+  it('activity takes the mtime and is unaffected by timestamps inside the file', async () => {
     const p = mkProject('mtime-only')
     writeCodexRegistry([p])
     const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
     mkdirSync(d, { recursive: true })
-    // 文件内时间戳远在未来(2030),mtime 却是 3000 秒 —— 活跃度必须报 mtime
+    // The timestamp inside the file is far in the future (2030) while the mtime is 3000 seconds —
+    // activity must report the mtime
     const meta = { timestamp: '2030-01-01T00:00:00Z', type: 'session_meta', payload: { cwd: p } }
     const evt = { timestamp: '2030-06-01T00:00:00Z', type: 'event_msg', payload: { type: 'token_count' } }
     const f = join(d, 'rollout-future.jsonl')
     writeFileSync(f, `${JSON.stringify(meta)}\n${JSON.stringify(evt)}\n`)
     utimesSync(f, 3000, 3000)
     const snap = await scan(roots(), { now: () => 1 })
-    expect(snap.projects[0].lastSessionAt, '活跃度是 mtime 管线,不读文件内时间戳').toBe(3000 * 1000)
+    expect(snap.projects[0].lastSessionAt, 'activity is the mtime pipeline and does not read timestamps inside the file').toBe(3000 * 1000)
   })
 })

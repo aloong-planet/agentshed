@@ -1,5 +1,7 @@
-// 票05:八步产物扫描——六类识别(2026-08-01 加 specs)、标题提取、时间倒序、
-// README 与 vendor 排除、缺目录空态;类型顺序本身是契约(spec project-detail B1)。
+// Ticket 05: scanning the eight-step artifacts — recognising the six types (specs added 2026-08-01),
+// title extraction, reverse chronological order,
+// excluding README and vendor, and the missing-directory empty state; the type order is itself a contract
+// (spec project-detail B1).
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -27,18 +29,18 @@ afterEach(() => {
 })
 
 describe('readArtifacts', () => {
-  it('B1 类型顺序是契约:自顶向下的推导链(术语→决策→需求→界面→能力→教训)', () => {
+  it('B1 the type order is a contract: the top-down derivation chain (terminology → decisions → requirements → UI → capabilities → lessons)', () => {
     expect(ARTIFACT_ORDER).toEqual(['context', 'adr', 'specs', 'prototypes', 'features', 'postmortems'])
   })
 
-  it('B2 specs 与其余五类同规则识别(docs/specs/*.md,README 不计)', () => {
+  it('B2 specs is recognised by the same rules as the other five (docs/specs/*.md, README excluded)', () => {
     w('docs/specs/memory-view.md', '# Memory 查看\n', 700)
     w('docs/specs/README.md', '# Spec 索引\n', 800)
     const items = readArtifacts(proj)
     expect(items.map((i) => `${i.type}:${i.title}`)).toEqual(['specs:Memory 查看'])
   })
 
-  it('六类识别 + 标题取首个 # 标题 + 全局时间倒序;README 不计', () => {
+  it('recognises all six types, takes the first # heading as the title, orders globally by time descending, and excludes README', () => {
     w('CONTEXT.md', '# 术语表\n', 100)
     w('docs/adr/0001-first.md', '# ADR-0001 定架构\n', 500)
     w('docs/adr/README.md', '# 索引\n', 900)
@@ -55,12 +57,12 @@ describe('readArtifacts', () => {
       'prototypes',
       'context'
     ])
-    expect(items[0].title).toBe('截图(需求)') // 最新 mtime(600)在首位——列表按时间倒序,与类型顺序无关
+    expect(items[0].title).toBe('截图(需求)') // The newest mtime (600) comes first — the list is ordered by time descending, independent of the type order
     expect(items.find((i) => i.type === 'context')?.title).toBe('术语表')
     expect(items.some((i) => i.title === '索引')).toBe(false)
   })
 
-  it('prototypes:递归收 .html,排除根 index.html 与 vendor;标题用文件名', () => {
+  it('prototypes: collects .html recursively, excluding the root index.html and vendor; the title is the filename', () => {
     w('docs/prototypes/index.html', '<title>画廊</title>', 100)
     w('docs/prototypes/vendor/mermaid.min.js', 'x', 100)
     w('docs/prototypes/agents/prototype-agents.html', '<title>Agents</title>', 200)
@@ -70,11 +72,11 @@ describe('readArtifacts', () => {
     expect(names).toEqual(['list/visibility', 'prototype-agents'])
   })
 
-  it('无 docs 目录 → 空数组(非八步项目空态,不报错)', () => {
+  it('no docs directory → an empty array (the empty state for a project not following the eight steps, not an error)', () => {
     expect(readArtifacts(proj)).toEqual([])
   })
 
-  it('无标题的 md 用文件名兜底', () => {
+  it('a markdown file with no heading falls back to its filename', () => {
     w('docs/features/plain.md', '没有标题的正文\n', 100)
     expect(readArtifacts(proj)[0].title).toBe('plain')
   })

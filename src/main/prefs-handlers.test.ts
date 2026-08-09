@@ -1,8 +1,11 @@
-// issue #60:偏好类 IPC handler 抽成可注入 seam 后,那些原先只由 index.ts 语句次序
-// 保证的行为终于测得到——尤其**「先设 themeSource 再落盘」的顺序**。
+// issue #60: once the preference IPC handlers were extracted into an injectable seam, the behaviours
+// previously guaranteed only by the order of statements in index.ts
+// finally became testable — especially **the ordering of "set themeSource before persisting"**.
 //
-// 这里不测"设了 themeSource 之后系统外观能否传导到界面":那是 Electron 的责任,
-// 且用 themeSource 模拟系统变化是循环论证(见 appearance-mode.test.ts 的同款说明)。
+// This does not test "whether a system appearance change propagates to the UI once themeSource is set":
+// that is Electron's responsibility,
+// and simulating a system change with themeSource is circular (see the same note in
+// appearance-mode.test.ts).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -14,8 +17,10 @@ import type { ThemeSourceTarget } from './appearance-mode'
 import { createPrefsHandlers } from './prefs-handlers'
 
 /**
- * 取抛出错误的结构化码。断言码而非措辞:措辞已经交给渲染层按语言生成,
- * 拿它当断言对象等于把 UI 文案钉进主进程测试(ADR-0015 要消灭的正是这种耦合)。
+ * Take the thrown error's structured code. Codes are asserted rather than wording: the wording is now
+ * produced by the renderer per language,
+ * and asserting on it would pin UI copy into a main-process test (exactly the coupling ADR-0015 exists to
+ * eliminate).
  */
 function codeOf(fn: () => unknown): string | null {
   try {
@@ -26,7 +31,7 @@ function codeOf(fn: () => unknown): string | null {
   }
 }
 
-describe('偏好 handler', () => {
+describe('the preference handlers', () => {
   let dir: string
   let store: PrefsStore
   let theme: ThemeSourceTarget
@@ -43,61 +48,70 @@ describe('偏好 handler', () => {
   const handlers = (): ReturnType<typeof createPrefsHandlers> =>
     createPrefsHandlers({ store: () => store, theme })
 
-  it('setMode:合法值落盘并即刻设 themeSource', () => {
+  it('setMode: a valid value persists and sets themeSource immediately', () => {
     expect(handlers().setMode('dark')).toEqual({ ...DEFAULT_PREFS, mode: 'dark' })
     expect(theme.themeSource).toBe('dark')
     expect(new PrefsStore(dir).get().mode).toBe('dark')
   })
 
-  it('setMode:**落盘失败时 themeSource 仍已被设置**', () => {
-    // 这条就是 #60 的靶心:顺序反过来写(先落盘再设 themeSource)时,异常会抛在设
-    // themeSource 之前,于是渲染层已乐观勾上「深色」、界面却没变——提示说失败、
-    // 界面也不动,双重挫败。正确顺序下失败只丢持久化:本次有效,重启回到旧值。
+  it('setMode: **themeSource is still set when persisting fails**', () => {
+    // This is #60's bullseye: written the other way round (persist first, then set themeSource), the
+    // exception is thrown before
+    // themeSource is set, so the renderer has optimistically ticked "dark" while the UI has not changed —
+    // the notice says it failed and
+    // the UI does not move either, a double frustration. In the correct order a failure loses only the
+    // persistence: it works for this session and reverts on restart.
     //
-    // 用**真** PrefsStore 制造真实的落盘失败:把存储目录指到"父级是个文件"的路径,
-    // persist() 里的 mkdirSync 必然抛 ENOTDIR。不打桩,走的是真实失败路径。
+    // A **real** PrefsStore produces a real persistence failure: point the storage directory at a path
+    // whose parent is a file,
+    // so the mkdirSync inside persist() is bound to throw ENOTDIR. Nothing is stubbed; this is the real
+    // failure path.
     const asFile = join(dir, 'not-a-dir')
     writeFileSync(asFile, 'x')
     const blocked = new PrefsStore(join(asFile, 'sub'))
     const h = createPrefsHandlers({ store: () => blocked, theme })
 
-    // 断言错误来自**落盘**而不是别处:裸 toThrow() 无法区分"persist 抛了"与
-    // "校验或就绪检查抢先抛了",后两者下 themeSource 本就不该被设置,
-    // 那样这条用例会绿得毫无意义
+    // Assert the error came from **persisting** rather than elsewhere: a bare toThrow() cannot
+    // distinguish "persist threw" from
+    // "validation or the readiness check threw first", and in those cases themeSource should not have been
+    // set at all,
+    // which would make this case green and meaningless
     expect(() => h.setMode('dark')).toThrow(/ENOTDIR|ENOENT/)
     expect(theme.themeSource).toBe('dark')
   })
 
-  it('setMode:非法值抛错,且**不得把非法值透给 themeSource**', () => {
+  it('setMode: an invalid value throws, and **must not pass the invalid value to themeSource**', () => {
     expect(codeOf(() => handlers().setMode('auto'))).toBe(ERR.invalidPref)
     expect(theme.themeSource).toBe('system')
   })
 
-  it('setMode:偏好存储未就绪时抛错,且不碰 themeSource', () => {
-    // 校验顺序要紧:存储没就绪就设了 themeSource,等于界面变了却什么都没记住
+  it('setMode: throws when preference storage is not ready, without touching themeSource', () => {
+    // The order of checks matters: setting themeSource while storage is not ready means the UI changed
+    // and nothing was remembered
     const h = createPrefsHandlers({ store: () => null, theme })
     expect(codeOf(() => h.setMode('dark'))).toBe(ERR.prefsStoreNotReady)
     expect(theme.themeSource).toBe('system')
   })
 
-  it('setScheme / setLanguage:合法值落盘,非法值抛错', () => {
+  it('setScheme / setLanguage: a valid value persists and an invalid one throws', () => {
     expect(handlers().setScheme('blue').scheme).toBe('blue')
     expect(handlers().setLanguage('ja').language).toBe('ja')
     expect(codeOf(() => handlers().setScheme('neon'))).toBe(ERR.invalidPref)
     expect(codeOf(() => handlers().setLanguage('ko'))).toBe(ERR.invalidPref)
-    // 非法调用不得留下痕迹
+    // An invalid call must leave no trace
     expect(new PrefsStore(dir).get()).toEqual({ scheme: 'blue', language: 'ja', mode: 'system' })
   })
 
-  it('setScheme / setLanguage 都不碰 themeSource', () => {
-    // 「语言与明暗互不干扰」在 handler 这一层的落地
+  it('neither setScheme nor setLanguage touches themeSource', () => {
+    // "Language and light/dark do not interfere", realised at the handler layer
     handlers().setScheme('amber')
     handlers().setLanguage('ru')
     expect(theme.themeSource).toBe('system')
   })
 
-  it('getPrefs:存储未就绪时给默认值而不是抛错', () => {
-    // 首帧可能早于 whenReady 里的赋值,这里抛错会让渲染层拿不到任何偏好
+  it('getPrefs: returns the defaults rather than throwing when storage is not ready', () => {
+    // The first frame may precede the assignment in whenReady, and throwing here would leave the renderer
+    // with no preferences at all
     expect(createPrefsHandlers({ store: () => null, theme }).getPrefs()).toEqual(DEFAULT_PREFS)
   })
 })

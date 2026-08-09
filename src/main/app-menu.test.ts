@@ -1,8 +1,10 @@
-// 票 13:自定义应用菜单的模板构建。
+// Ticket 13: building the custom application menu's template.
 //
-// **能测的与不能测的,票里已经划清**:模板是「语言 → 菜单结构」的纯函数,可单测其文案与结构;
-// 而**菜单实际显示为哪种语言属 macOS 系统绘制,自动化触及不到**。
-// 不得用"构建函数返回了法语文案"冒充"菜单显示为法语"——后者只能人工验收。
+// **What can and cannot be tested was settled in the ticket**: the template is a pure function of
+// "language → menu structure", so its copy and structure are unit testable;
+// while **which language the menu actually displays is drawn by macOS and automation cannot reach it**.
+// "The build function returned French copy" must not be passed off as "the menu displays in French" —
+// the latter can only be accepted by hand.
 import { describe, it, expect } from 'vitest'
 import { LANGUAGES, dictOf } from '@shared/i18n'
 import { buildMenuTemplate } from './app-menu'
@@ -11,38 +13,40 @@ const labels = (lang: Parameters<typeof buildMenuTemplate>[0]): string[] =>
   buildMenuTemplate(lang).map((m) => String(m.label ?? ''))
 
 describe('buildMenuTemplate', () => {
-  it('六语各自都能构建出非空菜单,且顶层项数一致', () => {
+  it('all six languages build a non-empty menu with the same number of top-level items', () => {
     const counts = new Set(LANGUAGES.map((l) => buildMenuTemplate(l).length))
     expect(counts.size).toBe(1)
     for (const lang of LANGUAGES) expect(buildMenuTemplate(lang).length).toBeGreaterThan(0)
   })
 
-  it('顶层文案随语言变化,不是写死一种', () => {
-    // 只断"有 label"分不出真接了字典与写死中文;必须跨语言比较
+  it('the top-level copy changes with the language rather than being hard-coded to one', () => {
+    // Asserting only "there is a label" cannot distinguish a real dictionary lookup from hard-coded text;
+    // languages have to be compared against each other
     expect(labels('zh')).not.toEqual(labels('en'))
     expect(labels('ru')).not.toEqual(labels('ja'))
   })
 
-  it('每个顶层项的文案都取自字典,无空标签', () => {
+  it('every top-level item\'s copy comes from the dictionaries, with no empty label', () => {
     for (const lang of LANGUAGES) {
       for (const l of labels(lang)) expect(l.length).toBeGreaterThan(0)
     }
   })
 
-  it('应用名各语言不变(品牌名不本地化)', () => {
-    // ADR-0013 的范围边界:Agentshed 作为品牌名各语保持不变
+  it('the application name is the same in every language (a brand name is not localised)', () => {
+    // ADR-0013's scope boundary: Agentshed stays the same in every language as a brand name
     for (const lang of LANGUAGES) expect(labels(lang)[0]).toBe('Agentshed')
   })
 
-  it('接上「设置」与「全局刷新」两个快捷键入口', () => {
+  it('wires up the two keyboard entry points, Settings and Refresh', () => {
     const all = buildMenuTemplate('zh').flatMap((m) => (Array.isArray(m.submenu) ? m.submenu : []))
     const accels = all.map((i) => String((i as { accelerator?: string }).accelerator ?? ''))
-    expect(accels).toContain('CmdOrCtrl+,') // 设置:macOS 标准位
-    expect(accels).toContain('CmdOrCtrl+R') // 全局刷新
+    expect(accels).toContain('CmdOrCtrl+,') // Settings: the standard macOS slot
+    expect(accels).toContain('CmdOrCtrl+R') // Global refresh
   })
 
-  it('两个入口的文案与界面上的同名操作同源', () => {
-    // 菜单里叫「设置」而界面上叫别的,是同一个功能两个名字——用户会当成两件事
+  it('the two entry points\' copy shares its source with the same-named operations in the UI', () => {
+    // The menu calling it "Settings" while the UI calls it something else gives one feature two names —
+    // users would take them for two different things
     for (const lang of LANGUAGES) {
       const t = dictOf(lang)
       const flat = buildMenuTemplate(lang)
@@ -53,8 +57,9 @@ describe('buildMenuTemplate', () => {
     }
   })
 
-  it('点选两个入口会调用注入的动作,而不是自己去碰窗口', () => {
-    // 注入而非在模板里直接操作 BrowserWindow:那样模板就不再是纯函数,也测不了
+  it('selecting either entry point calls the injected action rather than touching the window itself', () => {
+    // Injected rather than operating on BrowserWindow inside the template: that would stop it being pure
+    // and make it untestable
     const called: string[] = []
     const tpl = buildMenuTemplate('zh', {
       openSettings: () => called.push('settings'),

@@ -1,4 +1,5 @@
-// 票06:装卸——复制落地(解引用)、同名阻止、失效拒绝、失败清理、卸载守卫。
+// Ticket 06: install and uninstall — landing by copy (dereferenced), blocking same names, refusing stale
+// projects, cleaning up on failure, and the uninstall guards.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync, existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -36,7 +37,7 @@ afterEach(() => {
 })
 
 describe('installSkill', () => {
-  it('Claude 侧安装:复制到项目 .claude/skills,内容完整', () => {
+  it('installing on the Claude side: copied into the project\'s .claude/skills with contents intact', () => {
     mkGlobalSkill('claude', 'tdd')
     const r = installSkill(roots(), { skillName: 'tdd', side: 'claude', targetProjectPath: proj })
     expect(r.ok).toBe(true)
@@ -45,14 +46,14 @@ describe('installSkill', () => {
     expect(readFileSync(join(target, 'assets', 'x.txt'), 'utf8')).toBe('asset')
   })
 
-  it('Codex 侧安装落 .agents/skills', () => {
+  it('installing on the Codex side lands in .agents/skills', () => {
     mkGlobalSkill('codex', 'decision-form')
     const r = installSkill(roots(), { skillName: 'decision-form', side: 'codex', targetProjectPath: proj })
     expect(r.ok).toBe(true)
     expect(existsSync(join(proj, '.agents', 'skills', 'decision-form', 'SKILL.md'))).toBe(true)
   })
 
-  it('源是软链 → 解引用复制为真目录', () => {
+  it('a symlinked source → dereferenced and copied as a real directory', () => {
     const real = mkGlobalSkill('codex', 'shared-real')
     mkdirSync(join(dir, '.claude', 'skills'), { recursive: true })
     symlinkSync(real, join(dir, '.claude', 'skills', 'shared'))
@@ -63,7 +64,7 @@ describe('installSkill', () => {
     expect(readFileSync(join(target, 'SKILL.md'), 'utf8')).toContain('shared-real')
   })
 
-  it('同名阻止:目标已有同名项目级 skill → conflict,不覆盖', () => {
+  it('same-name blocking: the target already has a project-level skill of that name → conflict, not overwritten', () => {
     mkGlobalSkill('claude', 'tdd', '全局版')
     mkdirSync(join(proj, '.claude', 'skills', 'tdd'), { recursive: true })
     writeFileSync(join(proj, '.claude', 'skills', 'tdd', 'SKILL.md'), '项目自有版')
@@ -72,7 +73,7 @@ describe('installSkill', () => {
     expect(readFileSync(join(proj, '.claude', 'skills', 'tdd', 'SKILL.md'), 'utf8')).toBe('项目自有版')
   })
 
-  it('失效项目拒绝(目标目录不存在)', () => {
+  it('a stale project is refused (the target directory does not exist)', () => {
     mkGlobalSkill('claude', 'tdd')
     const r = installSkill(roots(), {
       skillName: 'tdd',
@@ -82,7 +83,7 @@ describe('installSkill', () => {
     expect(r).toMatchObject({ ok: false, reason: ERR.skillStaleTarget })
   })
 
-  it('源缺失 → missing-source,且不留半成品目录', () => {
+  it('a missing source → missing-source, leaving no half-finished directory', () => {
     const r = installSkill(roots(), { skillName: 'nope', side: 'claude', targetProjectPath: proj })
     expect(r).toMatchObject({ ok: false, reason: ERR.skillMissingSource })
     const skillsDir = join(proj, '.claude', 'skills')
@@ -91,14 +92,14 @@ describe('installSkill', () => {
     }
   })
 
-  it('skill 名含路径穿越 → 拒绝', () => {
+  it('a skill name containing path traversal → refused', () => {
     const r = installSkill(roots(), { skillName: '../evil', side: 'claude', targetProjectPath: proj })
     expect(r.ok).toBe(false)
   })
 })
 
 describe('uninstallSkill', () => {
-  it('删除项目级副本;全局库不受影响', () => {
+  it('deletes the project-level copy; the global library is unaffected', () => {
     mkGlobalSkill('claude', 'tdd')
     installSkill(roots(), { skillName: 'tdd', side: 'claude', targetProjectPath: proj })
     const r = uninstallSkill({ skillName: 'tdd', side: 'claude', targetProjectPath: proj })
@@ -107,12 +108,12 @@ describe('uninstallSkill', () => {
     expect(existsSync(join(dir, '.claude', 'skills', 'tdd'))).toBe(true)
   })
 
-  it('目标不存在 → 报错不抛异常', () => {
+  it('a missing target → reports an error rather than throwing', () => {
     const r = uninstallSkill({ skillName: 'nope', side: 'claude', targetProjectPath: proj })
     expect(r.ok).toBe(false)
   })
 
-  it('名称穿越拒绝', () => {
+  it('name traversal is refused', () => {
     const r = uninstallSkill({ skillName: '../../etc', side: 'claude', targetProjectPath: proj })
     expect(r.ok).toBe(false)
   })
