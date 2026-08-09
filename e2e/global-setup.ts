@@ -1,12 +1,16 @@
-// e2e 全局准备:macOS 上把 Electron 指向「测试静音」副本(LSUIElement=true)。
+// e2e global setup: on macOS, point Electron at the "test-silenced" copy (LSUIElement=true).
 //
-// Dock 图标在 Electron 原生引导期就按 Info.plist 注册,主进程 JS 的 dock.hide()
-// 追不上——18 个实例连跑就是 Dock 图标持续闪现抖动。副本由 scripts/quiet-electron.sh
-// 生成(幂等、Electron 版本感知);ELECTRON_OVERRIDE_DIST_PATH 是 electron npm 壳的
-// 原生机制,playwright 的 electron.launch 在 worker 里 require('electron') 解析路径,
-// worker 继承本进程 env,故在这里设置即可全局生效。
+// The Dock icon is registered from Info.plist during Electron's native bootstrap, and the main process's
+// dock.hide()
+// cannot catch up — 18 instances back to back make the Dock icon flash continuously. The copy is produced
+// by scripts/quiet-electron.sh
+// (idempotent and Electron-version-aware); ELECTRON_OVERRIDE_DIST_PATH is a native mechanism of the
+// electron npm wrapper,
+// and playwright's electron.launch resolves the path with require('electron') inside a worker
+// which inherits this process's env, so setting it here takes effect globally.
 //
-// Linux(CI xvfb)无 Dock 概念,脚本自身空操作,这里也不设变量——行为与原先一致。
+// Linux (CI xvfb) has no Dock, the script is a no-op there, and no variable is set here either — the
+// behaviour is unchanged.
 import { execSync } from 'node:child_process'
 import { resolve } from 'node:path'
 
