@@ -20,7 +20,7 @@ SRC=node_modules/electron/dist
 DST=node_modules/.cache/electron-quiet/dist
 PLIST="$DST/Electron.app/Contents/Info.plist"
 
-[ -f "$SRC/version" ] || { echo "quiet-electron: 找不到 $SRC/version(electron 未安装?)" >&2; exit 1; }
+[ -f "$SRC/version" ] || { echo "quiet-electron: cannot find $SRC/version (electron not installed?)" >&2; exit 1; }
 
 # 快路径判据含完成标记:标记在**全部步骤成功后**才落——否则 codesign 若在
 # plist 写入之后失败,下次快路径拿版本+plist 判"已就绪",会永远放行一份
@@ -43,4 +43,4 @@ cp -Rc "$SRC" "$DST" 2>/dev/null || cp -R "$SRC" "$DST"
 codesign --force -s - "$DST/Electron.app"
 
 touch "$DST/.quiet-ok"   # 完成标记最后落,快路径以它为准
-echo "quiet-electron: 副本就绪($(cat "$DST/version"))"
+echo "quiet-electron: copy ready ($(cat "$DST/version"))"

@@ -26,12 +26,12 @@ const ALLOW = [
   {
     // 去掉会红:六份字典**就是**中文文案的家,扫它等于扫源语言本身
     match: (rel) => rel.startsWith('shared/i18n/'),
-    why: '六语字典本体——源语言(zh)的文案必然是中文,这里正是它该待的地方'
+    why: 'the six dictionaries themselves — the source language (zh) is Chinese by definition'
   },
   {
     // 去掉会红:测试里有中文断言、fixture 与用例名,它们不流向界面
     match: (rel) => rel.endsWith('.test.ts') || rel.endsWith('.test.tsx'),
-    why: '测试文件:用例名、fixture 与断言中的中文不进产品界面'
+    why: 'test files — case names, fixtures and assertions never reach the product UI'
   }
 ]
 
@@ -63,13 +63,15 @@ for (const file of walk(SRC)) {
 }
 
 if (hits.length) {
-  console.error(`✗ 文案门禁:发现 ${hits.length} 处未进字典的中文字面量\n`)
+  console.error(`✗ Copy gate: found ${hits.length} Chinese literal(s) not in the dictionary\n`)
   for (const h of hits) console.error(`    src/${h.rel}:${h.n}  ${h.text}`)
   console.error(
-    '\n把它们移进 src/shared/i18n/zh.ts 并补齐其余五语(漏补由 typecheck 拦)。\n' +
-      '确属开发者日志或测试用途的,在 scripts/check-i18n.mjs 的白名单里显式登记并写明理由。'
+    '\nMove them into src/shared/i18n/zh.ts and fill in the other five languages ' +
+      '(typecheck catches any you miss).\n' +
+      'If a hit is genuinely a developer log or test-only string, register it explicitly ' +
+      'in the allow-list in scripts/check-i18n.mjs with a stated reason.'
   )
   process.exit(1)
 }
-console.log('✓ 文案门禁:源码中无未进字典的中文字面量')
-for (const a of ALLOW) console.log(`    白名单 · ${a.why}`)
+console.log('✓ Copy gate: no Chinese literals outside the dictionary')
+for (const a of ALLOW) console.log(`    allow-list · ${a.why}`)
