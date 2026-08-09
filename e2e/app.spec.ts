@@ -1971,7 +1971,7 @@ test('the language selector: seven items including follow-system and the divider
   await expect(pop.locator('.lang-opt')).toHaveCount(7)
   await expect(pop.locator('.lang-sep')).toHaveCount(1)
   // 首项是策略且显示解析出的语言;它不是「一种语言」
-  await expect(pop.locator('.lang-opt').first()).toContainText('Follow system')
+  await expect(pop.locator('.lang-opt').first()).toContainText('跟随系统')
   await expect(pop.locator('.lang-opt').first()).toContainText('简体中文')
 
   // 浮层不被设置页 overflow:auto 裁掉:四角与中心命中测试,属性存在不算数
