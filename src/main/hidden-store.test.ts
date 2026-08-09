@@ -1,4 +1,5 @@
-// 票02 纵切(c):手动隐藏——存 app 自有存储(不写 agent 配置),原子写,scan 应用 hidden 标。
+// Ticket 02 slice (c): manual hiding — stored in the app's own storage (never the agent configuration),
+// written atomically, with scan applying the hidden flag.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -16,7 +17,7 @@ afterEach(() => {
 })
 
 describe('HiddenStore', () => {
-  it('空目录起步 → 无隐藏;set 后持久化,重开实例可见', () => {
+  it('starting from an empty directory → nothing hidden; after set it persists and a new instance sees it', () => {
     const s1 = new HiddenStore(join(dir, 'store'))
     expect(s1.isHidden('/p/a')).toBe(false)
     s1.setHidden('/p/a', true)
@@ -25,7 +26,7 @@ describe('HiddenStore', () => {
     expect(s2.isHidden('/p/a')).toBe(true)
   })
 
-  it('取消隐藏后持久化移除', () => {
+  it('unhiding removes it from the persisted store', () => {
     const s = new HiddenStore(join(dir, 'store'))
     s.setHidden('/p/a', true)
     s.setHidden('/p/a', false)
@@ -33,14 +34,14 @@ describe('HiddenStore', () => {
     expect(s2.isHidden('/p/a')).toBe(false)
   })
 
-  it('存储文件损坏 → 降级为空集不抛错', () => {
+  it('a corrupt storage file → degrades to an empty set without throwing', () => {
     mkdirSync(join(dir, 'store'), { recursive: true })
     writeFileSync(join(dir, 'store', 'hidden.json'), '{broken')
     const s = new HiddenStore(join(dir, 'store'))
     expect(s.isHidden('/p/a')).toBe(false)
   })
 
-  it('写入是原子的:目录中不残留临时文件', () => {
+  it('writes are atomic: no temporary file is left in the directory', () => {
     const s = new HiddenStore(join(dir, 'store'))
     s.setHidden('/p/a', true)
     const files = readdirSync(join(dir, 'store'))
@@ -48,8 +49,8 @@ describe('HiddenStore', () => {
   })
 })
 
-describe('scan 应用 hidden', () => {
-  it('隐藏集合中的项目 hidden=true(路径按合并键匹配,尾斜杠不敏感)', async () => {
+describe('scan applies hidden', () => {
+  it('a project in the hidden set gets hidden=true (paths match by merge key, insensitive to a trailing slash)', async () => {
     const proj = join(dir, 'work', 'p1')
     mkdirSync(proj, { recursive: true })
     writeFileSync(join(dir, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))

@@ -8,16 +8,16 @@ import {
   isAppearanceScheme
 } from './appearance'
 
-describe('appearance scheme 契约', () => {
-  it('默认方案为 purple', () => {
+describe('the appearance scheme contract', () => {
+  it('defaults to the purple scheme', () => {
     expect(DEFAULT_SCHEME).toBe('purple')
   })
 
-  it('枚举恰好三值', () => {
+  it('the enum has exactly three values', () => {
     expect([...APPEARANCE_SCHEMES]).toEqual(['purple', 'blue', 'amber'])
   })
 
-  it('isAppearanceScheme 只认三值', () => {
+  it('isAppearanceScheme accepts only those three values', () => {
     expect(isAppearanceScheme('purple')).toBe(true)
     expect(isAppearanceScheme('blue')).toBe(true)
     expect(isAppearanceScheme('amber')).toBe(true)
@@ -27,19 +27,19 @@ describe('appearance scheme 契约', () => {
     expect(isAppearanceScheme(1)).toBe(false)
   })
 
-  // parsePrefs 已随 Prefs 一起移入 shared/prefs.ts,其测试见 prefs.test.ts
+  // parsePrefs moved into shared/prefs.ts along with Prefs; its tests are in prefs.test.ts
 })
 
-describe('appearance mode 契约', () => {
-  it('默认模式为跟随系统', () => {
+describe('the appearance mode contract', () => {
+  it('defaults to following the system', () => {
     expect(DEFAULT_MODE).toBe('system')
   })
 
-  it('枚举恰好三值', () => {
+  it('the enum has exactly three values', () => {
     expect([...APPEARANCE_MODES]).toEqual(['system', 'light', 'dark'])
   })
 
-  it('isAppearanceMode 只认三值', () => {
+  it('isAppearanceMode accepts only those three values', () => {
     expect(isAppearanceMode('system')).toBe(true)
     expect(isAppearanceMode('light')).toBe(true)
     expect(isAppearanceMode('dark')).toBe(true)

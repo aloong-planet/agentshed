@@ -1,9 +1,9 @@
-// 模型名 → provider 推断(趋势按 provider 分段的依据)
+// Inferring a provider from a model name (the basis for segmenting the trend by provider)
 import { describe, it, expect } from 'vitest'
 import { providerOf, PROVIDER_ORDER, PROVIDER_LABEL } from './provider'
 
 describe('providerOf', () => {
-  it('Anthropic:claude-* 及带厂商前缀的变体', () => {
+  it('Anthropic: claude-* and vendor-prefixed variants', () => {
     expect(providerOf('claude-fable-5')).toBe('Anthropic')
     expect(providerOf('claude-opus-4-8')).toBe('Anthropic')
     expect(providerOf('claude-haiku-4-5-20251001')).toBe('Anthropic')
@@ -11,7 +11,7 @@ describe('providerOf', () => {
     expect(providerOf('us.anthropic.claude-opus-5')).toBe('Anthropic')
   })
 
-  it('OpenAI:gpt-* / o1|o3-* / codex 系', () => {
+  it('OpenAI: gpt-* / o1|o3-* / the codex family', () => {
     expect(providerOf('gpt-5.6-sol')).toBe('OpenAI')
     expect(providerOf('gpt-5.2-codex')).toBe('OpenAI')
     expect(providerOf('codex-auto-review')).toBe('OpenAI')
@@ -22,31 +22,36 @@ describe('providerOf', () => {
     expect(providerOf('gemini-3-pro')).toBe('Google')
   })
 
-  it('未知/空 → other', () => {
+  it('unknown or empty → other', () => {
     expect(providerOf('')).toBe('other')
     expect(providerOf(null)).toBe('other')
     expect(providerOf('llama-4-70b')).toBe('other')
-    // <synthetic>:取自真实会话数据的形态(Claude Code 给合成消息打的标记),
-    // 尖括号包裹、不是常规模型名——想象 fixture 想不出这种写法,故单列一条
+    // <synthetic>: a shape taken from real session data (the marker Claude Code puts on a synthetic
+    // message),
+    // wrapped in angle brackets and not a normal model name — an imagined fixture would never produce
+    // this spelling, hence its own case
     expect(providerOf('<synthetic>')).toBe('other')
   })
 
-  it('大小写不敏感', () => {
+  it('is case-insensitive', () => {
     expect(providerOf('Claude-Opus-5')).toBe('Anthropic')
     expect(providerOf('GPT-5.5')).toBe('OpenAI')
   })
 
-  it('展示顺序固定(图例与堆叠顺序稳定,不随当日数据抖动)', () => {
+  it('the display order is fixed (the legend and stacking order are stable and do not churn with the day\'s data)', () => {
     expect(PROVIDER_ORDER).toEqual(['Anthropic', 'OpenAI', 'Google', 'other'])
   })
 
-  it('每个 provider 都有显示名,且顺序全集无遗漏', () => {
-    // 值已脱敏为语言无关标识符,界面文字改由这张表提供。
-    // 遍历 PROVIDER_ORDER 而非硬写几条:将来加 provider 却漏配显示名时这里会红。
+  it('every provider has a display name, and the order covers them all', () => {
+    // The values are now language-independent identifiers, with this table providing the UI text.
+    // Iterating PROVIDER_ORDER rather than hard-writing a few: adding a provider without a display name
+    // goes red here.
     for (const p of PROVIDER_ORDER) {
-      // other 的显示名随界面语言变化,故表里是 null、由渲染层从字典取(票 07);
-      // 这里断的是"键在表里",不是"值非空"——后者对 other 已不成立
-      expect(PROVIDER_LABEL, `provider ${p} 缺显示名`).toHaveProperty(p)
+      // `other`'s display name varies with the UI language, so the table holds null and the renderer
+      // takes it from the dictionaries (ticket 07);
+      // what is asserted here is "the key is in the table", not "the value is non-empty" — the latter no
+      // longer holds for other
+      expect(PROVIDER_LABEL, `provider ${p} has no display name`).toHaveProperty(p)
     }
     expect(Object.keys(PROVIDER_LABEL).sort()).toEqual([...PROVIDER_ORDER].sort())
     expect(PROVIDER_LABEL.other).toBeNull()
