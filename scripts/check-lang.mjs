@@ -82,8 +82,8 @@ const ALLOW = [
   },
   {
     match: (f) => f === 'docs/specs/i18n.md',
-    lines: 5,
-    why: 'language names, the pre-sanitisation values, and the mis-mapped dictionary value the e2e strategy section quotes as evidence'
+    lines: 9,
+    why: 'language names, the pre-sanitisation values, the mis-mapped dictionary value the e2e strategy section quotes as evidence, and the counter word and quotation marks the copy rules name as the thing to preserve'
   },
   {
     match: (f) => f === 'docs/features/i18n.md',
