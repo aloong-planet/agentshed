@@ -1,5 +1,6 @@
-// Seam 1(数据层):扫描引擎对 fixture 目录的行为测试。
-// 票01 骨架:空 fixture → 空快照、未检测态;缺目录不抛错。
+// Seam 1 (the data layer): behavioural tests of the scan engine against fixture directories.
+// Ticket 01 skeleton: an empty fixture → an empty snapshot in the not-detected state; a missing directory
+// does not throw.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -25,8 +26,8 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-describe('scan(骨架)', () => {
-  it('两侧都不存在 → 空快照,双侧 detected=false,不抛错', async () => {
+describe('scan (skeleton)', () => {
+  it('neither side exists → an empty snapshot with detected=false on both sides, without throwing', async () => {
     const snap = await scan(roots(), { now: () => 42 })
     expect(snap.scannedAt).toBe(42)
     expect(snap.sides.claude.detected).toBe(false)
@@ -34,14 +35,14 @@ describe('scan(骨架)', () => {
     expect(snap.projects).toEqual([])
   })
 
-  it('仅 Claude 侧存在(有 ~/.claude.json)→ claude.detected=true', async () => {
+  it('only the Claude side exists (there is a ~/.claude.json) → claude.detected=true', async () => {
     writeFileSync(join(dir, '.claude.json'), JSON.stringify({ projects: {} }))
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.sides.claude.detected).toBe(true)
     expect(snap.sides.codex.detected).toBe(false)
   })
 
-  it('仅 Codex 侧存在(有 ~/.codex 目录)→ codex.detected=true', async () => {
+  it('only the Codex side exists (there is a ~/.codex directory) → codex.detected=true', async () => {
     mkdirSync(join(dir, '.codex'), { recursive: true })
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.sides.claude.detected).toBe(false)

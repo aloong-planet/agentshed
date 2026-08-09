@@ -1,10 +1,12 @@
-// token-stats 序列 E:自动保鲜的纯函数 seam——聚焦节流判定与参数注入解析。
-// 触发接线(timer/focus 事件)在装配层,由 e2e 短间隔注入驱动。
+// token-stats sequence E: the automatic refresh's pure function seam — the focus throttle judgement and
+// parsing of injected parameters.
+// The trigger wiring (timer and focus events) is in the assembly layer, driven by e2e with a short
+// interval injected.
 import { describe, it, expect } from 'vitest'
 import { shouldRescanOnFocus, rescanIntervalMs } from './rescan'
 
-describe('shouldRescanOnFocus(E1 节流)', () => {
-  it('从未扫过 → 扫;距上次不足节流窗 → 不扫;达到窗口(含边界)→ 扫', () => {
+describe('shouldRescanOnFocus (E1 throttling)', () => {
+  it('never scanned → scan; less than the throttle window since the last → do not scan; at the window (inclusive) → scan', () => {
     expect(shouldRescanOnFocus(1000, null, 60_000)).toBe(true)
     expect(shouldRescanOnFocus(59_999, 0, 60_000)).toBe(false)
     expect(shouldRescanOnFocus(60_000, 0, 60_000)).toBe(true)
@@ -12,8 +14,8 @@ describe('shouldRescanOnFocus(E1 节流)', () => {
   })
 })
 
-describe('rescanIntervalMs(E5 参数注入)', () => {
-  it('合法正整数取注入值;缺失/非数/零/负 → 默认值', () => {
+describe('rescanIntervalMs (E5 parameter injection)', () => {
+  it('a valid positive integer takes the injected value; missing, non-numeric, zero or negative → the default', () => {
     expect(rescanIntervalMs('2000', 300_000)).toBe(2000)
     expect(rescanIntervalMs(undefined, 300_000)).toBe(300_000)
     expect(rescanIntervalMs('abc', 300_000)).toBe(300_000)

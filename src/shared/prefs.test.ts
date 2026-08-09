@@ -1,14 +1,16 @@
-// 偏好的跨进程契约校验。注意与 PrefsStore 的文件读取降级是两套语义:
-// 这里不合契约就整体拒绝(协议被破坏),那里单字段坏只降级该字段(见 prefs-store.test.ts)。
+// Cross-process contract validation for the preferences. Note this has different semantics from
+// PrefsStore's file-read degradation:
+// here anything not meeting the contract is refused wholesale (the protocol is broken), while there one
+// bad field degrades only itself (see prefs-store.test.ts).
 import { describe, it, expect } from 'vitest'
 import { parsePrefs, DEFAULT_PREFS } from './prefs'
 
-describe('parsePrefs(跨进程入口校验)', () => {
-  it('默认偏好:紫 + 跟随系统语言 + 跟随系统明暗', () => {
+describe('parsePrefs (cross-process entry validation)', () => {
+  it('the defaults: purple + follow the system language + follow the system appearance', () => {
     expect(DEFAULT_PREFS).toEqual({ scheme: 'purple', language: 'system', mode: 'system' })
   })
 
-  it('收合法对象,丢弃多余字段', () => {
+  it('accepts a valid object and drops extra fields', () => {
     expect(parsePrefs({ scheme: 'blue', language: 'fr', mode: 'dark' })).toEqual({
       scheme: 'blue',
       language: 'fr',
@@ -21,20 +23,21 @@ describe('parsePrefs(跨进程入口校验)', () => {
     })
   })
 
-  it('「跟随系统」是合法的语言偏好值', () => {
-    // 它不是某种语言,而是一条策略——校验器必须放行它,
-    // 否则跟随系统的用户每次启动都会被判为契约破坏
+  it('"follow system" is a valid language preference value', () => {
+    // It is not a language but a policy — the validator has to admit it,
+    // or a user following the system would be judged a contract violation on every launch
     expect(parsePrefs({ scheme: 'purple', language: 'system', mode: 'system' })?.language).toBe(
       'system'
     )
   })
 
-  it('「跟随系统」同样是合法的外观模式值', () => {
-    // 与语言同构:mode 存的是策略,不是当刻解析出的明暗
+  it('"follow system" is likewise a valid appearance mode value', () => {
+    // Structurally identical to language: mode stores the policy, not the light/dark resolved at that
+    // moment
     expect(parsePrefs({ scheme: 'purple', language: 'zh', mode: 'system' })?.mode).toBe('system')
   })
 
-  it('任一字段不合契约即整体拒绝', () => {
+  it('one field failing the contract refuses the whole thing', () => {
     expect(parsePrefs({ scheme: 'neon', language: 'fr', mode: 'dark' })).toBeNull()
     expect(parsePrefs({ scheme: 'blue', language: 'ko', mode: 'dark' })).toBeNull()
     expect(parsePrefs({ scheme: 'blue', language: 'fr', mode: 'auto' })).toBeNull()

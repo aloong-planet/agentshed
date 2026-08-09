@@ -1,4 +1,5 @@
-// 票02 纵切(a):两侧注册表 → 项目并集(徽标/失效/路径规范化)。
+// Ticket 02 slice (a): both sides' registries → the project union (badges / staleness / path
+// normalisation).
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -15,7 +16,7 @@ function roots(): ScanRoots {
     agentsSkillsDir: join(dir, '.agents', 'skills')
   }
 }
-/** 建一个真实存在的"项目目录"并返回其路径 */
+/** Create a genuinely existing "project directory" and return its path */
 function mkProject(name: string): string {
   const p = join(dir, 'work', name)
   mkdirSync(p, { recursive: true })
@@ -39,8 +40,8 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-describe('注册表并集', () => {
-  it('Claude 注册表 → 项目条目,目录存在为正常、不存在为失效', async () => {
+describe('the registry union', () => {
+  it('the Claude registry → project entries; an existing directory is normal and a missing one is stale', async () => {
     const alive = mkProject('alive')
     writeClaudeRegistry([alive, join(dir, 'work', 'ghost')])
     const snap = await scan(roots(), { now: () => 1 })
@@ -50,7 +51,7 @@ describe('注册表并集', () => {
     expect(byName['ghost']).toMatchObject({ sides: ['claude'], stale: true })
   })
 
-  it('Codex config.toml 注册表 → 项目条目', async () => {
+  it('the Codex config.toml registry → project entries', async () => {
     const p = mkProject('codex-only')
     writeCodexRegistry([p])
     const snap = await scan(roots(), { now: () => 1 })
@@ -58,7 +59,7 @@ describe('注册表并集', () => {
     expect(snap.projects[0]).toMatchObject({ name: 'codex-only', sides: ['codex'], stale: false })
   })
 
-  it('同一目录两侧都注册 → 合并为一项,双徽标', async () => {
+  it('the same directory registered on both sides → merged into one entry with both badges', async () => {
     const p = mkProject('both')
     writeClaudeRegistry([p])
     writeCodexRegistry([p])
@@ -67,7 +68,7 @@ describe('注册表并集', () => {
     expect(snap.projects[0].sides).toEqual(['claude', 'codex'])
   })
 
-  it('尾斜杠差异不产生重复项', async () => {
+  it('a trailing-slash difference produces no duplicate', async () => {
     const p = mkProject('slashy')
     writeClaudeRegistry([p])
     writeCodexRegistry([`${p}/`])
@@ -76,7 +77,7 @@ describe('注册表并集', () => {
     expect(snap.projects[0].sides).toEqual(['claude', 'codex'])
   })
 
-  it('注册表 JSON 损坏 → 该侧降级为空并带错误,另一侧照常', async () => {
+  it('a corrupt registry JSON → that side degrades to empty with an error while the other behaves normally', async () => {
     writeFileSync(join(dir, '.claude.json'), '{broken json')
     const p = mkProject('ok-side')
     writeCodexRegistry([p])
