@@ -1,4 +1,5 @@
-/* 共享:provider 堆叠趋势图(被多个原型页引用,改此一处即可全部生效)。
+/* Shared: the provider-stacked trend chart (referenced by several prototype pages, so changing it here
+   changes all of them).
    对应真 app 的 TrendChart 组件 —— 原型与实现都保持"一份源、多处引用"。 */
 :root {
   --p-anthropic: #d97757;
@@ -23,7 +24,7 @@
   border-radius: 9px;
   padding: 12px;
 }
-/* 柱体不可 overflow:hidden——会裁掉定位在柱外的 tooltip 伪元素;
+/* A bar must not use overflow:hidden — it would clip the tooltip pseudo-element positioned outside it;
    圆角改由最顶部那一段承担 */
 .col {
   flex: 1;
@@ -71,7 +72,8 @@
   pointer-events: none;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
 }
-/* x 轴:只标数据日,标签绝对定位钉柱中心(JS 量 DOM 排布),首尾出界 clamp——
+/* The x axis: data days only, with labels absolutely positioned on bar centres (JS measures the DOM layout)
+   and the ends clamped —
    不能用 flex 等分格:格子会被压得比文字窄导致两侧裁字,且与柱区 padding 错位 */
 .xaxis {
   position: relative;
@@ -100,7 +102,7 @@
 .legend .sw.google    { background: var(--p-google) }
 .legend .sw.other     { background: var(--p-other) }
 .legend .lg-note { margin-left: auto }
-/* 按模型拆分条同用 provider 品牌色 */
+/* The per-model breakdown bars use the same provider brand colours */
 .m.anthropic .tr i { background: var(--p-anthropic) }
 .m.openai .tr i    { background: var(--p-openai) }
 .m.google .tr i    { background: var(--p-google) }

@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- 原型(UI)· appearance:设置页两节——
+<!-- A UI prototype · appearance: the settings page's two sections —
      语言(跟随系统 + 六选一)/ 外观(模式:跟随系统·浅色·深色 × 配色:紫·雾蓝·琥珀褐)。
      两处「跟随系统」是同一个模型:偏好是策略,生效值由系统解析,系统变则界面变;选定具体值即锁定。
 
@@ -16,7 +16,7 @@
 <meta charset="utf-8">
 <title>原型 — 设置 · 语言与外观</title>
 <style>
-  /* ── 紫(现网默认) ── */
+  /* ── Purple (the shipped default) ── */
   html[data-scheme="purple"][data-theme="light"] {
     --bg: #f7f8f9;
     --card: #ffffff;
@@ -47,7 +47,7 @@
     --cl-bg: #3a3153; --cl-fg: #c9b3ec;
     --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
   }
-  /* ── 雾蓝 ── */
+  /* ── Mist blue ── */
   html[data-scheme="blue"][data-theme="light"] {
     --bg: #f6f5f3;
     --card: #fffcf9;
@@ -78,7 +78,7 @@
     --cl-bg: #243448; --cl-fg: #a8c0dc;
     --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
   }
-  /* ── 琥珀褐 ── */
+  /* ── Amber brown ── */
   html[data-scheme="amber"][data-theme="light"] {
     --bg: #f7f3ec;
     --card: #fffcf7;
@@ -157,7 +157,8 @@
   .sec-t{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);margin-bottom:10px}
   .sec{margin-bottom:24px}
 
-  /* ── 设置行:标签在左、控件在右。语言与外观共用同一形态 ── */
+  /* ── A settings row: the label on the left, the control on the right. Language and appearance share the
+     same form ── */
   .field{background:var(--card);border:1px solid var(--line-strong);border-radius:12px}
   .frow{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px}
   .frow + .frow{border-top:1px solid var(--line)}
@@ -175,7 +176,7 @@
   .lang-trigger .chev{flex:none;color:var(--text-2);display:flex;transition:transform .15s}
   .lang-trigger[aria-expanded="true"] .chev{transform:rotate(180deg)}
 
-  /* 浮层用 fixed:设置页容器是 overflow:auto,absolute 会被它裁掉 */
+  /* The overlay is fixed: the settings page container is overflow:auto, which would clip an absolute one */
   .lang-pop{
     position:fixed;z-index:60;display:none;min-width:262px;padding:4px;
     background:var(--card);border:1px solid var(--line-strong);border-radius:10px;box-shadow:var(--shadow)}
@@ -191,7 +192,8 @@
   .lang-opt.on .n{color:var(--accent-deep)}
   .lang-pop .sep{height:1px;background:var(--line);margin:4px 8px}
 
-  /* 分段控件:沿用真代码 theme.css 的 .seg 形态(inline-flex + 外框 + overflow 裁剪 +
+  /* The segmented control: reusing the .seg form from the real code's theme.css (inline-flex + an outer frame
+     + overflow clipping +
      选中态 accent-soft),尺寸按设置页语境略放大(真代码是图表工具栏用的 11px/3px) */
   .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden}
   .seg button{
@@ -201,7 +203,8 @@
   .seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
   .seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 
-  /* 配色:横排小卡,只留色块 + 名称(紧凑化时去掉了整句描述) */
+  /* Colour schemes: small cards in a row keeping only a swatch and a name (the full-sentence description was
+     dropped when compacting) */
   .pal-grid{display:flex;gap:8px}
   .pal{
     display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 11px;
@@ -224,7 +227,8 @@
     font-size:11.5px;color:var(--text-2);line-height:1.55}
   .note b{color:var(--text)}
 
-  /* ── 演示基建(非设计的一部分):独立悬浮层,刻意不复用被评判控件的样式 ── */
+  /* ── The demo harness (not part of the design): an independent floating layer that deliberately does not
+     reuse the styles of the controls being judged ── */
   .demo-bar{
     position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:90;
     display:flex;align-items:center;gap:9px;padding:7px 12px;border-radius:999px;
@@ -263,15 +267,17 @@
     <span class="out" id="sysOut"></span>
   </div>
 <script>
-  /* ── 图标:内联 SVG(Lucide 官方 path)。新增图标位守 /ui-design 第 3 节;
+  /* ── Icons: inline SVG (Lucide's official paths). A new icon slot follows section 3 of /ui-design;
         存量字符图标(🤖 📁 ↻ ⚙️ 等)按裁定另票处理(issue #51),本轮不动。 ── */
   const SVG_CHEVRON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
   const SVG_CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
 
   const LANGS = ['zh', 'en', 'fr', 'es', 'ru', 'ja']
-  /** 语言选择器取值域 = 跟随系统 + 六语。'system' 是偏好值,不是一种语言 */
+  /** The language selector's value domain = follow system + the six languages. 'system' is a preference
+     * value, not a language */
   const OPTIONS = ['system', ...LANGS]
-  /** 外观模式取值域,与语言同构:'system' 是策略,light/dark 是锁定值 */
+  /** The appearance mode's value domain, structurally identical to language: 'system' is a policy while
+     * light/dark are locked values */
   const MODES = ['system', 'light', 'dark']
 
   const T = {
@@ -403,7 +409,7 @@
     }
   }
 
-  /** 色板预览取样(card / accent-soft / accent / text),按明暗两套——
+  /** Palette preview samples (card / accent-soft / accent / text), in two sets by light and dark —
       色板是所见即所得的预览,深色下若仍显示浅色取样会与实际界面不符。
       值直接取自上方各主题变量块,改主题色须同步改这里。 */
   const SWATCHES = {
@@ -419,7 +425,8 @@
     }
   }
 
-  /* ── 演示工装数据(非设计的一部分):模拟 app.getPreferredSystemLanguages() 的返回。
+  /* ── Demo harness data (not part of the design): simulating what app.getPreferredSystemLanguages()
+     returns.
         每一档对应 spec「启动与语言决定」里的一条边界。 ── */
   const SYS_CASES = [
     { id: 'zh',    label: '简体中文 [zh-Hans-CN]',        list: ['zh-Hans-CN'] },
@@ -432,7 +439,8 @@
   ]
 
   let dim = 'settings'
-  /** 三个偏好:配色、外观模式、语言。后两者的 'system' 都是策略而非快照 */
+  /** The three preferences: colour scheme, appearance mode and language. 'system' in the latter two is a
+     * policy rather than a snapshot */
   let scheme = 'purple'
   let modePref = 'system'
   let langPref = 'system'
@@ -441,7 +449,8 @@
   let popOpen = false
   let cursor = 0
 
-  /** 系统偏好语言列表 → 生效语言:按优先级取首个受支持者,全不中回退英文 */
+  /** The system's preferred language list → the effective language: take the first supported one in priority
+     * order, falling back to English if none match */
   function resolveSystem(list) {
     for (const tag of list) {
       const primary = String(tag).split('-')[0].toLowerCase()
@@ -452,7 +461,8 @@
 
   const sysList = () => (SYS_CASES.find((c) => c.id === sysCase) || SYS_CASES[0]).list
   const effLang = () => (langPref === 'system' ? resolveSystem(sysList()) : langPref)
-  /** 外观模式 → 生效明暗。与语言同构:偏好是策略,生效值才是最终落到 DOM 上的东西 */
+  /** Appearance mode → the effective light/dark. Structurally identical to language: the preference is a
+     * policy, and the effective value is what actually lands on the DOM */
   const effTheme = () => (modePref === 'system' ? (mockSystemDark ? 'dark' : 'light') : modePref)
   const t = () => T[effLang()]
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
@@ -467,7 +477,8 @@
   }
 
   function applyScheme() { document.documentElement.setAttribute('data-scheme', scheme) }
-  /** 生效明暗写到 <html data-theme>,沿用真代码 theme.css 已有的 :root[data-theme] 约定 */
+  /** The effective light/dark is written to <html data-theme>, reusing the :root[data-theme] convention the
+     * real code's theme.css already has */
   function applyTheme() { document.documentElement.setAttribute('data-theme', effTheme()) }
 
   function applyLang() {
@@ -488,7 +499,7 @@
     render()
   }
 
-  /* ── 语言下拉浮层:fixed 定位,按触发器 rect 贴合 ── */
+  /* ── The language dropdown overlay: fixed positioning, aligned to the trigger's rect ── */
   function positionPop() {
     const trig = document.getElementById('langTrigger')
     const pop = document.getElementById('langPop')
@@ -697,17 +708,19 @@
       trig.onclick = (e) => { e.stopPropagation(); popOpen ? closePop() : openPop() }
       trig.onkeydown = (e) => {
         if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
-          // 打开用的这一下不得再冒泡给浮层导航监听器,否则同一次按键既开又移一格
+          // The keystroke that opened it must not also bubble to the overlay's navigation listener, or one press
+        // would both open and move a step
           if (!popOpen) { e.preventDefault(); e.stopPropagation(); openPop() }
         }
       }
     }
-    // 设置页滚动时浮层会脱锚(fixed 不跟随滚动容器),直接关闭
+    // Scrolling the settings page unanchors the overlay (fixed does not follow a scroll container), so just
+      // close it
     const pane = document.getElementById('settingsPane')
     if (pane) pane.onscroll = () => { if (popOpen) closePop() }
   }
 
-  /* ── 演示工装接线(data-demo-harness) ── */
+  /* ── Demo harness wiring (data-demo-harness) ── */
   function renderDemoOut() {
     const out = document.getElementById('sysOut')
     const lg = T[effLang()].native

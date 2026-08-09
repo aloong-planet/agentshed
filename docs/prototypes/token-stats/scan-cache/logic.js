@@ -1,16 +1,18 @@
-// 刷新生命周期状态机(票04)。规则只在 reduce;legal 是派生查询;非法事件静默忽略。
-// 管线的纯函数流程见 pipeline.mmd(不建模为状态机——无状态,数据一次流过)。
+// The refresh lifecycle state machine (ticket 04). The rules live only in reduce; legal is a derived
+// query; an illegal event is silently ignored.
+// The pipeline's pure-function flow is in pipeline.mmd (not modelled as a state machine — it is stateless
+// and the data flows through once).
 
 /** @typedef {'idle'|'scanning'|'writing'|'quit'} Status */
 /**
  * @typedef {Object} ScanState
  * @property {Status} status
  * @property {string|null} illegal
- * @property {number} files    已处理会话文件数
- * @property {number} total    本轮枚举出的会话文件总数
- * @property {number} cacheHits 缓存键命中而跳过重算的文件数
- * @property {number} skipped   坏行跳过计数(不弃文件)
- * @property {boolean} warm     热启动(磁盘上已有缓存)
+ * @property {number} files    Session files processed so far
+ * @property {number} total    Total session files enumerated this round
+ * @property {number} cacheHits Files skipped from recomputation because the cache key hit
+ * @property {number} skipped   Bad lines skipped (without discarding the file)
+ * @property {boolean} warm     A warm start (a cache already exists on disk)
  */
 /** @typedef {{type:'refresh'}|{type:'batch_done'}|{type:'corrupt_line'}|{type:'parse_done'}|{type:'write_done'}|{type:'app_quit'}} Action */
 
@@ -18,9 +20,9 @@
 const TERMINAL = new Set(['quit']);
 
 /**
- * 入场:app 启动。
- * @param {boolean} warm 是否热启动(有既存缓存,扫描时可命中)
- * @param {number} total 本轮会话文件总数
+ * Entry: the app starts.
+ * @param {boolean} warm Whether this is a warm start (an existing cache the scan can hit)
+ * @param {number} total The total session files this round
  * @returns {ScanState}
  */
 function initial(warm, total) {

@@ -1,4 +1,5 @@
-// 原型注册表(硬规则:每生成/删除一个原型同步增删条目,注册表腐烂等于画廊失明)
+// The prototype registry (a hard rule: add or remove an entry whenever a prototype is created or deleted —
+// a rotten registry blinds the gallery)
 window.PROTOTYPES = [
   { module: 'agents-page',   type: 'ui',    id: 'agents',       name: 'Agents 全局页(默认落地)', path: 'agents-page/prototype-agents.html' },
   { module: 'shell',         type: 'ui',    id: 'app-shell',    name: '双栏壳与扫描态',       path: 'shell/prototype-app-shell.html' },

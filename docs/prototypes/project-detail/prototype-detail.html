@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- 原型(UI)· 票03+04+05:项目详情(默认落在「概览」tab)。
+<!-- A UI prototype · tickets 03+04+05: project detail (landing on the Overview tab by default).
      问题:概览(token 卡/30天趋势/模型拆分/会话列表)作为进入项目的第一眼是否成立;
      Skills 两层来源/遮蔽/软链、Plugins、MCP 多来源、配置只读的行密度;
      产物「类型 chips + 平铺列表」是否清晰。
@@ -10,7 +10,8 @@
        Skills 加插件内含组;详情页的组件形态以本原型为准(功能原型已收敛为
        只演示全局页)。
      Subagents 生效视图要点:项目级可存在(.claude/agents/*.md 与 .codex/agents/
-       *.toml),两侧同名均为**项目级遮蔽**用户级——与 skills 的 Codex 同名共存
+       *.toml); on both sides a same name means the **project level shadows** the user level — the opposite of
+     skills' Codex coexistence
        语义相反;Codex 侧同名键取 toml name 字段,故跨文件名也遮蔽。
      v3 并入(2026-08-02,spec session-view):新增「会话」分栏——会话列表(默认按最近
        活动倒序,可切最早在前;排序对列表与命中分组同时生效)+ 搜索入口 + 按会话分组的
@@ -29,7 +30,8 @@
 <head>
 <meta charset="utf-8">
 <title>原型 — 项目详情:装了什么</title>
-<!-- 趋势图为共享件:改 _shared/trend-chart.{css,js} 即对所有引用它的原型生效 -->
+<!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
+     references it -->
 <link rel="stylesheet" href="../_shared/trend-chart.css">
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
@@ -125,13 +127,14 @@
   .se .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .se .d{font-size:11px;color:var(--text-2);flex:none;font-variant-numeric:tabular-nums}
   .se .tok{font-size:11px;color:var(--text-2);flex:none;width:64px;text-align:right;font-variant-numeric:tabular-nums}
-  /* v2 组件分栏(Subagents/Memory/Plugins 展开):与 Agents 页同款形态 */
+  /* The v2 component tabs (Subagents/Memory/Plugins expansions): the same form as the Agents page */
   .it.row-btn{cursor:pointer}
   .it.row-btn:hover{background:var(--accent-soft)}
   .pill.warn{background:#fdecdc;color:#b3552f}
   .pill.plg{border:1px solid var(--accent);color:var(--accent)}
   @media (prefers-color-scheme:dark){.pill.warn{background:#3c2417;color:#f0a884}}
-  /* 抽屉宽 = min(固定宽, 右侧内容区 80%);内容区 = 视口 - rail(48) - 侧栏(230),
+  /* The drawer width = min(a fixed width, 80% of the right-hand content area); the content area = the
+     viewport minus the rail (48) minus the sidebar (230),
      窄窗时不再盖住整个内容区(2026-08-02 bug) */
   .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,calc((100vw - 278px) * .8));background:var(--card);
     border-left:1px solid var(--line-strong);z-index:11;padding:20px 24px;overflow:auto;
@@ -152,7 +155,7 @@
   .note{font-size:11px;color:var(--text-2);margin:-6px 0 10px}
   .sub-list{padding:2px 14px 8px 36px;background:var(--bg);border-bottom:1px solid var(--line)}
   .sub-list .it{padding:6px 0;border-bottom:0}
-  /* v3 会话分栏:搜索行 + 会话列表 + 按会话分组的命中 */
+  /* The v3 sessions tab: a search row + the session list + hits grouped by session */
   .sbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
   .sbar input{flex:1;min-width:0;padding:6px 11px;border:1px solid var(--line-strong);border-radius:7px;
     background:var(--card);color:var(--text);font-size:12.5px;outline:none}
@@ -185,7 +188,7 @@
   .hit .bd{font-size:10px;border-radius:4px;padding:0 5px;background:var(--line);color:var(--text-2);flex:none}
   mark{background:#fff2a8;color:inherit;border-radius:2px;padding:0 1px}
   @media (prefers-color-scheme:dark){mark{background:#4d451a;color:#f6e9a8}}
-  /* 演示基建(非设计的一部分) */
+  /* The demo harness (not part of the design) */
   .harness{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#22252a;
     color:#c9ccd1;border-radius:999px;padding:5px 8px;display:none;align-items:center;gap:6px;
     font-size:11px;z-index:40;box-shadow:0 6px 20px rgba(0,0,0,.3)}
@@ -241,7 +244,8 @@
           <div class="m anthropic"><span class="nm2">claude-opus-5</span><span class="tr"><i style="width:33%"></i></span><span class="num">1.8M</span></div>
           <div class="m openai"><span class="nm2">gpt-5.5-codex</span><span class="tr"><i style="width:38%"></i></span><span class="num">2.1M</span></div>
         </div>
-        <!-- v3:不再「元数据即止」——概览列最近 4 个,点行直达会话页;全部去会话分栏 -->
+        <!-- v3: no longer "metadata and no further" — the overview lists the 4 most recent and a row click goes
+     straight to the session page; everything else is in the sessions tab -->
         <div class="grp-t">最近会话(上限 5 条;subagent 与预热会话计 token 但不单独入列)</div>
         <div class="card">
           <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">MAS 上架支持:构建线与独立 bundle id</span><span class="tok">312k</span><span class="d">3天前</span></div>
@@ -328,7 +332,8 @@
       </div>
       <div data-p="memory" style="display:none">
         <div class="grp-t">MEMORY.md(自动记忆主文件,直接渲染——同配置 tab 模式)</div>
-        <!-- 真实形态:主文件是索引,条目为指向同目录 topic 的相对链接 -->
+        <!-- The real shape: the main file is an index whose entries are relative links to topics in the same
+     directory -->
         <div class="md" id="memmain">
           <h3>Memory Index</h3>
           <ul>
@@ -383,7 +388,8 @@
         </div>
       </div>
       <div data-p="arts" style="display:none">
-        <!-- 六类,顺序 = 自顶向下的推导链:术语→决策→需求→界面→能力→教训 -->
+        <!-- Six types, ordered by the top-down derivation chain: terminology → decisions → requirements → UI →
+     capabilities → lessons -->
         <div class="chips" id="achips"><span class="on" data-c="全部">全部</span><span data-c="CONTEXT">CONTEXT.md</span><span data-c="ADR">ADR</span><span data-c="specs">specs</span><span data-c="prototypes">prototypes</span><span data-c="features">features</span><span data-c="postmortems">postmortems</span></div>
         <div class="alist" id="alist"></div>
         <div class="none" style="font-size:12px;padding:12px">非八步项目在此显示「未按约定沉淀」空态(不视为错误)</div>
@@ -405,7 +411,8 @@
   <div class="reader" id="areader"></div>
   <div class="mask" id="dmask"></div>
   <div class="drawer" id="drawer"></div>
-  <!-- 演示基建:mock 状态开关,非设计的一部分,勿实现;仅在会话分栏出现 -->
+  <!-- The demo harness: mock state switches, not part of the design and not to be implemented; they appear
+     only in the sessions tab -->
   <div class="harness" id="harness" data-demo-harness>
     <span class="hl">演示·会话分栏</span>
     <span class="hb on" data-se="has">有会话</span>
@@ -417,16 +424,16 @@
     const t=e.target.closest('.tab');if(!t||!t.dataset.t)return;
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
     document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
-    // 演示基建只在相关分栏出现
+    // The demo harness only appears in the relevant tabs
     document.getElementById('harness').classList.toggle('on',t.dataset.t==='sessions');
   });
-  // 趋势图:共享件渲染(与 Agents 页同源)
+  // The trend chart: rendered by the shared piece (the same source as the Agents page)
   TrendChartProto.mount(
     { chart: 'ovchart', xaxis: 'ovxaxis', legend: 'ovlegend', seg: 'ovseg' },
     TrendChartProto.mockDays(5, { scale: 4e6 })
   )
 
-  // 产物:类型 chips + 时间倒序平铺列表(内嵌,不跳独立页)
+  // Artifacts: type chips plus a flat list in reverse chronological order (inline, with no separate page)
   const ARTS=[
     {t:'屏幕权限 preflight 堵死授权入口',ty:'postmortems',d:'07-24'},
     {t:'CONTEXT.md(术语 14 条)',ty:'CONTEXT',d:'07-20'},
@@ -464,7 +471,8 @@
   addEventListener('keydown',e=>{if(e.key==='Escape')acls()});
   renderArts();
 
-  // ── v2 组件:Subagents/Memory 抽屉、Plugins 行内展开(形态同 Agents 页) ──
+  // ── The v2 components: the Subagents/Memory drawers and the inline Plugins expansion (the same form as
+  // the Agents page) ──
   const SUBAGENTS=[
     {n:'code-reviewer',lv:'项目级 · Claude',fl:'压过同名低层定义',
      kv:[['tools','Read, Grep, Glob, Bash'],['model','—(继承)']],
@@ -506,7 +514,8 @@
   function closeDrawer(){ dmask.style.display='none'; drawer.style.display='none' }
   dmask.onclick=closeDrawer;
   addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
-  // 渲染出的 markdown 链接:一律拦截,不让整窗导航(app state 会全丢)
+  // Rendered markdown links are always intercepted and never allowed to navigate the whole window (all app
+    // state would be lost)
   document.querySelector('.body').addEventListener('click',e=>{
     const a=e.target.closest('.md a[href]');
     if(a){ e.preventDefault();
@@ -533,7 +542,8 @@
       pg.insertAdjacentHTML('afterend',`<div class="exp">${PCONTENTS[i]}</div>`); return }
   });
 
-  // ── v3 会话分栏:列表(最近活动倒序)+ 搜索(默认搜提问,可切全文)+ 按会话分组的命中 ──
+  // ── The v3 sessions tab: the list (most recent activity first) + search (questions by default, switchable
+  // to full text) + hits grouped by session ──
   const GOTO='data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html"';
   const SESS=[
     {b:'c',s:'CC',t:'MAS 上架支持:构建线与独立 bundle id',n:42,tok:'312k',d:'3天前',p:''},
@@ -548,7 +558,8 @@
     {b:'c',s:'CC',t:'帮我把 CI 的缓存打开',n:11,tok:'61k',d:'21天前',
      p:'<span class="pill clean">标题已清洗</span>'},
   ];
-  // dup=fork 重放副本(Codex 54.7% 字节是它);body=只在回答正文里命中,仅「全文」范围可见
+  // dup = a fork replay copy (54.7% of Codex bytes are these); body = a hit only in the answer body, visible
+  // only in full-text scope
   const CORPUS=[
     {s:0,n:'01',q:'帮我看下 MAS 上架要改什么,现在的 electron-builder 配置能直接用吗?',d:'14:02'},
     {s:0,n:'02',q:'构建线怎么和现在的分开?我不想为了 MAS 把 DMG 那条线也改掉',d:'14:09'},
@@ -582,7 +593,8 @@
       box.innerHTML=`<div class="none">该项目还没有会话记录。<br>
         <span style="font-size:11.5px">Claude Code / Codex 在此目录下开过对话后会自动出现。</span></div>`; return }
     bar.style.display='flex';
-    // SESS 存的就是最近活动倒序;正序=整体翻转(排序只换呈现顺序,不改任何计数)
+    // SESS is stored in most-recent-activity order; ascending is the whole thing reversed (the sort only
+    // changes the presentation order and no count)
     const list=sorder==='desc'?SESS:[...SESS].reverse();
     if(!sq.trim()){
       box.innerHTML=`<div class="shead"><span>按<b>最近活动时间</b>${sorder==='desc'?'倒序':'正序'} · 7 个会话</span>${sordSeg()}</div>
@@ -639,7 +651,8 @@
   });
 </script>
 <script>
-  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
+  // navigates to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;

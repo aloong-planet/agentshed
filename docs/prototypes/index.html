@@ -1,5 +1,6 @@
 <!doctype html>
-<!-- 原型画廊壳(由 prototype skill 的模板复制而来,不手改;要改壳改 skill 模板后重新复制)。
+<!-- The prototype gallery shell (copied from the prototype skill's template; do not edit by hand — change
+     the skill template and copy it again).
      依赖同目录 manifest.js:window.PROTOTYPES = [{module,type,id,name,path,question,run?}] -->
 <html lang="zh-CN">
 <head>
@@ -18,7 +19,8 @@
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
 
-  /* 侧栏 = Figma 式深色工具面板:固定配色不随系统主题,与被评判的原型内容(app 风格)强区分 */
+  /* The sidebar is a Figma-style dark tool panel: a fixed palette that does not follow the system theme,
+     strongly distinguishing it from the prototype content being judged (which uses the app style) */
   .side{width:240px;flex:none;background:#2c2c2e;color:#e8e8e8;border-right:1px solid #1d1d1f;
     display:flex;flex-direction:column;transition:margin .18s}
   body.fold .side{margin-left:-240px}
@@ -58,7 +60,7 @@
   const list = document.getElementById('list');
   const stage = document.getElementById('stage');
 
-  // 侧栏:按 module 分组
+  // The sidebar: grouped by module
   const groups = {};
   P.forEach(p => (groups[p.module] ??= []).push(p));
   for (const [mod, items] of Object.entries(groups)) {
@@ -79,7 +81,8 @@
     const p = find(k);
     document.querySelectorAll('.item').forEach(e => e.classList.toggle('on', e.dataset.key === k));
     if (!p) { stage.innerHTML = '<div class="empty">从左侧选择一个原型</div>'; return; }
-    // 一切条目统一 iframe:UI 是自包含 HTML,Logic 也是自渲染页(问题/图/命令都在页内)
+    // Every entry is an iframe alike: UI entries are self-contained HTML and Logic entries are
+    // self-rendering pages too (the questions, diagrams and commands are all inside the page)
     stage.innerHTML = `<iframe src="${p.path}"></iframe>`;
   }
 
@@ -100,7 +103,8 @@
     location.hash = keys[n]; e.preventDefault();
   });
 
-  // 接收 iframe 内原型的跳转请求(file:// 下子页与壳异源,不能直接改父 hash,走 postMessage)
+  // Receive navigation requests from a prototype inside an iframe (under file:// the child page and the
+  // shell are cross-origin, so it cannot change the parent hash directly and uses postMessage)
   addEventListener('message', (e) => {
     const t = e.data && e.data.type === 'proto-nav' && e.data.target;
     if (t && find(t)) location.hash = t;

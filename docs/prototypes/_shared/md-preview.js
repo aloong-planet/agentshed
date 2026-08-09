@@ -1,10 +1,10 @@
-// 共享块 md-preview:Markdown 原文/预览切换(全局原型可复用)。
-// 依赖:可选 window.marked(UMD)。无 marked 时预览降级为转义纯文本。
+// The shared md-preview block: a markdown raw/preview toggle, reusable across prototypes.
+// Dependency: window.marked (UMD) is optional. Without it the preview degrades to escaped plain text.
 // API:
 //   MdPreview.isMarkdown(pathOrName) -> boolean
 //   MdPreview.render(md) -> html string
 //   MdPreview.mount(el, { name, text, mode? }) -> { set({name,text,mode?}), destroy() }
-// 使用点容器加 data-shared-block="md-preview"。
+// A use site adds data-shared-block="md-preview" to its container.
 ;(function (global) {
   const MD_EXT = /\.(md|markdown|mdx)$/i
 
@@ -22,7 +22,7 @@
     return MD_EXT.test(base)
   }
 
-  /** 极轻量代码块着色(原型级,非完整 highlighter) */
+  /** Extremely light code block colouring (prototype-grade, not a full highlighter) */
   function colorCode(html) {
     return html.replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (_, attrs, body) => {
       let s = body
@@ -36,7 +36,7 @@
     })
   }
 
-  /** 拆 YAML frontmatter(--- ... ---);技能包 SKILL.md 常见 */
+  /** Split out YAML frontmatter (--- ... ---); common in a skill package's SKILL.md */
   function splitFrontmatter(src) {
     const m = String(src).match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*\r?\n?([\s\S]*)$/)
     if (!m) return { fields: null, body: src }
@@ -44,8 +44,8 @@
   }
 
   /**
-   * 原型级 YAML 行解析:够用 name/description/when_to_use 等单行键值;
-   * 续行并入上一项;剥一层引号。不做完整 YAML。
+   * Prototype-grade YAML line parsing: enough for single-line keys such as name/description/when_to_use;
+   * continuation lines merge into the previous entry, and one layer of quotes is stripped. Not full YAML.
    */
   function parseYamlFields(block) {
     const fields = []
@@ -56,7 +56,7 @@
       if (kv) {
         if (cur) fields.push(cur)
         let val = kv[2]
-        // 剥一层 "..." 或 '...'
+        // Strip one layer of "..." or '...'
         if (
           (val.startsWith('"') && val.endsWith('"') && val.length >= 2) ||
           (val.startsWith("'") && val.endsWith("'") && val.length >= 2)
@@ -117,7 +117,8 @@
     let text = (opts && opts.text) != null ? String(opts.text) : ''
     let mode = opts && opts.mode === 'raw' ? 'raw' : 'preview'
 
-    // 骨架只建一次;切原文/预览只改 body + 按钮态,避免整树重建吃掉点击
+    // The skeleton is built once; switching raw/preview only changes the body and the button state, so a
+    // full rebuild never swallows the click
     el.innerHTML = ''
     const bar = document.createElement('div')
     bar.className = 'md-preview-bar'
@@ -130,7 +131,7 @@
     seg.hidden = true
     const bRaw = document.createElement('button')
     bRaw.type = 'button'
-    // 用 data-md-mode,避免与页面昼夜 harness 的 [data-mode] 冲突
+    // Uses data-md-mode to avoid colliding with the page's light/dark harness [data-mode]
     bRaw.setAttribute('data-md-mode', 'raw')
     bRaw.textContent = '原文'
     const bPrev = document.createElement('button')
@@ -153,7 +154,7 @@
       else if (mode !== 'raw' && mode !== 'preview') mode = 'preview'
 
       nm.textContent = name || '(未命名)'
-      // 仅 md 类文件显示切换;其它类型隐藏段、固定原文
+      // Only markdown files show the toggle; other types hide the segment and stay raw
       seg.hidden = !canPreview
       bRaw.classList.toggle('on', mode === 'raw')
       bPrev.classList.toggle('on', canPreview && mode === 'preview')
@@ -176,7 +177,7 @@
       mode = next
       paint()
     }
-    // 直接绑在按钮上(比委托更稳;不整树重建,handler 常驻)
+    // Bound directly to the buttons (steadier than delegation; with no full rebuild the handlers persist)
     bRaw.addEventListener('click', (e) => {
       e.preventDefault()
       e.stopPropagation()

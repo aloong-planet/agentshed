@@ -1,5 +1,6 @@
 <!doctype html>
-<!-- 原型(UI)· plugins-view:插件 skill 原地预览 — 方向 A 四轮修订(2026-08-07):
+<!-- A UI prototype · plugins-view: previewing a plugin skill in place — direction A, four rounds of
+     revision (2026-08-07):
      首轮 chip 群 + 表中插被反馈「乱」;二轮改 skills 行式列表;三轮:①安装记录
      上移插件名行内 ②类目标题升权重 ③缩进砍到 14px 基线;四轮(用户指示):
      Skills/Subagents/Hooks/MCP 改为展开区内**类目 tab**(segment 形态区别于
@@ -44,7 +45,7 @@
   .sub b{color:var(--text)}
   .sec-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);margin:16px 0 8px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:14px;overflow:hidden}
-  /* 插件行(对齐现行 .it.row-btn 密度) */
+  /* The plugin row (matching the current .it.row-btn density) */
   .prow{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;
     border:0;background:none;color:inherit;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--line)}
   .prow:hover{background:var(--accent-soft)}
@@ -55,21 +56,22 @@
   .pill.on{background:var(--ok-bg);color:var(--ok-fg)}
   .pill.off{border:1px solid var(--line-strong);color:var(--text-2)}
   .pill.src{background:var(--accent-soft);color:var(--accent);font-weight:600}
-  /* 展开区:缩进与行头同一条 14px 基线 */
+  /* The expanded area: indented onto the same 14px baseline as the row header */
   .exp{padding:2px 14px 12px 14px;background:var(--bg);border-bottom:1px solid var(--line)}
-  /* 类目 tab(展开区内 segment,样式区别于页面级 tab;空类目不出 tab) */
+  /* Category tabs (a segment inside the expanded area, styled apart from page-level tabs; an empty category
+     gets no tab) */
   .ptabs{display:flex;gap:4px;margin:10px 0 8px}
   .ptab{font:inherit;font-size:11.5px;font-weight:600;border:1px solid var(--line-strong);background:var(--card);
     color:var(--text-2);border-radius:7px;padding:3px 10px;cursor:pointer}
   .ptab .cnt{font-size:10.5px;margin-left:4px;opacity:.75}
   .ptab.on{background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent)}
   .chips{display:flex;gap:6px;flex-wrap:wrap}
-  /* 迷你 chip:插件行内安装记录 / 类目面板静态组件名 */
+  /* Mini chips: a plugin row's installation records, and the static component names in a category panel */
   .mchip{border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-family:ui-monospace,Menlo,monospace;
     font-size:10.5px;color:var(--text-2)}
   .none{font-size:12px;color:var(--text-2);padding:10px 0}
   .note{font-size:11px;color:var(--text-2);margin-top:8px;line-height:1.5}
-  /* skills 行式列表:与 Skills 分栏折叠语义同构 */
+  /* The skills row list: isomorphic to the Skills tab's collapse semantics */
   .psk-list{margin-top:2px;border:1px solid var(--line);border-radius:8px;background:var(--card);overflow:hidden}
   .psk{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;
     border:0;background:none;color:inherit;padding:7px 12px;cursor:pointer;border-top:1px solid var(--line)}
@@ -83,7 +85,8 @@
   .psk.dis{cursor:not-allowed;opacity:.5}
   .psk-body{border-top:1px solid var(--line);background:var(--bg);padding:8px 12px}
   .psk-body .files-wrap{border:0;border-radius:0;background:transparent;margin:0}
-  /* 文件表:与 skills-view 原型展开表同构(平铺,演化时两处同步) */
+  /* The file table: isomorphic to the skills-view prototype's expanded table (flat, and the two evolve
+     together) */
   .files-wrap{border:1px solid var(--line);border-radius:8px;background:var(--card);overflow:hidden}
   .files-head{display:grid;grid-template-columns:minmax(0,1fr) 64px 72px 108px;gap:8px;
     padding:5px 12px;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
@@ -106,7 +109,7 @@
   .files .meta.lines{font-weight:600;color:var(--text)}
   .sk-tip{font-size:11.5px;color:var(--warn-fg);background:var(--warn-bg);
     border:1px solid var(--line-strong);border-radius:8px;padding:6px 10px;line-height:1.45;margin:8px 0 0}
-  /* 抽屉(对齐 app skill-drawer 简化形) */
+  /* The drawer (a simplified form matching the app's skill-drawer) */
   .mask{position:fixed;inset:0;background:var(--mask);z-index:10}
   .drawer{position:fixed;top:0;right:0;bottom:0;z-index:11;width:min(720px,80vw);display:flex;flex-direction:column;
     background:var(--card);border-left:1px solid var(--line-strong);box-shadow:-8px 0 24px rgba(0,0,0,.12)}
@@ -119,7 +122,7 @@
   .d-body{flex:1;min-height:0;display:flex;padding:10px}
   .md-preview{--md-h1:var(--accent-deep);--md-h2:var(--accent-deep);--md-h3:var(--accent-deep);--md-link:var(--accent);
     border-color:var(--line);background:var(--card)}
-  /* 演示 harness(非设计) */
+  /* The demo harness (not part of the design) */
   [data-demo-harness]{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50;
     display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(28,26,24,.92);color:#efece6;
     border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.3);font-size:12px}
@@ -162,7 +165,7 @@
   </div>
 
 <script>
-  // ── mock 数据(边界优先) ──
+  // ── Mock data (boundaries first) ──
   const FILES = {
     'superpowers:brainstorming': {
       deep: ['references/nested/too-deep.md'],
@@ -219,7 +222,7 @@
       note: '探测式:无启用态语义,不并入 Skills 分栏(ADR-0012);仅缓存最高版本目录' }
   ]
 
-  // ── 工具 ──
+  // ── Utilities ──
   function fmtSize(b){ if(b<1024) return b+' B'; if(b<1048576) return (b/1024).toFixed(b<10240?1:0)+' KB'; return (b/1048576).toFixed(1)+' MB' }
   function lineCount(t){ return t ? t.replace(/\n$/,'').split('\n').length : 0 }
   function extKind(p){ const b=p.split('/').pop()||p;
@@ -233,7 +236,7 @@
     names.forEach(n=>{ bytes+=new TextEncoder().encode(p.files[n]).length })
     return { files:names.length, bytes } }
 
-  // ── 文件表(与 skills-view 原型同构) ──
+  // ── The file table (isomorphic to the skills-view prototype) ──
   function renderFiles(host, key){
     const pack = FILES[key]
     host.innerHTML = ''
@@ -258,7 +261,7 @@
     }
   }
 
-  // ── 抽屉(共享块 md-preview) ──
+  // ── The drawer (the shared md-preview block) ──
   let mdCtl=null
   function openDrawer(key, file){
     const overlay=document.getElementById('overlay')
@@ -274,7 +277,7 @@
     window.onkeydown=(e)=>{ if(e.key==='Escape') close() }
   }
 
-  // ── 插件行 + 展开区 ──
+  // ── The plugin row + the expanded area ──
   function mountPlugin(parent, p, side){
     const row=document.createElement('button'); row.type='button'; row.className='prow'
     row.innerHTML=`<span class="cv">▸</span><span class="nm">${p.name}</span><span class="ver">${p.ver}</span>
@@ -282,11 +285,14 @@
       ${p.missing?'<span class="pill off">安装目录缺失</span>':''}
       ${(p.installs||[]).map(i=>`<span class="mchip">${i}</span>`).join('')}`
     const exp=document.createElement('div'); exp.className='exp'; exp.style.display='none'
-    // 静态段经 seg() 追加;交互节点单独 appendChild——顺序不能反:
-    // appendChild 之后再 innerHTML+= 会重建 DOM、抹掉监听器(首版踩坑)
+    // Static segments are appended through seg() and interactive nodes with their own appendChild — the order
+      // must not be reversed:
+    // an innerHTML+= after an appendChild rebuilds the DOM and wipes the listeners (a trap hit in the first
+      // version)
     const seg=(html)=>{ const d=document.createElement('div'); d.innerHTML=html; while(d.firstChild) exp.appendChild(d.firstChild) }
     if(p.missing) seg('<div class="none">安装目录缺失(缓存已清理)——仅注册表记录可见;skill 不可预览</div>')
-    // 类目 tab:空类目不出 tab(同 E5「某类缺失不显示」);默认落在首个非空类目
+    // Category tabs: an empty category gets no tab (as in E5, "a missing category is not shown"); the default
+      // lands on the first non-empty one
     const panels=[]
     if(p.skills.length){
       const list=document.createElement('div'); list.className='psk-list'
@@ -344,7 +350,7 @@
 
   CLAUDE_PLUGINS.forEach(p=>mountPlugin(document.getElementById('claude-list'), p, 'claude'))
   CODEX_PLUGINS.forEach(p=>mountPlugin(document.getElementById('codex-list'), p, 'codex'))
-  // 默认展开首个插件并展开首个 skill 行,进页即见形态
+  // Expand the first plugin and its first skill row by default, so the form is visible on arrival
   document.querySelector('#claude-list .prow').click()
   document.querySelector('#claude-list .psk').click()
 

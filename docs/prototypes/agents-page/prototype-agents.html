@@ -1,5 +1,6 @@
 <!doctype html>
-<!-- 原型(UI)· 票07:Agents 全局页(默认落地,icon rail「Agents」维度,占全宽)。
+<!-- A UI prototype · ticket 07: the Agents global page (the default landing, the icon rail's Agents
+     dimension, full width).
      问题:CC/Codex 的全局面貌(配置/skills/plugins/MCP/token 汇总)在一页里怎么分栏;
      plugins 仅 CC 有、MCP 来源两侧异构时,分栏怎么不歪。
      趋势图为 provider 堆叠柱(裁定见 ADR-0008;原独立的 token-stacked 原型已并入此处)。
@@ -16,7 +17,8 @@
 <head>
 <meta charset="utf-8">
 <title>原型 — Agents 全局页</title>
-<!-- 趋势图为共享件:改 _shared/trend-chart.{css,js} 即对所有引用它的原型生效 -->
+<!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
+     references it -->
 <link rel="stylesheet" href="../_shared/trend-chart.css">
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
@@ -82,7 +84,7 @@
   .m .tr i{display:block;height:100%;background:var(--accent)}
   .m.x .tr i{background:#3ba272}
   .m .num{width:70px;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--text-2)}
-  /* v2 组件分栏(Subagents/Memory/Plugins 展开) */
+  /* The v2 component tabs (Subagents/Memory/Plugins expansions) */
   .it.row-btn{cursor:pointer}
   .it.row-btn:hover{background:var(--accent-soft)}
   .pill.warn{background:#fdecdc;color:#b3552f}
@@ -90,7 +92,8 @@
   .pill.off{border:1px solid var(--line-strong);color:var(--text-2)}
   @media (prefers-color-scheme:dark){.pill.warn{background:#3c2417;color:#f0a884}}
   .mask{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:40;display:none}
-  /* 抽屉宽 = min(固定宽, 右侧内容区 80%);本页内容区 = 视口 - rail(48),无侧栏 */
+  /* The drawer width = min(a fixed width, 80% of the right-hand content area); on this page the content area
+     = the viewport minus the rail (48), with no sidebar */
   .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,calc((100vw - 48px) * .8));background:var(--card);
     border-left:1px solid var(--line-strong);z-index:41;padding:20px 24px;overflow:auto;
     box-shadow:-8px 0 24px rgba(0,0,0,.12);display:none}
@@ -113,7 +116,8 @@
   .note{font-size:11px;color:var(--text-2);margin:-6px 0 10px}
   .sub-list{padding:2px 14px 8px 36px;background:var(--bg);border-bottom:1px solid var(--line)}
   .sub-list .it{padding:6px 0;border-bottom:0}
-  /* 演示基建(harness):非设计的一部分——独立悬浮层,绝不嵌入页面内容流;
+  /* The demo harness: not part of the design — an independent floating layer that is never embedded in the
+     page content flow;
      data-demo-harness 供模型/脚本过滤(prototype skill UI.md 演示基建条款) */
   .harness{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:60;
     display:none;align-items:center;gap:4px;background:#26262b;border-radius:999px;
@@ -245,18 +249,19 @@
   </div>
   <div class="mask" id="dmask"></div>
   <div class="drawer" id="drawer"></div>
-  <!-- 演示基建悬浮层:非设计的一部分,独立于产品页面 -->
+  <!-- The demo harness floating layer: not part of the design, independent of the product page -->
   <div class="harness" id="harness" data-demo-harness></div>
 <script src="../_shared/trend-chart.js"></script>
 <script>
 
-  // 趋势图:共享件渲染(逻辑与样式在 _shared/trend-chart.*,与其他原型页同源)
+  // The trend chart: rendered by the shared piece (its logic and styles are in _shared/trend-chart.*, shared
+  // with the other prototype pages)
   TrendChartProto.mount(
     { chart: 'chart', xaxis: 'txaxis', legend: 'tlegend', seg: 'tseg' },
     TrendChartProto.mockDays(11, { scale: 9e7, withGoogle: true, archivedFirst: 4 })
   )
 
-  // ── v2 组件:Subagents / Memory / Plugins(spec subagents-memory-plugin 并入) ──
+  // ── The v2 components: Subagents / Memory / Plugins (folded in from the subagents-memory-plugin spec) ──
   const SUBAGENTS=[
     {n:'code-reviewer',sides:'cx',desc:'Expert code review specialist. Proactively reviews code for quality, security, and maintainability.',
      cl:{kv:[['tools','Read, Grep, Glob, Bash'],['model','—(继承)']],body:'You are a senior code reviewer ensuring high standards of code quality and security.\n\nWhen invoked:\n1. Run git diff to see recent changes\n2. Focus on modified files\n3. Begin review immediately\n\nReview checklist:\n- Code is simple and readable\n- No exposed secrets or API keys\n- Good test coverage\n\nProvide feedback organized by priority.'},
@@ -396,7 +401,8 @@
       :w.includes('AGENTS')?'<h3># 全局 AGENTS.md</h3><p>Codex 全局说明……(只读渲染;缺失显示"无")</p>'
       :'<h3>config.toml 摘要</h3><p><code>model = …</code><br><code>[projects."…"] trust_level</code> 共 18 条<br><code>[mcp_servers.*]</code> 2 段(只读摘要)</p>';
   });
-  // 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
+  // navigates to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;
