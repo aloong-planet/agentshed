@@ -151,6 +151,7 @@ export const es: Locale = {
       `Esta sesión tiene **${n} puntos de bifurcación**. La cadena mostrada se traza desde el último mensaje hacia la raíz siguiendo los enlaces al padre, es decir «cómo queda finalmente esta conversación»; las ramas abandonadas no se muestran.`,
     forkedFrom: 'Esta sesión se bifurcó de',
     anotherSession: 'otra sesión',
+    parentTitle: (title) => `«${title}»`,
     forkedFromTail: '— el prefijo repetido ya se recortó, así que abajo solo se muestra lo posterior a esta bifurcación. **El historial anterior está en esa sesión**.',
     stripUncertainOrphan:
       '**Recorte del prefijo dudoso**: esta sesión se bifurcó de un padre **fuera del conjunto analizado** (su archivo se limpió o pertenece a un proyecto no registrado), así que el recorte solo pudo ser heurístico: **puede haber recortado de más (perdiendo mensajes) o de menos (duplicados)**. Compruébalo con el original. No fallar en silencio es la única garantía posible aquí.',

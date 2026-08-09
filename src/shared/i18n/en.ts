@@ -151,6 +151,7 @@ export const en: Locale = {
       `This session has **${n} fork points**. The chain shown is traced from the last message back along the parent links to the root — i.e. "what this conversation finally looks like"; abandoned branches are not shown.`,
     forkedFrom: 'This session was forked from',
     anotherSession: 'another session',
+    parentTitle: (title) => `“${title}”`,
     forkedFromTail: '— the replayed prefix has been stripped, so only what follows this fork is shown below. **See that session for the earlier history**.',
     stripUncertainOrphan:
       '**Uncertain prefix stripping**: this session was forked from a parent **outside the scan set** (its file was cleaned up, or it belongs to an unregistered project), so stripping could only be heuristic — **it may have stripped too much (losing messages) or too little (duplicates)**. Please check against the original. Not failing silently is the only guarantee available here.',

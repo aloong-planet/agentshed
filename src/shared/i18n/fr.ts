@@ -151,6 +151,7 @@ export const fr: Locale = {
       `Cette session comporte **${n} points de bifurcation**. La chaîne affichée remonte du dernier message jusqu’à la racine via les liens parents — c’est-à-dire « à quoi ressemble finalement cette conversation » ; les branches abandonnées ne sont pas affichées.`,
     forkedFrom: 'Cette session est issue de',
     anotherSession: 'une autre session',
+    parentTitle: (title) => `« ${title} »`,
     forkedFromTail: '— le préfixe rejoué a été retiré, seul ce qui suit cette bifurcation est affiché ci-dessous. **L’historique antérieur se trouve dans cette session**.',
     stripUncertainOrphan:
       '**Retrait du préfixe incertain** : cette session est issue d’un parent **hors du périmètre analysé** (fichier nettoyé ou projet non enregistré), le retrait n’a donc pu être qu’heuristique — **il a pu retirer trop (perte de messages) ou trop peu (doublons)**. Vérifiez avec l’original. Ne pas échouer en silence est la seule garantie possible ici.',

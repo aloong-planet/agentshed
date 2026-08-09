@@ -39,7 +39,7 @@ const BINARY = /\.(png|ico|icns|jpg|jpeg|gif|webp|woff2?|ttf|zip|pdf)$/i
 const ALLOW = [
   {
     match: (f) => f === 'src/shared/i18n/zh.ts',
-    lines: 338,
+    lines: 339,
     why: 'the source-language dictionary — Chinese by definition (ADR-0014)'
   },
   {
