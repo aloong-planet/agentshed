@@ -1,5 +1,7 @@
-// Skills 装卸(票06):安装=从全局库解引用深拷贝到项目级目录(先落临时目录再 rename,
-// 失败清理不留半成品);卸载=删项目副本。全局库只读,永不写入。
+// Skill install and uninstall (ticket 06): installing = a dereferencing deep copy from the global library
+// into the project-level directory (landing in a temporary directory first, then renaming,
+// cleaning up on failure so nothing half-finished is left); uninstalling = deleting the project's copy.
+// The global library is read-only and is never written.
 import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AgentSide } from '@shared/domain'
@@ -14,11 +16,12 @@ export interface InstallArgs {
 
 export type OpResult =
   | { ok: true }
-  // 失败只带**码 + 参数**,不带成句 message:措辞由渲染层按当前语言生成(ADR-0015)。
-  // reason 早先就是语言无关的枚举,本次去掉与它并列的中文 message。
+  // A failure carries only **a code plus parameters**, never a whole-sentence message: the renderer
+  // produces the wording in the current language (ADR-0015).
+  // `reason` was already a language-independent enum; this change removed the Chinese message alongside it.
   | { ok: false; reason: ErrorCode; params?: ErrorParams }
 
-/** skill 名只允许单段目录名(堵路径穿越) */
+/** A skill name may only be a single-segment directory name (closing path traversal) */
 function badName(name: string): boolean {
   return name === '' || name.includes('/') || name.includes('\\') || name.includes('..')
 }
@@ -47,7 +50,8 @@ export function installSkill(roots: ScanRoots, args: InstallArgs): OpResult {
   const tmp = join(targetBase, `.${skillName}.installing-${process.pid}`)
   try {
     mkdirSync(targetBase, { recursive: true })
-    // dereference:源含软链时落地为真文件(项目自持,不依赖全局库存续)
+    // dereference: a symlinked source lands as a real file (so the project is self-contained and does not
+    // depend on the global library continuing to exist)
     cpSync(source, tmp, { recursive: true, dereference: true })
     renameSync(tmp, target)
     return { ok: true }
@@ -55,7 +59,7 @@ export function installSkill(roots: ScanRoots, args: InstallArgs): OpResult {
     try {
       rmSync(tmp, { recursive: true, force: true })
     } catch {
-      // 清理失败不再连锁
+      // A cleanup failure does not cascade
     }
     return { ok: false, reason: ERR.skillCopyFailed, params: { detail: String(err) } }
   }

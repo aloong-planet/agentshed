@@ -1,6 +1,7 @@
-// 生产环境的真实数据根目录(测试不走这里,fixture 经 ScanRoots 注入)。
-// AGENTSHED_HOME_OVERRIDE:e2e 专用注入口——以 fixture 目录冒充 home,
-// 使全链路(含 IPC/白名单)可在预置数据上确定性断言;生产不设此变量。
+// The real data roots in production (tests do not come through here; fixtures are injected via ScanRoots).
+// AGENTSHED_HOME_OVERRIDE: an e2e-only injection point — a fixture directory stands in for home,
+// so the whole chain (IPC and allow-lists included) can be asserted deterministically against seeded
+// data. Never set in production.
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { ScanRoots } from './providers/types'

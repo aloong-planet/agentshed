@@ -1,15 +1,23 @@
-// 本项目会话搜索(票 08,spec D1-D4)。
+// Searching this project's sessions (ticket 08, spec D1–D4).
 //
-// - 提问模式(默认):按偏移逐区间读**原始字节**粗筛(readRangeBuffers,不 decode),
-//   只对命中的区间 decode + parse 取文本(D2)。剥离后的提问集天然不含 fork 重放
-//   副本(03b),无需折叠。
-// - 全文模式:整读文件 + 字节匹配;命中按偏移二分归轮。落在展示区间之外的命中
-//   ——fork 已剥前缀、Claude 被放弃分支、首问前噪声区——计入 folded,不冒充
-//   可达命中(D3:Codex 54.7% 字节是重放副本,不折叠会让同一句话每代各报一次)。
-//   全文开关的立命理由是**命中质量**(全文会命中工具输出噪声),不是性能。
-// - 大小写:searchBytes 字节折叠(不整体 decode+toLowerCase,spec D2 实测 391ms
-//   反例);命中后用解析出的文本**复验**,防 JSON 转义序列(\n、\" 等)的字节级
-//   假命中——复验只对命中区间做,不改变"不整读不全解析"的成本结构。
+// - Question mode (the default): a coarse pass over **raw bytes** read range by range from the offsets
+//   (readRangeBuffers, no decoding),
+//   decoding and parsing only the matching ranges to get the text (D2). The stripped question set
+//   contains no fork replay
+//   copies by construction (03b), so nothing needs folding.
+// - Full-text mode: read the file whole + byte matching, with hits mapped back to their turn by binary
+//   search on the offset. Hits outside the displayed range
+//   — an already-stripped fork prefix, Claude's abandoned branches, the noise before the first question —
+//   count as folded rather than masquerading as
+//   reachable hits (D3: 54.7% of Codex bytes are replay copies, and without folding the same sentence is
+//   reported once per generation).
+//   The full-text toggle exists for **hit quality** (full text hits tool output noise), not performance.
+// - Case: searchBytes folds at the byte level (never decode + toLowerCase over everything — spec D2
+//   measured 391 ms as the
+//   counter-example); after a hit, **re-verify** with the parsed text to guard against byte-level false
+//   hits from JSON escape sequences (\n, \" and so on)
+//   — the re-verification touches only the matching ranges and does not change the "no reading whole, no
+//   parsing everything" cost structure.
 import { readFile } from 'node:fs/promises'
 import type { SearchHit, SearchResult, SessionMeta } from '@shared/domain'
 import { questionTextAt, type QuestionRec } from './question-index'
@@ -20,7 +28,8 @@ import type { ScanRoots } from './types'
 
 const fold = (s: string): string => s.toLowerCase()
 
-/** 命中行 JSON 里首个包含 needle 的字符串值 → 上下文片段(needle 前 20 后 60 字符) */
+/** The first string value in the matching line's JSON that contains the needle → a context snippet
+ * (20 characters before and 60 after) */
 function extractSnippet(lineText: string, needle: string): string | null {
   let obj: unknown
   try {
@@ -55,7 +64,8 @@ function extractSnippet(lineText: string, needle: string): string | null {
   return walk(obj)
 }
 
-/** 命中偏移 → 所在展示轮的下标(区间 [提问起, 轮止);不在任何轮内返回 -1) */
+/** A hit offset → the index of the displayed turn it falls in (the range [question start, turn end);
+ * returns -1 when it is in no turn) */
 function turnIndexOf(recs: readonly QuestionRec[], off: number): number {
   let lo = 0
   let hi = recs.length - 1
@@ -68,7 +78,7 @@ function turnIndexOf(recs: readonly QuestionRec[], off: number): number {
   return -1
 }
 
-/** 从命中偏移向前后找行边界(0x0A),切出该行文本 */
+/** Search outwards from the hit offset for the line boundaries (0x0A) and slice out that line's text */
 function lineAround(buf: Buffer, off: number): string {
   let start = buf.lastIndexOf(0x0a, off) + 1
   let end = buf.indexOf(0x0a, off)
@@ -93,15 +103,15 @@ export async function searchProjectSessions(
     try {
       q = await engine.sessionQuestions(roots, s.file)
     } catch {
-      // 单会话读不了只自伤:跳过该会话,不拖垮整次搜索
+      // An unreadable session only hurts itself: skip it without dragging down the whole search
       continue
     }
     const recs = q.questions
     const hits: SearchHit[] = []
-    /** 提问文本缓存(全文模式正文命中也要展示所在轮的提问) */
+    /** A cache of question text (a body hit in full-text mode also displays its turn's question) */
     const qText = new Map<number, { text: string; at: number | null }>()
 
-    // ── 提问粗筛:原始字节区间,只对命中的条 decode + parse ──
+    // ── The coarse question pass: raw byte ranges, decoding and parsing only the entries that hit ──
     const { bufs } = await readRangeBuffers(
       s.file,
       recs.map((r) => ({ start: r[0], end: r[1] }))
@@ -124,12 +134,13 @@ export async function searchProjectSessions(
     for (let idx = 0; idx < recs.length; idx++) {
       if (searchBytes(bufs[idx], k).length === 0) continue
       const parsed = parseQ(idx)
-      // 复验:解析出的干净文本确实含 needle(剔除 JSON 转义的字节级假命中)
+      // Re-verify: the clean parsed text really does contain the needle (eliminating byte-level false
+      // hits from JSON escaping)
       if (!parsed || !fold(parsed.text).includes(kF)) continue
       hits.push({ i: idx + 1, text: parsed.text, at: parsed.at, inBody: false, snippet: null })
     }
 
-    // ── 全文:整读 + 命中归轮;展示区间外 → folded ──
+    // ── Full text: read whole + map hits back to turns; outside the displayed range → folded ──
     if (fullText) {
       let whole: Buffer
       try {
@@ -145,8 +156,8 @@ export async function searchProjectSessions(
           result.folded++
           continue
         }
-        if (off < recs[t][1]) continue // 提问行命中已由提问通路收录,不重复计
-        if (bodyHit.has(t)) continue // 同轮多处正文命中只报一条
+        if (off < recs[t][1]) continue // A hit on the question line was already collected by the question path
+        if (bodyHit.has(t)) continue // Several body hits in one turn are reported once
         bodyHit.add(t)
         bodySnippet.set(t, extractSnippet(lineAround(whole, off), k))
       }

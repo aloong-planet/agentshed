@@ -1,14 +1,19 @@
-// Token 可视化共用件:数字格式化、汇总卡、30 天趋势条形图、模型拆分条。
-// 概览 tab(项目)与 Agents 页 Token 分栏共用,数据同源仅分组键不同。
+// Shared token visualisation pieces: number formatting, the summary card, the 30-day trend bar chart, and
+// the model breakdown bars.
+// Shared by the project overview tab and the Agents page's Token section: the same data source, differing
+// only in the grouping key.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TokenStats, TokenTotals } from '@shared/domain'
 
 /**
- * token 数的紧凑记法。**刻意不本地化**(2026-08-09 定案):k / M / B 是与 KB / MB / ms
- * 同类的记法、各语言通用;换成 Intl 的 compact 会让中文变成「1240万」,那是另一个产品决定。
+ * Compact notation for token counts. **Deliberately not localised** (settled 2026-08-09): k / M / B are
+ * notation of the same kind as KB / MB / ms
+ * and are common to every language; switching to Intl's compact form would render other languages in
+ * their own myriad-based groupings, which is a separate product decision.
  */
 export function fmtTok(n: number): string {
-  // 十亿档必须在百万档之前判:否则 12.4B 会显示成 12400.0M,五位数字读不出量级
+  // The billions tier must be checked before the millions tier: otherwise 12.4B displays as 12400.0M, and
+  // five digits do not read as a magnitude
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${Math.round(n / 1_000)}k`
@@ -52,7 +57,7 @@ import type { Language, Locale } from '@shared/i18n'
 import { monthDay } from '@shared/format'
 import { useDict, useLanguage } from './language'
 
-/** provider → CSS 类后缀(配色见 theme.css) */
+/** provider → a CSS class suffix (the colours are in theme.css) */
 const PROVIDER_CLASS: Record<string, string> = {
   Anthropic: 'anthropic',
   OpenAI: 'openai',
@@ -60,7 +65,7 @@ const PROVIDER_CLASS: Record<string, string> = {
   other: 'other'
 }
 
-/** 近 30 天(以 scannedAt 为锚)日粒度趋势;合计模式按两侧堆叠 */
+/** The last 30 days (anchored on scannedAt) as a daily trend; combined mode stacks the two sides */
 export function TrendChart({
   stats,
   anchor,
@@ -68,7 +73,7 @@ export function TrendChart({
 }: {
   stats: TokenStats
   anchor: number
-  /** 源会话文件已被 agent 清理、数值来自本地归档的天 */
+  /** Days whose source session files the agent cleaned up, with values from the local archive */
   archivedDays?: string[]
 }): JSX.Element {
   const lang = useLanguage()
@@ -81,7 +86,8 @@ export function TrendChart({
   const max = Math.max(...bars.map((b) => b.total), 1)
   const chartRef = useRef<HTMLDivElement>(null)
   const axisRef = useRef<HTMLDivElement>(null)
-  // 轴标签钉真实柱中心,须在柱渲染后量 DOM 排布;宽度变化仅重排轴(柱 flex 自适应)
+  // Axis labels are pinned to real bar centres, so the layout is measured from the DOM after the bars
+  // render; a width change re-lays out only the axis (the bars flex on their own)
   useEffect(() => {
     const chart = chartRef.current
     const axis = axisRef.current
@@ -92,7 +98,7 @@ export function TrendChart({
     ro.observe(chart)
     return () => ro.disconnect()
   }, [bars, lang])
-  // 图例只列窗口内真实出现过的 provider(顺序沿用固定序)
+  // The legend lists only providers that actually appear within the window (in the fixed order)
   const usedProviders = PROVIDER_ORDER.filter((p) => bars.some((b) => b.segments.some((s) => s.provider === p)))
 
   return (
@@ -142,7 +148,8 @@ export function TrendChart({
   )
 }
 
-// 文本测宽复用单个 canvas,字体取自轴容器计算样式(与 CSS 单一事实)
+// Text measurement reuses a single canvas, with the font taken from the axis container's computed style
+// (a single truth with the CSS)
 let measureCtx: CanvasRenderingContext2D | null = null
 function axisMeasurer(axis: HTMLElement): (text: string) => number {
   if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d')
@@ -153,7 +160,8 @@ function axisMeasurer(axis: HTMLElement): (text: string) => number {
   return (t) => ctx.measureText(t).width
 }
 
-/** 把标签排布结果写进轴容器(绝对定位 span,data-day 与柱对应) */
+/** Write the label layout into the axis container (absolutely positioned spans whose data-day matches a
+ * bar) */
 function renderAxisInto(
   axis: HTMLElement,
   chart: HTMLElement,
@@ -163,7 +171,8 @@ function renderAxisInto(
   const width = axis.clientWidth
   const cols = Array.from(chart.children) as HTMLElement[]
   if (!width || cols.length !== bars.length) return
-  // 柱中心用 rect 相对轴容器换算——不依赖 offsetParent(柱的定位祖先并非 chart)
+  // Bar centres are converted from rects relative to the axis container — not relying on offsetParent
+  // (a bar's positioned ancestor is not the chart)
   const axisLeft = axis.getBoundingClientRect().left
   const centers = cols.map((c) => {
     const r = c.getBoundingClientRect()
@@ -177,7 +186,8 @@ function renderAxisInto(
     .join('')
 }
 
-/** 悬停明细:当日合计 + 各侧数值与占比(多行,CSS 用 white-space:pre 渲染) */
+/** The hover breakdown: that day's total plus each side's value and share (multi-line, rendered by CSS
+ * with white-space:pre) */
 function tipOf(
   b: ReturnType<typeof buildTrendBars>[number],
   otherLabel: string,

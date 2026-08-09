@@ -1,11 +1,13 @@
-// skills-view/plugins-view 共用:skill 包内文件表(表头/文件行/深度提示/加载与错误态)。
-// 磁盘 skill 展开区与插件 skill 展开区必须一致演化(spec H2 与序列 C 同规),故单一组件。
+// Shared by skills-view and plugins-view: a skill package's file table (header, file rows, the depth
+// notice, and the loading and error states).
+// The on-disk and plugin skill expansions have to evolve together (spec H2 shares its rules with sequence
+// C), hence a single component.
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
 import type { Language } from '@shared/i18n'
 import { formatBytes } from '@shared/format'
 import { useDict, useLanguage } from './language'
 
-/** 包体积:数值按语言、单位符号不翻译(票 12) */
+/** Package size: the number follows the language and the unit symbol is not translated (ticket 12) */
 export function formatSize(lang: Language, bytes: number): string {
   return formatBytes(lang, bytes)
 }

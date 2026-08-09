@@ -1,29 +1,37 @@
-// 自定义应用菜单(票 13)。
+// The custom application menu (ticket 13).
 //
-// **为什么要自定义**:Electron 的默认菜单按**系统语言**本地化,而本产品的界面语言是
-// 用户自己选的偏好——两者可以不同(spec:中文用户在英文系统上)。默认菜单会让
-// 「界面是中文、菜单是英文」这种夹生状态固定下来,i18n 也就没在菜单上闭合。
+// **Why customise it**: Electron's default menu is localised by **system language**, whereas this
+// product's UI language is
+// a preference the user chose — the two can differ (the spec's Chinese user on an English system). The
+// default menu would freeze
+// a half-translated state of "the UI is in one language and the menu in another", leaving i18n unclosed
+// on the menu.
 //
-// **模板是纯函数**(语言 → 菜单结构),两个动作从参数注入而非在此直接操作 BrowserWindow:
-// 那样模板就不再是纯函数,也测不了。`import type` 编译后擦除,故本模块不引 Electron 运行时。
+// **The template is a pure function** (language → menu structure), and the two actions are injected as
+// parameters rather than operating on BrowserWindow here:
+// that would stop it being pure and make it untestable. `import type` is erased after compilation, so
+// this module pulls in no Electron runtime.
 //
-// **已知测试缺口**:菜单**实际显示**为哪种语言属 macOS 系统绘制,自动化触及不到。
-// 可测的是本函数的文案与结构;不得用"构建函数返回了法语文案"冒充"菜单显示为法语"。
+// **A known test gap**: which language the menu **actually displays** is system-drawn by macOS and
+// automation cannot reach it.
+// What is testable is this function's copy and structure; "the build function returned French copy" must
+// not be passed off as "the menu displays in French".
 import type { MenuItemConstructorOptions } from 'electron'
 import { dictOf, type Language } from '@shared/i18n'
 
 export interface MenuActions {
-  /** 切到设置维(与 rail ⚙️ 同一个操作) */
+  /** Switch to the settings dimension (the same operation as the rail's ⚙️) */
   openSettings: () => void
-  /** 全局刷新(与 rail ↻ 同一个操作) */
+  /** Global refresh (the same operation as the rail's ↻) */
   refresh: () => void
 }
 
 const NOOP: MenuActions = { openSettings: () => {}, refresh: () => {} }
 
 /**
- * 结构照 macOS 标准菜单集;文案走字典,跟随 **app 内**语言而非系统语言。
- * 应用名 Agentshed 各语不变(ADR-0013 的范围边界)。
+ * The structure follows the standard macOS menu set; the copy comes from the dictionaries and follows
+ * the **in-app** language rather than the system one.
+ * The application name Agentshed is the same in every language (ADR-0013's scope boundary).
  */
 export function buildMenuTemplate(
   lang: Language,
@@ -37,7 +45,8 @@ export function buildMenuTemplate(
       submenu: [
         { label: m.about, role: 'about' },
         { type: 'separator' },
-        // 设置放在应用菜单、绑 Cmd+, ——macOS 的标准位置,用户会去那里找
+        // Settings goes in the application menu bound to Cmd+, — the standard macOS location, where
+        // users will look for it
         { label: t.rail.settings, accelerator: 'CmdOrCtrl+,', click: () => actions.openSettings() },
         { type: 'separator' },
         { label: m.hide, role: 'hide' },
@@ -62,8 +71,8 @@ export function buildMenuTemplate(
     {
       label: m.view,
       submenu: [
-        // 全局刷新绑 Cmd+R:它是本产品的"重新扫描",不是网页意义的 reload——
-        // 故不用 role:'reload'(那会重载渲染进程、丢掉全部 app state)
+        // Global refresh is bound to Cmd+R: it is this product's "rescan", not a reload in the web sense —
+        // hence not role:'reload' (which would reload the renderer and lose all app state)
         { label: t.rail.refresh, accelerator: 'CmdOrCtrl+R', click: () => actions.refresh() },
         { type: 'separator' },
         { label: m.toggleDevTools, role: 'toggleDevTools' },

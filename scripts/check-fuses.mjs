@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// 校验打包产物里的 Electron Fuses 实际状态(官方 Security Checklist #19)。
-// 为什么直接读二进制:electron-builder 的 electronFuses 配置写对了不代表生效
-// (版本差异、平台差异、配置段位置错都会静默跳过),只有读产物才是事实。
-// 用法:node scripts/check-fuses.mjs <path-to-.app>   (未传则找 release/ 下最新)
+// Validate the Electron fuses' actual state in the packaged build (official Security Checklist #19).
+// Why read the binary directly: electron-builder's electronFuses being written correctly does not mean
+// it took effect
+// (a version difference, a platform difference, or the config section in the wrong place all skip
+// silently), and only reading the build output is fact.
+// Usage: node scripts/check-fuses.mjs <path-to-.app>   (with no argument, find the newest under release/)
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
-// @electron/fuses 在二进制里用这个哨兵串标记 fuse wire 起点
+// @electron/fuses marks the start of the fuse wire in the binary with this sentinel string
 const SENTINEL = Buffer.from('dL7pKGdnNz796PbbjQWNKmHXBZaB9tsX', 'utf8')
 const NAMES = [
   'runAsNode',
@@ -17,9 +19,10 @@ const NAMES = [
   'onlyLoadAppFromAsar',
   'v8Snapshot',
   'fileProtocolPrivileges',
-  'wasmTrapHandlers' // Electron 41 追加(index 8);fuses 只追加不重排,故按下标读长期安全
+  'wasmTrapHandlers' // Appended by Electron 41 (index 8); fuses are append-only and never reordered, so
+  // reading by index is safe long-term
 ]
-/** 期望值:与 electron-builder.yml 的 electronFuses 段一致,两处不符即报错 */
+/** Expected values: identical to electron-builder.yml's electronFuses section; a mismatch is an error */
 const EXPECT = {
   runAsNode: 'DISABLED',
   nodeOptions: 'DISABLED',
@@ -27,7 +30,7 @@ const EXPECT = {
   onlyLoadAppFromAsar: 'ENABLED',
   cookieEncryption: 'ENABLED',
   asarIntegrity: 'ENABLED',
-  fileProtocolPrivileges: 'DISABLED' // 无 file:// 页面加载,特权是纯余量
+  fileProtocolPrivileges: 'DISABLED' // No file:// page loads, so the privilege is pure surplus
 }
 
 function findApp() {

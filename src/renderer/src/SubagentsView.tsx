@@ -1,5 +1,6 @@
-// Subagents 分栏(spec: subagents-memory-plugin):全局 tab + 定义抽屉。
-// 承载结构按原型裁决:点行直开抽屉;双端切换在抽屉内原地刷新,不关闭抽屉。
+// The Subagents section (spec: subagents-memory-plugin): the global tab + the definition drawer.
+// The container structure follows the prototype ruling: clicking a row opens the drawer directly, and
+// switching sides refreshes inside the drawer without closing it.
 import { useEffect, useState } from 'react'
 import type {
   AgentSide,
@@ -40,7 +41,8 @@ export function GlobalSubagentsTab({ snap }: { snap: Snapshot }): JSX.Element {
   )
 }
 
-/** 详情页生效视图 tab:两侧均为项目级遮蔽(与 skills 的 Codex 共存不同,见 domain 注释) */
+/** The detail page's effective view tab: both sides shadow at the project level (unlike skills' Codex
+ * coexistence, see the comments in domain) */
 export function ProjectSubagentsTab({ detail }: { detail: ProjectDetail }): JSX.Element {
   const t = useDict()
   const [open, setOpen] = useState<ProjectSubagentEntry | null>(null)
@@ -96,11 +98,12 @@ function toDrawerEntry(p: ProjectSubagentEntry): SubagentEntry {
 }
 
 /**
- * 失败类别 → 展示标签。
+ * A failure category → its display label.
  *
- * **按类别判,不按措辞判**:早先这里写的是 `error.includes('不可读')`,
- * 措辞一改该分支就静默失效、且没有任何测试会红(ADR-0015 点名的隐患)。
- * 现在类别是语言无关的枚举,措辞怎么改都不影响分支。
+ * **Judged by category, not by wording**: this used to read `error.includes('不可读')`,
+ * so a wording change would make the branch fail silently with no test going red (the hazard ADR-0015
+ * named).
+ * The category is now a language-independent enum, so no wording change affects the branch.
  */
 export function errLabel(err: SubagentSideDetail['error'], t: Locale): string {
   return err?.code === ERR.subagentUnreadable ? t.subagentError.unreadable : t.subagentError.parseFailed
@@ -118,7 +121,8 @@ export function SubagentFlags({ s }: { s: { overridesBuiltin?: boolean; claude?:
   )
 }
 
-/** 定义抽屉:kv 元数据 + 原文;双端条目在抽屉内切侧,原地刷新 */
+/** The definition drawer: key-value metadata + the source; an entry present on both sides switches inside
+ * the drawer, refreshing in place */
 export function SubagentDrawer({
   entry,
   onClose,
@@ -126,7 +130,8 @@ export function SubagentDrawer({
 }: {
   entry: SubagentEntry
   onClose: () => void
-  /** 额外元信息行(详情页生效视图用:来源层级/遮蔽说明) */
+  /** Extra metadata rows (used by the detail page's effective view: the source layer and shadowing
+   * explanation) */
   meta?: string
 }): JSX.Element {
   const t = useDict()
@@ -135,7 +140,7 @@ export function SubagentDrawer({
   const [side, setSide] = useState<AgentSide>(entry.claude ? 'claude' : 'codex')
   const cur = side === 'claude' ? entry.claude : entry.codex
   useEffect(() => {
-    // 原型确认交互:Esc 与遮罩点击等价关闭
+    // The interaction confirmed by the prototype: Esc and clicking the overlay both close it
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose()
     }

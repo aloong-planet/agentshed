@@ -1,5 +1,6 @@
-// 八步产物扫描(票05;2026-08-01 加 specs 共六类):项目详情内展示。
-// .scratch 里的 tickets 天然不在 docs/ 下,不计入产物。
+// Scanning the eight-step artifacts (ticket 05; specs was added on 2026-08-01, making six types), shown
+// inside project detail.
+// Tickets under .scratch are not under docs/ by construction and do not count as artifacts.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import type { ArtifactEntry, ArtifactType } from '@shared/domain'
@@ -29,7 +30,7 @@ function collectMd(out: ArtifactEntry[], type: ArtifactType, dir: string): void 
   }
   for (const name of names) {
     if (!name.endsWith('.md')) continue
-    if (name.toLowerCase() === 'readme.md') continue // 索引文件不是产物
+    if (name.toLowerCase() === 'readme.md') continue // An index file is not an artifact
     out.push(mdEntry(type, join(dir, name)))
   }
 }
@@ -51,9 +52,9 @@ function collectPrototypes(out: ArtifactEntry[], root: string): void {
         continue
       }
       if (!e.name.endsWith('.html')) continue
-      if (dir === root && e.name === 'index.html') continue // 画廊壳不是产物
+      if (dir === root && e.name === 'index.html') continue // The gallery shell is not an artifact
       const rel = relative(root, p).replace(/\.html$/, '')
-      // 模块内 index.html 用「目录路径」作名,其余用文件名
+      // An index.html inside a module is named by its directory path, everything else by its filename
       const title = e.name === 'index.html' ? rel.replace(/\/index$/, '') : e.name.replace(/\.html$/, '')
       out.push({ type: 'prototypes', title, file: p, mtimeMs: mtime(p) })
     }
@@ -71,7 +72,7 @@ function mdTitle(file: string): string {
     const m = /^#\s+(.+)$/m.exec(head)
     if (m) return m[1].trim()
   } catch {
-    // 读不了就走文件名兜底
+    // Unreadable falls back to the filename
   }
   return file.split('/').pop()?.replace(/\.md$/, '') ?? file
 }

@@ -1,11 +1,13 @@
-// 结构化错误 → 当前语言的措辞。
+// A structured error → wording in the current language.
 //
-// 与 ./errors 分开是为了让**抛出侧**(主进程)不必依赖 i18n 字典:主进程只产码与参数,
-// 成句发生在渲染层。这里是两者唯一的汇合点。
+// Kept separate from ./errors so that the **throwing side** (the main process) need not depend on the
+// i18n dictionaries: it produces only codes and parameters,
+// and sentence composition happens in the renderer. This is the one place the two meet.
 import { ERR, decodeAppError, type ErrorCode, type ErrorParams } from './errors'
 import { dictOf, type Language } from './i18n'
 
-/** 参数取值是 `string | number`,取用时按位置需要的类型收一下;缺席给空/0 */
+/** Parameter values are `string | number`, narrowed at the use site to whatever that position needs;
+ * an absent one gives '' or 0 */
 const s = (p: ErrorParams, k: string): string => {
   const v = p[k]
   return v === undefined ? '' : String(v)
@@ -16,23 +18,30 @@ const n = (p: ErrorParams, k: string): number => {
 }
 
 /**
- * 把 catch 到的任意东西渲染成当前语言的一句话。
+ * Render anything caught into one sentence in the current language.
  *
- * **兜底的性质自票 06 起变了**:此前它是"旧式协议兼容分支"——迁移未完成,跨进程还会
- * 传中文成句错误。票 06 收口后**已无任何跨进程生产者走这条路**(全库检索坐实:
- * `src/` 内除测试外 `throw new Error` 为 0 处,契约字段亦无成句 message)。
+ * **The fallback's character changed as of ticket 06**: it used to be an "old-protocol compatibility
+ * branch" — the migration was unfinished and cross-process calls still
+ * carried whole-sentence Chinese errors. After ticket 06 closed the protocol, **no cross-process
+ * producer takes this path at all** (confirmed by a whole-repository search:
+ * zero `throw new Error` in `src/` outside tests, and no whole-sentence message on any contract field).
  *
- * 保留它是因为剩下的入口是**非协议错误**:渲染层自身的 TypeError、第三方库抛出的东西——
- * 这些永远不会有错误码。删掉兜底会让它们变成空白,而"报错时二次报错"比一句难看的
- * 原文更坏。故这不再是兼容分支,而是非协议异常的最后一道显示保障。
+ * It is kept because the remaining entry points are **non-protocol errors**: the renderer's own
+ * TypeErrors and whatever a third-party library throws —
+ * none of which will ever have an error code. Removing the fallback would turn them into blanks, and
+ * "erroring while reporting an error" is worse than one ugly line of
+ * original text. So this is no longer a compatibility branch but the last display guarantee for
+ * non-protocol exceptions.
  */
 export function errorText(lang: Language, raw: unknown): string {
   const err = decodeAppError(raw)
   if (!err) return raw instanceof Error ? raw.message : String(raw)
   const t = dictOf(lang).errors
   const p = err.params
-  // switch 而非查表:末尾的 never 断言让**新增错误码却忘了配措辞**变成编译错误,
-  // 而不是运行期显示空白。ADR-0015 要的"新增失败路径时叫什么是必答题"就落在这。
+  // A switch rather than a lookup table: the `never` assertion at the end turns **adding an error code
+  // and forgetting its wording** into a compile error
+  // rather than a blank at runtime. ADR-0015's "naming a new failure path is a mandatory question" lands
+  // exactly here.
   switch (err.code) {
     case ERR.badArgs:
       return t.badArgs(s(p, 'channel'), s(p, 'field'))
@@ -107,7 +116,8 @@ export function errorText(lang: Language, raw: unknown): string {
   }
 }
 
-/** 漏配措辞时在**编译期**报错:参数类型是 never,任何未被上面消化的码都塞不进来 */
+/** Errors at **compile time** when wording is missing: the parameter type is `never`, so no code left
+ * unconsumed above can be passed in */
 function exhaustive(code: never): string {
   return String(code as ErrorCode)
 }

@@ -1,7 +1,8 @@
-// Claude plugins 读取(spec: subagents-memory-plugin 序列 E/F)。
-// 安装记录来自 installed_plugins.json(全量保留,E1);
-// 启用态分层:全局页取 user 层(E4),项目视角按 local > project > user 合并(F1),
-// 某层文件缺失/损坏即跳过该层降级(F2)。
+// Reading Claude plugins (spec: subagents-memory-plugin, sequences E/F).
+// Installation records come from installed_plugins.json (all kept, E1);
+// enablement is layered: the global page reads the user layer (E4) and a project's viewpoint merges
+// local > project > user (F1),
+// with a missing or corrupt file at one layer skipping that layer (F2).
 import { existsSync, readFileSync, readdirSync, type Dirent } from 'node:fs'
 import { basename, join, resolve, sep } from 'node:path'
 import type {
@@ -23,11 +24,12 @@ function readJson(file: string): Record<string, unknown> | null {
     const raw: unknown = JSON.parse(readFileSync(file, 'utf8'))
     return typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : null
   } catch {
-    return null // F2:损坏视为该来源缺失
+    return null // F2: corruption counts as that source being absent
   }
 }
 
-/** 某 settings 文件的 enabledPlugins 键;文件缺失/损坏/无该键 → null(该层不参与判定) */
+/** A settings file's enabledPlugins key; a missing or corrupt file, or no such key → null (that layer
+ * takes no part in the judgement) */
 function readEnabledLayer(settingsFile: string): Record<string, unknown> | null {
   const s = readJson(settingsFile)
   const e = s?.['enabledPlugins']
@@ -77,15 +79,16 @@ export function readClaudePlugins(claudeHome: string): PluginEntry[] {
   })
 }
 
-// ── 内含组件展开(E5-E7) ──
+// ── Expanding bundled components (E5–E7) ──
 
 const EMPTY_CONTENTS: PluginContents = { skills: [], agents: [], hooks: [], mcp: [], missing: true }
 
-/** hooks 配置(来自文件或内联 object)→ 事件摘要;形状不合期望时忽略 */
+/** A hooks configuration (from a file or an inline object) → an event summary; ignored when the shape is
+ * not as expected */
 function hookEvents(config: unknown): Map<string, number> {
   const out = new Map<string, number>()
   if (typeof config !== 'object' || config === null) return out
-  // 支持 { hooks: {Event: [...]} } 与直接 {Event: [...]} 两种形状
+  // Both { hooks: {Event: [...]} } and a bare {Event: [...]} shape are supported
   const rec = config as Record<string, unknown>
   const events = typeof rec['hooks'] === 'object' && rec['hooks'] !== null ? (rec['hooks'] as Record<string, unknown>) : rec
   for (const [event, groups] of Object.entries(events)) {
@@ -102,13 +105,15 @@ function readJsonFile(file: string): unknown {
   }
 }
 
-/** manifest 声明的相对路径必须落在包内——包外(../ 等)一律拒绝,堵路径逃逸读取口 */
+/** A manifest-declared relative path must land inside the package — anything outside (`../` and so on)
+ * is refused, closing the path escape read hole */
 function insideJoin(root: string, rel: string): string | null {
   const p = resolve(root, rel)
   return p === resolve(root) || p.startsWith(resolve(root) + sep) ? p : null
 }
 
-/** 包根下 skills 目录约定枚举(Claude/Codex 同构,E8);带 stat-only 包统计(H1) */
+/** Enumerate the skills directory convention under a package root (isomorphic for Claude and Codex, E8),
+ * with stat-only package stats (H1) */
 function pluginSkillSummaries(installPath: string): PluginSkillSummary[] {
   const skills: PluginSkillSummary[] = []
   const skillsDir = join(installPath, 'skills')
@@ -125,16 +130,17 @@ function pluginSkillSummaries(installPath: string): PluginSkillSummary[] {
       })
     }
   } catch {
-    // skills 目录不可读:该类为空
+    // The skills directory cannot be read: this category is empty
   }
   return skills
 }
 
 export function readPluginContents(installPath: string | null): PluginContents {
   if (installPath === null || !existsSync(installPath)) return { ...EMPTY_CONTENTS }
-  // skills:目录约定 skills/*/SKILL.md;单文件损坏 → 名称保留、描述空(E5)
+  // skills: the directory convention skills/*/SKILL.md; one corrupt file → the name is kept with an empty
+  // description (E5)
   const skills = pluginSkillSummaries(installPath)
-  // agents:目录约定 agents/*.md
+  // agents: the directory convention agents/*.md
   const agents: string[] = []
   const agentsDir = join(installPath, 'agents')
   if (existsSync(agentsDir)) {
@@ -143,10 +149,11 @@ export function readPluginContents(installPath: string | null): PluginContents {
         if (f.endsWith('.md')) agents.push(basename(f, '.md'))
       }
     } catch {
-      // 同上
+      // As above
     }
   }
-  // hooks:目录约定 hooks/hooks.json + manifest hooks 字段(string/array/内联 object 三形态)合并(E5)
+  // hooks: the directory convention hooks/hooks.json merged with the manifest hooks field (in string,
+  // array or inline object form) (E5)
   const merged = new Map<string, number>()
   const addAll = (m: Map<string, number>): void => {
     for (const [ev, n] of m) merged.set(ev, (merged.get(ev) ?? 0) + n)
@@ -168,7 +175,7 @@ export function readPluginContents(installPath: string | null): PluginContents {
   const hooks: PluginHookSummary[] = [...merged.entries()]
     .map(([event, matchers]) => ({ event, matchers }))
     .sort((a, b) => a.event.localeCompare(b.event))
-  // mcp:manifest mcpServers(内联 object 或指向文件的 string)+ 根目录 .mcp.json
+  // mcp: the manifest mcpServers (an inline object or a string pointing at a file) plus the root .mcp.json
   const mcp = new Set<string>()
   const addMcp = (v: unknown): void => {
     if (typeof v === 'string') {
@@ -186,9 +193,10 @@ export function readPluginContents(installPath: string | null): PluginContents {
   return { skills: skills.sort((a, b) => a.name.localeCompare(b.name)), agents: agents.sort(), hooks, mcp: [...mcp].sort(), missing: false }
 }
 
-// ── Codex 插件缓存枚举(E8:仅列存在,启用态/展开不建模) ──
+// ── Enumerating the Codex plugin cache (E8: existence only; enablement and expansion are not modelled) ──
 
-/** 单层安全枚举:该层不可读只影响该层,不向同层其他条目逃逸(E10) */
+/** Safe enumeration of one layer: an unreadable layer affects only itself and does not escape sideways to
+ * the other entries in it (E10) */
 function safeDirents(dir: string): Dirent[] {
   try {
     return readdirSync(dir, { withFileTypes: true })
@@ -224,7 +232,8 @@ export function readCodexPlugins(codexHome: string): CodexPluginEntry[] {
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-/** 项目视角有效启用集:local > project > user,首个提及该插件名的层决定启用态(F1) */
+/** The effective enabled set from a project's viewpoint: local > project > user, with the first layer
+ * mentioning the plugin name deciding its enablement (F1) */
 export function readProjectPlugins(roots: ScanRoots, projectPath: string): ProjectPluginEntry[] {
   const layers: Array<{ from: 'local' | 'project' | 'user'; map: Record<string, unknown> | null }> = [
     { from: 'local', map: readEnabledLayer(join(projectPath, '.claude', 'settings.local.json')) },

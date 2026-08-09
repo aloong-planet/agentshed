@@ -1,12 +1,16 @@
-// 按字节区间读文件(spec C2/D2b):点提问取该轮、列提问取文本、搜索回读,
-// 全走这一条通路——**绝不整读**,133MB 的会话与 3MB 的会话读取量同量级。
+// Reading a file by byte range (spec C2/D2b): fetching a turn on a question click, reading text for the
+// question list, and reading back for search
+// all go through this one path — **never reading whole**, so a 133 MB session reads the same order of
+// magnitude as a 3 MB one.
 //
-// 并发上限默认 4(spec D2b:🔬 待测确认项)。热缓存实测拐点在 8,取 4 的理由是
-// 它等于 Node libuv 线程池默认大小,超过 4 需同时提 UV_THREADPOOL_SIZE 才兑现;
-// 冷盘数据出来前不动这个值(归宿 .scratch/scan-cold-start/)。
+// The concurrency cap defaults to 4 (spec D2b: 🔬 a to-be-confirmed value). The measured warm-cache knee
+// is at 8; 4 is taken because
+// it equals Node's default libuv thread pool size, and going beyond 4 only pays off if
+// UV_THREADPOOL_SIZE is raised at the same time;
+// do not touch this value until cold-disk data exists (destination: .scratch/scan-cold-start/).
 import { open } from 'node:fs/promises'
 
-/** 共享的有界并发 map:结果按输入顺序返回,与完成顺序无关 */
+/** A shared bounded-concurrency map: results come back in input order, regardless of completion order */
 export async function mapLimit<T, R>(
   items: readonly T[],
   limit: number,
@@ -31,9 +35,11 @@ export async function mapLimit<T, R>(
       }
     }
   })
-  // 等**全部**在飞任务落定再抛(allSettled 语义):Promise.all 会在首错时立刻拒绝,
-  // 留下无人监听的在飞 promise——它们随后的失败(如 fd 已被调用方 finally 关闭导致
-  // 的 EBADF)就是 unhandledRejection,会被 smoke 的错误 grep 放大成门禁红。
+  // Wait for **every** in-flight task to settle before throwing (allSettled semantics): Promise.all
+  // rejects at the first error,
+  // leaving in-flight promises with no listener — and their later failures (an EBADF because the caller's
+  // finally already closed the fd, say)
+  // are unhandledRejections, which smoke's error grep amplifies into a red gate.
   await Promise.all(workers)
   if (failed) throw firstErr
   return out
@@ -41,15 +47,18 @@ export async function mapLimit<T, R>(
 
 export interface ByteRange {
   start: number
-  /** 开区间上界(与 QuestionRec 的 [start, end) 同口径) */
+  /** The exclusive upper bound (the same convention as QuestionRec's [start, end)) */
   end: number
 }
 
 /**
- * 读出各区间的原始字节(搜索的字节匹配层用,票 08:粗筛不 decode)。
- * `bytesRead` 是实际读取的总字节数——"没有整读"的**证据**,测试按它断言
- * 而不是按墙钟(墙钟受页缓存影响会飘)。
- * 越过文件末尾的区间按实际可读截断;文件打不开则整体拒绝,由调用方降级。
+ * Read each range's raw bytes (used by search's byte matching layer, ticket 08: the coarse pass does not
+ * decode).
+ * `bytesRead` is the total bytes actually read — the **evidence** that nothing was read whole, and what
+ * tests assert on
+ * rather than wall-clock time (which drifts with the page cache).
+ * A range past the end of the file is truncated to what is readable; if the file cannot be opened the
+ * whole call is refused and the caller degrades.
  */
 export async function readRangeBuffers(
   file: string,
@@ -73,7 +82,7 @@ export async function readRangeBuffers(
   }
 }
 
-/** 读出各区间的 UTF-8 文本(readRangeBuffers 的 decode 皮) */
+/** Read each range's UTF-8 text (a decoding skin over readRangeBuffers) */
 export async function readRanges(
   file: string,
   ranges: readonly ByteRange[],

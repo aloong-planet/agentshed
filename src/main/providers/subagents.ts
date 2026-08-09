@@ -1,8 +1,9 @@
-// Subagents 读取(spec: subagents-memory-plugin)。
-// 键语义按侧不同(源码级核实 2026-07-31):
-//   Claude:~/.claude/agents/*.md,键=文件名(去 .md),frontmatter 为展示字段;
-//   Codex:~/.codex/agents/*.toml,键=toml 内 name 字段(agent_roles.rs;
-//   无有效 name 或解析失败的文件 Codex 不加载,此处列为带 error 的降级条目)。
+// Reading subagents (spec: subagents-memory-plugin).
+// The key means different things per side (verified at source level 2026-07-31):
+//   Claude: ~/.claude/agents/*.md, key = the filename (minus .md), with frontmatter as the display fields;
+//   Codex: ~/.codex/agents/*.toml, key = the name field inside the toml (agent_roles.rs;
+//   Codex does not load a file with no valid name or one that fails to parse, and those are listed here
+//   as degraded entries carrying an error).
 import { existsSync, readdirSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import { parse as parseToml } from 'smol-toml'
@@ -11,7 +12,8 @@ import type { ScanRoots } from './types'
 import { fmField, readCapped } from './read-utils'
 import { ERR } from '@shared/errors'
 
-/** Codex 内置 role(role.rs built_in::configs);自定义同名即覆盖内置 */
+/** The Codex built-in roles (role.rs built_in::configs); a custom entry of the same name overrides the
+ * built-in */
 const CODEX_BUILTINS = new Set(['default', 'worker', 'explorer'])
 
 function listFiles(dir: string, ext: string): string[] {
@@ -25,7 +27,8 @@ function listFiles(dir: string, ext: string): string[] {
   }
 }
 
-/** 文件在列表里但读不出内容(权限等)→ 保留条目并标注:静默消失会污染同名遮蔽判定(A8) */
+/** A file that is listed but whose contents cannot be read (permissions and so on) → keep the entry with
+ * a label: silently disappearing would pollute the same-name shadowing judgement (A8) */
 const UNREADABLE: Omit<SubagentSideDetail, 'content'> = {
   description: null,
   tools: null,
@@ -59,7 +62,8 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
   for (const f of listFiles(dir, '.toml')) {
     const content = readCapped(join(dir, f))
     if (content === null) {
-      // 名不可知(文件读不了),以文件名占位;无法参与按 name 的遮蔽判定,但不静默消失
+      // The name is unknowable (the file cannot be read), so the filename stands in; it cannot take part
+      // in name-based shadowing, but it does not silently disappear
       out.set(`(${f})`, { content: null, ...UNREADABLE })
       continue
     }
@@ -90,7 +94,8 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
       })
       continue
     }
-    // 同层重名:先者优先(agent_roles.rs 对同层 duplicate 警告并跳过后来者;文件已按名序遍历)
+    // Duplicate names within a layer: the first wins (agent_roles.rs warns on a same-layer duplicate and
+    // skips the later one; the files are already walked in name order)
     if (out.has(name)) continue
     out.set(name, {
       content,
@@ -112,9 +117,12 @@ export function readGlobalSubagents(roots: ScanRoots): SubagentEntry[] {
 }
 
 /**
- * 项目详情生效视图。两侧均为项目级遮蔽低层(与 skills 的 Codex 共存语义相反):
- * Claude 官方语义项目级优先;Codex 按 config layer 覆盖(Project=25 > User=20)。
- * 同名键按侧语义:Claude=文件名,Codex=toml name 字段(跨文件名同 name 也遮蔽)。
+ * Project detail's effective view. Both sides shadow the lower layer at the project level (the opposite
+ * of skills' Codex coexistence semantics):
+ * Claude's official semantics give the project level priority; Codex overrides by config layer
+ * (Project=25 > User=20).
+ * The same-name key follows each side: Claude = the filename, Codex = the toml name field (so the same
+ * name shadows across different filenames too).
  */
 export function readEffectiveSubagents(roots: ScanRoots, projectPath: string): ProjectSubagentEntry[] {
   const sides: Array<{

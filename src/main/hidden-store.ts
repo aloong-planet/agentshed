@@ -1,5 +1,7 @@
-// 手动隐藏的持久化:app 自有存储(userData 下 hidden.json),绝不写 agent 配置。
-// 原子写:临时文件 + rename,中断不产半截文件。路径按合并键(去尾斜杠+小写)匹配。
+// Persisting manual hiding: the app's own storage (hidden.json under userData), never the agent
+// configuration.
+// Atomic writes: a temporary file + rename, so an interruption leaves no half file. Paths match by the
+// merge key (trailing slash removed, lowercased).
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { mergeKey } from '@shared/path-key'
@@ -22,7 +24,8 @@ export class HiddenStore {
       if (Array.isArray(raw)) return new Set(raw.filter((v): v is string => typeof v === 'string'))
       return new Set()
     } catch {
-      // 存储损坏:降级为空集(隐藏偏好可重建,不值得让 app 崩)
+      // Corrupt storage: degrade to an empty set (a hiding preference can be rebuilt, and is not worth
+      // crashing the app over)
       return new Set()
     }
   }

@@ -1,5 +1,6 @@
-// Agents 全局层读取(票07):全局 skills(合并/软链)、plugins、全局 MCP、配置只读。
-// skills-view:已拆除跨侧 content diff(differs)。
+// Reading the Agents global layer (ticket 07): global skills (merged, symlinks), plugins, global MCP, and
+// read-only configuration.
+// skills-view: the cross-side content diff (differs) has been removed.
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type {
@@ -17,12 +18,13 @@ import { fmField, readCapped, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
 
 export function readGlobalLayer(roots: ScanRoots): GlobalLayer {
-  // plugins 只读一次,skills 并入与 MCP 来源都消费它(review-code 重构项 #1:去 3 次重复扫描)
+  // Plugins are read once, consumed by both the skills join and the MCP sources (review-code refactor
+  // item #1: removing 3 duplicate scans)
   const plugins = readClaudePlugins(roots.claudeHome)
   return {
     skills: readGlobalSkills(roots, plugins),
     subagents: readGlobalSubagents(roots),
-    memory: [], // 依赖项目注册表,由 scan 在 projects 之后填充(见 scan.ts)
+    memory: [], // Depends on the project registry; scan fills it in after projects (see scan.ts)
     codexMemoriesEnabled: readCodexMemoriesEnabled(roots.codexHome),
     plugins,
     codexPlugins: readCodexPlugins(roots.codexHome),
@@ -60,8 +62,9 @@ function readSkillDir(base: string): Map<string, SideSkill> {
       continue
     }
     const skillMd = join(p, 'SKILL.md')
-    if (!existsSync(skillMd)) continue // 非 skill 目录(如散文件)跳过
-    // 只读 frontmatter description;正文按需读(skills-view),不再为跨侧 diff 保全文
+    if (!existsSync(skillMd)) continue // Not a skill directory (a loose file, say): skip
+    // Only the frontmatter description is read; the body is read on demand (skills-view), and the full
+    // text is no longer retained for a cross-side diff
     const content = readTextCapped(skillMd)
     out.set(e.name, { description: fmField(content, 'description'), symlink, pkg: statSkillPackage(p) })
   }
@@ -90,7 +93,8 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
       pluginSkillName: null
     }
   })
-  // G1(全局页口径):user 层启用插件的内含 skills 并入——命名空间条目,不参与遮蔽(G2)
+  // G1 (the global page's rule): the bundled skills of user-layer enabled plugins join in — namespaced
+  // entries that do not take part in shadowing (G2)
   const fromPlugins: GlobalSkill[] = []
   for (const p of plugins) {
     if (!p.enabled || p.contents.missing) continue
@@ -101,7 +105,8 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
         description: s.description,
         sides: ['claude'],
         symlink: { claude: false, codex: false },
-        // G3 同权预览(ADR-0012):统计与包根来自内含组件摘要同一次扫描(H5)
+        // G3 equal-footing preview (ADR-0012): the stats and the package root come from the same scan as
+        // the bundled component summary (H5)
         pkg: { claude: s.pkg, codex: null },
         origin: 'plugin',
         pluginName: p.name,
@@ -119,7 +124,7 @@ const MCP_HEADER = /^\s*\[mcp_servers\.([^\]"]+)\]\s*$/
 
 function readGlobalMcp(roots: ScanRoots, plugins: PluginEntry[]): McpServerEntry[] {
   const out: McpServerEntry[] = []
-  // Claude 全局 mcpServers(~/.claude.json 顶层)
+  // Claude global mcpServers (at the top level of ~/.claude.json)
   try {
     const raw: unknown = JSON.parse(readFileSync(roots.claudeConfigFile, 'utf8'))
     const servers = (raw as Record<string, unknown>)?.['mcpServers']
@@ -127,9 +132,9 @@ function readGlobalMcp(roots: ScanRoots, plugins: PluginEntry[]): McpServerEntry
       for (const name of Object.keys(servers)) out.push({ name, side: 'claude', source: 'global-config' })
     }
   } catch {
-    // 注册表缺失/损坏:该来源为空
+    // A missing or corrupt registry: this source is empty
   }
-  // plugin 自带(installPath/.claude-plugin/plugin.json 的 mcpServers)
+  // Bundled with a plugin (mcpServers in installPath/.claude-plugin/plugin.json)
   for (const plugin of plugins) {
     if (!plugin.installPath) continue
     try {
@@ -141,7 +146,7 @@ function readGlobalMcp(roots: ScanRoots, plugins: PluginEntry[]): McpServerEntry
         for (const name of Object.keys(servers)) out.push({ name, side: 'claude', source: 'plugin' })
       }
     } catch {
-      // 插件无 plugin.json 或不含 mcpServers:跳过
+      // The plugin has no plugin.json, or none with mcpServers: skip
     }
   }
   // Codex config.toml [mcp_servers.*]
@@ -153,15 +158,16 @@ function readGlobalMcp(roots: ScanRoots, plugins: PluginEntry[]): McpServerEntry
         if (m) out.push({ name: m[1], side: 'codex', source: 'config.toml' })
       }
     } catch {
-      // 忽略
+      // Ignore
     }
   }
   return out
 }
 
-// ── 配置只读 ──
+// ── Read-only configuration ──
 
-/** 只产结构化字段;成句(含「条」「段」这类量词)由渲染层按当前语言组装(票 07) */
+/** Emits structured fields only; the renderer assembles the sentence (including quantifiers such as
+ * "entries" and "sections") in the current language (ticket 07) */
 function summarizeCodexConfig(configFile: string): CodexConfigSummary | null {
   const raw = readTextCapped(configFile)
   if (raw === null) return null

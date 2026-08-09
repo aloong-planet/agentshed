@@ -1,26 +1,35 @@
-// 偏好回填的合并规则(issue #61)。
+// The merge rule for preference backfilling (issue #61).
 //
-// mount 时发出的 `getPrefs()` 读的是**那一刻**的磁盘状态。若用户在它 resolve 之前就
-// 改了某项偏好,无条件回填会把新选择顶回旧值——控件显示与实际生效值就此不一致,
-// 且不会自愈。抽成纯函数是为了让这条规则可测:React 组件本身按 ADR-0002 不单测。
+// The `getPrefs()` issued at mount reads the disk state **at that moment**. If the user changes a
+// preference before it resolves,
+// an unconditional backfill pushes the new choice back to the old value — leaving the control and the
+// value actually in effect out of step,
+// with no self-healing. It is extracted as a pure function to make the rule testable: React components
+// themselves are not unit tested per ADR-0002.
 import type { Prefs } from '@shared/prefs'
 
-/** 偏好字段名。用 keyof 派生而不是另写一份字面量:Prefs 加字段时这里自动跟上 */
+/** Preference field names. Derived with keyof rather than written out again as literals, so adding a
+ * field to Prefs updates this automatically */
 export type PrefKey = keyof Prefs
 
 /**
- * 未被用户亲手改过的字段才采用回声。
+ * Only fields the user has not changed by hand take the echo.
  *
- * **逐字段判断,不是一个总开关**:用户只改了模式时,回声里的配色与语言仍然是准的,
- * 整份跳过会让那两项停在默认值。
+ * **Judged per field, not with a single flag**: when the user changed only the mode, the colour scheme
+ * and language in the echo are still correct,
+ * and skipping the whole thing would leave those two stuck at their defaults.
  *
- * 与"无守卫"相比,粗粒度写法的**触发条件完全相同**(都要用户抢在回声之前点),
- * 差别只在波及面:无守卫是被顶掉 1 项(用户刚点的那项),粗粒度是丢掉 2 项
- * (没碰过的那两项停在默认值,整个 app 会以默认配色渲染)。救回一项、赔上两项,
- * 所以它不是"另一种权衡",是严格更差。
+ * Compared with having no guard, the coarse-grained version has **exactly the same trigger condition**
+ * (the user has to click before the echo either way),
+ * and differs only in blast radius: with no guard 1 field is overwritten (the one just clicked), while
+ * coarse-grained loses 2
+ * (the two untouched fields stay at their defaults, and the whole app renders in the default colour
+ * scheme). Saving one at the cost of two
+ * makes it not "a different trade-off" but strictly worse.
  *
- * 三个字段逐一写出而不是遍历 key:Prefs 将来加字段时,这里会因缺属性而 typecheck 失败,
- * 而遍历写法会静默漏掉新字段。
+ * The three fields are written out one by one rather than iterating keys: when a field is added to Prefs,
+ * this fails typecheck on the missing property,
+ * whereas an iterating version would silently miss it.
  */
 export function backfillPrefs(
   local: Prefs,

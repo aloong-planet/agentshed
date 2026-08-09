@@ -1,12 +1,15 @@
-// 渲染层的当前生效语言。
+// The renderer's currently effective language.
 //
-// 为什么是 context 而不是模块级变量:spec 要求「切换语言时正在显示的错误提示按新语言
-// 重新渲染」——那意味着错误必须以**码 + 参数**持有、在渲染时才成句,而成句要拿到的语言
-// 得是**响应式**的。模块级变量改了不会触发重渲染,做不到这条。
+// Why context rather than a module-level variable: the spec requires that "an error notice on screen
+// re-renders in the new language
+// when the language is switched" — which means an error has to be held as **a code plus parameters** and
+// composed at render time, and the language that composition reads
+// has to be **reactive**. Changing a module-level variable triggers no re-render, so it cannot do this.
 //
-// 为什么不逐层 prop 传:错误渲染点散在会话页、插件列表、skill 展开块里,
-// 把语言从 App 一路穿过 ProjectsPane / DetailPane 只为了给最底层用,
-// 会让沿途每个组件都多一个与自己无关的参数。
+// Why not thread it down as a prop: the error render sites are scattered across the session page, the
+// plugin list and the skill expansion blocks,
+// and carrying the language from App through ProjectsPane and DetailPane just to reach the deepest level
+// would give every component along the way one more parameter with no stake in it.
 import { createContext, useContext, type JSX, type ReactNode } from 'react'
 import { FALLBACK_LANGUAGE, dictOf, type Language, type Locale } from '@shared/i18n'
 
@@ -22,12 +25,12 @@ export function LanguageProvider({
   return <LanguageContext.Provider value={lang}>{children}</LanguageContext.Provider>
 }
 
-/** 当前生效语言 */
+/** The currently effective language */
 export function useLanguage(): Language {
   return useContext(LanguageContext)
 }
 
-/** 当前语言的字典(取文案的常用入口) */
+/** The current language's dictionary (the usual entry point for reading copy) */
 export function useDict(): Locale {
   return dictOf(useContext(LanguageContext))
 }

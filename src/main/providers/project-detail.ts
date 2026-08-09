@@ -1,6 +1,9 @@
-// 项目详情读取(票03):skills 生效视图(同侧同名只列项目级,skills-view B1)、
-// 项目级 MCP、配置只读。各侧运行时同名语义(Claude 遮蔽 / Codex 共存,2026-07-30
-// 源码级核实)见 CONTEXT「Codex 同名语义按组件而异」;本列表不再输出遮蔽/共存字段。
+// Reading project detail (ticket 03): the skills effective view (a same-name pair within one side lists
+// only the project level, skills-view B1),
+// project-level MCP, and read-only configuration. Each side's runtime same-name semantics (Claude
+// shadows / Codex coexists, verified at source level
+// on 2026-07-30) are in CONTEXT under "Codex same-name semantics differ per component"; this list no
+// longer emits shadowing or coexistence fields.
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type {
@@ -19,7 +22,8 @@ import { readProjectPlugins } from './plugins'
 import { fmField, readCapped, readTextCapped } from './read-utils'
 import { statSkillPackage } from './skill-package'
 
-/** G1(详情页口径):本项目有效启用插件的内含 skills → 命名空间条目(level=plugin,不参与遮蔽) */
+/** G1 (the detail page's rule): the bundled skills of this project's effectively enabled plugins →
+ * namespaced entries (level=plugin, not taking part in shadowing) */
 function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] {
   const out: ProjectSkillEntry[] = []
   for (const p of plugins) {
@@ -32,7 +36,8 @@ function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] 
         level: 'plugin',
         side: 'claude',
         symlink: false,
-        // G3 同权预览(ADR-0012):统计与包根来自内含组件摘要同一次扫描(H5)
+        // G3 equal-footing preview (ADR-0012): the stats and the package root come from the same scan as
+        // the bundled component summary (H5)
         pkg: s.pkg,
         origin: 'plugin',
         pluginName: p.name,
@@ -45,7 +50,8 @@ function pluginSkillEntries(plugins: ProjectPluginEntry[]): ProjectSkillEntry[] 
 }
 
 export function readProjectDetail(roots: ScanRoots, projectPath: string): ProjectDetail {
-  // plugins 只读一次:plugins 字段与 skills 并入共同消费(review-code 重构项 #1)
+  // Plugins are read once: the plugins field and the skills join both consume it (review-code refactor
+  // item #1)
   const plugins = readProjectPlugins(roots, projectPath)
   return {
     path: projectPath,
@@ -64,7 +70,7 @@ export function readProjectDetail(roots: ScanRoots, projectPath: string): Projec
   }
 }
 
-// ── skills 生效视图 ──
+// ── The skills effective view ──
 
 interface RawSkill {
   description: string | null
@@ -114,7 +120,8 @@ function readEffectiveSkills(
       globalDir: roots.agentsSkillsDir
     }
   ]
-  // skills-view B1:同侧同名只展示项目级(列表展示口径;运行时语义见 CONTEXT)
+  // skills-view B1: within one side, a same-name pair shows only the project level (a list presentation
+  // rule; the runtime semantics are in CONTEXT)
   const out: ProjectSkillEntry[] = []
   for (const { side, projectDir, globalDir } of sides) {
     const project = listSkills(projectDir)
@@ -134,7 +141,7 @@ function readEffectiveSkills(
       })
     }
     for (const [name, s] of [...global.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-      if (project.has(name)) continue // 被项目级覆盖,不并行列出
+      if (project.has(name)) continue // Covered by the project level, so not listed alongside
       out.push({
         name,
         description: s.description,
@@ -152,7 +159,7 @@ function readEffectiveSkills(
   return [...out, ...pluginSkillEntries(plugins)]
 }
 
-// ── 项目级 MCP ──
+// ── Project-level MCP ──
 
 function readProjectMcp(roots: ScanRoots, projectPath: string): ProjectMcpEntry[] {
   const file = join(projectPath, '.mcp.json')
@@ -174,9 +181,10 @@ function readProjectMcp(roots: ScanRoots, projectPath: string): ProjectMcpEntry[
   }))
 }
 
-// ── 配置 ──
+// ── Configuration ──
 
-/** ~/.claude.json 项目键里值得展示的字段(统计/内部标记不展示) */
+/** The fields worth displaying from a project key in ~/.claude.json (statistics and internal markers are
+ * not shown) */
 const SETTINGS_KEYS = ['allowedTools', 'enabledMcpjsonServers', 'disabledMcpjsonServers'] as const
 
 function projectSettings(roots: ScanRoots, projectPath: string): Record<string, unknown> | null {

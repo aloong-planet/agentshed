@@ -1,7 +1,11 @@
-// 会话页(票 04):打开一个会话,列出全部真实提问——单行索引式,一次列全。
-// 「不整读」是数据层的事(主进程按字节区间现读文本);这里拿到的 text 是全文,
-// 单行省略是 CSS 显示层截断(spec D2a 推论),展开取整轮是本页的按需动作(票 05)。
-// 组织层(票 06):日期分组折叠 + 正序/倒序 + 顶部三档横幅。
+// The session page (ticket 04): open a session and list every real question — single-line index style,
+// all at once.
+// "Never read whole" is the data layer's business (the main process reads text live by byte range); the
+// text arriving here is the full text,
+// the single-line ellipsis is CSS display-layer truncation (a corollary of spec D2a), and expanding to
+// fetch a whole turn is this page's on-demand action (ticket 05).
+// The organising layer (ticket 06): day grouping with collapse + ascending/descending + the three tiers
+// of banner at the top.
 import { Fragment, useEffect, useRef, useState } from 'react'
 import type { SessionPage, SessionTurn } from '@shared/domain'
 import { fmtAgo } from './ProjectsPane'
@@ -22,16 +26,18 @@ function fmtHM(ms: number | null): string {
 }
 
 
-/** 单轮取回的界面状态(票 05):就地展开,取哪轮读哪轮 */
+/** A single turn's fetch state in the UI (ticket 05): expanded in place, reading only the turn clicked */
 type TurnState =
   | { s: 'loading' }
   | { s: 'rebuilding' }
   | { s: 'ready'; turn: SessionTurn; ms: number }
-  // 以**原始错误**持有而不是已成句的字符串:成句发生在渲染时,
-  // 语言切换后同一个错误会按新语言重新渲染(spec「切换语言」节)
+  // Held as the **raw error** rather than a finished sentence: composition happens at render time,
+  // so after a language switch the same error re-renders in the new language (the spec's "switching
+  // languages" section)
   | { s: 'error'; raw: unknown }
 
-/** 顶部横幅三档(票 06):info 两种、risk 一种;文案按数据实情写,不给假确定感 */
+/** The three tiers of top banner (ticket 06): two info kinds and one risk kind; the copy follows what the
+ * data actually says and offers no false certainty */
 function Banners({
   page,
   onOpenSession
@@ -100,40 +106,48 @@ export function SessionPane({
   onOpenSession
 }: {
   file: string
-  /** 搜索命中直达(票 08):加载后滚动定位到该序号的提问行;null/未传不定位 */
+  /** Going straight to a search hit (ticket 08): after loading, scroll to the question row with that
+   * index; null or omitted means no locating */
   focusQ?: number | null
   projectName: string
-  /** 相对时间的基准(快照时间,与列表同源) */
+  /** The baseline for relative times (the snapshot time, sharing its source with the list) */
   now: number
   onBack: () => void
-  /** 横幅里的父会话跳转(App 层换会话);不传则父标题为纯文本 */
+  /** The banner's jump to the parent session (App switches session); without it the parent title is
+   * plain text */
   onOpenSession?: (file: string) => void
 }): JSX.Element {
   const t = useDict()
   const lang = useLanguage()
   const [page, setPage] = useState<SessionPage | null>(null)
-  // 同上:存原始错误,渲染时才成句
+  // As above: store the raw error and compose the sentence at render time
   const [err, setErr] = useState<{ raw: unknown } | null>(null)
-  /** 已展开的轮次(数组下标);默认 0 轮展开——预展开等于把「按需取」作废 */
+  /** The expanded turns (array indices); 0 expanded by default — pre-expanding would defeat "fetch on
+   * demand" */
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
   const [turns, setTurns] = useState<ReadonlyMap<number, TurnState>>(new Map())
-  /** 提问排序(票 06):默认倒序(2026-08-06 用户裁定,最新提问先见);
-   * 序号恒原始轮次号,排序只换呈现顺序 */
+  /** The question sort (ticket 06): descending by default (the user's ruling 2026-08-06, newest question
+   * first);
+   * the index is always the original turn number, and the sort only changes the presentation order */
   const [order, setOrder] = useState<QuestionOrder>('desc')
-  /** 已折叠的日期组(键 = 组标签);展开状态与它独立——重开该天仍是展开的 */
+  /** The collapsed day groups (keyed by group label); expansion state is independent of it — a turn
+   * already expanded is still expanded when the day is reopened */
   const [folded, setFolded] = useState<ReadonlySet<string>>(new Set())
-  /** 定位焦点(票 08,2026-08-06 原型确认):搜索直达的行,竖条常驻到点击任意行 */
+  /** The locating focus (ticket 08, prototype confirmed 2026-08-06): the row a search jumped to, whose
+   * bar stays until any row is clicked */
   const [focused, setFocused] = useState<number | null>(null)
-  /** 脉冲是否已播完:播完只留竖条——切排序等重挂载时不得再闪一次 10s */
+  /** Whether the pulse has finished playing: once it has, only the bar remains — a remount such as a sort
+   * change must not flash for another 10s */
   const [pulseDone, setPulseDone] = useState(false)
-  // 换会话后仍在飞的取回不得落进新会话的状态里
+  // A fetch still in flight after switching session must not land in the new session's state
   const fileRef = useRef(file)
   fileRef.current = file
 
   useEffect(() => {
     setFocused(focusQ ?? null)
     setPulseDone(false)
-    // 依赖含 focusQ:同一会话页内点另一条命中(file 不变)也要重新定位
+    // focusQ is a dependency: clicking another hit within the same session page (file unchanged) must
+    // relocate too
   }, [file, focusQ])
 
   useEffect(() => {
@@ -169,7 +183,8 @@ export function SessionPane({
     const f = file
     setTurn(i, { s: 'loading' })
     try {
-      // 先问一句"索引还新鲜吗":不新鲜就亮出"重建中"——用户看到的是过程,不是干等
+      // Ask "is the index still fresh" first: if not, show "rebuilding" — the user sees a process rather
+      // than a blank wait
       const fresh = await window.agentshed.sessionFresh(f)
       if (fileRef.current !== f) return
       if (!fresh) setTurn(i, { s: 'rebuilding' })
@@ -179,13 +194,15 @@ export function SessionPane({
       setTurn(i, { s: 'ready', turn, ms: Math.max(1, Math.round(performance.now() - t0)) })
     } catch (e) {
       if (fileRef.current !== f) return
-      // 单轮失败只自伤:该轮显示错误,不连累其余轮次、不拖垮整页
+      // A single turn's failure only hurts itself: that turn shows an error without affecting the others
+      // or dragging down the page
       setTurn(i, { s: 'error', raw: e })
     }
   }
 
   const toggle = (i: number): void => {
-    // 点击任意提问行即视为注意力转移:清定位竖条(原型确认的清除时机)
+    // Clicking any question row counts as attention moving on: clear the locating bar (the clearing
+    // moment confirmed by the prototype)
     setFocused(null)
     const was = open.has(i)
     setOpen((prev) => {
@@ -196,7 +213,8 @@ export function SessionPane({
     })
     if (was) return
     const st = turns.get(i)
-    // 已取回的直接展示(收起不丢);在飞的不重发
+    // Already fetched turns are shown directly (collapsing does not lose them); in-flight ones are not
+    // re-sent
     if (st && st.s !== 'error') return
     void fetchTurn(i)
   }
@@ -215,7 +233,7 @@ export function SessionPane({
           ref={
             focusQ != null && q.i === focusQ
               ? (el): void => {
-                  // 搜索直达:挂载后滚到该行
+                  // Going straight to a search hit: scroll to the row after mounting
                   el?.scrollIntoView({ block: 'center' })
                 }
               : undefined
@@ -346,7 +364,8 @@ export function SessionPane({
                           <i className="cv" />
                           {t.session.dayGroup(g.day, g.items.length)}
                         </div>
-                        {/* 折叠只藏呈现:展开/取回状态原样保留,重开该天仍是展开的 */}
+                        {/* Collapsing only hides the presentation: expansion and fetch state are kept
+                            as they were, so reopening the day still shows it expanded */}
                         {!isFolded && g.items.map(({ q, idx }) => row(q, idx))}
                       </div>
                     )

@@ -1,4 +1,4 @@
-// Claude Code 侧数据读取:注册表(~/.claude.json 的 projects 键)。
+// Reading Claude Code-side data: the registry (the projects key in ~/.claude.json).
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { ERR, type AppError } from '@shared/errors'
@@ -6,7 +6,7 @@ import { ERR, type AppError } from '@shared/errors'
 export interface RegistryResult {
   detected: boolean
   paths: string[]
-  /** 探测失败:码 + 参数,不含自然语言(票 07) */
+  /** Probe failure: a code plus parameters, containing no natural language (ticket 07) */
   error?: AppError
 }
 
@@ -32,8 +32,9 @@ export function readClaudeRegistry(configFile: string): RegistryResult {
 }
 
 /**
- * 项目路径 → Claude 会话目录名的正向编码(不做有损反解)。
- * 实测规律:所有非字母数字字符替换为 '-'(含 / . _)。
+ * The forward encoding from a project path to Claude's session directory name (never decoded back, which
+ * would be lossy).
+ * The measured rule: every non-alphanumeric character becomes '-' (including / . _).
  */
 export function encodeClaudeProjectDir(projectPath: string): string {
   return projectPath.replace(/[^A-Za-z0-9]/g, '-')
@@ -41,11 +42,12 @@ export function encodeClaudeProjectDir(projectPath: string): string {
 
 export interface Activity {
   sessionCount: number
-  /** epoch ms;无会话为 null */
+  /** epoch ms; null with no sessions */
   lastSessionAt: number | null
 }
 
-/** 某项目的 Claude 会话活跃度:编码目录下 *.jsonl 计数 + 最大 mtime。不解析内容。 */
+/** A project's Claude session activity: the count of *.jsonl under the encoded directory + the largest
+ * mtime. Contents are not parsed. */
 export function readClaudeActivity(claudeHome: string, projectPath: string): Activity {
   const dir = join(claudeHome, 'projects', encodeClaudeProjectDir(projectPath))
   if (!existsSync(dir)) return { sessionCount: 0, lastSessionAt: null }
@@ -58,7 +60,7 @@ export function readClaudeActivity(claudeHome: string, projectPath: string): Act
       count++
       if (last === null || m > last) last = m
     } catch {
-      // 文件在扫描间隙被删:跳过
+      // The file was deleted between scans: skip it
     }
   }
   return { sessionCount: count, lastSessionAt: last }

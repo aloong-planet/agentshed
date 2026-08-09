@@ -1,6 +1,9 @@
-// 轮内块渲染(票 07):TurnBlock → 原型确认的块形态(2026-08-02 原型 + 2026-08-06
-// unknown 留痕回补)。工具/思考/推理/subagent 默认折叠成一行头,点开看全文;
-// 不可还原处(推理密文、截断工具结果、不可归位的子线程)一律 warn 显式标注,不静默。
+// Rendering in-turn blocks (ticket 07): TurnBlock → the block forms confirmed by the prototype (the
+// 2026-08-02 prototype plus the 2026-08-06
+// retro-added unknown trace). Tool / thinking / reasoning / subagent blocks collapse to a one-line header
+// by default and expand to the full text;
+// anything unrecoverable (encrypted reasoning, a truncated tool result, an unattributable sub-thread)
+// always gets an explicit warn label rather than silence.
 import { useState } from 'react'
 import type { TurnBlock } from '@shared/domain'
 import { useDict } from './language'
@@ -11,7 +14,8 @@ function firstLine(s: string, max = 72): string {
   return t.length > max ? `${t.slice(0, max)}…` : t
 }
 
-/** 可折叠块骨架(原型 .blk/.bh/.bb):头部一行,点开出正文 */
+/** The collapsible block skeleton (the prototype's .blk/.bh/.bb): a one-line header that expands to the
+ * body */
 function Fold({
   cls,
   icon,

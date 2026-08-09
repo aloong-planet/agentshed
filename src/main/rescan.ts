@@ -1,7 +1,9 @@
-// token-stats 序列 E:快照自动保鲜的纯函数层。
-// 触发接线(定时器/聚焦事件)在 index.ts 装配层;此处只承载可单测的判定。
+// token-stats sequence E: the pure function layer of the snapshot's automatic refresh.
+// The trigger wiring (timers and focus events) lives in the index.ts assembly layer; this only carries
+// the unit-testable judgements.
 
-/** 聚焦触发的节流判定(E1):从未扫过必扫;距上次成功扫描达到节流窗才再扫 */
+/** The throttle judgement for a focus trigger (E1): never scanned means scan; otherwise scan again only
+ * once the throttle window has passed since the last successful scan */
 export function shouldRescanOnFocus(
   nowMs: number,
   lastScanMs: number | null,
@@ -11,7 +13,8 @@ export function shouldRescanOnFocus(
   return nowMs - lastScanMs >= throttleMs
 }
 
-/** 时间参数注入解析(E5):合法正数取注入值,否则回落默认——坏输入不得让保鲜停摆 */
+/** Parsing injected time parameters (E5): a valid positive number is taken, otherwise the default —
+ * bad input must not bring the refresh to a halt */
 export function rescanIntervalMs(env: string | undefined, fallbackMs: number): number {
   const n = Number(env)
   return Number.isFinite(n) && n > 0 ? n : fallbackMs

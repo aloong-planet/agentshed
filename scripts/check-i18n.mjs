@@ -1,15 +1,23 @@
 #!/usr/bin/env node
-// 文案门禁(票 14):扫源码里**未进字典**的中文字面量,挂在 pnpm verify 上。
+// The copy gate (ticket 14): scans the source for Chinese literals **not yet in the dictionaries**,
+// hooked into pnpm verify.
 //
-// ── 与类型系统的分工(两者不重叠,加了新文案该指望哪一道由此确定)──
-//   **漏译**由 typecheck 拦:源语言(zh)是唯一真相,其余五语在类型上与它逐条对齐,
-//   少一条即 TS2739、多一条即 TS2353。它管的是"字典内部齐不齐"。
-//   **漏抽**由本门禁拦:文案还写在组件/主进程里、根本没进字典,类型系统看不见它——
-//   对 TS 来说那只是个普通字符串。它管的是"该进字典的都进去了没有"。
+// ── The division of labour with the type system (they do not overlap, which determines which one to
+// rely on when adding copy) ──
+//   **Missing translations** are caught by typecheck: the source language (zh) is the single truth and
+//   the other five align to it entry by entry in the type system,
+//   so one missing entry is TS2739 and one extra is TS2353. It governs "are the dictionaries internally
+//   complete".
+//   **Un-extracted copy** is caught by this gate: copy still written inside a component or the main
+//   process, never having entered the dictionaries, is invisible to the type system —
+//   to TS it is just an ordinary string. It governs "has everything that belongs in the dictionaries got
+//   there".
 //
-// ── 扫描口径 ──
-// 只看**会流向界面的**中文:字符串字面量与 JSX 文本。注释不算(它们是写给开发者的,
-// 强行英文化只会让本地维护变难,ADR-0016 的中性条款已定此口径)。
+// ── Scanning rule ──
+// Only Chinese that **flows to the UI** counts: string literals and JSX text. Comments do not (they are
+// written for developers, and per ADR-0017 they are
+// in English anyway — so scanning them would add nothing, while the strip below keeps a Chinese word
+// inside a comment from being mistaken for un-extracted copy).
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,27 +27,31 @@ const SRC = join(ROOT, 'src')
 const CJK = /[\u4e00-\u9fff]/
 
 /**
- * 白名单。**每一条都要能回答"去掉它门禁会红吗"——不会红的条目是多余的,删掉。**
- * 白名单不得为了让门禁变绿而放宽:那等于把门禁关掉还留着一个绿灯。
+ * The allow-list. **Every entry must be able to answer "would the gate go red without it" — an entry
+ * that would not is redundant and should be deleted.**
+ * The allow-list must never be relaxed just to turn the gate green: that is switching the gate off while
+ * leaving a green light on.
  */
 const ALLOW = [
   {
-    // 去掉会红:六份字典**就是**中文文案的家,扫它等于扫源语言本身
+    // Removing it goes red: the six dictionaries **are** where the Chinese copy lives, so scanning them
+    // is scanning the source language itself
     match: (rel) => rel.startsWith('shared/i18n/'),
     why: 'the six dictionaries themselves — the source language (zh) is Chinese by definition'
   },
   {
-    // 去掉会红:测试里有中文断言、fixture 与用例名,它们不流向界面
+    // Removing it goes red: tests contain Chinese assertions, fixtures and case names, none of which
+    // flow to the UI
     match: (rel) => rel.endsWith('.test.ts') || rel.endsWith('.test.tsx'),
     why: 'test files — case names, fixtures and assertions never reach the product UI'
   }
 ]
 
-/** 剥掉注释与字符串外的内容,只留可能流向界面的字面量与 JSX 文本 */
+/** Strip comments so only literals and JSX text that might flow to the UI remain */
 function strip(src) {
   return src
-    .replace(/\/\*[\s\S]*?\*\//g, '') // 块注释
-    .replace(/(^|[^:])\/\/.*$/gm, '$1') // 行注释(避开 http:// 这类)
+    .replace(/\/\*[\s\S]*?\*\//g, '') // Block comments
+    .replace(/(^|[^:])\/\/.*$/gm, '$1') // Line comments (avoiding http:// and the like)
 }
 
 function walk(dir, out = []) {
