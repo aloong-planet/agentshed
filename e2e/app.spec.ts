@@ -1648,7 +1648,7 @@ for (const mount of TREND_MOUNTS) {
 
     // ③ 提示内容是多行明细(合计 + 至少一个 provider 行)
     const tip = await win.locator('.chart .col').nth(15).getAttribute('data-tip')
-    expect(tip).toContain('Total')
+    expect(tip).toContain('total')
 
     expect(l.errors).toEqual([])
     await close(l)
@@ -1963,7 +1963,7 @@ test('the language selector: seven items including follow-system and the divider
 
   // 触发器显示「跟随系统」+ 当前解析结果
   const trig = win.getByTestId('language-trigger')
-  await expect(trig).toContainText('Follow system')
+  await expect(trig).toContainText('跟随系统')
   await expect(trig).toContainText('简体中文')
 
   await trig.click()
