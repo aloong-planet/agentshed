@@ -1,5 +1,6 @@
 <!doctype html>
-<!-- 原型(UI)· Skills 包预览 — 主列表折叠展示包内文件，点文件开抽屉读内容。
+<!-- A UI prototype · Skills package preview — the main list expands to show a package's files, and
+     clicking a file opens a drawer to read it.
      演示基建:底栏切方案 + 昼夜 + 展开形式(data-demo-harness)。共享:md-preview。
      2026-08-06 更新:①行密度对齐其它模块(视觉行高约 32px);②行不展示 description(已裁定);
      ③展开区新增「平铺」形式(默认)——不缩进、表格满宽,与旧「缩进卡片」可切换对比;
@@ -11,7 +12,7 @@
 <title>原型 — Skills 包预览 · 列表折叠 + 文件抽屉</title>
 <link rel="stylesheet" href="../_shared/md-preview.css">
 <style>
-  /* ── 雾蓝 · 浅 ── */
+  /* ── Mist blue · light ── */
   html[data-scheme="blue"] {
     --bg: #f6f5f3;
     --card: #fffcf9;
@@ -53,10 +54,10 @@
     --t-md-bar-from: #f7f8fa;
     --mask: rgba(30, 28, 40, 0.35);
   }
-  /* ── 雾蓝 · 深 ── */
+  /* ── Mist blue · dark ── */
   html[data-scheme="blue"][data-mode="dark"],
   html[data-scheme="blue"][data-mode="system"] {
-    /* system 的深色由下方 media 覆盖；此处仅 dark 强制 */
+    /* system's dark is covered by the media query below; this is the forced-dark case only */
   }
   @media (prefers-color-scheme: dark) {
     html[data-scheme="blue"][data-mode="system"] { color-scheme: dark; }
@@ -150,7 +151,7 @@
     --mask: rgba(0, 0, 0, 0.5);
   }
 
-  /* ── 琥珀褐 · 浅 ── */
+  /* ── Amber brown · light ── */
   html[data-scheme="amber"] {
     --bg: #f7f3ec;
     --card: #fffcf7;
@@ -276,7 +277,7 @@
     --t-md-bar-from: #1e1a16;
     --mask: rgba(0, 0, 0, 0.55);
   }
-  /* light 强制：system 下若用户强制 light，覆盖 media dark */
+  /* Forced light: under system, a user forcing light overrides the media dark */
   html[data-mode="light"] {
     color-scheme: light;
   }
@@ -294,7 +295,7 @@
   .sec-h:first-of-type{margin-top:0}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;
     box-shadow:0 1px 2px rgba(40,50,60,.04);overflow:hidden}
-  /* skill 块:顶栏 + 可折叠文件 */
+  /* The skill block: a header bar plus collapsible files */
   .sk{border-top:1px solid var(--line)}
   .sk:first-child{border-top:0}
   .sk-head{display:flex;align-items:center;gap:8px;padding:8px 14px;width:100%;text-align:left;
@@ -318,7 +319,7 @@
   .pill.lv{border:1px solid var(--line-strong);color:var(--text-2)}
   .ins{font:inherit;font-size:11.5px;border:1px solid var(--line-strong);background:var(--bg);color:var(--text-2);
     border-radius:7px;padding:4px 11px;cursor:pointer;flex:none}
-  /* 行内包统计(文件数/行数/大小):取代展开区的汇总条 */
+  /* Inline package stats (file count / line count / size): replacing the summary bar in the expanded area */
   .sk-meta{margin-left:auto;flex:none;font-size:11px;color:var(--text-2);font-variant-numeric:tabular-nums}
   .ins:hover{color:var(--accent);border-color:var(--accent)}
   .sk-body{display:none;padding:0 12px 12px 32px;background:var(--tree-bg);border-top:1px solid var(--line)}
@@ -364,7 +365,8 @@
     font-family:ui-monospace,Menlo,monospace;text-align:right;white-space:nowrap}
   .files button .meta.lines{font-weight:600;color:var(--text)}
   .files .empty{font-size:12px;color:var(--text-2);padding:12px}
-  /* ── 展开形式 · 平铺(默认):展开区不缩进,表格作为卡片的满宽分段,
+  /* ── The expanded form · flat (the default): the expanded area is not indented and the table is a
+     full-width segment of the card,
      文件名列与行名对齐;区块靠上下边线 + tree-bg 底色区隔,不再套内层卡片 ── */
   html[data-expand="flat"] .sk-body{padding:0}
   html[data-expand="flat"] .sk-sides{padding:8px 14px 4px}
@@ -382,7 +384,7 @@
   .mask{position:fixed;inset:0;background:var(--mask);backdrop-filter:blur(2px);z-index:20}
   .err{color:var(--warn);padding:14px;font-size:12.5px}
 
-  /* 抽屉:只读文件详情(文件树在主列表) */
+  /* The drawer: read-only file detail (the file tree lives in the main list) */
   .drawer{
     position:fixed;top:0;right:0;bottom:0;z-index:21;width:min(720px,94vw);
     display:flex;flex-direction:column;
@@ -556,7 +558,7 @@
 
   function lineCount(text) {
     if (!text) return 0
-    // 末行无换行也计一行
+    // A last line with no newline still counts as one
     return text.replace(/\n$/, '').split('\n').length
   }
   function formatSize(bytes) {
@@ -564,12 +566,12 @@
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
-  /** 原型用稳定伪 mtime(无真实 fs);实现期换成真实 mtime */
+  /** A stable fake mtime for the prototype (there is no real fs); implementation swaps in the real one */
   function mockMtime(skill, side, path) {
     let h = 0
     const s = `${side}:${skill}:${path}`
     for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) >>> 0
-    // 2025-11 → 2026-08 之间的稳定日期
+    // A stable date between 2025-11 and 2026-08
     const day = h % 280
     const d = new Date(Date.UTC(2025, 10, 1 + day, 8 + (h % 10), (h >> 3) % 60))
     const y = d.getUTCFullYear()
@@ -591,7 +593,7 @@
     document.documentElement.setAttribute('data-scheme', scheme)
     document.documentElement.setAttribute('data-mode', mode)
     location.hash = `${scheme}-${mode}`
-    // 只动演示 harness,勿伤 md-preview 等业务按钮
+    // Only touch the demo harness, leaving the md-preview and other product buttons alone
     document.querySelectorAll('[data-demo-harness] [data-scheme]').forEach((b) => {
       b.classList.toggle('on', b.getAttribute('data-scheme') === scheme)
     })
@@ -675,7 +677,8 @@
     return sides.slice().sort((a, b) => SIDE_ORDER.indexOf(a) - SIDE_ORDER.indexOf(b))
   }
 
-  /** 行内包统计:当前侧的 文件数 · 大小(2026-08-06 裁定不含行数——实现期 stat 即得,
+  /** Inline package stats: the current side's file count · size (ruled 2026-08-06 to exclude the line count —
+   * implementation gets this from stat alone,
       不读内容;快照每侧只带两个数字,行数仍在展开表格逐文件展示) */
   function statsText(skill, side) {
     const pack = PACKAGES[`${side}:${skill}`]
@@ -712,10 +715,11 @@
       return
     }
 
-    // 汇总信息在折叠行上(.sk-meta),展开区不再重复汇总条
+    // The summary sits on the collapsed row (.sk-meta), so the expanded area no longer repeats it
     const rows = names.map((n) => {
       const text = pack.files[n] || ''
-      // 原型 UTF-8 近似:中文等按 1 码元计,够展示密度
+      // A prototype-grade UTF-8 approximation: wide characters count as 1 code unit, which is enough to show the
+      // density
       const bytes = new TextEncoder().encode(text).length
       const lines = lineCount(text)
       return { n, bytes, lines, mtime: mockMtime(skill, side, n), kind: extKind(n) }
@@ -822,7 +826,7 @@
     { name: 'tdd', description: 'Test-driven development…', sides: ['claude'], origin: 'disk', symlink: false },
     { name: 'superpowers:brainstorming', description: '插件 · 不可展开/预览', sides: ['claude'], origin: 'plugin', symlink: false }
   ]
-  // 详情:同名 github-ops 只列项目级;tdd 仅全局;无被遮蔽全局行
+  // Detail: a same-named github-ops lists only the project level; tdd is global only; no shadowed global row
   const DETAIL = [
     { name: 'github-ops', description: '项目级覆盖全局 · 只展示这一行', sides: ['claude'], origin: 'disk', level: 'project', symlink: false },
     { name: 'tdd', description: '仅全局有 · 仍列出可展开', sides: ['claude'], origin: 'disk', level: 'global', symlink: false }
