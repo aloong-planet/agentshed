@@ -349,7 +349,7 @@ describe('validateSessionPage (the session page payload)', () => {
 
 describe('validateSessionTurn (the single-turn fetch payload, ticket 05)', () => {
   const ok = {
-    blocks: [{ kind: 'text', role: 'assistant', at: 1754300000000, body: '回答body' }],
+    blocks: [{ kind: 'text', role: 'assistant', at: 1754300000000, body: 'the answer body' }],
     bytesRead: 2048
   }
 

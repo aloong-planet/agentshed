@@ -310,7 +310,7 @@ describe('Claude aggregation (the ccusage rules)', () => {
     mkClaudeFile('mid-bad.jsonl', [
       userLine('first question'),
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5),
-      '{"type":"user","message":{"role":"user","content":"half a line written so f', // 半行,解析不出
+      '{"type":"user","message":{"role":"user","content":"half a line written so f', // half a line, unparseable
       userLine('second question'),
       usageLine('claude-fable-5', '2026-07-30T03:00:00Z', 10, 5)
     ])
@@ -402,8 +402,8 @@ describe('a session\'s at = the largest timestamp in the file (the same meaning 
       { id: childId, parentId, forkedAtIso: '2026-07-29T09:00:00Z' },
       'gpt-5.6-sol',
       [
-        { input: 100, cached: 0, output: 10, at: '2026-07-29T09:00:00Z' }, // 重放父历史
-        { input: 50, cached: 0, output: 5, at: '2026-07-31T20:00:00Z' } // 本次新内容
+        { input: 100, cached: 0, output: 10, at: '2026-07-29T09:00:00Z' }, // replays the parent's history
+        { input: 50, cached: 0, output: 5, at: '2026-07-31T20:00:00Z' } // new content this time
       ]
     )
     const r = await engine().build(roots(), [proj])
@@ -424,7 +424,7 @@ describe('a session\'s at = the largest timestamp in the file (the same meaning 
     ])
     const sessions = (await engine().build(roots(), [proj])).perProject.get(proj.toLowerCase())?.sessions ?? []
     expect(sessions.map((s) => s.file).sort()).toEqual([cl, cx].sort())
-    for (const s of sessions) expect(existsSync(s.file), `${s.file} 应存在`).toBe(true)
+    for (const s of sessions) expect(existsSync(s.file), `${s.file} should exist`).toBe(true)
   })
 
   it('subagent and nested files are not listed, so they bring no extra identities with them', async () => {
@@ -623,7 +623,7 @@ describe('cache version migration (a real bug regression)', () => {
     writeFileSync(
       join(dir, 'cache', 'token-cache.json'),
       JSON.stringify({
-        version: CACHE_VERSION, // 同版本:版本号拦不住它,只能靠 isWellFormedAgg
+        version: CACHE_VERSION, // Same version: the version number cannot catch it and only isWellFormedAgg can
         files: { [cl]: { sig: `${st.mtimeMs}:${st.size}`, agg } }
       })
     )
@@ -658,7 +658,7 @@ describe('cache version migration (a real bug regression)', () => {
     }
     const keysOf = (kind: string): string[] => {
       const hit = Object.values(cache.files).find((f) => f.agg['kind'] === kind)
-      expect(hit, `缓存里应有 ${kind} 条目`).toBeDefined()
+      expect(hit, `the cache should hold a ${kind} entry`).toBeDefined()
       return Object.keys((hit as { agg: Record<string, unknown> }).agg).sort()
     }
     expect(keysOf('claude')).toEqual([
@@ -857,7 +857,7 @@ describe('session titles and the listing rules', () => {
       join(d, `rollout-${CHILD}.jsonl`),
       [
         meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
-        q('2026-07-30T02:00:00Z', 'parent question one'), // 重放(时间戳被改写,内容相同)
+        q('2026-07-30T02:00:00Z', 'parent question one'), // a replay (timestamps rewritten, content identical)
         q('2026-07-30T02:00:05Z', 'child new question')
       ].join('\n') + '\n'
     )
@@ -901,7 +901,7 @@ describe('session titles and the listing rules', () => {
       childFile,
       [
         meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
-        q('2026-07-30T02:00:00Z', 'parent question one'), // 全部提问都是重放,fork 后没产生新提问
+        q('2026-07-30T02:00:00Z', 'parent question one'), // every question is a replay; the fork produced nothing new
         usage('2026-07-30T02:00:01Z', 100, 20)
       ].join('\n') + '\n'
     )
@@ -936,7 +936,7 @@ describe('sessionQuestions (the session page service)', () => {
     const cl = mkClaudeFile('sq2.jsonl', [userLine('question one', '2026-07-30T02:00:00Z')])
     const e = engine()
     await e.build(roots(), [proj])
-    appendFileSync(cl, userLine('question two', '2026-07-30T04:00:00Z') + '\n') // size 变 → 签名不符
+    appendFileSync(cl, userLine('question two', '2026-07-30T04:00:00Z') + '\n') // the size changes → the signature mismatches
     const r = await e.sessionQuestions(roots(), cl)
     expect(r.questions, 'after the rebuild the appended question should be visible').toHaveLength(2)
     // The write-back assertion: that file's index and signature in the persisted cache are both updated —
@@ -965,7 +965,7 @@ describe('sessionQuestions (the session page service)', () => {
       childFile,
       [
         meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
-        q('2026-07-30T02:00:00Z', 'parent question one'), // 重放(时间戳被改写,内容相同)
+        q('2026-07-30T02:00:00Z', 'parent question one'), // a replay (timestamps rewritten, content identical)
         q('2026-07-30T02:00:05Z', 'child new question')
       ].join('\n') + '\n'
     )

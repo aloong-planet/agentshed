@@ -40,7 +40,7 @@ describe('renderMarkdown', () => {
 
   it('YAML frontmatter is split into a key-value card before the body is rendered', () => {
     const html = renderMarkdown(
-      '---\nname: github-ops\ndescription: "Rules"\nwhen_to_use: "Activate"\n---\n\n# 标题\n'
+      '---\nname: github-ops\ndescription: "Rules"\nwhen_to_use: "Activate"\n---\n\n# Heading\n'
     )
     expect(html).toContain('md-fm')
     expect(html).toContain('md-fm-k')

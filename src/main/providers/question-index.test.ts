@@ -136,8 +136,8 @@ describe('turn splitting and offsets', () => {
       expect(recs).toHaveLength(2)
       // The question's range hugs its line; the turn starts after the question line
       expect(recs[0][0]).toBe(0)
-      expect(recs[0][2]).toBe(recs[1][0]) // 第一轮止 == 第二条提问起
-      expect(recs[1][2]).toBe(size) // 末轮止 == 文件长度
+      expect(recs[0][2]).toBe(recs[1][0]) // turn one's end == question two's start
+      expect(recs[1][2]).toBe(size) // the last turn's end == the file length
     })
   })
 
@@ -177,7 +177,7 @@ describe('per-turn volume counting', () => {
     // description+prompt+subagent_type
     await withLines([cUser('q'), cTool('Bash'), cTool('Read'), cTool('Agent'), cTool('Task')], async (file) => {
       const [rec] = await indexOf(file, 'claude')
-      expect(rec[4]).toBe(2) // 工具:Bash + Read
+      expect(rec[4]).toBe(2) // tools: Bash + Read
       expect(rec[5]).toBe(2) // subagent:Agent + Task
     })
   })
