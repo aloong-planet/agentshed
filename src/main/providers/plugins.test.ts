@@ -1,8 +1,10 @@
-// Plugin scope 语义(spec: subagents-memory-plugin 序列 E/F):
-// 安装记录不合并(E1);全局页启用口径=user 层(E4);
-// 项目详情有效启用集 local > project > user(F1),层损坏降级(F2);F3 双向验收。
-// 已知缺口:E2(projectPath 失联标注)/F4(Codex 组详情页注)/按侧分组渲染均属 UI 层,
-//   按 ADR-0002 不单测;数据透传由 E1/E8 锁定,F3 全链路由 e2e 锁定。
+// Plugin scope semantics (spec: subagents-memory-plugin, sequences E/F):
+// installation records are not merged (E1); the global page reads enablement at the user layer (E4);
+// project detail's effective enabled set is local > project > user (F1), degrading when a layer is
+// corrupt (F2); F3 is the two-way acceptance case.
+// Known gaps: E2 (the lost-projectPath label), F4 (the Codex group note on the detail page) and the
+// per-side grouped rendering are all UI layer,
+//   not unit tested per ADR-0002; the data pass-through is pinned by E1/E8 and F3's whole chain by e2e.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -43,8 +45,8 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-describe('全局 plugins:scope 语义修复', () => {
-  it('E1 同插件多条安装记录全量保留(user+project 双装,projectPath 随行)', async () => {
+describe('global plugins: the scope semantics fix', () => {
+  it('E1 all of a plugin\'s installation records are kept (installed at both user and project, with projectPath alongside)', async () => {
     const demo = join(dir, 'demo-proj')
     mkInstalled({
       'tdd-guard@community': [
@@ -59,7 +61,7 @@ describe('全局 plugins:scope 语义修复', () => {
     expect(p.installs[1]).toMatchObject({ scope: 'project', projectPath: demo })
   })
 
-  it('E2 project-scope 记录的归属项目目录已不存在 → projectMissing 标注,不崩', async () => {
+  it('E2 a project-scope record whose owning project directory is gone → the projectMissing label, without crashing', async () => {
     const demo = join(dir, 'demo-exists')
     mkdirSync(demo, { recursive: true })
     mkInstalled({
@@ -74,7 +76,7 @@ describe('全局 plugins:scope 语义修复', () => {
     expect(gone.projectMissing).toBe(true)
   })
 
-  it('E3 scope 为 local/未知值原样保留;记录缺 scope 字段 → "(未知)"', async () => {
+  it('E3 a scope of local or an unknown value is kept as written; a record with no scope field → unknown', async () => {
     mkInstalled({
       'a@mp': [{ scope: 'local', version: '1.0.0', installPath: '/x' }],
       'b@mp': [{ version: '1.0.0', installPath: '/x' }]
@@ -85,7 +87,7 @@ describe('全局 plugins:scope 语义修复', () => {
     expect(byName['b@mp'].installs[0].scope).toBeNull()
   })
 
-  it('E4 全局页启用口径取 user 层:缺失与显式 false 均为未启用', async () => {
+  it('E4 the global page reads enablement at the user layer: both absent and explicitly false mean not enabled', async () => {
     mkInstalled({
       'a@mp': [{ scope: 'user', version: '1.0.0', installPath: '/x' }],
       'b@mp': [{ scope: 'user', version: '1.0.0', installPath: '/x' }],
@@ -100,7 +102,7 @@ describe('全局 plugins:scope 语义修复', () => {
   })
 })
 
-describe('项目详情 plugins:有效启用集(local > project > user)', () => {
+describe('project detail plugins: the effective enabled set (local > project > user)', () => {
   let proj: string
   beforeEach(() => {
     proj = join(dir, 'myproj')
@@ -108,7 +110,7 @@ describe('项目详情 plugins:有效启用集(local > project > user)', () => {
     mkInstalled({ 'p@mp': [{ scope: 'user', version: '1.0.0', installPath: '/x' }] })
   })
 
-  it('F1 项目层显式 false 压过 user 层 true;local 层再压过 project 层', () => {
+  it('F1 an explicit false at the project layer overrides a true at the user layer, and the local layer overrides the project layer in turn', () => {
     mkUserSettings({ 'p@mp': true })
     mkProjSettings(proj, 'settings.json', { 'p@mp': false })
     let d = readProjectDetail(roots(), proj)
@@ -118,7 +120,7 @@ describe('项目详情 plugins:有效启用集(local > project > user)', () => {
     expect(d.plugins[0]).toMatchObject({ enabled: true, enabledFrom: 'local' })
   })
 
-  it('F1 任何层都未提及 → 未启用(enabledFrom null);仅 user 层启用 → user 生效', () => {
+  it('F1 mentioned in no layer → not enabled (enabledFrom null); enabled only at the user layer → user takes effect', () => {
     let d = readProjectDetail(roots(), proj)
     expect(d.plugins[0]).toMatchObject({ enabled: false, enabledFrom: null })
     mkUserSettings({ 'p@mp': true })
@@ -126,7 +128,7 @@ describe('项目详情 plugins:有效启用集(local > project > user)', () => {
     expect(d.plugins[0]).toMatchObject({ enabled: true, enabledFrom: 'user' })
   })
 
-  it('F2 项目层 settings 损坏 → 该层跳过,降级到 user 层,不崩', () => {
+  it('F2 corrupt project-layer settings → that layer is skipped and it degrades to the user layer, without crashing', () => {
     mkUserSettings({ 'p@mp': true })
     mkdirSync(join(proj, '.claude'), { recursive: true })
     writeFileSync(join(proj, '.claude', 'settings.json'), '{broken json')
@@ -134,7 +136,7 @@ describe('项目详情 plugins:有效启用集(local > project > user)', () => {
     expect(d.plugins[0]).toMatchObject({ enabled: true, enabledFrom: 'user' })
   })
 
-  it('F3 验收:project-scope 安装 → 全局页未启用;归属项目详情里启用(project 层)', async () => {
+  it('F3 acceptance: a project-scope install → not enabled on the global page, enabled in the owning project\'s detail (the project layer)', async () => {
     const demo = join(dir, 'demo')
     mkdirSync(demo, { recursive: true })
     mkInstalled({
@@ -153,12 +155,13 @@ describe('项目详情 plugins:有效启用集(local > project > user)', () => {
   })
 })
 
-// ── 内含组件展开(E5-E7)与 Codex 插件枚举(E8) ──
+// ── Expanding bundled components (E5–E7) and enumerating Codex plugins (E8) ──
 
-/** 造一个插件包目录:skills/agents/hooks/manifest 按需 */
+/** Build a plugin package directory with skills / agents / hooks / manifest as needed */
 function mkPluginPkg(root: string): void {
   mkdirSync(join(root, '.claude-plugin'), { recursive: true })
-  // manifest:内联 mcpServers + hooks 字段指向额外文件(三形态之 string)
+  // The manifest: inline mcpServers plus a hooks field pointing at an extra file (the string form of the
+  // three)
   writeFileSync(
     join(root, '.claude-plugin', 'plugin.json'),
     JSON.stringify({
@@ -171,7 +174,7 @@ function mkPluginPkg(root: string): void {
     join(root, 'extra-hooks.json'),
     JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [] }] } })
   )
-  // 目录约定 hooks
+  // The directory convention for hooks
   mkdirSync(join(root, 'hooks'), { recursive: true })
   writeFileSync(
     join(root, 'hooks', 'hooks.json'),
@@ -182,7 +185,7 @@ function mkPluginPkg(root: string): void {
       }
     })
   )
-  // skills:一个正常 + 一个损坏(无 description 行)
+  // skills: one normal and one broken (with no description line)
   mkdirSync(join(root, 'skills', 'good-skill'), { recursive: true })
   writeFileSync(join(root, 'skills', 'good-skill', 'SKILL.md'), '---\ndescription: 好技能\n---\nbody')
   mkdirSync(join(root, 'skills', 'broken-skill'), { recursive: true })
@@ -192,8 +195,8 @@ function mkPluginPkg(root: string): void {
   writeFileSync(join(root, 'agents', 'helper.md'), '---\ndescription: h\n---\nx')
 }
 
-describe('插件内含组件展开', () => {
-  it('E5 目录约定+manifest 字段合并:skills/agents/hooks/mcp 四类;单文件损坏条目保留名称', async () => {
+describe('expanding a plugin\'s bundled components', () => {
+  it('E5 the directory convention merged with manifest fields: skills/agents/hooks/mcp; one corrupt file keeps its entry name', async () => {
     const pkg = join(dir, 'pkg-root')
     mkPluginPkg(pkg)
     mkInstalled({ 'pkg@mp': [{ scope: 'user', version: '1.0.0', installPath: pkg }] })
@@ -204,23 +207,24 @@ describe('插件内含组件展开', () => {
       { name: 'broken-skill', description: null },
       { name: 'good-skill', description: '好技能' }
     ])
-    // H1:每条摘要带 stat-only 包统计
+    // H1: each summary carries stat-only package stats
     expect(c.skills[0].pkg?.files).toBeGreaterThanOrEqual(1)
     expect(c.agents).toEqual(['helper'])
-    // hooks:目录约定(SessionStart×1、PostToolUse×2)+ manifest 指向的额外文件(PreToolUse×1)
+    // hooks: the directory convention (SessionStart ×1, PostToolUse ×2) plus the extra file the manifest
+    // points at (PreToolUse ×1)
     const hooks = Object.fromEntries(c.hooks.map((h) => [h.event, h.matchers]))
     expect(hooks).toEqual({ PostToolUse: 2, PreToolUse: 1, SessionStart: 1 })
     expect(c.mcp).toEqual(['pkg-server'])
   })
 
-  it('manifest 字段指向包外路径(../)→ 忽略,不读包外文件', async () => {
+  it('a manifest field pointing outside the package (../) → ignored, with no out-of-package file read', async () => {
     const pkg = join(dir, 'pkg-root')
     mkdirSync(join(pkg, '.claude-plugin'), { recursive: true })
     writeFileSync(
       join(pkg, '.claude-plugin', 'plugin.json'),
       JSON.stringify({ name: 'evil', hooks: '../outside-hooks.json', mcpServers: '../outside-mcp.json' })
     )
-    // 包外真实存在这两个文件——若被读到就是路径逃逸
+    // Both files really exist outside the package — reading either of them would be a path escape
     writeFileSync(
       join(dir, 'outside-hooks.json'),
       JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'x', hooks: [] }] } })
@@ -233,40 +237,41 @@ describe('插件内含组件展开', () => {
     expect(c.mcp).toEqual([])
   })
 
-  it('E6 installPath 缺失/目录不存在 → contents.missing,列表行保留', async () => {
+  it('E6 a missing installPath or directory → contents.missing, with the list row kept', async () => {
     mkInstalled({ 'ghost@mp': [{ scope: 'user', version: '0.1.0', installPath: '/gone/away' }] })
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.plugins[0].contents.missing).toBe(true)
   })
 })
 
-describe('G 系列:插件内含 skills 并入 Skills 生效视图', () => {
-  it('G1/G4 仅 user 层启用插件的 skills 进全局视图:命名空间条目,sides 恒 claude,origin=plugin', async () => {
+describe('the G series: a plugin\'s bundled skills joining the Skills effective view', () => {
+  it('G1/G4 only user-layer enabled plugins\' skills enter the global view: namespaced entries, sides always claude, origin=plugin', async () => {
     const pkg = join(dir, 'pkg-root')
     mkPluginPkg(pkg)
     mkInstalled({
       'pkg@mp': [{ scope: 'user', version: '1.0.0', installPath: pkg }],
       'off@mp': [{ scope: 'user', version: '1.0.0', installPath: pkg }]
     })
-    mkUserSettings({ 'pkg@mp': true }) // off@mp 未启用 → 其 skills 不出现
+    mkUserSettings({ 'pkg@mp': true }) // off@mp is not enabled → its skills do not appear
     const snap = await scan(roots(), { now: () => 1 })
     const pluginSkills = snap.global.skills.filter((s) => s.origin === 'plugin')
     expect(pluginSkills.map((s) => s.name).sort()).toEqual(['pkg:broken-skill', 'pkg:good-skill'])
     expect(pluginSkills[0].sides).toEqual(['claude'])
     expect(pluginSkills[0].pluginName).toBe('pkg@mp')
-    // G3 同权预览:并入条目带包统计与摘要同源包根(ADR-0012)
+    // G3 equal-footing preview: a joined entry carries package stats and the summary-source package root
+    // (ADR-0012)
     expect(pluginSkills[0].pkg.claude?.files).toBeGreaterThanOrEqual(1)
     expect(pluginSkills[0].pluginRoot).toBe(pkg)
-    // 裸 skill 名随条目下发(UI 不再按 : 反解)
+    // The bare skill name is sent down with the entry (the UI no longer parses it back from the colon)
     expect(pluginSkills[0].pluginSkillName).toBe('broken-skill')
   })
 
-  it('G2 与磁盘同名 skill 互不遮蔽:命名空间隔离,两条独立条目并存', async () => {
+  it('G2 no shadowing against an on-disk skill of the same name: namespace isolation keeps two independent entries', async () => {
     const pkg = join(dir, 'pkg-root')
     mkPluginPkg(pkg)
     mkInstalled({ 'pkg@mp': [{ scope: 'user', version: '1.0.0', installPath: pkg }] })
     mkUserSettings({ 'pkg@mp': true })
-    // 磁盘全局库同基名 skill
+    // An on-disk global library skill with the same base name
     const sd = join(dir, '.claude', 'skills', 'good-skill')
     mkdirSync(sd, { recursive: true })
     writeFileSync(join(sd, 'SKILL.md'), '---\ndescription: 磁盘版\n---\nx')
@@ -278,7 +283,7 @@ describe('G 系列:插件内含 skills 并入 Skills 生效视图', () => {
     expect(disk?.origin).toBe('disk')
   })
 
-  it('G1 详情页口径:本项目有效启用集决定插件 skills 是否出现(project 层启用即入)', async () => {
+  it('G1 the detail page\'s rule: this project\'s effective enabled set decides whether a plugin\'s skills appear (enabled at the project layer is enough)', async () => {
     const pkg = join(dir, 'pkg-root')
     mkPluginPkg(pkg)
     const demo = join(dir, 'demo')
@@ -287,28 +292,30 @@ describe('G 系列:插件内含 skills 并入 Skills 生效视图', () => {
       'pkg@mp': [{ scope: 'project', version: '1.0.0', installPath: pkg, projectPath: demo }]
     })
     mkProjSettings(demo, 'settings.json', { 'pkg@mp': true })
-    // user 层未启用:全局页不出现
+    // Not enabled at the user layer: it does not appear on the global page
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.skills.some((s) => s.origin === 'plugin')).toBe(false)
-    // demo 详情:出现,level=plugin
+    // demo's detail: it appears with level=plugin
     const d = readProjectDetail(roots(), demo)
     const ps = d.skills.filter((s) => s.origin === 'plugin')
     expect(ps.map((s) => s.name).sort()).toEqual(['pkg:broken-skill', 'pkg:good-skill'])
     expect(ps[0].level).toBe('plugin')
-    // G3 同权预览:详情插件条目带包统计与摘要同源包根(ADR-0012)
+    // G3 equal-footing preview: a detail plugin entry carries package stats and the summary-source package
+    // root (ADR-0012)
     expect(ps[0].pkg?.files).toBeGreaterThanOrEqual(1)
     expect(ps[0].pluginRoot).toBeTruthy()
     expect(ps[0].pluginSkillName).toBe('broken-skill')
-    // 其他项目详情:不出现
+    // Another project's detail: it does not appear
     const other = join(dir, 'other')
     mkdirSync(other, { recursive: true })
     expect(readProjectDetail(roots(), other).skills.some((s) => s.origin === 'plugin')).toBe(false)
   })
 })
 
-describe('E8 Codex 插件缓存枚举', () => {
-  it('E10 单个 marketplace 目录不可读 → 跳过该目录,其余 marketplace 照常枚举(不整组清空)', async () => {
-    // chmod 000 在 root 下不拦截读取,该环境显式 skip 不造假绿
+describe('E8 enumerating the Codex plugin cache', () => {
+  it('E10 one unreadable marketplace directory → skip it and enumerate the rest as usual (never emptying the whole group)', async () => {
+    // chmod 000 does not block reads as root, so that environment is skipped explicitly rather than faking
+    // a green
     if (typeof process.getuid === 'function' && process.getuid() === 0) return
     const cache = join(dir, '.codex', 'plugins', 'cache')
     mkdirSync(join(cache, 'good', 'ok-plugin', '1.0.0'), { recursive: true })
@@ -319,11 +326,11 @@ describe('E8 Codex 插件缓存枚举', () => {
       const snap = await scan(roots(), { now: () => 1 })
       expect(snap.global.codexPlugins.map((p) => p.name)).toContain('ok-plugin')
     } finally {
-      chmodSync(join(cache, 'broken'), 0o755) // 恢复,免得 afterEach 清理失败
+      chmodSync(join(cache, 'broken'), 0o755) // Restore it so afterEach's cleanup does not fail
     }
   })
 
-  it('三层目录枚举;多版本取最高并计数;缓存根缺失/空 → 空数组', async () => {
+  it('enumerates the three directory levels; several versions take the highest with a count; a missing or empty cache root → an empty array', async () => {
     let snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.codexPlugins).toEqual([])
     const cache = join(dir, '.codex', 'plugins', 'cache')
@@ -337,14 +344,15 @@ describe('E8 Codex 插件缓存枚举', () => {
       { name: 'codex-helper', marketplace: 'local', version: '0.3.2', cachedVersions: 1 },
       { name: 'superpowers', marketplace: 'official', version: '6.2.0', cachedVersions: 2 }
     ])
-    // E8:root=最高版本缓存目录(摘要同源包根);无 skills 目录 → 空列表
+    // E8: root = the highest version cache directory (the summary-source package root); no skills
+    // directory → an empty list
     expect(snap.global.codexPlugins[1].root).toBe(join(cache, 'official', 'superpowers', '6.2.0'))
     expect(snap.global.codexPlugins[0].skills).toEqual([])
   })
 })
 
-describe('插件 skill 预览:枚举与统计(plugins-view H1/H5/E8)', () => {
-  it('Claude contents.skills 带包统计;整包缺失 missing 且 skills 空', async () => {
+describe('plugin skill preview: enumeration and stats (plugins-view H1/H5/E8)', () => {
+  it('Claude contents.skills carries package stats; a wholly missing package sets missing with skills empty', async () => {
     const pkg = join(dir, 'cache', 'sp')
     mkdirSync(join(pkg, 'skills', 'brainstorming', 'references'), { recursive: true })
     writeFileSync(join(pkg, 'skills', 'brainstorming', 'SKILL.md'), '---\ndescription: 先问后做\n---\n正文\n')
@@ -364,7 +372,7 @@ describe('插件 skill 预览:枚举与统计(plugins-view H1/H5/E8)', () => {
     expect(ghost.contents.skills).toEqual([])
   })
 
-  it('Codex 条目枚举最高版本包根下的 skills(E8,目录约定与 Claude 同构)', async () => {
+  it('a Codex entry enumerates the skills under the highest version\'s package root (E8, the same directory convention as Claude)', async () => {
     const base = join(dir, '.codex', 'plugins', 'cache', 'openai-bundled', 'documents')
     for (const v of ['1.0.0', '2.0.0']) {
       mkdirSync(join(base, v, 'skills', 'documents'), { recursive: true })
@@ -378,7 +386,7 @@ describe('插件 skill 预览:枚举与统计(plugins-view H1/H5/E8)', () => {
     expect(cx.skills[0].pkg?.files).toBe(1)
   })
 
-  it('详情插件条目带摘要同源包根(H5)', () => {
+  it('a detail plugin entry carries the summary-source package root (H5)', () => {
     const proj = join(dir, 'proj')
     mkdirSync(proj, { recursive: true })
     const pkg = join(dir, 'cache', 'ct')

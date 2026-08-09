@@ -8,13 +8,18 @@ import { searchProjectSessions } from './search-sessions'
 import type { ScanRoots } from './types'
 
 // ─────────────────────────────────────────────────────────────────────────
-// 票 08:本项目会话搜索(spec D1-D4)。
-// - 提问模式:按偏移逐区间读原始字节粗筛,只对命中区间 decode+parse(D2);
-//   剥离后的提问集天然不含 fork 重放副本(03b),无需折叠。
-// - 全文模式:整读 + 字节匹配;命中按偏移归轮;落在展示区间之外的命中
-//   (fork 已剥前缀 / 被放弃分支 / 首问前噪声区)计入 folded,不冒充可达命中(D3)。
-// - 大小写:searchBytes 字节折叠(不整体 decode+toLowerCase);命中后用解析出的
-//   文本复验,防 JSON 转义序列造成的字节级假命中。
+// Ticket 08: searching this project's sessions (spec D1–D4).
+// - Question mode: a coarse pass over raw bytes read range by range from the offsets, decoding and parsing
+//   only the matching ranges (D2);
+//   the stripped question set contains no fork replay copies by construction (03b), so nothing needs
+//   folding.
+// - Full-text mode: read whole + byte matching, with hits mapped back to their turn by offset. Hits
+//   outside the displayed range
+//   (an already-stripped fork prefix / an abandoned branch / the noise before the first question) count as
+//   folded rather than masquerading as reachable hits (D3).
+// - Case: searchBytes folds at the byte level (never decode + toLowerCase over everything); after a hit,
+//   the parsed
+//   text re-verifies it, guarding against byte-level false hits from JSON escape sequences.
 // ─────────────────────────────────────────────────────────────────────────
 
 let dir = ''
@@ -64,8 +69,8 @@ async function run(
   return searchProjectSessions(e, roots(), sessions, needle, fullText)
 }
 
-describe('提问模式(默认):只搜提问,命中按会话分组', () => {
-  it('命中分组、序号与文本;无命中的会话不出组;大小写不敏感', async () => {
+describe('question mode (the default): searches questions only, with hits grouped by session', () => {
+  it('hit groups, indices and text; a session with no hits gets no group; case-insensitive', async () => {
     mkClaude('a.jsonl', [uL('帮我看下 Notarize 配置'), aL('好的'), uL('第二个问题与此无关')])
     mkClaude('b.jsonl', [uL('别的话题')])
     const r = await run('notarize', false)
@@ -77,22 +82,22 @@ describe('提问模式(默认):只搜提问,命中按会话分组', () => {
     expect(r.groups[0].hits[0].text).toContain('Notarize 配置')
   })
 
-  it('正文里的词在提问模式不命中(默认只搜提问)', async () => {
+  it('a word in the body does not hit in question mode (questions only by default)', async () => {
     mkClaude('a.jsonl', [uL('一个提问'), aL('回答里有 notarize 这个词')])
     const r = await run('notarize', false)
     expect(r.totalHits).toBe(0)
     expect(r.groups).toHaveLength(0)
   })
 
-  it('空 needle 返回空结果,不报错', async () => {
+  it('an empty needle returns an empty result without erroring', async () => {
     mkClaude('a.jsonl', [uL('提问')])
     const r = await run('  ', false)
     expect(r.totalHits).toBe(0)
   })
 })
 
-describe('全文模式:整读匹配,命中归轮,展示区间外折叠', () => {
-  it('正文命中归到所在轮:inBody 标记 + snippet 含关键词', async () => {
+describe('full-text mode: read whole and match, map hits to turns, fold anything outside the displayed range', () => {
+  it('a body hit maps to its turn: the inBody marker plus a snippet containing the keyword', async () => {
     mkClaude('a.jsonl', [uL('问一'), aL('答案正文里藏着 magicword 这个词'), uL('问二'), aL('无关')])
     const r = await run('magicword', true)
     expect(r.totalHits).toBe(1)
@@ -103,14 +108,14 @@ describe('全文模式:整读匹配,命中归轮,展示区间外折叠', () => {
     expect(hit.snippet).toContain('magicword')
   })
 
-  it('同轮"提问命中 + 正文命中"各一条;同轮多处正文命中只报一条', async () => {
+  it('one question hit and one body hit within a turn; several body hits in one turn are reported once', async () => {
     mkClaude('a.jsonl', [uL('magicword 在提问里'), aL('正文也有 magicword'), aL('再来一次 magicword')])
     const r = await run('magicword', true)
     expect(r.groups[0].hits).toHaveLength(2)
     expect(r.groups[0].hits.map((h) => h.inBody).sort()).toEqual([false, true])
   })
 
-  it('Codex fork 已剥前缀里的命中计入 folded,不冒充可达命中(D3)', async () => {
+  it('hits inside an already-stripped Codex fork prefix count as folded rather than masquerading as reachable hits (D3)', async () => {
     const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
     mkdirSync(d, { recursive: true })
     const q = (ts: string, m: string): string =>
@@ -127,12 +132,13 @@ describe('全文模式:整读匹配,命中归轮,展示区间外折叠', () => {
       join(d, `rollout-${CHILD}.jsonl`),
       [
         meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
-        q('2026-07-30T02:00:00Z', 'magicword 在父会话里'), // 重放副本
+        q('2026-07-30T02:00:00Z', 'magicword 在父会话里'), // A replay copy
         q('2026-07-30T02:00:05Z', '子会话的新问')
       ].join('\n') + '\n'
     )
     const r = await run('magicword', true)
-    // 父会话命中 1 条真提问;子会话的重放副本折叠——同一句话不在 fork 链每代各报一次
+    // The parent session hits 1 real question; the child's replay copy is folded — the same sentence is not
+    // reported once per generation of the fork chain
     expect(r.totalHits).toBe(1)
     expect(r.folded).toBe(1)
     expect(r.groups).toHaveLength(1)

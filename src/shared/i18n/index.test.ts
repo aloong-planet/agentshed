@@ -1,6 +1,7 @@
-// i18n 层核心:语言解析、复数、字典完整性。
-// 本文件在 node 环境下运行(vitest 全局配置),能跑通即证明 i18n 层不依赖 DOM/React
-// ——主进程构建应用菜单时用的是同一套模块。
+// The i18n layer core: language resolution, plurals, and dictionary completeness.
+// This file runs in a node environment (the global vitest configuration), so passing proves the i18n layer
+// depends on neither the DOM nor React
+// — the main process builds the application menu from the same modules.
 import { describe, it, expect } from 'vitest'
 import {
   LANGUAGES,

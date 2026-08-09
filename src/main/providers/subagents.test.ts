@@ -1,8 +1,11 @@
-// Subagents 全局分栏(spec: subagents-memory-plugin 序列 A):
-// 双端合并单列;键语义 Claude=文件名、Codex=toml name 字段;解析失败降级不崩。
-// 已知缺口:A7 恶意内容消毒由既有 md.test.ts(renderMarkdown/DOMPurify)与
-//   React 文本节点转义覆盖,此处不重复。
-// 不可读文件(A8)用 chmod 000 fixture 覆盖:root 下 chmod 不拦截读取,显式跳过。
+// The global Subagents section (spec: subagents-memory-plugin, sequence A):
+// both sides merged into one column; the key is the filename for Claude and the toml name field for
+// Codex; a parse failure degrades without crashing.
+// A known gap: A7 malicious content sanitising is covered by the existing md.test.ts
+// (renderMarkdown/DOMPurify) and
+//   React's text node escaping, and is not repeated here.
+// Unreadable files (A8) are covered with a chmod 000 fixture: chmod does not block reads as root, so that
+// case is skipped explicitly.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -54,8 +57,8 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-describe('全局 subagents', () => {
-  it('A5 双端同名合并一行;各侧字段与原文分别保留', async () => {
+describe('global subagents', () => {
+  it('A5 the same name on both sides merges onto one row, with each side\'s fields and source kept separately', async () => {
     mkClaudeAgent('code-reviewer', CL_MD)
     mkCodexAgent('code-reviewer.toml', CX_TOML)
     const snap = await scan(roots(), { now: () => 1 })
@@ -71,7 +74,7 @@ describe('全局 subagents', () => {
     expect(s.codex?.content?.text).toContain('developer_instructions')
   })
 
-  it('单侧条目各自成行;Codex 键取 toml name 字段而非文件名', async () => {
+  it('a single-side entry gets its own row; the Codex key is the toml name field rather than the filename', async () => {
     mkClaudeAgent('docs-writer', `---\ndescription: writes docs\n---\nbody`)
     mkCodexAgent('whatever-file.toml', `name = "helper"\ndescription = "d"\ndeveloper_instructions = "x"\n`)
     const snap = await scan(roots(), { now: () => 1 })
@@ -81,7 +84,7 @@ describe('全局 subagents', () => {
     expect(snap.global.subagents[1].sides).toEqual(['codex'])
   })
 
-  it('A4 Claude md 无 frontmatter → 文件名为名,字段留空不崩', async () => {
+  it('A4 Claude markdown with no frontmatter → the filename becomes the name and the fields stay empty without crashing', async () => {
     mkClaudeAgent('bare', 'just a prompt body, no frontmatter')
     const snap = await scan(roots(), { now: () => 1 })
     const s = snap.global.subagents[0]
@@ -91,7 +94,7 @@ describe('全局 subagents', () => {
     expect(s.claude?.content?.text).toContain('just a prompt body')
   })
 
-  it('A2 Codex toml 损坏 → 解析失败条目(文件名占位),其余条目不受影响', async () => {
+  it('A2 a corrupt Codex toml → a parse-failure entry (with the filename standing in), leaving the others unaffected', async () => {
     mkCodexAgent('broken.toml', 'name = "unterminated')
     mkCodexAgent('good.toml', `name = "good"\ndeveloper_instructions = "ok"\n`)
     const snap = await scan(roots(), { now: () => 1 })
@@ -100,15 +103,16 @@ describe('全局 subagents', () => {
     expect(snap.global.subagents.find((s) => s.name === 'good')).toBeTruthy()
   })
 
-  it('A3 Codex toml 缺有效 name → 视为无效定义(Codex 本身不加载)', async () => {
+  it('A3 a Codex toml with no valid name → treated as an invalid definition (Codex does not load it either)', async () => {
     mkCodexAgent('noname.toml', `description = "d"\ndeveloper_instructions = "x"\n`)
     const snap = await scan(roots(), { now: () => 1 })
     const s = snap.global.subagents.find((x) => x.name === '(noname.toml)')
-    // 断错误码而非措辞:措辞已交给渲染层按语言生成(ADR-0015,票 07 扩到数据字段)
+    // Assert the error code rather than the wording: the wording is produced by the renderer per language
+    // (ADR-0015, extended to data fields by ticket 07)
     expect(s?.codex?.error?.code).toBe(ERR.subagentMissingName)
   })
 
-  it('同层内两文件同 name → 先者优先(按文件名序,agent_roles.rs 同层重名跳过后来者)', async () => {
+  it('two files with the same name in one layer → the first wins (by filename order, as agent_roles.rs skips the later duplicate)', async () => {
     mkCodexAgent('a-first.toml', `name = "dup"\ndescription = "第一个"\ndeveloper_instructions = "A"\n`)
     mkCodexAgent('b-second.toml', `name = "dup"\ndescription = "第二个"\ndeveloper_instructions = "B"\n`)
     const snap = await scan(roots(), { now: () => 1 })
@@ -116,7 +120,7 @@ describe('全局 subagents', () => {
     expect(d?.codex?.description).toBe('第一个')
   })
 
-  it('覆盖内置:Codex 自定义名 ∈ {default,worker,explorer} → overridesBuiltin', async () => {
+  it('overriding a built-in: a Codex custom name in {default,worker,explorer} → overridesBuiltin', async () => {
     mkCodexAgent('explorer.toml', `name = "explorer"\ndeveloper_instructions = "x"\n`)
     mkCodexAgent('other.toml', `name = "other"\ndeveloper_instructions = "x"\n`)
     const snap = await scan(roots(), { now: () => 1 })
@@ -124,8 +128,8 @@ describe('全局 subagents', () => {
     expect(snap.global.subagents.find((s) => s.name === 'other')?.overridesBuiltin).toBe(false)
   })
 
-  it('A8 文件存在但不可读 → 条目保留并标"不可读",不静默消失', async () => {
-    if (typeof process.getuid === 'function' && process.getuid() === 0) return // root 下 chmod 不拦截
+  it('A8 a file that exists but cannot be read → the entry is kept and labelled unreadable rather than silently disappearing', async () => {
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return // chmod does not block reads as root
     mkClaudeAgent('locked', `---\ndescription: d\n---\nbody`)
     const { chmodSync } = await import('node:fs')
     const f = join(dir, '.claude', 'agents', 'locked.md')
@@ -139,7 +143,7 @@ describe('全局 subagents', () => {
     }
   })
 
-  it('A8 项目级文件不可读时仍参与遮蔽判定(不因静默消失而误标全局条目生效)', async () => {
+  it('A8 an unreadable project-level file still takes part in the shadowing judgement (so a global entry is not wrongly marked as in effect)', async () => {
     if (typeof process.getuid === 'function' && process.getuid() === 0) return
     mkClaudeAgent('code-reviewer', CL_MD)
     const proj = join(dir, 'shadow-proj')
@@ -159,23 +163,25 @@ describe('全局 subagents', () => {
     }
   })
 
-  it('A1 两侧 agents 目录均缺失 → 空数组不崩', async () => {
+  it('A1 both sides\' agents directories missing → an empty array without crashing', async () => {
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.global.subagents).toEqual([])
   })
 
-  it('A6 定义文件超 200KB → 内容截断', async () => {
+  it('A6 a definition file over 200 KB → its contents are truncated', async () => {
     mkClaudeAgent('big', `---\ndescription: d\n---\n${'x'.repeat(250_000)}`)
     const snap = await scan(roots(), { now: () => 1 })
     const s = snap.global.subagents[0]
     expect(s.claude?.content?.text.length).toBeLessThan(210_000)
-    // 主进程只报告是否被截断,「…(已截断)」由渲染层按当前语言追加(票 07)
+    // The main process only reports whether it was truncated; the "…(truncated)" marker is appended by
+    // the renderer in the current language (ticket 07)
     expect(s.claude?.content?.truncated).toBe(true)
   })
 })
 
-// ── 项目详情生效视图(序列 B)——注意:subagents 两侧均为项目级遮蔽,
-// 与 skills 的 Codex 同名共存语义相反(agent_roles.rs 层覆盖,源码级核实) ──
+// ── Project detail's effective view (sequence B) — note that subagents shadow at the project level on
+// both sides, the opposite of skills' Codex coexistence semantics (agent_roles.rs overrides by layer,
+// verified at source level) ──
 import { readProjectDetail } from './project-detail'
 import { ERR } from '@shared/errors'
 
@@ -185,14 +191,14 @@ function mkProjAgent(proj: string, side: 'claude' | 'codex', file: string, conte
   writeFileSync(join(d, file), content)
 }
 
-describe('项目详情 subagents 生效视图', () => {
+describe('project detail subagents effective view', () => {
   let proj: string
   beforeEach(() => {
     proj = join(dir, 'myproj')
     mkdirSync(proj, { recursive: true })
   })
 
-  it('B2 Claude 项目级遮蔽全局同名;非同名全局项照常生效', async () => {
+  it('B2 Claude project level shadows the same name globally; global entries with other names stay in effect', async () => {
     mkClaudeAgent('code-reviewer', CL_MD)
     mkClaudeAgent('debugger', `---\ndescription: dbg\n---\nbody`)
     mkProjAgent(proj, 'claude', 'code-reviewer.md', `---\ndescription: 项目定制版\n---\nlocal body`)
@@ -205,7 +211,7 @@ describe('项目详情 subagents 生效视图', () => {
     expect(dbg?.shadowed).toBe(false)
   })
 
-  it('B3 Codex 项目级遮蔽用户级——键取 toml name 字段,跨文件名也遮蔽', async () => {
+  it('B3 Codex project level shadows the user level — the key is the toml name field, so it shadows across filenames too', async () => {
     mkCodexAgent('reviewer-global.toml', `name = "code-reviewer"\ndeveloper_instructions = "global"\n`)
     mkProjAgent(proj, 'codex', 'anything.toml', `name = "code-reviewer"\ndeveloper_instructions = "proj"\n`)
     const detail = readProjectDetail(roots(), proj)
@@ -214,7 +220,7 @@ describe('项目详情 subagents 生效视图', () => {
     expect(cx.find((s) => s.level === 'global')?.shadowed).toBe(true)
   })
 
-  it('B4 Codex 项目级自定义名为内置(explorer)→ 覆盖内置标注', async () => {
+  it('B4 a Codex project-level custom name matching a built-in (explorer) → the overrides-built-in label', async () => {
     mkProjAgent(proj, 'codex', 'explorer.toml', `name = "explorer"\ndeveloper_instructions = "x"\n`)
     const detail = readProjectDetail(roots(), proj)
     const e = detail.subagents.find((s) => s.name === 'explorer')
@@ -222,7 +228,7 @@ describe('项目详情 subagents 生效视图', () => {
     expect(e?.overridesBuiltin).toBe(true)
   })
 
-  it('B1/B5 项目无 agents 目录 → 仅全局生效项', async () => {
+  it('B1/B5 a project with no agents directory → only the global entries are in effect', async () => {
     mkClaudeAgent('docs-writer', `---\ndescription: d\n---\nbody`)
     const detail = readProjectDetail(roots(), proj)
     expect(detail.subagents).toHaveLength(1)
