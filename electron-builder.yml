@@ -1,4 +1,5 @@
-# 非商城版(DMG/Windows)appId;MAS 版用 agentshed.aloongplanet.com(上架时在 mas 构建段覆盖)
+# The non-store (DMG/Windows) appId; the MAS build uses agentshed.aloongplanet.com (overridden in the mas
+# build section at submission time)
 appId: agentshed.aloong.com
 productName: Agentshed
 
@@ -6,30 +7,38 @@ directories:
   output: release/${version}
   buildResources: build
 
-# 打包末尾自动清理:release/ 下只保留最近 5 个版本目录(electron-builder 无内置保留配置,只写不删)。
-# .cjs 后缀必需:package.json 是 type:module,普通 .js 会被当 ESM 导致 require 报错。
+# Automatic cleanup at the end of packaging: keep only the 5 most recent version directories under
+# release/ (electron-builder has no built-in retention configuration and only ever writes).
+# The .cjs extension is required: package.json is type:module, so a plain .js would be treated as ESM and
+# require would fail.
 afterAllArtifactBuild: build/clean-old-releases.cjs
 
 files:
   - out
   - package.json
 
-# Electron Fuses(官方 Security Checklist #19):在打包产物上永久关掉几条提权/调试通道。
-# 这些开关只在**打包时**生效,dev 不受影响;关掉后攻击者无法把本 app 的 Electron
-# 二进制当通用 Node 跑,也无法用调试端口注入。判据与逐条现状见 docs/ops/electron-security.md。
+# Electron fuses (official Security Checklist #19): permanently close several privilege and debug channels
+# on the packaged build.
+# These switches take effect **at packaging time** only and do not affect dev; once closed, an attacker
+# cannot run this app's Electron
+# binary as a general-purpose Node, nor inject through a debug port. The criteria and the item-by-item
+# status are in docs/ops/electron-security.md.
 electronFuses:
-  runAsNode: false # 禁 ELECTRON_RUN_AS_NODE(否则本 app 可被当作任意 Node 解释器)
-  enableNodeCliInspectArguments: false # 禁 --inspect 等调试参数注入
-  enableNodeOptionsEnvironmentVariable: false # 禁 NODE_OPTIONS 注入启动脚本
-  onlyLoadAppFromAsar: true # 只从 asar 加载 app,防旁路替换未打包目录
-  enableCookieEncryption: true # cookie 落盘加密
-  enableEmbeddedAsarIntegrityValidation: true # asar 完整性校验(macOS/Windows)
-  # 关掉 file:// 页面的额外特权:本 app 渲染页跑 app://(prod)与 http(dev),
-  # 代码内无 file:// 页面加载,故该特权是纯余量。注意它约束的是"从 file:// 加载的
-  # **页面**",主进程内 net.fetch(file://…) 读盘是另一条路径——已实测两者均正常。
+  runAsNode: false # Forbid ELECTRON_RUN_AS_NODE (otherwise this app can be used as an arbitrary Node interpreter)
+  enableNodeCliInspectArguments: false # Forbid injecting debug arguments such as --inspect
+  enableNodeOptionsEnvironmentVariable: false # Forbid NODE_OPTIONS injecting a startup script
+  onlyLoadAppFromAsar: true # Load the app only from the asar, preventing a swapped-in unpacked directory
+  enableCookieEncryption: true # Encrypt cookies at rest
+  enableEmbeddedAsarIntegrityValidation: true # asar integrity validation (macOS/Windows)
+  # Close the extra privileges of file:// pages: this app's renderer runs on app:// (prod) and http (dev),
+  # and the code loads no file:// page, so the privilege is pure surplus. Note that what it constrains is
+  # **pages loaded from**
+  # file://; net.fetch(file://…) reading from disk inside the main process is a different path — both were
+  # measured and work.
   grantFileProtocolExtraPrivileges: false
 
-# v1 macOS 先行:本机未签名 DMG(arm64);签名/公证/多架构进遗留清单
+# v1 ships macOS first: an unsigned local DMG (arm64); signing, notarisation and multi-architecture go on
+# the backlog
 mac:
   target:
     - target: dmg

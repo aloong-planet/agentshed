@@ -52,7 +52,8 @@ export const es: Locale = {
   skillDeepHint: 'La buena práctica es una profundidad de referencia de skill menor que 2: considera reestructurar este skill',
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
-  /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
+   * are not translated) */
   agents: {
     sideSummary: (projects, skills, subagents) => `${projects} proyectos · ${skills} skills globales · ${subagents} subagents`,
     tabCfg: 'Configuración',
