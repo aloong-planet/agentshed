@@ -368,7 +368,8 @@ test('cold start: the Agents page is the default landing, both summary cards ren
 })
 
 test('an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors', async () => {
-  // 上一版结构:Codex agg 只有 totals/byDay,无 events;version 号也是旧的
+  // The previous version's structure: the Codex agg has only totals/byDay and no events, and the version
+  // number is old too
   const legacy = JSON.stringify({
     version: 2,
     files: {
@@ -399,7 +400,7 @@ test('all seven Agents page tabs render as they are switched through, with no er
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   const tabs = win.locator('.pane-head .tabs .tab')
-  // count() 是即时读取,须先等渲染完成再计数
+  // count() reads immediately, so wait for rendering to finish before counting
   await expect(tabs).toHaveCount(7)
   const n = await tabs.count()
   for (let i = 0; i < n; i++) {
@@ -410,10 +411,13 @@ test('all seven Agents page tabs render as they are switched through, with no er
   await close(l)
 })
 
-// 原本是一条 if/else:有真实项目走 A 分支,没有走 B 分支。后果是**覆盖面不确定**
-// ——开发机永远走 A,CI 永远走 B,没有任何一台机器把两条都测到;而 B 分支从没被
-// 执行过,里面的 locator 同时命中侧栏与主区两个空态(strict mode violation),
-// 写完就没跑过。拆成两条各自预置 fixture home 的确定性用例。
+// This used to be one if/else: with real projects it took branch A, without them branch B. The
+// consequence was **undefined coverage**
+// — a development machine always took A and CI always took B, so no single machine ever exercised both;
+// and branch B had never
+// run, so its locator matched both the sidebar and the main area empty states (a strict mode violation)
+// and was never exercised after being written. Split into two deterministic cases, each with its own
+// seeded fixture home.
 test('switching to Projects: rows appear when there are projects, and the detail tabs switch once one is selected', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
@@ -438,14 +442,17 @@ test('switching to Projects: the sidebar shows its empty state when there are no
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await expect(win.locator('.side .row')).toHaveCount(0)
-  // 限定在侧栏内:主区另有一个 .empty(「选择一个项目查看详情」),不限定就多命中
+  // Scoped to the sidebar: the main area has another .empty ("select a project to see its detail"), and
+  // without scoping it matches both
   await expect(win.locator('.side .list-empty')).toBeVisible()
   expect(l.errors).toEqual([])
   await close(l)
 })
 
-// 票 session-view/02:会话分栏。fixture home 造两侧会话 + 一个只有 Warmup 的
-// 预热会话(spec A3a:不入列但 token 照计),断言列表、排序、口径说明与空态。
+// Ticket session-view/02: the sessions tab. The fixture home builds sessions on both sides plus a warmup
+// session containing only a Warmup
+// (spec A3a: not listed but its tokens still count), asserting the list, the sort, the accounting note
+// and the empty state.
 test('the sessions section: sessions are listed, the sort switches, and warmup sessions are not listed', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
@@ -453,27 +460,31 @@ test('the sessions section: sessions are listed, the sort switches, and warmup s
   await win.locator('.side .row').first().click()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
 
-  // fixture 里 Claude 侧 2 个(1 真实 + 1 预热)、Codex 侧 1 个 → 只应列出 2 个
+  // The fixture has 2 on the Claude side (1 real + 1 warmup) and 1 on the Codex side → only 2 should be listed
   const rows = win.locator('.pane-body .card .se')
   await expect(rows).toHaveCount(2)
   await expect(win.locator('.pane-body .grp-t')).toContainText('2 sessions')
-  // 预热会话的标题不得出现
+  // The warmup session's title must not appear
   await expect(win.locator('.pane-body .card')).not.toContainText('Warmup')
 
-  // 项目列表那个数字与本分栏必须同源:fixture 有 3 个会话文件(含 1 个预热),
-  // 只有 2 个入列。改动前项目列表读的是文件数管线,会显示 3 —— 同一个概念两个数字。
+  // The number in the project list must share its source with this tab: the fixture has 3 session files
+  // (including 1 warmup)
+  // and only 2 are listed. Before the change, the project list read the file count pipeline and showed 3 —
+  // one concept with two numbers.
   const meta = (await win.locator('.side .row .meta').first().innerText()).trim()
   expect(meta, `the project list session count must match the sessions tab; actual: ${meta}`).toMatch(/(^|\D)2$/)
 
-  // 默认最近在前:第一行是较晚活动的那条
+  // Newest first by default: the first row is the one with later activity
   const titleOf = async (i: number): Promise<string> =>
     (await rows.nth(i).locator('.t').innerText()).trim()
-  // fixture 里 Claude 侧最后活动在今天、Codex 侧在昨天 —— 断言的是**具体哪条在前**,
-  // 不是"两条不一样"。后者在时间戳相同时也成立,证不了按时间排序。
+  // In the fixture the Claude side's last activity is today and the Codex side's is yesterday — what is
+  // asserted is **which specific one comes first**,
+  // not "the two differ". The latter also holds with identical timestamps and proves nothing about sorting
+  // by time.
   expect(await titleOf(0)).toBe('Sample question')
   expect(await titleOf(1)).toBe('Codex side question')
 
-  // 切最早在前 → 顺序翻转,条数不变
+  // Switching to oldest first → the order reverses and the count is unchanged
   await win.locator('.pane-body .seg button', { hasText: 'Oldest first' }).click()
   await expect(rows).toHaveCount(2)
   expect(await titleOf(0)).toBe('Codex side question')
@@ -484,8 +495,9 @@ test('the sessions section: sessions are listed, the sort switches, and warmup s
   await close(l)
 })
 
-// 票 session-view/03a:提问条数上行。两条会话的条数**故意不相等**——都写 1 的话,
-// 断言分不出"真按会话读到了"与"两边碰巧一样"。
+// Ticket session-view/03a: the question count moves onto the row. The two sessions' counts are
+// **deliberately unequal** — with both at 1,
+// the assertion could not distinguish "really read per session" from "both happen to be the same".
 test('the sessions section: each row shows that session\'s real question count', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
@@ -498,8 +510,9 @@ test('the sessions section: each row shows that session\'s real question count',
   const countOf = async (i: number): Promise<string> =>
     (await rows.nth(i).locator('.n').innerText()).trim()
 
-  // 默认最近在前:第 0 行是 Claude 侧(2 条真实提问,中间那条 tool_result 不算),
-  // 第 1 行是 Codex 侧(1 条)
+  // Newest first by default: row 0 is the Claude side (2 real questions; the tool_result in between does
+  // not count),
+  // and row 1 is the Codex side (1)
   expect(await rows.nth(0).locator('.t').innerText()).toBe('Sample question')
   expect(await countOf(0), 'two real questions on the Claude side; a tool result fed back does not count').toBe('2 questions')
   expect(await countOf(1), 'one real question on the Codex side').toBe('1 questions')
@@ -517,7 +530,8 @@ test('the sessions section: the sort choice is remembered after switching away',
   await win.locator('.pane-body .seg button', { hasText: 'Oldest first' }).click()
   await expect(win.locator('.pane-body .grp-t')).toContainText('Oldest first')
 
-  // 切走再切回:tab 是条件渲染,组件会被卸载,组件内 useState 存不住
+  // Switch away and back: the tabs are conditionally rendered, so the component unmounts and its own
+  // useState cannot hold it
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
   await expect(win.locator('.pane-body .grp-t')).toContainText('Oldest first')
@@ -541,13 +555,15 @@ test('the sessions section: a project with no sessions shows an empty state, and
   await close(l)
 })
 
-// 票 04:概览会话卡从「进分栏」改为**直达会话页**(02 留下的中间态在此收口,原型 v3 明写)
+// Ticket 04: the overview session card changes from "go to the tab" to **going straight to the session
+// page** (closing the interim state ticket 02 left, as the v3 prototype states)
 test('one click on the overview session card goes straight to the session page', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
-  // 概览是默认分栏,直接点第一张会话卡(最近的 = Claude 侧「Sample question」)
+  // The overview is the default tab, so click the first session card directly (the most recent = the Claude
+  // side's "Sample question")
   await win.locator('.pane-body .se.row-btn').first().click()
   await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
   await expect(win.locator('.sback')).toContainText('Back to')
@@ -555,7 +571,8 @@ test('one click on the overview session card goes straight to the session page',
   await close(l)
 })
 
-// 票 04:会话页——从分栏进入,行字段齐全,一次列全无分页语义,返回落在会话分栏
+// Ticket 04: the session page — entered from the tab, with complete row fields, everything listed at once
+// with no pagination semantics, and back landing on the sessions tab
 test('the session page: every question is listed with complete fields, and back returns to the sessions section', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
@@ -564,14 +581,15 @@ test('the session page: every question is listed with complete fields, and back 
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
   await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
 
-  // 页头:徽标 + 标题 + meta(与列表同源的数字)
+  // The page header: badge + title + meta (numbers sharing their source with the list)
   await expect(win.locator('.pane-head .badge.cl')).toHaveText('CC')
   await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
   await expect(win.locator('.smeta')).toContainText('2 questions')
   await expect(win.locator('.smeta')).toContainText('tok')
 
-  // 行:序号 / 全文 / 工具计数 / 时间;两条真实提问,工具回灌不算。
-  // 默认倒序(2026-08-06 裁定):最新的 02 在前,序号仍是原始轮次号
+  // A row: index / full text / tool count / time; two real questions, with the tool result not counting.
+  // Descending by default (ruled 2026-08-06): the newest, 02, comes first, and the index is still the
+  // original turn number
   const qs = win.locator('.qlist .q')
   await expect(qs).toHaveCount(2)
   await expect(qs.nth(0).locator('.idx')).toHaveText('02')
@@ -580,11 +598,12 @@ test('the session page: every question is listed with complete fields, and back 
   await expect(qs.nth(0).locator('.tm')).not.toHaveText('—')
   await expect(win.locator('.qbar .grp-t')).toContainText('Questions (main line) · 2')
 
-  // 一次列全:不出现任何分页/续取语义(spec 界面决策:任何分页语义都是实现缺口伪装设计)
+  // Everything at once: no pagination or load-more semantics appear (the spec's UI decision: any pagination
+  // semantics would be an implementation gap disguised as design)
   await expect(win.locator('.pane-body')).not.toContainText('Loading')
   await expect(win.locator('.pane-body')).not.toContainText('more')
 
-  // 返回:落在「会话」分栏,不是概览(原型:‹ 返回 <项目> · 会话)
+  // Back: lands on the Sessions tab rather than the overview (the prototype: ‹ Back to <project> · Sessions)
   await win.locator('.sback').click()
   await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
   await expect(win.locator('.pane-body .grp-t')).toContainText('2 sessions')
@@ -593,7 +612,8 @@ test('the session page: every question is listed with complete fields, and back 
   await close(l)
 })
 
-// 票 04:fork 会话的会话页与列表同源——重放前缀剥掉后只剩新提问
+// Ticket 04: a fork session's page shares its source with the list — once the replay prefix is stripped,
+// only the new questions remain
 test('the session page: a fork session shows only the questions left after stripping', async () => {
   const l = await launch(undefined, mkForkHome())
   const win = await l.app.firstWindow()
@@ -608,9 +628,12 @@ test('the session page: a fork session shows only the questions left after strip
   await close(l)
 })
 
-// 票 04:白名单拒收的**接线级**证据——经真 IPC 发非法路径,必须被 handler 拒绝。
-// 纯函数单测只证明"函数会拒",这里证明"handler 真的在用它拒"。两个方向都断言:
-// 白名单外的绝对路径拒,穿越形态拒;合法路径能过(同一会话页 e2e 已覆盖)。
+// Ticket 04: **wiring-level** evidence that the allow-list refuses — an invalid path sent over real IPC
+// must be refused by the handler.
+// A pure function unit test only proves "the function refuses"; this proves "the handler really uses it to
+// refuse". Both directions are asserted:
+// an absolute path outside the allow-list is refused, a traversal form is refused, and a valid path passes
+// (already covered by the session page e2e).
 test('the IPC surface: a path outside the allow-list is refused over the real channel, and the error carries no file content', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
@@ -630,25 +653,31 @@ test('the IPC surface: a path outside the allow-list is refused over the real ch
 
   const r1 = await attempt('/etc/hosts')
   expect(r1, 'a system file must be refused').not.toBe('ALLOWED')
-  // 断言**错误码**而不是中文措辞:跨 IPC 的失败自票 05 起只带码与参数,
-  // 措辞由渲染层按当前语言生成。守的性质没变(被拒 + 不回显文件内容),
-  // 换的只是断言对象——拿措辞当断言对象,正是 ADR-0015 要消灭的耦合
+  // Assert the **error code** rather than wording: a failure crossing IPC has carried only a code and
+  // parameters since ticket 05,
+  // with the renderer producing the wording in the current language. What is guarded is unchanged (refused,
+  // and no file content echoed back),
+  // and only the assertion target moved — asserting on wording is exactly the coupling ADR-0015 exists to
+  // eliminate
   expect(r1).toContain(ERR.sessionNotWhitelisted)
-  // 错误信息不回显任何文件内容(hosts 常含 localhost 行)
+  // The error message echoes no file content (hosts usually contains a localhost line)
   expect(r1).not.toContain('localhost')
 
   const r2 = await attempt('/tmp/../etc/hosts')
   expect(r2, 'a traversal form must be refused').not.toBe('ALLOWED')
 
-  // 本测故意制造 handler 错误,不能断言 errors 为空——改为正向断言:
-  // 主进程侧恰好两次拒绝、全是白名单错、没混进别的错误类型
+  // This case deliberately provokes handler errors, so it cannot assert errors is empty — it asserts
+  // positively instead:
+  // exactly two refusals on the main process side, all allow-list errors, with no other error type mixed in
   expect(l.errors).toHaveLength(2)
   for (const e of l.errors) expect(e).toContain(ERR.sessionNotWhitelisted)
   await close(l)
 })
 
-// 票 04:省略号是 CSS 显示层截断,数据侧是全文(spec D2a 推论)。
-// 用超过一行宽度的长提问坐实:DOM 文本 = 全文,渲染框宽 < 文本天然宽。
+// Ticket 04: the ellipsis is CSS display-layer truncation while the data side holds the full text (a
+// corollary of spec D2a).
+// Confirmed with a question longer than one line: the DOM text = the full text, and the render box is
+// narrower than the text's natural width.
 test('the session page: a long question\'s single-line truncation happens only in the display layer, with the full text in the DOM', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-long-'))
   const proj = join(home, 'long-proj')
@@ -676,16 +705,17 @@ test('the session page: a long question\'s single-line truncation happens only i
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
   await win.locator('.pane-body .card .se').first().click()
   const txt = win.locator('.qlist .q .txt').first()
-  // 数据层:全文都在 DOM 里
+  // The data layer: the full text is in the DOM
   await expect(txt).toHaveText(LONG)
-  // 显示层:单行截断确实发生(内容宽度溢出渲染框)
+  // The display layer: single-line truncation really happens (the content width overflows the render box)
   const clipped = await txt.evaluate((el) => el.scrollWidth > el.clientWidth)
   expect(clipped, 'long text should be truncated in the display layer (scrollWidth > clientWidth)').toBe(true)
   expect(l.errors).toEqual([])
   await close(l)
 })
 
-// 票 05:点提问就地展开整轮正文,按需取回;默认 0 轮展开(预展开等于把「按需取」作废)
+// Ticket 05: clicking a question expands the whole turn in place, fetched on demand; 0 expanded by default
+// (pre-expanding would defeat "fetch on demand")
 test('the session page: everything collapsed by default; clicking a question expands the whole turn with its fetch footnote, and clicking again collapses it', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
@@ -694,7 +724,7 @@ test('the session page: everything collapsed by default; clicking a question exp
   await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
   await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
 
-  // 默认 0 轮展开
+  // 0 turns expanded by default
   await expect(win.locator('.qlist .q')).toHaveCount(2)
   await expect(win.locator('.turn')).toHaveCount(0)
 
