@@ -60,6 +60,102 @@ describe('distinctions no language may collapse', () => {
   }
 })
 
+/**
+ * Collapses the source language does not make, which are nonetheless fine.
+ *
+ * Every entry answers "the source language uses two different words here, and this language uses one —
+ * why is that not a defect". Anything not listed goes red.
+ */
+const ACCEPTED_COLLAPSES: Array<{ a: string; b: string; why: string }> = [
+  {
+    a: 'languageName',
+    b: 'languageNameEn',
+    why: 'English written in English is English — identical by definition, and only for this one language'
+  },
+  {
+    a: 'skills.pillProject',
+    b: 'skills.srcProject',
+    why: 'project level vs project — one concept, and the source language’s two words are a length choice, not a distinction'
+  },
+  { a: 'skills.srcProject', b: 'subagents.levelProject', why: 'as above' },
+  { a: 'skills.pillGlobal', b: 'detail.levelGlobal', why: 'global vs global layer — one concept' },
+  { a: 'subagents.levelGlobal', b: 'detail.levelGlobal', why: 'as above' },
+  {
+    a: 'skills.loading',
+    b: 'memory.loading',
+    why: 'both are "we are fetching this for display". The distinction that does carry weight — fetching one turn’s byte range on demand — is session.fetching, and that one is in MUST_DIFFER above'
+  },
+  { a: 'skills.loading', b: 'session.loading', why: 'as above' },
+  { a: 'skills.loading', b: 'detail.loading', why: 'as above' },
+  {
+    a: 'plugins.enabled',
+    b: 'plugins.enabledShort',
+    why: 'a long and a short form of the same state; languages without a shorter form legitimately render both the same'
+  },
+  { a: 'plugins.enabledShort', b: 'detail.mcpEnabled', why: 'as above' },
+  { a: 'plugins.disabledShort', b: 'detail.mcpDisabled', why: 'as above' },
+  {
+    a: 'session.ascending',
+    b: 'detail.oldestFirst',
+    why: 'the source language labels this control abstractly (ascending) in one view and concretely (oldest first) in the other; the concrete wording is the better button label in both. detail.ascending stays abstract because it is interpolated mid-sentence by sortNote'
+  },
+  { a: 'session.descending', b: 'detail.recentFirst', why: 'as above' },
+  {
+    a: 'menu.undo',
+    b: 'detail.cancel',
+    why: 'French only — “Annuler” is Apple’s French for Undo in the Edit menu and the standard word on a Cancel button. Following the platform beats inventing a distinction French does not draw'
+  }
+]
+
+describe('no language collapses a distinction the source language draws', () => {
+  // **Exhaustive, not sampled.** The named cases in MUST_DIFFER are the ones that were actually wrong and
+  // carry their reasoning; this sweep is the completeness net over every pair of entries — five independent
+  // reviewers each read a whole dictionary and all five missed the three defects this found (Japanese using
+  // one word for the Settings page and the Config tab, and for the hidden *state* and the hide *action*;
+  // French using “Aperçu” for both file preview and the Overview tab). Reading cannot establish a negative
+  // over ~270 entries; enumerating the pairs can.
+  const flatten = (o: unknown, path = '', out: Record<string, string> = {}): Record<string, string> => {
+    for (const [k, v] of Object.entries(o as Record<string, unknown>)) {
+      const p = path ? `${path}.${k}` : k
+      if (typeof v === 'string') out[p] = v
+      else if (v && typeof v === 'object') flatten(v, p, out)
+    }
+    return out
+  }
+  const accepted = new Set(ACCEPTED_COLLAPSES.map((c) => `${c.a} ≡ ${c.b}`))
+
+  it('every collapse is either absent or explicitly accepted', () => {
+    const source = flatten(dictOf('zh'))
+    const keys = Object.keys(source)
+    const unexpected: string[] = []
+    for (const l of LANGUAGES) {
+      if (l === 'zh') continue
+      const d = flatten(dictOf(l))
+      for (let i = 0; i < keys.length; i++) {
+        for (let j = i + 1; j < keys.length; j++) {
+          const [a, b] = [keys[i], keys[j]]
+          if (source[a] === source[b] || d[a] !== d[b]) continue
+          if (accepted.has(`${a} ≡ ${b}`)) continue
+          unexpected.push(`${l}: ${a} and ${b} both render as “${d[a]}” (source: “${source[a]}” / “${source[b]}”)`)
+        }
+      }
+    }
+    expect(unexpected).toEqual([])
+  })
+
+  it('no accepted-collapse entry has gone stale', () => {
+    // An entry that no longer describes a real collapse is a standing permission nobody is using — the same
+    // rubber-stamp hazard the working-language gate's allow-list guards against.
+    const source = flatten(dictOf('zh'))
+    const dead = ACCEPTED_COLLAPSES.filter(({ a, b }) => {
+      if (source[a] === undefined || source[b] === undefined) return true
+      if (source[a] === source[b]) return true
+      return !LANGUAGES.some((l) => l !== 'zh' && flatten(dictOf(l))[a] === flatten(dictOf(l))[b])
+    }).map(({ a, b, why }) => `${a} ≡ ${b} — ${why}`)
+    expect(dead, 'these accepted-collapse entries no longer match anything and should be deleted').toEqual([])
+  })
+})
+
 describe('one concept, one word', () => {
   // The opposite failure: the same concept rendered several different ways inside one language, so a user
   // cannot tell they are reading about the same thing.

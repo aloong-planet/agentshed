@@ -207,7 +207,7 @@ export const fr: Locale = {
   detail: {
     notInSnapshot: 'Ce projet n’est pas dans l’instantané (actualisez puis réessayez)',
     staleTag: 'Obsolète',
-    tabOverview: 'Aperçu',
+    tabOverview: 'Synthèse',
     tabSkills: 'Skills',
     tabMcp: 'MCP',
     tabSessions: 'Sessions',

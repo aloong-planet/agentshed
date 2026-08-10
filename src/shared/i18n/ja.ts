@@ -54,7 +54,7 @@ export const ja: Locale = {
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
   agents: {
     sideSummary: (projects, skills, subagents) => `${projects} プロジェクト · ${skills} グローバル skills · ${subagents} subagents`,
-    tabCfg: '設定',
+    tabCfg: '構成',
     notDetected: 'このマシンで Claude Code または Codex のデータディレクトリを検出できませんでした',
     notDetectedHint: 'いずれかの agent をインストールして使ったあと、rail 下部の ↻ を押して更新すると全体像が見えます',
     totalsNote: '非表示/失効プロジェクトを含む',
@@ -206,7 +206,7 @@ export const ja: Locale = {
     tabSkills: 'Skills',
     tabMcp: 'MCP',
     tabSessions: 'セッション',
-    tabCfg: '設定',
+    tabCfg: '構成',
     tabArts: '成果物',
     loading: '読み込み中…',
     byModel: 'モデル別',
@@ -274,7 +274,7 @@ export const ja: Locale = {
     collapseHint: '（クリックで折りたたみ）',
     staleTag: '失効',
     restore: '復元',
-    hide: '非表示'
+    hide: '非表示にする'
   },
   token: {
     totalCard: (note) => `累計（両サイド合計${note ? ` · ${note}` : ''}）`,
