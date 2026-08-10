@@ -197,7 +197,7 @@ export const zh = {
 
   /** The Plugins view (ticket 10) */
   plugins: {
-    projectMissing: '(项目已失联)',
+    projectMissing: '(项目已失效)',
     installMissing: '安装目录缺失(缓存已清理)——仅注册表记录可见,内含组件无法读取',
     noBundled: '四类内含组件均无',
     codexCacheEnum: '缓存枚举',

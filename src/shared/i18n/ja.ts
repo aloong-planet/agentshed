@@ -127,7 +127,7 @@ export const ja: Locale = {
   },
 
   plugins: {
-    projectMissing: '（プロジェクトが見つかりません）',
+    projectMissing: '（プロジェクトが失効）',
     installMissing: 'インストール先ディレクトリがありません（キャッシュ削除済み）—— レジストリの記録のみ参照可能で、同梱コンポーネントは読み取れません',
     noBundled: '4 種類の同梱コンポーネントはいずれもありません',
     codexCacheEnum: 'キャッシュ列挙',
@@ -322,14 +322,14 @@ export const ja: Locale = {
     skillFileUnreadable: 'skill ファイルを読み取れません',
     sessionNotIndexed: 'このセッションはインデックスにありません。先に「すべて更新」を実行してください',
     sessionFileUnreadable: 'セッションファイルが読み取れなくなりました（移動または削除？）',
-    sessionMetaUnreadable: 'セッションの先頭行が読み取れないため、インデックスを再構築できません',
+    sessionMetaUnreadable: 'セッション先頭行のメタデータが読み取れないため、インデックスを再構築できません',
     sessionParseFailed: 'セッションファイルの解析に失敗しました',
     prefsStoreNotReady: '設定の保存領域が準備できていません',
     invalidPref: (field) => `設定値が不正です：${field}`,
     contractMissing: (path) => `契約に合わないペイロードを受信しました：${path} がありません`,
     contractType: (path, expect) => `契約に合わないペイロードを受信しました：${path} は ${expect} である必要があります`,
     contractEnum: (path, value) =>
-      `契約に合わないペイロードを受信しました：${path} の値 ${value} は許容範囲外です`,
+      `契約に合わないペイロードを受信しました：${path} の値 ${value} は許容される値ではありません`,
     untrustedSender: (sender) => `信頼できない IPC 呼び出し元：${sender}`,
     linkProtocolUnsupported: 'サポートされていないリンクプロトコルです',
     linkOutOfScope: 'リンク先が読み取り可能な範囲外です',

@@ -27,7 +27,7 @@ export const en: Locale = {
     modeDark: 'Dark',
     palette: 'Colour scheme',
     appearanceFoot:
-      'With mode set to “Follow system”, light and dark follow your macOS appearance; choosing Light or Dark pins it regardless of later system changes. The colour scheme and light/dark are independent and combine freely; Purple is used when nothing is chosen. Changes apply across the whole app immediately — no saving needed.',
+      'With mode set to “Follow system”, light and dark follow your macOS appearance; choosing Light or Dark instead fixes light and dark to that choice, regardless of later system changes. The colour scheme and light/dark are independent and combine freely; Purple is used when nothing is chosen. Changes apply across the whole app immediately — no saving needed.',
     schemePurple: 'Purple',
     schemeBlue: 'Mist Blue',
     schemeAmber: 'Amber Brown'
