@@ -52,8 +52,6 @@ export const ja: Locale = {
   skillDeepHint: 'ベストプラクティスでは skill の参照深度は 2 未満です。この skill の見直しを検討してください',
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
-  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
-   * are not translated) */
   agents: {
     sideSummary: (projects, skills, subagents) => `${projects} プロジェクト · ${skills} グローバル skills · ${subagents} subagents`,
     tabCfg: '設定',
@@ -291,6 +289,8 @@ export const ja: Locale = {
     tipNoUsage: '使用なし',
     noModelData: 'モデルのデータがありません'
   },
+  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
+   * are not translated) */
   label: {
     providerOther: 'その他',
     trendTotal: '合計'

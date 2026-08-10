@@ -53,8 +53,6 @@ export const en: Locale = {
   skillDeepHint: 'Best practice is a skill reference depth below 2 — consider restructuring this skill',
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
-  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
-   * are not translated) */
   agents: {
     sideSummary: (projects, skills, subagents) =>
       `${projects} ${plural('en', projects, { one: 'project', other: 'projects' })} · ${skills} global ${plural('en', skills, { one: 'skill', other: 'skills' })} · ${subagents} ${plural('en', subagents, { one: 'subagent', other: 'subagents' })}`,
@@ -304,6 +302,8 @@ export const en: Locale = {
     tipNoUsage: 'No usage',
     noModelData: 'No model data yet'
   },
+  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
+   * are not translated) */
   label: {
     providerOther: 'Other',
     trendTotal: 'Total'

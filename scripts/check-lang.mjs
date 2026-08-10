@@ -43,9 +43,13 @@ const BINARY = /\.(png|ico|icns|jpg|jpeg|gif|webp|woff2?|ttf|zip|pdf)$/i
  */
 const ALLOW = [
   {
+    // Values only. The count used to be 341, which quietly also covered 31 Chinese *comment* lines — and
+    // the reason below did not justify those: a comment is not source-language copy, it is developer
+    // documentation, which ADR-0017 says is English. The comments are English now, so the allowance and its
+    // stated reason line up, and a Chinese comment added here goes red like anywhere else.
     match: (f) => f === 'src/shared/i18n/zh.ts',
-    lines: 341,
-    why: 'the source-language dictionary — Chinese by definition (ADR-0014)'
+    lines: 310,
+    why: 'the source-language dictionary’s values — Chinese by definition (ADR-0014); its comments are English like the rest of the repository'
   },
   {
     match: (f) => f === 'src/shared/i18n/ja.ts',

@@ -53,8 +53,6 @@ export const ru: Locale = {
   skillDeepHint: 'По рекомендациям глубина ссылок skill должна быть меньше 2 — стоит переработать этот skill',
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
-  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
-   * are not translated) */
   agents: {
     sideSummary: (projects, skills, subagents) => `проектов: ${projects} · глобальных skills: ${skills} · subagents: ${subagents}`,
     tabCfg: 'Конфигурация',
@@ -299,6 +297,8 @@ export const ru: Locale = {
     tipNoUsage: 'Нет расхода',
     noModelData: 'Пока нет данных по моделям'
   },
+  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
+   * are not translated) */
   label: {
     providerOther: 'Прочие',
     trendTotal: 'Итого'

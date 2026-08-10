@@ -53,8 +53,6 @@ export const es: Locale = {
   skillDeepHint: 'La buena práctica es una profundidad de referencia de skill menor que 2: considera reestructurar este skill',
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
-  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
-   * are not translated) */
   agents: {
     sideSummary: (projects, skills, subagents) =>
       `${projects} ${plural('es', projects, { one: 'proyecto', other: 'proyectos' })} · ${skills} ${plural('es', skills, { one: 'skill global', other: 'skills globales' })} · ${subagents} ${plural('es', subagents, { one: 'subagent', other: 'subagents' })}`,
@@ -302,6 +300,8 @@ export const es: Locale = {
     tipNoUsage: 'Sin consumo',
     noModelData: 'Aún no hay datos de modelos'
   },
+  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
+   * are not translated) */
   label: {
     providerOther: 'Otros',
     trendTotal: 'Total'

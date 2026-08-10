@@ -1,17 +1,24 @@
-// 源语言(简体中文)——界面文案的唯一真相。
+// The source language (Simplified Chinese) — the single source of truth for UI copy.
 //
-// 这份对象用 `as const` 定义,于是它的**结构**(key 集合、值是字符串还是函数、
-// 函数签名、嵌套层次)成为其余五语必须对齐的契约,见 ./types.ts 的 Dict 映射。
-// 新增文案先落这里,其余五语不补齐则 typecheck 失败——不存在「暂时留空」。
+// This object is declared `as const`, which makes its **structure** — the key set, whether a value is a
+// string or a function, each function's signature, the nesting — the contract the other five languages
+// must satisfy; see the Dict mapping in ./types.ts.
+// New copy lands here first, and typecheck stays red until the other five follow: there is no "leave it
+// blank for now".
+//
+// The **values** are Chinese because this is the source language; the comments are English like the rest of
+// the repository (ADR-0017), and the working-language gate allows only the values.
 export const zh = {
-  /** 该语言的母语书写,用于语言选择器;与界面当前语言无关,恒为该语言自身的写法 */
+  /** The language written in its own script, for the language selector. Independent of the current UI
+   * language — always that language's own spelling */
   languageName: '简体中文',
-  /** 该语言的英文名,作为选择器的次要线索:母语文字不认识时仍有第二条路 */
+  /** The language's English name, as a secondary cue in the selector: a second route when its own script
+   * is one you cannot read */
   languageNameEn: 'Chinese (Simplified)',
-  /** html lang 属性值,同时用作 Intl 的 locale tag */
+  /** The html lang attribute value, which doubles as the Intl locale tag */
   htmlLang: 'zh-CN',
 
-  /** 侧边栏悬停提示 */
+  /** The rail's hover tooltips */
   rail: {
     agents: 'Agents',
     projects: 'Projects',
@@ -38,7 +45,8 @@ export const zh = {
     schemeAmber: '琥珀褐'
   },
 
-  /** 应用菜单(票 13)。应用名 Agentshed 各语不变(ADR-0013) */
+  /** The application menu (ticket 13). The application name Agentshed is the same in every language
+   * (ADR-0013) */
   menu: {
     about: '关于 Agentshed',
     hide: '隐藏 Agentshed',
@@ -54,27 +62,32 @@ export const zh = {
   },
 
   toast: {
-    /** 切到某个具体语言 */
+    /** Switching to a specific language */
     languageSwitched: (name: string) => `界面语言已切换为 ${name}`,
-    /** 切到「跟随系统」——必须说明当前解析成了哪种语言,否则用户看不出实际效果 */
+    /** Switching to "follow system" — this has to name the language it currently resolves to, or the user
+     * cannot see what actually changed */
     languageFollowSystem: (name: string) => `已设为跟随系统 · 当前为 ${name}`,
-    /** 偏好落盘失败(界面已切换,重启后恢复) */
+    /** The preference failed to persist (the UI has already switched; a restart reverts it) */
     saveSchemeFailed: '保存配色失败',
     saveModeFailed: '保存外观模式失败',
     saveLanguageFailed: '保存语言失败'
   },
 
   /**
-   * 跨进程失败的措辞(见 ADR-0015)。键与 shared/errors.ts 的错误码一一对应。
-   * 参数只承载语言无关的东西(通道名、字段名、路径、数字),措辞在这里成句。
+   * The wording for cross-process failures (see ADR-0015). The keys correspond one to one with the error
+   * codes in shared/errors.ts.
+   * Parameters carry only language-independent things (channel names, field names, paths, numbers); the
+   * sentence is assembled here.
    */
-  /** 主进程传 null 时由渲染层补的占位措辞(票 07) */
-  /** skill 引用深度提示(票 07:主进程只传判定结果,文案在这里) */
+  /** Placeholder wording the renderer supplies when the main process sends null (ticket 07) */
+  /** The skill reference-depth hint (ticket 07: the main process sends only the verdict, the wording lives
+   * here) */
   skillDeepHint: '按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill',
-  /** Codex config.toml 摘要:主进程只传字段,这里组装成句(票 07) */
+  /** The Codex config.toml summary: the main process sends only the fields, the sentence is assembled here
+   * (ticket 07) */
   codexConfig: (model: string, projects: number, mcp: number) =>
     `model = ${model}\nprojects: ${projects} 条\nmcp_servers: ${mcp} 段`,
-  /** Agents 全局页与应用外壳(票 11) */
+  /** The global Agents page and the application shell (ticket 11) */
   agents: {
     sideSummary: (projects: number, skills: number, subagents: number) =>
       `${projects} 项目 · ${skills} 全局 skills · ${subagents} subagents`,
@@ -108,12 +121,12 @@ export const zh = {
     fileMissing: '文件不存在'
   },
 
-  /** 应用外壳(票 11) */
+  /** The application shell (ticket 11) */
   shell: {
     pickProject: '选择一个项目查看详情',
     scanning: '正在扫描 Claude Code / Codex…(扫描完成前不显示空列表)'
   },
-  /** Skills 包预览与文件抽屉(票 10) */
+  /** Skills package preview and the file drawer (ticket 10) */
   skills: {
     listFailed: (detail: string) => `列举失败:${detail}`,
     pillPlugin: '插件',
@@ -141,7 +154,7 @@ export const zh = {
     pkgUnreadable: 'skill 包不可读'
   },
 
-  /** Subagents 视图(票 10) */
+  /** The Subagents view (ticket 10) */
   subagents: {
     noneGlobal: '两侧均无 subagent 定义(~/.claude/agents 与 ~/.codex/agents)',
     globalHint: '双端合并单列 · 同名一行(不做内容 diff) · 点条目看完整定义',
@@ -159,7 +172,7 @@ export const zh = {
     inherited: '—(继承)'
   },
 
-  /** Memory 视图(票 10) */
+  /** The Memory view (ticket 10) */
   memory: {
     codexLegacy: 'Codex 记忆功能当前未开启,上方为目录中的遗留文件。',
     codexEmpty: 'Codex 记忆已开启,暂无内容。',
@@ -182,7 +195,7 @@ export const zh = {
     loading: '读取中…'
   },
 
-  /** Plugins 视图(票 10) */
+  /** The Plugins view (ticket 10) */
   plugins: {
     projectMissing: '(项目已失联)',
     installMissing: '安装目录缺失(缓存已清理)——仅注册表记录可见,内含组件无法读取',
@@ -205,13 +218,16 @@ export const zh = {
     layerProject: 'project 层',
     layerUser: 'user 层'
   },
-  /** 会话页与轮内块(票 09)。带 ** 与 ` 的是富文本标记,见 RichText */
+  /** The session page and its in-turn blocks (ticket 09). The ** and ` markers are rich-text markup — see
+   * RichText */
   session: {
     forkPoints: (n: number) =>
       `本会话有 **${n} 处分叉**。已按最后一条消息沿父链回溯到根渲染这一条链——即「这次对话最终长什么样」;被放弃的分支不显示。`,
     forkedFrom: '本会话 fork 自',
     anotherSession: '另一会话',
-    /** 父会话标题的引号:成对标点属于文案,由各语言自备(界面上与剥离存疑提示同屏出现,须一致) */
+    /** The quotation marks around a parent session title: paired punctuation is copy, so each language
+     * supplies its own. The fork banner and the uncertain-strip warning can appear on the same screen, so
+     * the two must agree */
     parentTitle: (title: string) => `《${title}》`,
     forkedFromTail: '——重放前缀已剥离,下面只展示本次 fork 之后的新内容。**更早的历史见该会话**。',
     stripUncertainOrphan:
@@ -238,7 +254,7 @@ export const zh = {
     foot: '主干只列人类提问,harness 噪声不进渲染;提问一次列全(文本按字节区间现读,与文件大小无关)。点提问就地展开整轮:正文、工具调用、subagent 派发与推理块。'
   },
 
-  /** 轮内块(票 09) */
+  /** In-turn blocks (ticket 09) */
   turn: {
     typeSeparator: '、',
     thinking: '思考',
@@ -263,7 +279,7 @@ export const zh = {
     unknownRecords: (count: number, types: string) =>
       `▧ 本轮有 **${count} 条未识别记录**(类型:${types})——原样保留在源文件中,未渲染。这通常意味着 agent 更新引入了新记录类型。`
   },
-  /** 项目详情各分栏(票 08) */
+  /** The project detail tabs (ticket 08) */
   detail: {
     notInSnapshot: '项目不在快照中(刷新后重试)',
     staleTag: '失效',
@@ -328,7 +344,7 @@ export const zh = {
     noSettings: '项目键无可展示设置',
     fileMissing: '文件不存在'
   },
-  /** 项目列表(票 08) */
+  /** The project list (ticket 08) */
   projects: {
     searchPlaceholder: '搜索项目…',
     filterAll: '全部',
@@ -342,8 +358,7 @@ export const zh = {
     restore: '恢复',
     hide: '隐藏'
   },
-  /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
-  /** Token 统计与趋势图(票 08) */
+  /** Token statistics and the trend chart (ticket 08) */
   token: {
     totalCard: (note: string) => `累计总量(两侧合计${note ? ` · ${note}` : ''})`,
     inOut: '输入 / 输出',
@@ -357,6 +372,8 @@ export const zh = {
     tipNoUsage: '无用量',
     noModelData: '暂无模型数据'
   },
+  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
+   * are not translated) */
   label: {
     providerOther: '其他',
     trendTotal: '合计'
@@ -411,7 +428,8 @@ export const zh = {
     subagentMissingName: '缺有效 name 字段(Codex 不加载此文件)'
   },
 
-  /** subagent 定义文件的读取失败,作为**数据字段**随快照下发(不是抛出的错误) */
+  /** A failure to read a subagent definition file, delivered with the snapshot as a **data field** rather
+   * than thrown as an error */
   subagentError: {
     unreadable: '不可读',
     parseFailed: '解析失败',
