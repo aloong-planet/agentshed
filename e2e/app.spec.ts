@@ -1443,6 +1443,72 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
 })
 
 /**
+ * The install-to popover is a **floating layer**: it has to appear next to the button that opened it, and
+ * its targets have to be clickable.
+ *
+ * Why this cannot be asserted with `toBeVisible()` alone: an element clipped away by an ancestor's
+ * `overflow` **still has a non-empty bounding box**, so `toBeVisible()` passes on a popover the user
+ * cannot see or click. That is exactly "an attribute standing in for what the user sees". So this measures
+ * geometry, hit-tests the popover's own centre, and finishes on the only judgement that matters — clicking
+ * a target and getting a result.
+ *
+ * The regression it guards (found 2026-08-10): the popover is `position: absolute`, but the wrapper it is
+ * meant to hang off carried a class that no rule defined, so it never became a containing block. The
+ * popover fell back to the initial containing block and landed at the bottom edge of the viewport —
+ * clicking "Install to…" looked like nothing happened.
+ */
+test('the install-to popover sits next to its button, and its targets can be clicked', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
+  const demo = join(home, 'demo-proj')
+  mkdirSync(demo, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
+  // Several skills, so the popover is opened from the **last** row: that is where the card's bottom edge
+  // is right underfoot, the position most likely to be clipped
+  const gskills = join(home, '.claude', 'skills')
+  for (const n of ['alpha-skill', 'beta-skill', 'gamma-skill', 'delta-skill']) {
+    mkdirSync(join(gskills, n), { recursive: true })
+    writeFileSync(join(gskills, n, 'SKILL.md'), `---\ndescription: ${n}\n---\n\nbody\n`)
+  }
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+
+  const rows = win.locator('.sk-card > .rel')
+  await expect(rows).toHaveCount(4)
+  await rows.last().locator('.ins').click()
+
+  const geo = await win.evaluate(() => {
+    const pop = document.querySelector('.pop') as HTMLElement
+    const buttons = [...document.querySelectorAll('.sk-card .ins')] as HTMLElement[]
+    const btn = buttons[buttons.length - 1]
+    const p = pop.getBoundingClientRect()
+    const b = btn.getBoundingClientRect()
+    // The decisive check: whatever is painted at the popover's own centre must belong to the popover.
+    // A clipped popover reports a rect but loses this — the point resolves to whatever is behind it.
+    const atCentre = document.elementFromPoint(p.x + p.width / 2, p.y + p.height / 2)
+    return {
+      gapBelowButton: Math.round(p.top - b.bottom),
+      horizontalOffset: Math.round(Math.abs(p.right - b.right)),
+      bottomWithinViewport: p.bottom <= innerHeight,
+      centreBelongsToPopover: atCentre !== null && pop.contains(atCentre)
+    }
+  })
+  // Hangs off the button that opened it, rather than off the document
+  expect(Math.abs(geo.gapBelowButton)).toBeLessThan(40)
+  expect(geo.horizontalOffset).toBeLessThan(40)
+  expect(geo.bottomWithinViewport).toBe(true)
+  expect(geo.centreBelongsToPopover).toBe(true)
+
+  // And the judgement that actually matters: the target is clickable and installing reports back
+  await win.locator('.pop .pop-p').first().click()
+  await expect(win.locator('.toast.ok')).toBeVisible()
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/**
  * plugins-view sequence H: previewing a plugin skill in place — category tabs, a row list, readability
  * independent of enablement,
  * a greyed-out missing state, and the Codex group having only a Skills tab. End to end with a fixture home.
