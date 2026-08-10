@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import type { AgentSide, SkillPkgStats } from '@shared/domain'
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
+import { NameReveal } from './NameReveal'
 import { SkillFileDrawer } from './SkillFileDrawer'
 import { SkillFilesTable, formatSize } from './SkillFilesTable'
 import { toast } from './Toast'
@@ -127,7 +128,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         }}
       >
         <span className="chev">{expandable ? '▸' : '·'}</span>
-        <span className="nm mono">{name}</span>
+        <NameReveal name={name} />
         <span className="bdg">
           {SIDE_ORDER.map((s) =>
             sidesArr.includes(s) ? (

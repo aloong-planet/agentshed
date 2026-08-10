@@ -1443,6 +1443,200 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
 })
 
 /**
+ * Filtering the skills lists by name, and revealing a name the column truncated.
+ *
+ * The two traps this guards, both of which produce green tests that prove nothing:
+ *
+ *  - **A clipped element still reports a bounding box**, so `toBeVisible()` passes on a tooltip that is
+ *    painted nowhere. The tooltip's visibility is asserted by hit-testing its own centre.
+ *  - **"Nothing matched" and "nothing here" must be different sentences.** Asserting merely that *some*
+ *    empty state appeared would pass if the code reused the "library is empty" copy, which would be a
+ *    lie told to a user whose library is full.
+ */
+test('filtering the skills lists by name, and revealing a truncated name on hover', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
+  const demo = join(home, 'demo-proj')
+  mkdirSync(demo, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
+  const gskills = join(home, '.claude', 'skills')
+  // Two names sharing a fragment (`review`), one that shares nothing, and one long enough that the
+  // 200px name column must truncate it — the hover reveal has nothing to show without that last one
+  const LONG = 'chrome-devtools-mcp-an-absurdly-long-skill-directory-name-that-the-filesystem-allows'
+  for (const n of ['review-code', 'review-tests', 'github-ops', LONG]) {
+    mkdirSync(join(gskills, n), { recursive: true })
+    writeFileSync(join(gskills, n, 'SKILL.md'), `---\ndescription: ${n}\n---\n\nbody\n`)
+  }
+  // A name that does not contain "zebra" while its description does — the only way to show that the
+  // description is not searched (spec E2). Rows do not display it, so a hit explained by it would look
+  // like a malfunction.
+  mkdirSync(join(gskills, 'quiet-skill'), { recursive: true })
+  writeFileSync(
+    join(gskills, 'quiet-skill', 'SKILL.md'),
+    '---\ndescription: zebra appears only in this description\n---\n\nbody\n'
+  )
+  // A project-level skill, so detail has more than one group and "an empty group disappears" is testable
+  mkdirSync(join(demo, '.claude', 'skills', 'local-only'), { recursive: true })
+  writeFileSync(
+    join(demo, '.claude', 'skills', 'local-only', 'SKILL.md'),
+    '---\ndescription: project level\n---\n\nbody\n'
+  )
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+
+  const globalRows = win.locator('.sk-card > .rel')
+  const box = win.locator('.sbar.sk-search input')
+  await expect(globalRows).toHaveCount(5)
+
+  // (1) Narrowing, and recovering when the box is cleared
+  await box.fill('review')
+  await expect(globalRows).toHaveCount(2)
+  await box.fill('REVIEW') // case-insensitive
+  await expect(globalRows).toHaveCount(2)
+  await box.fill('   ') // whitespace only filters nothing (spec E4)
+  await expect(globalRows).toHaveCount(5)
+  await box.fill('gwd') // a substring, not a subsequence — must not reach any name
+  await expect(globalRows).toHaveCount(0)
+  // Only the name is matched: `zebra` lives in quiet-skill's description and nowhere in any name
+  await box.fill('zebra')
+  await expect(globalRows).toHaveCount(0)
+
+  // (2) "Nothing matched" is its own sentence, distinct from "the library is empty"
+  const globalMiss = await win.locator('.pane-body .none').textContent()
+  expect(globalMiss).toBe('No skill name matched')
+  expect(globalMiss).not.toBe('Both global libraries are empty')
+  await box.fill('')
+  await expect(globalRows).toHaveCount(5)
+
+  // (2b) Typing closes the install popover (spec E8). The popover must be opened on a row that
+  // **survives** the keyword about to be typed: open it on a row the filter removes and the popover
+  // disappears along with its row, which would pass whether or not anything closes it deliberately —
+  // verified by mutation, an earlier version of this assertion did exactly that and stayed green with
+  // the closing removed.
+  const survivingRow = win.locator('.sk-card > .rel').filter({ hasText: 'review-code' })
+  await survivingRow.locator('.ins').click()
+  await expect(win.locator('.pop')).toHaveCount(1)
+  await box.fill('review') // review-code still matches, so only the deliberate close can hide it
+  await expect(survivingRow).toHaveCount(1)
+  await expect(win.locator('.pop')).toHaveCount(0)
+  await box.fill('')
+
+  // (3) An expanded row survives filtering; one that left and came back is collapsed again
+  const reviewCode = win.locator('.sk', { hasText: 'review-code' }).first()
+  await reviewCode.locator('.sk-head').click()
+  await expect(reviewCode).toHaveClass(/open/)
+  await box.fill('review-code')
+  await expect(win.locator('.sk', { hasText: 'review-code' }).first()).toHaveClass(/open/)
+  await box.fill('zzz')
+  await box.fill('review-code')
+  await expect(win.locator('.sk', { hasText: 'review-code' }).first()).not.toHaveClass(/open/)
+  await box.fill('')
+
+  // (4) The hover reveal. Truncation is the trigger: a short name must stay quiet.
+  const shortName = win.locator('.sk', { hasText: 'github-ops' }).first().locator('.nm')
+  await shortName.hover()
+  await expect(win.locator('.nm-tip')).toHaveCount(0)
+
+  const longName = win.locator('.sk', { hasText: 'absurdly-long' }).first().locator('.nm')
+  const truncated = await longName.evaluate((el) => el.scrollWidth > el.clientWidth)
+  expect(truncated).toBe(true) // otherwise the case below proves nothing
+  await longName.hover()
+  await expect(win.locator('.nm-tip')).toHaveCount(1)
+
+  const tip = await win.evaluate(() => {
+    const el = document.querySelector('.nm-tip') as HTMLElement
+    const r = el.getBoundingClientRect()
+    // pointer-events: none would let the hit test fall straight through, so lift it for the probe
+    const saved = el.style.pointerEvents
+    el.style.pointerEvents = 'auto'
+    const atCentre = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+    el.style.pointerEvents = saved
+    return {
+      text: el.textContent,
+      width: Math.round(r.width),
+      height: Math.round(r.height),
+      insideViewport: r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+      // The decisive one: a clipped layer reports this same rect but loses this
+      centreBelongsToTip: atCentre !== null && el.contains(atCentre),
+      pointerEvents: getComputedStyle(el).pointerEvents,
+      position: getComputedStyle(el).position
+    }
+  })
+  expect(tip.text).toBe(LONG)
+  expect(tip.centreBelongsToTip).toBe(true)
+  expect(tip.insideViewport).toBe(true)
+  expect(tip.width).toBeLessThanOrEqual(420) // bounded, so a long directory name cannot span the display
+  expect(tip.height).toBeGreaterThan(24) // and wrapped rather than stretched onto one line
+  expect(tip.pointerEvents).toBe('none') // must not swallow the click that expands the row
+  // Pinning `fixed` deliberately, even though it is an implementation choice rather than a behaviour.
+  // The check above cannot cover it: with no positioned ancestor in the row today, `absolute` resolves
+  // against the initial containing block and behaves identically — verified by mutation, the hit test
+  // stays green when this is switched to `absolute`. It only starts failing once someone gives a row
+  // `position: relative`, which is an ordinary-looking change nobody would connect to this tooltip.
+  // `fixed` is what makes that change harmless, so it is pinned here rather than left to be rediscovered.
+  expect(tip.position).toBe('fixed')
+
+  // Moving away removes it
+  await win.mouse.move(5, 5)
+  await expect(win.locator('.nm-tip')).toHaveCount(0)
+
+  // Anything that moves the anchor invalidates the coordinates measured from it, so all three dismiss.
+  // These are the second of the floating layer's two obligations (CONTEXT's invariant) — the layer is
+  // fixed, so without them it would hang in place over unrelated content.
+  // Each of the three needs the pointer parked away first: `hover()` on an element the pointer already
+  // sits on fires no `mouseenter`, so the tooltip would never reappear and the next assertion would pass
+  // for the wrong reason.
+  const hoverLongName = async (): Promise<void> => {
+    await win.mouse.move(5, 5)
+    await longName.hover()
+    await expect(win.locator('.nm-tip')).toHaveCount(1)
+  }
+
+  // The events are dispatched directly rather than by actually resizing or scrolling. Doing it for real
+  // moves the row out from under the pointer, so the tooltip would vanish via `mouseleave` and the
+  // assertion would pass whether or not the listener was ever attached — which is precisely the thing
+  // under test.
+  await hoverLongName()
+  await win.evaluate(() => window.dispatchEvent(new Event('resize')))
+  await expect(win.locator('.nm-tip')).toHaveCount(0)
+
+  await hoverLongName()
+  await win.locator('.pane-body').evaluate((el) => el.dispatchEvent(new Event('scroll')))
+  await expect(win.locator('.nm-tip')).toHaveCount(0)
+
+  await hoverLongName()
+  await box.fill('github') // filtering the anchor row away takes the tooltip with it
+  await expect(win.locator('.nm-tip')).toHaveCount(0)
+  await box.fill('')
+
+  // (5) Project detail: one box narrows every group, headings count what survived, empty groups vanish
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'demo-proj' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const headings = win.locator('.pane-body .grp-t')
+  const detailBox = win.locator('.sbar.sk-search input')
+  await expect(headings).toHaveCount(2) // project level + global level
+
+  await detailBox.fill('review')
+  // The project-level group holds only `local-only`, so it disappears entirely — heading included
+  await expect(headings).toHaveCount(1)
+  await expect(headings.first()).toHaveText('Global level · Claude(2)') // the count follows the filter
+  await detailBox.fill('local')
+  await expect(headings).toHaveCount(1)
+  await expect(headings.first()).toHaveText('Project level · .claude/skills(1)')
+
+  await detailBox.fill('zzz')
+  await expect(headings).toHaveCount(0)
+  const detailMiss = await win.locator('.pane-body .none').textContent()
+  expect(detailMiss).toBe('No skill name matched')
+  expect(detailMiss).not.toBe('No skills in effect for this project')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/**
  * The install-to popover is a **floating layer**: it has to appear next to the button that opened it, and
  * its targets have to be clickable.
  *
@@ -1488,14 +1682,21 @@ test('the install-to popover sits next to its button, and its targets can be cli
     // A clipped popover reports a rect but loses this — the point resolves to whatever is behind it.
     const atCentre = document.elementFromPoint(p.x + p.width / 2, p.y + p.height / 2)
     return {
+      // Measured on both sides, because the popover legitimately opens either way
       gapBelowButton: Math.round(p.top - b.bottom),
+      gapAboveButton: Math.round(b.top - p.bottom),
       horizontalOffset: Math.round(Math.abs(p.right - b.right)),
       bottomWithinViewport: p.bottom <= innerHeight,
       centreBelongsToPopover: atCentre !== null && pop.contains(atCentre)
     }
   })
-  // Hangs off the button that opened it, rather than off the document
-  expect(Math.abs(geo.gapBelowButton)).toBeLessThan(40)
+  // Hangs off the button that opened it, rather than off the document — on **either** side. The popover
+  // opens downwards by default and flips upwards when the room below runs short, which is deliberate
+  // (see popAt) and depends on where the row happens to sit. An earlier version of this assertion
+  // required the downward case specifically, and went red the moment a search box pushed the list down
+  // by forty pixels — it was pinning today's incidental layout, not the behaviour.
+  const gapToButton = Math.min(Math.abs(geo.gapBelowButton), Math.abs(geo.gapAboveButton))
+  expect(gapToButton).toBeLessThan(40)
   expect(geo.horizontalOffset).toBeLessThan(40)
   expect(geo.bottomWithinViewport).toBe(true)
   expect(geo.centreBelongsToPopover).toBe(true)

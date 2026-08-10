@@ -1508,6 +1508,43 @@ body {
 .sbar input:focus {
   border-color: var(--accent);
 }
+/* The skills filter box (2026-08-10). A fixed 300px rather than full width, and deliberately **not** tied
+   to the 200px name column: matching the column was tried first, on the reasoning that a box searching
+   names should not outgrow them, and the typing area came out too cramped. The two were then decoupled —
+   the box is sized for typing, the name column keeps the row geometry it shares with other sections, and
+   a name too long for that column is compensated by revealing itself on hover instead.
+
+   It is a modifier rather than a change to `.sbar input`, because that rule serves the sessions box,
+   which shares its row with the scope toggle and needs to flex. */
+.sbar.sk-search input {
+  width: 300px;
+  flex: none;
+}
+/* A skill name too long for its column, revealed on hover (2026-08-10). `fixed` is what lets it out of
+   the skills card's clipping — see the floating-layer invariant in CONTEXT; the opener supplies left/top.
+
+   Bounded and wrapping, because a name is a **directory name on disk** rather than copy this product
+   wrote: its length is decided elsewhere. A single unwrapped line turns a long directory name into a
+   layer spanning the display (measured at 901px before this bound). Skill names are mostly kebab-case
+   with no spaces, so the ordinary word-boundary wrap finds nowhere to break and `anywhere` is required.
+
+   It takes no pointer events: it sits directly under the row it describes, and would otherwise swallow
+   the click that expands that row and end its own hover the moment it appeared. */
+.nm-tip {
+  position: fixed;
+  z-index: 30;
+  pointer-events: none;
+  max-width: 420px;
+  overflow-wrap: anywhere;
+  padding: 4px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
 .scope {
   display: inline-flex;
   border: 1px solid var(--line-strong);

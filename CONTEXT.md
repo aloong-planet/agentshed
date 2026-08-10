@@ -105,7 +105,10 @@ and folded groups. The distinction is worth naming because the resemblance is in
 above a list suggests "make these consistent", and routing a filter through IPC would buy nothing
 while costing a round trip per keystroke. When adding a box above a list, decide which of the two it
 is first — the answer determines whether the contract changes at all.
-_Avoid_: calling the skills box a "search" in specs or copy where the distinction carries weight
+The distinction is for **specs, ADRs and code**, where it decides whether the contract changes at all.
+User-facing copy is free to say "search" — that is the word people look for, and the placeholder does
+say it.
+_Avoid_: treating the two as one mechanism because they share a visual form
 
 **Turn**:
 Everything recorded from one real question up to the next (assistant prose, tool calls and returns,
@@ -173,11 +176,19 @@ _Avoid_: error message (bare, implies a finished sentence)
   electron-scaffold skill.
 
 - **A floating layer over a clipped list owes two separate obligations (settled 2026-08-10)**: it must
-  be **mounted outside the clipping box**, and it must be **positioned against the viewport from its
-  anchor's measured rect and dismissed whenever that rect goes stale** (scroll, resize, or the anchor
-  row being filtered away). The two are not interchangeable — escaping the clip is what makes it
-  visible at all; viewport positioning is what stops it drifting when an ancestor scrolls. Satisfying
-  one and assuming the other is covered is precisely how this goes wrong. It already went wrong once:
+  **escape the ancestors' overflow clipping**, and it must be **positioned from its anchor's measured
+  rect and dismissed whenever that rect goes stale** (scroll, resize, or the anchor row being filtered
+  away). The two are not interchangeable — escaping the clip is what makes it visible at all;
+  re-measuring or dismissing is what stops it lying about where it points. Satisfying one and assuming
+  the other is covered is precisely how this goes wrong.
+
+  **Viewport positioning discharges the first obligation on its own**: a viewport-positioned element's
+  containing block is the viewport, which is not inside any ancestor, so no ancestor's overflow clips
+  it — it does **not** additionally need to be portalled out of the list. (Stated the other way round
+  once, which would have forced a pointless portal; the install popover disproves it by sitting inside
+  the clipping card and rendering fine.) What does still clip such an element is an ancestor that
+  creates a containing block for it — a transform, filter or perspective — so that, not nesting, is
+  what to check. It already went wrong once:
   the install popover hung off a wrapper whose class no rule defined, fell back to the initial
   containing block, and landed below the bottom of the window, so installing looked like a dead
   button (fixed 2026-08-10). **Note the shape of that failure — the popover was in the DOM with a

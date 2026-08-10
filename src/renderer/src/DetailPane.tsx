@@ -10,6 +10,8 @@ import { ProjectPluginsTab } from './PluginsView'
 import { fmtAgo } from './ProjectsPane'
 import { toast } from './Toast'
 import { SkillExpandBlock } from './SkillExpandBlock'
+import { SkillSearch } from './SkillSearch'
+import { filterByName } from './skill-filter'
 import { errorText } from '@shared/error-text'
 import { appError } from '@shared/errors'
 import { useLanguage, useDict } from './language'
@@ -492,6 +494,7 @@ function SkillsTab({
   const t = useDict()
   const lang = useLanguage()
   const [confirm, setConfirm] = useState<ProjectSkillEntry | null>(null)
+  const [kw, setKw] = useState('')
   const groups = useMemo(() => {
     const g = {
       clProject: [] as ProjectSkillEntry[],
@@ -521,12 +524,19 @@ function SkillsTab({
   const delPath =
     confirm &&
     `${detail.path}/${confirm.side === 'claude' ? '.claude' : '.agents'}/skills/${confirm.name}/`
-  const section = (title: string, items: ProjectSkillEntry[]): JSX.Element | null =>
-    items.length === 0 ? null : (
+  /**
+   * A group renders only what matched, and the heading count reports **that** number rather than the
+   * group's total — a count still reporting the total would contradict the rows underneath it. A group
+   * with nothing left disappears heading and all, which is the rule this section already applied to a
+   * group that was empty to begin with.
+   */
+  const section = (title: string, items: ProjectSkillEntry[]): JSX.Element | null => {
+    const shown = filterByName(items, kw)
+    return shown.length === 0 ? null : (
       <div key={title}>
-        <div className="grp-t">{title}({items.length})</div>
+        <div className="grp-t">{title}({shown.length})</div>
         <div className="card sk-card">
-          {items.map((s) => (
+          {shown.map((s) => (
             <SkillRow
               key={`${s.side}-${s.level}-${s.name}`}
               s={s}
@@ -537,15 +547,22 @@ function SkillsTab({
         </div>
       </div>
     )
+  }
   const any = detail.skills.length > 0
+  // "Nothing matched" and "nothing here" are different facts and get different sentences. Saying the
+  // project has no skills while it has twenty, none of them matching `zzz`, would send the user looking
+  // for a library that is in fact populated.
+  const anyShown = filterByName(detail.skills, kw).length > 0
   return (
     <div>
+      {any && <SkillSearch value={kw} onChange={setKw} />}
       {section(t.detail.secClaudeProject, groups.clProject)}
       {section(t.detail.secClaudeGlobal, groups.clGlobal)}
       {section(t.detail.secCodexProject, groups.cxProject)}
       {section(t.detail.secCodexGlobal, groups.cxGlobal)}
       {section(t.detail.secPlugin, groups.plugin)}
       {!any && <div className="none">{t.detail.noSkills}</div>}
+      {any && !anyShown && <div className="none">{t.skills.noNameMatch}</div>}
       {confirm && (
         <>
           <div className="mask" onClick={() => setConfirm(null)} />

@@ -237,21 +237,30 @@ repeats what is already legible is noise.
 - F5 The uninstall confirmation dialog is unaffected: it is a modal over the page, not part of the list.
 - F6 Switching project clears the keyword (F is a fresh list, and a keyword carried over would make a
   populated project look empty).
+- F7 A project with no skills at all → the existing empty state and **no search box**, the same rule as
+  E6. Recorded during implementation: E6 stated it for the global list only, and the detail list needs it
+  said too — otherwise a box appears above a section whose only content is "there is nothing here".
 
 **Sequence G: a truncated name → hover for the full name**
 
 - G1 The name column is a fixed width with an ellipsis. Hovering a name that **fits** shows nothing.
 - G2 Hovering a **truncated** name reveals the complete name.
-- G3 "Truncated" is decided by measuring at hover time (rendered width against available width), never by
-  counting characters and never cached from mount: web font loading and window resizing both change the
-  answer, so a value computed once goes stale without any event to invalidate it.
-- G4 The tooltip must live **outside the list's clipping box**. The skills card clips its overflow, and a
-  layer positioned against a row inside it is cut away entirely — it still reports a bounding box, so this
-  cannot be checked by asking whether the element exists. Measured 2026-08-10: such a layer's own centre
-  hit-tests to the pane body.
-- G5 Escaping the clip and staying anchored are **two separate obligations**. Being outside the clipping
-  box is what makes it visible; being viewport-positioned is what stops it drifting when an ancestor
-  scrolls. Satisfying one does not satisfy the other.
+- G3 "Truncated" is decided by **measuring** at hover time (rendered width against available width),
+  never by counting characters — character counts are wrong for any name that is not plain Latin, and the
+  measurement is one layout read taken exactly when the user asks. Nothing is cached: a cached value
+  would need something to invalidate it, and there is nothing to buy with that. (Neither resizing nor
+  font loading actually moves this answer — the column is a fixed width and the fonts are system ones —
+  measured 2026-08-10, so the reason to measure on demand is simplicity, not staleness.)
+- G4 The tooltip must **escape the list's overflow clipping**. The skills card clips, and a layer
+  positioned against a row *within that card's coordinate space* is cut away entirely — it still reports
+  a bounding box, so this cannot be checked by asking whether the element exists. Measured 2026-08-10:
+  such a layer's own centre hit-tests to the pane body.
+- G5 Escaping the clip and staying anchored are **two separate obligations**: one makes it visible at all,
+  the other stops it lying about where it points. Positioning against the viewport discharges the first
+  by itself — the element's containing block is then the viewport, so no ancestor's overflow reaches it,
+  and it does **not** also need to be portalled out of the list. What still clips such an element is an
+  ancestor that creates a containing block for it (a transform, filter or perspective), so that is the
+  thing to check rather than nesting depth.
 - G6 Because its coordinates are computed once from the row, anything that moves the row invalidates them:
   scrolling, resizing, and filtering the anchor row away all **hide** the tooltip rather than leaving it
   stranded over unrelated content.
@@ -392,9 +401,16 @@ Matching the current behaviour of
 - **Filtering by name is client-side only.** No IPC command, no contract change, no snapshot field: both
   lists already hold every name they display. The keyword lives with the section that owns the list, which
   is what makes E9 (survives a refresh) and E10 (cleared on leaving) fall out rather than need arranging.
-- **The two lists do not share a filtering component.** They share the *rule* — case-insensitive substring
-  over the name — and that rule is one expression; the surrounding shapes differ (one flat list, one five
-  groups with counts). Extracting a component here would abstract over a one-line predicate.
+- **The two lists share the control, not the filtering.** The box itself is one component — otherwise the
+  placeholder, the class and the input attributes drift apart between two boxes that are meant to look
+  identical. Everything behind it stays per-list: each keeps its own keyword state and applies the rule to
+  its own shape (one flat list; five groups with counts). The rule is a pure predicate in its own module,
+  shared because it is genuinely one rule; no component wraps the *filtering*, because there is nothing
+  common in the shapes around it.
+- **The box carries a modifier rather than restyling the shared search-bar rule**, because that rule also
+  serves the sessions search, whose box shares its row with a scope toggle and must flex. Widening it
+  there would resize a box in another section — the kind of change that is invisible until someone opens
+  that other section.
 - **Floating layers over the skills list** follow one shared discipline (R10): mount outside the clipping
   box, position against the viewport from the anchor's measured rect, and dismiss on anything that
   invalidates that rect. The install popover already works this way; the tooltip adopts the same shape
@@ -442,7 +458,34 @@ tested.
   other. Assert the **property** (an ancestor that clips) rather than the name of the element that
   happens to have it today.
 
-Both were hit while building this, which is why they are recorded here rather than left as advice.
+A third, hit while testing this and worth the same treatment:
+
+- **An assertion can be satisfied by the wrong cause.** "Typing closes the install popover" was first
+  asserted by opening the popover on a row the keyword then filtered away — so the popover vanished with
+  its row, and the assertion passed with the deliberate close deleted. Whenever a test removes something
+  and then checks that something else is gone, pin the thing that was supposed to *stay*: assert the
+  anchor row is still there, so only the behaviour under test can explain the disappearance.
+
+Related, for browser assertions specifically: dismissal-on-scroll and dismissal-on-resize must be driven
+by **dispatching the event**, not by really scrolling or resizing. Doing it for real moves the row out
+from under the pointer, the layer goes away via the pointer leaving, and the assertion passes whether or
+not the listener was ever attached.
+
+All of these were hit while building this, which is why they are recorded here rather than left as advice.
+
+**Coverage gaps, recorded rather than papered over** (a stated gap is worth more than a green that means
+nothing):
+
+- **E6 / F7** (no box when the list is empty to begin with) — guaranteed structurally, since the empty
+  case returns before the box is rendered, but nothing pins it.
+- **E9 / E10 / F6** (the keyword surviving a refresh, and clearing on leaving or switching project) —
+  these follow from *which component owns the state*, so the way they break is someone lifting that state
+  to a parent. That is the highest-value gap of these five.
+- **G7** (shifting left near the window edge) — the name column sits far from the right edge, so the
+  clamp effectively never binds; reproducing it needs an extreme window size.
+- **F5** (the uninstall dialog being unaffected) — it is a page-level modal with no coupling to the list.
+- **G′4** (a name that is entirely whitespace or holds control characters) — needs a fixture with such a
+  directory name.
 
 ## Out of Scope
 
