@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { renderMarkdown } from './md'
 import type { Snapshot } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
@@ -131,10 +131,57 @@ function SideCard({
   )
 }
 
+/**
+ * Where the install-to popover sits. It is a `fixed` layer (theme.css explains why), so it has no
+ * automatic relationship to the row that opened it and must be handed viewport coordinates.
+ *
+ * `top` and `bottom` are exclusive: the popover opens downwards by default and flips upwards when there is
+ * not enough room below. Flipping matters more here than for a popover inside the document flow — being
+ * fixed, no amount of scrolling can bring an off-screen part of it back.
+ */
+interface PopAt {
+  skill: string
+  top?: number
+  bottom?: number
+  right: number
+  maxHeight: number
+}
+
+/** The popover's own ceiling, matching `.pop`'s max-height; the available space narrows it further */
+const POP_MAX_HEIGHT = 300
+/** Breathing room kept between the popover and the window edge */
+const POP_MARGIN = 12
+
+function popAt(skill: string, btn: HTMLElement): PopAt {
+  const r = btn.getBoundingClientRect()
+  const right = window.innerWidth - r.right
+  const below = window.innerHeight - r.bottom - POP_MARGIN
+  const above = r.top - POP_MARGIN
+  // Prefer downwards; flip only when below is genuinely the worse side, so the direction does not
+  // flap between neighbouring rows
+  const up = below < Math.min(POP_MAX_HEIGHT, above)
+  return up
+    ? { skill, bottom: window.innerHeight - r.top + 4, right, maxHeight: Math.min(POP_MAX_HEIGHT, above) }
+    : { skill, top: r.bottom + 4, right, maxHeight: Math.min(POP_MAX_HEIGHT, below) }
+}
+
 function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
   const t = useDict()
   const lang = useLanguage()
-  const [openFor, setOpenFor] = useState<string | null>(null)
+  const [openFor, setOpenFor] = useState<PopAt | null>(null)
+  // A fixed layer does not travel with the list, so scrolling or resizing would leave it stranded over
+  // unrelated content. Closing is the honest response: the anchor it was measured against has moved.
+  useEffect(() => {
+    if (openFor === null) return
+    const close = (): void => setOpenFor(null)
+    const body = document.querySelector('.pane-body')
+    body?.addEventListener('scroll', close)
+    window.addEventListener('resize', close)
+    return () => {
+      body?.removeEventListener('scroll', close)
+      window.removeEventListener('resize', close)
+    }
+  }, [openFor])
   if (snap.global.skills.length === 0) return <Empty msg={t.agents.emptyGlobalLib} />
   const targets = snap.projects
     .filter((p) => !p.stale)
@@ -190,7 +237,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                     className="ins"
                     onClick={(e) => {
                       e.stopPropagation()
-                      setOpenFor(openFor === s.name ? null : s.name)
+                      setOpenFor(openFor?.skill === s.name ? null : popAt(s.name, e.currentTarget))
                     }}
                   >
                     {t.agents.installTo}
@@ -198,8 +245,19 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                 ) : undefined
               }
             />
-            {openFor === s.name && s.origin === 'disk' && (
-              <div className="pop">
+            {openFor?.skill === s.name && s.origin === 'disk' && (
+              // Coordinates are inline because they are per-opening values, not styling; `.pop` in the
+              // theme file owns everything static, and none of these properties appear in its
+              // interaction-state rules
+              <div
+                className="pop"
+                style={{
+                  top: openFor.top,
+                  bottom: openFor.bottom,
+                  right: openFor.right,
+                  maxHeight: openFor.maxHeight
+                }}
+              >
                 <div className="pop-t">{t.agents.pickTarget}</div>
                 {targets.map((p) => (
                   <button className="pop-p" key={p.path} onClick={() => void install(s, p.path)}>

@@ -1206,9 +1206,6 @@ body {
 }
 
 /* ── Install and uninstall interaction ── */
-.it.rel {
-  position: relative;
-}
 .ins {
   font: inherit;
   font-size: 11.5px;
@@ -1224,10 +1221,20 @@ body {
   color: var(--accent);
   border-color: var(--accent);
 }
+/* The install-to popover is a floating layer, so it is positioned against the **viewport** and receives its
+   coordinates from whoever opens it, computed from the trigger button's rect (see AgentsPane).
+
+   Why not `absolute`: hanging it off the row requires giving some ancestor inside the list a containing
+   block, and `.sk-card`'s `overflow: hidden` then clips the popover away — measured 2026-08-10, the
+   popover's own centre hit-tested to `.pane-body`, i.e. nothing of it was painted there. The two ways out
+   are "stop the card clipping" and "float the popover out of it"; the first costs the card its rounded
+   first and last rows and needs four compensating radius rules across two different nestings, so this is
+   the cheaper one.
+
+   Because it is fixed, it does not travel with the list: whoever opens it must close it on scroll and on
+   resize, or it would hang in place over unrelated content. */
 .pop {
-  position: absolute;
-  right: 10px;
-  top: calc(100% - 4px);
+  position: fixed;
   z-index: 8;
   background: var(--card);
   border: 1px solid var(--line-strong);
