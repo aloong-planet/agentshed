@@ -308,6 +308,19 @@
   .sbar input:focus{border-color:var(--accent)}
   /* 提示行与分组标题:真代码的 .grp-t,原型此前没画,过滤时组计数变化要靠它才看得见 */
   .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px}
+  /* 名字被压缩时 hover 显示全名(2026-08-10 裁定)。
+     用 fixed 而不是 absolute:.sk-card 是 overflow:hidden 的裁剪盒,贴着行定位的 absolute 浮层
+     会被它整个切掉——实测浮层自己的中心点命中的是 .pane-body,那块像素上根本没有浮层。
+     fixed 不受祖先 overflow 约束,代价是坐标只能由 JS 按名字列的 rect 算,
+     且滚动时锚点就不作数了,必须隐藏。 */
+  .nm-tip{
+    position:fixed;z-index:30;pointer-events:none;
+    background:var(--card);color:var(--text);
+    border:1px solid var(--line-strong);border-radius:6px;
+    padding:4px 9px;font-size:12px;
+    font-family:ui-monospace,Menlo,monospace;
+    white-space:nowrap;box-shadow:0 4px 14px rgba(40,50,60,.16);
+  }
   /* 无匹配空态:真代码的 .none */
   .none{color:var(--text-2);padding:16px;text-align:center;font-size:12px;
     border:1px dashed var(--line-strong);border-radius:10px;margin-bottom:10px}
@@ -499,6 +512,11 @@
       CC 全局层计数变成 2）；<b>brain</b>（只剩插件组，说明命名空间前缀也算名字的一部分）；
       <b>zzz</b>（无匹配空态）。另外试一下：<b>先展开一行再打字</b>——仍然命中的行保住展开态，
       被过滤掉再回来的行是折叠的。
+    </div>
+    <div class="sub">
+      <b>名字被压缩时 hover 显示全名</b>：名字列固定 200px，超出即省略号。把鼠标停在
+      <b>chrome-devtools-mcp:memory-leak-debugging</b> 上会浮出全名；停在 <b>tdd</b> 上不会——
+      没被截断的行弹一个和眼前一模一样的内容只是噪音。
     </div>
     <div class="sec-h">全局 · Agents Skills</div>
     <div class="sbar">
@@ -848,6 +866,10 @@
       if (un) un.onclick = (e) => { e.stopPropagation(); toast('已记录:卸载') }
     }
 
+    const nm = head.querySelector('.nm')
+    nm.addEventListener('mouseenter', () => showNameTip(nm))
+    nm.addEventListener('mouseleave', hideNameTip)
+
     root.appendChild(head)
     root.appendChild(body)
     return root
@@ -857,7 +879,9 @@
     { name: 'github-ops', description: '完整真实包 · 点行展开文件 · 点文件开抽屉', sides: ['claude', 'codex', 'grok'], origin: 'disk', symlink: true },
     { name: 'deep-demo', description: '深度>2 提示（展开后可见）', sides: ['claude', 'codex'], origin: 'disk', symlink: false },
     { name: 'tdd', description: 'Test-driven development…', sides: ['claude'], origin: 'disk', symlink: false },
-    { name: 'superpowers:brainstorming', description: '插件 · 不可展开/预览', sides: ['claude'], origin: 'plugin', symlink: false }
+    { name: 'superpowers:brainstorming', description: '插件 · 不可展开/预览', sides: ['claude'], origin: 'plugin', symlink: false },
+    // 名字列固定 200px,这条 41 字符的名字必然被截断 —— hover 全名的形态要有被截断的行才演示得出来
+    { name: 'chrome-devtools-mcp:memory-leak-debugging', description: '插件 · 长名字,演示 hover 全名', sides: ['claude'], origin: 'plugin', symlink: false }
   ]
   /**
    * Detail: a same-named github-ops lists only the project level; tdd is global only; no shadowed global row.
@@ -887,7 +911,8 @@
     {
       title: '插件自带',
       items: [
-        { name: 'superpowers:brainstorming', sides: ['claude'], origin: 'plugin', level: 'plugin', symlink: false }
+        { name: 'superpowers:brainstorming', sides: ['claude'], origin: 'plugin', level: 'plugin', symlink: false },
+        { name: 'chrome-devtools-mcp:memory-leak-debugging', sides: ['claude'], origin: 'plugin', level: 'plugin', symlink: false }
       ]
     }
   ]
@@ -902,6 +927,35 @@
   }
   function norm(v) {
     return v.trim().toLowerCase()
+  }
+
+  /**
+   * 名字被压缩时 hover 显示全名(裁定 2026-08-10)。
+   *
+   * 「被压缩」的判据是 scrollWidth > clientWidth ——名字列是固定 200px + 省略号,
+   * 没溢出的行不弹提示:弹一个与眼前一模一样的内容是纯噪音。
+   * 判据必须现取,不能在挂载时算一次存起来:字体加载完成、窗口缩放都会改变它。
+   */
+  let nmTip = null
+  function hideNameTip() {
+    if (nmTip) {
+      nmTip.remove()
+      nmTip = null
+    }
+  }
+  function showNameTip(el) {
+    if (el.scrollWidth <= el.clientWidth) return // 没被截断 → 不提示
+    hideNameTip()
+    nmTip = document.createElement('div')
+    nmTip.className = 'nm-tip'
+    nmTip.textContent = el.textContent
+    document.body.appendChild(nmTip)
+    // 先量再摆:宽度要等它进了文档才知道
+    const r = el.getBoundingClientRect()
+    const w = nmTip.getBoundingClientRect().width
+    // 贴名字列左缘、行下方;贴到窗口右缘时往左收,不让它伸出屏幕
+    nmTip.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - w - 8))}px`
+    nmTip.style.top = `${r.bottom + 4}px`
   }
 
   /**
@@ -933,6 +987,8 @@
   const NO_MATCH = '没有名字匹配的 skill'
 
   function renderGlobal(kw) {
+    // 提示层是 fixed 的,它记的是**上一刻**那一行的坐标;行一旦被过滤掉或挪位,那个坐标就不作数了
+    hideNameTip()
     const host = document.getElementById('global')
     const hits = GLOBAL.filter((s) => matches(s.name, kw))
     host.querySelectorAll(':scope > .card, :scope > .none').forEach((el) => el.remove())
@@ -953,6 +1009,7 @@
   }
 
   function renderDetail(kw) {
+    hideNameTip()
     const host = document.getElementById('detail')
     host.querySelectorAll(':scope > .grp-t, :scope > .card, :scope > .none').forEach((el) => el.remove())
     const entries = []
@@ -981,6 +1038,10 @@
     reconcile(host, entries)
     if (!entries.length) host.insertAdjacentHTML('beforeend', `<div class="none">${NO_MATCH}</div>`)
   }
+
+  // 滚动与缩放同理:锚点动了,fixed 层还停在旧坐标上
+  document.querySelector('.main').addEventListener('scroll', hideNameTip)
+  window.addEventListener('resize', hideNameTip)
 
   const qGlobal = document.getElementById('q-global')
   const qDetail = document.getElementById('q-detail')
