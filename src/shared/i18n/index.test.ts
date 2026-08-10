@@ -3,14 +3,7 @@
 // depends on neither the DOM nor React
 // — the main process builds the application menu from the same modules.
 import { describe, it, expect } from 'vitest'
-import {
-  LANGUAGES,
-  resolveLanguage,
-  effectiveLanguage,
-  plural,
-  dictOf,
-  isLanguage
-} from './index'
+import { LANGUAGES, resolveLanguage, effectiveLanguage, dictOf, isLanguage } from './index'
 
 describe('resolveLanguage', () => {
   it('iterate the whole list for the first supported one rather than falling back when the first misses', () => {
@@ -62,41 +55,7 @@ describe('effectiveLanguage (preference → effective language)', () => {
   })
 })
 
-describe('plural', () => {
-  // The expectations come from **measuring** Intl.PluralRules (the categories are noted per case below),
-  // not from memory — Russian putting 0 in many rather than other, and 21 in one rather than many,
-  // are both easy to get backwards from intuition.
-  // other is required (enforced by the type): Russian uses other for decimals, such as 1.5 сессии
-  const ruForms = { one: 'сессия', few: 'сессии', many: 'сессий', other: 'сессии' }
-
-  it('Russian has four forms: 1=one, 2=few, 5=many, 21=one, 0=many', () => {
-    expect(plural('ru', 1, ruForms)).toBe('сессия')
-    expect(plural('ru', 2, ruForms)).toBe('сессии')
-    expect(plural('ru', 5, ruForms)).toBe('сессий')
-    expect(plural('ru', 21, ruForms)).toBe('сессия')
-    expect(plural('ru', 0, ruForms)).toBe('сессий')
-  })
-
-  it('French uses the singular for 0 and English the plural — the same 0 differs by language', () => {
-    const fr = { one: 'session', other: 'sessions' }
-    const en = { one: 'session', other: 'sessions' }
-    expect(plural('fr', 0, fr)).toBe('session')
-    expect(plural('en', 0, en)).toBe('sessions')
-    // The two only mean something side by side: if an implementation hard-coded one rule, one of them goes red
-    expect(plural('fr', 1, fr)).toBe('session')
-    expect(plural('fr', 2, fr)).toBe('sessions')
-  })
-
-  it('Chinese and Japanese have no plural inflection and always use other', () => {
-    expect(plural('zh', 1, { other: ' sessions' })).toBe(' sessions')
-    expect(plural('zh', 5, { other: ' sessions' })).toBe(' sessions')
-    expect(plural('ja', 5, { other: ' items' })).toBe(' items')
-  })
-
-  it('a form the caller did not supply falls back to other', () => {
-    expect(plural('ru', 2, { other: 'x' })).toBe('x')
-  })
-})
+// `plural()` itself is tested in ./plural.test.ts, which deliberately avoids importing this module.
 
 describe('dictionary', () => {
   it('all six languages are present with distinct native names', () => {
@@ -111,9 +70,52 @@ describe('dictionary', () => {
     for (const l of LANGUAGES) {
       const tag = dictOf(l).htmlLang
       expect(tag, `${l} has no htmlLang`).toBeTruthy()
-      // Really construct an Intl object with it: htmlLang doubles as the locale tag for plurals,
-      // so an invalid value makes plurals throw at runtime rather than quietly doing nothing
+      // Really construct an Intl object with it: an invalid value would make Intl throw at runtime rather
+      // than quietly doing nothing
       expect(() => new Intl.PluralRules(tag)).not.toThrow()
+    }
+  })
+
+  it('htmlLang and the language code select the same plural category for every language', () => {
+    // `plural()` uses the bare language code as its locale tag, because reading `htmlLang` would mean
+    // importing the dictionaries and making the module circular (see ./plural.ts). The two agree today
+    // because CLDR keys plural rules off the primary subtag — `zh` vs `zh-CN` is the only pair that even
+    // differs in text. This pins that agreement instead of leaving it to hold by luck: give some future
+    // language an htmlLang whose region actually changes its plural rules, and this goes red rather than
+    // silently pluralising that language by a different rule than its own `<html lang>` advertises.
+    const ns = [0, 1, 1.5, 2, 3, 5, 11, 21, 22, 25, 100, 101, 111]
+    for (const l of LANGUAGES) {
+      const byTag = new Intl.PluralRules(dictOf(l).htmlLang)
+      const byCode = new Intl.PluralRules(l)
+      for (const n of ns) {
+        expect(byCode.select(n), `${l} disagrees with its htmlLang at n=${n}`).toBe(byTag.select(n))
+      }
+    }
+  })
+
+  it('every language quotes a parent session title the same way in both places it appears', () => {
+    // The fork banner and the uncertain-strip warning both name the parent session, and a user can see both
+    // on the same screen. The quotation marks are part of the copy, so they belong to the language: `“ ”`
+    // in English, `« »` in French, `『 』` in Japanese. They were hard-coded as CJK `《 》` in SessionPane,
+    // which put Chinese book-title marks into all six UIs — and left Japanese quoting the *same* title two
+    // different ways, since ja.ts already used `『 』` in the warning.
+    //
+    // Comparing the two entries against each other rather than against a hard-coded table is what makes
+    // this survive: it stays correct for a language added later, and it goes red on the drift itself.
+    const TITLE = 'QQXZQQ'
+    for (const l of LANGUAGES) {
+      const d = dictOf(l)
+      const banner = d.session.parentTitle(TITLE)
+      const at = banner.indexOf(TITLE)
+      expect(at, `${l}: parentTitle does not contain the title`).toBeGreaterThanOrEqual(0)
+      const open = banner.slice(0, at)
+      const close = banner.slice(at + TITLE.length)
+      expect(open, `${l}: parentTitle adds no opening mark`).not.toBe('')
+      expect(close, `${l}: parentTitle adds no closing mark`).not.toBe('')
+      expect(
+        d.session.stripUncertainMismatch(TITLE),
+        `${l}: the fork banner quotes the parent title as ${open}…${close}, but the uncertain-strip warning does not`
+      ).toContain(open + TITLE + close)
     }
   })
 

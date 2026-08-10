@@ -16,7 +16,7 @@ export const ja: Locale = {
     title: '設定',
     lead: 'この app 固有の設定です。インターフェース全体に適用され、Claude や Codex の設定には書き込まれません。',
     sectionLanguage: '言語',
-    interfaceLanguage: 'インターフェースの言語',
+    interfaceLanguage: '表示言語',
     followSystem: 'システムに従う',
     languageFoot:
       '「システムに従う」を選ぶと、インターフェースは macOS の優先言語に従います。いずれも対応していない場合は英語になります。',
@@ -51,11 +51,10 @@ export const ja: Locale = {
 
   skillDeepHint: 'ベストプラクティスでは skill の参照深度は 2 未満です。この skill の見直しを検討してください',
   codexConfig: (model, projects, mcp) =>
-    `model = ${model}\nprojects：${projects}\nmcp_servers：${mcp}`,
-  /** 随语言变化的展示名(其余如 Anthropic / Claude 是专有名词,不译) */
+    `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
   agents: {
     sideSummary: (projects, skills, subagents) => `${projects} プロジェクト · ${skills} グローバル skills · ${subagents} subagents`,
-    tabCfg: '設定',
+    tabCfg: '構成',
     notDetected: 'このマシンで Claude Code または Codex のデータディレクトリを検出できませんでした',
     notDetectedHint: 'いずれかの agent をインストールして使ったあと、rail 下部の ↻ を押して更新すると全体像が見えます',
     totalsNote: '非表示/失効プロジェクトを含む',
@@ -63,12 +62,12 @@ export const ja: Locale = {
     byModel: 'モデル別（プロジェクト横断。Codex 側はセッションの主モデルの近似）',
     detected: '検出済み', undetected: '未検出',
     emptyGlobalLib: '両サイドのグローバルライブラリとも空です',
-    sideMismatch: (project) => `${project} はこの skill が属する agent サイドではありません`,
+    sideMismatch: (project) => `${project} はこの skill が属する agent サイドに属していません`,
     installed: (skill, project, side) => `${skill} を ${project}（${side}）にインストールしました。更新はこのプロジェクトのみです`,
     skillsHint: '1 列に統合 · 行をクリックでパッケージ内ファイル · ファイルをクリックでプレビュー · サイド間 diff なし · プラグインは読み取り専用',
     levelPluginPkg: 'プラグインパッケージ', levelGlobalLib: 'グローバルライブラリ',
     installTo: 'インストール先…',
-    pickTarget: '対象プロジェクトを選択（コピーで設置。失効プロジェクトは除外済み）',
+    pickTarget: '対象プロジェクトを選択（コピーして配置。失効プロジェクトは除外済み）',
     srcGlobalConfig: 'グローバル設定', srcPlugin: 'plugin 同梱',
     globalMcp: 'グローバル MCP',
     noGlobalMcp: 'グローバル MCP はありません（プロジェクト単位の .mcp.json はプロジェクト詳細にあります）',
@@ -83,7 +82,7 @@ export const ja: Locale = {
   },
   skills: {
     listFailed: (detail) => `列挙に失敗しました：${detail}`,
-    pillPlugin: 'プラグイン', pillProject: 'プロジェクト単位', pillGlobal: 'グローバル', pillSymlink: '⤷ シンボリックリンク',
+    pillPlugin: 'プラグイン', pillProject: 'プロジェクト', pillGlobal: 'グローバル', pillSymlink: '⤷ シンボリック',
     pkgSummary: (files, size) => `${files} ファイル · ${size}`,
     srcPluginPkg: 'プラグインパッケージ', srcProject: 'プロジェクト', srcGlobal: 'グローバルライブラリ',
     listing: '列挙中…',
@@ -100,18 +99,18 @@ export const ja: Locale = {
     globalHint: '両サイドを 1 列に統合 · 同名は 1 行（内容 diff は行いません）· 行をクリックで完全な定義',
     noDescription: '（description なし）',
     noneProject: 'プロジェクト単位・グローバルとも subagent 定義がありません',
-    projectHint: '有効ビュー · Claude/Codex ともプロジェクト単位が優先 · 行をクリックで完全な定義',
+    projectHint: '有効ビュー · Claude/Codex ともプロジェクト単位が上書き · 行をクリックで完全な定義',
     levelProject: 'プロジェクト単位', levelGlobal: 'グローバル',
-    overridesBuiltin: '組み込みを上書き', shadows: '同名を隠す', shadowed: 'プロジェクト単位に隠される',
-    metaShadows: ' · 同名の下位定義を上回ります',
-    metaShadowed: ' · プロジェクト単位の定義に隠されています（無効）',
+    overridesBuiltin: '組み込みを上書き', shadows: '同名を上書き', shadowed: 'プロジェクト単位が優先',
+    metaShadows: ' · 同名の下位定義を上書きします',
+    metaShadowed: ' · プロジェクト単位の定義に上書きされています（適用されません）',
     noSideDef: 'このサイドに定義はありません', inherited: '—（継承）'
   },
 
   memory: {
-    codexLegacy: 'Codex のメモリ機能は現在無効です。上記はディレクトリに残っているファイルです。',
+    codexLegacy: 'Codex のメモリ機能は有効化されていません。上記はディレクトリに残っているファイルです。',
     codexEmpty: 'Codex のメモリは有効ですが、内容がありません。',
-    codexDisabled: 'Codex のメモリ機能が無効です —— Codex 内で /memories コマンド、または「設定 → パーソナライズ → Enable memories」で有効にできます（実験的）。',
+    codexDisabled: 'Codex のメモリ機能は有効化されていません —— Codex 内で /memories コマンド、または「設定 → パーソナライズ → Enable memories」で有効にできます（実験的）。',
     noneGlobal: 'どのプロジェクトにも自動メモリがありません',
     globalHint: '更新の新しい順 · 失効/非表示を含む（バッジ付き）· 行をクリックでファイル一覧、ファイルをクリックで内容',
     stale: '失効', hidden: '非表示',
@@ -134,22 +133,23 @@ export const ja: Locale = {
     codexCacheEnum: 'キャッシュ列挙',
     cachedVersions: (n) => `（キャッシュ ${n} バージョン）`,
     cacheOnly: 'キャッシュ列挙のみ',
-    codexFoot: 'Codex 群はキャッシュに存在するプラグインのみを列挙します。有効/無効の意味論はなく、同梱 skills はプレビューできますが Skills タブには統合されません',
-    codexFootDetail: '。Codex のプラグインはグローバルに有効で、プロジェクト単位の有効化の意味論はありません',
+    codexFoot: 'Codex のグループはキャッシュに存在するプラグインのみを列挙します。有効/無効という区別はなく、同梱 skills はプレビューできますが Skills タブには統合されません',
+    codexFootDetail: '。Codex のプラグインはグローバルに有効で、プロジェクト単位で有効化するという概念はありません',
     claudeGlobalHint: '有効判定の基準：user 層 · 行をクリックで同梱コンポーネントを展開',
     noPlugins: 'プラグインは 1 つもインストールされていません',
-    enabled: '有効', notEnabled: '未有効',
+    enabled: '有効', notEnabled: '未有効化',
     claudeProjectHint: '有効判定の基準：本プロジェクトの有効集合（local > project > user）',
     enabledShort: '有効', disabledShort: '無効',
     noLayerMentions: 'どの層にも記載なし',
-    verdictFrom: (verdict, layer) => `${verdict}判定は ${layer} 由来`,
+    verdictFrom: (verdict, layer) => `${verdict}判定の根拠：${layer}`,
     layerLocal: 'local 層', layerProject: 'project 層', layerUser: 'user 層'
   },
   session: {
     forkPoints: (n) =>
       `このセッションには **${n} 箇所の分岐**があります。最後のメッセージから親リンクをたどってルートまで遡った 1 本の鎖を表示しています —— つまり「この対話が最終的にどうなったか」です。破棄された分岐は表示しません。`,
-    forkedFrom: 'このセッションの fork 元:',
+    forkedFrom: 'このセッションの fork 元は',
     anotherSession: '別のセッション',
+    parentTitle: (title) => `『${title}』`,
     forkedFromTail: '—— リプレイ部分は除去済みで、以下はこの fork 以降の新しい内容のみです。**それ以前の履歴はそのセッションを参照してください**。',
     stripUncertainOrphan:
       '**リプレイ除去に不確かさがあります**:このセッションは**スキャン対象外**の親から fork されており（親ファイルが削除済み、または未登録プロジェクト）、ヒューリスティックにしか除去できません —— **除去しすぎ（メッセージの欠落）や除去不足（重複）の可能性があります**。原文と照合してください。黙って誤らないことが、ここで保証できる唯一のことです。',
@@ -162,17 +162,17 @@ export const ja: Locale = {
       `⚡ オンデマンド取得 ${ms} ms · このターンのバイト範囲 ${bytes} のみ読み取り（ファイル全体のサイズとは無関係）`,
     back: (project) => `‹ ${project} に戻る · セッション`,
     headMeta: (side, questions, tok, mb, ago) =>
-      `${side} · ${questions} 質問 · ${tok} tok · ${mb} · 最終アクティビティ ${ago}`,
+      `${side} · 質問 ${questions} 件 · ${tok} tok · ${mb} · 最終アクティビティ ${ago}`,
     cannotOpen: (detail) => `セッションを開けません：${detail}`,
     loading: '読み込み中…',
-    mainline: (n, days) => `質問（主系列）· ${n} 件${days}`,
+    mainline: (n, days) => `質問（メインライン）· ${n} 件${days}`,
     dayCount: (n) => ` · ${n} 日`,
     expandAll: 'すべて展開',
     collapseAll: 'すべて折りたたみ',
     ascending: '昇順',
     descending: '降順',
     dayGroup: (day, n) => `${day} · ${n} 件`,
-    foot: '主系列には人間の質問のみを載せ、harness のノイズは描画しません。質問は一度にすべて列挙します（本文はバイト範囲でオンデマンドに読むため、ファイルサイズとは無関係です）。質問をクリックするとその場でターン全体を展開します:本文、ツール呼び出し、subagent への委譲、推論ブロック。'
+    foot: 'メインラインには人間の質問のみを載せ、harness のノイズは描画しません。質問は一度にすべて列挙します（本文はバイト範囲でオンデマンドに読むため、ファイルサイズとは無関係です）。質問をクリックするとその場でターン全体を展開します:本文、ツール呼び出し、subagent への委譲、推論ブロック。'
   },
 
   turn: {
@@ -183,7 +183,7 @@ export const ja: Locale = {
     reasoningSum: (n) => `小見出し ${n} 件のみ · 本文は取得不可`,
     reasoningNote:
       'Codex の推論本文は `encrypted_content` であり、**決して取得できません**。以下は記録に残る平文の小見出しのみです —— Claude 側の平文思考とは**対等ではなく**、同じであるかのようには扱いません。',
-    input: '入力',
+    input: '引数',
     output: '戻り値',
     empty: '（空）',
     noOutput: '（戻り値の記録なし）',
@@ -206,7 +206,7 @@ export const ja: Locale = {
     tabSkills: 'Skills',
     tabMcp: 'MCP',
     tabSessions: 'セッション',
-    tabCfg: '設定',
+    tabCfg: '構成',
     tabArts: '成果物',
     loading: '読み込み中…',
     byModel: 'モデル別',
@@ -220,7 +220,7 @@ export const ja: Locale = {
     folded: (n) => ` · ${n} 件を折りたたみ（リプレイまたは破棄された分岐）`,
     recentFirst: '新しい順',
     oldestFirst: '古い順',
-    forkUncertain: '⑂? 除去に疑い',
+    forkUncertain: '⑂? 除去不確実',
     hitCount: (n) => `${n} 件`,
     inBody: '本文',
     sortNote: (order, n) => `最終アクティビティ${order} · ${n} セッション`,
@@ -228,8 +228,8 @@ export const ja: Locale = {
     ascending: '昇順',
     forkTip: 'このセッションは別のセッションから fork されており、先頭のリプレイ部分は除去済みです',
     forkUncertainTip: '親セッションがスキャン対象外か検証に合致しないため、リプレイ部分はヒューリスティックにしか除去できていません（重複が残る可能性があります）',
-    questionCount: (n) => `${n} 質問`,
-    sessionsFoot: '登録済みプロジェクトのセッションのみを一覧します。subagent とウォームアップのセッションは個別に載りませんが token は計上されます —— したがってこの件数と上の token カードの母数は同じものではありません。',
+    questionCount: (n) => `質問 ${n} 件`,
+    sessionsFoot: '登録済みプロジェクトのセッションのみを一覧します。subagent とウォームアップのセッションは個別に載りませんが token は計上されます —— したがってこの件数と上の token カードの分母は同じものではありません。',
     sessionsFoot2: '「最終アクティビティ」はファイル内の最大タイムスタンプを取り、プロジェクト一覧のアクティビティ（ファイルの mtime）とは別系統です。',
     searchPlaceholder: (n) => `このプロジェクトの ${n} セッションから検索…`,
     scopeQuestions: '質問',
@@ -256,7 +256,7 @@ export const ja: Locale = {
     mcpDisabled: '無効',
     mcpDefault: '既定',
     filterAll: 'すべて',
-    noArtifacts: '規約どおりの蓄積がありません（八ステップのプロジェクトではありません。エラーではありません）',
+    noArtifacts: '規約どおりの蓄積がありません（8 ステップのプロジェクトではありません。エラーではありません）',
     noArtifactsOfType: 'この種類の成果物はありません',
     openInBrowser: 'HTML → ブラウザ',
     settingsSummary: 'settings の要約',
@@ -274,7 +274,7 @@ export const ja: Locale = {
     collapseHint: '（クリックで折りたたみ）',
     staleTag: '失効',
     restore: '復元',
-    hide: '非表示'
+    hide: '非表示にする'
   },
   token: {
     totalCard: (note) => `累計（両サイド合計${note ? ` · ${note}` : ''}）`,
@@ -283,12 +283,14 @@ export const ja: Locale = {
     cacheCard: 'うちキャッシュ（ccusage 基準で合計に算入済み）',
     cacheReadWrite: (read, write) => `読み ${read} · 書き ${write}`,
     trendTitle: '直近 30 日の推移（ローカルタイムゾーン · 日単位）',
-    legendNote: '棒の高さ＝その日の合計、区切り＝provider ごとの割合',
+    legendNote: '棒の高さ＝その日の合計、各区分＝provider ごとの割合',
     tipTotal: (label, total) => `${label} · 合計 ${total}`,
     tipArchived: ' · アーカイブ（元ファイルは削除済み）',
     tipNoUsage: '使用なし',
     noModelData: 'モデルのデータがありません'
   },
+  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
+   * are not translated) */
   label: {
     providerOther: 'その他',
     trendTotal: '合計'
@@ -318,7 +320,7 @@ export const ja: Locale = {
     skillPackageUnavailable: 'skill パッケージが利用できないか、許可されたルートの外にあります',
     skillFileNotWhitelisted: 'この skill ファイルのパスは許可リストにありません',
     skillFileUnreadable: 'skill ファイルを読み取れません',
-    sessionNotIndexed: 'このセッションはインデックスにありません。先に全体を更新してください',
+    sessionNotIndexed: 'このセッションはインデックスにありません。先に「すべて更新」を実行してください',
     sessionFileUnreadable: 'セッションファイルが読み取れなくなりました（移動または削除？）',
     sessionMetaUnreadable: 'セッションの先頭行が読み取れないため、インデックスを再構築できません',
     sessionParseFailed: 'セッションファイルの解析に失敗しました',

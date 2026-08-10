@@ -25,7 +25,12 @@
 import { readFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
-const CJK = /[一-鿿]/
+// Ideographs **and** CJK punctuation. The punctuation range was added after a real miss: the fork banner
+// hard-coded Chinese book-title marks in SessionPane.tsx, so all six UIs — including Japanese, whose own
+// dictionary quotes the same title with 『』 — rendered a Chinese title mark, and this gate stayed green
+// throughout, because U+300A is below the ideograph range. Fullwidth forms are in for the same reason: a
+// fullwidth colon inside a monospace config block reads as invalid syntax and nothing else would catch it.
+const CJK = /[一-鿿　-〿＀-￯]/
 const BINARY = /\.(png|ico|icns|jpg|jpeg|gif|webp|woff2?|ttf|zip|pdf)$/i
 
 /**
@@ -38,13 +43,17 @@ const BINARY = /\.(png|ico|icns|jpg|jpeg|gif|webp|woff2?|ttf|zip|pdf)$/i
  */
 const ALLOW = [
   {
+    // Values only. The count used to be 341, which quietly also covered 31 Chinese *comment* lines — and
+    // the reason below did not justify those: a comment is not source-language copy, it is developer
+    // documentation, which ADR-0017 says is English. The comments are English now, so the allowance and its
+    // stated reason line up, and a Chinese comment added here goes red like anywhere else.
     match: (f) => f === 'src/shared/i18n/zh.ts',
-    lines: 338,
-    why: 'the source-language dictionary — Chinese by definition (ADR-0014)'
+    lines: 310,
+    why: 'the source-language dictionary’s values — Chinese by definition (ADR-0014); its comments are English like the rest of the repository'
   },
   {
     match: (f) => f === 'src/shared/i18n/ja.ts',
-    lines: 239,
+    lines: 244,
     why: 'the Japanese dictionary — its entries legitimately contain kanji'
   },
   {
@@ -77,8 +86,8 @@ const ALLOW = [
   },
   {
     match: (f) => f === 'docs/specs/i18n.md',
-    lines: 5,
-    why: 'language names, the pre-sanitisation values, and the mis-mapped dictionary value the e2e strategy section quotes as evidence'
+    lines: 9,
+    why: 'language names, the pre-sanitisation values, the mis-mapped dictionary value the e2e strategy section quotes as evidence, and the counter word and quotation marks the copy rules name as the thing to preserve'
   },
   {
     match: (f) => f === 'docs/features/i18n.md',
@@ -102,8 +111,13 @@ const ALLOW = [
     // A detector has to spell out the range it detects, and this one also quotes real examples of the
     // residue it was built to catch. There is no way to write it without the characters in it.
     match: (f) => f === 'scripts/check-lang.mjs',
-    lines: 4,
+    lines: 5,
     why: 'the gate itself — its character-range regex, and the quoted residue examples in its header'
+  },
+  {
+    match: (f) => f === 'src/shared/i18n/index.test.ts',
+    lines: 2,
+    why: 'names the quotation marks the parent-title check is about — the defect was that the wrong pair shipped, so the comment has to say which pair'
   },
   {
     match: (f) => f === 'src/shared/i18n/types.ts',

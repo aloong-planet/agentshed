@@ -1,4 +1,5 @@
 import type { Locale } from './types'
+import { plural } from './plural'
 
 export const es: Locale = {
   languageName: 'Español',
@@ -52,15 +53,14 @@ export const es: Locale = {
   skillDeepHint: 'La buena práctica es una profundidad de referencia de skill menor que 2: considera reestructurar este skill',
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
-  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
-   * are not translated) */
   agents: {
-    sideSummary: (projects, skills, subagents) => `${projects} proyectos · ${skills} skills globales · ${subagents} subagents`,
+    sideSummary: (projects, skills, subagents) =>
+      `${projects} ${plural('es', projects, { one: 'proyecto', other: 'proyectos' })} · ${skills} ${plural('es', skills, { one: 'skill global', other: 'skills globales' })} · ${subagents} ${plural('es', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Configuración',
     notDetected: 'No se detectó ningún directorio de datos de Claude Code ni de Codex en este equipo',
     notDetectedHint: 'Instala y usa cualquiera de los dos agents y pulsa ↻ al final del rail para actualizar y ver el panorama',
     totalsNote: 'incluye proyectos ocultos/obsoletos',
-    archivedNote: (days, earliest) => `En ${days} de esos días (el más antiguo ${earliest}) el agent ya limpió los archivos de sesión de origen; los valores vienen del archivo local (barras rayadas)`,
+    archivedNote: (days, earliest) => `En ${days} de esos días (el más antiguo ${earliest}) el agent ya limpió automáticamente los archivos de sesión de origen; los valores vienen del histórico local (barras rayadas)`,
     byModel: 'Por modelo (entre proyectos; en el lado Codex es una aproximación del modelo principal de la sesión)',
     detected: 'Detectado', undetected: 'No detectado',
     emptyGlobalLib: 'Ambas bibliotecas globales están vacías',
@@ -80,18 +80,18 @@ export const es: Locale = {
 
   shell: {
     pickProject: 'Selecciona un proyecto para ver su detalle',
-    scanning: 'Analizando Claude Code / Codex… (no se muestra una lista vacía hasta que termine)'
+    scanning: 'Escaneando Claude Code / Codex… (no se muestra una lista vacía hasta que termine)'
   },
   skills: {
     listFailed: (detail) => `Error al listar: ${detail}`,
-    pillPlugin: 'Plugin', pillProject: 'Proyecto', pillGlobal: 'Global', pillSymlink: '⤷ enlace',
-    pkgSummary: (files, size) => `${files} archivos · ${size}`,
+    pillPlugin: 'Plugin', pillProject: 'Proyecto', pillGlobal: 'Global', pillSymlink: '⤷ symlink',
+    pkgSummary: (files, size) => `${files} ${plural('es', files, { one: 'archivo', other: 'archivos' })} · ${size}`,
     srcPluginPkg: 'Paquete de plugin', srcProject: 'Proyecto', srcGlobal: 'Biblioteca global',
     listing: 'Listando…',
     deeperPaths: (paths) => `Rutas más profundas no listadas: ${paths}`,
     colFile: 'Archivo', colLines: 'Líneas', colSize: 'Tamaño', colMtime: 'Modificado',
     noPreviewable: 'No hay archivos de texto previsualizables en el paquete',
-    tagEntry: 'Entrada', close: 'Cerrar', raw: 'Original', preview: 'Vista previa',
+    tagEntry: 'Punto de entrada', close: 'Cerrar', raw: 'Original', preview: 'Vista previa',
     loading: 'Cargando…', emptyFile: 'Archivo vacío',
     installMissing: 'Falta el directorio de instalación', pkgUnreadable: 'Paquete de skill ilegible'
   },
@@ -100,19 +100,19 @@ export const es: Locale = {
     noneGlobal: 'No hay definiciones de subagent en ninguno de los dos lados (~/.claude/agents y ~/.codex/agents)',
     globalHint: 'Ambos lados en una sola lista · mismo nombre en una fila (sin diff de contenido) · haz clic para ver la definición completa',
     noDescription: '(sin description)',
-    noneProject: 'No hay definiciones de subagent ni de proyecto ni globales',
-    projectHint: 'Vista efectiva · en ambos lados el nivel de proyecto tapa · haz clic para ver la definición completa',
+    noneProject: 'No hay definiciones de subagent ni a nivel de proyecto ni a nivel global',
+    projectHint: 'Vista efectiva · en ambos lados el nivel de proyecto eclipsa al global · haz clic para ver la definición completa',
     levelProject: 'Proyecto', levelGlobal: 'Global',
-    overridesBuiltin: 'Sustituye al integrado', shadows: 'Tapa el mismo nombre', shadowed: 'Tapado por el nivel de proyecto',
+    overridesBuiltin: 'Sustituye al integrado', shadows: 'Eclipsa el mismo nombre', shadowed: 'Eclipsado por el proyecto',
     metaShadows: ' · prevalece sobre una definición de nivel inferior con el mismo nombre',
-    metaShadowed: ' · tapado por una definición de nivel de proyecto (sin efecto)',
+    metaShadowed: ' · eclipsado por una definición de nivel de proyecto (sin efecto)',
     noSideDef: 'Sin definición en este lado', inherited: '— (heredado)'
   },
 
   memory: {
-    codexLegacy: 'La memoria de Codex está desactivada; lo de arriba son archivos residuales del directorio.',
+    codexLegacy: 'La memoria de Codex no está activada; lo de arriba son archivos residuales del directorio.',
     codexEmpty: 'La memoria de Codex está activada pero vacía.',
-    codexDisabled: 'La memoria de Codex está desactivada: actívala con el comando /memories dentro de Codex, o en Ajustes → Personalización → Enable memories (experimental).',
+    codexDisabled: 'La memoria de Codex no está activada: actívala con el comando /memories dentro de Codex, o en Ajustes → Personalización → Enable memories (experimental).',
     noneGlobal: 'Ningún proyecto tiene memoria automática',
     globalHint: 'Por modificación más reciente · incluye obsoletos/ocultos (con distintivo) · haz clic en una fila para sus archivos y en un archivo para su contenido',
     stale: 'Obsoleto', hidden: 'Oculto',
@@ -133,7 +133,7 @@ export const es: Locale = {
     installMissing: 'Falta el directorio de instalación (caché limpiada): solo se ve el registro; los componentes incluidos no se pueden leer',
     noBundled: 'Ninguno de los cuatro tipos de componentes incluidos',
     codexCacheEnum: 'enumeración de caché',
-    cachedVersions: (n) => `(${n} versiones en caché)`,
+    cachedVersions: (n) => `(${n} ${plural('es', n, { one: 'versión en caché', other: 'versiones en caché' })})`,
     cacheOnly: 'solo enumeración de caché',
     codexFoot: 'El grupo Codex solo lista los plugins presentes en la caché; no hay semántica de activación, y los skills incluidos se pueden previsualizar pero no se fusionan en la pestaña Skills',
     codexFootDetail: '; los plugins de Codex son de efecto global, sin semántica de activación por proyecto',
@@ -148,49 +148,53 @@ export const es: Locale = {
   },
   session: {
     forkPoints: (n) =>
-      `Esta sesión tiene **${n} puntos de bifurcación**. La cadena mostrada se traza desde el último mensaje hacia la raíz siguiendo los enlaces al padre, es decir «cómo queda finalmente esta conversación»; las ramas abandonadas no se muestran.`,
+      `Esta sesión tiene **${n} ${plural('es', n, { one: 'punto de bifurcación', other: 'puntos de bifurcación' })}**. La cadena mostrada se traza desde el último mensaje hacia la raíz siguiendo los enlaces al padre, es decir «cómo queda finalmente esta conversación»; las ramas abandonadas no se muestran.`,
     forkedFrom: 'Esta sesión se bifurcó de',
     anotherSession: 'otra sesión',
+    parentTitle: (title) => `«${title}»`,
     forkedFromTail: '— el prefijo repetido ya se recortó, así que abajo solo se muestra lo posterior a esta bifurcación. **El historial anterior está en esa sesión**.',
     stripUncertainOrphan:
-      '**Recorte del prefijo dudoso**: esta sesión se bifurcó de un padre **fuera del conjunto analizado** (su archivo se limpió o pertenece a un proyecto no registrado), así que el recorte solo pudo ser heurístico: **puede haber recortado de más (perdiendo mensajes) o de menos (duplicados)**. Compruébalo con el original. No fallar en silencio es la única garantía posible aquí.',
+      '**Recorte de prefijo poco fiable**: esta sesión se bifurcó de un padre **fuera del conjunto escaneado** (su archivo se limpió o pertenece a un proyecto no registrado), así que el recorte solo pudo ser heurístico: **puede haber recortado de más (perdiendo mensajes) o de menos (duplicados)**. Compruébalo con el original. No fallar en silencio es la única garantía posible aquí.',
     stripUncertainMismatch: (parent) =>
-      `**Recorte del prefijo dudoso**: el segmento repetido no coincide entrada por entrada con la sesión padre «${parent}» (el registro padre pudo reescribirse), así que solo se recortó **la parte que supera la verificación**: el comienzo puede duplicar al padre o faltar. Compruébalo con el original.`,
+      `**Recorte de prefijo poco fiable**: el segmento repetido no coincide entrada por entrada con la sesión padre «${parent}» (el registro padre pudo reescribirse), así que solo se recortó **la parte que supera la verificación**: el comienzo puede duplicar al padre o faltar. Compruébalo con el original.`,
     fetching: 'Recuperando…',
-    rebuilding: 'La firma del índice no coincide (el archivo se amplió o reescribió) → reconstruyendo el índice **solo de este archivo**…',
+    rebuilding: 'La firma del índice no coincide (se le añadió contenido al archivo, o se reescribió) → reconstruyendo el índice **solo de este archivo**…',
     turnFailed: (detail) => `No se pudo recuperar este turno: ${detail}`,
     fetchedNote: (ms, bytes) =>
       `⚡ Recuperado bajo demanda en ${ms} ms · se leyó solo el rango de bytes de este turno, ${bytes}, con independencia del tamaño del archivo`,
     back: (project) => `‹ Volver a ${project} · Sesiones`,
     headMeta: (side, questions, tok, mb, ago) =>
-      `${side} · ${questions} preguntas · ${tok} tok · ${mb} · última actividad ${ago}`,
+      `${side} · ${questions} ${plural('es', questions, { one: 'pregunta', other: 'preguntas' })} · ${tok} tok · ${mb} · última actividad ${ago}`,
     cannotOpen: (detail) => `No se puede abrir la sesión: ${detail}`,
     loading: 'Cargando…',
-    mainline: (n, days) => `Preguntas (línea principal) · ${n}${days}`,
-    dayCount: (n) => ` · ${n} días`,
+    mainline: (n, days) =>
+      `Preguntas (línea principal) · ${n} ${plural('es', n, { one: 'pregunta', other: 'preguntas' })}${days}`,
+    dayCount: (n) => ` · ${n} ${plural('es', n, { one: 'día', other: 'días' })}`,
     expandAll: 'Desplegar todo',
     collapseAll: 'Plegar todo',
     ascending: 'Más antiguas primero',
     descending: 'Más recientes primero',
-    dayGroup: (day, n) => `${day} · ${n}`,
+    dayGroup: (day, n) => `${day} · ${n} ${plural('es', n, { one: 'pregunta', other: 'preguntas' })}`,
     foot: 'La línea principal solo lista preguntas humanas; el ruido del harness no se renderiza. Todas las preguntas se listan de una vez (su texto se lee bajo demanda por rango de bytes, con independencia del tamaño del archivo). Haz clic en una pregunta para desplegar el turno completo ahí mismo: cuerpo, llamadas a herramientas, delegaciones a subagents y bloques de razonamiento.'
   },
 
   turn: {
     typeSeparator: ', ',
     thinking: 'Pensamiento',
-    thinkingSum: (chars) => `${chars} caracteres · texto claro disponible`,
+    thinkingSum: (chars) =>
+      `${chars} ${plural('es', chars, { one: 'carácter', other: 'caracteres' })} · texto claro disponible`,
     reasoning: 'Razonamiento',
-    reasoningSum: (n) => `solo ${n} subtítulos · cuerpo no disponible`,
+    reasoningSum: (n) =>
+      `solo ${n} ${plural('es', n, { one: 'encabezado', other: 'encabezados' })} · cuerpo no disponible`,
     reasoningNote:
-      'El cuerpo del razonamiento de Codex es `encrypted_content` y **nunca podrá obtenerse**. Abajo están los únicos subtítulos en texto claro del registro: **no son equivalentes** al pensamiento en claro del lado Claude, y no se finge que lo sean.',
+      'El cuerpo del razonamiento de Codex es `encrypted_content` y **nunca podrá obtenerse**. Abajo están los únicos encabezados en texto claro del registro: **no son equivalentes** al pensamiento en claro del lado Claude, y no se finge que lo sean.',
     input: 'Entrada',
     output: 'Retorno',
     empty: '(vacío)',
     noOutput: '(sin retorno registrado)',
     truncatedNote:
       'El retorno superó el límite por entrada del agent, así que la transcripción **solo guardó una versión truncada**; el original queda al lado en `tool-results/` (ruta arriba) y este producto no lo lee: lo que se muestra aquí es la versión truncada, sin afirmar que esté completa.',
-    subSteps: (n) => `${n} pasos · sin retorno`,
+    subSteps: (n) => `${n} ${plural('es', n, { one: 'paso', other: 'pasos' })} · sin retorno`,
     dispatchPrompt: 'Prompt de delegación',
     innerSteps: 'Pasos internos',
     unlinkedNote:
@@ -198,7 +202,7 @@ export const es: Locale = {
     backToMain: 'Volver a la sesión principal',
     noReturn: '(sin retorno)',
     unknownRecords: (count, types) =>
-      `▧ Este turno tiene **${count} registros no reconocidos** (tipos: ${types}): se conservan tal cual en el archivo de origen y no se renderizan. Suele significar que una actualización del agent introdujo un tipo nuevo.`
+      `▧ Este turno tiene **${count} ${plural('es', count, { one: 'registro no reconocido', other: 'registros no reconocidos' })}** (tipos: ${types}): se conservan tal cual en el archivo de origen y no se renderizan. Suele significar que una actualización del agent introdujo un tipo nuevo.`
   },
   detail: {
     notInSnapshot: 'Este proyecto no está en la instantánea (actualiza e inténtalo de nuevo)',
@@ -208,31 +212,36 @@ export const es: Locale = {
     tabMcp: 'MCP',
     tabSessions: 'Sesiones',
     tabCfg: 'Configuración',
-    tabArts: 'Productos',
+    tabArts: 'Artefactos',
     loading: 'Cargando…',
     byModel: 'Por modelo',
     recentSessions: 'Sesiones recientes',
     noSessions: 'Este proyecto aún no tiene sesiones',
-    sessionCountNote: (n) => `${n} sesiones en total: todas en la pestaña «Sesiones».`,
-    noSessionsHint: 'Este proyecto aún no tiene sesiones. Aparecen automáticamente cuando alguno de los dos agentes conversa en este directorio.',
+    sessionCountNote: (n) =>
+      `${n} ${plural('es', n, { one: 'sesión en total: toda ella', other: 'sesiones en total: todas' })} en la pestaña «Sesiones».`,
+    noSessionsHint: 'Este proyecto aún no tiene sesiones. Aparecen automáticamente cuando alguno de los dos agents conversa en este directorio.',
     searching: 'Buscando…',
     noHits: 'Sin resultados. Por defecto solo se buscan las preguntas: prueba con «Texto completo».',
-    hitsFound: (hits, sessions) => `${hits} resultados · ${sessions} sesiones`,
-    folded: (n) => ` · ${n} resultados plegados (repeticiones o ramas abandonadas)`,
+    hitsFound: (hits, sessions) =>
+      `${hits} ${plural('es', hits, { one: 'resultado', other: 'resultados' })} · ${sessions} ${plural('es', sessions, { one: 'sesión', other: 'sesiones' })}`,
+    folded: (n) =>
+      ` · ${n} ${plural('es', n, { one: 'resultado plegado', other: 'resultados plegados' })} (repeticiones o ramas abandonadas)`,
     recentFirst: 'Más recientes primero',
     oldestFirst: 'Más antiguas primero',
     forkUncertain: '⑂? recorte dudoso',
-    hitCount: (n) => `${n} resultados`,
+    hitCount: (n) => `${n} ${plural('es', n, { one: 'resultado', other: 'resultados' })}`,
     inBody: 'Cuerpo',
-    sortNote: (order, n) => `Por última actividad, ${order} · ${n} sesiones`,
+    sortNote: (order, n) =>
+      `Por última actividad, ${order} · ${n} ${plural('es', n, { one: 'sesión', other: 'sesiones' })}`,
     descending: 'descendente',
     ascending: 'ascendente',
     forkTip: 'Esta sesión se bifurcó de otra; el prefijo repetido ya se recortó',
-    forkUncertainTip: 'La sesión padre está fuera del conjunto analizado o no supera la verificación, así que el prefijo repetido solo pudo recortarse de forma heurística: puede quedar algo (duplicados)',
-    questionCount: (n) => `${n} preguntas`,
+    forkUncertainTip: 'La sesión padre está fuera del conjunto escaneado o no supera la verificación, así que el prefijo repetido solo pudo recortarse de forma heurística: puede quedar algo (duplicados)',
+    questionCount: (n) => `${n} ${plural('es', n, { one: 'pregunta', other: 'preguntas' })}`,
     sessionsFoot: 'Solo se listan las sesiones de proyectos registrados; las de subagent y precalentamiento no se listan aparte, aunque sus tokens sí cuentan, de modo que este número y el denominador de las tarjetas de tokens de arriba no son lo mismo.',
     sessionsFoot2: '«Última actividad» toma la marca de tiempo mayor dentro del archivo, que es una vía distinta de la actividad de la lista de proyectos (que usa el mtime del archivo).',
-    searchPlaceholder: (n) => `Buscar entre las ${n} sesiones de este proyecto…`,
+    searchPlaceholder: (n) =>
+      `Buscar entre ${n} ${plural('es', n, { one: 'sesión', other: 'sesiones' })} de este proyecto…`,
     scopeQuestions: 'Preguntas',
     scopeFullText: 'Texto completo',
     levelPlugin: 'Paquete de plugin',
@@ -246,7 +255,7 @@ export const es: Locale = {
     secCodexProject: 'Nivel de proyecto · .agents/skills',
     secCodexGlobal: 'Nivel global · Codex',
     secPlugin: 'Incluidos en plugins · efectivamente habilitados aquí (con espacio de nombres, solo lectura)',
-    noSkills: 'Este proyecto no tiene skills en efecto',
+    noSkills: 'Este proyecto no tiene skills activos',
     confirmTitle: '¿Desinstalar el skill de nivel de proyecto?',
     confirmBody: 'Se eliminará el siguiente directorio (gestiona tú el estado de git del proyecto; no se comprueban diferencias de copia):',
     cancel: 'Cancelar',
@@ -258,7 +267,7 @@ export const es: Locale = {
     mcpDefault: 'Predeterminado',
     filterAll: 'Todos',
     noArtifacts: 'No hay nada depositado según la convención (proyecto fuera del proceso de ocho pasos; no es un error)',
-    noArtifactsOfType: 'No hay productos de este tipo',
+    noArtifactsOfType: 'No hay artefactos de este tipo',
     openInBrowser: 'HTML → navegador',
     settingsSummary: 'resumen de settings',
     noSettings: 'No hay ajustes mostrables bajo la clave del proyecto',
@@ -268,9 +277,10 @@ export const es: Locale = {
     searchPlaceholder: 'Buscar proyectos…',
     filterAll: 'Todos',
     showStale: 'Mostrar proyectos obsoletos',
-    staleFiltered: (n) => `${n} proyecto${n === 1 ? '' : 's'} obsoleto${n === 1 ? '' : 's'} filtrado${n === 1 ? '' : 's'}`,
+    staleFiltered: (n) =>
+      `${n} ${plural('es', n, { one: 'proyecto obsoleto excluido', other: 'proyectos obsoletos excluidos' })}`,
     noMatch: 'No hay proyectos coincidentes',
-    hiddenCount: (n) => `${n} proyecto${n === 1 ? '' : 's'} oculto${n === 1 ? '' : 's'}`,
+    hiddenCount: (n) => `${n} ${plural('es', n, { one: 'proyecto oculto', other: 'proyectos ocultos' })}`,
     expandHint: '(clic para desplegar)',
     collapseHint: '(clic para plegar)',
     staleTag: 'Obsoleto',
@@ -281,7 +291,7 @@ export const es: Locale = {
     totalCard: (note) => `Total acumulado (ambos lados${note ? ` · ${note}` : ''})`,
     inOut: 'Entrada / Salida',
     inOutNote: 'Desglosado por lado, según los criterios propios de cada uno',
-    cacheCard: 'De los cuales caché (ya incluido en el total, criterio ccusage)',
+    cacheCard: 'De los cuales caché (ya incluida en el total, criterio ccusage)',
     cacheReadWrite: (read, write) => `Lectura ${read} · Escritura ${write}`,
     trendTitle: 'Últimos 30 días (zona horaria local · por día)',
     legendNote: 'Altura = total del día; segmentos = proporción por provider',
@@ -290,6 +300,8 @@ export const es: Locale = {
     tipNoUsage: 'Sin consumo',
     noModelData: 'Aún no hay datos de modelos'
   },
+  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
+   * are not translated) */
   label: {
     providerOther: 'Otros',
     trendTotal: 'Total'
@@ -311,28 +323,29 @@ export const es: Locale = {
         ? `Argumentos de llamada no válidos: ${channel} (campo ${field})`
         : `Argumentos de llamada no válidos: ${channel}`,
     sessionNotWhitelisted:
-      'Esta sesión no está en la lista permitida: abre antes el detalle del proyecto o actualiza',
+      'Esta sesión no está en la lista de permitidos: abre antes el detalle del proyecto o actualiza',
     engineNotReady: 'El motor de escaneo aún no está listo: inténtalo de nuevo en un momento',
-    turnOutOfRange: (i, total) => `Índice de turno fuera de rango: ${i} (de ${total} turnos)`,
-    artifactNotWhitelisted: 'Esta ruta de artefacto no está en la lista permitida',
+    turnOutOfRange: (i, total) =>
+      `Índice de turno fuera de rango: ${i} (de ${total} ${plural('es', total, { one: 'turno', other: 'turnos' })})`,
+    artifactNotWhitelisted: 'Esta ruta de artefacto no está en la lista de permitidos',
     pluginRootNotRegistered:
       'La raíz de este plugin no está registrada: actualiza o abre antes el detalle',
     projectNotOpened: 'El proyecto no está abierto: abre antes su detalle',
     skillPackageUnavailable: 'El paquete de skill no está disponible o queda fuera de las raíces permitidas',
-    skillFileNotWhitelisted: 'Esta ruta de archivo de skill no está en la lista permitida',
+    skillFileNotWhitelisted: 'Esta ruta de archivo de skill no está en la lista de permitidos',
     skillFileUnreadable: 'No se puede leer el archivo de skill',
-    sessionNotIndexed: 'Esta sesión no está indexada: haz antes una actualización global',
+    sessionNotIndexed: 'Esta sesión no está indexada: pulsa antes Actualizar todo',
     sessionFileUnreadable: 'Ya no se puede leer el archivo de sesión (¿movido o eliminado?)',
     sessionMetaUnreadable:
       'La primera línea de la sesión no se puede leer, así que no es posible reconstruir el índice',
     sessionParseFailed: 'No se pudo analizar el archivo de sesión',
     prefsStoreNotReady: 'El almacén de preferencias no está listo',
     invalidPref: (field) => `Valor de preferencia no válido: ${field}`,
-    contractMissing: (path) => `Se recibió una carga no válida: falta ${path}`,
+    contractMissing: (path) => `Se recibió una carga útil no válida: falta ${path}`,
     contractType: (path, expect) => `Se recibió una carga no válida: ${path} debería ser ${expect}`,
     contractEnum: (path, value) =>
       `Se recibió una carga no válida: el valor ${value} en ${path} está fuera de rango`,
-    untrustedSender: (sender) => `Llamante IPC no confiable: ${sender}`,
+    untrustedSender: (sender) => `Emisor IPC no confiable: ${sender}`,
     linkProtocolUnsupported: 'Protocolo de enlace no admitido',
     linkOutOfScope: 'El destino del enlace está fuera del alcance legible',
     skillBadName: 'Nombre de skill no válido',

@@ -79,23 +79,6 @@ export function effectiveLanguage(
   return pref === 'system' ? resolveLanguage(systemPreferred) : pref
 }
 
-/**
- * Choose a word by the target language's plural rules.
- *
- * The rules come from the platform's built-in `Intl.PluralRules`, **never a hand-rolled rule table** —
- * the categories differ enormously between languages
- * (four forms in Russian, French using the singular for 0, no inflection in Japanese), so writing them by
- * hand is bound to be wrong and cannot be exhaustive.
- * The caller supplies whichever forms that language needs, and a missing form falls back to `other`.
- */
-export function plural(
-  lang: Language,
-  n: number,
-  forms: Partial<Record<Intl.LDMLPluralRule, string>> & { other: string }
-): string {
-  const rule = new Intl.PluralRules(dictOf(lang).htmlLang).select(n)
-  // `other` is required by the type, so this fallback always finds a value — leaving no "if both are empty
-  // return an empty string"
-  // silent failure surface, where the UI goes blank and nothing reports it.
-  return forms[rule] ?? forms.other
-}
+/** Plurals live in `./plural`, a leaf module the dictionaries can import without becoming circular. It is
+ * re-exported here so callers still have one entry point for the whole layer */
+export { plural } from './plural'

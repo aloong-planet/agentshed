@@ -64,10 +64,10 @@ function Banners({
           {t.session.forkedFrom}{' '}
           {page.forkParentFile !== null && onOpenSession ? (
             <a onClick={() => onOpenSession(page.forkParentFile as string)}>
-              《{page.forkParentTitle ?? t.session.anotherSession}》
+              {t.session.parentTitle(page.forkParentTitle ?? t.session.anotherSession)}
             </a>
           ) : (
-            <>《{page.forkParentTitle ?? t.session.anotherSession}》</>
+            <>{t.session.parentTitle(page.forkParentTitle ?? t.session.anotherSession)}</>
           )}
           <RichText text={t.session.forkedFromTail} />
         </span>

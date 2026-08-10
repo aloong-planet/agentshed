@@ -1,5 +1,5 @@
 import type { Locale } from './types'
-import { plural } from './index'
+import { plural } from './plural'
 
 export const ru: Locale = {
   languageName: 'Русский',
@@ -27,7 +27,7 @@ export const ru: Locale = {
     modeDark: 'Тёмный',
     palette: 'Палитра',
     appearanceFoot:
-      'Когда режим — «Следовать системе», светлое и тёмное оформление следует настройкам macOS; выбор светлого или тёмного фиксирует приложение, и последующие изменения системы на него не влияют. Палитра и режим независимы и сочетаются свободно; без выбора используется фиолетовая. Изменения применяются сразу во всём приложении — сохранять не нужно.',
+      'Когда режим — «Следовать системе», светлое и тёмное оформление следует оформлению macOS; выбор светлого или тёмного фиксирует приложение, и последующие изменения системы на него не влияют. Палитра и режим независимы и сочетаются свободно; без выбора используется фиолетовая. Изменения применяются сразу во всём приложении — сохранять не нужно.',
     schemePurple: 'Фиолетовая',
     schemeBlue: 'Туманно-синяя',
     schemeAmber: 'Янтарная'
@@ -53,13 +53,11 @@ export const ru: Locale = {
   skillDeepHint: 'По рекомендациям глубина ссылок skill должна быть меньше 2 — стоит переработать этот skill',
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
-  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
-   * are not translated) */
   agents: {
     sideSummary: (projects, skills, subagents) => `проектов: ${projects} · глобальных skills: ${skills} · subagents: ${subagents}`,
     tabCfg: 'Конфигурация',
     notDetected: 'На этой машине не найден каталог данных Claude Code или Codex',
-    notDetectedHint: 'Установите и используйте любой из агентов, затем нажмите ↻ внизу рейла, чтобы обновить и увидеть обзор',
+    notDetectedHint: 'Установите и используйте любой из агентов, затем нажмите ↻ внизу боковой панели, чтобы обновить и увидеть обзор',
     totalsNote: 'включая скрытые и устаревшие проекты',
     archivedNote: (days, earliest) => `Для ${days} из этих дней (самый ранний ${earliest}) исходные файлы сессий уже удалены агентом автоматически; значения взяты из локального архива (штрихованные столбцы)`,
     byModel: 'По моделям (по всем проектам; на стороне Codex — приближение основной модели сессии)',
@@ -85,14 +83,14 @@ export const ru: Locale = {
   },
   skills: {
     listFailed: (detail) => `Не удалось перечислить: ${detail}`,
-    pillPlugin: 'Плагин', pillProject: 'Проект', pillGlobal: 'Глобально', pillSymlink: '⤷ ссылка',
+    pillPlugin: 'Плагин', pillProject: 'Проект', pillGlobal: 'Глобально', pillSymlink: '⤷ симлинк',
     pkgSummary: (files, size) => `файлов: ${files} · ${size}`,
     srcPluginPkg: 'Пакет плагина', srcProject: 'Проект', srcGlobal: 'Глобальная библиотека',
     listing: 'Перечисление…',
     deeperPaths: (paths) => `Более глубокие пути не перечислены: ${paths}`,
     colFile: 'Файл', colLines: 'Строк', colSize: 'Размер', colMtime: 'Изменён',
     noPreviewable: 'В пакете нет текстовых файлов для предпросмотра',
-    tagEntry: 'Точка входа', close: 'Закрыть', raw: 'Исходник', preview: 'Предпросмотр',
+    tagEntry: 'Вход', close: 'Закрыть', raw: 'Исходник', preview: 'Предпросмотр',
     loading: 'Загрузка…', emptyFile: 'Пустой файл',
     installMissing: 'Каталог установки отсутствует', pkgUnreadable: 'Пакет skill не читается'
   },
@@ -102,7 +100,7 @@ export const ru: Locale = {
     globalHint: 'Обе стороны в одном списке · одинаковые имена в одной строке (без diff содержимого) · нажмите для полного определения',
     noDescription: '(нет description)',
     noneProject: 'Определений subagent нет ни на уровне проекта, ни глобально',
-    projectHint: 'Действующий вид · на обеих сторонах уровень проекта перекрывает · нажмите для полного определения',
+    projectHint: 'Действующий вид · на обеих сторонах уровень проекта перекрывает глобальный · нажмите для полного определения',
     levelProject: 'Проект', levelGlobal: 'Глобально',
     overridesBuiltin: 'Замещает встроенное', shadows: 'Перекрывает одноимённое', shadowed: 'Перекрыто уровнем проекта',
     metaShadows: ' · перекрывает одноимённое определение нижнего уровня',
@@ -111,9 +109,9 @@ export const ru: Locale = {
   },
 
   memory: {
-    codexLegacy: 'Память Codex сейчас отключена; выше — оставшиеся файлы в каталоге.',
+    codexLegacy: 'Память Codex не включена; выше — оставшиеся файлы в каталоге.',
     codexEmpty: 'Память Codex включена, но пуста.',
-    codexDisabled: 'Память Codex отключена — включите её командой /memories внутри Codex либо через «Настройки → Персонализация → Enable memories» (экспериментально).',
+    codexDisabled: 'Память Codex не включена — включите её командой /memories внутри Codex либо через «Настройки → Персонализация → Enable memories» (экспериментально).',
     noneGlobal: 'Ни в одном проекте нет автоматической памяти',
     globalHint: 'По времени изменения, сначала новые · включая устаревшие и скрытые (со значком) · нажмите на строку, чтобы увидеть файлы, на файл — содержимое',
     stale: 'Устарел', hidden: 'Скрыт',
@@ -140,24 +138,25 @@ export const ru: Locale = {
     codexFootDetail: '; плагины Codex действуют глобально, без семантики включения на уровне проекта',
     claudeGlobalHint: 'Основание включения: слой user · нажмите, чтобы раскрыть вложенные компоненты',
     noPlugins: 'Плагины не установлены',
-    enabled: 'Включён', notEnabled: 'Не включён',
+    enabled: 'Включено', notEnabled: 'Не включено',
     claudeProjectHint: 'Основание включения: действующий набор этого проекта (local > project > user)',
-    enabledShort: 'Включён', disabledShort: 'Отключён',
+    enabledShort: 'Включено', disabledShort: 'Отключено',
     noLayerMentions: 'Не упомянут ни в одном слое',
     verdictFrom: (verdict, layer) => `${verdict} — решение принято на ${layer}`,
     layerLocal: 'слое local', layerProject: 'слое project', layerUser: 'слое user'
   },
   session: {
     forkPoints: (n) =>
-      `В этой сессии **${n} точек ветвления**. Показанная цепочка построена от последнего сообщения к корню по родительским связям — то есть «как в итоге выглядит этот диалог»; заброшенные ветки не показаны.`,
+      `В этой сессии **${n} ${plural('ru', n, { one: 'точка ветвления', few: 'точки ветвления', many: 'точек ветвления', other: 'точки ветвления' })}**. Показанная цепочка построена от последнего сообщения к корню по родительским связям — то есть «как в итоге выглядит этот диалог»; заброшенные ветки не показаны.`,
     forkedFrom: 'Эта сессия ответвлена от',
     anotherSession: 'другой сессии',
+    parentTitle: (title) => `«${title}»`,
     forkedFromTail: '— повторённый префикс отсечён, ниже показано только то, что идёт после ветвления. **Более раннюю историю смотрите в той сессии**.',
     stripUncertainOrphan:
       '**Отсечение префикса под вопросом**: эта сессия ответвлена от родителя **вне набора сканирования** (его файл удалён или он принадлежит незарегистрированному проекту), поэтому отсечение выполнено лишь эвристически — **могло отсечься лишнее (потеря сообщений) или недостаточно (дубликаты)**. Сверьтесь с оригиналом. Не ошибиться молча — единственная гарантия, которую здесь можно дать.',
     stripUncertainMismatch: (parent) =>
       `**Отсечение префикса под вопросом**: повторённый фрагмент не совпал построчно с родительской сессией «${parent}» (родительский журнал мог быть переписан), поэтому отсечена только **прошедшая проверку часть** — начало может дублировать родителя или отсутствовать. Сверьтесь с оригиналом.`,
-    fetching: 'Загрузка…',
+    fetching: 'Получение…',
     rebuilding: 'Подпись индекса не совпала (файл дополнен или переписан) → перестраивается индекс **только этого файла**…',
     turnFailed: (detail) => `Этот ход не удалось получить: ${detail}`,
     fetchedNote: (ms, bytes) =>
@@ -167,13 +166,14 @@ export const ru: Locale = {
       `${side} · вопросов: ${questions} · ${tok} tok · ${mb} · последняя активность ${ago}`,
     cannotOpen: (detail) => `Не удаётся открыть сессию: ${detail}`,
     loading: 'Загрузка…',
-    mainline: (n, days) => `Вопросы (основная ветка) · ${n}${days}`,
+    mainline: (n, days) =>
+      `Вопросы (основная ветка) · ${n} ${plural('ru', n, { one: 'вопрос', few: 'вопроса', many: 'вопросов', other: 'вопроса' })}${days}`,
     dayCount: (n) => ` · дней: ${n}`,
     expandAll: 'Развернуть всё',
     collapseAll: 'Свернуть всё',
     ascending: 'Сначала старые',
     descending: 'Сначала новые',
-    dayGroup: (day, n) => `${day} · ${n}`,
+    dayGroup: (day, n) => `${day} · ${n} ${plural('ru', n, { one: 'вопрос', few: 'вопроса', many: 'вопросов', other: 'вопроса' })}`,
     foot: 'В основной ветке перечислены только вопросы человека; шум harness не отображается. Все вопросы перечисляются сразу (их текст читается по требованию по байтовому диапазону, независимо от размера файла). Нажмите на вопрос, чтобы развернуть весь ход на месте: тело, вызовы инструментов, передачи subagent и блоки рассуждений.'
   },
 
@@ -182,7 +182,7 @@ export const ru: Locale = {
     thinking: 'Размышление',
     thinkingSum: (chars) => `символов: ${chars} · открытый текст доступен`,
     reasoning: 'Рассуждение',
-    reasoningSum: (n) => `только заголовков: ${n} · текст недоступен`,
+    reasoningSum: (n) => `только заголовки: ${n} · текст недоступен`,
     reasoningNote:
       'Тело рассуждений Codex — это `encrypted_content`, и его **никогда не получить**. Ниже только те открытые подзаголовки, что есть в записи, — они **не эквивалентны** открытому размышлению на стороне Claude, и мы не делаем вид, что это одно и то же.',
     input: 'Ввод',
@@ -209,7 +209,7 @@ export const ru: Locale = {
     tabMcp: 'MCP',
     tabSessions: 'Сессии',
     tabCfg: 'Конфигурация',
-    tabArts: 'Продукты',
+    tabArts: 'Артефакты',
     loading: 'Загрузка…',
     byModel: 'По моделям',
     recentSessions: 'Недавние сессии',
@@ -222,7 +222,7 @@ export const ru: Locale = {
     folded: (n) => ` · свёрнуто совпадений: ${n} (повторы или заброшенные ветки)`,
     recentFirst: 'Сначала новые',
     oldestFirst: 'Сначала старые',
-    forkUncertain: '⑂? отсечение под вопросом',
+    forkUncertain: '⑂? отсечение спорно',
     hitCount: (n) => `совпадений: ${n}`,
     inBody: 'Тело',
     sortNote: (order, n) => `По последней активности, ${order} · сессий: ${n}`,
@@ -233,22 +233,26 @@ export const ru: Locale = {
     questionCount: (n) => `вопросов: ${n}`,
     sessionsFoot: 'Перечислены только сессии зарегистрированных проектов; сессии subagent и прогрева отдельно не перечисляются, но их токены учитываются — поэтому это число и знаменатель карточек токенов выше не одно и то же.',
     sessionsFoot2: '«Последняя активность» берёт наибольшую метку времени внутри файла — это другой канал, нежели активность в списке проектов (там используется mtime файла).',
-    searchPlaceholder: (n) => `Искать среди ${n} сессий этого проекта…`,
+    // `среди` governs the genitive, so this needs a different form set from the usual one: at n=1 it takes
+    // the genitive singular, not the nominative that follows a bare numeral. Do not copy the forms from
+    // another counted entry here.
+    searchPlaceholder: (n) =>
+      `Искать среди ${n} ${plural('ru', n, { one: 'сессии', few: 'сессий', many: 'сессий', other: 'сессий' })} этого проекта…`,
     scopeQuestions: 'Вопросы',
     scopeFullText: 'Полный текст',
     levelPlugin: 'Пакет плагина',
     levelProject: 'Уровень проекта',
     levelGlobal: 'Глобальный уровень',
-    uninstall: 'Удалить',
-    uninstalled: (name) => `${name} удалён (обновлён только этот проект)`,
-    uninstallFailed: (detail) => `Не удалось удалить: ${detail}`,
+    uninstall: 'Деинсталлировать',
+    uninstalled: (name) => `${name} деинсталлирован (обновлён только этот проект)`,
+    uninstallFailed: (detail) => `Не удалось деинсталлировать: ${detail}`,
     secClaudeProject: 'Уровень проекта · .claude/skills',
     secClaudeGlobal: 'Глобальный уровень · Claude',
     secCodexProject: 'Уровень проекта · .agents/skills',
     secCodexGlobal: 'Глобальный уровень · Codex',
     secPlugin: 'Из плагинов · фактически включены здесь (с пространством имён, только чтение)',
     noSkills: 'Для этого проекта нет действующих skills',
-    confirmTitle: 'Удалить skill уровня проекта?',
+    confirmTitle: 'Деинсталлировать skill уровня проекта?',
     confirmBody: 'Будет удалён следующий каталог (за состояние git проекта отвечаете вы; сверка различий копий не выполняется):',
     cancel: 'Отмена',
     del: 'Удалить',
@@ -259,7 +263,7 @@ export const ru: Locale = {
     mcpDefault: 'По умолчанию',
     filterAll: 'Все',
     noArtifacts: 'По соглашению ничего не отложено (проект не по восьмишаговому процессу; это не ошибка)',
-    noArtifactsOfType: 'Продуктов этого типа нет',
+    noArtifactsOfType: 'Артефактов этого типа нет',
     openInBrowser: 'HTML → браузер',
     settingsSummary: 'сводка settings',
     noSettings: 'Под ключом проекта нет отображаемых настроек',
@@ -281,11 +285,11 @@ export const ru: Locale = {
     hide: 'Скрыть'
   },
   token: {
-    totalCard: (note) => `Всего (обе стороны${note ? ` · ${note}` : ''})`,
-    inOut: 'Ввод / Вывод',
+    totalCard: (note) => `Всего (суммарно по обеим сторонам${note ? ` · ${note}` : ''})`,
+    inOut: 'Ввод / вывод',
     inOutNote: 'По каждой стороне в её собственных единицах учёта',
     cacheCard: 'Из них кэш (уже учтён в итоге, по методике ccusage)',
-    cacheReadWrite: (read, write) => `Чтение ${read} · Запись ${write}`,
+    cacheReadWrite: (read, write) => `Чтение ${read} · запись ${write}`,
     trendTitle: 'Последние 30 дней (местный часовой пояс · по дням)',
     legendNote: 'Высота столбца — итог за день; сегменты — доли провайдеров',
     tipTotal: (label, total) => `${label} · итого ${total}`,
@@ -293,6 +297,8 @@ export const ru: Locale = {
     tipNoUsage: 'Нет расхода',
     noModelData: 'Пока нет данных по моделям'
   },
+  /** The display names that vary by language (the rest, such as Anthropic / Claude, are proper nouns and
+   * are not translated) */
   label: {
     providerOther: 'Прочие',
     trendTotal: 'Итого'
@@ -317,14 +323,14 @@ export const ru: Locale = {
       'Этой сессии нет в списке разрешённых — сначала откройте сведения о проекте или обновите',
     engineNotReady: 'Движок сканирования ещё не готов — повторите попытку чуть позже',
     turnOutOfRange: (i, total) => `Индекс хода вне диапазона: ${i} (всего ходов: ${total})`,
-    artifactNotWhitelisted: 'Этого пути к продукту нет в списке разрешённых',
+    artifactNotWhitelisted: 'Этого пути к артефакту нет в списке разрешённых',
     pluginRootNotRegistered:
       'Корень этого плагина не зарегистрирован — сначала обновите или откройте сведения',
     projectNotOpened: 'Проект не открыт — сначала откройте сведения о нём',
     skillPackageUnavailable: 'Пакет skill недоступен или находится вне разрешённых корней',
     skillFileNotWhitelisted: 'Этого пути к файлу skill нет в списке разрешённых',
     skillFileUnreadable: 'Не удаётся прочитать файл skill',
-    sessionNotIndexed: 'Эта сессия не проиндексирована — сначала выполните полное обновление',
+    sessionNotIndexed: 'Эта сессия не проиндексирована — сначала нажмите «Обновить всё»',
     sessionFileUnreadable: 'Файл сессии больше не читается (перемещён или удалён?)',
     sessionMetaUnreadable:
       'Первая строка сессии не читается, поэтому индекс невозможно перестроить',
@@ -335,7 +341,7 @@ export const ru: Locale = {
     contractType: (path, expect) => `Получена некорректная полезная нагрузка: ${path} должен быть ${expect}`,
     contractEnum: (path, value) =>
       `Получена некорректная полезная нагрузка: значение ${value} в ${path} вне допустимого диапазона`,
-    untrustedSender: (sender) => `Недоверенный вызывающий IPC: ${sender}`,
+    untrustedSender: (sender) => `Недоверенный отправитель IPC: ${sender}`,
     linkProtocolUnsupported: 'Неподдерживаемый протокол ссылки',
     linkOutOfScope: 'Цель ссылки вне читаемой области',
     skillBadName: 'Недопустимое имя skill',
