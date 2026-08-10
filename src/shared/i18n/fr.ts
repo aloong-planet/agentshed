@@ -27,7 +27,7 @@ export const fr: Locale = {
     modeDark: 'Sombre',
     palette: 'Palette',
     appearanceFoot:
-      'Avec le mode « Suivre le système », le clair et le sombre suivent l’apparence macOS ; choisir Clair ou Sombre verrouille l’app, quelles que soient les modifications du système. La palette et le mode sont indépendants et se combinent librement ; Violet est utilisé par défaut. Les changements s’appliquent immédiatement à toute l’app, sans enregistrement.',
+      'Avec le mode « Suivre le système », le clair et le sombre suivent l’apparence macOS ; choisir Clair ou Sombre fixe le clair/sombre sur ce choix, quelles que soient les modifications ultérieures du système. La palette et le mode sont indépendants et se combinent librement ; Violet est utilisé par défaut. Les changements s’appliquent immédiatement à toute l’app, sans enregistrement.',
     schemePurple: 'Violet',
     schemeBlue: 'Bleu brume',
     schemeAmber: 'Ambre'
@@ -129,7 +129,7 @@ export const fr: Locale = {
   },
 
   plugins: {
-    projectMissing: '(projet perdu)',
+    projectMissing: '(projet obsolète)',
     installMissing: 'Dossier d’installation manquant (cache nettoyé) — seul l’enregistrement du registre est visible ; les composants inclus ne peuvent pas être lus',
     noBundled: 'Aucun des quatre types de composants inclus',
     codexCacheEnum: 'énumération du cache',
@@ -293,7 +293,7 @@ export const fr: Locale = {
     inOutNote: 'Détaillé par côté, selon les conventions propres à chacun',
     cacheCard: 'Dont cache (déjà compté dans le total, convention ccusage)',
     cacheReadWrite: (read, write) => `Lecture ${read} · Écriture ${write}`,
-    trendTitle: '30 derniers jours (fuseau local · par jour)',
+    trendTitle: 'Tendance sur 30 jours (fuseau local · par jour)',
     legendNote: 'Hauteur = total du jour ; segments = part de chaque provider',
     tipTotal: (label, total) => `${label} · total ${total}`,
     tipArchived: ' · archivé (fichiers source nettoyés)',
@@ -338,7 +338,7 @@ export const fr: Locale = {
     sessionNotIndexed: 'Cette session n’est pas indexée — lancez d’abord Tout actualiser',
     sessionFileUnreadable: 'Le fichier de session n’est plus lisible (déplacé ou supprimé ?)',
     sessionMetaUnreadable:
-      'La première ligne de la session est illisible, impossible de reconstruire l’index',
+      'Les métadonnées de la première ligne de la session sont illisibles, impossible de reconstruire l’index',
     sessionParseFailed: 'Échec de l’analyse du fichier de session',
     prefsStoreNotReady: 'Le stockage des préférences n’est pas prêt',
     invalidPref: (field) => `Valeur de préférence non conforme : ${field}`,
@@ -353,7 +353,7 @@ export const fr: Locale = {
     skillStaleTarget: 'La cible est un projet obsolète (son dossier n’existe plus)',
     skillMissingSource: (name) => `Aucun skill de ce nom dans la bibliothèque globale : ${name}`,
     skillCopyMissing: 'La copie au niveau du projet n’existe pas',
-    skillConflict: 'La cible possède déjà un skill de ce nom au niveau du projet — rien n’a été écrasé',
+    skillConflict: 'Bloqué : la cible possède déjà un skill de ce nom au niveau du projet, et rien n’a été écrasé',
     skillCopyFailed: (detail) => `Échec de la copie, nettoyage effectué : ${detail}`,
     skillDeleteFailed: (detail) => `Échec de la suppression : ${detail}`,
     registryProjectsInvalid: 'La clé projects du registre est absente ou n’est pas un objet',

@@ -27,7 +27,7 @@ export const es: Locale = {
     modeDark: 'Oscuro',
     palette: 'Paleta',
     appearanceFoot:
-      'Con el modo «Seguir el sistema», el claro y el oscuro siguen la apariencia de macOS; al elegir Claro u Oscuro la app queda fijada aunque el sistema cambie después. La paleta y el modo son independientes y se combinan libremente; se usa Violeta si no eliges nada. Los cambios se aplican de inmediato en toda la app, sin necesidad de guardar.',
+      'Con el modo «Seguir el sistema», el claro y el oscuro siguen la apariencia de macOS; al elegir Claro u Oscuro el claro/oscuro queda fijado en esa elección aunque el sistema cambie después. La paleta y el modo son independientes y se combinan libremente; se usa Violeta si no eliges nada. Los cambios se aplican de inmediato en toda la app, sin necesidad de guardar.',
     schemePurple: 'Violeta',
     schemeBlue: 'Azul niebla',
     schemeAmber: 'Ámbar'
@@ -129,7 +129,7 @@ export const es: Locale = {
   },
 
   plugins: {
-    projectMissing: '(proyecto perdido)',
+    projectMissing: '(proyecto obsoleto)',
     installMissing: 'Falta el directorio de instalación (caché limpiada): solo se ve el registro; los componentes incluidos no se pueden leer',
     noBundled: 'Ninguno de los cuatro tipos de componentes incluidos',
     codexCacheEnum: 'enumeración de caché',
@@ -218,7 +218,7 @@ export const es: Locale = {
     recentSessions: 'Sesiones recientes',
     noSessions: 'Este proyecto aún no tiene sesiones',
     sessionCountNote: (n) =>
-      `${n} ${plural('es', n, { one: 'sesión en total: toda ella', other: 'sesiones en total: todas' })} en la pestaña «Sesiones».`,
+      `${n} ${plural('es', n, { one: 'sesión en total; la verás', other: 'sesiones en total; las verás todas' })} en la pestaña «Sesiones».`,
     noSessionsHint: 'Este proyecto aún no tiene sesiones. Aparecen automáticamente cuando alguno de los dos agents conversa en este directorio.',
     searching: 'Buscando…',
     noHits: 'Sin resultados. Por defecto solo se buscan las preguntas: prueba con «Texto completo».',
@@ -293,7 +293,7 @@ export const es: Locale = {
     inOutNote: 'Desglosado por lado, según los criterios propios de cada uno',
     cacheCard: 'De los cuales caché (ya incluida en el total, criterio ccusage)',
     cacheReadWrite: (read, write) => `Lectura ${read} · Escritura ${write}`,
-    trendTitle: 'Últimos 30 días (zona horaria local · por día)',
+    trendTitle: 'Tendencia de los últimos 30 días (zona horaria local · por día)',
     legendNote: 'Altura = total del día; segmentos = proporción por provider',
     tipTotal: (label, total) => `${label} · total ${total}`,
     tipArchived: ' · archivado (archivos de origen ya limpiados)',
@@ -337,14 +337,14 @@ export const es: Locale = {
     sessionNotIndexed: 'Esta sesión no está indexada: pulsa antes Actualizar todo',
     sessionFileUnreadable: 'Ya no se puede leer el archivo de sesión (¿movido o eliminado?)',
     sessionMetaUnreadable:
-      'La primera línea de la sesión no se puede leer, así que no es posible reconstruir el índice',
+      'Los metadatos de la primera línea de la sesión no se pueden leer, así que no es posible reconstruir el índice',
     sessionParseFailed: 'No se pudo analizar el archivo de sesión',
     prefsStoreNotReady: 'El almacén de preferencias no está listo',
     invalidPref: (field) => `Valor de preferencia no válido: ${field}`,
     contractMissing: (path) => `Se recibió una carga útil no válida: falta ${path}`,
     contractType: (path, expect) => `Se recibió una carga no válida: ${path} debería ser ${expect}`,
     contractEnum: (path, value) =>
-      `Se recibió una carga no válida: el valor ${value} en ${path} está fuera de rango`,
+      `Se recibió una carga útil no válida: el valor ${value} de ${path} no es uno de los valores permitidos`,
     untrustedSender: (sender) => `Emisor IPC no confiable: ${sender}`,
     linkProtocolUnsupported: 'Protocolo de enlace no admitido',
     linkOutOfScope: 'El destino del enlace está fuera del alcance legible',
@@ -352,7 +352,7 @@ export const es: Locale = {
     skillStaleTarget: 'El destino es un proyecto obsoleto (su carpeta ya no existe)',
     skillMissingSource: (name) => `No hay ningún skill con ese nombre en la biblioteca global: ${name}`,
     skillCopyMissing: 'No existe la copia a nivel de proyecto',
-    skillConflict: 'El destino ya tiene un skill con ese nombre a nivel de proyecto: no se sobrescribió nada',
+    skillConflict: 'Bloqueado: el destino ya tiene un skill con ese nombre a nivel de proyecto y no se sobrescribió nada',
     skillCopyFailed: (detail) => `La copia falló y se limpió: ${detail}`,
     skillDeleteFailed: (detail) => `Error al eliminar: ${detail}`,
     registryProjectsInvalid: 'La clave projects del registro falta o no es un objeto',
