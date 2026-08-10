@@ -5,7 +5,11 @@
      2026-08-06 更新:①行密度对齐其它模块(视觉行高约 32px);②行不展示 description(已裁定);
      ③展开区新增「平铺」形式(默认)——不缩进、表格满宽,与旧「缩进卡片」可切换对比;
      ④包统计(文件数/大小,不含行数)上行内右侧,展开区撤销汇总条;⑤frontmatter 深浅随页面
-     data-mode(修共享块只认 OS 的 bug)。 -->
+     data-mode(修共享块只认 OS 的 bug)。
+     2026-08-10 新增「按名字过滤」:两处列表各一个搜索框——子串匹配、大小写不敏感、只匹配 skill 名;
+     命中不高亮;零额外反馈(不加计数行,列表直接变短,详情的组标题计数随之变化、空组整组消失);
+     输入框不放图标(与真代码 sessions 搜索框一致,且 icons.tsx 禁用字符图标)。
+     详情区同时补上真代码早已有、原型此前缺失的分组结构——不画出分组,「空组消失」这个形态就无从评判。 -->
 <html lang="zh-CN" data-scheme="blue" data-mode="system" data-expand="flat">
 <head>
 <meta charset="utf-8">
@@ -293,6 +297,20 @@
   .sub b{color:var(--text)}
   .sec-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);margin:18px 0 8px}
   .sec-h:first-of-type{margin-top:0}
+  /* 按名字过滤(2026-08-10):形态照搬真代码 theme.css 的 .sbar——同一个 pane-body 语境里的既有搜索框,
+     不新造第二种。此处只渲染 input、不渲染 scope 切换。
+     宽度 300px,不撑满整行(2026-08-10 裁定)。先按「不该比名字列(200px)宽」试过 200px,
+     实际看下来输入区太局促,于是与名字列脱钩:搜索框的宽度按**输入舒适度**定,名字列保持 200px,
+     名字被截断改由 hover 显示全名来补偿。box-sizing 是 border-box,300px 即外框宽度。 */
+  .sbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .sbar input{width:300px;flex:none;padding:6px 11px;border:1px solid var(--line-strong);border-radius:7px;
+    background:var(--card);color:var(--text);font:inherit;font-size:12.5px;outline:none}
+  .sbar input:focus{border-color:var(--accent)}
+  /* 提示行与分组标题:真代码的 .grp-t,原型此前没画,过滤时组计数变化要靠它才看得见 */
+  .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px}
+  /* 无匹配空态:真代码的 .none */
+  .none{color:var(--text-2);padding:16px;text-align:center;font-size:12px;
+    border:1px dashed var(--line-strong);border-radius:10px;margin-bottom:10px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;
     box-shadow:0 1px 2px rgba(40,50,60,.04);overflow:hidden}
   /* The skill block: a header bar plus collapsible files */
@@ -475,10 +493,24 @@
       <b>点文件</b>开抽屉读详情（md 默认可预览）。插件行不可展开。行不展示 description。
       底栏可切<b>展开形式</b>：平铺（满宽分段，推荐）vs 缩进卡片（现行）。
     </div>
+    <div class="sub">
+      <b>本轮要看的是「按名字过滤」</b>——两处列表各一个搜索框。值得试的几组：
+      <b>github</b>（换成 <b>GITHUB</b> 一样命中，大小写不敏感）；<b>d</b>（详情里 CC 项目级与 CX 项目级整组消失，
+      CC 全局层计数变成 2）；<b>brain</b>（只剩插件组，说明命名空间前缀也算名字的一部分）；
+      <b>zzz</b>（无匹配空态）。另外试一下：<b>先展开一行再打字</b>——仍然命中的行保住展开态，
+      被过滤掉再回来的行是折叠的。
+    </div>
     <div class="sec-h">全局 · Agents Skills</div>
-    <div class="card" id="global"></div>
+    <div class="sbar">
+      <input id="q-global" type="text" placeholder="搜索 skill…" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="grp-t">把全局库里的 skill 安装进某个项目；点行展开包内文件。</div>
+    <div id="global"></div>
     <div class="sec-h">项目详情 · Skills（同名只见项目级）</div>
-    <div class="card" id="detail"></div>
+    <div class="sbar">
+      <input id="q-detail" type="text" placeholder="搜索 skill…" autocomplete="off" spellcheck="false">
+    </div>
+    <div id="detail"></div>
     <div class="note" id="theme-note"></div>
   </div>
   <div class="toast" id="toast">已记录:安装交互</div>
@@ -754,7 +786,8 @@
     container.appendChild(card)
   }
 
-  function mountSkillBlock(parent, s, { levelLabel, showInstall }) {
+  /** 挂一行 skill;返回根元素交由调用方安放(过滤时要按 key 复用,不能在这里就 append 死) */
+  function mountSkillBlock(s, { levelLabel, showInstall }) {
     const root = document.createElement('div')
     root.className = 'sk'
     const disk = s.origin === 'disk'
@@ -817,7 +850,7 @@
 
     root.appendChild(head)
     root.appendChild(body)
-    parent.appendChild(root)
+    return root
   }
 
   const GLOBAL = [
@@ -826,19 +859,135 @@
     { name: 'tdd', description: 'Test-driven development…', sides: ['claude'], origin: 'disk', symlink: false },
     { name: 'superpowers:brainstorming', description: '插件 · 不可展开/预览', sides: ['claude'], origin: 'plugin', symlink: false }
   ]
-  // Detail: a same-named github-ops lists only the project level; tdd is global only; no shadowed global row
-  const DETAIL = [
-    { name: 'github-ops', description: '项目级覆盖全局 · 只展示这一行', sides: ['claude'], origin: 'disk', level: 'project', symlink: false },
-    { name: 'tdd', description: '仅全局有 · 仍列出可展开', sides: ['claude'], origin: 'disk', level: 'global', symlink: false }
+  /**
+   * Detail: a same-named github-ops lists only the project level; tdd is global only; no shadowed global row.
+   * 分组结构(2026-08-10 补):真代码按「side × level」分四组再加插件组。原型此前把详情画成平铺一列,
+   * 于是「过滤后组标题计数怎么变、整组没命中时怎么办」这两个形态无从评判——过滤要判的正是它们。
+   */
+  const DETAIL_GROUPS = [
+    {
+      title: 'CLAUDE CODE · 项目级',
+      items: [
+        { name: 'github-ops', sides: ['claude'], origin: 'disk', level: 'project', symlink: false }
+      ]
+    },
+    {
+      title: 'CLAUDE CODE · 全局层',
+      items: [
+        { name: 'tdd', sides: ['claude'], origin: 'disk', level: 'global', symlink: false },
+        { name: 'deep-demo', sides: ['claude'], origin: 'disk', level: 'global', symlink: false }
+      ]
+    },
+    {
+      title: 'CODEX · 项目级',
+      items: [
+        { name: 'github-ops', sides: ['codex'], origin: 'disk', level: 'project', symlink: false }
+      ]
+    },
+    {
+      title: '插件自带',
+      items: [
+        { name: 'superpowers:brainstorming', sides: ['claude'], origin: 'plugin', level: 'plugin', symlink: false }
+      ]
+    }
   ]
 
-  const gEl = document.getElementById('global')
-  GLOBAL.forEach((s) => mountSkillBlock(gEl, s, { levelLabel: '全局库', showInstall: true }))
-  const dEl = document.getElementById('detail')
-  DETAIL.forEach((s) => mountSkillBlock(dEl, s, {
-    levelLabel: s.level === 'project' ? '项目级' : '全局层',
-    showInstall: false
-  }))
+  /**
+   * 按名字过滤(裁定 2026-08-10):**子串**匹配、大小写不敏感、**只看 skill 名**。
+   * 不做子序列模糊(gwd ↛ grill-with-docs)、不做空格分词、命中不高亮——三条都是明确否掉的方向。
+   * 空关键词 = 不过滤。插件行的命名空间前缀是名字的一部分,所以 brain 命中 superpowers:brainstorming。
+   */
+  function matches(name, kw) {
+    return kw === '' || name.toLowerCase().includes(kw)
+  }
+  function norm(v) {
+    return v.trim().toLowerCase()
+  }
+
+  /**
+   * 按 key 复用已挂载的行,而不是每次输入都重建整段 DOM。
+   *
+   * 这不是性能优化,是**演示正确的形态**:真代码里过滤走 React 的 keyed 重渲染,所以
+   * 「仍然命中的行保住展开态,被过滤掉的行卸载、再命中时是折叠的」。原型若整段 innerHTML 重建,
+   * 连留下来的行也会折叠——那是原型自己造的行为,真代码里不存在,照着它评判就会判错。
+   */
+  function reconcile(host, entries) {
+    const cache = host.__rows || (host.__rows = new Map())
+    const wanted = new Set(entries.map((e) => e.key))
+    for (const [key, el] of cache) {
+      if (!wanted.has(key)) {
+        el.remove()
+        cache.delete(key)
+      }
+    }
+    entries.forEach((e) => {
+      let el = cache.get(e.key)
+      if (!el) {
+        el = mountSkillBlock(e.skill, e.opts)
+        cache.set(e.key, el)
+      }
+      e.parent.appendChild(el)
+    })
+  }
+
+  const NO_MATCH = '没有名字匹配的 skill'
+
+  function renderGlobal(kw) {
+    const host = document.getElementById('global')
+    const hits = GLOBAL.filter((s) => matches(s.name, kw))
+    host.querySelectorAll(':scope > .card, :scope > .none').forEach((el) => el.remove())
+    if (!hits.length) {
+      reconcile(host, [])
+      host.insertAdjacentHTML('beforeend', `<div class="none">${NO_MATCH}</div>`)
+      return
+    }
+    const card = document.createElement('div')
+    card.className = 'card'
+    host.appendChild(card)
+    reconcile(host, hits.map((s) => ({
+      key: s.name,
+      skill: s,
+      parent: card,
+      opts: { levelLabel: '全局库', showInstall: true }
+    })))
+  }
+
+  function renderDetail(kw) {
+    const host = document.getElementById('detail')
+    host.querySelectorAll(':scope > .grp-t, :scope > .card, :scope > .none').forEach((el) => el.remove())
+    const entries = []
+    DETAIL_GROUPS.forEach((g) => {
+      const hits = g.items.filter((s) => matches(s.name, kw))
+      // 整组没命中 → 组标题连同卡片一起消失(与真代码「空 section 不渲染」同一条规则)
+      if (!hits.length) return
+      const title = document.createElement('div')
+      title.className = 'grp-t'
+      // 计数 = 过滤后的条数,不是总数
+      title.textContent = `${g.title}(${hits.length})`
+      host.appendChild(title)
+      const card = document.createElement('div')
+      card.className = 'card'
+      host.appendChild(card)
+      hits.forEach((s) => entries.push({
+        key: `${g.title}::${s.name}`,
+        skill: s,
+        parent: card,
+        opts: {
+          levelLabel: s.level === 'project' ? '项目级' : s.level === 'plugin' ? '插件' : '全局层',
+          showInstall: false
+        }
+      }))
+    })
+    reconcile(host, entries)
+    if (!entries.length) host.insertAdjacentHTML('beforeend', `<div class="none">${NO_MATCH}</div>`)
+  }
+
+  const qGlobal = document.getElementById('q-global')
+  const qDetail = document.getElementById('q-detail')
+  qGlobal.addEventListener('input', () => renderGlobal(norm(qGlobal.value)))
+  qDetail.addEventListener('input', () => renderDetail(norm(qDetail.value)))
+  renderGlobal('')
+  renderDetail('')
 
   applyTheme()
 </script>
