@@ -96,6 +96,20 @@ demand. Searchable within a project (searches questions by default). The full sp
 `docs/specs/session-view.md` (fully shipped 2026-08-06; the export feature was dropped).
 _Avoid_: chat log
 
+**Filtering** (as opposed to **searching**):
+Two things this product does that look alike on screen and are not the same. **Filtering** narrows a
+list already fully in hand — the skills lists match a typed substring against the name and hide the
+rest, entirely in the renderer, with nothing crossing IPC. **Searching** goes and looks: the sessions
+search crosses IPC, reads file contents on the main side, and comes back with hit counts, snippets
+and folded groups. The distinction is worth naming because the resemblance is inviting: a search box
+above a list suggests "make these consistent", and routing a filter through IPC would buy nothing
+while costing a round trip per keystroke. When adding a box above a list, decide which of the two it
+is first — the answer determines whether the contract changes at all.
+The distinction is for **specs, ADRs and code**, where it decides whether the contract changes at all.
+User-facing copy is free to say "search" — that is the word people look for, and the placeholder does
+say it.
+_Avoid_: treating the two as one mechanism because they share a visual form
+
 **Turn**:
 Everything recorded from one real question up to the next (assistant prose, tool calls and returns,
 subagent dispatches). A turn is identified by a **byte range** in the source file; fetching one on
@@ -160,6 +174,34 @@ _Avoid_: error message (bare, implies a finished sentence)
   have demonstrated blind branches), so our own tests are the only line of defence. The current state
   item by item is in `docs/ops/electron-security.md`; the checklist and criteria are in the
   electron-scaffold skill.
+
+- **A floating layer over a clipped list owes two separate obligations (settled 2026-08-10)**: it must
+  **escape the ancestors' overflow clipping**, and it must be **positioned from its anchor's measured
+  rect and dismissed whenever that rect goes stale** (scroll, resize, or the anchor row being filtered
+  away). The two are not interchangeable — escaping the clip is what makes it visible at all;
+  re-measuring or dismissing is what stops it lying about where it points. Satisfying one and assuming
+  the other is covered is precisely how this goes wrong.
+
+  **Viewport positioning discharges the first obligation on its own**: a viewport-positioned element's
+  containing block is the viewport, which is not inside any ancestor, so no ancestor's overflow clips
+  it — it does **not** additionally need to be portalled out of the list. (Stated the other way round
+  once, which would have forced a pointless portal; the install popover disproves it by sitting inside
+  the clipping card and rendering fine.) What does still clip such an element is an ancestor that
+  creates a containing block for it — a transform, filter or perspective — so that, not nesting, is
+  what to check. It already went wrong once:
+  the install popover hung off a wrapper whose class no rule defined, fell back to the initial
+  containing block, and landed below the bottom of the window, so installing looked like a dead
+  button (fixed 2026-08-10). **Note the shape of that failure — the popover was in the DOM with a
+  perfectly ordinary bounding box the whole time.** A clipped or mislaid layer reports geometry
+  exactly like a working one, so "the element exists" and "the element is visible" prove nothing here;
+  the check that distinguishes them is hit-testing the layer's own centre and confirming the point
+  belongs to the layer. Applies to the install popover, the skill-name tooltip and the language
+  selector's dropdown today, and to any further such layer.
+
+  **The first obligation now has a code carrier**: these layers share one surface, and viewport
+  positioning is part of it — build on that surface and clipping is already handled. The second has
+  none: each layer still measures its own anchor and arranges its own dismissal, so that is the half
+  to check when adding one.
 
 - **A link inside rendered content must never navigate the whole window (settled 2026-08-02)**:
   for any content rendered into the app through markdown (memories, configuration, artifacts), links
