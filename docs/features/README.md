@@ -21,5 +21,5 @@ a product overview written for people.
 | [Session view](session-view.md) | Session list → question trunk → fetch a whole turn on demand (tools / subagents / reasoning) → search jumps straight there; forks and branches are normalised, and anything unrecoverable is labelled explicitly |
 | [Skills install](skill-install.md) | Install and uninstall skills from the global library for a given project, guarded throughout |
 | [Skills view](skills-view.md) | Expand to preview a skill package's files and contents (no cross-side diff) |
-| [Appearance](appearance.md) | App-wide light/dark (follow system / light / dark) × colour scheme (purple / mist blue / amber brown), the two independent |
+| [Appearance](appearance.md) | App-wide light/dark (follow system / light / dark) × theme (purple / mist blue / amber brown), the two independent |
 | [UI language](i18n.md) | The UI switches between six languages (menus, failure notices, dates and numbers included), following the system's preferred language by default |

@@ -2,13 +2,13 @@
 
 ## Overview
 Users who want the app to look the way they are used to can decide its **light/dark mode** and its
-**colour scheme** separately. The two are independent and combine freely; a choice applies to the
+**theme** separately. The two are independent and combine freely; a choice applies to the
 whole UI immediately and is still there next time the app opens. Nothing is written to the agent
 configuration.
 
 ## Capabilities
 - The "Appearance" section of the settings dimension (rail ⚙️) is one card with two rows: "Mode" on
-  top and "Colour scheme" below (the same page also has a "Language" section, see
+  top and "Theme" below (the same page also has a "Language" section, see
   [UI language](i18n.md))
 - Three **modes**: **follow system** (default), **light**, **dark**
 - With "follow system" selected, the UI's light/dark follows the macOS system appearance; change the
@@ -17,12 +17,12 @@ configuration.
   you switch back to "follow system"
 - Switching from a locked mode back to "follow system" immediately re-decides from the current system
   appearance rather than staying on the previously locked one
-- Three **colour schemes**: **purple** (default), **mist blue**, **amber brown**, each card showing a
+- Three **themes**: **purple** (default), **mist blue**, **amber brown**, each card showing a
   swatch and a name
 - Swatches are sampled in the currently effective light/dark — what you see in dark mode is the dark
   version, as it will actually look
-- Mode and colour scheme do not affect each other: changing one leaves the other alone, and all six
-  combinations of 3 schemes × 2 modes are valid
+- Mode and theme do not affect each other: changing one leaves the other alone, and all six
+  combinations of 3 themes × 2 modes are valid
 - A switch applies to the **entire UI** immediately (lists, detail pages, sessions, toasts, overlays
   and drawers, markdown headings and links, and everything else following the accent colour), with no
   save button
@@ -33,7 +33,7 @@ configuration.
 
 ## Boundaries and non-goals
 - The CC/CX side badges and the provider chart's brand colours are unaffected (semantic colours do
-  not change hue with the colour scheme)
+  not change hue with the theme)
 - Nothing is written to the Claude / Codex configuration
 - Light/dark does not switch automatically by time of day (no sunrise/sunset, no schedule)
-- No custom colours, and no fourth colour scheme
+- No custom colours, and no fourth theme

@@ -135,13 +135,54 @@ language first, and the other five are derived from it and aligned entry by entr
 language is where copy is **authored**, regardless of which language a user is looking at.
 _Avoid_: default language, primary language
 
-**Appearance mode**:
+**Appearance**:
 The user's preference for a light or dark UI. Either "follow system", "light", or "dark"; defaults to
-follow system. Orthogonal to the colour scheme — any combination is valid. Structurally identical to
+follow system. Orthogonal to the **theme** — any combination is valid. Structurally identical to
 "language preference": "follow system" is a continuously applied policy, not a snapshot, and the
 **effective appearance** it produces together with the system appearance is what actually renders.
 The effective appearance is never persisted itself.
-_Avoid_: dark mode (states only half of it), theme (confusable with colour scheme), day/night
+
+The word follows Apple, which calls light and dark the two *appearances*; the platform this product
+ships on is the one whose vocabulary a user already has.
+_Avoid_: dark mode (states only half of it), theme (that names the other axis here), day/night
+
+**Theme**:
+Which palette the UI renders in. Enumerated: purple (default), mist blue, amber brown. Orthogonal to
+the **appearance** — all combinations are valid, and choosing one leaves the other alone.
+
+The word follows Primer, whose structure is the same as ours: several themes, each rendering in
+either appearance. **Deliberately not "colour scheme"** — CSS's `prefers-color-scheme` and SwiftUI's
+`ColorScheme` both mean *light/dark*, so that name is already spoken for by the other axis, and
+`theme.css` would otherwise read as if `prefers-color-scheme` and `data-scheme` were the same
+dimension. They are not.
+
+**The code has not caught up**: identifiers and the persisted preference key still say `scheme`
+(`prefs.json` holds `{"scheme": "purple"}` on machines that already ran the app, so renaming the key
+would silently reset people's choice). Renaming them, with a compatible read of both names, is its
+own task — see the ticket linked from that work. Until it lands, prose says theme and code says
+scheme, and that gap is known rather than accidental.
+_Avoid_: colour scheme (means light/dark elsewhere), skin, palette (fine in prose, but it is the
+*contents* of a theme rather than the choice itself)
+
+**Theme variable classes**:
+Every variable declared in a theme block belongs to exactly one of three classes, and the class —
+not a count — decides where it has to be defined. Which class it is follows from one question: what
+is its relationship to the surface it sits on?
+
+- **theme-varying** — it *constitutes* the surface or the text on it (page background, card, text,
+  lines, accent). Defined per theme × per appearance. Currently 9 variables.
+- **appearance-varying** — it sits *on* a surface and must stay legible against it (shadows, status
+  backgrounds, badge fills). One value per appearance, shared across themes. Currently 20.
+- **static** — it is an opaque block carrying its own ground (a destructive button, a callout), so no
+  surrounding surface applies. One value throughout. Currently 4. The name follows Primer and
+  Material, which both use *static* for exactly this.
+
+Verified by measuring, never by counting definitions: switch through every theme × appearance and
+read the resolved values — the class predicts which of them must differ and which must match. A
+count cannot see the failure that matters, because a variable defined for light and forgotten for
+dark still *resolves* in dark, having inherited the light value.
+_Avoid_: judging by how many places a variable is defined in (see above); "functional colour" for the
+static class (measured: `--warn-*` is functional yet appearance-varying, so the two do not line up)
 
 **Structured error**:
 Failure information crossing the IPC boundary, composed of an error code and parameters, containing

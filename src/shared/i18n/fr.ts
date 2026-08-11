@@ -25,9 +25,9 @@ export const fr: Locale = {
     mode: 'Mode',
     modeLight: 'Clair',
     modeDark: 'Sombre',
-    palette: 'Palette',
+    palette: 'Thème',
     appearanceFoot:
-      'Avec le mode « Suivre le système », le clair et le sombre suivent l’apparence macOS ; choisir Clair ou Sombre fixe le clair/sombre sur ce choix, quelles que soient les modifications ultérieures du système. La palette et le mode sont indépendants et se combinent librement ; Violet est utilisé par défaut. Les changements s’appliquent immédiatement à toute l’app, sans enregistrement.',
+      'Avec le mode « Suivre le système », le clair et le sombre suivent l’apparence macOS ; choisir Clair ou Sombre fixe le clair/sombre sur ce choix, quelles que soient les modifications ultérieures du système. Le thème et le mode sont indépendants et se combinent librement ; Violet est utilisé par défaut. Les changements s’appliquent immédiatement à toute l’app, sans enregistrement.',
     schemePurple: 'Violet',
     schemeBlue: 'Bleu brume',
     schemeAmber: 'Ambre'
@@ -45,7 +45,7 @@ export const fr: Locale = {
   toast: {
     languageSwitched: (name) => `Langue de l’interface changée en ${name}`,
     languageFollowSystem: (name) => `Suit désormais le système · actuellement ${name}`,
-    saveSchemeFailed: 'Échec de l’enregistrement de la palette',
+    saveSchemeFailed: 'Échec de l’enregistrement du thème',
     saveModeFailed: 'Échec de l’enregistrement du mode d’apparence',
     saveLanguageFailed: 'Échec de l’enregistrement de la langue'
   },

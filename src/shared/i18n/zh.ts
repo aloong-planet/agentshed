@@ -37,9 +37,9 @@ export const zh = {
     mode: '模式',
     modeLight: '浅色',
     modeDark: '深色',
-    palette: '配色',
+    palette: '主题',
     appearanceFoot:
-      '模式选「跟随系统」时,明暗随 macOS 外观变化;选浅色或深色即锁定,系统再变也不影响。配色与明暗彼此独立、可任意组合,未选择时用紫。切换后立即对整个 app 生效,无需保存。',
+      '模式选「跟随系统」时,明暗随 macOS 外观变化;选浅色或深色即锁定,系统再变也不影响。主题与明暗彼此独立、可任意组合,未选择时用紫。切换后立即对整个 app 生效,无需保存。',
     schemePurple: '紫',
     schemeBlue: '雾蓝',
     schemeAmber: '琥珀褐'
@@ -68,7 +68,7 @@ export const zh = {
      * cannot see what actually changed */
     languageFollowSystem: (name: string) => `已设为跟随系统 · 当前为 ${name}`,
     /** The preference failed to persist (the UI has already switched; a restart reverts it) */
-    saveSchemeFailed: '保存配色失败',
+    saveSchemeFailed: '保存主题失败',
     saveModeFailed: '保存外观模式失败',
     saveLanguageFailed: '保存语言失败'
   },
