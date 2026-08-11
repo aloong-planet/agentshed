@@ -128,6 +128,11 @@ export const zh = {
   },
   /** Skills package preview and the file drawer (ticket 10) */
   skills: {
+    searchPlaceholder: '搜索 skill…',
+    /** A different sentence from agents.emptyGlobalLib / detail.noSkills: those two say "there are none
+     *  at all", this one says "there are some, but no name matched". Reusing either would state
+     *  something false */
+    noNameMatch: '没有名字匹配的 skill',
     listFailed: (detail: string) => `列举失败:${detail}`,
     pillPlugin: '插件',
     pillProject: '项目级',

@@ -5,6 +5,7 @@
   /* The default = purple (as shipped); used when there is no data-scheme, or when it is purple */
   --bg: #f7f8f9;
   --card: #ffffff;
+  --float-shadow: rgba(0, 0, 0, 0.18);
   --text: #37352f;
   --text-2: #787774;
   --line: #e8eaed;
@@ -72,6 +73,7 @@ html[data-scheme='amber'] {
   :root {
     --bg: #18191b;
     --card: #1f2124;
+    --float-shadow: rgba(0, 0, 0, 0.5);
     --text: #e6e6e5;
     --text-2: #9b9a97;
     --line: #2a2c30;
@@ -1221,29 +1223,21 @@ body {
   color: var(--accent);
   border-color: var(--accent);
 }
-/* The install-to popover is a floating layer, so it is positioned against the **viewport** and receives its
-   coordinates from whoever opens it, computed from the trigger button's rect (see AgentsPane).
+/* The install-to popover. The floating surface — fixed positioning, background, border, shadow — comes
+   from the FloatingBox component; its coordinates come from whoever opens it, computed from the trigger
+   button's rect (see AgentsPane). Only what is specific to this layer lives here.
 
-   Why not `absolute`: hanging it off the row requires giving some ancestor inside the list a containing
-   block, and `.sk-card`'s `overflow: hidden` then clips the popover away — measured 2026-08-10, the
-   popover's own centre hit-tested to `.pane-body`, i.e. nothing of it was painted there. The two ways out
-   are "stop the card clipping" and "float the popover out of it"; the first costs the card its rounded
-   first and last rows and needs four compensating radius rules across two different nestings, so this is
-   the cheaper one.
+   Why the surface is fixed rather than absolute: hanging it off the row requires giving some ancestor
+   inside the list a containing block, and `.sk-card`'s `overflow: hidden` then clips it away — measured
+   2026-08-10, the popover's own centre hit-tested to `.pane-body`, i.e. nothing of it was painted there.
+   The alternative, stopping the card from clipping, costs it its rounded first and last rows and needs
+   four compensating radius rules across two different nestings.
 
-   Because it is fixed, it does not travel with the list: whoever opens it must close it on scroll and on
-   resize, or it would hang in place over unrelated content. */
+   Because it is fixed it does not travel with the list, so whoever opens it must close it on scroll and
+   on resize, or it would hang in place over unrelated content. */
 .pop {
-  position: fixed;
-  z-index: 8;
-  background: var(--card);
-  border: 1px solid var(--line-strong);
-  border-radius: 9px;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.18);
   min-width: 240px;
-  max-height: 300px;
   overflow: auto;
-  padding: 6px;
 }
 .pop-t {
   font-size: 10.5px;
@@ -1507,6 +1501,39 @@ body {
 }
 .sbar input:focus {
   border-color: var(--accent);
+}
+/* The skills filter box (2026-08-10). A fixed 300px rather than full width, and deliberately **not** tied
+   to the 200px name column: matching the column was tried first, on the reasoning that a box searching
+   names should not outgrow them, and the typing area came out too cramped. The two were then decoupled —
+   the box is sized for typing, the name column keeps the row geometry it shares with other sections, and
+   a name too long for that column is compensated by revealing itself on hover instead.
+
+   It is a modifier rather than a change to `.sbar input`, because that rule serves the sessions box,
+   which shares its row with the scope toggle and needs to flex. */
+.sbar.sk-search input {
+  width: 300px;
+  flex: none;
+}
+/* A skill name too long for its column, revealed on hover (2026-08-10). The floating surface itself —
+   fixed positioning, background, border, shadow — comes from the FloatingBox component; only what is
+   specific to this layer lives here.
+
+   It wraps rather than running on, because a skill name is **not copy this product wrote**: an on-disk
+   skill is named by its directory, and a plugin entry by a key from the user's plugin manifest joined to
+   a directory name. Both lengths are decided outside this app, and a manifest key is the looser of the
+   two — a directory name is bounded by the filesystem, a JSON key by nothing. Unwrapped, a long one
+   spans the display (measured at 901px). Skill names are mostly kebab-case with no spaces, so the
+   ordinary word-boundary wrap finds nowhere to break and `anywhere` is required.
+
+   It takes no pointer events: it sits directly under the row it describes, and would otherwise swallow
+   the click that expands that row and end its own hover the moment it appeared. */
+.nm-tip {
+  pointer-events: none;
+  overflow-wrap: anywhere;
+  padding: 4px 9px;
+  color: var(--text);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
 }
 .scope {
   display: inline-flex;

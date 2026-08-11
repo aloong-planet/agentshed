@@ -84,6 +84,8 @@ export const en: Locale = {
     scanning: 'Scanning Claude Code / Codex… (no empty list is shown until the scan finishes)'
   },
   skills: {
+    searchPlaceholder: 'Search skills…',
+    noNameMatch: 'No skill name matched',
     listFailed: (detail) => `Listing failed: ${detail}`,
     pillPlugin: 'Plugin', pillProject: 'Project', pillGlobal: 'Global', pillSymlink: '⤷ symlink',
     pkgSummary: (files, size) =>

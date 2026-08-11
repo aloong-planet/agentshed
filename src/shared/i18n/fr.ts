@@ -83,6 +83,8 @@ export const fr: Locale = {
     scanning: 'Analyse de Claude Code / Codex… (aucune liste vide n’est affichée avant la fin)'
   },
   skills: {
+    searchPlaceholder: 'Rechercher un skill…',
+    noNameMatch: 'Aucun nom de skill ne correspond',
     listFailed: (detail) => `Échec du listage : ${detail}`,
     pillPlugin: 'Plugin', pillProject: 'Projet', pillGlobal: 'Global', pillSymlink: '⤷ lien',
     pkgSummary: (files, size) => `${files} ${plural('fr', files, { one: 'fichier', other: 'fichiers' })} · ${size}`,

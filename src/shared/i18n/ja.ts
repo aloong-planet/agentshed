@@ -81,6 +81,8 @@ export const ja: Locale = {
     scanning: 'Claude Code / Codex をスキャン中…（完了するまで空のリストは表示しません）'
   },
   skills: {
+    searchPlaceholder: 'skill を検索…',
+    noNameMatch: '名前が一致する skill はありません',
     listFailed: (detail) => `列挙に失敗しました：${detail}`,
     pillPlugin: 'プラグイン', pillProject: 'プロジェクト', pillGlobal: 'グローバル', pillSymlink: '⤷ シンボリック',
     pkgSummary: (files, size) => `${files} ファイル · ${size}`,

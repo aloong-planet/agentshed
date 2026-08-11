@@ -82,6 +82,8 @@ export const ru: Locale = {
     scanning: 'Сканирование Claude Code / Codex… (пустой список не показывается до конца сканирования)'
   },
   skills: {
+    searchPlaceholder: 'Поиск skill…',
+    noNameMatch: 'Нет skill с подходящим именем',
     listFailed: (detail) => `Не удалось перечислить: ${detail}`,
     pillPlugin: 'Плагин', pillProject: 'Проект', pillGlobal: 'Глобально', pillSymlink: '⤷ симлинк',
     pkgSummary: (files, size) => `файлов: ${files} · ${size}`,

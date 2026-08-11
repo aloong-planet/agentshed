@@ -6,7 +6,10 @@ import { GlobalSubagentsTab } from './SubagentsView'
 import { GlobalMemoryTab } from './MemoryView'
 import { GlobalPluginsTab } from './PluginsView'
 import { toast } from './Toast'
+import { FloatingBox } from './FloatingBox'
 import { SkillExpandBlock } from './SkillExpandBlock'
+import { SkillSearch } from './SkillSearch'
+import { filterByName } from './skill-filter'
 import { errorText } from '@shared/error-text'
 import { appError, type AppError } from '@shared/errors'
 import { useLanguage, useDict } from './language'
@@ -169,6 +172,9 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
   const t = useDict()
   const lang = useLanguage()
   const [openFor, setOpenFor] = useState<PopAt | null>(null)
+  // The keyword belongs to this section, which is what makes it survive a snapshot refresh (the section
+  // is re-rendered, not remounted) and vanish when the tab is left (it is). Neither needed arranging.
+  const [kw, setKw] = useState('')
   // A fixed layer does not travel with the list, so scrolling or resizing would leave it stranded over
   // unrelated content. Closing is the honest response: the anchor it was measured against has moved.
   useEffect(() => {
@@ -207,13 +213,27 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
     }
   }
 
+  const shown = filterByName(snap.global.skills, kw)
+
   return (
     <div>
+      <SkillSearch
+        value={kw}
+        onChange={(v) => {
+          setKw(v)
+          // The popover is a fixed layer positioned from a row's rect, and the row it was measured
+          // against may be about to leave the list (spec E8)
+          setOpenFor(null)
+        }}
+      />
       <div className="grp-t">
         {t.agents.skillsHint}
       </div>
+      {shown.length === 0 ? (
+        <Empty msg={t.skills.noNameMatch} />
+      ) : (
       <div className="card sk-card">
-        {snap.global.skills.map((s) => (
+        {shown.map((s) => (
           <div className="rel" key={s.name}>
             <SkillExpandBlock
               name={s.name}
@@ -246,12 +266,9 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
               }
             />
             {openFor?.skill === s.name && s.origin === 'disk' && (
-              // Coordinates are inline because they are per-opening values, not styling; `.pop` in the
-              // theme file owns everything static, and none of these properties appear in its
-              // interaction-state rules
-              <div
+              <FloatingBox
                 className="pop"
-                style={{
+                at={{
                   top: openFor.top,
                   bottom: openFor.bottom,
                   right: openFor.right,
@@ -268,11 +285,12 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                     </span>
                   </button>
                 ))}
-              </div>
+              </FloatingBox>
             )}
           </div>
         ))}
       </div>
+      )}
     </div>
   )
 }
