@@ -2,16 +2,23 @@
 
 > Related: [features](../features/appearance.md) · app-wide UI tokens; artifact markdown follows the accent  
 > Two orthogonal dimensions: **mode** (follow system / light / dark, defaulting to follow system) ×
-> **colour scheme** (purple (default) / mist blue / amber brown).  
-> The final look = f(colour scheme, effective light/dark); the settings page shares one preferences
+> **theme** (purple (default) / mist blue / amber brown).  
+> The final look = f(theme, effective light/dark); the settings page shares one preferences
 > table with language, see [i18n](i18n.md).
+>
+> **Prose says theme, code still says `scheme`.** The two dimensions were renamed to *appearance* and
+> *theme* (see CONTEXT for why: `prefers-color-scheme` and SwiftUI's `ColorScheme` both already mean
+> light/dark, so "colour scheme" was naming the wrong axis). Identifiers and the persisted preference
+> key were left alone in that pass — `prefs.json` holds `{"scheme": "purple"}` on machines that have
+> already run the app, so renaming the key without a compatible read would silently reset people's
+> choice. Code references below are therefore left verbatim; the rename is its own task.
 
 ## Problem Statement
 
 The app needs to follow macOS's light/dark mode and let the user choose between several UI accent /
 paper feels. The existing `theme.css` already does light/dark with CSS variables and
 `prefers-color-scheme`, but only in a fixed brand purple. The user wants to keep **the shipped
-default purple** and add reading-oriented schemes such as **mist blue and amber brown**; a switch
+default purple** and add reading-oriented themes such as **mist blue and amber brown**; a switch
 must apply to **the whole app** (rail, lists, detail, drawers, the future skill preview and so on)
 rather than being a partial skin.
 
@@ -19,7 +26,7 @@ rather than being a partial skin.
 
 Adopt **option B**:
 
-- **The scheme dimension** `scheme ∈ { purple, blue, amber }`: **user-selectable**, persisted to the
+- **The theme dimension** `scheme ∈ { purple, blue, amber }`: **user-selectable**, persisted to the
   app's own storage.  
   - `purple` = the shipped default palette (light `#8a67ab` / dark `#a084c7` family)  
   - `blue` = mist blue  
@@ -32,8 +39,8 @@ Adopt **option B**:
 - **The effective light/dark** `light | dark` = `f(mode, system appearance)`, which is the value that
   actually renders; it is not persisted itself (what is persisted is `mode`).  
 - The final look = `f(scheme, effective light/dark)`.  
-- **The whole app** references CSS variables only; hard-coding a scheme's colours inside a component
-  is forbidden. Semantic colours (CC/CX, provider, ok/err) do not change hue with the scheme.
+- **The whole app** references CSS variables only; hard-coding a theme's colours inside a component
+  is forbidden. Semantic colours (CC/CX, provider, ok/err) do not change hue with the theme.
 
 ## User Stories
 
@@ -49,24 +56,24 @@ Adopt **option B**:
    app, so that my choice is not quietly overruled by the system.  
 3d. As a user, I want to be able to select "follow system" again, so that locking is reversible.  
 4. As a user, I want the side badges (CC/CX) and the provider chart colours not to jump around with
-   the scheme, so that semantic colours stay recognisable.  
-5. As a developer, I want a new UI to bind only to token names, so that adding a scheme does not
+   the theme, so that semantic colours stay recognisable.  
+5. As a developer, I want a new UI to bind only to token names, so that adding a theme does not
    require changing components.
 
 ## Failure modes and boundaries
 
 **Sequence A: selection and persistence**
 
-- A1 The default scheme = **`purple`** (a fresh install with no storage file looks like the shipped
+- A1 The default theme = **`purple`** (a fresh install with no storage file looks like the shipped
   build).  
 - A2 The user changes to `blue` / `amber` / back to `purple` → set
   `document.documentElement.dataset.scheme` immediately and write atomically to userData.  
-- A3 On restart the scheme is read back; an invalid value or a corrupt file → fall back to
+- A3 On restart the theme is read back; an invalid value or a corrupt file → fall back to
   **`purple`**, no crash.  
 - A4 Storage = the app's own file in `userData` (the same discipline as `hidden.json`: a temporary
   file + rename; **never written to the agent configuration**). Field:
   `scheme: "purple"|"blue"|"amber"`.  
-- A5 Switching schemes triggers no full rescan and no window reload (only a DOM attribute and CSS).  
+- A5 Switching themes triggers no full rescan and no window reload (only a DOM attribute and CSS).  
 - A6 **The scope of effect = the whole app**: the rail, the Agents/Projects main area, detail pages,
   the session page, toasts, overlays and drawers, the settings page itself, and the accent-following
   parts of the future skill preview and markdown preview. There is no intermediate state where "only
@@ -81,40 +88,40 @@ Adopt **option B**:
 - B3 With `mode = light | dark`, **the UI does not change** however the system appearance changes.  
 - B4 Switching from a locked state back to `system` → re-evaluate immediately from the current system
   appearance, without keeping the previously locked light/dark.  
-- B5 Mode and scheme are **independent**: changing one leaves the other alone; all 6 combinations of
-  3 schemes × 2 effective light/dark must hold.  
+- B5 Mode and theme are **independent**: changing one leaves the other alone; all 6 combinations of
+  3 themes × 2 effective light/dark must hold.  
 - B6 The two "follow system" settings, mode and UI language, **do not interfere**: changing the system
   language affects only the language, changing the system appearance affects only light/dark.  
 - B7 Switching modes triggers no full rescan and no window reload.  
 - B8 The window chrome and the macOS native menu **follow the chosen mode too** (delivered by
   `nativeTheme`, see the implementation decisions), so there is never a split between a dark app and a
   light window frame.  
-- B9 The palette preview's samples **follow the effective light/dark**: in dark mode the three scheme
+- B9 The palette preview's samples **follow the effective light/dark**: in dark mode the three theme
   cards must show dark-family colours rather than still showing light samples (or the preview would
   not match what is actually seen).
 
 **Sequence C: palette scope**
 
-- C1 **Follows the scheme** (each scheme has its own light/dark table):  
+- C1 **Follows the theme** (each theme has its own light/dark table):  
   `--bg/--card/--text/--text-2/--line/--line-strong/--accent/--accent-soft/--accent-deep`  
   and the preview's `--md-*` (where landed).  
-- C2 **Does not follow the scheme** (semantic / data colours; may have light/dark, identical across
-  the three schemes):  
+- C2 **Does not follow the theme** (semantic / data colours; may have light/dark, identical across
+  the three themes):  
   - the CC/CX side badge tokens  
   - the provider `--p-*`  
-  - `--ok-*` / `--err-*` / warn semantics (brightness may be nudged where it clashes with a scheme's
-    paper feel, but the hue is not bound to the scheme)  
+  - `--ok-*` / `--err-*` / warn semantics (brightness may be nudged where it clashes with a theme's
+    paper feel, but the hue is not bound to the theme)  
 - C3 Local styles with hard-coded hex in `theme.css` → pulled into tokens, so no colour is missed when
-  the scheme changes.  
+  the theme changes.  
 - C4 Skill preview and artifact markdown: headings, links and so on follow the `--accent` family and
-  match the current scheme.
+  match the current theme.
 
 **Sequence D: the settings entry point**
 
 - D1 The rail's **third dimension, "Settings"** (`Dim = agents | projects | settings`).  
 - D2 Switching to settings makes the main area the settings page.  
 - D3 The settings page's "Appearance" section is **one card with two rows**: the top row "Mode" = a
-  three-segment control (follow system / light / dark), the bottom row "Colour scheme" = three
+  three-segment control (follow system / light / dark), the bottom row "Theme" = three
   palette cards. The two rows are joined by a divider, with the label on the left and the control on
   the right, in the same form as the "Language" section.  
 - D3a The palette cards are compact: **a swatch plus a name**, with no full sentence of description;
@@ -127,7 +134,7 @@ Adopt **option B**:
 
 - R1 Prefs: stored in the main process with IPC `getPrefs` / `setScheme` / `setMode` (one setter per
   preference, the same shape as language).  
-- R2 Contract: scheme and mode are each a three-value enum; a cross-process entry point receiving an
+- R2 Contract: theme and mode are each a three-value enum; a cross-process entry point receiving an
   unknown value refuses to write it, and reading the local file falls back **per field** on an unknown
   value.  
 - R3 e2e: optionally assert the `data-scheme` switch.  
@@ -138,7 +145,7 @@ Adopt **option B**:
 
 - **Entry point**: the rail's ⚙️ settings, the third dimension.  
 - **Settings page order**: the "Language" section first, "Appearance" second.  
-- **Appearance section**: one card with two rows — "Mode" as a three-segment control + "Colour scheme"
+- **Appearance section**: one card with two rows — "Mode" as a three-segment control + "Theme"
   as three palette cards (swatch + name, no full sentence), followed by an explanatory paragraph (the
   light/dark following rule, the two dimensions' independence, purple being the default).  
 - **The section's closing explanation is plain text with no bold** (settled in ticket 04 on 2026-08-08,
@@ -162,9 +169,9 @@ Adopt **option B**:
 ## Implementation Decisions
 
 - CSS: `html[data-scheme="purple"|"blue"|"amber"]` plus a `@media (prefers-color-scheme: dark)` under
-  each scheme.  
+  each theme.  
 - Set `data-scheme` at startup, defaulting to `purple`.  
-- Components have zero scheme branches and write only `var(--accent)` and the like.  
+- Components have zero theme branches and write only `var(--accent)` and the like.  
 
 ### Light/dark is delivered by nativeTheme, with zero CSS changes
 
@@ -185,7 +192,7 @@ Adopt **option B**:
   `AppearanceMode` still satisfies the interface and `nativeTheme` passes without a word. With
   Electron's type, that assignment becomes "writing into Electron's value domain", the assignment is
   an invariant check, and any extra value reports `TS2322`.
-- **On a switch, set `themeSource` before persisting**, the same rule as the colour scheme (sequence
+- **On a switch, set `themeSource` before persisting**, the same rule as the theme (sequence
   A2) and language. The order matters: written the other way round, a persistence failure (a full or
   read-only disk) would throw before `themeSource` is set, so the renderer would have optimistically
   ticked the chosen mode while the UI did not change — the notice says it failed and the UI does not
@@ -193,7 +200,7 @@ Adopt **option B**:
   works for this session and reverts to the on-disk value after a restart.
 - **Explicitly not adopted**: having the renderer compute light/dark itself and write a DOM attribute
   (such as `data-theme`). That would require every dark value to be written twice, once in the media
-  query block and once in the manual override block (3 schemes × 2 = 6 duplicated sets, so a colour
+  query block and once in the manual override block (3 themes × 2 = 6 duplicated sets, so a colour
   change would inevitably miss one), it could not reach the window chrome, and it would add another
   first-frame flicker risk.
 - `themeSource` must be set before the window's content renders, to avoid a first-frame light/dark
@@ -248,9 +255,9 @@ recommended handling is in "Out of Scope".
 
 ## Out of Scope
 
-- A fourth scheme, custom colours, a theme marketplace.  
+- A fourth theme, custom colours, a theme marketplace.  
 - Switching light/dark automatically by time (sunrise/sunset or a schedule).  
-- Changing the provider brand colours, or binding CC/CX into the scheme.  
+- Changing the provider brand colours, or binding CC/CX into the theme.  
 - Coupling with skill business logic (only tokens are shared).  
 - **Cleaning up the 4 sets of dead `:root[data-theme]` rules in `theme.css`**: the evidence is
   conclusive (see the implementation decisions), but deleting them touches four non-adjacent regions
@@ -261,16 +268,16 @@ recommended handling is in "Out of Scope".
 
 ## Further Notes
 
-- **Prototype gate (the three-scheme part): passed** (2026-08-06). Confirmed: settings as the third
+- **Prototype gate (the three-theme part): passed** (2026-08-06). Confirmed: settings as the third
   dimension ⚙️; a selection recolours the whole app with no save button; all three have dark tables;
-  CC/CX semantic colours do not change hue with the scheme.  
+  CC/CX semantic colours do not change hue with the theme.  
 - **Prototype gate (light/dark mode + the compact layout): passed** (2026-08-08). Confirmed: the mode
   three-segment control (follow system / light / dark); appearance compressed into one card with two
   rows; the palette cards **lose their full-sentence descriptions**, keeping only swatch + name, with
   "purple is the default" moved into the section's closing explanation; palette samples following the
   effective light/dark. The conclusions are inlined into "UI decisions"; persistent documents do not
   carry pointers to prototype paths.  
-- 3 schemes × 2 effective light/dark = **6 states** to test by hand, plus the following/locking matrix
+- 3 themes × 2 effective light/dark = **6 states** to test by hand, plus the following/locking matrix
   of 3 modes × 2 system appearances.  
 - The prototype simulated light/dark switching with `data-theme` because of its carrier's limits (there
   is no Electron in a browser); **that approach does not enter the implementation** — the
