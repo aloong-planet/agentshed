@@ -2257,6 +2257,18 @@ test('appearance: all six combinations of 3 colour schemes × 2 effective light/
   await win.waitForSelector('.rail')
   await win.getByTitle('Settings').click()
 
+  /**
+   * The floating layers' shadow, sampled per state. It is checked by name because "every variable
+   * resolves" cannot see the failure that matters for it: defined for light and forgotten for dark, it
+   * would inherit the light value and stay resolvable while being visibly wrong — a shadow tuned for a
+   * pale backdrop disappears against a dark one.
+   *
+   * Named rather than generalised to "every colour variable must differ between light and dark", because
+   * four functional colours (danger, tip) deliberately do not — so that rule would need an exception list
+   * to maintain. See the delivery notes for that trade-off.
+   */
+  const floatShadowByState = new Map<string, string>()
+
   for (const mode of ['light', 'dark'] as const) {
     await win.locator(`[data-mode-option="${mode}"]`).click()
     await expect.poll(async () => effectiveDark(win)).toBe(mode === 'dark')
@@ -2264,22 +2276,76 @@ test('appearance: all six combinations of 3 colour schemes × 2 effective light/
       await win.locator(`[data-scheme-option="${scheme}"]`).click()
       await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe(scheme)
       const vars = await win.evaluate(() => {
+        // Enumerate the variables the **theme blocks** declare, rather than naming a few by hand. A
+        // hand-written list only ever covers the variables someone thought of on the day, so a variable
+        // added later and missed in one block goes unnoticed — the failure being that it silently falls
+        // back to whatever it inherits, or to nothing at all.
+        //
+        // Scoped to `:root` and the palette blocks on purpose: a few variables belong to a component
+        // instead (`--chrome-w` lives on the app shell), and those are not expected to resolve here.
+        const declared = new Set<string>()
+        const collect = (rules: CSSRuleList): void => {
+          for (const rule of Array.from(rules)) {
+            if (rule instanceof CSSMediaRule) collect(rule.cssRules)
+            else if (rule instanceof CSSStyleRule) {
+              // A theme block is the root element itself — no descendant combinator. Matching merely
+              // "starts with :root" also catches rules like `:root[data-theme='dark'] .qlist .q`, whose
+              // variables are scoped to a component and are correctly absent from the root.
+              const sel = rule.selectorText
+              if (/\s/.test(sel) || !/^(:root|html\[data-scheme)/.test(sel)) continue
+              for (const prop of Array.from(rule.style)) {
+                if (prop.startsWith('--')) declared.add(prop)
+              }
+            }
+          }
+        }
+        for (const sheet of Array.from(document.styleSheets)) {
+          try {
+            collect(sheet.cssRules)
+          } catch {
+            // A cross-origin sheet cannot be read; there are none of ours, so nothing is lost
+          }
+        }
         const cs = getComputedStyle(document.documentElement)
         const body = getComputedStyle(document.body)
         return {
-          bg: cs.getPropertyValue('--bg').trim(),
-          text: cs.getPropertyValue('--text').trim(),
-          accent: cs.getPropertyValue('--accent').trim(),
+          declaredCount: declared.size,
+          unresolved: [...declared].filter((n) => cs.getPropertyValue(n).trim() === ''),
+          floatShadow: cs.getPropertyValue('--float-shadow').trim(),
           bodyBg: body.backgroundColor,
           bodyFg: body.color
         }
       })
-      // The key theme variables have values
-      for (const v of [vars.bg, vars.text, vars.accent]) expect(v).not.toBe('')
+      // Guard the set is non-empty first: an empty enumeration would make the next assertion pass for
+      // free, which is the shape this whole check exists to prevent
+      expect(vars.declaredCount).toBeGreaterThan(20)
+      // Every theme variable resolves in this combination.
+      //
+      // **What this does and does not catch.** It catches a variable that resolves nowhere — typically a
+      // new one nobody defined, or a renamed one whose users were not updated. It does **not** catch a
+      // variable defined for light and forgotten for dark: custom properties inherit, so the dark state
+      // silently picks up the light value. Resolving is therefore necessary, not sufficient. Verified by
+      // mutation — deleting the dark definition of a variable leaves this green.
+      expect(vars.unresolved).toEqual([])
+      floatShadowByState.set(`${scheme}/${mode}`, vars.floatShadow)
       // The foreground and background are distinguishable (otherwise this combination gives invisible text)
       expect(Math.abs(luminance(vars.bodyBg) - luminance(vars.bodyFg))).toBeGreaterThan(0.3)
     }
   }
+
+  // The floating shadow must actually change with light/dark, and must not change with the palette —
+  // it is a neutral shadow, so three palettes sharing one value is correct rather than an oversight
+  expect(floatShadowByState.size).toBe(6)
+  const lightShadows = new Set(
+    [...floatShadowByState].filter(([k]) => k.endsWith('/light')).map(([, v]) => v)
+  )
+  const darkShadows = new Set(
+    [...floatShadowByState].filter(([k]) => k.endsWith('/dark')).map(([, v]) => v)
+  )
+  expect(lightShadows.size).toBe(1)
+  expect(darkShadows.size).toBe(1)
+  expect([...lightShadows][0]).not.toBe([...darkShadows][0])
+  expect([...lightShadows][0]).not.toBe('')
 
   expect(l.errors).toEqual([])
   await close(l)
