@@ -421,10 +421,18 @@ Matching the current behaviour of
   serves the sessions search, whose box shares its row with a scope toggle and must flex. Widening it
   there would resize a box in another section — the kind of change that is invisible until someone opens
   that other section.
-- **Floating layers over the skills list** follow one shared discipline (R10): mount outside the clipping
-  box, position against the viewport from the anchor's measured rect, and dismiss on anything that
-  invalidates that rect. The install popover already works this way; the tooltip adopts the same shape
-  rather than inventing a second one.
+- **Floating layers over the skills list** follow one shared discipline (R10): position against the
+  viewport from the anchor's measured rect — which is also what carries them out of the list's clipping —
+  and dismiss on anything that invalidates that rect.
+- **Their surface is one component; their placement is not.** The look (fixed positioning, background,
+  border, radius, shadow) is defined once and shared, because it genuinely is the same and the two copies
+  it replaced had already drifted apart. Placement is not shared: one layer flips between above and below
+  its anchor, the other clamps against the window edge, and merging those would be an abstraction built
+  on two instances whose successor is unknown. That merge is deferred to its own task.
+- **The surface's shadow is a theme variable**, defined for every palette and both light and dark. It was
+  previously a literal in each copy, which made this surface the one thing in the UI that could not
+  follow the palette — and a single alpha cannot serve both, since one that reads on a light backdrop
+  disappears on a dark one.
 - **New copy goes through the dictionaries**: the placeholder and the "no name matched" empty states are
   user-visible strings, so they exist in all six languages. The empty state is a **new** string, not a
   reuse of the existing "library is empty" one (E5/F4) — reusing it would be cheaper and would lie.

@@ -195,8 +195,13 @@ _Avoid_: error message (bare, implies a finished sentence)
   perfectly ordinary bounding box the whole time.** A clipped or mislaid layer reports geometry
   exactly like a working one, so "the element exists" and "the element is visible" prove nothing here;
   the check that distinguishes them is hit-testing the layer's own centre and confirming the point
-  belongs to the layer. Applies to the install popover and the skill-name tooltip today, and to any
-  third such layer.
+  belongs to the layer. Applies to the install popover, the skill-name tooltip and the language
+  selector's dropdown today, and to any further such layer.
+
+  **The first obligation now has a code carrier**: these layers share one surface, and viewport
+  positioning is part of it — build on that surface and clipping is already handled. The second has
+  none: each layer still measures its own anchor and arranges its own dismissal, so that is the half
+  to check when adding one.
 
 - **A link inside rendered content must never navigate the whole window (settled 2026-08-02)**:
   for any content rendered into the app through markdown (memories, configuration, artifacts), links

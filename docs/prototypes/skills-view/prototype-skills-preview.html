@@ -33,6 +33,7 @@
     --tree-bg: #f0eeea;
     --top-grad-from: #faf8f5;
     --drawer-shadow: -12px 0 40px rgba(40, 50, 70, 0.12);
+    --float-shadow: rgba(0, 0, 0, 0.18);
     --cl-bg: #e4ebf5; --cl-fg: #3a5a88;
     --cx-bg: #e2efe8; --cx-fg: #2d6b52;
     --gb-bg: #e8eef2; --gb-fg: #3d6f7a;
@@ -87,6 +88,7 @@
       --tree-bg: #14161a;
       --top-grad-from: #1a1e24;
       --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.45);
+      --float-shadow: rgba(0, 0, 0, 0.5);
       --cl-bg: #243448; --cl-fg: #a8c0dc;
       --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
       --gb-bg: #1a3340; --gb-fg: #8ec8d4;
@@ -129,6 +131,7 @@
     --tree-bg: #14161a;
     --top-grad-from: #1a1e24;
     --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.45);
+    --float-shadow: rgba(0, 0, 0, 0.5);
     --cl-bg: #243448; --cl-fg: #a8c0dc;
     --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
     --gb-bg: #1a3340; --gb-fg: #8ec8d4;
@@ -172,6 +175,7 @@
     --tree-bg: #f0e9dc;
     --top-grad-from: #faf6ef;
     --drawer-shadow: -12px 0 40px rgba(60, 45, 25, 0.12);
+    --float-shadow: rgba(0, 0, 0, 0.18);
     --cl-bg: #ebe4d8; --cl-fg: #6b5220;
     --cx-bg: #e2efe8; --cx-fg: #2d6b52;
     --gb-bg: #e8eef2; --gb-fg: #3d6f7a;
@@ -214,6 +218,7 @@
       --tree-bg: #16130f;
       --top-grad-from: #1e1a16;
       --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.5);
+      --float-shadow: rgba(0, 0, 0, 0.5);
       --cl-bg: #3a3228; --cl-fg: #ddc48e;
       --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
       --gb-bg: #1a3340; --gb-fg: #8ec8d4;
@@ -256,6 +261,7 @@
     --tree-bg: #16130f;
     --top-grad-from: #1e1a16;
     --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.5);
+    --float-shadow: rgba(0, 0, 0, 0.5);
     --cl-bg: #3a3228; --cl-fg: #ddc48e;
     --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
     --gb-bg: #1a3340; --gb-fg: #8ec8d4;
@@ -319,7 +325,7 @@
     border:1px solid var(--line-strong);border-radius:6px;
     padding:4px 9px;font-size:12px;
     font-family:ui-monospace,Menlo,monospace;
-    box-shadow:0 4px 14px rgba(40,50,60,.16);
+    box-shadow:0 4px 14px var(--float-shadow);
     /* skill 名不是我们写的文案,长度由外部决定:磁盘 skill 用目录名(文件系统还给了个上限),
        插件条目则是「插件清单里的一个键」加目录名——而配置文件里的键什么都不受限。
        单行不换行的提示会让一个超长名字横跨整个屏幕,所以限宽并换行。skill 名多是 kebab-case、没有空格,
