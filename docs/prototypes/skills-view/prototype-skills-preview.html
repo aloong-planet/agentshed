@@ -9,7 +9,12 @@
      2026-08-10 新增「按名字过滤」:两处列表各一个搜索框——子串匹配、大小写不敏感、只匹配 skill 名;
      命中不高亮;零额外反馈(不加计数行,列表直接变短,详情的组标题计数随之变化、空组整组消失);
      输入框不放图标(与真代码 sessions 搜索框一致,且 icons.tsx 禁用字符图标)。
-     详情区同时补上真代码早已有、原型此前缺失的分组结构——不画出分组,「空组消失」这个形态就无从评判。 -->
+     详情区同时补上真代码早已有、原型此前缺失的分组结构——不画出分组,「空组消失」这个形态就无从评判。
+     2026-08-12 补:插件行与磁盘行**平等展开预览**(ADR-0012 于 2026-08-07 推翻了 v1 的排除,
+     真代码与 features 早已照此实现,只有本原型停在旧形态——issue #98)。展开能力的判定
+     不再看来源,改看**有没有包**:插件行同样可能展不开(真代码里它的包根可以为空,fail-closed),
+     所以 mock 里留了一条查不到包的插件行,箭头处显示 · 。装卸按钮仍然只给磁盘行——
+     那是 ADR-0004 的 G3,ADR-0012 没有动它。 -->
 <html lang="zh-CN" data-scheme="blue" data-mode="system" data-expand="flat">
 <head>
 <meta charset="utf-8">
@@ -514,7 +519,8 @@
     <h2 class="page-h">Skills 包预览</h2>
     <div class="sub">
       磁盘 skill 行内右侧直接给<strong>文件数 / 大小</strong>；<b>点行折叠/展开</b>文件表，
-      <b>点文件</b>开抽屉读详情（md 默认可预览）。插件行不可展开。行不展示 description。
+      <b>点文件</b>开抽屉读详情（md 默认可预览）。<b>插件行与磁盘行平等展开预览</b>（ADR-0012），
+      但仍没有装卸按钮；查不到包的行（插件包根为空时）不可展开，箭头处显示 · 。行不展示 description。
       底栏可切<b>展开形式</b>：平铺（满宽分段，推荐）vs 缩进卡片（现行）。
     </div>
     <div class="sub">
@@ -822,26 +828,30 @@
     const disk = s.origin === 'disk'
     const sides = sortedSides(s.sides || [])
     let side = sides[0] || 'claude'
+    // 能不能展开,看的是**有没有包**,不是来源(ADR-0012:插件行与磁盘行平等展开预览)。
+    // 插件行仍可能展不开——真代码里它的包根可以为空(fail-closed),对应这里查不到包数据。
+    // 装卸按钮则仍然只给磁盘行:那是 ADR-0004 的 G3,ADR-0012 没有动它。
+    const expandable = Boolean(PACKAGES[`${side}:${s.name}`])
 
-    const head = document.createElement(disk ? 'button' : 'div')
-    head.type = disk ? 'button' : undefined
-    head.className = 'sk-head ' + (disk ? 'disk' : 'plugin')
+    const head = document.createElement(expandable ? 'button' : 'div')
+    head.type = expandable ? 'button' : undefined
+    head.className = 'sk-head ' + (expandable ? 'disk' : 'plugin')
     head.innerHTML = `
-      <span class="chev">${disk ? '▸' : '·'}</span>
+      <span class="chev">${expandable ? '▸' : '·'}</span>
       <span class="nm">${s.name}</span>
       <span class="bdg">${badges(sides)}</span>
       ${s.origin === 'plugin' ? '<span class="pill plg">插件</span>' : ''}
       ${s.level === 'project' ? '<span class="pill lv">项目级</span>' : ''}
       ${s.level === 'global' ? '<span class="pill lv">全局层</span>' : ''}
       ${s.symlink ? '<span class="pill ln">⤷ 软链</span>' : ''}
-      ${disk ? `<span class="sk-meta" data-meta>${statsText(s.name, side)}</span>` : ''}
+      ${expandable ? `<span class="sk-meta" data-meta>${statsText(s.name, side)}</span>` : ''}
       ${disk && showInstall ? '<button type="button" class="ins" data-ins>安装到…</button>' : ''}
       ${disk && s.level === 'project' ? '<button type="button" class="ins" data-un>卸载</button>' : ''}`
 
     const body = document.createElement('div')
     body.className = 'sk-body'
 
-    if (disk) {
+    if (expandable) {
       const filesHost = document.createElement('div')
       if (sides.length > 1) {
         const seg = document.createElement('div')
@@ -890,9 +900,9 @@
     { name: 'github-ops', description: '完整真实包 · 点行展开文件 · 点文件开抽屉', sides: ['claude', 'codex', 'grok'], origin: 'disk', symlink: true },
     { name: 'deep-demo', description: '深度>2 提示（展开后可见）', sides: ['claude', 'codex'], origin: 'disk', symlink: false },
     { name: 'tdd', description: 'Test-driven development…', sides: ['claude'], origin: 'disk', symlink: false },
-    { name: 'superpowers:brainstorming', description: '插件 · 不可展开/预览', sides: ['claude'], origin: 'plugin', symlink: false },
+    { name: 'superpowers:brainstorming', description: '插件 · 与磁盘行平等展开预览(ADR-0012)', sides: ['claude'], origin: 'plugin', symlink: false },
     // 名字列固定 200px,这条 41 字符的名字必然被截断 —— hover 全名的形态要有被截断的行才演示得出来
-    { name: 'chrome-devtools-mcp:memory-leak-debugging', description: '插件 · 长名字,演示 hover 全名', sides: ['claude'], origin: 'plugin', symlink: false },
+    { name: 'chrome-devtools-mcp:memory-leak-debugging', description: '插件 · 长名字,演示 hover 全名;同样可展开', sides: ['claude'], origin: 'plugin', symlink: false },
     // 极端长度:名字的长度由外部决定,不是我们能约束的(插件条目那半截来自配置文件里的键,毫无上限)。
     // 留着它才看得出提示限宽换行的效果
     { name: 'chrome-devtools-mcp:an-absurdly-long-skill-directory-name-that-nobody-should-write-but-the-filesystem-allows-it-regardless', description: '插件 · 极端长度,演示提示限宽换行', sides: ['claude'], origin: 'plugin', symlink: false }
