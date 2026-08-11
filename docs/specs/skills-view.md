@@ -271,12 +271,22 @@ repeats what is already legible is noise.
 
 **Sequence G′: what the name itself can do to the host**
 
-A skill's name is **not** copy this product wrote — it is a directory name on disk, i.e. external content
-rendered into the UI. So beyond "what if it is missing", the question is what it can do to the host.
+A skill's name is **not** copy this product wrote, so beyond "what if it is missing", the question is what
+it can do to the host. Where it comes from decides how loose it is:
+
+- an **on-disk** skill is named by its **directory**, so the filesystem bounds it (no separators, a length
+  ceiling);
+- a **plugin** entry's name joins a key from the user's plugin manifest to a directory name — and a key in
+  a configuration file is bounded by **nothing**: any length, any character.
+
+So the looser half of the surface is the one that is easy to overlook, because "it's just a directory
+name" reads as if the filesystem had already constrained it.
 
 - G′1 **Very long names**: the column truncates, so the row is safe. The tooltip is the exposed surface —
-  it must be bounded and wrap rather than run off-screen on a single line. An unbounded single-line
-  tooltip turns any long directory name into a layout that spans the display.
+  it must be bounded and wrap rather than run off-screen on a single line. Unbounded, one long name turns
+  into a layer spanning the display (measured at 901px). Wrapping must break **anywhere**: skill names
+  are mostly kebab-case with no spaces, so a word-boundary wrap finds nowhere to break and the bound
+  achieves nothing.
 - G′2 **Names as text, never as markup**: the tooltip renders the name as text. Nothing about a name may
   reach an HTML-parsing path — this is the same single-exit rule as D2, and it applies here even though a
   name feels too small to matter.

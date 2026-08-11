@@ -5,6 +5,7 @@
   /* The default = purple (as shipped); used when there is no data-scheme, or when it is purple */
   --bg: #f7f8f9;
   --card: #ffffff;
+  --float-shadow: rgba(0, 0, 0, 0.18);
   --text: #37352f;
   --text-2: #787774;
   --line: #e8eaed;
@@ -48,6 +49,7 @@
 html[data-scheme='blue'] {
   --bg: #f6f5f3;
   --card: #fffcf9;
+  --float-shadow: rgba(0, 0, 0, 0.18);
   --text: #2c2a28;
   --text-2: #6f6b66;
   --line: #e8e4de;
@@ -60,6 +62,7 @@ html[data-scheme='blue'] {
 html[data-scheme='amber'] {
   --bg: #f7f3ec;
   --card: #fffcf7;
+  --float-shadow: rgba(0, 0, 0, 0.18);
   --text: #3a342c;
   --text-2: #7a7268;
   --line: #e8e0d4;
@@ -72,6 +75,7 @@ html[data-scheme='amber'] {
   :root {
     --bg: #18191b;
     --card: #1f2124;
+    --float-shadow: rgba(0, 0, 0, 0.5);
     --text: #e6e6e5;
     --text-2: #9b9a97;
     --line: #2a2c30;
@@ -109,6 +113,7 @@ html[data-scheme='amber'] {
   html[data-scheme='blue'] {
     --bg: #16181c;
     --card: #1c1f24;
+    --float-shadow: rgba(0, 0, 0, 0.5);
     --text: #e6e4e0;
     --text-2: #9a9690;
     --line: #2a2e34;
@@ -120,6 +125,7 @@ html[data-scheme='amber'] {
   html[data-scheme='amber'] {
     --bg: #1a1714;
     --card: #221e1a;
+    --float-shadow: rgba(0, 0, 0, 0.5);
     --text: #ebe4d8;
     --text-2: #a09888;
     --line: #332e28;
@@ -1221,29 +1227,21 @@ body {
   color: var(--accent);
   border-color: var(--accent);
 }
-/* The install-to popover is a floating layer, so it is positioned against the **viewport** and receives its
-   coordinates from whoever opens it, computed from the trigger button's rect (see AgentsPane).
+/* The install-to popover. The floating surface — fixed positioning, background, border, shadow — comes
+   from the FloatingBox component; its coordinates come from whoever opens it, computed from the trigger
+   button's rect (see AgentsPane). Only what is specific to this layer lives here.
 
-   Why not `absolute`: hanging it off the row requires giving some ancestor inside the list a containing
-   block, and `.sk-card`'s `overflow: hidden` then clips the popover away — measured 2026-08-10, the
-   popover's own centre hit-tested to `.pane-body`, i.e. nothing of it was painted there. The two ways out
-   are "stop the card clipping" and "float the popover out of it"; the first costs the card its rounded
-   first and last rows and needs four compensating radius rules across two different nestings, so this is
-   the cheaper one.
+   Why the surface is fixed rather than absolute: hanging it off the row requires giving some ancestor
+   inside the list a containing block, and `.sk-card`'s `overflow: hidden` then clips it away — measured
+   2026-08-10, the popover's own centre hit-tested to `.pane-body`, i.e. nothing of it was painted there.
+   The alternative, stopping the card from clipping, costs it its rounded first and last rows and needs
+   four compensating radius rules across two different nestings.
 
-   Because it is fixed, it does not travel with the list: whoever opens it must close it on scroll and on
-   resize, or it would hang in place over unrelated content. */
+   Because it is fixed it does not travel with the list, so whoever opens it must close it on scroll and
+   on resize, or it would hang in place over unrelated content. */
 .pop {
-  position: fixed;
-  z-index: 8;
-  background: var(--card);
-  border: 1px solid var(--line-strong);
-  border-radius: 9px;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.18);
   min-width: 240px;
-  max-height: 300px;
   overflow: auto;
-  padding: 6px;
 }
 .pop-t {
   font-size: 10.5px;
@@ -1520,30 +1518,26 @@ body {
   width: 300px;
   flex: none;
 }
-/* A skill name too long for its column, revealed on hover (2026-08-10). `fixed` is what lets it out of
-   the skills card's clipping — see the floating-layer invariant in CONTEXT; the opener supplies left/top.
+/* A skill name too long for its column, revealed on hover (2026-08-10). The floating surface itself —
+   fixed positioning, background, border, shadow — comes from the FloatingBox component; only what is
+   specific to this layer lives here.
 
-   Bounded and wrapping, because a name is a **directory name on disk** rather than copy this product
-   wrote: its length is decided elsewhere. A single unwrapped line turns a long directory name into a
-   layer spanning the display (measured at 901px before this bound). Skill names are mostly kebab-case
-   with no spaces, so the ordinary word-boundary wrap finds nowhere to break and `anywhere` is required.
+   It wraps rather than running on, because a skill name is **not copy this product wrote**: an on-disk
+   skill is named by its directory, and a plugin entry by a key from the user's plugin manifest joined to
+   a directory name. Both lengths are decided outside this app, and a manifest key is the looser of the
+   two — a directory name is bounded by the filesystem, a JSON key by nothing. Unwrapped, a long one
+   spans the display (measured at 901px). Skill names are mostly kebab-case with no spaces, so the
+   ordinary word-boundary wrap finds nowhere to break and `anywhere` is required.
 
    It takes no pointer events: it sits directly under the row it describes, and would otherwise swallow
    the click that expands that row and end its own hover the moment it appeared. */
 .nm-tip {
-  position: fixed;
-  z-index: 30;
   pointer-events: none;
-  max-width: 420px;
   overflow-wrap: anywhere;
   padding: 4px 9px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--card);
   color: var(--text);
   font-family: ui-monospace, Menlo, monospace;
   font-size: 12px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
 }
 .scope {
   display: inline-flex;

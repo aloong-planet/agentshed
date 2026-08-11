@@ -320,8 +320,9 @@
     padding:4px 9px;font-size:12px;
     font-family:ui-monospace,Menlo,monospace;
     box-shadow:0 4px 14px rgba(40,50,60,.16);
-    /* skill 名是磁盘上的目录名,不是我们写的文案——长度由外部决定。单行不换行的提示会让
-       一个超长目录名横跨整个屏幕,所以限宽并换行。skill 名多是 kebab-case、没有空格,
+    /* skill 名不是我们写的文案,长度由外部决定:磁盘 skill 用目录名(文件系统还给了个上限),
+       插件条目则是「插件清单里的一个键」加目录名——而配置文件里的键什么都不受限。
+       单行不换行的提示会让一个超长名字横跨整个屏幕,所以限宽并换行。skill 名多是 kebab-case、没有空格,
        常规的按词换行断不开,必须 anywhere。 */
     max-width:420px;overflow-wrap:anywhere;
   }
@@ -886,7 +887,8 @@
     { name: 'superpowers:brainstorming', description: '插件 · 不可展开/预览', sides: ['claude'], origin: 'plugin', symlink: false },
     // 名字列固定 200px,这条 41 字符的名字必然被截断 —— hover 全名的形态要有被截断的行才演示得出来
     { name: 'chrome-devtools-mcp:memory-leak-debugging', description: '插件 · 长名字,演示 hover 全名', sides: ['claude'], origin: 'plugin', symlink: false },
-    // 极端长度:名字是磁盘目录名,长度由外部决定,不是我们能约束的。留着它才看得出提示限宽换行的效果
+    // 极端长度:名字的长度由外部决定,不是我们能约束的(插件条目那半截来自配置文件里的键,毫无上限)。
+    // 留着它才看得出提示限宽换行的效果
     { name: 'chrome-devtools-mcp:an-absurdly-long-skill-directory-name-that-nobody-should-write-but-the-filesystem-allows-it-regardless', description: '插件 · 极端长度,演示提示限宽换行', sides: ['claude'], origin: 'plugin', symlink: false }
   ]
   /**

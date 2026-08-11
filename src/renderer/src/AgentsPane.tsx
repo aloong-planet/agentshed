@@ -6,6 +6,7 @@ import { GlobalSubagentsTab } from './SubagentsView'
 import { GlobalMemoryTab } from './MemoryView'
 import { GlobalPluginsTab } from './PluginsView'
 import { toast } from './Toast'
+import { FloatingBox } from './FloatingBox'
 import { SkillExpandBlock } from './SkillExpandBlock'
 import { SkillSearch } from './SkillSearch'
 import { filterByName } from './skill-filter'
@@ -265,12 +266,9 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
               }
             />
             {openFor?.skill === s.name && s.origin === 'disk' && (
-              // Coordinates are inline because they are per-opening values, not styling; `.pop` in the
-              // theme file owns everything static, and none of these properties appear in its
-              // interaction-state rules
-              <div
+              <FloatingBox
                 className="pop"
-                style={{
+                at={{
                   top: openFor.top,
                   bottom: openFor.bottom,
                   right: openFor.right,
@@ -287,7 +285,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                     </span>
                   </button>
                 ))}
-              </div>
+              </FloatingBox>
             )}
           </div>
         ))}

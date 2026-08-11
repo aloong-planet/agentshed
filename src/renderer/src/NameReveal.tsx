@@ -17,8 +17,13 @@
 //     Filtering does too, for free: the row unmounts and takes this with it.
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
+import { FloatingBox } from './FloatingBox'
 
-/** Matches `.nm-tip`'s max-width; used to keep the layer inside the window without a second measurement */
+/**
+ * The layer's width ceiling, and the value the placement clamps against so no second measurement is
+ * needed. It is passed to the surface as well, so the bound and the clamp cannot drift apart — they were
+ * two separate constants, one in CSS and one here, until this became a component.
+ */
 const TIP_MAX_WIDTH = 420
 /** Breathing room kept between the layer and the window edge */
 const TIP_MARGIN = 8
@@ -78,11 +83,9 @@ export function NameReveal({ name }: { name: string }): JSX.Element {
         {name}
       </span>
       {at !== null && (
-        // Coordinates are inline because they are per-hover values rather than styling; `.nm-tip` in the
-        // theme file owns everything static, and neither property appears in its interaction-state rules
-        <div className="nm-tip" style={{ left: at.left, top: at.top }}>
+        <FloatingBox className="nm-tip" at={{ left: at.left, top: at.top, maxWidth: TIP_MAX_WIDTH }}>
           {name}
-        </div>
+        </FloatingBox>
       )}
     </>
   )
