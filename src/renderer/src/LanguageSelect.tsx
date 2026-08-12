@@ -81,7 +81,7 @@ export function LanguageSelect({
   // Scrolling still dismisses, and now via the shared hook — this component's own capture-phase
   // listener was the pattern the other two layers were missing, so it moved into the hook rather
   // than being duplicated a third time.
-  useAnchorInvalidation(open, {
+  useAnchorInvalidation(open, popRef, {
     onResize: 'reposition',
     dismiss: () => setOpen(false),
     reposition: place

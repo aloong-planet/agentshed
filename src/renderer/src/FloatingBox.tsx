@@ -13,7 +13,8 @@
 //
 // Colours stay on the theme variables (never literal values), so the surface follows the palette and the
 // light/dark switch like everything else.
-import type { CSSProperties, JSX, ReactNode } from 'react'
+import { forwardRef } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 /**
  * Viewport coordinates for the layer. `top`/`bottom` and `left`/`right` are each a choice of edge to
@@ -45,22 +46,24 @@ const SURFACE: CSSProperties = {
   padding: 6
 }
 
-export function FloatingBox({
-  at,
-  className,
-  style,
-  children
-}: {
-  at: FloatingAt
-  /** An extra class for layer-specific rules that are not part of the surface */
-  className?: string
-  /** Layer-specific overrides; applied last so a layer can opt out of any surface property */
-  style?: CSSProperties
-  children: ReactNode
-}): JSX.Element {
+/**
+ * The ref is forwarded because the dismissal watcher needs to recognise this element: a scroll
+ * originating inside the layer means the user is reading it, not that the anchor moved.
+ */
+export const FloatingBox = forwardRef<
+  HTMLDivElement,
+  {
+    at: FloatingAt
+    /** An extra class for layer-specific rules that are not part of the surface */
+    className?: string
+    /** Layer-specific overrides; applied last so a layer can opt out of any surface property */
+    style?: CSSProperties
+    children: ReactNode
+  }
+>(function FloatingBox({ at, className, style, children }, ref) {
   return (
-    <div className={className} style={{ ...SURFACE, ...at, ...style }}>
+    <div ref={ref} className={className} style={{ ...SURFACE, ...at, ...style }}>
       {children}
     </div>
   )
-}
+})

@@ -180,11 +180,13 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
   // in the position state: it is not something to render, and putting a DOM node in state would make
   // every reposition a state change carrying an element around.
   const trigger = useRef<HTMLElement | null>(null)
+  // The popover element itself: it is scrollable, and scrolling **its** contents must not close it
+  const popRef = useRef<HTMLDivElement | null>(null)
 
   // Repositioned rather than closed on resize: the user is part-way through choosing a target project,
   // and a window resize is not them changing their mind. (The language dropdown already behaved this
   // way; the two are the same kind of thing and now agree.)
-  useAnchorInvalidation(openFor !== null, {
+  useAnchorInvalidation(openFor !== null, popRef, {
     onResize: 'reposition',
     dismiss: () => setOpenFor(null),
     reposition: () => {
@@ -279,6 +281,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
             />
             {openFor?.skill === s.name && s.origin === 'disk' && (
               <FloatingBox
+                ref={popRef}
                 className="pop"
                 at={{
                   top: openFor.top,

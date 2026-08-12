@@ -10,7 +10,7 @@
 // dropdown right-aligns and needs its own rendered width, the name tooltip clamps against the window
 // edge. Folding those into one function would produce a parameter for every difference. What they
 // genuinely share is *when* a position stops being true, and that is what lives here.
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
 /**
  * What a window resize means for this layer — and, as a union, which callbacks that choice requires.
@@ -31,14 +31,27 @@ export type AnchorInvalidation =
 /**
  * Watch for anything that makes an anchored position stale, while `active`.
  *
- * **Scrolling always dismisses**, whichever container scrolled. The listener is registered on
- * `document` in the **capture** phase, which is what makes "whichever container" true: scroll events
- * do not bubble, but they do pass through document on the way down, so this hears every scrollable
- * ancestor without being told which one it is. The alternative — looking the container up by class
- * name — fails silently when that class is renamed: the listener simply never binds, and the layer
- * hangs over unrelated content with nothing raising an error.
+ * **Scrolling dismisses, whichever container scrolled — except the layer itself.** The listener is
+ * registered on `document` in the **capture** phase, which is what makes "whichever container" true:
+ * scroll events do not bubble, but they do pass through document on the way down, so this hears every
+ * scrollable ancestor without being told which one it is. The alternative — looking the container up
+ * by class name — fails silently when that class is renamed: the listener simply never binds, and the
+ * layer hangs over unrelated content with nothing raising an error.
+ *
+ * The exception is not a detail. A capture listener also hears the **layer's own** scrolling, and a
+ * layer that closes when you scroll its contents makes everything below its fold unreachable —
+ * reaching for an option dismisses the thing you were reaching into. `layer` is how the two are told
+ * apart: an event originating inside it means the user is reading the layer, not that the anchor
+ * moved.
+ *
+ * (Only one of the three layers is scrollable today, which is exactly why this was easy to miss: the
+ * capture-phase pattern was copied from a layer that never scrolls, where it is unconditionally safe.)
  */
-export function useAnchorInvalidation(active: boolean, handlers: AnchorInvalidation): void {
+export function useAnchorInvalidation(
+  active: boolean,
+  layer: RefObject<HTMLElement | null>,
+  handlers: AnchorInvalidation
+): void {
   // Held in a ref so the effect depends only on `active`. Callers pass inline closures, which are new
   // objects every render; depending on them directly would tear down and re-register both listeners
   // on every render of the surrounding component.
@@ -47,14 +60,20 @@ export function useAnchorInvalidation(active: boolean, handlers: AnchorInvalidat
 
   useEffect(() => {
     if (!active) return
-    const onScroll = (): void => ref.current.dismiss()
+    const onScroll = (e: Event): void => {
+      const target = e.target as Node | null
+      // The layer scrolling its own contents is the user reading it, not the anchor moving
+      if (target !== null && layer.current?.contains(target)) return
+      ref.current.dismiss()
+    }
     const onResize = (): void => {
       const h = ref.current
       if (h.onResize === 'reposition') h.reposition()
       else h.dismiss()
     }
-    // Scroll is not configurable: a scrolled anchor has moved out from under a viewport-positioned
-    // layer, and there is no reading of that where the old coordinates stay true.
+    // Scroll's *effect* is not configurable — a scrolled anchor has moved out from under a
+    // viewport-positioned layer, and no reading of that leaves the old coordinates true. What is
+    // conditional is only whether this particular scroll concerns the anchor at all (see above).
     document.addEventListener('scroll', onScroll, true)
     window.addEventListener('resize', onResize)
     return () => {

@@ -1719,8 +1719,18 @@ test('the install-to popover sits next to its button, and its targets can be cli
   })
   expect(after).toBeLessThan(40) // still anchored to its button after re-placing
 
-  // Scrolling still dismisses — a scrolled anchor has moved out from under a viewport-positioned
-  // layer, and no reading of that leaves the old coordinates true
+  // Scrolling the popover's **own** contents must not close it. It is scrollable (a long project list
+  // exceeds its max height), so closing on its own scroll would make every target below the fold
+  // unreachable: reaching for one dismisses the thing you were reaching into.
+  //
+  // This is not hypothetical — it is what a document-level capture listener does by default, since
+  // scroll does not bubble but does pass through document on capture. The listener has to tell "the
+  // anchor moved" from "the user is scrolling the layer itself".
+  await win.locator('.pop').evaluate((el) => el.dispatchEvent(new Event('scroll')))
+  await expect(win.locator('.pop')).toHaveCount(1)
+
+  // Scrolling anything *outside* it still dismisses — the anchor has moved out from under a
+  // viewport-positioned layer, and no reading of that leaves the old coordinates true
   await win.locator('.pane-body').evaluate((el) => el.dispatchEvent(new Event('scroll')))
   await expect(win.locator('.pop')).toHaveCount(0)
 

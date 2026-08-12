@@ -50,10 +50,11 @@ interface TipAt {
 export function NameReveal({ name }: { name: string }): JSX.Element {
   const ref = useRef<HTMLSpanElement>(null)
   const [at, setAt] = useState<TipAt | null>(null)
+  const tipRef = useRef<HTMLDivElement | null>(null)
 
   // Dismissed on both scroll and resize: this is a glance, not an interaction — it is going away the
   // moment the pointer moves anyway, so re-placing it would buy nothing.
-  useAnchorInvalidation(at !== null, { onResize: 'dismiss', dismiss: () => setAt(null) })
+  useAnchorInvalidation(at !== null, tipRef, { onResize: 'dismiss', dismiss: () => setAt(null) })
 
   const reveal = (): void => {
     const el = ref.current
@@ -76,7 +77,7 @@ export function NameReveal({ name }: { name: string }): JSX.Element {
         {name}
       </span>
       {at !== null && (
-        <FloatingBox className="nm-tip" at={{ left: at.left, top: at.top, maxWidth: TIP_MAX_WIDTH }}>
+        <FloatingBox ref={tipRef} className="nm-tip" at={{ left: at.left, top: at.top, maxWidth: TIP_MAX_WIDTH }}>
           {name}
         </FloatingBox>
       )}
