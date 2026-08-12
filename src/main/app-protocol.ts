@@ -9,7 +9,7 @@
 //
 // Ported from the Transfer project's src/main/app-protocol.ts with two adjustments for this project:
 // the host name and the build root path.
-// Two steps: registerSchemesAsPrivileged at module top level (before app ready), then
+// Two steps: registerThemesAsPrivileged at module top level (before app ready), then
 // registerAppProtocol after ready.
 import { protocol, net } from 'electron'
 import { join, normalize, sep } from 'node:path'

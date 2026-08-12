@@ -10,7 +10,7 @@
 //
 // index.ts is left with only the wiring: pass in the real prefsStore and nativeTheme, then hang them on
 // the channels.
-import { isAppearanceMode, isAppearanceScheme } from '@shared/appearance'
+import { isAppearanceMode, isAppearanceTheme } from '@shared/appearance'
 import { isLanguagePreference } from '@shared/i18n'
 import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
 import { ERR, appError } from '@shared/errors'
@@ -31,7 +31,7 @@ export interface PrefsHandlerDeps {
 
 export interface PrefsHandlers {
   getPrefs: () => Prefs
-  setScheme: (scheme: unknown) => Prefs
+  setTheme: (theme: unknown) => Prefs
   setLanguage: (language: unknown) => Prefs
   setMode: (mode: unknown) => Prefs
 }
@@ -50,9 +50,9 @@ export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
     // the renderer with no preferences at all
     getPrefs: () => deps.store()?.get() ?? { ...DEFAULT_PREFS },
 
-    setScheme: (scheme) => {
-      if (!isAppearanceScheme(scheme)) throw appError(ERR.invalidPref, { field: 'scheme' })
-      return required().setScheme(scheme)
+    setTheme: (theme) => {
+      if (!isAppearanceTheme(theme)) throw appError(ERR.invalidPref, { field: 'theme' })
+      return required().setTheme(theme)
     },
 
     setLanguage: (language) => {
@@ -66,7 +66,7 @@ export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
       // must not reach themeSource,
       // and an unready store must not produce "the UI changed but nothing was remembered".
       const store = required()
-      // **Apply first, then persist**, the same rule as the colour scheme (spec sequence A2) and
+      // **Apply first, then persist**, the same rule as the theme (spec sequence A2) and
       // language. The order matters: written the other way round,
       // a persistence failure (a full or read-only disk) would throw before themeSource is set, so the
       // renderer would have optimistically ticked the chosen mode

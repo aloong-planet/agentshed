@@ -93,18 +93,18 @@ describe('the preference handlers', () => {
     expect(theme.themeSource).toBe('system')
   })
 
-  it('setScheme / setLanguage: a valid value persists and an invalid one throws', () => {
-    expect(handlers().setScheme('blue').scheme).toBe('blue')
+  it('setTheme / setLanguage: a valid value persists and an invalid one throws', () => {
+    expect(handlers().setTheme('blue').theme).toBe('blue')
     expect(handlers().setLanguage('ja').language).toBe('ja')
-    expect(codeOf(() => handlers().setScheme('neon'))).toBe(ERR.invalidPref)
+    expect(codeOf(() => handlers().setTheme('neon'))).toBe(ERR.invalidPref)
     expect(codeOf(() => handlers().setLanguage('ko'))).toBe(ERR.invalidPref)
     // An invalid call must leave no trace
-    expect(new PrefsStore(dir).get()).toEqual({ scheme: 'blue', language: 'ja', mode: 'system' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ja', mode: 'system' })
   })
 
-  it('neither setScheme nor setLanguage touches themeSource', () => {
+  it('neither setTheme nor setLanguage touches themeSource', () => {
     // "Language and light/dark do not interfere", realised at the handler layer
-    handlers().setScheme('amber')
+    handlers().setTheme('amber')
     handlers().setLanguage('ru')
     expect(theme.themeSource).toBe('system')
   })

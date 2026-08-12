@@ -4,11 +4,11 @@ import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from '
 import { join } from 'node:path'
 import {
   DEFAULT_MODE,
-  DEFAULT_SCHEME,
+  DEFAULT_THEME,
   isAppearanceMode,
-  isAppearanceScheme,
+  isAppearanceTheme,
   type AppearanceMode,
-  type AppearanceScheme
+  type AppearanceTheme
 } from '@shared/appearance'
 import {
   DEFAULT_LANGUAGE_PREFERENCE,
@@ -34,8 +34,8 @@ export class PrefsStore {
     return { ...this.prefs }
   }
 
-  setScheme(scheme: AppearanceScheme): Prefs {
-    this.prefs = { ...this.prefs, scheme }
+  setTheme(theme: AppearanceTheme): Prefs {
+    this.prefs = { ...this.prefs, theme }
     this.persist()
     return this.get()
   }
@@ -65,11 +65,11 @@ export class PrefsStore {
       const raw: unknown = JSON.parse(readFileSync(this.file, 'utf8'))
       if (typeof raw !== 'object' || raw === null) return { ...DEFAULT_PREFS }
       const r = raw as Record<string, unknown>
-      const scheme = r['scheme']
+      const theme = r['theme']
       const language = r['language']
       const mode = r['mode']
       return {
-        scheme: isAppearanceScheme(scheme) ? scheme : DEFAULT_SCHEME,
+        theme: isAppearanceTheme(theme) ? theme : DEFAULT_THEME,
         language: isLanguagePreference(language) ? language : DEFAULT_LANGUAGE_PREFERENCE,
         mode: isAppearanceMode(mode) ? mode : DEFAULT_MODE
       }

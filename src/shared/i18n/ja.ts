@@ -27,9 +27,9 @@ export const ja: Locale = {
     palette: 'テーマ',
     appearanceFoot:
       'モードを「システムに従う」にすると、明暗は macOS の外観に従います。ライトまたはダークを選ぶと固定され、システムが変わっても影響を受けません。テーマと明暗は独立していて自由に組み合わせられ、未選択の場合はパープルです。変更は保存不要で app 全体にすぐ反映されます。',
-    schemePurple: 'パープル',
-    schemeBlue: 'ミストブルー',
-    schemeAmber: 'アンバー'
+    themePurple: 'パープル',
+    themeBlue: 'ミストブルー',
+    themeAmber: 'アンバー'
   },
 
   menu: {
@@ -44,7 +44,7 @@ export const ja: Locale = {
   toast: {
     languageSwitched: (name) => `インターフェースの言語を ${name} に変更しました`,
     languageFollowSystem: (name) => `システムに従う設定にしました · 現在は ${name}`,
-    saveSchemeFailed: 'テーマの保存に失敗しました',
+    saveThemeFailed: 'テーマの保存に失敗しました',
     saveModeFailed: '外観モードの保存に失敗しました',
     saveLanguageFailed: '言語の保存に失敗しました'
   },

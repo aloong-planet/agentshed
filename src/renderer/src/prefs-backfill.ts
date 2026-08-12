@@ -15,7 +15,7 @@ export type PrefKey = keyof Prefs
 /**
  * Only fields the user has not changed by hand take the echo.
  *
- * **Judged per field, not with a single flag**: when the user changed only the mode, the colour scheme
+ * **Judged per field, not with a single flag**: when the user changed only the mode, the theme
  * and language in the echo are still correct,
  * and skipping the whole thing would leave those two stuck at their defaults.
  *
@@ -24,7 +24,7 @@ export type PrefKey = keyof Prefs
  * and differs only in blast radius: with no guard 1 field is overwritten (the one just clicked), while
  * coarse-grained loses 2
  * (the two untouched fields stay at their defaults, and the whole app renders in the default colour
- * scheme). Saving one at the cost of two
+ * theme). Saving one at the cost of two
  * makes it not "a different trade-off" but strictly worse.
  *
  * The three fields are written out one by one rather than iterating keys: when a field is added to Prefs,
@@ -37,7 +37,7 @@ export function backfillPrefs(
   touched: ReadonlySet<PrefKey>
 ): Prefs {
   return {
-    scheme: touched.has('scheme') ? local.scheme : incoming.scheme,
+    theme: touched.has('theme') ? local.theme : incoming.theme,
     language: touched.has('language') ? local.language : incoming.language,
     mode: touched.has('mode') ? local.mode : incoming.mode
   }

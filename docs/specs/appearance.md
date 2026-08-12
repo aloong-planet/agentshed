@@ -6,12 +6,11 @@
 > The final look = f(theme, effective light/dark); the settings page shares one preferences
 > table with language, see [i18n](i18n.md).
 >
-> **Prose says theme, code still says `scheme`.** The two dimensions were renamed to *appearance* and
-> *theme* (see CONTEXT for why: `prefers-color-scheme` and SwiftUI's `ColorScheme` both already mean
-> light/dark, so "colour scheme" was naming the wrong axis). Identifiers and the persisted preference
-> key were left alone in that pass — `prefs.json` holds `{"scheme": "purple"}` on machines that have
-> already run the app, so renaming the key without a compatible read would silently reset people's
-> choice. Code references below are therefore left verbatim; the rename is its own task.
+> **On the naming**: the two dimensions are *appearance* and *theme* (see CONTEXT for why —
+> `prefers-color-scheme` and SwiftUI's `ColorScheme` both already mean light/dark, so "colour scheme"
+> was naming the wrong axis). Prose and code now agree, down to the persisted key. The rename shipped
+> without reading the old `scheme` key, so an existing choice falls back to purple once on upgrade —
+> a deliberate call, not a missing migration.
 
 ## Problem Statement
 
@@ -26,7 +25,7 @@ rather than being a partial skin.
 
 Adopt **option B**:
 
-- **The theme dimension** `scheme ∈ { purple, blue, amber }`: **user-selectable**, persisted to the
+- **The theme dimension** `theme ∈ { purple, blue, amber }`: **user-selectable**, persisted to the
   app's own storage.  
   - `purple` = the shipped default palette (light `#8a67ab` / dark `#a084c7` family)  
   - `blue` = mist blue  
@@ -38,7 +37,7 @@ Adopt **option B**:
   user actively selects `system` again.  
 - **The effective light/dark** `light | dark` = `f(mode, system appearance)`, which is the value that
   actually renders; it is not persisted itself (what is persisted is `mode`).  
-- The final look = `f(scheme, effective light/dark)`.  
+- The final look = `f(theme, effective light/dark)`.  
 - **The whole app** references CSS variables only; hard-coding a theme's colours inside a component
   is forbidden. Semantic colours (CC/CX, provider, ok/err) do not change hue with the theme.
 
@@ -67,12 +66,12 @@ Adopt **option B**:
 - A1 The default theme = **`purple`** (a fresh install with no storage file looks like the shipped
   build).  
 - A2 The user changes to `blue` / `amber` / back to `purple` → set
-  `document.documentElement.dataset.scheme` immediately and write atomically to userData.  
+  `document.documentElement.dataset.theme` immediately and write atomically to userData.  
 - A3 On restart the theme is read back; an invalid value or a corrupt file → fall back to
   **`purple`**, no crash.  
 - A4 Storage = the app's own file in `userData` (the same discipline as `hidden.json`: a temporary
   file + rename; **never written to the agent configuration**). Field:
-  `scheme: "purple"|"blue"|"amber"`.  
+  `theme: "purple"|"blue"|"amber"`.  
 - A5 Switching themes triggers no full rescan and no window reload (only a DOM attribute and CSS).  
 - A6 **The scope of effect = the whole app**: the rail, the Agents/Projects main area, detail pages,
   the session page, toasts, overlays and drawers, the settings page itself, and the accent-following
@@ -84,7 +83,7 @@ Adopt **option B**:
 - B1 The default `mode = system`; a fresh install, a missing storage file, or an invalid or corrupt
   field all land on `system`, no crash.  
 - B2 With `mode = system`, a system appearance change → the UI's light/dark changes with it;
-  `scheme` is unaffected.  
+  `theme` is unaffected.  
 - B3 With `mode = light | dark`, **the UI does not change** however the system appearance changes.  
 - B4 Switching from a locked state back to `system` → re-evaluate immediately from the current system
   appearance, without keeping the previously locked light/dark.  
@@ -132,12 +131,12 @@ Adopt **option B**:
 
 **Cross-cutting**
 
-- R1 Prefs: stored in the main process with IPC `getPrefs` / `setScheme` / `setMode` (one setter per
+- R1 Prefs: stored in the main process with IPC `getPrefs` / `setTheme` / `setMode` (one setter per
   preference, the same shape as language).  
 - R2 Contract: theme and mode are each a three-value enum; a cross-process entry point receiving an
   unknown value refuses to write it, and reading the local file falls back **per field** on an unknown
   value.  
-- R3 e2e: optionally assert the `data-scheme` switch.  
+- R3 e2e: optionally assert the `data-theme` switch.  
 - R4 Implementation colour values: purple = the current light/dark tables in `theme.css`; mist blue and
   amber brown = the light/dark tables already listed in the prototype.
 
@@ -168,9 +167,9 @@ Adopt **option B**:
 
 ## Implementation Decisions
 
-- CSS: `html[data-scheme="purple"|"blue"|"amber"]` plus a `@media (prefers-color-scheme: dark)` under
+- CSS: `html[data-theme="purple"|"blue"|"amber"]` plus a `@media (prefers-color-scheme: dark)` under
   each theme.  
-- Set `data-scheme` at startup, defaulting to `purple`.  
+- Set `data-theme` at startup, defaulting to `purple`.  
 - Components have zero theme branches and write only `var(--accent)` and the like.  
 
 ### Light/dark is delivered by nativeTheme, with zero CSS changes
@@ -208,7 +207,7 @@ Adopt **option B**:
 - If the renderer needs to know the current effective light/dark (for the palette preview samples), it
   reads `matchMedia('(prefers-color-scheme: dark)')` — which follows `themeSource` changes and whose
   `change` event can be listened to.
-- Preference storage: `mode` shares a table with `scheme` and `language`, reusing the existing atomic
+- Preference storage: `mode` shares a table with `theme` and `language`, reusing the existing atomic
   write and degradation strategy; an invalid single field degrades only that field.
 
 **A leftover finding (outside this change surface)**: `theme.css` has 4 sets of
@@ -219,13 +218,13 @@ recommended handling is in "Out of Scope".
 
 ## Testing Decisions
 
-- Prefs: `scheme` defaults to `purple`, `mode` defaults to `system`; three-value read/write, and
+- Prefs: `theme` defaults to `purple`, `mode` defaults to `system`; three-value read/write, and
   fallback on corruption or an invalid value; **an invalid single field does not drag down the
   others**.  
 - Deriving the effective light/dark is a pure function (`mode` + system appearance → `light|dark`),
   covering the locked / following / switching-back paths.  
 - IPC validation.  
-- The `data-scheme` switch (a light test).  
+- The `data-theme` switch (a light test).  
 - No pixel testing.  
 - **Read before writing a light/dark e2e**: Playwright's `electron.launch` **emulates
   `prefers-color-scheme: light` by default**, which pins the media query, so a `themeSource` change

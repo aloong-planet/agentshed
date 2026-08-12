@@ -32,10 +32,10 @@ export const CMD = {
   installSkill: 'agentshed:install-skill',
   /** Uninstall a project-level skill copy */
   uninstallSkill: 'agentshed:uninstall-skill',
-  /** Read the app's preferences (colour scheme, UI language and so on) */
+  /** Read the app's preferences (theme, UI language and so on) */
   getPrefs: 'agentshed:get-prefs',
-  /** Set the colour scheme (app-wide) */
-  setScheme: 'agentshed:set-scheme',
+  /** Set the theme (app-wide) */
+  setTheme: 'agentshed:set-theme',
   /** Set the appearance mode (which may be "follow system"; the main process sets
    * nativeTheme.themeSource from it) */
   setMode: 'agentshed:set-mode',
@@ -136,7 +136,7 @@ export const LANG_ARG = '--agentshed-language='
  */
 export const SYS_LANGS_ARG = '--agentshed-system-languages='
 
-export type { AppearanceMode, AppearanceScheme } from './appearance'
+export type { AppearanceMode, AppearanceTheme } from './appearance'
 export type { ErrorCode, ErrorParams } from './errors'
 export type { Prefs } from './prefs'
 export type { Language, LanguagePreference } from './i18n'

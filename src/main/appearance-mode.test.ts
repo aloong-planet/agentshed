@@ -71,7 +71,7 @@ describe('the full path from preference to themeSource', () => {
     withStore((d) => {
       writeFileSync(
         join(d, 'prefs.json'),
-        JSON.stringify({ scheme: 'purple', language: 'zh', mode: 'auto' })
+        JSON.stringify({ theme: 'purple', language: 'zh', mode: 'auto' })
       )
       const nt = fakeNativeTheme()
       nt.themeSource = 'light'

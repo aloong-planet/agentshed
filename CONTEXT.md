@@ -170,11 +170,11 @@ either appearance. **Deliberately not "colour scheme"** — CSS's `prefers-color
 `theme.css` would otherwise read as if `prefers-color-scheme` and `data-scheme` were the same
 dimension. They are not.
 
-**The code has not caught up**: identifiers and the persisted preference key still say `scheme`
-(`prefs.json` holds `{"scheme": "purple"}` on machines that already ran the app, so renaming the key
-would silently reset people's choice). Renaming them, with a compatible read of both names, is its
-own task — see the ticket linked from that work. Until it lands, prose says theme and code says
-scheme, and that gap is known rather than accidental.
+The code says `theme` too — identifiers, the DOM attribute `data-theme`, and the persisted preference
+key. The rename deliberately shipped **without** reading the old `scheme` key: the cost, accepted at
+the time, is that anyone who had already chosen a theme falls back to purple once after upgrading.
+`language` and `mode` kept their key names and are unaffected. Recorded so that a later reader finds
+a decision here rather than a missing migration.
 _Avoid_: colour scheme (means light/dark elsewhere), skin, palette (fine in prose, but it is the
 *contents* of a theme rather than the choice itself)
 

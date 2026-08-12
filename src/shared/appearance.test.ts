@@ -1,30 +1,30 @@
 import { describe, it, expect } from 'vitest'
 import {
   APPEARANCE_MODES,
-  APPEARANCE_SCHEMES,
+  APPEARANCE_THEMES,
   DEFAULT_MODE,
-  DEFAULT_SCHEME,
+  DEFAULT_THEME,
   isAppearanceMode,
-  isAppearanceScheme
+  isAppearanceTheme
 } from './appearance'
 
-describe('the appearance scheme contract', () => {
-  it('defaults to the purple scheme', () => {
-    expect(DEFAULT_SCHEME).toBe('purple')
+describe('the appearance theme contract', () => {
+  it('defaults to the purple theme', () => {
+    expect(DEFAULT_THEME).toBe('purple')
   })
 
   it('the enum has exactly three values', () => {
-    expect([...APPEARANCE_SCHEMES]).toEqual(['purple', 'blue', 'amber'])
+    expect([...APPEARANCE_THEMES]).toEqual(['purple', 'blue', 'amber'])
   })
 
-  it('isAppearanceScheme accepts only those three values', () => {
-    expect(isAppearanceScheme('purple')).toBe(true)
-    expect(isAppearanceScheme('blue')).toBe(true)
-    expect(isAppearanceScheme('amber')).toBe(true)
-    expect(isAppearanceScheme('neon')).toBe(false)
-    expect(isAppearanceScheme('')).toBe(false)
-    expect(isAppearanceScheme(null)).toBe(false)
-    expect(isAppearanceScheme(1)).toBe(false)
+  it('isAppearanceTheme accepts only those three values', () => {
+    expect(isAppearanceTheme('purple')).toBe(true)
+    expect(isAppearanceTheme('blue')).toBe(true)
+    expect(isAppearanceTheme('amber')).toBe(true)
+    expect(isAppearanceTheme('neon')).toBe(false)
+    expect(isAppearanceTheme('')).toBe(false)
+    expect(isAppearanceTheme(null)).toBe(false)
+    expect(isAppearanceTheme(1)).toBe(false)
   })
 
   // parsePrefs moved into shared/prefs.ts along with Prefs; its tests are in prefs.test.ts
