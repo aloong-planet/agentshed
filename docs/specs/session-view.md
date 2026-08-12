@@ -325,8 +325,8 @@ ruling on 2026-08-06, see Out of Scope).
   2026-08-06)**: on arrival a yellow background pulse **holds for 10 s** (8 s steady, fading over the
   last 2 s; in the same colour family as mark, distinct from hover's purple), after which a **3px
   accent bar stays at the left edge**, cleared by clicking any question row; a remount such as changing
-  the sort does not replay the pulse (the played state is remembered). The functional colours follow
-  the rule-level four-part scheme and do not change with the theme.
+  the sort does not replay the pulse (the played state is remembered). The functional colours are written per rule — a default plus a dark media query — and do not
+  change with the theme.
   **Landed (2026-08-06, ticket 08)**: `searchSessions(path, needle≤200, fullText)` — the session set is
   taken by the main process from its own per-project statistics, since the renderer cannot supply file
   paths; question mode = a coarse pass over raw byte ranges from `readRangeBuffers` (`searchBytes` case

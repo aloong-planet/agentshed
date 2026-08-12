@@ -131,7 +131,7 @@ Adopt **option B**:
 
 **Cross-cutting**
 
-- R1 Prefs: stored in the main process with IPC `getPrefs` / `setScheme` / `setMode` (one setter per
+- R1 Prefs: stored in the main process with IPC `getPrefs` / `setTheme` / `setMode` (one setter per
   preference, the same shape as language).  
 - R2 Contract: theme and mode are each a three-value enum; a cross-process entry point receiving an
   unknown value refuses to write it, and reading the local file falls back **per field** on an unknown

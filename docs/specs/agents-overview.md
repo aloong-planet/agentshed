@@ -20,7 +20,7 @@ As the default landing page, gather both agent sides' global picture onto one sc
 summary cards at the top and, below them, sections by component type
 (Token/Skills/Subagents/Plugins/MCP/Memory/Configuration). Everything is read-only; the one write
 operation is installing a skill into a project (see the skill-install spec). **This app's colour
-scheme (purple / mist blue / amber brown) is not configured in this page's Configuration section** —
+theme (purple / mist blue / amber brown) is not configured in this page's Configuration section** —
 see [appearance](appearance.md) (the rail's settings dimension).
 
 ## User Stories

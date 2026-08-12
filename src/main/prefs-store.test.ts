@@ -103,9 +103,11 @@ describe('PrefsStore', () => {
     expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system' })
   })
 
-  it('an older preference file with only theme: keeps theme and fills in the language and mode defaults', () => {
-    // The upgrade case — a file written before these fields were added must still work without losing
-    // existing choices
+  it('a file holding only theme: keeps it and fills in the language and mode defaults', () => {
+    // A file missing fields must not lose the ones it does have. Deliberately **not** described as an
+    // "old file": since the theme key was renamed without a compatible read, a genuinely old file
+    // (which spelled it `scheme`) loses its theme by design — calling this the upgrade case would
+    // suggest a compatibility this code does not provide.
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'blue' }))
     expect(new PrefsStore(dir).get()).toEqual({
       theme: 'blue',
@@ -114,8 +116,8 @@ describe('PrefsStore', () => {
     })
   })
 
-  it('a ticket 03-era preference file (theme + language): keeps both and fills in the mode default', () => {
-    // A file written before this ticket must not lose the chosen language on upgrade
+  it('a file holding theme + language: keeps both and fills in the mode default', () => {
+    // Same point as above: this is field-level defaulting, not cross-version key compatibility
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'amber', language: 'fr' }))
     expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'fr', mode: 'system' })
   })
