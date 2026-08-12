@@ -218,9 +218,10 @@ _Avoid_: error message (bare, implies a finished sentence)
 
 - **A floating layer over a clipped list owes two separate obligations (settled 2026-08-10)**: it must
   **escape the ancestors' overflow clipping**, and it must be **positioned from its anchor's measured
-  rect and dismissed whenever that rect goes stale** (scroll, resize, or the anchor row being filtered
-  away). The two are not interchangeable — escaping the clip is what makes it visible at all;
-  re-measuring or dismissing is what stops it lying about where it points. Satisfying one and assuming
+  rect and answer for that position once the rect goes stale** (scroll, resize, or the anchor row being
+  filtered away — what the answer *is* differs per event, see below). The two are not interchangeable —
+  escaping the clip is what makes it visible at all; re-measuring or dismissing is what stops it lying
+  about where it points. Satisfying one and assuming
   the other is covered is precisely how this goes wrong.
 
   **Viewport positioning discharges the first obligation on its own**: a viewport-positioned element's
@@ -239,10 +240,24 @@ _Avoid_: error message (bare, implies a finished sentence)
   belongs to the layer. Applies to the install popover, the skill-name tooltip and the language
   selector's dropdown today, and to any further such layer.
 
-  **The first obligation now has a code carrier**: these layers share one surface, and viewport
-  positioning is part of it — build on that surface and clipping is already handled. The second has
-  none: each layer still measures its own anchor and arranges its own dismissal, so that is the half
-  to check when adding one.
+  **Both obligations now have code carriers**, so a new layer inherits them rather than reimplements
+  them: the shared surface carries viewport positioning (hence the escape from clipping), and a shared
+  hook watches for the events that invalidate a measured position. What the hook deliberately leaves
+  to each layer is *computing coordinates* — one flips above/below its button, one right-aligns using
+  its own rendered width, one clamps against the window edge, and folding those together would need a
+  parameter per difference.
+
+  **Scrolling dismisses — except the layer's own. A resize is the caller's choice.** Dismiss for a
+  layer being glanced at (a hover tooltip, gone the moment the pointer moves); reposition for one the
+  user is operating (a menu they are choosing from — a resize is not them changing their mind).
+
+  The scroll exception is not a detail: a document-level capture listener hears the layer scrolling
+  its **own** contents too, and a scrollable layer that closes on that makes everything below its fold
+  unreachable — reaching for an option dismisses the thing you were reaching into. Only one of these
+  layers is scrollable today, which is why the pattern was safe in the layer it was copied *from* and
+  wrong in the one it was copied *to*. Getting either of these wrong is
+  invisible in tests that only check the layer appears, so it is stated here as the rule rather than
+  left to each author's judgement.
 
 - **A link inside rendered content must never navigate the whole window (settled 2026-08-02)**:
   for any content rendered into the app through markdown (memories, configuration, artifacts), links

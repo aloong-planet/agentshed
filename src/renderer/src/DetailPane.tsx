@@ -96,7 +96,18 @@ export function DetailPane({
               <OverviewTab detail={detail} snap={snap} onOpenSession={onOpenSession} />
             )}
             {tab === 'skills' && (
-              <SkillsTab detail={detail} onChanged={() => setReload((v) => v + 1)} />
+              // Keyed by project so switching to another one is a **different** section rather than the
+              // same one handed new data: the filter keyword belongs to the list being looked at, and
+              // carrying it across would filter the new project's skills by a word typed for the old
+              // one — a populated project then looks empty, with the box scrolled out of view.
+              //
+              // A refresh of the *same* project keeps the key, so the keyword survives that, which is
+              // the intended asymmetry (a refresh is not a change of subject).
+              <SkillsTab
+                key={detail.path}
+                detail={detail}
+                onChanged={() => setReload((v) => v + 1)}
+              />
             )}
             {tab === 'subagents' && <ProjectSubagentsTab detail={detail} />}
             {tab === 'plugins' && <ProjectPluginsTab detail={detail} snap={snap} />}
