@@ -1701,7 +1701,31 @@ test('the install-to popover sits next to its button, and its targets can be cli
   expect(geo.bottomWithinViewport).toBe(true)
   expect(geo.centreBelongsToPopover).toBe(true)
 
+  // A resize **repositions** rather than closes: the user is part-way through choosing a target, and
+  // resizing the window is not them changing their mind. The language dropdown always behaved this
+  // way; the two are the same kind of layer and now agree.
+  //
+  // The event is dispatched rather than the window actually resized, for the same reason as elsewhere:
+  // a real resize moves the row out from under the pointer, and the layer could then close via a
+  // route that has nothing to do with the listener under test.
+  await win.evaluate(() => window.dispatchEvent(new Event('resize')))
+  await expect(win.locator('.pop')).toHaveCount(1)
+  const after = await win.evaluate(() => {
+    const pop = document.querySelector('.pop') as HTMLElement
+    const buttons = [...document.querySelectorAll('.sk-card .ins')] as HTMLElement[]
+    const b = buttons[buttons.length - 1].getBoundingClientRect()
+    const p = pop.getBoundingClientRect()
+    return Math.min(Math.abs(p.top - b.bottom), Math.abs(b.top - p.bottom))
+  })
+  expect(after).toBeLessThan(40) // still anchored to its button after re-placing
+
+  // Scrolling still dismisses — a scrolled anchor has moved out from under a viewport-positioned
+  // layer, and no reading of that leaves the old coordinates true
+  await win.locator('.pane-body').evaluate((el) => el.dispatchEvent(new Event('scroll')))
+  await expect(win.locator('.pop')).toHaveCount(0)
+
   // And the judgement that actually matters: the target is clickable and installing reports back
+  await rows.last().locator('.ins').click()
   await win.locator('.pop .pop-p').first().click()
   await expect(win.locator('.toast.ok')).toBeVisible()
 

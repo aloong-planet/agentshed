@@ -239,10 +239,18 @@ _Avoid_: error message (bare, implies a finished sentence)
   belongs to the layer. Applies to the install popover, the skill-name tooltip and the language
   selector's dropdown today, and to any further such layer.
 
-  **The first obligation now has a code carrier**: these layers share one surface, and viewport
-  positioning is part of it — build on that surface and clipping is already handled. The second has
-  none: each layer still measures its own anchor and arranges its own dismissal, so that is the half
-  to check when adding one.
+  **Both obligations now have code carriers**, so a new layer inherits them rather than reimplements
+  them: the shared surface carries viewport positioning (hence the escape from clipping), and a shared
+  hook watches for the events that invalidate a measured position. What the hook deliberately leaves
+  to each layer is *computing coordinates* — one flips above/below its button, one right-aligns using
+  its own rendered width, one clamps against the window edge, and folding those together would need a
+  parameter per difference.
+
+  **Scrolling always dismisses; a resize is the caller's choice.** Dismiss for a layer being glanced
+  at (a hover tooltip, gone the moment the pointer moves); reposition for one the user is operating (a
+  menu they are choosing from — a resize is not them changing their mind). Getting this wrong is
+  invisible in tests that only check the layer appears, so it is stated here as the rule rather than
+  left to each author's judgement.
 
 - **A link inside rendered content must never navigate the whole window (settled 2026-08-02)**:
   for any content rendered into the app through markdown (memories, configuration, artifacts), links

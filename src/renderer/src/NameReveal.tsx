@@ -15,9 +15,10 @@
 //  2. *Stay honest about where it points.* Its coordinates are measured once from the name element, so
 //     anything that moves that element invalidates them. Scrolling and resizing therefore dismiss it.
 //     Filtering does too, for free: the row unmounts and takes this with it.
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { FloatingBox } from './FloatingBox'
+import { useAnchorInvalidation } from './useAnchorInvalidation'
 
 /**
  * The layer's width ceiling, and the value the placement clamps against so no second measurement is
@@ -50,17 +51,9 @@ export function NameReveal({ name }: { name: string }): JSX.Element {
   const ref = useRef<HTMLSpanElement>(null)
   const [at, setAt] = useState<TipAt | null>(null)
 
-  useEffect(() => {
-    if (at === null) return
-    const hide = (): void => setAt(null)
-    const body = document.querySelector('.pane-body')
-    body?.addEventListener('scroll', hide)
-    window.addEventListener('resize', hide)
-    return () => {
-      body?.removeEventListener('scroll', hide)
-      window.removeEventListener('resize', hide)
-    }
-  }, [at])
+  // Dismissed on both scroll and resize: this is a glance, not an interaction — it is going away the
+  // moment the pointer moves anyway, so re-placing it would buy nothing.
+  useAnchorInvalidation(at !== null, { onResize: 'dismiss', dismiss: () => setAt(null) })
 
   const reveal = (): void => {
     const el = ref.current

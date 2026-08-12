@@ -5,9 +5,10 @@
 // overflow:auto,
 // which clips an ordinary absolutely positioned element (a same-sized element was used as a negative
 // control in the prototype, and it was indeed clipped).
-import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { LANGUAGES, dictOf, type Language, type LanguagePreference } from '@shared/i18n'
 import { ChevronDown, Check } from './icons'
+import { useAnchorInvalidation } from './useAnchorInvalidation'
 
 /** The value domain: 'system' is a policy, the rest lock a specific language */
 const OPTIONS: readonly LanguagePreference[] = ['system', ...LANGUAGES]
@@ -52,25 +53,39 @@ export function LanguageSelect({
     if (o !== pref) onChange(o)
   }
 
-  // Align to the trigger: right edges aligned, opening upwards when there is not enough space below
+  /**
+   * Align to the trigger: right edges aligned, opening upwards when there is not enough space below.
+   *
+   * Unlike the other two anchored layers this one measures **itself** — right-aligning needs its own
+   * width, and the flip needs its own height — so placement happens after render, in a layout effect
+   * so the first paint is already in the right place.
+   */
+  const place = useCallback((): void => {
+    const trig = trigRef.current
+    const pop = popRef.current
+    if (!trig || !pop) return
+    const r = trig.getBoundingClientRect()
+    const h = pop.offsetHeight
+    pop.style.left = `${Math.max(8, r.right - pop.offsetWidth)}px`
+    pop.style.top =
+      window.innerHeight - r.bottom >= h + 12
+        ? `${r.bottom + 6}px`
+        : `${Math.max(8, r.top - h - 6)}px`
+  }, [])
+
   useLayoutEffect(() => {
-    if (!open) return
-    const place = (): void => {
-      const trig = trigRef.current
-      const pop = popRef.current
-      if (!trig || !pop) return
-      const r = trig.getBoundingClientRect()
-      const h = pop.offsetHeight
-      pop.style.left = `${Math.max(8, r.right - pop.offsetWidth)}px`
-      pop.style.top =
-        window.innerHeight - r.bottom >= h + 12
-          ? `${r.bottom + 6}px`
-          : `${Math.max(8, r.top - h - 6)}px`
-    }
-    place()
-    window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
-  }, [open])
+    if (open) place()
+  }, [open, place])
+
+  // Repositioned rather than closed on resize: the user is part-way through choosing a language.
+  // Scrolling still dismisses, and now via the shared hook — this component's own capture-phase
+  // listener was the pattern the other two layers were missing, so it moved into the hook rather
+  // than being duplicated a third time.
+  useAnchorInvalidation(open, {
+    onResize: 'reposition',
+    dismiss: () => setOpen(false),
+    reposition: place
+  })
 
   useEffect(() => {
     if (!open) return
@@ -94,16 +109,11 @@ export function LanguageSelect({
       const el = e.target as Node
       if (!popRef.current?.contains(el) && !trigRef.current?.contains(el)) setOpen(false)
     }
-    // Scrolling the settings page unanchors the overlay (fixed does not follow a scroll container), so
-    // just close it
-    const onScroll = (): void => setOpen(false)
     document.addEventListener('keydown', onKey)
     document.addEventListener('click', onClick)
-    document.addEventListener('scroll', onScroll, true)
     return () => {
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('click', onClick)
-      document.removeEventListener('scroll', onScroll, true)
     }
   }, [open, pref])
 

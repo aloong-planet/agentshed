@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { renderMarkdown } from './md'
 import type { Snapshot } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
@@ -7,6 +7,7 @@ import { GlobalMemoryTab } from './MemoryView'
 import { GlobalPluginsTab } from './PluginsView'
 import { toast } from './Toast'
 import { FloatingBox } from './FloatingBox'
+import { useAnchorInvalidation } from './useAnchorInvalidation'
 import { SkillExpandBlock } from './SkillExpandBlock'
 import { SkillSearch } from './SkillSearch'
 import { filterByName } from './skill-filter'
@@ -175,19 +176,29 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
   // The keyword belongs to this section, which is what makes it survive a snapshot refresh (the section
   // is re-rendered, not remounted) and vanish when the tab is left (it is). Neither needed arranging.
   const [kw, setKw] = useState('')
-  // A fixed layer does not travel with the list, so scrolling or resizing would leave it stranded over
-  // unrelated content. Closing is the honest response: the anchor it was measured against has moved.
-  useEffect(() => {
-    if (openFor === null) return
-    const close = (): void => setOpenFor(null)
-    const body = document.querySelector('.pane-body')
-    body?.addEventListener('scroll', close)
-    window.addEventListener('resize', close)
-    return () => {
-      body?.removeEventListener('scroll', close)
-      window.removeEventListener('resize', close)
+  // The button this popover was measured from, so a resize can re-measure it. Kept in a ref rather than
+  // in the position state: it is not something to render, and putting a DOM node in state would make
+  // every reposition a state change carrying an element around.
+  const trigger = useRef<HTMLElement | null>(null)
+
+  // Repositioned rather than closed on resize: the user is part-way through choosing a target project,
+  // and a window resize is not them changing their mind. (The language dropdown already behaved this
+  // way; the two are the same kind of thing and now agree.)
+  useAnchorInvalidation(openFor !== null, {
+    onResize: 'reposition',
+    dismiss: () => setOpenFor(null),
+    reposition: () => {
+      const btn = trigger.current
+      // A node that has left the document reports an all-zero rect without erroring, so re-measuring
+      // it would place the popover at the top-left corner rather than fail. Closing is the honest
+      // outcome when the anchor is gone.
+      if (openFor === null || btn === null || !document.contains(btn)) {
+        setOpenFor(null)
+        return
+      }
+      setOpenFor(popAt(openFor.skill, btn))
     }
-  }, [openFor])
+  })
   if (snap.global.skills.length === 0) return <Empty msg={t.agents.emptyGlobalLib} />
   const targets = snap.projects
     .filter((p) => !p.stale)
@@ -257,6 +268,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                     className="ins"
                     onClick={(e) => {
                       e.stopPropagation()
+                      trigger.current = e.currentTarget
                       setOpenFor(openFor?.skill === s.name ? null : popAt(s.name, e.currentTarget))
                     }}
                   >
