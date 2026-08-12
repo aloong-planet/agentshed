@@ -404,7 +404,7 @@ handle(CMD.readSkillFile, (_e, args: unknown): CappedText => {
 // the channels are registered right now.
 const prefsHandlers = createPrefsHandlers({ store: () => prefsStore, theme: nativeTheme })
 handle(CMD.getPrefs, () => prefsHandlers.getPrefs())
-handle(CMD.setScheme, (_e, scheme: unknown) => prefsHandlers.setScheme(scheme))
+handle(CMD.setTheme, (_e, theme: unknown) => prefsHandlers.setTheme(theme))
 handle(CMD.setLanguage, (_e, language: unknown) => {
   const next = prefsHandlers.setLanguage(language)
   // **The menu must be rebuilt**, not constructed once at startup (ticket 13): it is a native control,
@@ -470,7 +470,7 @@ function createWindow(): void {
       // language on its **first frame**.
       // Fetching it asynchronously over IPC would make the first frame the default language and then
       // jump the whole page once —
-      // a colour scheme change is just a recolour and is hard to notice, whereas a language change moves
+      // a theme change is just a recolour and is hard to notice, whereas a language change moves
       // every word, and that has to be avoided.
       additionalArguments: [
         `${LANG_ARG}${initialLanguage()}`,

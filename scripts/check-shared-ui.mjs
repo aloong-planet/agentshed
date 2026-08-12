@@ -52,11 +52,11 @@ const SHARED_BLOCKS = [
 ]
 
 // ── Consistency between the settings page's palette samples and theme.css (issue #59) ──
-// The settings page's three scheme cards each draw 4 swatches, sampling --card / --accent-soft /
+// The settings page's three theme cards each draw 4 swatches, sampling --card / --accent-soft /
 // --accent / --text,
 // in two sets by effective light/dark. Those 24 values can only be **copied by hand**: at runtime
 // getComputedStyle can only read the set currently
-// in effect, not the other two schemes or the other light/dark, and TS cannot import CSS variables
+// in effect, not the other two themes or the other light/dark, and TS cannot import CSS variables
 // either.
 // So "changed a theme colour but missed the sample table" has nothing that would go red — the palette
 // preview stops matching what is actually seen, silently.
@@ -64,12 +64,12 @@ const SHARED_BLOCKS = [
 
 /** The sampling rule: the swatches take these four variables left to right, and the order is the meaning */
 const SWATCH_VARS = ['card', 'accent-soft', 'accent', 'text']
-/** The three colour schemes' selectors in theme.css (the light and dark blocks share one set of
+/** The three themes' selectors in theme.css (the light and dark blocks share one set of
  * selectors) */
-const SCHEME_SELECTORS = {
+const THEME_SELECTORS = {
   purple: ':root',
-  blue: "html[data-scheme='blue']",
-  amber: "html[data-scheme='amber']"
+  blue: "html[data-theme='blue']",
+  amber: "html[data-theme='amber']"
 }
 
 const stripCssComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '')
@@ -136,13 +136,13 @@ function swatchFromCss(cssPart, selector) {
   })
 }
 
-/** Read the four values for a given light/dark and scheme out of SettingsPane's SCHEME_SWATCH */
-function swatchFromTsx(tsx, mode, scheme) {
-  const table = bodyAfter(tsx, 'SCHEME_SWATCH')
+/** Read the four values for a given light/dark and theme out of SettingsPane's THEME_SWATCH */
+function swatchFromTsx(tsx, mode, theme) {
+  const table = bodyAfter(tsx, 'THEME_SWATCH')
   if (table === null) return null
   const modeBody = bodyAfter(table, `${mode}:`)
   if (modeBody === null) return null
-  const arr = bodyAfter(modeBody, `${scheme}:`, '[')
+  const arr = bodyAfter(modeBody, `${theme}:`, '[')
   if (arr === null) return null
   return arr
     .split(',')
@@ -195,24 +195,24 @@ const GLOBAL_RULES = [
       if (tsx === null) return ['cannot read src/renderer/src/SettingsPane.tsx']
       const { light, dark } = splitByColorScheme(stripCssComments(cssRaw))
       for (const [mode, part] of [['light', light], ['dark', dark]]) {
-        for (const [scheme, selector] of Object.entries(SCHEME_SELECTORS)) {
+        for (const [theme, selector] of Object.entries(THEME_SELECTORS)) {
           const want = swatchFromCss(part, selector)
-          const got = swatchFromTsx(tsx, mode, scheme)
+          const got = swatchFromTsx(tsx, mode, theme)
           if (want === null || want.some((v) => v === null)) {
-            bad.push(`theme.css: ${mode}.${scheme} (${selector}) is missing some of ${SWATCH_VARS.join('/')}`)
+            bad.push(`theme.css: ${mode}.${theme} (${selector}) is missing some of ${SWATCH_VARS.join('/')}`)
             continue
           }
           if (got === null) {
-            bad.push(`SettingsPane.tsx: SCHEME_SWATCH.${mode}.${scheme} not found`)
+            bad.push(`SettingsPane.tsx: THEME_SWATCH.${mode}.${theme} not found`)
             continue
           }
           if (got.length !== want.length) {
-            bad.push(`${mode}.${scheme}: ${got.length} swatch(es) but theme.css has ${want.length} variables`)
+            bad.push(`${mode}.${theme}: ${got.length} swatch(es) but theme.css has ${want.length} variables`)
             continue
           }
           want.forEach((w, i) => {
             if (w !== got[i]) {
-              bad.push(`${mode}.${scheme} swatch ${i + 1} (--${SWATCH_VARS[i]}): theme.css=${w}, swatch table=${got[i]}`)
+              bad.push(`${mode}.${theme} swatch ${i + 1} (--${SWATCH_VARS[i]}): theme.css=${w}, swatch table=${got[i]}`)
             }
           })
         }
@@ -235,19 +235,19 @@ const GLOBAL_RULES = [
   },
   {
     // appearance C3: components bind only to tokens; the settings page's swatches deliberately show each
-    // scheme's sample colours, so they are excluded.
-    name: 'components must not hard-code scheme accent colours (use the --accent family)',
+    // theme's sample colours, so they are excluded.
+    name: 'components must not hard-code theme accent colours (use the --accent family)',
     cross: true,
     check() {
       const bad = []
-      const SCHEME = ['#8a67ab', '#a084c7', '#4a6fa5', '#3a5a88', '#6b5220', '#c4a46a']
+      const THEME = ['#8a67ab', '#a084c7', '#4a6fa5', '#3a5a88', '#6b5220', '#c4a46a']
       const dir = join(ROOT, 'src/renderer/src')
       for (const name of readdirSync(dir)) {
         if (!name.endsWith('.tsx') && !name.endsWith('.ts')) continue
         if (name === 'SettingsPane.tsx') continue
         const f = `src/renderer/src/${name}`
         const src = (read(f) ?? '').toLowerCase()
-        for (const c of SCHEME) if (src.includes(c)) bad.push(`${f}: hard-coded scheme colour ${c}`)
+        for (const c of THEME) if (src.includes(c)) bad.push(`${f}: hard-coded theme colour ${c}`)
       }
       return bad
     }

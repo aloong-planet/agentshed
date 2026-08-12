@@ -49,7 +49,7 @@ export const ERR = {
   sessionParseFailed: 'session-parse-failed',
   /** Preference storage is not ready */
   prefsStoreNotReady: 'prefs-store-not-ready',
-  /** The preference value does not meet the contract (params.field: scheme / language / mode) */
+  /** The preference value does not meet the contract (params.field: theme / language / mode) */
   invalidPref: 'invalid-pref',
   /** Contract validation of a cross-process payload: a field is missing (params.what is the payload's
    * name, params.path the field path) */

@@ -1,8 +1,8 @@
-/* Theme variables: colour scheme (purple|blue|amber) × light/dark (from the system). The whole app
+/* Theme variables: theme (purple|blue|amber) × light/dark (from the system). The whole app
    references only these tokens. See docs/specs/appearance.md. The CC/CX and provider colours do not
-   change hue with the scheme. */
+   change hue with the theme. */
 :root {
-  /* The default = purple (as shipped); used when there is no data-scheme, or when it is purple */
+  /* The default = purple (as shipped); used when there is no data-theme, or when it is purple */
   --bg: #f7f8f9;
   --card: #ffffff;
   --float-shadow: rgba(0, 0, 0, 0.18);
@@ -14,11 +14,11 @@
   --accent-deep: #6b4f92;
   --accent-soft: #f0ebf6;
   --ok-bg: #dcfce7;
-  /* Overlay shadow: a neutral semantic variable at the same level as --ok-*, shared by all three schemes and
+  /* Overlay shadow: a neutral semantic variable at the same level as --ok-*, shared by all three themes and
      differing only between light and dark */
   --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.14);
   --ok-fg: #166534;
-  /* Semantic colours: their hue does not change with the scheme (C2); they may differ between light and dark */
+  /* Semantic colours: their hue does not change with the theme (C2); they may differ between light and dark */
   --warn-bg: #fdecdc;
   --warn-fg: #b3552f;
   --err-bg: #fee2e2;
@@ -46,7 +46,7 @@
   --p-other: #9aa0a6;
 }
 /* Mist blue · light */
-html[data-scheme='blue'] {
+html[data-theme='blue'] {
   --bg: #f6f5f3;
   --card: #fffcf9;
   --text: #2c2a28;
@@ -58,7 +58,7 @@ html[data-scheme='blue'] {
   --accent-soft: #eef2f7;
 }
 /* Amber brown · light */
-html[data-scheme='amber'] {
+html[data-theme='amber'] {
   --bg: #f7f3ec;
   --card: #fffcf7;
   --text: #3a342c;
@@ -82,7 +82,7 @@ html[data-scheme='amber'] {
     --accent-deep: #c9b3ec;
     --accent-soft: #2c2733;
     --ok-bg: #12301d;
-    /* Overlay shadow: a neutral semantic variable at the same level as --ok-*, shared by all three schemes and
+    /* Overlay shadow: a neutral semantic variable at the same level as --ok-*, shared by all three themes and
      differing only between light and dark */
     --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.55);
     --ok-fg: #86efac;
@@ -108,7 +108,7 @@ html[data-scheme='amber'] {
     --p-google: #6ba3f7;
     --p-other: #adb2b8;
   }
-  html[data-scheme='blue'] {
+  html[data-theme='blue'] {
     --bg: #16181c;
     --card: #1c1f24;
     --text: #e6e4e0;
@@ -119,7 +119,7 @@ html[data-scheme='amber'] {
     --accent-deep: #a8c0dc;
     --accent-soft: #1e2a38;
   }
-  html[data-scheme='amber'] {
+  html[data-theme='amber'] {
     --bg: #1a1714;
     --card: #221e1a;
     --text: #ebe4d8;
@@ -230,13 +230,13 @@ body {
   color: var(--text-2);
   margin-bottom: 10px;
 }
-/* Colour scheme cards (the compact form): a swatch and a name with no full-sentence description; "purple is
+/* Theme cards (the compact form): a swatch and a name with no full-sentence description; "purple is
      the default" lives in the closing explanation */
-.scheme-grid {
+.theme-grid {
   display: flex;
   gap: 8px;
 }
-.scheme-card {
+.theme-card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -249,33 +249,33 @@ body {
   color: inherit;
   font: inherit;
 }
-.scheme-card:hover {
+.theme-card:hover {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
-.scheme-card.on {
+.theme-card.on {
   border-color: var(--accent);
   background: var(--accent-soft);
   box-shadow: 0 0 0 1px var(--accent);
 }
-.scheme-card:focus-visible {
+.theme-card:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.scheme-name {
+.theme-name {
   font-size: 11.5px;
   font-weight: 600;
   color: var(--text-2);
   white-space: nowrap;
 }
-.scheme-card.on .scheme-name {
+.theme-card.on .theme-name {
   color: var(--accent-deep);
 }
-.scheme-swatches {
+.theme-swatches {
   display: flex;
   gap: 3px;
 }
-.scheme-sw {
+.theme-sw {
   width: 13px;
   height: 13px;
   border-radius: 4px;
@@ -1662,19 +1662,11 @@ mark {
     color: #f6e9a8;
   }
 }
-:root[data-theme='dark'] mark {
-  background: #4d451a;
-  color: #f6e9a8;
-}
-:root[data-theme='light'] mark {
-  background: #fff2a8;
-  color: inherit;
-}
   /* Ticket 08: the search locating highlight (confirmed by the prototype on 2026-08-06) — on arrival a
      yellow pulse holds for 10s (8s steady, fading over the last 2s, in the same colour family as mark and
      distinct from hover's purple); after the pulse an accent bar stays at the left edge, cleared by clicking
      any question row. The colour variables are scoped on .q, in the same four-part form as mark/warn
-     (functional colours do not change with the colour scheme) */
+     (functional colours do not change with the theme) */
 .qlist .q {
   --locate-from: #fff2a8;
 }
@@ -1682,12 +1674,6 @@ mark {
   .qlist .q {
     --locate-from: #4d451a;
   }
-}
-:root[data-theme='dark'] .qlist .q {
-  --locate-from: #4d451a;
-}
-:root[data-theme='light'] .qlist .q {
-  --locate-from: #fff2a8;
 }
 @keyframes locate-pulse {
   0%,
@@ -1734,16 +1720,6 @@ mark {
     border-color: #7a5330;
     color: #f0bd8c;
   }
-}
-:root[data-theme='dark'] .banner.risk {
-  background: #33251a;
-  border-color: #7a5330;
-  color: #f0bd8c;
-}
-:root[data-theme='light'] .banner.risk {
-  background: #fdf3e3;
-  border-color: #e0b483;
-  color: #7a4d1c;
 }
 .banner a {
   color: inherit;
@@ -1966,16 +1942,6 @@ mark {
     border-color: #8a5f34;
     color: #f0bd8c;
   }
-}
-:root[data-theme='dark'] .turn .warn {
-  background: #33251a;
-  border-color: #8a5f34;
-  color: #f0bd8c;
-}
-:root[data-theme='light'] .turn .warn {
-  background: #fdf3e3;
-  border-color: #d79a5b;
-  color: #7a4d1c;
 }
 .turn .mnote {
   font-size: 11px;
@@ -2422,7 +2388,7 @@ mark {
   margin-top: 26px;
 }
   /* A settings row: the label on the left, the control on the right. The language section has one row and
-     the appearance section two (mode / colour scheme), sharing the same form */
+     the appearance section two (mode / theme), sharing the same form */
 .field {
   background: var(--card);
   border: 1px solid var(--line-strong);

@@ -6,9 +6,9 @@ import { errorText } from '@shared/error-text'
 import { LanguageProvider, useDict } from './language'
 import {
   DEFAULT_MODE,
-  DEFAULT_SCHEME,
+  DEFAULT_THEME,
   type AppearanceMode,
-  type AppearanceScheme
+  type AppearanceTheme
 } from '@shared/appearance'
 import { dictOf, effectiveLanguage, type Language, type LanguagePreference } from '@shared/i18n'
 import { ProjectsPane } from './ProjectsPane'
@@ -20,8 +20,8 @@ import { Toasts, toast } from './Toast'
 
 type Dim = 'agents' | 'projects' | 'settings'
 
-function applyScheme(scheme: AppearanceScheme): void {
-  document.documentElement.dataset.scheme = scheme
+function applyTheme(theme: AppearanceTheme): void {
+  document.documentElement.dataset.theme = theme
 }
 
 function applyLang(lang: Language): void {
@@ -42,7 +42,7 @@ export function App(): JSX.Element {
   // Returning from a session page lands on the "Sessions" section (the prototype: ‹ back to <project> ·
   // Sessions) rather than the overview
   const [backToSessions, setBackToSessions] = useState(false)
-  const [scheme, setScheme] = useState<AppearanceScheme>(DEFAULT_SCHEME)
+  const [theme, setTheme] = useState<AppearanceTheme>(DEFAULT_THEME)
   // The mode is only used to render the segmented control's selected state: the effective light/dark is
   // decided by the main process's themeSource,
   // and the renderer writes no DOM attribute from it (see the implementation decisions in
@@ -64,8 +64,8 @@ export function App(): JSX.Element {
   // A live mirror of the three preference states: the backfill happens inside an effect callback, and
   // that effect has an empty dependency list, so
   // its closure captured the values as of mount. The same use as cursorRef in LanguageSelect.
-  const prefsRef = useRef<Prefs>({ scheme, language: langPref, mode })
-  prefsRef.current = { scheme, language: langPref, mode }
+  const prefsRef = useRef<Prefs>({ theme, language: langPref, mode })
+  prefsRef.current = { theme, language: langPref, mode }
   // `refresh` is a new function on every render while the menu listener is installed once at mount — a
   // ref is used to reach the latest one
   const refreshRef = useRef<() => Promise<void>>(async () => {})
@@ -77,7 +77,7 @@ export function App(): JSX.Element {
   }
 
   useEffect(() => {
-    applyScheme(DEFAULT_SCHEME)
+    applyTheme(DEFAULT_THEME)
     applyLang(window.agentshed.initialLanguage)
     let alive = true
     void window.agentshed.getPrefs().then((p) => {
@@ -86,8 +86,8 @@ export function App(): JSX.Element {
       // field before it resolved,
       // that field keeps the local value while the rest still take the echo (#61)
       const next = backfillPrefs(prefsRef.current, p, touchedPrefs.current)
-      setScheme(next.scheme)
-      applyScheme(next.scheme)
+      setTheme(next.theme)
+      applyTheme(next.theme)
       setLangPref(next.language)
       setMode(next.mode)
     })
@@ -118,23 +118,23 @@ export function App(): JSX.Element {
     }
   }
 
-  async function onScheme(s: AppearanceScheme): Promise<void> {
+  async function onTheme(s: AppearanceTheme): Promise<void> {
     // Apply locally first, then persist: there is no intermediate state where only the settings page is
     // reskinned; on failure, re-read or toast
-    touchedPrefs.current.add('scheme')
-    setScheme(s)
-    applyScheme(s)
+    touchedPrefs.current.add('theme')
+    setTheme(s)
+    applyTheme(s)
     try {
-      const p = await window.agentshed.setScheme(s)
-      setScheme(p.scheme)
-      applyScheme(p.scheme)
+      const p = await window.agentshed.setTheme(s)
+      setTheme(p.theme)
+      applyTheme(p.theme)
     } catch (e) {
-      toast('err', `${t.toast.saveSchemeFailed}:${errorText(lang, e)}`)
+      toast('err', `${t.toast.saveThemeFailed}:${errorText(lang, e)}`)
     }
   }
 
   async function onMode(m: AppearanceMode): Promise<void> {
-    // Unlike the colour scheme: light/dark takes effect when the main process sets themeSource, so the
+    // Unlike the theme: light/dark takes effect when the main process sets themeSource, so the
     // renderer has nowhere to "apply locally first".
     // So the selected state is updated optimistically and the persistence result then wins
     touchedPrefs.current.add('mode')
@@ -150,7 +150,7 @@ export function App(): JSX.Element {
   async function onLanguage(next: LanguagePreference): Promise<void> {
     // The effective language can be computed locally (the system language list arrives with the window),
     // so it is applied immediately and then persisted,
-    // the same rule as the colour scheme: no intermediate state where the settings page changed and
+    // the same rule as the theme: no intermediate state where the settings page changed and
     // nothing else did
     const eff = effectiveLanguage(next, window.agentshed.systemLanguages)
     touchedPrefs.current.add('language')
@@ -212,8 +212,8 @@ export function App(): JSX.Element {
       <main className="stage">
         {dim === 'settings' ? (
           <SettingsPane
-              scheme={scheme}
-              onScheme={(s) => void onScheme(s)}
+              theme={theme}
+              onTheme={(s) => void onTheme(s)}
               mode={mode}
               onMode={(m) => void onMode(m)}
               language={langPref}

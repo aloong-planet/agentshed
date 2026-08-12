@@ -3,9 +3,9 @@ import { describe, it, expect } from 'vitest'
 import type { Prefs } from '@shared/prefs'
 import { backfillPrefs, type PrefKey } from './prefs-backfill'
 
-const DEFAULTS: Prefs = { scheme: 'purple', language: 'system', mode: 'system' }
+const DEFAULTS: Prefs = { theme: 'purple', language: 'system', mode: 'system' }
 /** The values on disk (what the getPrefs call at mount read) */
-const ON_DISK: Prefs = { scheme: 'blue', language: 'fr', mode: 'light' }
+const ON_DISK: Prefs = { theme: 'blue', language: 'fr', mode: 'light' }
 const touched = (...keys: PrefKey[]): ReadonlySet<PrefKey> => new Set(keys)
 
 describe('backfillPrefs', () => {
@@ -24,7 +24,7 @@ describe('backfillPrefs', () => {
   it('**only the touched field is skipped**, with the rest still taking the echo', () => {
     // This case is why this function exists. If the implementation degraded to "any touched field skips
     // everything",
-    // the colour scheme and language would stay at their defaults. The trigger condition is identical to
+    // the theme and language would stay at their defaults. The trigger condition is identical to
     // having no guard (the user has to click before the echo either way),
     // and the difference is the blast radius: no guard gets 1 field wrong (the one just clicked), while
     // coarse-grained gets 2 wrong
@@ -32,21 +32,21 @@ describe('backfillPrefs', () => {
     // not a different trade-off
     const local: Prefs = { ...DEFAULTS, mode: 'dark' }
     expect(backfillPrefs(local, ON_DISK, touched('mode'))).toEqual({
-      scheme: 'blue',
+      theme: 'blue',
       language: 'fr',
       mode: 'dark'
     })
   })
 
   it('with all three fields touched, none of the echo is taken', () => {
-    const local: Prefs = { scheme: 'amber', language: 'ja', mode: 'dark' }
-    expect(backfillPrefs(local, ON_DISK, touched('scheme', 'language', 'mode'))).toEqual(local)
+    const local: Prefs = { theme: 'amber', language: 'ja', mode: 'dark' }
+    expect(backfillPrefs(local, ON_DISK, touched('theme', 'language', 'mode'))).toEqual(local)
   })
 
-  it('the fields are independent: touching the colour scheme does not affect the language or mode backfill', () => {
-    const local: Prefs = { ...DEFAULTS, scheme: 'amber' }
-    expect(backfillPrefs(local, ON_DISK, touched('scheme'))).toEqual({
-      scheme: 'amber',
+  it('the fields are independent: touching the theme does not affect the language or mode backfill', () => {
+    const local: Prefs = { ...DEFAULTS, theme: 'amber' }
+    expect(backfillPrefs(local, ON_DISK, touched('theme'))).toEqual({
+      theme: 'amber',
       language: 'fr',
       mode: 'light'
     })

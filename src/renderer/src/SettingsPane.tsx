@@ -1,12 +1,12 @@
-// The settings third dimension · UI language + appearance (mode × colour scheme), both applying app-wide.
+// The settings third dimension · UI language + appearance (mode × theme), both applying app-wide.
 // The UI matches the prototype docs/prototypes/appearance/prototype-settings.html (confirmed 2026-08-08).
 // The language section comes before appearance: it determines how the rest of the page reads.
 import { useEffect, useState, type JSX } from 'react'
 import {
   APPEARANCE_MODES,
-  APPEARANCE_SCHEMES,
+  APPEARANCE_THEMES,
   type AppearanceMode,
-  type AppearanceScheme
+  type AppearanceTheme
 } from '@shared/appearance'
 import { dictOf, type LanguagePreference } from '@shared/i18n'
 import { LanguageSelect } from './LanguageSelect'
@@ -18,9 +18,9 @@ import { useLanguage } from './language'
 // match what is actually seen.
 // The values are copied from theme.css's variable blocks, so **changing a theme colour means changing
 // this too** — they cannot be read at runtime,
-// since getComputedStyle can only read the set currently in effect, not the other two schemes'
+// since getComputedStyle can only read the set currently in effect, not the other two themes'
 // variables.
-const SCHEME_SWATCH: Record<'light' | 'dark', Record<AppearanceScheme, string[]>> = {
+const THEME_SWATCH: Record<'light' | 'dark', Record<AppearanceTheme, string[]>> = {
   light: {
     purple: ['#ffffff', '#f0ebf6', '#8a67ab', '#37352f'],
     blue: ['#fffcf9', '#eef2f7', '#4a6fa5', '#2c2a28'],
@@ -60,15 +60,15 @@ function useEffectiveDark(): boolean {
 }
 
 export function SettingsPane({
-  scheme,
-  onScheme,
+  theme,
+  onTheme,
   mode,
   onMode,
   language,
   onLanguage
 }: {
-  scheme: AppearanceScheme
-  onScheme: (s: AppearanceScheme) => void
+  theme: AppearanceTheme
+  onTheme: (s: AppearanceTheme) => void
   mode: AppearanceMode
   onMode: (m: AppearanceMode) => void
   language: LanguagePreference
@@ -79,10 +79,10 @@ export function SettingsPane({
   const lang = useLanguage()
   const t = dictOf(lang).settings
   const dark = useEffectiveDark()
-  const schemeName: Record<AppearanceScheme, string> = {
-    purple: t.schemePurple,
-    blue: t.schemeBlue,
-    amber: t.schemeAmber
+  const themeName: Record<AppearanceTheme, string> = {
+    purple: t.themePurple,
+    blue: t.themeBlue,
+    amber: t.themeAmber
   }
   // "Follow system" shares one piece of copy with the language section: the two are structurally
   // identical policies and should not be worded differently
@@ -91,7 +91,7 @@ export function SettingsPane({
     light: t.modeLight,
     dark: t.modeDark
   }
-  const swatch = SCHEME_SWATCH[dark ? 'dark' : 'light']
+  const swatch = THEME_SWATCH[dark ? 'dark' : 'light']
 
   return (
     <div className="settings">
@@ -103,7 +103,7 @@ export function SettingsPane({
       <p className="settings-foot" data-testid="language-foot">{t.languageFoot}</p>
 
       <div className="settings-sec-t settings-sec-gap">{t.sectionAppearance}</div>
-      {/* One card with two rows: mode on top, colour scheme below, the same form as the language section */}
+      {/* One card with two rows: mode on top, theme below, the same form as the language section */}
       <div className="field" data-testid="appearance-field">
         <div className="frow">
           <span className="flabel">{t.mode}</span>
@@ -125,23 +125,23 @@ export function SettingsPane({
         </div>
         <div className="frow">
           <span className="flabel">{t.palette}</span>
-          <div className="scheme-grid" role="radiogroup" aria-label={t.palette}>
-            {APPEARANCE_SCHEMES.map((id) => (
+          <div className="theme-grid" role="radiogroup" aria-label={t.palette}>
+            {APPEARANCE_THEMES.map((id) => (
               <button
                 type="button"
                 key={id}
                 role="radio"
-                aria-checked={scheme === id}
-                data-scheme-option={id}
-                className={`scheme-card ${scheme === id ? 'on' : ''}`}
-                onClick={() => onScheme(id)}
+                aria-checked={theme === id}
+                data-theme-option={id}
+                className={`theme-card ${theme === id ? 'on' : ''}`}
+                onClick={() => onTheme(id)}
               >
-                <span className="scheme-swatches">
+                <span className="theme-swatches">
                   {swatch[id].map((c) => (
-                    <span key={c} className="scheme-sw" style={{ background: c }} />
+                    <span key={c} className="theme-sw" style={{ background: c }} />
                   ))}
                 </span>
-                <span className="scheme-name">{schemeName[id]}</span>
+                <span className="theme-name">{themeName[id]}</span>
               </button>
             ))}
           </div>

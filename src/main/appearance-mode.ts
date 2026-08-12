@@ -6,7 +6,7 @@
 // follow along with **zero changes**,
 // and the macOS window chrome and native menu follow too. Computing it ourselves would require every
 // dark value to be written twice, once in the media query block
-// and once in the manual override block (3 schemes × 2 = 6 duplicated sets, so a colour change would
+// and once in the manual override block (3 themes × 2 = 6 duplicated sets, so a colour change would
 // inevitably miss one), and it could not reach the window chrome.
 // See docs/specs/appearance.md, "Light/dark is delivered by nativeTheme, with zero CSS changes".
 //

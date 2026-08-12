@@ -2058,14 +2058,14 @@ test('the sessions section: a fork session has its replay prefix stripped and is
 })
 
 
-// appearance ticket 02: the settings third dimension + the three appearance choices; data-scheme applies
+// appearance ticket 02: the settings third dimension + the three appearance choices; data-theme applies
 // immediately and entering and leaving settings does not lose the selection
-test('settings: the three appearance choices change data-scheme, and entering and leaving settings keeps the selected project', async () => {
+test('settings: the three appearance choices change data-theme, and entering and leaving settings keeps the selected project', async () => {
   const l = await launch(undefined, mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await expect(win.locator('.rail .ri').first()).toBeVisible()
-  // Purple by default (no prefs, or purple); html carries data-scheme
-  await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('purple')
+  // Purple by default (no prefs, or purple); html carries data-theme
+  await expect.poll(async () => win.locator('html').getAttribute('data-theme')).toBe('purple')
 
   // Go to Projects and select the only project
   await win.locator('.rail .ri').nth(1).click()
@@ -2076,24 +2076,24 @@ test('settings: the three appearance choices change data-scheme, and entering an
   // The settings dimension
   await win.getByTitle('Settings').click()
   await expect(win.locator('.settings-h1')).toHaveText('Settings')
-  await expect(win.locator('.scheme-card')).toHaveCount(3)
+  await expect(win.locator('.theme-card')).toHaveCount(3)
   // The settings page now has two footnotes (language / appearance), located by meaning rather than class
   // name — the class name is no longer unique
   await expect(win.getByTestId('appearance-foot')).toContainText('Follow')
 
-  // Click mist blue → data-scheme=blue
-  await win.locator('[data-scheme-option="blue"]').click()
-  await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('blue')
-  await expect(win.locator('[data-scheme-option="blue"]')).toHaveAttribute('aria-checked', 'true')
+  // Click mist blue → data-theme=blue
+  await win.locator('[data-theme-option="blue"]').click()
+  await expect.poll(async () => win.locator('html').getAttribute('data-theme')).toBe('blue')
+  await expect(win.locator('[data-theme-option="blue"]')).toHaveAttribute('aria-checked', 'true')
 
-  // Back to Projects: the selection is still there and the scheme is still blue (app-wide)
+  // Back to Projects: the selection is still there and the theme is still blue (app-wide)
   await win.locator('.rail .ri').nth(1).click()
   await expect(win.locator('.side .row.sel')).toHaveCount(1)
-  await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('blue')
+  await expect.poll(async () => win.locator('html').getAttribute('data-theme')).toBe('blue')
   // Back on the Agents main area it is still blue
   await win.locator('.rail .ri').first().click()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
-  await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe('blue')
+  await expect.poll(async () => win.locator('html').getAttribute('data-theme')).toBe('blue')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -2162,13 +2162,13 @@ async function effectiveDark(win: Awaited<ReturnType<ElectronApplication['firstW
   return win.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)
 }
 
-/** Each scheme card's **paper sample** (the first swatch = --card), read back from the computed CSS */
+/** Each theme card's **paper sample** (the first swatch = --card), read back from the computed CSS */
 async function paperSwatches(
   win: Awaited<ReturnType<ElectronApplication['firstWindow']>>
 ): Promise<string[]> {
   return win.evaluate(() =>
-    [...document.querySelectorAll('[data-scheme-option]')].map((card) => {
-      const sw = card.querySelector('.scheme-sw')
+    [...document.querySelectorAll('[data-theme-option]')].map((card) => {
+      const sw = card.querySelector('.theme-sw')
       return sw ? getComputedStyle(sw).backgroundColor : ''
     })
   )
@@ -2183,26 +2183,26 @@ function luminance(rgb: string): number {
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
 }
 
-test('appearance: one card with two rows (mode + colour scheme); the scheme cards keep only a swatch and a name', async () => {
+test('appearance: one card with two rows (mode + theme); the theme cards keep only a swatch and a name', async () => {
   const l = await launch(undefined, mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
   await win.getByTitle('Settings').click()
 
-  // One card with two rows: mode on top, colour scheme below
+  // One card with two rows: mode on top, theme below
   const field = win.getByTestId('appearance-field')
   await expect(field.locator('.frow')).toHaveCount(2)
   const rows = field.locator('.frow')
   await expect(rows.nth(0).getByTestId('mode-seg').locator('button')).toHaveCount(3)
-  await expect(rows.nth(1).locator('[data-scheme-option]')).toHaveCount(3)
+  await expect(rows.nth(1).locator('[data-theme-option]')).toHaveCount(3)
 
-  // The scheme cards **carry no full-sentence description**: a card's visible text equals the scheme name
+  // The theme cards **carry no full-sentence description**: a card's visible text equals the theme name
   // exactly.
   // toHaveText for exact equality rather than "does not contain some sentence" — the latter can only rule
   // out the one sentence I happened to think of
-  await expect(win.locator('[data-scheme-option="purple"]')).toHaveText('Purple')
-  await expect(win.locator('[data-scheme-option="blue"]')).toHaveText('Mist Blue')
-  await expect(win.locator('[data-scheme-option="amber"]')).toHaveText('Amber Brown')
+  await expect(win.locator('[data-theme-option="purple"]')).toHaveText('Purple')
+  await expect(win.locator('[data-theme-option="blue"]')).toHaveText('Mist Blue')
+  await expect(win.locator('[data-theme-option="amber"]')).toHaveText('Amber Brown')
 
   // "Purple is the default" moved into the closing explanation
   await expect(win.getByTestId('appearance-foot')).toContainText('Purple')
@@ -2251,7 +2251,7 @@ test('appearance mode: locking light or dark changes the effective light/dark, a
   await close(l)
 })
 
-test('appearance: all six combinations of 3 colour schemes × 2 effective light/dark hold', async () => {
+test('appearance: all six combinations of 3 themes × 2 effective light/dark hold', async () => {
   const l = await launchAppearance(mkEmptyProjectHome())
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -2272,9 +2272,9 @@ test('appearance: all six combinations of 3 colour schemes × 2 effective light/
   for (const mode of ['light', 'dark'] as const) {
     await win.locator(`[data-mode-option="${mode}"]`).click()
     await expect.poll(async () => effectiveDark(win)).toBe(mode === 'dark')
-    for (const scheme of ['purple', 'blue', 'amber'] as const) {
-      await win.locator(`[data-scheme-option="${scheme}"]`).click()
-      await expect.poll(async () => win.locator('html').getAttribute('data-scheme')).toBe(scheme)
+    for (const theme of ['purple', 'blue', 'amber'] as const) {
+      await win.locator(`[data-theme-option="${theme}"]`).click()
+      await expect.poll(async () => win.locator('html').getAttribute('data-theme')).toBe(theme)
       const vars = await win.evaluate(() => {
         // Enumerate the variables the **theme blocks** declare, rather than naming a few by hand. A
         // hand-written list only ever covers the variables someone thought of on the day, so a variable
@@ -2292,7 +2292,7 @@ test('appearance: all six combinations of 3 colour schemes × 2 effective light/
               // "starts with :root" also catches rules like `:root[data-theme='dark'] .qlist .q`, whose
               // variables are scoped to a component and are correctly absent from the root.
               const sel = rule.selectorText
-              if (/\s/.test(sel) || !/^(:root|html\[data-scheme)/.test(sel)) continue
+              if (/\s/.test(sel) || !/^(:root|html\[data-theme)/.test(sel)) continue
               for (const prop of Array.from(rule.style)) {
                 if (prop.startsWith('--')) declared.add(prop)
               }
@@ -2327,7 +2327,7 @@ test('appearance: all six combinations of 3 colour schemes × 2 effective light/
       // silently picks up the light value. Resolving is therefore necessary, not sufficient. Verified by
       // mutation — deleting the dark definition of a variable leaves this green.
       expect(vars.unresolved).toEqual([])
-      floatShadowByState.set(`${scheme}/${mode}`, vars.floatShadow)
+      floatShadowByState.set(`${theme}/${mode}`, vars.floatShadow)
       // The foreground and background are distinguishable (otherwise this combination gives invisible text)
       expect(Math.abs(luminance(vars.bodyBg) - luminance(vars.bodyFg))).toBeGreaterThan(0.3)
     }

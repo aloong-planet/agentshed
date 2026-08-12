@@ -9,7 +9,7 @@ import {
   type SkillOpResult,
   type Prefs,
   type AppearanceMode,
-  type AppearanceScheme,
+  type AppearanceTheme,
   type LanguagePreference,
   type ListSkillFilesArgs,
   type ListSkillFilesResult,
@@ -126,8 +126,8 @@ const api = {
   // The same rule as the heavy payloads: the preload validates again, catching structured clone losses
   // and shape drift
   getPrefs: async (): Promise<Prefs> => checkedPrefs(await ipcRenderer.invoke(CMD.getPrefs)),
-  setScheme: async (scheme: AppearanceScheme): Promise<Prefs> =>
-    checkedPrefs(await ipcRenderer.invoke(CMD.setScheme, scheme)),
+  setTheme: async (theme: AppearanceTheme): Promise<Prefs> =>
+    checkedPrefs(await ipcRenderer.invoke(CMD.setTheme, theme)),
   setLanguage: async (language: LanguagePreference): Promise<Prefs> =>
     checkedPrefs(await ipcRenderer.invoke(CMD.setLanguage, language)),
   setMode: async (mode: AppearanceMode): Promise<Prefs> =>

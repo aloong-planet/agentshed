@@ -1,13 +1,13 @@
-// Appearance: **mode** (light/dark) × **colour scheme** (accent / paper feel), two orthogonal
+// Appearance: **mode** (light/dark) × **theme** (accent / paper feel), two orthogonal
 // dimensions. See docs/specs/appearance.md.
 
-export const APPEARANCE_SCHEMES = ['purple', 'blue', 'amber'] as const
-export type AppearanceScheme = (typeof APPEARANCE_SCHEMES)[number]
+export const APPEARANCE_THEMES = ['purple', 'blue', 'amber'] as const
+export type AppearanceTheme = (typeof APPEARANCE_THEMES)[number]
 
-export const DEFAULT_SCHEME: AppearanceScheme = 'purple'
+export const DEFAULT_THEME: AppearanceTheme = 'purple'
 
-export function isAppearanceScheme(v: unknown): v is AppearanceScheme {
-  return typeof v === 'string' && (APPEARANCE_SCHEMES as readonly string[]).includes(v)
+export function isAppearanceTheme(v: unknown): v is AppearanceTheme {
+  return typeof v === 'string' && (APPEARANCE_THEMES as readonly string[]).includes(v)
 }
 
 /**
@@ -33,8 +33,8 @@ export function isAppearanceMode(v: unknown): v is AppearanceMode {
   return typeof v === 'string' && (APPEARANCE_MODES as readonly string[]).includes(v)
 }
 
-// The schemes' display names moved into the i18n dictionaries along with the rest of the UI copy
-// (settings.scheme*),
+// The themes' display names moved into the i18n dictionaries along with the rest of the UI copy
+// (settings.theme*),
 // so no single-language label table is kept here — it lost its only consumer in that change.
 
 // Assembling the preferences and validating them across processes is in ./prefs — this file covers only

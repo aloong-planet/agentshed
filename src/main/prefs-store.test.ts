@@ -17,7 +17,7 @@ describe('PrefsStore', () => {
 
   it('with no file: purple + follow the system language + follow the system appearance', () => {
     expect(new PrefsStore(dir).get()).toEqual({
-      scheme: 'purple',
+      theme: 'purple',
       language: 'system',
       mode: 'system'
     })
@@ -49,11 +49,11 @@ describe('PrefsStore', () => {
 
   it('changing one field leaves the others alone', () => {
     const s = new PrefsStore(dir)
-    s.setScheme('amber')
+    s.setTheme('amber')
     s.setLanguage('ru')
-    expect(new PrefsStore(dir).get()).toEqual({ scheme: 'amber', language: 'ru', mode: 'system' })
-    s.setScheme('blue')
-    expect(new PrefsStore(dir).get()).toEqual({ scheme: 'blue', language: 'ru', mode: 'system' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system' })
+    s.setTheme('blue')
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ru', mode: 'system' })
   })
 
   it('the two "follow system" settings, language and appearance mode, do not interfere', () => {
@@ -66,7 +66,7 @@ describe('PrefsStore', () => {
     const s = new PrefsStore(dir)
     s.setMode('dark')
     s.setLanguage('ja')
-    expect(new PrefsStore(dir).get()).toEqual({ scheme: 'purple', language: 'ja', mode: 'dark' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark' })
     // Changing the language leaves mode alone
     s.setLanguage('system')
     expect(new PrefsStore(dir).get().mode).toBe('dark')
@@ -82,80 +82,80 @@ describe('PrefsStore', () => {
     // field has to bring this test
     writeFileSync(
       join(dir, 'prefs.json'),
-      JSON.stringify({ scheme: 'amber', language: 'ko', mode: 'dark' })
+      JSON.stringify({ theme: 'amber', language: 'ko', mode: 'dark' })
     )
-    expect(new PrefsStore(dir).get()).toEqual({ scheme: 'amber', language: 'system', mode: 'dark' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'system', mode: 'dark' })
     writeFileSync(
       join(dir, 'prefs.json'),
-      JSON.stringify({ scheme: 'neon', language: 'ja', mode: 'dark' })
+      JSON.stringify({ theme: 'neon', language: 'ja', mode: 'dark' })
     )
-    expect(new PrefsStore(dir).get()).toEqual({ scheme: 'purple', language: 'ja', mode: 'dark' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark' })
   })
 
-  it('an invalid mode degrades only mode, with the language and colour scheme still read correctly', () => {
+  it('an invalid mode degrades only mode, with the language and theme still read correctly', () => {
     // Ticket 04's AC: one invalid preference degrades only itself. Construct a file with an invalid mode
-    // but a valid language and scheme —
+    // but a valid language and theme —
     // if the implementation reverted the whole thing, the user would lose two unrelated choices at once
     writeFileSync(
       join(dir, 'prefs.json'),
-      JSON.stringify({ scheme: 'amber', language: 'ru', mode: 'auto' })
+      JSON.stringify({ theme: 'amber', language: 'ru', mode: 'auto' })
     )
-    expect(new PrefsStore(dir).get()).toEqual({ scheme: 'amber', language: 'ru', mode: 'system' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system' })
   })
 
-  it('an older preference file with only scheme: keeps scheme and fills in the language and mode defaults', () => {
+  it('an older preference file with only theme: keeps theme and fills in the language and mode defaults', () => {
     // The upgrade case — a file written before these fields were added must still work without losing
     // existing choices
-    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ scheme: 'blue' }))
+    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'blue' }))
     expect(new PrefsStore(dir).get()).toEqual({
-      scheme: 'blue',
+      theme: 'blue',
       language: 'system',
       mode: 'system'
     })
   })
 
-  it('a ticket 03-era preference file (scheme + language): keeps both and fills in the mode default', () => {
+  it('a ticket 03-era preference file (theme + language): keeps both and fills in the mode default', () => {
     // A file written before this ticket must not lose the chosen language on upgrade
-    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ scheme: 'amber', language: 'fr' }))
-    expect(new PrefsStore(dir).get()).toEqual({ scheme: 'amber', language: 'fr', mode: 'system' })
+    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'amber', language: 'fr' }))
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'fr', mode: 'system' })
   })
 
-  it('setScheme persists and all three values read back', () => {
+  it('setTheme persists and all three values read back', () => {
     const s = new PrefsStore(dir)
-    s.setScheme('blue')
-    expect(new PrefsStore(dir).get().scheme).toBe('blue')
-    s.setScheme('amber')
-    expect(new PrefsStore(dir).get().scheme).toBe('amber')
-    s.setScheme('purple')
-    expect(new PrefsStore(dir).get().scheme).toBe('purple')
+    s.setTheme('blue')
+    expect(new PrefsStore(dir).get().theme).toBe('blue')
+    s.setTheme('amber')
+    expect(new PrefsStore(dir).get().theme).toBe('amber')
+    s.setTheme('purple')
+    expect(new PrefsStore(dir).get().theme).toBe('purple')
   })
 
-  it('a corrupt or invalid scheme falls back to purple without throwing', () => {
+  it('a corrupt or invalid theme falls back to purple without throwing', () => {
     writeFileSync(join(dir, 'prefs.json'), 'not-json')
-    expect(new PrefsStore(dir).get().scheme).toBe('purple')
-    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ scheme: 'neon' }))
-    expect(new PrefsStore(dir).get().scheme).toBe('purple')
+    expect(new PrefsStore(dir).get().theme).toBe('purple')
+    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'neon' }))
+    expect(new PrefsStore(dir).get().theme).toBe('purple')
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify({}))
-    expect(new PrefsStore(dir).get().scheme).toBe('purple')
+    expect(new PrefsStore(dir).get().theme).toBe('purple')
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify(null))
-    expect(new PrefsStore(dir).get().scheme).toBe('purple')
+    expect(new PrefsStore(dir).get().theme).toBe('purple')
   })
 
   it('a valid file reads back; after writing, the disk holds an object', () => {
     writeFileSync(
       join(dir, 'prefs.json'),
-      JSON.stringify({ scheme: 'amber', language: 'ja', mode: 'light' }, null, 2)
+      JSON.stringify({ theme: 'amber', language: 'ja', mode: 'light' }, null, 2)
     )
-    expect(new PrefsStore(dir).get().scheme).toBe('amber')
+    expect(new PrefsStore(dir).get().theme).toBe('amber')
     const s = new PrefsStore(dir)
-    s.setScheme('blue')
+    s.setTheme('blue')
     const raw = JSON.parse(readFileSync(join(dir, 'prefs.json'), 'utf8')) as Record<string, string>
-    expect(raw).toEqual({ scheme: 'blue', language: 'ja', mode: 'light' })
+    expect(raw).toEqual({ theme: 'blue', language: 'ja', mode: 'light' })
   })
 
   it('writes are atomic: no temporary file is left in the directory', () => {
     const s = new PrefsStore(dir)
-    s.setScheme('blue')
+    s.setTheme('blue')
     expect(readdirSync(dir)).toEqual(['prefs.json'])
   })
 })

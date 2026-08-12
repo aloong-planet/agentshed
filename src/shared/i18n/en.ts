@@ -28,9 +28,9 @@ export const en: Locale = {
     palette: 'Theme',
     appearanceFoot:
       'With mode set to “Follow system”, light and dark follow your macOS appearance; choosing Light or Dark instead fixes light and dark to that choice, regardless of later system changes. The theme and light/dark are independent and combine freely; Purple is used when nothing is chosen. Changes apply across the whole app immediately — no saving needed.',
-    schemePurple: 'Purple',
-    schemeBlue: 'Mist Blue',
-    schemeAmber: 'Amber Brown'
+    themePurple: 'Purple',
+    themeBlue: 'Mist Blue',
+    themeAmber: 'Amber Brown'
   },
 
   menu: {
@@ -45,7 +45,7 @@ export const en: Locale = {
   toast: {
     languageSwitched: (name) => `Interface language switched to ${name}`,
     languageFollowSystem: (name) => `Now following the system · currently ${name}`,
-    saveSchemeFailed: 'Failed to save the theme',
+    saveThemeFailed: 'Failed to save the theme',
     saveModeFailed: 'Failed to save the appearance mode',
     saveLanguageFailed: 'Failed to save the language'
   },
