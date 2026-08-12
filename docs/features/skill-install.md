@@ -11,6 +11,10 @@ copy into a chosen project, and can uninstall the project-level copy.
 - "Install to…" on each row of the Agents page's Skills section: opens a target project picker (stale
   projects excluded, sorted by activity); it installs to the intersection of the sides the skill is
   available on and the sides the project belongs to, and installs to both when both qualify
+- The picker stays open while you look through it: **scrolling its list** reaches targets below the
+  fold, and **resizing the window** moves it along with its button rather than closing it. It closes
+  when you pick a target, when you scroll the page behind it, or when you start typing in the filter
+  box — in each of those the row it was opened from has moved or gone
 - Installing is a full copy: the project's copy is self-contained, and a symlinked source lands as a
   real file; an interruption or failure cleans up automatically and leaves nothing half-finished
 - If the target already has a project-level skill of the same name, the install is refused with a
