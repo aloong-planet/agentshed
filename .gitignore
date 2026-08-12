@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .scratch/
+docs/.workings/
 .DS_Store
 out/
 release/
