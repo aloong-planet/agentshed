@@ -354,9 +354,13 @@ Matching the current behaviour of
   the expansion arrow + name + side badges + source/level/symlink pills + package stats +
   install/uninstall buttons; a skill's description is carried by expanding the file table and
   previewing SKILL.md.
-- **Inline package stats** (ruled 2026-08-06): on-disk rows always show "N files · size" on the right,
-  **excluding line counts** (line counts are per file in the expanded table); they follow along when
-  switching sides; plugin rows have none.
+- **Inline package stats** (ruled 2026-08-06; the plugin clause revised 2026-08-12): a row that can be
+  expanded shows "N files · size" on the right, **excluding line counts** (line counts are per file in
+  the expanded table); they follow along when switching sides. **Plugin rows show them too** — the
+  original ruling said plugin rows had none, which was correct while plugin rows could not be expanded
+  at all, and was left behind when ADR-0012 overturned that on 2026-08-07. A row shows no stats only
+  when it cannot be expanded, which for a plugin row means its package root is unknown (A4 /
+  plugins-view H5, fail-closed).
 - **Row density** (finalised 2026-08-06): 8px row padding, a visual row height of about 32px, aligned
   with the rows in other sections.
 
