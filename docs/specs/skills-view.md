@@ -500,9 +500,10 @@ nothing):
 
 - **E6 / F7** (no box when the list is empty to begin with) — guaranteed structurally, since the empty
   case returns before the box is rendered, but nothing pins it.
-- **E9 / E10 / F6** (the keyword surviving a refresh, and clearing on leaving or switching project) —
-  these follow from *which component owns the state*, so the way they break is someone lifting that state
-  to a parent. That is the highest-value gap of these five.
+- ~~**E9 / E10 / F6**~~ — **closed 2026-08-12, and closing it found F6 was never true.** Switching
+  project kept the keyword: the section was handed new data rather than remounted, so a word typed for
+  one project silently filtered another's skills, and a populated project looked empty. The gap was not
+  a risk of future breakage as recorded — it was hiding a defect that shipped with the feature.
 - **G7** (shifting left near the window edge) — the name column sits far from the right edge, so the
   clamp effectively never binds; reproducing it needs an extreme window size.
 - **F5** (the uninstall dialog being unaffected) — it is a page-level modal with no coupling to the list.

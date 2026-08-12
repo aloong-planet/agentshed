@@ -1637,6 +1637,68 @@ test('filtering the skills lists by name, and revealing a truncated name on hove
 })
 
 /**
+ * How long a filter keyword lives — the one gap from this feature's test review judged worth closing.
+ *
+ * The other four recorded gaps are guarded by structure (an empty library returns before the box is
+ * rendered) or unreachable in the current layout. This one is not guarded by anything: the behaviour
+ * follows entirely from **which component owns the state**, so it breaks the day someone lifts that
+ * state to a parent — and it breaks *silently*. Coming back to a section and finding it filtered by a
+ * keyword you no longer see typed anywhere reads as "my skills are gone", not as a bug.
+ */
+test('a filter keyword survives a refresh, and is cleared by leaving the section or switching project', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
+  const alpha = join(home, 'alpha-proj')
+  const beta = join(home, 'beta-proj')
+  mkdirSync(alpha, { recursive: true })
+  mkdirSync(beta, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [alpha]: {}, [beta]: {} } }))
+  const gskills = join(home, '.claude', 'skills')
+  for (const n of ['review-code', 'github-ops']) {
+    mkdirSync(join(gskills, n), { recursive: true })
+    writeFileSync(join(gskills, n, 'SKILL.md'), `---\ndescription: ${n}\n---\n\nbody\n`)
+  }
+  for (const p of [alpha, beta]) {
+    mkdirSync(join(p, '.claude', 'skills', 'local-only'), { recursive: true })
+    writeFileSync(join(p, '.claude', 'skills', 'local-only', 'SKILL.md'), '---\ndescription: x\n---\n\nbody\n')
+  }
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  const box = win.locator('.sbar.sk-search input')
+
+  // (1) A refresh keeps it. The section is re-rendered rather than remounted, so the keyword survives —
+  // losing it here would silently undo the narrowing the user is in the middle of reading.
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  await box.fill('review')
+  await expect(win.locator('.sk-card > .rel')).toHaveCount(1)
+  await win.locator('.rail .ri.grfr').click()
+  await expect(box).toHaveValue('review')
+  await expect(win.locator('.sk-card > .rel')).toHaveCount(1)
+
+  // (2) Leaving the section clears it. The keyword is a way of looking at one list, not a setting —
+  // and a section that reopens already filtered, with the box scrolled out of sight, looks empty.
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Subagents' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  await expect(box).toHaveValue('')
+  await expect(win.locator('.sk-card > .rel')).toHaveCount(2)
+
+  // (3) Switching project clears it too — otherwise a keyword typed for one project's skills would
+  // quietly filter another's, and a populated project would look like it has nothing installed.
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'alpha-proj' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  await box.fill('local')
+  await expect(win.locator('.pane-body .grp-t')).toHaveCount(1)
+
+  await win.locator('.side .row', { hasText: 'beta-proj' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  await expect(box).toHaveValue('')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/**
  * The install-to popover is a **floating layer**: it has to appear next to the button that opened it, and
  * its targets have to be clickable.
  *
