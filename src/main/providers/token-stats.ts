@@ -461,7 +461,7 @@ function dedupeClaude(files: Array<{ agg: ClaudeFileAgg; fileIdx: number }>): Ke
         kept.push({ e, fileIdx })
         continue
       }
-      const exact = `${mid} ${e[1] ?? ''}`
+      const exact = `${mid}\x00${e[1] ?? ''}`
       let matchIdx = byExact.get(exact)
       if (matchIdx === undefined) {
         // Sidechain fallback: match by message.id-only when either side is a sidechain
