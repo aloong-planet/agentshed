@@ -4,6 +4,7 @@
 // project install / artifact / activity / session.
 
 import type { AppError } from './errors'
+import type { Provider } from './provider'
 
 /** Codex config.toml summary: **structured fields**; the renderer composes the sentence (ticket 07) */
 export interface CodexConfigSummary {
@@ -266,8 +267,20 @@ export interface DayUsage {
   /** By agent side (for the single-side filter) */
   claude: number
   codex: number
-  /** Broken down by provider (the model vendor) — the basis for the trend bars' segmentation; the keys are in shared/provider.ts */
-  byProvider: Record<string, number>
+  /**
+   * Broken down by provider (the model vendor) — the basis for the trend bars' segmentation.
+   *
+   * **`Partial` is load-bearing**: this map is sparse. A provider with no volume produces no segment,
+   * so only providers that actually accrued tokens get a key. A plain `Record<Provider, number>` would
+   * demand all four, which is a different thing from what this holds — and would push every producer
+   * into writing zeros it does not mean.
+   *
+   * The key type is `Provider` rather than `string` so that **typecheck owns the agreement** between
+   * the side producing keys and the side reading them. While it was `string`, the two could drift with
+   * nothing reporting it, and the failure was invisible: the day's total still correct, the bar still
+   * the right height, the legend still drawn — only the segments inside the bar gone.
+   */
+  byProvider: Partial<Record<Provider, number>>
 }
 
 export interface TokenStats {

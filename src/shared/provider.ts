@@ -3,11 +3,17 @@
 // future,
 // at which point the chart logic needs no change and the segmentation follows the model name naturally.
 // The values are **language-independent identifiers**, not text for people — for UI text see PROVIDER_LABEL.
-// This value also serves as DayUsage.byProvider's object key, whose key type there is Record<string, …>:
-// when the producer (providerOf's return value) and the consumer (PROVIDER_ORDER's elements) disagree,
-// **typecheck does not report it** and the trend segmentation silently goes empty. So changing this
-// type's values means changing
-// PROVIDER_ORDER with it; trend.test.ts has a pipeline case that builds keys with providerOf as a backstop.
+// This type also supplies DayUsage.byProvider's key type, so **typecheck now owns that agreement**:
+// writing a key this type does not list, or reading one, is a compile error at either end.
+//
+// That is worth stating because of what the alternative cost: while the key type was `string`, the two
+// sides were free to drift with nothing reporting it, and the resulting failure was invisible — a trend
+// chart whose totals, bar heights and legend all stayed correct while the segments inside every bar
+// quietly vanished.
+//
+// Changing this type's values still means changing PROVIDER_ORDER with it (that one is a separate
+// list, not derived), and trend.test.ts keeps a pipeline case for the question types cannot answer:
+// whether an unrecognised model's volume reaches a segment at all.
 export type Provider = 'Anthropic' | 'OpenAI' | 'Google' | 'other'
 
 /** The fixed order for the legend and the stacking (it does not churn with the day's data) */

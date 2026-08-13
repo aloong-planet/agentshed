@@ -17,7 +17,15 @@
 //   keyed by (path, mtime, size), written atomically. The statistics include hidden and stale projects.
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import type { AgentSide, ForkState, ProjectStats, SessionMeta, TokenStats, TokenTotals } from '@shared/domain'
+import type {
+  AgentSide,
+  DayUsage,
+  ForkState,
+  ProjectStats,
+  SessionMeta,
+  TokenStats,
+  TokenTotals
+} from '@shared/domain'
 import { emptyTokenStats, emptyTotals } from '@shared/domain'
 import { mergeKey } from '@shared/path-key'
 import { ERR, appError } from '@shared/errors'
@@ -511,7 +519,12 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     rowMap.set(key, cur)
   }
   const globalModels = new Map<string, number>()
-  const globalDays = new Map<string, { claude: number; codex: number; byProvider: Record<string, number> }>()
+  // Typed from DayUsage rather than restated, so the provider keys written here are the same ones
+  // the chart reads. Spelling the shape out locally is what let this accumulator keep `string`
+  // keys after the field itself was tightened: a locally-declared `Record<string, number>` is
+  // assignable to the field, so the looser type laundered straight through the spread below
+  // with nothing to report.
+  const globalDays = new Map<string, Omit<DayUsage, 'day'>>()
   const perProject = new Map<string, ProjectStats>()
 
   const projectOf = (key: string): ProjectStats => {
