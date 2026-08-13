@@ -189,7 +189,7 @@ function mkPluginPkg(root: string): void {
   mkdirSync(join(root, 'skills', 'good-skill'), { recursive: true })
   writeFileSync(join(root, 'skills', 'good-skill', 'SKILL.md'), '---\ndescription: good skill\n---\nbody')
   mkdirSync(join(root, 'skills', 'broken-skill'), { recursive: true })
-  writeFileSync(join(root, 'skills', 'broken-skill', 'SKILL.md'), ' binary garbage')
+  writeFileSync(join(root, 'skills', 'broken-skill', 'SKILL.md'), '\x00\x01binary garbage')
   // agents
   mkdirSync(join(root, 'agents'), { recursive: true })
   writeFileSync(join(root, 'agents', 'helper.md'), '---\ndescription: h\n---\nx')

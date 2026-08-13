@@ -29,6 +29,7 @@ jobs:
       - run: pnpm check:ui
       - run: pnpm check:lang
       - run: pnpm check:i18n
+      - run: pnpm check:nul
 
   # e2e drives a real Electron. It runs on ubuntu rather than macos: this repository is private and a macOS
   # runner
