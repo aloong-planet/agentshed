@@ -6,7 +6,12 @@ import { providerOf } from './provider'
 import type { DayUsage } from './domain'
 
 const anchor = Date.parse('2026-07-30T12:00:00Z')
-const day = (d: string, claude: number, codex: number, byProvider?: Record<string, number>): DayUsage => ({
+const day = (
+  d: string,
+  claude: number,
+  codex: number,
+  byProvider?: DayUsage['byProvider']
+): DayUsage => ({
   day: d,
   claude,
   codex,
@@ -65,11 +70,11 @@ describe('buildTrendBars', () => {
   })
 
   it('an unknown model\'s volume still enters a segment: the key is produced by providerOf and consumed by PROVIDER_ORDER', () => {
-    // byProvider's key type is Record<string, number> — when the producer (providerOf's return value)
-    // and the consumer (PROVIDER_ORDER's elements) disagree, **typecheck does not report it** and the
-    // segmentation silently
-    // goes empty. So this deliberately builds the key with providerOf rather than hard-writing a string:
-    // changing only one half makes this case go red.
+    // Since the key type was tightened to Provider, a producer and consumer that disagree on the
+    // **spelling** of a key are caught by typecheck. What that cannot catch is the *runtime* question
+    // this case asks: does an unrecognised model's volume actually land in a segment at all, rather
+    // than being dropped on the way through? So the key is still built with providerOf rather than
+    // written as a literal — the point is the pipeline, not the name.
     const key = providerOf('llama-4-70b')
     const bars = buildTrendBars(
       [{ day: today, claude: 0, codex: 0, byProvider: { [key]: 42 } }],
