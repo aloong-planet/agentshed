@@ -244,10 +244,10 @@
 </head>
 <body>
   <nav class="rail">
-    <button type="button" class="ri" data-dim="agents" data-tip="agents">🤖</button>
-    <button type="button" class="ri" data-dim="projects" data-tip="projects">📁</button>
-    <button type="button" class="ri grfr" data-tip="refresh" id="refresh">↻</button>
-    <button type="button" class="ri set on" data-dim="settings" data-tip="settings">⚙️</button>
+    <button type="button" class="ri" data-dim="agents" data-tip="agents" data-icon="RobotFace" data-icon-size="17"></button>
+    <button type="button" class="ri" data-dim="projects" data-tip="projects" data-icon="Folder" data-icon-size="17"></button>
+    <button type="button" class="ri grfr" data-tip="refresh" id="refresh" data-icon="RefreshCw" data-icon-size="17"></button>
+    <button type="button" class="ri set on" data-dim="settings" data-tip="settings" data-icon="Settings" data-icon-size="17"></button>
   </nav>
   <main class="stage" id="stage"></main>
   <div class="lang-pop" id="langPop" role="listbox"></div>
@@ -266,11 +266,11 @@
     <span class="vr"></span>
     <span class="out" id="sysOut"></span>
   </div>
+<script src="../_shared/icons.js"></script>
 <script>
-  /* ── Icons: inline SVG (Lucide's official paths). A new icon slot follows section 3 of /ui-design;
-        存量字符图标(🤖 📁 ↻ ⚙️ 等)按裁定另票处理(issue #51),本轮不动。 ── */
-  const SVG_CHEVRON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
-  const SVG_CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+  /* ── Icons come from _shared/icons.js, which is generated from the app's icon module. This page used to
+        carry its own copies of these two paths; they were identical to the app's, but identical by
+        coincidence rather than by construction — nothing would have reported it if either side moved. ── */
 
   const LANGS = ['zh', 'en', 'fr', 'es', 'ru', 'ja']
   /** The language selector's value domain = follow system + the six languages. 'system' is a preference
@@ -525,7 +525,7 @@
                 aria-selected="${on}" data-lang="${id}">
           <span class="n">${esc(name)}</span>
           <span class="e">${esc(side)}</span>
-          <span class="ck">${SVG_CHECK}</span>
+          <span class="ck">${ICONS.Check(14)}</span>
         </button>`
       return isSys ? row + '<div class="sep"></div>' : row
     }).join('')
@@ -602,7 +602,7 @@
                   ${esc(following ? d.followSystem : d.native)}
                   ${following ? `<span class="eff">${esc(T[effLang()].native)}</span>` : ''}
                 </span>
-                <span class="chev">${SVG_CHEVRON}</span>
+                <span class="chev">${ICONS.ChevronDown(14)}</span>
               </button>
             </div>
           </div>
@@ -679,7 +679,7 @@
     return `
       <div class="split">
         <div class="side">
-          <div class="search">🔍 ${esc(d.search)}</div>
+          <div class="search">${ICONS.Search(13)} ${esc(d.search)}</div>
           <div class="row on">agentshed</div>
           <div class="row">Transfer</div>
         </div>

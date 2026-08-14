@@ -49,7 +49,9 @@
   .prow{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;
     border:0;background:none;color:inherit;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--line)}
   .prow:hover{background:var(--accent-soft)}
-  .prow .cv{width:14px;flex:none;color:var(--text-2);font-size:10px}
+  .prow .cv{width:14px;flex:none;color:var(--text-2);display:flex;align-items:center;
+    justify-content:center;transition:transform .15s}
+  .prow.open .cv{transform:rotate(90deg);color:var(--accent)}
   .prow .nm{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;flex:none}
   .prow .ver{font-size:11px;color:var(--text-2);flex:none}
   .pill{font-size:10px;border-radius:5px;padding:1px 6px;flex:none}
@@ -77,7 +79,9 @@
     border:0;background:none;color:inherit;padding:7px 12px;cursor:pointer;border-top:1px solid var(--line)}
   .psk-list>.psk:first-child{border-top:0}
   .psk:hover{background:var(--accent-soft)}
-  .psk .cv{width:12px;flex:none;color:var(--text-2);font-size:10px}
+  .psk .cv{width:12px;flex:none;color:var(--text-2);display:flex;align-items:center;
+    justify-content:center;transition:transform .15s}
+  .psk.open .cv{transform:rotate(90deg);color:var(--accent)}
   .psk.on .cv{color:var(--accent)}
   .psk .nm{font-family:ui-monospace,Menlo,monospace;font-size:12px;flex:none}
   .psk .ds{flex:1;min-width:0;color:var(--text-2);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -133,6 +137,7 @@
   [data-demo-harness] button.on{background:rgba(255,255,255,.12);color:#fff}
 </style>
 <script src="../vendor/marked.umd.js"></script>
+<script src="../_shared/icons.js"></script>
 <script src="../_shared/md-preview.js"></script>
 </head>
 <body>
@@ -267,7 +272,7 @@
     const overlay=document.getElementById('overlay')
     const text=FILES[key].files[file]
     overlay.innerHTML = `<div class="mask" data-close></div>
-      <div class="drawer"><button class="drawer-close" data-close title="关闭">×</button>
+      <div class="drawer"><button class="drawer-close" data-close title="关闭">${ICONS.X(15)}</button>
         <div class="d-top"><div class="d-title">${key}</div><div class="d-meta">插件包 · ${file}</div></div>
         <div class="d-body"><div id="md-pane" data-shared-block="md-preview" style="flex:1;min-width:0;display:flex"></div></div></div>`
     const mode = MdPreview.isMarkdown(file)?'preview':'raw'
@@ -280,7 +285,7 @@
   // ── The plugin row + the expanded area ──
   function mountPlugin(parent, p, side){
     const row=document.createElement('button'); row.type='button'; row.className='prow'
-    row.innerHTML=`<span class="cv">▸</span><span class="nm">${p.name}</span><span class="ver">${p.ver}</span>
+    row.innerHTML=`<span class="cv">${ICONS.ChevronRight(11)}</span><span class="nm">${p.name}</span><span class="ver">${p.ver}</span>
       ${side==='codex' ? `<span class="pill src">${p.market}</span>` : (p.enabled?`<span class="pill on">${p.enabled}</span>`:'<span class="pill off">未启用</span>')}
       ${p.missing?'<span class="pill off">安装目录缺失</span>':''}
       ${(p.installs||[]).map(i=>`<span class="mchip">${i}</span>`).join('')}`
@@ -300,7 +305,7 @@
         const r=document.createElement('button'); r.type='button'
         r.className='psk'+(s.key?'':' dis')
         const stats = s.key ? pkgStats(s.key) : null
-        r.innerHTML=`<span class="cv">${s.key?'▸':'·'}</span><span class="nm">${s.label}</span>
+        r.innerHTML=`<span class="cv">${s.key?ICONS.ChevronRight(11):ICONS.Dot(11)}</span><span class="nm">${s.label}</span>
           <span class="ds">${s.desc||''}</span>
           <span class="meta">${stats ? stats.files+' 个文件 · '+fmtSize(stats.bytes) : (s.disReason||'')}</span>`
         const host=document.createElement('div'); host.className='psk-body'; host.style.display='none'
@@ -310,7 +315,8 @@
             const open=host.style.display!=='none'
             host.style.display=open?'none':'block'
             if(!open) renderFiles(host, s.key); else host.innerHTML=''
-            r.querySelector('.cv').textContent=open?'▸':'▾'
+            // `open` 是**点击前**的状态,点完之后展开与否正好相反
+            r.classList.toggle('open', !open)
             r.classList.toggle('on', !open)
           }
         } else { r.title=s.disReason; r.onclick=(e)=>e.stopPropagation() }
@@ -343,7 +349,7 @@
     row.onclick=()=>{
       const open=exp.style.display!=='none'
       exp.style.display=open?'none':'block'
-      row.querySelector('.cv').textContent=open?'▸':'▾'
+      row.classList.toggle('open', !open)
     }
     parent.appendChild(row); parent.appendChild(exp)
   }

@@ -70,9 +70,9 @@
 </head>
 <body>
   <div class="rail">
-    <div class="ri on" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html">🤖</div>
-    <div class="ri" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">📁</div>
-    <div class="ri" title="全局刷新(两维度共用)" style="margin-top:auto;margin-bottom:6px">↻</div>
+    <div class="ri on" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html" data-icon="RobotFace" data-icon-size="17"></div>
+    <div class="ri" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html" data-icon="Folder" data-icon-size="17"></div>
+    <div class="ri" title="全局刷新(两维度共用)" style="margin-top:auto;margin-bottom:6px" data-icon="RefreshCw" data-icon-size="17"></div>
   </div>
   <div class="main">
     <h2>Agents · 全局 Skills(安装源 · 合并单列 · 只读,内容变更不经 app)</h2>
@@ -89,6 +89,7 @@
   <div class="toast" id="toast"></div>
   <div class="mask" id="mask"></div>
   <div class="dlg" id="dlg"></div>
+<script src="../_shared/icons.js"></script>
 <script>
   // The target project mock: has = a same-named skill is already installed (marked inside the picker);
   // stale is greyed out

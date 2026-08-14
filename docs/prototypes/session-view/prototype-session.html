@@ -84,15 +84,20 @@
   .dayhd{display:flex;align-items:center;gap:7px;padding:4px 13px;font-size:10.5px;
     color:var(--text-2);background:var(--bg);cursor:pointer;letter-spacing:.3px}
   .dayhd:hover{color:var(--text)}
-  .dayhd .cv::before{content:'▾';font-size:9px}
-  .daygrp.fold .dayhd .cv::before{content:'▸'}
+  /* 图标本身进了 DOM,不再靠 ::before 的 content —— 伪元素承载不了 SVG。
+     日期分组**默认展开**,所以静息态就是旋转后的那个,.fold 才转回指右;方向与下面 .bh 相反。 */
+  .dayhd .cv{display:flex;align-items:center;flex:none;transform:rotate(90deg);transition:transform .15s}
+  .daygrp.fold .dayhd .cv{transform:none}
   .daygrp.fold .daybody{display:none}
   /* A question row = the primary index: a dense single line with the number, text, turn volume and time, so
      twenty-odd fit on one screen */
   .q{display:flex;align-items:center;gap:9px;padding:4px 13px;border-top:1px solid var(--line);
     cursor:pointer;font-variant-numeric:tabular-nums}
   .q:hover{background:var(--accent-soft)}
-  .q .cv{width:9px;flex:none;color:var(--text-2);font-size:10px}
+  .q .cv{width:9px;flex:none;color:var(--text-2);display:flex;align-items:center;
+    justify-content:center;transition:transform .15s}
+  /* 展开态靠旋转,不靠换字符。`.q.open .cv` 三个类,压过 `.q .cv` 的两个,与书写顺序无关。 */
+  .q.open .cv{transform:rotate(90deg);color:var(--accent)}
   .q .idx{width:20px;flex:none;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2)}
   .q .txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .q .c{font-size:10.5px;color:var(--text-2);flex:none}
@@ -109,8 +114,8 @@
   .blk{border:1px solid var(--line);border-radius:7px;background:var(--card);margin:5px 0}
   .bh{display:flex;align-items:center;gap:7px;padding:5px 10px;cursor:pointer;font-size:12px}
   .bh:hover{background:var(--accent-soft)}
-  .bh .cv::before{content:'▸';color:var(--text-2);font-size:10px}
-  .blk.open .bh .cv::before{content:'▾'}
+    .bh .cv{display:flex;align-items:center;flex:none;color:var(--text-2);transition:transform .15s}
+  .blk.open .bh .cv{transform:rotate(90deg);color:var(--accent)}
   .bh .nm{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;flex:none}
   .bh .sum{flex:1;min-width:0;color:var(--text-2);font-size:11.5px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -161,9 +166,9 @@
 </head>
 <body>
   <div class="rail">
-    <div class="ri" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html">🤖</div>
-    <div class="ri on" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">📁</div>
-    <div class="ri" title="全局刷新(两维度共用)" style="margin-top:auto;margin-bottom:6px">↻</div>
+    <div class="ri" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html" data-icon="RobotFace" data-icon-size="17"></div>
+    <div class="ri on" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html" data-icon="Folder" data-icon-size="17"></div>
+    <div class="ri" title="全局刷新(两维度共用)" style="margin-top:auto;margin-bottom:6px" data-icon="RefreshCw" data-icon-size="17"></div>
   </div>
   <div class="side">
     <div class="row">agentshed</div><div class="row">chatgpt-token</div>
@@ -212,6 +217,7 @@
     <span class="hb" data-locate="4">跳到 05 并高亮</span>
   </div>
 
+<script src="../_shared/icons.js"></script>
 <script>
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   // The compact form for filler turns: [index, day, time, question, tool count, subagent count, a one-line
@@ -226,7 +232,7 @@
   const CLAUDE = {
     badge:'c', side:'CC', title:'MAS 上架支持:构建线与独立 bundle id',
     meta:'Claude Code · 42 提问 · 312k tok · 8.4 MB · 最后活动 3 天前',
-    banners:[{k:'info',i:'⑂',t:'本会话有 <b>2 处分叉</b>。已按最后一条消息沿父链回溯到根渲染这一条链——即「这次对话最终长什么样」;被放弃的分支不显示。'}],
+    banners:[{k:'info',i:'GitFork',t:'本会话有 <b>2 处分叉</b>。已按最后一条消息沿父链回溯到根渲染这一条链——即「这次对话最终长什么样」;被放弃的分支不显示。'}],
     qs:[
       // ★ 01
       {n:'01',d:'7月29日 周三',t:'09:12',tools:3,subs:0,
@@ -418,7 +424,7 @@
   const CODEX = {
     badge:'x', side:'CX', title:'迁移 Claude Code skills 到 Codex',
     meta:'Codex · 18 提问 · 96k tok · 3.1 MB(其中 54% 为 fork 重放副本)· 最后活动 9 天前',
-    banners:[{k:'info',i:'⑂',t:'本会话 fork 自 <a>《skills 目录结构与命名》</a>——重放前缀已剥离,下面只展示本次 fork 之后的新内容。<b>更早的历史见该会话</b>。'}],
+    banners:[{k:'info',i:'GitFork',t:'本会话 fork 自 <a>《skills 目录结构与命名》</a>——重放前缀已剥离,下面只展示本次 fork 之后的新内容。<b>更早的历史见该会话</b>。'}],
     qs:[
       {n:'01',d:'9月14日 周日',t:'10:22',tools:2,subs:0,
        txt:'上次 notarize 那套还能复用吗?Codex 这边的 skill 目录结构和 Claude 不一样。',
@@ -491,7 +497,7 @@
   const ORPHAN = {
     badge:'x', side:'CX', title:'把 openclaw 的网关拆出来单独跑',
     meta:'Codex · 24 提问 · 140k tok · 4.6 MB · 最后活动 10 天前 · 无 thread_name,标题取首条提问',
-    banners:[{k:'risk',i:'⑂?',t:'<b>重放前缀剥离不确定</b>:本会话 fork 自一个<b>不在扫描集内</b>的父会话(父文件已被清理,或属未注册项目),只能按启发式剥离——<b>可能多剥(丢消息)或少剥(重复)</b>,请对照原文核对。不静默剥错是这里唯一能给的保证。'}],
+    banners:[{k:'risk',i:'GitFork',t:'<b>重放前缀剥离不确定</b>:本会话 fork 自一个<b>不在扫描集内</b>的父会话(父文件已被清理,或属未注册项目),只能按启发式剥离——<b>可能多剥(丢消息)或少剥(重复)</b>,请对照原文核对。不静默剥错是这里唯一能给的保证。'}],
     qs:[
       {n:'01',d:'9月13日 周六',t:'20:04',tools:5,subs:0,
        txt:'把网关从主进程里拆出来单独跑,进程间怎么通?现在是直接函数调用。',
@@ -579,7 +585,7 @@
   const foldedDays=new Set();      // 已折叠的日期分组
 
   function toolHtml(b){
-    return `<div class="blk"><div class="bh"><i class="cv"></i>🔧<span class="nm">${b.nm}</span>
+    return `<div class="blk"><div class="bh"><i class="cv">${ICONS.ChevronRight(10)}</i>${ICONS.Terminal(13)}<span class="nm">${b.nm}</span>
       <span class="sum">${esc(b.sum)}</span></div>
       <div class="bb">${b.lite
         ? `<div class="mockgap">本原型只为标注的几轮构造了完整入参/返回(Claude:01 02 03 07 15 16;Codex:01 02 03)。
@@ -591,7 +597,7 @@
              这里展示的就是截断版,不谎称完整。</div>`:''}`}</div></div>`;
   }
   function subHtml(b){
-    return `<div class="blk sub"><div class="bh"><i class="cv"></i>🤖<span class="nm">subagent · ${b.nm}</span>
+    return `<div class="blk sub"><div class="bh"><i class="cv">${ICONS.ChevronRight(10)}</i>${ICONS.Bot(13)}<span class="nm">subagent · ${b.nm}</span>
       <span class="sum">${esc(b.sum)}</span></div>
       <div class="bb"><div class="lb">派发 prompt</div><pre>${esc(b.prompt)}</pre>
       <div class="lb">内部步骤</div>
@@ -599,9 +605,9 @@
       <div class="lb">返回主会话</div><pre>${esc(b.ret)}</pre></div></div>`;
   }
   function blockHtml(b){
-    if(b.type==='think') return `<div class="blk think"><div class="bh"><i class="cv"></i>💭<span class="nm">思考</span>
+    if(b.type==='think') return `<div class="blk think"><div class="bh"><i class="cv">${ICONS.ChevronRight(10)}</i>${ICONS.Brain(13)}<span class="nm">思考</span>
       <span class="sum">${b.size} · 明文可得</span></div><div class="bb">${esc(b.body).replace(/\n/g,'<br>')}</div></div>`;
-    if(b.type==='reason') return `<div class="blk think"><div class="bh"><i class="cv"></i>💭<span class="nm">推理</span>
+    if(b.type==='reason') return `<div class="blk think"><div class="bh"><i class="cv">${ICONS.ChevronRight(10)}</i>${ICONS.Brain(13)}<span class="nm">推理</span>
       <span class="sum">仅 ${b.titles.length} 条小标题 · 正文不可得</span></div>
       <div class="bb"><div class="warn">Codex 的推理正文是 <code>encrypted_content</code>,<b>永远拿不到</b>。
         下面是记录里仅有的明文小标题(<code>agent_reasoning</code>)——与 Claude 侧的明文思考<b>不对等</b>,不假装一致。</div>
@@ -646,7 +652,7 @@
     document.getElementById('htitle').textContent=d.title;
     document.getElementById('hmeta').textContent=d.meta;
     document.getElementById('banners').innerHTML=d.banners.map(b=>
-      `<div class="banner ${b.k}"><span class="bi">${b.i}</span><span>${b.t}</span></div>`).join('');
+      `<div class="banner ${b.k}"><span class="bi">${ICONS[b.i](12)}</span><span>${b.t}</span></div>`).join('');
     const days=dayGroups(d.qs);
     document.getElementById('qhead').textContent=
       `提问(主干)· ${d.qs.length} 条 · ${days.length} 天`;
@@ -656,14 +662,14 @@
     // changes the presentation order
     document.getElementById('qlist').innerHTML=days.map(g=>
       `<div class="daygrp${foldedDays.has(g.d)?' fold':''}" data-day="${g.d}">
-        <div class="dayhd"><i class="cv"></i>${g.d} · ${g.items.length} 条</div>
+        <div class="dayhd"><i class="cv">${ICONS.ChevronRight(9)}</i>${g.d} · ${g.items.length} 条</div>
         <div class="daybody">${g.items.map(([q,i])=>{
           const on=openTurns.has(i);
-          return `<div class="q${on?' open':''}" data-q="${i}"><i class="cv">${on?'▾':'▸'}</i>
+          return `<div class="q${on?' open':''}" data-q="${i}"><i class="cv">${ICONS.ChevronRight(9)}</i>
             <span class="idx">${q.n}</span>
             <span class="txt">${esc(q.txt)}</span>
-            ${q.tools?`<span class="c">${q.tools} 🔧</span>`:'<span class="c" style="opacity:.45">0 🔧</span>'}
-            ${q.subs?`<span class="c">${q.subs} 🤖</span>`:''}
+            ${q.tools?`<span class="c">${q.tools} ${ICONS.Terminal(11)}</span>`:`<span class="c" style="opacity:.45">0 ${ICONS.Terminal(11)}</span>`}
+            ${q.subs?`<span class="c">${q.subs} ${ICONS.Bot(11)}</span>`:''}
             <span class="tm">${q.t}</span></div>
           <div class="turn${on?' on':''}" data-turn="${i}">${on?turnHtml(q):''}</div>`;
         }).join('')}</div></div>`).join('');
@@ -683,10 +689,10 @@
     const row=e.target.closest('.q'); if(!row) return;
     const i=+row.dataset.q, box=document.querySelector(`[data-turn="${i}"]`);
     if(row.classList.contains('open')){
-      row.classList.remove('open'); row.querySelector('.cv').textContent='▸';
+      row.classList.remove('open');
       box.classList.remove('on'); openTurns.delete(i); return;
     }
-    row.classList.add('open'); row.querySelector('.cv').textContent='▾'; box.classList.add('on');
+    row.classList.add('open'); box.classList.add('on');
     openTurns.add(i);
     const key=cur+':'+i;
     // An already-fetched turn: re-expanding is instant (the data stays in memory and collapsing does not lose
