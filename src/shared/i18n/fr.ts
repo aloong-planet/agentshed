@@ -58,7 +58,8 @@ export const fr: Locale = {
       `${projects} ${plural('fr', projects, { one: 'projet', other: 'projets' })} · ${skills} ${plural('fr', skills, { one: 'skill global', other: 'skills globaux' })} · ${subagents} ${plural('fr', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Configuration',
     notDetected: 'Aucun dossier de données Claude Code ou Codex détecté sur cette machine',
-    notDetectedHint: 'Installez et utilisez l’un des agents, puis cliquez sur ↻ en bas du rail pour actualiser et voir la vue d’ensemble',
+    notDetectedHint: (refreshLabel) =>
+      `Installez et utilisez l’un des agents, puis cliquez sur « ${refreshLabel} » en bas du rail pour voir la vue d’ensemble`,
     totalsNote: 'inclut les projets masqués/obsolètes',
     archivedNote: (days, earliest) => `Pour ${days} de ces jours (le plus ancien ${earliest}), les fichiers de session source ont été nettoyés automatiquement par l’agent ; les valeurs viennent de l’archive locale (barres hachurées)`,
     byModel: 'Par modèle (tous projets ; côté Codex, approximation du modèle principal de la session)',

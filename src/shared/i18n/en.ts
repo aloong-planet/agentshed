@@ -58,7 +58,8 @@ export const en: Locale = {
       `${projects} ${plural('en', projects, { one: 'project', other: 'projects' })} · ${skills} global ${plural('en', skills, { one: 'skill', other: 'skills' })} · ${subagents} ${plural('en', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Config',
     notDetected: 'No Claude Code or Codex data directory detected on this machine',
-    notDetectedHint: 'Install and use either agent, then click ↻ at the bottom of the rail to refresh and see the overview',
+    notDetectedHint: (refreshLabel) =>
+      `Install and use either agent, then click “${refreshLabel}” at the bottom of the rail to see the overview`,
     totalsNote: 'includes hidden/stale projects',
     archivedNote: (days, earliest) =>
       `For ${days} of those days (earliest ${earliest}) the source session files have already been auto-cleaned by the agent, so the numbers come from the local archive (hatched bars)`,

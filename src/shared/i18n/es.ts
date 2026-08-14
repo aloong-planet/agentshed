@@ -58,7 +58,8 @@ export const es: Locale = {
       `${projects} ${plural('es', projects, { one: 'proyecto', other: 'proyectos' })} · ${skills} ${plural('es', skills, { one: 'skill global', other: 'skills globales' })} · ${subagents} ${plural('es', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Configuración',
     notDetected: 'No se detectó ningún directorio de datos de Claude Code ni de Codex en este equipo',
-    notDetectedHint: 'Instala y usa cualquiera de los dos agents y pulsa ↻ al final del rail para actualizar y ver el panorama',
+    notDetectedHint: (refreshLabel) =>
+      `Instala y usa cualquiera de los dos agents y pulsa «${refreshLabel}» al final del rail para ver el panorama`,
     totalsNote: 'incluye proyectos ocultos/obsoletos',
     archivedNote: (days, earliest) => `En ${days} de esos días (el más antiguo ${earliest}) el agent ya limpió automáticamente los archivos de sesión de origen; los valores vienen del histórico local (barras rayadas)`,
     byModel: 'Por modelo (entre proyectos; en el lado Codex es una aproximación del modelo principal de la sesión)',
