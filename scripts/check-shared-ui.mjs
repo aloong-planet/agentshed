@@ -24,6 +24,8 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseIcons, render as renderIcons } from '../docs/prototypes/sync-icons.mjs'
+
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (p) => (existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), 'utf8') : null)
@@ -250,6 +252,34 @@ const GLOBAL_RULES = [
         for (const c of THEME) if (src.includes(c)) bad.push(`${f}: hard-coded theme colour ${c}`)
       }
       return bad
+    }
+  },
+  {
+    // Ticket 112: the prototypes drew emoji for weeks after the product had moved to inline SVG, and
+    // nothing reported it. The fix was to make _shared/icons.js a **derived** file rather than a second
+    // hand-kept list — this rule is the other half, catching the case where someone edits the icon module
+    // and does not re-run the generator. Without it "derived" would only mean "derived at some point".
+    //
+    // Note what makes this checkable where ticket 105's proposal was not: it compares **generated text
+    // against its own generator's output** — a structural property. That ticket wanted to compare two
+    // hand-written implementations for equivalent *logic*, which no static check can decide.
+    name: 'docs/prototypes/_shared/icons.js is in sync with the renderer icon module',
+    cross: true,
+    check() {
+      const src = read('src/renderer/src/icons.tsx')
+      const generated = read('docs/prototypes/_shared/icons.js')
+      if (src === null) return ['cannot read src/renderer/src/icons.tsx']
+      if (generated === null) return ['docs/prototypes/_shared/icons.js is missing — run node docs/prototypes/sync-icons.mjs']
+      let want
+      try {
+        want = renderIcons(parseIcons(src))
+      } catch (e) {
+        return [`cannot parse the icon module: ${e.message}`]
+      }
+      if (want !== generated) {
+        return ['out of date — run `node docs/prototypes/sync-icons.mjs` (the prototypes would keep drawing the previous icons)']
+      }
+      return []
     }
   },
   {

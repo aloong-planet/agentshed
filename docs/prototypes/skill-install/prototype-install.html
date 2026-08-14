@@ -70,9 +70,9 @@
 </head>
 <body>
   <div class="rail">
-    <div class="ri on" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html">🤖</div>
-    <div class="ri" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html">📁</div>
-    <div class="ri" title="全局刷新(两维度共用)" style="margin-top:auto;margin-bottom:6px">↻</div>
+    <div class="ri on" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html" data-icon="RobotFace" data-icon-size="17"></div>
+    <div class="ri" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html" data-icon="Folder" data-icon-size="17"></div>
+    <div class="ri" title="全局刷新(两维度共用)" style="margin-top:auto;margin-bottom:6px" data-icon="RefreshCw" data-icon-size="17"></div>
   </div>
   <div class="main">
     <h2>Agents · 全局 Skills(安装源 · 合并单列 · 只读,内容变更不经 app)</h2>
@@ -89,6 +89,7 @@
   <div class="toast" id="toast"></div>
   <div class="mask" id="mask"></div>
   <div class="dlg" id="dlg"></div>
+<script src="../_shared/icons.js"></script>
 <script>
   // The target project mock: has = a same-named skill is already installed (marked inside the picker);
   // stale is greyed out
@@ -122,6 +123,8 @@
         }).join('')}
       </div>
     </div>`).join('');
+  // 成败只由底色区分,文案里不带 ✓ / ⚠ —— 产品的 toast 就是这样(Toast.tsx 只渲染文本)。
+  // 加个记号会让读原型的人以为产品也有。
   function toast(msg,ok){const t=document.getElementById('toast');
     t.textContent=msg;t.className='toast '+(ok?'ok':'err');t.style.display='block';
     clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2600);}
@@ -133,8 +136,8 @@
     if(p){
       if(p.classList.contains('dis'))return;
       p.closest('.pop').classList.remove('open');
-      if(p.dataset.has==='1'){toast(`⚠ ${p.dataset.p} 已有同名 skill「${p.dataset.s}」,已阻止,不覆盖`,false);}
-      else{toast(`✓ 已安装 ${p.dataset.s} → ${p.dataset.p}(复制落地;仅局部刷新该项目)`,true);}
+      if(p.dataset.has==='1'){toast(`${p.dataset.p} 已有同名 skill「${p.dataset.s}」,已阻止,不覆盖`,false);}
+      else{toast(`已安装 ${p.dataset.s} → ${p.dataset.p}(复制落地;仅局部刷新该项目)`,true);}
       return;
     }
   });
@@ -147,7 +150,7 @@
       <code>~/CascadeProjects/Transfer/.claude/skills/ui-design/</code>
       <div class="btns"><button id="dlg-c">取消</button><button class="danger" id="dlg-y">删除</button></div>`;
     document.getElementById('dlg-c').onclick=close;
-    document.getElementById('dlg-y').onclick=()=>{close();toast('✓ 已卸载 ui-design(仅局部刷新 Transfer)',true);};
+    document.getElementById('dlg-y').onclick=()=>{close();toast('已卸载 ui-design(仅局部刷新 Transfer)',true);};
   };
   function close(){mask.style.display='none';dlg.style.display='none'}
   mask.onclick=close;

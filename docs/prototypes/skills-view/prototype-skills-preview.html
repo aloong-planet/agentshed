@@ -350,7 +350,8 @@
   .sk-head.disk{cursor:pointer}
   .sk-head.disk:hover{background:var(--accent-soft)}
   .sk-head.plugin{cursor:default;opacity:.9}
-  .chev{width:18px;flex:none;color:var(--text-2);font-size:11px;transition:transform .15s;text-align:center}
+  .chev{width:18px;flex:none;color:var(--text-2);display:flex;align-items:center;
+    justify-content:center;transition:transform .15s}
   .sk.open .chev{transform:rotate(90deg);color:var(--accent)}
   .nm{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;width:200px;flex:none;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -511,6 +512,7 @@
   [data-demo-harness] button.on{background:rgba(255,255,255,.12);color:#fff}
 </style>
 <script src="../vendor/marked.umd.js"></script>
+<script src="../_shared/icons.js"></script>
 <script src="../_shared/md-preview.js"></script>
 <script src="./skill-packages-fixture.js"></script>
 </head>
@@ -703,7 +705,7 @@
 
     if (!pack || !pack.files || pack.files[file] == null) {
       overlay.innerHTML = `<div class="mask" data-close></div>
-        <div class="drawer"><button class="drawer-close" data-close>×</button>
+        <div class="drawer"><button class="drawer-close" data-close>${ICONS.X(15)}</button>
         <div class="err">文件不可读: ${skill} / ${file}</div></div>`
     } else {
       const text = pack.files[file]
@@ -716,7 +718,7 @@
       overlay.innerHTML = `
         <div class="mask" data-close></div>
         <div class="drawer">
-          <button class="drawer-close" data-close title="关闭">×</button>
+          <button class="drawer-close" data-close title="关闭">${ICONS.X(15)}</button>
           <div class="d-top">
             <div class="d-title">${skill}</div>
             <div class="d-meta">${meta}</div>
@@ -837,7 +839,7 @@
     head.type = expandable ? 'button' : undefined
     head.className = 'sk-head ' + (expandable ? 'disk' : 'plugin')
     head.innerHTML = `
-      <span class="chev">${expandable ? '▸' : '·'}</span>
+      <span class="chev">${expandable ? ICONS.ChevronRight(12) : ICONS.Dot(12)}</span>
       <span class="nm">${s.name}</span>
       <span class="bdg">${badges(sides)}</span>
       ${s.origin === 'plugin' ? '<span class="pill plg">插件</span>' : ''}

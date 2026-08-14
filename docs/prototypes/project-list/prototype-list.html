@@ -22,6 +22,12 @@
   .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
   .side{width:270px;flex:none;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column}
   .sh{display:flex;gap:6px;margin:12px 12px 6px}
+  /* 图标是输入框的兄弟而非 placeholder 的一部分:placeholder 只接受字符串。
+     `.sh .sh-field input` 而不是 `.sh-field input`——后者与 `.sh input` 特异性打平(各一类一元素),
+     谁赢取决于书写顺序,而输掉的表现是图标压在文字上、不报任何错。 */
+  .sh-field{flex:1;min-width:0;position:relative;display:flex;align-items:center}
+  .sh-field>span{position:absolute;left:9px;color:var(--text-2);display:flex;pointer-events:none}
+  .sh .sh-field input{padding-left:28px}
   .sh input{flex:1;padding:6px 10px;border:1px solid var(--line-strong);border-radius:7px;
     background:var(--bg);color:var(--text);font:inherit;outline:none}
   .sh input:focus{border-color:var(--accent)}
@@ -55,17 +61,18 @@
   .hidden-panel .row{opacity:.75}
   .main{flex:1;display:flex;flex-direction:column}
   .topbar{height:44px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px}
+  .empty .big{display:flex;justify-content:center;color:var(--text-2);opacity:.75}
   .empty{margin:auto;text-align:center;color:var(--text-2);line-height:2}
 </style>
 </head>
 <body>
   <div class="rail">
-    <div class="ri" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html">🤖</div>
-    <div class="ri on" title="Projects">📁</div>
-    <div class="ri" id="grfr" title="全局刷新(去重:进行中忽略再次点击)" style="margin-top:auto;margin-bottom:6px">↻</div>
+    <div class="ri" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html" data-icon="RobotFace" data-icon-size="17"></div>
+    <div class="ri on" title="Projects" data-icon="Folder" data-icon-size="17"></div>
+    <div class="ri" id="grfr" title="全局刷新(去重:进行中忽略再次点击)" style="margin-top:auto;margin-bottom:6px" data-icon="RefreshCw" data-icon-size="17"></div>
   </div>
   <div class="side">
-    <div class="sh"><input id="q" placeholder="🔍 搜索项目…"></div>
+    <div class="sh"><div class="sh-field"><span data-icon="Search" data-icon-size="13"></span><input id="q" placeholder="搜索项目…"></div></div>
     <div class="fseg" id="fseg"><span class="on" data-f="all">全部</span><span data-f="c">Claude</span><span data-f="x">Codex</span></div>
     <div class="opts"><label><input type="checkbox" id="showStale">显示失效项目</label>
       <span id="cnt" style="margin-left:auto"></span></div>
@@ -75,8 +82,9 @@
   </div>
   <div class="main">
     <div class="topbar"><b>Agentshed</b></div>
-    <div class="empty"><div style="font-size:34px">👈</div><div>选择一个项目查看详情</div></div>
+    <div class="empty"><div class="big" data-icon="MousePointerClick" data-icon-size="30"></div><div>选择一个项目查看详情</div></div>
   </div>
+<script src="../_shared/icons.js"></script>
 <script>
   // Activity = the most recent session time (the sort key) + the session count; stale = in the registry,
   // absent from disk
@@ -113,7 +121,7 @@
       .sort((a,b)=>a.ord-b.ord);
     list.innerHTML=vis.map(p=>rowHTML(p,false)).join('')||'<div style="padding:30px 10px;text-align:center;color:var(--text-2)">无匹配项目</div>';
     const hid=DATA.filter(p=>hidden.has(p.n));
-    hEntry.textContent=hid.length?`▸ 已隐藏 ${hid.length} 项${showHidden?'(点击收起)':'(点击展开)'}`:'';
+    hEntry.innerHTML=hid.length?ICONS.ChevronRight(11)+` 已隐藏 ${hid.length} 项${showHidden?'(点击收起)':'(点击展开)'}`:'';
     hPanel.style.display=showHidden&&hid.length?'block':'none';
     hPanel.innerHTML=hid.map(p=>rowHTML(p,true)).join('');
     const staleN=DATA.filter(p=>p.stale&&!hidden.has(p.n)).length;
