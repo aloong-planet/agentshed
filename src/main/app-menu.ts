@@ -20,9 +20,9 @@ import type { MenuItemConstructorOptions } from 'electron'
 import { dictOf, type Language } from '@shared/i18n'
 
 export interface MenuActions {
-  /** Switch to the settings dimension (the same operation as the rail's ⚙️) */
+  /** Switch to the settings dimension (the same operation as the rail's settings entry) */
   openSettings: () => void
-  /** Global refresh (the same operation as the rail's ↻) */
+  /** Global refresh (the same operation as the rail's refresh button) */
   refresh: () => void
 }
 

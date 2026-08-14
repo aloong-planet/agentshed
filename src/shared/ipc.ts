@@ -5,7 +5,7 @@ import type { ErrorCode, ErrorParams } from './errors'
 export const CMD = {
   /** Get the current snapshot (triggering the first scan if there is none) */
   getSnapshot: 'agentshed:get-snapshot',
-  /** Global refresh (the rail's bottom ↻; repeat calls while one is in flight are deduplicated) */
+  /** Global refresh (the rail's bottom refresh button; repeat calls while one is in flight are deduplicated) */
   refresh: 'agentshed:refresh',
   /** Manually hide or unhide a project */
   setHidden: 'agentshed:set-hidden',
@@ -50,10 +50,10 @@ export const CMD = {
 export const EVT = {
   /** The main process pushes a new snapshot (a refresh completed) */
   snapshot: 'agentshed:snapshot',
-  /** The application menu triggered "Settings" (ticket 13): the same operation as the rail's ⚙️, with
+  /** The application menu triggered "Settings" (ticket 13): the same operation as the rail's settings entry, with
    * the renderer switching dimension */
   menuOpenSettings: 'agentshed:menu-open-settings',
-  /** The application menu triggered "Refresh": the same operation as the rail's ↻ */
+  /** The application menu triggered "Refresh": the same operation as the rail's refresh button */
   menuRefresh: 'agentshed:menu-refresh'
 } as const
 
