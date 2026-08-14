@@ -8,10 +8,15 @@
 // switch it behaves differently from
 // the rest of the UI, whereas inline SVG follows naturally through currentColor.
 //
-// **How to add an icon**: copy the **internal elements** of that icon from the icon library (Lucide) and
-// wrap them in the
-// Icon component below. No third-party icon library runtime dependency, no pasting a whole `<svg>` tag,
-// and no hard-coded colours on the paths.
+// **How to add an icon**: copy the **internal elements** of that icon from an icon library and wrap them
+// in the Icon component below. No third-party icon library runtime dependency, no pasting a whole `<svg>`
+// tag, and no hard-coded colours on the paths.
+//
+// **Two libraries, and each icon says which one it came from.** Lucide is the default. Tabler is used
+// where Lucide has no glyph for the meaning: Lucide has exactly one robot in its whole set, and that one
+// is already the subagent, so the Agents rail would have had nothing left to be. Mixing is safe here for
+// a specific reason rather than by luck — both draw on a 24×24 grid with a 2px stroke and round caps, so
+// the same Icon wrapper fits either without adjustment. Check that before adding a third source.
 //
 // Every icon slot in the renderer now comes from here. What is deliberately **not** an icon: the CC / CX /
 // CLAUDE CODE badges are text labels, and the middle dots in copy (`a · b`) are typographic separators.
@@ -65,7 +70,7 @@ export function Check({ size }: { size?: number }): JSX.Element {
   )
 }
 
-/** Lucide bot — a subagent. Note it is **not** the rail's Agents icon (that is Boxes): the two used to
+/** Lucide bot — a subagent. Note it is **not** the rail's Agents icon (that is RobotFace): the two used to
  * share one 🤖, which tied two meanings to a single glyph and meant neither could change alone. */
 export function Bot({ size }: { size?: number }): JSX.Element {
   return (
@@ -197,22 +202,16 @@ export function Minus({ size }: { size?: number }): JSX.Element {
   )
 }
 
-/** Lucide boxes — rail · the Agents dimension */
-export function Boxes({ size }: { size?: number }): JSX.Element {
+/** Tabler robot-face — rail · the Agents dimension */
+export function RobotFace({ size }: { size?: number }): JSX.Element {
   return (
     <Icon size={size}>
-      <path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" />
-      <path d="m7 16.5-4.74-2.85" />
-      <path d="m7 16.5 5-3" />
-      <path d="M7 16.5v5.17" />
-      <path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" />
-      <path d="m17 16.5-5-3" />
-      <path d="m17 16.5 4.74-2.85" />
-      <path d="M17 16.5v5.17" />
-      <path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" />
-      <path d="M12 8 7.26 5.15" />
-      <path d="m12 8 4.74-2.85" />
-      <path d="M12 13.5V8" />
+      <path d="M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
+      <path d="M9 16c1 .667 2 1 3 1s2 -.333 3 -1" />
+      <path d="M9 7l-1 -4" />
+      <path d="M15 7l1 -4" />
+      <path d="M9 12v-1" />
+      <path d="M15 12v-1" />
     </Icon>
   )
 }

@@ -17,7 +17,7 @@ import { DetailPane } from './DetailPane'
 import { SessionPane } from './SessionPane'
 import { SettingsPane } from './SettingsPane'
 import { Toasts, toast } from './Toast'
-import { Boxes, Folder, Inbox, MousePointerClick, RefreshCw, Settings } from './icons'
+import { Folder, Inbox, MousePointerClick, RefreshCw, RobotFace, Settings } from './icons'
 
 type Dim = 'agents' | 'projects' | 'settings'
 
@@ -186,7 +186,7 @@ export function App(): JSX.Element {
           title={t.rail.agents}
           onClick={() => setDim('agents')}
         >
-          <Boxes size={17} />
+          <RobotFace size={17} />
         </button>
         <button
           className={`ri ${dim === 'projects' ? 'on' : ''}`}
