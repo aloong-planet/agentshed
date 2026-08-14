@@ -2320,15 +2320,32 @@ test('appearance mode: locking light or dark changes the effective light/dark, a
   // "Follow system" is selected by default
   await expect(win.locator('[data-mode-option="system"]')).toHaveAttribute('aria-checked', 'true')
 
+  // ── Why the swatches are polled rather than read once the media query has flipped ──
+  // They are not CSS: SettingsPane picks them out of a table keyed on the effective light/dark, and that
+  // key is React state fed by a matchMedia listener. So `matchMedia(...).matches` (what effectiveDark
+  // reads) flips a render **before** the swatches do, and reading them right after it leaves a window in
+  // which the previous mode's table is still on screen.
+  //
+  // That window is narrower than one CDP round-trip, so it almost never opens — it was seen once, as a
+  // light-mode assertion receiving luminance 0.1286, which is exactly THEME_SWATCH.dark.purple[0]
+  // (#1f2124) under the helper below. Polling the quantity actually asserted, rather than the signal
+  // upstream of it, removes the window instead of making it less likely.
+  //
   // Locking dark → the effective light/dark is dark
   await win.locator('[data-mode-option="dark"]').click()
   await expect.poll(async () => effectiveDark(win)).toBe(true)
   await expect(win.locator('[data-mode-option="dark"]')).toHaveAttribute('aria-checked', 'true')
+  await expect
+    .poll(async () => Math.max(...(await paperSwatches(win)).map(luminance)))
+    .toBeLessThan(0.3)
   const dark = await paperSwatches(win)
 
   // Locking light → the effective light/dark is light
   await win.locator('[data-mode-option="light"]').click()
   await expect.poll(async () => effectiveDark(win)).toBe(false)
+  await expect
+    .poll(async () => Math.min(...(await paperSwatches(win)).map(luminance)))
+    .toBeGreaterThan(0.9)
   const light = await paperSwatches(win)
 
   // Pin down that the set is non-empty first: if the two loops below iterated an empty array, their bodies
