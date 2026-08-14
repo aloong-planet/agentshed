@@ -12,6 +12,7 @@ import { SkillFilesTable, formatSize } from './SkillFilesTable'
 import { toast } from './Toast'
 import { errorText } from '@shared/error-text'
 import { useLanguage, useDict } from './language'
+import { ChevronRight, Dot } from './icons'
 
 export function PluginSkillList({
   ns,
@@ -81,7 +82,7 @@ export function PluginSkillList({
                 if (readable) void toggle(s.name)
               }}
             >
-              <span className="cv">{readable ? (on ? '▾' : '▸') : '·'}</span>
+              <span className="cv">{readable ? <ChevronRight size={11} /> : <Dot size={11} />}</span>
               <span className="nm mono">
                 {ns}:{s.name}
               </span>

@@ -9,6 +9,7 @@ import { SkillFilesTable, formatSize } from './SkillFilesTable'
 import { toast } from './Toast'
 import { errorText } from '@shared/error-text'
 import { useLanguage, useDict } from './language'
+import { ChevronRight, Dot } from './icons'
 
 const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex' }
 const SIDE_ORDER: AgentSide[] = ['claude', 'codex']
@@ -127,7 +128,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
           }
         }}
       >
-        <span className="chev">{expandable ? '▸' : '·'}</span>
+        <span className="chev">{expandable ? <ChevronRight size={12} /> : <Dot size={12} />}</span>
         <NameReveal name={name} />
         <span className="bdg">
           {SIDE_ORDER.map((s) =>

@@ -14,6 +14,7 @@ import type { Locale } from '@shared/i18n'
 import { useDict, useLanguage } from './language'
 import { ERR, appError } from '@shared/errors'
 import { errorText } from '@shared/error-text'
+import { Minus } from './icons'
 
 export function GlobalSubagentsTab({ snap }: { snap: Snapshot }): JSX.Element {
   const t = useDict()
@@ -28,8 +29,8 @@ export function GlobalSubagentsTab({ snap }: { snap: Snapshot }): JSX.Element {
           <button className="it row-btn" key={s.name} onClick={() => setOpen(s)}>
             <span className="nm mono">{s.name}</span>
             <span className="bdg">
-              {s.sides.includes('claude') ? <span className="badge cl">CC</span> : <span className="badge miss">—</span>}
-              {s.sides.includes('codex') ? <span className="badge cx">CX</span> : <span className="badge miss">—</span>}
+              {s.sides.includes('claude') ? <span className="badge cl">CC</span> : <span className="badge miss"><Minus size={10} /></span>}
+              {s.sides.includes('codex') ? <span className="badge cx">CX</span> : <span className="badge miss"><Minus size={10} /></span>}
             </span>
             <SubagentFlags s={s} />
             <span className="ds">{s.description ?? t.subagents.noDescription}</span>

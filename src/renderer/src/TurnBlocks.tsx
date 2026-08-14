@@ -8,6 +8,7 @@ import { useState } from 'react'
 import type { TurnBlock } from '@shared/domain'
 import { useDict } from './language'
 import { RichText } from './RichText'
+import { Bot, Brain, ChevronRight, Terminal } from './icons'
 
 function firstLine(s: string, max = 72): string {
   const t = s.split('\n')[0].trim()
@@ -24,7 +25,7 @@ function Fold({
   children
 }: {
   cls: string
-  icon: string
+  icon: React.ReactNode
   nm: string
   sum: string
   children: React.ReactNode
@@ -33,7 +34,9 @@ function Fold({
   return (
     <div className={`blk ${cls}${open ? ' open' : ''}`}>
       <div className="bh" onClick={() => setOpen(!open)}>
-        <i className="cv">{open ? '▾' : '▸'}</i>
+        <i className="cv">
+          <ChevronRight size={10} />
+        </i>
         <span aria-hidden>{icon}</span>
         <span className="nm">{nm}</span>
         <span className="sum">{sum}</span>
@@ -50,13 +53,13 @@ export function BlockView({ b }: { b: TurnBlock }): JSX.Element {
       return <div className="ans">{b.body}</div>
     case 'think':
       return (
-        <Fold cls="think" icon="💭" nm={t.turn.thinking} sum={t.turn.thinkingSum([...b.body].length)}>
+        <Fold cls="think" icon={<Brain size={13} />} nm={t.turn.thinking} sum={t.turn.thinkingSum([...b.body].length)}>
           <div className="tk">{b.body}</div>
         </Fold>
       )
     case 'reason':
       return (
-        <Fold cls="think" icon="💭" nm={t.turn.reasoning} sum={t.turn.reasoningSum(b.titles.length)}>
+        <Fold cls="think" icon={<Brain size={13} />} nm={t.turn.reasoning} sum={t.turn.reasoningSum(b.titles.length)}>
           <div className="warn">
             <RichText text={t.turn.reasoningNote} />
           </div>
@@ -69,7 +72,7 @@ export function BlockView({ b }: { b: TurnBlock }): JSX.Element {
       )
     case 'tool':
       return (
-        <Fold cls="" icon="🔧" nm={b.name ?? t.placeholder.unknownTool} sum={b.summary}>
+        <Fold cls="" icon={<Terminal size={13} />} nm={b.name ?? t.placeholder.unknownTool} sum={b.summary}>
           <div className="lb">{t.turn.input}</div>
           <pre>{b.input || t.turn.empty}</pre>
           <div className="lb">{t.turn.output}</div>
@@ -85,7 +88,7 @@ export function BlockView({ b }: { b: TurnBlock }): JSX.Element {
       return (
         <Fold
           cls="sub"
-          icon="🤖"
+          icon={<Bot size={13} />}
           nm={`subagent · ${b.name}`}
           sum={b.result !== null ? firstLine(b.result) : t.turn.subSteps(b.steps.length)}
         >

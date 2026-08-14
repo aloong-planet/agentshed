@@ -1,5 +1,16 @@
 // The prototype registry (a hard rule: add or remove an entry whenever a prototype is created or deleted —
 // a rotten registry blinds the gallery)
+//
+// ── Icons in these prototypes are superseded (2026-08-14, ticket 51) ──
+// Every UI prototype below draws its icons as emoji / Unicode characters, which is what the product did
+// when they were made. The product now renders inline SVG from the renderer's icon module, and **that
+// module is the single source of truth for which glyph carries which meaning** — including one thing no
+// prototype shows: the Agents rail and a subagent used to share 🤖 and are now two different icons.
+//
+// This is scoped rot, not general rot: what these prototypes are *for* — layout, states, interaction,
+// copy — is still accurate, and only the glyph layer has moved on. Marking it here rather than staleness
+// on each page keeps that distinction, because declaring twelve prototypes stale over their icons would
+// throw away the part that is still true. Re-drawing them is tracked separately.
 window.PROTOTYPES = [
   { module: 'agents-page',   type: 'ui',    id: 'agents',       name: 'Agents 全局页(默认落地)', path: 'agents-page/prototype-agents.html' },
   { module: 'shell',         type: 'ui',    id: 'app-shell',    name: '双栏壳与扫描态',       path: 'shell/prototype-app-shell.html' },

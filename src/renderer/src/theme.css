@@ -330,7 +330,11 @@ body {
   line-height: 2;
 }
 .empty .big {
-  font-size: 34px;
+  /* The size comes from the icon's own width/height now; this box only positions and tints it. */
+  display: flex;
+  justify-content: center;
+  color: var(--text-2);
+  opacity: 0.75;
 }
 
 /* ── The Projects list column ── */
@@ -353,6 +357,28 @@ body {
   display: flex;
   gap: 6px;
   margin: 12px 12px 6px;
+}
+.sh-field {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+/* The icon sits inside the field's box with the input padded past it, so the caret never lands on top of
+   it. It is a sibling rather than part of the placeholder because a placeholder takes a string. */
+.sh-field > svg {
+  position: absolute;
+  left: 9px;
+  color: var(--text-2);
+  pointer-events: none;
+}
+/* `.sh .sh-field input` rather than `.sh-field input`: the latter ties with `.sh input` on specificity
+   (one class + one type each), so which padding wins would depend on source order — and losing that race
+   is silent, the icon simply sits on top of the placeholder. The extra class settles it by rule, not by
+   position in the file. */
+.sh .sh-field input {
+  padding-left: 28px;
 }
 .sh input {
   flex: 1;
@@ -649,6 +675,8 @@ body {
   color: var(--text-2);
   background: transparent;
   font-weight: 400;
+  display: inline-flex;
+  align-items: center;
 }
 .pill {
   font-size: 10px;
@@ -1759,12 +1787,19 @@ mark {
 .qlist .dayhd:hover {
   color: var(--text);
 }
-.qlist .dayhd .cv::before {
-  content: '▾';
-  font-size: 9px;
+.qlist .dayhd .cv {
+  display: flex;
+  align-items: center;
+  flex: none;
+  /* The glyph itself now lives in the JSX rather than in `content:` — a CSS pseudo-element cannot hold an
+     SVG, and an icon that only exists in the stylesheet is invisible to anyone reading the component.
+     A day group is **expanded by default**, so the resting state is the rotated one and .fold returns
+     the chevron to pointing right. */
+  transform: rotate(90deg);
+  transition: transform 0.15s;
 }
-.qlist .daygrp.fold .dayhd .cv::before {
-  content: '▸';
+.qlist .daygrp.fold .dayhd .cv {
+  transform: none;
 }
 /* Ticket 05: clicking a question expands the whole turn in place (the prototype's .q.open / .turn / .ans /
      .fetched / .rebuild) */
@@ -1778,8 +1813,14 @@ mark {
   width: 9px;
   flex: none;
   color: var(--text-2);
-  font-size: 10px;
-  font-style: normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s;
+}
+.qlist .q.open .cv {
+  transform: rotate(90deg);
+  color: var(--accent);
 }
 .qlist .q.open {
   background: var(--accent-soft);
@@ -1845,9 +1886,14 @@ mark {
 }
 .turn .bh .cv {
   color: var(--text-2);
-  font-size: 10px;
-  font-style: normal;
   flex: none;
+  display: flex;
+  align-items: center;
+  transition: transform 0.15s;
+}
+.turn .blk.open .bh .cv {
+  transform: rotate(90deg);
+  color: var(--accent);
 }
 .turn .bh .nm {
   font-family: ui-monospace, Menlo, monospace;
@@ -2040,8 +2086,19 @@ mark {
 }
 .psk-list > div:first-child .psk { border-top: 0; }
 .psk:hover { background: var(--accent-soft); }
-.psk .cv { width: 12px; flex: none; color: var(--text-2); font-size: 10px; }
-.psk.on .cv { color: var(--accent); }
+.psk .cv {
+  width: 12px;
+  flex: none;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s;
+}
+.psk.on .cv {
+  color: var(--accent);
+  transform: rotate(90deg);
+}
 .psk .nm { font-size: 12px; flex: none; }
 .psk .ds {
   flex: 1;
@@ -2074,9 +2131,13 @@ mark {
   width: 18px;
   flex: none;
   color: var(--text-2);
-  font-size: 11px;
+  /* An SVG is centred by its box, not by text metrics — the font-size/text-align pair that used to shape
+     the character does nothing for it. transition plus the .open rule are what let one chevron cover
+     both states, instead of swapping one character for another. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.15s;
-  text-align: center;
 }
 .sk.open .chev { transform: rotate(90deg); color: var(--accent); }
   /* The expanded area is flat (finalised with the prototype on 2026-08-06): zero indentation, with the

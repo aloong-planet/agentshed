@@ -14,6 +14,7 @@ import { filterByName } from './skill-filter'
 import { errorText } from '@shared/error-text'
 import { appError, type AppError } from '@shared/errors'
 import { useLanguage, useDict } from './language'
+import { Inbox } from './icons'
 
 type Tab = 'token' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'cfg'
 
@@ -70,7 +71,9 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
       <div className="pane-body">
         {!snap.sides.claude.detected && !snap.sides.codex.detected && (
           <div className="empty">
-            <div className="big">🛖</div>
+            <div className="big">
+              <Inbox size={30} />
+            </div>
             <div>
               {t.agents.notDetected}
               <br />

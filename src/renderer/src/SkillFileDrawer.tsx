@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { isMarkdownName, renderMarkdown } from './md'
 import { useDict } from './language'
+import { X } from './icons'
 
 export interface SkillFileDrawerProps {
   skill: string
@@ -60,7 +61,7 @@ export function SkillFileDrawer({
       <div className="mask" onClick={onClose} />
       <div className="drawer skill-drawer">
         <button type="button" className="drawer-close" onClick={onClose} title={dict.skills.close}>
-          ×
+          <X size={15} />
         </button>
         <div className="d-top">
           <div className="d-title mono">{skill}</div>

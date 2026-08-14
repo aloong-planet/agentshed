@@ -17,6 +17,7 @@ import { DetailPane } from './DetailPane'
 import { SessionPane } from './SessionPane'
 import { SettingsPane } from './SettingsPane'
 import { Toasts, toast } from './Toast'
+import { Folder, Inbox, MousePointerClick, RefreshCw, RobotFace, Settings } from './icons'
 
 type Dim = 'agents' | 'projects' | 'settings'
 
@@ -185,28 +186,28 @@ export function App(): JSX.Element {
           title={t.rail.agents}
           onClick={() => setDim('agents')}
         >
-          🤖
+          <RobotFace size={17} />
         </button>
         <button
           className={`ri ${dim === 'projects' ? 'on' : ''}`}
           title={t.rail.projects}
           onClick={() => setDim('projects')}
         >
-          📁
+          <Folder size={17} />
         </button>
         <button
           className={`ri grfr ${refreshing ? 'busy' : ''}`}
           title={t.rail.refresh}
           onClick={() => void refresh()}
         >
-          ↻
+          <RefreshCw size={17} />
         </button>
         <button
           className={`ri set ${dim === 'settings' ? 'on' : ''}`}
           title={t.rail.settings}
           onClick={() => setDim('settings')}
         >
-          ⚙️
+          <Settings size={17} />
         </button>
       </nav>
       <main className="stage">
@@ -262,7 +263,9 @@ export function App(): JSX.Element {
                 />
               ) : (
                 <div className="empty">
-                  <div className="big">👈</div>
+                  <div className="big">
+                    <MousePointerClick size={30} />
+                  </div>
                   <div>{t.shell.pickProject}</div>
                 </div>
               )
@@ -280,7 +283,9 @@ function ScanningHint(): JSX.Element {
   const t = useDict()
   return (
     <div className="empty">
-      <div className="big">🛖</div>
+      <div className="big">
+        <Inbox size={30} />
+      </div>
       <div>{t.shell.scanning}</div>
     </div>
   )
