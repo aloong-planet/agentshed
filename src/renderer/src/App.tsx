@@ -40,8 +40,8 @@ export function App(): JSX.Element {
   // Ticket 08: going straight to a search hit — which question to locate when the session page opens
   // (from 1; null = no locating)
   const [openFocusQ, setOpenFocusQ] = useState<number | null>(null)
-  // Returning from a session page lands on the "Sessions" section (the prototype: ‹ back to <project> ·
-  // Sessions) rather than the overview
+  // Returning from a session page lands on the "Sessions" section (the pane header's back control, "Back
+  // to <project> · Sessions") rather than the overview
   const [backToSessions, setBackToSessions] = useState(false)
   const [theme, setTheme] = useState<AppearanceTheme>(DEFAULT_THEME)
   // The mode is only used to render the segmented control's selected state: the effective light/dark is

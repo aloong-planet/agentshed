@@ -66,7 +66,7 @@ sessions, one per row, with "how many questions I asked in this conversation".
   replay of the parent's history, verified entry by entry) does not enter the list — it has no
   question to find, the same rule as warmup sessions, and its tokens still count
 - When the parent session has been cleaned up or is outside scan scope, the replayed span can only be
-  identified heuristically, and the session is marked **strip uncertain** — better to strip too
+  identified heuristically, and the session is marked **uncertain strip** — better to strip too
   little (and see a few duplicates) than to silently drop a real question
 - Sorting is `newest first | oldest first`, newest first by default; **switching to another section
   and back keeps your last choice**
@@ -101,7 +101,7 @@ sessions, one per row, with "how many questions I asked in this conversation".
   nobody asked anything at any point) do not get their own rows, but their tokens still count toward
   the statistics** — so the session count here and the denominator on the token card are not the same
   thing, and the UI says so
-- A session marked **strip uncertain** **may have a few duplicated questions** at its start: with
+- A session marked **uncertain strip** **may have a few duplicated questions** at its start: with
   the parent outside scan scope the replayed span cannot be checked entry by entry, and the only
   available judgement is "were these written at almost the same moment". This is a deliberate
   trade-off — the other direction silently drops real questions, and that is invisible

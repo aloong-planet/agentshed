@@ -12,7 +12,7 @@
      默认 0 轮展开:进来全部折叠,点哪轮取哪轮。
      交互:点提问行就地展开/收起(展开态铺提问全文);工具块二次展开看入参与返回;
        subagent 块展开看内部步骤;日期分组行可点折叠;正序/倒序切换(序号恒为原始轮次号,
-       不随排序变;已展开的轮次跨排序保持);‹返回 跳回项目详情。
+       不随排序变;已展开的轮次跨排序保持);「返回」跳回项目详情。
      mock 完整度:标 ★ 的轮次构造了完整入参/返回与 subagent 内部步骤,其余轮次只到
        「一句回答 + 工具行」——展开填充轮会看到说明,不是设计的一部分。
      演示基建(非设计的一部分,勿实现):底部悬浮条
@@ -177,7 +177,7 @@
   </div>
   <div class="main">
     <div class="head">
-      <div class="back" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html">‹ 返回 Transfer · 会话</div>
+      <div class="back" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html"><span data-icon="ChevronLeft" data-icon-size="12"></span>返回 Transfer · 会话</div>
       <div class="h1">
         <span class="b c" id="hbadge">CC</span><b id="htitle">…</b>
       </div>
@@ -619,7 +619,7 @@
       // dropped —
     // it leaves one discoverable line naming the type, with the content unrendered (kept as it is in the
       // source file)
-    if(b.type==='unknown') return `<div class="unknown">▧ 本轮有 <b>${b.count} 条未识别记录</b>
+    if(b.type==='unknown') return `<div class="unknown">本轮有 <b>${b.count} 条未识别记录</b>
       (类型:${b.types.map(esc).join('、')})——原样保留在源文件中,未渲染。
       这通常意味着 agent 更新引入了新记录类型。</div>`;
     return '';
@@ -633,7 +633,7 @@
   }
   function turnHtml(q){
     return `${(q.turn||liteTurn(q)).map(blockHtml).join('')}
-      <div class="fetched">⚡ 按需取回 3 ms · 只读本轮区间 1.2 KB,与文件总大小无关</div>`;
+      <div class="fetched">按需取回 3 ms · 只读本轮区间 1.2 KB,与文件总大小无关</div>`;
   }
 
   function dayGroups(qs){

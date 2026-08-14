@@ -88,7 +88,7 @@ export const en: Locale = {
     searchPlaceholder: 'Search skills…',
     noNameMatch: 'No skill name matched',
     listFailed: (detail) => `Listing failed: ${detail}`,
-    pillPlugin: 'Plugin', pillProject: 'Project', pillGlobal: 'Global', pillSymlink: '⤷ symlink',
+    pillPlugin: 'Plugin', pillProject: 'Project', pillGlobal: 'Global', pillSymlink: 'symlink',
     pkgSummary: (files, size) =>
       `${files} ${plural('en', files, { one: 'file', other: 'files' })} · ${size}`,
     srcPluginPkg: 'Plugin package', srcProject: 'Project', srcGlobal: 'Global library',
@@ -166,8 +166,8 @@ export const en: Locale = {
     rebuilding: 'Index signature mismatch (the file was appended to or rewritten) → rebuilding the index for **this file only**…',
     turnFailed: (detail) => `This turn could not be fetched: ${detail}`,
     fetchedNote: (ms, bytes) =>
-      `⚡ Fetched on demand in ${ms} ms · read only this turn’s byte range, ${bytes} — independent of total file size`,
-    back: (project) => `‹ Back to ${project} · Sessions`,
+      `Fetched on demand in ${ms} ms · read only this turn’s byte range, ${bytes} — independent of total file size`,
+    back: (project) => `Back to ${project} · Sessions`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · ${questions} ${plural('en', questions, { one: 'question', other: 'questions' })} · ${tok} tok · ${mb} · last active ${ago}`,
     cannotOpen: (detail) => `Cannot open this session: ${detail}`,
@@ -207,7 +207,7 @@ export const en: Locale = {
     backToMain: 'Back to main session',
     noReturn: '(no result)',
     unknownRecords: (count, types) =>
-      `▧ This turn contains **${count} ${plural('en', count, { one: 'unrecognised record', other: 'unrecognised records' })}** (types: ${types}) — kept as-is in the source file, not rendered. This usually means an agent update introduced a new record type.`
+      `This turn contains **${count} ${plural('en', count, { one: 'unrecognised record', other: 'unrecognised records' })}** (types: ${types}) — kept as-is in the source file, not rendered. This usually means an agent update introduced a new record type.`
   },
   detail: {
     notInSnapshot: 'This project is not in the snapshot (refresh and try again)',
@@ -233,7 +233,7 @@ export const en: Locale = {
       ` · ${n} ${plural('en', n, { one: 'hit', other: 'hits' })} folded away (replays or abandoned branches)`,
     recentFirst: 'Newest first',
     oldestFirst: 'Oldest first',
-    forkUncertain: '⑂? uncertain strip',
+    forkUncertain: 'uncertain strip',
     hitCount: (n) => `${n} ${plural('en', n, { one: 'hit', other: 'hits' })}`,
     inBody: 'Body',
     sortNote: (order, n) =>

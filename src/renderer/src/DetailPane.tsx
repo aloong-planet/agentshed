@@ -305,7 +305,11 @@ function SessionsTab({
                   {g.forkState === 'stripped' && <span className="pill fork">
                       <GitFork size={10} /> fork
                     </span>}
-                  {g.forkState === 'uncertain' && <span className="pill forkq">{t.detail.forkUncertain}</span>}
+                  {g.forkState === 'uncertain' && (
+                    <span className="pill forkq">
+                      <GitFork size={10} /> {t.detail.forkUncertain}
+                    </span>
+                  )}
                   <span className="d">{t.detail.hitCount(g.hits.length)}</span>
                 </button>
                 {g.hits.map((h, hi) => (
@@ -370,7 +374,7 @@ function SessionsTab({
             )}
             {s.forkState === 'uncertain' && (
               <span className="pill forkq" title={t.detail.forkUncertainTip}>
-                {t.detail.forkUncertain}
+                <GitFork size={10} /> {t.detail.forkUncertain}
               </span>
             )}
             <span className="n">{t.detail.questionCount(s.questionCount)}</span>

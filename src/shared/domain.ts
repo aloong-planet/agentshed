@@ -308,7 +308,8 @@ export interface SessionMeta {
   file: string
   /** The number of real human questions in this session (harness noise stripped, abandoned branches and replay prefixes removed; shares its source with the title) */
   questionCount: number
-  /** How certain the fork and replay stripping is, which decides whether the list shows a ⑂ / ⑂? marker */
+  /** How certain the fork and replay stripping is, which decides whether the list shows a "fork" or
+   * "uncertain strip" pill */
   forkState: ForkState
 }
 

@@ -138,7 +138,7 @@ export const zh = {
     pillPlugin: '插件',
     pillProject: '项目级',
     pillGlobal: '全局',
-    pillSymlink: '⤷ 软链',
+    pillSymlink: '软链',
     pkgSummary: (files: number, size: string) => `${files} 个文件 · ${size}`,
     srcPluginPkg: '插件包',
     srcProject: '项目',
@@ -244,8 +244,8 @@ export const zh = {
     rebuilding: '索引签名不符(文件被追加或重写)→ 正在**只重建该文件**的索引…',
     turnFailed: (detail: string) => `这一轮取不回来:${detail}`,
     fetchedNote: (ms: number, bytes: string) =>
-      `⚡ 按需取回 ${ms} ms · 只读本轮区间 ${bytes},与文件总大小无关`,
-    back: (project: string) => `‹ 返回 ${project} · 会话`,
+      `按需取回 ${ms} ms · 只读本轮区间 ${bytes},与文件总大小无关`,
+    back: (project: string) => `返回 ${project} · 会话`,
     headMeta: (side: string, questions: number, tok: string, mb: string, ago: string) =>
       `${side} · ${questions} 提问 · ${tok} tok · ${mb} · 最后活动 ${ago}`,
     cannotOpen: (detail: string) => `会话打不开:${detail}`,
@@ -283,7 +283,7 @@ export const zh = {
     backToMain: '返回主会话',
     noReturn: '(未返回)',
     unknownRecords: (count: number, types: string) =>
-      `▧ 本轮有 **${count} 条未识别记录**(类型:${types})——原样保留在源文件中,未渲染。这通常意味着 agent 更新引入了新记录类型。`
+      `本轮有 **${count} 条未识别记录**(类型:${types})——原样保留在源文件中,未渲染。这通常意味着 agent 更新引入了新记录类型。`
   },
   /** The project detail tabs (ticket 08) */
   detail: {
@@ -307,7 +307,7 @@ export const zh = {
     folded: (n: number) => ` · 已折叠 ${n} 条重放或被放弃分支上的命中`,
     recentFirst: '最近在前',
     oldestFirst: '最早在前',
-    forkUncertain: '⑂? 剥离存疑',
+    forkUncertain: '剥离存疑',
     hitCount: (n: number) => `${n} 条命中`,
     inBody: '正文',
     sortNote: (order: string, n: number) => `按最近活动时间${order} · ${n} 个会话`,

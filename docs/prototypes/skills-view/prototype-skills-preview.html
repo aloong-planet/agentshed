@@ -845,7 +845,7 @@
       ${s.origin === 'plugin' ? '<span class="pill plg">插件</span>' : ''}
       ${s.level === 'project' ? '<span class="pill lv">项目级</span>' : ''}
       ${s.level === 'global' ? '<span class="pill lv">全局层</span>' : ''}
-      ${s.symlink ? '<span class="pill ln">⤷ 软链</span>' : ''}
+      ${s.symlink ? '<span class="pill ln">软链</span>' : ''}
       ${expandable ? `<span class="sk-meta" data-meta>${statsText(s.name, side)}</span>` : ''}
       ${disk && showInstall ? '<button type="button" class="ins" data-ins>安装到…</button>' : ''}
       ${disk && s.level === 'project' ? '<button type="button" class="ins" data-un>卸载</button>' : ''}`

@@ -87,7 +87,7 @@ export const es: Locale = {
     searchPlaceholder: 'Buscar skills…',
     noNameMatch: 'Ningún nombre de skill coincide',
     listFailed: (detail) => `Error al listar: ${detail}`,
-    pillPlugin: 'Plugin', pillProject: 'Proyecto', pillGlobal: 'Global', pillSymlink: '⤷ symlink',
+    pillPlugin: 'Plugin', pillProject: 'Proyecto', pillGlobal: 'Global', pillSymlink: 'symlink',
     pkgSummary: (files, size) => `${files} ${plural('es', files, { one: 'archivo', other: 'archivos' })} · ${size}`,
     srcPluginPkg: 'Paquete de plugin', srcProject: 'Proyecto', srcGlobal: 'Biblioteca global',
     listing: 'Listando…',
@@ -164,8 +164,8 @@ export const es: Locale = {
     rebuilding: 'La firma del índice no coincide (se le añadió contenido al archivo, o se reescribió) → reconstruyendo el índice **solo de este archivo**…',
     turnFailed: (detail) => `No se pudo recuperar este turno: ${detail}`,
     fetchedNote: (ms, bytes) =>
-      `⚡ Recuperado bajo demanda en ${ms} ms · se leyó solo el rango de bytes de este turno, ${bytes}, con independencia del tamaño del archivo`,
-    back: (project) => `‹ Volver a ${project} · Sesiones`,
+      `Recuperado bajo demanda en ${ms} ms · se leyó solo el rango de bytes de este turno, ${bytes}, con independencia del tamaño del archivo`,
+    back: (project) => `Volver a ${project} · Sesiones`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · ${questions} ${plural('es', questions, { one: 'pregunta', other: 'preguntas' })} · ${tok} tok · ${mb} · última actividad ${ago}`,
     cannotOpen: (detail) => `No se puede abrir la sesión: ${detail}`,
@@ -205,7 +205,7 @@ export const es: Locale = {
     backToMain: 'Volver a la sesión principal',
     noReturn: '(sin retorno)',
     unknownRecords: (count, types) =>
-      `▧ Este turno tiene **${count} ${plural('es', count, { one: 'registro no reconocido', other: 'registros no reconocidos' })}** (tipos: ${types}): se conservan tal cual en el archivo de origen y no se renderizan. Suele significar que una actualización del agent introdujo un tipo nuevo.`
+      `Este turno tiene **${count} ${plural('es', count, { one: 'registro no reconocido', other: 'registros no reconocidos' })}** (tipos: ${types}): se conservan tal cual en el archivo de origen y no se renderizan. Suele significar que una actualización del agent introdujo un tipo nuevo.`
   },
   detail: {
     notInSnapshot: 'Este proyecto no está en la instantánea (actualiza e inténtalo de nuevo)',
@@ -231,7 +231,7 @@ export const es: Locale = {
       ` · ${n} ${plural('es', n, { one: 'resultado plegado', other: 'resultados plegados' })} (repeticiones o ramas abandonadas)`,
     recentFirst: 'Más recientes primero',
     oldestFirst: 'Más antiguas primero',
-    forkUncertain: '⑂? recorte dudoso',
+    forkUncertain: 'recorte dudoso',
     hitCount: (n) => `${n} ${plural('es', n, { one: 'resultado', other: 'resultados' })}`,
     inBody: 'Cuerpo',
     sortNote: (order, n) =>

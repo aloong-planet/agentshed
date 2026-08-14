@@ -125,6 +125,16 @@ export function ChevronRight({ size }: { size?: number }): JSX.Element {
   )
 }
 
+/** Lucide chevron-left — the back control in a pane header. Its mirror, ChevronRight, is the expand
+ * indicator; this one is navigation, and the two never appear in the same slot. */
+export function ChevronLeft({ size }: { size?: number }): JSX.Element {
+  return (
+    <Icon size={size}>
+      <path d="m15 18-6-6 6-6" />
+    </Icon>
+  )
+}
+
 /** Lucide dot — the placeholder in an expand slot that cannot expand */
 export function Dot({ size }: { size?: number }): JSX.Element {
   return (
@@ -238,3 +248,4 @@ export function MousePointerClick({ size }: { size?: number }): JSX.Element {
     </Icon>
   )
 }
+
