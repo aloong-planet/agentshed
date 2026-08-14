@@ -85,7 +85,7 @@ export const ja: Locale = {
     searchPlaceholder: 'skill を検索…',
     noNameMatch: '名前が一致する skill はありません',
     listFailed: (detail) => `列挙に失敗しました：${detail}`,
-    pillPlugin: 'プラグイン', pillProject: 'プロジェクト', pillGlobal: 'グローバル', pillSymlink: '⤷ シンボリック',
+    pillPlugin: 'プラグイン', pillProject: 'プロジェクト', pillGlobal: 'グローバル', pillSymlink: 'シンボリック',
     pkgSummary: (files, size) => `${files} ファイル · ${size}`,
     srcPluginPkg: 'プラグインパッケージ', srcProject: 'プロジェクト', srcGlobal: 'グローバルライブラリ',
     listing: '列挙中…',
@@ -162,8 +162,8 @@ export const ja: Locale = {
     rebuilding: 'インデックスの署名が不一致（ファイルが追記または書き換え）→ **このファイルのみ**インデックスを再構築中…',
     turnFailed: (detail) => `このターンを取得できませんでした：${detail}`,
     fetchedNote: (ms, bytes) =>
-      `⚡ オンデマンド取得 ${ms} ms · このターンのバイト範囲 ${bytes} のみ読み取り（ファイル全体のサイズとは無関係）`,
-    back: (project) => `‹ ${project} に戻る · セッション`,
+      `オンデマンド取得 ${ms} ms · このターンのバイト範囲 ${bytes} のみ読み取り（ファイル全体のサイズとは無関係）`,
+    back: (project) => `${project} に戻る · セッション`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · 質問 ${questions} 件 · ${tok} tok · ${mb} · 最終アクティビティ ${ago}`,
     cannotOpen: (detail) => `セッションを開けません：${detail}`,
@@ -200,7 +200,7 @@ export const ja: Locale = {
     backToMain: 'メインセッションに戻る',
     noReturn: '（戻り値なし）',
     unknownRecords: (count, types) =>
-      `▧ このターンには**未識別の記録が ${count} 件**あります（種類：${types}）—— ソースファイルにはそのまま残っており、描画していません。通常は agent の更新で新しい記録種別が入ったことを意味します。`
+      `このターンには**未識別の記録が ${count} 件**あります（種類：${types}）—— ソースファイルにはそのまま残っており、描画していません。通常は agent の更新で新しい記録種別が入ったことを意味します。`
   },
   detail: {
     notInSnapshot: 'このプロジェクトはスナップショットにありません（更新して再試行してください）',
@@ -223,7 +223,7 @@ export const ja: Locale = {
     folded: (n) => ` · ${n} 件を折りたたみ（リプレイまたは破棄された分岐）`,
     recentFirst: '新しい順',
     oldestFirst: '古い順',
-    forkUncertain: '⑂? 除去不確実',
+    forkUncertain: '除去不確実',
     hitCount: (n) => `${n} 件`,
     inBody: '本文',
     sortNote: (order, n) => `最終アクティビティ${order} · ${n} セッション`,

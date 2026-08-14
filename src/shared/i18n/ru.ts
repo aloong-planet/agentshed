@@ -86,7 +86,7 @@ export const ru: Locale = {
     searchPlaceholder: 'Поиск skill…',
     noNameMatch: 'Нет skill с подходящим именем',
     listFailed: (detail) => `Не удалось перечислить: ${detail}`,
-    pillPlugin: 'Плагин', pillProject: 'Проект', pillGlobal: 'Глобально', pillSymlink: '⤷ симлинк',
+    pillPlugin: 'Плагин', pillProject: 'Проект', pillGlobal: 'Глобально', pillSymlink: 'симлинк',
     pkgSummary: (files, size) => `файлов: ${files} · ${size}`,
     srcPluginPkg: 'Пакет плагина', srcProject: 'Проект', srcGlobal: 'Глобальная библиотека',
     listing: 'Перечисление…',
@@ -163,8 +163,8 @@ export const ru: Locale = {
     rebuilding: 'Подпись индекса не совпала (файл дополнен или переписан) → перестраивается индекс **только этого файла**…',
     turnFailed: (detail) => `Этот ход не удалось получить: ${detail}`,
     fetchedNote: (ms, bytes) =>
-      `⚡ Получено по требованию за ${ms} мс · прочитан только байтовый диапазон этого хода, ${bytes} — независимо от размера файла`,
-    back: (project) => `‹ Назад к ${project} · Сессии`,
+      `Получено по требованию за ${ms} мс · прочитан только байтовый диапазон этого хода, ${bytes} — независимо от размера файла`,
+    back: (project) => `Назад к ${project} · Сессии`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · вопросов: ${questions} · ${tok} tok · ${mb} · последняя активность ${ago}`,
     cannotOpen: (detail) => `Не удаётся открыть сессию: ${detail}`,
@@ -202,7 +202,7 @@ export const ru: Locale = {
     backToMain: 'Назад в основную сессию',
     noReturn: '(без результата)',
     unknownRecords: (count, types) =>
-      `▧ В этом ходе **нераспознанных записей: ${count}** (типы: ${types}) — сохранены как есть в исходном файле, не отображаются. Обычно это значит, что обновление агента добавило новый тип записи.`
+      `В этом ходе **нераспознанных записей: ${count}** (типы: ${types}) — сохранены как есть в исходном файле, не отображаются. Обычно это значит, что обновление агента добавило новый тип записи.`
   },
   detail: {
     notInSnapshot: 'Этого проекта нет в снимке (обновите и попробуйте снова)',
@@ -225,7 +225,7 @@ export const ru: Locale = {
     folded: (n) => ` · свёрнуто совпадений: ${n} (повторы или заброшенные ветки)`,
     recentFirst: 'Сначала новые',
     oldestFirst: 'Сначала старые',
-    forkUncertain: '⑂? отсечение спорно',
+    forkUncertain: 'отсечение спорно',
     hitCount: (n) => `совпадений: ${n}`,
     inBody: 'Тело',
     sortNote: (order, n) => `По последней активности, ${order} · сессий: ${n}`,

@@ -16,7 +16,7 @@ import { errorText } from '@shared/error-text'
 import { useDict, useLanguage } from './language'
 import { RichText } from './RichText'
 import { formatBytes } from '@shared/format'
-import { Bot, ChevronRight, GitFork, Terminal } from './icons'
+import { Bot, ChevronLeft, ChevronRight, GitFork, Terminal } from './icons'
 
 
 function fmtHM(ms: number | null): string {
@@ -295,6 +295,7 @@ export function SessionPane({
     <div className="pane">
       <header className="pane-head">
         <button className="sback" onClick={onBack}>
+          <ChevronLeft size={12} />
           {t.session.back(projectName)}
         </button>
         {page && (

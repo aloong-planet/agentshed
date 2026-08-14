@@ -76,7 +76,7 @@
   </div>
   <div class="main">
     <h2>Agents · 全局 Skills(安装源 · 合并单列 · 只读,内容变更不经 app)</h2>
-    <div class="sub">徽标 = 该侧全局库是否存在;⤷ = 软链(安装时解引用复制为真文件);不做跨侧内容 diff(skills-view 拆除)</div>
+    <div class="sub">徽标 = 该侧全局库是否存在;「软链」角标 = 软链(安装时解引用复制为真文件);不做跨侧内容 diff(skills-view 拆除)</div>
     <div class="card" id="lib"></div>
 
     <h2>Transfer · 项目级副本(演示卸载,实际入口在<span style="color:var(--accent);cursor:pointer" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html">项目详情 ↗</span> Skills 分栏)</h2>
@@ -111,7 +111,7 @@
   lib.innerHTML=LIB.map((s,i)=>`<div class="it">
       <span class="nm">${s.n}</span>
       <span class="bdg">${s.c?'<span class="b c">CC</span>':'<span class="b miss">—</span>'}${s.x?'<span class="b x">CX</span>':'<span class="b miss">—</span>'}</span>
-      ${s.ln?'<span class="pill ln">⤷ 软链</span>':''}
+      ${s.ln?'<span class="pill ln">软链</span>':''}
       <span class="ds">${s.ds}</span>
       <button class="ins" data-i="${i}">安装到…</button>
       <div class="pop" id="pop-${i}">

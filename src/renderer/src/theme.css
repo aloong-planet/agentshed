@@ -690,6 +690,14 @@ body {
 }
 /* Fork and uncertain strip (the prototype's .pill.fork / .pill.forkq): a solid line = certain, a dashed
      line plus a warm colour = uncertain */
+/* These two are the only pills carrying an icon, so the alignment goes on them rather than on .pill —
+   every other pill is text-only, and widening the rule would reach a dozen of them for no reason. */
+.pill.fork,
+.pill.forkq {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
 .pill.fork {
   border: 1px solid var(--line-strong);
   color: var(--text-2);
@@ -1445,7 +1453,11 @@ body {
   font-size: 12px;
   color: var(--text-2);
   cursor: pointer;
-  display: block;
+  /* flex rather than block: the chevron is a sibling of the copy now (it used to be a character glued to
+     the front of the translated string, which meant six dictionaries each carried a copy of it). */
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .sback:hover {
   color: var(--accent);

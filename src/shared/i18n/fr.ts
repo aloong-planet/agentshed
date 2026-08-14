@@ -87,7 +87,7 @@ export const fr: Locale = {
     searchPlaceholder: 'Rechercher un skill…',
     noNameMatch: 'Aucun nom de skill ne correspond',
     listFailed: (detail) => `Échec du listage : ${detail}`,
-    pillPlugin: 'Plugin', pillProject: 'Projet', pillGlobal: 'Global', pillSymlink: '⤷ lien',
+    pillPlugin: 'Plugin', pillProject: 'Projet', pillGlobal: 'Global', pillSymlink: 'lien',
     pkgSummary: (files, size) => `${files} ${plural('fr', files, { one: 'fichier', other: 'fichiers' })} · ${size}`,
     srcPluginPkg: 'Paquet de plugin', srcProject: 'Projet', srcGlobal: 'Bibliothèque globale',
     listing: 'Listage…',
@@ -164,8 +164,8 @@ export const fr: Locale = {
     rebuilding: 'Signature d’index non concordante (du contenu a été ajouté au fichier, ou il a été réécrit) → reconstruction de l’index **de ce fichier uniquement**…',
     turnFailed: (detail) => `Ce tour n’a pas pu être récupéré : ${detail}`,
     fetchedNote: (ms, bytes) =>
-      `⚡ Récupéré à la demande en ${ms} ms · lecture de la seule plage d’octets de ce tour, ${bytes} — indépendamment de la taille totale du fichier`,
-    back: (project) => `‹ Retour à ${project} · Sessions`,
+      `Récupéré à la demande en ${ms} ms · lecture de la seule plage d’octets de ce tour, ${bytes} — indépendamment de la taille totale du fichier`,
+    back: (project) => `Retour à ${project} · Sessions`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · ${questions} ${plural('fr', questions, { one: 'question', other: 'questions' })} · ${tok} tok · ${mb} · dernière activité ${ago}`,
     cannotOpen: (detail) => `Impossible d’ouvrir cette session : ${detail}`,
@@ -205,7 +205,7 @@ export const fr: Locale = {
     backToMain: 'Retour à la session principale',
     noReturn: '(sans retour)',
     unknownRecords: (count, types) =>
-      `▧ Ce tour contient **${count} ${plural('fr', count, { one: 'enregistrement non reconnu', other: 'enregistrements non reconnus' })}** (types : ${types}) — conservés tels quels dans le fichier source, non rendus. Cela signifie généralement qu’une mise à jour de l’agent a introduit un nouveau type.`
+      `Ce tour contient **${count} ${plural('fr', count, { one: 'enregistrement non reconnu', other: 'enregistrements non reconnus' })}** (types : ${types}) — conservés tels quels dans le fichier source, non rendus. Cela signifie généralement qu’une mise à jour de l’agent a introduit un nouveau type.`
   },
   detail: {
     notInSnapshot: 'Ce projet n’est pas dans l’instantané (actualisez puis réessayez)',
@@ -231,7 +231,7 @@ export const fr: Locale = {
       ` · ${n} ${plural('fr', n, { one: 'résultat replié', other: 'résultats repliés' })} (rejeux ou branches abandonnées)`,
     recentFirst: 'Plus récentes d’abord',
     oldestFirst: 'Plus anciennes d’abord',
-    forkUncertain: '⑂? retrait incertain',
+    forkUncertain: 'retrait incertain',
     hitCount: (n) => `${n} ${plural('fr', n, { one: 'résultat', other: 'résultats' })}`,
     inBody: 'Corps',
     sortNote: (order, n) =>
