@@ -59,14 +59,14 @@ sessions, one per row, with "how many questions I asked in this conversation".
   transcript, and noise messages do not count; nor do questions on **the branch abandoned** after an
   edit and rerun — only "how this conversation finally went" is counted
 - A forked session (branched from another and continued) replays the parent's history at its start.
-  It is marked **⑂ fork** in the list, its count covers only questions new since the fork, and its
+  It is marked **fork** in the list, its count covers only questions new since the fork, and its
   title comes from the first real question after stripping (a session name Codex gave itself still
   takes priority and is not displaced)
 - A session that produced **no new question at all** after the fork (its content being entirely a
   replay of the parent's history, verified entry by entry) does not enter the list — it has no
   question to find, the same rule as warmup sessions, and its tokens still count
 - When the parent session has been cleaned up or is outside scan scope, the replayed span can only be
-  identified heuristically, and the session is marked **⑂? strip uncertain** — better to strip too
+  identified heuristically, and the session is marked **strip uncertain** — better to strip too
   little (and see a few duplicates) than to silently drop a real question
 - Sorting is `newest first | oldest first`, newest first by default; **switching to another section
   and back keeps your last choice**
@@ -101,7 +101,7 @@ sessions, one per row, with "how many questions I asked in this conversation".
   nobody asked anything at any point) do not get their own rows, but their tokens still count toward
   the statistics** — so the session count here and the denominator on the token card are not the same
   thing, and the UI says so
-- A session marked **⑂? strip uncertain** **may have a few duplicated questions** at its start: with
+- A session marked **strip uncertain** **may have a few duplicated questions** at its start: with
   the parent outside scan scope the replayed span cannot be checked entry by entry, and the only
   available judgement is "were these written at almost the same moment". This is a deliberate
   trade-off — the other direction silently drops real questions, and that is invisible

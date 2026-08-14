@@ -16,6 +16,7 @@ import { errorText } from '@shared/error-text'
 import { useDict, useLanguage } from './language'
 import { RichText } from './RichText'
 import { formatBytes } from '@shared/format'
+import { Bot, ChevronRight, GitFork, Terminal } from './icons'
 
 
 function fmtHM(ms: number | null): string {
@@ -49,7 +50,9 @@ function Banners({
   if (page.side === 'claude' && page.forkPoints > 0) {
     return (
       <div className="banner info">
-        <span className="bi">⑂</span>
+        <span className="bi">
+          <GitFork size={12} />
+        </span>
         <span>
           <RichText text={t.session.forkPoints(page.forkPoints)} />
         </span>
@@ -59,7 +62,9 @@ function Banners({
   if (page.side === 'codex' && page.forkState === 'stripped') {
     return (
       <div className="banner info">
-        <span className="bi">⑂</span>
+        <span className="bi">
+          <GitFork size={12} />
+        </span>
         <span>
           {t.session.forkedFrom}{' '}
           {page.forkParentFile !== null && onOpenSession ? (
@@ -77,7 +82,9 @@ function Banners({
   if (page.side === 'codex' && page.forkState === 'uncertain') {
     return (
       <div className="banner risk">
-        <span className="bi">⑂?</span>
+        <span className="bi">
+          <GitFork size={12} />
+        </span>
         {page.forkParentFile === null ? (
           <span>
             <RichText text={t.session.stripUncertainOrphan} />
@@ -239,13 +246,19 @@ export function SessionPane({
               : undefined
           }
         >
-          <i className="cv">{on ? '▾' : '▸'}</i>
+          <i className="cv">
+            <ChevronRight size={10} />
+          </i>
           <span className="idx">{String(q.i).padStart(2, '0')}</span>
           <span className="txt">{q.text}</span>
           <span className="c" style={q.tools === 0 ? { opacity: 0.45 } : undefined}>
-            {q.tools} 🔧
+            {q.tools} <Terminal size={11} />
           </span>
-          {q.subagents > 0 && <span className="c">{q.subagents} 🤖</span>}
+          {q.subagents > 0 && (
+            <span className="c">
+              {q.subagents} <Bot size={11} />
+            </span>
+          )}
           <span className="tm">{fmtHM(q.at)}</span>
         </div>
         {on && (
@@ -361,7 +374,9 @@ export function SessionPane({
                             })
                           }
                         >
-                          <i className="cv" />
+                          <i className="cv">
+                            <ChevronRight size={9} />
+                          </i>
                           {t.session.dayGroup(g.day, g.items.length)}
                         </div>
                         {/* Collapsing only hides the presentation: expansion and fetch state are kept

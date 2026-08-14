@@ -2138,10 +2138,14 @@ test('the sessions section: a fork session has its replay prefix stripped and is
   await expect(rowOf('Parent first question').locator('.n')).toHaveText('2 questions')
   await expect(rowOf('Parent first question').locator('.pill')).toHaveCount(0)
 
-  // The child: the two replayed entries are stripped leaving only its own, marked ⑂ fork
+  // The child: the two replayed entries are stripped leaving only its own, marked as a fork
   const child = rowOf('Child new question')
   await expect(child.locator('.n'), 'it would read 3 questions if the replay prefix were not stripped').toHaveText('1 question')
-  await expect(child.locator('.pill.fork')).toHaveText('⑂ fork')
+  // The marker is an icon plus a word. Asserting the text alone would pass just as well with the icon
+  // missing, so the icon is asserted as its own element (#51 turned it from a character into an SVG,
+  // and a character would have been part of the text where an SVG is not).
+  await expect(child.locator('.pill.fork')).toHaveText('fork')
+  await expect(child.locator('.pill.fork svg')).toHaveCount(1)
   await expect(child.locator('.pill.forkq')).toHaveCount(0)
 
   // An orphan fork: its parent is outside the scan set, so it is marked uncertain rather than certain

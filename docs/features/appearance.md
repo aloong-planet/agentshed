@@ -7,7 +7,7 @@ whole UI immediately and is still there next time the app opens. Nothing is writ
 configuration.
 
 ## Capabilities
-- The "Appearance" section of the settings dimension (rail ⚙️) is one card with two rows: "Mode" on
+- The "Appearance" section of the settings dimension (the settings entry at the foot of the rail) is one card with two rows: "Mode" on
   top and "Theme" below (the same page also has a "Language" section, see
   [UI language](i18n.md))
 - Three **modes**: **follow system** (default), **light**, **dark**

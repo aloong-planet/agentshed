@@ -17,7 +17,7 @@ project, sorted by activity.
 - Hovering a row reveals "Hide"; hidden projects collect under a "N hidden" entry point that expands
   to restore them. Hiding is a browsing preference of this app and is never written to any agent
   configuration
-- Clicking a project name opens its detail page; ↻ at the bottom of the rail refreshes globally
+- Clicking a project name opens its detail page; the refresh button at the foot of the rail refreshes globally
   (shared by both dimensions; repeat clicks while one is in flight are ignored)
 
 ## Boundaries and non-goals

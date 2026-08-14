@@ -3,6 +3,7 @@ import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
 import type { Language } from '@shared/i18n'
 import { relativeDays } from '@shared/format'
 import { useDict, useLanguage } from './language'
+import { ChevronRight, Search } from './icons'
 
 /**
  * Relative time (for display): today / yesterday / N days ago / N months ago, in the current language
@@ -52,13 +53,17 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
     <>
       <aside className="side">
         <div className="sh">
-          <input
-            value={kw}
-            onChange={(e) => setKw(e.target.value)}
-            // The icon character stays inside the component and does not enter the six dictionaries
-            // (ticket 08 AC; converting it to SVG is #51)
-            placeholder={`🔍 ${t.projects.searchPlaceholder}`}
-          />
+          {/* The icon is a sibling rather than part of the placeholder: an input's placeholder takes a
+              string, so an SVG cannot live in it — and keeping it out is also what keeps it from being
+              carried into the six dictionaries along with the copy. */}
+          <div className="sh-field">
+            <Search size={13} />
+            <input
+              value={kw}
+              onChange={(e) => setKw(e.target.value)}
+              placeholder={t.projects.searchPlaceholder}
+            />
+          </div>
         </div>
         <div className="fseg">
           {(['all', 'claude', 'codex'] as const).map((f) => (
@@ -90,7 +95,7 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
         </div>
         {hiddenList.length > 0 && (
           <button className="hidden-entry" onClick={() => setShowHidden((v) => !v)}>
-            ▸ {t.projects.hiddenCount(hiddenList.length)}
+            <ChevronRight size={11} /> {t.projects.hiddenCount(hiddenList.length)}
             {showHidden ? t.projects.collapseHint : t.projects.expandHint}
           </button>
         )}

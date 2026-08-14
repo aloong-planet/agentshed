@@ -15,6 +15,7 @@ import { filterByName } from './skill-filter'
 import { errorText } from '@shared/error-text'
 import { appError } from '@shared/errors'
 import { useLanguage, useDict } from './language'
+import { GitFork } from './icons'
 
 type Tab = 'ov' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'cfg' | 'arts'
 
@@ -39,7 +40,7 @@ export function DetailPane({
   const entry = snap.projects.find((p) => p.path === path)
 
   // Transfusion updates (project-detail A3): the loading state appears only when switching project; a
-  // snapshot update (manual ↻ / automatic refresh)
+  // snapshot update (manual refresh / automatic refresh)
   // and a partial refresh silently replace the rendered content, so a section's local state (expansion,
   // search, scroll) survives the refresh
   useEffect(() => {
@@ -301,7 +302,9 @@ function SessionsTab({
                     {g.side === 'claude' ? 'CC' : 'CX'}
                   </span>
                   <span className="t">{g.title ?? t.placeholder.untitledSession}</span>
-                  {g.forkState === 'stripped' && <span className="pill fork">⑂ fork</span>}
+                  {g.forkState === 'stripped' && <span className="pill fork">
+                      <GitFork size={10} /> fork
+                    </span>}
                   {g.forkState === 'uncertain' && <span className="pill forkq">{t.detail.forkUncertain}</span>}
                   <span className="d">{t.detail.hitCount(g.hits.length)}</span>
                 </button>
@@ -362,7 +365,7 @@ function SessionsTab({
             <span className="t">{s.title ?? t.placeholder.untitledSession}</span>
             {s.forkState === 'stripped' && (
               <span className="pill fork" title={t.detail.forkTip}>
-                ⑂ fork
+                <GitFork size={10} /> fork
               </span>
             )}
             {s.forkState === 'uncertain' && (
