@@ -12,7 +12,7 @@ a product overview written for people.
 | Feature | In one line |
 |---|---|
 | [Agents overview](agents-overview.md) | The default landing page: both agent sides' global picture and total consumption at a glance |
-| [Project list](projects-list.md) | The union of both sides' registered projects, filterable, searchable and hideable |
+| [Project list](projects-list.md) | The union of both sides' registered projects, filterable and searchable |
 | [Project detail](project-detail.md) | What one project has installed: each component's effective view, MCP, configuration and artifacts |
 | [Subagents view](subagents-view.md) | Both sides' subagent definitions merged into one view, showing at a glance which ones are in effect in a project |
 | [Memory view](memory-view.md) | What the agent remembers about each project, as a summary and in full |

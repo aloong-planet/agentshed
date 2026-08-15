@@ -77,7 +77,6 @@ export function validateSnapshot(v: unknown): ValidateResult {
       if (typeof s !== 'string' || !AGENT_SIDES.has(s)) return failEnum(`${at}.sides`, String(s))
     }
     if (typeof p['stale'] !== 'boolean') return failType(`${at}.stale`, 'boolean')
-    if (typeof p['hidden'] !== 'boolean') return failType(`${at}.hidden`, 'boolean')
     if (p['lastSessionAt'] !== null && typeof p['lastSessionAt'] !== 'number')
       return failType(`${at}.lastSessionAt`, 'number|null')
     if (typeof p['sessionCount'] !== 'number') return failType(`${at}.sessionCount`, 'number')

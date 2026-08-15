@@ -10,8 +10,7 @@ sides' global picture onto one screen.
   and global skill count; if one side's registry is corrupt it degrades to an error explanation while
   the other side is unaffected
 - Token section (the default): a large 30-day daily trend chart (switchable between combined and a
-  single side) and a cross-project model breakdown; the totals include hidden and stale projects and
-  say so
+  single side) and a cross-project model breakdown; the totals include stale projects and say so
 - Skills section: both sides' global libraries merged into one column, with side badges showing which
   sides have each entry and symlinks marked; no cross-side content diff; on-disk skills expand to
   preview a package's files (see [Skills view](skills-view.md)); global library entries can start an

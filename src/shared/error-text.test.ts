@@ -22,10 +22,10 @@ describe('errorText', () => {
   })
 
   it('an absent optional parameter leaves no empty brackets in the wording', () => {
-    const withField = wrap(encodeAppError({ code: ERR.badArgs, params: { channel: 'setHidden', field: 'hidden' } }))
-    const noField = wrap(encodeAppError({ code: ERR.badArgs, params: { channel: 'setHidden' } }))
-    expect(errorText('zh', withField)).toBe('调用参数不合契约:setHidden(字段 hidden)')
-    expect(errorText('zh', noField)).toBe('调用参数不合契约:setHidden')
+    const withField = wrap(encodeAppError({ code: ERR.badArgs, params: { channel: 'setMode', field: 'mode' } }))
+    const noField = wrap(encodeAppError({ code: ERR.badArgs, params: { channel: 'setMode' } }))
+    expect(errorText('zh', withField)).toBe('调用参数不合契约:setMode(字段 mode)')
+    expect(errorText('zh', noField)).toBe('调用参数不合契约:setMode')
   })
 
   it('**every code renders in all six languages into wording that is non-empty and does not contain the code itself**', () => {

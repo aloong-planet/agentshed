@@ -97,15 +97,6 @@ describe('the global Memory summary', () => {
     expect(snap.global.memory[0].stale).toBe(true)
   })
 
-  it('C4 a hidden project is listed as usual with its marker', async () => {
-    const pa = join(dir, 'proj-a')
-    mkdirSync(pa)
-    register([pa])
-    mkMemory(pa, { 'MEMORY.md': { body: 'x', mtime: 1_000 } })
-    const snap = await scan(roots(), { now: () => 1, isHidden: (p) => p === pa })
-    expect(snap.global.memory[0].hidden).toBe(true)
-  })
-
   it('C6 the three states: toggle detection is confined to the [features] section and is not misled by a [memories] configuration section', async () => {
     // No config → not enabled
     let snap = await scan(roots(), { now: () => 1 })

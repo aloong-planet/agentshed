@@ -60,7 +60,7 @@ export const es: Locale = {
     notDetected: 'No se detectó ningún directorio de datos de Claude Code ni de Codex en este equipo',
     notDetectedHint: (refreshLabel) =>
       `Instala y usa cualquiera de los dos agents y pulsa «${refreshLabel}» abajo a la izquierda para ver el panorama`,
-    totalsNote: 'incluye proyectos ocultos/obsoletos',
+    totalsNote: 'incluye proyectos obsoletos',
     archivedNote: (days, earliest) => `En ${days} de esos días (el más antiguo ${earliest}) el agent ya limpió automáticamente los archivos de sesión de origen; los valores vienen del histórico local (barras rayadas)`,
     byModel: 'Por modelo (entre proyectos; en el lado Codex es una aproximación del modelo principal de la sesión)',
     detected: 'Detectado', undetected: 'No detectado',
@@ -117,8 +117,8 @@ export const es: Locale = {
     codexEmpty: 'La memoria de Codex está activada pero vacía.',
     codexDisabled: 'La memoria de Codex no está activada: actívala con el comando /memories dentro de Codex, o en Ajustes → Personalización → Enable memories (experimental).',
     noneGlobal: 'Ningún proyecto tiene memoria automática',
-    globalHint: 'Por modificación más reciente · incluye obsoletos/ocultos (con distintivo) · haz clic en una fila para sus archivos y en un archivo para su contenido',
-    stale: 'Obsoleto', hidden: 'Oculto',
+    globalHint: 'Por modificación más reciente · incluye obsoletos (con distintivo) · haz clic en una fila para sus archivos y en un archivo para su contenido',
+    stale: 'Obsoleto',
     codexGlobalDir: 'Directorio de memoria global', noMainFile: 'Sin MEMORY.md',
     noneProject: 'Este proyecto aún no tiene memoria automática',
     claudeOnly: 'Memory es un mecanismo del lado Claude (la memoria de Codex es global: mira la pestaña Memory de la página global)',
@@ -283,12 +283,7 @@ export const es: Locale = {
     staleFiltered: (n) =>
       `${n} ${plural('es', n, { one: 'proyecto obsoleto excluido', other: 'proyectos obsoletos excluidos' })}`,
     noMatch: 'No hay proyectos coincidentes',
-    hiddenCount: (n) => `${n} ${plural('es', n, { one: 'proyecto oculto', other: 'proyectos ocultos' })}`,
-    expandHint: '(clic para desplegar)',
-    collapseHint: '(clic para plegar)',
     staleTag: 'Obsoleto',
-    restore: 'Restaurar',
-    hide: 'Ocultar'
   },
   token: {
     totalCard: (note) => `Total acumulado (ambos lados${note ? ` · ${note}` : ''})`,

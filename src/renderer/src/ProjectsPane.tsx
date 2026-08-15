@@ -3,7 +3,7 @@ import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
 import type { Language } from '@shared/i18n'
 import { relativeDays } from '@shared/format'
 import { useDict, useLanguage } from './language'
-import { ChevronRight, Search } from './icons'
+import { Search } from './icons'
 
 /**
  * Relative time (for display): today / yesterday / N days ago / N months ago, in the current language
@@ -30,23 +30,17 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
   const [kw, setKw] = useState('')
   const [sideFilter, setSideFilter] = useState<'all' | AgentSide>('all')
   const [showStale, setShowStale] = useState(false)
-  const [showHidden, setShowHidden] = useState(false)
   const now = snap.scannedAt
 
-  const { visible, hiddenList, staleFiltered } = useMemo(() => {
+  const { visible, staleFiltered } = useMemo(() => {
     const k = kw.trim().toLowerCase()
     const base = snap.projects
       .filter((p) => sideFilter === 'all' || p.sides.includes(sideFilter))
       .filter((p) => !k || p.name.toLowerCase().includes(k) || p.path.toLowerCase().includes(k))
-    const hiddenList = base.filter((p) => p.hidden)
-    const notHidden = base.filter((p) => !p.hidden)
-    const visible = notHidden.filter((p) => showStale || !p.stale)
-    const staleFiltered = notHidden.length - visible.length
-    const byActivity = (a: ProjectEntry, b: ProjectEntry): number =>
-      (b.lastSessionAt ?? 0) - (a.lastSessionAt ?? 0)
-    visible.sort(byActivity)
-    hiddenList.sort(byActivity)
-    return { visible, hiddenList, staleFiltered }
+    const visible = base.filter((p) => showStale || !p.stale)
+    const staleFiltered = base.length - visible.length
+    visible.sort((a, b) => (b.lastSessionAt ?? 0) - (a.lastSessionAt ?? 0))
+    return { visible, staleFiltered }
   }, [snap, kw, sideFilter, showStale])
 
   return (
@@ -93,19 +87,6 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
           ))}
           {visible.length === 0 && <div className="list-empty">{t.projects.noMatch}</div>}
         </div>
-        {hiddenList.length > 0 && (
-          <button className="hidden-entry" onClick={() => setShowHidden((v) => !v)}>
-            <ChevronRight size={11} /> {t.projects.hiddenCount(hiddenList.length)}
-            {showHidden ? t.projects.collapseHint : t.projects.expandHint}
-          </button>
-        )}
-        {showHidden && hiddenList.length > 0 && (
-          <div className="hidden-panel">
-            {hiddenList.map((p) => (
-              <Row key={p.path} p={p} now={now} selected={false} onSelect={onSelect} inHidden />
-            ))}
-          </div>
-        )}
       </aside>
       <section className="detail">{detail}</section>
     </>
@@ -116,21 +97,19 @@ function Row({
   p,
   now,
   selected,
-  onSelect,
-  inHidden = false
+  onSelect
 }: {
   p: ProjectEntry
   now: number
   selected: boolean
   onSelect: (path: string) => void
-  inHidden?: boolean
 }): JSX.Element {
   const lang = useLanguage()
   const t = useDict()
   return (
     <div
       className={`row ${p.stale ? 'stale' : ''} ${selected ? 'sel' : ''}`}
-      onClick={() => !inHidden && onSelect(p.path)}
+      onClick={() => onSelect(p.path)}
       title={p.path}
     >
       <span className="nm">{p.name}</span>
@@ -142,15 +121,6 @@ function Row({
         {p.sides.includes('claude') && <span className="badge cl">CC</span>}
         {p.sides.includes('codex') && <span className="badge cx">CX</span>}
       </span>
-      <button
-        className="hide-btn"
-        onClick={(e) => {
-          e.stopPropagation()
-          void window.agentshed.setHidden({ projectPath: p.path, hidden: !inHidden ? true : false })
-        }}
-      >
-        {inHidden ? t.projects.restore : t.projects.hide}
-      </button>
     </div>
   )
 }

@@ -4,7 +4,6 @@ import {
   EVT,
   type SearchSessionsArgs,
   type SessionTurnArgs,
-  type SetHiddenArgs,
   type SkillOpArgs,
   type SkillOpResult,
   type Prefs,
@@ -74,7 +73,6 @@ const api = {
   systemLanguages: systemLanguages(),
   getSnapshot: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.getSnapshot)),
   refresh: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.refresh)),
-  setHidden: (args: SetHiddenArgs): Promise<void> => ipcRenderer.invoke(CMD.setHidden, args),
   // The same rule as the snapshot: validated once at each end. The main process's pass catches "we
   // generated it wrong", this one catches the losses of
   // IPC transport itself — structured clone drops undefined properties, so the main process sees it as

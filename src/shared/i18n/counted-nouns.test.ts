@@ -62,8 +62,6 @@ describe('English counted nouns', () => {
     expect(d.detail.searchPlaceholder(2)).toBe('Search across 2 sessions in this project…')
     expect(d.projects.staleFiltered(1)).toBe('1 stale project filtered out')
     expect(d.projects.staleFiltered(2)).toBe('2 stale projects filtered out')
-    expect(d.projects.hiddenCount(1)).toBe('1 hidden project')
-    expect(d.projects.hiddenCount(2)).toBe('2 hidden projects')
     expect(d.errors.turnOutOfRange(0, 1)).toBe('Turn index out of range: 0 (of 1 turn)')
     expect(d.errors.turnOutOfRange(9, 5)).toBe('Turn index out of range: 9 (of 5 turns)')
   })
@@ -136,14 +134,12 @@ describe('French counted nouns', () => {
   })
 
   it('the hand-rolled n > 1 ternaries agree with Intl at every integer, and at 1.5 they do not', () => {
-    // `projects.staleFiltered`/`hiddenCount` used `n > 1 ? 's' : ''`. That gets the French-specific trap
+    // `projects.staleFiltered` used `n > 1 ? 's' : ''`. That gets the French-specific trap
     // right (0 → singular) and is correct for every integer, so this is not a live bug — it is the reason
     // the rule must come from Intl anyway: at 1.5 French still takes the singular and the ternary does not.
     expect(d.projects.staleFiltered(0)).toBe('0 projet obsolète filtré')
     expect(d.projects.staleFiltered(1)).toBe('1 projet obsolète filtré')
     expect(d.projects.staleFiltered(2)).toBe('2 projets obsolètes filtrés')
-    expect(d.projects.hiddenCount(1)).toBe('1 projet masqué')
-    expect(d.projects.hiddenCount(3)).toBe('3 projets masqués')
   })
 })
 
@@ -186,7 +182,6 @@ describe('Spanish counted nouns', () => {
     expect(d.detail.searchPlaceholder(9)).toBe('Buscar entre 9 sesiones de este proyecto…')
     expect(d.projects.staleFiltered(1)).toBe('1 proyecto obsoleto excluido')
     expect(d.projects.staleFiltered(2)).toBe('2 proyectos obsoletos excluidos')
-    expect(d.projects.hiddenCount(1)).toBe('1 proyecto oculto')
     expect(d.errors.turnOutOfRange(0, 1)).toBe('Índice de turno fuera de rango: 0 (de 1 turno)')
     expect(d.errors.turnOutOfRange(9, 5)).toBe('Índice de turno fuera de rango: 9 (de 5 turnos)')
   })
@@ -227,6 +222,5 @@ describe('Russian counted nouns', () => {
     expect(d.projects.staleFiltered(1)).toBe('Отфильтровано 1 устаревший проект')
     expect(d.projects.staleFiltered(2)).toBe('Отфильтровано 2 устаревших проекта')
     expect(d.projects.staleFiltered(5)).toBe('Отфильтровано 5 устаревших проектов')
-    expect(d.projects.hiddenCount(21)).toBe('21 скрытый проект')
   })
 })

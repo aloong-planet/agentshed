@@ -1,4 +1,4 @@
-// Project path normalisation and the merge key: the single source (shared by scan, hidden-store and the
+// Project path normalisation and the merge key: the single source (shared by scan and the
 // token engine).
 // The merge key = trailing slash removed + lowercased (the macOS filesystem is case-insensitive);
 // display keeps the original spelling.

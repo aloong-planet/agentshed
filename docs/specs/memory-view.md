@@ -38,8 +38,9 @@ section renders that project's main memory file directly and can view topics. Ev
 - C2 The memory directory exists but is empty → does not count as having memories, not listed.
 - C3 Only topic files, no main memory file (the shape measured on this machine's Transfer project) →
   counts as having memories, with the main file slot showing "none".
-- C4 The summary set: all registered projects (including stale and hidden, each with its existing
-  badge) — so nothing has memories yet is invisible; sorted by last modification, most recent first.
+- C4 The summary set: all registered projects (including stale, with its existing badge; manual
+  hiding was removed by ADR-0022) — so nothing that has memories is invisible; sorted by last
+  modification, most recent first.
 - C5 An encoded directory with no corresponding project in the registry (a leftover) → not listed (the
   summary follows the project registry and reuses the existing encoding mapping rather than writing a
   new decoder).
@@ -107,7 +108,7 @@ section renders that project's main memory file directly and can view topics. Ev
 ## Testing Decisions
 
 Following ADR-0002's dual seam: (1) fixture unit tests at the providers layer (covering sequence C:
-an empty directory, topics only, stale/hidden, registry leftovers, Codex's three states and the
+an empty directory, topics only, stale, registry leftovers, Codex's three states and the
 dotted-key form, degradation on a parse failure); (2) the contract validation round trip. The UI
 layer's drawer read-failure path is not unit tested (per ADR-0002 the UI is not unit tested), and e2e
 covers the normal read path.

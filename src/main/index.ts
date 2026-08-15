@@ -6,7 +6,6 @@ import {
   EVT,
   type SearchSessionsArgs,
   type SessionTurnArgs,
-  type SetHiddenArgs,
   type SkillOpArgs,
   type ListSkillFilesArgs,
   type ListSkillFilesResult
@@ -33,7 +32,6 @@ import {
   installPermissionGuards,
   sessionReadTarget
 } from './security'
-import { HiddenStore } from './hidden-store'
 import { rescanIntervalMs, shouldRescanOnFocus } from './rescan'
 import { PrefsStore } from './prefs-store'
 import { applyAppearanceMode } from './appearance-mode'
@@ -88,7 +86,6 @@ if (QUIET) {
 }
 
 let mainWindow: BrowserWindow | null = null
-let hiddenStore: HiddenStore | null = null
 let prefsStore: PrefsStore | null = null
 let tokenEngine: TokenEngine | null = null
 let archive: UsageArchive | null = null
@@ -111,10 +108,7 @@ async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
   inflight = (async () => {
     try {
-      const snap = await scan(realRoots(), {
-        now: () => Date.now(),
-        isHidden: (p) => hiddenStore?.isHidden(p) ?? false
-      })
+      const snap = await scan(realRoots(), { now: () => Date.now() })
       if (tokenEngine) {
         const claudePaths = snap.projects
           .filter((p) => p.sides.includes('claude'))
@@ -413,23 +407,6 @@ handle(CMD.setLanguage, (_e, language: unknown) => {
   return next
 })
 handle(CMD.setMode, (_e, mode: unknown) => prefsHandlers.setMode(mode))
-handle(CMD.setHidden, (_e, args: unknown) => {
-  const a = args as SetHiddenArgs
-  if (typeof a?.projectPath !== 'string' || typeof a?.hidden !== 'boolean') {
-    throw appError(ERR.badArgs, { channel: 'setHidden' })
-  }
-  hiddenStore?.setHidden(a.projectPath, a.hidden)
-  // Update the snapshot locally and broadcast, without triggering a full rescan
-  if (current) {
-    for (const p of current.projects) {
-      if (mergeKey(p.path) === mergeKey(a.projectPath)) {
-        p.hidden = a.hidden
-      }
-    }
-    mainWindow?.webContents.send(EVT.snapshot, current)
-  }
-})
-
 const PRELOAD = join(__dirname, '../preload/index.cjs')
 
 /** Rebuild the application menu in the currently effective language; must be called again after a
@@ -511,7 +488,6 @@ void app.whenReady().then(() => {
   // Handlers must be registered before the window is built (loadURL app://…); __dirname = out/main, and
   // the build output is in out/renderer
   registerAppProtocol(join(__dirname, '../renderer'))
-  hiddenStore = new HiddenStore(app.getPath('userData'))
   prefsStore = new PrefsStore(app.getPath('userData'))
   // Must come **before** building the window: themeSource decides how the first frame evaluates
   // prefers-color-scheme,

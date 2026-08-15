@@ -22,7 +22,7 @@ share a source and reconcile against each other.
   window is too narrow, labels thin automatically (dropping every other adjacent day), and at any
   width they never overlap, clip, or spill outside the chart
 - The Agents page's Token section: the same large trend chart and model breakdown, across projects;
-  the totals include hidden and stale projects and say so
+  the totals include stale projects and say so
 - Subagent consumption counts toward the statistics but does not appear in the session list;
   double-billed lines (a subagent replaying its parent's messages) are deduplicated automatically
 - The statistics cover every session in the agent data directories — including historical projects
