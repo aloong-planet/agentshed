@@ -1,21 +1,23 @@
 # Token statistics
 
-> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days)
+> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases (the
 > accounting decisions are in the ADRs and are not restated here).
 
 ## Problem Statement
 
-"Which project is burning my quota, and what has it been burning lately" had no ready answer: the two
-sides' session records have different formats and different accounting, and Claude Code cleans up old
+"Which project is burning my quota, and what has it been burning lately" had no ready answer: each
+side's session records have their own format and their own accounting, and Claude Code cleans up old
 session files automatically — so history vanishes as you watch.
 
 ## Solution
 
-Aggregate both sides' session records into a project-level and a global view whose accounting aligns
+Aggregate every side's session records into a project-level and a global view whose accounting aligns
 with ccusage and can be reconciled against it; and file away the day's aggregate on every refresh, so
-the historical trend survives the source files being cleaned up.
+the historical trend survives the source files being cleaned up. Sides differ only in their parsers —
+what a total means, how a day is cut, and what a bar segment stands for are one definition shared by
+all of them.
 
 ## User Stories
 
@@ -57,6 +59,26 @@ the historical trend survives the source files being cleaned up.
 - B3 Subagent sessions' tokens count toward the statistics but do not enter the session list.
 - B4 Titles come from `session_index`.
 
+**Sequence F: Grok-side aggregation** (lettered after the existing sequences rather than inserted
+next to A/B, so that no existing reference is renumbered)
+- F1 Per-turn usage is read from the session's authoritative update stream, which is also the only
+  file carrying the conversation and the tool calls — one file serves both metering and display.
+- F2 The accounting rule follows the Codex shape, not the Claude one: reported input **already
+  includes** cached reads, so input is sanitised by subtracting cached, cached is recorded as cache
+  read, and the total is input + output + cache creation (ADR-0005's per-side formulas; copying the
+  Claude formula here would double-count the cache).
+- F3 The model is taken from the per-turn usage record's own model key, which names the model that was
+  actually billed. This is **exact**, unlike the Codex approximation, and it can differ from the model
+  the session summary names — the billed name wins, and is not normalised into the summary's name.
+- F4 A turn record carries a cost figure. It is **neither read nor archived** (ADR-0019): a metric
+  present on one side of a three-side comparison reads as breakage on the other two.
+- F5 Subagent sessions are stored beside their parents, with the parent holding only a pointer; the
+  real record appears exactly once in the scan, so no cross-file deduplication is required for them.
+  Their tokens count toward statistics and they stay out of the session list (the same rule as B3).
+- F6 A session directory missing its update stream contributes nothing and does not abort the scan of
+  its siblings.
+- F7 Sessions spanning midnight are apportioned by each turn's own timestamp, the same as B2.
+
 **Sequence C: cache and archive**
 - C1 An old-format cache (a historical file from before a structure change) does not crash and is
   recomputed into the new structure — **the structure definition and the version number are two
@@ -78,6 +100,10 @@ the historical trend survives the source files being cleaned up.
 **Sequence D: trend and axis rendering**
 - D1 Always produce 30 bars in ascending date order, with the last as the anchor day; historical days
   outside the window do not become bars.
+- D1a A side newly in use has volume only on recent days. Combined mode shows it as a thin segment
+  (single-digit pixels at typical bar heights), and single-side mode leaves most of the window empty
+  with the axis labelling only its few data days under D6 — both are correct, and the thin-segment
+  case is what a new side's colour has to survive.
 - D2 Combined mode segments by provider in a fixed order (Anthropic → OpenAI → …), and the segments
   sum to the total; a zero value produces no empty segment.
 - D3 When one agent used several providers, split by provider rather than by agent side.
@@ -116,8 +142,15 @@ overnight froze `scannedAt` and today's data was not shown)**
 
 ## Implementation Decisions
 
-- **Accounting**: see ADR-0005/0006 (the two sides' total formulas differ and must not be copied from
-  one another).
+- **Accounting**: see ADR-0005/0006 (the sides' total formulas differ and must not be copied from one
+  another) and ADR-0019 for the third side's onboarding rules.
+- **Day usage shape**: a day's per-side figures are keyed by side rather than held in one field per
+  side (ADR-0020), so that adding a side makes typecheck enumerate every producer and consumer instead
+  of letting one silently omit it. The provider breakdown stays sparse — absence there means "no
+  segment", which is meaningful, whereas a missing side would only mean "the producer forgot".
+- **A new vendor**: adding one is a rule in the provider inference module, which ADR-0008 already
+  anticipated; the chart logic does not change. The side's identifying colour is that provider colour
+  (ADR-0021).
 - **Archive**: see ADR-0007 (resilient to the agent's automatic cleanup; live values overwriting the
   archive is what makes accounting fixes retroactive).
 - **Segmentation and axis**: see ADR-0008/0009.
@@ -130,8 +163,12 @@ overnight froze `scannedAt` and today's data was not shown)**
 
 ## Testing Decisions
 
-Following ADR-0002's dual seam: fixture unit tests at the providers layer cover both sides' parsing
-rules, deduplication, the cache and the archive; pure functions (trend/axis/provider) get their own
+Following ADR-0002's dual seam: fixture unit tests at the providers layer cover every side's parsing
+rules, deduplication, the cache and the archive — one fixture per side, because the formulas
+deliberately differ and a shared fixture would let one side's rule stand in for another's. The
+reconciliation test is the guard against exactly that substitution. Adding a side also requires a case
+where **two sides have volume on the same day**, since a per-side keying mistake is invisible while
+only one side has data; pure functions (trend/axis/provider) get their own
 unit tests covering the geometric constraints of segmentation and axis layout; e2e covers that an
 old-format cache does not crash at startup and the geometric checks on the trend chart's rendering
 (labels do not overlap, tooltips are not clipped). The reconciliation baseline: the day-by-day ccusage
@@ -143,9 +180,12 @@ header), and since the focus path shares its scan entry point with the timer, it
 
 ## Out of Scope
 
-- Dollar cost estimation.
+- Dollar cost estimation. This stays out even though one side's records carry a real billing figure
+  (not an estimate) — see ADR-0019: the other sides carry none, and a metric present on only one of
+  them reads as breakage on the rest.
 - An exact per-model split on the Codex side (currently an approximation at the level of the session's
-  primary model).
+  primary model). The Claude and Grok sides are exact, so the per-model table mixes exact and
+  approximate figures without saying which is which; this asymmetry is known and accepted.
 - Sessions from before this application first ran that the agent has already cleaned up (unrecoverable).
 - ~~Rendering session contents (metadata only)~~ (2026-08-06: fully shipped by
   `docs/specs/session-view.md`, moved out of this spec's boundary).

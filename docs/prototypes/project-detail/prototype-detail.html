@@ -226,7 +226,8 @@
     <div class="body">
       <div data-p="ov">
         <div class="stats">
-          <div class="stat"><div class="k">累计总量(两侧合计)</div><div class="v">7.6M</div>
+          <!-- 不写「两侧」也不写「三侧」:侧数是会变的,写进文案就是下一次接侧时的另一句谎。 -->
+          <div class="stat"><div class="k">累计总量(各侧合计)</div><div class="v">8.5M</div>
             <div class="s">Claude 5.5M · Codex 2.1M</div></div>
           <div class="stat"><div class="k">输入 / 输出</div><div class="v">6.9M / 0.7M</div>
             <div class="s">各侧原生口径分列</div></div>
@@ -234,7 +235,7 @@
             <div class="s">读 47.1M · 写 1.1M</div></div>
         </div>
         <div class="grp-t">近 30 天趋势(本地时区,日粒度)
-          <span class="seg" id="ovseg"><span class="on">合计</span><span>Claude</span><span>Codex</span></span></div>
+          <span class="seg" id="ovseg"><span class="on">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
         <div class="chart" id="ovchart" data-shared-block="trend-chart"></div>
         <div class="xaxis" id="ovxaxis"></div>
         <div class="legend" id="ovlegend"></div>
@@ -243,6 +244,7 @@
           <div class="m anthropic"><span class="nm2">claude-fable-5</span><span class="tr"><i style="width:64%"></i></span><span class="num">3.5M</span></div>
           <div class="m anthropic"><span class="nm2">claude-opus-5</span><span class="tr"><i style="width:33%"></i></span><span class="num">1.8M</span></div>
           <div class="m openai"><span class="nm2">gpt-5.5-codex</span><span class="tr"><i style="width:38%"></i></span><span class="num">2.1M</span></div>
+          <div class="m xai"><span class="nm2">grok-4.6-build</span><span class="tr"><i style="width:16%"></i></span><span class="num">0.9M</span></div>
         </div>
         <!-- v3: no longer "metadata and no further" — the overview lists the 4 most recent and a row click goes
      straight to the session page; everything else is in the sessions tab -->

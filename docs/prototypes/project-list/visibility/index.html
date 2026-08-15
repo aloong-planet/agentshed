@@ -88,9 +88,10 @@
 </head>
 <body>
   <h1>项目可见性状态机 <span class="tag">Logic</span></h1>
-  <div class="q">问题(票02):失效过滤与手动隐藏是两个正交维度,压平成状态机后,
-    「隐藏的项目目录被删」「失效项目被隐藏后目录又恢复」这类组合路径是否都有明确归宿;
-    「显示失效」开关是否真的与手动隐藏互不干扰(开关只影响 stale 的可见性,不改变状态)。</div>
+  <div class="q">问题(票02,2026-08-16 随手动隐藏删除而收窄,见 ADR-0022):
+    「失效」与「移除」是两回事——失效的项目仍在注册表里、目录只是不在磁盘上,移除才是彻底退场。
+    压平成状态机后,目录消失又恢复这条来回路径是否有明确归宿;
+    「显示失效」开关只影响 stale 的可见性,不改变状态。</div>
   <div id="dgs"></div>
 
   <h4>亲手驾驶(点按钮驱动状态机)</h4>
@@ -111,8 +112,6 @@
         <button data-act="scan_restored">目录恢复</button>
       </div>
       <div class="grp"><span class="grp-t">用户</span>
-        <button data-act="hide">隐藏</button>
-        <button data-act="unhide">取消隐藏</button>
       </div>
       <div class="grp"><span class="grp-t">注册表</span>
         <button data-act="registry_removed">注册条目被清</button>
@@ -209,7 +208,7 @@
     var SM = window.StateMachine;
     var state = null;
     var lastEvent = null;
-    var BADGE = { normal:'done', stale:'pending', hidden:'expired', stale_hidden:'rejected', removed:'failed' };
+    var BADGE = { normal:'done', stale:'pending', removed:'failed' };
 
     var els = {
       status: document.getElementById('v-status'),

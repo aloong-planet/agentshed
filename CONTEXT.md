@@ -1,14 +1,17 @@
 # Agentshed
 
-A desktop overview and management tool for Claude Code and Codex: see what each project has installed,
+A desktop overview and management tool for Claude Code, Codex and Grok: see what each project has installed,
 how many tokens it has burned, and which artifacts it has accumulated — and install or remove skills
 from the global library. This file is the domain glossary.
 
 ## Language
 
 **Project**:
-Any working directory recorded in either agent side's registry; the two sides are unioned, one
-directory to one project.
+Any working directory recorded in an agent side's registry; the sides are unioned, one directory to
+one project. A **registry** is the per-project record a side keeps because the user decided
+something about that directory — not a by-product of wherever that side happens to store its session
+files (ADR-0019). A directory with sessions but no registry record is therefore not a project: its
+tokens still count toward global totals, it simply does not appear in the list.
 _Avoid_: repository, workspace
 
 **Stale project**:
@@ -17,13 +20,23 @@ default, can be toggled on.
 _Avoid_: dead project, invalid project
 
 **Agent side**:
-A data source. Enumerated: Claude Code, Codex.
-_Avoid_: tool, CLI, platform
+A data source. Enumerated: Claude Code, Codex, Grok.
+_Avoid_: tool, CLI, platform; `grok-build` (that is the name of a profile *inside* the Grok side, not
+the side)
 
 **Global library**:
 The set of skills at an agent's global layer, and the only source for a project install. Read-only
 as far as this product is concerned — its contents are never added to, changed, or removed via the app.
+A side's global layer holds what lives under **that side's own** configuration root; what it reads
+out of another side's at runtime is not part of it (see "Compatibility-borrowed component").
 _Avoid_: marketplace, store
+
+**Compatibility-borrowed component**:
+A skill, subagent, plugin or MCP server that one agent side loads from **another** side's
+configuration at runtime. It belongs to the side that owns it on disk and never joins the borrowing
+side's lists; instead the borrowing side's grouping says in copy that the borrowing happens, so what
+is left out stays visible rather than silent (ADR-0019).
+_Avoid_: shared component (nothing is shared — one side is reading the other's files); inherited
 
 **Project install**:
 Landing a skill from the global library into the project's own directory as a full copy. Uninstalling
@@ -85,7 +98,11 @@ _Avoid_: treating the two times as one; "unifying them while we're here" (tests 
 
 **Session**:
 One conversation record on an agent side, uniquely identified by the absolute path of its source
-file. **A record containing no real human question at all (a warmup session the agent opened by
+file. Where a side stores a session as a **directory** rather than a single file, that identity is
+the one file inside it that carries the conversation, the tool calls and the per-turn usage together
+— the authoritative stream (ADR-0019). The directory's other files are not sessions of their own,
+and a child session stored beside its parent rather than beneath it is still a subagent, judged by
+what the record says it is and never by how deep it sits. **A record containing no real human question at all (a warmup session the agent opened by
 itself, or a pure-replay fork verified to have been stripped empty) does not count as a browsable
 session**, and does not enter the list — but its tokens still count, the same rule as subagents.
 Its "last activity time" is **the largest timestamp inside the file** (same meaning on both sides;
@@ -177,6 +194,13 @@ the time, is that anyone who had already chosen a theme falls back to purple onc
 a decision here rather than a missing migration.
 _Avoid_: colour scheme (means light/dark elsewhere), skin, palette (fine in prose, but it is the
 *contents* of a theme rather than the choice itself)
+
+**Side colour**:
+The single colour that identifies one agent side wherever it is named — a list badge, a legend swatch,
+a stacked segment. It is that side's **provider** colour, so the same value serves both (ADR-0021).
+Distinct from the **accent**, which says "selected" rather than "which side"; the two being the same
+value is the defect ADR-0021 was written about, not a resemblance to preserve.
+_Avoid_: badge colour (names one of its uses), brand colour (these are ours, not the vendors')
 
 **Theme variable classes**:
 Every variable declared in a theme block belongs to exactly one of three classes, and the class —
@@ -323,6 +347,17 @@ _Avoid_: error message (bare, implies a finished sentence)
   only hurts itself may be recorded and deferred. (Cases in point: A8, an unreadable subagent
   silently disappearing and polluting the same-name shadowing judgement; E10, a single marketplace
   failure emptying an entire group.)
+
+- **Light and dark each get their own declaration, identical values included (settled 2026-08-15)**:
+  a value being the same in both appearances is not a reason to write it once and let the other
+  inherit. Rationale: inheritance is silent, so "deliberately the same" and "the second one was
+  forgotten" look identical in the source, and the forgotten one still *resolves* — it inherits —
+  rather than showing up as missing. With both present, "what is this colour in dark?" is answered by
+  reading the dark block, without first having to work out whether anything overrode it. This governs
+  the light/dark dimension only; whether a variable needs a declaration per *theme* still follows
+  what that variable's relationship to its surface says (see "Theme variable classes"). The
+  cross-project rule in the ui-design skill was amended to match on the same day, so the two no
+  longer disagree.
 
 - **Copy names a control, it never shows the control's glyph (settled 2026-08-15)**: a sentence that
   points at a button writes the button's name — taken from that button's own label, in that language —
