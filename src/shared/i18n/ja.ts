@@ -57,7 +57,7 @@ export const ja: Locale = {
     tabCfg: '構成',
     notDetected: 'このマシンで Claude Code または Codex のデータディレクトリを検出できませんでした',
     notDetectedHint: (refreshLabel) =>
-      `いずれかの agent をインストールして使ったあと、rail 下部の「${refreshLabel}」を押すと全体像が見えます`,
+      `いずれかの agent をインストールして使ったあと、左下の「${refreshLabel}」を押すと全体像が見えます`,
     totalsNote: '非表示/失効プロジェクトを含む',
     archivedNote: (days, earliest) => `うち ${days} 日（最古 ${earliest}）は元のセッションファイルが agent により自動削除済みで、数値はローカルアーカイブ由来です（斜線の棒）`,
     byModel: 'モデル別（プロジェクト横断。Codex 側はセッションの主モデルの近似）',

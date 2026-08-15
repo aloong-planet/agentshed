@@ -94,7 +94,7 @@ export const zh = {
     tabCfg: '配置',
     notDetected: '本机未检测到 Claude Code 或 Codex 的数据目录',
     notDetectedHint: (refreshLabel: string) =>
-      `安装并使用任一 agent 后,点 rail 底部的「${refreshLabel}」即可看到全景`,
+      `安装并使用任一 agent 后,点左下角的「${refreshLabel}」即可看到全景`,
     totalsNote: '含已隐藏/失效项目',
     archivedNote: (days: number, earliest: string) =>
       `其中 ${days} 天(最早 ${earliest})源会话文件已被 agent 自动清理,数值来自本地归档(斜纹柱)`,

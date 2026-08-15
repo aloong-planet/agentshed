@@ -59,7 +59,7 @@ export const es: Locale = {
     tabCfg: 'Configuración',
     notDetected: 'No se detectó ningún directorio de datos de Claude Code ni de Codex en este equipo',
     notDetectedHint: (refreshLabel) =>
-      `Instala y usa cualquiera de los dos agents y pulsa «${refreshLabel}» al final del rail para ver el panorama`,
+      `Instala y usa cualquiera de los dos agents y pulsa «${refreshLabel}» abajo a la izquierda para ver el panorama`,
     totalsNote: 'incluye proyectos ocultos/obsoletos',
     archivedNote: (days, earliest) => `En ${days} de esos días (el más antiguo ${earliest}) el agent ya limpió automáticamente los archivos de sesión de origen; los valores vienen del histórico local (barras rayadas)`,
     byModel: 'Por modelo (entre proyectos; en el lado Codex es una aproximación del modelo principal de la sesión)',

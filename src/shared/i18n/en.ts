@@ -59,7 +59,7 @@ export const en: Locale = {
     tabCfg: 'Config',
     notDetected: 'No Claude Code or Codex data directory detected on this machine',
     notDetectedHint: (refreshLabel) =>
-      `Install and use either agent, then click “${refreshLabel}” at the bottom of the rail to see the overview`,
+      `Install and use either agent, then click “${refreshLabel}” at the bottom left to see the overview`,
     totalsNote: 'includes hidden/stale projects',
     archivedNote: (days, earliest) =>
       `For ${days} of those days (earliest ${earliest}) the source session files have already been auto-cleaned by the agent, so the numbers come from the local archive (hatched bars)`,
