@@ -327,13 +327,13 @@ function mkForkHome(): string {
     [meta(localDayOffset(4), PARENT), ctx(localDayOffset(4)), q(localDayOffset(4), 'Parent first question'), usage(localDayOffset(4), 500, 100), q(localDayOffset(3), 'Parent second question'), usage(localDayOffset(3), 300, 60)].join('\n') + '\n'
   )
   // The child: forked from the parent, replaying its two entries (with rewritten timestamps) plus one new
-// one → 1 should remain, marked ⑂ fork
+// one → 1 should remain, marked "fork"
   const CHILD = '019fb0c0-bbbb-7af3-af7d-8505cedf1ec2'
   writeFileSync(
     join(sdir, `rollout-${CHILD}.jsonl`),
     [meta(localDayOffset(2), CHILD, { forked_from_id: PARENT }), ctx(localDayOffset(2)), q(localDayOffset(2), 'Parent first question'), q(localDayOffset(2), 'Parent second question'), q(localDayOffset(2), 'Child new question'), usage(localDayOffset(2), 200, 40)].join('\n') + '\n'
   )
-  // An orphan fork: the parent is not in the scan set → the heuristic only, marked ⑂? strip uncertain
+  // An orphan fork: the parent is not in the scan set → the heuristic only, marked "uncertain strip"
   const ORPHAN = '019fb0c0-cccc-7af3-af7d-8505cedf1ec2'
   writeFileSync(
     join(sdir, `rollout-${ORPHAN}.jsonl`),
@@ -603,7 +603,7 @@ test('the session page: every question is listed with complete fields, and back 
   await expect(win.locator('.pane-body')).not.toContainText('Loading')
   await expect(win.locator('.pane-body')).not.toContainText('more')
 
-  // Back: lands on the Sessions tab rather than the overview (the prototype: ‹ Back to <project> · Sessions)
+  // Back: lands on the Sessions tab rather than the overview (the prototype: Back to <project> · Sessions)
   await win.locator('.sback').click()
   await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
   await expect(win.locator('.pane-body .grp-t')).toContainText('2 sessions')
@@ -1910,7 +1910,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
 /**
  * token-stats sequence E: automatic snapshot refresh — a short interval injected (E5) drives the timed
  * backstop end to end:
- * appended session data appears without clicking ↻, and an open detail tab's local state survives the
+ * appended session data appears without clicking refresh, and an open detail tab's local state survives the
  * transfusion (A3).
  * The focus trigger is not driven here (focus semantics are unreliable under the hidden-window regime, see
  * the file header),
@@ -1972,7 +1972,7 @@ test('automatic refresh: a new session appears without a manual refresh, and the
   await tddRow.locator('.sk-head').click()
   await expect(tddRow.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
 
-  // Append "newly produced" session data; do not click ↻, and wait at least 2 backstop cycles
+  // Append "newly produced" session data; do not click refresh, and wait at least 2 backstop cycles
   writeFileSync(join(cdir, 'b.jsonl'), usage(new Date(), 555555) + '\n')
   await win.waitForTimeout(4000)
   // State survives the transfusion (A3): the expanded file table is still there after several automatic
@@ -1981,7 +1981,7 @@ test('automatic refresh: a new session appears without a manual refresh, and the
   await expect(win.locator('.pane-body .none', { hasText: 'Loading' })).toHaveCount(0)
 
   // The data appears on its own (E1's timed backstop): back on the Agents page the total has changed — with
-  // ↻ never clicked
+  // refresh never clicked
   await win.locator('.rail .ri').nth(0).click()
   await expect
     .poll(async () => (await total.textContent()) !== t0, { timeout: 15_000, intervals: [500] })
@@ -2121,7 +2121,7 @@ for (const mount of TREND_MOUNTS) {
 }
 
 // Ticket session-view/03b: the fork and uncertain-strip markers
-test('the sessions section: a fork session has its replay prefix stripped and is marked ⑂ fork; one with a missing parent is marked ⑂? strip uncertain', async () => {
+test('the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip"', async () => {
   const l = await launch(undefined, mkForkHome())
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -2151,6 +2151,10 @@ test('the sessions section: a fork session has its replay prefix stripped and is
   // An orphan fork: its parent is outside the scan set, so it is marked uncertain rather than certain
   const orphan = rowOf('Orphan session question')
   await expect(orphan.locator('.pill.forkq')).toContainText('uncertain strip')
+  // Same reason as its sibling above: the text alone would still pass with the icon gone. The two
+  // pills deliberately share one glyph — what separates them is the dashed border and the risk colour,
+  // so "uncertain" is carried by the pill rather than by a second icon (ADR-0018).
+  await expect(orphan.locator('.pill.forkq svg')).toHaveCount(1)
   await expect(orphan.locator('.pill.fork')).toHaveCount(0)
 
   expect(l.errors).toEqual([])

@@ -524,9 +524,9 @@ void app.whenReady().then(() => {
   applyMenu()
   void doScan()
   // Automatic snapshot refresh (token-stats sequence E): focus (throttled) + a timed backstop, sharing
-  // doScan with manual ↻ (in-flight deduplication, E2); an automatic trigger that fails silently keeps
+  // doScan with a manual refresh (in-flight deduplication, E2); an automatic trigger that fails silently keeps
   // the current snapshot and waits for the next trigger (E3),
-  // while a manual ↻ failure is still thrown to the caller through CMD.refresh. Injecting the parameters
+  // while a manual refresh failure is still thrown to the caller through CMD.refresh. Injecting the parameters
   // from the environment is a test seam (E5).
   const autoScan = (): void => {
     void doScan().catch((e: unknown) => {

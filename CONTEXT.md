@@ -324,6 +324,26 @@ _Avoid_: error message (bare, implies a finished sentence)
   silently disappearing and polluting the same-name shadowing judgement; E10, a single marketplace
   failure emptying an entire group.)
 
+- **Copy names a control, it never shows the control's glyph (settled 2026-08-15)**: a sentence that
+  points at a button writes the button's name — taken from that button's own label, in that language —
+  rather than reproducing its icon inside the string. Rationale: a glyph written into prose is a copy
+  of something that lives elsewhere, and it goes stale the moment the icon changes, silently and in
+  every language at once. This was learnt three times in one round: `docs/features/` named six
+  controls by glyph and all six became lies when the icons became SVG; `notDetectedHint` pointed at
+  `↻` mid-sentence in six dictionaries; three code comments referred to pills by `⑂` / `⑂?`. Where
+  the label itself is needed at runtime, pass it in rather than writing it down — `notDetectedHint`
+  takes the refresh button's label as an argument, so renaming that button cannot leave the sentence
+  naming a control that no longer exists.
+
+- **Non-printing characters are written as escapes in source, never as raw bytes (settled
+  2026-08-13)**: `\x00` rather than a literal NUL. Identical at runtime; the difference is that a raw
+  NUL makes recursive `grep`/`ripgrep` **skip the entire file in silence** — empty output and exit 1,
+  indistinguishable from an honest miss. A 1028-line file returned nothing for every search, which
+  produced a wrong count of the producers writing `DayUsage.byProvider` (one instead of three) and
+  nearly shipped a change covering a third of what it claimed to. Note the direction of the failure:
+  it corrupts answers about **absence** — "nothing else references this", "there is no other
+  producer" — which are exactly the answers nobody re-checks. Enforced by `pnpm check:nul`.
+
 ## Flagged ambiguities
 
 - **"AgentDex" (former name) is retired**: the product was originally positioned as a read-only
