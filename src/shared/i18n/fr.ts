@@ -59,7 +59,7 @@ export const fr: Locale = {
     tabCfg: 'Configuration',
     notDetected: 'Aucun dossier de données Claude Code ou Codex détecté sur cette machine',
     notDetectedHint: (refreshLabel) =>
-      `Installez et utilisez l’un des agents, puis cliquez sur « ${refreshLabel} » en bas du rail pour voir la vue d’ensemble`,
+      `Installez et utilisez l’un des agents, puis cliquez sur « ${refreshLabel} » en bas à gauche pour voir la vue d’ensemble`,
     totalsNote: 'inclut les projets masqués/obsolètes',
     archivedNote: (days, earliest) => `Pour ${days} de ces jours (le plus ancien ${earliest}), les fichiers de session source ont été nettoyés automatiquement par l’agent ; les valeurs viennent de l’archive locale (barres hachurées)`,
     byModel: 'Par modèle (tous projets ; côté Codex, approximation du modèle principal de la session)',

@@ -335,6 +335,15 @@ _Avoid_: error message (bare, implies a finished sentence)
   takes the refresh button's label as an argument, so renaming that button cannot leave the sentence
   naming a control that no longer exists.
 
+- **`rail` is an internal term and must not appear in user-facing copy (settled 2026-08-15)**: the
+  48px vertical strip of icon buttons down the left edge. The word is useful in code, comments and
+  `docs/features/` and stays there — but a user has no way to learn it, because nothing in the
+  interface is labelled "rail" (the four buttons' tooltips read Agents / Projects / Refresh all /
+  Settings, and `rail` survives only as a CSS class name). Copy that needs to point at it describes
+  the position instead ("at the bottom left"). Note that "sidebar" is **not** an alternative name for
+  it: the project list beside it is the sidebar. This is the same failure as naming a control by its
+  glyph, one level up — copy referring to something by a name the reader cannot resolve.
+
 - **Non-printing characters are written as escapes in source, never as raw bytes (settled
   2026-08-13)**: `\x00` rather than a literal NUL. Identical at runtime; the difference is that a raw
   NUL makes recursive `grep`/`ripgrep` **skip the entire file in silence** — empty output and exit 1,
