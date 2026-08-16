@@ -34,6 +34,33 @@ function writeCodexRegistry(paths: string[]): void {
   const lines = paths.map((p) => `[projects."${p}"]\ntrust_level = "trusted"\n`).join('\n')
   writeFileSync(join(dir, '.codex', 'config.toml'), lines)
 }
+function writeGrokRegistry(paths: string[]): void {
+  mkdirSync(join(dir, '.grok'), { recursive: true })
+  const lines = paths.map((p) => `[folders."${p}"]\ntrusted = true\n`).join('\n')
+  writeFileSync(join(dir, '.grok', 'trusted_folders.toml'), lines)
+}
+/**
+ * Build a Grok session directory (the real layout measured 2026-08-16):
+ * sessions/<percent-encoded cwd>/<session-id>/ with updates.jsonl as the authoritative stream.
+ * A real child session carries `"session_kind": "subagent"` in its summary.json and sits beside its
+ * parent; a parent has no session_kind key at all.
+ */
+function mkGrokSession(
+  cwd: string,
+  id: string,
+  atSec: number,
+  opts: { subagent?: boolean } = {}
+): string {
+  const d = join(dir, '.grok', 'sessions', encodeURIComponent(cwd), id)
+  mkdirSync(d, { recursive: true })
+  const summary: Record<string, unknown> = { info: { id, cwd } }
+  if (opts.subagent) summary['session_kind'] = 'subagent'
+  writeFileSync(join(d, 'summary.json'), JSON.stringify(summary))
+  const f = join(d, 'updates.jsonl')
+  writeFileSync(f, '{"type":"x"}\n')
+  utimesSync(f, atSec, atSec)
+  return d
+}
 /** Build a Claude session jsonl with its mtime set to atSec (epoch seconds) */
 function mkClaudeSession(projectPath: string, file: string, atSec: number): void {
   const d = join(dir, '.claude', 'projects', encodeClaudeProjectDir(projectPath))
@@ -149,6 +176,94 @@ describe('activity', () => {
     mkdirSync(d, { recursive: true })
     writeFileSync(join(d, 'rollout-bad.jsonl'), 'not json at all\n')
     mkCodexRollout(p, 'rollout-good.jsonl', 3000)
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.projects[0].sessionCount).toBe(1)
+  })
+
+  it('Grok sessions: a directory-stored session contributes the authoritative stream\'s mtime, not another file\'s (B7)', async () => {
+    const p = mkProject('gk-act')
+    writeGrokRegistry([p])
+    const d = mkGrokSession(p, '019f-b7-case', 3000)
+    // A sibling file with a later mtime must not win: "the session file's mtime" means the
+    // authoritative stream's, keeping one meaning across all sides
+    const noise = join(d, 'chat_history.jsonl')
+    writeFileSync(noise, '{"x":1}\n')
+    utimesSync(noise, 9000, 9000)
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.projects[0].sessionCount).toBe(1)
+    expect(snap.projects[0].lastSessionAt).toBe(3000 * 1000)
+  })
+
+  it('a Grok child session sits beside its parent and is judged by its own record, not by depth (B8)', async () => {
+    const p = mkProject('gk-sub')
+    writeGrokRegistry([p])
+    mkGrokSession(p, '019f-parent', 3000)
+    // The child is a **sibling** at the same directory level — depth cannot tell the two apart, only
+    // the record's own session_kind can; it must not count and must not push the time up
+    mkGrokSession(p, '019f-child', 9000, { subagent: true })
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.projects[0].sessionCount).toBe(1)
+    expect(snap.projects[0].lastSessionAt).toBe(3000 * 1000)
+  })
+
+  it('B9: activity counts a side that did not register the directory, while the side count stays at one (A8)', async () => {
+    const p = mkProject('one-side-act')
+    writeClaudeRegistry([p])
+    mkGrokSession(p, '019f-unreg', 7000) // Grok has sessions here but no trust record
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.projects).toHaveLength(1)
+    // "How many sides claim this project" and "when was it last worked in" answer different
+    // questions and are deliberately not reconciled
+    expect(snap.projects[0].sides).toEqual(['claude'])
+    expect(snap.projects[0].sessionCount).toBe(1)
+    expect(snap.projects[0].lastSessionAt).toBe(7000 * 1000)
+  })
+
+  it('A7: a directory with Grok sessions but no registry record on any side does not enter the list', async () => {
+    const p = mkProject('sessions-only')
+    mkdirSync(join(dir, '.grok'), { recursive: true })
+    mkGrokSession(p, '019f-orphan', 5000)
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.sides.grok.detected).toBe(true)
+    expect(snap.projects).toEqual([])
+  })
+
+  it('sessions on all three sides merge: the count is the sum and the time is the largest (B6)', async () => {
+    const p = mkProject('tri-act')
+    writeClaudeRegistry([p])
+    writeCodexRegistry([p])
+    writeGrokRegistry([p])
+    mkClaudeSession(p, 'a.jsonl', 1000)
+    mkCodexRollout(p, 'rollout-1.jsonl', 5000)
+    mkGrokSession(p, '019f-tri', 8000)
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.projects).toHaveLength(1)
+    expect(snap.projects[0].sessionCount).toBe(3)
+    expect(snap.projects[0].lastSessionAt).toBe(8000 * 1000)
+  })
+
+  it('a Grok session directory without an updates.jsonl is skipped without abandoning the scan', async () => {
+    const p = mkProject('gk-missing-stream')
+    writeGrokRegistry([p])
+    mkGrokSession(p, '019f-whole', 3000)
+    // A directory with no authoritative stream has no session identity (ADR-0019)
+    mkdirSync(join(dir, '.grok', 'sessions', encodeURIComponent(p), '019f-hollow'), {
+      recursive: true
+    })
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.projects[0].sessionCount).toBe(1)
+    expect(snap.projects[0].lastSessionAt).toBe(3000 * 1000)
+  })
+
+  it('loose files in the Grok session store (prompt_history.jsonl, session_search.sqlite) are not sessions', async () => {
+    const p = mkProject('gk-loose')
+    writeGrokRegistry([p])
+    mkGrokSession(p, '019f-real', 3000)
+    writeFileSync(join(dir, '.grok', 'sessions', 'session_search.sqlite'), 'not a dir')
+    writeFileSync(
+      join(dir, '.grok', 'sessions', encodeURIComponent(p), 'prompt_history.jsonl'),
+      '{"q":1}\n'
+    )
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.projects[0].sessionCount).toBe(1)
   })
