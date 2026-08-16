@@ -255,6 +255,18 @@ describe('activity', () => {
     expect(snap.projects[0].lastSessionAt).toBe(3000 * 1000)
   })
 
+  it('an unreadable summary.json says nothing, and a record that says nothing is not a subagent — the session counts', async () => {
+    const p = mkProject('gk-broken-summary')
+    writeGrokRegistry([p])
+    const d = mkGrokSession(p, '019f-nosummary', 3000)
+    writeFileSync(join(d, 'summary.json'), '{not json')
+    const snap = await scan(roots(), { now: () => 1 })
+    // Miscounting one extra session is visible; silently dropping a real one is not — the
+    // degradation errs in the visible direction
+    expect(snap.projects[0].sessionCount).toBe(1)
+    expect(snap.projects[0].lastSessionAt).toBe(3000 * 1000)
+  })
+
   it('loose files in the Grok session store (prompt_history.jsonl, session_search.sqlite) are not sessions', async () => {
     const p = mkProject('gk-loose')
     writeGrokRegistry([p])
