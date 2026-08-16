@@ -59,12 +59,12 @@ export const es: Locale = {
     tabCfg: 'Configuración',
     notDetected: 'No se detectó el directorio de datos de ningún lado de agente en esta máquina',
     notDetectedHint: (refreshLabel) =>
-      `Instala y usa cualquiera de los dos agents y pulsa «${refreshLabel}» abajo a la izquierda para ver el panorama`,
+      `Instala y usa cualquiera de los agents y pulsa «${refreshLabel}» abajo a la izquierda para ver el panorama`,
     totalsNote: 'incluye proyectos obsoletos',
     archivedNote: (days, earliest) => `En ${days} de esos días (el más antiguo ${earliest}) el agent ya limpió automáticamente los archivos de sesión de origen; los valores vienen del histórico local (barras rayadas)`,
     byModel: 'Por modelo (entre proyectos; en el lado Codex es una aproximación del modelo principal de la sesión)',
     detected: 'Detectado', undetected: 'No detectado',
-    emptyGlobalLib: 'Ambas bibliotecas globales están vacías',
+    emptyGlobalLib: 'Las bibliotecas globales de todos los lados están vacías',
     sideMismatch: (project) => `${project} no pertenece al lado del agent donde vive este skill`,
     installed: (skill, project, side) => `${skill} instalado → ${project} (${side}); solo se actualizó este proyecto`,
     grokBorrowHint: 'Grok lee en tiempo de ejecución los skills / subagents / plugins / MCP globales de Claude Code; esos componentes prestados pertenecen al lado Claude y no se suman a las listas de Grok',
@@ -223,7 +223,7 @@ export const es: Locale = {
     noSessions: 'Este proyecto aún no tiene sesiones',
     sessionCountNote: (n) =>
       `${n} ${plural('es', n, { one: 'sesión en total; la verás', other: 'sesiones en total; las verás todas' })} en la pestaña «Sesiones».`,
-    noSessionsHint: 'Este proyecto aún no tiene sesiones. Aparecen automáticamente cuando alguno de los dos agents conversa en este directorio.',
+    noSessionsHint: 'Este proyecto aún no tiene sesiones. Aparecen automáticamente cuando algún lado de agente conversa en este directorio.',
     searching: 'Buscando…',
     noHits: 'Sin resultados. Por defecto solo se buscan las preguntas: prueba con «Texto completo».',
     hitsFound: (hits, sessions) =>

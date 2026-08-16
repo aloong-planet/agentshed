@@ -101,7 +101,7 @@ export const zh = {
     byModel: '按模型拆分(跨项目;Codex 侧为会话主模型近似)',
     detected: '已检测',
     undetected: '未检测到',
-    emptyGlobalLib: '两侧全局库均为空',
+    emptyGlobalLib: '各侧全局库均为空',
     sideMismatch: (project: string) => `${project} 不属于该 skill 所在的 agent 侧`,
     installed: (skill: string, project: string, side: string) =>
       `已安装 ${skill} → ${project}(${side});仅局部刷新该项目`,
@@ -300,7 +300,7 @@ export const zh = {
     recentSessions: '最近会话',
     noSessions: '该项目暂无会话',
     sessionCountNote: (n: number) => `共 ${n} 个会话 —— 全部见「会话」分栏。`,
-    noSessionsHint: '该项目暂无会话。两侧 agent 在此目录下开过对话后会自动出现。',
+    noSessionsHint: '该项目暂无会话。任一 agent 侧在此目录下开过对话后会自动出现。',
     searching: '搜索中…',
     noHits: '没有命中。默认只搜提问,试试切到「全文」。',
     hitsFound: (hits: number, sessions: number) => `找到 ${hits} 条 · ${sessions} 个会话`,

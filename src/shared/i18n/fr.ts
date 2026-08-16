@@ -64,7 +64,7 @@ export const fr: Locale = {
     archivedNote: (days, earliest) => `Pour ${days} de ces jours (le plus ancien ${earliest}), les fichiers de session source ont été nettoyés automatiquement par l’agent ; les valeurs viennent de l’archive locale (barres hachurées)`,
     byModel: 'Par modèle (tous projets ; côté Codex, approximation du modèle principal de la session)',
     detected: 'Détecté', undetected: 'Non détecté',
-    emptyGlobalLib: 'Les deux bibliothèques globales sont vides',
+    emptyGlobalLib: 'Les bibliothèques globales de tous les côtés sont vides',
     sideMismatch: (project) => `${project} n’appartient pas au côté agent où réside ce skill`,
     installed: (skill, project, side) => `${skill} installé → ${project} (${side}) ; seul ce projet a été actualisé`,
     grokBorrowHint: 'Grok lit à l’exécution les skills / subagents / plugins / MCP globaux de Claude Code ; ces composants empruntés appartiennent au côté Claude et ne rejoignent pas les listes de Grok',
@@ -223,7 +223,7 @@ export const fr: Locale = {
     noSessions: 'Aucune session dans ce projet',
     sessionCountNote: (n) =>
       `${n} ${plural('fr', n, { one: 'session au total — toute visible', other: 'sessions au total — toutes visibles' })} dans l’onglet « Sessions ».`,
-    noSessionsHint: 'Aucune session dans ce projet. Elles apparaissent automatiquement dès qu’un des deux agents a une conversation dans ce dossier.',
+    noSessionsHint: 'Aucune session dans ce projet. Elles apparaissent automatiquement dès qu’un côté agent a une conversation dans ce dossier.',
     searching: 'Recherche…',
     noHits: 'Aucun résultat. Par défaut, la recherche ne porte que sur les questions — essayez « Texte intégral ».',
     hitsFound: (hits, sessions) =>

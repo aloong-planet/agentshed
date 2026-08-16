@@ -65,7 +65,7 @@ export const en: Locale = {
       `For ${days} of those days (earliest ${earliest}) the source session files have already been auto-cleaned by the agent, so the numbers come from the local archive (hatched bars)`,
     byModel: 'By model (across projects; the Codex side approximates each session’s main model)',
     detected: 'Detected', undetected: 'Not detected',
-    emptyGlobalLib: 'Both global libraries are empty',
+    emptyGlobalLib: 'Every side’s global library is empty',
     sideMismatch: (project) => `${project} does not belong to the agent side this skill lives on`,
     installed: (skill, project, side) => `Installed ${skill} → ${project} (${side}); only this project was refreshed`,
     grokBorrowHint: 'Grok reads Claude Code’s global skills / subagents / plugins / MCP at runtime; those borrowed components belong to the Claude side and do not join Grok’s lists',
@@ -225,7 +225,7 @@ export const en: Locale = {
     noSessions: 'No sessions in this project yet',
     sessionCountNote: (n) =>
       `${n} ${plural('en', n, { one: 'session', other: 'sessions' })} in total — see the “Sessions” tab for all of them.`,
-    noSessionsHint: 'No sessions in this project yet. They appear automatically once either agent has a conversation in this directory.',
+    noSessionsHint: 'No sessions in this project yet. They appear automatically once any agent side has a conversation in this directory.',
     searching: 'Searching…',
     noHits: 'No hits. Only questions are searched by default — try switching to “Full text”.',
     hitsFound: (hits, sessions) =>

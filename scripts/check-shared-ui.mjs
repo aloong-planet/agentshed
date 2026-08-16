@@ -233,6 +233,10 @@ const GLOBAL_RULES = [
     check() {
       const bad = []
       const SIDE_NAMES = [/Claude(?: Code)?/, /Codex/, /Grok/]
+      // Side-COUNT words are the same rot family stated as a number ("both sides" lies the moment a
+      // third arrives); one occurrence flags, unlike names which need two to look like a set
+      const SIDE_COUNT_WORDS =
+        /两侧|both sides|both global|two sides|両サイド|どちらかの agent|ambos lados|ambas bibliotecas|los dos agents|les deux (?:côtés|bibliothèques|agents)|un des deux agents|обе стороны|обеих сторон|обе глобальные/i
       const ALLOWED = [
         {
           key: 'grokBorrowHint',
@@ -245,6 +249,14 @@ const GLOBAL_RULES = [
         {
           key: 'claudeOnly',
           why: 'contrasts the two memory mechanisms verified today; Grok memory has no real sample yet (spec agents-overview G2)'
+        },
+        {
+          key: 'noneGlobal',
+          why: 'names the two directories actually read; Grok agent definitions have no real sample yet (spec agents-overview G2)'
+        },
+        {
+          key: 'unlinkedNote',
+          why: 'records a measurement made on those two sides; the Grok dispatch is unattributed by the same rule'
         },
         {
           key: 'reasoningNote',
@@ -263,8 +275,10 @@ const GLOBAL_RULES = [
           if (/^\s*(\/\/|\/\*|\*)/.test(line)) return // comments are not copy
           const strings = line.match(/'[^']*'|`[^`]*`|"[^"]*"/g) ?? []
           for (const s of strings) {
-            const hits = SIDE_NAMES.filter((re) => re.test(s)).length
-            if (hits < 2) continue
+            const nameHits = SIDE_NAMES.filter((re) => re.test(s)).length
+            const countHit = SIDE_COUNT_WORDS.test(s)
+            if (nameHits < 2 && !countHit) continue
+            const hits = countHit ? Math.max(nameHits, 2) : nameHits
             // A wrapped value's key sits on the previous line, so both lines identify the entry
             const prev = i > 0 ? lines[i - 1] : ''
             const allowed = ALLOWED.find((a) => line.includes(`${a.key}:`) || prev.includes(`${a.key}:`))

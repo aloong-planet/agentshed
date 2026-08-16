@@ -63,7 +63,7 @@ export const ru: Locale = {
     archivedNote: (days, earliest) => `Для ${days} из этих дней (самый ранний ${earliest}) исходные файлы сессий уже удалены агентом автоматически; значения взяты из локального архива (штрихованные столбцы)`,
     byModel: 'По моделям (по всем проектам; на стороне Codex — приближение основной модели сессии)',
     detected: 'Обнаружено', undetected: 'Не обнаружено',
-    emptyGlobalLib: 'Обе глобальные библиотеки пусты',
+    emptyGlobalLib: 'Глобальные библиотеки всех сторон пусты',
     sideMismatch: (project) => `${project} не относится к той стороне агента, где находится этот skill`,
     installed: (skill, project, side) => `${skill} установлен → ${project} (${side}); обновлён только этот проект`,
     grokBorrowHint: 'Grok во время работы читает глобальные skills / subagents / plugins / MCP Claude Code; эти заимствованные компоненты принадлежат стороне Claude и не входят в списки Grok',

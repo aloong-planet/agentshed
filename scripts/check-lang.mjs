@@ -200,6 +200,22 @@ function ownLocalisation() {
  */
 const RULES = [
   {
+    // A detection pattern for six-language copy must contain the languages it detects: the CJK here
+    // is a regex alternative inside a check's own pattern literal (a /…/ regex on the line), never
+    // prose. The predicate is the regex-literal shape, so a Chinese comment in the same file still
+    // goes red.
+    match: (f) => f === 'scripts/check-shared-ui.mjs',
+    test: (text) => {
+      const bad = []
+      for (const [i, line] of text.split('\n').entries()) {
+        if (!CJK.test(line)) continue
+        if (!/\/.*[\u4e00-\u9fff\u3040-\u30ff].*\/[a-z]*/.test(line)) bad.push([i + 1, line])
+      }
+      return bad
+    },
+    why: 'side-count detection patterns quote the six languages they scan; pattern literals only, not prose'
+  },
+  {
     match: (f) => f === 'src/shared/i18n/zh.ts' || f === 'src/shared/i18n/ja.ts',
     test: citedOrLiteral,
     why: 'the source-language and Japanese dictionaries — the values are the copy itself, while the comments are English like the rest of the repository'
