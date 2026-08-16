@@ -399,31 +399,79 @@ body {
 .sh input:focus {
   border-color: var(--accent);
 }
-.fseg {
-  display: flex;
-  gap: 4px;
-  padding: 2px 14px 4px;
-}
-.fseg button {
+/* The side filter dropdown (spec C5): the trigger names the current choice, the layer names the
+   choices. Only the trigger lives in the flow; the layer is a FloatingBox. */
+.dd-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font: inherit;
   font-size: 11px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  padding: 2px 10px;
-  cursor: pointer;
   color: var(--text-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 3px 8px;
+  cursor: pointer;
   background: transparent;
+  white-space: nowrap;
 }
-.fseg button.on {
-  background: var(--accent-soft);
-  color: var(--accent);
+.dd-trigger:hover,
+.dd-trigger[aria-expanded='true'] {
   border-color: var(--accent);
+  color: var(--accent);
+}
+.dd-trigger .chev {
+  display: flex;
+  transition: transform 0.15s;
+}
+.dd-trigger[aria-expanded='true'] .chev {
+  transform: rotate(180deg);
+}
+.side-pop {
+  min-width: 150px;
+  color: var(--text);
+}
+.dd-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.dd-opt:hover {
+  background: var(--accent-soft);
+}
+.dd-opt .n {
+  flex: 1;
+  white-space: nowrap;
+}
+/* The check reserves its box even when hidden, so options do not change width as the choice moves */
+.dd-opt .ck {
+  flex: none;
+  color: var(--accent);
+  display: flex;
+  visibility: hidden;
+}
+.dd-opt.on .ck {
+  visibility: visible;
+}
+.dd-opt.on .n {
+  color: var(--accent);
+  font-weight: 600;
 }
 .opts {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 14px 6px;
+  gap: 8px;
+  padding: 4px 14px 6px;
   font-size: 11.5px;
   color: var(--text-2);
 }
@@ -433,8 +481,18 @@ body {
   gap: 4px;
   cursor: pointer;
 }
+/* The stale counter yields FIRST under squeeze (ruled 2026-08-16): the filter row's occupants
+   outgrow the 272px column in the longer languages, so this one ellipsizes before the toggle
+   label is made to wrap — the flex-shrink weight is what orders the two, and the min-width is
+   what stops the counter being squeezed out entirely rather than squeezed. Its full sentence
+   rides the title attribute: display-layer truncation only, the data layer stays whole. */
 .opts .cnt {
   margin-left: auto;
+  min-width: 48px;
+  flex-shrink: 1000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .list {
   flex: 1;

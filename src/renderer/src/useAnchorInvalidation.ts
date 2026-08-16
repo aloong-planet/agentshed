@@ -13,6 +13,19 @@
 import { useEffect, useRef, type RefObject } from 'react'
 
 /**
+ * How long after a resize an arriving scroll is attributed to it rather than to the user (#122).
+ *
+ * A resize makes the browser clamp a scrolled container's scrollTop back into its new range, and it
+ * dispatches a scroll event for that clamp — indistinguishable at the event level from the user
+ * scrolling. Without attribution, that scroll dismisses the layer and overrides the reposition the
+ * resize handler just performed, so the 'reposition' choice never survives in practice. Ordering
+ * stands in for provenance: the resize stamps the clock, and a scroll hard on its heels is its.
+ * The cost is a wheel scroll performed while dragging the window edge being swallowed — a small
+ * price for an edge case combining two actions (verified in the project-list prototype).
+ */
+const RESIZE_SCROLL_WINDOW_MS = 150
+
+/**
  * What a window resize means for this layer — and, as a union, which callbacks that choice requires.
  *
  * **'reposition'** for anything the user is in the middle of operating (a menu they are choosing
@@ -60,13 +73,20 @@ export function useAnchorInvalidation(
 
   useEffect(() => {
     if (!active) return
+    // Local to the effect on purpose: the attribution state belongs to one open spell of one
+    // layer, and re-opening starts clean
+    let lastResize = -Infinity
     const onScroll = (e: Event): void => {
+      // A scroll arriving within the window after a resize is the browser's scrollTop clamp, not
+      // the user (#122) — see RESIZE_SCROLL_WINDOW_MS
+      if (performance.now() - lastResize < RESIZE_SCROLL_WINDOW_MS) return
       const target = e.target as Node | null
       // The layer scrolling its own contents is the user reading it, not the anchor moving
       if (target !== null && layer.current?.contains(target)) return
       ref.current.dismiss()
     }
     const onResize = (): void => {
+      lastResize = performance.now()
       const h = ref.current
       if (h.onResize === 'reposition') h.reposition()
       else h.dismiss()
