@@ -176,7 +176,11 @@ only one side has data; pure functions (trend/axis/provider) get their own
 unit tests covering the geometric constraints of segmentation and axis layout; e2e covers that an
 old-format cache does not crash at startup and the geometric checks on the trend chart's rendering
 (labels do not overlap, tooltips are not clipped). The reconciliation baseline: the day-by-day ccusage
-comparison test. Automatic refresh (sequence E): the focus throttle judgement is a pure function with
+comparison test — which covers the Claude and Codex sides only, since ccusage has no Grok support.
+The Grok side has no standing external baseline; its accounting was reconciled once at review time
+(2026-08-16, an independent sum over the raw update streams matched the engine exactly), and the
+gap is recorded here rather than papered over: should a third-party meter for Grok appear, it slots
+in where ccusage already does. Automatic refresh (sequence E): the focus throttle judgement is a pure function with
 unit tests; e2e drives the whole chain with a short interval injected — after appending session data
 it appears without a manual refresh, and an open detail page's section local state is preserved. Focus
 events are semantically unreliable under a hidden-window test regime (noted in the existing e2e

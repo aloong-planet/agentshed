@@ -10,7 +10,7 @@ share a source and reconcile against each other.
 
 ## Capabilities
 - Project overview (the default landing spot inside a project): a cumulative total card (accounting
-  aligned with ccusage — the Claude total sums all four fields including cache reads and writes;
+  aligned with ccusage for the sides it covers — the Claude total sums all four fields including cache reads and writes;
   Codex and Grok are input + output + cache writes, since their reported input already includes
   cached reads), a 30-day daily trend (local time zone; in combined mode
   each bar is stacked by provider, with bar height = that day's total and segments = each provider's
