@@ -77,7 +77,15 @@ export function NameReveal({ name }: { name: string }): JSX.Element {
         {name}
       </span>
       {at !== null && (
-        <FloatingBox ref={tipRef} className="nm-tip" at={{ left: at.left, top: at.top, maxWidth: TIP_MAX_WIDTH }}>
+        // The padding overrides the surface's uniform 6px: a class rule cannot beat the surface's
+        // inline style, so the override rides the style prop FloatingBox applies last. (It sat in
+        // .nm-tip as a dead declaration from the day this component landed — fixed 2026-08-16.)
+        <FloatingBox
+          ref={tipRef}
+          className="nm-tip"
+          at={{ left: at.left, top: at.top, maxWidth: TIP_MAX_WIDTH }}
+          style={{ padding: '4px 9px' }}
+        >
           {name}
         </FloatingBox>
       )}

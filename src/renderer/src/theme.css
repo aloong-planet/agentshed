@@ -1636,10 +1636,12 @@ body {
 
    It takes no pointer events: it sits directly under the row it describes, and would otherwise swallow
    the click that expands that row and end its own hover the moment it appeared. */
+/* The padding lives on the component's style prop, not here: the FloatingBox surface sets an
+   inline padding, and an inline style beats any class rule — a padding written here is dead on
+   arrival (it was, from the day this layer landed until 2026-08-16). */
 .nm-tip {
   pointer-events: none;
   overflow-wrap: anywhere;
-  padding: 4px 9px;
   color: var(--text);
   font-family: ui-monospace, Menlo, monospace;
   font-size: 12px;
