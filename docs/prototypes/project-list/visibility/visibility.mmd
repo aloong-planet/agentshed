@@ -1,4 +1,4 @@
-%% title: 项目可见性状态机(失效过滤与手动隐藏正交)
+%% title: 项目可见性状态机(失效与移除是两回事)
 %%{init: {
   'theme': 'base',
   'htmlLabels': false,
@@ -24,16 +24,8 @@ stateDiagram-v2
   [*] --> stale: 发现注册但目录缺失
   normal --> stale: scan_missing
   stale --> normal: scan_restored
-  normal --> hidden: hide
-  hidden --> normal: unhide
-  stale --> stale_hidden: hide
-  stale_hidden --> stale: unhide
-  hidden --> stale_hidden: scan_missing
-  stale_hidden --> hidden: scan_restored
   normal --> removed: registry_removed
   stale --> removed: registry_removed
-  hidden --> removed: registry_removed
-  stale_hidden --> removed: registry_removed
   removed --> [*]
   note right of removed
     注册表条目被清即彻底退场(终态)

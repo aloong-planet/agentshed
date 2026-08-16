@@ -60,7 +60,7 @@ export const fr: Locale = {
     notDetected: 'Aucun dossier de données Claude Code ou Codex détecté sur cette machine',
     notDetectedHint: (refreshLabel) =>
       `Installez et utilisez l’un des agents, puis cliquez sur « ${refreshLabel} » en bas à gauche pour voir la vue d’ensemble`,
-    totalsNote: 'inclut les projets masqués/obsolètes',
+    totalsNote: 'inclut les projets obsolètes',
     archivedNote: (days, earliest) => `Pour ${days} de ces jours (le plus ancien ${earliest}), les fichiers de session source ont été nettoyés automatiquement par l’agent ; les valeurs viennent de l’archive locale (barres hachurées)`,
     byModel: 'Par modèle (tous projets ; côté Codex, approximation du modèle principal de la session)',
     detected: 'Détecté', undetected: 'Non détecté',
@@ -117,8 +117,8 @@ export const fr: Locale = {
     codexEmpty: 'La mémoire Codex est activée mais vide.',
     codexDisabled: 'La mémoire Codex n’est pas activée — activez-la avec la commande /memories dans Codex, ou via Réglages → Personnalisation → Enable memories (expérimental).',
     noneGlobal: 'Aucun projet n’a de mémoire automatique',
-    globalHint: 'Du plus récent au plus ancien · inclut les obsolètes/masqués (avec badge) · cliquez sur une ligne pour ses fichiers, sur un fichier pour son contenu',
-    stale: 'Obsolète', hidden: 'Masqué',
+    globalHint: 'Du plus récent au plus ancien · inclut les obsolètes (avec badge) · cliquez sur une ligne pour ses fichiers, sur un fichier pour son contenu',
+    stale: 'Obsolète',
     codexGlobalDir: 'Dossier de mémoire globale', noMainFile: 'Pas de MEMORY.md',
     noneProject: 'Aucune mémoire automatique dans ce projet',
     claudeOnly: 'La mémoire est un mécanisme côté Claude (la mémoire Codex est globale — voir l’onglet Memory de la page globale)',
@@ -283,12 +283,7 @@ export const fr: Locale = {
     staleFiltered: (n) =>
       `${n} ${plural('fr', n, { one: 'projet obsolète filtré', other: 'projets obsolètes filtrés' })}`,
     noMatch: 'Aucun projet correspondant',
-    hiddenCount: (n) => `${n} ${plural('fr', n, { one: 'projet masqué', other: 'projets masqués' })}`,
-    expandHint: '(cliquer pour déplier)',
-    collapseHint: '(cliquer pour replier)',
     staleTag: 'Obsolète',
-    restore: 'Restaurer',
-    hide: 'Masquer'
   },
   token: {
     totalCard: (note) => `Total cumulé (les deux côtés${note ? ` · ${note}` : ''})`,

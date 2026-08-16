@@ -15,8 +15,6 @@ import { readMemorySummary } from './memory'
 export interface ScanDeps {
   /** An injected clock, controllable in tests */
   now: () => number
-  /** The manual-hiding lookup (an injected HiddenStore; the default treats nothing as hidden) */
-  isHidden?: (projectPath: string) => boolean
 }
 
 export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
@@ -43,7 +41,6 @@ export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> 
       name: basename(path),
       sides: [side],
       stale: !existsSync(path),
-      hidden: deps.isHidden?.(path) ?? false,
       lastSessionAt: null,
       sessionCount: 0
     })

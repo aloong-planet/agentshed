@@ -3,14 +3,14 @@
 // zero I/O and zero DOM; the rules live only in reduce and legal is a derived query; an illegal event is
 // silently ignored (returning the original state plus an illegal reason).
 
-/** @typedef {'normal'|'stale'|'hidden'|'stale_hidden'|'removed'} Status */
+/** @typedef {'normal'|'stale'|'removed'} Status */
 /**
  * @typedef {Object} ProjState
  * @property {Status} status
  * @property {string|null} illegal The last illegal event refused (silently ignored in reality; surfaced in
  *                                 the prototype)
  */
-/** @typedef {{type:'scan_missing'}|{type:'scan_restored'}|{type:'hide'}|{type:'unhide'}|{type:'registry_removed'}} Action */
+/** @typedef {{type:'scan_missing'}|{type:'scan_restored'}|{type:'registry_removed'}} Action */
 
 /** The set of terminal states: defined only here @type {ReadonlySet<Status>} */
 const TERMINAL = new Set(['removed']);
@@ -39,20 +39,10 @@ function reduce(s, a) {
   switch (a.type) {
     case 'scan_missing':
       if (s.status === 'normal') return ok('stale');
-      if (s.status === 'hidden') return ok('stale_hidden');
       return deny('已处于失效态,重复的缺失信号无效果');
     case 'scan_restored':
       if (s.status === 'stale') return ok('normal');
-      if (s.status === 'stale_hidden') return ok('hidden');
       return deny('目录本就存在,恢复信号无效果');
-    case 'hide':
-      if (s.status === 'normal') return ok('hidden');
-      if (s.status === 'stale') return ok('stale_hidden');
-      return deny('已在隐藏状态,重复隐藏无效果');
-    case 'unhide':
-      if (s.status === 'hidden') return ok('normal');
-      if (s.status === 'stale_hidden') return ok('stale');
-      return deny('未被隐藏,恢复无效果');
     case 'registry_removed':
       return ok('removed');
     default:
@@ -64,8 +54,6 @@ function reduce(s, a) {
 const ALL_ACTIONS = [
   { type: 'scan_missing' },
   { type: 'scan_restored' },
-  { type: 'hide' },
-  { type: 'unhide' },
   { type: 'registry_removed' },
 ];
 
@@ -98,8 +86,6 @@ function visibleWhere(status) {
   switch (status) {
     case 'normal': return '主列表';
     case 'stale': return '仅开「显示失效」时可见';
-    case 'hidden': return '「已隐藏」入口内';
-    case 'stale_hidden': return '「已隐藏」入口内(且带失效标)';
     case 'removed': return '不可见(已退场)';
   }
 }

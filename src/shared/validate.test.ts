@@ -17,7 +17,6 @@ describe('validateSnapshot', () => {
       name: 'proj',
       sides: ['claude', 'codex'],
       stale: false,
-      hidden: false,
       lastSessionAt: null,
       sessionCount: 0
     })
@@ -53,7 +52,6 @@ describe('validateSnapshot', () => {
       name: 'p',
       sides: ['gemini'],
       stale: false,
-      hidden: false,
       lastSessionAt: null,
       sessionCount: 0
     })
@@ -69,7 +67,6 @@ describe('validateSnapshot', () => {
       name: 'p',
       sides: ['claude'],
       stale: false,
-      hidden: false,
       lastSessionAt: 'yesterday',
       sessionCount: 0
     })

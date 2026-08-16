@@ -5,6 +5,14 @@
   --p-anthropic: #d97757;
   --p-openai: #10a37f;
   --p-google: #4285f4;
+  /* xAI 取 Claude Code 徽章的夜间紫(用户裁定 2026-08-15)。深色直接用原值 #c9b3ec;
+     浅色在它基础上把 Lab 明度降 10(色相饱和不动),因为原值压在白卡片上只有 1.88:1,
+     低于既有四色 2.64–3.56 的区间,7px 的薄分段会发虚。
+     降多少是权衡出来的,不是随手调:加深同时把对比度抬上去、把与紫主题强调色的距离压下来——
+       降 6 → 2.26:1,距强调色 23.5;降 8 → 2.41,距 21.4;降 10 → 2.57,距 19.7;降 12 → 2.73,距 18.3。
+     取 10 是把对比度提到贴近既有区间下限(2.64),同时把距离守在 19.7;四档都在 agents 原型页可切。
+     已知代价:2.57 仍略低于既有下限,且距强调色 19.7 低于其余色系候选(玫红 26.4)。 */
+  --p-xai: #ad98d0;
   --p-other: #9aa0a6;
 }
 @media (prefers-color-scheme: dark) {
@@ -12,6 +20,8 @@
     --p-anthropic: #e8916f;
     --p-openai: #2fc79f;
     --p-google: #6ba3f7;
+    /* 深色用 CC 夜间紫的原值;浅色是它降了明度的版本,见 :root 处的说明 */
+    --p-xai: #c9b3ec;
     --p-other: #adb2b8;
   }
 }
@@ -48,6 +58,7 @@
 .sp.anthropic { background: var(--p-anthropic); opacity: 0.9 }
 .sp.openai    { background: var(--p-openai);    opacity: 0.9 }
 .sp.google    { background: var(--p-google);    opacity: 0.9 }
+.sp.xai       { background: var(--p-xai);       opacity: 0.9 }
 .sp.other     { background: var(--p-other);     opacity: 0.9 }
 .col:hover .sp { opacity: 1 }
 .col.arch .sp {
@@ -100,9 +111,11 @@
 .legend .sw.anthropic { background: var(--p-anthropic) }
 .legend .sw.openai    { background: var(--p-openai) }
 .legend .sw.google    { background: var(--p-google) }
+.legend .sw.xai       { background: var(--p-xai) }
 .legend .sw.other     { background: var(--p-other) }
 .legend .lg-note { margin-left: auto }
 /* The per-model breakdown bars use the same provider brand colours */
 .m.anthropic .tr i { background: var(--p-anthropic) }
 .m.openai .tr i    { background: var(--p-openai) }
 .m.google .tr i    { background: var(--p-google) }
+.m.xai .tr i       { background: var(--p-xai) }

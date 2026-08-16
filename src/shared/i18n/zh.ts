@@ -95,7 +95,7 @@ export const zh = {
     notDetected: '本机未检测到 Claude Code 或 Codex 的数据目录',
     notDetectedHint: (refreshLabel: string) =>
       `安装并使用任一 agent 后,点左下角的「${refreshLabel}」即可看到全景`,
-    totalsNote: '含已隐藏/失效项目',
+    totalsNote: '含失效项目',
     archivedNote: (days: number, earliest: string) =>
       `其中 ${days} 天(最早 ${earliest})源会话文件已被 agent 自动清理,数值来自本地归档(斜纹柱)`,
     byModel: '按模型拆分(跨项目;Codex 侧为会话主模型近似)',
@@ -185,9 +185,8 @@ export const zh = {
     codexDisabled:
       'Codex 记忆功能未开启——可在 Codex 内用 /memories 命令,或「设置 → 个性化 → Enable memories」开启(实验性)。',
     noneGlobal: '所有项目均无自动记忆',
-    globalHint: '按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件看内容',
+    globalHint: '按最近修改倒序 · 含失效(带徽标) · 点行展开文件列表,点文件看内容',
     stale: '失效',
-    hidden: '已隐藏',
     codexGlobalDir: '全局记忆目录',
     noMainFile: '无 MEMORY.md',
     noneProject: '该项目暂无自动记忆',
@@ -357,12 +356,7 @@ export const zh = {
     showStale: '显示失效项目',
     staleFiltered: (n: number) => `已过滤 ${n} 个失效`,
     noMatch: '无匹配项目',
-    hiddenCount: (n: number) => `已隐藏 ${n} 项`,
-    expandHint: '(点击展开)',
-    collapseHint: '(点击收起)',
-    staleTag: '失效',
-    restore: '恢复',
-    hide: '隐藏'
+    staleTag: '失效'
   },
   /** Token statistics and the trend chart (ticket 08) */
   token: {

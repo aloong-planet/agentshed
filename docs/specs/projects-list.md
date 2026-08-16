@@ -1,6 +1,6 @@
 # Project list
 
-> Related: [features](../features/projects-list.md) · ADR-0002 (dual seam)
+> Related: [features](../features/projects-list.md) · ADR-0002 (dual seam) · ADR-0019 (what a registry is, per side) · ADR-0021 (side colour) · ADR-0022 (manual hiding removed)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01 — the requirements and boundaries were inferred from features, the existing
 > test cases and the code's behaviour, since the original reasoning was lost with `.scratch/`. The
@@ -9,44 +9,66 @@
 
 ## Problem Statement
 
-Projects are scattered across two agent registries (Claude's `projects` key in `~/.claude.json`,
-Codex's `[projects.*]` in `config.toml`), so "see all the projects I have" means digging through two
-sets of configuration, and the same directory is recorded once on each side.
+Projects are scattered across each agent side's own registry, so "see all the projects I have" means
+digging through as many sets of configuration as there are sides, and the same directory is recorded
+once on each of them. What counts as a registry differs per side — a key in a JSON config, a table in
+a TOML config, a trusted-folder ledger — but the concept is the same one: the record that side keeps
+because the user decided something about that directory (ADR-0019).
 
 ## Solution
 
-Take the union of both registries, one directory to one project with both side badges side by side,
-sorted by activity; provide search, side filtering, stale filtering and hiding — all of which are
-this app's browsing preferences and are never written back to any agent configuration.
+Take the union of every side's registry, one directory to one project, sorted by activity. A row
+carries **how many sides use it** as a single count rather than one badge per side, with the sides
+themselves named on hover — the count is what the eye needs while scanning, the names are what a
+second of attention asks for, and this keeps the row's width independent of how many sides exist.
+Provide search, side filtering and stale filtering — all of which are this app's browsing preferences
+and are never written back to any agent configuration.
 
 ## User Stories
 
-1. As a user, I want the same directory registered on both sides merged into one entry marked with
-   each side, so that I do not have to dig through two configurations and do not see duplicates.
+1. As a user, I want the same directory registered on several sides merged into one entry that says
+   how many sides use it, so that I do not have to dig through each side's configuration and do not
+   see duplicates.
+1a. As a user, I want to see *which* sides those are without leaving the list, so that I can tell a
+   Claude-only project from one I also drive with another agent — without that costing row space on
+   every row.
 2. As a user, I want the default sort to be activity (most recent session time) with the relative
    time and session count shown, so that what I have been working on lately is at the top.
 3. As a user, I want to search by name or path and filter by agent side, so that I can find things
    quickly when there are many projects.
 4. As a user, I want stale projects (in the registry, directory deleted) collapsed by default but
    revealable, so that the list stays clean without losing the cleanup lead.
-5. As a user, I want to hide projects I do not care about and restore them, so that long-unused
-   projects do not clutter my browsing — and this preference must not pollute the agent configuration.
-6. As a user, I want a scanning state rather than an empty list before the scan finishes, so that I do
+5. As a user, I want a scanning state rather than an empty list before the scan finishes, so that I do
    not mistake "not scanned yet" for "no projects".
+
+> Manual hiding was story 5 until 2026-08-16, when it was removed (ADR-0022). The constraint it
+> answered to — registries are read-only to this app, so directories the user does not care about
+> accumulate in the list — still holds; the judgement was that the clutter has not materialised at a
+> scale worth a permanent hover slot for. Recorded here because the constraint outliving the feature
+> is what would make someone re-propose it.
 
 ## Failure modes and boundaries
 
 **Sequence A: startup scan → list rendering**
-- A1 Neither side's data directory exists → an empty snapshot with `detected=false` on both sides, no
+- A1 No side's data directory exists → an empty snapshot with `detected=false` for every side, no
   throw.
-- A2 Only one side exists → `detected=true` for that side, with the other's empty state alongside.
-- A3 One side's registry JSON/TOML is corrupt → that side degrades to empty with an error
-  explanation, and **the other behaves normally** (a single-side failure does not clear the whole
-  table).
-- A4 The same directory is registered on both sides → merged into one entry with both badges.
+- A2 Only some sides exist → `detected=true` for those, with the others' empty state alongside.
+- A3 One side's registry is corrupt → that side degrades to empty with an error explanation, and
+  **every other side behaves normally** (a single-side failure does not clear the whole table).
+- A4 The same directory is registered on several sides → merged into one entry whose count equals the
+  number of sides.
 - A5 Trailing-slash or casing differences in the path → normalised, producing no duplicates.
 - A6 A registry record whose directory has been deleted → marked stale, and does not vanish from the
   list.
+- A7 A directory that has sessions on a side but **no registry record** on it → not a project from
+  that side's point of view: it does not enter the list and does not raise the count of an entry that
+  other sides did register. Its tokens still count toward global totals (ADR-0019, and the same rule
+  the Claude side already followed for unregistered directories).
+- A8 The count is the number of sides holding a registry record, not the number of sides with
+  sessions — the two differ exactly in the A7 case, and the list is a view over registries.
+- A9 A side that is installed but has registered nothing (its data directory exists, its registry is
+  absent or empty) → `detected=true` with no projects contributed. This is a normal state for a
+  newly adopted side, not a failure, and must not be reported as one.
 
 **Sequence B: activity computation**
 - B1 The Claude side counts `*.jsonl` under the encoded directory, taking the largest mtime as the
@@ -58,31 +80,66 @@ this app's browsing preferences and are never written back to any agent configur
 - B4 A corrupt rollout first line → skip that file, no throw, and no effect on the other sessions in
   the same directory.
 - B5 A project with no sessions → count 0, most recent time null (sorted last, not an error).
-- B6 Sessions on both sides → the count is the sum of the union and the time is the larger of the two.
+- B6 Sessions on several sides → the count is the sum over the union and the time is the largest.
+- B7 The Grok side stores a session as a **directory** rather than a file; activity reads the mtime of
+  the one file inside it that is the authoritative stream (ADR-0019), so "the session file's mtime"
+  keeps one meaning across all sides.
+- B8 A Grok child session sits **beside** its parent rather than beneath it, and is identified as a
+  subagent by what its own record says it is — never by directory depth. It does not count toward the
+  session count and does not push the most recent time up (the same rule as B3).
+- B9 Activity counts sessions from **every** side that has them, including a side that did not
+  register the directory. So a project registered on one side only can show a session count and a
+  most-recent time drawn partly from another side, while its side count stays at one. The two answer
+  different questions — "how many sides claim this project" versus "when was this directory last
+  worked in" — and are deliberately not reconciled; A8 is where they visibly diverge.
 
-**Sequence C: filtering and hiding**
-- C1 Search, side filtering, stale filtering and hiding all **stack**, never overriding one another.
-- C2 The hidden state lives in this app's own storage and is **never written to any agent
-  configuration** (uninstalling this app does not affect the agents).
-- C3 Hidden projects collect under their own entry point with a count, expandable to restore.
+**Sequence C: filtering**
+- C1 Search, side filtering and stale filtering all **stack**, never overriding one another.
+- C2 No browsing preference is written to any agent configuration (uninstalling this app does not
+  affect the agents). This outlives the hiding feature it was originally written for: it governs any
+  preference this list grows.
+- C3 — withdrawn with manual hiding (ADR-0022). The number is left unused rather than reassigned, so
+  that an old reference to C3 fails to find anything instead of finding a different rule.
 - C4 Repeat clicks on global refresh while one is in flight are ignored (deduplicated, no concurrent
   scans).
+- C5 Side filtering is a **single-choice dropdown** defaulting to all sides, not one control per side:
+  the row of controls has to stay readable as sides are added, and in the narrowest supported sidebar
+  the longest of the six UI languages must not push it out of the column.
+- C6 Hovering the side count opens a layer naming the sides in full. It is a layer over a clipped,
+  scrollable list, so it owes both floating-layer obligations (CONTEXT's invariant): it escapes the
+  ancestors' clipping, and it answers for a stale anchor — dismissed on any scroll but its own, and
+  dismissed on resize, because it is being glanced at rather than operated.
+- C7 The dropdown, being operated rather than glanced at, **repositions** on resize instead of
+  closing; it dismisses on scroll like any anchored layer.
 
 ## Implementation Decisions
 
 - **Merge key**: the normalised path is the unique key (trailing slash and casing normalised), taking
-  the union of both sides; one directory, one entry.
-- **Activity**: Claude uses a `readdir` of the encoded directory (without parsing contents), Codex
-  attributes by the rollout's first-line `cwd`; subagent threads are excluded.
-- **Hidden state storage**: this app's own storage, physically isolated from the agent configuration.
+  the union of every side; one directory, one entry.
+- **Registry per side**: each side's registry is the per-project record it keeps on a user decision,
+  never a by-product of where it stores sessions (ADR-0019). Reading it is per-side; what "registered"
+  means is not.
+- **Activity**: attribution is per-side (an encoded directory listing, a rollout's first-line `cwd`, a
+  session directory named by the encoded working directory), but the resulting quantities are one
+  concept — most recent session time and session count — and subagent threads are excluded on every
+  side.
+- **Side identity in the row**: a count, plus a hover layer naming the sides. Side colours appear only
+  in that layer, and are the side colours defined in ADR-0021 rather than a palette local to this list.
 - **Refresh**: global refresh is shared by both dimensions, with in-flight deduplication.
 
 ## Testing Decisions
 
 Following ADR-0002's dual seam: `ScanRoots` fixture unit tests at the providers layer cover the
 registry union, corruption degradation, path normalisation, activity attribution and subagent
-exclusion; UI interactions (stacked filters, the hidden entry point) are not unit tested and rely on
-e2e and manual testing.
+exclusion — with a fixture per side, since each side's registry and session layout differ while the
+resulting entries must not. The A7/A8 distinction (sessions without a registry record) needs its own
+fixture case, because it is the one place where "has sessions" and "is a project" come apart.
+
+UI interactions are covered by e2e, and the two floating layers (C6/C7) need **geometric** assertions
+rather than existence ones: a clipped or mislaid layer reports a perfectly ordinary bounding box, so
+the check that distinguishes it is hit-testing the layer's own centre and confirming the point belongs
+to it. Their opposite resize answers are each asserted, since a layer that dismisses when it should
+reposition looks identical to one that was never opened.
 
 ## Out of Scope
 

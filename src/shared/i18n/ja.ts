@@ -58,7 +58,7 @@ export const ja: Locale = {
     notDetected: 'このマシンで Claude Code または Codex のデータディレクトリを検出できませんでした',
     notDetectedHint: (refreshLabel) =>
       `いずれかの agent をインストールして使ったあと、左下の「${refreshLabel}」を押すと全体像が見えます`,
-    totalsNote: '非表示/失効プロジェクトを含む',
+    totalsNote: '失効プロジェクトを含む',
     archivedNote: (days, earliest) => `うち ${days} 日（最古 ${earliest}）は元のセッションファイルが agent により自動削除済みで、数値はローカルアーカイブ由来です（斜線の棒）`,
     byModel: 'モデル別（プロジェクト横断。Codex 側はセッションの主モデルの近似）',
     detected: '検出済み', undetected: '未検出',
@@ -115,8 +115,8 @@ export const ja: Locale = {
     codexEmpty: 'Codex のメモリは有効ですが、内容がありません。',
     codexDisabled: 'Codex のメモリ機能は有効化されていません —— Codex 内で /memories コマンド、または「設定 → パーソナライズ → Enable memories」で有効にできます（実験的）。',
     noneGlobal: 'どのプロジェクトにも自動メモリがありません',
-    globalHint: '更新の新しい順 · 失効/非表示を含む（バッジ付き）· 行をクリックでファイル一覧、ファイルをクリックで内容',
-    stale: '失効', hidden: '非表示',
+    globalHint: '更新の新しい順 · 失効を含む（バッジ付き）· 行をクリックでファイル一覧、ファイルをクリックで内容',
+    stale: '失効',
     codexGlobalDir: 'グローバルメモリのディレクトリ', noMainFile: 'MEMORY.md なし',
     noneProject: 'このプロジェクトにはまだ自動メモリがありません',
     claudeOnly: 'Memory は Claude 側の仕組みです（Codex のメモリはグローバルで、グローバルページの Memory タブを参照）',
@@ -272,12 +272,7 @@ export const ja: Locale = {
     showStale: '失効したプロジェクトを表示',
     staleFiltered: (n) => `失効 ${n} 件を除外しました`,
     noMatch: '一致するプロジェクトがありません',
-    hiddenCount: (n) => `非表示 ${n} 件`,
-    expandHint: '（クリックで展開）',
-    collapseHint: '（クリックで折りたたみ）',
     staleTag: '失効',
-    restore: '復元',
-    hide: '非表示にする'
   },
   token: {
     totalCard: (note) => `累計（両サイド合計${note ? ` · ${note}` : ''}）`,

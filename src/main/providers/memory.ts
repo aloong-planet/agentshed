@@ -73,8 +73,7 @@ export function readMemorySummary(roots: ScanRoots, projects: ProjectEntry[]): M
       hasMain: files.some((f) => f.name === 'MEMORY.md'),
       files,
       lastModified: Math.max(...files.map((f) => f.mtimeMs)),
-      stale: p.stale,
-      hidden: p.hidden
+      stale: p.stale
     })
   }
   const codexFiles = listMdFiles(join(roots.codexHome, 'memories'))
@@ -86,8 +85,7 @@ export function readMemorySummary(roots: ScanRoots, projects: ProjectEntry[]): M
       hasMain: false,
       files: codexFiles,
       lastModified: Math.max(...codexFiles.map((f) => f.mtimeMs)),
-      stale: false,
-      hidden: false
+      stale: false
     })
   }
   // C4: most recently modified first

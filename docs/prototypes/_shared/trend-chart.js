@@ -4,8 +4,11 @@
 // same rule as the logic-page template).
 // It corresponds to the real app's TrendChart component; the ruling is in ADR-0008.
 ;(function () {
-  const PROVIDERS = ['Anthropic', 'OpenAI', 'Google', '其他']
-  const CLS = { Anthropic: 'anthropic', OpenAI: 'openai', Google: 'google', 其他: 'other' }
+  const PROVIDERS = ['Anthropic', 'OpenAI', 'Google', 'xAI', '其他']
+  const CLS = { Anthropic: 'anthropic', OpenAI: 'openai', Google: 'google', xAI: 'xai', 其他: 'other' }
+  // 单侧模式 → 该侧当前实际在用的 provider。三侧各自一一对应只是此刻的事实,不是不变量:
+  // ADR-0008 之所以按 provider 而非按侧分段,就是为了让某侧哪天混入别家模型时图表逻辑不必改。
+  const MODE_PROVIDER = { Claude: 'Anthropic', Codex: 'OpenAI', Grok: 'xAI' }
 
   function fmt(n) {
     return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n)
@@ -23,6 +26,10 @@
       by.Anthropic = Math.round((o.scale || 9e7) * sc)
       if (rnd() < 0.7) by.OpenAI = Math.round((o.scale || 9e7) * 0.28 * sc * (0.3 + rnd()))
       if (o.withGoogle && [2, 8, 16].includes(i)) by.Google = Math.round((o.scale || 9e7) * 0.13 * (0.4 + rnd()))
+      // Grok 是刚接进来的一侧,只有最近几天有量 —— 这是它现在真实的样子,也正是要压测的边界:
+      // 合计模式下它是薄薄一段(分辨得出来吗),单侧模式下 30 天里只剩几个数据日(x 轴按数据日出标签,
+      // 见 ADR-0009),两种情形都比「每天都有量」更能暴露问题。
+      if (i >= 24) by.xAI = Math.round((o.scale || 9e7) * 0.22 * (0.35 + rnd()))
       return { label: `${d.getMonth() + 1}/${d.getDate()}`, mon: d.getMonth() + 1, dom: d.getDate(), by, archived: o.archivedFirst ? i < o.archivedFirst : false }
     })
   }
@@ -86,7 +93,7 @@
 
   function segmentsOf(day, mode) {
     if (mode !== '合计') {
-      const p = mode === 'Claude' ? 'Anthropic' : 'OpenAI'
+      const p = MODE_PROVIDER[mode]
       const v = day.by[p] || 0
       return v > 0 ? [{ p: p, v: v }] : []
     }

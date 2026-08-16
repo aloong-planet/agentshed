@@ -27,3 +27,7 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0016](0016-no-natural-language-across-ipc.md) | The main process emits no user-facing natural language (not just failure text) | Accepted |
 | [0017](0017-repo-working-language-english.md) | Repository working language is English (comments, docs, test names, terminal output) | Accepted |
 | [0018](0018-icons-are-inline-svg-from-one-source.md) | Icons are inline SVG from a single source; the prototypes derive theirs from it | Accepted |
+| [0019](0019-grok-as-third-agent-side.md) | Onboarding Grok as the third agent side (registry, compatibility rule, no cost, session identity) | Accepted |
+| [0020](0020-day-usage-keyed-by-side.md) | Daily usage is keyed by agent side, not by a field per side | Accepted |
+| [0021](0021-side-colour-follows-provider.md) | One colour per agent side, taken from that side's provider colour | Accepted |
+| [0022](0022-remove-manual-hiding.md) | Manual project hiding is removed | Accepted |

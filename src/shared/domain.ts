@@ -47,8 +47,6 @@ export interface ProjectEntry {
   sides: AgentSide[]
   /** Stale: still in the registry, but the directory no longer exists on disk */
   stale: boolean
-  /** Manually hidden (in the app's own storage, never written to the agent configuration) */
-  hidden: boolean
   /** Activity: most recent session time (epoch ms; null with no sessions) and session count */
   lastSessionAt: number | null
   sessionCount: number
@@ -141,7 +139,6 @@ export interface MemorySummaryEntry {
   files: MemoryFileMeta[]
   lastModified: number | null
   stale: boolean
-  hidden: boolean
 }
 
 /** One plugin installation record (E1: several records are not merged; E3: a scope other than user/project is labelled as written) */
@@ -564,7 +561,7 @@ export interface Snapshot {
   sides: Record<AgentSide, SideInfo>
   projects: ProjectEntry[]
   global: GlobalLayer
-  /** The cross-project token summary (rule: includes hidden and stale projects; includes historical days filled in from the archive) */
+  /** The cross-project token summary (rule: includes stale projects; includes historical days filled in from the archive) */
   tokens: TokenStats
   /** Days that exist only in the archive, whose source session files the agent has cleaned up (the UI labels these historical spans) */
   archivedDays: string[]

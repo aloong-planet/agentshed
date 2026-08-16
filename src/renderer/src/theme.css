@@ -487,53 +487,6 @@ body {
   flex: none;
   opacity: 0.8;
 }
-.hide-btn {
-  display: none;
-  position: absolute;
-  right: 6px;
-  border: 0;
-  background: var(--card);
-  color: var(--text-2);
-  border-radius: 5px;
-  font-size: 11px;
-  cursor: pointer;
-  padding: 2px 6px;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15);
-}
-.row:hover .hide-btn {
-  display: block;
-}
-.hide-btn:hover {
-  color: var(--accent);
-}
-.hidden-entry {
-  margin: 4px 8px;
-  padding: 6px 10px;
-  font-size: 11.5px;
-  color: var(--text-2);
-  cursor: pointer;
-  border-radius: 6px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  font-family: inherit;
-}
-.hidden-entry:hover {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.hidden-panel {
-  margin: 0 8px 6px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 7px;
-  padding: 4px;
-  max-height: 30%;
-  overflow: auto;
-}
-.hidden-panel .row {
-  opacity: 0.75;
-}
-
 /* ── Pieces shared by the full-width page (Agents) and the detail page ── */
 .pane {
   flex: 1;

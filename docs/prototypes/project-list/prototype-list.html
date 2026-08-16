@@ -2,16 +2,23 @@
 <!-- A UI prototype · ticket 02: the project list (the projects dimension inside the icon rail).
      问题:并集列表的行密度与徽标怎么摆;失效过滤开关、手动隐藏/恢复、搜索、
      活跃度排序在纯项目栏里如何共存不打架(全局入口已移入最左 rail,不再挤在列表底部)。
-     交互:搜索、勾选"显示失效"、行悬停出隐藏按钮、「已隐藏 N 项」展开恢复、刷新去重(连点无效)。 -->
+     2026-08-15 追加的问题(第三侧 Grok 接入):侧数增长后行上不再逐个列徽章,改成一个数字 + 悬浮说明,
+       过滤器改成下拉——于是问题变成:一个光秃秃的数字读不读得懂(尤其满屏都是「1」时),
+       以及两个压在 overflow:auto 列表上的浮层会不会被裁掉、锚点失效时答不答话。
+     2026-08-16:手动隐藏功能整体删除(ADR-0022),行尾不再有 hover 才浮现的控件。
+     交互:搜索、勾选"显示失效"、点行选中、刷新去重(连点无效)。
+     演示基建(非设计的一部分,勿实现):底部悬浮条(data-demo-harness,独立于页面内容流)承载
+       界面语言六选一与过滤器宽度读数——app 内没有这个开关,真实语言来自设置里的语言偏好。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>原型 — 项目图鉴列表</title>
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
-    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;--float-shadow:rgba(0,0,0,.18)}
   @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
-    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;
+    --float-shadow:rgba(0,0,0,.5)}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
@@ -34,10 +41,15 @@
   .ri.busy{animation:spin 1s linear infinite;pointer-events:none;color:var(--accent)}
   @keyframes spin{to{transform:rotate(360deg)}}
   .fseg{display:flex;gap:4px;padding:2px 14px 4px}
-  .fseg span{font-size:11px;border:1px solid var(--line-strong);border-radius:999px;padding:2px 10px;
-    cursor:pointer;color:var(--text-2)}
-  .fseg span.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
-  .opts{display:flex;align-items:center;gap:6px;padding:2px 14px 6px;font-size:11.5px;color:var(--text-2)}
+  /* 侧别下拉。触发器是普通行内控件;弹层是浮层,规矩见下面 .side-pop。 */
+  .dd-trigger{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2);
+    border:1px solid var(--line-strong);border-radius:7px;padding:3px 8px;cursor:pointer;
+    background:transparent;font:inherit;font-size:11px;white-space:nowrap}
+  .dd-trigger:hover{border-color:var(--accent);color:var(--accent)}
+  .dd-trigger .chev{display:flex;transition:transform .15s}
+  .dd-trigger[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
+  .dd-trigger[aria-expanded="true"] .chev{transform:rotate(180deg)}
+  .opts{display:flex;align-items:center;gap:8px;padding:4px 14px 6px;font-size:11.5px;color:var(--text-2)}
   .opts label{display:flex;align-items:center;gap:4px;cursor:pointer}
   .list{flex:1;overflow:auto;padding:2px 8px}
   .row{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:7px;cursor:pointer;position:relative}
@@ -45,20 +57,68 @@
   .row.sel{background:var(--accent-soft);outline:1px solid var(--accent)}
   .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .row.stale .nm{color:var(--text-2);text-decoration:line-through}
+  /* 曾经有一条 min-width:62px,唯一作用是把数字徽章推出 hover 时浮现的「隐藏」按钮的覆盖范围
+     (不留余量时按钮左缘会越过徽章右缘 4px)。隐藏功能删除后那个理由不存在了,连同它一起去掉——
+     行尾不再有任何 hover 才出现的浮动控件,常驻信息可以贴着右边排。 */
   .meta{font-size:10.5px;color:var(--text-2);flex:none;font-variant-numeric:tabular-nums}
-  .bdg{flex:none;display:flex;gap:2px}
-  .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px;letter-spacing:.2px}
-  .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
-  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  /* 行上只留一个数——它数的是「几个」,不是「哪个」,所以不带任何一侧的颜色;
+     哪几个要靠悬浮才说,见 .sides-tip。 */
+  /* 走主题强调色。注意它不表示「被选中」——行的选中/hover 底色也是 accent-soft,两者会撞:
+     所以 hover 行时徽章换成卡片底,靠对比而不是靠同色留在原地。 */
+  .cnt-b{flex:none;min-width:17px;height:17px;padding:0 5px;border-radius:9px;
+    background:var(--accent-soft);color:var(--accent);
+    font-size:10px;font-weight:700;display:flex;align-items:center;
+    justify-content:center;gap:2px;font-variant-numeric:tabular-nums;cursor:default}
+  /* 图标不着任何一侧的色:这个数说的是「几个」,着色就等于在说「哪个」。 */
+  .cnt-b svg{flex:none}
+  .cnt-b.has-icon{padding:0 6px 0 4px}
+  .row:hover .cnt-b,.row.sel .cnt-b{background:var(--card)}
+  /* 一个 agent 在界面各处只有一种颜色,基准取柱状图里那一侧的主色,逐字相同、不另调近似色。
+     真正被这条改掉的是 Claude:它原先的徽章紫 #6b4f92 与柱状图的橙毫无关系,而那个紫恰好等于默认
+     主题的 --accent-deep,于是「某一侧」和「被选中」在界面上是同一个颜色。
+     注意这里是**第二份拷贝**:色值的正源在别处,两处一致目前只靠人盯——需要一条可执行断言来守,
+     见交付说明里记的缺口。 */
+  .dot{width:7px;height:7px;border-radius:2px;flex:none}
+  .dot.c{background:#d97757}.dot.x{background:#10a37f}.dot.g{background:#ad98d0}
+  @media (prefers-color-scheme:dark){.dot.c{background:#e8916f}.dot.x{background:#2fc79f}
+    .dot.g{background:#c9b3ec}}
+  /* 两个浮层。position:fixed 是承重的,不是样式偏好:.list 是 overflow:auto,absolute 的会被它裁掉,
+     而被裁掉的浮层照样报得出一个完全正常的包围盒——「元素存在」证明不了「用户看得见」。
+     见 CONTEXT.md 的浮层不变量与 2026-08-11 复盘。 */
+  .side-pop{position:fixed;z-index:60;display:none;min-width:150px;padding:4px;background:var(--card);
+    border:1px solid var(--line-strong);border-radius:10px;box-shadow:0 8px 24px var(--float-shadow)}
+  .side-pop.open{display:block}
+  .dd-opt{display:flex;align-items:center;gap:8px;width:100%;padding:6px 9px;border:0;border-radius:7px;
+    background:transparent;color:inherit;font:inherit;font-size:12px;cursor:pointer;text-align:left}
+  .dd-opt:hover{background:var(--accent-soft)}
+  .dd-opt .n{flex:1;white-space:nowrap}
+  .dd-opt .ck{flex:none;color:var(--accent);display:flex;visibility:hidden}
+  .dd-opt.on .ck{visibility:visible}
+  .dd-opt.on .n{color:var(--accent);font-weight:600}
+  .sides-tip{position:fixed;z-index:70;display:none;background:var(--card);border:1px solid var(--line-strong);
+    border-radius:8px;box-shadow:0 8px 24px var(--float-shadow);padding:6px 9px;font-size:11.5px;
+    color:var(--text);white-space:nowrap;pointer-events:none}
+  .sides-tip.open{display:block}
+  .sides-tip .st{display:flex;align-items:center;gap:6px;padding:1px 0}
+  /* 演示基建(非设计的一部分,勿实现):底部悬浮条,与被评判的控件视觉隔离 */
+  /* 居中用 left+right+margin:auto,**不用** left:50%+translateX(-50%)。后者对 fixed 元素来说
+     可用宽度只剩 100vw-50vw = 50vw(未指定 right 时,包含块从 left 量到视口右缘),translateX 只是
+     把它挪回视觉中心,于是内容一多就在半个视口里换行甚至被压成竖排——而 max-width 写多大都没用。
+     另:transform 会给后代的 fixed 元素造出包含块,不用它也顺带避开了那个坑。 */
+  .harness{position:fixed;bottom:14px;left:12px;right:12px;margin:0 auto;width:fit-content;z-index:60;
+    display:flex;align-items:center;justify-content:center;flex-wrap:wrap;row-gap:2px;
+    gap:4px;background:#26262b;border-radius:16px;
+    padding:6px 14px;font-size:11px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+  /* 间距一律走 padding 与 gap,**不用 margin**:width:fit-content 求 max-content 时不计子项的
+     margin,于是容器按少算的宽度定形,再把内容挤到下一行——表现是"明明放得下却换行了"。 */
+  .harness .dl{color:#8a8a92;padding:0 3px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
+  .harness span[data-v],.harness span[data-i]{padding:3px 9px;border-radius:999px;cursor:pointer;
+    color:#b8b8bf;white-space:nowrap}
+  .harness span[data-v]:hover,.harness span[data-i]:hover{color:#fff}
+  .harness span[data-v].on,.harness span[data-i].on{background:#4a4a52;color:#fff;font-weight:600}
+  .harness .sepv{width:1px;height:16px;background:#4a4a52;display:inline-block;flex:none}
+  .row-over{outline:1px dashed #d9534f}
   .stale-tag{font-size:9.5px;color:#b3552f;border:1px solid #e0a184;border-radius:3px;padding:0 4px;flex:none}
-  .hide-btn{display:none;position:absolute;right:6px;border:0;background:var(--card);color:var(--text-2);
-    border-radius:5px;font-size:11px;cursor:pointer;padding:2px 6px;box-shadow:0 1px 5px rgba(0,0,0,.15)}
-  .row:hover .hide-btn{display:block}
-  .hide-btn:hover{color:var(--accent)}
-  .hidden-entry{margin:4px 8px;padding:6px 10px;font-size:11.5px;color:var(--text-2);cursor:pointer;border-radius:6px}
-  .hidden-entry:hover{background:var(--accent-soft);color:var(--accent)}
-  .hidden-panel{margin:0 8px 6px;border:1px dashed var(--line-strong);border-radius:7px;padding:4px}
-  .hidden-panel .row{opacity:.75}
   .main{flex:1;display:flex;flex-direction:column}
   .topbar{height:44px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px}
   .empty .big{display:flex;justify-content:center;color:var(--text-2);opacity:.75}
@@ -73,73 +133,170 @@
   </div>
   <div class="side">
     <div class="sh"><div class="sh-field"><span data-icon="Search" data-icon-size="13"></span><input id="q" placeholder="搜索项目…"></div></div>
-    <div class="fseg" id="fseg"><span class="on" data-f="all">全部</span><span data-f="c">Claude</span><span data-f="x">Codex</span></div>
-    <div class="opts"><label><input type="checkbox" id="showStale">显示失效项目</label>
+    <div class="opts" id="opts-row">
+      <button class="dd-trigger" id="ddTrig" aria-expanded="false" aria-haspopup="listbox"></button>
+      <label><input type="checkbox" id="showStale">显示失效项目</label>
       <span id="cnt" style="margin-left:auto"></span></div>
     <div class="list" id="list"></div>
-    <div class="hidden-entry" id="hEntry"></div>
-    <div class="hidden-panel" id="hPanel" style="display:none"></div>
   </div>
+  <div class="side-pop" id="ddPop" role="listbox"></div>
+  <div class="sides-tip" id="sidesTip"></div>
   <div class="main">
     <div class="topbar"><b>Agentshed</b></div>
     <div class="empty"><div class="big" data-icon="MousePointerClick" data-icon-size="30"></div><div>选择一个项目查看详情</div></div>
   </div>
+  <div class="harness" id="harness" data-demo-harness></div>
 <script src="../_shared/icons.js"></script>
 <script>
   // Activity = the most recent session time (the sort key) + the session count; stale = in the registry,
   // absent from disk
+  // Transfer 三侧齐全,是本列表最挤的一行(名字 + 失效位 + 活跃度 + 三枚徽章挤在 270px 里)——
+  // 三侧同现是新出现的形态,不摆出来就看不出徽章区把名字压到什么程度。
   const DATA=[
-    {n:'agentshed',      sides:['c'],     last:'今天',   ses:5,  ord:0},
-    {n:'chatgpt-token',  sides:['x'],     last:'昨天',   ses:3,  ord:1},
-    {n:'openclaw-v3',    sides:['c'],     last:'2天前',  ses:41, ord:2},
-    {n:'Transfer',       sides:['c','x'], last:'3天前',  ses:128,ord:3},
-    {n:'AI-Learning',    sides:['x'],     last:'5天前',  ses:9,  ord:4},
-    {n:'aloong-tools',   sides:['c'],     last:'7天前',  ses:22, ord:5},
-    {n:'csv-debug-viewer',sides:['c'],    last:'1月前',  ses:6,  ord:6},
-    {n:'New project',    sides:['x'],     last:'2月前',  ses:1,  ord:7, stale:true},
-    {n:'fe',             sides:['x'],     last:'2月前',  ses:2,  ord:8, stale:true},
+    {n:'agentshed',      sides:['c','g'],     last:'今天',   ord:0},
+    {n:'chatgpt-token',  sides:['x'],         last:'昨天',   ord:1},
+    {n:'openclaw-v3',    sides:['c','g'],     last:'2天前',  ord:2},
+    {n:'Transfer',       sides:['c','x','g'], last:'3天前',  ord:3},
+    {n:'AI-Learning',    sides:['x'],         last:'5天前',  ord:4},
+    {n:'aloong-tools',   sides:['c'],         last:'7天前',  ord:5},
+    {n:'csv-debug-viewer',sides:['c'],        last:'1月前',  ord:6},
+    {n:'New project',    sides:['x'],         last:'2月前',  ord:7, stale:true},
+    {n:'fe',             sides:['x'],         last:'2月前',  ord:8, stale:true},
   ];
-  let hidden=new Set(['csv-debug-viewer']), sel='Transfer', showHidden=false, sideFilter='all';
-  const list=document.getElementById('list'),hEntry=document.getElementById('hEntry'),
-        hPanel=document.getElementById('hPanel'),q=document.getElementById('q'),
+  // 悬浮层里用全名而不是缩写:那里有的是地方,而缩写要读者先学一遍。
+  const SIDE_NAME={c:'Claude Code',x:'Codex',g:'Grok'};
+  // 「全部」是这条里唯一随语言变的词——三个侧名是产品名,六语相同。
+  const FILTER_ALL={zh:'全部',en:'All',fr:'Tous',ru:'Все',es:'Todos',ja:'すべて'};
+  let lang='zh';
+  // 数字前的图标候选。四个都取自 _shared/icons.js(由 app 的图标模块生成),没有一个是手贴的 SVG,
+  // 也没有拿字符充数——选型没定之前不改图标模块,这里只是把候选摆出来比。
+  const ICON_CAND=[['none','不加'],['Bot','Bot'],['RobotFace','RobotFace'],['Terminal','Terminal'],['Brain','Brain']];
+  let ICON_MODE='Bot';
+  let sel='Transfer', sideFilter='all';
+  const list=document.getElementById('list'),q=document.getElementById('q'),
         showStale=document.getElementById('showStale'),cnt=document.getElementById('cnt');
-  function rowHTML(p,inHidden){
-    return `<div class="row ${p.stale?'stale':''} ${sel===p.n&&!inHidden?'sel':''}" data-n="${p.n}">
-      <span class="nm" ${inHidden?'':'data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html" title="打开详情"'}>${p.n}</span>
+  function rowHTML(p){
+    return `<div class="row ${p.stale?'stale':''} ${sel===p.n?'sel':''}" data-n="${p.n}">
+      <span class="nm" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html" title="打开详情">${p.n}</span>
       ${p.stale?'<span class="stale-tag">失效</span>':''}
-      <span class="meta">${p.last} · ${p.ses}</span>
-      <span class="bdg">${p.sides.map(s=>`<span class="b ${s}">${s==='c'?'CC':'CX'}</span>`).join('')}</span>
-      <button class="hide-btn" data-h="${p.n}">${inHidden?'恢复':'隐藏'}</button>
+      <span class="cnt-b ${ICON_MODE==='none'?'':'has-icon'}" data-sides="${p.sides.join(',')}"
+        >${ICON_MODE==='none'?'':ICONS[ICON_MODE](11)}${p.sides.length}</span>
+      <span class="meta">${p.last}</span>
     </div>`;
   }
+  const ddTrig=document.getElementById('ddTrig'),ddPop=document.getElementById('ddPop'),
+        sidesTip=document.getElementById('sidesTip');
+  const DD_ITEMS=()=>[['all',FILTER_ALL[lang]],['c','Claude Code'],['x','Codex'],['g','Grok']];
+  function ddLabel(){ return (DD_ITEMS().find(([f])=>f===sideFilter)||[])[1] }
+  function renderTrigger(){
+    ddTrig.innerHTML=`<span>${ddLabel()}</span><span class="chev">${ICONS.ChevronDown(11)}</span>`;
+    const room=document.getElementById('room');
+    if(room){
+      const opts=document.getElementById('opts-row');
+      room.textContent=`触发器 ${Math.round(ddTrig.getBoundingClientRect().width)}px`+
+        (opts?` · 行 ${Math.round(opts.scrollWidth)}/${Math.round(opts.clientWidth)}px`:'');
+    }
+  }
   function render(){
+    renderTrigger();
     const kw=q.value.trim().toLowerCase();
-    const vis=DATA.filter(p=>!hidden.has(p.n))
+    const vis=DATA
       .filter(p=>showStale.checked||!p.stale)
       .filter(p=>sideFilter==='all'||p.sides.includes(sideFilter))
       .filter(p=>!kw||p.n.toLowerCase().includes(kw))
       .sort((a,b)=>a.ord-b.ord);
-    list.innerHTML=vis.map(p=>rowHTML(p,false)).join('')||'<div style="padding:30px 10px;text-align:center;color:var(--text-2)">无匹配项目</div>';
-    const hid=DATA.filter(p=>hidden.has(p.n));
-    hEntry.innerHTML=hid.length?ICONS.ChevronRight(11)+` 已隐藏 ${hid.length} 项${showHidden?'(点击收起)':'(点击展开)'}`:'';
-    hPanel.style.display=showHidden&&hid.length?'block':'none';
-    hPanel.innerHTML=hid.map(p=>rowHTML(p,true)).join('');
-    const staleN=DATA.filter(p=>p.stale&&!hidden.has(p.n)).length;
+    list.innerHTML=vis.map(p=>rowHTML(p)).join('')||'<div style="padding:30px 10px;text-align:center;color:var(--text-2)">无匹配项目</div>';
+    const staleN=DATA.filter(p=>p.stale).length;
     cnt.textContent=showStale.checked?'':`已过滤 ${staleN} 个失效`;
   }
   document.body.addEventListener('click',e=>{
-    const h=e.target.closest('.hide-btn');
-    if(h){const n=h.dataset.h; hidden.has(n)?hidden.delete(n):hidden.add(n); render(); return;}
     const r=e.target.closest('.row');
-    if(r&&!r.closest('.hidden-panel')){sel=r.dataset.n;render();return;}
-    if(e.target.closest('#hEntry')){showHidden=!showHidden;render();}
+    if(r){sel=r.dataset.n;render();}
   });
   q.oninput=render; showStale.onchange=render;
-  document.getElementById('fseg').addEventListener('click',e=>{
-    if(!e.target.dataset.f)return;
-    document.querySelectorAll('#fseg span').forEach(s=>s.classList.toggle('on',s===e.target));
-    sideFilter=e.target.dataset.f;render();
+
+  // ── 两个浮层 ──
+  // 共同的第一条义务(逃出 .list 的裁剪)由 position:fixed 承担,写在 CSS 里。
+  // 第二条义务——位置量自锚点,锚点失效时要答话——两层的答法**不同**,这不是细节:
+  //   下拉是用户正在操作的菜单,窗口尺寸变了不代表他改了主意 → resize 重新定位;
+  //   悬浮说明是瞥一眼的东西,指针一动就没了 → resize 直接关掉。
+  // 滚动一律关闭,且监听下在 document 的**捕获**阶段:scroll 不冒泡,但会往下经过 document,
+  // 于是无论哪个可滚祖先滚动都听得见,不必按类名去猜是哪个容器(类名一改就静默失联)。
+  function placeBelow(pop,anchor,align){
+    const r=anchor.getBoundingClientRect();
+    pop.classList.add('open');            // 先显形再量:display:none 的元素量出来全是 0
+    const w=pop.getBoundingClientRect().width;
+    let left=align==='right'?r.right-w:r.left;
+    left=Math.max(6,Math.min(left,innerWidth-w-6));   // 贴边夹住,别跑出窗口
+    pop.style.left=left+'px';
+    pop.style.top=(r.bottom+6)+'px';
+  }
+  function ddOpen(){
+    ddPop.innerHTML=DD_ITEMS().map(([f,l])=>
+      `<button class="dd-opt ${sideFilter===f?'on':''}" data-f="${f}" role="option">
+         ${f==='all'?'':`<i class="dot ${f}"></i>`}<span class="n">${l}</span>
+         <span class="ck">${ICONS.Check(13)}</span></button>`).join('');
+    placeBelow(ddPop,ddTrig,'left');
+    ddTrig.setAttribute('aria-expanded','true');
+  }
+  function ddClose(){ ddPop.classList.remove('open'); ddTrig.setAttribute('aria-expanded','false') }
+  const ddIsOpen=()=>ddPop.classList.contains('open');
+  ddTrig.addEventListener('click',e=>{ e.stopPropagation(); ddIsOpen()?ddClose():ddOpen() });
+  ddPop.addEventListener('click',e=>{
+    const b=e.target.closest('.dd-opt'); if(!b)return;
+    sideFilter=b.dataset.f; ddClose(); render();
   });
+  document.addEventListener('click',e=>{ if(ddIsOpen()&&!ddPop.contains(e.target)&&e.target!==ddTrig) ddClose() });
+
+  let tipAnchor=null;
+  function tipShow(el){
+    const sides=el.dataset.sides.split(',');
+    sidesTip.innerHTML=sides.map(s=>`<div class="st"><i class="dot ${s}"></i>${SIDE_NAME[s]}</div>`).join('');
+    tipAnchor=el; placeBelow(sidesTip,el,'right');
+  }
+  function tipHide(){ sidesTip.classList.remove('open'); tipAnchor=null }
+  const tipIsOpen=()=>sidesTip.classList.contains('open');
+  document.addEventListener('mouseover',e=>{
+    const b=e.target.closest('.cnt-b');
+    if(b){ if(b!==tipAnchor) tipShow(b) } else if(tipIsOpen()&&!e.target.closest('.sides-tip')) tipHide();
+  });
+  // 捕获阶段:任何祖先滚动都听得见。例外是浮层自己滚——一个滚自己内容就关掉的层,
+  // 会让折线以下的选项永远够不着:伸手去够,就把要够的东西关掉了。
+  // 改窗口大小会让浏览器把可滚容器的 scrollTop 夹回合法范围,并为此发一个 scroll ——
+  // 那不是用户在滚。不把这两种 scroll 分开,「resize 重新定位」就永远兑现不了:
+  // 菜单先被连带的 scroll 关掉,重定位再也轮不到它,表现就是拖一下窗口边框菜单自己没了。
+  // 事件本身分辨不出来源,只能按时序:resize 先到,它之后极短时间内的 scroll 记在它账上。
+  let lastResize=-1e9;
+  document.addEventListener('scroll',e=>{
+    if(performance.now()-lastResize<150) return;
+    if(ddIsOpen()&&!ddPop.contains(e.target)) ddClose();
+    if(tipIsOpen()&&!sidesTip.contains(e.target)) tipHide();
+  },true);
+  addEventListener('resize',()=>{
+    lastResize=performance.now();
+    if(ddIsOpen()) placeBelow(ddPop,ddTrig,'left');   // 正在操作 → 重新定位
+    if(tipIsOpen()) tipHide();                        // 只是瞥一眼 → 关掉
+  });
+  // 演示基建(非设计的一部分,勿实现):切界面语言,用来实测四项过滤器在六种语言下的宽度。
+  // app 内没有这个开关——真实语言来自设置里的语言偏好。
+  const harness=document.getElementById('harness');
+  function renderHarness(){
+    const pill=(v,l)=>`<span data-v="${v}" class="${lang===v?'on':''}">${l}</span>`;
+    const ipill=([v,l])=>`<span data-i="${v}" class="${ICON_MODE===v?'on':''}">${l}</span>`;
+    // 短码而非语言全称:演示条是脚手架,不该占掉一整行去和被评判的界面抢注意力。
+    harness.innerHTML=`<span class="dl">演示·语言</span>`+
+      pill('zh','中文')+pill('en','EN')+pill('fr','FR')+pill('ru','RU')+
+      pill('es','ES')+pill('ja','JA')+
+      `<span class="sepv"></span><span class="dl">数字前图标</span>`+ICON_CAND.map(ipill).join('')+
+      `<span class="sepv"></span><span class="dl" id="room" style="font-weight:400"></span>`;
+  }
+  harness.addEventListener('click',e=>{
+    const i=e.target.dataset.i;
+    if(i){ ICON_MODE=i; renderHarness(); render(); return }
+    const v=e.target.dataset.v; if(!v)return;
+    lang=v; renderHarness(); render();
+  });
+  renderHarness();
   // Global refresh (at the bottom of the rail) is deduplicated: repeat clicks while one is in flight are
   // ignored
   const grfr=document.getElementById('grfr');

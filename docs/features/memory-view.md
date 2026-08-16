@@ -8,8 +8,8 @@ full in project detail.
 
 ## Capabilities
 - Global page Memory section: lists projects that have memories (whether there is a main memory file,
-  the topic count, the last modification), in reverse order of last modification; stale and hidden
-  projects are listed as usual with a badge
+  the topic count, the last modification), in reverse order of last modification; stale projects are
+  listed as usual with a badge
 - Clicking a row expands that project's memory file list; clicking a file opens a drawer to view it;
   an unreadable file reports the error inside the drawer without interrupting
 - Codex global memory (not per project) is shown in three states according to the feature toggle:

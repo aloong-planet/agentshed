@@ -68,7 +68,6 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
                 {m.side === 'claude' ? 'CC' : 'CX'}
               </span>
               {m.stale && <span className="pill warn">{t.memory.stale}</span>}
-              {m.hidden && <span className="pill off">{t.memory.hidden}</span>}
               <span className="ds">
                 {m.side === 'codex'
                   ? t.memory.codexGlobalDir

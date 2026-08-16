@@ -1,5 +1,5 @@
-// The app's own preferences (userData/prefs.json). Never the agent configuration. Atomic writes as in
-// HiddenStore.
+// The app's own preferences (userData/prefs.json). Never the agent configuration. Atomic writes:
+// a temporary file + rename, so an interruption leaves no half file.
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {

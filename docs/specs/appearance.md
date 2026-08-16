@@ -69,8 +69,8 @@ Adopt **option B**:
   `document.documentElement.dataset.theme` immediately and write atomically to userData.  
 - A3 On restart the theme is read back; an invalid value or a corrupt file → fall back to
   **`purple`**, no crash.  
-- A4 Storage = the app's own file in `userData` (the same discipline as `hidden.json`: a temporary
-  file + rename; **never written to the agent configuration**). Field:
+- A4 Storage = the app's own file in `userData` (written atomically — a temporary file + rename, so
+  an interruption leaves no half file; **never written to the agent configuration**). Field:
   `theme: "purple"|"blue"|"amber"`.  
 - A5 Switching themes triggers no full rescan and no window reload (only a DOM attribute and CSS).  
 - A6 **The scope of effect = the whole app**: the rail, the Agents/Projects main area, detail pages,

@@ -33,8 +33,8 @@ see [appearance](appearance.md) (the rail's settings dimension).
    the other carries on, so that a single-side failure does not make the whole page unusable.
 4. As a user, I want a side that is not installed to show "not detected" rather than an error, so
    that someone using only one side can still use the app.
-5. As a user, I want the totals' accounting (including hidden and stale projects) stated explicitly,
-   so that when the numbers do not match I know where the difference is.
+5. As a user, I want the totals' accounting (including stale projects) stated explicitly, so that
+   when the numbers do not match I know where the difference is.
 
 ## Failure modes and boundaries
 
@@ -51,8 +51,9 @@ see [appearance](appearance.md) (the rail's settings dimension).
   component type extends this list (ordered most-used first).
 - B2 A summary card's secondary row shows that side's project count, global skill count and subagent
   count — using the same accounting as the corresponding section.
-- B3 The Token totals **include hidden and stale projects** and say so explicitly (this differs from
-  the project list's default filtering, and it has to be stated or the numbers will not reconcile).
+- B3 The Token totals **include stale projects** and say so explicitly (this differs from the
+  project list's default filtering, and it has to be stated or the numbers will not reconcile;
+  "hidden" left this rule with ADR-0022).
 - B4 Sections where the two sides' concepts are asymmetric (the Codex group under Plugins, the Codex
   global entry under Memory) follow their own spec's probe-style rules, and no false signal is
   manufactured for the sake of symmetry.

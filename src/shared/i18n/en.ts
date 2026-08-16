@@ -60,7 +60,7 @@ export const en: Locale = {
     notDetected: 'No Claude Code or Codex data directory detected on this machine',
     notDetectedHint: (refreshLabel) =>
       `Install and use either agent, then click “${refreshLabel}” at the bottom left to see the overview`,
-    totalsNote: 'includes hidden/stale projects',
+    totalsNote: 'includes stale projects',
     archivedNote: (days, earliest) =>
       `For ${days} of those days (earliest ${earliest}) the source session files have already been auto-cleaned by the agent, so the numbers come from the local archive (hatched bars)`,
     byModel: 'By model (across projects; the Codex side approximates each session’s main model)',
@@ -119,8 +119,8 @@ export const en: Locale = {
     codexEmpty: 'Codex memory is enabled but empty.',
     codexDisabled: 'Codex memory is not enabled — turn it on with the /memories command inside Codex, or via Settings → Personalization → Enable memories (experimental).',
     noneGlobal: 'No automatic memory in any project',
-    globalHint: 'Most recently modified first · includes stale/hidden (badged) · click a row for its files, click a file for its content',
-    stale: 'Stale', hidden: 'Hidden',
+    globalHint: 'Most recently modified first · includes stale (badged) · click a row for its files, click a file for its content',
+    stale: 'Stale',
     codexGlobalDir: 'Global memory directory', noMainFile: 'No MEMORY.md',
     noneProject: 'No automatic memory in this project yet',
     claudeOnly: 'Memory is a Claude-side mechanism (Codex memory is global — see the Memory tab on the global page)',
@@ -285,12 +285,7 @@ export const en: Locale = {
     staleFiltered: (n) =>
       `${n} stale ${plural('en', n, { one: 'project', other: 'projects' })} filtered out`,
     noMatch: 'No matching projects',
-    hiddenCount: (n) => `${n} hidden ${plural('en', n, { one: 'project', other: 'projects' })}`,
-    expandHint: '(click to expand)',
-    collapseHint: '(click to collapse)',
     staleTag: 'Stale',
-    restore: 'Restore',
-    hide: 'Hide'
   },
   token: {
     totalCard: (note) => `Total usage (both sides${note ? ` · ${note}` : ''})`,

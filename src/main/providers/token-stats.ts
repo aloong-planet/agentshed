@@ -14,7 +14,7 @@
 //   the model comes from the last turn_context (an approximation of the session's primary model).
 // - The incremental cache stores entry-level data (deduplication has to happen across files, in the
 //   aggregation layer, so a deduplicated result cannot be what is cached);
-//   keyed by (path, mtime, size), written atomically. The statistics include hidden and stale projects.
+//   keyed by (path, mtime, size), written atomically. The statistics include stale projects.
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type {

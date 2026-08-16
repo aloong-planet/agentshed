@@ -7,8 +7,6 @@ export const CMD = {
   getSnapshot: 'agentshed:get-snapshot',
   /** Global refresh (the rail's bottom refresh button; repeat calls while one is in flight are deduplicated) */
   refresh: 'agentshed:refresh',
-  /** Manually hide or unhide a project */
-  setHidden: 'agentshed:set-hidden',
   /** Fetch project detail on demand */
   getProjectDetail: 'agentshed:get-project-detail',
   /** The session page: the question index + text read live by range (ticket 04; a range-read path, not
@@ -56,11 +54,6 @@ export const EVT = {
   /** The application menu triggered "Refresh": the same operation as the rail's refresh button */
   menuRefresh: 'agentshed:menu-refresh'
 } as const
-
-export interface SetHiddenArgs {
-  projectPath: string
-  hidden: boolean
-}
 
 export interface SessionTurnArgs {
   file: string
