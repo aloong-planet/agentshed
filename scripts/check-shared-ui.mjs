@@ -240,11 +240,11 @@ const GLOBAL_RULES = [
         },
         {
           key: 'projectHint',
-          why: 'shadowing semantics are verified for these two sides only; the third lands with #126'
+          why: 'shadowing semantics are verified for these two sides only; Grok agent definitions have no real sample yet (spec agents-overview G2)'
         },
         {
           key: 'claudeOnly',
-          why: 'contrasts the two memory mechanisms verified today; Grok memory lands with #126'
+          why: 'contrasts the two memory mechanisms verified today; Grok memory has no real sample yet (spec agents-overview G2)'
         },
         {
           key: 'reasoningNote',

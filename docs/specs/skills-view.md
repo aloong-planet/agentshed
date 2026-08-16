@@ -310,7 +310,7 @@ name" reads as if the filesystem had already constrained it.
   side, file count and total bytes, enter it (C1); the scan no longer retains full text for diffing.
 - R5 N-side extension: side enumeration, badges and segments are all driven by "the sides this skill
   actually exists on"; hard-coding exactly two side buttons in the UI or the contract is forbidden.
-  The current data sources may still be only Claude and Codex, but the model is built for N.
+  The data sources are Claude, Codex and (since #126) Grok's own skills root; the model stays N-side.
 - R6 The existing "the two sides differ" copy: everything in features / prototypes / tests depending on
   `differs` is deleted or rewritten, so the documentation does not lie.
 - R7 The old project detail Skills rule of "project-level and global-layer side by side + shadowing /
