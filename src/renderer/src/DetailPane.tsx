@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { renderMarkdown } from './md'
 import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot, SearchResult } from '@shared/domain'
-import { ARTIFACT_ORDER, emptyTokenStats } from '@shared/domain'
+import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
 import { ProjectSubagentsTab } from './SubagentsView'
 import { ProjectMemoryTab } from './MemoryView'
@@ -540,8 +540,7 @@ function SkillsTab({
     onChanged()
   }
   const delPath =
-    confirm &&
-    `${detail.path}/${confirm.side === 'claude' ? '.claude' : '.agents'}/skills/${confirm.name}/`
+    confirm && `${detail.path}/${PROJECT_SKILLS_DIR[confirm.side]}/${confirm.name}/`
   /**
    * A group renders only what matched, and the heading count reports **that** number rather than the
    * group's total — a count still reporting the total would contradict the rows underneath it. A group

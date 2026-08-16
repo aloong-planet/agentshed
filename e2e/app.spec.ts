@@ -449,6 +449,326 @@ test('switching to Projects: the sidebar shows its empty state when there are no
   await close(l)
 })
 
+/**
+ * Ticket grok-side/#123: a fixture home with one directory registered on all three sides and one on
+ * Claude alone — the pair the side-count badge and its hover layer need (3 against 1, so an
+ * assertion can tell "counted per row" from "always the same number").
+ */
+function mkThreeSideHome(): string {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-tri-'))
+  const tri = join(home, 'tri-proj')
+  const solo = join(home, 'solo-proj')
+  mkdirSync(tri, { recursive: true })
+  mkdirSync(solo, { recursive: true })
+  // The ghost never exists on disk: a stale row, so the "filtered N stale" counter renders — the
+  // filter row's width has to be measured with every one of its occupants present
+  const ghost = join(home, 'ghost-proj')
+  writeFileSync(
+    join(home, '.claude.json'),
+    JSON.stringify({ projects: { [tri]: {}, [solo]: {}, [ghost]: {} } })
+  )
+  mkdirSync(join(home, '.codex'), { recursive: true })
+  writeFileSync(join(home, '.codex', 'config.toml'), `[projects."${tri}"]\ntrust_level = "trusted"\n`)
+  mkdirSync(join(home, '.grok'), { recursive: true })
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${tri}"]\ntrusted = true\n`)
+  return home
+}
+
+// Ticket grok-side/#123 (spec C6, stories 1/1a): the row carries how many sides use it as a single
+// count, and the sides themselves are named in full on hover. The hover layer sits over the clipped,
+// scrollable list, so its visibility is proved by hit-testing its own centre — a clipped layer
+// reports the same bounding box and loses exactly that (CONTEXT's floating-layer invariant).
+test('the project list row: a side-count badge, with hovering naming the sides in full', async () => {
+  const l = await launch(undefined, mkThreeSideHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  const rows = win.locator('.side .row')
+  await expect(rows).toHaveCount(2)
+
+  // One count per row rather than one badge per side; the old two-letter badges are gone from rows
+  const tri = win.locator('.side .row', { hasText: 'tri-proj' })
+  const solo = win.locator('.side .row', { hasText: 'solo-proj' })
+  await expect(tri.locator('.cnt-b')).toHaveText('3')
+  await expect(solo.locator('.cnt-b')).toHaveText('1')
+  await expect(win.locator('.side .row .badge')).toHaveCount(0)
+
+  // Hovering the count opens the layer naming the sides in full — names, not abbreviations
+  await tri.locator('.cnt-b').hover()
+  const tip = win.locator('.sides-tip')
+  await expect(tip).toHaveCount(1)
+  await expect(tip.locator('.st')).toHaveCount(3)
+  await expect(tip).toContainText('Claude Code')
+  await expect(tip).toContainText('Codex')
+  await expect(tip).toContainText('Grok')
+
+  const geo = await win.evaluate(() => {
+    const el = document.querySelector('.sides-tip') as HTMLElement
+    const r = el.getBoundingClientRect()
+    // pointer-events: none would let the hit test fall straight through, so lift it for the probe
+    const saved = el.style.pointerEvents
+    el.style.pointerEvents = 'auto'
+    const atCentre = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+    el.style.pointerEvents = saved
+    const dot = document.querySelector('.sides-tip .dot.grok') as HTMLElement
+    return {
+      // The decisive check: a clipped layer reports this same rect but loses this
+      centreBelongsToTip: atCentre !== null && el.contains(atCentre),
+      insideViewport: r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+      position: getComputedStyle(el).position,
+      pointerEvents: getComputedStyle(el).pointerEvents,
+      // An unwired CSS variable resolves to transparent — the exact value differs by appearance,
+      // but "has a colour at all" catches the wiring failure
+      grokDot: dot === null ? null : getComputedStyle(dot).backgroundColor
+    }
+  })
+  expect(geo.centreBelongsToTip).toBe(true)
+  expect(geo.insideViewport).toBe(true)
+  expect(geo.position).toBe('fixed') // what escapes the list's overflow clipping
+  expect(geo.pointerEvents).toBe('none') // a glance layer must not swallow the row's clicks
+  expect(geo.grokDot).not.toBeNull()
+  expect(geo.grokDot).not.toBe('rgba(0, 0, 0, 0)')
+
+  // The one-side row still explains itself on hover (a bare "1" is the case that needs the name most)
+  await win.mouse.move(5, 5)
+  await expect(tip).toHaveCount(0)
+  await solo.locator('.cnt-b').hover()
+  await expect(tip.locator('.st')).toHaveCount(1)
+  await expect(tip).toContainText('Claude Code')
+
+  // Glanced at rather than operated: any scroll but its own dismisses, and so does a resize.
+  // Events are dispatched rather than performed for real — a real resize moves the row out from
+  // under the pointer and the layer would close via mouseleave, passing whether or not the
+  // listener under test was ever attached.
+  const hoverTri = async (): Promise<void> => {
+    await win.mouse.move(5, 5)
+    await tri.locator('.cnt-b').hover()
+    await expect(tip).toHaveCount(1)
+  }
+  await hoverTri()
+  await win.locator('.side .list').evaluate((el) => el.dispatchEvent(new Event('scroll')))
+  await expect(tip).toHaveCount(0)
+  await hoverTri()
+  await win.evaluate(() => window.dispatchEvent(new Event('resize')))
+  await expect(tip).toHaveCount(0)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// A project only Grok registered still opens a working detail page: every section reads
+// Claude/Codex-shaped locations that simply do not exist there, and each degrades to its empty
+// state rather than throwing — the row must not be a dead end for the one side that put it there.
+test('a Grok-only project opens its detail page without errors', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gonly-'))
+  const proj = join(home, 'grok-only-proj')
+  mkdirSync(proj, { recursive: true })
+  mkdirSync(join(home, '.grok'), { recursive: true })
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${proj}"]\ntrusted = true\n`)
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  const row = win.locator('.side .row', { hasText: 'grok-only-proj' })
+  await expect(row.locator('.cnt-b')).toHaveText('1')
+  await row.click()
+  const tabs = win.locator('.pane-head .tabs .tab')
+  await expect(tabs.first()).toBeVisible()
+  const n = await tabs.count()
+  for (let i = 0; i < n; i++) {
+    await tabs.nth(i).click()
+    await expect(win.locator('.pane-body')).toBeVisible()
+  }
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// Ticket grok-side/#123 (spec C5/C7): side filtering is a single-choice dropdown. Being operated
+// rather than glanced at, it answers a resize by repositioning — and the resize answer is where
+// #122 lives: a resize makes the browser clamp a scrolled container's scrollTop and dispatch a
+// scroll for it, which a capture-phase listener cannot tell from the user scrolling. The fix
+// attributes by ordering, so both halves are pinned: a scroll hard on a resize's heels is ignored,
+// a later one dismisses.
+test('the side filter dropdown: narrows to one side, dismisses on scroll, and survives a resize', async () => {
+  const l = await launch(undefined, mkThreeSideHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.side .row')).toHaveCount(2)
+
+  // The old one-button-per-side row is gone; the trigger sits in the filter row showing "All"
+  await expect(win.locator('.fseg')).toHaveCount(0)
+  const trig = win.locator('.opts .dd-trigger')
+  await expect(trig).toHaveText(/All/)
+  await expect(trig).toHaveAttribute('aria-expanded', 'false')
+
+  await trig.click()
+  const pop = win.locator('.side-pop')
+  await expect(pop).toHaveCount(1)
+  await expect(trig).toHaveAttribute('aria-expanded', 'true')
+  const opts = pop.locator('.dd-opt')
+  await expect(opts).toHaveCount(4)
+  await expect(opts.nth(0)).toContainText('All')
+  await expect(opts.nth(1)).toContainText('Claude Code')
+  await expect(opts.nth(2)).toContainText('Codex')
+  await expect(opts.nth(3)).toContainText('Grok')
+  // Dots mark the three sides, not "All"; the current choice carries the check
+  await expect(pop.locator('.dd-opt .dot')).toHaveCount(3)
+  await expect(opts.nth(0)).toHaveAttribute('aria-selected', 'true')
+
+  // The layer over the clipped list: its own centre must resolve to it (a clipped layer reports
+  // the same bounding box and loses exactly this)
+  const geo = await win.evaluate(() => {
+    const el = document.querySelector('.side-pop') as HTMLElement
+    const r = el.getBoundingClientRect()
+    const atCentre = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+    return {
+      centreBelongsToPop: atCentre !== null && el.contains(atCentre),
+      position: getComputedStyle(el).position
+    }
+  })
+  expect(geo.centreBelongsToPop).toBe(true)
+  expect(geo.position).toBe('fixed')
+
+  // Picking Grok narrows the list to the one Grok-registered directory and relabels the trigger
+  await opts.nth(3).click()
+  await expect(pop).toHaveCount(0)
+  await expect(win.locator('.side .row')).toHaveCount(1)
+  await expect(win.locator('.side .row .nm')).toHaveText('tri-proj')
+  await expect(trig).toHaveText(/Grok/)
+
+  // Back to all sides — filters stack with the stale toggle rather than overriding it (C1)
+  await trig.click()
+  await win.locator('.side-pop .dd-opt').nth(0).click()
+  await expect(win.locator('.side .row')).toHaveCount(2)
+
+  // Scroll outside the layer dismisses (an anchored layer whose anchor moved must not lie)
+  await trig.click()
+  await expect(pop).toHaveCount(1)
+  await win.locator('.side .list').evaluate((el) => el.dispatchEvent(new Event('scroll')))
+  await expect(pop).toHaveCount(0)
+
+  // A resize repositions rather than closes — including when the browser's clamp-scroll arrives on
+  // its heels (#122). Both events go out in ONE evaluate: two round trips could space them beyond
+  // the attribution window and the case would flake.
+  await trig.click()
+  await expect(pop).toHaveCount(1)
+  await win.evaluate(() => {
+    window.dispatchEvent(new Event('resize'))
+    document.querySelector('.side .list')?.dispatchEvent(new Event('scroll'))
+  })
+  await expect(pop, 'open after a resize plus its clamp-scroll — the reposition choice must survive').toHaveCount(1)
+  const anchored = await win.evaluate(() => {
+    const p = (document.querySelector('.side-pop') as HTMLElement).getBoundingClientRect()
+    const t = (document.querySelector('.opts .dd-trigger') as HTMLElement).getBoundingClientRect()
+    return Math.abs(p.top - t.bottom)
+  })
+  expect(anchored).toBeLessThan(20) // still hanging off its trigger after re-placing
+
+  // A scroll clear of any resize still dismisses — the attribution window must not eat real scrolls
+  await win.waitForTimeout(400)
+  await win.locator('.side .list').evaluate((el) => el.dispatchEvent(new Event('scroll')))
+  await expect(pop).toHaveCount(0)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// The honest reproduction of #122: a real window resize, with the list genuinely scrolled, so the
+// browser itself emits the clamp-scroll. The synthetic pair above pins the mechanism; this pins
+// the phenomenon (the issue notes it had never been reproduced against the running app).
+test('a real window resize with a scrolled list does not close the side dropdown (#122)', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-many-'))
+  const projects: Record<string, object> = {}
+  for (let i = 0; i < 40; i++) {
+    const p = join(home, `proj-${String(i).padStart(2, '0')}`)
+    mkdirSync(p, { recursive: true })
+    projects[p] = {}
+  }
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects }))
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.setViewportSize({ width: 1000, height: 600 })
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.side .row')).toHaveCount(40)
+
+  // Scroll the list to the bottom, then grow the window: the taller list clamps scrollTop back
+  // into range and dispatches a scroll nobody performed
+  const scrolled = await win
+    .locator('.side .list')
+    .evaluate((el) => {
+      el.scrollTop = el.scrollHeight
+      return el.scrollTop
+    })
+  expect(scrolled, 'the list must actually be scrolled or this case proves nothing').toBeGreaterThan(0)
+
+  await win.locator('.opts .dd-trigger').click()
+  await expect(win.locator('.side-pop')).toHaveCount(1)
+  await win.setViewportSize({ width: 1000, height: 900 })
+  await expect(
+    win.locator('.side-pop'),
+    'the dropdown must survive the resize (#122: the clamp-scroll used to dismiss it)'
+  ).toHaveCount(1)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// Ticket grok-side/#123 (spec C5): in the narrowest supported sidebar the filter row must hold its
+// longest occupants in every UI language — the longest side name on the trigger, the stale toggle,
+// and the "filtered N stale" counter all at once.
+test('the side filter row stays inside the sidebar column in all six UI languages', async () => {
+  const l = await launchWithLangs('zh-Hans-CN', mkThreeSideHome())
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+
+  for (const code of ['zh', 'en', 'fr', 'es', 'ru', 'ja']) {
+    await win.locator('.ri.set').click()
+    await win.getByTestId('language-trigger').click()
+    await win.getByTestId('language-pop').locator(`[data-lang="${code}"]`).click()
+    await expect(win.locator('.settings-h1')).not.toBeEmpty()
+
+    await win.locator('.rail .ri').nth(1).click()
+    // The widest trigger label is a side name: pick Claude Code before measuring
+    await win.locator('.opts .dd-trigger').click()
+    await win.locator('.side-pop .dd-opt').nth(1).click()
+    await expect(win.locator('.opts .cnt'), 'the stale counter must be present while measuring').toBeVisible()
+
+    // The prototype's width readout was blind to two of the row's three occupants (its toggle
+    // label and counter were hard-coded Chinese), so this state overflowed the column in the
+    // longer languages. Ruled 2026-08-16: the counter ellipsizes under squeeze, full sentence on
+    // its title; the toggle label may still wrap onto a second text line in fr/ru (accepted).
+    // Pinned here: no horizontal overflow, nothing past the column edge, and the counter still
+    // present — squeezed, not squeezed out — with the whole sentence in the title.
+    const m = await win.evaluate(() => {
+      const opts = document.querySelector('.opts') as HTMLElement
+      const side = document.querySelector('.side') as HTMLElement
+      const cnt = document.querySelector('.opts .cnt') as HTMLElement
+      const or = opts.getBoundingClientRect()
+      const sr = side.getBoundingClientRect()
+      return {
+        overflow: opts.scrollWidth - opts.clientWidth,
+        beyondColumn: Math.round(or.right - sr.right),
+        cntWidth: Math.round(cnt.getBoundingClientRect().width),
+        cntTitle: cnt.title,
+        cntText: cnt.textContent ?? ''
+      }
+    })
+    expect(m.overflow, `${code}: the filter row's content overflows the row box`).toBeLessThanOrEqual(1)
+    expect(m.beyondColumn, `${code}: the filter row runs past the sidebar column`).toBeLessThanOrEqual(0)
+    expect(m.cntWidth, `${code}: the counter was squeezed out entirely`).toBeGreaterThan(40)
+    expect(m.cntTitle, `${code}: the full sentence must survive in the title`).toBe(m.cntText)
+
+    // Back to all sides so the next language starts from the same state
+    await win.locator('.opts .dd-trigger').click()
+    await win.locator('.side-pop .dd-opt').nth(0).click()
+  }
+
+  expect(l.errors).toEqual([])
+  await l.app.close()
+  rmSync(l.userData, { recursive: true, force: true })
+  rmSync(l.home!, { recursive: true, force: true })
+})
+
 // Ticket session-view/02: the sessions tab. The fixture home builds sessions on both sides plus a warmup
 // session containing only a Warmup
 // (spec A3a: not listed but its tokens still count), asserting the list, the sort, the accounting note
@@ -467,12 +787,11 @@ test('the sessions section: sessions are listed, the sort switches, and warmup s
   // The warmup session's title must not appear
   await expect(win.locator('.pane-body .card')).not.toContainText('Warmup')
 
-  // The number in the project list must share its source with this tab: the fixture has 3 session files
-  // (including 1 warmup)
-  // and only 2 are listed. Before the change, the project list read the file count pipeline and showed 3 —
-  // one concept with two numbers.
+  // The session count left the row with the side-count badge's arrival (#123, settled in the
+  // project-list prototype): the row's trailing meta is the relative time alone. Pinned so the
+  // count does not quietly return — the sessions tab above is where the number lives now.
   const meta = (await win.locator('.side .row .meta').first().innerText()).trim()
-  expect(meta, `the project list session count must match the sessions tab; actual: ${meta}`).toMatch(/(^|\D)2$/)
+  expect(meta, `the row meta should carry the relative time only; actual: ${meta}`).not.toMatch(/\d\s*$/)
 
   // Newest first by default: the first row is the one with later activity
   const titleOf = async (i: number): Promise<string> =>
@@ -1780,6 +2099,11 @@ test('the install-to popover sits next to its button, and its targets can be cli
     return Math.min(Math.abs(p.top - b.bottom), Math.abs(b.top - p.bottom))
   })
   expect(after).toBeLessThan(40) // still anchored to its button after re-placing
+
+  // Step clear of the resize before the scroll cases: a scroll hard on a resize's heels is
+  // attributed to the browser's scrollTop clamp and deliberately ignored (#122), and the
+  // assertions above can complete inside that window
+  await win.waitForTimeout(250)
 
   // Scrolling the popover's **own** contents must not close it. It is scrollable (a long project list
   // exceeds its max height), so closing on its own scroll would make every target below the fold

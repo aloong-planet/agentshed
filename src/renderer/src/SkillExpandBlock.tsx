@@ -11,7 +11,7 @@ import { errorText } from '@shared/error-text'
 import { useLanguage, useDict } from './language'
 import { ChevronRight, Dot } from './icons'
 
-const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex' }
+const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex', grok: 'Grok' }
 const SIDE_ORDER: AgentSide[] = ['claude', 'codex']
 
 /**

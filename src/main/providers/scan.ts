@@ -9,6 +9,7 @@ import { mergeKey, normalizePath } from '@shared/path-key'
 import type { ScanRoots } from './types'
 import { readClaudeRegistry, readClaudeActivity } from './claude'
 import { readCodexRegistry, readCodexSessions } from './codex'
+import { readGrokRegistry, readGrokSessions } from './grok'
 import { readGlobalLayer } from './global'
 import { readMemorySummary } from './memory'
 
@@ -22,10 +23,13 @@ export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> 
 
   const claude = readClaudeRegistry(roots.claudeConfigFile)
   const codex = readCodexRegistry(roots.codexHome)
+  const grok = readGrokRegistry(roots.grokHome)
   snap.sides.claude.detected = claude.detected
   if (claude.error) snap.sides.claude.error = claude.error
   snap.sides.codex.detected = codex.detected
   if (codex.error) snap.sides.codex.error = codex.error
+  snap.sides.grok.detected = grok.detected
+  if (grok.error) snap.sides.grok.error = grok.error
 
   const byKey = new Map<string, ProjectEntry>()
   const add = (rawPath: string, side: AgentSide): void => {
@@ -47,24 +51,36 @@ export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> 
   }
   for (const p of claude.paths) add(p, 'claude')
   for (const p of codex.paths) add(p, 'codex')
+  for (const p of grok.paths) add(p, 'grok')
 
-  // Activity: Claude uses a readdir of the encoded directory; Codex attributes by the rollout's first-line
-  // cwd (subagents excluded)
+  // Activity: Claude uses a readdir of the encoded directory; Codex attributes by the rollout's
+  // first-line cwd; Grok by the session store's percent-encoded directory name (subagents excluded
+  // on every side). B9: sessions count from every side that has them, including one that did not
+  // register the directory — the enrichment loop below touches registered entries only, which is
+  // also what keeps A7 true (sessions alone never create an entry or raise the side count).
   const codexSessions = readCodexSessions(roots.codexHome)
-  const codexByKey = new Map<string, { count: number; last: number | null }>()
-  for (const s of codexSessions) {
-    if (s.subagent) continue
-    const key = mergeKey(s.cwd)
-    const agg = codexByKey.get(key) ?? { count: 0, last: null }
-    agg.count++
-    if (agg.last === null || s.mtimeMs > agg.last) agg.last = s.mtimeMs
-    codexByKey.set(key, agg)
+  const byKeyAgg = (sessions: Array<{ cwd: string; subagent: boolean; mtimeMs: number }>): Map<string, { count: number; last: number | null }> => {
+    const m = new Map<string, { count: number; last: number | null }>()
+    for (const s of sessions) {
+      if (s.subagent) continue
+      const key = mergeKey(s.cwd)
+      const agg = m.get(key) ?? { count: 0, last: null }
+      agg.count++
+      if (agg.last === null || s.mtimeMs > agg.last) agg.last = s.mtimeMs
+      m.set(key, agg)
+    }
+    return m
   }
+  const codexByKey = byKeyAgg(codexSessions)
+  const grokByKey = byKeyAgg(readGrokSessions(roots.grokHome))
   for (const [key, entry] of byKey) {
     const cl = readClaudeActivity(roots.claudeHome, entry.path)
     const cx = codexByKey.get(key)
-    entry.sessionCount = cl.sessionCount + (cx?.count ?? 0)
-    const candidates = [cl.lastSessionAt, cx?.last ?? null].filter((v): v is number => v !== null)
+    const gk = grokByKey.get(key)
+    entry.sessionCount = cl.sessionCount + (cx?.count ?? 0) + (gk?.count ?? 0)
+    const candidates = [cl.lastSessionAt, cx?.last ?? null, gk?.last ?? null].filter(
+      (v): v is number => v !== null
+    )
     entry.lastSessionAt = candidates.length ? Math.max(...candidates) : null
   }
 

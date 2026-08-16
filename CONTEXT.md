@@ -275,6 +275,16 @@ _Avoid_: error message (bare, implies a finished sentence)
   layer being glanced at (a hover tooltip, gone the moment the pointer moves); reposition for one the
   user is operating (a menu they are choosing from — a resize is not them changing their mind).
 
+  **A scroll hard on a resize's heels is the browser's, not the user's (settled 2026-08-16, #122).**
+  A resize makes the browser clamp a scrolled container's scrollTop back into its new range and
+  dispatch a scroll event for the clamp — indistinguishable at the event level from a user scroll,
+  so without attribution it dismisses the layer and overrides the reposition the resize handler just
+  performed; the 'reposition' choice never survived in practice. The shared hook attributes by
+  ordering (a scroll within a short window after a resize is the resize's), at the documented cost
+  of swallowing a wheel scroll performed while dragging the window edge. Tests that dispatch both
+  events must keep their scroll cases clear of that window or they assert the swallowing, not the
+  dismissal.
+
   The scroll exception is not a detail: a document-level capture listener hears the layer scrolling
   its **own** contents too, and a scrollable layer that closes on that makes everything below its fold
   unreachable — reaching for an option dismisses the thing you were reaching into. Only one of these

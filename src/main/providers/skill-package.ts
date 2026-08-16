@@ -2,8 +2,8 @@
 // directories; symlinks are followed; the caller registers the exact allow-list.
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, join, relative, sep } from 'node:path'
-import type { AgentSide } from '@shared/domain'
-import type { ScanRoots } from './types'
+import { PROJECT_SKILLS_DIR, type AgentSide } from '@shared/domain'
+import { globalSkillsRoots, type ScanRoots } from './types'
 import type { CappedText } from '@shared/domain'
 
 /** The maximum number of segments in a relative path inside a package (SKILL.md=1; references/foo.md=2;
@@ -80,16 +80,10 @@ export function resolveSkillRoot(args: ResolveSkillRootArgs): string | null {
   if (name.includes(':')) return null // A plugin namespace; not previewable in v1
   let root: string
   if (scope === 'global') {
-    root =
-      side === 'claude'
-        ? join(roots.claudeHome, 'skills', name)
-        : join(roots.agentsSkillsDir, name)
+    root = join(globalSkillsRoots(roots)[side], name)
   } else {
     if (typeof projectPath !== 'string' || !projectPath) return null
-    root =
-      side === 'claude'
-        ? join(projectPath, '.claude', 'skills', name)
-        : join(projectPath, '.agents', 'skills', name)
+    root = join(projectPath, PROJECT_SKILLS_DIR[side], name)
   }
   if (!existsSync(root)) return null
   // The container check applies to **the entry point before resolution** (C9); symlinks are only
@@ -279,10 +273,9 @@ export function isUnderKnownSkillRoots(
   } catch {
     return false
   }
-  const allowed: string[] = [join(roots.claudeHome, 'skills'), roots.agentsSkillsDir]
+  const allowed: string[] = Object.values(globalSkillsRoots(roots))
   if (projectPath) {
-    allowed.push(join(projectPath, '.claude', 'skills'))
-    allowed.push(join(projectPath, '.agents', 'skills'))
+    for (const sub of Object.values(PROJECT_SKILLS_DIR)) allowed.push(join(projectPath, sub))
   }
   for (const base of allowed) {
     if (!existsSync(base)) continue

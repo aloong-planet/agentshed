@@ -33,7 +33,13 @@ and are never written back to any agent configuration.
    Claude-only project from one I also drive with another agent — without that costing row space on
    every row.
 2. As a user, I want the default sort to be activity (most recent session time) with the relative
-   time and session count shown, so that what I have been working on lately is at the top.
+   time shown, so that what I have been working on lately is at the top.
+
+> The row's trailing session count was removed on 2026-08-16 with the side-count badge's arrival
+> (settled in the project-list prototype): two numbers at the row's end read as one, and the number
+> that matters per project lives in the sessions tab. `ProjectEntry.sessionCount` stays in the
+> contract — activity keeps both quantities — but currently surfaces nowhere; note for the session
+> ticket that the engine's backfill of it still excludes the Grok side until Grok sessions land.
 3. As a user, I want to search by name or path and filter by agent side, so that I can find things
    quickly when there are many projects.
 4. As a user, I want stale projects (in the registry, directory deleted) collapsed by default but
@@ -104,7 +110,12 @@ and are never written back to any agent configuration.
   scans).
 - C5 Side filtering is a **single-choice dropdown** defaulting to all sides, not one control per side:
   the row of controls has to stay readable as sides are added, and in the narrowest supported sidebar
-  the longest of the six UI languages must not push it out of the column.
+  the longest of the six UI languages must not push it out of the column. The row's occupants *can*
+  outgrow that column (found 2026-08-16: the prototype's width readout was blind to the stale toggle
+  and the stale counter, which it hard-coded in Chinese — the shortest of the six). Ruled the same
+  day: the stale counter yields first, ellipsizing down to a floor with its full sentence on its
+  title; the toggle label wraps onto a second text line only when its own natural width exceeds the
+  column; nothing crosses the column's content edge.
 - C6 Hovering the side count opens a layer naming the sides in full. It is a layer over a clipped,
   scrollable list, so it owes both floating-layer obligations (CONTEXT's invariant): it escapes the
   ancestors' clipping, and it answers for a stale anchor — dismissed on any scroll but its own, and
@@ -123,8 +134,10 @@ and are never written back to any agent configuration.
   session directory named by the encoded working directory), but the resulting quantities are one
   concept — most recent session time and session count — and subagent threads are excluded on every
   side.
-- **Side identity in the row**: a count, plus a hover layer naming the sides. Side colours appear only
-  in that layer, and are the side colours defined in ADR-0021 rather than a palette local to this list.
+- **Side identity in the row**: a count, plus a hover layer naming the sides. Side colours appear
+  only in that layer and in the side dropdown's options (both name sides in full), and are the side
+  colours defined in ADR-0021 rather than a palette local to this list. The count itself carries no
+  side's colour — it says "how many", and colouring it would read as "which".
 - **Refresh**: global refresh is shared by both dimensions, with in-flight deduplication.
 
 ## Testing Decisions

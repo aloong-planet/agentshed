@@ -24,7 +24,7 @@ export type ValidateFailure =
 
 export type ValidateResult = { ok: true } | { ok: false; failure: ValidateFailure }
 
-const AGENT_SIDES = new Set(['claude', 'codex'])
+const AGENT_SIDES = new Set(['claude', 'codex', 'grok'])
 
 const failMissing = (path: string): ValidateResult => ({ ok: false, failure: { kind: 'missing', path } })
 const failType = (path: string, expect: string): ValidateResult => ({

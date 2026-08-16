@@ -14,6 +14,7 @@ function roots(overrides: Partial<ScanRoots> = {}): ScanRoots {
     claudeHome: join(dir, '.claude'),
     claudeConfigFile: join(dir, '.claude.json'),
     codexHome: join(dir, '.codex'),
+    grokHome: join(dir, '.grok'),
     agentsSkillsDir: join(dir, '.agents', 'skills'),
     ...overrides
   }
@@ -47,5 +48,14 @@ describe('scan (skeleton)', () => {
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.sides.claude.detected).toBe(false)
     expect(snap.sides.codex.detected).toBe(true)
+    expect(snap.sides.grok.detected).toBe(false)
+  })
+
+  it('only the Grok side exists (there is a ~/.grok directory) → grok.detected=true', async () => {
+    mkdirSync(join(dir, '.grok'), { recursive: true })
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.sides.claude.detected).toBe(false)
+    expect(snap.sides.codex.detected).toBe(false)
+    expect(snap.sides.grok.detected).toBe(true)
   })
 })
