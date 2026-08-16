@@ -32,6 +32,7 @@ import { ERR, appError } from '@shared/errors'
 import { providerOf } from '@shared/provider'
 import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessionMeta, readCodexSessions } from './codex'
+import { readGrokSessions } from './grok'
 import { eachJsonlLine } from './jsonl'
 import { makeQuestionIndexer, stripReplayPrefix, type QuestionRec } from './question-index'
 import { clipTitle, realUserText } from './session-title'
@@ -90,7 +91,25 @@ interface CodexFileAgg {
   events: CodexEvent[]
 }
 
-type FileAgg = ClaudeFileAgg | CodexFileAgg
+/** One Grok per-turn, per-model usage event: [ts(ms)|null, input, cachedRead, output,
+ * cacheCreation, billedModel|null]. The input **already includes** the cached reads (measured on
+ * real data: inputTokens ⊇ cachedReadTokens), which is what makes the accounting Codex-shaped. */
+type GrokEvent = [number | null, number, number, number, number, string | null]
+
+interface GrokFileAgg {
+  kind: 'grok'
+  /** The authoritative update stream's absolute path — the session's identity (ADR-0019) */
+  file: string
+  projectKey: string
+  /** Tokens count regardless (F5); no Grok session enters the session list until the session-view
+   * ticket lands the display side */
+  subagent: boolean
+  /** Kept empty for the shared shape guard; the session-view ticket fills it */
+  questions: QuestionRec[]
+  events: GrokEvent[]
+}
+
+type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
 
 /**
  * The cache structure version. **Changing FileAgg's shape requires bumping this at the same time** —
@@ -119,6 +138,8 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg
  *     ticket 03b exists to prevent.
  * v9: CodexFileAgg gained titleFromThread (a retitle must not displace thread_name, spec A4's priority).
  * v10: ClaudeFileAgg gained forkPoints (ticket 06's branch banner signal).
+ * v11: FileAgg gained the grok variant (ADR-0019's stated consequence: the cache gains a third
+ *      variant, so the version bumps in the same change).
  *
  * **Exported for tests only** — so a guard test can build an "immediately previous version" cache with
  * `CACHE_VERSION - 1`
@@ -126,7 +147,7 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg
  * branch on it:
  * the only version comparison is in loadCache, and a second one would be a second rule that can drift.
  */
-export const CACHE_VERSION = 10
+export const CACHE_VERSION = 11
 
 interface CacheShape {
   version: typeof CACHE_VERSION
@@ -269,6 +290,19 @@ export class TokenEngine {
       }
     }
 
+    // ── Grok: the session store, attributed by the percent-encoded directory name ──
+    // A directory without its update stream never reaches here (readGrokSessions skips it), which
+    // is F6 discharged at the walk: the siblings' scan is unaffected.
+    for (const s of readGrokSessions(roots.grokHome)) {
+      const agg = await this.aggFor(s.file, () => parseGrokFile(s.file, mergeKey(s.cwd), s.subagent))
+      if (agg) {
+        aggs.push(agg)
+        seen[s.file] = { sig: sigOf(s.file) ?? '', agg }
+        // No grok session enters the session list until the session-view ticket, and the read
+        // allow-list stays no wider than what the UI can reach — so none is admitted here either
+      }
+    }
+
     this.cache = { version: CACHE_VERSION, files: seen }
     this.persist()
     const result = combine(aggs)
@@ -277,13 +311,15 @@ export class TokenEngine {
     return result
   }
 
-  private async aggFor(file: string, parse: () => Promise<FileAgg | null>): Promise<FileAgg | null> {
+  private async aggFor<T extends FileAgg>(file: string, parse: () => Promise<T | null>): Promise<T | null> {
     const sig = sigOf(file)
     if (sig === null) return null
     const cached = this.cache.files[file]
     // Beyond the version, validate each entry's shape: manual corruption or future drift within one
-    // version is always recomputed, so a missing field never flows into the aggregation layer
-    if (cached && cached.sig === sig && isWellFormedAgg(cached.agg)) return cached.agg
+    // version is always recomputed, so a missing field never flows into the aggregation layer.
+    // The cast is sound because the cache is keyed by file path and a path's side never changes —
+    // the cached agg was produced by the same per-side parser the caller is passing now.
+    if (cached && cached.sig === sig && isWellFormedAgg(cached.agg)) return cached.agg as T
     return parse()
   }
 
@@ -379,7 +415,14 @@ export class TokenEngine {
         forkParentFile: null
       }
     }
-    let parent: FileAgg | undefined
+    if (agg.kind === 'grok') {
+      // Unreachable until the session-view ticket: no grok file is admitted to the read
+      // allow-list, so the IPC handler refuses before this method runs. The explicit guard is what
+      // keeps the fall-through below narrowed to codex — without it a future variant would default
+      // into codex semantics silently.
+      throw appError(ERR.sessionParseFailed)
+    }
+    let parent: CodexFileAgg | undefined
     if (agg.parentId) {
       for (const v of Object.values(this.cache.files)) {
         if (v.agg.kind === 'codex' && v.agg.sessionId === agg.parentId && v.agg !== agg) {
@@ -726,6 +769,41 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     }
   }
 
+  // ── Grok: per-turn, per-model events carry all four fields, so days are exact by each turn's
+  // own timestamp (F7) with no ratio apportionment. F5: a subagent's real record appears exactly
+  // once in the scan (the parent holds only a pointer), so its tokens sum with no cross-file
+  // dedup — and no session entry is produced here at all; the session-view ticket lands that side.
+  const grokAggs = aggs.filter((a): a is GrokFileAgg => a.kind === 'grok')
+  for (const a of grokAggs) {
+    for (const [ts, rawInput, cached, output, cacheWrite, model] of a.events) {
+      // F2, the Codex shape: reported input already includes cached reads, so input is sanitised
+      // and the total is input + output + cache creation — the Claude four-field sum would
+      // double-count the cache.
+      const turnTotal = rawInput + output + cacheWrite
+      if (turnTotal === 0) continue
+      const v = {
+        input: Math.max(0, rawInput - cached),
+        output,
+        cacheRead: cached,
+        cacheWrite,
+        total: turnTotal
+      }
+      addTotals(global.bySide.grok, v)
+      if (model !== null) {
+        globalModels.set(`grok:${model}`, (globalModels.get(`grok:${model}`) ?? 0) + turnTotal)
+      }
+      const day = ts !== null ? localDay(ts) : null
+      addRow(day, 'grok', a.projectKey, model ?? '', v)
+      if (day !== null) addGlobalDay(day, 'grok', turnTotal, model ?? '')
+      if (a.projectKey) {
+        const p = projectOf(a.projectKey)
+        addTotals(p.tokens.bySide.grok, v)
+        if (model !== null) addModel(p.tokens, 'grok', model, turnTotal)
+        if (day !== null) addDay(p.tokens, 'grok', day, turnTotal, model ?? '')
+      }
+    }
+  }
+
   global.byModel = [...globalModels.entries()]
     .map(([k, total]) => {
       const [side, ...rest] = k.split(':')
@@ -823,6 +901,9 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   if (a['kind'] === 'claude') return Array.isArray(a['entries']) && typeof a['forkPoints'] === 'number'
   // A missing titleFromThread (undefined) is a false false: it lets a retitle displace a thread_name session
   if (a['kind'] === 'codex') return Array.isArray(a['events']) && typeof a['titleFromThread'] === 'boolean'
+  // A missing subagent (undefined) would silently list a subagent session once the session-view
+  // ticket starts reading it
+  if (a['kind'] === 'grok') return Array.isArray(a['events']) && typeof a['subagent'] === 'boolean'
   return false
 }
 
@@ -996,6 +1077,52 @@ async function parseCodexFile(
     questions,
     events
   }
+}
+
+/**
+ * Grok: walk the update stream for turn_completed records (sequence F). The top-level timestamp is
+ * epoch **seconds** (measured; params._meta carries the same instant in ms). Where a modelUsage map
+ * exists its entries are the events — one per billed model, which is what makes the per-model split
+ * exact (F3) — and a record without one falls back to the top-level usage with no model bucket.
+ * The cost figure in the record is **never read** (F4). Full enumeration of this machine's 224
+ * turn_completed records, 2026-08-16: 222 full-shape, one empty usage `{}`, one lacking
+ * costUsdTicks but flagged usageIsIncomplete — so every numeric read tolerates absence.
+ */
+async function parseGrokFile(
+  file: string,
+  projectKey: string,
+  subagent: boolean
+): Promise<GrokFileAgg | null> {
+  const events: GrokEvent[] = []
+  try {
+    await eachJsonlLine(file, (obj) => {
+      const params = obj['params'] as Record<string, unknown> | undefined
+      const update = params?.['update'] as Record<string, unknown> | undefined
+      if (update?.['sessionUpdate'] !== 'turn_completed') return
+      const usage = update['usage'] as Record<string, unknown> | undefined
+      if (!usage) return
+      const tsRaw = obj['timestamp']
+      const ts = typeof tsRaw === 'number' && Number.isFinite(tsRaw) ? tsRaw * 1000 : null
+      const mu = usage['modelUsage']
+      const perModel: Array<[string | null, Record<string, unknown>]> =
+        typeof mu === 'object' && mu !== null && Object.keys(mu).length > 0
+          ? Object.entries(mu as Record<string, Record<string, unknown>>)
+          : [[null, usage]]
+      for (const [model, u] of perModel) {
+        events.push([
+          ts,
+          num(u['inputTokens']),
+          num(u['cachedReadTokens']),
+          num(u['outputTokens']),
+          num(u['cacheCreationTokens']),
+          model
+        ])
+      }
+    })
+  } catch {
+    return null
+  }
+  return { kind: 'grok', file, projectKey, subagent, questions: [], events }
 }
 
 function readCodexIndex(codexHome: string): Map<string, string> {
