@@ -2541,6 +2541,82 @@ test('a newly adopted side: the thin xAI segment survives, and Grok mode labels 
   await close(l)
 })
 
+// Ticket grok-side/#127 (closeout): the combinations no single ticket owns — one day where all
+// three sides have volume, and one project whose session list mixes all three sides by time.
+// (The third combination — a count-3 row's hover naming all three sides — is already pinned by the
+// #123 badge e2e over the three-side fixture.)
+test('three sides on one day segment together, and one project mixes all three sides\' sessions by time', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-tri-combo-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const enc = proj.replace(/[^a-zA-Z0-9]/g, '-')
+  const cdir = join(home, '.claude', 'projects', enc)
+  mkdirSync(cdir, { recursive: true })
+  // Claude: one session, one question, volume today (newest)
+  writeFileSync(
+    join(cdir, 'a.jsonl'),
+    [
+      JSON.stringify({ type: 'user', timestamp: localDayOffset(0).toISOString(), message: { role: 'user', content: 'Claude question' } }),
+      JSON.stringify({ type: 'assistant', timestamp: localDayOffset(0).toISOString(), message: { model: 'claude-fable-5', usage: { input_tokens: 50_000, output_tokens: 100, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } })
+    ].join('\n') + '\n'
+  )
+  // Codex: one session, volume today (oldest of the three)
+  const sdir = join(home, '.codex', 'sessions', '2026', '01', '01')
+  mkdirSync(sdir, { recursive: true })
+  const at = (h: number): string => { const d = localDayOffset(0); d.setHours(h); return d.toISOString() }
+  writeFileSync(
+    join(sdir, 'rollout-019fb0c0-2222-7af3-af7d-8505cedf1ec2.jsonl'),
+    [
+      JSON.stringify({ timestamp: at(1), type: 'session_meta', payload: { cwd: proj } }),
+      JSON.stringify({ timestamp: at(1), type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
+      JSON.stringify({ timestamp: at(1), type: 'event_msg', payload: { type: 'user_message', message: 'Codex question' } }),
+      JSON.stringify({ timestamp: at(1), type: 'event_msg', payload: { type: 'token_count', info: { last_token_usage: { input_tokens: 30_000, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 50, total_tokens: 30_050 } } } })
+    ].join('\n') + '\n'
+  )
+  // Grok: one session, volume today (middle)
+  mkdirSync(join(home, '.grok'), { recursive: true })
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${proj}"]\ntrusted = true\n`)
+  const gdir = join(home, '.grok', 'sessions', encodeURIComponent(proj), '019f-combo')
+  mkdirSync(gdir, { recursive: true })
+  writeFileSync(join(gdir, 'summary.json'), JSON.stringify({ info: { id: '019f-combo', cwd: proj } }))
+  const gts = (h: number): number => { const d = localDayOffset(0); d.setHours(h); return Math.floor(d.getTime() / 1000) }
+  writeFileSync(
+    join(gdir, 'updates.jsonl'),
+    [
+      JSON.stringify({ timestamp: gts(6), method: '_x.ai/session/update', params: { sessionId: 's', update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Grok question' }, _meta: { promptIndex: 0 } } } }),
+      JSON.stringify({ timestamp: gts(6), method: '_x.ai/session/update', params: { sessionId: 's', update: { sessionUpdate: 'turn_completed', usage: { inputTokens: 10_000, outputTokens: 20, totalTokens: 10_020, cachedReadTokens: 0, cacheCreationTokens: 0, costUsdTicks: 1, modelUsage: { 'grok-4.5-build': { inputTokens: 10_000, outputTokens: 20, cachedReadTokens: 0, cacheCreationTokens: 0 } } } } } })
+    ].join('\n') + '\n'
+  )
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  // (1) The trend: today's bar carries all three providers' segments, each with a real height
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Token' }).click()
+  const today = win.locator('.chart .col').last()
+  for (const cls of ['anthropic', 'openai', 'xai']) {
+    const h = await today.locator(`.sp.${cls}`).evaluate((el) => el.getBoundingClientRect().height)
+    expect(h, `today's ${cls} segment must measure a real height`).toBeGreaterThan(0)
+  }
+  await expect(win.locator('.legend')).toContainText('xAI')
+
+  // (2) The session list mixes all three sides, newest first: Claude (today late) → Grok (06:00) → Codex (01:00)
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  const rows = win.locator('.pane-body .card .se')
+  await expect(rows).toHaveCount(3)
+  await expect(rows.nth(0).locator('.t')).toHaveText('Claude question')
+  await expect(rows.nth(1).locator('.t')).toHaveText('Grok question')
+  await expect(rows.nth(2).locator('.t')).toHaveText('Codex question')
+  await expect(rows.nth(0).locator('.badge.cl')).toHaveText('CC')
+  await expect(rows.nth(1).locator('.badge.gk')).toHaveText('GK')
+  await expect(rows.nth(2).locator('.badge.cx')).toHaveText('CX')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // Ticket grok-side/#126: Grok's own global skills list alongside the other sides', the borrowing
 // copy is present, and the install popover names every side of a target project.
 test('the Agents page shows Grok\'s own global skills with the borrowing line, and installs one into a project', async () => {
