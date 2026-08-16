@@ -93,7 +93,12 @@ export function readGrokRegistry(grokHome: string): RegistryResult {
   try {
     const parsed = parseToml(readFileSync(ledger, 'utf8')) as Record<string, unknown>
     const folders = parsed['folders']
-    if (typeof folders !== 'object' || folders === null) return { detected: true, paths: [] }
+    // No folders table at all is the empty ledger (A9, normal); a folders key that is NOT a table
+    // is a corrupt one (A3) — degrading without an explanation is what the two must not share
+    if (folders === undefined) return { detected: true, paths: [] }
+    if (typeof folders !== 'object' || folders === null) {
+      return { detected: true, paths: [], error: { code: ERR.registryProjectsInvalid, params: {} } }
+    }
     return { detected: true, paths: Object.keys(folders) }
   } catch (err) {
     return {

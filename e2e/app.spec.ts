@@ -555,6 +555,33 @@ test('the project list row: a side-count badge, with hovering naming the sides i
   await close(l)
 })
 
+// A project only Grok registered still opens a working detail page: every section reads
+// Claude/Codex-shaped locations that simply do not exist there, and each degrades to its empty
+// state rather than throwing — the row must not be a dead end for the one side that put it there.
+test('a Grok-only project opens its detail page without errors', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gonly-'))
+  const proj = join(home, 'grok-only-proj')
+  mkdirSync(proj, { recursive: true })
+  mkdirSync(join(home, '.grok'), { recursive: true })
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${proj}"]\ntrusted = true\n`)
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  const row = win.locator('.side .row', { hasText: 'grok-only-proj' })
+  await expect(row.locator('.cnt-b')).toHaveText('1')
+  await row.click()
+  const tabs = win.locator('.pane-head .tabs .tab')
+  await expect(tabs.first()).toBeVisible()
+  const n = await tabs.count()
+  for (let i = 0; i < n; i++) {
+    await tabs.nth(i).click()
+    await expect(win.locator('.pane-body')).toBeVisible()
+  }
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // Ticket grok-side/#123 (spec C5/C7): side filtering is a single-choice dropdown. Being operated
 // rather than glanced at, it answers a resize by repositioning — and the resize answer is where
 // #122 lives: a resize makes the browser clamp a scrolled container's scrollTop and dispatch a

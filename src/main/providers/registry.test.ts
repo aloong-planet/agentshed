@@ -105,6 +105,17 @@ describe('the registry union', () => {
     expect(snap.projects).toEqual([])
   })
 
+  it('a folders key that is not a table → the Grok side degrades to empty WITH an error (A3), unlike the absent-ledger A9 case', async () => {
+    mkdirSync(join(dir, '.grok'), { recursive: true })
+    // Parses fine, but the folders key is not the table the ledger's shape promises — corrupt, not
+    // empty, and degrading without an explanation would leave the user with no projects and no clue
+    writeFileSync(join(dir, '.grok', 'trusted_folders.toml'), 'folders = 3\n')
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.sides.grok.detected).toBe(true)
+    expect(snap.sides.grok.error).toBeTruthy()
+    expect(snap.projects).toEqual([])
+  })
+
   it('a corrupt trusted_folders.toml → the Grok side degrades to empty with an error while the others behave normally', async () => {
     mkdirSync(join(dir, '.grok'), { recursive: true })
     writeFileSync(join(dir, '.grok', 'trusted_folders.toml'), '[folders."/x"\nbroken toml')
