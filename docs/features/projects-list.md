@@ -1,6 +1,6 @@
 # Project list
 
-> 关联决策: ADR-0019(what a registry is, per side)· ADR-0021(side colour)
+> Related decisions: ADR-0019 (what a registry is, per side) · ADR-0021 (side colour)
 
 ## Overview
 Projects are scattered across each agent side's own registry — Claude Code, Codex and Grok — so
