@@ -390,7 +390,7 @@ _Avoid_: error message (bare, implies a finished sentence)
   glyph, one level up — copy referring to something by a name the reader cannot resolve.
 
 - **User-facing copy never enumerates the agent sides as an exhaustive set (settled 2026-08-16)**:
-  a sentence that means "all sides" says so side-count-neutrally ("the agent sides", "各 agent 侧");
+  a sentence that means "all sides" says so side-count-neutrally ("the agent sides");
   naming one specific side is fine. Rationale: the side set grows, and an enumeration written into
   copy is a sentence that becomes a lie the moment a side is added — silently, in six languages at
   once, on a surface no side-onboarding diff touches. It happened twice in one onboarding round
