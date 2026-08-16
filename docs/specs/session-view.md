@@ -5,7 +5,7 @@
 
 ## Problem Statement
 
-Session records sit in the two agent sides' data directories (1948 files / 689 MB on this machine),
+Session records sit in the agent sides' data directories (1948 files / 689 MB on this machine),
 with no way for a user to look back at "what did I ask before and what answer did I get". The current
 product shows only session metadata (title / time / tokens) and explicitly does not render contents.
 
@@ -229,7 +229,7 @@ ruling on 2026-08-06, see Out of Scope).
   (0/225); dispatch lines have no `promptId` (0/202); `outputFile` points at a background task's
   output file rather than the transcript; a sidechain's first-line text equals the dispatch prompt in
   0/1299 cases; and Codex's `spawn_agent` output has no thread id. Per "no rule without a sample" and
-  "no speculative pairing", the sub block on both sides is unified as **the dispatch arguments + the
+  "no speculative pairing", the sub block on every side is unified as **the dispatch arguments + the
   return + an unattributed warning**, with sidechain lines not rendered (a known type whose full
   transcript is in the source or nested file). The model's `steps` field and the rendering path are
   retained — they can be attributed if the harness ever provides a join key.
@@ -242,7 +242,7 @@ ruling on 2026-08-06, see Out of Scope).
   conclusions.
 - C5 In the expanded contents, tool calls are collapsed by default (name + a one-line summary) and can
   be expanded to see the full arguments and return.
-- C6 **The two sides' completeness is unequal and must be labelled explicitly**: Codex's reasoning body
+- C6 **The sides' completeness is unequal and must be labelled explicitly**: Codex's reasoning body
   is `encrypted_content` (**never obtainable**, with only plaintext sub-headings);
   ~~Claude has plaintext `thinking`~~. We must not pretend they are the same.
   **Correction from measurement (2026-08-06, ticket 07): all 3312 thinking segments on Claude's main
@@ -272,6 +272,23 @@ ruling on 2026-08-06, see Out of Scope).
   with the three layers distinguished by `event_msg/` and `response_item/` prefixes) — allow-list
   failures are invisible, so nothing is ever silently dropped (a CONTEXT invariant). Probes over the
   whole repository's real data: the unknown trace set is empty, and the tool pairing rate is 99.94%.
+
+**Sequence G: the Grok side (ticket #125, grounded in a full enumeration of 17 update types,
+2026-08-16)**
+- G1 A question = the run of user_message_chunk records sharing one promptIndex; chunks concatenate
+  **raw** (a long question splits mid-word, measured), and a prompt opening with an injected
+  `<system-reminder>` notice is the harness speaking — it starts no question, so a session with
+  nothing else stays unlisted while its tokens count (the A3a rule).
+- G2 The title takes summary.json's own name first (the Codex thread_name priority rule), falling
+  back to the first indexed question — the same source as the question set.
+- G3 One assistant message can split across agent_message_chunk records mid-word with state records
+  between the fragments, so prose and thought chunks merge raw and the ten enumerated state types
+  neither render nor break the merge; anything outside the enumeration leaves the unknown trace.
+- G4 Tool calls pair with their updates by toolCallId. A spawn_subagent dispatch is a sub block:
+  name from the paired subagent_spawned, result from the in-turn subagent_finished output — never
+  the "started in background" echo — and its internal steps stay unattributed (the child stream is
+  not read; the read allow-list admits listed streams only, so a subagent stream is refused).
+- G5 No fork mechanism exists on this side: nothing is stripped and forkState is always none.
 
 **Sequence D: search**
 - D1 **Questions are searched by default** (small, clean, precise hits), with full-text search as an
@@ -485,7 +502,7 @@ below are archived as a decision record and are no longer requirements)**
   available), and the decoding overhead saved outweighs the added per-line classification.
   **A turn's end point is "the end of the last parseable line", not the file's byte size**: an active
   session may be mid-line, and that half line neither parses nor should be sliced into a range.
-  **The two sides' "turn volume" criteria (full enumeration, not sampling)**:
+  **Per-side "turn volume" criteria (full enumeration, not sampling)**:
   - Claude tools = `tool_use` segments (the only call segment type in the whole repository); a subagent
     dispatch = the tool name `Agent` (152 occurrences) or `Task` (4), two generations of the same
     tool's name, both taking `description` + `prompt` + `subagent_type`. **The seemingly more
@@ -500,6 +517,9 @@ below are archived as a decision record and are no longer requirements)**
     ⚠️ **`tool_search_call` was only found at review**: it never appeared once in a 120-file sample and
     only became visible in a full enumeration of 278 files / 62,912 lines. The lesson is in CONTEXT.md's
     invariants.
+  - Grok tools = tool_call records except spawn_subagent; a subagent dispatch = a tool_call named
+    spawn_subagent (the subagent_spawned/finished records are its typed mirror and are not counted
+    again — the same double-write rule as the Codex event_msg path).
   **When `CACHE_VERSION` must be bumped** (the current value and the per-version change log are
   maintained **only** in the CACHE_VERSION comment in token-stats.ts and are not duplicated here —
   hard-coding it rots, and it already did once: the spec said 7 when the code was at 10):
@@ -522,7 +542,7 @@ below are archived as a decision record and are no longer requirements)**
   and throw away the whole detail payload (upward escape).
 - **Concurrent reads**: a shared bounded-concurrency read utility, defaulting to 4; the range-read paths
   all go through it (see D2b). The existing token scan stays serial and is untouched this round.
-- **Normalising the two sides**: the common model = `{time, role, text, tool call (name/args/result),
+- **Normalising the sides**: the common model = `{time, role, text, tool call (name/args/result),
   reasoning block?}`. The Codex side needs two things Claude does not: choosing one of the two written
   streams (take `event_msg`) and stripping the fork replay prefix.
   **The landed form (2026-08-05, ticket 05)**: the model is a discriminated union on `kind`
@@ -555,7 +575,7 @@ Following ADR-0002's dual seam: (1) fixture unit tests at the providers layer �
 back, title cleaning, and the offset index's fetch correctness (what is read by offset = the
 corresponding turn from a full parse); (2) the contract validation round trip; (3) e2e covering the
 whole chain of "open a session → click a question → the answer appears". **At least one fixture takes
-its shape from a real sample** (both sides' data structures are complex, and a constructed fixture
+its shape from a real sample** (the sides' data structures are complex, and a constructed fixture
 would inevitably inherit the blind spots of my imagination).
 
 ## Out of Scope

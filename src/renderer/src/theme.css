@@ -39,6 +39,10 @@
   --cl-fg: #6b4f92;
   --cx-bg: #dcefe4;
   --cx-fg: #1f7a4d;
+  /* GK: hand-tuned like the cl/cx pairs (ruled 2026-08-16) — the ADR-0021 purple family, the dark
+     foreground letter-for-letter --p-xai's dark value */
+  --gk-bg: #ece5f5;
+  --gk-fg: #7a63a0;
   /* Provider brand colours (data colours, independent of the UI accent --accent) */
   --p-anthropic: #d97757;
   --p-openai: #10a37f;
@@ -105,6 +109,8 @@ html[data-theme='amber'] {
     --cl-fg: #c9b3ec;
     --cx-bg: #1d3a2b;
     --cx-fg: #7fd6a4;
+    --gk-bg: #352c48;
+    --gk-fg: #c9b3ec;
     /* Lightened on a dark background to keep the contrast */
     --p-anthropic: #e8916f;
     --p-openai: #2fc79f;
@@ -328,6 +334,10 @@ body {
 .badge.cx {
   background: var(--cx-bg);
   color: var(--cx-fg);
+}
+.badge.gk {
+  background: var(--gk-bg);
+  color: var(--gk-fg);
 }
 .empty {
   margin: auto;

@@ -105,7 +105,7 @@ and a child session stored beside its parent rather than beneath it is still a s
 what the record says it is and never by how deep it sits. **A record containing no real human question at all (a warmup session the agent opened by
 itself, or a pure-replay fork verified to have been stripped empty) does not count as a browsable
 session**, and does not enter the list — but its tokens still count, the same rule as subagents.
-Its "last activity time" is **the largest timestamp inside the file** (same meaning on both sides;
+Its "last activity time" is **the largest timestamp inside the file** (same meaning on every side;
 a separate pipeline from project activity, which uses mtime — see "Activity").
 The session page is **indexed primarily by question** (every real question listed once; fork replay
 prefixes and abandoned branches do not enter the trunk); clicking a question fetches that **turn** on
@@ -388,6 +388,17 @@ _Avoid_: error message (bare, implies a finished sentence)
   the position instead ("at the bottom left"). Note that "sidebar" is **not** an alternative name for
   it: the project list beside it is the sidebar. This is the same failure as naming a control by its
   glyph, one level up — copy referring to something by a name the reader cannot resolve.
+
+- **User-facing copy never enumerates the agent sides as an exhaustive set (settled 2026-08-16)**:
+  a sentence that means "all sides" says so side-count-neutrally ("the agent sides");
+  naming one specific side is fine. Rationale: the side set grows, and an enumeration written into
+  copy is a sentence that becomes a lie the moment a side is added — silently, in six languages at
+  once, on a surface no side-onboarding diff touches. It happened twice in one onboarding round
+  (the totals card's "both sides", the scanning state's "Claude Code / Codex"), and the rule had
+  already been written down — in a prototype comment, where it constrained nobody. Enforced by a
+  shared-UI check over the dictionaries; copy that must enumerate (because its surface genuinely
+  judges only those sides today) is allow-listed there by dictionary key with the reason and the
+  ticket that retires it.
 
 - **Non-printing characters are written as escapes in source, never as raw bytes (settled
   2026-08-13)**: `\x00` rather than a literal NUL. Identical at runtime; the difference is that a raw

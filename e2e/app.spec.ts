@@ -2541,6 +2541,97 @@ test('a newly adopted side: the thin xAI segment survives, and Grok mode labels 
   await close(l)
 })
 
+// Ticket grok-side/#125: the whole chain for a Grok session — listed with its title, questions
+// indexed, a turn fetched on demand rendering through the shared block model, search hitting it,
+// and the read allow-list refusing the unlisted subagent stream over the real channel.
+test('a Grok session opens end to end: list, questions, an on-demand turn, search, and the allow-list boundary', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gksess-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  mkdirSync(join(home, '.grok'), { recursive: true })
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${proj}"]\ntrusted = true\n`)
+  const gline = (tsSec: number, update: Record<string, unknown>): string =>
+    JSON.stringify({ timestamp: tsSec, method: '_x.ai/session/update', params: { sessionId: 's', update } })
+  const t0 = Math.floor(localDayOffset(1).getTime() / 1000)
+  const mkSess = (id: string, lines: string[], subagent = false): string => {
+    const d = join(home, '.grok', 'sessions', encodeURIComponent(proj), id)
+    mkdirSync(d, { recursive: true })
+    const summary: Record<string, unknown> = { info: { id, cwd: proj } }
+    if (subagent) summary['session_kind'] = 'subagent'
+    writeFileSync(join(d, 'summary.json'), JSON.stringify(summary))
+    const f = join(d, 'updates.jsonl')
+    writeFileSync(f, lines.join('\n') + '\n')
+    return f
+  }
+  mkSess('019f-e2e-main', [
+    gline(t0, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Grok side question' }, _meta: { promptIndex: 0 } }),
+    gline(t0 + 5, { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'think about it' } }),
+    gline(t0 + 6, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'The grok reply body, part ' } }),
+    gline(t0 + 6, { sessionUpdate: 'current_mode_update', currentModeId: 'code' }),
+    gline(t0 + 6, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'one and two joined' } }),
+    gline(t0 + 7, { sessionUpdate: 'tool_call', toolCallId: 'c1', title: 'read_file', rawInput: { target_file: '/x/y.md' }, _meta: { 'x.ai/tool': { name: 'read_file' } } }),
+    gline(t0 + 8, { sessionUpdate: 'tool_call_update', toolCallId: 'c1', status: 'completed', content: [{ type: 'content', content: { type: 'text', text: '42 lines' } }] }),
+    gline(t0 + 9, { sessionUpdate: 'turn_completed', usage: { inputTokens: 900, outputTokens: 100, totalTokens: 1000, cachedReadTokens: 0, cacheCreationTokens: 0, costUsdTicks: 1, modelUsage: { 'grok-4.5-build': { inputTokens: 900, outputTokens: 100, cachedReadTokens: 0, cacheCreationTokens: 0 } } } }),
+    gline(t0 + 10, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Second grok question' }, _meta: { promptIndex: 1 } }),
+    gline(t0 + 11, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Second answer' } })
+  ])
+  const subFile = mkSess('019f-e2e-child', [
+    gline(t0, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'child work' }, _meta: { promptIndex: 0 } })
+  ], true)
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+
+  // Listed once (the subagent session is not a row), title = the first question fallback
+  const rows = win.locator('.pane-body .card .se')
+  await expect(rows).toHaveCount(1)
+  await expect(rows.first().locator('.t')).toHaveText('Grok side question')
+
+  // The page: both questions, real counts; the turn fetches on demand and renders the block model
+  await expect(rows.first().locator('.badge.gk')).toHaveText('GK')
+  await rows.first().click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Grok side question')
+  await expect(win.locator('.pane-head .badge.gk')).toHaveText('GK')
+  await expect(win.locator('.smeta')).toContainText('2 questions')
+  await win.locator('.qlist .q', { hasText: 'Grok side question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['The grok reply body, part one and two joined'])
+  const think = win.locator('.turn .blk.think')
+  await think.locator('.bh').click()
+  await expect(think.locator('.bb')).toContainText('think about it')
+  const tool = win.locator('.turn .blk', { has: win.locator('.nm', { hasText: 'read_file' }) }).first()
+  await tool.locator('.bh').click()
+  await expect(tool.locator('pre').nth(0)).toContainText('/x/y.md')
+  await expect(tool.locator('pre').nth(1)).toContainText('42 lines')
+  await expect(win.locator('.turn .fetched')).toContainText("read only this turn’s byte range")
+
+  // Search hits the grok question
+  await win.locator('.sback').click()
+  await win.locator('.sbar input').fill('Second grok question')
+  await expect(win.locator('.grp .hit')).toHaveCount(1)
+
+  // The allow-list boundary: the unlisted subagent stream is refused over the real channel
+  const refused = await win.evaluate(async (p) => {
+    try {
+      await (window as unknown as { agentshed: { getSessionPage: (f: string) => Promise<unknown> } })
+        .agentshed.getSessionPage(p)
+      return 'ALLOWED'
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e)
+    }
+  }, subFile)
+  expect(refused).not.toBe('ALLOWED')
+  expect(refused).toContain(ERR.sessionNotWhitelisted)
+
+  // The refusal above is deliberate; assert exactly that error and nothing else
+  expect(l.errors).toHaveLength(1)
+  expect(l.errors[0]).toContain(ERR.sessionNotWhitelisted)
+  await close(l)
+})
+
 // Ticket session-view/03b: the fork and uncertain-strip markers
 test('the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip"', async () => {
   const l = await launch(undefined, mkForkHome())

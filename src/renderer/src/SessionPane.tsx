@@ -7,6 +7,7 @@
 // The organising layer (ticket 06): day grouping with collapse + ascending/descending + the three tiers
 // of banner at the top.
 import { Fragment, useEffect, useRef, useState } from 'react'
+import { SIDE_BADGE, SIDE_FULL_NAME } from './side-badge'
 import type { SessionPage, SessionTurn } from '@shared/domain'
 import { fmtAgo } from './ProjectsPane'
 import { fmtTok } from './TokenViz'
@@ -301,14 +302,12 @@ export function SessionPane({
         {page && (
           <>
             <div className="det-title">
-              <span className={`badge ${page.side === 'claude' ? 'cl' : 'cx'}`}>
-                {page.side === 'claude' ? 'CC' : 'CX'}
-              </span>
+              <span className={`badge ${SIDE_BADGE[page.side].cls}`}>{SIDE_BADGE[page.side].label}</span>
               <h1 className="stitle">{page.title}</h1>
             </div>
             <div className="smeta">
               {t.session.headMeta(
-                page.side === 'claude' ? 'Claude Code' : 'Codex',
+                SIDE_FULL_NAME[page.side],
                 page.questions.length,
                 fmtTok(page.tokens),
                 formatBytes(lang, page.bytes),

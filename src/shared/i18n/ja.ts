@@ -14,7 +14,7 @@ export const ja: Locale = {
 
   settings: {
     title: '設定',
-    lead: 'この app 固有の設定です。インターフェース全体に適用され、Claude や Codex の設定には書き込まれません。',
+    lead: 'この app 固有の設定です。インターフェース全体に適用され、どのエージェントサイドの設定にも書き込まれません。',
     sectionLanguage: '言語',
     interfaceLanguage: '表示言語',
     followSystem: 'システムに従う',
@@ -79,7 +79,7 @@ export const ja: Locale = {
 
   shell: {
     pickProject: 'プロジェクトを選択すると詳細が表示されます',
-    scanning: 'Claude Code / Codex をスキャン中…（完了するまで空のリストは表示しません）'
+    scanning: '各エージェントサイドをスキャン中…（完了するまで空のリストは表示しません）'
   },
   skills: {
     searchPlaceholder: 'skill を検索…',

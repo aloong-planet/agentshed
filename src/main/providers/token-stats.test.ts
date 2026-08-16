@@ -227,15 +227,37 @@ function grokTurn(tsSec: number, u: GrokTurnUsage): string {
 }
 /** A Grok session directory (the real layout): summary.json names a summary-level model that is NOT
  * the billed name, so a per-model case can tell the two apart (F3) */
-function mkGrokSession(cwd: string, id: string, lines: string[], opts: { subagent?: boolean } = {}): string {
+function mkGrokSession(
+  cwd: string,
+  id: string,
+  lines: string[],
+  opts: { subagent?: boolean; summaryTitle?: string } = {}
+): string {
   const d = join(dir, '.grok', 'sessions', encodeURIComponent(cwd), id)
   mkdirSync(d, { recursive: true })
   const summary: Record<string, unknown> = { info: { id, cwd }, current_model_id: 'grok-4.5' }
   if (opts.subagent) summary['session_kind'] = 'subagent'
+  if (opts.summaryTitle) summary['session_summary'] = opts.summaryTitle
   writeFileSync(join(d, 'summary.json'), JSON.stringify(summary))
   const f = join(d, 'updates.jsonl')
   writeFileSync(f, lines.join('\n') + '\n')
   return f
+}
+/** A Grok update record line (the measured envelope) */
+function grokLine(tsSec: number, update: Record<string, unknown>): string {
+  return JSON.stringify({
+    timestamp: tsSec,
+    method: '_x.ai/session/update',
+    params: { sessionId: 's', update }
+  })
+}
+/** A user question chunk; promptIndex ties the chunks of one question together (measured shape) */
+function grokUser(tsSec: number, text: string, promptIndex: number): string {
+  return grokLine(tsSec, {
+    sessionUpdate: 'user_message_chunk',
+    content: { type: 'text', text },
+    _meta: { modelId: 'grok-4.5', promptIndex }
+  })
 }
 
 function writeIndex(entries: Array<{ id: string; name: string }>): void {
@@ -572,6 +594,64 @@ describe('Grok aggregation (sequence F, continued)', () => {
     ])
     const r = await engine().build(roots(), [proj])
     expect(r.global.bySide.grok.total).toBe(110 + 22)
+  })
+})
+
+describe('Grok session list (ticket #125)', () => {
+  it('a Grok session enters the list with title, time and tokens; the summary name wins and the first question is the fallback', async () => {
+    mkGrokSession(
+      proj,
+      '019f-list1',
+      [
+        grokUser(1786088656, 'first grok question', 0),
+        grokTurn(1786088700, { input: 100, output: 10 })
+      ],
+      { summaryTitle: 'A summary-named session' }
+    )
+    mkGrokSession(proj, '019f-list2', [
+      grokUser(1786088800, 'fallback title question', 0),
+      grokTurn(1786088900, { input: 50, output: 5 })
+    ])
+    const r = await engine().build(roots(), [proj])
+    const sessions = r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'grok')
+    expect(sessions?.length).toBe(2)
+    const byTitle = Object.fromEntries((sessions ?? []).map((s) => [s.title, s]))
+    expect(byTitle['A summary-named session']?.tokens).toBe(110)
+    expect(byTitle['A summary-named session']?.questionCount).toBe(1)
+    // The fallback: no summary name → the title IS the first indexed question (same source)
+    expect(byTitle['fallback title question']?.tokens).toBe(55)
+    // at = the largest timestamp in the file, epoch-second records included (ms in the contract)
+    expect(byTitle['fallback title question']?.at).toBe(1786088900 * 1000)
+    expect(byTitle['fallback title question']?.forkState).toBe('none')
+  })
+
+  it('a session whose only prompt is an injected system-reminder is not listed, and its tokens still count (A3a analogue)', async () => {
+    mkGrokSession(proj, '019f-warm', [
+      grokUser(1786088656, '<system-reminder>\nBackground task "call-x" finished.\n</system-reminder>', 0),
+      grokTurn(1786088700, { input: 300, output: 60 })
+    ])
+    const r = await engine().build(roots(), [proj])
+    expect(r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'grok')).toEqual([])
+    expect(r.global.bySide.grok.total).toBe(360)
+  })
+
+  it('a multi-chunk question indexes once, and a subagent session stays unlisted even with real questions', async () => {
+    mkGrokSession(proj, '019f-chunks', [
+      grokUser(1786088656, 'part one of a long pasted question, ', 0),
+      grokUser(1786088656, 'part two completing it', 0),
+      grokTurn(1786088700, { input: 10, output: 1 })
+    ])
+    mkGrokSession(
+      proj,
+      '019f-subq',
+      [grokUser(1786088656, 'child question', 0), grokTurn(1786088700, { input: 20, output: 2 })],
+      { subagent: true }
+    )
+    const r = await engine().build(roots(), [proj])
+    const sessions = r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'grok')
+    expect(sessions?.length).toBe(1)
+    expect(sessions?.[0].questionCount).toBe(1)
+    expect(sessions?.[0].title).toBe('part one of a long pasted question, part two completing it')
   })
 })
 

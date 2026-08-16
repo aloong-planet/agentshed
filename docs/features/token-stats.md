@@ -35,8 +35,6 @@ share a source and reconcile against each other.
 ## Boundaries and non-goals
 - The Codex per-model breakdown is an approximation at the level of the session's primary model;
   the Claude and Grok breakdowns are exact (Grok lists the model that was actually billed)
-- Grok sessions are metered in every total and trend, but do not yet open in the session list or
-  session viewer
 - No dollar cost estimation
 - The archive can only accumulate from the first day this application ran; sessions older than that
   and already cleaned up cannot be recovered

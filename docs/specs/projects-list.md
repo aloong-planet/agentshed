@@ -38,8 +38,8 @@ and are never written back to any agent configuration.
 > The row's trailing session count was removed on 2026-08-16 with the side-count badge's arrival
 > (settled in the project-list prototype): two numbers at the row's end read as one, and the number
 > that matters per project lives in the sessions tab. `ProjectEntry.sessionCount` stays in the
-> contract — activity keeps both quantities — but currently surfaces nowhere; note for the session
-> ticket that the engine's backfill of it still excludes the Grok side until Grok sessions land.
+> contract — activity keeps both quantities — but currently surfaces nowhere. The engine's backfill
+> covers all three sides since the session ticket landed (2026-08-16).
 3. As a user, I want to search by name or path and filter by agent side, so that I can find things
    quickly when there are many projects.
 4. As a user, I want stale projects (in the registry, directory deleted) collapsed by default but

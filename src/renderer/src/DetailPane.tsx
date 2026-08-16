@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { renderMarkdown } from './md'
 import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot, SearchResult } from '@shared/domain'
 import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
+import { SIDE_BADGE } from './side-badge'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
 import { ProjectSubagentsTab } from './SubagentsView'
 import { ProjectMemoryTab } from './MemoryView'
@@ -165,9 +166,7 @@ function OverviewTab({
           <div className="card">
             {stats.sessions.slice(0, OVERVIEW_SESSIONS).map((s) => (
               <button className="se row-btn" key={s.file} onClick={() => onOpenSession(s.file)}>
-                <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
-                  {s.side === 'claude' ? 'CC' : 'CX'}
-                </span>
+                <span className={`badge ${SIDE_BADGE[s.side].cls}`}>{SIDE_BADGE[s.side].label}</span>
                 <span className="t">{s.title ?? t.placeholder.untitledSession}</span>
                 <span className="tok">{fmtTok(s.tokens)}</span>
                 <span className="d">{fmtAgo(lang, s.at, snap.scannedAt)}</span>
@@ -298,9 +297,7 @@ function SessionsTab({
             {groups.map((g) => (
               <div className="grp" key={g.file}>
                 <button className="gh row-btn" onClick={() => onOpenSession(g.file)}>
-                  <span className={`badge ${g.side === 'claude' ? 'cl' : 'cx'}`}>
-                    {g.side === 'claude' ? 'CC' : 'CX'}
-                  </span>
+                  <span className={`badge ${SIDE_BADGE[g.side].cls}`}>{SIDE_BADGE[g.side].label}</span>
                   <span className="t">{g.title ?? t.placeholder.untitledSession}</span>
                   {g.forkState === 'stripped' && <span className="pill fork">
                       <GitFork size={10} /> fork
@@ -363,9 +360,7 @@ function SessionsTab({
       <div className="card">
         {list.map((s) => (
           <button className="se row-btn" key={s.file} onClick={() => onOpenSession(s.file)}>
-            <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
-              {s.side === 'claude' ? 'CC' : 'CX'}
-            </span>
+            <span className={`badge ${SIDE_BADGE[s.side].cls}`}>{SIDE_BADGE[s.side].label}</span>
             <span className="t">{s.title ?? t.placeholder.untitledSession}</span>
             {s.forkState === 'stripped' && (
               <span className="pill fork" title={t.detail.forkTip}>

@@ -28,7 +28,7 @@ export const zh = {
 
   settings: {
     title: '设置',
-    lead: '本 app 偏好,对整个界面生效。不写入 Claude / Codex 配置。',
+    lead: '本 app 偏好,对整个界面生效。不写入任何 agent 侧的配置。',
     sectionLanguage: '语言',
     interfaceLanguage: '界面语言',
     followSystem: '跟随系统',
@@ -125,7 +125,7 @@ export const zh = {
   /** The application shell (ticket 11) */
   shell: {
     pickProject: '选择一个项目查看详情',
-    scanning: '正在扫描 Claude Code / Codex…(扫描完成前不显示空列表)'
+    scanning: '正在扫描各 agent 侧…(扫描完成前不显示空列表)'
   },
   /** Skills package preview and the file drawer (ticket 10) */
   skills: {

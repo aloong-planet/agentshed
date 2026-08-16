@@ -223,6 +223,60 @@ const GLOBAL_RULES = [
     }
   },
   {
+    // CONTEXT invariant (settled 2026-08-16): user-facing copy never enumerates the agent sides as
+    // an exhaustive set — the side set grows, and an enumerated sentence becomes a lie in six
+    // languages at once on a surface no onboarding diff touches (it happened twice in one round).
+    // Copy whose surface genuinely judges only some sides today is allow-listed by dictionary key,
+    // each entry carrying the reason and the ticket that retires it.
+    name: 'dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)',
+    cross: true,
+    check() {
+      const bad = []
+      const SIDE_NAMES = [/Claude(?: Code)?/, /Codex/, /Grok/]
+      const ALLOWED = [
+        {
+          key: 'notDetected',
+          why: 'the agents page judges exactly these two sides until the global-layer ticket (#126)'
+        },
+        {
+          key: 'projectHint',
+          why: 'shadowing semantics are verified for these two sides only; the third lands with #126'
+        },
+        {
+          key: 'claudeOnly',
+          why: 'contrasts the two memory mechanisms verified today; Grok memory lands with #126'
+        },
+        {
+          key: 'reasoningNote',
+          why: "a statement about two specific sides' formats (Codex encrypted vs Claude thinking), true regardless of the side count"
+        }
+      ]
+      for (const lang of ['zh', 'en', 'fr', 'es', 'ru', 'ja']) {
+        const f = `src/shared/i18n/${lang}.ts`
+        const src = read(f)
+        if (src === null) {
+          bad.push(`cannot read ${f}`)
+          continue
+        }
+        const lines = src.split('\n')
+        lines.forEach((line, i) => {
+          if (/^\s*(\/\/|\/\*|\*)/.test(line)) return // comments are not copy
+          const strings = line.match(/'[^']*'|`[^`]*`|"[^"]*"/g) ?? []
+          for (const s of strings) {
+            const hits = SIDE_NAMES.filter((re) => re.test(s)).length
+            if (hits < 2) continue
+            // A wrapped value's key sits on the previous line, so both lines identify the entry
+            const prev = i > 0 ? lines[i - 1] : ''
+            const allowed = ALLOWED.find((a) => line.includes(`${a.key}:`) || prev.includes(`${a.key}:`))
+            if (allowed) continue
+            bad.push(`${f}:${i + 1} enumerates ${hits} side names in copy: ${s.slice(0, 60)}`)
+          }
+        })
+      }
+      return bad
+    }
+  },
+  {
     // ADR-0021: one colour per agent side, and the value inevitably exists in more than one file —
     // theme.css's --p-* variables (the source) and the project-list prototype's hard-coded .dot
     // swatches (a standalone HTML file cannot read the app's variables). This is the executable

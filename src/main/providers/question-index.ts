@@ -260,11 +260,135 @@ function codexCounts(obj: Record<string, unknown>): { tools: number; subagents: 
  * are always the same set.
  */
 export function questionTextAt(side: AgentSide, obj: Record<string, unknown>): string | null {
-  // The Grok question shape lands with the session-view ticket; until then no grok session enters
-  // the index, so this branch cannot run — null (not a question) rather than a guess at the format.
+  // A Grok question can span several chunk lines, so its text is derived from the whole slice by
+  // grokQuestionTextFromSlice — a single parsed line cannot carry it and this path must not be used
   if (side === 'grok') return null
   const raw = (side === 'claude' ? claudeQuestion : codexQuestion)(obj)
   return raw === null ? null : realUserText(raw)
+}
+
+/** The update record inside a Grok stream line, or undefined when the line is something else */
+function grokUpdate(obj: Record<string, unknown>): Record<string, unknown> | undefined {
+  const params = obj['params'] as Record<string, unknown> | undefined
+  return params?.['update'] as Record<string, unknown> | undefined
+}
+
+/** A user chunk's text; null when the line is not a user_message_chunk */
+function grokUserChunkText(obj: Record<string, unknown>): string | null {
+  const upd = grokUpdate(obj)
+  if (upd?.['sessionUpdate'] !== 'user_message_chunk') return null
+  const content = upd['content'] as Record<string, unknown> | undefined
+  const text = content?.['text']
+  return typeof text === 'string' ? text : ''
+}
+
+/**
+ * An injected harness notice, not the user speaking (measured 2026-08-16: 15 of 237 prompts, all of
+ * them pure `<system-reminder>` background-task notices). Only a prompt whose FIRST chunk is such a
+ * notice is excluded — a mixed prompt (unobserved) stays a question, erring in the visible direction.
+ */
+function grokInjectedNotice(text: string): boolean {
+  return text.trimStart().startsWith('<system-reminder')
+}
+
+/**
+ * A Grok question's text out of its byte range. The range covers every chunk line of one prompt
+ * (they are adjacent in the stream except for interleaved retry_state lines, measured), so the
+ * slice is parsed line by line and the user chunks' texts concatenate raw — no separator is
+ * injected, because a long question is split mid-word (the same measured behaviour as the prose
+ * chunks) and any separator would corrupt it.
+ */
+export function grokQuestionTextFromSlice(raw: string): string | null {
+  let out = ''
+  let seen = false
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue
+    try {
+      const obj: unknown = JSON.parse(line)
+      if (typeof obj !== 'object' || obj === null) continue
+      const text = grokUserChunkText(obj as Record<string, unknown>)
+      if (text !== null) {
+        out += text
+        seen = true
+      }
+    } catch {
+      // Skip bad lines; the bytes still belonged to the range
+    }
+  }
+  return seen ? out : null
+}
+
+/**
+ * The Grok question indexer: a question = the run of user_message_chunk lines sharing one
+ * promptIndex (chunks concatenate raw), skipping prompts that open with an injected notice. Tools
+ * and subagent dispatches count from tool_call lines — a spawn_subagent call is a dispatch, not a
+ * tool (the same split as the other sides).
+ */
+export function makeGrokQuestionIndexer(): {
+  line(obj: Record<string, unknown>, start: number, end: number): void
+  firstQuestionText(): string | null
+  done(fileEnd: number): QuestionRec[]
+} {
+  const out: QuestionRec[] = []
+  /** Parallel to out: each question's concatenated text (for the fingerprint and the title) */
+  const qText: string[] = []
+  let openPrompt: number | null = null
+  /** Whether the open prompt became a question — a suppressed notice's later chunks must not be
+   * appended to the previous real question */
+  let openPushed = false
+  const extendTurn = (end: number): void => {
+    if (out.length > 0) out[out.length - 1][2] = end
+  }
+  return {
+    line(obj, start, end) {
+      const text = grokUserChunkText(obj)
+      if (text !== null) {
+        const upd = grokUpdate(obj)
+        const meta = upd?.['_meta'] as Record<string, unknown> | undefined
+        const pi = typeof meta?.['promptIndex'] === 'number' ? (meta['promptIndex'] as number) : null
+        if (pi !== null && pi === openPrompt) {
+          if (openPushed) {
+            // Another chunk of the open question: extend its range and its text
+            const rec = out[out.length - 1]
+            rec[1] = end
+            rec[2] = end
+            qText[qText.length - 1] += text
+            rec[6] = fingerprint(qText[qText.length - 1])
+          } else {
+            extendTurn(end) // a suppressed prompt's chunk still lies inside the previous turn
+          }
+          return
+        }
+        openPrompt = pi
+        if (grokInjectedNotice(text)) {
+          openPushed = false
+          extendTurn(end)
+          return
+        }
+        openPushed = true
+        const tsRaw = obj['timestamp']
+        const ts = typeof tsRaw === 'number' && Number.isFinite(tsRaw) ? tsRaw * 1000 : null
+        out.push([start, end, end, ts, 0, 0, fingerprint(text)])
+        qText.push(text)
+        return
+      }
+      if (out.length === 0) return
+      const rec = out[out.length - 1]
+      rec[2] = end // every later parseable line extends the open turn
+      const upd = grokUpdate(obj)
+      if (upd?.['sessionUpdate'] === 'tool_call') {
+        if (upd['title'] === 'spawn_subagent') rec[5]++
+        else rec[4]++
+      }
+    },
+    firstQuestionText() {
+      return qText.length > 0 ? qText[0] : null
+    },
+    done(fileEnd) {
+      if (out.length > 0) out[out.length - 1][2] = fileEnd
+      return out
+    }
+  }
 }
 
 export function makeQuestionIndexer(side: 'claude' | 'codex'): QuestionIndexer {

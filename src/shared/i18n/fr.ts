@@ -15,7 +15,7 @@ export const fr: Locale = {
 
   settings: {
     title: 'Réglages',
-    lead: 'Préférences propres à cette app. Elles s’appliquent à toute l’interface et ne sont jamais écrites dans votre configuration Claude ou Codex.',
+    lead: 'Préférences propres à cette app. Elles s’appliquent à toute l’interface et ne sont jamais écrites dans la configuration d’aucun côté agent.',
     sectionLanguage: 'Langue',
     interfaceLanguage: 'Langue de l’interface',
     followSystem: 'Suivre le système',
@@ -81,7 +81,7 @@ export const fr: Locale = {
 
   shell: {
     pickProject: 'Sélectionnez un projet pour voir son détail',
-    scanning: 'Analyse de Claude Code / Codex… (aucune liste vide n’est affichée avant la fin)'
+    scanning: 'Analyse des côtés agents… (aucune liste vide n’est affichée avant la fin)'
   },
   skills: {
     searchPlaceholder: 'Rechercher un skill…',

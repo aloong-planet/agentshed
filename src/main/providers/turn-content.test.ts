@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
-import { makeQuestionIndexer, type QuestionRec } from './question-index'
+import { makeGrokQuestionIndexer, makeQuestionIndexer, type QuestionRec } from './question-index'
 import { readRanges } from './range-read'
 import { turnBlocksFromText } from './turn-content'
 import type { TurnBlock } from '@shared/domain'
@@ -320,5 +320,145 @@ describe('a range fetch agrees with a full parse (the anchor)', () => {
         return bytesRead
       })
     expect(await bytesOfTurn1(small)).toBe(await bytesOfTurn1(big))
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// Ticket #125: the Grok block model. Grounded in a full enumeration of this machine's update
+// streams (17 sessionUpdate types, 2026-08-16). The load-bearing measured fact: one assistant
+// message can be split across agent_message_chunk records MID-WORD with state records
+// (current_mode_update) between the fragments — so adjacent same-kind chunks merge with no
+// injected separator, and the enumerated state records must not break the merge.
+describe('the Grok block model (ticket #125)', () => {
+  const gline = (tsSec: number, update: Record<string, unknown>): string =>
+    JSON.stringify({ timestamp: tsSec, method: '_x.ai/session/update', params: { sessionId: 's', update } })
+
+  test('prose fragments split mid-word merge raw across state records; thinking, tools and order survive', () => {
+    const raw = [
+      gline(100, { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'plan the table' } }),
+      gline(100, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'A tracker:\n\n| # | Block' } }),
+      gline(100, { sessionUpdate: 'current_mode_update', currentModeId: 'code' }),
+      gline(100, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'ed by |\n|---|---|' } }),
+      gline(101, {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'c1',
+        title: 'read_file',
+        rawInput: { target_file: '/x/y.md' },
+        _meta: { 'x.ai/tool': { name: 'read_file', label: 'Read' } }
+      }),
+      gline(101, {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'c1',
+        status: 'completed',
+        content: [{ type: 'content', content: { type: 'text', text: 'file body here' } }]
+      }),
+      gline(102, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Done reading.' } })
+    ].join('\n')
+    const blocks = turnBlocksFromText('grok', raw)
+    expect(blocks.map((b) => b.kind)).toEqual(['think', 'text', 'tool', 'text'])
+    expect((blocks[0] as { body: string }).body).toBe('plan the table')
+    // The decisive assertion: "Block" + "ed by" reunite with no separator injected
+    expect((blocks[1] as { body: string }).body).toBe('A tracker:\n\n| # | Blocked by |\n|---|---|')
+    const tool = blocks[2] as { name: string | null; input: string; output: string | null; summary: string }
+    expect(tool.name).toBe('read_file')
+    expect(tool.input).toContain('/x/y.md')
+    expect(tool.output).toBe('file body here')
+    expect((blocks[3] as { body: string }).body).toBe('Done reading.')
+  })
+
+  test('Grok: the offset path == the whole-file path, and one turn\'s bytes read is far below the file size', async () => {
+    const gU = (pi: number, text: string): string =>
+      gline(100, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text }, _meta: { promptIndex: pi } })
+    const raw =
+      [
+        gU(0, 'question one'),
+        gline(100, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'answer one' } }),
+        gU(1, 'question two'),
+        gline(101, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'y'.repeat(2 * 1024 * 1024) } })
+      ].join('\n') + '\n'
+    await withFile(raw, async (file) => {
+      const idx = makeGrokQuestionIndexer()
+      let fileEnd = 0
+      await eachJsonlLine(file, (obj, start, end) => {
+        idx.line(obj, start, end)
+        fileEnd = end
+      })
+      const recs = idx.done(fileEnd)
+      expect(recs).toHaveLength(2)
+      const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
+      const one = await readRanges(file, [{ start: recs[0][1], end: recs[0][2] }])
+      expect(turnBlocksFromText('grok', one.texts[0])).toEqual(turnBlocksFromText('grok', whole.texts[0]))
+      expect((turnBlocksFromText('grok', one.texts[0])[0] as { body: string }).body).toBe('answer one')
+      // Far below the file: the 2 MB padding turn is not touched by fetching turn one
+      expect(one.bytesRead).toBeLessThan(2000)
+      expect(statSync(file).size).toBeGreaterThan(2 * 1024 * 1024)
+    })
+  })
+
+  test('a spawn dispatch is a sub block: name from subagent_spawned, result from the in-turn finished record, not its own tool update', () => {
+    const raw = [
+      gline(100, {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'sp1',
+        title: 'spawn_subagent',
+        rawInput: { description: 'Research task', prompt: 'Investigate X thoroughly' }
+      }),
+      gline(100, {
+        sessionUpdate: 'subagent_spawned',
+        subagent_id: 'child-1',
+        child_session_id: 'child-1',
+        subagent_type: 'general-purpose',
+        description: 'Research task'
+      }),
+      gline(100, {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'sp1',
+        status: 'completed',
+        content: [{ type: 'content', content: { type: 'text', text: 'Subagent started in background.\nsubagent_id: child-1' } }]
+      }),
+      gline(300, {
+        sessionUpdate: 'subagent_finished',
+        subagent_id: 'child-1',
+        child_session_id: 'child-1',
+        status: 'completed',
+        tool_calls: 7,
+        turns: 1,
+        output: 'The research result body'
+      })
+    ].join('\n')
+    const blocks = turnBlocksFromText('grok', raw)
+    expect(blocks.map((b) => b.kind)).toEqual(['sub'])
+    const sub = blocks[0] as { name: string | null; prompt: string; result: string | null; unlinked: boolean; steps: unknown[] }
+    expect(sub.name).toBe('general-purpose')
+    expect(sub.prompt).toBe('Investigate X thoroughly')
+    expect(sub.result, 'the result is the finished record\'s output, never the "started in background" tool echo').toBe('The research result body')
+    expect(sub.unlinked).toBe(true)
+    expect(sub.steps).toEqual([])
+  })
+
+  test('enumerated state records leave no trace; an unknown update type does; an injected user notice renders nothing', () => {
+    const raw = [
+      gline(100, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'hello' } }),
+      gline(100, { sessionUpdate: 'plan', entries: [] }),
+      gline(100, { sessionUpdate: 'session_recap', text: 'x' }),
+      gline(100, { sessionUpdate: 'retry_state', attempt: 1 }),
+      gline(100, { sessionUpdate: 'task_completed', id: 't' }),
+      gline(100, { sessionUpdate: 'task_backgrounded', id: 't' }),
+      gline(100, { sessionUpdate: 'auto_compact_started' }),
+      gline(100, { sessionUpdate: 'auto_compact_completed' }),
+      gline(100, { sessionUpdate: 'compaction_checkpoint' }),
+      gline(100, { sessionUpdate: 'turn_completed', usage: {} }),
+      gline(100, {
+        sessionUpdate: 'user_message_chunk',
+        content: { type: 'text', text: '<system-reminder>\nBackground task finished.\n</system-reminder>' },
+        _meta: { promptIndex: 3 }
+      }),
+      gline(100, { sessionUpdate: 'brand_new_thing', payload: 1 })
+    ].join('\n')
+    const blocks = turnBlocksFromText('grok', raw)
+    expect(blocks.map((b) => b.kind)).toEqual(['text', 'unknown'])
+    const unknown = blocks[1] as { types: string[]; count: number }
+    expect(unknown.types).toEqual(['update/brand_new_thing'])
+    expect(unknown.count).toBe(1)
   })
 })

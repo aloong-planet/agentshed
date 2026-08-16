@@ -17,7 +17,7 @@ import { mergeKey } from '@shared/path-key'
 import { providerOf } from '@shared/provider'
 import { scan } from './providers/scan'
 import { readRanges } from './providers/range-read'
-import { questionTextAt } from './providers/question-index'
+import { grokQuestionTextFromSlice, questionTextAt } from './providers/question-index'
 import { turnBlocksFromText } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
 import { readProjectDetail } from './providers/project-detail'
@@ -236,11 +236,17 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     // A single bad line only hurts itself: that entry shows a placeholder without affecting the other
     // questions or dragging down the page
     let text: string | null = null
-    try {
-      const obj: unknown = JSON.parse(texts[idx].trim())
-      if (typeof obj === 'object' && obj !== null) text = questionTextAt(q.side, obj as Record<string, unknown>)
-    } catch {
-      text = null
+    if (q.side === 'grok') {
+      // A Grok question's range can span several chunk lines (they concatenate raw), so the whole
+      // slice is derived at once rather than parsed as one line
+      text = grokQuestionTextFromSlice(texts[idx])
+    } else {
+      try {
+        const obj: unknown = JSON.parse(texts[idx].trim())
+        if (typeof obj === 'object' && obj !== null) text = questionTextAt(q.side, obj as Record<string, unknown>)
+      } catch {
+        text = null
+      }
     }
     // Unreadable means passing null: the wording belongs to the renderer (ticket 07), and the main
     // process emits no user-facing natural language
