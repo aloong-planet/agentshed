@@ -288,7 +288,7 @@ export const en: Locale = {
     staleTag: 'Stale',
   },
   token: {
-    totalCard: (note) => `Total usage (both sides${note ? ` · ${note}` : ''})`,
+    totalCard: (note) => `Total usage (all sides${note ? ` · ${note}` : ''})`,
     inOut: 'Input / Output',
     inOutNote: 'Listed per side in each side’s native terms',
     cacheCard: 'Of which cache (already counted in the total, ccusage convention)',

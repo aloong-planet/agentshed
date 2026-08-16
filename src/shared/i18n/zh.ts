@@ -360,7 +360,7 @@ export const zh = {
   },
   /** Token statistics and the trend chart (ticket 08) */
   token: {
-    totalCard: (note: string) => `累计总量(两侧合计${note ? ` · ${note}` : ''})`,
+    totalCard: (note: string) => `累计总量(各侧合计${note ? ` · ${note}` : ''})`,
     inOut: '输入 / 输出',
     inOutNote: '各侧原生口径分列',
     cacheCard: '其中 cache(ccusage 口径已计入总量)',

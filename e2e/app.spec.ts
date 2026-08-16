@@ -2444,6 +2444,103 @@ for (const mount of TREND_MOUNTS) {
   })
 }
 
+// Ticket grok-side/#124 (spec D1a): a side newly in use has volume only on recent days, and its
+// share of a shared-scale bar is thin. Both single-side answers are asserted geometrically: the
+// thin xAI segment measures a real height in combined mode rather than disappearing, and Grok mode
+// labels only its own data days under D6.
+test('a newly adopted side: the thin xAI segment survives, and Grok mode labels only its data days', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gktrend-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  // Claude: heavy volume on three days — the shared scale is what makes grok's segment thin
+  const enc = proj.replace(/[^a-zA-Z0-9]/g, '-')
+  const cdir = join(home, '.claude', 'projects', enc)
+  mkdirSync(cdir, { recursive: true })
+  const cUsage = (at: Date, inTok: number): string =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: at.toISOString(),
+      message: {
+        model: 'claude-fable-5',
+        usage: { input_tokens: inTok, output_tokens: 100, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
+      }
+    })
+  writeFileSync(
+    join(cdir, 'a.jsonl'),
+    [
+      JSON.stringify({ type: 'user', timestamp: localDayOffset(3).toISOString(), message: { role: 'user', content: 'Q' } }),
+      cUsage(localDayOffset(3), 100_000),
+      cUsage(localDayOffset(1), 100_000),
+      cUsage(localDayOffset(0), 100_000)
+    ].join('\n') + '\n'
+  )
+  // Grok: registered, with small turns on two of the days (the real update-stream shape)
+  mkdirSync(join(home, '.grok'), { recursive: true })
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${proj}"]\ntrusted = true\n`)
+  const gdir = join(home, '.grok', 'sessions', encodeURIComponent(proj), '019f-e2e-trend')
+  mkdirSync(gdir, { recursive: true })
+  writeFileSync(join(gdir, 'summary.json'), JSON.stringify({ info: { id: '019f-e2e-trend', cwd: proj } }))
+  const gTurn = (at: Date, input: number, output: number): string =>
+    JSON.stringify({
+      timestamp: Math.floor(at.getTime() / 1000),
+      method: '_x.ai/session/update',
+      params: {
+        sessionId: '019f-e2e-trend',
+        update: {
+          sessionUpdate: 'turn_completed',
+          prompt_id: 'p',
+          stop_reason: 'end_turn',
+          usage: {
+            inputTokens: input,
+            outputTokens: output,
+            totalTokens: input + output,
+            cachedReadTokens: 0,
+            cacheCreationTokens: 0,
+            costUsdTicks: 1234567,
+            modelUsage: {
+              'grok-4.5-build': { inputTokens: input, outputTokens: output, cachedReadTokens: 0, cacheCreationTokens: 0, costUsdTicks: 1234567 }
+            }
+          }
+        }
+      }
+    })
+  writeFileSync(
+    join(gdir, 'updates.jsonl'),
+    [gTurn(localDayOffset(2), 2000, 500), gTurn(localDayOffset(0), 1500, 300)].join('\n') + '\n'
+  )
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Token' }).click()
+  await expect(win.locator('.chart .col').first()).toBeVisible()
+
+  // The totals subtitle names all three sides — the cross-project total includes the new one
+  await expect(win.locator('.pane-body .stats .stat .s').first()).toContainText('Grok')
+
+  // Combined mode: the xAI segments exist on grok's two days and measure a real height at this
+  // scale. The thinness is asserted too — a case where the segment happened to be tall would prove
+  // nothing about the disappearing-thin-segment failure D1a names.
+  const xaiHeights = await win
+    .locator('.chart .sp.xai')
+    .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height))
+  expect(xaiHeights.length).toBe(2)
+  for (const h of xaiHeights) expect(h).toBeGreaterThan(0)
+  expect(Math.max(...xaiHeights), 'the fixture must actually produce the thin case').toBeLessThan(10)
+
+  // The legend lists xAI only because it appears in the window
+  await expect(win.locator('.legend')).toContainText('xAI')
+
+  // Grok mode: only that side's volume, so only its two data days carry segments and axis labels
+  await win.locator('.grp-t .seg button', { hasText: 'Grok' }).click()
+  await expect(win.locator('.chart .col .sp')).toHaveCount(2)
+  expect(await win.locator('.chart .col .sp.xai').count()).toBe(2)
+  await expect(win.locator('.xaxis span')).toHaveCount(2)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // Ticket session-view/03b: the fork and uncertain-strip markers
 test('the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip"', async () => {
   const l = await launch(undefined, mkForkHome())

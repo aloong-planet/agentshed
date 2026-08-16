@@ -178,6 +178,66 @@ function mkCodexFork(
   return f
 }
 
+interface GrokTurnUsage {
+  input: number
+  cached?: number
+  output: number
+  cacheCreation?: number
+  model?: string
+  /** Override the modelUsage map (multi-model turns); null omits it entirely */
+  modelUsage?: Record<string, { input: number; cached?: number; output: number; cacheCreation?: number }> | null
+}
+/**
+ * A Grok turn_completed line (the measured shape, 2026-08-16): an epoch-**second** timestamp at the
+ * top level, the usage under params.update, carrying costUsdTicks and a modelUsage map keyed by the
+ * **billed** model name. The cost figure is deliberately present in every fixture line — F4 is
+ * "neither read nor archived", which a fixture without the field could not test.
+ */
+function grokTurn(tsSec: number, u: GrokTurnUsage): string {
+  const fields = (x: { input: number; cached?: number; output: number; cacheCreation?: number }): Record<string, number> => ({
+    inputTokens: x.input,
+    outputTokens: x.output,
+    totalTokens: x.input + x.output,
+    cachedReadTokens: x.cached ?? 0,
+    cacheCreationTokens: x.cacheCreation ?? 0,
+    reasoningTokens: 0,
+    modelCalls: 1,
+    apiDurationMs: 1000,
+    costUsdTicks: 1761648000
+  })
+  const mu =
+    u.modelUsage === null
+      ? undefined
+      : u.modelUsage
+        ? Object.fromEntries(Object.entries(u.modelUsage).map(([m, x]) => [m, fields(x)]))
+        : { [u.model ?? 'grok-4.5-build']: fields(u) }
+  return JSON.stringify({
+    timestamp: tsSec,
+    method: '_x.ai/session/update',
+    params: {
+      sessionId: 's',
+      update: {
+        sessionUpdate: 'turn_completed',
+        prompt_id: 'p',
+        stop_reason: 'end_turn',
+        usage: { ...fields(u), ...(mu ? { modelUsage: mu } : {}), numTurns: 1 }
+      }
+    }
+  })
+}
+/** A Grok session directory (the real layout): summary.json names a summary-level model that is NOT
+ * the billed name, so a per-model case can tell the two apart (F3) */
+function mkGrokSession(cwd: string, id: string, lines: string[], opts: { subagent?: boolean } = {}): string {
+  const d = join(dir, '.grok', 'sessions', encodeURIComponent(cwd), id)
+  mkdirSync(d, { recursive: true })
+  const summary: Record<string, unknown> = { info: { id, cwd }, current_model_id: 'grok-4.5' }
+  if (opts.subagent) summary['session_kind'] = 'subagent'
+  writeFileSync(join(d, 'summary.json'), JSON.stringify(summary))
+  const f = join(d, 'updates.jsonl')
+  writeFileSync(f, lines.join('\n') + '\n')
+  return f
+}
+
 function writeIndex(entries: Array<{ id: string; name: string }>): void {
   mkdirSync(join(dir, '.codex'), { recursive: true })
   writeFileSync(
@@ -348,7 +408,7 @@ describe('Codex aggregation (the ccusage rules)', () => {
       { input: 200, cached: 0, output: 0, at: '2026-07-30T12:00:00Z' }
     ])
     const r = await engine().build(roots(), [proj])
-    const byDay = Object.fromEntries(r.global.byDay.map((d) => [d.day, d.codex]))
+    const byDay = Object.fromEntries(r.global.byDay.map((d) => [d.day, d.bySide.codex]))
     expect(Object.keys(byDay).length).toBe(2)
     expect(Object.values(byDay).reduce((a, b) => a + b, 0)).toBe(300)
   })
@@ -378,6 +438,143 @@ describe('Codex aggregation (the ccusage rules)', () => {
 // and were unified to "the largest timestamp in the file" = last activity. The Codex side especially — a
 // fork session's first
 // timestamp is the replay moment, which as an activity time is neither the start nor the end.
+describe('Grok aggregation (sequence F)', () => {
+  it('per-turn usage from the authoritative stream; the total follows the Codex shape, not the Claude one (F1/F2)', async () => {
+    // Reported input 1000 ALREADY includes the 600 cached reads (measured on real data:
+    // inputTokens ⊇ cachedReadTokens), plus 50 of cache creation
+    mkGrokSession(proj, '019f-f2', [
+      grokTurn(1786088656, { input: 1000, cached: 600, output: 200, cacheCreation: 50 })
+    ])
+    const r = await engine().build(roots(), [proj])
+    const g = r.global.bySide.grok
+    // total = input + output + cache creation. Copying the Claude four-field sum would give 1850
+    // (double-counting the cache), so that mistake turns this case red.
+    expect(g.total).toBe(1250)
+    expect(g.input).toBe(400) // sanitised: reported input minus cached
+    expect(g.cacheRead).toBe(600)
+    expect(g.output).toBe(200)
+    expect(g.cacheWrite).toBe(50)
+    const p = r.perProject.get(proj.toLowerCase())
+    expect(p?.tokens.bySide.grok.total).toBe(1250)
+  })
+})
+
+describe('Grok aggregation (sequence F, continued)', () => {
+  it('the per-model split uses the billed name from the usage record, not the summary name (F3)', async () => {
+    // The fixture's summary.json names grok-4.5 (mkGrokSession writes current_model_id), matching
+    // the real divergence measured 2026-08-16: the billed name is grok-4.5-build
+    mkGrokSession(proj, '019f-f3', [
+      grokTurn(1786088656, { input: 100, output: 10, model: 'grok-4.5-build' }),
+      // A turn whose map bills two models → two buckets out of one turn
+      grokTurn(1786088656, {
+        input: 0,
+        output: 0,
+        modelUsage: {
+          'grok-4.5-build': { input: 50, output: 5 },
+          'grok-4.6-build': { input: 30, output: 3 }
+        }
+      })
+    ])
+    const r = await engine().build(roots(), [proj])
+    const models = Object.fromEntries(
+      r.global.byModel.filter((m) => m.side === 'grok').map((m) => [m.model, m.total])
+    )
+    expect(models['grok-4.5-build']).toBe(110 + 55)
+    expect(models['grok-4.6-build']).toBe(33)
+    expect(models['grok-4.5'], 'the summary name must never enter a bucket').toBeUndefined()
+  })
+
+  it('sessions spanning midnight are apportioned by each turn\'s own timestamp (F7)', async () => {
+    const t0 = 1786088656
+    mkGrokSession(proj, '019f-f7', [
+      grokTurn(t0, { input: 100, output: 0 }),
+      grokTurn(t0 + 86_400, { input: 200, output: 0 }) // 24h later crosses a boundary in any zone
+    ])
+    const r = await engine().build(roots(), [proj])
+    const byDay = Object.fromEntries(r.global.byDay.map((d) => [d.day, d.bySide.grok]))
+    expect(Object.keys(byDay).length).toBe(2)
+    expect(Object.values(byDay).reduce((a, b) => a + b, 0)).toBe(300)
+  })
+
+  it('the cost figure is neither read nor archived (F4)', async () => {
+    // Every grokTurn fixture line deliberately carries costUsdTicks — a fixture without the field
+    // could not test that it is left behind
+    mkGrokSession(proj, '019f-f4', [grokTurn(1786088656, { input: 100, output: 10 })])
+    const r = await engine().build(roots(), [proj])
+    expect(r.rows.length).toBeGreaterThan(0)
+    for (const row of r.rows) {
+      expect(Object.keys(row).some((k) => /cost/i.test(k))).toBe(false)
+    }
+    // The per-file cache is the other archived form: the raw figure must not survive into it either
+    const cacheRaw = readFileSync(join(dir, 'cache', 'token-cache.json'), 'utf8')
+    expect(cacheRaw.includes('costUsdTicks')).toBe(false)
+    expect(/cost/i.test(cacheRaw)).toBe(false)
+  })
+
+  it('a subagent session beside its parent counts toward statistics and produces no session entry (F5)', async () => {
+    mkGrokSession(proj, '019f-par5', [grokTurn(1786088656, { input: 100, output: 0 })])
+    mkGrokSession(proj, '019f-sub5', [grokTurn(1786088656, { input: 50, output: 0 })], {
+      subagent: true
+    })
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.grok.total).toBe(150)
+    const p = r.perProject.get(proj.toLowerCase())
+    expect(p?.sessions.filter((s) => s.side === 'grok')).toEqual([])
+  })
+
+  it('a session directory missing its update stream contributes nothing and does not abort its siblings (F6)', async () => {
+    mkGrokSession(proj, '019f-whole6', [grokTurn(1786088656, { input: 100, output: 0 })])
+    mkdirSync(join(dir, '.grok', 'sessions', encodeURIComponent(proj), '019f-hollow6'), {
+      recursive: true
+    })
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.grok.total).toBe(100)
+  })
+
+  it('two sides with volume on the same day stay keyed apart (a per-side keying mistake is invisible while only one side has data)', async () => {
+    mkCodexRollout('rollout-side9-019f902.jsonl', proj, '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 0, output: 0, at: '2026-07-29T12:00:00Z' }
+    ])
+    mkGrokSession(proj, '019f-sameday', [
+      grokTurn(Date.parse('2026-07-29T12:00:00Z') / 1000, { input: 40, output: 0 })
+    ])
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.byDay.length).toBe(1)
+    expect(r.global.byDay[0].bySide.codex).toBe(100)
+    expect(r.global.byDay[0].bySide.grok).toBe(40)
+    expect(r.global.byDay[0].bySide.claude).toBe(0)
+  })
+
+  it('an empty usage and a usageIsIncomplete record are both tolerated (both measured in real data)', async () => {
+    const line = (usage: Record<string, unknown>): string =>
+      JSON.stringify({
+        timestamp: 1786088656,
+        method: '_x.ai/session/update',
+        params: {
+          sessionId: 's',
+          update: { sessionUpdate: 'turn_completed', prompt_id: 'p', stop_reason: 'end_turn', usage }
+        }
+      })
+    mkGrokSession(proj, '019f-variants', [
+      grokTurn(1786088656, { input: 100, output: 10 }),
+      line({}), // the empty-usage turn: contributes nothing, breaks nothing
+      line({
+        inputTokens: 20,
+        outputTokens: 2,
+        totalTokens: 22,
+        cachedReadTokens: 0,
+        cacheCreationTokens: 0,
+        usageIsIncomplete: true,
+        modelUsage: {
+          'grok-4.5-build': { inputTokens: 20, outputTokens: 2, cachedReadTokens: 0, cacheCreationTokens: 0 }
+        }
+      })
+    ])
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.grok.total).toBe(110 + 22)
+  })
+})
+
 describe('a session\'s at = the largest timestamp in the file (the same meaning on both sides)', () => {
   it('a Codex session spanning midnight takes the last turn\'s timestamp, not the first line\'s', async () => {
     mkCodexRollout('rollout-at-019fb01.jsonl', proj, '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
@@ -512,6 +709,41 @@ describe('cache version migration (a real bug regression)', () => {
     // No crash, and the number comes from the recomputation (35) rather than the old cache (999)
     expect(r.global.bySide.codex.total).toBe(35)
     expect(r.global.bySide.claude.total).toBe(15)
+  })
+
+  it('an old cache predating the grok variant does not crash, and grok data on disk is computed fresh', async () => {
+    // The cache below has no idea grok exists (its version predates the variant); the session on
+    // disk must still be metered — the extension of the case above to the new shape (#124)
+    mkGrokSession(proj, '019f-oldcache', [grokTurn(1786088656, { input: 100, output: 10 })])
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    writeFileSync(
+      join(dir, 'cache', 'token-cache.json'),
+      JSON.stringify({ version: CACHE_VERSION - 1, files: {} })
+    )
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.grok.total).toBe(110)
+  })
+
+  it('a same-version grok entry missing subagent → recompute that file only (isWellFormedAgg)', async () => {
+    const f = mkGrokSession(proj, '019f-guard', [grokTurn(1786088656, { input: 100, output: 10 })])
+    const st = statSync(f)
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    writeFileSync(
+      join(dir, 'cache', 'token-cache.json'),
+      JSON.stringify({
+        version: CACHE_VERSION, // same version: only the shape guard can catch it
+        files: {
+          [f]: {
+            sig: `${st.mtimeMs}:${st.size}`,
+            // Everything else valid; only subagent missing — an undefined subagent would silently
+            // list a subagent session once the session-view ticket starts reading it
+            agg: { kind: 'grok', file: f, projectKey: proj.toLowerCase(), questions: [], events: [[1786088656000, 999, 0, 0, 0, 'grok-4.5-build']] }
+          }
+        }
+      })
+    )
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.grok.total, 'the malformed entry must be recomputed, not reused').toBe(110)
   })
 
   // A defence against a false green: when what changed is "how a field is computed" rather than the

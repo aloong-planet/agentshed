@@ -28,7 +28,7 @@ describe.skipIf(!run)('ccusage reconciliation', () => {
     const r = await new TokenEngine(cacheDir).build(roots, projects)
     rmSync(cacheDir, { recursive: true, force: true })
 
-    const mine = new Map(r.global.byDay.map((d) => [d.day, d.claude]))
+    const mine = new Map(r.global.byDay.map((d) => [d.day, d.bySide.claude]))
     const theirs = new Map<string, number>()
     for (const row of ref.daily as any[]) {
       const cl = (row.agents ?? []).find((a: any) => a.agent === 'claude')
@@ -51,7 +51,7 @@ describe.skipIf(!run)('ccusage reconciliation', () => {
     expect(diffs).toEqual([])
 
     // The same reconciliation on the Codex side
-    const cxMine = new Map(r.global.byDay.map((d) => [d.day, d.codex]))
+    const cxMine = new Map(r.global.byDay.map((d) => [d.day, d.bySide.codex]))
     const cxTheirs = new Map<string, number>()
     for (const row of ref.daily as any[]) {
       const cx = (row.agents ?? []).find((a: any) => a.agent === 'codex')

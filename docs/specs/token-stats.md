@@ -70,6 +70,10 @@ next to A/B, so that no existing reference is renumbered)
 - F3 The model is taken from the per-turn usage record's own model key, which names the model that was
   actually billed. This is **exact**, unlike the Codex approximation, and it can differ from the model
   the session summary names — the billed name wins, and is not normalised into the summary's name.
+  A record without the per-model map falls back to its top-level figures with no model bucket (the
+  same rule as a Claude synthetic model: the tokens count, no bucket). The record shapes were grounded
+  by full enumeration (224 records, 2026-08-16): two variants exist — an empty usage object, and one
+  flagged incomplete without a cost figure — and both parse as what they report.
 - F4 A turn record carries a cost figure. It is **neither read nor archived** (ADR-0019): a metric
   present on one side of a three-side comparison reads as breakage on the other two.
 - F5 Subagent sessions are stored beside their parents, with the parent holding only a pointer; the
@@ -172,7 +176,11 @@ only one side has data; pure functions (trend/axis/provider) get their own
 unit tests covering the geometric constraints of segmentation and axis layout; e2e covers that an
 old-format cache does not crash at startup and the geometric checks on the trend chart's rendering
 (labels do not overlap, tooltips are not clipped). The reconciliation baseline: the day-by-day ccusage
-comparison test. Automatic refresh (sequence E): the focus throttle judgement is a pure function with
+comparison test — which covers the Claude and Codex sides only, since ccusage has no Grok support.
+The Grok side has no standing external baseline; its accounting was reconciled once at review time
+(2026-08-16, an independent sum over the raw update streams matched the engine exactly), and the
+gap is recorded here rather than papered over: should a third-party meter for Grok appear, it slots
+in where ccusage already does. Automatic refresh (sequence E): the focus throttle judgement is a pure function with
 unit tests; e2e drives the whole chain with a short interval injected — after appending session data
 it appears without a manual refresh, and an open detail page's section local state is preserved. Focus
 events are semantically unreliable under a hidden-window test regime (noted in the existing e2e

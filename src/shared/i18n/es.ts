@@ -286,7 +286,7 @@ export const es: Locale = {
     staleTag: 'Obsoleto',
   },
   token: {
-    totalCard: (note) => `Total acumulado (ambos lados${note ? ` · ${note}` : ''})`,
+    totalCard: (note) => `Total acumulado (todos los lados${note ? ` · ${note}` : ''})`,
     inOut: 'Entrada / Salida',
     inOutNote: 'Desglosado por lado, según los criterios propios de cada uno',
     cacheCard: 'De los cuales caché (ya incluida en el total, criterio ccusage)',

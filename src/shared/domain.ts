@@ -272,9 +272,15 @@ export interface ModelUsage {
 /** Daily usage (local time zone) */
 export interface DayUsage {
   day: string
-  /** By agent side (for the single-side filter) */
-  claude: number
-  codex: number
+  /**
+   * By agent side (for the single-side filter), keyed by side (ADR-0020): a **total** Record, so
+   * the moment AgentSide grows, typecheck enumerates every producer and consumer that has to
+   * answer for the new member. Producers write an explicit zero for a side with no volume — unlike
+   * `byProvider` below, where absence is meaningful (no segment), a side is a closed enumeration
+   * whose filter control exists whether or not it has volume, so absence could only mean "the
+   * producer forgot".
+   */
+  bySide: Record<AgentSide, number>
   /**
    * Broken down by provider (the model vendor) — the basis for the trend bars' segmentation.
    *
@@ -465,6 +471,12 @@ export interface ProjectStats {
 
 export function emptyTotals(): TokenTotals {
   return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
+}
+
+/** A DayUsage.bySide with every side's explicit zero (ADR-0020: producers write zeros they do not
+ * otherwise mean — the price of letting the compiler enforce completeness) */
+export function zeroBySide(): Record<AgentSide, number> {
+  return { claude: 0, codex: 0, grok: 0 }
 }
 
 export function emptyTokenStats(): TokenStats {
