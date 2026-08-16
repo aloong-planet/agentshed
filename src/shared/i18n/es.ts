@@ -81,7 +81,7 @@ export const es: Locale = {
 
   shell: {
     pickProject: 'Selecciona un proyecto para ver su detalle',
-    scanning: 'Escaneando Claude Code / Codex… (no se muestra una lista vacía hasta que termine)'
+    scanning: 'Escaneando los lados de agente… (no se muestra una lista vacía hasta que termine)'
   },
   skills: {
     searchPlaceholder: 'Buscar skills…',

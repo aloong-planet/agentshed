@@ -79,7 +79,7 @@ export const ja: Locale = {
 
   shell: {
     pickProject: 'プロジェクトを選択すると詳細が表示されます',
-    scanning: 'Claude Code / Codex をスキャン中…（完了するまで空のリストは表示しません）'
+    scanning: '各エージェントサイドをスキャン中…（完了するまで空のリストは表示しません）'
   },
   skills: {
     searchPlaceholder: 'skill を検索…',

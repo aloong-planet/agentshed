@@ -125,7 +125,7 @@ export const zh = {
   /** The application shell (ticket 11) */
   shell: {
     pickProject: '选择一个项目查看详情',
-    scanning: '正在扫描 Claude Code / Codex…(扫描完成前不显示空列表)'
+    scanning: '正在扫描各 agent 侧…(扫描完成前不显示空列表)'
   },
   /** Skills package preview and the file drawer (ticket 10) */
   skills: {
