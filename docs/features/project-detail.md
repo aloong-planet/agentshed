@@ -26,7 +26,7 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
   by type chips; the chips are ordered by the top-down derivation chain (CONTEXT.md → ADR → specs →
   prototypes → features → postmortems); markdown opens in an overlay for reading, and prototypes'
   HTML opens with the system default application
-- Sessions: this project's sessions on both agent sides, with sorting and search, opening to the full
+- Sessions: this project's sessions on every agent side, with sorting and search, opening to the full
   conversation (see [Session view](session-view.md))
 - A stale project's detail page still opens: project-level content shows empty states and the global
   layer behaves as usual
