@@ -223,6 +223,52 @@ const GLOBAL_RULES = [
     }
   },
   {
+    // ADR-0021: one colour per agent side, and the value inevitably exists in more than one file —
+    // theme.css's --p-* variables (the source) and the project-list prototype's hard-coded .dot
+    // swatches (a standalone HTML file cannot read the app's variables). This is the executable
+    // assertion ADR-0021's consequences called for: the copies cannot drift apart silently.
+    name: 'side colours have one source: the prototype dot swatches match theme.css --p-* letter for letter (ADR-0021)',
+    cross: true,
+    check() {
+      const bad = []
+      const css = read('src/renderer/src/theme.css')
+      const proto = read('docs/prototypes/project-list/prototype-list.html')
+      if (css === null) return ['cannot read src/renderer/src/theme.css']
+      if (proto === null) return ['cannot read docs/prototypes/project-list/prototype-list.html']
+      const SIDES = [
+        ['claude', 'p-anthropic', 'c'],
+        ['codex', 'p-openai', 'x'],
+        ['grok', 'p-xai', 'g']
+      ]
+      const cssParts = splitByColorScheme(stripCssComments(css))
+      const protoParts = splitByColorScheme(stripCssComments(proto))
+      for (const [mode, cssPart, protoPart] of [
+        ['light', cssParts.light, protoParts.light],
+        ['dark', cssParts.dark, protoParts.dark]
+      ]) {
+        for (const [side, varName, dotClass] of SIDES) {
+          const want = cssPart.match(new RegExp(`--${varName}:\\s*([^;]+);`))?.[1].trim().toLowerCase()
+          const got = protoPart
+            .match(new RegExp(`\\.dot\\.${dotClass}\\s*\\{\\s*background:\\s*([^};]+)`))?.[1]
+            .trim()
+            .toLowerCase()
+          if (!want) {
+            bad.push(`theme.css: --${varName} not found in the ${mode} block`)
+            continue
+          }
+          if (!got) {
+            bad.push(`prototype-list.html: .dot.${dotClass} not found in the ${mode} block`)
+            continue
+          }
+          if (want !== got) {
+            bad.push(`${side} (${mode}): theme.css --${varName}=${want} ≠ prototype .dot.${dotClass}=${got}`)
+          }
+        }
+      }
+      return bad
+    }
+  },
+  {
     name: 'provider brand colours must not be hard-coded in components (use CSS variables)',
     cross: true,
     check() {
