@@ -13,8 +13,7 @@ const day = (
   byProvider?: DayUsage['byProvider']
 ): DayUsage => ({
   day: d,
-  claude,
-  codex,
+  bySide: { claude, codex, grok: 0 },
   byProvider: byProvider ?? { Anthropic: claude, OpenAI: codex }
 })
 /** Take the anchor day's local day key, so the run's time zone does not affect it */
@@ -77,7 +76,7 @@ describe('buildTrendBars', () => {
     // written as a literal — the point is the pipeline, not the name.
     const key = providerOf('llama-4-70b')
     const bars = buildTrendBars(
-      [{ day: today, claude: 0, codex: 0, byProvider: { [key]: 42 } }],
+      [{ day: today, bySide: { claude: 0, codex: 0, grok: 0 }, byProvider: { [key]: 42 } }],
       anchor,
       'total',
       []

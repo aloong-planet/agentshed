@@ -348,7 +348,7 @@ describe('Codex aggregation (the ccusage rules)', () => {
       { input: 200, cached: 0, output: 0, at: '2026-07-30T12:00:00Z' }
     ])
     const r = await engine().build(roots(), [proj])
-    const byDay = Object.fromEntries(r.global.byDay.map((d) => [d.day, d.codex]))
+    const byDay = Object.fromEntries(r.global.byDay.map((d) => [d.day, d.bySide.codex]))
     expect(Object.keys(byDay).length).toBe(2)
     expect(Object.values(byDay).reduce((a, b) => a + b, 0)).toBe(300)
   })

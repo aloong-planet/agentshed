@@ -26,7 +26,7 @@ import type {
   TokenStats,
   TokenTotals
 } from '@shared/domain'
-import { emptyTokenStats, emptyTotals } from '@shared/domain'
+import { emptyTokenStats, emptyTotals, zeroBySide } from '@shared/domain'
 import { mergeKey } from '@shared/path-key'
 import { ERR, appError } from '@shared/errors'
 import { providerOf } from '@shared/provider'
@@ -537,23 +537,20 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     if (found) found.total += v
     else stats.byModel.push({ model, side, total: v })
   }
-  // Excluding 'grok' is a deliberate tripwire, not an oversight: DayUsage still carries one literal
-  // field per side, and ADR-0020's bySide restructure lands with the Grok metering ticket — the
-  // compile error there will point at exactly this spot.
-  const addDay = (stats: TokenStats, side: Exclude<AgentSide, 'grok'>, day: string, v: number, model: string): void => {
+  const addDay = (stats: TokenStats, side: AgentSide, day: string, v: number, model: string): void => {
     const prov = providerOf(model)
     let found = stats.byDay.find((d) => d.day === day)
     if (!found) {
-      found = { day, claude: 0, codex: 0, byProvider: {} }
+      found = { day, bySide: zeroBySide(), byProvider: {} }
       stats.byDay.push(found)
     }
-    found[side] += v
+    found.bySide[side] += v
     found.byProvider[prov] = (found.byProvider[prov] ?? 0) + v
   }
-  const addGlobalDay = (day: string, side: Exclude<AgentSide, 'grok'>, v: number, model: string): void => {
+  const addGlobalDay = (day: string, side: AgentSide, v: number, model: string): void => {
     const prov = providerOf(model)
-    const d = globalDays.get(day) ?? { claude: 0, codex: 0, byProvider: {} }
-    d[side] += v
+    const d = globalDays.get(day) ?? { bySide: zeroBySide(), byProvider: {} }
+    d.bySide[side] += v
     d.byProvider[prov] = (d.byProvider[prov] ?? 0) + v
     globalDays.set(day, d)
   }

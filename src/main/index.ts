@@ -11,6 +11,7 @@ import {
   type ListSkillFilesResult
 } from '@shared/ipc'
 import type { CappedText, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
+import { zeroBySide } from '@shared/domain'
 import { assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { providerOf } from '@shared/provider'
@@ -143,12 +144,8 @@ async function doScan(): Promise<Snapshot> {
             const byDay = new Map(snap.tokens.byDay.map((d) => [d.day, d]))
             for (const r of archive.rows()) {
               if (!set.has(r.day)) continue
-              const d = byDay.get(r.day) ?? { day: r.day, claude: 0, codex: 0, byProvider: {} }
-              // DayUsage still carries one literal field per side; ADR-0020's bySide restructure
-              // lands with the Grok metering ticket, and until then nothing writes a grok archive
-              // row — this skip is compile honesty, not a live branch.
-              if (r.side === 'grok') continue
-              d[r.side] += r.total
+              const d = byDay.get(r.day) ?? { day: r.day, bySide: zeroBySide(), byProvider: {} }
+              d.bySide[r.side] += r.total
               const prov = providerOf(r.model)
               d.byProvider[prov] = (d.byProvider[prov] ?? 0) + r.total
               byDay.set(r.day, d)

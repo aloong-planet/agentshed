@@ -2,7 +2,7 @@
 // in combined mode each bar stacks by agent side (Claude below, Codex above), and single-side mode
 // degenerates to one segment.
 // A zero value produces no empty segment; the window is a fixed last 30 days, cut by local time zone.
-import type { DayUsage } from './domain'
+import type { AgentSide, DayUsage } from './domain'
 import { PROVIDER_ORDER, type Provider } from './provider'
 
 /** The values are language-independent identifiers; for the UI text see TREND_MODE_LABEL */
@@ -17,6 +17,20 @@ export const TREND_MODE_LABEL: Record<TrendMode, string | null> = {
   total: null,
   Claude: 'Claude',
   Codex: 'Codex'
+}
+
+/** Which side each single-side mode reads (typecheck-complete over the non-total modes) */
+const MODE_SIDE: Record<Exclude<TrendMode, 'total'>, AgentSide> = {
+  Claude: 'claude',
+  Codex: 'codex'
+}
+
+/** A side's primary provider, for the degenerate single-segment colour (ADR-0021: the side's
+ * identifying colour is its provider colour) */
+const SIDE_PRIMARY_PROVIDER: Record<AgentSide, Provider> = {
+  claude: 'Anthropic',
+  codex: 'OpenAI',
+  grok: 'other'
 }
 
 export interface TrendSegment {
@@ -66,11 +80,12 @@ export function buildTrendBars(
         total += v
       }
     } else {
-      // Single-side filter: that side's total degenerates to one segment, with the provider taken as that
-      // side's primary provider
-      const v = mode === 'Claude' ? (row?.claude ?? 0) : (row?.codex ?? 0)
+      // Single-side filter: that side's total degenerates to one segment, with the provider taken as
+      // that side's primary provider (both maps are Records over the mode/side unions, so a new side
+      // is a compile error here rather than a silent zero)
+      const v = row?.bySide[MODE_SIDE[mode]] ?? 0
       total = v
-      if (v > 0) segments.push({ provider: mode === 'Claude' ? 'Anthropic' : 'OpenAI', value: v })
+      if (v > 0) segments.push({ provider: SIDE_PRIMARY_PROVIDER[MODE_SIDE[mode]], value: v })
     }
     bars.push({
       day,
