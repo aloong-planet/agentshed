@@ -1,9 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
 import type { Language } from '@shared/i18n'
 import { relativeDays } from '@shared/format'
 import { useDict, useLanguage } from './language'
-import { Search } from './icons'
+import { Bot, Search } from './icons'
+import { FloatingBox } from './FloatingBox'
+import { useAnchorInvalidation } from './useAnchorInvalidation'
+
+/**
+ * Side names in full — product names, identical in all six languages, so they live here rather than
+ * in the dictionaries (the same rule as PROVIDER_LABEL's proper nouns).
+ */
+const SIDE_NAME: Record<AgentSide, string> = { claude: 'Claude Code', codex: 'Codex', grok: 'Grok' }
+
+/** The gap between the count badge and the layer below it */
+const TIP_OFFSET = 6
 
 /**
  * Relative time (for display): today / yesterday / N days ago / N months ago, in the current language
@@ -114,13 +125,53 @@ function Row({
     >
       <span className="nm">{p.name}</span>
       {p.stale && <span className="stale-tag">{t.projects.staleTag}</span>}
-      <span className="meta">
-        {fmtAgo(lang, p.lastSessionAt, now)} · {p.sessionCount}
-      </span>
-      <span className="bdg">
-        {p.sides.includes('claude') && <span className="badge cl">CC</span>}
-        {p.sides.includes('codex') && <span className="badge cx">CX</span>}
-      </span>
+      <SideCount sides={p.sides} />
+      <span className="meta">{fmtAgo(lang, p.lastSessionAt, now)}</span>
     </div>
+  )
+}
+
+/**
+ * The row says **how many** sides use the directory; **which** ones is answered by this hover layer
+ * naming them in full (stories 1/1a) — the count is what the eye needs while scanning, and a count
+ * rather than one badge per side keeps the row's width independent of how many sides exist. The
+ * badge deliberately carries no side's colour: colouring a "how many" would read as a "which".
+ */
+function SideCount({ sides }: { sides: AgentSide[] }): JSX.Element {
+  const ref = useRef<HTMLSpanElement>(null)
+  const tipRef = useRef<HTMLDivElement | null>(null)
+  const [at, setAt] = useState<{ right: number; top: number } | null>(null)
+
+  // A glance, not an interaction: dismissed on any scroll but its own, and on resize (spec C6)
+  useAnchorInvalidation(at !== null, tipRef, { onResize: 'dismiss', dismiss: () => setAt(null) })
+
+  const reveal = (): void => {
+    const el = ref.current
+    if (el === null) return
+    const r = el.getBoundingClientRect()
+    // Right edges aligned (the badge sits near the row's right edge); anchoring by `right` needs no
+    // measurement of the layer's own width, so no second render to place it
+    setAt({ right: window.innerWidth - r.right, top: r.bottom + TIP_OFFSET })
+  }
+
+  return (
+    <>
+      <span className="cnt-b" ref={ref} onMouseEnter={reveal} onMouseLeave={() => setAt(null)}>
+        <Bot size={11} />
+        {sides.length}
+      </span>
+      {at !== null && (
+        // The padding overrides the surface's uniform 6px: a class rule cannot beat the surface's
+        // inline style, so the override rides the style prop FloatingBox applies last
+        <FloatingBox ref={tipRef} className="sides-tip" at={at} style={{ padding: '6px 9px' }}>
+          {sides.map((s) => (
+            <div className="st" key={s}>
+              <i className={`dot ${s}`} />
+              {SIDE_NAME[s]}
+            </div>
+          ))}
+        </FloatingBox>
+      )}
+    </>
   )
 }

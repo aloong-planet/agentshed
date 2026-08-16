@@ -449,6 +449,106 @@ test('switching to Projects: the sidebar shows its empty state when there are no
   await close(l)
 })
 
+/**
+ * Ticket grok-side/#123: a fixture home with one directory registered on all three sides and one on
+ * Claude alone — the pair the side-count badge and its hover layer need (3 against 1, so an
+ * assertion can tell "counted per row" from "always the same number").
+ */
+function mkThreeSideHome(): string {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-tri-'))
+  const tri = join(home, 'tri-proj')
+  const solo = join(home, 'solo-proj')
+  mkdirSync(tri, { recursive: true })
+  mkdirSync(solo, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [tri]: {}, [solo]: {} } }))
+  mkdirSync(join(home, '.codex'), { recursive: true })
+  writeFileSync(join(home, '.codex', 'config.toml'), `[projects."${tri}"]\ntrust_level = "trusted"\n`)
+  mkdirSync(join(home, '.grok'), { recursive: true })
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${tri}"]\ntrusted = true\n`)
+  return home
+}
+
+// Ticket grok-side/#123 (spec C6, stories 1/1a): the row carries how many sides use it as a single
+// count, and the sides themselves are named in full on hover. The hover layer sits over the clipped,
+// scrollable list, so its visibility is proved by hit-testing its own centre — a clipped layer
+// reports the same bounding box and loses exactly that (CONTEXT's floating-layer invariant).
+test('the project list row: a side-count badge, with hovering naming the sides in full', async () => {
+  const l = await launch(undefined, mkThreeSideHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  const rows = win.locator('.side .row')
+  await expect(rows).toHaveCount(2)
+
+  // One count per row rather than one badge per side; the old two-letter badges are gone from rows
+  const tri = win.locator('.side .row', { hasText: 'tri-proj' })
+  const solo = win.locator('.side .row', { hasText: 'solo-proj' })
+  await expect(tri.locator('.cnt-b')).toHaveText('3')
+  await expect(solo.locator('.cnt-b')).toHaveText('1')
+  await expect(win.locator('.side .row .badge')).toHaveCount(0)
+
+  // Hovering the count opens the layer naming the sides in full — names, not abbreviations
+  await tri.locator('.cnt-b').hover()
+  const tip = win.locator('.sides-tip')
+  await expect(tip).toHaveCount(1)
+  await expect(tip.locator('.st')).toHaveCount(3)
+  await expect(tip).toContainText('Claude Code')
+  await expect(tip).toContainText('Codex')
+  await expect(tip).toContainText('Grok')
+
+  const geo = await win.evaluate(() => {
+    const el = document.querySelector('.sides-tip') as HTMLElement
+    const r = el.getBoundingClientRect()
+    // pointer-events: none would let the hit test fall straight through, so lift it for the probe
+    const saved = el.style.pointerEvents
+    el.style.pointerEvents = 'auto'
+    const atCentre = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+    el.style.pointerEvents = saved
+    const dot = document.querySelector('.sides-tip .dot.grok') as HTMLElement
+    return {
+      // The decisive check: a clipped layer reports this same rect but loses this
+      centreBelongsToTip: atCentre !== null && el.contains(atCentre),
+      insideViewport: r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+      position: getComputedStyle(el).position,
+      pointerEvents: getComputedStyle(el).pointerEvents,
+      // An unwired CSS variable resolves to transparent — the exact value differs by appearance,
+      // but "has a colour at all" catches the wiring failure
+      grokDot: dot === null ? null : getComputedStyle(dot).backgroundColor
+    }
+  })
+  expect(geo.centreBelongsToTip).toBe(true)
+  expect(geo.insideViewport).toBe(true)
+  expect(geo.position).toBe('fixed') // what escapes the list's overflow clipping
+  expect(geo.pointerEvents).toBe('none') // a glance layer must not swallow the row's clicks
+  expect(geo.grokDot).not.toBeNull()
+  expect(geo.grokDot).not.toBe('rgba(0, 0, 0, 0)')
+
+  // The one-side row still explains itself on hover (a bare "1" is the case that needs the name most)
+  await win.mouse.move(5, 5)
+  await expect(tip).toHaveCount(0)
+  await solo.locator('.cnt-b').hover()
+  await expect(tip.locator('.st')).toHaveCount(1)
+  await expect(tip).toContainText('Claude Code')
+
+  // Glanced at rather than operated: any scroll but its own dismisses, and so does a resize.
+  // Events are dispatched rather than performed for real — a real resize moves the row out from
+  // under the pointer and the layer would close via mouseleave, passing whether or not the
+  // listener under test was ever attached.
+  const hoverTri = async (): Promise<void> => {
+    await win.mouse.move(5, 5)
+    await tri.locator('.cnt-b').hover()
+    await expect(tip).toHaveCount(1)
+  }
+  await hoverTri()
+  await win.locator('.side .list').evaluate((el) => el.dispatchEvent(new Event('scroll')))
+  await expect(tip).toHaveCount(0)
+  await hoverTri()
+  await win.evaluate(() => window.dispatchEvent(new Event('resize')))
+  await expect(tip).toHaveCount(0)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // Ticket session-view/02: the sessions tab. The fixture home builds sessions on both sides plus a warmup
 // session containing only a Warmup
 // (spec A3a: not listed but its tokens still count), asserting the list, the sort, the accounting note
@@ -467,12 +567,11 @@ test('the sessions section: sessions are listed, the sort switches, and warmup s
   // The warmup session's title must not appear
   await expect(win.locator('.pane-body .card')).not.toContainText('Warmup')
 
-  // The number in the project list must share its source with this tab: the fixture has 3 session files
-  // (including 1 warmup)
-  // and only 2 are listed. Before the change, the project list read the file count pipeline and showed 3 —
-  // one concept with two numbers.
+  // The session count left the row with the side-count badge's arrival (#123, settled in the
+  // project-list prototype): the row's trailing meta is the relative time alone. Pinned so the
+  // count does not quietly return — the sessions tab above is where the number lives now.
   const meta = (await win.locator('.side .row .meta').first().innerText()).trim()
-  expect(meta, `the project list session count must match the sessions tab; actual: ${meta}`).toMatch(/(^|\D)2$/)
+  expect(meta, `the row meta should carry the relative time only; actual: ${meta}`).not.toMatch(/\d\s*$/)
 
   // Newest first by default: the first row is the one with later activity
   const titleOf = async (i: number): Promise<string> =>

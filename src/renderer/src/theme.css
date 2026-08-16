@@ -43,6 +43,9 @@
   --p-anthropic: #d97757;
   --p-openai: #10a37f;
   --p-google: #4285f4;
+  /* xAI: derived from the retired Claude badge purple, Lab lightness −10 so a thin segment clears a
+     white card (ADR-0021; the dark value below is the old badge's dark foreground unchanged) */
+  --p-xai: #ad98d0;
   --p-other: #9aa0a6;
 }
 /* Mist blue · light */
@@ -106,6 +109,9 @@ html[data-theme='amber'] {
     --p-anthropic: #e8916f;
     --p-openai: #2fc79f;
     --p-google: #6ba3f7;
+    /* Deliberately equal to the purple theme's --accent-deep in dark (ΔE = 0) — accepted in
+       ADR-0021: every purple clearing the accent stops reading as the Claude-adjacent purple */
+    --p-xai: #c9b3ec;
     --p-other: #adb2b8;
   }
   html[data-theme='blue'] {
@@ -473,10 +479,62 @@ body {
   flex: none;
   font-variant-numeric: tabular-nums;
 }
-.row .bdg {
+/* The side-count badge: it counts "how many", not "which", so it carries no side's colour. It rides
+   the accent family, and a hovered or selected row swaps it onto the card ground — the row's own
+   hover ground is the same accent-soft, so contrast rather than colour keeps it legible there. */
+.cnt-b {
   flex: none;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 6px 0 4px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
   display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 2px;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+.cnt-b svg {
+  flex: none;
+}
+.row:hover .cnt-b,
+.row.sel .cnt-b {
+  background: var(--card);
+}
+/* The sides hover layer (spec C6): the surface comes from FloatingBox; what is specific here is
+   that a glance layer must not swallow the click that selects the row underneath it. */
+.sides-tip {
+  pointer-events: none;
+  font-size: 11.5px;
+  white-space: nowrap;
+  color: var(--text);
+}
+.sides-tip .st {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 0;
+}
+/* One colour per agent side, letter for letter the side's provider colour (ADR-0021) */
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex: none;
+}
+.dot.claude {
+  background: var(--p-anthropic);
+}
+.dot.codex {
+  background: var(--p-openai);
+}
+.dot.grok {
+  background: var(--p-xai);
 }
 .stale-tag {
   font-size: 9.5px;
