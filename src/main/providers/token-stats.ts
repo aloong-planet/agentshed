@@ -34,7 +34,12 @@ import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessionMeta, readCodexSessions } from './codex'
 import { readGrokSessions } from './grok'
 import { eachJsonlLine } from './jsonl'
-import { makeQuestionIndexer, stripReplayPrefix, type QuestionRec } from './question-index'
+import {
+  makeGrokQuestionIndexer,
+  makeQuestionIndexer,
+  stripReplayPrefix,
+  type QuestionRec
+} from './question-index'
 import { clipTitle, realUserText } from './session-title'
 import type { ScanRoots } from './types'
 import type { UsageRow } from './archive'
@@ -101,10 +106,14 @@ interface GrokFileAgg {
   /** The authoritative update stream's absolute path — the session's identity (ADR-0019) */
   file: string
   projectKey: string
-  /** Tokens count regardless (F5); no Grok session enters the session list until the session-view
-   * ticket lands the display side */
+  /** Tokens count regardless (F5); a subagent session never enters the session list */
   subagent: boolean
-  /** Kept empty for the shared shape guard; the session-view ticket fills it */
+  /** The summary's own name first (session_summary — the same priority rule as Codex thread_name),
+   * falling back to the first indexed question, then the session directory's name */
+  title: string | null
+  /** The largest timestamp in the file (the same meaning as on the other sides) */
+  at: number | null
+  listed: boolean
   questions: QuestionRec[]
   events: GrokEvent[]
 }
@@ -140,6 +149,8 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  * v10: ClaudeFileAgg gained forkPoints (ticket 06's branch banner signal).
  * v11: FileAgg gained the grok variant (ADR-0019's stated consequence: the cache gains a third
  *      variant, so the version bumps in the same change).
+ * v12: GrokFileAgg gained title/at/listed and a real question index (the session-view ticket) — an
+ *      old entry's empty questions would otherwise be reused forever for an unchanged file.
  *
  * **Exported for tests only** — so a guard test can build an "immediately previous version" cache with
  * `CACHE_VERSION - 1`
@@ -147,7 +158,7 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  * branch on it:
  * the only version comparison is in loadCache, and a second one would be a second rule that can drift.
  */
-export const CACHE_VERSION = 11
+export const CACHE_VERSION = 12
 
 interface CacheShape {
   version: typeof CACHE_VERSION
@@ -298,8 +309,10 @@ export class TokenEngine {
       if (agg) {
         aggs.push(agg)
         seen[s.file] = { sig: sigOf(s.file) ?? '', agg }
-        // No grok session enters the session list until the session-view ticket, and the read
-        // allow-list stays no wider than what the UI can reach — so none is admitted here either
+        // Listed sessions only: a subagent's stream is never expanded in a parent turn on this side
+        // (the dispatch's result comes from the parent's own finished record), so unlike Claude's
+        // nested transcripts it stays outside the read allow-list
+        if (isRegistered(agg.projectKey) && agg.listed) sessionFiles.add(s.file)
       }
     }
 
@@ -416,11 +429,17 @@ export class TokenEngine {
       }
     }
     if (agg.kind === 'grok') {
-      // Unreachable until the session-view ticket: no grok file is admitted to the read
-      // allow-list, so the IPC handler refuses before this method runs. The explicit guard is what
-      // keeps the fall-through below narrowed to codex — without it a future variant would default
-      // into codex semantics silently.
-      throw appError(ERR.sessionParseFailed)
+      // No fork mechanism on this side: nothing to strip, forkState is always none
+      return {
+        side: 'grok',
+        questions: agg.questions,
+        forkState: 'none',
+        title: agg.title,
+        at: agg.at,
+        forkPoints: 0,
+        forkParentTitle: null,
+        forkParentFile: null
+      }
     }
     let parent: CodexFileAgg | undefined
     if (agg.parentId) {
@@ -775,12 +794,14 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
   // dedup — and no session entry is produced here at all; the session-view ticket lands that side.
   const grokAggs = aggs.filter((a): a is GrokFileAgg => a.kind === 'grok')
   for (const a of grokAggs) {
+    let fileTokens = 0
     for (const [ts, rawInput, cached, output, cacheWrite, model] of a.events) {
       // F2, the Codex shape: reported input already includes cached reads, so input is sanitised
       // and the total is input + output + cache creation — the Claude four-field sum would
       // double-count the cache.
       const turnTotal = rawInput + output + cacheWrite
       if (turnTotal === 0) continue
+      fileTokens += turnTotal
       const v = {
         input: Math.max(0, rawInput - cached),
         output,
@@ -801,6 +822,19 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
         if (model !== null) addModel(p.tokens, 'grok', model, turnTotal)
         if (day !== null) addDay(p.tokens, 'grok', day, turnTotal, model ?? '')
       }
+    }
+    // The session row (ticket #125): no fork mechanism exists on this side, so no stripping and
+    // forkState is always none; a subagent or question-less session already has listed=false
+    if (a.projectKey && a.listed) {
+      projectOf(a.projectKey).sessions.push({
+        side: 'grok',
+        title: a.title,
+        at: a.at,
+        tokens: fileTokens,
+        file: a.file,
+        questionCount: a.questions.length,
+        forkState: 'none'
+      })
     }
   }
 
@@ -901,9 +935,15 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   if (a['kind'] === 'claude') return Array.isArray(a['entries']) && typeof a['forkPoints'] === 'number'
   // A missing titleFromThread (undefined) is a false false: it lets a retitle displace a thread_name session
   if (a['kind'] === 'codex') return Array.isArray(a['events']) && typeof a['titleFromThread'] === 'boolean'
-  // A missing subagent (undefined) would silently list a subagent session once the session-view
-  // ticket starts reading it
-  if (a['kind'] === 'grok') return Array.isArray(a['events']) && typeof a['subagent'] === 'boolean'
+  // A missing subagent (undefined) would silently list a subagent session; a missing listed
+  // (undefined) would silently HIDE a real one — both fields are load-bearing booleans
+  if (a['kind'] === 'grok') {
+    return (
+      Array.isArray(a['events']) &&
+      typeof a['subagent'] === 'boolean' &&
+      typeof a['listed'] === 'boolean'
+    )
+  }
   return false
 }
 
@@ -1094,15 +1134,21 @@ async function parseGrokFile(
   subagent: boolean
 ): Promise<GrokFileAgg | null> {
   const events: GrokEvent[] = []
+  const idx = makeGrokQuestionIndexer()
+  let lastTs: number | null = null
+  let fileEnd = 0
   try {
-    await eachJsonlLine(file, (obj) => {
+    await eachJsonlLine(file, (obj, start, end) => {
+      idx.line(obj, start, end)
+      fileEnd = end
+      const tsRaw = obj['timestamp']
+      const ts = typeof tsRaw === 'number' && Number.isFinite(tsRaw) ? tsRaw * 1000 : null
+      if (ts !== null) lastTs = lastTs === null ? ts : Math.max(lastTs, ts)
       const params = obj['params'] as Record<string, unknown> | undefined
       const update = params?.['update'] as Record<string, unknown> | undefined
       if (update?.['sessionUpdate'] !== 'turn_completed') return
       const usage = update['usage'] as Record<string, unknown> | undefined
       if (!usage) return
-      const tsRaw = obj['timestamp']
-      const ts = typeof tsRaw === 'number' && Number.isFinite(tsRaw) ? tsRaw * 1000 : null
       const mu = usage['modelUsage']
       const perModel: Array<[string | null, Record<string, unknown>]> =
         typeof mu === 'object' && mu !== null && Object.keys(mu).length > 0
@@ -1122,7 +1168,35 @@ async function parseGrokFile(
   } catch {
     return null
   }
-  return { kind: 'grok', file, projectKey, subagent, questions: [], events }
+  const questions = idx.done(fileEnd)
+  const first = idx.firstQuestionText()
+  // The summary's own name first (the same priority rule as Codex thread_name: the side's own
+  // summary reads better than a first question); reading summary.json here is the file the
+  // registry walk already reads for session_kind, not a second data source for the conversation
+  let summaryTitle: string | null = null
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(join(dirname(file), 'summary.json'), 'utf8'))
+    if (typeof parsed === 'object' && parsed !== null) {
+      const p = parsed as Record<string, unknown>
+      const cand = p['session_summary'] ?? p['generated_title']
+      if (typeof cand === 'string' && cand !== '') summaryTitle = cand
+    }
+  } catch {
+    // No summary is no title source — the fallbacks below carry it
+  }
+  const stem = dirname(file).split('/').pop() ?? null
+  return {
+    kind: 'grok',
+    file,
+    projectKey,
+    subagent,
+    title: summaryTitle ?? (first === null ? null : clipTitle(first)) ?? stem,
+    at: lastTs,
+    // The same rule as the other sides (spec A3a): no real question → not listed, tokens count
+    listed: !subagent && questions.length > 0,
+    questions,
+    events
+  }
 }
 
 function readCodexIndex(codexHome: string): Map<string, string> {
