@@ -15,7 +15,7 @@ export const en: Locale = {
 
   settings: {
     title: 'Settings',
-    lead: 'Preferences for this app only. They apply to the whole interface and are never written to your Claude or Codex configuration.',
+    lead: 'Preferences for this app only. They apply to the whole interface and are never written to any agent side’s configuration.',
     sectionLanguage: 'Language',
     interfaceLanguage: 'Interface language',
     followSystem: 'Follow system',

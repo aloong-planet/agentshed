@@ -389,6 +389,17 @@ _Avoid_: error message (bare, implies a finished sentence)
   it: the project list beside it is the sidebar. This is the same failure as naming a control by its
   glyph, one level up — copy referring to something by a name the reader cannot resolve.
 
+- **User-facing copy never enumerates the agent sides as an exhaustive set (settled 2026-08-16)**:
+  a sentence that means "all sides" says so side-count-neutrally ("the agent sides", "各 agent 侧");
+  naming one specific side is fine. Rationale: the side set grows, and an enumeration written into
+  copy is a sentence that becomes a lie the moment a side is added — silently, in six languages at
+  once, on a surface no side-onboarding diff touches. It happened twice in one onboarding round
+  (the totals card's "both sides", the scanning state's "Claude Code / Codex"), and the rule had
+  already been written down — in a prototype comment, where it constrained nobody. Enforced by a
+  shared-UI check over the dictionaries; copy that must enumerate (because its surface genuinely
+  judges only those sides today) is allow-listed there by dictionary key with the reason and the
+  ticket that retires it.
+
 - **Non-printing characters are written as escapes in source, never as raw bytes (settled
   2026-08-13)**: `\x00` rather than a literal NUL. Identical at runtime; the difference is that a raw
   NUL makes recursive `grep`/`ripgrep` **skip the entire file in silence** — empty output and exit 1,

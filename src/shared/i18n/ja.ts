@@ -14,7 +14,7 @@ export const ja: Locale = {
 
   settings: {
     title: '設定',
-    lead: 'この app 固有の設定です。インターフェース全体に適用され、Claude や Codex の設定には書き込まれません。',
+    lead: 'この app 固有の設定です。インターフェース全体に適用され、どのエージェントサイドの設定にも書き込まれません。',
     sectionLanguage: '言語',
     interfaceLanguage: '表示言語',
     followSystem: 'システムに従う',

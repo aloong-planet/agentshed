@@ -28,7 +28,7 @@ export const zh = {
 
   settings: {
     title: '设置',
-    lead: '本 app 偏好,对整个界面生效。不写入 Claude / Codex 配置。',
+    lead: '本 app 偏好,对整个界面生效。不写入任何 agent 侧的配置。',
     sectionLanguage: '语言',
     interfaceLanguage: '界面语言',
     followSystem: '跟随系统',

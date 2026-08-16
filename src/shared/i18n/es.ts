@@ -15,7 +15,7 @@ export const es: Locale = {
 
   settings: {
     title: 'Ajustes',
-    lead: 'Preferencias exclusivas de esta app. Se aplican a toda la interfaz y nunca se escriben en tu configuración de Claude o Codex.',
+    lead: 'Preferencias exclusivas de esta app. Se aplican a toda la interfaz y nunca se escriben en la configuración de ningún lado de agente.',
     sectionLanguage: 'Idioma',
     interfaceLanguage: 'Idioma de la interfaz',
     followSystem: 'Seguir el sistema',
