@@ -22,6 +22,12 @@ describe('providerOf', () => {
     expect(providerOf('gemini-3-pro')).toBe('Google')
   })
 
+  it('xAI: the grok family, billed-name variants included (ADR-0019: an xAI rule under ADR-0008)', () => {
+    expect(providerOf('grok-4.5-build')).toBe('xAI')
+    expect(providerOf('grok-4.6-build')).toBe('xAI')
+    expect(providerOf('grok-4.5')).toBe('xAI')
+  })
+
   it('unknown or empty → other', () => {
     expect(providerOf('')).toBe('other')
     expect(providerOf(null)).toBe('other')
@@ -39,7 +45,7 @@ describe('providerOf', () => {
   })
 
   it('the display order is fixed (the legend and stacking order are stable and do not churn with the day\'s data)', () => {
-    expect(PROVIDER_ORDER).toEqual(['Anthropic', 'OpenAI', 'Google', 'other'])
+    expect(PROVIDER_ORDER).toEqual(['Anthropic', 'OpenAI', 'Google', 'xAI', 'other'])
   })
 
   it('every provider has a display name, and the order covers them all', () => {

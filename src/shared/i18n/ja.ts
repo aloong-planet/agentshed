@@ -275,7 +275,7 @@ export const ja: Locale = {
     staleTag: '失効',
   },
   token: {
-    totalCard: (note) => `累計（両サイド合計${note ? ` · ${note}` : ''}）`,
+    totalCard: (note) => `累計（全サイド合計${note ? ` · ${note}` : ''}）`,
     inOut: '入力 / 出力',
     inOutNote: 'サイドごとに各自の基準で表示',
     cacheCard: 'うちキャッシュ（ccusage 基準で合計に算入済み）',

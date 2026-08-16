@@ -22,16 +22,18 @@ export function fmtTok(n: number): string {
 
 export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string }): JSX.Element {
   const t = useDict()
-  const cl = stats.bySide.claude
-  const cx = stats.bySide.codex
-  const sum = (f: keyof TokenTotals): number => cl[f] + cx[f]
+  // Summed over the Record's values rather than named fields, so a fourth side joins the totals
+  // the moment it joins the contract
+  const sides = Object.values(stats.bySide)
+  const sum = (f: keyof TokenTotals): number => sides.reduce((a, s) => a + s[f], 0)
   return (
     <div className="stats">
       <div className="stat">
         <div className="k">{t.token.totalCard(note ?? '')}</div>
         <div className="v">{fmtTok(sum('total'))}</div>
         <div className="s">
-          Claude {fmtTok(cl.total)} · Codex {fmtTok(cx.total)}
+          Claude {fmtTok(stats.bySide.claude.total)} · Codex {fmtTok(stats.bySide.codex.total)} ·
+          Grok {fmtTok(stats.bySide.grok.total)}
         </div>
       </div>
       <div className="stat">
@@ -62,6 +64,7 @@ const PROVIDER_CLASS: Record<string, string> = {
   Anthropic: 'anthropic',
   OpenAI: 'openai',
   Google: 'google',
+  xAI: 'xai',
   other: 'other'
 }
 
@@ -106,7 +109,9 @@ export function TrendChart({
       <div className="grp-t">
         {t.token.trendTitle}
         <span className="seg">
-          {(['total', 'Claude', 'Codex'] as const).map((m) => (
+          {/* Derived from the label Record rather than written out, so the mode bar is complete by
+              construction — a new mode lands in TREND_MODE_LABEL (typecheck-forced) and appears here */}
+          {(Object.keys(TREND_MODE_LABEL) as TrendMode[]).map((m) => (
             <button key={m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)}>
               {TREND_MODE_LABEL[m] ?? t.label.trendTotal}
             </button>

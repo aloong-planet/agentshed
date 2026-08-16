@@ -957,6 +957,10 @@ body {
   background: var(--p-google);
   opacity: 0.9;
 }
+.sp.xai {
+  background: var(--p-xai);
+  opacity: 0.9;
+}
 .sp.other {
   background: var(--p-other);
   opacity: 0.9;
@@ -1008,6 +1012,9 @@ body {
 .legend .sw.google {
   background: var(--p-google);
 }
+.legend .sw.xai {
+  background: var(--p-xai);
+}
 .legend .sw.other {
   background: var(--p-other);
 }
@@ -1053,6 +1060,9 @@ body {
 }
 .m.google .tr i {
   background: var(--p-google);
+}
+.m.xai .tr i {
+  background: var(--p-xai);
 }
 .m .num {
   width: 64px;

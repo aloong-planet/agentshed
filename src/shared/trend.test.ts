@@ -68,6 +68,22 @@ describe('buildTrendBars', () => {
     expect(cx[29].segments).toEqual([{ provider: 'OpenAI', value: 100 }])
   })
 
+  it('Grok mode reads the grok side and degenerates to one xAI segment (D4; #124)', () => {
+    const row = { day: today, bySide: { claude: 300, codex: 100, grok: 40 }, byProvider: {} }
+    const gk = buildTrendBars([row], anchor, 'Grok', [])
+    expect(gk[29].total).toBe(40)
+    expect(gk[29].segments).toEqual([{ provider: 'xAI', value: 40 }])
+    // The other sides' volume must not leak into Grok mode
+    const empty = buildTrendBars(
+      [{ day: today, bySide: { claude: 300, codex: 100, grok: 0 }, byProvider: {} }],
+      anchor,
+      'Grok',
+      []
+    )
+    expect(empty[29].total).toBe(0)
+    expect(empty[29].segments).toEqual([])
+  })
+
   it('an unknown model\'s volume still enters a segment: the key is produced by providerOf and consumed by PROVIDER_ORDER', () => {
     // Since the key type was tightened to Provider, a producer and consumer that disagree on the
     // **spelling** of a key are caught by typecheck. What that cannot catch is the *runtime* question

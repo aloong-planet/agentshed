@@ -14,10 +14,10 @@
 // Changing this type's values still means changing PROVIDER_ORDER with it (that one is a separate
 // list, not derived), and trend.test.ts keeps a pipeline case for the question types cannot answer:
 // whether an unrecognised model's volume reaches a segment at all.
-export type Provider = 'Anthropic' | 'OpenAI' | 'Google' | 'other'
+export type Provider = 'Anthropic' | 'OpenAI' | 'Google' | 'xAI' | 'other'
 
 /** The fixed order for the legend and the stacking (it does not churn with the day's data) */
-export const PROVIDER_ORDER: Provider[] = ['Anthropic', 'OpenAI', 'Google', 'other']
+export const PROVIDER_ORDER: Provider[] = ['Anthropic', 'OpenAI', 'Google', 'xAI', 'other']
 
 /**
  * Display names. The three vendor names are proper nouns common to every language, so they live here;
@@ -28,6 +28,7 @@ export const PROVIDER_LABEL: Record<Provider, string | null> = {
   Anthropic: 'Anthropic',
   OpenAI: 'OpenAI',
   Google: 'Google',
+  xAI: 'xAI',
   other: null
 }
 
@@ -37,5 +38,6 @@ export function providerOf(model: string | null | undefined): Provider {
   if (m.includes('claude') || m.includes('anthropic')) return 'Anthropic'
   if (/(^|[.\-/])(gpt|o1|o3|codex)/.test(m) || m.includes('codex')) return 'OpenAI'
   if (m.includes('gemini')) return 'Google'
+  if (m.includes('grok')) return 'xAI'
   return 'other'
 }

@@ -282,7 +282,7 @@ export const ru: Locale = {
     staleTag: 'Устарел',
   },
   token: {
-    totalCard: (note) => `Всего (суммарно по обеим сторонам${note ? ` · ${note}` : ''})`,
+    totalCard: (note) => `Всего (суммарно по всем сторонам${note ? ` · ${note}` : ''})`,
     inOut: 'Ввод / вывод',
     inOutNote: 'По каждой стороне в её собственных единицах учёта',
     cacheCard: 'Из них кэш (уже учтён в итоге, по методике ccusage)',

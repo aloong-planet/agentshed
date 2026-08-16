@@ -6,7 +6,7 @@ import type { AgentSide, DayUsage } from './domain'
 import { PROVIDER_ORDER, type Provider } from './provider'
 
 /** The values are language-independent identifiers; for the UI text see TREND_MODE_LABEL */
-export type TrendMode = 'total' | 'Claude' | 'Codex'
+export type TrendMode = 'total' | 'Claude' | 'Codex' | 'Grok'
 
 /**
  * Display names. Claude / Codex are product names and are the same in every language;
@@ -16,13 +16,15 @@ export type TrendMode = 'total' | 'Claude' | 'Codex'
 export const TREND_MODE_LABEL: Record<TrendMode, string | null> = {
   total: null,
   Claude: 'Claude',
-  Codex: 'Codex'
+  Codex: 'Codex',
+  Grok: 'Grok'
 }
 
 /** Which side each single-side mode reads (typecheck-complete over the non-total modes) */
 const MODE_SIDE: Record<Exclude<TrendMode, 'total'>, AgentSide> = {
   Claude: 'claude',
-  Codex: 'codex'
+  Codex: 'codex',
+  Grok: 'grok'
 }
 
 /** A side's primary provider, for the degenerate single-segment colour (ADR-0021: the side's
@@ -30,7 +32,7 @@ const MODE_SIDE: Record<Exclude<TrendMode, 'total'>, AgentSide> = {
 const SIDE_PRIMARY_PROVIDER: Record<AgentSide, Provider> = {
   claude: 'Anthropic',
   codex: 'OpenAI',
-  grok: 'other'
+  grok: 'xAI'
 }
 
 export interface TrendSegment {

@@ -286,7 +286,7 @@ export const fr: Locale = {
     staleTag: 'Obsolète',
   },
   token: {
-    totalCard: (note) => `Total cumulé (les deux côtés${note ? ` · ${note}` : ''})`,
+    totalCard: (note) => `Total cumulé (tous les côtés${note ? ` · ${note}` : ''})`,
     inOut: 'Entrée / Sortie',
     inOutNote: 'Détaillé par côté, selon les conventions propres à chacun',
     cacheCard: 'Dont cache (déjà compté dans le total, convention ccusage)',
