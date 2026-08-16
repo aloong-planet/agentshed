@@ -70,6 +70,10 @@ next to A/B, so that no existing reference is renumbered)
 - F3 The model is taken from the per-turn usage record's own model key, which names the model that was
   actually billed. This is **exact**, unlike the Codex approximation, and it can differ from the model
   the session summary names — the billed name wins, and is not normalised into the summary's name.
+  A record without the per-model map falls back to its top-level figures with no model bucket (the
+  same rule as a Claude synthetic model: the tokens count, no bucket). The record shapes were grounded
+  by full enumeration (224 records, 2026-08-16): two variants exist — an empty usage object, and one
+  flagged incomplete without a cost figure — and both parse as what they report.
 - F4 A turn record carries a cost figure. It is **neither read nor archived** (ADR-0019): a metric
   present on one side of a three-side comparison reads as breakage on the other two.
 - F5 Subagent sessions are stored beside their parents, with the parent holding only a pointer; the

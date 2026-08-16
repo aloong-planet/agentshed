@@ -1,17 +1,18 @@
 # Token statistics
 
-> Related decision: ADR-0003
+> Related decision: ADR-0005 (accounting aligned with ccusage) · ADR-0019 (the Grok side's rules) · ADR-0021 (side colour)
 
 ## Overview
 
 "Which project is burning my quota, and what has it been burning lately" had no ready answer. This
-feature aggregates both sides' session records into a project-level and a global view, whose numbers
+feature aggregates every side's session records into a project-level and a global view, whose numbers
 share a source and reconcile against each other.
 
 ## Capabilities
 - Project overview (the default landing spot inside a project): a cumulative total card (accounting
   aligned with ccusage — the Claude total sums all four fields including cache reads and writes;
-  Codex is input + output + cache writes), a 30-day daily trend (local time zone; in combined mode
+  Codex and Grok are input + output + cache writes, since their reported input already includes
+  cached reads), a 30-day daily trend (local time zone; in combined mode
   each bar is stacked by provider, with bar height = that day's total and segments = each provider's
   share, and hovering shows each provider's number and percentage; the legend lists only providers
   that appear; a single side can be selected), a per-model breakdown, and a session list (side badge,
@@ -32,7 +33,10 @@ share a source and reconcile against each other.
 - Projects with no sessions show zeros and an empty state rather than an error
 
 ## Boundaries and non-goals
-- The Codex per-model breakdown is an approximation at the level of the session's primary model
+- The Codex per-model breakdown is an approximation at the level of the session's primary model;
+  the Claude and Grok breakdowns are exact (Grok lists the model that was actually billed)
+- Grok sessions are metered in every total and trend, but do not yet open in the session list or
+  session viewer
 - No dollar cost estimation
 - The archive can only accumulate from the first day this application ran; sessions older than that
   and already cleaned up cannot be recovered
