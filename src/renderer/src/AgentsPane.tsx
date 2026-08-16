@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { SIDE_BADGE } from './side-badge'
 import { renderMarkdown } from './md'
 import type { Snapshot } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
@@ -27,6 +28,9 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
   const cxSkills = snap.global.skills.filter((s) => s.sides.includes('codex')).length
   const clSubs = snap.global.subagents.filter((s) => s.sides.includes('claude')).length
   const cxSubs = snap.global.subagents.filter((s) => s.sides.includes('codex')).length
+  const gkCount = snap.projects.filter((p) => p.sides.includes('grok')).length
+  const gkSkills = snap.global.skills.filter((s) => s.sides.includes('grok')).length
+  const gkSubs = snap.global.subagents.filter((s) => s.sides.includes('grok')).length
 
   return (
     <div className="pane">
@@ -49,6 +53,14 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
             total={snap.tokens.bySide.codex.total}
             sub={t.agents.sideSummary(cxCount, cxSkills, cxSubs)}
           />
+          <SideCard
+            label="GROK"
+            cls="gk"
+            detected={snap.sides.grok.detected}
+            error={snap.sides.grok.error}
+            total={snap.tokens.bySide.grok.total}
+            sub={t.agents.sideSummary(gkCount, gkSkills, gkSubs)}
+          />
         </div>
         <nav className="tabs">
           {(
@@ -69,7 +81,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
         </nav>
       </header>
       <div className="pane-body">
-        {!snap.sides.claude.detected && !snap.sides.codex.detected && (
+        {!snap.sides.claude.detected && !snap.sides.codex.detected && !snap.sides.grok.detected && (
           <div className="empty">
             <div className="big">
               <Inbox size={30} />
@@ -117,7 +129,7 @@ function SideCard({
   sub
 }: {
   label: string
-  cls: 'cl' | 'cx'
+  cls: 'cl' | 'cx' | 'gk'
   detected: boolean
   error?: AppError
   total: number
@@ -247,6 +259,7 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
       />
       <div className="grp-t">
         {t.agents.skillsHint}
+        {snap.sides.grok.detected && <span className="hint2"> · {t.agents.grokBorrowHint}</span>}
       </div>
       {shown.length === 0 ? (
         <Empty msg={t.skills.noNameMatch} />
@@ -301,8 +314,9 @@ function SkillsTab({ snap }: { snap: Snapshot }): JSX.Element {
                   <button className="pop-p" key={p.path} onClick={() => void install(s, p.path)}>
                     <span className="t">{p.name}</span>
                     <span className="bdg">
-                      {p.sides.includes('claude') && <span className="badge cl">CC</span>}
-                      {p.sides.includes('codex') && <span className="badge cx">CX</span>}
+                      {p.sides.map((side) => (
+                        <span key={side} className={`badge ${SIDE_BADGE[side].cls}`}>{SIDE_BADGE[side].label}</span>
+                      ))}
                     </span>
                   </button>
                 ))}

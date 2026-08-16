@@ -9,14 +9,14 @@
 
 ## Problem Statement
 
-Users running both Claude Code and Codex want to know, the moment the app opens, "what state is each
+Users running several agent sides want to know, the moment the app opens, "what state is each
 side in, how much has each burned, and what does each have installed". That information is scattered
-across two directory structures whose formats and concepts are not even symmetric (plugins, for
+across the sides' directory structures whose formats and concepts are not even symmetric (plugins, for
 instance, exist only on the Claude side).
 
 ## Solution
 
-As the default landing page, gather both agent sides' global picture onto one screen: two per-side
+As the default landing page, gather every agent side's global picture onto one screen: per-side
 summary cards at the top and, below them, sections by component type
 (Token/Skills/Subagents/Plugins/MCP/Memory/Configuration). Everything is read-only; the one write
 operation is installing a skill into a project (see the skill-install spec). **This app's colour
@@ -25,9 +25,9 @@ see [appearance](appearance.md) (the rail's settings dimension).
 
 ## User Stories
 
-1. As a user, I want to see both sides' detection status and cumulative tokens on opening, so that I
+1. As a user, I want to see every side's detection status and cumulative tokens on opening, so that I
    know each side's state at a glance.
-2. As a user, I want each component type in its own section with both sides side by side inside it,
+2. As a user, I want each component type in its own section with the sides side by side inside it,
    so that I do not have to translate between two directory concepts.
 3. As a user, I want one side's corrupt data to degrade to an error explanation on that side while
    the other carries on, so that a single-side failure does not make the whole page unusable.
@@ -54,7 +54,7 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - B3 The Token totals **include stale projects** and say so explicitly (this differs from the
   project list's default filtering, and it has to be stated or the numbers will not reconcile;
   "hidden" left this rule with ADR-0022).
-- B4 Sections where the two sides' concepts are asymmetric (the Codex group under Plugins, the Codex
+- B4 Sections where the sides' concepts are asymmetric (the Codex group under Plugins, the Codex
   global entry under Memory) follow their own spec's probe-style rules, and no false signal is
   manufactured for the sake of symmetry.
 - B5 Configuration section: a missing file shows "none" rather than an error; oversized files are
@@ -65,6 +65,19 @@ see [appearance](appearance.md) (the rail's settings dimension).
   section means updating B1's list.
 - R2 Global refresh is shared by both dimensions, and repeat clicks while one is in flight are
   deduplicated.
+
+**Sequence G: the Grok side (ticket #126)**
+- G1 Grok's own global skills (its skills directory) list alongside the other sides'; what it
+  borrows from Claude Code's configuration at runtime never joins its lists — the exclusion is by
+  construction (only its own root is read), and the Skills section carries one line of copy saying
+  the borrowing happens (ADR-0019; the line is allow-listed in the side-enumeration gate as a
+  statement about a real borrowing relation).
+- G2 Agent definitions, plugins, memory and user-level MCP ship as explicit empty states: on the
+  reference machine those categories have no real data (no directories, no config sections), and
+  per CONTEXT's sampling invariant no parser is written from a documentation name alone. Each
+  category's parser lands when a real sample exists; the feature catalogue states the gap.
+- G3 The third summary card follows A2/A3 like the others; installing a Grok skill into a project
+  lands in the project's own .grok/skills (the same copy semantics as the other sides).
 
 ## Implementation Decisions
 

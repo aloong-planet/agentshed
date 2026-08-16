@@ -75,6 +75,38 @@ describe('global skills (the global library)', () => {
   })
 })
 
+describe('Grok global skills (ticket #126)', () => {
+  it('a Grok skill lists alongside the other sides\'; the borrowed direction stays out by construction', async () => {
+    // The same name under Claude's root only: Grok reads it at RUNTIME (compatibility-borrowed),
+    // and it must appear once under Claude with no grok side
+    mkSkill(join(dir, '.claude', 'skills'), 'borrowed-one', SKILL_MD('claude thing'))
+    // Grok's own root: its own entry, plus a symlinked one
+    mkSkill(join(dir, '.grok', 'skills'), 'grok-own', SKILL_MD('grok thing'))
+    mkSkill(join(dir, '.agents', 'skills'), 'linked-into-grok', SKILL_MD('shared'))
+    symlinkSync(join(dir, '.agents', 'skills', 'linked-into-grok'), join(dir, '.grok', 'skills', 'linked-into-grok'))
+    const snap = await scan(roots(), { now: () => 1 })
+    const own = snap.global.skills.find((x) => x.name === 'grok-own')
+    expect(own?.sides).toEqual(['grok'])
+    expect(own?.pkg.grok?.files).toBe(1)
+    expect(own?.description).toBe('grok thing')
+    const borrowed = snap.global.skills.find((x) => x.name === 'borrowed-one')
+    expect(borrowed?.sides).toEqual(['claude'])
+    const linked = snap.global.skills.find((x) => x.name === 'linked-into-grok')
+    expect(linked?.sides).toEqual(['codex', 'grok'])
+    expect(linked?.symlink.grok).toBe(true)
+  })
+
+  it('an unreadable Grok skill entry degrades alone: the group survives and the other sides are untouched', async () => {
+    mkSkill(join(dir, '.grok', 'skills'), 'healthy', SKILL_MD('fine'))
+    // A dangling symlink: the entry cannot be read, and only it may suffer
+    symlinkSync(join(dir, 'nowhere'), join(dir, '.grok', 'skills', 'broken-link'))
+    mkSkill(join(dir, '.claude', 'skills'), 'claude-fine', SKILL_MD('ok'))
+    const snap = await scan(roots(), { now: () => 1 })
+    expect(snap.global.skills.find((x) => x.name === 'healthy')?.sides).toEqual(['grok'])
+    expect(snap.global.skills.find((x) => x.name === 'claude-fine')?.sides).toEqual(['claude'])
+  })
+})
+
 describe('plugins (Claude only, read-only)', () => {
   it('installed_plugins.json + settings.json enabledPlugins → name / version / scope / enablement', async () => {
     const pdir = join(dir, '.claude', 'plugins')

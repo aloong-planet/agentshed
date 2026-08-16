@@ -12,7 +12,7 @@ import {
 } from '@shared/ipc'
 import type { CappedText, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import { zeroBySide } from '@shared/domain'
-import { assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult } from '@shared/validate'
+import { AGENT_SIDES, assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { providerOf } from '@shared/provider'
 import { scan } from './providers/scan'
@@ -326,7 +326,7 @@ function checkSkillOpArgs(args: unknown): SkillOpArgs {
   const a = args as SkillOpArgs
   if (
     typeof a?.skillName !== 'string' ||
-    (a?.side !== 'claude' && a?.side !== 'codex') ||
+    !AGENT_SIDES.has(a?.side) ||
     typeof a?.targetProjectPath !== 'string'
   ) {
     throw appError(ERR.badArgs, { channel: 'skillOp' })
@@ -340,7 +340,7 @@ function checkListSkillFilesArgs(args: unknown): ListSkillFilesArgs {
   const a = args as ListSkillFilesArgs
   if (
     typeof a?.name !== 'string' ||
-    (a?.side !== 'claude' && a?.side !== 'codex') ||
+    !AGENT_SIDES.has(a?.side) ||
     (a?.scope !== 'global' && a?.scope !== 'project' && a?.scope !== 'plugin')
   ) {
     throw appError(ERR.badArgs, { channel: 'listSkillFiles' })

@@ -57,16 +57,17 @@ export const fr: Locale = {
     sideSummary: (projects, skills, subagents) =>
       `${projects} ${plural('fr', projects, { one: 'projet', other: 'projets' })} · ${skills} ${plural('fr', skills, { one: 'skill global', other: 'skills globaux' })} · ${subagents} ${plural('fr', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Configuration',
-    notDetected: 'Aucun dossier de données Claude Code ou Codex détecté sur cette machine',
+    notDetected: 'Aucun répertoire de données d’un côté agent n’a été détecté sur cette machine',
     notDetectedHint: (refreshLabel) =>
       `Installez et utilisez l’un des agents, puis cliquez sur « ${refreshLabel} » en bas à gauche pour voir la vue d’ensemble`,
     totalsNote: 'inclut les projets obsolètes',
     archivedNote: (days, earliest) => `Pour ${days} de ces jours (le plus ancien ${earliest}), les fichiers de session source ont été nettoyés automatiquement par l’agent ; les valeurs viennent de l’archive locale (barres hachurées)`,
     byModel: 'Par modèle (tous projets ; côté Codex, approximation du modèle principal de la session)',
     detected: 'Détecté', undetected: 'Non détecté',
-    emptyGlobalLib: 'Les deux bibliothèques globales sont vides',
+    emptyGlobalLib: 'Les bibliothèques globales de tous les côtés sont vides',
     sideMismatch: (project) => `${project} n’appartient pas au côté agent où réside ce skill`,
     installed: (skill, project, side) => `${skill} installé → ${project} (${side}) ; seul ce projet a été actualisé`,
+    grokBorrowHint: 'Grok lit à l’exécution les skills / subagents / plugins / MCP globaux de Claude Code ; ces composants empruntés appartiennent au côté Claude et ne rejoignent pas les listes de Grok',
     skillsHint: 'Fusionné en une liste · cliquez sur une ligne pour les fichiers du paquet · sur un fichier pour l’aperçu · pas de diff inter-côtés · les plugins sont en lecture seule',
     levelPluginPkg: 'Paquet de plugin', levelGlobalLib: 'Bibliothèque globale',
     installTo: 'Installer dans…',
@@ -222,7 +223,7 @@ export const fr: Locale = {
     noSessions: 'Aucune session dans ce projet',
     sessionCountNote: (n) =>
       `${n} ${plural('fr', n, { one: 'session au total — toute visible', other: 'sessions au total — toutes visibles' })} dans l’onglet « Sessions ».`,
-    noSessionsHint: 'Aucune session dans ce projet. Elles apparaissent automatiquement dès qu’un des deux agents a une conversation dans ce dossier.',
+    noSessionsHint: 'Aucune session dans ce projet. Elles apparaissent automatiquement dès qu’un côté agent a une conversation dans ce dossier.',
     searching: 'Recherche…',
     noHits: 'Aucun résultat. Par défaut, la recherche ne porte que sur les questions — essayez « Texte intégral ».',
     hitsFound: (hits, sessions) =>
