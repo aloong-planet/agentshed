@@ -57,7 +57,7 @@ export const en: Locale = {
     sideSummary: (projects, skills, subagents) =>
       `${projects} ${plural('en', projects, { one: 'project', other: 'projects' })} · ${skills} global ${plural('en', skills, { one: 'skill', other: 'skills' })} · ${subagents} ${plural('en', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Config',
-    notDetected: 'No Claude Code or Codex data directory detected on this machine',
+    notDetected: 'No agent side’s data directory was detected on this machine',
     notDetectedHint: (refreshLabel) =>
       `Install and use either agent, then click “${refreshLabel}” at the bottom left to see the overview`,
     totalsNote: 'includes stale projects',
@@ -68,6 +68,7 @@ export const en: Locale = {
     emptyGlobalLib: 'Both global libraries are empty',
     sideMismatch: (project) => `${project} does not belong to the agent side this skill lives on`,
     installed: (skill, project, side) => `Installed ${skill} → ${project} (${side}); only this project was refreshed`,
+    grokBorrowHint: 'Grok reads Claude Code’s global skills / subagents / plugins / MCP at runtime; those borrowed components belong to the Claude side and do not join Grok’s lists',
     skillsHint: 'Merged into one list · click a row for package files · click a file to preview · no cross-side diff · plugins are read-only',
     levelPluginPkg: 'Plugin package', levelGlobalLib: 'Global library',
     installTo: 'Install to…',

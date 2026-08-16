@@ -12,7 +12,7 @@ import { useLanguage, useDict } from './language'
 import { ChevronRight, Dot } from './icons'
 
 const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex', grok: 'Grok' }
-const SIDE_ORDER: AgentSide[] = ['claude', 'codex']
+const SIDE_ORDER: AgentSide[] = ['claude', 'codex', 'grok']
 
 /**
  * The enumeration source (a discriminated union): each of the three sources has its required fields

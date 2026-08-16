@@ -24,7 +24,9 @@ export type ValidateFailure =
 
 export type ValidateResult = { ok: true } | { ok: false; failure: ValidateFailure }
 
-const AGENT_SIDES = new Set(['claude', 'codex', 'grok'])
+/** Exported for runtime argument guards: a hand-enumerated side check is exactly what typecheck
+ * cannot see, and it is how skill installs silently refused the third side (#126). */
+export const AGENT_SIDES = new Set(['claude', 'codex', 'grok'])
 
 const failMissing = (path: string): ValidateResult => ({ ok: false, failure: { kind: 'missing', path } })
 const failType = (path: string, expect: string): ValidateResult => ({

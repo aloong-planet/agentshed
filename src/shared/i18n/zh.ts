@@ -92,7 +92,7 @@ export const zh = {
     sideSummary: (projects: number, skills: number, subagents: number) =>
       `${projects} 项目 · ${skills} 全局 skills · ${subagents} subagents`,
     tabCfg: '配置',
-    notDetected: '本机未检测到 Claude Code 或 Codex 的数据目录',
+    notDetected: '本机未检测到任何 agent 侧的数据目录',
     notDetectedHint: (refreshLabel: string) =>
       `安装并使用任一 agent 后,点左下角的「${refreshLabel}」即可看到全景`,
     totalsNote: '含失效项目',
@@ -105,6 +105,7 @@ export const zh = {
     sideMismatch: (project: string) => `${project} 不属于该 skill 所在的 agent 侧`,
     installed: (skill: string, project: string, side: string) =>
       `已安装 ${skill} → ${project}(${side});仅局部刷新该项目`,
+    grokBorrowHint: 'Grok 运行时会读取 Claude Code 的全局 skills / subagents / plugins / MCP;这些借入组件归属 Claude 侧,不并入 Grok 的清单',
     skillsHint: '合并单列 · 点行展开包内文件 · 点文件预览 · 无跨侧 diff · 插件只读',
     levelPluginPkg: '插件包',
     levelGlobalLib: '全局库',

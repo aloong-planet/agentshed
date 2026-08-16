@@ -235,8 +235,8 @@ const GLOBAL_RULES = [
       const SIDE_NAMES = [/Claude(?: Code)?/, /Codex/, /Grok/]
       const ALLOWED = [
         {
-          key: 'notDetected',
-          why: 'the agents page judges exactly these two sides until the global-layer ticket (#126)'
+          key: 'grokBorrowHint',
+          why: 'names the two specific sides of a real borrowing relation (ADR-0019 copy); not an exhaustive enumeration'
         },
         {
           key: 'projectHint',

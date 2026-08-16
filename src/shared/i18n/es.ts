@@ -57,7 +57,7 @@ export const es: Locale = {
     sideSummary: (projects, skills, subagents) =>
       `${projects} ${plural('es', projects, { one: 'proyecto', other: 'proyectos' })} · ${skills} ${plural('es', skills, { one: 'skill global', other: 'skills globales' })} · ${subagents} ${plural('es', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Configuración',
-    notDetected: 'No se detectó ningún directorio de datos de Claude Code ni de Codex en este equipo',
+    notDetected: 'No se detectó el directorio de datos de ningún lado de agente en esta máquina',
     notDetectedHint: (refreshLabel) =>
       `Instala y usa cualquiera de los dos agents y pulsa «${refreshLabel}» abajo a la izquierda para ver el panorama`,
     totalsNote: 'incluye proyectos obsoletos',
@@ -67,6 +67,7 @@ export const es: Locale = {
     emptyGlobalLib: 'Ambas bibliotecas globales están vacías',
     sideMismatch: (project) => `${project} no pertenece al lado del agent donde vive este skill`,
     installed: (skill, project, side) => `${skill} instalado → ${project} (${side}); solo se actualizó este proyecto`,
+    grokBorrowHint: 'Grok lee en tiempo de ejecución los skills / subagents / plugins / MCP globales de Claude Code; esos componentes prestados pertenecen al lado Claude y no se suman a las listas de Grok',
     skillsHint: 'Fusionado en una lista · haz clic en una fila para los archivos del paquete · en un archivo para la vista previa · sin diff entre lados · los plugins son de solo lectura',
     levelPluginPkg: 'Paquete de plugin', levelGlobalLib: 'Biblioteca global',
     installTo: 'Instalar en…',

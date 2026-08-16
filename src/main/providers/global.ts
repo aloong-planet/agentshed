@@ -74,21 +74,25 @@ function readSkillDir(base: string): Map<string, SideSkill> {
 function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill[] {
   const claude = readSkillDir(join(roots.claudeHome, 'skills'))
   const codex = readSkillDir(roots.agentsSkillsDir)
-  const names = [...new Set([...claude.keys(), ...codex.keys()])].sort()
+  // Grok's own root only (ADR-0019): what it borrows from Claude's directories at runtime never
+  // joins its list — the exclusion is by construction, since only ~/.grok/skills is read here,
+  // and the compensating copy lives on the Skills section
+  const grok = readSkillDir(join(roots.grokHome, 'skills'))
+  const names = [...new Set([...claude.keys(), ...codex.keys(), ...grok.keys()])].sort()
   const disk: GlobalSkill[] = names.map((name) => {
     const cl = claude.get(name)
     const cx = codex.get(name)
+    const gk = grok.get(name)
     const sides: AgentSide[] = []
     if (cl) sides.push('claude')
     if (cx) sides.push('codex')
+    if (gk) sides.push('grok')
     return {
       name,
-      description: cl?.description ?? cx?.description ?? null,
+      description: cl?.description ?? cx?.description ?? gk?.description ?? null,
       sides,
-      // The grok keys are typecheck-forced placeholders: Grok's own global library is read in the
-      // agents-overview ticket, and until then no disk entry carries the grok side
-      symlink: { claude: cl?.symlink ?? false, codex: cx?.symlink ?? false, grok: false },
-      pkg: { claude: cl?.pkg ?? null, codex: cx?.pkg ?? null, grok: null },
+      symlink: { claude: cl?.symlink ?? false, codex: cx?.symlink ?? false, grok: gk?.symlink ?? false },
+      pkg: { claude: cl?.pkg ?? null, codex: cx?.pkg ?? null, grok: gk?.pkg ?? null },
       origin: 'disk',
       pluginName: null,
       pluginRoot: null,

@@ -55,7 +55,7 @@ export const ja: Locale = {
   agents: {
     sideSummary: (projects, skills, subagents) => `${projects} プロジェクト · ${skills} グローバル skills · ${subagents} subagents`,
     tabCfg: '構成',
-    notDetected: 'このマシンで Claude Code または Codex のデータディレクトリを検出できませんでした',
+    notDetected: 'このマシンではどのエージェントサイドのデータディレクトリも検出されませんでした',
     notDetectedHint: (refreshLabel) =>
       `いずれかの agent をインストールして使ったあと、左下の「${refreshLabel}」を押すと全体像が見えます`,
     totalsNote: '失効プロジェクトを含む',
@@ -65,6 +65,7 @@ export const ja: Locale = {
     emptyGlobalLib: '両サイドのグローバルライブラリとも空です',
     sideMismatch: (project) => `${project} はこの skill が属する agent サイドに属していません`,
     installed: (skill, project, side) => `${skill} を ${project}（${side}）にインストールしました。更新はこのプロジェクトのみです`,
+    grokBorrowHint: 'Grok は実行時に Claude Code のグローバル skills / subagents / plugins / MCP を読み込みます。これらの借用コンポーネントは Claude サイドに属し、Grok のリストには入りません',
     skillsHint: '1 列に統合 · 行をクリックでパッケージ内ファイル · ファイルをクリックでプレビュー · サイド間 diff なし · プラグインは読み取り専用',
     levelPluginPkg: 'プラグインパッケージ', levelGlobalLib: 'グローバルライブラリ',
     installTo: 'インストール先…',

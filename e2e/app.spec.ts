@@ -356,8 +356,8 @@ test('cold start: the Agents page is the default landing, both summary cards ren
   const win = await l.app.firstWindow()
   await expect(win.locator('.rail .ri').first()).toBeVisible()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
-  // Two summary cards (CC / CODEX)
-  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(2)
+  // Three summary cards (CC / CODEX / GROK — an undetected side shows "not detected", not an error)
+  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(3)
   await expect(win.locator('.badge.cc, .badge.cl').first()).toBeVisible()
   // #18: the packaged build's renderer page must run on app:// rather than file:// (falling back to file://
 // silently loses
@@ -391,7 +391,7 @@ test('an old-format cache does not crash at startup (a production crash regressi
   const l = await launch(legacy, mkUsageHome())
   const win = await l.app.firstWindow()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
-  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(2)
+  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(3)
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -2536,6 +2536,42 @@ test('a newly adopted side: the thin xAI segment survives, and Grok mode labels 
   await expect(win.locator('.chart .col .sp')).toHaveCount(2)
   expect(await win.locator('.chart .col .sp.xai').count()).toBe(2)
   await expect(win.locator('.xaxis span')).toHaveCount(2)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+// Ticket grok-side/#126: Grok's own global skills list alongside the other sides', the borrowing
+// copy is present, and the install popover names every side of a target project.
+test('the Agents page shows Grok\'s own global skills with the borrowing line, and installs one into a project', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gkglobal-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  mkdirSync(join(home, '.grok'), { recursive: true })
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${proj}"]\ntrusted = true\n`)
+  const gsk = join(home, '.grok', 'skills', 'grok-own-skill')
+  mkdirSync(gsk, { recursive: true })
+  writeFileSync(join(gsk, 'SKILL.md'), '---\ndescription: a grok-side skill\n---\n\nbody\n')
+  // The borrowed direction: the same-named skill under Claude's root must list once, under Claude
+  const csk = join(home, '.claude', 'skills', 'claude-own-skill')
+  mkdirSync(csk, { recursive: true })
+  writeFileSync(join(csk, 'SKILL.md'), '---\ndescription: a claude-side skill\n---\n\nbody\n')
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+
+  // The Grok summary card is detected; the grok skill row carries its side; the borrowing line shows
+  await expect(win.locator('.pane-head .stats .stat').nth(2)).toContainText('GROK')
+  const row = win.locator('.sk', { hasText: 'grok-own-skill' })
+  await expect(row).toHaveCount(1)
+  await expect(win.locator('.grp-t .hint2')).toContainText('borrowed components belong to the Claude side')
+  // Install the grok skill into the project: the popover target names the project's sides in full
+  await row.locator('.ins').click()
+  await expect(win.locator('.pop .pop-p .badge.gk')).toHaveText('GK')
+  await win.locator('.pop .pop-p').first().click()
+  await expect(win.locator('.toast.ok')).toBeVisible()
 
   expect(l.errors).toEqual([])
   await close(l)

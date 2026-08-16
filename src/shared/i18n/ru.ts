@@ -56,7 +56,7 @@ export const ru: Locale = {
   agents: {
     sideSummary: (projects, skills, subagents) => `проектов: ${projects} · глобальных skills: ${skills} · subagents: ${subagents}`,
     tabCfg: 'Конфигурация',
-    notDetected: 'На этой машине не найден каталог данных Claude Code или Codex',
+    notDetected: 'На этой машине не обнаружен каталог данных ни одной стороны агента',
     notDetectedHint: (refreshLabel) =>
       `Установите и используйте любой из агентов, затем нажмите «${refreshLabel}» слева внизу, чтобы увидеть обзор`,
     totalsNote: 'включая устаревшие проекты',
@@ -66,6 +66,7 @@ export const ru: Locale = {
     emptyGlobalLib: 'Обе глобальные библиотеки пусты',
     sideMismatch: (project) => `${project} не относится к той стороне агента, где находится этот skill`,
     installed: (skill, project, side) => `${skill} установлен → ${project} (${side}); обновлён только этот проект`,
+    grokBorrowHint: 'Grok во время работы читает глобальные skills / subagents / plugins / MCP Claude Code; эти заимствованные компоненты принадлежат стороне Claude и не входят в списки Grok',
     skillsHint: 'Объединено в один список · нажмите строку, чтобы увидеть файлы пакета · файл — для предпросмотра · без diff между сторонами · плагины только для чтения',
     levelPluginPkg: 'Пакет плагина', levelGlobalLib: 'Глобальная библиотека',
     installTo: 'Установить в…',
