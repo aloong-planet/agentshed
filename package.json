@@ -1,7 +1,7 @@
 {
   "name": "agentshed",
   "version": "0.1.0",
-  "description": "Your coding agents shed: an overview of Claude Code and Codex projects, with skill install and uninstall",
+  "description": "Your coding agents shed: an overview of Claude Code, Codex and Grok projects, with skill install and uninstall",
   "license": "MIT",
   "main": "./out/main/index.js",
   "type": "module",

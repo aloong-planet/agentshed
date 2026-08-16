@@ -16,11 +16,11 @@ sides' global picture onto one screen.
   preview a package's files (see [Skills view](skills-view.md)); global library entries can start an
   "Install to…" action; plugin entries are read-only and expand to preview the package (see
   [Plugins view](plugins-view.md))
-- Subagents section: both sides' subagent definitions in one view (see
+- Subagents section: the Claude and Codex sides' subagent definitions in one view (see
   [Subagents view](subagents-view.md))
 - Plugins section: the plugin list grouped by side, with bundled components expandable (see
   [Plugins view](plugins-view.md))
-- MCP section: both sides' global MCP servers grouped by origin (global config / bundled with a
+- MCP section: the Claude and Codex sides' global MCP servers grouped by origin (global config / bundled with a
   plugin / config.toml)
 - Memory section: a summary of each project's automatic memories, with viewing (see
   [Memory view](memory-view.md))

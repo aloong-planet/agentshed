@@ -7,12 +7,12 @@ defined on this machine, and which one actually applies in this project". This f
 Subagents section to both the global page and project detail for viewing them together.
 
 ## Capabilities
-- Global page: both sides' definitions merged into one column, with same-name entries merged onto one
+- Global page: the Claude and Codex sides' definitions merged into one column, with same-name entries merged onto one
   row carrying both side badges; a single-side entry marks the missing side with a dashed badge
 - Clicking an entry opens a drawer directly: metadata (tools/model on the Claude side, model/sandbox
-  on the Codex side) and the full definition as written; an entry present on both sides can switch
+  on the Codex side) and the full definition as written; an entry present on more than one side can switch
   sides inside the drawer, which refreshes in place without closing
-- Same-name entries on both sides are not compared by content (the two formats are different, so no
+- Same-name entries across sides are not compared by content (the two formats are different, so no
   "are they the same" signal is offered)
 - When a file is corrupt, unnamed or unreadable, the entry stays with the appropriate label, and the
   other entries and the same-name shadowing judgement are unaffected
@@ -24,5 +24,7 @@ Subagents section to both the global page and project detail for viewing them to
   labels follow its own meaning
 
 ## Boundaries and non-goals
+- Grok agent definitions are not yet read: there is no real sample to ground a parser on this
+  machine, so the Grok side contributes nothing here rather than a guessed reading
 - Read-only: no creating, editing or deleting subagents
 - Overly long definition files are truncated for display
