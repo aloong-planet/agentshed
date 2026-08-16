@@ -2073,6 +2073,11 @@ test('the install-to popover sits next to its button, and its targets can be cli
   })
   expect(after).toBeLessThan(40) // still anchored to its button after re-placing
 
+  // Step clear of the resize before the scroll cases: a scroll hard on a resize's heels is
+  // attributed to the browser's scrollTop clamp and deliberately ignored (#122), and the
+  // assertions above can complete inside that window
+  await win.waitForTimeout(250)
+
   // Scrolling the popover's **own** contents must not close it. It is scrollable (a long project list
   // exceeds its max height), so closing on its own scroll would make every target below the fold
   // unreachable: reaching for one dismisses the thing you were reaching into.
