@@ -1,7 +1,7 @@
 # Session view
 
 ## Overview
-Session records sit in the two agent sides' data directories, with no way for a user to look back at
+Session records sit in the agent sides' data directories, with no way for a user to look back at
 "what did I ask in this project". Project detail gains a "Sessions" section listing that project's
 sessions, one per row, with "how many questions I asked in this conversation".
 
@@ -51,7 +51,7 @@ sessions, one per row, with "how many questions I asked in this conversation".
 - The session page opens fast regardless of session size: question text is read at exact byte offsets
   rather than by reading the whole file
 - Project detail's "Sessions" section lists this project's sessions on both agent sides, one row =
-  side badge (CC/CX) + title + question count + token consumption + last activity as a relative time
+  side badge (CC/CX/GK) + title + question count + token consumption + last activity as a relative time
 - The title comes from the **first real question** — harness noise (warmup messages, `[cron:…]`
   prefixes, slash command wrappers, injected skill bodies) has been stripped; on the Codex side the
   session name it gave itself takes priority

@@ -273,6 +273,23 @@ ruling on 2026-08-06, see Out of Scope).
   failures are invisible, so nothing is ever silently dropped (a CONTEXT invariant). Probes over the
   whole repository's real data: the unknown trace set is empty, and the tool pairing rate is 99.94%.
 
+**Sequence G: the Grok side (ticket #125, grounded in a full enumeration of 17 update types,
+2026-08-16)**
+- G1 A question = the run of user_message_chunk records sharing one promptIndex; chunks concatenate
+  **raw** (a long question splits mid-word, measured), and a prompt opening with an injected
+  `<system-reminder>` notice is the harness speaking — it starts no question, so a session with
+  nothing else stays unlisted while its tokens count (the A3a rule).
+- G2 The title takes summary.json's own name first (the Codex thread_name priority rule), falling
+  back to the first indexed question — the same source as the question set.
+- G3 One assistant message can split across agent_message_chunk records mid-word with state records
+  between the fragments, so prose and thought chunks merge raw and the ten enumerated state types
+  neither render nor break the merge; anything outside the enumeration leaves the unknown trace.
+- G4 Tool calls pair with their updates by toolCallId. A spawn_subagent dispatch is a sub block:
+  name from the paired subagent_spawned, result from the in-turn subagent_finished output — never
+  the "started in background" echo — and its internal steps stay unattributed (the child stream is
+  not read; the read allow-list admits listed streams only, so a subagent stream is refused).
+- G5 No fork mechanism exists on this side: nothing is stripped and forkState is always none.
+
 **Sequence D: search**
 - D1 **Questions are searched by default** (small, clean, precise hits), with full-text search as an
   optional toggle.

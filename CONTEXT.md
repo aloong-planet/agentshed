@@ -105,7 +105,7 @@ and a child session stored beside its parent rather than beneath it is still a s
 what the record says it is and never by how deep it sits. **A record containing no real human question at all (a warmup session the agent opened by
 itself, or a pure-replay fork verified to have been stripped empty) does not count as a browsable
 session**, and does not enter the list — but its tokens still count, the same rule as subagents.
-Its "last activity time" is **the largest timestamp inside the file** (same meaning on both sides;
+Its "last activity time" is **the largest timestamp inside the file** (same meaning on every side;
 a separate pipeline from project activity, which uses mtime — see "Activity").
 The session page is **indexed primarily by question** (every real question listed once; fork replay
 prefixes and abandoned branches do not enter the trunk); clicking a question fetches that **turn** on

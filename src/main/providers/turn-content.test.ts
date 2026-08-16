@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eachJsonlLine } from './jsonl'
-import { makeQuestionIndexer, type QuestionRec } from './question-index'
+import { makeGrokQuestionIndexer, makeQuestionIndexer, type QuestionRec } from './question-index'
 import { readRanges } from './range-read'
 import { turnBlocksFromText } from './turn-content'
 import type { TurnBlock } from '@shared/domain'
@@ -364,6 +364,35 @@ describe('the Grok block model (ticket #125)', () => {
     expect(tool.input).toContain('/x/y.md')
     expect(tool.output).toBe('file body here')
     expect((blocks[3] as { body: string }).body).toBe('Done reading.')
+  })
+
+  test('Grok: the offset path == the whole-file path, and one turn\'s bytes read is far below the file size', async () => {
+    const gU = (pi: number, text: string): string =>
+      gline(100, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text }, _meta: { promptIndex: pi } })
+    const raw =
+      [
+        gU(0, 'question one'),
+        gline(100, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'answer one' } }),
+        gU(1, 'question two'),
+        gline(101, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'y'.repeat(2 * 1024 * 1024) } })
+      ].join('\n') + '\n'
+    await withFile(raw, async (file) => {
+      const idx = makeGrokQuestionIndexer()
+      let fileEnd = 0
+      await eachJsonlLine(file, (obj, start, end) => {
+        idx.line(obj, start, end)
+        fileEnd = end
+      })
+      const recs = idx.done(fileEnd)
+      expect(recs).toHaveLength(2)
+      const whole = await readRanges(file, recs.map((r) => ({ start: r[1], end: r[2] })))
+      const one = await readRanges(file, [{ start: recs[0][1], end: recs[0][2] }])
+      expect(turnBlocksFromText('grok', one.texts[0])).toEqual(turnBlocksFromText('grok', whole.texts[0]))
+      expect((turnBlocksFromText('grok', one.texts[0])[0] as { body: string }).body).toBe('answer one')
+      // Far below the file: the 2 MB padding turn is not touched by fetching turn one
+      expect(one.bytesRead).toBeLessThan(2000)
+      expect(statSync(file).size).toBeGreaterThan(2 * 1024 * 1024)
+    })
   })
 
   test('a spawn dispatch is a sub block: name from subagent_spawned, result from the in-turn finished record, not its own tool update', () => {
