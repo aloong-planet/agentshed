@@ -6,7 +6,7 @@
 // every startup; and 39.7% of questions exceed 60 characters, so a truncated preview both loses the
 // body and degenerates into a second corpus at
 // search time. Text is always read live by range (measured 23 ms on a warm cache).
-import type { ForkState } from '@shared/domain'
+import type { AgentSide, ForkState } from '@shared/domain'
 import { realUserText } from './session-title'
 
 /**
@@ -259,7 +259,10 @@ function codexCounts(obj: Record<string, unknown>): { tools: number; subagents: 
  * range and produces its text here, guaranteeing that what the list counts and what the page displays
  * are always the same set.
  */
-export function questionTextAt(side: 'claude' | 'codex', obj: Record<string, unknown>): string | null {
+export function questionTextAt(side: AgentSide, obj: Record<string, unknown>): string | null {
+  // The Grok question shape lands with the session-view ticket; until then no grok session enters
+  // the index, so this branch cannot run — null (not a question) rather than a guess at the format.
+  if (side === 'grok') return null
   const raw = (side === 'claude' ? claudeQuestion : codexQuestion)(obj)
   return raw === null ? null : realUserText(raw)
 }

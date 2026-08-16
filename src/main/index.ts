@@ -144,6 +144,10 @@ async function doScan(): Promise<Snapshot> {
             for (const r of archive.rows()) {
               if (!set.has(r.day)) continue
               const d = byDay.get(r.day) ?? { day: r.day, claude: 0, codex: 0, byProvider: {} }
+              // DayUsage still carries one literal field per side; ADR-0020's bySide restructure
+              // lands with the Grok metering ticket, and until then nothing writes a grok archive
+              // row — this skip is compile honesty, not a live branch.
+              if (r.side === 'grok') continue
               d[r.side] += r.total
               const prov = providerOf(r.model)
               d.byProvider[prov] = (d.byProvider[prov] ?? 0) + r.total

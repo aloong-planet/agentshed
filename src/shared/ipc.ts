@@ -1,5 +1,6 @@
 // The IPC contract: the single source for channel names and payload types. Both ends import only from
 // here, and defining their own is forbidden.
+import type { AgentSide } from './domain'
 import type { ErrorCode, ErrorParams } from './errors'
 
 export const CMD = {
@@ -72,7 +73,7 @@ export interface SearchSessionsArgs {
 
 export interface SkillOpArgs {
   skillName: string
-  side: 'claude' | 'codex'
+  side: AgentSide
   targetProjectPath: string
 }
 
@@ -85,7 +86,7 @@ export type SkillOpResult =
 /** Enumerate a skill package: from the global library, project level, or a plugin package
  * (plugins-view H8) */
 export interface ListSkillFilesArgs {
-  side: 'claude' | 'codex'
+  side: AgentSide
   name: string
   scope: 'global' | 'project' | 'plugin'
   /** Required when scope=project */

@@ -85,8 +85,10 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
       name,
       description: cl?.description ?? cx?.description ?? null,
       sides,
-      symlink: { claude: cl?.symlink ?? false, codex: cx?.symlink ?? false },
-      pkg: { claude: cl?.pkg ?? null, codex: cx?.pkg ?? null },
+      // The grok keys are typecheck-forced placeholders: Grok's own global library is read in the
+      // agents-overview ticket, and until then no disk entry carries the grok side
+      symlink: { claude: cl?.symlink ?? false, codex: cx?.symlink ?? false, grok: false },
+      pkg: { claude: cl?.pkg ?? null, codex: cx?.pkg ?? null, grok: null },
       origin: 'disk',
       pluginName: null,
       pluginRoot: null,
@@ -104,10 +106,10 @@ function readGlobalSkills(roots: ScanRoots, plugins: PluginEntry[]): GlobalSkill
         name: `${ns}:${s.name}`,
         description: s.description,
         sides: ['claude'],
-        symlink: { claude: false, codex: false },
+        symlink: { claude: false, codex: false, grok: false },
         // G3 equal-footing preview (ADR-0012): the stats and the package root come from the same scan as
         // the bundled component summary (H5)
-        pkg: { claude: s.pkg, codex: null },
+        pkg: { claude: s.pkg, codex: null, grok: null },
         origin: 'plugin',
         pluginName: p.name,
         pluginRoot: p.installPath,

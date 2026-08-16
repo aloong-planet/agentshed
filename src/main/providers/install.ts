@@ -4,8 +4,8 @@
 // The global library is read-only and is never written.
 import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AgentSide } from '@shared/domain'
-import type { ScanRoots } from './types'
+import { PROJECT_SKILLS_DIR, type AgentSide } from '@shared/domain'
+import { globalSkillsRoots, type ScanRoots } from './types'
 import { ERR, type ErrorCode, type ErrorParams } from '@shared/errors'
 
 export interface InstallArgs {
@@ -27,11 +27,11 @@ function badName(name: string): boolean {
 }
 
 function projectSkillsDir(side: AgentSide, projectPath: string): string {
-  return side === 'claude' ? join(projectPath, '.claude', 'skills') : join(projectPath, '.agents', 'skills')
+  return join(projectPath, PROJECT_SKILLS_DIR[side])
 }
 
 function globalSkillDir(roots: ScanRoots, side: AgentSide, name: string): string {
-  return side === 'claude' ? join(roots.claudeHome, 'skills', name) : join(roots.agentsSkillsDir, name)
+  return join(globalSkillsRoots(roots)[side], name)
 }
 
 export function installSkill(roots: ScanRoots, args: InstallArgs): OpResult {

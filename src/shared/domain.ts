@@ -25,7 +25,18 @@ export interface CappedText {
   truncated: boolean
 }
 
-export type AgentSide = 'claude' | 'codex'
+export type AgentSide = 'claude' | 'codex' | 'grok'
+
+/**
+ * The per-side project skills directory, relative to the project root (the landing place of a
+ * project install and the path shown in the uninstall confirmation). Keyed by AgentSide so a new
+ * side is a compile error at every consumer rather than a silent fall-through in a ternary.
+ */
+export const PROJECT_SKILLS_DIR: Record<AgentSide, string> = {
+  claude: '.claude/skills',
+  codex: '.agents/skills',
+  grok: '.grok/skills'
+}
 
 /** Detection information for one agent side */
 export interface SideInfo {
@@ -457,7 +468,11 @@ export function emptyTotals(): TokenTotals {
 }
 
 export function emptyTokenStats(): TokenStats {
-  return { bySide: { claude: emptyTotals(), codex: emptyTotals() }, byModel: [], byDay: [] }
+  return {
+    bySide: { claude: emptyTotals(), codex: emptyTotals(), grok: emptyTotals() },
+    byModel: [],
+    byDay: []
+  }
 }
 
 /** One skill in project detail (an effective-view entry; the plugin level = the bundled skills of this project's effectively enabled plugins) */
@@ -571,7 +586,7 @@ export interface Snapshot {
 export function emptySnapshot(scannedAt: number): Snapshot {
   return {
     scannedAt,
-    sides: { claude: { detected: false }, codex: { detected: false } },
+    sides: { claude: { detected: false }, codex: { detected: false }, grok: { detected: false } },
     projects: [],
     global: {
       skills: [],
