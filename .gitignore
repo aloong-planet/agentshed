@@ -8,3 +8,8 @@ release/
 *.tsbuildinfo
 test-results/
 playwright-report/
+# CLAUDE.md is committed in this repo, overriding the global ignore: it carries the project
+# capability table that skills branch on, and a declaration only present on one machine reads as
+# "not enabled" everywhere else — a silent skipped check. Personal, uncommitted instructions go in
+# CLAUDE.local.md instead.
+!CLAUDE.md

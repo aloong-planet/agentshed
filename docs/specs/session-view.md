@@ -273,8 +273,8 @@ ruling on 2026-08-06, see Out of Scope).
   failures are invisible, so nothing is ever silently dropped (a CONTEXT invariant). Probes over the
   whole repository's real data: the unknown trace set is empty, and the tool pairing rate is 99.94%.
 
-**Sequence G: the Grok side (ticket #125, grounded in a full enumeration of 17 update types,
-2026-08-16)**
+**Sequence G: the Grok side** (grounded in a full enumeration of 17 update types, measured
+2026-08-16)
 - G1 A question = the run of user_message_chunk records sharing one promptIndex; chunks concatenate
   **raw** (a long question splits mid-word, measured), and a prompt opening with an injected
   `<system-reminder>` notice is the harness speaking — it starts no question, so a session with
