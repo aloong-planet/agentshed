@@ -1,4 +1,4 @@
-// The install/uninstall state machine (ticket 06). The rules live only in reduce; legal is a derived
+// The install/uninstall state machine . The rules live only in reduce; legal is a derived
 // query; an illegal event is silently ignored.
 // The UI's "stale projects are disabled" is only a narrowed entry point; the target_stale defence also
 // holds in the model (reduce refuses to enter the copy step).

@@ -147,7 +147,7 @@ Adopt **option B**:
 - **Appearance section**: one card with two rows — "Mode" as a three-segment control + "Theme"
   as three palette cards (swatch + name, no full sentence), followed by an explanatory paragraph (the
   light/dark following rule, the two dimensions' independence, purple being the default).  
-- **The section's closing explanation is plain text with no bold** (settled in ticket 04 on 2026-08-08,
+- **The section's closing explanation is plain text with no bold** (settled on 2026-08-08,
   a deliberate deviation from the prototype): the prototype bolded the words "follow system", but for a
   dictionary entry to carry inline markup the whole sentence would have to be split into three
   fragment keys maintained in six languages — which conflicts with i18n's "rich text must not be
@@ -179,7 +179,7 @@ Adopt **option B**:
   and setting it to `light`/`dark` **directly changes how `prefers-color-scheme` evaluates**, so the
   existing media queries follow along without being rewritten; on macOS the window chrome and the
   native menu follow too.
-  **Confirmed by measurement** (ticket 04, 2026-08-08): with `themeSource='dark'` /
+  **Confirmed by measurement** (2026-08-08): with `themeSource='dark'` /
   `shouldUseDarkColors=true` on the main process side, the renderer's
   `matchMedia('(prefers-color-scheme: dark)').matches` is `true` and the body background takes the
   dark table's value.

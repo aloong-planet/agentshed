@@ -5,7 +5,7 @@
 ## Context
 
 ADR-0015 converted **failures crossing IPC** into a code plus parameters, leaving the wording to the
-renderer. After tickets 05 and 06 landed, `throw new Error` in `src/` outside tests is down to zero,
+renderer. After the structured-error conversion landed, `throw new Error` in `src/` outside tests is down to zero,
 and contract fields no longer carry whole-sentence messages.
 
 But a whole-repository search (`grep -a`, to avoid the false negative caused by NUL bytes in
@@ -58,7 +58,7 @@ that never reach the UI.
 - Positive: i18n closes completely on the renderer side, with no "half the UI translates, half does
   not" hole
 - Positive: the constraint is searchable and re-checkable rather than something a human has to watch
-  for at review; ticket 14's copy gate turns it directly into a CI assertion
+  for at review; the copy gate turns it directly into a CI assertion
 - Positive: the main process is fully decoupled from "the current UI language" — it does not need to
   know which language the user is looking at
 - Negative: a number of data fields get more complex shapes (`string` → `CappedText` / `AppError` /
@@ -74,7 +74,7 @@ that never reach the UI.
 
 ## Sources
 
-Implementing ticket 07 on 2026-08-09. The whole-repository enumeration before conversion:
+Implementing this decision on 2026-08-09. The whole-repository enumeration before conversion:
 `index.ts` (placeholders, truncation), `search-sessions.ts`, `token-stats.ts` (title fallback ×2),
 `skill-package.ts` (advisory + truncation), `read-utils.ts` (truncation), `claude.ts` ×2, `codex.ts`,
 `memory.ts`, `global.ts` ×2, `subagents.ts` ×3, `plugins.ts`, `turn-content.ts`, `shared/trend.ts`,

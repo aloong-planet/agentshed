@@ -155,9 +155,40 @@ function swatchFromTsx(tsx, mode, theme) {
 /** Global rules: constraints independent of any particular block */
 const GLOBAL_RULES = [
   {
-    // Ticket 15's AC "any entry point can reach the other five" is a **decidable property**, so it is
-    // baked into a gate rather than left to the eye
-    // (the user's ruling, 2026-08-09). What it prevents: missing a link in the other files when adding a
+    // A ticket lives in a tracker, gets closed and cleaned up; a spec is written before its tickets
+    // exist and outlives them, so a ticket number in a persistent document is a pointer guaranteed
+    // to dangle — the reader who follows it finds nothing. Provenance that must survive goes in as
+    // a date or an ADR number. Source comments are deliberately out of scope: there a ticket number
+    // is construction context that lives and dies with the code it annotates.
+    name: 'persistent documents must not reference ticket numbers (they outlive the tickets)',
+    check() {
+      const bad = []
+      const files = ['CONTEXT.md', 'README.md', 'package.json']
+      const walk = (dir) => {
+        const abs = join(ROOT, dir)
+        if (!existsSync(abs)) return
+        for (const e of readdirSync(abs, { withFileTypes: true })) {
+          if (e.name === 'vendor' || e.name.startsWith('.')) continue
+          const rel = `${dir}/${e.name}`
+          if (e.isDirectory()) walk(rel)
+          else if (/\.(md|html|js)$/.test(e.name)) files.push(rel)
+        }
+      }
+      for (const d of ['docs/specs', 'docs/adr', 'docs/features', 'docs/postmortems', 'docs/prototypes']) walk(d)
+      for (const f of files) {
+        const src = read(f)
+        if (src === null) continue
+        src.split('\n').forEach((line, i) => {
+          const m = line.match(/\btickets?\s+[0-9]+[a-z]?\b/i)
+          if (m) bad.push(`${f}:${i + 1} references "${m[0]}" — use a date or an ADR number`)
+        })
+      }
+      return bad
+    }
+  },
+  {
+    // "Any entry point can reach the other five" is a **decidable property**, so it is baked into a
+    // gate rather than left to the eye (the user's ruling, 2026-08-09). What it prevents: missing a link in the other files when adding a
     // language or renaming one —
     // nothing else would flag that kind of omission, and a reader only discovers it by clicking a dead
     // link.

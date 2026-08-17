@@ -5,7 +5,7 @@
 
 ## Context
 
-The product UI is now available in six languages (tickets 01–15), but **the repository itself is
+The product UI is now available in six languages, but **the repository itself is
 entirely Chinese**: roughly 5100 lines — 2167 comment lines, 623 test case names, 49 markdown
 files under `docs/`, and `CONTEXT.md`.
 

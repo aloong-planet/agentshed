@@ -1,4 +1,4 @@
-// The refresh lifecycle state machine (ticket 04). The rules live only in reduce; legal is a derived
+// The refresh lifecycle state machine . The rules live only in reduce; legal is a derived
 // query; an illegal event is silently ignored.
 // The pipeline's pure-function flow is in pipeline.mmd (not modelled as a state machine — it is stateless
 // and the data flows through once).

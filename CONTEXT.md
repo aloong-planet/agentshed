@@ -310,7 +310,7 @@ _Avoid_: error message (bare, implies a finished sentence)
   the regex you write is a one-in-three guess, and the fixture can only be built on the same guess —
   the test passes without having verified anything.
   **Corollary: "listing every shape of X" is a negative conclusion in positive disguise (added
-  2026-08-03, ticket 03a).** "Codex tool calls come in these kinds" reads as positive enumeration but
+  2026-08-03).** "Codex tool calls come in these kinds" reads as positive enumeration but
   actually asserts "there are no others" — a negative judgement, which per CLAUDE.md's "negative
   conclusions require a different method" cannot rest on sampling. Case in point: a 120-file sample
   gave `custom_tool_call` + `function_call`, looking clean and complete; a full enumeration over

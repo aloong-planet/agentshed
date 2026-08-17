@@ -4,7 +4,7 @@
 
 ## Context
 
-Until ticket 51 the renderer drew its icons as emoji and Unicode characters written straight into
+Until this decision the renderer drew its icons as emoji and Unicode characters written straight into
 JSX — 15 distinct meanings across roughly 27 slots, plus five more glued to the front of copy inside
 the six language dictionaries, plus two living only in CSS `content:` declarations.
 
@@ -20,8 +20,7 @@ along. That is not a rendering problem, it is a naming collision that the charac
 invisible.
 
 A second, separate problem surfaced while fixing the first. The prototypes under `docs/prototypes/`
-had kept drawing emoji for weeks after the product moved on, and **nothing reported it** (tickets 98,
-112). A prototype that disagrees with the product is worse than no prototype: anyone reading it
+had kept drawing emoji for weeks after the product moved on, and **nothing reported it**. A prototype that disagrees with the product is worse than no prototype: anyone reading it
 reasons about behaviour that no longer exists.
 
 ## Options
@@ -65,8 +64,8 @@ checked by a `--cross` rule in `check-shared-ui.mjs` that fails when it drifts.
   already had (`trend-chart.js`, `model.mmd.js`) and works under `file://` for the same reason —
   a `<script src>` is not subject to the CORS rule that blocks ES module imports.
 - **Two hand-written implementations of the same glyph list no longer exist**, which is what makes
-  the gate checkable at all. Ticket 105 proposed a gate comparing prototype and product logic for
-  *equivalence* and was closed as undecidable; this one compares generated text against its own
+  the gate checkable at all. A gate comparing prototype and product logic for *equivalence* was proposed earlier and closed as
+  undecidable; this one compares generated text against its own
   generator's output, which is structural. The dividing line is worth remembering: a static check can
   decide whether two artefacts are the same, never whether two programs mean the same.
 - Icons that are still glued to copy inside the language dictionaries were removed rather than
@@ -75,6 +74,6 @@ checked by a `--cross` rule in `check-shared-ui.mjs` that fails when it drifts.
 
 ## Sources
 
-- Tickets 51, 110, 111, 112; the icon-selection comparison pages confirmed with the user
+- The icon-selection comparison pages confirmed with the user (2026-08-12)
 - `src/renderer/src/icons.tsx`, `docs/prototypes/sync-icons.mjs`, `scripts/check-shared-ui.mjs`
-- Ticket 105's closing comment, for the checkable/undecidable boundary
+- The closing rationale of the rejected equivalence-gate proposal, for the checkable/undecidable boundary

@@ -65,7 +65,7 @@ The requirements alignment session of 2026-08-08. The throw sites enumerated dur
 `src/renderer/src/SubagentsView.tsx`. This ADR extends ADR-0001 (single type source for the IPC
 contract, with runtime validation on both sides).
 
-**Two corrections (found while implementing ticket 05 on 2026-08-09)**:
+**Two corrections (found while implementing on 2026-08-09)**:
 1. The instance above was originally recorded as `MemoryView.tsx:91` — **the filename was wrong**
    (the line number happened to be the same). During implementation, per "negative conclusions
    require a different method", a whole-repository search was run (`includes` / `startsWith` / `===`
