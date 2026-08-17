@@ -1,4 +1,4 @@
-// The project visibility state machine (ticket 02). The conventions are in the prototype skill's
+// The project visibility state machine . The conventions are in the prototype skill's
 // STATE-MACHINE.md:
 // zero I/O and zero DOM; the rules live only in reduce and legal is a derived query; an illegal event is
 // silently ignored (returning the original state plus an illegal reason).

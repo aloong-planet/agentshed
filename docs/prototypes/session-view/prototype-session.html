@@ -570,7 +570,7 @@
       // An empty turn (added 2026-08-06): asked and left, so this turn has no prose reply at all —
       // expanding shows only the fetch footnote, with no invented placeholder copy
       {...L('25','9月14日 周日','12:30','好,今天收工',0,0,''), turn:[]},
-      // An unknown-type trace example (2026-08-06, ticket 07): a new record type outside the allow-list is not
+      // An unknown-type trace example (2026-08-06): a new record type outside the allow-list is not
   // silently dropped
       {...L('26','9月14日 周日','12:41','顺手看下日志里有没有异常',1,0,''),
        turn:[{type:'text',body:'日志干净,没有异常。'},
@@ -615,7 +615,7 @@
     if(b.type==='text') return `<div class="ans">${b.body}</div>`;
     if(b.type==='tool') return toolHtml(b);
     if(b.type==='sub')  return subHtml(b);
-    // An unknown-type trace (2026-08-06, ticket 07): a new type outside the display allow-list is not silently
+    // An unknown-type trace (2026-08-06): a new type outside the display allow-list is not silently
       // dropped —
     // it leaves one discoverable line naming the type, with the content unrendered (kept as it is in the
       // source file)

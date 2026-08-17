@@ -44,7 +44,7 @@ ruling on 2026-08-06, see Out of Scope).
 - A1 Sorted by **most recent activity time, descending** (switchable to oldest first). ⚠️ An existing
   defect has to be fixed first: `SessionMeta.at` means different things on the two sides.
   **Unified to "the largest timestamp inside the file".**
-  **Correction during implementation (2026-08-02, ticket 01)**: research recorded the Claude side as
+  **Correction during implementation (2026-08-02)**: research recorded the Claude side as
   "the largest timestamp among usage lines = last activity", and that equation does not hold —
   **both sides were wrong, not just Codex**.
   - Codex: took the first timestamp = the session's start; in a forked session that is in fact **the
@@ -66,7 +66,7 @@ ruling on 2026-08-06, see Out of Scope).
   touched without its contents changing. The reason for not unifying them: mtime is a cheap
   approximation over 1948 files, and reading contents instead would push the project list's
   first-paint cost up to the level of a full scan.
-  **Time only** (added by ticket 02, 2026-08-02): **the session *count* must share its source in both
+  **Time only** (added 2026-08-02): **the session *count* must share its source in both
   places**. Once A3a landed, a project list still showing a file count would give the same concept two
   different numbers (measured: 1511 vs 507). So after the token build, `perProjectStats` backfills
   `ProjectEntry.sessionCount` — the data is already computed in that same pass, at zero extra cost;
@@ -77,7 +77,7 @@ ruling on 2026-08-06, see Out of Scope).
 - A3 Subagent sessions do not get their own rows (unchanged) but can be expanded inside the main
   session (see C3).
 - A3a **A session containing no real human question is likewise not listed, and its tokens still
-  count** (added after measurement in ticket 02, 2026-08-02, by the user's ruling) — structurally
+  count** (added after measurement 2026-08-02, by the user's ruling) — structurally
   identical to A3's rule for subagents.
   The measurement behind it: in the project with the most sessions, **1004 of 1511 (66%) contain a
   single `Warmup`** — warmup sessions Claude Code opened by itself, which consume tokens (678 usage
@@ -89,7 +89,7 @@ ruling on 2026-08-06, see Out of Scope).
 - A4 Title: after stripping known noise, take **the first real user message**; Codex prefers
   `thread_name`, falling back to the first `user_message` the same way. If stripping leaves nothing
   real → fall back to the filename (such a session is not listed anyway, per A3a).
-  **Noise shapes follow real sampling** (297 sessions measured in ticket 02, 2026-08-02; the
+  **Noise shapes follow real sampling** (297 sessions measured 2026-08-02; the
   research-phase list was incomplete):
   | Shape | Sample share | Handling |
   |---|---|---|
@@ -131,7 +131,7 @@ ruling on 2026-08-06, see Out of Scope).
   array containing a `text` segment; Codex takes `event_msg/user_message` (**not
   `response_item/message`** — the latter mixes in `<environment_context>` / AGENTS.md injected
   content).
-  **Corrections during implementation (2026-08-03, ticket 03a)**, three of them:
+  **Corrections during implementation (2026-08-03)**, three of them:
   1. "Exclude `[{type:tool_result}]`" **needs no separate guard**; the rule "take only text segments"
      achieves it. Enumerating all 37,604 array contents in the repository, the segment type
      combinations are only `(tool_result)` 12541 / `(text)` 194 / `(image,text)` 51 — **`tool_result`
@@ -151,7 +151,7 @@ ruling on 2026-08-06, see Out of Scope).
   parent file being in the scan set; when it is not, degrade to a heuristic and **label the
   uncertainty explicitly** (a wrong strip must never be silent — stripping too much or too little both
   show up as visible lost or duplicated messages).
-  **Landed during implementation (2026-08-04, ticket 03b)**:
+  **Landed during implementation (2026-08-04)**:
   - **Identify the replayed span by content fingerprint, not by timestamp** — a replay **rewrites the
     timestamps** (confirmed on 4 of 4 real parent-child pairs), so timestamps cannot recognise it.
     Each question in the index carries a 32-bit fingerprint (see the relaxation of D2a in the
@@ -165,10 +165,9 @@ ruling on 2026-08-06, see Out of Scope).
     fork has nothing new" or a heuristic misjudgement, and stripping empty on the latter would make an
     entire session vanish). The burst judgement **stops at a negative (out-of-order) timestamp
     difference**, the same rule as the token side — a single write's timestamps are monotonic, and
-    out-of-order ones are not evidence of a burst (added 2026-08-05, from ticket 03's retrospective
-    review R2).
+    out-of-order ones are not evidence of a burst (added 2026-08-05, from a retrospective review).
   - **A fork verified to have been stripped empty is not listed, and its tokens still count** (the
-    user's ruling 2026-08-05, from ticket 03's retrospective review R3): a session whose parent is in
+    user's ruling 2026-08-05, from a retrospective review): a session whose parent is in
     the scan set, every one of whose questions is fingerprint-verified as a replay, and which has no
     new question after the fork, has no question to find — structurally identical to A3a (including
     the "uncertain" empty strip where the child's whole span matches but is shorter than the parent's
@@ -179,7 +178,7 @@ ruling on 2026-08-06, see Out of Scope).
     surface, and narrowing it would mean moving the allow-list decision after `combine`, a bigger
     change than the benefit.
   - **Re-deriving the title after stripping applies only to sessions whose title comes from the first
-    question** (fixed 2026-08-05, from ticket 03's retrospective review R1): `thread_name`'s priority
+    question** (fixed 2026-08-05, from a retrospective review): `thread_name`'s priority
     (A4) is not invalidated by stripping, and the cache entry records the title's origin for this
     purpose (CACHE_VERSION v9).
   - **The display-side stripping happens in `combine`**, not in the parser: it needs the parent
@@ -195,7 +194,7 @@ ruling on 2026-08-06, see Out of Scope).
 - B3 **Claude branch resolution walks back from the last leaf**: follow the parent chain from the last
   entry back to the root and render only that chain (i.e. "what this conversation finally became"),
   without showing abandoned branches.
-  **Corrections during implementation (2026-08-04, ticket 03b): the literal algorithm is wrong on real
+  **Corrections during implementation (2026-08-04): the literal algorithm is wrong on real
   data, in two places** —
   1. **The starting point is not "the file's last entry" but the last non-`isSidechain` line.** Of the
      1481 files with a uuid chain, **1015 (69%) end on a sidechain line**, whose `parentUuid` is always
@@ -223,7 +222,7 @@ ruling on 2026-08-06, see Out of Scope).
   **reads only that range**, independent of total file size → milliseconds.
 - C3 Subagents **expand in place inside the turn**: Claude's `subagents/` subfiles and inline sidechain
   records, and Codex's subagent threads, all sit under the step that dispatched them.
-  **Correction from measurement (2026-08-06, ticket 07): "sitting under the dispatching step" cannot
+  **Correction from measurement (2026-08-06): "sitting under the dispatching step" cannot
   be reliably achieved on either side** — all four candidate join keys were measured and excluded:
   `toolUseResult.agentId` (7 digits) and sidechain `agentId` (17 digits) are different namespaces
   (0/225); dispatch lines have no `promptId` (0/202); `outputFile` points at a background task's
@@ -235,7 +234,7 @@ ruling on 2026-08-06, see Out of Scope).
   retained — they can be attributed if the harness ever provides a join key.
 - C4 An invalid index (the file was appended to or rewritten, so the signature does not match) →
   **rebuild the index for that file only**, without a full rescan; verify once before fetching.
-  **Landed (2026-08-04, ticket 04)**: `engine.sessionQuestions` compares the signature on every fetch
+  **Landed (2026-08-04)**: `engine.sessionQuestions` compares the signature on every fetch
   and, on a mismatch, re-parses that one file and **writes the cache back to disk** (so it is not
   rebuilt again next time); the display-side stripping for a Codex fork shares its source with the
   list (the same `stripReplayPrefix` and parent lookup), rather than reusing the token metering side's
@@ -245,7 +244,7 @@ ruling on 2026-08-06, see Out of Scope).
 - C6 **The sides' completeness is unequal and must be labelled explicitly**: Codex's reasoning body
   is `encrypted_content` (**never obtainable**, with only plaintext sub-headings);
   ~~Claude has plaintext `thinking`~~. We must not pretend they are the same.
-  **Correction from measurement (2026-08-06, ticket 07): all 3312 thinking segments on Claude's main
+  **Correction from measurement (2026-08-06): all 3312 thinking segments on Claude's main
   chain have an empty body** (only a signature placeholder) — measured, **neither side's thinking or
   reasoning body is obtainable**; Codex at least has plaintext sub-headings
   (`response_item/reasoning.summary`, a mirror of `event_msg/agent_reasoning`, taking the former to
@@ -253,7 +252,7 @@ ruling on 2026-08-06, see Out of Scope).
   retained (contract and rendering ready) but the current data produces none.
 - C7 A Claude tool result whose body was too large is truncated with a sidecar `tool-results/*.txt` →
   display the truncated version with a label, without pretending it is complete.
-  **Correction from measurement (2026-08-06, ticket 07)**: the research-phase note "there is no
+  **Correction from measurement (2026-08-06)**: the research-phase note "there is no
   reference chain inside the transcript" is false — all 49 sidecar references **carry a full path**
   ("output saved to: …/tool-results/x"). The truncation criterion = the return text contains a
   `tool-results/` path (mechanism-based: the harness's sidecar directory; the word "truncated" is too
@@ -262,7 +261,7 @@ ruling on 2026-08-06, see Out of Scope).
   only the truncated version is shown, with a label.
 - C8 Harness noise is not rendered: this needs a display allow-list. `task_reminder` /
   `file-history-snapshot` / `token_count` / `thread_settings_applied` and the like are never displayed.
-  **Landed (2026-08-06, ticket 07, with the full spectrum measured)**: Claude has 18 top-level types
+  **Landed 2026-08-06, with the full spectrum measured**: Claude has 18 top-level types
   (only assistant/user carry content, the other 16 are known noise; attachment **needs no inner-type
   allow-list** — the whole thing is noise); Codex has three layers: 7 top-level types, 15 event_msg
   types, 9 response_item types (prose comes from event_msg/agent_message, while tools and reasoning
@@ -308,7 +307,7 @@ ruling on 2026-08-06, see Out of Scope).
   not because of performance.**
 - D2a **The cache stores offsets and one content fingerprint, and no question text at all — not even a
   truncated preview.**
-  **The fingerprint is one necessary relaxation added on 2026-08-04 (ticket 03b)**: a Codex replay
+  **The fingerprint is one necessary relaxation added on 2026-08-04**: a Codex replay
   rewrites the timestamps, so storing nothing derived from the content would leave only blind
   stripping by count, and blind stripping is exactly the silent mis-strip B2 exists to prevent. Four
   bytes per entry, not reversible into text, and unusable for search — so neither of D2a's original
@@ -344,7 +343,7 @@ ruling on 2026-08-06, see Out of Scope).
   accent bar stays at the left edge**, cleared by clicking any question row; a remount such as changing
   the sort does not replay the pulse (the played state is remembered). The functional colours are written per rule — a default plus a dark media query — and do not
   change with the theme.
-  **Landed (2026-08-06, ticket 08)**: `searchSessions(path, needle≤200, fullText)` — the session set is
+  **Landed (2026-08-06)**: `searchSessions(path, needle≤200, fullText)` — the session set is
   taken by the main process from its own per-project statistics, since the renderer cannot supply file
   paths; question mode = a coarse pass over raw byte ranges from `readRangeBuffers` (`searchBytes` case
   folding: a non-alphabetic segment as an `indexOf` anchor / for an all-alphabetic needle, two variants
@@ -371,26 +370,26 @@ below are archived as a decision record and are no longer requirements)**
 **Cross-cutting regression points**
 - R1 Session file paths must enter the on-demand read allow-list (the same invariant as artifacts and
   memory).
-  **Landed (2026-08-04, ticket 04)**: the main process produces **an exact path Set** during the scan
+  **Landed (2026-08-04)**: the main process produces **an exact path Set** during the scan
   (with the pure judging function `sessionReadTarget` in security.ts), and the allow-list check is the
   first thing in the handler, before `stat`. **The rule = listed sessions + subagent and nested
-  transcripts** — the latter are not in the list (A3/A3a) but ticket 07 needs to expand them, so
+  transcripts** — the latter are not in the list (A3/A3a) but expanding them inside a turn needs them, so
   writing it as "only what is already listed" would block ourselves. Under exact matching, traversal,
   prefix lookalikes, encoding variants and NFD variants are all rejected because the strings are not
   equal, which is fail-closed (the worst case is refusing another spelling of the same file).
 - R2 The existing token statistics parsing and caching **must not be broken** — this feature rides the
   same scan pass, but the rules are independent (token deduplication is a metering rule and means
   something different from display deduplication).
-  ⚠️ **Do not treat `ccusage-parity` as a guard rail** (corrected in ticket 01, 2026-08-02): it is a
+  ⚠️ **Do not treat `ccusage-parity` as a guard rail** (corrected 2026-08-02): it is a
   reconciliation tool enabled only with `PARITY=1` and dependent on an external baseline file, and it
   **never runs in `pnpm verify`**.
   A workable verification: run master and this branch against **real data** and compare `byDay` /
   `bySide` / archive row counts. Note that the current day's data grows monotonically because it is
-  being written — only a comparison excluding the current day is meaningful (measured in ticket 01:
+  being written — only a comparison excluding the current day is meaningful (measured 2026-08-02:
   three samples grew monotonically for the current day, and the three were identical once it was
   excluded).
-  ⚠️ **The four component fields of an archive row are not a stable comparison quantity** (measured in
-  ticket 03b, 2026-08-04): a Codex archive row's input/output/cacheRead/cacheWrite are apportioned by
+  ⚠️ **The four component fields of an archive row are not a stable comparison quantity** (measured
+  2026-08-04): a Codex archive row's input/output/cacheRead/cacheWrite are apportioned by
   the ratio `that day's volume / that session's total` and then rounded, so a session **still being
   appended to today** enlarges the denominator and makes its **historical days'** components drift —
   while that day's `total` does not change. "Exclude the current day" does not stop it, because the row
@@ -426,18 +425,18 @@ below are archived as a decision record and are no longer requirements)**
     2026-08-06, originally ascending; newest question first). The index is **always the original turn
     number** and is never renumbered by the sort; **turns already expanded stay expanded across a sort
     change**.
-    **Rule clarification (2026-08-04, ticket 04)**: "the original turn number" means the turn number
+    **Rule clarification (2026-08-04)**: "the original turn number" means the turn number
     **within the displayed set** (1..N). Claude's abandoned branches and Codex's already-stripped
     replay prefix take no number — they are not part of "what this conversation finally became" in the
     first place; that semantics follows from 03b's filtering happening before numbering.
   - The session list `newest first | oldest first`, **newest first by default** (see A1). The sort
     applies to **the list and the search hit groups at the same time**.
-- **Session list rows carry a question count** (the prototype's `.sess .n`, landed in ticket 03a): a row
+- **Session list rows carry a question count** (the prototype's `.sess .n`): a row
   = side badge + title + `N questions` + tokens + last activity. The overview's recent session rows do
   **not** carry this number (as in the prototype — the overview wants a coarser glance).
   ~~⚠️ This number is too high for forked and branched sessions: questions in the replay prefix are not
-  yet stripped~~ (03b landed the stripping and the branch walk-back; this interim note was cleared by
-  ticket 10 on 2026-08-06).
+  yet stripped~~ (the stripping and the branch walk-back landed, and this interim note was cleared on
+  2026-08-06).
 - **Search hits = grouped by session**: the group header is the session (with side badge and states such
   as fork), and inside it are the matching questions + highlighted snippets; the results header shows
   the hit count, the session count and **the number of folded replay copies**. Answer "in which
@@ -448,7 +447,7 @@ below are archived as a decision record and are no longer requirements)**
   resolved / fork prefix stripped; risk = the parent session is not in the scan set, the strip is
   uncertain), and in-turn uncertainty uses warn blocks (a truncated tool result, Codex's encrypted
   reasoning). **None of them are silent.**
-  **Landed (2026-08-06, ticket 06)**: the branch banner's criterion and number = the count of branch
+  **Landed (2026-08-06)**: the branch banner's criterion and number = the count of branch
   points on the main chain (`forkPoints`, the number of parent nodes referenced by ≥2 main-chain nodes;
   a banner appears only when > 0); the stripped banner carries the parent session's title and is
   **clickable to go straight to the parent's page** (if the parent will not open, this page enters an
@@ -457,31 +456,31 @@ below are archived as a decision record and are no longer requirements)**
   that passed the check was stripped (copy variants of the same risk shape). Data side: SessionPage
   gains forkPoints / forkParentTitle / forkParentFile, and ClaudeFileAgg gains forkPoints
   (CACHE_VERSION bumped).
-- **When day grouping applies (2026-08-06, ticket 06)**: grouping happens only when **every question has
+- **When day grouping applies (2026-08-06)**: grouping happens only when **every question has
   a timestamp**; if any is missing, the whole page is flat (degrading to the ungrouped form) — no
   "unknown date" group is invented, since that form does not exist in the prototype and a missing
   timestamp is a rare bad line where degrading merely has to be usable. When the same day is separated
   by out-of-order timestamps, group by adjacency (two groups with the same label, whose collapsing does
   not cross over). The question sort is page-local state and resets to ascending when leaving the
   session page (the spec does not require it to survive unmounting).
-- **In-turn blocks (2026-08-06, ticket 07)**: the tool / thinking / reasoning / subagent collapsed
+- **In-turn blocks (2026-08-06)**: the tool / thinking / reasoning / subagent collapsed
   blocks and the unknown-trace block follow the 2026-08-02 prototype (the unknown form was
   retro-added on 2026-08-06 with the user's confirmation); a block's expanded state resets when the
   turn re-renders (on a sort change or collapsing a day), as in the prototype. The blocks' default copy
   (no return record / no return / an unattributed warning) is exempted from the prototype gate as
   pure-copy.
-- **In-turn fetch states (retro-added to the prototype 2026-08-06, ticket 05, confirmed by the user)**:
+- **In-turn fetch states (retro-added to the prototype 2026-08-06, confirmed by the user)**:
   fetching = a momentary notice on the first fetch, with an already-fetched turn re-expanding
   instantly; a single turn's failure = that turn shows an error without affecting the others, and
   clicking again retries; an empty turn (no prose reply) shows only the fetch footnote and invents no
   placeholder; the footnote includes the actual bytes read. Visually all of them are small, faint
   in-turn text (the prototype's `.rebuild` style).
 - **A knock-on change to the overview section**: the overview's session card becomes clickable, and its
-  old "metadata and no further" rule is overturned by this feature. Ticket 02 landed it as **listing
-  only the 5 most recent + a total count at the bottom**; **ticket 04 changed the click target to go
-  straight to the session page** (closing 02's interim state), with the back button landing on the
+  old "metadata and no further" rule is overturned by this feature. It first landed as **listing
+  only the 5 most recent + a total count at the bottom**; the click target then **changed to go
+  straight to the session page** (closing that interim state), with the back button landing on the
   "Sessions" section.
-- **The sessions section's sort choice survives switching sections** (added by ticket 02, 2026-08-02;
+- **The sessions section's sort choice survives switching sections** (added 2026-08-02;
   not demonstrated in the prototype): the tabs are conditionally rendered, so switching away unmounts
   and component state cannot hold it. It lives in a module-level variable — not lifted to the parent
   (which would start it collecting every section's internal state), not persisted to disk (it is a
@@ -495,7 +494,7 @@ below are archived as a decision record and are no longer requirements)**
 - **Offset index**: the scan records `{question offset, turn start and end offsets, time, that turn's
   tool and subagent counts}` — **with no question text** (see D2a). Stored in the existing cache keyed
   by a `path + mtime + size` signature. Fetching streams the byte range.
-  **Measured after landing (2026-08-03, ticket 03a, real data 1823 files / 287.8 MB)**: the cache went
+  **Measured after landing (2026-08-03, real data 1823 files / 287.8 MB)**: the cache went
   4.87 MB → 5.08 MB (**+207 KB / +4.3%**); a full cold scan went 3537 ms → **2916 ms** and a warm cache
   174 ms → **99 ms** — not a regression but an improvement, because line reading switched from
   `readline` to splitting a Buffer on `0x0A` (which is incidentally what makes the byte offsets
@@ -525,7 +524,7 @@ below are archived as a decision record and are no longer requirements)**
   hard-coding it rots, and it already did once: the spec said 7 when the code was at 10):
   1. Changing `FileAgg`'s **shape** — there is a precedent from 2026-07-30 where not bumping the
      version made an old cache crash on a missing field.
-  2. Changing **how a field in `FileAgg` is computed** — added by ticket 01: the signature still hits
+  2. Changing **how a field in `FileAgg` is computed** (added 2026-08-02): the signature still hits
      and the shape is still valid, so without a bump existing files return the old value forever;
      fixtures using a fresh cache always pass, real users never see the fix, and that is a textbook
      false green.
@@ -545,7 +544,7 @@ below are archived as a decision record and are no longer requirements)**
 - **Normalising the sides**: the common model = `{time, role, text, tool call (name/args/result),
   reasoning block?}`. The Codex side needs two things Claude does not: choosing one of the two written
   streams (take `event_msg`) and stripping the fork replay prefix.
-  **The landed form (2026-08-05, ticket 05)**: the model is a discriminated union on `kind`
+  **The landed form (2026-08-05)**: the model is a discriminated union on `kind`
   (`TurnBlock`); 05 landed `text` first (prose: time / role / text), with tool calls, reasoning blocks
   and other kinds extended by 07; the IPC boundary validates against a kind allow-list and rejects
   unknown kinds. The prose carrier follows from full enumeration: the entire spectrum of assistant
@@ -554,11 +553,11 @@ below are archived as a decision record and are no longer requirements)**
   event_msg path as the question side. Every type this ticket does not emit a block for has been
   enumerated and assigned to 07; **when 07 lands C8's display allow-list it must carry the "unknown
   types are discoverable" trace** and never silently drop (the CONTEXT allow-list invariant).
-- **IPC**: the session list rides on `getProjectDetail`; **`getSessionPage` (created in ticket 04)**
+- **IPC**: the session list rides on `getProjectDetail`; **`getSessionPage`**
   returns a self-contained session page payload (title / volume / forkState / question text), with the
   text read live by the main process by byte range — `readArtifact`'s read-whole 500 KB path is not
   reused.
-  **On-demand answer fetching (created in ticket 05)**: `getSessionTurn(file, i)` — the range can only
+  **On-demand answer fetching**: `getSessionTurn(file, i)` — the range can only
   come from the main process's own index (the renderer cannot supply byte ranges), with the same
   `sessionReadTarget` allow-list first; the payload carries `bytesRead` as evidence of "nothing was read
   whole". The companion `sessionFresh(file)` is a read-only predicate: the renderer uses it to decide
@@ -596,7 +595,7 @@ would inevitably inherit the blind spots of my imagination).
   state / search and hits / ~~export entry point~~) were prototyped and confirmed by the user, and the
   conclusions are inlined into the "UI decisions" section above; the export entry point was removed
   from the prototype along with the feature (2026-08-06).
-- **Existing constraints that had to be rewritten** — all done (cleared by ticket 10 on 2026-08-06):
+- **Existing constraints that had to be rewritten** — all done (cleared 2026-08-06):
   `CONTEXT.md`'s "session" term has had its final rewrite and "turn" was added; the Out of Scope
   sections of `docs/specs/token-stats.md` and `docs/specs/project-detail.md` and the boundary entries
   of `docs/features/project-detail.md` have all been updated (features/token-stats was checked and

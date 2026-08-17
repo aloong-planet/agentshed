@@ -1,6 +1,6 @@
 # Three defences we thought existed and that were not defending anything (2026-08-02)
 
-The review of session-view ticket 01 turned up three places in a row where "we thought there was a
+A session-view implementation review turned up three places in a row where "we thought there was a
 guard rail and there wasn't". The three happened independently and are different in kind, but they
 are all the same self-deception: **citing a name without verifying it was actually working.** Two of
 them land on `CACHE_VERSION` — the same constant as
