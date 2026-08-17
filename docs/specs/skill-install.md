@@ -37,7 +37,7 @@ can be uninstalled. The global library itself is read-only.
 
 **Sequence A: install**
 - A1 Installing on the Claude side → copies into the project's `.claude/skills/`, contents intact.
-- A2 Installing on the Codex side → lands in `.agents/skills/`; on the Grok side (since #126) →
+- A2 Installing on the Codex side → lands in `.agents/skills/`; on the Grok side →
   `.grok/skills/`. The sides' directories differ and must not be crossed — the mapping is the
   shared PROJECT_SKILLS_DIR record, so a new side is a compile error rather than a wrong landing.
 - A3 The source is a symlink → **dereferenced and copied as a real directory** (ADR-0004).

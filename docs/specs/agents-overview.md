@@ -66,7 +66,7 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - R2 Global refresh is shared by both dimensions, and repeat clicks while one is in flight are
   deduplicated.
 
-**Sequence G: the Grok side (ticket #126)**
+**Sequence G: the Grok side**
 - G1 Grok's own global skills (its skills directory) list alongside the other sides'; what it
   borrows from Claude Code's configuration at runtime never joins its lists — the exclusion is by
   construction (only its own root is read), and the Skills section carries one line of copy saying
