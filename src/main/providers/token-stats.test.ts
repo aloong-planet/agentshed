@@ -68,8 +68,24 @@ function mkCodexRollout(
   cwd: string,
   tsIso: string,
   model: string,
-  /** Per-turn increments (last_token_usage), attributed to a day by their own timestamps */
-  turns: Array<{ input: number; cached: number; output: number; at?: string }>,
+  /**
+   * Per-turn increments (last_token_usage), attributed to a day by their own timestamps.
+   * `cacheWrite` defaults to 0 because that is what real records carry (50791/50791 on this
+   * machine); it is settable only so the "not collected" rule (B5) has a shape to be tested against.
+   */
+  turns: Array<{
+    input: number
+    cached: number
+    output: number
+    at?: string
+    cacheWrite?: number
+    /**
+     * Overrides the record's own `total_tokens`. Real records normally satisfy
+     * total == input + output, but 412 of this machine's 50791 carry an all-zero breakdown beside a
+     * non-zero total — a shape that has to come from real data, since nobody would invent it (spec B6).
+     */
+    total?: number
+  }>,
   subagent = false,
   atSec = 2000,
   /** A real question; pass null to build a session nobody ever asked anything in (spec A3a) */
@@ -100,9 +116,12 @@ function mkCodexRollout(
             last_token_usage: {
               input_tokens: t.input,
               cached_input_tokens: t.cached,
-              cache_write_input_tokens: 0,
+              cache_write_input_tokens: t.cacheWrite ?? 0,
               output_tokens: t.output,
-              total_tokens: t.input + t.output
+              // Real records satisfy total == input + output with no write term (50379/50791; the
+              // remainder carry an all-zero breakdown, spec B6) — the fixture keeps that identity
+              // even when a write figure is present, which is what makes B5 testable
+              total_tokens: t.total ?? t.input + t.output
             },
             total_token_usage: {
               input_tokens: acc.input,
@@ -423,6 +442,49 @@ describe('Codex aggregation (the ccusage rules)', () => {
     expect(p?.sessions.find((s) => s.side === 'codex')?.title).toBe('migrate skills')
   })
 
+  it('a reported cache-write figure is not collected and does not enter the total (B5)', async () => {
+    // 500 of cache creation — a shape real records never carry (50791/50791 read zero), written here
+    // deliberately large so that collecting it would be unmistakable rather than a rounding-sized
+    // difference. Collecting it would put the total at 610 while the record's own total_tokens says
+    // 110; where those 500 actually sit is not observable, but disagreeing with the side's own
+    // published total is (ADR-0023).
+    mkCodexRollout('rollout-cw-019f004.jsonl', proj, '2026-07-30T02:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 80, output: 10, cacheWrite: 500 }
+    ])
+    const r = await engine().build(roots(), [proj])
+    const c = r.global.bySide.codex
+    // total = rawInput + output = 110, the figure this side reports for itself. Collecting the write
+    // would give 610.
+    expect(c.total).toBe(110)
+    expect(c.input).toBe(20) // sanitised: 100 reported minus 80 cached
+    expect(c.cacheRead).toBe(80)
+    expect(c.output).toBe(10)
+    expect(c.cacheWrite).toBe(0)
+    // The invariant the composition view depends on: the four fields sum to the total, on every side
+    expect(c.input + c.output + c.cacheRead + c.cacheWrite).toBe(c.total)
+    // The per-model bucket is fed from the same total, so a leak there would survive the check above
+    const models = Object.fromEntries(r.global.byModel.map((m) => [`${m.side}:${m.model}`, m.total]))
+    expect(models['codex:gpt-5.6-sol']).toBe(110)
+  })
+
+  it('a record with an all-zero breakdown beside a non-zero total contributes nothing (B6, a known under-count)', async () => {
+    // A shape taken from real data, not imagined: 412 of this machine's 50791 Codex usage records
+    // look exactly like this — every field zero, `total_tokens` not. The total is derived from the
+    // fields rather than read from the record, so such a record contributes nothing. That is a
+    // deliberate under-count (spec B6): a total no field can account for could not be attributed to
+    // a day, a model or a bucket, and admitting it would break the four-fields-sum-to-total
+    // invariant this side now relies on.
+    mkCodexRollout('rollout-b6-019f005.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [
+      { input: 0, cached: 0, output: 0, total: 12908 },
+      { input: 40, cached: 10, output: 5 }
+    ])
+    const r = await engine().build(roots(), [proj])
+    const c = r.global.bySide.codex
+    // Only the second turn counts: 40 + 5. Reading `total_tokens` instead would give 12953.
+    expect(c.total).toBe(45)
+    expect(c.input + c.output + c.cacheRead + c.cacheWrite).toBe(c.total)
+  })
+
   it('a session spanning midnight is apportioned to its respective dates by event timestamp (no longer piled onto the first day)', async () => {
     // Two timestamps 24h apart, so it crosses a day boundary in any local time zone
     mkCodexRollout('rollout-cross-019f003.jsonl', proj, '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
@@ -463,21 +525,29 @@ describe('Codex aggregation (the ccusage rules)', () => {
 describe('Grok aggregation (sequence F)', () => {
   it('per-turn usage from the authoritative stream; the total follows the Codex shape, not the Claude one (F1/F2)', async () => {
     // Reported input 1000 ALREADY includes the 600 cached reads (measured on real data:
-    // inputTokens ⊇ cachedReadTokens), plus 50 of cache creation
+    // inputTokens ⊇ cachedReadTokens). The fixture also carries a non-zero cache-creation figure —
+    // a shape never seen on real data (380/380 records read zero) — precisely so that the
+    // "not collected" rule has something to be tested against.
     mkGrokSession(proj, '019f-f2', [
       grokTurn(1786088656, { input: 1000, cached: 600, output: 200, cacheCreation: 50 })
     ])
     const r = await engine().build(roots(), [proj])
     const g = r.global.bySide.grok
-    // total = input + output + cache creation. Copying the Claude four-field sum would give 1850
-    // (double-counting the cache), so that mistake turns this case red.
-    expect(g.total).toBe(1250)
+    // total = input + output, which is the figure this side reports for itself. Two mistakes turn
+    // this case red: adding cacheRead (the Claude four-field sum) gives 1850 — a measured subset of
+    // the reported input, counted twice — and adding cache creation gives 1250, which exceeds the
+    // total this side publishes about itself (ADR-0023).
+    expect(g.total).toBe(1200)
     expect(g.input).toBe(400) // sanitised: reported input minus cached
     expect(g.cacheRead).toBe(600)
     expect(g.output).toBe(200)
-    expect(g.cacheWrite).toBe(50)
+    // B5: the field is present in the record and deliberately not read — this side does not report
+    // writes, and zero says so without asserting a quantity
+    expect(g.cacheWrite).toBe(0)
+    // The invariant the composition view depends on: the four fields sum to the total, on every side
+    expect(g.input + g.output + g.cacheRead + g.cacheWrite).toBe(g.total)
     const p = r.perProject.get(proj.toLowerCase())
-    expect(p?.tokens.bySide.grok.total).toBe(1250)
+    expect(p?.tokens.bySide.grok.total).toBe(1200)
   })
 })
 
@@ -789,6 +859,58 @@ describe('cache version migration (a real bug regression)', () => {
     // No crash, and the number comes from the recomputation (35) rather than the old cache (999)
     expect(r.global.bySide.codex.total).toBe(35)
     expect(r.global.bySide.claude.total).toBe(15)
+  })
+
+  it('a previous version\'s stale non-zero cacheWrite is recomputed to 0, and the four fields still sum to the total', async () => {
+    // ⚠️ **This does not catch a missed CACHE_VERSION bump** — same limitation as the neighbouring
+    //    "outdated algorithm" case, and for the same reason: the fixture writes `CACHE_VERSION - 1`,
+    //    one notch below the current value whatever it is, so it never matches and always recomputes.
+    //    Measured 2026-08-18: rolling CACHE_VERSION back 13 → 12 (simulating the missed bump that
+    //    ADR-0023's implementation actually made) leaves this case **green**.
+    //    The algorithm-change half of the rule relies on process, not on any unit test.
+    //
+    // What it does assert: once recomputation happens, the ADR-0023 field comes back as 0 rather than
+    // inheriting the parsed value, and the invariant the composition view depends on still holds.
+    // Both would have been violated by a stale entry flowing through unrecomputed.
+    const rollout = mkCodexRollout('rollout-stale-019f901.jsonl', proj, '2026-07-30T03:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 80, output: 10 }
+    ])
+    mkdirSync(join(dir, 'cache'), { recursive: true })
+    const st = statSync(rollout)
+    writeFileSync(
+      join(dir, 'cache', 'token-cache.json'),
+      JSON.stringify({
+        // Deliberately the immediately previous version rather than a literal, so the guard keeps
+        // meaning as the version grows (the convention CACHE_VERSION's own comment sets out)
+        version: CACHE_VERSION - 1,
+        files: {
+          [rollout]: {
+            sig: `${st.mtimeMs}:${st.size}`,
+            agg: {
+              kind: 'codex',
+              file: rollout,
+              projectKey: proj.toLowerCase(),
+              listed: true,
+              title: 'stale cache-write',
+              at: Date.parse('2026-07-30T03:00:00Z'),
+              model: 'gpt-5.6-sol',
+              titleFromThread: false,
+              sessionId: null,
+              parentId: null,
+              forkedAt: null,
+              questions: [],
+              // The stale part: a non-zero cache-write parsed under the old rule
+              events: [[Date.parse('2026-07-30T03:00:00Z'), 100, 80, 10, 500]]
+            }
+          }
+        }
+      })
+    )
+    const r = await engine().build(roots(), [proj])
+    const c = r.global.bySide.codex
+    expect(c.cacheWrite, 'the stale 500 must not survive into the recomputed result').toBe(0)
+    expect(c.total).toBe(110)
+    expect(c.input + c.output + c.cacheRead + c.cacheWrite).toBe(c.total)
   })
 
   it('an old cache predating the grok variant does not crash, and grok data on disk is computed fresh', async () => {

@@ -13,8 +13,8 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0002](0002-dual-seam-testing.md) | Dual-seam testing strategy (data-layer injection + IPC contract) | Accepted |
 | [0003](0003-token-accounting.md) | Token accounting rules | Superseded by 0005 |
 | [0004](0004-skill-install-by-copy.md) | Skills install by copy (symlinks rejected) | Accepted |
-| [0005](0005-token-ccusage-alignment.md) | Token accounting aligned with ccusage (whole tree + dedup + four-field rule) | Accepted |
-| [0006](0006-codex-usage-accounting.md) | Codex usage accounting (two data roots + fork replay stripping) | Accepted |
+| [0005](0005-token-ccusage-alignment.md) | Token accounting aligned with ccusage (whole tree + dedup + four-field rule) | Accepted (cache-write clause superseded in part by 0023) |
+| [0006](0006-codex-usage-accounting.md) | Codex usage accounting (two data roots + fork replay stripping) | Accepted (four-field clause superseded in part by 0023) |
 | [0007](0007-usage-archive.md) | Usage history archive (resilient to the agent's own cleanup) | Accepted |
 | [0008](0008-trend-by-provider.md) | Trend bars segmented by provider | Accepted |
 | [0009](0009-trend-xaxis-data-days.md) | Trend x axis labels data days only, with hierarchical date labels | Accepted |
@@ -31,3 +31,4 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0020](0020-day-usage-keyed-by-side.md) | Daily usage is keyed by agent side, not by a field per side | Accepted |
 | [0021](0021-side-colour-follows-provider.md) | One colour per agent side, taken from that side's provider colour | Accepted |
 | [0022](0022-remove-manual-hiding.md) | Manual project hiding is removed | Accepted |
+| [0023](0023-no-cache-write-on-codex-and-grok.md) | Cache creation is not collected on the Codex and Grok sides | Accepted |

@@ -251,9 +251,16 @@ export interface GlobalLayer {
 }
 
 /**
- * Token counts. The total rule (ADR-0005, aligned with ccusage):
+ * Token counts. The total rule (ADR-0005, aligned with ccusage; amended by ADR-0023):
  * Claude: total = input + output + cacheRead + cacheWrite (all four summed);
- * Codex: total = input + output + cacheWrite (its input already includes cached, so it is not added twice).
+ * Codex and Grok: total = input + output — their reported input already includes cached reads, so
+ * adding those would count them twice, and cache creation is not collected on either side at all
+ * (`cacheWrite` reads 0 there).
+ *
+ * **The four fields sum to the total on every side**, which is what lets a cross-side view present
+ * `input + cacheWrite` / `output` / `cacheRead` as three comparable buckets. Note that `input` and
+ * `cacheWrite` do **not** each carry one meaning across sides — see the invariant in CONTEXT.md
+ * before summing either of them by itself.
  */
 export interface TokenTotals {
   input: number

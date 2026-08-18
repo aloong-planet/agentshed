@@ -409,6 +409,35 @@ _Avoid_: error message (bare, implies a finished sentence)
   it corrupts answers about **absence** — "nothing else references this", "there is no other
   producer" — which are exactly the answers nobody re-checks. Enforced by `pnpm check:nul`.
 
+- **`TokenTotals.input` does not mean the same thing on every side, so it must not be summed across
+  them (settled 2026-08-18)**: on the Claude side `input` is the genuinely new content — cache reads
+  and cache writes each have their own disjoint bucket. On the Codex and Grok sides the reported input
+  demonstrably contains the cached reads (which we subtract), and **may or may not** also contain the
+  tokens written to cache — neither side reports that quantity, so it cannot be subtracted and the
+  question cannot be settled from the data (ADR-0023). Either way the sanitised `input` on those sides
+  is not the same quantity as Claude's "new only". The same asymmetry makes
+  `cacheWrite` a Claude-only figure; summing it across sides labels one side's number as three sides'.
+  **The three cross-side comparable buckets are `input + cacheWrite`, `output`, and `cacheRead`** —
+  these carry one meaning each on all three sides and, on each side, sum exactly to that side's total.
+  This is not fixable in the parser: the information is absent from the source data, so any presentation
+  that needs comparability must aggregate to those three.
+
+  **Known violation, stated so this invariant is not read as already held**: the cumulative-totals
+  card set sums `input` and `cacheWrite` across sides today, and its secondary line claims a per-side
+  breakdown it does not render. That is what the invariant forbids, written before the invariant
+  existed. Bringing the card set into line is a user-visible change and therefore starts at a
+  prototype; until it does, treat the card as the counter-example rather than the precedent.
+
+- **A metric only some sides report does not join `TokenTotals` (settled 2026-08-18)**: reasoning
+  tokens are a case in point — Codex reports `reasoning_output_tokens` and Grok `reasoningTokens`
+  (verified subsets of output: 50791/50791 and 380/380, so no volume is lost by ignoring them), while
+  the Claude side has no equivalent — 57 of 51753 usage records carry `output_tokens_details`, all
+  reading zero. Adding the field would put a real number beside a structural blank, which reads as
+  breakage on the side that has none rather than as an honest absence. This is the same judgement
+  ADR-0019 made about Grok's `costUsdTicks`, and it is recorded here so the next reader does not
+  re-derive it from a fresh scan. The bar for admitting a new field is that **every** side can answer
+  it, or that the view showing it is explicitly single-side.
+
 ## Flagged ambiguities
 
 - **"AgentDex" (former name) is retired**: the product was originally positioned as a read-only

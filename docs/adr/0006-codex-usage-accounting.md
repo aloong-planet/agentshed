@@ -1,6 +1,8 @@
 # ADR-0006: Codex usage accounting (aligned with ccusage)
 
-- Status: Accepted (2026-07-30)
+- Status: Accepted (2026-07-30). The "sum all four fields as the total" clause was **superseded in
+  part by ADR-0023** (2026-08-18): cache creation is not collected on this side, so the total is
+  input + output. Everything else — the two data roots, fork stripping, per-day attribution — stands.
 
 ## Context
 

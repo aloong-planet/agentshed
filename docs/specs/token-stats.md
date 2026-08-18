@@ -53,7 +53,19 @@ all of them.
 
 **Sequence B: Codex-side aggregation**
 - B1 Sum per-turn `last_token_usage` increments; sanitise input (subtract cached) and list cached
-  separately; the model comes from `turn_context`.
+  separately; the model comes from `turn_context`. The total is input + output — the same figure the
+  side reports for itself — and carries **no cache-creation term** (B5).
+- B5 Cache creation is **not collected** on this side; it reads as zero. The records do carry a
+  cache-write field, but it has never held a non-zero value, and the side's own total is input +
+  output with no cache-write term — so there is no observed shape to validate a reading against.
+  Zero states the honest position ("this side does not report writes") and keeps the four fields
+  summing to the total. Adding the field to the total instead would double-count the moment it went
+  non-zero, if those tokens sit inside the reported input the way cached reads already do (ADR-0023).
+- B6 A record whose per-field breakdown is entirely zero while its own total is not contributes
+  nothing, because the total is derived from the fields rather than taken from the record. Such
+  records exist; the resulting under-count is known and accepted, because the alternative — trusting
+  a total no field can account for — would put tokens into the statistics that cannot be attributed
+  to a day, a model, or a bucket.
 - B2 Sessions spanning midnight are apportioned to their respective dates by event timestamp (not
   piled onto the first day).
 - B3 Subagent sessions' tokens count toward the statistics but do not enter the session list.
@@ -65,8 +77,9 @@ next to A/B, so that no existing reference is renumbered)
   file carrying the conversation and the tool calls — one file serves both metering and display.
 - F2 The accounting rule follows the Codex shape, not the Claude one: reported input **already
   includes** cached reads, so input is sanitised by subtracting cached, cached is recorded as cache
-  read, and the total is input + output + cache creation (ADR-0005's per-side formulas; copying the
-  Claude formula here would double-count the cache).
+  read, and the total is input + output — exactly the total the side reports for itself. Copying the
+  Claude four-field sum would double-count the cache. Cache creation is not collected here either:
+  B5's rule holds on this side unchanged, for the same reason (ADR-0023).
 - F3 The model is taken from the per-turn usage record's own model key, which names the model that was
   actually billed. This is **exact**, unlike the Codex approximation, and it can differ from the model
   the session summary names — the billed name wins, and is not normalised into the summary's name.
