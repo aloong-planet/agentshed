@@ -10,7 +10,8 @@
 //   a fork or subagent session replays its parent's history, stripped by the same rules as ccusage's
 //   replay.rs — take the parent's event sequence before the fork moment and skip entries at the start
 //   of the child that match it by value (if the very first does not match, strip nothing);
-//   accounting: sanitise input (subtract cached), count cached as cacheRead, sum all four as total;
+//   accounting: sanitise input (subtract cached), count cached as cacheRead, total = input + output
+//   (cache creation is not collected on this side or on Grok's — ADR-0023);
 //   the model comes from the last turn_context (an approximation of the session's primary model).
 // - The incremental cache stores entry-level data (deduplication has to happen across files, in the
 //   aggregation layer, so a deduplicated result cannot be what is cached);
@@ -72,7 +73,13 @@ interface ClaudeFileAgg {
   entries: PackedEntry[]
 }
 
-/** One Codex per-turn usage event: [ts, input, cached, output, cacheWrite] */
+/**
+ * One Codex per-turn usage event: [ts, input, cached, output, cacheWrite].
+ * The last slot is always 0 — cache creation is not collected on this side (ADR-0023). The slot is
+ * kept rather than removed because the tuple is the on-disk cache shape: dropping it would change
+ * that shape and force a CACHE_VERSION bump, and an old entry read as a new shape is the
+ * 2026-07-30 production crash (ADR-0019).
+ */
 type CodexEvent = [number | null, number, number, number, number]
 
 interface CodexFileAgg {
@@ -98,7 +105,9 @@ interface CodexFileAgg {
 
 /** One Grok per-turn, per-model usage event: [ts(ms)|null, input, cachedRead, output,
  * cacheCreation, billedModel|null]. The input **already includes** the cached reads (measured on
- * real data: inputTokens ⊇ cachedReadTokens), which is what makes the accounting Codex-shaped. */
+ * real data: inputTokens ⊇ cachedReadTokens), which is what makes the accounting Codex-shaped.
+ * The cacheCreation slot is always 0 — not collected on this side either (ADR-0023) — and is kept
+ * rather than removed for the same reason as the Codex tuple's: it is the on-disk cache shape. */
 type GrokEvent = [number | null, number, number, number, number, string | null]
 
 interface GrokFileAgg {
@@ -151,6 +160,11 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  *      variant, so the version bumps in the same change).
  * v12: GrokFileAgg gained title/at/listed and a real question index (the session-view ticket) — an
  *      old entry's empty questions would otherwise be reused forever for an unchanged file.
+ * v13: cacheWrite stopped being parsed on the Codex and Grok sides and is written as 0 (ADR-0023).
+ *      **A computation change, not a shape change** — which is exactly the case this comment's rule
+ *      above exists for: without the bump, an entry cached under v12 keeps its parsed value while
+ *      the total no longer includes it, so the four fields stop summing to the total. Zero on this
+ *      machine's data, hence invisible to every fixture with a fresh cache.
  *
  * **Exported for tests only** — so a guard test can build an "immediately previous version" cache with
  * `CACHE_VERSION - 1`
@@ -158,7 +172,7 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  * branch on it:
  * the only version comparison is in loadCache, and a second one would be a second rule that can drift.
  */
-export const CACHE_VERSION = 12
+export const CACHE_VERSION = 13
 
 interface CacheShape {
   version: typeof CACHE_VERSION
@@ -713,7 +727,11 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       totals.cacheRead += cached
       totals.output += output
       totals.cacheWrite += cacheWrite
-      const turnTotal = rawInput + output + cacheWrite
+      // The total is input + output — exactly the total this side reports for itself. Adding
+      // cacheRead (the Claude four-field sum) would double-count: it is a **measured** subset of the
+      // reported input. Adding cache creation would make the total exceed the side's own, which is
+      // why it is not collected at all (ADR-0023, `cacheWrite` is always 0 on this side).
+      const turnTotal = rawInput + output
       totals.total += turnTotal
       if (ts !== null && turnTotal > 0) {
         const day = localDay(ts)
@@ -796,10 +814,12 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
   for (const a of grokAggs) {
     let fileTokens = 0
     for (const [ts, rawInput, cached, output, cacheWrite, model] of a.events) {
-      // F2, the Codex shape: reported input already includes cached reads, so input is sanitised
-      // and the total is input + output + cache creation — the Claude four-field sum would
-      // double-count the cache.
-      const turnTotal = rawInput + output + cacheWrite
+      // F2, the Codex shape: reported input already includes cached reads (measured), so input is
+      // sanitised and the total is input + output — exactly the total this side reports for itself.
+      // The Claude four-field sum would double-count the cache; adding cache creation would make the
+      // total exceed the side's own, which is why it is not collected here at all (ADR-0023,
+      // `cacheWrite` is always 0 on this side).
+      const turnTotal = rawInput + output
       if (turnTotal === 0) continue
       fileTokens += turnTotal
       const v = {
@@ -1081,7 +1101,13 @@ async function parseCodexFile(
         num(usage['input_tokens']),
         num(usage['cached_input_tokens']),
         num(usage['output_tokens']),
-        num(usage['cache_write_input_tokens'])
+        // Cache creation is deliberately NOT read on this side (ADR-0023). The field exists in
+        // records written from 2026-07-21 onward but has never carried a value, and the side's own
+        // reported total is input + output with no write term — so reading it would make our total
+        // exceed the total the side publishes for itself. Where those tokens actually sit is **not
+        // observable** from this data (no non-zero record exists to test against); zero asserts no
+        // quantity, only that this side reports none.
+        0
       ])
     })
   } catch {
@@ -1160,7 +1186,12 @@ async function parseGrokFile(
           num(u['inputTokens']),
           num(u['cachedReadTokens']),
           num(u['outputTokens']),
-          num(u['cacheCreationTokens']),
+          // Cache creation is deliberately NOT read on this side (ADR-0023). `cacheCreationTokens`
+          // exists in the record but has never carried a value, and the side's own reported total is
+          // input + output with no write term — so reading it would make our total exceed the total
+          // the side publishes for itself. Where those tokens actually sit is **not observable**
+          // from this data; zero asserts no quantity, only that this side reports none.
+          0,
           model
         ])
       }

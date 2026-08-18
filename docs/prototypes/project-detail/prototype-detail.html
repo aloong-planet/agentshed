@@ -24,6 +24,11 @@
          组件会被卸载,故用模块级变量另行实现——两边行为一致,机制不同。
        - 预热会话(只有一条 Warmup、无任何真实提问)不入列,token 照计:实测某项目
          1511 个会话里 1004 个是这种,照列则三分之二的行是 uuid 文件名。
+     v3.2(2026-08-18,token 口径修正):概览的 cache 卡此前写「不计入总量」——那是 ADR-0003
+       的规则,2026-07-30 已被 ADR-0005 废止,原型未同步,示例数字也随之自相矛盾
+       (总量 8.5M 却 cache 48.2M,而 cache 是计入总量的)。现改为「其中 cache(ccusage 口径
+       已计入总量)」,大数字取 cacheRead(与实现一致,此前误取读+写),各侧示例补上 Grok,
+       并让四个字段恰好加总为总量(见 ADR-0023:Codex/Grok 不采集 cache 写)。
      演示基建(非设计的一部分,勿实现):底部悬浮条 [演示·会话分栏] 两态
        (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。 -->
 <html lang="zh-CN">
@@ -227,11 +232,14 @@
       <div data-p="ov">
         <div class="stats">
           <!-- 不写「两侧」也不写「三侧」:侧数是会变的,写进文案就是下一次接侧时的另一句谎。 -->
-          <div class="stat"><div class="k">累计总量(各侧合计)</div><div class="v">8.5M</div>
-            <div class="s">Claude 5.5M · Codex 2.1M</div></div>
+          <!-- 示例数字自洽于 ADR-0005/0023 的口径:四个字段在每一侧都恰好加总为该侧总量,
+               所以 6.9 + 0.7 + 47.1 + 1.1 = 55.8M,各侧之和亦然。cache 是计入总量的,
+               总量必然大于 cache——写成「不计入」的旧版让总量小于 cache,自相矛盾。 -->
+          <div class="stat"><div class="k">累计总量(各侧合计)</div><div class="v">55.8M</div>
+            <div class="s">Claude 38.5M · Codex 15.1M · Grok 2.2M</div></div>
           <div class="stat"><div class="k">输入 / 输出</div><div class="v">6.9M / 0.7M</div>
             <div class="s">各侧原生口径分列</div></div>
-          <div class="stat cache"><div class="k">cache 命中(单列,不计入总量)</div><div class="v">48.2M</div>
+          <div class="stat cache"><div class="k">其中 cache(ccusage 口径已计入总量)</div><div class="v">47.1M</div>
             <div class="s">读 47.1M · 写 1.1M</div></div>
         </div>
         <div class="grp-t">近 30 天趋势(本地时区,日粒度)

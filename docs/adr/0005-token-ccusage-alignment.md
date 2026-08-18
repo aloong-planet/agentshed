@@ -1,6 +1,8 @@
 # ADR-0005: Token accounting aligned with ccusage (whole-tree scan + dedup + four-field rule)
 
-- Status: Accepted (2026-07-30)
+- Status: Accepted (2026-07-30). The non-Claude sides' `+ cacheWrite` clause was **superseded in part
+  by ADR-0023** (2026-08-18); everything else — the whole-tree scan, deduplication, and the Claude
+  four-field rule — stands.
 
 ## Context
 
@@ -34,6 +36,11 @@ We choose **option 1**. The Codex side keeps its native rules: total = input + o
 (its input already includes cached, so cached is not added twice). The incremental cache now stores
 **entry-level** data — deduplication has to happen across files, in the aggregation layer, so a
 deduplicated result cannot be what is cached.
+
+> **Superseded in part (2026-08-18, ADR-0023)**: the `+ cacheWrite` term is dropped on the Codex and
+> Grok sides. A full-population scan showed the field never carries a value, and that written tokens
+> sit inside reported input just as cached reads do — so the term would double-count the day it did.
+> The total there is now `input + output`, which is the figure each side reports for itself.
 
 ## Consequences
 
