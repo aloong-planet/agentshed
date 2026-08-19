@@ -173,9 +173,9 @@ document by its headings)
   a fence carries **no box of its own** — without that reset the inline-pill rule draws a second
   border inside every fenced block (the document card shipped with that artefact).
 - E7c List indentation is part of the shared rule set: 20px on every surface (the drawer previously
-  fell to the browser's 40px default). The remaining authored differences between the two surfaces,
-  enumerated: the document card styles link hover (accent-deep) where the drawer has no hover rule,
-  and the containers' line-heights differ (card 1.75, drawer 1.65).
+  fell to the browser's 40px default). Link colours are shared too (settled 2026-08-20): accent at
+  rest, deep accent on hover, on both surfaces. The one remaining authored difference between the
+  two surfaces: container line-height (card 1.75, drawer 1.65).
 - E8 Host-capability note: this is styling of already-sanitised output; it introduces no new
   elements the user can trigger (links/media boundaries stay as specified in skills-view sequence D
   and the CONTEXT link-interception invariant).

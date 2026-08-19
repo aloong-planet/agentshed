@@ -901,10 +901,12 @@ body {
   color: var(--text-2);
   font-weight: 650;
 }
-.md a {
+.md a,
+.skill-md .md-preview-body.preview a {
   color: var(--accent);
 }
-.md a:hover {
+.md a:hover,
+.skill-md .md-preview-body.preview a:hover {
   color: var(--accent-deep);
 }
 /* Code shares one paper style across the same two surfaces as the heading ladder above (settled
@@ -2610,9 +2612,8 @@ mark {
   word-break: break-word;
   min-width: 0;
 }
-/* Heading rules for this preview live with the shared ladder in the ".md" section above (spec
-   appearance, sequence E: one ladder for every markdown surface). */
-.skill-md .md-preview-body.preview a { color: var(--accent); }
+/* Heading, code, list and link rules for this preview live with the shared declarations in the
+   ".md" section above (spec appearance, sequence E: one rule set for every markdown surface). */
 
 /* ── The settings page · row forms and the UI language selector ──
    The base values for every interaction state (hover / focus-visible / open) live here and are never

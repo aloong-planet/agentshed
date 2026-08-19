@@ -87,7 +87,12 @@
   .shell-drawer .md-preview-body.raw { background: var(--bg); color: var(--text); }
   .shell-drawer .md-preview-body.preview { background: var(--card); color: var(--text); }
   .shell-drawer .md-preview { --md-h1: var(--accent-deep); --md-h2: var(--accent); --md-h3: var(--hx3); --md-link: var(--accent); }
-  /* code/pre 不再本页覆盖:共享块默认已是定稿的纸面样式(第二条裁决),让它直接流入 */
+  /* code/pre 不再本页覆盖:共享块默认已是定稿的纸面样式(第二条裁决),让它直接流入。
+     但共享块自带的原型级 token 着色(.tok-*)在真 app 里不存在(md.ts 不做高亮),
+     本页两栏都要反映 app 事实,故在此中和掉——右栏 .mdcard 本就无 tok 规则。 */
+  .shell-drawer .md-preview-body.preview .tok-c,
+  .shell-drawer .md-preview-body.preview .tok-s,
+  .shell-drawer .md-preview-body.preview .tok-k { color: inherit; }
   .shell-drawer .md-preview-body.preview strong { color: var(--text); }
   .shell-drawer .md-preview-body.preview li::marker { color: var(--accent); }
 
