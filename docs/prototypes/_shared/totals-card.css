@@ -1,0 +1,112 @@
+/* 共享视觉块 · token 概览卡(totals-card)
+   出现在 agents-page 与 project-detail 两个原型页,必须一致演化——改这里两处同时变。
+   使用点在容器上声明 data-shared-block="totals-card"。
+
+   配色决策(2026-08-19):构成三段用**单色相三阶**,不用三个新色相。
+   理由:三段是同一个整体的组成部分(顺序型),而 provider/侧别是并列的类别(类别型);
+   两者在 Token 分栏同屏出现,若都用类别色板,读者会去找"哪一段对应哪一侧"——而它们根本不是
+   同一个维度。单色相三阶把"部分之和"编码进颜色本身,顺带完全避开 provider 已占的四个色相。
+   随明暗变、不随三套配色变——与 provider 颜色同档(见项目主题文件的同类注释)。 */
+
+.tot {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 13px 16px;
+  margin-bottom: 12px;
+}
+.tot .tot-top {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.tot .tot-l {
+  flex: 0 0 auto;
+}
+.tot .tot-k {
+  font-size: 10.5px;
+  color: var(--text-2);
+  margin-bottom: 2px;
+}
+.tot .tot-v {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.tot .tot-r {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+/* 构成条:细,因为这一版把构成定为第二层信息(方向 A) */
+.comp {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--line);
+}
+.comp > i {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+}
+.comp-rd { background: var(--tc-rd); }
+.comp-in { background: var(--tc-in); }
+.comp-ou { background: var(--tc-ou); }
+
+/* 图例:0.28% 的那段在条上只有 2px,图例是它唯一能被读到的地方 */
+.comp-lg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 7px;
+  font-size: 10.5px;
+  color: var(--text-2);
+}
+.comp-lg > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.comp-lg i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: 0 0 8px;
+}
+.comp-lg b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* 各侧拆解:一行小字,不抢总量的视觉重量 */
+.tot-sides {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--text-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.tot-sides > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.tot-sides b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+}
+.tot-sides .off {
+  opacity: 0.55;
+}

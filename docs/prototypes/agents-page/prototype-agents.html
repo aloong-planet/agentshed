@@ -13,6 +13,12 @@
        只读、不参与遮蔽,ADR-0010)。详情页形态见 project-detail 原型。
      2026-08-15 追加(第三侧 Grok 接入):Token 分栏的模式条与图例各多一项;xAI 的分段色要在
        三套主题 × 明暗下都与橙/绿/蓝/灰分得开,且在薄分段上仍认得出。
+     v4(2026-08-20,token 概览重设计·方向 A):累计总量提到**页头**——一张宽卡,左侧大号总量,
+       右侧一条细构成条(未命中输入/输出/cache 读),下方一行各侧拆解。三张侧卡随之**摘掉 token
+       数字**,回归「这一侧装了什么」的职责(检测状态 + 项目/skills/subagents 数);并补上原型里
+       一直缺的 GROK 侧卡。构成条为共享视觉块(_shared/totals-card.css),与 project-detail 一致演化。
+       注意一个后果:卡在页头,于是**所有分栏都看得见它**,不只 Token 分栏——这正是「提到页头」
+       的字面含义,是否可接受请一并评判。
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于
        页面内容流)承载两组开关,按分栏出现——Memory 分栏是 Codex 记忆四态,Token 分栏是
        xAI 分段色三候选(真实取值来自主题样式文件的 --p-xai,app 内无此开关)。 -->
@@ -23,11 +29,15 @@
 <!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
      references it -->
 <link rel="stylesheet" href="../_shared/trend-chart.css">
+<link rel="stylesheet" href="../_shared/totals-card.css">
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
-    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;
+    /* 构成三段:单色相三阶(顺序型),刻意不与 provider 的四个色相(类别型)同族——理由见 _shared/totals-card.css */
+    --tc-rd:#64748b;--tc-in:#94a3b8;--tc-ou:#c3ccd8}
   @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
-    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;
+    --tc-rd:#7d8ea6;--tc-in:#9aa9bd;--tc-ou:#5d6875}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
@@ -46,8 +56,10 @@
   .stat .s{font-size:10.5px;color:var(--text-2);margin-top:2px}
   .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
   .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
+  .b.g{background:#ece5f6;color:#6d4fa0}
   .b.miss{border:1px dashed var(--line-strong);color:var(--text-2);background:transparent;font-weight:400}
-  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}
+    .b.g{background:#332b47;color:#c9b3ec}}
   .tabs{display:flex;gap:2px}
   .tab{padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;color:var(--text-2);font-size:12.5px}
   .tab:hover{color:var(--text)}
@@ -149,12 +161,8 @@
   <div class="main">
     <div class="head">
       <div class="h1">Agents</div>
-      <div class="stats">
-        <div class="stat"><div class="k"><span class="b c">CLAUDE CODE</span>已检测</div>
-          <div class="v">11.2M</div><div class="s">46 项目 · 26 全局 skills · 5 subagents</div></div>
-        <div class="stat"><div class="k"><span class="b x">CODEX</span>已检测</div>
-          <div class="v">4.8M</div><div class="s">18 项目 · 23 全局 skills · 4 subagents</div></div>
-      </div>
+      <div data-shared-block="totals-card" id="totWrap"></div>
+      <div class="stats" id="sideCards"></div>
       <div class="tabs" id="tabs">
         <span class="tab on" data-t="token">Token</span><span class="tab" data-t="skills">Skills</span>
         <span class="tab" data-t="subagents">Subagents</span>
@@ -266,6 +274,51 @@
   <div class="drawer" id="drawer"></div>
   <!-- The demo harness floating layer: not part of the design, independent of the product page -->
   <div class="harness" id="harness" data-demo-harness></div>
+<script>
+// ── mock:取自本机真实计量(2026-08-19),刻意保留 0.28% 这一段——它在条上只有 2px,
+//    是这版设计要评判的核心边界:那一段只能靠图例被读到。
+const SIDES = [
+  { id:'cl', cls:'c', name:'CLAUDE CODE', on:true,  total:9191526594, sub:'46 项目 · 26 全局 skills · 5 subagents' },
+  { id:'cx', cls:'x', name:'CODEX',       on:true,  total:2441689686, sub:'18 项目 · 23 全局 skills · 4 subagents' },
+  { id:'gk', cls:'g', name:'GROK',        on:true,  total:694099983,  sub:'3 项目 · 7 全局 skills · 1 subagent' }
+];
+// 三段构成(跨侧可比的唯一切法)
+const COMP = { in: 335978732, ou: 34377819, rd: 11956959712 };
+let EMPTY = false;   // 演示开关:全部侧无数据(空态)
+
+const fmt = n => n>=1e9 ? (n/1e9).toFixed(2)+'B' : n>=1e6 ? (n/1e6).toFixed(1)+'M' : n>=1e3 ? Math.round(n/1e3)+'k' : String(n);
+function renderTotals(){
+  const sides = EMPTY ? SIDES.map(s=>({...s,total:0})) : SIDES;
+  const comp  = EMPTY ? {in:0,ou:0,rd:0} : COMP;
+  const G = comp.in+comp.ou+comp.rd;
+  const pct = v => G ? (v/G*100) : 0;
+  const seg = (v,cls) => G ? `<i class="${cls}" style="width:${(v/G*100).toFixed(4)}%"></i>` : '';
+  document.getElementById('totWrap').innerHTML = G === 0
+    ? `<div class="tot"><div class="tot-k">累计总量 · 含失效项目</div>
+         <div class="tot-v">0</div>
+         <div class="tot-sides">尚未扫到任何用量记录</div></div>`
+    : `<div class="tot">
+        <div class="tot-top">
+          <div class="tot-l"><div class="tot-k">累计总量 · 含失效项目</div><div class="tot-v">${fmt(G)}</div></div>
+          <div class="tot-r">
+            <div class="comp">${seg(comp.rd,'comp-rd')}${seg(comp.in,'comp-in')}${seg(comp.ou,'comp-ou')}</div>
+            <div class="comp-lg">
+              <span><i class="comp-rd"></i>cache 读 <b>${pct(comp.rd).toFixed(1)}%</b></span>
+              <span><i class="comp-in"></i>未命中输入 <b>${pct(comp.in).toFixed(1)}%</b></span>
+              <span><i class="comp-ou"></i>输出 <b>${pct(comp.ou).toFixed(2)}%</b></span>
+            </div>
+          </div>
+        </div>
+        <div class="tot-sides">${sides.map(s=>
+          `<span class="${s.total?'':'off'}"><span class="b ${s.cls}">${s.name}</span><b>${fmt(s.total)}</b></span>`).join('')}
+        </div>
+      </div>`;
+  document.getElementById('sideCards').innerHTML = sides.map(s=>
+    `<div class="stat"><div class="k"><span class="b ${s.cls}">${s.name}</span>${s.on?'已检测':'未检测'}</div>
+       <div class="s">${s.on?s.sub:'—'}</div></div>`).join('');
+}
+renderTotals();
+</script>
 <script src="../_shared/icons.js"></script>
 <script src="../_shared/trend-chart.js"></script>
 <script>
@@ -395,18 +448,22 @@
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyXai);
   function renderHarness(){
     const on=document.querySelector('.tab.on')?.dataset.t, el=$('harness');
+    // 总量卡这一组常驻:它已移入页头,所有分栏都看得见,开关也就不该随分栏出现/消失
+    const totGrp=`<span class="dl">演示·总量卡</span>`+
+      `<span data-e="0" class="${EMPTY?'':'on'}">有数据</span><span data-e="1" class="${EMPTY?'on':''}">空态</span>`;
+    el.style.display='flex';
     if(on==='token'){
-      el.style.display='flex';
       const seg=(v)=>`<span data-x="${v}" class="${XAI===v?'on':''}">${XAI_CAND[v].n}</span>`;
-      el.innerHTML=`<span class="dl">演示·xAI 分段色</span>`+Object.keys(XAI_CAND).map(seg).join('');
+      el.innerHTML=totGrp+`<span class="dl">演示·xAI 分段色</span>`+Object.keys(XAI_CAND).map(seg).join('');
       return
     }
-    if(on!=='memory'){ el.style.display='none'; el.innerHTML=''; return }
-    el.style.display='flex';
+    if(on!=='memory'){ el.innerHTML=totGrp; return }
     const seg=(v,l)=>`<span data-v="${v}" class="${CXMEM===v?'on':''}">${l}</span>`;
-    el.innerHTML=`<span class="dl">演示·Codex 记忆</span>${seg('on-has','开·有内容')}${seg('on-empty','开·无内容')}${seg('off-empty','关·无内容')}${seg('off-has','关·遗留文件')}`;
+    el.innerHTML=totGrp+`<span class="dl">演示·Codex 记忆</span>${seg('on-has','开·有内容')}${seg('on-empty','开·无内容')}${seg('off-empty','关·无内容')}${seg('off-has','关·遗留文件')}`;
   }
   $('harness').addEventListener('click',e=>{
+    const em=e.target.dataset.e;
+    if(em!==undefined){ EMPTY = em==='1'; renderTotals(); renderHarness(); return }
     const x=e.target.dataset.x;
     if(x){ XAI=x; applyXai(); renderHarness(); return }
     const v=e.target.dataset.v; if(!v)return;

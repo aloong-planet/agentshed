@@ -933,7 +933,9 @@ body {
   padding: 0;
 }
 .md ul,
-.md ol {
+.md ol,
+.skill-md .md-preview-body.preview ul,
+.skill-md .md-preview-body.preview ol {
   padding-left: 20px;
 }
 

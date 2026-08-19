@@ -165,13 +165,17 @@ document by its headings)
   rendered at 2em ≈ 25px, out of scale for a 680px drawer).
 - E6 The ladder holds in all 3 themes × light/dark: `--md-h3` keeps contrast against `--card` in
   both modes per theme; the h1 rule uses `--line-strong` so it stays visible on dark.
-- E7 Body size, the frontmatter card, lists, links and the raw view are untouched by the ladder and
+- E7 Body size, the frontmatter card, links and the raw view are untouched by the ladder and
   code rules (regression line for the surfaces sharing them).
 - E7b **Code shares the same two-surface rule set as the ladder** (settled 2026-08-19, chosen
   against the drawer's previous dark terminal-style block): inline code is a bordered pill, a
   fenced block is a bordered paper inset on the surface's background, and the code element inside
   a fence carries **no box of its own** — without that reset the inline-pill rule draws a second
   border inside every fenced block (the document card shipped with that artefact).
+- E7c List indentation is part of the shared rule set: 20px on every surface (the drawer previously
+  fell to the browser's 40px default). The remaining authored differences between the two surfaces,
+  enumerated: the document card styles link hover (accent-deep) where the drawer has no hover rule,
+  and the containers' line-heights differ (card 1.75, drawer 1.65).
 - E8 Host-capability note: this is styling of already-sanitised output; it introduces no new
   elements the user can trigger (links/media boundaries stay as specified in skills-view sequence D
   and the CONTEXT link-interception invariant).

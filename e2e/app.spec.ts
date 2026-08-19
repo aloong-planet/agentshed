@@ -1534,6 +1534,19 @@ async function codeStyle(
   }, scope)
 }
 
+/** List indentation is part of the shared rule set (spec appearance E7c): 20px on every surface —
+ * the drawer previously fell to the browser's 40px default. */
+async function listIndent(
+  win: Awaited<ReturnType<ElectronApplication['firstWindow']>>,
+  scope: string
+): Promise<string> {
+  return win.evaluate((sel) => {
+    const ul = document.querySelector(`${sel} ul`)
+    if (!ul) throw new Error(`list probe: no ul under ${sel}`)
+    return getComputedStyle(ul).paddingLeft
+  }, scope)
+}
+
 function expectCodeStyle(c: Awaited<ReturnType<typeof codeStyle>>, label: string): void {
   expect(c.preBorder, `${label}: fenced block border`).toBe('1px')
   expect(c.preBg, `${label}: fenced block is a paper inset, not the host background`).not.toBe(c.hostBg)
@@ -1680,6 +1693,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(win.locator('.pane-body .md')).toContainText('Key point A')
   expectLadder(await headingLadder(win, '.pane-body .md'), 'memory .md card')
   expectCodeStyle(await codeStyle(win, '.pane-body .md'), 'memory .md card')
+  expect(await listIndent(win, '.pane-body .md'), 'memory .md card: list indent').toBe('20px')
 
   // (6) A relative link in the main file: clicking it **must not navigate the whole window** (the
   //     2026-08-02 bug regression point),
@@ -1750,7 +1764,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   mkdirSync(join(gskills, 'tdd', 'scripts'), { recursive: true })
   writeFileSync(
     join(gskills, 'tdd', 'SKILL.md'),
-    '---\ndescription: Red before green\n---\n\n# Ladder h1\n\nGlobal body A\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
+    '---\ndescription: Red before green\n---\n\n# Ladder h1\n\nGlobal body A\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n- Bullet probe A\n- Bullet probe B\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
   )
   writeFileSync(join(gskills, 'tdd', 'scripts', 'run.sh'), 'echo Unique script B\n')
   mkdirSync(join(gskills, 'review-code'), { recursive: true })
@@ -1806,6 +1820,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   // computed ladder the memory .md card asserts
   expectLadder(await headingLadder(win, '.skill-drawer .md-preview-body.preview'), 'skill drawer preview')
   expectCodeStyle(await codeStyle(win, '.skill-drawer .md-preview-body.preview'), 'skill drawer preview')
+  expect(await listIndent(win, '.skill-drawer .md-preview-body.preview'), 'skill drawer preview: list indent').toBe('20px')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // Clicking another text file in the package switches the content: non-markdown has no raw/preview toggle
   // and shows monospace raw only
