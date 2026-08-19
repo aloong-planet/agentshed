@@ -24,12 +24,6 @@
          组件会被卸载,故用模块级变量另行实现——两边行为一致,机制不同。
        - 预热会话(只有一条 Warmup、无任何真实提问)不入列,token 照计:实测某项目
          1511 个会话里 1004 个是这种,照列则三分之二的行是 uuid 文件名。
-     v3.3(2026-08-20,token 概览重设计·方向 A):概览首屏的三张卡合为一张宽卡——左侧大号
-       累计总量,右侧一条细构成条(未命中输入/输出/cache 读,跨三侧唯一可比的切法),下方一行
-       各侧拆解。原「输入/输出」与「其中 cache」两张卡撤销:前者的副标题「各侧原生口径分列」
-       从来没兑现(卡上是跨侧求和),而 input 在三侧含义本就不同、不可相加;后者并入构成条。
-       页头徽章补上 GROK——ADR-0019 接入第三侧时漏了这里。
-       构成条是共享视觉块(_shared/totals-card.css),与 agents-page 原型一致演化。
      v3.2(2026-08-18,token 口径修正):概览的 cache 卡此前写「不计入总量」——那是 ADR-0003
        的规则,2026-07-30 已被 ADR-0005 废止,原型未同步,示例数字也随之自相矛盾
        (总量 8.5M 却 cache 48.2M,而 cache 是计入总量的)。现改为「其中 cache(ccusage 口径
@@ -44,15 +38,11 @@
 <!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
      references it -->
 <link rel="stylesheet" href="../_shared/trend-chart.css">
-<link rel="stylesheet" href="../_shared/totals-card.css">
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
-    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;
-    /* 构成三段:单色相三阶(顺序型),刻意不与 provider 的四个色相(类别型)同族——理由见 _shared/totals-card.css */
-    --tc-rd:#64748b;--tc-in:#94a3b8;--tc-ou:#c3ccd8}
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
   @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
-    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;
-    --tc-rd:#7d8ea6;--tc-in:#9aa9bd;--tc-ou:#5d6875}}
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
@@ -71,9 +61,7 @@
   .h1 b{font-size:16px}
   .b{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 5px}
   .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
-  .b.g{background:#ece5f6;color:#6d4fa0}
-  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}
-    .b.g{background:#332b47;color:#c9b3ec}}
+  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
   .path{font-size:11px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;margin:4px 0 10px}
   .tabs{display:flex;gap:2px}
   .tab{padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;color:var(--text-2);font-size:12.5px}
@@ -229,7 +217,7 @@
   </div>
   <div class="main">
     <div class="head">
-      <div class="h1"><b>Transfer</b><span class="b c">CLAUDE</span><span class="b x">CODEX</span><span class="b g">GROK</span></div>
+      <div class="h1"><b>Transfer</b><span class="b c">CLAUDE</span><span class="b x">CODEX</span></div>
       <div class="path">~/CascadeProjects/Transfer</div>
       <div class="tabs" id="tabs">
         <span class="tab on" data-t="ov">概览</span><span class="tab" data-t="skills">Skills</span>
@@ -242,30 +230,17 @@
     </div>
     <div class="body">
       <div data-p="ov">
-        <!-- 不写「两侧」也不写「三侧」:侧数是会变的,写进文案就是下一次接侧时的另一句谎。 -->
-        <!-- 示例数字按可比的三段切分:未命中输入 / 输出 / cache 读,三者在每一侧都恰好加总为该侧总量。
-             项目级尺度,数量级取自本机真实分布(cache 读约 97%)。 -->
-        <div data-shared-block="totals-card">
-          <div class="tot">
-            <div class="tot-top">
-              <div class="tot-l"><div class="tot-k">累计总量(各侧合计)</div><div class="tot-v">55.8M</div></div>
-              <div class="tot-r">
-                <div class="comp">
-                  <i class="comp-rd" style="width:96.9%"></i><i class="comp-in" style="width:2.8%"></i><i class="comp-ou" style="width:0.3%"></i>
-                </div>
-                <div class="comp-lg">
-                  <span><i class="comp-rd"></i>cache 读 <b>96.9%</b></span>
-                  <span><i class="comp-in"></i>未命中输入 <b>2.8%</b></span>
-                  <span><i class="comp-ou"></i>输出 <b>0.30%</b></span>
-                </div>
-              </div>
-            </div>
-            <div class="tot-sides">
-              <span><span class="b c">CLAUDE</span><b>38.5M</b></span>
-              <span><span class="b x">CODEX</span><b>15.1M</b></span>
-              <span><span class="b g">GROK</span><b>2.2M</b></span>
-            </div>
-          </div>
+        <div class="stats">
+          <!-- 不写「两侧」也不写「三侧」:侧数是会变的,写进文案就是下一次接侧时的另一句谎。 -->
+          <!-- 示例数字自洽于 ADR-0005/0023 的口径:四个字段在每一侧都恰好加总为该侧总量,
+               所以 6.9 + 0.7 + 47.1 + 1.1 = 55.8M,各侧之和亦然。cache 是计入总量的,
+               总量必然大于 cache——写成「不计入」的旧版让总量小于 cache,自相矛盾。 -->
+          <div class="stat"><div class="k">累计总量(各侧合计)</div><div class="v">55.8M</div>
+            <div class="s">Claude 38.5M · Codex 15.1M · Grok 2.2M</div></div>
+          <div class="stat"><div class="k">输入 / 输出</div><div class="v">6.9M / 0.7M</div>
+            <div class="s">各侧原生口径分列</div></div>
+          <div class="stat cache"><div class="k">其中 cache(ccusage 口径已计入总量)</div><div class="v">47.1M</div>
+            <div class="s">读 47.1M · 写 1.1M</div></div>
         </div>
         <div class="grp-t">近 30 天趋势(本地时区,日粒度)
           <span class="seg" id="ovseg"><span class="on">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
