@@ -165,8 +165,13 @@ document by its headings)
   rendered at 2em ≈ 25px, out of scale for a 680px drawer).
 - E6 The ladder holds in all 3 themes × light/dark: `--md-h3` keeps contrast against `--card` in
   both modes per theme; the h1 rule uses `--line-strong` so it stays visible on dark.
-- E7 Only headings change: body size, frontmatter card, code, lists, links and the raw view are
-  untouched (regression line for the surfaces sharing these rules).
+- E7 Body size, the frontmatter card, lists, links and the raw view are untouched by the ladder and
+  code rules (regression line for the surfaces sharing them).
+- E7b **Code shares the same two-surface rule set as the ladder** (settled 2026-08-19, chosen
+  against the drawer's previous dark terminal-style block): inline code is a bordered pill, a
+  fenced block is a bordered paper inset on the surface's background, and the code element inside
+  a fence carries **no box of its own** — without that reset the inline-pill rule draws a second
+  border inside every fenced block (the document card shipped with that artefact).
 - E8 Host-capability note: this is styling of already-sanitised output; it introduces no new
   elements the user can trigger (links/media boundaries stay as specified in skills-view sequence D
   and the CONTEXT link-interception invariant).
@@ -310,6 +315,8 @@ recommended handling is in "Out of Scope".
   h1 → h4, h4's colour differing from h3's, the h1 bottom rule and h2 left bar present. Reading
   computed styles is not the pixel testing ruled out above (that refers to screenshot comparison);
   it is the same technique the light/dark cases already use on the body background.
+- **Code styling (E7b)**: the same two surfaces assert the fence's border and paper inset, the
+  absence of an inner box on the code element inside the fence, and the inline pill's border.
 
 ## Out of Scope
 
@@ -333,6 +340,9 @@ recommended handling is in "Out of Scope".
   rendering of both surfaces with the same fixture (h3→body→h4, h3/h4 with no body between, wrapped
   long headings, h5/h6 tail), across 3 themes × light/dark. The shape-layered direction won; the
   conclusions are inlined into sequence E and "UI decisions".  
+- **Prototype gate (code styling): passed** (2026-08-19). The same side-by-side page showed the
+  drawer's dark terminal-style block against the document card's paper inset; the paper form was
+  chosen for both surfaces (E7b).  
 - **Prototype gate (light/dark mode + the compact layout): passed** (2026-08-08). Confirmed: the mode
   three-segment control (follow system / light / dark); appearance compressed into one card with two
   rows; the palette cards **lose their full-sentence descriptions**, keeping only swatch + name, with

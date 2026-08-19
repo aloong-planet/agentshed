@@ -1508,6 +1508,41 @@ function expectLadder(l: Awaited<ReturnType<typeof headingLadder>>, label: strin
 }
 
 /**
+ * Rendered-markdown code styling (spec appearance.md, sequence E): inline code and fenced blocks
+ * take the document card's paper style on every surface — a bordered inset for the fence, no inner
+ * box on the code element inside it, a bordered pill for inline code.
+ */
+async function codeStyle(
+  win: Awaited<ReturnType<ElectronApplication['firstWindow']>>,
+  scope: string
+): Promise<{ preBorder: string; preBg: string; hostBg: string; innerBorder: string; innerBg: string; inlineBorder: string }> {
+  return win.evaluate((sel) => {
+    const root = document.querySelector(sel)
+    if (!root) throw new Error(`code probe: no node for ${sel}`)
+    const pre = root.querySelector('pre')
+    const preCode = root.querySelector('pre code')
+    const inline = Array.from(root.querySelectorAll('code')).find((c) => !c.closest('pre'))
+    if (!pre || !preCode || !inline) throw new Error(`code probe: pre/code missing under ${sel}`)
+    return {
+      preBorder: getComputedStyle(pre).borderTopWidth,
+      preBg: getComputedStyle(pre).backgroundColor,
+      hostBg: getComputedStyle(root).backgroundColor,
+      innerBorder: getComputedStyle(preCode).borderTopWidth,
+      innerBg: getComputedStyle(preCode).backgroundColor,
+      inlineBorder: getComputedStyle(inline).borderTopWidth
+    }
+  }, scope)
+}
+
+function expectCodeStyle(c: Awaited<ReturnType<typeof codeStyle>>, label: string): void {
+  expect(c.preBorder, `${label}: fenced block border`).toBe('1px')
+  expect(c.preBg, `${label}: fenced block is a paper inset, not the host background`).not.toBe(c.hostBg)
+  expect(c.innerBorder, `${label}: no inner box on the code element inside the fence`).toBe('0px')
+  expect(c.innerBg, `${label}: inner code transparent`).toBe('rgba(0, 0, 0, 0)')
+  expect(c.inlineBorder, `${label}: inline code pill border`).toBe('1px')
+}
+
+/**
  * The v2 components (Subagents/Memory/Plugins): with a seeded fixture home (injected through
  * AGENTSHED_HOME_OVERRIDE),
  * assert F3's two-way scenario and the new tabs' rendering end to end — without depending on this
@@ -1566,7 +1601,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   mkdirSync(join(home, '.claude', 'projects', enc, 'memory'), { recursive: true })
   writeFileSync(
     join(home, '.claude', 'projects', enc, 'memory', 'MEMORY.md'),
-    '# Memory main file\n- Key point A\n- [Pitfalls](pitfalls.md) valid relative link\n- [Deleted entry](gone.md) broken target\n\n## Ladder h2\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
+    '# Memory main file\n- Key point A\n- [Pitfalls](pitfalls.md) valid relative link\n- [Deleted entry](gone.md) broken target\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
   )
   writeFileSync(join(home, '.claude', 'projects', enc, 'memory', 'pitfalls.md'), '# Pitfalls\nUnique content B')
 
@@ -1644,6 +1679,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
   await expect(win.locator('.pane-body .md')).toContainText('Key point A')
   expectLadder(await headingLadder(win, '.pane-body .md'), 'memory .md card')
+  expectCodeStyle(await codeStyle(win, '.pane-body .md'), 'memory .md card')
 
   // (6) A relative link in the main file: clicking it **must not navigate the whole window** (the
   //     2026-08-02 bug regression point),
@@ -1714,7 +1750,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   mkdirSync(join(gskills, 'tdd', 'scripts'), { recursive: true })
   writeFileSync(
     join(gskills, 'tdd', 'SKILL.md'),
-    '---\ndescription: Red before green\n---\n\n# Ladder h1\n\nGlobal body A\n\n## Ladder h2\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
+    '---\ndescription: Red before green\n---\n\n# Ladder h1\n\nGlobal body A\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
   )
   writeFileSync(join(gskills, 'tdd', 'scripts', 'run.sh'), 'echo Unique script B\n')
   mkdirSync(join(gskills, 'review-code'), { recursive: true })
@@ -1769,6 +1805,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   // The drawer side of "one ladder, every surface" (spec appearance.md sequence E): the same
   // computed ladder the memory .md card asserts
   expectLadder(await headingLadder(win, '.skill-drawer .md-preview-body.preview'), 'skill drawer preview')
+  expectCodeStyle(await codeStyle(win, '.skill-drawer .md-preview-body.preview'), 'skill drawer preview')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // Clicking another text file in the package switches the content: non-markdown has no raw/preview toggle
   // and shows monospace raw only

@@ -301,11 +301,13 @@ _Avoid_: error message (bare, implies a finished sentence)
   `will-navigate` / `setWindowOpenHandler` are a backstop; a new render site need not re-wire them,
   but must not bypass them either.
 
-- **Rendered markdown shares one heading ladder across every surface (settled 2026-08-19)**: all
-  markdown render sites (the skill file drawer, the memory/configuration document cards, the
-  artifact reader) take the same h1–h6 rules — the shape-layered ladder specified in the appearance
-  spec's sequence E — and a new render surface joins the shared selector list in the theme
-  stylesheet rather than writing its own heading styles. Two traps this guards: adjacent levels must
+- **Rendered markdown shares one heading ladder and one code style across every surface (settled
+  2026-08-19)**: all markdown render sites (the skill file drawer, the memory/configuration
+  document cards, the artifact reader) take the same h1–h6 rules — the shape-layered ladder
+  specified in the appearance spec's sequence E — and the same paper-style code rules (bordered
+  inline pill, bordered fenced inset, no inner box on the code element inside a fence); a new
+  render surface joins the shared selector lists in the theme stylesheet rather than writing its
+  own. Two traps this guards: adjacent levels must
   never be distinguished by font size alone (a wrapped heading's taller block swamps a small size
   difference), and a container's own chrome-heading rule (`overlay h2` style descendant selectors)
   ties with the ladder on specificity and wins on source order, silently restyling headings inside

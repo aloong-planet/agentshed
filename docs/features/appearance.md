@@ -33,6 +33,8 @@ configuration.
   overlay) headings share **one visual hierarchy**: a ruled first level, a bar-marked second, a
   lighter-accent third, and muted deeper levels — adjacent levels (third vs fourth in particular)
   stay tellable apart in every theme, light or dark
+- Code looks the same everywhere too: inline code as a bordered pill, fenced blocks as a bordered
+  paper inset — no dark terminal-style block in one place and a light one in another
 
 ## Boundaries and non-goals
 - The CC/CX side badges and the provider chart's brand colours are unaffected (semantic colours do
