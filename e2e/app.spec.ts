@@ -1463,6 +1463,51 @@ test('the provider brand colours apply: the segments and the legend match, with 
 })
 
 /**
+ * The rendered-markdown heading ladder (spec appearance.md, sequence E): one ladder on every
+ * markdown surface, probed as computed styles — the technique the light/dark cases already use,
+ * not screenshot comparison. Sizes are the spec's em table × the 12.5px body both surfaces set.
+ */
+async function headingLadder(
+  win: Awaited<ReturnType<ElectronApplication['firstWindow']>>,
+  scope: string
+): Promise<
+  Record<'h1' | 'h2' | 'h3' | 'h4' | 'h5', { size: number; color: string; bottomRule: string; leftBar: string }>
+> {
+  return win.evaluate((sel) => {
+    const root = document.querySelector(sel)
+    if (!root) throw new Error(`ladder probe: no node for ${sel}`)
+    const pick = (h: string) => {
+      const el = root.querySelector(h)
+      if (!el) throw new Error(`ladder probe: no ${h} under ${sel}`)
+      const cs = getComputedStyle(el)
+      return {
+        size: parseFloat(cs.fontSize),
+        color: cs.color,
+        bottomRule: cs.borderBottomWidth,
+        leftBar: cs.borderLeftWidth
+      }
+    }
+    return { h1: pick('h1'), h2: pick('h2'), h3: pick('h3'), h4: pick('h4'), h5: pick('h5') }
+  }, scope)
+}
+
+function expectLadder(l: Awaited<ReturnType<typeof headingLadder>>, label: string): void {
+  expect(l.h1.size, `${label}: h1 size`).toBeCloseTo(16.5, 1)
+  expect(l.h2.size, `${label}: h2 size`).toBeCloseTo(14.5, 1)
+  expect(l.h3.size, `${label}: h3 size`).toBeCloseTo(13.25, 1)
+  expect(l.h4.size, `${label}: h4 size`).toBeCloseTo(11.875, 1)
+  // Shape cues: the h1 bottom rule and the h2 left bar. Deliberately NOT asserted:
+  // borderLeftColor === color — border-color's initial value is currentColor, so that comparison
+  // holds even with no border rule at all (a constant-true assertion).
+  expect(l.h1.bottomRule, `${label}: h1 bottom rule`).toBe('2px')
+  expect(l.h2.leftBar, `${label}: h2 left bar`).toBe('3px')
+  // Colour steps: h2 → h3 → h4 all differ, and h4 has left the accent family for the muted grey h5 uses
+  expect(l.h3.color, `${label}: h3 differs from h2`).not.toBe(l.h2.color)
+  expect(l.h4.color, `${label}: h4 differs from h3`).not.toBe(l.h3.color)
+  expect(l.h4.color, `${label}: h4 shares the muted colour with h5`).toBe(l.h5.color)
+}
+
+/**
  * The v2 components (Subagents/Memory/Plugins): with a seeded fixture home (injected through
  * AGENTSHED_HOME_OVERRIDE),
  * assert F3's two-way scenario and the new tabs' rendering end to end — without depending on this
@@ -1511,12 +1556,17 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
     join(home, '.codex', 'agents', 'code-reviewer.toml'),
     'name = "code-reviewer"\ndescription = "Review code"\ndeveloper_instructions = "You are a reviewer."\n'
   )
+  // The demo project's artifact (CONTEXT.md) carries the full heading ladder for the reader overlay
+  writeFileSync(
+    join(demo, 'CONTEXT.md'),
+    '# Context ladder\n\nIntro.\n\n## Ladder h2\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
+  )
   // The demo project's memory
   const enc = demo.replace(/[^A-Za-z0-9]/g, '-')
   mkdirSync(join(home, '.claude', 'projects', enc, 'memory'), { recursive: true })
   writeFileSync(
     join(home, '.claude', 'projects', enc, 'memory', 'MEMORY.md'),
-    '# Memory main file\n- Key point A\n- [Pitfalls](pitfalls.md) valid relative link\n- [Deleted entry](gone.md) broken target\n'
+    '# Memory main file\n- Key point A\n- [Pitfalls](pitfalls.md) valid relative link\n- [Deleted entry](gone.md) broken target\n\n## Ladder h2\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
   )
   writeFileSync(join(home, '.claude', 'projects', enc, 'memory', 'pitfalls.md'), '# Pitfalls\nUnique content B')
 
@@ -1589,9 +1639,11 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   // A4/ADR-0012: a namespace row expands and previews on equal footing with an on-disk one
   await nsSkill.locator('.sk-head').click()
   await expect(nsSkill.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible()
-  // (5) Detail Memory: MEMORY.md's body is rendered directly
+  // (5) Detail Memory: MEMORY.md's body is rendered directly, with the shared heading ladder
+  //     (spec appearance.md sequence E — the document-card side of "one ladder, every surface")
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
   await expect(win.locator('.pane-body .md')).toContainText('Key point A')
+  expectLadder(await headingLadder(win, '.pane-body .md'), 'memory .md card')
 
   // (6) A relative link in the main file: clicking it **must not navigate the whole window** (the
   //     2026-08-02 bug regression point),
@@ -1605,6 +1657,15 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await win.locator('.pane-body .md a', { hasText: 'Deleted' }).click()
   await expect(win.locator('.toast')).toBeVisible()
   expect(win.url()).toBe(urlBefore)
+
+  // (6b) The artifact reader overlay is a markdown surface too, so it takes the same ladder — the
+  //      regression this pins: the overlay's own title rule (.reader h2) used to out-cascade the
+  //      ladder for every h2 inside the rendered body (same specificity, later in the file)
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
+  await win.locator('.it.ai', { hasText: 'Context ladder' }).click()
+  await expect(win.locator('.reader .md')).toContainText('Ladder h2')
+  expectLadder(await headingLadder(win, '.reader .md'), 'artifact reader')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
   // (7) The drawer width = min(680, 80% of the right-hand content area): in a narrow window it must not
   //     cover the whole content area (the 2026-08-02 bug).
@@ -1651,7 +1712,10 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   // The global library: tdd (with a script one subdirectory down) + review-code (global only)
   const gskills = join(home, '.claude', 'skills')
   mkdirSync(join(gskills, 'tdd', 'scripts'), { recursive: true })
-  writeFileSync(join(gskills, 'tdd', 'SKILL.md'), '---\ndescription: Red before green\n---\n\nGlobal body A\n')
+  writeFileSync(
+    join(gskills, 'tdd', 'SKILL.md'),
+    '---\ndescription: Red before green\n---\n\n# Ladder h1\n\nGlobal body A\n\n## Ladder h2\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
+  )
   writeFileSync(join(gskills, 'tdd', 'scripts', 'run.sh'), 'echo Unique script B\n')
   mkdirSync(join(gskills, 'review-code'), { recursive: true })
   writeFileSync(join(gskills, 'review-code', 'SKILL.md'), '---\ndescription: Four-layer method\n---\n\nGlobal body D\n')
@@ -1702,6 +1766,9 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await tdd.locator('.files button', { hasText: 'SKILL.md' }).click()
   await expect(win.locator('.skill-drawer .md-fm')).toContainText('Red before green')
   await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Global body A')
+  // The drawer side of "one ladder, every surface" (spec appearance.md sequence E): the same
+  // computed ladder the memory .md card asserts
+  expectLadder(await headingLadder(win, '.skill-drawer .md-preview-body.preview'), 'skill drawer preview')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // Clicking another text file in the package switches the content: non-markdown has no raw/preview toggle
   // and shows monospace raw only

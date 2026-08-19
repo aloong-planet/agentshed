@@ -13,6 +13,9 @@
   --accent: #8a67ab;
   --accent-deep: #6b4f92;
   --accent-soft: #f0ebf6;
+  /* The rendered-markdown third-step heading colour (spec appearance, sequence E): one step lighter
+     than --accent, declared per theme × light/dark like the rest of the accent family */
+  --md-h3: #9b7ec4;
   --ok-bg: #dcfce7;
   /* Overlay shadow: a neutral semantic variable at the same level as --ok-*, shared by all three themes and
      differing only between light and dark */
@@ -63,6 +66,7 @@ html[data-theme='blue'] {
   --accent: #4a6fa5;
   --accent-deep: #3a5a88;
   --accent-soft: #eef2f7;
+  --md-h3: #5d82b0;
 }
 /* Amber brown · light */
 html[data-theme='amber'] {
@@ -75,6 +79,7 @@ html[data-theme='amber'] {
   --accent: #6b5220;
   --accent-deep: #534018;
   --accent-soft: #f3ead4;
+  --md-h3: #8b6914;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -88,6 +93,7 @@ html[data-theme='amber'] {
     --accent: #a084c7;
     --accent-deep: #c9b3ec;
     --accent-soft: #2c2733;
+    --md-h3: #a88cc9;
     --ok-bg: #12301d;
     /* Overlay shadow: a neutral semantic variable at the same level as --ok-*, shared by all three themes and
      differing only between light and dark */
@@ -130,6 +136,7 @@ html[data-theme='amber'] {
     --accent: #7a9dc4;
     --accent-deep: #a8c0dc;
     --accent-soft: #1e2a38;
+    --md-h3: #8aadc8;
   }
   html[data-theme='amber'] {
     --bg: #1a1714;
@@ -141,6 +148,7 @@ html[data-theme='amber'] {
     --accent: #c4a46a;
     --accent-deep: #ddc48e;
     --accent-soft: #2e2820;
+    --md-h3: #d4b878;
   }
 }
 * {
@@ -835,12 +843,63 @@ body {
   font-size: 12.5px;
   overflow: auto;
 }
+/* The rendered-markdown heading ladder (spec appearance, sequence E): ONE ladder for every markdown
+   surface — the .md document card here and the skill drawer's preview share these very rules, and a
+   new render surface joins the selector pairs below rather than writing its own. Hierarchy is
+   carried by shape (h1 bottom rule, h2 left bar) and colour steps (accent-deep → accent → --md-h3 →
+   --text-2), with only a gentle em-based size decrease: adjacent levels must never rely on font
+   size alone, because a wrapped heading's taller block visually swamps a small size difference. */
 .md h1,
 .md h2,
-.md h3 {
-  font-size: 13.5px;
-  margin: 10px 0 6px;
+.md h3,
+.md h4,
+.md h5,
+.md h6,
+.skill-md .md-preview-body.preview h1,
+.skill-md .md-preview-body.preview h2,
+.skill-md .md-preview-body.preview h3,
+.skill-md .md-preview-body.preview h4,
+.skill-md .md-preview-body.preview h5,
+.skill-md .md-preview-body.preview h6 {
+  margin: 1em 0 0.4em;
+  line-height: 1.3;
+  font-weight: 700;
+}
+.md h1,
+.skill-md .md-preview-body.preview h1 {
+  font-size: 1.32em;
   color: var(--accent-deep);
+  border-bottom: 2px solid var(--line-strong);
+  padding-bottom: 0.3em;
+}
+.md h2,
+.skill-md .md-preview-body.preview h2 {
+  font-size: 1.16em;
+  color: var(--accent);
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+}
+.md h3,
+.skill-md .md-preview-body.preview h3 {
+  font-size: 1.06em;
+  color: var(--md-h3);
+}
+.md h4,
+.skill-md .md-preview-body.preview h4 {
+  font-size: 0.95em;
+  color: var(--text-2);
+}
+.md h5,
+.skill-md .md-preview-body.preview h5 {
+  font-size: 0.88em;
+  color: var(--text-2);
+  font-weight: 650;
+}
+.md h6,
+.skill-md .md-preview-body.preview h6 {
+  font-size: 0.85em;
+  color: var(--text-2);
+  font-weight: 650;
 }
 .md a {
   color: var(--accent);
@@ -1187,7 +1246,9 @@ body {
   z-index: 11;
   line-height: 1.8;
 }
-.reader h2 {
+/* The overlay's own title only — the child combinator keeps this off the h2s inside the rendered
+   .md body, which take the shared heading ladder (same specificity, and this rule comes later) */
+.reader > h2 {
   font-size: 15px;
   margin-bottom: 4px;
 }
@@ -2536,12 +2597,8 @@ mark {
   word-break: break-word;
   min-width: 0;
 }
-.skill-md .md-preview-body.preview h1,
-.skill-md .md-preview-body.preview h2,
-.skill-md .md-preview-body.preview h3 {
-  color: var(--accent-deep);
-  margin: 0.9em 0 0.35em;
-}
+/* Heading rules for this preview live with the shared ladder in the ".md" section above (spec
+   appearance, sequence E: one ladder for every markdown surface). */
 .skill-md .md-preview-body.preview a { color: var(--accent); }
 
 /* ── The settings page · row forms and the UI language selector ──

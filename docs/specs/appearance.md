@@ -1,6 +1,7 @@
 # Appearance
 
-> Related: [features](../features/appearance.md) · app-wide UI tokens; artifact markdown follows the accent  
+> Related: [features](../features/appearance.md) · app-wide UI tokens; rendered markdown follows the
+> accent and shares one heading ladder (sequence E)  
 > Two orthogonal dimensions: **mode** (follow system / light / dark, defaulting to follow system) ×
 > **theme** (purple (default) / mist blue / amber brown).  
 > The final look = f(theme, effective light/dark); the settings page shares one preferences
@@ -57,7 +58,10 @@ Adopt **option B**:
 4. As a user, I want the side badges (CC/CX) and the provider chart colours not to jump around with
    the theme, so that semantic colours stay recognisable.  
 5. As a developer, I want a new UI to bind only to token names, so that adding a theme does not
-   require changing components.
+   require changing components.  
+6. As a user reading a rendered markdown file (SKILL.md, memory, CLAUDE.md), I want every heading
+   level to be visually distinct — in particular h3 vs h4 — so that I can scan the document's
+   structure without counting `#`s in the raw view.
 
 ## Failure modes and boundaries
 
@@ -103,7 +107,8 @@ Adopt **option B**:
 
 - C1 **Follows the theme** (each theme has its own light/dark table):  
   `--bg/--card/--text/--text-2/--line/--line-strong/--accent/--accent-soft/--accent-deep`  
-  and the preview's `--md-*` (where landed).  
+  and the rendered-markdown third-step heading colour `--md-h3` (a lighter step of the accent family;
+  light and dark are declared explicitly for every theme even where values coincide).  
 - C2 **Does not follow the theme** (semantic / data colours; may have light/dark, identical across
   the three themes):  
   - the CC/CX side badge tokens  
@@ -112,8 +117,10 @@ Adopt **option B**:
     paper feel, but the hue is not bound to the theme)  
 - C3 Local styles with hard-coded hex in `theme.css` → pulled into tokens, so no colour is missed when
   the theme changes.  
-- C4 Skill preview and artifact markdown: headings, links and so on follow the `--accent` family and
-  match the current theme.
+- C4 Rendered markdown (skill preview, memory / configuration / artifact readers): links follow the
+  `--accent` family; headings follow the heading ladder of sequence E — h1/h2 in the accent family,
+  h3 in `--md-h3`, and h4–h6 **deliberately step out of the accent family** into `--text-2` so depth
+  reads as receding rather than as ever-smaller accent text.
 
 **Sequence D: the settings entry point**
 
@@ -128,6 +135,46 @@ Adopt **option B**:
 - D4 The refresh button stays in the rail's bottom area, grouped with the settings entry point.  
 - D5 A selection takes effect immediately, with no save button.  
 - D6 Entering and leaving settings does not lose the `selected` project.
+
+**Sequence E: rendered-markdown heading typography** (the user opens any markdown preview — a
+SKILL.md in the file drawer, a memory file, a CLAUDE.md preview, the artifact reader — and scans the
+document by its headings)
+
+- E1 **One ladder, every surface**: all rendered-markdown surfaces use the same h1–h6 ladder,
+  em-based against the surface's body size (both current surfaces set 12.5px, so px below are the
+  current equivalents):
+
+  | Level | Size | Colour | Shape cue |
+  |---|---|---|---|
+  | h1 | 1.32em (16.5px) | `--accent-deep` | full-width bottom rule, 2px `--line-strong`, 0.3em gap |
+  | h2 | 1.16em (14.5px) | `--accent` | left bar, 3px `--accent`, 10px padding |
+  | h3 | 1.06em (13.25px) | `--md-h3` | — |
+  | h4 | 0.95em (11.9px) | `--text-2` | — |
+  | h5 | 0.88em (11px) | `--text-2`, weight 650 | — |
+  | h6 | 0.85em (10.6px) | `--text-2`, weight 650 | — |
+
+  Weight 700 for h1–h4; margins `1em 0 0.4em`; line-height 1.3; no letter-spacing.
+- E2 **Adjacent levels never rely on font size alone** — the pair that prompted this (h3 vs h4)
+  differs in both size and colour family (accent-step vs grey). Rationale: a wrapped heading's
+  taller block visually swamps a small size difference; colour and shape survive wrapping.
+- E3 Two headings of adjacent levels **with no body text between them** still read as two levels
+  (the hardest real case: `### x` directly followed by `#### y` in a SKILL.md).
+- E4 Long headings that wrap in the narrow drawer keep their cues: the h1 rule underlines the whole
+  block, the h2 bar spans every wrapped line.
+- E5 No oversized display headings in panel contexts: h1 caps at 1.32em (the previous drawer h1
+  rendered at 2em ≈ 25px, out of scale for a 680px drawer).
+- E6 The ladder holds in all 3 themes × light/dark: `--md-h3` keeps contrast against `--card` in
+  both modes per theme; the h1 rule uses `--line-strong` so it stays visible on dark.
+- E7 Only headings change: body size, frontmatter card, code, lists, links and the raw view are
+  untouched (regression line for the surfaces sharing these rules).
+- E8 Host-capability note: this is styling of already-sanitised output; it introduces no new
+  elements the user can trigger (links/media boundaries stay as specified in skills-view sequence D
+  and the CONTEXT link-interception invariant).
+- E9 A container that hosts a rendered-markdown body (the artifact reader overlay today) must not
+  let its own chrome-heading rules out-cascade the ladder: a descendant selector like "overlay h2"
+  ties with the ladder on specificity and wins on source order, silently restyling every h2 inside
+  the rendered body. Chrome headings are scoped with a child combinator (or a dedicated class);
+  the same applies to any future container that starts hosting markdown.
 
 **Cross-cutting**
 
@@ -163,7 +210,14 @@ Adopt **option B**:
 - A selection recolours the whole app immediately (including the rail's selected state), with no save
   button.  
 - Palette samples come in two sets by effective light/dark, so the preview is what you get.  
-- The skill preview drawer's layout is still option A, see skills-view.
+- The skill preview drawer's layout is still option A, see skills-view.  
+- **Rendered-markdown heading ladder: the shape-layered direction** (settled 2026-08-19, chosen from
+  a four-way comparison against the status quo, a pure-size ladder and a dual-track form): hierarchy
+  is carried by shape (h1 bottom rule, h2 left bar) and colour steps (accent-deep → accent →
+  `--md-h3` → `--text-2`) with only a gentle size decrease — the pure-size direction loses hierarchy
+  on wrapped headings, and the dual-track form jumps too hard for this app's restraint. Values in
+  sequence E. Before this, the two surfaces disagreed (the drawer used UA sizes with h1 ≈ 2em; the
+  document card flattened h1/h2/h3 to one size) and h4–h6 had no rules at all on either.
 
 ## Implementation Decisions
 
@@ -251,6 +305,11 @@ recommended handling is in "Out of Scope".
   test environment cannot change the real system appearance, and using `themeSource` itself to
   simulate a "system change" is circular — it tests the value we just set. Filed as evidence; do not
   "add the missing test case".
+- **Heading ladder (sequence E)**: e2e, on one drawer preview and one document-card preview, asserts
+  the discriminating properties rather than a screenshot — computed font sizes strictly decreasing
+  h1 → h4, h4's colour differing from h3's, the h1 bottom rule and h2 left bar present. Reading
+  computed styles is not the pixel testing ruled out above (that refers to screenshot comparison);
+  it is the same technique the light/dark cases already use on the body background.
 
 ## Out of Scope
 
@@ -270,6 +329,10 @@ recommended handling is in "Out of Scope".
 - **Prototype gate (the three-theme part): passed** (2026-08-06). Confirmed: settings as the third
   dimension ⚙️; a selection recolours the whole app with no save button; all three have dark tables;
   CC/CX semantic colours do not change hue with the theme.  
+- **Prototype gate (the heading ladder): passed** (2026-08-19). Confirmed against a side-by-side
+  rendering of both surfaces with the same fixture (h3→body→h4, h3/h4 with no body between, wrapped
+  long headings, h5/h6 tail), across 3 themes × light/dark. The shape-layered direction won; the
+  conclusions are inlined into sequence E and "UI decisions".  
 - **Prototype gate (light/dark mode + the compact layout): passed** (2026-08-08). Confirmed: the mode
   three-segment control (follow system / light / dark); appearance compressed into one card with two
   rows; the palette cards **lose their full-sentence descriptions**, keeping only swatch + name, with

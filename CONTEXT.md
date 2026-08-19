@@ -301,6 +301,16 @@ _Avoid_: error message (bare, implies a finished sentence)
   `will-navigate` / `setWindowOpenHandler` are a backstop; a new render site need not re-wire them,
   but must not bypass them either.
 
+- **Rendered markdown shares one heading ladder across every surface (settled 2026-08-19)**: all
+  markdown render sites (the skill file drawer, the memory/configuration document cards, the
+  artifact reader) take the same h1–h6 rules — the shape-layered ladder specified in the appearance
+  spec's sequence E — and a new render surface joins the shared selector list in the theme
+  stylesheet rather than writing its own heading styles. Two traps this guards: adjacent levels must
+  never be distinguished by font size alone (a wrapped heading's taller block swamps a small size
+  difference), and a container's own chrome-heading rule (`overlay h2` style descendant selectors)
+  ties with the ladder on specificity and wins on source order, silently restyling headings inside
+  the rendered body — chrome headings are scoped with a child combinator or a dedicated class.
+
 - **When reading agent-generated data, a rule may only be grounded in a sample or in a mechanism
   (settled 2026-08-03)**: to write a rule that recognises, strips, or admits some data shape, the
   grounds must be **a real sample you have looked at** or **a mechanism you can articulate** — a name
