@@ -10,9 +10,10 @@ share a source and reconcile against each other.
 
 ## Capabilities
 - Project overview (the default landing spot inside a project): a cumulative total card (accounting
-  aligned with ccusage for the sides it covers — the Claude total sums all four fields including cache reads and writes;
+  aligned with ccusage — the Claude total sums all four fields including cache reads and writes;
   Codex and Grok are input + output, since their reported input already includes cached reads and
-  neither side reports cache writes at all), a 30-day daily trend (local time zone; in combined mode
+  neither side reports cache writes at all; a turn the agent reports more than once is counted once),
+  a 30-day daily trend (local time zone; in combined mode
   each bar is stacked by provider, with bar height = that day's total and segments = each provider's
   share, and hovering shows each provider's number and percentage; the legend lists only providers
   that appear; a single side can be selected), a per-model breakdown, and a session list (side badge,
