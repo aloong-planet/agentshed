@@ -45,6 +45,14 @@ former corrected 2026-07-21 from 38.6M to 127.8M (baseline 127.5M), and the latt
 - Negative: a systematic ≤1.2% over-count remains — ccusage also handles speed/service_tier suffixes,
   the codex-auto-review fallback table, `response_item` events and other details we have not
   replicated (see the backlog)
+
+  > **Closed (2026-08-19)**: the residual was one omission, not a long tail — the same turn can be
+  > re-reported, and every occurrence was being summed. Adding the rule that keys on the running
+  > cumulative (spec B7) took the day-by-day disagreement to **zero on all three sides**. The two
+  > details named above turned out not to cost anything: the codex-auto-review fallback is a naming
+  > difference with identical figures, and no record on this machine carries the alternative event
+  > shape. The bound itself had also stopped holding — measured 2026-08-19 before the fix, the worst
+  > day was 2.67%, so the "≤1.2%" above was a stale observation rather than a live guarantee.
 - Neutral: the model name is taken from the last `turn_context` (an approximation of the session's
   primary model), which is imprecise for multi-model sessions
 

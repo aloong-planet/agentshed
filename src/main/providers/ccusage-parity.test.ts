@@ -1,26 +1,65 @@
-// A reconciliation tool (not a production-line test; skipped by default, requiring real data and a ccusage
-// baseline):
-//   npx ccusage@latest daily --by-agent --json > /tmp/ccusage-until29.json
-// Note: ccusage 20.x is a multi-agent aggregator (claude/codex/gemini/openclaw),
-// The agent==='claude' breakdown inside agents[] must be used, or another CLI's usage lands in the baseline.
-//   PARITY=1 pnpm vitest run scripts/ccusage-parity.test.ts
-import { readFileSync, mkdtempSync, rmSync } from 'node:fs'
+// A reconciliation against a third-party meter (ccusage). Not part of the default gate: it needs this
+// machine's real agent data and a baseline generated from it, neither of which exists in CI.
+//
+//   PARITY=1 pnpm vitest run src/main/providers/ccusage-parity.test.ts
+//
+// The baseline is generated on demand. It used to be read from a path named after the day it was first
+// sampled, which meant every run began with an undocumented manual step — and a reconciliation nobody
+// can run is one nobody runs: a systematic drift on a whole side went unnoticed for weeks behind that
+// step. Set CCUSAGE_BASELINE to reuse an existing export instead of regenerating (much faster).
+//
+// ccusage 20.x is a multi-agent aggregator; the per-agent breakdown inside agents[] is what must be
+// read, or another CLI's usage lands in the baseline.
+import { execFileSync } from 'node:child_process'
+import { readFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { TokenEngine } from './token-stats'
+import type { AgentSide } from '@shared/domain'
 
 const run = process.env['PARITY'] === '1'
 
+/** ccusage's daily rows, only the fields this reconciliation reads */
+interface CcAgent {
+  agent: string
+  inputTokens?: number
+  outputTokens?: number
+  cacheReadTokens?: number
+  cacheCreationTokens?: number
+}
+interface CcDaily {
+  daily: Array<{ period: string; agents?: CcAgent[] }>
+}
+
+function baseline(): CcDaily {
+  const reuse = process.env['CCUSAGE_BASELINE']
+  if (reuse) return JSON.parse(readFileSync(reuse, 'utf8')) as CcDaily
+  const out = execFileSync('npx', ['-y', 'ccusage@latest', 'daily', '--by-agent', '--json'], {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024
+  })
+  const f = join(mkdtempSync(join(tmpdir(), 'ccusage-')), 'baseline.json')
+  writeFileSync(f, out)
+  console.log(`baseline generated: ${f} (reuse it with CCUSAGE_BASELINE=${f})`)
+  return JSON.parse(out) as CcDaily
+}
+
+/** The local day, in the same shape the engine keys `byDay` with */
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 describe.skipIf(!run)('ccusage reconciliation', () => {
-  it('day-by-day and totals agree', async () => {
-    const ref = JSON.parse(readFileSync('/tmp/ccusage-until29.json', 'utf8'))
+  it('every side agrees day by day', async () => {
+    const ref = baseline()
     const home = homedir()
     const roots = {
       claudeHome: join(home, '.claude'),
       claudeConfigFile: join(home, '.claude.json'),
       codexHome: join(home, '.codex'),
-    grokHome: join(home, '.grok'),
+      grokHome: join(home, '.grok'),
       agentsSkillsDir: join(home, '.agents', 'skills')
     }
     const projects = Object.keys(JSON.parse(readFileSync(roots.claudeConfigFile, 'utf8')).projects ?? {})
@@ -28,47 +67,37 @@ describe.skipIf(!run)('ccusage reconciliation', () => {
     const r = await new TokenEngine(cacheDir).build(roots, projects)
     rmSync(cacheDir, { recursive: true, force: true })
 
-    const mine = new Map(r.global.byDay.map((d) => [d.day, d.bySide.claude]))
-    const theirs = new Map<string, number>()
-    for (const row of ref.daily as any[]) {
-      const cl = (row.agents ?? []).find((a: any) => a.agent === 'claude')
-      if (!cl) continue
-      const total =
-        (cl.inputTokens ?? 0) + (cl.outputTokens ?? 0) + (cl.cacheReadTokens ?? 0) + (cl.cacheCreationTokens ?? 0)
-      theirs.set(row.period, total)
-    }
-    const days = [...theirs.keys()].sort() // Compare only the days the baseline covers (excluding today, added after sampling)
-    const diffs: string[] = []
-    for (const day of days) {
-      const a = mine.get(day) ?? 0
-      const b = theirs.get(day) ?? 0
-      if (a !== b) diffs.push(`${day} ours=${a} ccusage=${b} diff=${a - b}`)
-    }
-    const refTotal = [...theirs.values()].reduce((a, b) => a + b, 0)
-    console.log(`total: ours=${r.global.bySide.claude.total} ccusage(claude)=${refTotal} diff=${r.global.bySide.claude.total - refTotal}`)
-    console.log(`days: ours=${mine.size} ccusage=${theirs.size}; mismatched ${diffs.length}/${days.length}`)
-    for (const d of diffs.slice(0, 20)) console.log(d)
-    expect(diffs).toEqual([])
+    // The current day is still being written — by the very agents whose data this reads. Comparing it
+    // measures the gap between two sampling moments, not a disagreement about accounting.
+    const today = localToday()
 
-    // The same reconciliation on the Codex side
-    const cxMine = new Map(r.global.byDay.map((d) => [d.day, d.bySide.codex]))
-    const cxTheirs = new Map<string, number>()
-    for (const row of ref.daily as any[]) {
-      const cx = (row.agents ?? []).find((a: any) => a.agent === 'codex')
-      if (!cx) continue
-      cxTheirs.set(
-        row.period,
-        (cx.inputTokens ?? 0) + (cx.outputTokens ?? 0) + (cx.cacheReadTokens ?? 0) + (cx.cacheCreationTokens ?? 0)
+    const failures: string[] = []
+    for (const side of ['claude', 'codex', 'grok'] as AgentSide[]) {
+      const mine = new Map(r.global.byDay.map((d) => [d.day, d.bySide[side]]))
+      const theirs = new Map<string, number>()
+      for (const row of ref.daily) {
+        if (row.period === today) continue
+        const a = (row.agents ?? []).find((x) => x.agent === side)
+        if (!a) continue
+        theirs.set(
+          row.period,
+          (a.inputTokens ?? 0) + (a.outputTokens ?? 0) + (a.cacheReadTokens ?? 0) + (a.cacheCreationTokens ?? 0)
+        )
+      }
+      const diffs: string[] = []
+      for (const day of [...theirs.keys()].sort()) {
+        const a = mine.get(day) ?? 0
+        const b = theirs.get(day) ?? 0
+        if (a !== b) diffs.push(`  ${side} ${day} ours=${a} ccusage=${b} diff=${a - b}`)
+      }
+      const refTotal = [...theirs.values()].reduce((x, y) => x + y, 0)
+      const ourTotal = [...theirs.keys()].reduce((x, day) => x + (mine.get(day) ?? 0), 0)
+      console.log(
+        `${side}: ${theirs.size} days compared, ${diffs.length} mismatched; total ours=${ourTotal} ccusage=${refTotal} diff=${ourTotal - refTotal}`
       )
+      for (const d of diffs.slice(0, 20)) console.log(d)
+      failures.push(...diffs)
     }
-    const cxDiffs: string[] = []
-    for (const day of [...cxTheirs.keys()].sort()) {
-      const a = cxMine.get(day) ?? 0
-      const b = cxTheirs.get(day) ?? 0
-      if (a !== b) cxDiffs.push(`${day} ours=${a} ccusage=${b} diff=${a - b}`)
-    }
-    console.log(`Codex: ours days=${[...cxMine].filter(([, v]) => v > 0).length} ccusage days=${cxTheirs.size}; mismatched ${cxDiffs.length}/${cxTheirs.size}`)
-    for (const d of cxDiffs.slice(0, 15)) console.log(d)
-    expect(cxDiffs).toEqual([])
-  }, 600_000)
+    expect(failures).toEqual([])
+  }, 900_000)
 })

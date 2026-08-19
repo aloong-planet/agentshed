@@ -10,6 +10,8 @@
 //   a fork or subagent session replays its parent's history, stripped by the same rules as ccusage's
 //   replay.rs — take the parent's event sequence before the fork moment and skip entries at the start
 //   of the child that match it by value (if the very first does not match, strip nothing);
+//   the same turn can be re-reported, so a record whose running cumulative has not advanced
+//   contributes nothing and one with no per-turn figure contributes the difference of the cumulatives;
 //   accounting: sanitise input (subtract cached), count cached as cacheRead, total = input + output
 //   (cache creation is not collected on this side or on Grok's — ADR-0023);
 //   the model comes from the last turn_context (an approximation of the session's primary model).
@@ -99,7 +101,12 @@ interface CodexFileAgg {
   forkedAt: number | null
   /** The question index (with no question text, see question-index.ts) */
   questions: QuestionRec[]
-  /** Per-turn increment events (last_token_usage); a fork's replay prefix is stripped in the combine stage */
+  /**
+   * Per-turn increments, already filtered for re-reported turns (spec B7) — normally the record's own
+   * per-turn figure, or the difference of two cumulatives where that figure is missing. A fork's
+   * replay prefix is stripped later, in the combine stage; that stripping matches events by value, so
+   * it compares two lists filtered by the same rule.
+   */
   events: CodexEvent[]
 }
 
@@ -160,6 +167,12 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  *      variant, so the version bumps in the same change).
  * v12: GrokFileAgg gained title/at/listed and a real question index (the session-view ticket) — an
  *      old entry's empty questions would otherwise be reused forever for an unchanged file.
+ * v14: the Codex events array stopped including re-reported turns — records whose running cumulative
+ *      has not advanced now contribute nothing (spec B7). **A computation change**, so the bump is
+ *      required for the same reason v13's was: an entry cached under v13 keeps the doubled events and
+ *      the correction never reaches an unchanged file. Unlike v13 this one is *not* invisible — it
+ *      moves real numbers (the Codex total falls by ~0.7% on this machine's data), so a missed bump
+ *      would leave existing users on the old figures indefinitely.
  * v13: cacheWrite stopped being parsed on the Codex and Grok sides and is written as 0 (ADR-0023).
  *      **A computation change, not a shape change** — which is exactly the case this comment's rule
  *      above exists for: without the bump, an entry cached under v12 keeps its parsed value while
@@ -172,7 +185,7 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  * branch on it:
  * the only version comparison is in loadCache, and a second one would be a second rule that can drift.
  */
-export const CACHE_VERSION = 13
+export const CACHE_VERSION = 14
 
 interface CacheShape {
   version: typeof CACHE_VERSION
@@ -1059,6 +1072,33 @@ async function parseClaudeFile(
   }
 }
 
+/** The four cumulative fields, as one comparable value — "has this record's running total moved" */
+function cumulativeKey(u: Record<string, unknown>): string {
+  return `${num(u['input_tokens'])}|${num(u['cached_input_tokens'])}|${num(u['output_tokens'])}|${num(u['total_tokens'])}`
+}
+
+/**
+ * The increment implied by two consecutive cumulatives. Used where a record carries no per-turn
+ * figure, and — because a cumulative that has not advanced yields zeros — it is also what makes a
+ * re-reported turn drop out.
+ *
+ * Clamped at zero **defensively, not to handle a known shape**: no record measured on this machine
+ * has a decreasing cumulative (0 of 59328 events across 444 files, checked field by field), so the
+ * clamp has never fired. It is here because a subtraction that can go negative would silently take
+ * tokens *out* of a day's total, which is a worse failure than dropping an increment.
+ */
+function diffUsage(
+  total: Record<string, unknown>,
+  prev: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  const d = (k: string): number => Math.max(0, num(total[k]) - (prev ? num(prev[k]) : 0))
+  return {
+    input_tokens: d('input_tokens'),
+    cached_input_tokens: d('cached_input_tokens'),
+    output_tokens: d('output_tokens')
+  }
+}
+
 async function parseCodexFile(
   file: string,
   projectKey: string,
@@ -1066,6 +1106,11 @@ async function parseCodexFile(
   titles: Map<string, string>
 ): Promise<CodexFileAgg | null> {
   const events: CodexEvent[] = []
+  // The running cumulative of the previous usage record, carried across lines so that a re-reported
+  // turn can be recognised by its cumulative standing still (spec B7). Per file: the cumulative
+  // restarts with each session.
+  let prevTotal: Record<string, unknown> | undefined
+  let prevTotalKey: string | null = null
   let model = 'unknown'
   // at = the largest timestamp in the file (the same meaning as on the Claude side = last activity). It
   // previously took the first timestamp,
@@ -1087,15 +1132,32 @@ async function parseCodexFile(
         const m = payload?.['model']
         if (typeof m === 'string') model = m
       }
-      // The real shape: top-level type=event_msg with the data in payload.info (payload.type=token_count);
-      // take last_token_usage as a per-turn increment (one turn may be reported more than once, which
-      // fork stripping and the difference rule handle)
+      // The real shape: top-level type=event_msg with the data in payload.info (payload.type=token_count).
+      // last_token_usage is the per-turn increment — but the same turn can be re-reported, and summing
+      // every record counts it twice (spec B7). The discriminator is the **cumulative**:
+      // total_token_usage not advancing means this record accounts for nothing new. Where the per-turn
+      // figure is missing the increment is the difference between the two cumulatives, which is also
+      // what makes a non-advancing record contribute zero and drop out.
+      // Deliberately not "the per-turn figure repeats": that would drop two genuinely identical
+      // consecutive turns and keep a re-report that varied its per-turn figure. The two criteria happen
+      // to select the same records on the data measured so far, which is a property of that data.
       if (payload?.['type'] !== 'token_count') return
       const info = payload['info'] as Record<string, unknown> | undefined
-      const usage = (info?.['last_token_usage'] ?? info?.['total_token_usage']) as
-        | Record<string, unknown>
-        | undefined
+      const last = info?.['last_token_usage'] as Record<string, unknown> | undefined
+      const total = info?.['total_token_usage'] as Record<string, unknown> | undefined
+      const totalKey = total ? cumulativeKey(total) : null
+      const advanced = totalKey === null || totalKey !== prevTotalKey
+      // A cumulative that has not advanced makes the difference zero, so both branches agree there
+      const usage = last && advanced ? last : total ? diffUsage(total, prevTotal) : undefined
+      // Both carried forward unconditionally, including when a record has no cumulative at all: the
+      // upstream rule compares against whatever the previous record carried, so keeping a stale value
+      // here while clearing the key would make the two disagree about what "previous" means
+      prevTotalKey = totalKey
+      prevTotal = total
       if (!usage) return
+      // All-zero records carry nothing to attribute (spec B6 for the reported kind, and this is where
+      // a non-advancing cumulative lands)
+      if (num(usage['input_tokens']) === 0 && num(usage['output_tokens']) === 0 && num(usage['cached_input_tokens']) === 0) return
       events.push([
         Number.isNaN(ts) ? null : ts,
         num(usage['input_tokens']),

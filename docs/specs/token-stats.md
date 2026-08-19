@@ -66,6 +66,14 @@ all of them.
   records exist; the resulting under-count is known and accepted, because the alternative — trusting
   a total no field can account for — would put tokens into the statistics that cannot be attributed
   to a day, a model, or a bucket.
+- B7 **The same turn can be reported more than once.** The side re-emits a usage record whose
+  per-turn figure repeats while its running cumulative does not move; summing every record counts
+  those turns twice. The discriminator is the **cumulative**, not the per-turn figure: a record whose
+  running total has not advanced since the previous one contributes nothing, and where a per-turn
+  figure is absent the contribution is the difference between the two cumulatives. Using "the
+  per-turn figure repeats" instead would be wrong in both directions — two genuinely identical
+  consecutive turns would be dropped, and a repeat that varies the per-turn figure would be kept —
+  even though on the data measured to date the two criteria happen to select the same records.
 - B2 Sessions spanning midnight are apportioned to their respective dates by event timestamp (not
   piled onto the first day).
 - B3 Subagent sessions' tokens count toward the statistics but do not enter the session list.
@@ -189,11 +197,13 @@ only one side has data; pure functions (trend/axis/provider) get their own
 unit tests covering the geometric constraints of segmentation and axis layout; e2e covers that an
 old-format cache does not crash at startup and the geometric checks on the trend chart's rendering
 (labels do not overlap, tooltips are not clipped). The reconciliation baseline: the day-by-day ccusage
-comparison test — which covers the Claude and Codex sides only, since ccusage has no Grok support.
-The Grok side has no standing external baseline; its accounting was reconciled once at review time
-(2026-08-16, an independent sum over the raw update streams matched the engine exactly), and the
-gap is recorded here rather than papered over: should a third-party meter for Grok appear, it slots
-in where ccusage already does. Automatic refresh (sequence E): the focus throttle judgement is a pure function with
+comparison, which now covers **all three sides** — the third-party meter gained Grok support, so the
+side that once had no standing external baseline has one. The comparison needs real data and a
+freshly generated baseline, so it stays out of the default gate; what it must not do is stay
+unrunnable, which is how a whole side's systematic drift went unnoticed for weeks. Its baseline is
+generated on demand rather than read from a fixed path — a path named after the day it was first
+sampled is a one-off, and a reconciliation that needs a manual, undocumented step before it can run
+is one nobody runs. Automatic refresh (sequence E): the focus throttle judgement is a pure function with
 unit tests; e2e drives the whole chain with a short interval injected — after appending session data
 it appears without a manual refresh, and an open detail page's section local state is preserved. Focus
 events are semantically unreliable under a hidden-window test regime (noted in the existing e2e

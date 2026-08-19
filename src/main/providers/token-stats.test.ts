@@ -80,6 +80,12 @@ function mkCodexRollout(
     at?: string
     cacheWrite?: number
     /**
+     * Emits this turn as a **re-report of the previous one**: the running `total_token_usage` does
+     * not advance, which is how the side re-emits a turn it has already accounted for (spec B7).
+     * The per-turn figures are still written, exactly as real records do.
+     */
+    repeat?: boolean
+    /**
      * Overrides the record's own `total_tokens`. Real records normally satisfy
      * total == input + output, but 412 of this machine's 50791 carry an all-zero breakdown beside a
      * non-zero total — a shape that has to come from real data, since nobody would invent it (spec B6).
@@ -106,7 +112,11 @@ function mkCodexRollout(
       : [JSON.stringify({ timestamp: tsIso, type: 'event_msg', payload: { type: 'user_message', message: userMsg } })]),
     // The real shape: top-level type=event_msg with the data in payload.info (payload.type=token_count)
     ...turns.map((t) => {
-      acc = { input: acc.input + t.input, cached: acc.cached + t.cached, output: acc.output + t.output }
+      // A re-report leaves the running cumulative where it was — that non-advance is the only thing
+      // distinguishing it from a genuine turn, and is what spec B7's rule keys on
+      if (t.repeat !== true) {
+        acc = { input: acc.input + t.input, cached: acc.cached + t.cached, output: acc.output + t.output }
+      }
       return JSON.stringify({
         timestamp: t.at ?? tsIso,
         type: 'event_msg',
@@ -440,6 +450,36 @@ describe('Codex aggregation (the ccusage rules)', () => {
     expect(models['codex:gpt-5.6-sol']).toBe(530)
     const p = r.perProject.get(proj.toLowerCase())
     expect(p?.sessions.find((s) => s.side === 'codex')?.title).toBe('migrate skills')
+  })
+
+  it('a turn re-reported without the cumulative advancing is counted once (B7)', async () => {
+    // The shape comes from real data: on this machine 9 of the 17 days that disagreed with the
+    // third-party meter disagreed by **exactly** the sum of such re-reports, to the token.
+    mkCodexRollout('rollout-dup-019f006.jsonl', proj, '2026-07-30T05:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 80, output: 10 },
+      { input: 100, cached: 80, output: 10, repeat: true },
+      { input: 200, cached: 150, output: 20 }
+    ])
+    const r = await engine().build(roots(), [proj])
+    const c = r.global.bySide.codex
+    // 110 + 220. Counting the re-report as well would give 440.
+    expect(c.total).toBe(330)
+    expect(c.cacheRead).toBe(230) // 80 + 150, the re-report's 80 not counted again
+    expect(c.input + c.output + c.cacheRead + c.cacheWrite).toBe(c.total)
+  })
+
+  it('two genuinely identical consecutive turns both count — the rule keys on the cumulative, not on the per-turn figure (B7)', async () => {
+    // The case that separates the rule from the tempting shortcut. Both turns report the same
+    // per-turn figures, so "drop a repeat of the previous per-turn figure" would silently discard
+    // the second; the cumulative advances, so it is a real turn and must be kept. On the data
+    // measured to date the two criteria select the same records, which is exactly why this case has
+    // to exist — the agreement is a property of that data, not of the format.
+    mkCodexRollout('rollout-twin-019f007.jsonl', proj, '2026-07-30T06:00:00Z', 'gpt-5.6-sol', [
+      { input: 50, cached: 0, output: 5 },
+      { input: 50, cached: 0, output: 5 }
+    ])
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.codex.total).toBe(110)
   })
 
   it('a reported cache-write figure is not collected and does not enter the total (B5)', async () => {
