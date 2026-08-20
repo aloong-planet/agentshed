@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { SIDE_BADGE } from './side-badge'
-import { renderMarkdown } from './md'
+import { MarkdownBody } from './MarkdownBody'
 import type { Snapshot } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
 import { GlobalSubagentsTab } from './SubagentsView'
@@ -377,15 +377,13 @@ function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
 
 function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
   const t = useDict()
+  const lang = useLanguage()
   const [which, setWhich] = useState<'cl' | 'cx' | 'toml'>('cl')
-  const html = useMemo(() => {
-    const md =
-      which === 'cl' ? snap.global.claudeGlobalMd : which === 'cx' ? snap.global.codexAgentsMd : null
-    if (md === null) return null
-    // The truncation marker is appended by the renderer in the current language (ticket 07): the main
-    // process only reports whether it was truncated
-    return renderMarkdown(md.truncated ? `${md.text}\n${t.placeholder.truncated}` : md.text)
-  }, [which, snap, t])
+  const md =
+    which === 'cl' ? snap.global.claudeGlobalMd : which === 'cx' ? snap.global.codexAgentsMd : null
+  // The truncation marker is appended by the renderer in the current language (ticket 07): the main
+  // process only reports whether it was truncated
+  const cfgText = md === null ? null : md.truncated ? `${md.text}\n${t.placeholder.truncated}` : md.text
   return (
     <div>
       <div className="cfg-switch">
@@ -413,10 +411,21 @@ function CfgTab({ snap }: { snap: Snapshot }): JSX.Element {
             )}
           </pre>
         )
-      ) : html === null ? (
+      ) : cfgText === null ? (
         <Empty msg={t.agents.fileMissing} />
       ) : (
-        <div className="md" dangerouslySetInnerHTML={{ __html: html }} />
+        <MarkdownBody
+          className="md"
+          text={cfgText}
+          links={{
+            // The global configuration card has no in-app targets wired, so every relative link gets
+            // the explicit out-of-scope notice (the invariant's fallback) — onInternal is unreachable
+            baseDir: '',
+            readable: [],
+            onInternal: () => {},
+            onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
+          }}
+        />
       )}
     </div>
   )

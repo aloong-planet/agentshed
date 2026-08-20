@@ -111,6 +111,8 @@ export function PluginSkillList({
           levelLabel={t.skills.srcPluginPkg}
           filePath={drawer.f.path}
           absPath={drawer.f.absPath}
+          files={listing?.files ?? []}
+          onOpenFile={(f) => setDrawer({ f, skill: drawer.skill })}
           onClose={() => setDrawer(null)}
         />
       )}

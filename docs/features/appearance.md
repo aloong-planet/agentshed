@@ -24,12 +24,18 @@ configuration.
 - Mode and theme do not affect each other: changing one leaves the other alone, and all six
   combinations of 3 themes × 2 modes are valid
 - A switch applies to the **entire UI** immediately (lists, detail pages, sessions, toasts, overlays
-  and drawers, markdown headings and links, and everything else following the accent colour), with no
-  save button
+  and drawers, rendered markdown, and everything else following the theme), with no save button
 - The window chrome and the application menu follow the chosen mode too, so there is never a split
   between a dark app and a light window frame
 - Both preferences are persisted and survive a restart
 - Entering and leaving settings does not lose the currently selected project
+- Everywhere markdown is rendered (skill files, memory and configuration documents, the reading
+  overlay) headings share **one visual hierarchy**: a ruled first level, a bar-marked second, a
+  lighter-accent third, and muted deeper levels — adjacent levels (third vs fourth in particular)
+  stay tellable apart in every theme, light or dark
+- Code looks the same everywhere too: inline code as a bordered pill, fenced blocks as a bordered
+  paper inset — no dark terminal-style block in one place and a light one in another; lists indent
+  the same everywhere as well
 
 ## Boundaries and non-goals
 - The CC/CX side badges and the provider chart's brand colours are unaffected (semantic colours do

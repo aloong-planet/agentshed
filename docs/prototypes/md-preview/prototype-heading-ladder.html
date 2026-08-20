@@ -1,0 +1,371 @@
+<!doctype html>
+<!-- A UI prototype · Markdown 预览的标题层级(h1–h6)——回答:h3 与 h4 靠什么区分,
+     以及两个预览面(skill 文件抽屉 / .md 文档卡)能否共用同一套阶梯。
+     背景:实测现状里抽屉 h3≈14.6px vs h4=12.5px 且 h4 无主题色;.md 卡 h1=h2=h3 全被压成
+     13.5px、h4=12.5px——用户报「三级四级看起来一样大」。
+     裁决(2026-08-19):V2 形状分层定稿,已折进共享块 _shared/md-preview.css 与真代码;
+     「旧现状」列保留的是裁决前两面的旧观感,仅作历史对照,不再描述 app 现状。
+     第二条裁决(2026-08-19,用户对照本页两栏后指定):代码块与行内代码统一取右栏(.md 文档卡)
+     的纸面样式——围栏浅底描边、内层 code 无二层框、行内 code 描边药丸;已折进共享块与真代码,
+     左栏抽屉语境此前的暗底终端式 pre 不再是 app 现状。
+     方案(底栏切换,V2 为定稿):
+       旧现状  两面各按裁决前的旧规则渲染,作对照基线;
+       V1    纯字号阶梯——只靠字号与字重分级,单一主题色,押最朴素;
+       V2    形状分层——h1 底线、h2 左条、三级色阶、h4 起转灰,字号只温和递减,押折行不糊;
+       V3    双轨——h1–h3 比大小,h4 起变形为「小节眉」(正文字号+字距+灰),押相邻级比形态不比大小。
+     演示基建(非设计的一部分,勿实现):底部悬浮条 data-demo-harness——变体切换、主题(紫/蓝/琥珀)、
+     明暗(浅/深/系统),←/→ 循环变体,当前状态写 location.hash。app 内明暗与主题由设置页决定,
+     变体由本次裁决唯一定稿,运行时不存在这些开关。
+     本页未覆盖语言维度:抽屉切换钮文案(原文/预览)是共享块 md-preview.js 的中文写死值,
+     六语言最长值(ru: Исходник/Предпросмотр)未进 mock;本页评判对象是标题排版,不含该钮几何。
+     mock 正文刻意覆盖:h3→正文→h4、h3/h4 紧邻无正文、h5/h6、长标题折行后紧邻的 h3/h4、
+     代码块与列表贴近标题。共享:md-preview。 -->
+<html lang="zh-CN" data-v="v2" data-t="purple" data-m="system">
+<head>
+<meta charset="utf-8">
+<title>原型 — Markdown 预览 · 标题层级阶梯</title>
+<link rel="stylesheet" href="../_shared/md-preview.css">
+<style>
+  /* ── 主题 token:语义与真 theme.css 对齐(purple 即 :root 默认;--hx3 为 V2 的三级色阶,
+        取自共享块与 skills-view 原型已用过的同语义值) ── */
+  html[data-t="purple"] {
+    --bg:#f7f8f9; --card:#ffffff; --text:#37352f; --text-2:#787774;
+    --line:#e8eaed; --line-strong:#d9dce0;
+    --accent:#8a67ab; --accent-deep:#6b4f92; --accent-soft:#f0ebf6; --hx3:#9b7ec4;
+  }
+  html[data-t="purple"][data-dark] {
+    --bg:#18191b; --card:#1f2124; --text:#e6e6e5; --text-2:#9b9a97;
+    --line:#2a2c30; --line-strong:#34373c;
+    --accent:#a084c7; --accent-deep:#c9b3ec; --accent-soft:#2c2733; --hx3:#a88cc9;
+  }
+  html[data-t="blue"] {
+    --bg:#f6f5f3; --card:#fffcf9; --text:#2c2a28; --text-2:#6f6b66;
+    --line:#e8e4de; --line-strong:#d4cfc7;
+    --accent:#4a6fa5; --accent-deep:#3a5a88; --accent-soft:#eef2f7; --hx3:#5d82b0;
+  }
+  html[data-t="blue"][data-dark] {
+    --bg:#16181c; --card:#1c1f24; --text:#e6e4e0; --text-2:#9a9690;
+    --line:#2a2e34; --line-strong:#3a4048;
+    --accent:#7a9dc4; --accent-deep:#a8c0dc; --accent-soft:#1e2a38; --hx3:#8aadc8;
+  }
+  html[data-t="amber"] {
+    --bg:#f7f3ec; --card:#fffcf7; --text:#3a342c; --text-2:#7a7268;
+    --line:#e8e0d4; --line-strong:#d6ccbc;
+    --accent:#6b5220; --accent-deep:#534018; --accent-soft:#f3ead4; --hx3:#8b6914;
+  }
+  html[data-t="amber"][data-dark] {
+    --bg:#1a1714; --card:#221e1a; --text:#ebe4d8; --text-2:#a09888;
+    --line:#332e28; --line-strong:#453e36;
+    --accent:#c4a46a; --accent-deep:#ddc48e; --accent-soft:#2e2820; --hx3:#d4b878;
+  }
+
+  * { box-sizing: border-box; margin: 0; font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+  html[data-dark] { color-scheme: dark; }
+  body { background: var(--bg); color: var(--text); font-size: 13px; padding: 22px 24px 96px; }
+
+  .pg-head { max-width: 1320px; margin: 0 auto 14px; }
+  .pg-head h2 { font-size: 16px; margin-bottom: 6px; }
+  .pg-head .sub { font-size: 12px; color: var(--text-2); line-height: 1.7; max-width: 900px; }
+  .legend { border-collapse: collapse; margin-top: 10px; font-size: 11.5px; }
+  .legend th, .legend td { border: 1px solid var(--line); padding: 5px 9px; text-align: left; vertical-align: top; }
+  .legend th { background: var(--card); color: var(--accent-deep); font-weight: 650; white-space: nowrap; }
+  .legend td:first-child { white-space: nowrap; font-weight: 650; }
+  .legend .px { color: var(--text-2); font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; }
+
+  .cols { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; align-items: flex-start; max-width: 1320px; margin: 0 auto; }
+  .panel { flex: 1 1 560px; min-width: 480px; max-width: 640px; }
+  .panel .cap { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--text-2); margin: 0 0 7px 2px; }
+
+  /* 抽屉语境:共享块自带边框/圆角;把它写死的浅色字面量接到主题 token 上(同 skills-view 原型的做法) */
+  .shell-drawer .md-preview { border-color: var(--line); background: var(--card); box-shadow: 0 4px 18px rgba(0,0,0,.06); }
+  .shell-drawer .md-preview-bar { background: linear-gradient(180deg, var(--bg) 0%, var(--card) 100%); border-bottom-color: var(--line); }
+  .shell-drawer .md-preview-bar .md-preview-name { color: var(--accent); }
+  .shell-drawer .md-preview-seg { background: var(--bg); border-color: var(--line-strong); }
+  .shell-drawer .md-preview-seg button { color: var(--text-2); }
+  .shell-drawer .md-preview-seg button.on { background: var(--card); color: var(--accent-deep); }
+  .shell-drawer .md-preview-body { max-height: 74vh; }
+  .shell-drawer .md-preview-body.raw { background: var(--bg); color: var(--text); }
+  .shell-drawer .md-preview-body.preview { background: var(--card); color: var(--text); }
+  .shell-drawer .md-preview { --md-h1: var(--accent-deep); --md-h2: var(--accent); --md-h3: var(--hx3); --md-link: var(--accent); }
+  /* code/pre 不再本页覆盖:共享块默认已是定稿的纸面样式(第二条裁决),让它直接流入。
+     但共享块自带的原型级 token 着色(.tok-*)在真 app 里不存在(md.ts 不做高亮),
+     本页两栏都要反映 app 事实,故在此中和掉——右栏 .mdcard 本就无 tok 规则。 */
+  .shell-drawer .md-preview-body.preview .tok-c,
+  .shell-drawer .md-preview-body.preview .tok-s,
+  .shell-drawer .md-preview-body.preview .tok-k { color: inherit; }
+  .shell-drawer .md-preview-body.preview strong { color: var(--text); }
+  .shell-drawer .md-preview-body.preview li::marker { color: var(--accent); }
+
+  /* .md 文档卡语境:照抄真 theme.css 的 .md 容器与其 code/pre/列表规则(12.5px/1.75) */
+  .mdcard {
+    background: var(--card); border: 1px solid var(--line); border-radius: 9px;
+    padding: 16px 18px; line-height: 1.75; font-size: 12.5px;
+    max-height: 74vh; overflow: auto;
+  }
+  .mdcard code { background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 11.5px; font-family: ui-monospace, Menlo, monospace; }
+  .mdcard pre { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; overflow-x: auto; }
+  .mdcard pre code { border: 0; background: transparent; padding: 0; }
+  .mdcard ul, .mdcard ol { padding-left: 20px; }
+
+  /* ── 标题阶梯:一套结构规则,两个语境同吃;各方案只改变量 ──
+     选择器带 .shell-drawer 前缀是为了压过共享块 md-preview.css 的同名规则(0,2,1 → 0,3,1) */
+  .shell-drawer .md-preview-body.preview h1, .mdcard h1,
+  .shell-drawer .md-preview-body.preview h2, .mdcard h2,
+  .shell-drawer .md-preview-body.preview h3, .mdcard h3,
+  .shell-drawer .md-preview-body.preview h4, .mdcard h4,
+  .shell-drawer .md-preview-body.preview h5, .mdcard h5,
+  .shell-drawer .md-preview-body.preview h6, .mdcard h6 {
+    line-height: var(--hd-lh, 1.3);
+  }
+  .shell-drawer .md-preview-body.preview h1, .mdcard h1 {
+    font-size: var(--h1-fs); color: var(--h1-c); font-weight: var(--h1-fw, 700);
+    margin: var(--h1-m, var(--hd-m, 1em 0 0.4em)); letter-spacing: var(--h1-ls, normal);
+    border-bottom: var(--h1-bd, 0); padding-bottom: var(--h1-pb, 0);
+  }
+  .shell-drawer .md-preview-body.preview h2, .mdcard h2 {
+    font-size: var(--h2-fs); color: var(--h2-c); font-weight: var(--h2-fw, 700);
+    margin: var(--h2-m, var(--hd-m, 1em 0 0.4em)); letter-spacing: var(--h2-ls, normal);
+    border-left: var(--h2-bd, 0); padding-left: var(--h2-pl, 0);
+  }
+  .shell-drawer .md-preview-body.preview h3, .mdcard h3 {
+    font-size: var(--h3-fs); color: var(--h3-c); font-weight: var(--h3-fw, 700);
+    margin: var(--h3-m, var(--hd-m, 1em 0 0.4em)); letter-spacing: var(--h3-ls, normal);
+  }
+  .shell-drawer .md-preview-body.preview h4, .mdcard h4 {
+    font-size: var(--h4-fs); color: var(--h4-c); font-weight: var(--h4-fw, 700);
+    margin: var(--h4-m, var(--hd-m, 1em 0 0.4em)); letter-spacing: var(--h4-ls, normal);
+  }
+  .shell-drawer .md-preview-body.preview h5, .mdcard h5 {
+    font-size: var(--h5-fs); color: var(--h5-c); font-weight: var(--h5-fw, 700);
+    margin: var(--h5-m, var(--hd-m, 1em 0 0.4em)); letter-spacing: var(--h5-ls, normal);
+  }
+  .shell-drawer .md-preview-body.preview h6, .mdcard h6 {
+    font-size: var(--h6-fs); color: var(--h6-c); font-weight: var(--h6-fw, 700);
+    margin: var(--h6-m, var(--hd-m, 1em 0 0.4em)); letter-spacing: var(--h6-ls, normal);
+  }
+
+  /* ── 现状对照:两面各按 app 今天的真实规则(theme.css)——抽屉是 UA 字号+前三级主题色,
+        .md 卡是 h1=h2=h3 全 13.5px;h4 起两面都无色、无自定义 margin(UA 粗体) ── */
+  html[data-v="v0"] .shell-drawer {
+    --hd-lh: 1.65;
+    --h1-fs: 2em;    --h1-c: var(--accent-deep); --h1-m: 0.9em 0 0.35em;
+    --h2-fs: 1.5em;  --h2-c: var(--accent-deep); --h2-m: 0.9em 0 0.35em;
+    --h3-fs: 1.17em; --h3-c: var(--accent-deep); --h3-m: 0.9em 0 0.35em;
+    --h4-fs: 1em;    --h4-c: var(--text); --h4-m: 1.33em 0;
+    --h5-fs: 0.83em; --h5-c: var(--text); --h5-m: 1.67em 0;
+    --h6-fs: 0.67em; --h6-c: var(--text); --h6-m: 2.33em 0;
+  }
+  html[data-v="v0"] .mdcard {
+    --hd-lh: 1.75;
+    --h1-fs: 13.5px; --h1-c: var(--accent-deep); --h1-m: 10px 0 6px;
+    --h2-fs: 13.5px; --h2-c: var(--accent-deep); --h2-m: 10px 0 6px;
+    --h3-fs: 13.5px; --h3-c: var(--accent-deep); --h3-m: 10px 0 6px;
+    --h4-fs: 1em;    --h4-c: var(--text); --h4-m: 1.33em 0;
+    --h5-fs: 0.83em; --h5-c: var(--text); --h5-m: 1.67em 0;
+    --h6-fs: 0.67em; --h6-c: var(--text); --h6-m: 2.33em 0;
+  }
+
+  /* ── V1 · 纯字号阶梯:单色(前四级主题深色),只靠字号与字重;h5 起转灰 ── */
+  html[data-v="v1"] .panel {
+    --h1-fs: 1.5em;  --h1-c: var(--accent-deep);
+    --h2-fs: 1.3em;  --h2-c: var(--accent-deep);
+    --h3-fs: 1.16em; --h3-c: var(--accent-deep);
+    --h4-fs: 1em;    --h4-c: var(--accent-deep);
+    --h5-fs: 0.92em; --h5-c: var(--text-2);
+    --h6-fs: 0.88em; --h6-c: var(--text-2);
+  }
+
+  /* ── V2 · 形状分层(推荐):h1 底线、h2 左条、h3 三级色、h4 起转灰;字号温和递减 ── */
+  html[data-v="v2"] .panel {
+    --h1-fs: 1.32em; --h1-c: var(--accent-deep); --h1-bd: 2px solid var(--line-strong); --h1-pb: 0.3em;
+    --h2-fs: 1.16em; --h2-c: var(--accent);      --h2-bd: 3px solid var(--accent);      --h2-pl: 10px;
+    --h3-fs: 1.06em; --h3-c: var(--hx3);
+    --h4-fs: 0.95em; --h4-c: var(--text-2);
+    --h5-fs: 0.88em; --h5-c: var(--text-2); --h5-fw: 650;
+    --h6-fs: 0.85em; --h6-c: var(--text-2); --h6-fw: 650;
+  }
+
+  /* ── V3 · 双轨:h1–h3 比大小;h4 起变形为小节眉(正文字号+字距+灰),相邻级比形态不比大小 ── */
+  html[data-v="v3"] .panel {
+    --h1-fs: 1.4em;  --h1-c: var(--accent-deep);
+    --h2-fs: 1.2em;  --h2-c: var(--accent-deep);
+    --h3-fs: 1.08em; --h3-c: var(--accent);
+    --h4-fs: 1em;    --h4-c: var(--text-2); --h4-ls: 0.06em; --h4-m: 1.25em 0 0.4em;
+    --h5-fs: 0.9em;  --h5-c: var(--text-2); --h5-ls: 0.05em;
+    --h6-fs: 0.85em; --h6-c: var(--text-2); --h6-ls: 0.05em;
+  }
+
+  /* ── 演示基建(非设计):底部悬浮条。居中用两侧定位+自动外边距,不用位移变换 ── */
+  [data-demo-harness]{
+    position:fixed;left:0;right:0;bottom:14px;width:max-content;max-width:96vw;margin:0 auto;z-index:50;
+    display:flex;align-items:center;gap:6px;padding:8px 14px;
+    background:rgba(28,26,24,.92);color:#efece6;border-radius:999px;
+    box-shadow:0 8px 28px rgba(0,0,0,.3);backdrop-filter:blur(10px);
+    font-size:12px;flex-wrap:wrap;justify-content:center}
+  [data-demo-harness] .tag{
+    font-size:10px;font-weight:700;letter-spacing:.04em;color:#b0a898;white-space:nowrap;padding:0 4px 0 0}
+  [data-demo-harness] .sep{width:1px;height:18px;background:rgba(255,255,255,.12);margin:0 2px}
+  [data-demo-harness] button{
+    font:inherit;font-size:11.5px;font-weight:600;border:0;background:transparent;
+    color:#b0a898;padding:5px 10px;border-radius:999px;cursor:pointer;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:6px}
+  [data-demo-harness] button .dot{width:10px;height:10px;border-radius:50%;border:1px solid rgba(255,255,255,.25)}
+  [data-demo-harness] button.on{background:rgba(255,255,255,.12);color:#fff}
+</style>
+<script src="../vendor/marked.umd.js"></script>
+<script src="../_shared/md-preview.js"></script>
+</head>
+<body>
+  <div class="pg-head">
+    <h2>Markdown 预览 · 标题层级阶梯</h2>
+    <div class="sub">
+      回答一个问题:<b>h3 与 h4 靠什么区分</b>,且同一套阶梯要在两个预览面上都成立。左右两栏渲染同一份正文,
+      便于逐级对照;重点看三处——「排版约定 → 标题层级」的 h3/h4 紧邻、结尾两条折行长标题、以及 h5/h6 的收尾感。
+      正文字号两面均为 12.5px,表中 px 为换算值。
+    </div>
+    <table class="legend">
+      <tr><th>方案</th><th>h1</th><th>h2</th><th>h3</th><th>h4</th><th>h5 / h6</th><th>押什么</th></tr>
+      <tr><td>旧现状(对照)</td><td class="px">抽屉 25 · 卡 13.5</td><td class="px">18.8 · 13.5</td><td class="px">14.6 · 13.5</td><td class="px">12.5 无色</td><td class="px">UA 缩水</td><td>——裁决前的样子,两面还各不相同</td></tr>
+      <tr><td>V1 纯字号</td><td class="px">18.8</td><td class="px">16.3</td><td class="px">14.5</td><td class="px">12.5 主题色</td><td class="px">11.5 / 11 灰</td><td>只靠字号与字重,最朴素、最像现有克制风格</td></tr>
+      <tr><td>V2 形状分层(定稿)</td><td class="px">16.5 +底线</td><td class="px">14.5 +左条</td><td class="px">13.3 三级色</td><td class="px">11.9 灰</td><td class="px">11 / 10.6 灰</td><td>形状与颜色扛主力,折行、扫读都不糊,省纵向空间</td></tr>
+      <tr><td>V3 双轨</td><td class="px">17.5</td><td class="px">15</td><td class="px">13.5</td><td class="px">12.5 字距+灰</td><td class="px">11.3 / 10.6 灰</td><td>h4 起换形态不比大小,相邻级永不混淆,但形态跳跃大</td></tr>
+    </table>
+  </div>
+
+  <div class="cols">
+    <section class="panel shell-drawer">
+      <div class="cap">SKILL 文件抽屉(skills / plugins / agents 详情 · 共享块 md-preview)</div>
+      <div id="drawer-mount"></div>
+    </section>
+    <section class="panel shell-card">
+      <div class="cap">文档卡 .md(memory / CLAUDE.md 预览 / 阅读浮层)· 同一正文,无 frontmatter</div>
+      <div class="mdcard" id="card-mount"></div>
+    </section>
+  </div>
+
+  <script type="text/x-fixture" id="fx">---
+name: release-notes
+description: 从 commit 历史起草面向用户的发布说明,按变更类型分组并给出升级注意事项
+---
+
+# 发布说明起草
+
+从上一个 tag 到 HEAD 之间的 commit 里,整理出面向用户的变更列表,产出按「新功能 / 修复 / 破坏性变更」分组。
+
+## 使用流程
+
+先收集,再过滤,最后排版。三步各有硬性规则,顺序不可调换。
+
+### 收集变更
+
+跑 `git log --oneline vX..HEAD`,逐条判断是否用户可见;合并提交只取标题行。
+
+#### 过滤规则
+
+以下三类一律不进说明,拿不准的按用户可见处理:
+
+- 纯重构:行为无任何变化
+- CI 配置:`.github/workflows/` 下的改动
+- 文档拼写:不影响语义的修正
+
+### 排版约定
+#### 标题层级
+
+上面这两行标题之间没有正文——这是层级最难分辨的场景:三级与四级紧邻出现。
+
+##### 分组内排序
+
+按影响面从大到小排;同级按提交时间倒序。
+
+###### 兜底
+
+以上都拿不准时,保留 commit 原文并加「待归类」标记。
+
+## 边界与例外
+
+首个 tag 之前没有比较基线,此时退回全历史:
+
+```bash
+git log --oneline HEAD
+```
+
+### 这是一个足够长的三级标题,长到会在窄一些的抽屉里折行,用来检查折行之后层级感是否仍然成立
+#### 紧随其后的四级标题同样刻意写得很长,当两级标题都折成两行时,还能靠什么线索分辨谁是谁
+
+只有字号一条线索时,折行带来的「块变高」会盖过字号差;形状与颜色线索不受折行影响。
+  </script>
+
+  <div data-demo-harness>
+    <span class="tag">演示·方案</span>
+    <button type="button" data-v="v0">旧现状</button>
+    <button type="button" data-v="v1">V1 纯字号</button>
+    <button type="button" data-v="v2">V2 形状分层</button>
+    <button type="button" data-v="v3">V3 双轨</button>
+    <span class="sep"></span>
+    <span class="tag">主题</span>
+    <button type="button" data-t="purple"><span class="dot" style="background:#8a67ab"></span>紫</button>
+    <button type="button" data-t="blue"><span class="dot" style="background:#4a6fa5"></span>雾蓝</button>
+    <button type="button" data-t="amber"><span class="dot" style="background:#6b5220"></span>琥珀</button>
+    <span class="sep"></span>
+    <span class="tag">明暗</span>
+    <button type="button" data-m="light">浅</button>
+    <button type="button" data-m="dark">深</button>
+    <button type="button" data-m="system">系统</button>
+  </div>
+
+<script>
+  const FIXTURE = document.getElementById('fx').textContent.trim() + '\n'
+  const FM_RE = /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*\r?\n?/
+  const BODY_ONLY = FIXTURE.replace(FM_RE, '')
+
+  MdPreview.mount(document.getElementById('drawer-mount'), {
+    name: 'SKILL.md', text: FIXTURE, mode: 'preview'
+  })
+  document.getElementById('card-mount').innerHTML = MdPreview.render(BODY_ONLY)
+
+  // ── 演示状态:#<v>.<theme>.<mode>,写 hash 便于分享/刷新稳定 ──
+  const VS = ['v0', 'v1', 'v2', 'v3'], TS = ['purple', 'blue', 'amber'], MS = ['light', 'dark', 'system']
+  function parseHash () {
+    const parts = (location.hash || '').replace(/^#/, '').split('.')
+    return {
+      v: VS.includes(parts[0]) ? parts[0] : 'v2',
+      t: TS.includes(parts[1]) ? parts[1] : 'purple',
+      m: MS.includes(parts[2]) ? parts[2] : 'system'
+    }
+  }
+  let st = parseHash()
+  const mq = window.matchMedia('(prefers-color-scheme: dark)')
+  function apply () {
+    const h = document.documentElement
+    h.dataset.v = st.v; h.dataset.t = st.t; h.dataset.m = st.m
+    const dark = st.m === 'dark' || (st.m === 'system' && mq.matches)
+    if (dark) h.setAttribute('data-dark', '')
+    else h.removeAttribute('data-dark')
+    document.querySelectorAll('[data-demo-harness] button').forEach((b) => {
+      const k = b.dataset.v ? 'v' : b.dataset.t ? 't' : 'm'
+      b.classList.toggle('on', b.dataset[k] === st[k])
+    })
+    location.hash = `${st.v}.${st.t}.${st.m}`
+  }
+  document.querySelectorAll('[data-demo-harness] button').forEach((b) => {
+    b.addEventListener('click', () => {
+      if (b.dataset.v) st.v = b.dataset.v
+      else if (b.dataset.t) st.t = b.dataset.t
+      else st.m = b.dataset.m
+      apply()
+    })
+  })
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    const el = document.activeElement
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+    const i = VS.indexOf(st.v)
+    st.v = VS[(i + (e.key === 'ArrowRight' ? 1 : VS.length - 1)) % VS.length]
+    apply()
+  })
+  mq.addEventListener('change', () => { if (st.m === 'system') apply() })
+  window.addEventListener('hashchange', () => { st = parseHash(); apply() })
+  apply()
+</script>
+</body>
+</html>
