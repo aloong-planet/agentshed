@@ -283,9 +283,8 @@ description: 从 commit 历史起草面向用户的发布说明,按变更类型�
 
 ## 边界与例外
 
-首个 tag 之前没有比较基线,此时退回全历史:
-
 ```bash
+# 首个 tag 之前没有比较基线,退回全历史
 git log --oneline HEAD
 ```
 

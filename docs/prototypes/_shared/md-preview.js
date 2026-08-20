@@ -22,16 +22,21 @@
     return MD_EXT.test(base)
   }
 
-  /** Extremely light code block colouring (prototype-grade, not a full highlighter) */
+  /** Extremely light code block colouring (prototype-grade, not a full highlighter).
+   * A single combined pass — comment | string | keyword as one alternation — so every character is
+   * consumed at most once and injected span markup is never rescanned. The previous three
+   * sequential passes re-matched their own output (the string pass hit the quotes of an injected
+   * class="tok-c" attribute, the keyword pass hit the word "class" inside every injected tag),
+   * corrupting the markup (issue #140). The sub-patterns are unchanged; only the sequencing is. */
   function colorCode(html) {
+    const TOKEN =
+      /(^|\n)(\s*#(?!!).*|\/\/.*|<!--[\s\S]*?-->)|((&quot;|&#39;|"|')(?:(?!\4)[^\\]|\\.)*\4)|(\b(?:function|const|let|var|return|if|else|for|while|import|export|from|class|async|await|true|false|null|undefined|name|on|jobs|runs-on|steps|uses|with|run|bash|pnpm|git|echo)\b)/g
     return html.replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (_, attrs, body) => {
-      let s = body
-      s = s.replace(/(^|\n)(\s*#(?!!).*|\/\/.*|<!--[\s\S]*?-->)/g, (m, a, b) => `${a}<span class="tok-c">${b}</span>`)
-      s = s.replace(/(&quot;|&#39;|"|')(?:(?!\1)[^\\]|\\.)*\1/g, (m) => `<span class="tok-s">${m}</span>`)
-      s = s.replace(
-        /\b(function|const|let|var|return|if|else|for|while|import|export|from|class|async|await|true|false|null|undefined|name|on|jobs|runs-on|steps|uses|with|run|bash|pnpm|git|echo)\b/g,
-        '<span class="tok-k">$1</span>'
-      )
+      const s = body.replace(TOKEN, (whole, nl, cmt, str, _quote, kw) => {
+        if (cmt !== undefined) return `${nl}<span class="tok-c">${cmt}</span>`
+        if (str !== undefined) return `<span class="tok-s">${str}</span>`
+        return `<span class="tok-k">${kw}</span>`
+      })
       return `<pre><code${attrs}>${s}</code></pre>`
     })
   }
