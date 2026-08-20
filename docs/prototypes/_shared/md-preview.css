@@ -96,7 +96,8 @@
 }
 .md-preview-body.preview {
   font-size: 12.5px;
-  line-height: 1.65;
+  /* One line-height on every surface (settled 2026-08-20): the document card's 1.75 */
+  line-height: 1.75;
   color: var(--text, #37352f);
   background: var(--card, #fff);
 }

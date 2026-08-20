@@ -1534,6 +1534,19 @@ async function codeStyle(
   }, scope)
 }
 
+/** Body line-height is part of the shared rule set too (spec appearance E7c, settled 2026-08-20 at
+ * the document card's 1.75): probed on a paragraph, 1.75 × the 12.5px body = 21.875px. */
+async function contentLineHeight(
+  win: Awaited<ReturnType<ElectronApplication['firstWindow']>>,
+  scope: string
+): Promise<number> {
+  return win.evaluate((sel) => {
+    const p = document.querySelector(`${sel} p`)
+    if (!p) throw new Error(`line-height probe: no p under ${sel}`)
+    return parseFloat(getComputedStyle(p).lineHeight)
+  }, scope)
+}
+
 /** List indentation is part of the shared rule set (spec appearance E7c): 20px on every surface —
  * the drawer previously fell to the browser's 40px default. */
 async function listIndent(
@@ -1694,6 +1707,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   expectLadder(await headingLadder(win, '.pane-body .md'), 'memory .md card')
   expectCodeStyle(await codeStyle(win, '.pane-body .md'), 'memory .md card')
   expect(await listIndent(win, '.pane-body .md'), 'memory .md card: list indent').toBe('20px')
+  expect(await contentLineHeight(win, '.pane-body .md'), 'memory .md card: line-height').toBeCloseTo(21.875, 1)
   // Hover parity with the drawer (spec appearance E7c)
   const cardLink = win.locator('.pane-body .md a', { hasText: 'Pitfalls' })
   const cardRest = await cardLink.evaluate((el) => getComputedStyle(el).color)
@@ -1772,7 +1786,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   mkdirSync(join(gskills, 'tdd', 'scripts'), { recursive: true })
   writeFileSync(
     join(gskills, 'tdd', 'SKILL.md'),
-    '---\ndescription: Red before green\n---\n\n# Ladder h1\n\nGlobal body A\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n- Bullet probe A\n- Bullet probe B\n\n[Probe link](https://example.com/probe)\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
+    '---\ndescription: Red before green\n---\n\n# Ladder h1\n\nGlobal body A\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n- Bullet probe A\n- Bullet probe B\n\n[Probe link](https://example.com/probe) · [run the script](./scripts/run.sh) · [missing link](./nope.md)\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
   )
   writeFileSync(join(gskills, 'tdd', 'scripts', 'run.sh'), 'echo Unique script B\n')
   mkdirSync(join(gskills, 'review-code'), { recursive: true })
@@ -1838,6 +1852,21 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   const hoverColor = await probeLink.evaluate((el) => getComputedStyle(el).color)
   expect(hoverColor, 'skill drawer preview: link hover feedback').not.toBe(restColor)
   expect(hoverColor, 'skill drawer preview: hover lands on the deep accent').toBe(drawerLadder.h1.color)
+  expect(
+    await contentLineHeight(win, '.skill-drawer .md-preview-body.preview'),
+    'skill drawer preview: line-height'
+  ).toBeCloseTo(21.875, 1)
+  // Links inside the drawer preview (skills-view spec D3): an in-package relative link switches the
+  // drawer to that file, an out-of-scope one gets an explicit notice, and neither navigates the window
+  const urlBeforeLinks = win.url()
+  await win.locator('.skill-drawer .md-preview-body a', { hasText: 'missing link' }).click()
+  await expect(win.locator('.toast')).toBeVisible()
+  expect(win.url(), 'out-of-scope link must not navigate').toBe(urlBeforeLinks)
+  await win.locator('.skill-drawer .md-preview-body a', { hasText: 'run the script' }).click()
+  await expect(win.locator('.skill-drawer .md-preview-name')).toHaveText('scripts/run.sh')
+  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Unique script B')
+  await expect(win.locator('.skill-drawer .md-preview-seg')).toHaveCount(0)
+  expect(win.url(), 'internal link must not navigate').toBe(urlBeforeLinks)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // Clicking another text file in the package switches the content: non-markdown has no raw/preview toggle
   // and shows monospace raw only

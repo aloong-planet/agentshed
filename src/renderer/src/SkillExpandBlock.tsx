@@ -186,6 +186,8 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
           }
           filePath={drawer.path}
           absPath={drawer.absPath}
+          files={listing?.files ?? []}
+          onOpenFile={setDrawer}
           onClose={() => setDrawer(null)}
         />
       )}

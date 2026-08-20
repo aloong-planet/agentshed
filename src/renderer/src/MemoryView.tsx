@@ -1,10 +1,10 @@
 // The Memory section (spec: subagents-memory-plugin, sequences C/D).
 // The global summary: a row expands its file list inline and clicking a file opens a drawer; contents do
 // not enter the snapshot and are read on demand through the allow-listed channel (C8).
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { MemoryFileMeta, MemorySummaryEntry, ProjectDetail, Snapshot } from '@shared/domain'
-import { renderMarkdown } from './md'
-import { dirOf, handleMdClick } from './md-links'
+import { MarkdownBody } from './MarkdownBody'
+import { dirOf } from './md-links'
 import { toast } from './Toast'
 import { fmtAgo } from './ProjectsPane'
 import { errorText } from '@shared/error-text'
@@ -122,17 +122,12 @@ export function ProjectMemoryTab({
   const t = useDict()
   const lang = useLanguage()
   const [open, setOpen] = useState<MemoryFileMeta | null>(null)
-  const html = useMemo(
-    () =>
-      detail.memory.main === null
-        ? null
-        : renderMarkdown(
-            detail.memory.main.truncated
-              ? `${detail.memory.main.text}\n${t.placeholder.truncated}`
-              : detail.memory.main.text
-          ),
-    [detail]
-  )
+  const mainText =
+    detail.memory.main === null
+      ? null
+      : detail.memory.main.truncated
+        ? `${detail.memory.main.text}\n${t.placeholder.truncated}`
+        : detail.memory.main.text
   // The main file and topics share a directory; the topic paths are that directory's readable list
   const mainDir = detail.memory.topics[0] ? dirOf(detail.memory.topics[0].file) : ''
   if (detail.memory.main === null && detail.memory.topics.length === 0) {
@@ -147,25 +142,21 @@ export function ProjectMemoryTab({
   return (
     <div>
       <div className="grp-t">{t.memory.mainTitle}</div>
-      {html === null ? (
+      {mainText === null ? (
         <div className="none">{t.memory.noMain}</div>
       ) : (
-        <div
+        <MarkdownBody
           className="md"
-          onClick={(e) =>
-            handleMdClick(
-              e,
-              { baseDir: mainDir, readable: detail.memory.topics.map((t) => t.file) },
-              {
-                internal: (file) => {
-                  const t = detail.memory.topics.find((x) => x.file === file)
-                  if (t) setOpen(t)
-                },
-                unresolved: (code) => toast('err', errorText(lang, appError(code)))
-              }
-            )
-          }
-          dangerouslySetInnerHTML={{ __html: html }}
+          text={mainText}
+          links={{
+            baseDir: mainDir,
+            readable: detail.memory.topics.map((t) => t.file),
+            onInternal: (file) => {
+              const t = detail.memory.topics.find((x) => x.file === file)
+              if (t) setOpen(t)
+            },
+            onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
+          }}
         />
       )}
       <div className="grp-t">{t.memory.topicsTitle(detail.memory.topics.length)}</div>

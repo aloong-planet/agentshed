@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { renderMarkdown } from './md'
+import { MarkdownBody } from './MarkdownBody'
 import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot, SearchResult } from '@shared/domain'
 import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
 import { SIDE_BADGE } from './side-badge'
 import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
 import { ProjectSubagentsTab } from './SubagentsView'
 import { ProjectMemoryTab } from './MemoryView'
-import { dirOf, handleMdClick } from './md-links'
+import { dirOf } from './md-links'
 import { ProjectPluginsTab } from './PluginsView'
 import { fmtAgo } from './ProjectsPane'
 import { toast } from './Toast'
@@ -638,7 +638,7 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
   const t = useDict()
   const lang = useLanguage()
   const [filter, setFilter] = useState<'all' | ArtifactType>('all')
-  const [reader, setReader] = useState<{ item: ArtifactEntry; html: string } | null>(null)
+  const [reader, setReader] = useState<{ item: ArtifactEntry; text: string } | null>(null)
   const list = detail.artifacts.filter((a) => filter === 'all' || a.type === filter)
 
   async function open(item: ArtifactEntry): Promise<void> {
@@ -656,7 +656,7 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
       /!\[([^\]]*)\]\((?!https?:\/\/|file:\/\/|data:|\/)([^)]+)\)/g,
       (_m, alt: string, rel: string) => `![${alt}](file://${baseDir}/${rel})`
     )
-    setReader({ item, html: renderMarkdown(rewritten) })
+    setReader({ item, text: rewritten })
   }
 
   return (
@@ -690,27 +690,20 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
           <div className="reader">
             <h2>{reader.item.title}</h2>
             <div className="meta mono">{reader.item.file}</div>
-            <div
+            <MarkdownBody
               className="md"
-              onClick={(e) =>
-                handleMdClick(
-                  e,
-                  {
-                    baseDir: dirOf(reader.item.file),
-                    readable: detail.artifacts.map((a) => a.file)
-                  },
-                  {
-                    // Cross-references between artifacts (spec ↔ features, say) navigate inside the
-                    // reader, never the whole window
-                    internal: (file) => {
-                      const a = detail.artifacts.find((x) => x.file === file)
-                      if (a) void open(a)
-                    },
-                    unresolved: (code) => toast('err', errorText(lang, appError(code)))
-                  }
-                )
-              }
-              dangerouslySetInnerHTML={{ __html: reader.html }}
+              text={reader.text}
+              links={{
+                baseDir: dirOf(reader.item.file),
+                readable: detail.artifacts.map((a) => a.file),
+                // Cross-references between artifacts (spec ↔ features, say) navigate inside the
+                // reader, never the whole window
+                onInternal: (file) => {
+                  const a = detail.artifacts.find((x) => x.file === file)
+                  if (a) void open(a)
+                },
+                onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
+              }}
             />
           </div>
         </>
@@ -721,13 +714,11 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
 
 function CfgTab({ detail }: { detail: ProjectDetail }): JSX.Element {
   const t = useDict()
+  const lang = useLanguage()
   const [which, setWhich] = useState<'cl' | 'cx' | 'settings'>('cl')
-  const html = useMemo(() => {
-    const md = which === 'cl' ? detail.configs.claudeMd : which === 'cx' ? detail.configs.agentsMd : null
-    if (md === null) return null
-    // The truncation marker is appended by the renderer in the current language (ticket 07)
-    return renderMarkdown(md.truncated ? `${md.text}\n${t.placeholder.truncated}` : md.text)
-  }, [which, detail, t])
+  const md = which === 'cl' ? detail.configs.claudeMd : which === 'cx' ? detail.configs.agentsMd : null
+  // The truncation marker is appended by the renderer in the current language (ticket 07)
+  const cfgText = md === null ? null : md.truncated ? `${md.text}\n${t.placeholder.truncated}` : md.text
   return (
     <div>
       <div className="cfg-switch">
@@ -749,10 +740,21 @@ function CfgTab({ detail }: { detail: ProjectDetail }): JSX.Element {
         ) : (
           <pre className="md mono">{detail.configs.settingsSummary}</pre>
         )
-      ) : html === null ? (
+      ) : cfgText === null ? (
         <div className="none">{t.detail.fileMissing}</div>
       ) : (
-        <div className="md" dangerouslySetInnerHTML={{ __html: html }} />
+        <MarkdownBody
+          className="md"
+          text={cfgText}
+          links={{
+            baseDir: detail.path,
+            // No in-app targets are wired for configuration links yet, so every relative link gets
+            // the explicit out-of-scope notice (the invariant's fallback) — onInternal is unreachable
+            readable: [],
+            onInternal: () => {},
+            onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
+          }}
+        />
       )}
     </div>
   )

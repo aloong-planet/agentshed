@@ -174,8 +174,9 @@ document by its headings)
   border inside every fenced block (the document card shipped with that artefact).
 - E7c List indentation is part of the shared rule set: 20px on every surface (the drawer previously
   fell to the browser's 40px default). Link colours are shared too (settled 2026-08-20): accent at
-  rest, deep accent on hover, on both surfaces. The one remaining authored difference between the
-  two surfaces: container line-height (card 1.75, drawer 1.65).
+  rest, deep accent on hover, on both surfaces. Body line-height is shared as well (settled
+  2026-08-20 at the document card's 1.75) — with that, the surfaces have **no** remaining authored
+  content-styling differences.
 - E8 Host-capability note: this is styling of already-sanitised output; it introduces no new
   elements the user can trigger (links/media boundaries stay as specified in skills-view sequence D
   and the CONTEXT link-interception invariant).
@@ -230,6 +231,14 @@ document by its headings)
 
 ## Implementation Decisions
 
+- Rendered markdown goes through **one React carrier** (a MarkdownBody component): the sanitising
+  exit and the link-interception invariant hold by construction, and the shared content rules hang
+  off the single class it emits — a new render surface gets all of sequence E by using it. The
+  link context is required by the component's type; a surface with no in-app targets passes an
+  empty readable list, which routes every relative link to the explicit out-of-scope notice.
+- Chrome-heading rules of containers that can host a rendered body are scoped with a child
+  combinator (E9): the shared content rules sit at single-class specificity, so an unscoped
+  descendant rule later in the file would win the cascade.
 - CSS: `html[data-theme="purple"|"blue"|"amber"]` plus a `@media (prefers-color-scheme: dark)` under
   each theme.  
 - Set `data-theme` at startup, defaulting to `purple`.  

@@ -20,6 +20,9 @@ typing part of its name. No cross-side content diff.
 - Where more than one side has the skill, the expanded area lets you switch sides to see each package
 - **Clicking a file** opens a drawer to read it; markdown previews by default (frontmatter keys and
   values on separate lines) and can be switched to raw; non-markdown files show raw only
+- **Links inside a previewed markdown work**: a relative link to another file of the same package
+  switches the drawer to that file; a link pointing outside the package shows a notice instead;
+  external links open in the system browser — none of them ever navigates the app away
 - When nesting goes too deep, a notice suggests restructuring the skill rather than listing the deep
   files
 - Project detail: **within one side, a same-name pair shows only the project-level entry**; anything

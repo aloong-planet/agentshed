@@ -192,7 +192,10 @@ repeats what is already legible is noise.
   (a single production exit; starting another unsanitised `dangerouslySetInnerHTML` is forbidden).
 - D3 **Links** in the preview: the in-app / file allow-list and the destination of external http(s)
   links follow the existing "a rendered link must never navigate the whole window" invariant
-  (CONTEXT); clicking inside a preview must not lose app state.
+  (CONTEXT); clicking inside a preview must not lose app state. Concretely (settled 2026-08-20): a
+  relative link resolving to one of the package's **listed files** switches the drawer to that file
+  (raw for non-markdown, same as opening it from the file table); anything else relative — outside
+  the package, or below the listing depth — gets the explicit out-of-scope notice, fail-closed.
 - D4 **Images** in the preview: relative paths resolve against the skill package root and must be
   allow-listed files; on failure a placeholder is shown, and this must not become a way to read paths
   outside the package.

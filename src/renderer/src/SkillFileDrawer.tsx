@@ -1,8 +1,16 @@
 // skills-view: clicking a file opens a drawer to read it; markdown previews by default (a frontmatter
-// card + sanitised HTML).
+// card + sanitised HTML). Links in the preview follow spec D3: an in-package relative link switches
+// the drawer to that file, anything else gets the shared interception (external → system browser via
+// the main-process guard, out-of-scope → an explicit notice).
 import { useEffect, useState } from 'react'
-import { isMarkdownName, renderMarkdown } from './md'
-import { useDict } from './language'
+import type { SkillFileEntry } from '@shared/ipc'
+import { isMarkdownName } from './md'
+import { MarkdownBody } from './MarkdownBody'
+import { dirOf } from './md-links'
+import { toast } from './Toast'
+import { errorText } from '@shared/error-text'
+import { appError } from '@shared/errors'
+import { useDict, useLanguage } from './language'
 import { X } from './icons'
 
 export interface SkillFileDrawerProps {
@@ -11,6 +19,10 @@ export interface SkillFileDrawerProps {
   levelLabel: string
   filePath: string
   absPath: string
+  /** The package's listed files — the readable set for relative links (fail-closed beyond it) */
+  files: SkillFileEntry[]
+  /** An in-package link's destination: the host switches the drawer to this entry */
+  onOpenFile: (f: SkillFileEntry) => void
   onClose: () => void
 }
 
@@ -20,9 +32,12 @@ export function SkillFileDrawer({
   levelLabel,
   filePath,
   absPath,
+  files,
+  onOpenFile,
   onClose
 }: SkillFileDrawerProps): JSX.Element {
   const dict = useDict()
+  const lang = useLanguage()
   const canPreview = isMarkdownName(filePath)
   const [mode, setMode] = useState<'raw' | 'preview'>(canPreview ? 'preview' : 'raw')
   const [text, setText] = useState<string | null>(null)
@@ -97,7 +112,18 @@ export function SkillFileDrawer({
               {!err && text === null && <div className="md-preview-empty">{dict.skills.loading}</div>}
               {!err && text === '' && <div className="md-preview-empty">{dict.skills.emptyFile}</div>}
               {!err && text !== null && text !== '' && showPreview && (
-                <div dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }} />
+                <MarkdownBody
+                  text={text}
+                  links={{
+                    baseDir: dirOf(absPath),
+                    readable: files.map((f) => f.absPath),
+                    onInternal: (file) => {
+                      const f = files.find((x) => x.absPath === file)
+                      if (f) onOpenFile(f)
+                    },
+                    onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
+                  }}
+                />
               )}
               {!err && text !== null && text !== '' && !showPreview && text}
             </div>
