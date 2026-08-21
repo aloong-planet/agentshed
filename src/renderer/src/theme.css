@@ -1097,7 +1097,7 @@ body {
   width: 100%;
   margin: 0.75em 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 1px;
   overflow: hidden;
   font-size: 12px;
 }

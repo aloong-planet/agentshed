@@ -229,7 +229,7 @@
   font-size: 12px;
   width: 100%;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 1px;
   border: 1px solid var(--line, #e8eaed);
 }
 /* Settled 2026-08-21 (mirrors the app): column separators one step stronger than row separators,
