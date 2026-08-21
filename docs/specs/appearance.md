@@ -177,6 +177,19 @@ document by its headings)
   rest, deep accent on hover, on both surfaces. Body line-height is shared as well (settled
   2026-08-20 at the document card's 1.75) — with that, the surfaces have **no** remaining authored
   content-styling differences.
+- E7d Tables take the paper form on every surface (settled 2026-08-21 on the comparison prototype;
+  previously both surfaces rendered bare browser-default tables — borderless, padless, barely
+  legible as tables): a bordered frame — **6px corner radius, one value shared by the table frame,
+  the fenced-code inset and the frontmatter card** (ruled 2026-08-21 after comparing 8px/1px/3px
+  candidates on the prototype) — and row lines in `--line`, **column separators one
+  step stronger** (`--line-strong`) so columns stay readable, an `--accent-soft` header with
+  `--accent-deep` text whose **cells never wrap** (a wide table scrolls its container instead) and
+  are **always centred**, and `--bg`-striped even rows — every value an existing token. **GFM
+  alignment (`:-:` / `--:`) applies to body cells and wins over their default left**; it does not
+  drag the header along (the parser puts the align attribute on th too). Two traps this section
+  pins: the pre-existing prototype style pinned `text-align: left` on every cell, silently
+  swallowing the alignment the parser had already delivered as attributes; and an align-attribute
+  override written against th as well as td re-drags the centred header.
 - E8 Host-capability note: this is styling of already-sanitised output; it introduces no new
   elements the user can trigger (links/media boundaries stay as specified in skills-view sequence D
   and the CONTEXT link-interception invariant).

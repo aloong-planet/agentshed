@@ -8,6 +8,11 @@
      第二条裁决(2026-08-19,用户对照本页两栏后指定):代码块与行内代码统一取右栏(.md 文档卡)
      的纸面样式——围栏浅底描边、内层 code 无二层框、行内 code 描边药丸;已折进共享块与真代码,
      左栏抽屉语境此前的暗底终端式 pre 不再是 app 现状。
+     第三条裁决(2026-08-21):表格纸面样式定稿并已折进共享块与真代码——表头 accent-soft 底 +
+     accent-deep 字、外框与行线 line、**列分隔线 line-strong(加强)**、斑马纹 bg、
+     **表头单元格不换行**(宽表滚动容器)、GFM 对齐语法(:-: / --:)优先于默认左对齐,
+     全部既有 token。fixture 的「分组对照」表覆盖:三种对齐、单元格内行内 code、
+     窄容器下折行的长单元格、四行正文(斑马纹可见)。
      方案(底栏切换,V2 为定稿):
        旧现状  两面各按裁决前的旧规则渲染,作对照基线;
        V1    纯字号阶梯——只靠字号与字重分级,单一主题色,押最朴素;
@@ -87,6 +92,8 @@
   .shell-drawer .md-preview-body.raw { background: var(--bg); color: var(--text); }
   .shell-drawer .md-preview-body.preview { background: var(--card); color: var(--text); }
   .shell-drawer .md-preview { --md-h1: var(--accent-deep); --md-h2: var(--accent); --md-h3: var(--hx3); --md-link: var(--accent); }
+  /* 表格不再本页覆盖:共享块默认已是定稿(第三条裁决,token 化 + 对齐修正 + 表头不换行 +
+     列线加强),让它直接流入 */
   /* code/pre 不再本页覆盖:共享块默认已是定稿的纸面样式(第二条裁决),让它直接流入。
      但共享块自带的原型级 token 着色(.tok-*)在真 app 里不存在(md.ts 不做高亮),
      本页两栏都要反映 app 事实,故在此中和掉——右栏 .mdcard 本就无 tok 规则。 */
@@ -106,6 +113,17 @@
   .mdcard pre { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; overflow-x: auto; }
   .mdcard pre code { border: 0; background: transparent; padding: 0; }
   .mdcard ul, .mdcard ol { padding-left: 20px; }
+  /* 第三条裁决后 app 的表格规则(照抄真 theme.css) */
+  .mdcard table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 0.75em 0;
+    border: 1px solid var(--line); border-radius: 6px; overflow: hidden; font-size: 12px; }
+  .mdcard th, .mdcard td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line-strong);
+    padding: 7px 10px; text-align: left; vertical-align: top; }
+  .mdcard th:last-child, .mdcard td:last-child { border-right: 0; }
+  .mdcard tr:last-child td { border-bottom: 0; }
+  .mdcard th { background: var(--accent-soft); color: var(--accent-deep); font-weight: 650; white-space: nowrap; text-align: center; }
+  .mdcard tbody tr:nth-child(even) td { background: var(--bg); }
+  .mdcard td[align='center'] { text-align: center; }
+  .mdcard td[align='right'] { text-align: right; }
 
   /* ── 标题阶梯:一套结构规则,两个语境同吃;各方案只改变量 ──
      选择器带 .shell-drawer 前缀是为了压过共享块 md-preview.css 的同名规则(0,2,1 → 0,3,1) */
@@ -267,6 +285,15 @@ description: 从 commit 历史起草面向用户的发布说明,按变更类型�
 - 纯重构:行为无任何变化
 - CI 配置:`.github/workflows/` 下的改动
 - 文档拼写:不影响语义的修正
+
+#### 分组对照
+
+| 变更类型 | 判定 | 示例 | 归组 |
+|:--|:-:|:--|--:|
+| 新功能 | 用户可见的新能力 | `feat: 导出会话` | 新功能 |
+| 修复 | 修正既有行为 | `fix: 空列表崩溃` | 修复 |
+| 破坏性变更 | 需要用户改配置或习惯的,哪怕收益很大也必须单独列出并写清迁移路径 | `feat!: 配置改版` | 破坏性变更 |
+| 纯重构 | 行为无变化 | `refactor: 抽组件` | 不进说明 |
 
 ### 排版约定
 #### 标题层级
