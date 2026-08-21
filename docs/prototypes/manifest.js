@@ -10,8 +10,10 @@
 
 window.PROTOTYPES = [
   { module: 'agents-page',   type: 'ui',    id: 'agents',       name: 'Agents 全局页(默认落地)', path: 'agents-page/prototype-agents.html' },
+  { module: 'agents-page',   type: 'ui',    id: 'agents-skeleton', name: 'Agents 页启动骨架(扫描中)', path: 'agents-page/prototype-agents-skeleton.html' },
   { module: 'shell',         type: 'ui',    id: 'app-shell',    name: '双栏壳与扫描态',       path: 'shell/prototype-app-shell.html' },
   { module: 'project-list',  type: 'ui',    id: 'list',         name: '项目图鉴列表',         path: 'project-list/prototype-list.html' },
+  { module: 'project-list',  type: 'ui',    id: 'list-skeleton', name: '项目列表启动骨架(扫描中)', path: 'project-list/prototype-list-skeleton.html' },
   { module: 'project-list',  type: 'logic', id: 'visibility',   name: '项目可见性状态机',     path: 'project-list/visibility/index.html' },
   { module: 'project-detail',type: 'ui',    id: 'detail',       name: '详情:装了什么',       path: 'project-detail/prototype-detail.html' },
   { module: 'session-view',  type: 'ui',    id: 'session',      name: '会话页:提问索引与整轮展开', path: 'session-view/prototype-session.html' },

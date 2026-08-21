@@ -20,6 +20,20 @@ import { Inbox } from './icons'
 
 type Tab = 'token' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'cfg'
 
+/**
+ * The section tabs whose labels are language-independent (product/technical names); the configuration
+ * tab's label lives in the dictionaries and is appended by the render. Exported so the startup
+ * skeleton renders the same set — adding a section (spec B1) lands here once for both.
+ */
+export const STATIC_TABS = [
+  ['token', 'Token'],
+  ['skills', 'Skills'],
+  ['subagents', 'Subagents'],
+  ['plugins', 'Plugins'],
+  ['mcp', 'MCP'],
+  ['memory', 'Memory']
+] as const
+
 export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
   const t = useDict()
   const [tab, setTab] = useState<Tab>('token')
@@ -77,17 +91,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
           />
         </div>
         <nav className="tabs">
-          {(
-            [
-              ['token', 'Token'],
-              ['skills', 'Skills'],
-              ['subagents', 'Subagents'],
-              ['plugins', 'Plugins'],
-              ['mcp', 'MCP'],
-              ['memory', 'Memory'],
-              ['cfg', t.agents.tabCfg]
-            ] as const
-          ).map(([t, label]) => (
+          {([...STATIC_TABS, ['cfg', t.agents.tabCfg]] as const).map(([t, label]) => (
             <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
               {label}
             </button>

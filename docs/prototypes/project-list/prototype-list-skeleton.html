@@ -1,0 +1,196 @@
+<!doctype html>
+<!-- A UI prototype · 项目列表启动骨架(2026-08-21,需求变更:启动扫描期间不再只显示一句
+     「正在扫描」的空态,改为按页面真实结构摆占位,扫描完成后原位填充)。
+     问题:①方向 A 在项目维度长什么样——侧栏(搜索框/过滤行/列表行)全部按真实几何摆灰块,
+       搜索与过滤为静态置灰不可交互;②「正在扫描」轻提示放在右侧详情区中央(替换「选择一个项目」
+       空态的位置)是否成立——扫描期间没有可选的项目,那句引导是假话,同一个居中位换成扫描提示;
+     ③填充是否接近零跳变(演示条两态对照)。
+     文案注:扫描提示是**候选新文案**(旧 key shell.scanning 的括号说明在新行为下不再为真);
+     搜索框占位、过滤器「全部」、「显示失效项目」、「选择一个项目查看详情」逐字取自现有字典。
+     未覆盖维度:「已载入」态的项目名(专名)与活跃度小字仅中文——该态只作跳变对照,
+     列表的完整交互与六语宽度评判归 prototype-list.html。
+     演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于页面内容流)
+     承载两组开关——「演示·状态」扫描中/已载入(真实判定 = 渲染器是否已收到首个 snapshot,
+     app 内无此开关);「演示·语言」六选一(真实语言来自设置里的语言偏好)。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 — 项目列表启动骨架</title>
+<style>
+  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
+  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2)}
+  .rail .ri:hover{background:var(--accent-soft)}
+  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
+  .side{width:270px;flex:none;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column}
+  .sh{display:flex;gap:6px;margin:12px 12px 6px}
+  .sh-field{flex:1;min-width:0;position:relative;display:flex;align-items:center}
+  .sh-field>span{position:absolute;left:9px;color:var(--text-2);display:flex;pointer-events:none}
+  .sh .sh-field input{padding-left:28px}
+  .sh input{flex:1;padding:6px 10px;border:1px solid var(--line-strong);border-radius:7px;
+    background:var(--bg);color:var(--text);font:inherit;outline:none}
+  .sh input:focus{border-color:var(--accent)}
+  .dd-trigger{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2);
+    border:1px solid var(--line-strong);border-radius:7px;padding:3px 8px;cursor:pointer;
+    background:transparent;font:inherit;font-size:11px;white-space:nowrap}
+  .dd-trigger:hover{border-color:var(--accent);color:var(--accent)}
+  .dd-trigger .chev{display:flex}
+  .opts{display:flex;align-items:center;gap:8px;padding:4px 14px 6px;font-size:11.5px;color:var(--text-2)}
+  .opts label{display:flex;align-items:center;gap:4px;cursor:pointer}
+  .list{flex:1;overflow:auto;padding:2px 8px}
+  .row{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:7px;cursor:pointer;position:relative}
+  .row:hover{background:var(--accent-soft)}
+  .row + .row{margin-top:1px}
+  .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meta{font-size:10.5px;color:var(--text-2);flex:none;font-variant-numeric:tabular-nums}
+  .cnt-b{flex:none;min-width:17px;height:17px;padding:0 6px 0 4px;border-radius:9px;
+    background:var(--accent-soft);color:var(--accent);
+    font-size:10px;font-weight:700;display:flex;align-items:center;
+    justify-content:center;gap:2px;font-variant-numeric:tabular-nums;cursor:default}
+  .cnt-b svg{flex:none}
+  .main{flex:1;display:flex;flex-direction:column}
+  .topbar{height:44px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px}
+  .empty{margin:auto;text-align:center;color:var(--text-2);line-height:2}
+  .empty .big{display:flex;justify-content:center;color:var(--text-2);opacity:.75}
+  .empty .spin{display:inline-flex;justify-content:center;color:var(--accent);animation:spin 1.2s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ── 骨架占位元素(与 Agents 骨架原型同一套形态语言:--line 灰 + 透明度脉动) ── */
+  .sk{display:inline-block;background:var(--line);border-radius:5px;
+    animation:skp 1.6s ease-in-out infinite}
+  @keyframes skp{0%,100%{opacity:.55}50%{opacity:1}}
+  @media (prefers-reduced-motion:reduce){.sk{animation:none}}
+  /* 骨架态的不可交互:侧栏与主区整体拒点(rail 与演示条不在此容器内);
+     搜索框置灰禁输,行 hover 压平 */
+  body.scanning .side,body.scanning .main{pointer-events:none}
+  body.scanning .sh input{color:var(--text-2)}
+  body.scanning .row{cursor:default}
+  body.scanning .row:hover{background:transparent}
+  body.scanning .dd-trigger{cursor:default}
+
+  /* 演示基建(非设计的一部分,勿实现):底部悬浮条,独立于页面内容流 */
+  .harness{position:fixed;bottom:14px;left:12px;right:12px;margin:0 auto;width:fit-content;z-index:60;
+    display:flex;align-items:center;flex-wrap:wrap;row-gap:2px;gap:4px;background:#26262b;
+    border-radius:16px;padding:6px 14px;font-size:11px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+  .harness .dl{color:#8a8a92;padding:0 3px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
+  .harness .sepv{width:1px;height:16px;background:#4a4a52;display:inline-block;flex:none}
+  .harness span[data-s],.harness span[data-v]{padding:3px 9px;border-radius:999px;cursor:pointer;
+    color:#b8b8bf;white-space:nowrap}
+  .harness span[data-s]:hover,.harness span[data-v]:hover{color:#fff}
+  .harness span[data-s].on,.harness span[data-v].on{background:#4a4a52;color:#fff;font-weight:600}
+</style>
+</head>
+<body class="scanning">
+  <div class="rail">
+    <div class="ri" title="Agents(骨架态见 Agents 骨架原型)" data-goto="agents-page/agents-skeleton" data-goto-href="../agents-page/prototype-agents-skeleton.html" data-icon="RobotFace" data-icon-size="17"></div>
+    <div class="ri on" title="Projects" data-icon="Folder" data-icon-size="17"></div>
+    <div class="ri" title="全局刷新(两维度共用)" style="margin-top:auto;margin-bottom:6px" data-icon="RefreshCw" data-icon-size="17"></div>
+  </div>
+  <div class="side">
+    <div class="sh"><div class="sh-field"><span data-icon="Search" data-icon-size="13"></span><input id="q" disabled></div></div>
+    <div class="opts">
+      <button class="dd-trigger" id="ddTrig" tabindex="-1"></button>
+      <label><input type="checkbox" id="showStale" disabled><span id="staleLabel"></span></label>
+    </div>
+    <div class="list" id="list"></div>
+  </div>
+  <div class="main">
+    <div class="topbar"><b>Agentshed</b></div>
+    <div class="empty" id="stage"></div>
+  </div>
+  <div class="harness" id="harness" data-demo-harness></div>
+<script src="../_shared/icons.js"></script>
+<script>
+// ── 六语文案。scan 是候选新文案(与 Agents 骨架原型同一句,六语同换);
+//    其余逐字取自现有字典(projects.searchPlaceholder/filterAll/showStale、shell.pickProject)。
+const L = {
+  zh:{scan:'正在扫描各 agent 侧…', search:'搜索项目…', all:'全部', stale:'显示失效项目',
+      pick:'选择一个项目查看详情'},
+  en:{scan:'Scanning the agent sides…', search:'Search projects…', all:'All', stale:'Show stale projects',
+      pick:'Select a project to see its details'},
+  fr:{scan:'Analyse des côtés agents…', search:'Rechercher des projets…', all:'Tous', stale:'Afficher les projets obsolètes',
+      pick:'Sélectionnez un projet pour voir son détail'},
+  ru:{scan:'Сканирование сторон агентов…', search:'Поиск проектов…', all:'Все', stale:'Показывать устаревшие проекты',
+      pick:'Выберите проект, чтобы увидеть детали'},
+  es:{scan:'Escaneando los lados de agente…', search:'Buscar proyectos…', all:'Todos', stale:'Mostrar proyectos obsoletos',
+      pick:'Selecciona un proyecto para ver su detalle'},
+  ja:{scan:'各エージェントサイドをスキャン中…', search:'プロジェクトを検索…', all:'すべて', stale:'失効したプロジェクトを表示',
+      pick:'プロジェクトを選択すると詳細が表示されます'}
+};
+// 「已载入」对照态的列表(取自 prototype-list 的 mock;项目名是专名,活跃度小字仅中文)
+const DATA = [
+  { n:'agentshed',       c:2, last:'今天' },
+  { n:'chatgpt-token',   c:1, last:'昨天' },
+  { n:'openclaw-v3',     c:2, last:'2天前' },
+  { n:'Transfer',        c:3, last:'3天前' },
+  { n:'AI-Learning',     c:1, last:'5天前' },
+  { n:'aloong-tools',    c:1, last:'7天前' },
+  { n:'csv-debug-viewer',c:1, last:'1月前' }
+];
+// 骨架行的名字条宽度:固定数组、彼此错开(真实项目名长短不一,等宽会读作表格线而不是文字位)
+const SK_ROWS = [128,96,142,88,150,104,120,134,92];
+
+let STATE = 'scan';   // 'scan' | 'loaded'
+let lang = 'zh';
+const $ = (id) => document.getElementById(id);
+
+function render(){
+  const t = L[lang];
+  document.body.classList.toggle('scanning', STATE === 'scan');
+  $('q').placeholder = t.search;
+  $('ddTrig').innerHTML = `<span>${t.all}</span><span class="chev">${ICONS.ChevronDown(11)}</span>`;
+  $('staleLabel').textContent = t.stale;
+  $('showStale').disabled = STATE === 'scan';
+  $('q').disabled = STATE === 'scan';
+  $('list').innerHTML = STATE === 'scan'
+    ? SK_ROWS.map((w, i) =>
+        `<div class="row"><span class="nm"><span class="sk" style="width:${w}px;height:12px;animation-delay:${(i % 6) * .12}s"></span></span>
+           <span class="sk" style="width:26px;height:17px;border-radius:9px;animation-delay:${(i % 6) * .12}s"></span>
+           <span class="meta"><span class="sk" style="width:34px;height:10px;animation-delay:${(i % 6) * .12}s"></span></span></div>`).join('')
+    : DATA.map((p) =>
+        `<div class="row"><span class="nm">${p.n}</span>
+           <span class="cnt-b">${ICONS.Bot(11)}${p.c}</span>
+           <span class="meta">${p.last}</span></div>`).join('');
+  // 详情区中央:扫描期间没有可选项目,「选择一个项目」是假话——同一个居中位换成扫描提示
+  $('stage').innerHTML = STATE === 'scan'
+    ? `<div class="spin">${ICONS.RefreshCw(26)}</div><div>${t.scan}</div>`
+    : `<div class="big">${ICONS.MousePointerClick(30)}</div><div>${t.pick}</div>`;
+}
+
+// 演示基建(非设计的一部分,勿实现):状态与语言都是 mock 开关——
+// 真实状态判定 = 渲染器是否已收到首个 snapshot;真实语言 = 设置里的语言偏好
+function renderHarness(){
+  const sp = (v, l) => `<span data-s="${v}" class="${STATE === v ? 'on' : ''}">${l}</span>`;
+  const lp = (v, l) => `<span data-v="${v}" class="${lang === v ? 'on' : ''}">${l}</span>`;
+  $('harness').innerHTML = `<span class="dl">演示·状态</span>${sp('scan','扫描中')}${sp('loaded','已载入')}` +
+    `<span class="sepv"></span><span class="dl">演示·语言</span>` +
+    lp('zh','中文') + lp('en','EN') + lp('fr','FR') + lp('ru','RU') + lp('es','ES') + lp('ja','JA');
+}
+$('harness').addEventListener('click', (e) => {
+  const s = e.target.dataset.s;
+  if (s) { STATE = s; render(); renderHarness(); return; }
+  const v = e.target.dataset.v;
+  if (!v) return;
+  lang = v; render(); renderHarness();
+});
+render(); renderHarness();
+</script>
+<script>
+  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
+  // navigates to the file directly
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+  });
+</script>
+</body>
+</html>

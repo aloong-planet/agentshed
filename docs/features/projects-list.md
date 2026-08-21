@@ -32,5 +32,6 @@ activity.
 - No live file watching: data updates on the startup scan and on manual refresh
 - No manual hiding: every registered project is listed (removed 2026-08-16, ADR-0022; projects
   hidden before then reappear)
-- Before the scan finishes after opening, a scanning state is shown rather than a misleading empty
-  list
+- Before a launch's first scan finishes, the sidebar shows placeholder rows under its real
+  search-and-filter header, and the detail area says a scan is running — never a misleading empty
+  list. Everything fills in place, and the placeholders never come back on a later refresh

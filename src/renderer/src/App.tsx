@@ -3,7 +3,7 @@ import type { Snapshot } from '@shared/domain'
 import type { Prefs } from '@shared/prefs'
 import { backfillPrefs, type PrefKey } from './prefs-backfill'
 import { errorText } from '@shared/error-text'
-import { LanguageProvider, useDict } from './language'
+import { LanguageProvider } from './language'
 import {
   DEFAULT_MODE,
   DEFAULT_THEME,
@@ -13,11 +13,12 @@ import {
 import { dictOf, effectiveLanguage, type Language, type LanguagePreference } from '@shared/i18n'
 import { ProjectsPane } from './ProjectsPane'
 import { AgentsPane } from './AgentsPane'
+import { AgentsSkeleton, ProjectsSkeleton } from './StartupSkeleton'
 import { DetailPane } from './DetailPane'
 import { SessionPane } from './SessionPane'
 import { SettingsPane } from './SettingsPane'
 import { Toasts, toast } from './Toast'
-import { Folder, Inbox, MousePointerClick, RefreshCw, RobotFace, Settings } from './icons'
+import { Folder, MousePointerClick, RefreshCw, RobotFace, Settings } from './icons'
 
 type Dim = 'agents' | 'projects' | 'settings'
 
@@ -222,12 +223,12 @@ export function App(): JSX.Element {
             />
         ) : dim === 'agents' ? (
           snap === null ? (
-            <ScanningHint />
+            <AgentsSkeleton />
           ) : (
             <AgentsPane snap={snap} />
           )
         ) : snap === null ? (
-          <ScanningHint />
+          <ProjectsSkeleton />
         ) : (
           <ProjectsPane
             snap={snap}
@@ -276,17 +277,5 @@ export function App(): JSX.Element {
       <Toasts />
     </div>
     </LanguageProvider>
-  )
-}
-
-function ScanningHint(): JSX.Element {
-  const t = useDict()
-  return (
-    <div className="empty">
-      <div className="big">
-        <Inbox size={30} />
-      </div>
-      <div>{t.shell.scanning}</div>
-    </div>
   )
 }
