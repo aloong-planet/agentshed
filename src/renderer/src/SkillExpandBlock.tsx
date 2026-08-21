@@ -10,9 +10,7 @@ import { toast } from './Toast'
 import { errorText } from '@shared/error-text'
 import { useLanguage, useDict } from './language'
 import { ChevronRight, Dot } from './icons'
-import { SIDE_BADGE, SIDE_ORDER } from './side-badge'
-
-const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex', grok: 'Grok' }
+import { SIDE_BADGE, SIDE_ORDER, SIDE_SHORT_NAME } from './side-badge'
 
 /**
  * The enumeration source (a discriminated union): each of the three sources has its required fields
@@ -164,7 +162,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
                   className={s === side ? 'on' : ''}
                   onClick={() => void switchSide(s)}
                 >
-                  {SIDE_LABEL[s]}
+                  {SIDE_SHORT_NAME[s]}
                 </button>
               ))}
             </div>
@@ -175,7 +173,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
       {drawer && (
         <SkillFileDrawer
           skill={name}
-          sideLabel={SIDE_LABEL[side]}
+          sideLabel={SIDE_SHORT_NAME[side]}
           levelLabel={
             levelLabel ??
             (source.kind === 'plugin'

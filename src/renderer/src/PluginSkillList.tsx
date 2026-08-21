@@ -13,6 +13,7 @@ import { toast } from './Toast'
 import { errorText } from '@shared/error-text'
 import { useLanguage, useDict } from './language'
 import { ChevronRight, Dot } from './icons'
+import { SIDE_SHORT_NAME } from './side-badge'
 
 export function PluginSkillList({
   ns,
@@ -107,7 +108,7 @@ export function PluginSkillList({
       {drawer && (
         <SkillFileDrawer
           skill={drawer.skill}
-          sideLabel={side === 'claude' ? 'Claude' : 'Codex'}
+          sideLabel={SIDE_SHORT_NAME[side]}
           levelLabel={t.skills.srcPluginPkg}
           filePath={drawer.f.path}
           absPath={drawer.f.absPath}
