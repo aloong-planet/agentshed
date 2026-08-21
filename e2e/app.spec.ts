@@ -498,6 +498,14 @@ test('the project list row: a side-count badge, with hovering naming the sides i
   await expect(solo.locator('.cnt-b')).toHaveText('1')
   await expect(win.locator('.side .row .badge')).toHaveCount(0)
 
+  // The row reads name · time · count: the badge sits right of the relative time, at the row's edge
+  const metaBox = await tri.locator('.meta').boundingBox()
+  const cntBox = await tri.locator('.cnt-b').boundingBox()
+  if (metaBox === null || cntBox === null) throw new Error('row meta/count not rendered')
+  expect(cntBox.x, 'the side-count badge sits right of the time').toBeGreaterThan(
+    metaBox.x + metaBox.width - 1
+  )
+
   // Hovering the count opens the layer naming the sides in full — names, not abbreviations
   await tri.locator('.cnt-b').hover()
   const tip = win.locator('.sides-tip')
