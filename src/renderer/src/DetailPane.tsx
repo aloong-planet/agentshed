@@ -634,14 +634,20 @@ const ART_LABELS: Record<ArtifactType, string> = {
   postmortems: 'postmortems'
 }
 
-function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
+/**
+ * The artifact reader overlay as a reusable pair (open + overlay element): the Artifacts tab and
+ * the Config tab both open artifacts in it, each with its own instance (the overlay closes with
+ * its tab). Prototypes keep their "open in the browser" route.
+ */
+function useArtifactReader(detail: ProjectDetail): {
+  openArtifact: (item: ArtifactEntry) => Promise<void>
+  readerOverlay: JSX.Element | null
+} {
   const t = useDict()
   const lang = useLanguage()
-  const [filter, setFilter] = useState<'all' | ArtifactType>('all')
   const [reader, setReader] = useState<{ item: ArtifactEntry; text: string } | null>(null)
-  const list = detail.artifacts.filter((a) => filter === 'all' || a.type === filter)
 
-  async function open(item: ArtifactEntry): Promise<void> {
+  async function openArtifact(item: ArtifactEntry): Promise<void> {
     if (item.type === 'prototypes') {
       await window.agentshed.openArtifact(item.file)
       return
@@ -659,6 +665,41 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
     setReader({ item, text: rewritten })
   }
 
+  const readerOverlay = reader ? (
+    <>
+      <div className="mask" onClick={() => setReader(null)} />
+      <div className="reader">
+        <h2>{reader.item.title}</h2>
+        <div className="meta mono">{reader.item.file}</div>
+        <MarkdownBody
+          className="md"
+          text={reader.text}
+          links={{
+            baseDir: dirOf(reader.item.file),
+            readable: detail.artifacts.map((a) => a.file),
+            // Cross-references between artifacts (spec ↔ features, say) navigate inside the
+            // reader, never the whole window
+            onInternal: (file) => {
+              const a = detail.artifacts.find((x) => x.file === file)
+              if (a) void openArtifact(a)
+            },
+            onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
+          }}
+        />
+      </div>
+    </>
+  ) : null
+
+  return { openArtifact, readerOverlay }
+}
+
+function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
+  const t = useDict()
+  const lang = useLanguage()
+  const [filter, setFilter] = useState<'all' | ArtifactType>('all')
+  const { openArtifact, readerOverlay } = useArtifactReader(detail)
+  const list = detail.artifacts.filter((a) => filter === 'all' || a.type === filter)
+
   return (
     <div>
       <div className="chips">
@@ -675,7 +716,7 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
       ) : (
         <div className="card">
           {list.map((a) => (
-            <button className="it ai" key={a.file} onClick={() => void open(a)} title={a.file}>
+            <button className="it ai" key={a.file} onClick={() => void openArtifact(a)} title={a.file}>
               <span className="t">{a.title}</span>
               {a.type === 'prototypes' && <span className="pill ln">{t.detail.openInBrowser}</span>}
               <span className="pill glb">{ART_LABELS[a.type]}</span>
@@ -684,30 +725,7 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
           ))}
         </div>
       )}
-      {reader && (
-        <>
-          <div className="mask" onClick={() => setReader(null)} />
-          <div className="reader">
-            <h2>{reader.item.title}</h2>
-            <div className="meta mono">{reader.item.file}</div>
-            <MarkdownBody
-              className="md"
-              text={reader.text}
-              links={{
-                baseDir: dirOf(reader.item.file),
-                readable: detail.artifacts.map((a) => a.file),
-                // Cross-references between artifacts (spec ↔ features, say) navigate inside the
-                // reader, never the whole window
-                onInternal: (file) => {
-                  const a = detail.artifacts.find((x) => x.file === file)
-                  if (a) void open(a)
-                },
-                onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
-              }}
-            />
-          </div>
-        </>
-      )}
+      {readerOverlay}
     </div>
   )
 }
@@ -716,6 +734,7 @@ function CfgTab({ detail }: { detail: ProjectDetail }): JSX.Element {
   const t = useDict()
   const lang = useLanguage()
   const [which, setWhich] = useState<'cl' | 'cx' | 'settings'>('cl')
+  const { openArtifact, readerOverlay } = useArtifactReader(detail)
   const md = which === 'cl' ? detail.configs.claudeMd : which === 'cx' ? detail.configs.agentsMd : null
   // The truncation marker is appended by the renderer in the current language (ticket 07)
   const cfgText = md === null ? null : md.truncated ? `${md.text}\n${t.placeholder.truncated}` : md.text
@@ -748,14 +767,18 @@ function CfgTab({ detail }: { detail: ProjectDetail }): JSX.Element {
           text={cfgText}
           links={{
             baseDir: detail.path,
-            // No in-app targets are wired for configuration links yet, so every relative link gets
-            // the explicit out-of-scope notice (the invariant's fallback) — onInternal is unreachable
-            readable: [],
-            onInternal: () => {},
+            // A relative link to a listed project document opens the same reader overlay as the
+            // Artifacts tab; anything else keeps the explicit out-of-scope notice
+            readable: detail.artifacts.map((a) => a.file),
+            onInternal: (file) => {
+              const a = detail.artifacts.find((x) => x.file === file)
+              if (a) void openArtifact(a)
+            },
             onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
           }}
         />
       )}
+      {readerOverlay}
     </div>
   )
 }
