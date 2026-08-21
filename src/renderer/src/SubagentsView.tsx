@@ -15,6 +15,7 @@ import { useDict, useLanguage } from './language'
 import { ERR, appError } from '@shared/errors'
 import { errorText } from '@shared/error-text'
 import { Minus } from './icons'
+import { SIDE_BADGE, SIDE_SHORT_NAME } from './side-badge'
 
 export function GlobalSubagentsTab({ snap }: { snap: Snapshot }): JSX.Element {
   const t = useDict()
@@ -60,8 +61,8 @@ export function ProjectSubagentsTab({ detail }: { detail: ProjectDetail }): JSX.
             onClick={() => setOpen(s)}
           >
             <span className="nm mono">{s.name}</span>
-            <span className={`badge ${s.side === 'claude' ? 'cl' : 'cx'}`}>
-              {s.side === 'claude' ? 'CC' : 'CX'}
+            <span className={`badge ${SIDE_BADGE[s.side].cls}`}>
+              {SIDE_BADGE[s.side].label}
             </span>
             <span className={`pill ${s.level === 'project' ? 'prj' : 'glb'}`}>
               {s.level === 'project' ? t.subagents.levelProject : t.subagents.levelGlobal}
@@ -79,7 +80,7 @@ export function ProjectSubagentsTab({ detail }: { detail: ProjectDetail }): JSX.
       {open && (
         <SubagentDrawer
           entry={toDrawerEntry(open)}
-          meta={`${open.level === 'project' ? t.subagents.levelProject : t.subagents.levelGlobal} · ${open.side === 'claude' ? 'Claude' : 'Codex'}${open.shadows ? t.subagents.metaShadows : ''}${open.shadowed ? t.subagents.metaShadowed : ''}`}
+          meta={`${open.level === 'project' ? t.subagents.levelProject : t.subagents.levelGlobal} · ${SIDE_SHORT_NAME[open.side]}${open.shadows ? t.subagents.metaShadows : ''}${open.shadowed ? t.subagents.metaShadowed : ''}`}
           onClose={() => setOpen(null)}
         />
       )}

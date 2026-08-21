@@ -19,3 +19,10 @@ export const SIDE_FULL_NAME: Record<AgentSide, string> = {
   codex: 'Codex',
   grok: 'Grok'
 }
+
+/** The side's short display name for compact chrome (side-switch buttons, drawer and list meta) */
+export const SIDE_SHORT_NAME: Record<AgentSide, string> = {
+  claude: 'Claude',
+  codex: 'Codex',
+  grok: 'Grok'
+}

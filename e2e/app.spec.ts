@@ -2903,6 +2903,10 @@ test('the Agents page shows Grok\'s own global skills with the borrowing line, a
   await expect(win.locator('.pane-head .stats .stat').nth(2)).toContainText('GROK')
   const row = win.locator('.sk', { hasText: 'grok-own-skill' })
   await expect(row).toHaveCount(1)
+  // The row's own side strip: grok wears its GK badge in the third slot, not a second CX (the #125
+  // ternary fall-through, recurred on this surface — the popover below was asserted, the row was not)
+  await expect(row.locator('.bdg .badge')).toHaveText(['—', '—', 'GK'])
+  await expect(row.locator('.bdg .badge.gk')).toHaveCount(1)
   await expect(win.locator('.grp-t .hint2')).toContainText('borrowed components belong to the Claude side')
   // Install the grok skill into the project: the popover target names the project's sides in full
   await row.locator('.ins').click()
