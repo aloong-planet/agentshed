@@ -136,7 +136,7 @@ export const fr: Locale = {
     projectMissing: '(projet obsolète)',
     installMissing: 'Dossier d’installation manquant (cache nettoyé) — seul l’enregistrement du registre est visible ; les composants inclus ne peuvent pas être lus',
     noBundled: 'Aucun des quatre types de composants inclus',
-    codexCacheEnum: 'énumération du cache',
+    codexCacheEnum: 'Énumération du cache',
     cachedVersions: (n) => `(${n} ${plural('fr', n, { one: 'version', other: 'versions' })} en cache)`,
     cacheOnly: 'énumération du cache uniquement',
     codexFoot: 'Le groupe Codex ne liste que les plugins présents dans le cache ; aucune sémantique d’activation, et les skills inclus sont prévisualisables sans être fusionnés dans l’onglet Skills',

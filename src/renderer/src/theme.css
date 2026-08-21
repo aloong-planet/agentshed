@@ -982,7 +982,6 @@ body {
   font-size: 11px;
   color: var(--text-2);
   margin: 2px 0 8px;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
   display: flex;
   align-items: center;
