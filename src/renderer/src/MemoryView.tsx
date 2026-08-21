@@ -10,6 +10,7 @@ import { fmtAgo } from './ProjectsPane'
 import { errorText } from '@shared/error-text'
 import { appError } from '@shared/errors'
 import { useLanguage, useDict } from './language'
+import { SIDE_BADGE } from './side-badge'
 
 /** C6's three states: not enabled → how to enable it; enabled but empty → nothing yet; has content → an
  * entry row (in the list) */
@@ -64,8 +65,8 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
           <div key={key}>
             <button className="it row-btn" onClick={() => toggle(key)}>
               <span className="nm mono">{m.projectName ?? t.placeholder.codexGlobalMemory}</span>
-              <span className={`badge ${m.side === 'claude' ? 'cl' : 'cx'}`}>
-                {m.side === 'claude' ? 'CC' : 'CX'}
+              <span className={`badge ${SIDE_BADGE[m.side].cls}`}>
+                {SIDE_BADGE[m.side].label}
               </span>
               {m.stale && <span className="pill warn">{t.memory.stale}</span>}
               <span className="ds">

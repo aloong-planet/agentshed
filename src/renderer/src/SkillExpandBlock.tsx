@@ -10,9 +10,9 @@ import { toast } from './Toast'
 import { errorText } from '@shared/error-text'
 import { useLanguage, useDict } from './language'
 import { ChevronRight, Dot } from './icons'
+import { SIDE_BADGE, SIDE_ORDER } from './side-badge'
 
 const SIDE_LABEL: Record<AgentSide, string> = { claude: 'Claude', codex: 'Codex', grok: 'Grok' }
-const SIDE_ORDER: AgentSide[] = ['claude', 'codex', 'grok']
 
 /**
  * The enumeration source (a discriminated union): each of the three sources has its required fields
@@ -133,8 +133,8 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         <span className="bdg">
           {SIDE_ORDER.map((s) =>
             sidesArr.includes(s) ? (
-              <span key={s} className={`badge ${s === 'claude' ? 'cl' : 'cx'}`}>
-                {s === 'claude' ? 'CC' : 'CX'}
+              <span key={s} className={`badge ${SIDE_BADGE[s].cls}`}>
+                {SIDE_BADGE[s].label}
               </span>
             ) : (
               <span key={s} className="badge miss">
