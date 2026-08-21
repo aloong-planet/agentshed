@@ -89,7 +89,10 @@ is read-only; the one write operation is uninstalling a project-level skill.
   both lose all app state). Cross-references between artifacts (spec ↔ features, say) navigate inside
   the reader, and a target outside the allow-list gets a notice; external http(s) links go to the
   system browser. The main process's `will-navigate` backstop covers every render site, including
-  ones added in future.
+  ones added in future. The Configuration section's CLAUDE.md / AGENTS.md previews use the same
+  allow-list (settled 2026-08-21): a relative link resolving to a listed project document opens the
+  reader overlay — the very one the Artifacts section uses — and anything else relative gets the
+  notice; a prototype target keeps its open-in-browser route.
 - R2 When adding an artifact type, update four places together: the type enum, the read source, the
   display order, and the chip labels (missing one produces either "scanned but not shown" or "shown
   but cannot be opened").

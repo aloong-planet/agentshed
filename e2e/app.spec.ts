@@ -1622,6 +1622,11 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
     join(demo, 'CONTEXT.md'),
     '# Context ladder\n\nIntro.\n\n## Ladder h2\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
   )
+  // The demo project's CLAUDE.md links to a listed artifact and to a path outside the list
+  writeFileSync(
+    join(demo, 'CLAUDE.md'),
+    '# Demo config\n\ncfg link probe: [open context](./CONTEXT.md) · [missing doc](./docs/none.md)\n'
+  )
   // The demo project's memory
   const enc = demo.replace(/[^A-Za-z0-9]/g, '-')
   mkdirSync(join(home, '.claude', 'projects', enc, 'memory'), { recursive: true })
@@ -1738,6 +1743,20 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(win.locator('.reader .md')).toContainText('Ladder h2')
   expectLadder(await headingLadder(win, '.reader .md'), 'artifact reader')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+
+  // (6d) Config-card links (project detail): a relative link to a listed artifact opens the same
+  //      reader overlay; anything outside the artifact list keeps the explicit notice; neither
+  //      navigates the window
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Config' }).click()
+  await expect(win.locator('.pane-body .md')).toContainText('cfg link probe')
+  await win.locator('.pane-body .md a', { hasText: 'open context' }).click()
+  await expect(win.locator('.reader .md')).toContainText('Ladder h2')
+  expect(win.url(), 'artifact link from the config card must not navigate').toBe(urlBefore)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await expect(win.locator('.toast')).toHaveCount(0) // wait out any earlier toast, so the next one is fresh
+  await win.locator('.pane-body .md a', { hasText: 'missing doc' }).click()
+  await expect(win.locator('.toast')).toBeVisible()
+  expect(win.url(), 'out-of-scope config link must not navigate').toBe(urlBefore)
 
   // (7) The drawer width = min(680, 80% of the right-hand content area): in a narrow window it must not
   //     cover the whole content area (the 2026-08-02 bug).
