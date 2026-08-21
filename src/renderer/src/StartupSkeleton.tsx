@@ -33,7 +33,9 @@ function Sk({ w, h, d }: { w: number; h: number; d?: number }): JSX.Element {
 }
 
 /** A placeholder for a line of text: the zero-width space is the strut that gives the row the real
- * font's line box (see the header note); the block itself stays shorter than any ascent */
+ * font's line box (see the header note). Hard rule for `h`: at most ~0.75 of the line's font size —
+ * an inline block taller than the platform font's ascent lifts the line box (Linux ascents run
+ * ~0.93em), and a few tenths across several rows is exactly the 1px drift CI caught twice. */
 function SkLine({ w, h, d }: { w: number; h: number; d?: number }): JSX.Element {
   return (
     <span className="sk-line">
@@ -87,7 +89,7 @@ export function ProjectsSkeleton(): JSX.Element {
           {ROW_WIDTHS.map((w, i) => (
             <div key={i} className="row">
               <span className="nm">
-                <SkLine w={w} h={12} d={(i % 6) * 0.12} />
+                <SkLine w={w} h={10} d={(i % 6) * 0.12} />
               </span>
               {/* The side-count badge's slot: the badge is a 17px rounded pill */}
               <span
@@ -100,7 +102,7 @@ export function ProjectsSkeleton(): JSX.Element {
                 }}
               />
               <span className="meta">
-                <SkLine w={34} h={10} d={(i % 6) * 0.12} />
+                <SkLine w={34} h={8} d={(i % 6) * 0.12} />
               </span>
             </div>
           ))}
@@ -150,9 +152,9 @@ export function AgentsSkeleton(): JSX.Element {
         <div className="comp-block">
           <div className="comp" />
           <div className="comp-lg" style={{ alignItems: 'center' }}>
-            <SkLine w={64} h={10} />
-            <SkLine w={84} h={10} />
-            <SkLine w={56} h={10} />
+            <SkLine w={64} h={8} />
+            <SkLine w={84} h={8} />
+            <SkLine w={56} h={8} />
           </div>
         </div>
         <div className="stats">
@@ -162,13 +164,13 @@ export function AgentsSkeleton(): JSX.Element {
                   and the badge's smaller type alone gives the row a shorter line box off-platform */}
               <div className="k">
                 <span className={`badge ${s.cls}`}>{s.label}</span>
-                <SkLine w={38} h={10} />
+                <SkLine w={38} h={8} />
               </div>
               <div className="v">
-                <SkLine w={[58, 46, 50][i]} h={16} />
+                <SkLine w={[58, 46, 50][i]} h={13} />
               </div>
               <div className="s">
-                <SkLine w={[150, 140, 120][i]} h={10} />
+                <SkLine w={[150, 140, 120][i]} h={8} />
               </div>
             </div>
           ))}
@@ -208,19 +210,19 @@ export function AgentsSkeleton(): JSX.Element {
             box it stands in for, and the gap would shift everything under it on fill (A4b). The
             values are the measured loaded line boxes; the e2e anchor assertion re-measures them. */}
         <div className="legend">
-          <SkLine w={72} h={12} />
-          <SkLine w={64} h={12} />
-          <SkLine w={90} h={12} />
+          <SkLine w={72} h={9} />
+          <SkLine w={64} h={9} />
+          <SkLine w={90} h={9} />
         </div>
         <div className="grp-t">
-          <SkLine w={260} h={11} />
+          <SkLine w={260} h={8} />
         </div>
         {/* The row count is nominal — the model count is unknown until the scan lands (A4b) */}
         <div className="models">
           {[150, 120, 135, 100, 128].map((w, i) => (
             <div key={i} className="m">
               <span className="nm2 mono">
-                <SkLine w={w} h={11} d={i * 0.12} />
+                <SkLine w={w} h={9} d={i * 0.12} />
               </span>
               <span className="tr">
                 <span
@@ -235,7 +237,7 @@ export function AgentsSkeleton(): JSX.Element {
                 />
               </span>
               <span className="num">
-                <SkLine w={40} h={11} d={i * 0.12} />
+                <SkLine w={40} h={9} d={i * 0.12} />
               </span>
             </div>
           ))}
