@@ -1124,15 +1124,16 @@ body {
   font-weight: 650;
   /* Header cells never wrap (ruled 2026-08-21) — a wide table scrolls its container instead */
   white-space: nowrap;
+  /* Headers are always centred (ruled 2026-08-21); GFM alignment applies to body cells only,
+     so the align-attribute overrides below deliberately target td alone */
+  text-align: center;
 }
 .md-body tbody tr:nth-child(even) td {
   background: var(--bg);
 }
-.md-body th[align='center'],
 .md-body td[align='center'] {
   text-align: center;
 }
-.md-body th[align='right'],
 .md-body td[align='right'] {
   text-align: right;
 }

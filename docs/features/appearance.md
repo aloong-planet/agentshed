@@ -36,9 +36,9 @@ configuration.
 - Code looks the same everywhere too: inline code as a bordered pill, fenced blocks as a bordered
   paper inset — no dark terminal-style block in one place and a light one in another; lists indent
   the same everywhere as well
-- Tables render as tables everywhere: a bordered frame with clear column separators, a tinted
-  header row that never wraps, striped rows, and column alignment written in the markdown
-  (`:-:` / `--:`) is respected — previously they showed as bare unstyled text columns
+- Tables render as tables everywhere: a bordered frame with clear column separators, a tinted and
+  centred header row that never wraps, striped rows, and column alignment written in the markdown
+  (`:-:` / `--:`) is respected in the body — previously they showed as bare unstyled text columns
 
 ## Boundaries and non-goals
 - The CC/CX side badges and the provider chart's brand colours are unaffected (semantic colours do

@@ -250,11 +250,11 @@
   color: var(--md-th);
   font-weight: 650;
   white-space: nowrap;
+  /* Headers always centred (ruled 2026-08-21); GFM alignment applies to body cells only */
+  text-align: center;
 }
 .md-preview-body.preview tbody tr:nth-child(even) td { background: var(--bg, #f7f8f9); }
-.md-preview-body.preview th[align='center'],
 .md-preview-body.preview td[align='center'] { text-align: center; }
-.md-preview-body.preview th[align='right'],
 .md-preview-body.preview td[align='right'] { text-align: right; }
 .md-preview-body.preview hr {
   border: 0;

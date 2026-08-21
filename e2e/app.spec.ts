@@ -1557,6 +1557,7 @@ async function tableStyle(
   border: string
   thColor: string
   thNowrap: string
+  thAlign: string
   colSep: string
   rowSep: string
   oddBg: string
@@ -1579,6 +1580,7 @@ async function tableStyle(
       border: getComputedStyle(table).borderTopWidth,
       thColor: getComputedStyle(th).color,
       thNowrap: getComputedStyle(th).whiteSpace,
+      thAlign: getComputedStyle(th).textAlign,
       colSep: getComputedStyle(oddTd).borderRightColor,
       rowSep: getComputedStyle(oddTd).borderBottomColor,
       oddBg: getComputedStyle(oddTd).backgroundColor,
@@ -1597,6 +1599,9 @@ function expectTableStyle(
   expect(tb.border, `${label}: table frame`).toBe('1px')
   expect(tb.thColor, `${label}: header text takes the deep accent (h1's colour)`).toBe(h1Color)
   expect(tb.thNowrap, `${label}: header cells never wrap`).toBe('nowrap')
+  // Ruled 2026-08-21: headers are always centred; GFM alignment applies to body cells only —
+  // the attribute lands on th too, and without this rule it drags the header along
+  expect(tb.thAlign, `${label}: header text centred regardless of column alignment`).toBe('center')
   expect(tb.colSep, `${label}: column separators stronger than row separators`).not.toBe(tb.rowSep)
   expect(tb.evenBg, `${label}: striped even row`).not.toBe(tb.oddBg)
   expect(tb.alignRight, `${label}: GFM right alignment wins`).toBe('right')
