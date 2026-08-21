@@ -16,6 +16,10 @@
   /* The rendered-markdown third-step heading colour (spec appearance, sequence E): one step lighter
      than --accent, declared per theme × light/dark like the rest of the accent family */
   --md-h3: #9b7ec4;
+  /* The selection wash: one step deeper than --accent-soft, for a selected list row told apart from
+     hover by depth rather than a ring. Every value = accent mixed 26% into card (ruled 2026-08-21),
+     baked per theme × light/dark so retuning the ratio is mechanical. */
+  --accent-soft-deep: #e1d7e9;
   --ok-bg: #dcfce7;
   /* Overlay shadow: a neutral semantic variable at the same level as --ok-*, shared by all three themes and
      differing only between light and dark */
@@ -84,6 +88,7 @@ html[data-theme='blue'] {
   --accent-deep: #3a5a88;
   --accent-soft: #eef2f7;
   --md-h3: #5d82b0;
+  --accent-soft-deep: #d0d7e3;
 }
 /* Amber brown · light */
 html[data-theme='amber'] {
@@ -97,6 +102,7 @@ html[data-theme='amber'] {
   --accent-deep: #534018;
   --accent-soft: #f3ead4;
   --md-h3: #8b6914;
+  --accent-soft-deep: #d9d0bf;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -111,6 +117,7 @@ html[data-theme='amber'] {
     --accent-deep: #c9b3ec;
     --accent-soft: #2c2733;
     --md-h3: #a88cc9;
+    --accent-soft-deep: #413b4e;
     --ok-bg: #12301d;
     /* Overlay shadow: a neutral semantic variable at the same level as --ok-*, shared by all three themes and
      differing only between light and dark */
@@ -157,6 +164,7 @@ html[data-theme='amber'] {
     --accent-deep: #a8c0dc;
     --accent-soft: #1e2a38;
     --md-h3: #8aadc8;
+    --accent-soft-deep: #34404e;
   }
   html[data-theme='amber'] {
     --bg: #1a1714;
@@ -169,6 +177,7 @@ html[data-theme='amber'] {
     --accent-deep: #ddc48e;
     --accent-soft: #2e2820;
     --md-h3: #d4b878;
+    --accent-soft-deep: #4c412f;
   }
 }
 * {
@@ -551,12 +560,18 @@ body {
   cursor: pointer;
   position: relative;
 }
+/* 1px between adjacent rows, so a selected and a hovered wash never read as one block */
+.row + .row {
+  margin-top: 1px;
+}
 .row:hover {
   background: var(--accent-soft);
 }
+/* Selection is a deeper wash, not a ring (settled 2026-08-21): the old outline painted outside the
+   border box and rode on the neighbouring row's hover background. This rule sits after :hover, so
+   hovering the selected row keeps the deep wash. */
 .row.sel {
-  background: var(--accent-soft);
-  outline: 1px solid var(--accent);
+  background: var(--accent-soft-deep);
 }
 .row .nm {
   flex: 1;
@@ -576,8 +591,9 @@ body {
   font-variant-numeric: tabular-nums;
 }
 /* The side-count badge: it counts "how many", not "which", so it carries no side's colour. It rides
-   the accent family, and a hovered or selected row swaps it onto the card ground — the row's own
-   hover ground is the same accent-soft, so contrast rather than colour keeps it legible there. */
+   the accent family, and a hovered or selected row swaps it onto the card ground — the hover ground
+   is the badge's own accent-soft and the selected ground the deeper wash, so contrast rather than
+   colour keeps it legible on both. */
 .cnt-b {
   flex: none;
   min-width: 17px;

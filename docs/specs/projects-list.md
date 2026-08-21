@@ -139,6 +139,12 @@ and are never written back to any agent configuration.
   colours defined in ADR-0021 rather than a palette local to this list. The count itself carries no
   side's colour — it says "how many", and colouring it would read as "which".
 - **Refresh**: global refresh is shared by both dimensions, with in-flight deduplication.
+- **Selection is a deeper wash, not a ring** (settled 2026-08-21 on the project-list prototype):
+  hover = `--accent-soft`, selected = `--accent-soft-deep` (a new token, accent mixed 26% into card,
+  baked per theme × light/dark), no outline. The old ring was an outline, which paints outside the
+  border box and rode on the neighbouring row's hover background; hovering the selected row keeps
+  the deep wash. Adjacent rows keep a 1px gap so a selected and a hovered wash never read as one
+  block.
 
 ## Testing Decisions
 

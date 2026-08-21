@@ -20,8 +20,11 @@ activity.
   Grok) narrows the list to one side and stacks with search and the stale filter
 - Stale projects (in the registry, directory deleted) are filtered out by default with a count
   shown; a toggle reveals them, struck through and marked "stale"
-- Clicking a project name opens its detail page; the refresh button at the bottom left refreshes
-  globally (shared by both dimensions; repeat clicks while one is in flight are ignored)
+- Clicking a project name opens its detail page; the selected row is marked by a deeper tint than
+  the hover tint (no border ring), and adjacent rows stay visually separate even when a selected
+  and a hovered row touch
+- The refresh button at the bottom left refreshes globally (shared by both dimensions; repeat
+  clicks while one is in flight are ignored)
 
 ## Boundaries and non-goals
 - A directory an agent has sessions in but never registered is not listed for that side — the list
