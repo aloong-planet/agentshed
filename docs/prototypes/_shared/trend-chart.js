@@ -105,15 +105,19 @@
    * @param {{chart:string, xaxis:string, legend:string, seg:string}} ids The DOM container ids
    * @param {Array} days What mockDays produced
    */
-  function mount(ids, days) {
+  function mount(ids, days0) {
+    let days = days0
     let mode = '合计'
     let lastRows = null
+    // How many trailing days are "in range". null = the whole window; the caller drives it via setRange.
+    let range = null
     const $ = (id) => document.getElementById(id)
 
     function render() {
-      const rows = days.map((d) => {
+      const from = range === null ? 0 : Math.max(0, days.length - range)
+      const rows = days.map((d, i) => {
         const segs = segmentsOf(d, mode)
-        return { d: d, segs: segs, total: segs.reduce((s, x) => s + x.v, 0) }
+        return { d: d, segs: segs, total: segs.reduce((s, x) => s + x.v, 0), out: i < from }
       })
       const max = Math.max.apply(null, rows.map((r) => r.total).concat([1]))
       $(ids.chart).innerHTML = rows
@@ -130,20 +134,22 @@
           const sp = r.segs
             .map((s) => `<div class="sp ${CLS[s.p]}" style="height:${(s.v / r.total) * 100}%"></div>`)
             .join('')
-          return `<div class="col ${r.d.archived ? 'arch' : ''}" style="height:${Math.max(1.5, (r.total / max) * 100)}%" data-tip="${tip.replace(/"/g, '&quot;')}">${sp}</div>`
+          const cls = ['col', r.d.archived ? 'arch' : '', r.out ? 'out' : ''].filter(Boolean).join(' ')
+          return `<div class="${cls}" style="height:${Math.max(1.5, (r.total / max) * 100)}%" data-tip="${tip.replace(/"/g, '&quot;')}">${sp}</div>`
         })
         .join('')
       lastRows = rows
       if (ids.xaxis) renderAxis($(ids.xaxis), $(ids.chart), rows)
       if (ids.legend) {
         const used = PROVIDERS.filter((p) => rows.some((r) => r.segs.some((s) => s.p === p)))
+        const dim = range === null ? '' : ';压暗段=选中窗口之外'
         $(ids.legend).innerHTML =
           mode === '合计'
             ? used
                 .map((p) => `<span class="lg"><span class="sw ${CLS[p]}"></span>${p}</span>`)
                 .join('') +
-              '<span class="lg-note">柱高=当日总量,分段=各 provider 占比;斜纹=归档段</span>'
-            : '<span class="lg-note">单侧视图:仅该 agent 侧用量</span>'
+              `<span class="lg-note">柱高=当日总量,分段=各 provider 占比;斜纹=归档段${dim}</span>`
+            : `<span class="lg-note">单侧视图:仅该 agent 侧用量${dim}</span>`
       }
     }
 
@@ -164,6 +170,19 @@
       })
     }
     render()
+    // The caller keeps the range control (it lives in the totals-card row); the chart only reacts.
+    return {
+      setRange: function (n) {
+        range = n
+        render()
+      },
+      // Demo harness only: swapping the mock days so the chart cannot contradict the cards above it
+      // (a prototype whose bars show volume on a day its cards call empty teaches the wrong thing).
+      setDays: function (d) {
+        days = d
+        render()
+      }
+    }
   }
 
   window.TrendChartProto = { mount: mount, mockDays: mockDays }

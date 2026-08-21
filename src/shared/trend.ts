@@ -4,6 +4,7 @@
 // A zero value produces no empty segment; the window is a fixed last 30 days, cut by local time zone.
 import type { AgentSide, DayUsage } from './domain'
 import { PROVIDER_ORDER, type Provider } from './provider'
+import { localDay } from './format'
 
 /** The values are language-independent identifiers; for the UI text see TREND_MODE_LABEL */
 export type TrendMode = 'total' | 'Claude' | 'Codex' | 'Grok'
@@ -52,12 +53,6 @@ export interface TrendBar {
 }
 
 export const TREND_WINDOW_DAYS = 30
-
-function localDay(ms: number): string {
-  const d = new Date(ms)
-  const p = (n: number): string => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
 
 export function buildTrendBars(
   byDay: DayUsage[],

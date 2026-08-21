@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { SIDE_BADGE } from './side-badge'
 import { MarkdownBody } from './MarkdownBody'
 import type { Snapshot } from '@shared/domain'
-import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
+import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
+import { sliceUsage, type UsageWindow } from '@shared/usage'
 import { GlobalSubagentsTab } from './SubagentsView'
 import { GlobalMemoryTab } from './MemoryView'
 import { GlobalPluginsTab } from './PluginsView'
@@ -22,6 +23,11 @@ type Tab = 'token' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'cf
 export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
   const t = useDict()
   const [tab, setTab] = useState<Tab>('token')
+  // The selected time window lives **above the tab switch**, so it survives moving between tabs (G11)
+  // — and above the side cards, whose figures it governs on every tab, not only this one.
+  const [win, setWin] = useState<UsageWindow>('all')
+  const winLabel = useWindowLabel()
+  const slice = useMemo(() => sliceUsage(snap.tokens.rows, win, snap.scannedAt), [snap.tokens.rows, win, snap.scannedAt])
   const clCount = snap.projects.filter((p) => p.sides.includes('claude')).length
   const cxCount = snap.projects.filter((p) => p.sides.includes('codex')).length
   const clSkills = snap.global.skills.filter((s) => s.sides.includes('claude')).length
@@ -36,13 +42,21 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
     <div className="pane">
       <header className="pane-head">
         <h1>Agents</h1>
+        <TotalsCards
+          slice={slice}
+          rows={snap.tokens.rows}
+          anchor={snap.scannedAt}
+          window={win}
+          onWindow={setWin}
+          note={t.agents.totalsNote}
+        />
         <div className="stats">
           <SideCard
             label="CLAUDE CODE"
             cls="cl"
             detected={snap.sides.claude.detected}
             error={snap.sides.claude.error}
-            total={snap.tokens.bySide.claude.total}
+            total={slice.bySide.claude}
             sub={t.agents.sideSummary(clCount, clSkills, clSubs)}
           />
           <SideCard
@@ -50,7 +64,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
             cls="cx"
             detected={snap.sides.codex.detected}
             error={snap.sides.codex.error}
-            total={snap.tokens.bySide.codex.total}
+            total={slice.bySide.codex}
             sub={t.agents.sideSummary(cxCount, cxSkills, cxSubs)}
           />
           <SideCard
@@ -58,7 +72,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
             cls="gk"
             detected={snap.sides.grok.detected}
             error={snap.sides.grok.error}
-            total={snap.tokens.bySide.grok.total}
+            total={slice.bySide.grok}
             sub={t.agents.sideSummary(gkCount, gkSkills, gkSubs)}
           />
         </div>
@@ -98,15 +112,19 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
         )}
         {tab === 'token' && (
           <div>
-            <TotalsCards stats={snap.tokens} note={t.agents.totalsNote} />
-            <TrendChart stats={snap.tokens} anchor={snap.scannedAt} archivedDays={snap.archivedDays} />
+            <TrendChart
+              stats={snap.tokens}
+              anchor={snap.scannedAt}
+              archivedDays={snap.archivedDays}
+              window={win}
+            />
             {snap.archivedDays.length > 0 && (
               <div className="arch-note">
                 {t.agents.archivedNote(snap.archivedDays.length, snap.archivedDays[0])}
               </div>
             )}
-            <div className="grp-t">{t.agents.byModel}</div>
-            <ModelBars stats={snap.tokens} />
+            <div className="grp-t">{t.token.byModelIn(t.agents.byModel, winLabel(win))}</div>
+            <ModelBars models={slice.byModel} />
           </div>
         )}
         {tab === 'skills' && <SkillsTab snap={snap} />}

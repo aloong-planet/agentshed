@@ -13,3 +13,5 @@ playwright-report/
 # "not enabled" everywhere else — a silent skipped check. Personal, uncommitted instructions go in
 # CLAUDE.local.md instead.
 !CLAUDE.md
+# Screenshots taken as acceptance evidence during a run — reproducible from the suite, not sources
+e2e-out/

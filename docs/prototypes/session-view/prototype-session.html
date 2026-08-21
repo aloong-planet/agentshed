@@ -53,8 +53,11 @@
   .h1{display:flex;align-items:center;gap:9px}
   .h1 b{font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .b{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 5px;flex:none}
-  .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
-  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
+     「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
+     故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
+  .b.c{background:#f9e2da;color:#a05239}.b.x{background:#dcefe4;color:#1f7a4d}
+  @media (prefers-color-scheme:dark){.b.c{background:#4c2d21;color:#f8ac8f}.b.x{background:#1d3a2b;color:#7fd6a4}}
   .meta{font-size:11px;color:var(--text-2);margin-top:5px;font-variant-numeric:tabular-nums}
   /* Session-level banners: branches resolved / a fork replay stripped / an uncertain strip — three tiers of
      semantic strength */

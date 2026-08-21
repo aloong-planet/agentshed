@@ -24,6 +24,19 @@
          组件会被卸载,故用模块级变量另行实现——两边行为一致,机制不同。
        - 预热会话(只有一条 Warmup、无任何真实提问)不入列,token 照计:实测某项目
          1511 个会话里 1004 个是这种,照列则三分之二的行是 uuid 文件名。
+     v3.5(2026-08-21,构成条回归):构成条以统计下方的独立元素重新出现,随选中窗口变;配色为
+       命中=蓝 / 未命中=黄 / 输出=绿(用户裁定)。⚠️ 逐窗口的构成与模型拆分一样是 mock,
+       byDay 只存标量、不分桶,要做得先改数据层。
+     v3.4(2026-08-20,时间维度):v3.3 的构成条整条撤掉,腾出的宽度改放四张同宽卡——
+       全部历史 / 本日 / 近 7 天 / 近 30 天,**这排卡同时是时间筛选器**:点选哪张,下方趋势图
+       (窗口外的日子压暗,不裁掉)与模型拆分就切到哪个窗口,各侧拆解那行也跟着变。
+       ⚠️ 模型拆分按窗口切分是 mock:逐日数据只到 provider、只存标量,做成要先改数据层。
+     v3.3(2026-08-20,token 概览重设计·方向 A):概览首屏的三张卡合为一张宽卡——左侧大号
+       累计总量,右侧一条细构成条(未命中输入/输出/cache 读,跨三侧唯一可比的切法),下方一行
+       各侧拆解。原「输入/输出」与「其中 cache」两张卡撤销:前者的副标题「各侧原生口径分列」
+       从来没兑现(卡上是跨侧求和),而 input 在三侧含义本就不同、不可相加;后者并入构成条。
+       页头徽章补上 GROK——ADR-0019 接入第三侧时漏了这里。
+       构成条是共享视觉块(_shared/totals-card.css),与 agents-page 原型一致演化。
      v3.2(2026-08-18,token 口径修正):概览的 cache 卡此前写「不计入总量」——那是 ADR-0003
        的规则,2026-07-30 已被 ADR-0005 废止,原型未同步,示例数字也随之自相矛盾
        (总量 8.5M 却 cache 48.2M,而 cache 是计入总量的)。现改为「其中 cache(ccusage 口径
@@ -38,11 +51,16 @@
 <!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
      references it -->
 <link rel="stylesheet" href="../_shared/trend-chart.css">
+<link rel="stylesheet" href="../_shared/totals-card.css">
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
-    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;
+    /* 构成三段:命中=蓝 / 未命中=黄 / 输出=绿(用户裁定 2026-08-21)。取值按离 provider
+       色板最远挑过——Google 已占蓝、OpenAI 已占绿,理由与实测 ΔE 见 _shared/totals-card.css */
+    --tc-rd:#2b8fd4;--tc-in:#dda32e;--tc-ou:#57a83e}
   @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
-    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;
+    --tc-rd:#5fb0e8;--tc-in:#e6bd5c;--tc-ou:#7cc45f}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
@@ -60,8 +78,13 @@
   .h1{display:flex;align-items:center;gap:9px}
   .h1 b{font-size:16px}
   .b{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 5px}
-  .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
-  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
+     「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
+     故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
+  .b.c{background:#f9e2da;color:#a05239}.b.x{background:#dcefe4;color:#1f7a4d}
+  .b.g{background:#ece5f6;color:#6d4fa0}
+  @media (prefers-color-scheme:dark){.b.c{background:#4c2d21;color:#f8ac8f}.b.x{background:#1d3a2b;color:#7fd6a4}
+    .b.g{background:#332b47;color:#c9b3ec}}
   .path{font-size:11px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;margin:4px 0 10px}
   .tabs{display:flex;gap:2px}
   .tab{padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;color:var(--text-2);font-size:12.5px}
@@ -217,7 +240,7 @@
   </div>
   <div class="main">
     <div class="head">
-      <div class="h1"><b>Transfer</b><span class="b c">CLAUDE</span><span class="b x">CODEX</span></div>
+      <div class="h1"><b>Transfer</b><span class="b c">CLAUDE</span><span class="b x">CODEX</span><span class="b g">GROK</span></div>
       <div class="path">~/CascadeProjects/Transfer</div>
       <div class="tabs" id="tabs">
         <span class="tab on" data-t="ov">概览</span><span class="tab" data-t="skills">Skills</span>
@@ -230,30 +253,17 @@
     </div>
     <div class="body">
       <div data-p="ov">
-        <div class="stats">
-          <!-- 不写「两侧」也不写「三侧」:侧数是会变的,写进文案就是下一次接侧时的另一句谎。 -->
-          <!-- 示例数字自洽于 ADR-0005/0023 的口径:四个字段在每一侧都恰好加总为该侧总量,
-               所以 6.9 + 0.7 + 47.1 + 1.1 = 55.8M,各侧之和亦然。cache 是计入总量的,
-               总量必然大于 cache——写成「不计入」的旧版让总量小于 cache,自相矛盾。 -->
-          <div class="stat"><div class="k">累计总量(各侧合计)</div><div class="v">55.8M</div>
-            <div class="s">Claude 38.5M · Codex 15.1M · Grok 2.2M</div></div>
-          <div class="stat"><div class="k">输入 / 输出</div><div class="v">6.9M / 0.7M</div>
-            <div class="s">各侧原生口径分列</div></div>
-          <div class="stat cache"><div class="k">其中 cache(ccusage 口径已计入总量)</div><div class="v">47.1M</div>
-            <div class="s">读 47.1M · 写 1.1M</div></div>
-        </div>
+        <!-- 不写「两侧」也不写「三侧」:侧数是会变的,写进文案就是下一次接侧时的另一句谎。 -->
+        <!-- 与 Agents 页同一个共享视觉块:四张同宽卡 = 四个时间窗口 = 时间筛选器本身。
+             点选哪张,下方趋势图(窗口外的日子压暗)与模型拆分就切到哪个窗口。项目级尺度。 -->
+        <div data-shared-block="totals-card" id="ovTot"></div>
         <div class="grp-t">近 30 天趋势(本地时区,日粒度)
           <span class="seg" id="ovseg"><span class="on">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
         <div class="chart" id="ovchart" data-shared-block="trend-chart"></div>
         <div class="xaxis" id="ovxaxis"></div>
         <div class="legend" id="ovlegend"></div>
-        <div class="grp-t">按模型拆分</div>
-        <div class="models">
-          <div class="m anthropic"><span class="nm2">claude-fable-5</span><span class="tr"><i style="width:64%"></i></span><span class="num">3.5M</span></div>
-          <div class="m anthropic"><span class="nm2">claude-opus-5</span><span class="tr"><i style="width:33%"></i></span><span class="num">1.8M</span></div>
-          <div class="m openai"><span class="nm2">gpt-5.5-codex</span><span class="tr"><i style="width:38%"></i></span><span class="num">2.1M</span></div>
-          <div class="m xai"><span class="nm2">grok-4.6-build</span><span class="tr"><i style="width:16%"></i></span><span class="num">0.9M</span></div>
-        </div>
+        <div class="grp-t" id="ovmTitle">按模型拆分</div>
+        <div class="models" id="ovmodels"></div>
         <!-- v3: no longer "metadata and no further" — the overview lists the 4 most recent and a row click goes
      straight to the session page; everything else is in the sessions tab -->
         <div class="grp-t">最近会话(上限 5 条;subagent 与预热会话计 token 但不单独入列)</div>
@@ -439,10 +449,79 @@
     document.getElementById('harness').classList.toggle('on',t.dataset.t==='sessions');
   });
   // The trend chart: rendered by the shared piece (the same source as the Agents page)
-  TrendChartProto.mount(
+  const ovTrend = TrendChartProto.mount(
     { chart: 'ovchart', xaxis: 'ovxaxis', legend: 'ovlegend', seg: 'ovseg' },
     TrendChartProto.mockDays(5, { scale: 4e6 })
   )
+
+  // ── 概览的时间窗口:卡排本身就是筛选器,与 Agents 页同形态(项目级尺度的 mock) ──
+  const OV_SIDES = [{cls:'c',name:'CLAUDE'},{cls:'x',name:'CODEX'},{cls:'g',name:'GROK'}]
+  const OV_RANGES = [
+    { k:'累计总量 · 全部历史', days:null, side:[38500000, 15100000, 2200000] },
+    { k:'本日',               days:1,    side:[  412000,    96000,   21000] },
+    { k:'近 7 天',            days:7,    side:[ 2840000,   730000,  186000] },
+    { k:'近 30 天',           days:30,   side:[ 9600000,  3100000,  640000] }
+  ]
+  // 每一列都与 OV_RANGES 的 side 对得上:同侧各模型之和 = 该侧在该窗口的总量
+  const OV_MODELS = [
+    { nm:'claude-fable-5', cls:'anthropic', v:[24000000, 236000, 1620000, 5480000] },
+    { nm:'claude-opus-5',  cls:'anthropic', v:[14500000, 176000, 1220000, 4120000] },
+    { nm:'gpt-5.5-codex',  cls:'openai',    v:[15100000,  96000,  730000, 3100000] },
+    { nm:'grok-4.6-build', cls:'xai',       v:[ 2200000,  21000,  186000,  640000] }
+  ]
+  // 构成三段占该窗口总量的比例,顺序对齐 OV_RANGES,每行恰好加总为 1(三段之和=总量,是这个切法的全部理由)
+  const OV_COMP = [
+    { rd:0.9690, in:0.0280, ou:0.0030 },   // 全部历史
+    { rd:0.9550, in:0.0380, ou:0.0070 },   // 本日
+    { rd:0.9620, in:0.0325, ou:0.0055 },   // 近 7 天
+    { rd:0.9670, in:0.0290, ou:0.0040 }    // 近 30 天
+  ]
+  let OV_R = 0
+  const ovFmt = n => n>=1e9 ? (n/1e9).toFixed(2)+'B' : n>=1e6 ? (n/1e6).toFixed(1)+'M' : n>=1e3 ? Math.round(n/1e3)+'k' : String(n)
+
+  /** 构成条:统计下方的独立元素,与各侧拆解是同一个数的两种切法 */
+  function ovComp(G){
+    if (!G) return ''
+    const c = OV_COMP[OV_R]
+    const seg = (k,cls) => `<i class="${cls}" style="width:${(c[k]*100).toFixed(4)}%"></i>`
+    const lg = (k,cls,label,dp,tip) =>
+      `<span title="${tip.replace(/"/g,'&quot;')}"><i class="${cls}"></i>${label} <b>${(c[k]*100).toFixed(dp)}%</b></span>`
+    return `<div class="comp-block">
+        <div class="comp">${seg('rd','comp-rd')}${seg('in','comp-in')}${seg('ou','comp-ou')}</div>
+        <div class="comp-lg">
+          ${lg('rd','comp-rd','cache 读',1,`${ovFmt(Math.round(G*c.rd))} · 命中缓存、不必重算的输入`)}
+          ${lg('in','comp-in','未命中输入',1,`${ovFmt(Math.round(G*c.in))} · 含 cache 写(仅 Claude 侧非零):都是这一轮真读进模型的输入`)}
+          ${lg('ou','comp-ou','输出',2,`${ovFmt(Math.round(G*c.ou))} · 模型生成的 token`)}
+        </div>
+      </div>`
+  }
+
+  function ovApply(){
+    const r = OV_RANGES[OV_R]
+    const tot = r.side.reduce((a,b)=>a+b, 0)
+    document.getElementById('ovTot').innerHTML =
+      `<div class="tot-row">${OV_RANGES.map((x,i)=>{
+         const v = x.side.reduce((a,b)=>a+b,0)
+         return `<button type="button" class="tot-c ${i===OV_R?'on':''} ${v?'':'zero'}" data-r="${i}">
+                   <div class="tot-k">${x.k}</div><div class="tot-v">${ovFmt(v)}</div></button>`
+       }).join('')}</div>${ovComp(tot)}
+       <div class="tot-sides">${tot === 0 ? '选中的时间窗口内没有用量'
+         : OV_SIDES.map((s,i)=>`<span class="${r.side[i]?'':'off'}"><span class="b ${s.cls}">${s.name}</span><b>${ovFmt(r.side[i])}</b></span>`).join('')}</div>`
+    const rows = OV_MODELS.map(m=>({nm:m.nm, cls:m.cls, v:m.v[OV_R]})).filter(m=>m.v>0)
+    const max = Math.max(1, ...rows.map(m=>m.v))
+    document.getElementById('ovmTitle').textContent = `按模型拆分 · ${r.k.replace(' · 全部历史','')}`
+    document.getElementById('ovmodels').innerHTML = rows.length
+      ? rows.map(m=>`<div class="m ${m.cls}"><span class="nm2">${m.nm}</span>
+          <span class="tr"><i style="width:${(m.v/max*100).toFixed(1)}%"></i></span>
+          <span class="num">${ovFmt(m.v)}</span></div>`).join('')
+      : `<div class="none">该窗口内没有模型用量</div>`
+    ovTrend.setRange(r.days)
+  }
+  document.getElementById('ovTot').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-r]'); if(!b) return
+    OV_R = +b.dataset.r; ovApply()
+  })
+  ovApply()
 
   // Artifacts: type chips plus a flat list in reverse chronological order (inline, with no separate page)
   const ARTS=[

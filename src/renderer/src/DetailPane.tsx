@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { MarkdownBody } from './MarkdownBody'
 import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot, SearchResult } from '@shared/domain'
 import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
-import { SIDE_BADGE } from './side-badge'
-import { fmtTok, ModelBars, TotalsCards, TrendChart } from './TokenViz'
+import { SIDE_BADGE, SIDE_ORDER } from './side-badge'
+import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
+import { sliceUsage, type UsageWindow } from '@shared/usage'
 import { ProjectSubagentsTab } from './SubagentsView'
 import { ProjectMemoryTab } from './MemoryView'
 import { dirOf } from './md-links'
@@ -36,6 +37,9 @@ export function DetailPane({
 }): JSX.Element {
   const t = useDict()
   const [tab, setTab] = useState<Tab>(initialTab ?? 'ov')
+  // Above the tab switch so the selection survives moving between tabs (G11). The overview is
+  // conditionally rendered, so state held inside it would be discarded on every switch.
+  const [win, setWin] = useState<UsageWindow>('all')
   const [detail, setDetail] = useState<ProjectDetail | null>(null)
   const [reload, setReload] = useState(0)
   const entry = snap.projects.find((p) => p.path === path)
@@ -95,7 +99,13 @@ export function DetailPane({
         ) : (
           <>
             {tab === 'ov' && (
-              <OverviewTab detail={detail} snap={snap} onOpenSession={onOpenSession} />
+              <OverviewTab
+                detail={detail}
+                snap={snap}
+                onOpenSession={onOpenSession}
+                window={win}
+                onWindow={setWin}
+              />
             )}
             {tab === 'skills' && (
               // Keyed by project so switching to another one is a **different** section rather than the
@@ -143,21 +153,52 @@ const OVERVIEW_SESSIONS = 5
 function OverviewTab({
   detail,
   snap,
-  onOpenSession
+  onOpenSession,
+  window: win,
+  onWindow
 }: {
   detail: ProjectDetail
   snap: Snapshot
   onOpenSession: (file: string) => void
+  window: UsageWindow
+  onWindow: (w: UsageWindow) => void
 }): JSX.Element {
   const lang = useLanguage()
   const t = useDict()
+  const winLabel = useWindowLabel()
   const stats = detail.stats ?? { tokens: emptyTokenStats(), sessions: [] }
+  const slice = useMemo(
+    () => sliceUsage(stats.tokens.rows, win, snap.scannedAt),
+    [stats.tokens.rows, win, snap.scannedAt]
+  )
   return (
     <div>
-      <TotalsCards stats={stats.tokens} />
-      <TrendChart stats={stats.tokens} anchor={snap.scannedAt} archivedDays={snap.archivedDays} />
-      <div className="grp-t">{t.detail.byModel}</div>
-      <ModelBars stats={stats.tokens} />
+      <TotalsCards
+        slice={slice}
+        rows={stats.tokens.rows}
+        anchor={snap.scannedAt}
+        window={win}
+        onWindow={onWindow}
+      />
+      {/* No side cards on this page, so each side's figure for the selected window is listed here */}
+      <div className="tot-sides">
+        {slice.total === 0
+          ? t.token.noUsageInWindow
+          : SIDE_ORDER.map((side) => (
+              <span key={side} className={slice.bySide[side] ? '' : 'off'}>
+                <span className={`badge ${SIDE_BADGE[side].cls}`}>{SIDE_BADGE[side].label}</span>
+                <b>{fmtTok(slice.bySide[side])}</b>
+              </span>
+            ))}
+      </div>
+      <TrendChart
+        stats={stats.tokens}
+        anchor={snap.scannedAt}
+        archivedDays={snap.archivedDays}
+        window={win}
+      />
+      <div className="grp-t">{t.token.byModelIn(t.detail.byModel, winLabel(win))}</div>
+      <ModelBars models={slice.byModel} />
       <div className="grp-t">{t.detail.recentSessions}</div>
       {stats.sessions.length === 0 ? (
         <div className="none">{t.detail.noSessions}</div>

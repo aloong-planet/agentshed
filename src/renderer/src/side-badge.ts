@@ -9,6 +9,10 @@ export const SIDE_BADGE: Record<AgentSide, { cls: string; label: string }> = {
   grok: { cls: 'gk', label: 'GK' }
 }
 
+/** The display order, derived from the Record's keys rather than written out again: the Record is
+ *  total over AgentSide, so this is complete by construction and a new side cannot be left out of it */
+export const SIDE_ORDER = Object.keys(SIDE_BADGE) as AgentSide[]
+
 /** The side's full display name where a sentence needs it (the session page meta) */
 export const SIDE_FULL_NAME: Record<AgentSide, string> = {
   claude: 'Claude Code',

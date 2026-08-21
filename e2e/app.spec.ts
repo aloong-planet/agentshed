@@ -2680,8 +2680,11 @@ test('a newly adopted side: the thin xAI segment survives, and Grok mode labels 
   await win.locator('.pane-head .tabs .tab', { hasText: 'Token' }).click()
   await expect(win.locator('.chart .col').first()).toBeVisible()
 
-  // The totals subtitle names all three sides — the cross-project total includes the new one
-  await expect(win.locator('.pane-body .stats .stat .s').first()).toContainText('Grok')
+  // The cross-project totals include the newly adopted side. Its figure now lives in that side's own
+  // card rather than in a subtitle listing all three, so the assertion reads the card — the claim is
+  // unchanged, only where the answer is rendered.
+  const gkCard = win.locator('.pane-head .stats .stat', { has: win.locator('.badge.gk') })
+  await expect(gkCard.locator('.v')).not.toHaveText('0')
 
   // Combined mode: the xAI segments exist on grok's two days and measure a real height at this
   // scale. The thinness is asserted too — a case where the segment happened to be tall would prove
@@ -3590,4 +3593,109 @@ test('i18n: no label in the project-detail tab row or the skills rows wraps to a
   await l.app.close()
   rmSync(l.userData, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })
+})
+
+test('the time window drives all four regions at once: side figures, composition, model rows and the dimmed span', async () => {
+  // The failure this guards against is **partial** propagation — some figures following the selection
+  // and others staying on the previous window. Reading the four regions one at a time would pass on a
+  // page that is internally inconsistent, so each snapshot takes all four in a single pass (spec G3).
+  const l = await launch(undefined, mkUsageHome())
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Token' }).click()
+  await expect(win.locator('.chart .col').first()).toBeVisible()
+
+  const readAll = (): Promise<{
+    sides: string[]
+    comp: string[]
+    models: string[]
+    dimmed: number
+    bars: number
+    selected: string
+    modelTitle: string
+  }> =>
+    win.evaluate(() => {
+      const txt = (sel: string): string[] =>
+        Array.from(document.querySelectorAll(sel)).map((e) => (e.textContent ?? '').trim())
+      return {
+        sides: txt('.pane-head .stats .stat .v'),
+        comp: txt('.comp-lg b'),
+        models: txt('.models .m .num'),
+        dimmed: document.querySelectorAll('.chart .col.out').length,
+        bars: document.querySelectorAll('.chart .col').length,
+        selected: (document.querySelector('.tot-c.on .k')?.textContent ?? '').trim(),
+        // The heading that belongs to the model rows, taken structurally: the first .grp-t in the
+        // pane is the trend chart's title, so an ordinal selector reads the wrong element
+        modelTitle: (document.querySelector('.models')?.previousElementSibling?.textContent ?? '').trim()
+      }
+    })
+
+  const all = await readAll()
+  expect(all.bars, 'the chart keeps its own 30-day span whatever is selected (D10)').toBe(30)
+  // A bucket at exactly zero must draw nothing: the minimum width that keeps a tiny non-zero segment
+  // visible would otherwise render a sliver of usage that does not exist
+  const zeroSegments = await win.evaluate(() => {
+    const legend = Array.from(document.querySelectorAll('.comp-lg > span'))
+    const zeroClasses = legend
+      .filter((s) => /(^|\s)0(\.0+)?%/.test(s.textContent ?? ''))
+      .map((s) => s.querySelector('i')?.className ?? '')
+    return zeroClasses.filter((c) => c && document.querySelector(`.comp > i.${c}`))
+  })
+  expect(zeroSegments, 'a 0% bucket has a legend entry but no segment on the bar').toEqual([])
+  expect(all.dimmed, 'nothing is dimmed under "all history"').toBe(0)
+  expect(all.sides.length).toBe(3)
+  expect(all.comp.length, 'three buckets in the legend').toBe(3)
+  expect(all.models.length, 'the fixture must have model rows, or the comparison below is vacuous')
+    .toBeGreaterThan(0)
+
+  // "Today" rather than a wider window, and by position rather than by label: this fixture's usage
+  // sits within the last three days, so `all` and a 7-day window hold the *same* rows — comparing them
+  // would assert inequality between two identical values and could never fail. Position also keeps the
+  // selector independent of the interface language.
+  const daysWithBars = await win.locator('.chart .col .sp').evaluateAll(
+    (els) => new Set(els.map((e) => e.parentElement?.getAttribute('data-day'))).size
+  )
+  expect(daysWithBars, 'the fixture must span more than one day, or "today ⊂ all" is vacuous')
+    .toBeGreaterThan(1)
+
+  await win.locator('.tot-c').nth(1).click()
+  await expect(win.locator('.chart .col.out').first()).toBeVisible()
+  const d7 = await readAll()
+  expect(d7.selected, 'the clicked card is the selected one').not.toBe(all.selected)
+  expect(d7.dimmed, 'today dims the other 29 of the 30 bars').toBe(29)
+  expect(d7.sides, 'each side figure follows the window').not.toEqual(all.sides)
+  expect(d7.comp, 'the composition follows the window').not.toEqual(all.comp)
+  expect(d7.models, 'the model rows follow the window').not.toEqual(all.models)
+  expect(d7.modelTitle, 'the by-model heading names the selected window').toContain(d7.selected)
+
+  // And the selection survives leaving and returning to the tab (G11) — the side figures are rendered
+  // outside the tab, so they must still be on the selected window when it is not visible
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const onOtherTab = await win.locator('.pane-head .stats .stat .v').allTextContents()
+  expect(onOtherTab.map((s) => s.trim()), 'the side cards stay on the selected window').toEqual(d7.sides)
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Token' }).click()
+  const back = await readAll()
+  expect(back.selected).toBe(d7.selected)
+  expect(back.dimmed).toBe(29)
+
+  // The window and the chart's side filter are independent controls that compose (G12): narrowing to
+  // one side changes what the bars count, while the window keeps deciding which of them are in scope.
+  // Neither may reset the other — the failure worth guarding is one control quietly clearing the other.
+  await win.locator('.seg button').nth(1).click()
+  await expect(win.locator('.seg button.on')).toHaveCount(1)
+  const composed = await readAll()
+  expect(composed.dimmed, 'the window still scopes the chart under a single-side filter').toBe(29)
+  expect(composed.selected, 'and the window itself is untouched by the side filter').toBe(d7.selected)
+  expect(composed.sides, 'the figures above the chart stay across all sides — the filter is the chart’s')
+    .toEqual(d7.sides)
+  await win.locator('.seg button').nth(0).click()
+
+  // A refresh must not drop the selection (G13). The automatic backstop fires on a timer the user did
+  // not ask for, so losing the window on every scan would be the visible defect; the manual control
+  // shares that scan entry point, which is why driving it here covers both.
+  await win.locator('.rail .ri.grfr').click()
+  await expect(win.locator('.tot-c.on .k')).toHaveText(d7.selected)
+  const afterRefresh = await readAll()
+  expect(afterRefresh.dimmed, 'and the chart is still scoped to it').toBe(29)
+
+  await win.screenshot({ path: 'e2e-out/token-window-today.png' })
 })

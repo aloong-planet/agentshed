@@ -22,17 +22,17 @@ import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, ren
 import { dirname, join } from 'node:path'
 import type {
   AgentSide,
-  DayUsage,
   ForkState,
   ProjectStats,
   SessionMeta,
   TokenStats,
   TokenTotals
 } from '@shared/domain'
-import { emptyTokenStats, emptyTotals, zeroBySide } from '@shared/domain'
+import { emptyTokenStats, emptyTotals } from '@shared/domain'
+import { deriveStats } from '@shared/usage'
 import { mergeKey } from '@shared/path-key'
+import { localDay } from '@shared/format'
 import { ERR, appError } from '@shared/errors'
-import { providerOf } from '@shared/provider'
 import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessionMeta, readCodexSessions } from './codex'
 import { readGrokSessions } from './grok'
@@ -583,7 +583,6 @@ function dedupeClaude(files: Array<{ agg: ClaudeFileAgg; fileIdx: number }>): Ke
 
 function combine(aggs: FileAgg[]): TokenBuildResult {
   const retitle: TokenBuildResult['retitle'] = []
-  const global = emptyTokenStats()
   // Accumulate archive rows: keyed day|side|project|model
   const rowMap = new Map<string, UsageRow>()
   const liveDays = new Set<string>()
@@ -594,12 +593,17 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     model: string,
     v: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number }
   ): void => {
-    if (day === null) return
-    liveDays.add(day)
-    const key = `${day}|${side}|${projectKey}|${model}`
+    // An entry carrying no timestamp is kept with an empty day rather than dropped: it is on record,
+    // so the whole-history figures must include it, and only a **bounded** window can honestly exclude
+    // it. Dropping it would leave the side totals and the sum of their days free to differ with
+    // nothing reporting it — a latent divergence rather than an observed one, since the timestamp is
+    // present on every row measured to date. It is not archived: the archive is keyed by day, and the
+    // filtering happens at that call.
+    if (day !== null) liveDays.add(day)
+    const key = `${day ?? ''}|${side}|${projectKey}|${model}`
     const cur =
       rowMap.get(key) ??
-      { day, side, projectKey, model, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
+      { day: day ?? '', side, projectKey, model, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
     cur.input += v.input
     cur.output += v.output
     cur.cacheRead += v.cacheRead
@@ -607,41 +611,12 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     cur.total += v.total
     rowMap.set(key, cur)
   }
-  const globalModels = new Map<string, number>()
-  // Typed from DayUsage rather than restated, so the provider keys written here are the same ones
-  // the chart reads. Spelling the shape out locally is what let this accumulator keep `string`
-  // keys after the field itself was tightened: a locally-declared `Record<string, number>` is
-  // assignable to the field, so the looser type laundered straight through the spread below
-  // with nothing to report.
-  const globalDays = new Map<string, Omit<DayUsage, 'day'>>()
   const perProject = new Map<string, ProjectStats>()
 
   const projectOf = (key: string): ProjectStats => {
     const p = perProject.get(key) ?? { tokens: emptyTokenStats(), sessions: [] }
     perProject.set(key, p)
     return p
-  }
-  const addModel = (stats: TokenStats, side: AgentSide, model: string, v: number): void => {
-    const found = stats.byModel.find((m) => m.model === model && m.side === side)
-    if (found) found.total += v
-    else stats.byModel.push({ model, side, total: v })
-  }
-  const addDay = (stats: TokenStats, side: AgentSide, day: string, v: number, model: string): void => {
-    const prov = providerOf(model)
-    let found = stats.byDay.find((d) => d.day === day)
-    if (!found) {
-      found = { day, bySide: zeroBySide(), byProvider: {} }
-      stats.byDay.push(found)
-    }
-    found.bySide[side] += v
-    found.byProvider[prov] = (found.byProvider[prov] ?? 0) + v
-  }
-  const addGlobalDay = (day: string, side: AgentSide, v: number, model: string): void => {
-    const prov = providerOf(model)
-    const d = globalDays.get(day) ?? { bySide: zeroBySide(), byProvider: {} }
-    d.bySide[side] += v
-    d.byProvider[prov] = (d.byProvider[prov] ?? 0) + v
-    globalDays.set(day, d)
   }
 
   // ── Claude: deduplicate at entry level, then aggregate ──
@@ -654,13 +629,6 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
   for (const { e, fileIdx } of kept) {
     const agg = aggs[fileIdx] as ClaudeFileAgg
     const t = entryTotal(e)
-    global.bySide.claude.input += e[3]
-    global.bySide.claude.output += e[4]
-    global.bySide.claude.cacheRead += e[5]
-    global.bySide.claude.cacheWrite += e[6]
-    global.bySide.claude.total += t
-    if (e[7] !== null) globalModels.set(`claude:${e[7]}`, (globalModels.get(`claude:${e[7]}`) ?? 0) + t)
-    if (e[8] !== null) addGlobalDay(e[8], 'claude', t, e[7] ?? '')
     perFileTokens.set(fileIdx, (perFileTokens.get(fileIdx) ?? 0) + t)
     addRow(e[8], 'claude', agg.projectKey, e[7] ?? '', {
       input: e[3],
@@ -669,16 +637,8 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       cacheWrite: e[6],
       total: t
     })
-    if (agg.projectKey) {
-      const p = projectOf(agg.projectKey)
-      p.tokens.bySide.claude.input += e[3]
-      p.tokens.bySide.claude.output += e[4]
-      p.tokens.bySide.claude.cacheRead += e[5]
-      p.tokens.bySide.claude.cacheWrite += e[6]
-      p.tokens.bySide.claude.total += t
-      if (e[7] !== null) addModel(p.tokens, 'claude', e[7], t)
-      if (e[8] !== null) addDay(p.tokens, 'claude', e[8], t, e[7] ?? '')
-    }
+    // Registers the project; its figures are derived from its rows at the end
+    if (agg.projectKey) projectOf(agg.projectKey)
   }
   // Claude session entries (top-level files; tokens = the sum of the entries this file keeps after dedup)
   claudeFiles.forEach(({ agg, fileIdx }) => {
@@ -733,46 +693,41 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
       }
     }
     const totals = emptyTotals()
-    const byDay: Record<string, number> = {}
+    // Per day, the **four fields measured on that day's own turns** — not the session's totals
+    // apportioned by each day's share (spec B8). The events already carry all four figures and a
+    // timestamp, so nothing has to be reconstructed; apportioning rounded four times per day and the
+    // roundings did not cancel, which broke "the three buckets sum to the total".
+    const byDay = new Map<string, TokenTotals>()
+    /** Turns whose timestamp is unreadable: on record, but attributable to no day */
+    const undated = emptyTotals()
     for (let i = start; i < a.events.length; i++) {
       const [ts, rawInput, cached, output, cacheWrite] = a.events[i]
-      totals.input += Math.max(0, rawInput - cached)
-      totals.cacheRead += cached
-      totals.output += output
-      totals.cacheWrite += cacheWrite
-      // The total is input + output — exactly the total this side reports for itself. Adding
-      // cacheRead (the Claude four-field sum) would double-count: it is a **measured** subset of the
-      // reported input. Adding cache creation would make the total exceed the side's own, which is
-      // why it is not collected at all (ADR-0023, `cacheWrite` is always 0 on this side).
-      const turnTotal = rawInput + output
-      totals.total += turnTotal
-      if (ts !== null && turnTotal > 0) {
-        const day = localDay(ts)
-        byDay[day] = (byDay[day] ?? 0) + turnTotal
+      const turn: TokenTotals = {
+        input: Math.max(0, rawInput - cached),
+        cacheRead: cached,
+        output,
+        cacheWrite,
+        // The total is input + output — exactly the total this side reports for itself. Adding
+        // cacheRead (the Claude four-field sum) would double-count: it is a **measured** subset of the
+        // reported input. Adding cache creation would make the total exceed the side's own, which is
+        // why it is not collected at all (ADR-0023, `cacheWrite` is always 0 on this side).
+        total: rawInput + output
       }
+      addTotals(totals, turn)
+      if (turn.total === 0) continue
+      if (ts === null) {
+        addTotals(undated, turn)
+        continue
+      }
+      const day = localDay(ts)
+      const cur = byDay.get(day) ?? emptyTotals()
+      addTotals(cur, turn)
+      byDay.set(day, cur)
     }
-    addTotals(global.bySide.codex, totals)
-    if (totals.total > 0) {
-      globalModels.set(`codex:${a.model}`, (globalModels.get(`codex:${a.model}`) ?? 0) + totals.total)
-    }
-    for (const [day, v] of Object.entries(byDay)) {
-      // The four fields are apportioned by that day's share of the total (Codex increment events are
-      // already aggregated by day, and the four fields have no independent source)
-      const ratio = totals.total > 0 ? v / totals.total : 0
-      addRow(day, 'codex', a.projectKey, a.model, {
-        input: Math.round(totals.input * ratio),
-        output: Math.round(totals.output * ratio),
-        cacheRead: Math.round(totals.cacheRead * ratio),
-        cacheWrite: Math.round(totals.cacheWrite * ratio),
-        total: v
-      })
-    }
-    for (const [day, v] of Object.entries(byDay)) addGlobalDay(day, 'codex', v, a.model)
+    for (const [day, v] of byDay) addRow(day, 'codex', a.projectKey, a.model, v)
+    if (undated.total > 0) addRow(null, 'codex', a.projectKey, a.model, undated)
     if (a.projectKey) {
       const p = projectOf(a.projectKey)
-      addTotals(p.tokens.bySide.codex, totals)
-      if (totals.total > 0) addModel(p.tokens, 'codex', a.model, totals.total)
-      for (const [day, v] of Object.entries(byDay)) addDay(p.tokens, 'codex', day, v, a.model)
       if (a.listed) {
         // The display-side stripping happens **here**, not in the parser: it needs the parent session's
         // index, and the cache is
@@ -842,19 +797,8 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
         cacheWrite,
         total: turnTotal
       }
-      addTotals(global.bySide.grok, v)
-      if (model !== null) {
-        globalModels.set(`grok:${model}`, (globalModels.get(`grok:${model}`) ?? 0) + turnTotal)
-      }
-      const day = ts !== null ? localDay(ts) : null
-      addRow(day, 'grok', a.projectKey, model ?? '', v)
-      if (day !== null) addGlobalDay(day, 'grok', turnTotal, model ?? '')
-      if (a.projectKey) {
-        const p = projectOf(a.projectKey)
-        addTotals(p.tokens.bySide.grok, v)
-        if (model !== null) addModel(p.tokens, 'grok', model, turnTotal)
-        if (day !== null) addDay(p.tokens, 'grok', day, turnTotal, model ?? '')
-      }
+      addRow(ts !== null ? localDay(ts) : null, 'grok', a.projectKey, model ?? '', v)
+      if (a.projectKey) projectOf(a.projectKey)
     }
     // The session row (ticket #125): no fork mechanism exists on this side, so no stripping and
     // forkState is always none; a subagent or question-less session already has listed=false
@@ -871,22 +815,25 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     }
   }
 
-  global.byModel = [...globalModels.entries()]
-    .map(([k, total]) => {
-      const [side, ...rest] = k.split(':')
-      return { side: side as AgentSide, model: rest.join(':'), total }
-    })
-    .sort((x, y) => y.total - x.total)
-  global.byDay = [...globalDays.entries()]
-    .map(([day, v]) => ({ day, ...v }))
-    .sort((x, y) => (x.day < y.day ? -1 : 1))
+  // Every figure is derived from the rows here, in one place. It used to be accumulated in parallel
+  // with them, which left the totals and the days free to disagree with nothing reporting it
+  // (ADR-0025) — and did: an entry with no timestamp joined the totals but no day.
+  const rows = [...rowMap.values()]
+  const global = deriveStats(rows)
 
-  for (const p of perProject.values()) {
-    p.tokens.byModel.sort((x, y) => y.total - x.total)
-    p.tokens.byDay.sort((x, y) => (x.day < y.day ? -1 : 1))
+  const byProject = new Map<string, UsageRow[]>()
+  for (const r of rows) {
+    if (!r.projectKey) continue
+    const list = byProject.get(r.projectKey)
+    if (list) list.push(r)
+    else byProject.set(r.projectKey, [r])
+  }
+  for (const [key, p] of perProject) {
+    const own = byProject.get(key) ?? []
+    p.tokens = deriveStats(own)
     p.sessions.sort((x, y) => (y.at ?? 0) - (x.at ?? 0))
   }
-  return { global, perProject, rows: [...rowMap.values()], liveDays, retitle, sessionFiles: new Set<string>() }
+  return { global, perProject, rows, liveDays, retitle, sessionFiles: new Set<string>() }
 }
 
 /** A rewrite burst (the same rule as ccusage's detect_rewritten_burst): if the first two events are
@@ -987,13 +934,6 @@ function sigOf(file: string): string | null {
   } catch {
     return null
   }
-}
-
-/** A local-time-zone day key, YYYY-MM-DD (spec: the trend cuts days in local time) */
-function localDay(ms: number): string {
-  const d = new Date(ms)
-  const p = (n: number): string => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
 const SYNTHETIC = '<synthetic>'

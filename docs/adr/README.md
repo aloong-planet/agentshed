@@ -32,3 +32,5 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0021](0021-side-colour-follows-provider.md) | One colour per agent side, taken from that side's provider colour | Accepted |
 | [0022](0022-remove-manual-hiding.md) | Manual project hiding is removed | Accepted |
 | [0023](0023-no-cache-write-on-codex-and-grok.md) | Cache creation is not collected on the Codex and Grok sides | Accepted |
+| [0024](0024-composition-colours-overlap-the-provider-palette.md) | The composition bar uses blue / yellow / green, overlapping the provider palette | Accepted |
+| [0025](0025-usage-rows-are-the-renderer-contract.md) | Usage rows are the one source every token figure derives from | Accepted |

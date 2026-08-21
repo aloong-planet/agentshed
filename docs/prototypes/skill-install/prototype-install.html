@@ -32,9 +32,12 @@
   .ds{flex:1;min-width:0;color:var(--text-2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bdg{display:flex;gap:3px;flex:none;width:74px}
   .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
-  .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
+  /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
+     「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
+     故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
+  .b.c{background:#f9e2da;color:#a05239}.b.x{background:#dcefe4;color:#1f7a4d}
   .b.miss{border:1px dashed var(--line-strong);color:var(--text-2);background:transparent;font-weight:400}
-  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  @media (prefers-color-scheme:dark){.b.c{background:#4c2d21;color:#f8ac8f}.b.x{background:#1d3a2b;color:#7fd6a4}}
   .pill{font-size:10px;border-radius:4px;padding:1px 6px;flex:none}
   .pill.ln{border:1px dashed var(--line-strong);color:var(--text-2)}
   .ins{font:inherit;font-size:11.5px;border:1px solid var(--line-strong);background:var(--bg);color:var(--text-2);
