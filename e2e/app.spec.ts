@@ -1547,6 +1547,62 @@ async function contentLineHeight(
   }, scope)
 }
 
+/** Tables take the paper style too (spec appearance E7d, settled 2026-08-21): a bordered frame,
+ * an accent-soft header with deep-accent text, bg-striped even rows, and GFM alignment
+ * (:-: / --:) winning over the default left. */
+async function tableStyle(
+  win: Awaited<ReturnType<ElectronApplication['firstWindow']>>,
+  scope: string
+): Promise<{
+  border: string
+  thColor: string
+  thNowrap: string
+  colSep: string
+  rowSep: string
+  oddBg: string
+  evenBg: string
+  alignRight: string
+  alignCenter: string
+}> {
+  return win.evaluate((sel) => {
+    const table = document.querySelector(`${sel} table`)
+    if (!table) throw new Error(`table probe: no table under ${sel}`)
+    const th = table.querySelector('th')
+    const rows = table.querySelectorAll('tbody tr')
+    const oddTd = rows[0]?.querySelector('td')
+    const evenTd = rows[1]?.querySelector('td')
+    const rightTd = rows[0]?.querySelector('td:last-child')
+    const centerTd = rows[0]?.querySelector('td:nth-child(2)')
+    if (!th || !oddTd || !evenTd || !rightTd || !centerTd)
+      throw new Error(`table probe: cells missing under ${sel}`)
+    return {
+      border: getComputedStyle(table).borderTopWidth,
+      thColor: getComputedStyle(th).color,
+      thNowrap: getComputedStyle(th).whiteSpace,
+      colSep: getComputedStyle(oddTd).borderRightColor,
+      rowSep: getComputedStyle(oddTd).borderBottomColor,
+      oddBg: getComputedStyle(oddTd).backgroundColor,
+      evenBg: getComputedStyle(evenTd).backgroundColor,
+      alignRight: getComputedStyle(rightTd).textAlign,
+      alignCenter: getComputedStyle(centerTd).textAlign
+    }
+  }, scope)
+}
+
+function expectTableStyle(
+  tb: Awaited<ReturnType<typeof tableStyle>>,
+  h1Color: string,
+  label: string
+): void {
+  expect(tb.border, `${label}: table frame`).toBe('1px')
+  expect(tb.thColor, `${label}: header text takes the deep accent (h1's colour)`).toBe(h1Color)
+  expect(tb.thNowrap, `${label}: header cells never wrap`).toBe('nowrap')
+  expect(tb.colSep, `${label}: column separators stronger than row separators`).not.toBe(tb.rowSep)
+  expect(tb.evenBg, `${label}: striped even row`).not.toBe(tb.oddBg)
+  expect(tb.alignRight, `${label}: GFM right alignment wins`).toBe('right')
+  expect(tb.alignCenter, `${label}: GFM centre alignment wins`).toBe('center')
+}
+
 /** List indentation is part of the shared rule set (spec appearance E7c): 20px on every surface —
  * the drawer previously fell to the browser's 40px default. */
 async function listIndent(
@@ -1632,7 +1688,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   mkdirSync(join(home, '.claude', 'projects', enc, 'memory'), { recursive: true })
   writeFileSync(
     join(home, '.claude', 'projects', enc, 'memory', 'MEMORY.md'),
-    '# Memory main file\n- Key point A\n- [Pitfalls](pitfalls.md) valid relative link\n- [Deleted entry](gone.md) broken target\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
+    '# Memory main file\n- Key point A\n- [Pitfalls](pitfalls.md) valid relative link\n- [Deleted entry](gone.md) broken target\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n| L | C | R |\n|:--|:-:|--:|\n| a1 | b1 | c1 |\n| a2 | b2 | c2 |\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
   )
   writeFileSync(join(home, '.claude', 'projects', enc, 'memory', 'pitfalls.md'), '# Pitfalls\nUnique content B')
 
@@ -1709,8 +1765,10 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   //     (spec appearance.md sequence E — the document-card side of "one ladder, every surface")
   await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
   await expect(win.locator('.pane-body .md')).toContainText('Key point A')
-  expectLadder(await headingLadder(win, '.pane-body .md'), 'memory .md card')
+  const cardLadder = await headingLadder(win, '.pane-body .md')
+  expectLadder(cardLadder, 'memory .md card')
   expectCodeStyle(await codeStyle(win, '.pane-body .md'), 'memory .md card')
+  expectTableStyle(await tableStyle(win, '.pane-body .md'), cardLadder.h1.color, 'memory .md card')
   expect(await listIndent(win, '.pane-body .md'), 'memory .md card: list indent').toBe('20px')
   expect(await contentLineHeight(win, '.pane-body .md'), 'memory .md card: line-height').toBeCloseTo(21.875, 1)
   // Hover parity with the drawer (spec appearance E7c)
@@ -1805,7 +1863,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   mkdirSync(join(gskills, 'tdd', 'scripts'), { recursive: true })
   writeFileSync(
     join(gskills, 'tdd', 'SKILL.md'),
-    '---\ndescription: Red before green\n---\n\n# Ladder h1\n\nGlobal body A\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n- Bullet probe A\n- Bullet probe B\n\n[Probe link](https://example.com/probe) · [run the script](./scripts/run.sh) · [missing link](./nope.md)\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
+    '---\ndescription: Red before green\n---\n\n# Ladder h1\n\nGlobal body A\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n- Bullet probe A\n- Bullet probe B\n\n| L | C | R |\n|:--|:-:|--:|\n| a1 | b1 | c1 |\n| a2 | b2 | c2 |\n\n[Probe link](https://example.com/probe) · [run the script](./scripts/run.sh) · [missing link](./nope.md)\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
   )
   writeFileSync(join(gskills, 'tdd', 'scripts', 'run.sh'), 'echo Unique script B\n')
   mkdirSync(join(gskills, 'review-code'), { recursive: true })
@@ -1862,6 +1920,11 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   const drawerLadder = await headingLadder(win, '.skill-drawer .md-preview-body.preview')
   expectLadder(drawerLadder, 'skill drawer preview')
   expectCodeStyle(await codeStyle(win, '.skill-drawer .md-preview-body.preview'), 'skill drawer preview')
+  expectTableStyle(
+    await tableStyle(win, '.skill-drawer .md-preview-body.preview'),
+    drawerLadder.h1.color,
+    'skill drawer preview'
+  )
   expect(await listIndent(win, '.skill-drawer .md-preview-body.preview'), 'skill drawer preview: list indent').toBe('20px')
   // Link hover shares the card's semantics (spec appearance E7c): accent at rest, deep accent on
   // hover — the deep value cross-checked against h1, which the ladder pins to --accent-deep

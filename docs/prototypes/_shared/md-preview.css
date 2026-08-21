@@ -12,8 +12,8 @@
   --md-pre-kw: #6b3fa0;
   --md-quote: #787774;
   --md-quote-bar: #8a67ab;
-  --md-table-head: #f0ebf6;
-  --md-th: #5a4478;
+  --md-table-head: var(--accent-soft, #f0ebf6);
+  --md-th: var(--accent-deep, #6b4f92);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -232,10 +232,12 @@
   border-radius: 8px;
   border: 1px solid var(--line, #e8eaed);
 }
+/* Settled 2026-08-21 (mirrors the app): column separators one step stronger than row separators,
+   header cells never wrap, and GFM alignment (:-: / --:) wins over the default left. */
 .md-preview-body.preview th,
 .md-preview-body.preview td {
   border-bottom: 1px solid var(--line, #e8eaed);
-  border-right: 1px solid var(--line, #e8eaed);
+  border-right: 1px solid var(--line-strong, #d9dce0);
   padding: 7px 10px;
   text-align: left;
   vertical-align: top;
@@ -247,8 +249,13 @@
   background: var(--md-table-head);
   color: var(--md-th);
   font-weight: 650;
+  white-space: nowrap;
 }
-.md-preview-body.preview tr:nth-child(even) td { background: #fbfafc; }
+.md-preview-body.preview tbody tr:nth-child(even) td { background: var(--bg, #f7f8f9); }
+.md-preview-body.preview th[align='center'],
+.md-preview-body.preview td[align='center'] { text-align: center; }
+.md-preview-body.preview th[align='right'],
+.md-preview-body.preview td[align='right'] { text-align: right; }
 .md-preview-body.preview hr {
   border: 0;
   height: 1px;
@@ -281,8 +288,8 @@
     --md-pre-comment: #8b8a97;
     --md-pre-string: #7dcea0;
     --md-pre-kw: #c9a0e8;
-    --md-table-head: #2c2733;
-    --md-th: #d4c4f0;
+    --md-table-head: var(--accent-soft, #2c2733);
+    --md-th: var(--accent-deep, #c9b3ec);
     --md-quote: #9b9a97;
   }
   .md-preview-bar {
@@ -304,5 +311,5 @@
   .md-preview-body.preview blockquote {
     background: linear-gradient(90deg, #2c2733 0%, transparent 100%);
   }
-  .md-preview-body.preview tr:nth-child(even) td { background: #1c1d21; }
+  .md-preview-body.preview tbody tr:nth-child(even) td { background: var(--bg, #1a1b1e); }
 }

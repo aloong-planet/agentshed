@@ -324,8 +324,9 @@ _Avoid_: error message (bare, implies a finished sentence)
   component, which by construction applies the sanitising exit, the link interception above, and
   the single content rule set — the shape-layered heading ladder specified in the appearance spec's
   sequence E, the paper-style code rules (bordered inline pill, bordered fenced inset, no inner box
-  on the code element inside a fence), list indentation and the shared body line-height. A new
-  render surface uses the component rather than writing its own rendering or styles.
+  on the code element inside a fence), the paper-style tables (framed, non-wrapping tinted header,
+  GFM alignment honoured), list indentation and the shared body line-height. A new render surface
+  uses the component rather than writing its own rendering or styles.
   Two traps this guards: adjacent levels must
   never be distinguished by font size alone (a wrapped heading's taller block swamps a small size
   difference), and a container's own chrome-heading rule (`overlay h2` style descendant selectors)
