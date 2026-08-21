@@ -405,6 +405,12 @@ body {
   border-radius: 5px;
   animation: sk-pulse 1.6s ease-in-out infinite;
 }
+/* A text-line placeholder's wrapper: holds a zero-width space beside the block so the row gets the
+   current font's own line box (platform-correct by construction — a pixel height measured on one OS
+   shifts the fill on another); nowrap so the strut cannot break onto its own line */
+.sk-line {
+  white-space: nowrap;
+}
 /* The fill inside an .m track: the track itself is --line, so this placeholder needs the next step
    of grey to be visible at all */
 .sk-ph-deep {

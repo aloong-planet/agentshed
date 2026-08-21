@@ -13,18 +13,33 @@ import { TREND_MODE_LABEL, type TrendMode } from '@shared/trend'
  *
  * Placeholder widths and the chart's bar heights are fixed arrays, not random: the skeleton must
  * look the same on every launch, and staggered values are what keeps a column of placeholders
- * reading as "text of varying length will land here" rather than as a table rule. The heights of the
- * value placeholders were calibrated against the real line boxes in the prototype, so the fill moves
- * no anchor (A4b) — 18px inside the 21px-font window cards, 16px inside the 17px side cards.
+ * reading as "text of varying length will land here" rather than as a table rule.
+ *
+ * A placeholder standing in for a line of text must not decide its row's height — font metrics
+ * differ per platform, so a pixel value measured on one OS shifts the fill on another (caught by
+ * CI: the same anchors that were 0px here moved 2.5px on Linux). SkLine therefore pairs the block
+ * with a zero-width space in the same inline context: the strut gives the row the current font's
+ * own line box, identical to the text that will replace it, on every platform by construction.
  */
 
-/** A placeholder block; width/height inline because each slot mirrors its own data's line box */
+/** A placeholder block; width/height inline because each slot mirrors its own data's shape */
 function Sk({ w, h, d }: { w: number; h: number; d?: number }): JSX.Element {
   return (
     <span
       className="sk-ph"
       style={{ width: w, height: h, animationDelay: d !== undefined ? `${d}s` : undefined }}
     />
+  )
+}
+
+/** A placeholder for a line of text: the zero-width space is the strut that gives the row the real
+ * font's line box (see the header note); the block itself stays shorter than any ascent */
+function SkLine({ w, h, d }: { w: number; h: number; d?: number }): JSX.Element {
+  return (
+    <span className="sk-line">
+      {'\u200B'}
+      <Sk w={w} h={h} d={d} />
+    </span>
   )
 }
 
@@ -72,7 +87,7 @@ export function ProjectsSkeleton(): JSX.Element {
           {ROW_WIDTHS.map((w, i) => (
             <div key={i} className="row">
               <span className="nm">
-                <Sk w={w} h={12} d={(i % 6) * 0.12} />
+                <SkLine w={w} h={12} d={(i % 6) * 0.12} />
               </span>
               {/* The side-count badge's slot: the badge is a 17px rounded pill */}
               <span
@@ -85,7 +100,7 @@ export function ProjectsSkeleton(): JSX.Element {
                 }}
               />
               <span className="meta">
-                <Sk w={34} h={10} d={(i % 6) * 0.12} />
+                <SkLine w={34} h={10} d={(i % 6) * 0.12} />
               </span>
             </div>
           ))}
@@ -124,7 +139,7 @@ export function AgentsSkeleton(): JSX.Element {
             <div key={w} className="tot-c">
               <div className="k">{label(w, t.agents.totalsNote)}</div>
               <div className="v">
-                <Sk w={[64, 44, 52, 52][i]} h={18} />
+                <SkLine w={[64, 44, 52, 52][i]} h={18} />
               </div>
             </div>
           ))}
@@ -134,10 +149,10 @@ export function AgentsSkeleton(): JSX.Element {
             fill moves nothing below it (A4b) */}
         <div className="comp-block">
           <div className="comp" />
-          <div className="comp-lg" style={{ minHeight: 14.5, alignItems: 'center' }}>
-            <Sk w={64} h={10} />
-            <Sk w={84} h={10} />
-            <Sk w={56} h={10} />
+          <div className="comp-lg" style={{ alignItems: 'center' }}>
+            <SkLine w={64} h={10} />
+            <SkLine w={84} h={10} />
+            <SkLine w={56} h={10} />
           </div>
         </div>
         <div className="stats">
@@ -148,10 +163,10 @@ export function AgentsSkeleton(): JSX.Element {
                 <Sk w={38} h={10} />
               </div>
               <div className="v">
-                <Sk w={[58, 46, 50][i]} h={16} />
+                <SkLine w={[58, 46, 50][i]} h={16} />
               </div>
               <div className="s">
-                <Sk w={[150, 140, 120][i]} h={10} />
+                <SkLine w={[150, 140, 120][i]} h={10} />
               </div>
             </div>
           ))}
@@ -190,20 +205,20 @@ export function AgentsSkeleton(): JSX.Element {
         {/* minHeight on this and the title below: a placeholder bar is shorter than the text line
             box it stands in for, and the gap would shift everything under it on fill (A4b). The
             values are the measured loaded line boxes; the e2e anchor assertion re-measures them. */}
-        <div className="legend" style={{ minHeight: 16 }}>
-          <Sk w={72} h={12} />
-          <Sk w={64} h={12} />
-          <Sk w={90} h={12} />
+        <div className="legend">
+          <SkLine w={72} h={12} />
+          <SkLine w={64} h={12} />
+          <SkLine w={90} h={12} />
         </div>
-        <div className="grp-t" style={{ minHeight: 15 }}>
-          <Sk w={260} h={11} />
+        <div className="grp-t">
+          <SkLine w={260} h={11} />
         </div>
         {/* The row count is nominal — the model count is unknown until the scan lands (A4b) */}
         <div className="models">
           {[150, 120, 135, 100, 128].map((w, i) => (
             <div key={i} className="m">
               <span className="nm2 mono">
-                <Sk w={w} h={11} d={i * 0.12} />
+                <SkLine w={w} h={11} d={i * 0.12} />
               </span>
               <span className="tr">
                 <span
@@ -218,7 +233,7 @@ export function AgentsSkeleton(): JSX.Element {
                 />
               </span>
               <span className="num">
-                <Sk w={40} h={11} d={i * 0.12} />
+                <SkLine w={40} h={11} d={i * 0.12} />
               </span>
             </div>
           ))}
