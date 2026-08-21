@@ -188,9 +188,9 @@
     return `<div class="row ${p.stale?'stale':''} ${sel===p.n?'sel':''}" data-n="${p.n}">
       <span class="nm" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html" title="打开详情">${p.n}</span>
       ${p.stale?'<span class="stale-tag">失效</span>':''}
+      <span class="meta">${p.last}</span>
       <span class="cnt-b ${ICON_MODE==='none'?'':'has-icon'}" data-sides="${p.sides.join(',')}"
         >${ICON_MODE==='none'?'':ICONS[ICON_MODE](11)}${p.sides.length}</span>
-      <span class="meta">${p.last}</span>
     </div>`;
   }
   const ddTrig=document.getElementById('ddTrig'),ddPop=document.getElementById('ddPop'),

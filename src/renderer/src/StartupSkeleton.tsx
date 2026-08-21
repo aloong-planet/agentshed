@@ -91,6 +91,9 @@ export function ProjectsSkeleton(): JSX.Element {
               <span className="nm">
                 <SkLine w={w} h={10} d={(i % 6) * 0.12} />
               </span>
+              <span className="meta">
+                <SkLine w={34} h={8} d={(i % 6) * 0.12} />
+              </span>
               {/* The side-count badge's slot: the badge is a 17px rounded pill */}
               <span
                 className="sk-ph"
@@ -101,9 +104,6 @@ export function ProjectsSkeleton(): JSX.Element {
                   animationDelay: `${(i % 6) * 0.12}s`
                 }}
               />
-              <span className="meta">
-                <SkLine w={34} h={8} d={(i % 6) * 0.12} />
-              </span>
             </div>
           ))}
         </div>

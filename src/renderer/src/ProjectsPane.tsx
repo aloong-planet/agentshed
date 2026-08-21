@@ -232,8 +232,8 @@ function Row({
     >
       <span className="nm">{p.name}</span>
       {p.stale && <span className="stale-tag">{t.projects.staleTag}</span>}
-      <SideCount sides={p.sides} />
       <span className="meta">{fmtAgo(lang, p.lastSessionAt, now)}</span>
+      <SideCount sides={p.sides} />
     </div>
   )
 }

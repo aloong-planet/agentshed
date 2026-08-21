@@ -152,12 +152,12 @@ function render(){
   $('list').innerHTML = STATE === 'scan'
     ? SK_ROWS.map((w, i) =>
         `<div class="row"><span class="nm"><span class="sk" style="width:${w}px;height:12px;animation-delay:${(i % 6) * .12}s"></span></span>
-           <span class="sk" style="width:26px;height:17px;border-radius:9px;animation-delay:${(i % 6) * .12}s"></span>
-           <span class="meta"><span class="sk" style="width:34px;height:10px;animation-delay:${(i % 6) * .12}s"></span></span></div>`).join('')
+           <span class="meta"><span class="sk" style="width:34px;height:10px;animation-delay:${(i % 6) * .12}s"></span></span>
+           <span class="sk" style="width:26px;height:17px;border-radius:9px;animation-delay:${(i % 6) * .12}s"></span></div>`).join('')
     : DATA.map((p) =>
         `<div class="row"><span class="nm">${p.n}</span>
-           <span class="cnt-b">${ICONS.Bot(11)}${p.c}</span>
-           <span class="meta">${p.last}</span></div>`).join('');
+           <span class="meta">${p.last}</span>
+           <span class="cnt-b">${ICONS.Bot(11)}${p.c}</span></div>`).join('');
   // 详情区中央:扫描期间没有可选项目,「选择一个项目」是假话——同一个居中位换成扫描提示
   $('stage').innerHTML = STATE === 'scan'
     ? `<div class="spin">${ICONS.RefreshCw(26)}</div><div>${t.scan}</div>`
