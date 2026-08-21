@@ -9,7 +9,7 @@ import { SkillFilesTable, formatSize } from './SkillFilesTable'
 import { toast } from './Toast'
 import { errorText } from '@shared/error-text'
 import { useLanguage, useDict } from './language'
-import { ChevronRight, Dot } from './icons'
+import { ChevronRight, Dot, Minus } from './icons'
 import { SIDE_BADGE, SIDE_ORDER, SIDE_SHORT_NAME } from './side-badge'
 
 /**
@@ -136,7 +136,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
               </span>
             ) : (
               <span key={s} className="badge miss">
-                —
+                <Minus size={10} />
               </span>
             )
           )}
