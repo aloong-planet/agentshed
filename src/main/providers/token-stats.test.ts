@@ -1576,3 +1576,101 @@ describe('sessionQuestions (the session page service)', () => {
     expect(t2.sessionFiles.has(cxOrphan), 'a codex session with an unregistered cwd must not be readable').toBe(false)
   })
 })
+
+describe('usage rows are the one source the projections derive from (ADR-0025)', () => {
+  /**
+   * Sum the rows by hand and compare against the projections. **Not a tautology even though the
+   * production code derives them from the same rows**: this re-derivation is written independently,
+   * so it still catches summing the wrong field, dropping a side, or losing a row on the way out.
+   * What it cannot catch is a shared misreading of the rows themselves — that is what the ccusage
+   * reconciliation is for.
+   */
+  function reconcile(r: Awaited<ReturnType<TokenEngine['build']>>): void {
+    for (const side of ['claude', 'codex', 'grok'] as const) {
+      const mine = r.rows.filter((x) => x.side === side)
+      const sum = (f: 'input' | 'output' | 'cacheRead' | 'cacheWrite' | 'total'): number =>
+        mine.reduce((a, x) => a + x[f], 0)
+      expect(r.global.bySide[side], `${side}: bySide must equal the rows it is derived from`).toEqual({
+        input: sum('input'),
+        output: sum('output'),
+        cacheRead: sum('cacheRead'),
+        cacheWrite: sum('cacheWrite'),
+        total: sum('total')
+      })
+    }
+    // The three cross-side comparable buckets sum **exactly** to the total (CONTEXT.md's invariant).
+    // Asserted over whatever fixture is supplied rather than for one hand-picked case: a rounding
+    // rule that only drifts on lopsided data would survive a per-case assertion.
+    const b = r.rows.reduce(
+      (a, x) => ({
+        uncached: a.uncached + x.input + x.cacheWrite,
+        output: a.output + x.output,
+        cacheRead: a.cacheRead + x.cacheRead
+      }),
+      { uncached: 0, output: 0, cacheRead: 0 }
+    )
+    const rowTotal = r.rows.reduce((a, x) => a + x.total, 0)
+    expect(b.uncached + b.output + b.cacheRead, 'the three buckets must sum to the total').toBe(rowTotal)
+    // Every day the projection knows about must be a day the rows know about, and with the same value
+    for (const d of r.global.byDay) {
+      for (const side of ['claude', 'codex', 'grok'] as const) {
+        const fromRows = r.rows.filter((x) => x.day === d.day && x.side === side).reduce((a, x) => a + x.total, 0)
+        expect(d.bySide[side], `byDay ${d.day}/${side}`).toBe(fromRows)
+      }
+    }
+    const models = new Map<string, number>()
+    for (const x of r.rows) {
+      if (!x.model) continue
+      const k = `${x.side}:${x.model}`
+      models.set(k, (models.get(k) ?? 0) + x.total)
+    }
+    expect(
+      Object.fromEntries(r.global.byModel.map((m) => [`${m.side}:${m.model}`, m.total])),
+      'byModel must equal the rows it is derived from'
+    ).toEqual(Object.fromEntries(models))
+  }
+
+  it('three sides, several days: every projection equals the rows', async () => {
+    mkClaudeFile('a.jsonl', [
+      userLine('a claude question'),
+      usageLine('claude-fable-5', '2026-07-29T10:00:00Z', 100, 50, { cacheRead: 7000, cacheWrite: 300 }),
+      usageLine('claude-opus-5', '2026-07-30T02:00:00Z', 20, 10)
+    ])
+    mkCodexRollout('rollout-2026-07-30T01-00-00-019f0000-aaaa-7000-8000-000000000001.jsonl', proj,
+      '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
+        // 24h apart, so it crosses a day boundary in any local time zone (the existing convention here)
+        { input: 1000, cached: 900, output: 10, at: '2026-07-29T12:00:00Z' },
+        { input: 100, cached: 0, output: 500, at: '2026-07-30T12:00:00Z' }
+      ])
+    mkGrokSession(proj, 'g1', [
+      grokUser(1753900000, 'a grok question', 0),
+      grokTurn(1753900000, { input: 200, cached: 150, output: 40, model: 'grok-4.6-build' })
+    ])
+    const r = await engine().build(roots(), [proj])
+    reconcile(r)
+    expect(r.rows.length, 'the fixture must actually produce rows on all three sides').toBeGreaterThan(3)
+  })
+
+  it("a session spanning midnight splits its four fields by what each day measured, not by that day's share of the total (B8)", async () => {
+    // The two days are deliberately lopsided: day one is almost all cache reads, day two almost all
+    // output. Apportioning by share of the total would smear each day's mix across both, and the two
+    // rules only agree when a session's days happen to be proportionally alike — which is exactly what
+    // a casually written fixture produces, so the asymmetry here is the point.
+    // 24h apart, so the split is a real one in any local time zone; the day keys are read back from
+    // the result rather than written into the assertion, which would only hold in one zone
+    mkCodexRollout('rollout-2026-07-30T01-00-00-019f0000-bbbb-7000-8000-000000000002.jsonl', proj,
+      '2026-07-29T12:00:00Z', 'gpt-5.6-sol', [
+        { input: 1000, cached: 900, output: 10, at: '2026-07-29T12:00:00Z' },
+        { input: 100, cached: 0, output: 500, at: '2026-07-30T12:00:00Z' }
+      ])
+    const r = await engine().build(roots(), [proj])
+    const rows = r.rows.filter((x) => x.side === 'codex').sort((a, b) => (a.day < b.day ? -1 : 1))
+    expect(rows.length, 'the fixture must actually land on two days').toBe(2)
+    expect(rows[0], 'the cache-heavy day keeps its own cache reads').toMatchObject({
+      input: 100, cacheRead: 900, output: 10, total: 1010
+    })
+    expect(rows[1], 'the output-heavy day keeps its own output').toMatchObject({
+      input: 100, cacheRead: 0, output: 500, total: 600
+    })
+  })
+})

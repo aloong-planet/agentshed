@@ -10,21 +10,10 @@
 //   keep their archived values.
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AgentSide } from '@shared/domain'
-
-export interface UsageRow {
-  day: string
-  side: AgentSide
-  /** The project's merge key; '' when it cannot be attributed */
-  projectKey: string
-  /** The model name; '' when unknown */
-  model: string
-  input: number
-  output: number
-  cacheRead: number
-  cacheWrite: number
-  total: number
-}
+// The row type lives in the domain rather than here: since ADR-0025 it is also what the renderer
+// receives, so persistence no longer owns it.
+import type { UsageRow } from '@shared/domain'
+export type { UsageRow }
 
 const ARCHIVE_VERSION = 1
 

@@ -3,7 +3,8 @@
 // Shared by the project overview tab and the Agents page's Token section: the same data source, differing
 // only in the grouping key.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { TokenStats, TokenTotals } from '@shared/domain'
+import type { ModelUsage, TokenStats, UsageRow } from '@shared/domain'
+import { inWindow, sliceUsage, USAGE_WINDOWS, type UsageSlice, type UsageWindow } from '@shared/usage'
 
 /**
  * Compact notation for token counts. **Deliberately not localised** (settled 2026-08-09): k / M / B are
@@ -20,35 +21,99 @@ export function fmtTok(n: number): string {
   return String(n)
 }
 
-export function TotalsCards({ stats, note }: { stats: TokenStats; note?: string }): JSX.Element {
+/**
+ * The four time windows **are** the selector (spec G1): each card shows that window's total and
+ * clicking it scopes the page. Below them, outside any card, the composition of whichever window is
+ * selected — it cuts the same number the side figures cut, along a different axis, so the two are
+ * siblings rather than one containing the other (G8).
+ *
+ * The window is cut against `anchor` — the snapshot's scan moment — rather than the clock, so "today"
+ * always means the same day as the trend chart's last bar (G2).
+ */
+/** The window's own label, so a caller can name the selected window outside the card row */
+export function useWindowLabel(): (w: UsageWindow, note?: string) => string {
   const t = useDict()
-  // Summed over the Record's values rather than named fields, so a fourth side joins the totals
-  // the moment it joins the contract
-  const sides = Object.values(stats.bySide)
-  const sum = (f: keyof TokenTotals): number => sides.reduce((a, s) => a + s[f], 0)
+  return (w, note) =>
+    w === 'all' ? t.token.winAll(note ?? '') : w === 'today' ? t.token.winToday : w === 'd7' ? t.token.winD7 : t.token.winD30
+}
+
+export function TotalsCards({
+  slice,
+  rows,
+  anchor,
+  window: win,
+  onWindow,
+  note
+}: {
+  /** The selected window's figures; passed in because the caller also renders them elsewhere */
+  slice: UsageSlice
+  rows: UsageRow[]
+  anchor: number
+  window: UsageWindow
+  onWindow: (w: UsageWindow) => void
+  note?: string
+}): JSX.Element {
+  const t = useDict()
+  const label = useWindowLabel()
+  // Every window's own total, so a card can show it without being selected. Cheap on the measured
+  // data (hundreds of rows), and it keeps "what does that window hold" answerable before clicking.
+  const totals = useMemo(
+    () => Object.fromEntries(USAGE_WINDOWS.map((w) => [w, sliceUsage(rows, w, anchor).total])) as Record<UsageWindow, number>,
+    [rows, anchor]
+  )
+  const c = slice.composition
+  const pct = (v: number): number => (slice.total ? (v / slice.total) * 100 : 0)
+  // A bucket at exactly zero draws **nothing**. The segments carry a minimum width so the smallest
+  // non-zero one survives rounding, and that floor turns a zero into a visible sliver — a drawing of
+  // usage that does not exist. "Small" and "none" have to stay distinguishable.
+  const seg = (v: number, cls: string): JSX.Element | null =>
+    v > 0 ? <i className={cls} style={{ width: `${pct(v).toFixed(4)}%` }} /> : null
+  // Two decimals only where one would round a real share to 0.0% — on real data output sits near
+  // 0.28%. Above 1% the extra digit just makes the three legend figures look inconsistent.
+  const share = (v: number): string => `${pct(v).toFixed(pct(v) < 1 ? 2 : 1)}%`
   return (
-    <div className="stats">
-      <div className="stat">
-        <div className="k">{t.token.totalCard(note ?? '')}</div>
-        <div className="v">{fmtTok(sum('total'))}</div>
-        <div className="s">
-          Claude {fmtTok(stats.bySide.claude.total)} · Codex {fmtTok(stats.bySide.codex.total)} ·
-          Grok {fmtTok(stats.bySide.grok.total)}
+    <>
+      <div className="tot-row">
+        {USAGE_WINDOWS.map((w) => (
+          <button
+            key={w}
+            type="button"
+            className={`tot-c ${w === win ? 'on' : ''} ${totals[w] ? '' : 'zero'}`}
+            aria-pressed={w === win}
+            onClick={() => onWindow(w)}
+          >
+            <div className="k">{label(w, note)}</div>
+            <div className="v">{fmtTok(totals[w])}</div>
+          </button>
+        ))}
+      </div>
+      {/* A window with no usage draws no bar: a zero-width bar is a drawing of nothing (G5) */}
+      {slice.total > 0 && (
+        <div className="comp-block">
+          <div className="comp">
+            {seg(c.cacheRead, 'comp-rd')}
+            {seg(c.uncachedInput, 'comp-in')}
+            {seg(c.output, 'comp-ou')}
+          </div>
+          {/* The smallest bucket is a fraction of a percent on real data, so the legend — not the
+              width — is where its number can actually be read (G9) */}
+          <div className="comp-lg">
+            <span title={t.token.compTipCacheRead(fmtTok(c.cacheRead))}>
+              <i className="comp-rd" />
+              {t.token.compCacheRead} <b>{share(c.cacheRead)}</b>
+            </span>
+            <span title={t.token.compTipUncached(fmtTok(c.uncachedInput))}>
+              <i className="comp-in" />
+              {t.token.compUncached} <b>{share(c.uncachedInput)}</b>
+            </span>
+            <span title={t.token.compTipOutput(fmtTok(c.output))}>
+              <i className="comp-ou" />
+              {t.token.compOutput} <b>{share(c.output)}</b>
+            </span>
+          </div>
         </div>
-      </div>
-      <div className="stat">
-        <div className="k">{t.token.inOut}</div>
-        <div className="v">
-          {fmtTok(sum('input'))} / {fmtTok(sum('output'))}
-        </div>
-        <div className="s">{t.token.inOutNote}</div>
-      </div>
-      <div className="stat cache">
-        <div className="k">{t.token.cacheCard}</div>
-        <div className="v">{fmtTok(sum('cacheRead'))}</div>
-        <div className="s">{t.token.cacheReadWrite(fmtTok(sum('cacheRead')), fmtTok(sum('cacheWrite')))}</div>
-      </div>
-    </div>
+      )}
+    </>
   )
 }
 
@@ -72,12 +137,15 @@ const PROVIDER_CLASS: Record<string, string> = {
 export function TrendChart({
   stats,
   anchor,
-  archivedDays = []
+  archivedDays = [],
+  window: win = 'all'
 }: {
   stats: TokenStats
   anchor: number
   /** Days whose source session files the agent cleaned up, with values from the local archive */
   archivedDays?: string[]
+  /** Days outside it are dimmed rather than removed — the chart's own span stays 30 days (D10) */
+  window?: UsageWindow
 }): JSX.Element {
   const lang = useLanguage()
   const t = useDict()
@@ -122,7 +190,7 @@ export function TrendChart({
         {bars.map((b) => (
           <div
             key={b.day}
-            className={`col ${b.archived ? 'arch' : ''}`}
+            className={`col ${b.archived ? 'arch' : ''} ${inWindow(b.day, win, anchor) ? '' : 'out'}`}
             style={{ height: `${Math.max(1.5, Math.round((b.total / max) * 100))}%` }}
             data-tip={tipOf(b, t.label.providerOther, t)}
             data-day={b.day}
@@ -146,7 +214,10 @@ export function TrendChart({
               {PROVIDER_LABEL[p] ?? t.label.providerOther}
             </span>
           ))}
-          <span className="lg-note">{t.token.legendNote}</span>
+          <span className="lg-note">
+            {t.token.legendNote}
+            {win !== 'all' && t.token.legendDimNote}
+          </span>
         </div>
       )}
     </div>
@@ -207,13 +278,14 @@ function tipOf(
   return [head, ...lines].join('\n')
 }
 
-export function ModelBars({ stats }: { stats: TokenStats }): JSX.Element {
+/** Takes the models of whichever window is selected, not the whole-history projection (G3) */
+export function ModelBars({ models }: { models: ModelUsage[] }): JSX.Element {
   const t = useDict()
-  if (stats.byModel.length === 0) return <div className="none">{t.token.noModelData}</div>
-  const max = Math.max(...stats.byModel.map((m) => m.total), 1)
+  if (models.length === 0) return <div className="none">{t.token.noModelData}</div>
+  const max = Math.max(...models.map((m) => m.total), 1)
   return (
     <div className="models">
-      {stats.byModel.map((m) => (
+      {models.map((m) => (
         <div className={`m ${PROVIDER_CLASS[providerOf(m.model)] ?? 'other'}`} key={`${m.side}:${m.model}`}>
           <span className="nm2 mono">{m.model}</span>
           <span className="tr">

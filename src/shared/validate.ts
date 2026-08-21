@@ -108,6 +108,9 @@ export function validateSnapshot(v: unknown): ValidateResult {
   }
   if (!Array.isArray(tk['byModel']) || !Array.isArray(tk['byDay']))
     return failType('tokens.byModel/byDay', 'array')
+  // Every figure the interface shows for a selected window comes from here, so an absent `rows` is not
+  // a degraded snapshot but a blank page — checked like the projections rather than assumed
+  if (!Array.isArray(tk['rows'])) return failType('tokens.rows', 'array')
   if (!Array.isArray(v['archivedDays'])) return failType('archivedDays', 'array')
   return { ok: true }
 }

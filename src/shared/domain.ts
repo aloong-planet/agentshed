@@ -304,7 +304,34 @@ export interface DayUsage {
   byProvider: Partial<Record<Provider, number>>
 }
 
+/**
+ * One day's usage at the finest grain the aggregation produces: **day × side × project × model**,
+ * carrying all four token fields. Chosen for the archive (ADR-0007) because it can be aggregated up
+ * and never split down; since ADR-0025 it is also what the renderer receives, and every other figure
+ * in `TokenStats` is derived from it.
+ */
+export interface UsageRow {
+  day: string
+  side: AgentSide
+  /** The project's merge key; '' when it cannot be attributed */
+  projectKey: string
+  /** The model name; '' when unknown */
+  model: string
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite: number
+  total: number
+}
+
 export interface TokenStats {
+  /**
+   * The one source (ADR-0025). The three fields below are **derived from it** rather than accumulated
+   * beside it, so they cannot drift from it; anything the interface needs for an arbitrary span of
+   * days — a time window's total, its composition, its model split — is derived from this at the point
+   * of use, because no projection can answer for a span it did not aggregate over.
+   */
+  rows: UsageRow[]
   bySide: Record<AgentSide, TokenTotals>
   byModel: ModelUsage[]
   byDay: DayUsage[]
@@ -488,6 +515,7 @@ export function zeroBySide(): Record<AgentSide, number> {
 
 export function emptyTokenStats(): TokenStats {
   return {
+    rows: [],
     bySide: { claude: emptyTotals(), codex: emptyTotals(), grok: emptyTotals() },
     byModel: [],
     byDay: []

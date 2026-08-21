@@ -11,10 +11,9 @@ import {
   type ListSkillFilesResult
 } from '@shared/ipc'
 import type { CappedText, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
-import { zeroBySide } from '@shared/domain'
 import { AGENT_SIDES, assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
-import { providerOf } from '@shared/provider'
+import { deriveStats } from '@shared/usage'
 import { scan } from './providers/scan'
 import { readRanges } from './providers/range-read'
 import { grokQuestionTextFromSlice, questionTextAt } from './providers/question-index'
@@ -136,21 +135,17 @@ async function doScan(): Promise<Snapshot> {
         // Archive: live values overwrite the days still visible, and days the agent has cleaned up are
         // filled back into the trend from the archive
         if (archive) {
-          archive.merge(t.rows, t.liveDays)
+          // Rows with no day cannot be archived — the archive is keyed by day
+          archive.merge(t.rows.filter((r) => r.day), t.liveDays)
           const archivedDays = archive.archivedOnlyDays(t.liveDays)
           snap.archivedDays = archivedDays
           if (archivedDays.length) {
+            // The archived rows join the row set, and every figure is re-derived from it. Patching
+            // only `byDay` — what this used to do — put those days into the trend chart but into
+            // neither the cumulative total nor the model breakdown, so the chart showed usage the
+            // totals denied (spec G6).
             const set = new Set(archivedDays)
-            const byDay = new Map(snap.tokens.byDay.map((d) => [d.day, d]))
-            for (const r of archive.rows()) {
-              if (!set.has(r.day)) continue
-              const d = byDay.get(r.day) ?? { day: r.day, bySide: zeroBySide(), byProvider: {} }
-              d.bySide[r.side] += r.total
-              const prov = providerOf(r.model)
-              d.byProvider[prov] = (d.byProvider[prov] ?? 0) + r.total
-              byDay.set(r.day, d)
-            }
-            snap.tokens.byDay = [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : 1))
+            snap.tokens = deriveStats([...snap.tokens.rows, ...archive.rows().filter((r) => set.has(r.day))])
           }
         }
       }

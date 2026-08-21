@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour)
+> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases (the
 > accounting decisions are in the ADRs and are not restated here).
@@ -33,6 +33,18 @@ all of them.
 5. As a user, I want the historical trend to survive the agent cleaning up source sessions, with a
    label, so that a long-term trend does not break.
 6. As a user, I want the numbers to reconcile against ccusage, so that I can trust them.
+7. As a user, I want to pick a time window — all history, today, the last 7 days, the last 30 days —
+   from the totals themselves rather than from a separate control, so that "what have I burned lately"
+   is one click away and the answer to "how much" and the choice of "over what period" are the same
+   object.
+8. As a user, I want everything the window governs to move together — each side's figure, the
+   composition, the highlighted span of the trend, the model breakdown — so that one selection yields
+   one consistent answer instead of a page where some numbers moved and others did not.
+9. As a user, I want to see what a total is made of, so that a large number is interpretable rather
+   than merely large: how much was read from cache (and so cost little), how much had to be read
+   fresh, how much the model generated.
+10. As a user, I want each side named in one colour everywhere it is named, so that a badge in a list
+    and a segment in a chart agree instead of teaching me two colour languages for one concept.
 
 ## Failure modes and boundaries
 
@@ -74,6 +86,13 @@ all of them.
   per-turn figure repeats" instead would be wrong in both directions — two genuinely identical
   consecutive turns would be dropped, and a repeat that varies the per-turn figure would be kept —
   even though on the data measured to date the two criteria happen to select the same records.
+- B8 A day's **four-field split is measured, not apportioned**. The per-turn events already carry all
+  four figures and a timestamp, so each day accumulates its own four buckets. Apportioning the
+  session's totals across its days by each day's share of the total — the earlier rule — rounds four
+  times per day and the roundings do not cancel: measured 2026-08-21 on real data, the three
+  cross-side buckets summed to 4 tokens less than the row totals over 12.7B. The drift is negligible
+  in magnitude and disqualifying in kind, because "the segments sum to the total" is the whole reason
+  those three buckets are the chosen cut (G8).
 - B2 Sessions spanning midnight are apportioned to their respective dates by event timestamp (not
   piled onto the first day).
 - B3 Subagent sessions' tokens count toward the statistics but do not enter the session list.
@@ -144,6 +163,12 @@ next to A/B, so that no existing reference is renumbered)
 - D8 Extremely narrow windows: keep thinning but leave at least 1, without overlapping or spilling,
   and the algorithm terminates.
 - D9 No data at all → no labels.
+- D10 The chart's own window stays 30 days whatever time window is selected (G1). Days outside the
+  selection are **dimmed, not removed**: the data is day-grained, so cutting the chart down to the
+  selection would leave one bar for "today", and a lone bar states nothing about its own size. The
+  surrounding 29 days are the reference that makes the selected span readable. Selecting all history
+  dims nothing. The axis, the segmentation and the tooltips are unaffected — dimming is a rendering
+  state, not a different data set.
 
 **Sequence E: automatic snapshot refresh (settled 2026-08-08, fixing "today's statistics are
 missing" — the only rescan triggers had been startup and manual ↻, so leaving the app running
@@ -165,6 +190,75 @@ overnight froze `scannedAt` and today's data was not shown)**
   anchor moves forward, and today's data and the axis recover under D1's semantics — no special-casing
   of "crossing midnight" is needed.
 
+**Sequence G: the time window and the composition** (settled 2026-08-21)
+- G1 Four windows — all history / today / the last 7 days / the last 30 days — presented as four cards
+  that are **themselves the selector**: the card shows that window's total and clicking it selects the
+  window. There is no separate range control; "how much" and "over what period" are one object. All
+  history is the default selection.
+- G2 The window is cut against the **snapshot anchor**, not the wall clock, so "today" always means the
+  same day as the trend chart's last bar. A snapshot taken before midnight and read after it therefore
+  reports the anchor's day, and the automatic refresh (E1/E6) is what moves both forward together.
+  Reading the clock instead would let the cards and the chart disagree about which day "today" is,
+  with nothing on screen to reveal it.
+- G3 Everything the selection governs moves with it: each side's figure, the composition, the model
+  breakdown, and the trend's dimming (D10). Nothing that the selection governs may stay on a different
+  window — a page where some figures moved and others did not is worse than one that offers no
+  windowing at all, because the reader has no way to tell which is which.
+- G4 **All history and the trend chart deliberately disagree in span**, and the card says so in its
+  own label. The chart is 30 days because that is what a daily trend can show; the cumulative total is
+  every day on record. This mismatch already existed and already misread — an unlabelled cumulative
+  total sitting above a chart captioned "last 30 days" is read as a 30-day figure. Naming the window
+  on the card is the fix; making them agree is not, since neither span is wrong for its own purpose.
+- G5 A window with no usage: total 0, **no composition bar drawn** (a zero-width bar would be a
+  drawing of nothing), the model breakdown shows its empty state, and each side reads 0 while still
+  reporting itself as detected — detection is about whether the side is installed, which is
+  independent of whether it has burned anything.
+- G6 Archived days take part in windows exactly like live ones **in the cross-project view**: the
+  archive stores the same per-model, four-field rows, so a window covering only archived days still
+  yields a composition and a model breakdown there. This is why the archive's row grain
+  (day × side × project × model) is load-bearing rather than incidental.
+  **A project's own view does not receive them**, which predates the windows: the archive was folded
+  into the cross-project figures only, so a project page has always drawn an archived day as a
+  zero-height bar carrying the archived marking. The windows inherit that boundary rather than
+  widening it — the rows carry a project key, so closing it is possible, but it changes what a project
+  page reports for spans it currently shows as empty, which is a product decision rather than a
+  consequence of adding a time window.
+- G7 An entry carrying no timestamp cannot be attributed to any day, and therefore to any window. To
+  keep this from silently detaching a total from its own breakdown, **every figure on the page derives
+  from the same row set** — including all history and each side's total. The windowed figures and the
+  side totals are then equal by construction rather than by coincidence. Measured 2026-08-21: zero
+  undated rows on real data across all three sides, and the row sums matched the side totals exactly
+  on all three, so the change is neutral on today's data and load-bearing the day it is not.
+- G8 The composition cuts the selected window's total into the three cross-side comparable buckets —
+  `input + cacheWrite` / `output` / `cacheRead` — which carry one meaning each on all three sides and
+  sum exactly to the total (the invariant in CONTEXT.md). It is rendered **below the totals and
+  outside any card**: it decomposes the same number the side figures decompose, by a different axis,
+  so the two are siblings rather than one being contained in the other.
+- G9 The smallest bucket is a fraction of a percent of the total on real data (output at 0.28%,
+  measured 2026-08-21). Percentages are therefore part of the legend rather than something the reader
+  infers from width, and each segment keeps a minimum width so the smallest one exists on screen at
+  all. The legend also carries the absolute figure and states that cache writes are counted inside
+  uncached input — that grouping is not inferable from the label, and "where did cache creation go" is
+  the first question the bar provokes.
+- G10 Composition colours: cache read blue, uncached input yellow, output green (ADR-0024).
+- G11 The selection is view state: it survives switching tabs within the page — and, on the project
+  detail page, switching projects, since the window is a lens the user holds rather than a property of
+  one project — and is not persisted across restarts, matching how the session sort already behaves.
+- G12 The window and the trend's side filter are **independent controls that compose**: selecting a
+  side narrows what the bars count (D4), selecting a window dims which bars are in scope (D10), and
+  using both leaves a single-side chart with part of its span dimmed. Neither resets the other. The
+  window still governs the figures above the chart across all sides — the side filter is a property of
+  the chart alone, which is why it does not touch them.
+- G13 A refresh arriving while a non-default window is selected — automatic (E1) or manual — keeps the
+  selection and recomputes its figures against the new snapshot. The anchor may have moved, so "today"
+  can come to mean a different day than it did a moment ago; that is the intended behaviour and the
+  reason G2 ties the window to the anchor rather than to the clock. Losing the selection on refresh
+  would be the visible defect, since the automatic backstop fires on a timer the user did not ask for.
+- G14 This feature renders figures the application computed itself. It introduces no new point at
+  which external content is rendered or loaded, so it adds no interaction surface beyond the controls
+  named above — stated rather than skipped, because "no new surface" is a conclusion that has to be
+  reached rather than a default.
+
 ## Implementation Decisions
 
 - **Accounting**: see ADR-0005/0006 (the sides' total formulas differ and must not be copied from one
@@ -176,6 +270,26 @@ overnight froze `scannedAt` and today's data was not shown)**
 - **A new vendor**: adding one is a rule in the provider inference module, which ADR-0008 already
   anticipated; the chart logic does not change. The side's identifying colour is that provider colour
   (ADR-0021).
+- **Side badge colours**: ADR-0021 was carried out for one side only — the Grok badge was derived from
+  the retired Claude purple while the Claude badge kept that purple, so an accepted decision and the
+  shipped values contradicted each other, and the file's own comment called the still-live value
+  "retired". Completing it means the Claude badge takes the Anthropic hue. The badge is a fill behind
+  small bold text rather than the raw provider colour, so its pair is derived at the lightness and
+  chroma of the existing pairs rather than picked by eye; the resulting text-on-fill contrast lands
+  inside the range the other pairs already occupy. Side colours are **appearance-varying, not
+  theme-varying** (CONTEXT.md's variable classes): a colour scheme changes the interface, not the
+  data.
+- **Usage rows are the one source every figure derives from** (ADR-0025). Windowing needs
+  day × side × project × model at four-field grain, which the aggregation already computes and the
+  archive already persists; the pre-aggregated per-day and per-model fields were lossier projections
+  of it. Deriving every figure from one row set is also what makes G7 hold by construction. Measured
+  2026-08-21 on real data: 378 rows, 67 KB serialised, at most 20 rows on the busiest day — small
+  enough that the aggregation belongs where the selection lives.
+- **No cache version change**: the incremental cache stores per-file parse output, whose shape is
+  untouched; what changes is the combination step, which re-runs on every build. This is the
+  distinction the cache-version rule turns on — a *structure* change to what is cached must bump the
+  version, and a change downstream of the cache must not, or every release would force a full rescan
+  for nothing.
 - **Archive**: see ADR-0007 (resilient to the agent's automatic cleanup; live values overwriting the
   archive is what makes accounting fixes retroactive).
 - **Segmentation and axis**: see ADR-0008/0009.
@@ -209,6 +323,21 @@ it appears without a manual refresh, and an open detail page's section local sta
 events are semantically unreliable under a hidden-window test regime (noted in the existing e2e
 header), and since the focus path shares its scan entry point with the timer, it gets no separate e2e.
 
+The window aggregation (sequence G) is a **pure function from the row set plus a window to the four
+figures a view needs**, which is the same seam the trend and axis functions already use — the highest
+seam that does not need a rendered page, and the one where the interesting cases live: a window with
+no rows, an undated row, a window whose only days are archived, and the identity that the three
+buckets sum to the total (G8) and that all history equals the side totals (G7). The last two are
+**algebraic identities over whatever fixture is supplied**, so they are asserted for every window on
+every fixture rather than for one hand-picked case — a per-case assertion would only prove the case.
+Sequence B8's "measured, not apportioned" needs a fixture whose session spans two days with a
+lopsided split, since apportioning and measuring agree whenever a session's days are proportionally
+alike, which is exactly what a casually written fixture produces. What unit tests cannot reach is that
+the **selection actually drives** the four regions: that a click changes the side figures, the
+composition, the model rows and the dimmed span together (G3). That is an e2e assertion, and it must
+read all four in one pass, because the failure being guarded against is precisely that some of them
+moved and others did not — checking them one at a time would pass on a page that is inconsistent.
+
 ## Out of Scope
 
 - Dollar cost estimation. This stays out even though one side's records carry a real billing figure
@@ -218,5 +347,12 @@ header), and since the focus path shares its scan entry point with the timer, it
   primary model). The Claude and Grok sides are exact, so the per-model table mixes exact and
   approximate figures without saying which is which; this asymmetry is known and accepted.
 - Sessions from before this application first ran that the agent has already cleaned up (unrecoverable).
+- An arbitrary or custom date range. The four windows are fixed. A date picker is a different control
+  with different questions (what does it do to the 30-day chart, what does it do to a range with no
+  data, does it persist), and the four fixed windows answer the question that prompted this —
+  "what have I burned lately" — without any of them.
+- Sub-day granularity. "Today" is as fine as the windows go, because a day is as fine as the source
+  records are cut for aggregation; an hourly window would have to re-derive from timestamps that the
+  aggregation deliberately collapses.
 - ~~Rendering session contents (metadata only)~~ (2026-08-06: fully shipped by
   `docs/specs/session-view.md`, moved out of this spec's boundary).

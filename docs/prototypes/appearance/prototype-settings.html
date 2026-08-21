@@ -29,7 +29,12 @@
     --accent-soft: #f0ebf6;
     --shadow: 0 8px 24px rgba(55, 53, 47, .14);
     --ok-bg: #dcfce7; --ok-fg: #166534;
-    --cl-bg: #e8e0f3; --cl-fg: #6b4f92;
+    /* Claude 徽章取 Anthropic 品牌橙(#d97757)的色相,不再是紫——ADR-0021 只迁了 Grok,
+       Claude 这半没做。L/C 与 cx 那对同档。
+       **三套配色下取值相同**:侧别色是数据色,只随明暗变、不随配色方案变(ADR-0021;真 app 的
+       --cl-* 也只声明在 :root 与暗色块里)。本原型此前给每套配色各调了一版,是与实现不符的腐烂。
+       --cx-* 同此:三套配色下取值相同。侧别色是数据色,配色方案换的是界面色不是数据色。 */
+    --cl-bg: #f9e2da; --cl-fg: #a05239;
     --cx-bg: #dcefe4; --cx-fg: #1f7a4d;
   }
   html[data-scheme="purple"][data-theme="dark"] {
@@ -44,7 +49,7 @@
     --accent-soft: #2c2733;
     --shadow: 0 8px 24px rgba(0, 0, 0, .55);
     --ok-bg: #12301d; --ok-fg: #86efac;
-    --cl-bg: #3a3153; --cl-fg: #c9b3ec;
+    --cl-bg: #4c2d21; --cl-fg: #f8ac8f;
     --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
   }
   /* ── Mist blue ── */
@@ -60,8 +65,8 @@
     --accent-soft: #eef2f7;
     --shadow: 0 8px 24px rgba(44, 42, 40, .14);
     --ok-bg: #dcfce7; --ok-fg: #166534;
-    --cl-bg: #e4ebf5; --cl-fg: #3a5a88;
-    --cx-bg: #e2efe8; --cx-fg: #2d6b52;
+    --cl-bg: #f9e2da; --cl-fg: #a05239;
+    --cx-bg: #dcefe4; --cx-fg: #1f7a4d;
   }
   html[data-scheme="blue"][data-theme="dark"] {
     --bg: #16181c;
@@ -75,7 +80,7 @@
     --accent-soft: #1e2a38;
     --shadow: 0 8px 24px rgba(0, 0, 0, .55);
     --ok-bg: #12301d; --ok-fg: #86efac;
-    --cl-bg: #243448; --cl-fg: #a8c0dc;
+    --cl-bg: #4c2d21; --cl-fg: #f8ac8f;
     --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
   }
   /* ── Amber brown ── */
@@ -91,8 +96,8 @@
     --accent-soft: #f3ead4;
     --shadow: 0 8px 24px rgba(58, 52, 44, .14);
     --ok-bg: #dcfce7; --ok-fg: #166534;
-    --cl-bg: #ebe4d8; --cl-fg: #6b5220;
-    --cx-bg: #e2efe8; --cx-fg: #2d6b52;
+    --cl-bg: #f9e2da; --cl-fg: #a05239;
+    --cx-bg: #dcefe4; --cx-fg: #1f7a4d;
   }
   html[data-scheme="amber"][data-theme="dark"] {
     --bg: #1a1714;
@@ -106,7 +111,7 @@
     --accent-soft: #2e2820;
     --shadow: 0 8px 24px rgba(0, 0, 0, .55);
     --ok-bg: #12301d; --ok-fg: #86efac;
-    --cl-bg: #3a3228; --cl-fg: #ddc48e;
+    --cl-bg: #4c2d21; --cl-fg: #f8ac8f;
     --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
   }
 

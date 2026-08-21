@@ -13,9 +13,35 @@
        只读、不参与遮蔽,ADR-0010)。详情页形态见 project-detail 原型。
      2026-08-15 追加(第三侧 Grok 接入):Token 分栏的模式条与图例各多一项;xAI 的分段色要在
        三套主题 × 明暗下都与橙/绿/蓝/灰分得开,且在薄分段上仍认得出。
+     v4(2026-08-20,token 概览重设计·方向 A):累计总量提到**页头**——一张宽卡,左侧大号总量,
+       右侧一条细构成条(未命中输入/输出/cache 读),下方一行各侧拆解。三张侧卡随之**摘掉 token
+       数字**,回归「这一侧装了什么」的职责(检测状态 + 项目/skills/subagents 数);并补上原型里
+       一直缺的 GROK 侧卡。构成条为共享视觉块(_shared/totals-card.css),与 project-detail 一致演化。
+       注意一个后果:卡在页头,于是**所有分栏都看得见它**,不只 Token 分栏——这正是「提到页头」
+       的字面含义,是否可接受请一并评判。
+     v5.1(2026-08-20):各侧拆解不再单列一行,**并回三张侧卡本来就有的中间行**——同一组侧别标签在
+       相邻两行里出现两遍是纯重复。侧卡的盒型与宽度沿用既有的(三行、内容宽、不等分),
+       唯一的变化是那个数字随选中窗口走。
+       project-detail 没有侧卡,那边的 .tot-sides 一行保留——它在那一页不重复。
+     v5.2(2026-08-21,构成条回归):构成条以**统计下方的独立元素**重新出现(不裹在卡里),
+       随选中窗口变。配色改为用户裁定的命中=蓝 / 未命中=黄 / 输出=绿;⚠️ 这三个色相与下方趋势图的
+       provider 色板同屏,而 provider 已占蓝(Google)与绿(OpenAI)——取值已按离色板最远挑过
+       (实测 ΔE 见 _shared/totals-card.css),但「读者会不会去找哪一段对应哪个厂商」仍是要评判的点。
+       ⚠️ 与模型拆分同一个坑:**逐窗口的构成现有数据形状同样撑不住**——byDay 只存标量、不分桶,
+       本页的三段比例是 mock。要做,数据层这一票得同时办掉两件事。
+     v5(2026-08-20,时间维度):v4 的构成条**整条撤掉**(97/2.7/0.28 的悬殊分布在细条上读不出东西),
+       腾出的宽度改放四张同宽卡——全部历史 / 本日 / 近 7 天 / 近 30 天。**这排卡同时是时间筛选器**:
+       点选哪张,下方的趋势图与模型拆分就切到哪个窗口,各侧拆解那行也跟着变。
+       图窗恒为 30 天(数据只有日粒度),选中子窗口时其余日子压暗而非裁掉——一根孤柱说明不了大小。
+       ⚠️ 待判定的取舍在原型页顶栏里写着:**按窗口切分的模型拆分,现有数据形状撑不住**——逐日数据
+       只到 provider(四家厂商)且只存标量,不到模型;要做得先改数据层。本页的模型条是照"做成之后
+       会是什么样"摆的 mock,不代表现在能算出来。
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于
-       页面内容流)承载两组开关,按分栏出现——Memory 分栏是 Codex 记忆四态,Token 分栏是
-       xAI 分段色三候选(真实取值来自主题样式文件的 --p-xai,app 内无此开关)。 -->
+       页面内容流)承载三组开关,按分栏出现——「演示·用量」三态常驻(有数据 / 本日无用量 / 全空;
+       第二态是最容易漏掉却最常见的那个:早上打开时本日为 0 而历史不为 0,形态与全空不同——侧卡仍报
+       已检测、其余三个窗口仍有数),Memory 分栏是 Codex 记忆四态,Token 分栏是 xAI 分段色三候选
+       (真实取值来自主题样式文件的 --p-xai,app 内无此开关)。
+       演示状态同时作用到趋势图:卡说本日 0 而图上今天那根柱还有高度,是自相矛盾的原型,教错东西。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -23,11 +49,16 @@
 <!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
      references it -->
 <link rel="stylesheet" href="../_shared/trend-chart.css">
+<link rel="stylesheet" href="../_shared/totals-card.css">
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
-    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;
+    /* 构成三段:命中=蓝 / 未命中=黄 / 输出=绿(用户裁定 2026-08-21)。取值按离 provider
+       色板最远挑过——Google 已占蓝、OpenAI 已占绿,理由与实测 ΔE 见 _shared/totals-card.css */
+    --tc-rd:#2b8fd4;--tc-in:#dda32e;--tc-ou:#57a83e}
   @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
-    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;
+    --tc-rd:#5fb0e8;--tc-in:#e6bd5c;--tc-ou:#7cc45f}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
@@ -39,15 +70,23 @@
   .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
   .head{padding:14px 22px 0;border-bottom:1px solid var(--line)}
   .h1{font-size:16px;font-weight:700;margin-bottom:10px}
-  .stats{display:flex;gap:14px;margin-bottom:12px}
-  .stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 14px;min-width:150px}
+  /* 侧卡沿用既有的三行盒(徽章行 / 数字 / 计数小字)与**内容宽**:卡按内容撑,不等分、不伸展。
+     各侧拆解不再单列一行——那一行的三个标签与这三张卡完全重复,数字回到本来就属于它的中间行。 */
+  .stats{display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 14px;min-width:168px}
   .stat .k{font-size:10.5px;color:var(--text-2);margin-bottom:3px;display:flex;align-items:center;gap:6px}
+  /* 该侧在选中时间窗口下的用量 */
   .stat .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
   .stat .s{font-size:10.5px;color:var(--text-2);margin-top:2px}
   .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
-  .b.c{background:#e8e0f3;color:#6b4f92}.b.x{background:#dcefe4;color:#1f7a4d}
+  /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
+     「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
+     故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
+  .b.c{background:#f9e2da;color:#a05239}.b.x{background:#dcefe4;color:#1f7a4d}
+  .b.g{background:#ece5f6;color:#6d4fa0}
   .b.miss{border:1px dashed var(--line-strong);color:var(--text-2);background:transparent;font-weight:400}
-  @media (prefers-color-scheme:dark){.b.c{background:#3a3153;color:#c9b3ec}.b.x{background:#1d3a2b;color:#7fd6a4}}
+  @media (prefers-color-scheme:dark){.b.c{background:#4c2d21;color:#f8ac8f}.b.x{background:#1d3a2b;color:#7fd6a4}
+    .b.g{background:#332b47;color:#c9b3ec}}
   .tabs{display:flex;gap:2px}
   .tab{padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;color:var(--text-2);font-size:12.5px}
   .tab:hover{color:var(--text)}
@@ -149,12 +188,8 @@
   <div class="main">
     <div class="head">
       <div class="h1">Agents</div>
-      <div class="stats">
-        <div class="stat"><div class="k"><span class="b c">CLAUDE CODE</span>已检测</div>
-          <div class="v">11.2M</div><div class="s">46 项目 · 26 全局 skills · 5 subagents</div></div>
-        <div class="stat"><div class="k"><span class="b x">CODEX</span>已检测</div>
-          <div class="v">4.8M</div><div class="s">18 项目 · 23 全局 skills · 4 subagents</div></div>
-      </div>
+      <div data-shared-block="totals-card" id="totWrap"></div>
+      <div class="stats" id="sideCards"></div>
       <div class="tabs" id="tabs">
         <span class="tab on" data-t="token">Token</span><span class="tab" data-t="skills">Skills</span>
         <span class="tab" data-t="subagents">Subagents</span>
@@ -170,18 +205,12 @@
         <div class="chart" id="chart" data-shared-block="trend-chart"></div>
         <div class="xaxis" id="txaxis"></div>
         <div class="legend" id="tlegend"></div>
-        <div class="grp-t" style="margin-top:18px">按模型拆分(跨项目;条形同用 provider 品牌色)</div>
-        <div class="models">
-          <div class="m anthropic"><span class="nm2">claude-fable-5</span><span class="tr"><i style="width:58%"></i></span><span class="num">6.5M</span></div>
-          <div class="m anthropic"><span class="nm2">claude-opus-5</span><span class="tr"><i style="width:36%"></i></span><span class="num">4.1M</span></div>
-          <div class="m anthropic"><span class="nm2">claude-haiku-4-5</span><span class="tr"><i style="width:5%"></i></span><span class="num">0.6M</span></div>
-          <div class="m openai"><span class="nm2">gpt-5.5-codex</span><span class="tr"><i style="width:38%"></i></span><span class="num">4.3M</span></div>
-          <div class="m openai"><span class="nm2">gpt-5.5</span><span class="tr"><i style="width:4%"></i></span><span class="num">0.5M</span></div>
-          <!-- Grok 侧记的是每轮实际计费的模型名(带 -build 后缀),与它在会话摘要里自称的 grok-4.5 并不是
-               同一个字符串——这里照记录里的写,不做美化;摊薄成"会话主模型"是 Codex 侧的近似,Grok 不需要。 -->
-          <div class="m xai"><span class="nm2">grok-4.6-build</span><span class="tr"><i style="width:19%"></i></span><span class="num">2.1M</span></div>
-          <div class="m xai"><span class="nm2">grok-4.5-build</span><span class="tr"><i style="width:7%"></i></span><span class="num">0.8M</span></div>
-        </div>
+        <!-- Grok 侧记的是每轮实际计费的模型名(带 -build 后缀),与它在会话摘要里自称的 grok-4.5 并不是
+             同一个字符串——这里照记录里的写,不做美化;摊薄成"会话主模型"是 Codex 侧的近似,Grok 不需要。
+             ⚠️ 条形的数值按选中窗口变,这是本版要评判的形态;但逐日数据现在只到 provider、不到模型,
+             真做出来要先改数据层。见页头注释。 -->
+        <div class="grp-t" style="margin-top:18px" id="mTitle"></div>
+        <div class="models" id="models"></div>
       </div>
       <div data-p="skills" style="display:none">
         <div class="grp-t">合并单列 · 徽标=该侧是否存在 · 来源:全局库(可装卸)/ 插件(只读)
@@ -266,16 +295,132 @@
   <div class="drawer" id="drawer"></div>
   <!-- The demo harness floating layer: not part of the design, independent of the product page -->
   <div class="harness" id="harness" data-demo-harness></div>
+<script>
+// ── mock:全部历史一列取自本机真实计量(2026-08-19),其余三个窗口按同一形状缩放编造。
+//    形态要评判的是「同一份数据切成四个窗口后,各侧与各模型的**占比会变**」——所以四列不是等比缩放。
+const SIDES = [
+  { id:'cl', cls:'c', name:'CLAUDE CODE', on:true, sub:'46 项目 · 26 全局 skills · 5 subagents' },
+  { id:'cx', cls:'x', name:'CODEX',       on:true, sub:'18 项目 · 23 全局 skills · 4 subagents' },
+  { id:'gk', cls:'g', name:'GROK',        on:true, sub:'3 项目 · 7 全局 skills · 1 subagent' }
+];
+// 四个时间窗口 = 四张卡 = 时间筛选器本身。days 同时喂给趋势图(压暗窗口外的日子);null=不压暗
+const RANGES = [
+  { id:'all', k:'累计总量 · 全部历史', days:null, side:[9191526594,2441689686,694099983] },
+  { id:'d1',  k:'本日',               days:1,    side:[  61400000,  14200000,   3900000] },
+  { id:'d7',  k:'近 7 天',            days:7,    side:[ 372400000,  96300000,  31200000] },
+  { id:'d30', k:'近 30 天',           days:30,   side:[1523400000, 402100000, 118600000] }
+];
+// 逐窗口的模型拆分。顺序对齐 RANGES;刻意让占比随窗口变(近期 fable 起量、haiku 本日无量)。
+// **每一列都与 RANGES 的 side 恰好对得上**——同侧各模型之和 = 该侧在该窗口的总量。
+// 这不是洁癖:v3.2 那次「总量 8.5M 却 cache 48.2M」的自相矛盾就是从示例数字没对账开始的。
+const MODELS = [
+  { nm:'claude-fable-5',   cls:'anthropic', v:[5100000000, 37200000, 220000000, 820000000] },
+  { nm:'claude-opus-5',    cls:'anthropic', v:[3400000000, 24200000, 148000000, 560000000] },
+  { nm:'claude-haiku-4-5', cls:'anthropic', v:[ 691526594,        0,   4400000, 143400000] },
+  { nm:'gpt-5.5-codex',    cls:'openai',    v:[2000000000, 11700000,  79000000, 331000000] },
+  { nm:'gpt-5.5',          cls:'openai',    v:[ 441689686,  2500000,  17300000,  71100000] },
+  { nm:'grok-4.6-build',   cls:'xai',       v:[ 524099983,  3900000,  24600000,  92000000] },
+  { nm:'grok-4.5-build',   cls:'xai',       v:[ 170000000,        0,   6600000,  26600000] }
+];
+// 构成三段占该窗口总量的比例(未命中输入 / 输出 / cache 读)。顺序对齐 RANGES,每行恰好加总为 1——
+// 三段之和就是总量,这是这个切法唯一的理由,mock 里也不能破。刻意让比例随窗口变:近期 cache 命中率
+// 略低(会话更短、上下文更常重建),这正是"按窗口看构成"的价值所在。
+const COMP = [
+  { rd:0.9700, in:0.0272, ou:0.0028 },   // 全部历史
+  { rd:0.9580, in:0.0360, ou:0.0060 },   // 本日
+  { rd:0.9640, in:0.0310, ou:0.0050 },   // 近 7 天
+  { rd:0.9680, in:0.0285, ou:0.0035 }    // 近 30 天
+];
+let RANGE = 0;       // 选中的窗口(RANGES 下标),默认「全部历史」
+// 演示状态三选一。'idle' 是最容易漏掉、却最常见的那个:早上打开时「本日」为 0 而历史不为 0。
+// 它与「一条记录都没有」形态不同——侧卡仍报已检测、其余三个窗口仍有数,只有选中「本日」时
+// 才看得见空的样子,所以必须能单独摆出来评判,不能靠全空那一态代打。
+let DEMO = 'full';   // 'full' | 'idle'(本日无用量) | 'none'(一条记录都没有)
+/** 该窗口在当前演示状态下是否读作 0 */
+const zeroed = r => DEMO === 'none' || (DEMO === 'idle' && RANGES[r].id === 'd1');
+
+const fmt = n => n>=1e9 ? (n/1e9).toFixed(2)+'B' : n>=1e6 ? (n/1e6).toFixed(1)+'M' : n>=1e3 ? Math.round(n/1e3)+'k' : String(n);
+const sideOf = (r,i) => zeroed(r) ? 0 : RANGES[r].side[i];
+const totOf  = r => SIDES.reduce((a,_,i)=>a+sideOf(r,i), 0);
+
+/** 构成条:统计下方的独立元素,拆的是"选中窗口的总量由什么组成" */
+function compBlock(){
+  const G = totOf(RANGE);
+  if (!G) return '';
+  const c = COMP[RANGE];
+  const seg = (k,cls) => `<i class="${cls}" style="width:${(c[k]*100).toFixed(4)}%"></i>`;
+  const lg = (k,cls,label,dp,tip) =>
+    `<span title="${tip.replace(/"/g,'&quot;')}"><i class="${cls}"></i>${label} <b>${(c[k]*100).toFixed(dp)}%</b></span>`;
+  return `<div class="comp-block">
+      <div class="comp">${seg('rd','comp-rd')}${seg('in','comp-in')}${seg('ou','comp-ou')}</div>
+      <div class="comp-lg">
+        ${lg('rd','comp-rd','cache 读',1,`${fmt(Math.round(G*c.rd))} · 命中缓存、不必重算的输入`)}
+        ${lg('in','comp-in','未命中输入',1,`${fmt(Math.round(G*c.in))} · 含 cache 写(仅 Claude 侧非零):都是这一轮真读进模型的输入`)}
+        ${lg('ou','comp-ou','输出',2,`${fmt(Math.round(G*c.ou))} · 模型生成的 token`)}
+      </div>
+    </div>`;
+}
+
+function renderTotals(){
+  document.getElementById('totWrap').innerHTML =
+    `<div class="tot-row">${RANGES.map((r,ri)=>{
+       const v = totOf(ri);
+       return `<button type="button" class="tot-c ${ri===RANGE?'on':''} ${v?'':'zero'}" data-r="${ri}">
+                 <div class="tot-k">${r.k}</div><div class="tot-v">${fmt(v)}</div></button>`;
+     }).join('')}</div>${compBlock()}`;
+  // 各侧的量并进各自的侧卡(不再单列一行):同一个侧别标签在相邻两行出现两遍是纯重复,
+  // 而"这一侧用了多少"本就属于"这一侧装了什么"那张卡的中间行。数字随选中窗口变。
+  document.getElementById('sideCards').innerHTML = SIDES.map((s,i)=>
+    `<div class="stat">
+      <div class="k"><span class="b ${s.cls}">${s.name}</span>${s.on?'已检测':'未检测'}</div>
+      <div class="v">${s.on?fmt(sideOf(RANGE,i)):'—'}</div>
+      <div class="s">${s.on?s.sub:'—'}</div></div>`).join('');
+}
+
+function renderModels(){
+  const rows = zeroed(RANGE) ? [] : MODELS.map(m=>({nm:m.nm, cls:m.cls, v:m.v[RANGE]})).filter(m=>m.v>0);
+  const max = Math.max(1, ...rows.map(m=>m.v));
+  document.getElementById('mTitle').textContent =
+    `按模型拆分(跨项目;条形同用 provider 品牌色) · ${RANGES[RANGE].k.replace(' · 全部历史','')}`;
+  document.getElementById('models').innerHTML = rows.length
+    ? rows.map(m=>`<div class="m ${m.cls}"><span class="nm2">${m.nm}</span>
+        <span class="tr"><i style="width:${(m.v/max*100).toFixed(1)}%"></i></span>
+        <span class="num">${fmt(m.v)}</span></div>`).join('')
+    : `<div class="none">该窗口内没有模型用量</div>`;
+}
+
+/** 选中窗口一变,页头卡、各侧拆解、趋势图压暗段、模型拆分四处同时跟着变 */
+function applyRange(){
+  renderTotals(); renderModels();
+  if (!window.__trend) return;
+  // 演示状态也要作用到图上,否则会出现「卡说本日 0、图上今天那根柱却有高度」的自相矛盾
+  const base = window.__trendDays;
+  const blank = d => ({ ...d, by: {} });
+  window.__trend.setDays(
+    DEMO === 'none' ? base.map(blank)
+    : DEMO === 'idle' ? base.map((d,i)=> i === base.length-1 ? blank(d) : d)
+    : base);
+  window.__trend.setRange(RANGES[RANGE].days);
+}
+document.getElementById('totWrap').addEventListener('click', e=>{
+  const b = e.target.closest('[data-r]'); if(!b) return;
+  RANGE = +b.dataset.r; applyRange();
+});
+renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条画出来
+</script>
 <script src="../_shared/icons.js"></script>
 <script src="../_shared/trend-chart.js"></script>
 <script>
 
   // The trend chart: rendered by the shared piece (its logic and styles are in _shared/trend-chart.*, shared
   // with the other prototype pages)
-  TrendChartProto.mount(
+  // 页头那排卡是时间筛选器,图只被动响应——控制器挂出来供 applyRange 调用
+  window.__trendDays = TrendChartProto.mockDays(11, { scale: 9e7, withGoogle: true, archivedFirst: 4 })
+  window.__trend = TrendChartProto.mount(
     { chart: 'chart', xaxis: 'txaxis', legend: 'tlegend', seg: 'tseg' },
-    TrendChartProto.mockDays(11, { scale: 9e7, withGoogle: true, archivedFirst: 4 })
+    window.__trendDays
   )
+  applyRange()   // 图挂好后重跑一次,让压暗与演示状态在首帧就一致
 
   // ── The v2 components: Subagents / Memory / Plugins (folded in from the subagents-memory-plugin spec) ──
   const SUBAGENTS=[
@@ -395,18 +540,22 @@
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyXai);
   function renderHarness(){
     const on=document.querySelector('.tab.on')?.dataset.t, el=$('harness');
+    // 总量卡这一组常驻:它已移入页头,所有分栏都看得见,开关也就不该随分栏出现/消失
+    const de=(v,t)=>`<span data-e="${v}" class="${DEMO===v?'on':''}">${t}</span>`;
+    const totGrp=`<span class="dl">演示·用量</span>`+de('full','有数据')+de('idle','本日无用量')+de('none','全空');
+    el.style.display='flex';
     if(on==='token'){
-      el.style.display='flex';
       const seg=(v)=>`<span data-x="${v}" class="${XAI===v?'on':''}">${XAI_CAND[v].n}</span>`;
-      el.innerHTML=`<span class="dl">演示·xAI 分段色</span>`+Object.keys(XAI_CAND).map(seg).join('');
+      el.innerHTML=totGrp+`<span class="dl">演示·xAI 分段色</span>`+Object.keys(XAI_CAND).map(seg).join('');
       return
     }
-    if(on!=='memory'){ el.style.display='none'; el.innerHTML=''; return }
-    el.style.display='flex';
+    if(on!=='memory'){ el.innerHTML=totGrp; return }
     const seg=(v,l)=>`<span data-v="${v}" class="${CXMEM===v?'on':''}">${l}</span>`;
-    el.innerHTML=`<span class="dl">演示·Codex 记忆</span>${seg('on-has','开·有内容')}${seg('on-empty','开·无内容')}${seg('off-empty','关·无内容')}${seg('off-has','关·遗留文件')}`;
+    el.innerHTML=totGrp+`<span class="dl">演示·Codex 记忆</span>${seg('on-has','开·有内容')}${seg('on-empty','开·无内容')}${seg('off-empty','关·无内容')}${seg('off-has','关·遗留文件')}`;
   }
   $('harness').addEventListener('click',e=>{
+    const em=e.target.dataset.e;
+    if(em!==undefined){ DEMO = em; applyRange(); renderHarness(); return }
     const x=e.target.dataset.x;
     if(x){ XAI=x; applyXai(); renderHarness(); return }
     const v=e.target.dataset.v; if(!v)return;

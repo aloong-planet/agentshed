@@ -361,13 +361,31 @@ export const zh = {
   },
   /** Token statistics and the trend chart (ticket 08) */
   token: {
-    totalCard: (note: string) => `累计总量(各侧合计${note ? ` · ${note}` : ''})`,
-    inOut: '输入 / 输出',
-    inOutNote: '各侧原生口径分列',
-    cacheCard: '其中 cache(ccusage 口径已计入总量)',
-    cacheReadWrite: (read: string, write: string) => `读 ${read} · 写 ${write}`,
+    /** The four time windows. Each card shows that window's total and selecting it scopes the page. */
+    winAll: (note: string) => `累计总量 · 全部历史${note ? `(${note})` : ''}`,
+    winToday: '本日',
+    winD7: '近 7 天',
+    winD30: '近 30 天',
+    /* "last 7 / 30 days" rather than "last week / month": the window is a rolling N days, while
+       "a month" sits ambiguously between a calendar month and 30 days. Naming the days tells no lie
+       and matches the trend chart's own span. */
+    /** The composition: the three buckets that carry one meaning on every side and sum to the total */
+    compCacheRead: 'cache 读',
+    compUncached: '未命中输入',
+    compOutput: '输出',
+    compTipCacheRead: (v: string) => `${v} · 命中缓存、不必重算的输入`,
+    /* Cache writes are counted inside "uncached input", which the label cannot convey on its own —
+       and "where did cache creation go" is the first question this bar provokes. */
+    compTipUncached: (v: string) => `${v} · 含 cache 写:都是这一轮真读进模型的输入`,
+    compTipOutput: (v: string) => `${v} · 模型生成的 token`,
+    /** The window is appended to whichever by-model title the page uses — the two pages carry
+     *  different caveats in that title, so it is passed in rather than written here */
+    byModelIn: (title: string, win: string) => `${title} · ${win}`,
+    noUsageInWindow: '选中的时间窗口内没有用量',
     trendTitle: '近 30 天趋势(本地时区 · 日粒度)',
     legendNote: '柱高=当日总量,分段=各 provider 占比',
+    /** Appended to the legend note when a window narrower than the chart is selected */
+    legendDimNote: ';压暗段=选中窗口之外',
     tipTotal: (label: string, total: string) => `${label} · 合计 ${total}`,
     tipArchived: ' · 归档(源文件已清理)',
     tipNoUsage: '无用量',

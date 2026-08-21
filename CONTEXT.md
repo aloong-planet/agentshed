@@ -202,6 +202,23 @@ Distinct from the **accent**, which says "selected" rather than "which side"; th
 value is the defect ADR-0021 was written about, not a resemblance to preserve.
 _Avoid_: badge colour (names one of its uses), brand colour (these are ours, not the vendors')
 
+**Usage row**:
+One day's usage at the finest grain the aggregation produces — day × side × project × model, carrying
+all four token fields. One shape serves three roles: the archive's persisted grain (ADR-0007), part of
+the wire contract, and the single source every token figure derives from (ADR-0025) — the totals, the
+trend, and whatever a selected **time window** needs. A row with an empty day is on record but
+attributable to no day: it joins the whole-history figures and no bounded window.
+_Avoid_: archive row (names one of its roles), usage event (an event is per turn; a row is per day)
+
+**Time window**:
+The span a token figure is scoped to: all history, today, the last 7 days, or the last 30 days — a
+closed set, selected by clicking the card that shows that window's total. Cut against the snapshot's
+scan anchor, not the wall clock, so "today" always means the trend chart's last bar. Distinct from the
+**trend chart's own 30-day span**, which never changes: a narrower window dims bars, it does not
+remove them.
+_Avoid_: date range (suggests arbitrary endpoints, which are out of scope), period (ambiguous between
+this and the chart's span)
+
 **Theme variable classes**:
 Every variable declared in a theme block belongs to exactly one of three classes, and the class —
 not a count — decides where it has to be defined. Which class it is follows from one question: what
@@ -436,11 +453,10 @@ _Avoid_: error message (bare, implies a finished sentence)
   This is not fixable in the parser: the information is absent from the source data, so any presentation
   that needs comparability must aggregate to those three.
 
-  **Known violation, stated so this invariant is not read as already held**: the cumulative-totals
-  card set sums `input` and `cacheWrite` across sides today, and its secondary line claims a per-side
-  breakdown it does not render. That is what the invariant forbids, written before the invariant
-  existed. Bringing the card set into line is a user-visible change and therefore starts at a
-  prototype; until it does, treat the card as the counter-example rather than the precedent.
+  The interface holds this invariant: the composition bar cuts a total into exactly these three
+  buckets, and no surface sums `input` or `cacheWrite` across sides on its own. The former violation —
+  a card set summing both, with a secondary line claiming a per-side breakdown it never rendered — was
+  retired on 2026-08-21 when the totals became the four-window card row.
 
 - **A metric only some sides report does not join `TokenTotals` (settled 2026-08-18)**: reasoning
   tokens are a case in point — Codex reports `reasoning_output_tokens` and Grok `reasoningTokens`

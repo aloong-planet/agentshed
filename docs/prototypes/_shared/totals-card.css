@@ -1,0 +1,157 @@
+/* 共享视觉块 · token 概览卡(totals-card)
+   出现在 agents-page 与 project-detail 两个原型页,必须一致演化——改这里两处同时变。
+   使用点在容器上声明 data-shared-block="totals-card"。
+
+   v2(2026-08-20)形态改判:这一排**同时是时间筛选器**,不只是展示。
+   四张同宽卡 = 四个时间窗口(全部历史 / 本日 / 近 7 天 / 近 30 天),点选其一即选中该窗口,
+   下方的趋势图与模型拆分随之改范围。一个控件兼办「多少」与「看哪一段」,不额外占一行。
+
+   前一版右侧那条构成条(未命中输入/输出/cache 读)整条撤掉——四张卡要走宽度,而构成本身
+   在真实数据下是 97/2.7/0.28 的悬殊分布,细条上看不出东西。随之作废的 --tc-rd/--tc-in/--tc-ou
+   三个色变量已从两个原型页的主题块删除。
+
+   卡是按钮:选中态与 hover 态改的是 border-color / background,故这两个属性的 base 值必须
+   留在本文件的 class 里,不得写进使用点的行内 style(行内会把伪类整条压死,且不报错)。 */
+
+/* 按内容宽,不伸展——与下面那排侧卡同一个惯例(它们上下相邻,一个铺满一个不铺满会读成两套东西)。
+   min-width 是下限不是宽度:最长的那张("累计总量 · 全部历史")按标签撑,短的不至于窄成一条。 */
+.tot-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.tot-c {
+  min-width: 130px;
+  /* 按钮默认样式全部推平:字体不继承、背景与描边是本组件自己的语义 */
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 13px;
+}
+.tot-c:hover {
+  border-color: var(--line-strong);
+}
+.tot-c.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.tot-c.on:hover {
+  border-color: var(--accent);
+}
+/* 不加省略号:卡按内容撑,标签该多宽就多宽。省略号会让"标签被截"与"标签本来就短"在页面上
+   长得一模一样——换个语言或字号截了也没人看得见,而这一行正是四个窗口彼此的区分所在。 */
+.tot-c .tot-k {
+  font-size: 10.5px;
+  color: var(--text-2);
+  margin-bottom: 3px;
+  white-space: nowrap;
+}
+.tot-c.on .tot-k {
+  color: var(--accent);
+  font-weight: 600;
+}
+.tot-c .tot-v {
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+/* 该窗口无用量:数字仍写 0(不是"—"),因为 0 是一个测到的事实,而"—"读作没测 */
+.tot-c.zero .tot-v {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+/* ── 构成条(未命中输入 / 输出 / cache 读)──
+   它是**统计下方的独立元素**,不裹在任何一张卡里:它拆的是"选中窗口的总量由什么组成",
+   与侧卡拆的"由哪一侧贡献"是同一个数的两种切法,并列而非从属。数值随选中窗口变。
+
+   配色(2026-08-21 用户裁定):命中=蓝、未命中=黄、输出=绿。
+   ⚠️ 这三个色相与下方趋势图的 provider 色板同屏,而 provider 已占蓝(Google)与绿(OpenAI)。
+   取值因此按"离 provider 色板最远"挑过,不是随手取三个:明色下与最近 provider 的 ΔE 分别是
+   蓝27.4 / 黄39.8 / 绿37.2,三段彼此 ΔE ≥59.7;暗色下最弱的一对是蓝 vs Google 的 ΔE=18.8。
+   仍然存在的风险(已知并接受):读者可能去找"哪一段对应哪个厂商",而它们根本不是同一个维度。 */
+.comp-block {
+  margin-bottom: 12px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--line);
+}
+.comp {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--line);
+}
+/* 最窄那段在真实数据下只占 0.28%;min-width 是它唯一的存在证明,没有它会被舍入成 0 宽 */
+.comp > i {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+}
+.comp-rd { background: var(--tc-rd); }
+.comp-in { background: var(--tc-in); }
+.comp-ou { background: var(--tc-ou); }
+
+/* 图例:0.28% 的那段在条上只有 2–3px,图例是它唯一能被读到的地方 */
+.comp-lg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 7px;
+  font-size: 10.5px;
+  color: var(--text-2);
+}
+.comp-lg > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.comp-lg i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: 0 0 8px;
+}
+.comp-lg b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* 各侧拆解:一行小字,跟随选中的窗口变;不抢卡片的视觉重量。
+   **只有 project-detail 用它**——agents-page 有三张侧卡,那边的各侧数字并进了侧卡,
+   单列一行会让同一组侧别标签在相邻两行出现两遍。两页在此处刻意不同形,理由是结构不同,
+   不是漏改:一页有可并入的载体,另一页没有。 */
+.tot-sides {
+  font-size: 11px;
+  color: var(--text-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-bottom: 12px;
+  min-height: 16px;
+}
+.tot-sides > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.tot-sides b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+}
+.tot-sides .off {
+  opacity: 0.55;
+}

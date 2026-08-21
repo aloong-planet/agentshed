@@ -10,6 +10,21 @@
 // (`string|null`) and provider names, and do not enter the six dictionaries.
 import { dictOf, type Language } from './i18n'
 
+/**
+ * A local-time-zone day key, YYYY-MM-DD. **The join key** between a usage row, a trend bar and a time
+ * window — the three have to cut days the same way or a window silently drops a day, so the rule is
+ * stated once rather than copied into each consumer.
+ *
+ * Deliberately hand-built rather than `Intl`: this is a key, not a display string. `Intl` would give a
+ * localised rendering that changes with the interface language, which is precisely what a key must not
+ * do.
+ */
+export function localDay(ms: number): string {
+  const d = new Date(ms)
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
 /** The uniform degraded representation for a missing value or a non-finite number — NaN is never shown */
 const DASH = '—'
 

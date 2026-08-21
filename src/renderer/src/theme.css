@@ -38,8 +38,14 @@
   /* The chart hover tooltip: a fixed dark background with high contrast, not following the paper feel */
   --tip-bg: #1b1b1f;
   --tip-fg: #ffffff;
-  --cl-bg: #e8e0f3;
-  --cl-fg: #6b4f92;
+  /* Claude takes the Anthropic hue (ADR-0021). The decision was carried out for Grok only — the Grok
+     badge was derived from the *retired* Claude purple while the Claude badge kept it, so the ADR and
+     the shipped values contradicted each other, and the --p-xai comment below still calls that purple
+     retired. The pair sits at the lightness and chroma of the cx/gk pairs rather than being picked by
+     eye, which puts its text-on-fill contrast (4.50 light, 6.62 dark) inside the 4.15–5.19 / 6.39–7.12
+     range the others already occupy. */
+  --cl-bg: #f9e2da;
+  --cl-fg: #a05239;
   --cx-bg: #dcefe4;
   --cx-fg: #1f7a4d;
   /* GK: hand-tuned like the cl/cx pairs (ruled 2026-08-16) — the ADR-0021 purple family, the dark
@@ -54,6 +60,17 @@
      white card (ADR-0021; the dark value below is the old badge's dark foreground unchanged) */
   --p-xai: #ad98d0;
   --p-other: #9aa0a6;
+  /* The composition bar's three buckets: cache read blue, uncached input yellow, output green
+     (ADR-0024). Appearance-varying like the provider colours above — they describe data, and a theme
+     changes the interface rather than the data.
+     **These hues overlap the provider palette on purpose-adjacent ground**: Google owns blue and
+     OpenAI green, so the values are placed clear of them (Lab hue 264 vs Google's 284, 134 vs
+     OpenAI's 169) with lightness and chroma held inside the palette's own range. Measured distance to
+     the nearest provider colour: 27.4 / 39.8 / 37.2 light, weakest pair 18.8 dark. The residual risk
+     the ADR names is dimensional, not chromatic — no value fixes it. */
+  --tc-rd: #2b8fd4;
+  --tc-in: #dda32e;
+  --tc-ou: #57a83e;
 }
 /* Mist blue · light */
 html[data-theme='blue'] {
@@ -111,8 +128,8 @@ html[data-theme='amber'] {
     --note-fg: #f0dd8a;
     --tip-bg: #1b1b1f;
     --tip-fg: #ffffff;
-    --cl-bg: #3a3153;
-    --cl-fg: #c9b3ec;
+    --cl-bg: #4c2d21;
+    --cl-fg: #f8ac8f;
     --cx-bg: #1d3a2b;
     --cx-fg: #7fd6a4;
     --gk-bg: #352c48;
@@ -125,6 +142,9 @@ html[data-theme='amber'] {
        ADR-0021: every purple clearing the accent stops reading as the Claude-adjacent purple */
     --p-xai: #c9b3ec;
     --p-other: #adb2b8;
+    --tc-rd: #5fb0e8;
+    --tc-in: #e6bd5c;
+    --tc-ou: #7cc45f;
   }
   html[data-theme='blue'] {
     --bg: #16181c;
@@ -668,8 +688,150 @@ body {
   color: var(--text-2);
   margin-top: 2px;
 }
-.stat.cache {
-  border-style: dashed;
+/* ── The time-window row and the composition bar (token-stats sequence G) ── */
+
+/* The four window cards **are** the selector: each shows that window's total and clicking it selects
+   the window. Same idiom as .stat above — content width, no stretch — because they read as one group
+   with the side cards below them. */
+.tot-row {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.tot-c {
+  /* A button, so its own defaults are pushed flat: the font is not inherited and the background and
+     border carry this component's meaning rather than the platform's */
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 13px;
+  min-width: 130px;
+}
+/* background and border-color have their base here and nowhere inline: an inline value outrides every
+   class selector including these two states, and the failure is silent — the interaction simply does
+   nothing, with no error and nothing for typecheck to catch */
+.tot-c:hover {
+  border-color: var(--line-strong);
+}
+.tot-c.on,
+.tot-c.on:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.tot-c .k {
+  font-size: 10.5px;
+  color: var(--text-2);
+  margin-bottom: 3px;
+  /* No ellipsis: the card is content-width, so a label may be as wide as it needs. Truncation would
+     make "clipped" and "genuinely short" look identical, and this line is what tells the four windows
+     apart */
+  white-space: nowrap;
+}
+.tot-c.on .k {
+  color: var(--accent);
+  font-weight: 600;
+}
+.tot-c .v {
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+/* A window with no usage still prints 0 rather than a dash: 0 is a measured fact, a dash reads as
+   "not measured" */
+.tot-c.zero .v {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+/* Each side's figure for the selected window, on the page that has no side cards to carry it */
+.tot-sides {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-bottom: 12px;
+  min-height: 16px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.tot-sides > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.tot-sides b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+}
+/* A side with nothing in this window stays listed, dimmed: dropping it would make the row's membership
+   depend on the window, and "this side has no usage here" is itself the answer */
+.tot-sides .off {
+  opacity: 0.55;
+}
+
+/* The composition sits **below the totals and outside any card**: it cuts the same number the side
+   cards cut, along a different axis, so the two are siblings rather than one containing the other. */
+.comp-block {
+  margin-bottom: 12px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--line);
+}
+.comp {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--line);
+}
+/* On real data the smallest bucket is a fraction of a percent; min-width is the only thing keeping it
+   on screen at all, and the legend is the only place its number can be read */
+.comp > i {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+}
+.comp-rd {
+  background: var(--tc-rd);
+}
+.comp-in {
+  background: var(--tc-in);
+}
+.comp-ou {
+  background: var(--tc-ou);
+}
+.comp-lg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 7px;
+  font-size: 10.5px;
+  color: var(--text-2);
+}
+.comp-lg > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.comp-lg i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: 0 0 8px;
+}
+.comp-lg b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
 }
 .stat-err {
   font-size: 10.5px;
@@ -1010,6 +1172,17 @@ body {
 .col:hover {
   outline: 1px solid var(--accent);
   outline-offset: 1px;
+}
+/* Days outside the selected time window (D10). The chart's own span stays 30 days whatever is
+   selected: the data is day-grained, so cutting it down to "today" would leave a single bar, and a
+   lone bar states nothing about its own size — the surrounding days are the reference that makes the
+   selected span readable. Dimming is a rendering state; the axis, segmentation and tooltips are
+   unaffected. */
+.col.out .sp {
+  opacity: 0.16;
+}
+.col.out:hover .sp {
+  opacity: 0.5;
 }
 .sp {
   width: 100%;
