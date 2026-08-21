@@ -3083,6 +3083,44 @@ test('settings: the three appearance choices change data-theme, and entering and
 })
 
 /**
+ * projects-list: the selected row is told apart by a deeper wash, not a ring (settled 2026-08-21).
+ * The old ring was an outline, which paints outside the border box and rode on the neighbour's
+ * hover background; the wash must also stay one step deeper than the accent-soft that hover and
+ * the side-count badge use, and adjacent rows keep a 1px gap so two washed rows never merge.
+ */
+test('project list: selection is a deeper wash with no ring, and adjacent rows keep a 1px gap', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
+  const alpha = join(home, 'alpha-proj')
+  const beta = join(home, 'beta-proj')
+  mkdirSync(alpha, { recursive: true })
+  mkdirSync(beta, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [alpha]: {}, [beta]: {} } }))
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'alpha-proj' }).click()
+  await expect(win.locator('.side .row.sel')).toHaveCount(1)
+  const s = await win.evaluate(() => {
+    const sel = document.querySelector('.side .row.sel') as HTMLElement
+    const other = document.querySelector('.side .row:not(.sel)') as HTMLElement
+    const badge = other.querySelector('.cnt-b') as HTMLElement | null
+    const second = document.querySelectorAll('.side .row')[1] as HTMLElement
+    return {
+      outline: getComputedStyle(sel).outlineStyle,
+      selBg: getComputedStyle(sel).backgroundColor,
+      softRef: badge ? getComputedStyle(badge).backgroundColor : null,
+      gap: getComputedStyle(second).marginTop
+    }
+  })
+  expect(s.outline, 'no selection ring').toBe('none')
+  expect(s.softRef, 'accent-soft reference (an unselected badge) present').not.toBeNull()
+  expect(s.selBg, 'selected wash one step deeper than accent-soft').not.toBe(s.softRef)
+  expect(s.gap, '1px breathing between adjacent rows').toBe('1px')
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/**
  * Appearance mode (i18n ticket 04).
  *
  * **What is and is not tested here**: it tests "choosing a mode changes the effective light/dark" and the

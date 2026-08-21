@@ -20,9 +20,9 @@
 <title>原型 — 项目图鉴列表</title>
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
-    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;--float-shadow:rgba(0,0,0,.18)}
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;--accent-soft-deep:#e1d7e9;--float-shadow:rgba(0,0,0,.18)}
   @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
-    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;--accent-soft-deep:#413b4e;
     --float-shadow:rgba(0,0,0,.5)}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
@@ -59,7 +59,11 @@
   .list{flex:1;overflow:auto;padding:2px 8px}
   .row{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:7px;cursor:pointer;position:relative}
   .row:hover{background:var(--accent-soft)}
-  .row.sel{background:var(--accent-soft);outline:1px solid var(--accent)}
+  /* 裁决(2026-08-21):选中 = 深一档底色(--accent-soft-deep,accent 26% 混 card 的手算值),
+     不再用 outline 环——outline 画在盒外、压邻行背景(重叠 bug 根因);相邻行 1px 呼吸。
+     与 theme.css 正本同构。 */
+  .row.sel{background:var(--accent-soft-deep)}
+  .row + .row{margin-top:1px}
   .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .row.stale .nm{color:var(--text-2);text-decoration:line-through}
   /* 曾经有一条 min-width:62px,唯一作用是把数字徽章推出 hover 时浮现的「隐藏」按钮的覆盖范围
