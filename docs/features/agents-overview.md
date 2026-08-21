@@ -2,13 +2,17 @@
 
 ## Overview
 Users running several coding agents want to know, the moment the app opens, "what state is each
-side in and how much has each burned". This page is the default landing page and gathers both agent
-sides' global picture onto one screen.
+side in and how much has each burned". This page is the default landing page and gathers every
+agent side's global picture onto one screen.
 
 ## Capabilities
-- Two summary cards at the top: each side's detection status, cumulative token total, project count
+- A summary card per side at the top: that side's detection status, token figure, project count
   and global skill count; if one side's registry is corrupt it degrades to an error explanation while
-  the other side is unaffected
+  the other sides are unaffected
+- While a launch's first scan runs, the page keeps its shape: real headings and labels with pulsing
+  placeholder blocks where the figures will land, and a scanning note beside the title. Nothing on
+  the page responds to clicks until the data arrives, the data then fills in place without the page
+  jumping, and a later refresh never brings the placeholders back
 - Token section (the default): a large 30-day daily trend chart (switchable between combined and a
   single side) and a cross-project model breakdown; the totals include stale projects and say so
 - Skills section: every side's global library merged into one column, with side badges showing which

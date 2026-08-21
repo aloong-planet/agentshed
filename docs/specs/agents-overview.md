@@ -35,6 +35,8 @@ see [appearance](appearance.md) (the rail's settings dimension).
    that someone using only one side can still use the app.
 5. As a user, I want the totals' accounting (including stale projects) stated explicitly, so that
    when the numbers do not match I know where the difference is.
+6. As a user, I want the page's structure visible as a skeleton while the first scan runs, so that
+   launching the app never looks like a blank or hung window even when the scan takes long.
 
 ## Failure modes and boundaries
 
@@ -44,7 +46,32 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - A2 One side not detected → that side's card shows "not detected", the other behaves normally.
 - A3 One side's registry corrupt → that side's card shows an error explanation (in place of the stats
   row), the other side is unaffected.
-- A4 Scan not finished → a scanning state, not misleading empty sections.
+- A4 First scan of this launch not finished → the page renders a **skeleton** (changed 2026-08-21;
+  it used to be a bare hint on an otherwise empty stage): the page's real structure with its static
+  labels rendered (title, time-window card labels, side-card names, tab labels, trend title) and a
+  placeholder block in every data slot — card values, side figures and their secondary rows, the
+  trend chart with its axis and legend, the per-model rows. A scanning hint (spinner + copy) sits
+  **inline in the title row**. The hint copy no longer promises that nothing is shown before the
+  scan finishes — that sentence became false with this change and is rewritten in all six languages.
+- A4a The skeleton is non-interactive: time-window cards, tabs and every other control under the
+  page header refuse pointer input, and nothing shows a hover or selected affordance beyond a muted
+  default-tab marker. The rail stays live — settings, the projects dimension and refresh all work
+  (refresh is deduplicated against the in-flight startup scan per R2). Changing language or
+  appearance from settings restyles the skeleton like any page — its labels come from the same
+  dictionaries and its colours from the same theme tokens.
+- A4b Filling is in place: when the first snapshot arrives, data replaces placeholders with **no
+  anchor moving** — the hint sits in the title row precisely so its disappearance causes no vertical
+  shift. Two stated exceptions: the number of placeholder model rows is nominal, since the model
+  count is unknown until the scan lands; and a machine whose sides report no usage at all collapses
+  the usage-only regions (composition bar, legend, model rows) on fill, because the loaded page
+  omits them — the skeleton is shaped for the common case of data being present.
+- A4c The skeleton exists only before this launch's first snapshot. Later refreshes — manual or
+  automatic — keep the previous data on screen and never fall back to the skeleton.
+- A4d First scan failure → the skeleton and hint stay as they are; recovery rides the existing
+  rescan triggers (timer, window focus, manual refresh). A dedicated first-scan error state is out
+  of scope.
+- A4e Once the first snapshot lands with no side detected, A1's whole-page empty state replaces the
+  skeleton — the two states never mix.
 
 **Sequence B: sections and accounting**
 - B1 The set of sections = Token / Skills / Subagents / Plugins / MCP / Memory / Configuration; a new
@@ -89,6 +116,11 @@ see [appearance](appearance.md) (the rail's settings dimension).
   it passes silently).
 - **Degradation granularity**: degrade per side (a single-side failure does not affect the other),
   never fail the whole page.
+- **Skeleton**: a render-layer state of the same page, driven by "no snapshot yet" — the main
+  process is untouched. Static labels come from the dictionaries (the same keys the loaded page
+  uses); placeholder blocks take the separator-line grey with a subtle opacity pulse that honours
+  reduced-motion preferences (settled in the prototype, 2026-08-21). Placeholder geometry matches
+  the loaded content's line boxes so the fill is shift-free (A4b).
 
 ## Testing Decisions
 
@@ -97,9 +129,20 @@ and corruption degradation and snapshot assembly; the contract validation round 
 switching through every section renders with no main-process errors (adding a section requires
 updating the tab count assertion).
 
+The skeleton (A4 family) is tested at the e2e seam: an environment-injected delay holds the first
+scan open (the same injection family as the rescan intervals), so the skeleton window is a stable
+state rather than a race. Assertions are render-level, not existence-level: the placeholder blocks
+are visible, controls under the header refuse pointer input (hit-testing, not attribute checks), and
+the in-place fill is asserted **geometrically** — key anchors' positions measured before and after
+the snapshot arrives (the same discipline as the project list's floating-layer assertions).
+
 ## Out of Scope
 
 - Write operations on the global library / plugins / memories (the one write operation is installing
   a skill into a project).
 - Cross-component aggregate views and global search.
 - Live file watching (startup scan + manual refresh only).
+- A dedicated first-scan error state (A4d keeps the skeleton and lets the rescan triggers retry).
+- Persisting the previous run's snapshot so a cold start shows real data immediately — decided
+  worth doing (2026-08-21) but deliberately a separate feature: it brings disk format, staleness
+  marking and allow-list rebuild questions the skeleton does not have.

@@ -1,0 +1,285 @@
+<!doctype html>
+<!-- A UI prototype · Agents 页启动骨架(2026-08-21,需求变更:启动扫描期间不再只显示一句
+     「正在扫描」的空态,改为按页面真实结构摆占位,扫描完成后原位填充)。
+     问题:①方向 A(高保真镜像:静态文案真实渲染,数据位灰块微动效)在这一页长什么样;
+     ②「正在扫描」轻提示放在标题行内(与 h1 同行)是否成立——选这个位置是因为完成时它消失
+       不引起任何纵向位移(独占一行的提示消失时,下方所有内容会向上跳一次);
+     ③扫描完成后的填充是否接近零跳变(演示条可在两态间切换对照)。
+     骨架期间整页不可交互(tab / 时间窗卡都不可点),rail 照常。
+     文案注:骨架上的扫描提示是**候选新文案**(旧 key shell.scanning 的括号说明
+     「(扫描完成前不显示空列表)」在新行为下不再为真,六语都要换);其余标签取自现有字典。
+     未覆盖维度:「已载入」态的侧卡小字、构成条图例、模型名等**数据内容**仅中文/原文——
+     该态只作跳变对照,六语与完整交互的评判归 prototype-agents.html(本页 tab、时间窗标签、
+     扫描提示等骨架期可见的静态文案已做六语覆盖)。
+     演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于页面内容流)
+     承载两组开关——「演示·状态」扫描中/已载入(真实判定 = 渲染器是否已收到首个 snapshot,
+     app 内无此开关);「演示·语言」六选一(真实语言来自设置里的语言偏好)。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 — Agents 页启动骨架</title>
+<link rel="stylesheet" href="../_shared/trend-chart.css">
+<link rel="stylesheet" href="../_shared/totals-card.css">
+<style>
+  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;
+    --tc-rd:#2b8fd4;--tc-in:#dda32e;--tc-ou:#57a83e}
+  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;
+    --tc-rd:#5fb0e8;--tc-in:#e6bd5c;--tc-ou:#7cc45f}}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
+  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2)}
+  .rail .ri:hover{background:var(--accent-soft)}
+  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+  .head{padding:14px 22px 0;border-bottom:1px solid var(--line)}
+  /* 标题与扫描提示同行:提示消失时不产生纵向位移(它不独占一行) */
+  .h1row{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
+  .h1{font-size:16px;font-weight:700}
+  .scanrow{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-2)}
+  .scanrow .spin{display:inline-flex;animation:spin 1.2s linear infinite;color:var(--accent)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .stats{display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 14px;min-width:168px}
+  .stat .k{font-size:10.5px;color:var(--text-2);margin-bottom:3px;display:flex;align-items:center;gap:6px}
+  .stat .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+  .stat .s{font-size:10.5px;color:var(--text-2);margin-top:2px}
+  .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
+  .b.c{background:#f9e2da;color:#a05239}.b.x{background:#dcefe4;color:#1f7a4d}
+  .b.g{background:#ece5f6;color:#6d4fa0}
+  @media (prefers-color-scheme:dark){.b.c{background:#4c2d21;color:#f8ac8f}.b.x{background:#1d3a2b;color:#7fd6a4}
+    .b.g{background:#332b47;color:#c9b3ec}}
+  .tabs{display:flex;gap:2px}
+  .tab{padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;color:var(--text-2);font-size:12.5px}
+  .tab:hover{color:var(--text)}
+  .tab.on{background:var(--bg);color:var(--accent);font-weight:600;border:1px solid var(--line);border-bottom-color:var(--bg)}
+  .body{flex:1;overflow:auto;padding:16px 22px}
+  .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
+  .chart{height:130px}
+  .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;margin-left:auto}
+  .seg span{padding:4px 11px;font-size:11.5px;color:var(--text-2);cursor:pointer}
+  .seg span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .models{display:flex;flex-direction:column;gap:7px}
+  .m{display:flex;align-items:center;gap:10px}
+  .m .nm2{width:150px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;flex:none}
+  .m .tr{flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+  .m .tr i{display:block;height:100%}
+  .m .num{width:70px;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--text-2)}
+  /* provider 品牌色(与 trend-chart 共享块同源的语义) */
+  .m.anthropic .tr i{background:#d97757}.m.openai .tr i{background:#10a37f}.m.xai .tr i{background:#ad98d0}
+  @media (prefers-color-scheme:dark){.m.anthropic .tr i{background:#e8916f}
+    .m.openai .tr i{background:#2fc79f}.m.xai .tr i{background:#c9b3ec}}
+
+  /* ── 骨架占位元素 ──
+     取色只用 --line(分隔线灰):占位块要读作「这里将有东西」,不能抢过真实内容;
+     动效是整块透明度脉动(不是扫光渐变),幅度小、可被 prefers-reduced-motion 关停。 */
+  .sk{display:inline-block;background:var(--line);border-radius:5px;
+    animation:skp 1.6s ease-in-out infinite}
+  @keyframes skp{0%,100%{opacity:.55}50%{opacity:1}}
+  @media (prefers-reduced-motion:reduce){.sk,.skb{animation:none}}
+  /* 图表骨架:一排底对齐的灰柱,高度取固定数组(不是随机——原型要可复现),
+     逐柱错开动效相位,读作「图在长出来」 */
+  /* flex:1 是必须的:共享块把 .chart 定为 flex 容器,不给宽的子项会收缩成 0 宽(柱全部隐形) */
+  .sk-chart{flex:1;display:flex;align-items:flex-end;gap:3px;height:100%;padding:2px 2px 0}
+  .skb{flex:1;background:var(--line);border-radius:2px 2px 0 0;animation:skp 1.6s ease-in-out infinite}
+  /* 骨架态的不可交互:内容区整体拒点(rail 与演示条不在此容器内);
+     可点控件的 hover/选中样式同时压平,免得「看着能点」 */
+  body.scanning .head,body.scanning .body{pointer-events:none}
+  body.scanning .tot-c{cursor:default}
+  body.scanning .tot-c:hover{border-color:var(--line)}
+  body.scanning .tab{cursor:default}
+  body.scanning .tab.on{color:var(--text-2);background:var(--bg);
+    border:1px solid var(--line);border-bottom-color:var(--bg)}
+  body.scanning .seg span{cursor:default}
+  body.scanning .seg span.on{background:transparent;color:var(--text-2);font-weight:400}
+
+  /* 演示基建(非设计的一部分,勿实现):底部悬浮条,独立于页面内容流。
+     居中用 left+right+margin:auto;内部间距走 padding 与 gap(理由见其他原型页同注释) */
+  .harness{position:fixed;bottom:14px;left:12px;right:12px;margin:0 auto;width:fit-content;z-index:60;
+    display:flex;align-items:center;flex-wrap:wrap;row-gap:2px;gap:4px;background:#26262b;
+    border-radius:16px;padding:6px 14px;font-size:11px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+  .harness .dl{color:#8a8a92;padding:0 3px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
+  .harness .sepv{width:1px;height:16px;background:#4a4a52;display:inline-block;flex:none}
+  .harness span[data-s],.harness span[data-v]{padding:3px 9px;border-radius:999px;cursor:pointer;
+    color:#b8b8bf;white-space:nowrap}
+  .harness span[data-s]:hover,.harness span[data-v]:hover{color:#fff}
+  .harness span[data-s].on,.harness span[data-v].on{background:#4a4a52;color:#fff;font-weight:600}
+</style>
+</head>
+<body class="scanning">
+  <div class="rail">
+    <div class="ri on" title="Agents(默认落地)" data-icon="RobotFace" data-icon-size="17"></div>
+    <div class="ri" title="Projects(骨架态见列表骨架原型)" data-goto="project-list/list-skeleton" data-goto-href="../project-list/prototype-list-skeleton.html" data-icon="Folder" data-icon-size="17"></div>
+    <div class="ri" title="全局刷新(两维度共用)" style="margin-top:auto;margin-bottom:6px" data-icon="RefreshCw" data-icon-size="17"></div>
+  </div>
+  <div class="main">
+    <div class="head">
+      <div class="h1row">
+        <div class="h1">Agents</div>
+        <span class="scanrow" id="scanrow"><span class="spin" data-icon="RefreshCw" data-icon-size="12"></span><span id="scantext"></span></span>
+      </div>
+      <div data-shared-block="totals-card">
+        <div class="tot-row" id="totRow"></div>
+        <div id="compWrap"></div>
+      </div>
+      <div class="stats" id="sideCards"></div>
+      <div class="tabs" id="tabs">
+        <span class="tab on">Token</span><span class="tab">Skills</span>
+        <span class="tab">Subagents</span><span class="tab">Plugins</span>
+        <span class="tab">MCP</span><span class="tab">Memory</span>
+        <span class="tab" id="tabCfg"></span>
+      </div>
+    </div>
+    <div class="body">
+      <div class="grp-t"><span id="trendTitle"></span>
+        <span class="seg" id="tseg"><span class="on" id="segTotal"></span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
+      <div class="chart" id="chart" data-shared-block="trend-chart"></div>
+      <div class="xaxis" id="txaxis"></div>
+      <div class="legend" id="tlegend"></div>
+      <div class="grp-t" style="margin-top:18px" id="mTitle"></div>
+      <div class="models" id="models"></div>
+    </div>
+  </div>
+  <div class="harness" id="harness" data-demo-harness></div>
+<script src="../_shared/icons.js"></script>
+<script src="../_shared/trend-chart.js"></script>
+<script>
+// ── 六语文案。scan 是候选新文案(旧 shell.scanning 的括号说明在新行为下为假,六语同换);
+//    其余逐字取自现有字典(agents.winAll(totalsNote)/winToday/winD7/winD30、
+//    token.trendTitle、agents.tabCfg、label.trendTotal)。
+const L = {
+  zh:{scan:'正在扫描各 agent 侧…', winAll:'累计总量 · 全部历史(含失效项目)', winToday:'本日',
+      winD7:'近 7 天', winD30:'近 30 天', trend:'近 30 天趋势(本地时区 · 日粒度)', cfg:'配置', total:'合计'},
+  en:{scan:'Scanning the agent sides…', winAll:'Total · all history (includes stale projects)', winToday:'Today',
+      winD7:'Last 7 days', winD30:'Last 30 days', trend:'Last 30 days’ trend (local time zone · daily)', cfg:'Config', total:'Total'},
+  fr:{scan:'Analyse des côtés agents…', winAll:'Total · tout l’historique (inclut les projets obsolètes)', winToday:'Aujourd’hui',
+      winD7:'7 derniers jours', winD30:'30 derniers jours', trend:'Tendance sur 30 jours (fuseau local · par jour)', cfg:'Configuration', total:'Total'},
+  ru:{scan:'Сканирование сторон агентов…', winAll:'Всего · вся история (включая устаревшие проекты)', winToday:'Сегодня',
+      winD7:'Последние 7 дней', winD30:'Последние 30 дней', trend:'Динамика за последние 30 дней (местный часовой пояс · по дням)', cfg:'Конфигурация', total:'Итого'},
+  es:{scan:'Escaneando los lados de agente…', winAll:'Total · todo el historial (incluye proyectos obsoletos)', winToday:'Hoy',
+      winD7:'Últimos 7 días', winD30:'Últimos 30 días', trend:'Tendencia de los últimos 30 días (zona horaria local · por día)', cfg:'Configuración', total:'Total'},
+  ja:{scan:'各エージェントサイドをスキャン中…', winAll:'累計 · 全期間(失効プロジェクトを含む)', winToday:'本日',
+      winD7:'直近 7 日', winD30:'直近 30 日', trend:'直近 30 日の推移(ローカルタイムゾーン · 日単位)', cfg:'構成', total:'合計'}
+};
+// 「已载入」对照态的数值:取自 prototype-agents 的全部历史 mock(该页 mock 注释里的对账规矩同样成立)
+const SIDES = [
+  { cls:'c', name:'CLAUDE CODE', v:'9.19B', sub:'46 项目 · 26 全局 skills · 5 subagents' },
+  { cls:'x', name:'CODEX',       v:'2.44B', sub:'18 项目 · 23 全局 skills · 4 subagents' },
+  { cls:'g', name:'GROK',        v:'694.1M', sub:'3 项目 · 7 全局 skills · 1 subagent' }
+];
+const TOT_VALS = ['12.33B','79.5M','499.9M','2.04B'];
+const MODELS = [
+  { nm:'claude-fable-5',   cls:'anthropic', v:'5.10B', w:100 },
+  { nm:'claude-opus-5',    cls:'anthropic', v:'3.40B', w:66.7 },
+  { nm:'gpt-5.5-codex',    cls:'openai',    v:'2.00B', w:39.2 },
+  { nm:'claude-haiku-4-5', cls:'anthropic', v:'691.5M', w:13.6 },
+  { nm:'grok-4.6-build',   cls:'xai',       v:'524.1M', w:10.3 },
+  { nm:'gpt-5.5',          cls:'openai',    v:'441.7M', w:8.7 },
+  { nm:'grok-4.5-build',   cls:'xai',       v:'170.0M', w:3.3 }
+];
+// 图表骨架柱高(%):固定数组,不随机——原型要可复现,两次打开长得一样
+const SK_BARS = [18,32,24,46,38,58,42,66,50,74,60,84,68,90,72,62,78,54,70,44,58,36,48,28,40,52,64,46,34,26];
+// 骨架数据位的宽度:数值位宽度彼此错开一点,读作「不同长度的数会来」,不是同一根条复制四遍
+const SK_TOT_W = [64,44,52,52];
+
+let STATE = 'scan';   // 'scan' | 'loaded'
+let lang = 'zh';
+const $ = (id) => document.getElementById(id);
+
+function render(){
+  const t = L[lang];
+  document.body.classList.toggle('scanning', STATE === 'scan');
+  document.getElementById('scanrow').style.display = STATE === 'scan' ? 'inline-flex' : 'none';
+  $('scantext').textContent = t.scan;
+  $('tabCfg').textContent = t.cfg;
+  $('trendTitle').textContent = t.trend;
+  $('segTotal').textContent = t.total;
+  const labels = [t.winAll, t.winToday, t.winD7, t.winD30];
+  $('totRow').innerHTML = labels.map((k, i) => STATE === 'scan'
+    ? `<button type="button" class="tot-c" tabindex="-1"><div class="tot-k">${k}</div>
+         <div class="tot-v"><span class="sk" style="width:${SK_TOT_W[i]}px;height:18px"></span></div></button>`
+    : `<button type="button" class="tot-c ${i === 0 ? 'on' : ''}"><div class="tot-k">${k}</div>
+         <div class="tot-v">${TOT_VALS[i]}</div></button>`).join('');
+  // 构成条:骨架 = 同几何的整条灰 + 一截图例位;载入 = 真实三段(97/2.72/0.28,对照态文案仅中文)
+  $('compWrap').innerHTML = STATE === 'scan'
+    ? `<div class="comp-block"><div class="comp"><i class="sk" style="flex:1;border-radius:0;animation-delay:.2s"></i></div>
+         <div class="comp-lg" style="min-height:14.5px;align-items:center"><span class="sk" style="width:64px;height:10px"></span><span class="sk" style="width:84px;height:10px"></span><span class="sk" style="width:56px;height:10px"></span></div></div>`
+    : `<div class="comp-block"><div class="comp"><i class="comp-rd" style="width:97%"></i><i class="comp-in" style="width:2.72%"></i><i class="comp-ou" style="width:0.28%"></i></div>
+         <div class="comp-lg"><span><i class="comp-rd"></i>cache 读 <b>97.0%</b></span>
+           <span><i class="comp-in"></i>未命中输入 <b>2.7%</b></span>
+           <span><i class="comp-ou"></i>输出 <b>0.28%</b></span></div></div>`;
+  $('sideCards').innerHTML = SIDES.map((s, i) => STATE === 'scan'
+    ? `<div class="stat"><div class="k"><span class="b ${s.cls}">${s.name}</span><span class="sk" style="width:38px;height:10px"></span></div>
+         <div class="v"><span class="sk" style="width:${[58,46,50][i]}px;height:16px"></span></div>
+         <div class="s"><span class="sk" style="width:${[150,140,120][i]}px;height:10px"></span></div></div>`
+    : `<div class="stat"><div class="k"><span class="b ${s.cls}">${s.name}</span>已检测</div>
+         <div class="v">${s.v}</div><div class="s">${s.sub}</div></div>`).join('');
+  $('mTitle').innerHTML = STATE === 'scan'
+    ? `<span class="sk" style="width:260px;height:11px;margin:2px 0"></span>`
+    : `按模型拆分(跨项目;条形同用 provider 品牌色) · 累计总量`;
+  // 骨架模型行数是名义值(扫描期不知道会有几个模型),不承诺与载入后的行数一致
+  $('models').innerHTML = STATE === 'scan'
+    ? [150,120,135,100,128].map((w, i) =>
+        `<div class="m"><span class="nm2"><span class="sk" style="width:${w}px;height:11px;animation-delay:${i * .12}s"></span></span>
+           <span class="tr"><span class="sk" style="display:block;height:100%;width:${[88,64,42,20,12][i]}%;border-radius:4px;animation-delay:${i * .12}s"></span></span>
+           <span class="num"><span class="sk" style="width:40px;height:11px;animation-delay:${i * .12}s"></span></span></div>`).join('')
+    : MODELS.map((m) =>
+        `<div class="m ${m.cls}"><span class="nm2">${m.nm}</span>
+           <span class="tr"><i style="width:${m.w}%"></i></span><span class="num">${m.v}</span></div>`).join('');
+  renderChart();
+}
+
+let trend = null;
+function renderChart(){
+  if (STATE === 'scan') {
+    trend = null;
+    $('chart').innerHTML = `<div class="sk-chart">${SK_BARS.map((h, i) =>
+      `<span class="skb" style="height:${h}%;animation-delay:${(i % 8) * .1}s"></span>`).join('')}</div>`;
+    // x 轴与图例也要占位:载入后这两行会出现(共约 34px),骨架不预留的话填充时下方内容会跳一次
+    $('txaxis').innerHTML = `<span class="sk" style="display:block;height:9px;margin:2.5px 0;width:420px"></span>`;
+    $('tlegend').innerHTML = `<span class="sk" style="width:72px;height:12px;margin:2px 0"></span>
+      <span class="sk" style="width:64px;height:12px;margin:2px 0"></span>
+      <span class="sk" style="width:150px;height:12px;margin:2px 0"></span>`;
+    return;
+  }
+  $('chart').innerHTML = '';
+  trend = TrendChartProto.mount(
+    { chart: 'chart', xaxis: 'txaxis', legend: 'tlegend', seg: 'tseg' },
+    TrendChartProto.mockDays(11, { scale: 9e7, withGoogle: true, archivedFirst: 4 })
+  );
+}
+
+// 演示基建(非设计的一部分,勿实现):状态与语言都是 mock 开关——
+// 真实状态判定 = 渲染器是否已收到首个 snapshot;真实语言 = 设置里的语言偏好
+function renderHarness(){
+  const sp = (v, l) => `<span data-s="${v}" class="${STATE === v ? 'on' : ''}">${l}</span>`;
+  const lp = (v, l) => `<span data-v="${v}" class="${lang === v ? 'on' : ''}">${l}</span>`;
+  $('harness').innerHTML = `<span class="dl">演示·状态</span>${sp('scan','扫描中')}${sp('loaded','已载入')}` +
+    `<span class="sepv"></span><span class="dl">演示·语言</span>` +
+    lp('zh','中文') + lp('en','EN') + lp('fr','FR') + lp('ru','RU') + lp('es','ES') + lp('ja','JA');
+}
+$('harness').addEventListener('click', (e) => {
+  const s = e.target.dataset.s;
+  if (s) { STATE = s; render(); renderHarness(); return; }
+  const v = e.target.dataset.v;
+  if (!v) return;
+  lang = v; render(); renderHarness();
+});
+render(); renderHarness();
+</script>
+<script>
+  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
+  // navigates to the file directly
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+  });
+</script>
+</body>
+</html>

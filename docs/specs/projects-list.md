@@ -44,8 +44,9 @@ and are never written back to any agent configuration.
    quickly when there are many projects.
 4. As a user, I want stale projects (in the registry, directory deleted) collapsed by default but
    revealable, so that the list stays clean without losing the cleanup lead.
-5. As a user, I want a scanning state rather than an empty list before the scan finishes, so that I do
-   not mistake "not scanned yet" for "no projects".
+5. As a user, I want the list's structure with placeholder rows rather than an empty list before the
+   first scan finishes, so that I do not mistake "not scanned yet" for "no projects" and the app
+   never looks blank on launch (changed 2026-08-21; it used to be a bare hint on an empty stage).
 
 > Manual hiding was story 5 until 2026-08-16, when it was removed (ADR-0022). The constraint it
 > answered to — registries are read-only to this app, so directories the user does not care about
@@ -75,6 +76,23 @@ and are never written back to any agent configuration.
 - A9 A side that is installed but has registered nothing (its data directory exists, its registry is
   absent or empty) → `detected=true` with no projects contributed. This is a normal state for a
   newly adopted side, not a failure, and must not be reported as one.
+- A10 First scan of this launch not finished → the dimension renders a **skeleton**: the sidebar
+  shows its real structure — the search field and the filter row greyed with their static labels —
+  above placeholder rows whose geometry (row height, name/count/activity slots) matches real rows;
+  the detail area shows the scanning hint centred **in place of** the pick-a-project empty state,
+  because with nothing to pick yet that guidance would be false. The hint copy is one dictionary
+  entry shared with the agents overview; its old parenthetical promised the pre-skeleton behaviour
+  and is rewritten in all six languages.
+- A11 The skeleton is non-interactive: search, the side dropdown, the stale toggle and the
+  placeholder rows all refuse input; the rail stays live (dimension switch, settings, refresh —
+  refresh deduplicated against the in-flight startup scan per C4).
+- A12 The skeleton exists only before this launch's first snapshot; later refreshes keep the
+  previous list on screen and never fall back to the skeleton. Filling is in place — placeholder
+  and data rows share their geometry, so the swap moves no anchor; the placeholder row count is
+  nominal (the project count is unknown until the scan lands).
+- A13 First scan failure → the skeleton and hint stay; recovery rides the existing rescan triggers
+  (timer, window focus, manual refresh). A dedicated error state is out of scope (the agents
+  overview spec carries the same rule as A4d).
 
 **Sequence B: activity computation**
 - B1 The Claude side counts `*.jsonl` under the encoded directory, taking the largest mtime as the
@@ -145,6 +163,12 @@ and are never written back to any agent configuration.
   border box and rode on the neighbouring row's hover background; hovering the selected row keeps
   the deep wash. Adjacent rows keep a 1px gap so a selected and a hovered wash never read as one
   block.
+- **Skeleton**: a render-layer state of this dimension, driven by "no snapshot yet" — the main
+  process is untouched. The sidebar's static labels come from the dictionaries (the same keys the
+  loaded page uses); placeholder blocks take the separator-line grey with a subtle opacity pulse
+  that honours reduced-motion preferences, and placeholder rows share the real rows' geometry
+  (settled in the prototype, 2026-08-21). One skeleton form language across both dimensions — the
+  agents overview's skeleton uses the same placeholder colour and pulse.
 
 ## Testing Decisions
 
@@ -159,6 +183,12 @@ rather than existence ones: a clipped or mislaid layer reports a perfectly ordin
 the check that distinguishes it is hit-testing the layer's own centre and confirming the point belongs
 to it. Their opposite resize answers are each asserted, since a layer that dismisses when it should
 reposition looks identical to one that was never opened.
+
+The skeleton (A10–A13) is tested at the e2e seam: an environment-injected delay holds the first scan
+open (the same injection family as the rescan intervals), making the skeleton a stable state rather
+than a race. Assertions are render-level — placeholder rows visible, the sidebar's controls refusing
+pointer input by hit-testing (not attribute checks), and the in-place fill asserted geometrically
+(row height and first-row position measured before and after the snapshot arrives).
 
 ## Out of Scope
 

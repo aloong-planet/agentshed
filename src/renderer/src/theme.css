@@ -390,6 +390,100 @@ body {
   opacity: 0.75;
 }
 
+/* ── The startup skeleton (specs agents-overview A4 family, projects-list A10–A13) ──
+   The page's real structure before this launch's first snapshot: static labels rendered normally,
+   every data slot a placeholder block. Placeholders take the separator-line grey — they must read
+   as "something will land here" without competing with real content — and pulse opacity rather
+   than sweep a gradient; the pulse stops under prefers-reduced-motion.
+   `.sk-page` turns pointer events off wholesale (A4a/A11): the skeleton refuses input as a page,
+   not control by control, so a control added later cannot be forgotten. The muted overrides below
+   strip the default markers' accent — under the skeleton, "selected" colour would promise an
+   interaction that is not there. */
+.sk-ph {
+  display: inline-block;
+  background: var(--line);
+  border-radius: 5px;
+  animation: sk-pulse 1.6s ease-in-out infinite;
+}
+/* A text-line placeholder's wrapper: holds a zero-width space beside the block so the row gets the
+   current font's own line box (platform-correct by construction — a pixel height measured on one OS
+   shifts the fill on another); nowrap so the strut cannot break onto its own line */
+.sk-line {
+  white-space: nowrap;
+}
+/* The fill inside an .m track: the track itself is --line, so this placeholder needs the next step
+   of grey to be visible at all */
+.sk-ph-deep {
+  background: var(--line-strong);
+}
+/* A trend-chart placeholder bar; a flex child of .chart like the real columns */
+.sk-ph-bar {
+  flex: 1;
+  background: var(--line);
+  border-radius: 2px 2px 0 0;
+  animation: sk-pulse 1.6s ease-in-out infinite;
+}
+@keyframes sk-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-ph,
+  .sk-ph-bar {
+    animation: none;
+  }
+}
+/* The scanning hint shares the title's row, so its disappearance causes no vertical shift (A4b) */
+.h1-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.scan-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.scan-hint svg {
+  color: var(--accent);
+  animation: spin 1.2s linear infinite;
+}
+/* The detail area's centred variant (projects-list A10): the hint text takes the empty state's own
+   size there — it stands in for that state's guidance line, not beside a title */
+.empty .scan-hint {
+  display: block;
+  font-size: inherit;
+}
+.big.scan-spin {
+  color: var(--accent);
+  opacity: 1;
+}
+.big.scan-spin svg {
+  animation: spin 1.2s linear infinite;
+}
+.sk-page {
+  pointer-events: none;
+}
+.sk-page .tab.on {
+  color: var(--text-2);
+  font-weight: 600;
+  background: var(--bg);
+  border-color: var(--line);
+  border-bottom-color: var(--bg);
+}
+.sk-page .seg button.on {
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 400;
+}
+
 /* ── The Projects list column ── */
 .side {
   width: 272px;

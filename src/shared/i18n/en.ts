@@ -83,7 +83,7 @@ export const en: Locale = {
 
   shell: {
     pickProject: 'Select a project to see its details',
-    scanning: 'Scanning the agent sides… (no empty list is shown until the scan finishes)'
+    scanning: 'Scanning the agent sides…'
   },
   skills: {
     searchPlaceholder: 'Search skills…',

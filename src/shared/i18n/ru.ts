@@ -81,7 +81,7 @@ export const ru: Locale = {
 
   shell: {
     pickProject: 'Выберите проект, чтобы увидеть детали',
-    scanning: 'Сканирование сторон агентов… (пустой список не показывается до конца сканирования)'
+    scanning: 'Сканирование сторон агентов…'
   },
   skills: {
     searchPlaceholder: 'Поиск skill…',

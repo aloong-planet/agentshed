@@ -104,10 +104,20 @@ let inflight: Promise<Snapshot> | null = null
 /** The last successful scan moment; the throttle baseline for focus triggers (token-stats E1) */
 let lastScanAt: number | null = null
 
+/** Test seam (the same injection family as the rescan intervals): holds the **first** scan open so
+ * e2e can assert the startup skeleton as a stable state instead of racing it (spec A4). 0 in
+ * production — rescanIntervalMs falls back to it on unset/invalid input. */
+const SCAN_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_SCAN_DELAY_MS'], 0)
+let firstScanDelayed = false
+
 async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
   inflight = (async () => {
     try {
+      if (SCAN_DELAY_MS > 0 && !firstScanDelayed) {
+        firstScanDelayed = true
+        await new Promise((r) => setTimeout(r, SCAN_DELAY_MS))
+      }
       const snap = await scan(realRoots(), { now: () => Date.now() })
       if (tokenEngine) {
         const claudePaths = snap.projects

@@ -60,7 +60,11 @@ interface Launched {
  * so results vary with each person's data volume — green in CI where home is empty, timing out locally.
  * "Remembering to pass it" cannot hold the line, so typecheck does.
  */
-async function launch(cacheContent: string | undefined, home: string): Promise<Launched> {
+async function launch(
+  cacheContent: string | undefined,
+  home: string,
+  extraEnv?: Record<string, string>
+): Promise<Launched> {
   const userData = makeUserData(cacheContent)
   const errors: string[] = []
   const app = await electron.launch({
@@ -74,7 +78,9 @@ async function launch(cacheContent: string | undefined, home: string): Promise<L
       // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
       // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
 // the tests
-      AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
+      AGENTSHED_SYSTEM_LANGUAGES: 'en-US',
+      // Per-case seams (e.g. AGENTSHED_SCAN_DELAY_MS for the startup-skeleton cases) ride on top
+      ...extraEnv
     }
   })
   app.process().stderr?.on('data', (b: Buffer) => {
@@ -3823,4 +3829,143 @@ test('the time window drives all four regions at once: side figures, composition
   expect(afterRefresh.dimmed, 'and the chart is still scoped to it').toBe(29)
 
   await win.screenshot({ path: 'e2e-out/token-window-today.png' })
+})
+
+/**
+ * Startup skeleton (spec agents-overview A4/A4a/A4b/A4c): before this launch's first snapshot the
+ * agents page renders its real structure with placeholder blocks, refuses input, and fills in place.
+ *
+ * The scan-delay seam holds the first scan open so the skeleton is a stable state rather than a
+ * race; 4s covers launch+mount comfortably while the fill assertion waits it out.
+ *
+ * Known gaps, deliberate:
+ * - A4d (first-scan failure keeps the skeleton) is untested — there is no seam to make the first
+ *   scan fail, and a fixture contrived to crash scan() would pin the crash, not the rule. Testable
+ *   once a failure seam exists.
+ * - Keyboard unreachability is not asserted: focus semantics differ in a hidden window (see the
+ *   launch() note on AGENTSHED_NO_FOREGROUND), so a focus assertion here would be unreliable —
+ *   the pointer side is covered by the hit-test below.
+ * - A4c gets a weak assertion (no skeleton after a refresh completes): catching the refresh
+ *   mid-flight would race, so "never goes back mid-refresh" rests on the render condition being
+ *   "no snapshot yet", not on this case.
+ */
+test('startup skeleton: agents page shows placeholders, refuses input, fills in place', async () => {
+  const l = await launch(undefined, mkUsageHome(), { AGENTSHED_SCAN_DELAY_MS: '4000' })
+  try {
+    const win = await l.app.firstWindow()
+    // Skeleton up: real static structure (title, four window cards, three side cards, seven tabs)
+    // plus placeholder blocks and the inline scanning hint
+    await expect(win.locator('.pane-head h1')).toHaveText('Agents')
+    await expect(win.locator('.scan-hint')).toBeVisible()
+    await expect(win.locator('.tot-row .tot-c')).toHaveCount(4)
+    await expect(win.locator('.pane-head .stats .stat')).toHaveCount(3)
+    await expect(win.locator('.pane-head .tabs .tab')).toHaveCount(7)
+    expect(await win.locator('.sk-ph').count()).toBeGreaterThan(0)
+
+    // Non-interactive (A4a): hit-test the first window card's centre — with pointer events off the
+    // point must fall through to something outside the card. An attribute check cannot see this.
+    const cardHit = await win.evaluate(() => {
+      const c = document.querySelector('.tot-c')
+      if (!c) return null
+      const r = c.getBoundingClientRect()
+      const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return c.contains(el)
+    })
+    expect(cardHit, 'the window card must not be hit-testable under the skeleton').toBe(false)
+
+    // Anchors before the fill (A4b): the fill must move nothing
+    const readAnchors = (): Promise<Record<string, number>> =>
+      win.evaluate(() => {
+        const top = (s: string): number => {
+          const el = document.querySelector(s)
+          return el ? el.getBoundingClientRect().top : NaN
+        }
+        return {
+          h1: top('.pane-head h1'),
+          stats: top('.pane-head .stats'),
+          tabs: top('.pane-head .tabs'),
+          chart: top('.chart'),
+          models: top('.models')
+        }
+      })
+    const before = await readAnchors()
+    await win.screenshot({ path: 'e2e-out/skeleton-agents.png' })
+
+    // The fill: placeholders clear, the hint goes, real figures land
+    await expect(win.locator('.sk-ph')).toHaveCount(0, { timeout: 20_000 })
+    await expect(win.locator('.scan-hint')).toHaveCount(0)
+    await expect(win.locator('.tot-row .tot-c .v').first()).not.toHaveText('')
+    const after = await readAnchors()
+    for (const k of Object.keys(before)) {
+      expect(Math.abs(after[k] - before[k]), `anchor ${k} must not move on fill`).toBeLessThan(0.6)
+    }
+    await win.screenshot({ path: 'e2e-out/skeleton-agents-filled.png' })
+
+    // A4c: a manual refresh after the fill keeps data on screen — the skeleton never comes back
+    await win.locator('.rail .ri.grfr').click()
+    await expect(win.locator('.rail .ri.grfr.busy')).toHaveCount(0, { timeout: 15_000 })
+    await expect(win.locator('.sk-ph')).toHaveCount(0)
+
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l)
+  }
+})
+
+/**
+ * Startup skeleton, projects dimension (spec projects-list A10/A11/A12): the sidebar's real
+ * structure over placeholder rows, the scanning hint centred in the detail area in place of the
+ * pick-a-project guidance, no interaction, and an in-place fill. The rail stays live under the
+ * skeleton (A11), which is what lets this case switch dimensions at all.
+ */
+test('startup skeleton: projects dimension shows placeholder rows and fills in place', async () => {
+  const l = await launch(undefined, mkUsageHome(), { AGENTSHED_SCAN_DELAY_MS: '4000' })
+  try {
+    const win = await l.app.firstWindow()
+    await expect(win.locator('.pane-head h1')).toHaveText('Agents')
+    // The rail is live while the page refuses input (A11)
+    await win.locator('.rail .ri').nth(1).click()
+    // Sidebar: the real search field (disabled) and filter row, over placeholder rows
+    await expect(win.locator('.side .sh input')).toBeDisabled()
+    await expect(win.locator('.side .dd-trigger')).toBeVisible()
+    const skRows = await win.locator('.side .list .row').count()
+    expect(skRows, 'placeholder rows are on screen').toBeGreaterThan(0)
+    expect(await win.locator('.side .list .row .sk-ph').count()).toBeGreaterThan(0)
+    // The detail area carries the scanning hint, not the pick-a-project guidance (A10)
+    await expect(win.locator('.detail .scan-hint')).toBeVisible()
+    // Non-interactive (A11): a placeholder row's centre is not hit-testable
+    const rowHit = await win.evaluate(() => {
+      const r0 = document.querySelector('.side .list .row')
+      if (!r0) return null
+      const r = r0.getBoundingClientRect()
+      const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return r0.contains(el)
+    })
+    expect(rowHit, 'a placeholder row must not be hit-testable').toBe(false)
+    // Row geometry before the fill (A12): the swap must not move the row grid
+    const before = await win.evaluate(() => {
+      const r = document.querySelector('.side .list .row')!.getBoundingClientRect()
+      return { top: r.top, height: r.height }
+    })
+    await win.screenshot({ path: 'e2e-out/skeleton-projects.png' })
+
+    // The fill: real rows land, the hint yields to the pick-a-project empty state
+    await expect(win.locator('.side .list .row', { hasText: 'demo-proj' })).toBeVisible({
+      timeout: 20_000
+    })
+    await expect(win.locator('.side .sk-ph')).toHaveCount(0)
+    await expect(win.locator('.detail .scan-hint')).toHaveCount(0)
+    await expect(win.locator('.detail .empty')).toBeVisible()
+    await expect(win.locator('.side .sh input')).toBeEnabled()
+    const after = await win.evaluate(() => {
+      const r = document.querySelector('.side .list .row')!.getBoundingClientRect()
+      return { top: r.top, height: r.height }
+    })
+    expect(Math.abs(after.top - before.top), 'first row top must not move').toBeLessThan(0.6)
+    expect(Math.abs(after.height - before.height), 'row height must not change').toBeLessThan(0.6)
+
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l)
+  }
 })
