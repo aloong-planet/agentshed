@@ -158,9 +158,11 @@ export function AgentsSkeleton(): JSX.Element {
         <div className="stats">
           {SIDES.map((s, i) => (
             <div key={s.cls} className="stat">
+              {/* SkLine, not Sk: the loaded row carries detection copy at the row's own font size,
+                  and the badge's smaller type alone gives the row a shorter line box off-platform */}
               <div className="k">
                 <span className={`badge ${s.cls}`}>{s.label}</span>
-                <Sk w={38} h={10} />
+                <SkLine w={38} h={10} />
               </div>
               <div className="v">
                 <SkLine w={[58, 46, 50][i]} h={16} />
