@@ -179,7 +179,9 @@ document by its headings)
   content-styling differences.
 - E7d Tables take the paper form on every surface (settled 2026-08-21 on the comparison prototype;
   previously both surfaces rendered bare browser-default tables — borderless, padless, barely
-  legible as tables): a bordered rounded frame and row lines in `--line`, **column separators one
+  legible as tables): a bordered frame — **6px corner radius, one value shared by the table frame,
+  the fenced-code inset and the frontmatter card** (ruled 2026-08-21 after comparing 8px/1px/3px
+  candidates on the prototype) — and row lines in `--line`, **column separators one
   step stronger** (`--line-strong`) so columns stay readable, an `--accent-soft` header with
   `--accent-deep` text whose **cells never wrap** (a wide table scrolls its container instead) and
   are **always centred**, and `--bg`-striped even rows — every value an existing token. **GFM

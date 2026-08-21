@@ -1097,7 +1097,7 @@ body {
   width: 100%;
   margin: 0.75em 0;
   border: 1px solid var(--line);
-  border-radius: 1px;
+  border-radius: 6px;
   overflow: hidden;
   font-size: 12px;
 }
@@ -2797,7 +2797,7 @@ mark {
   margin: 0 0 1em;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--bg);
   font-size: 12.5px;
   line-height: 1.5;
