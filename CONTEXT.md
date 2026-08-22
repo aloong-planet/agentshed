@@ -469,6 +469,16 @@ _Avoid_: error message (bare, implies a finished sentence)
   re-derive it from a fresh scan. The bar for admitting a new field is that **every** side can answer
   it, or that the view showing it is explicitly single-side.
 
+- **Sentence-shaped chrome takes its case from the dictionary; no uppercase transform over copy
+  (settled 2026-08-22)**: the `.grp-t` description rows (the trend title, the by-model line, section
+  hints, MCP headings) render the dictionary's sentence case — all-caps reads poorly in the
+  non-English languages and uppercases Latin words embedded in Chinese copy. Three micro-label
+  classes keep small caps **by explicit ruling, not omission**: `.settings-sec-t` (settings section
+  titles), `.files-head` (file-table column headers) and `.turn .bb .lb` (turn block labels) are
+  single-word labels, not sentences; the CLAUDE CODE / CODEX / GROK chips are uppercase brand
+  labels, equally deliberate. A new sentence-shaped surface follows the dictionary's case rather
+  than reintroducing a transform.
+
 ## Flagged ambiguities
 
 - **"AgentDex" (former name) is retired**: the product was originally positioned as a read-only
