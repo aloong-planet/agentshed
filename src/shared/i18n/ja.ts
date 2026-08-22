@@ -58,7 +58,6 @@ export const ja: Locale = {
     notDetected: 'このマシンではどのエージェントサイドのデータディレクトリも検出されませんでした',
     notDetectedHint: (refreshLabel) =>
       `いずれかの agent をインストールして使ったあと、左下の「${refreshLabel}」を押すと全体像が見えます`,
-    totalsNote: '失効プロジェクトを含む',
     archivedNote: (days, earliest) => `うち ${days} 日（最古 ${earliest}）は元のセッションファイルが agent により自動削除済みで、数値はローカルアーカイブ由来です（斜線の棒）`,
     byModel: 'モデル別（プロジェクト横断。Codex 側はセッションの主モデルの近似）',
     detected: '検出済み', undetected: '未検出',
@@ -276,7 +275,7 @@ export const ja: Locale = {
     staleTag: '失効',
   },
   token: {
-    winAll: (note) => `累計 · 全期間${note ? `（${note}）` : ''}`,
+    winAll: '累計 · 全期間',
     winToday: '本日',
     winD7: '直近 7 日',
     winD30: '直近 30 日',

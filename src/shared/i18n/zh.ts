@@ -95,7 +95,6 @@ export const zh = {
     notDetected: '本机未检测到任何 agent 侧的数据目录',
     notDetectedHint: (refreshLabel: string) =>
       `安装并使用任一 agent 后,点左下角的「${refreshLabel}」即可看到全景`,
-    totalsNote: '含失效项目',
     archivedNote: (days: number, earliest: string) =>
       `其中 ${days} 天(最早 ${earliest})源会话文件已被 agent 自动清理,数值来自本地归档(斜纹柱)`,
     byModel: '按模型拆分(跨项目;Codex 侧为会话主模型近似)',
@@ -362,7 +361,7 @@ export const zh = {
   /** Token statistics and the trend chart (ticket 08) */
   token: {
     /** The four time windows. Each card shows that window's total and selecting it scopes the page. */
-    winAll: (note: string) => `累计总量 · 全部历史${note ? `(${note})` : ''}`,
+    winAll: '累计总量 · 全部历史',
     winToday: '本日',
     winD7: '近 7 天',
     winD30: '近 30 天',

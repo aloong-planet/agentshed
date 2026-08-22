@@ -62,7 +62,6 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
           anchor={snap.scannedAt}
           window={win}
           onWindow={setWin}
-          note={t.agents.totalsNote}
         />
         <div className="stats">
           <SideCard

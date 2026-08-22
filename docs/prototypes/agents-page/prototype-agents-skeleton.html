@@ -149,20 +149,20 @@
 <script src="../_shared/trend-chart.js"></script>
 <script>
 // ── 六语文案。scan 是候选新文案(旧 shell.scanning 的括号说明在新行为下为假,六语同换);
-//    其余逐字取自现有字典(agents.winAll(totalsNote)/winToday/winD7/winD30、
+//    其余逐字取自现有字典(agents.winAll/winToday/winD7/winD30、
 //    token.trendTitle、agents.tabCfg、label.trendTotal)。
 const L = {
-  zh:{scan:'正在扫描各 agent 侧…', winAll:'累计总量 · 全部历史(含失效项目)', winToday:'本日',
+  zh:{scan:'正在扫描各 agent 侧…', winAll:'累计总量 · 全部历史', winToday:'本日',
       winD7:'近 7 天', winD30:'近 30 天', trend:'近 30 天趋势(本地时区 · 日粒度)', cfg:'配置', total:'合计'},
-  en:{scan:'Scanning the agent sides…', winAll:'Total · all history (includes stale projects)', winToday:'Today',
+  en:{scan:'Scanning the agent sides…', winAll:'Total · all history', winToday:'Today',
       winD7:'Last 7 days', winD30:'Last 30 days', trend:'Last 30 days’ trend (local time zone · daily)', cfg:'Config', total:'Total'},
-  fr:{scan:'Analyse des côtés agents…', winAll:'Total · tout l’historique (inclut les projets obsolètes)', winToday:'Aujourd’hui',
+  fr:{scan:'Analyse des côtés agents…', winAll:'Total · tout l’historique', winToday:'Aujourd’hui',
       winD7:'7 derniers jours', winD30:'30 derniers jours', trend:'Tendance sur 30 jours (fuseau local · par jour)', cfg:'Configuration', total:'Total'},
-  ru:{scan:'Сканирование сторон агентов…', winAll:'Всего · вся история (включая устаревшие проекты)', winToday:'Сегодня',
+  ru:{scan:'Сканирование сторон агентов…', winAll:'Всего · вся история', winToday:'Сегодня',
       winD7:'Последние 7 дней', winD30:'Последние 30 дней', trend:'Динамика за последние 30 дней (местный часовой пояс · по дням)', cfg:'Конфигурация', total:'Итого'},
-  es:{scan:'Escaneando los lados de agente…', winAll:'Total · todo el historial (incluye proyectos obsoletos)', winToday:'Hoy',
+  es:{scan:'Escaneando los lados de agente…', winAll:'Total · todo el historial', winToday:'Hoy',
       winD7:'Últimos 7 días', winD30:'Últimos 30 días', trend:'Tendencia de los últimos 30 días (zona horaria local · por día)', cfg:'Configuración', total:'Total'},
-  ja:{scan:'各エージェントサイドをスキャン中…', winAll:'累計 · 全期間(失効プロジェクトを含む)', winToday:'本日',
+  ja:{scan:'各エージェントサイドをスキャン中…', winAll:'累計 · 全期間', winToday:'本日',
       winD7:'直近 7 日', winD30:'直近 30 日', trend:'直近 30 日の推移(ローカルタイムゾーン · 日単位)', cfg:'構成', total:'合計'}
 };
 // 「已载入」对照态的数值:取自 prototype-agents 的全部历史 mock(该页 mock 注释里的对账规矩同样成立)
