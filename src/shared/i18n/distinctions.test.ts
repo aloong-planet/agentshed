@@ -68,6 +68,11 @@ describe('distinctions no language may collapse', () => {
  */
 const ACCEPTED_COLLAPSES: Array<{ a: string; b: string; why: string }> = [
   {
+    a: 'menu.copy',
+    b: 'detail.staleCopy',
+    why: 'the source language uses the macOS menu-convention word for the Edit-menu item and the everyday word for the in-app copy action — a Chinese register split over one action, not a distinction other languages can or should draw'
+  },
+  {
     a: 'languageName',
     b: 'languageNameEn',
     why: 'English written in English is English — identical by definition, and only for this one language'

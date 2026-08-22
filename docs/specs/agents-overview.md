@@ -33,8 +33,9 @@ see [appearance](appearance.md) (the rail's settings dimension).
    the other carries on, so that a single-side failure does not make the whole page unusable.
 4. As a user, I want a side that is not installed to show "not detected" rather than an error, so
    that someone using only one side can still use the app.
-5. As a user, I want the totals' accounting (including stale projects) stated explicitly, so that
-   when the numbers do not match I know where the difference is.
+5. As a user, I want the totals' accounting (including stale projects) recorded where I can find it,
+   so that when the numbers do not match I know where the difference is (the card itself carries no
+   note — see B3).
 6. As a user, I want the page's structure visible as a skeleton while the first scan runs, so that
    launching the app never looks like a blank or hung window even when the scan takes long.
 

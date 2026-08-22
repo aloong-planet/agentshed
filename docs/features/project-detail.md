@@ -29,8 +29,11 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
   HTML opens with the system default application
 - Sessions: this project's sessions on every agent side, with sorting and search, opening to the full
   conversation (see [Session view](session-view.md))
-- A stale project's detail page still opens: project-level content shows empty states and the global
-  layer behaves as usual
+- A stale project's detail page opens as a note page instead of the sections: it names why the
+  project is stale (the directory no longer exists while the listed agents' registries still record
+  it), notes that removal takes the row off the list without affecting token totals, and hands over
+  a copyable one-line message to send to each recording agent so the agent deletes its own record —
+  the product itself never writes to any agent's configuration
 
 ## Boundaries and non-goals
 - For a project not following the eight-step process, the artifacts tab shows a "nothing accumulated

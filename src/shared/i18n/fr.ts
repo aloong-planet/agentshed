@@ -210,6 +210,14 @@ export const fr: Locale = {
   detail: {
     notInSnapshot: 'Ce projet n’est pas dans l’instantané (actualisez puis réessayez)',
     staleTag: 'Obsolète',
+    staleCause: (n) =>
+      `Cause : le répertoire du projet n’existe plus (supprimé ou déplacé), alors que ${n > 1 ? 'les registres' : 'le registre'} de {sides} ${n > 1 ? 'l’enregistrent' : 'l’enregistre'} encore.`,
+    staleFx: 'Une fois les enregistrements supprimés, la ligne disparaît de la liste ; les totaux de tokens et la tendance ne changent pas (les statistiques sont indépendantes des registres).',
+    staleSend: 'Envoyez cette phrase à {sides} et laissez chacun supprimer l’enregistrement lui-même :',
+    stalePrompt: (p) => `Mon projet « ${p} » est obsolète (le répertoire n’existe plus) — merci de supprimer ses enregistrements de ta configuration.`,
+    staleCopy: 'Copier',
+    staleCopied: 'Copié',
+    staleCopyFailed: 'Échec de la copie',
     tabOverview: 'Synthèse',
     tabSkills: 'Skills',
     tabMcp: 'MCP',

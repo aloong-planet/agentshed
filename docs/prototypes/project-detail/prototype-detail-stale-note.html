@@ -1,0 +1,228 @@
+<!doctype html>
+<!-- A UI prototype · 失效项目详情页的移除提示卡(2026-08-22,需求:产品仅提示、不代操作)。
+     裁定(2026-08-22 用户):失效项目的详情页**不展示 tabs、不展示任何数据区**,壳(返回/项目名/
+       失效标/路径)之下只有这张提示卡——失效态的详情页整页即本卡。
+     裁定(2026-08-22 用户):卡不提供任何手动命令与文件细节——只按"哪些 agent 记录着它"给出对应
+       徽标,并给一句可复制的话让用户发给对应 agent,由 agent 自己删除(实测 Claude Code 会自行
+       备份、保持文件合法并提示回写竞态;竞态的兜底是幂等重发)。
+     问题:①提示卡长什么样——失效原因句开卡、影响说明、发给 agent 的一句话;②三侧全占/单侧时
+       原因句与提示句的徽标是否跟随;③六语文案在此宽度下的换行形态;④复制按钮的新图标选型
+       (copy vs clipboard,见卡下方选型区)。
+     文案注:卡内全部文案是**候选新文案**(key 均未入字典)。失效原因的表述用
+       "目录已不存在(被删除或移动)"——扫描只知道 existsSync 为假,删除与移动无法区分,不得写死一种。
+     真实判定来源:失效 = 扫描时该路径 existsSync 为假;卡中出现哪些侧 = 该项目条目的 sides;
+       语言 = 设置里的语言偏好。app 内无本页 harness 的任何开关。
+     图标注:复制按钮的两个候选是**选型内联**(该图标尚不存在于 app 图标模块,定稿后照抄官方 path
+       进 icons.tsx 并重跑 sync-icons.mjs,原型改用 _shared/icons.js);其余图标一律来自 _shared/icons.js。
+     演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness)——「演示·记录侧」
+       CC+CX+GK / 仅 CC / 仅 GK;「演示·语言」六选一。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 — 详情页失效移除提示卡</title>
+<style>
+  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
+    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;--warn-fg:#8a6116;--warn-bg:#faf3e3}
+  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
+    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;
+    --warn-fg:#d9b25f;--warn-bg:#2c2617}}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
+  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
+  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;cursor:pointer;color:var(--text-2)}
+  .rail .ri:hover{background:var(--accent-soft)}
+  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+  .head{padding:14px 22px 0;border-bottom:1px solid var(--line)}
+  .bk{display:inline-flex;align-items:center;gap:4px;color:var(--text-2);font-size:12px;cursor:pointer;margin-bottom:6px}
+  .bk:hover{color:var(--text)}
+  .h1{display:flex;align-items:center;gap:9px}
+  .h1 b{font-size:16px;text-decoration:line-through;color:var(--text-2)}
+  .stale-tag{font-size:10px;border:1px solid #c07a48;color:#c07a48;border-radius:4px;padding:1px 5px}
+  .path{font-size:11px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;margin:3px 0 10px}
+  .body{flex:1;overflow:auto;padding:16px 22px}
+
+  /* ── 被评判的设计:失效移除提示卡 ── */
+  /* 语域注:本卡是失效详情页的整页正文(2026-08-22 裁定),不是数据区旁的脚注——
+     正文句走 --text/13px 与 app body 一致;次级灰只留给真正的辅注(untrust 说明),
+     琥珀警示与等宽代码各守自己的语域 */
+  .stale-note{border:1px dashed var(--line-strong);border-radius:9px;padding:13px 16px;margin-bottom:16px;
+    font-size:13px;line-height:1.6;color:var(--text)}
+  .stale-note .cause{font-weight:600;margin-bottom:2px}
+  .stale-note .cause .b{margin:0 2px}
+  .stale-note .fx{margin-bottom:8px}
+  .sn-llm{margin-top:8px}
+  .sn-how{margin-bottom:3px}
+  .codeline{display:flex;align-items:center;gap:6px;min-width:0}
+  .code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--card);
+    border:1px solid var(--line);border-radius:5px;padding:3px 7px;min-width:0;
+    overflow-wrap:anywhere;color:var(--text)}
+  /* 复制按钮:固定盒 + 居中(/ui-design 图标按钮规范),不靠字体撑尺寸 */
+  .cpy{flex:none;width:22px;height:22px;display:grid;place-items:center;border:1px solid var(--line);
+    border-radius:5px;background:var(--card);color:var(--text-2);cursor:pointer;padding:0}
+  .cpy:hover{color:var(--accent);border-color:var(--line-strong)}
+  .cpy svg{display:block}
+  .copied{font-size:10.5px;color:var(--accent);opacity:0;transition:opacity .15s}
+  .copied.on{opacity:1}
+  .b{font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}
+  .b.c{background:#f9e2da;color:#a05239}.b.x{background:#dcefe4;color:#1f7a4d}
+  .b.g{background:#ece5f6;color:#6d4fa0}
+  @media (prefers-color-scheme:dark){.b.c{background:#4c2d21;color:#f8ac8f}
+    .b.x{background:#1d3a2b;color:#7fd6a4}.b.g{background:#332b47;color:#c9b3ec}}
+
+  /* ── 图标选型区(确认内容,随确认门定稿;非 harness) ── */
+  .pick{margin-top:22px;border-top:1px solid var(--line);padding-top:12px}
+  .pick .t{font-size:11px;color:var(--text-2);margin-bottom:8px}
+  .pick .opts{display:flex;gap:18px;align-items:center}
+  .pick .opt{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-2)}
+  .pick .opt .rec{color:var(--accent);font-weight:600}
+
+  /* 演示条(data-demo-harness,勿实现):两侧定位+auto 外边距居中,内距用 padding/gap */
+  .harness{position:fixed;bottom:14px;left:12px;right:12px;margin:0 auto;width:fit-content;z-index:60;
+    display:flex;align-items:center;flex-wrap:wrap;row-gap:2px;gap:4px;background:#26262b;
+    border-radius:16px;padding:6px 14px;font-size:11px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+  .harness .dl{color:#8a8a92;padding:0 3px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
+  .harness .sepv{width:1px;height:16px;background:#4a4a52;flex:none}
+  .harness span[data-v]{padding:3px 9px;border-radius:999px;cursor:pointer;color:#b8b8bf;white-space:nowrap}
+  .harness span[data-v]:hover{color:#fff}
+  .harness span[data-v].on{background:#4a4a52;color:#fff;font-weight:600}
+</style>
+</head>
+<body>
+  <div class="rail">
+    <div class="ri" title="Agents" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html" data-icon="RobotFace" data-icon-size="17"></div>
+    <div class="ri on" title="Projects(回列表)" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html" data-icon="Folder" data-icon-size="17"></div>
+    <div class="ri" title="全局刷新" style="margin-top:auto;margin-bottom:6px" data-icon="RefreshCw" data-icon-size="17"></div>
+  </div>
+  <div class="main">
+    <div class="head">
+      <div class="bk" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html"><span data-icon="ChevronLeft" data-icon-size="13"></span><span id="backT"></span></div>
+      <div class="h1"><b>removed-experiment-2025</b><span class="stale-tag" id="staleT"></span></div>
+      <div class="path">/Users/loong_zhou/CascadeProjects/removed-experiment-2025</div>
+    </div>
+    <div class="body">
+
+      <!-- 被评判的设计:提示卡 -->
+      <div class="stale-note" id="note"></div>
+
+      <!-- 图标选型:复制按钮(新图标,app 模块尚无;定稿后进 icons.tsx 走 sync) -->
+      <div class="pick">
+        <div class="t">图标选型 · 复制按钮 —— 已定稿(2026-08-23 选 Lucide copy,已进 app 图标模块);clipboard 候选留作对照记录</div>
+        <div class="opts">
+          <span class="opt"><button class="cpy" title="copy"><span data-icon="Copy" data-icon-size="12"></span>
+          </button><span>Lucide copy — 两页叠影,「复制」的直译字形<span class="rec">(已选定)</span></span></span>
+          <span class="opt"><button class="cpy" title="clipboard">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+          </button><span>Lucide clipboard — 剪贴板具象,偏「粘贴目的地」,小尺寸下夹板细节发糊</span></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 演示·状态开关(data-demo-harness):真实判定见页头注释,app 内无此控件 -->
+  <div class="harness" data-demo-harness>
+    <span class="dl">演示·记录侧</span>
+    <span data-v="s:all" class="on">CC+CX+GK</span><span data-v="s:cc">仅 CC</span><span data-v="s:gk">仅 GK</span>
+    <span class="sepv"></span>
+    <span class="dl">演示·语言</span>
+    <span data-v="l:zh" class="on">中</span><span data-v="l:en">EN</span><span data-v="l:fr">FR</span><span data-v="l:ru">RU</span><span data-v="l:es">ES</span><span data-v="l:ja">JA</span>
+  </div>
+
+<script src="../_shared/icons.js"></script>
+<script>
+// ── 候选新文案(六语;key 均未入字典)。CC 警示句如实:purge 连历史一起删。 ──
+const PATH = '/Users/loong_zhou/CascadeProjects/removed-experiment-2025';
+const T = {
+  zh:{back:'返回项目列表', stale:'失效',
+    cause:(b)=>`失效原因:项目目录已不存在(被删除或移动),而 ${b} 的注册表仍记录着它。`,
+    fx:'从注册表移除该记录后,此行将从列表消失;token 累计与趋势不受影响(统计独立于注册表)。',
+    llmHow:(b)=>`把这句话分别发给 ${b},由它自己删除:`,
+    llmPrompt:(p)=>`我的项目 "${p}" 已经失效(目录已不存在),请帮我从你的配置中移除它的记录。`,
+    copied:'已复制' },
+  en:{back:'Back to projects', stale:'Stale',
+    cause:(b)=>`Why stale: the project directory no longer exists (deleted or moved), while the ${b} ${b.includes('·')?'registries':'registry'} still records it.`,
+    fx:'Removing the records takes this row off the list; token totals and the trend are unaffected (the statistics are independent of the registries).',
+    llmHow:(b)=>`Send this line to ${b} and let each of them delete it themselves:`,
+    llmPrompt:(p)=>`My project "${p}" is stale (the directory no longer exists) — please remove its records from your configuration.`,
+    copied:'Copied' },
+  fr:{back:'Retour aux projets', stale:'Obsolète',
+    cause:(b)=>`Cause : le répertoire du projet n’existe plus (supprimé ou déplacé), alors que le registre ${b} l’enregistre encore.`,
+    fx:'Une fois les enregistrements supprimés, la ligne disparaît de la liste ; les totaux de tokens et la tendance ne changent pas (les statistiques sont indépendantes des registres).',
+    llmHow:(b)=>`Envoyez cette phrase à ${b} et laissez chacun supprimer l’enregistrement lui-même :`,
+    llmPrompt:(p)=>`Mon projet « ${p} » est obsolète (le répertoire n’existe plus) — merci de supprimer ses enregistrements de ta configuration.`,
+    copied:'Copié' },
+  ru:{back:'К списку проектов', stale:'Устарел',
+    cause:(b)=>`Причина: каталог проекта больше не существует (удалён или перемещён), но реестр ${b} всё ещё его записывает.`,
+    fx:'После удаления записей строка исчезнет из списка; итоги токенов и тренд не изменятся (статистика не зависит от реестров).',
+    llmHow:(b)=>`Отправьте эту фразу ${b} — пусть каждый сам удалит запись:`,
+    llmPrompt:(p)=>`Мой проект «${p}» устарел (каталога больше нет) — удали, пожалуйста, его записи из своей конфигурации.`,
+    copied:'Скопировано' },
+  es:{back:'Volver a proyectos', stale:'Obsoleto',
+    cause:(b)=>`Motivo: el directorio del proyecto ya no existe (borrado o movido), pero el registro de ${b} aún lo recuerda.`,
+    fx:'Al eliminar los registros, la fila desaparece de la lista; los totales de tokens y la tendencia no cambian (las estadísticas son independientes de los registros).',
+    llmHow:(b)=>`Envía esta frase a ${b} y deja que cada uno borre el registro él mismo:`,
+    llmPrompt:(p)=>`Mi proyecto «${p}» está obsoleto (el directorio ya no existe): elimina sus registros de tu configuración, por favor.`,
+    copied:'Copiado' },
+  ja:{back:'プロジェクト一覧へ', stale:'失効',
+    cause:(b)=>`失効の理由:プロジェクトのディレクトリが存在しません(削除または移動)。一方 ${b} のレジストリには記録が残っています。`,
+    fx:'記録を削除するとこの行はリストから消えます。トークン累計とトレンドは影響を受けません(統計はレジストリと独立)。',
+    llmHow:(b)=>`この一文を ${b} に送り、それぞれ自分で削除してもらいます:`,
+    llmPrompt:(p)=>`プロジェクト「${p}」は失効しています(ディレクトリが存在しません)。あなたの設定からその記録を削除してください。`,
+    copied:'コピーしました' }
+};
+// 图标已定稿(2026-08-23 选 Lucide copy)并进入 app 图标模块,此处改走 _shared/icons.js 同步网
+const COPY_SVG = ICONS.Copy(12);
+// 全名徽章(2026-08-23 用户裁定:不用 CC/CX/GK 缩写)——与 Agents 侧卡、Plugins 区标题的
+// CLAUDE CODE/CODEX/GROK chips 同款形态
+const BADGE = {cc:'<span class="b c">CLAUDE CODE</span>', cx:'<span class="b x">CODEX</span>', gk:'<span class="b g">GROK</span>'};
+let SIDES = ['cc','cx','gk'], LANG = 'zh';
+
+function codeline(payload){
+  return `<span class="codeline"><span class="code">${payload.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>`+
+    `<button class="cpy" data-copy="${payload.replace(/"/g,'&quot;')}" title="copy">${COPY_SVG}</button>`+
+    `<span class="copied"></span></span>`;
+}
+function render(){
+  const t = T[LANG];
+  document.getElementById('backT').textContent = t.back;
+  document.getElementById('staleT').textContent = t.stale;
+  const badges = SIDES.map((s)=>BADGE[s]).join(' · ');
+  document.getElementById('note').innerHTML =
+    `<div class="cause">${t.cause(badges)}</div><div class="fx">${t.fx}</div>`+
+    `<div class="sn-llm"><div class="sn-how">${t.llmHow(badges)}</div>${codeline(t.llmPrompt(PATH))}</div>`;
+}
+render();
+
+// 复制:视觉反馈为主;clipboard 在 file:// 下可能受限,失败也只影响演示
+document.addEventListener('click', (e)=>{
+  const b = e.target.closest('.cpy[data-copy]');
+  if (!b) return;
+  try { navigator.clipboard && navigator.clipboard.writeText(b.dataset.copy); } catch {}
+  const fb = b.parentElement.querySelector('.copied');
+  fb.textContent = T[LANG].copied; fb.classList.add('on');
+  setTimeout(()=>fb.classList.remove('on'), 1200);
+});
+
+// 演示条
+document.addEventListener('click', (e)=>{
+  const el = e.target.closest('[data-v]'); if (!el) return;
+  const [k,v] = el.dataset.v.split(':');
+  for (const sib of el.parentElement.querySelectorAll(`[data-v^="${k}:"]`)) sib.classList.toggle('on', sib===el);
+  if (k==='s') SIDES = v==='all' ? ['cc','cx','gk'] : [v];
+  if (k==='l') { LANG = v; document.documentElement.lang = {zh:'zh-CN',en:'en',fr:'fr',ru:'ru',es:'es',ja:'ja'}[v]; }
+  render();
+});
+
+// 跨原型跳转:画廊内请求父页切换;独立打开时直接跳文件
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-goto]');
+  if (!el) return;
+  if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+  else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+});
+</script>
+</body>
+</html>

@@ -288,6 +288,16 @@ export const zh = {
   detail: {
     notInSnapshot: '项目不在快照中(刷新后重试)',
     staleTag: '失效',
+    /** The stale note page (spec project-detail sequence S). `{sides}` is the chip slot — one
+     * complete sentence per language, the slot moving with each language's word order (the RichText
+     * rule applied to a node slot); the cause takes the side count for languages that inflect on it */
+    staleCause: (_n: number) => '失效原因:项目目录已不存在(被删除或移动),而 {sides} 的注册表仍记录着它。',
+    staleFx: '从注册表移除该记录后,此行将从列表消失;token 累计与趋势不受影响(统计独立于注册表)。',
+    staleSend: '把这句话分别发给 {sides},由它自己删除:',
+    stalePrompt: (p: string) => `我的项目 "${p}" 已经失效(目录已不存在),请帮我从你的配置中移除它的记录。`,
+    staleCopy: '复制',
+    staleCopied: '已复制',
+    staleCopyFailed: '复制失败',
     tabOverview: '概览',
     tabSkills: 'Skills',
     tabMcp: 'MCP',

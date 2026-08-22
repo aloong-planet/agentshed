@@ -45,7 +45,10 @@ CACHE="$SMOKE_UD/token-cache.json"
 REAL_CACHE="$HOME/Library/Application Support/agentshed/token-cache.json"
 
 START_TIMEOUT=60   # First launch on a fresh userData; measured ~1.1s to a process, with ample headroom
-READY_TIMEOUT=60   # A full scan of real data measures ~6s (600MB+), a tenfold margin.
+READY_TIMEOUT=300  # A cold scan of real data GROWS with the machine's real usage: measured ~6s at
+                   # first (600MB), 32–54s through 2026-08-22, 78s on 2026-08-23 — the margin is over
+                   # the latest measurement, and since this is a poll (not a sleep), a generous cap
+                   # costs nothing when healthy; it only delays the red when the scan truly hangs.
                    # A historical lesson: this timeout gave three false reds whose real cause was not
                    # slowness but **death** (a taken lock and a silent exit)
                    # — now that userData is isolated there is no lock to contend for, so anything that

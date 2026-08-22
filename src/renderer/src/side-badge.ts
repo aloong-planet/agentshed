@@ -26,3 +26,11 @@ export const SIDE_SHORT_NAME: Record<AgentSide, string> = {
   codex: 'Codex',
   grok: 'Grok'
 }
+
+/** The uppercase brand-chip label (the side cards' form; deliberate caps, see CONTEXT's text-case
+ *  invariant) — total over AgentSide so a chip surface cannot silently miss a new side */
+export const SIDE_CHIP_LABEL: Record<AgentSide, string> = {
+  claude: 'CLAUDE CODE',
+  codex: 'CODEX',
+  grok: 'GROK'
+}

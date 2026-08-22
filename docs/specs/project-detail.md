@@ -32,8 +32,9 @@ is read-only; the one write operation is uninstalling a project-level skill.
    so that I do not have to dig through the subdirectories of `docs/`.
 4. As a user, I want markdown artifacts readable in place and prototypes opened by the system, so
    that reading does not take me out of the app while prototypes can actually run.
-5. As a user, I want a stale project's detail page to still open, so that after deleting a directory I
-   can confirm what it had installed before deciding what to clean up.
+5. As a user, I want a stale project's detail page to tell me why it is stale and hand me a
+   ready-made line to send to each agent that still records it, so that the agents clean their own
+   registries and I never hand-edit their config files.
 6. As a user, I want a neutral empty state in the artifacts section for a project not following the
    eight-step process, so that I do not mistake "not done this way" for an error.
 
@@ -42,8 +43,11 @@ is read-only; the one write operation is uninstalling a project-level skill.
 **Sequence A: page composition**
 - A1 The set of sections = Overview / Skills / Subagents / Plugins / MCP / Memory / Configuration /
   Artifacts; a new component type extends this list.
-- A2 A stale project still opens: project-level content shows empty states and the global layer
-  displays as usual.
+- A2 A stale project opens as the **stale note page** (settled 2026-08-23, superseding the earlier
+  "sections show empty states" behaviour): the shell — back control, struck-through name, stale tag,
+  path — plus a single note card, with **no section tabs and no data areas**. The trade-off that the
+  project's own token history is no longer reachable from its page was accepted; the global totals
+  still include it (see agents-overview B3). Sequence S below owns the card.
 - A3 Detail is fetched on demand (it does not enter the overview snapshot); **the loading state
   appears only on first open and when switching projects** — a refetch triggered by a snapshot update
   (manual ↻ or auto-refresh, see token-stats sequence E) is a **transfusion**: the rendered content
@@ -57,6 +61,41 @@ is read-only; the one write operation is uninstalling a project-level skill.
   viewport, so in a narrow window the drawer covered the entire content area and lost its "drawer"
   meaning (a 2026-08-02 bug); the left-hand fixed elements' width changes when the dimension changes,
   so the formula has to change with it.
+
+**Sequence S: the stale note page** (the product's stance is **hint only, never operate**: Agentshed
+never writes to any agent's registry; it tells the user what happened and hands them a line to send)
+- S1 The card reads, top to bottom: the **cause** ("the project directory no longer exists — deleted
+  or moved", the two being indistinguishable at scan level, so neither is asserted alone — while the
+  named agents' registries still record it), the **effect** (removing the records takes the row off
+  the list; token totals and the trend are unaffected, statistics being registry-independent), and
+  the **send line** — "send this line to <chips> and let each delete it itself" with a copyable
+  one-sentence prompt.
+- S2 The prompt is agent-agnostic by design: no commands, no file names, no paths to registries — the
+  agent locates and edits its own configuration (observed to also back up, keep the file valid and
+  surface the rewrite race on its own). It embeds the absolute project path and is generated in the
+  current UI language.
+- S3 Only the sides whose registries record the project appear — as the uppercase full-name side
+  chips, in both the cause and the send line; a single-side project shows a single chip. The card
+  consumes the entry's side list and the AgentSide-total display Records: a future side joins by
+  construction, and neither code nor copy enumerates the sides as a closed set (chips are
+  interpolated, never written out).
+- S4 Copying: success shows a transient confirmation beside the button; a clipboard failure shows the
+  error toast and no false success.
+- S5 Long paths wrap inside the prompt pill; no horizontal overflow at the narrowest supported width.
+- S6 Staleness is per-snapshot, and the page follows it both ways: a refresh flipping stale→false
+  returns the normal sectioned page, false→true switches to the note page. The note page renders
+  from the snapshot entry alone — entering it fires no detail fetch and shows no loading state.
+- S7 After the records are removed and a refresh runs, the project leaves the list; if it was the
+  selected project, the pane shows the existing not-in-snapshot empty state rather than a ghost
+  selection(the mechanism that has always answered a vanished entry — a selection reset would hide
+  what happened, the message says it).
+- S8 Introduced-content dimension: the card renders first-party copy plus the path **as text** (a
+  path containing markup-like characters displays literally); the copy button is the only
+  interactive element and writes only to the clipboard.
+- S9 The registry files are agent-global live files; a running session of the receiving agent may
+  rewrite its file and resurrect the entry after cleanup. The flow is idempotent — the mitigation is
+  sending the line again — and the card deliberately does not carry this caveat (the agents surface
+  it themselves when relevant).
 
 **Sequence B: artifacts section**
 - B1 **Six artifact types**, displayed in a fixed order following the top-down derivation chain:
@@ -105,6 +144,16 @@ is read-only; the one write operation is uninstalling a project-level skill.
   not balloon when there are many projects).
 - **Allow-list**: when detail is returned, the artifact and memory file paths are registered in the
   allow-list, and both reading and external opening validate against it.
+- **The stale note page renders from the snapshot entry alone** (path, sides, staleness are already
+  there), so the stale branch sits above the detail fetch and never fires it.
+- **The copy icon** joins the icon module (Lucide copy, chosen 2026-08-23 over clipboard); the side
+  chips reuse the uppercase full-name chip form the side cards already wear.
+- **Copying goes through the main process** (an IPC channel writing the OS clipboard): the renderer
+  clipboard API rejects under automation — measured, not assumed — and the OS clipboard is
+  main-process territory anyway. The channel validates its sender and input like every other.
+- **The `{sides}` slot is a checked contract**: a unit guard asserts every language's cause and send
+  sentences carry exactly one slot and the prompt embeds its path — the type alignment cannot see
+  string content, so a dropped slot would otherwise fail silently.
 
 ## Testing Decisions
 
@@ -114,11 +163,23 @@ no-`docs`-directory empty state; the type order is pinned as a contract in a uni
 changed unintentionally). The UI's chip filtering and reading overlay are not unit tested and rely on
 e2e and manual testing.
 
+The stale note page's seam is the e2e harness over a fixture home with a registry entry whose
+directory does not exist (prior art: the three-side fixture in the projects-list tests): assert the
+page structure (card present, no tabs, no loading state), the chip set following the recorded sides,
+and the copy feedback. The copy's clipboard write is verified at the behaviour level (feedback
+appears); the dictionary keys are covered by the type alignment.
+
 ## Out of Scope
 
 - ~~Rendering session contents (metadata only)~~ (2026-08-06: fully shipped by
   `docs/specs/session-view.md`, moved out of this spec's boundary).
 - Editing or creating artifacts (read-only viewing).
+- Removing a stale project's registry records from inside the app (the hint-only stance, settled
+  2026-08-23: the registries are the agents' own live files and Agentshed never writes to them).
+- Per-agent removal commands or registry file paths on the stale note card (retired 2026-08-22 in
+  favour of the agent-agnostic prompt line).
+- A token-history view for stale projects (accepted trade-off of the note-only page; the global
+  totals still include them).
 - Cross-project artifact aggregation (ruled a false requirement, see CONTEXT.md's flagged
   ambiguities; cross-project retrieval belongs to a future global search).
 - Full-text search of artifact contents.

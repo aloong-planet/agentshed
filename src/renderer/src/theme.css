@@ -1262,6 +1262,70 @@ body {
   color: var(--text-2);
   margin: 4px 0 10px;
 }
+/* The stale note page's card (spec project-detail S): the page's whole body, so it reads as body
+   text (--text/13px), not as the footnote register the dashed border resembles */
+.stale-note {
+  border: 1px dashed var(--line-strong);
+  border-radius: 9px;
+  padding: 13px 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.stale-note .sn-cause {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.stale-note .sn-fx {
+  margin-bottom: 8px;
+}
+.stale-note .sn-send {
+  margin-top: 8px;
+}
+.stale-note .sn-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 4px;
+}
+.stale-note .code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 3px 7px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* The copy button: a fixed box with the icon centred, not a font-sized one */
+.stale-note .cpy {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--card);
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 0;
+}
+.stale-note .cpy:hover {
+  color: var(--accent);
+  border-color: var(--line-strong);
+}
+.stale-note .copied {
+  font-size: 10.5px;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.stale-note .copied.on {
+  opacity: 1;
+}
 .pill.prj {
   background: var(--accent-soft);
   color: var(--accent);

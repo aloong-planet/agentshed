@@ -596,6 +596,75 @@ test('a Grok-only project opens its detail page without errors', async () => {
   await close(l)
 })
 
+/**
+ * Sequence S (spec project-detail): a stale project opens as the note page — the shell plus one note
+ * card, no section tabs, no detail fetch and no loading state; the full-name chips follow exactly
+ * the recording sides; the prompt line copies with visible feedback; staleness follows the snapshot
+ * both ways, and an entry that vanishes while selected falls back to the empty state.
+ */
+test('a stale project opens as the note page: card only, chips per recording side, copy feedback, and both staleness flips', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-stale-'))
+  const triGhost = join(home, 'tri-ghost')
+  const soloGhost = join(home, 'solo-ghost')
+  writeFileSync(
+    join(home, '.claude.json'),
+    JSON.stringify({ projects: { [triGhost]: {}, [soloGhost]: {} } })
+  )
+  mkdirSync(join(home, '.codex'), { recursive: true })
+  writeFileSync(join(home, '.codex', 'config.toml'), `[projects."${triGhost}"]\ntrust_level = "trusted"\n`)
+  mkdirSync(join(home, '.grok'), { recursive: true })
+  writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${triGhost}"]\ntrusted = true\n`)
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side input[type="checkbox"]').check()
+
+  // (S1/S6) The tri-side ghost: the card, no tabs, and no loading state ever shown
+  await win.locator('.side .row', { hasText: 'tri-ghost' }).click()
+  const note = win.locator('.stale-note')
+  await expect(note).toBeVisible()
+  await expect(win.locator('.pane-head .tabs .tab')).toHaveCount(0)
+  await expect(win.locator('.pane-body .none')).toHaveCount(0)
+  // (S3) Full-name chips in both the cause and the send line — 3 sides × 2 slots
+  await expect(note.locator('.badge')).toHaveCount(6)
+  await expect(note.locator('.badge.gk')).toHaveText(['GROK', 'GROK'])
+  await expect(note.locator('.badge.cl').first()).toHaveText('CLAUDE CODE')
+  // (S2) The prompt embeds the absolute path, in the UI language
+  await expect(note.locator('.code')).toContainText(triGhost)
+  await expect(note.locator('.code')).toContainText('is stale')
+  // (S5) The prompt pill stays inside the card
+  const cardBox = await note.boundingBox()
+  const pillBox = await note.locator('.code').boundingBox()
+  if (cardBox === null || pillBox === null) throw new Error('note or pill not rendered')
+  expect(pillBox.x + pillBox.width, 'the prompt pill must not overflow the card').toBeLessThanOrEqual(
+    cardBox.x + cardBox.width + 1
+  )
+  // (S4) Copying shows the transient confirmation
+  await note.locator('.cpy').click()
+  await expect(note.locator('.copied.on')).toBeVisible()
+
+  // (S3/S5) The claude-only ghost: a single chip in each slot
+  await win.locator('.side .row', { hasText: 'solo-ghost' }).click()
+  await expect(win.locator('.stale-note .badge')).toHaveCount(2)
+  await expect(win.locator('.stale-note .badge.cl')).toHaveText(['CLAUDE CODE', 'CLAUDE CODE'])
+
+  // (S6) stale → false: the directory reappears, a refresh returns the sectioned page
+  mkdirSync(soloGhost, { recursive: true })
+  await win.locator('.rail .ri.grfr').click()
+  await expect(win.locator('.pane-head .tabs .tab').first()).toBeVisible()
+  await expect(win.locator('.stale-note')).toHaveCount(0)
+
+  // (S7) The selected entry vanishes from the registries → the empty state, not a ghost selection
+  rmSync(soloGhost, { recursive: true, force: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [triGhost]: {} } }))
+  await win.locator('.rail .ri.grfr').click()
+  await expect(win.locator('.empty')).toContainText('not in the snapshot')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // Ticket grok-side/#123 (spec C5/C7): side filtering is a single-choice dropdown. Being operated
 // rather than glanced at, it answers a resize by repositioning — and the resize answer is where
 // #122 lives: a resize makes the browser clamp a scrolled container's scrollTop and dispatch a

@@ -3,6 +3,7 @@ import { MarkdownBody } from './MarkdownBody'
 import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot, SearchResult } from '@shared/domain'
 import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
 import { SIDE_BADGE, SIDE_ORDER } from './side-badge'
+import { StaleNote } from './StaleNote'
 import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
 import { sliceUsage, type UsageWindow } from '@shared/usage'
 import { ProjectSubagentsTab } from './SubagentsView'
@@ -51,7 +52,11 @@ export function DetailPane({
   useEffect(() => {
     setDetail(null)
   }, [path])
+  // The stale note page renders from the snapshot entry alone (spec S6): no detail fetch fires, so
+  // no loading state can appear
+  const stale = entry?.stale === true
   useEffect(() => {
+    if (stale) return
     let alive = true
     void window.agentshed.getProjectDetail(path).then((d) => {
       if (alive) setDetail(d)
@@ -59,9 +64,26 @@ export function DetailPane({
     return () => {
       alive = false
     }
-  }, [path, snap.scannedAt, reload])
+  }, [path, snap.scannedAt, reload, stale])
 
   if (!entry) return <div className="empty">{t.detail.notInSnapshot}</div>
+
+  if (entry.stale) {
+    return (
+      <div className="pane">
+        <header className="pane-head">
+          <div className="det-title">
+            <h1>{entry.name}</h1>
+            <span className="stale-tag">{t.detail.staleTag}</span>
+          </div>
+          <div className="det-path mono">{entry.path}</div>
+        </header>
+        <div className="pane-body">
+          <StaleNote entry={entry} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="pane">
