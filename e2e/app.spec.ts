@@ -1424,6 +1424,9 @@ test('the trend chart is stacked bars: segmented by provider within a bar, and s
   // present
   const cols = win.locator('.chart .col')
   await expect(cols).toHaveCount(30)
+  // Group titles render in sentence case, as written in the dictionary: innerText sees the rendered
+  // (transformed) text, so an uppercase transform on .grp-t would turn this red
+  expect(await win.locator('.pane-body .grp-t').first().innerText()).toContain('Last 30 days’ trend')
   const anthropicSegs = win.locator('.chart .col .sp.anthropic')
   await expect(anthropicSegs.first()).toBeVisible()
   // The legend is by provider (with at least an Anthropic entry)

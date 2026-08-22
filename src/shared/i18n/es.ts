@@ -136,7 +136,7 @@ export const es: Locale = {
     projectMissing: '(proyecto obsoleto)',
     installMissing: 'Falta el directorio de instalación (caché limpiada): solo se ve el registro; los componentes incluidos no se pueden leer',
     noBundled: 'Ninguno de los cuatro tipos de componentes incluidos',
-    codexCacheEnum: 'enumeración de caché',
+    codexCacheEnum: 'Enumeración de caché',
     cachedVersions: (n) => `(${n} ${plural('es', n, { one: 'versión en caché', other: 'versiones en caché' })})`,
     cacheOnly: 'solo enumeración de caché',
     codexFoot: 'El grupo Codex solo lista los plugins presentes en la caché; no hay semántica de activación, y los skills incluidos se pueden previsualizar pero no se fusionan en la pestaña Skills',
