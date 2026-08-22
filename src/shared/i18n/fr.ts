@@ -60,7 +60,6 @@ export const fr: Locale = {
     notDetected: 'Aucun répertoire de données d’un côté agent n’a été détecté sur cette machine',
     notDetectedHint: (refreshLabel) =>
       `Installez et utilisez l’un des agents, puis cliquez sur « ${refreshLabel} » en bas à gauche pour voir la vue d’ensemble`,
-    totalsNote: 'inclut les projets obsolètes',
     archivedNote: (days, earliest) => `Pour ${days} de ces jours (le plus ancien ${earliest}), les fichiers de session source ont été nettoyés automatiquement par l’agent ; les valeurs viennent de l’archive locale (barres hachurées)`,
     byModel: 'Par modèle (tous projets ; côté Codex, approximation du modèle principal de la session)',
     detected: 'Détecté', undetected: 'Non détecté',
@@ -287,7 +286,7 @@ export const fr: Locale = {
     staleTag: 'Obsolète',
   },
   token: {
-    winAll: (note) => `Total · tout l’historique${note ? ` (${note})` : ''}`,
+    winAll: 'Total · tout l’historique',
     winToday: 'Aujourd’hui',
     winD7: '7 derniers jours',
     winD30: '30 derniers jours',

@@ -139,7 +139,7 @@ export function AgentsSkeleton(): JSX.Element {
         <div className="tot-row">
           {USAGE_WINDOWS.map((w, i) => (
             <div key={w} className="tot-c">
-              <div className="k">{label(w, t.agents.totalsNote)}</div>
+              <div className="k">{label(w)}</div>
               <div className="v">
                 <SkLine w={[64, 44, 52, 52][i]} h={18} />
               </div>

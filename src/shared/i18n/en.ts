@@ -60,7 +60,6 @@ export const en: Locale = {
     notDetected: 'No agent side’s data directory was detected on this machine',
     notDetectedHint: (refreshLabel) =>
       `Install and use either agent, then click “${refreshLabel}” at the bottom left to see the overview`,
-    totalsNote: 'includes stale projects',
     archivedNote: (days, earliest) =>
       `For ${days} of those days (earliest ${earliest}) the source session files have already been auto-cleaned by the agent, so the numbers come from the local archive (hatched bars)`,
     byModel: 'By model (across projects; the Codex side approximates each session’s main model)',
@@ -289,7 +288,7 @@ export const en: Locale = {
     staleTag: 'Stale',
   },
   token: {
-    winAll: (note) => `Total · all history${note ? ` (${note})` : ''}`,
+    winAll: 'Total · all history',
     winToday: 'Today',
     winD7: 'Last 7 days',
     winD30: 'Last 30 days',

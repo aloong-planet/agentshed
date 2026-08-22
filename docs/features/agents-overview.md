@@ -14,7 +14,7 @@ agent side's global picture onto one screen.
   the page responds to clicks until the data arrives, the data then fills in place without the page
   jumping, and a later refresh never brings the placeholders back
 - Token section (the default): a large 30-day daily trend chart (switchable between combined and a
-  single side) and a cross-project model breakdown; the totals include stale projects and say so
+  single side) and a cross-project model breakdown; the totals include stale projects
 - Skills section: every side's global library merged into one column, with side badges showing which
   sides have each entry and symlinks marked; no cross-side content diff; on-disk skills expand to
   preview a package's files (see [Skills view](skills-view.md)); global library entries can start an

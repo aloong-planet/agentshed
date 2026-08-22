@@ -78,9 +78,11 @@ see [appearance](appearance.md) (the rail's settings dimension).
   component type extends this list (ordered most-used first).
 - B2 A summary card's secondary row shows that side's project count, global skill count and subagent
   count — using the same accounting as the corresponding section.
-- B3 The Token totals **include stale projects** and say so explicitly (this differs from the
-  project list's default filtering, and it has to be stated or the numbers will not reconcile;
-  "hidden" left this rule with ADR-0022).
+- B3 The Token totals **include stale projects** (this differs from the project list's default
+  filtering; "hidden" left this rule with ADR-0022). The all-history card carried an explicit
+  "(includes stale projects)" note until 2026-08-22, when the note was retired by user decision —
+  the label reads `Total · all history` bare, and the inclusion is documented here rather than
+  restated on the card.
 - B4 Sections where the sides' concepts are asymmetric (the Codex group under Plugins, the Codex
   global entry under Memory) follow their own spec's probe-style rules, and no false signal is
   manufactured for the sake of symmetry.

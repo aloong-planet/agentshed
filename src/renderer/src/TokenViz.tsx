@@ -31,10 +31,10 @@ export function fmtTok(n: number): string {
  * always means the same day as the trend chart's last bar (G2).
  */
 /** The window's own label, so a caller can name the selected window outside the card row */
-export function useWindowLabel(): (w: UsageWindow, note?: string) => string {
+export function useWindowLabel(): (w: UsageWindow) => string {
   const t = useDict()
-  return (w, note) =>
-    w === 'all' ? t.token.winAll(note ?? '') : w === 'today' ? t.token.winToday : w === 'd7' ? t.token.winD7 : t.token.winD30
+  return (w) =>
+    w === 'all' ? t.token.winAll : w === 'today' ? t.token.winToday : w === 'd7' ? t.token.winD7 : t.token.winD30
 }
 
 export function TotalsCards({
@@ -42,8 +42,7 @@ export function TotalsCards({
   rows,
   anchor,
   window: win,
-  onWindow,
-  note
+  onWindow
 }: {
   /** The selected window's figures; passed in because the caller also renders them elsewhere */
   slice: UsageSlice
@@ -51,7 +50,6 @@ export function TotalsCards({
   anchor: number
   window: UsageWindow
   onWindow: (w: UsageWindow) => void
-  note?: string
 }): JSX.Element {
   const t = useDict()
   const label = useWindowLabel()
@@ -82,7 +80,7 @@ export function TotalsCards({
             aria-pressed={w === win}
             onClick={() => onWindow(w)}
           >
-            <div className="k">{label(w, note)}</div>
+            <div className="k">{label(w)}</div>
             <div className="v">{fmtTok(totals[w])}</div>
           </button>
         ))}
