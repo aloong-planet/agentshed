@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { MarkdownBody } from './MarkdownBody'
 import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot, SearchResult } from '@shared/domain'
 import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
-import { SIDE_BADGE, SIDE_ORDER } from './side-badge'
+import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
 import { StaleNote } from './StaleNote'
 import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
 import { sliceUsage, type UsageWindow } from '@shared/usage'
@@ -90,8 +90,9 @@ export function DetailPane({
       <header className="pane-head">
         <div className="det-title">
           <h1>{entry.name}</h1>
-          {entry.sides.includes('claude') && <span className="badge cl">CLAUDE</span>}
-          {entry.sides.includes('codex') && <span className="badge cx">CODEX</span>}
+          {SIDE_ORDER.filter((s) => entry.sides.includes(s)).map((s) => (
+            <span key={s} className={`badge ${SIDE_BADGE[s].cls}`}>{SIDE_CHIP_LABEL[s]}</span>
+          ))}
           {entry.stale && <span className="stale-tag">{t.detail.staleTag}</span>}
         </div>
         <div className="det-path mono">{entry.path}</div>

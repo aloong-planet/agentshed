@@ -1,6 +1,7 @@
 import { useDict } from './language'
 import { ChevronDown, RefreshCw, Search } from './icons'
 import { useWindowLabel } from './TokenViz'
+import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
 import { STATIC_TABS } from './AgentsPane'
 import { USAGE_WINDOWS } from '@shared/usage'
 import { TREND_MODE_LABEL, type TrendMode } from '@shared/trend'
@@ -51,12 +52,9 @@ const BARS = [
   40, 52, 64, 46, 34, 26
 ]
 
-/** The side cards' static identity; the figures and secondary rows are placeholders */
-const SIDES = [
-  { cls: 'cl', label: 'CLAUDE CODE' },
-  { cls: 'cx', label: 'CODEX' },
-  { cls: 'gk', label: 'GROK' }
-] as const
+/** The side cards' static identity, derived from the side Record (complete by construction; the
+ * figures and secondary rows are placeholders) */
+const SIDES = SIDE_ORDER.map((s) => ({ cls: SIDE_BADGE[s].cls, label: SIDE_CHIP_LABEL[s] }))
 
 /** The sidebar's placeholder rows: name widths staggered like real project names (A10) */
 const ROW_WIDTHS = [128, 96, 142, 88, 150, 104, 120, 134, 92]

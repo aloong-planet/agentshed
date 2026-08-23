@@ -587,6 +587,10 @@ test('a Grok-only project opens its detail page without errors', async () => {
   await row.click()
   const tabs = win.locator('.pane-head .tabs .tab')
   await expect(tabs.first()).toBeVisible()
+  // The header names the recording sides as the full-name chips, derived from the side Record — a
+  // grok-only project wears exactly one GROK chip (the hardcoded pair used to omit grok entirely)
+  await expect(win.locator('.det-title .badge')).toHaveCount(1)
+  await expect(win.locator('.det-title .badge.gk')).toHaveText('GROK')
   const n = await tabs.count()
   for (let i = 0; i < n; i++) {
     await tabs.nth(i).click()

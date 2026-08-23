@@ -3,7 +3,7 @@
 // exactly how Grok sessions briefly wore the CX badge (#125 review).
 import type { AgentSide } from '@shared/domain'
 
-export const SIDE_BADGE: Record<AgentSide, { cls: string; label: string }> = {
+export const SIDE_BADGE: Record<AgentSide, { cls: 'cl' | 'cx' | 'gk'; label: string }> = {
   claude: { cls: 'cl', label: 'CC' },
   codex: { cls: 'cx', label: 'CX' },
   grok: { cls: 'gk', label: 'GK' }
