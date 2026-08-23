@@ -7,8 +7,8 @@
 // a half-translated state of "the UI is in one language and the menu in another", leaving i18n unclosed
 // on the menu.
 //
-// **The template is a pure function** (language → menu structure), and the two actions are injected as
-// parameters rather than operating on BrowserWindow here:
+// **The template is a pure function** (language → menu structure), and the action is injected as a
+// parameter rather than operating on BrowserWindow here:
 // that would stop it being pure and make it untestable. `import type` is erased after compilation, so
 // this module pulls in no Electron runtime.
 //
@@ -22,11 +22,9 @@ import { dictOf, type Language } from '@shared/i18n'
 export interface MenuActions {
   /** Switch to the settings dimension (the same operation as the rail's settings entry) */
   openSettings: () => void
-  /** Global refresh (the same operation as the rail's refresh button) */
-  refresh: () => void
 }
 
-const NOOP: MenuActions = { openSettings: () => {}, refresh: () => {} }
+const NOOP: MenuActions = { openSettings: () => {} }
 
 /**
  * The structure follows the standard macOS menu set; the copy comes from the dictionaries and follows
@@ -71,9 +69,10 @@ export function buildMenuTemplate(
     {
       label: m.view,
       submenu: [
-        // Global refresh is bound to Cmd+R: it is this product's "rescan", not a reload in the web sense —
-        // hence not role:'reload' (which would reload the renderer and lose all app state)
-        { label: t.rail.refresh, accelerator: 'CmdOrCtrl+R', click: () => actions.refresh() },
+        // ⌘R is the platform reload. The global refresh used to hold this slot as the product's
+        // "rescan"; with that control removed (2026-08-23) scanning is automatic, and the shortcut
+        // goes back to the reload every desktop app has — the escape hatch for a wedged window.
+        { label: m.reload, accelerator: 'CmdOrCtrl+R', role: 'reload' },
         { type: 'separator' },
         { label: m.toggleDevTools, role: 'toggleDevTools' },
         { type: 'separator' },

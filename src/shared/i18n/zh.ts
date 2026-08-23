@@ -22,7 +22,6 @@ export const zh = {
   rail: {
     agents: 'Agents',
     projects: 'Projects',
-    refresh: '全局刷新',
     settings: '设置'
   },
 
@@ -93,8 +92,7 @@ export const zh = {
       `${projects} 项目 · ${skills} 全局 skills · ${subagents} subagents`,
     tabCfg: '配置',
     notDetected: '本机未检测到任何 agent 侧的数据目录',
-    notDetectedHint: (refreshLabel: string) =>
-      `安装并使用任一 agent 后,点左下角的「${refreshLabel}」即可看到全景`,
+    notDetectedHint: '安装并使用任一 agent 后,下次自动扫描即可看到全景(切回本窗口会触发扫描)',
     archivedNote: (days: number, earliest: string) =>
       `其中 ${days} 天(最早 ${earliest})源会话文件已被 agent 自动清理,数值来自本地归档(斜纹柱)`,
     byModel: '按模型拆分(跨项目;Codex 侧为会话主模型近似)',
@@ -420,7 +418,7 @@ export const zh = {
   errors: {
     badArgs: (channel: string, field: string) =>
       field ? `调用参数不合契约:${channel}(字段 ${field})` : `调用参数不合契约:${channel}`,
-    sessionNotWhitelisted: '会话路径不在白名单,请先打开项目详情或全局刷新',
+    sessionNotWhitelisted: '会话路径不在白名单,请先打开项目详情',
     engineNotReady: '扫描引擎未就绪,请稍候再试',
     turnOutOfRange: (i: number, total: number) => `轮次下标越界:${i}(共 ${total} 轮)`,
     artifactNotWhitelisted: '产物路径不在白名单',
@@ -429,7 +427,7 @@ export const zh = {
     skillPackageUnavailable: 'skill 包不可用或不在允许根下',
     skillFileNotWhitelisted: 'skill 文件路径不在白名单',
     skillFileUnreadable: 'skill 文件不可读',
-    sessionNotIndexed: '会话不在索引中,请先全局刷新',
+    sessionNotIndexed: '会话不在索引中,下次扫描后重试',
     sessionFileUnreadable: '会话文件已不可读(被移动或删除?)',
     sessionMetaUnreadable: '会话首行元数据不可读,无法重建索引',
     sessionParseFailed: '会话文件解析失败',

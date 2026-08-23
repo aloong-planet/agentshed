@@ -37,14 +37,20 @@ describe('buildMenuTemplate', () => {
     for (const lang of LANGUAGES) expect(labels(lang)[0]).toBe('Agentshed')
   })
 
-  it('wires up the two keyboard entry points, Settings and Refresh', () => {
+  it('⌘, opens settings and ⌘R is the platform reload, not an app action', () => {
+    // The global refresh used to own ⌘R and shadowed the reload every desktop app has (removed
+    // 2026-08-23). The accelerator must be back on the platform role: a click-driven item here would
+    // mean the app has taken the shortcut over again.
     const all = buildMenuTemplate('zh').flatMap((m) => (Array.isArray(m.submenu) ? m.submenu : []))
     const accels = all.map((i) => String((i as { accelerator?: string }).accelerator ?? ''))
     expect(accels).toContain('CmdOrCtrl+,') // Settings: the standard macOS slot
-    expect(accels).toContain('CmdOrCtrl+R') // Global refresh
+    const cmdR = all.find((i) => (i as { accelerator?: string }).accelerator === 'CmdOrCtrl+R')
+    expect(cmdR, '⌘R must still be bound — to the reload role').toBeDefined()
+    expect((cmdR as { role?: string }).role).toBe('reload')
+    expect((cmdR as { click?: () => void }).click).toBeUndefined()
   })
 
-  it('the two entry points\' copy shares its source with the same-named operations in the UI', () => {
+  it('the settings entry point\'s copy shares its source with the same-named operation in the UI', () => {
     // The menu calling it "Settings" while the UI calls it something else gives one feature two names —
     // users would take them for two different things
     for (const lang of LANGUAGES) {
@@ -53,24 +59,20 @@ describe('buildMenuTemplate', () => {
         .flatMap((m) => (Array.isArray(m.submenu) ? m.submenu : []))
         .map((i) => String((i as { label?: string }).label ?? ''))
       expect(flat).toContain(t.rail.settings)
-      expect(flat).toContain(t.rail.refresh)
+      expect(flat).toContain(t.menu.reload)
     }
   })
 
-  it('selecting either entry point calls the injected action rather than touching the window itself', () => {
+  it('the settings entry point calls the injected action rather than touching the window itself', () => {
     // Injected rather than operating on BrowserWindow inside the template: that would stop it being pure
     // and make it untestable
     const called: string[] = []
-    const tpl = buildMenuTemplate('zh', {
-      openSettings: () => called.push('settings'),
-      refresh: () => called.push('refresh')
-    })
+    const tpl = buildMenuTemplate('zh', { openSettings: () => called.push('settings') })
     const items = tpl.flatMap((m) => (Array.isArray(m.submenu) ? m.submenu : []))
     for (const i of items) {
       const click = (i as { click?: () => void }).click
       if (click) click()
     }
-    expect(called).toContain('settings')
-    expect(called).toContain('refresh')
+    expect(called).toEqual(['settings'])
   })
 })

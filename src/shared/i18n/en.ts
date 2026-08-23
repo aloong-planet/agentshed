@@ -9,7 +9,6 @@ export const en: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Projects',
-    refresh: 'Refresh all',
     settings: 'Settings'
   },
 
@@ -58,8 +57,7 @@ export const en: Locale = {
       `${projects} ${plural('en', projects, { one: 'project', other: 'projects' })} · ${skills} global ${plural('en', skills, { one: 'skill', other: 'skills' })} · ${subagents} ${plural('en', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Config',
     notDetected: 'No agent side’s data directory was detected on this machine',
-    notDetectedHint: (refreshLabel) =>
-      `Install and use either agent, then click “${refreshLabel}” at the bottom left to see the overview`,
+    notDetectedHint: 'Install and use any of the agents; the overview appears at the next automatic scan (returning to this window triggers one)',
     archivedNote: (days, earliest) =>
       `For ${days} of those days (earliest ${earliest}) the source session files have already been auto-cleaned by the agent, so the numbers come from the local archive (hatched bars)`,
     byModel: 'By model (across projects; the Codex side approximates each session’s main model)',
@@ -340,7 +338,7 @@ export const en: Locale = {
     badArgs: (channel, field) =>
       field ? `Invalid call arguments: ${channel} (field ${field})` : `Invalid call arguments: ${channel}`,
     sessionNotWhitelisted:
-      'This session is not in the allowed list — open the project details or refresh first',
+      'This session is not in the allowed list — open the project details first',
     engineNotReady: 'The scan engine is not ready yet — please try again shortly',
     turnOutOfRange: (i, total) =>
       `Turn index out of range: ${i} (of ${total} ${plural('en', total, { one: 'turn', other: 'turns' })})`,
@@ -351,7 +349,7 @@ export const en: Locale = {
     skillPackageUnavailable: 'The skill package is unavailable or outside the allowed roots',
     skillFileNotWhitelisted: 'This skill file path is not in the allowed list',
     skillFileUnreadable: 'The skill file cannot be read',
-    sessionNotIndexed: 'This session is not indexed — use Refresh all first',
+    sessionNotIndexed: 'This session is not indexed — try again after the next scan',
     sessionFileUnreadable: 'The session file can no longer be read (moved or deleted?)',
     sessionMetaUnreadable: 'The session’s first-line metadata is unreadable, so the index cannot be rebuilt',
     sessionParseFailed: 'Failed to parse the session file',

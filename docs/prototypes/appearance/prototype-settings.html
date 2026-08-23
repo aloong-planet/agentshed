@@ -126,8 +126,7 @@
     justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2);background:transparent}
   .ri:hover{background:var(--accent-soft)}
   .ri.on{background:var(--accent-soft);color:var(--accent)}
-  .ri.grfr{margin-top:auto}
-  .ri.set{margin-bottom:10px}
+  .ri.set{margin-top:auto;margin-bottom:10px}
 
   .stage{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
   .pane{flex:1;overflow:auto;padding:16px 22px}
@@ -251,7 +250,6 @@
   <nav class="rail">
     <button type="button" class="ri" data-dim="agents" data-tip="agents" data-icon="RobotFace" data-icon-size="17"></button>
     <button type="button" class="ri" data-dim="projects" data-tip="projects" data-icon="Folder" data-icon-size="17"></button>
-    <button type="button" class="ri grfr" data-tip="refresh" id="refresh" data-icon="RefreshCw" data-icon-size="17"></button>
     <button type="button" class="ri set on" data-dim="settings" data-tip="settings" data-icon="Settings" data-icon-size="17"></button>
   </nav>
   <main class="stage" id="stage"></main>
@@ -296,7 +294,7 @@
       light: '浅色', dark: '深色',
       schemeNames: { purple: '紫', blue: '雾蓝', amber: '琥珀褐' },
       appearFoot: (b) => `模式选「${b('跟随系统')}」时，明暗随 macOS 外观变化。配色与明暗彼此独立、可任意组合；未选择时用紫。切换后立即对整个 app 生效，无需保存。`,
-      rail: { agents: 'Agents', projects: 'Projects', refresh: '全局刷新', settings: '设置' },
+      rail: { agents: 'Agents', projects: 'Projects', settings: '设置' },
       agentsSub: '示意 · 当前主题应已全局生效（含强调色与卡片底）',
       tabs: ['Skills', 'Token', '配置'],
       search: '搜索项目…',
@@ -305,7 +303,6 @@
       toastMode: (n) => `外观模式：${n}`,
       toastLang: (n) => `界面语言已切换为 ${n}`,
       toastFollowSystem: (n) => `已设为跟随系统 · 当前为 ${n}`,
-      toastRefresh: '全局刷新（示意）'
     },
     en: {
       native: 'English', english: 'English', htmlLang: 'en',
@@ -317,7 +314,7 @@
       light: 'Light', dark: 'Dark',
       schemeNames: { purple: 'Purple', blue: 'Mist Blue', amber: 'Amber Brown' },
       appearFoot: (b) => `With mode set to “${b('Follow system')}”, light and dark follow your macOS appearance. Palette and light/dark are independent and combine freely; Purple is used when nothing is chosen. Changes apply across the whole app immediately — no saving needed.`,
-      rail: { agents: 'Agents', projects: 'Projects', refresh: 'Refresh all', settings: 'Settings' },
+      rail: { agents: 'Agents', projects: 'Projects', settings: 'Settings' },
       agentsSub: 'Preview · the current theme should already apply app-wide (accent and card surfaces)',
       tabs: ['Skills', 'Token', 'Config'],
       search: 'Search projects…',
@@ -326,7 +323,6 @@
       toastMode: (n) => `Appearance mode: ${n}`,
       toastLang: (n) => `Interface language switched to ${n}`,
       toastFollowSystem: (n) => `Now following the system · currently ${n}`,
-      toastRefresh: 'Refresh all (preview)'
     },
     fr: {
       native: 'Français', english: 'French', htmlLang: 'fr',
@@ -338,7 +334,7 @@
       light: 'Clair', dark: 'Sombre',
       schemeNames: { purple: 'Violet', blue: 'Bleu brume', amber: 'Ambre' },
       appearFoot: (b) => `Avec le mode « ${b('Suivre le système')} », le clair et le sombre suivent l’apparence macOS. La palette et le mode sont indépendants et se combinent librement ; Violet est utilisé par défaut. Les changements s’appliquent immédiatement à toute l’app, sans enregistrement.`,
-      rail: { agents: 'Agents', projects: 'Projets', refresh: 'Tout actualiser', settings: 'Réglages' },
+      rail: { agents: 'Agents', projects: 'Projets', settings: 'Réglages' },
       agentsSub: 'Aperçu · le thème actuel devrait déjà s’appliquer à toute l’app (accent et fonds de cartes)',
       tabs: ['Skills', 'Token', 'Configuration'],
       search: 'Rechercher des projets…',
@@ -347,7 +343,6 @@
       toastMode: (n) => `Mode d’apparence : ${n}`,
       toastLang: (n) => `Langue de l’interface changée pour ${n}`,
       toastFollowSystem: (n) => `Suit désormais le système · actuellement ${n}`,
-      toastRefresh: 'Tout actualiser (aperçu)'
     },
     es: {
       native: 'Español', english: 'Spanish', htmlLang: 'es',
@@ -359,7 +354,7 @@
       light: 'Claro', dark: 'Oscuro',
       schemeNames: { purple: 'Violeta', blue: 'Azul niebla', amber: 'Ámbar' },
       appearFoot: (b) => `Con el modo «${b('Seguir el sistema')}», el claro y el oscuro siguen la apariencia de macOS. La paleta y el modo son independientes y se combinan libremente; se usa Violeta si no eliges nada. Los cambios se aplican de inmediato en toda la app, sin necesidad de guardar.`,
-      rail: { agents: 'Agents', projects: 'Proyectos', refresh: 'Actualizar todo', settings: 'Ajustes' },
+      rail: { agents: 'Agents', projects: 'Proyectos', settings: 'Ajustes' },
       agentsSub: 'Vista previa · el tema actual ya debería aplicarse en toda la app (acento y fondos de tarjeta)',
       tabs: ['Skills', 'Token', 'Configuración'],
       search: 'Buscar proyectos…',
@@ -368,7 +363,6 @@
       toastMode: (n) => `Modo de apariencia: ${n}`,
       toastLang: (n) => `Idioma de la interfaz cambiado a ${n}`,
       toastFollowSystem: (n) => `Ahora sigue el sistema · actualmente ${n}`,
-      toastRefresh: 'Actualizar todo (vista previa)'
     },
     ru: {
       native: 'Русский', english: 'Russian', htmlLang: 'ru',
@@ -380,7 +374,7 @@
       light: 'Светлый', dark: 'Тёмный',
       schemeNames: { purple: 'Фиолетовая', blue: 'Туманно-синяя', amber: 'Янтарная' },
       appearFoot: (b) => `Когда режим — «${b('Следовать системе')}», светлое и тёмное оформление следует настройкам macOS. Палитра и режим независимы и сочетаются свободно; без выбора используется фиолетовая. Изменения применяются сразу во всём приложении — сохранять не нужно.`,
-      rail: { agents: 'Agents', projects: 'Проекты', refresh: 'Обновить всё', settings: 'Настройки' },
+      rail: { agents: 'Agents', projects: 'Проекты', settings: 'Настройки' },
       agentsSub: 'Пример · текущая тема уже должна действовать во всём приложении (акцент и фон карточек)',
       tabs: ['Skills', 'Token', 'Конфигурация'],
       search: 'Поиск проектов…',
@@ -389,7 +383,6 @@
       toastMode: (n) => `Режим оформления: ${n}`,
       toastLang: (n) => `Язык интерфейса переключён на ${n}`,
       toastFollowSystem: (n) => `Теперь следует системе · сейчас ${n}`,
-      toastRefresh: 'Обновить всё (пример)'
     },
     ja: {
       native: '日本語', english: 'Japanese', htmlLang: 'ja',
@@ -401,7 +394,7 @@
       light: 'ライト', dark: 'ダーク',
       schemeNames: { purple: 'パープル', blue: 'ミストブルー', amber: 'アンバー' },
       appearFoot: (b) => `モードを「${b('システムに従う')}」にすると、明暗は macOS の外観に従います。パレットと明暗は独立していて自由に組み合わせられます。未選択の場合はパープルです。変更は保存不要で app 全体にすぐ反映されます。`,
-      rail: { agents: 'Agents', projects: 'Projects', refresh: 'すべて更新', settings: '設定' },
+      rail: { agents: 'Agents', projects: 'Projects', settings: '設定' },
       agentsSub: 'プレビュー · 現在のテーマは app 全体に適用されているはずです（アクセント色とカード面）',
       tabs: ['Skills', 'Token', '設定'],
       search: 'プロジェクトを検索…',
@@ -410,7 +403,6 @@
       toastMode: (n) => `外観モード：${n}`,
       toastLang: (n) => `インターフェースの言語を ${n} に変更しました`,
       toastFollowSystem: (n) => `システムに従う設定にしました · 現在は ${n}`,
-      toastRefresh: 'すべて更新（プレビュー）'
     }
   }
 
@@ -769,7 +761,6 @@
   document.querySelectorAll('.rail [data-dim]').forEach((b) => {
     b.onclick = () => setDim(b.getAttribute('data-dim'))
   })
-  document.getElementById('refresh').onclick = () => toast(t().toastRefresh)
 
   applyAll()
   setDim('settings')

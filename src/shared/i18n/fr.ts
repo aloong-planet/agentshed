@@ -9,7 +9,6 @@ export const fr: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Projets',
-    refresh: 'Tout actualiser',
     settings: 'Réglages'
   },
 
@@ -58,8 +57,7 @@ export const fr: Locale = {
       `${projects} ${plural('fr', projects, { one: 'projet', other: 'projets' })} · ${skills} ${plural('fr', skills, { one: 'skill global', other: 'skills globaux' })} · ${subagents} ${plural('fr', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Configuration',
     notDetected: 'Aucun répertoire de données d’un côté agent n’a été détecté sur cette machine',
-    notDetectedHint: (refreshLabel) =>
-      `Installez et utilisez l’un des agents, puis cliquez sur « ${refreshLabel} » en bas à gauche pour voir la vue d’ensemble`,
+    notDetectedHint: 'Installez et utilisez l’un des agents ; la vue d’ensemble apparaît à la prochaine analyse automatique (revenir sur cette fenêtre en déclenche une)',
     archivedNote: (days, earliest) => `Pour ${days} de ces jours (le plus ancien ${earliest}), les fichiers de session source ont été nettoyés automatiquement par l’agent ; les valeurs viennent de l’archive locale (barres hachurées)`,
     byModel: 'Par modèle (tous projets ; côté Codex, approximation du modèle principal de la session)',
     detected: 'Détecté', undetected: 'Non détecté',
@@ -337,7 +335,7 @@ export const fr: Locale = {
         ? `Arguments d’appel non conformes : ${channel} (champ ${field})`
         : `Arguments d’appel non conformes : ${channel}`,
     sessionNotWhitelisted:
-      'Cette session n’est pas dans la liste autorisée — ouvrez d’abord le détail du projet ou actualisez',
+      'Cette session n’est pas dans la liste autorisée — ouvrez d’abord le détail du projet',
     engineNotReady: 'Le moteur d’analyse n’est pas prêt — réessayez dans un instant',
     turnOutOfRange: (i, total) =>
       `Indice de tour hors limites : ${i} (sur ${total} ${plural('fr', total, { one: 'tour', other: 'tours' })})`,
@@ -349,7 +347,7 @@ export const fr: Locale = {
       'Le paquet skill est indisponible ou hors des racines autorisées',
     skillFileNotWhitelisted: 'Ce chemin de fichier skill n’est pas dans la liste autorisée',
     skillFileUnreadable: 'Le fichier skill est illisible',
-    sessionNotIndexed: 'Cette session n’est pas indexée — lancez d’abord Tout actualiser',
+    sessionNotIndexed: 'Cette session n’est pas indexée — réessayez après la prochaine analyse',
     sessionFileUnreadable: 'Le fichier de session n’est plus lisible (déplacé ou supprimé ?)',
     sessionMetaUnreadable:
       'Les métadonnées de la première ligne de la session sont illisibles, impossible de reconstruire l’index',

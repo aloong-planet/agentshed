@@ -200,7 +200,6 @@ handle(CMD.getSnapshot, async () => {
   if (current) return current
   return doScan()
 })
-handle(CMD.refresh, async () => doScan())
 // The artifact file allow-list: only files the detail page listed may be read or opened externally,
 // closing the arbitrary-path read hole
 const artifactWhitelist = new Set<string>()
@@ -433,10 +432,7 @@ function applyMenu(): void {
   const send = (channel: string) => (): void => mainWindow?.webContents.send(channel)
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(
-      buildMenuTemplate(initialLanguage(), {
-        openSettings: send(EVT.menuOpenSettings),
-        refresh: send(EVT.menuRefresh)
-      })
+      buildMenuTemplate(initialLanguage(), { openSettings: send(EVT.menuOpenSettings) })
     )
   )
 }
@@ -517,11 +513,11 @@ void app.whenReady().then(() => {
   createWindow()
   applyMenu()
   void doScan()
-  // Automatic snapshot refresh (token-stats sequence E): focus (throttled) + a timed backstop, sharing
-  // doScan with a manual refresh (in-flight deduplication, E2); an automatic trigger that fails silently keeps
-  // the current snapshot and waits for the next trigger (E3),
-  // while a manual refresh failure is still thrown to the caller through CMD.refresh. Injecting the parameters
-  // from the environment is a test seam (E5).
+  // Automatic snapshot refresh (token-stats sequence E) — since the manual control was removed
+  // (2026-08-23) this is the **only** way a running window gets fresh data: focus (throttled) + a timed
+  // backstop, both going through doScan, whose in-flight deduplication keeps two triggers that coincide
+  // from scanning twice (E2). A trigger that fails keeps the current snapshot and waits for the next one
+  // (E3). Injecting the intervals from the environment is a test seam (E5).
   const autoScan = (): void => {
     void doScan().catch((e: unknown) => {
       // E3: silently keep the current snapshot, but leave a trace of the failure — a programming error

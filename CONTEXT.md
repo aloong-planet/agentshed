@@ -408,15 +408,19 @@ _Avoid_: error message (bare, implies a finished sentence)
   every language at once. This was learnt three times in one round: `docs/features/` named six
   controls by glyph and all six became lies when the icons became SVG; `notDetectedHint` pointed at
   `↻` mid-sentence in six dictionaries; three code comments referred to pills by `⑂` / `⑂?`. Where
-  the label itself is needed at runtime, pass it in rather than writing it down — `notDetectedHint`
-  takes the refresh button's label as an argument, so renaming that button cannot leave the sentence
-  naming a control that no longer exists.
+  the label itself is needed at runtime, pass it in rather than writing it down, so that renaming the
+  control cannot leave the sentence naming something that no longer exists. **Parameterising survives
+  a rename, not a removal** (learnt 2026-08-23): `notDetectedHint` took the refresh button's label as
+  an argument, and when that button was removed the sentence still sent users to a control that had
+  ceased to exist — the parameter kept the *name* right while the *instruction* went false. It now
+  names no control at all, which is the form that cannot rot; naming one is worth it only when the
+  reader genuinely has to find it.
 
 - **`rail` is an internal term and must not appear in user-facing copy (settled 2026-08-15)**: the
   48px vertical strip of icon buttons down the left edge. The word is useful in code, comments and
   `docs/features/` and stays there — but a user has no way to learn it, because nothing in the
-  interface is labelled "rail" (the four buttons' tooltips read Agents / Projects / Refresh all /
-  Settings, and `rail` survives only as a CSS class name). Copy that needs to point at it describes
+  interface is labelled "rail" (its buttons' tooltips read Agents / Projects / Settings, and `rail`
+  survives only as a CSS class name). Copy that needs to point at it describes
   the position instead ("at the bottom left"). Note that "sidebar" is **not** an alternative name for
   it: the project list beside it is the sidebar. This is the same failure as naming a control by its
   glyph, one level up — copy referring to something by a name the reader cannot resolve.

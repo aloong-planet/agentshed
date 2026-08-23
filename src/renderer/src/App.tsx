@@ -18,7 +18,7 @@ import { DetailPane } from './DetailPane'
 import { SessionPane } from './SessionPane'
 import { SettingsPane } from './SettingsPane'
 import { Toasts, toast } from './Toast'
-import { Folder, MousePointerClick, RefreshCw, RobotFace, Settings } from './icons'
+import { Folder, MousePointerClick, RobotFace, Settings } from './icons'
 
 type Dim = 'agents' | 'projects' | 'settings'
 
@@ -33,7 +33,6 @@ function applyLang(lang: Language): void {
 export function App(): JSX.Element {
   const [dim, setDim] = useState<Dim>('agents')
   const [snap, setSnap] = useState<Snapshot | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   // Session page view state (ticket 04): when non-empty, the project detail area is replaced wholesale
   // by the session page; switching project exits it
@@ -68,9 +67,6 @@ export function App(): JSX.Element {
   // its closure captured the values as of mount. The same use as cursorRef in LanguageSelect.
   const prefsRef = useRef<Prefs>({ theme, language: langPref, mode })
   prefsRef.current = { theme, language: langPref, mode }
-  // `refresh` is a new function on every render while the menu listener is installed once at mount — a
-  // ref is used to reach the latest one
-  const refreshRef = useRef<() => Promise<void>>(async () => {})
   const selectProject = (p: string | null): void => {
     setSelected(p)
     setOpenSession(null)
@@ -97,28 +93,15 @@ export function App(): JSX.Element {
       if (alive) setSnap(s)
     })
     const off = window.agentshed.onSnapshot((s) => setSnap(s))
-    // The application menu's two entry points (ticket 13): they behave exactly like the same-named
-    // operations on the rail,
-    // going through the same state and functions rather than a second set
+    // The application menu's app entry point (ticket 13): it behaves exactly like the same-named
+    // operation on the rail, going through the same state and functions rather than a second set
     const offSettings = window.agentshed.onMenuOpenSettings(() => setDim('settings'))
-    const offRefresh = window.agentshed.onMenuRefresh(() => void refreshRef.current())
     return () => {
       alive = false
       off()
       offSettings()
-      offRefresh()
     }
   }, [])
-
-  async function refresh(): Promise<void> {
-    if (refreshing) return
-    setRefreshing(true)
-    try {
-      setSnap(await window.agentshed.refresh())
-    } finally {
-      setRefreshing(false)
-    }
-  }
 
   async function onTheme(s: AppearanceTheme): Promise<void> {
     // Apply locally first, then persist: there is no intermediate state where only the settings page is
@@ -176,8 +159,6 @@ export function App(): JSX.Element {
     }
   }
 
-  refreshRef.current = refresh
-
   return (
     <LanguageProvider lang={lang}>
     <div className={`app dim-${dim}`}>
@@ -195,13 +176,6 @@ export function App(): JSX.Element {
           onClick={() => setDim('projects')}
         >
           <Folder size={17} />
-        </button>
-        <button
-          className={`ri grfr ${refreshing ? 'busy' : ''}`}
-          title={t.rail.refresh}
-          onClick={() => void refresh()}
-        >
-          <RefreshCw size={17} />
         </button>
         <button
           className={`ri set ${dim === 'settings' ? 'on' : ''}`}

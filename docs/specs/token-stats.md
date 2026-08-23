@@ -174,13 +174,12 @@ next to A/B, so that no existing reference is renumbered)
 missing" — the only rescan triggers had been startup and manual ↻, so leaving the app running
 overnight froze `scannedAt` and today's data was not shown)**
 - E1 Triggers: window focus (only if at least a throttle window has passed since the last successful
-  scan, 60 s by default, debounced) plus a timed backstop (5 minutes by default); manual ↻ is
-  unchanged.
-- E2 Concurrency: automatic and manual share the same scan entry point with in-flight deduplication
-  (at most one scan running at any moment).
-- E3 An automatically triggered scan that fails → **silently keeps the existing snapshot**, without
-  interrupting the user or clearing data, and waits for the next trigger; a manual ↻ failure is still
-  thrown explicitly to the caller.
+  scan, 60 s by default, debounced) plus a timed backstop (5 minutes by default). Since the manual
+  control was removed (2026-08-23) these two are the **only** triggers after startup.
+- E2 Concurrency: both triggers share one scan entry point with in-flight deduplication (at most one
+  scan running at any moment), so a focus arriving during the backstop's scan joins it.
+- E3 A scan that fails → **silently keeps the existing snapshot**, without interrupting the user or
+  clearing data, and waits for the next trigger.
 - E4 A new snapshot is delivered through the existing push channel; an open project detail page
   **updates by transfusion** (no "loading" flash, section local state preserved — the behaviour entry
   is in the project-detail spec).
@@ -249,7 +248,7 @@ overnight froze `scannedAt` and today's data was not shown)**
   using both leaves a single-side chart with part of its span dimmed. Neither resets the other. The
   window still governs the figures above the chart across all sides — the side filter is a property of
   the chart alone, which is why it does not touch them.
-- G13 A refresh arriving while a non-default window is selected — automatic (E1) or manual — keeps the
+- G13 A refresh arriving while a non-default window is selected (E1's automatic triggers) keeps the
   selection and recomputes its figures against the new snapshot. The anchor may have moved, so "today"
   can come to mean a different day than it did a moment ago; that is the intended behaviour and the
   reason G2 ties the window to the anchor rather than to the clock. Losing the selection on refresh
@@ -319,7 +318,7 @@ generated on demand rather than read from a fixed path — a path named after th
 sampled is a one-off, and a reconciliation that needs a manual, undocumented step before it can run
 is one nobody runs. Automatic refresh (sequence E): the focus throttle judgement is a pure function with
 unit tests; e2e drives the whole chain with a short interval injected — after appending session data
-it appears without a manual refresh, and an open detail page's section local state is preserved. Focus
+it appears on its own, and an open detail page's section local state is preserved. Focus
 events are semantically unreliable under a hidden-window test regime (noted in the existing e2e
 header), and since the focus path shares its scan entry point with the timer, it gets no separate e2e.
 

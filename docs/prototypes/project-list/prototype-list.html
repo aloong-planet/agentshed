@@ -43,8 +43,6 @@
   .sh input{flex:1;padding:6px 10px;border:1px solid var(--line-strong);border-radius:7px;
     background:var(--bg);color:var(--text);font:inherit;outline:none}
   .sh input:focus{border-color:var(--accent)}
-  .ri.busy{animation:spin 1s linear infinite;pointer-events:none;color:var(--accent)}
-  @keyframes spin{to{transform:rotate(360deg)}}
   .fseg{display:flex;gap:4px;padding:2px 14px 4px}
   /* 侧别下拉。触发器是普通行内控件;弹层是浮层,规矩见下面 .side-pop。 */
   .dd-trigger{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2);
@@ -138,7 +136,6 @@
   <div class="rail">
     <div class="ri" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html" data-icon="RobotFace" data-icon-size="17"></div>
     <div class="ri on" title="Projects" data-icon="Folder" data-icon-size="17"></div>
-    <div class="ri" id="grfr" title="全局刷新(去重:进行中忽略再次点击)" style="margin-top:auto;margin-bottom:6px" data-icon="RefreshCw" data-icon-size="17"></div>
   </div>
   <div class="side">
     <div class="sh"><div class="sh-field"><span data-icon="Search" data-icon-size="13"></span><input id="q" placeholder="搜索项目…"></div></div>
@@ -308,9 +305,6 @@
   renderHarness();
   // Global refresh (at the bottom of the rail) is deduplicated: repeat clicks while one is in flight are
   // ignored
-  const grfr=document.getElementById('grfr');
-  grfr.onclick=()=>{if(grfr.classList.contains('busy'))return;
-    grfr.classList.add('busy');setTimeout(()=>grfr.classList.remove('busy'),1500);};
   render();
 </script>
 <script>
