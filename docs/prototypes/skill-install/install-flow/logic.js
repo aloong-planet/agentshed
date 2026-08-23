@@ -53,7 +53,7 @@ function reduce(s, a) {
       return ok({ status: 'cancelled', note: '目标是失效项目(UI 已禁用入口,模型同样拒绝)' });
     case 'copy_ok':
       if (s.status !== 'copying') return deny('没有进行中的复制');
-      return ok({ status: 'installed', note: '解引用深拷贝完成;仅局部刷新该项目' });
+      return ok({ status: 'installed', note: '解引用深拷贝完成' });
     case 'copy_fail':
       if (s.status !== 'copying') return deny('没有进行中的复制');
       return ok({ status: 'failed_cleaned', note: '复制中断(权限/磁盘),半成品已清理,无残缺目录' });
@@ -65,7 +65,7 @@ function reduce(s, a) {
       return ok({ status: 'cancelled', note: '用户取消,项目副本原样保留' });
     case 'delete_done':
       if (s.status !== 'deleting') return deny('没有进行中的删除');
-      return ok({ status: 'uninstalled', note: '项目副本已删;git 差异由用户自行处理;仅局部刷新' });
+      return ok({ status: 'uninstalled', note: '项目副本已删;git 差异由用户自行处理' });
     default:
       return deny('未知事件');
   }

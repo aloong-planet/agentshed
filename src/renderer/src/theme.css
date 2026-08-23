@@ -240,16 +240,12 @@ body {
   background: var(--accent-soft);
   color: var(--accent);
 }
-.rail .ri.grfr {
-  margin-top: auto;
-}
+/* Settings is the rail's bottom group on its own: it inherited the auto top margin from the global
+   refresh button that used to sit above it (removed 2026-08-23) — without it the entry would ride up
+   under the dimension buttons */
 .rail .ri.set {
+  margin-top: auto;
   margin-bottom: 10px;
-}
-.rail .ri.busy {
-  animation: spin 1s linear infinite;
-  pointer-events: none;
-  color: var(--accent);
 }
 
 /* ── The settings page (appearance) ── */

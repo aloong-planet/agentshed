@@ -66,11 +66,10 @@ see [appearance](appearance.md) (the rail's settings dimension).
   count is unknown until the scan lands; and a machine whose sides report no usage at all collapses
   the usage-only regions (composition bar, legend, model rows) on fill, because the loaded page
   omits them — the skeleton is shaped for the common case of data being present.
-- A4c The skeleton exists only before this launch's first snapshot. Later refreshes — manual or
-  automatic — keep the previous data on screen and never fall back to the skeleton.
-- A4d First scan failure → the skeleton and hint stay as they are; recovery rides the existing
-  rescan triggers (timer, window focus, manual refresh). A dedicated first-scan error state is out
-  of scope.
+- A4c The skeleton exists only before this launch's first snapshot. Later scans keep the previous
+  data on screen and never fall back to the skeleton.
+- A4d First scan failure → the skeleton and hint stay as they are; recovery rides the automatic
+  rescan triggers (timer, window focus). A dedicated first-scan error state is out of scope.
 - A4e Once the first snapshot lands with no side detected, A1's whole-page empty state replaces the
   skeleton — the two states never mix.
 
@@ -144,7 +143,7 @@ the snapshot arrives (the same discipline as the project list's floating-layer a
 - Write operations on the global library / plugins / memories (the one write operation is installing
   a skill into a project).
 - Cross-component aggregate views and global search.
-- Live file watching (startup scan + manual refresh only).
+- Live file watching (startup scan + the automatic rescans only).
 - A dedicated first-scan error state (A4d keeps the skeleton and lets the rescan triggers retry).
 - Persisting the previous run's snapshot so a cold start shows real data immediately — decided
   worth doing (2026-08-21) but deliberately a separate feature: it brings disk format, staleness

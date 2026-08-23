@@ -9,7 +9,6 @@ export const ru: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Проекты',
-    refresh: 'Обновить всё',
     settings: 'Настройки'
   },
 
@@ -57,14 +56,13 @@ export const ru: Locale = {
     sideSummary: (projects, skills, subagents) => `проектов: ${projects} · глобальных skills: ${skills} · subagents: ${subagents}`,
     tabCfg: 'Конфигурация',
     notDetected: 'На этой машине не обнаружен каталог данных ни одной стороны агента',
-    notDetectedHint: (refreshLabel) =>
-      `Установите и используйте любой из агентов, затем нажмите «${refreshLabel}» слева внизу, чтобы увидеть обзор`,
+    notDetectedHint: 'Установите и используйте любой из агентов — обзор появится при следующем автоматическом сканировании (возврат в это окно запускает его)',
     archivedNote: (days, earliest) => `Для ${days} из этих дней (самый ранний ${earliest}) исходные файлы сессий уже удалены агентом автоматически; значения взяты из локального архива (штрихованные столбцы)`,
     byModel: 'По моделям (по всем проектам; на стороне Codex — приближение основной модели сессии)',
     detected: 'Обнаружено', undetected: 'Не обнаружено',
     emptyGlobalLib: 'Глобальные библиотеки всех сторон пусты',
     sideMismatch: (project) => `${project} не относится к той стороне агента, где находится этот skill`,
-    installed: (skill, project, side) => `${skill} установлен → ${project} (${side}); обновлён только этот проект`,
+    installed: (skill, project, side) => `${skill} установлен → ${project} (${side})`,
     grokBorrowHint: 'Grok во время работы читает глобальные skills / subagents / plugins / MCP Claude Code; эти заимствованные компоненты принадлежат стороне Claude и не входят в списки Grok',
     skillsHint: 'Объединено в один список · нажмите строку, чтобы увидеть файлы пакета · файл — для предпросмотра · без diff между сторонами · плагины только для чтения',
     levelPluginPkg: 'Пакет плагина', levelGlobalLib: 'Глобальная библиотека',
@@ -255,7 +253,7 @@ export const ru: Locale = {
     levelProject: 'Уровень проекта',
     levelGlobal: 'Глобальный уровень',
     uninstall: 'Деинсталлировать',
-    uninstalled: (name) => `${name} деинсталлирован (обновлён только этот проект)`,
+    uninstalled: (name) => `${name} деинсталлирован`,
     uninstallFailed: (detail) => `Не удалось деинсталлировать: ${detail}`,
     secClaudeProject: 'Уровень проекта · .claude/skills',
     secClaudeGlobal: 'Глобальный уровень · Claude',
@@ -333,7 +331,7 @@ export const ru: Locale = {
         ? `Недопустимые аргументы вызова: ${channel} (поле ${field})`
         : `Недопустимые аргументы вызова: ${channel}`,
     sessionNotWhitelisted:
-      'Этой сессии нет в списке разрешённых — сначала откройте сведения о проекте или обновите',
+      'Этой сессии нет в списке разрешённых — сначала откройте сведения о проекте',
     engineNotReady: 'Движок сканирования ещё не готов — повторите попытку чуть позже',
     turnOutOfRange: (i, total) => `Индекс хода вне диапазона: ${i} (всего ходов: ${total})`,
     artifactNotWhitelisted: 'Этого пути к артефакту нет в списке разрешённых',
@@ -343,7 +341,7 @@ export const ru: Locale = {
     skillPackageUnavailable: 'Пакет skill недоступен или находится вне разрешённых корней',
     skillFileNotWhitelisted: 'Этого пути к файлу skill нет в списке разрешённых',
     skillFileUnreadable: 'Не удаётся прочитать файл skill',
-    sessionNotIndexed: 'Эта сессия не проиндексирована — сначала нажмите «Обновить всё»',
+    sessionNotIndexed: 'Эта сессия не проиндексирована — повторите после следующего сканирования',
     sessionFileUnreadable: 'Файл сессии больше не читается (перемещён или удалён?)',
     sessionMetaUnreadable:
       'Метаданные в первой строке сессии не читаются, поэтому индекс невозможно перестроить',

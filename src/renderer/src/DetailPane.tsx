@@ -46,7 +46,7 @@ export function DetailPane({
   const entry = snap.projects.find((p) => p.path === path)
 
   // Transfusion updates (project-detail A3): the loading state appears only when switching project; a
-  // snapshot update (manual refresh / automatic refresh)
+  // snapshot update (an automatic rescan)
   // and a partial refresh silently replace the rendered content, so a section's local state (expansion,
   // search, scroll) survives the refresh
   useEffect(() => {

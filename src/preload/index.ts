@@ -72,7 +72,6 @@ const api = {
    * locally from it when "follow system" is selected */
   systemLanguages: systemLanguages(),
   getSnapshot: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.getSnapshot)),
-  refresh: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.refresh)),
   // The same rule as the snapshot: validated once at each end. The main process's pass catches "we
   // generated it wrong", this one catches the losses of
   // IPC transport itself — structured clone drops undefined properties, so the main process sees it as
@@ -137,11 +136,6 @@ const api = {
     const l = (): void => cb()
     ipcRenderer.on(EVT.menuOpenSettings, l)
     return () => ipcRenderer.removeListener(EVT.menuOpenSettings, l)
-  },
-  onMenuRefresh: (cb: () => void): (() => void) => {
-    const l = (): void => cb()
-    ipcRenderer.on(EVT.menuRefresh, l)
-    return () => ipcRenderer.removeListener(EVT.menuRefresh, l)
   },
   onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
     const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))

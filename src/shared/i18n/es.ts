@@ -9,7 +9,6 @@ export const es: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Proyectos',
-    refresh: 'Actualizar todo',
     settings: 'Ajustes'
   },
 
@@ -58,14 +57,13 @@ export const es: Locale = {
       `${projects} ${plural('es', projects, { one: 'proyecto', other: 'proyectos' })} · ${skills} ${plural('es', skills, { one: 'skill global', other: 'skills globales' })} · ${subagents} ${plural('es', subagents, { one: 'subagent', other: 'subagents' })}`,
     tabCfg: 'Configuración',
     notDetected: 'No se detectó el directorio de datos de ningún lado de agente en esta máquina',
-    notDetectedHint: (refreshLabel) =>
-      `Instala y usa cualquiera de los agents y pulsa «${refreshLabel}» abajo a la izquierda para ver el panorama`,
+    notDetectedHint: 'Instala y usa cualquiera de los agents: el panorama aparece en el próximo escaneo automático (volver a esta ventana lo activa)',
     archivedNote: (days, earliest) => `En ${days} de esos días (el más antiguo ${earliest}) el agent ya limpió automáticamente los archivos de sesión de origen; los valores vienen del histórico local (barras rayadas)`,
     byModel: 'Por modelo (entre proyectos; en el lado Codex es una aproximación del modelo principal de la sesión)',
     detected: 'Detectado', undetected: 'No detectado',
     emptyGlobalLib: 'Las bibliotecas globales de todos los lados están vacías',
     sideMismatch: (project) => `${project} no pertenece al lado del agent donde vive este skill`,
-    installed: (skill, project, side) => `${skill} instalado → ${project} (${side}); solo se actualizó este proyecto`,
+    installed: (skill, project, side) => `${skill} instalado → ${project} (${side})`,
     grokBorrowHint: 'Grok lee en tiempo de ejecución los skills / subagents / plugins / MCP globales de Claude Code; esos componentes prestados pertenecen al lado Claude y no se suman a las listas de Grok',
     skillsHint: 'Fusionado en una lista · haz clic en una fila para los archivos del paquete · en un archivo para la vista previa · sin diff entre lados · los plugins son de solo lectura',
     levelPluginPkg: 'Paquete de plugin', levelGlobalLib: 'Biblioteca global',
@@ -259,7 +257,7 @@ export const es: Locale = {
     levelProject: 'Nivel de proyecto',
     levelGlobal: 'Nivel global',
     uninstall: 'Desinstalar',
-    uninstalled: (name) => `${name} desinstalado (solo se actualizó este proyecto)`,
+    uninstalled: (name) => `${name} desinstalado`,
     uninstallFailed: (detail) => `Error al desinstalar: ${detail}`,
     secClaudeProject: 'Nivel de proyecto · .claude/skills',
     secClaudeGlobal: 'Nivel global · Claude',
@@ -337,7 +335,7 @@ export const es: Locale = {
         ? `Argumentos de llamada no válidos: ${channel} (campo ${field})`
         : `Argumentos de llamada no válidos: ${channel}`,
     sessionNotWhitelisted:
-      'Esta sesión no está en la lista de permitidos: abre antes el detalle del proyecto o actualiza',
+      'Esta sesión no está en la lista de permitidos: abre antes el detalle del proyecto',
     engineNotReady: 'El motor de escaneo aún no está listo: inténtalo de nuevo en un momento',
     turnOutOfRange: (i, total) =>
       `Índice de turno fuera de rango: ${i} (de ${total} ${plural('es', total, { one: 'turno', other: 'turnos' })})`,
@@ -348,7 +346,7 @@ export const es: Locale = {
     skillPackageUnavailable: 'El paquete de skill no está disponible o queda fuera de las raíces permitidas',
     skillFileNotWhitelisted: 'Esta ruta de archivo de skill no está en la lista de permitidos',
     skillFileUnreadable: 'No se puede leer el archivo de skill',
-    sessionNotIndexed: 'Esta sesión no está indexada: pulsa antes Actualizar todo',
+    sessionNotIndexed: 'Esta sesión no está indexada: inténtalo tras el próximo escaneo',
     sessionFileUnreadable: 'Ya no se puede leer el archivo de sesión (¿movido o eliminado?)',
     sessionMetaUnreadable:
       'Los metadatos de la primera línea de la sesión no se pueden leer, así que no es posible reconstruir el índice',

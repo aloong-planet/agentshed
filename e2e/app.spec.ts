@@ -361,6 +361,10 @@ test('cold start: the Agents page is the default landing, both summary cards ren
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await expect(win.locator('.rail .ri').first()).toBeVisible()
+  // The rail holds the two dimensions plus settings — the global refresh control was removed
+  // (2026-08-23), so scans are automatic only and ⌘R belongs to the platform reload again
+  await expect(win.locator('.rail .ri')).toHaveCount(3)
+  await expect(win.locator('.rail .ri.grfr')).toHaveCount(0)
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
   // Three summary cards (CC / CODEX / GROK — an undetected side shows "not detected", not an error)
   await expect(win.locator('.pane-head .stats .stat')).toHaveCount(3)
@@ -619,7 +623,9 @@ test('a stale project opens as the note page: card only, chips per recording sid
   mkdirSync(join(home, '.grok'), { recursive: true })
   writeFileSync(join(home, '.grok', 'trusted_folders.toml'), `[folders."${triGhost}"]\ntrusted = true\n`)
 
-  const l = await launch(undefined, home)
+  // A brisk rescan interval: the staleness flips below are observed through the automatic scan, the
+  // only path left since the manual refresh was removed
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '250' })
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side input[type="checkbox"]').check()
@@ -653,16 +659,15 @@ test('a stale project opens as the note page: card only, chips per recording sid
   await expect(win.locator('.stale-note .badge')).toHaveCount(2)
   await expect(win.locator('.stale-note .badge.cl')).toHaveText(['CLAUDE CODE', 'CLAUDE CODE'])
 
-  // (S6) stale → false: the directory reappears, a refresh returns the sectioned page
+  // (S6) stale → false: the directory reappears and the next automatic scan returns the sectioned page.
+  // The page changing **is** the proof the scan landed — there is no manual trigger since 2026-08-23
   mkdirSync(soloGhost, { recursive: true })
-  await win.locator('.rail .ri.grfr').click()
   await expect(win.locator('.pane-head .tabs .tab').first()).toBeVisible()
   await expect(win.locator('.stale-note')).toHaveCount(0)
 
   // (S7) The selected entry vanishes from the registries → the empty state, not a ghost selection
   rmSync(soloGhost, { recursive: true, force: true })
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [triGhost]: {} } }))
-  await win.locator('.rail .ri.grfr').click()
   await expect(win.locator('.empty')).toContainText('not in the snapshot')
 
   expect(l.errors).toEqual([])
@@ -1419,14 +1424,25 @@ test('session search: questions by default with hits grouped; a body word only h
   await close(l)
 })
 
-test('repeated clicks on global refresh are deduplicated, with no errors after the refresh', async () => {
-  const l = await launch(undefined, mkUsageHome())
+// The in-flight deduplication outlived the manual control that used to drive it (removed 2026-08-23):
+// the timed backstop and the focus trigger can still coincide. Driving the interval far below a scan's
+// own duration is what makes triggers overlap, so the guard is exercised rather than assumed.
+test('overlapping automatic rescans are deduplicated: the page stays coherent and the main process reports no errors', async () => {
+  const home = mkUsageHome()
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '60' })
   const win = await l.app.firstWindow()
-  const refresh = win.locator('.rail .ri.grfr')
-  await refresh.click()
-  await refresh.click({ force: true })
-  await refresh.click({ force: true })
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
+  // Proof the rescans actually ran: a project added after launch shows up on the side card, which only
+  // a completed scan can do
+  await expect(win.locator('.pane-head .stats .stat').first()).toContainText('1 project')
+  const extra = join(home, 'late-proj')
+  mkdirSync(extra, { recursive: true })
+  writeFileSync(
+    join(home, '.claude.json'),
+    JSON.stringify({ projects: { [join(home, 'demo-proj')]: {}, [extra]: {} } })
+  )
+  await expect(win.locator('.pane-head .stats .stat').first()).toContainText('2 projects')
+  await expect(win.locator('.pane-head .stats .stat')).toHaveCount(3)
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -2325,16 +2341,28 @@ test('a filter keyword survives a refresh, and is cleared by leaving the section
     writeFileSync(join(p, '.claude', 'skills', 'local-only', 'SKILL.md'), '---\ndescription: x\n---\n\nbody\n')
   }
 
-  const l = await launch(undefined, home)
+  // A brisk rescan interval: since the manual refresh was removed (2026-08-23) a snapshot update is
+  // observed through the automatic scan
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '250' })
   const win = await l.app.firstWindow()
   const box = win.locator('.sbar.sk-search input')
 
-  // (1) A refresh keeps it. The section is re-rendered rather than remounted, so the keyword survives —
-  // losing it here would silently undo the narrowing the user is in the middle of reading.
+  // (1) A snapshot refresh keeps it. The section is re-rendered rather than remounted, so the keyword
+  // survives — losing it here would silently undo the narrowing the user is in the middle of reading.
   await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
   await box.fill('review')
   await expect(win.locator('.sk-card > .rel')).toHaveCount(1)
-  await win.locator('.rail .ri.grfr').click()
+  // Land a scan and **prove it landed** before asserting survival: a newly registered project bumps the
+  // side card's project count, which only a completed scan can do — and it stays clear of the skills
+  // list this test measures. Without that proof "the keyword survived" would also pass when no refresh
+  // ever happened.
+  const late = join(home, 'late-proj')
+  mkdirSync(late, { recursive: true })
+  writeFileSync(
+    join(home, '.claude.json'),
+    JSON.stringify({ projects: { [alpha]: {}, [beta]: {}, [late]: {} } })
+  )
+  await expect(win.locator('.pane-head .stats .stat').first()).toContainText('3 projects')
   await expect(box).toHaveValue('review')
   await expect(win.locator('.sk-card > .rel')).toHaveCount(1)
 
@@ -2465,9 +2493,19 @@ test('the install-to popover sits next to its button, and its targets can be cli
   await expect(win.locator('.pop')).toHaveCount(0)
 
   // And the judgement that actually matters: the target is clickable and installing reports back
+  const installedName = (await rows.last().locator('.nm').first().innerText()).trim()
   await rows.last().locator('.ins').click()
   await win.locator('.pop .pop-p').first().click()
   await expect(win.locator('.toast.ok')).toBeVisible()
+
+  // The installed copy is visible with no refresh of any kind (pinned 2026-08-23, when the manual
+  // control was removed and this was the case to be sure of): project detail — including its Skills
+  // section — is fetched when the project is opened, so it never rides on the snapshot. The rescan
+  // interval here is the five-minute default, so no scan can be what makes this pass.
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  await expect(win.locator('.sk', { hasText: installedName })).toHaveCount(1)
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -2585,7 +2623,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
  * its throttle judgement is pinned by the rescan unit tests, and it shares its scan entry point with the
  * timer.
  */
-test('automatic refresh: a new session appears without a manual refresh, and the detail page\'s expansion state survives it', async () => {
+test('automatic refresh: a new session appears on its own, and the detail page\'s expansion state survives it', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
   const demo = join(home, 'demo-proj')
   mkdirSync(demo, { recursive: true })
@@ -3826,7 +3864,10 @@ test('the time window drives all four regions at once: side figures, composition
   // The failure this guards against is **partial** propagation — some figures following the selection
   // and others staying on the previous window. Reading the four regions one at a time would pass on a
   // page that is internally inconsistent, so each snapshot takes all four in a single pass (spec G3).
-  const l = await launch(undefined, mkUsageHome())
+  const home = mkUsageHome()
+  // A brisk rescan interval for the G13 check at the end: the automatic scan is the only refresh path
+  // since the manual control was removed (2026-08-23)
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '250' })
   const win = await l.app.firstWindow()
   await win.locator('.pane-head .tabs .tab', { hasText: 'Token' }).click()
   await expect(win.locator('.chart .col').first()).toBeVisible()
@@ -3917,9 +3958,17 @@ test('the time window drives all four regions at once: side figures, composition
   await win.locator('.seg button').nth(0).click()
 
   // A refresh must not drop the selection (G13). The automatic backstop fires on a timer the user did
-  // not ask for, so losing the window on every scan would be the visible defect; the manual control
-  // shares that scan entry point, which is why driving it here covers both.
-  await win.locator('.rail .ri.grfr').click()
+  // not ask for, so losing the window on every scan is exactly the visible defect — and since the
+  // manual control was removed it is also the only refresh path there is. A newly registered project
+  // proves a scan actually landed; without that, "the selection survived" would pass on a page that
+  // never refreshed at all.
+  const late = join(home, 'late-proj')
+  mkdirSync(late, { recursive: true })
+  writeFileSync(
+    join(home, '.claude.json'),
+    JSON.stringify({ projects: { [join(home, 'demo-proj')]: {}, [late]: {} } })
+  )
+  await expect(win.locator('.pane-head .stats .stat').first()).toContainText('2 projects')
   await expect(win.locator('.tot-c.on .k')).toHaveText(d7.selected)
   const afterRefresh = await readAll()
   expect(afterRefresh.dimmed, 'and the chart is still scoped to it').toBe(29)
@@ -3941,12 +3990,13 @@ test('the time window drives all four regions at once: side figures, composition
  * - Keyboard unreachability is not asserted: focus semantics differ in a hidden window (see the
  *   launch() note on AGENTSHED_NO_FOREGROUND), so a focus assertion here would be unreliable —
  *   the pointer side is covered by the hit-test below.
- * - A4c gets a weak assertion (no skeleton after a refresh completes): catching the refresh
- *   mid-flight would race, so "never goes back mid-refresh" rests on the render condition being
- *   "no snapshot yet", not on this case.
+ * - A4c gets a weak assertion (no skeleton after a later scan completes): catching a scan mid-flight
+ *   would race, so "never goes back mid-scan" rests on the render condition being "no snapshot yet",
+ *   not on this case.
  */
 test('startup skeleton: agents page shows placeholders, refuses input, fills in place', async () => {
-  const l = await launch(undefined, mkUsageHome(), { AGENTSHED_SCAN_DELAY_MS: '4000' })
+  const home = mkUsageHome()
+  const l = await launch(undefined, home, { AGENTSHED_SCAN_DELAY_MS: '4000', AGENTSHED_RESCAN_MS: '250' })
   try {
     const win = await l.app.firstWindow()
     // Skeleton up: real static structure (title, four window cards, three side cards, seven tabs)
@@ -3997,10 +4047,18 @@ test('startup skeleton: agents page shows placeholders, refuses input, fills in 
     }
     await win.screenshot({ path: 'e2e-out/skeleton-agents-filled.png' })
 
-    // A4c: a manual refresh after the fill keeps data on screen — the skeleton never comes back
-    await win.locator('.rail .ri.grfr').click()
-    await expect(win.locator('.rail .ri.grfr.busy')).toHaveCount(0, { timeout: 15_000 })
+    // A4c: later scans keep data on screen — the skeleton never comes back. The scan delay seam applies
+    // to the **first** scan only, so the rescans driven here run at full speed; a newly registered
+    // project proves one landed, and the placeholders stay gone across it
+    const late = join(home, 'late-proj')
+    mkdirSync(late, { recursive: true })
+    writeFileSync(
+      join(home, '.claude.json'),
+      JSON.stringify({ projects: { [join(home, 'demo-proj')]: {}, [late]: {} } })
+    )
+    await expect(win.locator('.pane-head .stats .stat').first()).toContainText('2 projects')
     await expect(win.locator('.sk-ph')).toHaveCount(0)
+    await expect(win.locator('.scan-hint')).toHaveCount(0)
 
     expect(l.errors).toEqual([])
   } finally {

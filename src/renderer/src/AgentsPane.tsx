@@ -97,7 +97,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
               {/* The button's own label is passed in rather than written into the six strings: the copy
                   points at a control, so renaming that control must not be able to leave the sentence
                   naming a button that no longer exists. */}
-              {t.agents.notDetectedHint(t.rail.refresh)}
+              {t.agents.notDetectedHint}
             </div>
           </div>
         )}

@@ -8,7 +8,6 @@ export const ja: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Projects',
-    refresh: 'すべて更新',
     settings: '設定'
   },
 
@@ -56,14 +55,13 @@ export const ja: Locale = {
     sideSummary: (projects, skills, subagents) => `${projects} プロジェクト · ${skills} グローバル skills · ${subagents} subagents`,
     tabCfg: '構成',
     notDetected: 'このマシンではどのエージェントサイドのデータディレクトリも検出されませんでした',
-    notDetectedHint: (refreshLabel) =>
-      `いずれかの agent をインストールして使ったあと、左下の「${refreshLabel}」を押すと全体像が見えます`,
+    notDetectedHint: 'いずれかの agent をインストールして使うと、次の自動スキャンで全体像が見えます（このウィンドウに戻るとスキャンが走ります）',
     archivedNote: (days, earliest) => `うち ${days} 日（最古 ${earliest}）は元のセッションファイルが agent により自動削除済みで、数値はローカルアーカイブ由来です（斜線の棒）`,
     byModel: 'モデル別（プロジェクト横断。Codex 側はセッションの主モデルの近似）',
     detected: '検出済み', undetected: '未検出',
     emptyGlobalLib: '各サイドのグローバルライブラリはいずれも空です',
     sideMismatch: (project) => `${project} はこの skill が属する agent サイドに属していません`,
-    installed: (skill, project, side) => `${skill} を ${project}（${side}）にインストールしました。更新はこのプロジェクトのみです`,
+    installed: (skill, project, side) => `${skill} を ${project}（${side}）にインストールしました`,
     grokBorrowHint: 'Grok は実行時に Claude Code のグローバル skills / subagents / plugins / MCP を読み込みます。これらの借用コンポーネントは Claude サイドに属し、Grok のリストには入りません',
     skillsHint: '1 列に統合 · 行をクリックでパッケージ内ファイル · ファイルをクリックでプレビュー · サイド間 diff なし · プラグインは読み取り専用',
     levelPluginPkg: 'プラグインパッケージ', levelGlobalLib: 'グローバルライブラリ',
@@ -249,7 +247,7 @@ export const ja: Locale = {
     levelProject: 'プロジェクト単位',
     levelGlobal: 'グローバル',
     uninstall: 'アンインストール',
-    uninstalled: (name) => `${name} をアンインストールしました（このプロジェクトのみ更新）`,
+    uninstalled: (name) => `${name} をアンインストールしました`,
     uninstallFailed: (detail) => `アンインストールに失敗しました：${detail}`,
     secClaudeProject: 'プロジェクト単位 · .claude/skills',
     secClaudeGlobal: 'グローバル · Claude',
@@ -324,7 +322,7 @@ export const ja: Locale = {
     badArgs: (channel, field) =>
       field ? `呼び出し引数が不正です：${channel}（フィールド ${field}）` : `呼び出し引数が不正です：${channel}`,
     sessionNotWhitelisted:
-      'このセッションは許可リストにありません。先にプロジェクトの詳細を開くか、更新してください',
+      'このセッションは許可リストにありません。先にプロジェクトの詳細を開いてください',
     engineNotReady: 'スキャンエンジンの準備ができていません。少し待って再試行してください',
     turnOutOfRange: (i, total) => `ターン番号が範囲外です：${i}（全 ${total} ターン）`,
     artifactNotWhitelisted: 'この成果物のパスは許可リストにありません',
@@ -334,7 +332,7 @@ export const ja: Locale = {
     skillPackageUnavailable: 'skill パッケージが利用できないか、許可されたルートの外にあります',
     skillFileNotWhitelisted: 'この skill ファイルのパスは許可リストにありません',
     skillFileUnreadable: 'skill ファイルを読み取れません',
-    sessionNotIndexed: 'このセッションはインデックスにありません。先に「すべて更新」を実行してください',
+    sessionNotIndexed: 'このセッションはインデックスにありません。次のスキャン後に再試行してください',
     sessionFileUnreadable: 'セッションファイルが読み取れなくなりました（移動または削除？）',
     sessionMetaUnreadable: 'セッション先頭行のメタデータが読み取れないため、インデックスを再構築できません',
     sessionParseFailed: 'セッションファイルの解析に失敗しました',

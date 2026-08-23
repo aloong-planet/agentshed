@@ -84,15 +84,14 @@ and are never written back to any agent configuration.
   entry shared with the agents overview; its old parenthetical promised the pre-skeleton behaviour
   and is rewritten in all six languages.
 - A11 The skeleton is non-interactive: search, the side dropdown, the stale toggle and the
-  placeholder rows all refuse input; the rail stays live (dimension switch, settings, refresh —
-  refresh deduplicated against the in-flight startup scan per C4).
-- A12 The skeleton exists only before this launch's first snapshot; later refreshes keep the
+  placeholder rows all refuse input; the rail stays live (dimension switch, settings).
+- A12 The skeleton exists only before this launch's first snapshot; later scans keep the
   previous list on screen and never fall back to the skeleton. Filling is in place — placeholder
   and data rows share their geometry, so the swap moves no anchor; the placeholder row count is
   nominal (the project count is unknown until the scan lands).
-- A13 First scan failure → the skeleton and hint stay; recovery rides the existing rescan triggers
-  (timer, window focus, manual refresh). A dedicated error state is out of scope (the agents
-  overview spec carries the same rule as A4d).
+- A13 First scan failure → the skeleton and hint stay; recovery rides the automatic rescan triggers
+  (timer, window focus). A dedicated error state is out of scope (the agents overview spec carries
+  the same rule as A4d).
 
 **Sequence B: activity computation**
 - B1 The Claude side counts `*.jsonl` under the encoded directory, taking the largest mtime as the
@@ -124,8 +123,9 @@ and are never written back to any agent configuration.
   preference this list grows.
 - C3 — withdrawn with manual hiding (ADR-0022). The number is left unused rather than reassigned, so
   that an old reference to C3 fails to find anything instead of finding a different rule.
-- C4 Repeat clicks on global refresh while one is in flight are ignored (deduplicated, no concurrent
-  scans).
+- C4 Scan triggers that coincide are deduplicated (no concurrent scans): with the manual control gone
+  (2026-08-23) the coinciding pair is the timed backstop and a focus trigger, and the second one
+  joins the in-flight scan rather than starting another.
 - C5 Side filtering is a **single-choice dropdown** defaulting to all sides, not one control per side:
   the row of controls has to stay readable as sides are added, and in the narrowest supported sidebar
   the longest of the six UI languages must not push it out of the column. The row's occupants *can*
@@ -156,7 +156,9 @@ and are never written back to any agent configuration.
   only in that layer and in the side dropdown's options (both name sides in full), and are the side
   colours defined in ADR-0021 rather than a palette local to this list. The count itself carries no
   side's colour — it says "how many", and colouring it would read as "which".
-- **Refresh**: global refresh is shared by both dimensions, with in-flight deduplication.
+- **Refresh**: scanning is automatic only (focus + timed backstop, in-flight deduplicated). The rail's
+  global refresh control was removed on 2026-08-23 — it held ⌘R, shadowing the platform reload, and
+  the automatic triggers already covered staleness. See Out of Scope for what that costs.
 - **Selection is a deeper wash, not a ring** (settled 2026-08-21 on the project-list prototype):
   hover = `--accent-soft`, selected = `--accent-soft-deep` (a new token, accent mixed 26% into card,
   baked per theme × light/dark), no outline. The old ring was an outline, which paints outside the
@@ -192,6 +194,9 @@ pointer input by hit-testing (not attribute checks), and the in-place fill asser
 
 ## Out of Scope
 
-- Live file watching: data only updates on the startup scan and manual refresh.
+- Live file watching: data only updates on the startup scan and the automatic rescans.
+- A manual refresh control (removed 2026-08-23). The cost is accepted: an action taken outside the
+  app — or an install made inside it — becomes visible at the next automatic scan rather than on
+  demand.
 - Adding or removing project registrations from this app (the registries are read-only).
 - Cross-project content search.

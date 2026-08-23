@@ -94,7 +94,9 @@ export function Folder({ size }: { size?: number }): JSX.Element {
   )
 }
 
-/** Lucide refresh-cw — rail · refresh everything. Two arrows rather than one: the button spins while busy, and a single arrow reads off-centre while rotating */
+/** Lucide refresh-cw — the scanning indicator (the startup skeleton's hint and its empty state). Two
+ * arrows rather than one: the icon spins while a scan runs, and a single arrow reads off-centre while
+ * rotating */
 export function RefreshCw({ size }: { size?: number }): JSX.Element {
   return (
     <Icon size={size}>

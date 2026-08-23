@@ -322,6 +322,75 @@ const GLOBAL_RULES = [
     }
   },
   {
+    // CONTEXT invariant, sharpened 2026-08-23: copy must not name a control the user has to find,
+    // because the sentence outlives the control. Parameterising the label (what `notDetectedHint`
+    // did) survives a **rename** but not a **removal** — when the global refresh was deleted, three
+    // strings in six languages each still sent users to a button that no longer existed, and only a
+    // hand sweep found two of them.
+    //
+    // What this checks: a rail control's label must not appear verbatim in any other copy. Removing
+    // the control then makes those sentences fail here rather than survive as instructions to press
+    // something that is gone.
+    //
+    // The exemptions are by rail **key**, not by language string, and every current one exists for
+    // the same structural reason: the label is an ordinary word (or a substring of the product name),
+    // so occurrences in copy are prose rather than pointers. Each retires the day its label stops
+    // being ordinary. A newly added control with a distinctive label is armed by default — which is
+    // exactly the case that rotted.
+    name: 'dictionary copy must not name a rail control verbatim (a sentence outlives the control)',
+    cross: true,
+    check() {
+      const bad = []
+      const EXEMPT = [
+        {
+          key: 'agents',
+          why: 'the label is a substring of the product name (Agentshed) and of AGENTS.md, and names a page in navigational prose; retires if the dimension is renamed to something distinctive'
+        },
+        {
+          key: 'projects',
+          why: 'an ordinary word that also names a registry key ("the projects key"); retires if the dimension is renamed to something distinctive'
+        },
+        {
+          key: 'settings',
+          why: 'an ordinary noun in every language (and part of an external product\'s menu path in the Codex memory hint); retires if the entry is renamed to something distinctive'
+        }
+      ]
+      for (const lang of ['zh', 'en', 'fr', 'es', 'ru', 'ja']) {
+        const f = `src/shared/i18n/${lang}.ts`
+        const src = read(f)
+        if (src === null) {
+          bad.push(`cannot read ${f}`)
+          continue
+        }
+        const rail = src.match(/rail: \{([\s\S]*?)\n {2}\}/)
+        if (rail === null) {
+          bad.push(`${f}: cannot locate the rail block (this rule reads the control labels from it)`)
+          continue
+        }
+        const labels = [...rail[1].matchAll(/(\w+):\s*'([^']+)'/g)]
+          .filter(([, key]) => !EXEMPT.some((e) => e.key === key))
+          .map(([, key, label]) => ({ key, label }))
+        if (labels.length === 0) continue
+        const railLines = new Set()
+        const start = src.slice(0, rail.index).split('\n').length - 1
+        for (let i = start; i < start + rail[1].split('\n').length + 1; i++) railLines.add(i)
+        const lines = src.split('\n')
+        lines.forEach((line, i) => {
+          if (railLines.has(i)) return // the labels' own definitions
+          if (/^\s*(\/\/|\/\*|\*)/.test(line)) return // comments are not copy
+          for (const s of line.match(/'[^']*'|`[^`]*`|"[^"]*"/g) ?? []) {
+            for (const { key, label } of labels) {
+              if (s.includes(label)) {
+                bad.push(`${f}:${i + 1} copy names the rail control "${label}" (rail.${key}) verbatim: ${s.slice(0, 60)}`)
+              }
+            }
+          }
+        })
+      }
+      return bad
+    }
+  },
+  {
     // ADR-0021: one colour per agent side, and the value inevitably exists in more than one file —
     // theme.css's --p-* variables (the source) and the project-list prototype's hard-coded .dot
     // swatches (a standalone HTML file cannot read the app's variables). This is the executable

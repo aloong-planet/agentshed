@@ -50,7 +50,7 @@ is read-only; the one write operation is uninstalling a project-level skill.
   still include it (see agents-overview B3). Sequence S below owns the card.
 - A3 Detail is fetched on demand (it does not enter the overview snapshot); **the loading state
   appears only on first open and when switching projects** — a refetch triggered by a snapshot update
-  (manual ↻ or auto-refresh, see token-stats sequence E) is a **transfusion**: the rendered content
+  (an automatic rescan, see token-stats sequence E) is a **transfusion**: the rendered content
   stays and new data replaces it on arrival, so a section's local state (expansion, search, scroll
   position) survives the refresh (settled 2026-08-08).
 - A4 Configuration section: a missing project CLAUDE.md / AGENTS.md shows "none" rather than an error;
