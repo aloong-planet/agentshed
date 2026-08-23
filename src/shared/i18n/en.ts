@@ -212,6 +212,14 @@ export const en: Locale = {
   detail: {
     notInSnapshot: 'This project is not in the snapshot (refresh and try again)',
     staleTag: 'Stale',
+    staleCause: (n) =>
+      `Why stale: the project directory no longer exists (deleted or moved), while the {sides} ${n > 1 ? 'registries' : 'registry'} still ${n > 1 ? 'record' : 'records'} it.`,
+    staleFx: 'Removing the records takes this row off the list; token totals and the trend are unaffected (the statistics are independent of the registries).',
+    staleSend: 'Send this line to {sides} and let each of them delete it themselves:',
+    stalePrompt: (p) => `My project "${p}" is stale (the directory no longer exists) — please remove its records from your configuration.`,
+    staleCopy: 'Copy',
+    staleCopied: 'Copied',
+    staleCopyFailed: 'Copy failed',
     tabOverview: 'Overview',
     tabSkills: 'Skills',
     tabMcp: 'MCP',

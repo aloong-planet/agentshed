@@ -210,6 +210,14 @@ export const es: Locale = {
   detail: {
     notInSnapshot: 'Este proyecto no está en la instantánea (actualiza e inténtalo de nuevo)',
     staleTag: 'Obsoleto',
+    staleCause: (n) =>
+      `Motivo: el directorio del proyecto ya no existe (borrado o movido), pero ${n > 1 ? 'los registros' : 'el registro'} de {sides} aún lo ${n > 1 ? 'recuerdan' : 'recuerda'}.`,
+    staleFx: 'Al eliminar los registros, la fila desaparece de la lista; los totales de tokens y la tendencia no cambian (las estadísticas son independientes de los registros).',
+    staleSend: 'Envía esta frase a {sides} y deja que cada uno borre el registro él mismo:',
+    stalePrompt: (p) => `Mi proyecto «${p}» está obsoleto (el directorio ya no existe): elimina sus registros de tu configuración, por favor.`,
+    staleCopy: 'Copiar',
+    staleCopied: 'Copiado',
+    staleCopyFailed: 'Error al copiar',
     tabOverview: 'Resumen',
     tabSkills: 'Skills',
     tabMcp: 'MCP',

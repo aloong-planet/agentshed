@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeTheme, protocol, session, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeTheme, protocol, session, shell } from 'electron'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -323,6 +323,12 @@ handle(CMD.readArtifact, (_e, file: unknown) => {
     ? { text: raw.slice(0, 500_000), truncated: true }
     : { text: raw, truncated: false }
 })
+handle(CMD.copyText, (_e, text: unknown) => {
+  if (typeof text !== 'string' || text === '')
+    throw appError(ERR.badArgs, { channel: 'copyText', field: 'text' })
+  clipboard.writeText(text)
+})
+
 handle(CMD.openArtifact, async (_e, file: unknown) => {
   if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw appError(ERR.artifactNotWhitelisted)
   await shell.openPath(file)

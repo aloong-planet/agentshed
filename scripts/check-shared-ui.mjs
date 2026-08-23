@@ -400,6 +400,27 @@ const GLOBAL_RULES = [
     }
   },
   {
+    // The side chips' single source (spec project-detail S3): every chip surface looks its label up in
+    // SIDE_CHIP_LABEL and maps over SIDE_ORDER, which is what lets a new side appear by construction.
+    // A re-hardcoded label would compile and render happily and nothing else would notice — this rule
+    // makes the convention mechanical. Exclusion: side-badge.ts is the Record's own definition, the one
+    // legal spelling site; it retires only if the chip labels ever move out of that module.
+    name: 'side chip labels have one source: no hardcoded CLAUDE CODE / CODEX / GROK literal outside side-badge.ts',
+    cross: true,
+    check() {
+      const bad = []
+      const CHIP = /['"`>](CLAUDE CODE|CODEX|GROK)['"`<]/
+      const dir = join(ROOT, 'src/renderer/src')
+      for (const name of readdirSync(dir)) {
+        if (!name.endsWith('.tsx') && !name.endsWith('.ts')) continue
+        if (name === 'side-badge.ts' || name.includes('.test.')) continue
+        const m = (read(`src/renderer/src/${name}`) ?? '').match(CHIP)
+        if (m) bad.push(`src/renderer/src/${name}: hardcoded chip label ${m[1]} — look it up in SIDE_CHIP_LABEL`)
+      }
+      return bad
+    }
+  },
+  {
     // Ticket 112: the prototypes drew emoji for weeks after the product had moved to inline SVG, and
     // nothing reported it. The fix was to make _shared/icons.js a **derived** file rather than a second
     // hand-kept list — this rule is the other half, catching the case where someone edits the icon module

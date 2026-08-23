@@ -27,6 +27,9 @@ export const CMD = {
   readArtifact: 'agentshed:read-artifact',
   /** Open an artifact externally (prototypes HTML → the system default application; the same allow-list) */
   openArtifact: 'agentshed:open-artifact',
+  /** Write text to the system clipboard via the main process (the renderer's navigator.clipboard is
+   * unreliable under automation, and the OS clipboard is main-process territory anyway) */
+  copyText: 'agentshed:copy-text',
   /** Install a skill from the global library into a project (landed as a copy) */
   installSkill: 'agentshed:install-skill',
   /** Uninstall a project-level skill copy */

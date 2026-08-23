@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
-import { SIDE_BADGE } from './side-badge'
+import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
 import { MarkdownBody } from './MarkdownBody'
-import type { Snapshot } from '@shared/domain'
+import type { AgentSide, Snapshot } from '@shared/domain'
 import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
 import { sliceUsage, type UsageWindow } from '@shared/usage'
 import { GlobalSubagentsTab } from './SubagentsView'
@@ -42,15 +42,13 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
   const [win, setWin] = useState<UsageWindow>('all')
   const winLabel = useWindowLabel()
   const slice = useMemo(() => sliceUsage(snap.tokens.rows, win, snap.scannedAt), [snap.tokens.rows, win, snap.scannedAt])
-  const clCount = snap.projects.filter((p) => p.sides.includes('claude')).length
-  const cxCount = snap.projects.filter((p) => p.sides.includes('codex')).length
-  const clSkills = snap.global.skills.filter((s) => s.sides.includes('claude')).length
-  const cxSkills = snap.global.skills.filter((s) => s.sides.includes('codex')).length
-  const clSubs = snap.global.subagents.filter((s) => s.sides.includes('claude')).length
-  const cxSubs = snap.global.subagents.filter((s) => s.sides.includes('codex')).length
-  const gkCount = snap.projects.filter((p) => p.sides.includes('grok')).length
-  const gkSkills = snap.global.skills.filter((s) => s.sides.includes('grok')).length
-  const gkSubs = snap.global.subagents.filter((s) => s.sides.includes('grok')).length
+  // One accessor over the side rather than nine hand-named variables: the card row below maps over
+  // SIDE_ORDER, so a new side gets its card (and its counts) by construction
+  const sideStats = (side: AgentSide): { projects: number; skills: number; subs: number } => ({
+    projects: snap.projects.filter((p) => p.sides.includes(side)).length,
+    skills: snap.global.skills.filter((s) => s.sides.includes(side)).length,
+    subs: snap.global.subagents.filter((s) => s.sides.includes(side)).length
+  })
 
   return (
     <div className="pane">
@@ -64,30 +62,20 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
           onWindow={setWin}
         />
         <div className="stats">
-          <SideCard
-            label="CLAUDE CODE"
-            cls="cl"
-            detected={snap.sides.claude.detected}
-            error={snap.sides.claude.error}
-            total={slice.bySide.claude}
-            sub={t.agents.sideSummary(clCount, clSkills, clSubs)}
-          />
-          <SideCard
-            label="CODEX"
-            cls="cx"
-            detected={snap.sides.codex.detected}
-            error={snap.sides.codex.error}
-            total={slice.bySide.codex}
-            sub={t.agents.sideSummary(cxCount, cxSkills, cxSubs)}
-          />
-          <SideCard
-            label="GROK"
-            cls="gk"
-            detected={snap.sides.grok.detected}
-            error={snap.sides.grok.error}
-            total={slice.bySide.grok}
-            sub={t.agents.sideSummary(gkCount, gkSkills, gkSubs)}
-          />
+          {SIDE_ORDER.map((side) => {
+            const st = sideStats(side)
+            return (
+              <SideCard
+                key={side}
+                label={SIDE_CHIP_LABEL[side]}
+                cls={SIDE_BADGE[side].cls}
+                detected={snap.sides[side].detected}
+                error={snap.sides[side].error}
+                total={slice.bySide[side]}
+                sub={t.agents.sideSummary(st.projects, st.skills, st.subs)}
+              />
+            )
+          })}
         </div>
         <nav className="tabs">
           {([...STATIC_TABS, ['cfg', t.agents.tabCfg]] as const).map(([t, label]) => (
@@ -363,7 +351,7 @@ function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
   return (
     <div>
       <div className="grp-t">
-        <span className="badge cl">CLAUDE CODE</span> {t.agents.globalMcp}
+        <span className={`badge ${SIDE_BADGE.claude.cls}`}>{SIDE_CHIP_LABEL.claude}</span> {t.agents.globalMcp}
       </div>
       {claude.length === 0 ? (
         <Empty msg={t.agents.noGlobalMcp} />
@@ -378,7 +366,7 @@ function McpTab({ snap }: { snap: Snapshot }): JSX.Element {
         </div>
       )}
       <div className="grp-t" style={{ marginTop: 14 }}>
-        <span className="badge cx">CODEX</span> config.toml [mcp_servers.*]
+        <span className={`badge ${SIDE_BADGE.codex.cls}`}>{SIDE_CHIP_LABEL.codex}</span> config.toml [mcp_servers.*]
       </div>
       {codex.length === 0 ? (
         <Empty msg={t.agents.noMcpSection} />

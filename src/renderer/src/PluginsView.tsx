@@ -11,6 +11,7 @@
 import { useState } from 'react'
 import type { PluginContents, PluginInstallRecord, ProjectDetail, Snapshot } from '@shared/domain'
 import { PluginSkillList } from './PluginSkillList'
+import { SIDE_BADGE, SIDE_CHIP_LABEL } from './side-badge'
 import { useDict } from './language'
 
 /** A path's last segment (the renderer has no node:path; for display only, with no normalisation) */
@@ -114,7 +115,7 @@ function CodexGroup({ snap, detailNote }: { snap: Snapshot; detailNote?: boolean
   return (
     <>
       <div className="grp-t" style={{ marginTop: 14 }}>
-        <span className="badge cx">CODEX</span> {t.plugins.codexCacheEnum}
+        <span className={`badge ${SIDE_BADGE.codex.cls}`}>{SIDE_CHIP_LABEL.codex}</span> {t.plugins.codexCacheEnum}
       </div>
       <div className="card plug-card">
         {snap.global.codexPlugins.map((p) => {
@@ -176,7 +177,7 @@ export function GlobalPluginsTab({ snap }: { snap: Snapshot }): JSX.Element {
   return (
     <div>
       <div className="grp-t">
-        <span className="badge cl">CLAUDE CODE</span> {t.plugins.claudeGlobalHint}
+        <span className={`badge ${SIDE_BADGE.claude.cls}`}>{SIDE_CHIP_LABEL.claude}</span> {t.plugins.claudeGlobalHint}
       </div>
       {snap.global.plugins.length === 0 ? (
         <div className="none">{t.plugins.noPlugins}</div>
@@ -227,7 +228,7 @@ export function ProjectPluginsTab({
   return (
     <div>
       <div className="grp-t">
-        <span className="badge cl">CLAUDE CODE</span> {t.plugins.claudeProjectHint}
+        <span className={`badge ${SIDE_BADGE.claude.cls}`}>{SIDE_CHIP_LABEL.claude}</span> {t.plugins.claudeProjectHint}
       </div>
       {detail.plugins.length === 0 ? (
         <div className="none">{t.plugins.noPlugins}</div>

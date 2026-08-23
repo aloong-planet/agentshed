@@ -205,6 +205,14 @@ export const ja: Locale = {
   detail: {
     notInSnapshot: 'このプロジェクトはスナップショットにありません（更新して再試行してください）',
     staleTag: '失効',
+    staleCause: (_n) =>
+      '失効の理由:プロジェクトのディレクトリが存在しません(削除または移動)。一方 {sides} のレジストリには記録が残っています。',
+    staleFx: '記録を削除するとこの行はリストから消えます。トークン累計とトレンドは影響を受けません(統計はレジストリと独立)。',
+    staleSend: 'この一文を {sides} に送り、それぞれ自分で削除してもらいます:',
+    stalePrompt: (p) => `プロジェクト「${p}」は失効しています(ディレクトリが存在しません)。あなたの設定からその記録を削除してください。`,
+    staleCopy: 'コピー',
+    staleCopied: 'コピーしました',
+    staleCopyFailed: 'コピーに失敗しました',
     tabOverview: '概要',
     tabSkills: 'Skills',
     tabMcp: 'MCP',

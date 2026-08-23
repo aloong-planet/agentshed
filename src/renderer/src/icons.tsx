@@ -203,6 +203,17 @@ export function Inbox({ size }: { size?: number }): JSX.Element {
   )
 }
 
+/** Lucide copy — the copy-to-clipboard button (chosen 2026-08-23 over clipboard: clearest strokes at
+ * 12px, and the glyph names the action rather than the destination) */
+export function Copy({ size }: { size?: number }): JSX.Element {
+  return (
+    <Icon size={size}>
+      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+    </Icon>
+  )
+}
+
 /** Lucide minus — a badge meaning “this side does not have it” */
 export function Minus({ size }: { size?: number }): JSX.Element {
   return (
