@@ -101,7 +101,7 @@ export const zh = {
     emptyGlobalLib: '各侧全局库均为空',
     sideMismatch: (project: string) => `${project} 不属于该 skill 所在的 agent 侧`,
     installed: (skill: string, project: string, side: string) =>
-      `已安装 ${skill} → ${project}(${side});仅局部刷新该项目`,
+      `已安装 ${skill} → ${project}(${side})`,
     grokBorrowHint: 'Grok 运行时会读取 Claude Code 的全局 skills / subagents / plugins / MCP;这些借入组件归属 Claude 侧,不并入 Grok 的清单',
     skillsHint: '合并单列 · 点行展开包内文件 · 点文件预览 · 无跨侧 diff · 插件只读',
     levelPluginPkg: '插件包',
@@ -332,7 +332,7 @@ export const zh = {
     levelProject: '项目级',
     levelGlobal: '全局层',
     uninstall: '卸载',
-    uninstalled: (name: string) => `已卸载 ${name}(仅局部刷新该项目)`,
+    uninstalled: (name: string) => `已卸载 ${name}`,
     uninstallFailed: (detail: string) => `卸载失败:${detail}`,
     secClaudeProject: '项目级 · .claude/skills',
     secClaudeGlobal: '全局层 · Claude',

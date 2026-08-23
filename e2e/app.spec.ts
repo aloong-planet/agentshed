@@ -2493,9 +2493,19 @@ test('the install-to popover sits next to its button, and its targets can be cli
   await expect(win.locator('.pop')).toHaveCount(0)
 
   // And the judgement that actually matters: the target is clickable and installing reports back
+  const installedName = (await rows.last().locator('.nm').first().innerText()).trim()
   await rows.last().locator('.ins').click()
   await win.locator('.pop .pop-p').first().click()
   await expect(win.locator('.toast.ok')).toBeVisible()
+
+  // The installed copy is visible with no refresh of any kind (pinned 2026-08-23, when the manual
+  // control was removed and this was the case to be sure of): project detail — including its Skills
+  // section — is fetched when the project is opened, so it never rides on the snapshot. The rescan
+  // interval here is the five-minute default, so no scan can be what makes this pass.
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  await expect(win.locator('.sk', { hasText: installedName })).toHaveCount(1)
 
   expect(l.errors).toEqual([])
   await close(l)
