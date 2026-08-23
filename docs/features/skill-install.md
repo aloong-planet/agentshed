@@ -21,8 +21,9 @@ copy into a chosen project, and can uninstall the project-level copy.
   notice rather than overwriting
 - In project detail's Skills section, a project-level entry can be uninstalled: a confirmation dialog
   shows the full path to be deleted, and confirming deletes the copy
-- Every operation gives an explicit success or failure notice; afterwards only that project is
-  refreshed
+- Every operation gives an explicit success or failure notice, and the result is visible right away:
+  a project's contents are read when the project is opened, so nothing has to be refreshed and no
+  other project is disturbed
 
 ## Boundaries and non-goals
 - The global library is read-only: nothing is added to or removed from it via this app; plugins

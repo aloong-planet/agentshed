@@ -414,7 +414,11 @@ _Avoid_: error message (bare, implies a finished sentence)
   an argument, and when that button was removed the sentence still sent users to a control that had
   ceased to exist — the parameter kept the *name* right while the *instruction* went false. It now
   names no control at all, which is the form that cannot rot; naming one is worth it only when the
-  reader genuinely has to find it.
+  reader genuinely has to find it. **`pnpm check:ui` enforces the rail half of this**: a rail
+  control's label appearing verbatim in any other copy fails the check, so deleting a control turns
+  those sentences red instead of leaving them pointing at nothing. Its exemptions are by rail key
+  (today's three labels are ordinary words), which means a control with a distinctive label is
+  covered by default — the case that actually rotted.
 
 - **`rail` is an internal term and must not appear in user-facing copy (settled 2026-08-15)**: the
   48px vertical strip of icon buttons down the left edge. The word is useful in code, comments and

@@ -30,8 +30,9 @@ can be uninstalled. The global library itself is read-only.
    scan does not mistake a broken directory for an installed skill.
 5. As a user, I want to see the full path to be deleted and confirm before uninstalling a
    project-level copy, so that I do not delete the wrong thing.
-6. As a user, I want each operation to give an explicit success or failure notice and to refresh only
-   that project, so that feedback is prompt without interrupting my browsing elsewhere.
+6. As a user, I want each operation to give an explicit success or failure notice and its result to
+   be visible without my refreshing anything, so that feedback is prompt without interrupting my
+   browsing elsewhere.
 
 ## Failure modes and boundaries
 
@@ -61,7 +62,12 @@ can be uninstalled. The global library itself is read-only.
 - R1 Install and uninstall touch only the global library and the project's skills directory, and
   nothing else (plugin entries have no install/uninstall entry point, plus a level guard as a second
   line of defence).
-- R2 After an operation, only that project is refreshed; no global rescan is triggered.
+- R2 An operation triggers no rescan at all, and none is needed (restated 2026-08-23, when the copy
+  claiming "only this project was refreshed" was retired): a project's detail — the view an install
+  or uninstall changes — is read when the project is opened, and the snapshot holds nothing an
+  operation could make stale. Uninstall, which happens with that view already on screen, refetches
+  it in place. Measured context for why a rescan is not added "to be safe": a warm rescan of a real
+  data set costs ~13s.
 
 ## Implementation Decisions
 
