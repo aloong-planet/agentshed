@@ -23,7 +23,10 @@ We choose **option 1**: all behavioural tests sit on two seams — injecting `Sc
 layer be driven end to end from a temporary fixture directory (install and uninstall are measured
 against the real filesystem on fixtures), and `validate` makes the contract testable independently of
 Electron. The Electron shell and the React UI are not unit tested; they are covered by the dev smoke
-run and a manual checklist.
+run and by hand acceptance — the hand-acceptance items live in each spec's Testing Decisions section.
+
+> **Amended (2026-08-25)**: this originally promised "a manual checklist", an artifact that was never
+> created; the wording now points at where the hand-acceptance items actually live.
 
 ## Consequences
 
