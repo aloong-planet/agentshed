@@ -1,8 +1,13 @@
+// Gap: what the chunk size does to speed is not observable here. The cost it exists to avoid only
+// shows under Electron (CONTEXT.md, "Main-process file I/O is measured under Electron"); measure it
+// with `pnpm bench:scan`. These tests pin the chunk size only to place boundaries deliberately — the
+// output is the same at any size, so whether production's size is honoured by the stream cannot be
+// asserted from outside either.
 import { describe, expect, test } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { eachJsonlLine } from './jsonl'
+import { JSONL_CHUNK_BYTES, eachJsonlLine } from './jsonl'
 
 function withFile<T>(bytes: Buffer | string, fn: (file: string) => Promise<T>): Promise<T> {
   const dir = mkdtempSync(join(tmpdir(), 'jsonl-'))
@@ -17,9 +22,10 @@ interface Hit {
   end: number
 }
 
-async function collect(file: string): Promise<Hit[]> {
+/** chunkBytes omitted = the production chunk size */
+async function collect(file: string, chunkBytes?: number): Promise<Hit[]> {
   const hits: Hit[] = []
-  await eachJsonlLine(file, (obj, start, end) => hits.push({ obj, start, end }))
+  await eachJsonlLine(file, (obj, start, end) => hits.push({ obj, start, end }), chunkBytes)
   return hits
 }
 
@@ -67,10 +73,11 @@ describe('eachJsonlLine — byte offsets', () => {
   })
 
   // A 3-byte character sitting exactly on a read chunk boundary is the shape most easily cut in half.
-  // highWaterMark is an implementation detail that drifts with the Node
-  // version, so we do not gamble on its value — every candidate chunk size is constructed in turn, and one
-  // of them is the real one.
-  test.each([16 * 1024, 32 * 1024, 64 * 1024, 128 * 1024])(
+  // The chunk size is passed in, so the boundary under test is the real one by construction. The suite
+  // used to guess the runtime's default from a list of candidates; a default that moved off that list
+  // would have left the boundary untested with every case still green. The production size is one of
+  // the cases so the boundary the app actually reads across is exercised too.
+  test.each([16 * 1024, 64 * 1024, JSONL_CHUNK_BYTES])(
     'a multi-byte character sitting exactly on the %i-byte boundary is not cut in half',
     async (boundary) => {
       const prefix = '{"t":"'
@@ -81,7 +88,7 @@ describe('eachJsonlLine — byte offsets', () => {
       // This character's first byte lands at boundary-1 and its remaining two bytes land in the next chunk
       expect(Buffer.byteLength(filler + prefix)).toBe(boundary - 1)
       await withFile(filler + second, async (file) => {
-        const hits = await collect(file)
+        const hits = await collect(file, boundary)
         expect(hits).toHaveLength(2)
         expect(hits[1].obj['t']).toBe('→'.repeat(50))
         assertRoundTrip(file, hits)
@@ -89,13 +96,31 @@ describe('eachJsonlLine — byte offsets', () => {
     }
   )
 
+  // The production shape a small chunk stands in for: real session lines run to 13.5 MB (measured),
+  // many times the production chunk, so one line is carried across many reads before it can be emitted.
+  test('a line several chunks long: carried across the reads and sliced back verbatim', async () => {
+    const chunk = 1024
+    const long = { i: 1, t: '→'.repeat(chunk * 3) } // 9 KB of 3-byte characters, spanning ten chunks
+    const text = [{ i: 0 }, long, { i: 2 }].map((o) => JSON.stringify(o)).join('\n') + '\n'
+    expect(Buffer.byteLength(JSON.stringify(long))).toBeGreaterThan(chunk * 8)
+    await withFile(text, async (file) => {
+      const hits = await collect(file, chunk)
+      expect(hits.map((h) => h.obj['i'])).toEqual([0, 1, 2])
+      expect(hits[1].obj['t']).toBe(long.t)
+      assertRoundTrip(file, hits)
+      expect(hits[2].end).toBe(Buffer.byteLength(text))
+    })
+  })
+
   test('a long file whose line lengths vary byte by byte: every line slices back verbatim', async () => {
     const lines: string[] = []
     for (let i = 0; i < 12000; i++) lines.push(JSON.stringify({ i, t: '→'.repeat(i % 37) + 'x'.repeat(i % 7) }))
     const text = lines.join('\n') + '\n'
     expect(Buffer.byteLength(text)).toBeGreaterThan(800_000)
     await withFile(text, async (file) => {
-      const hits = await collect(file)
+      // Read in 16 KB chunks so the file crosses some fifty chunk boundaries at unpredictable
+      // positions; at the production size it would fit in one chunk and cross none
+      const hits = await collect(file, 16 * 1024)
       expect(hits).toHaveLength(12000)
       expect(hits.map((h) => h.obj['i'])).toEqual(lines.map((_, i) => i))
       assertRoundTrip(file, hits)
