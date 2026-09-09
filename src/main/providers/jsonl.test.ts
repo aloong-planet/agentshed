@@ -1,8 +1,8 @@
 // Gap: what the chunk size does to speed is not observable here. The cost it exists to avoid only
 // shows under Electron (CONTEXT.md, "Main-process file I/O is measured under Electron"); measure it
-// with an esbuild bundle run under node_modules/.bin/electron. These tests pin the chunk size only
-// to place boundaries deliberately — the output is the same at any size, so whether production's
-// size is honoured by the stream cannot be asserted from outside either.
+// with `pnpm bench:scan`. These tests pin the chunk size only to place boundaries deliberately — the
+// output is the same at any size, so whether production's size is honoured by the stream cannot be
+// asserted from outside either.
 import { describe, expect, test } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

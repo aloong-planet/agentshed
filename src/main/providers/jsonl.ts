@@ -26,7 +26,8 @@
 // Buffer.concat copies a multi-megabyte line costs (the longest measured is 13.5 MB). Files are read
 // one after another, so the price is one 1 MB buffer per read in flight. The size is a parameter so
 // tests can put a chunk boundary where they want it instead of guessing the runtime's default; the
-// invariant that such numbers are measured under Electron, never Node, is in CONTEXT.md.
+// invariant that such numbers are measured under Electron, never Node, is in CONTEXT.md, and
+// `pnpm bench:scan` is how they are taken.
 import { createReadStream } from 'node:fs'
 
 const NEWLINE = 0x0a

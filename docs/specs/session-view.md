@@ -499,6 +499,11 @@ below are archived as a decision record and are no longer requirements)**
   174 ms → **99 ms** — not a regression but an improvement, because line reading switched from
   `readline` to splitting a Buffer on `0x0A` (which is incidentally what makes the byte offsets
   available), and the decoding overhead saved outweighs the added per-line classification.
+  ⚠️ **Those scan timings were taken under Node, not in the Electron main process** (noted
+  2026-09-09): the same reader over the same bytes ran about twelve times slower in the main
+  process at the stream's default chunk size, which is what made startup take minutes once the
+  data grew to gigabytes. Main-process figures come from `pnpm bench:scan`; see the CONTEXT.md
+  invariant "Main-process file I/O is measured under Electron, never under Node".
   **A turn's end point is "the end of the last parseable line", not the file's byte size**: an active
   session may be mid-line, and that half line neither parses nor should be sliced into a range.
   **Per-side "turn volume" criteria (full enumeration, not sampling)**:

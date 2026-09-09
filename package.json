@@ -19,7 +19,8 @@
     "check:ui": "node scripts/check-shared-ui.mjs --cross",
     "check:lang": "node scripts/check-lang.mjs",
     "check:i18n": "node scripts/check-i18n.mjs",
-    "check:nul": "node scripts/check-raw-nul.mjs"
+    "check:nul": "node scripts/check-raw-nul.mjs",
+    "bench:scan": "node scripts/bench-scan.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",
@@ -30,6 +31,7 @@
     "electron": "^43.2.0",
     "electron-builder": "^26.0.0",
     "electron-vite": "^2.3.0",
+    "esbuild": "^0.21.5",
     "jsdom": "^30.0.1",
     "typescript": "^5.7.2",
     "vite": "^5.4.11",

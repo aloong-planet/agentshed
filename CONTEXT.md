@@ -505,8 +505,9 @@ _Avoid_: error message (bare, implies a finished sentence)
   256 KB, 12.5 s at 512 KB, 11.3 s at 1 MB, 12.5 s at 2 MB, 17.6 s at 4 MB, 49.8 s at 16 MB, against
   90.5 s at the 64 KB default; the parse output is identical at every size). And a figure about
   reading files from the main process counts as evidence only when the run was under `electron` —
-  bundle the code with esbuild and run it with `node_modules/.bin/electron`, or measure inside the
-  app; a Node figure is quoted as "measured under Node" and decides nothing about the main process.
+  `pnpm bench:scan` bundles the scan and runs it under the Electron binary (and under Node with
+  `--node`, for the comparison this invariant is about); a Node figure is quoted as "measured under
+  Node" and decides nothing about the main process.
 
 ## Flagged ambiguities
 
