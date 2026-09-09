@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source)
+> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side))
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases (the
 > accounting decisions are in the ADRs and are not restated here).
@@ -45,6 +45,11 @@ all of them.
    fresh, how much the model generated.
 10. As a user, I want each side named in one colour everywhere it is named, so that a badge in a list
     and a segment in a chart agree instead of teaching me two colour languages for one concept.
+11. As a user, I want a day's figure never to fall when an agent rewrites or deletes its own
+    records, so that the history I have already seen stays what I saw.
+12. As a user, I want a project's own page to agree with the cross-project view about a day that
+    only the archive still knows, so that the same day does not read as usage in one place and as
+    nothing in another.
 
 ## Failure modes and boundaries
 
@@ -131,15 +136,77 @@ next to A/B, so that no existing reference is renumbered)
 - C3 A second build gives the same result (idempotent); the cache file is valid JSON and lands
   atomically.
 - C4 The archive is written on the first merge; a new instance reads it back.
-- C5 Days whose source files still exist: the live values **overwrite** the archive (so an accounting
-  fix corrects history automatically).
-- C6 Days whose source files are gone: the archived values are kept and are not wiped by this scan
-  finding nothing.
+- C5 **Liveness is judged per (day, side)** (ADR-0026). A side is live on a day when this scan
+  produced at least one row for it on that day. For a live (day, side) the live rows replace the
+  archive's — subject to C10 for past days — so an accounting fix still corrects history
+  automatically. Another side's rows on the same day have no bearing: Claude being live on a day
+  neither replaces nor protects Codex's rows for it.
+- C6 A (day, side) with archive rows and no live rows is **archived-only**: its rows are kept and
+  are not wiped by this scan finding nothing for that side, even when other sides are live that
+  day (the case the per-day reading got wrong).
 - C7 Within one day, rows are split by side × project × model and do not overwrite one another.
 - C8 Archive writes are atomic with no temporary files left in the directory; a corrupt archive file
   degrades to empty without crashing (the next scan starts accumulating again).
-- C9 The set of days covered by the archive is queryable (the UI draws the hatching and the note from
-  it).
+- C9 The set of archived-only **days** — a day the archive holds rows for and no side has live rows
+  on — stays queryable, for the existing hatching and note. Retained (day, side) pairs are **not**
+  exposed to the interface: retention is accounting-only (ADR-0026, amended 2026-09-10), and a day
+  on which one side is archived-only while another is live carries no marking either.
+- C10 **A past (day, side) never falls silently** (ADR-0026, the invariant in CONTEXT.md). Every
+  archive row carries the accounting stamp it was written under — the application version and the
+  cache structure version, combined. When a past (day, side) is live and its live total is **lower**
+  than the archive's: under a **different** stamp the live rows are accepted (a correction of ours),
+  and the rows they replace are kept as superseded values; under the **same** stamp the archive's
+  rows are **retained**, and the live total is recorded as the observed value. A live total equal to
+  or higher than the archive's is always accepted, and its predecessor kept as a superseded value
+  when it differs. "Total" here is the side's total over the day, so a shift between projects or
+  models on a day with an unchanged total is accepted as an ordinary rewrite.
+  **A new stamp accepts a decrease only if the figure moved.** A retained pair carries the observed
+  value the old stamp recorded; if the first scan under a new stamp observes that same figure, our
+  code produced the same number as before on the same data, nothing was corrected, and the pair
+  stays retained. Without this clause every release would re-apply an upstream loss that has
+  already been retained once.
+- C11 The scan's own day is exempt from C10: its rows are replaced on every scan and no superseded
+  value is kept, because they change on every scan while a session is active. "Own day" is the
+  local calendar day of the scan anchor, the same cut the windows use (G2). The first scan after
+  midnight therefore treats yesterday as a past day from then on.
+- C12 A retained (day, side) stays retained until a scan under a different stamp observes a figure
+  other than the recorded observed value, or a live total at or above the archive's arrives. It is
+  re-judged on every scan: the observed value tracks the latest live figure, and retention holds no
+  state beyond the archive rows, their stamp and the observed value.
+- C13 Superseded values are kept without a cap, each with the stamp and scan time that replaced it.
+  Growth is bounded by how rarely past days change (measured 2026-09-09: over one afternoon of
+  scans no past day's row changed); the point to revisit the cap is the archive file passing about
+  5 MB.
+- C14 An archive file written before stamps existed reads back with every row treated as written
+  under an unknown stamp, which differs from every real one: the first scan accepts whatever it
+  finds, exactly as before, and stamps the rows. Nothing is retained against a file that had no
+  stamp to compare with.
+- C15 A developer changing accounting code without changing either version component will see a
+  legitimate decrease retained as if it were a loss. A forced-accept override, injected from the
+  environment the way the rescan intervals are (E5), accepts every live figure for one scan and is
+  never set in production.
+- C16 A restore from a cache snapshot writes past-day rows as accepted changes under the current
+  stamp, keeping what they replace as superseded values, for one side over one day range; it
+  reports what it would write before writing (dry run by default), and it never touches the scan's
+  own day or any other side. The next scan then judges those rows by C10 like any others: the
+  compacted live figures are lower under the same stamp, so the restored rows are retained. A
+  restore made while the application is running is seen by its next scan, not overwritten by what
+  the application had in memory. The script refuses a snapshot whose cache structure version
+  differs from the current one — the aggregation only understands the shape it was written for,
+  and a restore from a shape it misreads would write plausible nonsense.
+- C17 A user deleting their own session files does not lower a past day: the deletion is a
+  same-stamp decrease, so the archive's rows are retained and the deleted figure shows as the
+  observed value. This is ADR-0007's purpose (history survives the source files) applied to a
+  deletion by hand rather than by the agent.
+- C18 An upstream rewrite that lands in the same window as an application update is accepted by
+  C10's different-stamp branch, because no observed value exists yet to compare with. The loss is
+  visible in the superseded values and recoverable through them; it is not prevented.
+- C19 The comparison is per (day, side), so a project's loss offset by another project's growth on
+  the same past day is accepted. The per-project comparison that would catch it was rejected in
+  ADR-0026 (a project key change would count the day twice).
+- C20 The own-day exemption follows the anchor even when the anchor's day moves backwards (a
+  westward time-zone change late in the day): yesterday becomes the own day again and is replaced
+  without superseded values. Accepted as a rare edge with no data at risk beyond that one day.
 
 **Sequence D: trend and axis rendering**
 - D1 Always produce 30 bars in ascending date order, with the last as the anchor day; historical days
@@ -212,16 +279,24 @@ overnight froze `scannedAt` and today's data was not shown)**
   drawing of nothing), the model breakdown shows its empty state, and each side reads 0 while still
   reporting itself as detected — detection is about whether the side is installed, which is
   independent of whether it has burned anything.
-- G6 Archived days take part in windows exactly like live ones **in the cross-project view**: the
-  archive stores the same per-model, four-field rows, so a window covering only archived days still
-  yields a composition and a model breakdown there. This is why the archive's row grain
-  (day × side × project × model) is load-bearing rather than incidental.
-  **A project's own view does not receive them**, which predates the windows: the archive was folded
-  into the cross-project figures only, so a project page has always drawn an archived day as a
-  zero-height bar carrying the archived marking. The windows inherit that boundary rather than
-  widening it — the rows carry a project key, so closing it is possible, but it changes what a project
-  page reports for spans it currently shows as empty, which is a product decision rather than a
-  consequence of adding a time window.
+- G6 Archived-only and retained (day, side) pairs take part in windows exactly like live ones, **in
+  the cross-project view and in a project's own view alike** (ADR-0026): every figure derives from
+  the effective row set — live rows for accepted (day, side) pairs, archive rows for archived-only
+  and retained ones — filtered by project where a project page asks. The archive stores the same
+  per-model, four-field rows with their project key, so a window covering only archived days still
+  yields a composition and a model breakdown on either page, and the two pages agree about the same
+  day by construction. Until 2026-09-09 a project page drew such a day as a zero-height bar with the
+  archived marking; that boundary is closed, and a project page now shows the day's value, hatched
+  under the same per-day rule as the cross-project view. No prototype was made for this: the
+  hatched bar already exists on the cross-project page, and giving it a height on the project page
+  is a data-semantics change, not a new form (the prototype exemption for such changes, declared
+  here rather than assumed).
+- G15 **Retention has no marking** (ruled 2026-09-10, after a prototype of one was judged visually
+  poor). A retained day is drawn exactly like any other day: no pattern, no note, no tooltip
+  annotation, and the observed value appears nowhere in the interface. The existing archived-only
+  marking is unchanged — a day is hatched and counted in the note when the archive holds it and no
+  side has live rows on it. Consequence, accepted: a user cannot tell a retained day from a live
+  one on screen; the archive's superseded values are the only trace.
 - G7 An entry carrying no timestamp cannot be attributed to any day, and therefore to any window. To
   keep this from silently detaching a total from its own breakdown, **every figure on the page derives
   from the same row set** — including all history and each side's total. The windowed figures and the
@@ -289,8 +364,21 @@ overnight froze `scannedAt` and today's data was not shown)**
   distinction the cache-version rule turns on — a *structure* change to what is cached must bump the
   version, and a change downstream of the cache must not, or every release would force a full rescan
   for nothing.
-- **Archive**: see ADR-0007 (resilient to the agent's automatic cleanup; live values overwriting the
-  archive is what makes accounting fixes retroactive).
+- **Archive**: see ADR-0007 for its existence and grain, ADR-0026 for the conflict rule. The archive
+  is the sole owner of the effective row set: each scan hands it the live rows and the scan anchor,
+  and it returns the rows every figure derives from together with the archived-only days — no
+  caller patches archive rows into live figures on its own. The accounting
+  stamp is **injected** into the archive rather than read from the runtime inside it, so the unit
+  seam can move the stamp between merges; production composes it from the application version and
+  the cache structure version. The persisted archive gains a format version, a stamp per (day,
+  side) pair — the unit the rule judges, so every row of the pair carries it — the observed value
+  of each retained pair, and the superseded values each with the pair they belonged to; an older
+  format upgrades on read as C14 describes. The
+  snapshot contract keeps the list of archived-only days, computed per day as before; the retained
+  set never leaves the archive.
+- **Restore**: a repository script, run by a developer, that reads a cache snapshot and applies C16
+  through the archive's own merge rather than by editing rows — the same aggregation the scan uses,
+  so the restored rows are exactly what a scan of that data would have produced.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **Cache**: incremental by file signature; **a structure change must bump the version number at the
   same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
@@ -322,6 +410,23 @@ it appears on its own, and an open detail page's section local state is preserve
 events are semantically unreliable under a hidden-window test regime (noted in the existing e2e
 header), and since the focus path shares its scan entry point with the timer, it gets no separate e2e.
 
+The archive rule (C5, C6, C10–C14) is tested at the archive's own unit seam with the stamp and the
+scan anchor injected: the cases are a same-stamp decrease on a past day (retained, observed value
+recorded, superseded list untouched), a different-stamp decrease (accepted, predecessor superseded),
+an increase under either stamp (accepted, predecessor superseded), the scan's own day decreasing
+(replaced, nothing kept), a side with no live rows on a day the other side is live on
+(archived-only, kept), a stampless file read back (accepted once, then stamped), and a shift
+between projects with an unchanged side total (accepted). Each case must be able to go red on the
+per-day reading the rule replaced, so the two-sides-one-day fixture the section above demands is
+mandatory here too. The restore script is tested through the same seam by feeding it a snapshot
+fixture and asserting the archive it produces equals a scan of that fixture's data. What the unit
+seam cannot reach is that the retained value is what the page shows: the seeded-archive e2e case
+grows a retained day (live data lower than the seeded archive under the same stamp) beside its
+archived-only day and reads, in one pass on the cross-project page and on a project page, that
+the retained day's tooltip total is the archived figure, that it carries no hatching, and that the
+archived-only day still does — the assertion that distinguishes "retained silently" from
+"overwritten silently", which look identical in every other respect.
+
 The window aggregation (sequence G) is a **pure function from the row set plus a window to the four
 figures a view needs**, which is the same seam the trend and axis functions already use — the highest
 seam that does not need a rendered page, and the one where the interesting cases live: a window with
@@ -346,6 +451,14 @@ moved and others did not — checking them one at a time would pass on a page th
   primary model). The Claude and Grok sides are exact, so the per-model table mixes exact and
   approximate figures without saying which is which; this asymmetry is known and accepted.
 - Sessions from before this application first ran that the agent has already cleaned up (unrecoverable).
+- Telling a correction from a loss by magnitude. The stamp is the only discriminator (ADR-0026);
+  no threshold, however chosen, distinguishes a 30% fix from a 30% loss.
+- Detecting an agent's format change on its own. The archive reacts to what the figures do, not to
+  why; recognising a rewritten record format is the parsers' job.
+- A cap on superseded values (revisited if the archive file passes about 5 MB, C13).
+- Restoring history on a machine that never had it: the restore script works from a cache snapshot
+  of this application's own making, and no such snapshot exists on a machine whose agent rewrote
+  its records before this application ever scanned them.
 - An arbitrary or custom date range. The four windows are fixed. A date picker is a different control
   with different questions (what does it do to the 30-day chart, what does it do to a range with no
   data, does it persist), and the four fixed windows answer the question that prompted this —

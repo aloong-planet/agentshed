@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related decision: ADR-0005 (accounting aligned with ccusage) · ADR-0019 (the Grok side's rules) · ADR-0021 (side colour) · ADR-0025 (one source for every figure)
+> Related decision: ADR-0005 (accounting aligned with ccusage) · ADR-0019 (the Grok side's rules) · ADR-0021 (side colour) · ADR-0025 (one source for every figure) · ADR-0026 (a past day's figure never falls silently)
 
 ## Overview
 
@@ -49,19 +49,27 @@ share a source and reconcile against each other.
   double-billed lines (a subagent replaying its parent's messages) are deduplicated automatically
 - The statistics cover every session in the agent data directories — including historical projects
   already cleared from the registry (counted globally, not listed separately)
-- History archive: every refresh files away that day's aggregate, so the historical trend survives
-  Claude Code cleaning up old session files; archived spans are drawn as hatched bars with a note, and
-  on the Agents page their usage counts inside every figure a time window reports — the totals, the
-  composition and the model breakdown included
+- History archive: every refresh files away each day's aggregate, so the historical trend survives
+  the agents cleaning up or rewriting old session files; archived spans are drawn as hatched bars
+  with a note, and their usage counts inside every figure a time window reports — the totals, the
+  composition and the model breakdown included — on the Agents page and on a project's own page
+  alike, so the two pages agree about the same day
+- A past day's figure never falls silently: when an agent's records for a past day shrink — rewritten
+  by the agent, or deleted by hand — the day's figure is retained as it was counted before; only a
+  correction that arrives with an application update replaces it. Today's figure is exempt and still
+  moves with every refresh while sessions are being written
 - Projects with no sessions show zeros and an empty state rather than an error
 
 ## Boundaries and non-goals
 - The four windows are fixed; there is no custom date range, and nothing finer than a day
-- A project's own page draws archived days as empty bars with the archived marking; their values join
-  the cross-project figures only
+- A retained day looks like any other day: nothing on screen marks it, and the smaller figure the
+  records now hold appears nowhere
+- Deleting session files by hand does not lower a past day's figure either — the application cannot
+  tell a deletion from the agent's own cleanup, and keeps the day as counted
 - The Codex per-model breakdown is an approximation at the level of the session's primary model;
   the Claude and Grok breakdowns are exact (Grok lists the model that was actually billed)
 - No dollar cost estimation
 - The archive can only accumulate from the first day this application ran; sessions older than that
-  and already cleaned up cannot be recovered
+  and already cleaned up cannot be recovered, and neither can history on a machine whose agent
+  rewrote its records before this application ever scanned them
 - Viewing session contents is not part of this feature (see [Session view](session-view.md))

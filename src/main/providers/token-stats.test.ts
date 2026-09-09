@@ -7,7 +7,8 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { CACHE_VERSION, TokenEngine } from './token-stats'
+import { CACHE_VERSION, TokenEngine, projectStatsFromRows, rowsFromCacheFile } from './token-stats'
+import { emptyTokenStats } from '@shared/domain'
 import { encodeClaudeProjectDir } from './claude'
 import { ERR, decodeAppError } from '@shared/errors'
 import type { ScanRoots } from './types'
@@ -1219,7 +1220,7 @@ describe('the incremental cache', () => {
 })
 
 describe('the archive row output (for UsageArchive to persist)', () => {
-  it('build produces day × side × project × model rows agreeing with the byDay totals; liveDays holds the days visible this time', async () => {
+  it('build produces day × side × project × model rows agreeing with the byDay totals', async () => {
     mkClaudeFile('a.jsonl', [
       usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5),
       usageLine('claude-opus-5', '2026-07-30T03:00:00Z', 20, 10)
@@ -1238,9 +1239,6 @@ describe('the archive row output (for UsageArchive to persist)', () => {
     expect(rowTotal).toBe(r.global.bySide.claude.total + r.global.bySide.codex.total)
     // The project attribution is carried
     expect(r.rows.every((x) => x.projectKey === proj.toLowerCase())).toBe(true)
-    // liveDays is non-empty and contains the rows' days
-    expect(r.liveDays.size).toBeGreaterThan(0)
-    for (const x of r.rows) expect(r.liveDays.has(x.day)).toBe(true)
   })
 })
 
@@ -1672,5 +1670,50 @@ describe('usage rows are the one source the projections derive from (ADR-0025)',
     expect(rows[1], 'the output-heavy day keeps its own output').toMatchObject({
       input: 100, cacheRead: 0, output: 500, total: 600
     })
+  })
+})
+
+describe('the archive restore path (spec C16) and project figures from the effective rows (spec G6)', () => {
+  it('rowsFromCacheFile: a snapshot of the current cache version yields exactly the rows a build of that data produces', async () => {
+    mkClaudeFile('a.jsonl', [
+      usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5),
+      usageLine('claude-opus-5', '2026-07-31T03:00:00Z', 20, 10)
+    ])
+    mkCodexRollout('rollout-r-019f100.jsonl', proj, '2026-07-30T04:00:00Z', 'gpt-5.6-sol', [
+      { input: 40, cached: 0, output: 0 }
+    ])
+    const built = await engine().build(roots(), [proj])
+    const fromFile = rowsFromCacheFile(join(dir, 'cache', 'token-cache.json'))
+    const key = (r: { day: string; side: string; projectKey: string; model: string }): string => `${r.day}|${r.side}|${r.projectKey}|${r.model}`
+    const sorted = (rows: typeof built.rows): typeof built.rows => [...rows].sort((a, b) => (key(a) < key(b) ? -1 : 1))
+    expect(sorted(fromFile)).toEqual(sorted(built.rows))
+    expect(fromFile.length).toBeGreaterThan(1)
+  })
+
+  it('rowsFromCacheFile: a snapshot of another cache version is refused rather than misread', async () => {
+    mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
+    await engine().build(roots(), [proj])
+    const file = join(dir, 'cache', 'token-cache.json')
+    const raw = JSON.parse(readFileSync(file, 'utf8'))
+    raw.version = CACHE_VERSION - 1
+    writeFileSync(file, JSON.stringify(raw))
+    expect(() => rowsFromCacheFile(file)).toThrow(/version/)
+  })
+
+  it('projectStatsFromRows: a project\'s figures come from the rows it owns in the effective set, its sessions stay, and a project present only in the archive gets an entry with none', () => {
+    const base = new Map([
+      ['/live', { tokens: emptyTokenStats(), sessions: [{ side: 'claude', title: 't', at: 1, tokens: 5, file: '/f', questionCount: 1, forkState: 'none' }] }]
+    ] as const)
+    const rows = [
+      { day: '2026-07-01', side: 'claude', projectKey: '/live', model: 'm', input: 1, output: 1, cacheRead: 0, cacheWrite: 0, total: 300 },
+      { day: '2026-07-02', side: 'codex', projectKey: '/archived-only', model: 'g', input: 1, output: 1, cacheRead: 0, cacheWrite: 0, total: 700 },
+      { day: '', side: 'claude', projectKey: '', model: 'm', input: 1, output: 1, cacheRead: 0, cacheWrite: 0, total: 9 }
+    ] as const
+    const out = projectStatsFromRows(new Map(base as never), [...rows] as never)
+    expect(out.get('/live')?.tokens.bySide.claude.total).toBe(300)
+    expect(out.get('/live')?.sessions).toHaveLength(1)
+    expect(out.get('/archived-only')?.tokens.bySide.codex.total).toBe(700)
+    expect(out.get('/archived-only')?.sessions).toEqual([])
+    expect(out.has('')).toBe(false)
   })
 })

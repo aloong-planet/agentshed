@@ -20,7 +20,8 @@
     "check:lang": "node scripts/check-lang.mjs",
     "check:i18n": "node scripts/check-i18n.mjs",
     "check:nul": "node scripts/check-raw-nul.mjs",
-    "bench:scan": "node scripts/bench-scan.mjs"
+    "bench:scan": "node scripts/bench-scan.mjs",
+    "restore:archive": "node scripts/restore-archive.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",

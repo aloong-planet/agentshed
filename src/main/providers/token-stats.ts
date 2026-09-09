@@ -179,13 +179,54 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  *      the total no longer includes it, so the four fields stop summing to the total. Zero on this
  *      machine's data, hence invisible to every fixture with a fresh cache.
  *
- * **Exported for tests only** — so a guard test can build an "immediately previous version" cache with
- * `CACHE_VERSION - 1`
- * rather than hard-coding a literal that goes stale as the version grows. Production code must not
- * branch on it:
- * the only version comparison is in loadCache, and a second one would be a second rule that can drift.
+ * **Exported for tests and for the accounting stamp** — a guard test builds an "immediately previous
+ * version" cache with `CACHE_VERSION - 1` rather than hard-coding a literal that goes stale as the
+ * version grows, and the archive's stamp (ADR-0026) carries this number as the identity of the parser
+ * rules. Production code must not **branch** on it: the only version comparison is in loadCache, and a
+ * second one would be a second rule that can drift.
  */
 export const CACHE_VERSION = 14
+
+/**
+ * The archive rows a cache snapshot implies, through the same aggregation the scan uses (spec C16: a
+ * restore writes exactly what a scan of that data would have produced). The snapshot must be of the
+ * current cache structure version — the aggregation only understands the shape it was written for, and
+ * reading an older shape would produce plausible nonsense rather than an error.
+ */
+export function rowsFromCacheFile(file: string): UsageRow[] {
+  const raw: unknown = JSON.parse(readFileSync(file, 'utf8'))
+  const shape = raw as { version?: unknown; files?: Record<string, { agg?: unknown }> }
+  if (shape?.version !== CACHE_VERSION) {
+    throw new Error(`cache snapshot is version ${String(shape?.version)}, this build reads version ${CACHE_VERSION}`)
+  }
+  const aggs: FileAgg[] = []
+  for (const entry of Object.values(shape.files ?? {})) if (isWellFormedAgg(entry?.agg)) aggs.push(entry.agg)
+  return combine(aggs).rows
+}
+
+/**
+ * A project's figures derived from the effective row set (spec G6): the archive's rows carry the project
+ * key, so a project page reports archived-only and retained days exactly as the cross-project view does.
+ * Sessions stay as the scan found them; a project present only in the archive gets an entry with none.
+ */
+export function projectStatsFromRows(
+  base: Map<string, ProjectStats>,
+  rows: UsageRow[]
+): Map<string, ProjectStats> {
+  const byProject = new Map<string, UsageRow[]>()
+  for (const r of rows) {
+    if (!r.projectKey) continue
+    const list = byProject.get(r.projectKey)
+    if (list) list.push(r)
+    else byProject.set(r.projectKey, [r])
+  }
+  const out = new Map<string, ProjectStats>()
+  for (const [key, p] of base) out.set(key, { tokens: deriveStats(byProject.get(key) ?? []), sessions: p.sessions })
+  for (const [key, own] of byProject) {
+    if (!out.has(key)) out.set(key, { tokens: deriveStats(own), sessions: [] })
+  }
+  return out
+}
 
 interface CacheShape {
   version: typeof CACHE_VERSION
@@ -195,10 +236,9 @@ interface CacheShape {
 export interface TokenBuildResult {
   global: TokenStats
   perProject: Map<string, ProjectStats>
-  /** Archive rows (day × side × project × model), for UsageArchive to persist */
+  /** Archive rows (day × side × project × model), for UsageArchive to merge; liveness is judged there,
+   * per (day, side), from the rows themselves (ADR-0026) */
   rows: UsageRow[]
-  /** The days whose source data this scan can still see (used by the archive conflict rule) */
-  liveDays: Set<string>
   /**
    * Sessions needing a new title: once a Codex fork's replay prefix is stripped, the original title
    * came from a question that is **no longer displayed** (95% of Codex sessions have no thread_name and
@@ -585,7 +625,6 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
   const retitle: TokenBuildResult['retitle'] = []
   // Accumulate archive rows: keyed day|side|project|model
   const rowMap = new Map<string, UsageRow>()
-  const liveDays = new Set<string>()
   const addRow = (
     day: string | null,
     side: AgentSide,
@@ -599,7 +638,6 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     // nothing reporting it — a latent divergence rather than an observed one, since the timestamp is
     // present on every row measured to date. It is not archived: the archive is keyed by day, and the
     // filtering happens at that call.
-    if (day !== null) liveDays.add(day)
     const key = `${day ?? ''}|${side}|${projectKey}|${model}`
     const cur =
       rowMap.get(key) ??
@@ -833,7 +871,7 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
     p.tokens = deriveStats(own)
     p.sessions.sort((x, y) => (y.at ?? 0) - (x.at ?? 0))
   }
-  return { global, perProject, rows, liveDays, retitle, sessionFiles: new Set<string>() }
+  return { global, perProject, rows, retitle, sessionFiles: new Set<string>() }
 }
 
 /** A rewrite burst (the same rule as ccusage's detect_rewritten_burst): if the first two events are
