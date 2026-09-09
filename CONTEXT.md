@@ -487,6 +487,27 @@ _Avoid_: error message (bare, implies a finished sentence)
   labels, equally deliberate. A new sentence-shaped surface follows the dictionary's case rather
   than reintroducing a transform.
 
+- **Main-process file I/O is measured under Electron, never under Node (settled 2026-09-09)**: the
+  stream loop that reads session files (`eachJsonlLine`) took 3.5 s over an 839 MB file under Node
+  and 44.6 s in the Electron main process — the same code, the same file, already in the page
+  cache. Under Electron each 64 KB stream chunk costs about 3 ms more than under Node (the
+  mechanism was not profiled; a worker thread in the same process paid the same), so at the
+  stream's default chunk size a gigabyte costs a minute, and two live Codex sessions of that size
+  made the startup scan, and any rescan after they had been written to, take minutes. Nothing that
+  runs under `node` can see this: vitest cannot, and the scan timings the specs record could only
+  have been taken there — at the main-process rate their 288 MB would have needed over eight
+  seconds, not 2.9 — which is how a twelvefold slowdown on the startup path went unnoticed while
+  the data grew. Two consequences. Session files stream in 1 MB chunks (`JSONL_CHUNK_BYTES`), and
+  the tests pin the chunk size explicitly instead of guessing the runtime's default. The size was
+  chosen on the **whole** cold scan, not on the big file alone: the big file keeps getting faster
+  as chunks grow (2.0 s at 1 MB, 1.4 s at 8 MB) while the whole set — mostly small files, each
+  paying for a chunk-sized buffer per read — is fastest at 1 MB (3.3 GB in 3947 files: 15.5 s at
+  256 KB, 12.5 s at 512 KB, 11.3 s at 1 MB, 12.5 s at 2 MB, 17.6 s at 4 MB, 49.8 s at 16 MB, against
+  90.5 s at the 64 KB default; the parse output is identical at every size). And a figure about
+  reading files from the main process counts as evidence only when the run was under `electron` —
+  bundle the code with esbuild and run it with `node_modules/.bin/electron`, or measure inside the
+  app; a Node figure is quoted as "measured under Node" and decides nothing about the main process.
+
 ## Flagged ambiguities
 
 - **"AgentDex" (former name) is retired**: the product was originally positioned as a read-only
