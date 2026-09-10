@@ -2,7 +2,10 @@
 
 - Status: Accepted (2026-07-30). The "sum all four fields as the total" clause was **superseded in
   part by ADR-0023** (2026-08-18): cache creation is not collected on this side, so the total is
-  input + output. Everything else — the two data roots, fork stripping, per-day attribution — stands.
+  input + output. The usage-source clause (per-turn usage from the `token_count` event, aligned with
+  ccusage) was **superseded in part by ADR-0027** (2026-09-10): rollouts carrying usage records read
+  them from the first one on, and ccusage is the alignment basis for legacy rollouts only. The two
+  data roots, fork stripping for legacy children and per-day attribution stand.
 
 ## Context
 

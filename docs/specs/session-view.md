@@ -1,7 +1,7 @@
 # Session view
 
-> Related: features pending · ADR-0002 (dual seam) · ADR-0001 (single type source)
-> Status: **step 2 complete, prototype gate passed** (the user confirmed five UI points on 2026-08-02), ready to be cut into tickets.
+> Related: [features](../features/session-view.md) · ADR-0002 (dual seam) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts)
+> Status: shipped 2026-08-06 (prototype gate passed 2026-08-02); amended 2026-09-10 for Codex paginated and cold rollouts (B1, B2, C2, C4, C8, D3, R1).
 
 ## Problem Statement
 
@@ -37,6 +37,10 @@ ruling on 2026-08-06, see Out of Scope).
    X in this project before".
 6. ~~As a user, I want to export to Markdown, so that I can archive or share.~~ (dropped by the user's
    ruling, 2026-08-06)
+7. As a user, I want a Codex session in the paginated format to list my questions the way it did
+   before the format changed, so that the session list does not empty out after an agent update.
+8. As a user, I want a session Codex has compressed to open and search like any other, so that
+   looking back is not cut off at the agent's seven-day line.
 
 ## Failure modes and boundaries
 
@@ -128,9 +132,14 @@ ruling on 2026-08-06, see Out of Scope).
 
 **Sequence B: the question list (opening a session)**
 - B1 The trunk lists **human questions only**: Claude takes `type=user` where content is a string or an
-  array containing a `text` segment; Codex takes `event_msg/user_message` (**not
-  `response_item/message`** — the latter mixes in `<environment_context>` / AGENTS.md injected
-  content).
+  array containing a `text` segment; Codex takes the human's message event — `event_msg/user_message`
+  in a legacy rollout and, in a paginated rollout, its replacement: the completed-item event whose
+  item is a user message (`event_msg/item_completed` with item type `UserMessage`). Measured
+  2026-09-10 over every rollout: 1317 of 1367 paginated rollouts carry it, and 4% of those items
+  carry injected context, which the same stripping removes. A paginated rollout with no such event
+  falls back to `response_item/message` with role user under the same stripping (29 rollouts; 19% of
+  those messages carry injected context — `<environment_context>` / AGENTS.md — which is why it is
+  the fallback and never the source).
   **Corrections during implementation (2026-08-03)**, three of them:
   1. "Exclude `[{type:tool_result}]`" **needs no separate guard**; the rule "take only text segments"
      achieves it. Enumerating all 37,604 array contents in the repository, the segment type
@@ -151,6 +160,11 @@ ruling on 2026-08-06, see Out of Scope).
   parent file being in the scan set; when it is not, degrade to a heuristic and **label the
   uncertainty explicitly** (a wrong strip must never be silent — stripping too much or too little both
   show up as visible lost or duplicated messages).
+  **Paginated children carry no replayed events** (2026-09-10): Codex copies neither usage records
+  nor completed-item events into a fork or subagent thread in paginated mode, so such a child's
+  question set is entirely its own and the fingerprint check finds nothing to strip; the replayed
+  `response_item` messages it does inherit are not questions under B1. Legacy children keep the rules
+  below unchanged.
   **Landed during implementation (2026-08-04)**:
   - **Identify the replayed span by content fingerprint, not by timestamp** — a replay **rewrites the
     timestamps** (confirmed on 4 of 4 real parent-child pairs), so timestamps cannot recognise it.
@@ -220,6 +234,13 @@ ruling on 2026-08-06, see Out of Scope).
 - C2 **Offset index**: during the scan (riding along with the token statistics), record each question's
   and its turn's start and end byte offsets; on a click, `createReadStream(file, {start, end})`
   **reads only that range**, independent of total file size → milliseconds.
+  **A cold rollout** (a `.jsonl.zst` file, 2026-09-10) has no byte-addressable ranges: its offsets
+  are offsets in the decompressed stream, and every range read of it is one streaming decompression
+  from the start that serves the requested ranges in order and stops at the last one — opening the
+  session is one pass for all its question texts, expanding a turn is one pass to that turn, a search
+  is one pass per file. Memory follows the bytes served, never the file: measured on the largest
+  cold rollout on this machine (206 MB) a pass is about 0.3 s, and the 921 MB active rollout, were
+  it cold, about 1.5 s. Decompressing a whole file into memory was rejected on that measurement.
 - C3 Subagents **expand in place inside the turn**: Claude's `subagents/` subfiles and inline sidechain
   records, and Codex's subagent threads, all sit under the step that dispatched them.
   **Correction from measurement (2026-08-06): "sitting under the dispatching step" cannot
@@ -239,6 +260,9 @@ ruling on 2026-08-06, see Out of Scope).
   rebuilt again next time); the display-side stripping for a Codex fork shares its source with the
   list (the same `stripReplayPrefix` and parent lookup), rather than reusing the token metering side's
   conclusions.
+  A session page left open while Codex compresses its file (2026-09-10): the plain path is gone, so
+  the next fetch fails for that turn only (the in-turn error state, retry on click), and the session
+  reappears under its compressed identity after the next scan — a new path, an index built once.
 - C5 In the expanded contents, tool calls are collapsed by default (name + a one-line summary) and can
   be expanded to see the full arguments and return.
 - C6 **The sides' completeness is unequal and must be labelled explicitly**: Codex's reasoning body
@@ -271,6 +295,15 @@ ruling on 2026-08-06, see Out of Scope).
   with the three layers distinguished by `event_msg/` and `response_item/` prefixes) — allow-list
   failures are invisible, so nothing is ever silently dropped (a CONTEXT invariant). Probes over the
   whole repository's real data: the unknown trace set is empty, and the tool pairing rate is 99.94%.
+  **Paginated rollouts** (2026-09-10, full enumeration of 1391 rollouts): the completed-item event
+  carries a typed item in place of the legacy events — `AgentMessage` is the prose carrier (the
+  legacy `event_msg/agent_message` is absent from paginated rollouts), `UserMessage` is the question
+  (B1), and `Reasoning`, `FileChange`, `McpToolCall`, `CommandExecution`, `WebSearch`,
+  `DynamicToolCall`, `CollabAgentToolCall`, `ImageView`, `Extension`, `SubAgentActivity` and
+  `ContextCompaction` are mirrors of `response_item` records that are already rendered or already
+  noise, so they are never rendered — the same double-write rule as the legacy event path. The usage
+  record, the compacted checkpoint, the world state and the thread settings event are noise inside a
+  turn. An item type outside this enumeration leaves the unknown trace.
 
 **Sequence G: the Grok side** (grounded in a full enumeration of 17 update types, measured
 2026-08-16)
@@ -336,6 +369,7 @@ ruling on 2026-08-06, see Out of Scope).
   Destination: `.scratch/scan-cold-start/`.
 - D3 Full-text search must **deduplicate**: 54.7% of Codex's bytes are fork replay copies, and without
   deduplication the same sentence is reported once per generation of a fork chain.
+  A cold rollout is searched in one streaming pass (C2), in question mode and full-text mode alike.
 - D4 A hit locates "which question in which session", clickable to go straight there.
   **The locating highlight for a hit (finalised after three rounds of prototype confirmation
   2026-08-06)**: on arrival a yellow background pulse **holds for 10 s** (8 s steady, fading over the
@@ -377,6 +411,8 @@ below are archived as a decision record and are no longer requirements)**
   writing it as "only what is already listed" would block ourselves. Under exact matching, traversal,
   prefix lookalikes, encoding variants and NFD variants are all rejected because the strings are not
   equal, which is fail-closed (the worst case is refusing another spelling of the same file).
+  A cold rollout's `.jsonl.zst` path enters the allow-list exactly like a plain path (2026-09-10),
+  and its plain twin is not on it once the plain file is gone.
 - R2 The existing token statistics parsing and caching **must not be broken** — this feature rides the
   same scan pass, but the rules are independent (token deduplication is a metering rule and means
   something different from display deduplication).
@@ -480,6 +516,10 @@ below are archived as a decision record and are no longer requirements)**
   only the 5 most recent + a total count at the bottom**; the click target then **changed to go
   straight to the session page** (closing that interim state), with the back button landing on the
   "Sessions" section.
+- **Paginated and cold rollouts change no interface point** (2026-09-10): the question list, the
+  turn blocks, the banners and the search results keep their forms; what changes is where the data
+  comes from and how a compressed file is read — declared here as the prototype-gate exemption for
+  data-source changes rather than assumed.
 - **The sessions section's sort choice survives switching sections** (added 2026-08-02;
   not demonstrated in the prototype): the tabs are conditionally rendered, so switching away unmounts
   and component state cannot hold it. It lives in a module-level variable — not lifted to the parent
@@ -555,9 +595,16 @@ below are archived as a decision record and are no longer requirements)**
   unknown kinds. The prose carrier follows from full enumeration: the entire spectrum of assistant
   segment types on Claude's main chain is only tool_use / text / thinking, so prose = the `text`
   segment; Codex prose = `event_msg/agent_message` (whose message is always a string), taking the same
-  event_msg path as the question side. Every type this ticket does not emit a block for has been
+  event_msg path as the question side. In a paginated rollout the prose carrier is the completed-item
+  event's `AgentMessage` item and the question its `UserMessage` item (C8, B1) — the same event path,
+  one generation on. Every type this ticket does not emit a block for has been
   enumerated and assigned to 07; **when 07 lands C8's display allow-list it must carry the "unknown
   types are discoverable" trace** and never silently drop (the CONTEXT allow-list invariant).
+- **Cold rollouts**: the range reader gains a streaming implementation for `.jsonl.zst` files — one
+  decompression pass per call, serving the requested ranges in ascending order and stopping after the
+  last — behind the same interface as the byte-addressed reader, so the question list, the turn fetch
+  and the search change nothing above it. The read allow-list, the index signature and the cache key
+  all use the compressed path.
 - **IPC**: the session list rides on `getProjectDetail`; **`getSessionPage`**
   returns a self-contained session page payload (title / volume / forkState / question text), with the
   text read live by the main process by byte range — `readArtifact`'s read-whole 500 KB path is not
@@ -580,7 +627,12 @@ back, title cleaning, and the offset index's fetch correctness (what is read by 
 corresponding turn from a full parse); (2) the contract validation round trip; (3) e2e covering the
 whole chain of "open a session → click a question → the answer appears". **At least one fixture takes
 its shape from a real sample** (the sides' data structures are complex, and a constructed fixture
-would inevitably inherit the blind spots of my imagination).
+would inevitably inherit the blind spots of my imagination). The paginated Codex question source
+(B1) and the cold-rollout reads (C2) are tested at the same providers seam: a fixture shaped from a
+real paginated rollout (completed-item user messages, one carrying injected context, no legacy
+user-message event), one with neither event so the response-item fallback is exercised, and a cold
+rollout whose question list, turn fetch and search results equal its plain twin's byte for byte, with
+the pass count asserted as the evidence that nothing was decompressed twice.
 
 ## Out of Scope
 
@@ -593,6 +645,11 @@ would inevitably inherit the blind spots of my imagination).
 - **The export feature entirely** (dropped by the user's ruling 2026-08-06, including the planned
   Markdown export and a fidelity-preserving backup export; sequence E is archived only).
 - Sessions the agent had already cleaned up before this app first ran.
+- Questions inside a compacted window (ruled 2026-09-10): only the compacted checkpoint's replacement
+  history holds them, once per window, so a thread with many windows repeats them many times over.
+  They have no turn to fetch, only a summary, and showing that is a session page design question
+  that needs a prototype. A compacted session therefore lists fewer questions than it did before
+  the compaction, and nothing marks it.
 
 ## Further Notes
 
