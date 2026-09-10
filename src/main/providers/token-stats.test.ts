@@ -92,33 +92,61 @@ function mkCodexRollout(
      * non-zero total — a shape that has to come from real data, since nobody would invent it (spec B6).
      */
     total?: number
+    /**
+     * Also writes this response's **usage record** (`token_usage_record`, ADR-0027) with the given
+     * response id, a few milliseconds before the usage event — the order every paginated rollout on
+     * this machine shows (1391 files enumerated 2026-09-10). The record's payload carries the one key
+     * set observed (5029 of 5029 records): thread/turn/session/root-turn ids, the response id, its own
+     * usage and the turn's and thread's running totals. A rollout with any record is paginated: the
+     * parser's usage boundary is its first record line (spec B9).
+     */
+    record?: string
   }>,
   subagent = false,
   atSec = 2000,
   /** A real question; pass null to build a session nobody ever asked anything in (spec A3a) */
-  userMsg: string | null = 'sample question'
+  userMsg: string | null = 'sample question',
+  /** The session's own id and, for a subagent, the parent thread it was spawned from (the real
+   * `source.subagent.thread_spawn.parent_thread_id` shape the parser reads) */
+  ids?: { id: string; parentId?: string }
 ): string {
   const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
   mkdirSync(d, { recursive: true })
   let acc = { input: 0, cached: 0, output: 0 }
+  /** The records' own running total: advances on every response, a re-reported event included */
+  let recAcc = { input: 0, cached: 0, output: 0 }
+  const running = (a: { input: number; cached: number; output: number }): Record<string, number> => ({
+    input_tokens: a.input,
+    cached_input_tokens: a.cached,
+    cache_write_input_tokens: 0,
+    output_tokens: a.output,
+    reasoning_output_tokens: 0,
+    total_tokens: a.input + a.output
+  })
+  const THREAD = '019f0000-0000-7000-8000-00000000f1de'
   const lines = [
     JSON.stringify({
       timestamp: tsIso,
       type: 'session_meta',
-      payload: subagent ? { cwd, thread_source: 'subagent' } : { cwd }
+      payload: {
+        cwd,
+        ...(ids ? { id: ids.id } : {}),
+        ...(subagent ? { thread_source: 'subagent' } : {}),
+        ...(ids?.parentId ? { source: { subagent: { thread_spawn: { parent_thread_id: ids.parentId } } } } : {})
+      }
     }),
     JSON.stringify({ timestamp: tsIso, type: 'turn_context', payload: { model, cwd } }),
     ...(userMsg === null
       ? []
       : [JSON.stringify({ timestamp: tsIso, type: 'event_msg', payload: { type: 'user_message', message: userMsg } })]),
     // The real shape: top-level type=event_msg with the data in payload.info (payload.type=token_count)
-    ...turns.map((t) => {
+    ...turns.flatMap((t) => {
       // A re-report leaves the running cumulative where it was — that non-advance is the only thing
       // distinguishing it from a genuine turn, and is what spec B7's rule keys on
       if (t.repeat !== true) {
         acc = { input: acc.input + t.input, cached: acc.cached + t.cached, output: acc.output + t.output }
       }
-      return JSON.stringify({
+      const event = JSON.stringify({
         timestamp: t.at ?? tsIso,
         type: 'event_msg',
         payload: {
@@ -144,6 +172,23 @@ function mkCodexRollout(
           }
         }
       })
+      if (t.record === undefined) return [event]
+      recAcc = { input: recAcc.input + t.input, cached: recAcc.cached + t.cached, output: recAcc.output + t.output }
+      const record = JSON.stringify({
+        timestamp: t.at ?? tsIso,
+        type: 'token_usage_record',
+        payload: {
+          thread_id: THREAD,
+          turn_id: `${THREAD}-turn`,
+          session_id: THREAD,
+          root_turn_id: `${THREAD}-turn`,
+          response_id: t.record,
+          usage: running({ input: t.input, cached: t.cached, output: t.output }),
+          turn_token_usage: running(recAcc),
+          thread_token_usage: running(recAcc)
+        }
+      })
+      return [record, event]
     })
   ]
   const f = join(d, file)
@@ -536,6 +581,129 @@ describe('Codex aggregation (the ccusage rules)', () => {
     const byDay = Object.fromEntries(r.global.byDay.map((d) => [d.day, d.bySide.codex]))
     expect(Object.keys(byDay).length).toBe(2)
     expect(Object.values(byDay).reduce((a, b) => a + b, 0)).toBe(300)
+  })
+
+  it('a paginated rollout counts usage records once per response from the first record on — a response the cumulative rule drops is still counted (B1, B7, ADR-0027)', async () => {
+    // The measured shape (17 of 345 dual-source rollouts on this machine, 2026-09-10): the second
+    // response's usage event repeats the cumulative, so the legacy rule drops it, while its usage
+    // record carries it under its own response id.
+    mkCodexRollout('rollout-rec-019f010.jsonl', proj, '2026-07-30T07:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 80, output: 10, record: 'resp_a' },
+      { input: 200, cached: 150, output: 20, record: 'resp_b', repeat: true }
+    ])
+    const r = await engine().build(roots(), [proj])
+    const c = r.global.bySide.codex
+    // 110 + 220 from the records; the legacy rule alone would give 110
+    expect(c.total).toBe(330)
+    expect(c.cacheRead).toBe(230)
+    expect(c.input + c.output + c.cacheRead + c.cacheWrite).toBe(c.total)
+  })
+
+  it('the usage boundary is by line order: events before the first record count under B7, an event after it is ignored even with an earlier timestamp (B9)', async () => {
+    // The two rollouts on this machine that carry events before their boundary hold 1.69 B tokens
+    // between them: the span before the first record line is read by the legacy rule, repeats and all.
+    mkCodexRollout('rollout-bnd-019f011.jsonl', proj, '2026-07-30T07:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 80, output: 10 },
+      { input: 100, cached: 80, output: 10, repeat: true },
+      { input: 50, cached: 0, output: 5, record: 'resp_c', at: '2026-07-30T07:10:00Z' },
+      // After the boundary by line, before it by timestamp: ignored — the boundary is the line
+      { input: 999, cached: 0, output: 99, at: '2026-07-30T07:05:00Z' }
+    ])
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.codex.total).toBe(110 + 55)
+  })
+
+  it('two usage records with one response id are one response (B1)', async () => {
+    mkCodexRollout('rollout-dupid-019f012.jsonl', proj, '2026-07-30T07:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 0, output: 10, record: 'resp_same' },
+      { input: 100, cached: 0, output: 10, record: 'resp_same' }
+    ])
+    const r = await engine().build(roots(), [proj])
+    // Counting both records (or the two events after the boundary) would give 220
+    expect(r.global.bySide.codex.total).toBe(110)
+  })
+
+  it('a paginated subagent child with usage records is counted from its own file only — nothing is stripped, even when its first responses look like a rewritten burst (B10)', async () => {
+    // Codex copies neither usage records nor, in paginated mode, usage events into a child thread
+    // (spawn.rs, 2026-09-09 tree), so a child rollout holds only its own usage. Its first responses
+    // 300 ms apart would be a "rewritten burst" to the legacy heuristic; the boundary says otherwise.
+    const PARENT = '019f0000-0000-7000-8000-0000000000aa'
+    const CHILD = '019f0000-0000-7000-8000-0000000000bb'
+    mkCodexRollout('rollout-parent-019f020.jsonl', proj, '2026-07-30T08:00:00Z', 'gpt-5.6-sol', [
+      { input: 10, cached: 0, output: 1, record: 'resp_p1' }
+    ], false, 2000, 'sample question', { id: PARENT })
+    mkCodexRollout(
+      'rollout-child-019f021.jsonl',
+      proj,
+      '2026-07-30T08:00:10Z',
+      'gpt-5.6-sol',
+      [
+        { input: 100, cached: 0, output: 10, record: 'resp_c1', at: '2026-07-30T08:00:10.000Z' },
+        { input: 200, cached: 0, output: 20, record: 'resp_c2', at: '2026-07-30T08:00:10.300Z' },
+        { input: 300, cached: 0, output: 30, record: 'resp_c3', at: '2026-07-30T08:00:20.000Z' }
+      ],
+      true,
+      2000,
+      'sample question',
+      { id: CHILD, parentId: PARENT }
+    )
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.codex.total).toBe(11 + 110 + 220 + 330)
+  })
+
+  it('a legacy fork child still has its replayed prefix stripped against the parent (B10)', async () => {
+    const PARENT = '019f0000-0000-7000-8000-0000000000cc'
+    const CHILD = '019f0000-0000-7000-8000-0000000000dd'
+    mkCodexRollout('rollout-parent-019f022.jsonl', proj, '2026-07-30T08:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 0, output: 10, at: '2026-07-30T08:00:00Z' },
+      { input: 200, cached: 0, output: 20, at: '2026-07-30T08:01:00Z' }
+    ], false, 2000, 'sample question', { id: PARENT })
+    mkCodexFork('rollout-fork-019f023.jsonl', proj, { id: CHILD, parentId: PARENT, forkedAtIso: '2026-07-30T08:02:00Z' }, 'gpt-5.6-sol', [
+      { input: 100, cached: 0, output: 10, at: '2026-07-30T08:02:00Z' }, // the parent's history, replayed
+      { input: 200, cached: 0, output: 20, at: '2026-07-30T08:02:00Z' },
+      { input: 50, cached: 0, output: 5, at: '2026-07-30T08:05:00Z' } // the fork's own turn
+    ])
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.codex.total).toBe(110 + 220 + 55)
+  })
+
+  it('a compacted checkpoint carries no usage: it neither adds to the figures nor moves the boundary (B11)', async () => {
+    // The real shape (479 compacted records on this machine, 2026-09-10): a summary message, the
+    // replacement history of the window, window ids, and a null latest usage record. The usage of the
+    // span it replaced is gone for good; the records on either side still count.
+    const file = mkCodexRollout('rollout-comp-019f013.jsonl', proj, '2026-07-30T07:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 0, output: 10, record: 'resp_a' }
+    ])
+    const compacted = JSON.stringify({
+      timestamp: '2026-07-30T07:20:00Z',
+      ordinal: 9,
+      type: 'compacted',
+      payload: {
+        message: 'summary of the earlier turns',
+        replacement_history: [
+          { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'an earlier question' }], internal_chat_message_metadata_passthrough: { turn_id: 't1' } }
+        ],
+        window_number: 1,
+        first_window_id: 'w1',
+        previous_window_id: 'w1',
+        window_id: 'w2',
+        compaction_response_id: null,
+        latest_token_usage_record: null
+      }
+    })
+    const after = JSON.stringify({
+      timestamp: '2026-07-30T07:30:00Z',
+      type: 'token_usage_record',
+      payload: {
+        thread_id: 't', turn_id: 'u', session_id: 't', root_turn_id: 'u', response_id: 'resp_b',
+        usage: { input_tokens: 200, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 20, reasoning_output_tokens: 0, total_tokens: 220 },
+        turn_token_usage: { input_tokens: 300, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 30, reasoning_output_tokens: 0, total_tokens: 330 },
+        thread_token_usage: { input_tokens: 300, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 30, reasoning_output_tokens: 0, total_tokens: 330 }
+      }
+    })
+    appendFileSync(file, `${compacted}\n${after}\n`)
+    const r = await engine().build(roots(), [proj])
+    expect(r.global.bySide.codex.total).toBe(110 + 220)
   })
 
   it('a subagent session\'s tokens count but it does not enter the session list', async () => {
@@ -1141,7 +1309,7 @@ describe('cache version migration (a real bug regression)', () => {
       'at', 'entries', 'file', 'forkPoints', 'kind', 'listed', 'projectKey', 'questions', 'title'
     ])
     expect(keysOf('codex')).toEqual([
-      'at', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'parentId', 'projectKey', 'questions', 'sessionId', 'title', 'titleFromThread'
+      'at', 'boundary', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'parentId', 'projectKey', 'questions', 'sessionId', 'title', 'titleFromThread'
     ])
   })
 

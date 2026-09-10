@@ -108,6 +108,13 @@ interface CodexFileAgg {
    * it compares two lists filtered by the same rule.
    */
   events: CodexEvent[]
+  /**
+   * The usage boundary (spec B9): the index in `events` from which entries come from usage records —
+   * `events.length` when the rollout carries none. Only the legacy span before it can hold a replayed
+   * prefix (records are never copied into a child thread, spec B10), so the stripping in combine
+   * stops there.
+   */
+  boundary: number
 }
 
 /** One Grok per-turn, per-model usage event: [ts(ms)|null, input, cachedRead, output,
@@ -173,6 +180,10 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  *      the correction never reaches an unchanged file. Unlike v13 this one is *not* invisible — it
  *      moves real numbers (the Codex total falls by ~0.7% on this machine's data), so a missed bump
  *      would leave existing users on the old figures indefinitely.
+ * v15: Codex usage comes from usage records from the first record line on, deduplicated by response
+ *      id; usage events count only before that boundary (ADR-0027, spec B9). **A computation
+ *      change**: an entry cached under v14 keeps the event-derived figures for a paginated rollout,
+ *      up to 2.9% of a session below the records on this machine's data.
  * v13: cacheWrite stopped being parsed on the Codex and Grok sides and is written as 0 (ADR-0023).
  *      **A computation change, not a shape change** — which is exactly the case this comment's rule
  *      above exists for: without the bump, an entry cached under v12 keeps its parsed value while
@@ -185,7 +196,7 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  * rules. Production code must not **branch** on it: the only version comparison is in loadCache, and a
  * second one would be a second rule that can drift.
  */
-export const CACHE_VERSION = 14
+export const CACHE_VERSION = 15
 
 /**
  * The archive rows a cache snapshot implies, through the same aggregation the scan uses (spec C16: a
@@ -705,11 +716,15 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
 
   for (const a of codexAggs) {
     let start = 0
+    // Only the legacy span can hold a replayed prefix: records are never copied into a child thread and
+    // paginated children get no usage events either (spec B10), so a fully paginated child has an
+    // empty legacy span and nothing below strips anything from it.
+    const legacy = a.events.slice(0, a.boundary)
     if (a.parentId) {
       const parent = bySessionId.get(a.parentId)
       if (!parent || parent === a) {
         // The parent log is not in the scan set: degrade to the "rewrite burst" heuristic
-        start = skipRewrittenBurst(a.events)
+        start = skipRewrittenBurst(legacy)
       } else {
         // The parent session's events before the fork moment are the history this session replays.
         // Consistent with ccusage: cut at the first timestamp later than the fork moment rather than
@@ -722,12 +737,12 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
           if (pos !== -1) replayLen = pos
         }
         const prefix = parent.events.slice(0, replayLen)
-        while (start < a.events.length && start < prefix.length && sameUsage(prefix[start], a.events[start])) {
+        while (start < legacy.length && start < prefix.length && sameUsage(prefix[start], legacy[start])) {
           start++
         }
         // The very first does not match → the parent stream cannot anchor this replay (the log was
         // rewritten), so degrade to the burst heuristic
-        if (start === 0) start = skipRewrittenBurst(a.events)
+        if (start === 0) start = skipRewrittenBurst(legacy)
       }
     }
     const totals = emptyTotals()
@@ -951,8 +966,11 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   // A missing forkPoints (undefined) gives the banner judgement a false value, and corruption within one
   // version is caught only by this gate
   if (a['kind'] === 'claude') return Array.isArray(a['entries']) && typeof a['forkPoints'] === 'number'
-  // A missing titleFromThread (undefined) is a false false: it lets a retitle displace a thread_name session
-  if (a['kind'] === 'codex') return Array.isArray(a['events']) && typeof a['titleFromThread'] === 'boolean'
+  // A missing titleFromThread (undefined) is a false false: it lets a retitle displace a thread_name session;
+  // a missing boundary (undefined) would make every slice(0, undefined) the whole list and strip records
+  if (a['kind'] === 'codex') {
+    return Array.isArray(a['events']) && typeof a['titleFromThread'] === 'boolean' && typeof a['boundary'] === 'number'
+  }
   // A missing subagent (undefined) would silently list a subagent session; a missing listed
   // (undefined) would silently HIDE a real one — both fields are load-bearing booleans
   if (a['kind'] === 'grok') {
@@ -1089,6 +1107,11 @@ async function parseCodexFile(
   // restarts with each session.
   let prevTotal: Record<string, unknown> | undefined
   let prevTotalKey: string | null = null
+  /** The usage boundary (spec B9): the index in `events` from which entries come from usage records;
+   * -1 until the first record line. From that line on usage events are ignored (ADR-0027). */
+  let boundary = -1
+  /** Response ids already counted — two records with one id are one response (spec B1) */
+  const seenResponses = new Set<string>()
   let model = 'unknown'
   // at = the largest timestamp in the file (the same meaning as on the Claude side = last activity). It
   // previously took the first timestamp,
@@ -1110,16 +1133,38 @@ async function parseCodexFile(
         const m = payload?.['model']
         if (typeof m === 'string') model = m
       }
-      // The real shape: top-level type=event_msg with the data in payload.info (payload.type=token_count).
-      // last_token_usage is the per-turn increment — but the same turn can be re-reported, and summing
-      // every record counts it twice (spec B7). The discriminator is the **cumulative**:
-      // total_token_usage not advancing means this record accounts for nothing new. Where the per-turn
-      // figure is missing the increment is the difference between the two cumulatives, which is also
-      // what makes a non-advancing record contribute zero and drop out.
-      // Deliberately not "the per-turn figure repeats": that would drop two genuinely identical
-      // consecutive turns and keep a re-report that varied its per-turn figure. The two criteria happen
-      // to select the same records on the data measured so far, which is a property of that data.
+      // A usage record (ADR-0027): Codex's own per-response accounting, written a few milliseconds
+      // before the matching usage event in the paginated rollouts measured here (2026-09-10). The first
+      // one is the usage boundary (spec B9): from its line on, records are the source and usage events
+      // are ignored.
+      // One record per response id (spec B1); a record without an id cannot be matched and counts.
+      if (obj['type'] === 'token_usage_record') {
+        if (boundary === -1) boundary = events.length
+        const rid = payload?.['response_id']
+        if (typeof rid === 'string') {
+          if (seenResponses.has(rid)) return
+          seenResponses.add(rid)
+        }
+        const usage = payload?.['usage'] as Record<string, unknown> | undefined
+        if (!usage) return
+        // All-zero records carry nothing to attribute (spec B6, the same rule as for the event)
+        if (num(usage['input_tokens']) === 0 && num(usage['output_tokens']) === 0 && num(usage['cached_input_tokens']) === 0) return
+        // The last slot is cache creation, not collected on this side (ADR-0023), as for the event below
+        events.push([Number.isNaN(ts) ? null : ts, num(usage['input_tokens']), num(usage['cached_input_tokens']), num(usage['output_tokens']), 0])
+        return
+      }
+      // The legacy source, read only before the boundary. The real shape: top-level type=event_msg
+      // with the data in payload.info (payload.type=token_count). last_token_usage is the per-turn
+      // increment — but the same turn can be re-reported, and summing every event counts it twice
+      // (spec B7). The discriminator is the **cumulative**: total_token_usage not advancing means this
+      // event accounts for nothing new. Where the per-turn figure is missing the increment is the
+      // difference between the two cumulatives, which is also what makes a non-advancing event
+      // contribute zero and drop out. Deliberately not "the per-turn figure repeats": that would drop
+      // two genuinely identical consecutive turns and keep a re-report that varied its per-turn
+      // figure. The cumulative rule also drops a real response whose cumulative stood still (17 of
+      // 345 dual-source rollouts on this machine, 2026-09-10) — what the records fix from the boundary on.
       if (payload?.['type'] !== 'token_count') return
+      if (boundary !== -1) return
       const info = payload['info'] as Record<string, unknown> | undefined
       const last = info?.['last_token_usage'] as Record<string, unknown> | undefined
       const total = info?.['total_token_usage'] as Record<string, unknown> | undefined
@@ -1181,7 +1226,8 @@ async function parseCodexFile(
     parentId: meta.parentId,
     forkedAt: meta.forkedAt,
     questions,
-    events
+    events,
+    boundary: boundary === -1 ? events.length : boundary
   }
 }
 
