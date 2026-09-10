@@ -226,7 +226,13 @@ next to A/B, so that no existing reference is renumbered)
   restore made while the application is running is seen by its next scan, not overwritten by what
   the application had in memory. The script refuses a snapshot whose cache structure version
   differs from the current one — the aggregation only understands the shape it was written for,
-  and a restore from a shape it misreads would write plausible nonsense.
+  and a restore from a shape it misreads would write plausible nonsense. The consequence: every
+  cache structure bump orphans the snapshots written before it, and a restore across a bump needs
+  the snapshot converted first, by hand, per version step — a conversion is exact only when the
+  step's change to the per-file aggregate has a known value for the old entries (the 14 → 15 step did:
+  every v14 Codex event was event-derived, so the boundary is the events' length). Automating the
+  conversion is not planned; a snapshot a step cannot convert exactly is unrecoverable through the
+  script.
 - C17 A user deleting their own session files does not lower a past day: the deletion is a
   same-stamp decrease, so the archive's rows are retained and the deleted figure shows as the
   observed value. This is ADR-0007's purpose (history survives the source files) applied to a
