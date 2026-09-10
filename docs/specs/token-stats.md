@@ -419,9 +419,10 @@ overnight froze `scannedAt` and today's data was not shown)**
   through the archive's own merge rather than by editing rows — the same aggregation the scan uses,
   so the restored rows are exactly what a scan of that data would have produced.
 - **Codex usage sources**: see ADR-0027. The parser reads both sources in one pass and applies the
-  usage boundary as it goes; the per-file aggregate keeps its shape (a list of per-event
-  increments), so this is a change in how a field is computed and bumps the cache structure version
-  under the rule below — which changes the accounting stamp (C21). Reading a cold rollout puts a
+  usage boundary as it goes; the per-file aggregate keeps its list of per-event increments and gains
+  the boundary index beside it, so that the replay stripping can stop at the legacy span — a shape
+  change and a computation change, both of which bump the cache structure version under the rule
+  below, which changes the accounting stamp (C21). Reading a cold rollout puts a
   zstd decompression stream in front of the line reader; the byte offsets the question index records
   for it are offsets in the decompressed stream.
 - **Segmentation and axis**: see ADR-0008/0009.
@@ -480,6 +481,8 @@ distinguishes the sources), a legacy rollout unchanged, the boundary with events
 a duplicate response id, and a cold rollout equal to its plain twin. The ccusage reconciliation keeps
 its meaning for legacy data only: it compares days whose Codex rollouts carry no usage records and
 reports the record-bearing days separately as an expected divergence.
+
+> Pending: cold rollouts are read, so the cold-rollout twin case above exists.
 
 The window aggregation (sequence G) is a **pure function from the row set plus a window to the four
 figures a view needs**, which is the same seam the trend and axis functions already use — the highest

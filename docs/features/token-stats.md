@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related decision: ADR-0005 (accounting aligned with ccusage) · ADR-0019 (the Grok side's rules) · ADR-0021 (side colour) · ADR-0025 (one source for every figure) · ADR-0026 (a past day's figure never falls silently)
+> Related decision: ADR-0005 (accounting aligned with ccusage) · ADR-0027 (Codex usage from its own records) · ADR-0019 (the Grok side's rules) · ADR-0021 (side colour) · ADR-0025 (one source for every figure) · ADR-0026 (a past day's figure never falls silently)
 
 ## Overview
 
@@ -21,10 +21,14 @@ share a source and reconcile against each other.
   here, as the legend's hover text explains), and generated output (green). The three always sum to
   the total; each part's percentage and absolute figure are in the legend, since on real data the
   smallest part is a fraction of a percent; a part at exactly zero draws nothing.
-- Accounting aligned with ccusage — the Claude total sums all four fields including cache reads and
-  writes; Codex and Grok are input + output, since their reported input already includes cached reads
-  and neither side reports cache writes at all; a turn the agent reports more than once is counted
-  once
+- Accounting: the Claude total sums all four fields including cache reads and writes; Codex and Grok
+  are input + output, since their reported input already includes cached reads and neither side
+  reports cache writes at all; a turn the agent reports more than once is counted once. Codex figures
+  come from Codex's own per-response accounting records wherever a session carries them (its newer
+  record format), and from the per-turn usage events before the first record and in sessions that
+  have none — so a response the events under-report is still counted, and a session Codex forked or
+  spawned in the newer format is counted from its own file alone. Alignment with ccusage holds for
+  sessions without such records; where they exist the third-party meter reads lower
 - A 30-day daily trend (local time zone; in combined mode each bar is stacked by provider, with bar
   height = that day's total and segments = each provider's share, and hovering shows each provider's
   number and percentage; the legend lists only providers that appear; a single side can be selected).
