@@ -82,7 +82,8 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
   const engine = new TokenEngine(cacheDir)
   console.log(`[TokenEngine] load cache: ${since(t0)}`)
 
-  const archive = new UsageArchive(cacheDir)
+  // The stamp only matters for the archive's conflict rule, which a benchmark never exercises twice
+  const archive = new UsageArchive(cacheDir, { stamp: 'bench' })
   const claudePaths = snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
   const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
   t0 = performance.now()
@@ -92,10 +93,7 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
   )
 
   t0 = performance.now()
-  archive.merge(
-    built.rows.filter((r) => r.day),
-    built.liveDays
-  )
+  archive.merge(built.rows, Date.now())
   console.log(`[archive.merge] ${since(t0)}`)
 }
 

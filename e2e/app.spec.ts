@@ -4,7 +4,7 @@
 // asserting the main process emits no errors.
 // The key scenario: **starting with an old-format cache** (the shape of the 2026-07-30 production crash;
 // the unit tests pin it and this guards the whole chain again).
-import { appendFileSync, mkdtempSync, mkdirSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
@@ -1504,6 +1504,73 @@ test('the archive: a seeded historical archive file → the trend includes an ar
   expect(errors).toEqual([])
   await app.close()
   rmSync(userData, { recursive: true, force: true })
+})
+
+test('the archive retains a past day whose live figure fell under the same stamp (ADR-0026): the retained figure shows on both pages, with no hatching, while the archived-only day still hatches', async () => {
+  // The fixture home has Claude usage of 1500 tokens two days ago. The seeded v2 archive holds 5,000,000
+  // for that (day, side) under the app's own accounting stamp, so the scan's lower live figure is a
+  // same-stamp decrease on a past day: retained, drawn like any other day (spec C10, G15). The 2020 row
+  // has no live counterpart at all: archived-only, hatched and counted in the note (spec C6, C9).
+  const home = mkUsageHome()
+  const proj = join(home, 'demo-proj')
+  const d = localDayOffset(2)
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  const day = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  // The stamp the app composes: package.json version + the cache structure version. The cache version
+  // is a literal here on purpose: a bump turns this case red (the seeded pair reads as another stamp and
+  // the decrease is accepted) instead of silently passing — update it together with CACHE_VERSION.
+  const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as { version: string }
+  const stamp = `${pkg.version}+c14`
+  const retainedRow = {
+    day,
+    side: 'claude',
+    projectKey: proj.toLowerCase(),
+    model: 'claude-fable-5',
+    input: 4_000_000,
+    output: 1_000_000,
+    cacheRead: 0,
+    cacheWrite: 0,
+    total: 5_000_000
+  }
+  const legacyRow = { day: '2020-01-01', side: 'claude', projectKey: '/legacy', model: 'claude-legacy', input: 1, output: 1, cacheRead: 0, cacheWrite: 0, total: 12345 }
+  const userData = makeUserData()
+  writeFileSync(
+    join(userData, 'usage-archive.json'),
+    JSON.stringify({
+      version: 2,
+      rows: [legacyRow, retainedRow],
+      stamps: { [`${day}\u0000claude`]: stamp, ['2020-01-01\u0000claude']: stamp },
+      observed: {},
+      superseded: []
+    })
+  )
+  const errors: string[] = []
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    env: { ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US' }
+  })
+  app.process().stderr?.on('data', (b: Buffer) => {
+    const t = b.toString()
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) errors.push(t)
+  })
+  const win = await app.firstWindow()
+  await expect(win.locator('.pane-head h1')).toHaveText('Agents')
+  // Cross-project page: the retained day carries the archived figure and no hatching
+  const bar = win.locator(`.chart .col[data-day="${day}"]`)
+  await expect(bar).toHaveAttribute('data-tip', /Anthropic\s+5\.0M/)
+  await expect(bar).not.toHaveClass(/\barch\b/)
+  // The archived-only day still drives the note
+  await expect(win.locator('.arch-note')).toBeVisible()
+  // Project page: the same day derives from the same rows (spec G6)
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row', { hasText: 'demo-proj' }).click()
+  const projBar = win.locator(`.chart .col[data-day="${day}"]`)
+  await expect(projBar).toHaveAttribute('data-tip', /Anthropic\s+5\.0M/)
+  await expect(projBar).not.toHaveClass(/\barch\b/)
+  expect(errors).toEqual([])
+  await app.close()
+  rmSync(userData, { recursive: true, force: true })
+  rmSync(home, { recursive: true, force: true })
 })
 
 test('the trend chart is stacked bars: segmented by provider within a bar, and switching to a single side leaves only that side\'s provider segments', async () => {

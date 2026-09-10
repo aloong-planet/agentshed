@@ -210,6 +210,51 @@ trend, and whatever a selected **time window** needs. A row with an empty day is
 attributable to no day: it joins the whole-history figures and no bounded window.
 _Avoid_: archive row (names one of its roles), usage event (an event is per turn; a row is per day)
 
+**Live (day, side)**:
+A day on which the current scan produced at least one usage row for that agent side. Liveness is
+judged per side, never per day alone: another side's activity on the same day says nothing about
+whether this side's source files still exist (settled 2026-09-09).
+_Avoid_: live day (the per-day reading, under which one side's activity let another side's vanished
+history be overwritten)
+
+**Archived-only (day, side)**:
+A (day, side) the archive holds rows for but the current scan produced none: the source files are
+gone and the archive's values stand in for them. Carries the archived marking.
+_Avoid_: historical day, hatched day, cleaned-up day
+
+**Retained (day, side)**:
+A past (day, side) whose live rows add up to less than the archive holds under the same accounting
+stamp — so the data shrank, not the rules — and whose archive values are therefore kept while the
+live figure is recorded only as the observed value. An accounting state, not a display state: the
+interface draws a retained day like any other (ruled 2026-09-10).
+_Avoid_: frozen, protected, locked (all suggest a manual act; retention is the rule's own verdict)
+
+**Observed value**:
+The live figure a scan produced for a retained (day, side), recorded in the archive so that a later
+stamp change can tell "the figure moved" from "the same figure under new rules". It is never shown
+and never enters a total.
+_Avoid_: actual value, real value (both imply the retained value is the wrong one)
+
+**Superseded value**:
+A past day's archive value that an accepted change replaced — a change under a new accounting
+stamp, or an increase — kept together with the stamp and scan time that replaced it. The trail a
+restore works from.
+_Avoid_: history row, backup, old value
+
+**Accounting stamp**:
+The identity of the accounting code that produced a figure, written on every archive row. Two
+figures under the same stamp came from the same rules, so a lower figure under the same stamp
+means the data shrank; a lower figure under a new stamp may be a correction and is accepted.
+Composed of the application version and the cache structure version.
+_Avoid_: version (bare — ambiguous between the two components and the archive file's own format
+version)
+
+**Past day**:
+A day earlier than the scan's own local calendar day. Retention and superseded values apply to past
+days only; the scan's own day is rewritten freely on every scan, because its rows change on every
+scan while a session is active.
+_Avoid_: closed day, settled day
+
 **Time window**:
 The span a token figure is scoped to: all history, today, the last 7 days, or the last 30 days — a
 closed set, selected by clicking the card that shows that window's total. Cut against the snapshot's
@@ -487,6 +532,18 @@ _Avoid_: error message (bare, implies a finished sentence)
   labels, equally deliberate. A new sentence-shaped surface follows the dictionary's case rather
   than reintroducing a transform.
 
+- **The archive never lets a past day's figure fall silently (settled 2026-09-09)**: a past
+  (day, side) figure lower than the archive's is accepted only under a new accounting stamp, and
+  whatever it replaces is kept as a superseded value; under the same stamp the archive's value is
+  retained and the lower figure is recorded as the observed value. Rationale: on 2026-09-09 Codex
+  rewrote 1329 of its rollouts into a compacted format, the live Codex figures fell to between 1%
+  and 74% of their real values for every day from 2026-08-11 to 2026-09-08, and the previous
+  overwrite rule wrote that loss into the archive within one scan, keeping no trace; the only reason
+  it could be quantified was a cache snapshot that happened to exist. The rule tells a correction
+  from a loss by mechanism, not magnitude: the same rules over the same data never produce a lower
+  figure, so a drop under the same stamp is the data's doing. Increases are always accepted, and
+  the scan's own day is exempt.
+
 - **Main-process file I/O is measured under Electron, never under Node (settled 2026-09-09)**: the
   stream loop that reads session files (`eachJsonlLine`) took 3.5 s over an 839 MB file under Node
   and 44.6 s in the Electron main process — the same code, the same file, already in the page
@@ -511,6 +568,10 @@ _Avoid_: error message (bare, implies a finished sentence)
 
 ## Flagged ambiguities
 
+- **"Live day" is retired (2026-09-09)**: liveness was a property of a day, so a side whose
+  history had vanished still counted as live because another side had activity that day, and its
+  archived rows were overwritten with nothing. It is now a property of a (day, side); see "Live
+  (day, side)". Spec and ADR text written before this date reads "live day" in the old sense.
 - **"AgentDex" (former name) is retired**: the product was originally positioned as a read-only
   catalogue; on 2026-07-29 requirements analysis ruled it a hands-on "overview + install/remove
   management" tool, which triggered the naming-fallback clause and produced the name Agentshed.

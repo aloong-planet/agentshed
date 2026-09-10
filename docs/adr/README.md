@@ -15,7 +15,7 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0004](0004-skill-install-by-copy.md) | Skills install by copy (symlinks rejected) | Accepted |
 | [0005](0005-token-ccusage-alignment.md) | Token accounting aligned with ccusage (whole tree + dedup + four-field rule) | Accepted (cache-write clause superseded in part by 0023) |
 | [0006](0006-codex-usage-accounting.md) | Codex usage accounting (two data roots + fork replay stripping) | Accepted (four-field clause superseded in part by 0023) |
-| [0007](0007-usage-archive.md) | Usage history archive (resilient to the agent's own cleanup) | Accepted |
+| [0007](0007-usage-archive.md) | Usage history archive (resilient to the agent's own cleanup) | Accepted (conflict rule superseded by 0026) |
 | [0008](0008-trend-by-provider.md) | Trend bars segmented by provider | Accepted |
 | [0009](0009-trend-xaxis-data-days.md) | Trend x axis labels data days only, with hierarchical date labels | Accepted |
 | [0010](0010-plugin-skills-in-effective-view.md) | Plugin-bundled skills join the effective view (namespace-isolated, filtered by enablement) | Accepted |
@@ -34,3 +34,4 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0023](0023-no-cache-write-on-codex-and-grok.md) | Cache creation is not collected on the Codex and Grok sides | Accepted |
 | [0024](0024-composition-colours-overlap-the-provider-palette.md) | The composition bar uses blue / yellow / green, overlapping the provider palette | Accepted |
 | [0025](0025-usage-rows-are-the-renderer-contract.md) | Usage rows are the one source every token figure derives from | Accepted |
+| [0026](0026-archive-retention-by-accounting-stamp.md) | Archive retention by accounting stamp, liveness per (day, side) | Accepted |

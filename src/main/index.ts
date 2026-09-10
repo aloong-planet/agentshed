@@ -20,7 +20,7 @@ import { grokQuestionTextFromSlice, questionTextAt } from './providers/question-
 import { turnBlocksFromText } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
 import { readProjectDetail } from './providers/project-detail'
-import { TokenEngine } from './providers/token-stats'
+import { CACHE_VERSION, TokenEngine, projectStatsFromRows } from './providers/token-stats'
 import { UsageArchive } from './providers/archive'
 import { installSkill, uninstallSkill } from './providers/install'
 import { APP_HOST, registerAppProtocol } from './app-protocol'
@@ -109,6 +109,10 @@ let lastScanAt: number | null = null
  * production — rescanIntervalMs falls back to it on unset/invalid input. */
 const SCAN_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_SCAN_DELAY_MS'], 0)
 let firstScanDelayed = false
+/** Developer override (spec C15): accept every live figure for the archive, even a same-stamp decrease on
+ * a past day. Development changes accounting code without changing either version component, so a
+ * legitimate decrease would otherwise be retained as if it were a loss. Never set in production. */
+const ARCHIVE_FORCE_ACCEPT = process.env['AGENTSHED_ARCHIVE_FORCE_ACCEPT'] === '1'
 
 async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
@@ -142,21 +146,16 @@ async function doScan(): Promise<Snapshot> {
         const tok = new Map<string, number>()
         for (const ps of t.perProject.values()) for (const s of ps.sessions) tok.set(s.file, s.tokens)
         sessionTokens = tok
-        // Archive: live values overwrite the days still visible, and days the agent has cleaned up are
-        // filled back into the trend from the archive
+        // Archive (ADR-0026): the archive owns the effective row set — live rows for the (day, side) pairs
+        // it accepted, archive rows for archived-only and retained pairs — and every figure derives from
+        // it (spec G6), the project pages included. Undated rows never enter the archive and are added
+        // back here so the whole-history figures keep them (spec G7).
         if (archive) {
-          // Rows with no day cannot be archived — the archive is keyed by day
-          archive.merge(t.rows.filter((r) => r.day), t.liveDays)
-          const archivedDays = archive.archivedOnlyDays(t.liveDays)
-          snap.archivedDays = archivedDays
-          if (archivedDays.length) {
-            // The archived rows join the row set, and every figure is re-derived from it. Patching
-            // only `byDay` — what this used to do — put those days into the trend chart but into
-            // neither the cumulative total nor the model breakdown, so the chart showed usage the
-            // totals denied (spec G6).
-            const set = new Set(archivedDays)
-            snap.tokens = deriveStats([...snap.tokens.rows, ...archive.rows().filter((r) => set.has(r.day))])
-          }
+          const eff = archive.merge(t.rows, snap.scannedAt, { forceAccept: ARCHIVE_FORCE_ACCEPT })
+          const rows = [...eff.rows, ...t.rows.filter((r) => !r.day)]
+          snap.tokens = deriveStats(rows)
+          snap.archivedDays = eff.archivedOnlyDays
+          perProjectStats = projectStatsFromRows(t.perProject, rows)
         }
       }
       assertSnapshot(snap)
@@ -509,7 +508,10 @@ void app.whenReady().then(() => {
   // once (the spec's implementation decision)
   applyAppearanceMode(nativeTheme, prefsStore.get().mode)
   tokenEngine = new TokenEngine(app.getPath('userData'))
-  archive = new UsageArchive(app.getPath('userData'))
+  // The accounting stamp (ADR-0026): the application version covers combination-layer changes, the cache
+  // structure version covers parser changes — together they identify the accounting code, so a lower
+  // figure under the same stamp can only mean the data shrank
+  archive = new UsageArchive(app.getPath('userData'), { stamp: `${app.getVersion()}+c${CACHE_VERSION}` })
   createWindow()
   applyMenu()
   void doScan()

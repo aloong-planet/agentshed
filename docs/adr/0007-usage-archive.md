@@ -1,6 +1,7 @@
 # ADR-0007: Usage history archive
 
-- Status: Accepted (2026-07-30)
+- Status: Accepted (2026-07-30); the conflict rule is superseded by ADR-0026 (retention by
+  accounting stamp, liveness per (day, side)) — the archive's existence and its row grain stand
 
 ## Context
 
