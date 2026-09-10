@@ -99,6 +99,10 @@ interface CodexFileAgg {
   sessionId: string | null
   parentId: string | null
   forkedAt: number | null
+  /** The rollout's format (spec session-view B2): a paginated child carries no replayed events, so the
+   * replay-prefix stripping is skipped for it — its first question is its own, and a fingerprint check
+   * against the parent would misread it as an unmatched replay and flag the session uncertain */
+  paginated: boolean
   /** The question index (with no question text, see question-index.ts) */
   questions: QuestionRec[]
   /**
@@ -180,6 +184,11 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  *      the correction never reaches an unchanged file. Unlike v13 this one is *not* invisible — it
  *      moves real numbers (the Codex total falls by ~0.7% on this machine's data), so a missed bump
  *      would leave existing users on the old figures indefinitely.
+ * v16: the Codex question index reads the paginated format's completed-item user messages and strips
+ *      the three harness shapes measured in them (spec session-view B1); CodexFileAgg gained
+ *      `paginated` (a paginated child skips the replay check, B2). **A computation change and a shape
+ *      change**: an entry cached under v15 keeps an empty question index for every paginated rollout,
+ *      so those sessions would stay unlisted forever.
  * v15: Codex usage comes from usage records from the first record line on, deduplicated by response
  *      id; usage events count only before that boundary (ADR-0027, spec B9). **A computation
  *      change**: an entry cached under v14 keeps the event-derived figures for a paginated rollout,
@@ -196,7 +205,7 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  * rules. Production code must not **branch** on it: the only version comparison is in loadCache, and a
  * second one would be a second rule that can drift.
  */
-export const CACHE_VERSION = 15
+export const CACHE_VERSION = 16
 
 /**
  * The archive rows a cache snapshot implies, through the same aggregation the scan uses (spec C16: a
@@ -368,7 +377,7 @@ export class TokenEngine {
         parseCodexFile(
           s.file,
           mergeKey(s.cwd),
-          { subagent: s.subagent, sessionId: s.sessionId, parentId: s.parentId, forkedAt: s.forkedAt },
+          { subagent: s.subagent, sessionId: s.sessionId, parentId: s.parentId, forkedAt: s.forkedAt, paginated: s.paginated },
           titles
         )
       )
@@ -483,7 +492,7 @@ export class TokenEngine {
         fresh = await parseCodexFile(
           file,
           mergeKey(meta.cwd),
-          { subagent: meta.subagent, sessionId: meta.sessionId, parentId: meta.parentId, forkedAt: meta.forkedAt },
+          { subagent: meta.subagent, sessionId: meta.sessionId, parentId: meta.parentId, forkedAt: meta.forkedAt, paginated: meta.paginated },
           readCodexIndex(roots.codexHome)
         )
       }
@@ -532,7 +541,8 @@ export class TokenEngine {
       agg.questions,
       parent && parent.kind === 'codex' ? parent.questions : null,
       agg.forkedAt,
-      agg.parentId !== null
+      // A paginated child carries no replayed events (spec B2): nothing to strip, no check to fail
+      agg.parentId !== null && !agg.paginated
     )
     return {
       side: 'codex',
@@ -793,7 +803,8 @@ function combine(aggs: FileAgg[]): TokenBuildResult {
           a.questions,
           forkParent && forkParent !== a ? forkParent.questions : null,
           a.forkedAt,
-          a.parentId !== null
+          // A paginated child carries no replayed events (spec B2): nothing to strip, no check to fail
+          a.parentId !== null && !a.paginated
         )
         // A session verified to have been stripped empty (every question fingerprint-verified as a replay,
         // with no new question after the fork) is not listed,
@@ -969,7 +980,13 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
   // A missing titleFromThread (undefined) is a false false: it lets a retitle displace a thread_name session;
   // a missing boundary (undefined) would make every slice(0, undefined) the whole list and strip records
   if (a['kind'] === 'codex') {
-    return Array.isArray(a['events']) && typeof a['titleFromThread'] === 'boolean' && typeof a['boundary'] === 'number'
+    return (
+      Array.isArray(a['events']) &&
+      typeof a['titleFromThread'] === 'boolean' &&
+      typeof a['boundary'] === 'number' &&
+      // A missing paginated (undefined) would run the replay check on a paginated child and flag it uncertain
+      typeof a['paginated'] === 'boolean'
+    )
   }
   // A missing subagent (undefined) would silently list a subagent session; a missing listed
   // (undefined) would silently HIDE a real one — both fields are load-bearing booleans
@@ -1098,7 +1115,7 @@ function diffUsage(
 async function parseCodexFile(
   file: string,
   projectKey: string,
-  meta: { subagent: boolean; sessionId: string | null; parentId: string | null; forkedAt: number | null },
+  meta: { subagent: boolean; sessionId: string | null; parentId: string | null; forkedAt: number | null; paginated: boolean },
   titles: Map<string, string>
 ): Promise<CodexFileAgg | null> {
   const events: CodexEvent[] = []
@@ -1225,6 +1242,7 @@ async function parseCodexFile(
     sessionId: meta.sessionId,
     parentId: meta.parentId,
     forkedAt: meta.forkedAt,
+    paginated: meta.paginated,
     questions,
     events,
     boundary: boundary === -1 ? events.length : boundary

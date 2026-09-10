@@ -53,15 +53,22 @@ sessions, one per row, with "how many questions I asked in this conversation".
 - Project detail's "Sessions" section lists this project's sessions on every agent sides, one row =
   side badge (CC/CX/GK) + title + question count + token consumption + last activity as a relative time
 - The title comes from the **first real question** — harness noise (warmup messages, `[cron:…]`
-  prefixes, slash command wrappers, injected skill bodies) has been stripped; on the Codex side the
-  session name it gave itself takes priority
+  prefixes, slash command wrappers, injected skill bodies, and on the Codex side the harness's own
+  messages: a guardian's transcript preamble, task notifications, delegation blocks) has been
+  stripped; on the Codex side the session name it gave itself takes priority
+- Codex sessions in the agent's newer record format list their questions and open like any other:
+  the question is the human message the agent recorded, the prose is the agent's message; a session
+  whose only user-side content is the agent's injected context (instructions, environment,
+  plugin recommendations) has no question and is not listed, while its tokens still count
 - The question count counts only **what a human asked**: tool results fed back in, a subagent's own
   transcript, and noise messages do not count; nor do questions on **the branch abandoned** after an
   edit and rerun — only "how this conversation finally went" is counted
 - A forked session (branched from another and continued) replays the parent's history at its start.
   It is marked **fork** in the list, its count covers only questions new since the fork, and its
   title comes from the first real question after stripping (a session name Codex gave itself still
-  takes priority and is not displaced)
+  takes priority and is not displaced). A Codex session forked in the newer record format carries
+  no replayed history: every question in it is its own, nothing is stripped, and it carries no fork
+  marking
 - A session that produced **no new question at all** after the fork (its content being entirely a
   replay of the parent's history, verified entry by entry) does not enter the list — it has no
   question to find, the same rule as warmup sessions, and its tokens still count
@@ -93,6 +100,9 @@ sessions, one per row, with "how many questions I asked in this conversation".
 - A project with no sessions at all gets an empty state
 
 ## Boundaries and non-goals
+- MCP tool calls and web searches made by Codex are not shown inside a turn, on either of its record
+  formats; the calls that do show are the command, patch, dynamic and search-tool calls it records
+  as tool calls
 - A turn with no prose reply (for example, asking and then closing) expands to just the fetch
   footnote rather than a fake placeholder; a tool return that was never fed back (an async tool
   spanning turns) shows as having no return record, with the real return in the range of the later

@@ -125,7 +125,34 @@ const CODEX_TOP_KNOWN = new Set([
   'session_meta',
   'world_state',
   'inter_agent_communication_metadata',
-  'compacted'
+  'compacted',
+  // The paginated format's per-response accounting record (ADR-0027): usage, never display
+  'token_usage_record'
+])
+// The paginated format's completed-item event carries a typed item in place of the legacy events (full
+// enumeration of 60245 events over 1391 rollouts, 2026-09-10). AgentMessage is the prose carrier — no
+// paginated rollout carries the legacy agent_message event beside it (0 of 1367, measured 2026-09-11) —
+// and UserMessage is the question (its own row, never a block). The other types leave no block:
+// Reasoning, CommandExecution, DynamicToolCall and FileChange accompany response_item records that are
+// rendered already (the reasoning summary, the tool calls), while McpToolCall and WebSearch carry calls
+// whose legacy records (the mcp_tool_call_end and web_search_end events) were never rendered either —
+// measured 2026-09-11, in 31 of 1367 paginated rollouts the tool-like items outnumber the response_item
+// calls, so they are not mirrors: a known gap on both formats, recorded in the spec, not a double-write
+// rule. A type outside this set leaves the unknown trace like any other.
+const CODEX_ITEM_KNOWN = new Set([
+  'Reasoning',
+  'AgentMessage',
+  'UserMessage',
+  'FileChange',
+  'McpToolCall',
+  'WebSearch',
+  'DynamicToolCall',
+  'CommandExecution',
+  'SubAgentActivity',
+  'ContextCompaction',
+  'Extension',
+  'CollabAgentToolCall',
+  'ImageView'
 ])
 const CODEX_EVENT_KNOWN = new Set([
   'token_count',
@@ -153,7 +180,11 @@ const CODEX_RI_KNOWN = new Set([
   'function_call_output',
   'agent_message',
   'tool_search_call',
-  'tool_search_output'
+  'tool_search_output',
+  // The paginated format's compaction marker on the response path: an encrypted body and nothing else
+  // (78 records over 1391 rollouts, 2026-09-11; found by the unknown-trace probe, not by the item
+  // enumeration, which is why it was missing) — noise, like the encrypted reasoning body
+  'compaction'
 ])
 const CODEX_CALLS = new Set(['custom_tool_call', 'function_call', 'tool_search_call'])
 const CODEX_OUTPUTS: Record<string, string> = {
@@ -284,6 +315,21 @@ function codexAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
       if (pt === 'agent_message') {
         const m = p?.['message']
         if (typeof m === 'string' && m.trim()) out.push({ kind: 'text', role: 'assistant', at: atOf(o), body: m })
+      } else if (pt === 'item_completed') {
+        const item = asRecord(p?.['item'])
+        const it = String(item?.['type'])
+        if (it === 'AgentMessage') {
+          const c = item?.['content']
+          const body = Array.isArray(c)
+            ? c
+                .map((s) => asRecord(s)?.['text'])
+                .filter((t): t is string => typeof t === 'string' && t.trim() !== '')
+                .join('\n\n')
+            : ''
+          if (body) out.push({ kind: 'text', role: 'assistant', at: atOf(o), body })
+        } else if (!CODEX_ITEM_KNOWN.has(it)) {
+          noteUnknown(u, `item_completed/${it}`)
+        }
       } else if (!CODEX_EVENT_KNOWN.has(pt)) {
         noteUnknown(u, `event_msg/${pt}`)
       }

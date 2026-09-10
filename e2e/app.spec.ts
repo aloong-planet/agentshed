@@ -1371,6 +1371,47 @@ test('session page rich content (Codex): the encrypted-reasoning label, tool pai
   await close(l)
 })
 
+test('session page (Codex, paginated format): the session is listed by its completed-item question, opens, and its turn shows the agent-message prose with no unknown trace', async () => {
+  // A rollout in the paginated format (spec session-view B1/C8): no user_message or agent_message events;
+  // the question and the prose are completed-item events, the usage a record, and the item mirrors,
+  // the usage record and the compacted checkpoint must leave no trace in the turn.
+  const home = mkUsageHome()
+  const proj = join(home, 'demo-proj')
+  const sdir = join(home, '.codex', 'sessions', '2026', '07', '30')
+  mkdirSync(sdir, { recursive: true })
+  const at = localDayOffset(1).toISOString()
+  const item = (type: string, extra: Record<string, unknown>): string =>
+    JSON.stringify({ timestamp: at, ordinal: 9, type: 'event_msg', payload: { type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type, id: 'i', ...extra }, started_at_ms: 1, completed_at_ms: 1 } })
+  writeFileSync(
+    join(sdir, 'rollout-019fb0c0-2222-7af3-af7d-8505cedf1ec2.jsonl'),
+    [
+      JSON.stringify({ timestamp: at, ordinal: 0, type: 'session_meta', payload: { cwd: proj, id: '019fb0c0-2222-7af3-af7d-8505cedf1ec2' } }),
+      JSON.stringify({ timestamp: at, ordinal: 1, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
+      item('UserMessage', { content: [{ type: 'text', text: 'Paginated question', text_elements: [] }] }),
+      item('Reasoning', { summary_text: [], raw_content: [] }),
+      JSON.stringify({ timestamp: at, ordinal: 4, type: 'response_item', payload: { type: 'custom_tool_call', id: 'ri9', call_id: 'c_pg', name: 'exec', input: 'ls -la', status: 'completed' } }),
+      item('CommandExecution', { command: 'ls -la', status: 'completed' }),
+      JSON.stringify({ timestamp: at, ordinal: 6, type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'c_pg', output: '3 files' } }),
+      JSON.stringify({ timestamp: at, ordinal: 7, type: 'token_usage_record', payload: { thread_id: 't', turn_id: 'u', session_id: 't', root_turn_id: 'u', response_id: 'resp_pg', usage: { input_tokens: 700, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 90, reasoning_output_tokens: 0, total_tokens: 790 }, turn_token_usage: { input_tokens: 700, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 90, reasoning_output_tokens: 0, total_tokens: 790 }, thread_token_usage: { input_tokens: 700, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 90, reasoning_output_tokens: 0, total_tokens: 790 } } }),
+      item('AgentMessage', { content: [{ type: 'Text', text: 'Three files live in that directory.' }], phase: 'final_answer' }),
+      JSON.stringify({ timestamp: at, ordinal: 9, type: 'compacted', payload: { message: '', replacement_history: [], window_number: 1, first_window_id: 'w', previous_window_id: 'w', window_id: 'w2', compaction_response_id: null, latest_token_usage_record: null } })
+    ].join('\n') + '\n'
+  )
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Paginated question' }).click()
+  await win.locator('.qlist .q', { hasText: 'Paginated question' }).click()
+  await expect(win.locator('.turn .ans')).toContainText('Three files live in that directory.')
+  // The tool renders once (from the response_item record), not again from its completed-item mirror
+  await expect(win.locator('.turn .blk', { has: win.locator('.nm', { hasText: 'exec' }) })).toHaveCount(1)
+  await expect(win.locator('.turn .unknown')).toHaveCount(0)
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
 // Ticket 08: session search — questions by default, the full-text toggle, hits grouped, and going straight
 // to a question.
 // Input uses fill() (setting the value through CDP without depending on window focus semantics; the
@@ -1520,7 +1561,7 @@ test('the archive retains a past day whose live figure fell under the same stamp
   // is a literal here on purpose: a bump turns this case red (the seeded pair reads as another stamp and
   // the decrease is accepted) instead of silently passing — update it together with CACHE_VERSION.
   const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as { version: string }
-  const stamp = `${pkg.version}+c15`
+  const stamp = `${pkg.version}+c16`
   const retainedRow = {
     day,
     side: 'claude',
