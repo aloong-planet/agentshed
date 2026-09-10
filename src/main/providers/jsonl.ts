@@ -28,7 +28,7 @@
 // tests can put a chunk boundary where they want it instead of guessing the runtime's default; the
 // invariant that such numbers are measured under Electron, never Node, is in CONTEXT.md, and
 // `pnpm bench:scan` is how they are taken.
-import { createReadStream } from 'node:fs'
+import { rolloutBytes } from './cold-rollout'
 
 const NEWLINE = 0x0a
 
@@ -69,7 +69,8 @@ export async function eachJsonlLine(
   let pending: Buffer | null = null
   /** The offset of pending's first byte within the file */
   let base = 0
-  const stream: AsyncIterable<Buffer> = createReadStream(file, { highWaterMark: chunkBytes })
+  // A cold rollout (.jsonl.zst) arrives decompressed; its offsets are offsets in that stream (spec C2)
+  const stream: AsyncIterable<Buffer> = rolloutBytes(file, chunkBytes)
   for await (const chunk of stream) {
     const buf: Buffer = pending === null ? chunk : Buffer.concat([pending, chunk])
     let from = 0

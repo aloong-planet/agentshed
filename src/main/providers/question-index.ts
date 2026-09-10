@@ -15,7 +15,9 @@ import { realUserText } from './session-title'
  *
  * - The question itself = `[0, 1)`; the turn contents = `[1, 2)` (from after that question up to the
  *   next one, spec C1).
- * - The offsets are **bytes** and can be fed straight to `createReadStream(file, { start, end })`.
+ * - The offsets are **bytes** and can be fed straight to `createReadStream(file, { start, end })` on a
+ *   plain rollout; on a cold one (.jsonl.zst) they are offsets in the decompressed stream, which the
+ *   range reader serves in one pass (spec session-view C2).
  * - **The content fingerprint** is a 32-bit integer, not reversible into text and unusable for search;
  *   it exists only to recognise Codex's
  *   replayed span (see `stripReplayPrefix`). This is one necessary relaxation of spec D2a's

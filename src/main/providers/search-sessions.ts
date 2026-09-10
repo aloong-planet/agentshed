@@ -18,7 +18,7 @@
 //   hits from JSON escape sequences (\n, \" and so on)
 //   — the re-verification touches only the matching ranges and does not change the "no reading whole, no
 //   parsing everything" cost structure.
-import { readFile } from 'node:fs/promises'
+import { readRolloutWhole } from './cold-rollout'
 import type { SearchHit, SearchResult, SessionMeta } from '@shared/domain'
 import { grokQuestionTextFromSlice, questionTextAt, type QuestionRec } from './question-index'
 import { readRangeBuffers } from './range-read'
@@ -151,7 +151,9 @@ export async function searchProjectSessions(
     if (fullText) {
       let whole: Buffer
       try {
-        whole = await readFile(s.file)
+        // A cold rollout is decompressed whole in one pass here — full-text mode reads whole by design
+        // (spec D2), and the cold reader keeps that one pass (spec C2/D3)
+        whole = await readRolloutWhole(s.file)
       } catch {
         whole = Buffer.alloc(0)
       }

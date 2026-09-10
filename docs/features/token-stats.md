@@ -58,6 +58,9 @@ share a source and reconcile against each other.
   with a note, and their usage counts inside every figure a time window reports — the totals, the
   composition and the model breakdown included — on the Agents page and on a project's own page
   alike, so the two pages agree about the same day
+- A session Codex has compressed after a week of inactivity keeps counting exactly as before: its
+  usage, model and day attribution do not change with the compression, and a compressed file the
+  agent cut short is left out rather than counted in part
 - A past day's figure never falls silently: when an agent's records for a past day shrink — rewritten
   by the agent, or deleted by hand — the day's figure is retained as it was counted before; only a
   correction that arrives with an application update replaces it. Today's figure is exempt and still

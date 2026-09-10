@@ -9,6 +9,7 @@
 // UV_THREADPOOL_SIZE is raised at the same time;
 // do not touch this value until cold-disk data exists (destination: .scratch/scan-cold-start/).
 import { open } from 'node:fs/promises'
+import { COLD_CHUNK_BYTES, isColdRollout, rolloutBytes } from './cold-rollout'
 
 /** A shared bounded-concurrency map: results come back in input order, regardless of completion order */
 export async function mapLimit<T, R>(
@@ -65,6 +66,7 @@ export async function readRangeBuffers(
   ranges: readonly ByteRange[],
   limit = 4
 ): Promise<{ bufs: Buffer[]; bytesRead: number }> {
+  if (isColdRollout(file)) return readRangesCold(file, ranges)
   const fd = await open(file, 'r')
   let bytesRead = 0
   try {
@@ -80,6 +82,35 @@ export async function readRangeBuffers(
   } finally {
     await fd.close()
   }
+}
+
+/**
+ * A cold rollout has no byte-addressable ranges (spec session-view C2): one streaming decompression
+ * serves every requested range, in input order, and stops once the last range's end has passed — so
+ * opening a session is one pass for all its question texts, expanding a turn one pass to that turn, a
+ * search one pass per file. Memory follows the bytes served; `bytesRead` is the decompressed length
+ * traversed, which a test can hold against the last range's end as the evidence of a single pass.
+ */
+async function readRangesCold(
+  file: string,
+  ranges: readonly ByteRange[]
+): Promise<{ bufs: Buffer[]; bytesRead: number }> {
+  if (ranges.length === 0) return { bufs: [], bytesRead: 0 }
+  const parts: Buffer[][] = ranges.map(() => [])
+  const lastEnd = ranges.reduce((m, g) => Math.max(m, g.end), 0)
+  let pos = 0
+  for await (const chunk of rolloutBytes(file, COLD_CHUNK_BYTES)) {
+    const chunkEnd = pos + chunk.length
+    for (let i = 0; i < ranges.length; i++) {
+      const s = Math.max(ranges[i].start, pos)
+      const e = Math.min(ranges[i].end, chunkEnd)
+      if (s < e) parts[i].push(chunk.subarray(s - pos, e - pos))
+    }
+    pos = chunkEnd
+    // Breaking out of the iteration destroys the decoder, which closes the file behind it
+    if (pos >= lastEnd) break
+  }
+  return { bufs: parts.map((p) => Buffer.concat(p)), bytesRead: Math.min(pos, lastEnd) }
 }
 
 /** Read each range's UTF-8 text (a decoding skin over readRangeBuffers) */

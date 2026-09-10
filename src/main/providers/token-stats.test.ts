@@ -9,7 +9,9 @@ import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { CACHE_VERSION, TokenEngine, projectStatsFromRows, rowsFromCacheFile } from './token-stats'
 import { emptyTokenStats } from '@shared/domain'
+import { zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
+import { sessionReadTarget } from '../security'
 import { ERR, decodeAppError } from '@shared/errors'
 import type { ScanRoots } from './types'
 
@@ -704,6 +706,53 @@ describe('Codex aggregation (the ccusage rules)', () => {
     appendFileSync(file, `${compacted}\n${after}\n`)
     const r = await engine().build(roots(), [proj])
     expect(r.global.bySide.codex.total).toBe(110 + 220)
+  })
+
+  it('a cold rollout (.jsonl.zst) is scanned like its plain twin: the same rows, questions, title and listing, under its compressed path, which enters the read allow-list (B12, R1)', async () => {
+    // Codex compresses a rollout untouched for seven days into <name>.jsonl.zst and deletes the plain
+    // file (compression.rs); the twin here is the same bytes zstd-compressed, as the agent writes them
+    const plain = mkCodexRollout('rollout-warm-019f040.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 20, output: 10, record: 'resp_w1' },
+      { input: 200, cached: 40, output: 20, record: 'resp_w2' }
+    ])
+    const cold = join(dir, '.codex', 'sessions', '2026', '07', '30', 'rollout-cold-019f041.jsonl.zst')
+    writeFileSync(cold, zstdCompressSync(readFileSync(plain)))
+    const r = await engine().build(roots(), [proj])
+    const sessions = r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'codex') ?? []
+    expect(sessions.map((s) => s.file).sort()).toEqual([plain, cold].sort())
+    const [a, b] = [sessions.find((s) => s.file === plain), sessions.find((s) => s.file === cold)]
+    expect(b?.title).toBe(a?.title)
+    expect(b?.questionCount).toBe(a?.questionCount)
+    expect(b?.tokens).toBe(a?.tokens)
+    // Twice the plain rollout's figure: 110 + 220 = 330 each
+    expect(r.global.bySide.codex.total).toBe(660)
+    expect(r.sessionFiles.has(cold)).toBe(true)
+    const q = await engine().sessionQuestions(roots(), cold)
+    expect(q.questions).toHaveLength(1)
+    // The day Codex compresses the plain twin it deletes it: the next scan's allow-list admits the compressed
+    // path and refuses the vanished plain one (R1)
+    rmSync(plain)
+    const r2 = await engine().build(roots(), [proj])
+    expect(sessionReadTarget(r2.sessionFiles, cold)).toBe(cold)
+    expect(sessionReadTarget(r2.sessionFiles, plain)).toBeNull()
+  })
+
+  it('a cold rollout that cannot be decompressed — not zstd, or truncated — is skipped like an unreadable plain file, without aborting its siblings (B12)', async () => {
+    const plain = mkCodexRollout('rollout-warm-019f042.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 0, output: 10, record: 'resp_t1' }
+    ])
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    writeFileSync(join(d, 'rollout-garbage-019f043.jsonl.zst'), Buffer.from('{"type":"session_meta"}\nnot zstd at all\n'))
+    // A truncated stream: the head decodes (the first line lies in the first block), the rest is cut off
+    const big = mkCodexRollout('rollout-big-019f044.jsonl', proj, '2026-07-30T09:00:00Z', 'gpt-5.6-sol',
+      Array.from({ length: 3000 }, (_, i) => ({ input: 1000 + i, cached: 0, output: 10, record: `resp_b${i}` })))
+    const full = zstdCompressSync(readFileSync(big))
+    rmSync(big)
+    writeFileSync(join(d, 'rollout-trunc-019f045.jsonl.zst'), full.subarray(0, Math.floor(full.length / 2)))
+    const r = await engine().build(roots(), [proj])
+    const sessions = r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'codex') ?? []
+    expect(sessions.map((s) => s.file)).toEqual([plain])
+    expect(r.global.bySide.codex.total).toBe(110)
   })
 
   it('a subagent session\'s tokens count but it does not enter the session list', async () => {

@@ -1,5 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it } from 'vitest'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { SessionMeta } from '@shared/domain'
@@ -144,5 +145,42 @@ describe('full-text mode: read whole and match, map hits to turns, fold anything
     expect(r.folded).toBe(1)
     expect(r.groups).toHaveLength(1)
     expect(r.groups[0].file).toContain(PARENT)
+  })
+})
+
+describe('a cold rollout (.jsonl.zst) is searched in one streaming pass, in question mode and full-text mode alike (spec D3, C2)', () => {
+  /** A Codex rollout of real shape (a question event, a prose event, a usage event) and its compressed twin */
+  function mkCodexTwins(): { plain: string; cold: string } {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const at = '2026-07-30T02:00:00Z'
+    const lines = [
+      JSON.stringify({ timestamp: at, type: 'session_meta', payload: { cwd: proj } }),
+      JSON.stringify({ timestamp: at, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
+      JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'user_message', message: 'where is the zebra kept' } }),
+      JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'agent_message', message: 'In the savannah enclosure, past the giraffes.' } }),
+      JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'token_count', info: { last_token_usage: { input_tokens: 10, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 5, total_tokens: 15 }, total_token_usage: { input_tokens: 10, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 5, total_tokens: 15 } } } })
+    ]
+    const plain = join(d, 'rollout-2026-07-30T02-00-00-019f0000-cccc-7000-8000-000000000051.jsonl')
+    const cold = join(d, 'rollout-2026-07-30T02-00-00-019f0000-cccc-7000-8000-000000000052.jsonl.zst')
+    writeFileSync(plain, lines.join('\n') + '\n')
+    writeFileSync(cold, zstdCompressSync(readFileSync(plain)))
+    return { plain, cold }
+  }
+
+  it('question mode: the cold twin hits exactly like the plain one', async () => {
+    const { plain, cold } = mkCodexTwins()
+    const r = await run('zebra', false)
+    const byFile = new Map(r.groups.map((g) => [g.file, g.hits]))
+    expect(byFile.get(cold)).toEqual(byFile.get(plain))
+    expect(byFile.get(cold)?.[0]?.text).toBe('where is the zebra kept')
+  })
+
+  it('full-text mode: a body word hits in the cold twin with the same snippet as in the plain one', async () => {
+    const { plain, cold } = mkCodexTwins()
+    const r = await run('giraffes', true)
+    const byFile = new Map(r.groups.map((g) => [g.file, g.hits]))
+    expect(byFile.get(cold)).toEqual(byFile.get(plain))
+    expect(byFile.get(cold)?.[0]?.inBody).toBe(true)
   })
 })
