@@ -1,6 +1,6 @@
 # Token statistics
 
-> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side))
+> Related: [features](../features/token-stats.md) · ADR-0005 (aligned with ccusage, supersedes 0003) · ADR-0006 (Codex accounting) · ADR-0007 (usage archive) · ADR-0008 (provider segmentation) · ADR-0009 (x axis data days) · ADR-0019 (third side onboarding) · ADR-0020 (day usage keyed by side) · ADR-0021 (side colour) · ADR-0024 (composition colours) · ADR-0025 (usage rows as the one source) · ADR-0026 (archive retention by accounting stamp, liveness per (day, side)) · ADR-0027 (Codex usage records)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases (the
 > accounting decisions are in the ADRs and are not restated here).
@@ -50,6 +50,10 @@ all of them.
 12. As a user, I want a project's own page to agree with the cross-project view about a day that
     only the archive still knows, so that the same day does not read as usage in one place and as
     nothing in another.
+13. As a user, I want a Codex session's usage counted from Codex's own per-response records, so
+    that the figure is exact and survives the agent's replay and format changes.
+14. As a user, I want a session Codex has compressed to keep counting exactly as before, so that a
+    cold week does not vanish from my history.
 
 ## Failure modes and boundaries
 
@@ -69,9 +73,11 @@ all of them.
 - A8 Bad lines are skipped; one corrupt line does not discard the whole file.
 
 **Sequence B: Codex-side aggregation**
-- B1 Sum per-turn `last_token_usage` increments; sanitise input (subtract cached) and list cached
-  separately; the model comes from `turn_context`. The total is input + output — the same figure the
-  side reports for itself — and carries **no cache-creation term** (B5).
+- B1 Sum per-response usage: in a paginated rollout from the usage boundary on, each usage record's
+  own usage, deduplicated by response id (ADR-0027); before the boundary, and in a legacy rollout
+  throughout, each usage event's per-turn increment under B7. Sanitise input (subtract cached) and
+  list cached separately; the model comes from `turn_context`. The total is input + output — the
+  same figure the side reports for itself — and carries **no cache-creation term** (B5).
 - B5 Cache creation is **not collected** on this side; it reads as zero. The records do carry a
   cache-write field, but it has never held a non-zero value, and the side's own total is input +
   output with no cache-write term — so there is no observed shape to validate a reading against.
@@ -83,14 +89,18 @@ all of them.
   records exist; the resulting under-count is known and accepted, because the alternative — trusting
   a total no field can account for — would put tokens into the statistics that cannot be attributed
   to a day, a model, or a bucket.
-- B7 **The same turn can be reported more than once.** The side re-emits a usage record whose
-  per-turn figure repeats while its running cumulative does not move; summing every record counts
-  those turns twice. The discriminator is the **cumulative**, not the per-turn figure: a record whose
-  running total has not advanced since the previous one contributes nothing, and where a per-turn
-  figure is absent the contribution is the difference between the two cumulatives. Using "the
-  per-turn figure repeats" instead would be wrong in both directions — two genuinely identical
-  consecutive turns would be dropped, and a repeat that varies the per-turn figure would be kept —
-  even though on the data measured to date the two criteria happen to select the same records.
+- B7 **A usage event can report the same turn more than once, and can also miss a response.** The
+  side re-emits a usage event whose per-turn figure repeats while its running cumulative does not
+  move; summing every event counts those turns twice. Before the usage boundary the discriminator is
+  the **cumulative**, not the per-turn figure: an event whose running total has not advanced since
+  the previous one contributes nothing, and where a per-turn figure is absent the contribution is
+  the difference between the two cumulatives. Using "the per-turn figure repeats" instead would be
+  wrong in both directions — two genuinely identical consecutive turns would be dropped, and a
+  repeat that varies the per-turn figure would be kept. The cumulative rule also drops a real
+  response whose running total did not advance: measured 2026-09-10 over every rollout carrying
+  usage records, in 17 of 345 the events under this rule sum below the records, by up to 2.9% of a
+  session. That is why the usage records are the source from the boundary on — two records with one
+  response id are one response (none observed in 5029 records) and nothing else is compared.
 - B8 A day's **four-field split is measured, not apportioned**. The per-turn events already carry all
   four figures and a timestamp, so each day accumulates its own four buckets. Apportioning the
   session's totals across its days by each day's share of the total — the earlier rule — rounds four
@@ -102,6 +112,29 @@ all of them.
   piled onto the first day).
 - B3 Subagent sessions' tokens count toward the statistics but do not enter the session list.
 - B4 Titles come from `session_index`.
+- B9 **The usage boundary is by line order.** The first usage record line in a rollout is the
+  boundary: usage events after it are ignored whatever their timestamps, usage events before it
+  count under B7. Measured on every dual-source rollout on this machine (345), line order and
+  timestamp select the same events; line order is the rule because the writer appends in order and
+  the migration preserves it, so no tie or reordering rule is needed. Only two rollouts carry usage
+  events before their boundary (1.69 B tokens between them): they are why the events are not simply
+  discarded once a record exists.
+- B10 **A paginated fork or subagent thread carries no replayed usage**: Codex copies neither usage
+  records nor, in paginated mode, usage events into a child thread, so the child's rollout holds
+  only its own usage and the replay-prefix stripping finds nothing to strip. Legacy children still
+  carry the replayed prefix as usage events, and the existing by-value stripping against the parent
+  stays for them. A record whose thread id is not the rollout's own is not expected (0 of 5029) and
+  counts as the rollout's, since the archive's grain carries no thread.
+- B11 **A compacted window has lost its usage for good**: the rollout keeps the summary and the
+  span's messages but no usage records for it, and the thread's running total does not restore
+  them. A day whose sessions were compacted therefore reads lower than before the compaction; on a
+  past day the archive's rule (C10) retains the earlier figure, on the own day the lower figure
+  shows. Nothing marks a compacted window anywhere in the interface (G15's ruling extends to it).
+- B12 **A cold rollout is read like a plain one**: the same line reader runs over a decompression
+  stream, so every rule above applies unchanged. Its identity is its `.jsonl.zst` path, so the day
+  Codex compresses a rollout the plain path leaves the scan set and the compressed one enters it as
+  a new file — parsed once, then cached like any other. A cold rollout that cannot be decompressed
+  (truncated, not zstd) is skipped like an unreadable plain file, hurting only itself.
 
 **Sequence F: Grok-side aggregation** (lettered after the existing sequences rather than inserted
 next to A/B, so that no existing reference is renumbered)
@@ -207,6 +240,12 @@ next to A/B, so that no existing reference is renumbered)
 - C20 The own-day exemption follows the anchor even when the anchor's day moves backwards (a
   westward time-zone change late in the day): yesterday becomes the own day again and is replaced
   without superseded values. Accepted as a rare edge with no data at risk beyond that one day.
+- C21 A correction of ours that lands while a loss stands retained is accepted: the new stamp
+  observes a figure that moved (the corrected rules produce a slightly different lower number), so
+  C10's different-stamp branch takes it and the retained value becomes a superseded value. The
+  restore is then re-applied by hand (C16), after which the observed value is recorded under the new
+  stamp and retention holds again. This is the price of C12's figure-moved clause being exact rather
+  than tolerant; it fell due on 2026-09-10 for the Codex usage-record change (ADR-0027).
 
 **Sequence D: trend and axis rendering**
 - D1 Always produce 30 bars in ascending date order, with the last as the anchor day; historical days
@@ -379,6 +418,12 @@ overnight froze `scannedAt` and today's data was not shown)**
 - **Restore**: a repository script, run by a developer, that reads a cache snapshot and applies C16
   through the archive's own merge rather than by editing rows — the same aggregation the scan uses,
   so the restored rows are exactly what a scan of that data would have produced.
+- **Codex usage sources**: see ADR-0027. The parser reads both sources in one pass and applies the
+  usage boundary as it goes; the per-file aggregate keeps its shape (a list of per-event
+  increments), so this is a change in how a field is computed and bumps the cache structure version
+  under the rule below — which changes the accounting stamp (C21). Reading a cold rollout puts a
+  zstd decompression stream in front of the line reader; the byte offsets the question index records
+  for it are offsets in the decompressed stream.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **Cache**: incremental by file signature; **a structure change must bump the version number at the
   same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
@@ -427,6 +472,15 @@ the retained day's tooltip total is the archived figure, that it carries no hatc
 archived-only day still does — the assertion that distinguishes "retained silently" from
 "overwritten silently", which look identical in every other respect.
 
+The Codex usage sources (B1, B7, B9–B12) are tested at the providers seam with rollout fixtures
+whose shapes come from real paginated samples (the record's key set, the interleaving of events and
+records, a legacy span before the boundary, a compacted window, a subagent rollout with records): a
+dual-source rollout where the events under B7 miss a response the records carry (the case that
+distinguishes the sources), a legacy rollout unchanged, the boundary with events on both sides of it,
+a duplicate response id, and a cold rollout equal to its plain twin. The ccusage reconciliation keeps
+its meaning for legacy data only: it compares days whose Codex rollouts carry no usage records and
+reports the record-bearing days separately as an expected divergence.
+
 The window aggregation (sequence G) is a **pure function from the row set plus a window to the four
 figures a view needs**, which is the same seam the trend and axis functions already use — the highest
 seam that does not need a rendered page, and the one where the interesting cases live: a window with
@@ -455,6 +509,11 @@ moved and others did not — checking them one at a time would pass on a page th
   no threshold, however chosen, distinguishes a 30% fix from a 30% loss.
 - Detecting an agent's format change on its own. The archive reacts to what the figures do, not to
   why; recognising a rewritten record format is the parsers' job.
+- Marking a compacted window or a compacted session anywhere in the interface (ruled 2026-09-10):
+  past days are protected by the archive, and a session-level marking is a session-view design
+  question that needs a prototype.
+- ccusage alignment for rollouts carrying usage records (ADR-0027): the third-party meter reads only
+  the legacy events and is expected to read lower on those days.
 - A cap on superseded values (revisited if the archive file passes about 5 MB, C13).
 - Restoring history on a machine that never had it: the restore script works from a cache snapshot
   of this application's own making, and no such snapshot exists on a machine whose agent rewrote

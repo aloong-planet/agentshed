@@ -135,6 +135,40 @@ through a common block model (prose / thinking / reasoning / tool / subagent / u
 rendering; unknown types outside the display allow-list leave a trace and are never silently dropped.
 _Avoid_: message pair, question-answer pair
 
+**Paginated rollout**:
+A Codex session file written, or rewritten in place, in the paginated-history format (every legacy
+rollout on this machine was promoted on 2026-09-09, keeping its path and mtime): its first line
+carries an ordinal, its per-response usage is carried by usage records, and the human's messages by
+completed-item events rather than user-message events. A **legacy rollout** is one still in the
+earlier format.
+_Avoid_: new format, migrated file (both say when, not what)
+
+**Usage record**:
+Codex's own per-response accounting entry in a rollout: one per model response, identified by its
+response id, carrying that response's usage together with the turn's and the thread's running
+totals. Never copied into a fork or a subagent thread. The primary usage source wherever it exists
+(ADR-0027); the per-turn **usage event** is the legacy source.
+_Avoid_: token record, usage event (that is the legacy per-turn event)
+
+**Usage boundary**:
+The first usage record in a rollout, by line order. Usage events before it count under the legacy
+rule; from it on, only usage records count. A rollout with no usage record has no boundary and is
+read by the legacy rule throughout.
+_Avoid_: cutover, switch point
+
+**Compacted window**:
+A span of a Codex thread that the agent has replaced by a summary: the rollout keeps the summary and
+the span's messages, and has lost the span's usage records for good. A thread can carry several
+windows, each repeating the whole summarised history so far.
+_Avoid_: compaction (the act, not the span), truncated history
+
+**Cold rollout**:
+A rollout Codex has compressed into a `.jsonl.zst` file after seven days without writes, deleting
+the plain file. The same session, the same contents, the same identity rules — but readable only as
+a stream from its start, never by byte range directly.
+_Avoid_: archived session (Codex's own `archived_sessions` root is a different thing), compressed
+session
+
 **Data day**:
 A day within the trend window whose total under the current view is > 0. The x axis only emits date
 labels for data days (see ADR-0009).
