@@ -49,6 +49,13 @@ export function realUserText(raw: string): string | null {
   if (t.startsWith('<local-command-')) return null
   // A skill body injected by a slash command, which appears as the user but was not written by one
   if (t.startsWith('Base directory for this skill:')) return null
+  // Codex's harness speaking as the user, in the paginated format's user-message items (measured
+  // 2026-09-11 over every rollout: 330 of 8285 items, all three shapes pure, none mixed with a human
+  // sentence): the guardian's transcript preamble (328), a task notification (1), a delegation block (1).
+  // Matched by prefix, since each is a family the same mechanism keeps producing.
+  if (t.startsWith('The following is the Codex agent history')) return null
+  if (t.startsWith('<task-notification>')) return null
+  if (t.startsWith('<codex_delegation>')) return null
 
   // A slash command: the real input is only inside command-args; no such tag, or empty content, means it
   // is just the command invocation

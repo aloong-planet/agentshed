@@ -25,6 +25,9 @@ export interface CodexSessionMeta {
   /** The fork moment (the top-level timestamp, epoch ms); the parent's usage before it is the history
    * this session replays */
   forkedAt: number | null
+  /** Whether the rollout is in the paginated format — its first line carries an ordinal. A paginated
+   * child thread carries no replayed events, so nothing is stripped from it (spec session-view B2). */
+  paginated: boolean
 }
 
 /**
@@ -135,7 +138,8 @@ function readHead(file: string): CodexSessionMeta | null {
         mtimeMs: statSync(file).mtimeMs,
         sessionId,
         parentId,
-        forkedAt: Number.isNaN(forkedAt) ? null : forkedAt
+        forkedAt: Number.isNaN(forkedAt) ? null : forkedAt,
+        paginated: typeof (parsed as Record<string, unknown>)['ordinal'] === 'number'
       }
     }
   } catch {

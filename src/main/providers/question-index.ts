@@ -218,13 +218,26 @@ function claudeQuestion(obj: Record<string, unknown>): string | null {
   return texts.length > 0 ? texts.join(' ') : null
 }
 
-/** A Codex human question: only event_msg/user_message counts. response_item/message mixes in
- * `<environment_context>` and AGENTS.md injected content, which a human did not write (spec B1). */
+/**
+ * A Codex human question (spec B1): the legacy `event_msg/user_message`, or its paginated replacement —
+ * the completed-item event whose item is a user message, with the text in `item.content[].text` (the one
+ * shape seen in 8285 items across this machine's rollouts, 2026-09-11). `response_item/message` is never a
+ * source: it mixes in `<environment_context>` and AGENTS.md injected content a human did not write, and
+ * in every paginated rollout without a user-message item it holds nothing else (29 of 29, 2026-09-11).
+ */
 function codexQuestion(obj: Record<string, unknown>): string | null {
   if (obj['type'] !== 'event_msg') return null
   const p = asRecord(obj['payload'])
-  if (p?.['type'] !== 'user_message') return null
-  return typeof p['message'] === 'string' ? p['message'] : null
+  if (p?.['type'] === 'user_message') return typeof p['message'] === 'string' ? p['message'] : null
+  if (p?.['type'] !== 'item_completed') return null
+  const item = asRecord(p['item'])
+  if (item?.['type'] !== 'UserMessage') return null
+  const c = item['content']
+  if (!Array.isArray(c)) return null
+  const texts = c
+    .map((s) => asRecord(s)?.['text'])
+    .filter((t): t is string => typeof t === 'string')
+  return texts.length > 0 ? texts.join(' ') : null
 }
 
 function claudeCounts(obj: Record<string, unknown>): { tools: number; subagents: number } {

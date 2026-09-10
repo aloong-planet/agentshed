@@ -1309,7 +1309,7 @@ describe('cache version migration (a real bug regression)', () => {
       'at', 'entries', 'file', 'forkPoints', 'kind', 'listed', 'projectKey', 'questions', 'title'
     ])
     expect(keysOf('codex')).toEqual([
-      'at', 'boundary', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'parentId', 'projectKey', 'questions', 'sessionId', 'title', 'titleFromThread'
+      'at', 'boundary', 'events', 'file', 'forkedAt', 'kind', 'listed', 'model', 'paginated', 'parentId', 'projectKey', 'questions', 'sessionId', 'title', 'titleFromThread'
     ])
   })
 
@@ -1452,6 +1452,58 @@ describe('session titles and the listing rules', () => {
     expect(r.perProject.get(proj.toLowerCase())?.sessions[0].title).toBe('fetch today top 5 topics')
   })
 
+  /** The paginated format's human message as a rollout line (the one shape seen in 8285 items, 2026-09-11) */
+  const itemUserLine = (text: string, at = '2026-07-30T01:00:05Z'): string =>
+    JSON.stringify({
+      timestamp: at,
+      ordinal: 9,
+      type: 'event_msg',
+      payload: {
+        type: 'item_completed',
+        thread_id: '019f0000-0000-7000-8000-000000000001',
+        turn_id: '019f0000-0000-7000-8000-000000000002',
+        item: { type: 'UserMessage', id: '019f0000-0000-7000-8000-000000000003', content: [{ type: 'text', text, text_elements: [] }] },
+        started_at_ms: 1,
+        completed_at_ms: 1
+      }
+    })
+
+  it('Codex: a paginated rollout with no user_message event is listed, titled by its first completed-item user message (spec B1)', async () => {
+    const file = mkCodexRollout('rollout-pag-019f030.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 10, cached: 0, output: 5, record: 'resp_q1' }], false, 2000, null)
+    appendFileSync(file, itemUserLine('The following is the Codex agent history whose request action you are assessing.') + '\n' + itemUserLine('paginated question') + '\n')
+    const r = await engine().build(roots(), [proj])
+    const s = r.perProject.get(proj.toLowerCase())?.sessions.find((x) => x.side === 'codex')
+    expect(s?.title).toBe('paginated question')
+    expect(s?.questionCount).toBe(1)
+  })
+
+  it('Codex: a paginated rollout whose only user-side message is an injected response-item message has no question — not listed, tokens still count (spec B1)', async () => {
+    // The shape of all 29 such rollouts on this machine (2026-09-11): one response_item user message whose
+    // parts are AGENTS.md instructions, the environment context and the plugin recommendations
+    const file = mkCodexRollout('rollout-inj-019f031.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 10, cached: 0, output: 5, record: 'resp_i1' }], false, 2000, null)
+    appendFileSync(
+      file,
+      JSON.stringify({
+        timestamp: '2026-07-30T01:00:01Z',
+        ordinal: 3,
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          id: 'msg_1',
+          role: 'user',
+          content: [
+            { type: 'input_text', text: '# AGENTS.md instructions for /Users/x/proj\n\n<INSTRUCTIONS>…' },
+            { type: 'input_text', text: '<environment_context>\n  <cwd>/Users/x/proj</cwd>\n</environment_context>' }
+          ],
+          internal_chat_message_metadata_passthrough: { turn_id: 't1', content_item_kinds: ['agents_md.instructions', 'environments.environment_context'] }
+        }
+      }) + '\n'
+    )
+    const r = await engine().build(roots(), [proj])
+    expect(r.perProject.get(proj.toLowerCase())?.sessions.filter((x) => x.side === 'codex')).toHaveLength(0)
+    expect(r.global.bySide.codex.total).toBe(15)
+  })
+
   it('Codex: a session with no user_message is not listed, and its tokens still count', async () => {
     mkCodexRollout('rollout-nouser-019fc01.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol',
       [{ input: 100, cached: 0, output: 20 }], false, 2000, null)
@@ -1481,6 +1533,24 @@ describe('session titles and the listing rules', () => {
   // Ticket 03's retrospective review R1: a retitle should only happen when the original title came from
   // the first question;
   // thread_name's priority (spec A4) is not invalidated by stripping.
+  it('Codex: a prefix-stripped legacy fork with no thread_name is retitled to its first surviving question (the replayed first question must not title it)', async () => {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const q = (ts: string, m: string): string =>
+      JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })
+    const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
+      JSON.stringify({ timestamp: ts, type: 'session_meta', payload: { cwd: proj, id, ...extra } })
+    const PARENT = '019f0000-aaaa-7000-8000-000000000031'
+    const CHILD = '019f0000-bbbb-7000-8000-000000000032'
+    writeFileSync(join(d, `rollout-${PARENT}.jsonl`), [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n')
+    const childFile = join(d, `rollout-${CHILD}.jsonl`)
+    writeFileSync(childFile, [meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }), q('2026-07-30T02:00:00Z', 'parent question one'), q('2026-07-30T02:00:05Z', 'child new question')].join('\n') + '\n')
+    const r = await engine().build(roots(), [proj])
+    const child = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.file === childFile)
+    expect(child?.forkState).toBe('stripped')
+    expect(child?.title).toBe('child new question')
+  })
+
   it('Codex: a prefix-stripped fork with a thread_name keeps the thread_name as its title, not displaced by the first surviving question', async () => {
     const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
     mkdirSync(d, { recursive: true })
@@ -1615,6 +1685,36 @@ describe('sessionQuestions (the session page service)', () => {
     const r = await e.sessionQuestions(roots(), childFile)
     expect(r.side).toBe('codex')
     expect(r.forkState).toBe('stripped')
+    expect(r.questions).toHaveLength(1)
+  })
+
+  it('a paginated codex fork: nothing is replayed into it, so nothing is stripped, the state is none and all of its own questions are listed (spec B2)', async () => {
+    // Codex copies no completed-item events into a paginated child (spawn.rs, 2026-09-09 tree): the child's
+    // first question is its own, and a fingerprint check against the parent would misread it as an
+    // unmatched replay and flag the session uncertain.
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const meta = (ts: string, ordinal: number, id: string, extra: Record<string, unknown> = {}): string =>
+      JSON.stringify({ timestamp: ts, ordinal, type: 'session_meta', payload: { cwd: proj, id, ...extra } })
+    const qi = (ts: string, m: string): string =>
+      JSON.stringify({
+        timestamp: ts,
+        ordinal: 5,
+        type: 'event_msg',
+        payload: { type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'UserMessage', id: 'i', content: [{ type: 'text', text: m, text_elements: [] }] }, started_at_ms: 1, completed_at_ms: 1 }
+      })
+    const PARENT = '019f0000-aaaa-7000-8000-000000000021'
+    const CHILD = '019f0000-bbbb-7000-8000-000000000022'
+    const childFile = join(d, `rollout-${CHILD}.jsonl`)
+    writeFileSync(join(d, `rollout-${PARENT}.jsonl`), [meta('2026-07-30T01:00:00Z', 0, PARENT), qi('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n')
+    writeFileSync(childFile, [meta('2026-07-30T02:00:00Z', 0, CHILD, { forked_from_id: PARENT }), qi('2026-07-30T02:00:05Z', 'child new question')].join('\n') + '\n')
+    const e = engine()
+    const r0 = await e.build(roots(), [proj])
+    const listed = r0.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.file === childFile)
+    expect(listed?.forkState).toBe('none')
+    expect(listed?.title).toBe('child new question')
+    const r = await e.sessionQuestions(roots(), childFile)
+    expect(r.forkState).toBe('none')
     expect(r.questions).toHaveLength(1)
   })
 

@@ -242,6 +242,37 @@ describe('the Codex display allow-list and unknown traces', () => {
     ).toEqual([])
   })
 
+  test('a paginated turn: prose comes from the completed-item agent message, the item mirrors and the paginated top-level types leave no block and no trace (spec C8)', () => {
+    // The item types come from the full enumeration of 2026-09-10 (60245 completed-item events); none but
+    // the agent message yields a block — the tool renders once, from its response_item record, and the
+    // MCP and web-search items render nothing on either format (a stated gap, spec C8)
+    const bs = blocks('codex', [
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'Reasoning', id: 'i', summary_text: [], raw_content: [] }, started_at_ms: 1, completed_at_ms: 1 }),
+      xRI({ type: 'custom_tool_call', call_id: 'c1', name: 'exec', input: 'ls' }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'CommandExecution', id: 'i', command: 'ls', status: 'completed' }, started_at_ms: 1, completed_at_ms: 1 }),
+      xRI({ type: 'custom_tool_call_output', call_id: 'c1', output: 'ok' }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'FileChange', id: 'i', changes: [] }, started_at_ms: 1, completed_at_ms: 1 }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'McpToolCall', id: 'i', server: 's', tool: 't' }, started_at_ms: 1, completed_at_ms: 1 }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'WebSearch', id: 'i', query: 'q' }, started_at_ms: 1, completed_at_ms: 1 }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'DynamicToolCall', id: 'i', namespace: 'files', tool: 'find', arguments: {}, status: 'completed' }, started_at_ms: 1, completed_at_ms: 1 }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'CollabAgentToolCall', id: 'i', tool: 'spawn_agent' }, started_at_ms: 1, completed_at_ms: 1 }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'ImageView', id: 'i', path: 'x.png' }, started_at_ms: 1, completed_at_ms: 1 }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'Extension', id: 'i', name: 'e' }, started_at_ms: 1, completed_at_ms: 1 }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'SubAgentActivity', id: 'i', activity: 'x' }, started_at_ms: 1, completed_at_ms: 1 }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'ContextCompaction', id: 'i' }, started_at_ms: 1, completed_at_ms: 1 }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'UserMessage', id: 'i', content: [{ type: 'text', text: '<task-notification>…', text_elements: [] }] }, started_at_ms: 1, completed_at_ms: 1 }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'AgentMessage', id: 'i', content: [{ type: 'Text', text: '' }], phase: 'commentary' }, started_at_ms: 1, completed_at_ms: 1 }),
+      xEvent({ type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type: 'AgentMessage', id: 'i', content: [{ type: 'Text', text: 'The answer.' }], phase: 'final_answer' }, started_at_ms: 1, completed_at_ms: 1 }),
+      { type: 'token_usage_record', timestamp: TS, payload: { response_id: 'r', usage: {} } },
+      { type: 'compacted', timestamp: TS, payload: { message: '', replacement_history: [] } },
+      xRI({ type: 'compaction', id: 'cmp_1', encrypted_content: 'gAAA' })
+    ])
+    expect(bs).toEqual([
+      { kind: 'tool', at: Date.parse(TS), name: 'exec', summary: 'ls', input: 'ls', output: 'ok', truncated: false },
+      { kind: 'text', role: 'assistant', at: Date.parse(TS), body: 'The answer.' }
+    ])
+  })
+
   test('unknown types at all three levels leave a trace: top level / the event_msg payload / the response_item payload', () => {
     const bs = blocks('codex', [
       { type: 'brand_new_top', timestamp: TS },

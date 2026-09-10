@@ -135,11 +135,15 @@ ruling on 2026-08-06, see Out of Scope).
   array containing a `text` segment; Codex takes the human's message event — `event_msg/user_message`
   in a legacy rollout and, in a paginated rollout, its replacement: the completed-item event whose
   item is a user message (`event_msg/item_completed` with item type `UserMessage`). Measured
-  2026-09-10 over every rollout: 1317 of 1367 paginated rollouts carry it, and 4% of those items
-  carry injected context, which the same stripping removes. A paginated rollout with no such event
-  falls back to `response_item/message` with role user under the same stripping (29 rollouts; 19% of
-  those messages carry injected context — `<environment_context>` / AGENTS.md — which is why it is
-  the fallback and never the source).
+  2026-09-10 over every rollout: 1317 of 1367 paginated rollouts carry it. Its harness-injected
+  shapes were enumerated on 2026-09-11 (330 of 8285 items, all pure, none mixed with a human
+  sentence): the guardian's transcript preamble, a task notification, a delegation block — three
+  prefix families the shared stripping removes, beside the Claude shapes. `response_item/message` is
+  **never** a question source: it mixes in `<environment_context>` / AGENTS.md injected content, and
+  every paginated rollout without a user-message item holds exactly one such message made of
+  injected parts only (29 of 29, 2026-09-11) — such a session has no question, is not listed (A3a)
+  and its tokens count. A fallback to it was considered and dropped on that measurement (ruled
+  2026-09-11): a rule with no positive sample cannot be verified against real data.
   **Corrections during implementation (2026-08-03)**, three of them:
   1. "Exclude `[{type:tool_result}]`" **needs no separate guard**; the rule "take only text segments"
      achieves it. Enumerating all 37,604 array contents in the repository, the segment type
@@ -162,9 +166,13 @@ ruling on 2026-08-06, see Out of Scope).
   show up as visible lost or duplicated messages).
   **Paginated children carry no replayed events** (2026-09-10): Codex copies neither usage records
   nor completed-item events into a fork or subagent thread in paginated mode, so such a child's
-  question set is entirely its own and the fingerprint check finds nothing to strip; the replayed
-  `response_item` messages it does inherit are not questions under B1. Legacy children keep the rules
-  below unchanged.
+  question set is entirely its own and the fingerprint check is not run for it — run, it would
+  misread the child's own first question as an unmatched replay and flag the session uncertain. Such
+  a session therefore has fork state none: no stripping, no uncertainty warning, and — the accepted
+  consequence, found in review 2026-09-11 — no fork banner and no parent link either, although it is
+  a fork; a truthful informational banner for it would be a new copy variant and is not invented
+  here. The replayed `response_item` messages it does inherit are not questions under B1. Legacy
+  children keep the rules below unchanged.
   **Landed during implementation (2026-08-04)**:
   - **Identify the replayed span by content fingerprint, not by timestamp** — a replay **rewrites the
     timestamps** (confirmed on 4 of 4 real parent-child pairs), so timestamps cannot recognise it.
@@ -300,10 +308,19 @@ ruling on 2026-08-06, see Out of Scope).
   legacy `event_msg/agent_message` is absent from paginated rollouts), `UserMessage` is the question
   (B1), and `Reasoning`, `FileChange`, `McpToolCall`, `CommandExecution`, `WebSearch`,
   `DynamicToolCall`, `CollabAgentToolCall`, `ImageView`, `Extension`, `SubAgentActivity` and
-  `ContextCompaction` are mirrors of `response_item` records that are already rendered or already
-  noise, so they are never rendered — the same double-write rule as the legacy event path. The usage
-  record, the compacted checkpoint, the world state and the thread settings event are noise inside a
-  turn. An item type outside this enumeration leaves the unknown trace.
+  `ContextCompaction` are never rendered: `Reasoning`, `CommandExecution`, `DynamicToolCall` and
+  `FileChange` accompany `response_item` records that are rendered already, while `McpToolCall` and
+  `WebSearch` carry calls whose legacy records (the MCP and web-search end events) were never
+  rendered either — measured 2026-09-11, in 31 of 1367 paginated rollouts the tool-like items
+  outnumber the `response_item` calls, so they are not mirrors of anything shown. **MCP tool calls
+  and web searches are therefore invisible inside a turn on both formats**, a gap that predates the
+  paginated format and is stated in the features page; rendering them from the items is a new
+  capability, listed under Out of Scope. The usage
+  record, the compacted checkpoint, the world state, the thread settings event and the compaction
+  marker on the response path (`response_item/compaction`, an encrypted body and nothing else; 78
+  records, found by probing every paginated rollout on 2026-09-11 rather than by the item
+  enumeration) are noise inside a turn. An item type outside this enumeration leaves the unknown
+  trace; the probe over every paginated rollout is the evidence that the set is complete today.
 
 **Sequence G: the Grok side** (grounded in a full enumeration of 17 update types, measured
 2026-08-16)
@@ -629,10 +646,11 @@ whole chain of "open a session → click a question → the answer appears". **A
 its shape from a real sample** (the sides' data structures are complex, and a constructed fixture
 would inevitably inherit the blind spots of my imagination). The paginated Codex question source
 (B1) and the cold-rollout reads (C2) are tested at the same providers seam: a fixture shaped from a
-real paginated rollout (completed-item user messages, one carrying injected context, no legacy
-user-message event), one with neither event so the response-item fallback is exercised, and a cold
-rollout whose question list, turn fetch and search results equal its plain twin's byte for byte, with
-the pass count asserted as the evidence that nothing was decompressed twice.
+real paginated rollout (completed-item user messages, the three harness shapes among them, no legacy
+user-message event), one with neither event and only injected response-item parts (no question,
+not listed), and a cold rollout whose question list, turn fetch and search results equal its plain
+twin's byte for byte, with the pass count asserted as the evidence that nothing was decompressed
+twice.
 
 ## Out of Scope
 
@@ -645,6 +663,10 @@ the pass count asserted as the evidence that nothing was decompressed twice.
 - **The export feature entirely** (dropped by the user's ruling 2026-08-06, including the planned
   Markdown export and a fidelity-preserving backup export; sequence E is archived only).
 - Sessions the agent had already cleaned up before this app first ran.
+- Rendering MCP tool calls and web searches inside a turn. The legacy format records them only as
+  end events (classified as noise since 2026-08-06) and the paginated format as completed items
+  (`McpToolCall`, `WebSearch`) that carry the arguments and results; showing them is a new block
+  source with its own pairing and copy questions, found 2026-09-11 and not taken up.
 - Questions inside a compacted window (ruled 2026-09-10): only the compacted checkpoint's replacement
   history holds them, once per window, so a thread with many windows repeats them many times over.
   They have no turn to fetch, only a summary, and showing that is a session page design question
