@@ -38,11 +38,6 @@ const MUST_DIFFER: Array<{ why: string; a: (d: Locale) => string; b: (d: Locale)
     b: (d) => d.plugins.disabledShort
   },
   {
-    why: 'fetching one turn’s byte range on demand is the product’s load-bearing claim, and is not the same as loading a view',
-    a: (d) => d.session.fetching,
-    b: (d) => d.session.loading
-  },
-  {
     why: 'a skill package’s entry point is not a tool call’s input',
     a: (d) => d.skills.tagEntry,
     b: (d) => d.turn.input
@@ -90,7 +85,6 @@ const ACCEPTED_COLLAPSES: Array<{ a: string; b: string; why: string }> = [
     b: 'memory.loading',
     why: 'both are "we are fetching this for display". The distinction that does carry weight — fetching one turn’s byte range on demand — is session.fetching, and that one is in MUST_DIFFER above'
   },
-  { a: 'skills.loading', b: 'session.loading', why: 'as above' },
   { a: 'skills.loading', b: 'detail.loading', why: 'as above' },
   {
     a: 'plugins.enabled',

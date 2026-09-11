@@ -320,9 +320,7 @@ export function SessionPane({
       <div className="pane-body">
         {err !== null ? (
           <div className="none">{t.session.cannotOpen(errorText(lang, err.raw))}</div>
-        ) : page === null ? (
-          <div className="none">{t.session.loading}</div>
-        ) : (
+        ) : page === null ? null : ( // While the page loads nothing is drawn: a transient label here only flickered on a session switch (removed 2026-09-11 at the user's ruling)
           <>
             <Banners page={page} onOpenSession={onOpenSession} />
             <div className="qbar">

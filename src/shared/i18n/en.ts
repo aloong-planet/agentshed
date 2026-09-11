@@ -169,7 +169,6 @@ export const en: Locale = {
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · ${questions} ${plural('en', questions, { one: 'question', other: 'questions' })} · ${tok} tok · ${mb} · last active ${ago}`,
     cannotOpen: (detail) => `Cannot open this session: ${detail}`,
-    loading: 'Loading…',
     mainline: (n, days) =>
       `Questions (main line) · ${n} ${plural('en', n, { one: 'question', other: 'questions' })}${days}`,
     dayCount: (n) => ` · ${n} ${plural('en', n, { one: 'day', other: 'days' })}`,

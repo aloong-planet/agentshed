@@ -246,7 +246,6 @@ export const zh = {
     headMeta: (side: string, questions: number, tok: string, mb: string, ago: string) =>
       `${side} · ${questions} 提问 · ${tok} tok · ${mb} · 最后活动 ${ago}`,
     cannotOpen: (detail: string) => `会话打不开:${detail}`,
-    loading: '读取中…',
     mainline: (n: number, days: string) => `提问(主干)· ${n} 条${days}`,
     dayCount: (n: number) => ` · ${n} 天`,
     expandAll: '全部展开',
