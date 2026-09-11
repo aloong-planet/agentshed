@@ -4,6 +4,7 @@
 import { readFileSync, existsSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs'
 import { join } from 'node:path'
 import type { RegistryResult } from './claude'
+import { isColdRollout, isRolloutName, readFirstLineCold } from './cold-rollout'
 import { ERR } from '@shared/errors'
 
 const PROJECT_HEADER = /^\s*\[projects\."(.+)"\]\s*$/
@@ -58,7 +59,9 @@ function walk(dir: string, out: CodexSessionMeta[]): void {
       walk(p, out)
       continue
     }
-    if (!e.name.endsWith('.jsonl')) continue
+    // Plain and cold rollouts alike (spec token-stats B12): a cold one is the same session under its
+    // compressed path
+    if (!isRolloutName(e.name)) continue
     const meta = readHead(p)
     if (meta) out.push(meta)
   }
@@ -70,6 +73,7 @@ const HEAD_CHUNK = 64 * 1024
 const HEAD_MAX = 4 * 1024 * 1024
 
 function readFirstLine(file: string): string | null {
+  if (isColdRollout(file)) return readFirstLineCold(file, HEAD_MAX)
   const fd = openSync(file, 'r')
   try {
     const chunks: Buffer[] = []

@@ -18,7 +18,7 @@
 // - The incremental cache stores entry-level data (deduplication has to happen across files, in the
 //   aggregation layer, so a deduplicated result cannot be what is cached);
 //   keyed by (path, mtime, size), written atomically. The statistics include stale projects.
-import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type {
   AgentSide,
@@ -35,6 +35,8 @@ import { localDay } from '@shared/format'
 import { ERR, appError } from '@shared/errors'
 import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessionMeta, readCodexSessions } from './codex'
+import { rolloutStem } from './cold-rollout'
+import { readRanges } from './range-read'
 import { readGrokSessions } from './grok'
 import { eachJsonlLine } from './jsonl'
 import {
@@ -569,10 +571,9 @@ export class TokenEngine {
 async function retitleStripped(items: TokenBuildResult['retitle']): Promise<void> {
   for (const it of items) {
     try {
-      const buf: Buffer[] = []
-      const rs = createReadStream(it.file, { start: it.start, end: Math.max(it.start, it.end - 1) })
-      for await (const c of rs as AsyncIterable<Buffer>) buf.push(c)
-      const obj: unknown = JSON.parse(Buffer.concat(buf).toString('utf8'))
+      // The shared range reader: a byte read on a plain rollout, one streaming pass on a cold one (spec C2)
+      const { texts } = await readRanges(it.file, [{ start: it.start, end: it.end }])
+      const obj: unknown = JSON.parse(texts[0])
       const msg = (obj as Record<string, unknown>)?.['payload'] as Record<string, unknown> | undefined
       const text = typeof msg?.['message'] === 'string' ? (msg['message'] as string) : null
       const clean = text === null ? null : realUserText(text)
@@ -1215,8 +1216,10 @@ async function parseCodexFile(
   } catch {
     return null
   }
-  const id = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/.exec(file)?.[1]
-  const stem = file.split('/').pop()?.replace(/\.jsonl$/, '') ?? null
+  // The id and the stem come from the name without either suffix: a cold rollout keeps its name under
+  // `.jsonl.zst` (spec token-stats B12)
+  const id = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl(?:\.zst)?$/.exec(file)?.[1]
+  const stem = rolloutStem(file)
   const questions = idx.done(fileEnd)
   const first = idx.firstQuestionText()
   const realTitle = first === null ? null : clipTitle(first)

@@ -246,9 +246,14 @@ ruling on 2026-08-06, see Out of Scope).
   are offsets in the decompressed stream, and every range read of it is one streaming decompression
   from the start that serves the requested ranges in order and stops at the last one — opening the
   session is one pass for all its question texts, expanding a turn is one pass to that turn, a search
-  is one pass per file. Memory follows the bytes served, never the file: measured on the largest
-  cold rollout on this machine (206 MB) a pass is about 0.3 s, and the 921 MB active rollout, were
-  it cold, about 1.5 s. Decompressing a whole file into memory was rejected on that measurement.
+  is one pass per file. Memory follows the bytes in flight, never the file: measured 2026-09-11 on a
+  compressed copy of the largest cold rollout on this machine (206 MB decompressed, 126 MB
+  compressed), a range near its end serves 100 KB, traverses the stream in about 0.25 s and holds
+  about 13 MB of live buffers at peak — a dozen 1 MB chunks between the file stream and the decoder
+  — with the heap under 5 MB, against a 206 MB buffer for decompressing the file whole; the
+  process's resident size also carries chunks the collector has not reclaimed yet and is not the
+  bound. The whole-file design was rejected on that measurement. A truncated cold rollout never
+  reaches the session page: the scan skips it (token-stats B12).
 - C3 Subagents **expand in place inside the turn**: Claude's `subagents/` subfiles and inline sidechain
   records, and Codex's subagent threads, all sit under the step that dispatched them.
   **Correction from measurement (2026-08-06): "sitting under the dispatching step" cannot

@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { mapLimit, readRanges } from './range-read'
+import { mapLimit, readRangeBuffers, readRanges } from './range-read'
 
 function withFile<T>(content: Buffer | string, fn: (file: string) => Promise<T>): Promise<T> {
   const dir = mkdtempSync(join(tmpdir(), 'rr-'))
@@ -131,5 +132,39 @@ describe('mapLimit\'s error convergence (the unhandledRejection hole review foun
     // (an EBADF because finally already closed the fd,
     // say) is an unhandledRejection — and smoke's error grep catches exactly that word
     expect(stillRunningAtReject).toBe(0)
+  })
+})
+
+describe('a cold rollout (.jsonl.zst): ranges are served from one streaming decompression per call (spec session-view C2)', () => {
+  /** A plain file and its compressed twin side by side; the ranges are the plain file's byte ranges */
+  function withTwins<T>(fn: (plain: string, cold: string, size: number) => Promise<T>): Promise<T> {
+    const dir = mkdtempSync(join(tmpdir(), 'rr-cold-'))
+    const lines: string[] = []
+    for (let i = 0; i < 4000; i++) lines.push(JSON.stringify({ i, text: 'line ' + i + ' ' + 'x'.repeat(i % 97) }))
+    const content = Buffer.from(lines.join('\n') + '\n')
+    const plain = join(dir, 'f.jsonl')
+    const cold = join(dir, 'f.jsonl.zst')
+    writeFileSync(plain, content)
+    writeFileSync(cold, zstdCompressSync(content))
+    return fn(plain, cold, content.length).finally(() => rmSync(dir, { recursive: true, force: true }))
+  }
+
+  test('the bytes of several ranges equal the plain twin\'s, in input order, and the call traverses exactly up to the last range\'s end', async () => {
+    await withTwins(async (plain, cold, size) => {
+      // Ranges out of order and one near the end: served in input order from one pass
+      const ranges = [{ start: 150000, end: 150200 }, { start: 10, end: 60 }, { start: size - 300, end: size - 100 }, { start: 90000, end: 90050 }]
+      const p = await readRangeBuffers(plain, ranges)
+      const c = await readRangeBuffers(cold, ranges)
+      expect(c.bufs.map((b) => b.toString('utf8'))).toEqual(p.bufs.map((b) => b.toString('utf8')))
+      // One pass: the decompressed bytes traversed are exactly the last end, not the sum of the ranges and not several passes
+      expect(c.bytesRead).toBe(size - 100)
+    })
+  })
+
+  test('a range past the end of a cold rollout is truncated to what is readable, like a plain one', async () => {
+    await withTwins(async (_plain, cold, size) => {
+      const c = await readRangeBuffers(cold, [{ start: size - 50, end: size + 1000 }])
+      expect(c.bufs[0].length).toBe(50)
+    })
   })
 })

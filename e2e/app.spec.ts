@@ -6,6 +6,7 @@
 // the unit tests pin it and this guards the whole chain again).
 import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { zstdCompressSync } from 'node:zlib'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { ERR } from '../src/shared/errors'
@@ -1407,6 +1408,37 @@ test('session page (Codex, paginated format): the session is listed by its compl
   await expect(win.locator('.turn .ans')).toContainText('Three files live in that directory.')
   // The tool renders once (from the response_item record), not again from its completed-item mirror
   await expect(win.locator('.turn .blk', { has: win.locator('.nm', { hasText: 'exec' }) })).toHaveCount(1)
+  await expect(win.locator('.turn .unknown')).toHaveCount(0)
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('session page (Codex, cold rollout): a .jsonl.zst session is listed, counted, opens and expands like a plain one', async () => {
+  // Codex compresses a rollout untouched for seven days and deletes the plain file (spec token-stats B12,
+  // session-view C2): the fixture is the paginated rollout of the previous case, zstd-compressed.
+  const home = mkUsageHome()
+  const proj = join(home, 'demo-proj')
+  const sdir = join(home, '.codex', 'sessions', '2026', '07', '30')
+  mkdirSync(sdir, { recursive: true })
+  const at = localDayOffset(1).toISOString()
+  const item = (type: string, extra: Record<string, unknown>): string =>
+    JSON.stringify({ timestamp: at, ordinal: 9, type: 'event_msg', payload: { type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type, id: 'i', ...extra }, started_at_ms: 1, completed_at_ms: 1 } })
+  const lines = [
+    JSON.stringify({ timestamp: at, ordinal: 0, type: 'session_meta', payload: { cwd: proj, id: '019fb0c0-3333-7af3-af7d-8505cedf1ec2' } }),
+    JSON.stringify({ timestamp: at, ordinal: 1, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
+    item('UserMessage', { content: [{ type: 'text', text: 'Cold question', text_elements: [] }] }),
+    JSON.stringify({ timestamp: at, ordinal: 3, type: 'token_usage_record', payload: { thread_id: 't', turn_id: 'u', session_id: 't', root_turn_id: 'u', response_id: 'resp_cold', usage: { input_tokens: 500, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 50, reasoning_output_tokens: 0, total_tokens: 550 }, turn_token_usage: { input_tokens: 500, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 50, reasoning_output_tokens: 0, total_tokens: 550 }, thread_token_usage: { input_tokens: 500, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 50, reasoning_output_tokens: 0, total_tokens: 550 } } }),
+    item('AgentMessage', { content: [{ type: 'Text', text: 'Answered from the compressed file.' }], phase: 'final_answer' })
+  ]
+  writeFileSync(join(sdir, 'rollout-019fb0c0-3333-7af3-af7d-8505cedf1ec2.jsonl.zst'), zstdCompressSync(Buffer.from(lines.join('\n') + '\n')))
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Cold question' }).click()
+  await win.locator('.qlist .q', { hasText: 'Cold question' }).click()
+  await expect(win.locator('.turn .ans')).toContainText('Answered from the compressed file.')
   await expect(win.locator('.turn .unknown')).toHaveCount(0)
   expect(l.errors).toEqual([])
   await close(l)

@@ -97,9 +97,15 @@ sessions, one per row, with "how many questions I asked in this conversation".
   sentence is not reported once per generation of a fork chain
 - With no hits it says "questions only by default — try switching to full text" rather than showing
   a blank
+- A session Codex has compressed after a week of inactivity is listed, opens, expands and is searched
+  like any other; opening it or expanding a turn takes a moment longer on a very large one (a fraction
+  of a second on the largest here), and no more memory than the part being shown
 - A project with no sessions at all gets an empty state
 
 ## Boundaries and non-goals
+- A session page left open while Codex compresses its file loses that file: the next click on a
+  question shows that turn's error, and the session reappears under its compressed form after the
+  next refresh
 - MCP tool calls and web searches made by Codex are not shown inside a turn, on either of its record
   formats; the calls that do show are the command, patch, dynamic and search-tool calls it records
   as tool calls

@@ -133,8 +133,20 @@ all of them.
 - B12 **A cold rollout is read like a plain one**: the same line reader runs over a decompression
   stream, so every rule above applies unchanged. Its identity is its `.jsonl.zst` path, so the day
   Codex compresses a rollout the plain path leaves the scan set and the compressed one enters it as
-  a new file — parsed once, then cached like any other. A cold rollout that cannot be decompressed
-  (truncated, not zstd) is skipped like an unreadable plain file, hurting only itself.
+  a new file — parsed once, then cached like any other. The decoder's output chunk is the line
+  reader's read chunk (1 MB, the size the plain reader measured): at the decoder's 16 KB default the
+  same per-chunk cost the plain reader pays under Electron returned — measured 2026-09-11 with
+  `pnpm bench:scan` over ten real cold rollouts (525 MB plain, 264 MB compressed): 9.0 s compressed
+  against 0.95 s plain, and 1.24 s once the chunks matched. A cold rollout therefore costs about a
+  third more than its plain twin to scan, the decompression itself. A cold rollout that cannot be
+  decompressed (truncated, not zstd) is skipped like an unreadable plain file, hurting only itself.
+  "Truncated"
+  is judged by the recorder's mechanism, not by the decoder: Node's zstd decoder reports nothing for
+  a cut frame (measured 2026-09-11, synchronously and as a stream alike — it yields the first half
+  and ends cleanly), while every rollout line ends with a newline and a cold rollout is never
+  mid-write, so a decompressed stream that does not end with a newline is cut short (all 1391
+  rollouts on this machine end with one, the 935 cold ones included). A cut landing exactly on a
+  line end escapes this and reads as a shorter session — that file only.
 
 **Sequence F: Grok-side aggregation** (lettered after the existing sequences rather than inserted
 next to A/B, so that no existing reference is renumbered)
@@ -488,7 +500,6 @@ a duplicate response id, and a cold rollout equal to its plain twin. The ccusage
 its meaning for legacy data only: it compares days whose Codex rollouts carry no usage records and
 reports the record-bearing days separately as an expected divergence.
 
-> Pending: cold rollouts are read, so the cold-rollout twin case above exists.
 
 The window aggregation (sequence G) is a **pure function from the row set plus a window to the four
 figures a view needs**, which is the same seam the trend and axis functions already use — the highest
