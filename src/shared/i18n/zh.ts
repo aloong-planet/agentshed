@@ -301,7 +301,6 @@ export const zh = {
     tabSessions: '会话',
     tabCfg: '配置',
     tabArts: '产物',
-    loading: '读取中…',
     byModel: '按模型拆分',
     recentSessions: '最近会话',
     noSessions: '该项目暂无会话',

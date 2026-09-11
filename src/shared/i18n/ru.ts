@@ -218,7 +218,6 @@ export const ru: Locale = {
     tabSessions: 'Сессии',
     tabCfg: 'Конфигурация',
     tabArts: 'Артефакты',
-    loading: 'Загрузка…',
     byModel: 'По моделям',
     recentSessions: 'Недавние сессии',
     noSessions: 'В этом проекте пока нет сессий',

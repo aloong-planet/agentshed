@@ -85,7 +85,6 @@ const ACCEPTED_COLLAPSES: Array<{ a: string; b: string; why: string }> = [
     b: 'memory.loading',
     why: 'both are "we are fetching this for display". The distinction that does carry weight — fetching one turn’s byte range on demand — is session.fetching, and that one is in MUST_DIFFER above'
   },
-  { a: 'skills.loading', b: 'detail.loading', why: 'as above' },
   {
     a: 'plugins.enabled',
     b: 'plugins.enabledShort',

@@ -216,7 +216,6 @@ export const ja: Locale = {
     tabSessions: 'セッション',
     tabCfg: '構成',
     tabArts: '成果物',
-    loading: '読み込み中…',
     byModel: 'モデル別',
     recentSessions: '最近のセッション',
     noSessions: 'このプロジェクトにはまだセッションがありません',

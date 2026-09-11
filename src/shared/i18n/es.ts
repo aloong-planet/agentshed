@@ -221,7 +221,6 @@ export const es: Locale = {
     tabSessions: 'Sesiones',
     tabCfg: 'Configuración',
     tabArts: 'Artefactos',
-    loading: 'Cargando…',
     byModel: 'Por modelo',
     recentSessions: 'Sesiones recientes',
     noSessions: 'Este proyecto aún no tiene sesiones',

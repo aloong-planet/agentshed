@@ -48,11 +48,13 @@ is read-only; the one write operation is uninstalling a project-level skill.
   path — plus a single note card, with **no section tabs and no data areas**. The trade-off that the
   project's own token history is no longer reachable from its page was accepted; the global totals
   still include it (see agents-overview B3). Sequence S below owns the card.
-- A3 Detail is fetched on demand (it does not enter the overview snapshot); **the loading state
-  appears only on first open and when switching projects** — a refetch triggered by a snapshot update
-  (an automatic rescan, see token-stats sequence E) is a **transfusion**: the rendered content
-  stays and new data replaces it on arrival, so a section's local state (expansion, search, scroll
-  position) survives the refresh (settled 2026-08-08).
+- A3 Detail is fetched on demand (it does not enter the overview snapshot); **no loading state is
+  drawn**: on first open and when switching projects the pane body stays empty until the detail
+  arrives (ruled 2026-09-11 — the transient label it used to show only flickered on a project switch,
+  since the detail arrives within a frame or two). A refetch triggered by a snapshot update (an
+  automatic rescan, see token-stats sequence E) is a **transfusion**: the rendered content stays and
+  new data replaces it on arrival, so a section's local state (expansion, search, scroll position)
+  survives the refresh (settled 2026-08-08).
 - A4 Configuration section: a missing project CLAUDE.md / AGENTS.md shows "none" rather than an error;
   oversized files are truncated.
 - A5 The detail drawer's width = min(a fixed width, **the right-hand content area's** width × 80%) —

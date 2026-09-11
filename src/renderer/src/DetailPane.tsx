@@ -117,9 +117,7 @@ export function DetailPane({
         </nav>
       </header>
       <div className="pane-body">
-        {detail === null ? (
-          <div className="none">{t.detail.loading}</div>
-        ) : (
+        {detail === null ? null : ( // While the detail loads nothing is drawn: a transient label here only flickered on a project switch (removed 2026-09-11 at the user's ruling)
           <>
             {tab === 'ov' && (
               <OverviewTab

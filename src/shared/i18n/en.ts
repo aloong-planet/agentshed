@@ -223,7 +223,6 @@ export const en: Locale = {
     tabSessions: 'Sessions',
     tabCfg: 'Config',
     tabArts: 'Artifacts',
-    loading: 'Loading…',
     byModel: 'By model',
     recentSessions: 'Recent sessions',
     noSessions: 'No sessions in this project yet',

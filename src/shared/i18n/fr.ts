@@ -221,7 +221,6 @@ export const fr: Locale = {
     tabSessions: 'Sessions',
     tabCfg: 'Configuration',
     tabArts: 'Artefacts',
-    loading: 'Chargement…',
     byModel: 'Par modèle',
     recentSessions: 'Sessions récentes',
     noSessions: 'Aucune session dans ce projet',
