@@ -60,7 +60,8 @@ share a source and reconcile against each other.
   alike, so the two pages agree about the same day
 - A session Codex has compressed after a week of inactivity keeps counting exactly as before: its
   usage, model and day attribution do not change with the compression, and a compressed file the
-  agent cut short is left out rather than counted in part
+  agent cut short is left out rather than counted in part (a cut that happens to land exactly on a
+  line end is the one case that reads as a shorter session)
 - A past day's figure never falls silently: when an agent's records for a past day shrink — rewritten
   by the agent, or deleted by hand — the day's figure is retained as it was counted before; only a
   correction that arrives with an application update replaces it. Today's figure is exempt and still

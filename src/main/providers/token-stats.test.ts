@@ -755,6 +755,52 @@ describe('Codex aggregation (the ccusage rules)', () => {
     expect(r.global.bySide.codex.total).toBe(110)
   })
 
+  it('a rollout that is paginated and cold at once — usage records, completed-item questions, compressed — yields the same usage, questions and title as its plain twin (the closeout of #163–#165)', async () => {
+    // No single ticket owns this combination: the boundary and the records (#163), the completed-item
+    // questions and the paginated flag (#164), the compressed path (#165) all act on one file here.
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const at = '2026-07-30T10:00:00Z'
+    const running = (i: number, o: number): Record<string, number> => ({ input_tokens: i, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: o, reasoning_output_tokens: 0, total_tokens: i + o })
+    const record = (id: string, i: number, o: number): string =>
+      JSON.stringify({ timestamp: at, ordinal: 7, type: 'token_usage_record', payload: { thread_id: 't', turn_id: 'u', session_id: 't', root_turn_id: 'u', response_id: id, usage: running(i, o), turn_token_usage: running(i, o), thread_token_usage: running(i, o) } })
+    const item = (type: string, extra: Record<string, unknown>): string =>
+      JSON.stringify({ timestamp: at, ordinal: 9, type: 'event_msg', payload: { type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type, id: 'i', ...extra }, started_at_ms: 1, completed_at_ms: 1 } })
+    const lines = [
+      JSON.stringify({ timestamp: at, ordinal: 0, type: 'session_meta', payload: { cwd: proj } }),
+      JSON.stringify({ timestamp: at, ordinal: 1, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
+      item('UserMessage', { content: [{ type: 'text', text: 'combined question one', text_elements: [] }] }),
+      record('resp_x1', 100, 10),
+      // The legacy event after the boundary is ignored (B9); an all-injected item is not a question (B1)
+      JSON.stringify({ timestamp: at, ordinal: 4, type: 'event_msg', payload: { type: 'token_count', info: { last_token_usage: running(999, 99), total_token_usage: running(999, 99) } } }),
+      item('UserMessage', { content: [{ type: 'text', text: '<task-notification>\n<task-id>x</task-id>', text_elements: [] }] }),
+      item('AgentMessage', { content: [{ type: 'Text', text: 'first answer' }], phase: 'final_answer' }),
+      item('UserMessage', { content: [{ type: 'text', text: 'combined question two', text_elements: [] }] }),
+      record('resp_x2', 200, 20),
+      record('resp_x2', 200, 20) // a duplicate response id counts once (B1)
+    ]
+    const plain = join(d, 'rollout-2026-07-30T10-00-00-019f0000-dddd-7000-8000-000000000061.jsonl')
+    const cold = join(d, 'rollout-2026-07-30T10-00-00-019f0000-dddd-7000-8000-000000000062.jsonl.zst')
+    writeFileSync(plain, lines.join('\n') + '\n')
+    writeFileSync(cold, zstdCompressSync(readFileSync(plain)))
+    const e = engine()
+    const r = await e.build(roots(), [proj])
+    const sessions = r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'codex') ?? []
+    const a = sessions.find((s) => s.file === plain)
+    const b = sessions.find((s) => s.file === cold)
+    expect(a?.title).toBe('combined question one')
+    expect(b?.title).toBe(a?.title)
+    expect(a?.questionCount).toBe(2)
+    expect(b?.questionCount).toBe(2)
+    expect(a?.tokens).toBe(330)
+    expect(b?.tokens).toBe(330)
+    expect(r.global.bySide.codex.total).toBe(660)
+    const qa = await e.sessionQuestions(roots(), plain)
+    const qb = await e.sessionQuestions(roots(), cold)
+    expect(qb.questions).toEqual(qa.questions)
+    expect(qb.forkState).toBe('none')
+  })
+
   it('a subagent session\'s tokens count but it does not enter the session list', async () => {
     mkCodexRollout('rollout-main-019f001.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
       { input: 10, cached: 0, output: 5 }
