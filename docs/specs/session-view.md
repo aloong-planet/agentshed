@@ -1,7 +1,7 @@
 # Session view
 
-> Related: [features](../features/session-view.md) · ADR-0002 (dual seam) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts)
-> Status: shipped 2026-08-06 (prototype gate passed 2026-08-02); amended 2026-09-10 for Codex paginated and cold rollouts (B1, B2, C2, C4, C8, D3, R1).
+> Related: [features](../features/session-view.md) · ADR-0002 (dual seam) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer)
+> Status: shipped 2026-08-06 (prototype gate passed 2026-08-02); amended 2026-09-10 for Codex paginated and cold rollouts (B1, B2, C2, C4, C8, D3, R1); amended 2026-09-12 for atomic opening and cached revisits (P, UI decisions).
 
 ## Problem Statement
 
@@ -41,6 +41,9 @@ ruling on 2026-08-06, see Out of Scope).
    before the format changed, so that the session list does not empty out after an agent update.
 8. As a user, I want a session Codex has compressed to open and search like any other, so that
    looking back is not cut off at the agent's seven-day line.
+9. As a user, I want opening a session, jumping to its parent and coming back to feel like turning
+   pages — the page I am on stays until the next is ready, and a session I opened earlier comes back
+   at once — so that looking back is not punctuated by blank frames.
 
 ## Failure modes and boundaries
 
@@ -414,6 +417,36 @@ ruling on 2026-08-06, see Out of Scope).
   `SessionPane focusQ` scroll positioning, with no new visual element. The search term is not preserved
   across sections (the spec does not require it).
 
+**Sequence P: opening, jumping and returning** (ADR-0028; the cache is memory-only and empty at
+every start, so "earlier" always means earlier in this run)
+- P1 Opening a session (from the sessions section, the overview card or a search hit) for the first
+  time in the run: the project page stays whole — list, search box, everything — until the session
+  page is ready, then the stage switches in one frame. The row's press feedback is the only
+  immediate response; no indicator is added.
+- P2 Jumping from a session page to its parent through the fork banner: the current page stays until
+  the parent's page is ready.
+- P3 Returning to the project: a cached visit of the project page (at once), landing on the Sessions
+  section; its detail revalidates by transfusion (project-detail T8).
+- P4 Reopening a session seen earlier in the run: its page is drawn at once from what was last shown
+  and revalidated in the background; page-local state (expanded turns, sort, folded days, the
+  locating focus) starts fresh, keyed by the session as today, and a search hit's focus still
+  applies.
+- P5 Snapshot update while a session page is on screen: the page is stale and refetches by
+  transfusion — the question list follows the file (a live session gains its new questions) while
+  the expanded turns, the sort and the folded days survive, the index being the original turn
+  number. New with this rule: before it the page was static until reopened.
+- P6 Failure on a first open (the file is gone, the allow-list refuses it, the parse fails): the
+  switch completes to the page's existing error state — an error result is a ready page. A failed
+  revalidation of a cached page leaves the shown page as it is.
+- P7 A file Codex compressed while its page was cached: the plain path's page stays a cached visit
+  until the next snapshot marks it stale; from then on opening it is P6, and the session reappears
+  under its compressed identity (C4).
+- P8 Opening a session and going back before its page has arrived: the pending switch is
+  interrupted, the project page stays, and the session page is kept when it arrives (a later open
+  is P4).
+- P9 A turn's contents, the freshness check and the search stay on their effects and handlers (Out
+  of Scope): expanding a turn is unchanged, in-turn states included.
+
 **Sequence E: export (dropped entirely by the user's ruling 2026-08-06, never implemented; the entries
 below are archived as a decision record and are no longer requirements)**
 - E1 By default export **the questions plus the answers already expanded** (matching the browsing
@@ -519,7 +552,7 @@ below are archived as a decision record and are no longer requirements)**
   "unknown date" group is invented, since that form does not exist in the prototype and a missing
   timestamp is a rare bad line where degrading merely has to be usable. When the same day is separated
   by out-of-order timestamps, group by adjacency (two groups with the same label, whose collapsing does
-  not cross over). The question sort is page-local state and resets to ascending when leaving the
+  not cross over). The question sort is page-local state and resets to its default (descending) when leaving the
   session page (the spec does not require it to survive unmounting).
 - **In-turn blocks (2026-08-06)**: the tool / thinking / reasoning / subagent collapsed
   blocks and the unknown-trace block follow the 2026-08-02 prototype (the unknown form was
@@ -538,10 +571,12 @@ below are archived as a decision record and are no longer requirements)**
   only the 5 most recent + a total count at the bottom**; the click target then **changed to go
   straight to the session page** (closing that interim state), with the back button landing on the
   "Sessions" section.
-- **The session page draws nothing while it loads** (ruled 2026-09-11): the pane body stays empty
-  until the page arrives; the transient "loading" label it used to show only flickered on a session
-  switch, since a page arrives within a frame or two. The in-turn fetch notice below is a different
-  state and stays.
+- **Opening a session is atomic** (ruled 2026-09-12, superseding the 2026-09-11 empty-pane rule; the
+  CONTEXT.md invariant of that date): the page on screen stays until the session page can be drawn
+  whole, then the stage switches in one frame; a session opened earlier in the run comes back at
+  once. No pending indicator is added — the row's press feedback is the only immediate response —
+  declared here as the prototype-gate exemption: no visible state is added, and the end state is the
+  absence of an intermediate frame. The in-turn fetch notice below is a different state and stays.
 - **Paginated and cold rollouts change no interface point** (2026-09-10): the question list, the
   turn blocks, the banners and the search results keep their forms; what changes is where the data
   comes from and how a compressed file is read — declared here as the prototype-gate exemption for
@@ -642,6 +677,13 @@ below are archived as a decision record and are no longer requirements)**
   whether to show the interim "rebuilding the index for this file only" state, while the rebuild itself
   is still triggered by the fetch call (idempotent, and the file changing between the two steps is
   harmless).
+- **The query layer** (ADR-0028): the session page is a suspense query keyed by the session file;
+  opening, jumping and returning run inside a Transition, held by the same detail-slot Suspense
+  boundary as project detail (its fallback draws nothing and is reachable only outside a
+  Transition). A snapshot arrival invalidates the page's query (P5); every mount revalidates; window
+  focus does not refetch; nothing is retried; the query function resolves to a result value (the
+  page, or the failure) and never throws, so the page's error state stays a branch of the page.
+  Page-local state is keyed by the session file, as before.
 - **Prefetching** (an optional optimisation): prefetch a few adjacent turns as the question list moves,
   turning "there when you click" into "there before you click".
 
@@ -660,6 +702,13 @@ user-message event), one with neither event and only injected response-item part
 not listed), and a cold rollout whose question list, turn fetch and search results equal its plain
 twin's byte for byte, with the decompressed length a range read traverses asserted against the last
 range's end as the evidence of one pass per call.
+
+The atomic open and the cached revisit (sequence P) are asserted at the e2e seam under the same
+injected fetch delay as project detail's (one knob family, read by the session-page IPC handler
+too): with the delay in force, clicking a session row leaves the sessions list on screen (sampled
+inside the delay window) and then shows the session page; back returns the project page at once;
+reopening the session shows its questions before the delay could have elapsed. The turn fetch cases
+are untouched and must stay green.
 
 ## Out of Scope
 
@@ -681,6 +730,10 @@ range's end as the evidence of one pass per call.
   They have no turn to fetch, only a summary, and showing that is a session page design question
   that needs a prototype. A compacted session therefore lists fewer questions than it did before
   the compaction, and nothing marks it.
+- Moving a turn's contents, the freshness check and the search onto the query layer (P9): they keep
+  their effects and handlers, tracked as a follow-up.
+- A pending indicator on the clicked row while a first open is in flight: a new visible state that
+  needs a prototype.
 
 ## Further Notes
 
