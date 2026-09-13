@@ -16,7 +16,8 @@ typing part of its name. No cross-side content diff.
   quiet
 - An on-disk skill row always shows its **file count and size**; **clicking the row** collapses or
   expands the package's file table (per-file line count, size, modification date), laid out flat with
-  no indentation
+  no indentation. Collapsing and reopening the same row shows the table at once, quietly refreshed
+  behind the scenes rather than reloaded from a blank state
 - Where more than one side has the skill, the expanded area lets you switch sides to see each package
 - **Clicking a file** opens a drawer to read it; markdown previews by default (frontmatter keys and
   values on separate lines) and can be switched to raw; non-markdown files show raw only

@@ -164,6 +164,10 @@ never writes to any agent's registry; it tells the user what happened and hands 
   this type".
 - B9 Markdown opens for reading in place (relative-path images resolve against the artifact's own
   directory); prototypes' HTML is handed to the system default application (it needs to actually run).
+  A read that fails (the file was removed after the scan listed it) shows a toast and no overlay,
+  rather than the click doing nothing — landed 2026-09-13 on the query layer (ADR-0028), the read
+  going through `artifact-content-query`'s result wrapper rather than an unhandled rejection.
+  Reopening an already-read file is a cached, instant revisit.
 - B10 `.scratch/` is not under `docs/` by construction and does not count as an artifact (tickets are
   working documents — see the division of labour in specs/README).
 

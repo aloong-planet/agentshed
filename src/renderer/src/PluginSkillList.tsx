@@ -4,9 +4,9 @@
 // An unreadable row (missing package root / null stats) is greyed out and unclickable (H6, failing
 // before the click); a native disabled attribute shows no
 // title, so a class name is used to grey it out while keeping the tooltip.
-import { useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { PluginSkillSummary } from '@shared/domain'
-import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
+import type { ListSkillFilesArgs, SkillFileEntry } from '@shared/ipc'
 import { SkillFileDrawer } from './SkillFileDrawer'
 import { SkillFilesTable, formatSize } from './SkillFilesTable'
 import { toast } from './Toast'
@@ -14,6 +14,7 @@ import { errorText } from '@shared/error-text'
 import { useLanguage, useDict } from './language'
 import { ChevronRight, Dot } from './icons'
 import { SIDE_SHORT_NAME } from './side-badge'
+import { useSkillFilesQuery } from './skill-files-query'
 
 export function PluginSkillList({
   ns,
@@ -31,40 +32,22 @@ export function PluginSkillList({
   const t = useDict()
   const lang = useLanguage()
   const [openName, setOpenName] = useState<string | null>(null)
-  const [listing, setListing] = useState<ListSkillFilesResult | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
   const [drawer, setDrawer] = useState<{ f: SkillFileEntry; skill: string } | null>(null)
-  // A race guard: when rows change quickly, an old request's result must not be attributed to the new
-  // row (sideways pollution)
-  const seq = useRef(0)
 
-  async function toggle(name: string): Promise<void> {
-    if (openName === name) {
-      seq.current++
-      setOpenName(null)
-      setListing(null)
-      return
-    }
-    const my = ++seq.current
-    setOpenName(name)
-    setListing(null)
-    setErr(null)
-    setLoading(true)
-    try {
-      const r = await window.agentshed.listSkillFiles({
-        side,
-        name,
-        scope: 'plugin',
-        pluginRoot: root!
-      })
-      if (seq.current === my) setListing(r)
-    } catch (e) {
-      if (seq.current === my) setErr(String(e))
-      toast('err', t.skills.listFailed(errorText(lang, e)))
-    } finally {
-      if (seq.current === my) setLoading(false)
-    }
+  // Not expanded yet → the query is disabled (fetch on first expand); re-expanding a previously
+  // opened row hits the cache instead of always refetching, unlike the pre-query-layer code.
+  const args: ListSkillFilesArgs | null =
+    openName === null ? null : { side, name: openName, scope: 'plugin', pluginRoot: root! }
+  const { data: listResult, isLoading: loading } = useSkillFilesQuery(args)
+  const listing = listResult?.ok ? listResult.listing : null
+  const err = listResult?.ok === false ? String(listResult.error) : null
+
+  useEffect(() => {
+    if (listResult?.ok === false) toast('err', t.skills.listFailed(errorText(lang, listResult.error)))
+  }, [listResult])
+
+  function toggle(name: string): void {
+    setOpenName((prev) => (prev === name ? null : name))
   }
 
   return (
@@ -80,7 +63,7 @@ export function PluginSkillList({
               className={`psk ${on ? 'on' : ''} ${readable ? '' : 'dis'}`}
               title={readable ? undefined : reason}
               onClick={() => {
-                if (readable) void toggle(s.name)
+                if (readable) toggle(s.name)
               }}
             >
               <span className="cv">{readable ? <ChevronRight size={11} /> : <Dot size={11} />}</span>

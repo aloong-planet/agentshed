@@ -4580,3 +4580,75 @@ test('leaving a project for a session page and coming back (query layer closeout
   expect(l.errors).toEqual([])
   await close(l)
 })
+
+test('opening an artifact whose file was removed after the scan (query layer): a toast surfaces the failure, no overlay, no crash', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifact-fail-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const ctx = join(proj, 'CONTEXT.md')
+  writeFileSync(ctx, '# Doomed\n\nGone before it opens.\n')
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
+  await expect(win.locator('.it.ai', { hasText: 'Doomed' })).toBeVisible()
+
+  rmSync(ctx, { force: true })
+  await win.locator('.it.ai', { hasText: 'Doomed' }).click()
+  await expect(win.locator('.toast')).toBeVisible()
+  await expect(win.locator('.reader')).toHaveCount(0)
+
+  await close(l)
+})
+
+test('reopening a skill file table (query layer): first expand is slow, reopening it is instant', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-skillcache-'))
+  const gskills = join(home, '.claude', 'skills')
+  mkdirSync(join(gskills, 'tdd'), { recursive: true })
+  writeFileSync(join(gskills, 'tdd', 'SKILL.md'), '---\ndescription: Red before green\n---\n\nbody\n')
+  const l = await launch(undefined, home, { AGENTSHED_FETCH_DELAY_MS: '600' })
+  const win = await l.app.firstWindow()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const row = win.locator('.sk-head', { hasText: 'tdd' })
+  await expect(row).toBeVisible()
+
+  await row.click()
+  // Sampled inside the 600ms delay window, immediately after the click: still the "listing" placeholder
+  await expect(win.locator('.sk-body .files .empty')).toBeVisible()
+  await expect(win.locator('.sk-body .files-card')).toBeVisible()
+
+  await row.click() // collapse
+  await row.click() // reopen — a cached visit, well inside the delay window
+  await expect(win.locator('.sk-body .files-card')).toBeVisible({ timeout: 200 })
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('reopening an artifact (query layer): first open is slow, reopening it is instant', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-artifactcache-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(proj, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  writeFileSync(join(proj, 'CONTEXT.md'), '# Cached artifact\n\nbody\n')
+  const l = await launch(undefined, home, { AGENTSHED_FETCH_DELAY_MS: '600' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
+  await expect(win.locator('.it.ai', { hasText: 'Cached artifact' })).toBeVisible()
+
+  await win.locator('.it.ai', { hasText: 'Cached artifact' }).click()
+  // Sampled inside the 600ms delay window, immediately after the click: no overlay yet
+  await expect(win.locator('.reader')).toHaveCount(0)
+  await expect(win.locator('.reader .md')).toContainText('body')
+
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await win.locator('.it.ai', { hasText: 'Cached artifact' }).click() // reopen — a cached visit
+  await expect(win.locator('.reader .md')).toContainText('body', { timeout: 200 })
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})

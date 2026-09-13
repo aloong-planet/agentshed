@@ -31,7 +31,9 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
 - Artifacts tab: the six kinds of artifact laid out flat in reverse chronological order, filterable
   by type chips; the chips are ordered by the top-down derivation chain (CONTEXT.md → ADR → specs →
   prototypes → features → postmortems); markdown opens in an overlay for reading, and prototypes'
-  HTML opens with the system default application
+  HTML opens with the system default application. Reopening a file you already read (from the list or
+  from a cross-reference link) shows it at once; if a file cannot be read, a toast says so rather than
+  the click doing nothing
 - Sessions: this project's sessions on every agent side, with sorting and search, opening to the full
   conversation (see [Session view](session-view.md))
 - A stale project's detail page opens as a note page instead of the sections: it names why the

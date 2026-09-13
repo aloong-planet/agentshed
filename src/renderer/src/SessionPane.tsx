@@ -8,7 +8,7 @@
 // of banner at the top.
 import { Fragment, useEffect, useState } from 'react'
 import { SIDE_BADGE, SIDE_FULL_NAME } from './side-badge'
-import type { SessionPage, SessionTurn } from '@shared/domain'
+import type { SessionPage } from '@shared/domain'
 import { fmtAgo } from './ProjectsPane'
 import { fmtTok } from './TokenViz'
 import { dayGroups, groupable, type QuestionOrder } from './question-groups'
@@ -19,6 +19,7 @@ import { RichText } from './RichText'
 import { formatBytes } from '@shared/format'
 import { Bot, ChevronLeft, ChevronRight, GitFork, Terminal } from './icons'
 import { useSessionPageQuery } from './session-page-query'
+import { useTurnContentQuery } from './turn-content-query'
 
 
 function fmtHM(ms: number | null): string {
@@ -28,16 +29,6 @@ function fmtHM(ms: number | null): string {
   return `${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-
-/** A single turn's fetch state in the UI (ticket 05): expanded in place, reading only the turn clicked */
-type TurnState =
-  | { s: 'loading' }
-  | { s: 'rebuilding' }
-  | { s: 'ready'; turn: SessionTurn; ms: number }
-  // Held as the **raw error** rather than a finished sentence: composition happens at render time,
-  // so after a language switch the same error re-renders in the new language (the spec's "switching
-  // languages" section)
-  | { s: 'error'; raw: unknown }
 
 /** The three tiers of top banner (ticket 06): two info kinds and one risk kind; the copy follows what the
  * data actually says and offers no false certainty */
@@ -172,9 +163,46 @@ export function SessionPane({
 }
 
 /**
- * The question list and its per-turn fetch state (session-view sequence C, P4): fetches through the
- * query layer above it for the page itself, and its own on-demand IPC calls for turn contents (Out
- * of Scope for this ticket's query-layer migration — P9).
+ * A single expanded turn (session-view sequence C, ADR-0028): mounted only while its question row is
+ * open, so mounting *is* "fetch on demand" and unmounting is what "collapsing does not lose it" now
+ * rests on — the query cache, not local state, is what makes reopening an already-fetched turn
+ * instant. `rebuilding` is a plain local flag, reset by the remount on every reopen, set as a side
+ * effect the moment the freshness check (inside the query) reports stale.
+ */
+function TurnContent({ file, i }: { file: string; i: number }): JSX.Element {
+  const t = useDict()
+  const lang = useLanguage()
+  const [rebuilding, setRebuilding] = useState(false)
+  const { data } = useTurnContentQuery(file, i, () => setRebuilding(true))
+
+  return (
+    <div className="turn">
+      {data === undefined && !rebuilding && <div className="tnote">{t.session.fetching}</div>}
+      {data === undefined && rebuilding && (
+        <div className="tnote">
+          <RichText text={t.session.rebuilding} />
+        </div>
+      )}
+      {data?.ok === false && (
+        <div className="tnote">{t.session.turnFailed(errorText(lang, data.error))}</div>
+      )}
+      {data?.ok && (
+        <>
+          {data.turn.blocks.map((b, bi) => (
+            <BlockView b={b} key={bi} />
+          ))}
+          <div className="fetched">
+            {t.session.fetchedNote(data.ms, formatBytes(lang, data.turn.bytesRead))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The question list (session-view sequence C, P4): fetches through the query layer above it for the
+ * page itself; each expanded turn's content is TurnContent's own query.
  */
 function SessionPageBody({
   page,
@@ -194,7 +222,6 @@ function SessionPageBody({
   /** The expanded turns (array indices); 0 expanded by default — pre-expanding would defeat "fetch on
    * demand" */
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
-  const [turns, setTurns] = useState<ReadonlyMap<number, TurnState>>(new Map())
   /** The question sort (ticket 06): descending by default (the user's ruling 2026-08-06, newest question
    * first);
    * the index is always the original turn number, and the sort only changes the presentation order */
@@ -217,54 +244,23 @@ function SessionPageBody({
     // relocate too; a session change instead remounts the whole component (keyed by file above).
   }, [focusQ])
 
-  const setTurn = (i: number, st: TurnState): void => {
-    setTurns((m) => {
-      const n = new Map(m)
-      n.set(i, st)
-      return n
-    })
-  }
-
-  const fetchTurn = async (i: number): Promise<void> => {
-    const f = page.file
-    setTurn(i, { s: 'loading' })
-    try {
-      // Ask "is the index still fresh" first: if not, show "rebuilding" — the user sees a process rather
-      // than a blank wait
-      const fresh = await window.agentshed.sessionFresh(f)
-      if (!fresh) setTurn(i, { s: 'rebuilding' })
-      const t0 = performance.now()
-      const turn = await window.agentshed.getSessionTurn({ file: f, i })
-      setTurn(i, { s: 'ready', turn, ms: Math.max(1, Math.round(performance.now() - t0)) })
-    } catch (e) {
-      // A single turn's failure only hurts itself: that turn shows an error without affecting the others
-      // or dragging down the page
-      setTurn(i, { s: 'error', raw: e })
-    }
-  }
-
   const toggle = (i: number): void => {
     // Clicking any question row counts as attention moving on: clear the locating bar (the clearing
     // moment confirmed by the prototype)
     setFocused(null)
-    const was = open.has(i)
     setOpen((prev) => {
       const n = new Set(prev)
-      if (was) n.delete(i)
+      if (n.has(i)) n.delete(i)
       else n.add(i)
       return n
     })
-    if (was) return
-    const st = turns.get(i)
-    // Already fetched turns are shown directly (collapsing does not lose them); in-flight ones are not
-    // re-sent
-    if (st && st.s !== 'error') return
-    void fetchTurn(i)
+    // The fetch itself is driven by TurnContent mounting below (only rendered while a row is open),
+    // not by this handler: collapsing unmounts it and reopening remounts it, and the query cache is
+    // what makes an already-fetched turn instant on reopen and a previously-failed one retry.
   }
 
   const row = (q: SessionPage['questions'][number], idx: number): JSX.Element => {
     const on = open.has(idx)
-    const st = turns.get(idx)
     return (
       <Fragment key={q.i}>
         <div
@@ -297,29 +293,7 @@ function SessionPageBody({
           )}
           <span className="tm">{fmtHM(q.at)}</span>
         </div>
-        {on && (
-          <div className="turn">
-            {(!st || st.s === 'loading') && <div className="tnote">{t.session.fetching}</div>}
-            {st?.s === 'rebuilding' && (
-              <div className="tnote">
-                <RichText text={t.session.rebuilding} />
-              </div>
-            )}
-            {st?.s === 'error' && (
-              <div className="tnote">{t.session.turnFailed(errorText(lang, st.raw))}</div>
-            )}
-            {st?.s === 'ready' && (
-              <>
-                {st.turn.blocks.map((b, bi) => (
-                  <BlockView b={b} key={bi} />
-                ))}
-                <div className="fetched">
-                  {t.session.fetchedNote(st.ms, formatBytes(lang, st.turn.bytesRead))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        {on && <TurnContent file={page.file} i={idx} />}
       </Fragment>
     )
   }
