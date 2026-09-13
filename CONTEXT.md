@@ -619,6 +619,16 @@ _Avoid_: reload, refetch (they name the fetch, not what the page does with its r
   invalidated on every rescan is cheaper than a wait that has to be explained. The mechanism is
   ADR-0028's.
 
+- **A concurrent React root does not need `startTransition` to hold already-revealed content
+  (measured 2026-09-13)**: once a Suspense boundary rendered under `createRoot` has committed real
+  content, a later update that suspends it — a plain `setState` or one wrapped in `startTransition`
+  alike — keeps that content on screen and is preemptible by a still-later update, with no visible
+  flash of the fallback in between. A `startTransition` around such an update is still worth writing
+  (it is React's documented pattern, it costs nothing, and it is the seam that would matter against
+  a competing high-priority update), but its removal cannot be relied on as a mutation that turns a
+  "the previous page holds" test red — confirmed by rebuilding without it and running that test,
+  which stayed green. Do not write or trust such a mutation without re-measuring first.
+
 ## Flagged ambiguities
 
 - **"Live day" is retired (2026-09-09)**: liveness was a property of a day, so a side whose

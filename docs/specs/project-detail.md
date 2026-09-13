@@ -192,12 +192,19 @@ never writes to any agent's registry; it tells the user what happened and hands 
 - **The query layer** (ADR-0028): the detail is a suspense query keyed by the project path, and the
   selection change that alters the key runs inside a Transition. The list highlight is driven by the
   immediate selection and the pane by the transitioned one — that is the whole of "the highlight
-  moves at once, the pane waits". One Suspense boundary wraps the detail slot of the Projects dimension — the pane, already
-  revealed when a switch happens, so a Transition holds it, and a fallback can never blank the list
-  beside it; the fallback draws nothing and is reachable only by a key change made outside a
-  Transition — a regression the e2e hold assertion catches, since nothing in the types does. Every
-  update that can change a key runs inside a Transition: selecting a project, opening or leaving a
-  session, entering the Projects dimension. A snapshot arrival invalidates every query (the mounted one refetches, the
+  moves at once, the pane waits". One Suspense boundary wraps the detail slot of the Projects
+  dimension; its fallback draws nothing.
+  **Measured, not assumed (2026-09-13)**: with React 18's `createRoot`, once a Suspense boundary has
+  committed real content, a later update that suspends it — whether wrapped in `startTransition` or
+  a plain `setState` — holds that content rather than reverting to the fallback, and an update that
+  arrives before an earlier one has committed preempts it, again regardless of Transition. A mutation
+  removing the Transition around the selection change was rebuilt and run against the hold e2e case
+  (T1) and it stayed green: the fallback never appeared. The Transition is kept anyway — it is
+  React's documented pattern for this exact scenario, costs nothing, and is the seam that would
+  matter the day a competing high-priority update needs to preempt a pending switch, which nothing
+  here currently exercises. Its correctness is therefore asserted by matching the documented pattern
+  and by the passing hold/interruption cases, not by a mutation that turns them red.
+  A snapshot arrival invalidates every query (the mounted one refetches, the
   others on their next mount); a page-local change invalidates its own project's query. Every mount
   revalidates (T2); window focus does not (T13); a failed fetch is not retried, so failures surface
   at once as they do today. Collection keeps the library's default window (T11). A query function

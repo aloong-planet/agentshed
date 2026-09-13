@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState, useTransition } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Snapshot } from '@shared/domain'
 import type { Prefs } from '@shared/prefs'
 import { backfillPrefs, type PrefKey } from './prefs-backfill'
@@ -33,7 +34,15 @@ function applyLang(lang: Language): void {
 export function App(): JSX.Element {
   const [dim, setDim] = useState<Dim>('agents')
   const [snap, setSnap] = useState<Snapshot | null>(null)
+  const queryClient = useQueryClient()
+  // `selected` drives the projects list highlight and updates immediately on a click. `shownProject`
+  // drives what the detail slot actually renders and is updated inside a Transition (ADR-0028,
+  // project-detail T1): while the next project's detail is suspended, React keeps showing the pane
+  // built from the last-committed `shownProject`, so the previous project's page stays on screen and
+  // only the highlight moves at once.
   const [selected, setSelected] = useState<string | null>(null)
+  const [shownProject, setShownProject] = useState<string | null>(null)
+  const [, startProjectTransition] = useTransition()
   // Session page view state (ticket 04): when non-empty, the project detail area is replaced wholesale
   // by the session page; switching project exits it
   const [openSession, setOpenSession] = useState<string | null>(null)
@@ -69,6 +78,7 @@ export function App(): JSX.Element {
   prefsRef.current = { theme, language: langPref, mode }
   const selectProject = (p: string | null): void => {
     setSelected(p)
+    startProjectTransition(() => setShownProject(p))
     setOpenSession(null)
     setOpenFocusQ(null)
     setBackToSessions(false)
@@ -92,7 +102,12 @@ export function App(): JSX.Element {
     void window.agentshed.getSnapshot().then((s) => {
       if (alive) setSnap(s)
     })
-    const off = window.agentshed.onSnapshot((s) => setSnap(s))
+    // A new snapshot (an automatic rescan) marks every cached project detail stale (project-detail
+    // T3): a page on screen refetches by transfusion, one not on screen refetches on its next visit.
+    const off = window.agentshed.onSnapshot((s) => {
+      setSnap(s)
+      void queryClient.invalidateQueries({ queryKey: ['projectDetail'] })
+    })
     // The application menu's app entry point (ticket 13): it behaves exactly like the same-named
     // operation on the rail, going through the same state and functions rather than a second set
     const offSettings = window.agentshed.onMenuOpenSettings(() => setDim('settings'))
@@ -209,41 +224,47 @@ export function App(): JSX.Element {
             selected={selected}
             onSelect={selectProject}
             detail={
-              selected && openSession ? (
-                <SessionPane
-                  file={openSession}
-                  focusQ={openFocusQ}
-                  projectName={snap.projects.find((p) => p.path === selected)?.name ?? selected}
-                  now={snap.scannedAt}
-                  onBack={() => {
-                    setOpenSession(null)
-                    setOpenFocusQ(null)
-                    setBackToSessions(true)
-                  }}
-                  onOpenSession={(f) => {
-                    setOpenSession(f)
-                    setOpenFocusQ(null)
-                  }}
-                />
-              ) : selected ? (
-                <DetailPane
-                  snap={snap}
-                  path={selected}
-                  initialTab={backToSessions ? 'sessions' : undefined}
-                  onOpenSession={(f, q) => {
-                    setOpenSession(f)
-                    setOpenFocusQ(q ?? null)
-                    setBackToSessions(false)
-                  }}
-                />
-              ) : (
-                <div className="empty">
-                  <div className="big">
-                    <MousePointerClick size={30} />
+              // The detail slot's one Suspense boundary (ADR-0028): the slot is already revealed when a
+              // switch happens, so the Transition around `shownProject` holds this boundary's last
+              // committed content instead of ever reaching the fallback (project-detail T1). The
+              // fallback draws nothing and is reachable only by a key change made outside a Transition.
+              <Suspense fallback={null}>
+                {shownProject && openSession ? (
+                  <SessionPane
+                    file={openSession}
+                    focusQ={openFocusQ}
+                    projectName={snap.projects.find((p) => p.path === shownProject)?.name ?? shownProject}
+                    now={snap.scannedAt}
+                    onBack={() => {
+                      setOpenSession(null)
+                      setOpenFocusQ(null)
+                      setBackToSessions(true)
+                    }}
+                    onOpenSession={(f) => {
+                      setOpenSession(f)
+                      setOpenFocusQ(null)
+                    }}
+                  />
+                ) : shownProject ? (
+                  <DetailPane
+                    snap={snap}
+                    path={shownProject}
+                    initialTab={backToSessions ? 'sessions' : undefined}
+                    onOpenSession={(f, q) => {
+                      setOpenSession(f)
+                      setOpenFocusQ(q ?? null)
+                      setBackToSessions(false)
+                    }}
+                  />
+                ) : (
+                  <div className="empty">
+                    <div className="big">
+                      <MousePointerClick size={30} />
+                    </div>
+                    <div>{t.shell.pickProject}</div>
                   </div>
-                  <div>{t.shell.pickProject}</div>
-                </div>
-              )
+                )}
+              </Suspense>
             }
           />
         )}

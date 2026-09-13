@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { MarkdownBody } from './MarkdownBody'
-import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectSkillEntry, Snapshot, SearchResult } from '@shared/domain'
+import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectEntry, ProjectSkillEntry, Snapshot, SearchResult } from '@shared/domain'
 import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
+import { projectDetailQueryKey, useProjectDetailQuery } from './project-detail-query'
 import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
 import { StaleNote } from './StaleNote'
 import { fmtTok, ModelBars, TotalsCards, TrendChart, useWindowLabel } from './TokenViz'
@@ -37,34 +39,7 @@ export function DetailPane({
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
   const t = useDict()
-  const [tab, setTab] = useState<Tab>(initialTab ?? 'ov')
-  // Above the tab switch so the selection survives moving between tabs (G11). The overview is
-  // conditionally rendered, so state held inside it would be discarded on every switch.
-  const [win, setWin] = useState<UsageWindow>('all')
-  const [detail, setDetail] = useState<ProjectDetail | null>(null)
-  const [reload, setReload] = useState(0)
   const entry = snap.projects.find((p) => p.path === path)
-
-  // Transfusion updates (project-detail A3): the loading state appears only when switching project; a
-  // snapshot update (an automatic rescan)
-  // and a partial refresh silently replace the rendered content, so a section's local state (expansion,
-  // search, scroll) survives the refresh
-  useEffect(() => {
-    setDetail(null)
-  }, [path])
-  // The stale note page renders from the snapshot entry alone (spec S6): no detail fetch fires, so
-  // no loading state can appear
-  const stale = entry?.stale === true
-  useEffect(() => {
-    if (stale) return
-    let alive = true
-    void window.agentshed.getProjectDetail(path).then((d) => {
-      if (alive) setDetail(d)
-    })
-    return () => {
-      alive = false
-    }
-  }, [path, snap.scannedAt, reload, stale])
 
   if (!entry) return <div className="empty">{t.detail.notInSnapshot}</div>
 
@@ -84,6 +59,35 @@ export function DetailPane({
       </div>
     )
   }
+
+  return (
+    <DetailPaneBody entry={entry} snap={snap} initialTab={initialTab} onOpenSession={onOpenSession} />
+  )
+}
+
+/**
+ * The sectioned page (project-detail A3, sequence T): fetches through the query layer (ADR-0028), so
+ * it is the only part of DetailPane that can suspend — the not-in-snapshot and stale branches above
+ * never fetch and so never suspend (T7, S6).
+ */
+function DetailPaneBody({
+  entry,
+  snap,
+  initialTab,
+  onOpenSession
+}: {
+  entry: ProjectEntry
+  snap: Snapshot
+  initialTab?: Tab
+  onOpenSession: (file: string, focusQ?: number) => void
+}): JSX.Element {
+  const t = useDict()
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'ov')
+  // Above the tab switch so the selection survives moving between tabs (G11). The overview is
+  // conditionally rendered, so state held inside it would be discarded on every switch.
+  const [win, setWin] = useState<UsageWindow>('all')
+  const result = useProjectDetailQuery(entry.path)
+  const queryClient = useQueryClient()
 
   return (
     <div className="pane">
@@ -117,11 +121,15 @@ export function DetailPane({
         </nav>
       </header>
       <div className="pane-body">
-        {detail === null ? null : ( // While the detail loads nothing is drawn: a transient label here only flickered on a project switch (removed 2026-09-11 at the user's ruling)
-          <>
+        {result.ok ? (
+          // Keyed by the resolved project (project-detail A3, Implementation Decisions "Section state
+          // is keyed by project"): a project change unmounts and remounts every section, resetting its
+          // local state (expansion, search, scroll) exactly as it did when a switch cleared `detail` to
+          // null; a transfusion of the same project keeps the key, so that state survives the refresh.
+          <Fragment key={result.detail.path}>
             {tab === 'ov' && (
               <OverviewTab
-                detail={detail}
+                detail={result.detail}
                 snap={snap}
                 onOpenSession={onOpenSession}
                 window={win}
@@ -129,34 +137,32 @@ export function DetailPane({
               />
             )}
             {tab === 'skills' && (
-              // Keyed by project so switching to another one is a **different** section rather than the
-              // same one handed new data: the filter keyword belongs to the list being looked at, and
-              // carrying it across would filter the new project's skills by a word typed for the old
-              // one — a populated project then looks empty, with the box scrolled out of view.
-              //
-              // A refresh of the *same* project keeps the key, so the keyword survives that, which is
-              // the intended asymmetry (a refresh is not a change of subject).
               <SkillsTab
-                key={detail.path}
-                detail={detail}
-                onChanged={() => setReload((v) => v + 1)}
+                detail={result.detail}
+                onChanged={() =>
+                  void queryClient.invalidateQueries({ queryKey: projectDetailQueryKey(entry.path) })
+                }
               />
             )}
-            {tab === 'subagents' && <ProjectSubagentsTab detail={detail} />}
-            {tab === 'plugins' && <ProjectPluginsTab detail={detail} snap={snap} />}
-            {tab === 'mcp' && <McpTab detail={detail} />}
+            {tab === 'subagents' && <ProjectSubagentsTab detail={result.detail} />}
+            {tab === 'plugins' && <ProjectPluginsTab detail={result.detail} snap={snap} />}
+            {tab === 'mcp' && <McpTab detail={result.detail} />}
             {tab === 'memory' && (
               <ProjectMemoryTab
-                detail={detail}
+                detail={result.detail}
                 hasClaudeSide={entry.sides.includes('claude')}
                 anchor={snap.scannedAt}
               />
             )}
-            {tab === 'sessions' && <SessionsTab detail={detail} snap={snap} onOpenSession={onOpenSession} />}
-            {tab === 'cfg' && <CfgTab detail={detail} />}
-            {tab === 'arts' && <ArtifactsTab detail={detail} snap={snap} />}
-          </>
-        )}
+            {tab === 'sessions' && (
+              <SessionsTab detail={result.detail} snap={snap} onOpenSession={onOpenSession} />
+            )}
+            {tab === 'cfg' && <CfgTab detail={result.detail} />}
+            {tab === 'arts' && <ArtifactsTab detail={result.detail} snap={snap} />}
+          </Fragment>
+        ) : null // T10: a fetch failure resolves in-band; the body stays empty under the new header, as
+        // it always did while the detail was loading — no error card is invented.
+        }
       </div>
     </div>
   )

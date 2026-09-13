@@ -113,6 +113,10 @@ let firstScanDelayed = false
  * a past day. Development changes accounting code without changing either version component, so a
  * legitimate decrease would otherwise be retained as if it were a loss. Never set in production. */
 const ARCHIVE_FORCE_ACCEPT = process.env['AGENTSHED_ARCHIVE_FORCE_ACCEPT'] === '1'
+/** Test seam (the same injection family as the rescan intervals and the scan delay): an artificial
+ * delay before a project-detail fetch resolves, letting e2e assert that a switch holds the previous
+ * page instead of blanking it (project-detail T1, ADR-0028). 0 in production. */
+const FETCH_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_FETCH_DELAY_MS'], 0)
 
 async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
@@ -211,8 +215,9 @@ const openedProjects = new Set<string>()
  * registered by the scan or detail may be enumerated */
 const pluginRootWhitelist = new Set<string>()
 
-handle(CMD.getProjectDetail, (_e, path: unknown) => {
+handle(CMD.getProjectDetail, async (_e, path: unknown) => {
   if (typeof path !== 'string' || path === '') throw appError(ERR.badArgs, { channel: 'getProjectDetail', field: 'path' })
+  if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
   const detail = readProjectDetail(realRoots(), path)
   detail.stats = perProjectStats.get(mergeKey(path)) ?? null
   // Exit validation: contract drift throws at the boundary rather than rendering as undefined (the same
