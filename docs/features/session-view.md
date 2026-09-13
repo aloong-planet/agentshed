@@ -6,6 +6,12 @@ Session records sit in the agent sides' data directories, with no way for a user
 sessions, one per row, with "how many questions I asked in this conversation".
 
 ## Capabilities
+- **Opening a session turns a page rather than flashing one**: the project page you are on stays put
+  until the session page has arrived, then the stage switches at once. A session opened earlier in
+  this run comes back instantly, and jumping to a fork's parent through the banner works the same
+  way. While a session page is open, an automatic refresh keeps its question list current with the
+  file — a question asked since you opened it appears on its own, while an expanded answer, the sort
+  and the day-group folding you left stay exactly as they were.
 - **Session page**: opened by clicking a session row (in the section or on the overview card) — at
   the top are the back button, side badge, title and volume information (question count / tokens /
   file size / last activity), and the body is **every real question** of that conversation, one per
@@ -103,9 +109,9 @@ sessions, one per row, with "how many questions I asked in this conversation".
 - A project with no sessions at all gets an empty state
 
 ## Boundaries and non-goals
-- A session page left open while Codex compresses its file loses that file: the next click on a
-  question shows that turn's error, and the session reappears under its compressed form after the
-  next refresh
+- A session page left open while Codex compresses its file loses that file: the page itself shows an
+  error after the automatic refresh that follows, rather than a stale page or a crash, and the
+  session reappears in the list under its compressed form; opening it there works as normal
 - MCP tool calls and web searches made by Codex are not shown inside a turn, on either of its record
   formats; the calls that do show are the command, patch, dynamic and search-tool calls it records
   as tool calls
