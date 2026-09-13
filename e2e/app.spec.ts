@@ -3324,7 +3324,9 @@ test('the sessions section: a fork session has its replay prefix stripped and is
 // appearance ticket 02: the settings third dimension + the three appearance choices; data-theme applies
 // immediately and entering and leaving settings does not lose the selection
 test('settings: the three appearance choices change data-theme, and entering and leaving settings keeps the selected project', async () => {
-  const l = await launch(undefined, mkEmptyProjectHome())
+  // The delay (query layer, ADR-0028) makes a fresh fetch observably slower than a cached visit,
+  // which is what the return-to-Projects assertion below (project-detail T9) needs to distinguish.
+  const l = await launch(undefined, mkEmptyProjectHome(), { AGENTSHED_FETCH_DELAY_MS: '500' })
   const win = await l.app.firstWindow()
   await expect(win.locator('.rail .ri').first()).toBeVisible()
   // Purple by default (no prefs, or purple); html carries data-theme
@@ -3335,6 +3337,8 @@ test('settings: the three appearance choices change data-theme, and entering and
   await expect(win.locator('.side .row').first()).toBeVisible()
   await win.locator('.side .row').first().click()
   await expect(win.locator('.side .row.sel')).toHaveCount(1)
+  // Let the first visit's detail arrive before leaving — the assertion below is about the *return*
+  await expect(win.locator('.pane-body .tot-sides')).toBeVisible()
 
   // The settings dimension
   await win.getByTitle('Settings').click()
@@ -3349,9 +3353,13 @@ test('settings: the three appearance choices change data-theme, and entering and
   await expect.poll(async () => win.locator('html').getAttribute('data-theme')).toBe('blue')
   await expect(win.locator('[data-theme-option="blue"]')).toHaveAttribute('aria-checked', 'true')
 
-  // Back to Projects: the selection is still there and the theme is still blue (app-wide)
+  // Back to Projects: the selection is still there and the theme is still blue (app-wide). Leaving
+  // the dimension unmounts the detail pane, but the query layer's cache survives it (project-detail
+  // T9): the body is visible well inside the 500ms delay, proving this is a cached visit, not a
+  // fresh fetch.
   await win.locator('.rail .ri').nth(1).click()
   await expect(win.locator('.side .row.sel')).toHaveCount(1)
+  await expect(win.locator('.pane-body .tot-sides')).toBeVisible({ timeout: 200 })
   await expect.poll(async () => win.locator('html').getAttribute('data-theme')).toBe('blue')
   // Back on the Agents main area it is still blue
   await win.locator('.rail .ri').first().click()
@@ -4262,4 +4270,90 @@ test('startup skeleton: projects dimension shows placeholder rows and fills in p
   } finally {
     await close(l)
   }
+})
+
+/**
+ * Query layer (ADR-0028): three plain projects with no data, used only to switch between — content
+ * volume is irrelevant here, only which project's page is on screen.
+ */
+function mkThreeProjectHome(): string {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-qlayer-'))
+  const names = ['proj-a', 'proj-b', 'proj-c']
+  const projects: Record<string, object> = {}
+  for (const n of names) {
+    mkdirSync(join(home, n), { recursive: true })
+    projects[join(home, n)] = {}
+  }
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects }))
+  return home
+}
+
+test('project switch (query layer): the highlight moves at once and the pane holds the previous project until the next detail arrives', async () => {
+  const l = await launch(undefined, mkThreeProjectHome(), { AGENTSHED_FETCH_DELAY_MS: '600' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  const rowA = win.locator('.side .row', { hasText: 'proj-a' })
+  const rowB = win.locator('.side .row', { hasText: 'proj-b' })
+  const header = win.locator('.pane-head h1')
+
+  // First visit: the empty picker holds until A's detail arrives, then A shows whole
+  await rowA.click()
+  await expect(header).toHaveText('proj-a')
+  await expect(win.locator('.pane-body .tot-sides')).toBeVisible()
+
+  await rowB.click()
+  // The highlight moves at once
+  await expect(rowB).toHaveClass(/sel/)
+  await expect(rowA).not.toHaveClass(/sel/)
+  // Sampled inside the 600ms delay window, immediately after the click: A's page is still whole —
+  // header and a non-empty body, not an empty pane under a new header (project-detail T1)
+  await expect(header).toHaveText('proj-a')
+  await expect(win.locator('.pane-body .tot-sides')).toBeVisible()
+
+  // After the delay, the pane switches to B in one frame
+  await expect(header).toHaveText('proj-b')
+  await expect(win.locator('.pane-body .tot-sides')).toBeVisible()
+
+  // Revisiting A is a cached visit (T2): well inside the delay window, proving it drew from cache
+  // rather than waiting on a fresh fetch
+  await rowA.click()
+  await expect(header).toHaveText('proj-a', { timeout: 200 })
+  await expect(win.locator('.pane-body .tot-sides')).toBeVisible({ timeout: 200 })
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('project switch (query layer): rapid A → B → C never shows B, and B is still cached afterwards', async () => {
+  const l = await launch(undefined, mkThreeProjectHome(), { AGENTSHED_FETCH_DELAY_MS: '600' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  const rowA = win.locator('.side .row', { hasText: 'proj-a' })
+  const rowB = win.locator('.side .row', { hasText: 'proj-b' })
+  const rowC = win.locator('.side .row', { hasText: 'proj-c' })
+  const header = win.locator('.pane-head h1')
+
+  await rowA.click()
+  await expect(header).toHaveText('proj-a')
+  await expect(win.locator('.pane-body .tot-sides')).toBeVisible()
+
+  // B, then C before B's 600ms delay can elapse: the pending switch to B is interrupted and B's
+  // page is never committed (project-detail T5)
+  await rowB.click()
+  await rowC.click()
+  await expect(rowC).toHaveClass(/sel/)
+  // Immediately after interrupting: still on A (neither B nor C has committed yet)
+  await expect(header).toHaveText('proj-a')
+
+  // C eventually lands
+  await expect(header).toHaveText('proj-c')
+  await expect(win.locator('.pane-body .tot-sides')).toBeVisible()
+
+  // B's fetch still completed and was cached even though its page never showed: revisiting it now
+  // is a cached visit, well inside the delay window
+  await rowB.click()
+  await expect(header).toHaveText('proj-b', { timeout: 200 })
+
+  expect(l.errors).toEqual([])
+  await close(l)
 })

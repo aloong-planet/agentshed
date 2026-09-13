@@ -8,6 +8,11 @@ accumulated" is the product's founding question. The detail page answers it acro
 Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Artifacts and Sessions.
 
 ## Capabilities
+- Switching between projects turns a page rather than flashing one: the page you are on stays put
+  until the next project's detail has arrived, then the whole page switches at once — no empty pane,
+  no loading label, no new title over old content. Only the list highlight moves right away. A
+  project already opened earlier in this run comes back at once and quietly refreshes behind the
+  scenes; leaving for the Agents or Settings page and returning is likewise instant.
 - Skills effective view: within one side, a same-name pair shows only the project-level entry (the
   shadowed global one is not listed alongside); anything that exists only globally is still listed;
   on-disk skills expand to preview a package's files (see [Skills view](skills-view.md)); symlinks

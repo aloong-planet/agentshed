@@ -679,8 +679,11 @@ below are archived as a decision record and are no longer requirements)**
   harmless).
 - **The query layer** (ADR-0028): the session page is a suspense query keyed by the session file;
   opening, jumping and returning run inside a Transition, held by the same detail-slot Suspense
-  boundary as project detail (its fallback draws nothing and is reachable only outside a
-  Transition). A snapshot arrival invalidates the page's query (P5); every mount revalidates; window
+  boundary as project detail (its fallback draws nothing). Project detail's own ticket measured that
+  React 18's `createRoot` already holds an already-revealed Suspense boundary's content and preempts
+  a stale in-flight render for a plain `setState`, not only a transitioned one — re-verify that
+  finding here before writing an e2e mutation that assumes the Transition alone gates the fallback.
+  A snapshot arrival invalidates the page's query (P5); every mount revalidates; window
   focus does not refetch; nothing is retried; the query function resolves to a result value (the
   page, or the failure) and never throws, so the page's error state stays a branch of the page.
   Page-local state is keyed by the session file, as before.

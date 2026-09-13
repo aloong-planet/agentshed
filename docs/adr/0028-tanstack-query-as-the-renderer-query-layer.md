@@ -56,11 +56,17 @@ own error states are unchanged.
 - Negative: one runtime dependency and a provider at the root; a component test that mounts a page
   needs the provider (none does today — the eight renderer unit tests mount nothing).
 - Negative: until the remaining reads migrate, two fetching idioms coexist in the renderer.
-- Negative: a key change made outside a Transition suspends to the boundary's fallback (an empty
-  pane) — the old flicker returns silently on that path; the e2e hold assertion is the guard, not
-  the type system.
 - Neutral: on React 18 the library's Suspense support rides the thrown-promise protocol; React 19
   changes nothing for it.
+- Neutral, measured rather than assumed (2026-09-13, project-detail ticket): React 18's `createRoot`
+  already holds an already-revealed Suspense boundary's content and preempts a stale in-flight
+  render for a plain `setState`, not only one wrapped in `startTransition` — a mutation removing the
+  Transition around the project selection change was rebuilt and run against the hold e2e case, and
+  it stayed green. The Transition is kept for the documented pattern (React's own guidance recommends
+  wrapping navigation-like updates in it) and as the seam that would matter against a competing
+  high-priority update, which nothing here currently exercises; its necessity for the hold behaviour
+  itself is not demonstrated by an e2e mutation, and the spec sections say so rather than repeating
+  the original (assumed, wrong) claim.
 
 ## Sources
 
@@ -73,5 +79,8 @@ React 19 upgrade guide (the global `JSX` namespace removal and its codemod). Mea
 (none); npm versions react 19.3.0, @tanstack/react-query 5.102.8, swr 2.5.1; bundlephobia for
 @tanstack/react-query@5.102.8: 50.7 kB minified, 13.8 kB gzip, one dependency (query-core).
 
-**Evidence not yet closed**: the e2e cases asserting the atomic hold and the instant revisit under
-an injected fetch delay. Promote to Accepted when they are green.
+**Evidence not yet closed**: the session-page half (ticket #175) and the cross-ticket combination
+(ticket #176). The project-detail half is green as of 2026-09-13: the atomic hold, the instant
+revisit, the rapid-switch interruption and the cached-visit-after-leaving-the-dimension e2e cases
+under an injected fetch delay, plus the query-module unit tests. Promote to Accepted once the
+remaining half is green too.
