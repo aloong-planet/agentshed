@@ -36,4 +36,4 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0025](0025-usage-rows-are-the-renderer-contract.md) | Usage rows are the one source every token figure derives from | Accepted |
 | [0026](0026-archive-retention-by-accounting-stamp.md) | Archive retention by accounting stamp, liveness per (day, side) | Accepted |
 | [0027](0027-codex-usage-records.md) | Codex usage from usage records; ccusage no longer the basis for rollouts carrying them | Accepted |
-| [0028](0028-tanstack-query-as-the-renderer-query-layer.md) | TanStack Query is the renderer's on-demand read layer; page switches run as Transitions | Proposed |
+| [0028](0028-tanstack-query-as-the-renderer-query-layer.md) | TanStack Query is the renderer's on-demand read layer; page switches run as Transitions | Accepted |

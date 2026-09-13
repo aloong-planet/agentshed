@@ -1,6 +1,6 @@
 # ADR-0028: TanStack Query is the renderer's on-demand read layer
 
-- Status: Proposed
+- Status: Accepted (2026-09-13)
 
 ## Context and problem
 
@@ -79,8 +79,13 @@ React 19 upgrade guide (the global `JSX` namespace removal and its codemod). Mea
 (none); npm versions react 19.3.0, @tanstack/react-query 5.102.8, swr 2.5.1; bundlephobia for
 @tanstack/react-query@5.102.8: 50.7 kB minified, 13.8 kB gzip, one dependency (query-core).
 
-**Evidence not yet closed**: the session-page half (ticket #175) and the cross-ticket combination
-(ticket #176). The project-detail half is green as of 2026-09-13: the atomic hold, the instant
-revisit, the rapid-switch interruption and the cached-visit-after-leaving-the-dimension e2e cases
-under an injected fetch delay, plus the query-module unit tests. Promote to Accepted once the
-remaining half is green too.
+**Evidence closed (promoted from Proposed to Accepted on 2026-09-13)**: all three tickets landed —
+project detail (#174, PR #179), the session page (#175, PR #180) and the closeout (#176), which adds
+the one case neither half could verify alone (leaving a project for a session page and coming back:
+a cached visit landing on Sessions, then a transfusion refresh). 73 e2e cases and 673 unit tests pass
+locally on the closeout's tree, including every hold, cached-revisit and rescan-refresh case across
+both pages, run and re-run after two rounds of mutation testing (each mutation reverted by hand, not
+`git checkout`). **CI itself did not confirm this**: GitHub Actions on this repository has been
+blocked by an account billing issue since PR #173 (2026-09-11), unrelated to this feature's code, and
+every PR in this feature (#178, #179, #180, and this closeout) was merged on the user's explicit
+instruction to proceed without waiting on it. The promotion rests on the local gate, not on CI.
