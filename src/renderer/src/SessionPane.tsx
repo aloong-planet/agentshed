@@ -6,7 +6,7 @@
 // fetch a whole turn is this page's on-demand action (ticket 05).
 // The organising layer (ticket 06): day grouping with collapse + ascending/descending + the three tiers
 // of banner at the top.
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { SIDE_BADGE, SIDE_FULL_NAME } from './side-badge'
 import type { SessionPage, SessionTurn } from '@shared/domain'
 import { fmtAgo } from './ProjectsPane'
@@ -18,6 +18,7 @@ import { useDict, useLanguage } from './language'
 import { RichText } from './RichText'
 import { formatBytes } from '@shared/format'
 import { Bot, ChevronLeft, ChevronRight, GitFork, Terminal } from './icons'
+import { useSessionPageQuery } from './session-page-query'
 
 
 function fmtHM(ms: number | null): string {
@@ -127,9 +128,69 @@ export function SessionPane({
 }): JSX.Element {
   const t = useDict()
   const lang = useLanguage()
-  const [page, setPage] = useState<SessionPage | null>(null)
-  // As above: store the raw error and compose the sentence at render time
-  const [err, setErr] = useState<{ raw: unknown } | null>(null)
+  const result = useSessionPageQuery(file)
+
+  return (
+    <div className="pane">
+      <header className="pane-head">
+        <button className="sback" onClick={onBack}>
+          <ChevronLeft size={12} />
+          {t.session.back(projectName)}
+        </button>
+        {result.ok && (
+          <>
+            <div className="det-title">
+              <span className={`badge ${SIDE_BADGE[result.page.side].cls}`}>
+                {SIDE_BADGE[result.page.side].label}
+              </span>
+              <h1 className="stitle">{result.page.title}</h1>
+            </div>
+            <div className="smeta">
+              {t.session.headMeta(
+                SIDE_FULL_NAME[result.page.side],
+                result.page.questions.length,
+                fmtTok(result.page.tokens),
+                formatBytes(lang, result.page.bytes),
+                fmtAgo(lang, result.page.at, now)
+              )}
+            </div>
+          </>
+        )}
+      </header>
+      <div className="pane-body">
+        {result.ok ? (
+          // Keyed by the session file (session-view P4): page-local state (expanded turns, sort,
+          // folded days, the locating focus) starts fresh per session and survives a transfusion of
+          // the same session (P5 — an automatic rescan refreshing an open page).
+          <SessionPageBody key={result.page.file} page={result.page} focusQ={focusQ} onOpenSession={onOpenSession} />
+        ) : (
+          <div className="none">{t.session.cannotOpen(errorText(lang, result.error))}</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The question list and its per-turn fetch state (session-view sequence C, P4): fetches through the
+ * query layer above it for the page itself, and its own on-demand IPC calls for turn contents (Out
+ * of Scope for this ticket's query-layer migration — P9).
+ */
+function SessionPageBody({
+  page,
+  focusQ,
+  onOpenSession
+}: {
+  page: SessionPage
+  /** Going straight to a search hit (ticket 08): after mounting, scroll to the question row with that
+   * index; null or omitted means no locating */
+  focusQ?: number | null
+  /** The banner's jump to the parent session (App switches session); without it the parent title is
+   * plain text */
+  onOpenSession?: (file: string) => void
+}): JSX.Element {
+  const t = useDict()
+  const lang = useLanguage()
   /** The expanded turns (array indices); 0 expanded by default — pre-expanding would defeat "fetch on
    * demand" */
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
@@ -142,42 +203,19 @@ export function SessionPane({
    * already expanded is still expanded when the day is reopened */
   const [folded, setFolded] = useState<ReadonlySet<string>>(new Set())
   /** The locating focus (ticket 08, prototype confirmed 2026-08-06): the row a search jumped to, whose
-   * bar stays until any row is clicked */
-  const [focused, setFocused] = useState<number | null>(null)
+   * bar stays until any row is clicked. Initialised from the prop directly — this component remounts
+   * per session (keyed by file), so the initial render already has the right value. */
+  const [focused, setFocused] = useState<number | null>(focusQ ?? null)
   /** Whether the pulse has finished playing: once it has, only the bar remains — a remount such as a sort
    * change must not flash for another 10s */
   const [pulseDone, setPulseDone] = useState(false)
-  // A fetch still in flight after switching session must not land in the new session's state
-  const fileRef = useRef(file)
-  fileRef.current = file
 
   useEffect(() => {
     setFocused(focusQ ?? null)
     setPulseDone(false)
-    // focusQ is a dependency: clicking another hit within the same session page (file unchanged) must
-    // relocate too
-  }, [file, focusQ])
-
-  useEffect(() => {
-    let alive = true
-    setPage(null)
-    setErr(null)
-    setOpen(new Set())
-    setTurns(new Map())
-    setOrder('desc')
-    setFolded(new Set())
-    window.agentshed.getSessionPage(file).then(
-      (p) => {
-        if (alive) setPage(p)
-      },
-      (e: unknown) => {
-        if (alive) setErr({ raw: e })
-      }
-    )
-    return () => {
-      alive = false
-    }
-  }, [file])
+    // Clicking another hit within the same session page (this component does not remount) must
+    // relocate too; a session change instead remounts the whole component (keyed by file above).
+  }, [focusQ])
 
   const setTurn = (i: number, st: TurnState): void => {
     setTurns((m) => {
@@ -188,20 +226,17 @@ export function SessionPane({
   }
 
   const fetchTurn = async (i: number): Promise<void> => {
-    const f = file
+    const f = page.file
     setTurn(i, { s: 'loading' })
     try {
       // Ask "is the index still fresh" first: if not, show "rebuilding" — the user sees a process rather
       // than a blank wait
       const fresh = await window.agentshed.sessionFresh(f)
-      if (fileRef.current !== f) return
       if (!fresh) setTurn(i, { s: 'rebuilding' })
       const t0 = performance.now()
       const turn = await window.agentshed.getSessionTurn({ file: f, i })
-      if (fileRef.current !== f) return
       setTurn(i, { s: 'ready', turn, ms: Math.max(1, Math.round(performance.now() - t0)) })
     } catch (e) {
-      if (fileRef.current !== f) return
       // A single turn's failure only hurts itself: that turn shows an error without affecting the others
       // or dragging down the page
       setTurn(i, { s: 'error', raw: e })
@@ -289,111 +324,71 @@ export function SessionPane({
     )
   }
 
-  const grouped = page !== null && groupable(page.questions)
-  const groups = page !== null && grouped ? dayGroups(lang, page.questions, order) : []
+  const grouped = groupable(page.questions)
+  const groups = grouped ? dayGroups(lang, page.questions, order) : []
 
   return (
-    <div className="pane">
-      <header className="pane-head">
-        <button className="sback" onClick={onBack}>
-          <ChevronLeft size={12} />
-          {t.session.back(projectName)}
-        </button>
-        {page && (
-          <>
-            <div className="det-title">
-              <span className={`badge ${SIDE_BADGE[page.side].cls}`}>{SIDE_BADGE[page.side].label}</span>
-              <h1 className="stitle">{page.title}</h1>
-            </div>
-            <div className="smeta">
-              {t.session.headMeta(
-                SIDE_FULL_NAME[page.side],
-                page.questions.length,
-                fmtTok(page.tokens),
-                formatBytes(lang, page.bytes),
-                fmtAgo(lang, page.at, now)
-              )}
-            </div>
-          </>
-        )}
-      </header>
-      <div className="pane-body">
-        {err !== null ? (
-          <div className="none">{t.session.cannotOpen(errorText(lang, err.raw))}</div>
-        ) : page === null ? null : ( // While the page loads nothing is drawn: a transient label here only flickered on a session switch (removed 2026-09-11 at the user's ruling)
-          <>
-            <Banners page={page} onOpenSession={onOpenSession} />
-            <div className="qbar">
-              <span className="grp-t">
-                {t.session.mainline(
-                  page.questions.length,
-                  grouped ? t.session.dayCount(groups.length) : ''
-                )}
-              </span>
-              <span className="qctl">
-                {grouped && (
-                  <span
-                    className="lnk"
+    <>
+      <Banners page={page} onOpenSession={onOpenSession} />
+      <div className="qbar">
+        <span className="grp-t">
+          {t.session.mainline(page.questions.length, grouped ? t.session.dayCount(groups.length) : '')}
+        </span>
+        <span className="qctl">
+          {grouped && (
+            <span
+              className="lnk"
+              onClick={() =>
+                setFolded(folded.size === groups.length ? new Set() : new Set(groups.map((g) => g.id)))
+              }
+            >
+              {folded.size === groups.length ? t.session.expandAll : t.session.collapseAll}
+            </span>
+          )}
+          <span className="seg">
+            <button className={order === 'asc' ? 'on' : ''} onClick={() => setOrder('asc')}>
+              {t.session.ascending}
+            </button>
+            <button className={order === 'desc' ? 'on' : ''} onClick={() => setOrder('desc')}>
+              {t.session.descending}
+            </button>
+          </span>
+        </span>
+      </div>
+      <div className="card qlist">
+        {grouped
+          ? groups.map((g) => {
+              const isFolded = folded.has(g.id)
+              return (
+                <div className={`daygrp${isFolded ? ' fold' : ''}`} key={g.id}>
+                  <div
+                    className="dayhd"
                     onClick={() =>
-                      setFolded(
-                        folded.size === groups.length
-                          ? new Set()
-                          : new Set(groups.map((g) => g.id))
-                      )
+                      setFolded((prev) => {
+                        const n = new Set(prev)
+                        if (n.has(g.id)) n.delete(g.id)
+                        else n.add(g.id)
+                        return n
+                      })
                     }
                   >
-                    {folded.size === groups.length ? t.session.expandAll : t.session.collapseAll}
-                  </span>
-                )}
-                <span className="seg">
-                  <button className={order === 'asc' ? 'on' : ''} onClick={() => setOrder('asc')}>
-                    {t.session.ascending}
-                  </button>
-                  <button className={order === 'desc' ? 'on' : ''} onClick={() => setOrder('desc')}>
-                    {t.session.descending}
-                  </button>
-                </span>
-              </span>
-            </div>
-            <div className="card qlist">
-              {grouped
-                ? groups.map((g) => {
-                    const isFolded = folded.has(g.id)
-                    return (
-                      <div className={`daygrp${isFolded ? ' fold' : ''}`} key={g.id}>
-                        <div
-                          className="dayhd"
-                          onClick={() =>
-                            setFolded((prev) => {
-                              const n = new Set(prev)
-                              if (n.has(g.id)) n.delete(g.id)
-                              else n.add(g.id)
-                              return n
-                            })
-                          }
-                        >
-                          <i className="cv">
-                            <ChevronRight size={9} />
-                          </i>
-                          {t.session.dayGroup(g.day, g.items.length)}
-                        </div>
-                        {/* Collapsing only hides the presentation: expansion and fetch state are kept
-                            as they were, so reopening the day still shows it expanded */}
-                        {!isFolded && g.items.map(({ q, idx }) => row(q, idx))}
-                      </div>
-                    )
-                  })
-                : (order === 'asc'
-                    ? page.questions.map((q, idx) => ({ q, idx }))
-                    : page.questions.map((q, idx) => ({ q, idx })).reverse()
-                  ).map(({ q, idx }) => row(q, idx))}
-            </div>
-            <div className="note">
-              {t.session.foot}
-            </div>
-          </>
-        )}
+                    <i className="cv">
+                      <ChevronRight size={9} />
+                    </i>
+                    {t.session.dayGroup(g.day, g.items.length)}
+                  </div>
+                  {/* Collapsing only hides the presentation: expansion and fetch state are kept
+                      as they were, so reopening the day still shows it expanded */}
+                  {!isFolded && g.items.map(({ q, idx }) => row(q, idx))}
+                </div>
+              )
+            })
+          : (order === 'asc'
+              ? page.questions.map((q, idx) => ({ q, idx }))
+              : page.questions.map((q, idx) => ({ q, idx })).reverse()
+            ).map(({ q, idx }) => row(q, idx))}
       </div>
-    </div>
+      <div className="note">{t.session.foot}</div>
+    </>
   )
 }

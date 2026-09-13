@@ -39,10 +39,12 @@ export function App(): JSX.Element {
   // drives what the detail slot actually renders and is updated inside a Transition (ADR-0028,
   // project-detail T1): while the next project's detail is suspended, React keeps showing the pane
   // built from the last-committed `shownProject`, so the previous project's page stays on screen and
-  // only the highlight moves at once.
+  // only the highlight moves at once. The same Transition wraps opening, jumping and leaving a
+  // session (session-view P1, P2, P8) — one function for every update that can change what the
+  // detail slot's Suspense boundary renders.
   const [selected, setSelected] = useState<string | null>(null)
   const [shownProject, setShownProject] = useState<string | null>(null)
-  const [, startProjectTransition] = useTransition()
+  const [, startPaneTransition] = useTransition()
   // Session page view state (ticket 04): when non-empty, the project detail area is replaced wholesale
   // by the session page; switching project exits it
   const [openSession, setOpenSession] = useState<string | null>(null)
@@ -78,10 +80,12 @@ export function App(): JSX.Element {
   prefsRef.current = { theme, language: langPref, mode }
   const selectProject = (p: string | null): void => {
     setSelected(p)
-    startProjectTransition(() => setShownProject(p))
-    setOpenSession(null)
-    setOpenFocusQ(null)
-    setBackToSessions(false)
+    startPaneTransition(() => {
+      setShownProject(p)
+      setOpenSession(null)
+      setOpenFocusQ(null)
+      setBackToSessions(false)
+    })
   }
 
   useEffect(() => {
@@ -102,11 +106,13 @@ export function App(): JSX.Element {
     void window.agentshed.getSnapshot().then((s) => {
       if (alive) setSnap(s)
     })
-    // A new snapshot (an automatic rescan) marks every cached project detail stale (project-detail
-    // T3): a page on screen refetches by transfusion, one not on screen refetches on its next visit.
+    // A new snapshot (an automatic rescan) marks every cached project detail and session page stale
+    // (project-detail T3, session-view P5): a page on screen refetches by transfusion, one not on
+    // screen refetches on its next visit.
     const off = window.agentshed.onSnapshot((s) => {
       setSnap(s)
       void queryClient.invalidateQueries({ queryKey: ['projectDetail'] })
+      void queryClient.invalidateQueries({ queryKey: ['sessionPage'] })
     })
     // The application menu's app entry point (ticket 13): it behaves exactly like the same-named
     // operation on the rail, going through the same state and functions rather than a second set
@@ -236,13 +242,17 @@ export function App(): JSX.Element {
                     projectName={snap.projects.find((p) => p.path === shownProject)?.name ?? shownProject}
                     now={snap.scannedAt}
                     onBack={() => {
-                      setOpenSession(null)
-                      setOpenFocusQ(null)
-                      setBackToSessions(true)
+                      startPaneTransition(() => {
+                        setOpenSession(null)
+                        setOpenFocusQ(null)
+                        setBackToSessions(true)
+                      })
                     }}
                     onOpenSession={(f) => {
-                      setOpenSession(f)
-                      setOpenFocusQ(null)
+                      startPaneTransition(() => {
+                        setOpenSession(f)
+                        setOpenFocusQ(null)
+                      })
                     }}
                   />
                 ) : shownProject ? (
@@ -251,9 +261,11 @@ export function App(): JSX.Element {
                     path={shownProject}
                     initialTab={backToSessions ? 'sessions' : undefined}
                     onOpenSession={(f, q) => {
-                      setOpenSession(f)
-                      setOpenFocusQ(q ?? null)
-                      setBackToSessions(false)
+                      startPaneTransition(() => {
+                        setOpenSession(f)
+                        setOpenFocusQ(q ?? null)
+                        setBackToSessions(false)
+                      })
                     }}
                   />
                 ) : (

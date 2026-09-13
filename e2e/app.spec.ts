@@ -1218,7 +1218,9 @@ test('the session page: day groups collapse; descending reverses both the groups
 // Ticket 06: the three tiers of top banner — stripped info (with the parent title clicking through to the
 // parent session) and the orphan risk
 test('the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source', async () => {
-  const l = await launch(undefined, mkForkHome())
+  // The delay (query layer, ADR-0028) makes the parent's fetch observably slow, which is what the
+  // hold assertion below (session-view P2) needs to distinguish from an atomic switch.
+  const l = await launch(undefined, mkForkHome(), { AGENTSHED_FETCH_DELAY_MS: '600' })
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
   await win.locator('.side .row').first().click()
@@ -1232,6 +1234,9 @@ test('the session page banner: a stripped fork gets info with the parent title c
   await expect(info).toContainText('Parent first question')
   await expect(info).toContainText('replayed prefix has been stripped')
   await info.locator('a').click()
+  // Sampled inside the 600ms delay window, immediately after the click: the child page is still whole
+  // (P2) — the banner link's target has not committed yet
+  await expect(win.locator('.banner.info')).toContainText('Parent first question')
   await expect(win.locator('.pane-head .stitle')).toHaveText('Parent first question')
   // The parent is not a fork: no banner at all
   await expect(win.locator('.banner')).toHaveCount(0)
@@ -4355,5 +4360,179 @@ test('project switch (query layer): rapid A → B → C never shows B, and B is 
   await expect(header).toHaveText('proj-b', { timeout: 200 })
 
   expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('opening a session (query layer): the project page holds until the session page arrives, and reopening it is instant', async () => {
+  const l = await launch(undefined, mkUsageHome(), { AGENTSHED_FETCH_DELAY_MS: '600' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible()
+
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  // Sampled inside the 600ms delay window, immediately after the click: the sessions list is still on
+  // screen (session-view P1) — no empty pane, no session header yet
+  await expect(win.locator('.pane-body .card .se')).toHaveCount(2)
+  await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
+
+  // After the delay, the session page shows whole in one frame
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
+  await expect(win.locator('.qlist .q')).toHaveCount(2)
+
+  // Back to the sessions section (a cached visit of the project, per project-detail T9), then reopen
+  // the same session: a cached visit (P4), well inside the delay window
+  await win.locator('.sback').click()
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible()
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question', { timeout: 200 })
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('opening a session then returning to the project before it arrives (query layer): the project page stays, no error, and the interrupted fetch is cached', async () => {
+  const l = await launch(undefined, mkUsageHome(), { AGENTSHED_FETCH_DELAY_MS: '600' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  const row = win.locator('.side .row').first()
+  await row.click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible()
+
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  // Before the 600ms delay can resolve, return attention to the project (session-view P8): the only
+  // session-independent affordance available while the sessions list is held on screen is the still-
+  // selected project row itself, which routes through the same pending-switch machinery as a project
+  // switch (App.tsx's selectProject clears the pending session open in the same Transition)
+  await row.click()
+
+  // The project page stays: the sessions list is still there, no session header ever appeared
+  await expect(win.locator('.pane-body .card .se')).toHaveCount(2)
+  await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
+  await win.waitForTimeout(700) // past the delay: still no session page, and no error surfaced
+  await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
+
+  // The interrupted fetch still completed and was cached: reopening the session now is instant
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question', { timeout: 200 })
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('an automatic rescan refreshes an open session page by transfusion (query layer): the question list follows the file while expansion and sort survive', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const sess = join(home, '.claude', 'projects', enc, 'a.jsonl')
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '250' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.qlist .q')).toHaveCount(2)
+
+  // Expand a turn and change the sort — both are page-local state that must survive the transfusion
+  await win.locator('.qlist .q', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
+  await win.locator('.seg button', { hasText: 'Oldest first' }).click()
+  await expect(win.locator('.seg button.on')).toHaveText('Oldest first')
+
+  // The file is appended to on the same day as the existing questions (day grouping is not this
+  // test's concern): the automatic rescan invalidates the open page's query, and the new question
+  // lands with no click of any kind
+  appendFileSync(
+    sess,
+    JSON.stringify({
+      type: 'user',
+      timestamp: localDayOffset(2).toISOString(),
+      message: { role: 'user', content: 'Appended third question' }
+    }) + '\n'
+  )
+  await expect(win.locator('.qlist .q')).toHaveCount(3)
+  await expect(win.locator('.qlist')).toContainText('Appended third question')
+
+  // Expansion and sort survived the transfusion (the question list was replaced in place, not remounted)
+  await expect(win.locator('.turn .ans')).toHaveText(['This is the first turn reply body'])
+  await expect(win.locator('.seg button.on')).toHaveText('Oldest first')
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+test('opening a session whose file was removed after the scan (query layer): the page shows its own error, no crash', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const sess = join(home, '.claude', 'projects', enc, 'a.jsonl')
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Sample question' })).toBeVisible()
+
+  // The file is gone by the time the page is opened, but the scan already listed it (allow-list still
+  // admits the exact path): the fetch rejects, and the query layer resolves that in-band (P6) rather
+  // than crashing the page. This case deliberately provokes a handler error (as the allow-list test
+  // above does), so it asserts positively rather than asserting errors is empty.
+  rmSync(sess, { force: true })
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.pane-body .none')).toContainText('Cannot open this session')
+
+  expect(l.errors).toHaveLength(1)
+  expect(l.errors[0]).toContain(ERR.sessionFileUnreadable)
+  await close(l)
+})
+
+test('a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity', async () => {
+  const home = mkUsageHome()
+  const proj = join(home, 'demo-proj')
+  const sdir = join(home, '.codex', 'sessions', '2026', '07', '30')
+  mkdirSync(sdir, { recursive: true })
+  const at = localDayOffset(1).toISOString()
+  const item = (type: string, extra: Record<string, unknown>): string =>
+    JSON.stringify({ timestamp: at, ordinal: 9, type: 'event_msg', payload: { type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type, id: 'i', ...extra }, started_at_ms: 1, completed_at_ms: 1 } })
+  const lines = [
+    JSON.stringify({ timestamp: at, ordinal: 0, type: 'session_meta', payload: { cwd: proj, id: '019fb0c0-4444-7af3-af7d-8505cedf1ec2' } }),
+    JSON.stringify({ timestamp: at, ordinal: 1, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
+    item('UserMessage', { content: [{ type: 'text', text: 'Soon compressed question', text_elements: [] }] }),
+    JSON.stringify({ timestamp: at, ordinal: 3, type: 'token_usage_record', payload: { thread_id: 't', turn_id: 'u', session_id: 't', root_turn_id: 'u', response_id: 'resp_sc', usage: { input_tokens: 400, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 40, reasoning_output_tokens: 0, total_tokens: 440 }, turn_token_usage: { input_tokens: 400, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 40, reasoning_output_tokens: 0, total_tokens: 440 }, thread_token_usage: { input_tokens: 400, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 40, reasoning_output_tokens: 0, total_tokens: 440 } } }),
+    item('AgentMessage', { content: [{ type: 'Text', text: 'Answered before compression.' }], phase: 'final_answer' })
+  ]
+  const plain = join(sdir, 'rollout-019fb0c0-4444-7af3-af7d-8505cedf1ec2.jsonl')
+  writeFileSync(plain, lines.join('\n') + '\n')
+
+  const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '250' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  await win.locator('.pane-body .card .se', { hasText: 'Soon compressed question' }).click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Soon compressed question')
+
+  // Codex compresses the rollout and deletes the plain file while this page is still open
+  writeFileSync(plain + '.zst', zstdCompressSync(Buffer.from(lines.join('\n') + '\n')))
+  rmSync(plain, { force: true })
+
+  // The automatic rescan invalidates the open page's query; the refetch for the now-gone plain path
+  // fails, and the page shows its own error state rather than crashing or freezing on stale content
+  // (P7). This deliberately provokes a handler error, so it asserts positively rather than empty.
+  await expect(win.locator('.pane-body .none')).toContainText('Cannot open this session')
+  expect(l.errors.length).toBeGreaterThan(0)
+  for (const e of l.errors) {
+    expect(e.includes(ERR.sessionFileUnreadable) || e.includes(ERR.sessionNotWhitelisted)).toBe(true)
+  }
+
+  // The session reappears in the list under its compressed identity (same title, a new file) and
+  // opens correctly
+  await win.locator('.sback').click()
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Soon compressed question' })).toHaveCount(1)
+  await win.locator('.pane-body .card .se', { hasText: 'Soon compressed question' }).click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Soon compressed question')
+  await win.locator('.qlist .q', { hasText: 'Soon compressed question' }).click()
+  await expect(win.locator('.turn .ans')).toContainText('Answered before compression.')
+
   await close(l)
 })
