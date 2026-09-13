@@ -166,7 +166,6 @@ export const ru: Locale = {
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · вопросов: ${questions} · ${tok} tok · ${mb} · последняя активность ${ago}`,
     cannotOpen: (detail) => `Не удаётся открыть сессию: ${detail}`,
-    loading: 'Загрузка…',
     mainline: (n, days) =>
       `Вопросы (основная ветка) · ${n} ${plural('ru', n, { one: 'вопрос', few: 'вопроса', many: 'вопросов', other: 'вопроса' })}${days}`,
     dayCount: (n) => ` · дней: ${n}`,
@@ -219,7 +218,6 @@ export const ru: Locale = {
     tabSessions: 'Сессии',
     tabCfg: 'Конфигурация',
     tabArts: 'Артефакты',
-    loading: 'Загрузка…',
     byModel: 'По моделям',
     recentSessions: 'Недавние сессии',
     noSessions: 'В этом проекте пока нет сессий',

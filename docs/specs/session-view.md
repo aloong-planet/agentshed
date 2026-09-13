@@ -538,6 +538,10 @@ below are archived as a decision record and are no longer requirements)**
   only the 5 most recent + a total count at the bottom**; the click target then **changed to go
   straight to the session page** (closing that interim state), with the back button landing on the
   "Sessions" section.
+- **The session page draws nothing while it loads** (ruled 2026-09-11): the pane body stays empty
+  until the page arrives; the transient "loading" label it used to show only flickered on a session
+  switch, since a page arrives within a frame or two. The in-turn fetch notice below is a different
+  state and stays.
 - **Paginated and cold rollouts change no interface point** (2026-09-10): the question list, the
   turn blocks, the banners and the search results keep their forms; what changes is where the data
   comes from and how a compressed file is read — declared here as the prototype-gate exemption for

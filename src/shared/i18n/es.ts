@@ -167,7 +167,6 @@ export const es: Locale = {
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · ${questions} ${plural('es', questions, { one: 'pregunta', other: 'preguntas' })} · ${tok} tok · ${mb} · última actividad ${ago}`,
     cannotOpen: (detail) => `No se puede abrir la sesión: ${detail}`,
-    loading: 'Cargando…',
     mainline: (n, days) =>
       `Preguntas (línea principal) · ${n} ${plural('es', n, { one: 'pregunta', other: 'preguntas' })}${days}`,
     dayCount: (n) => ` · ${n} ${plural('es', n, { one: 'día', other: 'días' })}`,
@@ -222,7 +221,6 @@ export const es: Locale = {
     tabSessions: 'Sesiones',
     tabCfg: 'Configuración',
     tabArts: 'Artefactos',
-    loading: 'Cargando…',
     byModel: 'Por modelo',
     recentSessions: 'Sesiones recientes',
     noSessions: 'Este proyecto aún no tiene sesiones',

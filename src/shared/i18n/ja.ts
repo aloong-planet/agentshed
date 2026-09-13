@@ -165,7 +165,6 @@ export const ja: Locale = {
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · 質問 ${questions} 件 · ${tok} tok · ${mb} · 最終アクティビティ ${ago}`,
     cannotOpen: (detail) => `セッションを開けません：${detail}`,
-    loading: '読み込み中…',
     mainline: (n, days) => `質問（メインライン）· ${n} 件${days}`,
     dayCount: (n) => ` · ${n} 日`,
     expandAll: 'すべて展開',
@@ -217,7 +216,6 @@ export const ja: Locale = {
     tabSessions: 'セッション',
     tabCfg: '構成',
     tabArts: '成果物',
-    loading: '読み込み中…',
     byModel: 'モデル別',
     recentSessions: '最近のセッション',
     noSessions: 'このプロジェクトにはまだセッションがありません',
