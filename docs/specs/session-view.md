@@ -654,8 +654,8 @@ would inevitably inherit the blind spots of my imagination). The paginated Codex
 real paginated rollout (completed-item user messages, the three harness shapes among them, no legacy
 user-message event), one with neither event and only injected response-item parts (no question,
 not listed), and a cold rollout whose question list, turn fetch and search results equal its plain
-twin's byte for byte, with the pass count asserted as the evidence that nothing was decompressed
-twice.
+twin's byte for byte, with the decompressed length a range read traverses asserted against the last
+range's end as the evidence of one pass per call.
 
 ## Out of Scope
 

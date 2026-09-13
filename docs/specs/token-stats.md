@@ -140,8 +140,7 @@ all of them.
   against 0.95 s plain, and 1.24 s once the chunks matched. A cold rollout therefore costs about a
   third more than its plain twin to scan, the decompression itself. A cold rollout that cannot be
   decompressed (truncated, not zstd) is skipped like an unreadable plain file, hurting only itself.
-  "Truncated"
-  is judged by the recorder's mechanism, not by the decoder: Node's zstd decoder reports nothing for
+  "Truncated" is judged by the recorder's mechanism, not by the decoder: Node's zstd decoder reports nothing for
   a cut frame (measured 2026-09-11, synchronously and as a stream alike — it yields the first half
   and ends cleanly), while every rollout line ends with a newline and a cold rollout is never
   mid-write, so a decompressed stream that does not end with a newline is cut short (all 1391
