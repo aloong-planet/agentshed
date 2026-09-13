@@ -79,6 +79,7 @@ export const fr: Locale = {
 
   shell: {
     pickProject: 'Sélectionnez un projet pour voir son détail',
+    waitingUpdate: 'Données précédentes affichées, en attente de mise à jour',
     scanning: 'Analyse des côtés agents…'
   },
   skills: {

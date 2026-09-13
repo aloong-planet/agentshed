@@ -6,6 +6,8 @@ import type { ErrorCode, ErrorParams } from './errors'
 export const CMD = {
   /** Get the current snapshot (triggering the first scan if there is none) */
   getSnapshot: 'agentshed:get-snapshot',
+  /** Validated saved presentation data and startup scan state; read-only. */
+  getStartup: 'agentshed:get-startup',
   /** Fetch project detail on demand */
   getProjectDetail: 'agentshed:get-project-detail',
   /** The session page: the question index + text read live by range (ticket 04; a range-read path, not
@@ -50,12 +52,15 @@ export const CMD = {
 export const EVT = {
   /** The main process pushes a new snapshot (a refresh completed) */
   snapshot: 'agentshed:snapshot',
+  startupStatus: 'agentshed:startup-status',
   /** The application menu triggered "Settings" (ticket 13): the same operation as the rail's settings entry, with
    * the renderer switching dimension */
   menuOpenSettings: 'agentshed:menu-open-settings',
 } as const
 
 export interface SessionTurnArgs {
+  /** The source question identity this ordinal belongs to. */
+  revision?: string
   file: string
   /** The question index, from 0, into the session page's displayed set (the order of
    * getSessionPage.questions) */

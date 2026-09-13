@@ -226,6 +226,10 @@
   .harness .hb.on{background:#4a4f57;color:#fff}
 
 </style>
+<!-- Startup restore: keep the original page and its mock contents. The added bottom switches
+     are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
+<link rel="stylesheet" href="../_shared/startup-status.css">
+<script src="../_shared/startup-status.js"></script>
 </head>
 <body>
   <div class="rail">
@@ -239,7 +243,7 @@
   </div>
   <div class="main">
     <div class="head">
-      <div class="h1"><b>Transfer</b><span class="b c">CLAUDE CODE</span><span class="b x">CODEX</span><span class="b g">GROK</span></div>
+      <div class="h1"><b>Transfer</b><span class="b c">CLAUDE CODE</span><span class="b x">CODEX</span><span class="b g">GROK</span><span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span></div>
       <div class="path">~/CascadeProjects/Transfer</div>
       <div class="tabs" id="tabs">
         <span class="tab on" data-t="ov">概览</span><span class="tab" data-t="skills">Skills</span>
@@ -431,11 +435,14 @@
   <div class="mask" id="dmask"></div>
   <div class="drawer" id="drawer"></div>
   <!-- The demo harness: mock state switches, not part of the design and not to be implemented; they appear
-     only in the sessions tab -->
+     only in the sessions tab; startup switches remain available in every tab -->
   <div class="harness" id="harness" data-demo-harness>
+    <span data-startup-controls></span>
+    <span id="session-demo" style="display:none;align-items:center;gap:6px">
     <span class="hl">演示·会话分栏</span>
     <span class="hb on" data-se="has">有会话</span>
     <span class="hb" data-se="empty">空态</span>
+    </span>
   </div>
 <script src="../_shared/icons.js"></script>
 <script src="../_shared/trend-chart.js"></script>
@@ -445,7 +452,7 @@
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
     document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
     // The demo harness only appears in the relevant tabs
-    document.getElementById('harness').classList.toggle('on',t.dataset.t==='sessions');
+    document.getElementById('session-demo').style.display=t.dataset.t==='sessions'?'flex':'none';
   });
   // The trend chart: rendered by the shared piece (the same source as the Agents page)
   const ovTrend = TrendChartProto.mount(
@@ -723,7 +730,7 @@
     scope=e.target.dataset.sc; renderSessions();
   });
   document.getElementById('harness').addEventListener('click',e=>{
-    const b=e.target.closest('.hb'); if(!b) return;
+    const b=e.target.closest('[data-se]'); if(!b) return;
     document.querySelectorAll('[data-se]').forEach(x=>x.classList.toggle('on',x===b));
     sempty=b.dataset.se==='empty'; renderSessions();
   });

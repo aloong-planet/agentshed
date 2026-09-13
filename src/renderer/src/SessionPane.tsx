@@ -1,3 +1,4 @@
+import { StartupHint } from './StartupHint'
 // The session page (ticket 04): open a session and list every real question — single-line index style,
 // all at once.
 // "Never read whole" is the data layer's business (the main process reads text live by byte range); the
@@ -110,7 +111,7 @@ export function SessionPane({
    * index; null or omitted means no locating */
   focusQ?: number | null
   projectName: string
-  /** The baseline for relative times (the snapshot time, sharing its source with the list) */
+  /** The baseline for relative times (the display clock, sharing its source with the list) */
   now: number
   onBack: () => void
   /** The banner's jump to the parent session (App switches session); without it the parent title is
@@ -135,6 +136,7 @@ export function SessionPane({
                 {SIDE_BADGE[result.page.side].label}
               </span>
               <h1 className="stitle">{result.page.title}</h1>
+              <StartupHint />
             </div>
             <div className="smeta">
               {t.session.headMeta(
@@ -169,11 +171,11 @@ export function SessionPane({
  * instant. `rebuilding` is a plain local flag, reset by the remount on every reopen, set as a side
  * effect the moment the freshness check (inside the query) reports stale.
  */
-function TurnContent({ file, i }: { file: string; i: number }): JSX.Element {
+function TurnContent({ file, i, revision }: { file: string; i: number; revision?: string }): JSX.Element {
   const t = useDict()
   const lang = useLanguage()
   const [rebuilding, setRebuilding] = useState(false)
-  const { data } = useTurnContentQuery(file, i, () => setRebuilding(true))
+  const { data } = useTurnContentQuery(file, i, () => setRebuilding(true), revision)
 
   return (
     <div className="turn">
@@ -293,7 +295,7 @@ function SessionPageBody({
           )}
           <span className="tm">{fmtHM(q.at)}</span>
         </div>
-        {on && <TurnContent file={page.file} i={idx} />}
+        {on && <TurnContent key={q.revision} file={page.file} i={idx} revision={q.revision} />}
       </Fragment>
     )
   }

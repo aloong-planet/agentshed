@@ -131,7 +131,7 @@ const PROVIDER_CLASS: Record<string, string> = {
   other: 'other'
 }
 
-/** The last 30 days (anchored on scannedAt) as a daily trend; combined mode stacks the two sides */
+/** The last 30 days (anchored on the common display clock) as a daily trend; combined mode stacks the two sides */
 export function TrendChart({
   stats,
   anchor,

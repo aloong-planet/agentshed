@@ -7,6 +7,9 @@
 > boundary entries all have corresponding tests and are trustworthy; where one conflicts with the
 > implementation, the implementation wins and this document is rewritten in place.
 
+> Startup restoration uses the original page prototypes confirmed on 2026-09-14.
+> Successful display payloads persist independently of the accounting index (ADR-0029).
+
 ## Problem Statement
 
 Projects are scattered across each agent side's own registry, so "see all the projects I have" means
@@ -76,7 +79,7 @@ and are never written back to any agent configuration.
 - A9 A side that is installed but has registered nothing (its data directory exists, its registry is
   absent or empty) → `detected=true` with no projects contributed. This is a normal state for a
   newly adopted side, not a failure, and must not be reported as one.
-- A10 First scan of this launch not finished → the dimension renders a **skeleton**: the sidebar
+- A10 First scan of this launch not finished and no usable saved snapshot → the dimension renders a **skeleton**: the sidebar
   shows its real structure — the search field and the filter row greyed with their static labels —
   above placeholder rows whose geometry (row height, name/count/activity slots) matches real rows;
   the detail area shows the scanning hint centred **in place of** the pick-a-project empty state,
@@ -85,11 +88,11 @@ and are never written back to any agent configuration.
   and is rewritten in all six languages.
 - A11 The skeleton is non-interactive: search, the side dropdown, the stale toggle and the
   placeholder rows all refuse input; the rail stays live (dimension switch, settings).
-- A12 The skeleton exists only before this launch's first snapshot; later scans keep the
+- A12 The skeleton exists only while no live or restored snapshot is available; later scans keep the
   previous list on screen and never fall back to the skeleton. Filling is in place — placeholder
   and data rows share their geometry, so the swap moves no anchor; the placeholder row count is
   nominal (the project count is unknown until the scan lands).
-- A13 First scan failure → the skeleton and hint stay; recovery rides the automatic rescan triggers
+- A13 First scan failure without a restored snapshot → the skeleton and hint stay; recovery rides the automatic rescan triggers
   (timer, window focus). A dedicated error state is out of scope (the agents overview spec carries
   the same rule as A4d).
 
@@ -140,6 +143,15 @@ and are never written back to any agent configuration.
   dismissed on resize, because it is being glanced at rather than operated.
 - C7 The dropdown, being operated rather than glanced at, **repositions** on resize instead of
   closing; it dismisses on scroll like any anchored layer.
+
+## Startup restoration
+
+This page consumes [agents-overview::REQ-001](agents-overview.md) for restored rows,
+[agents-overview::REQ-002](agents-overview.md) for the scan status and refresh failure, and
+[agents-overview::CON-003](agents-overview.md) for the startup selection. Restored rows keep the
+existing filtering and navigation behavior. Their relative activity uses the common display clock
+in [token-stats::REQ-001](token-stats.md). After a successful scan, directory deletion and lost
+registrations follow A6 and project-detail's S6/S7 rather than retaining ghost live rows.
 
 ## Implementation Decisions
 

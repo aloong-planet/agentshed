@@ -17,10 +17,12 @@ typing part of its name. No cross-side content diff.
 - An on-disk skill row always shows its **file count and size**; **clicking the row** collapses or
   expands the package's file table (per-file line count, size, modification date), laid out flat with
   no indentation. Collapsing and reopening the same row shows the table at once, quietly refreshed
-  behind the scenes rather than reloaded from a blank state
+  behind the scenes rather than reloaded from a blank state, including after restarting
 - Where more than one side has the skill, the expanded area lets you switch sides to see each package
 - **Clicking a file** opens a drawer to read it; markdown previews by default (frontmatter keys and
-  values on separate lines) and can be switched to raw; non-markdown files show raw only
+  values on separate lines) and can be switched to raw; non-markdown files show raw only. Previously
+  read files reappear immediately after a restart and remain visible if their refresh fails; files
+  not yet read are loaded only when opened
 - **Links inside a previewed markdown work**: a relative link to another file of the same package
   switches the drawer to that file; a link pointing outside the package shows a notice instead;
   external links open in the system browser — none of them ever navigates the app away

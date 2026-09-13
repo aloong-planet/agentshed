@@ -11,7 +11,8 @@ full in project detail.
   the topic count, the last modification), in reverse order of last modification; stale projects are
   listed as usual with a badge
 - Clicking a row expands that project's memory file list; clicking a file opens a drawer to view it;
-  an unreadable file reports the error inside the drawer without interrupting
+  a previously read file reopens immediately even after restarting, and remains readable if its
+  refresh fails. A file never successfully read reports its error inside the drawer
 - Codex global memory (not per project) is shown in three states according to the feature toggle:
   when the feature is off, it explains how to turn it on (rather than falsely reporting "no
   content"); when it is on with nothing in it, it shows "nothing yet"; when there is content it gets

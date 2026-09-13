@@ -7,11 +7,13 @@ sessions, one per row, with "how many questions I asked in this conversation".
 
 ## Capabilities
 - **Opening a session turns a page rather than flashing one**: the project page you are on stays put
-  until the session page has arrived, then the stage switches at once. A session opened earlier in
-  this run comes back instantly, and jumping to a fork's parent through the banner works the same
+  until the session page has arrived, then the stage switches at once. A session opened before
+  comes back instantly, including after a restart, with its header, fork information and questions.
+  Previously read answers appear immediately when expanded again; unread answers wait for a read.
+  A failed refresh keeps the last successful content. Jumping to a fork's parent works the same
   way. While a session page is open, an automatic refresh keeps its question list current with the
-  file — a question asked since you opened it appears on its own, while an expanded answer, the sort
-  and the day-group folding you left stay exactly as they were.
+  file — a question asked since you opened it appears on its own, while expansion, sort and day-group folding stay as they were. A rewritten question
+  receives its corresponding answer, never an answer attached only by the old question number.
 - **Session page**: opened by clicking a session row (in the section or on the overview card) — at
   the top are the back button, side badge, title and volume information (question count / tokens /
   file size / last activity), and the body is **every real question** of that conversation, one per
@@ -38,9 +40,9 @@ sessions, one per row, with "how many questions I asked in this conversation".
 - **Record types we have not seen are never silently swallowed**: when an agent update introduces a
   new type, a line appears in that turn saying "this turn has N unrecognised records (types: …)" —
   the content stays as it is in the source file, and you at least know something is not shown
-- If the session file is appended to or rewritten while the page is open, clicking a question first
-  shows a "rebuilding the index for this file only" notice and then the content; the rebuild affects
-  only that one session
+- If the session file changes while the page is open, a turn without saved content shows a
+  rebuilding notice while that session is refreshed. An already read answer stays visible during
+  the refresh; if the question itself changes, its new answer follows the new question
 - **Sessions spanning several days are grouped by day**: the group row shows the date and that day's
   count, and clicking it collapses or expands the day; there is also "collapse all / expand all".
   Collapsing only hides — a turn already expanded is still expanded when the day is reopened

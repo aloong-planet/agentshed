@@ -7,6 +7,9 @@
 > covers only **page-level** rules: which sections exist, the summary cards, and single-side
 > degradation.
 
+> Startup restoration uses the original page prototypes confirmed on 2026-09-14.
+> Successful display payloads persist independently of the accounting index (ADR-0029).
+
 ## Problem Statement
 
 Users running several agent sides want to know, the moment the app opens, "what state is each
@@ -47,7 +50,7 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - A2 One side not detected → that side's card shows "not detected", the other behaves normally.
 - A3 One side's registry corrupt → that side's card shows an error explanation (in place of the stats
   row), the other side is unaffected.
-- A4 First scan of this launch not finished → the page renders a **skeleton** (changed 2026-08-21;
+- A4 First scan of this launch not finished and no usable saved snapshot → the page renders a **skeleton** (changed 2026-08-21;
   it used to be a bare hint on an otherwise empty stage): the page's real structure with its static
   labels rendered (title, time-window card labels, side-card names, tab labels, trend title) and a
   placeholder block in every data slot — card values, side figures and their secondary rows, the
@@ -66,9 +69,9 @@ see [appearance](appearance.md) (the rail's settings dimension).
   count is unknown until the scan lands; and a machine whose sides report no usage at all collapses
   the usage-only regions (composition bar, legend, model rows) on fill, because the loaded page
   omits them — the skeleton is shaped for the common case of data being present.
-- A4c The skeleton exists only before this launch's first snapshot. Later scans keep the previous
+- A4c The skeleton exists only while no live or restored snapshot is available. Later scans keep the previous
   data on screen and never fall back to the skeleton.
-- A4d First scan failure → the skeleton and hint stay as they are; recovery rides the automatic
+- A4d First scan failure without a restored snapshot → the skeleton and hint stay as they are; recovery rides the automatic
   rescan triggers (timer, window focus). A dedicated first-scan error state is out of scope.
 - A4e Once the first snapshot lands with no side detected, A1's whole-page empty state replaces the
   skeleton — the two states never mix.
@@ -108,6 +111,92 @@ see [appearance](appearance.md) (the rail's settings dimension).
 - G3 The third summary card follows A2/A3 like the others; installing a Grok skill into a project
   lands in the project's own .grok/skills (the same copy semantics as the other sides).
 
+## Startup restoration requirements
+
+### agents-overview::REQ-001 Restore the previous snapshot
+
+- agents-overview::REQ-001/AC-01: On a full quit and relaunch with a valid saved snapshot,
+  show its overview and project-list data before the first background scan completes.
+- agents-overview::REQ-001/AC-02: A successful background scan replaces restored data in place;
+  settings and browsing remain usable during scanning.
+- agents-overview::REQ-001/AC-03: Without a usable saved snapshot (missing, corrupt or incompatible
+  format), retain the existing first-scan skeleton and its automatic recovery behavior.
+
+### agents-overview::REQ-002 Identify data awaiting refresh
+
+- agents-overview::REQ-002/AC-01: Restored data is accompanied by the existing scanning indicator
+  while the first scan runs, without replacing the data area or blocking navigation.
+- agents-overview::REQ-002/AC-02: Remove the scanning indicator when the first scan succeeds,
+  without moving the page's content anchors.
+- agents-overview::REQ-002/AC-03: A failed scan retains the restored data; automatic scan triggers
+  continue to provide recovery. The failed state must not claim that fresh data has arrived.
+
+### agents-overview::CON-001 Separate display restoration from accounting (direct acceptance)
+
+Startup display data uses its own format version. An application or accounting-cache version
+change alone does not discard compatible display data. Restored numbers are presentation input,
+not a new scan result or input for overwriting the usage archive.
+
+### agents-overview::CON-002 Keep restored permissions fail-closed
+
+- agents-overview::CON-002/AC-01: Restored file and plugin-root allow-lists contain only registrations
+  previously produced by the main process; a renderer-supplied arbitrary path never becomes readable
+  because restoration is enabled.
+- agents-overview::CON-002/AC-02: Before a source read admitted by a restored registration, recheck
+  the target with lstat: file reads require a regular non-symlink file; plugin enumeration requires
+  a directory with the existing package containment rules. Reject missing, invalid or replaced
+  targets through the existing error path rather than following a replacement symlink.
+- agents-overview::CON-002/AC-03: A fresh scan/detail enumeration establishes current registrations;
+  restored registrations must not extend permission after that authoritative replacement.
+
+### agents-overview::CON-003 Restore content, not navigation (direct acceptance)
+
+Every full restart opens Agents. Project selection, session selection, scroll, expanded/collapsed
+state, search text and time-window selection are not restored by this feature. Persisted appearance
+and language preferences keep their existing behavior.
+
+### Failure modes and boundaries: restart sequence
+
+1. Read saved data before exposing it. Envelope corruption falls back under
+   agents-overview::REQ-001/AC-03; a corrupt individual page entry must not clear unrelated valid data.
+2. Open Settings or Projects during the startup scan: agents-overview::REQ-001/AC-02 applies.
+3. Cross a calendar day while the app is closed: use the display-clock requirements in
+   [token-stats::REQ-001](token-stats.md), without changing stored observation timestamps.
+4. Scan succeeds while a restored page is open: the page's own restoration requirements govern
+   refresh; snapshot replacement alone must not destroy its last good payload.
+5. Scan fails or a source disappears: agents-overview::REQ-002/AC-03 and
+   agents-overview::CON-002 apply; no fabricated success or blank global replacement.
+6. Quit during scanning: persist the last successful data, never partial scan output. An interrupted
+   disk write must leave either the preceding complete record or the new complete record readable.
+7. Write fails: keep the working in-memory app usable and retain the preceding disk record; a failed
+   persistence operation must not clear visible data or be reported as a completed save.
+8. Restore content containing links, markup, images or long text: route it through the existing
+   rendering, sanitization, navigation and size boundaries. Display restoration grants no new
+   capability to content, and it stores data rather than rendered executable HTML.
+
+### Startup implementation decisions
+
+- Save successful snapshot and page-read results during normal operation, with ordered atomic
+  replacement and a normal-quit flush. A forced kill may lose writes not yet completed, never
+  invalidate the previous complete save. No numeric latency or retention limit has been approved.
+- Main owns the saved data and produces validated page payloads; the renderer hydrates its query
+  layer before showing restored pages. Do not add an arbitrary renderer-to-disk cache-write API.
+- Use the existing inline scanning form in the page heading, including the project-list heading
+  once there are real rows to select. On failure, stop the spinner and retain a quiet waiting-for-
+  update status. Placement and failure wording follow the original prototypes confirmed on 2026-09-14.
+- Saving only main-side statistics and allow-lists is insufficient for the session page when its
+  question index is missing. The saved page payload is the startup display source in that case.
+
+### Startup verification decisions
+
+Reuse the existing fixture-home / user-data-directory Electron seam and first-scan/fetch delay
+injections, plus a fixture-only count of failing scans. Visit pages in process A, quit, relaunch process B with the same user-data directory and
+hold its first scan. Assert that the restored pages render before release of that scan. Repeat with
+an incompatible accounting cache, a missing display cache and a corrupt display entry. Complete or
+fail the scan and inspect visible data, page anchors and current expansion state. At the existing
+filesystem and IPC contract seams, verify atomic persistence, independent versions, failed writes,
+registration admission and replacement. No prototype mock is implementation evidence.
+
 ## Implementation Decisions
 
 - **Data source**: one scan produces the overview snapshot and every section consumes that same
@@ -145,6 +234,4 @@ the snapshot arrives (the same discipline as the project list's floating-layer a
 - Cross-component aggregate views and global search.
 - Live file watching (startup scan + the automatic rescans only).
 - A dedicated first-scan error state (A4d keeps the skeleton and lets the rescan triggers retry).
-- Persisting the previous run's snapshot so a cold start shows real data immediately — decided
-  worth doing (2026-08-21) but deliberately a separate feature: it brings disk format, staleness
-  marking and allow-list rebuild questions the skeleton does not have.
+- Making a first installation or a cleared user-data directory show history before its first scan: no saved display data exists in that case.

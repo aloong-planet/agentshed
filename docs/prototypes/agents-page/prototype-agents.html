@@ -178,6 +178,10 @@
   .harness span[data-v].on,.harness span[data-x].on{background:#4a4a52;color:#fff;font-weight:600}
 
 </style>
+<!-- Startup restore: keep the original page and its mock contents. The added bottom switches
+     are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
+<link rel="stylesheet" href="../_shared/startup-status.css">
+<script src="../_shared/startup-status.js"></script>
 </head>
 <body>
   <div class="rail">
@@ -186,7 +190,7 @@
   </div>
   <div class="main">
     <div class="head">
-      <div class="h1">Agents</div>
+      <div class="h1" style="display:flex;align-items:baseline;gap:12px">Agents<span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span></div>
       <div data-shared-block="totals-card" id="totWrap"></div>
       <div class="stats" id="sideCards"></div>
       <div class="tabs" id="tabs">
@@ -541,7 +545,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     const on=document.querySelector('.tab.on')?.dataset.t, el=$('harness');
     // 总量卡这一组常驻:它已移入页头,所有分栏都看得见,开关也就不该随分栏出现/消失
     const de=(v,t)=>`<span data-e="${v}" class="${DEMO===v?'on':''}">${t}</span>`;
-    const totGrp=`<span class="dl">演示·用量</span>`+de('full','有数据')+de('idle','本日无用量')+de('none','全空');
+    const totGrp=StartupStatus.controls()+`<span class="dl">演示·用量</span>`+de('full','有数据')+de('idle','本日无用量')+de('none','全空');
     el.style.display='flex';
     if(on==='token'){
       const seg=(v)=>`<span data-x="${v}" class="${XAI===v?'on':''}">${XAI_CAND[v].n}</span>`;

@@ -361,8 +361,10 @@ export interface SessionMeta {
   forkState: ForkState
 }
 
-/** One question on a session page (ticket 04). The text is read live by byte range — neither the index nor the cache holds any text (spec D2a) */
+/** One question on a session page (ticket 04). The text is read live by byte range — the accounting index holds no question text; the independent display copy may persist a viewed page (spec D2a) */
 export interface SessionQuestion {
+  /** Source question identity for safe on-demand answer reads across index changes. */
+  revision?: string
   /** The display index, from 1, always the original turn number within this session's displayed set (a sort change does not renumber) */
   i: number
   /** The question in full; **null = that line could not be read**, and the renderer produces the wording (ticket 07) */
@@ -376,6 +378,8 @@ export interface SessionQuestion {
 
 /** The session page payload (the getSessionPage channel; self-contained, so the renderer does not have to assemble data from elsewhere) */
 export interface SessionPage {
+  /** Identity of the source and displayed question mapping, independent of accounting versions. */
+  revision?: string
   file: string
   side: AgentSide
   /** **null = no title**; the renderer produces the fallback wording (ticket 07) */

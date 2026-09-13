@@ -1,7 +1,8 @@
+import { displayQuery } from './display-queries'
 // The query-layer wrapper around getSessionPage (ADR-0028). Mirrors project-detail-query.ts: a
 // suspense query resolves to a result value rather than throwing, so a failed open is a branch of
 // the page (spec session-view P6) and no error boundary is needed above it.
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query'
 import type { SessionPage } from '@shared/domain'
 
 export type SessionPageResult =
@@ -26,9 +27,9 @@ export async function fetchSessionPage(
 }
 
 export function useSessionPageQuery(file: string): SessionPageResult {
+  const client = useQueryClient()
   const { data } = useSuspenseQuery({
-    queryKey: sessionPageQueryKey(file),
-    queryFn: () => fetchSessionPage(file)
+    ...displayQuery(client, sessionPageQueryKey(file), () => fetchSessionPage(file))
   })
   return data
 }

@@ -166,12 +166,16 @@ repeats what is already legible is noise.
   inside the drawer, and the file list stays clickable if there are other text files, but the main file
   is not pretended into existence.
 - C6 Clicking another file in the list → read that file in full on demand (monospace plain text); on
-  failure the drawer's content area reports "file cannot be read" without closing the drawer.
+  a first-read failure the drawer's content area reports "file cannot be read" without closing it.
+  Previously read successful file bodies and expanded file listings restore immediately when
+  reopened, including after a restart; failed refreshes keep that successful content. This follows
+  project-detail::REQ-001/AC-05 and ADR-0029, without prefetching unread bodies or restoring expansion.
 - C7 Single-file read truncation follows the artifact read channel (an over-long file gets a
   truncation footnote rather than crashing).
-- C8 Esc and clicking the overlay both close the drawer; after closing, allow-list entries may persist
-  for the process's lifetime (the same pattern as memory and artifacts), but must never become
-  arbitrary-path readability.
+- C8 Esc and clicking the overlay both close the drawer. Exact registrations may be restored
+  across restarts under agents-overview::CON-002: source targets are rechecked and a current
+  authoritative enumeration replaces its corresponding registrations. Closing a drawer does not
+  itself retire them, and they never become arbitrary-path readability.
 - C9 Path security: a readable path must be **an exact path registered by this enumeration**; prefix
   traversal, encoding variants and out-of-package paths are refused. The container check applies to
   **the entry point before resolution**: a skill entry point must be a single-segment entry under a

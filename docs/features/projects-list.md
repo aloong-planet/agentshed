@@ -33,6 +33,6 @@ activity.
   timer), so a change made elsewhere shows up at the next scan rather than the moment it happens
 - No manual hiding: every registered project is listed (removed 2026-08-16, ADR-0022; projects
   hidden before then reappear)
-- Before a launch's first scan finishes, the sidebar shows placeholder rows under its real
-  search-and-filter header, and the detail area says a scan is running — never a misleading empty
-  list. Everything fills in place, and the placeholders never come back on a later scan
+- On relaunch, the saved project list is available immediately and refreshes in place. Without a
+  usable saved list, the sidebar shows placeholder rows under its real search-and-filter header
+  until the first scan finishes. Later scans keep the list visible

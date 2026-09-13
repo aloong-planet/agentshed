@@ -1,9 +1,10 @@
+import { displayQuery } from './display-queries'
 // The query-layer wrapper around listSkillFiles (ADR-0028), shared by SkillExpandBlock and
 // PluginSkillList — the same IPC call, two call sites. Unlike project-detail-query and
 // session-page-query this is a non-suspense query: both call sites already render their own in-place
 // loading/error state (a file table's own spinner), not a page-wide fallback, so useQuery — read on
 // demand, gated by `enabled` — is the right tool rather than forcing a Suspense boundary per row.
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ListSkillFilesArgs, ListSkillFilesResult } from '@shared/ipc'
 
 export type SkillFilesResult =
@@ -39,9 +40,9 @@ export function useSkillFilesQuery(args: ListSkillFilesArgs | null): {
   data: SkillFilesResult | undefined
   isLoading: boolean
 } {
+  const client = useQueryClient()
   const { data, isLoading } = useQuery({
-    queryKey: skillFilesQueryKey(args),
-    queryFn: () => fetchSkillFiles(args as ListSkillFilesArgs),
+    ...displayQuery(client, skillFilesQueryKey(args), () => fetchSkillFiles(args as ListSkillFilesArgs)),
     enabled: args !== null
   })
   return { data, isLoading }

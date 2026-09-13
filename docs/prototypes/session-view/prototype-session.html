@@ -166,6 +166,10 @@
   .harness .hb.on{background:#4a4f57;color:#fff}
   .harness .hsep{width:1px;height:14px;background:#3c4046;margin:0 3px}
 </style>
+<!-- Startup restore: keep the original page and its mock contents. The added bottom switches
+     are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
+<link rel="stylesheet" href="../_shared/startup-status.css">
+<script src="../_shared/startup-status.js"></script>
 </head>
 <body>
   <div class="rail">
@@ -181,7 +185,7 @@
     <div class="head">
       <div class="back" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html"><span data-icon="ChevronLeft" data-icon-size="12"></span>返回 Transfer · 会话</div>
       <div class="h1">
-        <span class="b c" id="hbadge">CC</span><b id="htitle">…</b>
+        <span class="b c" id="hbadge">CC</span><b id="htitle">…</b><span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span>
       </div>
       <div class="meta" id="hmeta">…</div>
     </div>
@@ -206,6 +210,7 @@
 
   <!-- The demo harness: mock state switches, not part of the design and not to be implemented -->
   <div class="harness" data-demo-harness>
+    <span data-startup-controls></span>
     <span class="hl">演示·会话数据</span>
     <span class="hb on" data-ds="claude">Claude 主会话</span>
     <span class="hb" data-ds="codex">Codex fork</span>

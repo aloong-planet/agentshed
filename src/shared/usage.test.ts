@@ -21,7 +21,7 @@ import type { AgentSide, UsageRow } from './domain'
 
 /**
  * A fixed anchor, deliberately **well in the past**. A date near today would make these cases unable
- * to tell the two apart: the window is specified to be cut against the snapshot anchor rather than the
+ * to tell the two apart: the window is specified to be cut against the caller-provided common anchor rather than a separately read
  * clock (spec G2), and if the two coincide an implementation reading `Date.now()` passes everything
  * here. With the anchor months back, a clock-based cut puts every row outside `today` and the
  * assertions below go red — which is the only reason they are evidence for G2 at all.

@@ -1,3 +1,5 @@
+import { useDisplayClock } from './DisplayClock'
+import { useArtifactContentQuery } from './artifact-content-query'
 // The Memory section (spec: subagents-memory-plugin, sequences C/D).
 // The global summary: a row expands its file list inline and clicking a file opens a drawer; contents do
 // not enter the snapshot and are read on demand through the allow-listed channel (C8).
@@ -34,6 +36,7 @@ function CodexMemoryNote({ snap }: { snap: Snapshot }): JSX.Element | null {
 }
 
 export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
+  const now = useDisplayClock()
   const lang = useLanguage()
   const t = useDict()
   // The expansion key = side + project path: an expanded row does not shift when a snapshot refresh
@@ -78,7 +81,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
                 ·{' '}
                 {m.files.filter((f) => f.name !== 'MEMORY.md').length} topic
               </span>
-              <span className="src mono">{fmtAgo(lang, m.lastModified, snap.scannedAt)}</span>
+              <span className="src mono">{fmtAgo(lang, m.lastModified, now)}</span>
             </button>
             {expanded.has(key) && (
               <div className="sub-list">
@@ -87,7 +90,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
                     <span className="nm mono" style={{ flex: 1 }}>
                       {f.name}
                     </span>
-                    <span className="src mono">{fmtAgo(lang, f.mtimeMs, snap.scannedAt)}</span>
+                    <span className="src mono">{fmtAgo(lang, f.mtimeMs, now)}</span>
                   </button>
                 ))}
               </div>
@@ -100,7 +103,7 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
       {open && (
         <MemoryFileDrawer
           title={open.file.name}
-          meta={`${open.entry.projectName ?? t.placeholder.codexGlobalMemory} · ${fmtAgo(lang, open.file.mtimeMs, snap.scannedAt)}`}
+          meta={`${open.entry.projectName ?? t.placeholder.codexGlobalMemory} · ${fmtAgo(lang, open.file.mtimeMs, now)}`}
           file={open.file.file}
           onClose={() => setOpen(null)}
         />
@@ -202,8 +205,9 @@ export function MemoryFileDrawer({
 }): JSX.Element {
   const lang = useLanguage()
   const t = useDict()
-  const [content, setContent] = useState<string | null>(null)
-  const [err, setErr] = useState<string | null>(null)
+  const { data } = useArtifactContentQuery(file)
+  const content = data?.ok ? (data.text.truncated ? `${data.text.text}\n${t.placeholder.truncated}` : data.text.text) : null
+  const err = data?.ok === false ? t.memory.unreadable(errorText(lang, data.error)) : null
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose()
@@ -211,20 +215,6 @@ export function MemoryFileDrawer({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  useEffect(() => {
-    let alive = true
-    window.agentshed
-      .readArtifact(file)
-      .then((raw) => {
-        if (alive) setContent(raw.truncated ? `${raw.text}\n${t.placeholder.truncated}` : raw.text)
-      })
-      .catch((e: unknown) => {
-        if (alive) setErr(t.memory.unreadable(errorText(lang, e)))
-      })
-    return () => {
-      alive = false
-    }
-  }, [file])
   return (
     <>
       <div className="mask" onClick={onClose} />

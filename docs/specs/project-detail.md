@@ -7,6 +7,9 @@
 > covers **page-level** rules and the **artifacts section** (artifacts being a capability unique to
 > this page).
 
+> Startup restoration uses the original page prototypes confirmed on 2026-09-14.
+> Successful display payloads persist independently of the accounting index (ADR-0029).
+
 ## Problem Statement
 
 "What capabilities does this project have installed, what conventions does it follow, and what has it
@@ -55,7 +58,7 @@ is read-only; the one write operation is uninstalling a project-level skill.
   atomic** (ruled 2026-09-12, superseding the 2026-09-11 empty-pane rule; the CONTEXT.md invariant of
   that date): the page on screen stays whole until the next project's page can be drawn whole, then
   the pane switches in one frame — no empty pane, no loading label, no new header over an old body.
-  Only the list highlight moves at once. A project seen earlier in the run is a **cached visit**: its
+  Only the list highlight moves at once. A project with a saved successful page is a **cached visit**: its
   page is drawn immediately from what was last shown and refreshed in the background. A refetch that
   reaches a page already on screen — a snapshot update (an automatic rescan, see token-stats sequence
   E), a background revalidation, a page-local change — is a **transfusion**: the rendered content stays
@@ -70,8 +73,8 @@ is read-only; the one write operation is uninstalling a project-level skill.
   meaning (a 2026-08-02 bug); the left-hand fixed elements' width changes when the dimension changes,
   so the formula has to change with it.
 
-**Sequence T: switching and revisiting** (ADR-0028; the cache is memory-only and empty at every
-start, so "seen earlier" always means earlier in this run)
+**Sequence T: switching and revisiting** (ADR-0028; saved successful pages also qualify as
+cached visits under project-detail::REQ-001)
 - T1 First visit: with project A on screen, selecting B highlights B in the list at once; A's header
   and body stay until B's detail has arrived, then the pane shows B's header and body in the same
   frame. Nothing is drawn in between.
@@ -101,9 +104,9 @@ start, so "seen earlier" always means earlier in this run)
   form, an empty pane body under the new project's header — no error card is invented (Out of
   Scope). A failed background revalidation leaves the shown page as it is. Either failure is logged
   by the main process as every IPC failure is.
-- T11 A cached page unused for a while is dropped (the query layer's default collection window, not
-  a tuned number): the next visit to it is a first visit again (T1). Within the window the revisit
-  is instant.
+- T11 The query layer may collect an inactive in-memory entry under its existing default window.
+  A valid persisted page remains a cached visit under project-detail::REQ-001; collection alone
+  must not erase the cross-restart recovery copy. Without either copy the visit follows T1.
 - T12 Changing the UI language or the theme refetches nothing: the detail carries no natural
   language (ADR-0016), so the cache is language-independent.
 - T13 Window focus refetches nothing by itself: the snapshot is the app's one refresh clock (the
@@ -186,6 +189,36 @@ never writes to any agent's registry; it tells the user what happened and hands 
 - R2 When adding an artifact type, update four places together: the type enum, the read source, the
   display order, and the chip labels (missing one produces either "scanned but not shown" or "shown
   but cannot be opened").
+
+## Cross-restart page restoration
+
+### project-detail::REQ-001 Restore successful project pages
+
+- project-detail::REQ-001/AC-01: After a full quit and relaunch, opening a previously viewed project
+  with a valid saved detail displays the last successful detail before the first scan finishes,
+  including its sections, statistics and session list. An accounting-cache invalidation alone
+  must not turn this into a first visit.
+- project-detail::REQ-001/AC-02: A project without saved detail follows the existing first-visit
+  behavior; never substitute another project's data.
+- project-detail::REQ-001/AC-03: Refresh a restored page by transfusion when current data is ready;
+  a failed background request must not overwrite the last successful payload with an error result.
+- project-detail::REQ-001/AC-04: A successful snapshot declaring the selected project stale or
+  absent takes precedence over its saved page and follows S6/S7.
+- project-detail::REQ-001/AC-05: Already-read artifact, memory and skill-package preview content
+  belonging to the project is eligible for restoration as previously viewed content; unread
+  bodies are not eagerly fetched to populate the saved copy.
+
+The shared version, source-admission and navigation constraints are
+[agents-overview::CON-001](agents-overview.md), [agents-overview::CON-002](agents-overview.md) and
+[agents-overview::CON-003](agents-overview.md). Restored markup retains R3's link destinations.
+The saved page includes successful detail data and separately fetched preview bodies already read
+from that page. Restoring these bodies does not restore the open drawer or authorize new file reads.
+Error results and pending requests are never stored as successful page content.
+
+Test through the shared cross-process restart scenario in
+[agents-overview](agents-overview.md#startup-verification-decisions), followed by selecting a cached
+project, a never-viewed project and a project removed before refresh. T1–T10, T12/T13 and S6/S7 are
+regressions within this round; artifact collection rules and unrelated section layouts are unchanged.
 
 ## Implementation Decisions
 
@@ -271,9 +304,8 @@ main-process side of the knob is a one-line read and is not unit tested.
 - Cross-project artifact aggregation (ruled a false requirement, see CONTEXT.md's flagged
   ambiguities; cross-project retrieval belongs to a future global search).
 - Full-text search of artifact contents.
-- Moving the other on-demand reads (a turn's contents, skill package files, artifact contents, the
-  session search) onto the query layer: they keep their effects and handlers for now, tracked as a
-  follow-up.
+- Persisting session search results or search state across restarts. Search already uses the query
+  layer under ADR-0028, but is not a saved display-page or preview payload under ADR-0029.
 - An error card for a failed detail fetch: the body stays empty as before (T10); a card is a new
   visible state and needs a prototype.
 - A pending indicator while a first visit is in flight (dimming the clicked row, a progress bar):

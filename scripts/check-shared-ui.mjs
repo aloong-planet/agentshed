@@ -33,6 +33,12 @@ const read = (p) => (existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), 'ut
 /** The shared block registry: each entry describes one reusable visual block and its contract */
 const SHARED_BLOCKS = [
   {
+    id: 'startup-status',
+    label: 'startup restoration scanning hint',
+    assets: ['_shared/startup-status.css', '_shared/startup-status.js'],
+    containers: []
+  },
+  {
     id: 'trend-chart',
     label: 'provider stacked trend chart',
     /** Resources a page declaring it must reference */

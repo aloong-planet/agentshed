@@ -80,6 +80,7 @@ export const en: Locale = {
 
   shell: {
     pickProject: 'Select a project to see its details',
+    waitingUpdate: 'Showing previous data, waiting for an update',
     scanning: 'Scanning the agent sides…'
   },
   skills: {

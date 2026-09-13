@@ -101,3 +101,9 @@ both pages, run and re-run after two rounds of mutation testing (each mutation r
 blocked by an account billing issue since PR #173 (2026-09-11), unrelated to this feature's code, and
 every PR in this feature (#178, #179, #180, and this closeout) was merged on the user's explicit
 instruction to proceed without waiting on it. The promotion rests on the local gate, not on CI.
+
+**Lifetime extension accepted 2026-09-14 (ADR-0029)**: independently persisted successful display
+payloads hydrate this query layer after a full restart. The query mechanism remains this decision's;
+cross-restart storage and validation belong to ADR-0029. Memory and skill-file drawers now also use
+the query layer. A failed revalidation retains its last successful display copy; authoritative
+absence retires an obsolete session. Query collection alone does not discard that display copy.

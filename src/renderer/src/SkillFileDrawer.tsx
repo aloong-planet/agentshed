@@ -1,3 +1,4 @@
+import { useSkillContentQuery } from './skill-content-query'
 // skills-view: clicking a file opens a drawer to read it; markdown previews by default (a frontmatter
 // card + sanitised HTML). Links in the preview follow spec D3: an in-package relative link switches
 // the drawer to that file, anything else gets the shared interception (external → system browser via
@@ -40,26 +41,10 @@ export function SkillFileDrawer({
   const lang = useLanguage()
   const canPreview = isMarkdownName(filePath)
   const [mode, setMode] = useState<'raw' | 'preview'>(canPreview ? 'preview' : 'raw')
-  const [text, setText] = useState<string | null>(null)
-  const [err, setErr] = useState<string | null>(null)
-
-  useEffect(() => {
-    let alive = true
-    setText(null)
-    setErr(null)
-    setMode(isMarkdownName(filePath) ? 'preview' : 'raw')
-    void window.agentshed
-      .readSkillFile({ absPath })
-      .then((cap) => {
-        if (alive) setText(cap.truncated ? `${cap.text}\n${dict.placeholder.truncated}` : cap.text)
-      })
-      .catch((e: unknown) => {
-        if (alive) setErr(String(e))
-      })
-    return () => {
-      alive = false
-    }
-  }, [absPath, filePath])
+  const data = useSkillContentQuery(absPath)
+  const text = data?.ok ? (data.text.truncated ? `${data.text.text}\n${dict.placeholder.truncated}` : data.text.text) : null
+  const err = data?.ok === false ? errorText(lang, data.error) : null
+  useEffect(() => { setMode(isMarkdownName(filePath) ? 'preview' : 'raw') }, [absPath, filePath])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {

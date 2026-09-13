@@ -153,6 +153,7 @@ const FORK_STATES = new Set(['none', 'stripped', 'uncertain'])
 // the preload's entry.
 export function validateSessionPage(v: unknown): ValidateResult {
   if (!isRecord(v)) return failType('page', 'object')
+  if (v['revision'] !== undefined && typeof v['revision'] !== 'string') return failType('page.revision', 'string')
   if (typeof v['file'] !== 'string' || v['file'] === '') return failType('page.file', 'string(non-empty)')
   if (typeof v['side'] !== 'string' || !AGENT_SIDES.has(v['side']))
     return failEnum('page.side', String(v['side']))
@@ -173,6 +174,7 @@ export function validateSessionPage(v: unknown): ValidateResult {
     const q: unknown = qs[i]
     const at = `page.questions[${i}]`
     if (!isRecord(q)) return failType(at, 'object')
+    if (q['revision'] !== undefined && typeof q['revision'] !== 'string') return failType(`${at}.revision`, 'string')
     if (typeof q['i'] !== 'number') return failType(`${at}.i`, 'number')
     if (!strOrNull(q['text'])) return failType(`${at}.text`, 'string|null')
     if (q['at'] !== null && typeof q['at'] !== 'number') return failType(`${at}.at`, 'number|null')

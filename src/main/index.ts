@@ -1,3 +1,7 @@
+import { ReadRegistry } from './read-registrations'
+import { DisplayStore } from './display-store'
+import { sourceIdentity, pageRevision, questionRevision, regularTarget } from './source-identity'
+import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
 import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeTheme, protocol, session, shell } from 'electron'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -99,7 +103,35 @@ let sessionWhitelist = new Set<string>()
 let sessionTokens = new Map<string, number>()
 
 // ── Snapshot and refresh (deduplicated: a second trigger while one is in flight is ignored) ──
+let displayStore: DisplayStore | null = null
+let savedReads = new Map<string, SavedRead>()
+let startupStatus: StartupStatus = 'scanning'
+let firstScanComplete = false
+let liveScanReady: () => void = () => {}
+const firstLiveScan = new Promise<void>((resolve) => { liveScanReady = resolve })
 let current: Snapshot | null = null
+let readRegistry = new ReadRegistry()
+function persistDisplay(): void {
+  if (!displayStore) return
+  displayStore.save({ snapshot: current, stats: [...perProjectStats], sessionFiles: [...sessionWhitelist],
+    registrations: readRegistry.snapshot(), reads: [...savedReads.values()] })
+}
+function remember(read: SavedRead): void {
+  if (read.kind === 'sessionPage') {
+    for (const [key, saved] of savedReads) if (saved.kind === 'turnContent' && saved.file === read.file && saved.revision !== read.data.questions[saved.i]?.revision) savedReads.delete(key)
+  }
+  if (read.kind === 'turnContent') {
+    const page = savedReads.get(JSON.stringify(['sessionPage', read.file]))
+    if (page?.kind !== 'sessionPage' || page.data.questions[read.i]?.revision !== read.revision) return
+  }
+  savedReads.set(savedReadKey(read), read)
+  persistDisplay()
+}
+function setStartupStatus(status: StartupStatus): void {
+  startupStatus = status
+  mainWindow?.webContents.send(EVT.startupStatus, status)
+}
+
 let inflight: Promise<Snapshot> | null = null
 /** The last successful scan moment; the throttle baseline for focus triggers (token-stats E1) */
 let lastScanAt: number | null = null
@@ -109,6 +141,8 @@ let lastScanAt: number | null = null
  * production — rescanIntervalMs falls back to it on unset/invalid input. */
 const SCAN_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_SCAN_DELAY_MS'], 0)
 let firstScanDelayed = false
+// Fixture-only scan failure injection, paired with the existing delay/automatic retry seams.
+let scanFailures = rescanIntervalMs(process.env['AGENTSHED_SCAN_FAILURES'], 0)
 /** Developer override (spec C15): accept every live figure for the archive, even a same-stamp decrease on
  * a past day. Development changes accounting code without changing either version component, so a
  * legitimate decrease would otherwise be retained as if it were a loss. Never set in production. */
@@ -122,13 +156,18 @@ const FETCH_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_FETCH_DELAY_MS'],
 
 async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
+  if (!firstScanComplete) setStartupStatus('scanning')
   inflight = (async () => {
     try {
       if (SCAN_DELAY_MS > 0 && !firstScanDelayed) {
         firstScanDelayed = true
         await new Promise((r) => setTimeout(r, SCAN_DELAY_MS))
       }
+      let nextStats = perProjectStats
+      let nextSessionFiles = sessionWhitelist
+      let nextSessionTokens = sessionTokens
       const snap = await scan(realRoots(), { now: () => Date.now() })
+      if (scanFailures > 0) { scanFailures--; throw new Error('Injected scan failure') }
       if (tokenEngine) {
         const claudePaths = snap.projects
           .filter((p) => p.sides.includes('claude'))
@@ -136,7 +175,7 @@ async function doScan(): Promise<Snapshot> {
         const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
         const t = await tokenEngine.build(realRoots(), claudePaths, registered)
         snap.tokens = t.global
-        perProjectStats = t.perProject
+        nextStats = t.perProject
         // The session count shares its source with the sessions section. scan() gives a **file count**
         // (including warmups and subagents),
         // while the section lists only real sessions per spec A3a/A3 — two numbers both called "session
@@ -148,10 +187,10 @@ async function doScan(): Promise<Snapshot> {
         for (const p of snap.projects) {
           p.sessionCount = t.perProject.get(mergeKey(p.path))?.sessions.length ?? 0
         }
-        sessionWhitelist = t.sessionFiles
+        nextSessionFiles = t.sessionFiles
         const tok = new Map<string, number>()
         for (const ps of t.perProject.values()) for (const s of ps.sessions) tok.set(s.file, s.tokens)
-        sessionTokens = tok
+        nextSessionTokens = tok
         // Archive (ADR-0026): the archive owns the effective row set — live rows for the (day, side) pairs
         // it accepted, archive rows for archived-only and retained pairs — and every figure derives from
         // it (spec G6), the project pages included. Undated rows never enter the archive and are added
@@ -161,21 +200,36 @@ async function doScan(): Promise<Snapshot> {
           const rows = [...eff.rows, ...t.rows.filter((r) => !r.day)]
           snap.tokens = deriveStats(rows)
           snap.archivedDays = eff.archivedOnlyDays
-          perProjectStats = projectStatsFromRows(t.perProject, rows)
+          nextStats = projectStatsFromRows(t.perProject, rows)
         }
       }
       assertSnapshot(snap)
+      perProjectStats = nextStats
+      sessionWhitelist = nextSessionFiles
+      sessionTokens = nextSessionTokens
       lastScanAt = Date.now() // The baseline for focus throttling (token-stats E1)
-      // Memory files join the on-demand read allow-list (the same invariant as artifacts: only files a
-      // snapshot listed can be read)
-      for (const m of snap.global.memory) for (const f of m.files) artifactWhitelist.add(f.file)
-      // The plugin package root registration set (plugins-view H8): an enumeration entry point must hit
-      // it, fail-closed
-      for (const p of snap.global.plugins) if (p.installPath) pluginRootWhitelist.add(p.installPath)
-      for (const c of snap.global.codexPlugins) if (c.root) pluginRootWhitelist.add(c.root)
+      readRegistry.replace({ owner: 'scan',
+        artifacts: snap.global.memory.flatMap(m => m.files.map(f => f.file)),
+        pluginRoots: [...snap.global.plugins.flatMap(p => p.installPath ? [p.installPath] : []),
+          ...snap.global.codexPlugins.flatMap(p => p.root ? [p.root] : [])], projects: [], skillFiles: [] })
+      for (const r of savedReads.values()) {
+        if (r.kind === 'projectDetail' && !snap.projects.some(p => p.path === r.path && !p.stale)) readRegistry.remove(`project:${r.path}`)
+        if (r.kind === 'skillFiles' && ((r.args.scope === 'project' && !snap.projects.some(p => p.path === r.args.projectPath && !p.stale)) ||
+          (r.args.scope === 'plugin' && !readRegistry.admission('pluginRoots', r.args.pluginRoot ?? '')) ||
+          (r.args.scope === 'global' && !snap.global.skills.some(skill => skill.name === r.args.name && skill.sides.includes(r.args.side))))) readRegistry.remove(savedReadKey(r))
+      }
       current = snap
+      firstScanComplete = true
+      liveScanReady()
+      // An authoritative absence retires saved session identities, while a failed scan never does.
+      for (const [key, r] of savedReads) if ((r.kind === 'sessionPage' || r.kind === 'turnContent') && !sessionWhitelist.has(r.file)) savedReads.delete(key)
+      persistDisplay()
+      setStartupStatus('ready')
       mainWindow?.webContents.send(EVT.snapshot, snap)
       return snap
+    } catch (error) {
+      if (!firstScanComplete) setStartupStatus('waiting')
+      throw error
     } finally {
       inflight = null
     }
@@ -201,24 +255,14 @@ function handle<T>(
   })
 }
 
+handle(CMD.getStartup, () => ({ display: { ...(displayStore?.get() ?? emptyDisplayData()), snapshot: current, reads: [...savedReads.values()] }, status: startupStatus }))
 handle(CMD.getSnapshot, async () => {
   if (current) return current
   return doScan()
 })
-// The artifact file allow-list: only files the detail page listed may be read or opened externally,
-// closing the arbitrary-path read hole
-const artifactWhitelist = new Set<string>()
-/** skills-view: the exact readable paths registered by an expansion enumeration */
-const skillFileWhitelist = new Set<string>()
-/** skills-view C9: project-level enumeration is admitted only for projects whose detail page has been
- * opened (fail-closed, the same pattern as the session allow-list) */
-const openedProjects = new Set<string>()
-/** plugins-view H8: the plugin package root registration set — only a summary-source package root
- * registered by the scan or detail may be enumerated */
-const pluginRootWhitelist = new Set<string>()
-
 handle(CMD.getProjectDetail, async (_e, path: unknown) => {
   if (typeof path !== 'string' || path === '') throw appError(ERR.badArgs, { channel: 'getProjectDetail', field: 'path' })
+  if (!firstScanComplete) await firstLiveScan
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
   const detail = readProjectDetail(realRoots(), path)
   detail.stats = perProjectStats.get(mergeKey(path)) ?? null
@@ -227,10 +271,12 @@ handle(CMD.getProjectDetail, async (_e, path: unknown) => {
   // It covers the whole detail payload including the stats.sessions block (validateProjectDetail reuses
   // that validator internally).
   assertProjectDetail(detail)
-  for (const a of detail.artifacts) artifactWhitelist.add(a.file)
-  for (const t of detail.memory.topics) artifactWhitelist.add(t.file)
-  openedProjects.add(path)
-  for (const p of detail.plugins) if (p.installPath) pluginRootWhitelist.add(p.installPath)
+  readRegistry.replace({ owner: `project:${path}`, artifacts: [...detail.artifacts.map(a => a.file), ...detail.memory.topics.map(t => t.file)],
+    projects: [path], pluginRoots: detail.plugins.flatMap(p => p.installPath ? [p.installPath] : []), skillFiles: [] })
+  for (const r of savedReads.values()) if (r.kind === 'skillFiles' && ((r.args.scope === 'project' && r.args.projectPath === path &&
+    !detail.skills.some(skill => skill.level === 'project' && skill.name === r.args.name && skill.side === r.args.side)) ||
+    (r.args.scope === 'plugin' && !readRegistry.admission('pluginRoots', r.args.pluginRoot ?? '')))) readRegistry.remove(savedReadKey(r))
+  remember({ kind: 'projectDetail', path, data: detail })
   return detail
 })
 handle(CMD.getSessionPage, async (_e, raw: unknown) => {
@@ -238,8 +284,12 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
   // function is in security.ts)
   const file = sessionReadTarget(sessionWhitelist, raw)
   if (!file) throw appError(ERR.sessionNotWhitelisted)
+  if (!firstScanComplete) await firstLiveScan
+  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
   if (!tokenEngine) throw appError(ERR.engineNotReady)
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
+  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
+  const identity = sourceIdentity(file)
   const q = await tokenEngine.sessionQuestions(realRoots(), file)
   // The text is read live by range (spec D2a: the index holds no text); readRanges never reads whole
   const { texts } = await readRanges(file, q.questions.map((r) => ({ start: r[0], end: r[1] })))
@@ -261,9 +311,12 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     }
     // Unreadable means passing null: the wording belongs to the renderer (ticket 07), and the main
     // process emits no user-facing natural language
-    return { i: idx + 1, text, at: rec[3], tools: rec[4], subagents: rec[5] }
+    return { revision: questionRevision(identity, file, rec[0], rec[1], texts[idx]), i: idx + 1, text, at: rec[3], tools: rec[4], subagents: rec[5] }
   })
+  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
+  if (sourceIdentity(file) !== identity) throw appError(ERR.sessionNotIndexed)
   const page: SessionPage = {
+    revision: pageRevision(identity, q.questions),
     file,
     side: q.side,
     title: q.title,
@@ -277,33 +330,45 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
     questions
   }
   assertSessionPage(page)
+  remember({ kind: 'sessionPage', file, data: page })
   return page
 })
 handle(CMD.sessionFresh, (_e, raw: unknown) => {
   // The same allow-list comes first (fail-closed); the predicate is read-only and triggers no rebuild
   const file = sessionReadTarget(sessionWhitelist, raw)
   if (!file) throw appError(ERR.sessionNotWhitelisted)
-  return tokenEngine ? tokenEngine.isFresh(file) : false
+  return regularTarget(file) && tokenEngine ? tokenEngine.isFresh(file) : false
 })
 handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
   const a = raw as SessionTurnArgs
   const file = sessionReadTarget(sessionWhitelist, a?.file)
   if (!file) throw appError(ERR.sessionNotWhitelisted)
+  if (a?.revision !== undefined && typeof a.revision !== 'string') throw appError(ERR.badArgs, { channel: 'getSessionTurn', field: 'revision' })
   if (typeof a?.i !== 'number' || !Number.isInteger(a.i) || a.i < 0)
     throw appError(ERR.badArgs, { channel: 'getSessionTurn', field: 'i' })
+  if (!firstScanComplete) await firstLiveScan
+  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
   if (!tokenEngine) throw appError(ERR.engineNotReady)
   // The range comes from the main process's own index (sessionQuestions rebuilds the single file when
   // the signature does not match),
   // and a byte range from the renderer is not accepted — all this channel can fetch is "the turn of a
   // given question"
+  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
+  const readStarted = performance.now()
+  const identity = sourceIdentity(file)
   const q = await tokenEngine.sessionQuestions(realRoots(), file)
   if (a.i >= q.questions.length) throw appError(ERR.turnOutOfRange, { i: a.i, total: q.questions.length })
   const rec = q.questions[a.i]
   // A whole turn = from after the question up to the next one ([turn start, turn end); the page already
-  // has the question in full, so it is not fetched again)
-  const { texts, bytesRead } = await readRanges(file, [{ start: rec[1], end: rec[2] }])
-  const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, texts[0]), bytesRead }
+  // has the question in full; re-read that selected question only to validate its source identity)
+  const { texts, bytesRead } = await readRanges(file, [{ start: rec[0], end: rec[1] }, { start: rec[1], end: rec[2] }])
+  const revision = questionRevision(identity, file, rec[0], rec[1], texts[0])
+  if (a.revision !== undefined && a.revision !== revision) throw appError(ERR.sessionNotIndexed)
+  const turn: SessionTurn = { blocks: turnBlocksFromText(q.side, texts[1]), bytesRead }
+  if (!sessionWhitelist.has(file)) throw appError(ERR.sessionNotWhitelisted)
+  if (sourceIdentity(file) !== identity) throw appError(ERR.sessionNotIndexed)
   assertSessionTurn(turn)
+  remember({ kind: 'turnContent', file, i: a.i, revision, ms: Math.max(1, Math.round(performance.now() - readStarted)), data: turn })
   return turn
 })
 handle(CMD.searchSessions, async (_e, raw: unknown) => {
@@ -321,14 +386,18 @@ handle(CMD.searchSessions, async (_e, raw: unknown) => {
   return r
 })
 handle(CMD.readArtifact, async (_e, file: unknown) => {
-  if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw appError(ERR.artifactNotWhitelisted)
+  if (typeof file !== 'string' || !readRegistry.admission('artifacts', file)) throw appError(ERR.artifactNotWhitelisted)
   if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
+  if (!readRegistry.admission('artifacts', file)) throw appError(ERR.artifactNotWhitelisted)
+  if (readRegistry.admission('artifacts', file) === 'restored' && !regularTarget(file)) throw appError(ERR.artifactNotWhitelisted)
   const raw = readFileSync(file, 'utf8')
   // Only report whether it was truncated; the renderer appends the marker in the current language
   // (ticket 07)
-  return raw.length > 500_000
+  const text = raw.length > 500_000
     ? { text: raw.slice(0, 500_000), truncated: true }
     : { text: raw, truncated: false }
+  remember({ kind: 'artifactContent', file, data: text })
+  return text
 })
 handle(CMD.copyText, (_e, text: unknown) => {
   if (typeof text !== 'string' || text === '')
@@ -337,7 +406,8 @@ handle(CMD.copyText, (_e, text: unknown) => {
 })
 
 handle(CMD.openArtifact, async (_e, file: unknown) => {
-  if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw appError(ERR.artifactNotWhitelisted)
+  if (typeof file !== 'string' || !readRegistry.admission('artifacts', file)) throw appError(ERR.artifactNotWhitelisted)
+  if (readRegistry.admission('artifacts', file) === 'restored' && !regularTarget(file)) throw appError(ERR.artifactNotWhitelisted)
   await shell.openPath(file)
 })
 function checkSkillOpArgs(args: unknown): SkillOpArgs {
@@ -378,12 +448,13 @@ handle(CMD.listSkillFiles, async (_e, args: unknown): Promise<ListSkillFilesResu
   if (a.scope === 'plugin') {
     // H8: the package root must hit the scan's registration set (fail-closed); the skill name is
     // sanitised inside the resolver
-    if (!pluginRootWhitelist.has(a.pluginRoot as string)) {
+    if (!readRegistry.admission('pluginRoots', a.pluginRoot as string)) {
       throw appError(ERR.pluginRootNotRegistered)
     }
+    if (readRegistry.admission('pluginRoots', a.pluginRoot as string) === 'restored' && !regularTarget(a.pluginRoot as string, true)) throw appError(ERR.pluginRootNotRegistered)
     root = resolvePluginSkillRoot(a.pluginRoot as string, a.name)
   } else {
-    if (a.scope === 'project' && !openedProjects.has(a.projectPath as string)) {
+    if (a.scope === 'project' && !readRegistry.admission('projects', a.projectPath as string)) {
       throw appError(ERR.projectNotOpened)
     }
     // The container check (C9, applied to the entry point before resolution) happens inside
@@ -400,19 +471,25 @@ handle(CMD.listSkillFiles, async (_e, args: unknown): Promise<ListSkillFilesResu
     throw appError(ERR.skillPackageUnavailable)
   }
   const listing = listSkillPackageFiles(root)
-  for (const f of listing.files) skillFileWhitelist.add(f.absPath)
-  return {
+  const result = {
     files: listing.files,
     deep: listing.deep,
     deepPaths: listing.deepPaths,
   }
+  const read: SavedRead = { kind: 'skillFiles', args: a, data: result }
+  readRegistry.replace({ owner: savedReadKey(read), skillFiles: listing.files.map(f => f.absPath), artifacts: [], projects: [], pluginRoots: [] })
+  remember(read)
+  return result
 })
 handle(CMD.readSkillFile, (_e, args: unknown): CappedText => {
   const a = args as { absPath?: unknown }
   if (typeof a?.absPath !== 'string' || !a.absPath) throw appError(ERR.badArgs, { channel: 'readSkillFile', field: 'absPath' })
-  if (!skillFileWhitelist.has(a.absPath)) throw appError(ERR.skillFileNotWhitelisted)
+  if (!readRegistry.admission('skillFiles', a.absPath)) throw appError(ERR.skillFileNotWhitelisted)
   try {
-    return readSkillFileText(a.absPath)
+    if (readRegistry.admission('skillFiles', a.absPath) === 'restored' && !regularTarget(a.absPath)) throw appError(ERR.skillFileUnreadable)
+    const text = readSkillFileText(a.absPath)
+    remember({ kind: 'skillContent', file: a.absPath, data: text })
+    return text
   } catch {
     throw appError(ERR.skillFileUnreadable)
   }
@@ -522,9 +599,17 @@ void app.whenReady().then(() => {
   // structure version covers parser changes — together they identify the accounting code, so a lower
   // figure under the same stamp can only mean the data shrank
   archive = new UsageArchive(app.getPath('userData'), { stamp: `${app.getVersion()}+c${CACHE_VERSION}` })
+  displayStore = new DisplayStore(app.getPath('userData'))
+  const restored = displayStore.get()
+  current = restored.snapshot
+  perProjectStats = new Map(restored.stats)
+  sessionWhitelist = new Set(restored.sessionFiles)
+  for (const stats of perProjectStats.values()) for (const s of stats.sessions) sessionTokens.set(s.file, s.tokens)
+  savedReads = new Map(restored.reads.map(r => [savedReadKey(r), r]))
+  readRegistry = new ReadRegistry(restored.registrations)
   createWindow()
   applyMenu()
-  void doScan()
+  void doScan().catch((error: unknown) => console.error('[startup] scan failed:', error))
   // Automatic snapshot refresh (token-stats sequence E) — since the manual control was removed
   // (2026-08-23) this is the **only** way a running window gets fresh data: focus (throttled) + a timed
   // backstop, both going through doScan, whose in-flight deduplication keeps two triggers that coincide
@@ -570,3 +655,14 @@ if (process.env['ELECTRON_RENDERER_URL']) {
     }
   }, 1000)
 }
+
+// Normal quit waits for pending atomic writes. Forced termination may lose only unfinished writes.
+let quitFlushed = false
+app.on('before-quit', (event) => {
+  if (quitFlushed || !displayStore) return
+  event.preventDefault()
+  void displayStore.flush().catch((error: unknown) => console.error('[display-cache] quit flush failed:', error)).finally(() => {
+    quitFlushed = true
+    app.quit()
+  })
+})
