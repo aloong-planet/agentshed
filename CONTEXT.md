@@ -324,6 +324,13 @@ no natural-language wording at all. The wording is produced in the renderer in t
 (see ADR-0015).
 _Avoid_: error message (bare, implies a finished sentence)
 
+**Transfusion**:
+A refresh of a page that is already on screen: the new data replaces the old in place, and what the
+user has done on the page (a section's expansion, a search keyword, the scroll position) survives it.
+It is how an automatic rescan and a background revalidation reach a page; a transfusion never
+empties the page first.
+_Avoid_: reload, refetch (they name the fetch, not what the page does with its result)
+
 ## Invariants
 
 - **The decision layer of every host security guard must be a testable pure function (settled
@@ -599,6 +606,18 @@ _Avoid_: error message (bare, implies a finished sentence)
   `pnpm bench:scan` bundles the scan and runs it under the Electron binary (and under Node with
   `--node`, for the comparison this invariant is about); a Node figure is quoted as "measured under
   Node" and decides nothing about the main process.
+
+- **A page switch is atomic and a revisit is instant (settled 2026-09-12)**: selecting another
+  project or opening another session never shows an intermediate frame — no empty pane, no loading
+  label, no old body under a new header. The page on screen stays whole until the next one can be
+  drawn whole; only the selection highlight moves at once. A project or session seen earlier in the
+  run is drawn immediately from what was last shown and then refreshed by transfusion; the first
+  visit in a run waits (holding the previous page), and the cache is memory-only and empty at every
+  start. Every automatic rescan marks every cached page stale, and a change made from a page
+  (uninstalling a skill) marks that page stale. Rationale: a detail arrives within a frame or two,
+  so anything drawn between two pages is a flicker with nothing to read; and a cache that is
+  invalidated on every rescan is cheaper than a wait that has to be explained. The mechanism is
+  ADR-0028's.
 
 ## Flagged ambiguities
 

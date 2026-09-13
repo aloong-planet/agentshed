@@ -1,6 +1,6 @@
 # Project detail
 
-> Related: [features](../features/project-detail.md) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0002
+> Related: [features](../features/project-detail.md) · ADR-0004 (install/uninstall boundary) · ADR-0001 / ADR-0002 · ADR-0028 (query layer)
 > Note on reconstruction: this document was **reconstructed backwards** after specs became persistent
 > artifacts on 2026-08-01. Each section's component-level requirements and boundaries live in its own
 > spec (subagents-view / memory-view / plugins-view / skill-install / token-stats); this document
@@ -37,6 +37,9 @@ is read-only; the one write operation is uninstalling a project-level skill.
    registries and I never hand-edit their config files.
 6. As a user, I want a neutral empty state in the artifacts section for a project not following the
    eight-step process, so that I do not mistake "not done this way" for an error.
+7. As a user, I want switching between projects to feel like turning a page — the page I am on stays
+   until the next one is ready, and a project I opened earlier comes back at once — so that browsing
+   projects is not punctuated by blank frames and rebuilt content.
 
 ## Failure modes and boundaries
 
@@ -48,13 +51,16 @@ is read-only; the one write operation is uninstalling a project-level skill.
   path — plus a single note card, with **no section tabs and no data areas**. The trade-off that the
   project's own token history is no longer reachable from its page was accepted; the global totals
   still include it (see agents-overview B3). Sequence S below owns the card.
-- A3 Detail is fetched on demand (it does not enter the overview snapshot); **no loading state is
-  drawn**: on first open and when switching projects the pane body stays empty until the detail
-  arrives (ruled 2026-09-11 — the transient label it used to show only flickered on a project switch,
-  since the detail arrives within a frame or two). A refetch triggered by a snapshot update (an
-  automatic rescan, see token-stats sequence E) is a **transfusion**: the rendered content stays and
-  new data replaces it on arrival, so a section's local state (expansion, search, scroll position)
-  survives the refresh (settled 2026-08-08).
+- A3 Detail is fetched on demand (it does not enter the overview snapshot), and **a project switch is
+  atomic** (ruled 2026-09-12, superseding the 2026-09-11 empty-pane rule; the CONTEXT.md invariant of
+  that date): the page on screen stays whole until the next project's page can be drawn whole, then
+  the pane switches in one frame — no empty pane, no loading label, no new header over an old body.
+  Only the list highlight moves at once. A project seen earlier in the run is a **cached visit**: its
+  page is drawn immediately from what was last shown and refreshed in the background. A refetch that
+  reaches a page already on screen — a snapshot update (an automatic rescan, see token-stats sequence
+  E), a background revalidation, a page-local change — is a **transfusion**: the rendered content stays
+  and the new data replaces it on arrival, so a section's local state (expansion, search, scroll
+  position) survives the refresh (settled 2026-08-08). Sequence T below owns the switch.
 - A4 Configuration section: a missing project CLAUDE.md / AGENTS.md shows "none" rather than an error;
   oversized files are truncated.
 - A5 The detail drawer's width = min(a fixed width, **the right-hand content area's** width × 80%) —
@@ -63,6 +69,45 @@ is read-only; the one write operation is uninstalling a project-level skill.
   viewport, so in a narrow window the drawer covered the entire content area and lost its "drawer"
   meaning (a 2026-08-02 bug); the left-hand fixed elements' width changes when the dimension changes,
   so the formula has to change with it.
+
+**Sequence T: switching and revisiting** (ADR-0028; the cache is memory-only and empty at every
+start, so "seen earlier" always means earlier in this run)
+- T1 First visit: with project A on screen, selecting B highlights B in the list at once; A's header
+  and body stay until B's detail has arrived, then the pane shows B's header and body in the same
+  frame. Nothing is drawn in between.
+- T2 Cached visit: selecting a project seen earlier draws its page immediately (header and body from
+  what was last shown) and revalidates in the background; the fresh detail arrives by transfusion.
+  The revalidation happens on every visit — there is no age below which a cached page is trusted
+  without one.
+- T3 Snapshot update: an automatic rescan marks every cached page stale. The page on screen refetches
+  by transfusion; a page not on screen is refetched on its next visit, which is still a cached visit
+  (drawn from the stale copy first).
+- T4 Page-local change: uninstalling a skill marks that project's page stale and refetches it by
+  transfusion; the copy a later cached visit draws from is the post-change one.
+- T5 Rapid switching A → B → C before B has arrived: the list highlight follows the clicks, the pane
+  holds A until C is ready, and B's page never appears — the pending switch is interruptible. B's
+  fetch still completes and is kept, so a later visit to B is a cached visit.
+- T6 Switching to a stale project: the note page renders from the snapshot alone (S6), so the switch
+  needs no fetch and happens at once; switching from a stale project to a normal one holds the note
+  page until the detail arrives (T1).
+- T7 Switching to a project no longer in the snapshot: the not-in-snapshot empty state (S7), no fetch,
+  at once.
+- T8 Leaving for a session page and coming back: the project page is a cached visit (its detail was
+  on screen when the session opened), landing on the Sessions section per the session-view rule, and
+  its detail revalidates by transfusion.
+- T9 Leaving the Projects dimension (Agents, Settings) and coming back: the selection is kept (the
+  existing rule) and the page is a cached visit — no refetch, no empty frame.
+- T10 Fetch failure on a first visit (the IPC call rejects): the switch completes to the existing
+  form, an empty pane body under the new project's header — no error card is invented (Out of
+  Scope). A failed background revalidation leaves the shown page as it is. Either failure is logged
+  by the main process as every IPC failure is.
+- T11 A cached page unused for a while is dropped (the query layer's default collection window, not
+  a tuned number): the next visit to it is a first visit again (T1). Within the window the revisit
+  is instant.
+- T12 Changing the UI language or the theme refetches nothing: the detail carries no natural
+  language (ADR-0016), so the cache is language-independent.
+- T13 Window focus refetches nothing by itself: the snapshot is the app's one refresh clock (the
+  focus rescan produces a snapshot, which is T3).
 
 **Sequence S: the stale note page** (the product's stance is **hint only, never operate**: Agentshed
 never writes to any agent's registry; it tells the user what happened and hands them a line to send)
@@ -143,7 +188,24 @@ never writes to any agent's registry; it tells the user what happened and hands 
 - **Artifact type order**: the constant's order is the single source, shared by the reader and the UI,
   so the ordering is not written twice.
 - **Detail fetching**: on-demand IPC rather than entering the overview snapshot (so the snapshot does
-  not balloon when there are many projects).
+  not balloon when there are many projects), read through the query layer below.
+- **The query layer** (ADR-0028): the detail is a suspense query keyed by the project path, and the
+  selection change that alters the key runs inside a Transition. The list highlight is driven by the
+  immediate selection and the pane by the transitioned one — that is the whole of "the highlight
+  moves at once, the pane waits". One Suspense boundary wraps the detail slot of the Projects dimension — the pane, already
+  revealed when a switch happens, so a Transition holds it, and a fallback can never blank the list
+  beside it; the fallback draws nothing and is reachable only by a key change made outside a
+  Transition — a regression the e2e hold assertion catches, since nothing in the types does. Every
+  update that can change a key runs inside a Transition: selecting a project, opening or leaving a
+  session, entering the Projects dimension. A snapshot arrival invalidates every query (the mounted one refetches, the
+  others on their next mount); a page-local change invalidates its own project's query. Every mount
+  revalidates (T2); window focus does not (T13); a failed fetch is not retried, so failures surface
+  at once as they do today. Collection keeps the library's default window (T11). A query function
+  resolves to a result value (the detail, or the failure) and never throws, so no error boundary
+  exists and T10 is a branch of the page, not of a boundary.
+- **Section state is keyed by project**: the pane body subtree is keyed by the project path, so a
+  section's local state resets on a project change exactly as it does today (the Skills filter rule)
+  and survives a transfusion of the same project (A3).
 - **Allow-list**: when detail is returned, the artifact and memory file paths are registered in the
   allow-list, and both reading and external opening validate against it.
 - **The stale note page renders from the snapshot entry alone** (path, sides, staleness are already
@@ -171,6 +233,19 @@ page structure (card present, no tabs, no loading state), the chip set following
 and the copy feedback. The copy's clipboard write is verified at the behaviour level (feedback
 appears); the dictionary keys are covered by the type alignment.
 
+The atomic switch and the cached visit (sequence T) are asserted at the e2e seam under an **injected
+fetch delay**: an environment knob of the same test-seam family as the startup-skeleton scan delay,
+read only by the project-detail IPC handler, zero in production and set only by the e2e cases that
+need it. With the delay in force: after clicking B, the list highlight is on B while the pane header
+still names A and its body is non-empty (sampled inside the delay window — the hold is asserted at
+an instant, and the absence of an empty frame rests on the delay being far longer than the sampling
+gap); after the delay the header names B; clicking A again shows A's header and body before the
+delay could have elapsed (the cached visit); and the transfusion after a snapshot update is the
+existing "expansion state survives the automatic refresh" case, which must stay green. The
+Transition itself is verified by mutation once: without it the same case goes red on the hold.
+No renderer unit test mounts a page (none does today), so the query layer has no unit seam; the
+main-process side of the knob is a one-line read and is not unit tested.
+
 ## Out of Scope
 
 - ~~Rendering session contents (metadata only)~~ (2026-08-06: fully shipped by
@@ -185,3 +260,17 @@ appears); the dictionary keys are covered by the type alignment.
 - Cross-project artifact aggregation (ruled a false requirement, see CONTEXT.md's flagged
   ambiguities; cross-project retrieval belongs to a future global search).
 - Full-text search of artifact contents.
+- Moving the other on-demand reads (a turn's contents, skill package files, artifact contents, the
+  session search) onto the query layer: they keep their effects and handlers for now, tracked as a
+  follow-up.
+- An error card for a failed detail fetch: the body stays empty as before (T10); a card is a new
+  visible state and needs a prototype.
+- A pending indicator while a first visit is in flight (dimming the clicked row, a progress bar):
+  the list highlight moving at once is the only feedback, by the 2026-09-12 ruling; an indicator is
+  a new visible state and needs a prototype.
+
+## Further Notes
+
+- **Prototype gate (2026-09-12)**: the atomic switch adds no visible state — the list highlight
+  keeps its existing form, and the end state is the absence of an intermediate frame, which has no
+  form to draw; declared here as the exemption rather than assumed.
