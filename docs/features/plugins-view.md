@@ -27,7 +27,8 @@ package in full, in place** (review before enabling).
   the package's file table (per-file line count / size / modification date), and clicking a file opens
   a drawer to read it (markdown previews by default and can be switched to raw) — **independent of
   enablement, so a disabled plugin can be reviewed too**; a row whose package cannot be read is
-  greyed out
+  greyed out. Reopening a row you already expanded shows the table at once, refreshed quietly behind
+  the scenes rather than reloaded from a blank state
 - The skills bundled with effectively enabled plugins also appear in the Skills section as
   "pluginName:skillName" entries, badged "plugin", read-only with no install or uninstall, coexisting
   with an on-disk skill of the same name without shadowing either way; those entries **expand and

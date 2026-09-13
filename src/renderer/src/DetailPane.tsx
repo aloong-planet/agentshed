@@ -1,7 +1,7 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { MarkdownBody } from './MarkdownBody'
-import type { ArtifactEntry, ArtifactType, ProjectDetail, ProjectEntry, ProjectSkillEntry, Snapshot, SearchResult } from '@shared/domain'
+import type { ArtifactEntry, ArtifactType, CappedText, ProjectDetail, ProjectEntry, ProjectSkillEntry, Snapshot } from '@shared/domain'
 import { ARTIFACT_ORDER, PROJECT_SKILLS_DIR, emptyTokenStats } from '@shared/domain'
 import { projectDetailQueryKey, useProjectDetailQuery } from './project-detail-query'
 import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
@@ -21,6 +21,8 @@ import { errorText } from '@shared/error-text'
 import { appError } from '@shared/errors'
 import { useLanguage, useDict } from './language'
 import { GitFork } from './icons'
+import { useSessionSearchQuery } from './session-search-query'
+import { useArtifactContentQuery } from './artifact-content-query'
 
 type Tab = 'ov' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'cfg' | 'arts'
 
@@ -299,28 +301,16 @@ function SessionsTab({
   // the toggle exists is hit quality (full text hits tool output noise), not performance, and the copy
   // must not imply it is slow
   const [needle, setNeedle] = useState('')
+  const [debouncedNeedle, setDebouncedNeedle] = useState('')
   const [fullText, setFullText] = useState(false)
-  const [result, setResult] = useState<SearchResult | null>(null)
-  const seq = useRef(0)
   useEffect(() => {
-    const k = needle.trim()
-    if (k === '') {
-      setResult(null)
-      return
-    }
-    const mine = ++seq.current
-    const t = setTimeout(() => {
-      window.agentshed.searchSessions({ path: detail.path, needle: k, fullText }).then(
-        (r) => {
-          if (seq.current === mine) setResult(r)
-        },
-        () => {
-          if (seq.current === mine) setResult(null)
-        }
-      )
-    }, 200)
+    const t = setTimeout(() => setDebouncedNeedle(needle), 200)
     return () => clearTimeout(t)
-  }, [needle, fullText, detail.path])
+  }, [needle])
+  const { data: searchQueryResult } = useSessionSearchQuery(detail.path, debouncedNeedle, fullText)
+  // A rejected search falls back to "no results" rather than a distinct error state, as before —
+  // the search box has never surfaced a fetch failure differently from an empty result.
+  const result = searchQueryResult?.ok ? searchQueryResult.result : null
 
   if (sessions.length === 0) {
     return <div className="none">{t.detail.noSessionsHint}</div>
@@ -707,35 +697,50 @@ const ART_LABELS: Record<ArtifactType, string> = {
  * the Config tab both open artifacts in it, each with its own instance (the overlay closes with
  * its tab). Prototypes keep their "open in the browser" route.
  */
+/** The truncation marker (ticket 07) and the relative-image rewrite: image paths resolve against
+ * the artifact's own directory (they load under the packaged build's file://; in dev, mixed-content
+ * restrictions may prevent them showing). */
+function renderArtifactMarkdown(cap: CappedText, item: ArtifactEntry, truncatedNote: string): string {
+  const md = cap.truncated ? `${cap.text}\n${truncatedNote}` : cap.text
+  const baseDir = item.file.slice(0, item.file.lastIndexOf('/'))
+  return md.replace(
+    /!\[([^\]]*)\]\((?!https?:\/\/|file:\/\/|data:|\/)([^)]+)\)/g,
+    (_m, alt: string, rel: string) => `![${alt}](file://${baseDir}/${rel})`
+  )
+}
+
 function useArtifactReader(detail: ProjectDetail): {
   openArtifact: (item: ArtifactEntry) => Promise<void>
   readerOverlay: JSX.Element | null
 } {
   const t = useDict()
   const lang = useLanguage()
-  const [reader, setReader] = useState<{ item: ArtifactEntry; text: string } | null>(null)
+  const [openItem, setOpenItem] = useState<ArtifactEntry | null>(null)
+  const { data: readResult } = useArtifactContentQuery(openItem ? openItem.file : null)
+
+  useEffect(() => {
+    if (readResult?.ok === false) toast('err', errorText(lang, readResult.error))
+  }, [readResult, lang])
 
   async function openArtifact(item: ArtifactEntry): Promise<void> {
     if (item.type === 'prototypes') {
       await window.agentshed.openArtifact(item.file)
       return
     }
-    const cap = await window.agentshed.readArtifact(item.file)
-    // The truncation marker is appended by the renderer in the current language (ticket 07)
-    const md = cap.truncated ? `${cap.text}\n${t.placeholder.truncated}` : cap.text
-    // Relative-path images resolve against the artifact's own directory (they load under the packaged
-    // build's file://; in dev, mixed-content restrictions may prevent them showing)
-    const baseDir = item.file.slice(0, item.file.lastIndexOf('/'))
-    const rewritten = md.replace(
-      /!\[([^\]]*)\]\((?!https?:\/\/|file:\/\/|data:|\/)([^)]+)\)/g,
-      (_m, alt: string, rel: string) => `![${alt}](file://${baseDir}/${rel})`
-    )
-    setReader({ item, text: rewritten })
+    setOpenItem(item)
   }
+
+  // The truncation marker and the relative-image rewrite are derived at render time from the cached
+  // raw text, not baked into the cache: a language switch while the reader is open still picks up
+  // the marker's new wording (ticket 07), and reopening a cached file recomputes them for free.
+  const reader =
+    openItem && readResult?.ok
+      ? { item: openItem, text: renderArtifactMarkdown(readResult.text, openItem, t.placeholder.truncated) }
+      : null
 
   const readerOverlay = reader ? (
     <>
-      <div className="mask" onClick={() => setReader(null)} />
+      <div className="mask" onClick={() => setOpenItem(null)} />
       <div className="reader">
         <h2>{reader.item.title}</h2>
         <div className="meta mono">{reader.item.file}</div>

@@ -56,6 +56,18 @@ own error states are unchanged.
 - Negative: one runtime dependency and a provider at the root; a component test that mounts a page
   needs the provider (none does today — the eight renderer unit tests mount nothing).
 - Negative: until the remaining reads migrate, two fetching idioms coexist in the renderer.
+  **Resolved 2026-09-13** (issue #177): all six named sites (a turn's contents, the session freshness
+  check, the session search, skill package files at two call sites, artifact contents) now go through
+  the query layer too; `rg` over `src/renderer` confirms none of the six IPC methods are called
+  outside their `*-query.ts` module. The one sibling `readArtifact` call in `MemoryView.tsx` was never
+  one of the six and stays on its own effect.
+- Neutral, clarified 2026-09-13 (issue #177): the two page-level migrations (#174, #175) used
+  `useSuspenseQuery`, since the whole page's content depended on the fetch and nothing else was worth
+  showing meanwhile. The six widget-level sites migrated in #177 use plain `useQuery` instead — each
+  already had its own in-place loading/error UI (a file table's own spinner, a turn's own "fetching"
+  note), and forcing those under a Suspense boundary would have meant a fallback per widget for no
+  benefit. ADR-0028's mechanism is "the query layer", not "Suspense everywhere"; which of the two a
+  site uses follows from whether the page or the widget owns the loading state.
 - Neutral: on React 18 the library's Suspense support rides the thrown-promise protocol; React 19
   changes nothing for it.
 - Neutral, measured rather than assumed (2026-09-13, project-detail ticket): React 18's `createRoot`

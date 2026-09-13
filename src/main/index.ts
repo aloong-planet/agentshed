@@ -115,8 +115,9 @@ let firstScanDelayed = false
 const ARCHIVE_FORCE_ACCEPT = process.env['AGENTSHED_ARCHIVE_FORCE_ACCEPT'] === '1'
 /** Test seam (the same injection family as the rescan intervals and the scan delay): an artificial
  * delay before a project-detail or session-page fetch resolves, letting e2e assert that a switch
- * holds the previous page instead of blanking it (project-detail T1, session-view P1, ADR-0028).
- * 0 in production. */
+ * holds the previous page instead of blanking it (project-detail T1, session-view P1, ADR-0028); the
+ * same knob also covers listSkillFiles and readArtifact, letting e2e assert the widget-level query
+ * layer's reopen-is-cached behaviour (issue #177). 0 in production. */
 const FETCH_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_FETCH_DELAY_MS'], 0)
 
 async function doScan(): Promise<Snapshot> {
@@ -319,8 +320,9 @@ handle(CMD.searchSessions, async (_e, raw: unknown) => {
   assertSearchResult(r)
   return r
 })
-handle(CMD.readArtifact, (_e, file: unknown) => {
+handle(CMD.readArtifact, async (_e, file: unknown) => {
   if (typeof file !== 'string' || !artifactWhitelist.has(file)) throw appError(ERR.artifactNotWhitelisted)
+  if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
   const raw = readFileSync(file, 'utf8')
   // Only report whether it was truncated; the renderer appends the marker in the current language
   // (ticket 07)
@@ -369,8 +371,9 @@ function checkListSkillFilesArgs(args: unknown): ListSkillFilesArgs {
   }
   return a
 }
-handle(CMD.listSkillFiles, (_e, args: unknown): ListSkillFilesResult => {
+handle(CMD.listSkillFiles, async (_e, args: unknown): Promise<ListSkillFilesResult> => {
   const a = checkListSkillFilesArgs(args)
+  if (FETCH_DELAY_MS > 0) await new Promise((r) => setTimeout(r, FETCH_DELAY_MS))
   let root: string | null
   if (a.scope === 'plugin') {
     // H8: the package root must hit the scan's registration set (fail-closed); the skill name is

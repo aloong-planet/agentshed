@@ -1,8 +1,8 @@
 // skills-view: a skill expands into a file table and clicking a file opens a drawer (on-disk and plugin
 // entries on equal footing, A4/ADR-0012)
-import { useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AgentSide, SkillPkgStats } from '@shared/domain'
-import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
+import type { ListSkillFilesArgs, SkillFileEntry } from '@shared/ipc'
 import { NameReveal } from './NameReveal'
 import { SkillFileDrawer } from './SkillFileDrawer'
 import { SkillFilesTable, formatSize } from './SkillFilesTable'
@@ -11,6 +11,7 @@ import { errorText } from '@shared/error-text'
 import { useLanguage, useDict } from './language'
 import { ChevronRight, Dot, Minus } from './icons'
 import { SIDE_BADGE, SIDE_ORDER, SIDE_SHORT_NAME } from './side-badge'
+import { useSkillFilesQuery } from './skill-files-query'
 
 /**
  * The enumeration source (a discriminated union): each of the three sources has its required fields
@@ -51,9 +52,6 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   const lang = useLanguage()
   const [open, setOpen] = useState(false)
   const [side, setSide] = useState<AgentSide>(fixedSide ?? sorted[0] ?? 'claude')
-  const [listing, setListing] = useState<ListSkillFilesResult | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [listErr, setListErr] = useState<string | null>(null)
   const [drawer, setDrawer] = useState<SkillFileEntry | null>(null)
 
   const pkg = pkgBySide?.[side] ?? null
@@ -61,52 +59,32 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   // package root is in the registration set and the stats are readable
   const expandable =
     source.kind === 'plugin' ? source.pluginRoot != null && pkg !== null : sidesArr.length > 0
-  // A race guard: when sides change quickly, an old side's result must not be attributed to the new side
-  // (sideways pollution)
-  const seq = useRef(0)
 
-  async function load(forSide: AgentSide): Promise<void> {
-    const my = ++seq.current
-    setLoading(true)
-    setListErr(null)
-    try {
-      const r = await window.agentshed.listSkillFiles(
-        source.kind === 'plugin'
-          ? {
-              side: forSide,
-              name: source.bareName,
-              scope: 'plugin',
-              pluginRoot: source.pluginRoot as string
-            }
-          : source.kind === 'project'
-            ? { side: forSide, name, scope: 'project', projectPath: source.projectPath }
-            : { side: forSide, name, scope: 'global' }
-      )
-      if (seq.current === my) setListing(r)
-    } catch (e) {
-      if (seq.current === my) {
-        setListing(null)
-        setListErr(String(e))
-      }
-      toast('err', t.skills.listFailed(errorText(lang, e)))
-    } finally {
-      if (seq.current === my) setLoading(false)
-    }
+  function argsFor(forSide: AgentSide): ListSkillFilesArgs {
+    return source.kind === 'plugin'
+      ? { side: forSide, name: source.bareName, scope: 'plugin', pluginRoot: source.pluginRoot as string }
+      : source.kind === 'project'
+        ? { side: forSide, name, scope: 'project', projectPath: source.projectPath }
+        : { side: forSide, name, scope: 'global' }
   }
 
-  async function toggle(): Promise<void> {
+  // Not expanded yet → the query is disabled (fetch on first expand); re-expanding after a collapse
+  // hits the cache instead of always refetching, unlike the pre-query-layer code.
+  const { data: listResult, isLoading: loading } = useSkillFilesQuery(open ? argsFor(side) : null)
+  const listing = listResult?.ok ? listResult.listing : null
+  const listErr = listResult?.ok === false ? String(listResult.error) : null
+
+  useEffect(() => {
+    if (listResult?.ok === false) toast('err', t.skills.listFailed(errorText(lang, listResult.error)))
+  }, [listResult])
+
+  function toggle(): void {
     if (!expandable) return
-    if (open) {
-      setOpen(false)
-      return
-    }
-    setOpen(true)
-    await load(side)
+    setOpen((o) => !o)
   }
 
-  async function switchSide(s: AgentSide): Promise<void> {
+  function switchSide(s: AgentSide): void {
     setSide(s)
-    await load(s)
   }
 
   return (
@@ -115,14 +93,14 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
         className={`sk-head ${expandable ? 'disk' : 'plugin'}`}
         role={expandable ? 'button' : undefined}
         tabIndex={expandable ? 0 : undefined}
-        onClick={() => void toggle()}
+        onClick={() => toggle()}
         onKeyDown={(e) => {
           // Keyboard activation of the inline action buttons (install/uninstall) bubbles here; respond
           // only to the row itself so it does not expand as a side effect (A7)
           if (e.target !== e.currentTarget) return
           if (expandable && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault()
-            void toggle()
+            toggle()
           }
         }}
       >
@@ -160,7 +138,7 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
                   type="button"
                   key={s}
                   className={s === side ? 'on' : ''}
-                  onClick={() => void switchSide(s)}
+                  onClick={() => switchSide(s)}
                 >
                   {SIDE_SHORT_NAME[s]}
                 </button>
