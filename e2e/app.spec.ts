@@ -4536,3 +4536,47 @@ test('a session whose file Codex compresses while cached (query layer): the open
 
   await close(l)
 })
+
+test('leaving a project for a session page and coming back (query layer closeout): the project page is a cached visit landing on Sessions, then revalidates by transfusion', async () => {
+  const home = mkUsageHome()
+  const enc = join(home, 'demo-proj').replace(/[^a-zA-Z0-9]/g, '-')
+  const cdir = join(home, '.claude', 'projects', enc)
+  // The rescan interval must stay comfortably above the fetch delay: a rescan firing before the
+  // previous invalidation's refetch completes would keep resetting it, and the query would never
+  // settle (found while building this test — measured, not assumed).
+  const l = await launch(undefined, home, { AGENTSHED_FETCH_DELAY_MS: '500', AGENTSHED_RESCAN_MS: '1500' })
+  const win = await l.app.firstWindow()
+  await win.locator('.rail .ri').nth(1).click()
+  await win.locator('.side .row').first().click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+  // mkUsageHome's project has a session on each side (Claude's a.jsonl, Codex's rollout)
+  await expect(win.locator('.pane-body .card .se')).toHaveCount(2)
+
+  await win.locator('.pane-body .card .se', { hasText: 'Sample question' }).click()
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Sample question')
+
+  // A second session file lands on this project while its detail is off screen (behind the session
+  // page) — the sessions list held in cache does not yet know about it
+  writeFileSync(
+    join(cdir, 'b.jsonl'),
+    JSON.stringify({
+      type: 'user',
+      timestamp: localDayOffset(1).toISOString(),
+      message: { role: 'user', content: 'Second session question' }
+    }) + '\n'
+  )
+
+  // Back to the project: a cached visit (project-detail T9-family), landing on Sessions at once —
+  // well inside the 500ms delay window, proving it drew from cache rather than a fresh fetch
+  await win.locator('.sback').click()
+  await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions', { timeout: 200 })
+  await expect(win.locator('.pane-body .card .se').first()).toBeVisible({ timeout: 200 })
+
+  // It then revalidates by transfusion: the automatic rescan updates the cached list in place — the
+  // new session appears with no blank frame or remount in between
+  await expect(win.locator('.pane-body .card .se')).toHaveCount(3)
+  await expect(win.locator('.pane-body .card .se', { hasText: 'Second session question' })).toBeVisible()
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
