@@ -79,6 +79,7 @@ export const es: Locale = {
 
   shell: {
     pickProject: 'Selecciona un proyecto para ver su detalle',
+    waitingUpdate: 'Se muestran los datos anteriores, a la espera de una actualización',
     scanning: 'Escaneando los lados de agente…'
   },
   skills: {

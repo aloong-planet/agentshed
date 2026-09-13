@@ -1,3 +1,4 @@
+import { parseDisplayData, type StartupData, type StartupStatus } from '@shared/display-data'
 import { contextBridge, ipcRenderer } from 'electron'
 import {
   CMD,
@@ -72,6 +73,19 @@ const api = {
    * locally from it when "follow system" is selected */
   systemLanguages: systemLanguages(),
   getSnapshot: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.getSnapshot)),
+  getStartup: async (): Promise<StartupData> => {
+    const raw: unknown = await ipcRenderer.invoke(CMD.getStartup)
+    if (typeof raw !== 'object' || raw === null || !('display' in raw) || !('status' in raw) ||
+      !['scanning', 'waiting', 'ready'].includes(String(raw.status))) throw appError(ERR.contractType, { path: 'startup', expect: 'StartupData' })
+    return { display: parseDisplayData(raw.display), status: raw.status as StartupStatus }
+  },
+  onStartupStatus: (cb: (status: StartupStatus) => void): (() => void) => {
+    const listener = (_e: unknown, status: unknown): void => {
+      if (status === 'scanning' || status === 'waiting' || status === 'ready') cb(status)
+    }
+    ipcRenderer.on(EVT.startupStatus, listener)
+    return () => ipcRenderer.removeListener(EVT.startupStatus, listener)
+  },
   // The same rule as the snapshot: validated once at each end. The main process's pass catches "we
   // generated it wrong", this one catches the losses of
   // IPC transport itself — structured clone drops undefined properties, so the main process sees it as

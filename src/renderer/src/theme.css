@@ -3146,3 +3146,15 @@ mark {
   background: var(--line);
   margin: 4px 8px;
 }
+
+/* Startup display status yields width to the existing title and never adds a row on refresh. */
+.startup-display-hint { flex: 1 1 0; min-width: 0; overflow: hidden; font-weight: 400; }
+.startup-display-hint > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.startup-display-hint svg { flex: none; }
+.startup-display-hint[data-state='ready'] { visibility: hidden; }
+.startup-display-hint[data-state='waiting'] svg { animation: none; }
+@media (prefers-reduced-motion: reduce) { .startup-display-hint svg { animation: none; } }
+
+.startup-project-placeholder { height: 100%; display: flex; flex-direction: column; }
+.startup-project-heading { height: 44px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+.startup-project-placeholder > .empty { flex: 1; }

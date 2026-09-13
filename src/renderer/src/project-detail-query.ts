@@ -1,7 +1,8 @@
+import { displayQuery } from './display-queries'
 // The query-layer wrapper around getProjectDetail (ADR-0028). A suspense query resolves to a result
 // value rather than throwing, so a fetch failure is a branch of the page (spec project-detail T10)
 // and no error boundary is needed above it.
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query'
 import type { ProjectDetail } from '@shared/domain'
 
 export type ProjectDetailResult =
@@ -26,9 +27,9 @@ export async function fetchProjectDetail(
 }
 
 export function useProjectDetailQuery(path: string): ProjectDetailResult {
+  const client = useQueryClient()
   const { data } = useSuspenseQuery({
-    queryKey: projectDetailQueryKey(path),
-    queryFn: () => fetchProjectDetail(path)
+    ...displayQuery(client, projectDetailQueryKey(path), () => fetchProjectDetail(path))
   })
   return data
 }

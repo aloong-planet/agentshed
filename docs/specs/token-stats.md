@@ -5,6 +5,9 @@
 > artifacts on 2026-08-01 — the boundary entries were inferred from the existing test cases (the
 > accounting decisions are in the ADRs and are not restated here).
 
+> Startup restoration uses the original page prototypes confirmed on 2026-09-14.
+> Successful display payloads persist independently of the accounting index (ADR-0029).
+
 ## Problem Statement
 
 "Which project is burning my quota, and what has it been burning lately" had no ready answer: each
@@ -211,7 +214,7 @@ next to A/B, so that no existing reference is renumbered)
   already been retained once.
 - C11 The scan's own day is exempt from C10: its rows are replaced on every scan and no superseded
   value is kept, because they change on every scan while a session is active. "Own day" is the
-  local calendar day of the scan anchor, the same cut the windows use (G2). The first scan after
+  local calendar day of the scan anchor; display windows use their separate current-time anchor (G2). The first scan after
   midnight therefore treats yesterday as a past day from then on.
 - C12 A retained (day, side) stays retained until a scan under a different stamp observes a figure
   other than the recorded observed value, or a live total at or above the archive's arrives. It is
@@ -317,11 +320,9 @@ overnight froze `scannedAt` and today's data was not shown)**
   that are **themselves the selector**: the card shows that window's total and clicking it selects the
   window. There is no separate range control; "how much" and "over what period" are one object. All
   history is the default selection.
-- G2 The window is cut against the **snapshot anchor**, not the wall clock, so "today" always means the
-  same day as the trend chart's last bar. A snapshot taken before midnight and read after it therefore
-  reports the anchor's day, and the automatic refresh (E1/E6) is what moves both forward together.
-  Reading the clock instead would let the cards and the chart disagree about which day "today" is,
-  with nothing on screen to reveal it.
+- G2 The cards, trend and window highlighting share the current display-time anchor in
+  token-stats::REQ-001. The snapshot timestamp records when the data was observed, not what day
+  the user is viewing it on. All dependent regions move together.
 - G3 Everything the selection governs moves with it: each side's figure, the composition, the model
   breakdown, and the trend's dimming (D10). Nothing that the selection governs may stay on a different
   window — a page where some figures moved and others did not is worse than one that offers no
@@ -382,12 +383,32 @@ overnight froze `scannedAt` and today's data was not shown)**
 - G13 A refresh arriving while a non-default window is selected (E1's automatic triggers) keeps the
   selection and recomputes its figures against the new snapshot. The anchor may have moved, so "today"
   can come to mean a different day than it did a moment ago; that is the intended behaviour and the
-  reason G2 ties the window to the anchor rather than to the clock. Losing the selection on refresh
+  reason G2 gives the window and chart one shared display-time anchor. Losing the selection on refresh
   would be the visible defect, since the automatic backstop fires on a timer the user did not ask for.
 - G14 This feature renders figures the application computed itself. It introduces no new point at
   which external content is rendered or loaded, so it adds no interaction surface beyond the controls
   named above — stated rather than skipped, because "no new surface" is a conclusion that has to be
   reached rather than a default.
+
+## Restored-data time semantics
+
+### token-stats::REQ-001 Use one current display clock
+
+- token-stats::REQ-001/AC-01: Relative activity labels across overview, projects, detail, memory
+  and sessions use current time, so data saved yesterday never reads as just observed on restart.
+- token-stats::REQ-001/AC-02: Today/7-day/30-day totals, model/side/composition breakdowns,
+  trend end date and selected-span highlighting use the same current display-time anchor;
+  crossing midnight or changing time zone must not split their definition of today.
+- token-stats::REQ-001/AC-03: Stored observation timestamps and the archive's scan-day accounting
+  are not rewritten to make restored data look current. Undated-row and all-history accounting
+  remain unchanged.
+
+The display copy follows [agents-overview::CON-001](agents-overview.md); it never feeds restored
+figures into archive merging. A stale copy containing no rows for the new day shows the computed
+empty-day result while its startup scan indicator remains visible, then receives the live rows.
+Reuse the existing injected-clock aggregation seam and the restart fixture's before/after day data.
+G2/G3/G6/G7/G11/G13, D1/D10, C10/C11/C20 and E2–E4 are in-scope regressions; parser formulae and
+archive retention policy are not changed by this feature.
 
 ## Implementation Decisions
 

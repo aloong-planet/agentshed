@@ -9,10 +9,13 @@ agent side's global picture onto one screen.
 - A summary card per side at the top: that side's detection status, token figure, project count
   and global skill count; if one side's registry is corrupt it degrades to an error explanation while
   the other sides are unaffected
-- While a launch's first scan runs, the page keeps its shape: real headings and labels with pulsing
-  placeholder blocks where the figures will land, and a scanning note beside the title. Nothing on
-  the page responds to clicks until the data arrives, the data then fills in place without the page
-  jumping, and a later refresh never brings the placeholders back
+- Reopening the app immediately shows the last saved overview and project list while a scan runs
+  in the background. The page remains usable; the title's scanning note disappears when fresh data
+  arrives in place. If scanning fails, the note stops spinning, previous data stays visible and
+  the app retries automatically
+- On a first launch, or when the saved display cannot be used, real headings and labels surround
+  placeholder figures until the first scan finishes. Page controls wait for that data while the
+  navigation rail remains usable; data fills in place and later scans never bring placeholders back
 - Token section (the default): a large 30-day daily trend chart (switchable between combined and a
   single side) and a cross-project model breakdown; the totals include stale projects
 - Skills section: every side's global library merged into one column, with side badges showing which
@@ -32,6 +35,8 @@ agent side's global picture onto one screen.
   read-only config.toml summary; missing files show "none"
 
 ## Boundaries and non-goals
+- Every restart opens Agents. Previously viewed content is remembered, but the last selected project,
+  session, scroll position, open groups, searches and time window are not
 - The Grok side: its own global skills are listed and installable like the others'; components it
   borrows from Claude Code at runtime stay out of its lists, and the Skills section says so in one
   line. Its agent definitions, plugins, memory and user-level MCP are not yet parsed — there is no

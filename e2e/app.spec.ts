@@ -4192,7 +4192,7 @@ test('startup skeleton: agents page shows placeholders, refuses input, fills in 
 
     // The fill: placeholders clear, the hint goes, real figures land
     await expect(win.locator('.sk-ph')).toHaveCount(0, { timeout: 20_000 })
-    await expect(win.locator('.scan-hint')).toHaveCount(0)
+    await expect(win.locator('.scan-hint')).not.toBeVisible()
     await expect(win.locator('.tot-row .tot-c .v').first()).not.toHaveText('')
     const after = await readAnchors()
     for (const k of Object.keys(before)) {
@@ -4211,7 +4211,7 @@ test('startup skeleton: agents page shows placeholders, refuses input, fills in 
     )
     await expect(win.locator('.pane-head .stats .stat').first()).toContainText('2 projects')
     await expect(win.locator('.sk-ph')).toHaveCount(0)
-    await expect(win.locator('.scan-hint')).toHaveCount(0)
+    await expect(win.locator('.scan-hint')).not.toBeVisible()
 
     expect(l.errors).toEqual([])
   } finally {
@@ -4261,7 +4261,7 @@ test('startup skeleton: projects dimension shows placeholder rows and fills in p
       timeout: 20_000
     })
     await expect(win.locator('.side .sk-ph')).toHaveCount(0)
-    await expect(win.locator('.detail .scan-hint')).toHaveCount(0)
+    await expect(win.locator('.detail .scan-hint')).not.toBeVisible()
     await expect(win.locator('.detail .empty')).toBeVisible()
     await expect(win.locator('.side .sh input')).toBeEnabled()
     const after = await win.evaluate(() => {

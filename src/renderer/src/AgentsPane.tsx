@@ -1,3 +1,5 @@
+import { StartupHint } from './StartupHint'
+import { useDisplayClock } from './DisplayClock'
 import { useMemo, useRef, useState } from 'react'
 import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
 import { MarkdownBody } from './MarkdownBody'
@@ -35,13 +37,14 @@ export const STATIC_TABS = [
 ] as const
 
 export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
+  const now = useDisplayClock()
   const t = useDict()
   const [tab, setTab] = useState<Tab>('token')
   // The selected time window lives **above the tab switch**, so it survives moving between tabs (G11)
   // — and above the side cards, whose figures it governs on every tab, not only this one.
   const [win, setWin] = useState<UsageWindow>('all')
   const winLabel = useWindowLabel()
-  const slice = useMemo(() => sliceUsage(snap.tokens.rows, win, snap.scannedAt), [snap.tokens.rows, win, snap.scannedAt])
+  const slice = useMemo(() => sliceUsage(snap.tokens.rows, win, now), [snap.tokens.rows, win, now])
   // One accessor over the side rather than nine hand-named variables: the card row below maps over
   // SIDE_ORDER, so a new side gets its card (and its counts) by construction
   const sideStats = (side: AgentSide): { projects: number; skills: number; subs: number } => ({
@@ -53,11 +56,11 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
   return (
     <div className="pane">
       <header className="pane-head">
-        <h1>Agents</h1>
+        <div className="h1-row"><h1>Agents</h1><StartupHint /></div>
         <TotalsCards
           slice={slice}
           rows={snap.tokens.rows}
-          anchor={snap.scannedAt}
+          anchor={now}
           window={win}
           onWindow={setWin}
         />
@@ -105,7 +108,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
           <div>
             <TrendChart
               stats={snap.tokens}
-              anchor={snap.scannedAt}
+              anchor={now}
               archivedDays={snap.archivedDays}
               window={win}
             />

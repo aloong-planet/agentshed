@@ -64,14 +64,18 @@ section renders that project's main memory file directly and can view topics. Ev
 - C8 What enters the snapshot for a summary entry is **only metadata and the file name list** — no
   content (so many projects' full text does not balloon the snapshot); content is read on demand when
   clicked (reusing the artifact read channel's allow-list mechanism, extended to memory directories;
-  a read failure → "file cannot be read" inside the drawer, no crash).
+  a first-read failure → "file cannot be read" inside the drawer, no crash). An already-read
+  successful body is saved separately and restored immediately on reopening, including after a
+  restart; a failed refresh retains it (project-detail::REQ-001/AC-05, ADR-0029). This does not
+  restore the open drawer or authorize a new source read.
 - C9 The expansion state is keyed by project path rather than list index — so an expanded row does not
   shift when a snapshot refresh reorders the list.
 
 **Sequence D: project detail → Memory section**
 - D1 No memory → empty-state copy.
-- D2 The main memory file is rendered (sanitised as in subagents A7); topics open in a drawer, with a
-  200 KB per-file truncation.
+- D2 The main memory file is rendered (sanitised as in subagents A7), capped at 200,000 text code
+  units by the existing provider read. Topics open in the shared artifact drawer, whose existing
+  cap is 500,000 text code units. Saved display data preserves these truncation markers.
 - D3 Subagent-level memory (`agents/<name>/memory/`) is not read (Out of Scope, not shown in the
   section).
 - D4 A Codex-only project → an empty state explaining that "memory is a Claude-side mechanism" (Codex

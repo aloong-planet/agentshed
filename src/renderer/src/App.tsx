@@ -1,3 +1,7 @@
+import type { StartupStatus } from '@shared/display-data'
+import { StartupHint, StartupContext } from './StartupHint'
+import { useDisplayClock } from './DisplayClock'
+import { hydrateDisplayQueries } from './display-queries'
 import { Suspense, useEffect, useRef, useState, useTransition } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Snapshot } from '@shared/domain'
@@ -32,6 +36,8 @@ function applyLang(lang: Language): void {
 }
 
 export function App(): JSX.Element {
+  const now = useDisplayClock()
+  const [startup, setStartup] = useState<StartupStatus>('scanning')
   const [dim, setDim] = useState<Dim>('agents')
   const [snap, setSnap] = useState<Snapshot | null>(null)
   const queryClient = useQueryClient()
@@ -103,23 +109,47 @@ export function App(): JSX.Element {
       setLangPref(next.language)
       setMode(next.mode)
     })
-    void window.agentshed.getSnapshot().then((s) => {
-      if (alive) setSnap(s)
-    })
-    // A new snapshot (an automatic rescan) marks every cached project detail and session page stale
-    // (project-detail T3, session-view P5): a page on screen refetches by transfusion, one not on
-    // screen refetches on its next visit.
+    let liveSnapshot = 0
+    let liveStatus = false
+    const offStatus = window.agentshed.onStartupStatus((status) => { liveStatus = true; setStartup(status) })
     const off = window.agentshed.onSnapshot((s) => {
+      liveSnapshot++
+      setStartup('ready')
       setSnap(s)
-      void queryClient.invalidateQueries({ queryKey: ['projectDetail'] })
-      void queryClient.invalidateQueries({ queryKey: ['sessionPage'] })
+      for (const name of ['projectDetail', 'sessionPage', 'turnContent', 'artifactContent', 'skillContent', 'skillFiles']) {
+        void queryClient.invalidateQueries({ queryKey: [name] })
+      }
     })
+    async function restore(): Promise<void> {
+      const generation = liveSnapshot
+      try {
+        const { display, status } = await window.agentshed.getStartup()
+        if (!alive) return
+        // A scan can finish between request and response. Request its authoritative bootstrap rather
+        // than hydrating obsolete sessions or throwing away all the unrelated saved page contents.
+        if (generation !== liveSnapshot) { await restore(); return }
+        if (!liveStatus) setStartup(status)
+        hydrateDisplayQueries(queryClient, display.reads)
+        if (!liveSnapshot && display.snapshot) setSnap(display.snapshot)
+        else if (!display.snapshot) {
+          const s = await window.agentshed.getSnapshot()
+          if (alive && !liveSnapshot) setSnap(s)
+        }
+      } catch {
+        if (!alive) return
+        void window.agentshed.getSnapshot().then((s) => {
+          if (alive && !liveSnapshot) setSnap(s)
+        }).catch(() => {})
+      }
+    }
+    void restore()
     // The application menu's app entry point (ticket 13): it behaves exactly like the same-named
     // operation on the rail, going through the same state and functions rather than a second set
     const offSettings = window.agentshed.onMenuOpenSettings(() => setDim('settings'))
     return () => {
       alive = false
       off()
+      offStatus()
       offSettings()
     }
   }, [])
@@ -182,6 +212,7 @@ export function App(): JSX.Element {
 
   return (
     <LanguageProvider lang={lang}>
+    <StartupContext.Provider value={startup}>
     <div className={`app dim-${dim}`}>
       <nav className="rail">
         <button
@@ -240,7 +271,7 @@ export function App(): JSX.Element {
                     file={openSession}
                     focusQ={openFocusQ}
                     projectName={snap.projects.find((p) => p.path === shownProject)?.name ?? shownProject}
-                    now={snap.scannedAt}
+                    now={now}
                     onBack={() => {
                       startPaneTransition(() => {
                         setOpenSession(null)
@@ -269,11 +300,12 @@ export function App(): JSX.Element {
                     }}
                   />
                 ) : (
-                  <div className="empty">
-                    <div className="big">
-                      <MousePointerClick size={30} />
+                  <div className="startup-project-placeholder">
+                    <div className="startup-project-heading"><b>Agentshed</b><StartupHint /></div>
+                    <div className="empty">
+                      <div className="big"><MousePointerClick size={30} /></div>
+                      <div>{t.shell.pickProject}</div>
                     </div>
-                    <div>{t.shell.pickProject}</div>
                   </div>
                 )}
               </Suspense>
@@ -283,6 +315,7 @@ export function App(): JSX.Element {
       </main>
       <Toasts />
     </div>
+    </StartupContext.Provider>
     </LanguageProvider>
   )
 }

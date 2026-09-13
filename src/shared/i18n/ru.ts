@@ -78,6 +78,7 @@ export const ru: Locale = {
 
   shell: {
     pickProject: 'Выберите проект, чтобы увидеть детали',
+    waitingUpdate: 'Показаны предыдущие данные, ожидается обновление',
     scanning: 'Сканирование сторон агентов…'
   },
   skills: {

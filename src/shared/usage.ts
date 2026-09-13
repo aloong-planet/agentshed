@@ -49,8 +49,8 @@ export interface UsageSlice {
 }
 
 /**
- * Is this row inside the window? The window is cut against the **snapshot anchor**, not the wall clock,
- * so "today" always means the same day as the trend chart's last bar (spec G2). Reading the clock here
+ * Is this row inside the window? The window is cut against the **caller-provided common anchor**,
+ * so "today" always means the same day as the trend chart's last bar (spec G2). Reading a separate clock here
  * would let the two disagree about which day today is, with nothing on screen to reveal it.
  */
 export function inWindow(day: string, window: UsageWindow, anchorMs: number): boolean {

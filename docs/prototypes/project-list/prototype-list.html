@@ -126,11 +126,15 @@
   .harness .sepv{width:1px;height:16px;background:#4a4a52;display:inline-block;flex:none}
   .row-over{outline:1px dashed #d9534f}
   .stale-tag{font-size:9.5px;color:#b3552f;border:1px solid #e0a184;border-radius:3px;padding:0 4px;flex:none}
-  .main{flex:1;display:flex;flex-direction:column}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
   .topbar{height:44px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px}
   .empty .big{display:flex;justify-content:center;color:var(--text-2);opacity:.75}
   .empty{margin:auto;text-align:center;color:var(--text-2);line-height:2}
 </style>
+<!-- Startup restore: keep the original page and its mock contents. The added bottom switches
+     are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
+<link rel="stylesheet" href="../_shared/startup-status.css">
+<script src="../_shared/startup-status.js"></script>
 </head>
 <body>
   <div class="rail">
@@ -148,7 +152,7 @@
   <div class="side-pop" id="ddPop" role="listbox"></div>
   <div class="sides-tip" id="sidesTip"></div>
   <div class="main">
-    <div class="topbar"><b>Agentshed</b></div>
+    <div class="topbar" style="gap:12px"><b>Agentshed</b><span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span></div>
     <div class="empty"><div class="big" data-icon="MousePointerClick" data-icon-size="30"></div><div>选择一个项目查看详情</div></div>
   </div>
   <div class="harness" id="harness" data-demo-harness></div>
@@ -290,7 +294,7 @@
     const pill=(v,l)=>`<span data-v="${v}" class="${lang===v?'on':''}">${l}</span>`;
     const ipill=([v,l])=>`<span data-i="${v}" class="${ICON_MODE===v?'on':''}">${l}</span>`;
     // 短码而非语言全称:演示条是脚手架,不该占掉一整行去和被评判的界面抢注意力。
-    harness.innerHTML=`<span class="dl">演示·语言</span>`+
+    harness.innerHTML=StartupStatus.controls()+`<span class="dl">演示·语言</span>`+
       pill('zh','中文')+pill('en','EN')+pill('fr','FR')+pill('ru','RU')+
       pill('es','ES')+pill('ja','JA')+
       `<span class="sepv"></span><span class="dl">数字前图标</span>`+ICON_CAND.map(ipill).join('')+

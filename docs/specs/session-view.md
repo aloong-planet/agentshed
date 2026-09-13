@@ -3,6 +3,9 @@
 > Related: [features](../features/session-view.md) · ADR-0002 (dual seam) · ADR-0001 (single type source) · ADR-0027 (Codex usage records and paginated rollouts) · ADR-0028 (query layer)
 > Status: shipped 2026-08-06 (prototype gate passed 2026-08-02); amended 2026-09-10 for Codex paginated and cold rollouts (B1, B2, C2, C4, C8, D3, R1); amended 2026-09-12 for atomic opening and cached revisits (P, UI decisions).
 
+> Startup restoration uses the original page prototypes confirmed on 2026-09-14.
+> Successful display payloads persist independently of the accounting index (ADR-0029).
+
 ## Problem Statement
 
 Session records sit in the agent sides' data directories (1948 files / 689 MB on this machine),
@@ -363,15 +366,17 @@ ruling on 2026-08-06, see Out of Scope).
   ⚠️ The numbers above are warm-cache; a cold-start first search is disk-IO bound and was not measured.
   Corollary: **full-text search is a toggle because of hit quality (full text hits tool output noise),
   not because of performance.**
-- D2a **The cache stores offsets and one content fingerprint, and no question text at all — not even a
-  truncated preview.**
+- D2a **The accounting/question-index cache stores offsets and one content fingerprint, and no
+  question text at all — not even a truncated preview.** The separate saved-page display copy in
+  session-view::REQ-001 may contain question text; it is not an index or a search corpus.
   **The fingerprint is one necessary relaxation added on 2026-08-04**: a Codex replay
   rewrites the timestamps, so storing nothing derived from the content would leave only blind
   stripping by count, and blind stripping is exactly the silent mis-strip B2 exists to prevent. Four
   bytes per entry, not reversible into text, and unusable for search — so neither of D2a's original
   reasons (size, and not degenerating into a second search corpus) is affected.
-  The original reasoning still holds: question text is always read from its range on demand (the
-  question list and search go down the same read path).
+  The original reasoning still holds for a live read: question text is read from its range on demand
+  (the live question list and search share that path). The startup display copy is the explicit
+  exception in session-view::REQ-001; it is not searched or used as an offset index.
   The decision was made only because neither alternative holds up: storing the full text → questions
   are about 9.5% of the whole (measured on the largest project), and repository-wide that is a
   megabyte-scale burden on `token-cache.json`, which is read on every startup; storing a truncated
@@ -417,17 +422,17 @@ ruling on 2026-08-06, see Out of Scope).
   `SessionPane focusQ` scroll positioning, with no new visual element. The search term is not preserved
   across sections (the spec does not require it).
 
-**Sequence P: opening, jumping and returning** (ADR-0028; the cache is memory-only and empty at
-every start, so "earlier" always means earlier in this run)
+**Sequence P: opening, jumping and returning** (ADR-0028; a valid saved page also qualifies
+as a cached visit under session-view::REQ-001)
 - P1 Opening a session (from the sessions section, the overview card or a search hit) for the first
-  time in the run: the project page stays whole — list, search box, everything — until the session
+  time without a saved page: the project page stays whole — list, search box, everything — until the session
   page is ready, then the stage switches in one frame. The row's press feedback is the only
   immediate response; no indicator is added.
 - P2 Jumping from a session page to its parent through the fork banner: the current page stays until
   the parent's page is ready.
 - P3 Returning to the project: a cached visit of the project page (at once), landing on the Sessions
   section; its detail revalidates by transfusion (project-detail T8).
-- P4 Reopening a session seen earlier in the run: its page is drawn at once from what was last shown
+- P4 Reopening a session with a saved successful page: its page is drawn at once from what was last shown
   and revalidated in the background; page-local state (expanded turns, sort, folded days, the
   locating focus) starts fresh, keyed by the session as today, and a search hit's focus still
   applies.
@@ -444,8 +449,9 @@ every start, so "earlier" always means earlier in this run)
 - P8 Opening a session and going back before its page has arrived: the pending switch is
   interrupted, the project page stays, and the session page is kept when it arrives (a later open
   is P4).
-- P9 A turn's contents, the freshness check and the search stay on their effects and handlers (Out
-  of Scope): expanding a turn is unchanged, in-turn states included.
+- P9 Turn contents and their freshness check use the query layer (ADR-0028/0029), retaining the
+  existing in-turn states. Session search also uses the query layer, but its results are not
+  persisted across restarts.
 
 **Sequence E: export (dropped entirely by the user's ruling 2026-08-06, never implemented; the entries
 below are archived as a decision record and are no longer requirements)**
@@ -573,8 +579,8 @@ below are archived as a decision record and are no longer requirements)**
   "Sessions" section.
 - **Opening a session is atomic** (ruled 2026-09-12, superseding the 2026-09-11 empty-pane rule; the
   CONTEXT.md invariant of that date): the page on screen stays until the session page can be drawn
-  whole, then the stage switches in one frame; a session opened earlier in the run comes back at
-  once. No pending indicator is added — the row's press feedback is the only immediate response —
+  whole, then the stage switches in one frame; a session with a saved successful page comes back
+  at once, including after restarting. No pending indicator is added — the row's press feedback is the only immediate response —
   declared here as the prototype-gate exemption: no visible state is added, and the end state is the
   absence of an intermediate frame. The in-turn fetch notice below is a different state and stays.
 - **Paginated and cold rollouts change no interface point** (2026-09-10): the question list, the
@@ -590,8 +596,53 @@ below are archived as a decision record and are no longer requirements)**
   unmounting, promote it to a view-prefs module. **The cost**: it survives switching projects too — the
   sort is a way of looking, not a property of a project.
 
+## Cross-restart page restoration
+
+### session-view::REQ-001 Restore successful session pages
+
+- session-view::REQ-001/AC-01: After a full quit and relaunch, opening a previously viewed session
+  with a valid saved page displays its header, fork information and question texts before the first
+  scan completes, even when the accounting/question-index cache has been invalidated.
+- session-view::REQ-001/AC-02: Without a saved session page, keep the existing first-open path;
+  no claim of immediate opening applies to never-viewed content.
+- session-view::REQ-001/AC-03: Keep the saved question list until a successful current page can
+  replace it. Index-unavailable or background-read errors must not erase the saved page.
+- session-view::REQ-001/AC-04: The new page and turn contents must refer to the same question
+  identity. Never show an old question with a new answer selected only by its former ordinal
+  after the source has been rewritten, branched, compacted or compressed.
+
+- session-view::REQ-001/AC-05: Persist already fetched answers with their originating page, so an
+  answer read in the preceding run can be opened from saved content. Never fetch unread turns
+  merely to fill a persistence file. Expanded/collapsed state still resets under
+  [agents-overview::CON-003](agents-overview.md).
+
+### Failure modes and boundaries: opening restored content
+
+- The source is appended to while scanning: retain the saved page until a consistent new page
+  arrives; invalidate saved turn identities if the underlying question mapping changed.
+- The source is missing, becomes a symlink or changes from plain to compressed: the saved page is
+  historical display data, not permission to read the replacement. Fresh authoritative absence
+  retires the obsolete path; its new identity follows C4/P7. A failed scan alone is not absence.
+- Expand a not-yet-fetched answer while its index is unavailable: wait for a validated current
+  index/page, with the existing in-turn loading form; never use offsets from incompatible data.
+- Rapidly jump to a parent or return to a project during revalidation: the visible target follows
+  the latest selection; a late response may update only its own cache entry (P2/P8).
+- Cached text/tool output uses the existing block renderers and incompleteness labels. No new
+  markup execution, sidecar reads or full-transcript preloading is introduced.
+
+Test via the cross-process Electron scenario in
+[agents-overview](agents-overview.md#startup-verification-decisions), including index version
+invalidation and source rewrite. P1–P8, C4, C7, R1/R3 and the existing range-read/unknown-block
+boundaries are in-scope regressions. Parsing/source-format coverage outside those interactions is
+unchanged; export remains outside scope.
+
 ## Implementation Decisions
 
+- **Restored answer identity** (ADR-0029): each displayed question carries a fingerprint of its
+  source file identity, byte position and raw question record. Turn queries key by that fingerprint
+  as well as path and ordinal. A read validates the selected question and its answer in one range
+  operation (one streaming pass for compressed files), checks that the source stayed unchanged,
+  and refuses a mismatching fingerprint. Appending later questions preserves unchanged identities.
 - **Offset index**: the scan records `{question offset, turn start and end offsets, time, that turn's
   tool and subagent counts}` — **with no question text** (see D2a). Stored in the existing cache keyed
   by a `path + mtime + size` signature. Fetching streams the byte range.
@@ -733,8 +784,7 @@ are untouched and must stay green.
   They have no turn to fetch, only a summary, and showing that is a session page design question
   that needs a prototype. A compacted session therefore lists fewer questions than it did before
   the compaction, and nothing marks it.
-- Moving a turn's contents, the freshness check and the search onto the query layer (P9): they keep
-  their effects and handlers, tracked as a follow-up.
+- Persisting session search results or search state across restarts (P9).
 - A pending indicator on the clicked row while a first open is in flight: a new visible state that
   needs a prototype.
 

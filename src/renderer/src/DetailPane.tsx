@@ -1,3 +1,5 @@
+import { StartupHint } from './StartupHint'
+import { useDisplayClock } from './DisplayClock'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { MarkdownBody } from './MarkdownBody'
@@ -52,6 +54,7 @@ export function DetailPane({
           <div className="det-title">
             <h1>{entry.name}</h1>
             <span className="stale-tag">{t.detail.staleTag}</span>
+            <StartupHint />
           </div>
           <div className="det-path mono">{entry.path}</div>
         </header>
@@ -83,6 +86,7 @@ function DetailPaneBody({
   initialTab?: Tab
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
+  const now = useDisplayClock()
   const t = useDict()
   const [tab, setTab] = useState<Tab>(initialTab ?? 'ov')
   // Above the tab switch so the selection survives moving between tabs (G11). The overview is
@@ -100,6 +104,7 @@ function DetailPaneBody({
             <span key={s} className={`badge ${SIDE_BADGE[s].cls}`}>{SIDE_CHIP_LABEL[s]}</span>
           ))}
           {entry.stale && <span className="stale-tag">{t.detail.staleTag}</span>}
+          <StartupHint />
         </div>
         <div className="det-path mono">{entry.path}</div>
         <nav className="tabs">
@@ -153,14 +158,14 @@ function DetailPaneBody({
               <ProjectMemoryTab
                 detail={result.detail}
                 hasClaudeSide={entry.sides.includes('claude')}
-                anchor={snap.scannedAt}
+                anchor={now}
               />
             )}
             {tab === 'sessions' && (
-              <SessionsTab detail={result.detail} snap={snap} onOpenSession={onOpenSession} />
+              <SessionsTab detail={result.detail} onOpenSession={onOpenSession} />
             )}
             {tab === 'cfg' && <CfgTab detail={result.detail} />}
-            {tab === 'arts' && <ArtifactsTab detail={result.detail} snap={snap} />}
+            {tab === 'arts' && <ArtifactsTab detail={result.detail} />}
           </Fragment>
         ) : null // T10: a fetch failure resolves in-band; the body stays empty under the new header, as
         // it always did while the detail was loading — no error card is invented.
@@ -192,20 +197,21 @@ function OverviewTab({
   window: UsageWindow
   onWindow: (w: UsageWindow) => void
 }): JSX.Element {
+  const now = useDisplayClock()
   const lang = useLanguage()
   const t = useDict()
   const winLabel = useWindowLabel()
   const stats = detail.stats ?? { tokens: emptyTokenStats(), sessions: [] }
   const slice = useMemo(
-    () => sliceUsage(stats.tokens.rows, win, snap.scannedAt),
-    [stats.tokens.rows, win, snap.scannedAt]
+    () => sliceUsage(stats.tokens.rows, win, now),
+    [stats.tokens.rows, win, now]
   )
   return (
     <div>
       <TotalsCards
         slice={slice}
         rows={stats.tokens.rows}
-        anchor={snap.scannedAt}
+        anchor={now}
         window={win}
         onWindow={onWindow}
       />
@@ -222,7 +228,7 @@ function OverviewTab({
       </div>
       <TrendChart
         stats={stats.tokens}
-        anchor={snap.scannedAt}
+        anchor={now}
         archivedDays={snap.archivedDays}
         window={win}
       />
@@ -239,7 +245,7 @@ function OverviewTab({
                 <span className={`badge ${SIDE_BADGE[s.side].cls}`}>{SIDE_BADGE[s.side].label}</span>
                 <span className="t">{s.title ?? t.placeholder.untitledSession}</span>
                 <span className="tok">{fmtTok(s.tokens)}</span>
-                <span className="d">{fmtAgo(lang, s.at, snap.scannedAt)}</span>
+                <span className="d">{fmtAgo(lang, s.at, now)}</span>
               </button>
             ))}
           </div>
@@ -280,13 +286,12 @@ let sessionsRecentFirst = true
  */
 function SessionsTab({
   detail,
-  snap,
   onOpenSession
 }: {
   detail: ProjectDetail
-  snap: Snapshot
   onOpenSession: (file: string, focusQ?: number) => void
 }): JSX.Element {
+  const now = useDisplayClock()
   const lang = useLanguage()
   const t = useDict()
   const [recentFirst, setRecentFirst] = useState(sessionsRecentFirst)
@@ -385,7 +390,7 @@ function SessionsTab({
                       />
                     </span>
                     {h.inBody && <span className="bd">{t.detail.inBody}</span>}
-                    <span className="d">{fmtAgo(lang, h.at, snap.scannedAt)}</span>
+                    <span className="d">{fmtAgo(lang, h.at, now)}</span>
                   </button>
                 ))}
               </div>
@@ -432,7 +437,7 @@ function SessionsTab({
             )}
             <span className="n">{t.detail.questionCount(s.questionCount)}</span>
             <span className="tok">{fmtTok(s.tokens)}</span>
-            <span className="d">{fmtAgo(lang, s.at, snap.scannedAt)}</span>
+            <span className="d">{fmtAgo(lang, s.at, now)}</span>
           </button>
         ))}
       </div>
@@ -766,7 +771,8 @@ function useArtifactReader(detail: ProjectDetail): {
   return { openArtifact, readerOverlay }
 }
 
-function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot }): JSX.Element {
+function ArtifactsTab({ detail }: { detail: ProjectDetail }): JSX.Element {
+  const now = useDisplayClock()
   const t = useDict()
   const lang = useLanguage()
   const [filter, setFilter] = useState<'all' | ArtifactType>('all')
@@ -793,7 +799,7 @@ function ArtifactsTab({ detail, snap }: { detail: ProjectDetail; snap: Snapshot 
               <span className="t">{a.title}</span>
               {a.type === 'prototypes' && <span className="pill ln">{t.detail.openInBrowser}</span>}
               <span className="pill glb">{ART_LABELS[a.type]}</span>
-              <span className="src mono">{fmtAgo(lang, a.mtimeMs, snap.scannedAt)}</span>
+              <span className="src mono">{fmtAgo(lang, a.mtimeMs, now)}</span>
             </button>
           ))}
         </div>

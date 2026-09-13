@@ -123,6 +123,7 @@ export const zh = {
   /** The application shell (ticket 11) */
   shell: {
     pickProject: '选择一个项目查看详情',
+    waitingUpdate: '显示上次的数据，等待更新',
     scanning: '正在扫描各 agent 侧…'
   },
   /** Skills package preview and the file drawer (ticket 10) */

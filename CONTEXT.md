@@ -291,8 +291,9 @@ _Avoid_: closed day, settled day
 
 **Time window**:
 The span a token figure is scoped to: all history, today, the last 7 days, or the last 30 days — a
-closed set, selected by clicking the card that shows that window's total. Cut against the snapshot's
-scan anchor, not the wall clock, so "today" always means the trend chart's last bar. Distinct from the
+closed set, selected by clicking the card that shows that window's total. Cut against the same current
+display-time anchor as the trend, so "today" always means the trend chart's last bar. The observation
+time of saved data is a separate concept. Distinct from the
 **trend chart's own 30-day span**, which never changes: a narrower window dims bars, it does not
 remove them.
 _Avoid_: date range (suggests arbitrary endpoints, which are out of scope), period (ambiguous between
@@ -611,13 +612,18 @@ _Avoid_: reload, refetch (they name the fetch, not what the page does with its r
   project or opening another session never shows an intermediate frame — no empty pane, no loading
   label, no old body under a new header. The page on screen stays whole until the next one can be
   drawn whole; only the selection highlight moves at once. A project or session seen earlier in the
-  run is drawn immediately from what was last shown and then refreshed by transfusion; the first
-  visit in a run waits (holding the previous page), and the cache is memory-only and empty at every
-  start. Every automatic rescan marks every cached page stale, and a change made from a page
+  run, or restored from a saved successful page, is drawn from what was last shown and then
+  refreshed by transfusion; a visit without a saved page waits (holding the previous page).
+  Saved page contents survive a full restart; navigation and expansion state do not.
+  Display copies have their own format version and never feed accounting or archive updates
+  (ADR-0029). Previously read previews and answers are included; unread bodies are not prefetched.
+  Restored exact-path registrations are checked against current targets and replaced per owning
+  scan/detail/enumeration. Every automatic rescan
+  marks every cached page stale, and a change made from a page
   (uninstalling a skill) marks that page stale. Rationale: a detail arrives within a frame or two,
   so anything drawn between two pages is a flicker with nothing to read; and a cache that is
   invalidated on every rescan is cheaper than a wait that has to be explained. The mechanism is
-  ADR-0028's.
+  ADR-0028's, with cross-restart lifetime governed by ADR-0029.
 
 - **A concurrent React root does not need `startTransition` to hold already-revealed content
   (measured 2026-09-13)**: once a Suspense boundary rendered under `createRoot` has committed real

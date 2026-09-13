@@ -11,8 +11,10 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
 - Switching between projects turns a page rather than flashing one: the page you are on stays put
   until the next project's detail has arrived, then the whole page switches at once — no empty pane,
   no loading label, no new title over old content. Only the list highlight moves right away. A
-  project already opened earlier in this run comes back at once and quietly refreshes behind the
-  scenes; leaving for the Agents or Settings page and returning is likewise instant.
+  project already opened comes back at once, including after quitting and reopening the app, and
+  quietly refreshes behind the scenes. Its last successful content stays readable if a refresh
+  fails; a project never opened before waits for its first detail. Leaving for Agents or Settings
+  and returning is likewise instant.
 - Skills effective view: within one side, a same-name pair shows only the project-level entry (the
   shadowed global one is not listed alongside); anything that exists only globally is still listed;
   on-disk skills expand to preview a package's files (see [Skills view](skills-view.md)); symlinks
@@ -32,8 +34,8 @@ Overview (default), Skills, Subagents, Plugins, MCP, Memory, Configuration, Arti
   by type chips; the chips are ordered by the top-down derivation chain (CONTEXT.md → ADR → specs →
   prototypes → features → postmortems); markdown opens in an overlay for reading, and prototypes'
   HTML opens with the system default application. Reopening a file you already read (from the list or
-  from a cross-reference link) shows it at once; if a file cannot be read, a toast says so rather than
-  the click doing nothing
+  from a cross-reference link) shows it at once, including after restarting. A failed refresh keeps
+  an already read preview; a file never successfully read reports the failure in a toast
 - Sessions: this project's sessions on every agent side, with sorting and search, opening to the full
   conversation (see [Session view](session-view.md))
 - A stale project's detail page opens as a note page instead of the sections: it names why the

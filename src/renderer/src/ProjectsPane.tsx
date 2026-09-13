@@ -1,3 +1,4 @@
+import { useDisplayClock } from './DisplayClock'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
 import type { Language } from '@shared/i18n'
@@ -47,11 +48,11 @@ interface Props {
 }
 
 export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.Element {
+  const now = useDisplayClock()
   const t = useDict()
   const [kw, setKw] = useState('')
   const [sideFilter, setSideFilter] = useState<'all' | AgentSide>('all')
   const [showStale, setShowStale] = useState(false)
-  const now = snap.scannedAt
 
   const { visible, staleFiltered } = useMemo(() => {
     const k = kw.trim().toLowerCase()

@@ -1,10 +1,11 @@
+import { displayQuery } from './display-queries'
 // The query-layer wrapper around readArtifact (ADR-0028). A non-suspense query (see
 // skill-files-query.ts's header comment): the reader overlay renders nothing until content arrives,
 // matching the pre-migration behaviour exactly, while reopening an already-read file is now cached.
 // The truncation marker and relative-link rewriting stay a render-time derivation over the cached raw
 // text (in DetailPane.tsx), not baked into the cache — a language switch while the reader is open
 // still picks up the marker's new wording.
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CappedText } from '@shared/domain'
 
 export type ArtifactContentResult =
@@ -31,9 +32,9 @@ export function useArtifactContentQuery(file: string | null): {
   data: ArtifactContentResult | undefined
   isLoading: boolean
 } {
+  const client = useQueryClient()
   const { data, isLoading } = useQuery({
-    queryKey: artifactContentQueryKey(file),
-    queryFn: () => fetchArtifactContent(file as string),
+    ...displayQuery(client, artifactContentQueryKey(file), () => fetchArtifactContent(file as string)),
     enabled: file !== null
   })
   return { data, isLoading }

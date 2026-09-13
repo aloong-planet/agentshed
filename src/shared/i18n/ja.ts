@@ -77,6 +77,7 @@ export const ja: Locale = {
 
   shell: {
     pickProject: 'プロジェクトを選択すると詳細が表示されます',
+    waitingUpdate: '前回のデータを表示中、更新を待っています',
     scanning: '各エージェントサイドをスキャン中…'
   },
   skills: {
