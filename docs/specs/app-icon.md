@@ -9,7 +9,7 @@ run from the production app.
 
 ## Solution
 
-Use the approved reactor design: an evenly deep-black rounded square, six luminous segments separated by metal
+Use the approved reactor design: an evenly dark graphite-gray rounded square, six luminous segments separated by metal
 supports, and a filled core with a smooth, centred radial gradient. Production is icy cyan;
 development is golden yellow.
 

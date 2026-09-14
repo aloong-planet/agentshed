@@ -1,6 +1,6 @@
 # Dark-background icon revision — preview
 
-Status: approved on 2026-09-14 and applied to the project PNG and ICNS assets, replacing the previous artwork. Existing signed packages remain the earlier build. Prepared with the built-in image editor.
+Status: historical approved revision, superseded by the lighter graphite-background v3. The geometry and subdued support lighting remain valid; the near-black backplate tone is no longer current. Existing signed packages remain the earlier build. Prepared with the built-in image editor.
 
 Question: does an evenly dark backplate and subdued upper support lighting preserve a solid appearance at small icon sizes?
 

@@ -8,7 +8,7 @@ from the global library. This file is the domain glossary.
 
 **Application icon**:
 The native macOS identity of Agentshed: the cyan reactor in production, the yellow reactor during
-development. Both use an evenly deep-black casing and subdued support highlights, without overhead
+development. Both use an evenly dark graphite-gray casing and subdued support highlights, without overhead
 illumination or a top-to-bottom background gradient. Its artwork is fixed across UI themes and
 appearances. This raster brand asset is
 distinct from the renderer's control icons, which follow ADR-0018's inline SVG convention.
