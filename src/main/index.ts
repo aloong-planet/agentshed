@@ -2,7 +2,7 @@ import { ReadRegistry } from './read-registrations'
 import { DisplayStore } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, regularTarget } from './source-identity'
 import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
-import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeTheme, protocol, session, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeImage, nativeTheme, protocol, session, shell } from 'electron'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -583,6 +583,11 @@ app.on('web-contents-created', (_e, contents) => {
 
 void app.whenReady().then(() => {
   if (!gotTheLock) return
+  // Packaged macOS apps use the bundle icon; unpackaged runs use the development artwork.
+  if (process.platform === 'darwin' && !app.isPackaged) {
+    const icon = nativeImage.createFromPath(join(__dirname, '../../build/icon-dev.png'))
+    if (!icon.isEmpty()) app.dock?.setIcon(icon)
+  }
   installPermissionGuards(session.defaultSession)
   installCsp(session.defaultSession, Boolean(process.env['ELECTRON_RENDERER_URL']))
   // Handlers must be registered before the window is built (loadURL app://…); __dirname = out/main, and

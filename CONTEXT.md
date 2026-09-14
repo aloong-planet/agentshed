@@ -6,6 +6,15 @@ from the global library. This file is the domain glossary.
 
 ## Language
 
+**Application icon**:
+The native macOS identity of Agentshed: the cyan reactor in production, the yellow reactor during
+development. Its artwork is fixed across UI themes and appearances. This raster brand asset is
+distinct from the renderer's control icons, which follow ADR-0018's inline SVG convention.
+Icon acceptance and distribution trust are separate: a correct native icon does not establish that
+an unsigned package can launch on macOS. A local ad-hoc-signed verification copy proves neither
+Developer ID signing nor notarisation.
+_Avoid_: theme icon (it does not follow the selected theme)
+
 **Project**:
 Any working directory recorded in an agent side's registry; the sides are unioned, one directory to
 one project. A **registry** is the per-project record a side keeps because the user decided
