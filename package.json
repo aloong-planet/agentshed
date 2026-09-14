@@ -19,7 +19,7 @@
     "check:ui": "node scripts/check-shared-ui.mjs --cross",
     "check:lang": "node scripts/check-lang.mjs",
     "check:i18n": "node scripts/check-i18n.mjs",
-    "check:nul": "node scripts/check-raw-nul.mjs",
+    "check:nul": "node --test scripts/check-raw-nul.test.mjs && node scripts/check-raw-nul.mjs",
     "bench:scan": "node scripts/bench-scan.mjs",
     "restore:archive": "node scripts/restore-archive.mjs"
   },

@@ -7,7 +7,9 @@ The reactor icon identifies Agentshed in macOS. Its colour distinguishes develop
 ## Capabilities
 
 - The production application uses an icy cyan core and six matching luminous segments inside a dark
-  graphite casing.
+  casing with an evenly deep-black background.
+- Upper and lower metal supports share subdued highlights; there is no overhead spotlight or
+  top-to-bottom background gradient.
 - Development runs use the same design in golden yellow, with no corner dot or text badge.
 - The core fades evenly from its bright centre toward its circumference. The rounded exterior is
   transparent, without a checkerboard or name label.

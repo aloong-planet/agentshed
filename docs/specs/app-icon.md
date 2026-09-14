@@ -9,7 +9,7 @@ run from the production app.
 
 ## Solution
 
-Use the approved reactor design: a graphite rounded square, six luminous segments separated by metal
+Use the approved reactor design: an evenly deep-black rounded square, six luminous segments separated by metal
 supports, and a filled core with a smooth, centred radial gradient. Production is icy cyan;
 development is golden yellow.
 
@@ -31,6 +31,9 @@ An unpackaged macOS development run displays the approved yellow icon in the Doc
   with the brightest point at the centre and an even radial transition toward its circumference.
 - app-icon::REQ-003/AC-03: The icon has a transparent exterior, without the preview's checkerboard or
   name label, and remains recognisable at normal Dock sizes.
+- app-icon::REQ-003/AC-04: The casing has no top-to-bottom lighting gradient or overhead spotlight.
+  Upper support bends have subdued dark-metal reflections consistent with the lower supports,
+  without broad white highlights that make small icons appear hollow.
 
 ## Constraints
 
@@ -64,6 +67,9 @@ for development. The raster application identity is separate from ADR-0018's ren
 ## Testing Decisions
 
 This is asset/configuration integration, so skip unit-level TDD that would only mirror a setter.
+The raw-NUL gate recognises PNG/ICNS binary signatures together with their extensions. CLI regression
+tests use real artwork in temporary Git indexes, while NUL-bearing source and mislabeled text remain
+rejected. Stage new assets before the final gateway so Git-index-based checks include them.
 Validate actual PNG alpha, inspect rendered small and large assets, decode the generated native icon,
 and inspect a fresh packaged app's icon declaration and resource. Exercise a real unpackaged Electron
 startup with isolated data and run the existing full verification gate. Record any system UI evidence

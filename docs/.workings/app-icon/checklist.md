@@ -102,3 +102,13 @@ The temporary ad-hoc-signed packaged copy completed startup and scan and remaine
 then the test closed it. Default project signing settings were not changed.
 Final code review, verification review and three-phase document regression are complete.
 Tasks through step 8 are complete; next action is commit/push/PR, not merge.
+
+## 2026-09-14 — approved dark-background revision
+
+- [x] User approved deep-black background and subdued upper support highlights for both variants.
+- [x] Replace PNGs, preserve artwork pixels, generate ICNS; check alpha and small-size renders.
+- [x] Complete full verification gateway.
+- [x] Step 5: review code/assets independently.
+- [x] Step 6: review verification coverage and false-green risks independently.
+- [x] Step 8: synchronise feature documents and complete cross-document review.
+- [x] Update existing PR; notify user to restart dev without restarting it automatically.

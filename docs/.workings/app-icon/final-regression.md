@@ -40,3 +40,39 @@ Requirement evidence is in [checklist](checklist.md), final verification section
 Queue exhausted after rechecking the corrected spec and CONTEXT statements. Icon implementation and
 documentation are ready for PR. Native Dock screenshot remains an explicit evidence limitation;
 development setter execution and native production rendering are verified. No release or merge performed.
+
+## 2026-09-14 — dark-background revision
+
+### Stage 1: changed declarations
+
+| Comparison | Result |
+| --- | --- |
+| Spec AC-01/02 and assets | Six segments and filled radial core retained; cyan/yellow distinction retained. |
+| Spec AC-03 and assets | Both prepared PNGs have alpha; exterior checks removed from production; small renders inspected. |
+| Spec AC-04, features and glossary | All describe deep-black background and subdued upper support reflections. |
+| Approved prototypes and assets | Approved source files replaced by v2; production RGB unchanged during alpha cleanup, development copied unchanged. |
+| Build README and preparation | Documents production-only checkerboard removal and existing development alpha. |
+| Gate comment, predicate and tests | Text-NUL prohibition with format-based PNG/ICNS recognition; negative source cases remain rejected. |
+
+### Stage 2: related declarations
+
+| Relationship | Result |
+| --- | --- |
+| Features/spec files and README indexes | Existing app-icon identity, filename and cyan/yellow distinction unchanged; indexes still correct. |
+| Icon assets and main/packager references | Existing references use canonical build/icon-dev.png and build/icon.icns; no reconnect needed. |
+| ADR-0018 renderer icons vs native artwork | No renderer change; raster application identity remains separate. |
+| Text-only gate assumption elsewhere | Reviewed complete gate; obsolete no-binary-assets statement replaced. |
+| Capability-gated i18n dictionary check | 按项目能力声明，i18n 未启用，该项跳过。No interface strings changed; the existing full i18n command still runs in the gateway. |
+
+### Stage 3: events
+
+| Event | Result |
+| --- | --- |
+| User approved replacement artwork | Pending preview status changed to approved/applied; old artwork superseded in the existing visual study. |
+| Binary files added to tracked scope | Gate now admits known image formats; new files staged before the final scan. |
+| Enumerated product dimensions | No provider, locale, platform or variant added/removed. |
+| Pending notes | Scoped search of icon spec/features/prototypes found no Pending: notes. |
+| Distribution artifact status | Existing signed DMG/App remain their prior immutable build; no new signing claim. |
+| Restart request | Running dev intentionally retained; user is to restart after completion. |
+
+Final gateway: `pnpm verify` exited 0 after staging all new artwork. 708 unit tests passed with one existing skip; all six gate CLI tests and 78 Electron e2e tests passed; static checks and smoke passed. Full log: `/tmp/agentshed-icon-v2-verify-final.log`, also retained in local `e2e-out/app-icon-v2/verify.log`. No unresolved review findings. Existing dev PID 21131 was preserved by the isolated smoke test.

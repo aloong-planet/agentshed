@@ -46,3 +46,9 @@ were enumerated (ten), not sampled. RGBA fidelity checks compare bytes directly:
 `getbbox` can ignore RGB differences when the difference image has zero alpha, so that weaker check
 was replaced and the intended assertion rerun successfully. No claim of a Dock screenshot, signing
 or notarisation is derived from package success.
+
+## 2026-09-14 — dark-background revision
+
+- **Coverage:** six CLI cases cover real PNG and ICNS under new names, NUL source alongside valid art, renamed text in PNG and ICNS, unknown binary content, and escaped-NUL source. Image checks cover alpha extrema/corners, production RGB preservation, unchanged development bytes, all ten ICNS sizes and decoded 1024px equality. Small rendered images were inspected at 32/64/128px on light/dark backgrounds.
+- **Case design:** tests use the real CLI in temporary Git repositories and real image fixtures, with no internal mocks or implementation-derived expected result. Gate exit status and offender names are the public contract. All temporary test repositories are removed in finally.
+- **False greens:** the acceptance case failed against the old gate for the exact three real binary fixtures, then passed after the predicate change. Negative cases actually returned failure for source NULs and fake image text; escaped source passed. The tests deliberately do not claim image decodability from signatures, Dock appearance from resource existence, or new package notarization. User must restart dev to see the new live Dock icon.

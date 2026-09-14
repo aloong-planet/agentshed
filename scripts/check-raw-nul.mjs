@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The NUL-byte gate: no tracked file may contain a raw NUL (0x00). Hooked into pnpm verify.
+// The NUL-byte gate: tracked text must not contain a raw NUL (0x00). Hooked into pnpm verify.
 //
 // ── Why this gate exists ──
 // A NUL byte anywhere in a file makes recursive search **silently skip that file entirely**. Not the one
@@ -39,13 +39,21 @@
 // spelling, which coincide for every printable character and diverge exactly here.
 //
 // ── Exemptions ──
-// There are none, deliberately. Every tracked file here is text — the UI ships inline SVG, so there are no
-// icon binaries. The first genuinely binary file added will fire this gate, and the fix then is to add a
-// predicate saying which *shape* of file may hold NULs and why — never a count of permitted files, for
-// the reasons scripts/check-lang.mjs sets out at length. Writing that predicate now would mean shipping a
-// rule matching nothing, which that gate treats as an error in its own right.
+// Native application artwork uses PNG and ICNS, whose binary encoding legitimately contains NULs.
+// Recognise those formats by extension AND file signature, not filenames, counts, or Git's text
+// heuristic. Renaming text to an image extension must not exempt it from this gate.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { extname } from 'node:path'
+
+function isIconBinary(file, bytes) {
+  const extension = extname(file).toLowerCase()
+  if (extension === '.png') {
+    return bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+  }
+  return extension === '.icns' && bytes.length >= 8 &&
+    bytes.toString('ascii', 0, 4) === 'icns' && bytes.readUInt32BE(4) === bytes.length
+}
 
 // `git ls-files` rather than a glob. The sibling gate learnt this the expensive way: a hand-picked scope
 // is how an enumeration gets holes, and it offers nothing to pick precisely so that it cannot.
@@ -62,6 +70,7 @@ for (const f of files) {
   } catch {
     continue // in the index but gone from the worktree
   }
+  if (isIconBinary(f, buf)) continue
   const at = buf.indexOf(0)
   if (at === -1) continue
   // Line number for the first one, so the report points somewhere openable rather than at a byte offset
@@ -83,4 +92,4 @@ if (offenders.length) {
   process.exit(1)
 }
 
-console.log(`✓ Raw NUL bytes: none in ${files.length} tracked file(s)`)
+console.log(`✓ Raw NUL bytes: none outside recognised PNG/ICNS artwork in ${files.length} tracked file(s)`)

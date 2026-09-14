@@ -61,3 +61,12 @@ from renderer SVG controls in CONTEXT; no unrelated controls, styles, translatio
 modified. Canonical PNGs, generated ICNS and a system-tool regeneration command are committed together.
 No new abstraction or runtime dependency. No further icon-code bugs found. Dock screenshot capture
 remains unavailable; API and native asset rendering evidence are explicitly labelled.
+
+## 2026-09-14 — dark-background revision
+
+- **1. Underlying facts:** production preview is RGB with painted exterior checks; development is RGBA. Production preparation changes only alpha (RGB byte equality asserted); development is copied byte-for-byte. Decoded ICNS contains all ten standard representations; 1024px output exactly equals the sips-resized new production source.
+- **2. Runtime:** startup icon resolution and packaged/unpackaged selection are unchanged. User requested a restart notification, so the running dev instance is intentionally untouched. No signed distribution is rebuilt in this revision.
+- **3. Security/correctness:** found the raw-NUL gate treated native image bytes as forbidden source. Fixed its format predicate using extension plus PNG signature / ICNS signature and declared file length. Text renamed to PNG/ICNS still fails. Gate scope remains all tracked files. No runtime permissions, paths or IPC changed.
+- **4. Consistency:** approved artwork, canonical PNG/ICNS, spec, feature and glossary all describe the same deep-black casing and subdued upper supports. Renderer SVG controls are outside this asset change and were not exhaustively audited. No unrelated control-icon changes.
+
+The first previous icon gate ran before new binaries were tracked; its green did not cover those files. New files are now staged before the final gate, and actual image fixtures are exercised through real temporary Git indexes.
