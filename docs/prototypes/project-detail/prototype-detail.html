@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- A UI prototype · project detail (landing on the Overview tab by default).
-     问题:概览(token 卡/30天趋势/模型拆分/会话列表)作为进入项目的第一眼是否成立;
+     问题:概览(token 卡/30、60、90天趋势/模型拆分/会话列表)作为进入项目的第一眼是否成立;
      Skills 两层来源/遮蔽/软链、Plugins、MCP 多来源、配置只读的行密度;
      产物「类型 chips + 平铺列表」是否清晰。
      交互:tab 切换;概览内趋势切侧;产物 chips 筛选与阅读浮层;配置内切文件;
@@ -260,7 +260,8 @@
         <!-- 与 Agents 页同一个共享视觉块:四张同宽卡 = 四个时间窗口 = 时间筛选器本身。
              点选哪张,下方趋势图(窗口外的日子压暗)与模型拆分就切到哪个窗口。项目级尺度。 -->
         <div data-shared-block="totals-card" id="ovTot"></div>
-        <div class="grp-t">近 30 天趋势(本地时区,日粒度)
+        <!-- Range proposal: existing page, Chinese preview; other language layouts are not covered here. -->
+        <div class="grp-t trend-heading"><label class="trend-span-label">近 <select class="trend-span-select" id="ovspan" aria-label="趋势天数"><option value="30">30</option><option value="60">60</option><option value="90">90</option></select> 天趋势</label><span>(本地时区 · 日粒度)</span>
           <span class="seg" id="ovseg"><span class="on">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
         <div class="chart" id="ovchart" data-shared-block="trend-chart"></div>
         <div class="xaxis" id="ovxaxis"></div>
@@ -456,8 +457,8 @@
   });
   // The trend chart: rendered by the shared piece (the same source as the Agents page)
   const ovTrend = TrendChartProto.mount(
-    { chart: 'ovchart', xaxis: 'ovxaxis', legend: 'ovlegend', seg: 'ovseg' },
-    TrendChartProto.mockDays(5, { scale: 4e6 })
+    { chart: 'ovchart', xaxis: 'ovxaxis', legend: 'ovlegend', seg: 'ovseg', span: 'ovspan' },
+    TrendChartProto.mockDays(5, { days: 90, scale: 4e6 })
   )
 
   // ── 概览的时间窗口:卡排本身就是筛选器,与 Agents 页同形态(项目级尺度的 mock) ──

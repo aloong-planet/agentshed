@@ -182,8 +182,15 @@ export function AgentsSkeleton(): JSX.Element {
         </nav>
       </header>
       <div className="pane-body">
-        <div className="grp-t">
-          {t.token.trendTitle}
+        <div className="grp-t trend-heading">
+          <label className="trend-span-label">
+            {t.token.trendPrefix}
+            <select className="trend-span-select" aria-label={t.token.trendDays} disabled value="30">
+              <option value="30">30</option>
+            </select>
+            {t.token.trendSuffix}
+          </label>
+          <span>{t.token.trendContext}</span>
           <span className="seg">
             {(Object.keys(TREND_MODE_LABEL) as TrendMode[]).map((m, i) => (
               <button key={m} type="button" className={i === 0 ? 'on' : ''} tabIndex={-1}>

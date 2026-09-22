@@ -294,10 +294,14 @@ The span a token figure is scoped to: all history, today, the last 7 days, or th
 closed set, selected by clicking the card that shows that window's total. Cut against the same current
 display-time anchor as the trend, so "today" always means the trend chart's last bar. The observation
 time of saved data is a separate concept. Distinct from the
-**trend chart's own 30-day span**, which never changes: a narrower window dims bars, it does not
+**trend span**, independently selected as 30, 60 or 90 days: a narrower window dims bars, it does not
 remove them.
 _Avoid_: date range (suggests arbitrary endpoints, which are out of scope), period (ambiguous between
 this and the chart's span)
+
+**Trend span**:
+The number of consecutive local calendar days drawn by the daily trend chart: 30, 60 or 90, ending
+on the current display day. It changes the chart extent independently of the totals-card time window.
 
 **Theme variable classes**:
 Every variable declared in a theme block belongs to exactly one of three classes, and the class —

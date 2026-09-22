@@ -14,13 +14,16 @@
     return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n)
   }
 
-  /** Generate 30 days of mock data; opts.scale controls the magnitude and opts.withGoogle demonstrates an
+  /** Generate mock daily history; opts.scale controls the magnitude and opts.withGoogle demonstrates an
    * agent mixing in another vendor's models */
   function mockDays(seed, opts) {
     const o = opts || {}
+    const count = o.days || 30
     const rnd = ((s) => () => (s = (s * 9301 + 49297) % 233280) / 233280)(seed)
-    return [...Array(30)].map((_, i) => {
-      const d = new Date(Date.now() - (29 - i) * 86400000)
+    return [...Array(count)].map((_, i) => {
+      const d = new Date()
+      d.setHours(12, 0, 0, 0)
+      d.setDate(d.getDate() - (count - 1 - i))
       const by = {}
       const sc = 0.2 + rnd() * 1.7
       by.Anthropic = Math.round((o.scale || 9e7) * sc)
@@ -29,7 +32,8 @@
       // Grok 是刚接进来的一侧,只有最近几天有量 —— 这是它现在真实的样子,也正是要压测的边界:
       // 合计模式下它是薄薄一段(分辨得出来吗),单侧模式下 30 天里只剩几个数据日(x 轴按数据日出标签,
       // 见 ADR-0009),两种情形都比「每天都有量」更能暴露问题。
-      if (i >= 24) by.xAI = Math.round((o.scale || 9e7) * 0.22 * (0.35 + rnd()))
+      if (i >= count - 6) by.xAI = Math.round((o.scale || 9e7) * 0.22 * (0.35 + rnd()))
+      if (count > 30 && i % 17 === 0) Object.keys(by).forEach((p) => delete by[p])
       return { label: `${d.getMonth() + 1}/${d.getDate()}`, mon: d.getMonth() + 1, dom: d.getDate(), by, archived: o.archivedFirst ? i < o.archivedFirst : false }
     })
   }
@@ -102,24 +106,27 @@
 
   /**
    * Render one trend chart.
-   * @param {{chart:string, xaxis:string, legend:string, seg:string}} ids The DOM container ids
+   * @param {{chart:string, xaxis:string, legend:string, seg:string, span?:string}} ids The DOM container ids
    * @param {Array} days What mockDays produced
    */
   function mount(ids, days0) {
     let days = days0
     let mode = '合计'
+    let span = 30
     let lastRows = null
     // How many trailing days are "in range". null = the whole window; the caller drives it via setRange.
     let range = null
     const $ = (id) => document.getElementById(id)
 
     function render() {
-      const from = range === null ? 0 : Math.max(0, days.length - range)
-      const rows = days.map((d, i) => {
+      const visible = days.slice(-span)
+      const from = range === null ? 0 : Math.max(0, visible.length - range)
+      const rows = visible.map((d, i) => {
         const segs = segmentsOf(d, mode)
         return { d: d, segs: segs, total: segs.reduce((s, x) => s + x.v, 0), out: i < from }
       })
       const max = Math.max.apply(null, rows.map((r) => r.total).concat([1]))
+      $(ids.chart).dataset.trendSpan = String(span)
       $(ids.chart).innerHTML = rows
         .map((r) => {
           const tip = [
@@ -166,6 +173,12 @@
         const spans = $(ids.seg).querySelectorAll('span')
         spans.forEach((s) => s.classList.toggle('on', s === e.target))
         mode = e.target.textContent
+        render()
+      })
+    }
+    if (ids.span) {
+      $(ids.span).addEventListener('change', (e) => {
+        span = Number(e.target.value)
         render()
       })
     }

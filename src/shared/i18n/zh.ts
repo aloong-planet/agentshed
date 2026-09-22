@@ -389,6 +389,10 @@ export const zh = {
     byModelIn: (title: string, win: string) => `${title} · ${win}`,
     noUsageInWindow: '选中的时间窗口内没有用量',
     trendTitle: '近 30 天趋势(本地时区 · 日粒度)',
+    trendPrefix: '近',
+    trendSuffix: '天趋势',
+    trendContext: '(本地时区 · 日粒度)',
+    trendDays: '趋势天数',
     legendNote: '柱高=当日总量,分段=各 provider 占比',
     /** Appended to the legend note when a window narrower than the chart is selected */
     legendDimNote: ';压暗段=选中窗口之外',

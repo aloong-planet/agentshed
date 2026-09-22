@@ -1,3 +1,4 @@
+import { TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'
 import { StartupHint } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
 import { Fragment, useEffect, useMemo, useState } from 'react'
@@ -92,6 +93,7 @@ function DetailPaneBody({
   // Above the tab switch so the selection survives moving between tabs (G11). The overview is
   // conditionally rendered, so state held inside it would be discarded on every switch.
   const [win, setWin] = useState<UsageWindow>('all')
+  const [trendSpan, setTrendSpan] = useState<TrendSpan>(TREND_WINDOW_DAYS)
   const result = useProjectDetailQuery(entry.path)
   const queryClient = useQueryClient()
 
@@ -137,6 +139,8 @@ function DetailPaneBody({
             {tab === 'ov' && (
               <OverviewTab
                 detail={result.detail}
+                span={trendSpan}
+                onSpan={setTrendSpan}
                 snap={snap}
                 onOpenSession={onOpenSession}
                 window={win}
@@ -189,13 +193,17 @@ function OverviewTab({
   snap,
   onOpenSession,
   window: win,
-  onWindow
+  onWindow,
+  span,
+  onSpan
 }: {
   detail: ProjectDetail
   snap: Snapshot
   onOpenSession: (file: string) => void
   window: UsageWindow
   onWindow: (w: UsageWindow) => void
+  span: TrendSpan
+  onSpan: (span: TrendSpan) => void
 }): JSX.Element {
   const now = useDisplayClock()
   const lang = useLanguage()
@@ -228,6 +236,8 @@ function OverviewTab({
       </div>
       <TrendChart
         stats={stats.tokens}
+        span={span}
+        onSpan={onSpan}
         anchor={now}
         archivedDays={snap.archivedDays}
         window={win}

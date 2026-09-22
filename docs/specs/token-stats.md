@@ -24,7 +24,7 @@ all of them.
 
 ## User Stories
 
-1. As a user, I want the project overview to show the cumulative total, the 30-day trend, the model
+1. As a user, I want the project overview to show the cumulative total, a selectable daily trend, the model
    breakdown and the session list by default, so that entering a project tells me at a glance how much
    it burned and on what.
 2. As a user, I want the trend bars segmented by provider and switchable to a single side, so that I
@@ -268,8 +268,7 @@ next to A/B, so that no existing reference is renumbered)
   than tolerant; it fell due on 2026-09-10 for the Codex usage-record change (ADR-0027).
 
 **Sequence D: trend and axis rendering**
-- D1 Always produce 30 bars in ascending date order, with the last as the anchor day; historical days
-  outside the window do not become bars.
+- D1 The plotted calendar span follows token-stats::REQ-002/AC-02.
 - D1a A side newly in use has volume only on recent days. Combined mode shows it as a thin segment
   (single-digit pixels at typical bar heights), and single-side mode leaves most of the window empty
   with the axis labelling only its few data days under D6 — both are correct, and the thin-segment
@@ -289,12 +288,7 @@ next to A/B, so that no existing reference is renumbered)
 - D8 Extremely narrow windows: keep thinning but leave at least 1, without overlapping or spilling,
   and the algorithm terminates.
 - D9 No data at all → no labels.
-- D10 The chart's own window stays 30 days whatever time window is selected (G1). Days outside the
-  selection are **dimmed, not removed**: the data is day-grained, so cutting the chart down to the
-  selection would leave one bar for "today", and a lone bar states nothing about its own size. The
-  surrounding 29 days are the reference that makes the selected span readable. Selecting all history
-  dims nothing. The axis, the segmentation and the tooltips are unaffected — dimming is a rendering
-  state, not a different data set.
+- D10 Chart span and totals-card highlighting compose as token-stats::REQ-002/AC-04 specifies.
 
 **Sequence E: automatic snapshot refresh (settled 2026-08-08, fixing "today's statistics are
 missing" — the only rescan triggers had been startup and manual ↻, so leaving the app running
@@ -318,7 +312,7 @@ overnight froze `scannedAt` and today's data was not shown)**
 **Sequence G: the time window and the composition** (settled 2026-08-21)
 - G1 Four windows — all history / today / the last 7 days / the last 30 days — presented as four cards
   that are **themselves the selector**: the card shows that window's total and clicking it selects the
-  window. There is no separate range control; "how much" and "over what period" are one object. All
+  window. There is no separate control for the totals window; "how much" and "over what period" are one object. All
   history is the default selection.
 - G2 The cards, trend and window highlighting share the current display-time anchor in
   token-stats::REQ-001. The snapshot timestamp records when the data was observed, not what day
@@ -328,7 +322,7 @@ overnight froze `scannedAt` and today's data was not shown)**
   window — a page where some figures moved and others did not is worse than one that offers no
   windowing at all, because the reader has no way to tell which is which.
 - G4 **All history and the trend chart deliberately disagree in span**, and the card says so in its
-  own label. The chart is 30 days because that is what a daily trend can show; the cumulative total is
+  own label. The chart shows the selected 30, 60 or 90 calendar days; the cumulative total is
   every day on record. This mismatch already existed and already misread — an unlabelled cumulative
   total sitting above a chart captioned "last 30 days" is read as a 30-day figure. Naming the window
   on the card is the fix; making them agree is not, since neither span is wrong for its own purpose.
@@ -389,6 +383,41 @@ overnight froze `scannedAt` and today's data was not shown)**
   which external content is rendered or loaded, so it adds no interaction surface beyond the controls
   named above — stated rather than skipped, because "no new surface" is a conclusion that has to be
   reached rather than a default.
+
+## Selectable trend span
+
+### token-stats::REQ-002 Select the daily chart span
+
+Applies to the global Token tab and project Overview tab. The confirmed prototype extends their
+existing chart title with a compact 30/60/90-day dropdown; the provider palette and daily grain stay.
+
+- token-stats::REQ-002/AC-01: Each chart offers exactly 30, 60 and 90 days, initially 30, in its
+  title. Copy and the accessible control name follow the selected UI language. Before the first
+  snapshot, the startup placeholder mirrors the default control while disabled, so filling the
+  chart preserves its position.
+- token-stats::REQ-002/AC-02: Selecting N draws N consecutive local calendar dates in ascending
+  order, ending on the shared current display day, including across month/year and daylight-saving
+  boundaries. Older rows and future rows are excluded; absent dates remain zero with no segments.
+- token-stats::REQ-002/AC-03: Expanding the span exposes existing historical daily values, including
+  archived values and their existing hatching. Combined/provider segmentation, single-side counting,
+  daily tooltips, and window-relative height scaling retain D2–D5 and ADR-0008 semantics.
+- token-stats::REQ-002/AC-04: The chart-span dropdown, totals-card window and side filter are
+  independent: changing one does not reset the others. The selected totals window dims outside
+  dates without removing bars; all history dims none. Changing chart span does not alter totals,
+  composition or model breakdowns. The totals cards remain all history/today/7 days/30 days.
+- token-stats::REQ-002/AC-05: The selected chart span survives same-page tab switches and snapshot
+  refreshes; project-to-project switches preserve it like the totals window. It is view state,
+  independent between the global and project views, and is not persisted across application restarts.
+- token-stats::REQ-002/AC-06: All spans fit the chart width with daily bars; 60/90-day bars use
+  tighter gaps. The date axis retains D6–D9/ADR-0009 semantics: data days only, correct month
+  context, no overlapping or out-of-container labels. Controls remain usable at the minimum
+  supported window width, in light/dark themes and every UI language.
+
+Failure paths: selecting a longer span with sparse or entirely empty history leaves empty dates,
+not fabricated usage; repeated 30→90→60→30 selection recomputes the scale and axis each time;
+a side switch can empty the selected span; a new snapshot updates data without resetting the span;
+midnight advances the last bar using token-stats::REQ-001/AC-02. This change performs no reads,
+archive writes or external-content rendering beyond the existing snapshot flow.
 
 ## Restored-data time semantics
 
@@ -472,6 +501,11 @@ archive retention policy are not changed by this feature.
   push is reused); the cost of a rescan is absorbed by the incremental cache.
 
 ## Testing Decisions
+
+For token-stats::REQ-002, reuse the public trend-builder and axis unit seams, with literal calendar
+boundaries and DST time-zone fixtures. Real Electron e2e drives both chart entries through the
+dropdown, side filter and totals cards, inspects historical values and rendered geometry, and checks
+tab/refresh retention. Keep parser, IPC, archive and storage formats unchanged.
 
 Following ADR-0002's dual seam: fixture unit tests at the providers layer cover every side's parsing
 rules, deduplication, the cache and the archive — one fixture per side, because the formulas
@@ -559,7 +593,7 @@ moved and others did not — checking them one at a time would pass on a page th
   of this application's own making, and no such snapshot exists on a machine whose agent rewrote
   its records before this application ever scanned them.
 - An arbitrary or custom date range. The four windows are fixed. A date picker is a different control
-  with different questions (what does it do to the 30-day chart, what does it do to a range with no
+  with different questions (what does it do to the daily chart, what does it do to a range with no
   data, does it persist), and the four fixed windows answer the question that prompted this —
   "what have I burned lately" — without any of them.
 - Sub-day granularity. "Today" is as fine as the windows go, because a day is as fine as the source

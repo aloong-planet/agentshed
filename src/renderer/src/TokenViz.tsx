@@ -1,4 +1,4 @@
-// Shared token visualisation pieces: number formatting, the summary card, the 30-day trend bar chart, and
+// Shared token visualisation pieces: number formatting, the summary card, the daily trend bar chart, and
 // the model breakdown bars.
 // Shared by the project overview tab and the Agents page's Token section: the same data source, differing
 // only in the grouping key.
@@ -115,7 +115,7 @@ export function TotalsCards({
   )
 }
 
-import { buildTrendBars, TREND_MODE_LABEL, type TrendBar, type TrendMode } from '@shared/trend'
+import { buildTrendBars, TREND_MODE_LABEL, type TrendBar, type TrendMode, TREND_SPANS, type TrendSpan } from '@shared/trend'
 import { layoutAxisLabels } from '@shared/axis'
 import { PROVIDER_ORDER, PROVIDER_LABEL, providerOf } from '@shared/provider'
 import type { Language, Locale } from '@shared/i18n'
@@ -131,26 +131,30 @@ const PROVIDER_CLASS: Record<string, string> = {
   other: 'other'
 }
 
-/** The last 30 days (anchored on the common display clock) as a daily trend; combined mode stacks the two sides */
+/** A selected calendar span anchored on the common display clock; combined mode stacks providers. */
 export function TrendChart({
   stats,
   anchor,
   archivedDays = [],
-  window: win = 'all'
+  window: win = 'all',
+  span,
+  onSpan
 }: {
   stats: TokenStats
   anchor: number
   /** Days whose source session files the agent cleaned up, with values from the local archive */
   archivedDays?: string[]
-  /** Days outside it are dimmed rather than removed — the chart's own span stays 30 days (D10) */
+  /** Days outside the totals window are dimmed within the independently selected chart span. */
   window?: UsageWindow
+  span: TrendSpan
+  onSpan: (span: TrendSpan) => void
 }): JSX.Element {
   const lang = useLanguage()
   const t = useDict()
   const [mode, setMode] = useState<TrendMode>('total')
   const bars = useMemo(
-    () => buildTrendBars(stats.byDay, anchor, mode, archivedDays),
-    [stats, anchor, mode, archivedDays]
+    () => buildTrendBars(stats.byDay, anchor, mode, archivedDays, span),
+    [stats, anchor, mode, archivedDays, span]
   )
   const max = Math.max(...bars.map((b) => b.total), 1)
   const chartRef = useRef<HTMLDivElement>(null)
@@ -172,8 +176,23 @@ export function TrendChart({
 
   return (
     <div>
-      <div className="grp-t">
-        {t.token.trendTitle}
+      <div className="grp-t trend-heading">
+        <label className="trend-span-label">
+          {t.token.trendPrefix}
+          <select
+            className="trend-span-select"
+            aria-label={t.token.trendDays}
+            value={span}
+            onChange={(e) => {
+              const next = TREND_SPANS.find((days) => String(days) === e.target.value)
+              if (next !== undefined) onSpan(next)
+            }}
+          >
+            {TREND_SPANS.map((days) => <option key={days} value={days}>{days}</option>)}
+          </select>
+          {t.token.trendSuffix}
+        </label>
+        <span>{t.token.trendContext}</span>
         <span className="seg">
           {/* Derived from the label Record rather than written out, so the mode bar is complete by
               construction — a new mode lands in TREND_MODE_LABEL (typecheck-forced) and appears here */}
@@ -184,7 +203,7 @@ export function TrendChart({
           ))}
         </span>
       </div>
-      <div className="chart" ref={chartRef}>
+      <div className="chart" ref={chartRef} data-trend-span={span}>
         {bars.map((b) => (
           <div
             key={b.day}

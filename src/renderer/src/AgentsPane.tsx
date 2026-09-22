@@ -1,3 +1,4 @@
+import { TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'
 import { StartupHint } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
 import { useMemo, useRef, useState } from 'react'
@@ -43,6 +44,7 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
   // The selected time window lives **above the tab switch**, so it survives moving between tabs (G11)
   // — and above the side cards, whose figures it governs on every tab, not only this one.
   const [win, setWin] = useState<UsageWindow>('all')
+  const [trendSpan, setTrendSpan] = useState<TrendSpan>(TREND_WINDOW_DAYS)
   const winLabel = useWindowLabel()
   const slice = useMemo(() => sliceUsage(snap.tokens.rows, win, now), [snap.tokens.rows, win, now])
   // One accessor over the side rather than nine hand-named variables: the card row below maps over
@@ -108,6 +110,8 @@ export function AgentsPane({ snap }: { snap: Snapshot }): JSX.Element {
           <div>
             <TrendChart
               stats={snap.tokens}
+              span={trendSpan}
+              onSpan={setTrendSpan}
               anchor={now}
               archivedDays={snap.archivedDays}
               window={win}

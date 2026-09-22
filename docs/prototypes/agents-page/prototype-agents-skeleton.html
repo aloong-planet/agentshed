@@ -134,7 +134,7 @@
       </div>
     </div>
     <div class="body">
-      <div class="grp-t"><span id="trendTitle"></span>
+      <div class="grp-t trend-heading"><label class="trend-span-label" id="trendTitle"></label><span id="trendContext"></span>
         <span class="seg" id="tseg"><span class="on" id="segTotal"></span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
       <div class="chart" id="chart" data-shared-block="trend-chart"></div>
       <div class="xaxis" id="txaxis"></div>
@@ -195,7 +195,10 @@ function render(){
   document.getElementById('scanrow').style.display = STATE === 'scan' ? 'inline-flex' : 'none';
   $('scantext').textContent = t.scan;
   $('tabCfg').textContent = t.cfg;
-  $('trendTitle').textContent = t.trend;
+  // Mirror the confirmed span control during startup; data-dependent interaction stays disabled.
+  const parts = t.trend.split(/30|(?=[(（])/);
+  $('trendTitle').innerHTML = `${parts[0]}<select id="tspan" class="trend-span-select" ${STATE === 'scan' ? 'disabled' : ''}><option>30</option><option>60</option><option>90</option></select>${parts[1]}`;
+  $('trendContext').textContent = parts.slice(2).join('');
   $('segTotal').textContent = t.total;
   const labels = [t.winAll, t.winToday, t.winD7, t.winD30];
   $('totRow').innerHTML = labels.map((k, i) => STATE === 'scan'
@@ -247,8 +250,8 @@ function renderChart(){
   }
   $('chart').innerHTML = '';
   trend = TrendChartProto.mount(
-    { chart: 'chart', xaxis: 'txaxis', legend: 'tlegend', seg: 'tseg' },
-    TrendChartProto.mockDays(11, { scale: 9e7, withGoogle: true, archivedFirst: 4 })
+    { chart: 'chart', xaxis: 'txaxis', legend: 'tlegend', seg: 'tseg', span: 'tspan' },
+    TrendChartProto.mockDays(11, { days: 90, scale: 9e7, withGoogle: true, archivedFirst: 4 })
   );
 }
 

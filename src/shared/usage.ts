@@ -62,7 +62,9 @@ export function inWindow(day: string, window: UsageWindow, anchorMs: number): bo
   if (!day) return false
   // Compare day keys rather than timestamps: the keys are already cut by local time zone, so a
   // millisecond comparison would re-derive the boundary and could land a day off around DST.
-  return day >= localDay(anchorMs - (days - 1) * 86_400_000) && day <= localDay(anchorMs)
+  const anchor = new Date(anchorMs)
+  const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - days + 1, 12)
+  return day >= localDay(start.getTime()) && day <= localDay(anchorMs)
 }
 
 /** Aggregate the rows falling inside one window. */

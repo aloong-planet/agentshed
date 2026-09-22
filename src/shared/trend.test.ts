@@ -3,6 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildTrendBars } from './trend'
 import { providerOf } from './provider'
+import { inWindow } from './usage'
 import type { DayUsage } from './domain'
 
 const anchor = Date.parse('2026-07-30T12:00:00Z')
@@ -31,6 +32,50 @@ describe('buildTrendBars', () => {
     expect(bars).toHaveLength(30)
     expect(bars[29].day).toBe(today)
     expect(bars[28].day).toBe(yesterday)
+  })
+
+  it.each([
+    [60, '2026-06-01'],
+    [90, '2026-05-02']
+  ] as const)('shows %i calendar days including older archived data', (span, first) => {
+    const end = new Date(2026, 6, 30, 12).getTime()
+    const bars = buildTrendBars([
+      day('2026-05-01', 999, 0),
+      day(first, 200, 50),
+      day('2026-07-30', 10, 0),
+      day('2026-07-31', 999, 0)
+    ], end, 'total', [first], span)
+    expect(bars).toHaveLength(span)
+    expect(bars[0]).toMatchObject({ day: first, total: 250, archived: true })
+    expect(bars[0].segments).toEqual([
+      { provider: 'Anthropic', value: 200 }, { provider: 'OpenAI', value: 50 }
+    ])
+    expect(bars.at(-1)).toMatchObject({ day: '2026-07-30', total: 10 })
+    expect(bars.filter(b => b.total > 0)).toHaveLength(2)
+    expect(bars[1]).toMatchObject({ total: 0, segments: [] })
+    const single = buildTrendBars([day(first, 200, 50)], end, 'Codex', [first], span)
+    expect(single[0]).toMatchObject({ total: 50, segments: [{ provider: 'OpenAI', value: 50 }] })
+  })
+
+  it('uses consecutive local dates across daylight-saving changes and year boundaries', () => {
+    const previous = process.env.TZ
+    try {
+      process.env.TZ = 'America/New_York'
+      for (const [end, first, last] of [
+        [new Date(2026, 10, 1, 23, 30), '2026-08-04', '2026-11-01'],
+        [new Date(2026, 2, 9, 0, 30), '2025-12-10', '2026-03-09']
+      ] as const) {
+        const bars = buildTrendBars([], end.getTime(), 'total', [], 90)
+        expect(new Set(bars.map(b => b.day)).size).toBe(90)
+        expect(bars.filter(b => inWindow(b.day, 'd7', end.getTime()))).toHaveLength(7)
+        expect(bars[0].day).toBe(first)
+        expect(bars.at(-1)?.day).toBe(last)
+        expect(bars.every(b => b.total === 0 && b.segments.length === 0)).toBe(true)
+      }
+    } finally {
+      if (previous === undefined) delete process.env.TZ
+      else process.env.TZ = previous
+    }
   })
 
   it('combined mode: segments by provider in the fixed order Anthropic→OpenAI→…, with the segments summing to the total', () => {
