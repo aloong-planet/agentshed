@@ -109,3 +109,13 @@ All changed declarations and affected relation endpoints were revisited after ed
 no unresolved mapping, document contradiction or product finding in this increment. Technical testing
 limits (forced acknowledgement reordering and power loss) remain explicitly recorded, not called
 passing tests. Source/spec decisions were unchanged; no new ADR or standalone postmortem warranted.
+
+### Delivery version binding
+
+The reviewed specification, implementation, tests and evidence above were committed as
+`46437b5fc317f6f17b1eb4764358583cfb50b2a6` and pushed to existing [PR185](https://github.com/zhoulf1006/agentshed/pull/185).
+This follow-up changes delivery records only. Local final gateway exit0 applies to that exact code.
+[GitHub run35814852190](https://github.com/zhoulf1006/agentshed/actions/runs/35814852190) could not
+start either job: GitHub reports failed account payments or an insufficient spending limit. This is
+remote infrastructure unavailability, not a remote test pass/fail. Issue186 remains open; merge
+requires the user's separate confirmation. No product requirement or verification scope changed.
