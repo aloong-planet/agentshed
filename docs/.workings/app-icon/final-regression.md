@@ -62,7 +62,7 @@ development setter execution and native production rendering are verified. No re
 | Icon assets and main/packager references | Existing references use canonical build/icon-dev.png and build/icon.icns; no reconnect needed. |
 | ADR-0018 renderer icons vs native artwork | No renderer change; raster application identity remains separate. |
 | Text-only gate assumption elsewhere | Reviewed complete gate; obsolete no-binary-assets statement replaced. |
-| Capability-gated i18n dictionary check | 按项目能力声明，i18n 未启用，该项跳过。No interface strings changed; the existing full i18n command still runs in the gateway. |
+| Capability-gated i18n dictionary check | Corrected on 2026-09-23: the project declares i18n enabled. No interface strings changed; the existing full i18n command still runs in the gateway. |
 
 ### Stage 3: events
 
