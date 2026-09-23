@@ -119,3 +119,32 @@ This follow-up changes delivery records only. Local final gateway exit0 applies 
 start either job: GitHub reports failed account payments or an insufficient spending limit. This is
 remote infrastructure unavailability, not a remote test pass/fail. Issue186 remains open; merge
 requires the user's separate confirmation. No product requirement or verification scope changed.
+
+## 2026-09-23 — Compact slash selector
+
+### Stage 1: changed declarations
+
+| Pair | Conclusion |
+| --- | --- |
+| REQ-002/AC-01 versus renderer | Exact `30/60/90`, zero horizontal gap/padding, independent numeric buttons; aligned. |
+| Spec versus feature catalogue | Both now describe compact slash choices with selected-number highlighting. |
+| Approved prototype versus implementation | Same separator and horizontal geometry; the actual dev window was visually inspected after HMR. |
+
+### Stage 2: related declarations
+
+| Relationship | Conclusion |
+| Feature/spec index entries | Still accurately describe Token statistics; no name or scope change. |
+| All selector consumers | Agents, project Overview and disabled StartupSkeleton share the changed control. |
+| Earlier working records | Dot descriptions are historical evidence, retained; this dated revision supersedes their visual acceptance. |
+| i18n and appearance | Enabled per project capabilities; slash punctuation is language-neutral; labels and theme values are unchanged. |
+| Visual gates | Existing tests check interaction, selection and non-overlap; literal punctuation is verified by rendered inspection. |
+
+### Stage 3: events
+
+| Event | Conclusion |
+| User confirms slash prototype | Updated current AC-01 and feature description in the same change. |
+| Enumerated members | Still three day options and six languages; no membership changes. |
+| Pending notes in current spec/features | `rg -n 'Pending:' docs/specs/token-stats.md docs/features/token-stats.md` returned no matches. |
+| New cross-project rule or architecture | None; no ADR or glossary change needed. |
+
+The queue is resolved for this visual amendment; this is not a new whole-feature closeout.

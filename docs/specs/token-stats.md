@@ -394,10 +394,10 @@ Applies to every Token daily bar chart, including the global Token tab and every
 The confirmed layout uses inline numeric choices in the existing chart heading, with one global
 preference and a linked fourth totals card. The provider palette and daily grain stay unchanged.
 
-- token-stats::REQ-002/AC-01: The heading presents exactly `30 · 60 · 90` inline, with each number
+- token-stats::REQ-002/AC-01: The heading presents exactly `30/60/90` inline, with each number
   independently clickable and the selected number highlighted using the theme accent and stronger
-  weight. Small CSS-controlled gaps separate the numbers and dots; literal spacing characters do
-  not determine layout. The dots are separators, not controls. There is no dropdown.
+  weight. There are no spaces, horizontal button padding or gaps around the slashes.
+  The slashes are separators, not controls. There is no dropdown.
 - token-stats::REQ-002/AC-02: Selecting N draws N consecutive local calendar dates in ascending
   order, ending on the shared current display day, including across month/year and daylight-saving
   boundaries. Older rows and future rows are excluded; absent dates remain zero with no segments.

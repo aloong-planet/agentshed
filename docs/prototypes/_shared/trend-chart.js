@@ -25,7 +25,7 @@
     const control = document.getElementById(id)
     control.innerHTML = SPANS.map((days) =>
       `<button type="button" class="trend-span-choice" data-span="${days}" ${disabled ? 'disabled' : ''}>${days}</button>`
-    ).join('<span class="trend-span-dot" aria-hidden="true">·</span>')
+    ).join('<span class="trend-span-separator" aria-hidden="true">/</span>')
     control.onclick = (event) => {
       const button = event.target.closest('button[data-span]')
       if (button && !button.disabled) changeSpan(Number(button.dataset.span), true)

@@ -147,7 +147,7 @@ export function TrendSpanControl({ span, onSpan, disabled = false }: {
       <span className="trend-span-options" role="group" aria-label={t.token.trendDays}>
         {TREND_SPANS.map((days, i) => (
           <Fragment key={days}>
-            {i > 0 && <span className="trend-span-dot" aria-hidden="true">·</span>}
+            {i > 0 && <span className="trend-span-separator" aria-hidden="true">/</span>}
             <button type="button" className="trend-span-choice" aria-pressed={span === days}
               disabled={disabled} onClick={() => onSpan?.(days)}>{days}</button>
           </Fragment>

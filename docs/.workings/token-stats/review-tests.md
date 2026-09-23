@@ -119,3 +119,17 @@ This follow-up changes delivery records only. Local final gateway exit0 applies 
 start either job: GitHub reports failed account payments or an insufficient spending limit. This is
 remote infrastructure unavailability, not a remote test pass/fail. Issue186 remains open; merge
 requires the user's separate confirmation. No product requirement or verification scope changed.
+
+## 2026-09-23 — Compact slash selector
+
+1. Coverage: the existing Electron suite exercises both live mounts, all six languages and three
+   themes in light/dark, keyboard activation, saved span startup, totals and persistence. The
+   punctuation and zero spacing are checked by rendered inspection, not claimed from unit tests.
+2. Case design: existing real Electron fixtures and public clicks remain applicable. There are no
+   new mocks, fixtures, private-state probes or implementation-mirroring unit tests.
+3. False greens: a test of selected values alone cannot detect an old dot separator. The actual
+   dev screenshot is the evidence for the new form; the previously captured inactive window still
+   showed dots until raised, so that earlier frame is not treated as successful verification.
+
+No tests were added for this reversible visual edit. Existing regression results are recorded in
+slash-style.md. This review does not claim new mutation coverage of the unchanged tests.

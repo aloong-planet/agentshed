@@ -342,3 +342,12 @@ This follow-up changes delivery records only. Local final gateway exit0 applies 
 start either job: GitHub reports failed account payments or an insufficient spending limit. This is
 remote infrastructure unavailability, not a remote test pass/fail. Issue186 remains open; merge
 requires the user's separate confirmation. No product requirement or verification scope changed.
+
+## 2026-09-23 — Confirmed visual amendment
+
+REQ-002/AC-01 now says: "The heading presents exactly `30/60/90` inline" and
+"There are no spaces, horizontal button padding or gaps around the slashes."
+This supersedes the dot-spacing acceptance recorded above, without changing the other requirements.
+The live shared control, theme CSS and both prototype mounts implement the new form. The actual dev
+window was inspected after HMR and shows compact slashes with the saved 90-day choice highlighted.
+Existing behavioral regression results are recorded in slash-style.md.

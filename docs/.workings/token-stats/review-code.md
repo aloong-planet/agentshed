@@ -117,3 +117,15 @@ This follow-up changes delivery records only. Local final gateway exit0 applies 
 start either job: GitHub reports failed account payments or an insufficient spending limit. This is
 remote infrastructure unavailability, not a remote test pass/fail. Issue186 remains open; merge
 requires the user's separate confirmation. No product requirement or verification scope changed.
+
+## 2026-09-23 — Compact slash selector
+
+- Layer 1, premises: the user approved `30/60/90` without spaces. Both live chart entries and
+  StartupSkeleton share TrendSpanControl; its renderer and prototype spacing now match.
+- Layer 2, runtime: slashes remain aria-hidden noninteractive spans; only the three numeric buttons
+  receive focus and clicks. No state, effect or persistence code changed.
+- Layer 3, security/correctness: no new input, IPC, file operation or security surface.
+- Layer 4, consistency: the old dot class is renamed in markup and CSS together; only the selector's
+  horizontal gap/padding changed. REQ-002/AC-01 and the feature description now state the approved form.
+- No bugs or refactoring requests found in this diff. The actual dev window was raised and inspected:
+  it displays the compact slashes with 90 highlighted, rather than the stale background frame.
