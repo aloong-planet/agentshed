@@ -1,0 +1,69 @@
+
+> agentshed@0.1.0 test /private/tmp/agentshed-token-trend
+> vitest run "src/renderer/src/prefs-backfill.test.ts"
+
+
+ RUN  v2.1.9 /private/tmp/agentshed-token-trend
+
+ ❯ src/renderer/src/prefs-backfill.test.ts (7 tests | 2 failed) 7ms
+   × backfillPrefs > a late initial read preserves a newer span and backfills unrelated preferences 5ms
+     → expected { theme: 'blue', language: 'fr', …(2) } to deeply equal { theme: 'blue', language: 'fr', …(2) }
+   × backfillPrefs > with all fields touched, none of the echo is taken 1ms
+     → expected { Object (theme, language, ...) } to deeply equal { Object (theme, language, ...) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/renderer/src/prefs-backfill.test.ts > backfillPrefs > a late initial read preserves a newer span and backfills unrelated preferences
+AssertionError: expected { theme: 'blue', language: 'fr', …(2) } to deeply equal { theme: 'blue', language: 'fr', …(2) }
+
+- Expected
++ Received
+
+  Object {
+    "language": "fr",
+    "mode": "light",
+    "theme": "blue",
+-   "trendSpan": 90,
++   "trendSpan": 60,
+  }
+
+ ❯ src/renderer/src/prefs-backfill.test.ts:13:90
+     11| describe('backfillPrefs', () => {
+     12|   it('a late initial read preserves a newer span and backfills unrelat…
+     13|     expect(backfillPrefs({ ...DEFAULTS, trendSpan: 90 }, ON_DISK, touc…
+       |                                                                                          ^
+     14|       theme: 'blue', language: 'fr', mode: 'light', trendSpan: 90
+     15|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/renderer/src/prefs-backfill.test.ts > backfillPrefs > with all fields touched, none of the echo is taken
+AssertionError: expected { Object (theme, language, ...) } to deeply equal { Object (theme, language, ...) }
+
+- Expected
++ Received
+
+  Object {
+    "language": "ja",
+    "mode": "dark",
+    "theme": "amber",
+-   "trendSpan": 90,
++   "trendSpan": 60,
+  }
+
+ ❯ src/renderer/src/prefs-backfill.test.ts:49:94
+     47|   it('with all fields touched, none of the echo is taken', () => {
+     48|     const local: Prefs = { theme: 'amber', language: 'ja', mode: 'dark…
+     49|     expect(backfillPrefs(local, ON_DISK, touched('theme', 'language', …
+       |                                                                                              ^
+     50|   })
+     51|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 5 passed (7)
+   Start at  11:26:11
+   Duration  267ms (transform 24ms, setup 0ms, collect 22ms, tests 7ms, environment 0ms, prepare 72ms)
+
+ ELIFECYCLE  Test failed. See above for more details.

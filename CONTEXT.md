@@ -290,14 +290,22 @@ scan while a session is active.
 _Avoid_: closed day, settled day
 
 **Time window**:
-The span a token figure is scoped to: all history, today, the last 7 days, or the last 30 days — a
-closed set, selected by clicking the card that shows that window's total. Cut against the same current
+The span a token figure is scoped to: all history, today, the last 7 days, or the last N days — four
+card roles, selected by clicking the card that shows that window's total. The fourth card derives N
+from the global trend span, including when inactive. Its active breakdowns follow the same N.
+Cut against the same current
 display-time anchor as the trend, so "today" always means the trend chart's last bar. The observation
-time of saved data is a separate concept. Distinct from the
-**trend chart's own 30-day span**, which never changes: a narrower window dims bars, it does not
-remove them.
+time of saved data is a separate concept. Active-card identity remains separate from the persisted
+trend span and is not restored on restart. A narrower active window dims bars; it does not remove them.
 _Avoid_: date range (suggests arbitrary endpoints, which are out of scope), period (ambiguous between
 this and the chart's span)
+
+**Trend span**:
+The number of consecutive local calendar days drawn by the daily trend chart: 30, 60 or 90, ending
+on the current display day. One application-owned preference applies to the global chart and every
+project chart, drives the fourth totals card, and survives navigation, refresh and restart. Missing
+or invalid values default to 30 without resetting other valid preferences. Changing the span preserves
+the active-card identity and chart side filter; it leaves the other three windows unchanged.
 
 **Theme variable classes**:
 Every variable declared in a theme block belongs to exactly one of three classes, and the class —

@@ -1,7 +1,7 @@
 // Trend bar segmentation (a pure function shared by both ends, unit testable):
-// in combined mode each bar stacks by agent side (Claude below, Codex above), and single-side mode
+// in combined mode each bar stacks by provider, and single-side mode
 // degenerates to one segment.
-// A zero value produces no empty segment; the window is a fixed last 30 days, cut by local time zone.
+// A zero value produces no empty segment; the selected span is cut by local calendar days.
 import type { AgentSide, DayUsage } from './domain'
 import { PROVIDER_ORDER, type Provider } from './provider'
 import { localDay } from './format'
@@ -53,18 +53,27 @@ export interface TrendBar {
 }
 
 export const TREND_WINDOW_DAYS = 30
+export const TREND_SPANS = [30, 60, 90] as const
+export type TrendSpan = (typeof TREND_SPANS)[number]
+
+export function isTrendSpan(value: unknown): value is TrendSpan {
+  return TREND_SPANS.some((span) => span === value)
+}
 
 export function buildTrendBars(
   byDay: DayUsage[],
   anchorMs: number,
   mode: TrendMode,
-  archivedDays: string[]
+  archivedDays: string[],
+  span: TrendSpan = TREND_WINDOW_DAYS
 ): TrendBar[] {
   const index = new Map(byDay.map((d) => [d.day, d]))
   const archived = new Set(archivedDays)
   const bars: TrendBar[] = []
-  for (let i = TREND_WINDOW_DAYS - 1; i >= 0; i--) {
-    const at = new Date(anchorMs - i * 86_400_000)
+  const anchor = new Date(anchorMs)
+  for (let i = span - 1; i >= 0; i--) {
+    // Calendar arithmetic keeps a 23/25-hour day from skipping or duplicating a date.
+    const at = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - i, 12)
     const day = localDay(at.getTime())
     const row = index.get(day)
     const segments: TrendSegment[] = []

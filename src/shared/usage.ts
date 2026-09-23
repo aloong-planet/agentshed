@@ -9,6 +9,7 @@ import type { AgentSide, DayUsage, ModelUsage, TokenStats, TokenTotals, UsageRow
 import { emptyTotals, zeroBySide } from './domain'
 import { providerOf } from './provider'
 import { localDay } from './format'
+import { TREND_WINDOW_DAYS, type TrendSpan } from './trend'
 
 /** The selectable time windows, in display order. `all` is the default. */
 export const USAGE_WINDOWS = ['all', 'today', 'd7', 'd30'] as const
@@ -53,8 +54,9 @@ export interface UsageSlice {
  * so "today" always means the same day as the trend chart's last bar (spec G2). Reading a separate clock here
  * would let the two disagree about which day today is, with nothing on screen to reveal it.
  */
-export function inWindow(day: string, window: UsageWindow, anchorMs: number): boolean {
-  const days = USAGE_WINDOW_DAYS[window]
+export function inWindow(day: string, window: UsageWindow, anchorMs: number, span: TrendSpan = TREND_WINDOW_DAYS): boolean {
+  // d30 remains the fourth card's identity; its duration follows the global preference.
+  const days = window === 'd30' ? span : USAGE_WINDOW_DAYS[window]
   // `all` means every row on record, and a row carrying no day **is** on record — excluding it here
   // would make the whole-history figure disagree with the side totals derived from the same rows. A
   // bounded window is the opposite case: an undated row genuinely cannot be shown to fall inside it.
@@ -62,17 +64,19 @@ export function inWindow(day: string, window: UsageWindow, anchorMs: number): bo
   if (!day) return false
   // Compare day keys rather than timestamps: the keys are already cut by local time zone, so a
   // millisecond comparison would re-derive the boundary and could land a day off around DST.
-  return day >= localDay(anchorMs - (days - 1) * 86_400_000) && day <= localDay(anchorMs)
+  const anchor = new Date(anchorMs)
+  const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - days + 1, 12)
+  return day >= localDay(start.getTime()) && day <= localDay(anchorMs)
 }
 
 /** Aggregate the rows falling inside one window. */
-export function sliceUsage(rows: UsageRow[], window: UsageWindow, anchorMs: number): UsageSlice {
+export function sliceUsage(rows: UsageRow[], window: UsageWindow, anchorMs: number, span: TrendSpan = TREND_WINDOW_DAYS): UsageSlice {
   const bySide = zeroBySide()
   const composition: UsageComposition = { uncachedInput: 0, output: 0, cacheRead: 0 }
   const models = new Map<string, ModelUsage>()
   let total = 0
   for (const r of rows) {
-    if (!inWindow(r.day, window, anchorMs)) continue
+    if (!inWindow(r.day, window, anchorMs, span)) continue
     total += r.total
     bySide[r.side] += r.total
     composition.uncachedInput += r.input + r.cacheWrite

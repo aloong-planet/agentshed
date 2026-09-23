@@ -4,6 +4,61 @@
 // same rule as the logic-page template).
 // It corresponds to the real app's TrendChart component; the ruling is in ADR-0008.
 ;(function () {
+  // Prototype-only storage demonstrates the requested global preference. It never touches app prefs.
+  const SPAN_KEY = 'agentshed-prototype-trend-span'
+  const SPANS = [30, 60, 90]
+  const spanViews = new Map()
+  let selectedSpan = Number(localStorage.getItem(SPAN_KEY))
+  if (!SPANS.includes(selectedSpan)) selectedSpan = 30
+
+  function changeSpan(next, persist) {
+    if (!SPANS.includes(next)) return
+    selectedSpan = next
+    if (persist) localStorage.setItem(SPAN_KEY, String(next))
+    spanViews.forEach((render) => render())
+  }
+  window.addEventListener('storage', (event) => {
+    if (event.key === SPAN_KEY) changeSpan(Number(event.newValue) || 30, false)
+  })
+
+  function bindSpan(id, onChange, disabled) {
+    const control = document.getElementById(id)
+    control.innerHTML = SPANS.map((days) =>
+      `<button type="button" class="trend-span-choice" data-span="${days}" ${disabled ? 'disabled' : ''}>${days}</button>`
+    ).join('<span class="trend-span-separator" aria-hidden="true">/</span>')
+    control.onclick = (event) => {
+      const button = event.target.closest('button[data-span]')
+      if (button && !button.disabled) changeSpan(Number(button.dataset.span), true)
+    }
+    const render = () => {
+      control.querySelectorAll('button').forEach((button) => {
+        button.setAttribute('aria-pressed', String(Number(button.dataset.span) === selectedSpan))
+      })
+      onChange(selectedSpan)
+    }
+    spanViews.set(id, render)
+    render()
+  }
+
+  function watchSpan(listener) {
+    spanViews.set(listener, () => listener(selectedSpan))
+    listener(selectedSpan)
+  }
+
+  // The prototype cards and chart share daily mock totals. Google belongs to the Codex mock side.
+  const SIDE_PROVIDERS = [['Anthropic'], ['OpenAI', 'Google'], ['xAI']]
+  function totalsFor(days, span) {
+    return SIDE_PROVIDERS.map((providers) => days.slice(-span).reduce((sum, day) =>
+      sum + providers.reduce((n, p) => n + (day.by[p] || 0), 0), 0))
+  }
+  function scaleHistory(days, last30) {
+    const current = totalsFor(days, 30)
+    return days.map((day) => ({ ...day, by: Object.fromEntries(Object.entries(day.by).map(([p, n]) => {
+      const side = SIDE_PROVIDERS.findIndex((providers) => providers.includes(p))
+      return [p, Math.round(n * last30[side] / current[side])]
+    })) }))
+  }
+
   const PROVIDERS = ['Anthropic', 'OpenAI', 'Google', 'xAI', '其他']
   const CLS = { Anthropic: 'anthropic', OpenAI: 'openai', Google: 'google', xAI: 'xai', 其他: 'other' }
   // 单侧模式 → 该侧当前实际在用的 provider。三侧各自一一对应只是此刻的事实,不是不变量:
@@ -14,13 +69,16 @@
     return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n)
   }
 
-  /** Generate 30 days of mock data; opts.scale controls the magnitude and opts.withGoogle demonstrates an
+  /** Generate mock daily history; opts.scale controls the magnitude and opts.withGoogle demonstrates an
    * agent mixing in another vendor's models */
   function mockDays(seed, opts) {
     const o = opts || {}
+    const count = o.days || 30
     const rnd = ((s) => () => (s = (s * 9301 + 49297) % 233280) / 233280)(seed)
-    return [...Array(30)].map((_, i) => {
-      const d = new Date(Date.now() - (29 - i) * 86400000)
+    return [...Array(count)].map((_, i) => {
+      const d = new Date()
+      d.setHours(12, 0, 0, 0)
+      d.setDate(d.getDate() - (count - 1 - i))
       const by = {}
       const sc = 0.2 + rnd() * 1.7
       by.Anthropic = Math.round((o.scale || 9e7) * sc)
@@ -29,7 +87,8 @@
       // Grok 是刚接进来的一侧,只有最近几天有量 —— 这是它现在真实的样子,也正是要压测的边界:
       // 合计模式下它是薄薄一段(分辨得出来吗),单侧模式下 30 天里只剩几个数据日(x 轴按数据日出标签,
       // 见 ADR-0009),两种情形都比「每天都有量」更能暴露问题。
-      if (i >= 24) by.xAI = Math.round((o.scale || 9e7) * 0.22 * (0.35 + rnd()))
+      if (i >= count - 6) by.xAI = Math.round((o.scale || 9e7) * 0.22 * (0.35 + rnd()))
+      if (count > 30 && i % 17 === 0) Object.keys(by).forEach((p) => delete by[p])
       return { label: `${d.getMonth() + 1}/${d.getDate()}`, mon: d.getMonth() + 1, dom: d.getDate(), by, archived: o.archivedFirst ? i < o.archivedFirst : false }
     })
   }
@@ -102,24 +161,27 @@
 
   /**
    * Render one trend chart.
-   * @param {{chart:string, xaxis:string, legend:string, seg:string}} ids The DOM container ids
+   * @param {{chart:string, xaxis:string, legend:string, seg:string, span?:string}} ids The DOM container ids
    * @param {Array} days What mockDays produced
    */
   function mount(ids, days0) {
     let days = days0
     let mode = '合计'
+    let span = selectedSpan
     let lastRows = null
     // How many trailing days are "in range". null = the whole window; the caller drives it via setRange.
     let range = null
     const $ = (id) => document.getElementById(id)
 
     function render() {
-      const from = range === null ? 0 : Math.max(0, days.length - range)
-      const rows = days.map((d, i) => {
+      const visible = days.slice(-span)
+      const from = range === null ? 0 : Math.max(0, visible.length - range)
+      const rows = visible.map((d, i) => {
         const segs = segmentsOf(d, mode)
         return { d: d, segs: segs, total: segs.reduce((s, x) => s + x.v, 0), out: i < from }
       })
       const max = Math.max.apply(null, rows.map((r) => r.total).concat([1]))
+      $(ids.chart).dataset.trendSpan = String(span)
       $(ids.chart).innerHTML = rows
         .map((r) => {
           const tip = [
@@ -169,6 +231,12 @@
         render()
       })
     }
+    if (ids.span) {
+      bindSpan(ids.span, (next) => {
+        span = next
+        render()
+      })
+    }
     render()
     // The caller keeps the range control (it lives in the totals-card row); the chart only reacts.
     return {
@@ -185,5 +253,5 @@
     }
   }
 
-  window.TrendChartProto = { mount: mount, mockDays: mockDays }
+  window.TrendChartProto = { mount, mockDays, bindSpan, watchSpan, totalsFor, scaleHistory }
 })()

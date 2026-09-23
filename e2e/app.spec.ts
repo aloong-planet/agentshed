@@ -1660,7 +1660,7 @@ test('the trend chart is stacked bars: segmented by provider within a bar, and s
   await expect(cols).toHaveCount(30)
   // Group titles render in sentence case, as written in the dictionary: innerText sees the rendered
   // (transformed) text, so an uppercase transform on .grp-t would turn this red
-  expect(await win.locator('.pane-body .grp-t').first().innerText()).toContain('Last 30 days’ trend')
+  await expect(win.getByRole('group', { name: 'Trend days' }).getByRole('button', { name: '30', exact: true })).toHaveAttribute('aria-pressed', 'true')
   // The all-history card is the bare window label — no parenthetical note trails it
   await expect(win.locator('.tot-row .tot-c .k').first()).toHaveText('Total · all history')
   const anthropicSegs = win.locator('.chart .col .sp.anthropic')
@@ -4651,4 +4651,175 @@ test('reopening an artifact (query layer): first open is slow, reopening it is i
 
   expect(l.errors).toEqual([])
   await close(l)
+})
+
+// Selectable-span coverage uses the existing fixture-home seam and both public page entries.
+// The fixture assistant/usage shape is shared with mkUsageHome's source-derived records.
+for (const mount of TREND_MOUNTS) {
+  test(`selectable trend span [${mount.name}]: history, independent filters, tabs and refresh`, async () => {
+    const home = mkUsageHome()
+    const proj = join(home, 'demo-proj')
+    const cdir = join(home, '.claude', 'projects', proj.replace(/[^a-zA-Z0-9]/g, '-'))
+    const history = join(cdir, 'long-history.jsonl')
+    const emptyProject = join(home, 'empty-project')
+    mkdirSync(emptyProject, { recursive: true })
+    writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {}, [emptyProject]: {} } }))
+    const record = (ago: number, input: number) => JSON.stringify({
+      type: 'assistant', timestamp: localDayOffset(ago).toISOString(),
+      message: { model: 'claude-fable-5', usage: {
+        input_tokens: input, output_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0
+      } }
+    })
+    writeFileSync(history, Array.from({ length: 91 }, (_, ago) => record(ago, 100 + ago)).join('\n') + '\n')
+    const l = await launch(undefined, home, { AGENTSHED_RESCAN_MS: '1200' })
+    try {
+      const win = await l.app.firstWindow()
+      await mount.goto(win)
+      const selector = win.getByRole('group', { name: 'Trend days', exact: true })
+      await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('30')
+      const dayKey = (ago: number) => {
+        const d = localDayOffset(ago)
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      }
+      const oldBar = win.locator(`.chart .col[data-day="${dayKey(75)}"]`)
+      await expect(oldBar).toHaveCount(0)
+      const cards = await win.locator('.tot-c').allTextContents()
+      for (const span of ['60', '90', '30', '90']) {
+        await selector.getByRole('button', { name: span, exact: true }).click()
+        await expect(win.locator('.chart .col')).toHaveCount(Number(span))
+        await expect(win.locator('.chart .col').last()).toHaveAttribute('data-day', dayKey(0))
+        expect((await win.locator('.tot-c').allTextContents()).slice(0, 3)).toEqual(cards.slice(0, 3))
+        await expect(win.locator('.tot-c').nth(3).locator('.k')).toHaveText(`Last ${span} days`)
+      }
+      await expect(oldBar).toHaveAttribute('data-tip', /185/)
+      await expect(win.locator('.chart .col').first()).toHaveAttribute('data-day', dayKey(89))
+      await win.locator('.seg button', { hasText: 'Codex' }).click()
+      await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('90')
+      await expect(oldBar.locator('.sp')).toHaveCount(0)
+      await win.locator('.tot-c').nth(2).click()
+      await expect(win.locator('.chart .col.out')).toHaveCount(83)
+      await selector.getByRole('button', { name: '60', exact: true }).click()
+      await expect(win.locator('.chart .col.out')).toHaveCount(53)
+      await expect(win.locator('.seg button.on')).toHaveText('Codex')
+      await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+      await win.locator('.pane-head .tabs .tab', { hasText: mount.name.startsWith('Agents') ? 'Token' : 'Overview' }).click()
+      await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('60')
+      await selector.getByRole('button', { name: '90', exact: true }).click()
+      await win.locator('.seg button', { hasText: 'Total' }).click()
+      await win.locator('.tot-c').first().click()
+      await expect(win.locator('.chart .col.out')).toHaveCount(0)
+      appendFileSync(history, record(75, 100) + '\n')
+      await expect(oldBar).toHaveAttribute('data-tip', /total 295\n/, { timeout: 15000 })
+      await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('90')
+      if (mount.name.startsWith('project')) {
+        await win.locator('.side .row', { hasText: 'empty-project' }).click()
+        await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('90')
+        await expect(win.locator('.chart .col')).toHaveCount(90)
+        await expect(win.locator('.chart .sp')).toHaveCount(0)
+        await win.locator('.side .row', { hasText: 'demo-proj' }).click()
+        await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('90')
+        await expect(oldBar).toHaveAttribute('data-tip', /total 295\n/)
+      }
+      // Real geometry, nonempty dense data, at the application's minimum width.
+      await l.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(800, 700))
+      await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(800)
+      const readGeometry = () => win.evaluate(() => {
+        const axis = document.querySelector('.xaxis')!.getBoundingClientRect()
+        const labels = [...document.querySelectorAll('.xaxis span')].map(e => e.getBoundingClientRect())
+        const bars = [...document.querySelectorAll('.chart .col')].map(e => e.getBoundingClientRect())
+        const control = document.querySelector('.trend-span-options')!.getBoundingClientRect()
+        return { labels: labels.length, overlap: labels.slice(1).some((r,i) => r.left < labels[i].right),
+          outside: labels.some(r => r.left < axis.left || r.right > axis.right),
+          overflow: labels.map(r => ({ left: axis.left - r.left, right: r.right - axis.right })),
+          minBar: Math.min(...bars.map(r=>r.width)), controlVisible: control.left >= 0 && control.right <= window.innerWidth }
+      })
+      // ResizeObserver runs after the viewport resize; poll the labels themselves, not innerWidth.
+      await expect.poll(readGeometry).toMatchObject({ outside: false, overlap: false, controlVisible: true })
+      const geometry = await readGeometry()
+      expect(geometry.labels).toBeGreaterThan(1)
+      expect(geometry.overlap).toBe(false)
+      expect(geometry.outside, JSON.stringify(geometry)).toBe(false)
+      expect(geometry.minBar).toBeGreaterThan(0)
+      expect(geometry.controlVisible).toBe(true)
+      expect(l.errors).toEqual([])
+    } finally {
+      await close(l)
+    }
+  })
+}
+
+test('selectable trend span: localized controls fit both pages in light and dark at minimum width', async ({}, testInfo) => {
+  test.setTimeout(180_000)
+  const l = await launchAppearance(mkUsageHome())
+  try {
+    const win = await l.app.firstWindow()
+    await win.waitForSelector('.rail')
+    await l.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(800, 700))
+    await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(800)
+    const names = [
+      ['zh', '趋势天数'], ['en', 'Trend days'], ['fr', 'Nombre de jours de la tendance'],
+      ['es', 'Días de la tendencia'], ['ru', 'Количество дней на графике'], ['ja', '推移の日数']
+    ]
+    for (const [lang, name] of names) {
+      for (const mode of ['light', 'dark']) {
+        for (const theme of ['purple', 'blue', 'amber']) {
+        await win.locator('.ri.set').click()
+        await win.locator(`[data-theme-option="${theme}"]`).click()
+        await win.getByTestId('language-trigger').click()
+        await win.getByTestId('language-pop').locator(`[data-lang="${lang}"]`).click()
+        await win.locator(`[data-mode-option="${mode}"]`).click()
+        await expect.poll(() => effectiveDark(win)).toBe(mode === 'dark')
+        for (const page of [0, 1]) {
+          await win.locator('.rail .ri').nth(page).click()
+          if (page === 1) await win.locator('.side .row', { hasText: 'demo-proj' }).click()
+          await win.locator('.pane-head .tabs .tab').first().click()
+          const selector = win.getByRole('group', { name, exact: true })
+          await selector.getByRole('button', { name: '90', exact: true }).click()
+          await expect(win.locator('.chart .col')).toHaveCount(90)
+          const geometry = await win.locator('.trend-heading').evaluate((heading) => {
+            const box = heading.getBoundingClientRect()
+            const children = [...heading.children].map(e => e.getBoundingClientRect())
+            const control = heading.querySelector('[aria-pressed="true"]')!
+            const style = getComputedStyle(control)
+            return {
+              clipped: children.some(r => r.left < box.left || r.right > box.right || r.bottom > box.bottom),
+              overlap: children.some((a, i) => children.slice(i + 1).some(b =>
+                a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top)),
+              height: box.height, background: style.backgroundColor, color: style.color
+            }
+          })
+          expect(geometry.clipped, `${lang}/${mode}/${page}`).toBe(false)
+          expect(geometry.overlap, `${lang}/${mode}/${page}`).toBe(false)
+          expect(geometry.height).toBeLessThan(100)
+          expect(geometry.color).not.toBe(geometry.background)
+          const selected = selector.getByRole('button', { name: '90', exact: true })
+          const style = await selected.evaluate(el => {
+            const reference = document.createElement('span')
+            reference.style.color = 'var(--accent)'
+            document.body.append(reference)
+            const accent = getComputedStyle(reference).color
+            reference.remove()
+            return ({
+            weight: getComputedStyle(el).fontWeight,
+            color: getComputedStyle(el).color,
+            accent,
+            rects: [...el.parentElement!.querySelectorAll('button')].map(b => ({ left: b.getBoundingClientRect().left, right: b.getBoundingClientRect().right }))
+          })})
+          expect(style.weight).toBe('700')
+          expect(style.rects[0].right).toBeLessThan(style.rects[1].left)
+          expect(style.rects[1].right).toBeLessThan(style.rects[2].left)
+          await expect(selected).toHaveCSS('color', style.accent)
+          await expect(win.locator('.tot-c').nth(3).locator('.k')).not.toContainText('30')
+          if (theme === 'purple' && (lang === 'zh' || lang === 'ru')) {
+            await expect(win.locator('.toast')).toHaveCount(0)
+            await win.screenshot({ path: testInfo.outputPath(`trend-${lang}-${mode}-${page}.png`) })
+          }
+        }
+      }
+    }
+    }
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l)
+  }
 })

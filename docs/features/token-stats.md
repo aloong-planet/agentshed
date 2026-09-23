@@ -10,11 +10,14 @@ share a source and reconcile against each other.
 
 ## Capabilities
 - A time window row at the top of both the Agents page and the project overview: four cards — total
-  over all history, today, the last 7 days, the last 30 days — each showing that window's total, and
+  over all history, today, the last 7 days, and the last N days — each showing that window's total, and
   **clicking a card selects the window**. Everything the window governs moves together: each side's
   figure, the composition bar, the highlighted span of the trend chart, and the per-model breakdown.
   All history is the default; the selection survives switching tabs (and, in a project, switching
-  projects) and is not kept across restarts. "Today" follows the current local day, as does the trend
+  projects); the active card is not kept across restarts. The fourth card's label and actual total
+  follow the global 30/60/90-day choice even when another card is active. If the fourth card is active,
+  its side figures, composition and model breakdown also follow that choice. The other three cards
+  keep their meanings. "Today" follows the current local day, as does the trend
   chart's last bar. Time labels, windows and charts keep advancing while saved data is displayed,
   including across midnight and time-zone changes; observation times remain unchanged.
 - A composition bar under the totals, cutting the selected window's total into three parts that mean
@@ -30,12 +33,18 @@ share a source and reconcile against each other.
   have none — so a response the events under-report is still counted, and a session Codex forked or
   spawned in the newer format is counted from its own file alone. Alignment with ccusage holds for
   sessions without such records; where they exist the third-party meter reads lower
-- A 30-day daily trend (local time zone; in combined mode each bar is stacked by provider, with bar
+- A daily trend with inline **30/60/90** choices without spaces in its heading; the selected number is highlighted, bold and persistently underlined
+  and each number supports mouse and keyboard activation (30 by default; local time zone; in combined mode each bar is stacked by provider, with bar
   height = that day's total and segments = each provider's share, and hovering shows each provider's
   number and percentage; the legend lists only providers that appear; a single side can be selected).
-  The chart's own span stays 30 days whatever time window is selected: days outside the window are
-  dimmed rather than removed, and the legend says so. The side filter and the time window compose —
-  neither resets the other.
+  Days outside the selected totals window are dimmed rather than removed, and the legend says so.
+  Changing the span preserves the side filter and active totals card. One choice applies to the
+  Agents page and every project, survives navigation and refreshes, and is remembered after quitting
+  and reopening. Loading placeholders show the remembered choice with disabled buttons until data
+  arrives. If saving fails, an error is shown and the open views keep the current choice; reopening
+  restores the last successfully saved choice. Missing or invalid saved choices use 30 without
+  resetting other valid preferences. Longer spans keep one bar per local calendar day, with smaller
+  gaps and automatically thinned date labels.
 - The trend chart's date axis labels data days only (days with usage under the current view), with
   labels aligned to their bar: the first one and any month change show "M/D", the rest show the day
   number alone; after switching to a single side the labels follow that side's data days; when the
@@ -70,7 +79,7 @@ share a source and reconcile against each other.
 - Projects with no sessions show zeros and an empty state rather than an error
 
 ## Boundaries and non-goals
-- The four windows are fixed; there is no custom date range, and nothing finer than a day
+- There are four totals-card roles; the fourth follows the three fixed chart spans. There is no custom date range, and nothing finer than a day
 - A retained day looks like any other day: nothing on screen marks it, and the smaller figure the
   records now hold appears nowhere
 - Deleting session files by hand does not lower a past day's figure either — the application cannot

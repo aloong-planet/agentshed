@@ -1,6 +1,7 @@
 import { useDict } from './language'
 import { ChevronDown, RefreshCw, Search } from './icons'
-import { useWindowLabel } from './TokenViz'
+import { useTrendSpan } from './TrendSpan'
+import { useWindowLabel, TrendSpanControl } from './TokenViz'
 import { SIDE_BADGE, SIDE_CHIP_LABEL, SIDE_ORDER } from './side-badge'
 import { STATIC_TABS } from './AgentsPane'
 import { USAGE_WINDOWS } from '@shared/usage'
@@ -123,6 +124,7 @@ export function ProjectsSkeleton(): JSX.Element {
 export function AgentsSkeleton(): JSX.Element {
   const t = useDict()
   const label = useWindowLabel()
+  const { span } = useTrendSpan()
   return (
     <div className="pane sk-page" aria-hidden="true">
       <header className="pane-head">
@@ -182,8 +184,9 @@ export function AgentsSkeleton(): JSX.Element {
         </nav>
       </header>
       <div className="pane-body">
-        <div className="grp-t">
-          {t.token.trendTitle}
+        <div className="grp-t trend-heading">
+          <TrendSpanControl span={span} disabled />
+          <span>{t.token.trendContext}</span>
           <span className="seg">
             {(Object.keys(TREND_MODE_LABEL) as TrendMode[]).map((m, i) => (
               <button key={m} type="button" className={i === 0 ? 'on' : ''} tabIndex={-1}>
@@ -192,12 +195,12 @@ export function AgentsSkeleton(): JSX.Element {
             ))}
           </span>
         </div>
-        <div className="chart">
-          {BARS.map((h, i) => (
+        <div className="chart" data-trend-span={span}>
+          {Array.from({ length: span }, (_, i) => (
             <span
               key={i}
               className="sk-ph-bar"
-              style={{ height: `${h}%`, animationDelay: `${(i % 8) * 0.1}s` }}
+              style={{ height: `${BARS[i % BARS.length]}%`, animationDelay: `${(i % 8) * 0.1}s` }}
             />
           ))}
         </div>

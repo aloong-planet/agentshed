@@ -1,7 +1,7 @@
 // appearance ticket 01: PrefsStore — the app's own prefs.json, defaulting to purple, falling back on
 // corruption or invalid values, written atomically.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { PrefsStore } from './prefs-store'
@@ -15,11 +15,39 @@ describe('PrefsStore', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
+  it('restores a saved global trend span without losing other preferences', () => {
+    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({
+      theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 60
+    }))
+    expect(new PrefsStore(dir).get()).toEqual({
+      theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 60
+    })
+  })
+
+  it.each([undefined, null, '60', 45, 0])('invalid or absent span %s defaults only that field', (trendSpan) => {
+    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({
+      theme: 'amber', language: 'ja', mode: 'dark', trendSpan
+    }))
+    expect(new PrefsStore(dir).get()).toEqual({
+      theme: 'amber', language: 'ja', mode: 'dark', trendSpan: 30
+    })
+  })
+
+  it('a failed atomic replacement keeps the last complete record across reopening', () => {
+    const store = new PrefsStore(dir)
+    store.setTrendSpan(60)
+    // A directory at the temporary-file path causes a real write failure before rename.
+    mkdirSync(join(dir, `.prefs.json.tmp-${process.pid}`))
+    expect(() => store.setTrendSpan(90)).toThrow(/EISDIR/)
+    expect(store.get().trendSpan).toBe(90)
+    expect(new PrefsStore(dir).get().trendSpan).toBe(60)
+  })
+
   it('with no file: purple + follow the system language + follow the system appearance', () => {
     expect(new PrefsStore(dir).get()).toEqual({
       theme: 'purple',
       language: 'system',
-      mode: 'system'
+      mode: 'system', trendSpan: 30
     })
   })
 
@@ -51,9 +79,9 @@ describe('PrefsStore', () => {
     const s = new PrefsStore(dir)
     s.setTheme('amber')
     s.setLanguage('ru')
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system', trendSpan: 30 })
     s.setTheme('blue')
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ru', mode: 'system' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ru', mode: 'system', trendSpan: 30 })
   })
 
   it('the two "follow system" settings, language and appearance mode, do not interfere', () => {
@@ -66,7 +94,7 @@ describe('PrefsStore', () => {
     const s = new PrefsStore(dir)
     s.setMode('dark')
     s.setLanguage('ja')
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark', trendSpan: 30 })
     // Changing the language leaves mode alone
     s.setLanguage('system')
     expect(new PrefsStore(dir).get().mode).toBe('dark')
@@ -84,12 +112,12 @@ describe('PrefsStore', () => {
       join(dir, 'prefs.json'),
       JSON.stringify({ theme: 'amber', language: 'ko', mode: 'dark' })
     )
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'system', mode: 'dark' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'system', mode: 'dark', trendSpan: 30 })
     writeFileSync(
       join(dir, 'prefs.json'),
       JSON.stringify({ theme: 'neon', language: 'ja', mode: 'dark' })
     )
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark', trendSpan: 30 })
   })
 
   it('an invalid mode degrades only mode, with the language and theme still read correctly', () => {
@@ -100,7 +128,7 @@ describe('PrefsStore', () => {
       join(dir, 'prefs.json'),
       JSON.stringify({ theme: 'amber', language: 'ru', mode: 'auto' })
     )
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system', trendSpan: 30 })
   })
 
   it('a file holding only theme: keeps it and fills in the language and mode defaults', () => {
@@ -112,14 +140,14 @@ describe('PrefsStore', () => {
     expect(new PrefsStore(dir).get()).toEqual({
       theme: 'blue',
       language: 'system',
-      mode: 'system'
+      mode: 'system', trendSpan: 30
     })
   })
 
   it('a file holding theme + language: keeps both and fills in the mode default', () => {
     // Same point as above: this is field-level defaulting, not cross-version key compatibility
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'amber', language: 'fr' }))
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'fr', mode: 'system' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'fr', mode: 'system', trendSpan: 30 })
   })
 
   it('setTheme persists and all three values read back', () => {
@@ -152,7 +180,7 @@ describe('PrefsStore', () => {
     const s = new PrefsStore(dir)
     s.setTheme('blue')
     const raw = JSON.parse(readFileSync(join(dir, 'prefs.json'), 'utf8')) as Record<string, string>
-    expect(raw).toEqual({ theme: 'blue', language: 'ja', mode: 'light' })
+    expect(raw).toEqual({ theme: 'blue', language: 'ja', mode: 'light', trendSpan: 30 })
   })
 
   it('writes are atomic: no temporary file is left in the directory', () => {

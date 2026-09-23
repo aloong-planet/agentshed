@@ -27,7 +27,7 @@ export type PrefKey = keyof Prefs
  * theme). Saving one at the cost of two
  * makes it not "a different trade-off" but strictly worse.
  *
- * The three fields are written out one by one rather than iterating keys: when a field is added to Prefs,
+ * The fields are written out one by one rather than iterating keys: when a field is added to Prefs,
  * this fails typecheck on the missing property,
  * whereas an iterating version would silently miss it.
  */
@@ -39,6 +39,7 @@ export function backfillPrefs(
   return {
     theme: touched.has('theme') ? local.theme : incoming.theme,
     language: touched.has('language') ? local.language : incoming.language,
-    mode: touched.has('mode') ? local.mode : incoming.mode
+    mode: touched.has('mode') ? local.mode : incoming.mode,
+    trendSpan: touched.has('trendSpan') ? local.trendSpan : incoming.trendSpan
   }
 }

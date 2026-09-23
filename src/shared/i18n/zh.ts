@@ -67,6 +67,7 @@ export const zh = {
      * cannot see what actually changed */
     languageFollowSystem: (name: string) => `已设为跟随系统 · 当前为 ${name}`,
     /** The preference failed to persist (the UI has already switched; a restart reverts it) */
+    saveTrendSpanFailed: '保存趋势天数失败',
     saveThemeFailed: '保存主题失败',
     saveModeFailed: '保存外观模式失败',
     saveLanguageFailed: '保存语言失败'
@@ -371,6 +372,7 @@ export const zh = {
     winAll: '累计总量 · 全部历史',
     winToday: '本日',
     winD7: '近 7 天',
+    winDays: (days: number) => `近 ${days} 天`,
     winD30: '近 30 天',
     /* "last 7 / 30 days" rather than "last week / month": the window is a rolling N days, while
        "a month" sits ambiguously between a calendar month and 30 days. Naming the days tells no lie
@@ -389,6 +391,10 @@ export const zh = {
     byModelIn: (title: string, win: string) => `${title} · ${win}`,
     noUsageInWindow: '选中的时间窗口内没有用量',
     trendTitle: '近 30 天趋势(本地时区 · 日粒度)',
+    trendPrefix: '近',
+    trendSuffix: '天趋势',
+    trendContext: '(本地时区 · 日粒度)',
+    trendDays: '趋势天数',
     legendNote: '柱高=当日总量,分段=各 provider 占比',
     /** Appended to the legend note when a window narrower than the chart is selected */
     legendDimNote: ';压暗段=选中窗口之外',

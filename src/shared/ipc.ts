@@ -41,6 +41,7 @@ export const CMD = {
   /** Set the appearance mode (which may be "follow system"; the main process sets
    * nativeTheme.themeSource from it) */
   setMode: 'agentshed:set-mode',
+  setTrendSpan: 'agentshed:set-trend-span',
   /** Set the UI language preference (which may be "follow system") */
   setLanguage: 'agentshed:set-language',
   /** Enumerate a package's previewable files when a skill is expanded (registering the allow-list) */
@@ -125,6 +126,9 @@ export interface ReadSkillFileArgs {
  * frame (see createWindow's comment).
  */
 export const LANG_ARG = '--agentshed-language='
+
+/** The saved chart span is available before the first skeleton or restored-data render. */
+export const TREND_SPAN_ARG = '--agentshed-trend-span='
 
 /**
  * The system's preferred language list (comma separated), passed to the preload through the same channel.
