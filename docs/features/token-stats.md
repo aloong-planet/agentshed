@@ -33,7 +33,7 @@ share a source and reconcile against each other.
   have none — so a response the events under-report is still counted, and a session Codex forked or
   spawned in the newer format is counted from its own file alone. Alignment with ccusage holds for
   sessions without such records; where they exist the third-party meter reads lower
-- A daily trend with inline **30/60/90** choices without spaces in its heading; the selected number is highlighted
+- A daily trend with inline **30/60/90** choices without spaces in its heading; the selected number is highlighted, bold and persistently underlined
   and each number supports mouse and keyboard activation (30 by default; local time zone; in combined mode each bar is stacked by provider, with bar
   height = that day's total and segments = each provider's share, and hovering shows each provider's
   number and percentage; the legend lists only providers that appear; a single side can be selected).

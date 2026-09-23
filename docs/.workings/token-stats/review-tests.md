@@ -133,3 +133,9 @@ requires the user's separate confirmation. No product requirement or verificatio
 
 No tests were added for this reversible visual edit. Existing regression results are recorded in
 slash-style.md. This review does not claim new mutation coverage of the unchanged tests.
+
+## 2026-09-23 — Persistent selected underline
+
+1. Coverage: inspected the running dev project page with 60 selected after moving the pointer to its heading; the underline persists.
+2. Design: no new tests for this one-property visual amendment; existing behavioral tests are unchanged.
+3. False-green check: the inspection deliberately avoids hover, which already underlined numbers before this change. Shared-UI checks and diff checks passed; the full suite was not rerun for this CSS-only follow-up.

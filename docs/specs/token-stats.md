@@ -395,8 +395,8 @@ The confirmed layout uses inline numeric choices in the existing chart heading, 
 preference and a linked fourth totals card. The provider palette and daily grain stay unchanged.
 
 - token-stats::REQ-002/AC-01: The heading presents exactly `30/60/90` inline, with each number
-  independently clickable and the selected number highlighted using the theme accent and stronger
-  weight. There are no spaces, horizontal button padding or gaps around the slashes.
+  independently clickable and the selected number highlighted using the theme accent, stronger
+  weight and a persistent underline, including when not hovered. There are no spaces, horizontal button padding or gaps around the slashes.
   The slashes are separators, not controls. There is no dropdown.
 - token-stats::REQ-002/AC-02: Selecting N draws N consecutive local calendar dates in ascending
   order, ending on the shared current display day, including across month/year and daylight-saving

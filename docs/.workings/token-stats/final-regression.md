@@ -148,3 +148,26 @@ requires the user's separate confirmation. No product requirement or verificatio
 | New cross-project rule or architecture | None; no ADR or glossary change needed. |
 
 The queue is resolved for this visual amendment; this is not a new whole-feature closeout.
+
+## 2026-09-23 — Persistent selected underline
+
+### Stage 1
+
+| Pair | Result |
+| --- | --- |
+| Spec / features / CSS | Selected number has accent, stronger weight and persistent underline. Aligned. |
+| Prototype / dev | Same rule; actual dev screenshot confirms 60 remains underlined with the pointer over the heading. |
+
+### Stage 2
+
+| Relationship | Result |
+| Shared consumers | Agents, project Overview and startup placeholder use the same selected class. |
+| Indexes / dictionaries | No feature-name or localized-text change; indexes remain valid, i18n is enabled and labels are unchanged. |
+| Existing tests | Hover-only screenshots cannot prove persistence; this round checked a non-hovered selected button directly. |
+
+### Stage 3
+
+| Event | Result |
+| Prototype confirmation | Applied the approved selected underline. No new options, Pending resolution or global rule. |
+
+Scope complete: one CSS property, corresponding approved prototype, current requirement and feature copy.

@@ -129,3 +129,10 @@ requires the user's separate confirmation. No product requirement or verificatio
   horizontal gap/padding changed. REQ-002/AC-01 and the feature description now state the approved form.
 - No bugs or refactoring requests found in this diff. The actual dev window was raised and inspected:
   it displays the compact slashes with 90 highlighted, rather than the stale background frame.
+
+## 2026-09-23 — Persistent selected underline
+
+1. Premises: confirmed prototype adds an underline to the selected numeric button.
+2. Runtime: the aria-pressed selector applies independently of hover, including the shared startup control.
+3. Correctness/security: CSS only; no change to state, persistence, IPC or data calculation.
+4. Consistency: live and prototype selected rules match; only the selected number, not either slash, is underlined. No findings.
