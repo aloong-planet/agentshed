@@ -36,8 +36,8 @@ all of them.
 5. As a user, I want the historical trend to survive the agent cleaning up source sessions, with a
    label, so that a long-term trend does not break.
 6. As a user, I want the numbers to reconcile against ccusage, so that I can trust them.
-7. As a user, I want to pick a time window — all history, today, the last 7 days, the last 30 days —
-   from the totals themselves rather than from a separate control, so that "what have I burned lately"
+7. As a user, I want to pick a time window — all history, today, the last 7 days, and the last N
+   days matching the chosen trend span — from the totals themselves rather than from a separate control, so that "what have I burned lately"
    is one click away and the answer to "how much" and the choice of "over what period" are the same
    object.
 8. As a user, I want everything the window governs to move together — each side's figure, the
@@ -310,7 +310,8 @@ overnight froze `scannedAt` and today's data was not shown)**
   of "crossing midnight" is needed.
 
 **Sequence G: the time window and the composition** (settled 2026-08-21)
-- G1 Four windows — all history / today / the last 7 days / the last 30 days — presented as four cards
+- G1 Four windows — all history / today / the last 7 days / the last N days under
+  token-stats::REQ-002/AC-08 — presented as four cards
   that are **themselves the selector**: the card shows that window's total and clicking it selects the
   window. There is no separate control for the totals window; "how much" and "over what period" are one object. All
   history is the default selection.
@@ -366,8 +367,9 @@ overnight froze `scannedAt` and today's data was not shown)**
   uncached input — that grouping is not inferable from the label, and "where did cache creation go" is
   the first question the bar provokes.
 - G10 Composition colours: cache read blue, uncached input yellow, output green (ADR-0024).
-- G11 The selection is view state: it survives switching tabs within the page — and, on the project
-  detail page, switching projects, since the window is a lens the user holds rather than a property of
+- G11 The selected totals-card identity is view state (the global trend-span preference has its
+  own lifetime under token-stats::REQ-002/AC-05 and token-stats::REQ-002/AC-07): it survives switching
+  tabs within the page — and, on the project detail page, switching projects, since the window is a lens the user holds rather than a property of
   one project — and is not persisted across restarts, matching how the session sort already behaves.
 - G12 The window and the trend's side filter are **independent controls that compose**: selecting a
   side narrows what the bars count (D4), selecting a window dims which bars are in scope (D10), and
@@ -388,36 +390,88 @@ overnight froze `scannedAt` and today's data was not shown)**
 
 ### token-stats::REQ-002 Select the daily chart span
 
-Applies to the global Token tab and project Overview tab. The confirmed prototype extends their
-existing chart title with a compact 30/60/90-day dropdown; the provider palette and daily grain stay.
+Applies to every Token daily bar chart, including the global Token tab and every project Overview.
+The confirmed layout uses inline numeric choices in the existing chart heading, with one global
+preference and a linked fourth totals card. The provider palette and daily grain stay unchanged.
 
-- token-stats::REQ-002/AC-01: Each chart offers exactly 30, 60 and 90 days, initially 30, in its
-  title. Copy and the accessible control name follow the selected UI language. Before the first
-  snapshot, the startup placeholder mirrors the default control while disabled, so filling the
-  chart preserves its position.
+- token-stats::REQ-002/AC-01: The heading presents exactly `30 · 60 · 90` inline, with each number
+  independently clickable and the selected number highlighted using the theme accent and stronger
+  weight. Small CSS-controlled gaps separate the numbers and dots; literal spacing characters do
+  not determine layout. The dots are separators, not controls. There is no dropdown.
 - token-stats::REQ-002/AC-02: Selecting N draws N consecutive local calendar dates in ascending
   order, ending on the shared current display day, including across month/year and daylight-saving
   boundaries. Older rows and future rows are excluded; absent dates remain zero with no segments.
 - token-stats::REQ-002/AC-03: Expanding the span exposes existing historical daily values, including
   archived values and their existing hatching. Combined/provider segmentation, single-side counting,
   daily tooltips, and window-relative height scaling retain D2–D5 and ADR-0008 semantics.
-- token-stats::REQ-002/AC-04: The chart-span dropdown, totals-card window and side filter are
-  independent: changing one does not reset the others. The selected totals window dims outside
-  dates without removing bars; all history dims none. Changing chart span does not alter totals,
-  composition or model breakdowns. The totals cards remain all history/today/7 days/30 days.
-- token-stats::REQ-002/AC-05: The selected chart span survives same-page tab switches and snapshot
-  refreshes; project-to-project switches preserve it like the totals window. It is view state,
-  independent between the global and project views, and is not persisted across application restarts.
+- token-stats::REQ-002/AC-04: Changing the span preserves the selected totals-card identity and the
+  chart's side filter. Selecting a totals card or side does not reset the span. All-history, today
+  and 7-day totals and their selected breakdowns are unaffected by a span-only change; the fourth
+  card follows token-stats::REQ-002/AC-08 and token-stats::REQ-002/AC-09. The side filter applies
+  only to bars, never to the totals cards. Dates outside the selected totals window are dimmed
+  without removing bars; all history dims none.
+- token-stats::REQ-002/AC-05: There is one global span for all Token daily charts. Changing it on
+  either entry updates the other entry and every project when displayed, including already-mounted
+  views. Switching pages, projects or tabs and receiving a new snapshot preserve that choice;
+  there are no per-project or per-page overrides.
 - token-stats::REQ-002/AC-06: All spans fit the chart width with daily bars; 60/90-day bars use
   tighter gaps. The date axis retains D6–D9/ADR-0009 semantics: data days only, correct month
-  context, no overlapping or out-of-container labels. Controls remain usable at the minimum
-  supported window width, in light/dark themes and every UI language.
+  context, no overlapping or out-of-container labels. The inline choices and linked card remain
+  usable at the minimum supported window width, in all themes, both appearances and every UI
+  language. Copy and accessible names are localized; keyboard focus and the selected value are
+  exposed through the existing accessible-control conventions.
+- token-stats::REQ-002/AC-07: A successful choice is saved as an application-owned preference.
+  Quitting and reopening restores it for all charts and the fourth totals card. A fresh profile
+  defaults to 30. This is local application persistence; it does not require an account or login.
+- token-stats::REQ-002/AC-08: The fourth card remains a single card whose label is the localized
+  equivalent of “Last N days” and whose amount sums the effective usage rows for those same N
+  local calendar dates, for the current project or all projects as appropriate. It updates whenever
+  the global span changes, even when another totals card is active. Archived and retained usage,
+  zero dates and undated-row exclusion follow G5–G7 and ADR-0025; the value is not a multiple or
+  extrapolation of the 30-day total. The other three cards keep their existing meanings.
+- token-stats::REQ-002/AC-09: If the fourth card is active, changing N keeps it active and recomputes
+  its side totals, composition, model breakdown and heading for N days together with the chart
+  highlighting. Selecting that card after changing N uses the new N immediately. Its three
+  composition buckets continue to sum to its total. Changing N does not automatically select the
+  fourth card when another card is active.
+- token-stats::REQ-002/AC-10: An older preference file without the span field, or an invalid span
+  value, falls back to 30 without resetting valid theme/language/appearance preferences. A corrupt
+  preference file uses the existing preference-loading fallback without crashing. Saving the span
+  preserves unrelated preferences and does not write agent configuration or accounting archives.
+- token-stats::REQ-002/AC-11: On rapid repeated selection, the last user choice wins across views
+  and, once saved, after restart. A late initial preference read or an earlier save response must
+  not overwrite a newer user choice. Snapshot refreshes and preference responses must not leave
+  the selected number, fourth-card label/amount and active breakdowns on different spans.
+- token-stats::REQ-002/AC-12: If saving fails, the current selection remains consistent across the
+  open app and the existing localized save-error feedback reports the failure; the app must not
+  claim that it was saved. On reopening, restore the last successfully persisted value (or the
+  default if none exists). Preference writes use the existing atomic save mechanism so an
+  interruption does not leave a partially written preference file.
+- token-stats::REQ-002/AC-13: With no first snapshot, the startup placeholder reserves the same
+  inline control and fourth-card geometry, displays the resolved saved/default span, and keeps
+  the chart control disabled. On first data or restored data, the card and chart use that span;
+  startup data arrival cannot reset it to 30. Reopening with a saved span requires no corrective
+  user click. Existing loading and restored-data states are reused.
 
-Failure paths: selecting a longer span with sparse or entirely empty history leaves empty dates,
-not fabricated usage; repeated 30→90→60→30 selection recomputes the scale and axis each time;
-a side switch can empty the selected span; a new snapshot updates data without resetting the span;
-midnight advances the last bar using token-stats::REQ-001/AC-02. This change performs no reads,
-archive writes or external-content rendering beyond the existing snapshot flow.
+### Failure modes and boundaries: selection through restart
+
+| User operation sequence | Governing acceptance units |
+|---|---|
+| Fresh launch → no snapshot → first data; or reopen with saved 60/90 and restored data | token-stats::REQ-002/AC-07, token-stats::REQ-002/AC-13 |
+| Choose 60 on global page → open project A → project B → return global page | token-stats::REQ-002/AC-05, token-stats::REQ-002/AC-08 |
+| Choose 30 → 90 → 60 while earlier preference reads/writes are outstanding → quit after save → reopen | token-stats::REQ-002/AC-07, token-stats::REQ-002/AC-11 |
+| Change span with all history/today/7 days active; then select the fourth card; then change span again | token-stats::REQ-002/AC-04, token-stats::REQ-002/AC-08, token-stats::REQ-002/AC-09 |
+| Switch a chart to one side → change span → switch side again, including a side with no usage | token-stats::REQ-002/AC-03, token-stats::REQ-002/AC-04 |
+| Expand beyond available history, or open an empty project; include archived-only and retained dates | token-stats::REQ-002/AC-02, token-stats::REQ-002/AC-03, token-stats::REQ-002/AC-08 |
+| New snapshot arrives, scan fails, midnight passes, or time zone changes while viewing saved data | token-stats::REQ-002/AC-05, token-stats::REQ-002/AC-11, token-stats::REQ-001/AC-02; E3 retains existing data |
+| Upgrade an older profile, read an invalid value, save alongside an appearance change, or fail/interrupt a save | token-stats::REQ-002/AC-10, token-stats::REQ-002/AC-11, token-stats::REQ-002/AC-12 |
+| Switch language/theme or narrow the window with 90 days selected | token-stats::REQ-002/AC-01, token-stats::REQ-002/AC-06 |
+
+Entering/leaving a page does not create or destroy the global preference. Loading preferences,
+receiving saved/live data and changing the user's choice are independent events governed by the
+acceptance units above. The existing active-card and side-filter lifetimes stay as G11/G12 define.
+This change adds preference reads/writes but no new accounting reads, archive writes or external
+content rendering; G14's external-content boundary is unchanged.
 
 ## Restored-data time semantics
 
@@ -425,7 +479,7 @@ archive writes or external-content rendering beyond the existing snapshot flow.
 
 - token-stats::REQ-001/AC-01: Relative activity labels across overview, projects, detail, memory
   and sessions use current time, so data saved yesterday never reads as just observed on restart.
-- token-stats::REQ-001/AC-02: Today/7-day/30-day totals, model/side/composition breakdowns,
+- token-stats::REQ-001/AC-02: Today/7-day/selected-N-day totals, model/side/composition breakdowns,
   trend end date and selected-span highlighting use the same current display-time anchor;
   crossing midnight or changing time zone must not split their definition of today.
 - token-stats::REQ-001/AC-03: Stored observation timestamps and the archive's scan-day accounting
@@ -440,6 +494,13 @@ G2/G3/G6/G7/G11/G13, D1/D10, C10/C11/C20 and E2–E4 are in-scope regressions; p
 archive retention policy are not changed by this feature.
 
 ## Implementation Decisions
+
+- **Global preference and derived window**: reuse the app-owned preference store and its validated
+  process boundary for the selected number. All chart entries consume one shared choice. Keep
+  the selected totals-card identity separate from its resolved day count: the fourth card derives
+  its window from the global span. Compute real amounts from effective usage rows under ADR-0025,
+  never from the prototype's mock scaling. This extends preferences, not cached usage or archive
+  structures; the accounting stamp and parser rules do not change.
 
 - **Accounting**: see ADR-0005/0006 (the sides' total formulas differ and must not be copied from one
   another) and ADR-0019 for the third side's onboarding rules.
@@ -502,10 +563,19 @@ archive retention policy are not changed by this feature.
 
 ## Testing Decisions
 
-For token-stats::REQ-002, reuse the public trend-builder and axis unit seams, with literal calendar
-boundaries and DST time-zone fixtures. Real Electron e2e drives both chart entries through the
-dropdown, side filter and totals cards, inspects historical values and rendered geometry, and checks
-tab/refresh retention. Keep parser, IPC, archive and storage formats unchanged.
+For token-stats::REQ-002, the highest existing seam is a real Electron user journey: use the
+inline numbers on both chart entries, read the fourth card and the active side/model/composition
+regions together, navigate between projects and global view, then quit and relaunch with the same
+isolated application profile. Verify actual restart persistence, not merely a reload or an in-memory
+value. Existing geometry checks cover localized choices, selected styling, keyboard focus, dense
+axes and startup alignment in the supported themes and appearances.
+
+Reuse the public usage-window/trend/axis unit seams for exact calendar boundaries and distinct
+amounts in each 30-day slice, sparse/empty/archived data, and the algebraic totals/composition
+identities. Reuse preference store/handler and preference-backfill seams for older/invalid fields,
+unrelated-setting preservation, failed/interrupted writes and late responses. Test behavior at
+these existing boundaries, not component state layout. The protocol and preference contract need
+extension; usage-cache/archive structures and provider accounting stay unchanged.
 
 Following ADR-0002's dual seam: fixture unit tests at the providers layer cover every side's parsing
 rules, deduplication, the cache and the archive — one fixture per side, because the formulas
@@ -592,9 +662,10 @@ moved and others did not — checking them one at a time would pass on a page th
 - Restoring history on a machine that never had it: the restore script works from a cache snapshot
   of this application's own making, and no such snapshot exists on a machine whose agent rewrote
   its records before this application ever scanned them.
-- An arbitrary or custom date range. The four windows are fixed. A date picker is a different control
+- An arbitrary or custom date range. There are four card roles; the fourth follows the fixed
+  30/60/90 choices. A date picker is a different control
   with different questions (what does it do to the daily chart, what does it do to a range with no
-  data, does it persist), and the four fixed windows answer the question that prompted this —
+  data, does it persist), and these card roles answer the question that prompted this —
   "what have I burned lately" — without any of them.
 - Sub-day granularity. "Today" is as fine as the windows go, because a day is as fine as the source
   records are cut for aggregation; an hourly window would have to re-derive from timestamps that the

@@ -42,13 +42,14 @@
        已检测、其余三个窗口仍有数),Memory 分栏是 Codex 记忆四态,Token 分栏是 xAI 分段色三候选
        (真实取值来自主题样式文件的 --p-xai,app 内无此开关)。
        演示状态同时作用到趋势图:卡说本日 0 而图上今天那根柱还有高度,是自相矛盾的原型,教错东西。 -->
+<!-- The fourth total card follows the globally persisted 30 / 60 / 90 day choice; its amount comes from the same daily mock history as the chart. -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>原型 — Agents 全局页</title>
 <!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
      references it -->
-<link rel="stylesheet" href="../_shared/trend-chart.css">
+<link rel="stylesheet" href="../_shared/trend-chart.css?v=linked-span-total">
 <link rel="stylesheet" href="../_shared/totals-card.css">
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
@@ -203,8 +204,8 @@
     </div>
     <div class="body">
       <div data-p="token">
-        <!-- Range proposal: existing page, Chinese preview; other language layouts are not covered here. -->
-        <div class="grp-t trend-heading"><label class="trend-span-label">近 <select class="trend-span-select" id="tspan" aria-label="趋势天数"><option value="30">30</option><option value="60">60</option><option value="90">90</option></select> 天趋势</label><span>(本地时区 · 日粒度 · 跨全部项目)</span>
+        <!-- Global span proposal: inline choices, remembered across prototype pages and reloads. Chinese preview; other language layouts are not covered here. -->
+        <div class="grp-t trend-heading"><span class="trend-span-label">近 <span class="trend-span-options" id="tspan" role="group" aria-label="趋势天数"></span> 天趋势</span><span>(本地时区 · 日粒度 · 跨全部项目)</span>
           <span class="seg" id="tseg"><span class="on">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
         <div class="chart" id="chart" data-shared-block="trend-chart"></div>
         <div class="xaxis" id="txaxis"></div>
@@ -413,18 +414,26 @@ document.getElementById('totWrap').addEventListener('click', e=>{
 renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条画出来
 </script>
 <script src="../_shared/icons.js"></script>
-<script src="../_shared/trend-chart.js"></script>
+<script src="../_shared/trend-chart.js?v=linked-span-total"></script>
 <script>
 
   // The trend chart: rendered by the shared piece (its logic and styles are in _shared/trend-chart.*, shared
   // with the other prototype pages)
   // 页头那排卡是时间筛选器,图只被动响应——控制器挂出来供 applyRange 调用
-  window.__trendDays = TrendChartProto.mockDays(11, { days: 90, scale: 9e7, withGoogle: true, archivedFirst: 4 })
+  window.__trendDays = TrendChartProto.scaleHistory(
+    TrendChartProto.mockDays(11, { days: 90, scale: 9e7, withGoogle: true, archivedFirst: 4 }), RANGES[3].side)
   window.__trend = TrendChartProto.mount(
     { chart: 'chart', xaxis: 'txaxis', legend: 'tlegend', seg: 'tseg', span: 'tspan' },
     window.__trendDays
   )
-  applyRange()   // 图挂好后重跑一次,让压暗与演示状态在首帧就一致
+  const spanModelShares = MODELS.map(m => m.v[3] / RANGES[3].side[{anthropic:0, openai:1, xai:2}[m.cls]])
+  TrendChartProto.watchSpan(span => {
+    RANGES[3].k = `近 ${span} 天`
+    RANGES[3].days = span
+    RANGES[3].side = TrendChartProto.totalsFor(window.__trendDays, span)
+    MODELS.forEach((m, i) => { m.v[3] = RANGES[3].side[{anthropic:0, openai:1, xai:2}[m.cls]] * spanModelShares[i] })
+    applyRange()
+  })
 
   // ── The v2 components: Subagents / Memory / Plugins (folded in from the subagents-memory-plugin spec) ──
   const SUBAGENTS=[

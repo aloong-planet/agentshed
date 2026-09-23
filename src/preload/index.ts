@@ -27,7 +27,8 @@ import {
 import { parsePrefs } from '@shared/prefs'
 import { ERR, appError } from '@shared/errors'
 import { FALLBACK_LANGUAGE, isLanguage, type Language } from '@shared/i18n'
-import { LANG_ARG, SYS_LANGS_ARG } from '@shared/ipc'
+import { isTrendSpan, TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'
+import { LANG_ARG, SYS_LANGS_ARG, TREND_SPAN_ARG } from '@shared/ipc'
 
 // Contract validation at the renderer's entry: a snapshot from the main process that does not meet the
 // contract throws rather than silently rendering undefined
@@ -66,7 +67,13 @@ function systemLanguages(): string[] {
     .filter((s) => s.length > 0)
 }
 
+function initialTrendSpan(): TrendSpan {
+  const value = Number(process.argv.find((a) => a.startsWith(TREND_SPAN_ARG))?.slice(TREND_SPAN_ARG.length))
+  return isTrendSpan(value) ? value : TREND_WINDOW_DAYS
+}
+
 const api = {
+  initialTrendSpan: initialTrendSpan(),
   /** The effective language, available on the first frame (not the preference — that goes through getPrefs) */
   initialLanguage: initialLanguage(),
   /** The system's preferred language list at startup: the renderer computes the effective language
@@ -142,6 +149,8 @@ const api = {
     checkedPrefs(await ipcRenderer.invoke(CMD.setTheme, theme)),
   setLanguage: async (language: LanguagePreference): Promise<Prefs> =>
     checkedPrefs(await ipcRenderer.invoke(CMD.setLanguage, language)),
+  setTrendSpan: async (span: TrendSpan): Promise<Prefs> =>
+    checkedPrefs(await ipcRenderer.invoke(CMD.setTrendSpan, span)),
   setMode: async (mode: AppearanceMode): Promise<Prefs> =>
     checkedPrefs(await ipcRenderer.invoke(CMD.setMode, mode)),
   /** The application menu's two entry points (ticket 13): they behave identically to the same-named

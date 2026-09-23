@@ -43,6 +43,7 @@ export const ja: Locale = {
   toast: {
     languageSwitched: (name) => `インターフェースの言語を ${name} に変更しました`,
     languageFollowSystem: (name) => `システムに従う設定にしました · 現在は ${name}`,
+    saveTrendSpanFailed: '表示期間の保存に失敗しました',
     saveThemeFailed: 'テーマの保存に失敗しました',
     saveModeFailed: '外観モードの保存に失敗しました',
     saveLanguageFailed: '言語の保存に失敗しました'
@@ -283,6 +284,7 @@ export const ja: Locale = {
     winAll: '累計 · 全期間',
     winToday: '本日',
     winD7: '直近 7 日',
+    winDays: (days: number) => `直近 ${days} 日`,
     winD30: '直近 30 日',
     compCacheRead: 'キャッシュ読み取り',
     compUncached: '未ヒット入力',

@@ -2,7 +2,8 @@
 // the model breakdown bars.
 // Shared by the project overview tab and the Agents page's Token section: the same data source, differing
 // only in the grouping key.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTrendSpan } from './TrendSpan'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { ModelUsage, TokenStats, UsageRow } from '@shared/domain'
 import { inWindow, sliceUsage, USAGE_WINDOWS, type UsageSlice, type UsageWindow } from '@shared/usage'
 
@@ -27,14 +28,15 @@ export function fmtTok(n: number): string {
  * selected — it cuts the same number the side figures cut, along a different axis, so the two are
  * siblings rather than one containing the other (G8).
  *
- * The window is cut against `anchor` — the snapshot's scan moment — rather than the clock, so "today"
+ * The window is cut against `anchor` — the shared current display clock, so "today"
  * always means the same day as the trend chart's last bar (G2).
  */
 /** The window's own label, so a caller can name the selected window outside the card row */
 export function useWindowLabel(): (w: UsageWindow) => string {
   const t = useDict()
+  const { span } = useTrendSpan()
   return (w) =>
-    w === 'all' ? t.token.winAll : w === 'today' ? t.token.winToday : w === 'd7' ? t.token.winD7 : t.token.winD30
+    w === 'all' ? t.token.winAll : w === 'today' ? t.token.winToday : w === 'd7' ? t.token.winD7 : t.token.winDays(span)
 }
 
 export function TotalsCards({
@@ -53,11 +55,12 @@ export function TotalsCards({
 }): JSX.Element {
   const t = useDict()
   const label = useWindowLabel()
+  const { span } = useTrendSpan()
   // Every window's own total, so a card can show it without being selected. Cheap on the measured
   // data (hundreds of rows), and it keeps "what does that window hold" answerable before clicking.
   const totals = useMemo(
-    () => Object.fromEntries(USAGE_WINDOWS.map((w) => [w, sliceUsage(rows, w, anchor).total])) as Record<UsageWindow, number>,
-    [rows, anchor]
+    () => Object.fromEntries(USAGE_WINDOWS.map((w) => [w, sliceUsage(rows, w, anchor, span).total])) as Record<UsageWindow, number>,
+    [rows, anchor, span]
   )
   const c = slice.composition
   const pct = (v: number): number => (slice.total ? (v / slice.total) * 100 : 0)
@@ -131,6 +134,30 @@ const PROVIDER_CLASS: Record<string, string> = {
   other: 'other'
 }
 
+/** Shared geometry for live charts and the disabled startup placeholder. */
+export function TrendSpanControl({ span, onSpan, disabled = false }: {
+  span: TrendSpan
+  onSpan?: (span: TrendSpan) => void
+  disabled?: boolean
+}): JSX.Element {
+  const t = useDict()
+  return (
+    <span className="trend-span-label">
+      {t.token.trendPrefix}
+      <span className="trend-span-options" role="group" aria-label={t.token.trendDays}>
+        {TREND_SPANS.map((days, i) => (
+          <Fragment key={days}>
+            {i > 0 && <span className="trend-span-dot" aria-hidden="true">·</span>}
+            <button type="button" className="trend-span-choice" aria-pressed={span === days}
+              disabled={disabled} onClick={() => onSpan?.(days)}>{days}</button>
+          </Fragment>
+        ))}
+      </span>
+      {t.token.trendSuffix}
+    </span>
+  )
+}
+
 /** A selected calendar span anchored on the common display clock; combined mode stacks providers. */
 export function TrendChart({
   stats,
@@ -177,21 +204,7 @@ export function TrendChart({
   return (
     <div>
       <div className="grp-t trend-heading">
-        <label className="trend-span-label">
-          {t.token.trendPrefix}
-          <select
-            className="trend-span-select"
-            aria-label={t.token.trendDays}
-            value={span}
-            onChange={(e) => {
-              const next = TREND_SPANS.find((days) => String(days) === e.target.value)
-              if (next !== undefined) onSpan(next)
-            }}
-          >
-            {TREND_SPANS.map((days) => <option key={days} value={days}>{days}</option>)}
-          </select>
-          {t.token.trendSuffix}
-        </label>
+        <TrendSpanControl span={span} onSpan={onSpan} />
         <span>{t.token.trendContext}</span>
         <span className="seg">
           {/* Derived from the label Record rather than written out, so the mode bar is complete by
@@ -207,7 +220,7 @@ export function TrendChart({
         {bars.map((b) => (
           <div
             key={b.day}
-            className={`col ${b.archived ? 'arch' : ''} ${inWindow(b.day, win, anchor) ? '' : 'out'}`}
+            className={`col ${b.archived ? 'arch' : ''} ${inWindow(b.day, win, anchor, span) ? '' : 'out'}`}
             style={{ height: `${Math.max(1.5, Math.round((b.total / max) * 100))}%` }}
             data-tip={tipOf(b, t.label.providerOther, t)}
             data-day={b.day}

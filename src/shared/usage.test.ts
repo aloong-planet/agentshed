@@ -60,6 +60,32 @@ const ROWS: UsageRow[] = [
 ]
 
 describe('window slicing', () => {
+  it('the fourth window uses the selected span for totals, sides, composition and models', () => {
+    const anchor = new Date(2026, 2, 31, 12).getTime()
+    const rows = [
+      real('claude', '2026-03-31', { input: 7, cacheWrite: 3, output: 2, model: 'recent' }),
+      real('codex', '2026-01-31', { input: 20, cacheRead: 3, model: 'older' }),
+      real('grok', '2026-01-01', { input: 44, model: 'oldest' }),
+      real('claude', '2025-12-31', { input: 100 }),
+      real('claude', '2026-04-01', { input: 200 }),
+      real('claude', '', { input: 300 })
+    ]
+    expect(sliceUsage(rows, 'd30', anchor, 30).total).toBe(12)
+    expect(sliceUsage(rows, 'd30', anchor, 60).total).toBe(35)
+    expect(sliceUsage(rows, 'd30', anchor, 90)).toEqual({
+      total: 79, bySide: { claude: 12, codex: 23, grok: 44 },
+      composition: { uncachedInput: 74, output: 2, cacheRead: 3 },
+      byModel: [
+        { side: 'grok', model: 'oldest', total: 44 },
+        { side: 'codex', model: 'older', total: 23 },
+        { side: 'claude', model: 'recent', total: 12 }
+      ]
+    })
+    expect(sliceUsage(rows, 'all', anchor, 90).total).toBe(679)
+    expect(sliceUsage(rows, 'today', anchor, 90).total).toBe(12)
+    expect(sliceUsage(rows, 'd7', anchor, 90).total).toBe(12)
+  })
+
   it.each(USAGE_WINDOWS)('%s: the three buckets sum exactly to the total', (w) => {
     const s = sliceUsage(ROWS, w, ANCHOR)
     const c = s.composition

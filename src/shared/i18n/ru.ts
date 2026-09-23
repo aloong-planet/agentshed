@@ -44,6 +44,7 @@ export const ru: Locale = {
   toast: {
     languageSwitched: (name) => `Язык интерфейса переключён на ${name}`,
     languageFollowSystem: (name) => `Теперь следует системе · сейчас ${name}`,
+    saveTrendSpanFailed: 'Не удалось сохранить период',
     saveThemeFailed: 'Не удалось сохранить тему',
     saveModeFailed: 'Не удалось сохранить режим оформления',
     saveLanguageFailed: 'Не удалось сохранить язык'
@@ -290,6 +291,7 @@ export const ru: Locale = {
     winAll: 'Всего · вся история',
     winToday: 'Сегодня',
     winD7: 'Последние 7 дней',
+    winDays: (days: number) => `Последние ${days} дней`,
     winD30: 'Последние 30 дней',
     compCacheRead: 'Чтение из кэша',
     compUncached: 'Ввод мимо кэша',

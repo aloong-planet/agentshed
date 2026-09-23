@@ -47,3 +47,65 @@ all three apply. No capability-dependent check was silently skipped.
 
 The affected rows were revisited after the startup and documentation fixes. No unresolved relation,
 event or decision remains. Verification status and the final gateway result are recorded in checklist.md.
+
+
+## 2026-09-23 — Issue 186: global inline span and linked summary
+
+Scope/version: `4714c4f0fb15866f34b1f61f7736464213ed2c2f` plus this delivery's uncommitted
+spec/prototype/code/documents. The current increment is one ticket, so the dedicated multi-ticket
+full-feature closeout section does not apply. The23 source-quoted conclusions in
+[the acceptance record](checklist.md#2026-09-23--issue-186-implementation-acceptance) were rechecked
+after the reviews; they are not inferred from old dropdown evidence.
+Project capability declaration in CLAUDE.md enables i18n, enumeration wording and working-language
+gates; all apply. No capability-dependent item was silently skipped.
+
+### Stage 1 — Changed declarations against counterparts
+| Declaration surface | Counterpart and conclusion |
+|---|---|
+| token-stats spec:REQ-002 and failure matrix | Shared context/prefs/control, linked slice and real restart/failure tests meet the13 span units; identity and duration remain separate. Pending condition removed after implementation |
+| token-stats spec:REQ-001 and legacy D/G obligations | Existing common display clock, daily grain, effective rows, archive marks and all/today/d7 behavior retained; exact calendar and restored clock tests pass |
+| features/token-stats | Replaced per-page reset/independence/fixed30 statements; now describes shared persistence, linked fourth card, startup control and save failure without implementation details |
+| features/agents-overview | Restart boundary now explicitly distinguishes unpersisted active card from remembered global span; links canonical Token feature description |
+| CONTEXT Time window/Trend span | Four card roles, fourth resolvedN, global remembered choice and default30 agree with spec, feature and implementation |
+| agents prototype | Approved numeric control, global choice and linked card are implemented; mock values remain presentation examples |
+| project prototype | Same numeric control and linkage at project scope; implementation computes exact rows instead of mock scaling |
+| skeleton prototype | Resolved saved/default choice, disabled shared numeric control and fourth label match real startup; placeholder-to-data geometry verified |
+| Shared prototype CSS/JS | Existing small gaps/pressed weight and shared demonstration storage remain consistent with the approved interaction; no app dependency on localStorage |
+| zh dictionary | Dynamic nearN-days and localized save error; rendered Chinese labels/geometry inspected |
+| en dictionary | Dynamic LastNdays and exact English save failure; exercised in real persistence/failure journeys |
+| fr dictionary | N derniers jours and save-error meaning agree; rendered minimum-width theme/mode matrix passes |
+| es dictionary | UltimosNdias and save-error meaning agree; same rendered matrix passes |
+| ru dictionary | Supported30/60/90 all use the existing plural-days form; longest heading inspected at minimum width |
+| ja dictionary | Dynamic day count and save-error copy align with other dictionaries; same rendered matrix passes |
+| Changed production comments | Snapshot-anchor and span-independence claims updated to current shared clock and fourth-card coupling; save responses documented as acknowledgements only |
+| Working records | Old specification/dropdown results remain explicitly historical; latest acceptance pointer, separate reviews, limitations and current gate evidence identify this delivery |
+
+### Stage 2 — Relations outside changed declarations
+| Relation | Check and conclusion |
+|---|---|
+| Feature/spec files ↔ their README entries | Read both indices; same existing feature/slugs and user-facing scope, no new file or rename. Existing summaries remain true |
+| Global span ↔ agents-overview startup constraints | Compatible display copy is independent of saved preference; restart still opens Agents/all-history. No browsing-state persistence added |
+| Changed facts ↔ other declarations | Repository-wide search over docs,src,CONTEXT and every README for page-local/independent totals/reset30/last30 found current mirrors in Token feature/glossary, all fixed. Remaining matches are unrelated query state, default30 examples, historical prototype comments, ADR history or retained dictionary APIs, not active fixed-span copy |
+| Dynamic window ↔ ADR-0025 | Same effective row set and independent derived projections; no parser/archive/cache shape or stamp change needed |
+| Chart behavior ↔ ADR-0008/0009 | Provider segmentation/scaling, data-only hierarchical labels and measured axis placement remain; both dense90-day mount tests pass |
+| Skeleton ↔ live card/control | Same control component and context label on both paths; cold30/60/90 and restored60/90 geometry tests pass |
+| Enumeration wording ↔ check:ui | Inspected gate scope: agent-side names/counts and shared UI contracts. It does not prove span-card semantics; explicit numeric-list/card-count audit and Electron tests cover that boundary |
+| Copy ↔ i18n/typecheck/language gates | Gate scans unextracted source literals, typecheck checks dictionary completeness; rendered six-language tests independently verify names, selected labels and geometry |
+| Rules ↔ templates/generated documents | No workflow rule or template changed in this increment; existing directory descriptions remain applicable |
+
+### Stage 3 — Events and current-state claims
+| Event | Enumeration/evidence and disposition |
+|---|---|
+| Local span becomes a global remembered preference | `rg -n 'useTrendSpan|TrendSpanContext' src/renderer/src` lists App owner plus AgentsPane,DetailPane,TokenViz,StartupSkeleton and context definition. Both mounts and placeholder accounted for; glossary/feature mirrors updated |
+| Fourth card changes meaning withN | `USAGE_WINDOWS` still enumerates all,today,d7,d30; numeric list remains30,60,90. No member-count change. Four-card statements retained with dynamic fourth meaning; first-three regression assertions pass |
+| Pending condition expires | `rg -n 'Pending:' docs/specs/token-stats.md docs/features/token-stats.md docs/features/agents-overview.md` returns no matches after removal; all three targets are readable tracked text |
+| UI control replaces dropdown | `rg -n 'trend-span-select|combobox.*Trend days' src e2e` returns no matches after migrating the one stale test; all live consumers use numeric controls |
+| Preference loading now includes span | Four-field validated IPC/load/backfill paths updated and typechecked; legacy disk files deliberately default per field. No incompatible account/login flow introduced |
+| New shared lifetime invariant | Canonical definition is CONTEXT Trend span; behavior/failures defined in token-stats::REQ-002. No new architectural decision beyond existing app preferences and row derivation |
+| Implementation/reviews/verification completed | Current checklist records23 per-unit results and89-E2E/725-unit final gateway exit0. One parity test remains an explicit opt-in skip |
+| Publication/acceptance/merge | Delivery is prepared for existing PR185; Issue186 stays open until merge. No merge or new release claimed. User's dev server remains running untouched |
+
+All changed declarations and affected relation endpoints were revisited after edits. Queue is empty:
+no unresolved mapping, document contradiction or product finding in this increment. Technical testing
+limits (forced acknowledgement reordering and power loss) remain explicitly recorded, not called
+passing tests. Source/spec decisions were unchanged; no new ADR or standalone postmortem warranted.

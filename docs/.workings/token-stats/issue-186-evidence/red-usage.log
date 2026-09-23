@@ -1,0 +1,38 @@
+
+> agentshed@0.1.0 test /private/tmp/agentshed-token-trend
+> vitest run "src/shared/usage.test.ts"
+
+
+ RUN  v2.1.9 /private/tmp/agentshed-token-trend
+
+ ❯ src/shared/usage.test.ts (18 tests | 1 failed) 8ms
+   × window slicing > the fourth window uses the selected span for totals, sides, composition and models 5ms
+     → expected 12 to be 35 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/shared/usage.test.ts > window slicing > the fourth window uses the selected span for totals, sides, composition and models
+AssertionError: expected 12 to be 35 // Object.is equality
+
+- Expected
++ Received
+
+- 35
++ 12
+
+ ❯ src/shared/usage.test.ts:74:55
+     72|     ]
+     73|     expect(sliceUsage(rows, 'd30', anchor, 30).total).toBe(12)
+     74|     expect(sliceUsage(rows, 'd30', anchor, 60).total).toBe(35)
+       |                                                       ^
+     75|     expect(sliceUsage(rows, 'd30', anchor, 90)).toEqual({
+     76|       total: 79, bySide: { claude: 12, codex: 23, grok: 44 },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 passed (18)
+   Start at  11:05:13
+   Duration  325ms (transform 97ms, setup 0ms, collect 117ms, tests 8ms, environment 0ms, prepare 48ms)
+
+ ELIFECYCLE  Test failed. See above for more details.

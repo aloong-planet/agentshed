@@ -1,4 +1,5 @@
-import { TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'
+import { useTrendSpan } from './TrendSpan'
+import type { TrendSpan } from '@shared/trend'
 import { StartupHint } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
 import { Fragment, useEffect, useMemo, useState } from 'react'
@@ -93,7 +94,7 @@ function DetailPaneBody({
   // Above the tab switch so the selection survives moving between tabs (G11). The overview is
   // conditionally rendered, so state held inside it would be discarded on every switch.
   const [win, setWin] = useState<UsageWindow>('all')
-  const [trendSpan, setTrendSpan] = useState<TrendSpan>(TREND_WINDOW_DAYS)
+  const { span: trendSpan, onSpan: setTrendSpan } = useTrendSpan()
   const result = useProjectDetailQuery(entry.path)
   const queryClient = useQueryClient()
 
@@ -211,8 +212,8 @@ function OverviewTab({
   const winLabel = useWindowLabel()
   const stats = detail.stats ?? { tokens: emptyTokenStats(), sessions: [] }
   const slice = useMemo(
-    () => sliceUsage(stats.tokens.rows, win, now),
-    [stats.tokens.rows, win, now]
+    () => sliceUsage(stats.tokens.rows, win, now, span),
+    [stats.tokens.rows, win, now, span]
   )
   return (
     <div>

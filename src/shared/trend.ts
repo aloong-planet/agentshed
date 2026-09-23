@@ -56,6 +56,10 @@ export const TREND_WINDOW_DAYS = 30
 export const TREND_SPANS = [30, 60, 90] as const
 export type TrendSpan = (typeof TREND_SPANS)[number]
 
+export function isTrendSpan(value: unknown): value is TrendSpan {
+  return TREND_SPANS.some((span) => span === value)
+}
+
 export function buildTrendBars(
   byDay: DayUsage[],
   anchorMs: number,

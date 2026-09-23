@@ -34,21 +34,27 @@
   border-radius: 9px;
   padding: 12px;
 }
-/* Range selection changes the plotted span, independently of the totals cards and side filter. */
+/* The global span drives the fourth totals card and preserves the selected card and side. */
 .trend-heading { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
 .trend-heading .seg { margin-left: auto }
 .trend-span-label { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap }
-.trend-span-select {
+/* Numeric choices share one preference; only the chosen number carries the accent. */
+.trend-span-options { display: inline-flex; align-items: center; gap: 3px }
+.trend-span-choice {
   font: inherit;
-  color: var(--text);
-  background: var(--card);
-  border: 1px solid var(--line-strong);
-  border-radius: 5px;
-  padding: 3px 5px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  padding: 3px 4px;
   cursor: pointer;
 }
-.trend-span-select:hover { border-color: var(--accent) }
-.trend-span-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.trend-span-choice:hover { color: var(--text); text-decoration: underline }
+.trend-span-choice[aria-pressed='true'] { color: var(--accent); font-weight: 700 }
+.trend-span-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px }
+.trend-span-choice:disabled { cursor: default }
+.trend-span-dot { color: var(--text-2); user-select: none }
 .chart[data-trend-span='60'] { gap: 2px }
 .chart[data-trend-span='90'] { gap: 1px }
 /* A bar must not use overflow:hidden — it would clip the tooltip pseudo-element positioned outside it;

@@ -44,6 +44,7 @@ export const fr: Locale = {
   toast: {
     languageSwitched: (name) => `Langue de l’interface changée en ${name}`,
     languageFollowSystem: (name) => `Suit désormais le système · actuellement ${name}`,
+    saveTrendSpanFailed: 'Échec de l’enregistrement de la période',
     saveThemeFailed: 'Échec de l’enregistrement du thème',
     saveModeFailed: 'Échec de l’enregistrement du mode d’apparence',
     saveLanguageFailed: 'Échec de l’enregistrement de la langue'
@@ -294,6 +295,7 @@ export const fr: Locale = {
     winAll: 'Total · tout l’historique',
     winToday: 'Aujourd’hui',
     winD7: '7 derniers jours',
+    winDays: (days: number) => `${days} derniers jours`,
     winD30: '30 derniers jours',
     compCacheRead: 'Lectures de cache',
     compUncached: 'Entrée hors cache',

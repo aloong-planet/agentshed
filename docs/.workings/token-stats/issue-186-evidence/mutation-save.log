@@ -1,0 +1,38 @@
+
+> agentshed@0.1.0 test /private/tmp/agentshed-token-trend
+> vitest run "src/main/prefs-handlers.test.ts"
+
+
+ RUN  v2.1.9 /private/tmp/agentshed-token-trend
+
+ ❯ src/main/prefs-handlers.test.ts (8 tests | 1 failed) 13ms
+   × the preference handlers > accepts only supported numeric spans and preserves unrelated fields on disk 7ms
+     → expected 30 to be 60 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/main/prefs-handlers.test.ts > the preference handlers > accepts only supported numeric spans and preserves unrelated fields on disk
+AssertionError: expected 30 to be 60 // Object.is equality
+
+- Expected
++ Received
+
+- 60
++ 30
+
+ ❯ src/main/prefs-handlers.test.ts:58:51
+     56|     for (const span of [60, 90, 30]) {
+     57|       expect(h.setTrendSpan(span).trendSpan).toBe(span)
+     58|       expect(new PrefsStore(dir).get().trendSpan).toBe(span)
+       |                                                   ^
+     59|     }
+     60|     for (const invalid of [0, 31, '60', null, {}, NaN]) {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  11:26:12
+   Duration  373ms (transform 108ms, setup 0ms, collect 134ms, tests 13ms, environment 0ms, prepare 64ms)
+
+ ELIFECYCLE  Test failed. See above for more details.

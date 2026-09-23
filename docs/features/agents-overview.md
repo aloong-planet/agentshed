@@ -36,7 +36,8 @@ agent side's global picture onto one screen.
 
 ## Boundaries and non-goals
 - Every restart opens Agents. Previously viewed content is remembered, but the last selected project,
-  session, scroll position, open groups, searches and time window are not
+  session, scroll position, open groups, searches and active totals card are not. The global 30/60/90-day
+  trend choice is remembered (see [Token statistics](token-stats.md))
 - The Grok side: its own global skills are listed and installable like the others'; components it
   borrows from Claude Code at runtime stay out of its lists, and the Skills section says so in one
   line. Its agent definitions, plugins, memory and user-level MCP are not yet parsed — there is no

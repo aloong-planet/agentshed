@@ -1363,20 +1363,25 @@ body {
   color: var(--accent);
   font-weight: 600;
 }
-/* The chart span is independent of the totals-card window. Reuse the page's surface tokens. */
+/* The global span also drives the fourth totals card. Reuse the page's surface tokens. */
 .trend-heading { flex-wrap: wrap }
 .trend-span-label { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap }
-.trend-span-select {
+.trend-span-options { display: inline-flex; align-items: center; gap: 3px }
+.trend-span-choice {
   font: inherit;
-  color: var(--text);
-  background: var(--card);
-  border: 1px solid var(--line-strong);
-  border-radius: 5px;
-  padding: 3px 5px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  padding: 3px 4px;
   cursor: pointer;
 }
-.trend-span-select:hover { border-color: var(--accent) }
-.trend-span-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.trend-span-choice:hover { color: var(--text); text-decoration: underline }
+.trend-span-choice[aria-pressed='true'] { color: var(--accent); font-weight: 700 }
+.trend-span-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px }
+.trend-span-choice:disabled { cursor: default }
+.trend-span-dot { color: var(--text-2); user-select: none }
 .chart[data-trend-span='60'] { gap: 2px }
 .chart[data-trend-span='90'] { gap: 1px }
 .chart {
