@@ -9,9 +9,8 @@ release/
 test-results/
 playwright-report/
 # CLAUDE.md is committed in this repo, overriding the global ignore: it is the one-line import of
-# AGENTS.md, which carries the project capability table that skills branch on. Without the shim
-# Claude Code never loads that table, and a declaration not loaded reads as "not enabled" — a silent
-# skipped check. Personal, uncommitted instructions go in CLAUDE.local.md instead.
+# AGENTS.md, the project conventions, which Claude Code would otherwise never load. Personal,
+# uncommitted instructions go in CLAUDE.local.md instead.
 !CLAUDE.md
 # Screenshots taken as acceptance evidence during a run — reproducible from the suite, not sources
 e2e-out/
