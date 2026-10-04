@@ -1,8 +1,6 @@
 # Project capabilities
 
-Skills branch on this table; the convention that defines it lives in the global AGENTS.md.
-**A capability belongs here only if some skill's rule takes "is it enabled" as a precondition**;
-facts that merely shape how this project writes code, with no skill branching on them, do not.
+Skills branch on this table; the convention that defines it lives in the global agent instructions.
 
 | Capability | State | Detail |
 |---|---|---|
