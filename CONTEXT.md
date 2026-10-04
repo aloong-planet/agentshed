@@ -438,8 +438,8 @@ _Avoid_: reload, refetch (they name the fetch, not what the page does with its r
   the test passes without having verified anything.
   **Corollary: "listing every shape of X" is a negative conclusion in positive disguise (added
   2026-08-03).** "Codex tool calls come in these kinds" reads as positive enumeration but
-  actually asserts "there are no others" — a negative judgement, which per CLAUDE.md's "negative
-  conclusions require a different method" cannot rest on sampling. Case in point: a 120-file sample
+  actually asserts "there are no others" — a negative judgement, which per the global AGENTS.md's
+  "negative conclusions require a different method" cannot rest on sampling. Case in point: a 120-file sample
   gave `custom_tool_call` + `function_call`, looking clean and complete; a full enumeration over
   278 files / 62,912 lines turned up a third, `tool_search_call` (25 occurrences). It never appeared
   once in the sample, and the consequence of missing it would be a permanently undercounted tool
@@ -452,7 +452,8 @@ _Avoid_: reload, refetch (they name the fetch, not what the page does with its r
   297 sessions showed the list had missed a shape accounting for 63% of them (`Warmup`), while
   `Conversation info`, which was on the list, did not appear in my sample — the latter is worse,
   because I wrote an assertion into the spec that it "does not exist" (a recheck proved it does; it
-  was simply outside a sample ordered by mtime). On method for negative conclusions, see CLAUDE.md.
+  was simply outside a sample ordered by mtime). On method for negative conclusions, see the global
+  AGENTS.md.
 
 - **Stripping may follow the sample strictly; allow-listing may not — strictness follows the
   direction of failure (settled 2026-08-03)**: the same rule "only handle shapes we have seen" has
