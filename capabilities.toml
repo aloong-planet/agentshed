@@ -1,0 +1,27 @@
+# Cross-skill project facts. IDs, types and field formats are defined by the repo-scaffold
+# skill's capability registry; read and write rules live in the global agent instructions.
+
+working-language = "en"
+
+[i18n]
+enabled = true
+source = "src/shared/i18n/"
+enforced-by = ["pnpm typecheck", "pnpm check:i18n"]
+
+[enumeration-wording-gate]
+enabled = true
+source = "scripts/check-shared-ui.mjs"
+enforced-by = ["pnpm check:ui"]
+
+[lint]
+enabled = false
+
+[e2e-suite]
+enabled = true
+source = "playwright.config.ts"
+enforced-by = ["pnpm e2e"]
+
+[theming]
+enabled = true
+source = "src/renderer/src/theme.css"
+enforced-by = ["pnpm check:ui"]
