@@ -48,7 +48,7 @@ function main(): void {
     console.error('no --user-data given and no default for this platform')
     process.exit(2)
   }
-  if (!existsSync(snapshot as string)) {
+  if (!existsSync(snapshot)) {
     console.error(`snapshot not found: ${snapshot}`)
     process.exit(2)
   }
@@ -60,8 +60,8 @@ function main(): void {
   const stamp = `${version}+c${CACHE_VERSION}`
 
   // rowsFromCacheFile refuses a snapshot of another cache structure version (spec C16)
-  const all = rowsFromCacheFile(snapshot as string)
-  const rows = all.filter((r) => r.side === (side as AgentSide) && r.day !== '' && r.day >= (from as string) && r.day <= (to as string))
+  const all = rowsFromCacheFile(snapshot)
+  const rows = all.filter((r) => r.side === (side as AgentSide) && r.day !== '' && r.day >= from && r.day <= to)
   const byDay = new Map<string, UsageRow[]>()
   for (const r of rows) {
     const list = byDay.get(r.day)

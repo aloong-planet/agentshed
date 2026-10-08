@@ -81,7 +81,7 @@ function readCodexSide(dir: string): Map<string, SubagentSideDetail> {
       })
       continue
     }
-    const str = (k: string): string | null => (typeof parsed[k] === 'string' ? (parsed[k] as string) : null)
+    const str = (k: string): string | null => (typeof parsed[k] === 'string' ? parsed[k] : null)
     const name = str('name')
     if (!name) {
       out.set(`(${f})`, {

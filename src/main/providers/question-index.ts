@@ -113,9 +113,9 @@ export function stripReplayPrefix(
   const replayLen =
     forkedAt === null
       ? parent.length
-      : parent.findIndex((q) => q[3] !== null && (q[3] as number) > forkedAt) === -1
+      : parent.findIndex((q) => q[3] !== null && q[3] > forkedAt) === -1
         ? parent.length
-        : parent.findIndex((q) => q[3] !== null && (q[3] as number) > forkedAt)
+        : parent.findIndex((q) => q[3] !== null && q[3] > forkedAt)
 
   // Check entry by entry **by content fingerprint** (the timestamps were rewritten by the replay and
   // cannot be trusted)
@@ -360,7 +360,7 @@ export function makeGrokQuestionIndexer(): {
       if (text !== null) {
         const upd = grokUpdate(obj)
         const meta = upd?.['_meta'] as Record<string, unknown> | undefined
-        const pi = typeof meta?.['promptIndex'] === 'number' ? (meta['promptIndex'] as number) : null
+        const pi = typeof meta?.['promptIndex'] === 'number' ? meta['promptIndex'] : null
         if (pi !== null && pi === openPrompt) {
           if (openPushed) {
             // Another chunk of the open question: extend its range and its text

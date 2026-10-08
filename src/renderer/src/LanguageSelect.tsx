@@ -31,6 +31,7 @@ export function LanguageSelect({
   // needs to read goes through a ref — this avoids making the effect depend on
   // cursor and reinstalling the listener on every move.
   const cursorRef = useRef(0)
+  // eslint-disable-next-line react-hooks/refs -- see #197
   cursorRef.current = cursor
   const t = dictOf(effective)
 
@@ -47,11 +48,14 @@ export function LanguageSelect({
     setOpen(false)
     trigRef.current?.focus()
   }
-  function pick(o: LanguagePreference): void {
-    setOpen(false)
-    trigRef.current?.focus()
-    if (o !== pref) onChange(o)
-  }
+  const pick = useCallback(
+    (o: LanguagePreference): void => {
+      setOpen(false)
+      trigRef.current?.focus()
+      if (o !== pref) onChange(o)
+    },
+    [pref, onChange]
+  )
 
   /**
    * Align to the trigger: right edges aligned, opening upwards when there is not enough space below.
@@ -115,7 +119,7 @@ export function LanguageSelect({
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('click', onClick)
     }
-  }, [open, pref])
+  }, [open, pick])
 
   return (
     // .field / .frow are the settings page's row forms, shared with the appearance section (the language
@@ -132,6 +136,7 @@ export function LanguageSelect({
           data-testid="language-trigger"
           onClick={(e) => {
             e.stopPropagation()
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- see #195
             open ? setOpen(false) : openPop()
           }}
           onKeyDown={(e) => {

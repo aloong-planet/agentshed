@@ -86,6 +86,7 @@ export function App(): JSX.Element {
   // that effect has an empty dependency list, so
   // its closure captured the values as of mount. The same use as cursorRef in LanguageSelect.
   const prefsRef = useRef<Prefs>({ theme, language: langPref, mode, trendSpan })
+  // eslint-disable-next-line react-hooks/refs -- see #197
   prefsRef.current = { theme, language: langPref, mode, trendSpan }
   const selectProject = (p: string | null): void => {
     setSelected(p)
@@ -156,7 +157,7 @@ export function App(): JSX.Element {
       offStatus()
       offSettings()
     }
-  }, [])
+  }, [queryClient])
 
   async function onTrendSpan(span: TrendSpan): Promise<void> {
     touchedPrefs.current.add('trendSpan')

@@ -14,7 +14,9 @@ source = "scripts/check-shared-ui.mjs"
 enforced-by = ["pnpm check:ui"]
 
 [lint]
-enabled = false
+enabled = true
+source = "eslint.config.js"
+enforced-by = ["pnpm lint"]
 
 [e2e-suite]
 enabled = true
