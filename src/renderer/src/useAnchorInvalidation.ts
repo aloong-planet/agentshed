@@ -10,7 +10,7 @@
 // dropdown right-aligns and needs its own rendered width, the name tooltip clamps against the window
 // edge. Folding those into one function would produce a parameter for every difference. What they
 // genuinely share is *when* a position stops being true, and that is what lives here.
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
 
 /**
  * How long after a resize an arriving scroll is attributed to it rather than to the user (#122).
@@ -70,8 +70,9 @@ export function useAnchorInvalidation(
   // them directly would tear down and re-register both listeners on every render of the surrounding
   // component.
   const ref = useRef(handlers)
-  // eslint-disable-next-line react-hooks/refs -- see #197
-  ref.current = handlers
+  useLayoutEffect(() => {
+    ref.current = handlers
+  })
 
   useEffect(() => {
     if (!active) return

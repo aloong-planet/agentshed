@@ -7,7 +7,7 @@ import { StartupHint } from './StartupHint'
 // fetch a whole turn is this page's on-demand action (ticket 05).
 // The organising layer (ticket 06): day grouping with collapse + ascending/descending + the three tiers
 // of banner at the top.
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useState } from 'react'
 import { SIDE_BADGE, SIDE_FULL_NAME } from './side-badge'
 import type { SessionPage } from '@shared/domain'
 import { fmtAgo } from './ProjectsPane'
@@ -238,14 +238,14 @@ function SessionPageBody({
   /** Whether the pulse has finished playing: once it has, only the bar remains — a remount such as a sort
    * change must not flash for another 10s */
   const [pulseDone, setPulseDone] = useState(false)
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- see #198
+  // A new focus for the session already open relocates. The page is keyed by file, so this only
+  // happens when that session is reopened with another focus; a different session remounts instead.
+  const [focusFor, setFocusFor] = useState(focusQ)
+  if (focusQ !== focusFor) {
+    setFocusFor(focusQ)
     setFocused(focusQ ?? null)
     setPulseDone(false)
-    // Clicking another hit within the same session page (this component does not remount) must
-    // relocate too; a session change instead remounts the whole component (keyed by file above).
-  }, [focusQ])
+  }
 
   const toggle = (i: number): void => {
     // Clicking any question row counts as attention moving on: clear the locating bar (the clearing

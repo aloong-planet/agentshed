@@ -311,7 +311,8 @@ ruling on 2026-08-06, see Out of Scope).
   come down the response_item path, and the response_item paths for `message` / `agent_message` are
   double-write mirrors that are not rendered). **Unknown types outside the allow-list leave a trace**
   (an unknown block placed at the end of the block order, aggregating the count and the type names,
-  with the three layers distinguished by `event_msg/` and `response_item/` prefixes) — allow-list
+  with the three layers distinguished by `event_msg/` and `response_item/` prefixes; a type that is not
+  a string is named by its JSON, never as `[object Object]`) — allow-list
   failures are invisible, so nothing is ever silently dropped (a CONTEXT invariant). Probes over the
   whole repository's real data: the unknown trace set is empty, and the tool pairing rate is 99.94%.
   **Paginated rollouts** (2026-09-10, full enumeration of 1391 rollouts): the completed-item event

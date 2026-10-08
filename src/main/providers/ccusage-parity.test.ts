@@ -83,8 +83,8 @@ describe.skipIf(!run)('ccusage reconciliation', () => {
       grokHome: join(home, '.grok'),
       agentsSkillsDir: join(home, '.agents', 'skills')
     }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access -- see #191, #193
-    const projects = Object.keys(JSON.parse(readFileSync(roots.claudeConfigFile, 'utf8')).projects ?? {})
+    const config = JSON.parse(readFileSync(roots.claudeConfigFile, 'utf8')) as { projects?: Record<string, unknown> }
+    const projects = Object.keys(config.projects ?? {})
     const cacheDir = mkdtempSync(join(tmpdir(), 'parity-'))
     const r = await new TokenEngine(cacheDir).build(roots, projects)
     const recordDays = codexRecordDays(join(cacheDir, 'token-cache.json'))

@@ -33,9 +33,20 @@ const failType = (path: string, expect: string): ValidateResult => ({
   ok: false,
   failure: { kind: 'type', path, expect }
 })
-const failEnum = (path: string, value: string): ValidateResult => ({
+/** The received value as the failure reports it: a string as is, anything else as its JSON, so an object
+ * reads as its content rather than as String's "[object Object]". A value with no JSON form (undefined, a
+ * cycle, a bigint) falls back to String. */
+function received(v: unknown): string {
+  if (typeof v === 'string') return v
+  try {
+    return JSON.stringify(v) ?? String(v)
+  } catch {
+    return String(v)
+  }
+}
+const failEnum = (path: string, value: unknown): ValidateResult => ({
   ok: false,
-  failure: { kind: 'enum', path, value }
+  failure: { kind: 'enum', path, value: received(value) }
 })
 
 /** CappedText: { text: string; truncated: boolean } (ticket 07) */
@@ -76,7 +87,7 @@ export function validateSnapshot(v: unknown): ValidateResult {
     const ps = p['sides']
     if (!Array.isArray(ps) || ps.length === 0) return failType(`${at}.sides`, 'array(>=1)')
     for (const s of ps) {
-      if (typeof s !== 'string' || !AGENT_SIDES.has(s)) return failEnum(`${at}.sides`, String(s))
+      if (typeof s !== 'string' || !AGENT_SIDES.has(s)) return failEnum(`${at}.sides`, s)
     }
     if (typeof p['stale'] !== 'boolean') return failType(`${at}.stale`, 'boolean')
     if (p['lastSessionAt'] !== null && typeof p['lastSessionAt'] !== 'number')
@@ -156,13 +167,13 @@ export function validateSessionPage(v: unknown): ValidateResult {
   if (v['revision'] !== undefined && typeof v['revision'] !== 'string') return failType('page.revision', 'string')
   if (typeof v['file'] !== 'string' || v['file'] === '') return failType('page.file', 'string(non-empty)')
   if (typeof v['side'] !== 'string' || !AGENT_SIDES.has(v['side']))
-    return failEnum('page.side', String(v['side']))
+    return failEnum('page.side', v['side'])
   if (!strOrNull(v['title'])) return failType('page.title', 'string|null')
   if (v['at'] !== null && typeof v['at'] !== 'number') return failType('page.at', 'number|null')
   if (typeof v['tokens'] !== 'number') return failType('page.tokens', 'number')
   if (typeof v['bytes'] !== 'number') return failType('page.bytes', 'number')
   if (typeof v['forkState'] !== 'string' || !FORK_STATES.has(v['forkState']))
-    return failEnum('page.forkState', String(v['forkState']))
+    return failEnum('page.forkState', v['forkState'])
   if (typeof v['forkPoints'] !== 'number') return failType('page.forkPoints', 'number')
   if (v['forkParentTitle'] !== null && typeof v['forkParentTitle'] !== 'string')
     return failType('page.forkParentTitle', 'string|null')
@@ -202,7 +213,7 @@ function validateTurnBlock(b: Record<string, unknown>, at: string): ValidateResu
     return failType(`${at}.at`, 'number|null')
   switch (kind) {
     case 'text':
-      if (b['role'] !== 'assistant') return failEnum(`${at}.role`, String(b['role']))
+      if (b['role'] !== 'assistant') return failEnum(`${at}.role`, b['role'])
       if (typeof b['body'] !== 'string') return failType(`${at}.body`, 'string')
       return { ok: true }
     case 'think':
@@ -231,7 +242,7 @@ function validateTurnBlock(b: Record<string, unknown>, at: string): ValidateResu
         const s: unknown = steps[j]
         if (!isRecord(s)) return failType(`${at}.steps[${j}]`, 'object')
         if (typeof s['kind'] !== 'string' || !SUB_STEP_KINDS.has(s['kind']))
-          return failEnum(`${at}.steps[${j}].kind`, String(s['kind']))
+          return failEnum(`${at}.steps[${j}].kind`, s['kind'])
         if (typeof s['label'] !== 'string') return failType(`${at}.steps[${j}].label`, 'string')
       }
       return { ok: true }
@@ -243,7 +254,7 @@ function validateTurnBlock(b: Record<string, unknown>, at: string): ValidateResu
       return { ok: true }
     }
     default:
-      return failEnum(`${at}.kind`, String(kind))
+      return failEnum(`${at}.kind`, kind)
   }
 }
 
@@ -283,9 +294,9 @@ export function validateSearchResult(v: unknown): ValidateResult {
     if (typeof grp['file'] !== 'string' || grp['file'] === '') return failType(`${at}.file`, 'string(non-empty)')
     if (!strOrNull(grp['title'])) return failType(`${at}.title`, 'string|null')
     if (typeof grp['side'] !== 'string' || !AGENT_SIDES.has(grp['side']))
-      return failEnum(`${at}.side`, String(grp['side']))
+      return failEnum(`${at}.side`, grp['side'])
     if (typeof grp['forkState'] !== 'string' || !FORK_STATES.has(grp['forkState']))
-      return failEnum(`${at}.forkState`, String(grp['forkState']))
+      return failEnum(`${at}.forkState`, grp['forkState'])
     if (grp['at'] !== null && typeof grp['at'] !== 'number') return failType(`${at}.at`, 'number|null')
     const hits = grp['hits']
     if (!Array.isArray(hits)) return failType(`${at}.hits`, 'array')
@@ -319,14 +330,14 @@ export function validateProjectStats(v: unknown): ValidateResult {
     const at = `stats.sessions[${i}]`
     if (!isRecord(s)) return failType(at, 'object')
     if (typeof s['side'] !== 'string' || !AGENT_SIDES.has(s['side']))
-      return failEnum(`${at}.side`, String(s['side']))
+      return failEnum(`${at}.side`, s['side'])
     if (!strOrNull(s['title'])) return failType(`${at}.title`, 'string|null')
     if (s['at'] !== null && typeof s['at'] !== 'number') return failType(`${at}.at`, 'number|null')
     if (typeof s['tokens'] !== 'number') return failType(`${at}.tokens`, 'number')
     if (typeof s['file'] !== 'string' || s['file'] === '') return failType(`${at}.file`, 'string(non-empty)')
     if (typeof s['questionCount'] !== 'number') return failType(`${at}.questionCount`, 'number')
     if (typeof s['forkState'] !== 'string' || !FORK_STATES.has(s['forkState']))
-      return failEnum(`${at}.forkState`, String(s['forkState']))
+      return failEnum(`${at}.forkState`, s['forkState'])
   }
   return { ok: true }
 }
@@ -389,8 +400,8 @@ export function validateProjectDetail(v: unknown): ValidateResult {
   const skills = eachOf(v['skills'], 'detail.skills', (s, at) => {
     if (!str(s['name'])) return failType(`${at}.name`, 'string')
     if (!strOrNull(s['description'])) return failType(`${at}.description`, 'string|null')
-    if (!SKILL_LEVELS.has(s['level'] as string)) return failEnum(`${at}.level`, String(s['level']))
-    if (!AGENT_SIDES.has(s['side'] as string)) return failEnum(`${at}.side`, String(s['side']))
+    if (!SKILL_LEVELS.has(s['level'] as string)) return failEnum(`${at}.level`, s['level'])
+    if (!AGENT_SIDES.has(s['side'] as string)) return failEnum(`${at}.side`, s['side'])
     if (typeof s['symlink'] !== 'boolean') return failType(`${at}.symlink`, 'boolean')
     const pkg = s['pkg']
     if (pkg !== null) {
@@ -398,7 +409,7 @@ export function validateProjectDetail(v: unknown): ValidateResult {
       if (typeof pkg['files'] !== 'number' || typeof pkg['bytes'] !== 'number')
         return failType(`${at}.pkg` + '.files|bytes', 'number')
     }
-    if (!ORIGINS.has(s['origin'] as string)) return failEnum(`${at}.origin`, String(s['origin']))
+    if (!ORIGINS.has(s['origin'] as string)) return failEnum(`${at}.origin`, s['origin'])
     if (!strOrNull(s['pluginName'])) return failType(`${at}.pluginName`, 'string|null')
     if (!strOrNull(s['pluginRoot'])) return failType(`${at}.pluginRoot`, 'string|null')
     if (!strOrNull(s['pluginSkillName'])) return failType(`${at}.pluginSkillName`, 'string|null')
@@ -408,8 +419,8 @@ export function validateProjectDetail(v: unknown): ValidateResult {
 
   const subagents = eachOf(v['subagents'], 'detail.subagents', (a, at) => {
     if (!str(a['name'])) return failType(`${at}.name`, 'string')
-    if (!AGENT_SIDES.has(a['side'] as string)) return failEnum(`${at}.side`, String(a['side']))
-    if (!SUBAGENT_LEVELS.has(a['level'] as string)) return failEnum(`${at}.level`, String(a['level']))
+    if (!AGENT_SIDES.has(a['side'] as string)) return failEnum(`${at}.side`, a['side'])
+    if (!SUBAGENT_LEVELS.has(a['level'] as string)) return failEnum(`${at}.level`, a['level'])
     if (!strOrNull(a['description'])) return failType(`${at}.description`, 'string|null')
     if (!isRecord(a['detail'])) return failType(`${at}.detail`, 'object')
     for (const b of ['shadows', 'shadowed', 'overridesBuiltin'] as const) {
@@ -436,8 +447,7 @@ export function validateProjectDetail(v: unknown): ValidateResult {
     if (!strOrNull(p['installPath'])) return failType(`${at}.installPath`, 'string|null')
     if (typeof p['enabled'] !== 'boolean') return failType(`${at}.enabled`, 'boolean')
     if (p['enabledFrom'] !== null && !ENABLED_FROM.has(p['enabledFrom'] as string))
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- see #190
-      return failEnum(`${at}.enabledFrom`, String(p['enabledFrom']))
+      return failEnum(`${at}.enabledFrom`, p['enabledFrom'])
     if (!Array.isArray(p['installs'])) return failType(`${at}.installs`, 'array')
     const contents = p['contents']
     if (!isRecord(contents)) return failType(`${at}.contents`, 'object')
@@ -475,7 +485,7 @@ export function validateProjectDetail(v: unknown): ValidateResult {
   if (!strOrNull(cfg['settingsSummary'])) return failType('detail.configs.settingsSummary', 'string|null')
 
   const artifacts = eachOf(v['artifacts'], 'detail.artifacts', (a, at) => {
-    if (!ARTIFACT_TYPES.has(a['type'] as string)) return failEnum(`${at}.type`, String(a['type']))
+    if (!ARTIFACT_TYPES.has(a['type'] as string)) return failEnum(`${at}.type`, a['type'])
     if (!str(a['title'])) return failType(`${at}.title`, 'string')
     if (typeof a['file'] !== 'string' || a['file'] === '') return failType(`${at}.file`, 'string(non-empty)')
     if (typeof a['mtimeMs'] !== 'number') return failType(`${at}.mtimeMs`, 'number')

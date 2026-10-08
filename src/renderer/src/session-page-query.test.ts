@@ -9,17 +9,13 @@ const fixture = { file: '/s.jsonl', title: 'hi' } as unknown as SessionPage
 
 describe('fetchSessionPage (P6: a fetch failure resolves in-band rather than throwing)', () => {
   it('wraps a successful fetch as an ok result', async () => {
-    // eslint-disable-next-line @typescript-eslint/require-await -- see #196
-    const r = await fetchSessionPage('/s.jsonl', async () => fixture)
+    const r = await fetchSessionPage('/s.jsonl', () => Promise.resolve(fixture))
     expect(r).toEqual({ ok: true, page: fixture })
   })
 
   it('wraps a rejecting fetch as an error result rather than throwing', async () => {
     const boom = new Error('gone')
-    // eslint-disable-next-line @typescript-eslint/require-await -- see #196
-    const r = await fetchSessionPage('/s.jsonl', async () => {
-      throw boom
-    })
+    const r = await fetchSessionPage('/s.jsonl', () => Promise.reject(boom))
     expect(r).toEqual({ ok: false, error: boom })
   })
 })

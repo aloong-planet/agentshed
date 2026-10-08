@@ -31,8 +31,9 @@ export function LanguageSelect({
   // needs to read goes through a ref — this avoids making the effect depend on
   // cursor and reinstalling the listener on every move.
   const cursorRef = useRef(0)
-  // eslint-disable-next-line react-hooks/refs -- see #197
-  cursorRef.current = cursor
+  useLayoutEffect(() => {
+    cursorRef.current = cursor
+  })
   const t = dictOf(effective)
 
   const mainLabel = (o: LanguagePreference): string =>
@@ -136,8 +137,8 @@ export function LanguageSelect({
           data-testid="language-trigger"
           onClick={(e) => {
             e.stopPropagation()
-            // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- see #195
-            open ? setOpen(false) : openPop()
+            if (open) setOpen(false)
+            else openPop()
           }}
           onKeyDown={(e) => {
             if (open) return

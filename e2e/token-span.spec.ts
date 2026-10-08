@@ -36,6 +36,10 @@ function fixture(): { home: string; userData: string; project: string } {
   return { home, userData, project }
 }
 
+function readPrefs(userData: string): Record<string, unknown> {
+  return JSON.parse(readFileSync(join(userData, 'prefs.json'), 'utf8')) as Record<string, unknown>
+}
+
 async function launch(f: ReturnType<typeof fixture>, env: Record<string, string> = {}): Promise<ElectronApplication> {
   return electron.launch({ args: ['.', `--user-data-dir=${f.userData}`], env: {
     ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: f.home,
@@ -54,6 +58,26 @@ function cleanup(f: ReturnType<typeof fixture>): void {
   rmSync(f.userData, { recursive: true, force: true })
 }
 
+// The backfill rule itself is unit-tested; this pins the wiring around it — the app must hand the
+// backfill the choices made since mount, not the values it mounted with (#61).
+test('a theme chosen while the initial preference read is in flight survives that read landing', async () => {
+  const f = fixture()
+  writeFileSync(join(f.userData, 'prefs.json'), JSON.stringify({ theme: 'blue', language: 'en', mode: 'dark', trendSpan: 30 }))
+  const app = await launch(f, { AGENTSHED_PREFS_DELAY_MS: '5000' })
+  try {
+    const win = await app.firstWindow()
+    await win.getByTitle('Settings').click()
+    // Before the read lands the language preference is still the default, follow-system
+    await expect(win.getByTestId('language-trigger')).toContainText('Follow')
+    await win.locator('[data-theme-option="amber"]').click()
+    await expect.poll(() => win.locator('html').getAttribute('data-theme')).toBe('amber')
+    // The read lands: the untouched language takes its value, the touched theme keeps the user's choice
+    await expect(win.getByTestId('language-trigger')).not.toContainText('Follow', { timeout: 10000 })
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'amber')
+    await expect(win.locator('[data-theme-option="amber"]')).toHaveAttribute('aria-checked', 'true')
+  } finally { await app.close(); cleanup(f) }
+})
+
 test('global span defaults an older or invalid preference without resetting valid appearance and language', async () => {
   for (const trendSpan of [undefined, 45, '60']) {
     const f = fixture()
@@ -70,8 +94,7 @@ test('global span defaults an older or invalid preference without resetting vali
       await win.locator('.side .row', { hasText: 'alpha' }).click()
       await checkSpan(win, 30, '16')
       await choice(win, 60).click()
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- see #194
-      await expect.poll(() => JSON.parse(readFileSync(join(f.userData, 'prefs.json'), 'utf8'))).toEqual({
+      await expect.poll(() => readPrefs(f.userData)).toEqual({
         theme: 'blue', language: 'en', mode: 'dark', trendSpan: 60
       })
     } finally { await app.close(); cleanup(f) }
@@ -120,8 +143,7 @@ test('global span links exact totals and active breakdowns on both entries, and 
     await checkSpan(win, 90, '246')
     // Consecutive user events, followed by a real quit; the acknowledged final value is the persisted one.
     for (const span of [30, 90, 30, 60]) await choice(win, span).click()
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- see #193, #194
-    await expect.poll(() => JSON.parse(readFileSync(join(f.userData, 'prefs.json'), 'utf8')).trendSpan).toBe(60)
+    await expect.poll(() => readPrefs(f.userData).trendSpan).toBe(60)
     await app.close()
     app = await launch(f, { AGENTSHED_SCAN_DELAY_MS: '3000' })
     win = await app.firstWindow()
@@ -133,8 +155,7 @@ test('global span links exact totals and active breakdowns on both entries, and 
     await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready', { timeout: 8000 })
     expect((await win.locator('.chart').boundingBox())?.y).toBe(before?.y)
     await choice(win, 90).click()
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- see #193, #194
-    await expect.poll(() => JSON.parse(readFileSync(join(f.userData, 'prefs.json'), 'utf8')).trendSpan).toBe(90)
+    await expect.poll(() => readPrefs(f.userData).trendSpan).toBe(90)
     await app.close()
     app = await launch(f, { AGENTSHED_SCAN_DELAY_MS: '3000' })
     win = await app.firstWindow()
@@ -177,8 +198,7 @@ test('global span save failure keeps live views consistent and reopens the last 
     app = await launch(f)
     let win = await app.firstWindow()
     await choice(win, 60).click()
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- see #193, #194
-    await expect.poll(() => JSON.parse(readFileSync(join(f.userData, 'prefs.json'), 'utf8')).trendSpan).toBe(60)
+    await expect.poll(() => readPrefs(f.userData).trendSpan).toBe(60)
     const archiveBefore = readFileSync(join(f.userData, 'usage-archive.json'), 'utf8')
     const configBefore = readFileSync(join(f.home, '.claude.json'), 'utf8')
     const pid = app.process().pid
@@ -192,8 +212,7 @@ test('global span save failure keeps live views consistent and reopens the last 
     await checkSpan(win, 90, '78')
     expect(readFileSync(join(f.userData, 'usage-archive.json'), 'utf8')).toBe(archiveBefore)
     expect(readFileSync(join(f.home, '.claude.json'), 'utf8')).toBe(configBefore)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
-    expect(JSON.parse(readFileSync(join(f.userData, 'prefs.json'), 'utf8')).trendSpan).toBe(60)
+    expect(readPrefs(f.userData).trendSpan).toBe(60)
     rmSync(blocked, { recursive: true })
     await app.close()
     app = await launch(f)
@@ -205,8 +224,7 @@ test('global span save failure keeps live views consistent and reopens the last 
 test('global span includes archived and retained older rows in both charts and fourth cards', async () => {
   const f = fixture()
   const beta = join(f.home, 'beta')
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
-  const stamp = `${JSON.parse(readFileSync('package.json', 'utf8')).version}+c16`
+  const stamp = `${(JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version}+c16`
   writeFileSync(join(f.userData, 'usage-archive.json'), JSON.stringify({
     version: 2, rows: [
       { day: day(75), side: 'claude', projectKey: f.project.toLowerCase(), model: 'claude-oldest', input: 90, output: 5, cacheRead: 2, cacheWrite: 3, total: 100 },

@@ -18,8 +18,8 @@ export interface ScanDeps {
   now: () => number
 }
 
-// eslint-disable-next-line @typescript-eslint/require-await -- see #196
-export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
+// Every reader below is synchronous; the Promise is the seam's shape, which both callers await.
+export function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
   const snap = emptySnapshot(deps.now())
 
   const claude = readClaudeRegistry(roots.claudeConfigFile)
@@ -89,5 +89,5 @@ export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> 
   snap.global = readGlobalLayer(roots)
   // The memory summary depends on the project registry (C5), so it is filled in separately after projects
   snap.global.memory = readMemorySummary(roots, snap.projects)
-  return snap
+  return Promise.resolve(snap)
 }

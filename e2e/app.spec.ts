@@ -4,6 +4,12 @@
 // asserting the main process emits no errors.
 // The key scenario: **starting with an old-format cache** (the shape of the 2026-07-30 production crash;
 // the unit tests pin it and this guards the whole chain again).
+//
+// Known gaps, unreachable through the UI today and so not driven here: the session page's focus reset
+// when its focus prop changes without a remount (the page is keyed by file, and a hit always opens it
+// fresh), and the skill drawer's mode reset when its file changes while open (the drawer switches files
+// only from preview mode, through an in-package link). Add a case when a path to either appears — a hit
+// list beside an open session, or a file switch from raw mode.
 import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'

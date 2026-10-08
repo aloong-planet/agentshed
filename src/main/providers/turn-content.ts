@@ -66,16 +66,18 @@ function oneLine(s: string, max = 88): string {
   return t.length > max ? `${t.slice(0, max)}…` : t
 }
 
-/** A tool's argument object → display text (objects are serialised; a string is passed through) */
+/** A tool's argument object → display text (objects are serialised; a string is passed through). Every
+ * value here comes out of JSON.parse in turnBlocksFromText, so serialising it back cannot throw. */
 function inputText(v: unknown): string {
   if (typeof v === 'string') return v
   if (v === undefined || v === null) return ''
-  try {
-    return JSON.stringify(v, null, 2)
-  } catch {
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- see #190
-    return String(v)
-  }
+  return JSON.stringify(v, null, 2)
+}
+
+/** A parsed value as a label in the unknown trace: a string as is, anything else as its JSON, so an object
+ * reads as its content rather than as String's "[object Object]". Absent reads as 'undefined'. */
+function labelOf(v: unknown): string {
+  return typeof v === 'string' ? v : (JSON.stringify(v) ?? 'undefined')
 }
 
 /** Claude tool_result content → text (a string or an array of text segments; anything else falls back to
@@ -220,7 +222,7 @@ function claudeAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
     // no stable reference chain in the records (see the measurements in the file header), so no
     // speculative grouping is done — a known type, no trace
     if (o['isSidechain'] === true) continue
-    const t = String(o['type'])
+    const t = labelOf(o['type'])
     if (t === 'assistant') {
       const c = asRecord(o['message'])?.['content']
       if (!Array.isArray(c)) continue
@@ -309,16 +311,16 @@ function codexAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
   const u: Unknowns = { counts: new Map() }
 
   for (const o of objs) {
-    const top = String(o['type'])
+    const top = labelOf(o['type'])
     if (top === 'event_msg') {
       const p = asRecord(o['payload'])
-      const pt = String(p?.['type'])
+      const pt = labelOf(p?.['type'])
       if (pt === 'agent_message') {
         const m = p?.['message']
         if (typeof m === 'string' && m.trim()) out.push({ kind: 'text', role: 'assistant', at: atOf(o), body: m })
       } else if (pt === 'item_completed') {
         const item = asRecord(p?.['item'])
-        const it = String(item?.['type'])
+        const it = labelOf(item?.['type'])
         if (it === 'AgentMessage') {
           const c = item?.['content']
           const body = Array.isArray(c)
@@ -339,7 +341,7 @@ function codexAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
     }
     if (top === 'response_item') {
       const p = asRecord(o['payload'])
-      const pt = String(p?.['type'])
+      const pt = labelOf(p?.['type'])
       if (CODEX_CALLS.has(pt) && p) {
         const callId = typeof p['call_id'] === 'string' ? p['call_id'] : null
         const name = typeof p['name'] === 'string' ? p['name'] : pt
@@ -458,8 +460,8 @@ function grokAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
     const upd = params?.['update'] as Record<string, unknown> | undefined
     const t = typeof upd?.['sessionUpdate'] === 'string' ? upd['sessionUpdate'] : null
     if (upd === undefined || t === null) {
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- see #190
-      noteUnknown(u, String(o['method'] ?? '<no-update>'))
+      const method = o['method']
+      noteUnknown(u, method === undefined || method === null ? '<no-update>' : labelOf(method))
       continue
     }
     const tsRaw = o['timestamp']

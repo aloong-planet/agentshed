@@ -51,3 +51,57 @@ and covered by the existing unit and e2e suites; the gate's own behaviour is pro
   eslint-disable directive", a warning, exit 1 under `--max-warnings 0`. The nine issues were updated to
   the new mechanism and say to locate sites with `git grep "see #N"`, since inserting the comments moved
   the original line numbers.
+
+---
+
+# Review — tests (step 6), clearing the deferred findings #190–#198 (2026-10-08)
+
+Cases added or rewritten on the branch, listed in full:
+
+| # | Case | Kind | Why it was red first |
+|---|---|---|---|
+| T1 | validate: an invalid enum value is reported as received | new | `[object Object]` for the object and array values |
+| T2 | turn-content: a Grok record without an update is named by its method | new | `[object Object]` for an object method |
+| T3 | turn-content: a Claude non-string type is named by its JSON | new | `[object Object]` |
+| T4 | turn-content: a Codex non-string type at every level | new | `[object Object]` at top level and item_completed |
+| T5 | e2e: a theme chosen while the initial preference read is in flight survives it | new | green on the original code; red under mutation M2 (prefs mirror removed), failing at the `data-theme` assertion after the read lands |
+| — | 14 async test doubles → `Promise.resolve` / `Promise.reject` | rewritten | n/a — same semantics; rejecting doubles stay rejections |
+| — | 25 any sites typed (casts, `Map`, `Array.from`) | rewritten | n/a — types only; every assertion unchanged |
+
+## Dimension 1 — coverage: two gaps, recorded
+
+- Issue acceptance "every site whose fix changes runtime behaviour has a test": validate (T1), Grok
+  method label (T2), type labels (T3, T4). inputText's removed catch and scan's lost `async` change no
+  reachable behaviour (see review-code ①/②).
+- The ticket for #197 asked for the behaviour around each ref to be pinned before the change. Each was
+  checked by mutation on the original code, rebuilt, restored by copying back a backup:
+  - M1 LanguageSelect cursor mirror removed → red: "the language selector by keyboard…" (existing).
+  - M2 App prefs mirror removed → every existing e2e green, so T5 and the `AGENTSHED_PREFS_DELAY_MS`
+    seam were added; red under M2.
+  - M3 useAnchorInvalidation handler mirror removed → red: "the install-to popover sits next to its
+    button…" (existing); the same test passed twice on the unmutated build, so the red belongs to M3.
+- #198's two resets (SessionPane focus, SkillFileDrawer mode): M4 and M5 left every e2e green. Both are
+  unreachable through the UI in a way that differs from a fresh mount (enumeration in review-code).
+  Recorded as gaps in the e2e/app.spec.ts header with the condition that retires each. An attempted
+  e2e for M4 was dropped: it timed out because the hit list is not on screen once a session is open,
+  which is exactly why the path is unreachable.
+- Fixtures: T2–T4 records are deliberately malformed (a non-string `type` / `method` never seen in
+  real transcripts); they guard a defensive branch, so a real-sample shape does not apply. T5 uses the
+  suite's existing real-shaped Claude fixture.
+
+## Dimension 2 — case design: no finding
+
+No `vi.mock` / `vi.spyOn` added. T5 drives the public UI and asserts through the DOM; its only
+non-public input is the env seam, which is the suite's existing mechanism. T1–T4 go through the
+public validators and `turnBlocksFromText`.
+
+## Dimension 3 — false greens: one timing risk, addressed
+
+- T5 relies on acting before a delayed read lands. Its first assertion (the language still reads
+  "Follow") makes a slow machine fail red rather than pass green; the delay was raised from 3 s to
+  5 s to keep that from flaking.
+- Every new case answers "when does it go red": T1–T4 when the formatting falls back to String; T5 when
+  the backfill sees mount-time preferences.
+- Mutations M1–M5: reach confirmed by the restored diff being the mutation only and the rebuild before
+  each run; attribution by the failing assertion's location; restore by copying a backup, never
+  `git checkout`, each followed by `git diff --quiet`.
