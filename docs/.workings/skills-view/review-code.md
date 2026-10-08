@@ -40,3 +40,36 @@ None.
 - `SkillFilesTable.tsx:95` formats line counts with `toLocaleString('zh-CN')` whatever the UI
   language, so digit grouping differs from the rest of a French or Russian UI. Needs the user's call
   on where it lives.
+
+---
+
+# Review — code (step 5), #210: line counts follow the UI language (2026-10-08)
+
+Scope: one renderer line and its import (SkillFilesTable), one e2e.
+
+## ① Underlying premises — no finding
+
+- The defect was measured before the fix: the French e2e received `12,345`. Per-language output of
+  the old call was measured with Node's `Intl` before the issue was written.
+- `formatCount(lang, n)` is the existing app-wide formatter (`src/shared/format.ts`); `lang` was
+  already in scope (`useLanguage()`).
+
+## ② Runnability — no finding
+
+`formatCount` returns a dash for a non-finite number; `lines` is always a finite count from
+`lineCount`. The new strings have the same length as before (one separator), so the column width does
+not change. Escape surface: none.
+
+## ③ Security — no finding
+
+## ④ Consistency — class-level check done, no other instance
+
+"Number or date formatting with a fixed locale": enumerated every `toLocale*String(`, `Intl.*(` and
+`localeCompare(` in source. Every `Intl` formatter in `format.ts` takes `tag(lang)`; `PluralRules`
+takes `lang`; the eleven `localeCompare` calls in the main process sort names and pass no fixed
+locale — a different concern (ordering, not display formatting). The fixed line was the only instance.
+The i18n spec already states the rule this restores; no spec change.
+
+## Refactor list
+
+None.

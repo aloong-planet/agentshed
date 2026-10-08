@@ -28,3 +28,26 @@ inputs.
 - In the plugin half `.toast` `.last()` may still be the first half's toast (same error, same
   sentence), so the plugin half does not independently prove a second toast appeared. That is not what
   the case pins; its table assertion is the one proven effective by the plugin-only revert.
+
+---
+
+# Review — tests (step 6), #210: line counts follow the UI language (2026-10-08)
+
+Case: e2e "skill file line counts follow the UI language's digit grouping [en-US] / [fr-FR]".
+
+## Dimension 1 — coverage: no finding
+
+Two languages with different grouping, as the issue's acceptance asks. The data file has exactly
+12,345 lines by `lineCount`'s rule (one trailing newline is dropped). The UI language is set through
+the existing system-language seam (`AGENTSHED_SYSTEM_LANGUAGES`).
+
+## Dimension 2 — case design: no finding
+
+Public UI only; no mocks; the assertion reads the rendered column text.
+
+## Dimension 3 — false greens: no finding
+
+- Expected strings are literals (`12,345`, `12 345`), not `Intl` output, so the test does not
+  share the formatter it checks.
+- Red first for the right reason: on the unfixed code the French run received `12,345`; the English
+  run passed both before and after, as expected for a locale whose grouping matches `zh-CN`.
