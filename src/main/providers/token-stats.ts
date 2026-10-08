@@ -205,6 +205,10 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  *      the total no longer includes it, so the four fields stop summing to the total. Zero on this
  *      machine's data, hence invisible to every fixture with a fresh cache.
  *
+ * **A bump also moves the accounting stamp** (`<app version>+c<this>`), and the e2e archive cases seed
+ * archive rows under that stamp as a literal on purpose, so a bump turns them red until they are
+ * updated with it: search for `+c<old version>` when bumping.
+ *
  * **Exported for tests and for the accounting stamp** — a guard test builds an "immediately previous
  * version" cache with `CACHE_VERSION - 1` rather than hard-coding a literal that goes stale as the
  * version grows, and the archive's stamp (ADR-0026) carries this number as the identity of the parser

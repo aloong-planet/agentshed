@@ -224,7 +224,7 @@ test('global span save failure keeps live views consistent and reopens the last 
 test('global span includes archived and retained older rows in both charts and fourth cards', async () => {
   const f = fixture()
   const beta = join(f.home, 'beta')
-  const stamp = `${(JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version}+c16`
+  const stamp = `${(JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version}+c17`
   writeFileSync(join(f.userData, 'usage-archive.json'), JSON.stringify({
     version: 2, rows: [
       { day: day(75), side: 'claude', projectKey: f.project.toLowerCase(), model: 'claude-oldest', input: 90, output: 5, cacheRead: 2, cacheWrite: 3, total: 100 },

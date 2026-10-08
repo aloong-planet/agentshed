@@ -102,3 +102,13 @@ CACHE_VERSION bumped with its reason in the version log, as the rule above it re
   file through `readCodexSessionMeta`, which cannot read a Grok stream; measured with a scratch test:
   appending to a Grok `updates.jsonl` after a scan makes the page throw `session-meta-unreadable` until
   the next full scan refreshes the entry. Pre-existing on main. Needs the user's call on where it lives.
+
+### Found by the gate after this review (2026-10-09)
+
+The first `pnpm verify` failed two e2e cases (the archive retaining a past day under the same stamp;
+the global span with archived and retained rows). Both seed archive rows under the accounting stamp
+`<version>+c16` as a literal — on purpose, so that a CACHE_VERSION bump turns them red until updated
+(the comment beside the app.spec one says so). The bump to 17 missed them: the review's premise
+check did not search for the old version anywhere but token-stats. Updated both to `+c17`; the
+CACHE_VERSION comment now says to search for `+c<old version>` when bumping, where the next person
+bumping it will read it.
