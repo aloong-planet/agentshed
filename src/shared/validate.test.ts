@@ -254,6 +254,17 @@ describe('validateProjectDetail — refusing, and pointing at the field path', (
     expect(errOf(bad((d) => { (d.artifacts as Array<Record<string, unknown>>)[0].type = 'essay' }))).toContain('artifacts[0].type')
   })
 
+  it('an invalid enum value is reported as received: a string as is, anything else as its JSON', () => {
+    const valueOf = (r: ReturnType<typeof validateProjectDetail>): string =>
+      !r.ok && r.failure.kind === 'enum' ? r.failure.value : ''
+    expect(valueOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].side = 'gemini' }))).toBe('gemini')
+    expect(valueOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].side = 7 }))).toBe('7')
+    expect(valueOf(bad((d) => { (d.plugins as Array<Record<string, unknown>>)[0].enabledFrom = { scope: 'team' } })))
+      .toBe('{"scope":"team"}')
+    expect(valueOf(bad((d) => { (d.artifacts as Array<Record<string, unknown>>)[0].type = ['essay'] }))).toBe('["essay"]')
+    expect(valueOf(bad((d) => { delete (d.skills as Array<Record<string, unknown>>)[0].side }))).toBe('undefined')
+  })
+
   it('a boolean field written as another type', () => {
     expect(errOf(bad((d) => { (d.skills as Array<Record<string, unknown>>)[0].symlink = 'yes' }))).toContain('skills[0].symlink')
     expect(errOf(bad((d) => { (d.plugins as Array<Record<string, unknown>>)[0].enabled = 1 }))).toContain('plugins[0].enabled')

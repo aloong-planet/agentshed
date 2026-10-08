@@ -66,16 +66,12 @@ function oneLine(s: string, max = 88): string {
   return t.length > max ? `${t.slice(0, max)}…` : t
 }
 
-/** A tool's argument object → display text (objects are serialised; a string is passed through) */
+/** A tool's argument object → display text (objects are serialised; a string is passed through). Every
+ * value here comes out of JSON.parse in turnBlocksFromText, so serialising it back cannot throw. */
 function inputText(v: unknown): string {
   if (typeof v === 'string') return v
   if (v === undefined || v === null) return ''
-  try {
-    return JSON.stringify(v, null, 2)
-  } catch {
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- see #190
-    return String(v)
-  }
+  return JSON.stringify(v, null, 2)
 }
 
 /** Claude tool_result content → text (a string or an array of text segments; anything else falls back to
@@ -458,8 +454,9 @@ function grokAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
     const upd = params?.['update'] as Record<string, unknown> | undefined
     const t = typeof upd?.['sessionUpdate'] === 'string' ? upd['sessionUpdate'] : null
     if (upd === undefined || t === null) {
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- see #190
-      noteUnknown(u, String(o['method'] ?? '<no-update>'))
+      const method = o['method']
+      if (method === undefined || method === null) noteUnknown(u, '<no-update>')
+      else noteUnknown(u, typeof method === 'string' ? method : JSON.stringify(method))
       continue
     }
     const tsRaw = o['timestamp']

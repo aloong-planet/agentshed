@@ -467,6 +467,17 @@ describe('the Grok block model (ticket #125)', () => {
     expect(sub.steps).toEqual([])
   })
 
+  test('a record without an update is named by its method; a non-string method by its JSON, a missing one as <no-update>', () => {
+    const raw = [
+      JSON.stringify({ method: 'session/cancel', params: {} }),
+      JSON.stringify({ method: 7, params: {} }),
+      JSON.stringify({ method: { name: 'odd' }, params: {} }),
+      JSON.stringify({ params: {} })
+    ].join('\n')
+    const blocks = turnBlocksFromText('grok', raw)
+    expect(blocks).toEqual([{ kind: 'unknown', count: 4, types: ['session/cancel', '7', '{"name":"odd"}', '<no-update>'] }])
+  })
+
   test('enumerated state records leave no trace; an unknown update type does; an injected user notice renders nothing', () => {
     const raw = [
       gline(100, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'hello' } }),
