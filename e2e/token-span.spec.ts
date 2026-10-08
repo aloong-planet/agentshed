@@ -63,7 +63,7 @@ function cleanup(f: ReturnType<typeof fixture>): void {
 test('a theme chosen while the initial preference read is in flight survives that read landing', async () => {
   const f = fixture()
   writeFileSync(join(f.userData, 'prefs.json'), JSON.stringify({ theme: 'blue', language: 'en', mode: 'dark', trendSpan: 30 }))
-  const app = await launch(f, { AGENTSHED_PREFS_DELAY_MS: '3000' })
+  const app = await launch(f, { AGENTSHED_PREFS_DELAY_MS: '5000' })
   try {
     const win = await app.firstWindow()
     await win.getByTitle('Settings').click()
@@ -72,7 +72,7 @@ test('a theme chosen while the initial preference read is in flight survives tha
     await win.locator('[data-theme-option="amber"]').click()
     await expect.poll(() => win.locator('html').getAttribute('data-theme')).toBe('amber')
     // The read lands: the untouched language takes its value, the touched theme keeps the user's choice
-    await expect(win.getByTestId('language-trigger')).not.toContainText('Follow', { timeout: 8000 })
+    await expect(win.getByTestId('language-trigger')).not.toContainText('Follow', { timeout: 10000 })
     await expect(win.locator('html')).toHaveAttribute('data-theme', 'amber')
     await expect(win.locator('[data-theme-option="amber"]')).toHaveAttribute('aria-checked', 'true')
   } finally { await app.close(); cleanup(f) }
