@@ -1,0 +1,1 @@
+node scripts/check-message-lang.mjs --file "$1"
