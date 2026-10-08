@@ -64,3 +64,6 @@ step that removed the line.
   hide them. In the workflow, the `printf … | node …` steps report node's exit code, the last command.
 - Probes were removed by deleting the probe file or copying back a backup, never by a version-control
   checkout; the touched tracked file was compared with `git diff --quiet` afterwards.
+
+**Gap (1) closed, 2026-10-08**: CI is running again; on this pull request the `Message language` workflow
+ran on Actions and passed (19 s), alongside the existing CI jobs.
