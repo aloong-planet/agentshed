@@ -2,7 +2,7 @@ import type { StartupStatus } from '@shared/display-data'
 import { StartupHint, StartupContext } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
 import { hydrateDisplayQueries } from './display-queries'
-import { Suspense, useEffect, useRef, useState, useTransition } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Snapshot } from '@shared/domain'
 import type { TrendSpan } from '@shared/trend'
@@ -86,8 +86,9 @@ export function App(): JSX.Element {
   // that effect has an empty dependency list, so
   // its closure captured the values as of mount. The same use as cursorRef in LanguageSelect.
   const prefsRef = useRef<Prefs>({ theme, language: langPref, mode, trendSpan })
-  // eslint-disable-next-line react-hooks/refs -- see #197
-  prefsRef.current = { theme, language: langPref, mode, trendSpan }
+  useLayoutEffect(() => {
+    prefsRef.current = { theme, language: langPref, mode, trendSpan }
+  })
   const selectProject = (p: string | null): void => {
     setSelected(p)
     startPaneTransition(() => {
