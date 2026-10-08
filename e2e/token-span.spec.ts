@@ -58,6 +58,26 @@ function cleanup(f: ReturnType<typeof fixture>): void {
   rmSync(f.userData, { recursive: true, force: true })
 }
 
+// The backfill rule itself is unit-tested; this pins the wiring around it — the app must hand the
+// backfill the choices made since mount, not the values it mounted with (#61).
+test('a theme chosen while the initial preference read is in flight survives that read landing', async () => {
+  const f = fixture()
+  writeFileSync(join(f.userData, 'prefs.json'), JSON.stringify({ theme: 'blue', language: 'en', mode: 'dark', trendSpan: 30 }))
+  const app = await launch(f, { AGENTSHED_PREFS_DELAY_MS: '3000' })
+  try {
+    const win = await app.firstWindow()
+    await win.getByTitle('Settings').click()
+    // Before the read lands the language preference is still the default, follow-system
+    await expect(win.getByTestId('language-trigger')).toContainText('Follow')
+    await win.locator('[data-theme-option="amber"]').click()
+    await expect.poll(() => win.locator('html').getAttribute('data-theme')).toBe('amber')
+    // The read lands: the untouched language takes its value, the touched theme keeps the user's choice
+    await expect(win.getByTestId('language-trigger')).not.toContainText('Follow', { timeout: 8000 })
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'amber')
+    await expect(win.locator('[data-theme-option="amber"]')).toHaveAttribute('aria-checked', 'true')
+  } finally { await app.close(); cleanup(f) }
+})
+
 test('global span defaults an older or invalid preference without resetting valid appearance and language', async () => {
   for (const trendSpan of [undefined, 45, '60']) {
     const f = fixture()

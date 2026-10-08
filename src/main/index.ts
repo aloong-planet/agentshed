@@ -153,6 +153,10 @@ const ARCHIVE_FORCE_ACCEPT = process.env['AGENTSHED_ARCHIVE_FORCE_ACCEPT'] === '
  * same knob also covers listSkillFiles and readArtifact, letting e2e assert the widget-level query
  * layer's reopen-is-cached behaviour (issue #177). 0 in production. */
 const FETCH_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_FETCH_DELAY_MS'], 0)
+/** Test seam (the same family): an artificial delay before the renderer's initial getPrefs resolves,
+ * letting e2e change a preference while that read is in flight and assert the read does not undo it
+ * (#61). The launch-argument read at window creation is not delayed. 0 in production. */
+const PREFS_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_PREFS_DELAY_MS'], 0)
 
 async function doScan(): Promise<Snapshot> {
   if (inflight) return inflight
@@ -500,7 +504,10 @@ handle(CMD.readSkillFile, (_e, args: unknown): CappedText => {
 // `store` is passed as a getter rather than an instance: prefsStore is only assigned at whenReady, while
 // the channels are registered right now.
 const prefsHandlers = createPrefsHandlers({ store: () => prefsStore, theme: nativeTheme })
-handle(CMD.getPrefs, () => prefsHandlers.getPrefs())
+handle(CMD.getPrefs, async () => {
+  if (PREFS_DELAY_MS > 0) await new Promise((r) => setTimeout(r, PREFS_DELAY_MS))
+  return prefsHandlers.getPrefs()
+})
 handle(CMD.setTheme, (_e, theme: unknown) => prefsHandlers.setTheme(theme))
 handle(CMD.setLanguage, (_e, language: unknown) => {
   const next = prefsHandlers.setLanguage(language)
