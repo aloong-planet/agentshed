@@ -21,9 +21,9 @@ export interface ScanDeps {
 }
 
 /**
- * The Codex and Grok session lists. Walking them opens every rollout to read its first line, so a scan
- * walks once and hands the result to both scan() and TokenEngine.build (#160) — which also gives the two
- * one shared set of sessions instead of two walks a moment apart.
+ * The Codex and Grok session lists. Walking them reads every Codex rollout's first line and every Grok
+ * session's summary, so a scan walks once and hands the result to both scan() and TokenEngine.build
+ * (#160) — which also gives the two one shared set of sessions instead of two walks a moment apart.
  */
 export interface SessionWalk {
   codex: CodexSessionMeta[]
