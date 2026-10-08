@@ -2816,6 +2816,31 @@ test('a skill package removed after the scan: the file table shows the toast\'s 
   await close(l)
 })
 
+// The file table's line counts group digits the way the UI language does, like every other count. The
+// expected strings are literals, not Intl output, so the test does not share the formatter it checks;
+// French groups with a narrow no-break space (U+202F).
+for (const [system, expected] of [['en-US', '12,345'], ['fr-FR', '12 345']] as const) {
+  test(`skill file line counts follow the UI language's digit grouping [${system}] (#210)`, async () => {
+    const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
+    const demo = join(home, 'demo-proj')
+    mkdirSync(demo, { recursive: true })
+    writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
+    const big = join(home, '.claude', 'skills', 'big')
+    mkdirSync(big, { recursive: true })
+    writeFileSync(join(big, 'SKILL.md'), '---\ndescription: A long data file\n---\nx\n')
+    writeFileSync(join(big, 'data.txt'), 'x\n'.repeat(12345))
+
+    const l = await launch(undefined, home, { AGENTSHED_SYSTEM_LANGUAGES: system })
+    const win = await l.app.firstWindow()
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+    const row = win.locator('.sk', { hasText: 'big' })
+    await row.locator('.sk-head').click()
+    await expect(row.locator('.files button', { hasText: 'data.txt' }).locator('.meta.lines')).toHaveText(expected)
+    expect(l.errors).toEqual([])
+    await close(l)
+  })
+}
+
 /**
  * token-stats sequence E: automatic snapshot refresh — a short interval injected (E5) drives the timed
  * backstop end to end:

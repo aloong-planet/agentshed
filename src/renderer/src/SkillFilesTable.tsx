@@ -4,7 +4,7 @@
 // C), hence a single component.
 import type { ListSkillFilesResult, SkillFileEntry } from '@shared/ipc'
 import type { Language } from '@shared/i18n'
-import { formatBytes } from '@shared/format'
+import { formatBytes, formatCount } from '@shared/format'
 import { useDict, useLanguage } from './language'
 
 /** Package size: the number follows the language and the unit symbol is not translated (ticket 12) */
@@ -92,7 +92,7 @@ export function SkillFilesTable({
                   </span>
                   {f.path === 'SKILL.md' && <span className="tag">{t.skills.tagEntry}</span>}
                 </span>
-                <span className="meta lines">{f.lines.toLocaleString('zh-CN')}</span>
+                <span className="meta lines">{formatCount(lang, f.lines)}</span>
                 <span className="meta">{formatSize(lang, f.bytes)}</span>
                 <span className="meta">{formatDate(f.mtimeMs)}</span>
               </button>
