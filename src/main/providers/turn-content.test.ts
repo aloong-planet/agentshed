@@ -172,6 +172,12 @@ describe('the Claude display allow-list and unknown traces (the whole 18-type to
     expect(bs[0].kind).toBe('text')
     expect(bs[bs.length - 1]).toEqual({ kind: 'unknown', count: 3, types: ['agent_snapshot', 'new_thing'] })
   })
+
+  test('a non-string type is named by its JSON, not as [object Object]', () => {
+    expect(blocks('claude', [{ type: { kind: 'x' }, timestamp: TS }])).toEqual([
+      { kind: 'unknown', count: 1, types: ['{"kind":"x"}'] }
+    ])
+  })
 })
 
 // ── Codex line builders ──
@@ -270,6 +276,18 @@ describe('the Codex display allow-list and unknown traces', () => {
     expect(bs).toEqual([
       { kind: 'tool', at: Date.parse(TS), name: 'exec', summary: 'ls', input: 'ls', output: 'ok', truncated: false },
       { kind: 'text', role: 'assistant', at: Date.parse(TS), body: 'The answer.' }
+    ])
+  })
+
+  test('a non-string type is named by its JSON at every level, not as [object Object]', () => {
+    const bs = blocks('codex', [
+      { type: { v: 1 }, timestamp: TS },
+      xEvent({ type: ['e'] }),
+      xEvent({ type: 'item_completed', item: { type: { i: 2 } } }),
+      xRI({ type: 7 })
+    ])
+    expect(bs).toEqual([
+      { kind: 'unknown', count: 4, types: ['{"v":1}', 'event_msg/["e"]', 'item_completed/{"i":2}', 'response_item/7'] }
     ])
   })
 
