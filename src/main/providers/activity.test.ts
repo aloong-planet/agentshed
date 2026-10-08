@@ -1,6 +1,10 @@
 // Ticket 02 slice (b): activity — Claude counts and times from a readdir of the encoded directory, Codex
 // attributes by the rollout first line's cwd,
 // and subagent threads do not count toward the session count.
+//
+// Gap: that doScan hands its one session walk to both scan() and the token build (#160) is wiring in the
+// main process, which no unit test reaches; `pnpm bench:scan` prints the walk on its own line in the
+// app's order. A main-process test seam would let a test count the walks.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
