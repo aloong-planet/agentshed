@@ -137,6 +137,20 @@ describe('eachJsonlLine — byte offsets', () => {
     })
   })
 
+  test('reading from a byte offset: only the lines from there, with offsets still counted from the file start', async () => {
+    const lines = [0, 1, 2, 3].map((i) => JSON.stringify({ i, pad: 'é'.repeat(i) }))
+    const text = lines.join('\n') + '\n'
+    const from = Buffer.byteLength(lines.slice(0, 2).join('\n') + '\n')
+    await withFile(text, async (file) => {
+      const hits: Hit[] = []
+      await eachJsonlLine(file, (obj, start, end) => hits.push({ obj, start, end }), 7, from)
+      expect(hits.map((h) => h.obj['i'])).toEqual([2, 3])
+      expect(hits[0].start).toBe(from)
+      expect(hits[1].end).toBe(Buffer.byteLength(text))
+      assertRoundTrip(file, hits)
+    })
+  })
+
   test('a last line with no newline: still emitted, with its end at the file length', async () => {
     const text = JSON.stringify({ i: 0 }) + '\n' + JSON.stringify({ i: 1, t: 'last line, no newline' })
     await withFile(text, async (file) => {

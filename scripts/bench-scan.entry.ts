@@ -9,12 +9,15 @@
 //   warm          a full scan against a copy of the app's own cache — what a routine launch costs
 //                 (Electron only: the copy is taken from app.getPath('userData'))
 //   file <path>…  eachJsonlLine over the given files, one at a time
+//   grow <rollout> a Codex rollout copied into a scratch home, scanned whole, then grown by about 1 MB
+//                 of its own last lines and scanned again — the rescan a live session costs (#158). The
+//                 grown scan is checked against a cold scan of the same file.
 //
 // Nothing here writes to the app's userData: every cache lands in a fresh temporary directory.
 // AGENTSHED_HOME_OVERRIDE is honoured the way the app honours it (see src/main/roots.ts).
-import { copyFileSync, existsSync, mkdtempSync, statSync } from 'node:fs'
+import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { scan, walkSessions } from '../src/main/providers/scan'
 import { TokenEngine } from '../src/main/providers/token-stats'
@@ -102,6 +105,52 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
   console.log(`[archive.merge] ${since(t0)}`)
 }
 
+/** The complete lines in the last `bytes` of a file */
+function lastLines(file: string, bytes: number): Buffer {
+  const size = statSync(file).size
+  const take = Math.min(bytes, size)
+  const buf = Buffer.alloc(take)
+  const fd = openSync(file, 'r')
+  try {
+    readSync(fd, buf, 0, take, size - take)
+  } finally {
+    closeSync(fd)
+  }
+  const from = buf.indexOf(0x0a) + 1
+  return buf.subarray(from)
+}
+
+async function growScan(source: string): Promise<void> {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-bench-home-'))
+  try {
+    const dir = join(home, '.codex', 'sessions', '2026', '01', '01')
+    mkdirSync(dir, { recursive: true })
+    const file = join(dir, basename(source))
+    copyFileSync(source, file)
+    process.env['AGENTSHED_HOME_OVERRIDE'] = home
+    const roots = realRoots()
+    const cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-'))
+    const build = (dirName: string): ReturnType<TokenEngine['build']> =>
+      new TokenEngine(dirName).build(roots, [], undefined, walkSessions(roots))
+    let t0 = performance.now()
+    await build(cacheDir)
+    console.log(`[grow] whole parse of ${(statSync(file).size / 1e6).toFixed(0)} MB: ${since(t0)}`)
+    const tail = lastLines(source, 1024 * 1024)
+    appendFileSync(file, tail)
+    t0 = performance.now()
+    const grown = await build(cacheDir)
+    console.log(`[grow] rescan after appending ${(tail.length / 1e6).toFixed(2)} MB: ${since(t0)}`)
+    t0 = performance.now()
+    const cold = await build(mkdtempSync(join(tmpdir(), 'agentshed-bench-')))
+    console.log(`[grow] cold parse of the grown file: ${since(t0)}`)
+    const same = JSON.stringify([grown.global, grown.rows]) === JSON.stringify([cold.global, cold.rows])
+    console.log(`[grow] grown result equals the cold result: ${same ? 'yes' : 'NO'}`)
+    if (!same) process.exitCode = 1
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+}
+
 async function main(): Promise<void> {
   console.log(`[runtime] ${isElectron ? `electron ${process.versions['electron']}` : `node ${process.version}`}`)
   const [mode = 'cold', ...rest] = process.argv.slice(2)
@@ -110,11 +159,16 @@ async function main(): Promise<void> {
     for (const f of rest) await timeFile(f)
     return
   }
+  if (mode === 'grow') {
+    if (rest.length !== 1) throw new Error('grow mode needs one rollout path')
+    await growScan(rest[0])
+    return
+  }
   if (mode === 'cold' || mode === 'warm') {
     await fullScan(mode)
     return
   }
-  throw new Error(`unknown mode "${mode}": expected cold, warm, or file <path>…`)
+  throw new Error(`unknown mode "${mode}": expected cold, warm, grow <rollout>, or file <path>…`)
 }
 
 async function start(): Promise<void> {

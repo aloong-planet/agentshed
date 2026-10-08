@@ -46,13 +46,16 @@ export const JSONL_CHUNK_BYTES = 1024 * 1024
  *   still count toward the offsets — skipping only hurts itself and does not disturb the lines after it.
  * @param chunkBytes The read chunk size in bytes. Production takes the default; tests pass a small
  *   value to place a chunk boundary exactly where the case needs one.
+ * @param fromByte Where to start reading: a resumed parse passes the end of the last line it parsed.
+ *   Offsets given to `onLine` still count from the start of the file.
  * @throws When the file cannot be opened, leaving the caller to decide how to degrade (discard the whole
  *   file, or record zero).
  */
 export async function eachJsonlLine(
   file: string,
   onLine: (obj: Record<string, unknown>, start: number, end: number) => void,
-  chunkBytes: number = JSONL_CHUNK_BYTES
+  chunkBytes: number = JSONL_CHUNK_BYTES,
+  fromByte = 0
 ): Promise<void> {
   const emit = (line: Buffer, start: number, end: number): void => {
     if (line.length === 0) return
@@ -68,9 +71,9 @@ export async function eachJsonlLine(
 
   let pending: Buffer | null = null
   /** The offset of pending's first byte within the file */
-  let base = 0
+  let base = fromByte
   // A cold rollout (.jsonl.zst) arrives decompressed; its offsets are offsets in that stream (spec C2)
-  const stream: AsyncIterable<Buffer> = rolloutBytes(file, chunkBytes)
+  const stream: AsyncIterable<Buffer> = rolloutBytes(file, chunkBytes, fromByte)
   for await (const chunk of stream) {
     const buf: Buffer = pending === null ? chunk : Buffer.concat([pending, chunk])
     let from = 0

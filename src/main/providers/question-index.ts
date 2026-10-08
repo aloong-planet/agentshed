@@ -132,7 +132,8 @@ export interface QuestionIndexer {
   /** Feed lines in one by one, in the file's order */
   line(obj: Record<string, unknown>, start: number, end: number): void
   /**
-   * The first real question's text **after noise stripping** (untruncated); null if there is none.
+   * The first real question's text **after noise stripping** (untruncated); null if there is none, and
+   * null when the first question was seeded — a resumed parse keeps the title it already derived.
    * The caller turns it into a title with `clipTitle` directly and **must not run `realUserText`
    * again** — stripping is not idempotent.
    * This way only the indexer decides which line is the first question, so there is no "the title has a
@@ -406,19 +407,28 @@ export function makeGrokQuestionIndexer(): {
   }
 }
 
-export function makeQuestionIndexer(side: 'claude' | 'codex'): QuestionIndexer {
+/**
+ * `seed`: the questions of an earlier parse of the same file, for a parse resumed from where that one
+ * stopped (Codex only, #158). The last seeded question keeps collecting its turn's tools and its end
+ * until the next question arrives, exactly as if the file had been read through. Claude cannot resume:
+ * its last-leaf walk-back needs the whole parentUuid graph.
+ */
+export function makeQuestionIndexer(side: 'claude' | 'codex', seed: readonly QuestionRec[] = []): QuestionIndexer {
+  if (side === 'claude' && seed.length > 0) throw new Error('a Claude index cannot be resumed')
   const questionOf = side === 'claude' ? claudeQuestion : codexQuestion
   const countsOf = side === 'claude' ? claudeCounts : codexCounts
-  const out: QuestionRec[] = []
+  // Copied, so a resumed parse never changes the cached index it started from
+  const out: QuestionRec[] = seed.map((q) => [...q])
   /** Parallel to `out`: the uuid of each question's line (null if absent), for the last-leaf walk-back filter */
-  const qUuid: Array<string | null> = []
+  const qUuid: Array<string | null> = seed.map(() => null)
   /** Parallel to `out`: the question text **after noise stripping**, used only to re-derive the first
    * question's title after filtering.
    * The raw text is not stored truncated: measured, the real content inside a wrapper such as
    * `<command-args>` can be as far in as character 4054,
    * so truncating before stripping would leave the stripping rules unable to find the tag and turn the
-   * title into a chunk of wrapper garbage. **In memory only, never in the cache.** */
-  const qHead: string[] = []
+   * title into a chunk of wrapper garbage. **In memory only, never in the cache** — so a seeded question
+   * has none (null). */
+  const qHead: Array<string | null> = seed.map(() => null)
   /** Claude main chain's uuid → parent. **The parent is `parentUuid ?? logicalParentUuid`** */
   const parentOf = new Map<string, string | null>()
   /** The uuid of the last **non-sidechain** line — where the walk-back starts */

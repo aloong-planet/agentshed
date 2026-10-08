@@ -31,10 +31,12 @@ export function rolloutStem(file: string): string | null {
  * The rollout's bytes as a chunk stream: the file itself for a plain rollout, the decompressed stream for
  * a cold one. A read error on the compressed file is forwarded into the decompression stream, so the
  * consumer's `for await` throws instead of hanging; a corrupt or truncated stream throws from the
- * decoder the same way.
+ * decoder the same way. `start` skips the first bytes of a plain rollout (a resumed parse); a cold one
+ * is only ever read whole, so a non-zero start there is a caller error.
  */
-export function rolloutBytes(file: string, highWaterMark: number): AsyncIterable<Buffer> {
-  const raw = createReadStream(file, { highWaterMark })
+export function rolloutBytes(file: string, highWaterMark: number, start = 0): AsyncIterable<Buffer> {
+  if (start !== 0 && isColdRollout(file)) throw new Error('a cold rollout is read from its start only')
+  const raw = createReadStream(file, { highWaterMark, start })
   if (!isColdRollout(file)) return raw
   // The decoder's output chunk is the consumer's read chunk: at its 16 KB default the line reader paid the
   // per-chunk Electron cost the 1 MB read chunk exists to avoid (measured 2026-09-11, ten cold rollouts of
