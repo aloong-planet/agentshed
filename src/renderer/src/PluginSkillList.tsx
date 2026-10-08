@@ -40,7 +40,8 @@ export function PluginSkillList({
     openName === null ? null : { side, name: openName, scope: 'plugin', pluginRoot: root! }
   const { data: listResult, isLoading: loading } = useSkillFilesQuery(args)
   const listing = listResult?.ok ? listResult.listing : null
-  const err = listResult?.ok === false ? String(listResult.error) : null
+  // The same sentence as the toast below, in the current UI language (skills-view A11)
+  const err = listResult?.ok === false ? t.skills.listFailed(errorText(lang, listResult.error)) : null
 
   useEffect(() => {
     if (listResult?.ok === false) toast('err', t.skills.listFailed(errorText(lang, listResult.error)))

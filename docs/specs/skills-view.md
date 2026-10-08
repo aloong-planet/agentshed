@@ -117,8 +117,10 @@ repeats what is already legible is noise.
 - A10 Depth > 2 → notice copy in the expanded area; over-deep paths do not enter the file list.
 - A11 Expanding a row whose file list cannot be enumerated → an error toast. Switching the UI language
   while that failed result stands does **not** show the toast again: the toast belongs to the failure,
-  not to the language it was worded in. Gap: no automated test (the renderer has no component-level
-  test seam); the intent is recorded where the effect is written.
+  not to the language it was worded in. The expanded area states the failure in the toast's sentence,
+  in the current UI language — never the raw IPC error, which carries the encoded error contract. Gap
+  (the no-second-toast rule only): no automated test (the renderer has no component-level test seam);
+  the intent is recorded where the effect is written.
 
 **Sequence B: project detail → Skills section (list rule + preview)**
 

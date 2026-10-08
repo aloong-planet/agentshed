@@ -2764,6 +2764,58 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   await close(l)
 })
 
+// skills-view A11 / plugins-view H10: a package that disappears between the scan and the expand cannot
+// be listed. The file area says so in the same words as the toast, not with the raw IPC error.
+test('a skill package removed after the scan: the file table shows the toast\'s wording in both skill lists (#209)', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
+  const demo = join(home, 'demo-proj')
+  mkdirSync(demo, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {} } }))
+  const vanishing = join(home, '.claude', 'skills', 'vanishing')
+  mkdirSync(vanishing, { recursive: true })
+  writeFileSync(join(vanishing, 'SKILL.md'), '---\ndescription: Here at scan time\n---\nx\n')
+  const sp = join(home, 'pkg-sp')
+  mkdirSync(join(sp, '.claude-plugin'), { recursive: true })
+  writeFileSync(join(sp, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'superpowers' }))
+  mkdirSync(join(sp, 'skills', 'brainstorming'), { recursive: true })
+  writeFileSync(join(sp, 'skills', 'brainstorming', 'SKILL.md'), '---\ndescription: Ask before acting\n---\nx\n')
+  mkdirSync(join(home, '.claude', 'plugins'), { recursive: true })
+  writeFileSync(
+    join(home, '.claude', 'plugins', 'installed_plugins.json'),
+    JSON.stringify({ version: 2, plugins: { 'superpowers@official': [{ scope: 'user', version: '1.0.0', installPath: sp }] } })
+  )
+  writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'superpowers@official': true } }))
+
+  const l = await launch(undefined, home)
+  const win = await l.app.firstWindow()
+  const expectSameAsToast = async (table: ReturnType<typeof win.locator>): Promise<void> => {
+    const toast = win.locator('.toast').last()
+    await expect(toast).toContainText('Listing failed: ')
+    await expect(table).toHaveText((await toast.textContent()) ?? '')
+    await expect(table).not.toContainText('Error invoking remote method')
+  }
+
+  // The Skills tab (SkillExpandBlock)
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+  const row = win.locator('.sk', { hasText: 'vanishing' })
+  await expect(row).toBeVisible()
+  rmSync(vanishing, { recursive: true })
+  await row.locator('.sk-head').click()
+  await expectSameAsToast(row.locator('.files .empty'))
+
+  // The Plugins tab (PluginSkillList)
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Plugins' }).click()
+  const spRow = win.locator('.it.row-btn', { hasText: 'superpowers@official' })
+  await expect(spRow).toBeVisible()
+  rmSync(join(sp, 'skills', 'brainstorming'), { recursive: true })
+  await spRow.click()
+  const psk = win.locator('.exp-area').first().locator('.psk', { hasText: 'superpowers:brainstorming' })
+  await psk.click()
+  await expectSameAsToast(win.locator('.exp-area').first().locator('.files .empty'))
+
+  await close(l)
+})
+
 /**
  * token-stats sequence E: automatic snapshot refresh — a short interval injected (E5) drives the timed
  * backstop end to end:

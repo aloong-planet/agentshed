@@ -150,9 +150,10 @@ both pages and both sides)
 - H9 Whether switching tabs in the expanded area preserves an already-expanded file table is not
   guaranteed (switch back and expand again; v1 promises no state preservation).
 - H10 Expanding a row whose file table cannot be enumerated → an error toast. Switching the UI language
-  while that failed result stands does **not** show the toast again (same rule as skills-view A11).
-  Gap: no automated test (the renderer has no component-level test seam); the intent is recorded where
-  the effect is written.
+  while that failed result stands does **not** show the toast again, and the expanded area states the
+  failure in the toast's sentence (both as skills-view A11). Gap (the no-second-toast rule only): no
+  automated test (the renderer has no component-level test seam); the intent is recorded where the
+  effect is written.
 
 **Cross-cutting regression points**
 - R1 The IPC contract (`validate`) must be extended along with any new domain type field (the same
