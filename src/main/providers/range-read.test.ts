@@ -39,17 +39,12 @@ describe('mapLimit (bounded concurrency, the shared utility of spec D2b)', () =>
 
   test('one item throwing rejects the whole call without hanging the remaining tasks', async () => {
     await expect(
-      // eslint-disable-next-line @typescript-eslint/require-await -- see #196
-      mapLimit([1, 2, 3], 2, async (n) => {
-        if (n === 2) throw new Error('boom')
-        return n
-      })
+      mapLimit([1, 2, 3], 2, (n) => (n === 2 ? Promise.reject(new Error('boom')) : Promise.resolve(n)))
     ).rejects.toThrow('boom')
   })
 
   test('empty input returns an empty array', async () => {
-    // eslint-disable-next-line @typescript-eslint/require-await -- see #196
-    expect(await mapLimit([], 4, async (x) => x)).toEqual([])
+    expect(await mapLimit([], 4, (x) => Promise.resolve(x))).toEqual([])
   })
 })
 

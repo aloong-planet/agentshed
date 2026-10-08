@@ -9,17 +9,13 @@ const fixture = { groups: [], totalHits: 0, sessionCount: 0, folded: 0 } as unkn
 
 describe('fetchSessionSearch (resolves to a result value rather than throwing)', () => {
   it('wraps a successful search as an ok result', async () => {
-    // eslint-disable-next-line @typescript-eslint/require-await -- see #196
-    const r = await fetchSessionSearch({ path: '/p', needle: 'x', fullText: false }, async () => fixture)
+    const r = await fetchSessionSearch({ path: '/p', needle: 'x', fullText: false }, () => Promise.resolve(fixture))
     expect(r).toEqual({ ok: true, result: fixture })
   })
 
   it('wraps a rejecting search as an error result rather than throwing', async () => {
     const boom = new Error('bad needle')
-    // eslint-disable-next-line @typescript-eslint/require-await -- see #196
-    const r = await fetchSessionSearch({ path: '/p', needle: 'x', fullText: false }, async () => {
-      throw boom
-    })
+    const r = await fetchSessionSearch({ path: '/p', needle: 'x', fullText: false }, () => Promise.reject(boom))
     expect(r).toEqual({ ok: false, error: boom })
   })
 })

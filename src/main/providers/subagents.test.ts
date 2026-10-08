@@ -199,8 +199,7 @@ describe('project detail subagents effective view', () => {
     mkdirSync(proj, { recursive: true })
   })
 
-  // eslint-disable-next-line @typescript-eslint/require-await -- see #196
-  it('B2 Claude project level shadows the same name globally; global entries with other names stay in effect', async () => {
+  it('B2 Claude project level shadows the same name globally; global entries with other names stay in effect', () => {
     mkClaudeAgent('code-reviewer', CL_MD)
     mkClaudeAgent('debugger', `---\ndescription: dbg\n---\nbody`)
     mkProjAgent(proj, 'claude', 'code-reviewer.md', `---\ndescription: project customised version\n---\nlocal body`)
@@ -213,8 +212,7 @@ describe('project detail subagents effective view', () => {
     expect(dbg?.shadowed).toBe(false)
   })
 
-  // eslint-disable-next-line @typescript-eslint/require-await -- see #196
-  it('B3 Codex project level shadows the user level — the key is the toml name field, so it shadows across filenames too', async () => {
+  it('B3 Codex project level shadows the user level — the key is the toml name field, so it shadows across filenames too', () => {
     mkCodexAgent('reviewer-global.toml', `name = "code-reviewer"\ndeveloper_instructions = "global"\n`)
     mkProjAgent(proj, 'codex', 'anything.toml', `name = "code-reviewer"\ndeveloper_instructions = "proj"\n`)
     const detail = readProjectDetail(roots(), proj)
@@ -223,8 +221,7 @@ describe('project detail subagents effective view', () => {
     expect(cx.find((s) => s.level === 'global')?.shadowed).toBe(true)
   })
 
-  // eslint-disable-next-line @typescript-eslint/require-await -- see #196
-  it('B4 a Codex project-level custom name matching a built-in (explorer) → the overrides-built-in label', async () => {
+  it('B4 a Codex project-level custom name matching a built-in (explorer) → the overrides-built-in label', () => {
     mkProjAgent(proj, 'codex', 'explorer.toml', `name = "explorer"\ndeveloper_instructions = "x"\n`)
     const detail = readProjectDetail(roots(), proj)
     const e = detail.subagents.find((s) => s.name === 'explorer')
@@ -232,8 +229,7 @@ describe('project detail subagents effective view', () => {
     expect(e?.overridesBuiltin).toBe(true)
   })
 
-  // eslint-disable-next-line @typescript-eslint/require-await -- see #196
-  it('B1/B5 a project with no agents directory → only the global entries are in effect', async () => {
+  it('B1/B5 a project with no agents directory → only the global entries are in effect', () => {
     mkClaudeAgent('docs-writer', `---\ndescription: d\n---\nbody`)
     const detail = readProjectDetail(roots(), proj)
     expect(detail.subagents).toHaveLength(1)
