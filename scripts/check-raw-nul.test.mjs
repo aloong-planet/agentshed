@@ -48,7 +48,11 @@ for (const name of ['pretend.png', 'pretend.icns', 'binary.dat']) {
   })
 }
 
+// The artwork is there because the gate fails when its binary-format exemption matches nothing.
 test('accepts searchable source with an escaped NUL', () => {
-  const result = check({ 'source.ts': 'export const key = "a\\x00b"' })
+  const result = check({
+    'source.ts': 'export const key = "a\\x00b"',
+    'valid.png': readFileSync(new URL('../build/icon.png', import.meta.url))
+  })
   assert.equal(result.status, 0, result.stderr)
 })

@@ -1,0 +1,46 @@
+name: Message language
+
+# A pull request's title, body and commit messages are written in the working language (ADR-0030).
+# A separate workflow from CI because it also runs on `edited` — editing a title must re-check it, and that
+# should not re-run the whole test suite.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  message-language:
+    name: message language (PR title, body, commits)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The whole history, so the pull request's commit range can be listed
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Title and body arrive through the environment, never interpolated into the command line: a
+      # pull-request title is untrusted input, and `${{ }}` inside `run:` would execute it as shell.
+      - name: PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s' "$PR_TITLE" | node scripts/check-message-lang.mjs --stdin --label 'PR title'
+      - name: PR body
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s' "$PR_BODY" | node scripts/check-message-lang.mjs --stdin --label 'PR body'
+      # The commits a squash merge copies into the default branch's history: the default squash message is the
+      # pull-request title plus every commit message on the branch
+      - name: Commits
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-message-lang.mjs --commits "$BASE..$HEAD"

@@ -16,6 +16,8 @@ import {
 } from './appearance'
 import { DEFAULT_LANGUAGE_PREFERENCE, isLanguagePreference, type LanguagePreference } from './i18n'
 
+import { isTrendSpan, TREND_WINDOW_DAYS, type TrendSpan } from './trend'
+
 export interface Prefs {
   theme: AppearanceTheme
   /** What is persisted is **the preference** (which may be "follow system"), not the resolved effective
@@ -24,12 +26,14 @@ export interface Prefs {
   /** As above: what is persisted is the policy (which may be "follow system"), not the effective
    * light/dark evaluated at that moment */
   mode: AppearanceMode
+  trendSpan: TrendSpan
 }
 
 export const DEFAULT_PREFS: Prefs = {
   theme: DEFAULT_THEME,
   language: DEFAULT_LANGUAGE_PREFERENCE,
-  mode: DEFAULT_MODE
+  mode: DEFAULT_MODE,
+  trendSpan: TREND_WINDOW_DAYS
 }
 
 /**
@@ -48,8 +52,10 @@ export function parsePrefs(raw: unknown): Prefs | null {
   const theme = r['theme']
   const language = r['language']
   const mode = r['mode']
+  const trendSpan = r['trendSpan']
   if (!isAppearanceTheme(theme)) return null
   if (!isLanguagePreference(language)) return null
   if (!isAppearanceMode(mode)) return null
-  return { theme, language, mode }
+  if (!isTrendSpan(trendSpan)) return null
+  return { theme, language, mode, trendSpan }
 }

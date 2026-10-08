@@ -44,13 +44,9 @@
 import { readFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import ts from 'typescript'
+// What counts as Chinese, and the quoting spans prose uses to cite it, are shared with the message gate
+import { CJK, CJK_G, fencedLines, quotedRanges, within } from './lib/working-language.mjs'
 
-// Ideographs, CJK punctuation and fullwidth forms. The punctuation range was added after a real miss: the
-// fork banner hard-coded Chinese book-title marks in a component, so all six UIs rendered one — including
-// Japanese, whose own dictionary already quoted the same title with `『』` — and the gate stayed green
-// throughout, because U+300A sits below the ideograph range.
-const CJK = /[一-鿿　-〿＀-￯]/
-const CJK_G = new RegExp(CJK.source, 'g')
 const BINARY = /\.(png|ico|icns|jpg|jpeg|gif|webp|woff2?|ttf|zip|pdf)$/i
 
 /** The language names written in their own script. ADR-0013 fixes the language set, so this is closed */
@@ -94,50 +90,27 @@ function literalRanges(text, file) {
   return ranges
 }
 
-/** Ranges inside a quoting span on one line — the shape prose uses to cite a foreign string */
-const QUOTE_PAIRS = [
-  ['`', '`'],
-  ["'", "'"],
-  ['"', '"'],
-  ['“', '”'],
-  ['‘', '’'],
-  ['«', '»'],
-  ['「', '」']
-]
-function quotedRanges(line) {
-  const ranges = []
-  for (const [open, close] of QUOTE_PAIRS) {
-    let i = 0
-    while (i < line.length) {
-      const a = line.indexOf(open, i)
-      if (a < 0) break
-      const b = line.indexOf(close, a + 1)
-      if (b < 0) break
-      ranges.push([a + 1, b])
-      i = b + 1
-    }
-  }
-  return ranges
-}
-const within = (pos, ranges) => ranges.some(([a, b]) => pos >= a && pos < b)
-
 // ── Predicates ───────────────────────────────────────────────────────────────────────────────────────
 // Each takes the file and returns the offending [lineNumber, line] pairs. Empty means the file complies.
 
 /**
  * Chinese may be **cited**, never **written**. It qualifies when it sits inside a string, template or
  * regex literal, or inside a quoting span in prose: `error.includes('不可读')` explaining a hazard is
- * citing, whereas a doc comment written in Chinese is writing, and that is what ADR-0017 forbids.
+ * citing, whereas a doc comment written in Chinese is writing, and that is what ADR-0017 forbids. In a
+ * file the parser cannot read (markdown), a closed fenced code block counts as a citation too; in code,
+ * the parser's literals decide, and a fence inside a comment exempts nothing.
  *
  * This is also the rule for the source dictionary, and it is why the rule survives that file growing: the
  * values are literals, so new copy never disturbs the gate, while a Chinese comment goes red immediately.
  */
 function citedOrLiteral(text, file) {
   const lits = literalRanges(text, file)
+  const lines = text.split('\n')
+  const fenced = lits === null ? fencedLines(lines) : new Set()
   const bad = []
   let offset = 0
-  for (const [i, line] of text.split('\n').entries()) {
-    if (CJK.test(line)) {
+  for (const [i, line] of lines.entries()) {
+    if (CJK.test(line) && !fenced.has(i)) {
       const quotes = quotedRanges(line)
       CJK_G.lastIndex = 0
       let m

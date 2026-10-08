@@ -5,6 +5,8 @@ import { hydrateDisplayQueries } from './display-queries'
 import { Suspense, useEffect, useRef, useState, useTransition } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Snapshot } from '@shared/domain'
+import type { TrendSpan } from '@shared/trend'
+import { TrendSpanContext } from './TrendSpan'
 import type { Prefs } from '@shared/prefs'
 import { backfillPrefs, type PrefKey } from './prefs-backfill'
 import { errorText } from '@shared/error-text'
@@ -74,16 +76,18 @@ export function App(): JSX.Element {
   // The language preference (which may be "follow system") is only needed by the selector, so fetching it
   // asynchronously is fine and does not affect the first frame
   const [langPref, setLangPref] = useState<LanguagePreference>('system')
+  const [trendSpan, setTrendSpan] = useState<TrendSpan>(window.agentshed.initialTrendSpan)
   const t = dictOf(lang)
   // Preferences the user has already changed by hand: the echo of the getPrefs call made at mount must
   // not overwrite them (#61).
   // Recorded per field rather than as a single flag; the reasoning is in backfillPrefs.
   const touchedPrefs = useRef<Set<PrefKey>>(new Set())
-  // A live mirror of the three preference states: the backfill happens inside an effect callback, and
+  // A live mirror of the preference states: the backfill happens inside an effect callback, and
   // that effect has an empty dependency list, so
   // its closure captured the values as of mount. The same use as cursorRef in LanguageSelect.
-  const prefsRef = useRef<Prefs>({ theme, language: langPref, mode })
-  prefsRef.current = { theme, language: langPref, mode }
+  const prefsRef = useRef<Prefs>({ theme, language: langPref, mode, trendSpan })
+  // eslint-disable-next-line react-hooks/refs -- see #197
+  prefsRef.current = { theme, language: langPref, mode, trendSpan }
   const selectProject = (p: string | null): void => {
     setSelected(p)
     startPaneTransition(() => {
@@ -108,6 +112,7 @@ export function App(): JSX.Element {
       applyTheme(next.theme)
       setLangPref(next.language)
       setMode(next.mode)
+      setTrendSpan(next.trendSpan)
     })
     let liveSnapshot = 0
     let liveStatus = false
@@ -152,7 +157,20 @@ export function App(): JSX.Element {
       offStatus()
       offSettings()
     }
-  }, [])
+  }, [queryClient])
+
+  async function onTrendSpan(span: TrendSpan): Promise<void> {
+    touchedPrefs.current.add('trendSpan')
+    prefsRef.current = { ...prefsRef.current, trendSpan: span }
+    setTrendSpan(span)
+    try {
+      // Main-process writes are synchronous and ordered. Responses are acknowledgements only:
+      // an earlier response must never replace a more recent user choice.
+      await window.agentshed.setTrendSpan(span)
+    } catch (e) {
+      toast('err', `${t.toast.saveTrendSpanFailed}:${errorText(lang, e)}`)
+    }
+  }
 
   async function onTheme(s: AppearanceTheme): Promise<void> {
     // Apply locally first, then persist: there is no intermediate state where only the settings page is
@@ -213,6 +231,7 @@ export function App(): JSX.Element {
   return (
     <LanguageProvider lang={lang}>
     <StartupContext.Provider value={startup}>
+    <TrendSpanContext.Provider value={{ span: trendSpan, onSpan: (span) => void onTrendSpan(span) }}>
     <div className={`app dim-${dim}`}>
       <nav className="rail">
         <button
@@ -315,6 +334,7 @@ export function App(): JSX.Element {
       </main>
       <Toasts />
     </div>
+    </TrendSpanContext.Provider>
     </StartupContext.Provider>
     </LanguageProvider>
   )

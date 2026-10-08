@@ -16,8 +16,8 @@ agent side's global picture onto one screen.
 - On a first launch, or when the saved display cannot be used, real headings and labels surround
   placeholder figures until the first scan finishes. Page controls wait for that data while the
   navigation rail remains usable; data fills in place and later scans never bring placeholders back
-- Token section (the default): a large 30-day daily trend chart (switchable between combined and a
-  single side) and a cross-project model breakdown; the totals include stale projects
+- Token section (the default): a large daily trend chart with 30 / 60 / 90 day spans (switchable between
+  combined and a single side) and a cross-project model breakdown; the totals include stale projects
 - Skills section: every side's global library merged into one column, with side badges showing which
   sides have each entry and symlinks marked; no cross-side content diff; on-disk skills expand to
   preview a package's files (see [Skills view](skills-view.md)); global library entries can start an
@@ -36,7 +36,8 @@ agent side's global picture onto one screen.
 
 ## Boundaries and non-goals
 - Every restart opens Agents. Previously viewed content is remembered, but the last selected project,
-  session, scroll position, open groups, searches and time window are not
+  session, scroll position, open groups, searches and active totals card are not. The global 30/60/90-day
+  trend choice is remembered (see [Token statistics](token-stats.md))
 - The Grok side: its own global skills are listed and installable like the others'; components it
   borrows from Claude Code at runtime stay out of its lists, and the Skills section says so in one
   line. Its agent definitions, plugins, memory and user-level MCP are not yet parsed — there is no

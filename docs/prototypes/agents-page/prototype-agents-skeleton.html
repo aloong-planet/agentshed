@@ -14,11 +14,12 @@
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于页面内容流)
      承载两组开关——「演示·状态」扫描中/已载入(真实判定 = 渲染器是否已收到首个 snapshot,
      app 内无此开关);「演示·语言」六选一(真实语言来自设置里的语言偏好)。 -->
+<!-- The fourth total card follows the globally persisted 30 / 60 / 90 day choice; its amount comes from the same daily mock history as the chart. -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>原型 — Agents 页启动骨架</title>
-<link rel="stylesheet" href="../_shared/trend-chart.css">
+<link rel="stylesheet" href="../_shared/trend-chart.css?v=linked-span-total">
 <link rel="stylesheet" href="../_shared/totals-card.css">
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
@@ -134,7 +135,7 @@
       </div>
     </div>
     <div class="body">
-      <div class="grp-t"><span id="trendTitle"></span>
+      <div class="grp-t trend-heading"><span class="trend-span-label" id="trendTitle"></span><span id="trendContext"></span>
         <span class="seg" id="tseg"><span class="on" id="segTotal"></span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
       <div class="chart" id="chart" data-shared-block="trend-chart"></div>
       <div class="xaxis" id="txaxis"></div>
@@ -145,7 +146,7 @@
   </div>
   <div class="harness" id="harness" data-demo-harness></div>
 <script src="../_shared/icons.js"></script>
-<script src="../_shared/trend-chart.js"></script>
+<script src="../_shared/trend-chart.js?v=linked-span-total"></script>
 <script>
 // ── 六语文案。scan 是候选新文案(旧 shell.scanning 的括号说明在新行为下为假,六语同换);
 //    其余逐字取自现有字典(agents.winAll/winToday/winD7/winD30、
@@ -171,6 +172,17 @@ const SIDES = [
   { cls:'g', name:'GROK',        v:'694.1M', sub:'3 项目 · 7 全局 skills · 1 subagent' }
 ];
 const TOT_VALS = ['12.33B','79.5M','499.9M','2.04B'];
+const trendDays = TrendChartProto.scaleHistory(
+  TrendChartProto.mockDays(11, { days: 90, scale: 9e7, withGoogle: true, archivedFirst: 4 }),
+  [1523400000, 402100000, 118600000]);
+function updateSpanTotal(span) {
+  const card = $('totRow').children[3];
+  card.querySelector('.tot-k').textContent = L[lang].winD30.replace('30', String(span));
+  if (STATE === 'loaded') {
+    const total = TrendChartProto.totalsFor(trendDays, span).reduce((sum, n) => sum + n, 0);
+    card.querySelector('.tot-v').textContent = (total / 1e9).toFixed(2) + 'B';
+  }
+}
 const MODELS = [
   { nm:'claude-fable-5',   cls:'anthropic', v:'5.10B', w:100 },
   { nm:'claude-opus-5',    cls:'anthropic', v:'3.40B', w:66.7 },
@@ -195,7 +207,10 @@ function render(){
   document.getElementById('scanrow').style.display = STATE === 'scan' ? 'inline-flex' : 'none';
   $('scantext').textContent = t.scan;
   $('tabCfg').textContent = t.cfg;
-  $('trendTitle').textContent = t.trend;
+  // Mirror the global inline span during startup; data-dependent interaction stays disabled.
+  const parts = t.trend.split(/30|(?=[(（])/);
+  $('trendTitle').innerHTML = `${parts[0]}<span id="tspan" class="trend-span-options" role="group" aria-label="${t.trend.replace('30', '30 / 60 / 90')}"></span>${parts[1]}`;
+  $('trendContext').textContent = parts.slice(2).join('');
   $('segTotal').textContent = t.total;
   const labels = [t.winAll, t.winToday, t.winD7, t.winD30];
   $('totRow').innerHTML = labels.map((k, i) => STATE === 'scan'
@@ -236,8 +251,11 @@ let trend = null;
 function renderChart(){
   if (STATE === 'scan') {
     trend = null;
-    $('chart').innerHTML = `<div class="sk-chart">${SK_BARS.map((h, i) =>
-      `<span class="skb" style="height:${h}%;animation-delay:${(i % 8) * .1}s"></span>`).join('')}</div>`;
+    TrendChartProto.bindSpan('tspan', (span) => {
+      updateSpanTotal(span);
+      $('chart').innerHTML = `<div class="sk-chart">${Array.from({length: span}, (_, i) =>
+        `<span class="skb" style="height:${SK_BARS[i % SK_BARS.length]}%;animation-delay:${(i % 8) * .1}s"></span>`).join('')}</div>`;
+    }, true);
     // x 轴与图例也要占位:载入后这两行会出现(共约 34px),骨架不预留的话填充时下方内容会跳一次
     $('txaxis').innerHTML = `<span class="sk" style="display:block;height:9px;margin:2.5px 0;width:420px"></span>`;
     $('tlegend').innerHTML = `<span class="sk" style="width:72px;height:12px;margin:2px 0"></span>
@@ -247,9 +265,10 @@ function renderChart(){
   }
   $('chart').innerHTML = '';
   trend = TrendChartProto.mount(
-    { chart: 'chart', xaxis: 'txaxis', legend: 'tlegend', seg: 'tseg' },
-    TrendChartProto.mockDays(11, { scale: 9e7, withGoogle: true, archivedFirst: 4 })
+    { chart: 'chart', xaxis: 'txaxis', legend: 'tlegend', seg: 'tseg', span: 'tspan' },
+    trendDays
   );
+  TrendChartProto.watchSpan(updateSpanTotal);
 }
 
 // 演示基建(非设计的一部分,勿实现):状态与语言都是 mock 开关——

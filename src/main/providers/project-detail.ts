@@ -90,7 +90,7 @@ function listSkills(base: string): Map<string, RawSkill> {
   for (const e of entries) {
     if (e.name.startsWith('.')) continue
     const p = join(base, e.name)
-    let symlink = false
+    let symlink: boolean
     try {
       symlink = lstatSync(p).isSymbolicLink()
     } catch {

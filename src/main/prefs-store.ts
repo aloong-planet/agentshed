@@ -17,6 +17,8 @@ import {
 } from '@shared/i18n'
 import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
 
+import { isTrendSpan, TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'
+
 export type { Prefs }
 
 export class PrefsStore {
@@ -52,6 +54,12 @@ export class PrefsStore {
     return this.get()
   }
 
+  setTrendSpan(trendSpan: TrendSpan): Prefs {
+    this.prefs = { ...this.prefs, trendSpan }
+    this.persist()
+    return this.get()
+  }
+
   /**
    * Reading degrades **per field**: one invalid entry falls back on its own without affecting the others.
    * This is the "degradation may only hurt itself" invariant applied to preferences — back when there was
@@ -68,10 +76,12 @@ export class PrefsStore {
       const theme = r['theme']
       const language = r['language']
       const mode = r['mode']
+      const trendSpan = r['trendSpan']
       return {
         theme: isAppearanceTheme(theme) ? theme : DEFAULT_THEME,
         language: isLanguagePreference(language) ? language : DEFAULT_LANGUAGE_PREFERENCE,
-        mode: isAppearanceMode(mode) ? mode : DEFAULT_MODE
+        mode: isAppearanceMode(mode) ? mode : DEFAULT_MODE,
+        trendSpan: isTrendSpan(trendSpan) ? trendSpan : TREND_WINDOW_DAYS
       }
     } catch {
       return { ...DEFAULT_PREFS }

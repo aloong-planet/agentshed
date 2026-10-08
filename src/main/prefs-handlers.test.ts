@@ -48,6 +48,25 @@ describe('the preference handlers', () => {
   const handlers = (): ReturnType<typeof createPrefsHandlers> =>
     createPrefsHandlers({ store: () => store, theme })
 
+  it('accepts only supported numeric spans and preserves unrelated fields on disk', () => {
+    const h = handlers()
+    h.setTheme('amber')
+    h.setLanguage('ja')
+    h.setMode('dark')
+    for (const span of [60, 90, 30]) {
+      expect(h.setTrendSpan(span).trendSpan).toBe(span)
+      expect(new PrefsStore(dir).get().trendSpan).toBe(span)
+    }
+    for (const invalid of [0, 31, '60', null, {}, NaN]) {
+      expect(codeOf(() => h.setTrendSpan(invalid))).toBe(ERR.invalidPref)
+    }
+    expect(new PrefsStore(dir).get()).toEqual({
+      theme: 'amber', language: 'ja', mode: 'dark', trendSpan: 30
+    })
+    expect(codeOf(() => createPrefsHandlers({ store: () => null, theme }).setTrendSpan(60)))
+      .toBe(ERR.prefsStoreNotReady)
+  })
+
   it('setMode: a valid value persists and sets themeSource immediately', () => {
     expect(handlers().setMode('dark')).toEqual({ ...DEFAULT_PREFS, mode: 'dark' })
     expect(theme.themeSource).toBe('dark')
@@ -99,7 +118,7 @@ describe('the preference handlers', () => {
     expect(codeOf(() => handlers().setTheme('neon'))).toBe(ERR.invalidPref)
     expect(codeOf(() => handlers().setLanguage('ko'))).toBe(ERR.invalidPref)
     // An invalid call must leave no trace
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ja', mode: 'system' })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ja', mode: 'system', trendSpan: 30 })
   })
 
   it('neither setTheme nor setLanguage touches themeSource', () => {

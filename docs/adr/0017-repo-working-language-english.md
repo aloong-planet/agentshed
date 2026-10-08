@@ -46,6 +46,10 @@ test case names and descriptions, and everything a program prints to the termina
 source of truth for product copy, which is a separate concern from the repository's working
 language).
 
+> **Extended (2026-10-08, ADR-0030)**: the working language also governs commit messages, pull-request
+> titles and bodies, and issues — checked by a `commit-msg` hook and a pull-request workflow, issues by
+> the writing rule alone.
+
 ## Consequences
 
 - Positive: non-Chinese contributors can read **why**, not just **what** — the causal knowledge in
@@ -57,6 +61,13 @@ language).
   count. It was added after the conversion produced two defect classes no behavioural test could catch:
   blanket string replacement splattering into neighbouring context (the fixture and its assertion break
   together, so the tests stay green), and a hand-picked search scope silently excluding whole file types.
+
+  > **Amended (2026-10-04)**: since 2026-08-10 the allow-list carries no line counts; each entry is a
+  > shape predicate stating what form of Chinese is permitted and why (Chinese may be quoted in a
+  > literal, never written as prose). A count fired on every legitimate change to a growing file,
+  > training one reflex — raise the number — and was blind to substitution: delete a legitimate line,
+  > add an illegal one, and the total holds. The rationale lives in the header of
+  > `scripts/check-lang.mjs`.
 - Negative: **the one-off cost is large** (~5100 lines), and translation quality cannot be verified
   by any automation — the same disease as the six-language product copy: a gate can prove
   "not empty", never "translated correctly"

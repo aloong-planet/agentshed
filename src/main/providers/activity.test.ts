@@ -93,11 +93,11 @@ afterEach(() => {
 
 describe('encodeClaudeProjectDir', () => {
   it('every non-alphanumeric character becomes - (the measured rule: / . _ all convert)', () => {
-    expect(encodeClaudeProjectDir('/Users/loong_zhou/CascadeProjects/Transfer')).toBe(
-      '-Users-loong-zhou-CascadeProjects-Transfer'
+    expect(encodeClaudeProjectDir('/Users/jane_doe/Projects/Transfer')).toBe(
+      '-Users-jane-doe-Projects-Transfer'
     )
-    expect(encodeClaudeProjectDir('/Users/loong_zhou/.openclaw/workspace')).toBe(
-      '-Users-loong-zhou--openclaw-workspace'
+    expect(encodeClaudeProjectDir('/Users/jane_doe/.cache/workspace')).toBe(
+      '-Users-jane-doe--cache-workspace'
     )
   })
 })

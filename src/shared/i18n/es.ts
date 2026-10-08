@@ -44,6 +44,7 @@ export const es: Locale = {
   toast: {
     languageSwitched: (name) => `Idioma de la interfaz cambiado a ${name}`,
     languageFollowSystem: (name) => `Ahora sigue el sistema · actualmente ${name}`,
+    saveTrendSpanFailed: 'No se pudo guardar el período',
     saveThemeFailed: 'No se pudo guardar el tema',
     saveModeFailed: 'No se pudo guardar el modo de apariencia',
     saveLanguageFailed: 'No se pudo guardar el idioma'
@@ -294,6 +295,7 @@ export const es: Locale = {
     winAll: 'Total · todo el historial',
     winToday: 'Hoy',
     winD7: 'Últimos 7 días',
+    winDays: (days: number) => `Últimos ${days} días`,
     winD30: 'Últimos 30 días',
     compCacheRead: 'Lecturas de caché',
     compUncached: 'Entrada sin caché',
@@ -304,6 +306,10 @@ export const es: Locale = {
     byModelIn: (title, win) => `${title} · ${win}`,
     noUsageInWindow: 'Sin consumo en el periodo seleccionado',
     trendTitle: 'Tendencia de los últimos 30 días (zona horaria local · por día)',
+    trendPrefix: 'Tendencia de los últimos',
+    trendSuffix: 'días',
+    trendContext: '(zona horaria local · por día)',
+    trendDays: 'Días de la tendencia',
     legendNote: 'Altura = total del día; segmentos = proporción por provider',
     legendDimNote: '; atenuado = fuera del periodo seleccionado',
     tipTotal: (label, total) => `${label} · total ${total}`,

@@ -18,6 +18,7 @@ export interface ScanDeps {
   now: () => number
 }
 
+// eslint-disable-next-line @typescript-eslint/require-await -- see #196
 export async function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
   const snap = emptySnapshot(deps.now())
 

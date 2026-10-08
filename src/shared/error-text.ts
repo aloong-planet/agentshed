@@ -3,7 +3,7 @@
 // Kept separate from ./errors so that the **throwing side** (the main process) need not depend on the
 // i18n dictionaries: it produces only codes and parameters,
 // and sentence composition happens in the renderer. This is the one place the two meet.
-import { ERR, decodeAppError, type ErrorCode, type ErrorParams } from './errors'
+import { ERR, decodeAppError, type ErrorParams } from './errors'
 import { dictOf, type Language } from './i18n'
 
 /** Parameter values are `string | number`, narrowed at the use site to whatever that position needs;
@@ -119,5 +119,5 @@ export function errorText(lang: Language, raw: unknown): string {
 /** Errors at **compile time** when wording is missing: the parameter type is `never`, so no code left
  * unconsumed above can be passed in */
 function exhaustive(code: never): string {
-  return String(code as ErrorCode)
+  return String(code)
 }

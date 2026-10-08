@@ -44,6 +44,7 @@ export const en: Locale = {
   toast: {
     languageSwitched: (name) => `Interface language switched to ${name}`,
     languageFollowSystem: (name) => `Now following the system · currently ${name}`,
+    saveTrendSpanFailed: 'Failed to save the trend span',
     saveThemeFailed: 'Failed to save the theme',
     saveModeFailed: 'Failed to save the appearance mode',
     saveLanguageFailed: 'Failed to save the language'
@@ -296,6 +297,7 @@ export const en: Locale = {
     winAll: 'Total · all history',
     winToday: 'Today',
     winD7: 'Last 7 days',
+    winDays: (days: number) => `Last ${days} days`,
     winD30: 'Last 30 days',
     compCacheRead: 'Cache reads',
     compUncached: 'Uncached input',
@@ -309,6 +311,10 @@ export const en: Locale = {
     byModelIn: (title, win) => `${title} · ${win}`,
     noUsageInWindow: 'No usage in the selected window',
     trendTitle: 'Last 30 days’ trend (local time zone · daily)',
+    trendPrefix: 'Last',
+    trendSuffix: 'days’ trend',
+    trendContext: '(local time zone · daily)',
+    trendDays: 'Trend days',
     legendNote: 'Bar height = daily total; segments = share per provider',
     legendDimNote: '; dimmed = outside the selected window',
     tipTotal: (label, total) => `${label} · total ${total}`,

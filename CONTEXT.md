@@ -301,14 +301,22 @@ scan while a session is active.
 _Avoid_: closed day, settled day
 
 **Time window**:
-The span a token figure is scoped to: all history, today, the last 7 days, or the last 30 days — a
-closed set, selected by clicking the card that shows that window's total. Cut against the same current
+The span a token figure is scoped to: all history, today, the last 7 days, or the last N days — four
+card roles, selected by clicking the card that shows that window's total. The fourth card derives N
+from the global trend span, including when inactive. Its active breakdowns follow the same N.
+Cut against the same current
 display-time anchor as the trend, so "today" always means the trend chart's last bar. The observation
-time of saved data is a separate concept. Distinct from the
-**trend chart's own 30-day span**, which never changes: a narrower window dims bars, it does not
-remove them.
+time of saved data is a separate concept. Active-card identity remains separate from the persisted
+trend span and is not restored on restart. A narrower active window dims bars; it does not remove them.
 _Avoid_: date range (suggests arbitrary endpoints, which are out of scope), period (ambiguous between
 this and the chart's span)
+
+**Trend span**:
+The number of consecutive local calendar days drawn by the daily trend chart: 30, 60 or 90, ending
+on the current display day. One application-owned preference applies to the global chart and every
+project chart, drives the fourth totals card, and survives navigation, refresh and restart. Missing
+or invalid values default to 30 without resetting other valid preferences. Changing the span preserves
+the active-card identity and chart side filter; it leaves the other three windows unchanged.
 
 **Theme variable classes**:
 Every variable declared in a theme block belongs to exactly one of three classes, and the class —
@@ -441,8 +449,8 @@ _Avoid_: reload, refetch (they name the fetch, not what the page does with its r
   the test passes without having verified anything.
   **Corollary: "listing every shape of X" is a negative conclusion in positive disguise (added
   2026-08-03).** "Codex tool calls come in these kinds" reads as positive enumeration but
-  actually asserts "there are no others" — a negative judgement, which per CLAUDE.md's "negative
-  conclusions require a different method" cannot rest on sampling. Case in point: a 120-file sample
+  actually asserts "there are no others" — a negative judgement, which per the global AGENTS.md's
+  "negative conclusions require a different method" cannot rest on sampling. Case in point: a 120-file sample
   gave `custom_tool_call` + `function_call`, looking clean and complete; a full enumeration over
   278 files / 62,912 lines turned up a third, `tool_search_call` (25 occurrences). It never appeared
   once in the sample, and the consequence of missing it would be a permanently undercounted tool
@@ -455,7 +463,8 @@ _Avoid_: reload, refetch (they name the fetch, not what the page does with its r
   297 sessions showed the list had missed a shape accounting for 63% of them (`Warmup`), while
   `Conversation info`, which was on the list, did not appear in my sample — the latter is worse,
   because I wrote an assertion into the spec that it "does not exist" (a recheck proved it does; it
-  was simply outside a sample ordered by mtime). On method for negative conclusions, see CLAUDE.md.
+  was simply outside a sample ordered by mtime). On method for negative conclusions, see the global
+  AGENTS.md.
 
 - **Stripping may follow the sample strictly; allow-listing may not — strictness follows the
   direction of failure (settled 2026-08-03)**: the same rule "only handle shapes we have seen" has

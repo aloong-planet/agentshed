@@ -1,0 +1,42 @@
+
+> agentshed@0.1.0 test /private/tmp/agentshed-token-trend
+> vitest run "src/main/prefs-store.test.ts"
+
+
+ RUN  v2.1.9 /private/tmp/agentshed-token-trend
+
+ ❯ src/main/prefs-store.test.ts (14 tests | 1 failed) 20ms
+   × PrefsStore > restores a saved global trend span without losing other preferences 7ms
+     → expected { theme: 'blue', language: 'fr', …(1) } to deeply equal { theme: 'blue', language: 'fr', …(2) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/main/prefs-store.test.ts > PrefsStore > restores a saved global trend span without losing other preferences
+AssertionError: expected { theme: 'blue', language: 'fr', …(1) } to deeply equal { theme: 'blue', language: 'fr', …(2) }
+
+- Expected
++ Received
+
+  Object {
+    "language": "fr",
+    "mode": "dark",
+    "theme": "blue",
+-   "trendSpan": 60,
+  }
+
+ ❯ src/main/prefs-store.test.ts:22:39
+     20|       theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 60
+     21|     }))
+     22|     expect(new PrefsStore(dir).get()).toEqual({
+       |                                       ^
+     23|       theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 60
+     24|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 passed (14)
+   Start at  11:04:09
+   Duration  345ms (transform 100ms, setup 0ms, collect 115ms, tests 20ms, environment 0ms, prepare 57ms)
+
+ ELIFECYCLE  Test failed. See above for more details.

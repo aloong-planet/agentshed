@@ -44,6 +44,9 @@ export function PluginSkillList({
 
   useEffect(() => {
     if (listResult?.ok === false) toast('err', t.skills.listFailed(errorText(lang, listResult.error)))
+    // `lang` and `t` are left out on purpose: the toast belongs to a failed result, so switching the UI
+    // language must not show it a second time
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listResult])
 
   function toggle(name: string): void {

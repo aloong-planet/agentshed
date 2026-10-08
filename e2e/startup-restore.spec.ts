@@ -1,4 +1,4 @@
-/// <reference path="../src/renderer/src/env.d.ts" />
+import type {} from '../src/renderer/src/env'
 // Real Electron lifecycle: the display is earned by reading, then restored independently of indexing.
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -63,6 +63,8 @@ test('restart restores viewed project, questions and read answer before a new sc
     await expect(win.locator('.turn .ans')).toHaveText(['Saved answer'])
     await win.locator('.rail .ri').nth(0).click()
     await expect(win.locator('.tot-c').nth(1)).toContainText('2k')
+    await win.locator('.trend-span-options').getByRole('button', { name: '90', exact: true }).click()
+    await expect(win.locator('.tot-c').nth(3).locator('.k')).toHaveText('Last 90 days')
     const observedAt = await win.evaluate(() => window.agentshed.getSnapshot().then(s => s.scannedAt))
     await win.clock.install({ time: new Date('2030-01-01T00:30:00Z') })
     await win.clock.fastForward(61_000)
@@ -76,6 +78,8 @@ test('restart restores viewed project, questions and read answer before a new sc
       await expect(win.locator('.chart .col:not(.out)')).toHaveCount(1)
       await expect(win.locator('.chart .col:not(.out)')).toHaveAttribute('data-day', day)
       await expect(win.locator('.tot-c').nth(1).locator('.v')).toHaveText('0')
+      await expect(win.locator('.tot-c').nth(3).locator('.v')).toHaveText('0')
+      await expect(win.locator('.chart .col')).toHaveCount(90)
     }
     expect(await win.evaluate(() => window.agentshed.getSnapshot().then(s => s.scannedAt))).toBe(observedAt)
     await cdp.detach()
@@ -87,6 +91,8 @@ test('restart restores viewed project, questions and read answer before a new sc
     win = await app.firstWindow()
     await expect(win.locator('.pane-head h1')).toHaveText('Agents', { timeout: 5000 })
     await expect(win.locator('.sk-page')).toHaveCount(0, { timeout: 1000 })
+    await expect(win.locator('.trend-span-choice[aria-pressed="true"]')).toHaveText('90')
+    await expect(win.locator('.tot-c').first()).toHaveAttribute('aria-pressed', 'true')
     await win.locator('.rail .ri').nth(1).click()
     await win.locator('.side .row', { hasText: 'restore-project' }).click()
     await expect(win.locator('.det-title h1')).toHaveText('restore-project', { timeout: 1000 })
@@ -152,6 +158,7 @@ test('a failed startup scan keeps the saved display and retries automatically wi
   try {
     app = await launch()
     let win = await app.firstWindow()
+    await win.locator('.trend-span-options').getByRole('button', { name: '60', exact: true }).click()
     await win.locator('.rail .ri').nth(1).click()
     await expect(win.locator('.side .row')).toHaveCount(1)
     await app.close()
@@ -159,6 +166,8 @@ test('a failed startup scan keeps the saved display and retries automatically wi
     win = await app.firstWindow()
     await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'waiting', { timeout: 2000 })
     await expect(win.locator('.startup-display-hint')).toContainText('Showing previous data')
+    await expect(win.locator('.trend-span-choice[aria-pressed="true"]')).toHaveText('60')
+    await expect(win.locator('.tot-c').nth(3).locator('.k')).toHaveText('Last 60 days')
     expect(await win.locator('.startup-display-hint svg').evaluate(el => getComputedStyle(el).animationName)).toBe('none')
     await win.locator('.rail .ri').nth(1).click()
     await expect(win.locator('.side .row')).toHaveCount(1)

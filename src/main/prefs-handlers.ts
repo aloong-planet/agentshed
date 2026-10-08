@@ -11,6 +11,7 @@
 // index.ts is left with only the wiring: pass in the real prefsStore and nativeTheme, then hang them on
 // the channels.
 import { isAppearanceMode, isAppearanceTheme } from '@shared/appearance'
+import { isTrendSpan } from '@shared/trend'
 import { isLanguagePreference } from '@shared/i18n'
 import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
 import { ERR, appError } from '@shared/errors'
@@ -34,6 +35,7 @@ export interface PrefsHandlers {
   setTheme: (theme: unknown) => Prefs
   setLanguage: (language: unknown) => Prefs
   setMode: (mode: unknown) => Prefs
+  setTrendSpan: (span: unknown) => Prefs
 }
 
 export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
@@ -58,6 +60,11 @@ export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
     setLanguage: (language) => {
       if (!isLanguagePreference(language)) throw appError(ERR.invalidPref, { field: 'language' })
       return required().setLanguage(language)
+    },
+
+    setTrendSpan: (span) => {
+      if (!isTrendSpan(span)) throw appError(ERR.invalidPref, { field: 'trendSpan' })
+      return required().setTrendSpan(span)
     },
 
     setMode: (mode) => {

@@ -480,7 +480,7 @@ below are archived as a decision record and are no longer requirements)**
   ⚠️ **Do not treat `ccusage-parity` as a guard rail** (corrected 2026-08-02): it is a
   reconciliation tool enabled only with `PARITY=1` and dependent on an external baseline file, and it
   **never runs in `pnpm verify`**.
-  A workable verification: run master and this branch against **real data** and compare `byDay` /
+  A workable verification: run the default branch and this branch against **real data** and compare `byDay` /
   `bySide` / archive row counts. Note that the current day's data grows monotonically because it is
   being written — only a comparison excluding the current day is meaningful (measured 2026-08-02:
   three samples grew monotonically for the current day, and the three were identical once it was

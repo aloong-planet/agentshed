@@ -43,7 +43,7 @@ import { createPrefsHandlers } from './prefs-handlers'
 import { buildMenuTemplate } from './app-menu'
 import { ERR, appError } from '@shared/errors'
 import { effectiveLanguage, type Language } from '@shared/i18n'
-import { LANG_ARG, SYS_LANGS_ARG } from '@shared/ipc'
+import { LANG_ARG, SYS_LANGS_ARG, TREND_SPAN_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
 import { systemPreferredLanguages } from './system-language'
 import {
@@ -509,6 +509,7 @@ handle(CMD.setLanguage, (_e, language: unknown) => {
   applyMenu()
   return next
 })
+handle(CMD.setTrendSpan, (_e, span: unknown) => prefsHandlers.setTrendSpan(span))
 handle(CMD.setMode, (_e, mode: unknown) => prefsHandlers.setMode(mode))
 const PRELOAD = join(__dirname, '../preload/index.cjs')
 
@@ -550,6 +551,7 @@ function createWindow(): void {
       // a theme change is just a recolour and is hard to notice, whereas a language change moves
       // every word, and that has to be avoided.
       additionalArguments: [
+        `${TREND_SPAN_ARG}${prefsHandlers.getPrefs().trendSpan}`,
         `${LANG_ARG}${initialLanguage()}`,
         `${SYS_LANGS_ARG}${systemPreferredLanguages().join(',')}`
       ]

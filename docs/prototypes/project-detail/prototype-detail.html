@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- A UI prototype · project detail (landing on the Overview tab by default).
-     问题:概览(token 卡/30天趋势/模型拆分/会话列表)作为进入项目的第一眼是否成立;
+     问题:概览(token 卡/30、60、90天趋势/模型拆分/会话列表)作为进入项目的第一眼是否成立;
      Skills 两层来源/遮蔽/软链、Plugins、MCP 多来源、配置只读的行密度;
      产物「类型 chips + 平铺列表」是否清晰。
      交互:tab 切换;概览内趋势切侧;产物 chips 筛选与阅读浮层;配置内切文件;
@@ -44,13 +44,14 @@
        并让四个字段恰好加总为总量(见 ADR-0023:Codex/Grok 不采集 cache 写)。
      演示基建(非设计的一部分,勿实现):底部悬浮条 [演示·会话分栏] 两态
        (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。 -->
+<!-- The fourth total card follows the globally persisted 30 / 60 / 90 day choice; its amount comes from the same daily mock history as the chart. -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>原型 — 项目详情:装了什么</title>
 <!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
      references it -->
-<link rel="stylesheet" href="../_shared/trend-chart.css">
+<link rel="stylesheet" href="../_shared/trend-chart.css?v=linked-span-total">
 <link rel="stylesheet" href="../_shared/totals-card.css">
 <style>
   :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
@@ -260,7 +261,8 @@
         <!-- 与 Agents 页同一个共享视觉块:四张同宽卡 = 四个时间窗口 = 时间筛选器本身。
              点选哪张,下方趋势图(窗口外的日子压暗)与模型拆分就切到哪个窗口。项目级尺度。 -->
         <div data-shared-block="totals-card" id="ovTot"></div>
-        <div class="grp-t">近 30 天趋势(本地时区,日粒度)
+        <!-- Global span proposal: inline choices, remembered across prototype pages and reloads. Chinese preview; other language layouts are not covered here. -->
+        <div class="grp-t trend-heading"><span class="trend-span-label">近 <span class="trend-span-options" id="ovspan" role="group" aria-label="趋势天数"></span> 天趋势</span><span>(本地时区 · 日粒度)</span>
           <span class="seg" id="ovseg"><span class="on">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
         <div class="chart" id="ovchart" data-shared-block="trend-chart"></div>
         <div class="xaxis" id="ovxaxis"></div>
@@ -445,7 +447,7 @@
     </span>
   </div>
 <script src="../_shared/icons.js"></script>
-<script src="../_shared/trend-chart.js"></script>
+<script src="../_shared/trend-chart.js?v=linked-span-total"></script>
 <script>
   document.getElementById('tabs').addEventListener('click',e=>{
     const t=e.target.closest('.tab');if(!t||!t.dataset.t)return;
@@ -455,10 +457,7 @@
     document.getElementById('session-demo').style.display=t.dataset.t==='sessions'?'flex':'none';
   });
   // The trend chart: rendered by the shared piece (the same source as the Agents page)
-  const ovTrend = TrendChartProto.mount(
-    { chart: 'ovchart', xaxis: 'ovxaxis', legend: 'ovlegend', seg: 'ovseg' },
-    TrendChartProto.mockDays(5, { scale: 4e6 })
-  )
+
 
   // ── 概览的时间窗口:卡排本身就是筛选器,与 Agents 页同形态(项目级尺度的 mock) ──
   const OV_SIDES = [{cls:'c',name:'CLAUDE'},{cls:'x',name:'CODEX'},{cls:'g',name:'GROK'}]
@@ -527,7 +526,18 @@
     const b = e.target.closest('[data-r]'); if(!b) return
     OV_R = +b.dataset.r; ovApply()
   })
-  ovApply()
+  const ovDays = TrendChartProto.scaleHistory(
+    TrendChartProto.mockDays(5, { days: 90, scale: 4e6 }), OV_RANGES[3].side)
+  const ovTrend = TrendChartProto.mount(
+    { chart: 'ovchart', xaxis: 'ovxaxis', legend: 'ovlegend', seg: 'ovseg', span: 'ovspan' }, ovDays)
+  const ovModelShares = OV_MODELS.map(m => m.v[3] / OV_RANGES[3].side[{anthropic:0, openai:1, xai:2}[m.cls]])
+  TrendChartProto.watchSpan(span => {
+    OV_RANGES[3].k = `近 ${span} 天`
+    OV_RANGES[3].days = span
+    OV_RANGES[3].side = TrendChartProto.totalsFor(ovDays, span)
+    OV_MODELS.forEach((m, i) => { m.v[3] = OV_RANGES[3].side[{anthropic:0, openai:1, xai:2}[m.cls]] * ovModelShares[i] })
+    ovApply()
+  })
 
   // Artifacts: type chips plus a flat list in reverse chronological order (inline, with no separate page)
   const ARTS=[
