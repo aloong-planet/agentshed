@@ -101,6 +101,15 @@ describe('ParsePool', () => {
     pool.close()
   })
 
+  it('a worker that cannot even be constructed loses nothing: the scan does not fail with it', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    // A path that is neither absolute nor ./-relative makes the Worker constructor throw synchronously
+    const pool = new ParsePool('not-a-valid-worker-path.mjs', 2)
+    const job = realJob()
+    expect(await pool.run(job)).toEqual(await runParseJob(job))
+    pool.close()
+  })
+
   it('a worker script that does not load loses nothing either', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     const pool = new ParsePool(join(dir, 'missing.mjs'), 2)

@@ -557,11 +557,15 @@ export class TokenEngine {
     return { file, entry: null, admit, plan: { job, st } }
   }
 
-  /** One Codex rollout's entry outside a build (the session page), through the same plan */
+  /**
+   * One Codex rollout's entry outside a build (the session page), through the same plan. Parsed on the
+   * calling thread, not the runner: the page is waiting, and during a scan the runner's queue holds that
+   * scan's whole backlog.
+   */
   private async codexEntry(file: string, cwd: string, meta: CodexParseMeta, titles: Map<string, string>): Promise<CacheEntry | null> {
     const slot = this.codexPlan(file, cwd, meta, titles, () => false)
     if (!slot.plan) return slot.entry
-    return entryOf(slot.plan, await this.runner.run(slot.plan.job))
+    return entryOf(slot.plan, await runParseJob(slot.plan.job))
   }
 
   /**

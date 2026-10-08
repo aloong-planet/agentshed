@@ -61,10 +61,28 @@ export class ParsePool implements ParseRunner {
         continue
       }
       if (this.live >= this.concurrency) return
-      this.live++
       this.queue.shift()
-      this.dispatch(new Worker(this.script), task)
+      let worker: Worker
+      try {
+        worker = new Worker(this.script)
+      } catch {
+        // The constructor throws synchronously for a bad path or a thread it cannot start; thrown from
+        // here it would reject the whole scan
+        this.fallBack(task)
+        continue
+      }
+      this.live++
+      this.dispatch(worker, task)
     }
+  }
+
+  /** The job parsed on the main thread instead, with one warning per pool */
+  private fallBack(task: Task): void {
+    if (!this.warned) {
+      this.warned = true
+      console.warn('[parse-pool] a parse worker failed; its file is parsed on the main thread')
+    }
+    void runParseJob(task.job).then(task.resolve)
   }
 
   private dispatch(worker: Worker, task: Task): void {
@@ -75,11 +93,7 @@ export class ParsePool implements ParseRunner {
       if (failed) {
         this.live--
         void worker.terminate()
-        if (!this.warned) {
-          this.warned = true
-          console.warn('[parse-pool] a parse worker failed; its file is parsed on the main thread')
-        }
-        void runParseJob(task.job).then(task.resolve)
+        this.fallBack(task)
       } else {
         task.resolve(result ?? null)
         this.release(worker)
