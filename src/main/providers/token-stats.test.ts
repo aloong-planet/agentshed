@@ -3,6 +3,10 @@
 // sidechain fallback),
 // all four fields summed into the total, synthetic staying out of the model buckets, bad lines skipped
 // while streaming, and the incremental cache.
+//
+// Gap (#158): a file growing *while* it is being parsed is not driven here — that the cache signature
+// is taken before the parse, so the growth shows as a change on the next scan, needs a writer racing
+// the reader, which no test here controls. A read hook in eachJsonlLine would let a test append mid-read.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
