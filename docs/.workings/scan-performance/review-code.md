@@ -112,3 +112,55 @@ the global span with archived and retained rows). Both seed archive rows under t
 check did not search for the old version anywhere but token-stats. Updated both to `+c17`; the
 CACHE_VERSION comment now says to search for `+c<old version>` when bumping, where the next person
 bumping it will read it.
+
+---
+
+# Review — code (step 5), #159: parse on a worker pool (2026-10-09)
+
+Scope: `ParseJob` / `ParseResult` / `runParseJob` / `ParseRunner`, the build split into plan → parse →
+ordered assembly, `ParsePool`, the `parse-worker` entry (electron-vite and the bench), the pool in
+`index.ts`, the `[parse-pool]` net in all seven e2e launchers, the bench's `workers` mode.
+
+## ① Underlying premises — no finding
+
+- "The parse path imports nothing from electron" — enumerated: the 31 local modules reachable from
+  token-stats.ts by value imports; none imports electron.
+- "A worker loads from the asar under the fuses" — measured: the packaged app (ad-hoc signed locally,
+  see below) ran a cold scan of this machine's data in about 12 s with no `[parse-pool]` line.
+- "The pooled cache equals the main-thread cache" — measured on real data: 4954 entries, 0 differing.
+
+## ② Runnability — two findings, both fixed
+
+- **Fixed: the session page's rebuild queued behind a scan.** It went through the pool; during a cold
+  scan the pool's queue holds thousands of jobs. It now parses on the calling thread, which is what the
+  spec already said.
+- **Fixed: a Worker constructor that throws synchronously failed the whole scan** (upper escape: the
+  rejection reached `mapLimit` and `build`). It now falls back like any worker failure; test added, red
+  first with the constructor's TypeError.
+- **Measured trade-off, decided: memory.** Peak RSS of a cold scan: main thread 1.03 GB; pool of 2:
+  1.19 GB; 4: 1.48 GB; 8: 2.20 GB (times 24.8 / 12.9 / 8.5 / 7.4 s). The largest file bounds the time,
+  so the pool is capped at four. For the user's confirmation.
+- A worker dying mid-job, a script that will not load: covered by tests, each falls back. A worker
+  that keeps failing to load costs one attempt per job, never a file.
+- Idle workers stop after 10 s (timers unref'd); `before-quit` stops idle ones.
+
+## ③ Security — no finding
+
+The worker script path is fixed (`join(__dirname, 'parse-worker.js')`); jobs carry paths the main
+thread already walked.
+
+## ④ Consistency — class-level check
+
+"Work that must keep scan order is assembled in completion order" — the build is the only place that
+runs parses concurrently; `mapLimit` writes results by index and the build iterates the slots in scan
+order. Smell baseline: `plan` and `codexPlan` share the hit check (two short copies; Codex adds the
+resume decision) — accepted.
+
+## Outside this change (reported, not fixed)
+
+- **The local `pnpm dist:mac` build will not start on Apple Silicon**: its binary signature is
+  invalid after packaging (`codesign --verify`: "code has no resources but signature indicates they
+  must be present") and the system kills it at launch (exit 137). Ad-hoc signing it (`codesign --force
+  --deep --sign -`) makes it run. Observed on this branch's build; the packaging configuration is
+  unchanged here, so main is very likely the same — not checked against a main build. Needs the user's
+  call.
