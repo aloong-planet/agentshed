@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// The NUL-byte gate: no tracked file may contain a raw NUL (0x00). Hooked into pnpm verify.
+// The NUL-byte gate: no file in the repository — tracked, or new and not ignored — may contain a raw
+// NUL (0x00). Hooked into pnpm verify.
 //
 // ── Why this gate exists ──
 // A NUL byte anywhere in a file makes recursive search **silently skip that file entirely**. Not the one
@@ -48,7 +49,7 @@
 // format not listed fires on its first tracked file; the fix is a row in the table, never a file list.
 //
 // Never a count or a list of permitted files, for the reasons scripts/check-lang.mjs sets out at length.
-// The predicate as a whole must match at least one tracked file or the run fails, as in that gate: an
+// The predicate as a whole must match at least one scanned file or the run fails, as in that gate: an
 // exemption nobody exercises can no longer be shown to be the right shape. Single formats may be
 // unexercised — they are listed so that a newly tracked icon, font or screenshot does not fire.
 import { execFileSync } from 'node:child_process'
@@ -56,10 +57,17 @@ import { readFileSync } from 'node:fs'
 
 // `git ls-files` rather than a glob. The sibling gate learnt this the expensive way: a hand-picked scope
 // is how an enumeration gets holes, and it offers nothing to pick precisely so that it cannot.
-const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'buffer' })
-  .toString('utf8')
-  .split('\0')
-  .filter(Boolean)
+// `--others --exclude-standard` adds files not yet staged, as check-lang does: a new file is exactly what
+// an author runs this gate on before committing, and the index alone left it unread until then. Ignored
+// files (build output) stay out. The Set collapses the several index entries of a conflicted file.
+const files = [
+  ...new Set(
+    execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { encoding: 'buffer' })
+      .toString('utf8')
+      .split('\0')
+      .filter(Boolean)
+  )
+]
 
 const bytes = (...b) => Buffer.from(b)
 const text = (s) => Buffer.from(s, 'latin1')
@@ -132,5 +140,5 @@ if (exempted === 0) {
 }
 
 console.log(
-  `✓ Raw NUL bytes: none in ${files.length} tracked file(s) (${exempted} binary-format file(s) exempt by signature)`
+  `✓ Raw NUL bytes: none in ${files.length} file(s) (${exempted} binary-format file(s) exempt by signature)`
 )
