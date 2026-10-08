@@ -436,6 +436,7 @@ export function validateProjectDetail(v: unknown): ValidateResult {
     if (!strOrNull(p['installPath'])) return failType(`${at}.installPath`, 'string|null')
     if (typeof p['enabled'] !== 'boolean') return failType(`${at}.enabled`, 'boolean')
     if (p['enabledFrom'] !== null && !ENABLED_FROM.has(p['enabledFrom'] as string))
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- see #190
       return failEnum(`${at}.enabledFrom`, String(p['enabledFrom']))
     if (!Array.isArray(p['installs'])) return failType(`${at}.installs`, 'array')
     const contents = p['contents']

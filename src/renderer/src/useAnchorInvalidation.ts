@@ -65,10 +65,12 @@ export function useAnchorInvalidation(
   layer: RefObject<HTMLElement | null>,
   handlers: AnchorInvalidation
 ): void {
-  // Held in a ref so the effect depends only on `active`. Callers pass inline closures, which are new
-  // objects every render; depending on them directly would tear down and re-register both listeners
-  // on every render of the surrounding component.
+  // Held in a ref so the effect depends only on `active` and `layer` (a ref object, stable for the
+  // caller's lifetime). Callers pass inline closures, which are new objects every render; depending on
+  // them directly would tear down and re-register both listeners on every render of the surrounding
+  // component.
   const ref = useRef(handlers)
+  // eslint-disable-next-line react-hooks/refs -- see #197
   ref.current = handlers
 
   useEffect(() => {
@@ -100,5 +102,5 @@ export function useAnchorInvalidation(
       document.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('resize', onResize)
     }
-  }, [active])
+  }, [active, layer])
 }

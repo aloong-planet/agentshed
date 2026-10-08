@@ -240,6 +240,7 @@ function SessionPageBody({
   const [pulseDone, setPulseDone] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- see #198
     setFocused(focusQ ?? null)
     setPulseDone(false)
     // Clicking another hit within the same session page (this component does not remount) must

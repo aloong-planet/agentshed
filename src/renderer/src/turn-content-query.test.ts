@@ -15,7 +15,9 @@ describe('fetchTurnContent (resolves to a result value rather than throwing)', (
       '/s.jsonl',
       0,
       () => {},
+      // eslint-disable-next-line @typescript-eslint/require-await -- see #196
       async () => true,
+      // eslint-disable-next-line @typescript-eslint/require-await -- see #196
       async () => fixture
     )
     expect(r.ok).toBe(true)
@@ -32,7 +34,9 @@ describe('fetchTurnContent (resolves to a result value rather than throwing)', (
       '/s.jsonl',
       0,
       onRebuilding,
+      // eslint-disable-next-line @typescript-eslint/require-await -- see #196
       async () => false,
+      // eslint-disable-next-line @typescript-eslint/require-await -- see #196
       async () => {
         order.push('fetched')
         return fixture
@@ -44,6 +48,7 @@ describe('fetchTurnContent (resolves to a result value rather than throwing)', (
 
   it('does not call onRebuilding when the freshness check reports fresh', async () => {
     const onRebuilding = vi.fn()
+    // eslint-disable-next-line @typescript-eslint/require-await -- see #196
     await fetchTurnContent('/s.jsonl', 0, onRebuilding, async () => true, async () => fixture)
     expect(onRebuilding).not.toHaveBeenCalled()
   })
@@ -54,9 +59,11 @@ describe('fetchTurnContent (resolves to a result value rather than throwing)', (
       '/s.jsonl',
       0,
       () => {},
+      // eslint-disable-next-line @typescript-eslint/require-await -- see #196
       async () => {
         throw boom
       },
+      // eslint-disable-next-line @typescript-eslint/require-await -- see #196
       async () => fixture
     )
     expect(r).toEqual({ ok: false, error: boom })
@@ -68,7 +75,9 @@ describe('fetchTurnContent (resolves to a result value rather than throwing)', (
       '/s.jsonl',
       0,
       () => {},
+      // eslint-disable-next-line @typescript-eslint/require-await -- see #196
       async () => true,
+      // eslint-disable-next-line @typescript-eslint/require-await -- see #196
       async () => {
         throw boom
       }

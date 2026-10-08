@@ -168,6 +168,7 @@ describe('turn splitting and offsets', () => {
           .toString('utf8')
           .split('\n')
           .filter((l) => l.trim())
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- see #194
           .map((l) => JSON.parse(l))
       // The full-parse rule: from the question's index in the original sequence up to the next question
       expect(parseRange(recs[0][1], recs[0][2])).toEqual([objs[1], objs[2]])

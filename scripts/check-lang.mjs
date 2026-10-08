@@ -49,7 +49,7 @@ import ts from 'typescript'
 // fork banner hard-coded Chinese book-title marks in a component, so all six UIs rendered one — including
 // Japanese, whose own dictionary already quoted the same title with `『』` — and the gate stayed green
 // throughout, because U+300A sits below the ideograph range.
-const CJK = /[一-鿿　-〿＀-￯]/
+const CJK = /[一-鿿\u3000-〿＀-￯]/
 const CJK_G = new RegExp(CJK.source, 'g')
 const BINARY = /\.(png|ico|icns|jpg|jpeg|gif|webp|woff2?|ttf|zip|pdf)$/i
 

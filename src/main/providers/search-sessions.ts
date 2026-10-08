@@ -80,7 +80,7 @@ function turnIndexOf(recs: readonly QuestionRec[], off: number): number {
 
 /** Search outwards from the hit offset for the line boundaries (0x0A) and slice out that line's text */
 function lineAround(buf: Buffer, off: number): string {
-  let start = buf.lastIndexOf(0x0a, off) + 1
+  const start = buf.lastIndexOf(0x0a, off) + 1
   let end = buf.indexOf(0x0a, off)
   if (end === -1) end = buf.length
   return buf.subarray(start, end).toString('utf8')

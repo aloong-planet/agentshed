@@ -2896,8 +2896,8 @@ for (const mount of TREND_MOUNTS) {
     //     (the condition for covering them: a stable driver for electron setBounds; the thinning logic itself
     //     is covered by axis.test.ts).
     const checkAxis = (): Promise<string[]> => win.evaluate(() => {
-      const axisEl = document.querySelector('.xaxis') as HTMLElement | null
-      const chartEl = document.querySelector('.chart') as HTMLElement | null
+      const axisEl = document.querySelector<HTMLElement>('.xaxis')
+      const chartEl = document.querySelector<HTMLElement>('.chart')
       if (!axisEl || !chartEl) return ['no-mount']
       const problems: string[] = []
       const aR = axisEl.getBoundingClientRect()
@@ -3396,7 +3396,7 @@ test('project list: selection is a deeper wash with no ring, and adjacent rows k
   const s = await win.evaluate(() => {
     const sel = document.querySelector('.side .row.sel') as HTMLElement
     const other = document.querySelector('.side .row:not(.sel)') as HTMLElement
-    const badge = other.querySelector('.cnt-b') as HTMLElement | null
+    const badge = other.querySelector<HTMLElement>('.cnt-b')
     const second = document.querySelectorAll('.side .row')[1] as HTMLElement
     return {
       outline: getComputedStyle(sel).outlineStyle,
@@ -4676,7 +4676,7 @@ for (const mount of TREND_MOUNTS) {
       const win = await l.app.firstWindow()
       await mount.goto(win)
       const selector = win.getByRole('group', { name: 'Trend days', exact: true })
-      await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('30')
+      await expect(selector.locator('[aria-pressed="true"]')).toHaveText('30')
       const dayKey = (ago: number) => {
         const d = localDayOffset(ago)
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -4694,7 +4694,7 @@ for (const mount of TREND_MOUNTS) {
       await expect(oldBar).toHaveAttribute('data-tip', /185/)
       await expect(win.locator('.chart .col').first()).toHaveAttribute('data-day', dayKey(89))
       await win.locator('.seg button', { hasText: 'Codex' }).click()
-      await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('90')
+      await expect(selector.locator('[aria-pressed="true"]')).toHaveText('90')
       await expect(oldBar.locator('.sp')).toHaveCount(0)
       await win.locator('.tot-c').nth(2).click()
       await expect(win.locator('.chart .col.out')).toHaveCount(83)
@@ -4703,21 +4703,21 @@ for (const mount of TREND_MOUNTS) {
       await expect(win.locator('.seg button.on')).toHaveText('Codex')
       await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
       await win.locator('.pane-head .tabs .tab', { hasText: mount.name.startsWith('Agents') ? 'Token' : 'Overview' }).click()
-      await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('60')
+      await expect(selector.locator('[aria-pressed="true"]')).toHaveText('60')
       await selector.getByRole('button', { name: '90', exact: true }).click()
       await win.locator('.seg button', { hasText: 'Total' }).click()
       await win.locator('.tot-c').first().click()
       await expect(win.locator('.chart .col.out')).toHaveCount(0)
       appendFileSync(history, record(75, 100) + '\n')
       await expect(oldBar).toHaveAttribute('data-tip', /total 295\n/, { timeout: 15000 })
-      await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('90')
+      await expect(selector.locator('[aria-pressed="true"]')).toHaveText('90')
       if (mount.name.startsWith('project')) {
         await win.locator('.side .row', { hasText: 'empty-project' }).click()
-        await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('90')
+        await expect(selector.locator('[aria-pressed="true"]')).toHaveText('90')
         await expect(win.locator('.chart .col')).toHaveCount(90)
         await expect(win.locator('.chart .sp')).toHaveCount(0)
         await win.locator('.side .row', { hasText: 'demo-proj' }).click()
-        await expect(selector.locator('[aria-pressed=\"true\"]')).toHaveText('90')
+        await expect(selector.locator('[aria-pressed="true"]')).toHaveText('90')
         await expect(oldBar).toHaveAttribute('data-tip', /total 295\n/)
       }
       // Real geometry, nonempty dense data, at the application's minimum width.
