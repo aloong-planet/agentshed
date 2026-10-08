@@ -23,6 +23,7 @@ written for whoever is about to change that code.
 
 | Spec | Corresponding feature |
 |---|---|
+| [app-icon](app-icon.md) | [Application icon](../features/app-icon.md) |
 | [agents-overview](agents-overview.md) | [Agents overview](../features/agents-overview.md) |
 | [projects-list](projects-list.md) | [Project list](../features/projects-list.md) |
 | [project-detail](project-detail.md) | [Project detail](../features/project-detail.md) |
