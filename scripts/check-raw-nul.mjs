@@ -39,15 +39,18 @@
 // spelling, which coincide for every printable character and diverge exactly here.
 //
 // ── Exemptions ──
-// One predicate: **a file whose bytes begin with a raster image format's signature**. Such a file is binary
-// by definition, and nobody searches it for text, so the skip this gate guards against costs nothing there.
-// The signature is checked, not just the extension: a text file renamed `.png` still has no PNG signature,
-// so it gets no exemption and still fires. Only the formats actually tracked are listed (screenshots kept
-// as acceptance evidence are PNG); add a format's signature when one is first tracked.
+// One predicate: **a file in a known binary format — its extension names the format and its leading bytes
+// carry that format's signature**. Such a file holds NUL bytes by definition and nobody searches it for
+// text, so the skip this gate guards against costs nothing there. Both halves are required: a text file
+// renamed `.png` has no PNG signature and still fires, and a short signature is not trusted on its own (ICO
+// and TrueType both begin with zero bytes). The formats are the ones scripts/check-lang.mjs treats as
+// binary (its BINARY pattern), so the two gates agree on what counts as binary — keep them in step. A
+// format not listed fires on its first tracked file; the fix is a row in the table, never a file list.
 //
 // Never a count or a list of permitted files, for the reasons scripts/check-lang.mjs sets out at length.
-// And a predicate that matches nothing fails the run, as in that gate: an exemption nobody exercises can no
-// longer be shown to be the right shape, and it would quietly keep matching whatever arrives later.
+// The predicate as a whole must match at least one tracked file or the run fails, as in that gate: an
+// exemption nobody exercises can no longer be shown to be the right shape. Single formats may be
+// unexercised — they are listed so that a newly tracked icon, font or screenshot does not fire.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 
@@ -58,9 +61,33 @@ const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'buffer' })
   .split('\0')
   .filter(Boolean)
 
-/** Raster image signatures (leading bytes). Extend when a new format is first tracked. */
-const IMAGE_SIGNATURES = [{ format: 'PNG', bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) }]
-const isImage = (buf) => IMAGE_SIGNATURES.some((s) => buf.subarray(0, s.bytes.length).equals(s.bytes))
+const bytes = (...b) => Buffer.from(b)
+const text = (s) => Buffer.from(s, 'latin1')
+/**
+ * Binary formats: the extensions that name each one and its signatures. A signature is a list of
+ * [offset, bytes] pairs that must all match; a format may have several alternative signatures.
+ */
+const BINARY_FORMATS = [
+  { name: 'PNG', exts: ['png'], signatures: [[[0, bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)]]] },
+  { name: 'JPEG', exts: ['jpg', 'jpeg'], signatures: [[[0, bytes(0xff, 0xd8, 0xff)]]] },
+  { name: 'GIF', exts: ['gif'], signatures: [[[0, text('GIF87a')]], [[0, text('GIF89a')]]] },
+  { name: 'WebP', exts: ['webp'], signatures: [[[0, text('RIFF')], [8, text('WEBP')]]] },
+  { name: 'ICO', exts: ['ico'], signatures: [[[0, bytes(0x00, 0x00, 0x01, 0x00)]]] },
+  { name: 'ICNS', exts: ['icns'], signatures: [[[0, text('icns')]]] },
+  { name: 'WOFF', exts: ['woff'], signatures: [[[0, text('wOFF')]]] },
+  { name: 'WOFF2', exts: ['woff2'], signatures: [[[0, text('wOF2')]]] },
+  { name: 'TrueType', exts: ['ttf'], signatures: [[[0, bytes(0x00, 0x01, 0x00, 0x00)]], [[0, text('true')]]] },
+  { name: 'ZIP', exts: ['zip'], signatures: [[[0, text('PK\x03\x04')]], [[0, text('PK\x05\x06')]]] },
+  { name: 'PDF', exts: ['pdf'], signatures: [[[0, text('%PDF-')]]] }
+]
+const isBinaryFormat = (file, buf) => {
+  const ext = file.slice(file.lastIndexOf('.') + 1).toLowerCase()
+  return BINARY_FORMATS.some(
+    (f) =>
+      f.exts.includes(ext) &&
+      f.signatures.some((sig) => sig.every(([off, b]) => buf.subarray(off, off + b.length).equals(b)))
+  )
+}
 
 const offenders = []
 let exempted = 0
@@ -73,7 +100,7 @@ for (const f of files) {
   }
   const at = buf.indexOf(0)
   if (at === -1) continue
-  if (isImage(buf)) {
+  if (isBinaryFormat(f, buf)) {
     exempted++
     continue
   }
@@ -98,10 +125,12 @@ if (offenders.length) {
 
 if (exempted === 0) {
   console.error(
-    '✗ The image exemption matched no file holding a NUL byte. Remove it, or narrow it to what is tracked\n' +
-      '  — a predicate nobody exercises can no longer be shown to be the right shape.'
+    '✗ The binary-format exemption matched no file holding a NUL byte. Remove it, or narrow it to what is\n' +
+      '  tracked — a predicate nobody exercises can no longer be shown to be the right shape.'
   )
   process.exit(1)
 }
 
-console.log(`✓ Raw NUL bytes: none in ${files.length} tracked file(s) (${exempted} image file(s) exempt by signature)`)
+console.log(
+  `✓ Raw NUL bytes: none in ${files.length} tracked file(s) (${exempted} binary-format file(s) exempt by signature)`
+)
