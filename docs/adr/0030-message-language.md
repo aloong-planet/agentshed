@@ -28,7 +28,8 @@ follow that declaration rather than assume English.
 2. Writing rule only — rejected: that is the state that let 17 Chinese subjects through after ADR-0017.
 3. Hook only — rejected: `git commit --no-verify` bypasses any local hook, and nothing would notice.
 4. CI only — rejected: feedback arrives after the commit is made and pushed, and CI is the layer most
-   easily unavailable (Actions has been blocked by billing on this account since before this decision).
+   easily unavailable (Actions was blocked by billing on this account for weeks before this decision),
+   and on this plan it cannot block a merge anyway (see Decision).
 5. A hook installed by setting `core.hooksPath` to a committed directory, with no dependency — rejected:
    a hook file that loses its executable bit is skipped with a single hint and the commit succeeds, and a
    hook run from an environment without `node` on `PATH` (nvm, GUI clients) has no recovery point. husky
@@ -62,8 +63,12 @@ We choose **option 1**.
 - **Layers.** The GitHub writing rule (agents); a husky `commit-msg` hook (every commit made locally);
   a `Message language` workflow on pull requests (title, body, and each commit from base to head).
   Issues: writing rule only.
-- The workflow becomes a required check only after it has run successfully once; a check that has never
-  run cannot be shown to work, and requiring it would block every pull request.
+- **Required, when the plan allows it.** On this private repository's current GitHub plan, rulesets and
+  branch protection are unavailable (the API answers 403, "Upgrade to GitHub Pro or make this repository
+  public"), so no check is required for merging — every CI check, this one included, is advisory: a red
+  check is visible on the pull request but does not block the merge. The workflow is to become a required
+  check once required checks are available; its precondition — a first successful run on Actions — is
+  already met.
 
 ## Consequences
 
@@ -76,8 +81,9 @@ We choose **option 1**.
 - Negative: `core.hooksPath` is repository configuration, shared by every worktree. A worktree whose
   checkout predates `.husky/`, or that has not run `pnpm install`, has no hook and commits unchecked
   without a message; the CI layer is what catches those commits.
-- Negative: any local hook can be bypassed with `--no-verify`; the CI layer exists for that, and until
-  CI runs again on this account the bypass is unguarded.
+- Negative: any local hook can be bypassed with `--no-verify`; the CI layer exists for that, but while
+  required checks are unavailable on this plan it only reports — a red message-language check does not
+  stop the merge, so the reviewer has to read it.
 - Negative: issues are not mechanically checked.
 - Negative: the hook recognises comment lines by `core.commentChar` only; with `commentChar = auto` or a
   multi-character `core.commentString` it falls back to `#`, and a localized git template commented
