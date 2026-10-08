@@ -99,7 +99,10 @@ async function launch(
     // the Chinese wording "契约校验失败", which no longer exists after ticket 06,
     // so that pattern had become a dead pattern that could never match anything again (silently weakening the
 // detection net).
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) {
+    // `[parse-pool]`: a parse worker failed and its file was parsed on the main thread instead. The figures
+    // stay right, so without this the built app could lose its workers with every case still green; the
+    // same pattern is in every launcher below.
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) {
       errors.push(t.trim())
     }
   })
@@ -1579,7 +1582,7 @@ test('the archive: a seeded historical archive file → the trend includes an ar
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) errors.push(t)
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t)
   })
   const win = await app.firstWindow()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
@@ -1635,7 +1638,7 @@ test('the archive retains a past day whose live figure fell under the same stamp
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) errors.push(t)
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t)
   })
   const win = await app.firstWindow()
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
@@ -1974,7 +1977,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) errors.push(t)
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t)
   })
   const win = await app.firstWindow()
   const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
@@ -2891,7 +2894,7 @@ test('automatic refresh: a new session appears on its own, and the detail page\'
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) errors.push(t)
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) errors.push(t)
   })
   const win = await app.firstWindow()
   const total = win.locator('.stats .v').first()
@@ -3546,7 +3549,7 @@ async function launchAppearance(home: string): Promise<Launched> {
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) {
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) {
       errors.push(t.trim())
     }
   })
@@ -3790,7 +3793,7 @@ async function launchWithLangs(sysLangs: string, homeOverride?: string): Promise
   })
   app.process().stderr?.on('data', (b: Buffer) => {
     const t = b.toString()
-    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:/.test(t)) {
+    if (/Error occurred in handler|UnhandledPromiseRejection|TypeError|agentshed-error:|\[parse-pool\]/.test(t)) {
       errors.push(t.trim())
     }
   })

@@ -25,6 +25,8 @@ import { turnBlocksFromText } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
 import { readProjectDetail } from './providers/project-detail'
 import { CACHE_VERSION, TokenEngine, projectStatsFromRows } from './providers/token-stats'
+import { ParsePool } from './parse-pool'
+import { availableParallelism } from 'node:os'
 import { UsageArchive } from './providers/archive'
 import { installSkill, uninstallSkill } from './providers/install'
 import { APP_HOST, registerAppProtocol } from './app-protocol'
@@ -92,6 +94,7 @@ if (QUIET) {
 let mainWindow: BrowserWindow | null = null
 let prefsStore: PrefsStore | null = null
 let tokenEngine: TokenEngine | null = null
+let parsePool: ParsePool | null = null
 let archive: UsageArchive | null = null
 let perProjectStats = new Map<string, ProjectStats>()
 // The session read allow-list (ticket 04): an exact path Set the main process produces during its own
@@ -610,7 +613,9 @@ void app.whenReady().then(() => {
   // and setting it afterwards renders one frame in the system's light/dark and then jumps the whole page
   // once (the spec's implementation decision)
   applyAppearanceMode(nativeTheme, prefsStore.get().mode)
-  tokenEngine = new TokenEngine(app.getPath('userData'))
+  // Parses run on worker threads (#159): every core but one, the main thread's, up to eight
+  parsePool = new ParsePool(join(__dirname, 'parse-worker.js'), Math.min(8, Math.max(1, availableParallelism() - 1)))
+  tokenEngine = new TokenEngine(app.getPath('userData'), parsePool)
   // The accounting stamp (ADR-0026): the application version covers combination-layer changes, the cache
   // structure version covers parser changes — together they identify the accounting code, so a lower
   // figure under the same stamp can only mean the data shrank
@@ -675,6 +680,7 @@ if (process.env['ELECTRON_RENDERER_URL']) {
 // Normal quit waits for pending atomic writes. Forced termination may lose only unfinished writes.
 let quitFlushed = false
 app.on('before-quit', (event) => {
+  parsePool?.close()
   if (quitFlushed || !displayStore) return
   event.preventDefault()
   void displayStore.flush().catch((error: unknown) => console.error('[display-cache] quit flush failed:', error)).finally(() => {

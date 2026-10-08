@@ -11,7 +11,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile } from './token-stats'
+import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile, runParseJob, type ParseRunner } from './token-stats'
 import { emptyTokenStats } from '@shared/domain'
 import { zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
@@ -2253,5 +2253,45 @@ describe('resuming a grown Codex rollout', () => {
     await fresh.build(roots(), [proj])
     expect(page).toEqual(await fresh.sessionQuestions(roots(), f))
     expect(page.questions).toHaveLength(2)
+  })
+})
+
+// Parses run on a pool of workers (#159), several at once, finishing in any order. The build must take
+// them in scan order all the same: the cross-file dedupe keeps the first copy of a message, so which
+// project a duplicated message counts toward depends on that order.
+describe('a parse runner that finishes out of order', () => {
+  it('gives the result of parsing one file at a time', async () => {
+    const proj2 = join(dir, 'work', 'p2')
+    mkdirSync(proj2, { recursive: true })
+    // The same message (id and request id) in a session of each project
+    const shared = usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 100, 10, { id: 'msg-shared', requestId: 'req-shared' })
+    mkClaudeFile('a.jsonl', [userLine('first project question'), shared])
+    mkClaudeFile('b.jsonl', [userLine('second project question'), shared], 1000, encodeClaudeProjectDir(proj2))
+    mkClaudeFile('c.jsonl', [userLine('third'), usageLine('claude-opus-5', '2026-07-30T03:00:00Z', 7, 3)])
+    mkCodexRollout('rollout-order-019f400.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 50, cached: 0, output: 5 }])
+    mkGrokSession(proj, 'g-order', [grokTurn(1785369600, { input: 30, output: 3 })])
+    // The first job started finishes last, the next one second to last, and so on
+    let started = 0
+    const reversing: ParseRunner = {
+      concurrency: 4,
+      run: async (job) => {
+        const k = started++
+        await new Promise((r) => setTimeout(r, (10 - k) * 15))
+        return runParseJob(job)
+      }
+    }
+    const shape = (r: Awaited<ReturnType<TokenEngine['build']>>): unknown => ({
+      global: r.global,
+      rows: r.rows,
+      perProject: Object.fromEntries([...r.perProject].sort(([a], [b]) => a.localeCompare(b))),
+      sessionFiles: [...r.sessionFiles].sort()
+    })
+    const pooled = await new TokenEngine(join(dir, 'cache-pooled'), reversing).build(roots(), [proj, proj2])
+    const inline = await new TokenEngine(join(dir, 'cache-inline')).build(roots(), [proj, proj2])
+    expect(started).toBe(5)
+    expect(shape(pooled)).toEqual(shape(inline))
+    // And the pooled cache is the inline cache, entry by entry
+    const cacheOf = (d: string): unknown => (JSON.parse(readFileSync(join(dir, d, 'token-cache.json'), 'utf8')) as { files: unknown }).files
+    expect(cacheOf('cache-pooled')).toEqual(cacheOf('cache-inline'))
   })
 })
