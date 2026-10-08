@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync } from 'node:
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { scan } from './scan'
+import { scan, walkSessions } from './scan'
 import { encodeClaudeProjectDir } from './claude'
 import type { ScanRoots } from './types'
 
@@ -301,5 +301,23 @@ describe('activity', () => {
     utimesSync(f, 3000, 3000)
     const snap = await scan(roots(), { now: () => 1 })
     expect(snap.projects[0].lastSessionAt, 'activity is the mtime pipeline and does not read timestamps inside the file').toBe(3000 * 1000)
+  })
+})
+
+// One walk of the session trees per scan (#160): scan() reads the supplied walk instead of walking
+// again, so a session written after the walk is outside this scan — the same set TokenEngine.build sees.
+describe('the shared session walk', () => {
+  it('scan() counts the sessions of the supplied walk, not ones that appeared after it', async () => {
+    const p = mkProject('walk-once')
+    writeCodexRegistry([p])
+    writeGrokRegistry([p])
+    mkCodexRollout(p, 'rollout-1.jsonl', 3000)
+    mkGrokSession(p, 'g1', 3500)
+    const walked = walkSessions(roots())
+    mkCodexRollout(p, 'rollout-2.jsonl', 4000)
+    mkGrokSession(p, 'g2', 5000)
+    const snap = await scan(roots(), { now: () => 1, sessions: walked })
+    expect(snap.projects[0].sessionCount).toBe(2)
+    expect(snap.projects[0].lastSessionAt).toBe(3500 * 1000)
   })
 })

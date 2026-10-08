@@ -8,14 +8,30 @@ import { emptySnapshot } from '@shared/domain'
 import { mergeKey, normalizePath } from '@shared/path-key'
 import type { ScanRoots } from './types'
 import { readClaudeRegistry, readClaudeActivity } from './claude'
-import { readCodexRegistry, readCodexSessions } from './codex'
-import { readGrokRegistry, readGrokSessions } from './grok'
+import { readCodexRegistry, readCodexSessions, type CodexSessionMeta } from './codex'
+import { readGrokRegistry, readGrokSessions, type GrokSessionMeta } from './grok'
 import { readGlobalLayer } from './global'
 import { readMemorySummary } from './memory'
 
 export interface ScanDeps {
   /** An injected clock, controllable in tests */
   now: () => number
+  /** The scan's one session walk, shared with TokenEngine.build; walked here when absent */
+  sessions?: SessionWalk
+}
+
+/**
+ * The Codex and Grok session lists. Walking them opens every rollout to read its first line, so a scan
+ * walks once and hands the result to both scan() and TokenEngine.build (#160) — which also gives the two
+ * one shared set of sessions instead of two walks a moment apart.
+ */
+export interface SessionWalk {
+  codex: CodexSessionMeta[]
+  grok: GrokSessionMeta[]
+}
+
+export function walkSessions(roots: ScanRoots): SessionWalk {
+  return { codex: readCodexSessions(roots.codexHome), grok: readGrokSessions(roots.grokHome) }
 }
 
 // Every reader below is synchronous; the Promise is the seam's shape, which both callers await.
@@ -59,7 +75,8 @@ export function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
   // on every side). B9: sessions count from every side that has them, including one that did not
   // register the directory — the enrichment loop below touches registered entries only, which is
   // also what keeps A7 true (sessions alone never create an entry or raise the side count).
-  const codexSessions = readCodexSessions(roots.codexHome)
+  const walked = deps.sessions ?? walkSessions(roots)
+  const codexSessions = walked.codex
   const byKeyAgg = (sessions: Array<{ cwd: string; subagent: boolean; mtimeMs: number }>): Map<string, { count: number; last: number | null }> => {
     const m = new Map<string, { count: number; last: number | null }>()
     for (const s of sessions) {
@@ -73,7 +90,7 @@ export function scan(roots: ScanRoots, deps: ScanDeps): Promise<Snapshot> {
     return m
   }
   const codexByKey = byKeyAgg(codexSessions)
-  const grokByKey = byKeyAgg(readGrokSessions(roots.grokHome))
+  const grokByKey = byKeyAgg(walked.grok)
   for (const [key, entry] of byKey) {
     const cl = readClaudeActivity(roots.claudeHome, entry.path)
     const cx = codexByKey.get(key)
