@@ -46,6 +46,10 @@ test case names and descriptions, and everything a program prints to the termina
 source of truth for product copy, which is a separate concern from the repository's working
 language).
 
+> **Extended (2026-10-08, ADR-0030)**: the working language also governs commit messages, pull-request
+> titles and bodies, and issues — checked by a `commit-msg` hook and a pull-request workflow, issues by
+> the writing rule alone.
+
 ## Consequences
 
 - Positive: non-Chinese contributors can read **why**, not just **what** — the causal knowledge in
