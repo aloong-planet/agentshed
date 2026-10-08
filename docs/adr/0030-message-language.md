@@ -70,6 +70,13 @@ We choose **option 1**.
   check once required checks are available; its precondition — a first successful run on Actions — is
   already met.
 
+  > **Amended (2026-10-08)**: the repository moved to `aloong-planet/agentshed` and became public, which
+  > makes rulesets available. The default-branch ruleset is now active and requires all three checks —
+  > the two CI jobs and `message language (PR title, body, commits)` — with no bypass actors. Proved with a
+  > throwaway pull request: with the message-language check failing and the other two passing it was
+  > BLOCKED; with all three passing it was CLEAN; it was closed without merging. The `--no-verify` bypass
+  > of the local hook is therefore caught before merge, not only reported.
+
 ## Consequences
 
 - Positive: what reaches `master` is checked twice — at commit time and again in the pull request —
