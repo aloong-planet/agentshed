@@ -72,7 +72,8 @@ export function SkillExpandBlock(props: SkillExpandBlockProps): JSX.Element {
   // hits the cache instead of always refetching, unlike the pre-query-layer code.
   const { data: listResult, isLoading: loading } = useSkillFilesQuery(open ? argsFor(side) : null)
   const listing = listResult?.ok ? listResult.listing : null
-  const listErr = listResult?.ok === false ? String(listResult.error) : null
+  // The same sentence as the toast below, in the current UI language (skills-view A11)
+  const listErr = listResult?.ok === false ? t.skills.listFailed(errorText(lang, listResult.error)) : null
 
   useEffect(() => {
     if (listResult?.ok === false) toast('err', t.skills.listFailed(errorText(lang, listResult.error)))
