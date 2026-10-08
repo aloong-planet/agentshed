@@ -115,6 +115,10 @@ repeats what is already legible is noise.
   explicit error inside the drawer, without crashing the list.
 - A9 Both sides' global libraries empty → the existing empty state, with no preview entry point.
 - A10 Depth > 2 → notice copy in the expanded area; over-deep paths do not enter the file list.
+- A11 Expanding a row whose file list cannot be enumerated → an error toast. Switching the UI language
+  while that failed result stands does **not** show the toast again: the toast belongs to the failure,
+  not to the language it was worded in. Gap: no automated test (the renderer has no component-level
+  test seam); the intent is recorded where the effect is written.
 
 **Sequence B: project detail → Skills section (list rule + preview)**
 

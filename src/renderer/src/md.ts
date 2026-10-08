@@ -68,7 +68,7 @@ function renderFrontmatterHtml(fields: Array<{ key: string; value: string }>): s
 
 export function renderMarkdown(md: string): string {
   const { fields, body } = splitFrontmatter(md)
-  const raw = marked.parse(body, { async: false }) as string
+  const raw = marked.parse(body, { async: false })
   const bodyHtml = DOMPurify.sanitize(raw, { ALLOWED_URI_REGEXP: URI_ALLOW })
   return (fields && fields.length ? renderFrontmatterHtml(fields) : '') + bodyHtml
 }

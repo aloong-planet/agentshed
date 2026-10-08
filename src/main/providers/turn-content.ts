@@ -73,6 +73,7 @@ function inputText(v: unknown): string {
   try {
     return JSON.stringify(v, null, 2)
   } catch {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- see #190
     return String(v)
   }
 }
@@ -241,12 +242,12 @@ function claudeAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
             const sub: TurnSubBlock = {
               kind: 'sub',
               at,
-              name: typeof input?.['subagent_type'] === 'string' ? (input['subagent_type'] as string) : name,
+              name: typeof input?.['subagent_type'] === 'string' ? input['subagent_type'] : name,
               prompt:
                 typeof input?.['prompt'] === 'string'
-                  ? (input['prompt'] as string)
+                  ? input['prompt']
                   : typeof input?.['description'] === 'string'
-                    ? (input['description'] as string)
+                    ? input['description']
                     : '',
               steps: [],
               result: null,
@@ -455,8 +456,9 @@ function grokAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
   for (const o of objs) {
     const params = o['params'] as Record<string, unknown> | undefined
     const upd = params?.['update'] as Record<string, unknown> | undefined
-    const t = typeof upd?.['sessionUpdate'] === 'string' ? (upd['sessionUpdate'] as string) : null
+    const t = typeof upd?.['sessionUpdate'] === 'string' ? upd['sessionUpdate'] : null
     if (upd === undefined || t === null) {
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- see #190
       noteUnknown(u, String(o['method'] ?? '<no-update>'))
       continue
     }
@@ -486,15 +488,15 @@ function grokAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
     if (t === 'tool_call') {
       openProse = null
       openThink = null
-      const id = typeof upd['toolCallId'] === 'string' ? (upd['toolCallId'] as string) : null
+      const id = typeof upd['toolCallId'] === 'string' ? upd['toolCallId'] : null
       const rawInput = upd['rawInput']
       if (upd['title'] === 'spawn_subagent') {
         const input = rawInput as Record<string, unknown> | undefined
         const prompt =
           typeof input?.['prompt'] === 'string'
-            ? (input['prompt'] as string)
+            ? input['prompt']
             : typeof input?.['description'] === 'string'
-              ? (input['description'] as string)
+              ? input['description']
               : ''
         const sub: TurnSubBlock = {
           kind: 'sub',
@@ -518,9 +520,9 @@ function grokAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
         | undefined
       const name =
         typeof meta?.['name'] === 'string'
-          ? (meta['name'] as string)
+          ? meta['name']
           : typeof upd['title'] === 'string'
-            ? (upd['title'] as string)
+            ? upd['title']
             : null
       const input = inputText(rawInput)
       const block: TurnToolBlock = {
@@ -537,7 +539,7 @@ function grokAssemble(objs: Array<Record<string, unknown>>): TurnBlock[] {
       continue
     }
     if (t === 'tool_call_update') {
-      const id = typeof upd['toolCallId'] === 'string' ? (upd['toolCallId'] as string) : null
+      const id = typeof upd['toolCallId'] === 'string' ? upd['toolCallId'] : null
       if (id === null || spawnToolIds.has(id)) continue // a spawn's echo is not a result
       const block = toolById.get(id)
       if (!block) continue // an update for a call dispatched before this turn only enriches nothing

@@ -347,7 +347,7 @@ export class TokenEngine {
     // ── Claude: the whole projects tree ──
     const projectsRoot = join(roots.claudeHome, 'projects')
     if (existsSync(projectsRoot)) {
-      let dirs: string[] = []
+      let dirs: string[]
       try {
         dirs = readdirSync(projectsRoot, { withFileTypes: true })
           .filter((e) => e.isDirectory())
@@ -575,7 +575,7 @@ async function retitleStripped(items: TokenBuildResult['retitle']): Promise<void
       const { texts } = await readRanges(it.file, [{ start: it.start, end: it.end }])
       const obj: unknown = JSON.parse(texts[0])
       const msg = (obj as Record<string, unknown>)?.['payload'] as Record<string, unknown> | undefined
-      const text = typeof msg?.['message'] === 'string' ? (msg['message'] as string) : null
+      const text = typeof msg?.['message'] === 'string' ? msg['message'] : null
       const clean = text === null ? null : realUserText(text)
       if (clean !== null) it.session.title = clipTitle(clean)
     } catch {
@@ -1034,14 +1034,14 @@ async function parseClaudeFile(
       // the user asked"
       // is exactly the last activity. Measured over 118 real sessions, 45% have a last-line timestamp
       // later than the last usage line.
-      const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp'] as string) : NaN
+      const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp']) : NaN
       if (!Number.isNaN(ts)) lastAt = lastAt === null ? ts : Math.max(lastAt, ts)
       const usage = msg?.['usage'] as Record<string, unknown> | undefined
       if (!usage) return
-      const rawModel = typeof msg?.['model'] === 'string' ? (msg['model'] as string) : null
+      const rawModel = typeof msg?.['model'] === 'string' ? msg['model'] : null
       entries.push([
-        typeof msg?.['id'] === 'string' ? (msg['id'] as string) : null,
-        typeof obj['requestId'] === 'string' ? (obj['requestId'] as string) : null,
+        typeof msg?.['id'] === 'string' ? msg['id'] : null,
+        typeof obj['requestId'] === 'string' ? obj['requestId'] : null,
         obj['isSidechain'] === true ? 1 : 0,
         num(usage['input_tokens']),
         num(usage['output_tokens']),
@@ -1144,7 +1144,7 @@ async function parseCodexFile(
     await eachJsonlLine(file, (obj, start, end) => {
       idx.line(obj, start, end)
       fileEnd = end
-      const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp'] as string) : NaN
+      const ts = typeof obj['timestamp'] === 'string' ? Date.parse(obj['timestamp']) : NaN
       if (!Number.isNaN(ts)) lastTs = lastTs === null ? ts : Math.max(lastTs, ts)
       const payload = obj['payload'] as Record<string, unknown> | undefined
       if (obj['type'] === 'turn_context') {

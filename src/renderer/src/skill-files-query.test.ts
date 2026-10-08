@@ -11,12 +11,14 @@ const fixture: ListSkillFilesResult = { files: [], deep: false, deepPaths: [] }
 
 describe('fetchSkillFiles (resolves to a result value rather than throwing)', () => {
   it('wraps a successful list as an ok result', async () => {
+    // eslint-disable-next-line @typescript-eslint/require-await -- see #196
     const r = await fetchSkillFiles(args, async () => fixture)
     expect(r).toEqual({ ok: true, listing: fixture })
   })
 
   it('wraps a rejecting list as an error result rather than throwing', async () => {
     const boom = new Error('denied')
+    // eslint-disable-next-line @typescript-eslint/require-await -- see #196
     const r = await fetchSkillFiles(args, async () => {
       throw boom
     })

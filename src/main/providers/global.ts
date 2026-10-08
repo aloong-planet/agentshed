@@ -55,7 +55,7 @@ function readSkillDir(base: string): Map<string, SideSkill> {
   for (const e of entries) {
     if (e.name.startsWith('.')) continue
     const p = join(base, e.name)
-    let symlink = false
+    let symlink: boolean
     try {
       symlink = lstatSync(p).isSymbolicLink()
     } catch {

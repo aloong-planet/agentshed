@@ -219,6 +219,7 @@ describe('UsageArchive', () => {
     const a = open()
     expect(a.rows()).toEqual([])
     a.merge([row('2026-07-01', '/p1', 'm1', 7)], ANCHOR)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
     expect(JSON.parse(readFileSync(join(dir, 'store', 'usage-archive.json'), 'utf8')).version).toBe(2)
   })
 })

@@ -181,7 +181,7 @@ describe('window slicing', () => {
   })
 
   it('every window is declared, so adding one cannot silently inherit "all"', () => {
-    for (const w of USAGE_WINDOWS) expect(USAGE_WINDOW_DAYS[w] === null || USAGE_WINDOW_DAYS[w]! > 0).toBe(true)
+    for (const w of USAGE_WINDOWS) expect(USAGE_WINDOW_DAYS[w] === null || USAGE_WINDOW_DAYS[w] > 0).toBe(true)
     expect(Object.keys(USAGE_WINDOW_DAYS).sort()).toEqual([...USAGE_WINDOWS].sort())
   })
 })

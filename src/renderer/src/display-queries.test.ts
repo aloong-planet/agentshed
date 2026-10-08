@@ -7,6 +7,7 @@ import type { ArtifactContentResult } from './artifact-content-query'
 it('retains the last successful read across a failed refresh and query removal', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   let fails = false
+  // eslint-disable-next-line @typescript-eslint/require-await -- see #196
   const options = () => displayQuery<ArtifactContentResult>(client, ['artifactContent', '/a'], async () => fails
     ? { ok: false, error: new Error('source unavailable') }
     : { ok: true, text: { text: 'read previously', truncated: false } })
@@ -21,6 +22,7 @@ it('retains the last successful read across a failed refresh and query removal',
 it('authoritative session absence retires the display copy while a transient error does not', async () => {
   const client = new QueryClient()
   let result: { ok: true; label: string } | { ok: false; error: unknown } = { ok: true, label: 'old page' }
+  // eslint-disable-next-line @typescript-eslint/require-await -- see #196
   const options = displayQuery(client, ['sessionPage', '/s'], async () => result)
   await options.queryFn()
   result = { ok: false, error: new Error('temporary') }

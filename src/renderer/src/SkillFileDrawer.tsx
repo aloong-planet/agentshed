@@ -44,6 +44,7 @@ export function SkillFileDrawer({
   const data = useSkillContentQuery(absPath)
   const text = data?.ok ? (data.text.truncated ? `${data.text.text}\n${dict.placeholder.truncated}` : data.text.text) : null
   const err = data?.ok === false ? errorText(lang, data.error) : null
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- see #198
   useEffect(() => { setMode(isMarkdownName(filePath) ? 'preview' : 'raw') }, [absPath, filePath])
 
   useEffect(() => {

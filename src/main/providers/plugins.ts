@@ -49,7 +49,7 @@ function readInstalled(claudeHome: string): InstalledPlugin[] {
   for (const [name, records] of Object.entries(plugins as Record<string, unknown>)) {
     const installs: PluginInstallRecord[] = (Array.isArray(records) ? records : []).map((r) => {
       const rec = (typeof r === 'object' && r !== null ? r : {}) as Record<string, unknown>
-      const str = (k: string): string | null => (typeof rec[k] === 'string' ? (rec[k] as string) : null)
+      const str = (k: string): string | null => (typeof rec[k] === 'string' ? rec[k] : null)
       const projectPath = str('projectPath')
       return {
         scope: str('scope') ?? null,

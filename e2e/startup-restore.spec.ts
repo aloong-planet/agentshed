@@ -1,4 +1,4 @@
-/// <reference path="../src/renderer/src/env.d.ts" />
+import type {} from '../src/renderer/src/env'
 // Real Electron lifecycle: the display is earned by reading, then restored independently of indexing.
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'

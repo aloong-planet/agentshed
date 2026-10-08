@@ -1,4 +1,4 @@
-/// <reference path="../src/renderer/src/env.d.ts" />
+import type {} from '../src/renderer/src/env'
 // Real isolated profiles, real IPC and filesystem failures; no owned-module mocks.
 // Real assistant/message/usage keys were inspected in a local Claude JSONL sample; values and dates
 // below are synthetic. Delayed initial preference reads are tested at the public backfill seam.
@@ -70,6 +70,7 @@ test('global span defaults an older or invalid preference without resetting vali
       await win.locator('.side .row', { hasText: 'alpha' }).click()
       await checkSpan(win, 30, '16')
       await choice(win, 60).click()
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- see #194
       await expect.poll(() => JSON.parse(readFileSync(join(f.userData, 'prefs.json'), 'utf8'))).toEqual({
         theme: 'blue', language: 'en', mode: 'dark', trendSpan: 60
       })
@@ -119,6 +120,7 @@ test('global span links exact totals and active breakdowns on both entries, and 
     await checkSpan(win, 90, '246')
     // Consecutive user events, followed by a real quit; the acknowledged final value is the persisted one.
     for (const span of [30, 90, 30, 60]) await choice(win, span).click()
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- see #193, #194
     await expect.poll(() => JSON.parse(readFileSync(join(f.userData, 'prefs.json'), 'utf8')).trendSpan).toBe(60)
     await app.close()
     app = await launch(f, { AGENTSHED_SCAN_DELAY_MS: '3000' })
@@ -131,6 +133,7 @@ test('global span links exact totals and active breakdowns on both entries, and 
     await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready', { timeout: 8000 })
     expect((await win.locator('.chart').boundingBox())?.y).toBe(before?.y)
     await choice(win, 90).click()
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- see #193, #194
     await expect.poll(() => JSON.parse(readFileSync(join(f.userData, 'prefs.json'), 'utf8')).trendSpan).toBe(90)
     await app.close()
     app = await launch(f, { AGENTSHED_SCAN_DELAY_MS: '3000' })
@@ -174,6 +177,7 @@ test('global span save failure keeps live views consistent and reopens the last 
     app = await launch(f)
     let win = await app.firstWindow()
     await choice(win, 60).click()
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- see #193, #194
     await expect.poll(() => JSON.parse(readFileSync(join(f.userData, 'prefs.json'), 'utf8')).trendSpan).toBe(60)
     const archiveBefore = readFileSync(join(f.userData, 'usage-archive.json'), 'utf8')
     const configBefore = readFileSync(join(f.home, '.claude.json'), 'utf8')
@@ -188,6 +192,7 @@ test('global span save failure keeps live views consistent and reopens the last 
     await checkSpan(win, 90, '78')
     expect(readFileSync(join(f.userData, 'usage-archive.json'), 'utf8')).toBe(archiveBefore)
     expect(readFileSync(join(f.home, '.claude.json'), 'utf8')).toBe(configBefore)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
     expect(JSON.parse(readFileSync(join(f.userData, 'prefs.json'), 'utf8')).trendSpan).toBe(60)
     rmSync(blocked, { recursive: true })
     await app.close()
@@ -200,6 +205,7 @@ test('global span save failure keeps live views consistent and reopens the last 
 test('global span includes archived and retained older rows in both charts and fourth cards', async () => {
   const f = fixture()
   const beta = join(f.home, 'beta')
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
   const stamp = `${JSON.parse(readFileSync('package.json', 'utf8')).version}+c16`
   writeFileSync(join(f.userData, 'usage-archive.json'), JSON.stringify({
     version: 2, rows: [
