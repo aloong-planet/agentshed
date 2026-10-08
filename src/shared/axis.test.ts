@@ -16,8 +16,7 @@ const mkBars = (days: string[], dataDays: string[]): Array<{ day: string; total:
 
 /** Evenly spaced bar centres */
 const mkCenters = (n: number, step: number, first: number): number[] =>
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- see #192
-  [...Array(n)].map((_, i) => first + i * step)
+  Array.from({ length: n }, (_, i) => first + i * step)
 
 describe('layoutAxisLabels · hierarchical formats', () => {
   it('the first visible label is M/D and the rest of the month show the day number alone', () => {
@@ -72,8 +71,7 @@ describe('layoutAxisLabels · thinning and layout', () => {
   })
 
   it('30 days of data in a wide window: everything labelled, the first and month boundaries as M/D, with no overlap and nothing out of bounds', () => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- see #192
-    const days = [...Array(30)].map((_, i) =>
+    const days = Array.from({ length: 30 }, (_, i) =>
       i < 21 ? `2026-07-${String(11 + i).padStart(2, '0')}` : `2026-08-0${i - 20}`
     )
     const out = layoutAxisLabels(mkBars(days, days), mkCenters(30, 29, 15), 900, measure)
@@ -84,8 +82,7 @@ describe('layoutAxisLabels · thinning and layout', () => {
   })
 
   it('extremely narrow: keeps thinning, leaves at least 1, no overlap, nothing out of bounds, and terminates', () => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- see #192
-    const days = [...Array(30)].map((_, i) =>
+    const days = Array.from({ length: 30 }, (_, i) =>
       i < 21 ? `2026-07-${String(11 + i).padStart(2, '0')}` : `2026-08-0${i - 20}`
     )
     const out = layoutAxisLabels(mkBars(days, days), mkCenters(30, 4, 3), 130, measure)

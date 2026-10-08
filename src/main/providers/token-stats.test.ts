@@ -989,20 +989,14 @@ describe('Grok session list (ticket #125)', () => {
     const r = await engine().build(roots(), [proj])
     const sessions = r.perProject.get(proj.toLowerCase())?.sessions.filter((s) => s.side === 'grok')
     expect(sessions?.length).toBe(2)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- see #192
-    const byTitle = Object.fromEntries((sessions ?? []).map((s) => [s.title, s]))
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
-    expect(byTitle['A summary-named session']?.tokens).toBe(110)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
-    expect(byTitle['A summary-named session']?.questionCount).toBe(1)
+    const byTitle = new Map((sessions ?? []).map((s) => [s.title, s]))
+    expect(byTitle.get('A summary-named session')?.tokens).toBe(110)
+    expect(byTitle.get('A summary-named session')?.questionCount).toBe(1)
     // The fallback: no summary name → the title IS the first indexed question (same source)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
-    expect(byTitle['fallback title question']?.tokens).toBe(55)
+    expect(byTitle.get('fallback title question')?.tokens).toBe(55)
     // at = the largest timestamp in the file, epoch-second records included (ms in the contract)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
-    expect(byTitle['fallback title question']?.at).toBe(1786088900 * 1000)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
-    expect(byTitle['fallback title question']?.forkState).toBe('none')
+    expect(byTitle.get('fallback title question')?.at).toBe(1786088900 * 1000)
+    expect(byTitle.get('fallback title question')?.forkState).toBe('none')
   })
 
   it('a session whose only prompt is an injected system-reminder is not listed, and its tokens still count (A3a analogue)', async () => {
@@ -2063,9 +2057,7 @@ describe('the archive restore path (spec C16) and project figures from the effec
     mkClaudeFile('a.jsonl', [usageLine('claude-fable-5', '2026-07-30T02:00:00Z', 10, 5)])
     await engine().build(roots(), [proj])
     const file = join(dir, 'cache', 'token-cache.json')
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- see #192
-    const raw = JSON.parse(readFileSync(file, 'utf8'))
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
+    const raw = JSON.parse(readFileSync(file, 'utf8')) as { version: number }
     raw.version = CACHE_VERSION - 1
     writeFileSync(file, JSON.stringify(raw))
     expect(() => rowsFromCacheFile(file)).toThrow(/version/)

@@ -25,9 +25,7 @@ it('drops a corrupt snapshot leaf without losing an independently valid preview'
   await store.flush()
   // Corruption enters at the filesystem boundary, not through a fabricated private state.
   const file = join(root, 'display-cache.json')
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- see #192
-  const raw = JSON.parse(readFileSync(file, 'utf8'))
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- see #193
+  const raw = JSON.parse(readFileSync(file, 'utf8')) as { data: { snapshot: { global: { skills: unknown[] } } } }
   raw.data.snapshot.global.skills = [null]
   writeFileSync(file, JSON.stringify(raw))
   const restored = new DisplayStore(root).get()
