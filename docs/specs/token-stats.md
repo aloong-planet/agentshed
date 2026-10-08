@@ -556,7 +556,18 @@ archive retention policy are not changed by this feature.
 - **Segmentation and axis**: see ADR-0008/0009.
 - **Cache**: incremental by file signature; **a structure change must bump the version number at the
   same time**, and within one version a shape check treats corrupt or drifted entries as a miss and
-  recomputes.
+  recomputes. The signature is read before a file is parsed, so a file that grows while it is read
+  shows as changed on the next scan. **A Codex rollout that only grew is parsed from where the last
+  parse stopped**: its entry also keeps the inode, the size and the end of the last parsed line, with
+  everything the parser carries from line to line, and a rollout with the same inode and a larger size
+  resumes there. Codex's writer only appends to a rollout or replaces it by renaming a copy over the
+  path, so a new inode, a size that did not grow, a cold rollout, or fifty resumes in a row (bounding
+  an in-place edit nothing cheap can see) mean a whole parse. Measured 2026-10-09 with
+  `pnpm bench:scan grow` under Electron: an 839 MB rollout parses whole in 2956 ms and rescans in 8 ms
+  after a 1 MB append; a 1655 MB one in 4610 ms and 17 ms; both equal to a cold parse. The resume state
+  grows the cache by about 15% (13.7 → 15.8 MB on that machine). Claude and Grok files are parsed whole
+  when they change: Claude's question filter needs the whole parent graph, and Grok's streams are
+  small.
 - **Automatic refresh**: the trigger layer lives entirely in the main process (focus + timer, with
   parameters injected from the environment); the renderer gets no new channel (the existing snapshot
   push is reused); the cost of a rescan is absorbed by the incremental cache.
