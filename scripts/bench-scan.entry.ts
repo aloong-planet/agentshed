@@ -15,6 +15,8 @@
 //   workers       a cold scan parsed on the main thread, then one parsed on the parse pool (#159): the
 //                 time of each, the main thread's longest event-loop stall during each (how long an IPC
 //                 call could wait), and whether the two caches agree entry by entry.
+//                 `workers --pool-only` runs the pool's scan alone, for a peak-memory figure that is
+//                 not stacked on the main-thread run's.
 //
 // Nothing here writes to the app's userData: every cache lands in a fresh temporary directory.
 // AGENTSHED_HOME_OVERRIDE is honoured the way the app honours it (see src/main/roots.ts).
@@ -156,6 +158,12 @@ async function growScan(source: string): Promise<void> {
   }
 }
 
+/** The app's pool size, or AGENTSHED_BENCH_POOL_SIZE to measure another */
+function poolSize(): number {
+  const forced = Number(process.env['AGENTSHED_BENCH_POOL_SIZE'])
+  return Number.isInteger(forced) && forced > 0 ? forced : Math.min(4, Math.max(1, availableParallelism() - 1))
+}
+
 async function workersScan(): Promise<void> {
   const script = process.env['AGENTSHED_BENCH_PARSE_WORKER']
   if (!script) throw new Error('AGENTSHED_BENCH_PARSE_WORKER is not set: run through scripts/bench-scan.mjs')
@@ -177,8 +185,14 @@ async function workersScan(): Promise<void> {
     )
     return cacheDir
   }
+  if (process.argv.includes('--pool-only')) {
+    const pool = new ParsePool(script, poolSize())
+    await run(`parse pool of ${pool.concurrency}`, pool)
+    pool.close()
+    return
+  }
   const inlineDir = await run('main thread')
-  const pool = new ParsePool(script, Math.min(8, Math.max(1, availableParallelism() - 1)))
+  const pool = new ParsePool(script, poolSize())
   const poolDir = await run(`parse pool of ${pool.concurrency}`, pool)
   pool.close()
   const files = (d: string): Record<string, unknown> =>

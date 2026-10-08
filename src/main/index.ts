@@ -613,8 +613,10 @@ void app.whenReady().then(() => {
   // and setting it afterwards renders one frame in the system's light/dark and then jumps the whole page
   // once (the spec's implementation decision)
   applyAppearanceMode(nativeTheme, prefsStore.get().mode)
-  // Parses run on worker threads (#159): every core but one, the main thread's, up to eight
-  parsePool = new ParsePool(join(__dirname, 'parse-worker.js'), Math.min(8, Math.max(1, availableParallelism() - 1)))
+  // Parses run on worker threads (#159): every core but one, the main thread's, up to four. Measured on
+  // a cold scan of 4954 files (pnpm bench:scan workers --pool-only): 4 workers 8.5 s at a 1.48 GB peak,
+  // 8 workers 7.4 s at 2.20 GB — the largest file alone bounds the time, so more workers mostly cost memory
+  parsePool = new ParsePool(join(__dirname, 'parse-worker.js'), Math.min(4, Math.max(1, availableParallelism() - 1)))
   tokenEngine = new TokenEngine(app.getPath('userData'), parsePool)
   // The accounting stamp (ADR-0026): the application version covers combination-layer changes, the cache
   // structure version covers parser changes — together they identify the accounting code, so a lower
