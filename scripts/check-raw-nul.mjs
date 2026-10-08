@@ -39,11 +39,15 @@
 // spelling, which coincide for every printable character and diverge exactly here.
 //
 // ── Exemptions ──
-// There are none, deliberately. Every tracked file here is text — the UI ships inline SVG, so there are no
-// icon binaries. The first genuinely binary file added will fire this gate, and the fix then is to add a
-// predicate saying which *shape* of file may hold NULs and why — never a count of permitted files, for
-// the reasons scripts/check-lang.mjs sets out at length. Writing that predicate now would mean shipping a
-// rule matching nothing, which that gate treats as an error in its own right.
+// One predicate: **a file whose bytes begin with a raster image format's signature**. Such a file is binary
+// by definition, and nobody searches it for text, so the skip this gate guards against costs nothing there.
+// The signature is checked, not just the extension: a text file renamed `.png` still has no PNG signature,
+// so it gets no exemption and still fires. Only the formats actually tracked are listed (screenshots kept
+// as acceptance evidence are PNG); add a format's signature when one is first tracked.
+//
+// Never a count or a list of permitted files, for the reasons scripts/check-lang.mjs sets out at length.
+// And a predicate that matches nothing fails the run, as in that gate: an exemption nobody exercises can no
+// longer be shown to be the right shape, and it would quietly keep matching whatever arrives later.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 
@@ -54,7 +58,12 @@ const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'buffer' })
   .split('\0')
   .filter(Boolean)
 
+/** Raster image signatures (leading bytes). Extend when a new format is first tracked. */
+const IMAGE_SIGNATURES = [{ format: 'PNG', bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) }]
+const isImage = (buf) => IMAGE_SIGNATURES.some((s) => buf.subarray(0, s.bytes.length).equals(s.bytes))
+
 const offenders = []
+let exempted = 0
 for (const f of files) {
   let buf
   try {
@@ -64,6 +73,10 @@ for (const f of files) {
   }
   const at = buf.indexOf(0)
   if (at === -1) continue
+  if (isImage(buf)) {
+    exempted++
+    continue
+  }
   // Line number for the first one, so the report points somewhere openable rather than at a byte offset
   const line = buf.subarray(0, at).toString('utf8').split('\n').length
   offenders.push({ f, at, line, count: buf.filter((b) => b === 0).length })
@@ -83,4 +96,12 @@ if (offenders.length) {
   process.exit(1)
 }
 
-console.log(`✓ Raw NUL bytes: none in ${files.length} tracked file(s)`)
+if (exempted === 0) {
+  console.error(
+    '✗ The image exemption matched no file holding a NUL byte. Remove it, or narrow it to what is tracked\n' +
+      '  — a predicate nobody exercises can no longer be shown to be the right shape.'
+  )
+  process.exit(1)
+}
+
+console.log(`✓ Raw NUL bytes: none in ${files.length} tracked file(s) (${exempted} image file(s) exempt by signature)`)
