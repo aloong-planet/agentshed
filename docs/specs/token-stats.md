@@ -568,6 +568,16 @@ archive retention policy are not changed by this feature.
   grows the cache by about 15% (13.7 → 15.8 MB on that machine). Claude and Grok files are parsed whole
   when they change: Claude's question filter needs the whole parent graph, and Grok's streams are
   small.
+- **Where parsing runs**: the scan is planned on the main process — cache hits, resumes, whole parses
+  — and the files that need parsing are parsed on a pool of worker threads (cores minus one, at most
+  eight), several at once; the results are then taken in scan order, because the cross-file
+  deduplication keeps the first copy of a message and so the order is part of the result. Workers
+  start when there is work and stop after ten idle seconds. A worker that fails or will not load
+  hands its file back to the main process, so a failure costs time, never a file. Measured 2026-10-09
+  with `pnpm bench:scan workers` under Electron: a cold scan of 4954 files took 26.3 s on the main
+  process and 6.7 s on eight workers, the main process's longest event-loop stall during it fell from
+  328 ms to 16 ms, and the two caches were identical file by file. Tests and the session page's
+  single-file rebuild parse on the main process.
 - **Automatic refresh**: the trigger layer lives entirely in the main process (focus + timer, with
   parameters injected from the environment); the renderer gets no new channel (the existing snapshot
   push is reused); the cost of a rescan is absorbed by the incremental cache.
