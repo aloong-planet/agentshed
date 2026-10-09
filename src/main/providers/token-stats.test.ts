@@ -2295,3 +2295,22 @@ describe('a parse runner that finishes out of order', () => {
     expect(cacheOf('cache-pooled')).toEqual(cacheOf('cache-inline'))
   })
 })
+
+// The session page rebuilds a file that changed since the scan, routing by the data root it lives under
+// (#217): a Grok stream used to fall through to the Codex branch, whose meta reader cannot read it.
+describe('the session page of a Grok session whose stream grew', () => {
+  it('rebuilds through the Grok parse and matches a cold scan of the grown stream', async () => {
+    const f = mkGrokSession(proj, 'g-grow', [grokUser(1786088600, 'first grok question', 0), grokTurn(1786088610, { input: 10, output: 1 })])
+    const e = engine()
+    await e.build(roots(), [proj])
+    appendFileSync(f, grokUser(1786088700, 'second grok question', 1) + '\n')
+    const page = await e.sessionQuestions(roots(), f)
+    const fresh = new TokenEngine(join(dir, 'cache-cold'))
+    await fresh.build(roots(), [proj])
+    expect(page).toEqual(await fresh.sessionQuestions(roots(), f))
+    expect(page.side).toBe('grok')
+    expect(page.questions).toHaveLength(2)
+    // The rebuild is kept: opening the page again does not rebuild (nor show the rebuilding state) again
+    expect(e.isFresh(f)).toBe(true)
+  })
+})

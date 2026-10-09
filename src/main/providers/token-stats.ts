@@ -19,7 +19,7 @@
 //   aggregation layer, so a deduplicated result cannot be what is cached);
 //   keyed by (path, mtime, size), written atomically. The statistics include stale projects.
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, sep } from 'node:path'
 import type {
   AgentSide,
   ForkState,
@@ -35,6 +35,7 @@ import { localDay } from '@shared/format'
 import { ERR, appError } from '@shared/errors'
 import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessionMeta } from './codex'
+import { readGrokSessionMeta } from './grok'
 import { isColdRollout, rolloutStem } from './cold-rollout'
 import { mapLimit, readRanges } from './range-read'
 import { eachJsonlLine } from './jsonl'
@@ -631,6 +632,12 @@ export class TokenEngine {
         // here when isWellFormedAgg is false), so add one more layer of defence
         const oldKey = typeof agg.projectKey === 'string' ? agg.projectKey : ''
         fresh = await parseClaudeFile(file, oldKey, listedBase)
+      } else if (file.startsWith(join(roots.grokHome, 'sessions') + sep)) {
+        // A Grok stream rebuilds through the Grok parse, its meta read the way the walk reads it; it
+        // used to fall through to the Codex branch below, whose meta reader cannot read a Grok stream
+        const meta = readGrokSessionMeta(file)
+        if (!meta) throw appError(ERR.sessionMetaUnreadable)
+        fresh = await parseGrokFile(file, mergeKey(meta.cwd), meta.subagent)
       } else {
         const meta = readCodexSessionMeta(file)
         if (!meta) throw appError(ERR.sessionMetaUnreadable)
@@ -641,7 +648,8 @@ export class TokenEngine {
       }
       if (!fresh) throw appError(ERR.sessionParseFailed)
       agg = fresh
-      if (fresh.kind === 'claude') this.cache.files[file] = { sig, agg }
+      // A Codex entry was stored above, with the state its next resume starts from
+      if (fresh.kind !== 'codex') this.cache.files[file] = { sig, agg }
       this.persist()
     }
     if (agg.kind === 'claude') {
