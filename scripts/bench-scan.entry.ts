@@ -12,15 +12,22 @@
 //   grow <rollout> a Codex rollout copied into a scratch home, scanned whole, then grown by about 1 MB
 //                 of its own last lines and scanned again — the rescan a live session costs (#158). The
 //                 grown scan is checked against a cold scan of the same file.
+//   workers       a cold scan parsed on the main thread, then one parsed on the parse pool (#159): the
+//                 time of each, the main thread's longest event-loop stall during each (how long an IPC
+//                 call could wait), and whether the two caches agree entry by entry.
+//                 `workers --pool-only` runs the pool's scan alone, for a peak-memory figure that is
+//                 not stacked on the main-thread run's.
 //
 // Nothing here writes to the app's userData: every cache lands in a fresh temporary directory.
 // AGENTSHED_HOME_OVERRIDE is honoured the way the app honours it (see src/main/roots.ts).
-import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readSync, rmSync, statSync } from 'node:fs'
+import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { performance } from 'node:perf_hooks'
+import { monitorEventLoopDelay, performance } from 'node:perf_hooks'
+import { availableParallelism } from 'node:os'
 import { scan, walkSessions } from '../src/main/providers/scan'
-import { TokenEngine } from '../src/main/providers/token-stats'
+import { TokenEngine, type ParseRunner } from '../src/main/providers/token-stats'
+import { ParsePool } from '../src/main/parse-pool'
 import { UsageArchive } from '../src/main/providers/archive'
 import { eachJsonlLine } from '../src/main/providers/jsonl'
 import { realRoots } from '../src/main/roots'
@@ -151,12 +158,64 @@ async function growScan(source: string): Promise<void> {
   }
 }
 
+/** The app's pool size, or AGENTSHED_BENCH_POOL_SIZE to measure another */
+function poolSize(): number {
+  const forced = Number(process.env['AGENTSHED_BENCH_POOL_SIZE'])
+  return Number.isInteger(forced) && forced > 0 ? forced : Math.min(4, Math.max(1, availableParallelism() - 1))
+}
+
+async function workersScan(): Promise<void> {
+  const script = process.env['AGENTSHED_BENCH_PARSE_WORKER']
+  if (!script) throw new Error('AGENTSHED_BENCH_PARSE_WORKER is not set: run through scripts/bench-scan.mjs')
+  const roots = realRoots()
+  const sessions = walkSessions(roots)
+  const snap = await scan(roots, { now: () => Date.now(), sessions })
+  const claudePaths = snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
+  const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
+  const run = async (label: string, runner?: ParseRunner): Promise<string> => {
+    const cacheDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-'))
+    const lag = monitorEventLoopDelay({ resolution: 10 })
+    lag.enable()
+    const t0 = performance.now()
+    await new TokenEngine(cacheDir, runner).build(roots, claudePaths, registered, sessions)
+    const took = since(t0)
+    lag.disable()
+    console.log(
+      `[workers] ${label}: ${took}; main-thread event-loop stall max ${(lag.max / 1e6).toFixed(0)} ms, p99 ${(lag.percentile(99) / 1e6).toFixed(0)} ms`
+    )
+    return cacheDir
+  }
+  if (process.argv.includes('--pool-only')) {
+    const pool = new ParsePool(script, poolSize())
+    await run(`parse pool of ${pool.concurrency}`, pool)
+    pool.close()
+    return
+  }
+  const inlineDir = await run('main thread')
+  const pool = new ParsePool(script, poolSize())
+  const poolDir = await run(`parse pool of ${pool.concurrency}`, pool)
+  pool.close()
+  const files = (d: string): Record<string, unknown> =>
+    (JSON.parse(readFileSync(join(d, 'token-cache.json'), 'utf8')) as { files: Record<string, unknown> }).files
+  const a = files(inlineDir)
+  const b = files(poolDir)
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+  let differ = 0
+  for (const k of keys) if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) differ++
+  console.log(`[workers] cache entries: ${keys.size}, differing between the two: ${differ}`)
+  if (differ > 0) process.exitCode = 1
+}
+
 async function main(): Promise<void> {
   console.log(`[runtime] ${isElectron ? `electron ${process.versions['electron']}` : `node ${process.version}`}`)
   const [mode = 'cold', ...rest] = process.argv.slice(2)
   if (mode === 'file') {
     if (rest.length === 0) throw new Error('file mode needs at least one path')
     for (const f of rest) await timeFile(f)
+    return
+  }
+  if (mode === 'workers') {
+    await workersScan()
     return
   }
   if (mode === 'grow') {
@@ -168,7 +227,7 @@ async function main(): Promise<void> {
     await fullScan(mode)
     return
   }
-  throw new Error(`unknown mode "${mode}": expected cold, warm, grow <rollout>, or file <path>…`)
+  throw new Error(`unknown mode "${mode}": expected cold, warm, grow <rollout>, workers, or file <path>…`)
 }
 
 async function start(): Promise<void> {

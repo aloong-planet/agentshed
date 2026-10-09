@@ -82,3 +82,42 @@ writes so inode and size stay as a real in-place edit leaves them. No mocks.
 | K — drop the cold-rollout offset guard | the jsonl guard case (fails deep in the decoder instead) |
 
 - Each mutation was restored from a backup copy and compared byte for byte afterwards.
+
+---
+
+# Review — tests (step 6), #159: parse on a worker pool (2026-10-09)
+
+Cases: "a parse runner that finishes out of order gives the result of parsing one file at a time"
+(token-stats.test.ts); parse-pool.test.ts: results per job under out-of-order completion, the size
+cap, idle reuse and stop, a worker dying mid-job, a constructor that throws, a script that will not
+load.
+
+## Dimension 1 — coverage: one gap, recorded
+
+- The real worker cannot run under vitest (it is a build output); the pool tests use stand-in scripts.
+  The real worker is covered by e2e (all seven launchers fail on a `[parse-pool]` line, and every
+  fixture's first scan has misses) and by `pnpm bench:scan workers` on real data. Recorded in the
+  parse-pool.test.ts header.
+- The ordering case puts the same message in sessions of two projects, so which project it counts
+  toward depends on assembly order.
+
+## Dimension 2 — case design: no finding
+
+Public `TokenEngine.build` and `ParsePool.run`; the only spy is on `console.warn` (not our module).
+
+## Dimension 3 — false greens: one survived mutation, explained and replaced
+
+All cases were written after the implementation, so each was checked by mutation:
+
+| Mutation | Result |
+|---|---|
+| P1 — assemble the slots in reverse | **survived** — it reversed both builds the case compares (the pooled and the inline one go through the same assembly), so it never reached the difference the case guards |
+| P1′ — assemble in completion order | red: the pooled build attributes the shared message to the other project |
+| P2 — no size cap | red |
+| P3 — ignore the idle time | red |
+| P4 — a dead worker's job resolves null | red |
+| P5 — warn on every failure | red |
+| constructor throw | red before the fix (TypeError escaped) |
+
+The first P1 run also mis-passed arguments (a multi-line pattern broke the shell loop, so the whole
+suite ran); rerun by hand with the case's filter, it still survived, for the reason above.

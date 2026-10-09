@@ -36,7 +36,7 @@ import { ERR, appError } from '@shared/errors'
 import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessionMeta } from './codex'
 import { isColdRollout, rolloutStem } from './cold-rollout'
-import { readRanges } from './range-read'
+import { mapLimit, readRanges } from './range-read'
 import { eachJsonlLine } from './jsonl'
 import {
   makeGrokQuestionIndexer,
@@ -326,15 +326,71 @@ export interface TokenBuildResult {
   sessionFiles: Set<string>
 }
 
+/**
+ * One file to parse, as plain data — what a parse worker receives (#159). The main thread builds it: it
+ * owns the cache and every decision about it (hit, resume, whole parse); a parse touches only the file.
+ */
+export type ParseJob =
+  | { kind: 'claude'; file: string; projectKey: string; listed: boolean }
+  | {
+      kind: 'codex'
+      file: string
+      projectKey: string
+      meta: CodexParseMeta
+      /** The session_index name for this rollout, looked up on the main thread */
+      threadName: string | undefined
+      from?: { agg: CodexFileAgg; state: CodexResume }
+    }
+  | { kind: 'grok'; file: string; projectKey: string; subagent: boolean }
+
+/** A parse's output: the agg, and for Codex the state a later resume starts from; null when unreadable */
+export type ParseResult = { agg: FileAgg; state?: CodexParseState } | null
+
+/** Parses one job on the calling thread. A parse worker runs this same function (parse-worker.ts). */
+export async function runParseJob(job: ParseJob): Promise<ParseResult> {
+  switch (job.kind) {
+    case 'claude': {
+      const agg = await parseClaudeFile(job.file, job.projectKey, job.listed)
+      return agg ? { agg } : null
+    }
+    case 'codex':
+      return parseCodexFile(job.file, job.projectKey, job.meta, job.threadName, job.from)
+    case 'grok': {
+      const agg = await parseGrokFile(job.file, job.projectKey, job.subagent)
+      return agg ? { agg } : null
+    }
+  }
+}
+
+/** Where a build's parses run, and how many at once */
+export interface ParseRunner {
+  run(job: ParseJob): Promise<ParseResult>
+  concurrency: number
+}
+
+/** On the calling thread, one file at a time — what tests and the session page use */
+const INLINE: ParseRunner = { run: runParseJob, concurrency: 1 }
+
+/** One file of a build, in scan order: its entry once known, and the job that produces it otherwise */
+interface Slot {
+  file: string
+  entry: CacheEntry | null
+  plan?: { job: ParseJob; st: { sig: string; ino: number; size: number } }
+  /** Whether the agg admits the file into the session read allow-list */
+  admit: (agg: FileAgg) => boolean
+}
+
 export class TokenEngine {
   private readonly cacheDir: string
   private readonly cacheFile: string
   private cache: CacheShape
+  private readonly runner: ParseRunner
 
-  constructor(cacheDir: string) {
+  constructor(cacheDir: string, runner: ParseRunner = INLINE) {
     this.cacheDir = cacheDir
     this.cacheFile = join(cacheDir, 'token-cache.json')
     this.cache = this.loadCache()
+    this.runner = runner
   }
 
   private loadCache(): CacheShape {
@@ -386,8 +442,12 @@ export class TokenEngine {
     const isRegistered = (key: string): boolean =>
       registeredKeys ? registeredKeys.has(key) : key !== ''
     const aggs: FileAgg[] = []
-    const seen: Record<string, { sig: string; agg: FileAgg }> = {}
+    const seen: Record<string, CacheEntry> = {}
     const sessionFiles = new Set<string>()
+    // Every file in scan order. The cache is consulted here, on the main thread; the misses are parsed
+    // together below, as many at once as the runner allows; then every file is taken in this order, so
+    // the aggregation sees exactly the sequence a one-at-a-time build saw.
+    const slots: Slot[] = []
 
     // Encoded directory name → the project's merge key
     const encToProject = new Map<string, string>()
@@ -407,17 +467,12 @@ export class TokenEngine {
       for (const encName of dirs) {
         const projectKey = encToProject.get(encName) ?? ''
         for (const { file, nested } of listJsonl(join(projectsRoot, encName))) {
-          const hit = await this.aggFor(file, () => parseClaudeFile(file, projectKey, !nested))
-          if (hit) {
-            const { agg } = hit
-            aggs.push(agg)
-            seen[file] = hit
-            // The allow-list is no wider than what the UI can reach: an unregistered project's sessions
-            // are never displayed (spec A2),
-            // so the read side does not admit them either — the same goes for nested transcripts, whose
-            // parent sessions are all invisible
-            if (isRegistered(projectKey) && (nested || agg.listed)) sessionFiles.add(file)
-          }
+          // The allow-list is no wider than what the UI can reach: an unregistered project's sessions
+          // are never displayed (spec A2),
+          // so the read side does not admit them either — the same goes for nested transcripts, whose
+          // parent sessions are all invisible
+          const admit = (agg: FileAgg): boolean => isRegistered(projectKey) && (nested || agg.listed)
+          slots.push(this.plan(file, admit, { kind: 'claude', file, projectKey, listed: !nested }))
         }
       }
     }
@@ -426,29 +481,30 @@ export class TokenEngine {
     const walked = sessions ?? walkSessions(roots)
     const titles = readCodexIndex(roots.codexHome)
     for (const s of walked.codex) {
-      const entry = await this.codexEntry(s.file, s.cwd, s, titles)
-      if (entry) {
-        const agg = entry.agg as CodexFileAgg
-        aggs.push(agg)
-        seen[s.file] = entry
-        if (isRegistered(agg.projectKey) && (s.subagent || agg.listed)) sessionFiles.add(s.file)
-      }
+      const admit = (agg: FileAgg): boolean => isRegistered(agg.projectKey) && (s.subagent || agg.listed)
+      slots.push(this.codexPlan(s.file, s.cwd, s, titles, admit))
     }
 
     // ── Grok: the session store, attributed by the percent-encoded directory name ──
     // A directory without its update stream never reaches here (readGrokSessions skips it), which
     // is F6 discharged at the walk: the siblings' scan is unaffected.
     for (const s of walked.grok) {
-      const hit = await this.aggFor(s.file, () => parseGrokFile(s.file, mergeKey(s.cwd), s.subagent))
-      if (hit) {
-        const { agg } = hit
-        aggs.push(agg)
-        seen[s.file] = hit
-        // Listed sessions only: a subagent's stream is never expanded in a parent turn on this side
-        // (the dispatch's result comes from the parent's own finished record), so unlike Claude's
-        // nested transcripts it stays outside the read allow-list
-        if (isRegistered(agg.projectKey) && agg.listed) sessionFiles.add(s.file)
-      }
+      // Listed sessions only: a subagent's stream is never expanded in a parent turn on this side
+      // (the dispatch's result comes from the parent's own finished record), so unlike Claude's
+      // nested transcripts it stays outside the read allow-list
+      const admit = (agg: FileAgg): boolean => isRegistered(agg.projectKey) && agg.listed
+      slots.push(this.plan(s.file, admit, { kind: 'grok', file: s.file, projectKey: mergeKey(s.cwd), subagent: s.subagent }))
+    }
+
+    const misses = slots.filter((slot) => slot.plan !== undefined)
+    await mapLimit(misses, this.runner.concurrency, async (slot) => {
+      if (slot.plan) slot.entry = entryOf(slot.plan, await this.runner.run(slot.plan.job))
+    })
+    for (const slot of slots) {
+      if (!slot.entry) continue
+      aggs.push(slot.entry.agg)
+      seen[slot.file] = slot.entry
+      if (slot.admit(slot.entry.agg)) sessionFiles.add(slot.file)
     }
 
     this.cache = { version: CACHE_VERSION, files: seen }
@@ -460,34 +516,31 @@ export class TokenEngine {
   }
 
   /**
-   * The entry for a file: the cached one when its signature still matches, a fresh parse otherwise.
+   * A file's slot: its cached entry when the signature still matches, otherwise the job that parses it.
    * The signature is the one taken **before** parsing, so a file that grows while it is read shows as
    * changed on the next scan rather than matching a signature that already counts bytes the parse
-   * never saw.
+   * never saw. An unreadable file gets neither.
    */
-  private async aggFor<T extends FileAgg>(file: string, parse: () => Promise<T | null>): Promise<{ sig: string; agg: T } | null> {
-    const sig = sigOf(file)
-    if (sig === null) return null
+  private plan(file: string, admit: Slot['admit'], job: ParseJob): Slot {
+    const st = statOf(file)
+    if (st === null) return { file, entry: null, admit }
     const cached = this.cache.files[file]
     // Beyond the version, validate each entry's shape: manual corruption or future drift within one
     // version is always recomputed, so a missing field never flows into the aggregation layer.
-    // The cast is sound because the cache is keyed by file path and a path's side never changes —
-    // the cached agg was produced by the same per-side parser the caller is passing now.
-    if (cached && cached.sig === sig && isWellFormedAgg(cached.agg)) return { sig, agg: cached.agg as T }
-    const agg = await parse()
-    return agg ? { sig, agg } : null
+    // The cache is keyed by file path and a path's side never changes, so a hit is the same side's agg.
+    if (cached && cached.sig === st.sig && isWellFormedAgg(cached.agg)) return { file, entry: { sig: st.sig, agg: cached.agg }, admit }
+    return { file, entry: null, admit, plan: { job, st } }
   }
 
   /**
-   * A Codex rollout's entry: cached when its signature still matches; resumed from the cached parse
-   * state when the rollout only grew (CodexResume); parsed whole otherwise. The signature is taken
-   * before parsing, as in aggFor.
+   * A Codex rollout's slot: cached when its signature still matches; a job resuming from the cached
+   * parse state when the rollout only grew (CodexResume); a whole parse otherwise.
    */
-  private async codexEntry(file: string, cwd: string, meta: CodexParseMeta, titles: Map<string, string>): Promise<CacheEntry | null> {
+  private codexPlan(file: string, cwd: string, meta: CodexParseMeta, titles: Map<string, string>, admit: Slot['admit']): Slot {
     const st = statOf(file)
-    if (st === null) return null
+    if (st === null) return { file, entry: null, admit }
     const cached = this.cache.files[file]
-    if (cached && cached.sig === st.sig && isWellFormedAgg(cached.agg)) return cached
+    if (cached && cached.sig === st.sig && isWellFormedAgg(cached.agg)) return { file, entry: cached, admit }
     const state = cached?.resume
     const from =
       cached !== undefined &&
@@ -500,13 +553,19 @@ export class TokenEngine {
       state.resumes < RESUME_LIMIT
         ? { agg: cached.agg, state }
         : undefined
-    const parsed = await parseCodexFile(file, mergeKey(cwd), meta, titles, from)
-    if (!parsed) return null
-    return {
-      sig: st.sig,
-      agg: parsed.agg,
-      resume: { ...parsed.state, ino: st.ino, size: st.size, resumes: from ? from.state.resumes + 1 : 0 }
-    }
+    const job: ParseJob = { kind: 'codex', file, projectKey: mergeKey(cwd), meta: codexParseMeta(meta), threadName: threadNameOf(file, titles), from }
+    return { file, entry: null, admit, plan: { job, st } }
+  }
+
+  /**
+   * One Codex rollout's entry outside a build (the session page), through the same plan. Parsed on the
+   * calling thread, not the runner: the page is waiting, and during a scan the runner's queue holds that
+   * scan's whole backlog.
+   */
+  private async codexEntry(file: string, cwd: string, meta: CodexParseMeta, titles: Map<string, string>): Promise<CacheEntry | null> {
+    const slot = this.codexPlan(file, cwd, meta, titles, () => false)
+    if (!slot.plan) return slot.entry
+    return entryOf(slot.plan, await runParseJob(slot.plan.job))
   }
 
   /**
@@ -1097,6 +1156,29 @@ function statOf(file: string): { sig: string; ino: number; size: number } | null
   }
 }
 
+/** The cache entry a parse produces: a Codex rollout's carries the state its next resume starts from */
+function entryOf(plan: NonNullable<Slot['plan']>, parsed: ParseResult): CacheEntry | null {
+  if (!parsed) return null
+  const { job, st } = plan
+  if (job.kind !== 'codex' || !parsed.state) return { sig: st.sig, agg: parsed.agg }
+  return {
+    sig: st.sig,
+    agg: parsed.agg,
+    resume: { ...parsed.state, ino: st.ino, size: st.size, resumes: job.from ? job.from.state.resumes + 1 : 0 }
+  }
+}
+
+/** Only the fields a parse reads — a walk's session meta carries more, which a worker need not receive */
+function codexParseMeta(m: CodexParseMeta): CodexParseMeta {
+  return { subagent: m.subagent, sessionId: m.sessionId, parentId: m.parentId, forkedAt: m.forkedAt, paginated: m.paginated }
+}
+
+/** The session_index name of a rollout, by the id in its file name (either suffix) */
+function threadNameOf(file: string, titles: Map<string, string>): string | undefined {
+  const id = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl(?:\.zst)?$/.exec(file)?.[1]
+  return id ? titles.get(id) : undefined
+}
+
 function isCodexResume(v: unknown): v is CodexResume {
   if (typeof v !== 'object' || v === null) return false
   const r = v as Record<string, unknown>
@@ -1238,7 +1320,8 @@ async function parseCodexFile(
   file: string,
   projectKey: string,
   meta: CodexParseMeta,
-  titles: Map<string, string>,
+  /** The session_index name for this rollout, if it has one */
+  threadName: string | undefined,
   from?: { agg: CodexFileAgg; state: CodexResume }
 ): Promise<{ agg: CodexFileAgg; state: CodexParseState } | null> {
   const events: CodexEvent[] = from ? from.agg.events.slice() : []
@@ -1338,16 +1421,14 @@ async function parseCodexFile(
   } catch {
     return null
   }
-  // The id and the stem come from the name without either suffix: a cold rollout keeps its name under
-  // `.jsonl.zst` (spec token-stats B12)
-  const id = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl(?:\.zst)?$/.exec(file)?.[1]
+  // The stem comes from the name without either suffix: a cold rollout keeps its name under `.jsonl.zst`
+  // (spec token-stats B12); the id-based thread name was looked up by the caller (threadNameOf)
   const stem = rolloutStem(file)
   const questions = idx.done(fileEnd)
   const first = idx.firstQuestionText()
   // A resumed index carries no text for the questions it was seeded with, so their title comes from the
   // earlier parse
   const realTitle = first !== null ? clipTitle(first) : from && from.agg.questions.length > 0 ? from.state.firstTitle : null
-  const threadName = id ? titles.get(id) : undefined
   const agg: CodexFileAgg = {
     kind: 'codex',
     file,

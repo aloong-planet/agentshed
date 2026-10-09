@@ -9,6 +9,7 @@
 //   pnpm bench:scan warm               against a copy of the app's cache
 //   pnpm bench:scan file <path>…       time the line reader over specific files
 //   pnpm bench:scan --node cold        the same bundle under plain Node, for the comparison
+//   pnpm bench:scan workers            a cold scan on the main thread, then one on the parse pool
 //
 // AGENTSHED_HOME_OVERRIDE points the scan at a fixture home, exactly as it does for the app.
 import { build } from 'esbuild'
@@ -25,7 +26,19 @@ const args = process.argv.slice(2)
 const useNode = args.includes('--node')
 const passThrough = args.filter((a) => a !== '--node')
 
-const outfile = join(mkdtempSync(join(tmpdir(), 'agentshed-bench-build-')), 'bench-scan.cjs')
+const outDir = mkdtempSync(join(tmpdir(), 'agentshed-bench-build-'))
+const outfile = join(outDir, 'bench-scan.cjs')
+// The parse worker is bundled beside the entry, as electron-vite builds it beside the app's main
+const workerFile = join(outDir, 'parse-worker.cjs')
+await build({
+  entryPoints: [join(repo, 'src/main/parse-worker.ts')],
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  tsconfig: join(repo, 'tsconfig.node.json'),
+  outfile: workerFile,
+  logLevel: 'warning'
+})
 await build({
   entryPoints: [join(here, 'bench-scan.entry.ts')],
   bundle: true,
@@ -47,5 +60,6 @@ if (!useNode) delete env['ELECTRON_RUN_AS_NODE']
 // The app's name decides where Electron looks for its userData (the live cache, for warm mode);
 // a bare script under the Electron binary would otherwise be named "Electron"
 env['AGENTSHED_BENCH_APP_NAME'] = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')).name
+env['AGENTSHED_BENCH_PARSE_WORKER'] = workerFile
 const result = spawnSync(bin, [outfile, ...passThrough], { stdio: 'inherit', env, cwd: repo })
 process.exit(result.status ?? 1)
