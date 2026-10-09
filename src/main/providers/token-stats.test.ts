@@ -14,6 +14,7 @@ import { encodeClaudeProjectDir } from './claude'
 import { sessionReadTarget } from '../security'
 import { ERR, decodeAppError } from '@shared/errors'
 import type { ScanRoots } from './types'
+import { walkSessions } from './scan'
 
 let dir: string
 let proj: string
@@ -2078,5 +2079,20 @@ describe('the archive restore path (spec C16) and project figures from the effec
     expect(out.get('/archived-only')?.tokens.bySide.codex.total).toBe(700)
     expect(out.get('/archived-only')?.sessions).toEqual([])
     expect(out.has('')).toBe(false)
+  })
+})
+
+// One walk of the session trees per scan (#160): build() reads the supplied walk instead of walking
+// again, so a session written after the walk is outside this build — the same set scan() saw.
+describe('the shared session walk', () => {
+  it('build() aggregates the sessions of the supplied walk, not ones that appeared after it', async () => {
+    mkCodexRollout('rollout-a-019f100.jsonl', proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [{ input: 100, cached: 0, output: 10 }])
+    mkGrokSession(proj, 'g1', [grokTurn(1785369600, { input: 50, output: 5 })])
+    const walked = walkSessions(roots())
+    mkCodexRollout('rollout-b-019f101.jsonl', proj, '2026-07-30T02:00:00Z', 'gpt-5.6-sol', [{ input: 1000, cached: 0, output: 100 }])
+    mkGrokSession(proj, 'g2', [grokTurn(1785373200, { input: 500, output: 50 })])
+    const r = await engine().build(roots(), [proj], undefined, walked)
+    expect(r.global.bySide.codex.total).toBe(110)
+    expect(r.global.bySide.grok.total).toBe(55)
   })
 })

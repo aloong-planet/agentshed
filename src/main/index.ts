@@ -18,7 +18,7 @@ import type { CappedText, ProjectStats, SessionPage, SessionTurn, Snapshot } fro
 import { AGENT_SIDES, assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { deriveStats } from '@shared/usage'
-import { scan } from './providers/scan'
+import { scan, walkSessions } from './providers/scan'
 import { readRanges } from './providers/range-read'
 import { grokQuestionTextFromSlice, questionTextAt } from './providers/question-index'
 import { turnBlocksFromText } from './providers/turn-content'
@@ -170,14 +170,16 @@ async function doScan(): Promise<Snapshot> {
       let nextStats = perProjectStats
       let nextSessionFiles = sessionWhitelist
       let nextSessionTokens = sessionTokens
-      const snap = await scan(realRoots(), { now: () => Date.now() })
+      // One walk of the Codex and Grok session trees, read by both scan() and the token build (#160)
+      const sessions = walkSessions(realRoots())
+      const snap = await scan(realRoots(), { now: () => Date.now(), sessions })
       if (scanFailures > 0) { scanFailures--; throw new Error('Injected scan failure') }
       if (tokenEngine) {
         const claudePaths = snap.projects
           .filter((p) => p.sides.includes('claude'))
           .map((p) => p.path)
         const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
-        const t = await tokenEngine.build(realRoots(), claudePaths, registered)
+        const t = await tokenEngine.build(realRoots(), claudePaths, registered, sessions)
         snap.tokens = t.global
         nextStats = t.perProject
         // The session count shares its source with the sessions section. scan() gives a **file count**

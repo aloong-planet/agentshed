@@ -16,7 +16,7 @@ import { copyFileSync, existsSync, mkdtempSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { scan } from '../src/main/providers/scan'
+import { scan, walkSessions } from '../src/main/providers/scan'
 import { TokenEngine } from '../src/main/providers/token-stats'
 import { UsageArchive } from '../src/main/providers/archive'
 import { eachJsonlLine } from '../src/main/providers/jsonl'
@@ -74,8 +74,13 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
   console.log(`[mode] ${mode}, cache dir ${cacheDir}`)
   const roots = realRoots()
 
+  // The app's order: one walk of the Codex and Grok session trees, shared by scan() and build()
   let t0 = performance.now()
-  const snap = await scan(roots, { now: () => Date.now() })
+  const sessions = walkSessions(roots)
+  console.log(`[walkSessions] codex=${sessions.codex.length}, grok=${sessions.grok.length}: ${since(t0)}`)
+
+  t0 = performance.now()
+  const snap = await scan(roots, { now: () => Date.now(), sessions })
   console.log(`[scan()] registries, activity, global layer, memory: ${since(t0)} (projects=${snap.projects.length})`)
 
   t0 = performance.now()
@@ -87,7 +92,7 @@ async function fullScan(mode: 'cold' | 'warm'): Promise<void> {
   const claudePaths = snap.projects.filter((p) => p.sides.includes('claude')).map((p) => p.path)
   const registered = new Set(snap.projects.map((p) => mergeKey(p.path)))
   t0 = performance.now()
-  const built = await engine.build(roots, claudePaths, registered)
+  const built = await engine.build(roots, claudePaths, registered, sessions)
   console.log(
     `[TokenEngine.build] cache lookups, parses, combine, persist: ${since(t0)} (rows=${built.rows.length}, sessionFiles=${built.sessionFiles.size})`
   )

@@ -34,10 +34,9 @@ import { mergeKey } from '@shared/path-key'
 import { localDay } from '@shared/format'
 import { ERR, appError } from '@shared/errors'
 import { encodeClaudeProjectDir } from './claude'
-import { readCodexSessionMeta, readCodexSessions } from './codex'
+import { readCodexSessionMeta } from './codex'
 import { rolloutStem } from './cold-rollout'
 import { readRanges } from './range-read'
-import { readGrokSessions } from './grok'
 import { eachJsonlLine } from './jsonl'
 import {
   makeGrokQuestionIndexer,
@@ -47,6 +46,7 @@ import {
 } from './question-index'
 import { clipTitle, realUserText } from './session-title'
 import type { ScanRoots } from './types'
+import { walkSessions, type SessionWalk } from './scan'
 import type { UsageRow } from './archive'
 
 /** One Claude usage entry (encoded into the cache as a compact array): [mid, rid, sc, in, out, cr, cw, model, day] */
@@ -332,7 +332,9 @@ export class TokenEngine {
      * convenience) approximates it as "non-empty means registered",
      * and the main process must pass the real set.
      */
-    registeredKeys?: ReadonlySet<string>
+    registeredKeys?: ReadonlySet<string>,
+    /** The scan's one session walk, shared with scan() (#160); walked here when absent */
+    sessions?: SessionWalk
   ): Promise<TokenBuildResult> {
     const isRegistered = (key: string): boolean =>
       registeredKeys ? registeredKeys.has(key) : key !== ''
@@ -373,8 +375,9 @@ export class TokenEngine {
     }
 
     // ── Codex: the whole sessions tree, attributed by the first line's cwd ──
+    const walked = sessions ?? walkSessions(roots)
     const titles = readCodexIndex(roots.codexHome)
-    for (const s of readCodexSessions(roots.codexHome)) {
+    for (const s of walked.codex) {
       const agg = await this.aggFor(s.file, () =>
         parseCodexFile(
           s.file,
@@ -393,7 +396,7 @@ export class TokenEngine {
     // ── Grok: the session store, attributed by the percent-encoded directory name ──
     // A directory without its update stream never reaches here (readGrokSessions skips it), which
     // is F6 discharged at the walk: the siblings' scan is unaffected.
-    for (const s of readGrokSessions(roots.grokHome)) {
+    for (const s of walked.grok) {
       const agg = await this.aggFor(s.file, () => parseGrokFile(s.file, mergeKey(s.cwd), s.subagent))
       if (agg) {
         aggs.push(agg)
