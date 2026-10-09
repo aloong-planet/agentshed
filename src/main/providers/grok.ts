@@ -3,7 +3,7 @@
 // trusted_folders.toml — never the session store's directory names (which decode losslessly and are
 // therefore tempting, but would make "registered" mean something different on this side).
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { parse as parseToml } from 'smol-toml'
 import type { RegistryResult } from './claude'
 import { ERR } from '@shared/errors'
@@ -82,6 +82,20 @@ function isSubagentSession(sessionDir: string): boolean {
     return (parsed as Record<string, unknown>)['session_kind'] === 'subagent'
   } catch {
     return false
+  }
+}
+
+/**
+ * One stream's session meta, read the way the walk reads it: the cwd from the percent-encoded directory
+ * two levels up (sessions/<cwd>/<session-id>/updates.jsonl), the subagent flag from the summary beside
+ * it. Null when the directory name is not valid percent-encoding — the walk skips such a directory too.
+ */
+export function readGrokSessionMeta(stream: string): { cwd: string; subagent: boolean } | null {
+  const sessionDir = dirname(stream)
+  try {
+    return { cwd: decodeURIComponent(basename(dirname(sessionDir))), subagent: isSubagentSession(sessionDir) }
+  } catch {
+    return null
   }
 }
 
