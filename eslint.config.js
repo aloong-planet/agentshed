@@ -21,19 +21,22 @@
 //   for new code. A rule-level off would hide new violations too, until the issue is fixed. An inline
 //   directive that no longer matches a violation is reported as unused and fails the run, so fixing a
 //   site forces its comment out.
-import { defineConfig } from 'eslint/config'
+import { fileURLToPath } from 'node:url'
+import { defineConfig, includeIgnoreFile } from 'eslint/config'
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 
 export default defineConfig(
+  // Whatever git ignores is not linted: build output, test reports, local scratch files. ESLint does not
+  // read .gitignore on its own, and a directory missing from a hand-kept list is linted in a working
+  // checkout while a clean one (CI, a fresh worktree) never has it. `gitignoreResolution` resolves the
+  // patterns against .gitignore's own location, as git does.
+  includeIgnoreFile(fileURLToPath(new URL('.gitignore', import.meta.url)), { gitignoreResolution: true }),
   {
-    // Prototypes are throwaway pages with vendored libraries; the rest is build output, test reports and
-    // the local scratch directory. ESLint does not read .gitignore, so every directory git ignores that
-    // can hold lintable files is listed here — a clean checkout (CI, a fresh worktree) never has them,
-    // and only a working checkout would fail on them.
-    ignores: ['docs/', 'out/', 'dist/', 'release/', 'test-results/', 'playwright-report/', 'e2e-out/', '.scratch/']
+    // Tracked but not linted: prototypes are throwaway pages with vendored libraries
+    ignores: ['docs/']
   },
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
