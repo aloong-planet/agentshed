@@ -3,11 +3,15 @@
 // sidechain fallback),
 // all four fields summed into the total, synthetic staying out of the model buckets, bad lines skipped
 // while streaming, and the incremental cache.
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync } from 'node:fs'
+//
+// Gap (#158): a file growing *while* it is being parsed is not driven here — that the cache signature
+// is taken before the parse, so the growth shows as a change on the next scan, needs a writer racing
+// the reader, which no test here controls. A read hook in eachJsonlLine would let a test append mid-read.
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { CACHE_VERSION, TokenEngine, projectStatsFromRows, rowsFromCacheFile } from './token-stats'
+import { CACHE_VERSION, RESUME_LIMIT, TokenEngine, projectStatsFromRows, rowsFromCacheFile } from './token-stats'
 import { emptyTokenStats } from '@shared/domain'
 import { zstdCompressSync } from 'node:zlib'
 import { encodeClaudeProjectDir } from './claude'
@@ -2094,5 +2098,160 @@ describe('the shared session walk', () => {
     const r = await engine().build(roots(), [proj], undefined, walked)
     expect(r.global.bySide.codex.total).toBe(110)
     expect(r.global.bySide.grok.total).toBe(55)
+  })
+})
+
+// Resuming a grown Codex rollout (#158). Codex's writer only appends to a rollout or replaces it whole by
+// renaming a staged copy over the path, so a file whose inode is unchanged and whose size grew is parsed
+// from where the last parse stopped. The contract: a resumed result is exactly what a cold parse of the
+// whole file gives, and a file that was replaced, shrank, or has been resumed RESUME_LIMIT times is
+// parsed whole.
+describe('resuming a grown Codex rollout', () => {
+  const ROLLOUT = 'rollout-grow-019f300.jsonl'
+  /** A rollout carrying every piece of state a resume has to hand on: a re-reported event (the
+   * cumulative rule, B7), the first usage record (the boundary, B9), a record id seen twice (B1), a
+   * model switch, and a second question — wherever the file is cut, some of it straddles the cut. */
+  function rolloutText(): Buffer {
+    const f = mkCodexRollout(ROLLOUT, proj, '2026-07-30T01:00:00Z', 'gpt-5.6-sol', [
+      { input: 100, cached: 20, output: 10, at: '2026-07-30T01:01:00Z' },
+      { input: 100, cached: 20, output: 10, at: '2026-07-30T01:02:00Z', repeat: true },
+      { input: 300, cached: 50, output: 30, at: '2026-07-30T01:03:00Z', record: 'resp-1' },
+      { input: 300, cached: 50, output: 30, at: '2026-07-30T01:04:00Z', record: 'resp-1' },
+      { input: 500, cached: 0, output: 50, at: '2026-07-30T01:05:00Z', record: 'resp-2' }
+    ])
+    const extra = [
+      { timestamp: '2026-07-31T02:00:00Z', type: 'turn_context', payload: { model: 'gpt-5.7', cwd: proj } },
+      { timestamp: '2026-07-31T02:00:01Z', type: 'event_msg', payload: { type: 'user_message', message: 'second question' } },
+      record('resp-3', '2026-07-31T02:01:00Z', 700, 70),
+      record('resp-2', '2026-07-31T02:02:00Z', 500, 50)
+    ]
+    const text = Buffer.concat([readFileSync(f), Buffer.from(extra.map((l) => JSON.stringify(l)).join('\n') + '\n')])
+    rmSync(f)
+    return text
+  }
+  function record(id: string, at: string, input: number, output: number): Record<string, unknown> {
+    const u = { input_tokens: input, cached_input_tokens: 0, output_tokens: output, total_tokens: input + output }
+    return { timestamp: at, type: 'token_usage_record', payload: { response_id: id, usage: u, turn_token_usage: u, thread_token_usage: u } }
+  }
+  function rolloutPath(): string {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    return join(d, ROLLOUT)
+  }
+  /** Everything a build hands on, in a comparable form */
+  function shape(r: Awaited<ReturnType<TokenEngine['build']>>): unknown {
+    return {
+      global: r.global,
+      rows: r.rows,
+      perProject: Object.fromEntries([...r.perProject].sort(([a], [b]) => a.localeCompare(b))),
+      sessionFiles: [...r.sessionFiles].sort()
+    }
+  }
+  async function cold(): Promise<unknown> {
+    return shape(await new TokenEngine(join(dir, `cache-cold-${Math.random()}`)).build(roots(), [proj]))
+  }
+  /** Overwrite bytes in place: same inode, same size — invisible to the resume check by design */
+  function overwrite(file: string, at: number, bytes: string): void {
+    const fd = openSync(file, 'r+')
+    try {
+      writeSync(fd, bytes, at)
+    } finally {
+      closeSync(fd)
+    }
+  }
+
+  it('wherever the file is cut, scanning the first part and then the grown file gives the cold result', async () => {
+    const text = rolloutText()
+    const cuts = new Set<number>()
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === 0x0a) {
+        cuts.add(i + 1)
+        cuts.add(i - 7) // mid-line: a line still being written when the first scan ran
+      }
+    }
+    cuts.delete(text.length)
+    const f = rolloutPath()
+    for (const cut of cuts) {
+      const cacheDir = join(dir, `cache-resume-${cut}`)
+      writeFileSync(f, text.subarray(0, cut))
+      await new TokenEngine(cacheDir).build(roots(), [proj])
+      appendFileSync(f, text.subarray(cut))
+      const resumed = shape(await new TokenEngine(cacheDir).build(roots(), [proj]))
+      expect(resumed, `cut at byte ${cut}`).toEqual(await cold())
+    }
+  })
+
+  it('reads only the appended part: a change before the old end stays unseen until a full parse', async () => {
+    const text = rolloutText()
+    const f = rolloutPath()
+    const cut = text.indexOf('second question')
+    writeFileSync(f, text.subarray(0, cut))
+    const cacheDir = join(dir, 'cache-resume')
+    const first = await new TokenEngine(cacheDir).build(roots(), [proj])
+    // 100 → 900 in the first usage event, already parsed
+    overwrite(f, text.indexOf('"input_tokens":100'), '"input_tokens":900')
+    appendFileSync(f, text.subarray(cut))
+    const resumed = await new TokenEngine(cacheDir).build(roots(), [proj])
+    const coldTotal = (await new TokenEngine(join(dir, 'cache-cold')).build(roots(), [proj])).global.bySide.codex.total
+    // The appended part adds resp-3 (770); resp-2 repeats and counts once
+    expect(resumed.global.bySide.codex.total).toBe(first.global.bySide.codex.total + 770)
+    expect(coldTotal).toBe(resumed.global.bySide.codex.total + 800)
+  })
+
+  it('a rollout replaced by a rename (a new inode) is parsed whole', async () => {
+    const text = rolloutText()
+    const f = rolloutPath()
+    const cut = text.indexOf('second question')
+    writeFileSync(f, text.subarray(0, cut))
+    const cacheDir = join(dir, 'cache-resume')
+    await new TokenEngine(cacheDir).build(roots(), [proj])
+    const staged = `${f}.staged`
+    writeFileSync(staged, Buffer.from(text.toString('utf8').replace('"input_tokens":100', '"input_tokens":900')))
+    renameSync(staged, f)
+    expect(shape(await new TokenEngine(cacheDir).build(roots(), [proj]))).toEqual(await cold())
+  })
+
+  it('a rollout that shrank in place is parsed whole', async () => {
+    const text = rolloutText()
+    const f = rolloutPath()
+    writeFileSync(f, text)
+    const cacheDir = join(dir, 'cache-resume')
+    await new TokenEngine(cacheDir).build(roots(), [proj])
+    writeFileSync(f, text.subarray(0, text.indexOf('second question')))
+    expect(shape(await new TokenEngine(cacheDir).build(roots(), [proj]))).toEqual(await cold())
+  })
+
+  it(`after ${RESUME_LIMIT} resumes the next growth is parsed whole, bounding an edit no cheap check sees`, async () => {
+    const text = rolloutText()
+    const f = rolloutPath()
+    writeFileSync(f, text)
+    const cacheDir = join(dir, 'cache-resume')
+    await new TokenEngine(cacheDir).build(roots(), [proj])
+    overwrite(f, text.indexOf('"input_tokens":100'), '"input_tokens":900')
+    const coldNow = async (): Promise<number> =>
+      (await new TokenEngine(join(dir, `cache-cold-${Math.random()}`)).build(roots(), [proj])).global.bySide.codex.total
+    for (let i = 0; i < RESUME_LIMIT; i++) {
+      appendFileSync(f, JSON.stringify(record(`grow-${i}`, '2026-07-31T03:00:00Z', 1, 0)) + '\n')
+      const total = (await new TokenEngine(cacheDir).build(roots(), [proj])).global.bySide.codex.total
+      expect(total, `resume ${i + 1}`).toBe((await coldNow()) - 800)
+    }
+    appendFileSync(f, JSON.stringify(record('grow-last', '2026-07-31T03:00:00Z', 1, 0)) + '\n')
+    const total = (await new TokenEngine(cacheDir).build(roots(), [proj])).global.bySide.codex.total
+    expect(total).toBe(await coldNow())
+  })
+
+  it('the session page rebuilds a grown rollout to the same index a cold scan gives', async () => {
+    const text = rolloutText()
+    const f = rolloutPath()
+    const cut = text.indexOf('second question')
+    writeFileSync(f, text.subarray(0, cut))
+    const e = new TokenEngine(join(dir, 'cache-resume'))
+    await e.build(roots(), [proj])
+    appendFileSync(f, text.subarray(cut))
+    const page = await e.sessionQuestions(roots(), f)
+    const fresh = new TokenEngine(join(dir, 'cache-cold'))
+    await fresh.build(roots(), [proj])
+    expect(page).toEqual(await fresh.sessionQuestions(roots(), f))
+    expect(page.questions).toHaveLength(2)
   })
 })

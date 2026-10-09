@@ -35,7 +35,7 @@ import { localDay } from '@shared/format'
 import { ERR, appError } from '@shared/errors'
 import { encodeClaudeProjectDir } from './claude'
 import { readCodexSessionMeta } from './codex'
-import { rolloutStem } from './cold-rollout'
+import { isColdRollout, rolloutStem } from './cold-rollout'
 import { readRanges } from './range-read'
 import { eachJsonlLine } from './jsonl'
 import {
@@ -195,11 +195,19 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  *      id; usage events count only before that boundary (ADR-0027, spec B9). **A computation
  *      change**: an entry cached under v14 keeps the event-derived figures for a paginated rollout,
  *      up to 2.9% of a session below the records on this machine's data.
+ * v17: a Codex entry gained its resume state (#158): the inode, the size and the parse cursor, and
+ *      everything the parser carries from line to line, so a rollout that only grew is parsed from where
+ *      the last parse stopped. **A shape change** of the cache entry; an entry from v16 has no state to
+ *      resume from, and the version check is what keeps it from being read as if it had.
  * v13: cacheWrite stopped being parsed on the Codex and Grok sides and is written as 0 (ADR-0023).
  *      **A computation change, not a shape change** — which is exactly the case this comment's rule
  *      above exists for: without the bump, an entry cached under v12 keeps its parsed value while
  *      the total no longer includes it, so the four fields stop summing to the total. Zero on this
  *      machine's data, hence invisible to every fixture with a fresh cache.
+ *
+ * **A bump also moves the accounting stamp** (`<app version>+c<this>`), and the e2e archive cases seed
+ * archive rows under that stamp as a literal on purpose, so a bump turns them red until they are
+ * updated with it: search for `+c<old version>` when bumping.
  *
  * **Exported for tests and for the accounting stamp** — a guard test builds an "immediately previous
  * version" cache with `CACHE_VERSION - 1` rather than hard-coding a literal that goes stale as the
@@ -207,7 +215,7 @@ type FileAgg = ClaudeFileAgg | CodexFileAgg | GrokFileAgg
  * rules. Production code must not **branch** on it: the only version comparison is in loadCache, and a
  * second one would be a second rule that can drift.
  */
-export const CACHE_VERSION = 16
+export const CACHE_VERSION = 17
 
 /**
  * The archive rows a cache snapshot implies, through the same aggregation the scan uses (spec C16: a
@@ -250,9 +258,48 @@ export function projectStatsFromRows(
   return out
 }
 
+/**
+ * Where a Codex rollout's parse stopped, and everything the parser carries from one line to the next
+ * (#158). Codex's writer only appends to a rollout or replaces it whole by renaming a staged copy over
+ * the path (read in codex-rs: `recorder.rs` opens with append, `rollout_migration.rs` and
+ * `compression.rs` rename), so a rollout whose inode is unchanged and whose size grew has only gained
+ * lines after `cursor`, and the parse resumes there. A rename shows as a new inode and a rewrite in place
+ * as a size that did not grow; both are parsed whole.
+ */
+interface CodexResume {
+  ino: number
+  /** The size when the parse began */
+  size: number
+  /** The end of the last line parsed — a half-written line after it is read again, whole, next time */
+  cursor: number
+  prevTotal: Record<string, unknown> | null
+  prevTotalKey: string | null
+  /** -1 until the first usage record (the raw value; the agg's `boundary` cannot tell "none yet") */
+  boundary: number
+  seenResponses: string[]
+  model: string
+  /** The clipped first question, the title's fallback: a resumed index carries no question text */
+  firstTitle: string | null
+  /** Resumes since the last whole parse */
+  resumes: number
+}
+
+/**
+ * How many resumes in a row before a growing rollout is parsed whole again. A third party editing a
+ * rollout in place without changing its size or inode is invisible to every cheap check; this bounds
+ * how long such an edit can stay unread instead of guessing at it. Codex's own writer never does it.
+ */
+export const RESUME_LIMIT = 50
+
+interface CacheEntry {
+  sig: string
+  agg: FileAgg
+  resume?: CodexResume
+}
+
 interface CacheShape {
   version: typeof CACHE_VERSION
-  files: Record<string, { sig: string; agg: FileAgg }>
+  files: Record<string, CacheEntry>
 }
 
 export interface TokenBuildResult {
@@ -360,10 +407,11 @@ export class TokenEngine {
       for (const encName of dirs) {
         const projectKey = encToProject.get(encName) ?? ''
         for (const { file, nested } of listJsonl(join(projectsRoot, encName))) {
-          const agg = await this.aggFor(file, () => parseClaudeFile(file, projectKey, !nested))
-          if (agg) {
+          const hit = await this.aggFor(file, () => parseClaudeFile(file, projectKey, !nested))
+          if (hit) {
+            const { agg } = hit
             aggs.push(agg)
-            seen[file] = { sig: sigOf(file) ?? '', agg }
+            seen[file] = hit
             // The allow-list is no wider than what the UI can reach: an unregistered project's sessions
             // are never displayed (spec A2),
             // so the read side does not admit them either — the same goes for nested transcripts, whose
@@ -378,17 +426,11 @@ export class TokenEngine {
     const walked = sessions ?? walkSessions(roots)
     const titles = readCodexIndex(roots.codexHome)
     for (const s of walked.codex) {
-      const agg = await this.aggFor(s.file, () =>
-        parseCodexFile(
-          s.file,
-          mergeKey(s.cwd),
-          { subagent: s.subagent, sessionId: s.sessionId, parentId: s.parentId, forkedAt: s.forkedAt, paginated: s.paginated },
-          titles
-        )
-      )
-      if (agg) {
+      const entry = await this.codexEntry(s.file, s.cwd, s, titles)
+      if (entry) {
+        const agg = entry.agg as CodexFileAgg
         aggs.push(agg)
-        seen[s.file] = { sig: sigOf(s.file) ?? '', agg }
+        seen[s.file] = entry
         if (isRegistered(agg.projectKey) && (s.subagent || agg.listed)) sessionFiles.add(s.file)
       }
     }
@@ -397,10 +439,11 @@ export class TokenEngine {
     // A directory without its update stream never reaches here (readGrokSessions skips it), which
     // is F6 discharged at the walk: the siblings' scan is unaffected.
     for (const s of walked.grok) {
-      const agg = await this.aggFor(s.file, () => parseGrokFile(s.file, mergeKey(s.cwd), s.subagent))
-      if (agg) {
+      const hit = await this.aggFor(s.file, () => parseGrokFile(s.file, mergeKey(s.cwd), s.subagent))
+      if (hit) {
+        const { agg } = hit
         aggs.push(agg)
-        seen[s.file] = { sig: sigOf(s.file) ?? '', agg }
+        seen[s.file] = hit
         // Listed sessions only: a subagent's stream is never expanded in a parent turn on this side
         // (the dispatch's result comes from the parent's own finished record), so unlike Claude's
         // nested transcripts it stays outside the read allow-list
@@ -416,7 +459,13 @@ export class TokenEngine {
     return result
   }
 
-  private async aggFor<T extends FileAgg>(file: string, parse: () => Promise<T | null>): Promise<T | null> {
+  /**
+   * The entry for a file: the cached one when its signature still matches, a fresh parse otherwise.
+   * The signature is the one taken **before** parsing, so a file that grows while it is read shows as
+   * changed on the next scan rather than matching a signature that already counts bytes the parse
+   * never saw.
+   */
+  private async aggFor<T extends FileAgg>(file: string, parse: () => Promise<T | null>): Promise<{ sig: string; agg: T } | null> {
     const sig = sigOf(file)
     if (sig === null) return null
     const cached = this.cache.files[file]
@@ -424,8 +473,40 @@ export class TokenEngine {
     // version is always recomputed, so a missing field never flows into the aggregation layer.
     // The cast is sound because the cache is keyed by file path and a path's side never changes —
     // the cached agg was produced by the same per-side parser the caller is passing now.
-    if (cached && cached.sig === sig && isWellFormedAgg(cached.agg)) return cached.agg as T
-    return parse()
+    if (cached && cached.sig === sig && isWellFormedAgg(cached.agg)) return { sig, agg: cached.agg as T }
+    const agg = await parse()
+    return agg ? { sig, agg } : null
+  }
+
+  /**
+   * A Codex rollout's entry: cached when its signature still matches; resumed from the cached parse
+   * state when the rollout only grew (CodexResume); parsed whole otherwise. The signature is taken
+   * before parsing, as in aggFor.
+   */
+  private async codexEntry(file: string, cwd: string, meta: CodexParseMeta, titles: Map<string, string>): Promise<CacheEntry | null> {
+    const st = statOf(file)
+    if (st === null) return null
+    const cached = this.cache.files[file]
+    if (cached && cached.sig === st.sig && isWellFormedAgg(cached.agg)) return cached
+    const state = cached?.resume
+    const from =
+      cached !== undefined &&
+      cached.agg.kind === 'codex' &&
+      isWellFormedAgg(cached.agg) &&
+      isCodexResume(state) &&
+      !isColdRollout(file) &&
+      state.ino === st.ino &&
+      st.size > state.size &&
+      state.resumes < RESUME_LIMIT
+        ? { agg: cached.agg, state }
+        : undefined
+    const parsed = await parseCodexFile(file, mergeKey(cwd), meta, titles, from)
+    if (!parsed) return null
+    return {
+      sig: st.sig,
+      agg: parsed.agg,
+      resume: { ...parsed.state, ino: st.ino, size: st.size, resumes: from ? from.state.resumes + 1 : 0 }
+    }
   }
 
   /**
@@ -494,16 +575,14 @@ export class TokenEngine {
       } else {
         const meta = readCodexSessionMeta(file)
         if (!meta) throw appError(ERR.sessionMetaUnreadable)
-        fresh = await parseCodexFile(
-          file,
-          mergeKey(meta.cwd),
-          { subagent: meta.subagent, sessionId: meta.sessionId, parentId: meta.parentId, forkedAt: meta.forkedAt, paginated: meta.paginated },
-          readCodexIndex(roots.codexHome)
-        )
+        const entry = await this.codexEntry(file, meta.cwd, meta, readCodexIndex(roots.codexHome))
+        if (!entry) throw appError(ERR.sessionParseFailed)
+        this.cache.files[file] = entry
+        fresh = entry.agg
       }
       if (!fresh) throw appError(ERR.sessionParseFailed)
       agg = fresh
-      this.cache.files[file] = { sig, agg }
+      if (fresh.kind === 'claude') this.cache.files[file] = { sig, agg }
       this.persist()
     }
     if (agg.kind === 'claude') {
@@ -1005,12 +1084,35 @@ function isWellFormedAgg(agg: unknown): agg is FileAgg {
 }
 
 function sigOf(file: string): string | null {
+  return statOf(file)?.sig ?? null
+}
+
+/** The cache signature (mtime and size) with the inode and size a resume is judged by */
+function statOf(file: string): { sig: string; ino: number; size: number } | null {
   try {
     const st = statSync(file)
-    return `${st.mtimeMs}:${st.size}`
+    return { sig: `${st.mtimeMs}:${st.size}`, ino: st.ino, size: st.size }
   } catch {
     return null
   }
+}
+
+function isCodexResume(v: unknown): v is CodexResume {
+  if (typeof v !== 'object' || v === null) return false
+  const r = v as Record<string, unknown>
+  return (
+    typeof r['ino'] === 'number' &&
+    typeof r['size'] === 'number' &&
+    typeof r['cursor'] === 'number' &&
+    (r['prevTotal'] === null || (typeof r['prevTotal'] === 'object' && !Array.isArray(r['prevTotal']))) &&
+    (r['prevTotalKey'] === null || typeof r['prevTotalKey'] === 'string') &&
+    typeof r['boundary'] === 'number' &&
+    Array.isArray(r['seenResponses']) &&
+    r['seenResponses'].every((x) => typeof x === 'string') &&
+    typeof r['model'] === 'string' &&
+    (r['firstTitle'] === null || typeof r['firstTitle'] === 'string') &&
+    typeof r['resumes'] === 'number'
+  )
 }
 
 const SYNTHETIC = '<synthetic>'
@@ -1116,33 +1218,50 @@ function diffUsage(
   }
 }
 
+interface CodexParseMeta {
+  subagent: boolean
+  sessionId: string | null
+  parentId: string | null
+  forkedAt: number | null
+  paginated: boolean
+}
+
+/** The parser's carried state at the end of a parse; codexEntry adds the inode, size and count */
+type CodexParseState = Omit<CodexResume, 'ino' | 'size' | 'resumes'>
+
+/**
+ * `from`: a cached parse of this rollout to resume (#158) — its agg and the state it stopped in. The
+ * parse then reads from the cursor on and continues every piece of state from there, so its result is
+ * the one a whole parse of the grown file gives.
+ */
 async function parseCodexFile(
   file: string,
   projectKey: string,
-  meta: { subagent: boolean; sessionId: string | null; parentId: string | null; forkedAt: number | null; paginated: boolean },
-  titles: Map<string, string>
-): Promise<CodexFileAgg | null> {
-  const events: CodexEvent[] = []
+  meta: CodexParseMeta,
+  titles: Map<string, string>,
+  from?: { agg: CodexFileAgg; state: CodexResume }
+): Promise<{ agg: CodexFileAgg; state: CodexParseState } | null> {
+  const events: CodexEvent[] = from ? from.agg.events.slice() : []
   // The running cumulative of the previous usage record, carried across lines so that a re-reported
   // turn can be recognised by its cumulative standing still (spec B7). Per file: the cumulative
   // restarts with each session.
-  let prevTotal: Record<string, unknown> | undefined
-  let prevTotalKey: string | null = null
+  let prevTotal: Record<string, unknown> | undefined = from?.state.prevTotal ?? undefined
+  let prevTotalKey: string | null = from ? from.state.prevTotalKey : null
   /** The usage boundary (spec B9): the index in `events` from which entries come from usage records;
    * -1 until the first record line. From that line on usage events are ignored (ADR-0027). */
-  let boundary = -1
+  let boundary = from ? from.state.boundary : -1
   /** Response ids already counted — two records with one id are one response (spec B1) */
-  const seenResponses = new Set<string>()
-  let model = 'unknown'
+  const seenResponses = new Set<string>(from?.state.seenResponses)
+  let model = from ? from.state.model : 'unknown'
   // at = the largest timestamp in the file (the same meaning as on the Claude side = last activity). It
   // previously took the first timestamp,
   // which is especially wrong for a fork session — the first line's timestamp is the replay moment,
   // neither the start nor the end.
-  let lastTs: number | null = null
+  let lastTs: number | null = from ? from.agg.at : null
   // The question index and the title share a source (the same stripping rules as the Claude side), and
   // decide whether this session is listed
-  const idx = makeQuestionIndexer('codex')
-  let fileEnd = 0
+  const idx = makeQuestionIndexer('codex', from?.agg.questions)
+  let fileEnd = from ? from.state.cursor : 0
   try {
     await eachJsonlLine(file, (obj, start, end) => {
       idx.line(obj, start, end)
@@ -1215,7 +1334,7 @@ async function parseCodexFile(
         // quantity, only that this side reports none.
         0
       ])
-    })
+    }, undefined, fileEnd)
   } catch {
     return null
   }
@@ -1225,9 +1344,11 @@ async function parseCodexFile(
   const stem = rolloutStem(file)
   const questions = idx.done(fileEnd)
   const first = idx.firstQuestionText()
-  const realTitle = first === null ? null : clipTitle(first)
+  // A resumed index carries no text for the questions it was seeded with, so their title comes from the
+  // earlier parse
+  const realTitle = first !== null ? clipTitle(first) : from && from.agg.questions.length > 0 ? from.state.firstTitle : null
   const threadName = id ? titles.get(id) : undefined
-  return {
+  const agg: CodexFileAgg = {
     kind: 'codex',
     file,
     projectKey,
@@ -1252,6 +1373,18 @@ async function parseCodexFile(
     questions,
     events,
     boundary: boundary === -1 ? events.length : boundary
+  }
+  return {
+    agg,
+    state: {
+      cursor: fileEnd,
+      prevTotal: prevTotal ?? null,
+      prevTotalKey,
+      boundary,
+      seenResponses: [...seenResponses],
+      model,
+      firstTitle: realTitle
+    }
   }
 }
 

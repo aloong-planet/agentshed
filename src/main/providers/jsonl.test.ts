@@ -7,6 +7,7 @@ import { describe, expect, test } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { zstdCompressSync } from 'node:zlib'
 import { JSONL_CHUNK_BYTES, eachJsonlLine } from './jsonl'
 
 function withFile<T>(bytes: Buffer | string, fn: (file: string) => Promise<T>): Promise<T> {
@@ -135,6 +136,31 @@ describe('eachJsonlLine — byte offsets', () => {
       assertRoundTrip(file, hits)
       expect(hits[hits.length - 1].end).toBe(Buffer.byteLength(text))
     })
+  })
+
+  test('reading from a byte offset: only the lines from there, with offsets still counted from the file start', async () => {
+    const lines = [0, 1, 2, 3].map((i) => JSON.stringify({ i, pad: 'é'.repeat(i) }))
+    const text = lines.join('\n') + '\n'
+    const from = Buffer.byteLength(lines.slice(0, 2).join('\n') + '\n')
+    await withFile(text, async (file) => {
+      const hits: Hit[] = []
+      await eachJsonlLine(file, (obj, start, end) => hits.push({ obj, start, end }), 7, from)
+      expect(hits.map((h) => h.obj['i'])).toEqual([2, 3])
+      expect(hits[0].start).toBe(from)
+      expect(hits[1].end).toBe(Buffer.byteLength(text))
+      assertRoundTrip(file, hits)
+    })
+  })
+
+  test('a cold rollout is never read from an offset: its offsets are positions in the decompressed stream', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'jsonl-'))
+    const file = join(dir, 'rollout-x.jsonl.zst')
+    writeFileSync(file, zstdCompressSync(Buffer.from(JSON.stringify({ i: 0 }) + '\n')))
+    try {
+      await expect(eachJsonlLine(file, () => {}, undefined, 5)).rejects.toThrow(/start only/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   test('a last line with no newline: still emitted, with its end at the file length', async () => {

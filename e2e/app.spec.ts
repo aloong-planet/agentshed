@@ -1604,7 +1604,7 @@ test('the archive retains a past day whose live figure fell under the same stamp
   // is a literal here on purpose: a bump turns this case red (the seeded pair reads as another stamp and
   // the decrease is accepted) instead of silently passing — update it together with CACHE_VERSION.
   const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as { version: string }
-  const stamp = `${pkg.version}+c16`
+  const stamp = `${pkg.version}+c17`
   const retainedRow = {
     day,
     side: 'claude',
