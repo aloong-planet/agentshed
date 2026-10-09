@@ -29,8 +29,11 @@ import globals from 'globals'
 
 export default defineConfig(
   {
-    // Prototypes are throwaway pages with vendored libraries; the rest is build output and test reports
-    ignores: ['docs/', 'out/', 'dist/', 'release/', 'test-results/', 'playwright-report/', 'e2e-out/']
+    // Prototypes are throwaway pages with vendored libraries; the rest is build output, test reports and
+    // the local scratch directory. ESLint does not read .gitignore, so every directory git ignores that
+    // can hold lintable files is listed here — a clean checkout (CI, a fresh worktree) never has them,
+    // and only a working checkout would fail on them.
+    ignores: ['docs/', 'out/', 'dist/', 'release/', 'test-results/', 'playwright-report/', 'e2e-out/', '.scratch/']
   },
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
