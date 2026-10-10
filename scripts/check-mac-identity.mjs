@@ -12,8 +12,8 @@ export function developerIdIdentities(output) {
 }
 
 function main() {
-  // -p codesigning lists only identities that can sign right now; one with a broken trust chain cannot, so it
-  // must not count here (the guidance below shows how to see those as well)
+  // -v lists only valid identities, as electron-builder's own lookup does (it also queries with -v), so an
+  // identity whose trust chain is broken does not count here; the guidance below shows how to list those too
   const r = spawnSync('security', ['find-identity', '-v', '-p', 'codesigning'], { encoding: 'utf8' })
   if (r.error || r.status !== 0) {
     console.error(`check-mac-identity: could not query the keychain (${r.error?.message ?? (r.stderr.trim() || `exit ${r.status}`)})`)
@@ -29,7 +29,7 @@ function main() {
     )
     return 1
   }
-  console.log(`check-mac-identity: signing with ${found[0]}`)
+  console.log(`check-mac-identity: found ${found.join(', ')}`)
   return 0
 }
 
