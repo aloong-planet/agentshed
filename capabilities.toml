@@ -27,3 +27,6 @@ enforced-by = ["pnpm e2e"]
 enabled = true
 source = "src/renderer/src/theme.css"
 enforced-by = ["pnpm check:ui"]
+
+[macos-distribution]
+enabled = false
