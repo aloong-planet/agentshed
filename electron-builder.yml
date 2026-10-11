@@ -37,11 +37,15 @@ electronFuses:
   # measured and work.
   grantFileProtocolExtraPrivileges: false
 
-# v1 ships macOS first: an unsigned local DMG (arm64); signing, notarisation and multi-architecture go on
-# the backlog
+# v1 ships macOS first as a local DMG (arm64). A local package is signed with the Developer ID Application
+# identity from the keychain and never notarised; `pnpm dist:mac:local` checks for that identity first, because
+# electron-builder skips signing without failing when it finds none, and Apple Silicon kills an unsigned build
+# at launch. Notarisation, a release line and more architectures are on the backlog.
 mac:
   icon: build/icon.icns
   target:
     - target: dmg
       arch: [arm64]
-  identity: null
+  # electron-builder notarises on its own whenever Apple credentials are in the environment; only an explicit
+  # false turns that off.
+  notarize: false
