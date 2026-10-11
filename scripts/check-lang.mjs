@@ -199,6 +199,7 @@ const RULES = [
       f === 'src/shared/error-text.test.ts' ||
       f === 'src/shared/format.test.ts' ||
       f === 'src/shared/i18n/index.test.ts' ||
+      f === 'src/shared/i18n/zh-script.test.ts' ||
       f === 'src/shared/i18n/types.ts' ||
       f === 'src/renderer/src/subagent-error-label.test.ts' ||
       f === 'src/renderer/src/SubagentsView.tsx' ||
