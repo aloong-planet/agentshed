@@ -1,7 +1,6 @@
 <!doctype html>
-<!-- The prototype gallery shell (copied from the prototype skill's template; do not edit by hand — change
-     the skill template and copy it again).
-     依赖同目录 manifest.js:window.PROTOTYPES = [{module,type,id,name,path,question,run?}] -->
+<!-- Prototype gallery shell (copied from the prototype skill's template; do not edit by hand — change the skill template and copy it again).
+     Depends on manifest.js in the same directory: window.PROTOTYPES = [{module,type,id,name,path,question,run?}] -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -19,8 +18,7 @@
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
 
-  /* The sidebar is a Figma-style dark tool panel: a fixed palette that does not follow the system theme,
-     strongly distinguishing it from the prototype content being judged (which uses the app style) */
+  /* Sidebar = a Figma-style dark tool panel: fixed colours that ignore the system theme, clearly set apart from the prototype content (app style) being judged */
   .side{width:240px;flex:none;background:#2c2c2e;color:#e8e8e8;border-right:1px solid #1d1d1f;
     display:flex;flex-direction:column;transition:margin .18s}
   body.fold .side{margin-left:-240px}
@@ -48,11 +46,11 @@
 </head>
 <body>
   <div class="side">
-    <div class="s-h"><b>Prototypes</b><button class="fold-btn" onclick="fold(true)" title="收起(S)">⟨⟨</button></div>
+    <div class="s-h"><b>Prototypes</b><button class="fold-btn" onclick="fold(true)" title="Collapse (S)">⟨⟨</button></div>
     <div class="list" id="list"></div>
   </div>
-  <button class="unfold" onclick="fold(false)" title="展开(S)">☰ Prototypes</button>
-  <div class="stage" id="stage"><div class="empty">从左侧选择一个原型</div></div>
+  <button class="unfold" onclick="fold(false)" title="Expand (S)">☰ Prototypes</button>
+  <div class="stage" id="stage"><div class="empty">Select a prototype on the left</div></div>
 
 <script src="manifest.js"></script>
 <script>
@@ -60,7 +58,7 @@
   const list = document.getElementById('list');
   const stage = document.getElementById('stage');
 
-  // The sidebar: grouped by module
+  // Sidebar: grouped by module
   const groups = {};
   P.forEach(p => (groups[p.module] ??= []).push(p));
   for (const [mod, items] of Object.entries(groups)) {
@@ -80,9 +78,8 @@
   function show(k){
     const p = find(k);
     document.querySelectorAll('.item').forEach(e => e.classList.toggle('on', e.dataset.key === k));
-    if (!p) { stage.innerHTML = '<div class="empty">从左侧选择一个原型</div>'; return; }
-    // Every entry is an iframe alike: UI entries are self-contained HTML and Logic entries are
-    // self-rendering pages too (the questions, diagrams and commands are all inside the page)
+    if (!p) { stage.innerHTML = '<div class="empty">Select a prototype on the left</div>'; return; }
+    // Every entry is an iframe: UI is self-contained HTML, and Logic is also a self-rendering page (question / diagram / commands all inside)
     stage.innerHTML = `<iframe src="${p.path}"></iframe>`;
   }
 
@@ -103,8 +100,7 @@
     location.hash = keys[n]; e.preventDefault();
   });
 
-  // Receive navigation requests from a prototype inside an iframe (under file:// the child page and the
-  // shell are cross-origin, so it cannot change the parent hash directly and uses postMessage)
+  // Receive navigation requests from the prototype inside the iframe (under file:// the child page and the shell are cross-origin, so it cannot change the parent hash directly; it goes through postMessage)
   addEventListener('message', (e) => {
     const t = e.data && e.data.type === 'proto-nav' && e.data.target;
     if (t && find(t)) location.hash = t;
