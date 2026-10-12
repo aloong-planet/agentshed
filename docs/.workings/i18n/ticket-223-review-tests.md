@@ -1,7 +1,7 @@
 # Review — tests (step 6), ticket aloong-planet/agentshed#223
 
 - Date: 2026-10-12
-- Version: branch `fix/gallery-shell-language` on `1d28be8`, working tree including the step-5 review fix
+- Version: branch `fix/gallery-shell-language`, commit c149802 (includes the step-5 review fix)
 - Scope: the verification of the narrowed `mockupOnly` predicate in `scripts/check-lang.mjs`, and of the
   gallery shell copy. No test file is added or changed: `check-lang.mjs` scans the repository and exits
   when imported, so it has no unit seam, and building one would widen this ticket. The checks are the
@@ -55,4 +55,9 @@
   iframe with that `src` finishes loading, its document has text, and the sidebar item is selected. The
   strings are read from the DOM, not from the source. The check itself was not mutation-tested; it is
   one-off evidence, not a gate.
-- `pnpm verify`: see the document sync checklist for the final run on the committed state.
+- A full `pnpm verify` exited 0 during this review: typecheck, lint, 750 unit tests (1 skipped), 6 script
+  tests, `check:ui`, `check:lang`, `check:i18n`, `check:nul` (8 tests and the scan), 93 e2e tests and smoke.
+  It started before the step-5 fix, which reworded the comment and moved the constant above the doc block,
+  so `lint`, `check:lang` and `check:nul` were run again on the staged commit (all exit 0, still 2373
+  permitted lines); those three also read the newly tracked records and evidence. The full gateway runs
+  again on the pull request's final commit, and its result is in the pull request description.

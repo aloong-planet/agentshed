@@ -9,7 +9,7 @@ specs, ADR, prototypes, agents), `docs/.workings/` (hidden and ignored, read dir
 
 | Sync item and trigger | Documents | Status and notes |
 |---|---|---|
-| Declare this ticket's artifact paths; before the PR opens | [#223](https://github.com/aloong-planet/agentshed/issues/223) | Pending — comment not posted yet |
+| Declare this ticket's artifact paths; before the PR opens | [#223](https://github.com/aloong-planet/agentshed/issues/223) | Done — [comment](https://github.com/aloong-planet/agentshed/issues/223#issuecomment-6119569122) |
 
 Pre-delivery scope re-check (2026-10-12):
 

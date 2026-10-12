@@ -1,7 +1,7 @@
 # Review — code (step 5), ticket aloong-planet/agentshed#223
 
 - Date: 2026-10-12
-- Version: branch `fix/gallery-shell-language` on `1d28be8`, working tree including the review fix below
+- Version: branch `fix/gallery-shell-language`, commit c149802 (includes the review fix below)
 - Scope: `scripts/check-lang.mjs` (`mockupOnly` and the new `GALLERY_SHELL`), `docs/prototypes/index.html`
   (replaced by a byte copy of the prototype skill's `gallery-template.html`, identical to skillshed
   `origin/master`, last changed in `ad496fd`)
