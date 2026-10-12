@@ -39,3 +39,5 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0028](0028-tanstack-query-as-the-renderer-query-layer.md) | TanStack Query is the renderer's on-demand read layer; page switches run as Transitions | Accepted |
 | [0029](0029-startup-display-persistence.md) | Separate startup display persistence, including previously viewed pages | Accepted |
 | [0030](0030-message-language.md) | Commit messages and pull-request text follow the working language (hook + PR workflow; skipped when Chinese) | Accepted |
+| [0031](0031-macos-release-line.md) | A notarized macOS release line: CI on release tags, R2 mirror for formal releases, a Chinese and English landing page | Proposed |
+| [0032](0032-app-updates.md) | App updates from GitHub Releases, offered rather than pushed — the app's one outbound request | Accepted |
