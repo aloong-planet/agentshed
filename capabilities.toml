@@ -1,6 +1,7 @@
 # Cross-skill project facts. IDs, types and field formats are defined by the repo-scaffold
 # skill's capability registry; read and write rules live in the global agent instructions.
 
+client-framework = "electron"
 working-language = "en"
 
 [i18n]
