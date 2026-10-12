@@ -61,3 +61,12 @@
   so `lint`, `check:lang` and `check:nul` were run again on the staged commit (all exit 0, still 2373
   permitted lines); those three also read the newly tracked records and evidence. The full gateway runs
   again on the pull request's final commit, and its result is in the pull request description.
+
+## Outside this ticket
+
+- The full run on f4d391d timed out one e2e case, "startup skeleton: agents page shows placeholders,
+  refuses input, fills in place", under a load average of about 70. App code, tests and build configuration
+  are unchanged from `main`; the case passed on its own three times and in a full e2e rerun on the same
+  commit. Its screenshots show the skeleton filled, so the time ran out in a step with no limit of its own,
+  most likely `app.close()` in the teardown (inference, no trace kept). The owner decided on 2026-10-12 to
+  track it separately: [#227](https://github.com/aloong-planet/agentshed/issues/227).

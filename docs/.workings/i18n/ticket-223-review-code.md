@@ -79,9 +79,9 @@ reads only the repository's own manifest.
     and the pages have diverged from the template, so they cannot be re-copied. Outside this ticket; see
     below.
 
-## Outside this ticket (reported, owner to decide)
+## Outside this ticket (reported; the owner decided on 2026-10-12)
 
-| Finding | Impact | Recommendation |
-|---|---|---|
-| Logic pages carry the logic template's chrome in Chinese (3 files) | Only the prototype reviewer sees it, when opening those three logic prototypes. `check:lang` cannot see it, so nothing will ever report it | A separate issue: rewrite the chrome strings to the template's current English wording and keep the prototype content as it is, with a render check of each page. Not in this PR, which would grow to three more hand-edited files |
-| The gallery shell's fold controls use character icons (`⟨⟨`, `☰`); the logic template does too (`⌂`, `↺`) | Prototype tooling only, never the product. Both come from the skill templates, so a change belongs to skillshed, not to agentshed's copies | Do not change |
+| Finding | Impact | Recommendation | Decision |
+|---|---|---|---|
+| Logic pages carry the logic template's chrome in Chinese (3 files) | Only the prototype reviewer sees it, when opening those three logic prototypes. `check:lang` cannot see it, so nothing will ever report it | A separate issue: rewrite the chrome strings to the template's current English wording and keep the prototype content as it is, with a render check of each page. Not in this PR, which would grow to three more hand-edited files | Separate issue: [#226](https://github.com/aloong-planet/agentshed/issues/226) |
+| The gallery shell's fold controls use character icons (`⟨⟨`, `☰`); the logic template does too (`⌂`, `↺`) | Prototype tooling only, never the product. Both come from the skill templates, so a change belongs to skillshed, not to agentshed's copies | Do not change | Fix in the templates: [zhoulf1006/skillshed#16](https://github.com/zhoulf1006/skillshed/issues/16) |
