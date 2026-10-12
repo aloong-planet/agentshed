@@ -126,13 +126,21 @@ function citedOrLiteral(text, file) {
   return bad
 }
 
+/** The prototype gallery shell: a copy of the prototype skill's template, and tooling although it is HTML */
+const GALLERY_SHELL = 'docs/prototypes/index.html'
+
 /**
  * A prototype is a mockup of a Chinese interface shown to a Chinese-reading reviewer, so both its content
  * and its annotations address that reader. The tooling living beside it is not a mockup and gets no
  * exemption — that is what keeps this a rule with teeth rather than a blanket pass on a directory.
+ *
+ * The file type only approximates that line. The gallery shell holds no mockup at all — it lists and
+ * frames the prototypes — yet judged by its type it was exempt, so the gate never reported the Chinese it
+ * still carried. It is named here and checked like any other tooling. `manifest.js` stays exempt: the
+ * names and questions it carries address the reviewer, like a mockup's annotations.
  */
 function mockupOnly(text, file) {
-  if (/\.(html|mmd|css|js)$/.test(file)) return []
+  if (file !== GALLERY_SHELL && /\.(html|mmd|css|js)$/.test(file)) return []
   return text
     .split('\n')
     .map((line, i) => [i + 1, line])
