@@ -17,11 +17,16 @@
          开发运行(未打包)时控件不可用并说明原因。
        · 从应用菜单「检查更新…」触发的结果用 toast(已是最新 / 检查失败 / 发现新版本)。
          原生菜单无法在 HTML 里表达,不在本页,作显式例外。
+     2026-10-13 追加(所有者答复):
+       · 点击可安装的按钮后安装失败(少见:磁盘满、权限变化)→ 错误 toast「无法安装更新」,按钮消失,
+         下次检查再下载——用户点了就要有回应。
+       · 设置页结果行跟随更新生命周期:有更新在下载 / 可安装 / 安装中时显示该状态,不论是哪次检查发现的;
+         没有更新在途时才显示设置页上次检查的结果。
 
      演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条。系统语言、系统明暗两组照旧;
-     更新相关:运行方式(打包/开发运行)、下次检查返回什么、三个动作按钮(自动检查触发、菜单「检查更新…」、
-     后台下载失败)。真实来源:运行方式 = app 是否打包;检查结果 = GitHub Releases 的应答;
-     app 内没有这些控件。
+     更新相关:运行方式(打包/开发运行)、下次检查返回什么、点击安装后(成功/失败)、三个动作按钮
+     (自动检查触发、菜单「检查更新…」、后台下载失败)。真实来源:运行方式 = app 是否打包;检查结果 =
+     GitHub Releases 的应答;安装结果 = 系统替换 app 是否成功;app 内没有这些控件。
      真实来源:语言 = app.getPreferredSystemLanguages();明暗 = prefers-color-scheme 媒体查询。
      app 内没有这两个控件,此处仅为让「跟随系统」的解析结果在任意宿主环境下都可见。 -->
 <html lang="zh-CN" data-scheme="purple" data-theme="light">
@@ -366,6 +371,14 @@
     </span>
     <span class="vr"></span>
     <span class="grp">
+      <label for="instSel">点击安装后</label>
+      <select id="instSel">
+        <option value="ok">安装成功并重启</option>
+        <option value="fail">安装失败</option>
+      </select>
+    </span>
+    <span class="vr"></span>
+    <span class="grp">
       <button type="button" class="act" id="actAuto">自动检查触发</button>
       <button type="button" class="act" id="actMenu">菜单「检查更新…」</button>
       <button type="button" class="act" id="actFail">后台下载失败</button>
@@ -523,6 +536,7 @@
       tipReady: '有可用更新', tipDl: (n) => `正在下载更新 ${n}%`, tipInstall: '正在安装更新…',
       toastUpToDate: (v) => `Agentshed 已是最新版本（${v}）`, toastFailed: '检查更新失败',
       toastFound: (v) => `发现新版本 ${v}，正在后台下载`,
+      toastInstallFailed: '无法安装更新',
     },
     en: {
       sec: 'Updates', auto: 'Check for updates automatically', on: 'On', off: 'Off', version: 'Current version',
@@ -535,6 +549,7 @@
       tipReady: 'Update available', tipDl: (n) => `Downloading update ${n}%`, tipInstall: 'Installing update…',
       toastUpToDate: (v) => `Agentshed is up to date (${v})`, toastFailed: 'Couldn’t check for updates',
       toastFound: (v) => `Version ${v} found — downloading in the background`,
+      toastInstallFailed: 'Couldn’t install the update',
     },
     fr: {
       sec: 'Mises à jour', auto: 'Rechercher les mises à jour automatiquement', on: 'Activé', off: 'Désactivé',
@@ -548,6 +563,7 @@
       tipInstall: 'Installation de la mise à jour…',
       toastUpToDate: (v) => `Agentshed est à jour (${v})`, toastFailed: 'Impossible de vérifier les mises à jour',
       toastFound: (v) => `Version ${v} trouvée — téléchargement en arrière-plan`,
+      toastInstallFailed: 'Impossible d’installer la mise à jour',
     },
     es: {
       sec: 'Actualizaciones', auto: 'Buscar actualizaciones automáticamente', on: 'Activado', off: 'Desactivado',
@@ -561,6 +577,7 @@
       tipInstall: 'Instalando actualización…',
       toastUpToDate: (v) => `Agentshed está actualizado (${v})`, toastFailed: 'No se pudo comprobar si hay actualizaciones',
       toastFound: (v) => `Versión ${v} encontrada: descargando en segundo plano`,
+      toastInstallFailed: 'No se pudo instalar la actualización',
     },
     ru: {
       sec: 'Обновления', auto: 'Проверять обновления автоматически', on: 'Вкл.', off: 'Выкл.',
@@ -573,6 +590,7 @@
       tipReady: 'Доступно обновление', tipDl: (n) => `Загрузка обновления: ${n}%`, tipInstall: 'Установка обновления…',
       toastUpToDate: (v) => `Установлена последняя версия Agentshed (${v})`, toastFailed: 'Не удалось проверить обновления',
       toastFound: (v) => `Найдена версия ${v} — загружается в фоне`,
+      toastInstallFailed: 'Не удалось установить обновление',
     },
     ja: {
       sec: 'アップデート', auto: 'アップデートを自動で確認', on: 'オン', off: 'オフ', version: '現在のバージョン',
@@ -586,6 +604,7 @@
       tipInstall: 'アップデートをインストール中…',
       toastUpToDate: (v) => `Agentshed は最新です（${v}）`, toastFailed: 'アップデートを確認できませんでした',
       toastFound: (v) => `バージョン ${v} が見つかりました。バックグラウンドでダウンロードしています`,
+      toastInstallFailed: 'アップデートをインストールできませんでした',
     }
   }
 
@@ -636,6 +655,7 @@
   let packaged = true        // demo harness: a packaged app or a development run
   let autoCheck = true       // the settings switch, on by default
   let nextOutcome = 'found'  // demo harness: what the next update check answers
+  let nextInstall = 'ok'     // demo harness: whether clicking the ready button installs or fails
   let upd = 'ready'          // the update lifecycle; the page opens on "ready" so the button is there to hover
   let pct = 100              // download progress, 0–100
   let checkOut = null        // the settings page's own result: null | checking | uptodate | failed | found | ready
@@ -725,14 +745,21 @@
     demoNote('演示：后台下载失败 → 按钮消失，下次检查再下')
   }
 
-  /** Clicking the ready button installs and restarts; the prototype cannot restart, so it returns to idle */
+  /** Clicking the ready button installs and restarts; the prototype cannot restart, so it returns to idle.
+   *  A failed install (rare: a full disk, changed permissions) answers the click the user made: an error toast,
+   *  and the button goes as after a failed download, so the next update check downloads again. */
   function install() {
     upd = 'installing'
-    renderUpdateSlot()
+    renderUpdateSlot(); refreshSettingsLine()
     setTimeout(() => {
-      upd = 'idle'; checkOut = null
+      upd = 'idle'; pct = 0; checkOut = null
       renderUpdateSlot(); refreshSettingsLine()
-      demoNote(`演示：已安装 ${NEW_VERSION} 并重启（原型无法真正重启，状态回到无更新）`)
+      if (nextInstall === 'fail') {
+        toast(u().toastInstallFailed, 'err')
+        demoNote('演示：安装失败 → 错误 toast，按钮消失，下次检查再下载')
+      } else {
+        demoNote(`演示：已安装 ${NEW_VERSION} 并重启（原型无法真正重启，状态回到无更新）`)
+      }
     }, 1600)
   }
 
@@ -763,15 +790,18 @@
     }, 900)
   }
 
-  /** The settings page's result line beside the check button */
+  /** The settings page's result line beside the check button. An update on its way or waiting is shown whichever
+   *  check found it — otherwise a settings check's "up to date" would stay up while the rail button downloads
+   *  (owner's call, 2026-10-13); only with no update in flight does the line show this page's last check. */
   function checkLine() {
     if (!packaged) return { cls: '', text: '' }
+    if (upd === 'downloading') return { cls: '', text: u().found(NEW_VERSION) }
+    if (upd === 'ready') return { cls: 'ok', text: u().readyNote(NEW_VERSION) }
+    if (upd === 'installing') return { cls: '', text: u().tipInstall }
     switch (checkOut) {
       case 'checking': return { cls: '', text: u().checking }
       case 'uptodate': return { cls: 'ok', text: u().upToDate }
       case 'failed': return { cls: 'err', text: u().failed }
-      case 'found': return upd === 'ready' ? { cls: 'ok', text: u().readyNote(NEW_VERSION) } : { cls: '', text: u().found(NEW_VERSION) }
-      case 'ready': return { cls: 'ok', text: u().readyNote(NEW_VERSION) }
       default: return { cls: '', text: '' }
     }
   }
@@ -1018,14 +1048,19 @@
           ③ 「后台下载失败」在下载中点：按钮直接消失，不给任何提示（照 Codex）
           ④ 菜单「检查更新…」三种结果用 toast；设置页「立即检查」结果就地显示在按钮左侧
           ⑤ 运行方式切到「开发运行」：开关与按钮不可用，说明换成开发运行的原因
-          ⑥ 切六种语言看提示与设置行在最长语言（俄 / 法）下是否挤压；3 配色 × 2 明暗看圆按钮与提示是否可辨<br>
+          ⑥ 切六种语言看提示与设置行在最长语言（俄 / 法）下是否挤压；3 配色 × 2 明暗看圆按钮与提示是否可辨
+          ⑦ 「点击安装后」选「安装失败」，走完一轮再点按钮：错误 toast，按钮消失
+          ⑧ 先在设置页「立即检查」得到「已是最新」，再把「下次检查返回」改成发现新版本、点「自动检查触发」：结果行跟着变成下载中 → 可安装<br>
           <b>已确认的设计选择（2026-10-13，均按下列现状）</b>：
           (a) 圆按钮用当前配色的强调色（Codex 是固定蓝），图标取卡片底色，所以浅色下白、深色下深；
           (b) 提示用图表提示同款的即时深色提示，与其余导航按钮的原生 title（约 1 秒延迟）不一致；
           (c) 自动检查开关复用分段控件「开 / 关」——app 里没有开关控件，不新造；
           (d) 保留设置页脚注，描述「后台下载、点击安装、退出时安装」的行为——它说的是按钮何时出现、何时安装，不是应用内不写的「联网说明」；
           (e) 安装中的转圈图标 Lucide loader-circle（另一候选 Lucide loader 是八根辐条）；
-          (f) 应用菜单「检查更新…」放在应用菜单「关于 Agentshed」之下（macOS 惯例），开发运行时置灰——原生菜单不在本页。
+          (f) 应用菜单「检查更新…」放在应用菜单「关于 Agentshed」之下（macOS 惯例），开发运行时置灰——原生菜单不在本页。<br>
+          <b>2026-10-13 按你的答复加入，待看原型确认</b>：
+          (g) 点击安装后安装失败 → 错误 toast「无法安装更新」，按钮消失，下次检查再下载（见验收 ⑦）；
+          (h) 结果行跟随更新状态，不再与左下角按钮矛盾（见验收 ⑧）。
         </div>
 
         <div class="note">
@@ -1178,6 +1213,7 @@
     render()
   }
   document.getElementById('nextSel').onchange = (e) => { nextOutcome = e.target.value }
+  document.getElementById('instSel').onchange = (e) => { nextInstall = e.target.value }
   document.getElementById('actAuto').onclick = () => runCheck('auto')
   document.getElementById('actMenu').onclick = () => {
     if (!packaged) { demoNote('演示：开发运行中菜单项「检查更新…」置灰'); return }

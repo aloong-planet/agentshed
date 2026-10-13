@@ -5,10 +5,16 @@
      (owner's call, 2026-10-13): four text steps on the left move with the page, one screenshot frame on the
      right stays put and shows the step nearest its middle, and clicking a step scrolls to it.
 
-     What it asks: does this page structure, and the two download states, read right?
-       · a formal release exists → the download goes to the R2 mirror, with GitHub as the fallback link;
-       · only a pre-release exists (the first release is v0.1.0-beta, and R2 holds formal releases only) →
-         the download goes to the GitHub pre-release and says plainly that it is a test version.
+     What it asks: does this page structure, and the three download states, read right? The page decides in the
+     visitor's browser, so a release never needs a site change (owner's calls, 2026-10-13):
+       · the R2 latest pointer reads → a formal release exists: the download goes to the R2 mirror, with GitHub as
+         the fallback link;
+       · no pointer on R2 (the first release is v0.1.0-beta, and R2 holds formal releases only), or the pointer
+         cannot be read (offline, blocked, malformed) → GitHub's public releases API is read instead: its latest
+         formal release if there is one (the formal state, every link on GitHub — this also covers the minutes
+         between a formal release and its pointer), else its newest pre-release, said plainly to be a test version;
+       · neither can be read → the download goes to GitHub's release list with no version named. The page's first
+         paint, before its script runs, is this state too.
 
      Screenshots (shots/, 2026-10-13) are taken from the built app over the owner's own agent data, at the
      owner's choice: 1280×800 window, light appearance, 2× pixels, one set per language. The hero keeps the whole
@@ -20,8 +26,9 @@
      The app icon is the approved production icon from the app-icon prototype.
 
      演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条两组开关——
-     下载状态(有正式版 / 仅测试版)、系统明暗。真实来源:下载状态 = 站点能否读到 R2 上的正式版
-     latest 指针;明暗 = 访客系统的 prefers-color-scheme。页面上没有这两个控件。
+     下载状态(有正式版 / 有正式版但 R2 读不到 / 仅测试版 / 两处都读不到)、系统明暗。真实来源:下载状态 = 访客浏览器能否读到
+     R2 上的正式版 latest 指针,读不到时能否从 GitHub 公开接口读到最新测试版;明暗 = 访客系统的
+     prefers-color-scheme。页面上没有这两个控件。
      中 / EN 切换是设计本身(页头右上角),不属于演示基建。 -->
 <html lang="zh-CN" data-theme="light">
 <head>
@@ -203,6 +210,8 @@
     <select id="relSel">
       <option value="beta">仅测试版 0.1.0-beta(首发时)</option>
       <option value="formal">已有正式版 0.2.0</option>
+      <option value="formalGh">已有正式版 0.2.0,但 R2 读不到(取自 GitHub)</option>
+      <option value="unknown">两处都读不到(断网等)/ 脚本未执行</option>
     </select>
     <span class="vr"></span>
     <label for="themeSel">系统明暗</label>
@@ -222,6 +231,8 @@
   const RELEASES = {
     beta: { formal: null, pre: '0.1.0-beta' },
     formal: { formal: '0.2.0', pre: null },
+    formalGh: { formal: '0.2.0', pre: null, viaGithub: true },
+    unknown: { formal: null, pre: null },
   }
 
   const T = {
@@ -259,6 +270,9 @@
       dlPrimary: '下载',
       dlGithub: 'GitHub',
       dlBeta: '从 GitHub 下载测试版',
+      downloadGithub: '前往 GitHub 下载 Agentshed',
+      dlSubUnknown: '暂时读不到版本信息，可前往 GitHub 下载',
+      dlGithubAll: '前往 GitHub 下载',
       foot: ['GitHub', '版本发布', '© 2026 aloongplanet'],
     },
     en: {
@@ -295,6 +309,9 @@
       dlPrimary: 'Download',
       dlGithub: 'GitHub',
       dlBeta: 'Download the test version from GitHub',
+      downloadGithub: 'Download Agentshed from GitHub',
+      dlSubUnknown: 'Version details can’t be loaded right now — download from GitHub',
+      dlGithubAll: 'Download from GitHub',
       foot: ['GitHub', 'Releases', '© 2026 aloongplanet'],
     },
   }
@@ -315,20 +332,32 @@
     document.getElementById('navLinks').innerHTML = d.nav.map((n, i) =>
       `<a href="${anchors[i]}"${i === 3 ? ' target="_blank" rel="noopener"' : ''}>${esc(n)}</a>`).join('')
 
-    const formalUrl = r.formal && `${DL_HOST}/releases/v${r.formal}/${dmg(r.formal)}`
+    const githubDmg = r.formal && `${REPO}/releases/download/v${r.formal}/${dmg(r.formal)}`
+    // R2 unreadable but GitHub has a formal release: the same state, with every link on GitHub
+    const formalUrl = r.formal && (r.viaGithub ? githubDmg : `${DL_HOST}/releases/v${r.formal}/${dmg(r.formal)}`)
     const betaUrl = r.pre && `${REPO}/releases/tag/v${r.pre}`
+    const listUrl = `${REPO}/releases`
     const heroCta = r.formal
       ? `<a class="btn btn-primary" href="${formalUrl}">${ICON_DOWNLOAD(18)} ${esc(d.download(r.formal))}</a>
          <div class="meta">${esc(d.meta)}</div>
-         <div class="alt"><a href="${REPO}/releases" target="_blank" rel="noopener">${esc(d.allVersions)}</a></div>`
-      : `<a class="btn btn-primary" href="${betaUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(18)} ${esc(d.downloadBeta(r.pre))}</a>
-         <div class="meta"><span class="pill">${esc(d.testPill)}</span> ${esc(d.meta)}</div>
-         <div class="beta-note">${esc(d.betaNote)}</div>`
+         <div class="alt"><a href="${listUrl}" target="_blank" rel="noopener">${esc(d.allVersions)}</a></div>`
+      : r.pre
+        ? `<a class="btn btn-primary" href="${betaUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(18)} ${esc(d.downloadBeta(r.pre))}</a>
+           <div class="meta"><span class="pill">${esc(d.testPill)}</span> ${esc(d.meta)}</div>
+           <div class="beta-note">${esc(d.betaNote)}</div>`
+        // Neither source read: no version is named, since none is known
+        : `<a class="btn btn-primary" href="${listUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(18)} ${esc(d.downloadGithub)}</a>
+           <div class="meta">${esc(d.meta)}</div>`
 
     const dlActions = r.formal
-      ? `<a class="btn btn-primary btn-sm" href="${formalUrl}">${ICON_DOWNLOAD(15)} ${esc(d.dlPrimary)}</a>
-         <a class="btn btn-ghost btn-sm" href="${REPO}/releases/download/v${r.formal}/${dmg(r.formal)}" target="_blank" rel="noopener">${esc(d.dlGithub)}</a>`
-      : `<a class="btn btn-primary btn-sm" href="${betaUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(15)} ${esc(d.dlBeta)}</a>`
+      ? `<a class="btn btn-primary btn-sm" href="${formalUrl}">${ICON_DOWNLOAD(15)} ${esc(d.dlPrimary)}</a>${r.viaGithub ? '' : `
+         <a class="btn btn-ghost btn-sm" href="${githubDmg}" target="_blank" rel="noopener">${esc(d.dlGithub)}</a>`}`
+      : r.pre
+        ? `<a class="btn btn-primary btn-sm" href="${betaUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(15)} ${esc(d.dlBeta)}</a>`
+        : `<a class="btn btn-primary btn-sm" href="${listUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(15)} ${esc(d.dlGithubAll)}</a>`
+    const dlSub = r.formal
+      ? esc(d.dlSub(r.formal))
+      : r.pre ? `<span class="pill">${esc(d.testPill)}</span> ${esc(d.dlSubBeta(r.pre))}` : esc(d.dlSubUnknown)
 
     document.getElementById('page').innerHTML = `
       <div class="hero wrap" id="top">
@@ -371,7 +400,7 @@
       <section class="soft" id="download">
         <div class="wrap">
           <h2 class="sec-title">${esc(d.dlTitle)}</h2>
-          <p class="sec-sub">${r.formal ? esc(d.dlSub(r.formal)) : `<span class="pill">${esc(d.testPill)}</span> ${esc(d.dlSubBeta(r.pre))}`}</p>
+          <p class="sec-sub">${dlSub}</p>
           <div class="dl">
             <div class="dl-row">
               <div class="dl-label"><b>${esc(d.dlLabel)}</b><span>${esc(d.dlLabelSub)}</span></div>
@@ -388,8 +417,9 @@
       </div></footer>
 
       <div class="note">
-        <b>验收</b>：① 切「下载状态」看两种首屏：仅测试版时按钮指向 GitHub 的测试版、标「测试版」并说明正式版未发布；
-        有正式版时指向 R2 镜像（下载区另给 GitHub 兜底）② 中 / EN 切换在右上角 ③ 窄屏（&lt;760px）单栏、导航收起
+        <b>验收</b>：① 切「下载状态」看三种首屏：仅测试版时按钮指向 GitHub 的测试版、标「测试版」并说明正式版未发布；
+        有正式版时指向 R2 镜像（下载区另给 GitHub 兜底）；有正式版但 R2 读不到时同一外观、链接全在 GitHub（下载区只剩一个按钮）；
+        两处都读不到时指向 GitHub 版本列表、不标版本号② 中 / EN 切换在右上角 ③ 窄屏（&lt;760px）单栏、导航收起
         ④ 浅色 / 深色都看 ⑤ 截图是 2026-10-13 从打包后的应用实拍的，用的是你本机的真实数据（项目名、路径、用量、会话提问都会随页面公开）；
         Hero 是整窗，功能区四张统一裁到该段相关的区域、同一放大倍数，切换时字号不变
         ⑥ 功能区往下滚：左侧四段文字随页面移动，右侧截图框停在原处，显示离它中线最近的那段；点左侧某段会滚到该段；窄屏没有固定框，每段文字下面直接跟自己的截图。<br>
@@ -398,8 +428,11 @@
         (b) 文案不把 agent 侧当全集列出（「Claude Code、Codex 等」），新增一侧时不用改；
         (c) 保留功能区副标题「它只读取你本机上 coding agent 留下的文件」（落地页上的卖点，与应用内不写的「联网说明」是两回事）；
         (d) 安装第 3 步提前告诉用户首次打开的系统提示是正常的，并提到左下角的更新按钮；
-        (e) 落地页在运行时读取 R2 上的正式版 latest 指针，读不到就回退到 GitHub 测试版，发版时不用改站点；
+        (e) 落地页在运行时读取 R2 上的正式版 latest 指针；没有指针或读不到时改读 GitHub 公开接口——有正式版取最新正式版，
+        没有才取最新测试版；发版时不用改站点；
         (g) 功能区截图裁到该段相关的区域，统一放大倍数；截图可以公开。<br>
+        <b>2026-10-13 按你的答复加入，待看原型确认</b>：(h) 两处都读不到（断网等）时按钮指向 GitHub 版本列表、不标版本号，
+        页面脚本执行前的初始状态也是它；(i) R2 读不到但 GitHub 上有正式版时，按正式版显示、链接全在 GitHub（见验收 ①）。<br>
         <b>仍待定</b>：(f) 下载域名待你在 Cloudflare 上测试（dl.agentshed… 不行就 dl-agentshed…）。<br>
         <b>演示基建</b>：底部悬浮条不是设计的一部分，勿实现。
       </div>`
