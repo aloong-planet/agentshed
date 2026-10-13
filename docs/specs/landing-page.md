@@ -280,10 +280,9 @@ Prior art: Transfer's site tests for its download configuration, and the prototy
 
 - Prototype gate: passed on 2026-10-13 for the page structure, the copy, the privacy-flavoured subtitle,
   the install steps, the scroll-linked features section and the cropped screenshots. The owner also
-  chose to read the pointer at run time and approved the screenshots for publication.
-
-  > Pending: the owner has confirmed the revised prototype's list state (landing-page::REQ-002/AC-04)
-  > and its formal-from-GitHub state (landing-page::REQ-002/AC-02).
+  chose to read the pointer at run time and approved the screenshots for publication. The same day the
+  owner confirmed the revised prototype's list state (landing-page::REQ-002/AC-04) and its
+  formal-from-GitHub state (landing-page::REQ-002/AC-02).
 
 - The download host is still being decided (mac-distribution::REQ-004). The page reads the pointer
   from whichever host is chosen.

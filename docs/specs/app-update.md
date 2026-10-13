@@ -458,13 +458,12 @@ menu template's tests.
 
 - Prototype gate: the rail button, the settings section and the toasts passed on 2026-10-13. The
   owner confirmed the accent fill, the instant dark tooltip, the reused segmented control, the
-  footnote, the loader-circle icon, and the menu item placed below "About". The native menu cannot be
-  expressed in an HTML prototype and is stated here instead.
-
-  > Pending: the owner has confirmed the revised prototype's install-failure toast
-  > (app-update::REQ-002/AC-03), its lifecycle-first result line (app-update::REQ-004/AC-01), its
-  > post-update line (app-update::REQ-004/AC-04), its "Check now" that is unavailable while an update
-  > downloads (app-update::US-003/AC-02), and its "Install now" in place of "Check now" while an update
-  > is ready (app-update::REQ-003/AC-04).
+  footnote, the loader-circle icon, and the menu item placed below "About". The same day the owner
+  confirmed the revised parts: the install-failure toast (app-update::REQ-002/AC-03), the
+  lifecycle-first result line (app-update::REQ-004/AC-01), the post-update line
+  (app-update::REQ-004/AC-04), "Check now" unavailable while an update downloads
+  (app-update::US-003/AC-02), and "Install now" in its place while an update is ready
+  (app-update::REQ-003/AC-04). The native menu cannot be expressed in an HTML prototype and is stated
+  here instead.
 
 - The first release is a pre-release (ADR-0031), so the first users are on the pre-release channel.
