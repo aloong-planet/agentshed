@@ -90,6 +90,12 @@ The other cases went red first for the reason they test (recorded in the task li
 first failed because Playwright pinned the light appearance — the evidence was wrong, not the code; it now
 launches with `colorScheme: null` and waits for the media query to report the mode.
 
+CI found one more (2026-10-14, PR #243's first run, Linux under xvfb): the second-instance case spawned
+Electron without the `--no-sandbox` that Playwright's launcher prepends on Linux, so Chromium's sandbox
+killed the process (exit by signal, code `null`) before it reached the single-instance lock — the case was
+red for its own launch, not for the behaviour. It now launches the second instance as the launcher does
+and asserts code and signal together, so a recurrence names the signal.
+
 No assertion inside a callback that may not run, no unawaited assertion, no loop over a possibly empty set
 (the malformed-version and theme loops run over literal lists).
 

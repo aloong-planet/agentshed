@@ -370,18 +370,21 @@ test('a second instance launched while an update is ready exits, and the running
     await expect(slot(win)).toHaveAttribute('aria-label', 'Update available')
     // The electron package resolves its binary, honouring the quiet copy the global setup points it at
     const bin = createRequire(import.meta.url)('electron') as unknown as string
-    const code = await new Promise<number | null>((resolve, reject) => {
-      const second = spawn(bin, ['.', `--user-data-dir=${f.userData}`], { env: launchEnv(f), stdio: 'ignore' })
+    // Launched as Playwright launches the first one: on Linux its launcher prepends --no-sandbox, without which
+    // Chromium's sandbox kills the process before it ever reaches the single-instance lock
+    const args = ['.', `--user-data-dir=${f.userData}`, ...(process.platform === 'linux' ? ['--no-sandbox'] : [])]
+    const exit = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve, reject) => {
+      const second = spawn(bin, args, { env: launchEnv(f), stdio: 'ignore' })
       const timer = setTimeout(() => {
         second.kill()
         reject(new Error('the second instance did not exit'))
       }, 20_000)
-      second.on('exit', (c) => {
+      second.on('exit', (code, signal) => {
         clearTimeout(timer)
-        resolve(c)
+        resolve({ code, signal })
       })
     })
-    expect(code).toBe(0)
+    expect(exit).toEqual({ code: 0, signal: null })
     await expect(slot(win)).toHaveAttribute('aria-label', 'Update available')
     expect(requests(f)).toEqual(['check'])
   } finally {
