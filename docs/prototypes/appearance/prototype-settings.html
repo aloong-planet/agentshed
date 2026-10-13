@@ -24,9 +24,9 @@
          没有更新在途时才显示设置页上次检查的结果。
        · 更新成功、以新版本启动后(点按钮安装并重启,或退出时安装后再打开),「当前版本」是新版本号,
          结果行显示「已是最新版本」(绿),本次运行期间保留——描述状态,不写「已更新」这种动作结果。
-       · 有更新在下载 / 可安装 / 安装中时,设置页「立即检查」置灰(与检查进行中同样式):这时点了也什么都不会变,
-         结果行已说明原因;装好后恢复。菜单「检查更新…」照旧可点,用 toast 回报当前状态。
-         检查进行中再发起的检查并入那一次,不重复请求。
+       · 有更新在下载时,设置页「立即检查」置灰(与检查进行中同样式):这时点了也什么都不会变,结果行已说明原因。
+         可安装时这一行的按钮换成「立即安装」,与左下角按钮同一动作(安装并重启),安装中置灰;装好后变回「立即检查」。
+         菜单「检查更新…」照旧可点,用 toast 回报当前状态。检查进行中再发起的检查并入那一次,不重复请求。
 
      演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条。系统语言、系统明暗两组照旧;
      更新相关:运行方式(打包/开发运行)、下次检查返回什么、点击安装后(成功/失败)、四个动作按钮
@@ -543,6 +543,7 @@
       toastUpToDate: (v) => `Agentshed 已是最新版本（${v}）`, toastFailed: '检查更新失败',
       toastFound: (v) => `发现新版本 ${v}，正在后台下载`,
       toastInstallFailed: '无法安装更新',
+      installNow: '立即安装',
     },
     en: {
       sec: 'Updates', auto: 'Check for updates automatically', on: 'On', off: 'Off', version: 'Current version',
@@ -556,6 +557,7 @@
       toastUpToDate: (v) => `Agentshed is up to date (${v})`, toastFailed: 'Couldn’t check for updates',
       toastFound: (v) => `Version ${v} found — downloading in the background`,
       toastInstallFailed: 'Couldn’t install the update',
+      installNow: 'Install now',
     },
     fr: {
       sec: 'Mises à jour', auto: 'Rechercher les mises à jour automatiquement', on: 'Activé', off: 'Désactivé',
@@ -570,6 +572,7 @@
       toastUpToDate: (v) => `Agentshed est à jour (${v})`, toastFailed: 'Impossible de vérifier les mises à jour',
       toastFound: (v) => `Version ${v} trouvée — téléchargement en arrière-plan`,
       toastInstallFailed: 'Impossible d’installer la mise à jour',
+      installNow: 'Installer maintenant',
     },
     es: {
       sec: 'Actualizaciones', auto: 'Buscar actualizaciones automáticamente', on: 'Activado', off: 'Desactivado',
@@ -584,6 +587,7 @@
       toastUpToDate: (v) => `Agentshed está actualizado (${v})`, toastFailed: 'No se pudo comprobar si hay actualizaciones',
       toastFound: (v) => `Versión ${v} encontrada: descargando en segundo plano`,
       toastInstallFailed: 'No se pudo instalar la actualización',
+      installNow: 'Instalar ahora',
     },
     ru: {
       sec: 'Обновления', auto: 'Проверять обновления автоматически', on: 'Вкл.', off: 'Выкл.',
@@ -597,6 +601,7 @@
       toastUpToDate: (v) => `Установлена последняя версия Agentshed (${v})`, toastFailed: 'Не удалось проверить обновления',
       toastFound: (v) => `Найдена версия ${v} — загружается в фоне`,
       toastInstallFailed: 'Не удалось установить обновление',
+      installNow: 'Установить сейчас',
     },
     ja: {
       sec: 'アップデート', auto: 'アップデートを自動で確認', on: 'オン', off: 'オフ', version: '現在のバージョン',
@@ -611,6 +616,7 @@
       toastUpToDate: (v) => `Agentshed は最新です（${v}）`, toastFailed: 'アップデートを確認できませんでした',
       toastFound: (v) => `バージョン ${v} が見つかりました。バックグラウンドでダウンロードしています`,
       toastInstallFailed: 'アップデートをインストールできませんでした',
+      installNow: '今すぐインストール',
     }
   }
 
@@ -751,7 +757,8 @@
     demoNote('演示：后台下载失败 → 按钮消失，下次检查再下')
   }
 
-  /** Clicking the ready button installs and restarts; the prototype cannot restart, so it returns to idle.
+  /** Clicking the ready button, or "Install now" in settings, installs and restarts; the prototype cannot
+   *  restart, so it plays one.
    *  A failed install (rare: a full disk, changed permissions) answers the click the user made: an error toast,
    *  and the button goes as after a failed download, so the next update check downloads again. */
   function install() {
@@ -810,9 +817,9 @@
     if (!packaged) { demoNote('演示：开发运行不检查更新'); return }
     if (source === 'auto' && !autoCheck) { demoNote('演示：自动检查已关闭，不检查'); return }
     // An update already on its way or waiting: no request and no second download. Only the menu and the timer
-    // can get here — settings' "Check now" is unavailable in these states, since its line already says them
+    // can get here — in these states the settings row's button is greyed or is "Install now"
     if (upd === 'downloading' || upd === 'ready' || upd === 'installing') {
-      if (source === 'menu') toast(upd === 'ready' ? u().readyNote(newVersion) : u().toastFound(newVersion))
+      if (source === 'menu') toast(upd === 'ready' ? u().readyNote(newVersion) : upd === 'installing' ? u().tipInstall : u().toastFound(newVersion))
       demoNote('演示：已有更新在途 → 不发请求，「下次检查返回」此时不生效')
       return
     }
@@ -839,11 +846,14 @@
     }, 900)
   }
 
-  /** "Check now" is unavailable in a development run, while this page's own check runs, and while an update is
-   *  downloading, ready or installing: a click could change nothing then, and looked dead (owner's call,
-   *  2026-10-13). It comes back once the update is installed. */
-  function checkNowDisabled() {
-    return !packaged || checkOut === 'checking' || upd === 'downloading' || upd === 'ready' || upd === 'installing'
+  /** The version row's button. While an update is ready it is "Install now" and does what the rail button does,
+   *  greyed while that install runs: the line beside it says the update is ready, so the row offers the install
+   *  (owner's call, 2026-10-13). Otherwise it is "Check now", unavailable in a development run, while this
+   *  page's own check runs and while an update downloads: a click could change nothing then, and looked dead
+   *  (owner's call, 2026-10-13). */
+  function rowAction() {
+    if (upd === 'ready' || upd === 'installing') return { install: true, label: u().installNow, disabled: upd === 'installing' }
+    return { install: false, label: u().checkNow, disabled: !packaged || checkOut === 'checking' || upd === 'downloading' }
   }
 
   /** The settings page's result line beside the check button. An update on its way or waiting is shown whichever
@@ -867,8 +877,12 @@
     const l = checkLine()
     out.className = `chk-out ${l.cls}`
     out.textContent = l.text
-    const btn = document.getElementById('checkNow')
-    if (btn) btn.setAttribute('aria-disabled', String(checkNowDisabled()))
+    const btn = document.getElementById('verAct')
+    if (btn) {
+      const a = rowAction()
+      btn.textContent = a.label
+      btn.setAttribute('aria-disabled', String(a.disabled))
+    }
   }
 
   /** Demo harness only: a transient line in the floating bar */
@@ -1020,6 +1034,7 @@
     const following = langPref === 'system'
     const U = u()
     const line = checkLine()
+    const act = rowAction()
     const dis = !packaged
     return `
       <div class="settings" id="settingsPane">
@@ -1089,8 +1104,8 @@
               <span class="flabel">${esc(U.version)} <span class="ver">${curVersion}</span></span>
               <span class="ver-ctl">
                 <span class="chk-out ${line.cls}" id="chkOut" role="status">${esc(line.text)}</span>
-                <button type="button" class="cfg-btn" id="checkNow"
-                        aria-disabled="${checkNowDisabled()}">${esc(U.checkNow)}</button>
+                <button type="button" class="cfg-btn" id="verAct"
+                        aria-disabled="${act.disabled}">${esc(act.label)}</button>
               </span>
             </div>
           </div>
@@ -1108,7 +1123,7 @@
           ⑦ 「点击安装后」选「安装失败」，走完一轮再点按钮：错误 toast，按钮消失
           ⑧ 先在设置页「立即检查」得到「已是最新」，再把「下次检查返回」改成发现新版本、点「自动检查触发」：结果行跟着变成下载中 → 可安装
           ⑨ 可安装时点按钮（安装成功），或点演示条「退出再打开」：当前版本变成新版本号，结果行「已是最新版本」；没有更新时「退出再打开」则结果行清空
-          ⑩ 下载中、可安装、安装中时「立即检查」置灰，装好后恢复；此时演示条的「下次检查返回」不生效（菜单检查会说明）<br>
+          ⑩ 下载中「立即检查」置灰；可安装时按钮变成「立即安装」，点击与左下角按钮相同（安装中置灰），装好后变回「立即检查」；有更新在途时演示条的「下次检查返回」不生效（菜单检查会说明）<br>
           <b>已确认的设计选择（2026-10-13，均按下列现状）</b>：
           (a) 圆按钮用当前配色的强调色（Codex 是固定蓝），图标取卡片底色，所以浅色下白、深色下深；
           (b) 提示用图表提示同款的即时深色提示，与其余导航按钮的原生 title（约 1 秒延迟）不一致；
@@ -1120,7 +1135,7 @@
           (g) 点击安装后安装失败 → 错误 toast「无法安装更新」，按钮消失，下次检查再下载（见验收 ⑦）；
           (h) 结果行跟随更新状态，不再与左下角按钮矛盾（见验收 ⑧）；
           (j) 更新成功后以新版本启动：当前版本为新版本号，结果行显示「已是最新版本」（见验收 ⑨）；
-          (k) 有更新在下载、可安装、安装中时「立即检查」置灰（见验收 ⑩）。
+          (k) 有更新在下载时「立即检查」置灰；可安装时这一行的按钮换成「立即安装」，安装中置灰（见验收 ⑩）。
         </div>
 
         <div class="note">
@@ -1197,10 +1212,12 @@
         render()
       }
     })
-    const checkNow = document.getElementById('checkNow')
-    if (checkNow) checkNow.onclick = () => {
-      if (checkNow.getAttribute('aria-disabled') === 'true') return
-      runCheck('settings')
+    const verAct = document.getElementById('verAct')
+    if (verAct) verAct.onclick = () => {
+      const a = rowAction()
+      if (a.disabled) return
+      if (a.install) install()
+      else runCheck('settings')
     }
 
     const trig = document.getElementById('langTrigger')
@@ -1285,6 +1302,5 @@
   applyAll()
   setDim('settings')
 </script>
-<script src="../demo-harness.js"></script>
 </body>
 </html>

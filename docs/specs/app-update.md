@@ -20,9 +20,10 @@ possible to turn off, and must not stand between the user and their work.
 The app checks GitHub Releases for an app update at launch and every 24 hours, while a settings switch
 (on by default) allows it. An update that is found downloads in the background at once, as in Codex. A
 small button appears at the bottom of the rail only while that update is downloading, installing or
-ready to install; hovering it says what it is, and clicking the ready button installs the update and
-restarts the app. An update left ready is installed when the app next quits. The user can also check by
-hand, from the application menu or from settings, and a manual check always reports what it found. An
+ready to install; hovering it says what it is, and clicking the ready button, or "Install now" in
+settings, installs the update and restarts the app. An update left ready is installed when the app next
+quits. The user can also check by hand, from the application menu or from settings, and a manual check
+always reports what it found. An
 automatic check that fails, and a background download that fails, show nothing. An installation is
 offered the releases of its own release channel, which follows the version installed. A development
 run never checks.
@@ -75,15 +76,17 @@ it found, so that I know where I stand.
 - app-update::US-003/AC-02: "Check now" in settings reports its outcome in the result line beside the
   button: checking, already up to date, or the check failed. An update it finds shows in the line as
   described in app-update::REQ-004. The button is unavailable while its own check runs, and while an
-  update is downloading, ready or installing — a click could change nothing then, and the line already
-  says why (owner's call, 2026-10-13). It is available again once the update is installed, or once the
-  download fails.
+  update is downloading — a click could change nothing then, and the line already says why (owner's
+  call, 2026-10-13). While an update is ready or installing, the button is "Install now" instead
+  (app-update::REQ-003/AC-04). "Check now" is back, and available, once the update is installed, or
+  once the download or the install fails.
 - app-update::US-003/AC-03: A manual check that finds an update starts the background download, as
   any other check does.
-- app-update::US-003/AC-04: A check from the menu made while an update is downloading or ready makes
-  no request and does not start a second download. It reports that state in a toast instead: the
-  version is downloading, or it is ready to install. Settings cannot ask in that state
-  (app-update::US-003/AC-02).
+- app-update::US-003/AC-04: A check from the menu made while an update is downloading, ready or
+  installing makes no request and does not start a second download. It reports that state in a toast
+  instead: the version is downloading, it is ready to install, or the update is installing. Settings
+  cannot ask in that state: its button is unavailable while the update downloads and is "Install now"
+  while it is ready (app-update::US-003/AC-02).
 - app-update::US-003/AC-05: A manual check made while another check is in flight does not start a
   second request. It reports the outcome of the check in flight.
 
@@ -136,20 +139,29 @@ never replaces my working build. The updater cannot work in an unpackaged app an
   again.
 - app-update::REQ-002/AC-02: A failed background download, whichever check started it, shows nothing.
   The button goes, and the next check, scheduled or manual, downloads again.
-- app-update::REQ-002/AC-03: A failed install after the user clicked the ready button shows an error
-  toast, "Couldn't install the update". The button goes, and the next check downloads again.
+- app-update::REQ-002/AC-03: A failed install after the user clicked to install — the ready button or
+  "Install now" in settings — shows an error toast, "Couldn't install the update". The button goes, and
+  the next check downloads again.
 
 ### app-update::REQ-003 The settings "Updates" section
 
 - app-update::REQ-003/AC-01: The settings page gains a third section, "Updates", after Language and
   Appearance, in the same card-and-rows form. One card holds two rows. The first, "Check for updates
   automatically", has an On / Off segmented control (the existing segmented form). The second,
-  "Current version" followed by the running version, has the result line and the "Check now" button.
+  "Current version" followed by the running version, has the result line and one button: "Check now",
+  or "Install now" while an update is ready or installing (app-update::REQ-003/AC-04).
 - app-update::REQ-003/AC-02: Below the card, a footnote says that new versions download in the
   background, that clicking the update button at the bottom left installs and restarts, and that
   otherwise the update installs on quit. In a development run the footnote is replaced as stated in
   app-update::US-005/AC-02.
 - app-update::REQ-003/AC-03: A change to the switch takes effect at once, with no save button.
+- app-update::REQ-003/AC-04: While an update is ready, the version row's button is "Install now" in
+  place of "Check now", in the same form and position: the line beside it says the update is ready, so
+  the row offers the install (owner's call, 2026-10-13). Clicking it does what clicking the ready
+  button does (app-update::US-001/AC-04). The two are one action: once either is clicked the install
+  runs once, "Install now" stays but is unavailable while it runs, and the rail shows installing. When
+  the download finishes while settings is open, the unavailable "Check now" becomes "Install now"
+  where it stands.
 
 ### app-update::REQ-004 The settings result line follows the update
 
@@ -224,7 +236,8 @@ ADR-0016).
 
 ### app-update::CON-004 Nothing restarts without the user (direct acceptance)
 
-Applies to: every install. The app restarts into an update only after a click on the ready button.
+Applies to: every install. The app restarts into an update only after a click on the ready button or
+on "Install now" in settings (app-update::REQ-003/AC-04).
 Install on quit happens only on a quit the user made, and never relaunches the app.
 
 ## Failure modes and boundaries
@@ -263,9 +276,9 @@ Install on quit happens only on a quit the user made, and never relaunches the a
 
 **Sequence C: ready and installing**
 
-- C1 Ready, and the user clicks: installing, then restart into the new version
-  (app-update::US-001/AC-04). Pending display-cache writes are flushed as on any normal quit before the
-  app is replaced, so the restart loses no saved page.
+- C1 Ready, and the user clicks the ready button or "Install now": installing, then restart into the
+  new version (app-update::US-001/AC-04, app-update::REQ-003/AC-04). Pending display-cache writes are
+  flushed as on any normal quit before the app is replaced, so the restart loses no saved page.
 - C2 Ready, and the user quits by any normal route (the menu, ⌘Q, closing the window): install on quit,
   with no relaunch (app-update::US-001/AC-05, app-update::CON-004).
 - C3 Ready, and the app is force-quit or crashes: nothing is installed. The next launch's check finds
@@ -276,8 +289,8 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   ready update is installed (app-update::REQ-006/AC-03). After the restart, the next check offers the
   newer one.
 - C6 A check while ready: from the menu it reports "ready to install" and makes no request
-  (app-update::US-003/AC-04). In settings "Check now" is unavailable, so a click on the greyed button
-  does nothing (app-update::US-003/AC-02).
+  (app-update::US-003/AC-04). Settings offers "Install now" in place of "Check now", so it cannot ask
+  (app-update::REQ-003/AC-04).
 - C7 The first run after an update, by either route (C1 or C2): "Current version" is the new version,
   and the line says "You're up to date" (app-update::REQ-004/AC-04). If that run's launch check finds
   a still newer release, the line shows its download instead (app-update::REQ-004/AC-01). If automatic
@@ -289,6 +302,13 @@ Install on quit happens only on a quit the user made, and never relaunches the a
 - C9 A newer copy installed by hand (dragged from a DMG): its first run counts as a run after the
   version went up, and shows the post-update line. The app cannot tell the two routes apart, and the
   line holds for both.
+- C10 The user clicks the ready button or "Install now", then clicks either again before the restart:
+  nothing more happens. "Install now" is unavailable and the rail shows the spinner, which cannot be
+  clicked, so the install runs once (app-update::REQ-003/AC-04, app-update::REQ-001/AC-03).
+- C11 The download finishes while settings is open: the unavailable "Check now" becomes "Install now"
+  where it stands, and the line becomes "ready to install" (app-update::REQ-003/AC-04,
+  app-update::REQ-004/AC-01). An install from "Install now" that fails leaves "Check now", available,
+  and an empty line (app-update::REQ-002/AC-03, app-update::REQ-004/AC-02).
 
 **Sequence D: manual checks**
 
@@ -367,7 +387,7 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   | downloading | progress | downloading |
   | downloading | done | ready |
   | downloading | failed | idle |
-  | ready | the user clicks | installing |
+  | ready | the user clicks the ready button or "Install now" | installing |
   | installing | failed | idle (error toast) |
   | downloading / ready / installing | a check is asked for | unchanged; the state is reported |
   | checking | a check is asked for | unchanged; the requester joins it |
@@ -402,9 +422,9 @@ Seams confirmed by the owner on 2026-10-13:
   checks, the schedule (with injected time), and every failure path.
 - **An environment-injected scripted source for e2e**, in the same family as the existing
   `AGENTSHED_*` test seams and never set in production. It lets Playwright drive found → downloading →
-  ready → install, including the install failure, and assert the rail button, its tooltip text and
-  geometry, the settings section and line, and the toasts. It also stands in for "packaged" for the
-  update feature only, so the settings controls can be exercised under test.
+  ready → install, from either button and including the install failure, and assert the rail button,
+  its tooltip text and geometry, the settings section and line, and the toasts. It also stands in for
+  "packaged" for the update feature only, so the settings controls can be exercised under test.
 - **The preferences store**: the switch's default, persistence and per-field fallback, following the
   existing preference cases.
 - **The post-update line**: e2e seeds an older, equal, newer or missing recorded version in the
@@ -443,7 +463,8 @@ menu template's tests.
 
   > Pending: the owner has confirmed the revised prototype's install-failure toast
   > (app-update::REQ-002/AC-03), its lifecycle-first result line (app-update::REQ-004/AC-01), its
-  > post-update line (app-update::REQ-004/AC-04), and its "Check now" that is unavailable while an
-  > update is in flight (app-update::US-003/AC-02).
+  > post-update line (app-update::REQ-004/AC-04), its "Check now" that is unavailable while an update
+  > downloads (app-update::US-003/AC-02), and its "Install now" in place of "Check now" while an update
+  > is ready (app-update::REQ-003/AC-04).
 
 - The first release is a pre-release (ADR-0031), so the first users are on the pre-release channel.
