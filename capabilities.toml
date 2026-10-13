@@ -30,4 +30,12 @@ source = "src/renderer/src/theme.css"
 enforced-by = ["pnpm check:ui"]
 
 [macos-distribution]
-enabled = false
+enabled = true
+source = "docs/ops/mac-signing.md"
+enforced-by = ["pnpm dist:mac:release"]
+
+[macos-distribution.profiles.local]
+command = "pnpm dist:mac:local"
+
+[macos-distribution.profiles.release]
+command = "pnpm dist:mac:release"

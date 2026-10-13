@@ -1,0 +1,85 @@
+# Local packaging through the asset, with Apple credentials loaded (2026-10-14)
+
+Branch feat/mac-packaging-asset on 5911d52 + this ticket's working tree. Command:
+APPLE_ID=<placeholder> APPLE_APP_SPECIFIC_PASSWORD=<placeholder> APPLE_TEAM_ID=<placeholder> pnpm dist:mac:local
+(three non-empty placeholder values, so a profile that submitted to Apple would have tried and failed)
+
+$ grep -cE "notarytool|\[mac\] notarizing|afterSign" <packaging log>
+0
+
+$ grep -E "^\[mac\]|skipped macOS notarization|building +target|signing +file" <packaging log>
+[mac] electron-vite build
+[mac] electron-builder --mac --publish never -c.mac.notarize=false
+  • signing         file=release/0.1.0/mac-arm64/Agentshed.app platform=darwin type=distribution identityName=Developer ID Application: Longfei Zhou (RHQ28XS7D9) identityHash=A4AE5D22EBFAA2ECCEC7794C30B739F54AA61576 provisioningProfile=none
+  • skipped macOS notarization  reason=`notarize` options were set explicitly `false`
+  • building        target=DMG arch=arm64 file=release/0.1.0/Agentshed-0.1.0-mac-arm64.dmg
+[mac] local packaging done for arm64
+
+$ ls release/0.1.0
+Agentshed-0.1.0-mac-arm64.dmg
+Agentshed-0.1.0-mac-arm64.dmg.blockmap
+builder-debug.yml
+mac-arm64
+
+$ codesign --display --verbose=4 release/0.1.0/mac-arm64/Agentshed.app (signature lines)
+Identifier=agentshed.aloong.com
+Format=app bundle with Mach-O thin (arm64)
+CodeDirectory v=20500 size=448 flags=0x10000(runtime) hashes=3+7 location=embedded
+Authority=Developer ID Application: Longfei Zhou (RHQ28XS7D9)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 14, 2026 at 02:02:52
+TeamIdentifier=RHQ28XS7D9
+Runtime Version=26.4.0
+
+$ codesign --display --verbose=4 release/0.1.0/Agentshed-0.1.0-mac-arm64.dmg (signature lines)
+Identifier=Agentshed-0.1.0-mac-arm64
+Format=disk image
+Authority=Developer ID Application: Longfei Zhou (RHQ28XS7D9)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 14, 2026 at 02:03:01
+TeamIdentifier=RHQ28XS7D9
+
+$ xcrun stapler validate release/0.1.0/Agentshed-0.1.0-mac-arm64.dmg   (expected to fail: a local package is never notarized; last two lines shown)
+Processing: /Users/loong_zhou/CascadeProjects/agentshed-wt/mac-packaging/release/0.1.0/Agentshed-0.1.0-mac-arm64.dmg
+Agentshed-0.1.0-mac-arm64.dmg does not have a ticket stapled to it.
+exit=65 (captured without a pipe)
+
+$ /usr/libexec/PlistBuddy -c "Print LSMinimumSystemVersion" release/0.1.0/mac-arm64/Agentshed.app/Contents/Info.plist
+12.0
+
+$ node scripts/check-fuses.mjs release/0.1.0/mac-arm64/Agentshed.app
+✓ runAsNode = DISABLED
+✓ nodeOptions = DISABLED
+✓ nodeCliInspect = DISABLED
+✓ onlyLoadAppFromAsar = ENABLED
+✓ cookieEncryption = ENABLED
+✓ asarIntegrity = ENABLED
+✓ fileProtocolPrivileges = DISABLED
+
+Fuses check passed
+exit=0
+
+$ ls -la "/Volumes/Agentshed 0.1.0-arm64"
+total 3864
+drwxr-xr-x@ 7 loong_zhou  staff      306 Oct 14 02:02 .
+drwxr-xr-x  5 root        wheel      160 Oct 14 02:03 ..
+-rw-r--r--@ 1 loong_zhou  staff    37298 Oct 14 02:02 .background.tiff
+-rw-r--r--@ 1 loong_zhou  staff    16388 Oct 14 02:02 .DS_Store
+-rw-r--r--@ 1 loong_zhou  staff  1911483 Oct 14 02:02 .VolumeIcon.icns
+drwxr-xr-x@ 3 loong_zhou  staff      102 Oct 14 01:55 Agentshed.app
+lrwxr-xr-x@ 1 loong_zhou  staff       13 Oct 14 02:02 Applications -> /Applications
+
+The DMG window (mac-distribution::US-001/AC-04). A screenshot could not be taken in this session: screencapture
+answered "could not create image from rect" (the terminal has no Screen Recording permission). What the
+window is made of instead: Finder reported the window "Agentshed 0.1.0-arm64" at bounds 400, 72, 940, 452 —
+540 × 380, electron-builder's default DMG window — and the volume holds Agentshed.app, the Applications link and
+electron-builder's default background (dmg-background.png, converted from the volume's .background.tiff).
+No dmg window, background or contents are configured in electron-builder.yml, so all of it is the default.
+
+$ vtool -show-build "<app>/Contents/Frameworks/Electron Framework.framework/Electron Framework"   (Electron 43.2.0's own floor)
+ platform MACOS
+    minos 12.0
+      sdk 26.4
+Reading: the declared LSMinimumSystemVersion 12.0 matches the framework's build minimum, 12.0.

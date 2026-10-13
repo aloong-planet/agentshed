@@ -35,8 +35,10 @@ export default defineConfig(
   // patterns against .gitignore's own location, as git does.
   includeIgnoreFile(fileURLToPath(new URL('.gitignore', import.meta.url)), { gitignoreResolution: true }),
   {
-    // Tracked but not linted: prototypes are throwaway pages with vendored libraries
-    ignores: ['docs/']
+    // Tracked but not linted: prototypes are throwaway pages with vendored libraries; the macOS packaging
+    // script and its tests are the electron-scaffold asset copied byte for byte, never edited here
+    // (mac-distribution::CON-001), so a finding in them is fixed in the asset in skillshed and copied back
+    ignores: ['docs/', 'build/mac-packaging.cjs', 'build/mac-packaging.test.cjs']
   },
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,

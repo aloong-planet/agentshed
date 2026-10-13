@@ -246,9 +246,11 @@ not copy the policy.
 - **The packaging asset** (`mac-packaging.cjs` and its tests) is copied into `build/`, next to the
   existing release-cleanup hook, and the packaging configuration meets the requirements listed in the
   asset's header: a dmg target with an arch list, `mac.notarize: false`, the fixed DMG name and an
-  output directory using at most the version. Its certificate check replaces the project's own
+  output directory using at most the version. It also signs the DMG (`dmg.sign`), which the asset's
+  gate requires though its header does not list it. Its certificate check replaces the project's own
   identity check script, so the existing `dist:mac:local` definition and that script's tests are
-  retired in the same change.
+  retired in the same change. The two copies are left out of the project's lint, since a finding in
+  them is fixed in the asset.
 - **Two packaging commands**, `dist:mac:local` and `dist:mac:release`, named for the environment, not
   the mechanism (`macos-signing.md` §1). They are what the capability file's profiles point to.
 - **A release workflow** separate from the existing CI workflow, following Transfer's tag-triggered
