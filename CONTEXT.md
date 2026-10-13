@@ -351,6 +351,24 @@ It is how an automatic rescan and a background revalidation reach a page; a tran
 empties the page first.
 _Avoid_: reload, refetch (they name the fetch, not what the page does with its result)
 
+**App update**:
+A newer version of Agentshed itself, published as a release and offered to an installed copy of the app.
+A rescan or a transfusion changes what the app shows; an app update changes the app (ADR-0032).
+_Avoid_: update (bare — in this product it also reads as a rescan or a transfusion), upgrade
+
+**Update check**:
+Asking the release source whether an app update exists for this installation's release channel. An
+**automatic** check runs on its own while the user has not turned automatic checks off, and its failure
+is silent; a **manual** check is one the user asked for, and it always reports its outcome — an app
+update found, already up to date, or the check failed.
+_Avoid_: refresh, sync, polling
+
+**Release channel**:
+Which releases an installation is offered. A formal-release installation is offered formal releases
+only; a pre-release installation is offered pre-releases and formal releases. The channel follows the
+version installed and is never chosen by the user.
+_Avoid_: beta mode, insider track, update track
+
 ## Invariants
 
 - **The decision layer of every host security guard must be a testable pure function (settled
@@ -654,6 +672,17 @@ _Avoid_: reload, refetch (they name the fetch, not what the page does with its r
   a competing high-priority update), but its removal cannot be relied on as a mutation that turns a
   "the previous page holds" test red — confirmed by rebuilding without it and running that test,
   which stayed green. Do not write or trust such a mutation without re-measuring first.
+
+- **Agentshed's own code makes no outbound network request other than an update check and the download
+  of the app update it finds (settled 2026-10-12; download wording 2026-10-13)**: the product is
+  local-first — everything it shows is read from files on the user's machine — and updating is the one
+  deliberate exception (ADR-0032, as amended). While automatic checks are turned off, the app starts no
+  outbound request unless the user asks for a manual check. The one exception is a download already
+  under way when the switch is turned off, which is finished: the switch governs automatic checks only.
+  A link opened in the system browser is the browser's request, not the app's. A new feature that would
+  reach the network changes this invariant and needs its own decision; it is not an addition to the
+  update check. Checkable by searching the main process for network APIs and by the renderer's content
+  security policy, which allows no remote origin.
 
 ## Flagged ambiguities
 

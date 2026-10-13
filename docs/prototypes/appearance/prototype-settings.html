@@ -8,13 +8,36 @@
      改变 prefers-color-scheme 的求值结果,现有媒体查询零改动即生效,且 macOS 窗口边框与
      原生菜单一并跟随(纯 CSS 方案做不到这点)。此处的 data-theme 仅是原型载体的替身。
 
-     演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条两组开关。
+     2026-10-12 新增「更新」(ADR-0032 及其同日修订):
+       · 导航栏左下角(设置上方)的更新按钮,形态照 Codex(ChatGPT 26.930.61225)的 navigationRail 版:
+         36px 按钮位里一个 24px 实心圆。只在 下载中 / 安装中 / 可安装 三态出现,其余(无更新、检查中)不占位。
+         下载中 = 圆内进度环;安装中 = 转圈;可安装 = 下载图标,可点击 → 安装并重启。悬停即时显示提示。
+         无关闭动作;后台下载失败时按钮直接消失,下次检查再下(Codex 的生命周期没有失败态)。
+       · 设置页第三节「更新」:自动检查开关(开/关)、当前版本 + 立即检查 + 就地结果;
+         开发运行(未打包)时控件不可用并说明原因。
+       · 从应用菜单「检查更新…」触发的结果用 toast(已是最新 / 检查失败 / 发现新版本)。
+         原生菜单无法在 HTML 里表达,不在本页,作显式例外。
+     2026-10-13 追加(所有者答复):
+       · 点击可安装的按钮后安装失败(少见:磁盘满、权限变化)→ 错误 toast「无法安装更新」,按钮消失,
+         下次检查再下载——用户点了就要有回应。
+       · 设置页结果行跟随更新生命周期:有更新在下载 / 可安装 / 安装中时显示该状态,不论是哪次检查发现的;
+         没有更新在途时才显示设置页上次检查的结果。
+       · 更新成功、以新版本启动后(点按钮安装并重启,或退出时安装后再打开),「当前版本」是新版本号,
+         结果行显示「已是最新版本」(绿),本次运行期间保留——描述状态,不写「已更新」这种动作结果。
+       · 有更新在下载时,设置页「立即检查」置灰(与检查进行中同样式):这时点了也什么都不会变,结果行已说明原因。
+         可安装时这一行的按钮换成「立即安装」,与左下角按钮同一动作(安装并重启),安装中置灰;装好后变回「立即检查」。
+         菜单「检查更新…」照旧可点,用 toast 回报当前状态。检查进行中再发起的检查并入那一次,不重复请求。
+
+     演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条。系统语言、系统明暗两组照旧;
+     更新相关:运行方式(打包/开发运行)、下次检查返回什么、点击安装后(成功/失败)、四个动作按钮
+     (自动检查触发、菜单「检查更新…」、后台下载失败、退出再打开)。原型无法真正重启,「重启」由页面模拟。真实来源:运行方式 = app 是否打包;检查结果 =
+     GitHub Releases 的应答;安装结果 = 系统替换 app 是否成功;app 内没有这些控件。
      真实来源:语言 = app.getPreferredSystemLanguages();明暗 = prefers-color-scheme 媒体查询。
      app 内没有这两个控件,此处仅为让「跟随系统」的解析结果在任意宿主环境下都可见。 -->
 <html lang="zh-CN" data-scheme="purple" data-theme="light">
 <head>
 <meta charset="utf-8">
-<title>原型 — 设置 · 语言与外观</title>
+<title>原型 — 设置 · 语言、外观与更新</title>
 <style>
   /* ── Purple (the shipped default) ── */
   html[data-scheme="purple"][data-theme="light"] {
@@ -29,6 +52,8 @@
     --accent-soft: #f0ebf6;
     --shadow: 0 8px 24px rgba(55, 53, 47, .14);
     --ok-bg: #dcfce7; --ok-fg: #166534;
+    --err-bg: #fee2e2; --err-fg: #991b1b;
+    --tip-bg: #1b1b1f; --tip-fg: #ffffff;
     /* Claude 徽章取 Anthropic 品牌橙(#d97757)的色相,不再是紫——ADR-0021 只迁了 Grok,
        Claude 这半没做。L/C 与 cx 那对同档。
        **三套配色下取值相同**:侧别色是数据色,只随明暗变、不随配色方案变(ADR-0021;真 app 的
@@ -49,6 +74,8 @@
     --accent-soft: #2c2733;
     --shadow: 0 8px 24px rgba(0, 0, 0, .55);
     --ok-bg: #12301d; --ok-fg: #86efac;
+    --err-bg: #2a1416; --err-fg: #fca5a5;
+    --tip-bg: #1b1b1f; --tip-fg: #ffffff;
     --cl-bg: #4c2d21; --cl-fg: #f8ac8f;
     --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
   }
@@ -65,6 +92,8 @@
     --accent-soft: #eef2f7;
     --shadow: 0 8px 24px rgba(44, 42, 40, .14);
     --ok-bg: #dcfce7; --ok-fg: #166534;
+    --err-bg: #fee2e2; --err-fg: #991b1b;
+    --tip-bg: #1b1b1f; --tip-fg: #ffffff;
     --cl-bg: #f9e2da; --cl-fg: #a05239;
     --cx-bg: #dcefe4; --cx-fg: #1f7a4d;
   }
@@ -80,6 +109,8 @@
     --accent-soft: #1e2a38;
     --shadow: 0 8px 24px rgba(0, 0, 0, .55);
     --ok-bg: #12301d; --ok-fg: #86efac;
+    --err-bg: #2a1416; --err-fg: #fca5a5;
+    --tip-bg: #1b1b1f; --tip-fg: #ffffff;
     --cl-bg: #4c2d21; --cl-fg: #f8ac8f;
     --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
   }
@@ -96,6 +127,8 @@
     --accent-soft: #f3ead4;
     --shadow: 0 8px 24px rgba(58, 52, 44, .14);
     --ok-bg: #dcfce7; --ok-fg: #166534;
+    --err-bg: #fee2e2; --err-fg: #991b1b;
+    --tip-bg: #1b1b1f; --tip-fg: #ffffff;
     --cl-bg: #f9e2da; --cl-fg: #a05239;
     --cx-bg: #dcefe4; --cx-fg: #1f7a4d;
   }
@@ -111,6 +144,8 @@
     --accent-soft: #2e2820;
     --shadow: 0 8px 24px rgba(0, 0, 0, .55);
     --ok-bg: #12301d; --ok-fg: #86efac;
+    --err-bg: #2a1416; --err-fg: #fca5a5;
+    --tip-bg: #1b1b1f; --tip-fg: #ffffff;
     --cl-bg: #4c2d21; --cl-fg: #f8ac8f;
     --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
   }
@@ -126,7 +161,30 @@
     justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2);background:transparent}
   .ri:hover{background:var(--accent-soft)}
   .ri.on{background:var(--accent-soft);color:var(--accent)}
-  .ri.set{margin-top:auto;margin-bottom:10px}
+  /* The bottom group: the update button (only while an update is in flight) sits above Settings, and the
+     auto top margin moves from Settings to the group so the pair stays pinned to the bottom together */
+  .rail-bottom{margin-top:auto;margin-bottom:10px;display:flex;flex-direction:column;align-items:center;gap:6px}
+
+  /* ── The update button (Codex's rail form): a 36px rail slot holding a 24px filled circle.
+     The fill is the theme accent; the glyph takes the card colour, so it reads white on the light themes'
+     deep accents and dark on the dark themes' light accents. Only the ready state is a button. ── */
+  .ri.upd{cursor:default}
+  button.ri.upd{cursor:pointer}
+  .upd-dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:var(--accent);color:var(--card)}
+  .upd-ring .track{stroke:currentColor;opacity:.35}
+  .upd-ring .arc{stroke:currentColor;transition:stroke-dashoffset .3s linear}
+  .upd-spin{display:flex;animation:upd-spin 1s linear infinite}
+  @keyframes upd-spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){.upd-spin{animation:none}}
+  /* The hover message: an instant tooltip to the right of the slot, in the chart tooltip's fixed dark
+     form (the native title waits about a second) */
+  /* Above every other layer, the demo harness included: the harness sits right of the rail and would
+     otherwise cover the message where it opens */
+  .uptip{position:fixed;z-index:95;display:none;padding:6px 10px;border-radius:8px;white-space:nowrap;
+    background:var(--tip-bg);color:var(--tip-fg);font-size:12.5px;pointer-events:none;
+    box-shadow:0 6px 18px rgba(0,0,0,.28)}
+  .uptip.on{display:block}
 
   .stage{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
   .pane{flex:1;overflow:auto;padding:16px 22px}
@@ -225,18 +283,43 @@
   .foot{margin-top:10px;padding:11px 14px;border-radius:10px;background:var(--bg);
     border:1px dashed var(--line-strong);font-size:12px;color:var(--text-2);line-height:1.5}
   .foot b{color:var(--text);font-weight:600}
-  .toast{position:fixed;bottom:64px;left:50%;transform:translateX(-50%);z-index:80;
-    background:var(--ok-bg);color:var(--ok-fg);border-radius:10px;padding:10px 16px;font-size:12.5px;display:none}
+  /* bottom clears the demo harness, which wraps onto two rows (the app's own toasts sit at 18px) */
+  .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:80;
+    background:var(--ok-bg);color:var(--ok-fg);border-radius:10px;padding:10px 16px;font-size:12.5px;display:none;
+    border:1px solid var(--ok-fg)}
+  .toast.err{background:var(--err-bg);color:var(--err-fg);border-color:var(--err-fg)}
+
+  /* ── The updates section ── */
+  .cfg-btn{font:inherit;font-size:12.5px;border-radius:7px;padding:6px 14px;cursor:pointer;
+    border:1px solid var(--line-strong);background:var(--bg);color:var(--text);
+    white-space:nowrap;flex:none}
+  .cfg-btn:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .cfg-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .cfg-btn[aria-disabled="true"]{cursor:default;color:var(--text-2);border-color:var(--line);background:var(--bg)}
+  .seg button[aria-disabled="true"]{cursor:default;color:var(--text-2);opacity:.55;background:transparent}
+  .seg button.on[aria-disabled="true"]{background:var(--line)}
+  .ver-ctl{display:flex;align-items:center;gap:12px;min-width:0}
+  .ver{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--text-2)}
+  .chk-out{font-size:12px;color:var(--text-2)}
+  .chk-out.ok{color:var(--ok-fg)}
+  .chk-out.err{color:var(--err-fg)}
   .note{margin-top:22px;padding:12px 14px;border:1px dashed var(--line-strong);border-radius:10px;
     font-size:11.5px;color:var(--text-2);line-height:1.55}
   .note b{color:var(--text)}
 
   /* ── The demo harness (not part of the design): an independent floating layer that deliberately does not
      reuse the styles of the controls being judged ── */
+  /* Centred with both side offsets and auto margins, not a translate: a translate leaves the available width
+     at half the viewport, so a fuller bar wraps early (prototype skill, harness clause). The left offset keeps
+     it off the 48px rail — once it wrapped onto two rows it covered the update button at the rail's foot. */
   .demo-bar{
-    position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:90;
-    display:flex;align-items:center;gap:9px;padding:7px 12px;border-radius:999px;
+    position:fixed;bottom:14px;left:60px;right:12px;margin:0 auto;width:max-content;max-width:calc(100% - 72px);z-index:90;
+    display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:7px 9px;padding:7px 12px;border-radius:18px;
     background:#1c1c1e;color:#e8e8ea;font-size:11.5px;box-shadow:0 6px 20px rgba(0,0,0,.38)}
+  .demo-bar .grp{display:flex;align-items:center;gap:7px}
+  .demo-bar .act{background:#3a3a3c;color:#e8e8ea;border:0;border-radius:7px;padding:4px 9px;font:inherit;
+    font-size:11.5px;cursor:pointer}
+  .demo-bar .act:hover{background:#4a4a4e}
   .demo-bar .tag{font-weight:700;color:#8e8e93;letter-spacing:.03em;flex:none}
   .demo-bar .vr{width:1px;height:16px;background:#3a3a3c;flex:none}
   .demo-bar select{
@@ -250,22 +333,62 @@
   <nav class="rail">
     <button type="button" class="ri" data-dim="agents" data-tip="agents" data-icon="RobotFace" data-icon-size="17"></button>
     <button type="button" class="ri" data-dim="projects" data-tip="projects" data-icon="Folder" data-icon-size="17"></button>
-    <button type="button" class="ri set on" data-dim="settings" data-tip="settings" data-icon="Settings" data-icon-size="17"></button>
+    <div class="rail-bottom">
+      <span id="updSlot"></span>
+      <button type="button" class="ri set on" data-dim="settings" data-tip="settings" data-icon="Settings" data-icon-size="17"></button>
+    </div>
   </nav>
   <main class="stage" id="stage"></main>
   <div class="lang-pop" id="langPop" role="listbox"></div>
+  <div class="uptip" id="upTip" role="tooltip"></div>
   <div class="toast" id="toast"></div>
 
   <div class="demo-bar" data-demo-harness id="demoBar">
     <span class="tag">演示 ·</span>
-    <label for="sysSel">系统语言</label>
-    <select id="sysSel"></select>
+    <span class="grp">
+      <label for="sysSel">系统语言</label>
+      <select id="sysSel"></select>
+    </span>
     <span class="vr"></span>
-    <label for="sysTheme">系统明暗</label>
-    <select id="sysTheme">
-      <option value="light">浅色</option>
-      <option value="dark">深色</option>
-    </select>
+    <span class="grp">
+      <label for="sysTheme">系统明暗</label>
+      <select id="sysTheme">
+        <option value="light">浅色</option>
+        <option value="dark">深色</option>
+      </select>
+    </span>
+    <span class="vr"></span>
+    <span class="grp">
+      <label for="runSel">运行方式</label>
+      <select id="runSel">
+        <option value="packaged">打包版</option>
+        <option value="dev">开发运行(未打包)</option>
+      </select>
+    </span>
+    <span class="vr"></span>
+    <span class="grp">
+      <label for="nextSel">下次检查返回</label>
+      <select id="nextSel">
+        <option value="found">发现 0.1.1</option>
+        <option value="uptodate">已是最新</option>
+        <option value="failed">检查失败</option>
+      </select>
+    </span>
+    <span class="vr"></span>
+    <span class="grp">
+      <label for="instSel">点击安装后</label>
+      <select id="instSel">
+        <option value="ok">安装成功并重启</option>
+        <option value="fail">安装失败</option>
+      </select>
+    </span>
+    <span class="vr"></span>
+    <span class="grp">
+      <button type="button" class="act" id="actAuto">自动检查触发</button>
+      <button type="button" class="act" id="actMenu">菜单「检查更新…」</button>
+      <button type="button" class="act" id="actFail">后台下载失败</button>
+      <button type="button" class="act" id="actQuit">退出再打开</button>
+    </span>
     <span class="vr"></span>
     <span class="out" id="sysOut"></span>
   </div>
@@ -406,6 +529,97 @@
     }
   }
 
+  /** The updates copy, per language. Kept apart from T so the 2026-10-12 addition is one block. */
+  const TU = {
+    zh: {
+      sec: '更新', auto: '自动检查更新', on: '开', off: '关', version: '当前版本',
+      checkNow: '立即检查', checking: '正在检查…', upToDate: '已是最新版本',
+      failed: '检查更新失败',
+      found: (v) => `发现新版本 ${v}，正在下载`,
+      readyNote: (v) => `版本 ${v} 已下载，可以安装`,
+      foot: '有新版本时会在后台下载。下载完成后，点击左下角的更新按钮即可安装并重启；不点的话，退出时会自动安装。',
+      devFoot: '开发运行（未打包的 app）中不检查更新。',
+      tipReady: '有可用更新', tipDl: (n) => `正在下载更新 ${n}%`, tipInstall: '正在安装更新…',
+      toastUpToDate: (v) => `Agentshed 已是最新版本（${v}）`, toastFailed: '检查更新失败',
+      toastFound: (v) => `发现新版本 ${v}，正在后台下载`,
+      toastInstallFailed: '无法安装更新',
+      installNow: '立即安装',
+    },
+    en: {
+      sec: 'Updates', auto: 'Check for updates automatically', on: 'On', off: 'Off', version: 'Current version',
+      checkNow: 'Check now', checking: 'Checking…', upToDate: 'You’re up to date',
+      failed: 'Couldn’t check for updates',
+      found: (v) => `Version ${v} is downloading`,
+      readyNote: (v) => `Version ${v} is ready to install`,
+      foot: 'New versions download in the background. When one is ready, click the update button at the bottom left to install it and restart; otherwise it installs when you quit.',
+      devFoot: 'Updates are not checked in a development run (the app is not packaged).',
+      tipReady: 'Update available', tipDl: (n) => `Downloading update ${n}%`, tipInstall: 'Installing update…',
+      toastUpToDate: (v) => `Agentshed is up to date (${v})`, toastFailed: 'Couldn’t check for updates',
+      toastFound: (v) => `Version ${v} found — downloading in the background`,
+      toastInstallFailed: 'Couldn’t install the update',
+      installNow: 'Install now',
+    },
+    fr: {
+      sec: 'Mises à jour', auto: 'Rechercher les mises à jour automatiquement', on: 'Activé', off: 'Désactivé',
+      version: 'Version actuelle', checkNow: 'Vérifier maintenant', checking: 'Vérification…',
+      upToDate: 'Agentshed est à jour', failed: 'Impossible de vérifier les mises à jour',
+      found: (v) => `Téléchargement de la version ${v}`,
+      readyNote: (v) => `La version ${v} est prête à être installée`,
+      foot: 'Les nouvelles versions se téléchargent en arrière-plan. Quand l’une est prête, cliquez sur le bouton de mise à jour en bas à gauche pour l’installer et redémarrer ; sinon, elle s’installe quand vous quittez.',
+      devFoot: 'Les mises à jour ne sont pas vérifiées en exécution de développement (l’app n’est pas empaquetée).',
+      tipReady: 'Mise à jour disponible', tipDl: (n) => `Téléchargement de la mise à jour ${n} %`,
+      tipInstall: 'Installation de la mise à jour…',
+      toastUpToDate: (v) => `Agentshed est à jour (${v})`, toastFailed: 'Impossible de vérifier les mises à jour',
+      toastFound: (v) => `Version ${v} trouvée — téléchargement en arrière-plan`,
+      toastInstallFailed: 'Impossible d’installer la mise à jour',
+      installNow: 'Installer maintenant',
+    },
+    es: {
+      sec: 'Actualizaciones', auto: 'Buscar actualizaciones automáticamente', on: 'Activado', off: 'Desactivado',
+      version: 'Versión actual', checkNow: 'Comprobar ahora', checking: 'Comprobando…',
+      upToDate: 'Agentshed está actualizado', failed: 'No se pudo comprobar si hay actualizaciones',
+      found: (v) => `Descargando la versión ${v}`,
+      readyNote: (v) => `La versión ${v} está lista para instalarse`,
+      foot: 'Las versiones nuevas se descargan en segundo plano. Cuando una esté lista, haz clic en el botón de actualización abajo a la izquierda para instalarla y reiniciar; si no, se instala al salir.',
+      devFoot: 'Las actualizaciones no se comprueban en una ejecución de desarrollo (la app no está empaquetada).',
+      tipReady: 'Actualización disponible', tipDl: (n) => `Descargando actualización ${n} %`,
+      tipInstall: 'Instalando actualización…',
+      toastUpToDate: (v) => `Agentshed está actualizado (${v})`, toastFailed: 'No se pudo comprobar si hay actualizaciones',
+      toastFound: (v) => `Versión ${v} encontrada: descargando en segundo plano`,
+      toastInstallFailed: 'No se pudo instalar la actualización',
+      installNow: 'Instalar ahora',
+    },
+    ru: {
+      sec: 'Обновления', auto: 'Проверять обновления автоматически', on: 'Вкл.', off: 'Выкл.',
+      version: 'Текущая версия', checkNow: 'Проверить сейчас', checking: 'Проверка…',
+      upToDate: 'Установлена последняя версия', failed: 'Не удалось проверить обновления',
+      found: (v) => `Загружается версия ${v}`,
+      readyNote: (v) => `Версия ${v} готова к установке`,
+      foot: 'Новые версии загружаются в фоне. Когда обновление готово, нажмите кнопку обновления внизу слева, чтобы установить его и перезапустить приложение; иначе оно установится при выходе.',
+      devFoot: 'В режиме разработки (приложение не упаковано) обновления не проверяются.',
+      tipReady: 'Доступно обновление', tipDl: (n) => `Загрузка обновления: ${n}%`, tipInstall: 'Установка обновления…',
+      toastUpToDate: (v) => `Установлена последняя версия Agentshed (${v})`, toastFailed: 'Не удалось проверить обновления',
+      toastFound: (v) => `Найдена версия ${v} — загружается в фоне`,
+      toastInstallFailed: 'Не удалось установить обновление',
+      installNow: 'Установить сейчас',
+    },
+    ja: {
+      sec: 'アップデート', auto: 'アップデートを自動で確認', on: 'オン', off: 'オフ', version: '現在のバージョン',
+      checkNow: '今すぐ確認', checking: '確認中…', upToDate: '最新バージョンです',
+      failed: 'アップデートを確認できませんでした',
+      found: (v) => `バージョン ${v} をダウンロード中`,
+      readyNote: (v) => `バージョン ${v} をインストールできます`,
+      foot: '新しいバージョンはバックグラウンドでダウンロードされます。準備ができたら左下のアップデートボタンをクリックすると、インストールして再起動します。クリックしない場合は終了時にインストールされます。',
+      devFoot: '開発実行（パッケージ化されていない app）ではアップデートを確認しません。',
+      tipReady: 'アップデートがあります', tipDl: (n) => `アップデートをダウンロード中 ${n}%`,
+      tipInstall: 'アップデートをインストール中…',
+      toastUpToDate: (v) => `Agentshed は最新です（${v}）`, toastFailed: 'アップデートを確認できませんでした',
+      toastFound: (v) => `バージョン ${v} が見つかりました。バックグラウンドでダウンロードしています`,
+      toastInstallFailed: 'アップデートをインストールできませんでした',
+      installNow: '今すぐインストール',
+    }
+  }
+
   /** Palette preview samples (card / accent-soft / accent / text), in two sets by light and dark —
       色板是所见即所得的预览,深色下若仍显示浅色取样会与实际界面不符。
       值直接取自上方各主题变量块,改主题色须同步改这里。 */
@@ -446,6 +660,239 @@
   let popOpen = false
   let cursor = 0
 
+  /* ── Updates (ADR-0032 as amended): the lifecycle Codex renders — idle / checking / downloading / ready /
+     installing. There is no failure state: a failed background download returns to idle. ── */
+  let curVersion = '0.1.0-beta'  // the running version; a played restart into an update moves it on
+  let newVersion = '0.1.1'       // what the next check that finds an update finds
+  let packaged = true        // demo harness: a packaged app or a development run
+  let autoCheck = true       // the settings switch, on by default
+  let nextOutcome = 'found'  // demo harness: what the next update check answers
+  let nextInstall = 'ok'     // demo harness: whether clicking the ready button installs or fails
+  let upd = 'ready'          // the update lifecycle; the page opens on "ready" so the button is there to hover
+  let pct = 100              // download progress, 0–100
+  let checkOut = null        // the settings page's own result: null | checking | uptodate | failed | found | ready
+  let dlTimer = null
+  let tipOpen = false
+  const u = () => TU[effLang()]
+
+  /** Lucide download, copied from lucide-static 1.55.0 — the app's icon module has no such icon yet */
+  const ICON_DOWNLOAD = (s) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>`
+  /** Lucide loader-circle, copied from lucide-static 1.55.0 */
+  const ICON_LOADER = (s) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`
+
+  /** The download progress ring drawn inside the filled circle (Codex draws a ring there too) */
+  function ring(p) {
+    const r = 7, c = 2 * Math.PI * r
+    return `<svg class="upd-ring" width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
+      <circle class="track" cx="9" cy="9" r="${r}" fill="none" stroke-width="2.4"/>
+      <circle class="arc" cx="9" cy="9" r="${r}" fill="none" stroke-width="2.4" stroke-linecap="round"
+        stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - p / 100)).toFixed(2)}"
+        transform="rotate(-90 9 9)"/></svg>`
+  }
+
+  function tipText() {
+    if (upd === 'ready') return u().tipReady
+    if (upd === 'downloading') return u().tipDl(pct)
+    if (upd === 'installing') return u().tipInstall
+    return ''
+  }
+
+  /** The rail slot: present only while an update is downloading, installing or ready; only "ready" is a button */
+  function renderUpdateSlot() {
+    const slot = document.getElementById('updSlot')
+    if (upd !== 'ready' && upd !== 'downloading' && upd !== 'installing') {
+      slot.innerHTML = ''
+      hideTip()
+      return
+    }
+    const label = esc(tipText())
+    if (upd === 'ready') {
+      slot.innerHTML = `<button type="button" class="ri upd" id="updBtn" aria-label="${label}"><span class="upd-dot">${ICON_DOWNLOAD(15)}</span></button>`
+    } else {
+      const inner = upd === 'downloading' ? ring(pct) : `<span class="upd-spin">${ICON_LOADER(15)}</span>`
+      const bar = upd === 'downloading' ? ` role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"` : ''
+      slot.innerHTML = `<span class="ri upd" id="updBtn" tabindex="0" aria-label="${label}"${bar}><span class="upd-dot">${inner}</span></span>`
+    }
+    const el = document.getElementById('updBtn')
+    el.onmouseenter = el.onfocus = () => showTip(el)
+    el.onmouseleave = el.onblur = hideTip
+    if (upd === 'ready') el.onclick = install
+    // The slot is rebuilt on every progress step, so an open message is re-anchored to the new element
+    if (tipOpen) showTip(el)
+  }
+
+  function showTip(el) {
+    const tip = document.getElementById('upTip')
+    tip.textContent = tipText()
+    tip.classList.add('on')
+    tipOpen = true
+    const r = el.getBoundingClientRect()
+    tip.style.left = `${r.right + 8}px`
+    tip.style.top = `${r.top + r.height / 2 - tip.offsetHeight / 2}px`
+  }
+  function hideTip() {
+    document.getElementById('upTip').classList.remove('on')
+    tipOpen = false
+  }
+
+  function startDownload() {
+    clearInterval(dlTimer)
+    upd = 'downloading'
+    pct = 0
+    renderUpdateSlot(); refreshSettingsLine()
+    dlTimer = setInterval(() => {
+      pct = Math.min(100, pct + 6)
+      if (pct >= 100) { clearInterval(dlTimer); upd = 'ready' }
+      renderUpdateSlot(); refreshSettingsLine()
+    }, 450)
+  }
+
+  /** Demo: the background download fails. As in Codex nothing is shown — the button goes and a later check retries */
+  function failDownload() {
+    if (upd !== 'downloading') { demoNote('演示：当前没有进行中的下载'); return }
+    clearInterval(dlTimer)
+    upd = 'idle'; pct = 0
+    if (checkOut === 'found') checkOut = null
+    renderUpdateSlot(); refreshSettingsLine()
+    demoNote('演示：后台下载失败 → 按钮消失，下次检查再下')
+  }
+
+  /** Clicking the ready button, or "Install now" in settings, installs and restarts; the prototype cannot
+   *  restart, so it plays one.
+   *  A failed install (rare: a full disk, changed permissions) answers the click the user made: an error toast,
+   *  and the button goes as after a failed download, so the next update check downloads again. */
+  function install() {
+    upd = 'installing'
+    renderUpdateSlot(); refreshSettingsLine()
+    setTimeout(() => {
+      upd = 'idle'; pct = 0; checkOut = null
+      renderUpdateSlot(); refreshSettingsLine()
+      if (nextInstall === 'fail') {
+        toast(u().toastInstallFailed, 'err')
+        demoNote('演示：安装失败 → 错误 toast，按钮消失，下次检查再下载')
+      } else {
+        const v = newVersion
+        relaunch(true)
+        demoNote(`演示：已安装 ${v} 并重启 → 当前版本变为 ${v}，结果行「已是最新版本」`)
+      }
+    }, 1600)
+  }
+
+  /** The prototype cannot restart, so it plays one. This run's page state goes (the result line is not kept
+   *  across a restart), and an update that is ready is installed on the way out, as on any quit. A launch whose
+   *  version went up shows "up to date" in the result line for that run: the owner asked for the state, not the
+   *  action ("up to date" rather than "updated"), 2026-10-13. The lifecycle rule still wins over it. */
+  function relaunch(updated) {
+    clearInterval(dlTimer)
+    if (updated) {
+      curVersion = newVersion
+      newVersion = newVersion.replace(/(\d+)$/, (n) => String(Number(n) + 1))
+      document.querySelector('#nextSel option[value="found"]').textContent = `发现 ${newVersion}`
+    }
+    upd = 'idle'; pct = 0
+    checkOut = updated ? 'uptodate' : null
+    renderUpdateSlot(); render()
+  }
+
+  /** Demo: quit and open again. A ready update installs on the way out; a download under way is dropped */
+  function quitAndReopen() {
+    if (upd === 'installing') { demoNote('演示：正在安装，稍候'); return }
+    if (upd === 'ready') {
+      const v = newVersion
+      relaunch(true)
+      demoNote(`演示：退出时安装 → 再打开已是 ${v}，结果行「已是最新版本」`)
+      return
+    }
+    const wasDownloading = upd === 'downloading'
+    relaunch(false)
+    demoNote(`演示：退出再打开 → 本次运行的结果行不保留${wasDownloading ? '，未完成的下载不安装' : ''}`)
+  }
+
+  /** The surfaces waiting on the check in flight: a check asked for meanwhile joins it rather than sending a
+   *  second request, and each surface gets the outcome in its own form */
+  let checkSources = null
+
+  /** One update check. source: auto (launch or the 24-hour timer) | menu | settings */
+  function runCheck(source) {
+    if (!packaged) { demoNote('演示：开发运行不检查更新'); return }
+    if (source === 'auto' && !autoCheck) { demoNote('演示：自动检查已关闭，不检查'); return }
+    // An update already on its way or waiting: no request and no second download. Only the menu and the timer
+    // can get here — in these states the settings row's button is greyed or is "Install now"
+    if (upd === 'downloading' || upd === 'ready' || upd === 'installing') {
+      if (source === 'menu') toast(upd === 'ready' ? u().readyNote(newVersion) : upd === 'installing' ? u().tipInstall : u().toastFound(newVersion))
+      demoNote('演示：已有更新在途 → 不发请求，「下次检查返回」此时不生效')
+      return
+    }
+    if (source === 'settings') { checkOut = 'checking'; refreshSettingsLine() }
+    if (upd === 'checking') { checkSources.add(source); return }
+    upd = 'checking'
+    checkSources = new Set([source])
+    setTimeout(() => {
+      upd = 'idle'
+      const o = nextOutcome
+      const sources = checkSources
+      checkSources = null
+      if (o === 'found') {
+        // Whichever surface asked, an update found makes this page's earlier "up to date" or "failed" untrue; it
+        // goes, so a failed download leaves the line empty rather than claiming the app is up to date
+        checkOut = sources.has('settings') ? 'found' : null
+        if (sources.has('menu')) toast(u().toastFound(newVersion))
+        startDownload()
+        return
+      }
+      if (sources.has('settings')) { checkOut = o; refreshSettingsLine() }
+      if (sources.has('menu')) toast(o === 'uptodate' ? u().toastUpToDate(curVersion) : u().toastFailed, o === 'failed' ? 'err' : 'ok')
+      if (sources.size === 1 && sources.has('auto')) demoNote(o === 'failed' ? '演示：自动检查失败 → 静默，不打扰' : '演示：自动检查 → 已是最新，不打扰')
+    }, 900)
+  }
+
+  /** The version row's button. While an update is ready it is "Install now" and does what the rail button does,
+   *  greyed while that install runs: the line beside it says the update is ready, so the row offers the install
+   *  (owner's call, 2026-10-13). Otherwise it is "Check now", unavailable in a development run, while this
+   *  page's own check runs and while an update downloads: a click could change nothing then, and looked dead
+   *  (owner's call, 2026-10-13). */
+  function rowAction() {
+    if (upd === 'ready' || upd === 'installing') return { install: true, label: u().installNow, disabled: upd === 'installing' }
+    return { install: false, label: u().checkNow, disabled: !packaged || checkOut === 'checking' || upd === 'downloading' }
+  }
+
+  /** The settings page's result line beside the check button. An update on its way or waiting is shown whichever
+   *  check found it — otherwise a settings check's "up to date" would stay up while the rail button downloads
+   *  (owner's call, 2026-10-13); only with no update in flight does the line show this page's last check. */
+  function checkLine() {
+    if (!packaged) return { cls: '', text: '' }
+    if (upd === 'downloading') return { cls: '', text: u().found(newVersion) }
+    if (upd === 'ready') return { cls: 'ok', text: u().readyNote(newVersion) }
+    if (upd === 'installing') return { cls: '', text: u().tipInstall }
+    switch (checkOut) {
+      case 'checking': return { cls: '', text: u().checking }
+      case 'uptodate': return { cls: 'ok', text: u().upToDate }
+      case 'failed': return { cls: 'err', text: u().failed }
+      default: return { cls: '', text: '' }
+    }
+  }
+  function refreshSettingsLine() {
+    const out = document.getElementById('chkOut')
+    if (!out) return
+    const l = checkLine()
+    out.className = `chk-out ${l.cls}`
+    out.textContent = l.text
+    const btn = document.getElementById('verAct')
+    if (btn) {
+      const a = rowAction()
+      btn.textContent = a.label
+      btn.setAttribute('aria-disabled', String(a.disabled))
+    }
+  }
+
+  /** Demo harness only: a transient line in the floating bar */
+  function demoNote(s) {
+    const out = document.getElementById('sysOut')
+    out.innerHTML = `<b>${esc(s)}</b>`
+    clearTimeout(demoNote._t)
+    demoNote._t = setTimeout(renderDemoOut, 3500)
+  }
+
   /** The system's preferred language list → the effective language: take the first supported one in priority
      * order, falling back to English if none match */
   function resolveSystem(list) {
@@ -465,9 +912,10 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   const modeName = (id) => (id === 'system' ? t().followSystem : id === 'light' ? t().light : t().dark)
 
-  function toast(msg) {
+  function toast(msg, kind = 'ok') {
     const el = document.getElementById('toast')
     el.textContent = msg
+    el.className = kind === 'err' ? 'toast err' : 'toast'
     el.style.display = 'block'
     clearTimeout(toast._tm)
     toast._tm = setTimeout(() => { el.style.display = 'none' }, 2200)
@@ -483,6 +931,7 @@
     document.querySelectorAll('.rail [data-tip]').forEach((b) => {
       b.setAttribute('title', t().rail[b.getAttribute('data-tip')])
     })
+    renderUpdateSlot()
   }
 
   function applyAll() { applyScheme(); applyTheme(); applyLang(); renderDemoOut() }
@@ -583,6 +1032,10 @@
     const d = t()
     const bold = (s) => `<b>${esc(s)}</b>`
     const following = langPref === 'system'
+    const U = u()
+    const line = checkLine()
+    const act = rowAction()
+    const dis = !packaged
     return `
       <div class="settings" id="settingsPane">
         <div class="h1">${esc(d.settings)}</div>
@@ -632,6 +1085,57 @@
             </div>
           </div>
           <div class="foot">${d.appearFoot(bold)}</div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-t">${esc(U.sec)}</div>
+          <div class="field">
+            <div class="frow">
+              <span class="flabel">${esc(U.auto)}</span>
+              <span class="seg" role="radiogroup" aria-label="${esc(U.auto)}">
+                ${[true, false].map((v) => `
+                  <button type="button" role="radio" aria-checked="${v === autoCheck}"
+                          class="${v === autoCheck ? 'on' : ''}" data-auto="${v}"
+                          ${dis ? 'aria-disabled="true"' : ''}>${esc(v ? U.on : U.off)}</button>
+                `).join('')}
+              </span>
+            </div>
+            <div class="frow">
+              <span class="flabel">${esc(U.version)} <span class="ver">${curVersion}</span></span>
+              <span class="ver-ctl">
+                <span class="chk-out ${line.cls}" id="chkOut" role="status">${esc(line.text)}</span>
+                <button type="button" class="cfg-btn" id="verAct"
+                        aria-disabled="${act.disabled}">${esc(act.label)}</button>
+              </span>
+            </div>
+          </div>
+          <div class="foot">${esc(dis ? U.devFoot : U.foot)}</div>
+        </div>
+
+        <div class="note">
+          <b>更新 · 验收</b>（2026-10-12 新增，ADR-0032 及其同日修订）：
+          ① 左下角按钮只在 下载中 / 安装中 / 可安装 时出现，悬停即时显示提示，不点完全不影响使用
+          ② 用演示条「自动检查触发」看完整一轮：出现进度环 → 变下载图标（可安装）→ 点击 → 转圈 → 回到无按钮
+          ③ 「后台下载失败」在下载中点：按钮直接消失，不给任何提示（照 Codex）
+          ④ 菜单「检查更新…」三种结果用 toast；设置页「立即检查」结果就地显示在按钮左侧
+          ⑤ 运行方式切到「开发运行」：开关与按钮不可用，说明换成开发运行的原因
+          ⑥ 切六种语言看提示与设置行在最长语言（俄 / 法）下是否挤压；3 配色 × 2 明暗看圆按钮与提示是否可辨
+          ⑦ 「点击安装后」选「安装失败」，走完一轮再点按钮：错误 toast，按钮消失
+          ⑧ 先在设置页「立即检查」得到「已是最新」，再把「下次检查返回」改成发现新版本、点「自动检查触发」：结果行跟着变成下载中 → 可安装
+          ⑨ 可安装时点按钮（安装成功），或点演示条「退出再打开」：当前版本变成新版本号，结果行「已是最新版本」；没有更新时「退出再打开」则结果行清空
+          ⑩ 下载中「立即检查」置灰；可安装时按钮变成「立即安装」，点击与左下角按钮相同（安装中置灰），装好后变回「立即检查」；有更新在途时演示条的「下次检查返回」不生效（菜单检查会说明）<br>
+          <b>已确认的设计选择（2026-10-13，均按下列现状）</b>：
+          (a) 圆按钮用当前配色的强调色（Codex 是固定蓝），图标取卡片底色，所以浅色下白、深色下深；
+          (b) 提示用图表提示同款的即时深色提示，与其余导航按钮的原生 title（约 1 秒延迟）不一致；
+          (c) 自动检查开关复用分段控件「开 / 关」——app 里没有开关控件，不新造；
+          (d) 保留设置页脚注，描述「后台下载、点击安装、退出时安装」的行为——它说的是按钮何时出现、何时安装，不是应用内不写的「联网说明」；
+          (e) 安装中的转圈图标 Lucide loader-circle（另一候选 Lucide loader 是八根辐条）；
+          (f) 应用菜单「检查更新…」放在应用菜单「关于 Agentshed」之下（macOS 惯例），开发运行时置灰——原生菜单不在本页。<br>
+          <b>2026-10-13 按你的答复加入，待看原型确认</b>：
+          (g) 点击安装后安装失败 → 错误 toast「无法安装更新」，按钮消失，下次检查再下载（见验收 ⑦）；
+          (h) 结果行跟随更新状态，不再与左下角按钮矛盾（见验收 ⑧）；
+          (j) 更新成功后以新版本启动：当前版本为新版本号，结果行显示「已是最新版本」（见验收 ⑨）；
+          (k) 有更新在下载时「立即检查」置灰；可安装时这一行的按钮换成「立即安装」，安装中置灰（见验收 ⑩）。
         </div>
 
         <div class="note">
@@ -699,6 +1203,22 @@
     stage.querySelectorAll('[data-mode]').forEach((b) => {
       b.onclick = () => setMode(b.getAttribute('data-mode'))
     })
+    stage.querySelectorAll('[data-auto]').forEach((b) => {
+      b.onclick = () => {
+        if (b.getAttribute('aria-disabled') === 'true') return
+        const v = b.getAttribute('data-auto') === 'true'
+        if (v === autoCheck) return
+        autoCheck = v
+        render()
+      }
+    })
+    const verAct = document.getElementById('verAct')
+    if (verAct) verAct.onclick = () => {
+      const a = rowAction()
+      if (a.disabled) return
+      if (a.install) install()
+      else runCheck('settings')
+    }
 
     const trig = document.getElementById('langTrigger')
     if (trig) {
@@ -761,6 +1281,23 @@
   document.querySelectorAll('.rail [data-dim]').forEach((b) => {
     b.onclick = () => setDim(b.getAttribute('data-dim'))
   })
+
+  /* ── Demo harness wiring for updates (data-demo-harness): no such controls exist in the app ── */
+  const runSel = document.getElementById('runSel')
+  runSel.onchange = () => {
+    packaged = runSel.value === 'packaged'
+    if (!packaged) { clearInterval(dlTimer); upd = 'idle'; pct = 0; checkOut = null; renderUpdateSlot() }
+    render()
+  }
+  document.getElementById('nextSel').onchange = (e) => { nextOutcome = e.target.value }
+  document.getElementById('instSel').onchange = (e) => { nextInstall = e.target.value }
+  document.getElementById('actAuto').onclick = () => runCheck('auto')
+  document.getElementById('actMenu').onclick = () => {
+    if (!packaged) { demoNote('演示：开发运行中菜单项「检查更新…」置灰'); return }
+    runCheck('menu')
+  }
+  document.getElementById('actFail').onclick = failDownload
+  document.getElementById('actQuit').onclick = quitAndReopen
 
   applyAll()
   setDim('settings')
