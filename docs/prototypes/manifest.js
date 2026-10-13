@@ -25,5 +25,5 @@ window.PROTOTYPES = [
   { module: 'appearance',    type: 'ui',    id: 'settings',       name: '设置·语言 + 外观 + 更新（含左下角更新按钮）', path: 'appearance/prototype-settings.html' },
   { module: 'plugins-view',  type: 'ui',    id: 'plugin-skill-preview', name: 'Plugins·插件 skill 原地预览', path: 'plugins-view/prototype-plugin-skill-preview.html' },
   { module: 'md-preview',    type: 'ui',    id: 'heading-ladder', name: 'Markdown 预览 · 标题层级阶梯', path: 'md-preview/prototype-heading-ladder.html' },
-  { module: 'landing-page',  type: 'ui',    id: 'landing',        name: '落地页（中英 · 正式版 / 仅测试版两种下载状态）', path: 'landing-page/prototype-landing.html' },
+  { module: 'landing-page',  type: 'ui',    id: 'landing',        name: '落地页（中英 · 四种下载状态 · 滚动联动的功能区）', path: 'landing-page/prototype-landing.html' },
 ];
