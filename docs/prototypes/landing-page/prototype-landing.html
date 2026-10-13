@@ -8,7 +8,9 @@
        · only a pre-release exists (the first release is v0.1.0-beta, and R2 holds formal releases only) →
          the download goes to the GitHub pre-release and says plainly that it is a test version.
 
-     Screenshots are placeholders: the real ones are taken from the app when the site is built.
+     Screenshots (shots/, 2026-10-13) are taken from the built app over the owner's own agent data, at the
+     owner's choice: 1280×800 window, light appearance, 2× pixels, one set per language. The token shot is cut
+     96px short at the bottom so the current conversation's title in the recent-sessions list stays out.
      The app icon is the approved production icon from the app-icon prototype.
 
      演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条两组开关——
@@ -69,7 +71,8 @@
     background:var(--warn-bg);color:var(--warn-fg);vertical-align:middle}
 
   /* ── Hero ── */
-  .hero{padding:72px 0 40px;text-align:center}
+  /* padding-block, not the padding shorthand: the shorthand zeroed the side gutter .wrap gives this element */
+  .hero{padding-block:72px 40px;text-align:center}
   .hero .icon{width:112px;height:112px;border-radius:24px;box-shadow:var(--shadow)}
   .hero h1{font-size:44px;line-height:1.15;margin:22px 0 12px;letter-spacing:-.01em}
   .hero .lede{font-size:18px;color:var(--text-2);max-width:720px;margin:0 auto 28px}
@@ -84,8 +87,8 @@
     box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
   .shot .chrome{height:28px;display:flex;align-items:center;gap:6px;padding:0 12px;background:var(--card);border-bottom:1px solid var(--line)}
   .shot .chrome i{width:10px;height:10px;border-radius:50%;background:var(--line-strong)}
-  .shot .ph{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-2);font-size:13px;padding:18px;text-align:center}
-  .hero .shot{max-width:900px;height:420px;margin:48px auto 0}
+  .shot img{display:block;width:100%;height:auto}
+  .hero .shot{max-width:960px;margin:48px auto 0}
 
   /* ── Sections ── */
   section{padding:64px 0}
@@ -94,10 +97,10 @@
   .sec-sub{color:var(--text-2);text-align:center;margin-bottom:36px}
   .feat{display:grid;grid-template-columns:1fr 1.25fr;gap:40px;align-items:center;margin-bottom:56px}
   .feat:last-child{margin-bottom:0}
+  .feat.flip{grid-template-columns:1.25fr 1fr}
   .feat.flip .txt{order:2}
   .feat h3{font-size:22px;margin-bottom:10px}
   .feat p{color:var(--text-2)}
-  .feat .shot{height:300px}
 
   .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
   .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
@@ -123,10 +126,8 @@
 
   @media (max-width:760px){
     .hero h1{font-size:32px}
-    .hero .shot{height:240px}
-    .feat{grid-template-columns:1fr;gap:18px}
+    .feat,.feat.flip{grid-template-columns:1fr;gap:18px}
     .feat.flip .txt{order:0}
-    .feat .shot{height:200px}
     .steps{grid-template-columns:1fr}
     nav.links{display:none}
     .lang{margin-left:auto}
@@ -201,14 +202,14 @@
       meta: 'macOS 12 及以上 · Apple Silicon',
       betaNote: '正式版尚未发布。测试版从 GitHub 下载，可能还有不稳定之处。',
       allVersions: '在 GitHub 查看所有版本',
-      shotHero: '截图位 · Agents 总览（建站时取应用的真实截图）',
+      shotHero: 'Agentshed 的 Agents 总览',
       featTitle: '一个应用，看清全部',
       featSub: '它只读取你本机上 coding agent 留下的文件。',
       feats: [
-        ['全局总览', '每个 coding agent 装了什么、一共烧了多少 token，打开就是全景。', '截图位 · Agents 总览'],
-        ['每个项目装了什么', 'skills、subagents、plugins、MCP 与配置，按项目实际生效的样子列出来。', '截图位 · 项目详情'],
-        ['Token 用量与趋势', '按天、按项目、按模型拆开看，历史用量本地存档，不怕 agent 自己清理会话。', '截图位 · Token 统计'],
-        ['会话回看', '按提问索引一次会话，点开整轮看工具调用与子任务，支持搜索。', '截图位 · 会话页'],
+        ['全局总览', '每个 coding agent 装了什么、一共烧了多少 token，打开就是全景。', 'overview', '所有 agent 侧的 skills 合并在一张表里'],
+        ['每个项目装了什么', 'skills、subagents、plugins、MCP 与配置，按项目实际生效的样子列出来。', 'project', '一个项目的 Skills 页'],
+        ['Token 用量与趋势', '按天、按项目、按模型拆开看，历史用量本地存档，不怕 agent 自己清理会话。', 'tokens', '一个项目的 token 总量、趋势与按模型拆分'],
+        ['会话回看', '按提问索引一次会话，点开整轮看工具调用与子任务，支持搜索。', 'session', '会话页：提问索引与展开的一整轮'],
       ],
       installTitle: '安装',
       steps: [
@@ -237,14 +238,14 @@
       meta: 'macOS 12 or later · Apple Silicon',
       betaNote: 'No stable release yet. The test version downloads from GitHub and may still be rough in places.',
       allVersions: 'See every version on GitHub',
-      shotHero: 'Screenshot · Agents overview (taken from the app when the site is built)',
+      shotHero: 'The Agents overview in Agentshed',
       featTitle: 'One app, the whole picture',
       featSub: 'It only reads the files your coding agents leave on your Mac.',
       feats: [
-        ['The overview', 'What every coding agent has installed and how many tokens it has burned, as soon as you open it.', 'Screenshot · Agents overview'],
-        ['What each project has', 'Skills, subagents, plugins, MCP servers and configuration, listed as they actually take effect in that project.', 'Screenshot · Project detail'],
-        ['Token usage and trends', 'Split by day, project and model, with history kept locally even after an agent cleans up its own sessions.', 'Screenshot · Token statistics'],
-        ['Sessions, revisited', 'Each session indexed by question; open a whole turn to see its tool calls and subagents, or search.', 'Screenshot · Session page'],
+        ['The overview', 'What every coding agent has installed and how many tokens it has burned, as soon as you open it.', 'overview', 'Every agent side’s skills in one merged list'],
+        ['What each project has', 'Skills, subagents, plugins, MCP servers and configuration, listed as they actually take effect in that project.', 'project', 'A project’s Skills tab'],
+        ['Token usage and trends', 'Split by day, project and model, with history kept locally even after an agent cleans up its own sessions.', 'tokens', 'A project’s token totals, trend and per-model split'],
+        ['Sessions, revisited', 'Each session indexed by question; open a whole turn to see its tool calls and subagents, or search.', 'session', 'The session page: the question index with one whole turn open'],
       ],
       installTitle: 'Install',
       steps: [
@@ -299,17 +300,17 @@
         <h1>${esc(d.title)}</h1>
         <p class="lede">${esc(d.lede)}</p>
         <div class="cta">${heroCta}</div>
-        <div class="shot"><div class="chrome"><i></i><i></i><i></i></div><div class="ph">${esc(d.shotHero)}</div></div>
+        <div class="shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/hero-${lang}.png" alt="${esc(d.shotHero)}"></div>
       </div>
 
       <section class="soft" id="features">
         <div class="wrap">
           <h2 class="sec-title">${esc(d.featTitle)}</h2>
           <p class="sec-sub">${esc(d.featSub)}</p>
-          ${d.feats.map(([h, p, s], i) => `
+          ${d.feats.map(([h, p, img, alt], i) => `
             <div class="feat ${i % 2 ? 'flip' : ''}">
               <div class="txt"><h3>${esc(h)}</h3><p>${esc(p)}</p></div>
-              <div class="shot"><div class="chrome"><i></i><i></i><i></i></div><div class="ph">${esc(s)}</div></div>
+              <div class="shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/${img}-${lang}.png" alt="${esc(alt)}" loading="lazy"></div>
             </div>`).join('')}
         </div>
       </section>
@@ -346,7 +347,7 @@
       <div class="note">
         <b>验收</b>：① 切「下载状态」看两种首屏：仅测试版时按钮指向 GitHub 的测试版、标「测试版」并说明正式版未发布；
         有正式版时指向 R2 镜像（下载区另给 GitHub 兜底）② 中 / EN 切换在右上角 ③ 窄屏（&lt;760px）单栏、导航收起
-        ④ 浅色 / 深色都看 ⑤ 截图位建站时换成应用真实截图。<br>
+        ④ 浅色 / 深色都看 ⑤ 截图是 2026-10-13 从打包后的应用实拍的，用的是你本机的真实数据（项目名、路径、用量、会话提问都会随页面公开）。<br>
         <b>待你确认</b>：
         (a) 页面结构：Hero → 四段功能（总览 / 项目 / Token / 会话）→ 安装三步 → 下载 → 页脚；
         (b) 文案不把 agent 侧当全集列出（「Claude Code、Codex 等」），新增一侧时不用改；
