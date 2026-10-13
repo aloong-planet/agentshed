@@ -74,12 +74,16 @@ it found, so that I know where I stand.
   or an update was found and is downloading in the background.
 - app-update::US-003/AC-02: "Check now" in settings reports its outcome in the result line beside the
   button: checking, already up to date, or the check failed. An update it finds shows in the line as
-  described in app-update::REQ-004. The button is unavailable while its own check runs.
+  described in app-update::REQ-004. The button is unavailable while its own check runs, and while an
+  update is downloading, ready or installing — a click could change nothing then, and the line already
+  says why (owner's call, 2026-10-13). It is available again once the update is installed, or once the
+  download fails.
 - app-update::US-003/AC-03: A manual check that finds an update starts the background download, as
   any other check does.
-- app-update::US-003/AC-04: A manual check made while an update is downloading or ready makes no
-  request and does not start a second download. It reports that state instead: from the menu, a toast
-  that the version is downloading or is ready to install; from settings, the result line.
+- app-update::US-003/AC-04: A check from the menu made while an update is downloading or ready makes
+  no request and does not start a second download. It reports that state in a toast instead: the
+  version is downloading, or it is ready to install. Settings cannot ask in that state
+  (app-update::US-003/AC-02).
 - app-update::US-003/AC-05: A manual check made while another check is in flight does not start a
   second request. It reports the outcome of the check in flight.
 
@@ -154,7 +158,9 @@ never replaces my working build. The updater cannot work in an unpackaged app an
   to install" or "Installing update…".
 - app-update::REQ-004/AC-02: With no update in flight, the line shows the outcome of the last check
   made from settings in this session; failing that, the post-update line of app-update::REQ-004/AC-04;
-  failing that, nothing. After a background download fails, the line no longer shows the download.
+  failing that, nothing. An update found by any check, from any surface, clears the line's earlier
+  outcome, since an "up to date" or a failure from before is no longer true. So after a background
+  download fails the line is empty: it shows neither the download nor an outdated "up to date".
 - app-update::REQ-004/AC-03: The line is kept when the user leaves settings and comes back, and it
   follows a language switch. It is not kept across a restart: a new run starts empty, or with the
   post-update line of app-update::REQ-004/AC-04.
@@ -269,8 +275,9 @@ Install on quit happens only on a quit the user made, and never relaunches the a
 - C5 A newer release is published while an update is ready: automatic checks do not look until the
   ready update is installed (app-update::REQ-006/AC-03). After the restart, the next check offers the
   newer one.
-- C6 A manual check while ready: it reports "ready to install" and makes no request
-  (app-update::US-003/AC-04).
+- C6 A check while ready: from the menu it reports "ready to install" and makes no request
+  (app-update::US-003/AC-04). In settings "Check now" is unavailable, so a click on the greyed button
+  does nothing (app-update::US-003/AC-02).
 - C7 The first run after an update, by either route (C1 or C2): "Current version" is the new version,
   and the line says "You're up to date" (app-update::REQ-004/AC-04). If that run's launch check finds
   a still newer release, the line shows its download instead (app-update::REQ-004/AC-01). If automatic
@@ -294,7 +301,8 @@ Install on quit happens only on a quit the user made, and never relaunches the a
 - D4 Menu and settings checks in quick succession: the second joins the first. Each surface reports in
   its own form.
 - D5 A settings "up to date", then an automatic check finds an update: the line switches to the
-  download (app-update::REQ-004/AC-01).
+  download (app-update::REQ-004/AC-01). If that download then fails, the line is empty, not "up to
+  date" again (app-update::REQ-004/AC-02), and "Check now" is available again.
 - D6 The user leaves settings during a check and returns after it finished: the line shows the outcome
   (app-update::REQ-004/AC-03).
 
@@ -434,7 +442,8 @@ menu template's tests.
   expressed in an HTML prototype and is stated here instead.
 
   > Pending: the owner has confirmed the revised prototype's install-failure toast
-  > (app-update::REQ-002/AC-03), its lifecycle-first result line (app-update::REQ-004/AC-01) and its
-  > post-update line (app-update::REQ-004/AC-04).
+  > (app-update::REQ-002/AC-03), its lifecycle-first result line (app-update::REQ-004/AC-01), its
+  > post-update line (app-update::REQ-004/AC-04), and its "Check now" that is unavailable while an
+  > update is in flight (app-update::US-003/AC-02).
 
 - The first release is a pre-release (ADR-0031), so the first users are on the pre-release channel.
