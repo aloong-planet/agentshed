@@ -1,7 +1,9 @@
 <!doctype html>
 <!-- A UI prototype · landing-page: Agentshed's download landing page (ADR-0031), the long-page form the
      owner picked on 2026-10-12 ("L1", after Transfer's landing page): header → hero with the download →
-     four feature sections → install steps → download section → footer. Chinese and English only.
+     features → install steps → download section → footer. Chinese and English only. The features scroll by
+     (owner's call, 2026-10-13): four text steps on the left move with the page, one screenshot frame on the
+     right stays put and shows the step nearest its middle, and clicking a step scrolls to it.
 
      What it asks: does this page structure, and the two download states, read right?
        · a formal release exists → the download goes to the R2 mirror, with GitHub as the fallback link;
@@ -9,8 +11,9 @@
          the download goes to the GitHub pre-release and says plainly that it is a test version.
 
      Screenshots (shots/, 2026-10-13) are taken from the built app over the owner's own agent data, at the
-     owner's choice: 1280×800 window, light appearance, 2× pixels, one set per language. The token shot is cut
-     96px short at the bottom so the current conversation's title in the recent-sessions list stays out.
+     owner's choice: 1280×800 window, light appearance, 2× pixels, one set per language. The four feature shots
+     are cut to 16:9 from the top: the token shot so the current conversation's title in the recent-sessions
+     list stays out, the other three to match it, since they take turns in one frame.
      The app icon is the approved production icon from the app-icon prototype.
 
      演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条两组开关——
@@ -87,6 +90,8 @@
     box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
   .shot .chrome{height:28px;display:flex;align-items:center;gap:6px;padding:0 12px;background:var(--card);border-bottom:1px solid var(--line)}
   .shot .chrome i{width:10px;height:10px;border-radius:50%;background:var(--line-strong)}
+  /* The tags carry width and height so the space is held before an image loads: without them, switching
+     language swapped in unloaded screenshots, everything above collapsed and the page jumped a step */
   .shot img{display:block;width:100%;height:auto}
   .hero .shot{max-width:960px;margin:48px auto 0}
 
@@ -95,12 +100,32 @@
   section.soft{background:var(--bg-soft)}
   .sec-title{font-size:28px;text-align:center;margin-bottom:8px}
   .sec-sub{color:var(--text-2);text-align:center;margin-bottom:36px}
-  .feat{display:grid;grid-template-columns:1fr 1.25fr;gap:40px;align-items:center;margin-bottom:56px}
-  .feat:last-child{margin-bottom:0}
-  .feat.flip{grid-template-columns:1.25fr 1fr}
-  .feat.flip .txt{order:2}
-  .feat h3{font-size:22px;margin-bottom:10px}
-  .feat p{color:var(--text-2)}
+  /* Features scroll by: the text steps on the left move with the page while the screenshot frame on the right
+     stays put and shows the step whose text sits nearest its middle. Each step is about a third of a screen
+     tall, so the steps either side of the current one stay in view and the column reads as a list to pick
+     from (at 60vh only the current step was on screen). Phones lose the sticky frame and every step carries
+     its own screenshot. */
+  .fs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.9fr);gap:56px;align-items:start}
+  .fs-step{min-height:34vh;display:flex;align-items:center}
+  .fs-item{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:none;border:0;
+    border-left:3px solid var(--line);padding:8px 0 8px 20px;cursor:pointer}
+  .fs-item .fs-h{display:block;font-size:22px;font-weight:700;line-height:1.3;margin-bottom:10px;color:var(--text-2)}
+  .fs-item .fs-p{display:block;color:var(--text-2)}
+  .fs-item:hover{border-left-color:var(--line-strong)}
+  .fs-item:hover .fs-h{color:var(--text)}
+  /* After :hover, at the same specificity, so the current step keeps its accent while hovered */
+  .fs-item.on{border-left-color:var(--accent)}
+  .fs-item.on .fs-h{color:var(--text)}
+  .fs-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  /* Centred under the 58px header for a frame about 390px tall, and never tucked under the header */
+  .fs-panel{position:sticky;top:max(76px, calc(50vh - 164px))}
+  /* The four screenshots share one cell, so they must share one shape (16:9): a shorter one left a strip */
+  .fs-stack{display:grid}
+  /* visibility as well as opacity: a transparent screenshot would still lie on top and take the pointer */
+  .fs-stack img{grid-area:1/1;opacity:0;visibility:hidden;transition:opacity .3s, visibility 0s .3s}
+  .fs-stack img.on{opacity:1;visibility:visible;transition:opacity .3s}
+  .fs-step .m-shot{display:none}
+  @media (prefers-reduced-motion:reduce){ .fs-stack img, .fs-stack img.on{transition:none} }
 
   .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
   .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
@@ -126,8 +151,14 @@
 
   @media (max-width:760px){
     .hero h1{font-size:32px}
-    .feat,.feat.flip{grid-template-columns:1fr;gap:18px}
-    .feat.flip .txt{order:0}
+    .fs{grid-template-columns:1fr;gap:44px}
+    .fs-panel{display:none}
+    .fs-step{min-height:0;display:block}
+    /* Without a gap the next step's title sat right under the previous screenshot and read as its caption */
+    .fs-list{display:flex;flex-direction:column;gap:44px}
+    .fs-item{border-left:0;padding:0;cursor:default}
+    .fs-item .fs-h{color:var(--text)}
+    .fs-step .m-shot{display:flex;margin-top:18px}
     .steps{grid-template-columns:1fr}
     nav.links{display:none}
     .lang{margin-left:auto}
@@ -267,6 +298,8 @@
 
   let lang = 'zh'
   let rel = 'beta'
+  /** The feature step the screenshot frame shows; kept across re-renders so switching language keeps the place */
+  let feat = 0
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   const dmg = (v) => `Agentshed-${v}-mac-arm64.dmg`
 
@@ -300,18 +333,25 @@
         <h1>${esc(d.title)}</h1>
         <p class="lede">${esc(d.lede)}</p>
         <div class="cta">${heroCta}</div>
-        <div class="shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/hero-${lang}.png" alt="${esc(d.shotHero)}"></div>
+        <div class="shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/hero-${lang}.png" width="2560" height="1536" alt="${esc(d.shotHero)}"></div>
       </div>
 
       <section class="soft" id="features">
         <div class="wrap">
           <h2 class="sec-title">${esc(d.featTitle)}</h2>
           <p class="sec-sub">${esc(d.featSub)}</p>
-          ${d.feats.map(([h, p, img, alt], i) => `
-            <div class="feat ${i % 2 ? 'flip' : ''}">
-              <div class="txt"><h3>${esc(h)}</h3><p>${esc(p)}</p></div>
-              <div class="shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/${img}-${lang}.png" alt="${esc(alt)}" loading="lazy"></div>
-            </div>`).join('')}
+          <div class="fs">
+            <div class="fs-list">
+              ${d.feats.map(([h, p, img, alt], i) => `
+                <div class="fs-step">
+                  <button type="button" class="fs-item${i === feat ? ' on' : ''}" data-i="${i}"><span class="fs-h">${esc(h)}</span><span class="fs-p">${esc(p)}</span></button>
+                  <div class="shot m-shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/${img}-${lang}.png" width="2560" height="1440" alt="${esc(alt)}" loading="lazy"></div>
+                </div>`).join('')}
+            </div>
+            <div class="shot fs-panel"><div class="chrome"><i></i><i></i><i></i></div>
+              <div class="fs-stack">${d.feats.map(([, , img, alt], i) => `<img class="${i === feat ? 'on' : ''}" src="shots/${img}-${lang}.png" width="2560" height="1440" alt="${esc(alt)}">`).join('')}</div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -347,9 +387,10 @@
       <div class="note">
         <b>验收</b>：① 切「下载状态」看两种首屏：仅测试版时按钮指向 GitHub 的测试版、标「测试版」并说明正式版未发布；
         有正式版时指向 R2 镜像（下载区另给 GitHub 兜底）② 中 / EN 切换在右上角 ③ 窄屏（&lt;760px）单栏、导航收起
-        ④ 浅色 / 深色都看 ⑤ 截图是 2026-10-13 从打包后的应用实拍的，用的是你本机的真实数据（项目名、路径、用量、会话提问都会随页面公开）。<br>
+        ④ 浅色 / 深色都看 ⑤ 截图是 2026-10-13 从打包后的应用实拍的，用的是你本机的真实数据（项目名、路径、用量、会话提问都会随页面公开）
+        ⑥ 功能区往下滚：左侧四段文字随页面移动，右侧截图框停在原处，显示离它中线最近的那段；点左侧某段会滚到该段；窄屏没有固定框，每段文字下面直接跟自己的截图。<br>
         <b>待你确认</b>：
-        (a) 页面结构：Hero → 四段功能（总览 / 项目 / Token / 会话）→ 安装三步 → 下载 → 页脚；
+        (a) 页面结构：Hero → 功能区（总览 / 项目 / Token / 会话，左文右图滚动联动）→ 安装三步 → 下载 → 页脚；
         (b) 文案不把 agent 侧当全集列出（「Claude Code、Codex 等」），新增一侧时不用改；
         (c) 功能区副标题「它只读取你本机上 coding agent 留下的文件」是一句隐私性质的说法，你之前在应用内拒绝了「联网说明」，这里是否保留；
         (d) 安装第 3 步提前告诉用户首次打开的系统提示是正常的，并提到左下角的更新按钮；
@@ -360,10 +401,55 @@
       </div>`
   }
 
-  document.querySelectorAll('.lang button').forEach((b) => { b.onclick = () => { lang = b.dataset.lang; render() } })
-  document.getElementById('relSel').onchange = (e) => { rel = e.target.value; render() }
+  /** The sticky frame is hidden on phones, where every step shows its own screenshot */
+  const fsPanel = () => {
+    const p = document.querySelector('.fs-panel')
+    return p && getComputedStyle(p).display !== 'none' ? p : null
+  }
+  function showFeat(i) {
+    feat = i
+    document.querySelectorAll('.fs-item').forEach((b) => b.classList.toggle('on', Number(b.dataset.i) === i))
+    document.querySelectorAll('.fs-stack img').forEach((im, j) => im.classList.toggle('on', j === i))
+  }
+  /** The frame shows the step whose text sits nearest its middle */
+  function syncFeat() {
+    const panel = fsPanel()
+    if (!panel) return
+    const pr = panel.getBoundingClientRect()
+    const mid = pr.top + pr.height / 2
+    let best = feat
+    let dist = Infinity
+    document.querySelectorAll('.fs-item').forEach((b) => {
+      const r = b.getBoundingClientRect()
+      const d = Math.abs(r.top + r.height / 2 - mid)
+      if (d < dist) { dist = d; best = Number(b.dataset.i) }
+    })
+    if (best !== feat) showFeat(best)
+  }
+  let ticking = false
+  const onScroll = () => {
+    if (ticking) return
+    ticking = true
+    requestAnimationFrame(() => { ticking = false; syncFeat() })
+  }
+  addEventListener('scroll', onScroll, { passive: true })
+  addEventListener('resize', onScroll)
+  /** Clicking a step scrolls it level with the stuck frame's middle; the scroll itself then switches the screenshot */
+  document.getElementById('page').addEventListener('click', (e) => {
+    const b = e.target.closest('.fs-item')
+    const panel = fsPanel()
+    if (!b || !panel) return
+    const mid = parseFloat(getComputedStyle(panel).top) + panel.offsetHeight / 2
+    const r = b.getBoundingClientRect()
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
+    scrollTo({ top: scrollY + r.top + r.height / 2 - mid, behavior: smooth ? 'smooth' : 'auto' })
+  })
+
+  document.querySelectorAll('.lang button').forEach((b) => { b.onclick = () => { lang = b.dataset.lang; render(); syncFeat() } })
+  document.getElementById('relSel').onchange = (e) => { rel = e.target.value; render(); syncFeat() }
   document.getElementById('themeSel').onchange = (e) => { document.documentElement.dataset.theme = e.target.value }
   render()
+  syncFeat()
 </script>
 </body>
 </html>
