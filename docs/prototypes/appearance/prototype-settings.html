@@ -22,10 +22,12 @@
          下次检查再下载——用户点了就要有回应。
        · 设置页结果行跟随更新生命周期:有更新在下载 / 可安装 / 安装中时显示该状态,不论是哪次检查发现的;
          没有更新在途时才显示设置页上次检查的结果。
+       · 更新成功、以新版本启动后(点按钮安装并重启,或退出时安装后再打开),「当前版本」是新版本号,
+         结果行显示「已是最新版本」(绿),本次运行期间保留——描述状态,不写「已更新」这种动作结果。
 
      演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条。系统语言、系统明暗两组照旧;
-     更新相关:运行方式(打包/开发运行)、下次检查返回什么、点击安装后(成功/失败)、三个动作按钮
-     (自动检查触发、菜单「检查更新…」、后台下载失败)。真实来源:运行方式 = app 是否打包;检查结果 =
+     更新相关:运行方式(打包/开发运行)、下次检查返回什么、点击安装后(成功/失败)、四个动作按钮
+     (自动检查触发、菜单「检查更新…」、后台下载失败、退出再打开)。原型无法真正重启,「重启」由页面模拟。真实来源:运行方式 = app 是否打包;检查结果 =
      GitHub Releases 的应答;安装结果 = 系统替换 app 是否成功;app 内没有这些控件。
      真实来源:语言 = app.getPreferredSystemLanguages();明暗 = prefers-color-scheme 媒体查询。
      app 内没有这两个控件,此处仅为让「跟随系统」的解析结果在任意宿主环境下都可见。 -->
@@ -382,6 +384,7 @@
       <button type="button" class="act" id="actAuto">自动检查触发</button>
       <button type="button" class="act" id="actMenu">菜单「检查更新…」</button>
       <button type="button" class="act" id="actFail">后台下载失败</button>
+      <button type="button" class="act" id="actQuit">退出再打开</button>
     </span>
     <span class="vr"></span>
     <span class="out" id="sysOut"></span>
@@ -650,8 +653,8 @@
 
   /* ── Updates (ADR-0032 as amended): the lifecycle Codex renders — idle / checking / downloading / ready /
      installing. There is no failure state: a failed background download returns to idle. ── */
-  const CUR_VERSION = '0.1.0-beta'
-  const NEW_VERSION = '0.1.1'
+  let curVersion = '0.1.0-beta'  // the running version; a played restart into an update moves it on
+  let newVersion = '0.1.1'       // what the next check that finds an update finds
   let packaged = true        // demo harness: a packaged app or a development run
   let autoCheck = true       // the settings switch, on by default
   let nextOutcome = 'found'  // demo harness: what the next update check answers
@@ -758,9 +761,41 @@
         toast(u().toastInstallFailed, 'err')
         demoNote('演示：安装失败 → 错误 toast，按钮消失，下次检查再下载')
       } else {
-        demoNote(`演示：已安装 ${NEW_VERSION} 并重启（原型无法真正重启，状态回到无更新）`)
+        const v = newVersion
+        relaunch(true)
+        demoNote(`演示：已安装 ${v} 并重启 → 当前版本变为 ${v}，结果行「已是最新版本」`)
       }
     }, 1600)
+  }
+
+  /** The prototype cannot restart, so it plays one. This run's page state goes (the result line is not kept
+   *  across a restart), and an update that is ready is installed on the way out, as on any quit. A launch whose
+   *  version went up shows "up to date" in the result line for that run: the owner asked for the state, not the
+   *  action ("up to date" rather than "updated"), 2026-10-13. The lifecycle rule still wins over it. */
+  function relaunch(updated) {
+    clearInterval(dlTimer)
+    if (updated) {
+      curVersion = newVersion
+      newVersion = newVersion.replace(/(\d+)$/, (n) => String(Number(n) + 1))
+      document.querySelector('#nextSel option[value="found"]').textContent = `发现 ${newVersion}`
+    }
+    upd = 'idle'; pct = 0
+    checkOut = updated ? 'uptodate' : null
+    renderUpdateSlot(); render()
+  }
+
+  /** Demo: quit and open again. A ready update installs on the way out; a download under way is dropped */
+  function quitAndReopen() {
+    if (upd === 'installing') { demoNote('演示：正在安装，稍候'); return }
+    if (upd === 'ready') {
+      const v = newVersion
+      relaunch(true)
+      demoNote(`演示：退出时安装 → 再打开已是 ${v}，结果行「已是最新版本」`)
+      return
+    }
+    const wasDownloading = upd === 'downloading'
+    relaunch(false)
+    demoNote(`演示：退出再打开 → 本次运行的结果行不保留${wasDownloading ? '，未完成的下载不安装' : ''}`)
   }
 
   /** One update check. source: auto (launch or the 24-hour timer) | menu | settings */
@@ -770,7 +805,7 @@
     // An update already on its way or waiting: the check reports it instead of starting a second download
     if (upd === 'downloading' || upd === 'ready' || upd === 'installing') {
       if (source === 'settings') { checkOut = upd === 'ready' ? 'ready' : 'found'; refreshSettingsLine() }
-      if (source === 'menu') toast(upd === 'ready' ? u().readyNote(NEW_VERSION) : u().toastFound(NEW_VERSION))
+      if (source === 'menu') toast(upd === 'ready' ? u().readyNote(newVersion) : u().toastFound(newVersion))
       return
     }
     if (source === 'settings') { checkOut = 'checking'; refreshSettingsLine() }
@@ -780,12 +815,12 @@
       const o = nextOutcome
       if (o === 'found') {
         if (source === 'settings') checkOut = 'found'
-        if (source === 'menu') toast(u().toastFound(NEW_VERSION))
+        if (source === 'menu') toast(u().toastFound(newVersion))
         startDownload()
         return
       }
       if (source === 'settings') { checkOut = o; refreshSettingsLine() }
-      if (source === 'menu') toast(o === 'uptodate' ? u().toastUpToDate(CUR_VERSION) : u().toastFailed, o === 'failed' ? 'err' : 'ok')
+      if (source === 'menu') toast(o === 'uptodate' ? u().toastUpToDate(curVersion) : u().toastFailed, o === 'failed' ? 'err' : 'ok')
       if (source === 'auto') demoNote(o === 'failed' ? '演示：自动检查失败 → 静默，不打扰' : '演示：自动检查 → 已是最新，不打扰')
     }, 900)
   }
@@ -795,8 +830,8 @@
    *  (owner's call, 2026-10-13); only with no update in flight does the line show this page's last check. */
   function checkLine() {
     if (!packaged) return { cls: '', text: '' }
-    if (upd === 'downloading') return { cls: '', text: u().found(NEW_VERSION) }
-    if (upd === 'ready') return { cls: 'ok', text: u().readyNote(NEW_VERSION) }
+    if (upd === 'downloading') return { cls: '', text: u().found(newVersion) }
+    if (upd === 'ready') return { cls: 'ok', text: u().readyNote(newVersion) }
     if (upd === 'installing') return { cls: '', text: u().tipInstall }
     switch (checkOut) {
       case 'checking': return { cls: '', text: u().checking }
@@ -1030,7 +1065,7 @@
               </span>
             </div>
             <div class="frow">
-              <span class="flabel">${esc(U.version)} <span class="ver">${CUR_VERSION}</span></span>
+              <span class="flabel">${esc(U.version)} <span class="ver">${curVersion}</span></span>
               <span class="ver-ctl">
                 <span class="chk-out ${line.cls}" id="chkOut" role="status">${esc(line.text)}</span>
                 <button type="button" class="cfg-btn" id="checkNow"
@@ -1050,7 +1085,8 @@
           ⑤ 运行方式切到「开发运行」：开关与按钮不可用，说明换成开发运行的原因
           ⑥ 切六种语言看提示与设置行在最长语言（俄 / 法）下是否挤压；3 配色 × 2 明暗看圆按钮与提示是否可辨
           ⑦ 「点击安装后」选「安装失败」，走完一轮再点按钮：错误 toast，按钮消失
-          ⑧ 先在设置页「立即检查」得到「已是最新」，再把「下次检查返回」改成发现新版本、点「自动检查触发」：结果行跟着变成下载中 → 可安装<br>
+          ⑧ 先在设置页「立即检查」得到「已是最新」，再把「下次检查返回」改成发现新版本、点「自动检查触发」：结果行跟着变成下载中 → 可安装
+          ⑨ 可安装时点按钮（安装成功），或点演示条「退出再打开」：当前版本变成新版本号，结果行「已是最新版本」；没有更新时「退出再打开」则结果行清空<br>
           <b>已确认的设计选择（2026-10-13，均按下列现状）</b>：
           (a) 圆按钮用当前配色的强调色（Codex 是固定蓝），图标取卡片底色，所以浅色下白、深色下深；
           (b) 提示用图表提示同款的即时深色提示，与其余导航按钮的原生 title（约 1 秒延迟）不一致；
@@ -1060,7 +1096,8 @@
           (f) 应用菜单「检查更新…」放在应用菜单「关于 Agentshed」之下（macOS 惯例），开发运行时置灰——原生菜单不在本页。<br>
           <b>2026-10-13 按你的答复加入，待看原型确认</b>：
           (g) 点击安装后安装失败 → 错误 toast「无法安装更新」，按钮消失，下次检查再下载（见验收 ⑦）；
-          (h) 结果行跟随更新状态，不再与左下角按钮矛盾（见验收 ⑧）。
+          (h) 结果行跟随更新状态，不再与左下角按钮矛盾（见验收 ⑧）；
+          (j) 更新成功后以新版本启动：当前版本为新版本号，结果行显示「已是最新版本」（见验收 ⑨）。
         </div>
 
         <div class="note">
@@ -1220,6 +1257,7 @@
     runCheck('menu')
   }
   document.getElementById('actFail').onclick = failDownload
+  document.getElementById('actQuit').onclick = quitAndReopen
 
   applyAll()
   setDim('settings')

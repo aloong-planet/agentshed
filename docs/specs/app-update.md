@@ -153,10 +153,17 @@ never replaces my working build. The updater cannot work in an unpackaged app an
   shows that state, whichever check found the update: "Version x is downloading", "Version x is ready
   to install" or "Installing update…".
 - app-update::REQ-004/AC-02: With no update in flight, the line shows the outcome of the last check
-  made from settings in this session, or nothing if there was none. After a background download
-  fails, the line no longer shows the download.
-- app-update::REQ-004/AC-03: The line is kept when the user leaves settings and comes back, follows a
-  language switch, and is not kept across a restart.
+  made from settings in this session; failing that, the post-update line of app-update::REQ-004/AC-04;
+  failing that, nothing. After a background download fails, the line no longer shows the download.
+- app-update::REQ-004/AC-03: The line is kept when the user leaves settings and comes back, and it
+  follows a language switch. It is not kept across a restart: a new run starts empty, or with the
+  post-update line of app-update::REQ-004/AC-04.
+- app-update::REQ-004/AC-04: On the first run after the app's version went up — whether the update was
+  installed from the ready button, installed on quit, or installed by hand — "Current version" shows
+  the new version, and the line shows "You're up to date" in the ok form, the same text a settings
+  check gives. The line describes the state the user is in, not the action ("updated"), by the owner's
+  call of 2026-10-13. It stays for that run until a check made from settings replaces it, and
+  app-update::REQ-004/AC-01 still wins over it.
 
 ### app-update::REQ-005 The menu item (direct acceptance)
 
@@ -264,6 +271,17 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   newer one.
 - C6 A manual check while ready: it reports "ready to install" and makes no request
   (app-update::US-003/AC-04).
+- C7 The first run after an update, by either route (C1 or C2): "Current version" is the new version,
+  and the line says "You're up to date" (app-update::REQ-004/AC-04). If that run's launch check finds
+  a still newer release, the line shows its download instead (app-update::REQ-004/AC-01). If automatic
+  checks are off or the launch check fails, a release published after the download is unknown to this
+  run, and the line still says up to date — the same knowledge a settings check had when the update was
+  found. A settings check replaces the line.
+- C8 The first run of a fresh installation, the first run of the first version that records its
+  version, and a run after the version went down (a hand-installed older copy): no post-update line.
+- C9 A newer copy installed by hand (dragged from a DMG): its first run counts as a run after the
+  version went up, and shows the post-update line. The app cannot tell the two routes apart, and the
+  line holds for both.
 
 **Sequence D: manual checks**
 
@@ -362,6 +380,10 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   token, so nothing is hard-coded per theme.
 - **Quit ordering**: install-and-restart goes through the app's normal quit path, so the display-cache
   flush in that path runs before the app is replaced.
+- **The first run after an update** is recognised by comparing the running version with the version the
+  app recorded on its previous run. The record is kept in userData, apart from the preferences (it is
+  not something the user chooses). It is written at each launch, and a missing record shows nothing
+  (C8).
 
 ## Testing Decisions
 
@@ -377,6 +399,9 @@ Seams confirmed by the owner on 2026-10-13:
   update feature only, so the settings controls can be exercised under test.
 - **The preferences store**: the switch's default, persistence and per-field fallback, following the
   existing preference cases.
+- **The post-update line**: e2e seeds an older, equal, newer or missing recorded version in the
+  isolated userData and asserts what the line and "Current version" show (app-update::REQ-004/AC-04,
+  C7–C9). No update has to run for this.
 - **The IPC contract**: validation of the lifecycle payload and of the command arguments.
 - **The menu template**: unit tests on the pure function cover the item's position, copy in six
   languages and its disabled state when unpackaged. What the native menu actually draws is accepted by
@@ -409,6 +434,7 @@ menu template's tests.
   expressed in an HTML prototype and is stated here instead.
 
   > Pending: the owner has confirmed the revised prototype's install-failure toast
-  > (app-update::REQ-002/AC-03) and its lifecycle-first result line (app-update::REQ-004).
+  > (app-update::REQ-002/AC-03), its lifecycle-first result line (app-update::REQ-004/AC-01) and its
+  > post-update line (app-update::REQ-004/AC-04).
 
 - The first release is a pre-release (ADR-0031), so the first users are on the pre-release channel.
