@@ -673,14 +673,16 @@ _Avoid_: beta mode, insider track, update track
   "the previous page holds" test red — confirmed by rebuilding without it and running that test,
   which stayed green. Do not write or trust such a mutation without re-measuring first.
 
-- **Agentshed's own code makes no outbound network request other than an update check (settled
-  2026-10-12)**: the product is local-first — everything it shows is read from files on the user's
-  machine — and the update check is the one deliberate exception (ADR-0032). While automatic checks are
-  turned off, the app makes no outbound request at all unless the user asks for a manual check. A link
-  opened in the system browser is the browser's request, not the app's. A new feature that would reach
-  the network changes this invariant and needs its own decision; it is not an addition to the update
-  check. Checkable by searching the main process for network APIs and by the renderer's content security
-  policy, which allows no remote origin.
+- **Agentshed's own code makes no outbound network request other than an update check and the download
+  of the app update it finds (settled 2026-10-12; download wording 2026-10-13)**: the product is
+  local-first — everything it shows is read from files on the user's machine — and updating is the one
+  deliberate exception (ADR-0032, as amended). While automatic checks are turned off, the app starts no
+  outbound request unless the user asks for a manual check. The one exception is a download already
+  under way when the switch is turned off, which is finished: the switch governs automatic checks only.
+  A link opened in the system browser is the browser's request, not the app's. A new feature that would
+  reach the network changes this invariant and needs its own decision; it is not an addition to the
+  update check. Checkable by searching the main process for network APIs and by the renderer's content
+  security policy, which allows no remote origin.
 
 ## Flagged ambiguities
 
