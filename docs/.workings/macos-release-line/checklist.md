@@ -263,7 +263,7 @@ asset's own tests.
 
 | Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
 |---|---|---|---|
-| 2026-10-14; specs as last revised (see Source commit); no implementation | Every unit mapped to #230 | Not run yet | Unverified |
+| 2026-10-14; spec app-update and implementation at 77ad3bb (branch feat/app-update-button, on 5911d52) | Every unit mapped to #230, on #230's paths | `pnpm verify` exit 0: 789 unit tests (controller 17, sources 8, contract 5, preferences), 104 e2e (11 in `e2e/app-update.spec.ts`), smoke OK; twelve mutations caught; unit-by-unit mapping in [ticket-230-review-tests.md](ticket-230-review-tests.md); CON-001 in [evidence/ticket-230/con-001-search.txt](evidence/ticket-230/con-001-search.txt); a packaged build's real check in [evidence/ticket-230/packaged-run.txt](evidence/ticket-230/packaged-run.txt). The real-release paths owned by #240 (restart, install on quit, Squirrel staging, Failures C1 and H2, channel on real releases) not run | Verified on #230's paths; #240's paths unverified |
 | 2026-10-14; as above | Every unit mapped to #231 | Not run yet | Unverified |
 | 2026-10-14; as above | Every unit mapped to #232 | Not run yet | Unverified |
 | 2026-10-14; as above | Every unit mapped to #233 | Not run yet | Unverified |
