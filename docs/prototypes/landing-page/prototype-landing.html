@@ -11,9 +11,12 @@
          the download goes to the GitHub pre-release and says plainly that it is a test version.
 
      Screenshots (shots/, 2026-10-13) are taken from the built app over the owner's own agent data, at the
-     owner's choice: 1280×800 window, light appearance, 2× pixels, one set per language. The four feature shots
-     are cut to 16:9 from the top: the token shot so the current conversation's title in the recent-sessions
-     list stays out, the other three to match it, since they take turns in one frame.
+     owner's choice: 1280×800 window, light appearance, 2× pixels, one set per language. The hero keeps the whole
+     window. The four feature shots are cut, at the owner's choice, to the part of the window each step is about,
+     all to one size (920×517pt, 16:9) so the text keeps one size as the frame switches: about 0.7 of its size
+     in the app, against 0.5 for the whole window. 920pt is the narrowest that holds the token page's trend chart
+     and per-model figures whole. Each cut ends between list rows, and the token cut stops short of the
+     recent-sessions list, which would show the current conversation's title.
      The app icon is the approved production icon from the app-icon prototype.
 
      演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条两组开关——
@@ -345,11 +348,11 @@
               ${d.feats.map(([h, p, img, alt], i) => `
                 <div class="fs-step">
                   <button type="button" class="fs-item${i === feat ? ' on' : ''}" data-i="${i}"><span class="fs-h">${esc(h)}</span><span class="fs-p">${esc(p)}</span></button>
-                  <div class="shot m-shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/${img}-${lang}.png" width="2560" height="1440" alt="${esc(alt)}" loading="lazy"></div>
+                  <div class="shot m-shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/${img}-${lang}.png" width="1840" height="1035" alt="${esc(alt)}" loading="lazy"></div>
                 </div>`).join('')}
             </div>
             <div class="shot fs-panel"><div class="chrome"><i></i><i></i><i></i></div>
-              <div class="fs-stack">${d.feats.map(([, , img, alt], i) => `<img class="${i === feat ? 'on' : ''}" src="shots/${img}-${lang}.png" width="2560" height="1440" alt="${esc(alt)}">`).join('')}</div>
+              <div class="fs-stack">${d.feats.map(([, , img, alt], i) => `<img class="${i === feat ? 'on' : ''}" src="shots/${img}-${lang}.png" width="1840" height="1035" alt="${esc(alt)}">`).join('')}</div>
             </div>
           </div>
         </div>
@@ -387,16 +390,17 @@
       <div class="note">
         <b>验收</b>：① 切「下载状态」看两种首屏：仅测试版时按钮指向 GitHub 的测试版、标「测试版」并说明正式版未发布；
         有正式版时指向 R2 镜像（下载区另给 GitHub 兜底）② 中 / EN 切换在右上角 ③ 窄屏（&lt;760px）单栏、导航收起
-        ④ 浅色 / 深色都看 ⑤ 截图是 2026-10-13 从打包后的应用实拍的，用的是你本机的真实数据（项目名、路径、用量、会话提问都会随页面公开）
+        ④ 浅色 / 深色都看 ⑤ 截图是 2026-10-13 从打包后的应用实拍的，用的是你本机的真实数据（项目名、路径、用量、会话提问都会随页面公开）；
+        Hero 是整窗，功能区四张统一裁到该段相关的区域、同一放大倍数，切换时字号不变
         ⑥ 功能区往下滚：左侧四段文字随页面移动，右侧截图框停在原处，显示离它中线最近的那段；点左侧某段会滚到该段；窄屏没有固定框，每段文字下面直接跟自己的截图。<br>
-        <b>待你确认</b>：
+        <b>已确认（2026-10-13）</b>：
         (a) 页面结构：Hero → 功能区（总览 / 项目 / Token / 会话，左文右图滚动联动）→ 安装三步 → 下载 → 页脚；
         (b) 文案不把 agent 侧当全集列出（「Claude Code、Codex 等」），新增一侧时不用改；
-        (c) 功能区副标题「它只读取你本机上 coding agent 留下的文件」是一句隐私性质的说法，你之前在应用内拒绝了「联网说明」，这里是否保留；
+        (c) 保留功能区副标题「它只读取你本机上 coding agent 留下的文件」（落地页上的卖点，与应用内不写的「联网说明」是两回事）；
         (d) 安装第 3 步提前告诉用户首次打开的系统提示是正常的，并提到左下角的更新按钮；
-        (e) 落地页如何知道有没有正式版：推荐运行时读取 R2 上的正式版 latest 指针（读不到就回退到 GitHub 测试版，发版时不用改站点），
-        Transfer 目前是每次发版手改站点里的版本常量；
-        (f) 下载域名仍待你在 Cloudflare 上测试（dl.agentshed… 不行就 dl-agentshed…）。<br>
+        (e) 落地页在运行时读取 R2 上的正式版 latest 指针，读不到就回退到 GitHub 测试版，发版时不用改站点；
+        (g) 功能区截图裁到该段相关的区域，统一放大倍数；截图可以公开。<br>
+        <b>仍待定</b>：(f) 下载域名待你在 Cloudflare 上测试（dl.agentshed… 不行就 dl-agentshed…）。<br>
         <b>演示基建</b>：底部悬浮条不是设计的一部分，勿实现。
       </div>`
   }
