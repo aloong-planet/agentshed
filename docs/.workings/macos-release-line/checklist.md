@@ -266,7 +266,7 @@ asset's own tests.
 | 2026-10-14; specs as last revised (see Source commit); no implementation | Every unit mapped to #230 | Not run yet | Unverified |
 | 2026-10-14; as above | Every unit mapped to #231 | Not run yet | Unverified |
 | 2026-10-14; as above | Every unit mapped to #232 | Not run yet | Unverified |
-| 2026-10-14; as above | Every unit mapped to #233 | Not run yet | Unverified |
+| 2026-10-14; spec mac-distribution and implementation at 7a72cc0 (branch feat/mac-packaging-asset, on 5911d52) | Every unit mapped to #233, on #233's paths | `pnpm verify` exit 0 (the 51 asset tests via `pnpm test:scripts`; their wiring proven able to fail); a real `pnpm dist:mac:local` with Apple variables loaded and one without an identity ([evidence/ticket-233/local-packaging.txt](evidence/ticket-233/local-packaging.txt)): no submission, `Agentshed-0.1.0-mac-arm64.dmg`, app and DMG signed by the Developer ID identity, minimum 12.0, fuses 7/7; review records ticket-233-review-*.md. Not covered: a screenshot of the DMG window (Screen Recording permission), `dist:mac:release` (#234's verification run), CON-006's local file (the owner's pending untracking change) | Verified on #233's paths except the DMG screenshot; CON-006's local half waiting |
 | 2026-10-14; as above | Every unit mapped to #234 | Not run yet | Unverified |
 | 2026-10-14; as above | Every unit mapped to #235 and zhoulf1006/skillshed#18 | Not run yet | Unverified |
 | 2026-10-14; as above | Every unit mapped to #236 | Not run yet | Unverified |
