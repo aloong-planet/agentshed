@@ -1,12 +1,9 @@
 # App updates
 
-> Related: [ADR-0032](../adr/0032-app-updates.md) (as amended the same day) ·
-> [ADR-0031](../adr/0031-macos-release-line.md) (the releases this reads) ·
+> Related: [features](../features/app-update.md) · [ADR-0032](../adr/0032-app-updates.md) (as amended
+> the same day) · [ADR-0031](../adr/0031-macos-release-line.md) (the releases this reads) ·
 > [mac-distribution](mac-distribution.md) (what each release carries) · CONTEXT: **App update**,
 > **Update check**, **Release channel**, and the invariant on outbound requests
->
-> Pending: an installed release of Agentshed checks for app updates. Until it does there is no
-> feature entry to link.
 
 ## Problem Statement
 
@@ -121,8 +118,8 @@ never replaces my working build. The updater cannot work in an unpackaged app an
   or a check in flight) the slot is empty and takes no space.
 - app-update::REQ-001/AC-02: It takes a 36px rail slot holding a 24px filled circle in the current
   theme's accent colour, with its glyph in the card colour: a progress ring showing the download's
-  progress while downloading, a spinning loader-circle while installing (still under reduced motion),
-  and the download icon when ready.
+  progress while downloading, a loader-circle while installing — spinning, and standing still under
+  reduced motion — and the download icon when ready.
 - app-update::REQ-001/AC-03: Only the ready button can be clicked. It has no close action and stays
   until the update is installed.
 - app-update::REQ-001/AC-04: Hovering or focusing the button shows an instant tooltip to its right, in
@@ -267,9 +264,9 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   downloading", no second toast follows. The settings line stops showing the download
   (app-update::REQ-004/AC-02).
 - B3 The app runs from the DMG or another read-only or translocated location: the update cannot be
-  applied there, and that surfaces as a failed download, so the button never appears. The landing page
-  and the README tell users to drag the app to Applications. Prompting the user to move it is out of
-  scope.
+  applied there, and that surfaces as a failed download — the button shows the download, then goes, with
+  nothing else shown (app-update::REQ-002/AC-02). The landing page and the README tell users to drag the
+  app to Applications. Prompting the user to move it is out of scope.
 - B4 The user quits during a download: nothing is installed. The next check downloads again (a cached
   partial download may be reused, which the user does not see).
 - B5 The switch is turned off during a download: the download continues (app-update::US-002/AC-03).
@@ -374,7 +371,12 @@ Install on quit happens only on a quit the user made, and never relaunches the a
 - **One update controller in the main process** owns the lifecycle and is the only thing that calls the
   updater. It talks to an injected **update source**. In production that is electron-updater reading
   GitHub Releases, with automatic download on, install on quit on, no downgrade, and the pre-release
-  setting left to follow the running version (ADR-0032 Context).
+  setting following the running version — set from it explicitly, which is also electron-updater's own
+  default for the GitHub feed (ADR-0032 Context).
+- **Ready means the update can install.** On macOS electron-updater reports a download done once the
+  system updater has fetched the package, before that updater has checked and staged it; the source
+  reports the download done only when it is staged, so a package the system updater rejects is a failed
+  download (Failure B2) rather than a ready button whose install could never run.
 - **The lifecycle** (decision from the prototype, trimmed): the states are idle, checking, downloading
   (with progress), ready and installing. There is no failure state: every failure returns to idle,
   and REQ-002 decides what the user sees.

@@ -132,7 +132,7 @@ asset's own tests.
 | app-update::US-005/AC-02 | Unpackaged: switch and "Check now" unavailable, development footnote | #231 | Test: e2e (the seam's packaged stand-in off → controls unavailable, the footnote) |
 | app-update::US-005/AC-02 | Unpackaged: the menu item is disabled | #232 | Test: menu template unit |
 | app-update::REQ-001/AC-01 | In the bottom group directly above Settings, only while downloading, installing or ready; otherwise no space | #230 | Test: e2e geometry per state, Settings at its bottom anchor (appearance Failure D4) |
-| app-update::REQ-001/AC-02 | 36px slot, 24px accent circle, card-colour glyph: ring, spinner (also under reduced motion), download icon | #230 | Test: e2e (computed sizes and colours per state; reduced motion → still spinning) |
+| app-update::REQ-001/AC-02 | 36px slot, 24px accent circle, card-colour glyph: ring, spinner (also under reduced motion), download icon | #230 | Test: e2e (computed sizes and colours per state; reduced motion → the loader stands still) |
 | app-update::REQ-001/AC-03 | Only the ready button can be clicked; no close; stays until installed | #230 | Test: e2e (clicks while downloading or installing do nothing; no close control) |
 | app-update::REQ-001/AC-04 | Instant tooltip to the right in the chart tooltip's form; three texts; accessible name; progress bar; follows progress; anchored | #230 | Test: e2e (hover and focus → text and position; accessible name; progressbar value; text follows progress while open) |
 | app-update::REQ-001/AC-05 | Distinguishable in three themes, light and dark | #230 | Test: e2e computed colours in the six theme states; Evidence: screenshots |
@@ -161,7 +161,7 @@ asset's own tests.
 | app-update Failure B2 | After a menu "found" toast, a failed download adds no toast; the line stops showing it | #232: toast; #231: line | Test: e2e |
 | app-update Failure B3 | A read-only or translocated app surfaces as a failed download | #230 | Test: controller unit (the source reports failure); Evidence (#240) when a real run reaches it |
 | app-update Failure B4 | Quit during a download installs nothing; the next check downloads again | #230 | Test: controller unit |
-| app-update Failure C1 | Install-and-restart goes through the normal quit, so the display-cache flush runs first | #230 | Test: e2e or unit (the install path takes the normal quit sequence) |
+| app-update Failure C1 | Install-and-restart goes through the normal quit, so the display-cache flush runs first | #230: the path; #240: the real restart | Evidence: the install calls electron-updater's quitAndInstall, which on macOS hands over to Electron's autoUpdater.quitAndInstall — it closes the windows and quits normally, so `before-quit` runs the flush (electron-updater 6.8.9 `MacUpdater.handleUpdateDownloaded`; no test can reach it: the scripted install never quits). Evidence (#240): the restart keeps the saved pages |
 | app-update Failure C3 | Force-quit with an update ready installs nothing; the next launch finds it again | #230 | Test: controller unit |
 | app-update Failure C10 | Repeat clicks on either button install once | #230: rail; #231: "Install now" | Test: e2e (second click → one install recorded) |
 | app-update Failure C11 | The download finishing relabels in place; a failed install from "Install now" leaves "Check now" and an empty line | #231 | Test: e2e |

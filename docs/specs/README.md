@@ -36,7 +36,7 @@ written for whoever is about to change that code.
 | [skill-install](skill-install.md) | [Skills install](../features/skill-install.md) |
 | [skills-view](skills-view.md) | [Skills view](../features/skills-view.md) |
 | [appearance](appearance.md) | [Appearance](../features/appearance.md) |
-| [app-update](app-update.md) | App updates (the feature entry is written when the behaviour ships) |
+| [app-update](app-update.md) | [App updates](../features/app-update.md) |
 | [mac-distribution](mac-distribution.md) | macOS distribution (the feature entry is written with the first release) |
 | [landing-page](landing-page.md) | Landing page (the feature entry is written when the page goes live) |
 

@@ -240,12 +240,61 @@ body {
   background: var(--accent-soft);
   color: var(--accent);
 }
-/* Settings is the rail's bottom group on its own: it inherited the auto top margin from the global
-   refresh button that used to sit above it (removed 2026-08-23) — without it the entry would ride up
-   under the dimension buttons */
-.rail .ri.set {
+/* The rail's bottom group: Settings, with the app update button directly above it while an update is in
+   flight (appearance D4, app-update::REQ-001/AC-01). The group, not Settings, takes the auto top margin
+   that Settings inherited from the removed global refresh button (2026-08-23), so the pair stays pinned
+   to the bottom together and Settings keeps its place whether or not the update button is there */
+.rail-bottom {
   margin-top: auto;
   margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── The app update button (app-update::REQ-001), Codex's rail form: a 36px rail slot holding a 24px
+   filled circle. The fill is the theme accent and the glyph takes the card colour, so it reads white on
+   the light themes' deep accents and dark on the dark themes' light accents. Only the ready state is a
+   button; downloading and installing are focusable for their message but cannot be clicked. ── */
+.rail .ri.upd {
+  cursor: default;
+}
+.rail button.ri.upd {
+  cursor: pointer;
+}
+.upd-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--card);
+}
+.upd-ring .track {
+  stroke: currentColor;
+  opacity: 0.35;
+}
+.upd-ring .arc {
+  stroke: currentColor;
+  transition: stroke-dashoffset 0.3s linear;
+}
+.upd-spin {
+  display: flex;
+  animation: upd-spin 1s linear infinite;
+}
+@keyframes upd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Under reduced motion the loader stands still (REQ-001/AC-02) */
+@media (prefers-reduced-motion: reduce) {
+  .upd-spin {
+    animation: none;
+  }
 }
 
 /* ── The settings page (appearance) ── */

@@ -40,6 +40,7 @@ export function backfillPrefs(
     theme: touched.has('theme') ? local.theme : incoming.theme,
     language: touched.has('language') ? local.language : incoming.language,
     mode: touched.has('mode') ? local.mode : incoming.mode,
-    trendSpan: touched.has('trendSpan') ? local.trendSpan : incoming.trendSpan
+    trendSpan: touched.has('trendSpan') ? local.trendSpan : incoming.trendSpan,
+    autoCheckUpdates: touched.has('autoCheckUpdates') ? local.autoCheckUpdates : incoming.autoCheckUpdates
   }
 }

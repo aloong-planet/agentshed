@@ -51,6 +51,10 @@
       svg(size, 2, '<path d="M12 19h8" /><path d="m4 17 6-6-6-6" />'),
     MousePointerClick: (size) =>
       svg(size, 2, '<path d="M14 4.1 12 6" /><path d="m5.1 8-2.9-.8" /><path d="m6 12-1.9 2" /><path d="M7.2 2.2 8 5.1" /><path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z" />'),
+    Download: (size) =>
+      svg(size, 2, '<path d="M12 15V3" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" />'),
+    LoaderCircle: (size) =>
+      svg(size, 2, '<path d="M21 12a9 9 0 1 1-6.219-8.56" />'),
   }
 
   // Static slots declare themselves: <span class="ri" data-icon="Folder" data-icon-size="17"></span>.
