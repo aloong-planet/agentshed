@@ -22,7 +22,8 @@ window.PROTOTYPES = [
   { module: 'skill-install', type: 'ui',    id: 'install',      name: 'Agents·Skills 装卸交互', path: 'skill-install/prototype-install.html' },
   { module: 'skill-install', type: 'logic', id: 'install-flow', name: '装卸操作状态机',       path: 'skill-install/install-flow/index.html' },
   { module: 'skills-view',   type: 'ui',    id: 'skills-preview', name: 'Skills 包预览(折叠+抽屉)', path: 'skills-view/prototype-skills-preview.html' },
-  { module: 'appearance',    type: 'ui',    id: 'settings',       name: '设置·语言六选一 + 外观三选一', path: 'appearance/prototype-settings.html' },
+  { module: 'appearance',    type: 'ui',    id: 'settings',       name: '设置·语言 + 外观 + 更新（含左下角更新按钮）', path: 'appearance/prototype-settings.html' },
   { module: 'plugins-view',  type: 'ui',    id: 'plugin-skill-preview', name: 'Plugins·插件 skill 原地预览', path: 'plugins-view/prototype-plugin-skill-preview.html' },
   { module: 'md-preview',    type: 'ui',    id: 'heading-ladder', name: 'Markdown 预览 · 标题层级阶梯', path: 'md-preview/prototype-heading-ladder.html' },
+  { module: 'landing-page',  type: 'ui',    id: 'landing',        name: '落地页（中英 · 正式版 / 仅测试版两种下载状态）', path: 'landing-page/prototype-landing.html' },
 ];

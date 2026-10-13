@@ -60,6 +60,23 @@ menu and from settings. A failed automatic check is silent; a manual check alway
 an update, already up to date, or a failure. An installation's release channel follows the version
 installed. No statement about the network request is shown.
 
+> **Amended (2026-10-12, later in the same requirements session, before any release)**: the owner replaced
+> how an update reaches the user, after looking at Codex's update button (ChatGPT 26.930.61225). An app
+> update found by any update check now **downloads in the background at once** — option 3, previously
+> rejected, is chosen in place of option 1's "announce, download on request". A small update button
+> appears at the bottom of the rail only while an update is downloading (showing its progress),
+> installing, or ready; hovering it says what it is. Clicking the ready button installs the update and
+> restarts the app; an update left ready is installed when the app next quits. The button has no close
+> action and stays until the update is installed — so there is no dismissed notice to bring back. A failed
+> background download shows nothing: the button goes away and the next update check tries again, as in
+> Codex, whose update lifecycle has no failure state (idle, checking, downloading, ready, installing). A
+> manual check from the application menu reports "up to date" or "failed" in a toast; one from settings
+> reports beside its button; one that finds an update starts the download like any other check.
+> Consequences that change: updates now download without being asked, using the user's bandwidth, and
+> the positive consequence "nothing is downloaded … without the user's say" no longer holds; nothing
+> restarts without the user's click still holds. Source: the installed ChatGPT 26.930.61225 — the rail
+> update button in the renderer bundle and the lifecycle values exposed by its Sparkle bridge.
+
 ## Consequences
 
 - Positive: installed copies can stay current without the user watching the repository

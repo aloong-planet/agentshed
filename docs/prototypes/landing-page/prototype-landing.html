@@ -1,0 +1,368 @@
+<!doctype html>
+<!-- A UI prototype · landing-page: Agentshed's download landing page (ADR-0031), the long-page form the
+     owner picked on 2026-10-12 ("L1", after Transfer's landing page): header → hero with the download →
+     four feature sections → install steps → download section → footer. Chinese and English only.
+
+     What it asks: does this page structure, and the two download states, read right?
+       · a formal release exists → the download goes to the R2 mirror, with GitHub as the fallback link;
+       · only a pre-release exists (the first release is v0.1.0-beta, and R2 holds formal releases only) →
+         the download goes to the GitHub pre-release and says plainly that it is a test version.
+
+     Screenshots are placeholders: the real ones are taken from the app when the site is built.
+     The app icon is the approved production icon from the app-icon prototype.
+
+     演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条两组开关——
+     下载状态(有正式版 / 仅测试版)、系统明暗。真实来源:下载状态 = 站点能否读到 R2 上的正式版
+     latest 指针;明暗 = 访客系统的 prefers-color-scheme。页面上没有这两个控件。
+     中 / EN 切换是设计本身(页头右上角),不属于演示基建。 -->
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 — 落地页</title>
+<style>
+  /* The app's purple palette (theme.css, the shipped default), light and dark each declared */
+  html[data-theme="light"]{
+    --bg:#f7f8f9; --bg-soft:#f0f1f3; --card:#ffffff; --text:#37352f; --text-2:#787774;
+    --line:#e8eaed; --line-strong:#d9dce0;
+    --accent:#8a67ab; --accent-deep:#6b4f92; --accent-soft:#f0ebf6;
+    --warn-bg:#fdecdc; --warn-fg:#b3552f;
+    --shot-a:#ece7f3; --shot-b:#f6f3fa;
+    --shadow:0 18px 50px rgba(55,53,47,.16);
+  }
+  html[data-theme="dark"]{
+    --bg:#18191b; --bg-soft:#1c1d20; --card:#1f2124; --text:#e6e6e5; --text-2:#9b9a97;
+    --line:#2a2c30; --line-strong:#34373c;
+    --accent:#a084c7; --accent-deep:#c9b3ec; --accent-soft:#2c2733;
+    --warn-bg:#3a2516; --warn-fg:#f6b48a;
+    --shot-a:#26232d; --shot-b:#2e2a36;
+    --shadow:0 18px 50px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,"PingFang SC","Hiragino Sans",system-ui,sans-serif}
+  a{color:inherit}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* ── Header ── */
+  header{position:sticky;top:0;z-index:20;background:color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:22px;height:58px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;text-decoration:none}
+  .brand img{width:28px;height:28px;border-radius:7px}
+  nav.links{display:flex;gap:18px;margin-left:auto;font-size:14px;color:var(--text-2)}
+  nav.links a{text-decoration:none}
+  nav.links a:hover{color:var(--accent)}
+  .lang{display:inline-flex;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden}
+  .lang button{font:inherit;font-size:13px;padding:4px 10px;border:0;background:transparent;color:var(--text-2);cursor:pointer}
+  .lang button:hover{color:var(--text);background:var(--bg-soft)}
+  .lang button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+
+  /* ── Buttons ── */
+  .btn{display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:600;border-radius:10px;
+    padding:12px 22px;text-decoration:none;cursor:pointer;border:1px solid transparent;white-space:nowrap}
+  .btn-primary{background:var(--accent);color:var(--card)}
+  .btn-primary:hover{background:var(--accent-deep)}
+  .btn-ghost{border-color:var(--line-strong);background:var(--card);color:var(--text)}
+  .btn-ghost:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .btn-sm{padding:7px 16px;font-size:14px}
+  .pill{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;
+    background:var(--warn-bg);color:var(--warn-fg);vertical-align:middle}
+
+  /* ── Hero ── */
+  .hero{padding:72px 0 40px;text-align:center}
+  .hero .icon{width:112px;height:112px;border-radius:24px;box-shadow:var(--shadow)}
+  .hero h1{font-size:44px;line-height:1.15;margin:22px 0 12px;letter-spacing:-.01em}
+  .hero .lede{font-size:18px;color:var(--text-2);max-width:720px;margin:0 auto 28px}
+  .cta{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .cta .meta{font-size:13px;color:var(--text-2)}
+  .cta .beta-note{font-size:13px;color:var(--warn-fg);max-width:520px}
+  .cta .alt{font-size:13px;color:var(--text-2)}
+  .cta .alt a{color:var(--accent)}
+
+  /* A screenshot placeholder framed as an app window */
+  .shot{border:1px solid var(--line-strong);border-radius:14px;background:linear-gradient(135deg,var(--shot-a),var(--shot-b));
+    box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+  .shot .chrome{height:28px;display:flex;align-items:center;gap:6px;padding:0 12px;background:var(--card);border-bottom:1px solid var(--line)}
+  .shot .chrome i{width:10px;height:10px;border-radius:50%;background:var(--line-strong)}
+  .shot .ph{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-2);font-size:13px;padding:18px;text-align:center}
+  .hero .shot{max-width:900px;height:420px;margin:48px auto 0}
+
+  /* ── Sections ── */
+  section{padding:64px 0}
+  section.soft{background:var(--bg-soft)}
+  .sec-title{font-size:28px;text-align:center;margin-bottom:8px}
+  .sec-sub{color:var(--text-2);text-align:center;margin-bottom:36px}
+  .feat{display:grid;grid-template-columns:1fr 1.25fr;gap:40px;align-items:center;margin-bottom:56px}
+  .feat:last-child{margin-bottom:0}
+  .feat.flip .txt{order:2}
+  .feat h3{font-size:22px;margin-bottom:10px}
+  .feat p{color:var(--text-2)}
+  .feat .shot{height:300px}
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .step .n{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;
+    display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+  .step h4{font-size:16px;margin-bottom:6px}
+  .step p{color:var(--text-2);font-size:14px}
+
+  .dl{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 22px}
+  .dl-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 0;flex-wrap:wrap}
+  .dl-row + .dl-row{border-top:1px solid var(--line)}
+  .dl-label b{display:block}
+  .dl-label span{font-size:13px;color:var(--text-2)}
+  .dl-actions{display:flex;gap:10px}
+
+  footer{border-top:1px solid var(--line);padding:28px 0;color:var(--text-2);font-size:13px}
+  footer .wrap{display:flex;gap:18px;flex-wrap:wrap}
+  footer a{color:var(--text-2)}
+
+  .note{max-width:1080px;margin:0 auto 90px;padding:14px 18px;border:1px dashed var(--line-strong);border-radius:12px;
+    font-size:13px;color:var(--text-2);line-height:1.6}
+  .note b{color:var(--text)}
+
+  @media (max-width:760px){
+    .hero h1{font-size:32px}
+    .hero .shot{height:240px}
+    .feat{grid-template-columns:1fr;gap:18px}
+    .feat.flip .txt{order:0}
+    .feat .shot{height:200px}
+    .steps{grid-template-columns:1fr}
+    nav.links{display:none}
+    .lang{margin-left:auto}
+  }
+  /* Phones: the label takes its own line and the buttons share the full width below it, as on Transfer's
+     page. "Download the test version from GitHub" outgrew the card at 400px when it had to fit beside the
+     label (measured: 11px past the card's content edge). */
+  @media (max-width:560px){
+    .dl-row{flex-direction:column;align-items:stretch;gap:10px}
+    .dl-actions .btn{flex:1;justify-content:center;white-space:normal;text-align:center}
+  }
+
+  /* ── The demo harness (not part of the design) ── */
+  .demo-bar{position:fixed;bottom:14px;left:12px;right:12px;margin:0 auto;width:max-content;max-width:calc(100% - 24px);
+    z-index:90;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:7px 9px;padding:7px 12px;
+    border-radius:18px;background:#1c1c1e;color:#e8e8ea;font:11.5px -apple-system,system-ui,sans-serif;
+    box-shadow:0 6px 20px rgba(0,0,0,.38)}
+  .demo-bar .tag{font-weight:700;color:#8e8e93}
+  .demo-bar .vr{width:1px;height:16px;background:#3a3a3c}
+  .demo-bar select{background:#2c2c2e;color:#e8e8ea;border:1px solid #3a3a3c;border-radius:7px;padding:4px 8px;font:inherit}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap bar">
+      <a class="brand" href="#top"><img src="../app-icon/approved-production.png" alt=""><span>Agentshed</span></a>
+      <nav class="links" id="navLinks"></nav>
+      <span class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="zh">中文</button>
+        <button type="button" data-lang="en">EN</button>
+      </span>
+    </div>
+  </header>
+  <main id="page"></main>
+
+  <div class="demo-bar" data-demo-harness>
+    <span class="tag">演示 ·</span>
+    <label for="relSel">下载状态</label>
+    <select id="relSel">
+      <option value="beta">仅测试版 0.1.0-beta(首发时)</option>
+      <option value="formal">已有正式版 0.2.0</option>
+    </select>
+    <span class="vr"></span>
+    <label for="themeSel">系统明暗</label>
+    <select id="themeSel">
+      <option value="light">浅色</option>
+      <option value="dark">深色</option>
+    </select>
+  </div>
+
+<script>
+  /** Lucide download, copied from lucide-static 1.55.0 */
+  const ICON_DOWNLOAD = (s) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>`
+
+  const REPO = 'https://github.com/aloong-planet/agentshed'
+  /** The download host is still being decided (ADR-0031): dl.agentshed… if its certificate holds, else dl-agentshed… */
+  const DL_HOST = 'https://dl.agentshed.aloongplanet.com'
+  const RELEASES = {
+    beta: { formal: null, pre: '0.1.0-beta' },
+    formal: { formal: '0.2.0', pre: null },
+  }
+
+  const T = {
+    zh: {
+      htmlLang: 'zh-CN',
+      nav: ['功能', '安装', '下载', 'GitHub'],
+      title: '你的 coding agent 工具棚',
+      lede: '一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，烧了多少 token，攒下哪些文档；还能把全局 skill 装进任意项目。',
+      download: (v) => `下载 Agentshed ${v}`,
+      downloadBeta: (v) => `下载测试版 ${v}`,
+      testPill: '测试版',
+      meta: 'macOS 12 及以上 · Apple Silicon',
+      betaNote: '正式版尚未发布。测试版从 GitHub 下载，可能还有不稳定之处。',
+      allVersions: '在 GitHub 查看所有版本',
+      shotHero: '截图位 · Agents 总览（建站时取应用的真实截图）',
+      featTitle: '一个应用，看清全部',
+      featSub: '它只读取你本机上 coding agent 留下的文件。',
+      feats: [
+        ['全局总览', '每个 coding agent 装了什么、一共烧了多少 token，打开就是全景。', '截图位 · Agents 总览'],
+        ['每个项目装了什么', 'skills、subagents、plugins、MCP 与配置，按项目实际生效的样子列出来。', '截图位 · 项目详情'],
+        ['Token 用量与趋势', '按天、按项目、按模型拆开看，历史用量本地存档，不怕 agent 自己清理会话。', '截图位 · Token 统计'],
+        ['会话回看', '按提问索引一次会话，点开整轮看工具调用与子任务，支持搜索。', '截图位 · 会话页'],
+      ],
+      installTitle: '安装',
+      steps: [
+        ['下载 DMG', '下载适用于 Apple Silicon 的安装包。'],
+        ['拖进「应用程序」', '打开 DMG，把 Agentshed 拖到「应用程序」文件夹。'],
+        ['首次打开', 'macOS 会提示「Apple 已检查，未发现恶意软件」，点「打开」即可。之后有新版本时，应用左下角会出现更新按钮。'],
+      ],
+      dlTitle: '下载',
+      dlSub: (v) => `当前版本 ${v}`,
+      dlSubBeta: (v) => `当前只有测试版 ${v}`,
+      dlLabel: 'macOS · Apple Silicon',
+      dlLabelSub: 'macOS 12 及以上，M 系列芯片',
+      dlPrimary: '下载',
+      dlGithub: 'GitHub',
+      dlBeta: '从 GitHub 下载测试版',
+      foot: ['GitHub', '版本发布', '© 2026 aloongplanet'],
+    },
+    en: {
+      htmlLang: 'en',
+      nav: ['Features', 'Install', 'Download', 'GitHub'],
+      title: 'The tool shed for your coding agents',
+      lede: 'See, across every project, which skills, plugins and MCP servers Claude Code, Codex and other coding agents have installed, how many tokens they burned and which documents they left — and install skills from your global library into any project.',
+      download: (v) => `Download Agentshed ${v}`,
+      downloadBeta: (v) => `Download test version ${v}`,
+      testPill: 'Test version',
+      meta: 'macOS 12 or later · Apple Silicon',
+      betaNote: 'No stable release yet. The test version downloads from GitHub and may still be rough in places.',
+      allVersions: 'See every version on GitHub',
+      shotHero: 'Screenshot · Agents overview (taken from the app when the site is built)',
+      featTitle: 'One app, the whole picture',
+      featSub: 'It only reads the files your coding agents leave on your Mac.',
+      feats: [
+        ['The overview', 'What every coding agent has installed and how many tokens it has burned, as soon as you open it.', 'Screenshot · Agents overview'],
+        ['What each project has', 'Skills, subagents, plugins, MCP servers and configuration, listed as they actually take effect in that project.', 'Screenshot · Project detail'],
+        ['Token usage and trends', 'Split by day, project and model, with history kept locally even after an agent cleans up its own sessions.', 'Screenshot · Token statistics'],
+        ['Sessions, revisited', 'Each session indexed by question; open a whole turn to see its tool calls and subagents, or search.', 'Screenshot · Session page'],
+      ],
+      installTitle: 'Install',
+      steps: [
+        ['Download the DMG', 'Get the installer for Apple Silicon.'],
+        ['Drag to Applications', 'Open the DMG and drag Agentshed into your Applications folder.'],
+        ['Open it', 'macOS says “Apple checked it for malicious software and none was detected” — click Open. When a new version comes out, an update button appears at the bottom left of the app.'],
+      ],
+      dlTitle: 'Download',
+      dlSub: (v) => `Current version ${v}`,
+      dlSubBeta: (v) => `Only a test version so far: ${v}`,
+      dlLabel: 'macOS · Apple Silicon',
+      dlLabelSub: 'macOS 12 or later, M-series chips',
+      dlPrimary: 'Download',
+      dlGithub: 'GitHub',
+      dlBeta: 'Download the test version from GitHub',
+      foot: ['GitHub', 'Releases', '© 2026 aloongplanet'],
+    },
+  }
+
+  let lang = 'zh'
+  let rel = 'beta'
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  const dmg = (v) => `Agentshed-${v}-mac-arm64.dmg`
+
+  function render() {
+    const d = T[lang]
+    const r = RELEASES[rel]
+    document.documentElement.lang = d.htmlLang
+    document.querySelectorAll('.lang button').forEach((b) => b.classList.toggle('on', b.dataset.lang === lang))
+    const anchors = ['#features', '#install', '#download', REPO]
+    document.getElementById('navLinks').innerHTML = d.nav.map((n, i) =>
+      `<a href="${anchors[i]}"${i === 3 ? ' target="_blank" rel="noopener"' : ''}>${esc(n)}</a>`).join('')
+
+    const formalUrl = r.formal && `${DL_HOST}/releases/v${r.formal}/${dmg(r.formal)}`
+    const betaUrl = r.pre && `${REPO}/releases/tag/v${r.pre}`
+    const heroCta = r.formal
+      ? `<a class="btn btn-primary" href="${formalUrl}">${ICON_DOWNLOAD(18)} ${esc(d.download(r.formal))}</a>
+         <div class="meta">${esc(d.meta)}</div>
+         <div class="alt"><a href="${REPO}/releases" target="_blank" rel="noopener">${esc(d.allVersions)}</a></div>`
+      : `<a class="btn btn-primary" href="${betaUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(18)} ${esc(d.downloadBeta(r.pre))}</a>
+         <div class="meta"><span class="pill">${esc(d.testPill)}</span> ${esc(d.meta)}</div>
+         <div class="beta-note">${esc(d.betaNote)}</div>`
+
+    const dlActions = r.formal
+      ? `<a class="btn btn-primary btn-sm" href="${formalUrl}">${ICON_DOWNLOAD(15)} ${esc(d.dlPrimary)}</a>
+         <a class="btn btn-ghost btn-sm" href="${REPO}/releases/download/v${r.formal}/${dmg(r.formal)}" target="_blank" rel="noopener">${esc(d.dlGithub)}</a>`
+      : `<a class="btn btn-primary btn-sm" href="${betaUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(15)} ${esc(d.dlBeta)}</a>`
+
+    document.getElementById('page').innerHTML = `
+      <div class="hero wrap" id="top">
+        <img class="icon" src="../app-icon/approved-production.png" alt="">
+        <h1>${esc(d.title)}</h1>
+        <p class="lede">${esc(d.lede)}</p>
+        <div class="cta">${heroCta}</div>
+        <div class="shot"><div class="chrome"><i></i><i></i><i></i></div><div class="ph">${esc(d.shotHero)}</div></div>
+      </div>
+
+      <section class="soft" id="features">
+        <div class="wrap">
+          <h2 class="sec-title">${esc(d.featTitle)}</h2>
+          <p class="sec-sub">${esc(d.featSub)}</p>
+          ${d.feats.map(([h, p, s], i) => `
+            <div class="feat ${i % 2 ? 'flip' : ''}">
+              <div class="txt"><h3>${esc(h)}</h3><p>${esc(p)}</p></div>
+              <div class="shot"><div class="chrome"><i></i><i></i><i></i></div><div class="ph">${esc(s)}</div></div>
+            </div>`).join('')}
+        </div>
+      </section>
+
+      <section id="install">
+        <div class="wrap">
+          <h2 class="sec-title">${esc(d.installTitle)}</h2>
+          <p class="sec-sub"></p>
+          <div class="steps">
+            ${d.steps.map(([h, p], i) => `<div class="step"><div class="n">${i + 1}</div><h4>${esc(h)}</h4><p>${esc(p)}</p></div>`).join('')}
+          </div>
+        </div>
+      </section>
+
+      <section class="soft" id="download">
+        <div class="wrap">
+          <h2 class="sec-title">${esc(d.dlTitle)}</h2>
+          <p class="sec-sub">${r.formal ? esc(d.dlSub(r.formal)) : `<span class="pill">${esc(d.testPill)}</span> ${esc(d.dlSubBeta(r.pre))}`}</p>
+          <div class="dl">
+            <div class="dl-row">
+              <div class="dl-label"><b>${esc(d.dlLabel)}</b><span>${esc(d.dlLabelSub)}</span></div>
+              <div class="dl-actions">${dlActions}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer><div class="wrap">
+        <a href="${REPO}" target="_blank" rel="noopener">${esc(d.foot[0])}</a>
+        <a href="${REPO}/releases" target="_blank" rel="noopener">${esc(d.foot[1])}</a>
+        <span>${esc(d.foot[2])}</span>
+      </div></footer>
+
+      <div class="note">
+        <b>验收</b>：① 切「下载状态」看两种首屏：仅测试版时按钮指向 GitHub 的测试版、标「测试版」并说明正式版未发布；
+        有正式版时指向 R2 镜像（下载区另给 GitHub 兜底）② 中 / EN 切换在右上角 ③ 窄屏（&lt;760px）单栏、导航收起
+        ④ 浅色 / 深色都看 ⑤ 截图位建站时换成应用真实截图。<br>
+        <b>待你确认</b>：
+        (a) 页面结构：Hero → 四段功能（总览 / 项目 / Token / 会话）→ 安装三步 → 下载 → 页脚；
+        (b) 文案不把 agent 侧当全集列出（「Claude Code、Codex 等」），新增一侧时不用改；
+        (c) 功能区副标题「它只读取你本机上 coding agent 留下的文件」是一句隐私性质的说法，你之前在应用内拒绝了「联网说明」，这里是否保留；
+        (d) 安装第 3 步提前告诉用户首次打开的系统提示是正常的，并提到左下角的更新按钮；
+        (e) 落地页如何知道有没有正式版：推荐运行时读取 R2 上的正式版 latest 指针（读不到就回退到 GitHub 测试版，发版时不用改站点），
+        Transfer 目前是每次发版手改站点里的版本常量；
+        (f) 下载域名仍待你在 Cloudflare 上测试（dl.agentshed… 不行就 dl-agentshed…）。<br>
+        <b>演示基建</b>：底部悬浮条不是设计的一部分，勿实现。
+      </div>`
+  }
+
+  document.querySelectorAll('.lang button').forEach((b) => { b.onclick = () => { lang = b.dataset.lang; render() } })
+  document.getElementById('relSel').onchange = (e) => { rel = e.target.value; render() }
+  document.getElementById('themeSel').onchange = (e) => { document.documentElement.dataset.theme = e.target.value }
+  render()
+</script>
+</body>
+</html>
