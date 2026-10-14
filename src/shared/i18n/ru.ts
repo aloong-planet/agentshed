@@ -47,7 +47,7 @@ export const ru: Locale = {
   },
 
   menu: {
-    about: 'О программе Agentshed', hide: 'Скрыть Agentshed', hideOthers: 'Скрыть остальные',
+    about: 'О программе Agentshed', checkForUpdates: 'Проверить обновления…', hide: 'Скрыть Agentshed', hideOthers: 'Скрыть остальные',
     unhide: 'Показать все', quit: 'Завершить Agentshed',
     edit: 'Правка', undo: 'Отменить', redo: 'Повторить', cut: 'Вырезать', copy: 'Копировать', paste: 'Вставить', selectAll: 'Выбрать все',
     view: 'Вид', reload: 'Перезагрузить', toggleDevTools: 'Инструменты разработчика', resetZoom: 'Фактический размер',
@@ -69,7 +69,9 @@ export const ru: Locale = {
     tipReady: 'Доступно обновление',
     tipDownloading: (percent: number) => `Загрузка обновления: ${percent}%`,
     tipInstalling: 'Установка обновления…',
-    installFailed: 'Не удалось установить обновление'
+    installFailed: 'Не удалось установить обновление',
+    toastUpToDate: (version) => `Установлена последняя версия Agentshed (${version})`,
+    toastFound: (version) => `Найдена версия ${version} — загружается в фоне`
   },
 
   skillDeepHint: 'По рекомендациям глубина ссылок skill должна быть меньше 2 — стоит переработать этот skill',

@@ -32,6 +32,10 @@ clicks or quits — without ever interrupting what they are doing.
 - While an update downloads, is ready or installs, that line says so, whichever check found it; once the
   update is ready the button becomes "Install now", which does what the ready button at the bottom left
   does. A failed download leaves the line empty rather than claiming the app is up to date
+- "Check for Updates…" in the Agentshed menu, just below "About Agentshed", checks at once and answers in
+  a notice: up to date (naming the version), couldn't check, or the version found and downloading. While
+  an update downloads, is ready or installs, it says so instead of checking again; a check already under
+  way, from settings or the menu, is shared rather than repeated
 - The line is kept when leaving settings and coming back, and follows the UI language. A new launch
   starts with it empty, except the first launch after the app's version went up — by an update or by a
   newer copy installed by hand — where it says "You're up to date"
@@ -45,9 +49,9 @@ clicks or quits — without ever interrupting what they are doing.
 ## Boundaries and non-goals
 - Checking for updates is the one thing the app itself fetches from the network: it asks GitHub
   Releases about new versions and downloads the one it finds. Nothing else in the app reaches the network,
-  and with automatic checks off it reaches it only when you check from settings
-- A development run (an app built from source and not packaged) never checks for updates: its switch and
-  "Check now" are unavailable, and settings says why
+  and with automatic checks off it reaches it only when you check from settings or the menu
+- A development run (an app built from source and not packaged) never checks for updates: its switch,
+  "Check now" and the menu's "Check for Updates…" are unavailable, and settings says why
 - No release notes are shown in the app, and an update cannot be skipped or postponed; the release
   channel cannot be chosen — it follows the version installed
 - An app run straight from the disk image, without being moved to Applications, cannot update itself:

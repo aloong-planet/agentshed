@@ -1,7 +1,8 @@
 // The app update button in the rail's bottom group (app-update::REQ-001), the form confirmed in the settings
 // prototype (2026-10-13): Codex's rail button, present only while an app update is downloading, installing
-// or ready. Only the ready button can be clicked; it installs the update and restarts. A failed install
-// answers that click with an error toast (app-update::REQ-002/AC-03).
+// or ready. Only the ready button can be clicked; it installs the update and restarts. Being always mounted, it
+// also answers the update notices with toasts (update-toasts.ts): a failed install after the click
+// (app-update::REQ-002/AC-03) and the outcome of a check from the application menu (US-003/AC-01, AC-04).
 //
 // The tooltip is a floating layer and owes CONTEXT's two obligations: the shared surface's viewport
 // positioning escapes clipping, and the shared hook dismisses it when a scroll or a resize makes its
@@ -15,6 +16,7 @@ import { Download, LoaderCircle } from './icons'
 import { useLanguage } from './language'
 import { useUpdateState } from './useUpdateState'
 import { toast } from './Toast'
+import { noticeToast } from './update-toasts'
 
 /** The download's progress, drawn as a ring inside the filled circle (Codex draws one there too) */
 function Ring({ percent }: { percent: number }): JSX.Element {
@@ -49,13 +51,20 @@ export function UpdateSlot(): JSX.Element | null {
   })
   const anchor = useRef<HTMLElement | null>(null)
   const layer = useRef<HTMLDivElement | null>(null)
-  // The notice arrives on an event subscribed once at mount; it must answer in the language of the moment
+  // A notice arrives on an event subscribed once at mount; it must answer in the language of the moment
   const langRef = useRef(lang)
   useLayoutEffect(() => {
     langRef.current = lang
   })
 
-  useEffect(() => window.agentshed.onUpdateNotice(() => toast('err', dictOf(langRef.current).update.installFailed)), [])
+  useEffect(
+    () =>
+      window.agentshed.onUpdateNotice((notice) => {
+        const shown = noticeToast(notice, dictOf(langRef.current), window.agentshed.appVersion)
+        if (shown) toast(shown.kind, shown.text)
+      }),
+    []
+  )
 
   const phase = state.phase
   const shown = isUpdateInFlight(phase)

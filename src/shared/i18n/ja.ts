@@ -46,7 +46,7 @@ export const ja: Locale = {
   },
 
   menu: {
-    about: 'Agentshed について', hide: 'Agentshed を隠す', hideOthers: 'ほかを隠す',
+    about: 'Agentshed について', checkForUpdates: 'アップデートを確認…', hide: 'Agentshed を隠す', hideOthers: 'ほかを隠す',
     unhide: 'すべてを表示', quit: 'Agentshed を終了',
     edit: '編集', undo: '取り消す', redo: 'やり直す', cut: 'カット', copy: 'コピー', paste: 'ペースト', selectAll: 'すべてを選択',
     view: '表示', reload: '再読み込み', toggleDevTools: '開発者ツール', resetZoom: '実際のサイズ',
@@ -68,7 +68,9 @@ export const ja: Locale = {
     tipReady: 'アップデートがあります',
     tipDownloading: (percent: number) => `アップデートをダウンロード中 ${percent}%`,
     tipInstalling: 'アップデートをインストール中…',
-    installFailed: 'アップデートをインストールできませんでした'
+    installFailed: 'アップデートをインストールできませんでした',
+    toastUpToDate: (version) => `Agentshed は最新です（${version}）`,
+    toastFound: (version) => `バージョン ${version} が見つかりました。バックグラウンドでダウンロードしています`
   },
 
   skillDeepHint: 'ベストプラクティスでは skill の参照深度は 2 未満です。この skill の見直しを検討してください',

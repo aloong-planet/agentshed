@@ -39,10 +39,12 @@ export interface SettingsCheck {
   outcome: 'upToDate' | 'failed' | null
 }
 
-/** A one-off event the renderer answers with a toast: a failed install after the user clicked to install */
-export interface UpdateNotice {
-  code: 'installFailed'
-}
+/** A one-off event the renderer answers with a toast */
+export type UpdateNotice =
+  /** A failed install after the user clicked to install (app-update::REQ-002/AC-03) */
+  | { code: 'installFailed' }
+  /** The outcome of a check from the application menu, which only a toast reports (app-update::US-003/AC-01, AC-04) */
+  | { code: 'menuCheck'; outcome: CheckOutcome }
 
 /** What an update check found, for the surface that asked */
 export type CheckOutcome =
@@ -85,7 +87,11 @@ export function parseUpdateState(raw: unknown): UpdateState | null {
 
 export function parseUpdateNotice(raw: unknown): UpdateNotice | null {
   if (typeof raw !== 'object' || raw === null) return null
-  return (raw as Record<string, unknown>)['code'] === 'installFailed' ? { code: 'installFailed' } : null
+  const r = raw as Record<string, unknown>
+  if (r['code'] === 'installFailed') return { code: 'installFailed' }
+  if (r['code'] !== 'menuCheck') return null
+  const outcome = parseCheckOutcome(r['outcome'])
+  return outcome ? { code: 'menuCheck', outcome } : null
 }
 
 /** The IPC entry check for settings' check record; null when it does not meet the contract */

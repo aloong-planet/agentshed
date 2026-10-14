@@ -401,8 +401,10 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   post-update line first, a settings check's outcome after it, none once any check finds an update. Kept
   there, the line survives leaving the page and hears of an update found from any surface
   (app-update::REQ-004/AC-02, AC-03). The outcome of a manual check is also the answer to the request
-  that asked for it. All of this goes through the contract module with validation on both sides
-  (ADR-0001).
+  that asked for it. A check from the menu is the main process's own: its outcome reaches the renderer
+  as a one-off **update notice** — the channel a failed install also uses — and the renderer answers
+  every notice with a toast. All of this goes through the contract module with validation on both
+  sides (ADR-0001).
 - **The switch is a preference**, stored in the existing preferences table with one setter of its own,
   the same shape as theme, mode and language, and with per-field fallback to on.
 - **Packaged or not** is the app's own packaged flag. The menu item's enabled state and the settings
@@ -441,8 +443,9 @@ Seams confirmed by the owner on 2026-10-13:
   C7–C9). No update has to run for this.
 - **The IPC contract**: validation of the lifecycle payload and of the command arguments.
 - **The menu template**: unit tests on the pure function cover the item's position, copy in six
-  languages and its disabled state when unpackaged. What the native menu actually draws is accepted by
-  hand — a known gap, as for the rest of the menu (i18n).
+  languages and its disabled state when unpackaged. e2e clicks the item through the application menu the
+  main process installed and reads its label after a language switch. What the native menu actually
+  draws is accepted by hand — a known gap, as for the rest of the menu (i18n).
 - **Not automatable, accepted by evidence**: the real electron-updater ↔ GitHub ↔ system-updater path,
   channel selection on real releases, and install on quit. These are first verifiable once two
   releases exist.
