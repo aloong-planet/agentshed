@@ -50,10 +50,9 @@ Ticket: [#233 Package through the electron-scaffold asset](https://github.com/al
 - Credentials: the asset passes the Apple password to `notarytool` as an argument (visible in the process
   list while it runs, not in logs) and prints no credential in its errors (it prints a failed command's
   output, never its arguments). The evidence used placeholders, not real values.
-- **Not holding yet**: CON-006 says credentials live locally in an untracked environment file. `.env.local` is
-  tracked in this repository today; the change that stops tracking it (branch `fix/untrack-env-local`) waits
-  for the owner's npm password rotation. The runbook says so and keeps signing credentials out of it until
-  then. This is the owner's pending action, not this ticket's change.
+- CON-006 says credentials live locally in an untracked environment file. `.env.local` was tracked when this
+  review ran; #245 (merged 2026-10-14, d262cdc) stopped tracking it and ignores `.env*.local`, and the
+  runbook now states that as fact. Holds.
 
 ## Consistency
 
@@ -79,5 +78,5 @@ name (listed), `mac.notarize: false` (listed), the app signature (the certificat
 ## Conclusion
 
 One bug in this change fixed (the unsigned DMG, by configuration), one gap stated (`dist:mac:release` runs first
-in #234), one pending owner action (`.env.local`), and two asset findings for skillshed, posted on
+in #234), the `.env.local` untracking (since merged as #245), and two asset findings for skillshed, posted on
 zhoulf1006/skillshed#18 as the owner chose.

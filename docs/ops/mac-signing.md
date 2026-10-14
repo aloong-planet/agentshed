@@ -53,8 +53,7 @@ variables are loaded from `.env.local` at the repository root:
 set -a && source ./.env.local && set +a && pnpm dist:mac:release
 ```
 
-> Pending: `.env.local` is untracked and git-ignored (`.env*.local`). Until then, keep signing credentials out
-> of it.
+`.env.local` is untracked and git-ignored (`.env*.local`), so nothing loaded from it reaches the repository.
 
 ## Checking a package by hand
 

@@ -13,13 +13,13 @@ Ticket: [#233 Package through the electron-scaffold asset](https://github.com/al
 
 | Item of #233 | Covered by |
 |---|---|
-| mac-distribution::US-001/AC-04 (default DMG look) | Evidence: the volume's contents, electron-builder's default background and the default 540 × 380 window; no screenshot (gap below) |
+| mac-distribution::US-001/AC-04 (default DMG look) | Evidence: the owner's screenshot of the mounted DMG's window ([evidence/ticket-233/dmg-window.png](evidence/ticket-233/dmg-window.png), the DMG built at 496287b): the app icon, the Applications link and electron-builder's default background with its arrow; earlier, the volume's contents and the default 540 × 380 window |
 | mac-distribution::REQ-001/AC-01 (name and signing) | Evidence: `Agentshed-0.1.0-mac-arm64.dmg`; app and DMG signed by the Developer ID identity, Team ID, timestamp; the asset's gate asserted the same during the build |
 | mac-distribution::REQ-001/AC-04 (declaration) | Evidence: `LSMinimumSystemVersion` 12.0 in the packaged app; Electron's framework `minos 12.0` |
 | mac-distribution::CON-001 | Gate: the asset's tests in `pnpm verify`; Evidence: `cmp` of both copies against skillshed |
 | mac-distribution::CON-003 (local) | Gate: the asset's certificate cases; Evidence: the run without an identity |
 | mac-distribution::CON-005 | Gate: the frozen lockfile; Evidence: the resolved versions |
-| mac-distribution::CON-006 | Evidence: no credential in the packaging log; the local file's status is the owner's pending action (code review) |
+| mac-distribution::CON-006 | Evidence: no credential in the packaging logs; the local file untracked and ignored since #245 (`git check-ignore -v .env.local` → `.gitignore:18:.env*.local`) |
 | mac-distribution::CON-007 | Evidence: the capability file read with a TOML parser |
 | Failures A3, B2 | Gate: the asset's tests (leftover clearing; Invalid with a failing log fetch) |
 | Failure E1 | Evidence: the run with Apple variables loaded (no submission) and the run without an identity |
@@ -27,8 +27,8 @@ Ticket: [#233 Package through the electron-scaffold asset](https://github.com/al
 
 Gaps, with their conditions:
 
-- The DMG window was not photographed: `screencapture` cannot capture without Screen Recording permission
-  for this terminal. Closed by a screenshot from the owner, or in this session once that permission is given.
+- The DMG window: `screencapture` could not capture it without Screen Recording permission for this
+  terminal. Closed on 2026-10-14 by the owner's screenshot (`evidence/ticket-233/dmg-window.png`).
 - `pnpm dist:mac:release` never ran here (it submits to Apple with real credentials): first real run in #234's
   manual verification tier.
 
@@ -52,5 +52,5 @@ the project's script, in the gateway.
 
 ## Conclusion
 
-The wiring is proven able to fail; the evidence covers #233's items except the DMG screenshot and the release
-profile's first real run, both stated with their conditions.
+The wiring is proven able to fail; the evidence covers #233's items, the DMG screenshot included since the
+owner took it. The release profile's first real run stays with #234.
