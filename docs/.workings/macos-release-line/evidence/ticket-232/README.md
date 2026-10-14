@@ -16,8 +16,10 @@ What it shows:
   check's failed outcome (settings checks report in their line), so it is a menu check against the real
   feed, made while the repository has no release yet. The settings line shows the same outcome of an earlier
   "Check now".
-- Around the menu: part of the terminal the build was launched from (tab titles, the launch command,
-  fragments of the conversation). Not part of the evidence.
+- Around the menu and the window: the terminal the build was launched from, painted over in flat grey at the
+  owner's request (above the window to the right of the menu, and left of the window's border below the
+  menu). The menu, the window and the toast are untouched. The darker band along the left edge is the
+  screenshot tool's dimming.
 
 Not shown here: the menu after a language switch (read by e2e from the installed menu) and the item greyed in
 a development run (the template unit and e2e).
