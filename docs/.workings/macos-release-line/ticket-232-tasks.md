@@ -26,4 +26,4 @@ development run), confirmed 2026-10-13. Its label in the five languages beyond C
 | 10 | Step 6: /review-tests | `ticket-232-review-tests.md` | done: coverage complete, the native picture by the owner's screenshot (task 7); every after-code case proven |
 | 11 | Spec final check and archive (step 7) | spec matches the implementation | done: app-update IPC and Testing Decisions written back; i18n's known gap rewritten |
 | 12 | Step 8: /features-catalog | app-update feature entry; regression record | done: app-update and i18n entries; final-regression.md #232 section |
-| 13 | Document sync, PR, stop for the owner | PR link | open: PR #248; waiting for the owner's merge confirmation |
+| 13 | Document sync, PR, stop for the owner | PR link | done: PR #248, CI green; the owner confirmed the merge on 2026-10-14, after the screenshot's terminal was painted over |
