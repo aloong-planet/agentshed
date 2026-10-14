@@ -111,3 +111,44 @@ predicate does not cover. Queue empty again.
 | Work state: #230's gap closed by a case here; #231's coverage rows, document sync checklist and issue | — | #230's records corrected in place; #231's updated at delivery |
 
 Queue empty after the pre-delivery scope re-check (see `ticket-231-doc-sync.md`).
+
+## Ticket #232 — "Check for Updates…" in the application menu
+
+- Date: 2026-10-14
+- Scope: this ticket's change only (not the full-feature closeout)
+- Version: branch `feat/menu-check-updates` on bf77387, working tree as committed for the ticket's PR
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/app-update.md` Implementation Decisions, IPC | `menuCheck` and `sendUpdateNotice` | Was incomplete (the menu's outcome had no route): it is a one-off update notice, answered with a toast. Added |
+| `docs/specs/app-update.md` Testing Decisions, the menu template | the e2e spec | Added: e2e clicks the item through the installed menu and reads its label after a switch |
+| `docs/specs/app-update.md` failure modes for #232's units (A6 menu, B2 toast, C6 menu, D1, D3, D4, G2 menu, G6 menu) | tests | Each has a case (test review record) |
+| `docs/specs/i18n.md` the known test gap | the e2e reading the installed menu | Was outdated ("whether it rebuilds after a switch can only be accepted by hand"): rewritten; what macOS draws stays the gap |
+| `docs/features/app-update.md`, every changed line | the spec's user-visible layer (REQ-005, US-003/AC-01, AC-04, AC-05, US-005/AC-02) | True; the network boundary now names the menu as a way to check by hand |
+| `docs/features/i18n.md`, the menu line | the template | Was incomplete (named Settings as the menu's one entry into the app): now names both entries |
+| Dictionaries, six languages, `menu.checkForUpdates`, `update.toastUpToDate`, `update.toastFound` | the confirmed prototype's menu-toast copy; the label is copy only outside Chinese | True; gates green; no new collapse in the distinctions test |
+| `UpdateSlot.tsx` header comment | the notice handler | True: it answers both notices with toasts |
+
+### Stage 2: related declarations
+
+| Relation | Rows (derived) | Conclusion |
+|---|---|---|
+| File ↔ index row | `docs/features/README.md` and `docs/specs/README.md` app-update rows | Still true |
+| A fact ↔ its statements elsewhere: the menu gains an entry into the app | `grep -rniE "application menu\|app menu\|menu bar"` over docs/features, docs/specs (outside app-update), CONTEXT, READMEs → i18n feature 10, 26, 27; appearance feature 28; i18n spec 41, 152, 283, 389, 460 | i18n feature 27 rewritten (see stage 1); i18n spec 389 rewritten; the rest true — 283 already names the item, 460 holds (below "About" is the platform's own place) |
+| A fact ↔ its statements elsewhere: update notices now carry the menu's outcome | `src/shared/update.ts` comments; the spec's IPC bullet | Both say so |
+| Rule ↔ gate: no dictionary collapses a source distinction | the distinctions test | Green: the new strings collapse nothing new |
+| Rule ↔ template | none changed this round | Row set empty |
+
+### Stage 3: events
+
+| Event | Search or source | Conclusion |
+|---|---|---|
+| The application menu's entries into the app went from one to two | the stage 2 search | One enumerating sentence (i18n feature 27), rewritten |
+| Pending notes in scope | `docs/specs/app-update.md` (Testing Decisions: two releases) | Not expired — #240's |
+| No new general rule | — | Row set empty |
+| Work state: #232's coverage rows, document sync checklist and issue | — | Updated at delivery |
+| The owner's native menu screenshot arrived (2026-10-14; app-update::REQ-005's Evidence) | the screenshot against the template's application submenu and REQ-005 ([evidence/ticket-232/](evidence/ticket-232/README.md)) | Agrees with both: the item directly below "About Agentshed", enabled, English as the interface language. Updated in place: the task list, the test review's gap and conclusion, the coverage row, the document sync checklist and the issue's REQ-005 box. Scope re-check: the specs' "accepted by hand — a known gap" (app-update Testing Decisions, i18n's known test gap) names the method, not a pending state, and stays true; no feature statement mentions the picture |
+
+Queue empty after the pre-delivery scope re-check (see `ticket-232-doc-sync.md`).

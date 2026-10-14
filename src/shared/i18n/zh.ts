@@ -61,7 +61,7 @@ export const zh = {
   /** The application menu (ticket 13). The application name Agentshed is the same in every language
    * (ADR-0013) */
   menu: {
-    about: '关于 Agentshed',
+    about: '关于 Agentshed', checkForUpdates: '检查更新…',
     hide: '隐藏 Agentshed',
     hideOthers: '隐藏其他',
     unhide: '全部显示',
@@ -94,7 +94,9 @@ export const zh = {
     tipReady: '有可用更新',
     tipDownloading: (percent: number) => `正在下载更新 ${percent}%`,
     tipInstalling: '正在安装更新…',
-    installFailed: '无法安装更新'
+    installFailed: '无法安装更新',
+    toastUpToDate: (version: string) => `Agentshed 已是最新版本（${version}）`,
+    toastFound: (version: string) => `发现新版本 ${version}，正在后台下载`
   },
 
   /**

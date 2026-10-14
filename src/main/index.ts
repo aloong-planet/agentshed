@@ -47,7 +47,7 @@ import { ERR, appError } from '@shared/errors'
 import { effectiveLanguage, type Language } from '@shared/i18n'
 import { APP_VERSION_ARG, LANG_ARG, SYS_LANGS_ARG, TREND_SPAN_ARG, UPDATES_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
-import { IDLE_UPDATE, parseSettingsCheck, parseUpdateState, type CheckOutcome, type SettingsCheck, type UpdateNotice, type UpdateState } from '@shared/update'
+import { IDLE_UPDATE, parseSettingsCheck, parseUpdateNotice, parseUpdateState, type CheckOutcome, type SettingsCheck, type UpdateNotice, type UpdateState } from '@shared/update'
 import { UpdateController } from './update-controller'
 import { SettingsChecks } from './settings-check'
 import { recordRunVersion } from './run-version'
@@ -546,9 +546,29 @@ function applyMenu(): void {
   const send = (channel: string) => (): void => mainWindow?.webContents.send(channel)
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(
-      buildMenuTemplate(initialLanguage(), { openSettings: send(EVT.menuOpenSettings) })
+      buildMenuTemplate(
+        initialLanguage(),
+        { openSettings: send(EVT.menuOpenSettings), checkForUpdates: () => void menuCheck() },
+        updateChoice() !== null
+      )
     )
   )
+}
+
+/**
+ * "Check for Updates…" in the application menu (app-update::REQ-005): the main process's own check, which
+ * joins one in flight like any other (US-003/AC-05); its outcome, the update found or the update already in
+ * flight reaches the renderer as a notice, answered with a toast (US-003/AC-01, AC-04)
+ */
+async function menuCheck(): Promise<void> {
+  const outcome: CheckOutcome = await (updates?.check() ?? Promise.resolve({ kind: 'unavailable' }))
+  sendUpdateNotice({ code: 'menuCheck', outcome })
+}
+
+function sendUpdateNotice(notice: UpdateNotice): void {
+  // Exit validation, the same rule as every other payload (ADR-0001)
+  if (!parseUpdateNotice(notice)) throw appError(ERR.contractType, { path: 'updateNotice', expect: 'UpdateNotice' })
+  mainWindow?.webContents.send(EVT.updateNotice, notice)
 }
 
 /** The effective language at window creation = the preference + the system language list. The system is
@@ -700,7 +720,7 @@ function startUpdates(): void {
       mainWindow?.webContents.send(EVT.updateState, state)
       settingsChecks?.onUpdateState(state)
     },
-    notify: (notice: UpdateNotice) => mainWindow?.webContents.send(EVT.updateNotice, notice)
+    notify: sendUpdateNotice
   })
   settingsChecks = new SettingsChecks({
     check: () => updates?.check() ?? Promise.resolve({ kind: 'unavailable' }),

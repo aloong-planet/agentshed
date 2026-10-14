@@ -47,7 +47,7 @@ export const fr: Locale = {
   },
 
   menu: {
-    about: 'À propos d’Agentshed', hide: 'Masquer Agentshed', hideOthers: 'Masquer les autres',
+    about: 'À propos d’Agentshed', checkForUpdates: 'Rechercher les mises à jour…', hide: 'Masquer Agentshed', hideOthers: 'Masquer les autres',
     unhide: 'Tout afficher', quit: 'Quitter Agentshed',
     edit: 'Édition', undo: 'Annuler', redo: 'Rétablir', cut: 'Couper', copy: 'Copier', paste: 'Coller', selectAll: 'Tout sélectionner',
     view: 'Présentation', reload: 'Recharger', toggleDevTools: 'Outils de développement', resetZoom: 'Taille réelle',
@@ -69,7 +69,9 @@ export const fr: Locale = {
     tipReady: 'Mise à jour disponible',
     tipDownloading: (percent: number) => `Téléchargement de la mise à jour ${percent} %`,
     tipInstalling: 'Installation de la mise à jour…',
-    installFailed: 'Impossible d’installer la mise à jour'
+    installFailed: 'Impossible d’installer la mise à jour',
+    toastUpToDate: (version) => `Agentshed est à jour (${version})`,
+    toastFound: (version) => `Version ${version} trouvée — téléchargement en arrière-plan`
   },
 
   skillDeepHint: 'La bonne pratique est une profondeur de référence de skill inférieure à 2 — envisagez de restructurer ce skill',

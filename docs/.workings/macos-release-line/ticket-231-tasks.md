@@ -29,5 +29,5 @@ switch's save-failure toast, which uses the existing save-failure toast of every
 | 11 | Step 6: /review-tests | `ticket-231-review-tests.md` | done: three after-code cases first survived and now reach their code; two measurement weaknesses fixed; #230's gap closed |
 | 12 | Spec final check and archive (step 7) | spec matches the implementation | done: spec Implementation Decisions written back; CONTEXT invariant added; no ADR needed |
 | 13 | Step 8: /features-catalog | app-update feature entry; regression record | done: app-update entry extended; final-regression.md #231 section |
-| 14 | Document sync, PR, stop for the owner | PR link | open |
+| 14 | Document sync, PR, stop for the owner | PR link | done: PR #246, CI green; merged as bf77387 on the owner's confirmation (2026-10-14) |
 | 15 | The owner-confirmed refactors: one renderer hook for the update lifecycle; settings' check resets `checking` in a `finally` | the existing cases; a rejected-check case red first; a mutation of the hook's push callback; `pnpm verify` exit 0 | done: both; the rejected-check case red first; the hook's push callback dropped turns the tooltip case red; `pnpm verify` exit 0 (822 unit, 129 e2e, smoke OK) |

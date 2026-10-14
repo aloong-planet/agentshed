@@ -43,10 +43,20 @@ describe('parseUpdateState', () => {
 })
 
 describe('parseUpdateNotice', () => {
-  it('knows only the install-failed notice', () => {
+  it('knows the install-failed notice and the menu check\'s outcome', () => {
     expect(parseUpdateNotice({ code: 'installFailed' })).toEqual({ code: 'installFailed' })
+    for (const outcome of [
+      { kind: 'upToDate' },
+      { kind: 'failed' },
+      { kind: 'found', version: '0.2.0' },
+      { kind: 'inFlight', state: { phase: 'installing', version: '0.2.0', progress: 100 } }
+    ]) expect(parseUpdateNotice({ code: 'menuCheck', outcome }), outcome.kind).toEqual({ code: 'menuCheck', outcome })
+  })
+  it('refuses anything else, and a menu outcome that breaks the contract (A6, H1)', () => {
     expect(parseUpdateNotice({ code: 'downloadFailed' })).toBeNull()
     expect(parseUpdateNotice('installFailed')).toBeNull()
+    expect(parseUpdateNotice({ code: 'menuCheck' })).toBeNull()
+    expect(parseUpdateNotice({ code: 'menuCheck', outcome: { kind: 'found', version: 'v0.2.0' } })).toBeNull()
   })
 })
 

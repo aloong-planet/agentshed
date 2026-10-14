@@ -47,7 +47,7 @@ export const es: Locale = {
   },
 
   menu: {
-    about: 'Acerca de Agentshed', hide: 'Ocultar Agentshed', hideOthers: 'Ocultar otros',
+    about: 'Acerca de Agentshed', checkForUpdates: 'Buscar actualizaciones…', hide: 'Ocultar Agentshed', hideOthers: 'Ocultar otros',
     unhide: 'Mostrar todo', quit: 'Salir de Agentshed',
     edit: 'Edición', undo: 'Deshacer', redo: 'Rehacer', cut: 'Cortar', copy: 'Copiar', paste: 'Pegar', selectAll: 'Seleccionar todo',
     view: 'Visualización', reload: 'Recargar', toggleDevTools: 'Herramientas de desarrollo', resetZoom: 'Tamaño real',
@@ -69,7 +69,9 @@ export const es: Locale = {
     tipReady: 'Actualización disponible',
     tipDownloading: (percent: number) => `Descargando actualización ${percent} %`,
     tipInstalling: 'Instalando actualización…',
-    installFailed: 'No se pudo instalar la actualización'
+    installFailed: 'No se pudo instalar la actualización',
+    toastUpToDate: (version) => `Agentshed está actualizado (${version})`,
+    toastFound: (version) => `Versión ${version} encontrada: descargando en segundo plano`
   },
 
   skillDeepHint: 'La buena práctica es una profundidad de referencia de skill menor que 2: considera reestructurar este skill',
