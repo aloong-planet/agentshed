@@ -21,30 +21,28 @@
        [演示·取回状态] 三态(索引就绪 / 索引失效 / 单轮失败)——真实判定是取回前按
          路径+mtime+size 签名校验一次,不符则只重建该文件索引;单轮读取失败只自伤该轮,
          再点可重试。app 内均无此控件。
+       界面语言、明暗与配色跟随设置原型(appearance)所选,本页不设开关;本页画了中、英两种,
+       其他语言按英文显示并有提示;色值取共享主题 _shared/theme.css(由 app 的 theme.css 生成),
+       本页只为自己的 token 指明对应的 app token。
      状态补齐(2026-08-06,实现期回补经用户确认):① 取回中(首次取回的瞬时提示,
        已取回的轮再展开为即时);② 单轮失败(该轮显示错误,不连累其余轮次);
-       ③ 空轮(没有正文回复的轮只出取回脚注,不造占位);④ 取回脚注含实际读取字节数。 -->
+       ③ 空轮(没有正文回复的轮只出取回脚注,不造占位);④ 取回脚注含实际读取字节数。
+     语言:界面文案(含启动提示)随所选语言切换,英文取 app 字典(src/shared/i18n)对应 key 的值;
+       会话内容本身(标题、提问、回答、思考、工具与 subagent 的摘要/入参/返回)是 mock 数据,
+       两种语言下原样显示;mock 边界说明(填充轮)与演示条只有中文。
+     项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>原型 — 会话页:提问索引与整轮展开</title>
+<link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-rail.css">
+<link rel="stylesheet" href="../_shared/project-side.css">
+<script src="../dimensions.js"></script>
+<script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
 <style>
-  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
-    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
-  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
-    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
-  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
-    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
-  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
-    justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2)}
-  .rail .ri:hover{background:var(--accent-soft)}
-  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
-  .side{width:230px;flex:none;background:var(--card);border-right:1px solid var(--line);
-    display:flex;flex-direction:column;padding:10px 8px;gap:2px;color:var(--text-2)}
-  .row{padding:7px 10px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row.sel{background:var(--accent-soft);color:var(--text);outline:1px solid var(--accent)}
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
   .head{padding:12px 20px 12px;border-bottom:1px solid var(--line);background:var(--card)}
   .back{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2);
@@ -56,17 +54,17 @@
   /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
      「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
      故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
-  .b.c{background:#f9e2da;color:#a05239}.b.x{background:#dcefe4;color:#1f7a4d}
-  @media (prefers-color-scheme:dark){.b.c{background:#4c2d21;color:#f8ac8f}.b.x{background:#1d3a2b;color:#7fd6a4}}
-  .meta{font-size:11px;color:var(--text-2);margin-top:5px;font-variant-numeric:tabular-nums}
+  .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
+  .head .meta{font-size:11px;color:var(--text-2);margin-top:5px;font-variant-numeric:tabular-nums}
   /* Session-level banners: branches resolved / a fork replay stripped / an uncertain strip — three tiers of
      semantic strength */
   .banner{display:flex;gap:8px;border-radius:8px;padding:8px 12px;font-size:11.5px;
     line-height:1.65;margin-bottom:10px;border:1px solid var(--line)}
   .banner .bi{flex:none}
   .banner.info{background:var(--accent-soft);border-color:var(--accent)}
+  /* No app token for these: the app's .banner.risk writes the same literals, with a dark set of its own */
   .banner.risk{background:#fdf3e3;border-color:#e0b483;color:#7a4d1c}
-  @media (prefers-color-scheme:dark){.banner.risk{background:#33251a;border-color:#7a5330;color:#f0bd8c}}
+  html[data-demo-mode="dark"] .banner.risk{background:#33251a;border-color:#7a5330;color:#f0bd8c}
   .banner a{color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
   .body{flex:1;overflow:auto;padding:14px 20px 90px}
   .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px;letter-spacing:.5px}
@@ -137,9 +135,11 @@
   .step .sn{width:18px;flex:none;color:var(--text-2);font-family:ui-monospace,Menlo,monospace}
   .rt{padding:2px 0 2px 12px;border-left:2px solid var(--line-strong);margin:3px 0;color:var(--text-2)}
   /* Unrecoverable / truncated / encrypted: always labelled explicitly, never silently */
-  .warn{border:1px dashed #d79a5b;background:#fdf3e3;color:#7a4d1c;border-radius:6px;
+  /* The border is --risk-border in both modes; the fill and the text have no app token (the app's .turn .warn
+     writes the same literals) */
+  .warn{border:1px dashed var(--risk-border);background:#fdf3e3;color:#7a4d1c;border-radius:6px;
     padding:6px 9px;font-size:11px;line-height:1.65;margin:6px 0}
-  @media (prefers-color-scheme:dark){.warn{background:#33251a;border-color:#8a5f34;color:#f0bd8c}}
+  html[data-demo-mode="dark"] .warn{background:#33251a;color:#f0bd8c}
   .mockgap{font-size:11px;color:var(--text-2);border:1px dotted var(--line-strong);
     border-radius:5px;padding:5px 8px;line-height:1.6}
   .fetched{font-size:10.5px;color:var(--text-2);margin-top:8px}
@@ -148,8 +148,9 @@
      to draw the eye
      (mark 同族,与 hover 的紫区分),脉冲后**焦点竖条常驻**——左缘 3px accent,
      不动布局、不与 hover/展开的背景撞;点击任意提问行即清除,离开页面自然清 */
+  /* A page token: the app scopes the same two values on .qlist .q, outside its theme tokens */
   :root{--locate-from:#fff2a8}
-  @media (prefers-color-scheme:dark){:root{--locate-from:#4d451a}}
+  html[data-demo-mode="dark"]{--locate-from:#4d451a}
   /* The highlight holds for 10s (the user's ruling, 2026-08-06): 8s steady, fading over the last 2s */
   @keyframes locate-pulse{0%,80%{background:var(--locate-from)}100%{background:transparent}}
   .q.located{animation:locate-pulse 10s ease-out}
@@ -170,20 +171,18 @@
      are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
 <link rel="stylesheet" href="../_shared/startup-status.css">
 <script src="../_shared/startup-status.js"></script>
+<script src="../manifest.js"></script>
+<script src="../app-identity.js"></script>
+<script src="../_shared/icons.js"></script>
 </head>
 <body>
-  <div class="rail">
-    <div class="ri" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html" data-icon="RobotFace" data-icon-size="17"></div>
-    <div class="ri on" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html" data-icon="Folder" data-icon-size="17"></div>
-  </div>
-  <div class="side">
-    <div class="row">agentshed</div><div class="row">chatgpt-token</div>
-    <div class="row">openclaw-v3</div><div class="row sel">Transfer</div>
-    <div class="row">AI-Learning</div><div class="row">aloong-tools</div>
-  </div>
+  <nav class="rail" data-shared-block="app-rail" data-rail-current="projects"></nav>
+  <script src="../_shared/app-rail.js"></script>
+  <aside class="side" data-shared-block="project-side" data-side-selected="Transfer"></aside>
+  <script src="../_shared/project-side.js"></script>
   <div class="main">
     <div class="head">
-      <div class="back" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html"><span data-icon="ChevronLeft" data-icon-size="12"></span>返回 Transfer · 会话</div>
+      <div class="back" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html"><span data-icon="ChevronLeft" data-icon-size="12"></span><span id="backT"></span></div>
       <div class="h1">
         <span class="b c" id="hbadge">CC</span><b id="htitle">…</b><span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span>
       </div>
@@ -192,19 +191,14 @@
     <div class="body">
       <div id="banners"></div>
       <div class="qbar">
-        <span class="grp-t" id="qhead">提问(主干)</span>
+        <span class="grp-t" id="qhead"></span>
         <span class="qtools">
-          <span class="lnk" id="foldall">全部收起</span>
-          <span class="seg" id="qorder"><span data-o="asc">正序</span><span class="on" data-o="desc">倒序</span></span>
+          <span class="lnk" id="foldall"></span>
+          <span class="seg" id="qorder"><span data-o="asc"></span><span class="on" data-o="desc"></span></span>
         </span>
       </div>
       <div class="qlist" id="qlist"></div>
-      <div class="note">
-        主干只列人类提问,harness 噪声不进渲染(<code>task_reminder</code> / <code>file-history-snapshot</code> /
-        <code>token_count</code> / <code>thread_settings_applied</code> 等按显示白名单一律不显示)。<br>
-        提问一次列全(文本+偏移只有几十 KB);点提问才按字节区间取该轮正文,
-        133 MB 的会话与 3 MB 的会话取回耗时相同。
-      </div>
+      <div class="note" id="foot"></div>
     </div>
   </div>
 
@@ -224,9 +218,81 @@
     <span class="hb" data-locate="4">跳到 05 并高亮</span>
   </div>
 
-<script src="../_shared/icons.js"></script>
 <script>
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // ── UI copy in the two languages this page is drawn in. The English is the app dictionary's value under
+  // the matching key (src/shared/i18n/en.ts: session.* / turn.* / errors.*), with its ** and ` markup
+  // written as <b> and <code>. The zh side keeps this page's own wording, which in places predates the
+  // dictionary's (foot, truncNote, reasoningNote); the English of those follows the page's wording.
+  // The session content is mock data and is not in here. ──
+  const pl = (n,one,other) => new Intl.PluralRules('en').select(n)==='one'?one:other;
+  const EN_DAY = {'7月29日 周三':'Wed, July 29','7月30日 周四':'Thu, July 30',
+    '9月13日 周六':'Sat, September 13','9月14日 周日':'Sun, September 14'};  // the app's dayLabel('en')
+  const T = {
+    zh:{
+      back:p=>`返回 ${p} · 会话`,
+      meta:m=>`${m.side} · ${m.q} 提问 · ${m.tok} tok · ${m.mb}`+
+        (m.replay!=null?`(其中 ${m.replay}% 为 fork 重放副本)`:' ')+`· 最后活动 ${m.ago} 天前`+
+        (m.noThread?' · 无 thread_name,标题取首条提问':''),
+      forkPoints:n=>`本会话有 <b>${n} 处分叉</b>。已按最后一条消息沿父链回溯到根渲染这一条链——即「这次对话最终长什么样」;被放弃的分支不显示。`,
+      forkedFrom:title=>`本会话 fork 自 <a>《${title}》</a>——重放前缀已剥离,下面只展示本次 fork 之后的新内容。<b>更早的历史见该会话</b>。`,
+      stripUncertainOrphan:'<b>重放前缀剥离不确定</b>:本会话 fork 自一个<b>不在扫描集内</b>的父会话(父文件已被清理,或属未注册项目),只能按启发式剥离——<b>可能多剥(丢消息)或少剥(重复)</b>,请对照原文核对。不静默剥错是这里唯一能给的保证。',
+      mainline:(n,days)=>`提问(主干)· ${n} 条 · ${days} 天`,
+      expandAll:'全部展开', collapseAll:'全部收起', ascending:'正序', descending:'倒序',
+      dayGroup:(day,n)=>`${day} · ${n} 条`,
+      foot:'主干只列人类提问,harness 噪声不进渲染(<code>task_reminder</code> / <code>file-history-snapshot</code> / '+
+        '<code>token_count</code> / <code>thread_settings_applied</code> 等按显示白名单一律不显示)。<br>'+
+        '提问一次列全(文本+偏移只有几十 KB);点提问才按字节区间取该轮正文, 133 MB 的会话与 3 MB 的会话取回耗时相同。',
+      fetching:'取回中…',
+      rebuilding:'索引签名不符(文件被追加或重写)→ 正在<b>只重建该文件</b>的索引…',
+      turnFailed:d=>`这一轮取不回来:${d}`,
+      sessionFileUnreadable:'会话文件已不可读(被移动或删除?)',
+      fetchedNote:(ms,bytes)=>`按需取回 ${ms} ms · 只读本轮区间 ${bytes},与文件总大小无关`,
+      thinking:'思考', thinkingSum:size=>`${size} · 明文可得`,
+      reasoning:'推理', reasoningSum:n=>`仅 ${n} 条小标题 · 正文不可得`,
+      reasoningNote:'Codex 的推理正文是 <code>encrypted_content</code>,<b>永远拿不到</b>。 下面是记录里仅有的明文小标题(<code>agent_reasoning</code>)——与 Claude 侧的明文思考<b>不对等</b>,不假装一致。',
+      input:'入参', output:'返回',
+      truncNote:'返回超过 agent 的单条上限,transcript 里<b>只存了截断版</b>。原文旁挂在 <code>tool-results/*.txt</code>,但记录中<b>没有指向它的引用链</b>,无法定位 → 这里展示的就是截断版,不谎称完整。',
+      dispatchPrompt:'派发 prompt', innerSteps:'内部步骤', backToMain:'返回主会话',
+      typeSeparator:'、',
+      unknownRecords:(count,types)=>`本轮有 <b>${count} 条未识别记录</b> (类型:${types})——原样保留在源文件中,未渲染。 这通常意味着 agent 更新引入了新记录类型。`
+    },
+    en:{
+      back:p=>`Back to ${p} · Sessions`,
+      meta:m=>`${m.side} · ${m.q} ${pl(m.q,'question','questions')} · ${m.tok} tok · ${m.mb}`+
+        (m.replay!=null?` (${m.replay}% of it is the fork’s replayed prefix)`:'')+
+        ` · last active ${new Intl.RelativeTimeFormat('en',{numeric:'auto'}).format(-m.ago,'day')}`+
+        (m.noThread?' · no thread_name, title taken from the first question':''),
+      forkPoints:n=>`This session has <b>${n} ${pl(n,'fork point','fork points')}</b>. The chain shown is traced from the last message back along the parent links to the root — i.e. "what this conversation finally looks like"; abandoned branches are not shown.`,
+      forkedFrom:title=>`This session was forked from <a>“${title}”</a>— the replayed prefix has been stripped, so only what follows this fork is shown below. <b>See that session for the earlier history</b>.`,
+      stripUncertainOrphan:'<b>Uncertain prefix stripping</b>: this session was forked from a parent <b>outside the scan set</b> (its file was cleaned up, or it belongs to an unregistered project), so stripping could only be heuristic — <b>it may have stripped too much (losing messages) or too little (duplicates)</b>. Please check against the original. Not failing silently is the only guarantee available here.',
+      mainline:(n,days)=>`Questions (main line) · ${n} ${pl(n,'question','questions')} · ${days} ${pl(days,'day','days')}`,
+      expandAll:'Expand all', collapseAll:'Collapse all', ascending:'Oldest first', descending:'Newest first',
+      dayGroup:(day,n)=>`${EN_DAY[day]??day} · ${n} ${pl(n,'question','questions')}`,
+      foot:'The main line lists only human questions; harness noise is not rendered (<code>task_reminder</code> / '+
+        '<code>file-history-snapshot</code> / <code>token_count</code> / <code>thread_settings_applied</code> and the like '+
+        'are never shown, per the display allow-list).<br>All questions are listed at once (their text and offsets come '+
+        'to only a few dozen KB); a turn’s body is read by byte range only when its question is clicked, so a 133 MB '+
+        'session takes as long to fetch from as a 3 MB one.',
+      fetching:'Fetching…',
+      rebuilding:'Index signature mismatch (the file was appended to or rewritten) → rebuilding the index for <b>this file only</b>…',
+      turnFailed:d=>`This turn could not be fetched: ${d}`,
+      sessionFileUnreadable:'The session file can no longer be read (moved or deleted?)',
+      fetchedNote:(ms,bytes)=>`Fetched on demand in ${ms} ms · read only this turn’s byte range, ${bytes} — independent of total file size`,
+      thinking:'Thinking', thinkingSum:size=>`${size} · plain text available`,
+      reasoning:'Reasoning', reasoningSum:n=>`only ${n} ${pl(n,'heading','headings')} · body unavailable`,
+      reasoningNote:'Codex reasoning bodies are <code>encrypted_content</code> and are <b>never obtainable</b>. Below are the only plain-text headings in the record (<code>agent_reasoning</code>) — <b>not equivalent</b> to Claude’s plain-text thinking, and not pretended to be.',
+      input:'Input', output:'Output',
+      truncNote:'The output exceeded the agent’s per-entry cap, so the transcript <b>only stored a truncated version</b>. The original sits alongside in <code>tool-results/*.txt</code>, but the record has <b>no reference chain pointing to it</b>, so it cannot be located → what you see here is the truncated version, not claimed to be complete.',
+      dispatchPrompt:'Dispatch prompt', innerSteps:'Inner steps', backToMain:'Back to main session',
+      typeSeparator:', ',
+      unknownRecords:(count,types)=>`This turn contains <b>${count} ${pl(count,'unrecognised record','unrecognised records')}</b> (types: ${types}) — kept as-is in the source file, not rendered. This usually means an agent update introduced a new record type.`
+    }
+  };
+  let LANG='zh';
+  const t = () => T[LANG];
+
   // The compact form for filler turns: [index, day, time, question, tool count, subagent count, a one-line
   // answer, [[tool name, summary], …]]
   const L = (n,d,t,txt,tools,subs,a,tl) => ({n,d,t,txt,tools,subs,a,tl:tl||[]});
@@ -238,8 +304,8 @@
   // ── The Claude main session: 42 questions across two days; the ★ turns have full content constructed ──
   const CLAUDE = {
     badge:'c', side:'CC', title:'MAS 上架支持:构建线与独立 bundle id',
-    meta:'Claude Code · 42 提问 · 312k tok · 8.4 MB · 最后活动 3 天前',
-    banners:[{k:'info',i:'GitFork',t:'本会话有 <b>2 处分叉</b>。已按最后一条消息沿父链回溯到根渲染这一条链——即「这次对话最终长什么样」;被放弃的分支不显示。'}],
+    meta:{side:'Claude Code',q:42,tok:'312k',mb:'8.4 MB',ago:3},
+    banners:[{k:'info',i:'GitFork',t:c=>c.forkPoints(2)}],
     qs:[
       // ★ 01
       {n:'01',d:'7月29日 周三',t:'09:12',tools:3,subs:0,
@@ -430,8 +496,8 @@
   // ── A Codex fork session: 18 questions ──
   const CODEX = {
     badge:'x', side:'CX', title:'迁移 Claude Code skills 到 Codex',
-    meta:'Codex · 18 提问 · 96k tok · 3.1 MB(其中 54% 为 fork 重放副本)· 最后活动 9 天前',
-    banners:[{k:'info',i:'GitFork',t:'本会话 fork 自 <a>《skills 目录结构与命名》</a>——重放前缀已剥离,下面只展示本次 fork 之后的新内容。<b>更早的历史见该会话</b>。'}],
+    meta:{side:'Codex',q:18,tok:'96k',mb:'3.1 MB',replay:54,ago:9},
+    banners:[{k:'info',i:'GitFork',t:c=>c.forkedFrom('skills 目录结构与命名')}],
     qs:[
       {n:'01',d:'9月14日 周日',t:'10:22',tools:2,subs:0,
        txt:'上次 notarize 那套还能复用吗?Codex 这边的 skill 目录结构和 Claude 不一样。',
@@ -503,8 +569,8 @@
   // ── A Codex fork with a missing parent: 24 questions across two days ──
   const ORPHAN = {
     badge:'x', side:'CX', title:'把 openclaw 的网关拆出来单独跑',
-    meta:'Codex · 24 提问 · 140k tok · 4.6 MB · 最后活动 10 天前 · 无 thread_name,标题取首条提问',
-    banners:[{k:'risk',i:'GitFork',t:'<b>重放前缀剥离不确定</b>:本会话 fork 自一个<b>不在扫描集内</b>的父会话(父文件已被清理,或属未注册项目),只能按启发式剥离——<b>可能多剥(丢消息)或少剥(重复)</b>,请对照原文核对。不静默剥错是这里唯一能给的保证。'}],
+    meta:{side:'Codex',q:24,tok:'140k',mb:'4.6 MB',ago:10,noThread:true},
+    banners:[{k:'risk',i:'GitFork',t:c=>c.stripUncertainOrphan}],
     qs:[
       {n:'01',d:'9月13日 周六',t:'20:04',tools:5,subs:0,
        txt:'把网关从主进程里拆出来单独跑,进程间怎么通?现在是直接函数调用。',
@@ -597,28 +663,25 @@
       <div class="bb">${b.lite
         ? `<div class="mockgap">本原型只为标注的几轮构造了完整入参/返回(Claude:01 02 03 07 15 16;Codex:01 02 03)。
              这里是填充轮,只到「一句回答 + 工具行」——mock 的边界,不是设计的一部分。</div>`
-        : `<div class="lb">入参</div><pre>${esc(b.input)}</pre>
-           <div class="lb">返回</div><pre>${esc(b.output)}</pre>
-           ${b.trunc?`<div class="warn">返回超过 agent 的单条上限,transcript 里<b>只存了截断版</b>。原文旁挂在
-             <code>tool-results/*.txt</code>,但记录中<b>没有指向它的引用链</b>,无法定位 →
-             这里展示的就是截断版,不谎称完整。</div>`:''}`}</div></div>`;
+        : `<div class="lb">${t().input}</div><pre>${esc(b.input)}</pre>
+           <div class="lb">${t().output}</div><pre>${esc(b.output)}</pre>
+           ${b.trunc?`<div class="warn">${t().truncNote}</div>`:''}`}</div></div>`;
   }
   function subHtml(b){
     return `<div class="blk sub"><div class="bh"><i class="cv">${ICONS.ChevronRight(10)}</i>${ICONS.Bot(13)}<span class="nm">subagent · ${b.nm}</span>
       <span class="sum">${esc(b.sum)}</span></div>
-      <div class="bb"><div class="lb">派发 prompt</div><pre>${esc(b.prompt)}</pre>
-      <div class="lb">内部步骤</div>
+      <div class="bb"><div class="lb">${t().dispatchPrompt}</div><pre>${esc(b.prompt)}</pre>
+      <div class="lb">${t().innerSteps}</div>
       ${b.steps.map(([n,s])=>`<div class="step"><span class="sn">${n}</span><span>${esc(s)}</span></div>`).join('')}
-      <div class="lb">返回主会话</div><pre>${esc(b.ret)}</pre></div></div>`;
+      <div class="lb">${t().backToMain}</div><pre>${esc(b.ret)}</pre></div></div>`;
   }
   function blockHtml(b){
-    if(b.type==='think') return `<div class="blk think"><div class="bh"><i class="cv">${ICONS.ChevronRight(10)}</i>${ICONS.Brain(13)}<span class="nm">思考</span>
-      <span class="sum">${b.size} · 明文可得</span></div><div class="bb">${esc(b.body).replace(/\n/g,'<br>')}</div></div>`;
-    if(b.type==='reason') return `<div class="blk think"><div class="bh"><i class="cv">${ICONS.ChevronRight(10)}</i>${ICONS.Brain(13)}<span class="nm">推理</span>
-      <span class="sum">仅 ${b.titles.length} 条小标题 · 正文不可得</span></div>
-      <div class="bb"><div class="warn">Codex 的推理正文是 <code>encrypted_content</code>,<b>永远拿不到</b>。
-        下面是记录里仅有的明文小标题(<code>agent_reasoning</code>)——与 Claude 侧的明文思考<b>不对等</b>,不假装一致。</div>
-        ${b.titles.map(t=>`<div class="rt">${esc(t)}</div>`).join('')}</div></div>`;
+    if(b.type==='think') return `<div class="blk think"><div class="bh"><i class="cv">${ICONS.ChevronRight(10)}</i>${ICONS.Brain(13)}<span class="nm">${t().thinking}</span>
+      <span class="sum">${t().thinkingSum(b.size)}</span></div><div class="bb">${esc(b.body).replace(/\n/g,'<br>')}</div></div>`;
+    if(b.type==='reason') return `<div class="blk think"><div class="bh"><i class="cv">${ICONS.ChevronRight(10)}</i>${ICONS.Brain(13)}<span class="nm">${t().reasoning}</span>
+      <span class="sum">${t().reasoningSum(b.titles.length)}</span></div>
+      <div class="bb"><div class="warn">${t().reasoningNote}</div>
+        ${b.titles.map(s=>`<div class="rt">${esc(s)}</div>`).join('')}</div></div>`;
     if(b.type==='text') return `<div class="ans">${b.body}</div>`;
     if(b.type==='tool') return toolHtml(b);
     if(b.type==='sub')  return subHtml(b);
@@ -626,9 +689,7 @@
       // dropped —
     // it leaves one discoverable line naming the type, with the content unrendered (kept as it is in the
       // source file)
-    if(b.type==='unknown') return `<div class="unknown">本轮有 <b>${b.count} 条未识别记录</b>
-      (类型:${b.types.map(esc).join('、')})——原样保留在源文件中,未渲染。
-      这通常意味着 agent 更新引入了新记录类型。</div>`;
+    if(b.type==='unknown') return `<div class="unknown">${t().unknownRecords(b.count,b.types.map(esc).join(t().typeSeparator))}</div>`;
     return '';
   }
   // A filler turn: a one-line answer plus tool rows (the tool bodies state the mock boundaries)
@@ -640,7 +701,7 @@
   }
   function turnHtml(q){
     return `${(q.turn||liteTurn(q)).map(blockHtml).join('')}
-      <div class="fetched">按需取回 3 ms · 只读本轮区间 1.2 KB,与文件总大小无关</div>`;
+      <div class="fetched">${t().fetchedNote(3,'1.2 KB')}</div>`;
   }
 
   function dayGroups(qs){
@@ -657,19 +718,22 @@
     document.getElementById('hbadge').className='b '+d.badge;
     document.getElementById('hbadge').textContent=d.side;
     document.getElementById('htitle').textContent=d.title;
-    document.getElementById('hmeta').textContent=d.meta;
+    document.getElementById('hmeta').textContent=t().meta(d.meta);
+    document.getElementById('backT').textContent=t().back('Transfer');
+    document.querySelector('#qorder [data-o="asc"]').textContent=t().ascending;
+    document.querySelector('#qorder [data-o="desc"]').textContent=t().descending;
+    document.getElementById('foot').innerHTML=t().foot;
     document.getElementById('banners').innerHTML=d.banners.map(b=>
-      `<div class="banner ${b.k}"><span class="bi">${ICONS[b.i](12)}</span><span>${b.t}</span></div>`).join('');
+      `<div class="banner ${b.k}"><span class="bi">${ICONS[b.i](12)}</span><span>${b.t(t())}</span></div>`).join('');
     const days=dayGroups(d.qs);
-    document.getElementById('qhead').textContent=
-      `提问(主干)· ${d.qs.length} 条 · ${days.length} 天`;
+    document.getElementById('qhead').textContent=t().mainline(d.qs.length,days.length);
     document.getElementById('foldall').textContent=
-      foldedDays.size===days.length?'全部展开':'全部收起';
+      foldedDays.size===days.length?t().expandAll:t().collapseAll;
     // The number is always the original turn number (data-q is the original index too), and the sort only
     // changes the presentation order
     document.getElementById('qlist').innerHTML=days.map(g=>
       `<div class="daygrp${foldedDays.has(g.d)?' fold':''}" data-day="${g.d}">
-        <div class="dayhd"><i class="cv">${ICONS.ChevronRight(9)}</i>${g.d} · ${g.items.length} 条</div>
+        <div class="dayhd"><i class="cv">${ICONS.ChevronRight(9)}</i>${t().dayGroup(g.d,g.items.length)}</div>
         <div class="daybody">${g.items.map(([q,i])=>{
           const on=openTurns.has(i);
           return `<div class="q${on?' open':''}" data-q="${i}"><i class="cv">${ICONS.ChevronRight(9)}</i>
@@ -691,7 +755,7 @@
       grp.classList.toggle('fold');
       grp.classList.contains('fold')?foldedDays.add(day):foldedDays.delete(day);
       document.getElementById('foldall').textContent=
-        foldedDays.size===document.querySelectorAll('.daygrp').length?'全部展开':'全部收起';
+        foldedDays.size===document.querySelectorAll('.daygrp').length?t().expandAll:t().collapseAll;
       return }
     const row=e.target.closest('.q'); if(!row) return;
     const i=+row.dataset.q, box=document.querySelector(`[data-turn="${i}"]`);
@@ -708,19 +772,19 @@
     if(fetchState==='error'){
       // A single turn's failure only hurts itself: that turn shows an error without affecting the others; it is
       // not marked loaded, so clicking again retries
-      box.innerHTML=`<div class="rebuild">取回中…</div>`;
+      box.innerHTML=`<div class="rebuild">${t().fetching}</div>`;
       setTimeout(()=>{ box.innerHTML=
-        `<div class="rebuild">这一轮取不回来:会话文件已不可读(被移动或删除?)</div>` },350);
+        `<div class="rebuild">${t().turnFailed(t().sessionFileUnreadable)}</div>` },350);
       return;
     }
     if(fetchState==='stale'){
-      box.innerHTML=`<div class="rebuild">索引签名不符(文件被追加或重写)→ 正在<b>只重建该文件</b>的索引…</div>`;
+      box.innerHTML=`<div class="rebuild">${t().rebuilding}</div>`;
       setTimeout(()=>{ loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]); },900);
       return;
     }
     // The index is ready: the first fetch still makes one real round trip — a momentary "fetching…" and then
       // the content
-    box.innerHTML=`<div class="rebuild">取回中…</div>`;
+    box.innerHTML=`<div class="rebuild">${t().fetching}</div>`;
     setTimeout(()=>{ loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]); },350);
   });
 
@@ -757,7 +821,24 @@
     if(e.target.closest('.q')) document.querySelectorAll('.q.focused').forEach(x=>x.classList.remove('focused'));
   },true);
 
-  render(true);
+  // The interface language follows the settings prototype (demo-dimensions.js), which calls back once now
+  // and again on every change. A change re-renders in place: expanded turns, folded days and the sort live in
+  // their own state; the blocks opened inside a turn and the locating focus bar are carried over by hand
+  let rendered=false;
+  DemoDimensions.on('language',v=>{
+    LANG=v;
+    document.documentElement.lang=v==='en'?'en':'zh-CN';
+    if(!rendered){ rendered=true; render(true); return }
+    const openBlks=[...document.querySelectorAll('.turn.on')].map(box=>[box.dataset.turn,
+      [...box.querySelectorAll('.blk')].flatMap((b,j)=>b.classList.contains('open')?[j]:[])]);
+    const focused=document.querySelector('.q.focused')?.dataset.q;
+    render(false);
+    for(const [i,js] of openBlks){
+      const blks=document.querySelectorAll(`[data-turn="${i}"] .blk`);
+      js.forEach(j=>blks[j]?.classList.add('open'));
+    }
+    if(focused!==undefined) document.querySelector(`[data-q="${focused}"]`)?.classList.add('focused');
+  });
 </script>
 <script>
   // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
@@ -769,5 +850,6 @@
     else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
   });
 </script>
+<script src="../demo-harness.js"></script>
 </body>
 </html>

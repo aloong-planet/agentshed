@@ -18,54 +18,29 @@
        V1    纯字号阶梯——只靠字号与字重分级,单一主题色,押最朴素;
        V2    形状分层——h1 底线、h2 左条、三级色阶、h4 起转灰,字号只温和递减,押折行不糊;
        V3    双轨——h1–h3 比大小,h4 起变形为「小节眉」(正文字号+字距+灰),押相邻级比形态不比大小。
-     演示基建(非设计的一部分,勿实现):底部悬浮条 data-demo-harness——变体切换、主题(紫/蓝/琥珀)、
-     明暗(浅/深/系统),←/→ 循环变体,当前状态写 location.hash。app 内明暗与主题由设置页决定,
-     变体由本次裁决唯一定稿,运行时不存在这些开关。
-     本页未覆盖语言维度:抽屉切换钮文案(原文/预览)是共享块 md-preview.js 的中文写死值,
-     六语言最长值(ru: Исходник/Предпросмотр)未进 mock;本页评判对象是标题排版,不含该钮几何。
+     演示基建(非设计的一部分,勿实现):底部悬浮条 data-demo-harness——变体切换(←/→ 循环,当前变体
+     写 location.hash);变体由本次裁决唯一定稿,运行时不存在这个开关。界面语言、配色与明暗跟随设置原型
+     (appearance)所选,本页不设开关;色值取共享主题 _shared/theme.css(由 app 的 theme.css 生成)。
+     语言只画了中、英两种,其他语言按英文显示并有提示;随语言变的只有抽屉切换钮(原文/预览,共享块
+     md-preview.js 自带两种语言),本页其余文字都是评审注记与 fixture,不随语言变。法/西/俄/日的最长值
+     (ru: Исходник/Предпросмотр)未进 mock;本页评判对象是标题排版,不含该钮几何。
      mock 正文刻意覆盖:h3→正文→h4、h3/h4 紧邻无正文、h5/h6、长标题折行后紧邻的 h3/h4、
      代码块与列表贴近标题。共享:md-preview。 -->
-<html lang="zh-CN" data-v="v2" data-t="purple" data-m="system">
+<html lang="zh-CN" data-v="v2">
 <head>
 <meta charset="utf-8">
 <title>原型 — Markdown 预览 · 标题层级阶梯</title>
+<link rel="stylesheet" href="../_shared/theme.css">
 <link rel="stylesheet" href="../_shared/md-preview.css">
 <style>
-  /* ── 主题 token:语义与真 theme.css 对齐(purple 即 :root 默认;--hx3 为 V2 的三级色阶,
-        取自共享块与 skills-view 原型已用过的同语义值) ── */
-  html[data-t="purple"] {
-    --bg:#f7f8f9; --card:#ffffff; --text:#37352f; --text-2:#787774;
-    --line:#e8eaed; --line-strong:#d9dce0;
-    --accent:#8a67ab; --accent-deep:#6b4f92; --accent-soft:#f0ebf6; --hx3:#9b7ec4;
-  }
-  html[data-t="purple"][data-dark] {
-    --bg:#18191b; --card:#1f2124; --text:#e6e6e5; --text-2:#9b9a97;
-    --line:#2a2c30; --line-strong:#34373c;
-    --accent:#a084c7; --accent-deep:#c9b3ec; --accent-soft:#2c2733; --hx3:#a88cc9;
-  }
-  html[data-t="blue"] {
-    --bg:#f6f5f3; --card:#fffcf9; --text:#2c2a28; --text-2:#6f6b66;
-    --line:#e8e4de; --line-strong:#d4cfc7;
-    --accent:#4a6fa5; --accent-deep:#3a5a88; --accent-soft:#eef2f7; --hx3:#5d82b0;
-  }
-  html[data-t="blue"][data-dark] {
-    --bg:#16181c; --card:#1c1f24; --text:#e6e4e0; --text-2:#9a9690;
-    --line:#2a2e34; --line-strong:#3a4048;
-    --accent:#7a9dc4; --accent-deep:#a8c0dc; --accent-soft:#1e2a38; --hx3:#8aadc8;
-  }
-  html[data-t="amber"] {
-    --bg:#f7f3ec; --card:#fffcf7; --text:#3a342c; --text-2:#7a7268;
-    --line:#e8e0d4; --line-strong:#d6ccbc;
-    --accent:#6b5220; --accent-deep:#534018; --accent-soft:#f3ead4; --hx3:#8b6914;
-  }
-  html[data-t="amber"][data-dark] {
-    --bg:#1a1714; --card:#221e1a; --text:#ebe4d8; --text-2:#a09888;
-    --line:#332e28; --line-strong:#453e36;
-    --accent:#c4a46a; --accent-deep:#ddc48e; --accent-soft:#2e2820; --hx3:#d4b878;
+  /* Page tokens on top of the app's (_shared/theme.css), each named after the app token that plays the
+     same role, so every palette and both modes come from the app. --hx3 is V2's third heading step, which
+     is the app's --md-h3. */
+  :root {
+    --hx3: var(--md-h3);
   }
 
   * { box-sizing: border-box; margin: 0; font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
-  html[data-dark] { color-scheme: dark; }
   body { background: var(--bg); color: var(--text); font-size: 13px; padding: 22px 24px 96px; }
 
   .pg-head { max-width: 1320px; margin: 0 auto 14px; }
@@ -81,7 +56,7 @@
   .panel { flex: 1 1 560px; min-width: 480px; max-width: 640px; }
   .panel .cap { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--text-2); margin: 0 0 7px 2px; }
 
-  /* 抽屉语境:共享块自带边框/圆角;把它写死的浅色字面量接到主题 token 上(同 skills-view 原型的做法) */
+  /* 抽屉语境:共享块自带边框/圆角;本页对它 chrome 的覆盖一律取主题 token(同 skills-view 原型的做法) */
   .shell-drawer .md-preview { border-color: var(--line); background: var(--card); box-shadow: 0 4px 18px rgba(0,0,0,.06); }
   .shell-drawer .md-preview-bar { background: linear-gradient(180deg, var(--bg) 0%, var(--card) 100%); border-bottom-color: var(--line); }
   .shell-drawer .md-preview-bar .md-preview-name { color: var(--accent); }
@@ -91,7 +66,7 @@
   .shell-drawer .md-preview-body { max-height: 74vh; }
   .shell-drawer .md-preview-body.raw { background: var(--bg); color: var(--text); }
   .shell-drawer .md-preview-body.preview { background: var(--card); color: var(--text); }
-  .shell-drawer .md-preview { --md-h1: var(--accent-deep); --md-h2: var(--accent); --md-h3: var(--hx3); --md-link: var(--accent); }
+  .shell-drawer .md-preview { --md-h1: var(--accent-deep); --md-h2: var(--accent); --md-link: var(--accent); }
   /* 表格不再本页覆盖:共享块默认已是定稿(第三条裁决,token 化 + 对齐修正 + 表头不换行 +
      列线加强),让它直接流入 */
   /* code/pre 不再本页覆盖:共享块默认已是定稿的纸面样式(第二条裁决),让它直接流入。
@@ -222,16 +197,18 @@
     font-size:12px;flex-wrap:wrap;justify-content:center}
   [data-demo-harness] .tag{
     font-size:10px;font-weight:700;letter-spacing:.04em;color:#b0a898;white-space:nowrap;padding:0 4px 0 0}
-  [data-demo-harness] .sep{width:1px;height:18px;background:rgba(255,255,255,.12);margin:0 2px}
   [data-demo-harness] button{
     font:inherit;font-size:11.5px;font-weight:600;border:0;background:transparent;
     color:#b0a898;padding:5px 10px;border-radius:999px;cursor:pointer;white-space:nowrap;
     display:inline-flex;align-items:center;gap:6px}
-  [data-demo-harness] button .dot{width:10px;height:10px;border-radius:50%;border:1px solid rgba(255,255,255,.25)}
   [data-demo-harness] button.on{background:rgba(255,255,255,.12);color:#fff}
 </style>
 <script src="../vendor/marked.umd.js"></script>
 <script src="../_shared/md-preview.js"></script>
+<script src="../dimensions.js"></script>
+<script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
+<script src="../manifest.js"></script>
+<script src="../app-identity.js"></script>
 </head>
 <body>
   <div class="pg-head">
@@ -327,16 +304,6 @@ git log --oneline HEAD
     <button type="button" data-v="v1">V1 纯字号</button>
     <button type="button" data-v="v2">V2 形状分层</button>
     <button type="button" data-v="v3">V3 双轨</button>
-    <span class="sep"></span>
-    <span class="tag">主题</span>
-    <button type="button" data-t="purple"><span class="dot" style="background:#8a67ab"></span>紫</button>
-    <button type="button" data-t="blue"><span class="dot" style="background:#4a6fa5"></span>雾蓝</button>
-    <button type="button" data-t="amber"><span class="dot" style="background:#6b5220"></span>琥珀</button>
-    <span class="sep"></span>
-    <span class="tag">明暗</span>
-    <button type="button" data-m="light">浅</button>
-    <button type="button" data-m="dark">深</button>
-    <button type="button" data-m="system">系统</button>
   </div>
 
 <script>
@@ -349,37 +316,22 @@ git log --oneline HEAD
   })
   document.getElementById('card-mount').innerHTML = MdPreview.render(BODY_ONLY)
 
-  // ── 演示状态:#<v>.<theme>.<mode>,写 hash 便于分享/刷新稳定 ──
-  const VS = ['v0', 'v1', 'v2', 'v3'], TS = ['purple', 'blue', 'amber'], MS = ['light', 'dark', 'system']
+  // ── 演示状态:变体写 hash(#<v>)便于分享/刷新稳定;配色与明暗跟随设置原型,不进 hash ──
+  const VS = ['v0', 'v1', 'v2', 'v3']
   function parseHash () {
-    const parts = (location.hash || '').replace(/^#/, '').split('.')
-    return {
-      v: VS.includes(parts[0]) ? parts[0] : 'v2',
-      t: TS.includes(parts[1]) ? parts[1] : 'purple',
-      m: MS.includes(parts[2]) ? parts[2] : 'system'
-    }
+    const v = (location.hash || '').replace(/^#/, '').split('.')[0]
+    return VS.includes(v) ? v : 'v2'
   }
-  let st = parseHash()
-  const mq = window.matchMedia('(prefers-color-scheme: dark)')
+  const st = { v: parseHash() }
   function apply () {
-    const h = document.documentElement
-    h.dataset.v = st.v; h.dataset.t = st.t; h.dataset.m = st.m
-    const dark = st.m === 'dark' || (st.m === 'system' && mq.matches)
-    if (dark) h.setAttribute('data-dark', '')
-    else h.removeAttribute('data-dark')
-    document.querySelectorAll('[data-demo-harness] button').forEach((b) => {
-      const k = b.dataset.v ? 'v' : b.dataset.t ? 't' : 'm'
-      b.classList.toggle('on', b.dataset[k] === st[k])
+    document.documentElement.dataset.v = st.v
+    document.querySelectorAll('[data-demo-harness] button[data-v]').forEach((b) => {
+      b.classList.toggle('on', b.dataset.v === st.v)
     })
-    location.hash = `${st.v}.${st.t}.${st.m}`
+    location.hash = st.v
   }
-  document.querySelectorAll('[data-demo-harness] button').forEach((b) => {
-    b.addEventListener('click', () => {
-      if (b.dataset.v) st.v = b.dataset.v
-      else if (b.dataset.t) st.t = b.dataset.t
-      else st.m = b.dataset.m
-      apply()
-    })
+  document.querySelectorAll('[data-demo-harness] button[data-v]').forEach((b) => {
+    b.addEventListener('click', () => { st.v = b.dataset.v; apply() })
   })
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
@@ -389,9 +341,13 @@ git log --oneline HEAD
     st.v = VS[(i + (e.key === 'ArrowRight' ? 1 : VS.length - 1)) % VS.length]
     apply()
   })
-  mq.addEventListener('change', () => { if (st.m === 'system') apply() })
-  window.addEventListener('hashchange', () => { st = parseHash(); apply() })
+  window.addEventListener('hashchange', () => { st.v = parseHash(); apply() })
   apply()
+  // The palette and light/dark land on the root element through demo-dimensions.js and switch the app's
+  // tokens there. Of the language, the only app copy on this page is the shared block's raw/preview toggle,
+  // which follows it by itself; the page keeps the document language in step
+  DemoDimensions.on('language', (v) => { document.documentElement.lang = v === 'zh' ? 'zh-CN' : 'en' })
 </script>
+<script src="../demo-harness.js"></script>
 </body>
 </html>

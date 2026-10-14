@@ -3,7 +3,29 @@
 // Under file:// an ES module import is blocked by CORS, so it hangs off window rather than exporting (the
 // same rule as the logic-page template).
 // It corresponds to the real app's TrendChart component; the ruling is in ADR-0008.
+// Its copy follows the page's language when the page follows it (demo-dimensions.js), in the app's words;
+// it is drawn in Chinese and English, and any other language shows as English, as the app falls back to it.
 ;(function () {
+  const COPY = {
+    zh: { total: '合计', other: '其他', archived: ' · 归档(源文件已清理)', noUsage: '无用量',
+      legend: '柱高=当日总量,分段=各 provider 占比;斜纹=归档段', dim: ';压暗段=选中窗口之外', side: '单侧视图:仅该 agent 侧用量' },
+    en: { total: 'total', other: 'Other', archived: ' · archived (source files cleaned up)', noUsage: 'No usage',
+      legend: 'Bar height = daily total; segments = share per provider; hatched = archived', dim: '; dimmed = outside the selected window',
+      side: 'Single-side view: this agent side only' }
+  }
+  let lang = 'zh'
+  const t = () => COPY[lang] || COPY.en
+  const charts = new Set()
+  let following = false
+  // Subscribed on first use rather than at load: a page may include this file before demo-dimensions.js
+  function follow() {
+    if (following || !window.DemoDimensions) return
+    following = true
+    window.DemoDimensions.on('language', (v) => {
+      lang = v
+      charts.forEach((render) => render())
+    })
+  }
   // Prototype-only storage demonstrates the requested global preference. It never touches app prefs.
   const SPAN_KEY = 'agentshed-prototype-trend-span'
   const SPANS = [30, 60, 90]
@@ -59,8 +81,10 @@
     })) }))
   }
 
-  const PROVIDERS = ['Anthropic', 'OpenAI', 'Google', 'xAI', '其他']
-  const CLS = { Anthropic: 'anthropic', OpenAI: 'openai', Google: 'google', xAI: 'xai', 其他: 'other' }
+  const PROVIDERS = ['Anthropic', 'OpenAI', 'Google', 'xAI', 'Other']
+  const CLS = { Anthropic: 'anthropic', OpenAI: 'openai', Google: 'google', xAI: 'xai', Other: 'other' }
+  // Provider names are proper nouns and stay as they are; only the catch-all bucket is translated
+  const providerName = (p) => (p === 'Other' ? t().other : p)
   // 单侧模式 → 该侧当前实际在用的 provider。三侧各自一一对应只是此刻的事实,不是不变量:
   // ADR-0008 之所以按 provider 而非按侧分段,就是为了让某侧哪天混入别家模型时图表逻辑不必改。
   const MODE_PROVIDER = { Claude: 'Anthropic', Codex: 'OpenAI', Grok: 'xAI' }
@@ -151,7 +175,7 @@
   }
 
   function segmentsOf(day, mode) {
-    if (mode !== '合计') {
+    if (mode !== 'total') {
       const p = MODE_PROVIDER[mode]
       const v = day.by[p] || 0
       return v > 0 ? [{ p: p, v: v }] : []
@@ -166,7 +190,8 @@
    */
   function mount(ids, days0) {
     let days = days0
-    let mode = '合计'
+    follow()
+    let mode = 'total'
     let span = selectedSpan
     let lastRows = null
     // How many trailing days are "in range". null = the whole window; the caller drives it via setRange.
@@ -185,12 +210,12 @@
       $(ids.chart).innerHTML = rows
         .map((r) => {
           const tip = [
-            `${r.d.label} · 合计 ${fmt(r.total)}${r.d.archived ? ' · 归档(源文件已清理)' : ''}`
+            `${r.d.label} · ${t().total} ${fmt(r.total)}${r.d.archived ? t().archived : ''}`
           ]
             .concat(
               r.total === 0
-                ? ['无用量']
-                : r.segs.map((s) => `${s.p}  ${fmt(s.v)}  ${Math.round((s.v / r.total) * 100)}%`)
+                ? [t().noUsage]
+                : r.segs.map((s) => `${providerName(s.p)}  ${fmt(s.v)}  ${Math.round((s.v / r.total) * 100)}%`)
             )
             .join('\n')
           const sp = r.segs
@@ -204,14 +229,14 @@
       if (ids.xaxis) renderAxis($(ids.xaxis), $(ids.chart), rows)
       if (ids.legend) {
         const used = PROVIDERS.filter((p) => rows.some((r) => r.segs.some((s) => s.p === p)))
-        const dim = range === null ? '' : ';压暗段=选中窗口之外'
+        const dim = range === null ? '' : t().dim
         $(ids.legend).innerHTML =
-          mode === '合计'
+          mode === 'total'
             ? used
-                .map((p) => `<span class="lg"><span class="sw ${CLS[p]}"></span>${p}</span>`)
+                .map((p) => `<span class="lg"><span class="sw ${CLS[p]}"></span>${providerName(p)}</span>`)
                 .join('') +
-              `<span class="lg-note">柱高=当日总量,分段=各 provider 占比;斜纹=归档段${dim}</span>`
-            : `<span class="lg-note">单侧视图:仅该 agent 侧用量${dim}</span>`
+              `<span class="lg-note">${t().legend}${dim}</span>`
+            : `<span class="lg-note">${t().side}${dim}</span>`
       }
     }
 
@@ -227,7 +252,9 @@
         if (e.target.tagName !== 'SPAN') return
         const spans = $(ids.seg).querySelectorAll('span')
         spans.forEach((s) => s.classList.toggle('on', s === e.target))
-        mode = e.target.textContent
+        // A side's name is a proper noun in every language; whatever else the switch says is the total
+        const name = e.target.textContent.trim()
+        mode = MODE_PROVIDER[name] ? name : 'total'
         render()
       })
     }
@@ -238,6 +265,7 @@
       })
     }
     render()
+    charts.add(render)
     // The caller keeps the range control (it lives in the totals-card row); the chart only reacts.
     return {
       setRange: function (n) {

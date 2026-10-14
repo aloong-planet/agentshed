@@ -1,5 +1,14 @@
 // Display mock only. The existing page fixtures and interactions are left intact.
 // Scan copy mirrors the six app dictionaries; failure copy was confirmed with the original prototypes.
+//
+// The startup states, as the app has them: before this launch's first snapshot the page is its startup
+// skeleton; once data is there (restored from the last run), the title row's hint reads scanning, then
+// disappears when the scan is done, or reads waiting-for-an-update when it failed. A page that also draws
+// its skeleton opts in with StartupStatus.withSkeleton(fn) before building its demo bar: the switch then
+// starts with a skeleton option, and fn(state) runs on every change ('skeleton' | 'restored' | 'fresh' |
+// 'failed') so the page can swap its content for the skeleton and back.
+//   .startup-hint            every one on the page shows the current state (the skeleton has its own)
+//   [data-startup-scanning]  always reads the scanning copy (a skeleton's centred hint)
 window.StartupStatus=(() => {
   const scanning={zh:'正在扫描各 agent 侧…',en:'Scanning the agent sides…',
     fr:'Analyse des côtés agents…',es:'Escaneando los lados de agente…',
@@ -8,33 +17,40 @@ window.StartupStatus=(() => {
     fr:'Données précédentes affichées, en attente de mise à jour',
     es:'Se muestran los datos anteriores, a la espera de una actualización',
     ru:'Показаны предыдущие данные, ожидается обновление',ja:'前回のデータを表示中、更新を待っています'};
-  let state='restored',language='zh';
+  let state='restored',language='zh',skeleton=false;
+  const listeners=[];
   function controls(){
-    return `<span class="startup-demo" title="演示·已有数据来自上次成功读取；真实状态由扫描结果决定，应用内没有这些开关。此处只演示呈现，不读写缓存。"><span>演示·启动恢复</span>`+
-      [['restored','扫描中'],['fresh','完成'],['failed','失败']].map(([value,label])=>
+    const states=[...(skeleton?[['skeleton','骨架']]:[]),['restored','扫描中'],['fresh','完成'],['failed','失败']];
+    return `<span class="startup-demo" title="演示·${skeleton?'骨架=这次启动还没收到任何数据（首个快照到达前）；其余三档':''}已有数据来自上次成功读取；真实状态由扫描结果决定，应用内没有这些开关。此处只演示呈现，不读写缓存。"><span>${skeleton?'演示·启动':'演示·启动恢复'}</span>`+
+      states.map(([value,label])=>
         `<button type="button" data-startup-state="${value}" aria-pressed="${state===value}">${label}</button>`).join('')+
-      `<select data-startup-language aria-label="演示·状态文案语言">`+
-      Object.keys(scanning).map(value=>`<option value="${value}" ${value===language?'selected':''}>${value.toUpperCase()}</option>`).join('')+
-      `</select></span>`;
+      `</span>`;
   }
   function update(){
-    const hint=document.querySelector('.startup-hint');
-    hint.dataset.state=state;
-    hint.querySelector('[data-startup-label]').textContent=(state==='failed'?failed:scanning)[language];
-    hint.title=hint.textContent;
+    document.querySelectorAll('.startup-hint').forEach(hint=>{
+      hint.dataset.state=state;
+      hint.querySelector('[data-startup-label]').textContent=(state==='failed'?failed:scanning)[language];
+      hint.title=hint.textContent;
+    });
+    document.querySelectorAll('[data-startup-scanning]').forEach(el=>el.textContent=scanning[language]);
     document.querySelectorAll('[data-startup-state]').forEach(button=>
       button.setAttribute('aria-pressed',String(button.dataset.startupState===state)));
   }
   document.addEventListener('DOMContentLoaded',()=>{
     document.querySelectorAll('[data-startup-controls]').forEach(el=>el.innerHTML=controls());
-    update();
+    // The copy follows the language set on the settings prototype on pages that follow the language
+    // (demo-dimensions.js); on any other page it stays in the source language.
+    if(window.DemoDimensions) DemoDimensions.on('language',value=>{language=value;update()});
+    else update();
   });
   document.addEventListener('click',event=>{
     const button=event.target.closest('[data-startup-state]');
-    if(button){state=button.dataset.startupState;update()}
+    if(button){state=button.dataset.startupState;update();listeners.forEach(fn=>fn(state))}
   });
-  document.addEventListener('change',event=>{
-    if(event.target.matches('[data-startup-language]')){language=event.target.value;update()}
-  });
-  return {controls};
+  function withSkeleton(fn){
+    skeleton=true;
+    listeners.push(fn);
+    fn(state);
+  }
+  return {controls,withSkeleton};
 })();

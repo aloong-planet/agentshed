@@ -1,7 +1,10 @@
 <!doctype html>
 <!-- A UI prototype · Skills package preview — the main list expands to show a package's files, and
      clicking a file opens a drawer to read it.
-     演示基建:底栏切方案 + 昼夜 + 展开形式(data-demo-harness)。共享:md-preview。
+     演示基建:底栏切展开形式(data-demo-harness)。界面语言、配色与明暗跟随设置原型(appearance)所选,
+     本页不设开关;语言只画了中、英两种,其他语言按英文显示并有提示;评审注记(.sub 说明、分区标题、配色说明)
+     不随语言变。色值取共享主题 _shared/theme.css(由 app 的 theme.css 生成),本页只为自己的 token 指明
+     对应的 app token。共享:md-preview。
      2026-08-06 更新:①行密度对齐其它模块(视觉行高约 32px);②行不展示 description(已裁定);
      ③展开区新增「平铺」形式(默认)——不缩进、表格满宽,与旧「缩进卡片」可切换对比;
      ④包统计(文件数/大小,不含行数)上行内右侧,展开区撤销汇总条;⑤frontmatter 深浅随页面
@@ -15,277 +18,50 @@
      不再看来源,改看**有没有包**:插件行同样可能展不开(真代码里它的包根可以为空,fail-closed),
      所以 mock 里留了一条查不到包的插件行,箭头处显示 · 。装卸按钮仍然只给磁盘行——
      那是 ADR-0004 的 G3,ADR-0012 没有动它。 -->
-<html lang="zh-CN" data-scheme="blue" data-mode="system" data-expand="flat">
+<html lang="zh-CN" data-expand="flat">
 <head>
 <meta charset="utf-8">
 <title>原型 — Skills 包预览 · 列表折叠 + 文件抽屉</title>
+<link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-rail.css">
 <link rel="stylesheet" href="../_shared/md-preview.css">
 <style>
-  /* ── Mist blue · light ── */
-  html[data-scheme="blue"] {
-    --bg: #f6f5f3;
-    --card: #fffcf9;
-    --text: #2c2a28;
-    --text-2: #6f6b66;
-    --line: #e8e4de;
-    --line-strong: #d4cfc7;
-    --accent: #4a6fa5;
-    --accent-deep: #3a5a88;
-    --accent-soft: #eef2f7;
-    --warn: #a65d3f;
-    --warn-bg: #fdf6f2;
-    --warn-border: #efd5c8;
-    --tree-bg: #f0eeea;
-    --top-grad-from: #faf8f5;
-    --drawer-shadow: -12px 0 40px rgba(40, 50, 70, 0.12);
-    --float-shadow: rgba(0, 0, 0, 0.18);
-    --cl-bg: #e4ebf5; --cl-fg: #3a5a88;
-    --cx-bg: #e2efe8; --cx-fg: #2d6b52;
-    --gb-bg: #e8eef2; --gb-fg: #3d6f7a;
-    --t-md-h1: #3a5a88;
-    --t-md-h2: #4a6fa5;
-    --t-md-h3: #5d82b0;
-    --t-md-link: #4a6fa5;
-    --t-md-code-bg: #eef1f5;
-    --t-md-code-border: #d8e0ea;
-    --t-md-code-fg: #3a5070;
-    --t-md-pre-comment: #8b8a97;
+  /* Page tokens on top of the app's (_shared/theme.css). Each names the app token that plays the same role in
+     the app's skills view — expanded area, file drawer, markdown body and its tip — so every palette and
+     both modes come from the app. Syntax colours have no app token (the app draws none). The app keeps the
+     drawer shadow's and the mask's light alpha in dark, where it barely shows on the dark surface; this page
+     takes its own dark alphas instead. */
+  :root {
+    --warn: var(--warn-fg);
+    --warn-border: color-mix(in srgb, var(--warn-fg) 28%, var(--line));
+    --tree-bg: var(--bg);
+    --top-grad-from: var(--card);
+    --drawer-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+    --gb-bg: var(--gk-bg); --gb-fg: var(--gk-fg);
+    --t-md-h1: var(--accent-deep);
+    --t-md-h2: var(--accent);
+    --t-md-h3: var(--md-h3);
+    --t-md-link: var(--accent);
+    --t-md-code-bg: var(--bg);
+    --t-md-code-border: var(--line);
+    --t-md-code-fg: var(--text);
+    --t-md-pre-comment: var(--text-2);
+    --t-md-pre-string: #2d7a4f;
+    --t-md-pre-kw: var(--accent-deep);
+    --t-md-quote: var(--text-2);
+    --t-md-quote-bar: var(--accent);
+    --t-md-quote-bg: var(--accent-soft);
+    --t-md-table-head: var(--accent-soft);
+    --t-md-th: var(--accent-deep);
+    --t-md-hr: var(--line-strong);
+    --t-md-raw-bg: var(--bg);
+    --t-md-bar-from: var(--bg);
+    --mask: rgba(0, 0, 0, 0.35);
+  }
+  html[data-demo-mode="dark"] {
+    --drawer-shadow: -8px 0 24px rgba(0, 0, 0, 0.45);
     --t-md-pre-string: #7dcea0;
-    --t-md-pre-kw: #9bb8e0;
-    --t-md-quote: #6f6b66;
-    --t-md-quote-bar: #4a6fa5;
-    --t-md-quote-bg: #eef2f7;
-    --t-md-table-head: #eef2f7;
-    --t-md-th: #3a5a88;
-    --t-md-hr: #c5d0e0;
-    --t-md-raw-bg: #f7f6f4;
-    --t-md-bar-from: #f7f8fa;
-    --mask: rgba(30, 28, 40, 0.35);
-  }
-  /* ── Mist blue · dark ── */
-  html[data-scheme="blue"][data-mode="dark"],
-  html[data-scheme="blue"][data-mode="system"] {
-    /* system's dark is covered by the media query below; this is the forced-dark case only */
-  }
-  @media (prefers-color-scheme: dark) {
-    html[data-scheme="blue"][data-mode="system"] { color-scheme: dark; }
-  }
-  html[data-scheme="blue"][data-mode="dark"],
-  html[data-scheme="blue"][data-mode="system"] {
-    /* light tokens stay as default above; dark overrides: */
-  }
-  @media (prefers-color-scheme: dark) {
-    html[data-scheme="blue"][data-mode="system"] {
-      --bg: #16181c;
-      --card: #1c1f24;
-      --text: #e6e4e0;
-      --text-2: #9a9690;
-      --line: #2a2e34;
-      --line-strong: #3a4048;
-      --accent: #7a9dc4;
-      --accent-deep: #a8c0dc;
-      --accent-soft: #1e2a38;
-      --warn: #e08a6a;
-      --warn-bg: #2a221f;
-      --warn-border: #4a3530;
-      --tree-bg: #14161a;
-      --top-grad-from: #1a1e24;
-      --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.45);
-      --float-shadow: rgba(0, 0, 0, 0.5);
-      --cl-bg: #243448; --cl-fg: #a8c0dc;
-      --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
-      --gb-bg: #1a3340; --gb-fg: #8ec8d4;
-      --t-md-h1: #a8c0dc;
-      --t-md-h2: #7a9dc4;
-      --t-md-h3: #8aadc8;
-      --t-md-link: #8aadc8;
-      --t-md-code-bg: #243040;
-      --t-md-code-border: #354858;
-      --t-md-code-fg: #b8cce0;
-      --t-md-pre-comment: #8b909a;
-      --t-md-pre-string: #8fd4a8;
-      --t-md-pre-kw: #9bb8e0;
-      --t-md-quote: #9a9690;
-      --t-md-quote-bar: #7a9dc4;
-      --t-md-quote-bg: #1e2a38;
-      --t-md-table-head: #1e2a38;
-      --t-md-th: #a8c0dc;
-      --t-md-hr: #3a4858;
-      --t-md-raw-bg: #14171c;
-      --t-md-bar-from: #1a1e24;
-      --mask: rgba(0, 0, 0, 0.5);
-    }
-  }
-  html[data-scheme="blue"][data-mode="dark"] {
-    --bg: #16181c;
-    --card: #1c1f24;
-    --text: #e6e4e0;
-    --text-2: #9a9690;
-    --line: #2a2e34;
-    --line-strong: #3a4048;
-    --accent: #7a9dc4;
-    --accent-deep: #a8c0dc;
-    --accent-soft: #1e2a38;
-    --warn: #e08a6a;
-    --warn-bg: #2a221f;
-    --warn-border: #4a3530;
-    --tree-bg: #14161a;
-    --top-grad-from: #1a1e24;
-    --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.45);
-    --float-shadow: rgba(0, 0, 0, 0.5);
-    --cl-bg: #243448; --cl-fg: #a8c0dc;
-    --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
-    --gb-bg: #1a3340; --gb-fg: #8ec8d4;
-    --t-md-h1: #a8c0dc;
-    --t-md-h2: #7a9dc4;
-    --t-md-h3: #8aadc8;
-    --t-md-link: #8aadc8;
-    --t-md-code-bg: #243040;
-    --t-md-code-border: #354858;
-    --t-md-code-fg: #b8cce0;
-    --t-md-pre-comment: #8b909a;
-    --t-md-pre-string: #8fd4a8;
-    --t-md-pre-kw: #9bb8e0;
-    --t-md-quote: #9a9690;
-    --t-md-quote-bar: #7a9dc4;
-    --t-md-quote-bg: #1e2a38;
-    --t-md-table-head: #1e2a38;
-    --t-md-th: #a8c0dc;
-    --t-md-hr: #3a4858;
-    --t-md-raw-bg: #14171c;
-    --t-md-bar-from: #1a1e24;
     --mask: rgba(0, 0, 0, 0.5);
-  }
-
-  /* ── Amber brown · light ── */
-  html[data-scheme="amber"] {
-    --bg: #f7f3ec;
-    --card: #fffcf7;
-    --text: #3a342c;
-    --text-2: #7a7268;
-    --line: #e8e0d4;
-    --line-strong: #d6ccbc;
-    --accent: #6b5220;
-    --accent-deep: #534018;
-    --accent-soft: #f3ead4;
-    --warn: #9c4e32;
-    --warn-bg: #fbf3ee;
-    --warn-border: #e8d0c4;
-    --tree-bg: #f0e9dc;
-    --top-grad-from: #faf6ef;
-    --drawer-shadow: -12px 0 40px rgba(60, 45, 25, 0.12);
-    --float-shadow: rgba(0, 0, 0, 0.18);
-    --cl-bg: #ebe4d8; --cl-fg: #6b5220;
-    --cx-bg: #e2efe8; --cx-fg: #2d6b52;
-    --gb-bg: #e8eef2; --gb-fg: #3d6f7a;
-    --t-md-h1: #534018;
-    --t-md-h2: #6b5220;
-    --t-md-h3: #8b6914;
-    --t-md-link: #6b5220;
-    --t-md-code-bg: #f0e9dc;
-    --t-md-code-border: #e0d4c0;
-    --t-md-code-fg: #5a451c;
-    --t-md-pre-comment: #9a9286;
-    --t-md-pre-string: #b8d4a0;
-    --t-md-pre-kw: #d4b878;
-    --t-md-quote: #7a7268;
-    --t-md-quote-bar: #8b6914;
-    --t-md-quote-bg: #f3ead4;
-    --t-md-table-head: #f3ead4;
-    --t-md-th: #534018;
-    --t-md-hr: #d6ccbc;
-    --t-md-raw-bg: #f9f5ee;
-    --t-md-bar-from: #faf6ef;
-    --mask: rgba(40, 32, 20, 0.35);
-  }
-  @media (prefers-color-scheme: dark) {
-    html[data-scheme="amber"][data-mode="system"] {
-      --bg: #1a1714;
-      --card: #221e1a;
-      --text: #ebe4d8;
-      --text-2: #a09888;
-      --line: #332e28;
-      --line-strong: #453e36;
-      --accent: #c4a46a;
-      --accent-deep: #ddc48e;
-      --accent-soft: #2e2820;
-      --warn: #e08a6a;
-      --warn-bg: #2a221f;
-      --warn-border: #4a3530;
-      --tree-bg: #16130f;
-      --top-grad-from: #1e1a16;
-      --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.5);
-      --float-shadow: rgba(0, 0, 0, 0.5);
-      --cl-bg: #3a3228; --cl-fg: #ddc48e;
-      --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
-      --gb-bg: #1a3340; --gb-fg: #8ec8d4;
-      --t-md-h1: #ddc48e;
-      --t-md-h2: #c4a46a;
-      --t-md-h3: #d4b878;
-      --t-md-link: #d4b878;
-      --t-md-code-bg: #2e2820;
-      --t-md-code-border: #453e36;
-      --t-md-code-fg: #e0d0a8;
-      --t-md-pre-comment: #9a9286;
-      --t-md-pre-string: #b8d4a0;
-      --t-md-pre-kw: #d4b878;
-      --t-md-quote: #a09888;
-      --t-md-quote-bar: #c4a46a;
-      --t-md-quote-bg: #2e2820;
-      --t-md-table-head: #2e2820;
-      --t-md-th: #ddc48e;
-      --t-md-hr: #453e36;
-      --t-md-raw-bg: #16130f;
-      --t-md-bar-from: #1e1a16;
-      --mask: rgba(0, 0, 0, 0.55);
-    }
-  }
-  html[data-scheme="amber"][data-mode="dark"] {
-    --bg: #1a1714;
-    --card: #221e1a;
-    --text: #ebe4d8;
-    --text-2: #a09888;
-    --line: #332e28;
-    --line-strong: #453e36;
-    --accent: #c4a46a;
-    --accent-deep: #ddc48e;
-    --accent-soft: #2e2820;
-    --warn: #e08a6a;
-    --warn-bg: #2a221f;
-    --warn-border: #4a3530;
-    --tree-bg: #16130f;
-    --top-grad-from: #1e1a16;
-    --drawer-shadow: -12px 0 40px rgba(0, 0, 0, 0.5);
-    --float-shadow: rgba(0, 0, 0, 0.5);
-    --cl-bg: #3a3228; --cl-fg: #ddc48e;
-    --cx-bg: #1d3a2b; --cx-fg: #7fd6a4;
-    --gb-bg: #1a3340; --gb-fg: #8ec8d4;
-    --t-md-h1: #ddc48e;
-    --t-md-h2: #c4a46a;
-    --t-md-h3: #d4b878;
-    --t-md-link: #d4b878;
-    --t-md-code-bg: #2e2820;
-    --t-md-code-border: #453e36;
-    --t-md-code-fg: #e0d0a8;
-    --t-md-pre-comment: #9a9286;
-    --t-md-pre-string: #b8d4a0;
-    --t-md-pre-kw: #d4b878;
-    --t-md-quote: #a09888;
-    --t-md-quote-bar: #c4a46a;
-    --t-md-quote-bg: #2e2820;
-    --t-md-table-head: #2e2820;
-    --t-md-th: #ddc48e;
-    --t-md-hr: #453e36;
-    --t-md-raw-bg: #16130f;
-    --t-md-bar-from: #1e1a16;
-    --mask: rgba(0, 0, 0, 0.55);
-  }
-  /* Forced light: under system, a user forcing light overrides the media dark */
-  html[data-mode="light"] {
-    color-scheme: light;
-  }
-  html[data-mode="dark"] {
-    color-scheme: dark;
   }
 
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",system-ui,sans-serif}
@@ -391,8 +167,8 @@
     color:var(--text-2);font-family:ui-monospace,Menlo,monospace}
   .files button .ic.md{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,var(--line));
     color:var(--accent-deep)}
-  .files button .ic.sh{background:var(--ok-bg,#dcfce7);border-color:color-mix(in srgb,#166534 20%,var(--line));
-    color:#166534}
+  .files button .ic.sh{background:var(--ok-bg);border-color:color-mix(in srgb,var(--ok-fg) 20%,var(--line));
+    color:var(--ok-fg)}
   .files button .path{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     font-family:ui-monospace,Menlo,monospace;font-size:12px}
   .files button .tag{font-size:9px;font-weight:700;color:var(--accent);background:var(--accent-soft);
@@ -416,7 +192,7 @@
   .swatches{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
   .swatch{width:22px;height:22px;border-radius:6px;border:1px solid var(--line-strong)}
   .toast{position:fixed;bottom:86px;left:50%;transform:translateX(-50%);z-index:40;
-    background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:10px;padding:10px 16px;font-size:12.5px;display:none}
+    background:var(--ok-bg);color:var(--ok-fg);border:1px solid color-mix(in srgb,var(--ok-fg) 40%,transparent);border-radius:10px;padding:10px 16px;font-size:12.5px;display:none}
   .mask{position:fixed;inset:0;background:var(--mask);backdrop-filter:blur(2px);z-index:20}
   .err{color:var(--warn);padding:14px;font-size:12.5px}
 
@@ -445,7 +221,6 @@
   .md-preview{
     --md-h1: var(--t-md-h1);
     --md-h2: var(--t-md-h2);
-    --md-h3: var(--t-md-h3);
     --md-link: var(--t-md-link);
     --md-code-bg: var(--t-md-code-bg);
     --md-code-border: var(--t-md-code-border);
@@ -488,21 +263,24 @@
   [data-demo-harness] .tag{
     font-size:10px;font-weight:700;letter-spacing:.04em;color:#b0a898;
     border-right:1px solid rgba(255,255,255,.12);padding-right:10px;white-space:nowrap}
-  [data-demo-harness] .sep{width:1px;height:18px;background:rgba(255,255,255,.12);margin:0 2px}
   [data-demo-harness] button{
     font:inherit;font-size:11.5px;font-weight:600;border:0;background:transparent;
     color:#b0a898;padding:5px 10px;border-radius:999px;cursor:pointer;white-space:nowrap;
     display:inline-flex;align-items:center;gap:6px}
-  [data-demo-harness] button .dot{
-    width:10px;height:10px;border-radius:50%;border:1px solid rgba(255,255,255,.25)}
   [data-demo-harness] button.on{background:rgba(255,255,255,.12);color:#fff}
 </style>
 <script src="../vendor/marked.umd.js"></script>
+<script src="../manifest.js"></script>
+<script src="../app-identity.js"></script>
 <script src="../_shared/icons.js"></script>
 <script src="../_shared/md-preview.js"></script>
 <script src="./skill-packages-fixture.js"></script>
+<script src="../dimensions.js"></script>
+<script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
 </head>
 <body>
+  <nav class="rail" data-shared-block="app-rail" data-rail-current="agents"></nav>
+  <script src="../_shared/app-rail.js"></script>
   <div class="main">
     <h2 class="page-h">Skills 包预览</h2>
     <div class="sub">
@@ -525,64 +303,113 @@
     </div>
     <div class="sec-h">全局 · Agents Skills</div>
     <div class="sbar">
-      <input id="q-global" type="text" placeholder="搜索 skill…" autocomplete="off" spellcheck="false">
+      <input id="q-global" type="text" autocomplete="off" spellcheck="false">
     </div>
-    <div class="grp-t">把全局库里的 skill 安装进某个项目；点行展开包内文件。</div>
+    <div class="grp-t" id="global-hint"></div>
     <div id="global"></div>
     <div class="sec-h">项目详情 · Skills（同名只见项目级）</div>
     <div class="sbar">
-      <input id="q-detail" type="text" placeholder="搜索 skill…" autocomplete="off" spellcheck="false">
+      <input id="q-detail" type="text" autocomplete="off" spellcheck="false">
     </div>
     <div id="detail"></div>
     <div class="note" id="theme-note"></div>
   </div>
-  <div class="toast" id="toast">已记录:安装交互</div>
+  <div class="toast" id="toast"></div>
   <div id="overlay"></div>
 
   <div data-demo-harness>
-    <span class="tag">演示·配色</span>
-    <button type="button" data-scheme="blue" class="on"><span class="dot" style="background:#4a6fa5"></span>雾蓝</button>
-    <button type="button" data-scheme="amber"><span class="dot" style="background:#6b5220"></span>琥珀褐</button>
-    <span class="sep"></span>
-    <span class="tag" style="border:0;padding:0 4px 0 0">昼夜</span>
-    <button type="button" data-mode="system" class="on">跟随系统</button>
-    <button type="button" data-mode="light">强制浅</button>
-    <button type="button" data-mode="dark">强制深</button>
-    <span class="sep"></span>
-    <span class="tag" style="border:0;padding:0 4px 0 0">展开形式</span>
+    <span class="tag">演示·展开形式</span>
     <button type="button" data-expand="flat" class="on">平铺(推荐)</button>
     <button type="button" data-expand="nest">缩进卡片(现行)</button>
   </div>
 
 <script>
   const SCHEMES = {
+    purple: {
+      name: '紫',
+      blurb: '出厂默认：冷灰白底 + 紫强调；深色为同色相提亮。',
+    },
     blue: {
       name: '雾蓝',
       blurb: '暖灰纸底 + 冷静蓝强调；深色为同色相提亮，适合长文。',
-      sw: ['#fffcf9', '#eef2f7', '#4a6fa5', '#2b303b']
     },
     amber: {
       name: '琥珀褐',
       blurb: '暖纸 + 褐强调，纸书感；深色为暖深底 + 提亮琥珀。',
-      sw: ['#fffcf7', '#f3ead4', '#6b5220', '#2f2c28']
     }
   }
-  const MODES = {
-    system: '跟随系统（prefers-color-scheme）',
-    light: '强制浅色',
-    dark: '强制深色'
-  }
+  const MODES = { light: '浅色', dark: '深色' }
 
-  function parseHash() {
-    // #blue | #blue-dark | #amber-light | #amber-system
-    const h = (location.hash || '#blue-system').replace(/^#/, '')
-    const [s, m] = h.split('-')
-    const scheme = s === 'amber' ? 'amber' : 'blue'
-    const mode = m === 'light' || m === 'dark' || m === 'system' ? m : 'system'
-    return { scheme, mode }
-  }
+  // The palette and light/dark follow the settings prototype
+  let theme = DemoDimensions.get('theme')
+  let mode = DemoDimensions.get('mode')
 
-  let { scheme, mode } = parseHash()
+  // The interface language follows it too; this page is drawn in Chinese and English (demo-dimensions.js
+  // shows any other choice as English, with a note). The English is the app's own dictionary wording
+  // (src/shared/i18n/en.ts) wherever the same Chinese string exists there
+  let lang = DemoDimensions.get('language')
+  const HTML_LANG = { zh: 'zh-CN', en: 'en' }
+  const enOne = (n) => new Intl.PluralRules('en').select(n) === 'one'
+  const COPY = {
+    zh: {
+      searchPlaceholder: '搜索 skill…',
+      globalHint: '把全局库里的 skill 安装进某个项目；点行展开包内文件。',
+      recordedDefault: '已记录:安装交互',
+      recordedInstall: '已记录:安装到…',
+      recordedUninstall: '已记录:卸载',
+      unreadable: (skill, file) => `文件不可读: ${skill} / ${file}`,
+      close: '关闭',
+      pkgSummary: (files, size) => `${files} 个文件 · ${size}`,
+      noPackage: (key) => `无包数据（${key}）`,
+      deepHint: '按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill。',
+      deeperPaths: (paths) => `更深路径未列入: ${paths}`,
+      noPreviewable: '包内无可预览文本文件',
+      colFile: '文件', colLines: '行数', colSize: '大小', colMtime: '修改日期',
+      tagEntry: '入口',
+      pillPlugin: '插件', pillProject: '项目级', pillGlobal: '全局层', pillSymlink: '软链',
+      installTo: '安装到…',
+      uninstall: '卸载',
+      // The drawer's level label, by the row's level
+      level: { lib: '全局库', project: '项目级', global: '全局层', plugin: '插件' },
+      group: {
+        'cl-project': 'CLAUDE CODE · 项目级',
+        'cl-global': 'CLAUDE CODE · 全局层',
+        'cx-project': 'CODEX · 项目级',
+        plugin: '插件自带'
+      },
+      groupTitle: (title, n) => `${title}(${n})`,
+      noNameMatch: '没有名字匹配的 skill'
+    },
+    en: {
+      searchPlaceholder: 'Search skills…',
+      globalHint: 'Install a skill from the global library into a project; click a row to expand its package files.',
+      recordedDefault: 'Recorded: install interaction',
+      recordedInstall: 'Recorded: Install to…',
+      recordedUninstall: 'Recorded: Uninstall',
+      unreadable: (skill, file) => `File cannot be read: ${skill} / ${file}`,
+      close: 'Close',
+      pkgSummary: (files, size) => `${files} ${enOne(files) ? 'file' : 'files'} · ${size}`,
+      noPackage: (key) => `No package data (${key})`,
+      deepHint: 'Best practice is a skill reference depth below 2 — consider restructuring this skill',
+      deeperPaths: (paths) => `Deeper paths not listed: ${paths}`,
+      noPreviewable: 'No previewable text files in this package',
+      colFile: 'File', colLines: 'Lines', colSize: 'Size', colMtime: 'Modified',
+      tagEntry: 'Entry',
+      pillPlugin: 'Plugin', pillProject: 'Project level', pillGlobal: 'Global level', pillSymlink: 'symlink',
+      installTo: 'Install to…',
+      uninstall: 'Uninstall',
+      level: { lib: 'Global library', project: 'Project level', global: 'Global level', plugin: 'Plugin' },
+      group: {
+        'cl-project': 'CLAUDE CODE · Project level',
+        'cl-global': 'CLAUDE CODE · Global level',
+        'cx-project': 'CODEX · Project level',
+        plugin: 'Bundled with plugins'
+      },
+      groupTitle: (title, n) => `${title} (${n})`,
+      noNameMatch: 'No skill name matched'
+    }
+  }
+  const tx = () => COPY[lang]
 
   const SIDE_ORDER = ['claude', 'codex', 'grok']
   const SIDE_LABEL = { claude: 'Claude', codex: 'Codex', grok: 'Grok' }
@@ -598,7 +425,7 @@
   }
   function toast(msg) {
     const t = document.getElementById('toast')
-    t.textContent = msg || '已记录:安装交互'
+    t.textContent = msg || tx().recordedDefault
     t.style.display = 'block'
     clearTimeout(toast._tm)
     toast._tm = setTimeout(() => { t.style.display = 'none' }, 1400)
@@ -644,31 +471,17 @@
     return { kind: 'oth', label: ext }
   }
 
+  // The palette and mode themselves land on the root element through demo-dimensions.js; this only
+  // describes them, with swatches that read the tokens in effect
   function applyTheme() {
-    document.documentElement.setAttribute('data-scheme', scheme)
-    document.documentElement.setAttribute('data-mode', mode)
-    location.hash = `${scheme}-${mode}`
-    // Only touch the demo harness, leaving the md-preview and other product buttons alone
-    document.querySelectorAll('[data-demo-harness] [data-scheme]').forEach((b) => {
-      b.classList.toggle('on', b.getAttribute('data-scheme') === scheme)
-    })
-    document.querySelectorAll('[data-demo-harness] [data-mode]').forEach((b) => {
-      b.classList.toggle('on', b.getAttribute('data-mode') === mode)
-    })
-    const info = SCHEMES[scheme]
+    const info = SCHEMES[theme] || { name: theme, blurb: '' }
     document.getElementById('theme-note').innerHTML =
       `<b>${info.name}</b> · ${MODES[mode]} — ${info.blurb}
-       <div class="swatches">${info.sw.map((c) =>
-         `<span class="swatch" style="background:${c}"></span>`).join('')}</div>`
+       <div class="swatches">${['--card', '--accent-soft', '--accent', '--text'].map((v) =>
+         `<span class="swatch" style="background:var(${v})"></span>`).join('')}</div>`
     if (window.__drawerReopen) window.__drawerReopen()
   }
 
-  document.querySelectorAll('[data-demo-harness] [data-scheme]').forEach((b) => {
-    b.onclick = () => { scheme = b.getAttribute('data-scheme'); applyTheme() }
-  })
-  document.querySelectorAll('[data-demo-harness] [data-mode]').forEach((b) => {
-    b.onclick = () => { mode = b.getAttribute('data-mode'); applyTheme() }
-  })
   document.querySelectorAll('[data-demo-harness] [data-expand]').forEach((b) => {
     b.onclick = () => {
       document.documentElement.setAttribute('data-expand', b.getAttribute('data-expand'))
@@ -677,14 +490,11 @@
       })
     }
   })
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (mode === 'system' && window.__drawerReopen) window.__drawerReopen()
-  })
 
-  function openFileDrawer({ skill, side, file, levelLabel }) {
+  function openFileDrawer({ skill, side, file, levelKey }) {
     const key = `${side}:${skill}`
     const pack = PACKAGES[key]
-    const opts = { skill, side, file, levelLabel }
+    const opts = { skill, side, file, levelKey }
     window.__drawerReopen = () => openFileDrawer(opts)
     const overlay = document.getElementById('overlay')
     let mdCtl = null
@@ -692,19 +502,19 @@
     if (!pack || !pack.files || pack.files[file] == null) {
       overlay.innerHTML = `<div class="mask" data-close></div>
         <div class="drawer"><button class="drawer-close" data-close>${ICONS.X(15)}</button>
-        <div class="err">文件不可读: ${skill} / ${file}</div></div>`
+        <div class="err">${tx().unreadable(skill, file)}</div></div>`
     } else {
       const text = pack.files[file]
       const sideLab = SIDE_LABEL[side] || side
       const meta = [
-        levelLabel || '全局库',
+        tx().level[levelKey || 'lib'],
         sideLab,
         file
       ].join(' · ')
       overlay.innerHTML = `
         <div class="mask" data-close></div>
         <div class="drawer">
-          <button class="drawer-close" data-close title="关闭">${ICONS.X(15)}</button>
+          <button class="drawer-close" data-close title="${tx().close}">${ICONS.X(15)}</button>
           <div class="d-top">
             <div class="d-title">${skill}</div>
             <div class="d-meta">${meta}</div>
@@ -743,29 +553,30 @@
     for (const n of names) {
       bytes += new TextEncoder().encode(pack.files[n] || '').length
     }
-    return `${names.length} 个文件 · ${formatSize(bytes)}`
+    return tx().pkgSummary(names.length, formatSize(bytes))
   }
 
-  function renderFileList(container, { skill, side, levelLabel }) {
+  function renderFileList(container, { skill, side, levelKey }) {
     const key = `${side}:${skill}`
     const pack = PACKAGES[key]
+    const c = tx()
     container.innerHTML = ''
     if (!pack) {
-      container.innerHTML = `<div class="empty">无包数据（${key}）</div>`
+      container.innerHTML = `<div class="empty">${c.noPackage(key)}</div>`
       return
     }
     if (pack.deep) {
       const tip = document.createElement('div')
       tip.className = 'sk-tip'
-      tip.innerHTML = `按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill。
-        <br><span style="opacity:.85">更深路径未列入: ${(pack.deepPaths || []).join(', ') || '…'}</span>`
+      tip.innerHTML = `${c.deepHint}
+        <br><span style="opacity:.85">${c.deeperPaths((pack.deepPaths || []).join(', ') || '…')}</span>`
       container.appendChild(tip)
     }
     const names = listFiles(pack)
     const card = document.createElement('div')
     card.className = 'files-card'
     if (!names.length) {
-      card.innerHTML = '<div class="empty">包内无可预览文本文件</div>'
+      card.innerHTML = `<div class="empty">${c.noPreviewable}</div>`
       container.appendChild(card)
       return
     }
@@ -782,7 +593,7 @@
 
     const head = document.createElement('div')
     head.className = 'files-head'
-    head.innerHTML = '<span>文件</span><span>行数</span><span>大小</span><span>修改日期</span>'
+    head.innerHTML = `<span>${c.colFile}</span><span>${c.colLines}</span><span>${c.colSize}</span><span>${c.colMtime}</span>`
     card.appendChild(head)
 
     const wrap = document.createElement('div')
@@ -794,14 +605,14 @@
         <span class="name-cell">
           <span class="ic ${r.kind.kind}">${r.kind.label}</span>
           <span class="path" title="${r.n}">${r.n}</span>
-          ${r.n === 'SKILL.md' ? '<span class="tag">入口</span>' : ''}
+          ${r.n === 'SKILL.md' ? `<span class="tag">${c.tagEntry}</span>` : ''}
         </span>
-        <span class="meta lines">${r.lines.toLocaleString('zh-CN')}</span>
+        <span class="meta lines">${r.lines.toLocaleString(HTML_LANG[lang])}</span>
         <span class="meta">${formatSize(r.bytes)}</span>
         <span class="meta">${r.mtime}</span>`
       btn.onclick = (e) => {
         e.stopPropagation()
-        openFileDrawer({ skill, side, file: r.n, levelLabel })
+        openFileDrawer({ skill, side, file: r.n, levelKey })
       }
       wrap.appendChild(btn)
     })
@@ -810,7 +621,7 @@
   }
 
   /** 挂一行 skill;返回根元素交由调用方安放(过滤时要按 key 复用,不能在这里就 append 死) */
-  function mountSkillBlock(s, { levelLabel, showInstall }) {
+  function mountSkillBlock(s, { levelKey, showInstall }) {
     const root = document.createElement('div')
     root.className = 'sk'
     const disk = s.origin === 'disk'
@@ -824,23 +635,39 @@
     const head = document.createElement(expandable ? 'button' : 'div')
     head.type = expandable ? 'button' : undefined
     head.className = 'sk-head ' + (expandable ? 'disk' : 'plugin')
-    head.innerHTML = `
-      <span class="chev">${expandable ? ICONS.ChevronRight(12) : ICONS.Dot(12)}</span>
-      <span class="nm">${s.name}</span>
-      <span class="bdg">${badges(sides)}</span>
-      ${s.origin === 'plugin' ? '<span class="pill plg">插件</span>' : ''}
-      ${s.level === 'project' ? '<span class="pill lv">项目级</span>' : ''}
-      ${s.level === 'global' ? '<span class="pill lv">全局层</span>' : ''}
-      ${s.symlink ? '<span class="pill ln">软链</span>' : ''}
-      ${expandable ? `<span class="sk-meta" data-meta>${statsText(s.name, side)}</span>` : ''}
-      ${disk && showInstall ? '<button type="button" class="ins" data-ins>安装到…</button>' : ''}
-      ${disk && s.level === 'project' ? '<button type="button" class="ins" data-un>卸载</button>' : ''}`
 
     const body = document.createElement('div')
     body.className = 'sk-body'
+    const filesHost = document.createElement('div')
+
+    // The head's content is redrawn on a language change; the open state (a class on the row) and the
+    // chosen side live outside it, so a redraw keeps them
+    function paintHead() {
+      const c = tx()
+      head.innerHTML = `
+      <span class="chev">${expandable ? ICONS.ChevronRight(12) : ICONS.Dot(12)}</span>
+      <span class="nm">${s.name}</span>
+      <span class="bdg">${badges(sides)}</span>
+      ${s.origin === 'plugin' ? `<span class="pill plg">${c.pillPlugin}</span>` : ''}
+      ${s.level === 'project' ? `<span class="pill lv">${c.pillProject}</span>` : ''}
+      ${s.level === 'global' ? `<span class="pill lv">${c.pillGlobal}</span>` : ''}
+      ${s.symlink ? `<span class="pill ln">${c.pillSymlink}</span>` : ''}
+      ${expandable ? `<span class="sk-meta" data-meta>${statsText(s.name, side)}</span>` : ''}
+      ${disk && showInstall ? `<button type="button" class="ins" data-ins>${c.installTo}</button>` : ''}
+      ${disk && s.level === 'project' ? `<button type="button" class="ins" data-un>${c.uninstall}</button>` : ''}`
+      if (expandable) {
+        const ins = head.querySelector('[data-ins]')
+        if (ins) ins.onclick = (e) => { e.stopPropagation(); toast(tx().recordedInstall) }
+        const un = head.querySelector('[data-un]')
+        if (un) un.onclick = (e) => { e.stopPropagation(); toast(tx().recordedUninstall) }
+      }
+      const nm = head.querySelector('.nm')
+      nm.addEventListener('mouseenter', () => showNameTip(nm))
+      nm.addEventListener('mouseleave', hideNameTip)
+    }
+    paintHead()
 
     if (expandable) {
-      const filesHost = document.createElement('div')
       if (sides.length > 1) {
         const seg = document.createElement('div')
         seg.className = 'sk-sides'
@@ -855,7 +682,7 @@
             seg.querySelectorAll('button').forEach((x) => {
               x.classList.toggle('on', x === b)
             })
-            renderFileList(filesHost, { skill: s.name, side, levelLabel })
+            renderFileList(filesHost, { skill: s.name, side, levelKey })
             const m = head.querySelector('[data-meta]')
             if (m) m.textContent = statsText(s.name, side)
           }
@@ -867,17 +694,15 @@
 
       head.onclick = () => {
         const open = root.classList.toggle('open')
-        if (open) renderFileList(filesHost, { skill: s.name, side, levelLabel })
+        if (open) renderFileList(filesHost, { skill: s.name, side, levelKey })
       }
-      const ins = head.querySelector('[data-ins]')
-      if (ins) ins.onclick = (e) => { e.stopPropagation(); toast('已记录:安装到…') }
-      const un = head.querySelector('[data-un]')
-      if (un) un.onclick = (e) => { e.stopPropagation(); toast('已记录:卸载') }
     }
 
-    const nm = head.querySelector('.nm')
-    nm.addEventListener('mouseenter', () => showNameTip(nm))
-    nm.addEventListener('mouseleave', hideNameTip)
+    // Called on a language change: redraws the head and, when open, the file table of the chosen side
+    root.__paint = () => {
+      paintHead()
+      if (root.classList.contains('open')) renderFileList(filesHost, { skill: s.name, side, levelKey })
+    }
 
     root.appendChild(head)
     root.appendChild(body)
@@ -900,28 +725,29 @@
    * 分组结构(2026-08-10 补):真代码按「side × level」分四组再加插件组。原型此前把详情画成平铺一列,
    * 于是「过滤后组标题计数怎么变、整组没命中时怎么办」这两个形态无从评判——过滤要判的正是它们。
    */
+  // id: the group's stable key (its title is COPY[lang].group[id], so a language change keeps the rows)
   const DETAIL_GROUPS = [
     {
-      title: 'CLAUDE CODE · 项目级',
+      id: 'cl-project',
       items: [
         { name: 'github-ops', sides: ['claude'], origin: 'disk', level: 'project', symlink: false }
       ]
     },
     {
-      title: 'CLAUDE CODE · 全局层',
+      id: 'cl-global',
       items: [
         { name: 'tdd', sides: ['claude'], origin: 'disk', level: 'global', symlink: false },
         { name: 'deep-demo', sides: ['claude'], origin: 'disk', level: 'global', symlink: false }
       ]
     },
     {
-      title: 'CODEX · 项目级',
+      id: 'cx-project',
       items: [
         { name: 'github-ops', sides: ['codex'], origin: 'disk', level: 'project', symlink: false }
       ]
     },
     {
-      title: '插件自带',
+      id: 'plugin',
       items: [
         { name: 'superpowers:brainstorming', sides: ['claude'], origin: 'plugin', level: 'plugin', symlink: false },
         { name: 'chrome-devtools-mcp:memory-leak-debugging', sides: ['claude'], origin: 'plugin', level: 'plugin', symlink: false }
@@ -996,8 +822,6 @@
     })
   }
 
-  const NO_MATCH = '没有名字匹配的 skill'
-
   function renderGlobal(kw) {
     // 提示层是 fixed 的,它记的是**上一刻**那一行的坐标;行一旦被过滤掉或挪位,那个坐标就不作数了
     hideNameTip()
@@ -1006,7 +830,7 @@
     host.querySelectorAll(':scope > .card, :scope > .none').forEach((el) => el.remove())
     if (!hits.length) {
       reconcile(host, [])
-      host.insertAdjacentHTML('beforeend', `<div class="none">${NO_MATCH}</div>`)
+      host.insertAdjacentHTML('beforeend', `<div class="none">${tx().noNameMatch}</div>`)
       return
     }
     const card = document.createElement('div')
@@ -1016,7 +840,7 @@
       key: s.name,
       skill: s,
       parent: card,
-      opts: { levelLabel: '全局库', showInstall: true }
+      opts: { levelKey: 'lib', showInstall: true }
     })))
   }
 
@@ -1032,23 +856,23 @@
       const title = document.createElement('div')
       title.className = 'grp-t'
       // 计数 = 过滤后的条数,不是总数
-      title.textContent = `${g.title}(${hits.length})`
+      title.textContent = tx().groupTitle(tx().group[g.id], hits.length)
       host.appendChild(title)
       const card = document.createElement('div')
       card.className = 'card'
       host.appendChild(card)
       hits.forEach((s) => entries.push({
-        key: `${g.title}::${s.name}`,
+        key: `${g.id}::${s.name}`,
         skill: s,
         parent: card,
         opts: {
-          levelLabel: s.level === 'project' ? '项目级' : s.level === 'plugin' ? '插件' : '全局层',
+          levelKey: s.level === 'project' ? 'project' : s.level === 'plugin' ? 'plugin' : 'global',
           showInstall: false
         }
       }))
     })
     reconcile(host, entries)
-    if (!entries.length) host.insertAdjacentHTML('beforeend', `<div class="none">${NO_MATCH}</div>`)
+    if (!entries.length) host.insertAdjacentHTML('beforeend', `<div class="none">${tx().noNameMatch}</div>`)
   }
 
   // 滚动与缩放同理:锚点动了,fixed 层还停在旧坐标上
@@ -1062,7 +886,23 @@
   renderGlobal('')
   renderDetail('')
 
-  applyTheme()
+  DemoDimensions.on('theme', (v) => { theme = v; applyTheme() })
+  DemoDimensions.on('mode', (v) => { mode = v; applyTheme() })
+  // A language change redraws every mounted row in place (open rows, their chosen side and the filters
+  // stay as they are), then the group titles and empty states, then the open drawer
+  DemoDimensions.on('language', (v) => {
+    lang = v
+    document.documentElement.lang = HTML_LANG[v]
+    qGlobal.placeholder = qDetail.placeholder = tx().searchPlaceholder
+    document.getElementById('global-hint').textContent = tx().globalHint
+    for (const host of [document.getElementById('global'), document.getElementById('detail')]) {
+      for (const el of (host.__rows || new Map()).values()) el.__paint()
+    }
+    renderGlobal(norm(qGlobal.value))
+    renderDetail(norm(qDetail.value))
+    if (window.__drawerReopen) window.__drawerReopen()
+  })
 </script>
+<script src="../demo-harness.js"></script>
 </body>
 </html>

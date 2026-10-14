@@ -5,8 +5,28 @@
 //   MdPreview.render(md) -> html string
 //   MdPreview.mount(el, { name, text, mode? }) -> { set({name,text,mode?}), destroy() }
 // A use site adds data-shared-block="md-preview" to its container.
+// Its copy follows the page's language when the page follows it (demo-dimensions.js), in the app's words;
+// it is drawn in Chinese and English, and any other language shows as English, as the app falls back to it.
 ;(function (global) {
   const MD_EXT = /\.(md|markdown|mdx)$/i
+
+  const COPY = {
+    zh: { raw: '原文', preview: '预览', renderTitle: '渲染 Markdown', untitled: '(未命名)', empty: '空文件', parseFailed: 'Markdown 解析失败' },
+    en: { raw: 'Raw', preview: 'Preview', renderTitle: 'Render Markdown', untitled: '(untitled)', empty: 'Empty file', parseFailed: 'Markdown parse failed' }
+  }
+  let lang = 'zh'
+  const t = () => COPY[lang] || COPY.en
+  const painters = new Set()
+  let following = false
+  // Subscribed on first use rather than at load: a page may include this file before demo-dimensions.js
+  function follow() {
+    if (following || !global.DemoDimensions) return
+    following = true
+    global.DemoDimensions.on('language', (v) => {
+      lang = v
+      painters.forEach((paint) => paint())
+    })
+  }
 
   function escapeHtml(s) {
     return String(s)
@@ -91,6 +111,7 @@
   }
 
   function render(md) {
+    follow()
     const src = md == null ? '' : String(md)
     const { fields, body } = splitFrontmatter(src)
     const marked = global.marked
@@ -104,7 +125,7 @@
     } catch (e) {
       return (
         renderFrontmatter(fields) +
-        `<pre class="md-preview-empty">Markdown 解析失败:${escapeHtml(String(e))}</pre>`
+        `<pre class="md-preview-empty">${t().parseFailed}: ${escapeHtml(String(e))}</pre>`
       )
     }
     if (html == null) {
@@ -115,6 +136,7 @@
 
   function mount(el, opts) {
     if (!el) throw new Error('MdPreview.mount: el required')
+    follow()
     el.setAttribute('data-shared-block', 'md-preview')
     el.classList.add('md-preview')
 
@@ -138,12 +160,9 @@
     bRaw.type = 'button'
     // Uses data-md-mode to avoid colliding with the page's light/dark harness [data-mode]
     bRaw.setAttribute('data-md-mode', 'raw')
-    bRaw.textContent = '原文'
     const bPrev = document.createElement('button')
     bPrev.type = 'button'
     bPrev.setAttribute('data-md-mode', 'preview')
-    bPrev.textContent = '预览'
-    bPrev.title = '渲染 Markdown'
     seg.appendChild(bRaw)
     seg.appendChild(bPrev)
     bar.appendChild(seg)
@@ -158,7 +177,10 @@
       if (!canPreview) mode = 'raw'
       else if (mode !== 'raw' && mode !== 'preview') mode = 'preview'
 
-      nm.textContent = name || '(未命名)'
+      bRaw.textContent = t().raw
+      bPrev.textContent = t().preview
+      bPrev.title = t().renderTitle
+      nm.textContent = name || t().untitled
       // Only markdown files show the toggle; other types hide the segment and stay raw
       seg.hidden = !canPreview
       bRaw.classList.toggle('on', mode === 'raw')
@@ -167,7 +189,7 @@
       const showPreview = canPreview && mode === 'preview'
       body.className = 'md-preview-body ' + (showPreview ? 'preview' : 'raw')
       if (text === '') {
-        body.innerHTML = '<div class="md-preview-empty">空文件</div>'
+        body.innerHTML = `<div class="md-preview-empty">${t().empty}</div>`
       } else if (showPreview) {
         body.innerHTML = render(text)
       } else {
@@ -195,6 +217,7 @@
     })
 
     paint()
+    painters.add(paint)
     return {
       set(next) {
         if (next.name != null) name = next.name
@@ -203,6 +226,7 @@
         paint()
       },
       destroy() {
+        painters.delete(paint)
         el.innerHTML = ''
         el.classList.remove('md-preview')
       }

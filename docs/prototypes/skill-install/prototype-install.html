@@ -4,24 +4,22 @@
      问题:「安装到…」目标选择器、同名阻止、失效项目禁用、卸载确认弹窗各自的形态与时机。
      (原「两侧差异怎么读」已随 skills-view 拆除跨侧 diff 作废,2026-08-07 同步。)
      交互:行内「安装到…」弹选择器(失效项目置灰;装到 Transfer 的 tdd 触发同名阻止);
-     下方"项目级副本"区演示卸载确认弹窗(含完整路径)。 -->
+     下方"项目级副本"区演示卸载确认弹窗(含完整路径)。
+     界面语言、明暗与配色跟随设置原型(appearance)所选,本页不设开关:界面文案画了中、英两种,其他语言按
+     英文显示并有提示;区块标题与说明行是评审注解,与 mock 数据一样保持原样。色值取共享主题
+     _shared/theme.css(由 app 的 theme.css 生成),本页不自定义 app token。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>原型 — 全局库与装卸</title>
+<link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-rail.css">
 <style>
-  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
-    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6}
-  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
-    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733}}
+  /* Every app token (surfaces, text, lines, the accent family, the semantic and side colours, the
+     floating-surface shadow) comes from _shared/theme.css for each palette and both modes. This page
+     defines none of them. */
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
-  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
-    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
-  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
-    justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2)}
-  .rail .ri:hover{background:var(--accent-soft)}
-  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
   .main{flex:1;min-width:0;overflow:auto;padding:16px 22px}
   h2{font-size:15px;margin-bottom:2px}
   .sub{font-size:11.5px;color:var(--text-2);margin-bottom:14px}
@@ -35,16 +33,15 @@
   /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
      「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
      故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
-  .b.c{background:#f9e2da;color:#a05239}.b.x{background:#dcefe4;color:#1f7a4d}
+  .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
   .b.miss{border:1px dashed var(--line-strong);color:var(--text-2);background:transparent;font-weight:400}
-  @media (prefers-color-scheme:dark){.b.c{background:#4c2d21;color:#f8ac8f}.b.x{background:#1d3a2b;color:#7fd6a4}}
   .pill{font-size:10px;border-radius:4px;padding:1px 6px;flex:none}
   .pill.ln{border:1px dashed var(--line-strong);color:var(--text-2)}
   .ins{font:inherit;font-size:11.5px;border:1px solid var(--line-strong);background:var(--bg);color:var(--text-2);
     border-radius:6px;padding:3px 10px;cursor:pointer;flex:none}
   .ins:hover{color:var(--accent);border-color:var(--accent)}
   .pop{position:absolute;right:10px;top:calc(100% - 4px);z-index:8;background:var(--card);
-    border:1px solid var(--line-strong);border-radius:9px;box-shadow:0 8px 26px rgba(0,0,0,.18);
+    border:1px solid var(--line-strong);border-radius:9px;box-shadow:0 8px 26px var(--float-shadow);
     min-width:230px;padding:6px;display:none}
   .pop.open{display:block}
   .pop .t{font-size:10.5px;color:var(--text-2);padding:4px 8px}
@@ -52,12 +49,12 @@
   .pop .p:hover{background:var(--accent-soft)}
   .pop .p.dis{color:var(--text-2);cursor:not-allowed;opacity:.55}
   .pop .p.dis:hover{background:none}
-  .pop .why{margin-left:auto;font-size:10px;color:#b3552f}
+  .pop .why{margin-left:auto;font-size:10px;color:var(--warn-fg)}
   .pop .have{margin-left:auto;font-size:10px;color:var(--text-2)}
   .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:30;display:none;
     border-radius:9px;padding:10px 16px;font-size:12.5px;box-shadow:0 8px 26px rgba(0,0,0,.25)}
-  .toast.ok{background:#dcfce7;color:#166534;border:1px solid #86efac}
-  .toast.err{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+  .toast.ok{background:var(--ok-bg);color:var(--ok-fg);border:1px solid var(--ok-fg)}
+  .toast.err{background:var(--err-bg);color:var(--err-fg);border:1px solid var(--err-fg)}
   .mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:20}
   .dlg{position:fixed;top:30vh;left:50%;transform:translateX(-50%);width:min(460px,92vw);z-index:21;display:none;
     background:var(--card);border:1px solid var(--line-strong);border-radius:12px;padding:20px 22px}
@@ -67,15 +64,18 @@
     padding:7px 10px;font-size:11.5px;margin:8px 0 14px;word-break:break-all}
   .dlg .btns{display:flex;justify-content:flex-end;gap:8px}
   .dlg button{font:inherit;font-size:12.5px;border-radius:7px;padding:6px 14px;cursor:pointer;border:1px solid var(--line-strong);background:var(--bg);color:var(--text)}
-  .dlg button.danger{background:#b91c1c;border-color:#b91c1c;color:#fff}
+  .dlg button.danger{background:var(--danger-bg);border-color:var(--danger-bg);color:var(--danger-fg)}
   .uheader{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:12px;color:var(--text-2)}
 </style>
+<script src="../dimensions.js"></script>
+<script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
+<script src="../manifest.js"></script>
+<script src="../app-identity.js"></script>
+<script src="../_shared/icons.js"></script>
 </head>
 <body>
-  <div class="rail">
-    <div class="ri on" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html" data-icon="RobotFace" data-icon-size="17"></div>
-    <div class="ri" title="Projects" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html" data-icon="Folder" data-icon-size="17"></div>
-  </div>
+  <nav class="rail" data-shared-block="app-rail" data-rail-current="agents"></nav>
+  <script src="../_shared/app-rail.js"></script>
   <div class="main">
     <h2>Agents · 全局 Skills(安装源 · 合并单列 · 只读,内容变更不经 app)</h2>
     <div class="sub">徽标 = 该侧全局库是否存在;「软链」角标 = 软链(安装时解引用复制为真文件);不做跨侧内容 diff(skills-view 拆除)</div>
@@ -83,16 +83,45 @@
 
     <h2>Transfer · 项目级副本(演示卸载,实际入口在<span style="color:var(--accent);cursor:pointer" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html">项目详情 ↗</span> Skills 分栏)</h2>
     <div class="card">
-      <div class="uheader">项目级 · .claude/skills(仅项目级可卸;全局层 skill 无卸载入口)</div>
+      <div class="uheader"><span><span data-i18n="secClaudeProject">项目级 · .claude/skills</span>(仅项目级可卸;全局层 skill 无卸载入口)</span></div>
       <div class="it"><span class="nm">ui-design</span><span class="ds">项目专属 UI 走查规范</span>
-        <button class="ins" id="uni">卸载</button></div>
+        <button class="ins" id="uni" data-i18n="uninstall">卸载</button></div>
     </div>
   </div>
   <div class="toast" id="toast"></div>
   <div class="mask" id="mask"></div>
   <div class="dlg" id="dlg"></div>
-<script src="../_shared/icons.js"></script>
 <script>
+  // ── 界面文案:画了中、英两种(其他语言按英文显示,提示由 demo-dimensions.js 给出)。英文取 app 字典
+  //    (src/shared/i18n/en.ts)里同一句的值;字典里没有的,按字典的风格补写。区块标题与说明行是评审
+  //    注解,skill 名、描述与路径是 mock 数据,都保持原样。 ──
+  const T={
+    zh:{
+      secClaudeProject:'项目级 · .claude/skills', uninstall:'卸载',
+      pillSymlink:'软链', installTo:'安装到…', pickTarget:'选择目标项目(复制落地)',
+      staleDisabled:'失效,禁用', hasSame:'已装同名',
+      blocked:(p,s)=>`${p} 已有同名 skill「${s}」,已阻止,不覆盖`,
+      installed:(s,p)=>`已安装 ${s} → ${p}((复制落地))`,
+      confirmTitle:'卸载项目级 skill?', confirmBody:'将删除以下目录(项目 git 状态由你自行处理;不做副本差异检测):',
+      cancel:'取消', del:'删除', uninstalled:n=>`已卸载 ${n}`
+    },
+    en:{
+      secClaudeProject:'Project level · .claude/skills', uninstall:'Uninstall',
+      pillSymlink:'symlink', installTo:'Install to…', pickTarget:'Choose a target project (installed by copy)',
+      staleDisabled:'Stale, disabled', hasSame:'Same name installed',
+      blocked:(p,s)=>`${p} already has a skill named “${s}” — blocked, nothing was overwritten`,
+      installed:(s,p)=>`Installed ${s} → ${p} (by copy)`,
+      confirmTitle:'Uninstall the project-level skill?',
+      confirmBody:'The following directory will be deleted (handle your project’s git state yourself; no copy-diff check is performed):',
+      cancel:'Cancel', del:'Delete', uninstalled:n=>`Uninstalled ${n}`
+    }
+  };
+  // The value in effect now; DemoDimensions.on at the end of this script re-renders on every change
+  let LANG=DemoDimensions.get('language');
+  function applyI18n(){
+    document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent=T[LANG][el.dataset.i18n] });
+  }
+
   // The target project mock: has = a same-named skill is already installed (marked inside the picker);
   // stale is greyed out
   const PROJECTS=[
@@ -110,26 +139,35 @@
     {n:'electron-scaffold',ds:'新 Electron 项目一次性基础设施',c:1,x:1},
   ];
   const lib=document.getElementById('lib');
-  lib.innerHTML=LIB.map((s,i)=>`<div class="it">
+  function renderLib(){
+    const t=T[LANG];
+    // 重绘不丢已弹出的选择器
+    const open=lib.querySelector('.pop.open')?.id;
+    lib.innerHTML=LIB.map((s,i)=>`<div class="it">
       <span class="nm">${s.n}</span>
       <span class="bdg">${s.c?'<span class="b c">CC</span>':'<span class="b miss">—</span>'}${s.x?'<span class="b x">CX</span>':'<span class="b miss">—</span>'}</span>
-      ${s.ln?'<span class="pill ln">软链</span>':''}
+      ${s.ln?`<span class="pill ln">${t.pillSymlink}</span>`:''}
       <span class="ds">${s.ds}</span>
-      <button class="ins" data-i="${i}">安装到…</button>
+      <button class="ins" data-i="${i}">${t.installTo}</button>
       <div class="pop" id="pop-${i}">
-        <div class="t">选择目标项目(复制落地)</div>
+        <div class="t">${t.pickTarget}</div>
         ${PROJECTS.map(p=>{
           const has=p.has.includes(s.n);
           return `<div class="p ${p.stale?'dis':''}" data-s="${s.n}" data-p="${p.n}" data-has="${has?1:0}" ${p.stale?'':''}>
-            ${p.n}${p.stale?'<span class="why">失效,禁用</span>':has?'<span class="have">已装同名</span>':''}</div>`;
+            ${p.n}${p.stale?`<span class="why">${t.staleDisabled}</span>`:has?`<span class="have">${t.hasSame}</span>`:''}</div>`;
         }).join('')}
       </div>
     </div>`).join('');
+    if(open) document.getElementById(open).classList.add('open');
+  }
+  renderLib();
   // 成败只由底色区分,文案里不带 ✓ / ⚠ —— 产品的 toast 就是这样(Toast.tsx 只渲染文本)。
   // 加个记号会让读原型的人以为产品也有。
+  // msg 是按当前界面语言出句的函数,语言切换时正在显示的 toast 随之重写
+  let toastMsg=null;
   function toast(msg,ok){const t=document.getElementById('toast');
-    t.textContent=msg;t.className='toast '+(ok?'ok':'err');t.style.display='block';
-    clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2600);}
+    toastMsg=msg;t.textContent=msg();t.className='toast '+(ok?'ok':'err');t.style.display='block';
+    clearTimeout(t._t);t._t=setTimeout(()=>{t.style.display='none';toastMsg=null},2600);}
   document.body.addEventListener('click',e=>{
     const btn=e.target.closest('.ins[data-i]');
     document.querySelectorAll('.pop').forEach(p=>{if(!btn||p.id!=='pop-'+btn.dataset.i)p.classList.remove('open')});
@@ -138,24 +176,38 @@
     if(p){
       if(p.classList.contains('dis'))return;
       p.closest('.pop').classList.remove('open');
-      if(p.dataset.has==='1'){toast(`${p.dataset.p} 已有同名 skill「${p.dataset.s}」,已阻止,不覆盖`,false);}
-      else{toast(`已安装 ${p.dataset.s} → ${p.dataset.p}((复制落地))`,true);}
+      const {p:proj,s:skill}=p.dataset;
+      if(p.dataset.has==='1'){toast(()=>T[LANG].blocked(proj,skill),false);}
+      else{toast(()=>T[LANG].installed(skill,proj),true);}
       return;
     }
   });
   // The uninstall confirmation: show the full path to be deleted
   const mask=document.getElementById('mask'),dlg=document.getElementById('dlg');
+  function renderDlg(){
+    const t=T[LANG];
+    dlg.innerHTML=`<h3>${t.confirmTitle}</h3>
+      <p>${t.confirmBody}</p>
+      <code>~/CascadeProjects/Transfer/.claude/skills/ui-design/</code>
+      <div class="btns"><button id="dlg-c">${t.cancel}</button><button class="danger" id="dlg-y">${t.del}</button></div>`;
+    document.getElementById('dlg-c').onclick=close;
+    document.getElementById('dlg-y').onclick=()=>{close();toast(()=>T[LANG].uninstalled('ui-design'),true);};
+  }
   document.getElementById('uni').onclick=()=>{
     mask.style.display='block';dlg.style.display='block';
-    dlg.innerHTML=`<h3>卸载项目级 skill?</h3>
-      <p>将删除以下目录(项目 git 状态由你自行处理;不做副本差异检测):</p>
-      <code>~/CascadeProjects/Transfer/.claude/skills/ui-design/</code>
-      <div class="btns"><button id="dlg-c">取消</button><button class="danger" id="dlg-y">删除</button></div>`;
-    document.getElementById('dlg-c').onclick=close;
-    document.getElementById('dlg-y').onclick=()=>{close();toast('已卸载 ui-design',true);};
+    renderDlg();
   };
   function close(){mask.style.display='none';dlg.style.display='none'}
   mask.onclick=close;
+
+  // 界面语言跟随设置原型所选:静态文案、列表(含已弹出的选择器)、打开着的确认框与正在显示的 toast 一并重绘
+  DemoDimensions.on('language',v=>{
+    LANG=v;
+    document.documentElement.lang=v==='zh'?'zh-CN':'en';
+    applyI18n(); renderLib();
+    if(dlg.style.display==='block') renderDlg();
+    if(toastMsg) document.getElementById('toast').textContent=toastMsg();
+  });
 </script>
 <script>
   // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
