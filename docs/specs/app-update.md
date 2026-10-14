@@ -395,9 +395,14 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   | checking | a check is asked for | unchanged; the requester joins it |
 
 - **IPC**: the main process pushes the lifecycle (state, version, progress) to the renderer, and the
-  renderer asks for "check now" (naming the surface that asked), "install", and the current state on
-  mount. The outcome of a manual check is reported back to the surface that asked for it. All of this
-  goes through the contract module with validation on both sides (ADR-0001).
+  renderer asks for "install", the current state on mount, and settings' "check now" through a request
+  of settings' own. The main process also keeps **settings' check record** for the run and pushes it:
+  whether settings' own check is running, and the outcome the line shows with no update in flight — the
+  post-update line first, a settings check's outcome after it, none once any check finds an update. Kept
+  there, the line survives leaving the page and hears of an update found from any surface
+  (app-update::REQ-004/AC-02, AC-03). The outcome of a manual check is also the answer to the request
+  that asked for it. All of this goes through the contract module with validation on both sides
+  (ADR-0001).
 - **The switch is a preference**, stored in the existing preferences table with one setter of its own,
   the same shape as theme, mode and language, and with per-field fallback to on.
 - **Packaged or not** is the app's own packaged flag. The menu item's enabled state and the settings
@@ -412,8 +417,10 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   flush in that path runs before the app is replaced.
 - **The first run after an update** is recognised by comparing the running version with the version the
   app recorded on its previous run. The record is kept in userData, apart from the preferences (it is
-  not something the user chooses). It is written at each launch, and a missing record shows nothing
-  (C8).
+  not something the user chooses). It is read and written at each launch of a run that checks for
+  updates; a development run does neither, since its userData and the installed copy's are one
+  directory on macOS's default case-insensitive volume, and a working build's version must not decide
+  the installed copy's line. A missing or unreadable record shows nothing (C8).
 
 ## Testing Decisions
 

@@ -51,7 +51,13 @@ export const CMD = {
   /** The app update lifecycle as it stands, read on mount (app-update) */
   getUpdateState: 'agentshed:get-update-state',
   /** The user clicked to install the ready app update (app-update::US-001/AC-04) */
-  installUpdate: 'agentshed:install-update'
+  installUpdate: 'agentshed:install-update',
+  /** "Check now" in settings: the request is the settings surface's, and answers its outcome (app-update::US-003/AC-02) */
+  checkForUpdates: 'agentshed:check-for-updates',
+  /** Settings' check record as it stands, read on mount (app-update::REQ-004/AC-03) */
+  getSettingsCheck: 'agentshed:get-settings-check',
+  /** Set the automatic update checks switch (app-update::REQ-003/AC-03) */
+  setAutoCheckUpdates: 'agentshed:set-auto-check-updates'
 } as const
 
 export const EVT = {
@@ -65,6 +71,8 @@ export const EVT = {
   updateState: 'agentshed:update-state',
   /** A one-off update event the renderer answers with a toast: a failed install (app-update::REQ-002/AC-03) */
   updateNotice: 'agentshed:update-notice',
+  /** The main process pushes each change of settings' check record (app-update::REQ-004/AC-02) */
+  settingsCheck: 'agentshed:settings-check',
 } as const
 
 export interface SessionTurnArgs {
@@ -145,6 +153,15 @@ export const TREND_SPAN_ARG = '--agentshed-trend-span='
  * without an extra IPC round trip per switch. Language tags contain no commas, so the separator is safe.
  */
 export const SYS_LANGS_ARG = '--agentshed-system-languages='
+
+/** The running version, for settings' "Current version" (app-update::REQ-003/AC-01): fixed for the run */
+export const APP_VERSION_ARG = '--agentshed-app-version='
+
+/**
+ * Whether this run checks for app updates: `1` when packaged, or when the e2e seam declares an update
+ * source, `0` in a development run, where settings' update controls are unavailable (app-update::US-005/AC-02)
+ */
+export const UPDATES_ARG = '--agentshed-updates='
 
 export type { AppearanceMode, AppearanceTheme } from './appearance'
 export type { ErrorCode, ErrorParams } from './errors'

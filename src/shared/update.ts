@@ -27,6 +27,18 @@ export function isUpdateInFlight(phase: UpdatePhase): boolean {
   return phase === 'downloading' || phase === 'ready' || phase === 'installing'
 }
 
+/**
+ * What settings' result line reports when no update is in flight (app-update::REQ-004/AC-02): its own
+ * check while it runs, then that check's outcome. The first run after the version went up starts with
+ * "up to date" (REQ-004/AC-04). An update found by any check clears the outcome. Kept by the main process
+ * for the run, so leaving settings and coming back keeps it (REQ-004/AC-03).
+ */
+export interface SettingsCheck {
+  /** A check asked from settings is running (app-update::US-003/AC-02) */
+  checking: boolean
+  outcome: 'upToDate' | 'failed' | null
+}
+
 /** A one-off event the renderer answers with a toast: a failed install after the user clicked to install */
 export interface UpdateNotice {
   code: 'installFailed'
@@ -74,4 +86,35 @@ export function parseUpdateState(raw: unknown): UpdateState | null {
 export function parseUpdateNotice(raw: unknown): UpdateNotice | null {
   if (typeof raw !== 'object' || raw === null) return null
   return (raw as Record<string, unknown>)['code'] === 'installFailed' ? { code: 'installFailed' } : null
+}
+
+/** The IPC entry check for settings' check record; null when it does not meet the contract */
+export function parseSettingsCheck(raw: unknown): SettingsCheck | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const r = raw as Record<string, unknown>
+  const checking = r['checking']
+  const outcome = r['outcome']
+  if (typeof checking !== 'boolean') return null
+  if (outcome !== null && outcome !== 'upToDate' && outcome !== 'failed') return null
+  return { checking, outcome }
+}
+
+/** The IPC entry check for a manual check's outcome: a version shown to the user only once validated (A6, H1) */
+export function parseCheckOutcome(raw: unknown): CheckOutcome | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const r = raw as Record<string, unknown>
+  switch (r['kind']) {
+    case 'upToDate':
+    case 'failed':
+    case 'unavailable':
+      return { kind: r['kind'] }
+    case 'found':
+      return isReleaseVersion(r['version']) ? { kind: 'found', version: r['version'] } : null
+    case 'inFlight': {
+      const state = parseUpdateState(r['state'])
+      return state && isUpdateInFlight(state.phase) ? { kind: 'inFlight', state } : null
+    }
+    default:
+      return null
+  }
 }

@@ -5,11 +5,6 @@ import type {} from '../src/renderer/src/env'
 // in for "packaged", so the lifecycle runs in this unpackaged build. What it cannot reach is the real
 // electron-updater ↔ GitHub ↔ system updater path and the restart itself: accepted by evidence once two
 // releases exist.
-//
-// Not reachable yet: an open message closes with the slot when the update goes, so the slot does not come
-// back with it open. Seeing that needs a second check in one run, after the slot went with its message open
-// (a failed install, say); the launch check is the only one an e2e can make until settings can check now
-// (app-update::US-003), and the case belongs with that surface.
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -221,6 +216,37 @@ test('a failed install after the click shows the error toast, stacked with any o
     // The two stack rather than replace each other
     await expect(win.locator('.toast')).toHaveCount(2)
     await expect(slot(win)).toHaveCount(0)
+  } finally {
+    await app.close()
+    cleanup(f)
+  }
+})
+
+test('an open message goes with the button, so the button comes back without it (REQ-001/AC-04)', async () => {
+  const f = fixture()
+  script(f, { ...FOUND_READY, install: 'fail' })
+  const app = await launch(f)
+  try {
+    const win = await app.firstWindow()
+    await expect(slot(win)).toHaveAttribute('aria-label', 'Update available')
+    await slot(win).hover()
+    await expect(tip(win)).toHaveText('Update available')
+    // The install fails under the pointer: the button goes with its message open
+    await slot(win).click()
+    await expect(slot(win)).toHaveCount(0)
+    await win.mouse.move(600, 400)
+    // A second check in the same run, on the same page: a scroll or a resize would close the message
+    // anyway, so the button comes back through the real wake path (the main process's clock moved past
+    // the period, then the system's resume event)
+    script(f, FOUND_HOLDING)
+    await app.evaluate(({ powerMonitor }) => {
+      const real = Date.now
+      Date.now = () => real() + 25 * 60 * 60 * 1000
+      powerMonitor.emit('resume')
+      Date.now = real
+    })
+    await expect(slot(win)).toHaveAttribute('role', 'progressbar')
+    await expect(tip(win)).toHaveCount(0)
   } finally {
     await app.close()
     cleanup(f)

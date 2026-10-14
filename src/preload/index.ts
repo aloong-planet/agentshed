@@ -25,11 +25,21 @@ import {
   validateSearchResult
 } from '@shared/validate'
 import { parsePrefs } from '@shared/prefs'
-import { parseUpdateNotice, parseUpdateState, type UpdateNotice, type UpdateState } from '@shared/update'
+import {
+  isReleaseVersion,
+  parseCheckOutcome,
+  parseSettingsCheck,
+  parseUpdateNotice,
+  parseUpdateState,
+  type CheckOutcome,
+  type SettingsCheck,
+  type UpdateNotice,
+  type UpdateState
+} from '@shared/update'
 import { ERR, appError } from '@shared/errors'
 import { FALLBACK_LANGUAGE, isLanguage, type Language } from '@shared/i18n'
 import { isTrendSpan, TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'
-import { LANG_ARG, SYS_LANGS_ARG, TREND_SPAN_ARG } from '@shared/ipc'
+import { APP_VERSION_ARG, LANG_ARG, SYS_LANGS_ARG, TREND_SPAN_ARG, UPDATES_ARG } from '@shared/ipc'
 
 // Contract validation at the renderer's entry: a snapshot from the main process that does not meet the
 // contract throws rather than silently rendering undefined
@@ -49,6 +59,18 @@ function checkedUpdate(raw: unknown): UpdateState {
   const s = parseUpdateState(raw)
   if (!s) throw appError(ERR.contractType, { path: 'updateState', expect: 'UpdateState' })
   return s
+}
+
+function checkedSettingsCheck(raw: unknown): SettingsCheck {
+  const c = parseSettingsCheck(raw)
+  if (!c) throw appError(ERR.contractType, { path: 'settingsCheck', expect: 'SettingsCheck' })
+  return c
+}
+
+function checkedOutcome(raw: unknown): CheckOutcome {
+  const o = parseCheckOutcome(raw)
+  if (!o) throw appError(ERR.contractType, { path: 'checkOutcome', expect: 'CheckOutcome' })
+  return o
 }
 
 
@@ -74,6 +96,12 @@ function systemLanguages(): string[] {
     .filter((s) => s.length > 0)
 }
 
+/** The running version for settings' "Current version"; empty if the argument is missing or malformed */
+function appVersion(): string {
+  const v = process.argv.find((a) => a.startsWith(APP_VERSION_ARG))?.slice(APP_VERSION_ARG.length)
+  return isReleaseVersion(v) ? v : ''
+}
+
 function initialTrendSpan(): TrendSpan {
   const value = Number(process.argv.find((a) => a.startsWith(TREND_SPAN_ARG))?.slice(TREND_SPAN_ARG.length))
   return isTrendSpan(value) ? value : TREND_WINDOW_DAYS
@@ -86,6 +114,10 @@ const api = {
   /** The system's preferred language list at startup: the renderer computes the effective language
    * locally from it when "follow system" is selected */
   systemLanguages: systemLanguages(),
+  /** The running version (app-update::REQ-003/AC-01) */
+  appVersion: appVersion(),
+  /** This run checks for app updates; false in a development run, where settings' controls are unavailable */
+  updatesAvailable: process.argv.includes(`${UPDATES_ARG}1`),
   getSnapshot: async (): Promise<Snapshot> => checked(await ipcRenderer.invoke(CMD.getSnapshot)),
   getStartup: async (): Promise<StartupData> => {
     const raw: unknown = await ipcRenderer.invoke(CMD.getStartup)
@@ -160,6 +192,8 @@ const api = {
     checkedPrefs(await ipcRenderer.invoke(CMD.setTrendSpan, span)),
   setMode: async (mode: AppearanceMode): Promise<Prefs> =>
     checkedPrefs(await ipcRenderer.invoke(CMD.setMode, mode)),
+  setAutoCheckUpdates: async (on: boolean): Promise<Prefs> =>
+    checkedPrefs(await ipcRenderer.invoke(CMD.setAutoCheckUpdates, on)),
   /** The application menu's two entry points (ticket 13): they behave identically to the same-named
    * operations in the UI */
   onMenuOpenSettings: (cb: () => void): (() => void) => {
@@ -170,6 +204,14 @@ const api = {
   /** The app update lifecycle (app-update): validated here as the other payloads are */
   getUpdateState: async (): Promise<UpdateState> => checkedUpdate(await ipcRenderer.invoke(CMD.getUpdateState)),
   installUpdate: (): Promise<void> => ipcRenderer.invoke(CMD.installUpdate),
+  /** "Check now" in settings: answers the check's outcome */
+  checkForUpdates: async (): Promise<CheckOutcome> => checkedOutcome(await ipcRenderer.invoke(CMD.checkForUpdates)),
+  getSettingsCheck: async (): Promise<SettingsCheck> => checkedSettingsCheck(await ipcRenderer.invoke(CMD.getSettingsCheck)),
+  onSettingsCheck: (cb: (check: SettingsCheck) => void): (() => void) => {
+    const listener = (_e: unknown, check: unknown): void => cb(checkedSettingsCheck(check))
+    ipcRenderer.on(EVT.settingsCheck, listener)
+    return () => ipcRenderer.removeListener(EVT.settingsCheck, listener)
+  },
   onUpdateState: (cb: (state: UpdateState) => void): (() => void) => {
     const listener = (_e: unknown, state: unknown): void => cb(checkedUpdate(state))
     ipcRenderer.on(EVT.updateState, listener)

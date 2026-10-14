@@ -67,6 +67,21 @@ describe('the preference handlers', () => {
       .toBe(ERR.prefsStoreNotReady)
   })
 
+  it('setAutoCheckUpdates: a boolean persists at once and keeps the other fields; anything else throws (app-update::REQ-003/AC-03)', () => {
+    const h = handlers()
+    h.setTheme('blue')
+    expect(h.setAutoCheckUpdates(false).autoCheckUpdates).toBe(false)
+    expect(new PrefsStore(dir).get()).toEqual({ ...DEFAULT_PREFS, theme: 'blue', autoCheckUpdates: false })
+    expect(h.setAutoCheckUpdates(true).autoCheckUpdates).toBe(true)
+    expect(new PrefsStore(dir).get().autoCheckUpdates).toBe(true)
+    for (const invalid of ['false', 0, 1, null, undefined, {}]) {
+      expect(codeOf(() => h.setAutoCheckUpdates(invalid))).toBe(ERR.invalidPref)
+    }
+    expect(new PrefsStore(dir).get().autoCheckUpdates).toBe(true)
+    expect(codeOf(() => createPrefsHandlers({ store: () => null, theme }).setAutoCheckUpdates(false)))
+      .toBe(ERR.prefsStoreNotReady)
+  })
+
   it('setMode: a valid value persists and sets themeSource immediately', () => {
     expect(handlers().setMode('dark')).toEqual({ ...DEFAULT_PREFS, mode: 'dark' })
     expect(theme.themeSource).toBe('dark')

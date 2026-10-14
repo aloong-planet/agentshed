@@ -96,11 +96,13 @@ hold (same procedure as above; the slot's mutations were built before running):
 | The slot's visibility | negated | all 11 e2e cases |
 | The slot's tooltip dismissal when the update goes | never dismisses | **nothing**: survives |
 
-The survivor is a gap, not a false green: the line keeps a message closed when the slot comes back after
-going with its message open, and the slot comes back only with a second check in the same run. Under this
-ticket the launch check is the only one an e2e can make (the next is 24 hours away), so no case can reach
-it. Condition: settings' manual check (app-update::US-003); the case belongs with that surface, and the
-e2e file's header says so.
+The survivor was a gap, not a false green: the line keeps a message closed when the slot comes back after
+going with its message open, and the slot comes back only with a second check in the same run. This record
+first said no e2e could make that second check before settings' manual check existed; that was wrong — the
+wake path (the main process's clock moved past the period, then the system's resume event) reaches it, and
+a check from settings cannot see the line at all, since opening settings scrolls and any scroll closes the
+message. Closed by #231 (2026-10-14): the case "an open message goes with the button …" in
+`e2e/app-update.spec.ts` uses the wake path and turns red under this mutation (ticket-231-review-tests.md).
 
 The other cases went red first for the reason they test (recorded in the task list). The e2e colour case
 first failed because Playwright pinned the light appearance — the evidence was wrong, not the code; it now
@@ -119,5 +121,4 @@ No assertion inside a callback that may not run, no unawaited assertion, no loop
 
 Coverage complete for #230's own items, with the real-path gaps stated and owned by #240. Three cases
 added, twelve mutations caught. No false green found. After the in-flight refactor, three more mutations:
-two caught; one line (the tooltip closing with the slot) is unreachable until a second check can run in
-one session, stated as a gap with its condition.
+two caught; one line (the tooltip closing with the slot) had no case — closed by #231 with one.
