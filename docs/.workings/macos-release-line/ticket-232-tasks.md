@@ -20,10 +20,10 @@ development run), confirmed 2026-10-13. Its label in the five languages beyond C
 | 4 | Wiring: the menu's action runs the controller's check and sends the outcome as a notice; the item is enabled only in a run that checks for updates | typecheck; e2e | done: `menuCheck`, `sendUpdateNotice` (exit validation, now also for the install failure) |
 | 5 | Six-language strings | gates | done: label, two toasts; three toasts reuse the settings line's and the button's copy (the prototype's words) |
 | 6 | e2e: each outcome's toast; in-flight states without a request; the rail button after a find; D4 with settings; B2; G2; G6; the development run | `pnpm e2e` | done: e2e/menu-check-updates.spec.ts, 6 cases, all written after code and proven by seven mutations |
-| 7 | Evidence: the native menu (the known gap) | screenshot | waiting: the owner's screenshot of a locally packaged build of this branch |
+| 7 | Evidence: the native menu (the known gap) | screenshot | done 2026-10-14: the owner's screenshot of a local package built from 2b1b703 ([evidence/ticket-232/](evidence/ticket-232/README.md)) — the item directly below "About Agentshed", enabled, in English as the interface language |
 | 8 | Full verification gateway | `pnpm verify` exit 0 | done: `pnpm verify` exit 0 (830 unit, 135 e2e, smoke OK) |
 | 9 | Step 5: /review-code | `ticket-232-review-code.md` | done: no bug; one departure; no refactor items |
-| 10 | Step 6: /review-tests | `ticket-232-review-tests.md` | done: coverage complete but the native picture; every after-code case proven |
+| 10 | Step 6: /review-tests | `ticket-232-review-tests.md` | done: coverage complete, the native picture by the owner's screenshot (task 7); every after-code case proven |
 | 11 | Spec final check and archive (step 7) | spec matches the implementation | done: app-update IPC and Testing Decisions written back; i18n's known gap rewritten |
 | 12 | Step 8: /features-catalog | app-update feature entry; regression record | done: app-update and i18n entries; final-regression.md #232 section |
-| 13 | Document sync, PR, stop for the owner | PR link | open |
+| 13 | Document sync, PR, stop for the owner | PR link | open: PR #248; waiting for the owner's merge confirmation |

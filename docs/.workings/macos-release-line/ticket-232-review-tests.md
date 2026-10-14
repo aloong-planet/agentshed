@@ -17,7 +17,7 @@ Ticket: [#232 "Check for Updates…" in the application menu](https://github.com
 | app-update::US-003/AC-04 | e2e: downloading, ready and installing each toasted, no request; unit: `noticeToast` |
 | app-update::US-003/AC-05 (menu) | e2e D4, both orders: one request |
 | app-update::US-005/AC-02 (menu) | unit: the template's enabled flag; e2e: disabled in a development run, a click reports nothing |
-| app-update::REQ-005 | unit: position, six languages, enabled flag, click through the injected action; e2e: the installed menu's order, label and enabled flag; **Evidence pending**: a screenshot of the native menu (below) |
+| app-update::REQ-005 | unit: position, six languages, enabled flag, click through the injected action; e2e: the installed menu's order, label and enabled flag; Evidence: the owner's screenshot of the native menu, 2026-10-14 ([evidence/ticket-232/](evidence/ticket-232/README.md)) |
 | app-update::QR-001/AC-01 (menu strings) | Gate: `pnpm typecheck` (dictionary type), `pnpm check:i18n` |
 | app-update::CON-003 (menu IPC) | unit: `parseUpdateNotice` accepts the outcome and refuses a malformed one |
 | Failure A6 (menu) | e2e: a malformed version → "Couldn't check for updates" |
@@ -30,8 +30,9 @@ Ticket: [#232 "Check for Updates…" in the application menu](https://github.com
 Gaps, with their conditions:
 
 - What macOS draws: the native menu is outside automation (the i18n spec's known gap). The e2e reads the
-  menu the main process installed; the picture is a screenshot from the owner of a locally packaged build of
-  this branch. Waiting for it.
+  menu the main process installed; the picture is accepted by the owner's screenshot (2026-10-14) of a local
+  package built from 2b1b703 ([evidence/ticket-232/](evidence/ticket-232/README.md)): the item directly
+  below "About Agentshed", enabled, in English as the interface language.
 
 ## Case design
 
@@ -63,5 +64,5 @@ the window's first render; it now waits for the app's toast host. A false red, i
 
 ## Conclusion
 
-Coverage complete for #232's items except the native menu's picture, which waits for the owner's
-screenshot. Every after-code case proven able to fail.
+Coverage complete for #232's items; the native menu's picture is accepted by the owner's screenshot
+(2026-10-14). Every after-code case proven able to fail.

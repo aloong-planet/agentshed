@@ -148,6 +148,7 @@ Queue empty after the pre-delivery scope re-check (see `ticket-231-doc-sync.md`)
 | The application menu's entries into the app went from one to two | the stage 2 search | One enumerating sentence (i18n feature 27), rewritten |
 | Pending notes in scope | `docs/specs/app-update.md` (Testing Decisions: two releases) | Not expired — #240's |
 | No new general rule | — | Row set empty |
-| Work state: #232's coverage rows, document sync checklist and issue; the native menu's screenshot waits for the owner | — | Updated at delivery; the screenshot row is Waiting |
+| Work state: #232's coverage rows, document sync checklist and issue | — | Updated at delivery |
+| The owner's native menu screenshot arrived (2026-10-14; app-update::REQ-005's Evidence) | the screenshot against the template's application submenu and REQ-005 ([evidence/ticket-232/](evidence/ticket-232/README.md)) | Agrees with both: the item directly below "About Agentshed", enabled, English as the interface language. Updated in place: the task list, the test review's gap and conclusion, the coverage row, the document sync checklist and the issue's REQ-005 box. Scope re-check: the specs' "accepted by hand — a known gap" (app-update Testing Decisions, i18n's known test gap) names the method, not a pending state, and stays true; no feature statement mentions the picture |
 
 Queue empty after the pre-delivery scope re-check (see `ticket-232-doc-sync.md`).
