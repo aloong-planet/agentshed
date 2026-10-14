@@ -58,3 +58,10 @@ Search for the README row: `grep -rniE "network|offline|outbound|local-first|pur
 | Work state: #230's coverage rows, its document sync checklist, its issue | — | Updated at delivery (Current verification row, `ticket-230-doc-sync.md`, the issue's process boxes) |
 
 Queue empty after the pre-delivery scope re-check (see `ticket-230-doc-sync.md`).
+
+Re-check after the owner-confirmed refactor (2026-10-14, 95696cd): it renames no behaviour and changes no
+user-visible state, so no feature or spec sentence depends on it. `grep -rniE "in flight|in-flight"
+docs/specs/app-update.md docs/features/app-update.md CONTEXT.md` → spec lines 46, 87–88, 118, 168, 196,
+316–317 (none in the feature entry or CONTEXT); every "update in flight" means downloading, ready or
+installing, which is what the predicate takes its name from, and "check in flight" is a different thing the
+predicate does not cover. Queue empty again.
