@@ -29,7 +29,21 @@ export const fr: Locale = {
       'Avec le mode « Suivre le système », le clair et le sombre suivent l’apparence macOS ; choisir Clair ou Sombre fixe le clair/sombre sur ce choix, quelles que soient les modifications ultérieures du système. Le thème et le mode sont indépendants et se combinent librement ; Violet est utilisé par défaut. Les changements s’appliquent immédiatement à toute l’app, sans enregistrement.',
     themePurple: 'Violet',
     themeBlue: 'Bleu brume',
-    themeAmber: 'Ambre'
+    themeAmber: 'Ambre',
+    sectionUpdates: 'Mises à jour',
+    autoCheckUpdates: 'Rechercher les mises à jour automatiquement',
+    switchOn: 'Activé',
+    switchOff: 'Désactivé',
+    currentVersion: 'Version actuelle',
+    checkNow: 'Vérifier maintenant',
+    installNow: 'Installer maintenant',
+    checking: 'Vérification…',
+    upToDate: 'Agentshed est à jour',
+    checkFailed: 'Impossible de vérifier les mises à jour',
+    versionDownloading: (version) => `Téléchargement de la version ${version}`,
+    versionReady: (version) => `La version ${version} est prête à être installée`,
+    updatesFoot: 'Les nouvelles versions se téléchargent en arrière-plan. Quand l’une est prête, cliquez sur le bouton de mise à jour en bas à gauche pour l’installer et redémarrer ; sinon, elle s’installe quand vous quittez.',
+    updatesDevFoot: 'Les mises à jour ne sont pas vérifiées en exécution de développement (l’app n’est pas empaquetée).'
   },
 
   menu: {
@@ -47,7 +61,8 @@ export const fr: Locale = {
     saveTrendSpanFailed: 'Échec de l’enregistrement de la période',
     saveThemeFailed: 'Échec de l’enregistrement du thème',
     saveModeFailed: 'Échec de l’enregistrement du mode d’apparence',
-    saveLanguageFailed: 'Échec de l’enregistrement de la langue'
+    saveLanguageFailed: 'Échec de l’enregistrement de la langue',
+    saveAutoCheckUpdatesFailed: 'Échec de l’enregistrement de la vérification automatique des mises à jour'
   },
 
   update: {

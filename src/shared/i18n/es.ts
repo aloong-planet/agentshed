@@ -29,7 +29,21 @@ export const es: Locale = {
       'Con el modo «Seguir el sistema», el claro y el oscuro siguen la apariencia de macOS; al elegir Claro u Oscuro el claro/oscuro queda fijado en esa elección aunque el sistema cambie después. El tema y el modo son independientes y se combinan libremente; se usa Violeta si no eliges nada. Los cambios se aplican de inmediato en toda la app, sin necesidad de guardar.',
     themePurple: 'Violeta',
     themeBlue: 'Azul niebla',
-    themeAmber: 'Ámbar'
+    themeAmber: 'Ámbar',
+    sectionUpdates: 'Actualizaciones',
+    autoCheckUpdates: 'Buscar actualizaciones automáticamente',
+    switchOn: 'Activado',
+    switchOff: 'Desactivado',
+    currentVersion: 'Versión actual',
+    checkNow: 'Comprobar ahora',
+    installNow: 'Instalar ahora',
+    checking: 'Comprobando…',
+    upToDate: 'Agentshed está actualizado',
+    checkFailed: 'No se pudo comprobar si hay actualizaciones',
+    versionDownloading: (version) => `Descargando la versión ${version}`,
+    versionReady: (version) => `La versión ${version} está lista para instalarse`,
+    updatesFoot: 'Las versiones nuevas se descargan en segundo plano. Cuando una esté lista, haz clic en el botón de actualización abajo a la izquierda para instalarla y reiniciar; si no, se instala al salir.',
+    updatesDevFoot: 'Las actualizaciones no se comprueban en una ejecución de desarrollo (la app no está empaquetada).'
   },
 
   menu: {
@@ -47,7 +61,8 @@ export const es: Locale = {
     saveTrendSpanFailed: 'No se pudo guardar el período',
     saveThemeFailed: 'No se pudo guardar el tema',
     saveModeFailed: 'No se pudo guardar el modo de apariencia',
-    saveLanguageFailed: 'No se pudo guardar el idioma'
+    saveLanguageFailed: 'No se pudo guardar el idioma',
+    saveAutoCheckUpdatesFailed: 'No se pudo guardar la búsqueda automática de actualizaciones'
   },
 
   update: {

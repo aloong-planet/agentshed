@@ -45,10 +45,12 @@ import { createPrefsHandlers } from './prefs-handlers'
 import { buildMenuTemplate } from './app-menu'
 import { ERR, appError } from '@shared/errors'
 import { effectiveLanguage, type Language } from '@shared/i18n'
-import { LANG_ARG, SYS_LANGS_ARG, TREND_SPAN_ARG } from '@shared/ipc'
+import { APP_VERSION_ARG, LANG_ARG, SYS_LANGS_ARG, TREND_SPAN_ARG, UPDATES_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
-import { IDLE_UPDATE, parseUpdateState, type UpdateNotice, type UpdateState } from '@shared/update'
+import { IDLE_UPDATE, parseSettingsCheck, parseUpdateState, type CheckOutcome, type SettingsCheck, type UpdateNotice, type UpdateState } from '@shared/update'
 import { UpdateController } from './update-controller'
+import { SettingsChecks } from './settings-check'
+import { recordRunVersion } from './run-version'
 import { chooseUpdateSource, electronUpdateSource, scriptedUpdateSource } from './update-source'
 import { systemPreferredLanguages } from './system-language'
 import {
@@ -97,6 +99,7 @@ if (QUIET) {
 let mainWindow: BrowserWindow | null = null
 let prefsStore: PrefsStore | null = null
 let updates: UpdateController | null = null
+let settingsChecks: SettingsChecks | null = null
 let tokenEngine: TokenEngine | null = null
 let parsePool: ParsePool | null = null
 let archive: UsageArchive | null = null
@@ -532,6 +535,9 @@ handle(CMD.getUpdateState, (): UpdateState => updates?.state() ?? IDLE_UPDATE)
 handle(CMD.installUpdate, () => {
   updates?.install()
 })
+handle(CMD.checkForUpdates, (): Promise<CheckOutcome> => settingsChecks?.check() ?? Promise.resolve({ kind: 'unavailable' }))
+handle(CMD.getSettingsCheck, (): SettingsCheck => settingsChecks?.state() ?? { checking: false, outcome: null })
+handle(CMD.setAutoCheckUpdates, (_e, on: unknown) => prefsHandlers.setAutoCheckUpdates(on))
 const PRELOAD = join(__dirname, '../preload/index.cjs')
 
 /** Rebuild the application menu in the currently effective language; must be called again after a
@@ -574,7 +580,9 @@ function createWindow(): void {
       additionalArguments: [
         `${TREND_SPAN_ARG}${prefsHandlers.getPrefs().trendSpan}`,
         `${LANG_ARG}${initialLanguage()}`,
-        `${SYS_LANGS_ARG}${systemPreferredLanguages().join(',')}`
+        `${SYS_LANGS_ARG}${systemPreferredLanguages().join(',')}`,
+        `${APP_VERSION_ARG}${app.getVersion()}`,
+        `${UPDATES_ARG}${updateChoice() ? 1 : 0}`
       ]
     }
   })
@@ -674,7 +682,7 @@ void app.whenReady().then(() => {
  * run has no source and never checks; the e2e seam declares a scripted one (see chooseUpdateSource).
  */
 function startUpdates(): void {
-  const choice = chooseUpdateSource({ packaged: app.isPackaged, env: process.env })
+  const choice = updateChoice()
   const source = choice?.kind === 'scripted'
     ? scriptedUpdateSource(choice.script)
     : choice ? electronUpdateSource(app.getVersion()) : null
@@ -690,12 +698,29 @@ function startUpdates(): void {
       // Exit validation, the same rule as every other payload (ADR-0001)
       if (!parseUpdateState(state)) throw appError(ERR.contractType, { path: 'updateState', expect: 'UpdateState' })
       mainWindow?.webContents.send(EVT.updateState, state)
+      settingsChecks?.onUpdateState(state)
     },
     notify: (notice: UpdateNotice) => mainWindow?.webContents.send(EVT.updateNotice, notice)
+  })
+  settingsChecks = new SettingsChecks({
+    check: () => updates?.check() ?? Promise.resolve({ kind: 'unavailable' }),
+    publish: (state: SettingsCheck) => {
+      if (!parseSettingsCheck(state)) throw appError(ERR.contractType, { path: 'settingsCheck', expect: 'SettingsCheck' })
+      mainWindow?.webContents.send(EVT.settingsCheck, state)
+    },
+    // Only a run that checks for updates reads and writes the record: a development run's userData ("agentshed")
+    // and the installed copy's ("Agentshed") are one directory on macOS's default case-insensitive volume, and a
+    // working build's version must not stand in the installed copy's way
+    firstRunAfterUpdate: choice ? recordRunVersion(app.getPath('userData'), app.getVersion()) : false
   })
   updates.start()
   // On waking from sleep, one check if one fell due meanwhile (app-update::REQ-006/AC-02)
   powerMonitor.on('resume', () => updates?.wake())
+}
+
+/** Where this run's app updates come from, or null when it never checks (a development run) */
+function updateChoice(): ReturnType<typeof chooseUpdateSource> {
+  return chooseUpdateSource({ packaged: app.isPackaged, env: process.env })
 }
 
 app.on('window-all-closed', () => {

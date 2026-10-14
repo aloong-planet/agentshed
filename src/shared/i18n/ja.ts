@@ -28,7 +28,21 @@ export const ja: Locale = {
       'モードを「システムに従う」にすると、明暗は macOS の外観に従います。ライトまたはダークを選ぶと固定され、システムが変わっても影響を受けません。テーマと明暗は独立していて自由に組み合わせられ、未選択の場合はパープルです。変更は保存不要で app 全体にすぐ反映されます。',
     themePurple: 'パープル',
     themeBlue: 'ミストブルー',
-    themeAmber: 'アンバー'
+    themeAmber: 'アンバー',
+    sectionUpdates: 'アップデート',
+    autoCheckUpdates: 'アップデートを自動で確認',
+    switchOn: 'オン',
+    switchOff: 'オフ',
+    currentVersion: '現在のバージョン',
+    checkNow: '今すぐ確認',
+    installNow: '今すぐインストール',
+    checking: '確認中…',
+    upToDate: '最新バージョンです',
+    checkFailed: 'アップデートを確認できませんでした',
+    versionDownloading: (version) => `バージョン ${version} をダウンロード中`,
+    versionReady: (version) => `バージョン ${version} をインストールできます`,
+    updatesFoot: '新しいバージョンはバックグラウンドでダウンロードされます。準備ができたら左下のアップデートボタンをクリックすると、インストールして再起動します。クリックしない場合は終了時にインストールされます。',
+    updatesDevFoot: '開発実行（パッケージ化されていない app）ではアップデートを確認しません。'
   },
 
   menu: {
@@ -46,7 +60,8 @@ export const ja: Locale = {
     saveTrendSpanFailed: '表示期間の保存に失敗しました',
     saveThemeFailed: 'テーマの保存に失敗しました',
     saveModeFailed: '外観モードの保存に失敗しました',
-    saveLanguageFailed: '言語の保存に失敗しました'
+    saveLanguageFailed: '言語の保存に失敗しました',
+    saveAutoCheckUpdatesFailed: 'アップデート自動確認の設定の保存に失敗しました'
   },
 
   update: {

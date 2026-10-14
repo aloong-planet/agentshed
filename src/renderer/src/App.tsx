@@ -206,6 +206,19 @@ export function App(): JSX.Element {
     }
   }
 
+  async function onAutoCheckUpdates(on: boolean): Promise<void> {
+    // Takes effect at once, with no save button (app-update::REQ-003/AC-03): the main process reads the
+    // stored value at each automatic check. Optimistic, and the stored result then wins, as for the mode
+    touchedPrefs.current.add('autoCheckUpdates')
+    setAutoCheckUpdates(on)
+    try {
+      const p = await window.agentshed.setAutoCheckUpdates(on)
+      setAutoCheckUpdates(p.autoCheckUpdates)
+    } catch (e) {
+      toast('err', `${t.toast.saveAutoCheckUpdatesFailed}:${errorText(lang, e)}`)
+    }
+  }
+
   async function onLanguage(next: LanguagePreference): Promise<void> {
     // The effective language can be computed locally (the system language list arrives with the window),
     // so it is applied immediately and then persisted,
@@ -273,6 +286,8 @@ export function App(): JSX.Element {
               onMode={(m) => void onMode(m)}
               language={langPref}
               onLanguage={(l) => void onLanguage(l)}
+              autoCheckUpdates={autoCheckUpdates}
+              onAutoCheckUpdates={(on) => void onAutoCheckUpdates(on)}
             />
         ) : dim === 'agents' ? (
           snap === null ? (

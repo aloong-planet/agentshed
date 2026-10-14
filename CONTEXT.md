@@ -684,6 +684,15 @@ _Avoid_: beta mode, insider track, update track
   update check. Checkable by searching the main process for network APIs and by the renderer's content
   security policy, which allows no remote origin.
 
+- **A development run writes into the installed copy's userData (observed 2026-10-14)**: the
+  development name is `agentshed` and the packaged one `Agentshed`, and on macOS's default
+  case-insensitive volume the two are one directory — every file a run keeps there (preferences, the
+  display cache, the usage archive, the token cache, the version record) is shared by a working build
+  and the installed app. A record that must describe the installed copy alone is kept out of
+  development runs: the version record behind the post-update line is read and written only by a run
+  that checks for updates (app-update Implementation Decisions). A new userData file decides the same
+  question when it is added.
+
 ## Flagged ambiguities
 
 - **"Live day" is retired (2026-09-09)**: liveness was a property of a day, so a side whose

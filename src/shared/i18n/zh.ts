@@ -41,7 +41,21 @@ export const zh = {
       '模式选「跟随系统」时,明暗随 macOS 外观变化;选浅色或深色即锁定,系统再变也不影响。主题与明暗彼此独立、可任意组合,未选择时用紫。切换后立即对整个 app 生效,无需保存。',
     themePurple: '紫',
     themeBlue: '雾蓝',
-    themeAmber: '琥珀褐'
+    themeAmber: '琥珀褐',
+    sectionUpdates: '更新',
+    autoCheckUpdates: '自动检查更新',
+    switchOn: '开',
+    switchOff: '关',
+    currentVersion: '当前版本',
+    checkNow: '立即检查',
+    installNow: '立即安装',
+    checking: '正在检查…',
+    upToDate: '已是最新版本',
+    checkFailed: '检查更新失败',
+    versionDownloading: (version: string) => `发现新版本 ${version}，正在下载`,
+    versionReady: (version: string) => `版本 ${version} 已下载，可以安装`,
+    updatesFoot: '有新版本时会在后台下载。下载完成后，点击左下角的更新按钮即可安装并重启；不点的话，退出时会自动安装。',
+    updatesDevFoot: '开发运行（未打包的 app）中不检查更新。'
   },
 
   /** The application menu (ticket 13). The application name Agentshed is the same in every language
@@ -70,7 +84,8 @@ export const zh = {
     saveTrendSpanFailed: '保存趋势天数失败',
     saveThemeFailed: '保存主题失败',
     saveModeFailed: '保存外观模式失败',
-    saveLanguageFailed: '保存语言失败'
+    saveLanguageFailed: '保存语言失败',
+    saveAutoCheckUpdatesFailed: '保存自动检查更新设置失败'
   },
 
   /** App updates (app-update): the update button's hover text, which is also its accessible name, and the

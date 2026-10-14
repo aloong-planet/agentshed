@@ -29,7 +29,21 @@ export const en: Locale = {
       'With mode set to “Follow system”, light and dark follow your macOS appearance; choosing Light or Dark instead fixes light and dark to that choice, regardless of later system changes. The theme and light/dark are independent and combine freely; Purple is used when nothing is chosen. Changes apply across the whole app immediately — no saving needed.',
     themePurple: 'Purple',
     themeBlue: 'Mist Blue',
-    themeAmber: 'Amber Brown'
+    themeAmber: 'Amber Brown',
+    sectionUpdates: 'Updates',
+    autoCheckUpdates: 'Check for updates automatically',
+    switchOn: 'On',
+    switchOff: 'Off',
+    currentVersion: 'Current version',
+    checkNow: 'Check now',
+    installNow: 'Install now',
+    checking: 'Checking…',
+    upToDate: 'You’re up to date',
+    checkFailed: 'Couldn’t check for updates',
+    versionDownloading: (version) => `Version ${version} is downloading`,
+    versionReady: (version) => `Version ${version} is ready to install`,
+    updatesFoot: 'New versions download in the background. When one is ready, click the update button at the bottom left to install it and restart; otherwise it installs when you quit.',
+    updatesDevFoot: 'Updates are not checked in a development run (the app is not packaged).'
   },
 
   menu: {
@@ -47,7 +61,8 @@ export const en: Locale = {
     saveTrendSpanFailed: 'Failed to save the trend span',
     saveThemeFailed: 'Failed to save the theme',
     saveModeFailed: 'Failed to save the appearance mode',
-    saveLanguageFailed: 'Failed to save the language'
+    saveLanguageFailed: 'Failed to save the language',
+    saveAutoCheckUpdatesFailed: 'Failed to save the automatic update check setting'
   },
 
   update: {

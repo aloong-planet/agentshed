@@ -36,6 +36,7 @@ export interface PrefsHandlers {
   setLanguage: (language: unknown) => Prefs
   setMode: (mode: unknown) => Prefs
   setTrendSpan: (span: unknown) => Prefs
+  setAutoCheckUpdates: (on: unknown) => Prefs
 }
 
 export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
@@ -65,6 +66,11 @@ export function createPrefsHandlers(deps: PrefsHandlerDeps): PrefsHandlers {
     setTrendSpan: (span) => {
       if (!isTrendSpan(span)) throw appError(ERR.invalidPref, { field: 'trendSpan' })
       return required().setTrendSpan(span)
+    },
+
+    setAutoCheckUpdates: (on) => {
+      if (typeof on !== 'boolean') throw appError(ERR.invalidPref, { field: 'autoCheckUpdates' })
+      return required().setAutoCheckUpdates(on)
     },
 
     setMode: (mode) => {

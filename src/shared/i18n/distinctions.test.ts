@@ -99,6 +99,15 @@ const ACCEPTED_COLLAPSES: Array<{ a: string; b: string; why: string }> = [
   },
   { a: 'session.descending', b: 'detail.recentFirst', why: 'as above' },
   {
+    a: 'settings.switchOn',
+    b: 'plugins.enabled',
+    why: 'French only — “Activé” / “Désactivé” is both the usual label of an on/off switch and the word for an enabled state, and the updates switch turns automatic checks on, which is that state. The source language’s one-character on and off words are a length choice for a segmented control, not a second concept'
+  },
+  { a: 'settings.switchOn', b: 'plugins.enabledShort', why: 'as above' },
+  { a: 'settings.switchOn', b: 'detail.mcpEnabled', why: 'as above' },
+  { a: 'settings.switchOff', b: 'plugins.disabledShort', why: 'as above' },
+  { a: 'settings.switchOff', b: 'detail.mcpDisabled', why: 'as above' },
+  {
     a: 'menu.undo',
     b: 'detail.cancel',
     why: 'French only — “Annuler” is Apple’s French for Undo in the Edit menu and the standard word on a Cancel button. Following the platform beats inventing a distinction French does not draw'

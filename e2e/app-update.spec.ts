@@ -5,11 +5,6 @@ import type {} from '../src/renderer/src/env'
 // in for "packaged", so the lifecycle runs in this unpackaged build. What it cannot reach is the real
 // electron-updater ↔ GitHub ↔ system updater path and the restart itself: accepted by evidence once two
 // releases exist.
-//
-// Not reachable yet: an open message closes with the slot when the update goes, so the slot does not come
-// back with it open. Seeing that needs a second check in one run, after the slot went with its message open
-// (a failed install, say); the launch check is the only one an e2e can make until settings can check now
-// (app-update::US-003), and the case belongs with that surface.
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -63,6 +58,12 @@ const FOUND_READY = { check: 'found', version: '9.9.0', steps: [0, 60, 100], ste
 
 const slot = (win: Page) => win.getByTestId('update-slot')
 const tip = (win: Page) => win.getByTestId('update-tip')
+/** A bottom-anchored entry's place: its size, its x, and how far its top sits above the window's bottom */
+const anchored = async (win: Page, selector: string) =>
+  win.locator(selector).evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    return { x: r.x, fromBottom: window.innerHeight - r.y, width: r.width, height: r.height }
+  })
 const box = async (win: Page, selector: string) =>
   win.locator(selector).evaluate((el) => {
     const r = el.getBoundingClientRect()
@@ -91,7 +92,7 @@ test('with no update in flight the slot takes no space; an update in flight sits
     await expect.poll(() => requests(f)).toEqual(['check'])
     await expect(win.locator('.rail .ri')).toHaveCount(3)
     await expect(slot(win)).toHaveCount(0)
-    const idle = { agents: await box(win, '.rail .ri >> nth=0'), projects: await box(win, '.rail .ri >> nth=1'), settings: await box(win, '.ri.set') }
+    const idle = { agents: await box(win, '.rail .ri >> nth=0'), projects: await box(win, '.rail .ri >> nth=1'), settings: await anchored(win, '.ri.set') }
     await app.close()
 
     script(f, FOUND_HOLDING)
@@ -99,15 +100,18 @@ test('with no update in flight the slot takes no space; an update in flight sits
     win = await app.firstWindow()
     await expect(slot(win)).toBeVisible()
     await expect(win.locator('.rail .ri')).toHaveCount(4)
-    // The other entries do not move, and Settings stays at its bottom anchor
+    // The other entries do not move, and Settings stays at its bottom anchor. Settings is compared by its
+    // distance from the window's bottom: on Linux under xvfb two launches can get windows of different inner
+    // heights (seen on CI, 27px apart), which moves a bottom-anchored entry by exactly that much
     expect(await box(win, '.rail .ri >> nth=0')).toEqual(idle.agents)
     expect(await box(win, '.rail .ri >> nth=1')).toEqual(idle.projects)
-    expect(await box(win, '.ri.set')).toEqual(idle.settings)
+    expect(await anchored(win, '.ri.set')).toEqual(idle.settings)
     // Directly above Settings, in a 36px slot, one rail gap apart
     const s = await box(win, '[data-testid="update-slot"]')
+    const settings = await box(win, '.ri.set')
     expect([s.width, s.height]).toEqual([36, 36])
-    expect(s.x).toBe(idle.settings.x)
-    expect(idle.settings.y - (s.y + s.height)).toBe(6)
+    expect(s.x).toBe(settings.x)
+    expect(settings.y - (s.y + s.height)).toBe(6)
     await app.close()
   } finally {
     cleanup(f)
@@ -221,6 +225,37 @@ test('a failed install after the click shows the error toast, stacked with any o
     // The two stack rather than replace each other
     await expect(win.locator('.toast')).toHaveCount(2)
     await expect(slot(win)).toHaveCount(0)
+  } finally {
+    await app.close()
+    cleanup(f)
+  }
+})
+
+test('an open message goes with the button, so the button comes back without it (REQ-001/AC-04)', async () => {
+  const f = fixture()
+  script(f, { ...FOUND_READY, install: 'fail' })
+  const app = await launch(f)
+  try {
+    const win = await app.firstWindow()
+    await expect(slot(win)).toHaveAttribute('aria-label', 'Update available')
+    await slot(win).hover()
+    await expect(tip(win)).toHaveText('Update available')
+    // The install fails under the pointer: the button goes with its message open
+    await slot(win).click()
+    await expect(slot(win)).toHaveCount(0)
+    await win.mouse.move(600, 400)
+    // A second check in the same run, on the same page: a scroll or a resize would close the message
+    // anyway, so the button comes back through the real wake path (the main process's clock moved past
+    // the period, then the system's resume event)
+    script(f, FOUND_HOLDING)
+    await app.evaluate(({ powerMonitor }) => {
+      const real = Date.now
+      Date.now = () => real() + 25 * 60 * 60 * 1000
+      powerMonitor.emit('resume')
+      Date.now = real
+    })
+    await expect(slot(win)).toHaveAttribute('role', 'progressbar')
+    await expect(tip(win)).toHaveCount(0)
   } finally {
     await app.close()
     cleanup(f)
