@@ -47,7 +47,11 @@ export const CMD = {
   /** Enumerate a package's previewable files when a skill is expanded (registering the allow-list) */
   listSkillFiles: 'agentshed:list-skill-files',
   /** Read the contents of a registered file inside a skill package */
-  readSkillFile: 'agentshed:read-skill-file'
+  readSkillFile: 'agentshed:read-skill-file',
+  /** The app update lifecycle as it stands, read on mount (app-update) */
+  getUpdateState: 'agentshed:get-update-state',
+  /** The user clicked to install the ready app update (app-update::US-001/AC-04) */
+  installUpdate: 'agentshed:install-update'
 } as const
 
 export const EVT = {
@@ -57,6 +61,10 @@ export const EVT = {
   /** The application menu triggered "Settings" (ticket 13): the same operation as the rail's settings entry, with
    * the renderer switching dimension */
   menuOpenSettings: 'agentshed:menu-open-settings',
+  /** The main process pushes each step of the app update lifecycle (app-update) */
+  updateState: 'agentshed:update-state',
+  /** A one-off update event the renderer answers with a toast: a failed install (app-update::REQ-002/AC-03) */
+  updateNotice: 'agentshed:update-notice',
 } as const
 
 export interface SessionTurnArgs {
@@ -141,4 +149,5 @@ export const SYS_LANGS_ARG = '--agentshed-system-languages='
 export type { AppearanceMode, AppearanceTheme } from './appearance'
 export type { ErrorCode, ErrorParams } from './errors'
 export type { Prefs } from './prefs'
+export type { UpdateNotice, UpdateState } from './update'
 export type { Language, LanguagePreference } from './i18n'

@@ -20,7 +20,7 @@ describe('PrefsStore', () => {
       theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 60
     }))
     expect(new PrefsStore(dir).get()).toEqual({
-      theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 60
+      theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 60, autoCheckUpdates: true
     })
   })
 
@@ -29,7 +29,7 @@ describe('PrefsStore', () => {
       theme: 'amber', language: 'ja', mode: 'dark', trendSpan
     }))
     expect(new PrefsStore(dir).get()).toEqual({
-      theme: 'amber', language: 'ja', mode: 'dark', trendSpan: 30
+      theme: 'amber', language: 'ja', mode: 'dark', trendSpan: 30, autoCheckUpdates: true
     })
   })
 
@@ -43,11 +43,11 @@ describe('PrefsStore', () => {
     expect(new PrefsStore(dir).get().trendSpan).toBe(60)
   })
 
-  it('with no file: purple + follow the system language + follow the system appearance', () => {
+  it('with no file: purple + follow the system language + follow the system appearance + automatic update checks on', () => {
     expect(new PrefsStore(dir).get()).toEqual({
       theme: 'purple',
       language: 'system',
-      mode: 'system', trendSpan: 30
+      mode: 'system', trendSpan: 30, autoCheckUpdates: true
     })
   })
 
@@ -79,9 +79,9 @@ describe('PrefsStore', () => {
     const s = new PrefsStore(dir)
     s.setTheme('amber')
     s.setLanguage('ru')
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system', trendSpan: 30 })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
     s.setTheme('blue')
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ru', mode: 'system', trendSpan: 30 })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ru', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
   })
 
   it('the two "follow system" settings, language and appearance mode, do not interfere', () => {
@@ -94,7 +94,7 @@ describe('PrefsStore', () => {
     const s = new PrefsStore(dir)
     s.setMode('dark')
     s.setLanguage('ja')
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark', trendSpan: 30 })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark', trendSpan: 30, autoCheckUpdates: true })
     // Changing the language leaves mode alone
     s.setLanguage('system')
     expect(new PrefsStore(dir).get().mode).toBe('dark')
@@ -112,12 +112,12 @@ describe('PrefsStore', () => {
       join(dir, 'prefs.json'),
       JSON.stringify({ theme: 'amber', language: 'ko', mode: 'dark' })
     )
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'system', mode: 'dark', trendSpan: 30 })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'system', mode: 'dark', trendSpan: 30, autoCheckUpdates: true })
     writeFileSync(
       join(dir, 'prefs.json'),
       JSON.stringify({ theme: 'neon', language: 'ja', mode: 'dark' })
     )
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark', trendSpan: 30 })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark', trendSpan: 30, autoCheckUpdates: true })
   })
 
   it('an invalid mode degrades only mode, with the language and theme still read correctly', () => {
@@ -128,7 +128,7 @@ describe('PrefsStore', () => {
       join(dir, 'prefs.json'),
       JSON.stringify({ theme: 'amber', language: 'ru', mode: 'auto' })
     )
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system', trendSpan: 30 })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
   })
 
   it('a file holding only theme: keeps it and fills in the language and mode defaults', () => {
@@ -140,14 +140,14 @@ describe('PrefsStore', () => {
     expect(new PrefsStore(dir).get()).toEqual({
       theme: 'blue',
       language: 'system',
-      mode: 'system', trendSpan: 30
+      mode: 'system', trendSpan: 30, autoCheckUpdates: true
     })
   })
 
   it('a file holding theme + language: keeps both and fills in the mode default', () => {
     // Same point as above: this is field-level defaulting, not cross-version key compatibility
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'amber', language: 'fr' }))
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'fr', mode: 'system', trendSpan: 30 })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'fr', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
   })
 
   it('setTheme persists and all three values read back', () => {
@@ -180,7 +180,21 @@ describe('PrefsStore', () => {
     const s = new PrefsStore(dir)
     s.setTheme('blue')
     const raw = JSON.parse(readFileSync(join(dir, 'prefs.json'), 'utf8')) as Record<string, string>
-    expect(raw).toEqual({ theme: 'blue', language: 'ja', mode: 'light', trendSpan: 30 })
+    expect(raw).toEqual({ theme: 'blue', language: 'ja', mode: 'light', trendSpan: 30, autoCheckUpdates: true })
+  })
+
+  it('the automatic-checks switch persists off and back on, leaving the other preferences alone (app-update::US-002/AC-02)', () => {
+    const s = new PrefsStore(dir)
+    s.setTheme('amber')
+    s.setAutoCheckUpdates(false)
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'system', mode: 'system', trendSpan: 30, autoCheckUpdates: false })
+    s.setAutoCheckUpdates(true)
+    expect(new PrefsStore(dir).get().autoCheckUpdates).toBe(true)
+  })
+
+  it.each(['false', 0, null, 'off'])('an invalid stored switch value %s falls back to on, alone (app-update::US-002/AC-02)', (autoCheckUpdates) => {
+    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 90, autoCheckUpdates }))
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 90, autoCheckUpdates: true })
   })
 
   it('writes are atomic: no temporary file is left in the directory', () => {

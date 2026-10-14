@@ -73,6 +73,15 @@ export const zh = {
     saveLanguageFailed: '保存语言失败'
   },
 
+  /** App updates (app-update): the update button's hover text, which is also its accessible name, and the
+   * install-failure toast */
+  update: {
+    tipReady: '有可用更新',
+    tipDownloading: (percent: number) => `正在下载更新 ${percent}%`,
+    tipInstalling: '正在安装更新…',
+    installFailed: '无法安装更新'
+  },
+
   /**
    * The wording for cross-process failures (see ADR-0015). The keys correspond one to one with the error
    * codes in shared/errors.ts.

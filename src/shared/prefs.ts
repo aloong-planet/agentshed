@@ -27,13 +27,16 @@ export interface Prefs {
    * light/dark evaluated at that moment */
   mode: AppearanceMode
   trendSpan: TrendSpan
+  /** Whether automatic update checks run (app-update::US-002); on in a fresh installation */
+  autoCheckUpdates: boolean
 }
 
 export const DEFAULT_PREFS: Prefs = {
   theme: DEFAULT_THEME,
   language: DEFAULT_LANGUAGE_PREFERENCE,
   mode: DEFAULT_MODE,
-  trendSpan: TREND_WINDOW_DAYS
+  trendSpan: TREND_WINDOW_DAYS,
+  autoCheckUpdates: true
 }
 
 /**
@@ -53,9 +56,11 @@ export function parsePrefs(raw: unknown): Prefs | null {
   const language = r['language']
   const mode = r['mode']
   const trendSpan = r['trendSpan']
+  const autoCheckUpdates = r['autoCheckUpdates']
   if (!isAppearanceTheme(theme)) return null
   if (!isLanguagePreference(language)) return null
   if (!isAppearanceMode(mode)) return null
   if (!isTrendSpan(trendSpan)) return null
-  return { theme, language, mode, trendSpan }
+  if (typeof autoCheckUpdates !== 'boolean') return null
+  return { theme, language, mode, trendSpan, autoCheckUpdates }
 }

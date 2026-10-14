@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { Snapshot } from '@shared/domain'
 import type { TrendSpan } from '@shared/trend'
 import { TrendSpanContext } from './TrendSpan'
-import type { Prefs } from '@shared/prefs'
+import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
 import { backfillPrefs, type PrefKey } from './prefs-backfill'
 import { errorText } from '@shared/error-text'
 import { LanguageProvider } from './language'
@@ -25,6 +25,7 @@ import { DetailPane } from './DetailPane'
 import { SessionPane } from './SessionPane'
 import { SettingsPane } from './SettingsPane'
 import { Toasts, toast } from './Toast'
+import { UpdateSlot } from './UpdateSlot'
 import { Folder, MousePointerClick, RobotFace, Settings } from './icons'
 
 type Dim = 'agents' | 'projects' | 'settings'
@@ -77,6 +78,8 @@ export function App(): JSX.Element {
   // asynchronously is fine and does not affect the first frame
   const [langPref, setLangPref] = useState<LanguagePreference>('system')
   const [trendSpan, setTrendSpan] = useState<TrendSpan>(window.agentshed.initialTrendSpan)
+  // The automatic update checks switch (app-update::US-002); the main process reads the stored value itself
+  const [autoCheckUpdates, setAutoCheckUpdates] = useState<boolean>(DEFAULT_PREFS.autoCheckUpdates)
   const t = dictOf(lang)
   // Preferences the user has already changed by hand: the echo of the getPrefs call made at mount must
   // not overwrite them (#61).
@@ -85,9 +88,9 @@ export function App(): JSX.Element {
   // A live mirror of the preference states: the backfill happens inside an effect callback, and
   // that effect has an empty dependency list, so
   // its closure captured the values as of mount. The same use as cursorRef in LanguageSelect.
-  const prefsRef = useRef<Prefs>({ theme, language: langPref, mode, trendSpan })
+  const prefsRef = useRef<Prefs>({ theme, language: langPref, mode, trendSpan, autoCheckUpdates })
   useLayoutEffect(() => {
-    prefsRef.current = { theme, language: langPref, mode, trendSpan }
+    prefsRef.current = { theme, language: langPref, mode, trendSpan, autoCheckUpdates }
   })
   const selectProject = (p: string | null): void => {
     setSelected(p)
@@ -114,6 +117,7 @@ export function App(): JSX.Element {
       setLangPref(next.language)
       setMode(next.mode)
       setTrendSpan(next.trendSpan)
+      setAutoCheckUpdates(next.autoCheckUpdates)
     })
     let liveSnapshot = 0
     let liveStatus = false
@@ -249,13 +253,16 @@ export function App(): JSX.Element {
         >
           <Folder size={17} />
         </button>
-        <button
-          className={`ri set ${dim === 'settings' ? 'on' : ''}`}
-          title={t.rail.settings}
-          onClick={() => setDim('settings')}
-        >
-          <Settings size={17} />
-        </button>
+        <div className="rail-bottom">
+          <UpdateSlot />
+          <button
+            className={`ri set ${dim === 'settings' ? 'on' : ''}`}
+            title={t.rail.settings}
+            onClick={() => setDim('settings')}
+          >
+            <Settings size={17} />
+          </button>
+        </div>
       </nav>
       <main className="stage">
         {dim === 'settings' ? (

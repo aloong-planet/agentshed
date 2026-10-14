@@ -49,6 +49,13 @@ export const ja: Locale = {
     saveLanguageFailed: '言語の保存に失敗しました'
   },
 
+  update: {
+    tipReady: 'アップデートがあります',
+    tipDownloading: (percent: number) => `アップデートをダウンロード中 ${percent}%`,
+    tipInstalling: 'アップデートをインストール中…',
+    installFailed: 'アップデートをインストールできませんでした'
+  },
+
   skillDeepHint: 'ベストプラクティスでは skill の参照深度は 2 未満です。この skill の見直しを検討してください',
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,

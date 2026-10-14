@@ -50,6 +50,13 @@ export const en: Locale = {
     saveLanguageFailed: 'Failed to save the language'
   },
 
+  update: {
+    tipReady: 'Update available',
+    tipDownloading: (percent: number) => `Downloading update ${percent}%`,
+    tipInstalling: 'Installing update…',
+    installFailed: 'Couldn’t install the update'
+  },
+
   skillDeepHint: 'Best practice is a skill reference depth below 2 — consider restructuring this skill',
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,
