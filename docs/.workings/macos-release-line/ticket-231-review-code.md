@@ -88,14 +88,26 @@ Ticket: [#231 The settings "Updates" section](https://github.com/aloong-planet/a
     mapping from the rules' kinds to copy, read top to bottom; a table would need the version argument
     threaded through it.
 
-## Refactor list (for the owner's decision; not done)
+## Refactor list
 
-| Item | Reason | Impact | Suggested |
-|---|---|---|---|
-| One hook for "the update lifecycle in the renderer" (subscribe, read on mount, a push overtakes the read), used by the update button and the Updates section | Duplicated code: the rule that keeps a stale read from overwriting a newer push lives in two places | Self-contained (a divergence would show a stale state in one surface until the next push) | Do now: two users, about fifteen lines |
-| `SettingsChecks.check()` resets `checking` in a `finally` | A rejected check would leave "Check now" unavailable for the run | Self-harm (the settings row only); unreachable today | Do now: two lines |
+| Item | Reason | Impact | Suggested | Owner's decision |
+|---|---|---|---|---|
+| One hook for "the update lifecycle in the renderer" (subscribe, read on mount, a push overtakes the read), used by the update button and the Updates section | Duplicated code: the rule that keeps a stale read from overwriting a newer push lives in two places | Self-contained (a divergence would show a stale state in one surface until the next push) | Do now: two users, about fifteen lines | Do it (2026-10-14). Done, below |
+| `SettingsChecks.check()` resets `checking` in a `finally` | A rejected check would leave "Check now" unavailable for the run | Self-harm (the settings row only); unreachable today | Do now: two lines | Do it (2026-10-14). Done, below |
+
+### The two refactors (done 2026-10-14)
+
+- `useUpdateState(onPush?)` holds the rule; the update button passes its tooltip reset as `onPush` (the reset
+  must run on the push itself, which is why it is a callback rather than an effect on the state), and the
+  Updates section takes the state alone. Every renderer use of the lifecycle channels, searched: only the
+  hook (e2e polls them, which is reading, not subscribing). Settings' check record keeps its own
+  subscription in the Updates section, its one user, and says it follows the same rule.
+- `SettingsChecks.check()` resets `checking` in a `finally`; a rejected check still rejects to the request
+  that asked, with the outcome unchanged.
+- Safety net: the existing cases on both surfaces; a new unit case for the rejected check (red first); the
+  hook's push callback removed → the tooltip case red.
 
 ## Conclusion
 
-No bug found. Two spec departures to write back, two refactor items for the owner, the rest holds: typecheck,
+No bug found. Two spec departures written back; both refactor items done at the owner's request. The rest holds: typecheck,
 lint, 821 unit tests and 128 e2e (24 new) pass in `pnpm verify`.

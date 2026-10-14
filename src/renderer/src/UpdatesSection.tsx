@@ -7,9 +7,10 @@
 // What the line and the button show is decided by version-row.ts; settings' own check and its outcome are
 // kept by the main process for the run, so leaving the page and coming back keeps them (REQ-004/AC-03).
 import { useEffect, useState, type JSX } from 'react'
-import { IDLE_UPDATE, type SettingsCheck, type UpdateState } from '@shared/update'
+import type { SettingsCheck } from '@shared/update'
 import { dictOf } from '@shared/i18n'
 import { useLanguage } from './language'
+import { useUpdateState } from './useUpdateState'
 import { versionButton, versionLine } from './version-row'
 
 const NO_CHECK: SettingsCheck = { checking: false, outcome: null }
@@ -25,32 +26,23 @@ export function UpdatesSection({
   const t = dictOf(lang).settings
   const tu = dictOf(lang).update
   const available = window.agentshed.updatesAvailable
-  const [update, setUpdate] = useState<UpdateState>(IDLE_UPDATE)
+  const update = useUpdateState()
   const [check, setCheck] = useState<SettingsCheck>(NO_CHECK)
 
   useEffect(() => {
     let alive = true
-    let pushedUpdate = false
-    let pushedCheck = false
-    const offUpdate = window.agentshed.onUpdateState((s) => {
-      pushedUpdate = true
-      setUpdate(s)
-    })
-    const offCheck = window.agentshed.onSettingsCheck((c) => {
-      pushedCheck = true
+    let pushed = false
+    const off = window.agentshed.onSettingsCheck((c) => {
+      pushed = true
       setCheck(c)
     })
-    // The reads on mount answer only if no push has overtaken them: a push is always the newer state
-    void window.agentshed.getUpdateState().then((s) => {
-      if (alive && !pushedUpdate) setUpdate(s)
-    })
+    // As for the lifecycle (useUpdateState): the read on mount answers only if no push has overtaken it
     void window.agentshed.getSettingsCheck().then((c) => {
-      if (alive && !pushedCheck) setCheck(c)
+      if (alive && !pushed) setCheck(c)
     })
     return () => {
       alive = false
-      offUpdate()
-      offCheck()
+      off()
     }
   }, [])
 

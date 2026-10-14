@@ -118,4 +118,14 @@ describe('SettingsChecks', () => {
     await asked
     expect(h.checks.state()).toEqual({ checking: false, outcome: null })
   })
+
+  it('a check that rejects still ends its "checking", so "Check now" is not left unavailable for the run', async () => {
+    const failing = new SettingsChecks({
+      check: () => Promise.reject(new Error('the controller broke its contract')),
+      publish: () => {},
+      firstRunAfterUpdate: true
+    })
+    await expect(failing.check()).rejects.toThrow('the controller broke its contract')
+    expect(failing.state()).toEqual({ checking: false, outcome: 'upToDate' })
+  })
 })

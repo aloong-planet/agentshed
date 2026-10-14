@@ -27,9 +27,15 @@ export class SettingsChecks {
   /** "Check now" in settings */
   async check(): Promise<CheckOutcome> {
     this.set({ ...this.current, checking: true })
-    const outcome = await this.deps.check()
-    this.set({ checking: false, outcome: lineOutcome(outcome) })
-    return outcome
+    try {
+      const outcome = await this.deps.check()
+      this.set({ checking: false, outcome: lineOutcome(outcome) })
+      return outcome
+    } finally {
+      // The controller's check answers every failure with an outcome; should it ever reject instead, the
+      // button must not stay unavailable for the rest of the run
+      if (this.current.checking) this.set({ ...this.current, checking: false })
+    }
   }
 
   /**

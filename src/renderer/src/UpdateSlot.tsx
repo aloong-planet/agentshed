@@ -7,12 +7,13 @@
 // positioning escapes clipping, and the shared hook dismisses it when a scroll or a resize makes its
 // measured position stale. It is instant, because the native title waits about a second.
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
-import { IDLE_UPDATE, isUpdateInFlight, type UpdateState } from '@shared/update'
+import { isUpdateInFlight } from '@shared/update'
 import { dictOf } from '@shared/i18n'
 import { FloatingBox, type FloatingAt } from './FloatingBox'
 import { useAnchorInvalidation } from './useAnchorInvalidation'
 import { Download, LoaderCircle } from './icons'
 import { useLanguage } from './language'
+import { useUpdateState } from './useUpdateState'
 import { toast } from './Toast'
 
 /** The download's progress, drawn as a ring inside the filled circle (Codex draws one there too) */
@@ -41,8 +42,11 @@ function Ring({ percent }: { percent: number }): JSX.Element {
 export function UpdateSlot(): JSX.Element | null {
   const lang = useLanguage()
   const t = dictOf(lang).update
-  const [state, setState] = useState<UpdateState>(IDLE_UPDATE)
   const [tipAt, setTipAt] = useState<FloatingAt | null>(null)
+  const state = useUpdateState((s) => {
+    // The slot goes when the update does, and an open message goes with it
+    if (!isUpdateInFlight(s.phase)) setTipAt(null)
+  })
   const anchor = useRef<HTMLElement | null>(null)
   const layer = useRef<HTMLDivElement | null>(null)
   // The notice arrives on an event subscribed once at mount; it must answer in the language of the moment
@@ -51,26 +55,7 @@ export function UpdateSlot(): JSX.Element | null {
     langRef.current = lang
   })
 
-  useEffect(() => {
-    let alive = true
-    let pushed = false
-    const off = window.agentshed.onUpdateState((s) => {
-      pushed = true
-      setState(s)
-      // The slot goes when the update does, and an open message goes with it
-      if (!isUpdateInFlight(s.phase)) setTipAt(null)
-    })
-    // The read on mount answers only if no push has overtaken it: a push is always the newer state
-    void window.agentshed.getUpdateState().then((s) => {
-      if (alive && !pushed) setState(s)
-    })
-    const offNotice = window.agentshed.onUpdateNotice(() => toast('err', dictOf(langRef.current).update.installFailed))
-    return () => {
-      alive = false
-      off()
-      offNotice()
-    }
-  }, [])
+  useEffect(() => window.agentshed.onUpdateNotice(() => toast('err', dictOf(langRef.current).update.installFailed)), [])
 
   const phase = state.phase
   const shown = isUpdateInFlight(phase)

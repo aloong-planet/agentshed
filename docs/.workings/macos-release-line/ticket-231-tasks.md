@@ -30,3 +30,4 @@ switch's save-failure toast, which uses the existing save-failure toast of every
 | 12 | Spec final check and archive (step 7) | spec matches the implementation | done: spec Implementation Decisions written back; CONTEXT invariant added; no ADR needed |
 | 13 | Step 8: /features-catalog | app-update feature entry; regression record | done: app-update entry extended; final-regression.md #231 section |
 | 14 | Document sync, PR, stop for the owner | PR link | open |
+| 15 | The owner-confirmed refactors: one renderer hook for the update lifecycle; settings' check resets `checking` in a `finally` | the existing cases; a rejected-check case red first; a mutation of the hook's push callback; `pnpm verify` exit 0 | done: both; the rejected-check case red first; the hook's push callback dropped turns the tooltip case red; `pnpm verify` exit 0 (822 unit, 129 e2e, smoke OK) |

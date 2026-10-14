@@ -5,7 +5,7 @@ Ticket: [#231 The settings "Updates" section](https://github.com/aloong-planet/a
 
 - Date: 2026-10-14
 - Version: branch `feat/settings-updates` on dab4da4, uncommitted working tree, after the code review
-- Scope: `src/main/run-version.test.ts` (12), `src/main/settings-check.test.ts` (9), the switch's case in
+- Scope: `src/main/run-version.test.ts` (12), `src/main/settings-check.test.ts` (10, the last added with the owner-confirmed refactor, red first), the switch's case in
   `src/main/prefs-handlers.test.ts`, the two parsers' cases in `src/shared/update.test.ts` (4),
   `src/renderer/src/version-row.test.ts` (6), the accepted list in `src/shared/i18n/distinctions.test.ts`, and
   `e2e/settings-updates.spec.ts` (24), and the case added to `e2e/app-update.spec.ts` for #230's gap
@@ -97,6 +97,7 @@ compared byte for byte, e2e mutations built before running):
 | e2e G4 restored | (test side) no saved display | the project row not shown within 3 s |
 | QR-001/AC-02 measurement | an English label too long; an English result line too long | "rows spill"; "result line: 2" |
 | e2e (#230's gap) message goes with the button | the slot keeps its message when the update goes | **first survived** through settings (see Gaps); red through the wake path |
+| e2e message goes with the button, after the refactor | the shared hook's push callback dropped | red ("Expected: 0, Received: 1") |
 
 Found and fixed in this review:
 
