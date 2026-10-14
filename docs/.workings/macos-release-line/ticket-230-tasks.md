@@ -21,4 +21,5 @@ Automatic app updates with the update button. Working record, not a requirement 
 | 14 | Spec final check and archive (step 7) | spec matches the implementation | done: spec Implementation Decisions written back; B3 corrected; no ADR or CONTEXT change needed |
 | 15 | Step 8: /features-catalog (feature entry app-update) | `docs/features/app-update.md`, regression record | done: docs/features/app-update.md and its index rows; final-regression.md #230 section |
 | 16 | Evidence: a locally packaged build reaches GitHub through the bundled updater and stays silent when no release exists | command output kept | done: evidence/ticket-230/packaged-run.txt — the bundled updater read the GitHub feed, found no release, and the check failed silently |
-| 17 | Document sync checklist re-checked; PR opened; stop for the owner | PR link | open |
+| 17 | Document sync checklist re-checked; PR opened; stop for the owner | PR link | done: PR #243; CI green after 2cd591a |
+| 18 | The owner-confirmed refactor: one in-flight predicate for the four call sites, before merging | typecheck, lint, the existing tests; a mutation per site; `pnpm verify` exit 0 | done: four sites on `isUpdateInFlight`; three mutations, two caught and one unreachable site stated as a gap (test review); `pnpm verify` exit 0 (789 unit, 104 e2e, smoke OK) |

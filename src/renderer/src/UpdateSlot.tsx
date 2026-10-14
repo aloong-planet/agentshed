@@ -7,7 +7,7 @@
 // positioning escapes clipping, and the shared hook dismisses it when a scroll or a resize makes its
 // measured position stale. It is instant, because the native title waits about a second.
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
-import { IDLE_UPDATE, type UpdateState } from '@shared/update'
+import { IDLE_UPDATE, isUpdateInFlight, type UpdateState } from '@shared/update'
 import { dictOf } from '@shared/i18n'
 import { FloatingBox, type FloatingAt } from './FloatingBox'
 import { useAnchorInvalidation } from './useAnchorInvalidation'
@@ -58,7 +58,7 @@ export function UpdateSlot(): JSX.Element | null {
       pushed = true
       setState(s)
       // The slot goes when the update does, and an open message goes with it
-      if (s.phase !== 'downloading' && s.phase !== 'ready' && s.phase !== 'installing') setTipAt(null)
+      if (!isUpdateInFlight(s.phase)) setTipAt(null)
     })
     // The read on mount answers only if no push has overtaken it: a push is always the newer state
     void window.agentshed.getUpdateState().then((s) => {
@@ -73,7 +73,7 @@ export function UpdateSlot(): JSX.Element | null {
   }, [])
 
   const phase = state.phase
-  const shown = phase === 'downloading' || phase === 'ready' || phase === 'installing'
+  const shown = isUpdateInFlight(phase)
   const label = phase === 'ready' ? t.tipReady : phase === 'downloading' ? t.tipDownloading(state.progress) : t.tipInstalling
 
   const place = (): void => {

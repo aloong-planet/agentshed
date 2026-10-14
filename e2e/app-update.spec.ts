@@ -5,6 +5,11 @@ import type {} from '../src/renderer/src/env'
 // in for "packaged", so the lifecycle runs in this unpackaged build. What it cannot reach is the real
 // electron-updater ↔ GitHub ↔ system updater path and the restart itself: accepted by evidence once two
 // releases exist.
+//
+// Not reachable yet: an open message closes with the slot when the update goes, so the slot does not come
+// back with it open. Seeing that needs a second check in one run, after the slot went with its message open
+// (a failed install, say); the launch check is the only one an e2e can make until settings can check now
+// (app-update::US-003), and the case belongs with that surface.
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'

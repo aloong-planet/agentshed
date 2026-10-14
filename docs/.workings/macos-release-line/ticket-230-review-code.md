@@ -5,7 +5,7 @@ Ticket: [#230 Automatic app updates with the update button](https://github.com/a
 
 - Date: 2026-10-14
 - Version: branch `feat/app-update-button` on 5911d52, uncommitted working tree (the change as it will be
-  committed for this ticket's PR)
+  committed for this ticket's PR); the owner-confirmed refactor below on top of 2cd591a
 - Scope: every file this ticket changes — the update controller and sources, the update contract, the
   automatic-checks preference, the IPC channels and preload, the main-process wiring, the rail's bottom
   group and update slot, icons, dictionaries, theme styles, the regenerated prototype icon file, and the
@@ -94,15 +94,34 @@ Findings:
     check, the controller, the slot twice). See the refactor list.
   - Duplicated code: the slot's two element branches repeat the anchor ref and tooltip. See the refactor list.
 
-## Refactor list (for the owner's decision; not done)
+## Refactor list
 
-| Item | Reason | Impact | Suggested |
-|---|---|---|---|
-| One predicate for "an update in flight" (downloading, ready or installing) in the contract module, used by the controller and the slot | Repeated switches; a fourth phase would need four edits | Self-contained (a missed edit misreports only the update slot) | Do now, before #231 adds a fifth use |
-| Keep one element for the slot across phases, or move focus when the element changes | When focus sits on the downloading slot and it becomes the ready button, focus is lost and an open tooltip stays until the pointer moves | Self-contained (the tooltip's text stays right) | Not doing: rare, and the form is the confirmed prototype's |
+| Item | Reason | Impact | Suggested | Owner's decision |
+|---|---|---|---|---|
+| One predicate for "an update in flight" (downloading, ready or installing) in the contract module, used by the controller and the slot | Repeated switches; a fourth phase would need four edits | Self-contained (a missed edit misreports only the update slot) | Do now, before #231 adds a fifth use | Do it, and merge after it (the owner, 2026-10-14, in conversation: the refactor is needed; merge once it is done). Done, below |
+| Keep one element for the slot across phases, or move focus when the element changes | When focus sits on the downloading slot and it becomes the ready button, focus is lost and an open tooltip stays until the pointer moves | Self-contained (the tooltip's text stays right) | Not doing: rare, and the form is the confirmed prototype's | Not asked separately; stays not done |
+
+### The in-flight predicate (done 2026-10-14)
+
+`isUpdateInFlight(phase)` in the update contract, named after the spec's "update in flight"
+(app-update::REQ-004/AC-02, REQ-006/AC-03); its comment cites the units it serves. Every instance replaced,
+enumerated by a search over the non-test sources for the three phases' literals (the search hits the
+predicate's own body, so it read the files):
+
+| Instance | Now |
+|---|---|
+| The contract's version/phase consistency check | the predicate |
+| The controller's "no request while an update is in flight" | the predicate; its `phase` local, used only there, removed |
+| The slot's tooltip dismissal when the update goes | the predicate |
+| The slot's visibility | the predicate |
+
+The remaining hits are single-phase checks (`!== 'downloading'` for progress, `=== 'ready'` for the
+button and for install), which ask a different question. No behaviour change: typecheck and lint clean;
+the safety net is the existing tests, each call site proven by a mutation in the test review.
 
 ## Conclusion
 
 Two bugs fixed (the unobserved cancelled download, with a test; ready before Squirrel staged the package,
-by reading the library's source — no test can reach it). The refactor list awaits the owner. Typecheck,
+by reading the library's source — no test can reach it). The owner confirmed the in-flight predicate; it is
+done, and the other refactor item stays not done. Typecheck,
 lint and the controller's tests are green after the fixes; the full gateway runs again before delivery.

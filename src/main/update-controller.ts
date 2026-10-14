@@ -1,6 +1,6 @@
 // The update controller (docs/specs/app-update.md, Implementation Decisions): the one owner of the app
 // update lifecycle, and the only thing that talks to the update source.
-import { IDLE_UPDATE, isReleaseVersion, type CheckOutcome, type UpdateNotice, type UpdateState } from '@shared/update'
+import { IDLE_UPDATE, isReleaseVersion, isUpdateInFlight, type CheckOutcome, type UpdateNotice, type UpdateState } from '@shared/update'
 
 /** An app update the source found; its download has already started (automatic download, ADR-0032) */
 export interface FoundUpdate {
@@ -66,9 +66,8 @@ export class UpdateController {
   check(): Promise<CheckOutcome> {
     const source = this.deps.source
     if (!source) return Promise.resolve({ kind: 'unavailable' })
-    const phase = this.current.phase
     // An update on its way or waiting is installed first: no request, no second download (REQ-006/AC-03)
-    if (phase === 'downloading' || phase === 'ready' || phase === 'installing') {
+    if (isUpdateInFlight(this.current.phase)) {
       return Promise.resolve({ kind: 'inFlight', state: this.current })
     }
     if (this.pending) return this.pending

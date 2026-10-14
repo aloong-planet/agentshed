@@ -86,6 +86,22 @@ file was restored by copy and compared byte for byte; e2e mutations were built b
 | e2e ready icon | the loader drawn instead | the loader's path |
 | e2e toasts stack | each toast replaces the last | never two toasts |
 
+The in-flight predicate (2026-10-14, the code review's confirmed refactor) moved four call sites onto one
+function, with no new case: the existing cases are its safety net, so each site was mutated to see that net
+hold (same procedure as above; the slot's mutations were built before running):
+
+| Site | Mutation | Red as |
+|---|---|---|
+| The predicate itself (contract and controller) | `ready` left out | the contract refuses a ready state with a version; the controller's in-flight case hangs at its ready check, because the check now asks the source, which the case never answers |
+| The slot's visibility | negated | all 11 e2e cases |
+| The slot's tooltip dismissal when the update goes | never dismisses | **nothing**: survives |
+
+The survivor is a gap, not a false green: the line keeps a message closed when the slot comes back after
+going with its message open, and the slot comes back only with a second check in the same run. Under this
+ticket the launch check is the only one an e2e can make (the next is 24 hours away), so no case can reach
+it. Condition: settings' manual check (app-update::US-003); the case belongs with that surface, and the
+e2e file's header says so.
+
 The other cases went red first for the reason they test (recorded in the task list). The e2e colour case
 first failed because Playwright pinned the light appearance — the evidence was wrong, not the code; it now
 launches with `colorScheme: null` and waits for the media query to report the mode.
@@ -102,4 +118,6 @@ No assertion inside a callback that may not run, no unawaited assertion, no loop
 ## Conclusion
 
 Coverage complete for #230's own items, with the real-path gaps stated and owned by #240. Three cases
-added, twelve mutations caught. No false green found.
+added, twelve mutations caught. No false green found. After the in-flight refactor, three more mutations:
+two caught; one line (the tooltip closing with the slot) is unreachable until a second check can run in
+one session, stated as a gap with its condition.

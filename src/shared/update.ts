@@ -19,6 +19,14 @@ export interface UpdateState {
 
 export const IDLE_UPDATE: UpdateState = { phase: 'idle', version: null, progress: 0 }
 
+/**
+ * An update in flight: downloading, ready or installing. Only these phases carry a version, show the rail's
+ * update button (app-update::REQ-001/AC-01), and answer a check without a request (REQ-006/AC-03).
+ */
+export function isUpdateInFlight(phase: UpdatePhase): boolean {
+  return phase === 'downloading' || phase === 'ready' || phase === 'installing'
+}
+
 /** A one-off event the renderer answers with a toast: a failed install after the user clicked to install */
 export interface UpdateNotice {
   code: 'installFailed'
@@ -58,9 +66,8 @@ export function parseUpdateState(raw: unknown): UpdateState | null {
   if (version !== null && !isReleaseVersion(version)) return null
   if (typeof progress !== 'number' || !Number.isInteger(progress) || progress < 0 || progress > 100) return null
   const p = phase as UpdatePhase
-  // A version belongs to exactly the phases that have an update in hand
-  const hasUpdate = p === 'downloading' || p === 'ready' || p === 'installing'
-  if (hasUpdate !== (version !== null)) return null
+  // A version belongs to exactly the phases with an update in flight
+  if (isUpdateInFlight(p) !== (version !== null)) return null
   return { phase: p, version, progress }
 }
 
