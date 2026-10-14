@@ -3,15 +3,15 @@ import { describe, it, expect } from 'vitest'
 import type { Prefs } from '@shared/prefs'
 import { backfillPrefs, type PrefKey } from './prefs-backfill'
 
-const DEFAULTS: Prefs = { theme: 'purple', language: 'system', mode: 'system', trendSpan: 30 }
+const DEFAULTS: Prefs = { theme: 'purple', language: 'system', mode: 'system', trendSpan: 30, autoCheckUpdates: true }
 /** The values on disk (what the getPrefs call at mount read) */
-const ON_DISK: Prefs = { theme: 'blue', language: 'fr', mode: 'light', trendSpan: 60 }
+const ON_DISK: Prefs = { theme: 'blue', language: 'fr', mode: 'light', trendSpan: 60, autoCheckUpdates: false }
 const touched = (...keys: PrefKey[]): ReadonlySet<PrefKey> => new Set(keys)
 
 describe('backfillPrefs', () => {
   it('a late initial read preserves a newer span and backfills unrelated preferences', () => {
     expect(backfillPrefs({ ...DEFAULTS, trendSpan: 90 }, ON_DISK, touched('trendSpan'))).toEqual({
-      theme: 'blue', language: 'fr', mode: 'light', trendSpan: 90
+      theme: 'blue', language: 'fr', mode: 'light', trendSpan: 90, autoCheckUpdates: false
     })
   })
 
@@ -40,13 +40,13 @@ describe('backfillPrefs', () => {
     expect(backfillPrefs(local, ON_DISK, touched('mode'))).toEqual({
       theme: 'blue',
       language: 'fr',
-      mode: 'dark', trendSpan: 60
+      mode: 'dark', trendSpan: 60, autoCheckUpdates: false
     })
   })
 
   it('with all fields touched, none of the echo is taken', () => {
-    const local: Prefs = { theme: 'amber', language: 'ja', mode: 'dark', trendSpan: 90 }
-    expect(backfillPrefs(local, ON_DISK, touched('theme', 'language', 'mode', 'trendSpan'))).toEqual(local)
+    const local: Prefs = { theme: 'amber', language: 'ja', mode: 'dark', trendSpan: 90, autoCheckUpdates: true }
+    expect(backfillPrefs(local, ON_DISK, touched('theme', 'language', 'mode', 'trendSpan', 'autoCheckUpdates'))).toEqual(local)
   })
 
   it('the fields are independent: touching the theme does not affect the language or mode backfill', () => {
@@ -54,7 +54,7 @@ describe('backfillPrefs', () => {
     expect(backfillPrefs(local, ON_DISK, touched('theme'))).toEqual({
       theme: 'amber',
       language: 'fr',
-      mode: 'light', trendSpan: 60
+      mode: 'light', trendSpan: 60, autoCheckUpdates: false
     })
   })
 

@@ -25,6 +25,7 @@ import {
   validateSearchResult
 } from '@shared/validate'
 import { parsePrefs } from '@shared/prefs'
+import { parseUpdateNotice, parseUpdateState, type UpdateNotice, type UpdateState } from '@shared/update'
 import { ERR, appError } from '@shared/errors'
 import { FALLBACK_LANGUAGE, isLanguage, type Language } from '@shared/i18n'
 import { isTrendSpan, TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'
@@ -42,6 +43,12 @@ function checkedPrefs(raw: unknown): Prefs {
   const p = parsePrefs(raw)
   if (!p) throw appError(ERR.contractType, { path: 'prefs', expect: 'Prefs' })
   return p
+}
+
+function checkedUpdate(raw: unknown): UpdateState {
+  const s = parseUpdateState(raw)
+  if (!s) throw appError(ERR.contractType, { path: 'updateState', expect: 'UpdateState' })
+  return s
 }
 
 
@@ -159,6 +166,22 @@ const api = {
     const l = (): void => cb()
     ipcRenderer.on(EVT.menuOpenSettings, l)
     return () => ipcRenderer.removeListener(EVT.menuOpenSettings, l)
+  },
+  /** The app update lifecycle (app-update): validated here as the other payloads are */
+  getUpdateState: async (): Promise<UpdateState> => checkedUpdate(await ipcRenderer.invoke(CMD.getUpdateState)),
+  installUpdate: (): Promise<void> => ipcRenderer.invoke(CMD.installUpdate),
+  onUpdateState: (cb: (state: UpdateState) => void): (() => void) => {
+    const listener = (_e: unknown, state: unknown): void => cb(checkedUpdate(state))
+    ipcRenderer.on(EVT.updateState, listener)
+    return () => ipcRenderer.removeListener(EVT.updateState, listener)
+  },
+  onUpdateNotice: (cb: (notice: UpdateNotice) => void): (() => void) => {
+    const listener = (_e: unknown, notice: unknown): void => {
+      const n = parseUpdateNotice(notice)
+      if (n) cb(n)
+    }
+    ipcRenderer.on(EVT.updateNotice, listener)
+    return () => ipcRenderer.removeListener(EVT.updateNotice, listener)
   },
   onSnapshot: (cb: (snap: Snapshot) => void): (() => void) => {
     const listener = (_e: unknown, snap: unknown): void => cb(checked(snap))

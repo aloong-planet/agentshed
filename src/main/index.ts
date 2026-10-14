@@ -2,7 +2,7 @@ import { ReadRegistry } from './read-registrations'
 import { DisplayStore } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, regularTarget } from './source-identity'
 import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
-import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeImage, nativeTheme, protocol, session, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -47,6 +47,9 @@ import { ERR, appError } from '@shared/errors'
 import { effectiveLanguage, type Language } from '@shared/i18n'
 import { LANG_ARG, SYS_LANGS_ARG, TREND_SPAN_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
+import { IDLE_UPDATE, parseUpdateState, type UpdateNotice, type UpdateState } from '@shared/update'
+import { UpdateController } from './update-controller'
+import { chooseUpdateSource, electronUpdateSource, scriptedUpdateSource } from './update-source'
 import { systemPreferredLanguages } from './system-language'
 import {
   listSkillPackageFiles,
@@ -93,6 +96,7 @@ if (QUIET) {
 
 let mainWindow: BrowserWindow | null = null
 let prefsStore: PrefsStore | null = null
+let updates: UpdateController | null = null
 let tokenEngine: TokenEngine | null = null
 let parsePool: ParsePool | null = null
 let archive: UsageArchive | null = null
@@ -523,6 +527,11 @@ handle(CMD.setLanguage, (_e, language: unknown) => {
 })
 handle(CMD.setTrendSpan, (_e, span: unknown) => prefsHandlers.setTrendSpan(span))
 handle(CMD.setMode, (_e, mode: unknown) => prefsHandlers.setMode(mode))
+// App updates (app-update): the controller owns the lifecycle; these only read it and pass on the click
+handle(CMD.getUpdateState, (): UpdateState => updates?.state() ?? IDLE_UPDATE)
+handle(CMD.installUpdate, () => {
+  updates?.install()
+})
 const PRELOAD = join(__dirname, '../preload/index.cjs')
 
 /** Rebuild the application menu in the currently effective language; must be called again after a
@@ -633,6 +642,7 @@ void app.whenReady().then(() => {
   createWindow()
   applyMenu()
   void doScan().catch((error: unknown) => console.error('[startup] scan failed:', error))
+  startUpdates()
   // Automatic snapshot refresh (token-stats sequence E) — since the manual control was removed
   // (2026-08-23) this is the **only** way a running window gets fresh data: focus (throttled) + a timed
   // backstop, both going through doScan, whose in-flight deduplication keeps two triggers that coincide
@@ -657,6 +667,36 @@ void app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+/**
+ * App updates (ADR-0032, as amended): one check at launch and one every 24 hours while the switch allows,
+ * a found update downloading in the background, and the lifecycle pushed to the renderer. A development
+ * run has no source and never checks; the e2e seam declares a scripted one (see chooseUpdateSource).
+ */
+function startUpdates(): void {
+  const choice = chooseUpdateSource({ packaged: app.isPackaged, env: process.env })
+  const source = choice?.kind === 'scripted'
+    ? scriptedUpdateSource(choice.script)
+    : choice ? electronUpdateSource(app.getVersion()) : null
+  updates = new UpdateController({
+    source,
+    autoChecksOn: () => prefsStore?.get().autoCheckUpdates ?? DEFAULT_PREFS.autoCheckUpdates,
+    now: () => Date.now(),
+    setTimer: (fn, ms) => {
+      const timer = setTimeout(fn, ms)
+      return () => clearTimeout(timer)
+    },
+    publish: (state: UpdateState) => {
+      // Exit validation, the same rule as every other payload (ADR-0001)
+      if (!parseUpdateState(state)) throw appError(ERR.contractType, { path: 'updateState', expect: 'UpdateState' })
+      mainWindow?.webContents.send(EVT.updateState, state)
+    },
+    notify: (notice: UpdateNotice) => mainWindow?.webContents.send(EVT.updateNotice, notice)
+  })
+  updates.start()
+  // On waking from sleep, one check if one fell due meanwhile (app-update::REQ-006/AC-02)
+  powerMonitor.on('resume', () => updates?.wake())
+}
 
 app.on('window-all-closed', () => {
   // A catalogue-style tool has no background duties, so closing every window quits (macOS included)

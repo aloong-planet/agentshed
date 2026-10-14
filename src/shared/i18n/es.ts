@@ -50,6 +50,13 @@ export const es: Locale = {
     saveLanguageFailed: 'No se pudo guardar el idioma'
   },
 
+  update: {
+    tipReady: 'Actualización disponible',
+    tipDownloading: (percent: number) => `Descargando actualización ${percent} %`,
+    tipInstalling: 'Instalando actualización…',
+    installFailed: 'No se pudo instalar la actualización'
+  },
+
   skillDeepHint: 'La buena práctica es una profundidad de referencia de skill menor que 2: considera reestructurar este skill',
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,

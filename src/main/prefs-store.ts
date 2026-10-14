@@ -60,6 +60,12 @@ export class PrefsStore {
     return this.get()
   }
 
+  setAutoCheckUpdates(autoCheckUpdates: boolean): Prefs {
+    this.prefs = { ...this.prefs, autoCheckUpdates }
+    this.persist()
+    return this.get()
+  }
+
   /**
    * Reading degrades **per field**: one invalid entry falls back on its own without affecting the others.
    * This is the "degradation may only hurt itself" invariant applied to preferences — back when there was
@@ -77,11 +83,13 @@ export class PrefsStore {
       const language = r['language']
       const mode = r['mode']
       const trendSpan = r['trendSpan']
+      const autoCheckUpdates = r['autoCheckUpdates']
       return {
         theme: isAppearanceTheme(theme) ? theme : DEFAULT_THEME,
         language: isLanguagePreference(language) ? language : DEFAULT_LANGUAGE_PREFERENCE,
         mode: isAppearanceMode(mode) ? mode : DEFAULT_MODE,
-        trendSpan: isTrendSpan(trendSpan) ? trendSpan : TREND_WINDOW_DAYS
+        trendSpan: isTrendSpan(trendSpan) ? trendSpan : TREND_WINDOW_DAYS,
+        autoCheckUpdates: typeof autoCheckUpdates === 'boolean' ? autoCheckUpdates : DEFAULT_PREFS.autoCheckUpdates
       }
     } catch {
       return { ...DEFAULT_PREFS }

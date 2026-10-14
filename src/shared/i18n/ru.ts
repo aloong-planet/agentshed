@@ -50,6 +50,13 @@ export const ru: Locale = {
     saveLanguageFailed: 'Не удалось сохранить язык'
   },
 
+  update: {
+    tipReady: 'Доступно обновление',
+    tipDownloading: (percent: number) => `Загрузка обновления: ${percent}%`,
+    tipInstalling: 'Установка обновления…',
+    installFailed: 'Не удалось установить обновление'
+  },
+
   skillDeepHint: 'По рекомендациям глубина ссылок skill должна быть меньше 2 — стоит переработать этот skill',
   codexConfig: (model, projects, mcp) =>
     `model = ${model}\nprojects: ${projects}\nmcp_servers: ${mcp}`,

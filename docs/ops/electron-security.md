@@ -6,12 +6,14 @@ An **item-by-item ruling** against Electron's official "Checklist: Security reco
 verified**.
 
 - Full pass date: **2026-08-02** (Electron 43.2.0)
+- Partial re-pass: **2026-10-14**, for app updates (ADR-0032) — the main process's first outbound request
+  and two new IPC channels; items 1, 7, 17 and 20 re-checked
 - When to redo: changing the main process's window / session / protocol / IPC configuration, upgrading
   Electron's major version, or introducing a new "render someone else's content" capability
 
 | # | Item | Status here | Location / verification |
 |---|---|---|---|
-| 1 | Only load secure content | **Not applicable** | Purely local app, loads no remote content |
+| 1 | Only load secure content | **Not applicable** | The renderer loads no remote content. The app's one outbound request is the main process's update check and the download it finds, over HTTPS to GitHub Releases (ADR-0032); the package is applied only after the system updater checks its signature |
 | 2 | No nodeIntegration for remote content | ✅ Default + no remote content | `createWindow` webPreferences |
 | 3 | contextIsolation | ✅ Explicitly on | As above |
 | 4 | sandbox | ✅ Explicitly on | As above |

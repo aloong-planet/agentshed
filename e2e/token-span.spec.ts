@@ -94,8 +94,9 @@ test('global span defaults an older or invalid preference without resetting vali
       await win.locator('.side .row', { hasText: 'alpha' }).click()
       await checkSpan(win, 30, '16')
       await choice(win, 60).click()
+      // The file never held the update switch: it is written back on, the specified fallback, beside the rest
       await expect.poll(() => readPrefs(f.userData)).toEqual({
-        theme: 'blue', language: 'en', mode: 'dark', trendSpan: 60
+        theme: 'blue', language: 'en', mode: 'dark', trendSpan: 60, autoCheckUpdates: true
       })
     } finally { await app.close(); cleanup(f) }
   }
