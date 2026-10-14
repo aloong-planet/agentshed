@@ -1,0 +1,45 @@
+/* Shared: the app's navigation rail, drawn by _shared/app-rail.js on every app prototype page.
+   The rules below are the app's own (.rail, .rail .ri and .rail-bottom in src/renderer/src/theme.css), and
+   scripts/check-shared-ui.mjs fails when they drift; the items are links here rather than buttons, so they
+   also reset the link underline. The bottom group carries Settings, with a slot above it for the update
+   button the settings prototype draws there. */
+.rail {
+  width: 48px;
+  flex: none;
+  background: var(--card);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+  gap: 6px;
+}
+.rail .ri {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--text-2);
+  background: transparent;
+  text-decoration: none;
+}
+.rail .ri:hover {
+  background: var(--accent-soft);
+}
+.rail .ri.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.rail-bottom {
+  margin-top: auto;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}

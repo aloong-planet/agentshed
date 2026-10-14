@@ -15,9 +15,8 @@
 .startup-demo,[data-startup-controls]{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
 .startup-demo{color:#b8b8bf}
 .startup-demo > span{padding:0 3px;white-space:nowrap}
-.startup-demo button,.startup-demo select{font:inherit;color:#c9ccd1;background:transparent;
+.startup-demo button{font:inherit;color:#c9ccd1;background:transparent;
   border:0;border-radius:999px;padding:3px 9px;cursor:pointer;white-space:nowrap}
 .startup-demo button:hover{background:#35383e;color:#fff}
 .startup-demo button[aria-pressed="true"]{background:#4a4f57;color:#fff}
-.startup-demo select{background:#35383e;max-width:75px}
 .harness .hsep{margin:0;flex:none}

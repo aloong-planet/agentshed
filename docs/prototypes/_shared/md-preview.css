@@ -1,17 +1,19 @@
 /* The shared md-preview block: a markdown raw/preview toggle plus coloured preview typography.
-   挂载点声明 data-shared-block="md-preview"。 */
+   挂载点声明 data-shared-block="md-preview"。
+   Its colours are the app's theme tokens (_shared/theme.css), so it follows the palette and light/dark
+   the page follows; the heading steps are the app's: accent-deep → accent → --md-h3 → text-2. Only the
+   string colour in code has no token and takes a light and a dark value of its own. */
 .md-preview {
-  --md-h1: #6b4f92;
-  --md-h2: #8a67ab;
-  --md-h3: #9b7ec4;
-  --md-link: #6b4f92;
+  --md-h1: var(--accent-deep);
+  --md-h2: var(--accent);
+  --md-link: var(--accent);
   --md-code-bg: var(--bg, #f7f8f9);
   --md-code-border: var(--line, #e8eaed);
-  --md-pre-comment: #7a7884;
+  --md-pre-comment: var(--text-2);
   --md-pre-string: #2d7a4f;
-  --md-pre-kw: #6b3fa0;
-  --md-quote: #787774;
-  --md-quote-bar: #8a67ab;
+  --md-pre-kw: var(--accent-deep);
+  --md-quote: var(--text-2);
+  --md-quote-bar: var(--accent);
   --md-table-head: var(--accent-soft, #f0ebf6);
   --md-th: var(--accent-deep, #6b4f92);
   display: flex;
@@ -31,7 +33,7 @@
   flex: none;
   padding: 7px 10px;
   border-bottom: 1px solid var(--line, #e8eaed);
-  background: linear-gradient(180deg, #faf9fc 0%, var(--card, #fff) 100%);
+  background: var(--bg);
 }
 .md-preview-bar .md-preview-name {
   font-family: ui-monospace, Menlo, monospace;
@@ -74,7 +76,7 @@
 .md-preview-seg button.on {
   background: var(--card, #fff);
   color: var(--md-h1);
-  box-shadow: 0 1px 2px rgba(60, 40, 90, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 .md-preview-seg button:disabled {
   opacity: 0.4;
@@ -92,7 +94,7 @@
   line-height: 1.55;
   white-space: pre-wrap;
   color: var(--text, #37352f);
-  background: #faf9fb;
+  background: var(--bg);
 }
 .md-preview-body.preview {
   font-size: 12.5px;
@@ -184,7 +186,7 @@
   font-weight: 650;
 }
 .md-preview-body.preview p { margin: 0.45em 0; }
-.md-preview-body.preview strong { color: #4a3a62; font-weight: 650; }
+.md-preview-body.preview strong { color: var(--text); font-weight: 650; }
 .md-preview-body.preview ul,
 .md-preview-body.preview ol { margin: 0.45em 0; padding-left: 20px; }
 .md-preview-body.preview li { margin: 0.2em 0; }
@@ -219,7 +221,7 @@
   padding: 0.35em 0 0.35em 14px;
   border-left: 3px solid var(--md-quote-bar);
   color: var(--md-quote);
-  background: linear-gradient(90deg, #f7f4fb 0%, transparent 100%);
+  background: linear-gradient(90deg, var(--accent-soft) 0%, transparent 100%);
   border-radius: 0 6px 6px 0;
 }
 .md-preview-body.preview table {
@@ -259,17 +261,17 @@
 .md-preview-body.preview hr {
   border: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #d4c8e8, transparent);
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
   margin: 1.2em 0;
 }
 .md-preview-body.preview a {
   color: var(--md-link);
   text-decoration: none;
-  border-bottom: 1px solid rgba(138, 103, 171, 0.35);
+  border-bottom: 1px solid color-mix(in srgb, var(--md-link) 35%, transparent);
 }
 .md-preview-body.preview a:hover {
-  color: #543d78;
-  border-bottom-color: #543d78;
+  color: var(--accent-deep);
+  border-bottom-color: var(--accent-deep);
 }
 .md-preview-empty {
   color: var(--text-2, #787774);
@@ -277,39 +279,6 @@
   padding: 12px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .md-preview {
-    --md-h1: #c9b3ec;
-    --md-h2: #b89ad9;
-    --md-h3: #a88cc9;
-    --md-link: #c9b3ec;
-    --md-code-bg: var(--bg, #1a1b1e);
-    --md-code-border: var(--line, #2a2c30);
-    --md-pre-comment: #8b8a97;
-    --md-pre-string: #7dcea0;
-    --md-pre-kw: #c9a0e8;
-    --md-table-head: var(--accent-soft, #2c2733);
-    --md-th: var(--accent-deep, #c9b3ec);
-    --md-quote: #9b9a97;
-  }
-  .md-preview-bar {
-    background: linear-gradient(180deg, #24262a 0%, var(--card, #1f2124) 100%);
-  }
-  .md-preview-body.raw { background: #1a1b1e; }
-  /* Prototypes that have page tokens (--bg/--line) follow the page's light/dark (data-mode); a standalone
-     page without tokens keeps
-     OS 深色兜底。写死字面量会让「强制浅」下 frontmatter 仍是深底(2026-08-06 bug)。 */
-  .md-preview-body.preview .md-fm {
-    background: var(--bg, #1a1b1e);
-    border-color: var(--line, #2a2c30);
-  }
-  .md-preview-body.preview .md-fm-row {
-    border-top-color: var(--line, #2a2c30);
-  }
-  .md-preview-body.preview h1 { border-bottom-color: var(--line-strong, #34373c); }
-  .md-preview-body.preview strong { color: #e6e0f0; }
-  .md-preview-body.preview blockquote {
-    background: linear-gradient(90deg, #2c2733 0%, transparent 100%);
-  }
-  .md-preview-body.preview tbody tr:nth-child(even) td { background: var(--bg, #1a1b1e); }
+html[data-demo-mode="dark"] .md-preview {
+  --md-pre-string: #7dcea0;
 }
