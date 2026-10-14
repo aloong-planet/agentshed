@@ -37,10 +37,11 @@ electronFuses:
   # measured and work.
   grantFileProtocolExtraPrivileges: false
 
-# v1 ships macOS first as a local DMG (arm64). A local package is signed with the Developer ID Application
-# identity from the keychain and never notarised; `pnpm dist:mac:local` checks for that identity first, because
-# electron-builder skips signing without failing when it finds none, and Apple Silicon kills an unsigned build
-# at launch. Notarisation, a release line and more architectures are on the backlog.
+# macOS ships as one arm64 DMG (ADR-0031). Both packaging commands run through build/mac-packaging.cjs, the
+# electron-scaffold packaging asset (copied unmodified; docs/ops/mac-signing.md): `pnpm dist:mac:local` signs
+# with the Developer ID Application identity and never notarises, `pnpm dist:mac:release` also notarises and
+# staples the .app and the DMG. The asset checks this file at run time for the dmg target's arch list,
+# `mac.notarize: false` and the DMG name below.
 mac:
   icon: build/icon.icns
   target:
@@ -49,3 +50,13 @@ mac:
   # electron-builder notarises on its own whenever Apple credentials are in the environment; only an explicit
   # false turns that off.
   notarize: false
+  # The minimum the app declares, as the README and the landing page state (mac-distribution::REQ-001/AC-04)
+  minimumSystemVersion: '12.0'
+
+dmg:
+  # Required by the packaging asset: electron-builder's default name drops the arch of the default
+  # architecture, and every DMG has to map back to its arch
+  artifactName: ${productName}-${version}-mac-${arch}.dmg
+  # Sign the DMG itself with the Developer ID identity (electron-builder leaves DMGs unsigned otherwise); the
+  # asset fails a packaging whose DMG is unsigned, and the release profile notarizes this same file
+  sign: true
