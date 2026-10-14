@@ -69,15 +69,15 @@ checks against the header — the dmg target and arch list (listed), the output 
 name (listed), `mac.notarize: false` (listed), the app signature (the certificate, listed), the stapled app
 (release; the hook, listed), the DMG signature (**not listed**). One instance.
 
-## Findings outside this change, for the owner to place
+## Findings outside this change
 
 | Finding | Impact | Suggested | Destination |
 |---|---|---|---|
-| The asset's header omits `dmg.sign: true`, and the asset does not check it before building | Every project adopting the asset hits a failed packaging after a full build (minutes), as this one did | Add it to the header's list and to the run-time configuration check | skillshed: a comment on zhoulf1006/skillshed#18 (the open change to this asset) or a new issue — the owner's call |
-| The asset's code has three findings under this project's lint (`preserve-caught-error` in the YAML loader; two unused variables in its tests) | None at run time; they are why the copies are not linted here | Fix in the asset | Same as above |
+| The asset's header omits `dmg.sign: true`, and the asset does not check it before building | Every project adopting the asset hits a failed packaging after a full build (minutes), as this one did | Add it to the header's list and to the run-time configuration check | The owner chose a comment on zhoulf1006/skillshed#18 (2026-10-14): [posted](https://github.com/zhoulf1006/skillshed/issues/18#issuecomment-6162295063) |
+| The asset's code has three findings under this project's lint (`preserve-caught-error` in the YAML loader; two unused variables in its tests) | None at run time; they are why the copies are not linted here | Fix in the asset | Same comment |
 
 ## Conclusion
 
 One bug in this change fixed (the unsigned DMG, by configuration), one gap stated (`dist:mac:release` runs first
-in #234), one pending owner action (`.env.local`), and two asset findings for skillshed awaiting the owner's
-choice of destination.
+in #234), one pending owner action (`.env.local`), and two asset findings for skillshed, posted on
+zhoulf1006/skillshed#18 as the owner chose.

@@ -15,4 +15,6 @@ Package through the electron-scaffold asset. Working record, not a requirement a
 | 8 | Runbook `docs/ops/mac-signing.md` | review against the policy | done |
 | 9 | Full verification gateway | `pnpm verify` exit 0 | done: `pnpm verify` exit 0 (after leaving the two copies out of lint); check:lang and check:nul rerun after the last doc edits, 0 |
 | 10 | Step 5 /review-code, step 6 /review-tests, spec final check, step 7, step 8 | records | done: review records written; spec Implementation Decisions written back; step 8 skipped by its two questions (no feature entry states anything this changes; the mac-distribution entry is written with the first release, #239) |
-| 11 | Document sync, PR, stop for the owner | PR link | open |
+| 11 | Document sync, PR, stop for the owner | PR link | done: PR #244; CI green (run 38444583938) |
+| 12 | After #243 merged: merge main into the branch (no force push), check the lockfile, re-verify, package again | `pnpm install --frozen-lockfile`; `pnpm verify`; packaging evidence | done: merged without conflicts (496287b); the frozen install passed (electron-updater 6.8.9, electron-builder 26.17.0); `pnpm verify` exit 0; `dist:mac:local` signed and gated the app with the updater inside (evidence/ticket-233/local-packaging-merged.txt) |
+| 13 | The two asset findings to skillshed (the owner chose a comment on zhoulf1006/skillshed#18) | comment link | done: https://github.com/zhoulf1006/skillshed/issues/18#issuecomment-6162295063 |
