@@ -78,7 +78,7 @@ file was restored by copy and compared byte for byte; e2e mutations were built b
 | contract refuses version in the wrong phase | phase/version check dropped | downloading without a version accepted |
 | sleep → one check | wake checks without re-arming | 3 checks instead of 2 |
 | development run | `checking` published before the source check | a state published |
-| e2e Settings anchor | bottom group's auto margin removed | rects differ |
+| e2e Settings anchor | bottom group's auto margin removed | rects differ (since #231: Settings measured from the window's bottom, the absolute y having flaked on Linux; re-proven there) |
 | e2e switch off → no request | switch always on | a request recorded |
 | e2e language switch | slot copy pinned to English | English text in a French UI |
 | e2e reduced motion | the media rule removed | `upd-spin` instead of `none` |

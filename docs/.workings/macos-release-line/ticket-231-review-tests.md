@@ -109,6 +109,14 @@ Found and fixed in this review:
   (not the element's height, which flex stretch would mask); the row overflow is measured on the block-level
   row, which does not size to its content — both shown able to fail by the two dictionary mutations above.
 
+Found by CI (2026-10-14, PR #246's first run, Linux under xvfb) and fixed: #230's geometry case ("… Settings
+keeps its place") compared Settings' absolute y across two launches. On Linux two launches can get windows of
+different inner heights; the top entries matched while Settings, anchored to the bottom, sat 27px higher (674
+→ 647). The same failure had already hit main's run on d262cdc, while the next main run passed: a flake in
+#230's case, not a change here. It now compares Settings by its distance from the window's bottom, and the
+slot against Settings in the same launch. Re-proven: with the bottom group's auto margin removed it goes red
+("fromBottom" 594 → 552, the slot's 36px plus the 6px gap).
+
 The distinctions test's accepted list grew by five pairs (French "Activé" / "Désactivé"). The list is the
 test's own form — pairs with a reason each — and an accepted pair applies to every language; the reason given
 holds for any language that uses one word for "on" and "enabled".
