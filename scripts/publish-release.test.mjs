@@ -12,7 +12,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { ghReleases, main, publishRelease } from './publish-release.mjs'
@@ -60,15 +60,20 @@ function fakeReleases(initial = [], { loseUploads = 0, corruptDigest = false } =
   }
 }
 
-/** A gate artifact directory: the DMGs and the notary logs the gate job uploads */
-function artifactDir(names) {
+/**
+ * The gate job's artifact as the publish job downloads it: the version's directory with its DMGs and notary logs
+ * (the layout of run 39125515039's artifact, `0.1.0/Agentshed-0.1.0-mac-arm64.dmg`; upload-artifact roots it at
+ * `release/`, the part of the paths before the first wildcard)
+ */
+function artifactDir(version, names) {
   const dir = mkdtempSync(join(tmpdir(), 'publish-release-'))
-  for (const name of names) writeFileSync(join(dir, name), `bytes of ${name}`)
+  mkdirSync(join(dir, version))
+  for (const name of names) writeFileSync(join(dir, version, name), `bytes of ${name}`)
   return dir
 }
 
 test('a formal tag publishes the whole set once, titled for a release, marked Latest', (t) => {
-  const dir = artifactDir(['Agentshed-0.2.0-mac-arm64.dmg', 'Agentshed-0.2.0-mac-arm64.dmg.notary-log.json', 'Agentshed-0.2.0-mac-arm64.app.notary-log.json'])
+  const dir = artifactDir('0.2.0', ['Agentshed-0.2.0-mac-arm64.dmg', 'Agentshed-0.2.0-mac-arm64.dmg.notary-log.json', 'Agentshed-0.2.0-mac-arm64.app.notary-log.json'])
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const store = fakeReleases()
   publishRelease({ dir, tag: 'v0.2.0', prerelease: false, releases: store, log: () => {} })
@@ -86,7 +91,7 @@ test('a formal tag publishes the whole set once, titled for a release, marked La
 })
 
 test('a pre-release tag after a formal release is published as a pre-release, and Latest stays on the formal one', (t) => {
-  const dir = artifactDir(['Agentshed-0.3.0-beta.2-mac-arm64.dmg'])
+  const dir = artifactDir('0.3.0-beta.2', ['Agentshed-0.3.0-beta.2-mac-arm64.dmg'])
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const formal = { tag: 'v0.2.0', title: 'v0.2.0-release', notes: '', draft: false, prerelease: false, latest: true, assets: [] }
   const store = fakeReleases([formal])
@@ -101,7 +106,7 @@ test('a pre-release tag after a formal release is published as a pre-release, an
 })
 
 test('a tag whose release is already public is refused, and nothing is created or deleted', (t) => {
-  const dir = artifactDir(['Agentshed-0.2.0-mac-arm64.dmg'])
+  const dir = artifactDir('0.2.0', ['Agentshed-0.2.0-mac-arm64.dmg'])
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const published = { tag: 'v0.2.0', title: 'v0.2.0-release', notes: '', draft: false, prerelease: false, latest: true, assets: [{ name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 1, digest: 'sha256:00', state: 'uploaded' }] }
   const store = fakeReleases([published])
@@ -115,7 +120,7 @@ test('a tag whose release is already public is refused, and nothing is created o
 })
 
 test("an earlier attempt's drafts for the tag are removed first, so only this run's files go public", (t) => {
-  const dir = artifactDir(['Agentshed-0.2.0-mac-arm64.dmg'])
+  const dir = artifactDir('0.2.0', ['Agentshed-0.2.0-mac-arm64.dmg'])
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const stale = (tag) => ({ tag, title: '', notes: '', draft: true, prerelease: false, latest: false, assets: [{ name: 'Agentshed-0.2.0-mac-arm64.dmg', size: 3, digest: 'sha256:5ca1e', state: 'uploaded' }] })
   const store = fakeReleases([stale('v0.2.0'), stale('v0.2.0'), stale('v0.3.0')])
@@ -124,14 +129,14 @@ test("an earlier attempt's drafts for the tag are removed first, so only this ru
   const forTag = store.releases.filter((r) => r.tag === 'v0.2.0')
   assert.equal(forTag.length, 1)
   assert.equal(forTag[0].draft, false)
-  const bytes = readFileSync(join(dir, 'Agentshed-0.2.0-mac-arm64.dmg'))
+  const bytes = readFileSync(join(dir, '0.2.0', 'Agentshed-0.2.0-mac-arm64.dmg'))
   assert.deepEqual(forTag[0].assets.map((a) => a.digest), [`sha256:${createHash('sha256').update(bytes).digest('hex')}`])
   assert.deepEqual(store.releases.filter((r) => r.tag === 'v0.3.0').map((r) => r.draft), [true])
 })
 
 test('an upload that did not land in full leaves nothing public', async (t) => {
   const names = ['Agentshed-0.2.0-mac-arm64.dmg', 'Agentshed-0.2.0-mac-x64.dmg']
-  const dir = artifactDir(names)
+  const dir = artifactDir('0.2.0', names)
   t.after(() => rmSync(dir, { recursive: true, force: true }))
 
   await t.test('the release holds fewer files than were sent', () => {
@@ -157,7 +162,7 @@ test('an upload that did not land in full leaves nothing public', async (t) => {
 })
 
 test('a file whose stored bytes differ from the gated file leaves nothing public', (t) => {
-  const dir = artifactDir(['Agentshed-0.2.0-mac-arm64.dmg'])
+  const dir = artifactDir('0.2.0', ['Agentshed-0.2.0-mac-arm64.dmg'])
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const store = fakeReleases([], { corruptDigest: true })
   assert.throws(
@@ -167,23 +172,27 @@ test('a file whose stored bytes differ from the gated file leaves nothing public
   assert.deepEqual(store.publicStates, [])
 })
 
-test('an artifact with no DMG, or with a DMG of another version, fails before the release store is touched', (t) => {
+test("an artifact with no DMG, with another version's directory, or with a DMG of another version fails before the release store is touched", (t) => {
   const untouchable = new Proxy({}, { get: (_, operation) => () => { throw new Error(`the release store was touched: ${String(operation)}`) } })
-  const empty = artifactDir(['Agentshed-0.2.0-mac-arm64.app.notary-log.json'])
-  const other = artifactDir(['Agentshed-0.1.0-mac-arm64.dmg'])
+  const empty = artifactDir('0.2.0', ['Agentshed-0.2.0-mac-arm64.app.notary-log.json'])
+  const otherVersion = artifactDir('0.1.0', ['Agentshed-0.1.0-mac-arm64.dmg'])
+  const misnamed = artifactDir('0.2.0', ['Agentshed-0.1.0-mac-arm64.dmg'])
   t.after(() => {
-    rmSync(empty, { recursive: true, force: true })
-    rmSync(other, { recursive: true, force: true })
+    for (const dir of [empty, otherVersion, misnamed]) rmSync(dir, { recursive: true, force: true })
   })
   assert.throws(() => publishRelease({ dir: empty, tag: 'v0.2.0', prerelease: false, releases: untouchable, log: () => {} }), /no DMG in /)
   assert.throws(
-    () => publishRelease({ dir: other, tag: 'v0.2.0', prerelease: false, releases: untouchable, log: () => {} }),
+    () => publishRelease({ dir: otherVersion, tag: 'v0.2.0', prerelease: false, releases: untouchable, log: () => {} }),
+    /the artifact holds 0\.1\.0, not one 0\.2\.0 directory/
+  )
+  assert.throws(
+    () => publishRelease({ dir: misnamed, tag: 'v0.2.0', prerelease: false, releases: untouchable, log: () => {} }),
     /Agentshed-0\.1\.0-mac-arm64\.dmg is not a DMG of version 0\.2\.0/
   )
 })
 
 test('a formal release that does not end up Latest fails the run where it can be seen', (t) => {
-  const dir = artifactDir(['Agentshed-0.2.0-mac-arm64.dmg'])
+  const dir = artifactDir('0.2.0', ['Agentshed-0.2.0-mac-arm64.dmg'])
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const store = fakeReleases()
   // GitHub publishes the draft but leaves Latest where it was
@@ -199,7 +208,7 @@ test('a formal release that does not end up Latest fails the run where it can be
 // Two runs for one tag overlapping (a tag deleted and pushed again mid-run): the other run's public release, read
 // back by tag in place of this run's draft, holds other bytes under the same name, and the file check refuses it
 test('a release another run made public while this one uploaded is left alone, and this run publishes nothing', (t) => {
-  const dir = artifactDir(['Agentshed-0.2.0-mac-arm64.dmg'])
+  const dir = artifactDir('0.2.0', ['Agentshed-0.2.0-mac-arm64.dmg'])
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const store = fakeReleases()
   const create = store.createDraft
@@ -292,9 +301,9 @@ test('the entry point refuses an environment it cannot classify, before any gh c
 // The workflow passes the classification as a string, and the string 'false' is truthy
 test('the classification in the environment reaches gh: "false" publishes Latest, "true" a pre-release', (t) => {
   const dmg = 'Agentshed-0.2.0-mac-arm64.dmg'
-  const dir = artifactDir([dmg])
+  const dir = artifactDir('0.2.0', [dmg])
   t.after(() => rmSync(dir, { recursive: true, force: true }))
-  const digest = `sha256:${createHash('sha256').update(readFileSync(join(dir, dmg))).digest('hex')}`
+  const digest = `sha256:${createHash('sha256').update(readFileSync(join(dir, '0.2.0', dmg))).digest('hex')}`
   const sent = (prerelease) => {
     const calls = []
     const answers = [
