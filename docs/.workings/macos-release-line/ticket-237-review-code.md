@@ -90,17 +90,17 @@ Conclusion: no finding.
 
 Conclusion: no regression; one refactoring item for the owner.
 
-## Refactoring list (for the owner's decision; nothing executed)
+## Refactoring list (decided by the owner on 2026-10-18: as suggested)
 
-| Item | Reason | Impact | Suggested handling |
+| Item | Reason | Impact | Handling |
 |---|---|---|---|
-| One component for a download link, used by the hero and the download row | Duplicated code (the `newTab` → `target`/`rel` mapping in two places) | Self only: two places today | Leave to #238, which adds the other states' buttons (the R2 download in place, the GitHub ghost button) and sees the whole set |
+| One component for a download link, used by the hero and the download row | Duplicated code (the `newTab` → `target`/`rel` mapping in two places) | Self only: two places today | Left to #238, which adds the other states' buttons and sees the whole set; handed over in [a comment on #238](https://github.com/aloong-planet/agentshed/issues/238#issuecomment-6251219854) |
 
-## Findings outside this ticket's change (each needs a home)
+## Findings outside this ticket's change (homes decided by the owner on 2026-10-18: as suggested)
 
-| Finding | Impact | Suggested handling |
+| Finding | Impact | Home |
 |---|---|---|
-| The landing prototype's dark `--warn-bg`/`--warn-fg` (`#3a2516`/`#f6b48a`) differ from the app's purple dark values (`#3c2417`/`#f0a884`); the prototype says it uses the app's palette | The test state's pill and note (#238). The site's palette test will hold the site to the app's values when #238 adds the tokens, so the prototype would disagree with the page | Fix in the prototype with #238, before its admission check; or list it in #250 (prototype differences from the app) |
-| CI's checks job does not run `pnpm test:scripts`, the packaging asset's tests, which `pnpm verify` runs | mac-distribution::CON-001 asks for them in the gateway, which holds; CI just does not repeat them, so a change that breaks them passes CI | A one-line CI step, as a separate change |
-| `capabilities.toml` declares the app's dictionary and palette (`i18n.source`, `theming.source`) and nothing for the site's | A skill locating the "i18n dictionary" anchor from the declaration would point at the app's for site work | The site's anchors are written in `site/README.md`; whether the registry should carry a second source is a skill question (skillshed) |
-| `.astro` files are outside the lint | Their TypeScript is type-checked by `astro check`; lint rules do not reach them | Stated in `site/README.md`; adding an Astro ESLint plugin is a separate decision |
+| The landing prototype's dark `--warn-bg`/`--warn-fg` (`#3a2516`/`#f6b48a`) differ from the app's purple dark values (`#3c2417`/`#f0a884`); the prototype says it uses the app's palette | The test state's pill and note (#238). The site's palette test will hold the site to the app's values when #238 adds the tokens, so the prototype would disagree with the page | #238: a Pending row in [ticket-238-doc-sync.md](ticket-238-doc-sync.md) (before its UI admission check), and [a comment on #238](https://github.com/aloong-planet/agentshed/issues/238#issuecomment-6251219854) |
+| CI's checks job does not run `pnpm test:scripts`, the packaging asset's tests, which `pnpm verify` runs | mac-distribution::CON-001 asks for them in the gateway, which holds; CI just does not repeat them, so a change that breaks them passes CI | #234: its branch `feat/release-workflow` (pull request not opened yet) already adds `pnpm test:scripts` to the checks job, as that session confirmed; a separate change would only duplicate it, so none was made |
+| `capabilities.toml` declares the app's dictionary and palette (`i18n.source`, `theming.source`) and nothing for the site's | A skill locating the "i18n dictionary" anchor from the declaration would point at the app's for site work | Fixed in this change. The registry already allows `source` to be an array of paths, so no skill change is needed (the earlier suggestion to ask skillshed rested on not having read that): `i18n.source` adds `site/src/i18n/`, `theming.source` adds `site/src/styles/global.css`, and both add `pnpm test:site` to `enforced-by` (read back with a TOML parser; every path exists) |
+| `.astro` files are outside the lint | Their TypeScript is type-checked by `astro check`; lint rules do not reach them | No action: stated in `site/README.md`; `astro check` covers their TypeScript |
