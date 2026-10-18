@@ -35,6 +35,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      # The packaging asset's tests and the release workflow's: the release workflow itself runs only on a release tag
+      - run: pnpm test:scripts
       # The site's type check, its unit tests and the built-site check (on a fresh build)
       - run: pnpm test:site
       - run: pnpm check:ui
@@ -42,10 +44,8 @@ jobs:
       - run: pnpm check:i18n
       - run: pnpm check:nul
 
-  # e2e drives a real Electron. It runs on ubuntu rather than macos: this repository is private and a macOS
-  # runner
-  # bills at 10×, while what e2e asserts — the whole IPC chain, contract validation, render geometry — is
-  # platform-independent.
+  # e2e drives a real Electron. It runs on ubuntu rather than macos: what e2e asserts — the whole IPC chain,
+  # contract validation, render geometry — is platform-independent.
   # The macOS-specific surface (signing, notarisation, TCC permissions) was never in e2e's coverage anyway;
   # local verify and the release process guard it.
   e2e:

@@ -1,0 +1,118 @@
+name: Release
+
+# The macOS release line (docs/specs/mac-distribution.md; the tiers, secrets and pitfalls are in
+# docs/ops/mac-signing.md). Four tiers, chosen by how the run was triggered:
+#   a formal tag (v0.2.0)              release packaging and every gate, then a GitHub release marked Latest
+#   a pre-release tag (v0.1.0-beta.2)  the same, marked Pre-release
+#   a dispatch with `verify` on         the release packaging and every gate; the results stay with the run
+#   a dispatch with `verify` off        the local packaging (signed, never notarized); the results stay with the run
+# scripts/release-workflow.test.mjs guards the job graph and every condition below.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      verify:
+        description: Run the release packaging and every gate, keeping the results only as this run's artifacts
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: macOS packaging and gates
+    runs-on: macos-latest
+    timeout-minutes: 120
+    env:
+      # A secret cannot appear in a step's `if`, so the gate job turns each set of secrets into a boolean first
+      HAS_CSC: ${{ secrets.CSC_LINK != '' && secrets.CSC_KEY_PASSWORD != '' }}
+      HAS_APPLE: ${{ secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
+      # Which packaging runs. It grants no publishing: the publish job's own `if` reads the real event and ref
+      PROFILE: ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.verify)) && 'release' || 'local' }}
+    steps:
+      # Before anything is checked out or built: there is no unsigned build in any tier, and CSC_LINK is never
+      # passed on empty (electron-scaffold's macos-signing.md §4: electron-builder reads an empty one as a path)
+      - name: Require the Developer ID certificate
+        if: env.HAS_CSC != 'true'
+        run: |
+          echo "::error::The CSC_LINK and CSC_KEY_PASSWORD secrets (the Developer ID Application certificate as a base64 .p12, and its password) are not both set. Every macOS package is signed; set them for this repository and run again."
+          exit 1
+      - name: Require the Apple notarization credentials
+        if: env.PROFILE == 'release' && env.HAS_APPLE != 'true'
+        run: |
+          echo "::error::The release packaging notarizes the app and the DMG, but the APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID secrets are not all set. Set them for this repository and run again."
+          exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Before anything is submitted to Apple; it also refuses a version the PRERELEASE test below would misjudge
+      - name: Check the tag against the package version
+        if: github.event_name == 'push'
+        run: node scripts/release-tag.mjs
+      - name: Package (release profile)
+        if: env.PROFILE == 'release'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm dist:mac:release
+      - name: Package (local profile)
+        if: env.PROFILE == 'local'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: pnpm dist:mac:local
+      - name: Keep the packages and Apple's logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: agentshed-macos
+          path: |
+            release/*/*.dmg
+            release/*/*.notary-log.json
+          if-no-files-found: error
+      # A failed gate publishes nothing, and keeps whatever logs Apple returned (a rejection's log is in the job log)
+      - name: Keep Apple's logs from a failed run
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: agentshed-macos-failed
+          path: release/*/*.notary-log.json
+          if-no-files-found: ignore
+
+  # The whole artifact set, once the gate job passed, as a draft made public in one step (scripts/publish-release.mjs)
+  publish:
+    name: publish the GitHub release
+    needs: gate
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      # Semver's pre-release: a `-` after the version, which the tag check makes exact (no build metadata)
+      PRERELEASE: ${{ contains(github.ref_name, '-') }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: agentshed-macos
+          path: artifact
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish-release.mjs artifact

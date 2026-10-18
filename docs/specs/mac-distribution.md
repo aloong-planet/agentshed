@@ -192,6 +192,9 @@ not copy the policy.
   An empty value is never passed on (`macos-signing.md` §4).
 - A5 A tag pushed on a commit that is not on main: the release line does not check this. The release
   process tags only after the version change is merged (github-ops §5).
+- A6 The package version carries build metadata (`0.2.0+5`) or is not semver: the run fails at the tag check,
+  before anything is submitted to Apple. The pre-release test (a `-` after the version, Failure A2) is exact only
+  for such a version.
 
 **Sequence B: notarizing and gating**
 
@@ -256,7 +259,14 @@ not copy the policy.
 - **A release workflow** separate from the existing CI workflow, following Transfer's tag-triggered
   workflow: a macOS gate job (packaging and every gate), a publish job that depends on it, and mirror and
   pointer jobs for formal tags only. Secrets are turned into job-level booleans before any condition
-  uses them (`macos-signing.md` §5).
+  uses them (`macos-signing.md` §5). The packaging profile follows the trigger and the verification switch; the
+  publish job's own condition reads the real event and ref, so no input of a manual run grants publishing. A tag
+  is a pre-release when a `-` follows the version, which the tag check makes exact (Failures A1, A6).
+- **Publishing the GitHub release**: the whole artifact set goes into a draft, which only the repository's
+  writers can see; each uploaded file is checked against the gated file by its sha256, and only then is the draft
+  made public, in one step. A failed or partial upload leaves a draft and nothing public; a re-run removes the
+  drafts left for the tag, and a tag whose release is already public is refused (Failure C3). The release
+  starts with a one-line note, replaced by the release note of mac-distribution::REQ-005.
 - **R2 layout and pointer** follow Transfer's (one directory per version, a pointer file at a fixed
   path), with the bucket and token kept separate from Transfer's (ADR-0031 option 5). The bucket's CORS
   allows GET from the landing page's origin.
@@ -270,13 +280,17 @@ not copy the policy.
 
 ## Testing Decisions
 
-- **The asset's tests**, which use an injected command runner, run in the verification gateway through
-  the script tests. They are placed so that the test command's arguments still reach the project's own
-  test runner (`macos-signing.md` §3). They verify command order, failure propagation and clean-up, and
-  never touch Apple; the green result must not be read as "notarized" (`macos-signing.md` §9).
+- **The asset's tests**, which use an injected command runner, run in the verification gateway and in the CI
+  workflow's checks job through the script tests. They are placed so that the test command's arguments still
+  reach the project's own test runner (`macos-signing.md` §3). They verify command order, failure propagation
+  and clean-up, and never touch Apple; the green result must not be read as "notarized" (`macos-signing.md` §9).
 - **The workflow conditions** get a static test showing that the manual verification tier cannot
-  publish or touch the mirror, and that the mirror and pointer jobs depend on the gate job. This is a
-  regression guard only, and does not replace a real run.
+  publish or touch the mirror, and that the mirror and pointer jobs depend on the gate job. It evaluates each
+  condition with GitHub's published expression evaluator against the documented contexts of each trigger, and
+  runs with the script tests. This is a regression guard only, and does not replace a real run.
+- **The publish step** is tested against a model of the repository's releases standing in for GitHub, which
+  records every state in which a release is public, so "never public with part of the set" is asserted over all
+  of them; its adapter to the GitHub CLI is tested for the arguments it sends and the output it reads.
 - **Evidence** (`macos-signing.md` §9: only a release tag or the manual verification tier exercises
   Apple end to end):
   - one manual verification run, with its logs and artifacts;
@@ -286,8 +300,6 @@ not copy the policy.
   - a first launch from a browser download, with a screenshot showing the notice's wording;
   - for the first formal release, the output of the reachability check on every R2 URL before the
     pointer was rewritten.
-
-  > Pending: the first manual verification run has passed every gate.
 
 - Prior art: Transfer's release workflow, which passed these gates with real notarizations, and the
   existing CI workflow's job layout.

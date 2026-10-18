@@ -14,7 +14,7 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:scripts": "node --test build/mac-packaging.test.cjs",
+    "test:scripts": "node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/publish-release.test.mjs scripts/release-workflow.test.mjs",
     "test:site": "pnpm --dir site check && pnpm --dir site test",
     "dist:mac:local": "node build/mac-packaging.cjs local",
     "dist:mac:release": "node build/mac-packaging.cjs release && node build/mac-packaging.cjs notarize-dmg",
@@ -29,6 +29,7 @@
     "restore:archive": "node scripts/restore-archive.mjs"
   },
   "devDependencies": {
+    "@actions/expressions": "^0.3.61",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.0",
     "@types/node": "^22.10.0",

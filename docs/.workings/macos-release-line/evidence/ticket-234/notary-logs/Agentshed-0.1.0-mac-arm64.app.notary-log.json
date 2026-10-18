@@ -1,0 +1,187 @@
+{
+  "logFormatVersion": 1,
+  "jobId": "e95d75ca-812b-4093-9514-585bc42cabbd",
+  "status": "Accepted",
+  "statusSummary": "Ready for distribution",
+  "statusCode": 0,
+  "archiveFilename": "Agentshed-arm64.zip",
+  "uploadDate": "2026-10-18T15:33:11.286Z",
+  "sha256": "372e35882de45115e6cf4f31d907ed98945300d8ef44f23ab7d0dbe7cfa28395",
+  "ticketContents": [
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "5adee109cac8bf8858910d53a924d03286f998b5",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app/Contents/MacOS/Agentshed Helper (Renderer)",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "5adee109cac8bf8858910d53a924d03286f998b5",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "c682a865b7c9f4528ddf07da3e439ae6a8bd3055",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app/Contents/MacOS/Agentshed Helper (GPU)",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "c682a865b7c9f4528ddf07da3e439ae6a8bd3055",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper.app",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "0981237d6f0d1fc33f84c11e055056a879d68346",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper.app/Contents/MacOS/Agentshed Helper",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "0981237d6f0d1fc33f84c11e055056a879d68346",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "a568cbe0e86846470c43fcaad45cf0fef011fa4f",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app/Contents/MacOS/Agentshed Helper (Plugin)",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "a568cbe0e86846470c43fcaad45cf0fef011fa4f",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "a568cbe0e86846470c43fcaad45cf0fef011fa4f",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "7b8d6d941961b29f52838339abfef5f72787106f",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "a9d6e5e6a5e960b839da2dc32d7daab91ab06e79",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "5adee109cac8bf8858910d53a924d03286f998b5",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/Current",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "282a28882f0b1f04029f31f6b4c1070341a3178d",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "8bac24d915e7e0fe73bf79a974013f47dcd29a8a",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper.app",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "0981237d6f0d1fc33f84c11e055056a879d68346",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/Current",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "aea27a3cb1d82eb62cffd641c599c68ca30892e6",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "c682a865b7c9f4528ddf07da3e439ae6a8bd3055",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "2309433a26734e4a3f8f8e9d87f5bc931c55a7a7",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/MacOS/Agentshed",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "8bac24d915e7e0fe73bf79a974013f47dcd29a8a",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "2309433a26734e4a3f8f8e9d87f5bc931c55a7a7",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libEGL.dylib",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "44c2166acde70cb0b4f269d9af7bfb76bf4b6edc",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libvk_swiftshader.dylib",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "c7431a8465194a082ddbb161a2ff14801861b117",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libGLESv2.dylib",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "8566a5b1d181fbb78c561b25dc46f07c4dace8a0",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Libraries/libffmpeg.dylib",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "0035e6e6fe4844e58a6d68c65e122b8ee876065d",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Helpers/chrome_crashpad_handler",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "a9d6e5e6a5e960b839da2dc32d7daab91ab06e79",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/A/ReactiveObjC",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "7b8d6d941961b29f52838339abfef5f72787106f",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/A/Squirrel",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "aea27a3cb1d82eb62cffd641c599c68ca30892e6",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/A/Resources/ShipIt",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "4d8d3bb47605f5a644b1d897bd607a2c31bfa502",
+      "arch": "arm64"
+    },
+    {
+      "path": "Agentshed-arm64.zip/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/A/Mantle",
+      "digestAlgorithm": "SHA-256",
+      "cdhash": "282a28882f0b1f04029f31f6b4c1070341a3178d",
+      "arch": "arm64"
+    }
+  ],
+  "issues": null
+}
