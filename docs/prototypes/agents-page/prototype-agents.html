@@ -41,8 +41,7 @@
        灰块微动效)在这一页长什么样;②「正在扫描」轻提示放在标题行内是否成立——完成时它消失不引起任何纵向位移
        (独占一行的提示消失时,下方所有内容会向上跳一次);③填充是否接近零跳变(演示条在骨架与其余三档间切换
        对照)。骨架期间整块不可交互(tab / 时间窗卡都不可点),rail 照常。骨架照 app 的 AgentsSkeleton 摆:哪个数据位
-       放什么占位、多宽多高都与它一一对应,占位样式由 sync-startup-skeleton.mjs 从 app 的 theme.css 生成
-       (_shared/startup-skeleton.css)。骨架与正式内容共用本页的中英文案;
+       放什么占位、多宽多高都与它一一对应,占位样式在共享件 _shared/startup-skeleton.css 里。骨架与正式内容共用本页的中英文案;
        原骨架页另画过的法、俄、西、日四种语言不再单独画出,与本页其余部分一样按英文显示并有提示。
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于
        页面内容流)承载四组开关,按分栏出现——「演示·启动」四档常驻(骨架 / 扫描中 / 完成 / 失败,共享件
@@ -53,8 +52,7 @@
        (真实取值来自主题样式文件的 --p-xai,app 内无此开关)。
        演示状态同时作用到趋势图:卡说本日 0 而图上今天那根柱还有高度,是自相矛盾的原型,教错东西。
      界面语言、明暗与配色跟随设置原型(appearance)所选,本页不设开关;本页画了中、英两种,其他语言按英文
-       显示并有提示(启动提示与趋势图两个共享块各自跟随);色值取共享主题 _shared/theme.css(由 app 的
-       theme.css 生成)。评审注释、演示条与 mock 数据(名字、路径、描述、文件内容)不随语言切换。 -->
+       显示并有提示(启动提示与趋势图两个共享块各自跟随);色值取共享主题 _shared/theme.css。评审注释、演示条与 mock 数据(名字、路径、描述、文件内容)不随语言切换。 -->
 <!-- The fourth total card follows the globally persisted 30 / 60 / 90 day choice; its amount comes from the same daily mock history as the chart. -->
 <html lang="zh-CN">
 <head>
@@ -66,7 +64,7 @@
      references it -->
 <link rel="stylesheet" href="../_shared/trend-chart.css?v=linked-span-total">
 <link rel="stylesheet" href="../_shared/totals-card.css">
-<!-- The startup skeleton's placeholders, generated from the app's theme.css -->
+<!-- The startup skeleton's placeholders (shared) -->
 <link rel="stylesheet" href="../_shared/startup-skeleton.css">
 <style>
   /* app token(含构成三段 --tc-*、侧徽章 --cl/cx/gk-*、语义 --ok/--warn-*)全部取自 _shared/theme.css,
@@ -162,7 +160,7 @@
   .sub-list .it{padding:6px 0;border-bottom:0}
 
   /* ── 启动骨架(app 的 AgentsSkeleton):这次启动还没收到首个快照时,画在正式内容的位置上 ──
-     占位、脉动、整块拒点与选中 tab 的压平都取自 _shared/startup-skeleton.css(由 app 的 theme.css 生成)。
+     占位、脉动、整块拒点与选中 tab 的压平都取自 _shared/startup-skeleton.css。
      本页只补两条:.main 自带 display:flex,会压过 hidden 属性的默认隐藏,故显式写回;分段控件的选中态压平
      ——取值同 app 的 .sk-page .seg button.on,只是原型的分段控件用 span,生成的那条落不到这里。 */
   .main[hidden]{display:none}

@@ -1,8 +1,7 @@
 // Shared: the Projects dimension's project column — search, the side filter, the stale toggle and its
-// counter, the project rows — drawn the same on every prototype page that shows it, as the app's
-// ProjectsPane draws it (src/renderer/src/ProjectsPane.tsx; the scanning state is its ProjectsSkeleton in
-// StartupSkeleton.tsx). The styles are generated from the app (project-side.css, sync-project-side.mjs),
-// and the one mock project list lives here, so every page shows the same projects.
+// counter, the project rows — drawn the same on every prototype page that shows it, with the startup
+// skeleton while the scan runs. The styles are project-side.css, and the one mock project list lives here,
+// so every page shows the same projects.
 //
 // Usage, right after the column element (it draws synchronously, so the page's own scripts find it drawn):
 //   <aside class="side" data-shared-block="project-side" data-side-selected="Transfer"></aside>
@@ -17,7 +16,7 @@
 // switch (under file:// a page cannot change the parent's hash itself), opened alone it goes to the file.
 //   ProjectSide.setState(state)  "scanning" | "empty" | "loaded", for a page that demonstrates the states
 //   ProjectSide.onRender(fn)     calls fn(column) after every draw
-// The copy follows the page's language (demo-dimensions.js), in the app's words (src/shared/i18n).
+// The copy follows the page's language (demo-dimensions.js).
 ;(function () {
   // Most recent first, as the app sorts them. Transfer carries all three sides: the row where the name,
   // the stale slot, the activity and the count crowd the column hardest.

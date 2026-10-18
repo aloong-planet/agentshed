@@ -251,9 +251,8 @@
 <script src="../dimensions.js"></script>
 <script src="../demo-dimensions.js"></script>
 <script>
-  /* ── Icons come from _shared/icons.js, which is generated from the app's icon module. This page used to
-        carry its own copies of these two paths; they were identical to the app's, but identical by
-        coincidence rather than by construction — nothing would have reported it if either side moved. ── */
+  /* ── Icons come from _shared/icons.js, the prototypes' one icon table, rather than copies on this page:
+        two copies of one icon drift apart and nothing reports it. ── */
 
   const LANGS = ['zh', 'en', 'fr', 'es', 'ru', 'ja']
   /** The language selector's value domain = follow system + the six languages. 'system' is a preference

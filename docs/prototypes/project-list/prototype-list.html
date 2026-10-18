@@ -13,8 +13,7 @@
        其过滤行宽度结论仅对触发器有效。
      2026-10-14:失效开关 label 与失效计数器改取六语字典,宽度读数不再对它们失明;但 C5 的收缩省略/
        换行布局仍未搬入本原型,整行装不装得下以 spec C5 与 app 为准。
-     2026-10-14:项目栏改为共享件 _shared/project-side.{js,css}——样式由 sync-project-side.mjs 从 app 的
-       theme.css 生成,行为照 app 的 ProjectsPane(搜索同时匹配名字与路径、失效计数只在有被过滤的失效项目时
+     2026-10-14:项目栏改为共享件 _shared/project-side.{js,css},行为照 app 的项目栏(搜索同时匹配名字与路径、失效计数只在有被过滤的失效项目时
        出现、行提示为路径、徽章固定 Bot 图标),mock 项目也只有这一份,各页看到的是同一批项目。数字前图标
        候选的对照条因此撤掉:app 已定 Bot。
      2026-10-14:原「项目列表启动骨架」原型并入本页——app 里两者也是同一位置的二选一:这次启动还没收到首个
@@ -39,7 +38,7 @@
 <link rel="stylesheet" href="../_shared/project-side.css">
 <style>
   /* app token(--bg、--card、--text、--accent 一族、侧色 --p-anthropic 等、--warn-fg)一律取自
-     _shared/theme.css(由 app 的 theme.css 生成,按设置原型所选的配色与明暗切换),本页不重定义任何一个。 */
+     _shared/theme.css(按设置原型所选的配色与明暗切换),本页不重定义任何一个。 */
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   /* 演示基建(非设计的一部分,勿实现):底部悬浮条,与被评判的控件视觉隔离 */

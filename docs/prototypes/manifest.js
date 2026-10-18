@@ -2,9 +2,8 @@
 // a rotten registry blinds the gallery)
 //
 // ── Icons ──
-// Every icon below comes from _shared/icons.js, which is **generated** from the app's icon module by
-// sync-icons.mjs. Do not paste an <svg> into a prototype: `pnpm check:ui --cross` fails when the generated
-// file drifts from the app, and a hand-pasted one is invisible to that check.
+// Every icon below comes from _shared/icons.js, the prototypes' one icon table. Do not paste an <svg> into a
+// prototype page: two copies of one icon drift apart, and nothing reports it.
 //
 // Static slots declare the name (`data-icon="Folder"`); rows built at runtime call `ICONS.Folder(16)`.
 

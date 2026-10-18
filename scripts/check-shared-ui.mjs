@@ -13,26 +13,16 @@
 // attribute on the page.
 // Neither requires changing this script's logic.
 //
-// ── Check tiers (aligned with the "prototype first, implement after confirmation" workflow) ──
-//   Default: check **prototype-side** rules only. While a finished prototype awaits the user's
-//   confirmation, the real code not having caught up is the expected state,
-//         and reporting "the prototype and the app disagree" then is noise — a gate that stays red long
-//         enough gets ignored (broken windows).
-//   --cross: also check **prototype ↔ real code consistency** (the app side of the CSS invariants, and
-//         components' required props).
-//         Run after implementation lands; this is also the tier pnpm verify runs.
+// It also carries checks on the app's own code: the copy rules, hard-coded colours, the side chips, and the
+// app side of the shared blocks' style invariants and required props. Every check runs every time. None
+// compares the prototypes with the app: the prototypes are the baseline the app is built from (ADR-0033),
+// so a page that differs from the app is not wrong on that account.
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 import ts from 'typescript'
 import { JSDOM } from 'jsdom'
-import { parseIcons, render as renderIcons } from '../docs/prototypes/sync-icons.mjs'
-import { parseTheme, render as renderTheme } from '../docs/prototypes/sync-theme.mjs'
-import { generate as generateProjectSide } from '../docs/prototypes/sync-project-side.mjs'
-import { generate as generateStartupSkeleton } from '../docs/prototypes/sync-startup-skeleton.mjs'
-import { blocks, declarations } from '../docs/prototypes/css-blocks.mjs'
-
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (p) => (existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), 'utf8') : null)
@@ -180,17 +170,8 @@ function swatchFromTsx(tsx, mode, theme) {
 // ── Demo dimensions (prototype skill, UI.md harness clause) ──
 // A product dimension (UI language, light/dark mode, theme) is changed on the settings prototype alone,
 // through demo-dimensions.js; every other page follows the value set there and offers no switch of its
-// own. The registry docs/prototypes/dimensions.js copies the product's value lists by hand (a standalone
-// HTML file cannot import them); these rules are what goes red when the wiring or the copy drifts.
-
-/** Where each registered dimension's value list lives in the product. `without` drops the preference
- * values that are policies rather than something rendered: the registry lists what a page renders.
- * `fallback` names the constant the registry's fallback must equal, when the product has one */
-const DIMENSION_SOURCES = {
-  language: { file: 'src/shared/i18n/index.ts', name: 'LANGUAGES', fallback: 'FALLBACK_LANGUAGE' },
-  mode: { file: 'src/shared/appearance.ts', name: 'APPEARANCE_MODES', without: ['system'] },
-  theme: { file: 'src/shared/appearance.ts', name: 'APPEARANCE_THEMES' }
-}
+// own. The registry docs/prototypes/dimensions.js lists each dimension's values; this rule is what goes red
+// when the wiring drifts.
 
 /** A page's demo-dimensions wiring: the script tag, { id: the values it is drawn in }, and whether it sets them */
 function pageDimensions(code) {
@@ -214,48 +195,6 @@ function loadDimensions() {
   const sandbox = { window: {} }
   vm.runInNewContext(src, sandbox, { filename: 'docs/prototypes/dimensions.js' })
   return sandbox.window.DEMO_DIMENSIONS ?? null
-}
-
-/** The strings of `const <name> = [...] as const` in a TypeScript file, read with the TypeScript parser */
-function constStringList(file, name) {
-  const text = read(file)
-  if (text === null) return null
-  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-  let found = null
-  const visit = (node) => {
-    if (found) return
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer) {
-      let init = node.initializer
-      while (ts.isAsExpression(init) || ts.isSatisfiesExpression(init) || ts.isParenthesizedExpression(init)) {
-        init = init.expression
-      }
-      if (ts.isArrayLiteralExpression(init) && init.elements.every(ts.isStringLiteral)) {
-        found = init.elements.map((e) => e.text)
-      }
-      return
-    }
-    ts.forEachChild(node, visit)
-  }
-  visit(sf)
-  return found
-}
-
-/** The string of `const <name>: T = '…'` in a TypeScript file, read with the TypeScript parser */
-function constString(file, name) {
-  const text = read(file)
-  if (text === null) return null
-  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-  let found = null
-  const visit = (node) => {
-    if (found !== null) return
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer) {
-      if (ts.isStringLiteral(node.initializer)) found = node.initializer.text
-      return
-    }
-    ts.forEachChild(node, visit)
-  }
-  visit(sf)
-  return found
 }
 
 /** Global rules: constraints independent of any particular block */
@@ -323,7 +262,6 @@ const GLOBAL_RULES = [
   },
   {
     name: 'settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)',
-    cross: true,
     check() {
       const bad = []
       const cssRaw = read('src/renderer/src/theme.css')
@@ -366,7 +304,6 @@ const GLOBAL_RULES = [
     // Copy whose surface genuinely judges only some sides today is allow-listed by dictionary key,
     // each entry carrying the reason and the ticket that retires it.
     name: 'dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)',
-    cross: true,
     check() {
       const bad = []
       const SIDE_NAMES = [/Claude(?: Code)?/, /Codex/, /Grok/]
@@ -444,7 +381,6 @@ const GLOBAL_RULES = [
     // being ordinary. A newly added control with a distinctive label is armed by default — which is
     // exactly the case that rotted.
     name: 'dictionary copy must not name a rail control verbatim (a sentence outlives the control)',
-    cross: true,
     check() {
       const bad = []
       const EXEMPT = [
@@ -498,7 +434,6 @@ const GLOBAL_RULES = [
   },
   {
     name: 'provider brand colours must not be hard-coded in components (use CSS variables)',
-    cross: true,
     check() {
       const bad = []
       const BRAND = ['#d97757', '#10a37f', '#4285f4']
@@ -513,7 +448,6 @@ const GLOBAL_RULES = [
     // appearance C3: components bind only to tokens; the settings page's swatches deliberately show each
     // theme's sample colours, so they are excluded.
     name: 'components must not hard-code theme accent colours (use the --accent family)',
-    cross: true,
     check() {
       const bad = []
       const THEME = ['#8a67ab', '#a084c7', '#4a6fa5', '#3a5a88', '#6b5220', '#c4a46a']
@@ -535,7 +469,6 @@ const GLOBAL_RULES = [
     // makes the convention mechanical. Exclusion: side-badge.ts is the Record's own definition, the one
     // legal spelling site; it retires only if the chip labels ever move out of that module.
     name: 'side chip labels have one source: no hardcoded CLAUDE CODE / CODEX / GROK literal outside side-badge.ts',
-    cross: true,
     check() {
       const bad = []
       const CHIP = /['"`>](CLAUDE CODE|CODEX|GROK)['"`<]/
@@ -547,34 +480,6 @@ const GLOBAL_RULES = [
         if (m) bad.push(`src/renderer/src/${name}: hardcoded chip label ${m[1]} — look it up in SIDE_CHIP_LABEL`)
       }
       return bad
-    }
-  },
-  {
-    // Ticket 112: the prototypes drew emoji for weeks after the product had moved to inline SVG, and
-    // nothing reported it. The fix was to make _shared/icons.js a **derived** file rather than a second
-    // hand-kept list — this rule is the other half, catching the case where someone edits the icon module
-    // and does not re-run the generator. Without it "derived" would only mean "derived at some point".
-    //
-    // Note what makes this checkable where ticket 105's proposal was not: it compares **generated text
-    // against its own generator's output** — a structural property. That ticket wanted to compare two
-    // hand-written implementations for equivalent *logic*, which no static check can decide.
-    name: 'docs/prototypes/_shared/icons.js is in sync with the renderer icon module',
-    cross: true,
-    check() {
-      const src = read('src/renderer/src/icons.tsx')
-      const generated = read('docs/prototypes/_shared/icons.js')
-      if (src === null) return ['cannot read src/renderer/src/icons.tsx']
-      if (generated === null) return ['docs/prototypes/_shared/icons.js is missing — run node docs/prototypes/sync-icons.mjs']
-      let want
-      try {
-        want = renderIcons(parseIcons(src))
-      } catch (e) {
-        return [`cannot parse the icon module: ${e.message}`]
-      }
-      if (want !== generated) {
-        return ['out of date — run `node docs/prototypes/sync-icons.mjs` (the prototypes would keep drawing the previous icons)']
-      }
-      return []
     }
   },
   {
@@ -644,46 +549,7 @@ const GLOBAL_RULES = [
     }
   },
   {
-    name: "demo dimensions list the product's values in the product's order",
-    cross: true,
-    check() {
-      let dims
-      try {
-        dims = loadDimensions()
-      } catch (e) {
-        return [`docs/prototypes/dimensions.js does not evaluate: ${e.message}`]
-      }
-      if (dims === null) return ['docs/prototypes/dimensions.js is missing or does not set window.DEMO_DIMENSIONS']
-      const bad = []
-      for (const [id, d] of Object.entries(dims)) {
-        const source = DIMENSION_SOURCES[id]
-        if (!source) {
-          bad.push(`dimensions.js: "${id}" has no product source in DIMENSION_SOURCES (scripts/check-shared-ui.mjs)`)
-          continue
-        }
-        const list = constStringList(source.file, source.name)
-        if (list === null) {
-          bad.push(`cannot read the string list ${source.name} from ${source.file}`)
-          continue
-        }
-        const without = source.without ?? []
-        const want = list.filter((v) => !without.includes(v))
-        const got = d.values ?? []
-        if (got.join(',') !== want.join(',')) {
-          const less = without.length > 0 ? ` less ${without.join(', ')}` : ''
-          bad.push(`dimensions.js: ${id} lists [${got.join(', ')}] but ${source.name}${less} is [${want.join(', ')}]`)
-        }
-        if (source.fallback) {
-          const fb = constString(source.file, source.fallback)
-          if (fb === null) bad.push(`cannot read the string ${source.fallback} from ${source.file}`)
-          else if (d.fallback !== fb) bad.push(`dimensions.js: ${id}'s fallback is "${d.fallback}" but ${source.fallback} is "${fb}"`)
-        }
-      }
-      return bad
-    }
-  },
-  {
-    // A page that follows the mode or the theme draws the app's tokens from the generated sheet, and takes
+    // A page that follows the mode or the theme draws the tokens from the shared sheet, and takes
     // light or dark from the settings prototype alone: a prefers-color-scheme rule left on the page, or in a
     // shared stylesheet it links, flips that part with the reader's system instead, so the page shows two
     // modes at once whenever the system and the settings prototype disagree
@@ -759,48 +625,6 @@ const GLOBAL_RULES = [
         for (const [name, re] of [['manifest.js', /<script src="\.\.\/manifest\.js"/], ['_shared/icons.js', /<script src="[^"]*_shared\/icons\.js"/]]) {
           const i = at(re)
           if (i < 0 || i > script) bad.push(`${f}: needs ${name} included before app-rail.js`)
-        }
-      }
-      return bad
-    }
-  },
-  {
-    // The shared rail's rules are the app's, so the rail looks on every prototype page as it does in the app.
-    // Both sides are read as text (css-blocks.mjs), not through jsdom's CSS parser, which silently drops
-    // declarations it cannot parse and would leave them out of the comparison on both sides at once
-    name: "the shared app rail's styles are the app's .rail rules",
-    cross: true,
-    check() {
-      const app = read('src/renderer/src/theme.css')
-      const proto = read('docs/prototypes/_shared/app-rail.css')
-      if (app === null || proto === null) return ['cannot read src/renderer/src/theme.css or docs/prototypes/_shared/app-rail.css']
-      const SELECTORS = ['.rail', '.rail .ri', '.rail .ri:hover', '.rail .ri.on', '.rail-bottom']
-      // Only the compared rules are cut into declarations: an at-rule's body holds rules, not declarations
-      const rulesOf = (css) => {
-        const out = new Map()
-        for (const { prelude, body } of blocks(css)) {
-          if (SELECTORS.includes(prelude)) {
-            out.set(prelude, new Map(declarations(body).map((d) => [d.slice(0, d.indexOf(':')).trim(), d.slice(d.indexOf(':') + 1).trim()])))
-          }
-        }
-        return out
-      }
-      let a, p
-      try {
-        a = rulesOf(app)
-        p = rulesOf(proto)
-      } catch (e) {
-        return [`cannot cut theme.css or app-rail.css into rules: ${e.message}`]
-      }
-      const bad = []
-      for (const sel of SELECTORS) {
-        const want = a.get(sel)
-        const got = p.get(sel)
-        if (!want) { bad.push(`theme.css: no ${sel} rule`); continue }
-        if (!got) { bad.push(`app-rail.css: no ${sel} rule`); continue }
-        for (const [prop, w] of want) {
-          const g = got.get(prop)
-          if (w !== g) bad.push(`app-rail.css ${sel} { ${prop}: ${g ?? '(missing)'} } but theme.css ${sel} has ${w}`)
         }
       }
       return bad
@@ -893,7 +717,7 @@ const GLOBAL_RULES = [
         for (const s of [...doc.styleSheets]) {
           for (const r of [...s.cssRules]) {
             if (r.selectorText && r.selectorText.split(',').some((sel) => /(^|\s)\.side(\s|$|\.|:|\[)/.test(sel.trim()))) {
-              bad.push(`${f}: styles the project column itself (${r.selectorText}) — the generated project-side.css owns it`)
+              bad.push(`${f}: styles the project column itself (${r.selectorText}) — the shared project-side.css owns it`)
             }
           }
         }
@@ -913,63 +737,6 @@ const GLOBAL_RULES = [
         }
       }
       return bad
-    }
-  },
-  {
-    // The derived-file half of sync-project-side.mjs
-    name: 'docs/prototypes/_shared/project-side.css is in sync with the app project column',
-    cross: true,
-    check() {
-      const src = read('src/renderer/src/theme.css')
-      const generated = read('docs/prototypes/_shared/project-side.css')
-      if (src === null) return ['cannot read src/renderer/src/theme.css']
-      if (generated === null) return ['docs/prototypes/_shared/project-side.css is missing — run node docs/prototypes/sync-project-side.mjs']
-      let want
-      try {
-        want = generateProjectSide(src)
-      } catch (e) {
-        return [`cannot read the app's project column: ${e.message}`]
-      }
-      return want === generated ? [] : ['out of date — run `node docs/prototypes/sync-project-side.mjs` (the prototypes would keep the previous column)']
-    }
-  },
-  {
-    // The derived-file half of sync-startup-skeleton.mjs
-    name: 'docs/prototypes/_shared/startup-skeleton.css is in sync with the app startup skeleton',
-    cross: true,
-    check() {
-      const src = read('src/renderer/src/theme.css')
-      const generated = read('docs/prototypes/_shared/startup-skeleton.css')
-      if (src === null) return ['cannot read src/renderer/src/theme.css']
-      if (generated === null) return ['docs/prototypes/_shared/startup-skeleton.css is missing — run node docs/prototypes/sync-startup-skeleton.mjs']
-      let want
-      try {
-        want = generateStartupSkeleton(src)
-      } catch (e) {
-        return [`cannot read the app's startup skeleton: ${e.message}`]
-      }
-      return want === generated ? [] : ['out of date — run `node docs/prototypes/sync-startup-skeleton.mjs` (the Agents skeleton would keep the previous placeholders)']
-    }
-  },
-  {
-    // The derived-file half of sync-theme.mjs, as the icons rule is for sync-icons.mjs
-    name: 'docs/prototypes/_shared/theme.css is in sync with the app theme tokens',
-    cross: true,
-    check() {
-      const src = read('src/renderer/src/theme.css')
-      const generated = read('docs/prototypes/_shared/theme.css')
-      if (src === null) return ['cannot read src/renderer/src/theme.css']
-      if (generated === null) return ['docs/prototypes/_shared/theme.css is missing — run node docs/prototypes/sync-theme.mjs']
-      let want
-      try {
-        want = renderTheme(parseTheme(src))
-      } catch (e) {
-        return [`cannot parse the app theme: ${e.message}`]
-      }
-      if (want !== generated) {
-        return ['out of date — run `node docs/prototypes/sync-theme.mjs` (the prototypes would keep the previous colours)']
-      }
-      return []
     }
   }
 ]
@@ -991,7 +758,7 @@ function prototypeHtmls(withIndex = false) {
   return out
 }
 
-function checkBlock(block, withCross) {
+function checkBlock(block) {
   const problems = []
   const users = []
 
@@ -1017,10 +784,9 @@ function checkBlock(block, withCross) {
     }
   }
 
-  // (2) Style invariants (files on the app side belong to the cross-side tier)
+  // (2) Style invariants, on the prototype side and the app side alike
   for (const inv of block.cssInvariants ?? []) {
     for (const f of inv.files) {
-      if (!withCross && !f.startsWith('docs/prototypes/')) continue
       const css = read(f)
       if (css === null) continue
       // Strip comments before matching: a comment mentioning a forbidden declaration (such as "must not
@@ -1033,8 +799,8 @@ function checkBlock(block, withCross) {
     }
   }
 
-  // (3) Every use site of the app-side component (the cross-side tier)
-  if (withCross && block.appComponent) {
+  // (3) Every use site of the app-side component
+  if (block.appComponent) {
     const { name, requiredProps } = block.appComponent
     for (const f of appSources()) {
       const src = read(f) ?? ''
@@ -1058,16 +824,9 @@ function appSources() {
     .map((n) => join('src/renderer/src', n))
 }
 
-const withCross = process.argv.includes('--cross')
-console.log(
-  withCross
-    ? 'mode: prototypes + cross-side consistency'
-    : 'mode: prototypes only (pass --cross for the cross-side checks, once the implementation has landed)'
-)
-
 let failed = 0
 for (const block of SHARED_BLOCKS) {
-  const { problems, users } = checkBlock(block, withCross)
+  const { problems, users } = checkBlock(block)
   if (problems.length) {
     failed += problems.length
     console.error(`✗ shared block ${block.id} (${block.label})`)
@@ -1077,7 +836,6 @@ for (const block of SHARED_BLOCKS) {
   }
 }
 for (const r of GLOBAL_RULES) {
-  if (r.cross && !withCross) continue
   const problems = r.check()
   if (problems.length) {
     failed += problems.length
