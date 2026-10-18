@@ -79,5 +79,59 @@ notarized, by design.
 
 ## CI
 
-No workflow packages macOS yet. The release workflow, its tiers and its secrets are added with the release
-line's tag-triggered workflow (mac-distribution::REQ-002); this runbook gains them then.
+`.github/workflows/release.yml` packages macOS in CI (mac-distribution::REQ-002; the tiers are policy §5). Its
+gate job runs on `macos-latest`. The publish job runs on `ubuntu-latest` and needs the gate job.
+
+| Trigger | Tier | What it leaves |
+|---|---|---|
+| A pushed `v*` tag without a suffix (`v0.2.0`) | formal | the release profile and every gate; then a GitHub release titled `<tag>-release`, marked Latest |
+| A pushed `v*` tag with a suffix (`v0.1.0-beta.2`) | pre-release | the same; the release titled with the tag, marked Pre-release |
+| `gh workflow run release.yml -f verify=true` | manual verification | the release profile and every gate; the run's artifacts only |
+| `gh workflow run release.yml` (`verify` off) | manual packaging | the local profile (signed, never notarized); the run's artifacts only |
+
+- **The verification switch is the `verify` input.** Add `--ref <branch>` to run a branch's version of the
+  workflow. GitHub dispatches only a workflow whose file is on `main`, and then runs the file at the given ref.
+- **A pushed tag is a public release.** Make the tag only on the commit on `main` that sets `package.json`'s
+  version (the version change goes through a pull request; github-ops §5). The gate job fails before packaging
+  when the tag is not `v` + that version, or when the version is not semver or carries build metadata
+  (`scripts/release-tag.mjs`). A suffix after the version makes the release a pre-release, whatever the suffix
+  says.
+- **Artifacts.** `agentshed-macos` holds the DMG and, in the release profile, the two notarization logs, unaltered.
+  A failed gate job uploads whatever logs Apple returned as `agentshed-macos-failed`; the log of a rejection is also
+  in the job log.
+- **Publishing.** `scripts/publish-release.mjs` puts the whole set in a draft — which only the repository's writers
+  can see — checks each upload against the gated file by sha256, then makes it public in one step. A failed or
+  partial upload leaves a draft and nothing public. Re-run the publish job ("Re-run failed jobs"): it removes the
+  drafts left for the tag and uploads the same files again. It refuses a tag whose release is already public; a new
+  build of that version needs a new version.
+- **Release note.** The release starts with a one-line note. The note proper (github-ops §4, §5) replaces it with
+  `gh release edit` once the downloaded DMG has been checked as in the section above.
+- **Time limits.** The gate job has 120 minutes: Apple takes 2–30 minutes per submission, and the release profile
+  submits twice. The publish job has 15.
+- **Actions.** Every action is pinned to a full commit, with its version in a comment: the gate job holds the
+  certificate and Apple's credentials, and the publish job can write releases. Update one by its new release's
+  commit. `ci.yml` uses tags.
+- **Tests.** `scripts/release-workflow.test.mjs` evaluates the workflow's conditions (`pnpm test:scripts`, which
+  CI's checks job and `pnpm verify` run). A change to a condition goes red there before any tag finds it.
+
+### Secrets
+
+The five variables above are **organization secrets** of `aloong-planet`, visible to selected repositories only —
+this one. A team-wide certificate and Apple account need importing once, not per app. They are imported with
+`~/apple-signing/import-secrets.sh`, outside Terraform, so their values never enter a Terraform state file. The
+repository's own secret list does not show them. Check their names with:
+
+```bash
+gh api repos/aloong-planet/agentshed/actions/organization-secrets --jq '.secrets[].name'
+```
+
+GitHub's rules that matter here:
+
+- A private repository on GitHub Free cannot read organization secrets: this one is public.
+- A repository secret of the same name hides the organization's.
+
+The workflow turns each set into a job-level boolean, because a secret cannot appear in a step's `if`. It fails
+before checkout when the certificate pair is missing, in every tier, and before packaging when an Apple
+credential is missing, in the release tiers. Only the packaging step receives the secrets. The local profile gets
+the certificate only, so even in CI it can never submit to Apple. The asset passes the Apple password to
+`notarytool` as an argument: it is visible in the runner's process list while it runs, never in a log.
