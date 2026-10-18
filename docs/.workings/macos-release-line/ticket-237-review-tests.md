@@ -133,13 +133,13 @@ The tests as written against the test design table, case by case:
 | U3 | Yes, as moved from B10 in the loop (recorded above) |
 | B1–B9 | Yes. B3 expects the toggle's two labels as the prototype's literals, not the dictionary's constant, which would have been the same value read twice. B7 expects 11 images per page, B9 5 GitHub links per page |
 | G1 | Yes (both directions, `evidence/ticket-237/check-lang-mutations.txt`) |
-| G2 | Not run yet: it needs the pull request (CI runs on pull requests) |
+| G2 | Yes, on the throwaway pull request #256: the checks job failed at `pnpm test:site` on the broken expectation (run 39126198647) and at `pnpm lint` on an unused variable (run 39126646942), each the step predicted beforehand; #255's unbroken commit green (run 39126081368). `evidence/ticket-237/ci-gate.txt` |
 
 The built-site check's file header states the gaps and their condition: REQ-004, QR-001 and the visual
 parts of REQ-006 and D1 are measured in a browser (`evidence/ticket-237/`), not tested. Every one of them
 was measured, 216 measurements passing.
 
-Conclusion: the tests match the table; G2 waits for the pull request.
+Conclusion: the tests match the table, G2 included.
 
 ### Case design
 

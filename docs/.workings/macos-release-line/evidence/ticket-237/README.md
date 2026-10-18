@@ -14,6 +14,8 @@ escapes: the repository's working language is English (ADR-0017).
 | [ac07-control.txt](ac07-control.txt) | The language switch with session storage blocked: the place is not kept, so the AC-07 measurement can fail |
 | [mutations-site-tests.txt](mutations-site-tests.txt) | The mutation runs that show each site test written after its code can fail |
 | [check-lang-mutations.txt](check-lang-mutations.txt) | The working-language gate with its two new rules: green, then red for a Chinese comment in the site's dictionary and for Chinese written into a component |
+| [ci-gate.txt](ci-gate.txt) | CI's required checks job failing on the site's tests and on the site's lint, each at the step predicted, on a throwaway pull request |
+| [prototype-geometry.txt](prototype-geometry.txt) | Section heights of the confirmed prototype in the list state and of the site, at 1280 and 400px |
 | [theme-vars.txt](theme-vars.txt) | `/ui-design`'s palette measurement over the site's stylesheet |
 | [shots-sha256.txt](shots-sha256.txt), [approved-sha256.txt](approved-sha256.txt) | The site's ten screenshots and the approved set of 2026-10-13: identical hashes |
 
