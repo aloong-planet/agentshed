@@ -58,10 +58,61 @@ Smells, judged: the navigation helper on ten pages is the skill's verbatim asset
 rule); the startup sentence in four pages' demo notes is scaffolding text written per page, not interface
 copy.
 
-Refactor list (not executed; for the owner):
+Refactor list. The owner decided on 2026-10-18 to execute all three in this PR; the follow-up review below
+covers the changes.
 
-| Item | Reason | Reach | Suggestion |
+| Item | Reason | Reach | Outcome |
 |---|---|---|---|
-| The session page's bar, four notes wide, covers the rail's Settings item inside the gallery at 1280px | The old bar covered it too; the bar can be dragged or collapsed | self | Not now |
-| The skills preview's toast sits at the old bar's height and the taller dock bar covers its lower 16px | Positioned for the old one-row bar | self | Not now |
-| Comments on the skills and plugins previews still compare their dark drawer values with the app | They belong to #250 item 4, which the owner settled on the app's values | self | With #250 |
+| A demo bar whose groups fit on one row grows to the viewport's width and covers the rail's bottom items at its default place: the session page (four groups on one row) at 1280px alone and in the gallery, the settings page at 1440px alone (rail Update and Settings) | The dock sized the bar to its widest row with only the viewport as the limit | self | Executed: the prototype skill's dock now wraps the rows at three quarters of the viewport (never narrower than the widest group); the project copy is re-copied from the master |
+| Toasts placed to clear a demo bar: the settings page at 100px, the skills preview at 86px. Corrected on re-measurement: the skills preview has had no bar since 03cbaa7, so nothing covered its toast; the earlier entry ("the dock bar covers its lower 16px") described the page before that commit | The offsets served the bar, not the design; the prototypes' existing toast sits at 18px (the install page) | self | Executed: both at 18px. On the settings page the toast now lies over the bar's last note line (z-index above the bar), never over a control |
+| Comments on the skills and plugins previews present their dark drawer values as a correction of the app's | #250 item 4, which the owner settled on the light values in both modes | self | Executed: dark values equal light (shadow 0.12, mask 0.35), still declared in the dark block; comments state the same alpha in both modes |
+
+## Follow-up review — the executed refactor list
+
+Reviewed 2026-10-18 on e9701ea plus the follow-up, before it was committed as 8ee4eec, cfa2f43 and adff9a2.
+Scope: `docs/prototypes/demo-harness.js` (and
+its master in the prototype skill, with the skill's file table), the toast rules of the settings page and the
+skills preview, the drawer tokens and their comments on the skills and plugins previews.
+
+### Underlying premises
+
+No finding. Measured rather than read:
+- The covering comes from the bar's width, not its position: before the change the session bar was 1206px
+  wide at 1280px and 1017px in the gallery, the settings bar 1419px at 1440px; every other bar is 439–593px
+  and covers nothing.
+- Both toast offsets were set for a bar: the settings rule said so; the skills preview's 86px came with the
+  page and its bottom bar at 14px in the same commit.
+- The new comments state measured facts: the dock comment's corner claim (no rail item covered after the
+  change, four viewport and context combinations), the previews' "same alpha in both modes" (token probe).
+
+### Runnability
+
+No finding.
+- The cap never makes the bar narrower than its widest group: a synthetic bar with one 637px group gives a
+  655px bar at 800px (three quarters would be 600px); at 500px and 640px the group overflows exactly as with
+  the old script (a group wider than the viewport is the page's to split, by the markup convention).
+- Paths into the width computation: load, every content mutation (context groups shown or hidden), resize,
+  collapse and expand. Each calls the same fit, so the cap applies on all of them; a dragged bar keeps the
+  capped width.
+- No error or degradation path added.
+
+### Security
+
+No finding: no input, file or network surface.
+
+### Consistency
+
+- Pages whose bars were already narrower than the cap are unchanged to the pixel (bar rectangles identical
+  before and after; 48 snapshots identical but for 2 antialiasing pixels).
+- Smell judged: the new item scan repeats the row scan's skip condition (hidden, absolute, fixed). Exempt:
+  two scans in one function scope that measure different things; a shared predicate would add a name for
+  one line.
+- Class-level checks, enumerated: toasts — all three in the prototypes (install 18px, skills preview, settings),
+  two hit and fixed; covered rail items — every page with a bar, alone and in the gallery, at 1280 and 1440.
+- New finding, not fixed (reported to the owner): the end padding of the scroll areas that had a bar when
+  they were drawn — skills preview and plugins preview 100px (their bars are gone), session page 90px (still
+  has one) — against 14–16px on the other pages. Each came with its page and bar in the same commit, but
+  no comment says it serves the bar, so it is not proven a harness offset. Reach: blank space at the end of
+  three lists; nothing hidden. Disposition: added to #250 (small prototype differences) as item 9 on
+  2026-10-19, by the owner's decision, rather than changed
+  here.

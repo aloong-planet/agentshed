@@ -56,3 +56,44 @@ the popover.
 ### Resource reuse
 
 No test resources are added; the full gateway loads what it loaded before.
+
+## Post-implementation check — the executed refactor list
+
+Checked 2026-10-18 on e9701ea plus the follow-up, before it was committed as 8ee4eec, cfa2f43 and adff9a2
+(the dock's row cap, two toast positions, #250
+item 4). Still no unit, integration or e2e test added or changed; the evidence is browser probes.
+
+### Coverage
+
+Each executed item maps to a probe, run before and after the change:
+- covered rail items: every page with a bar, alone and in the gallery, at 1280 and 1440; the dock's own edge
+  (one group wider than three quarters of the viewport, and wider than the viewport) on a synthetic bar,
+  against both the old and the new script;
+- toasts: every toast in the prototypes, its rectangle against the bar's and what lies under it;
+- drawer tokens: both previews, three palettes × light and dark, plus the drawer opened by clicks in dark.
+
+Gap, stated: the probes run in Chrome only; the dock's geometry has no other browser in this repository.
+
+### Case design
+
+The probes read rendered state (rectangles, hit tests at an item's centre, computed values). Two set state
+by hand, stated: the toast probe shows each toast by setting its display (the settings page's own mode
+switch raised it in the second run), and the token probe sets the root's palette and mode attributes, the
+attributes the stylesheet keys on.
+
+### False greens
+
+- When would the rail probe be red: it was red before the change (the session page's Settings item covered,
+  its centre hit-tested by the bar in the gallery; the settings page's Update and Settings items at 1440) and
+  green after, on the same pages and sizes, so it does detect covering. Reach of the change: the two wide bars
+  changed width; the other bars' rectangles are identical.
+- The synthetic bar ran against the old script too: the outputs differ only where the cap applies (800px),
+  so the new code path is the one measured.
+- The token probe read dark 0.5 and 0.45 on the committed pages and 0.35 and 0.12 after, so it reads the
+  page's own tokens.
+- The 48-snapshot comparison hides the bar and shows no toast or drawer, so it cannot see these changes; it
+  is used only to show nothing else moved.
+
+### Resource reuse
+
+No test resources are added.

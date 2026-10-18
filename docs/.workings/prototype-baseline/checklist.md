@@ -2,7 +2,8 @@
 
 Source: the body of [#251](https://github.com/aloong-planet/agentshed/issues/251) as rewritten on 2026-10-18,
 and the owner's decisions of the same day (no spec: #251 is the requirement source; one branch, one PR; the
-xAI segment colour is settled, its value taken from the app). #250's items are not in this round.
+xAI segment colour is settled, its value taken from the app). Of #250's items only item 4 is in this round,
+added with the code review's refactor list by the owner's decision of 2026-10-18.
 Source commit: 26b9216 (origin/main when the work began).
 Scope: everything under `docs/prototypes/` that #251 names, `scripts/check-shared-ui.mjs`, the `check:ui`
 script, and the documents that describe the derived-file arrangement (ADR-0018 and the ADR index).
@@ -30,6 +31,9 @@ lines; each names the tier that backs it.
 | 251::14 | No app source paths (`src/`) outside mock content | Evidence: search for `src/` under `docs/prototypes/`, command and output |
 | 251::15 | Added on 2026-10-18 (owner): candidates settled on the app's current form — the skills preview keeps the flat expanded form, md-preview keeps V2; their switches, losing forms and bars go | Evidence: search for the removed forms; snapshot diff limited to the removed rows and texts |
 | 251::done | Gallery and every page open with no page errors | Evidence: browser run over every manifest entry, zh/en × light/dark |
+| 251::R1 | Code review refactor list, executed (owner, 2026-10-18): a demo bar does not cover the rail's items at its default place | Evidence: rail probe on every page with a bar, alone and in the gallery, at 1280 and 1440; the dock copy byte-equal to its master |
+| 251::R2 | Same list: toasts stand at the prototypes' toast position, not at a height chosen for a demo bar | Evidence: toast probe over every toast in the prototypes |
+| 250::4 | #250 item 4: the skills and plugins previews in dark take drawer shadow 0.12 and mask 0.35, as in light; their comments stop presenting the dark values as a correction | Evidence: token probe, three palettes × light and dark; drawer opened in dark |
 
 ## Current verification
 
@@ -50,9 +54,14 @@ lines; each names the tier that backs it.
 | same | 251::14 | `rg -n "src/"` over the pages: only mock content (session transcripts, a mock subagent description, the skills fixture) | Verified |
 | same | 251::15 | Skills preview flat only and md-preview V2 only; snapshot diff limited to the removed rows and texts | Verified |
 | same | 251::done | 48 snapshots (12 pages × zh/en × light/dark) with no page error; the gallery loads all 15 entries; `pnpm verify` exit 0 (830 unit, 135 e2e, smoke OK) | Verified; the landing page reruns with its conversion |
+| 2026-10-18; 26b9216; e9701ea plus the follow-up, measured before it was committed as 8ee4eec, cfa2f43 and adff9a2 (same content) | 251::R1 | Before: the session page covered the rail's Settings item at 1280 alone and in the gallery, the settings page its Update and Settings items at 1440 alone. After: no rail item covered on any of the 8 bar pages in any of the 4 combinations; only those two bars changed (now 738 and 927px wide at 1280); `cmp` with the skill's master: identical | Verified; the landing page reruns with its conversion |
+| same | 251::R2 | The three toasts in the prototypes all stand at 18px; on the settings page the toast lies over the bar's last note line only (1280 and 1440) | Verified |
+| same | 250::4 | Both previews: mask 0.35 and drawer shadow 0.12 in all six palette × mode states (before: 0.5 and 0.45 in dark); drawers opened by clicks in dark render those values; the comments no longer mention the app's values | Verified |
+| same | all units | 48 snapshots against e9701ea: text identical, pixels identical but for 2 antialiasing pixels; check:ui, check:lang, check:nul exit 0 | Verified |
 
 ## Two-way audit
 
 | Scope or finding | Sources and identifiers | Disposition and basis |
 |---|---|---|
 | Every #251 item has a row above; item 4 has nothing left to verify | #251 items 1–14, Done when | Mapped |
+| The code review's refactor list and #250 item 4 joined this round by the owner's decision of 2026-10-18; #250's other items stay out | 251::R1, 251::R2, 250::4 | Mapped |
