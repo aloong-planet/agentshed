@@ -301,8 +301,6 @@ not copy the policy.
   - for the first formal release, the output of the reachability check on every R2 URL before the
     pointer was rewritten.
 
-  > Pending: the first manual verification run has passed every gate.
-
 - Prior art: Transfer's release workflow, which passed these gates with real notarizations, and the
   existing CI workflow's job layout.
 

@@ -85,8 +85,9 @@ We choose **option 1**:
   latest pointer, not speed
 - Negative: every release waits for Apple twice per architecture (the `.app` and the DMG), typically
   10–30 minutes
-- Negative: nine repository secrets to keep (five for the certificate and Apple, four for R2), and a second
-  workflow and a website to maintain
+- Negative: nine secrets to keep — five for the certificate and Apple, held as organization secrets visible to
+  this repository (the owner's choice of 2026-10-18: they serve the whole team), and four for R2 in the
+  repository — and a second workflow and a website to maintain
 - Negative: the landing page speaks two languages while the app speaks six
 - Negative: pre-release users find the download on GitHub only, until the first formal release
 - Neutral: adopting the packaging asset requires electron-builder 26.17.0 (the asset's behaviour was

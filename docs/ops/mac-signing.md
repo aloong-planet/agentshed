@@ -15,11 +15,11 @@ Declared in `capabilities.toml` under `macos-distribution.profiles`:
 | `pnpm dist:mac:release` | release | Checks the identity and the Apple credentials before building; the same call notarizes and staples the `.app` through the `afterSign` hook before its DMG is built; then signs, notarizes, staples and gates the DMG. Policy §3, §6, §7 |
 
 Both run `build/mac-packaging.cjs`, the electron-scaffold packaging asset, with its tests in
-`build/mac-packaging.test.cjs` (run by `pnpm test:scripts`, part of `pnpm verify`). **The two files are copies
-and are never edited here**: a change goes into the asset in skillshed first and is copied back. Check a copy
-against the asset with `cmp build/mac-packaging.cjs <skillshed>/electron-scaffold/assets/mac-packaging.cjs`
-(and the same for the test file). For the same reason the project's lint skips the two copies; a lint
-finding in them is fixed in the asset.
+`build/mac-packaging.test.cjs` (run by `pnpm test:scripts`, part of `pnpm verify` and of CI). **The two files
+are copies and are never edited here**: a change goes into the asset in skillshed first and is copied back.
+Check a copy against the asset with
+`cmp build/mac-packaging.cjs <skillshed>/electron-scaffold/assets/mac-packaging.cjs` (and the same for the test
+file). For the same reason the project's lint skips the two copies; a lint finding in them is fixed in the asset.
 
 The asset checks `electron-builder.yml` at run time: a mac `dmg` target with an arch list, `mac.notarize: false`,
 `directories.output` using at most `${version}`, and the DMG name below. It also needs `dmg.sign: true`, which

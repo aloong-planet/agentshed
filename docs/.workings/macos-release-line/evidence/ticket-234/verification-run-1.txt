@@ -1,0 +1,47 @@
+# Manual run with the verification switch, first attempt: failed at Apple's authentication (2026-10-18)
+Run: https://github.com/aloong-planet/agentshed/actions/runs/39134948592 (workflow_dispatch on feat/release-workflow at 1444b6b; verify on)
+
+## Jobs and steps
+macOS packaging and gates: failure (2026-10-18T14:12:34Z → 2026-10-18T14:15:05Z)
+  Set up job: success (2026-10-18T14:12:34Z → 2026-10-18T14:12:36Z)
+  Require the Developer ID certificate: skipped (2026-10-18T14:12:36Z → 2026-10-18T14:12:36Z)
+  Require the Apple notarization credentials: skipped (2026-10-18T14:12:36Z → 2026-10-18T14:12:36Z)
+  Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262: success (2026-10-18T14:12:36Z → 2026-10-18T14:12:38Z)
+  Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1: success (2026-10-18T14:12:38Z → 2026-10-18T14:12:40Z)
+  Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020: success (2026-10-18T14:12:40Z → 2026-10-18T14:12:44Z)
+  Run pnpm install --frozen-lockfile: success (2026-10-18T14:12:44Z → 2026-10-18T14:12:47Z)
+  Check the tag against the package version: skipped (2026-10-18T14:12:47Z → 2026-10-18T14:12:47Z)
+  Package (release profile): failure (2026-10-18T14:12:47Z → 2026-10-18T14:14:58Z)
+  Package (local profile): skipped (2026-10-18T14:14:58Z → 2026-10-18T14:14:58Z)
+  Keep the packages and Apple's logs: skipped (2026-10-18T14:14:58Z → 2026-10-18T14:14:58Z)
+  Keep Apple's logs from a failed run: success (2026-10-18T14:14:58Z → 2026-10-18T14:14:59Z)
+  Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020: skipped (2026-10-18T14:14:59Z → 2026-10-18T14:14:59Z)
+  Post Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1: success (2026-10-18T14:14:59Z → 2026-10-18T14:14:59Z)
+  Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262: success (2026-10-18T14:14:59Z → 2026-10-18T14:15:00Z)
+  Complete job: success (2026-10-18T14:15:00Z → 2026-10-18T14:15:02Z)
+publish the GitHub release: skipped (2026-10-18T14:15:05Z → 2026-10-18T14:15:05Z)
+
+## Artifacts
+count=0
+
+## The failed step's log from electron-builder's start (masked by GitHub where it shows ***)
+43:2026-10-18T14:12:50.9080220Z [mac] electron-builder --mac --publish never -c.mac.notarize=false -c.afterSign=build/mac-packaging.cjs
+44:2026-10-18T14:12:51.5248020Z   • electron-builder  version=26.17.0 os=25.6.0
+55:2026-10-18T14:12:58.2198900Z   • signing         file=release/0.1.0/mac-arm64/Agentshed.app platform=darwin type=distribution identityName=Developer ID Application: *** (***) identityHash=A4AE5D22EBFAA2ECCEC7794C30B739F54AA61576 provisioningProfile=none
+56:2026-10-18T14:14:38.5155530Z   • skipped macOS notarization  reason=`notarize` options were set explicitly `false`
+57:2026-10-18T14:14:40.3509490Z [mac] notarizing arm64: /Users/runner/work/agentshed/agentshed/release/0.1.0/mac-arm64/Agentshed.app
+58:2026-10-18T14:14:58.3988710Z   ⨯ xcrun failed (exit 1)
+59:2026-10-18T14:14:58.3993980Z Error: HTTP status code: 401. Invalid credentials. Username or password is incorrect. Use the app-specific password generated at appleid.apple.com. Ensure that all authentication arguments are correct.  failedTask=build stackTrace=Error: xcrun failed (exit 1)
+60:2026-10-18T14:14:58.4112650Z Error: HTTP status code: 401. Invalid credentials. Username or password is incorrect. Use the app-specific password generated at appleid.apple.com. Ensure that all authentication arguments are correct.
+76:2026-10-18T14:14:58.4253860Z [mac] electron-builder failed (exit 1)
+78:2026-10-18T14:14:58.5189770Z ##[error]Process completed with exit code 1.
+
+## Releases after the run
+0
+
+## The five organization secrets (names and times only)
+APPLE_APP_SPECIFIC_PASSWORD updated=2026-10-18T10:42:52Z
+APPLE_ID updated=2026-10-18T10:42:50Z
+APPLE_TEAM_ID updated=2026-10-18T10:42:54Z
+CSC_KEY_PASSWORD updated=2026-10-18T10:42:47Z
+CSC_LINK updated=2026-10-18T10:42:45Z
