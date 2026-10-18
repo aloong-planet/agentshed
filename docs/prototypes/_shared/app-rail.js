@@ -52,7 +52,8 @@
   // Only the labels change with the language; redrawing would wipe what a page drew into the slot
   function label(nav, lang) {
     const words = LABEL[lang] || LABEL.en
-    nav.querySelectorAll('.ri').forEach((b) => {
+    // Only the rail's own items: a page may draw another .ri into the slot (the settings prototype's update button)
+    nav.querySelectorAll('.ri[data-rail]').forEach((b) => {
       b.title = words[b.dataset.rail]
       b.setAttribute('aria-label', words[b.dataset.rail])
     })

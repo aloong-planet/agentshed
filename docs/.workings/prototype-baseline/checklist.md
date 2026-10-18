@@ -35,7 +35,21 @@ lines; each names the tier that backs it.
 
 | Check date, source and implementation commits | Unit | Actual result and evidence | Current conclusion |
 |---|---|---|---|
-| 2026-10-18; 26b9216; uncommitted | all | Not run yet | Unverified |
+| 2026-10-18; 26b9216; 03cbaa7 plus the review fixes | 251::1 | Re-copied files byte-equal to their masters (app-identity.js already was); item 1 script: cleared storage shows en/light/purple with untouched preferences; explicit preferences become the gallery's fr/light; Follow system stays and shows ja/dark; reopening keeps both; an open page follows a change from another tab | Verified |
+| same | 251::2 | `rg -n "<Chinese prefix>" --glob "!landing-page/**"` under docs/prototypes: exit 1 (landing page waits) | Verified except the landing page |
+| same | 251::3 | `rg -n 'XAI_CAND\|class="pick"'`: exit 1; the Agents page draws `--p-xai` from the shared theme (#ad98d0 / #c9b3ec, the app's values) | Verified |
+| same | 251::5 | `rg -n "sync-(theme\|icons\|project-side\|startup-skeleton)\|css-blocks"` under docs/prototypes and scripts: exit 1; no "Derived file" header outside sync-mmd's own outputs | Verified |
+| same | 251::6 | Shell: the scan button is a two-option group in the bar; the header no longer calls the rail static | Verified |
+| same | 251::7 | The skill's helper block verbatim on the ten pages that render `data-goto`; 45 entries clicked opened alone, all landed, none targets its own page; inside the gallery every entry switches the hash | Verified |
+| same | 251::8 | Every bar carries one `dh-note` per group naming the app-side source; the Agents page's content note about the bar is gone | Verified |
+| same | 251::9 | Dictionary claims: one historical note left, rewritten; a case-insensitive search for the Chinese and English wordings of "from the app's dictionary" and for `i18n/` under docs/prototypes then exits 1; `_shared/copy.js` holds 32 entries in each language, each removed from every page that had it | Verified |
+| same | 251::10 | `pnpm check:ui` (no tier) exit 0; mutations of four kept rules and of the new app-window block each exit 1 with the rule's message | Verified |
+| same | 251::11 | `rg -n "mockSystemDark\|SYSTEM_LANGS\|sysTheme"`: exit 1; no select in any bar | Verified |
+| same | 251::12 | No style rule names the bar on any converted page; no `<select>` and no `style` inside a bar; bars render in the dock look (screenshots) | Verified except the landing page |
+| same | 251::13 | Ten app-window pages: `body` block/visible, the window box carries the root styles; md-preview's sheet on `.sheet`; `rg -n "^\s*(html\s*,\s*)?body\s*\{"` over the UI pages hits only the landing page | Verified except the landing page |
+| same | 251::14 | `rg -n "src/"` over the pages: only mock content (session transcripts, a mock subagent description, the skills fixture) | Verified |
+| same | 251::15 | Skills preview flat only and md-preview V2 only; snapshot diff limited to the removed rows and texts | Verified |
+| same | 251::done | 48 snapshots (12 pages × zh/en × light/dark) with no page error; the gallery loads all 15 entries; `pnpm verify` exit 0 (830 unit, 135 e2e, smoke OK) | Verified; the landing page reruns with its conversion |
 
 ## Two-way audit
 
