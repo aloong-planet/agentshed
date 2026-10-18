@@ -114,7 +114,7 @@ describe('the download as served: the list state', () => {
   })
 
   test('the English list state reads as the spec’s', () => {
-    expect(text(pages.en.querySelector('.hero .cta a.btn'))).toBe('Download Agentshed via GitHub')
+    expect(text(pages.en.querySelector('.hero .cta a.btn'))).toBe('Download Agentshed from GitHub')
     expect(text(pages.en.querySelector('.hero .cta .meta'))).toBe('macOS 12 or later · Apple Silicon')
     expect(text(pages.en.querySelector('#download h2 + p'))).toBe(
       'Version details can’t be loaded right now — download from GitHub'
