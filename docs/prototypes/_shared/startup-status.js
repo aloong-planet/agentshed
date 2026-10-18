@@ -1,5 +1,5 @@
 // Display mock only. The existing page fixtures and interactions are left intact.
-// Scan copy mirrors the six app dictionaries; failure copy was confirmed with the original prototypes.
+// The scanning and the failure copy, in six languages, are the prototypes' own.
 //
 // The startup states, as the app has them: before this launch's first snapshot the page is its startup
 // skeleton; once data is there (restored from the last run), the title row's hint reads scanning, then

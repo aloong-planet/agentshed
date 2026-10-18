@@ -1,17 +1,19 @@
 <!doctype html>
 <!-- A UI prototype · Skills package preview — the main list expands to show a package's files, and
      clicking a file opens a drawer to read it.
-     演示基建:底栏切展开形式(data-demo-harness)。界面语言、配色与明暗跟随设置原型(appearance)所选,
+     演示基建(非设计的一部分,勿实现):底部悬浮条(data-demo-harness,独立于页面内容流)承载「展开形式」一组
+     (平铺 / 缩进卡片,两种形式的对比;说明行写明 app 里展开形式固定为一种、没有这个开关)。
+     界面语言、配色与明暗跟随设置原型(appearance)与画廊的统一设置所选,
      本页不设开关;语言只画了中、英两种,其他语言按英文显示并有提示;评审注记(.sub 说明、分区标题、配色说明)
      不随语言变。色值取共享主题 _shared/theme.css,本页只为自己的 token 指明
-     对应的 app token。共享:md-preview。
+     对应的 app token。app 窗口的根样式在共享件 _shared/app-window.css 里。共享:md-preview。
      2026-08-06 更新:①行密度对齐其它模块(视觉行高约 32px);②行不展示 description(已裁定);
      ③展开区新增「平铺」形式(默认)——不缩进、表格满宽,与旧「缩进卡片」可切换对比;
      ④包统计(文件数/大小,不含行数)上行内右侧,展开区撤销汇总条;⑤frontmatter 深浅随页面
      data-mode(修共享块只认 OS 的 bug)。
      2026-08-10 新增「按名字过滤」:两处列表各一个搜索框——子串匹配、大小写不敏感、只匹配 skill 名;
      命中不高亮;零额外反馈(不加计数行,列表直接变短,详情的组标题计数随之变化、空组整组消失);
-     输入框不放图标(与真代码 sessions 搜索框一致,且 icons.tsx 禁用字符图标)。
+     输入框不放图标(与真代码 sessions 搜索框一致,且 app 的图标模块禁用字符图标)。
      详情区同时补上真代码早已有、原型此前缺失的分组结构——不画出分组,「空组消失」这个形态就无从评判。
      2026-08-12 补:插件行与磁盘行**平等展开预览**(ADR-0012 于 2026-08-07 推翻了 v1 的排除,
      真代码与 features 早已照此实现,只有本原型停在旧形态——issue #98)。展开能力的判定
@@ -23,12 +25,13 @@
 <meta charset="utf-8">
 <title>原型 — Skills 包预览 · 列表折叠 + 文件抽屉</title>
 <link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <link rel="stylesheet" href="../_shared/md-preview.css">
 <style>
   /* Page tokens on top of the app's (_shared/theme.css). Each names the app token that plays the same role in
      the app's skills view — expanded area, file drawer, markdown body and its tip — so every palette and
-     both modes come from the app. Syntax colours have no app token (the app draws none). The app keeps the
+     both modes come from the shared theme. Syntax colours have no app token (the app draws none). The app keeps the
      drawer shadow's and the mask's light alpha in dark, where it barely shows on the dark surface; this page
      takes its own dark alphas instead. */
   :root {
@@ -65,14 +68,13 @@
   }
 
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",system-ui,sans-serif}
-  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   .main{flex:1;min-width:0;overflow:auto;padding:18px 22px 100px}
   h2.page-h{font-size:16px;font-weight:700;color:var(--accent);margin:0 0 4px;letter-spacing:-.02em}
   .sub{font-size:12px;color:var(--text-2);margin-bottom:14px;line-height:1.55}
   .sub b{color:var(--text)}
   .sec-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);margin:18px 0 8px}
   .sec-h:first-of-type{margin-top:0}
-  /* 按名字过滤(2026-08-10):形态照搬真代码 theme.css 的 .sbar——同一个 pane-body 语境里的既有搜索框,
+  /* 按名字过滤(2026-08-10):形态照搬 app 里同一个分栏正文语境中的既有搜索框,
      不新造第二种。此处只渲染 input、不渲染 scope 切换。
      宽度 300px,不撑满整行(2026-08-10 裁定)。先按「不该比名字列(200px)宽」试过 200px,
      实际看下来输入区太局促,于是与名字列脱钩:搜索框的宽度按**输入舒适度**定,名字列保持 200px,
@@ -81,11 +83,11 @@
   .sbar input{width:300px;flex:none;padding:6px 11px;border:1px solid var(--line-strong);border-radius:7px;
     background:var(--card);color:var(--text);font:inherit;font-size:12.5px;outline:none}
   .sbar input:focus{border-color:var(--accent)}
-  /* 提示行与分组标题:真代码的 .grp-t,原型此前没画,过滤时组计数变化要靠它才看得见 */
+  /* 提示行与分组标题:app 里已有的分组标题,原型此前没画,过滤时组计数变化要靠它才看得见 */
   .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px}
   /* 名字被压缩时 hover 显示全名(2026-08-10 裁定)。
      用 fixed 而不是 absolute:.sk-card 是 overflow:hidden 的裁剪盒,贴着行定位的 absolute 浮层
-     会被它整个切掉——实测浮层自己的中心点命中的是 .pane-body,那块像素上根本没有浮层。
+     会被它整个切掉——实测浮层自己的中心点命中的是下面的分栏正文,那块像素上根本没有浮层。
      fixed 不受祖先 overflow 约束,代价是坐标只能由 JS 按名字列的 rect 算,
      且滚动时锚点就不作数了,必须隐藏。 */
   .nm-tip{
@@ -101,7 +103,7 @@
        常规的按词换行断不开,必须 anywhere。 */
     max-width:420px;overflow-wrap:anywhere;
   }
-  /* 无匹配空态:真代码的 .none */
+  /* 无匹配空态:照 app 里的无匹配空态 */
   .none{color:var(--text-2);padding:16px;text-align:center;font-size:12px;
     border:1px dashed var(--line-strong);border-radius:10px;margin-bottom:10px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;
@@ -253,32 +255,19 @@
   }
   .md-preview-body.preview a{ color: var(--t-md-link); border-bottom-color: color-mix(in srgb, var(--t-md-link) 35%, transparent); }
   .md-preview-body.preview strong{ color: var(--accent-deep); }
-
-  [data-demo-harness]{
-    position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50;
-    display:flex;align-items:center;gap:6px;padding:8px 12px;
-    background:rgba(28,26,24,.92);color:#efece6;border-radius:999px;
-    box-shadow:0 8px 28px rgba(0,0,0,.3);backdrop-filter:blur(10px);
-    font-size:12px;max-width:98vw;flex-wrap:wrap;justify-content:center}
-  [data-demo-harness] .tag{
-    font-size:10px;font-weight:700;letter-spacing:.04em;color:#b0a898;
-    border-right:1px solid rgba(255,255,255,.12);padding-right:10px;white-space:nowrap}
-  [data-demo-harness] button{
-    font:inherit;font-size:11.5px;font-weight:600;border:0;background:transparent;
-    color:#b0a898;padding:5px 10px;border-radius:999px;cursor:pointer;white-space:nowrap;
-    display:inline-flex;align-items:center;gap:6px}
-  [data-demo-harness] button.on{background:rgba(255,255,255,.12);color:#fff}
 </style>
 <script src="../vendor/marked.umd.js"></script>
 <script src="../manifest.js"></script>
 <script src="../app-identity.js"></script>
 <script src="../_shared/icons.js"></script>
+<script src="../_shared/copy.js"></script>
 <script src="../_shared/md-preview.js"></script>
 <script src="./skill-packages-fixture.js"></script>
 <script src="../dimensions.js"></script>
 <script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
 </head>
 <body>
+<div class="app-window" data-shared-block="app-window">
   <nav class="rail" data-shared-block="app-rail" data-rail-current="agents"></nav>
   <script src="../_shared/app-rail.js"></script>
   <div class="main">
@@ -316,11 +305,18 @@
   </div>
   <div class="toast" id="toast"></div>
   <div id="overlay"></div>
+</div>
 
   <div data-demo-harness>
-    <span class="tag">演示·展开形式</span>
-    <button type="button" data-expand="flat" class="on">平铺(推荐)</button>
-    <button type="button" data-expand="nest">缩进卡片(现行)</button>
+    <span class="dh-tag">Demo ·</span>
+    <div class="dh-group">
+      <span class="dh-title">展开形式</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-expand="flat" aria-pressed="true">平铺(推荐)</button>
+        <button type="button" class="dh-opt" data-expand="nest" aria-pressed="false">缩进卡片(现行)</button>
+      </div>
+    </div>
+    <p class="dh-note">展开形式在 app 里固定为一种,不由任何状态决定;本组只为对比两种形式,app 内没有这个开关。</p>
   </div>
 
 <script>
@@ -345,30 +341,25 @@
   let mode = DemoDimensions.get('mode')
 
   // The interface language follows it too; this page is drawn in Chinese and English (demo-dimensions.js
-  // shows any other choice as English, with a note). The English is the app's own dictionary wording
-  // (src/shared/i18n/en.ts) wherever the same Chinese string exists there
+  // shows any other choice as English, with a note)
   let lang = DemoDimensions.get('language')
   const HTML_LANG = { zh: 'zh-CN', en: 'en' }
   const enOne = (n) => new Intl.PluralRules('en').select(n) === 'one'
   const COPY = {
     zh: {
+      ...SharedCopy.zh,
       searchPlaceholder: '搜索 skill…',
       globalHint: '把全局库里的 skill 安装进某个项目；点行展开包内文件。',
       recordedDefault: '已记录:安装交互',
       recordedInstall: '已记录:安装到…',
       recordedUninstall: '已记录:卸载',
       unreadable: (skill, file) => `文件不可读: ${skill} / ${file}`,
-      close: '关闭',
       pkgSummary: (files, size) => `${files} 个文件 · ${size}`,
       noPackage: (key) => `无包数据（${key}）`,
       deepHint: '按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill。',
       deeperPaths: (paths) => `更深路径未列入: ${paths}`,
       noPreviewable: '包内无可预览文本文件',
-      colFile: '文件', colLines: '行数', colSize: '大小', colMtime: '修改日期',
-      tagEntry: '入口',
-      pillPlugin: '插件', pillProject: '项目级', pillGlobal: '全局层', pillSymlink: '软链',
-      installTo: '安装到…',
-      uninstall: '卸载',
+      pillProject: '项目级', pillGlobal: '全局层',
       // The drawer's level label, by the row's level
       level: { lib: '全局库', project: '项目级', global: '全局层', plugin: '插件' },
       group: {
@@ -381,23 +372,19 @@
       noNameMatch: '没有名字匹配的 skill'
     },
     en: {
+      ...SharedCopy.en,
       searchPlaceholder: 'Search skills…',
       globalHint: 'Install a skill from the global library into a project; click a row to expand its package files.',
       recordedDefault: 'Recorded: install interaction',
       recordedInstall: 'Recorded: Install to…',
       recordedUninstall: 'Recorded: Uninstall',
       unreadable: (skill, file) => `File cannot be read: ${skill} / ${file}`,
-      close: 'Close',
       pkgSummary: (files, size) => `${files} ${enOne(files) ? 'file' : 'files'} · ${size}`,
       noPackage: (key) => `No package data (${key})`,
       deepHint: 'Best practice is a skill reference depth below 2 — consider restructuring this skill',
       deeperPaths: (paths) => `Deeper paths not listed: ${paths}`,
       noPreviewable: 'No previewable text files in this package',
-      colFile: 'File', colLines: 'Lines', colSize: 'Size', colMtime: 'Modified',
-      tagEntry: 'Entry',
-      pillPlugin: 'Plugin', pillProject: 'Project level', pillGlobal: 'Global level', pillSymlink: 'symlink',
-      installTo: 'Install to…',
-      uninstall: 'Uninstall',
+      pillProject: 'Project level', pillGlobal: 'Global level',
       level: { lib: 'Global library', project: 'Project level', global: 'Global level', plugin: 'Plugin' },
       group: {
         'cl-project': 'CLAUDE CODE · Project level',
@@ -486,7 +473,7 @@
     b.onclick = () => {
       document.documentElement.setAttribute('data-expand', b.getAttribute('data-expand'))
       document.querySelectorAll('[data-demo-harness] [data-expand]').forEach((x) => {
-        x.classList.toggle('on', x === b)
+        x.setAttribute('aria-pressed', String(x === b))
       })
     }
   })
@@ -904,5 +891,14 @@
   })
 </script>
 <script src="../demo-harness.js"></script>
+<script>
+  // Cross-prototype navigation: inside the gallery ask the parent page to switch; when opened alone, go to the file directly
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+  });
+</script>
 </body>
 </html>

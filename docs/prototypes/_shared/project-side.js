@@ -120,13 +120,13 @@
     c.el.querySelector('.dd-trigger').innerHTML = `<span>${esc(label(c.filter))}</span><span class="chev">${ICONS.ChevronDown(11)}</span>`
   }
 
-  // ── The rows (ProjectsPane's filter: side, then name or path, then stale) ──
+  // ── The rows (filtered by side, then name or path, then stale) ──
   function rows(c) {
     const { el } = c
     const list = el.querySelector('.list')
     const cnt = el.querySelector('.opts .cnt')
     if (c.state === 'scanning') {
-      // ProjectsSkeleton: name widths staggered like real names, one fixed shape on every launch
+      // The startup skeleton: name widths staggered like real names, one fixed shape on every launch
       list.innerHTML = [128, 96, 142, 88, 150, 104, 120, 134, 92].map((w, i) => {
         const d = `animation-delay:${(i % 6) * 0.12}s`
         return `<div class="row"><span class="nm"><span class="sk-line">​<span class="sk-ph" style="width:${w}px;height:10px;${d}"></span></span></span>` +

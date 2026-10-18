@@ -5,21 +5,22 @@
      (原「两侧差异怎么读」已随 skills-view 拆除跨侧 diff 作废,2026-08-07 同步。)
      交互:行内「安装到…」弹选择器(失效项目置灰;装到 Transfer 的 tdd 触发同名阻止);
      下方"项目级副本"区演示卸载确认弹窗(含完整路径)。
-     界面语言、明暗与配色跟随设置原型(appearance)所选,本页不设开关:界面文案画了中、英两种,其他语言按
-     英文显示并有提示;区块标题与说明行是评审注解,与 mock 数据一样保持原样。色值取共享主题
-     _shared/theme.css,本页不自定义 app token。 -->
+     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关:界面文案画了中、英
+     两种,其他语言按英文显示并有提示;几个页面共用的文案取自共享文案表 _shared/copy.js;区块标题与说明行是
+     评审注解,与 mock 数据一样保持原样。色值取共享主题 _shared/theme.css,本页不自定义 app token。
+     app 窗口的根样式在共享件 _shared/app-window.css 里。本页没有演示条。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>原型 — 全局库与装卸</title>
 <link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <style>
   /* Every app token (surfaces, text, lines, the accent family, the semantic and side colours, the
      floating-surface shadow) comes from _shared/theme.css for each palette and both modes. This page
      defines none of them. */
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
-  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   .main{flex:1;min-width:0;overflow:auto;padding:16px 22px}
   h2{font-size:15px;margin-bottom:2px}
   .sub{font-size:11.5px;color:var(--text-2);margin-bottom:14px}
@@ -72,8 +73,10 @@
 <script src="../manifest.js"></script>
 <script src="../app-identity.js"></script>
 <script src="../_shared/icons.js"></script>
+<script src="../_shared/copy.js"></script>
 </head>
 <body>
+<div class="app-window" data-shared-block="app-window">
   <nav class="rail" data-shared-block="app-rail" data-rail-current="agents"></nav>
   <script src="../_shared/app-rail.js"></script>
   <div class="main">
@@ -91,14 +94,15 @@
   <div class="toast" id="toast"></div>
   <div class="mask" id="mask"></div>
   <div class="dlg" id="dlg"></div>
+</div>
 <script>
-  // ── 界面文案:画了中、英两种(其他语言按英文显示,提示由 demo-dimensions.js 给出)。英文取 app 字典
-  //    (src/shared/i18n/en.ts)里同一句的值;字典里没有的,按字典的风格补写。区块标题与说明行是评审
-  //    注解,skill 名、描述与路径是 mock 数据,都保持原样。 ──
+  // ── 界面文案:画了中、英两种(其他语言按英文显示,提示由 demo-dimensions.js 给出)。几个页面共用的
+  //    条目取自共享文案表(_shared/copy.js),这里只留本页独有的。区块标题与说明行是评审注解,skill 名、
+  //    描述与路径是 mock 数据,都保持原样。 ──
   const T={
     zh:{
-      secClaudeProject:'项目级 · .claude/skills', uninstall:'卸载',
-      pillSymlink:'软链', installTo:'安装到…', pickTarget:'选择目标项目(复制落地)',
+      ...SharedCopy.zh,
+      pickTarget:'选择目标项目(复制落地)',
       staleDisabled:'失效,禁用', hasSame:'已装同名',
       blocked:(p,s)=>`${p} 已有同名 skill「${s}」,已阻止,不覆盖`,
       installed:(s,p)=>`已安装 ${s} → ${p}((复制落地))`,
@@ -106,8 +110,8 @@
       cancel:'取消', del:'删除', uninstalled:n=>`已卸载 ${n}`
     },
     en:{
-      secClaudeProject:'Project level · .claude/skills', uninstall:'Uninstall',
-      pillSymlink:'symlink', installTo:'Install to…', pickTarget:'Choose a target project (installed by copy)',
+      ...SharedCopy.en,
+      pickTarget:'Choose a target project (installed by copy)',
       staleDisabled:'Stale, disabled', hasSame:'Same name installed',
       blocked:(p,s)=>`${p} already has a skill named “${s}” — blocked, nothing was overwritten`,
       installed:(s,p)=>`Installed ${s} → ${p} (by copy)`,
@@ -161,7 +165,7 @@
     if(open) document.getElementById(open).classList.add('open');
   }
   renderLib();
-  // 成败只由底色区分,文案里不带 ✓ / ⚠ —— 产品的 toast 就是这样(Toast.tsx 只渲染文本)。
+  // 成败只由底色区分,文案里不带 ✓ / ⚠ —— 产品的 toast 就是这样(app 的 toast 只渲染文本)。
   // 加个记号会让读原型的人以为产品也有。
   // msg 是按当前界面语言出句的函数,语言切换时正在显示的 toast 随之重写
   let toastMsg=null;
@@ -210,8 +214,7 @@
   });
 </script>
 <script>
-  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
-  // navigates to the file directly
+  // Cross-prototype navigation: inside the gallery ask the parent page to switch; when opened alone, go to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;

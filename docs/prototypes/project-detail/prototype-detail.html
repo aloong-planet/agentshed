@@ -42,11 +42,14 @@
        (总量 8.5M 却 cache 48.2M,而 cache 是计入总量的)。现改为「其中 cache(ccusage 口径
        已计入总量)」,大数字取 cacheRead(与实现一致,此前误取读+写),各侧示例补上 Grok,
        并让四个字段恰好加总为总量(见 ADR-0023:Codex/Grok 不采集 cache 写)。
-     演示基建(非设计的一部分,勿实现):底部悬浮条 [演示·会话分栏] 两态
-       (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。
-     界面语言、明暗与配色跟随设置原型(appearance)所选,本页不设开关:界面文案(含启动提示、趋势图、
-       token 概览卡)画了中、英两种,其他语言按英文显示并有提示;评审注解、演示条与 mock 数据保持原样。
-       色值取共享主题 _shared/theme.css,本页不自定义 app token。
+     演示基建(非设计的一部分,勿实现):底部悬浮条承载两组——「启动恢复」三档常驻(扫描中 / 完成 / 失败,
+       共享件 _shared/startup-status;真实判定 = 这次启动的扫描是否仍在进行与扫描的结果);「会话分栏」两态
+       (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。每组的真实判定与「app 内无此
+       开关」写在演示条的说明行里。
+     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关:界面文案(含启动提示、趋势图、
+       token 概览卡)画了中、英两种,其他语言按英文显示并有提示;两页及以上共用的文案取共享文案表
+       _shared/copy.js;评审注解、演示条与 mock 数据保持原样。
+       色值取共享主题 _shared/theme.css,本页不自定义 app token。app 窗口的根样式在共享件 _shared/app-window.css 里。
      项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。 -->
 <!-- The fourth total card follows the globally persisted 30 / 60 / 90 day choice; its amount comes from the same daily mock history as the chart. -->
 <html lang="zh-CN">
@@ -54,6 +57,7 @@
 <meta charset="utf-8">
 <title>原型 — 项目详情:装了什么</title>
 <link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <link rel="stylesheet" href="../_shared/project-side.css">
 <!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
@@ -66,7 +70,6 @@
      _shared/totals-card.css) — comes from _shared/theme.css for each palette and both modes. This page
      defines none of them. */
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
-  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
   .head{padding:14px 20px 0;border-bottom:1px solid var(--line)}
   .h1{display:flex;align-items:center;gap:9px}
@@ -203,18 +206,10 @@
   .hit .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hit .d{font-size:11px;color:var(--text-2);flex:none}
   .hit .bd{font-size:10px;border-radius:4px;padding:0 5px;background:var(--line);color:var(--text-2);flex:none}
-  /* The app writes the search highlight as literals, not tokens (theme.css `mark`), and changes it with
-     light/dark only; the page copies both values and takes light/dark from the settings prototype */
+  /* The search highlight is written as literals, not tokens, and changes with light/dark only; light/dark
+     comes from the settings prototype and the gallery's unified settings */
   mark{background:#fff2a8;color:inherit;border-radius:2px;padding:0 1px}
   html[data-demo-mode="dark"] mark{background:#4d451a;color:#f6e9a8}
-  /* The demo harness (not part of the design) */
-  .harness{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#22252a;
-    color:#c9ccd1;border-radius:999px;padding:5px 8px;display:none;align-items:center;gap:6px;
-    font-size:11px;z-index:40;box-shadow:0 6px 20px rgba(0,0,0,.3)}
-  .harness.on{display:flex}
-  .harness .hl{color:#7f858d;padding:0 4px;white-space:nowrap}
-  .harness .hb{padding:3px 9px;border-radius:999px;cursor:pointer;color:#c9ccd1;white-space:nowrap}
-  .harness .hb.on{background:#4a4f57;color:#fff}
 
 </style>
 <!-- Startup restore: keep the original page and its mock contents. The added bottom switches
@@ -226,8 +221,10 @@
 <script src="../manifest.js"></script>
 <script src="../app-identity.js"></script>
 <script src="../_shared/icons.js"></script>
+<script src="../_shared/copy.js"></script>
 </head>
 <body>
+<div class="app-window" data-shared-block="app-window">
   <nav class="rail" data-shared-block="app-rail" data-rail-current="projects"></nav>
   <script src="../_shared/app-rail.js"></script>
   <aside class="side" data-shared-block="project-side" data-side-selected="Transfer"></aside>
@@ -426,33 +423,35 @@
   <div class="reader" id="areader"></div>
   <div class="mask" id="dmask"></div>
   <div class="drawer" id="drawer"></div>
-  <!-- The demo harness: mock state switches, not part of the design and not to be implemented; they appear
-     only in the sessions tab; startup switches remain available in every tab -->
-  <div class="harness" id="harness" data-demo-harness>
+</div>
+  <!-- The demo harness: mock state switches, not part of the design and not to be implemented; the session
+     switches appear only in the sessions tab; startup switches remain available in every tab -->
+  <div data-demo-harness id="harness">
+    <span class="dh-tag">Demo ·</span>
     <span data-startup-controls></span>
-    <span id="session-demo" style="display:none;align-items:center;gap:6px">
-    <span class="hl">演示·会话分栏</span>
-    <span class="hb on" data-se="has">有会话</span>
-    <span class="hb" data-se="empty">空态</span>
-    </span>
+    <div class="dh-group" id="session-demo" hidden>
+      <span class="dh-title">会话分栏</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-se="has" aria-pressed="true">有会话</button>
+        <button type="button" class="dh-opt" data-se="empty" aria-pressed="false">空态</button>
+      </div>
+    </div>
+    <p class="dh-note">启动恢复各档在 app 里由这次启动的扫描是否仍在进行、以及扫描的结果决定;app 内没有这个开关。</p>
+    <p class="dh-note" id="session-demo-note" hidden>会话分栏的有会话 / 空态在 app 里由该项目扫到的会话数决定;app 内没有这个开关。</p>
   </div>
 <script src="../_shared/trend-chart.js?v=linked-span-total"></script>
 <script>
-  // ── 界面文案:画了中、英两种(其他语言按英文显示,提示由 demo-dimensions.js 给出)。英文取 app 字典
-  //    (src/shared/i18n/en.ts)里同一句的值;字典里没有的,按字典的风格补写。评审注解、演示条与 mock
+  // ── 界面文案:画了中、英两种(其他语言按英文显示,提示由 demo-dimensions.js 给出)。两页及以上共用的条目
+  //    取共享文案表 _shared/copy.js,这里只留本页独有的。评审注解、演示条与 mock
   //    数据(项目/skill/文件名、会话标题、描述、提问原文)不在此列,保持原样。 ──
   const pl = (n, one, other) => n === 1 ? one : other
   const T = {
-    zh: {
-      tabOverview:'概览', tabSessions:'会话', tabCfg:'配置', tabArts:'产物',
-      win:['累计总量 · 全部历史','本日','近 7 天'], winDays:d=>`近 ${d} 天`, winAllShort:'累计总量',
+    zh: { ...SharedCopy.zh,
+      tabOverview:'概览', tabSessions:'会话', tabArts:'产物',
+      win:['累计总量 · 全部历史','本日','近 7 天'], winDays:d=>`近 ${d} 天`,
       byModel:w=>`按模型拆分 · ${w}`, noModelInWindow:'该窗口内没有模型用量',
       noUsageInWindow:'选中的时间窗口内没有用量',
-      compCacheRead:'cache 读', compUncached:'未命中输入', compOutput:'输出',
-      compTipCacheRead:v=>`${v} · 命中缓存、不必重算的输入`,
-      compTipUncached:v=>`${v} · 含 cache 写(仅 Claude 侧非零):都是这一轮真读进模型的输入`,
-      compTipOutput:v=>`${v} · 模型生成的 token`,
-      trendPrefix:'近', trendSuffix:'天趋势', trendContext:'(本地时区 · 日粒度)', trendDays:'趋势天数', trendTotal:'合计',
+      trendContext:'(本地时区 · 日粒度)',
       recentSessions:'最近会话', ago:n=>`${n}天前`, agoToday:'今天', agoWeek:'1周前',
       ovNote:'共 7 个会话 —— 全部与搜索见「会话」分栏。',
       searchPlaceholder:'在本项目的 7 个会话里搜索…', scopeQuestions:'搜提问', scopeFullText:'全文',
@@ -465,42 +464,37 @@
       noHits:'没有命中。默认只搜提问,试试切到「全文」。',
       hitsFound:(h,s)=>`找到 <b>${h}</b> 条 · ${s} 个会话`, folded:n=>` · 已折叠 <b>${n}</b> 条 fork 重放副本`,
       hitCount:n=>`${n} 条命中`, inBody:'正文',
-      secClaudeProject:'项目级 · .claude/skills', secClaudeGlobal:'全局层 · Claude', secCodexGlobal:'全局层 · Codex',
+      secClaudeGlobal:'全局层 · Claude', secCodexGlobal:'全局层 · Codex',
       secPlugin:'插件内含 · 本项目有效启用(命名空间调用,只读无装卸)',
-      pillProject:'项目级', pillGlobal:'全局', pillSymlink:'软链', pillPlugin:'插件',
-      shadowsGlobal:'遮蔽全局', shadowed:'被项目级遮蔽', shadows:'遮蔽同名', overridesBuiltin:'覆盖内置',
+      pillProject:'项目级', pillGlobal:'全局',
+      shadowsGlobal:'遮蔽全局', shadowed:'被项目级遮蔽', shadows:'遮蔽同名',
       saHint:'生效视图 · 两侧同名均为项目级遮蔽(subagents 语义;与 skills 的 Codex 同名共存相反) · 点条目开抽屉',
       secClaudeAgents:'项目级 · .claude/agents', secCodexAgents:'项目级 · .codex/agents',
       saFl:{ shadows:'压过同名低层定义', builtin:'覆盖内置(default/worker/explorer 之一被替换);压过用户级同名',
         shadowed:'被项目级定义遮蔽(未生效)' },
-      inherited:'—(继承)', defaultSubagentModel:'—(default_subagent_model)',
+      defaultSubagentModel:'—(default_subagent_model)',
       memMainTitle:'MEMORY.md(自动记忆主文件,直接渲染——同配置 tab 模式)', memTopicsTitle:'Topic 文件(2) · 点击开抽屉查看',
       topicMeta:a=>`topic 文件 · ${a}`, viaMain:' · 经主文件链接打开',
       extLink:'外部链接', extOpen:'交系统浏览器打开(app 不导航)。', relLink:'相对链接',
       outOfScope:'目标不在可读范围(文件不存在或未列入本项目产物/记忆)。',
       plHint:'按侧分组 · Claude 组:本项目有效启用集(local > project > user) · 点条目展开内含组件',
-      enabledShort:'启用', notEnabled:'未启用',
+      enabledShort:'启用',
       plVerdict0:'启用判定来自 user 层 · user', plVerdict1:'启用判定来自 project 层 · project · Transfer',
       plVerdict2:'禁用判定来自 project 层(压过 user) · user / project · gone-proj(项目已失联) · 2 条安装记录',
-      cacheOnly:'仅缓存枚举',
       plFoot:'Codex 组仅列缓存中存在的插件;启用态与内含组件语义本期不建模;Codex 插件为全局生效,无项目级启用语义。',
-      secInstall:'安装记录', secBundledSkills:'内含 skills(命名空间调用)', secBundledMcp:'内含 MCP servers',
+      secBundledSkills:'内含 skills(命名空间调用)', secBundledMcp:'内含 MCP servers',
       secBundledHooks:'内含 hooks(事件摘要)', projectLost:'(项目已失联)',
-      mcpTitle:'MCP Servers(按来源标注)', srcPlugin:'plugin 自带', mcpFromPlugin:'来自 chrome-devtools-mcp 插件',
+      mcpTitle:'MCP Servers(按来源标注)', mcpFromPlugin:'来自 chrome-devtools-mcp 插件',
       srcProjectMcp:'项目 .mcp.json', mcpProjectDs:'示意:项目级 MCP,受 enabled/disabled 开关控制',
       filterAll:'全部', noArtifactsOfType:'该类无产物', settingsSummary:'settings 摘要'
     },
-    en: {
-      tabOverview:'Overview', tabSessions:'Sessions', tabCfg:'Config', tabArts:'Artifacts',
-      win:['Total · all history','Today','Last 7 days'], winDays:d=>`Last ${d} days`, winAllShort:'Total',
+    en: { ...SharedCopy.en,
+      tabOverview:'Overview', tabSessions:'Sessions', tabArts:'Artifacts',
+      win:['Total · all history','Today','Last 7 days'], winDays:d=>`Last ${d} days`,
       byModel:w=>`By model · ${w}`, noModelInWindow:'No model usage in this window',
       noUsageInWindow:'No usage in the selected window',
-      compCacheRead:'Cache reads', compUncached:'Uncached input', compOutput:'Generated output',
-      compTipCacheRead:v=>`${v} · input served from cache, never recomputed`,
-      compTipUncached:v=>`${v} · cache writes included (non-zero on the Claude side only): everything the model read afresh this turn`,
-      compTipOutput:v=>`${v} · tokens the model generated`,
-      trendPrefix:'Last', trendSuffix:'days’ trend', trendContext:'(local time zone · daily)', trendDays:'Trend days', trendTotal:'Total',
-      // The app's relative days (Intl.RelativeTimeFormat, numeric:'auto')
+      trendContext:'(local time zone · daily)',
+      // Relative days in the words of Intl.RelativeTimeFormat with numeric:'auto'
       recentSessions:'Recent sessions', ago:n=>n===0?'today':n===1?'yesterday':`${n} days ago`, agoToday:'today', agoWeek:'1 week ago',
       ovNote:'7 sessions in total — see the “Sessions” tab for all of them and for search.',
       searchPlaceholder:'Search across 7 sessions in this project…', scopeQuestions:'Search questions', scopeFullText:'Full text',
@@ -514,30 +508,29 @@
       hitsFound:(h,s)=>`Found <b>${h}</b> ${pl(h,'hit','hits')} · ${s} ${pl(s,'session','sessions')}`,
       folded:n=>` · <b>${n}</b> fork replay ${pl(n,'copy','copies')} folded away`,
       hitCount:n=>`${n} ${pl(n,'hit','hits')}`, inBody:'Body',
-      secClaudeProject:'Project level · .claude/skills', secClaudeGlobal:'Global level · Claude', secCodexGlobal:'Global level · Codex',
+      secClaudeGlobal:'Global level · Claude', secCodexGlobal:'Global level · Codex',
       secPlugin:'Bundled in plugins · effectively enabled here (namespaced, read-only, no install/uninstall)',
-      pillProject:'Project', pillGlobal:'Global', pillSymlink:'symlink', pillPlugin:'Plugin',
-      shadowsGlobal:'Shadows global', shadowed:'Shadowed by project level', shadows:'Shadows same name', overridesBuiltin:'Overrides built-in',
+      pillProject:'Project', pillGlobal:'Global',
+      shadowsGlobal:'Shadows global', shadowed:'Shadowed by project level', shadows:'Shadows same name',
       saHint:'Effective view · a same name on both sides is shadowed at project level (subagent semantics; the opposite of Codex skills coexisting under one name) · click a row to open the drawer',
       secClaudeAgents:'Project level · .claude/agents', secCodexAgents:'Project level · .codex/agents',
       saFl:{ shadows:'overrides a lower-level definition of the same name',
         builtin:'overrides a built-in (one of default/worker/explorer is replaced); overrides the user-level one of the same name',
         shadowed:'shadowed by a project-level definition (not in effect)' },
-      inherited:'— (inherited)', defaultSubagentModel:'— (default_subagent_model)',
+      defaultSubagentModel:'— (default_subagent_model)',
       memMainTitle:'MEMORY.md (main automatic memory file, rendered directly — the same way as the Config tab)',
       memTopicsTitle:'Topic files (2) · click to open in a drawer',
       topicMeta:a=>`topic file · ${a}`, viaMain:' · opened via a link in the main file',
       extLink:'External link', extOpen:'Opens in the system browser (the app does not navigate).', relLink:'Relative link',
       outOfScope:'The target is outside the readable scope (the file does not exist or is not among this project’s artifacts / memory).',
       plHint:'Grouped by side · Claude group: this project’s effective set (local > project > user) · click a row to expand bundled components',
-      enabledShort:'Enabled', notEnabled:'Not enabled',
+      enabledShort:'Enabled',
       plVerdict0:'Enabled — decided by the user layer · user', plVerdict1:'Enabled — decided by the project layer · project · Transfer',
       plVerdict2:'Disabled — decided by the project layer (overrides user) · user / project · gone-proj (project unreachable) · 2 install records',
-      cacheOnly:'cache enumeration only',
       plFoot:'The Codex group lists only plugins present in the cache; enabled state and bundled components are not modelled in this release; Codex plugins take effect globally, with no project-level enablement semantics.',
-      secInstall:'Install records', secBundledSkills:'Bundled skills (namespaced)', secBundledMcp:'Bundled MCP servers',
+      secBundledSkills:'Bundled skills (namespaced)', secBundledMcp:'Bundled MCP servers',
       secBundledHooks:'Bundled hooks (event summary)', projectLost:' (project unreachable)',
-      mcpTitle:'MCP servers (labelled by source)', srcPlugin:'bundled with plugin', mcpFromPlugin:'From the chrome-devtools-mcp plugin',
+      mcpTitle:'MCP servers (labelled by source)', mcpFromPlugin:'From the chrome-devtools-mcp plugin',
       srcProjectMcp:'project .mcp.json', mcpProjectDs:'Illustration: a project-level MCP, governed by its enabled/disabled switch',
       filterAll:'All', noArtifactsOfType:'No artifacts of this type', settingsSummary:'settings summary'
     }
@@ -557,8 +550,8 @@
     const t=e.target.closest('.tab');if(!t||!t.dataset.t)return;
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
     document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
-    // The demo harness only appears in the relevant tabs
-    document.getElementById('session-demo').style.display=t.dataset.t==='sessions'?'flex':'none';
+    // The session switches, and their note, only appear in the sessions tab
+    document.getElementById('session-demo').hidden=document.getElementById('session-demo-note').hidden=t.dataset.t!=='sessions';
   });
   // The trend chart: rendered by the shared piece (the same source as the Agents page)
 
@@ -856,7 +849,7 @@
   });
   document.getElementById('harness').addEventListener('click',e=>{
     const b=e.target.closest('[data-se]'); if(!b) return;
-    document.querySelectorAll('[data-se]').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('[data-se]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
     sempty=b.dataset.se==='empty'; renderSessions();
   });
   renderSessions();
@@ -885,8 +878,7 @@
   });
 </script>
 <script>
-  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
-  // navigates to the file directly
+  // Cross-prototype navigation: inside the gallery ask the parent page to switch; when opened alone, go to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;

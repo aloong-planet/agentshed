@@ -11,7 +11,7 @@
        (复盘:docs/postmortems/2026-08-16-prototype-copy-blindspot.md)。裁决:计数器优先收缩省略
        (全文放 title),label 只有自身自然宽超列才换行;见 spec projects-list C5。本原型未随之改造,
        其过滤行宽度结论仅对触发器有效。
-     2026-10-14:失效开关 label 与失效计数器改取六语字典,宽度读数不再对它们失明;但 C5 的收缩省略/
+     2026-10-14:失效开关 label 与失效计数器改为画全六种语言,宽度读数不再对它们失明;但 C5 的收缩省略/
        换行布局仍未搬入本原型,整行装不装得下以 spec C5 与 app 为准。
      2026-10-14:项目栏改为共享件 _shared/project-side.{js,css},行为照 app 的项目栏(搜索同时匹配名字与路径、失效计数只在有被过滤的失效项目时
        出现、行提示为路径、徽章固定 Bot 图标),mock 项目也只有这一份,各页看到的是同一批项目。数字前图标
@@ -109,8 +109,7 @@
   });
 </script>
 <script>
-  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
-  // navigates to the file directly
+  // Cross-prototype navigation: inside the gallery ask the parent page to switch; when opened alone, go to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;

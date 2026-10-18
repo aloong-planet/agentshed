@@ -28,20 +28,20 @@
          可安装时这一行的按钮换成「立即安装」,与左下角按钮同一动作(安装并重启),安装中置灰;装好后变回「立即检查」。
          菜单「检查更新…」照旧可点,用 toast 回报当前状态。检查进行中再发起的检查并入那一次,不重复请求。
 
-     演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条。系统明暗一组照旧;
-     更新相关:运行方式(打包/开发运行)、下次检查返回什么、点击安装后(成功/失败)、四个动作按钮
-     (自动检查触发、菜单「检查更新…」、后台下载失败、退出再打开)。原型无法真正重启,「重启」由页面模拟。真实来源:运行方式 = app 是否打包;检查结果 =
-     GitHub Releases 的应答;安装结果 = 系统替换 app 是否成功;app 内没有这些控件。
-     真实来源:明暗 = prefers-color-scheme 媒体查询;app 内没有这个控件,此处仅为让「跟随系统」的解析结果在
-     任意宿主环境下都可见。语言选「跟随系统」时,本页把系统偏好语言固定为简体中文,不再模拟(真实来源是
-     app.getPreferredSystemLanguages())。
-     本页是全部原型页切换语言、明暗与配色的唯一入口:本页的生效语言、生效明暗与配色经 demo-dimensions.js
-     写出,其余原型页跟随(它们不再自带这些开关);本页的偏好与上面的系统明暗模拟随之保存,重开本页时原样恢复。 -->
+     演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条,只管更新:运行方式(打包/开发运行)、
+     下次检查返回什么、点击安装后(成功/失败)三组开关,四个动作(自动检查触发、菜单「检查更新…」、后台下载失败、
+     退出再打开),以及一行生效值读数与动作说明。原型无法真正重启,「重启」由页面模拟。真实来源写在演示条的说明行:
+     运行方式 = app 是否打包;检查结果 = GitHub Releases 的应答;安装结果 = 系统替换 app 是否成功;app 内没有这些控件。
+     演示条不模拟系统输入:偏好选「跟随系统」时,本页呈现当前生效的语言与明暗(画廊的统一设置在这里充当系统)。
+     语言、明暗与配色:本页与画廊的统一设置写出同一份取值(demo-dimensions.js,本页声明 data-settings),其余原型页
+     跟随;画廊的统一设置只改语言与明暗,配色只在本页改。统一设置改了语言或明暗时,本页的明确选择随之改为那个取值,
+     「跟随系统」保持不变。本页的偏好随之保存,重开本页时原样恢复。app 窗口的根样式在共享件 _shared/app-window.css 里。 -->
 <html lang="zh-CN" data-demo-theme="purple" data-demo-mode="light">
 <head>
 <meta charset="utf-8">
 <title>原型 — 设置 · 语言、外观与更新</title>
 <link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <style>
   /* The app's tokens for every palette × light/dark come from _shared/theme.css, keyed on data-demo-theme and
@@ -50,7 +50,6 @@
   :root { --shadow: var(--shadow-pop); }
 
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC","Hiragino Sans",system-ui,sans-serif}
-  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
 
 
   /* ── The update button (Codex's rail form): a 36px rail slot holding a 24px filled circle.
@@ -171,85 +170,59 @@
     font-size:11.5px;color:var(--text-2);line-height:1.55}
   .note b{color:var(--text)}
 
-  /* ── The demo harness (not part of the design): an independent floating layer that deliberately does not
-     reuse the styles of the controls being judged ── */
-  /* Centred with both side offsets and auto margins, not a translate: a translate leaves the available width
-     at half the viewport, so a fuller bar wraps early (prototype skill, harness clause). The left offset keeps
-     it off the 48px rail — once it wrapped onto two rows it covered the update button at the rail's foot. */
-  .demo-bar{
-    position:fixed;bottom:14px;left:60px;right:12px;margin:0 auto;width:max-content;max-width:calc(100% - 72px);z-index:90;
-    display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:7px 9px;padding:7px 12px;border-radius:18px;
-    background:#1c1c1e;color:#e8e8ea;font-size:11.5px;box-shadow:0 6px 20px rgba(0,0,0,.38)}
-  .demo-bar .grp{display:flex;align-items:center;gap:7px}
-  .demo-bar .act{background:#3a3a3c;color:#e8e8ea;border:0;border-radius:7px;padding:4px 9px;font:inherit;
-    font-size:11.5px;cursor:pointer}
-  .demo-bar .act:hover{background:#4a4a4e}
-  .demo-bar .tag{font-weight:700;color:#8e8e93;letter-spacing:.03em;flex:none}
-  .demo-bar .vr{width:1px;height:16px;background:#3a3a3c;flex:none}
-  .demo-bar select{
-    background:#2c2c2e;color:#e8e8ea;border:1px solid #3a3a3c;border-radius:7px;
-    padding:4px 8px;font:inherit;font-size:11.5px;cursor:pointer}
-  .demo-bar .out{color:#8e8e93}
-  .demo-bar .out b{color:#e8e8ea;font-weight:600}
 </style>
 <script src="../manifest.js"></script>
 <script src="../app-identity.js"></script>
+<script src="../dimensions.js"></script>
+<script src="../demo-dimensions.js" data-settings></script>
 <script src="../_shared/icons.js"></script>
 </head>
 <body>
+<div class="app-window" data-shared-block="app-window">
   <nav class="rail" data-shared-block="app-rail" data-rail-current="settings"></nav>
   <script src="../_shared/app-rail.js"></script>
   <main class="stage" id="stage"></main>
   <div class="lang-pop" id="langPop" role="listbox"></div>
   <div class="uptip" id="upTip" role="tooltip"></div>
   <div class="toast" id="toast"></div>
+</div>
 
-  <div class="demo-bar" data-demo-harness id="demoBar">
-    <span class="tag">演示 ·</span>
-    <span class="grp">
-      <label for="sysTheme">系统明暗</label>
-      <select id="sysTheme">
-        <option value="light">浅色</option>
-        <option value="dark">深色</option>
-      </select>
-    </span>
-    <span class="vr"></span>
-    <span class="grp">
-      <label for="runSel">运行方式</label>
-      <select id="runSel">
-        <option value="packaged">打包版</option>
-        <option value="dev">开发运行(未打包)</option>
-      </select>
-    </span>
-    <span class="vr"></span>
-    <span class="grp">
-      <label for="nextSel">下次检查返回</label>
-      <select id="nextSel">
-        <option value="found">发现 0.1.1</option>
-        <option value="uptodate">已是最新</option>
-        <option value="failed">检查失败</option>
-      </select>
-    </span>
-    <span class="vr"></span>
-    <span class="grp">
-      <label for="instSel">点击安装后</label>
-      <select id="instSel">
-        <option value="ok">安装成功并重启</option>
-        <option value="fail">安装失败</option>
-      </select>
-    </span>
-    <span class="vr"></span>
-    <span class="grp">
-      <button type="button" class="act" id="actAuto">自动检查触发</button>
-      <button type="button" class="act" id="actMenu">菜单「检查更新…」</button>
-      <button type="button" class="act" id="actFail">后台下载失败</button>
-      <button type="button" class="act" id="actQuit">退出再打开</button>
-    </span>
-    <span class="vr"></span>
-    <span class="out" id="sysOut"></span>
+  <div data-demo-harness id="demoBar">
+    <span class="dh-tag">Demo ·</span>
+    <div class="dh-group">
+      <span class="dh-title">运行方式</span>
+      <div class="dh-opts" id="runOpts">
+        <button type="button" class="dh-opt" data-run="packaged" aria-pressed="true">打包版</button>
+        <button type="button" class="dh-opt" data-run="dev" aria-pressed="false">开发运行(未打包)</button>
+      </div>
+    </div>
+    <div class="dh-group">
+      <span class="dh-title">下次检查返回</span>
+      <div class="dh-opts" id="nextOpts">
+        <button type="button" class="dh-opt" data-next="found" aria-pressed="true">发现 0.1.1</button>
+        <button type="button" class="dh-opt" data-next="uptodate" aria-pressed="false">已是最新</button>
+        <button type="button" class="dh-opt" data-next="failed" aria-pressed="false">检查失败</button>
+      </div>
+    </div>
+    <div class="dh-group">
+      <span class="dh-title">点击安装后</span>
+      <div class="dh-opts" id="instOpts">
+        <button type="button" class="dh-opt" data-inst="ok" aria-pressed="true">安装成功并重启</button>
+        <button type="button" class="dh-opt" data-inst="fail" aria-pressed="false">安装失败</button>
+      </div>
+    </div>
+    <div class="dh-group dh-actions">
+      <span class="dh-title">动作</span>
+      <div class="dh-acts">
+        <button type="button" class="dh-act" id="actAuto">自动检查触发</button>
+        <button type="button" class="dh-act" id="actMenu">菜单「检查更新…」</button>
+        <button type="button" class="dh-act" id="actFail">后台下载失败</button>
+        <button type="button" class="dh-act" id="actQuit">退出再打开</button>
+      </div>
+    </div>
+    <p class="dh-note" id="sysOut"></p>
+    <p class="dh-note">运行方式在 app 里取决于 app 是否打包;检查结果是 GitHub Releases 的应答;安装结果取决于系统替换 app 是否成功;app 内没有这些控件。语言与明暗的「跟随系统」按画廊统一设置的取值呈现,本页不模拟系统。</p>
   </div>
-<script src="../dimensions.js"></script>
-<script src="../demo-dimensions.js"></script>
 <script>
   /* ── Icons come from _shared/icons.js, the prototypes' one icon table, rather than copies on this page:
         two copies of one icon drift apart and nothing reports it. ── */
@@ -462,31 +435,29 @@
     }
   }
 
-  /** What app.getPreferredSystemLanguages() would return, which "follow system" resolves against: fixed to
-     * Simplified Chinese — the prototype no longer simulates other systems */
-  const SYSTEM_LANGS = ['zh-Hans-CN']
-
   /** The three preferences: colour scheme, appearance mode and language. 'system' in the latter two is a
      * policy rather than a snapshot */
-  let scheme = 'purple'
+  let scheme = DemoDimensions.get('theme')
   let modePref = 'system'
   let langPref = 'system'
-  let mockSystemDark = false   // 演示工装:替代真实 prefers-color-scheme
+  /** The language and light/dark in effect (demo-dimensions.js): what "follow system" shows, the gallery's
+   *  settings standing in for the system */
+  let curLang = DemoDimensions.get('language')
+  let curMode = DemoDimensions.get('mode')
   let popOpen = false
   let cursor = 0
 
-  /* ── Demo dimensions (demo harness, not part of the design): the other prototype pages show the language,
-     light/dark and palette this page renders. Its preferences and the simulated system appearance are kept
-     with them, so the page reopens as the reader left it. ── */
+  /* ── Demo dimensions (not part of the design): this page and the gallery's settings write the language,
+     light/dark and palette every other prototype page shows. Its preferences are kept with them, so the page
+     reopens as the reader left it. ── */
   const kept = DemoDimensions.state()
   if (kept && OPTIONS.includes(kept.langPref) && MODES.includes(kept.modePref) && SWATCHES.light[kept.scheme]) {
     ;({ scheme, modePref, langPref } = kept)
-    mockSystemDark = kept.mockSystemDark === true
   }
-  function publish() {
-    DemoDimensions.set({ language: effLang(), mode: effTheme(), theme: scheme },
-      { scheme, modePref, langPref, mockSystemDark })
-  }
+  const prefs = () => ({ scheme, modePref, langPref })
+  /** A choice made on this page: the values it changes, with the preferences they came from. Choosing "follow
+   *  system" changes no value, so it saves the preferences alone. */
+  function publish(values) { DemoDimensions.set(values, prefs()) }
 
   /* ── Updates (ADR-0032 as amended): the lifecycle Codex renders — idle / checking / downloading / ready /
      installing. There is no failure state: a failed background download returns to idle. ── */
@@ -615,7 +586,7 @@
     if (updated) {
       curVersion = newVersion
       newVersion = newVersion.replace(/(\d+)$/, (n) => String(Number(n) + 1))
-      document.querySelector('#nextSel option[value="found"]').textContent = `发现 ${newVersion}`
+      document.querySelector('[data-next="found"]').textContent = `发现 ${newVersion}`
     }
     upd = 'idle'; pct = 0
     checkOut = updated ? 'uptodate' : null
@@ -713,28 +684,19 @@
     }
   }
 
-  /** Demo harness only: a transient line in the floating bar */
+  /** Demo harness only: a transient line in the demo bar's note */
   function demoNote(s) {
     const out = document.getElementById('sysOut')
-    out.innerHTML = `<b>${esc(s)}</b>`
+    out.textContent = s.replace(/^演示：/, '')
     clearTimeout(demoNote._t)
     demoNote._t = setTimeout(renderDemoOut, 3500)
   }
 
-  /** The system's preferred language list → the effective language: take the first supported one in priority
-     * order, falling back to English if none match */
-  function resolveSystem(list) {
-    for (const tag of list) {
-      const primary = String(tag).split('-')[0].toLowerCase()
-      if (LANGS.includes(primary)) return primary
-    }
-    return 'en'
-  }
-
-  const effLang = () => (langPref === 'system' ? resolveSystem(SYSTEM_LANGS) : langPref)
+  /** "Follow system" shows the value in effect; an explicit preference is its own value */
+  const effLang = () => (langPref === 'system' ? curLang : langPref)
   /** Appearance mode → the effective light/dark. Structurally identical to language: the preference is a
      * policy, and the effective value is what actually lands on the DOM */
-  const effTheme = () => (modePref === 'system' ? (mockSystemDark ? 'dark' : 'light') : modePref)
+  const effTheme = () => (modePref === 'system' ? curMode : modePref)
   const t = () => T[effLang()]
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   const modeName = (id) => (id === 'system' ? t().followSystem : id === 'light' ? t().light : t().dark)
@@ -758,7 +720,7 @@
     renderUpdateSlot()
   }
 
-  function applyAll() { applyScheme(); applyTheme(); applyLang(); renderDemoOut(); publish() }
+  function applyAll() { applyScheme(); applyTheme(); applyLang(); renderDemoOut() }
 
   /* ── The language dropdown overlay: fixed positioning, aligned to the trigger's rect ── */
   function positionPop() {
@@ -774,7 +736,7 @@
 
   function renderPop() {
     const pop = document.getElementById('langPop')
-    const resolved = resolveSystem(SYSTEM_LANGS)
+    const resolved = curLang
     pop.innerHTML = OPTIONS.map((id, i) => {
       const on = id === langPref
       const cur = i === cursor
@@ -816,6 +778,8 @@
     const same = id === langPref
     langPref = id
     closePop()
+    if (id !== 'system') curLang = id
+    publish(id === 'system' ? {} : { language: id })
     applyAll()
     render()
     if (!same) {
@@ -828,6 +792,8 @@
   function setMode(id) {
     if (id === modePref) return
     modePref = id
+    if (id !== 'system') curMode = id
+    publish(id === 'system' ? {} : { mode: id })
     applyAll()
     render()
     toast(t().toastMode(id === 'system'
@@ -838,6 +804,7 @@
   function setScheme(id) {
     if (id === scheme) return
     scheme = id
+    publish({ theme: id })
     applyAll()
     render()
     toast(t().toastScheme(t().schemeNames[scheme]))
@@ -955,7 +922,7 @@
 
         <div class="note">
           <b>验收</b>：① 明暗三选一，选「浅色 / 深色」后<b>不再随系统变</b>，选「跟随系统」则跟着变
-          ② 用底部演示条改系统明暗验证上一条（语言的「跟随系统」解析为固定的简体中文）
+          ② 选「跟随系统」后，在画廊的统一设置里改明暗或语言：本页照着呈现，偏好仍是「跟随系统」
           ③ 外观压缩为一张卡两行（模式 / 配色），配色卡去掉了整句描述，只留色块 + 名称
           ④ 3 配色 × 2 明暗 = 6 种组合都要能看：浮层边框与投影、选中态、CC/CX 语义色均可辨
           ⑥ 色板取样随明暗切换——深色下三张卡应呈深色系，不再出现纯白色块
@@ -966,9 +933,9 @@
           本页的 <code>data-demo-mode</code> 只是浏览器里没有 Electron 时的替身，<b>勿照抄进实现</b>。<br>
           <b>已确认</b>（2026-08-08）：配色卡去掉整句描述、只留色块 + 名称，「默认为紫」移入段末说明；
           语言分节置于外观之前；整体形态定稿。<br>
-          <b>演示基建</b>：底部悬浮条不是设计的一部分，勿实现。真实来源是
-          <code>app.getPreferredSystemLanguages()</code> 与 <code>prefers-color-scheme</code>。
-          本页选定的界面语言、模式与配色同步到其余原型页——它们不再自带这些开关，要换就回本页换。
+          <b>演示基建</b>：底部悬浮条不是设计的一部分，勿实现。「跟随系统」的真实来源是
+          <code>app.getPreferredSystemLanguages()</code> 与 <code>prefers-color-scheme</code>，原型里由画廊的统一设置充当。
+          本页选定的界面语言、模式与配色同步到其余原型页——它们不再自带这些开关；语言与明暗也可以在画廊的统一设置里换。
         </div>
       </div>`
   }
@@ -1019,20 +986,9 @@
 
   /* ── Demo harness wiring (data-demo-harness) ── */
   function renderDemoOut() {
-    const out = document.getElementById('sysOut')
     const lg = T[effLang()].native
     const th = effTheme() === 'dark' ? '深色' : '浅色'
-    out.innerHTML = `→ 生效 <b>${esc(lg)}</b> · <b>${esc(th)}</b>`
-  }
-
-  const selTheme = document.getElementById('sysTheme')
-  selTheme.value = mockSystemDark ? 'dark' : 'light'
-  selTheme.onchange = () => {
-    mockSystemDark = selTheme.value === 'dark'
-    applyAll(); render()
-    toast(modePref === 'system'
-      ? `演示：系统明暗已改 · 界面随之变为${effTheme() === 'dark' ? '深色' : '浅色'}`
-      : `演示：系统明暗已改 · 但模式锁定为${modeName(modePref)}，界面不变`)
+    document.getElementById('sysOut').textContent = `生效:${lg} · ${th}`
   }
 
   document.addEventListener('keydown', (e) => {
@@ -1048,14 +1004,23 @@
   window.addEventListener('resize', () => { if (popOpen) positionPop() })
 
   /* ── Demo harness wiring for updates (data-demo-harness): no such controls exist in the app ── */
-  const runSel = document.getElementById('runSel')
-  runSel.onchange = () => {
-    packaged = runSel.value === 'packaged'
+  /** One group of option buttons: the pressed one is the value; pick(value) runs on a change */
+  function options(id, attr, pick) {
+    const group = document.getElementById(id)
+    group.addEventListener('click', (e) => {
+      const b = e.target.closest(`[data-${attr}]`)
+      if (!b || b.getAttribute('aria-pressed') === 'true') return
+      group.querySelectorAll(`[data-${attr}]`).forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+      pick(b.dataset[attr])
+    })
+  }
+  options('runOpts', 'run', (v) => {
+    packaged = v === 'packaged'
     if (!packaged) { clearInterval(dlTimer); upd = 'idle'; pct = 0; checkOut = null; renderUpdateSlot() }
     render()
-  }
-  document.getElementById('nextSel').onchange = (e) => { nextOutcome = e.target.value }
-  document.getElementById('instSel').onchange = (e) => { nextInstall = e.target.value }
+  })
+  options('nextOpts', 'next', (v) => { nextOutcome = v })
+  options('instOpts', 'inst', (v) => { nextInstall = v })
   document.getElementById('actAuto').onclick = () => runCheck('auto')
   document.getElementById('actMenu').onclick = () => {
     if (!packaged) { demoNote('演示：开发运行中菜单项「检查更新…」置灰'); return }
@@ -1064,8 +1029,34 @@
   document.getElementById('actFail').onclick = failDownload
   document.getElementById('actQuit').onclick = quitAndReopen
 
-  applyAll()
-  render()
+  /* ── Following the gallery's settings: each value in effect arrives on load and whenever it changes. An
+     explicit preference that differs becomes an explicit choice of the value received; "follow system" stays
+     and shows it. Only the preferences are saved here: writing this page's own values back would undo the
+     reader's choice in the gallery, and on load it would overwrite a value another dimension just received. ── */
+  function align() { DemoDimensions.set({}, prefs()); applyAll(); render() }
+  DemoDimensions.on('language', (v) => {
+    curLang = v
+    if (langPref !== 'system' && langPref !== v) langPref = v
+    align()
+  })
+  DemoDimensions.on('mode', (v) => {
+    curMode = v
+    if (modePref !== 'system' && modePref !== v) modePref = v
+    align()
+  })
+  DemoDimensions.on('theme', (v) => {
+    if (scheme !== v) scheme = v
+    align()
+  })
+</script>
+<script>
+  // Cross-prototype navigation: inside the gallery ask the parent page to switch; when opened alone, go to the file directly
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+  });
 </script>
 <script src="../demo-harness.js"></script>
 </body>

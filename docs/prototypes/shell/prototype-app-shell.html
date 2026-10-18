@@ -3,16 +3,18 @@
      问题:两维度(Agents 默认落地 / Projects)rail 下,壳的骨架长什么样;
      启动扫描态如何呈现(渐进填充前不显示"空"误导)——骨架屏模式两维度通用,
      此处以 Projects 列表侧演示,实际启动时首先出现在 Agents 页。
-     交互:点「模拟扫描完成」在扫描态/就绪空态间切换;rail 为静态示意(维度页见对应原型)。
+     交互:rail 的 Agents 与设置进入各自的原型;Projects 的落点就是本页,点它不跳转。
      已失效(2026-08-21,仅扫描态这一结论;双栏壳结论不受影响):启动扫描态已演进为
        按页面真实结构摆占位的骨架屏——本页 stage 中央那句「扫描完成前不显示空列表」的呈现
        以及 topbar scanpill 的位置都不再是现行为。现行为以 agents-page/prototype-agents
        与 project-list/prototype-list 两页演示条的「骨架」一档为准(spec:agents-overview A4 族、
        projects-list A10–A13)。
-     界面语言、明暗与配色跟随设置原型(appearance)所选,本页不设开关;本页画了中、英两种,其他语言按英文
-       显示并有提示;色值取共享主题 _shared/theme.css。topbar 的扫描提示是本页旧形态的文案,现行字典无对应
-       key,英文为原型自写。stage 中央两句(设计说明/占位说明)与「模拟扫描完成」演示按钮是批注与演示控件,
-       仍为中文。
+     演示基建(非设计的一部分,勿实现):底部悬浮条(data-demo-harness,独立于页面内容流)承载「扫描」一组
+       (扫描态 / 就绪空态;真实判定 = 这次启动的扫描是否已完成,说明行写明)——app 内没有这个开关。
+     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;本页画了中、英两种,
+       其他语言按英文显示并有提示;色值取共享主题 _shared/theme.css,app 窗口的根样式在共享件
+       _shared/app-window.css 里。topbar 的扫描提示是本页旧形态的文案。stage 中央两句(设计说明/占位说明)
+       是批注,与演示条一样仍为中文。
      2026-10-14:项目栏改为共享件 _shared/project-side.{js,css}(与列表页同一个):扫描中画 app 的启动骨架,
        扫描完成画一个项目也没有时 app 的列表(「无匹配项目」)——原先此处的「未检测到任何 agent 数据」是旧
        形态的文案,app 里没有。 -->
@@ -21,13 +23,13 @@
 <meta charset="utf-8">
 <title>原型 — 双栏壳与扫描态</title>
 <link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <link rel="stylesheet" href="../_shared/project-side.css">
 <style>
   /* app token 一律取自 _shared/theme.css(按设置原型所选的配色与明暗切换),
      本页不重定义任何一个。 */
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
-  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   .main{flex:1;display:flex;flex-direction:column}
   .topbar{height:44px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 16px}
   .topbar b{font-size:13px}
@@ -37,10 +39,6 @@
   .stage{flex:1;display:flex}
   .empty{margin:auto;text-align:center;color:var(--text-2);line-height:2}
   .empty .big{display:flex;justify-content:center;color:var(--text-2);opacity:.75}
-  button.demo{position:fixed;right:14px;bottom:14px;z-index:9;font:inherit;font-size:12px;
-    border:1px solid var(--line-strong);background:var(--card);color:var(--text-2);
-    border-radius:999px;padding:7px 14px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.12)}
-  button.demo:hover{color:var(--accent);border-color:var(--accent)}
 </style>
 <script src="../dimensions.js"></script>
 <script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
@@ -49,6 +47,7 @@
 <script src="../_shared/icons.js"></script>
 </head>
 <body>
+<div class="app-window" data-shared-block="app-window">
   <nav class="rail" data-shared-block="app-rail" data-rail-current="projects" data-rail-projects="shell/app-shell"></nav>
   <script src="../_shared/app-rail.js"></script>
   <aside class="side" data-shared-block="project-side" data-side-state="scanning"></aside>
@@ -62,13 +61,20 @@
       <div>扫描完成前不显示空列表,避免"没有项目"的误导</div>
     </div></div>
   </div>
-  <button class="demo" id="toggle">模拟扫描完成</button>
+</div>
+  <div data-demo-harness>
+    <span class="dh-tag">Demo ·</span>
+    <div class="dh-group"><span class="dh-title">扫描</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-scan="scanning" aria-pressed="true">扫描态</button>
+      <button type="button" class="dh-opt" data-scan="empty" aria-pressed="false">就绪空态</button>
+    </div></div>
+    <p class="dh-note">扫描态与就绪空态在 app 里由这次启动的扫描是否已完成决定(就绪空态 = 扫描完成、一个项目也没找到);app 内没有这个开关。</p>
+  </div>
 <script>
   const pill=document.getElementById('pill'),
-        msg=document.getElementById('stageMsg'),btn=document.getElementById('toggle');
-  // 中英文案。scanning 是本页旧形态的文案,现行字典无对应 key,英文为原型自写。项目栏是共享件
-  // (_shared/project-side.js):扫描中画 app 的启动骨架,扫描完成后画一个项目也没有时的列表。
-  // stage 中央两句是设计说明与占位说明(批注)、演示按钮是演示控件,不在此列。
+        msg=document.getElementById('stageMsg'),bar=document.querySelector('[data-demo-harness]');
+  // 中英文案。scanning 是本页旧形态的文案。项目栏是共享件(_shared/project-side.js):扫描中画 app 的
+  // 启动骨架,扫描完成后画一个项目也没有时的列表。stage 中央两句是设计说明与占位说明(批注),不在此列。
   const L={
     zh:{htmlLang:'zh-CN',scanning:'正在扫描 Claude Code / Codex…'},
     en:{htmlLang:'en',scanning:'Scanning Claude Code / Codex…'}
@@ -81,19 +87,23 @@
     if(scanning){
       pill.style.display='flex';
       msg.innerHTML='<div class="big">'+ICONS.Inbox(30)+'</div><div>扫描完成前不显示空列表,避免"没有项目"的误导</div>';
-      btn.textContent='模拟扫描完成';
     }else{
       pill.style.display='none';
       msg.innerHTML='<div class="big">'+ICONS.Inbox(30)+'</div><div>就绪空态:引导页占位<br><span style="font-size:12px">列表有数据时,这里显示「选择一个项目」</span></div>';
-      btn.textContent='模拟重新扫描';
     }
   }
-  btn.onclick=()=>{scanning=!scanning;ProjectSide.setState(scanning?'scanning':'empty');render()};
+  // 演示条「扫描」一组(非设计的一部分):条只建一次,选中项靠 aria-pressed 标出
+  bar.addEventListener('click',e=>{
+    const b=e.target.closest('button[data-scan]');
+    if(!b||(b.dataset.scan==='scanning')===scanning) return;
+    scanning=b.dataset.scan==='scanning';
+    bar.querySelectorAll('[data-scan]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+    ProjectSide.setState(scanning?'scanning':'empty');render();
+  });
   DemoDimensions.on('language',v=>{ lang=v; document.documentElement.lang=L[v].htmlLang; render(); });
 </script>
 <script>
-  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
-  // navigates to the file directly
+  // Cross-prototype navigation: inside the gallery ask the parent page to switch; when opened alone, go to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;
@@ -101,5 +111,6 @@
     else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
   });
 </script>
+<script src="../demo-harness.js"></script>
 </body>
 </html>

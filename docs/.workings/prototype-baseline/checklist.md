@@ -15,7 +15,7 @@ lines; each names the tier that backs it.
 | Unit | Source text (abridged) | Planned verification and boundary |
 |---|---|---|
 | 251::1 | Re-copy `index.html`, `demo-dimensions.js`, `demo-harness.js`, `app-identity.js`, `sync-mmd.mjs`; settings prototype gets `data-settings` and follows the gallery; `general` on language and mode; defaults from the registry's `fallback` (language `en`, mode `light`) | Evidence: `cmp` against each master; browser: cleared storage → settings shows the registry defaults with untouched preferences; both alignment cases (explicit → explicit choice of the new values; Follow system → stays, shows the new values); reopening keeps the result |
-| 251::2 | "Demo ·" instead of 演示· in the 11 files | Evidence: search for `演示 ?·` under `docs/prototypes/`, command and empty output |
+| 251::2 | "Demo ·" instead of the Chinese demo prefix in the 11 files | Evidence: a search for the Chinese prefix under `docs/prototypes/`, command and empty output |
 | 251::3 | Candidates: xAI switch removed (settled, value from the app); stale-note `.pick` block removed | Evidence: search for `XAI_CAND` and `class="pick"`; browser: Token tab draws the settled colour in light and dark |
 | 251::4 | Superseded by item 12 | — |
 | 251::5 | Generators and `css-blocks.mjs` deleted; four files hand-kept, headers gone; comments rewritten | Evidence: search for the generator names and "Derived file" under `docs/prototypes/` and `scripts/` |
