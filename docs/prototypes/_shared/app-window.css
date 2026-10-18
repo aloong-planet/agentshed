@@ -1,0 +1,19 @@
+/* Shared: the app window on a prototype page. A page draws the app inside one box,
+     <div class="app-window" data-shared-block="app-window"> … </div>
+   and puts none of the window's root styles on html or body: a candidates page reuses its prototype page's
+   styles, and there a body that locks the height and the scrolling leaves the cells below the fold out of
+   reach, while a flex body lines every cell up in one row (the prototype skill's UI.md, the candidates page
+   section). The inherited declarations and the background also target each candidates cell, which draws a
+   piece of the app window outside it; the window's own size, layout and scrolling target the window only.
+   The demo bar stays outside the box. */
+.app-window,
+.candidate-cell {
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+.app-window {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}

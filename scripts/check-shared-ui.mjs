@@ -65,6 +65,13 @@ const SHARED_BLOCKS = [
     label: 'project column',
     assets: ['_shared/project-side.css', '_shared/project-side.js'],
     containers: []
+  },
+  {
+    // The app window's root styles live on this box, never on html or body (the candidates page reuses them)
+    id: 'app-window',
+    label: 'app window box',
+    assets: ['_shared/app-window.css'],
+    containers: []
   }
 ]
 

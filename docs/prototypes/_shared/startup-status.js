@@ -19,12 +19,14 @@ window.StartupStatus=(() => {
     ru:'Показаны предыдущие данные, ожидается обновление',ja:'前回のデータを表示中、更新を待っています'};
   let state='restored',language='zh',skeleton=false;
   const listeners=[];
+  // The demo bar's startup group, in the dock script's markup; the page's dh-note says where the states
+  // come from in the app
   function controls(){
     const states=[...(skeleton?[['skeleton','骨架']]:[]),['restored','扫描中'],['fresh','完成'],['failed','失败']];
-    return `<span class="startup-demo" title="演示·${skeleton?'骨架=这次启动还没收到任何数据（首个快照到达前）；其余三档':''}已有数据来自上次成功读取；真实状态由扫描结果决定，应用内没有这些开关。此处只演示呈现，不读写缓存。"><span>${skeleton?'演示·启动':'演示·启动恢复'}</span>`+
+    return `<div class="dh-group"><span class="dh-title">${skeleton?'启动':'启动恢复'}</span><div class="dh-opts">`+
       states.map(([value,label])=>
-        `<button type="button" data-startup-state="${value}" aria-pressed="${state===value}">${label}</button>`).join('')+
-      `</span>`;
+        `<button type="button" class="dh-opt" data-startup-state="${value}" aria-pressed="${state===value}">${label}</button>`).join('')+
+      `</div></div>`;
   }
   function update(){
     document.querySelectorAll('.startup-hint').forEach(hint=>{
@@ -37,7 +39,8 @@ window.StartupStatus=(() => {
       button.setAttribute('aria-pressed',String(button.dataset.startupState===state)));
   }
   document.addEventListener('DOMContentLoaded',()=>{
-    document.querySelectorAll('[data-startup-controls]').forEach(el=>el.innerHTML=controls());
+    // The placeholder is replaced, so the group is a direct child of the demo bar
+    document.querySelectorAll('[data-startup-controls]').forEach(el=>el.outerHTML=controls());
     // The copy follows the language set on the settings prototype on pages that follow the language
     // (demo-dimensions.js); on any other page it stays in the source language.
     if(window.DemoDimensions) DemoDimensions.on('language',value=>{language=value;update()});
