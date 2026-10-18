@@ -34,6 +34,9 @@
 //   · the bar is exactly as wide as its widest row (a wrapped flex box otherwise keeps the full width
 //     it was offered, leaving wide empty margins either side of the rows); a note wraps at 420px, so a
 //     long note does not stretch the bar across the page and over the design;
+//   · its rows wrap at three quarters of the viewport's width (or at its widest single group, when that is
+//     wider), so a bar of many groups does not span the viewport: centred, it leaves both bottom corners
+//     clear, where app windows keep edge controls such as a side rail's last items;
 //   · its grip, or any bare background around and between the rows, drags it anywhere; a button
 //     collapses it into a small ball that drags the same way, and clicking the ball expands it again;
 //   · bar and ball are kept wholly inside the viewport, while dragging and after every resize;
@@ -49,6 +52,7 @@
 
   const GAP = 8        // the minimum distance kept between the dock and each viewport edge
   const NOTE = 420     // the widest a note's lines may make the bar; a longer note wraps
+  const ROWS = 0.75    // the share of the viewport's width the bar's rows may take; more groups wrap
   const BALL = 32
   const KEY = 'proto-demo-harness'
   const svg = (box, body) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='${box}'>${body}</svg>`)}")`
@@ -220,11 +224,23 @@
     return r > l ? r - l : 0
   }
 
+  /** The widest of the bar's items that cannot wrap (every child but the notes), margin box included */
+  function widestItem() {
+    let w = 0
+    for (const n of h.children) {
+      const cs = getComputedStyle(n)
+      if (n.classList.contains('dh-note') || cs.display === 'none' || cs.position === 'absolute' || cs.position === 'fixed') continue
+      w = Math.max(w, n.getBoundingClientRect().width + parseFloat(cs.marginLeft) + parseFloat(cs.marginRight))
+    }
+    return w
+  }
+
   /**
-   * Shrinks the bar to its widest row, counting a note as at most NOTE px wide. Shrinking to that width
-   * moves no line break but the note's: every other row still fits, and the first item of each next row
-   * did not fit even in the wider box. Returns false while the page itself hides the bar (a context the
-   * switches do not apply to).
+   * Wraps the bar's rows at ROWS of the viewport (never narrower than its widest item), then shrinks the
+   * bar to its widest row, counting a note as at most NOTE px wide. Shrinking to that width moves no line
+   * break but the note's: every other row still fits, and the first item of each next row did not fit
+   * even in the wider box. Returns false while the page itself hides the bar (a context the switches do
+   * not apply to).
    */
   function fitWidth() {
     const cs = getComputedStyle(h)
@@ -234,7 +250,7 @@
     h.style.setProperty('width', 'max-content', 'important')
     const natural = h.getBoundingClientRect().width
     if (!natural) return false
-    const cap = vw() - 2 * GAP
+    const cap = Math.min(vw() - 2 * GAP, Math.max(vw() * ROWS, widestItem() + frame))
     if (natural > cap) h.style.setProperty('width', `${cap + toProp}px`, 'important')
     const want = Math.ceil(rowsWidth()) + 1 + frame
     if (want < Math.min(natural, cap)) h.style.setProperty('width', `${want + toProp}px`, 'important')
