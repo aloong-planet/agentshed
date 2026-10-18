@@ -1,0 +1,24 @@
+name: Release
+
+# A placeholder, replaced by the release workflow of #234 (mac-distribution::REQ-002).
+# GitHub dispatches a workflow by hand only when a workflow file at this path is on the default branch; the
+# run then uses the file at the dispatched ref. This file exists so that the real workflow can run its manual
+# tiers from its own branch before it is merged. It packages nothing, publishes nothing and has no tag trigger.
+on:
+  workflow_dispatch:
+    inputs:
+      verify:
+        description: Run the release packaging and every gate, keeping the results only as this run's artifacts
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  placeholder:
+    name: release placeholder
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::This is a placeholder. The release workflow lands with #234; dispatch it from that branch."
+          exit 1
