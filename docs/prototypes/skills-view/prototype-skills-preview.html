@@ -31,9 +31,8 @@
 <style>
   /* Page tokens on top of the app's (_shared/theme.css). Each names the app token that plays the same role in
      the app's skills view — expanded area, file drawer, markdown body and its tip — so every palette and
-     both modes come from the shared theme. Syntax colours have no app token (the app draws none). The app keeps the
-     drawer shadow's and the mask's light alpha in dark, where it barely shows on the dark surface; this page
-     takes its own dark alphas instead. */
+     both modes come from the shared theme. Syntax colours have no app token (the app draws none). The drawer
+     shadow and the mask take the same alphas in both modes. */
   :root {
     --warn: var(--warn-fg);
     --warn-border: color-mix(in srgb, var(--warn-fg) 28%, var(--line));
@@ -62,9 +61,9 @@
     --mask: rgba(0, 0, 0, 0.35);
   }
   html[data-demo-mode="dark"] {
-    --drawer-shadow: -8px 0 24px rgba(0, 0, 0, 0.45);
+    --drawer-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
     --t-md-pre-string: #7dcea0;
-    --mask: rgba(0, 0, 0, 0.5);
+    --mask: rgba(0, 0, 0, 0.35);
   }
 
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",system-ui,sans-serif}

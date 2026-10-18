@@ -25,13 +25,13 @@
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <link rel="stylesheet" href="../_shared/md-preview.css">
 <style>
-  /* Page tokens on top of the app's (_shared/theme.css). Only the mask is the page's own: the app has no
-     token for it (it keeps one literal for both modes), so this page gives it a value per mode. */
+  /* Page tokens on top of the app's (_shared/theme.css). Only the mask is the page's own; it takes the
+     same alpha in both modes. */
   :root{
     --mask:rgba(0,0,0,.35);
   }
   html[data-demo-mode="dark"]{
-    --mask:rgba(0,0,0,.5);
+    --mask:rgba(0,0,0,.35);
   }
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   .main{flex:1;min-width:0;overflow:auto;padding:18px 22px 100px}
