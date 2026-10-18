@@ -23,7 +23,9 @@
      in the app, against 0.5 for the whole window. 920pt is the narrowest that holds the token page's trend chart
      and per-model figures whole. Each cut ends between list rows, and the token cut stops short of the
      recent-sessions list, which would show the current conversation's title.
-     The app icon is the approved production icon from the app-icon prototype.
+     The app icon is the production artwork with its transparent exterior, the file the app itself ships; its
+     shadow follows the icon's own outline (owner's call, 2026-10-18 — a shadow around the image's square box
+     showed the transparent margin as a light tile).
 
      演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条两组开关——
      下载状态(有正式版 / 有正式版但 R2 读不到 / 仅测试版 / 两处都读不到)、系统明暗。真实来源:下载状态 = 访客浏览器能否读到
@@ -44,6 +46,7 @@
     --warn-bg:#fdecdc; --warn-fg:#b3552f;
     --shot-a:#ece7f3; --shot-b:#f6f3fa;
     --shadow:0 18px 50px rgba(55,53,47,.16);
+    --icon-shadow:0 18px 25px rgba(55,53,47,.18);
   }
   html[data-theme="dark"]{
     --bg:#18191b; --bg-soft:#1c1d20; --card:#1f2124; --text:#e6e6e5; --text-2:#9b9a97;
@@ -52,6 +55,7 @@
     --warn-bg:#3a2516; --warn-fg:#f6b48a;
     --shot-a:#26232d; --shot-b:#2e2a36;
     --shadow:0 18px 50px rgba(0,0,0,.55);
+    --icon-shadow:0 18px 25px rgba(0,0,0,.55);
   }
   *{box-sizing:border-box;margin:0}
   body{background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,"PingFang SC","Hiragino Sans",system-ui,sans-serif}
@@ -86,7 +90,9 @@
   /* ── Hero ── */
   /* padding-block, not the padding shorthand: the shorthand zeroed the side gutter .wrap gives this element */
   .hero{padding-block:72px 40px;text-align:center}
-  .hero .icon{width:112px;height:112px;border-radius:24px;box-shadow:var(--shadow)}
+  /* A drop shadow, not a box shadow: it follows the icon's outline, so the transparent margin round the artwork
+     stays invisible instead of reading as a tile */
+  .hero .icon{width:112px;height:112px;filter:drop-shadow(var(--icon-shadow))}
   .hero h1{font-size:44px;line-height:1.15;margin:22px 0 12px;letter-spacing:-.01em}
   .hero .lede{font-size:18px;color:var(--text-2);max-width:720px;margin:0 auto 28px}
   .cta{display:flex;flex-direction:column;align-items:center;gap:10px}
@@ -196,7 +202,7 @@
 <body>
   <header>
     <div class="wrap bar">
-      <a class="brand" href="#top"><img src="../app-icon/approved-production.png" alt=""><span>Agentshed</span></a>
+      <a class="brand" href="#top"><img src="../../../build/icon.png" alt=""><span>Agentshed</span></a>
       <nav class="links" id="navLinks"></nav>
       <span class="lang" role="group" aria-label="Language">
         <button type="button" data-lang="zh">中文</button>
@@ -363,7 +369,7 @@
 
     document.getElementById('page').innerHTML = `
       <div class="hero wrap" id="top">
-        <img class="icon" src="../app-icon/approved-production.png" alt="">
+        <img class="icon" src="../../../build/icon.png" alt="">
         <h1>${esc(d.title)}</h1>
         <p class="lede">${esc(d.lede)}</p>
         <div class="cta">${heroCta}</div>

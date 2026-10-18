@@ -1,0 +1,33 @@
+---
+// The page's icons: inline SVG, the inner elements copied from Lucide (lucide-static 1.55.0, as in the
+// confirmed prototype), drawn in currentColor so they take the colour of the text around them.
+//
+// Never a character or an emoji in place of an icon: a glyph's size and baseline come from whichever font
+// the visitor's system picks for it, so it cannot be sized or aligned like the text beside it, and it
+// renders differently from one system to the next. An SVG is drawn the same everywhere, at the size given.
+interface Props {
+  name: keyof typeof ICONS
+  size: number
+}
+
+const ICONS = {
+  /** Lucide "download" */
+  download: ['M12 15V3', 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'm7 10 5 5 5-5']
+} as const
+
+const { name, size } = Astro.props
+---
+
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+>
+  {ICONS[name].map((d) => <path d={d} />)}
+</svg>

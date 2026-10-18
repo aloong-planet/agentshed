@@ -1,0 +1,478 @@
+/* The landing page's one stylesheet: its palette and every rule of the page, as in the confirmed prototype
+   (2026-10-13). Interaction states (:hover, :focus-visible, the current step) live here with their base
+   values; markup carries classes only, never inline styles.
+
+   The palette is the app's purple theme (src/renderer/src/theme.css), light and dark, switched by the
+   visitor's system appearance (landing-page::REQ-006). Light and dark each declare every token, equal
+   values included, so a token forgotten in one block cannot pass by inheriting the other's (CONTEXT,
+   "Light and dark each get their own declaration"). A unit test holds the shared tokens to the app's
+   values. Five tokens are the page's own and have no app counterpart: --bg-soft (the alternate
+   section ground), --shot-a and --shot-b (a screenshot frame's ground before its image loads), --shadow
+   (the screenshot frames' shadow) and --icon-shadow (the hero icon's, which follows its outline). */
+:root {
+  --bg: #f7f8f9;
+  --bg-soft: #f0f1f3;
+  --card: #ffffff;
+  --text: #37352f;
+  --text-2: #787774;
+  --line: #e8eaed;
+  --line-strong: #d9dce0;
+  --accent: #8a67ab;
+  --accent-deep: #6b4f92;
+  --accent-soft: #f0ebf6;
+  --shot-a: #ece7f3;
+  --shot-b: #f6f3fa;
+  --shadow: 0 18px 50px rgba(55, 53, 47, 0.16);
+  --icon-shadow: 0 18px 25px rgba(55, 53, 47, 0.18);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #18191b;
+    --bg-soft: #1c1d20;
+    --card: #1f2124;
+    --text: #e6e6e5;
+    --text-2: #9b9a97;
+    --line: #2a2c30;
+    --line-strong: #34373c;
+    --accent: #a084c7;
+    --accent-deep: #c9b3ec;
+    --accent-soft: #2c2733;
+    --shot-a: #26232d;
+    --shot-b: #2e2a36;
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+    --icon-shadow: 0 18px 25px rgba(0, 0, 0, 0.55);
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.6 -apple-system, 'PingFang SC', 'Hiragino Sans', system-ui, sans-serif;
+}
+a {
+  color: inherit;
+}
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Header ── */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  height: 58px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 16px;
+  text-decoration: none;
+}
+.brand img {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+.nav-links {
+  display: flex;
+  gap: 18px;
+  margin-left: auto;
+  font-size: 14px;
+  color: var(--text-2);
+}
+.nav-links a {
+  text-decoration: none;
+}
+.nav-links a:hover {
+  color: var(--accent);
+}
+/* The language toggle: one link per language, the current one marked */
+.lang {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.lang a {
+  font-size: 13px;
+  padding: 4px 10px;
+  text-decoration: none;
+  color: var(--text-2);
+}
+.lang a:hover {
+  color: var(--text);
+  background: var(--bg-soft);
+}
+/* After :hover, at the same specificity, so the current language keeps its look while hovered */
+.lang a.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 12px 22px;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--card);
+}
+.btn-primary:hover {
+  background: var(--accent-deep);
+}
+.btn-sm {
+  padding: 7px 16px;
+  font-size: 14px;
+}
+
+/* ── Hero ── */
+/* padding-block, not the padding shorthand: the shorthand zeroed the side gutter .wrap gives this element */
+.hero {
+  padding-block: 72px 40px;
+  text-align: center;
+}
+/* A drop shadow, not a box shadow: it follows the icon's outline, so the transparent margin round the artwork
+   stays invisible instead of reading as a tile (owner's call, 2026-10-18) */
+.hero .icon {
+  width: 112px;
+  height: 112px;
+  filter: drop-shadow(var(--icon-shadow));
+}
+.hero h1 {
+  font-size: 44px;
+  line-height: 1.15;
+  margin: 22px 0 12px;
+  letter-spacing: -0.01em;
+}
+.hero .lede {
+  font-size: 18px;
+  color: var(--text-2);
+  max-width: 720px;
+  margin: 0 auto 28px;
+}
+.cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.cta .meta {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+/* A screenshot, framed as an app window */
+.shot {
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--shot-a), var(--shot-b));
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.shot .chrome {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.shot .chrome i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+/* The tags carry width and height so the space is held before an image loads: nothing moves as the
+   screenshots arrive, and the language switch can put the visitor back in their place before they have */
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.hero .shot {
+  max-width: 960px;
+  margin: 48px auto 0;
+}
+
+/* ── Sections ── */
+.section {
+  padding: 64px 0;
+}
+.section.soft {
+  background: var(--bg-soft);
+}
+.sec-title {
+  font-size: 28px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+/* A title with no line under it keeps the gap the line would have left */
+.sec-title.alone {
+  margin-bottom: 36px;
+}
+.sec-sub {
+  color: var(--text-2);
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+/* Features scroll by: the text steps on the left move with the page while the screenshot frame on the right
+   stays put and shows the step whose text sits nearest its middle. Each step is about a third of a screen
+   tall, so the steps either side of the current one stay in view and the column reads as a list to pick
+   from (at 60vh only the current step was on screen). Phones lose the sticky frame and every step carries
+   its own screenshot. */
+.fs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr);
+  gap: 56px;
+  align-items: start;
+}
+.fs-step {
+  min-height: 34vh;
+  display: flex;
+  align-items: center;
+}
+.fs-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-left: 3px solid var(--line);
+  padding: 8px 0 8px 20px;
+  cursor: pointer;
+}
+.fs-item .fs-h {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 10px;
+  color: var(--text-2);
+}
+.fs-item .fs-p {
+  display: block;
+  color: var(--text-2);
+}
+.fs-item:hover {
+  border-left-color: var(--line-strong);
+}
+.fs-item:hover .fs-h {
+  color: var(--text);
+}
+/* After :hover, at the same specificity, so the current step keeps its accent while hovered */
+.fs-item.on {
+  border-left-color: var(--accent);
+}
+.fs-item.on .fs-h {
+  color: var(--text);
+}
+/* The focus ring is drawn inside the step's own box (a negative offset), never outside it */
+.fs-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* Centred under the 58px header for a frame about 390px tall, and never tucked under the header */
+.fs-panel {
+  position: sticky;
+  top: max(76px, calc(50vh - 164px));
+}
+/* The four screenshots share one cell, so they must share one shape (16:9): a shorter one left a strip */
+.fs-stack {
+  display: grid;
+}
+/* visibility as well as opacity: a transparent screenshot would still lie on top and take the pointer */
+.fs-stack img {
+  grid-area: 1/1;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.3s,
+    visibility 0s 0.3s;
+}
+.fs-stack img.on {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.3s;
+}
+.fs-step .m-shot {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fs-stack img,
+  .fs-stack img.on {
+    transition: none;
+  }
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+.step {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 22px;
+}
+.step .n {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.step h3 {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+.step p {
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.dl {
+  max-width: 680px;
+  margin: 0 auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 6px 22px;
+}
+.dl-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 0;
+  flex-wrap: wrap;
+}
+.dl-row + .dl-row {
+  border-top: 1px solid var(--line);
+}
+.dl-label b {
+  display: block;
+}
+.dl-label span {
+  font-size: 13px;
+  color: var(--text-2);
+}
+.dl-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: 28px 0;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.site-footer .wrap {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.site-footer a {
+  color: var(--text-2);
+}
+
+@media (max-width: 760px) {
+  .hero h1 {
+    font-size: 32px;
+  }
+  .fs {
+    grid-template-columns: 1fr;
+    gap: 44px;
+  }
+  .fs-panel {
+    display: none;
+  }
+  .fs-step {
+    min-height: 0;
+    display: block;
+  }
+  /* Without a gap the next step's title sat right under the previous screenshot and read as its caption */
+  .fs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 44px;
+  }
+  .fs-item {
+    border-left: 0;
+    padding: 0;
+    cursor: default;
+  }
+  .fs-item .fs-h {
+    color: var(--text);
+  }
+  .fs-step .m-shot {
+    display: flex;
+    margin-top: 18px;
+  }
+  .steps {
+    grid-template-columns: 1fr;
+  }
+  .nav-links {
+    display: none;
+  }
+  .lang {
+    margin-left: auto;
+  }
+}
+/* Phones: the label takes its own line and the buttons share the full width below it, as on Transfer's
+   page. "Download the test version from GitHub" outgrew the card at 400px when it had to fit beside the
+   label (measured on the prototype: 11px past the card's content edge). */
+@media (max-width: 560px) {
+  .dl-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .dl-actions .btn {
+    flex: 1;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+  }
+}

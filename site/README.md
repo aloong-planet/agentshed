@@ -1,0 +1,67 @@
+# Agentshed's landing page (`site/`)
+
+An Astro static site in two languages: Chinese at `/`, English at `/en`. What it must do is in
+[the landing-page spec](../docs/specs/landing-page.md); why it is a `site/` project in this repository is
+ADR-0031. It is a package of its own, with its own lockfile, outside the app's dependencies.
+
+## Commands
+
+```sh
+cd site
+pnpm install --frozen-lockfile
+pnpm dev        # http://localhost:4321/
+pnpm build      # the static site, into site/dist/
+pnpm preview    # serve site/dist/
+pnpm check      # astro check: the TypeScript of every .astro and .ts file
+pnpm test       # unit tests and the built-site check
+```
+
+From the repository root, `pnpm test:site` runs `check` and `test`. It is part of `pnpm verify`, and CI runs
+it in its checks job; the root `pnpm lint` covers the site's TypeScript and scripts too (not its `.astro`
+files), which is why CI installs the site's dependencies before linting.
+
+## Where things are
+
+- `src/pages/index.astro`, `src/pages/en/index.astro`: the two pages, the same sections in the same order.
+- `src/layouts/Base.astro`: the head, the sticky header (brand, navigation, language toggle), the footer, and
+  the page's one script.
+- `src/components/`: one component per section (`Hero`, `Features`, `Install`, `Download`), and `Icon.astro`,
+  the page's icons as inline SVG copied from Lucide. A new icon goes there, never a character or an emoji.
+- `src/i18n/ui.ts`: every string of the page, in both languages. This dictionary is the site's own, separate
+  from the app's six-language one (`src/shared/i18n/`). New copy goes here, in both languages.
+- `src/styles/global.css`: the palette (the app's purple theme, light and dark, by the visitor's system
+  appearance) and every rule of the page, interaction states included. Markup carries classes only.
+- `src/download.ts`: what the download buttons say and where they lead. The page is served in the list state,
+  which leads to GitHub's release list.
+- `src/scripts/`: the features section's scroll-linked frame (`features.ts`), and the language switch that
+  keeps the current step and scroll position (`language-switch.ts`).
+- `src/shots.ts` and `public/shots/`: the screenshots, one set per language, approved for publication on
+  2026-10-13. They change only by retaking them from the app, at the same sizes (the hero 2560×1536, every
+  feature cut 1840×1035).
+- `public/icon-64.png`, `public/icon-256.png`: the app icon, scaled from `build/icon.png`:
+  `sips -z 64 64 build/icon.png --out site/public/icon-64.png` (and 256 for the other), from the repository
+  root.
+
+## Tests
+
+- Unit tests sit next to the modules they test (`src/**/*.test.ts`).
+- `test/built-site.test.ts` checks the pages one fresh build produces: `test/build-site.ts` builds the site
+  into a new temporary directory once per test run, so the check never reads an old `dist/`. Its file header
+  says what it cannot see (scrolling, layout across widths, the two appearances), which is measured in a
+  browser instead.
+
+## Deploying (Cloudflare Pages)
+
+The page is served by Cloudflare Pages at `agentshed.aloongplanet.com`. The Pages project needs:
+
+| Setting | Value |
+|---|---|
+| Root directory | `site` |
+| Build command | `pnpm install --frozen-lockfile && pnpm build` |
+| Build output directory | `dist` (relative to the root directory) |
+| `NODE_VERSION` | 22.22.0 or later: Astro 7 refuses an older Node |
+
+The site uses pnpm 9 (`packageManager` in `package.json`); set `PNPM_VERSION` on the project if its build
+picks another. Connecting the project to this repository
+requires the Cloudflare Workers & Pages GitHub App on the `aloong-planet` organization, with access to
+`agentshed` only.

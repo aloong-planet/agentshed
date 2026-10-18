@@ -1,0 +1,71 @@
+---
+// The page's frame: the head, the sticky header (brand, navigation, language toggle) and the footer
+// (landing-page::REQ-003). Each language's page fills the main region with the same sections.
+import '../styles/global.css'
+import { REPOSITORY, RELEASE_LIST } from '../download'
+import { HTML_LANG, LANGUAGE_NAME, LOCALES, PAGE_PATH, ui, type Locale } from '../i18n/ui'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const t = ui[locale]
+---
+
+<!doctype html>
+<html lang={HTML_LANG[locale]}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agentshed — {t.hero.title}</title>
+    <meta name="description" content={t.hero.lede} />
+    <link rel="icon" type="image/png" href="/icon-64.png" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap bar">
+        <a class="brand" href="#top"><img src="/icon-64.png" width="64" height="64" alt="" /><span>Agentshed</span></a>
+        <nav class="nav-links">
+          <a href="#features">{t.nav.features}</a>
+          <a href="#install">{t.nav.install}</a>
+          <a href="#download">{t.nav.download}</a>
+          <a href={REPOSITORY} target="_blank" rel="noopener">{t.nav.github}</a>
+        </nav>
+        <span class="lang" role="group" aria-label={t.language}>
+          {
+            LOCALES.map((l) =>
+              l === locale ? (
+                <a class="on" href={PAGE_PATH[l]} aria-current="page" lang={HTML_LANG[l]}>
+                  {LANGUAGE_NAME[l]}
+                </a>
+              ) : (
+                <a href={PAGE_PATH[l]} hreflang={HTML_LANG[l]} lang={HTML_LANG[l]} data-switch-language>
+                  {LANGUAGE_NAME[l]}
+                </a>
+              )
+            )
+          }
+        </span>
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="wrap">
+        <a href={REPOSITORY} target="_blank" rel="noopener">{t.footer.github}</a>
+        <a href={RELEASE_LIST} target="_blank" rel="noopener">{t.footer.releases}</a>
+        <span>{t.footer.copyright}</span>
+      </div>
+    </footer>
+    <script>
+      // The features section, then the language switch, which may scroll back to the visitor's place and set
+      // the current step
+      import { initFeatures } from '../scripts/features'
+      import { initLanguageSwitch } from '../scripts/language-switch'
+      initFeatures()
+      initLanguageSwitch()
+    </script>
+  </body>
+</html>

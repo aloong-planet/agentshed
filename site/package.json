@@ -1,0 +1,27 @@
+{
+  "name": "agentshed-site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Agentshed's landing page, in Chinese and English (Astro static site)",
+  "packageManager": "pnpm@9.12.3",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "astro": "7.4.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^22.20.5",
+    "jsdom": "^30.1.3",
+    "postcss": "^8.5.30",
+    "typescript": "^6.0.3",
+    "vitest": "5.0.5"
+  }
+}
