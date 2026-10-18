@@ -228,7 +228,7 @@
   const ICON_DOWNLOAD = (s) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>`
 
   const REPO = 'https://github.com/aloong-planet/agentshed'
-  /** The download host is still being decided (ADR-0031): dl.agentshed… if its certificate holds, else dl-agentshed… */
+  /** The download host, its certificate checked from outside Cloudflare on 2026-10-17 (ADR-0031) */
   const DL_HOST = 'https://dl.agentshed.aloongplanet.com'
   const RELEASES = {
     beta: { formal: null, pre: '0.1.0-beta' },
@@ -435,7 +435,7 @@
         (g) 功能区截图裁到该段相关的区域，统一放大倍数；截图可以公开。<br>
         <b>2026-10-13 按你的答复加入，待看原型确认</b>：(h) 两处都读不到（断网等）时按钮指向 GitHub 版本列表、不标版本号，
         页面脚本执行前的初始状态也是它；(i) R2 读不到但 GitHub 上有正式版时，按正式版显示、链接全在 GitHub（见验收 ①）。<br>
-        <b>仍待定</b>：(f) 下载域名待你在 Cloudflare 上测试（dl.agentshed… 不行就 dl-agentshed…）。<br>
+        <b>已定</b>：(f) 下载域名为 dl.agentshed.aloongplanet.com，证书已于 2026-10-17 从 Cloudflare 外部检查通过（ADR-0031）。<br>
         <b>演示基建</b>：底部悬浮条不是设计的一部分，勿实现。
       </div>`
   }

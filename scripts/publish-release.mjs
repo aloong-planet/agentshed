@@ -12,9 +12,10 @@
 // two builds' files. PRERELEASE comes from the workflow, which tells a pre-release by the tag alone.
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { releaseFiles } from './lib/release-artifact.mjs'
 
 /**
  * Publishes the DMGs of the gate job's artifact, downloaded to `dir` (`<dir>/<version>/<files>`), as the release
@@ -22,18 +23,7 @@ import { fileURLToPath } from 'node:url'
  * stand-in): list, deleteDraft, createDraft, view and publish.
  */
 export function publishRelease({ dir, tag, prerelease, releases, log = console.log }) {
-  const version = tag.slice(1)
-  // The artifact keeps the gate job's layout under release/: one directory named for the version
-  const entries = readdirSync(dir)
-  if (entries.length !== 1 || entries[0] !== version || !statSync(join(dir, version)).isDirectory()) {
-    throw new Error(`the artifact holds ${entries.join(', ') || 'nothing'}, not one ${version} directory`)
-  }
-  const versionDir = join(dir, version)
-  const names = readdirSync(versionDir).filter((name) => name.endsWith('.dmg')).sort()
-  if (names.length === 0) throw new Error(`no DMG in ${versionDir}`)
-  const foreign = names.filter((name) => !name.includes(`-${version}-mac-`))
-  if (foreign.length > 0) throw new Error(`${foreign.join(', ')} is not a DMG of version ${version}`)
-  const files = names.map((name) => join(versionDir, name))
+  const { version, names, files } = releaseFiles(dir, tag)
 
   const existing = releases.list().filter((release) => release.tagName === tag)
   if (existing.some((release) => !release.isDraft)) {

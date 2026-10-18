@@ -1,6 +1,6 @@
 # ADR-0031: A notarized macOS release line, built in CI, mirrored to R2 and fronted by a landing page
 
-- Status: Proposed (the download host's certificate coverage is untested; see Decision)
+- Status: Accepted (2026-10-19)
 
 ## Context
 
@@ -69,6 +69,12 @@ We choose **option 1**:
   for `7656d542.sni.cloudflaressl.com` that names only that host), and whether that also holds a level
   deeper is undocumented. This entry stays Proposed until the host is added to the bucket and its
   certificate is checked from outside.
+
+  **Evidence closed (promoted from Proposed to Accepted on 2026-10-19)**: the host was added to the bucket
+  through Terraform in the infrastructure repository and its certificate checked from outside Cloudflare on
+  2026-10-17: issued by Google Trust Services, valid until 2027-01-15, the host among its subject alternative
+  names, hostname verification passing through the local resolver and against a public-DNS address. The
+  download host is `dl.agentshed.aloongplanet.com`; the fallback is not used.
 - **Landing page**: `agentshed.aloongplanet.com`, a `site/` project built with Astro and deployed by
   Cloudflare Pages, in Chinese and English. Its download points at the latest formal release on R2; while
   no formal release exists, it points at the GitHub pre-release and labels it a test version.
@@ -103,4 +109,5 @@ The owner's decisions in the requirements session of 2026-10-12. Transfer's `doc
 skillshed commit `eb50330`, whose parent holds the deleted `direct-distribution.md`. Cloudflare's
 [Universal SSL limitations](https://developers.cloudflare.com/ssl/edge-certificates/universal-ssl/limitations/)
 and the certificate served for `dl.aloongplanet.com` on 2026-10-12. The handoff of 2026-10-12 for the
-electron-builder 26.15.3 keychain-import failure in Transfer's CI.
+electron-builder 26.15.3 keychain-import failure in Transfer's CI. The certificate check of 2026-10-17, recorded in
+`aloong-planet/infra`'s `stacks/apps/README.md`.

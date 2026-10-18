@@ -1,0 +1,53 @@
+# Mutation run for #236's tests, 2026-10-19, branch feat/r2-mirror on 0a5ad4d (uncommitted working tree)
+# Each mutation replaces one exact occurrence, or (for text both R2 jobs share) the first occurrence through a whole-file
+# transform; the test file runs; the original bytes are written back in finally. sha256 before and after the batch:
+37a9e3825db26f989a0019ed03e83fc33f13ef38dd0746a358b48f37b4d211b0  .github/workflows/release.yml
+dd57d14621498935e790afde2a7090dbb2a4ae0520b5fa0b5742429ec4e2acf7  scripts/mirror-release.mjs
+37a9e3825db26f989a0019ed03e83fc33f13ef38dd0746a358b48f37b4d211b0  .github/workflows/release.yml
+dd57d14621498935e790afde2a7090dbb2a4ae0520b5fa0b5742429ec4e2acf7  scripts/mirror-release.mjs
+
+N1 applied=true expected-test-red=true restored=true | W1 the mirror runs for pre-releases
+    failing: the mirror and the pointer run for a formal tag push only: never for a pre-release, a dispatch or a pull request
+N2 applied=true expected-test-red=true restored=true | W1 the pointer runs on a dispatch on a tag
+    failing: the mirror and the pointer run for a formal tag push only: never for a pre-release, a dispatch or a pull request
+N3 applied=true expected-test-red=true restored=true | W2 the mirror does not wait for publishing
+    failing: the mirror follows the published GitHub release, and the pointer follows the mirror; a failed job before them skips them
+N4 applied=true expected-test-red=true restored=true | W2 the pointer does not wait for the mirror
+    failing: the mirror follows the published GitHub release, and the pointer follows the mirror; a failed job before them skips them
+N5 applied=true expected-test-red=true restored=true | W2 the mirror runs after a failure
+    failing: the mirror and the pointer run for a formal tag push only: never for a pre-release, a dispatch or a pull request / the mirror follows the published GitHub release, and the pointer follows the mirror; a failed job before them skips them
+N6 applied=true expected-test-red=true restored=true | W3 the R2 boolean ignores the bucket (mirror)
+    failing: a missing R2 credential fails the mirror and the pointer first, naming the four secrets (CON-003)
+N7 applied=true expected-test-red=true restored=true | W3 the R2 requirement exits 0 (mirror)
+    failing: a missing R2 credential fails the mirror and the pointer first, naming the four secrets (CON-003)
+N8 applied=true expected-test-red=true restored=true | W4 a variable holds another secret (mirror)
+    failing: credentials reach only the packaging steps and the two R2 steps, the local packaging never gets Apple credentials, and no run block interpolates
+N9 applied=true expected-test-red=true restored=true | W4 publishing reads an R2 secret
+    failing: credentials reach only the packaging steps and the two R2 steps, the local packaging never gets Apple credentials, and no run block interpolates
+N10 applied=true expected-test-red=true restored=true | W5 the fallback host
+    failing: the mirror and the pointer read the gate job's artifact and the download host the certificate check settled
+N11 applied=true expected-test-red=true restored=true | W5 the pointer job uploads instead
+    failing: the mirror and the pointer read the gate job's artifact and the download host the certificate check settled
+N12 applied=true expected-test-red=true restored=true | M1 DMGs cached briefly
+    failing: a formal release's DMGs go to releases/v<version>/ with immutable caching, and nothing else is written
+N13 applied=true expected-test-red=true restored=true | M2 URLs without the host
+    failing: the pointer is written last, naming the version and each file with its download URL / a mirrored file the download host cannot serve leaves the pointer unwritten / a file the download host serves with other bytes than the gated file leaves the pointer unwritten / a file the download host misses once is read again after a pause, and then the pointer is written / the entry point uploads to the bucket on the account endpoint, and points at the download host
+N14 applied=true expected-test-red=true restored=true | M3 an unserved file accepted
+    failing: a mirrored file the download host cannot serve leaves the pointer unwritten / a file the download host misses once is read again after a pause, and then the pointer is written
+N15 applied=true expected-test-red=true restored=true | M4 the sha256 not compared
+    failing: a file the download host serves with other bytes than the gated file leaves the pointer unwritten
+N16 applied=true expected-test-red=true restored=true | M5 no retry
+    failing: a file the download host misses once is read again after a pause, and then the pointer is written
+N17 applied=true expected-test-red=true restored=true | M6 pre-releases mirrored
+    failing: a pre-release tag is refused before the bucket or the download host is touched
+N18 applied=true expected-test-red=true restored=true | M7 a failed upload swallowed
+    failing: an upload that fails partway fails the mirror
+N19 applied=true expected-test-red=true restored=true | A1 no region
+    failing: the aws-cli adapter copies each object with its headers to the bucket on the R2 endpoint
+N20 applied=true expected-test-red=true restored=true | A2 the size of one chunk only
+    failing: the HTTP probe reports the status, and the size and sha256 of the bytes it read
+N21 applied=true expected-test-red=true restored=true | E1 the host not required
+    failing: the entry point refuses a missing setting or an unknown step before any command
+N22 applied=true expected-test-red=true restored=true | E2 the endpoint without the account
+    failing: the entry point uploads to the bucket on the account endpoint, and points at the download host
+ALL MUTATIONS CAUGHT AND RESTORED
