@@ -3,8 +3,8 @@
      以及两个预览面(skill 文件抽屉 / .md 文档卡)能否共用同一套阶梯。
      背景:实测现状里抽屉 h3≈14.6px vs h4=12.5px 且 h4 无主题色;.md 卡 h1=h2=h3 全被压成
      13.5px、h4=12.5px——用户报「三级四级看起来一样大」。
-     裁决(2026-08-19):V2 形状分层定稿,已折进共享块 _shared/md-preview.css 与真代码;
-     「旧现状」列保留的是裁决前两面的旧观感,仅作历史对照,不再描述 app 现状。
+     裁决(2026-08-19):V2 形状分层定稿,已折进共享块 _shared/md-preview.css 与真代码。
+     2026-10-18:落选的旧现状、V1、V3 与切换它们的演示条撤掉,本页只画定稿的 V2。
      第二条裁决(2026-08-19,用户对照本页两栏后指定):代码块与行内代码统一取右栏(.md 文档卡)
      的纸面样式——围栏浅底描边、内层 code 无二层框、行内 code 描边药丸;已折进共享块与真代码,
      左栏抽屉语境此前的暗底终端式 pre 不再是 app 现状。
@@ -13,14 +13,9 @@
      **表头单元格不换行**(宽表滚动容器)、GFM 对齐语法(:-: / --:)优先于默认左对齐,
      全部既有 token。fixture 的「分组对照」表覆盖:三种对齐、单元格内行内 code、
      窄容器下折行的长单元格、四行正文(斑马纹可见)。
-     方案(底栏切换,V2 为定稿):
-       旧现状  两面各按裁决前的旧规则渲染,作对照基线;
-       V1    纯字号阶梯——只靠字号与字重分级,单一主题色,押最朴素;
-       V2    形状分层——h1 底线、h2 左条、三级色阶、h4 起转灰,字号只温和递减,押折行不糊;
-       V3    双轨——h1–h3 比大小,h4 起变形为「小节眉」(正文字号+字距+灰),押相邻级比形态不比大小。
-     演示基建(非设计的一部分,勿实现):底部悬浮条 data-demo-harness——「方案」一组,变体切换(←/→ 循环,当前变体
-     写 location.hash);变体由本次裁决唯一定稿,运行时不存在这个开关(说明行写明)。界面语言、配色与明暗跟随设置原型
-     (appearance)与画廊的统一设置所选,本页不设开关;色值取共享主题 _shared/theme.css。
+     定稿方案 V2 形状分层:h1 底线、h2 左条、三级色阶、h4 起转灰,字号只温和递减,押折行不糊。
+     本页没有演示条。界面语言、配色与明暗跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;
+     色值取共享主题 _shared/theme.css。
      本页不画 app 窗口:它是一张摆放两个预览面样本的样张,页面的根样式(底色、文字色、字号、页边距)
      写在本页自己的外框 .sheet 上,不写在 html、body 上。
      语言只画了中、英两种,其他语言按英文显示并有提示;随语言变的只有抽屉切换钮(原文/预览,共享块
@@ -28,7 +23,7 @@
      (ru: Исходник/Предпросмотр)未进 mock;本页评判对象是标题排版,不含该钮几何。
      mock 正文刻意覆盖:h3→正文→h4、h3/h4 紧邻无正文、h5/h6、长标题折行后紧邻的 h3/h4、
      代码块与列表贴近标题。共享:md-preview。 -->
-<html lang="zh-CN" data-v="v2">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>原型 — Markdown 预览 · 标题层级阶梯</title>
@@ -103,7 +98,7 @@
   .mdcard td[align='center'] { text-align: center; }
   .mdcard td[align='right'] { text-align: right; }
 
-  /* ── 标题阶梯:一套结构规则,两个语境同吃;各方案只改变量 ──
+  /* ── 标题阶梯:一套结构规则,两个语境同吃;取值见下方定稿的变量 ──
      选择器带 .shell-drawer 前缀是为了压过共享块 md-preview.css 的同名规则(0,2,1 → 0,3,1) */
   .shell-drawer .md-preview-body.preview h1, .mdcard h1,
   .shell-drawer .md-preview-body.preview h2, .mdcard h2,
@@ -140,55 +135,14 @@
     margin: var(--h6-m, var(--hd-m, 1em 0 0.4em)); letter-spacing: var(--h6-ls, normal);
   }
 
-  /* ── 旧现状对照:两面各按裁决前 app 的旧规则——抽屉是 UA 字号+前三级主题色,
-        .md 卡是 h1=h2=h3 全 13.5px;h4 起两面都无色、无自定义 margin(UA 粗体) ── */
-  html[data-v="v0"] .shell-drawer {
-    --hd-lh: 1.65;
-    --h1-fs: 2em;    --h1-c: var(--accent-deep); --h1-m: 0.9em 0 0.35em;
-    --h2-fs: 1.5em;  --h2-c: var(--accent-deep); --h2-m: 0.9em 0 0.35em;
-    --h3-fs: 1.17em; --h3-c: var(--accent-deep); --h3-m: 0.9em 0 0.35em;
-    --h4-fs: 1em;    --h4-c: var(--text); --h4-m: 1.33em 0;
-    --h5-fs: 0.83em; --h5-c: var(--text); --h5-m: 1.67em 0;
-    --h6-fs: 0.67em; --h6-c: var(--text); --h6-m: 2.33em 0;
-  }
-  html[data-v="v0"] .mdcard {
-    --hd-lh: 1.75;
-    --h1-fs: 13.5px; --h1-c: var(--accent-deep); --h1-m: 10px 0 6px;
-    --h2-fs: 13.5px; --h2-c: var(--accent-deep); --h2-m: 10px 0 6px;
-    --h3-fs: 13.5px; --h3-c: var(--accent-deep); --h3-m: 10px 0 6px;
-    --h4-fs: 1em;    --h4-c: var(--text); --h4-m: 1.33em 0;
-    --h5-fs: 0.83em; --h5-c: var(--text); --h5-m: 1.67em 0;
-    --h6-fs: 0.67em; --h6-c: var(--text); --h6-m: 2.33em 0;
-  }
-
-  /* ── V1 · 纯字号阶梯:单色(前四级主题深色),只靠字号与字重;h5 起转灰 ── */
-  html[data-v="v1"] .panel {
-    --h1-fs: 1.5em;  --h1-c: var(--accent-deep);
-    --h2-fs: 1.3em;  --h2-c: var(--accent-deep);
-    --h3-fs: 1.16em; --h3-c: var(--accent-deep);
-    --h4-fs: 1em;    --h4-c: var(--accent-deep);
-    --h5-fs: 0.92em; --h5-c: var(--text-2);
-    --h6-fs: 0.88em; --h6-c: var(--text-2);
-  }
-
-  /* ── V2 · 形状分层(推荐):h1 底线、h2 左条、h3 三级色、h4 起转灰;字号温和递减 ── */
-  html[data-v="v2"] .panel {
+  /* ── V2 · 形状分层(定稿):h1 底线、h2 左条、h3 三级色、h4 起转灰;字号温和递减 ── */
+  .panel {
     --h1-fs: 1.32em; --h1-c: var(--accent-deep); --h1-bd: 2px solid var(--line-strong); --h1-pb: 0.3em;
     --h2-fs: 1.16em; --h2-c: var(--accent);      --h2-bd: 3px solid var(--accent);      --h2-pl: 10px;
     --h3-fs: 1.06em; --h3-c: var(--hx3);
     --h4-fs: 0.95em; --h4-c: var(--text-2);
     --h5-fs: 0.88em; --h5-c: var(--text-2); --h5-fw: 650;
     --h6-fs: 0.85em; --h6-c: var(--text-2); --h6-fw: 650;
-  }
-
-  /* ── V3 · 双轨:h1–h3 比大小;h4 起变形为小节眉(正文字号+字距+灰),相邻级比形态不比大小 ── */
-  html[data-v="v3"] .panel {
-    --h1-fs: 1.4em;  --h1-c: var(--accent-deep);
-    --h2-fs: 1.2em;  --h2-c: var(--accent-deep);
-    --h3-fs: 1.08em; --h3-c: var(--accent);
-    --h4-fs: 1em;    --h4-c: var(--text-2); --h4-ls: 0.06em; --h4-m: 1.25em 0 0.4em;
-    --h5-fs: 0.9em;  --h5-c: var(--text-2); --h5-ls: 0.05em;
-    --h6-fs: 0.85em; --h6-c: var(--text-2); --h6-ls: 0.05em;
   }
 </style>
 <script src="../vendor/marked.umd.js"></script>
@@ -209,10 +163,7 @@
     </div>
     <table class="legend">
       <tr><th>方案</th><th>h1</th><th>h2</th><th>h3</th><th>h4</th><th>h5 / h6</th><th>押什么</th></tr>
-      <tr><td>旧现状(对照)</td><td class="px">抽屉 25 · 卡 13.5</td><td class="px">18.8 · 13.5</td><td class="px">14.6 · 13.5</td><td class="px">12.5 无色</td><td class="px">UA 缩水</td><td>——裁决前的样子,两面还各不相同</td></tr>
-      <tr><td>V1 纯字号</td><td class="px">18.8</td><td class="px">16.3</td><td class="px">14.5</td><td class="px">12.5 主题色</td><td class="px">11.5 / 11 灰</td><td>只靠字号与字重,最朴素、最像现有克制风格</td></tr>
       <tr><td>V2 形状分层(定稿)</td><td class="px">16.5 +底线</td><td class="px">14.5 +左条</td><td class="px">13.3 三级色</td><td class="px">11.9 灰</td><td class="px">11 / 10.6 灰</td><td>形状与颜色扛主力,折行、扫读都不糊,省纵向空间</td></tr>
-      <tr><td>V3 双轨</td><td class="px">17.5</td><td class="px">15</td><td class="px">13.5</td><td class="px">12.5 字距+灰</td><td class="px">11.3 / 10.6 灰</td><td>h4 起换形态不比大小,相邻级永不混淆,但形态跳跃大</td></tr>
     </table>
   </div>
 
@@ -288,20 +239,6 @@ git log --oneline HEAD
 只有字号一条线索时,折行带来的「块变高」会盖过字号差;形状与颜色线索不受折行影响。
   </script>
 
-  <div data-demo-harness>
-    <span class="dh-tag">Demo ·</span>
-    <div class="dh-group">
-      <span class="dh-title">方案</span>
-      <div class="dh-opts">
-        <button type="button" class="dh-opt" data-v="v0" aria-pressed="false">旧现状</button>
-        <button type="button" class="dh-opt" data-v="v1" aria-pressed="false">V1 纯字号</button>
-        <button type="button" class="dh-opt" data-v="v2" aria-pressed="true">V2 形状分层</button>
-        <button type="button" class="dh-opt" data-v="v3" aria-pressed="false">V3 双轨</button>
-      </div>
-    </div>
-    <p class="dh-note">标题阶梯在 app 里只有裁决定稿的 V2 一种,不随任何状态变化;本组只为对比各方案,app 内没有这个开关。</p>
-  </div>
-
 <script>
   const FIXTURE = document.getElementById('fx').textContent.trim() + '\n'
   const FM_RE = /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*\r?\n?/
@@ -312,38 +249,10 @@ git log --oneline HEAD
   })
   document.getElementById('card-mount').innerHTML = MdPreview.render(BODY_ONLY)
 
-  // ── 演示状态:变体写 hash(#<v>)便于分享/刷新稳定;配色与明暗跟随设置原型,不进 hash ──
-  const VS = ['v0', 'v1', 'v2', 'v3']
-  function parseHash () {
-    const v = (location.hash || '').replace(/^#/, '').split('.')[0]
-    return VS.includes(v) ? v : 'v2'
-  }
-  const st = { v: parseHash() }
-  function apply () {
-    document.documentElement.dataset.v = st.v
-    document.querySelectorAll('[data-demo-harness] button[data-v]').forEach((b) => {
-      b.setAttribute('aria-pressed', String(b.dataset.v === st.v))
-    })
-    location.hash = st.v
-  }
-  document.querySelectorAll('[data-demo-harness] button[data-v]').forEach((b) => {
-    b.addEventListener('click', () => { st.v = b.dataset.v; apply() })
-  })
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-    const el = document.activeElement
-    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
-    const i = VS.indexOf(st.v)
-    st.v = VS[(i + (e.key === 'ArrowRight' ? 1 : VS.length - 1)) % VS.length]
-    apply()
-  })
-  window.addEventListener('hashchange', () => { st.v = parseHash(); apply() })
-  apply()
   // The palette and light/dark land on the root element through demo-dimensions.js and switch the app's
   // tokens there. Of the language, the only app copy on this page is the shared block's raw/preview toggle,
   // which follows it by itself; the page keeps the document language in step
   DemoDimensions.on('language', (v) => { document.documentElement.lang = v === 'zh' ? 'zh-CN' : 'en' })
 </script>
-<script src="../demo-harness.js"></script>
 </body>
 </html>

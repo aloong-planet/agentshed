@@ -28,6 +28,7 @@ lines; each names the tier that backs it.
 | 251::12 | Harness bars in the dock script's markup, no page or shared style targets them, no `<select>` | Evidence: search for `data-demo-harness`/`dh-` in style rules and `<select` inside bars; browser screenshots |
 | 251::13 | App window root styles on its box, inherited and background ones also on the candidates cell; landing-page and md-preview judged | Evidence: search for html/body rules; browser: computed styles of the window box equal the old body's |
 | 251::14 | No app source paths (`src/`) outside mock content | Evidence: search for `src/` under `docs/prototypes/`, command and output |
+| 251::15 | Added on 2026-10-18 (owner): candidates settled on the app's current form — the skills preview keeps the flat expanded form, md-preview keeps V2; their switches, losing forms and bars go | Evidence: search for the removed forms; snapshot diff limited to the removed rows and texts |
 | 251::done | Gallery and every page open with no page errors | Evidence: browser run over every manifest entry, zh/en × light/dark |
 
 ## Current verification

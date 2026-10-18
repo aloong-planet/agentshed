@@ -1,8 +1,7 @@
 <!doctype html>
 <!-- A UI prototype · Skills package preview — the main list expands to show a package's files, and
      clicking a file opens a drawer to read it.
-     演示基建(非设计的一部分,勿实现):底部悬浮条(data-demo-harness,独立于页面内容流)承载「展开形式」一组
-     (平铺 / 缩进卡片,两种形式的对比;说明行写明 app 里展开形式固定为一种、没有这个开关)。
+     本页没有演示条。
      界面语言、配色与明暗跟随设置原型(appearance)与画廊的统一设置所选,
      本页不设开关;语言只画了中、英两种,其他语言按英文显示并有提示;评审注记(.sub 说明、分区标题、配色说明)
      不随语言变。色值取共享主题 _shared/theme.css,本页只为自己的 token 指明
@@ -11,6 +10,7 @@
      ③展开区新增「平铺」形式(默认)——不缩进、表格满宽,与旧「缩进卡片」可切换对比;
      ④包统计(文件数/大小,不含行数)上行内右侧,展开区撤销汇总条;⑤frontmatter 深浅随页面
      data-mode(修共享块只认 OS 的 bug)。
+     2026-10-18:展开形式定稿为平铺(与 app 现行一致),缩进卡片与切换它的演示条撤掉。
      2026-08-10 新增「按名字过滤」:两处列表各一个搜索框——子串匹配、大小写不敏感、只匹配 skill 名;
      命中不高亮;零额外反馈(不加计数行,列表直接变短,详情的组标题计数随之变化、空组整组消失);
      输入框不放图标(与真代码 sessions 搜索框一致,且 app 的图标模块禁用字符图标)。
@@ -20,7 +20,7 @@
      不再看来源,改看**有没有包**:插件行同样可能展不开(真代码里它的包根可以为空,fail-closed),
      所以 mock 里留了一条查不到包的插件行,箭头处显示 · 。装卸按钮仍然只给磁盘行——
      那是 ADR-0004 的 G3,ADR-0012 没有动它。 -->
-<html lang="zh-CN" data-expand="flat">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>原型 — Skills 包预览 · 列表折叠 + 文件抽屉</title>
@@ -136,22 +136,22 @@
   /* Inline package stats (file count / line count / size): replacing the summary bar in the expanded area */
   .sk-meta{margin-left:auto;flex:none;font-size:11px;color:var(--text-2);font-variant-numeric:tabular-nums}
   .ins:hover{color:var(--accent);border-color:var(--accent)}
-  .sk-body{display:none;padding:0 12px 12px 32px;background:var(--tree-bg);border-top:1px solid var(--line)}
+  /* The expanded area is flat: not indented, the table a full-width segment of the card, the file name column
+     aligned with the row's name; blocks are set apart by their top and bottom lines and the tree-bg ground */
+  .sk-body{display:none;padding:0;background:var(--tree-bg);border-top:1px solid var(--line)}
   .sk.open .sk-body{display:block}
-  .sk-sides{display:flex;gap:4px;padding:10px 0 6px}
+  .sk-sides{display:flex;gap:4px;padding:8px 14px 4px}
   .sk-sides button{
     font:inherit;font-size:11px;font-weight:600;border:1px solid var(--line-strong);
     background:var(--card);color:var(--text-2);border-radius:7px;padding:3px 10px;cursor:pointer}
   .sk-sides button.on{background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent)}
   .sk-tip{
     font-size:11.5px;color:var(--warn);background:var(--warn-bg);border:1px solid var(--warn-border);
-    border-radius:8px;padding:7px 10px;line-height:1.45;margin:6px 0 8px}
-  .files-card{
-    background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;
-    margin-top:4px}
+    border-radius:8px;padding:7px 10px;line-height:1.45;margin:8px 14px}
+  .files-card{background:transparent;border:0;border-radius:0;overflow:hidden;margin-top:0}
   .files-head{
     display:grid;grid-template-columns:minmax(0,1fr) 64px 72px 108px;
-    gap:8px;padding:6px 12px;font-size:10.5px;font-weight:600;letter-spacing:.03em;
+    gap:8px;padding:5px 14px;font-size:10.5px;font-weight:600;letter-spacing:.03em;
     text-transform:uppercase;color:var(--text-2);border-bottom:1px solid var(--line)}
   .files-head span:not(:first-child){text-align:right}
   .files{display:flex;flex-direction:column;padding:4px 0}
@@ -159,7 +159,7 @@
     display:grid;grid-template-columns:minmax(0,1fr) 64px 72px 108px;
     gap:8px;align-items:center;width:100%;text-align:left;font:inherit;
     font-size:12px;border:0;background:transparent;color:var(--text);
-    padding:8px 12px;cursor:pointer;border-left:3px solid transparent}
+    padding:7px 14px;cursor:pointer;border-left:3px solid transparent}
   .files button:hover{background:var(--accent-soft);border-left-color:var(--accent)}
   .files button:hover .path{color:var(--accent-deep)}
   .files button .name-cell{display:flex;align-items:center;gap:8px;min-width:0}
@@ -178,17 +178,7 @@
   .files button .meta{font-size:11.5px;color:var(--text-2);font-variant-numeric:tabular-nums;
     font-family:ui-monospace,Menlo,monospace;text-align:right;white-space:nowrap}
   .files button .meta.lines{font-weight:600;color:var(--text)}
-  .files .empty{font-size:12px;color:var(--text-2);padding:12px}
-  /* ── The expanded form · flat (the default): the expanded area is not indented and the table is a
-     full-width segment of the card,
-     文件名列与行名对齐;区块靠上下边线 + tree-bg 底色区隔,不再套内层卡片 ── */
-  html[data-expand="flat"] .sk-body{padding:0}
-  html[data-expand="flat"] .sk-sides{padding:8px 14px 4px}
-  html[data-expand="flat"] .sk-tip{margin:8px 14px}
-  html[data-expand="flat"] .files-card{border:0;border-radius:0;margin-top:0;background:transparent}
-  html[data-expand="flat"] .files-head{padding:5px 14px}
-  html[data-expand="flat"] .files button{padding:7px 14px}
-  html[data-expand="flat"] .files .empty{padding:12px 14px}
+  .files .empty{font-size:12px;color:var(--text-2);padding:12px 14px}
   .note{font-size:11.5px;color:var(--text-2);margin-top:14px;padding:12px 14px;border:1px dashed var(--line-strong);
     border-radius:10px;line-height:1.55;background:var(--card)}
   .swatches{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
@@ -276,7 +266,7 @@
       磁盘 skill 行内右侧直接给<strong>文件数 / 大小</strong>；<b>点行折叠/展开</b>文件表，
       <b>点文件</b>开抽屉读详情（md 默认可预览）。<b>插件行与磁盘行平等展开预览</b>（ADR-0012），
       但仍没有装卸按钮；查不到包的行（插件包根为空时）不可展开，箭头处显示 · 。行不展示 description。
-      底栏可切<b>展开形式</b>：平铺（满宽分段，推荐）vs 缩进卡片（现行）。
+      展开区为平铺：不缩进，表格满宽分段。
     </div>
     <div class="sub">
       <b>本轮要看的是「按名字过滤」</b>——两处列表各一个搜索框。值得试的几组：
@@ -306,18 +296,6 @@
   <div class="toast" id="toast"></div>
   <div id="overlay"></div>
 </div>
-
-  <div data-demo-harness>
-    <span class="dh-tag">Demo ·</span>
-    <div class="dh-group">
-      <span class="dh-title">展开形式</span>
-      <div class="dh-opts">
-        <button type="button" class="dh-opt" data-expand="flat" aria-pressed="true">平铺(推荐)</button>
-        <button type="button" class="dh-opt" data-expand="nest" aria-pressed="false">缩进卡片(现行)</button>
-      </div>
-    </div>
-    <p class="dh-note">展开形式在 app 里固定为一种,不由任何状态决定;本组只为对比两种形式,app 内没有这个开关。</p>
-  </div>
 
 <script>
   const SCHEMES = {
@@ -359,7 +337,6 @@
       deepHint: '按照最佳实践,skill 引用深度不宜 ≥ 2,建议改造该 skill。',
       deeperPaths: (paths) => `更深路径未列入: ${paths}`,
       noPreviewable: '包内无可预览文本文件',
-      pillProject: '项目级', pillGlobal: '全局层',
       // The drawer's level label, by the row's level
       level: { lib: '全局库', project: '项目级', global: '全局层', plugin: '插件' },
       group: {
@@ -384,7 +361,6 @@
       deepHint: 'Best practice is a skill reference depth below 2 — consider restructuring this skill',
       deeperPaths: (paths) => `Deeper paths not listed: ${paths}`,
       noPreviewable: 'No previewable text files in this package',
-      pillProject: 'Project level', pillGlobal: 'Global level',
       level: { lib: 'Global library', project: 'Project level', global: 'Global level', plugin: 'Plugin' },
       group: {
         'cl-project': 'CLAUDE CODE · Project level',
@@ -468,15 +444,6 @@
          `<span class="swatch" style="background:var(${v})"></span>`).join('')}</div>`
     if (window.__drawerReopen) window.__drawerReopen()
   }
-
-  document.querySelectorAll('[data-demo-harness] [data-expand]').forEach((b) => {
-    b.onclick = () => {
-      document.documentElement.setAttribute('data-expand', b.getAttribute('data-expand'))
-      document.querySelectorAll('[data-demo-harness] [data-expand]').forEach((x) => {
-        x.setAttribute('aria-pressed', String(x === b))
-      })
-    }
-  })
 
   function openFileDrawer({ skill, side, file, levelKey }) {
     const key = `${side}:${skill}`
@@ -890,7 +857,6 @@
     if (window.__drawerReopen) window.__drawerReopen()
   })
 </script>
-<script src="../demo-harness.js"></script>
 <script>
   // Cross-prototype navigation: inside the gallery ask the parent page to switch; when opened alone, go to the file directly
   document.addEventListener('click', (e) => {
