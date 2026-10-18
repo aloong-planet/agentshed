@@ -29,3 +29,5 @@ export function listView(locale: Locale): DownloadView {
     section: { line: copy.line, buttons: [{ label: copy.button, href: RELEASE_LIST, newTab: true }] }
   }
 }
+
+const unusedOnPurpose = 1
