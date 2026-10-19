@@ -42,7 +42,7 @@ the worktree `agentshed-wt/landing-download`, cut from `origin/main` at 690ad2d 
 | 11 | Step 5: `/review-code` | `ticket-238-review-code.md` | done: one bug (the place-keeping rule) fixed and measured; comments, the drift guard and a comment's width fixed |
 | 12 | Step 6: `/review-tests` after implementation | `ticket-238-review-tests.md` post-implementation section | done: three weak cases strengthened, every case proven by a mutation (46) |
 | 13 | Spec final check and step 7 | spec and records | done: below; the spec written back; no ADR or CONTEXT change (no new decision at that level, no new term) |
-| 14 | Step 8 decision; document sync; PR; stop for the owner | PR link; CI | step 8 skipped by its two questions (`ticket-238-doc-sync.md`); PR pending |
+| 14 | Step 8 decision; document sync; PR; stop for the owner | PR link; CI | done: step 8 skipped by its two questions (`ticket-238-doc-sync.md`); PR #262, CI green, merged by the owner's confirmation as e7310b4 (2026-10-19); the issue's items ticked after the merge, REQ-001/AC-05 left open for its live Evidence (#239) |
 
 ## Spec final check (2026-10-19, code read against the spec on the uncommitted tree)
 
