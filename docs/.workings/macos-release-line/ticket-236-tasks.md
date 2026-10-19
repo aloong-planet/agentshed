@@ -35,7 +35,7 @@ Decisions taken here, each derived from the spec (no new requirement):
 | 5 | `release.yml`: mirror and pointer jobs; the static test extended | `scripts/release-workflow.test.mjs` red then green | done: 16 cases; actionlint 0; 22 mutations caught (evidence/ticket-236/mutations.txt) |
 | 6 | Full verification gateway | `pnpm verify` exit 0 | done once before the review; rerun on the final tree, result in the checklist's Current verification |
 | 7 | Step 5 `/review-code`, step 6 `/review-tests`, spec final check, step 7, step 8 | records | done: `ticket-236-review-code.md`, `ticket-236-review-tests.md`, the two sections below, step 8 in `ticket-236-doc-sync.md` |
-| 8 | R2 runbook, ADR-0031, the specs' host notes, checklist, doc sync, the issue, PR; stop for the owner | PR link | pending |
+| 8 | R2 runbook, ADR-0031, the specs' host notes, checklist, doc sync, the issue, PR; stop for the owner | PR link | done: #259, merged by the owner's confirmation as b0185b1 (2026-10-19); the issue's items ticked after the merge |
 
 ## Spec final check (2026-10-19, code read against the spec on the uncommitted tree)
 
