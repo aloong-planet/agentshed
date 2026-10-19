@@ -35,7 +35,19 @@
      语言:界面文案(含启动提示)随所选语言切换;
        会话内容本身(标题、提问、回答、思考、工具与 subagent 的摘要/入参/返回)是 mock 数据,
        两种语言下原样显示;mock 边界说明(填充轮)与演示条只有中文。
-     项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。 -->
+     项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。
+     Global search (2026-10-19, owner's rulings): a session opened from a global search hit shows two exits
+       in one row where the back control sits: first back to the search results (a left chevron), which
+       shows the results as they were left — keyword, results, scroll position; then into the project's
+       Sessions tab (a right chevron). Leaving that session for another one drops the way back to the
+       search: a fork parent reached through the banner, and a session opened after going into the project,
+       both have the single back control (the rail's Search item still brings the results back). Clicking
+       the parent's title in the fork banner shows this here. For a stale project the second exit reads
+       "进入 <项目>" / "Go to <project>" without "· 会话", and lands on the project's stale note page, which
+       has no Sessions tab (owner's ruling, 2026-10-19; copy only, not drawn — this page's project is not
+       stale).
+       A session opened inside a project keeps the single back control. The demo bar's "打开来源" group
+       switches between the two; in the app the entry the session was opened from decides. -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -50,9 +62,13 @@
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
   .head{padding:12px 20px 12px;border-bottom:1px solid var(--line);background:var(--card)}
+  /* The exits row: the project's back control; for a session opened from global search, back to the
+     search results and then into the project instead */
+  .exits{display:flex;align-items:center;gap:4px;margin-bottom:7px}
   .back{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2);
-    cursor:pointer;padding:2px 7px 2px 4px;border-radius:6px;margin-bottom:7px}
+    cursor:pointer;padding:2px 7px 2px 4px;border-radius:6px;min-width:0;white-space:nowrap}
   .back:hover{background:var(--accent-soft);color:var(--accent)}
+  .back > span:last-child{overflow:hidden;text-overflow:ellipsis}
   .h1{display:flex;align-items:center;gap:9px}
   .h1 b{font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .b{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 5px;flex:none}
@@ -180,7 +196,11 @@
   <script src="../_shared/project-side.js"></script>
   <div class="main">
     <div class="head">
-      <div class="back" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html"><span data-icon="ChevronLeft" data-icon-size="12"></span><span id="backT"></span></div>
+      <div class="exits">
+        <div class="back" id="backProject" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html"><span data-icon="ChevronLeft" data-icon-size="12"></span><span id="backT"></span></div>
+        <div class="back" id="backSearch" style="display:none" data-goto="global-search/search" data-goto-href="../global-search/prototype-search.html"><span data-icon="ChevronLeft" data-icon-size="12"></span><span id="backSearchT"></span></div>
+        <div class="back" id="enterProject" style="display:none" data-goto="project-detail/detail" data-goto-href="../project-detail/prototype-detail.html"><span data-icon="ChevronRight" data-icon-size="12"></span><span id="enterProjectT"></span></div>
+      </div>
       <div class="h1">
         <span class="b c" id="hbadge">CC</span><b id="htitle">…</b><span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span>
       </div>
@@ -215,13 +235,18 @@
       <button type="button" class="dh-opt" data-fs="stale" aria-pressed="false">索引失效</button>
       <button type="button" class="dh-opt" data-fs="error" aria-pressed="false">单轮失败</button>
     </div></div>
+    <div class="dh-group"><span class="dh-title">打开来源</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-origin="project" aria-pressed="true">项目</button>
+      <button type="button" class="dh-opt" data-origin="search" aria-pressed="false">全局搜索</button>
+    </div></div>
     <div class="dh-group dh-actions"><span class="dh-title">搜索定位</span><div class="dh-acts">
       <button type="button" class="dh-act" data-locate="4">跳到 05 并高亮</button>
     </div></div>
     <p class="dh-note">启动恢复各档在 app 里由这次启动的扫描进度与结果决定;app 内没有这个开关。</p>
     <p class="dh-note">会话数据在 app 里由被打开的会话本身决定(fork 前缀能否确定剥离,取决于父会话文件是否在扫描集内);app 内没有这个开关。</p>
     <p class="dh-note">取回状态在 app 里由取回前的一次签名校验(路径 + mtime + size)与该轮的读取结果决定:签名不符只重建该文件的索引,单轮读取失败只影响该轮、再点可重试;app 内没有这个开关。</p>
-    <p class="dh-note">搜索定位在 app 里由从项目详情「会话」分栏点进一条搜索命中触发;app 内没有这个按钮。</p>
+    <p class="dh-note">打开来源在 app 里由会话是从哪里打开的决定:从全局搜索的命中直接打开的会话是「返回搜索结果」与「进入项目」两个出口;从项目里打开的、经「进入项目」之后再打开的、顺着 fork 横幅跳到的父会话,都只有返回项目;app 内没有这个开关。</p>
+    <p class="dh-note">搜索定位在 app 里由点进一条搜索命中触发(项目详情「会话」分栏的搜索,或全局搜索);app 内没有这个按钮。</p>
   </div>
 
 <script>
@@ -234,7 +259,7 @@
     '9月13日 周六':'Sat, September 13','9月14日 周日':'Sun, September 14'};  // the day groups' English labels
   const T = {
     zh:{
-      back:p=>`返回 ${p} · 会话`,
+      back:p=>`返回 ${p} · 会话`, backSearch:'返回搜索结果', enterProject:p=>`进入 ${p} · 会话`,
       meta:m=>`${m.side} · ${m.q} 提问 · ${m.tok} tok · ${m.mb}`+
         (m.replay!=null?`(其中 ${m.replay}% 为 fork 重放副本)`:' ')+`· 最后活动 ${m.ago} 天前`+
         (m.noThread?' · 无 thread_name,标题取首条提问':''),
@@ -262,7 +287,7 @@
       unknownRecords:(count,types)=>`本轮有 <b>${count} 条未识别记录</b> (类型:${types})——原样保留在源文件中,未渲染。 这通常意味着 agent 更新引入了新记录类型。`
     },
     en:{
-      back:p=>`Back to ${p} · Sessions`,
+      back:p=>`Back to ${p} · Sessions`, backSearch:'Back to search results', enterProject:p=>`Go to ${p} · Sessions`,
       meta:m=>`${m.side} · ${m.q} ${pl(m.q,'question','questions')} · ${m.tok} tok · ${m.mb}`+
         (m.replay!=null?` (${m.replay}% of it is the fork’s replayed prefix)`:'')+
         ` · last active ${new Intl.RelativeTimeFormat('en',{numeric:'auto'}).format(-m.ago,'day')}`+
@@ -656,6 +681,7 @@
 
   const DATA = {claude:CLAUDE, codex:CODEX, orphan:ORPHAN};
   let cur='claude', fetchState='ok', order='desc'; // 默认倒序(2026-08-06 用户裁定)
+  let origin='project';            // where the session was opened from: a project, or global search
   const loaded=new Set();          // 已取回过的轮次(索引失效只在首次取回时重建)
   const openTurns=new Set();       // 已展开的轮次(跨排序切换保持)
   const foldedDays=new Set();      // 已折叠的日期分组
@@ -723,6 +749,12 @@
     document.getElementById('htitle').textContent=d.title;
     document.getElementById('hmeta').textContent=t().meta(d.meta);
     document.getElementById('backT').textContent=t().back('Transfer');
+    document.getElementById('backSearchT').textContent=t().backSearch;
+    document.getElementById('enterProjectT').textContent=t().enterProject('Transfer');
+    // From global search: back to the results, then into the project; otherwise the single back control
+    document.getElementById('backProject').style.display=origin==='search'?'none':'';
+    document.getElementById('backSearch').style.display=origin==='search'?'':'none';
+    document.getElementById('enterProject').style.display=origin==='search'?'':'none';
     document.querySelector('#qorder [data-o="asc"]').textContent=t().ascending;
     document.querySelector('#qorder [data-o="desc"]').textContent=t().descending;
     document.getElementById('foot').innerHTML=t().foot;
@@ -808,7 +840,9 @@
   // aria-pressed
   const harness=document.querySelector('[data-demo-harness]');
   harness.addEventListener('click',e=>{
-    const b=e.target.closest('button[data-ds],button[data-fs],button[data-locate]'); if(!b) return;
+    const b=e.target.closest('button[data-ds],button[data-fs],button[data-locate],button[data-origin]'); if(!b) return;
+    if(b.dataset.origin){ origin=b.dataset.origin;
+      harness.querySelectorAll('[data-origin]').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); render(false) }
     if(b.dataset.ds){ cur=b.dataset.ds;
       harness.querySelectorAll('[data-ds]').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); render(true) }
     if(b.dataset.fs){ fetchState=b.dataset.fs;
@@ -820,6 +854,14 @@
         row.classList.remove('located'); void row.offsetWidth;  // 重触发动画
         row.classList.add('located'); row.classList.add('focused') }
     }
+  });
+  // Jumping to the fork parent through the banner leaves the search's way back behind: the parent's page has
+  // the single back control (the mock stays on this session's content; only the header shows the change)
+  document.getElementById('banners').addEventListener('click',e=>{
+    if(!e.target.closest('.banner a')||origin!=='search') return;
+    origin='project';
+    harness.querySelectorAll('[data-origin]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.origin==='project')));
+    render(false);
   });
   // The focus bar: cleared by clicking any question row (the user has moved on)
   document.getElementById('qlist').addEventListener('click',e=>{

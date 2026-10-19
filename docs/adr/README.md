@@ -42,3 +42,4 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0031](0031-macos-release-line.md) | A notarized macOS release line: CI on release tags, R2 mirror for formal releases, a Chinese and English landing page | Accepted |
 | [0032](0032-app-updates.md) | App updates from GitHub Releases, offered rather than pushed — the app's one outbound request | Accepted (download behaviour amended the same day) |
 | [0033](0033-prototypes-are-the-baseline.md) | The prototypes keep their own icons, tokens, styles and copy; the app follows them | Accepted |
+| [0034](0034-global-search-question-corpus-in-memory.md) | Global search reads every project's question texts from main-process memory, warmed when its page opens | Proposed |

@@ -120,7 +120,8 @@ Its "last activity time" is **the largest timestamp inside the file** (same mean
 a separate pipeline from project activity, which uses mtime — see "Activity").
 The session page is **indexed primarily by question** (every real question listed once; fork replay
 prefixes and abandoned branches do not enter the trunk); clicking a question fetches that **turn** on
-demand. Searchable within a project (searches questions by default). The full specification is in
+demand. Searchable within a project (searches questions by default) and, by its questions only,
+across every project through global search. The full specification is in
 `docs/specs/session-view.md` (fully shipped 2026-08-06; the export feature was dropped).
 _Avoid_: chat log
 
@@ -137,6 +138,15 @@ is first — the answer determines whether the contract changes at all.
 That question is one for **specs, ADRs and code**. User-facing copy is free to say "search" — it is
 the word people look for, and the placeholder does say it.
 _Avoid_: treating the two as one mechanism because they share a visual form
+
+**Global search**:
+Searching the questions of every project's sessions at once, from a page of its own, and going from a
+hit straight to that session inside its project. "Every project" is the project list's set, stale
+projects included; a session in a directory that is not a project is not searched. It matches
+questions only — answers and tool output are reached through the project's own session search.
+"Global" here means across all projects; it has nothing to do with an agent side's global layer or
+the global library, and searching the global layer is not something this does.
+_Avoid_: cross-project search; session search (bare — a project's own search is a session search too)
 
 **Turn**:
 Everything recorded from one real question up to the next (assistant prose, tool calls and returns,
@@ -542,13 +552,13 @@ _Avoid_: beta mode, insider track, update track
   reader genuinely has to find it. **`pnpm check:ui` enforces the rail half of this**: a rail
   control's label appearing verbatim in any other copy fails the check, so deleting a control turns
   those sentences red instead of leaving them pointing at nothing. Its exemptions are by rail key
-  (today's three labels are ordinary words), which means a control with a distinctive label is
+  (today's four labels are ordinary words), which means a control with a distinctive label is
   covered by default — the case that actually rotted.
 
 - **`rail` is an internal term and must not appear in user-facing copy (settled 2026-08-15)**: the
   48px vertical strip of icon buttons down the left edge. The word is useful in code, comments and
   `docs/features/` and stays there — but a user has no way to learn it, because nothing in the
-  interface is labelled "rail" (its buttons' tooltips read Agents / Projects / Settings, and `rail`
+  interface is labelled "rail" (its buttons' tooltips read Agents / Projects / Search / Settings, and `rail`
   survives only as a CSS class name). Copy that needs to point at it describes
   the position instead ("at the bottom left"). Note that "sidebar" is **not** an alternative name for
   it: the project list beside it is the sidebar. This is the same failure as naming a control by its
@@ -711,7 +721,8 @@ _Avoid_: beta mode, insider track, update track
 - **"Dual view / artifact aggregation" is retired (2026-07-30)**: aggregating artifacts by type
   across projects was ruled a false requirement — artifacts are in-project context documents and are
   shown only within project detail. Cross-project retrieval belongs to a future global search; there
-  will be no aggregation page.
+  will be no aggregation page. Global search was ruled on 2026-10-19 for session questions only;
+  artifacts are still shown only within project detail.
 - **Codex same-name semantics differ per component and must not be extrapolated by analogy**
   (2026-08-01, both verified at source level): two same-name skills across layers **coexist**
   (`root_loader.rs` deduplicates by path only), whereas two same-name subagents **shadow at the

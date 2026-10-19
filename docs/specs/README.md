@@ -32,6 +32,7 @@ written for whoever is about to change that code.
 | [plugins-view](plugins-view.md) | [Plugins view](../features/plugins-view.md) |
 | [token-stats](token-stats.md) | [Token statistics](../features/token-stats.md) |
 | [session-view](session-view.md) | [Session view](../features/session-view.md) |
+| [global-search](global-search.md) | [Global search](../features/global-search.md) |
 | [i18n](i18n.md) | [UI language](../features/i18n.md) |
 | [skill-install](skill-install.md) | [Skills install](../features/skill-install.md) |
 | [skills-view](skills-view.md) | [Skills view](../features/skills-view.md) |

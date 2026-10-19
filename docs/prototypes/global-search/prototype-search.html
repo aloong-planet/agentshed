@@ -1,0 +1,328 @@
+<!doctype html>
+<!-- A UI prototype · global search: search the questions of every project's sessions from a page of its own,
+     then go straight to the session inside its project.
+     Question: do hits grouped by project, then by session, answer "which session, in which project" at a
+       glance — with the project's own session search left as the place for answers and tool output?
+     Structure, settled before this page was drawn:
+       - the frame follows the Agents page (rail + a page header + a scrolling body, no project column); the
+         search row sits in the header, so it stays while the results scroll;
+       - the rail gains a third top item, Search, below Projects (the owner's ruling, 2026-10-19);
+       - a project's sessions are shown together (the owner's ruling, 2026-10-19, replacing the first draft's
+         flat list of sessions each carrying its project on a line of its own): the project is a section
+         heading — name, stale tag, its session and hit counts — over its session cards (picked over one
+         large card per project with the sessions as sub-sections inside it);
+       - the session cards, the search row, the results header and the hit rows are the project search's
+         own, from the shared _shared/session-hits.css, which project-detail's Sessions tab draws too.
+     What the page shows:
+       - questions only, no full-text toggle; the placeholder says how many sessions in how many projects are
+         searched (with nothing to search it names no number), and the no-hits line points to the project's
+         Sessions tab for full text;
+       - search as you type; while the question texts are still being read, the header's hint slot says so
+         and the results area shows nothing — the results appear once the reading is done (owner's ruling,
+         2026-10-19: no "searching" state in the results area). The reading hint takes the slot over the
+         startup scan's hint while both are under way;
+       - the sort segment orders the projects by their most recently active session and the sessions inside
+         a project by their own last activity, newest first by default; oldest first reverses both; hits
+         inside a session stay in question order;
+       - a stale project still has its sessions searched, its heading struck through with the stale tag, as
+         the project column draws it; the heading's tooltip is the project's path (projects can share a name);
+       - with no session to search the search row stays, and the results area says there is none yet;
+       - a search that fails as a whole says so on one line where the results would be, never passing for
+         "no hits" (owner's ruling, 2026-10-19); a session that cannot be read is merely left out;
+       - clicking a session card's header opens that session; clicking a hit opens it at that question. Both
+         land on the session page inside the Projects section (session-view/session), whose header then shows
+         two exits in one row, both chevrons: first back to these results — the keyword, the results and the
+         scroll position as they were — then into the project's Sessions tab; a fork parent reached from
+         there, and a session opened after going into the project, have the project's single back control
+         (owner's rulings, 2026-10-19). The Search item brings this page back the same way.
+     Not drawn here (not a screen of this page): the Edit menu's "搜索会话… ⌘⇧F" / "Search Sessions… ⌘⇧F"
+       entry, which opens this page and focuses the box; on arrival in Projects, the project list scrolls
+       the selected project into view; the landing highlight on the session page is session-view's.
+     Settled picks (2026-10-19): the rail item's icon is Search (the magnifier), picked over TextSearch and
+       ScanSearch; the sort choice is this page's own, kept with its keyword and results, and does not
+       follow or move the sort of a project's Sessions tab.
+     Demo harness (not part of the design, do not implement): the startup restore states (the shared
+       _shared/startup-status), whether the question texts have been read yet, whether any project has a
+       session, and one-shot fills of the box with sample keywords. The notes on the bar say what decides
+       each state in the app.
+     The interface language, light/dark and palette follow the settings prototype and the gallery's unified
+       settings; the copy is drawn in Chinese and English, other languages show as English with a note. The
+       copy two or more pages show comes from _shared/copy.js; mock data stays as written. Colours come from
+       _shared/theme.css; the app window's root styles are in _shared/app-window.css. -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 — 全局搜索:跨项目搜提问</title>
+<link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-window.css">
+<link rel="stylesheet" href="../_shared/app-rail.css">
+<link rel="stylesheet" href="../_shared/session-hits.css">
+<link rel="stylesheet" href="../_shared/startup-status.css">
+<style>
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
+  /* The frame of the Agents page: a header over a scrolling body */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+  .head{padding:14px 22px 0;border-bottom:1px solid var(--line)}
+  .h1{display:flex;align-items:baseline;gap:12px;font-size:16px;font-weight:700;margin-bottom:10px}
+  .head .sbar{margin-bottom:12px}
+  .body{flex:1;overflow:auto;padding:16px 22px}
+  /* Side badges, pills and the sort segment, as project detail draws them */
+  .b{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 5px;flex:none}
+  .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
+  .b.g{background:var(--gk-bg);color:var(--gk-fg)}
+  .pill{font-size:10px;border-radius:4px;padding:1px 6px;flex:none;display:inline-flex;align-items:center;gap:3px}
+  .pill.fork{border:1px solid var(--line-strong);color:var(--text-2)}
+  .pill.forkq{border:1px dashed var(--risk-border);color:var(--risk-fg)}
+  .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;margin-left:auto}
+  .seg span{padding:3px 10px;font-size:11px;color:var(--text-2);cursor:pointer}
+  .seg span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  /* Before a keyword, and with nothing to search */
+  .none{color:var(--text-2);padding:56px 20px;text-align:center;line-height:1.7}
+  .none .big{color:var(--line-strong);margin-bottom:8px}
+  .none .sub{font-size:11.5px}
+</style>
+<script src="../dimensions.js"></script>
+<script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
+<script src="../_shared/startup-status.js"></script>
+<script src="../manifest.js"></script>
+<script src="../app-identity.js"></script>
+<script src="../_shared/icons.js"></script>
+<script src="../_shared/copy.js"></script>
+</head>
+<body>
+<div class="app-window" data-shared-block="app-window">
+  <nav class="rail" data-shared-block="app-rail" data-rail-current="search"></nav>
+  <script src="../_shared/app-rail.js"></script>
+  <div class="main" data-shared-block="session-hits">
+    <div class="head">
+      <div class="h1"><span data-i18n="title">搜索</span><span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span><span class="reading-hint" id="readingHint" role="status" style="display:none"><span data-icon="RefreshCw" data-icon-size="12"></span><span class="lbl" data-i18n="reading">正在读取各会话的提问…</span></span></div>
+      <div class="sbar"><input id="q" autofocus></div>
+    </div>
+    <div class="body" id="res"></div>
+  </div>
+</div>
+  <!-- The demo harness: mock state switches and sample fills, not part of the design and not to be
+       implemented -->
+  <div data-demo-harness id="harness">
+    <span class="dh-tag">Demo ·</span>
+    <span data-startup-controls></span>
+    <div class="dh-group">
+      <span class="dh-title">问句读取</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-load="ready" aria-pressed="true">已读完</button>
+        <button type="button" class="dh-opt" data-load="loading" aria-pressed="false">读取中</button>
+      </div>
+    </div>
+    <div class="dh-group">
+      <span class="dh-title">会话数据</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-data="has" aria-pressed="true">有会话</button>
+        <button type="button" class="dh-opt" data-data="none" aria-pressed="false">一个也没有</button>
+      </div>
+    </div>
+    <div class="dh-group">
+      <span class="dh-title">搜索请求</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-req="ok" aria-pressed="true">成功</button>
+        <button type="button" class="dh-opt" data-req="failed" aria-pressed="false">失败</button>
+      </div>
+    </div>
+    <div class="dh-group dh-actions">
+      <span class="dh-title">填入示例</span>
+      <div class="dh-acts">
+        <button type="button" class="dh-act" data-fill="notarize">notarize</button>
+        <button type="button" class="dh-act" data-fill="权限">权限</button>
+        <button type="button" class="dh-act" data-fill="RAG">RAG(长标题)</button>
+        <button type="button" class="dh-act" data-fill="kubernetes">无命中</button>
+      </div>
+    </div>
+    <p class="dh-note">启动恢复各档在 app 里由这次启动的扫描是否仍在进行、以及扫描的结果决定;app 内没有这个开关。</p>
+    <p class="dh-note">问句读取:打开搜索页即开始把各会话的问句读进内存,读取中页头提示位显示进度、结果区不显示任何状态,读完才出结果;app 内没有这个开关。</p>
+    <p class="dh-note">会话数据:由各项目扫到的会话数决定;app 内没有这个开关。填入示例只是替你打字。</p>
+    <p class="dh-note">搜索请求:由这次搜索整体是否完成决定(单个会话读不了只是被跳过,不算失败);失败后改关键词或下次自动刷新会再搜一次;app 内没有这个开关。</p>
+  </div>
+<script>
+  // ── Copy: drawn in Chinese and English (other languages show as English, with the note demo-dimensions.js
+  //    gives). Entries two or more pages show come from _shared/copy.js; only this page's own are here. ──
+  const pl = (n, one, other) => n === 1 ? one : other
+  const T = {
+    zh: { ...SharedCopy.zh,
+      locale:'zh-CN', title:'搜索',
+      placeholder:(p,s)=>`在 ${p} 个项目的 ${s} 个会话里搜提问…`, placeholderNone:'搜提问…',
+      idle:'在所有项目的会话里搜你问过的话。', idleSub:'点命中直接打开那个会话,定位到那条提问。',
+      reading:'正在读取各会话的提问…',
+      hitsFound:(h,s,p)=>`找到 <b>${h}</b> 条 · ${s} 个会话 · ${p} 个项目`,
+      projCounts:(s,h)=>`${s} 个会话 · ${h} 条命中`,
+      noHits:'没有命中。这里只搜提问;要搜回答与工具输出,进入项目后在「会话」分栏切到「全文」。',
+      failed:'这次搜索没能完成。修改关键词即可重试。',
+      noSessions:'还没有可搜索的会话。', noSessionsSub:'agent 在已注册的项目里开过对话后,这里就能搜到。',
+      staleTag:'失效'
+    },
+    en: { ...SharedCopy.en,
+      locale:'en', title:'Search',
+      placeholder:(p,s)=>`Search the questions in ${s} ${pl(s,'session','sessions')} across ${p} ${pl(p,'project','projects')}…`,
+      placeholderNone:'Search questions…',
+      idle:'Search what you asked in every project’s sessions.', idleSub:'Click a hit to open that session at that question.',
+      reading:'Reading the sessions’ questions…',
+      hitsFound:(h,s,p)=>`Found <b>${h}</b> ${pl(h,'hit','hits')} · ${s} ${pl(s,'session','sessions')} · ${p} ${pl(p,'project','projects')}`,
+      projCounts:(s,h)=>`${s} ${pl(s,'session','sessions')} · ${h} ${pl(h,'hit','hits')}`,
+      noHits:'No hits. Only questions are searched here — to search answers and tool output, open the project and switch its “Sessions” tab to “Full text”.',
+      failed:'This search could not be completed. Change the keyword to try again.',
+      noSessions:'No sessions to search yet.', noSessionsSub:'Once an agent has had a conversation in a registered project, it can be searched here.',
+      staleTag:'Stale'
+    }
+  }
+  let LANG = DemoDimensions.get('language')
+  const t = () => T[LANG]
+  const ago = (days) => new Intl.RelativeTimeFormat(t().locale, { numeric: 'auto' }).format(-days, 'day')
+
+  // ── Mock data: the projects are the shared project column's mock projects; the stale one is
+  //    removed-experiment-2025. Sessions are stored by last activity, newest first. ──
+  const PROJECTS = {
+    agentshed: '~/CascadeProjects/agentshed', 'chatgpt-token': '~/CascadeProjects/chatgpt-token',
+    'openclaw-v3': '~/CascadeProjects/openclaw-v3', Transfer: '~/CascadeProjects/Transfer',
+    'AI-Learning': '~/CascadeProjects/AI-Learning', 'aloong-tools': '~/CascadeProjects/aloong-tools',
+    'csv-debug-viewer': '~/CascadeProjects/csv-debug-viewer',
+    'removed-experiment-2025': '/Users/you/Projects/removed-experiment-2025'
+  }
+  const STALE = new Set(['removed-experiment-2025'])
+  // b = side badge class, s = its label; fork = none | stripped | uncertain; d = days since last activity
+  const SESS = [
+    { p:'agentshed', b:'c', s:'CC', t:'全局搜索:跨项目搜会话提问', d:0, fork:'none' },
+    { p:'Transfer', b:'c', s:'CC', t:'MAS 上架支持:构建线与独立 bundle id', d:3, fork:'none' },
+    { p:'Transfer', b:'c', s:'CC', t:'屏幕录制权限 preflight 修复', d:5, fork:'none' },
+    { p:'agentshed', b:'g', s:'GK', t:'Grok 接入:会话流与 summary.json', d:6, fork:'none' },
+    { p:'chatgpt-token', b:'x', s:'CX', t:'迁移 Claude Code skills 到 Codex', d:9, fork:'stripped' },
+    { p:'openclaw-v3', b:'x', s:'CX', t:'把 openclaw 的网关拆出来单独跑', d:10, fork:'uncertain' },
+    { p:'AI-Learning', b:'x', s:'CX', t:'RAG 课程笔记整理(第 3 周):向量检索、重排与评测指标在小语料上的取舍,以及为什么召回率高了答案反而更差', d:14, fork:'none' },
+    { p:'aloong-tools', b:'c', s:'CC', t:'帮我把 CI 的缓存打开', d:21, fork:'none' },
+    { p:'csv-debug-viewer', b:'c', s:'CC', t:'csv 大文件分页预览', d:30, fork:'none' },
+    { p:'removed-experiment-2025', b:'c', s:'CC', t:'实验:用 electron-forge 替换 electron-builder', d:45, fork:'none' }
+  ]
+  // Questions only (global search matches nothing else): i = the question's number in its session
+  const QUESTIONS = [
+    { s:0, i:2, q:'搜索结果按会话平铺还是按项目分组?', d:0 },
+    { s:0, i:7, q:'冷会话解压太慢了,问句能不能常驻内存', d:0 },
+    { s:1, i:1, q:'帮我看下 MAS 上架要改什么,现在的 electron-builder 配置能直接用吗?', d:3 },
+    { s:1, i:4, q:'沙箱权限为啥报错?entitlements 里 network.client 已经打开了', d:3 },
+    { s:1, i:5, q:'帮我把 notarize 脚本改成两条线各自一份', d:3 },
+    { s:1, i:9, q:'notarize 失败了,看下日志', d:3 },
+    { s:1, i:12, q:'notarize 通过了但 stapler 报 Record not found,是不是要等苹果那边同步?先别重试,把 xcrun notarytool log 的完整输出贴给我,我想看是哪一个二进制没签上', d:3 },
+    { s:2, i:3, q:'权限弹窗为啥不出来?TCC 那边要先 preflight 一次', d:5 },
+    { s:2, i:11, q:'签名和 notarize 分两步跑会不会有问题', d:5 },
+    { s:3, i:4, q:'签名公证那套 notarize 流程 Grok 这边用得上吗', d:6 },
+    { s:4, i:2, q:'上次 notarize 那套还能复用吗?Codex 这边目录结构不一样', d:9 },
+    { s:4, i:5, q:'skills 的 frontmatter 字段两侧差在哪', d:9 },
+    { s:5, i:7, q:'网关拆出来之后权限怎么算,还要不要单独申请', d:10 },
+    { s:6, i:3, q:'RAG 的 chunk 大小怎么定,512 还是 1024', d:14 },
+    { s:6, i:12, q:'rag 评测为什么用 MRR 不用 recall@k', d:14 },
+    { s:7, i:2, q:'缓存打开之后 CI 会不会拿到旧的 node_modules', d:21 },
+    { s:8, i:1, q:'csv 大文件怎么分页预览,别一次读进内存', d:30 },
+    { s:9, i:3, q:'forge 的 notarize 插件和 builder 的有什么不同', d:45 },
+    { s:9, i:8, q:'osx-sign 的 entitlements 权限怎么继承', d:45 }
+  ]
+  const SEARCHED_PROJECTS = new Set(SESS.map((x) => x.p)).size
+
+  // ── Page state ──
+  let kw = '', order = 'desc', loading = false, noData = false, failed = false
+  const GOTO = 'data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html"'
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c])
+  const hl = (s, k) => esc(s).replace(new RegExp(esc(k).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), (m) => `<mark>${m}</mark>`)
+  const seg = () => `<span class="seg" data-sord><span class="${order === 'desc' ? 'on' : ''}" data-so="desc">${t().recentFirst}</span>` +
+    `<span class="${order === 'asc' ? 'on' : ''}" data-so="asc">${t().oldestFirst}</span></span>`
+
+  function render() {
+    const box = document.getElementById('res'), input = document.getElementById('q')
+    // The search row stays with nothing to search; the placeholder then names no number
+    input.placeholder = noData ? t().placeholderNone : t().placeholder(SEARCHED_PROJECTS, SESS.length)
+    // Reading the question texts: the header's hint slot says so, taking it over the startup scan's hint
+    document.getElementById('readingHint').style.display = loading ? '' : 'none'
+    document.querySelector('.startup-hint').style.display = loading ? 'none' : ''
+    if (noData) {
+      box.innerHTML = `<div class="none"><div class="big">${ICONS.Inbox(30)}</div>${t().noSessions}<br><span class="sub">${t().noSessionsSub}</span></div>`
+      return
+    }
+    const k = kw.trim()
+    if (!k) {
+      box.innerHTML = `<div class="none"><div class="big">${ICONS.Search(30)}</div>${t().idle}<br><span class="sub">${t().idleSub}</span></div>`
+      return
+    }
+    // A keyword typed while reading waits for the reading: the results area shows nothing meanwhile
+    if (loading) { box.innerHTML = ''; return }
+    if (failed) { box.innerHTML = `<div class="shead"><span>${t().failed}</span></div>`; return }
+    const hits = QUESTIONS.filter((x) => x.q.toLowerCase().includes(k.toLowerCase()))
+    if (!hits.length) { box.innerHTML = `<div class="shead"><span>${t().noHits}</span></div>`; return }
+    // Sessions with hits, newest first (SESS is stored that way), gathered under their projects; a project
+    // ranks by its newest session. Oldest first reverses both layers.
+    const bySess = new Map()
+    for (const h of hits) { if (!bySess.has(h.s)) bySess.set(h.s, []); bySess.get(h.s).push(h) }
+    const sessions = [...bySess].sort((a, b) => a[0] - b[0])
+    const byProject = new Map()
+    for (const s of sessions) { const p = SESS[s[0]].p; if (!byProject.has(p)) byProject.set(p, []); byProject.get(p).push(s) }
+    let projects = [...byProject]
+    if (order === 'asc') projects = projects.reverse().map(([p, list]) => [p, list.slice().reverse()])
+    box.innerHTML = `<div class="shead"><span>${t().hitsFound(hits.length, sessions.length, byProject.size)}</span>${seg()}</div>` +
+      projects.map(([p, list]) => {
+        const stale = STALE.has(p)
+        return `<div class="ph${stale ? ' stale' : ''}" title="${esc(PROJECTS[p])}">${ICONS.Folder(13)}<span class="pn">${esc(p)}</span>` +
+          `${stale ? `<span class="stale-tag">${t().staleTag}</span>` : ''}` +
+          `<span class="pc">${t().projCounts(list.length, list.reduce((n, [, hs]) => n + hs.length, 0))}</span></div>` +
+          list.map(([si, hs]) => {
+            const x = SESS[si]
+            const pill = x.fork === 'stripped' ? `<span class="pill fork">${ICONS.GitFork(10)} fork</span>`
+              : x.fork === 'uncertain' ? `<span class="pill forkq">${ICONS.GitFork(10)} ${t().forkUncertain}</span>` : ''
+            return `<div class="grp"><div class="gh" ${GOTO}>` +
+              `<span class="b ${x.b}">${x.s}</span><span class="t">${esc(x.t)}</span>${pill}<span class="n">${t().hitCount(hs.length)}</span></div>` +
+              hs.map((h) => `<div class="hit" ${GOTO}><span class="idx">${String(h.i).padStart(2, '0')}</span>` +
+                `<span class="t">${hl(h.q, k)}</span><span class="d">${ago(h.d)}</span></div>`).join('') + `</div>`
+          }).join('')
+      }).join('')
+  }
+
+  function applyI18n() {
+    document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t()[el.dataset.i18n] })
+  }
+  document.getElementById('q').addEventListener('input', (e) => { kw = e.target.value; render() })
+  // The sort segment sits in the results header: keep its click off the session rows below it
+  document.getElementById('res').addEventListener('click', (e) => {
+    const so = e.target.closest('[data-so]'); if (!so) return
+    e.stopPropagation()
+    if (so.dataset.so !== order) { order = so.dataset.so; render() }
+  }, true)
+  document.getElementById('harness').addEventListener('click', (e) => {
+    const load = e.target.closest('[data-load]'), data = e.target.closest('[data-data]'), fill = e.target.closest('[data-fill]')
+    const req = e.target.closest('[data-req]')
+    if (req) {
+      failed = req.dataset.req === 'failed'
+      document.querySelectorAll('[data-req]').forEach((b) => b.setAttribute('aria-pressed', String(b === req)))
+      render()
+    }
+    if (load) {
+      loading = load.dataset.load === 'loading'
+      document.querySelectorAll('[data-load]').forEach((b) => b.setAttribute('aria-pressed', String(b === load)))
+    }
+    if (data) {
+      noData = data.dataset.data === 'none'
+      document.querySelectorAll('[data-data]').forEach((b) => b.setAttribute('aria-pressed', String(b === data)))
+    }
+    if (fill) { kw = fill.dataset.fill; document.getElementById('q').value = kw }
+    if (load || data || fill) render()
+  })
+  DemoDimensions.on('language', (v) => {
+    LANG = v
+    document.documentElement.lang = v === 'zh' ? 'zh-CN' : 'en'
+    applyI18n(); render()
+  })
+</script>
+<script>
+  // Cross-prototype navigation: inside the gallery ask the parent page to switch; when opened alone, go to the file directly
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: el.dataset.goto }, '*');
+    else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
+  });
+</script>
+<script src="../demo-harness.js"></script>
+</body>
+</html>

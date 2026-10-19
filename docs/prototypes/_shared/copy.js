@@ -42,7 +42,12 @@ window.SharedCopy = {
     colSize: '大小',
     colMtime: '修改日期',
     tagEntry: '入口',
-    close: '关闭'
+    close: '关闭',
+    // Session search hits (project detail's Sessions tab, global search)
+    recentFirst: '最近在前',
+    oldestFirst: '最早在前',
+    hitCount: (n) => `${n} 条命中`,
+    forkUncertain: '剥离存疑'
   },
   en: {
     tabCfg: 'Config',
@@ -76,6 +81,10 @@ window.SharedCopy = {
     colSize: 'Size',
     colMtime: 'Modified',
     tagEntry: 'Entry',
-    close: 'Close'
+    close: 'Close',
+    recentFirst: 'Newest first',
+    oldestFirst: 'Oldest first',
+    hitCount: (n) => `${n} ${n === 1 ? 'hit' : 'hits'}`,
+    forkUncertain: 'uncertain strip'
   }
 }

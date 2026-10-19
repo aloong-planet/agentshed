@@ -124,7 +124,8 @@ Adopt **option B**:
 
 **Sequence D: the settings entry point**
 
-- D1 The rail's **third dimension, "Settings"** (`Dim = agents | projects | settings`).  
+- D1 The rail's **settings dimension, "Settings"** (`Dim = agents | projects | search | settings`; search
+  joined with [global-search](global-search.md)).  
 - D2 Switching to settings makes the main area the settings page.  
 - D3 The settings page's "Appearance" section is **one card with two rows**: the top row "Mode" = a
   three-segment control (follow system / light / dark), the bottom row "Theme" = three
@@ -215,7 +216,7 @@ document by its headings)
 
 ## UI decisions
 
-- **Entry point**: the rail's ⚙️ settings, the third dimension.  
+- **Entry point**: the rail's ⚙️ settings, the settings dimension.  
 - **Settings page order**: the "Language" section first, "Appearance" second.  
 - **Appearance section**: one card with two rows — "Mode" as a three-segment control + "Theme"
   as three palette cards (swatch + name, no full sentence), followed by an explanatory paragraph (the
