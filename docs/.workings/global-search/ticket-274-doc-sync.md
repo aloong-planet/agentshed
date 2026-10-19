@@ -7,4 +7,4 @@ coverage checklist: [checklist.md](checklist.md)
 |---|---|---|
 | Write the full-feature regression report, citing the per-unit records, once #271, #272 and #273 are merged | [final-regression.md](final-regression.md) (new) | Waiting: #271, #272 and #273 merged; the closeout's implementer writes it |
 | Complete the coverage checklist's Current verification for every unit on main | [checklist](checklist.md) | Waiting: #271, #272 and #273 merged |
-| Confirm ADR-0034's status matches the measurements #271 recorded | [ADR-0034](../../adr/0034-global-search-question-corpus-in-memory.md) | Waiting: #271 settles it |
+| Confirm ADR-0034's status matches the measurements #271 recorded | [ADR-0034](../../adr/0034-global-search-question-corpus-in-memory.md) | Waiting: the closeout (#271 accepted the ADR on 2026-10-19 on its measurements); the closeout's implementer confirms it |

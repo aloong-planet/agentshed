@@ -188,7 +188,8 @@ test('the global search page: the rail item, typing, results grouped by project,
     // Introduced content: a question holding HTML shows its characters and creates no element (the spec's last entry)
     await expect(t1.locator('.hit').nth(2).locator('.t')).toHaveText('<b>bold</b> & <img src=y onerror=alert(1)> about notarize')
     await expect(t1.locator('.hit .t b, .hit .t img')).toHaveCount(0)
-    // One line per question: a multi-line question and a long one take the same row height, the long one cut (S8)
+    // One line per question (S8): a question written over several lines reads on one line, its breaks as spaces,
+    // and a long one does not wrap but is cut — every row keeps one height
     const heights = await t1.locator('.hit').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().height)))
     expect(new Set(heights).size, `row heights ${heights.join(', ')}`).toBe(1)
     const long = await t1.locator('.hit').nth(4).locator('.t').evaluate((el) => ({ cut: el.scrollWidth > el.clientWidth, overflow: getComputedStyle(el).textOverflow }))
