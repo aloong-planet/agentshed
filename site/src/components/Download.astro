@@ -1,7 +1,7 @@
 ---
 // The download section (landing-page::REQ-002): a line under the title and one row for the one package,
 // rendered in the list state, like the hero's button.
-import { listView } from '../download'
+import { view } from '../download'
 import { ui, type Locale } from '../i18n/ui'
 import Icon from './Icon.astro'
 
@@ -11,7 +11,7 @@ interface Props {
 
 const { locale } = Astro.props
 const t = ui[locale]
-const { section } = listView(locale)
+const { section } = view({ kind: 'list' }, locale)
 ---
 
 <section class="section soft" id="download">

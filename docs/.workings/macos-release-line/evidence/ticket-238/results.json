@@ -1,0 +1,5887 @@
+{
+  "base": "http://127.0.0.1:4399",
+  "at": "2026-10-19T03:39:19.001Z",
+  "results": [
+    {
+      "id": "REQ-002 formal-r2",
+      "what": "the hero, the pill, the link, the line and the buttons as the spec says",
+      "actual": {
+        "hero": {
+          "text": "Download Agentshed 0.2.0",
+          "href": "https://dl.agentshed.aloongplanet.com/releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg",
+          "target": null
+        },
+        "pill": null,
+        "note": null,
+        "every": {
+          "text": "See every version on GitHub",
+          "href": "https://github.com/aloong-planet/agentshed/releases",
+          "target": "_blank"
+        },
+        "line": "Current version 0.2.0",
+        "buttons": [
+          {
+            "text": "Download",
+            "href": "https://dl.agentshed.aloongplanet.com/releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg",
+            "target": null,
+            "ghost": false
+          },
+          {
+            "text": "GitHub",
+            "href": "https://github.com/aloong-planet/agentshed/releases/download/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg",
+            "target": "_blank",
+            "ghost": true
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "CON-003 formal-r2",
+      "what": "requests leaving the page: the pointer, then GitHub only when the pointer offers nothing",
+      "actual": [
+        "https://dl.agentshed.aloongplanet.com/latest.json"
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-002 formal-github",
+      "what": "the hero, the pill, the link, the line and the buttons as the spec says",
+      "actual": {
+        "hero": {
+          "text": "Download Agentshed 1.2.1",
+          "href": "https://github.com/aloong-planet/agentshed/releases/download/v1.2.1/Agentshed-1.2.1-mac-arm64.dmg",
+          "target": "_blank"
+        },
+        "pill": null,
+        "note": null,
+        "every": {
+          "text": "See every version on GitHub",
+          "href": "https://github.com/aloong-planet/agentshed/releases",
+          "target": "_blank"
+        },
+        "line": "Current version 1.2.1",
+        "buttons": [
+          {
+            "text": "Download",
+            "href": "https://github.com/aloong-planet/agentshed/releases/download/v1.2.1/Agentshed-1.2.1-mac-arm64.dmg",
+            "target": "_blank",
+            "ghost": false
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "CON-003 formal-github",
+      "what": "requests leaving the page: the pointer, then GitHub only when the pointer offers nothing",
+      "actual": [
+        "https://dl.agentshed.aloongplanet.com/latest.json",
+        "https://api.github.com/repos/aloong-planet/agentshed/releases?per_page=100"
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-002 test",
+      "what": "the hero, the pill, the link, the line and the buttons as the spec says",
+      "actual": {
+        "hero": {
+          "text": "Download test version 1.2.0-beta",
+          "href": "https://github.com/aloong-planet/agentshed/releases/tag/v1.2.0-beta",
+          "target": "_blank"
+        },
+        "pill": "Test version",
+        "note": "No stable release yet. The test version downloads from GitHub and may still be rough in places.",
+        "every": null,
+        "line": "Test version Only a test version so far: 1.2.0-beta",
+        "buttons": [
+          {
+            "text": "Download the test version from GitHub",
+            "href": "https://github.com/aloong-planet/agentshed/releases/tag/v1.2.0-beta",
+            "target": "_blank",
+            "ghost": false
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "CON-003 test",
+      "what": "requests leaving the page: the pointer, then GitHub only when the pointer offers nothing",
+      "actual": [
+        "https://dl.agentshed.aloongplanet.com/latest.json",
+        "https://api.github.com/repos/aloong-planet/agentshed/releases?per_page=100"
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-002 list",
+      "what": "the hero, the pill, the link, the line and the buttons as the spec says",
+      "actual": {
+        "hero": {
+          "text": "Download Agentshed from GitHub",
+          "href": "https://github.com/aloong-planet/agentshed/releases",
+          "target": "_blank"
+        },
+        "pill": null,
+        "note": null,
+        "every": null,
+        "line": "Version details can’t be loaded right now — download from GitHub",
+        "buttons": [
+          {
+            "text": "Download from GitHub",
+            "href": "https://github.com/aloong-planet/agentshed/releases",
+            "target": "_blank",
+            "ghost": false
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "CON-003 list",
+      "what": "requests leaving the page: the pointer, then GitHub only when the pointer offers nothing",
+      "actual": [
+        "https://dl.agentshed.aloongplanet.com/latest.json",
+        "https://api.github.com/repos/aloong-planet/agentshed/releases?per_page=100"
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            195
+          ],
+          [
+            205,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            88.40625,
+            311.578125
+          ],
+          [
+            "meta",
+            101.09375,
+            298.90625
+          ],
+          [
+            "alt",
+            129.203125,
+            270.796875
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            591.609375,
+            676.609375
+          ],
+          [
+            686.609375,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            338.40625,
+            561.578125
+          ],
+          [
+            "meta",
+            351.09375,
+            548.90625
+          ],
+          [
+            "alt",
+            379.203125,
+            520.796875
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            781.609375,
+            866.609375
+          ],
+          [
+            876.609375,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            528.40625,
+            751.578125
+          ],
+          [
+            "meta",
+            541.09375,
+            738.90625
+          ],
+          [
+            "alt",
+            569.203125,
+            710.796875
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            861.609375,
+            946.609375
+          ],
+          [
+            956.609375,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/light/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            608.40625,
+            831.578125
+          ],
+          [
+            "meta",
+            621.09375,
+            818.90625
+          ],
+          [
+            "alt",
+            649.203125,
+            790.796875
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            195
+          ],
+          [
+            205,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            88.40625,
+            311.578125
+          ],
+          [
+            "meta",
+            101.09375,
+            298.90625
+          ],
+          [
+            "alt",
+            129.203125,
+            270.796875
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            591.609375,
+            676.609375
+          ],
+          [
+            686.609375,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            338.40625,
+            561.578125
+          ],
+          [
+            "meta",
+            351.09375,
+            548.90625
+          ],
+          [
+            "alt",
+            379.203125,
+            520.796875
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            781.609375,
+            866.609375
+          ],
+          [
+            876.609375,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            528.40625,
+            751.578125
+          ],
+          [
+            "meta",
+            541.09375,
+            738.90625
+          ],
+          [
+            "alt",
+            569.203125,
+            710.796875
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            861.609375,
+            946.609375
+          ],
+          [
+            956.609375,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/zh/dark/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            608.40625,
+            831.578125
+          ],
+          [
+            "meta",
+            621.09375,
+            818.90625
+          ],
+          [
+            "alt",
+            649.203125,
+            790.796875
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            195
+          ],
+          [
+            205,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            68.109375,
+            331.875
+          ],
+          [
+            "meta",
+            98.796875,
+            301.203125
+          ],
+          [
+            "alt",
+            114.15625,
+            285.828125
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            553.71875,
+            676.609375
+          ],
+          [
+            686.609375,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            318.109375,
+            581.875
+          ],
+          [
+            "meta",
+            348.796875,
+            551.203125
+          ],
+          [
+            "alt",
+            364.15625,
+            535.828125
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            743.71875,
+            866.609375
+          ],
+          [
+            876.609375,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            508.109375,
+            771.875
+          ],
+          [
+            "meta",
+            538.796875,
+            741.203125
+          ],
+          [
+            "alt",
+            554.15625,
+            725.828125
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            823.71875,
+            946.609375
+          ],
+          [
+            956.609375,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/light/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            588.109375,
+            851.875
+          ],
+          [
+            "meta",
+            618.796875,
+            821.203125
+          ],
+          [
+            "alt",
+            634.15625,
+            805.828125
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            195
+          ],
+          [
+            205,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            68.109375,
+            331.875
+          ],
+          [
+            "meta",
+            98.796875,
+            301.203125
+          ],
+          [
+            "alt",
+            114.15625,
+            285.828125
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            553.71875,
+            676.609375
+          ],
+          [
+            686.609375,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            318.109375,
+            581.875
+          ],
+          [
+            "meta",
+            348.796875,
+            551.203125
+          ],
+          [
+            "alt",
+            364.15625,
+            535.828125
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            743.71875,
+            866.609375
+          ],
+          [
+            876.609375,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            508.109375,
+            771.875
+          ],
+          [
+            "meta",
+            538.796875,
+            741.203125
+          ],
+          [
+            "alt",
+            554.15625,
+            725.828125
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            823.71875,
+            946.609375
+          ],
+          [
+            956.609375,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-r2/en/dark/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            588.109375,
+            851.875
+          ],
+          [
+            "meta",
+            618.796875,
+            821.203125
+          ],
+          [
+            "alt",
+            634.15625,
+            805.828125
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            91.25,
+            308.734375
+          ],
+          [
+            "meta",
+            101.09375,
+            298.90625
+          ],
+          [
+            "alt",
+            129.203125,
+            270.796875
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            682,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            341.25,
+            558.734375
+          ],
+          [
+            "meta",
+            351.09375,
+            548.90625
+          ],
+          [
+            "alt",
+            379.203125,
+            520.796875
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            872,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            531.25,
+            748.734375
+          ],
+          [
+            "meta",
+            541.09375,
+            738.90625
+          ],
+          [
+            "alt",
+            569.203125,
+            710.796875
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            952,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/light/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            611.25,
+            828.734375
+          ],
+          [
+            "meta",
+            621.09375,
+            818.90625
+          ],
+          [
+            "alt",
+            649.203125,
+            790.796875
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            91.25,
+            308.734375
+          ],
+          [
+            "meta",
+            101.09375,
+            298.90625
+          ],
+          [
+            "alt",
+            129.203125,
+            270.796875
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            682,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            341.25,
+            558.734375
+          ],
+          [
+            "meta",
+            351.09375,
+            548.90625
+          ],
+          [
+            "alt",
+            379.203125,
+            520.796875
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            872,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            531.25,
+            748.734375
+          ],
+          [
+            "meta",
+            541.09375,
+            738.90625
+          ],
+          [
+            "alt",
+            569.203125,
+            710.796875
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            952,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/zh/dark/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            611.25,
+            828.734375
+          ],
+          [
+            "meta",
+            621.09375,
+            818.90625
+          ],
+          [
+            "alt",
+            649.203125,
+            790.796875
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            70.96875,
+            329.03125
+          ],
+          [
+            "meta",
+            98.796875,
+            301.203125
+          ],
+          [
+            "alt",
+            114.15625,
+            285.828125
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            644.109375,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            320.96875,
+            579.03125
+          ],
+          [
+            "meta",
+            348.796875,
+            551.203125
+          ],
+          [
+            "alt",
+            364.15625,
+            535.828125
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            834.109375,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            510.96875,
+            769.03125
+          ],
+          [
+            "meta",
+            538.796875,
+            741.203125
+          ],
+          [
+            "alt",
+            554.15625,
+            725.828125
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            914.109375,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/light/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            590.96875,
+            849.03125
+          ],
+          [
+            "meta",
+            618.796875,
+            821.203125
+          ],
+          [
+            "alt",
+            634.15625,
+            805.828125
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            70.96875,
+            329.03125
+          ],
+          [
+            "meta",
+            98.796875,
+            301.203125
+          ],
+          [
+            "alt",
+            114.15625,
+            285.828125
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            644.109375,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            320.96875,
+            579.03125
+          ],
+          [
+            "meta",
+            348.796875,
+            551.203125
+          ],
+          [
+            "alt",
+            364.15625,
+            535.828125
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            834.109375,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            510.96875,
+            769.03125
+          ],
+          [
+            "meta",
+            538.796875,
+            741.203125
+          ],
+          [
+            "alt",
+            554.15625,
+            725.828125
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            914.109375,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 formal-github/en/dark/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            590.96875,
+            849.03125
+          ],
+          [
+            "meta",
+            618.796875,
+            821.203125
+          ],
+          [
+            "alt",
+            634.15625,
+            805.828125
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            87.484375,
+            312.5
+          ],
+          [
+            "meta",
+            71.921875,
+            328.078125
+          ],
+          [
+            "beta-note",
+            24,
+            376
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/zh/light/400",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          400,
+          400
+        ],
+        "buttons": [
+          {
+            "x": 47,
+            "y": 3652.71875,
+            "width": 306,
+            "height": 38.390625,
+            "top": 3652.71875,
+            "right": 353,
+            "bottom": 3691.109375,
+            "left": 47
+          }
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        },
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 24,
+              "y": 272,
+              "width": 352,
+              "height": 73.59375,
+              "top": 272,
+              "right": 376,
+              "bottom": 345.59375,
+              "left": 24
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 24,
+              "y": 357.59375,
+              "width": 352,
+              "height": 115.1875,
+              "top": 357.59375,
+              "right": 376,
+              "bottom": 472.78125,
+              "left": 24
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 87.484375,
+              "y": 500.78125,
+              "width": 225.015625,
+              "height": 50,
+              "top": 500.78125,
+              "right": 312.5,
+              "bottom": 550.78125,
+              "left": 87.484375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 71.921875,
+              "y": 560.78125,
+              "width": 256.15625,
+              "height": 23.234375,
+              "top": 560.78125,
+              "right": 328.078125,
+              "bottom": 584.015625,
+              "left": 71.921875
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 24,
+              "y": 594.015625,
+              "width": 352,
+              "height": 41.59375,
+              "top": 594.015625,
+              "right": 376,
+              "bottom": 635.609375,
+              "left": 24
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 24,
+              "y": 683.609375,
+              "width": 352,
+              "height": 240,
+              "top": 683.609375,
+              "right": 376,
+              "bottom": 923.609375,
+              "left": 24
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(253, 236, 220)",
+          "fg": "rgb(179, 85, 47)"
+        },
+        "note": "rgb(179, 85, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            570.28125,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            337.484375,
+            562.5
+          ],
+          [
+            "meta",
+            321.921875,
+            578.078125
+          ],
+          [
+            "beta-note",
+            262.203125,
+            637.796875
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/zh/light/900",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          900,
+          900
+        ],
+        "buttons": [
+          {
+            "x": 570.28125,
+            "y": 3248.28125,
+            "width": 196.71875,
+            "height": 38.390625,
+            "top": 3248.28125,
+            "right": 767,
+            "bottom": 3286.671875,
+            "left": 570.28125
+          }
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        },
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 24,
+              "y": 272,
+              "width": 852,
+              "height": 50.59375,
+              "top": 272,
+              "right": 876,
+              "bottom": 322.59375,
+              "left": 24
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 90,
+              "y": 334.59375,
+              "width": 720,
+              "height": 57.59375,
+              "top": 334.59375,
+              "right": 810,
+              "bottom": 392.1875,
+              "left": 90
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 337.484375,
+              "y": 420.1875,
+              "width": 225.015625,
+              "height": 50,
+              "top": 420.1875,
+              "right": 562.5,
+              "bottom": 470.1875,
+              "left": 337.484375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 321.921875,
+              "y": 480.1875,
+              "width": 256.15625,
+              "height": 23.234375,
+              "top": 480.1875,
+              "right": 578.078125,
+              "bottom": 503.421875,
+              "left": 321.921875
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 262.203125,
+              "y": 513.421875,
+              "width": 375.59375,
+              "height": 20.796875,
+              "top": 513.421875,
+              "right": 637.796875,
+              "bottom": 534.21875,
+              "left": 262.203125
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 24,
+              "y": 582.21875,
+              "width": 852,
+              "height": 540,
+              "top": 582.21875,
+              "right": 876,
+              "bottom": 1122.21875,
+              "left": 24
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(253, 236, 220)",
+          "fg": "rgb(179, 85, 47)"
+        },
+        "note": "rgb(179, 85, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            760.28125,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            527.484375,
+            752.5
+          ],
+          [
+            "meta",
+            511.921875,
+            768.078125
+          ],
+          [
+            "beta-note",
+            452.203125,
+            827.796875
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/zh/light/1280",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          1280,
+          1280
+        ],
+        "buttons": [
+          {
+            "x": 760.28125,
+            "y": 3290.6875,
+            "width": 196.71875,
+            "height": 38.390625,
+            "top": 3290.6875,
+            "right": 957,
+            "bottom": 3329.078125,
+            "left": 760.28125
+          }
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        },
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 124,
+              "y": 272,
+              "width": 1032,
+              "height": 50.59375,
+              "top": 272,
+              "right": 1156,
+              "bottom": 322.59375,
+              "left": 124
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 280,
+              "y": 334.59375,
+              "width": 720,
+              "height": 57.59375,
+              "top": 334.59375,
+              "right": 1000,
+              "bottom": 392.1875,
+              "left": 280
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 527.484375,
+              "y": 420.1875,
+              "width": 225.015625,
+              "height": 50,
+              "top": 420.1875,
+              "right": 752.5,
+              "bottom": 470.1875,
+              "left": 527.484375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 511.921875,
+              "y": 480.1875,
+              "width": 256.15625,
+              "height": 23.234375,
+              "top": 480.1875,
+              "right": 768.078125,
+              "bottom": 503.421875,
+              "left": 511.921875
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 452.203125,
+              "y": 513.421875,
+              "width": 375.59375,
+              "height": 20.796875,
+              "top": 513.421875,
+              "right": 827.796875,
+              "bottom": 534.21875,
+              "left": 452.203125
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 160,
+              "y": 582.21875,
+              "width": 960,
+              "height": 604.796875,
+              "top": 582.21875,
+              "right": 1120,
+              "bottom": 1187.015625,
+              "left": 160
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(253, 236, 220)",
+          "fg": "rgb(179, 85, 47)"
+        },
+        "note": "rgb(179, 85, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            840.28125,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/light/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            607.484375,
+            832.5
+          ],
+          [
+            "meta",
+            591.921875,
+            848.078125
+          ],
+          [
+            "beta-note",
+            532.203125,
+            907.796875
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/zh/light/1440",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          1440,
+          1440
+        ],
+        "buttons": [
+          {
+            "x": 840.28125,
+            "y": 3290.6875,
+            "width": 196.71875,
+            "height": 38.390625,
+            "top": 3290.6875,
+            "right": 1037,
+            "bottom": 3329.078125,
+            "left": 840.28125
+          }
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        },
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 204,
+              "y": 272,
+              "width": 1032,
+              "height": 50.59375,
+              "top": 272,
+              "right": 1236,
+              "bottom": 322.59375,
+              "left": 204
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 360,
+              "y": 334.59375,
+              "width": 720,
+              "height": 57.59375,
+              "top": 334.59375,
+              "right": 1080,
+              "bottom": 392.1875,
+              "left": 360
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 607.484375,
+              "y": 420.1875,
+              "width": 225.015625,
+              "height": 50,
+              "top": 420.1875,
+              "right": 832.5,
+              "bottom": 470.1875,
+              "left": 607.484375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 591.921875,
+              "y": 480.1875,
+              "width": 256.15625,
+              "height": 23.234375,
+              "top": 480.1875,
+              "right": 848.078125,
+              "bottom": 503.421875,
+              "left": 591.921875
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 532.203125,
+              "y": 513.421875,
+              "width": 375.59375,
+              "height": 20.796875,
+              "top": 513.421875,
+              "right": 907.796875,
+              "bottom": 534.21875,
+              "left": 532.203125
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 240,
+              "y": 582.21875,
+              "width": 960,
+              "height": 604.796875,
+              "top": 582.21875,
+              "right": 1200,
+              "bottom": 1187.015625,
+              "left": 240
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(253, 236, 220)",
+          "fg": "rgb(179, 85, 47)"
+        },
+        "note": "rgb(179, 85, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            87.484375,
+            312.5
+          ],
+          [
+            "meta",
+            71.921875,
+            328.078125
+          ],
+          [
+            "beta-note",
+            24,
+            376
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/zh/dark/400",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          400,
+          400
+        ],
+        "buttons": [
+          {
+            "x": 47,
+            "y": 3652.71875,
+            "width": 306,
+            "height": 38.390625,
+            "top": 3652.71875,
+            "right": 353,
+            "bottom": 3691.109375,
+            "left": 47
+          }
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        },
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 24,
+              "y": 272,
+              "width": 352,
+              "height": 73.59375,
+              "top": 272,
+              "right": 376,
+              "bottom": 345.59375,
+              "left": 24
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 24,
+              "y": 357.59375,
+              "width": 352,
+              "height": 115.1875,
+              "top": 357.59375,
+              "right": 376,
+              "bottom": 472.78125,
+              "left": 24
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 87.484375,
+              "y": 500.78125,
+              "width": 225.015625,
+              "height": 50,
+              "top": 500.78125,
+              "right": 312.5,
+              "bottom": 550.78125,
+              "left": 87.484375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 71.921875,
+              "y": 560.78125,
+              "width": 256.15625,
+              "height": 23.234375,
+              "top": 560.78125,
+              "right": 328.078125,
+              "bottom": 584.015625,
+              "left": 71.921875
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 24,
+              "y": 594.015625,
+              "width": 352,
+              "height": 41.59375,
+              "top": 594.015625,
+              "right": 376,
+              "bottom": 635.609375,
+              "left": 24
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 24,
+              "y": 683.609375,
+              "width": 352,
+              "height": 240,
+              "top": 683.609375,
+              "right": 376,
+              "bottom": 923.609375,
+              "left": 24
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(60, 36, 23)",
+          "fg": "rgb(240, 168, 132)"
+        },
+        "note": "rgb(240, 168, 132)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            570.28125,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            337.484375,
+            562.5
+          ],
+          [
+            "meta",
+            321.921875,
+            578.078125
+          ],
+          [
+            "beta-note",
+            262.203125,
+            637.796875
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/zh/dark/900",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          900,
+          900
+        ],
+        "buttons": [
+          {
+            "x": 570.28125,
+            "y": 3248.28125,
+            "width": 196.71875,
+            "height": 38.390625,
+            "top": 3248.28125,
+            "right": 767,
+            "bottom": 3286.671875,
+            "left": 570.28125
+          }
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        },
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 24,
+              "y": 272,
+              "width": 852,
+              "height": 50.59375,
+              "top": 272,
+              "right": 876,
+              "bottom": 322.59375,
+              "left": 24
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 90,
+              "y": 334.59375,
+              "width": 720,
+              "height": 57.59375,
+              "top": 334.59375,
+              "right": 810,
+              "bottom": 392.1875,
+              "left": 90
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 337.484375,
+              "y": 420.1875,
+              "width": 225.015625,
+              "height": 50,
+              "top": 420.1875,
+              "right": 562.5,
+              "bottom": 470.1875,
+              "left": 337.484375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 321.921875,
+              "y": 480.1875,
+              "width": 256.15625,
+              "height": 23.234375,
+              "top": 480.1875,
+              "right": 578.078125,
+              "bottom": 503.421875,
+              "left": 321.921875
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 262.203125,
+              "y": 513.421875,
+              "width": 375.59375,
+              "height": 20.796875,
+              "top": 513.421875,
+              "right": 637.796875,
+              "bottom": 534.21875,
+              "left": 262.203125
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 24,
+              "y": 582.21875,
+              "width": 852,
+              "height": 540,
+              "top": 582.21875,
+              "right": 876,
+              "bottom": 1122.21875,
+              "left": 24
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(60, 36, 23)",
+          "fg": "rgb(240, 168, 132)"
+        },
+        "note": "rgb(240, 168, 132)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            760.28125,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            527.484375,
+            752.5
+          ],
+          [
+            "meta",
+            511.921875,
+            768.078125
+          ],
+          [
+            "beta-note",
+            452.203125,
+            827.796875
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/zh/dark/1280",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          1280,
+          1280
+        ],
+        "buttons": [
+          {
+            "x": 760.28125,
+            "y": 3290.6875,
+            "width": 196.71875,
+            "height": 38.390625,
+            "top": 3290.6875,
+            "right": 957,
+            "bottom": 3329.078125,
+            "left": 760.28125
+          }
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        },
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 124,
+              "y": 272,
+              "width": 1032,
+              "height": 50.59375,
+              "top": 272,
+              "right": 1156,
+              "bottom": 322.59375,
+              "left": 124
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 280,
+              "y": 334.59375,
+              "width": 720,
+              "height": 57.59375,
+              "top": 334.59375,
+              "right": 1000,
+              "bottom": 392.1875,
+              "left": 280
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 527.484375,
+              "y": 420.1875,
+              "width": 225.015625,
+              "height": 50,
+              "top": 420.1875,
+              "right": 752.5,
+              "bottom": 470.1875,
+              "left": 527.484375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 511.921875,
+              "y": 480.1875,
+              "width": 256.15625,
+              "height": 23.234375,
+              "top": 480.1875,
+              "right": 768.078125,
+              "bottom": 503.421875,
+              "left": 511.921875
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 452.203125,
+              "y": 513.421875,
+              "width": 375.59375,
+              "height": 20.796875,
+              "top": 513.421875,
+              "right": 827.796875,
+              "bottom": 534.21875,
+              "left": 452.203125
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 160,
+              "y": 582.21875,
+              "width": 960,
+              "height": 604.796875,
+              "top": 582.21875,
+              "right": 1120,
+              "bottom": 1187.015625,
+              "left": 160
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(60, 36, 23)",
+          "fg": "rgb(240, 168, 132)"
+        },
+        "note": "rgb(240, 168, 132)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            840.28125,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/zh/dark/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            607.484375,
+            832.5
+          ],
+          [
+            "meta",
+            591.921875,
+            848.078125
+          ],
+          [
+            "beta-note",
+            532.203125,
+            907.796875
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/zh/dark/1440",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          1440,
+          1440
+        ],
+        "buttons": [
+          {
+            "x": 840.28125,
+            "y": 3290.6875,
+            "width": 196.71875,
+            "height": 38.390625,
+            "top": 3290.6875,
+            "right": 1037,
+            "bottom": 3329.078125,
+            "left": 840.28125
+          }
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        },
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 204,
+              "y": 272,
+              "width": 1032,
+              "height": 50.59375,
+              "top": 272,
+              "right": 1236,
+              "bottom": 322.59375,
+              "left": 204
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 360,
+              "y": 334.59375,
+              "width": 720,
+              "height": 57.59375,
+              "top": 334.59375,
+              "right": 1080,
+              "bottom": 392.1875,
+              "left": 360
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 607.484375,
+              "y": 420.1875,
+              "width": 225.015625,
+              "height": 50,
+              "top": 420.1875,
+              "right": 832.5,
+              "bottom": 470.1875,
+              "left": 607.484375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 591.921875,
+              "y": 480.1875,
+              "width": 256.15625,
+              "height": 23.234375,
+              "top": 480.1875,
+              "right": 848.078125,
+              "bottom": 503.421875,
+              "left": 591.921875
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 532.203125,
+              "y": 513.421875,
+              "width": 375.59375,
+              "height": 20.796875,
+              "top": 513.421875,
+              "right": 907.796875,
+              "bottom": 534.21875,
+              "left": 532.203125
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 240,
+              "y": 582.21875,
+              "width": 960,
+              "height": 604.796875,
+              "top": 582.21875,
+              "right": 1200,
+              "bottom": 1187.015625,
+              "left": 240
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(60, 36, 23)",
+          "fg": "rgb(240, 168, 132)"
+        },
+        "note": "rgb(240, 168, 132)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            45.359375,
+            354.625
+          ],
+          [
+            "meta",
+            52.640625,
+            347.359375
+          ],
+          [
+            "beta-note",
+            24,
+            376
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/en/light/400",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          400,
+          400
+        ],
+        "buttons": [
+          {
+            "x": 47,
+            "y": 3924.6875,
+            "width": 306,
+            "height": 60.78125,
+            "top": 3924.6875,
+            "right": 353,
+            "bottom": 3985.46875,
+            "left": 47
+          }
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        },
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 24,
+              "y": 272,
+              "width": 352,
+              "height": 73.59375,
+              "top": 272,
+              "right": 376,
+              "bottom": 345.59375,
+              "left": 24
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 24,
+              "y": 357.59375,
+              "width": 352,
+              "height": 201.578125,
+              "top": 357.59375,
+              "right": 376,
+              "bottom": 559.171875,
+              "left": 24
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 45.359375,
+              "y": 587.171875,
+              "width": 309.265625,
+              "height": 50,
+              "top": 587.171875,
+              "right": 354.625,
+              "bottom": 637.171875,
+              "left": 45.359375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 52.640625,
+              "y": 647.171875,
+              "width": 294.71875,
+              "height": 23.234375,
+              "top": 647.171875,
+              "right": 347.359375,
+              "bottom": 670.40625,
+              "left": 52.640625
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 24,
+              "y": 680.40625,
+              "width": 352,
+              "height": 41.59375,
+              "top": 680.40625,
+              "right": 376,
+              "bottom": 722,
+              "left": 24
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 24,
+              "y": 770,
+              "width": 352,
+              "height": 240,
+              "top": 770,
+              "right": 376,
+              "bottom": 1010,
+              "left": 24
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(253, 236, 220)",
+          "fg": "rgb(179, 85, 47)"
+        },
+        "note": "rgb(179, 85, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            448.609375,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            295.359375,
+            604.625
+          ],
+          [
+            "meta",
+            302.640625,
+            597.359375
+          ],
+          [
+            "beta-note",
+            190,
+            710
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/en/light/900",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          900,
+          900
+        ],
+        "buttons": [
+          {
+            "x": 448.609375,
+            "y": 3342.65625,
+            "width": 318.390625,
+            "height": 38.390625,
+            "top": 3342.65625,
+            "right": 767,
+            "bottom": 3381.046875,
+            "left": 448.609375
+          }
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        },
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 24,
+              "y": 272,
+              "width": 852,
+              "height": 50.59375,
+              "top": 272,
+              "right": 876,
+              "bottom": 322.59375,
+              "left": 24
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 90,
+              "y": 334.59375,
+              "width": 720,
+              "height": 86.390625,
+              "top": 334.59375,
+              "right": 810,
+              "bottom": 420.984375,
+              "left": 90
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 295.359375,
+              "y": 448.984375,
+              "width": 309.265625,
+              "height": 50,
+              "top": 448.984375,
+              "right": 604.625,
+              "bottom": 498.984375,
+              "left": 295.359375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 302.640625,
+              "y": 508.984375,
+              "width": 294.71875,
+              "height": 23.234375,
+              "top": 508.984375,
+              "right": 597.359375,
+              "bottom": 532.21875,
+              "left": 302.640625
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 190,
+              "y": 542.21875,
+              "width": 520,
+              "height": 41.59375,
+              "top": 542.21875,
+              "right": 710,
+              "bottom": 583.8125,
+              "left": 190
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 24,
+              "y": 631.8125,
+              "width": 852,
+              "height": 540,
+              "top": 631.8125,
+              "right": 876,
+              "bottom": 1171.8125,
+              "left": 24
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(253, 236, 220)",
+          "fg": "rgb(179, 85, 47)"
+        },
+        "note": "rgb(179, 85, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            638.609375,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            485.359375,
+            794.625
+          ],
+          [
+            "meta",
+            492.640625,
+            787.359375
+          ],
+          [
+            "beta-note",
+            380,
+            900
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/en/light/1280",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          1280,
+          1280
+        ],
+        "buttons": [
+          {
+            "x": 638.609375,
+            "y": 3385.0625,
+            "width": 318.390625,
+            "height": 38.390625,
+            "top": 3385.0625,
+            "right": 957,
+            "bottom": 3423.453125,
+            "left": 638.609375
+          }
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        },
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 124,
+              "y": 272,
+              "width": 1032,
+              "height": 50.59375,
+              "top": 272,
+              "right": 1156,
+              "bottom": 322.59375,
+              "left": 124
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 280,
+              "y": 334.59375,
+              "width": 720,
+              "height": 86.390625,
+              "top": 334.59375,
+              "right": 1000,
+              "bottom": 420.984375,
+              "left": 280
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 485.359375,
+              "y": 448.984375,
+              "width": 309.265625,
+              "height": 50,
+              "top": 448.984375,
+              "right": 794.625,
+              "bottom": 498.984375,
+              "left": 485.359375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 492.640625,
+              "y": 508.984375,
+              "width": 294.71875,
+              "height": 23.234375,
+              "top": 508.984375,
+              "right": 787.359375,
+              "bottom": 532.21875,
+              "left": 492.640625
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 380,
+              "y": 542.21875,
+              "width": 520,
+              "height": 41.59375,
+              "top": 542.21875,
+              "right": 900,
+              "bottom": 583.8125,
+              "left": 380
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 160,
+              "y": 631.8125,
+              "width": 960,
+              "height": 604.796875,
+              "top": 631.8125,
+              "right": 1120,
+              "bottom": 1236.609375,
+              "left": 160
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(253, 236, 220)",
+          "fg": "rgb(179, 85, 47)"
+        },
+        "note": "rgb(179, 85, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            718.609375,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/light/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            565.359375,
+            874.625
+          ],
+          [
+            "meta",
+            572.640625,
+            867.359375
+          ],
+          [
+            "beta-note",
+            460,
+            980
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/en/light/1440",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          1440,
+          1440
+        ],
+        "buttons": [
+          {
+            "x": 718.609375,
+            "y": 3385.0625,
+            "width": 318.390625,
+            "height": 38.390625,
+            "top": 3385.0625,
+            "right": 1037,
+            "bottom": 3423.453125,
+            "left": 718.609375
+          }
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        },
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 204,
+              "y": 272,
+              "width": 1032,
+              "height": 50.59375,
+              "top": 272,
+              "right": 1236,
+              "bottom": 322.59375,
+              "left": 204
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 360,
+              "y": 334.59375,
+              "width": 720,
+              "height": 86.390625,
+              "top": 334.59375,
+              "right": 1080,
+              "bottom": 420.984375,
+              "left": 360
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 565.359375,
+              "y": 448.984375,
+              "width": 309.265625,
+              "height": 50,
+              "top": 448.984375,
+              "right": 874.625,
+              "bottom": 498.984375,
+              "left": 565.359375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 572.640625,
+              "y": 508.984375,
+              "width": 294.71875,
+              "height": 23.234375,
+              "top": 508.984375,
+              "right": 867.359375,
+              "bottom": 532.21875,
+              "left": 572.640625
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 460,
+              "y": 542.21875,
+              "width": 520,
+              "height": 41.59375,
+              "top": 542.21875,
+              "right": 980,
+              "bottom": 583.8125,
+              "left": 460
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 240,
+              "y": 631.8125,
+              "width": 960,
+              "height": 604.796875,
+              "top": 631.8125,
+              "right": 1200,
+              "bottom": 1236.609375,
+              "left": 240
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(253, 236, 220)",
+          "fg": "rgb(179, 85, 47)"
+        },
+        "note": "rgb(179, 85, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/400",
+      "what": "no sideways scroll",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/400",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            376
+          ],
+          [
+            "lede",
+            24,
+            376
+          ],
+          [
+            "btn btn-primary",
+            45.359375,
+            354.625
+          ],
+          [
+            "meta",
+            52.640625,
+            347.359375
+          ],
+          [
+            "beta-note",
+            24,
+            376
+          ],
+          [
+            "shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/en/dark/400",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          400,
+          400
+        ],
+        "buttons": [
+          {
+            "x": 47,
+            "y": 3924.6875,
+            "width": 306,
+            "height": 60.78125,
+            "top": 3924.6875,
+            "right": 353,
+            "bottom": 3985.46875,
+            "left": 47
+          }
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        },
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 24,
+              "y": 272,
+              "width": 352,
+              "height": 73.59375,
+              "top": 272,
+              "right": 376,
+              "bottom": 345.59375,
+              "left": 24
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 24,
+              "y": 357.59375,
+              "width": 352,
+              "height": 201.578125,
+              "top": 357.59375,
+              "right": 376,
+              "bottom": 559.171875,
+              "left": 24
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 45.359375,
+              "y": 587.171875,
+              "width": 309.265625,
+              "height": 50,
+              "top": 587.171875,
+              "right": 354.625,
+              "bottom": 637.171875,
+              "left": 45.359375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 52.640625,
+              "y": 647.171875,
+              "width": 294.71875,
+              "height": 23.234375,
+              "top": 647.171875,
+              "right": 347.359375,
+              "bottom": 670.40625,
+              "left": 52.640625
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 24,
+              "y": 680.40625,
+              "width": 352,
+              "height": 41.59375,
+              "top": 680.40625,
+              "right": 376,
+              "bottom": 722,
+              "left": 24
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 24,
+              "y": 770,
+              "width": 352,
+              "height": 240,
+              "top": 770,
+              "right": 376,
+              "bottom": 1010,
+              "left": 24
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(60, 36, 23)",
+          "fg": "rgb(240, 168, 132)"
+        },
+        "note": "rgb(240, 168, 132)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/900",
+      "what": "no sideways scroll",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            448.609375,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/900",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            24,
+            876
+          ],
+          [
+            "lede",
+            90,
+            810
+          ],
+          [
+            "btn btn-primary",
+            295.359375,
+            604.625
+          ],
+          [
+            "meta",
+            302.640625,
+            597.359375
+          ],
+          [
+            "beta-note",
+            190,
+            710
+          ],
+          [
+            "shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/en/dark/900",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          900,
+          900
+        ],
+        "buttons": [
+          {
+            "x": 448.609375,
+            "y": 3342.65625,
+            "width": 318.390625,
+            "height": 38.390625,
+            "top": 3342.65625,
+            "right": 767,
+            "bottom": 3381.046875,
+            "left": 448.609375
+          }
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        },
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 24,
+              "y": 272,
+              "width": 852,
+              "height": 50.59375,
+              "top": 272,
+              "right": 876,
+              "bottom": 322.59375,
+              "left": 24
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 90,
+              "y": 334.59375,
+              "width": 720,
+              "height": 86.390625,
+              "top": 334.59375,
+              "right": 810,
+              "bottom": 420.984375,
+              "left": 90
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 295.359375,
+              "y": 448.984375,
+              "width": 309.265625,
+              "height": 50,
+              "top": 448.984375,
+              "right": 604.625,
+              "bottom": 498.984375,
+              "left": 295.359375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 302.640625,
+              "y": 508.984375,
+              "width": 294.71875,
+              "height": 23.234375,
+              "top": 508.984375,
+              "right": 597.359375,
+              "bottom": 532.21875,
+              "left": 302.640625
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 190,
+              "y": 542.21875,
+              "width": 520,
+              "height": 41.59375,
+              "top": 542.21875,
+              "right": 710,
+              "bottom": 583.8125,
+              "left": 190
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 24,
+              "y": 631.8125,
+              "width": 852,
+              "height": 540,
+              "top": 631.8125,
+              "right": 876,
+              "bottom": 1171.8125,
+              "left": 24
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(60, 36, 23)",
+          "fg": "rgb(240, 168, 132)"
+        },
+        "note": "rgb(240, 168, 132)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/1280",
+      "what": "no sideways scroll",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            638.609375,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/1280",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            124,
+            1156
+          ],
+          [
+            "lede",
+            280,
+            1000
+          ],
+          [
+            "btn btn-primary",
+            485.359375,
+            794.625
+          ],
+          [
+            "meta",
+            492.640625,
+            787.359375
+          ],
+          [
+            "beta-note",
+            380,
+            900
+          ],
+          [
+            "shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/en/dark/1280",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          1280,
+          1280
+        ],
+        "buttons": [
+          {
+            "x": 638.609375,
+            "y": 3385.0625,
+            "width": 318.390625,
+            "height": 38.390625,
+            "top": 3385.0625,
+            "right": 957,
+            "bottom": 3423.453125,
+            "left": 638.609375
+          }
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        },
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 124,
+              "y": 272,
+              "width": 1032,
+              "height": 50.59375,
+              "top": 272,
+              "right": 1156,
+              "bottom": 322.59375,
+              "left": 124
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 280,
+              "y": 334.59375,
+              "width": 720,
+              "height": 86.390625,
+              "top": 334.59375,
+              "right": 1000,
+              "bottom": 420.984375,
+              "left": 280
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 485.359375,
+              "y": 448.984375,
+              "width": 309.265625,
+              "height": 50,
+              "top": 448.984375,
+              "right": 794.625,
+              "bottom": 498.984375,
+              "left": 485.359375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 492.640625,
+              "y": 508.984375,
+              "width": 294.71875,
+              "height": 23.234375,
+              "top": 508.984375,
+              "right": 787.359375,
+              "bottom": 532.21875,
+              "left": 492.640625
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 380,
+              "y": 542.21875,
+              "width": 520,
+              "height": 41.59375,
+              "top": 542.21875,
+              "right": 900,
+              "bottom": 583.8125,
+              "left": 380
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 160,
+              "y": 631.8125,
+              "width": 960,
+              "height": 604.796875,
+              "top": 631.8125,
+              "right": 1120,
+              "bottom": 1236.609375,
+              "left": 160
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(60, 36, 23)",
+          "fg": "rgb(240, 168, 132)"
+        },
+        "note": "rgb(240, 168, 132)"
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/1440",
+      "what": "no sideways scroll",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            718.609375,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 test/en/dark/1440",
+      "what": "the hero’s parts inside its gutters",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            204,
+            1236
+          ],
+          [
+            "lede",
+            360,
+            1080
+          ],
+          [
+            "btn btn-primary",
+            565.359375,
+            874.625
+          ],
+          [
+            "meta",
+            572.640625,
+            867.359375
+          ],
+          [
+            "beta-note",
+            460,
+            980
+          ],
+          [
+            "shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 test/en/dark/1440",
+      "what": "the pill and the note in the app’s warning colours",
+      "actual": {
+        "scroll": [
+          1440,
+          1440
+        ],
+        "buttons": [
+          {
+            "x": 718.609375,
+            "y": 3385.0625,
+            "width": 318.390625,
+            "height": 38.390625,
+            "top": 3385.0625,
+            "right": 1037,
+            "bottom": 3423.453125,
+            "left": 718.609375
+          }
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        },
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "H1",
+            {
+              "x": 204,
+              "y": 272,
+              "width": 1032,
+              "height": 50.59375,
+              "top": 272,
+              "right": 1236,
+              "bottom": 322.59375,
+              "left": 204
+            }
+          ],
+          [
+            "lede",
+            {
+              "x": 360,
+              "y": 334.59375,
+              "width": 720,
+              "height": 86.390625,
+              "top": 334.59375,
+              "right": 1080,
+              "bottom": 420.984375,
+              "left": 360
+            }
+          ],
+          [
+            "btn btn-primary",
+            {
+              "x": 565.359375,
+              "y": 448.984375,
+              "width": 309.265625,
+              "height": 50,
+              "top": 448.984375,
+              "right": 874.625,
+              "bottom": 498.984375,
+              "left": 565.359375
+            }
+          ],
+          [
+            "meta",
+            {
+              "x": 572.640625,
+              "y": 508.984375,
+              "width": 294.71875,
+              "height": 23.234375,
+              "top": 508.984375,
+              "right": 867.359375,
+              "bottom": 532.21875,
+              "left": 572.640625
+            }
+          ],
+          [
+            "beta-note",
+            {
+              "x": 460,
+              "y": 542.21875,
+              "width": 520,
+              "height": 41.59375,
+              "top": 542.21875,
+              "right": 980,
+              "bottom": 583.8125,
+              "left": 460
+            }
+          ],
+          [
+            "shot",
+            {
+              "x": 240,
+              "y": 631.8125,
+              "width": 960,
+              "height": 604.796875,
+              "top": 631.8125,
+              "right": 1200,
+              "bottom": 1236.609375,
+              "left": 240
+            }
+          ]
+        ],
+        "pill": {
+          "bg": "rgb(60, 36, 23)",
+          "fg": "rgb(240, 168, 132)"
+        },
+        "note": "rgb(240, 168, 132)"
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-002/AC-01 ghost",
+      "what": "the GitHub button: card ground at rest, the accent border on hover",
+      "actual": {
+        "rest": {
+          "border": "rgb(217, 220, 224)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        "hover": {
+          "border": "rgb(138, 103, 171)",
+          "bg": "rgb(240, 235, 246)"
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7",
+      "what": "the list state while the reads are out, the test state when they land, the page not reloaded",
+      "actual": {
+        "early": "Download Agentshed from GitHub",
+        "late": "Download test version 1.2.0-beta",
+        "reloads": 1
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-07 en→zh with a late state",
+      "what": "after the state lands: the same step, at the same height",
+      "actual": {
+        "before": {
+          "current": 2,
+          "top": 327.40625
+        },
+        "restored": 327.578125,
+        "after": {
+          "current": 2,
+          "top": 327.8125,
+          "pill": true
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-07 zh→en with a late state",
+      "what": "after the state lands: the same step, at the same height",
+      "actual": {
+        "before": {
+          "current": 2,
+          "top": 327.8125
+        },
+        "restored": 327.375,
+        "after": {
+          "current": 2,
+          "top": 327.40625,
+          "pill": true
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A5 time limit",
+      "what": "the list state at 4s; the test state from GitHub once the pointer read is given up at 5s",
+      "actual": {
+        "at4s": "Download Agentshed from GitHub",
+        "late": "Download test version 1.2.0-beta",
+        "elapsed": 5065
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom -40, anchoring on",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -733.015625,
+          "title": 23.78125,
+          "y": 1234
+        },
+        "after": {
+          "block": -732.78125,
+          "title": 24.015625,
+          "y": 1267
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 0, anchoring on",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -693.015625,
+          "title": 63.78125,
+          "y": 1194
+        },
+        "after": {
+          "block": -692.78125,
+          "title": 64.015625,
+          "y": 1227
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 20, anchoring on",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -673.015625,
+          "title": 83.78125,
+          "y": 1174
+        },
+        "after": {
+          "block": -672.78125,
+          "title": 84.015625,
+          "y": 1207
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 57, anchoring on",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -636.015625,
+          "title": 120.78125,
+          "y": 1137
+        },
+        "after": {
+          "block": -635.78125,
+          "title": 121.015625,
+          "y": 1170
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 120, anchoring on",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -573.015625,
+          "title": 183.78125,
+          "y": 1074
+        },
+        "after": {
+          "block": -572.78125,
+          "title": 184.015625,
+          "y": 1107
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 400, anchoring on",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -293.015625,
+          "title": 463.78125,
+          "y": 794
+        },
+        "after": {
+          "block": -292.78125,
+          "title": 464.015625,
+          "y": 827
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 760, anchoring on",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -16.015625,
+          "title": 740.78125,
+          "y": 517
+        },
+        "after": {
+          "block": -15.78125,
+          "title": 741.015625,
+          "y": 550
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 806, anchoring on",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": 29.984375,
+          "title": 786.78125,
+          "y": 471
+        },
+        "after": {
+          "block": 30.21875,
+          "title": 787.015625,
+          "y": 504
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 900, anchoring on",
+      "what": "the block in view: it changes in view, and the page does not scroll",
+      "actual": {
+        "restored": {
+          "block": 123.984375,
+          "title": 880.78125,
+          "y": 377
+        },
+        "after": {
+          "block": 157.21875,
+          "title": 914.015625,
+          "y": 377
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom -40, anchoring off",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -733.015625,
+          "title": 23.78125,
+          "y": 1234
+        },
+        "after": {
+          "block": -732.78125,
+          "title": 24.015625,
+          "y": 1267
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 0, anchoring off",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -693.015625,
+          "title": 63.78125,
+          "y": 1194
+        },
+        "after": {
+          "block": -692.78125,
+          "title": 64.015625,
+          "y": 1227
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 20, anchoring off",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -673.015625,
+          "title": 83.78125,
+          "y": 1174
+        },
+        "after": {
+          "block": -672.78125,
+          "title": 84.015625,
+          "y": 1207
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 57, anchoring off",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -636.015625,
+          "title": 120.78125,
+          "y": 1137
+        },
+        "after": {
+          "block": -635.78125,
+          "title": 121.015625,
+          "y": 1170
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 120, anchoring off",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -573.015625,
+          "title": 183.78125,
+          "y": 1074
+        },
+        "after": {
+          "block": -572.78125,
+          "title": 184.015625,
+          "y": 1107
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 400, anchoring off",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -293.015625,
+          "title": 463.78125,
+          "y": 794
+        },
+        "after": {
+          "block": -292.78125,
+          "title": 464.015625,
+          "y": 827
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 760, anchoring off",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": -16.015625,
+          "title": 740.78125,
+          "y": 517
+        },
+        "after": {
+          "block": -15.78125,
+          "title": 741.015625,
+          "y": 550
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 806, anchoring off",
+      "what": "the block above the view: the features title stays where it was",
+      "actual": {
+        "restored": {
+          "block": 29.984375,
+          "title": 786.78125,
+          "y": 471
+        },
+        "after": {
+          "block": 30.21875,
+          "title": 787.015625,
+          "y": 504
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 hero bottom 900, anchoring off",
+      "what": "the block in view: it changes in view, and the page does not scroll",
+      "actual": {
+        "restored": {
+          "block": 123.984375,
+          "title": 880.78125,
+          "y": 377
+        },
+        "after": {
+          "block": 157.21875,
+          "title": 914.015625,
+          "y": 377
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure A7 positions",
+      "what": "the positions reach both branches: the block above the view, and in view",
+      "actual": [
+        "above",
+        "in view"
+      ],
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "formal hero: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "every version: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "formal line: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "download: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "github: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "test hero: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "pill: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "note: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "test line: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "test button: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "formal hero: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "every version: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "formal line: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "download: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "github: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "test hero: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "pill: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "note: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "test line: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "test button: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    }
+  ]
+}

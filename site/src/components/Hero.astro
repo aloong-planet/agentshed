@@ -2,7 +2,7 @@
 // The hero (landing-page::US-001/AC-01): the icon, the title, one paragraph, the download button with the
 // platform line, and a screenshot of the whole window. The button is rendered in the list state, which is
 // what the page offers until something tells it more (landing-page::REQ-001/AC-04).
-import { listView } from '../download'
+import { view } from '../download'
 import { ui, type Locale } from '../i18n/ui'
 import { HERO_SIZE, shotSrc } from '../shots'
 import Icon from './Icon.astro'
@@ -13,7 +13,7 @@ interface Props {
 
 const { locale } = Astro.props
 const t = ui[locale]
-const { hero } = listView(locale)
+const { hero } = view({ kind: 'list' }, locale)
 ---
 
 <div class="hero wrap" id="top">

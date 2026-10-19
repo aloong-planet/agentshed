@@ -211,9 +211,9 @@ not copy the policy.
 **Sequence C: publishing and mirroring**
 
 - C1 A formal release's GitHub release is published, then the R2 upload fails partway: the pointer is
-  not touched, so the landing page keeps reading the previous pointer or finds none. Visitors are
-  served from GitHub meanwhile (landing-page::REQ-001). Re-running the mirror job completes the copy and
-  then the pointer.
+  not touched, so the landing page keeps reading the previous pointer and offers that release from R2,
+  or, for the first formal release, finds none and offers the new release from GitHub (landing-page
+  Failure A3). Re-running the mirror job completes the copy and then the pointer.
 - C2 A file on R2 is not reachable after upload: the pointer is not updated (mac-distribution::REQ-003).
 - C3 A re-run after a failure never leaves the release or the mirror holding a mix of two builds'
   files. The set is published whole or not at all (`macos-signing.md` §5).

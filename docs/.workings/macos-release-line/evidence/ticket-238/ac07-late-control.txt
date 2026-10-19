@@ -1,0 +1,7 @@
+# REQ-004/AC-07 with a state landing late (2026-10-19, Chrome 155, on the place-keeping rule as fixed in code review):
+# the test state's reads answered after 700ms, the language switched with step 2 current. Each variant disables
+# one mechanism that keeps the place.
+as built               before 327.4 restored 327.6 after 327.8 shift 0.4 current 2 KEPT
+compensation off       before 327.4 restored 327.6 after 327.8 shift 0.4 current 2 KEPT
+scroll anchoring off   before 327.4 restored 327.6 after 327.8 shift 0.4 current 2 KEPT
+both off               before 327.4 restored 327.6 after 360.8 shift 33.4 current 2 MOVED

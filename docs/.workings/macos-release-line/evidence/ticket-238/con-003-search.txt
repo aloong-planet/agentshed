@@ -1,0 +1,21 @@
+# Every network request API in the site's source (2026-10-19, final tree), searched over site/src with ripgrep,
+# test files included: fetch(, XMLHttpRequest, WebSocket, EventSource, sendBeacon, dynamic import(, new Image(, https URLs
+$ rg -n --hidden 'fetch\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon|import\(|new Image\(' site/src
+site/src/layouts/Base.astro:72:      initDownload(document, (url, init) => fetch(url, init)).catch(() => undefined)
+site/src/releases.ts:41:    const response = await fetch(url, { signal: abort.signal, headers: { accept: 'application/json' } })
+(exit 0)
+
+$ rg -o --no-filename --hidden 'https://[a-z0-9.-]+' site/src --glob '!*.test.ts' | sort | uniq -c
+   1 https://api.github.com
+   1 https://dl.agentshed.aloongplanet.com
+   1 https://github.com
+
+# control: the same search reads the files (a known string, found in both files that use it)
+$ rg -c --hidden 'initDownload' site/src
+site/src/scripts/download.ts:1
+site/src/layouts/Base.astro:2
+
+# the files searched
+      21
+$ find site/src -type f | wc -l   (every file there, no ignore rule applied: the same count)
+      21

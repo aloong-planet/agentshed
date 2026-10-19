@@ -203,7 +203,8 @@ since they never reach it (mac-distribution::CON-004).
 - A6 GitHub rate-limits the visitor (unauthenticated requests are limited per IP) or answers with an
   error → treated as unreadable (landing-page::REQ-001/AC-03).
 - A7 A read resolves after the page is shown → the state updates in place. Until then the list state
-  is a valid way to download.
+  is a valid way to download. If the visitor has already moved past the hero's download block (scrolled,
+  or put back there by a language switch), what they are looking at does not move.
 - A8 GitHub's answer includes drafts or releases without the expected DMG → drafts are ignored. A
   release without the DMG is not offered as a direct download; the page offers its release page
   instead.
@@ -247,10 +248,26 @@ since they never reach it (mac-distribution::CON-004).
   absent or unreadable; GitHub: a latest formal release, a newest pre-release, nothing, or unreadable)
   to one of the four states. A small browser script performs the reads and applies the result. The
   served HTML renders the list state.
-- **The GitHub read** uses the unauthenticated public REST API for this repository's releases. Drafts
-  are ignored; the latest formal release is taken first and the newest pre-release otherwise.
+- **The pointer read** takes a pointer only when its version is a formal version and its files name the
+  arm64 DMG, by its packaged name, at exactly the URL the mirror's layout gives that version. Anything
+  else is unreadable; a 404 means there is no pointer yet.
+- **The GitHub read** uses the unauthenticated public REST API for this repository's releases, one request
+  for the first hundred. A release counts when it is published (drafts are ignored) and its tag is `v`
+  followed by a version of its kind: a suffix exactly when GitHub marks it a pre-release
+  (mac-distribution Failure A2); any other entry is passed over. The newest by publication date is taken,
+  the latest formal release first and the newest pre-release otherwise; the answer's order is not relied
+  on. A release's DMG counts only once its upload has finished.
+- **Both reads** give up after five seconds (Failure A5) and send no header that needs a CORS preflight.
+  Every link is built from the validated version, never taken from an answer (Failure E1).
+- **Applying a state** replaces, in place and as text, the hero's download block (the button, the pill on
+  the platform line, the note or the link beneath it) and the download section's line and row; the list
+  state rebuilds the markup as served. When a state lands while the hero's download block is above the
+  visitor's view (the view starts below the sticky header), the page scrolls by the block's change, so
+  what the visitor sees does not move; while the block is in view it changes in view (Failure A7).
 - **The palette** is the app's purple palette, with light and dark both declared and switched by the
-  system appearance. Icons are inline SVG copied from Lucide (download).
+  system appearance. The test version's pill and note use the app's warning pair. The GitHub button
+  beside Download is a secondary button: the card ground with the strong line, and the accent border on
+  the soft accent ground on hover. Icons are inline SVG copied from Lucide (download).
 - **The app icon** is the production artwork with its transparent exterior. In the hero its shadow follows
   the icon's outline: a shadow round the image's square box showed the transparent margin as a tile
   (decided 2026-10-18). The browser tab shows the app icon and "Agentshed — " followed by the hero title;
@@ -276,6 +293,14 @@ Seams confirmed by the owner on 2026-10-13:
   declares its size. It reads a fresh build made for the run, never a previous one.
 - **The palette**: a unit test holds every token the page shares with the app to the app's purple values,
   in light and in dark, and every token to a declaration in both.
+
+Beside them, for the parts the state function does not reach:
+
+- **The two reads**, through an injected fetch, so no case reaches the network: real-shaped answers (the
+  pointer as the release script writes it, GitHub's answer as GitHub gives it) and each way they can be
+  unreadable.
+- **A state applied to the built page**: each state's view applied to a fresh copy of the served page,
+  read back from the page; the requests the page's script makes, at the injected fetch (landing-page::CON-003).
 - **Evidence**: the features section's scroll and click behaviour, the four states' rendering, and
   landing-page::QR-001 are measured in a browser, as they were on the prototype (geometry and computed
   styles, not pixels), and the measurement record is kept.
@@ -297,7 +322,8 @@ Prior art: Transfer's site tests for its download configuration, and the prototy
   owner confirmed the revised prototype's list state (landing-page::REQ-002/AC-04) and its
   formal-from-GitHub state (landing-page::REQ-002/AC-02). On 2026-10-18 the owner chose the app icon for
   the browser tab, and confirmed the revised prototype's hero icon: the real artwork, its shadow on its
-  outline.
+  outline. On 2026-10-19 the owner confirmed the revised prototype's dark warning colours, brought to the
+  app's own (the test state's pill and note).
 
 - The download host is `dl.agentshed.aloongplanet.com` (mac-distribution::REQ-004), and the pointer is
   `latest.json` at its root; the pointer's shape is in mac-distribution's Implementation Decisions.
