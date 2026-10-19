@@ -23,12 +23,22 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          # The landing page (site/) is a package of its own, with its own lockfile
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            site/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      # Before lint: the lint's type-aware rules read the site's TypeScript through the site's tsconfig,
+      # which extends Astro's and resolves the site's own packages
+      - run: pnpm install --frozen-lockfile
+        working-directory: site
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
       # The packaging asset's tests and the release workflow's: the release workflow itself runs only on a release tag
       - run: pnpm test:scripts
+      # The site's type check, its unit tests and the built-site check (on a fresh build)
+      - run: pnpm test:site
       - run: pnpm check:ui
       - run: pnpm check:lang
       - run: pnpm check:i18n

@@ -6,8 +6,8 @@ working-language = "en"
 
 [i18n]
 enabled = true
-source = "src/shared/i18n/"
-enforced-by = ["pnpm typecheck", "pnpm check:i18n"]
+source = ["src/shared/i18n/", "site/src/i18n/"]
+enforced-by = ["pnpm typecheck", "pnpm check:i18n", "pnpm test:site"]
 
 [enumeration-wording-gate]
 enabled = true
@@ -26,8 +26,8 @@ enforced-by = ["pnpm e2e"]
 
 [theming]
 enabled = true
-source = "src/renderer/src/theme.css"
-enforced-by = ["pnpm check:ui"]
+source = ["src/renderer/src/theme.css", "site/src/styles/global.css"]
+enforced-by = ["pnpm check:ui", "pnpm test:site"]
 
 [macos-distribution]
 enabled = true

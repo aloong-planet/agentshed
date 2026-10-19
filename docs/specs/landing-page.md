@@ -127,7 +127,9 @@ Releases and the copyright line.
 - landing-page::REQ-004/AC-03: Each step is about a third of a screen tall, so the steps either side of
   the current one stay at least partly in view and the column reads as a list to pick from.
 - landing-page::REQ-004/AC-04: Clicking a step, or pressing Enter on it, scrolls it level with the
-  frame's middle, and the frame follows. Keyboard focus shows a ring inside the step's own box.
+  frame's middle, and the frame follows. The first and last steps scroll as close to the frame's middle
+  as the section allows: the frame stays in place only within the section, so at those two it stands at
+  the section's start or end. Keyboard focus shows a ring inside the step's own box.
 - landing-page::REQ-004/AC-05: The frame's screenshots cross-fade, and switch at once under reduced
   motion. Only the shown screenshot is visible to the pointer and to assistive technology.
 - landing-page::REQ-004/AC-06: Below 760px there is no fixed frame. Each step's own screenshot sits
@@ -249,6 +251,15 @@ since they never reach it (mac-distribution::CON-004).
   are ignored; the latest formal release is taken first and the newest pre-release otherwise.
 - **The palette** is the app's purple palette, with light and dark both declared and switched by the
   system appearance. Icons are inline SVG copied from Lucide (download).
+- **The app icon** is the production artwork with its transparent exterior. In the hero its shadow follows
+  the icon's outline: a shadow round the image's square box showed the transparent margin as a tile
+  (decided 2026-10-18). The browser tab shows the app icon and "Agentshed — " followed by the hero title;
+  the page's description is the hero paragraph.
+- **The language toggle** is a link to the other language's page, so it works without scripts. Before
+  leaving, a script notes the element in view, its distance from the top of the window and the current
+  step; the other page puts the same element back at the same distance and makes the same step current
+  (landing-page::REQ-004/AC-07). An element rather than a scroll offset, because the two languages' texts
+  wrap to different heights.
 - **The features section** is built as the prototype was: a sticky frame, the nearest-to-middle rule
   computed on scroll (throttled to animation frames), a click scrolling the step to the frame's middle,
   and stacked screenshots below 760px.
@@ -262,7 +273,9 @@ Seams confirmed by the owner on 2026-10-13:
   pointer and GitHub bodies, drafts, a release without the DMG, and URLs on unexpected hosts.
 - **A check of the built site**: both pages are generated, the served HTML is in the list state with
   the release-list links, both languages' copy and screenshots are present, and every screenshot
-  declares its size.
+  declares its size. It reads a fresh build made for the run, never a previous one.
+- **The palette**: a unit test holds every token the page shares with the app to the app's purple values,
+  in light and in dark, and every token to a declaration in both.
 - **Evidence**: the features section's scroll and click behaviour, the four states' rendering, and
   landing-page::QR-001 are measured in a browser, as they were on the prototype (geometry and computed
   styles, not pixels), and the measurement record is kept.
@@ -282,7 +295,9 @@ Prior art: Transfer's site tests for its download configuration, and the prototy
   the install steps, the scroll-linked features section and the cropped screenshots. The owner also
   chose to read the pointer at run time and approved the screenshots for publication. The same day the
   owner confirmed the revised prototype's list state (landing-page::REQ-002/AC-04) and its
-  formal-from-GitHub state (landing-page::REQ-002/AC-02).
+  formal-from-GitHub state (landing-page::REQ-002/AC-02). On 2026-10-18 the owner chose the app icon for
+  the browser tab, and confirmed the revised prototype's hero icon: the real artwork, its shadow on its
+  outline.
 
 - The download host is `dl.agentshed.aloongplanet.com` (mac-distribution::REQ-004), and the pointer is
   `latest.json` at its root; the pointer's shape is in mac-distribution's Implementation Decisions.
