@@ -8,10 +8,10 @@
 //   parses them, so a hit's number and text are the ones that page shows.
 // - Degradation only hurts itself: a session whose questions cannot be read is left out, and the others
 //   are listed (REQ-003/AC-03).
-import type { AgentSide, GlobalSearchResult, GlobalSearchSession, ProjectEntry, ProjectStats, SessionMeta } from '@shared/domain'
+import type { GlobalSearchResult, GlobalSearchSession, ProjectEntry, ProjectStats, SessionMeta } from '@shared/domain'
 import { mergeKey } from '@shared/path-key'
 import { statSync } from 'node:fs'
-import { grokQuestionTextFromSlice, questionTextAt, type QuestionRec } from './question-index'
+import { questionTextOfRange, type QuestionRec } from './question-index'
 import { mapLimit, readRanges, type ByteRange } from './range-read'
 import type { TokenEngine } from './token-stats'
 import type { ScanRoots } from './types'
@@ -156,7 +156,7 @@ export class QuestionCorpus {
     const { texts } = await (this.opts.read ?? readRanges)(file, q.questions.map((r) => ({ start: r[0], end: r[1] })), 1)
     const questions: SessionTexts['questions'] = []
     q.questions.forEach((rec, idx) => {
-      const text = questionText(q.side, texts[idx])
+      const text = questionTextOfRange(q.side, texts[idx])
       // An unreadable question cannot match anything; the session's other questions still can
       if (text !== null) questions.push({ i: idx + 1, text, at: rec[3] })
     })
@@ -172,18 +172,6 @@ export class QuestionCorpus {
 function indexIdentity(file: string, questions: readonly QuestionRec[]): string {
   const st = statSync(file)
   return `${st.dev}:${st.ino}|${questions.map((r) => `${r[0]}-${r[1]}`).join(',')}`
-}
-
-/** One question's range → its displayed text, parsed as the session page parses it; null when unreadable */
-function questionText(side: AgentSide, raw: string): string | null {
-  // A Grok question's range can span several chunk lines, which concatenate raw
-  if (side === 'grok') return grokQuestionTextFromSlice(raw)
-  try {
-    const obj: unknown = JSON.parse(raw.trim())
-    return typeof obj === 'object' && obj !== null ? questionTextAt(side, obj as Record<string, unknown>) : null
-  } catch {
-    return null
-  }
 }
 
 /** The project list's projects, stale ones included, each with the sessions its Sessions tab lists */

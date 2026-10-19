@@ -26,6 +26,7 @@ import { appError } from '@shared/errors'
 import { useLanguage, useDict } from './language'
 import { GitFork } from './icons'
 import { useSessionSearchQuery } from './session-search-query'
+import { SessionHitCard } from './SessionHits'
 import { useArtifactContentQuery } from './artifact-content-query'
 
 type Tab = 'ov' | 'skills' | 'subagents' | 'plugins' | 'mcp' | 'memory' | 'sessions' | 'cfg' | 'arts'
@@ -369,42 +370,21 @@ function SessionsTab({
               </span>
             </div>
             {groups.map((g) => (
-              <div className="grp" key={g.file}>
-                <button className="gh row-btn" onClick={() => onOpenSession(g.file)}>
-                  <span className={`badge ${SIDE_BADGE[g.side].cls}`}>{SIDE_BADGE[g.side].label}</span>
-                  <span className="t">{g.title ?? t.placeholder.untitledSession}</span>
-                  {g.forkState === 'stripped' && <span className="pill fork">
-                      <GitFork size={10} /> fork
-                    </span>}
-                  {g.forkState === 'uncertain' && (
-                    <span className="pill forkq">
-                      <GitFork size={10} /> {t.detail.forkUncertain}
-                    </span>
-                  )}
-                  <span className="d">{t.detail.hitCount(g.hits.length)}</span>
-                </button>
-                {g.hits.map((h, hi) => (
-                  <button
-                    className="hit row-btn"
-                    key={`${h.i}-${h.inBody ? 'b' : 'q'}-${hi}`}
-                    onClick={() => onOpenSession(g.file, h.i)}
-                  >
-                    <span className="idx">{String(h.i).padStart(2, '0')}</span>
-                    <span className="t">
-                      <Highlight
-                        text={
-                          h.inBody && h.snippet !== null
-                            ? h.snippet
-                            : (h.text ?? t.placeholder.unreadableLine)
-                        }
-                        needle={needle.trim()}
-                      />
-                    </span>
-                    {h.inBody && <span className="bd">{t.detail.inBody}</span>}
-                    <span className="d">{fmtAgo(lang, h.at, now)}</span>
-                  </button>
-                ))}
-              </div>
+              <SessionHitCard
+                key={g.file}
+                side={g.side}
+                title={g.title}
+                forkState={g.forkState}
+                hits={g.hits.map((h) => ({
+                  i: h.i,
+                  at: h.at,
+                  inBody: h.inBody,
+                  text: h.inBody && h.snippet !== null ? h.snippet : (h.text ?? t.placeholder.unreadableLine)
+                }))}
+                needle={needle.trim()}
+                onOpen={() => onOpenSession(g.file)}
+                onOpenHit={(i) => onOpenSession(g.file, i)}
+              />
             ))}
           </>
         )}
@@ -494,25 +474,6 @@ function SearchBar({
       </span>
     </div>
   )
-}
-
-/** Highlighting matched text (case-insensitive; split as plain text, never through HTML). Global search's
- * hit rows use it too */
-export function Highlight({ text, needle }: { text: string; needle: string }): JSX.Element {
-  if (needle === '') return <>{text}</>
-  const lower = text.toLowerCase()
-  const k = needle.toLowerCase()
-  const parts: JSX.Element[] = []
-  let from = 0
-  for (let n = 0; ; n++) {
-    const i = lower.indexOf(k, from)
-    if (i === -1) break
-    if (i > from) parts.push(<span key={`t${n}`}>{text.slice(from, i)}</span>)
-    parts.push(<mark key={`m${n}`}>{text.slice(i, i + needle.length)}</mark>)
-    from = i + needle.length
-  }
-  parts.push(<span key="tail">{text.slice(from)}</span>)
-  return <>{parts}</>
 }
 
 function SkillRow({

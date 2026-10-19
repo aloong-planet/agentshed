@@ -20,7 +20,7 @@ import { mergeKey } from '@shared/path-key'
 import { deriveStats } from '@shared/usage'
 import { scan, walkSessions } from './providers/scan'
 import { readRanges } from './providers/range-read'
-import { grokQuestionTextFromSlice, questionTextAt } from './providers/question-index'
+import { questionTextOfRange } from './providers/question-index'
 import { turnBlocksFromText } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
 import { QuestionCorpus, corpusProjects } from './providers/question-corpus'
@@ -46,7 +46,7 @@ import { createPrefsHandlers } from './prefs-handlers'
 import { buildMenuTemplate } from './app-menu'
 import { ERR, appError } from '@shared/errors'
 import { effectiveLanguage, type Language } from '@shared/i18n'
-import { APP_VERSION_ARG, LANG_ARG, SYS_LANGS_ARG, TREND_SPAN_ARG, UPDATES_ARG } from '@shared/ipc'
+import { APP_VERSION_ARG, LANG_ARG, SEARCH_NEEDLE_MAX, SYS_LANGS_ARG, TREND_SPAN_ARG, UPDATES_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
 import { IDLE_UPDATE, parseSettingsCheck, parseUpdateNotice, parseUpdateState, type CheckOutcome, type SettingsCheck, type UpdateNotice, type UpdateState } from '@shared/update'
 import { UpdateController } from './update-controller'
@@ -320,19 +320,7 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
   const questions = q.questions.map((rec, idx) => {
     // A single bad line only hurts itself: that entry shows a placeholder without affecting the other
     // questions or dragging down the page
-    let text: string | null = null
-    if (q.side === 'grok') {
-      // A Grok question's range can span several chunk lines (they concatenate raw), so the whole
-      // slice is derived at once rather than parsed as one line
-      text = grokQuestionTextFromSlice(texts[idx])
-    } else {
-      try {
-        const obj: unknown = JSON.parse(texts[idx].trim())
-        if (typeof obj === 'object' && obj !== null) text = questionTextAt(q.side, obj as Record<string, unknown>)
-      } catch {
-        text = null
-      }
-    }
+    const text = questionTextOfRange(q.side, texts[idx])
     // Unreadable means passing null: the wording belongs to the renderer (ticket 07), and the main
     // process emits no user-facing natural language
     return { revision: questionRevision(identity, file, rec[0], rec[1], texts[idx]), i: idx + 1, text, at: rec[3], tools: rec[4], subagents: rec[5] }
@@ -398,7 +386,7 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
 handle(CMD.searchSessions, async (_e, raw: unknown) => {
   const a = raw as SearchSessionsArgs
   if (typeof a?.path !== 'string' || a.path === '') throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'path' })
-  if (typeof a?.needle !== 'string' || a.needle.length > 200)
+  if (typeof a?.needle !== 'string' || a.needle.length > SEARCH_NEEDLE_MAX)
     throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'needle' })
   if (typeof a?.fullText !== 'boolean') throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'fullText' })
   if (!tokenEngine) throw appError(ERR.engineNotReady)
@@ -415,7 +403,7 @@ handle(CMD.readSearchQuestions, async () => {
 })
 handle(CMD.globalSearch, async (_e, needle: unknown) => {
   // The keyword's length limit is the project search's (global-search S4)
-  if (typeof needle !== 'string' || needle.length > 200) throw appError(ERR.badArgs, { channel: 'globalSearch', field: 'needle' })
+  if (typeof needle !== 'string' || needle.length > SEARCH_NEEDLE_MAX) throw appError(ERR.badArgs, { channel: 'globalSearch', field: 'needle' })
   if (!questionCorpus) throw appError(ERR.engineNotReady)
   const r = await questionCorpus.search(needle)
   assertGlobalSearchResult(r)

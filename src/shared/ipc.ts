@@ -90,6 +90,10 @@ export interface SessionTurnArgs {
   i: number
 }
 
+/** The longest keyword either session search accepts — a project's own and global search; a longer one is refused
+ * at the IPC boundary as bad arguments */
+export const SEARCH_NEEDLE_MAX = 200
+
 export interface SearchSessionsArgs {
   /** The project path (the main process takes the session set from it; the renderer cannot supply file
    * paths) */

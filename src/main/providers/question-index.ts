@@ -283,6 +283,23 @@ export function questionTextAt(side: AgentSide, obj: Record<string, unknown>): s
   return raw === null ? null : realUserText(raw)
 }
 
+/**
+ * One question's byte range, as the question index records it → the question as the session page shows it;
+ * null when it cannot be read. A Grok question's range can span several chunk lines, which concatenate raw;
+ * on the other sides it is one JSON line. Every reader of question text goes through here — the session page,
+ * a project's session search and global search — so a hit's text is always the one the page shows.
+ */
+export function questionTextOfRange(side: AgentSide, raw: string): string | null {
+  if (side === 'grok') return grokQuestionTextFromSlice(raw)
+  try {
+    const obj: unknown = JSON.parse(raw.trim())
+    return typeof obj === 'object' && obj !== null ? questionTextAt(side, obj as Record<string, unknown>) : null
+  } catch {
+    // A single bad line only hurts itself
+    return null
+  }
+}
+
 /** The update record inside a Grok stream line, or undefined when the line is something else */
 function grokUpdate(obj: Record<string, unknown>): Record<string, unknown> | undefined {
   const params = obj['params'] as Record<string, unknown> | undefined

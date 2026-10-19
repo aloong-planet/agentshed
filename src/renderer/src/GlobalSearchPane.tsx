@@ -4,13 +4,10 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Snapshot } from '@shared/domain'
 import { StartupHint } from './StartupHint'
-import { useDisplayClock } from './DisplayClock'
-import { useDict, useLanguage } from './language'
-import { fmtAgo } from './ProjectsPane'
-import { Highlight } from './DetailPane'
+import { useDict } from './language'
 import { RichText } from './RichText'
-import { SIDE_BADGE } from './side-badge'
-import { Folder, GitFork, Inbox, RefreshCw, Search } from './icons'
+import { SessionHitCard } from './SessionHits'
+import { Folder, Inbox, RefreshCw, Search } from './icons'
 import { groupByProject, resultsArea, type SearchOrder } from './global-search-groups'
 import { useGlobalSearchQuery, useQuestionReading, type GlobalSearchQueryResult } from './global-search-query'
 
@@ -154,8 +151,6 @@ function Results({
   onOpen: (project: string, file: string, q: number | null) => void
 }): JSX.Element {
   const t = useDict()
-  const lang = useLanguage()
-  const now = useDisplayClock()
   const g = groupByProject(data.result.sessions, order)
   return (
     <>
@@ -182,32 +177,16 @@ function Results({
             <span className="pc">{t.search.projectCounts(gr.sessions.length, gr.hits)}</span>
           </div>
           {gr.sessions.map((s) => (
-            <div className="grp" key={s.file}>
-              <button className="gh row-btn" onClick={() => onOpen(gr.project.path, s.file, null)}>
-                <span className={`badge ${SIDE_BADGE[s.side].cls}`}>{SIDE_BADGE[s.side].label}</span>
-                <span className="t">{s.title ?? t.placeholder.untitledSession}</span>
-                {s.forkState === 'stripped' && (
-                  <span className="pill fork">
-                    <GitFork size={10} /> fork
-                  </span>
-                )}
-                {s.forkState === 'uncertain' && (
-                  <span className="pill forkq">
-                    <GitFork size={10} /> {t.detail.forkUncertain}
-                  </span>
-                )}
-                <span className="d">{t.detail.hitCount(s.hits.length)}</span>
-              </button>
-              {s.hits.map((h) => (
-                <button className="hit row-btn" key={h.i} onClick={() => onOpen(gr.project.path, s.file, h.i)}>
-                  <span className="idx">{String(h.i).padStart(2, '0')}</span>
-                  <span className="t">
-                    <Highlight text={h.text} needle={data.keyword} />
-                  </span>
-                  <span className="d">{fmtAgo(lang, h.at, now)}</span>
-                </button>
-              ))}
-            </div>
+            <SessionHitCard
+              key={s.file}
+              side={s.side}
+              title={s.title}
+              forkState={s.forkState}
+              hits={s.hits}
+              needle={data.keyword}
+              onOpen={() => onOpen(gr.project.path, s.file, null)}
+              onOpenHit={(i) => onOpen(gr.project.path, s.file, i)}
+            />
           ))}
         </Fragment>
       ))}

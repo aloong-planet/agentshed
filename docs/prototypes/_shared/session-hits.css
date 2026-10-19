@@ -110,6 +110,7 @@
 }
 [data-shared-block="session-hits"] .hit {
   display: flex;
+  align-items: center;
   gap: 9px;
   padding: 5px 14px 5px 32px;
   cursor: pointer;
