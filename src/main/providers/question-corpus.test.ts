@@ -391,6 +391,18 @@ describe('following the data after a scan (REQ-004/AC-02, D1–D3)', () => {
     expect((await corpus.search('papaya')).sessions).toEqual([])
   })
 
+  it('a search sent right after a scan asked for the update waits for it, and sees the new question', async () => {
+    const f = mkHome()
+    const { corpus, engine, listed } = await corpusOver()
+    await corpus.load()
+    appendClaude(f.a1, ['third: notarize once more'], 9)
+    listed.projects = await index(engine)
+    // The main process asks for the update and then sends the snapshot, whose arrival makes the renderer search
+    const updating = corpus.refresh()
+    expect(rows(await corpus.search('once more'))).toEqual([['a1.jsonl', 'alpha', false, [[3, 'third: notarize once more']]]])
+    await updating
+  })
+
   it('a corpus never asked for is not built: bringing it up to date reads nothing', async () => {
     mkHome()
     const { reads, read } = countingReader()

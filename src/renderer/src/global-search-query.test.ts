@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { QueryObserver } from '@tanstack/react-query'
 import type { GlobalSearchResult } from '@shared/domain'
 import { createQueryClient, invalidateOnSnapshot } from './query-client'
-import { fetchGlobalSearch, globalSearchQueryKey } from './global-search-query'
+import { fetchGlobalSearch, globalSearchQueryKey, questionReadingQuery } from './global-search-query'
 
 const result = { sessions: [] } as GlobalSearchResult
 
@@ -48,5 +48,34 @@ describe('invalidateOnSnapshot (every automatic rescan)', () => {
     invalidateOnSnapshot(client)
     for (const w of ws) await expect.poll(w.calls).toBe(2)
     for (const w of ws) w.stop()
+  })
+})
+
+describe('questionReadingQuery: asking for the reading when the page is shown (REQ-002/AC-01, S15)', () => {
+  /** A page shown: an observer mounted on the reading's query, until its fetch has settled */
+  async function show(client: ReturnType<typeof createQueryClient>, read: () => Promise<void>): Promise<() => void> {
+    const observer = new QueryObserver(client, questionReadingQuery(read))
+    const stop = observer.subscribe(() => {})
+    await expect.poll(() => observer.getCurrentResult().fetchStatus).toBe('idle')
+    return stop
+  }
+
+  it('a finished reading is not asked for again when the page is shown again', async () => {
+    const client = createQueryClient()
+    let asked = 0
+    const read = (): Promise<void> => { asked++; return Promise.resolve() }
+    ;(await show(client, read))()
+    ;(await show(client, read))()
+    expect(asked).toBe(1)
+  })
+
+  it('a failed reading is asked for again the next time the page is shown', async () => {
+    const client = createQueryClient()
+    let asked = 0
+    const read = (): Promise<void> => { asked++; return asked === 1 ? Promise.reject(new Error('failed')) : Promise.resolve() }
+    ;(await show(client, read))()
+    ;(await show(client, read))()
+    ;(await show(client, read))()
+    expect(asked).toBe(2)
   })
 })
