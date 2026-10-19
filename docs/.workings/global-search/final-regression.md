@@ -74,7 +74,8 @@ Searches for the rows above (Chinese and Japanese terms written as code points, 
   its caveat.
 - A stripped Codex fork's title — on the session page header and on a project's own search cards, not in any
   document this round changed: [#278](https://github.com/aloong-planet/agentshed/issues/278).
-- The landing page does not mention global search: the owner's decision is to add it later.
+- The landing page does not mention global search: the owner's decision is to add it later —
+  [#279](https://github.com/aloong-planet/agentshed/issues/279).
 
 ### After the owner's decisions (2d0a2ce)
 
