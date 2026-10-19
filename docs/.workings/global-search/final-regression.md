@@ -1,0 +1,91 @@
+# Global search — documentation regression
+
+Feature-level report of step 8 (the cross-regression after the feature catalogue is updated). One section per
+ticket in ticket order; the closeout ticket (#274) adds the full-feature section. Coverage verification per unit
+lives in [checklist.md](checklist.md), not here.
+
+## Ticket #271 — Global search: search every project's questions and open a hit's session
+
+- Date: 2026-10-19
+- Scope: this ticket's change only (not the full-feature closeout)
+- Version: branch `feat/global-search` on 57a6a5c, through a025015, with the documentation of this step as
+  committed for the ticket's PR
+- Languages in the searched files (counted by writing system, not assumed): `docs/features`, `docs/specs`,
+  `docs/adr` and `CONTEXT.md` are English with a few Han, Cyrillic and accented Latin quotations; the
+  dictionaries hold all six languages; the six READMEs one each. Searches below are written per language
+  where the counted files use it; the dictionaries are covered by the gates named in stage 2
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/global-search.md` status line and the new Pending note | what shipped (the page, the search, the jump; not the exits or the keyboard entry) | True; the note's condition is a product fact the next tickets make true |
+| `docs/specs/global-search.md` S2 (first launch with no saved data) | the page with no snapshot (the no-session state) | True after the write-back; not separately tested — recorded in the checklist |
+| `docs/specs/global-search.md` S7 (quotes, backslashes; line breaks read as spaces) | the corpus's parse (the session page's) and its case U4 | Was untrue for line breaks ("match as written" while the parse collapses them): corrected; the owner confirms it with the PR |
+| `docs/specs/global-search.md` Implementation Decisions, main (identity, update before the snapshot) | `question-corpus.ts`, `index.ts`; cases U10, U14 | True after the write-back |
+| `docs/specs/global-search.md` Implementation Decisions, renderer (last answer kept, previous answer while the next comes, reading asked once, focus) | `GlobalSearchPane.tsx`, `global-search-query.ts`; cases Q3, E3 | True after the write-back |
+| `docs/specs/global-search.md` failure modes for #271's units | tests | Each has a test or a stated gap (test review record: the untitled fallback, S15's renderer side end to end) |
+| `docs/features/global-search.md` (new), every line | the spec's user-visible layer for what #271 ships | True. Nothing of US-003/AC-01–AC-04 or US-004 is claimed; the back control line states today's single control |
+| `docs/features/README.md` row | the entry | Added |
+| `docs/features/projects-list.md` (scroll into view) | projects-list C8; e2e E3 | True |
+| `docs/adr/0034-global-search-question-corpus-in-memory.md` (accepted, identity wording, evidence) | the measurements (`evidence/ticket-271/measurements.md`); the corpus | True |
+| `docs/adr/README.md` row | the ADR's status | Accepted in both |
+| Dictionaries, six languages: `rail.search`, `search.*` | the spec's copy (US-001/AC-03, AC-08, REQ-002/AC-02, REQ-003/AC-01, REQ-006); the prototype's copy | True; `pnpm typecheck`, `check:i18n`, `check:ui` green; counted forms in the counted-noun test |
+| `scripts/check-shared-ui.mjs` rail exemption's reason | the six dictionaries | True: "search" is an ordinary word there (48 matches without the exemption) |
+| Code comments reworded ("the settings dimension") | the rail's four items | True |
+| CONTEXT (unchanged): **Global search**, the rail's four labels | the entry and the implementation | Same terms; the four labels now hold |
+| The global search prototype (unchanged) | the page as built, side by side at the same size and keyword | Same form. The one difference found — a hit row's number centred in the app, top-aligned in the prototype's shared piece — was settled for the app's way and the piece changed (see "Found outside") |
+
+### Stage 2: related declarations
+
+| Statement (unchanged file) | Its counterpart changed this round | Conclusion |
+|---|---|---|
+| `docs/specs/README.md` row: global-search → Global search feature | the new feature entry | True: the link now resolves |
+| `docs/features/session-view.md` search lines (a project's own search, its hits, the arrival highlight, "the project page stays put until the session page has arrived") | a hit opened from global search | True: they describe the project search; global search's arrival is in its own entry with the same highlight |
+| `docs/specs/projects-list.md` C8 | the list's reveal | True (e2e E3, and its mutation) |
+| `docs/specs/session-view.md` P10 | the session opened from a hit | Not yet true: it is #272's (the spec's Pending note says so); unchanged |
+| `docs/features/appearance.md`, `i18n.md`: "the settings entry at the foot of the rail" | the rail's new item | True: Settings keeps its bottom anchor (the update-slot case checks the Search item too) |
+| `docs/features/agents-overview.md`: the rail usable during the skeleton | the rail's new item | True: the item is a plain rail button |
+| CONTEXT invariant "a page switch is atomic and a revisit is instant" | the jump | True: the search page holds; a cached page opens at once (E3) |
+| CONTEXT invariant "every automatic rescan marks every cached page stale" | the snapshot invalidation | True: global search is in the list (Q2) |
+| ADR-0028 (the query layer) | the two new queries | True: non-suspense queries, invalidated on snapshot |
+| The six READMEs | a new capability | No statement about sessions or search: nothing turns false (search below) |
+| The landing page's copy: "Each session indexed by question … or search" | global search | True; it does not say "within a project". Whether the page advertises global search is a product choice, left to the owner |
+| Rule ↔ gate: every string in six languages, with plural forms | typecheck, `check:i18n`, the counted-noun test | The gates cover the new section: green; the counted test carries the new counted entries |
+| Rule ↔ gate: no copy names a rail control verbatim; no copy enumerates the sides | `pnpm check:ui` | New copy names neither; the new exemption is by key with its reason: green |
+
+Searches for the rows above (Chinese and Japanese terms written as code points, as the working-language gate requires): `rg -n -i "search|\x{641C}\x{7D22}|\x{691C}\x{7D22}|recherch|busca|поиск|rail|sidebar|session" README*.md` — no line (each README read: 7 lines, a one-sentence summary); `rg -n -i "search|session|\x{641C}\x{7D22}|\x{4F1A}\x{8BDD}|\x{691C}\x{7D22}|\x{30BB}\x{30C3}\x{30B7}\x{30E7}\x{30F3}|recherch|busca|sesi|поиск|сесси" site/src/i18n` — eight lines: the session card's title, body and image text and the token card's body, each in Chinese and English (the page's only languages); the session card's body is the line quoted above; `rg -n "Proposed" docs/specs/global-search.md docs/features CONTEXT.md` — none (exit 1); `rg -c "FETCH_DELAY" docs CONTEXT.md` — none (exit 1): the delay seam is described only in the code.
+
+### Stage 3: events
+
+| Event | Lines checked | Conclusion |
+|---|---|---|
+| The rail's items went from three to four (the dimensions from three to four) | `rg -n -i "third dimension|three dimensions|two dimensions|dimensions plus|Agents / Projects / Settings|Agents, Projects and Settings"` over docs, CONTEXT, src, e2e, scripts and the landing page; position-aligned structures (the rail-count e2e assertions, the prototype rail's item list, each dictionary's rail block) | The two code comments reworded; the two count assertions updated (4, and 5 with the update slot); the prototype's list already had Search; every dictionary's rail block has it (typecheck). The remaining "two dimensions" hits are the appearance spec's appearance × theme, unrelated |
+| Pending notes in scope | the new one in the global-search spec | Not expired: the exits and the keyboard entry are #272's and #273's |
+| A rule written this round | none new: the rail exemption applies the existing rule; the corpus's identity is a decision written into the spec and ADR-0034 | — |
+| ADR-0034 changed state (Proposed → Accepted) | every mention of 0034 in the docs and the working records | No document called it Proposed; #271's document sync item is done; #274's confirmation item stays Waiting for the closeout |
+| The coverage checklist's units for #271 verified | `checklist.md` Current verification | Rows added for every #271 unit and path, with the version and the evidence |
+
+### Found outside the change surface
+
+- A hit row's number: the app centred it (the project search's existing rule), the prototypes' shared hits
+  piece left it top-aligned. **Settled by the owner on 2026-10-19: centred, the app's way**; the shared piece
+  now centres it (2d0a2ce), measured level in both pages that use it. The stage 1 prototype row stands without
+  its caveat.
+- A stripped Codex fork's title — on the session page header and on a project's own search cards, not in any
+  document this round changed: [#278](https://github.com/aloong-planet/agentshed/issues/278).
+- The landing page does not mention global search: the owner's decision is to add it later.
+
+### After the owner's decisions (2d0a2ce)
+
+| Declaration surface | Checked against | Conclusion |
+|---|---|---|
+| `docs/prototypes/_shared/session-hits.css` (hit rows centred) | the app's hit rows; both pages that use the piece | Consistent with the app; `pnpm check:ui` green (2 usage sites) |
+| The refactors R1–R3 | `docs/features/`, the spec | No user-visible behaviour changes, so no document line turns false; the spec's Implementation Decisions name no module these touched |
+
+### Convergence
+
+Every row above was processed; the three text changes made here (the spec's S7, the feature entry's wording, the
+test review's method name) were re-read against their counterparts and produced no new row. The pre-delivery
+scope re-check (the ticket, the change, the runs, the current documents) found no further surface: the document
+sync checklist records it.

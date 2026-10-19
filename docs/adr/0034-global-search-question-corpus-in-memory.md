@@ -1,7 +1,6 @@
 # ADR-0034: Global search reads every project's question texts from main-process memory, warmed when its page opens
 
-- Status: Proposed (2026-10-19; to be accepted once the warm-up and the per-search cost are measured
-  in the running app, alongside a scan)
+- Status: Accepted (2026-10-19; proposed the same day, accepted on the in-app measurements under Sources)
 
 ## Context
 
@@ -39,8 +38,9 @@ at every startup.
 We adopt **option 1**. The main process keeps one question text per displayed question of every
 listed session in every project, stale projects included, as a corpus that exists only in memory and
 only for global search. Opening the global search page starts loading it; a search that arrives
-before loading finishes waits for it. The corpus follows the question index: a session whose index is
-rebuilt has its texts read again, and a session that leaves the listed set leaves the corpus. Nothing
+before loading finishes waits for it. The corpus follows the question index: a session whose question-index
+identity changes — its file, or the byte ranges of its displayed questions — has its texts read again (an
+answer appended to it does not), and a session that leaves the listed set leaves the corpus. Nothing
 of it is persisted. A project's own session search keeps reading from disk.
 
 ## Consequences
@@ -68,3 +68,11 @@ of it is persisted. A project's own session search keeps reading from disk.
 - The owner's rulings of 2026-10-19: global search matches questions only, over registered projects
   with stale ones included; the corpus is held in memory and warmed when the page opens.
 - `docs/specs/session-view.md` D2 and D2a; ADR-0011.
+
+**Evidence closed (accepted 2026-10-19)**: measured in the running app — the built app on this machine's agent
+data, with a copy of the app's own userData files, under Electron 43.2.0. Opening the page read every listed
+session's questions (113 sessions in 30 projects) in 3.06 s with no scan under way, and in 4.75 s with an
+automatic rescan every 1.5 s alongside it. A search's round trip from the renderer, IPC and validation included,
+took 3.5–13.9 ms at the median of seven runs per keyword (the longest single run 59 ms; 2132 and 2430 hits for
+two one-letter keywords), and 3.5–10.2 ms under the same rescans. After the searches, none of 25 sampled
+question texts that are not titles was found more often in any of the app's files than before the run.

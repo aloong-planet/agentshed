@@ -90,21 +90,22 @@ test('with no update in flight the slot takes no space; an update in flight sits
     let app = await launch(f)
     let win = await app.firstWindow()
     await expect.poll(() => requests(f)).toEqual(['check'])
-    await expect(win.locator('.rail .ri')).toHaveCount(3)
+    await expect(win.locator('.rail .ri')).toHaveCount(4)
     await expect(slot(win)).toHaveCount(0)
-    const idle = { agents: await box(win, '.rail .ri >> nth=0'), projects: await box(win, '.rail .ri >> nth=1'), settings: await anchored(win, '.ri.set') }
+    const idle = { agents: await box(win, '.rail .ri >> nth=0'), projects: await box(win, '.rail .ri >> nth=1'), search: await box(win, '.rail .ri >> nth=2'), settings: await anchored(win, '.ri.set') }
     await app.close()
 
     script(f, FOUND_HOLDING)
     app = await launch(f)
     win = await app.firstWindow()
     await expect(slot(win)).toBeVisible()
-    await expect(win.locator('.rail .ri')).toHaveCount(4)
+    await expect(win.locator('.rail .ri')).toHaveCount(5)
     // The other entries do not move, and Settings stays at its bottom anchor. Settings is compared by its
     // distance from the window's bottom: on Linux under xvfb two launches can get windows of different inner
     // heights (seen on CI, 27px apart), which moves a bottom-anchored entry by exactly that much
     expect(await box(win, '.rail .ri >> nth=0')).toEqual(idle.agents)
     expect(await box(win, '.rail .ri >> nth=1')).toEqual(idle.projects)
+    expect(await box(win, '.rail .ri >> nth=2')).toEqual(idle.search)
     expect(await anchored(win, '.ri.set')).toEqual(idle.settings)
     // Directly above Settings, in a 36px slot, one rail gap apart
     const s = await box(win, '[data-testid="update-slot"]')

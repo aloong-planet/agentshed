@@ -1,9 +1,10 @@
 import type { StartupStatus } from '@shared/display-data'
 import { StartupHint, StartupContext } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
-import { hydrateDisplayQueries } from './display-queries'
+import { displayQuery, hydrateDisplayQueries } from './display-queries'
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { invalidateOnSnapshot } from './query-client'
 import type { Snapshot } from '@shared/domain'
 import type { TrendSpan } from '@shared/trend'
 import { TrendSpanContext } from './TrendSpan'
@@ -23,12 +24,14 @@ import { AgentsPane } from './AgentsPane'
 import { AgentsSkeleton, ProjectsSkeleton } from './StartupSkeleton'
 import { DetailPane } from './DetailPane'
 import { SessionPane } from './SessionPane'
+import { GlobalSearchPane } from './GlobalSearchPane'
+import { fetchSessionPage, sessionPageQueryKey } from './session-page-query'
 import { SettingsPane } from './SettingsPane'
 import { Toasts, toast } from './Toast'
 import { UpdateSlot } from './UpdateSlot'
-import { Folder, MousePointerClick, RobotFace, Settings } from './icons'
+import { Folder, MousePointerClick, RobotFace, Search, Settings } from './icons'
 
-type Dim = 'agents' | 'projects' | 'settings'
+type Dim = 'agents' | 'projects' | 'search' | 'settings'
 
 function applyTheme(theme: AppearanceTheme): void {
   document.documentElement.dataset.theme = theme
@@ -63,6 +66,11 @@ export function App(): JSX.Element {
   // Returning from a session page lands on the "Sessions" section (the pane header's back control, "Back
   // to <project> · Sessions") rather than the overview
   const [backToSessions, setBackToSessions] = useState(false)
+  // A project selected from a global search hit has its row scrolled into view in the project list
+  // (projects-list C8); a one-shot request the list clears once it has done it
+  const [revealSelected, setRevealSelected] = useState(false)
+  // The pending jump from a global search hit: a later click, or leaving the search page, supersedes it
+  const jumpSeq = useRef(0)
   const [theme, setTheme] = useState<AppearanceTheme>(DEFAULT_THEME)
   // The mode is only used to render the segmented control's selected state: the effective light/dark is
   // decided by the main process's themeSource,
@@ -92,6 +100,37 @@ export function App(): JSX.Element {
   useLayoutEffect(() => {
     prefsRef.current = { theme, language: langPref, mode, trendSpan, autoCheckUpdates }
   })
+  /** A rail entry (or the application menu's equivalent): drops a pending jump from a search hit */
+  const navigate = (d: Dim): void => {
+    jumpSeq.current++
+    setDim(d)
+  }
+
+  /**
+   * Going from a global search hit to its session inside its project (global-search US-002): one
+   * transitioned update switches to Projects, selects the project and opens the session at the hit's
+   * question. The session page is fetched first, so the search page stays on screen until that page can be
+   * drawn whole; a session with a saved or cached page opens at once (US-002/AC-03, session-view P1, P4).
+   */
+  const openFromSearch = (project: string, file: string, q: number | null): void => {
+    const seq = ++jumpSeq.current
+    const go = (): void => {
+      if (seq !== jumpSeq.current) return // a later click won; its page is kept in the cache (P8)
+      startPaneTransition(() => {
+        setDim('projects')
+        setSelected(project)
+        setShownProject(project)
+        setOpenSession(file)
+        setOpenFocusQ(q)
+        setBackToSessions(false)
+        setRevealSelected(true)
+      })
+    }
+    const page = displayQuery(queryClient, sessionPageQueryKey(file), () => fetchSessionPage(file))
+    if (queryClient.getQueryData(page.queryKey) !== undefined || page.initialData() !== undefined) go()
+    else void queryClient.fetchQuery(page).then(go, go)
+  }
+
   const selectProject = (p: string | null): void => {
     setSelected(p)
     startPaneTransition(() => {
@@ -126,9 +165,7 @@ export function App(): JSX.Element {
       liveSnapshot++
       setStartup('ready')
       setSnap(s)
-      for (const name of ['projectDetail', 'sessionPage', 'turnContent', 'artifactContent', 'skillContent', 'skillFiles']) {
-        void queryClient.invalidateQueries({ queryKey: [name] })
-      }
+      invalidateOnSnapshot(queryClient)
     })
     async function restore(): Promise<void> {
       const generation = liveSnapshot
@@ -155,7 +192,10 @@ export function App(): JSX.Element {
     void restore()
     // The application menu's app entry point (ticket 13): it behaves exactly like the same-named
     // operation on the rail, going through the same state and functions rather than a second set
-    const offSettings = window.agentshed.onMenuOpenSettings(() => setDim('settings'))
+    const offSettings = window.agentshed.onMenuOpenSettings(() => {
+      jumpSeq.current++
+      setDim('settings')
+    })
     return () => {
       alive = false
       off()
@@ -255,23 +295,30 @@ export function App(): JSX.Element {
         <button
           className={`ri ${dim === 'agents' ? 'on' : ''}`}
           title={t.rail.agents}
-          onClick={() => setDim('agents')}
+          onClick={() => navigate('agents')}
         >
           <RobotFace size={17} />
         </button>
         <button
           className={`ri ${dim === 'projects' ? 'on' : ''}`}
           title={t.rail.projects}
-          onClick={() => setDim('projects')}
+          onClick={() => navigate('projects')}
         >
           <Folder size={17} />
+        </button>
+        <button
+          className={`ri ${dim === 'search' ? 'on' : ''}`}
+          title={t.rail.search}
+          onClick={() => navigate('search')}
+        >
+          <Search size={17} />
         </button>
         <div className="rail-bottom">
           <UpdateSlot />
           <button
             className={`ri set ${dim === 'settings' ? 'on' : ''}`}
             title={t.rail.settings}
-            onClick={() => setDim('settings')}
+            onClick={() => navigate('settings')}
           >
             <Settings size={17} />
           </button>
@@ -289,6 +336,8 @@ export function App(): JSX.Element {
               autoCheckUpdates={autoCheckUpdates}
               onAutoCheckUpdates={(on) => void onAutoCheckUpdates(on)}
             />
+        ) : dim === 'search' ? (
+          <GlobalSearchPane snap={snap} onOpen={openFromSearch} />
         ) : dim === 'agents' ? (
           snap === null ? (
             <AgentsSkeleton />
@@ -302,6 +351,8 @@ export function App(): JSX.Element {
             snap={snap}
             selected={selected}
             onSelect={selectProject}
+            revealSelected={revealSelected}
+            onRevealed={() => setRevealSelected(false)}
             detail={
               // The detail slot's one Suspense boundary (ADR-0028): the slot is already revealed when a
               // switch happens, so the Transition around `shownProject` holds this boundary's last

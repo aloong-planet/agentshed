@@ -371,9 +371,9 @@ test('cold start: the Agents page is the default landing, both summary cards ren
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   await expect(win.locator('.rail .ri').first()).toBeVisible()
-  // The rail holds the two dimensions plus settings — the global refresh control was removed
+  // The rail holds the three dimensions plus settings — the global refresh control was removed
   // (2026-08-23), so scans are automatic only and ⌘R belongs to the platform reload again
-  await expect(win.locator('.rail .ri')).toHaveCount(3)
+  await expect(win.locator('.rail .ri')).toHaveCount(4)
   await expect(win.locator('.rail .ri.grfr')).toHaveCount(0)
   await expect(win.locator('.pane-head h1')).toHaveText('Agents')
   // Three summary cards (CC / CODEX / GROK — an undetected side shows "not detected", not an error)
@@ -3412,7 +3412,7 @@ test('the sessions section: a fork session has its replay prefix stripped and is
 })
 
 
-// appearance ticket 02: the settings third dimension + the three appearance choices; data-theme applies
+// appearance ticket 02: the settings dimension + the three appearance choices; data-theme applies
 // immediately and entering and leaving settings does not lose the selection
 test('settings: the three appearance choices change data-theme, and entering and leaving settings keeps the selected project', async () => {
   // The delay (query layer, ADR-0028) makes a fresh fetch observably slower than a cached visit,

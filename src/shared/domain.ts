@@ -501,6 +501,33 @@ export interface SearchResult {
   folded: number
 }
 
+/** A global search hit (the globalSearch channel): one displayed question that matched */
+export interface GlobalSearchHit {
+  /** The question's index within the session's displayed set, from 1, sharing its source with the session page */
+  i: number
+  /** The question in full, as parsed (an unreadable question cannot match, so this is never null) */
+  text: string
+  at: number | null
+}
+
+/** A session with at least one global search hit, carrying its project so the renderer can group by it */
+export interface GlobalSearchSession {
+  project: { path: string; name: string; stale: boolean }
+  file: string
+  /** **null = no title**; the renderer produces the fallback wording */
+  title: string | null
+  side: AgentSide
+  forkState: ForkState
+  /** The session's last activity, the sort key */
+  at: number | null
+  /** In question order */
+  hits: GlobalSearchHit[]
+}
+
+export interface GlobalSearchResult {
+  sessions: GlobalSearchSession[]
+}
+
 /** One project's statistics (the data for the overview tab) */
 export interface ProjectStats {
   tokens: TokenStats

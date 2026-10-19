@@ -9,6 +9,7 @@ export const ru: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Проекты',
+    search: 'Поиск',
     settings: 'Настройки'
   },
 
@@ -105,6 +106,21 @@ export const ru: Locale = {
     pickProject: 'Выберите проект, чтобы увидеть детали',
     waitingUpdate: 'Показаны предыдущие данные, ожидается обновление',
     scanning: 'Сканирование сторон агентов…'
+  },
+  search: {
+    title: 'Поиск',
+    placeholder: (projects, sessions) => `Поиск по вопросам · сессий: ${sessions} · проектов: ${projects}…`,
+    placeholderNone: 'Поиск по вопросам…',
+    idle: 'Ищите то, о чём вы спрашивали, в сессиях всех проектов.',
+    idleSub: 'Нажмите на совпадение, чтобы открыть эту сессию на этом вопросе.',
+    reading: 'Чтение вопросов из сессий…',
+    hitsFound: (hits, sessions, projects) => `Найдено: **${hits}** · сессий: ${sessions} · проектов: ${projects}`,
+    projectCounts: (sessions, hits) => `сессий: ${sessions} · совпадений: ${hits}`,
+    noHits: (tab, fullText) =>
+      `Совпадений нет. Здесь ищутся только вопросы — чтобы искать в ответах и выводе инструментов, откройте проект и переключите его вкладку «${tab}» на «${fullText}».`,
+    failed: 'Этот поиск не удалось выполнить. Измените ключевое слово, чтобы повторить.',
+    noSessions: 'Пока нет сессий для поиска.',
+    noSessionsSub: 'Когда агент проведёт разговор в зарегистрированном проекте, его можно будет найти здесь.'
   },
   skills: {
     searchPlaceholder: 'Поиск skill…',

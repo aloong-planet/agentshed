@@ -22,6 +22,7 @@ export const zh = {
   rail: {
     agents: 'Agents',
     projects: 'Projects',
+    search: '搜索',
     settings: '设置'
   },
 
@@ -152,6 +153,21 @@ export const zh = {
     pickProject: '选择一个项目查看详情',
     waitingUpdate: '显示上次的数据，等待更新',
     scanning: '正在扫描各 agent 侧…'
+  },
+  /** Global search: the page's own copy (the sort words, hit counts and fork markers are the project search's) */
+  search: {
+    title: '搜索',
+    placeholder: (projects: number, sessions: number) => `在 ${projects} 个项目的 ${sessions} 个会话里搜提问…`,
+    placeholderNone: '搜提问…',
+    idle: '在所有项目的会话里搜你问过的话。',
+    idleSub: '点命中直接打开那个会话,定位到那条提问。',
+    reading: '正在读取各会话的提问…',
+    hitsFound: (hits: number, sessions: number, projects: number) => `找到 **${hits}** 条 · ${sessions} 个会话 · ${projects} 个项目`,
+    projectCounts: (sessions: number, hits: number) => `${sessions} 个会话 · ${hits} 条命中`,
+    noHits: (tab: string, fullText: string) => `没有命中。这里只搜提问;要搜回答与工具输出,进入项目后在「${tab}」分栏切到「${fullText}」。`,
+    failed: '这次搜索没能完成。修改关键词即可重试。',
+    noSessions: '还没有可搜索的会话。',
+    noSessionsSub: 'agent 在已注册的项目里开过对话后,这里就能搜到。'
   },
   /** Skills package preview and the file drawer (ticket 10) */
   skills: {

@@ -9,6 +9,7 @@ export const fr: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Projets',
+    search: 'Rechercher',
     settings: 'Réglages'
   },
 
@@ -106,6 +107,24 @@ export const fr: Locale = {
     pickProject: 'Sélectionnez un projet pour voir son détail',
     waitingUpdate: 'Données précédentes affichées, en attente de mise à jour',
     scanning: 'Analyse des côtés agents…'
+  },
+  search: {
+    title: 'Recherche',
+    placeholder: (projects, sessions) =>
+      `Rechercher dans les questions de ${sessions} ${plural('fr', sessions, { one: 'session', other: 'sessions' })} sur ${projects} ${plural('fr', projects, { one: 'projet', other: 'projets' })}…`,
+    placeholderNone: 'Rechercher dans les questions…',
+    idle: 'Recherchez ce que vous avez demandé dans les sessions de tous les projets.',
+    idleSub: 'Cliquez sur un résultat pour ouvrir cette session à cette question.',
+    reading: 'Lecture des questions des sessions…',
+    hitsFound: (hits, sessions, projects) =>
+      `**${hits}** ${plural('fr', hits, { one: 'résultat', other: 'résultats' })} · ${sessions} ${plural('fr', sessions, { one: 'session', other: 'sessions' })} · ${projects} ${plural('fr', projects, { one: 'projet', other: 'projets' })}`,
+    projectCounts: (sessions, hits) =>
+      `${sessions} ${plural('fr', sessions, { one: 'session', other: 'sessions' })} · ${hits} ${plural('fr', hits, { one: 'résultat', other: 'résultats' })}`,
+    noHits: (tab, fullText) =>
+      `Aucun résultat. Seules les questions sont recherchées ici — pour chercher dans les réponses et les sorties d’outils, ouvrez le projet et passez son onglet « ${tab} » en « ${fullText} ».`,
+    failed: 'Cette recherche n’a pas pu aboutir. Modifiez le mot-clé pour réessayer.',
+    noSessions: 'Aucune session à rechercher pour le moment.',
+    noSessionsSub: 'Dès qu’un agent aura eu une conversation dans un projet enregistré, elle pourra être recherchée ici.'
   },
   skills: {
     searchPlaceholder: 'Rechercher un skill…',

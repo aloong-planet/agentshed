@@ -6,7 +6,12 @@
 > [ADR-0016](../adr/0016-no-natural-language-across-ipc.md) · [session-view](session-view.md) (the session
 > page a hit opens, and a project's own session search) · CONTEXT: **Global search**, **Session**,
 > **Project**, **Stale project**, **Transfusion**
-> Status: specified 2026-10-19 (prototype gate passed the same day).
+> Status: specified 2026-10-19 (prototype gate passed the same day); the page, its search and a hit's
+> jump into its project shipped 2026-10-19.
+>
+> Pending: a session opened from a hit offers the way back to the results and the way into its project
+> (global-search::US-003), and ⌘⇧F and the Edit menu's "Search Sessions…" open the page
+> (global-search::US-004). Until they do, a hit's session shows the single back control.
 
 ## Problem Statement
 
@@ -196,7 +201,8 @@ with plural forms through the existing plural rules; no string enumerates the ag
   (global-search::REQ-002/AC-02).
 - S2 Open the page during the startup scan: the search runs over the sessions known from the saved
   display data, the header hint follows global-search::REQ-002/AC-02, and the first scan's snapshot then
-  updates the results by transfusion (global-search::REQ-004).
+  updates the results by transfusion (global-search::REQ-004). On a first launch, with no saved display data,
+  no session is known yet: the page is global-search::REQ-006's until the first scan's snapshot arrives.
 - S3 Type, then clear the box: the idle hint, at once; clearing never searches.
 - S4 A keyword of only spaces is empty (global-search::US-001/AC-02). A keyword longer than 200
   characters is refused at the IPC boundary as it is for a project's search, and the page shows the
@@ -205,8 +211,10 @@ with plural forms through the existing plural rules; no string enumerates the ag
 - S6 Case: matching ignores case for every letter the platform lowercases, not only ASCII — a project's
   own byte-level question pass folds ASCII only, so a non-ASCII letter's other case can hit here and miss
   there. Accepted; recorded so it is not reported as a defect.
-- S7 Keywords with quotes, backslashes or line breaks match the question as written, since the texts are
-  matched after parsing (a project's own search misses them in their escaped form, session-view D4).
+- S7 Keywords with quotes or backslashes match the question as written, since the texts are matched after
+  parsing (a project's own search misses them in their escaped form, session-view D4). A question written
+  over several lines is matched as the session page shows it, its line breaks as spaces, so the words either
+  side of a break match with a space between them; the box itself takes no line break.
 - S8 A long question or title is cut with an ellipsis on its line; its full text is on the session page.
   A question written over several lines shows on one line.
 - S9 A session marked uncertain strip may carry a few replayed questions at its start
@@ -271,9 +279,12 @@ with plural forms through the existing plural rules; no string enumerates the ag
   session in every project — built on first demand in a run and kept in memory (ADR-0034). It is read
   through the existing range reader (cold rollouts in one streaming pass each) with the existing bounded
   concurrency, from the question index the token engine already keeps, and each session's texts are
-  keyed by that session's question-index identity, so a rebuilt index replaces the texts. After each
-  scan, a corpus that exists is brought up to date for the changed, new and removed sessions; a corpus
-  never asked for is not built. Matching folds case on the parsed texts.
+  keyed by that session's question-index identity — the file (device and inode) and the byte ranges of its
+  displayed questions — so an index whose questions moved, grew or were stripped differently replaces the
+  texts, while an answer appended to a session does not. After each scan, a corpus that exists is brought
+  up to date for the changed, new and removed sessions, asked for before the snapshot is sent so the
+  renderer's search on receiving it waits for the update; a corpus never asked for is not built. Matching
+  folds case on the parsed texts.
 - **IPC**: two channels — one that starts reading (idempotent; it resolves when the texts are read), and
   one that searches a keyword and resolves with the matching sessions, each carrying its project's
   path, name and stale flag, its title, side, fork state and last activity, and its hits (turn number,
@@ -283,9 +294,12 @@ with plural forms through the existing plural rules; no string enumerates the ag
 - **Presentation order**: grouping by project and the two sort directions are one pure function over the
   payload, so the order is tested without the page.
 - **Renderer**: the rail gains a fourth dimension, search, third in its top group. The page keeps its
-  keyword, sort and scroll position for the run across leaving and returning; its query is a non-suspense
-  query keyed by the keyword (ADR-0028), invalidated by every snapshot like the session page's, so a
-  rescan refreshes it by transfusion. The page asks the main process to start reading when it is shown.
+  keyword, sort, scroll position and last answer for the run across leaving and returning; its query is a
+  non-suspense query keyed by the keyword (ADR-0028), invalidated by every snapshot like the session page's,
+  so a rescan refreshes it by transfusion. While the next keyword's answer is on its way the previous one
+  stays, highlighted with its own keyword, so the area never empties between keystrokes. The page asks the
+  main process to start reading when it is shown — once per run when the reading succeeds, again on the
+  next showing after a failure — and its box takes the focus, as the prototype's does.
 - **The jump**: one transitioned update switches the dimension to Projects, selects the project, and
   opens the session (with the question to locate, for a hit) — with the session page's data fetched
   before the switch, so the search page holds until the session page can be drawn whole. The session page
