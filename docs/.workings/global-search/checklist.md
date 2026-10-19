@@ -109,7 +109,8 @@ item; #274 = the closeout. Links: [global-search spec](../../specs/global-search
 #271's rows: verified on a025015 and re-run whole by the gateway on 2d0a2ce, after the owner's refactors (R1–R3)
 and the prototype's hit-row alignment; the refactors change no behaviour. The mutations the test review cites
 were taken on a025015; of the lines they targeted, only the hit card's markup moved, into a shared component
-drawing the same DOM.
+drawing the same DOM. Merged by #276 as 28c3c11 on 2026-10-19, its tree identical to the PR head 539c432, which
+holds 2d0a2ce's code.
 
 | Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
 |---|---|---|---|

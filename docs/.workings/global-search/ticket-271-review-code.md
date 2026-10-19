@@ -105,4 +105,4 @@ existing class's.
   both pages that use the piece by the text's own line boxes (`Range.getClientRects`), since the flex items'
   boxes are stretched to one height and their centres agree whatever the alignment: the number's text sat 3 px
   above the question's before, level after (global search 7 rows, project detail 4).
-- **The landing page: not now, later.** No change here; it has no lasting home yet — see the delivery notes.
+- **The landing page: not now, later** — held by [#279](https://github.com/aloong-planet/agentshed/issues/279).
