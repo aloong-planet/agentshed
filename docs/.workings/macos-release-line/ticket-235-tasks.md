@@ -40,7 +40,7 @@ the app (the to-spec prototype gate's list); the spec's Further Notes say the pr
 | 11 | Step 6: `/review-tests` after implementation | `ticket-235-review-tests.md` post-implementation section | done: one survivor beyond the design (B12) closed with a sixth P2 case |
 | 12 | The manual verification run (`verify` on) on the branch: real notarization; the ZIP's app and the metadata checked independently (policy §7), which is also skillshed#18's owed evidence | the run, its artifacts, the independent check, in `evidence/ticket-235/` | done: run 39216743638 green in 6m22s; the artifact checked independently (`evidence/ticket-235/verification-run.txt`), the metadata's sha512 and size equal to the ZIP's |
 | 13 | Spec final check and step 7: the spec, the runbook, the comment in `electron-builder.yml` | spec and records | done: below; the spec and the runbook written back; no ADR, CONTEXT term or postmortem |
-| 14 | Step 8 decision; document sync; PR; stop for the owner | PR link; CI | step 8 skipped by its two questions (`ticket-235-doc-sync.md`); PR pending |
+| 14 | Step 8 decision; document sync; PR; stop for the owner | PR link; CI | done: step 8 skipped by its two questions (`ticket-235-doc-sync.md`); PR #267, CI green (runs 39221455433, 39221455621); merged as e13f4ae on the owner's confirmation of 2026-10-19, CI on main green (run 39222702077) |
 
 ## Spec final check (2026-10-19, code read against the spec on the uncommitted tree)
 

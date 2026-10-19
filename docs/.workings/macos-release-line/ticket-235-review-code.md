@@ -87,6 +87,5 @@ way parallel sessions here work — nothing is detected and no update metadata i
   and detection works.
 - Here: answered by declaring the provider (this change), so agentshed no longer depends on detection.
 - Recommendation: fix the header in skillshed — "must be configured (detection reads `.git/config`, which a git
-  worktree does not have)" — and consider checking the metadata in the local profile too. Home: a comment on
-  zhoulf1006/skillshed#18 when its evidence is linked there (the asset's own ticket), or a new skillshed issue; the
-  owner decides which (the document sync checklist carries the row).
+  worktree does not have)" — and consider checking the metadata in the local profile too. Home: [zhoulf1006/skillshed#21](https://github.com/zhoulf1006/skillshed/issues/21),
+  the owner's choice of 2026-10-19 (a new skillshed issue rather than a comment on #18, which closed with its evidence).
