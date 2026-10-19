@@ -33,6 +33,19 @@ import { Folder, MousePointerClick, RobotFace, Search, Settings } from './icons'
 
 type Dim = 'agents' | 'projects' | 'search' | 'settings'
 
+/** The session on the project stage, with how it was opened: replacing or leaving it replaces both at once */
+type OpenSession = {
+  file: string
+  /** Ticket 08: going straight to a search hit — which question to locate when the page opens (from 1; null =
+   * no locating) */
+  focusQ: number | null
+  /** Opened directly from a global search hit, so its page offers the way back to the results and on into the
+   * project (global-search US-003). A session reached any other way — the fork banner's parent, a session
+   * opened inside a project — is a new value without it; the rail leaves the value alone, so leaving for the
+   * search page and coming back keeps the session with its exits (J7) */
+  fromSearch: boolean
+}
+
 function applyTheme(theme: AppearanceTheme): void {
   document.documentElement.dataset.theme = theme
 }
@@ -59,10 +72,7 @@ export function App(): JSX.Element {
   const [, startPaneTransition] = useTransition()
   // Session page view state (ticket 04): when non-empty, the project detail area is replaced wholesale
   // by the session page; switching project exits it
-  const [openSession, setOpenSession] = useState<string | null>(null)
-  // Ticket 08: going straight to a search hit — which question to locate when the session page opens
-  // (from 1; null = no locating)
-  const [openFocusQ, setOpenFocusQ] = useState<number | null>(null)
+  const [openSession, setOpenSession] = useState<OpenSession | null>(null)
   // Returning from a session page lands on the "Sessions" section (the pane header's back control, "Back
   // to <project> · Sessions") rather than the overview
   const [backToSessions, setBackToSessions] = useState(false)
@@ -71,11 +81,6 @@ export function App(): JSX.Element {
   const [revealSelected, setRevealSelected] = useState(false)
   // The pending jump from a global search hit: a later click, or leaving the search page, supersedes it
   const jumpSeq = useRef(0)
-  // The open session was opened directly from a global search hit, so its page offers the way back to the
-  // results and on into the project (global-search US-003). Any other session or project selection drops
-  // it — the fork banner's parent, going into the project, a session opened inside a project — while the
-  // rail does not: leaving for the search page and coming back keeps the session with its exits (J7)
-  const [fromSearch, setFromSearch] = useState(false)
   const [theme, setTheme] = useState<AppearanceTheme>(DEFAULT_THEME)
   // The mode is only used to render the segmented control's selected state: the effective light/dark is
   // decided by the main process's themeSource,
@@ -125,11 +130,9 @@ export function App(): JSX.Element {
         setDim('projects')
         setSelected(project)
         setShownProject(project)
-        setOpenSession(file)
-        setOpenFocusQ(q)
+        setOpenSession({ file, focusQ: q, fromSearch: true })
         setBackToSessions(false)
         setRevealSelected(true)
-        setFromSearch(true)
       })
     }
     const page = displayQuery(queryClient, sessionPageQueryKey(file), () => fetchSessionPage(file))
@@ -142,9 +145,16 @@ export function App(): JSX.Element {
     startPaneTransition(() => {
       setShownProject(p)
       setOpenSession(null)
-      setOpenFocusQ(null)
       setBackToSessions(false)
-      setFromSearch(false)
+    })
+  }
+
+  /** Leaving the session page for its project's Sessions tab: the back control, and the way on into the
+   * project from a session opened from global search (global-search US-003/AC-03) */
+  const backToProject = (): void => {
+    startPaneTransition(() => {
+      setOpenSession(null)
+      setBackToSessions(true)
     })
   }
 
@@ -210,6 +220,9 @@ export function App(): JSX.Element {
       offSettings()
     }
   }, [queryClient])
+
+  // The project on the project stage, for its session page's name and stale flag
+  const shown = snap?.projects.find((p) => p.path === shownProject)
 
   async function onTrendSpan(span: TrendSpan): Promise<void> {
     touchedPrefs.current.add('trendSpan')
@@ -368,38 +381,19 @@ export function App(): JSX.Element {
               <Suspense fallback={null}>
                 {shownProject && openSession ? (
                   <SessionPane
-                    file={openSession}
-                    focusQ={openFocusQ}
-                    projectName={snap.projects.find((p) => p.path === shownProject)?.name ?? shownProject}
+                    file={openSession.file}
+                    focusQ={openSession.focusQ}
+                    projectName={shown?.name ?? shownProject}
                     now={now}
-                    onBack={() => {
-                      startPaneTransition(() => {
-                        setOpenSession(null)
-                        setOpenFocusQ(null)
-                        setBackToSessions(true)
-                      })
-                    }}
+                    onBack={backToProject}
                     onOpenSession={(f) => {
                       startPaneTransition(() => {
-                        setOpenSession(f)
-                        setOpenFocusQ(null)
-                        setFromSearch(false)
+                        setOpenSession({ file: f, focusQ: null, fromSearch: false })
                       })
                     }}
                     exits={
-                      fromSearch
-                        ? {
-                            stale: snap.projects.find((p) => p.path === shownProject)?.stale ?? false,
-                            onBackToSearch: () => navigate('search'),
-                            onGoToProject: () => {
-                              startPaneTransition(() => {
-                                setOpenSession(null)
-                                setOpenFocusQ(null)
-                                setBackToSessions(true)
-                                setFromSearch(false)
-                              })
-                            }
-                          }
+                      openSession.fromSearch
+                        ? { stale: shown?.stale ?? false, onBackToSearch: () => navigate('search'), onGoToProject: backToProject }
                         : undefined
                     }
                   />
@@ -410,10 +404,8 @@ export function App(): JSX.Element {
                     initialTab={backToSessions ? 'sessions' : undefined}
                     onOpenSession={(f, q) => {
                       startPaneTransition(() => {
-                        setOpenSession(f)
-                        setOpenFocusQ(q ?? null)
+                        setOpenSession({ file: f, focusQ: q ?? null, fromSearch: false })
                         setBackToSessions(false)
-                        setFromSearch(false)
                       })
                     }}
                   />
