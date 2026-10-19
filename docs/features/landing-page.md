@@ -38,7 +38,7 @@ explains the install, and always offers whichever release exists, without being 
 - Links to GitHub open in a new tab; a direct download starts in place
 
 ## Boundaries and non-goals
-- Chinese and English only, although the app itself speaks six languages
+- Chinese and English only
 - One download only: the disk image for Macs with Apple Silicon on macOS 12 or later. There is no Intel,
   Windows or Linux download
 - When a stable version exists, a newer test version is not offered on the page; it is reached through

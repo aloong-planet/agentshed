@@ -7,7 +7,8 @@ a product overview written for people.
 - Future plans belong in the roadmap; history in git / release notes; implementation and decisions in
   docs/adr.
 - Content rules: user-visible behaviour only, zero implementation detail; terminology comes from
-  CONTEXT.md.
+  CONTEXT.md. Distribution is not catalogued: how the app is packaged, signed and published, and so how to
+  install it, is told by the README.
 
 | Feature | In one line |
 |---|---|

@@ -329,8 +329,8 @@ not copy the policy.
 - Download statistics (deferred, ADR-0031 option 10).
 - The in-app updater itself ([app-update](app-update.md)), and the landing page
   ([landing-page](landing-page.md)).
-- A feature entry: the feature catalogue describes the app itself, and distribution is outside it. How to
-  get the app is told by the README and the landing page.
+- A feature entry: the feature catalogue leaves distribution out (how the app is packaged, signed and
+  published). How to get the app is told by the README and the landing page.
 
 ## Further Notes
 
