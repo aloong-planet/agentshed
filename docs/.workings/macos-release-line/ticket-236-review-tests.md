@@ -162,3 +162,39 @@ file in 121 ms, the publish file in 78 ms. Nothing is loaded twice.
 
 Conclusion: the tests match the table, and each is shown able to fail on the failure it exists for. Open: the
 first formal release.
+
+## Retrospective probe (2026-10-19, after the PR opened)
+
+The owner asked whether making each test red had found a real problem. It had not.
+
+- **The designed mutations found nothing.** All 50 designed mutations (#234's 28, #236's 22) were caught on
+  their first run, and none changed a test or the code. They were drawn from the test design table, one for
+  each listed failure mode, so they share the tests' source. They show the wiring holds: each test reaches its
+  code and its assertions run. They cannot show the list of failure modes is complete.
+- **The real problems were found by other means:**
+  - #234's artifact layout and its `APPLE_ID`: by real runs;
+  - #236's arch reading and its wrong comment: by reading the code.
+
+### Mutations outside the designed set
+
+[evidence/ticket-236/probe-mutations.txt](evidence/ticket-236/probe-mutations.txt):
+
+| Mutation | Result | Effect if it happened |
+|---|---|---|
+| X1 `runAws` accepts a failed aws | survives | A failed upload leaves the mirror job green. The pointer job's read-back would then fail it, so the failure shows on the wrong job |
+| X2 the mirror's CLI swallows every error | survives | Every failure of either step leaves a green job, and the run is green while `latest.json` is not rewritten |
+| X3 no pause between reads | survives | The retry loses its meaning |
+| P1 the publish step's CLI swallows every error (on main since #234) | survives | The mirror could run after a publish that failed |
+
+- **Reach, shown without the tests**: the mirror's CLI, run with a fake aws that always fails, exits 1 on the
+  current code and 0 with X1 or with X2. The current code is right; nothing guards it.
+- **The cause is where the seam sits**: every case calls `main()` with injected `run` and `probe`. The command
+  adapters and the process exit code, which decide whether a job is red, are outside every test.
+  `release-tag.mjs`, tested as a process, does not have this gap.
+
+**Disposition (owner, 2026-10-19):**
+
+- No tests are added for the process wiring, in #259 or later. The current behaviour was checked by hand,
+  above.
+- `/review-tests` is not changed.
+- The lesson is kept in the session's memory, outside the repository.
