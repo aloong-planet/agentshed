@@ -4,7 +4,9 @@ Source: the body of [#251](https://github.com/aloong-planet/agentshed/issues/251
 and the owner's decisions of the same day (no spec: #251 is the requirement source; one branch, one PR; the
 xAI segment colour is settled, its value taken from the app). Of #250's items only item 4 is in this round,
 added with the code review's refactor list by the owner's decision of 2026-10-18.
-Source commit: 26b9216 (origin/main when the work began).
+Source commit: 26b9216 (origin/main when the work began). On 2026-10-19 the branch was rebased onto 1b58a84,
+which merged the landing-page PR; the commit references here are the rebased ones, whose contents
+`git range-diff` shows unchanged.
 Scope: everything under `docs/prototypes/` that #251 names, `scripts/check-shared-ui.mjs`, the `check:ui`
 script, and the documents that describe the derived-file arrangement (ADR-0018 and the ADR index).
 
@@ -39,9 +41,9 @@ lines; each names the tier that backs it.
 
 | Check date, source and implementation commits | Unit | Actual result and evidence | Current conclusion |
 |---|---|---|---|
-| 2026-10-18; 26b9216; 03cbaa7 plus the review fixes | 251::1 | Re-copied files byte-equal to their masters (app-identity.js already was); item 1 script: cleared storage shows en/light/purple with untouched preferences; explicit preferences become the gallery's fr/light; Follow system stays and shows ja/dark; reopening keeps both; an open page follows a change from another tab | Verified |
-| same | 251::2 | `rg -n "<Chinese prefix>" --glob "!landing-page/**"` under docs/prototypes: exit 1 (landing page waits) | Verified except the landing page |
-| same | 251::3 | `rg -n 'XAI_CAND\|class="pick"'`: exit 1; the Agents page draws `--p-xai` from the shared theme (#ad98d0 / #c9b3ec, the app's values) | Verified |
+| 2026-10-18; 26b9216; 2027ffb plus the review fixes | 251::1 | Re-copied files byte-equal to their masters (app-identity.js already was); item 1 script: cleared storage shows en/light/purple with untouched preferences; explicit preferences become the gallery's fr/light; Follow system stays and shows ja/dark; reopening keeps both; an open page follows a change from another tab | Verified |
+| 2026-10-19; 26b9216; the landing page converted in ffbaea0 (rebased onto 1b58a84, which merged the landing-page PR) | 251::2 | `rg -n "<Chinese prefix, with or without the space>"` over docs/prototypes, landing page included: exit 1; control: "Demo ·" found in 10 files | Verified |
+| 2026-10-18; 26b9216; 2027ffb plus the review fixes | 251::3 | `rg -n 'XAI_CAND\|class="pick"'`: exit 1; the Agents page draws `--p-xai` from the shared theme (#ad98d0 / #c9b3ec, the app's values) | Verified |
 | same | 251::5 | `rg -n "sync-(theme\|icons\|project-side\|startup-skeleton)\|css-blocks"` under docs/prototypes and scripts: exit 1; no "Derived file" header outside sync-mmd's own outputs | Verified |
 | same | 251::6 | Shell: the scan button is a two-option group in the bar; the header no longer calls the rail static | Verified |
 | same | 251::7 | The skill's helper block verbatim on the ten pages that render `data-goto`; 45 entries clicked opened alone, all landed, none targets its own page; inside the gallery every entry switches the hash | Verified |
@@ -49,15 +51,16 @@ lines; each names the tier that backs it.
 | same | 251::9 | Dictionary claims: one historical note left, rewritten; a case-insensitive search for the Chinese and English wordings of "from the app's dictionary" and for `i18n/` under docs/prototypes then exits 1; `_shared/copy.js` holds 32 entries in each language, each removed from every page that had it | Verified |
 | same | 251::10 | `pnpm check:ui` (no tier) exit 0; mutations of four kept rules and of the new app-window block each exit 1 with the rule's message | Verified |
 | same | 251::11 | `rg -n "mockSystemDark\|SYSTEM_LANGS\|sysTheme"`: exit 1; no select in any bar | Verified |
-| same | 251::12 | No style rule names the bar on any converted page; no `<select>` and no `style` inside a bar; bars render in the dock look (screenshots) | Verified except the landing page |
-| same | 251::13 | Ten app-window pages: `body` block/visible, the window box carries the root styles; md-preview's sheet on `.sheet`; `rg -n "^\s*(html\s*,\s*)?body\s*\{"` over the UI pages hits only the landing page | Verified except the landing page |
-| same | 251::14 | `rg -n "src/"` over the pages: only mock content (session transcripts, a mock subagent description, the skills fixture) | Verified |
+| 2026-10-19; landing page converted in ffbaea0 | 251::12 | No style rule names the bar on any page; `rg -n '<select'` over the pages: exit 1; no `style` inside a bar; bars render in the dock look (screenshots). Landing page: its own bar styles deleted; the download state is one choice of four in two groups (each fits a 400px line); its light/dark switch is gone because it simulated the visitor's system (#251's "Done when", harness clause 5) — the page follows the gallery's mode instead, verified stored value, another tab and inside the gallery | Verified |
+| 2026-10-19; landing page converted in ffbaea0 | 251::13 | Ten app-window pages: `body` block/visible, the window box carries the root styles; md-preview's sheet on `.sheet`; `rg -n "^\s*(html\s*,\s*)?body\s*\{"` over the UI pages hits only the landing page, whose `body` rule is the web page's own root (no app window on that page), as its header now says | Verified |
+| 2026-10-18; 26b9216; 2027ffb plus the review fixes | 251::14 | `rg -n "src/"` over the pages: only mock content (session transcripts, a mock subagent description, the skills fixture) | Verified |
 | same | 251::15 | Skills preview flat only and md-preview V2 only; snapshot diff limited to the removed rows and texts | Verified |
-| same | 251::done | 48 snapshots (12 pages × zh/en × light/dark) with no page error; the gallery loads all 15 entries; `pnpm verify` exit 0 (830 unit, 135 e2e, smoke OK) | Verified; the landing page reruns with its conversion |
-| 2026-10-18; 26b9216; e9701ea plus the follow-up, measured before it was committed as 8ee4eec, cfa2f43 and adff9a2 (same content) | 251::R1 | Before: the session page covered the rail's Settings item at 1280 alone and in the gallery, the settings page its Update and Settings items at 1440 alone. After: no rail item covered on any of the 8 bar pages in any of the 4 combinations; only those two bars changed (now 738 and 927px wide at 1280); `cmp` with the skill's master: identical | Verified; the landing page reruns with its conversion |
+| 2026-10-18 and, for the landing page, 2026-10-19 in ffbaea0 | 251::done | 48 snapshots (12 pages × zh/en × light/dark) with no page error; the gallery loads all 15 entries; `pnpm verify` exit 0 (830 unit, 135 e2e, smoke OK), and again after the rebase and the landing page (830 unit, 98 script, 35 site, 135 e2e, smoke OK). Landing page after its conversion: no page error alone or in the gallery; with the bar hidden, all four download states × light/dark match the committed page to the pixel except the review note's changed line and, in dark with the test version, the warning colours (next row) | Verified |
+| 2026-10-19; landing page converted in ffbaea0 | 251::12, landing tokens | Following the mode made `check:ui` require the shared theme on the landing page, which had hand-copied twelve of its tokens: ten equal in both modes, while `--warn-bg` and `--warn-fg` had drifted in dark. The page now links `_shared/theme.css` and keeps only its own five tokens; the test-version pill and note in dark take the shared warning colours. `check:ui` exit 0 | Verified; the colour change goes to the owner with the preview |
+| 2026-10-18; 26b9216; b853c74 plus the follow-up, measured before it was committed as 7b52c8b, 70159e6 and 9ac06b6 (same content) | 251::R1 | Before: the session page covered the rail's Settings item at 1280 alone and in the gallery, the settings page its Update and Settings items at 1440 alone. After: no rail item covered on any of the 8 bar pages in any of the 4 combinations; only those two bars changed (now 738 and 927px wide at 1280); `cmp` with the skill's master: identical. The landing page has no rail; its bar stays inside the viewport at 400, 760 and 1040px | Verified |
 | same | 251::R2 | The three toasts in the prototypes all stand at 18px; on the settings page the toast lies over the bar's last note line only (1280 and 1440) | Verified |
 | same | 250::4 | Both previews: mask 0.35 and drawer shadow 0.12 in all six palette × mode states (before: 0.5 and 0.45 in dark); drawers opened by clicks in dark render those values; the comments no longer mention the app's values | Verified |
-| same | all units | 48 snapshots against e9701ea: text identical, pixels identical but for 2 antialiasing pixels; check:ui, check:lang, check:nul exit 0 | Verified |
+| same | all units | 48 snapshots against b853c74: text identical, pixels identical but for 2 antialiasing pixels; check:ui, check:lang, check:nul exit 0 | Verified |
 
 ## Two-way audit
 

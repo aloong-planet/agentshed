@@ -14,7 +14,7 @@ browser evidence against a snapshot of the original pages. The test design table
 
 ## Post-implementation check
 
-Checked 2026-10-18 on 03cbaa7 plus the review fixes committed with this record, after the full verification
+Checked 2026-10-18 on 2027ffb plus the review fixes committed with this record, after the full verification
 gateway (`pnpm verify`) passed.
 
 ### Coverage
@@ -59,7 +59,7 @@ No test resources are added; the full gateway loads what it loaded before.
 
 ## Post-implementation check — the executed refactor list
 
-Checked 2026-10-18 on e9701ea plus the follow-up, before it was committed as 8ee4eec, cfa2f43 and adff9a2
+Checked 2026-10-18 on b853c74 plus the follow-up, before it was committed as 7b52c8b, 70159e6 and 9ac06b6
 (the dock's row cap, two toast positions, #250
 item 4). Still no unit, integration or e2e test added or changed; the evidence is browser probes.
 
@@ -93,6 +93,33 @@ attributes the stylesheet keys on.
   page's own tokens.
 - The 48-snapshot comparison hides the bar and shows no toast or drawer, so it cannot see these changes; it
   is used only to show nothing else moved.
+
+### Resource reuse
+
+No test resources are added.
+
+## Post-implementation check — the landing page
+
+Checked 2026-10-19 on 6341072 plus the landing page's conversion, committed as ffbaea0. No test added or changed; browser probes.
+
+### Coverage
+
+Bar (look, each option, what it drives), light/dark (stored value, another tab, inside the gallery), pixels
+against the committed page in four states × light and dark with the bar hidden, the bar at three widths, and
+the page's tokens against the shared theme.
+
+### Case design
+
+Rendered state only (rectangles, computed values, links, screenshots). The old page was driven through its own
+selects for the comparison.
+
+### False greens
+
+- The pixel comparison is not blind: it reported the review note's changed line in all eight states and the
+  warning colours in dark with the test version, at the rows where those elements sit.
+- The token search was checked against the committed landing page, where it finds six definitions.
+- The width probe first went red (the single four-option group was 511px wide in a 384px bar at 400px), which
+  led to the split into two groups.
 
 ### Resource reuse
 
