@@ -9,6 +9,9 @@ which merged the landing-page PR, and later that day onto 0e661a9, after #238's 
 prototype's dark warning pair to the app's values. The commit references here are the rebased ones, whose
 contents `git range-diff` shows unchanged; the second rebase met one conflict, on the landing page's dark token
 block, and resolved it to this branch's side, so the page is byte-equal to its pre-rebase version.
+The branch merged to main on 2026-10-19 as 81537dd (#264, squashed, by the owner's confirmation); main's tree
+there equals the branch head ae29ee8, on which the pull request's CI passed. The branch commits named here are
+not on main; they stay reachable through #264.
 Scope: everything under `docs/prototypes/` that #251 names, `scripts/check-shared-ui.mjs`, the `check:ui`
 script, and the documents that describe the derived-file arrangement (ADR-0018 and the ADR index).
 
