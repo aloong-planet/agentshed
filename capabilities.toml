@@ -24,6 +24,9 @@ enabled = true
 source = "playwright.config.ts"
 enforced-by = ["pnpm e2e"]
 
+[red-green-mutation]
+enabled = false
+
 [theming]
 enabled = true
 source = ["src/renderer/src/theme.css", "site/src/styles/global.css"]
