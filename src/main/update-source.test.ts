@@ -7,6 +7,7 @@
 // Testing Decisions).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { UPDATE_FEED, chooseUpdateSource, scriptedUpdateSource, updaterSettings } from './update-source'
@@ -30,6 +31,17 @@ describe('updaterSettings', () => {
 
   it('reads GitHub Releases of this repository, never the R2 mirror (CON-002)', () => {
     expect(UPDATE_FEED).toEqual({ provider: 'github', owner: 'aloong-planet', repo: 'agentshed' })
+  })
+
+  // The packaging writes the update metadata for the provider it is given (electron-builder.yml's publish), and
+  // releases go where that provider says; the app reads UPDATE_FEED. The two must name the same place, or the app
+  // looks for releases where none are published. Parsed with the YAML parser electron-builder itself uses, which the
+  // packaging asset loads (build/mac-packaging.cjs)
+  it('the packaging publishes where the app reads (mac-distribution::REQ-001/AC-02)', () => {
+    const require = createRequire(import.meta.url)
+    const { yamlParser } = require('../../build/mac-packaging.cjs') as { yamlParser: () => { load: (text: string) => unknown } }
+    const config = yamlParser().load(readFileSync(new URL('../../electron-builder.yml', import.meta.url), 'utf8')) as { publish?: unknown }
+    expect(config.publish).toEqual(UPDATE_FEED)
   })
 })
 

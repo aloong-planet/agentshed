@@ -1,18 +1,31 @@
 #!/usr/bin/env node
 // macOS Developer ID packaging for electron-builder projects (electron-scaffold's macos-signing.md, section 3).
 //
-//   node build/mac-packaging.cjs local          one builder call: sign every arch's .app and DMG, never notarize
+//   node build/mac-packaging.cjs local          one builder call: sign every arch's .app and DMG (and zip the app when
+//                                               configured), never notarize
 //   node build/mac-packaging.cjs release        the same call plus this file as the afterSign hook, which notarizes
-//                                               and staples each .app before its DMG is built
-//   node build/mac-packaging.cjs notarize-dmg   the DMG gate: notarize, staple and verify every DMG
+//                                               and staples each .app before its DMG and ZIP are built
+//   node build/mac-packaging.cjs notarize-dmg   the DMG gate: check the artifact set, then notarize, staple and verify
+//                                               every DMG
 //
 // Run from the project root through the package scripts: the build calls electron-vite and electron-builder by
-// name, which resolve from node_modules/.bin only there. Requirements in electron-builder.yml: a mac `dmg` target
-// with an arch list, `directories.output` using at most `${version}`, `mac.notarize: false`, and
-// `dmg.artifactName: ${productName}-${version}-mac-${arch}.dmg` (checked at run time). The release profile and the
-// DMG gate read APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID; the certificate comes from the login
-// keychain or, in CI, from CSC_LINK. The YAML parser is the js-yaml that electron-builder itself depends on.
+// name, which resolve from node_modules/.bin only there. Requirements in electron-builder.yml, all checked at run
+// time before building: a mac `dmg` target with an arch list, `directories.output` using at most `${version}`,
+// `mac.notarize: false`, `dmg.sign: true` and `dmg.artifactName: ${productName}-${version}-mac-${arch}.dmg`.
+//
+// The ZIP electron-updater installs from is opted into by a mac `zip` target with the same arch list as the dmg
+// target; without one, only DMGs are built and gated. With it, electron-builder.yml must also set
+// `mac.artifactName: ${productName}-${version}-mac-${arch}.${ext}` (the ZIP's name: electron-builder takes no
+// zip-specific options) and `dmg.writeUpdateInfo: false` (the DMG gate staples each DMG after electron-builder hashed
+// it, so the update metadata may list only the ZIPs), and a publish provider must be configured or detectable (a
+// GitHub repository is): without one electron-builder writes no update metadata (`<channel>-mac.yml`). Nothing
+// writes the ZIP after the build: the metadata records its size and sha512, which the DMG gate checks first.
+//
+// The release profile and the DMG gate read APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID; the
+// certificate comes from the login keychain or, in CI, from CSC_LINK. The YAML parser is the js-yaml that
+// electron-builder itself depends on.
 
+const crypto = require('node:crypto')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
@@ -20,6 +33,8 @@ const { spawnSync } = require('node:child_process')
 
 const KNOWN_ARCHES = ['arm64', 'x64', 'universal']
 const DMG_ARTIFACT_NAME = '${productName}-${version}-mac-${arch}.dmg'
+// electron-builder takes no zip-specific options, so the ZIP is named by the mac-wide pattern
+const ZIP_ARTIFACT_NAME = '${productName}-${version}-mac-${arch}.${ext}'
 
 /**
  * The js-yaml electron-builder depends on, resolved through electron-builder's own dependency tree so the project
@@ -32,7 +47,8 @@ function yamlParser(resolve = require.resolve) {
   } catch (error) {
     throw new Error(
       'cannot load js-yaml through electron-builder (electron-builder → app-builder-lib → js-yaml); ' +
-        `is electron-builder installed? (${error instanceof Error ? error.message : String(error)})`
+        `is electron-builder installed? (${error instanceof Error ? error.message : String(error)})`,
+      { cause: error }
     )
   }
 }
@@ -63,8 +79,34 @@ function resolveLayout(config, packageJsonText) {
   if (config?.dmg?.artifactName !== DMG_ARTIFACT_NAME) {
     throw new Error(`electron-builder.yml must set dmg.artifactName: ${DMG_ARTIFACT_NAME} (found: ${config?.dmg?.artifactName ?? 'nothing'})`)
   }
+  // electron-builder leaves the DMG unsigned without it, which the signature check would only find after the build
+  if (config.dmg.sign !== true) throw new Error(`electron-builder.yml must set dmg.sign: true (found: ${config.dmg.sign ?? 'nothing'})`)
   if (typeof config.productName !== 'string' || config.productName === '') throw new Error('electron-builder.yml has no productName')
-  return { productName: config.productName, version, outputDir, arches: configuredArches(config) }
+  const arches = configuredArches(config)
+  const zip = zipConfigured(config, arches)
+  if (zip && config.mac.artifactName !== ZIP_ARTIFACT_NAME) {
+    throw new Error(`with the zip target, electron-builder.yml must set mac.artifactName: ${ZIP_ARTIFACT_NAME} (found: ${config.mac.artifactName ?? 'nothing'})`)
+  }
+  // The DMG gate staples each DMG after electron-builder hashed it, so the update metadata may list only the ZIPs
+  if (zip && config.dmg.writeUpdateInfo !== false) {
+    throw new Error(`with the zip target, electron-builder.yml must set dmg.writeUpdateInfo: false (found: ${config.dmg.writeUpdateInfo ?? 'nothing'})`)
+  }
+  return { productName: config.productName, version, outputDir, arches, zip }
+}
+
+/**
+ * Whether the mac targets include a ZIP, the archive electron-updater installs from. Any zip target counts, so a ZIP
+ * is never built without being gated, and it must cover exactly the DMG's arches: the same app ships in both.
+ */
+function zipConfigured(config, arches) {
+  const zip = config.mac.target.find((entry) => entry === 'zip' || entry?.target === 'zip')
+  if (zip === undefined) return false
+  const zipArches = Array.isArray(zip?.arch) ? zip.arch : []
+  if ([...zipArches].sort().join(' ') !== [...arches].sort().join(' ')) {
+    const found = zipArches.length > 0 ? zipArches.join(', ') : 'no arch list'
+    throw new Error(`the mac zip target must list the same arches as the dmg target: ${arches.join(', ')} (found: ${found})`)
+  }
+  return true
 }
 
 /** The valid "Developer ID Application" identities in `security find-identity -v -p codesigning` output. */
@@ -161,18 +203,23 @@ function teamIdentifier(output) {
   return line ? line.slice('TeamIdentifier='.length).trim() : null
 }
 
-/** A DMG's signature: Developer ID Application authority, the expected Team ID, a secure timestamp */
-function assertDmgSignature(output, teamId) {
+/** A signature as distribution needs it: Developer ID Application authority, the expected Team ID, a secure timestamp */
+function assertSignature(output, teamId, label) {
   const lines = output.split(/\r?\n/)
   if (!lines.some((line) => line.startsWith('Authority=Developer ID Application:'))) {
-    throw new Error('DMG is not signed by a Developer ID Application identity')
+    throw new Error(`${label} is not signed by a Developer ID Application identity`)
   }
   if (!lines.includes(`TeamIdentifier=${teamId}`)) {
-    throw new Error(`DMG Team ID does not match: expected ${teamId}`)
+    throw new Error(`${label} Team ID does not match: expected ${teamId}`)
   }
   if (!lines.some((line) => line.startsWith('Timestamp=') && !['', 'none'].includes(line.slice('Timestamp='.length).trim().toLowerCase()))) {
-    throw new Error('DMG signature has no secure timestamp')
+    throw new Error(`${label} signature has no secure timestamp`)
   }
+}
+
+/** A DMG's signature, as `assertSignature` checks it */
+function assertDmgSignature(output, teamId) {
+  assertSignature(output, teamId, 'DMG')
 }
 
 /** The notarization log kept next to the version's artifacts for one arch's app */
@@ -183,6 +230,49 @@ function appNotaryLogFile(outputDir, productName, version, arch) {
 /** The DMG electron-builder writes for one arch, given the required dmg.artifactName */
 function dmgFile(outputDir, productName, version, arch) {
   return path.join(outputDir, `${productName}-${version}-mac-${arch}.dmg`)
+}
+
+/** The ZIP electron-builder writes for one arch, given the required mac.artifactName */
+function zipFile(outputDir, productName, version, arch) {
+  return path.join(outputDir, `${productName}-${version}-mac-${arch}.zip`)
+}
+
+/**
+ * Whether a file name is electron-builder's macOS update metadata, `<channel>-mac.yml`. The channel follows the publish
+ * provider and the version (a GitHub provider writes `latest-mac.yml` for every version), so only the suffix is fixed.
+ */
+function isUpdateMetadata(name) {
+  return name.endsWith('-mac.yml')
+}
+
+/**
+ * The ZIP's acceptance. The ZIP carries no ticket of its own and must never be written (the update metadata records
+ * its hash), so the app inside is checked in a temporary extraction, removed afterwards.
+ */
+function checkZippedApp(file, { productName, teamId, stapled, run }) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mac-zip-'))
+  try {
+    run('ditto', ['-x', '-k', file, dir])
+    // The ZIP must hold exactly the app: extraDistFiles in the config would put files beside it
+    const entries = fs.readdirSync(dir).sort()
+    if (entries.length !== 1 || entries[0] !== `${productName}.app`) {
+      throw new Error(`${path.basename(file)} must hold exactly ${productName}.app (found: ${entries.join(', ') || 'nothing'})`)
+    }
+    const app = path.join(dir, `${productName}.app`)
+    run('codesign', ['--verify', '--deep', '--strict', '--verbose=2', app])
+    const display = run('codesign', ['--display', '--verbose=4', app])
+    assertSignature([display.stdout, display.stderr].join('\n'), teamId, `${path.basename(file)}'s app`)
+    // In release the app must carry its own ticket, as the DMG's app does
+    if (stapled) run('xcrun', ['stapler', 'validate', app])
+  } finally {
+    // A removal that fails (a read-only directory in the bundle makes it throw) must neither fail a check that
+    // passed nor replace the error of one that failed; it only leaves a temporary directory behind
+    try {
+      fs.rmSync(dir, { recursive: true, force: true })
+    } catch (error) {
+      console.warn(`[mac] could not remove the temporary extraction ${dir}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
 }
 
 function parseAcceptedSubmission(stdout) {
@@ -261,7 +351,7 @@ function submitForNotarization(file, { credentials, run, writeError }) {
  * notarization stays off; the release profile notarizes each .app through the afterSign hook instead, after signing
  * and before that arch's DMG is built. Signatures, and in release the stapled tickets, are confirmed on the result.
  */
-function packageMac({ profile, env, run, outputDir, productName, version, arches, hookPath }) {
+function packageMac({ profile, env, run, outputDir, productName, version, arches, zip = false, hookPath }) {
   if (profile !== 'local' && profile !== 'release') throw new Error(`unknown profile: ${profile}`)
   const release = profile === 'release'
   // Both checks come before the build: the hook would otherwise fail only after minutes of packing
@@ -284,6 +374,11 @@ function packageMac({ profile, env, run, outputDir, productName, version, arches
     fs.rmSync(appNotaryLogFile(outputDir, productName, version, arch), { force: true })
     fs.rmSync(dmg, { force: true })
     fs.rmSync(`${dmg}.notary-log.json`, { force: true })
+    if (zip) fs.rmSync(zipFile(outputDir, productName, version, arch), { force: true })
+  }
+  // With the ZIP, a build that writes no update metadata (no publish provider) must not pass with an earlier run's
+  if (zip && fs.existsSync(outputDir)) {
+    for (const name of fs.readdirSync(outputDir).filter(isUpdateMetadata)) fs.rmSync(path.join(outputDir, name), { force: true })
   }
 
   run('electron-vite', ['build'])
@@ -313,7 +408,15 @@ function packageMac({ profile, env, run, outputDir, productName, version, arches
     assertDmgSignature([display.stdout, display.stderr].join('\n'), teams.get(arch))
     return dmg
   })
-  return { apps, dmgs }
+
+  // The ZIP electron-updater installs from holds the same app as the DMG of its arch
+  const zips = zip ? arches.map((arch) => {
+    const file = zipFile(outputDir, productName, version, arch)
+    if (!fs.existsSync(file)) throw new Error(`no ZIP for ${arch} after the build: ${file}`)
+    checkZippedApp(file, { productName, teamId: teams.get(arch), stapled: release, run })
+    return file
+  }) : []
+  return { apps, dmgs, zips }
 }
 
 /**
@@ -354,20 +457,81 @@ async function afterSign(context, deps = {}) {
 }
 
 /**
- * The DMGs to gate, in config order: every `.dmg` in the version directory must be one of the expected names
- * (one per configured arch), and every expected name must be there — a leftover or a missing DMG fails before any
- * submission.
+ * The files of one kind to gate, in config order: every file with the kind's extension in the version directory
+ * must be one of the expected names (one per configured arch), and every expected name must be there — a leftover or
+ * a missing file fails before any submission.
  */
-function selectDmgArtifacts(files, { productName, version, arches }) {
-  const expected = new Map(arches.map((arch) => [path.basename(dmgFile('', productName, version, arch)), arch]))
-  const dmgs = files.filter((file) => file.endsWith('.dmg'))
-  const unexpected = dmgs.filter((file) => !expected.has(path.basename(file)))
-  if (unexpected.length > 0) throw new Error(`unexpected DMG: ${unexpected.map((file) => path.basename(file)).join(', ')}`)
+function selectByArch(files, { productName, version, arches }, { extension, kind, fileOf }) {
+  const expected = new Map(arches.map((arch) => [path.basename(fileOf('', productName, version, arch)), arch]))
+  const found = files.filter((file) => file.endsWith(extension))
+  const unexpected = found.filter((file) => !expected.has(path.basename(file)))
+  if (unexpected.length > 0) throw new Error(`unexpected ${kind}: ${unexpected.map((file) => path.basename(file)).join(', ')}`)
   return arches.map((arch) => {
-    const found = dmgs.find((file) => expected.get(path.basename(file)) === arch)
-    if (!found) throw new Error(`missing DMG for ${arch}: ${path.basename(dmgFile('', productName, version, arch))}`)
-    return found
+    const file = found.find((candidate) => expected.get(path.basename(candidate)) === arch)
+    if (!file) throw new Error(`missing ${kind} for ${arch}: ${path.basename(fileOf('', productName, version, arch))}`)
+    return file
   })
+}
+
+/** The DMGs to gate, one per configured arch, in config order */
+function selectDmgArtifacts(files, layout) {
+  return selectByArch(files, layout, { extension: '.dmg', kind: 'DMG', fileOf: dmgFile })
+}
+
+/** A file's SHA-512 in base64, the form electron-builder records in the update metadata; the file is only read */
+function fileSha512(file) {
+  const hash = crypto.createHash('sha512')
+  const fd = fs.openSync(file, 'r')
+  try {
+    const chunk = Buffer.alloc(1024 * 1024)
+    let read
+    while ((read = fs.readSync(fd, chunk, 0, chunk.length, null)) > 0) hash.update(chunk.subarray(0, read))
+  } finally {
+    fs.closeSync(fd)
+  }
+  return hash.digest('base64')
+}
+
+/**
+ * The one update metadata file must be this version's and list exactly these ZIPs, each with the size and sha512 the
+ * file has: the updater downloads the ZIP the metadata names and refuses it when its hash differs.
+ */
+function checkUpdateMetadata(outputDir, files, zips, version) {
+  const found = files.map((file) => path.basename(file)).filter(isUpdateMetadata).sort()
+  if (found.length === 0) {
+    throw new Error(`no update metadata (*-mac.yml) in ${outputDir}: electron-builder writes it only when a publish provider is configured or detected`)
+  }
+  if (found.length > 1) throw new Error(`more than one update metadata file in ${outputDir}: ${found.join(', ')}`)
+  const [name] = found
+  const metadataFile = path.join(outputDir, name)
+  const metadata = yamlParser().load(fs.readFileSync(metadataFile, 'utf8'))
+  if (metadata?.version !== version) throw new Error(`${name} is for version ${metadata?.version ?? 'none'}, not ${version}`)
+  const entries = Array.isArray(metadata.files) ? metadata.files : []
+  const zipNames = zips.map((zip) => path.basename(zip))
+  const foreign = entries.map((entry) => entry?.url).filter((url) => !zipNames.includes(url))
+  if (foreign.length > 0) throw new Error(`${name} lists a file that is not one of this build's ZIPs: ${foreign.join(', ')}`)
+  for (const zip of zips) {
+    const zipName = path.basename(zip)
+    const listed = entries.filter((entry) => entry.url === zipName)
+    if (listed.length === 0) throw new Error(`${name} does not list ${zipName}`)
+    if (listed.length > 1) throw new Error(`${name} lists ${zipName} ${listed.length} times`)
+    const { size } = fs.statSync(zip)
+    if (listed[0].size !== size) throw new Error(`${name} records size ${listed[0].size} for ${zipName}, the file has ${size} bytes`)
+    if (listed[0].sha512 !== fileSha512(zip)) throw new Error(`${name} records another sha512 for ${zipName} than the file has`)
+  }
+  return metadataFile
+}
+
+/**
+ * The artifact set the DMG gate runs on, checked before anything is submitted: one DMG per configured arch and, with
+ * the ZIP, one ZIP per arch and the update metadata that vouches for them. Nothing here writes a file.
+ */
+function checkArtifactSet(outputDir, layout) {
+  const files = fs.readdirSync(outputDir).map((name) => path.join(outputDir, name))
+  const dmgs = selectDmgArtifacts(files, layout)
+  if (!layout.zip) return { dmgs, zips: [], metadata: null }
+  const zips = selectByArch(files, layout, { extension: '.zip', kind: 'ZIP', fileOf: zipFile })
+  return { dmgs, zips, metadata: checkUpdateMetadata(outputDir, files, zips, layout.version) }
 }
 
 function makeMountPoint() {
@@ -475,8 +639,9 @@ function main(argv, env = process.env, root = process.cwd()) {
 
   if (command === 'notarize-dmg') {
     const credentials = readCredentials(env)
-    const files = fs.readdirSync(outputDir).map((name) => path.join(outputDir, name))
-    const ids = selectDmgArtifacts(files, layout).map((file) => {
+    const { dmgs, zips, metadata } = checkArtifactSet(outputDir, layout)
+    if (metadata) console.log(`[mac] ${path.basename(metadata)} matches ${zips.map((zip) => path.basename(zip)).join(', ')}`)
+    const ids = dmgs.map((file) => {
       console.log(`[mac] gating ${file}`)
       const id = notarizeDmg(file, {
         credentials,
@@ -505,6 +670,7 @@ module.exports = {
   afterSign,
   assertDmgSignature,
   certificateSource,
+  checkArtifactSet,
   configuredArches,
   findBuiltApps,
   findMountedApp,

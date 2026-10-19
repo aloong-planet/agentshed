@@ -15,15 +15,19 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { releaseFiles } from './lib/release-artifact.mjs'
+import { releaseFiles, updateFiles } from './lib/release-artifact.mjs'
 
 /**
- * Publishes the DMGs of the gate job's artifact, downloaded to `dir` (`<dir>/<version>/<files>`), as the release
- * of `tag`. `releases` is the release store (ghReleases below, or a
+ * Publishes the DMGs of the gate job's artifact, downloaded to `dir` (`<dir>/<version>/<files>`), with the files the
+ * in-app updater reads, as the release of `tag`. `releases` is the release store (ghReleases below, or a
  * stand-in): list, deleteDraft, createDraft, view and publish.
  */
 export function publishRelease({ dir, tag, prerelease, releases, log = console.log }) {
-  const { version, names, files } = releaseFiles(dir, tag)
+  const dmgs = releaseFiles(dir, tag)
+  const update = updateFiles(dir, tag, dmgs.names)
+  const { version } = dmgs
+  const names = [...dmgs.names, ...update.names]
+  const files = [...dmgs.files, ...update.files]
 
   const existing = releases.list().filter((release) => release.tagName === tag)
   if (existing.some((release) => !release.isDraft)) {
