@@ -14,7 +14,7 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:scripts": "node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/publish-release.test.mjs scripts/release-workflow.test.mjs",
+    "test:scripts": "node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/publish-release.test.mjs scripts/mirror-release.test.mjs scripts/release-workflow.test.mjs",
     "dist:mac:local": "node build/mac-packaging.cjs local",
     "dist:mac:release": "node build/mac-packaging.cjs release && node build/mac-packaging.cjs notarize-dmg",
     "e2e": "electron-vite build && playwright test",

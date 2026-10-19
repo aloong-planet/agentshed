@@ -1,6 +1,6 @@
 # macOS distribution
 
-> Related: [ADR-0031](../adr/0031-macos-release-line.md) (Proposed until the download host is checked) ·
+> Related: [ADR-0031](../adr/0031-macos-release-line.md) ·
 > [ADR-0032](../adr/0032-app-updates.md) (why each release carries a ZIP) ·
 > [app-update](app-update.md) · [landing-page](landing-page.md) · electron-scaffold's macOS signing
 > policy (`macos-signing.md`), cited by section below
@@ -115,8 +115,8 @@ published once the whole artifact set has passed its gates, and never with only 
   pointer cross-origin, with GET requests only. Before the first formal release there is no pointer,
   and a read finds it absent (landing-page::REQ-001).
 
-> Pending: the download host is `dl.agentshed.aloongplanet.com`, with a certificate valid when checked
-> from outside Cloudflare; failing that it is `dl-agentshed.aloongplanet.com` (ADR-0031).
+The download host is `dl.agentshed.aloongplanet.com`, whose certificate was checked from outside Cloudflare on
+2026-10-17 (ADR-0031).
 
 ### mac-distribution::REQ-005 Release notes (direct acceptance)
 
@@ -267,9 +267,15 @@ not copy the policy.
   made public, in one step. A failed or partial upload leaves a draft and nothing public; a re-run removes the
   drafts left for the tag, and a tag whose release is already public is refused (Failure C3). The release
   starts with a one-line note, replaced by the release note of mac-distribution::REQ-005.
-- **R2 layout and pointer** follow Transfer's (one directory per version, a pointer file at a fixed
-  path), with the bucket and token kept separate from Transfer's (ADR-0031 option 5). The bucket's CORS
-  allows GET from the landing page's origin.
+- **R2 layout and pointer** follow Transfer's: each version's files under `releases/v<version>/`, cached for
+  good, and the pointer `latest.json` at the bucket's root, cached for five minutes. The pointer is
+  `{ version, files: [{ name, arch, size, url }] }`; it departs from Transfer's in carrying each file's download
+  URL (mac-distribution::REQ-004/AC-02), and it is what the landing page reads. The mirror job needs the publish
+  job, so the GitHub release is public before any file reaches R2 (Failure C1). The pointer job reads every
+  mirrored file back through the download host and compares its size and sha256 with the gated file before it
+  writes the pointer (mac-distribution::REQ-003). The bucket, its own token, its CORS rule (GET from the landing
+  page's origin) and the custom domain are managed with Terraform in the infrastructure repository, kept
+  separate from Transfer's (ADR-0031 option 5).
 - **Runbooks**: the project's macOS signing runbook (identity, secrets, naming, tiers, workflow
   pitfalls) and its R2 setup notes go under `docs/ops/`, updated in place. They hold this project's
   values and point to the policy rather than copying it.
@@ -291,6 +297,10 @@ not copy the policy.
 - **The publish step** is tested against a model of the repository's releases standing in for GitHub, which
   records every state in which a release is public, so "never public with part of the set" is asserted over all
   of them; its adapter to the GitHub CLI is tested for the arguments it sends and the output it reads.
+- **The mirror and pointer steps** are tested the same way, against a model of the bucket whose objects the
+  download host's reads are answered from, so "the pointer is written only after every file is served" is
+  asserted on the model's state when the pointer was written; the aws-cli adapter is tested for its arguments,
+  and the HTTP read against a server on localhost.
 - **Evidence** (`macos-signing.md` §9: only a release tag or the manual verification tier exercises
   Apple end to end):
   - one manual verification run, with its logs and artifacts;
@@ -316,8 +326,6 @@ not copy the policy.
 
 ## Further Notes
 
-- The download host's certificate is unverified, and ADR-0031 stays Proposed until it has been checked
-  from outside Cloudflare (mac-distribution::REQ-004).
 - No interface of the app changes in this spec: the DMG window is electron-builder's default (owner's
   choice, 2026-10-12), and the README is text. The prototype gate does not apply. The landing page's
   interface is gated in its own spec.

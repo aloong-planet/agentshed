@@ -222,24 +222,29 @@ function* strings(value, path = []) {
   else if (value !== null && typeof value === 'object') for (const [key, item] of Object.entries(value)) yield* strings(item, [...path, key])
 }
 
-test('credentials reach only the two packaging steps, the local one never gets Apple credentials, and no run block interpolates', () => {
+test('credentials reach only the packaging steps and the two R2 steps, the local packaging never gets Apple credentials, and no run block interpolates', () => {
   const release = packagingSteps().find((step) => step.run === profiles.release.command)
   const local = packagingSteps().find((step) => step.run === profiles.local.command)
   const at = (step) => `jobs.gate.steps.${indexOf(step)}.env`
+  // The step of each R2 job that runs the mirror script, and the secret each of its variables holds
+  const r2Step = (id) => `jobs.${id}.steps.${job(id).steps.findIndex((step) => step.run?.startsWith('node scripts/mirror-release.mjs'))}.env`
+  const R2_ENV = { AWS_ACCESS_KEY_ID: 'R2_ACCESS_KEY_ID', AWS_SECRET_ACCESS_KEY: 'R2_SECRET_ACCESS_KEY', R2_ACCOUNT_ID: 'R2_ACCOUNT_ID', R2_BUCKET: 'R2_BUCKET' }
   const reads = [...strings(workflow)].filter(({ value }) => value.includes('secrets.'))
   const expected = [
     'jobs.gate.env.HAS_CSC',
     'jobs.gate.env.HAS_APPLE',
     ...['CSC_LINK', 'CSC_KEY_PASSWORD', 'APPLE_ID', 'APPLE_APP_SPECIFIC_PASSWORD', 'APPLE_TEAM_ID'].map((name) => `${at(release)}.${name}`),
-    ...['CSC_LINK', 'CSC_KEY_PASSWORD'].map((name) => `${at(local)}.${name}`)
+    ...['CSC_LINK', 'CSC_KEY_PASSWORD'].map((name) => `${at(local)}.${name}`),
+    ...['mirror', 'pointer'].flatMap((id) => [`jobs.${id}.env.HAS_R2`, ...Object.keys(R2_ENV).map((name) => `${r2Step(id)}.${name}`)])
   ]
   assert.deepEqual(reads.map(({ path }) => path).sort(), expected.sort())
   for (const { path, value } of reads) {
-    if (path.startsWith('jobs.gate.env.')) {
-      // The two booleans only compare: a secret's value never becomes the value of an env variable here
+    if (/^jobs\.\w+\.env\.HAS_/.test(path)) {
+      // The booleans only compare: a secret's value never becomes the value of an env variable here
       for (const use of value.matchAll(/secrets\.(\w+)(\s*[^\s])?/g)) assert.equal(use[2]?.trim(), '!', `${path}: ${use[0]}`)
     } else {
-      assert.equal(value, `\${{ secrets.${path.split('.').pop()} }}`, path)
+      const variable = path.split('.').pop()
+      assert.equal(value, `\${{ secrets.${R2_ENV[variable] ?? variable} }}`, path)
     }
   }
   const runs = [...strings(workflow)].filter(({ path }) => path.endsWith('.run'))
@@ -257,5 +262,65 @@ test('after a failed requirement nothing else runs: no later step in the gate jo
   for (const step of gate().steps.filter((step) => /\bfailure\(\)/.test(step.if ?? ''))) {
     assert.equal(step.env, undefined, step.name)
     assert.ok(step.uses?.startsWith('actions/upload-artifact@'), step.name)
+  }
+})
+
+// #236: the mirror and pointer jobs (mac-distribution::REQ-002/AC-03, REQ-003, REQ-004, CON-004)
+const job = (id) => workflow.jobs?.[id] ?? assert.fail(`no ${id} job`)
+/** A formal release's tag push, judged from the tag lists above rather than from the workflow's own test */
+const formalPush = (context) => context.tagPush && FORMAL_TAGS.includes(context.github.ref_name)
+
+test('the mirror and the pointer run for a formal tag push only: never for a pre-release, a dispatch or a pull request', () => {
+  assert.ok(CONTEXTS.some(formalPush) && CONTEXTS.some((context) => context.tagPush && !formalPush(context)))
+  for (const id of ['mirror', 'pointer']) {
+    for (const context of CONTEXTS) {
+      assert.equal(holds(job(id).if, { github: context.github, inputs: context.inputs }), formalPush(context), `${id}: ${context.label}`)
+    }
+  }
+})
+
+test('the mirror follows the published GitHub release, and the pointer follows the mirror; a failed job before them skips them', () => {
+  assert.deepEqual([job('mirror').needs].flat().sort(), ['gate', 'publish'])
+  assert.deepEqual([job('pointer').needs].flat().sort(), ['gate', 'mirror'])
+  // evaluate() knows no status function: one here would throw, and GitHub's implicit success() would not apply
+  for (const id of ['mirror', 'pointer']) holds(job(id).if, { github: push('v0.2.0').github, inputs: {} })
+})
+
+const R2_SECRETS = { R2_ACCOUNT_ID: 'acct', R2_ACCESS_KEY_ID: 'id', R2_SECRET_ACCESS_KEY: 'key', R2_BUCKET: 'agentshed-releases' }
+
+test('a missing R2 credential fails the mirror and the pointer first, naming the four secrets (CON-003)', () => {
+  const names = Object.keys(R2_SECRETS)
+  assert.equal(names.length, 4)
+  for (const id of ['mirror', 'pointer']) {
+    const context = { ...push('v0.2.0'), secrets: { ...ALL_SECRETS, ...R2_SECRETS } }
+    const env = (secrets) => jobEnv(job(id), { ...context, secrets })
+    const requirement = job(id).steps.find((step) => step.name === 'Require the R2 credentials') ?? assert.fail(`${id}: no R2 requirement`)
+    assert.equal(job(id).steps.indexOf(requirement), 0, `${id}: the requirement comes first`)
+    assert.equal(env(context.secrets).HAS_R2, 'true', id)
+    assert.equal(holds(requirement.if, { github: context.github, inputs: {}, env: env(context.secrets) }), false, id)
+    for (const name of names) {
+      for (const secrets of [{ ...context.secrets, [name]: '' }, Object.fromEntries(Object.entries(context.secrets).filter(([key]) => key !== name))]) {
+        assert.equal(env(secrets).HAS_R2, 'false', `${id} without ${name}`)
+        assert.equal(holds(requirement.if, { github: context.github, inputs: {}, env: env(secrets) }), true, `${id} without ${name}`)
+      }
+    }
+    const result = runBlock(requirement)
+    assert.notEqual(result.status, 0)
+    assert.match(result.stdout, /::error::.*R2_ACCOUNT_ID.*R2_ACCESS_KEY_ID.*R2_SECRET_ACCESS_KEY.*R2_BUCKET/)
+  }
+})
+
+test("the mirror and the pointer read the gate job's artifact and the download host the certificate check settled", () => {
+  const kept = gate().steps.find((step) => step.uses?.startsWith('actions/upload-artifact@') && step.if === undefined) ?? assert.fail('no upload')
+  for (const [id, verb] of [['mirror', 'upload'], ['pointer', 'pointer']]) {
+    const steps = job(id).steps
+    const download = steps.find((step) => step.uses?.startsWith('actions/download-artifact@')) ?? assert.fail(`${id}: no download`)
+    assert.equal(download.with.name, kept.with.name, id)
+    const script = steps.find((step) => step.run?.startsWith('node scripts/mirror-release.mjs')) ?? assert.fail(`${id}: no mirror script`)
+    assert.equal(script.run, `node scripts/mirror-release.mjs ${verb} ${download.with.path}`, id)
+    assert.ok(steps.indexOf(download) < steps.indexOf(script), id)
+    // What the step sees: the workflow's env, then the job's, then its own
+    const env = { ...workflow.env, ...job(id).env, ...script.env }
+    assert.equal(env.DOWNLOAD_HOST, 'https://dl.agentshed.aloongplanet.com', id)
   }
 })

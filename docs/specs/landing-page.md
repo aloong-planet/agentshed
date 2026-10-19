@@ -284,5 +284,5 @@ Prior art: Transfer's site tests for its download configuration, and the prototy
   owner confirmed the revised prototype's list state (landing-page::REQ-002/AC-04) and its
   formal-from-GitHub state (landing-page::REQ-002/AC-02).
 
-- The download host is still being decided (mac-distribution::REQ-004). The page reads the pointer
-  from whichever host is chosen.
+- The download host is `dl.agentshed.aloongplanet.com` (mac-distribution::REQ-004), and the pointer is
+  `latest.json` at its root; the pointer's shape is in mac-distribution's Implementation Decisions.

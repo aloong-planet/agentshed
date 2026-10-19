@@ -1,0 +1,30 @@
+# Mutations outside #236's designed set, 2026-10-19, on f775797 (PR #259). Each runs through mutate.mjs (one exact
+# replacement, the original bytes written back in finally), against the whole of pnpm test:scripts.
+
+X1 runAws accepts a failed aws: applied=true restored=true red=false
+X2 the CLI swallows every error: applied=true restored=true red=false
+X3 no pause between reads: applied=true restored=true red=false
+P1 the publish CLI swallows every error: ℹ pass 98 ℹ fail 0 1 restore(s) identical
+
+# Reach, shown without the tests: the mirror CLI run as the workflow runs it, with a fake aws on PATH that always exits 1
+# (env -i; GITHUB_REF_NAME=v0.2.0, R2_ACCOUNT_ID=acct, R2_BUCKET=bucket, DOWNLOAD_HOST=http://127.0.0.1:9)
+## current code
+[mirror] aws s3 cp failed (exit 1)
+upload failed: simulated
+cli exit=1
+## current code, no settings
+[mirror] GITHUB_REF_NAME is not set
+cli exit=1
+## X1 applied
+[mutate] applied in scripts/mirror-release.mjs: "  if (result.status !== 0) {\n" -> "  if (false) {\n"
+[mirror] uploaded releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg
+cli exit=0
+[mutate] restored scripts/mirror-release.mjs: identical
+[mutate] command exit 0
+## X2 applied
+[mutate] applied in scripts/mirror-release.mjs: "    process.exitCode = 1\n" -> "    process.exitCode = 0\n"
+cli exit=0
+[mirror] aws s3 cp failed (exit 1)
+upload failed: simulated
+[mutate] restored scripts/mirror-release.mjs: identical
+[mutate] command exit 0
