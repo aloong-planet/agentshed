@@ -17,11 +17,13 @@ files:
   - out
   - package.json
 
-# Where releases are published: GitHub Releases of this repository, the feed the app reads (UPDATE_FEED in
-# src/main/update-source.ts; app-update::CON-002). electron-builder writes the update metadata the updater reads
-# (latest-mac.yml) only when it knows the provider, and it detects one only from a `.git` directory, which a git
-# worktree does not have: a packaging there wrote no metadata and said nothing. So it is declared. Packaging passes
-# `--publish never`, so nothing is uploaded from here; the release workflow publishes.
+# The release feed, declared for packaging: GitHub Releases of this repository, the feed the app reads (UPDATE_FEED
+# in src/main/update-source.ts; app-update::CON-002). electron-builder writes the update metadata (latest-mac.yml, the
+# file a GitHub feed's updater reads) and the app's app-update.yml only when it knows the provider. Undeclared, it
+# looks for package.json's `repository` (there is none) and for Travis's, AppVeyor's or CircleCI's variables (not
+# GitHub Actions'), then reads `.git/config` as a file, which a git worktree does not have: a packaging there wrote
+# no metadata and said nothing. Packaging passes `--publish never`, so nothing is uploaded from here; the release
+# workflow publishes.
 publish:
   provider: github
   owner: aloong-planet

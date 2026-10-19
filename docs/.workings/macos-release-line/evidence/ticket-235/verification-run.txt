@@ -1,0 +1,150 @@
+# Independent check of the manual verification run 39216743638 (workflow_dispatch, verify on, branch feat/update-zip at
+# b51002e, 2026-10-19), its artifact agentshed-macos downloaded (248617790 bytes, as the API states) and checked on
+# this Mac, per electron-scaffold's macos-signing.md §7. Jobs: the gate passed in 6m22s; publish, mirror and pointer skipped.
+
+## The artifact
+7508 0.1.0/Agentshed-0.1.0-mac-arm64.app.notary-log.json
+127807504 0.1.0/Agentshed-0.1.0-mac-arm64.dmg
+7963 0.1.0/Agentshed-0.1.0-mac-arm64.dmg.notary-log.json
+121301022 0.1.0/Agentshed-0.1.0-mac-arm64.zip
+127962 0.1.0/Agentshed-0.1.0-mac-arm64.zip.blockmap
+355 0.1.0/latest-mac.yml
+
+## The gate's own lines (the job log)
+2026-10-19T07:34:03.3598300Z [mac] electron-vite build
+2026-10-19T07:34:07.4289230Z [mac] electron-builder --mac --publish never -c.mac.notarize=false -c.afterSign=build/mac-packaging.cjs
+2026-10-19T07:35:42.5055810Z [mac] notarizing arm64: release/0.1.0/mac-arm64/Agentshed.app
+2026-10-19T07:37:03.0296930Z [mac] accepted arm64 (submission: e034f8b9-69cb-42b5-9114-51fac4243da2)
+2026-10-19T07:38:17.2145570Z [mac] release packaging done for arm64
+2026-10-19T07:38:17.8772120Z [mac] latest-mac.yml matches Agentshed-0.1.0-mac-arm64.zip
+2026-10-19T07:38:17.8852450Z [mac] gating release/0.1.0/Agentshed-0.1.0-mac-arm64.dmg
+2026-10-19T07:39:31.2184490Z [mac] passed release/0.1.0/Agentshed-0.1.0-mac-arm64.dmg (submission: a3d848ba-76fa-4c78-b890-87046f4e0d92)
+2026-10-19T07:39:31.2304380Z [mac] all arm64 DMGs passed: a3d848ba-76fa-4c78-b890-87046f4e0d92
+
+## The DMG
+$ xcrun stapler validate Agentshed-0.1.0-mac-arm64.dmg
+Processing: Agentshed-0.1.0-mac-arm64.dmg
+The validate action worked!
+(exit 0)
+$ hdiutil verify Agentshed-0.1.0-mac-arm64.dmg
+Checksumming Protective Master Boot Record (MBR : 0)…
+Protective Master Boot Record (MBR :: verified   CRC32 $7487CE9D
+Checksumming GPT Header (Primary GPT Header : 1)…
+ GPT Header (Primary GPT Header : 1): verified   CRC32 $D94FE161
+Checksumming GPT Partition Data (Primary GPT Table : 2)…
+GPT Partition Data (Primary GPT Tabl: verified   CRC32 $D4A39FD6
+Checksumming  (Apple_Free : 3)…
+                    (Apple_Free : 3): verified   CRC32 $00000000
+Checksumming disk image (Apple_HFS : 4)…
+          disk image (Apple_HFS : 4): verified   CRC32 $B8B41762
+Checksumming  (Apple_Free : 5)…
+                    (Apple_Free : 5): verified   CRC32 $00000000
+Checksumming GPT Partition Data (Backup GPT Table : 6)…
+GPT Partition Data (Backup GPT Table: verified   CRC32 $D4A39FD6
+Checksumming GPT Header (Backup GPT Header : 7)…
+  GPT Header (Backup GPT Header : 7): verified   CRC32 $E5DDA5A6
+verified   CRC32 $49C6A72C
+hdiutil: verify: checksum of "Agentshed-0.1.0-mac-arm64.dmg" is VALID
+(exit 0)
+$ spctl --assess --type open --context context:primary-signature --verbose=4 Agentshed-0.1.0-mac-arm64.dmg
+Agentshed-0.1.0-mac-arm64.dmg: accepted
+source=Notarized Developer ID
+(exit 0)
+Authority=Developer ID Application: Longfei Zhou (RHQ28XS7D9)
+Timestamp=Oct 19, 2026 at 15:37:40
+TeamIdentifier=RHQ28XS7D9
+
+## The app inside the DMG
+entries: .background.tiff .DS_Store .VolumeIcon.icns Agentshed.app Applications 
+$ xcrun stapler validate /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.Hy2HGPw5yN/Agentshed.app
+Processing: <tmp>/Agentshed.app
+The validate action worked!
+(exit 0)
+$ codesign --verify --deep --strict --verbose=2 /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.Hy2HGPw5yN/Agentshed.app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper.app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper.app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+<tmp>/Agentshed.app: valid on disk
+<tmp>/Agentshed.app: satisfies its Designated Requirement
+(exit 0)
+$ spctl --assess --type execute --verbose=4 /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.Hy2HGPw5yN/Agentshed.app
+<tmp>/Agentshed.app: accepted
+source=Notarized Developer ID
+(exit 0)
+
+## The app inside the ZIP (extracted to a temporary directory; the ZIP is not touched)
+entries: Agentshed.app
+$ xcrun stapler validate /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.tMFDvYmddz/Agentshed.app
+Processing: <tmp>/Agentshed.app
+The validate action worked!
+(exit 0)
+$ codesign --verify --deep --strict --verbose=2 /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.tMFDvYmddz/Agentshed.app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper.app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper.app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+<tmp>/Agentshed.app: valid on disk
+<tmp>/Agentshed.app: satisfies its Designated Requirement
+(exit 0)
+Authority=Developer ID Application: Longfei Zhou (RHQ28XS7D9)
+Timestamp=Oct 19, 2026 at 15:35:40
+TeamIdentifier=RHQ28XS7D9
+$ spctl --assess --type execute --verbose=4 /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.tMFDvYmddz/Agentshed.app
+<tmp>/Agentshed.app: accepted
+source=Notarized Developer ID
+(exit 0)
+LSMinimumSystemVersion: 12.0
+app-update.yml:
+owner: aloong-planet
+repo: agentshed
+provider: github
+updaterCacheDirName: agentshed-updater
+
+## The update metadata against the ZIP (skillshed#18's owed evidence: the metadata's sha512 equals the ZIP's)
+$ cat latest-mac.yml
+version: 0.1.0
+files:
+  - url: Agentshed-0.1.0-mac-arm64.zip
+    sha512: PI+WHvhsqskYoLReGII2DeM8FvZTh8KsTfqLUpkGB/8zSyPo07ECJLhj86JXHmeXZB9OfVoy/On4x81kHBU0Gg==
+    size: 121301022
+path: Agentshed-0.1.0-mac-arm64.zip
+sha512: PI+WHvhsqskYoLReGII2DeM8FvZTh8KsTfqLUpkGB/8zSyPo07ECJLhj86JXHmeXZB9OfVoy/On4x81kHBU0Gg==
+releaseDate: '2026-10-19T07:38:11.185Z'
+
+$ openssl dgst -sha512 -binary Agentshed-0.1.0-mac-arm64.zip | base64
+PI+WHvhsqskYoLReGII2DeM8FvZTh8KsTfqLUpkGB/8zSyPo07ECJLhj86JXHmeXZB9OfVoy/On4x81kHBU0Gg==
+$ stat -f %z Agentshed-0.1.0-mac-arm64.zip
+121301022
+
+## Apple's logs (kept unaltered in the artifact)
+Agentshed-0.1.0-mac-arm64.app.notary-log.json | jobId e034f8b9-69cb-42b5-9114-51fac4243da2 | status Accepted | issues null
+Agentshed-0.1.0-mac-arm64.dmg.notary-log.json | jobId a3d848ba-76fa-4c78-b890-87046f4e0d92 | status Accepted | issues null

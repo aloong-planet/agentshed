@@ -1,6 +1,6 @@
-// The release workflow's publish step (mac-distribution::REQ-003, Failures C3, C5): the GitHub release is
-// published once the whole artifact set has passed its gates, never with part of it, and a re-run never mixes two
-// builds' files.
+// The release workflow's publish step (mac-distribution::REQ-001/AC-02, REQ-003, Failures B3, C3, C5): the GitHub
+// release is published once the whole artifact set has passed its gates, the files the in-app updater reads with the
+// DMGs, never with part of it, and a re-run never mixes two builds' files.
 //
 // publishRelease is driven against an in-memory model of the repository's releases, standing in for GitHub at the
 // system boundary; it records every state in which a release is public, so "never public with part of the set" is
@@ -61,9 +61,9 @@ function fakeReleases(initial = [], { loseUploads = 0, corruptDigest = false } =
 }
 
 /**
- * The gate job's artifact as the publish job downloads it: the version's directory with its DMGs and notary logs
- * (the layout of run 39125515039's artifact, `0.1.0/Agentshed-0.1.0-mac-arm64.dmg`; upload-artifact roots it at
- * `release/`, the part of the paths before the first wildcard)
+ * The gate job's artifact as the publish job downloads it: the version's directory with its files (the layout of the
+ * manual verification run 39216743638's artifact, `0.1.0/Agentshed-0.1.0-mac-arm64.dmg` and the rest; upload-artifact
+ * roots it at `release/`, the part of the paths before the first wildcard)
  */
 function artifactDir(version, names) {
   const dir = mkdtempSync(join(tmpdir(), 'publish-release-'))
@@ -73,9 +73,9 @@ function artifactDir(version, names) {
 }
 
 /**
- * What a release packaging leaves for each arch, as a real one wrote it (pnpm dist:mac:local, 2026-10-19, plus the
- * release profile's two notary logs): the DMG, the ZIP the updater installs from and its blockmap, and once per
- * version the update metadata, which a GitHub provider names latest-mac.yml
+ * What a release packaging leaves for each arch, as the verification run 39216743638 left it: the DMG, the ZIP the
+ * updater installs from and its blockmap, the two notary logs, and once per version the update metadata, which a
+ * GitHub provider names latest-mac.yml
  */
 function releaseSet(version, arches = ['arm64']) {
   return [
@@ -220,7 +220,8 @@ test('an artifact without every update file fails before the release store is to
     ['two update metadata files', [...full, 'beta-mac.yml'], /more than one update metadata file in .*: beta-mac\.yml, latest-mac\.yml/],
     ['no ZIP for the DMG', full.filter((name) => name !== 'Agentshed-0.2.0-mac-arm64.zip'), /no ZIP for Agentshed-0\.2\.0-mac-arm64\.dmg: Agentshed-0\.2\.0-mac-arm64\.zip/],
     ['no blockmap for the ZIP', full.filter((name) => name !== 'Agentshed-0.2.0-mac-arm64.zip.blockmap'), /no blockmap for Agentshed-0\.2\.0-mac-arm64\.zip/],
-    ['a ZIP of another version', [...full, 'Agentshed-0.1.0-mac-arm64.zip'], /Agentshed-0\.1\.0-mac-arm64\.zip has no DMG of version 0\.2\.0 beside it/]
+    ['a ZIP of another version', [...full, 'Agentshed-0.1.0-mac-arm64.zip'], /Agentshed-0\.1\.0-mac-arm64\.zip has no DMG of version 0\.2\.0 beside it/],
+    ['a blockmap of another version', [...full, 'Agentshed-0.1.0-mac-arm64.zip.blockmap'], /Agentshed-0\.1\.0-mac-arm64\.zip\.blockmap has no DMG of version 0\.2\.0 beside it/]
   ]
   for (const [what, names, message] of cases) {
     const dir = artifactDir('0.2.0', names)

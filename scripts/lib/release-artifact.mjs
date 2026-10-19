@@ -1,6 +1,7 @@
 // The macOS gate job's artifact, as the release workflow's later jobs download it (scripts/publish-release.mjs,
 // scripts/mirror-release.mjs). upload-artifact roots it at release/, the part of its paths before the first
-// wildcard, so a download holds one directory named for the version, with the DMGs and the notary logs in it.
+// wildcard, so a download holds one directory named for the version, with the DMGs, the files the in-app updater
+// reads (the ZIPs, their blockmaps and the update metadata) and the notary logs in it.
 import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -25,7 +26,7 @@ export function releaseFiles(dir, tag) {
 /**
  * The files the in-app updater reads, which the GitHub release carries with the DMGs (mac-distribution::REQ-001/AC-02):
  * for each of `dmgs` (releaseFiles' names) the ZIP of the same name and its blockmap, and the one update metadata
- * file (`<channel>-mac.yml`). The gate job checked them against each other before anything went to Apple; this
+ * file (`<channel>-mac.yml`). The gate job checked them against each other before the DMG went to Apple; this
  * refuses an artifact that does not hold them all, or holds a ZIP no DMG of this version has.
  */
 export function updateFiles(dir, tag, dmgs) {

@@ -33,10 +33,10 @@ describe('updaterSettings', () => {
     expect(UPDATE_FEED).toEqual({ provider: 'github', owner: 'aloong-planet', repo: 'agentshed' })
   })
 
-  // The packaging writes the update metadata for the provider it is given (electron-builder.yml's publish), and
-  // releases go where that provider says; the app reads UPDATE_FEED. The two must name the same place, or the app
-  // looks for releases where none are published. Parsed with the YAML parser electron-builder itself uses, which the
-  // packaging asset loads (build/mac-packaging.cjs)
+  // The packaging writes the update metadata in the form its declared provider's updater reads (electron-builder.yml's
+  // publish: latest-mac.yml for GitHub) and names that feed in the app's app-update.yml; the app reads UPDATE_FEED.
+  // The two must be the same feed, or a release carries metadata for a feed the app does not read. Parsed with the
+  // YAML parser electron-builder itself uses, which the packaging asset loads (build/mac-packaging.cjs)
   it('the packaging publishes where the app reads (mac-distribution::REQ-001/AC-02)', () => {
     const require = createRequire(import.meta.url)
     const { yamlParser } = require('../../build/mac-packaging.cjs') as { yamlParser: () => { load: (text: string) => unknown } }

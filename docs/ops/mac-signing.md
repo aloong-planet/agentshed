@@ -11,20 +11,22 @@ Declared in `capabilities.toml` under `macos-distribution.profiles`:
 
 | Command | Profile | What it does |
 |---|---|---|
-| `pnpm dist:mac:local` | local | Checks for the Developer ID identity, then one electron-builder call builds and signs the `.app` and the DMG; never notarizes, even with Apple credentials loaded. Policy §1, §3 |
-| `pnpm dist:mac:release` | release | Checks the identity and the Apple credentials before building; the same call notarizes and staples the `.app` through the `afterSign` hook before its DMG is built; then signs, notarizes, staples and gates the DMG. Policy §3, §6, §7 |
+| `pnpm dist:mac:local` | local | Checks for the Developer ID identity, then one electron-builder call builds and signs the `.app`, the DMG and the ZIP of the app (with the update metadata); never notarizes, even with Apple credentials loaded. Policy §1, §3 |
+| `pnpm dist:mac:release` | release | Checks the identity and the Apple credentials before building; the same call notarizes and staples the `.app` through the `afterSign` hook before its DMG and ZIP are built; then checks the ZIP's app and the update metadata, and signs, notarizes, staples and gates the DMG. Policy §3, §6, §7 |
 
 Both run `build/mac-packaging.cjs`, the electron-scaffold packaging asset, with its tests in
 `build/mac-packaging.test.cjs` (run by `pnpm test:scripts`, part of `pnpm verify` and of CI). **The two files
 are copies and are never edited here**: a change goes into the asset in skillshed first and is copied back.
 Check a copy against the asset with
 `cmp build/mac-packaging.cjs <skillshed>/electron-scaffold/assets/mac-packaging.cjs` (and the same for the test
-file). For the same reason the project's lint skips the two copies; a lint finding in them is fixed in the asset.
+file). The project's lint covers the two copies like its own scripts; a lint finding in them is fixed in the asset.
 
-The asset checks `electron-builder.yml` at run time: a mac `dmg` target with an arch list, `mac.notarize: false`,
-`directories.output` using at most `${version}`, and the DMG name below. It also needs `dmg.sign: true`, which
-its header does not list: without it electron-builder leaves the DMG unsigned, and the asset's gate fails the
-packaging only after the whole build.
+The asset checks `electron-builder.yml` at run time, before building, against the requirements in its header: a mac
+`dmg` target with an arch list, `mac.notarize: false`, `dmg.sign: true`, `directories.output` using at most
+`${version}` and the DMG name below; and for the ZIP the updater installs from, a `zip` target with the same arch list,
+`mac.artifactName` (the ZIP name below) and `dmg.writeUpdateInfo: false`. The configuration also declares the GitHub
+provider (`publish`), the feed the app reads: without it electron-builder detects none in a git worktree and writes no
+update metadata, without a word.
 
 ## This project's values
 
@@ -37,6 +39,8 @@ packaging only after the whole build.
 | Minimum macOS | 12.0 (`mac.minimumSystemVersion`; the README and the landing page say the same) |
 | Output | `release/<version>/` (git-ignored; the five most recent versions are kept) |
 | DMG | `release/<version>/Agentshed-<version>-mac-arm64.dmg` |
+| ZIP (the in-app updater installs from it) | `release/<version>/Agentshed-<version>-mac-arm64.zip`, with its `.zip.blockmap` for a partial download |
+| Update metadata | `release/<version>/latest-mac.yml`: the GitHub provider's name for every version, pre-releases included; it lists the ZIP with its size and sha512 |
 | Notarization logs (release) | `Agentshed-<version>-mac-arm64.app.notary-log.json` and `<dmg>.notary-log.json`, next to the DMG |
 | electron-builder | 26.17.0, the version the asset was verified on (26.15.3 mishandles the CI keychain import) |
 
@@ -74,6 +78,20 @@ hdiutil detach "$MP"
 node scripts/check-fuses.mjs                     # the Electron fuses of the built app
 ```
 
+The ZIP's app, and the metadata against the ZIP (policy §7); the ZIP itself is never written to:
+
+```bash
+ZIP=release/<version>/Agentshed-<version>-mac-arm64.zip
+D=$(mktemp -d) && ditto -x -k "$ZIP" "$D" && ls -A "$D"   # exactly Agentshed.app
+codesign --verify --deep --strict --verbose=2 "$D/Agentshed.app"
+codesign --display --verbose=4 "$D/Agentshed.app"         # Authority=Developer ID Application, TeamIdentifier=RHQ28XS7D9, a Timestamp
+xcrun stapler validate "$D/Agentshed.app"                 # release only
+rm -rf "$D"
+cat release/<version>/latest-mac.yml                      # its sha512 and size must equal the next two
+openssl dgst -sha512 -binary "$ZIP" | base64
+stat -f %z "$ZIP"
+```
+
 A local package passes the signature lines and fails the `stapler` and `spctl --type open` lines: it is never
 notarized, by design.
 
@@ -97,16 +115,19 @@ the mirror and pointer jobs then copy the release to R2 and rewrite its `latest.
   when the tag is not `v` + that version, or when the version is not semver or carries build metadata
   (`scripts/release-tag.mjs`). A suffix after the version makes the release a pre-release, whatever the suffix
   says.
-- **Artifacts.** `agentshed-macos` holds the DMG and, in the release profile, the two notarization logs, unaltered.
+- **Artifacts.** `agentshed-macos` holds the DMG, the ZIP, its blockmap, the update metadata and, in the release profile,
+  the two notarization logs, unaltered.
   A failed gate job uploads whatever logs Apple returned as `agentshed-macos-failed`; the log of a rejection is also
   in the job log.
-- **Publishing.** `scripts/publish-release.mjs` puts the whole set in a draft — which only the repository's writers
-  can see — checks each upload against the gated file by sha256, then makes it public in one step. A failed or
+- **Publishing.** `scripts/publish-release.mjs` puts the whole set — the DMG and the files the updater reads, the ZIP,
+  its blockmap and the metadata — in a draft, which only the repository's writers can see; it refuses an artifact that
+  lacks any of them. It checks each upload against the gated file by sha256, then makes the draft public in one step. A failed or
   partial upload leaves a draft and nothing public. Re-run the publish job ("Re-run failed jobs"): it removes the
   drafts left for the tag and uploads the same files again. It refuses a tag whose release is already public; a new
   build of that version needs a new version.
 - **Release note.** The release starts with a one-line note. The note proper (github-ops §4, §5) replaces it with
-  `gh release edit` once the downloaded DMG has been checked as in the section above.
+  `gh release edit` once the downloaded DMG and ZIP have been checked as in the section above. Its download table lists
+  the DMG only: the ZIP and the metadata are for the updater (policy §10).
 - **Time limits.** The gate job has 120 minutes: Apple takes 2–30 minutes per submission, and the release profile
   submits twice. The publish job has 15.
 - **Actions.** Every action is pinned to a full commit, with its version in a comment: the gate job holds the

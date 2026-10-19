@@ -143,12 +143,10 @@ never edited on its own.
 
 ### mac-distribution::CON-002 The ZIP's gate comes from the asset (direct acceptance)
 
-Applies to: the ZIP of mac-distribution::REQ-001/AC-02. The packaging asset gates DMGs only today. The
-ZIP's submission and acceptance boundary has to be derived for that form rather than copied from the
-DMG flow (`macos-signing.md`, preamble), and it is added to the asset in skillshed (ADR-0032
-consequences).
-
-> Pending: the electron-scaffold packaging asset produces and gates a ZIP alongside the DMG.
+Applies to: the ZIP of mac-distribution::REQ-001/AC-02. The ZIP's submission and acceptance boundary is
+derived for that form rather than copied from the DMG flow (`macos-signing.md`, preamble): the ZIP is not
+submitted itself, and its gate is the asset's, which checks the app inside it and the update metadata
+that names it (ADR-0032 consequences).
 
 ### mac-distribution::CON-003 Fail closed (direct acceptance)
 
@@ -248,12 +246,18 @@ not copy the policy.
 
 - **The packaging asset** (`mac-packaging.cjs` and its tests) is copied into `build/`, next to the
   existing release-cleanup hook, and the packaging configuration meets the requirements listed in the
-  asset's header: a dmg target with an arch list, `mac.notarize: false`, the fixed DMG name and an
-  output directory using at most the version. It also signs the DMG (`dmg.sign`), which the asset's
-  gate requires though its header does not list it. Its certificate check replaces the project's own
-  identity check script, so the existing `dist:mac:local` definition and that script's tests are
-  retired in the same change. The two copies are left out of the project's lint, since a finding in
-  them is fixed in the asset.
+  asset's header: a dmg target with an arch list, `mac.notarize: false`, a signed DMG (`dmg.sign`), the
+  fixed DMG name and an output directory using at most the version; and for the ZIP, a zip target with
+  the same arch list, the fixed ZIP name (`mac.artifactName`) and no update information for the DMG
+  (`dmg.writeUpdateInfo: false`), since the DMG gate staples the DMG after electron-builder hashed it.
+  Its certificate check replaces the project's own identity check script, so the existing
+  `dist:mac:local` definition and that script's tests are retired in the same change. The two copies are
+  linted like the project's own scripts; a finding in them is fixed in the asset.
+- **The release feed is declared for packaging**: the configuration names GitHub Releases of this
+  repository as its publish provider, the feed the app reads (app-update::CON-002), and a unit test holds
+  the two equal. electron-builder writes the update metadata only for a provider it knows, and without a
+  declared one it detects none in a git worktree, so a packaging there would carry no metadata. Packaging
+  still uploads nothing itself.
 - **Two packaging commands**, `dist:mac:local` and `dist:mac:release`, named for the environment, not
   the mechanism (`macos-signing.md` §1). They are what the capability file's profiles point to.
 - **A release workflow** separate from the existing CI workflow, following Transfer's tag-triggered
@@ -262,6 +266,10 @@ not copy the policy.
   uses them (`macos-signing.md` §5). The packaging profile follows the trigger and the verification switch; the
   publish job's own condition reads the real event and ref, so no input of a manual run grants publishing. A tag
   is a pre-release when a `-` follows the version, which the tag check makes exact (Failures A1, A6).
+- **What the release carries**: the DMGs, and the files the in-app updater reads — the ZIPs, their
+  blockmaps (for a partial download) and the update metadata. The gate job keeps them with the run, and
+  the publish step refuses an artifact that lacks any of them before anything reaches GitHub. R2 gets the
+  DMGs only: the updater reads GitHub Releases (app-update::CON-002).
 - **Publishing the GitHub release**: the whole artifact set goes into a draft, which only the repository's
   writers can see; each uploaded file is checked against the gated file by its sha256, and only then is the draft
   made public, in one step. A failed or partial upload leaves a draft and nothing public; a re-run removes the
@@ -296,7 +304,8 @@ not copy the policy.
   runs with the script tests. This is a regression guard only, and does not replace a real run.
 - **The publish step** is tested against a model of the repository's releases standing in for GitHub, which
   records every state in which a release is public, so "never public with part of the set" is asserted over all
-  of them; its adapter to the GitHub CLI is tested for the arguments it sends and the output it reads.
+  of them, and an artifact without each of its update files is refused before the model is touched; its adapter to
+  the GitHub CLI is tested for the arguments it sends and the output it reads.
 - **The mirror and pointer steps** are tested the same way, against a model of the bucket whose objects the
   download host's reads are answered from, so "the pointer is written only after every file is served" is
   asserted on the model's state when the pointer was written; the aws-cli adapter is tested for its arguments,
