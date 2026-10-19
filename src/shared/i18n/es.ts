@@ -9,6 +9,7 @@ export const es: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Proyectos',
+    search: 'Buscar',
     settings: 'Ajustes'
   },
 
@@ -106,6 +107,24 @@ export const es: Locale = {
     pickProject: 'Selecciona un proyecto para ver su detalle',
     waitingUpdate: 'Se muestran los datos anteriores, a la espera de una actualización',
     scanning: 'Escaneando los lados de agente…'
+  },
+  search: {
+    title: 'Búsqueda',
+    placeholder: (projects, sessions) =>
+      `Buscar en las preguntas de ${sessions} ${plural('es', sessions, { one: 'sesión', other: 'sesiones' })} en ${projects} ${plural('es', projects, { one: 'proyecto', other: 'proyectos' })}…`,
+    placeholderNone: 'Buscar en las preguntas…',
+    idle: 'Busca lo que preguntaste en las sesiones de todos los proyectos.',
+    idleSub: 'Haz clic en un resultado para abrir esa sesión en esa pregunta.',
+    reading: 'Leyendo las preguntas de las sesiones…',
+    hitsFound: (hits, sessions, projects) =>
+      `**${hits}** ${plural('es', hits, { one: 'resultado', other: 'resultados' })} · ${sessions} ${plural('es', sessions, { one: 'sesión', other: 'sesiones' })} · ${projects} ${plural('es', projects, { one: 'proyecto', other: 'proyectos' })}`,
+    projectCounts: (sessions, hits) =>
+      `${sessions} ${plural('es', sessions, { one: 'sesión', other: 'sesiones' })} · ${hits} ${plural('es', hits, { one: 'resultado', other: 'resultados' })}`,
+    noHits: (tab, fullText) =>
+      `Sin resultados. Aquí solo se buscan las preguntas: para buscar en las respuestas y la salida de las herramientas, abre el proyecto y cambia su pestaña «${tab}» a «${fullText}».`,
+    failed: 'No se pudo completar esta búsqueda. Cambia la palabra clave para volver a intentarlo.',
+    noSessions: 'Aún no hay sesiones que buscar.',
+    noSessionsSub: 'Cuando un agente haya tenido una conversación en un proyecto registrado, podrá buscarse aquí.'
   },
   skills: {
     searchPlaceholder: 'Buscar skills…',

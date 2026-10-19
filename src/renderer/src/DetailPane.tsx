@@ -496,8 +496,9 @@ function SearchBar({
   )
 }
 
-/** Highlighting matched text (case-insensitive; split as plain text, never through HTML) */
-function Highlight({ text, needle }: { text: string; needle: string }): JSX.Element {
+/** Highlighting matched text (case-insensitive; split as plain text, never through HTML). Global search's
+ * hit rows use it too */
+export function Highlight({ text, needle }: { text: string; needle: string }): JSX.Element {
   if (needle === '') return <>{text}</>
   const lower = text.toLowerCase()
   const k = needle.toLowerCase()

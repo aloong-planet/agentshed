@@ -1,4 +1,4 @@
-// The settings third dimension · UI language + appearance (mode × theme), both applying app-wide, and app
+// The settings dimension · UI language + appearance (mode × theme), both applying app-wide, and app
 // updates. The UI matches the prototype docs/prototypes/appearance/prototype-settings.html (confirmed
 // 2026-08-08; the updates section 2026-10-13).
 // The language section comes before appearance: it determines how the rest of the page reads.

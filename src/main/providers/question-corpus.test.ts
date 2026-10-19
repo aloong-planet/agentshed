@@ -346,11 +346,10 @@ describe('a reading under way, and one that fails (REQ-002/AC-02, S15, S16)', ()
     mkHome()
     let failures = 2
     const { corpus } = await corpusOver({
-      pause: async () => {
-        if (failures > 0) {
-          failures--
-          throw new Error('reading failed')
-        }
+      pause: () => {
+        if (failures === 0) return Promise.resolve()
+        failures--
+        return Promise.reject(new Error('reading failed'))
       }
     })
     await expect(corpus.load()).rejects.toThrow('reading failed')

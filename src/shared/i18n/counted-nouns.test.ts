@@ -66,6 +66,15 @@ describe('English counted nouns', () => {
     expect(d.errors.turnOutOfRange(9, 5)).toBe('Turn index out of range: 9 (of 5 turns)')
   })
 
+  it('the global search counts', () => {
+    expect(d.search.placeholder(1, 1)).toBe('Search the questions in 1 session across 1 project…')
+    expect(d.search.placeholder(2, 3)).toBe('Search the questions in 3 sessions across 2 projects…')
+    expect(d.search.hitsFound(1, 1, 1)).toBe('Found **1** hit · 1 session · 1 project')
+    expect(d.search.hitsFound(2, 3, 4)).toBe('Found **2** hits · 3 sessions · 4 projects')
+    expect(d.search.projectCounts(1, 1)).toBe('1 session · 1 hit')
+    expect(d.search.projectCounts(2, 3)).toBe('2 sessions · 3 hits')
+  })
+
   it('a count in an uppercased slot still carries its noun', () => {
     // `.day-group` and the main-line header are `text-transform: uppercase`, so a bare numeral sits between
     // two words with nothing to say what it counts — "QUESTIONS (MAIN LINE) · 12 · 3 DAYS". The source
@@ -133,6 +142,15 @@ describe('French counted nouns', () => {
     expect(d.errors.turnOutOfRange(9, 5)).toBe('Indice de tour hors limites : 9 (sur 5 tours)')
   })
 
+  it('the global search counts, 0 included', () => {
+    expect(d.search.placeholder(0, 1)).toBe('Rechercher dans les questions de 1 session sur 0 projet…')
+    expect(d.search.placeholder(2, 3)).toBe('Rechercher dans les questions de 3 sessions sur 2 projets…')
+    expect(d.search.hitsFound(1, 0, 1)).toBe('**1** résultat · 0 session · 1 projet')
+    expect(d.search.hitsFound(2, 3, 4)).toBe('**2** résultats · 3 sessions · 4 projets')
+    expect(d.search.projectCounts(1, 1)).toBe('1 session · 1 résultat')
+    expect(d.search.projectCounts(2, 3)).toBe('2 sessions · 3 résultats')
+  })
+
   it('the hand-rolled n > 1 ternaries agree with Intl at every integer, and at 1.5 they do not', () => {
     // `projects.staleFiltered` used `n > 1 ? 's' : ''`. That gets the French-specific trap
     // right (0 → singular) and is correct for every integer, so this is not a live bug — it is the reason
@@ -185,6 +203,15 @@ describe('Spanish counted nouns', () => {
     expect(d.errors.turnOutOfRange(0, 1)).toBe('Índice de turno fuera de rango: 0 (de 1 turno)')
     expect(d.errors.turnOutOfRange(9, 5)).toBe('Índice de turno fuera de rango: 9 (de 5 turnos)')
   })
+
+  it('the global search counts', () => {
+    expect(d.search.placeholder(1, 1)).toBe('Buscar en las preguntas de 1 sesión en 1 proyecto…')
+    expect(d.search.placeholder(0, 2)).toBe('Buscar en las preguntas de 2 sesiones en 0 proyectos…')
+    expect(d.search.hitsFound(1, 1, 1)).toBe('**1** resultado · 1 sesión · 1 proyecto')
+    expect(d.search.hitsFound(2, 3, 4)).toBe('**2** resultados · 3 sesiones · 4 proyectos')
+    expect(d.search.projectCounts(1, 1)).toBe('1 sesión · 1 resultado')
+    expect(d.search.projectCounts(2, 3)).toBe('2 sesiones · 3 resultados')
+  })
 })
 
 describe('Russian counted nouns', () => {
@@ -222,5 +249,11 @@ describe('Russian counted nouns', () => {
     expect(d.projects.staleFiltered(1)).toBe('Отфильтровано 1 устаревший проект')
     expect(d.projects.staleFiltered(2)).toBe('Отфильтровано 2 устаревших проекта')
     expect(d.projects.staleFiltered(5)).toBe('Отфильтровано 5 устаревших проектов')
+  })
+
+  it('global search keeps to invariant genitive labels, right at every count', () => {
+    expect(d.search.placeholder(1, 21)).toBe('Поиск по вопросам · сессий: 21 · проектов: 1…')
+    expect(d.search.hitsFound(1, 2, 5)).toBe('Найдено: **1** · сессий: 2 · проектов: 5')
+    expect(d.search.projectCounts(3, 1)).toBe('сессий: 3 · совпадений: 1')
   })
 })

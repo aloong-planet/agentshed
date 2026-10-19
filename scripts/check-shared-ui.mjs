@@ -407,6 +407,10 @@ const GLOBAL_RULES = [
           why: 'an ordinary word that also names a registry key ("the projects key"); retires if the dimension is renamed to something distinctive'
         },
         {
+          key: 'search',
+          why: 'an ordinary verb or noun in every language, and the word the search boxes\' placeholders and the global search page\'s own title use; retires if the dimension is renamed to something distinctive'
+        },
+        {
           key: 'settings',
           why: 'an ordinary noun in every language (and part of an external product\'s menu path in the Codex memory hint); retires if the entry is renamed to something distinctive'
         }

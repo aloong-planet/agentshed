@@ -8,6 +8,7 @@ export const ja: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Projects',
+    search: '検索',
     settings: '設定'
   },
 
@@ -104,6 +105,21 @@ export const ja: Locale = {
     pickProject: 'プロジェクトを選択すると詳細が表示されます',
     waitingUpdate: '前回のデータを表示中、更新を待っています',
     scanning: '各エージェントサイドをスキャン中…'
+  },
+  search: {
+    title: '検索',
+    placeholder: (projects, sessions) => `${projects} プロジェクト・${sessions} セッションの質問を検索…`,
+    placeholderNone: '質問を検索…',
+    idle: 'すべてのプロジェクトのセッションから、自分の質問を検索します。',
+    idleSub: 'ヒットをクリックすると、そのセッションのその質問を開きます。',
+    reading: '各セッションの質問を読み込み中…',
+    hitsFound: (hits, sessions, projects) => `**${hits}** 件 · ${sessions} セッション · ${projects} プロジェクト`,
+    projectCounts: (sessions, hits) => `${sessions} セッション · ${hits} 件`,
+    noHits: (tab, fullText) =>
+      `該当なし。ここでは質問のみを検索します。回答やツール出力を検索するには、プロジェクトを開いて「${tab}」タブを「${fullText}」に切り替えてください。`,
+    failed: 'この検索を完了できませんでした。キーワードを変更すると再試行します。',
+    noSessions: '検索できるセッションはまだありません。',
+    noSessionsSub: '登録済みのプロジェクトで agent が会話すると、ここで検索できるようになります。'
   },
   skills: {
     searchPlaceholder: 'skill を検索…',

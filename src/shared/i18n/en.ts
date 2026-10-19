@@ -9,6 +9,7 @@ export const en: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Projects',
+    search: 'Search',
     settings: 'Settings'
   },
 
@@ -107,6 +108,24 @@ export const en: Locale = {
     pickProject: 'Select a project to see its details',
     waitingUpdate: 'Showing previous data, waiting for an update',
     scanning: 'Scanning the agent sides…'
+  },
+  search: {
+    title: 'Search',
+    placeholder: (projects, sessions) =>
+      `Search the questions in ${sessions} ${plural('en', sessions, { one: 'session', other: 'sessions' })} across ${projects} ${plural('en', projects, { one: 'project', other: 'projects' })}…`,
+    placeholderNone: 'Search questions…',
+    idle: 'Search what you asked in every project’s sessions.',
+    idleSub: 'Click a hit to open that session at that question.',
+    reading: 'Reading the sessions’ questions…',
+    hitsFound: (hits, sessions, projects) =>
+      `Found **${hits}** ${plural('en', hits, { one: 'hit', other: 'hits' })} · ${sessions} ${plural('en', sessions, { one: 'session', other: 'sessions' })} · ${projects} ${plural('en', projects, { one: 'project', other: 'projects' })}`,
+    projectCounts: (sessions, hits) =>
+      `${sessions} ${plural('en', sessions, { one: 'session', other: 'sessions' })} · ${hits} ${plural('en', hits, { one: 'hit', other: 'hits' })}`,
+    noHits: (tab, fullText) =>
+      `No hits. Only questions are searched here — to search answers and tool output, open the project and switch its “${tab}” tab to “${fullText}”.`,
+    failed: 'This search could not be completed. Change the keyword to try again.',
+    noSessions: 'No sessions to search yet.',
+    noSessionsSub: 'Once an agent has had a conversation in a registered project, it can be searched here.'
   },
   skills: {
     searchPlaceholder: 'Search skills…',
