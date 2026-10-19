@@ -14,7 +14,7 @@ browser evidence against a snapshot of the original pages. The test design table
 
 ## Post-implementation check
 
-Checked 2026-10-18 on 2027ffb plus the review fixes committed with this record, after the full verification
+Checked 2026-10-18 on d458766 plus the review fixes committed with this record, after the full verification
 gateway (`pnpm verify`) passed.
 
 ### Coverage
@@ -59,7 +59,7 @@ No test resources are added; the full gateway loads what it loaded before.
 
 ## Post-implementation check — the executed refactor list
 
-Checked 2026-10-18 on b853c74 plus the follow-up, before it was committed as 7b52c8b, 70159e6 and 9ac06b6
+Checked 2026-10-18 on 7a193af plus the follow-up, before it was committed as 3d8c129, c36570c and 84b9813
 (the dock's row cap, two toast positions, #250
 item 4). Still no unit, integration or e2e test added or changed; the evidence is browser probes.
 
@@ -100,7 +100,7 @@ No test resources are added.
 
 ## Post-implementation check — the landing page
 
-Checked 2026-10-19 on 6341072 plus the landing page's conversion, committed as ffbaea0. No test added or changed; browser probes.
+Checked 2026-10-19 on a5c75ac plus the landing page's conversion, committed as a23e351. No test added or changed; browser probes.
 
 ### Coverage
 
@@ -120,6 +120,10 @@ selects for the comparison.
 - The token search was checked against the committed landing page, where it finds six definitions.
 - The width probe first went red (the single four-option group was 511px wide in a 384px bar at 400px), which
   led to the split into two groups.
+- Rerun after the second rebase, against the page on main at 0e661a9: the first run reported the header and
+  hero icons as differing in every state. The extracted tree of main's page lacked the app icon, which the page
+  loads from outside `docs/prototypes/`, so the old page drew broken images; with the icon in the tree only the
+  review note's line differs, in all eight states. A comparison tree must hold every file the page loads.
 
 ### Resource reuse
 

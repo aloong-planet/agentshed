@@ -1,7 +1,7 @@
 # Code review — #251
 
 Ticket: [#251](https://github.com/aloong-planet/agentshed/issues/251) · work directory `prototype-baseline` ·
-reviewed 2026-10-18 on branch `chore/prototype-baseline`, commits 6a56beb..2027ffb on 26b9216, plus the two
+reviewed 2026-10-18 on branch `chore/prototype-baseline`, commits 91f3fb2..d458766 on 26b9216, plus the two
 fixes below (uncommitted at review time, committed with this record). Scope: every change of the branch —
 `scripts/check-shared-ui.mjs`, `package.json` (`check:ui`), the deleted generators, the shared prototype
 pieces, the eleven converted pages, ADR-0033. The landing page is not in this round (it waits for the
@@ -64,12 +64,12 @@ covers the changes.
 | Item | Reason | Reach | Outcome |
 |---|---|---|---|
 | A demo bar whose groups fit on one row grows to the viewport's width and covers the rail's bottom items at its default place: the session page (four groups on one row) at 1280px alone and in the gallery, the settings page at 1440px alone (rail Update and Settings) | The dock sized the bar to its widest row with only the viewport as the limit | self | Executed: the prototype skill's dock now wraps the rows at three quarters of the viewport (never narrower than the widest group); the project copy is re-copied from the master |
-| Toasts placed to clear a demo bar: the settings page at 100px, the skills preview at 86px. Corrected on re-measurement: the skills preview has had no bar since 2027ffb, so nothing covered its toast; the earlier entry ("the dock bar covers its lower 16px") described the page before that commit | The offsets served the bar, not the design; the prototypes' existing toast sits at 18px (the install page) | self | Executed: both at 18px. On the settings page the toast now lies over the bar's last note line (z-index above the bar), never over a control |
+| Toasts placed to clear a demo bar: the settings page at 100px, the skills preview at 86px. Corrected on re-measurement: the skills preview has had no bar since d458766, so nothing covered its toast; the earlier entry ("the dock bar covers its lower 16px") described the page before that commit | The offsets served the bar, not the design; the prototypes' existing toast sits at 18px (the install page) | self | Executed: both at 18px. On the settings page the toast now lies over the bar's last note line (z-index above the bar), never over a control |
 | Comments on the skills and plugins previews present their dark drawer values as a correction of the app's | #250 item 4, which the owner settled on the light values in both modes | self | Executed: dark values equal light (shadow 0.12, mask 0.35), still declared in the dark block; comments state the same alpha in both modes |
 
 ## Follow-up review — the executed refactor list
 
-Reviewed 2026-10-18 on b853c74 plus the follow-up, before it was committed as 7b52c8b, 70159e6 and 9ac06b6.
+Reviewed 2026-10-18 on 7a193af plus the follow-up, before it was committed as 3d8c129, c36570c and 84b9813.
 Scope: `docs/prototypes/demo-harness.js` (and
 its master in the prototype skill, with the skill's file table), the toast rules of the settings page and the
 skills preview, the drawer tokens and their comments on the skills and plugins previews.
@@ -119,8 +119,8 @@ No finding: no input, file or network surface.
 
 ## Follow-up review — the landing page
 
-Reviewed 2026-10-19 on 6341072 (the branch rebased onto 1b58a84, which merged the landing-page PR) plus the
-landing page's conversion, committed as ffbaea0. Scope: `landing-page/prototype-landing.html` only.
+Reviewed 2026-10-19 on a5c75ac (the branch rebased onto 1b58a84, which merged the landing-page PR) plus the
+landing page's conversion, committed as a23e351. Scope: `landing-page/prototype-landing.html` only.
 
 ### Underlying premises
 
@@ -150,7 +150,8 @@ No finding: the page's links are unchanged.
 ### Consistency
 
 - Visible change, for the owner: in dark, the test-version pill and note take the shared warning colours.
-  Every other state is pixel-equal to the committed page outside the review note.
+  Every other state is pixel-equal to the committed page outside the review note. (Against 1b58a84's page; see
+  the re-check below.)
 - Class-level check: hand-copied shared tokens. `check:ui` covers only pages that follow the mode or palette;
   all twelve UI pages now follow it (eleven declare it, the settings page sets it), link the shared theme and
   define none of the core tokens themselves (a search that finds six such definitions on the committed landing
@@ -158,3 +159,13 @@ No finding: the page's links are unchanged.
 - Judged, no change: the page's own zh/EN switch stays — it is the web page's design, not the app's language
   setting, and the page does not follow the gallery's language. The review note's 90px bottom margin clears the
   bar but belongs to a review note, not to the design.
+
+### Re-check after the second rebase
+
+Checked 2026-10-19 after the rebase onto 0e661a9, where #262 (#238's PR) had set the page's dark `--warn-bg`
+and `--warn-fg` to the app's values. The rebase's one conflict was that token block; resolved to this branch's
+side, the page is byte-equal to the reviewed one, so the findings above stand, except that the visible change
+under Consistency is gone: on the new base the twelve hand-copied tokens all equal the shared theme, and with the
+bar hidden every download state, light and dark, is pixel-equal to main's page outside the review note. The page's
+copy table, which #238's evidence script reads, is identical to main's. The landing site (#262) uses the same
+warning pair as the shared theme in both modes, so the prototype and the site agree.
