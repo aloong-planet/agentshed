@@ -87,3 +87,22 @@ existing class's.
   question, on the session page header only. Suggested: a separate issue — it is session-view's (A1: the title
   and the question set share a source), and #272's exits sit in that header. It has no lasting home yet: the
   owner decides between an issue and dropping it.
+
+## The owner's decisions, 2026-10-19, and their execution
+
+- **R1, R2, R3: done now**, in 2d0a2ce. R1's helper replaces three copies whose behaviour was compared line by
+  line before the change (the same Grok slice; the same trim, parse, object check and `questionTextAt`; null on a
+  parse failure). R2's component draws exactly the markup it replaced in both pages — the project search's
+  block and global search's block were read side by side with it (same classes, nesting, keys and pills; the
+  project search's snippet and body marker passed in as the row's text and `inBody`). R3's constant replaces
+  the two literals. Safety net: the existing tests, run whole by the gateway on 2d0a2ce.
+- **R4: not done**, as suggested.
+- **The stripped fork's title: [#278](https://github.com/aloong-planet/agentshed/issues/278)**. Writing it up
+  widened the finding: a project's own search cards take the same index title as the session page header
+  (both from `sessionQuestions`), so they show the replayed title too; the lists and global search's cards take
+  the scan's rewritten one. The issue states both.
+- **A hit row's number: centred, the app's way.** The prototypes' shared hits piece now centres it. Measured in
+  both pages that use the piece by the text's own line boxes (`Range.getClientRects`), since the flex items'
+  boxes are stretched to one height and their centres agree whatever the alignment: the number's text sat 3 px
+  above the question's before, level after (global search 7 rows, project detail 4).
+- **The landing page: not now, later.** No change here; it has no lasting home yet — see the delivery notes.

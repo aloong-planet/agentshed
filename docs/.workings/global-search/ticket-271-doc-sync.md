@@ -19,3 +19,8 @@ step's documents), the runs (the gateway, the mutations, the in-app measurements
 the spec, the amended specs (projects-list, session-view, appearance, i18n), `docs/features/`, ADR-0034,
 CONTEXT, the six READMEs and the landing page's copy. Added: the spec write-back row and the merge row; nothing
 done was reopened. #274's ADR item is updated to say #271 settled it.
+
+Re-checked 2026-10-19 after the owner's decisions (2d0a2ce): the refactors R1–R3 change no user-visible behaviour,
+so no `docs/features/` line and no spec statement turns false; the prototypes' shared hits piece now centres a
+hit row's number, matching the app (final-regression's section after the decisions). The stripped fork's
+title went to #278. No row added or reopened.

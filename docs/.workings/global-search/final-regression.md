@@ -34,7 +34,7 @@ lives in [checklist.md](checklist.md), not here.
 | `scripts/check-shared-ui.mjs` rail exemption's reason | the six dictionaries | True: "search" is an ordinary word there (48 matches without the exemption) |
 | Code comments reworded ("the settings dimension") | the rail's four items | True |
 | CONTEXT (unchanged): **Global search**, the rail's four labels | the entry and the implementation | Same terms; the four labels now hold |
-| The global search prototype (unchanged) | the page as built, side by side at the same size and keyword | Same form. One pre-existing difference: a hit row's number is centred in the app (the project search's own rule) and top-aligned in the prototype's shared piece — see "Found outside" |
+| The global search prototype (unchanged) | the page as built, side by side at the same size and keyword | Same form. The one difference found — a hit row's number centred in the app, top-aligned in the prototype's shared piece — was settled for the app's way and the piece changed (see "Found outside") |
 
 ### Stage 2: related declarations
 
@@ -68,11 +68,20 @@ Searches for the rows above (Chinese and Japanese terms written as code points, 
 
 ### Found outside the change surface
 
-- A hit row's number: the app centres it vertically (the project search's existing rule, `align-items: center`),
-  the prototype's shared hits piece leaves it top-aligned — a one- to two-pixel difference shared by the project
-  search. It predates this ticket; the owner decides whether the prototype or the app moves.
-- A stripped Codex fork's session page title (the code review's outside finding) — on the session page header,
-  not in any document this round changed.
+- A hit row's number: the app centred it (the project search's existing rule), the prototypes' shared hits
+  piece left it top-aligned. **Settled by the owner on 2026-10-19: centred, the app's way**; the shared piece
+  now centres it (2d0a2ce), measured level in both pages that use it. The stage 1 prototype row stands without
+  its caveat.
+- A stripped Codex fork's title — on the session page header and on a project's own search cards, not in any
+  document this round changed: [#278](https://github.com/aloong-planet/agentshed/issues/278).
+- The landing page does not mention global search: the owner's decision is to add it later.
+
+### After the owner's decisions (2d0a2ce)
+
+| Declaration surface | Checked against | Conclusion |
+|---|---|---|
+| `docs/prototypes/_shared/session-hits.css` (hit rows centred) | the app's hit rows; both pages that use the piece | Consistent with the app; `pnpm check:ui` green (2 usage sites) |
+| The refactors R1–R3 | `docs/features/`, the spec | No user-visible behaviour changes, so no document line turns false; the spec's Implementation Decisions name no module these touched |
 
 ### Convergence
 
