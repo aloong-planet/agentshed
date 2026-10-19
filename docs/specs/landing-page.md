@@ -299,5 +299,5 @@ Prior art: Transfer's site tests for its download configuration, and the prototy
   the browser tab, and confirmed the revised prototype's hero icon: the real artwork, its shadow on its
   outline.
 
-- The download host is still being decided (mac-distribution::REQ-004). The page reads the pointer
-  from whichever host is chosen.
+- The download host is `dl.agentshed.aloongplanet.com` (mac-distribution::REQ-004), and the pointer is
+  `latest.json` at its root; the pointer's shape is in mac-distribution's Implementation Decisions.

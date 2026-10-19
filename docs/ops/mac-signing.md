@@ -80,11 +80,12 @@ notarized, by design.
 ## CI
 
 `.github/workflows/release.yml` packages macOS in CI (mac-distribution::REQ-002; the tiers are policy §5). Its
-gate job runs on `macos-latest`. The publish job runs on `ubuntu-latest` and needs the gate job.
+gate job runs on `macos-latest`. The publish job runs on `ubuntu-latest` and needs the gate job. For formal tags,
+the mirror and pointer jobs then copy the release to R2 and rewrite its `latest.json` (`docs/ops/r2-setup.md`).
 
 | Trigger | Tier | What it leaves |
 |---|---|---|
-| A pushed `v*` tag without a suffix (`v0.2.0`) | formal | the release profile and every gate; then a GitHub release titled `<tag>-release`, marked Latest |
+| A pushed `v*` tag without a suffix (`v0.2.0`) | formal | the release profile and every gate; then a GitHub release titled `<tag>-release`, marked Latest; then the R2 mirror and, last, `latest.json` |
 | A pushed `v*` tag with a suffix (`v0.1.0-beta.2`) | pre-release | the same; the release titled with the tag, marked Pre-release |
 | `gh workflow run release.yml -f verify=true` | manual verification | the release profile and every gate; the run's artifacts only |
 | `gh workflow run release.yml` (`verify` off) | manual packaging | the local profile (signed, never notarized); the run's artifacts only |

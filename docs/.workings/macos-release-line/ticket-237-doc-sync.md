@@ -13,14 +13,14 @@ coverage checklist: [checklist.md](checklist.md)
 | Once the pull request's CI has shown the checks job red on a deliberately broken site check and green after the restore: record the runs in #237's checklist row | [checklist](checklist.md) | Done: runs 39126198647 and 39126646942 on the throwaway #256 (closed, never merged) and 39126081368 on #255, in the row and in [evidence/ticket-237/ci-gate.txt](evidence/ticket-237/ci-gate.txt) |
 | Tick #237's acceptance items that are verified, once the CI demonstration is recorded | [#237](https://github.com/aloong-planet/agentshed/issues/237) | Done: every item ticked on 2026-10-18; #237's own part of the two shared items is what was checked (mac-distribution::REQ-001/AC-04's comparison is #241's, landing-page::CON-001's live URL #239's) |
 
-Pre-delivery scope re-check, 2026-10-18, on branch `feat/landing-page`: the specs (landing-page rewritten;
+Pre-delivery scope re-check, 2026-10-18 on branch `feat/landing-page`, re-checked on 2026-10-19 after main (#257, #259) was merged into it: the specs (landing-page rewritten;
 the statements about the page's copy in mac-distribution REQ-001/AC-04 and Failures D1–D4 and in app-update
 Failure B3 hold for the built page), `docs/features/` (nothing there describes the landing page; its entry is
 written when the page goes live, as the specs index says), ADR-0031 (`site/`, Astro, Pages, two languages:
 consistent), `CONTEXT.md` (no term or invariant touched; the outbound-request invariant governs the app, not
 the site), `docs/ops/mac-signing.md` (its "the landing page says the same" about macOS 12 now holds),
 `docs/prototypes/` (the landing page revised; its manifest entry unchanged), the root READMEs (the download
-instructions are #239's), `capabilities.toml` (unchanged; see the code review's outside findings), `site/` and
-this directory. One stale statement found outside this ticket's items: the landing spec's note that the
-download host is still being decided (infra checked the host on 2026-10-17); #236's checklist owns it, and it
-is left to that row.
+instructions are #239's), `capabilities.toml` (`i18n` and `theming` now list the site's sources, the row above), `site/` and
+this directory. One stale statement was found outside this ticket's items, the landing spec's note that the
+download host was still being decided; #236 (#259) rewrote it to name the host and the pointer, and that
+rewrite merged into this branch without conflict.
