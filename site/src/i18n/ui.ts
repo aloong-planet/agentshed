@@ -53,6 +53,10 @@ export interface Dictionary {
     labelSub: string
     /** The list state (landing-page::REQ-002/AC-04): the page cannot tell which release exists */
     list: { hero: string; line: string; button: string }
+    /** The formal states, from R2 or from GitHub (landing-page::REQ-002/AC-01, AC-02); {version} is the version */
+    formal: { hero: string; every: string; line: string; download: string; github: string }
+    /** The test state (landing-page::REQ-002/AC-03): only a pre-release exists */
+    test: { hero: string; pill: string; note: string; line: string; button: string }
   }
   footer: { github: string; releases: string; copyright: string }
 }
@@ -111,6 +115,20 @@ const zh: Dictionary = {
       hero: '前往 GitHub 下载 Agentshed',
       line: '暂时读不到版本信息，可前往 GitHub 下载',
       button: '前往 GitHub 下载'
+    },
+    formal: {
+      hero: '下载 Agentshed {version}',
+      every: '在 GitHub 查看所有版本',
+      line: '当前版本 {version}',
+      download: '下载',
+      github: 'GitHub'
+    },
+    test: {
+      hero: '下载测试版 {version}',
+      pill: '测试版',
+      note: '正式版尚未发布。测试版从 GitHub 下载，可能还有不稳定之处。',
+      line: '当前只有测试版 {version}',
+      button: '从 GitHub 下载测试版'
     }
   },
   footer: { github: 'GitHub', releases: '版本发布', copyright: '© 2026 aloongplanet' }
@@ -170,6 +188,20 @@ const en: Dictionary = {
       hero: 'Download Agentshed from GitHub',
       line: 'Version details can’t be loaded right now — download from GitHub',
       button: 'Download from GitHub'
+    },
+    formal: {
+      hero: 'Download Agentshed {version}',
+      every: 'See every version on GitHub',
+      line: 'Current version {version}',
+      download: 'Download',
+      github: 'GitHub'
+    },
+    test: {
+      hero: 'Download test version {version}',
+      pill: 'Test version',
+      note: 'No stable release yet. The test version downloads from GitHub and may still be rough in places.',
+      line: 'Only a test version so far: {version}',
+      button: 'Download the test version from GitHub'
     }
   },
   footer: { github: 'GitHub', releases: 'Releases', copyright: '© 2026 aloongplanet' }

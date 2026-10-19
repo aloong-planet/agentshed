@@ -1,0 +1,29 @@
+# Mutations of the place-keeping rule (2026-10-19, Chrome 155), each applied to site/src/scripts/download.ts by a
+# reversible replacement, the site rebuilt, measure.mjs run, the file restored byte for byte and the site rebuilt.
+# Reach is shown by the failures themselves: each lands on the positions the mutant changes, and nowhere else.
+
+## M1: the old rule (the hero's bottom above the window's top), which the code review found wrong
+##   from: const above = block.getBoundingClientRect().bottom <= viewTop
+##   to:   const above = (doc.getElementById('top')?.getBoundingClientRect().bottom ?? 0) <= 0
+## (run before the positions 760, 806 and 900 were added)
+browser: chrome 155.0.8059.80
+FAIL Failure A7 hero bottom 20, anchoring on — the block above the view: the features title stays where it was: {"restored":{"block":-673.015625,"title":83.78125,"y":1174},"after":{"block":-639.78125,"title":117.015625,"y":1174}}
+FAIL Failure A7 hero bottom 20, anchoring off — the block above the view: the features title stays where it was: {"restored":{"block":-673.015625,"title":83.78125,"y":1174},"after":{"block":-639.78125,"title":117.015625,"y":1174}}
+FAIL Failure A7 hero bottom 57, anchoring off — the block above the view: the features title stays where it was: {"restored":{"block":-636.015625,"title":120.78125,"y":1137},"after":{"block":-602.78125,"title":154.015625,"y":1137}}
+FAIL Failure A7 hero bottom 120, anchoring off — the block above the view: the features title stays where it was: {"restored":{"block":-573.015625,"title":183.78125,"y":1074},"after":{"block":-539.78125,"title":217.015625,"y":1074}}
+FAIL Failure A7 hero bottom 400, anchoring off — the block above the view: the features title stays where it was: {"restored":{"block":-293.015625,"title":463.78125,"y":794},"after":{"block":-259.78125,"title":497.015625,"y":794}}
+204 measurements, 5 failed
+
+measure exit under the mutant: 1
+restored byte for byte: true
+
+## M2: the view starting at the window's top rather than below the sticky header
+##   from: const viewTop = doc.querySelector('.site-header')?.getBoundingClientRect().bottom ?? 0
+##   to:   const viewTop = 0
+browser: chrome 155.0.8059.80
+FAIL Failure A7 hero bottom 806, anchoring on — the block above the view: the features title stays where it was: {"restored":{"block":29.984375,"title":786.78125,"y":471},"after":{"block":63.21875,"title":820.015625,"y":471}}
+FAIL Failure A7 hero bottom 806, anchoring off — the block above the view: the features title stays where it was: {"restored":{"block":29.984375,"title":786.78125,"y":471},"after":{"block":63.21875,"title":820.015625,"y":471}}
+211 measurements, 2 failed
+
+measure exit under the mutant: 1
+restored byte for byte: true

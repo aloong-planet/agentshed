@@ -62,10 +62,14 @@ const t = ui[locale]
     <script>
       // The features section, then the language switch, which may scroll back to the visitor's place and set
       // the current step
+      import { initDownload } from '../scripts/download'
       import { initFeatures } from '../scripts/features'
       import { initLanguageSwitch } from '../scripts/language-switch'
       initFeatures()
       initLanguageSwitch()
+      // Should anything fail before a state is shown, the page stays in the list state it was served in, which is a
+      // valid way to download
+      initDownload(document, (url, init) => fetch(url, init)).catch(() => undefined)
     </script>
   </body>
 </html>

@@ -222,9 +222,12 @@ describe('two languages', () => {
     return value && typeof value === 'object' ? Object.values(value).flatMap(leaves) : []
   }
 
-  test.each(LOCALES)('%s: every string of the language’s copy is on its page', (locale) => {
+  test.each(LOCALES)('%s: every string of the language’s copy is on its page, but the copy of the states a read brings', (locale) => {
+    // The formal and test states' copy appears only once a read brings that state: the apply check holds it
+    const { formal, test: testState, ...served } = ui[locale].download
+    expect(leaves(formal).length + leaves(testState).length).toBeGreaterThan(5)
     const page = words(pages[locale])
-    const missing = leaves(ui[locale]).filter((s) => !page.includes(s.replace(/\s+/g, ' ')))
+    const missing = leaves({ ...ui[locale], download: served }).filter((s) => !page.includes(s.replace(/\s+/g, ' ')))
     expect(missing).toEqual([])
   })
 

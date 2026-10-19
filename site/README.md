@@ -31,10 +31,14 @@ files), which is why CI installs the site's dependencies before linting.
   from the app's six-language one (`src/shared/i18n/`). New copy goes here, in both languages.
 - `src/styles/global.css`: the palette (the app's purple theme, light and dark, by the visitor's system
   appearance) and every rule of the page, interaction states included. Markup carries classes only.
-- `src/download.ts`: what the download buttons say and where they lead. The page is served in the list state,
-  which leads to GitHub's release list.
-- `src/scripts/`: the features section's scroll-linked frame (`features.ts`), and the language switch that
-  keeps the current step and scroll position (`language-switch.ts`).
+- `src/releases.ts`: the two things the page reads in the visitor's browser, the R2 latest pointer and GitHub's
+  releases for this repository, each answer validated before anything of it is used.
+- `src/download.ts`: the download state the two reads decide (formal from R2, formal from GitHub, test, or the
+  list), and what each state's buttons say and where they lead. The page is served in the list state, which
+  leads to GitHub's release list.
+- `src/scripts/`: the features section's scroll-linked frame (`features.ts`), the language switch that keeps
+  the current step and scroll position (`language-switch.ts`), and the download script that reads, decides and
+  shows the state in place (`download.ts`, applying it with `apply-download.ts`).
 - `src/shots.ts` and `public/shots/`: the screenshots, one set per language, approved for publication on
   2026-10-13. They change only by retaking them from the app, at the same sizes (the hero 2560×1536, every
   feature cut 1840×1035).
@@ -49,6 +53,10 @@ files), which is why CI installs the site's dependencies before linting.
   into a new temporary directory once per test run, so the check never reads an old `dist/`. Its file header
   says what it cannot see (scrolling, layout across widths, the two appearances), which is measured in a
   browser instead.
+- `test/apply-download.test.ts` and `test/init-download.test.ts` apply the download states to that build's
+  pages, the second through the page's script with a fake network. The reads' tests answer through an injected
+  fetch too, so no test reaches the network; `test/fixtures/` holds the answers they use: the pointer as the
+  release script writes it, and a real releases answer from GitHub reshaped to this repository.
 
 ## Deploying (Cloudflare Pages)
 

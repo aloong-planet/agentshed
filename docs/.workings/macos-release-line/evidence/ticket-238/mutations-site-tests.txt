@@ -1,0 +1,342 @@
+# Mutations of the site tests for #238 (2026-10-19), on the final tree of branch feat/landing-download (uncommitted,
+# on 690ad2d). Each mutation is a text replacement in one source file; the site's whole suite runs (vitest, with
+# its fresh build), the cases each mutation must turn red are named, and the file is restored byte for byte and
+# compared before the next one. Reach: each mutation's failures carry the mutated value or land only on the cases
+# it names; a control edit per batch must leave everything green. Chinese is written as \u escapes (ADR-0017).
+#
+# Batch 1 (N1-N20): the first batch, rerun on the final tree, plus N20 from the code review. Batch 2 (M21-M47):
+# one fault per case that no batch-1 mutation turned red, from mapping every case to what proves it. N11b and
+# L1-L2: N11 again on its rewritten case, and the list branch rewritten in this ticket.
+
+## Batch 1: definitions
+const M = [
+  { id: 'N1', file: 'src/releases.ts', from: "\`\${DOWNLOAD_HOST}/latest.json\`", to: "\`\${DOWNLOAD_HOST}/latest-pointer.json\`", expect: ['a pointer as the release workflow writes it'] },
+  { id: 'N2', file: 'src/releases.ts', from: "releases?per_page=100'", to: "releases?per_page=30'", expect: ['the latest formal release, with its DMG'] },
+  { id: 'N3', file: 'src/releases.ts', from: 'setTimeout(() => abort.abort(), timeoutMs)', to: 'setTimeout(() => undefined, timeoutMs)', expect: ['does not answer within the time limit'] },
+  { id: 'N4', file: 'src/releases.ts', from: '(!a || b.published > a.published ? b : a)', to: '(a ?? b)', expect: ['the newest by date, whatever order', 'only pre-releases: the newest of them'] },
+  { id: 'N5', file: 'src/releases.ts', from: "typeof version !== 'string' || !FORMAL.test(version)", to: "typeof version !== 'string' || !(FORMAL.test(version) || PRE.test(version))", expect: ['a pre-release version, which never reaches R2'] },
+  { id: 'N6', file: 'src/releases.ts', from: " && a['state'] === 'uploaded'", to: '', expect: ['whose upload has not finished'] },
+  { id: 'N7', file: 'src/releases.ts', from: '(pre ? PRE : FORMAL)', to: '(pre ? PRE : /./)', expect: ['not a release of this kind'] },
+  { id: 'N8', file: 'src/releases.ts', from: "f['url'] === url", to: "typeof f['url'] === 'string'", expect: ['the DMG on another host', 'the DMG over plain http', 'another version’s directory'] },
+  { id: 'N9', file: 'src/download.ts', from: "if (pointer.kind === 'formal') return", to: "if (pointer.kind === 'formal' && !github) return", expect: ['a readable pointer wins'] },
+  { id: 'N10', file: 'src/download.ts', from: 'href: state.url, newTab: false', to: 'href: state.url, newTab: true', expect: ['downloads the DMG from the download host, in place', 'the DMG from the download host in place'] },
+  { id: 'N11', file: 'src/download.ts', from: 'buttons: [github(copy.formal.download, href)] }', to: "buttons: locale === 'zh' ? [] : [github(copy.formal.download, href)] }", expect: ['zh: the same shape in each state as in English'] },
+  { id: 'N12', file: 'src/scripts/apply-download.ts', from: '  if (view.note) {', to: '  if (view.note && view.pill === null) {', expect: ['the test state: the pill on the platform line', 'every string of the states’ copy'] },
+  { id: 'N13', file: 'src/scripts/apply-download.ts', from: "  cta.querySelector('.alt')?.remove()\n", to: '', expect: ['a later state replaces an earlier one'] },
+  { id: 'N14', file: 'src/scripts/apply-download.ts', from: '  a.append(label)\n}', to: "  a.insertAdjacentHTML('beforeend', label)\n}", expect: ['labels are set as text'] },
+  { id: 'N15', file: 'src/scripts/download.ts', from: "pointer.kind === 'formal' ? undefined : await readGitHub(fetch)", to: 'await readGitHub(fetch)', expect: ['GitHub is never asked'] },
+  { id: 'N16', file: 'src/styles/global.css', from: '    --warn-fg: #f0a884;', to: '    --warn-fg: #f6b48a;', expect: ['carry the app’s purple values'] },
+  { id: 'N17', file: 'src/i18n/ui.ts', from: "note: 'No stable release yet. The test version", to: "note: 'No stable release. The test version", expect: ['English: the test version on GitHub, said plainly'] },
+  { id: 'N18', file: 'src/releases.ts', from: "entry['draft'] !== false || ", to: '', expect: ['a draft is ignored'], note: 'expected to survive: a real draft has published_at null, which the date check also refuses' },
+  { id: 'N19', file: 'src/scripts/download.ts', from: 'const localeOf =', to: '// control\nconst localeOf =', expect: [], note: 'control: a harmless change must leave everything green' },
+  { id: 'N20', file: 'src/scripts/apply-download.ts', from: "'btn-primary'} btn-sm`", to: "'btn-primary'} btn-small`", expect: ['zh: a later state replaces an earlier one', 'en: a later state replaces an earlier one'], note: 'added in code review: a class the served markup has and applyView drops' }
+]
+
+## Batch 1: run
+OK  N1 src/releases.ts (4/103 red)
+      ✗ the pointer a pointer as the release workflow writes it: the formal version and its DMG on the download host
+          AssertionError: expected [ Array(1) ] to deeply equal [ Array(1) ]
+      ✗ a readable pointer: the formal state from R2, and GitHub is never asked
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'formal-r2', …(2) }
+      ✗ no pointer, only pre-releases on GitHub: the test state, in the page’s language
+          AssertionError: expected [ …(2) ] to deeply equal [ …(2) ]
+      ✗ neither source readable: the page stays as served, the release list
+          AssertionError: expected [ …(2) ] to deeply equal [ …(2) ]
+OK  N2 src/releases.ts (3/103 red)
+      ✗ GitHub’s releases the latest formal release, with its DMG
+          AssertionError: expected [ Array(1) ] to deeply equal [ Array(1) ]
+      ✗ no pointer, only pre-releases on GitHub: the test state, in the page’s language
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'test', version: '1.2.0-beta' }
+      ✗ neither source readable: the page stays as served, the release list
+          AssertionError: expected [ …(2) ] to deeply equal [ …(2) ]
+OK  N3 src/releases.ts (1/103 red)
+      ✗ the pointer a read that does not answer within the time limit is unreadable
+          Error: Test timed out in 5000ms.
+OK  N4 src/releases.ts (2/103 red)
+      ✗ GitHub’s releases the newest by date, whatever order the list comes in
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'formal', …(2) }
+      ✗ GitHub’s releases only pre-releases: the newest of them
+          AssertionError: expected { kind: 'pre', version: '1.1.0-beta' } to deeply equal { kind: 'pre', version: '1.2.0-beta' }
+OK  N5 src/releases.ts (1/103 red)
+      ✗ the pointer unreadable when a pre-release version, which never reaches R2
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'unreadable' }
+OK  N6 src/releases.ts (1/103 red)
+      ✗ GitHub’s releases a DMG whose upload has not finished does not count
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'formal', …(2) }
+OK  N7 src/releases.ts (1/103 red)
+      ✗ GitHub’s releases an entry that is not a release of this kind is passed over, the others still count
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'formal', …(2) }
+OK  N8 src/releases.ts (3/103 red)
+      ✗ the pointer unreadable when the DMG on another host
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'unreadable' }
+      ✗ the pointer unreadable when the DMG over plain http
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'unreadable' }
+      ✗ the pointer unreadable when the DMG under another version’s directory
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'unreadable' }
+OK  N9 src/download.ts (5/103 red)
+      ✗ deciding what to offer a readable pointer wins, whatever GitHub says (a formal release)
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'formal-r2', …(2) }
+      ✗ deciding what to offer a readable pointer wins, whatever GitHub says (a formal release without its DMG)
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'formal-r2', …(2) }
+      ✗ deciding what to offer a readable pointer wins, whatever GitHub says (only a pre-release)
+          AssertionError: expected { kind: 'test', version: '0.1.0-beta' } to deeply equal { kind: 'formal-r2', …(2) }
+      ✗ deciding what to offer a readable pointer wins, whatever GitHub says (no release)
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'formal-r2', …(2) }
+      ✗ deciding what to offer a readable pointer wins, whatever GitHub says (GitHub unreadable)
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'formal-r2', …(2) }
+OK  N10 src/download.ts (2/103 red)
+      ✗ the formal state from R2 English: the versioned button downloads the DMG from the download host, in place
+          AssertionError: expected { …(4) } to deeply equal { …(4) }
+      ✗ a state applied to the served page the formal state from R2: the DMG from the download host in place, GitHub in a new tab
+          AssertionError: expected { …(4) } to deeply equal { …(4) }
+OK  N11 src/download.ts (1/103 red)
+      ✗ every state in both languages zh: the same shape in each state as in English
+          AssertionError: formal-github: expected { hero: [ …(3) ], pill: true, …(3) } to deeply equal { hero: [ …(3) ], pill: true, …(3) }
+OK  N12 src/scripts/apply-download.ts (3/103 red)
+      ✗ a state applied to the served page the test state: the pill on the platform line, the note beneath it, the pill before the line
+          AssertionError: expected null to be 'No stable release yet. The test versi…' // Object.is equality
+      ✗ a state applied to the served page zh: every string of the states’ copy is on the page once its state is applied
+          AssertionError: expected [ '\u6b63\u5f0f\u7248\u5c1a\u672a\u53d1\u5e03\u3002\u6d4b\u8bd5\u7248\u4ece GitHub \u4e0b\u8f7d\uff0c\u53ef\u80fd\u8fd8\u6709\u4e0d\u7a33\u5b9a\u4e4b\u5904\u3002' ] to deeply equal []
+      ✗ a state applied to the served page en: every string of the states’ copy is on the page once its state is applied
+          AssertionError: expected [ Array(1) ] to deeply equal []
+OK  N13 src/scripts/apply-download.ts (2/103 red)
+      ✗ a state applied to the served page zh: a later state replaces an earlier one in place, leaving nothing of it (Failure A7)
+          AssertionError: expected [ …(3) ] to deeply equal [ …(3) ]
+      ✗ a state applied to the served page en: a later state replaces an earlier one in place, leaving nothing of it (Failure A7)
+          AssertionError: expected [ …(3) ] to deeply equal [ …(3) ]
+OK  N14 src/scripts/apply-download.ts (1/103 red)
+      ✗ a state applied to the served page labels are set as text: markup in one creates no element (Failure E1)
+          AssertionError: expected '' to be '<img src=x onerror=alert(1)>' // Object.is equality
+OK  N15 src/scripts/download.ts (1/103 red)
+      ✗ a readable pointer: the formal state from R2, and GitHub is never asked
+          AssertionError: expected [ …(2) ] to deeply equal [ Array(1) ]
+OK  N16 src/styles/global.css (1/103 red)
+      ✗ the tokens the app also has carry the app’s purple values, light and dark
+          AssertionError: --warn-fg dark: expected '#f6b48a' to be '#f0a884' // Object.is equality
+OK  N17 src/i18n/ui.ts (2/103 red)
+      ✗ the test state English: the test version on GitHub, said plainly
+          AssertionError: expected 'No stable release. The test version d…' to be 'No stable release yet. The test versi…' // Object.is equality
+      ✗ a state applied to the served page the test state: the pill on the platform line, the note beneath it, the pill before the line
+          AssertionError: expected 'No stable release. The test version d…' to be 'No stable release yet. The test versi…' // Object.is equality
+BAD N18 src/releases.ts (0/103 red) — expected to survive: a real draft has published_at null, which the date check also refuses
+      missing: a draft is ignored
+OK  N19 src/scripts/download.ts (0/103 red) — control: a harmless change must leave everything green
+OK  N20 src/scripts/apply-download.ts (2/103 red) — added in code review: a class the served markup has and applyView drops
+      ✗ a state applied to the served page zh: a later state replaces an earlier one in place, leaving nothing of it (Failure A7)
+          AssertionError: expected [ …(3) ] to deeply equal [ …(3) ]
+      ✗ a state applied to the served page en: a later state replaces an earlier one in place, leaving nothing of it (Failure A7)
+          AssertionError: expected [ …(3) ] to deeply equal [ …(3) ]
+EXIT=0
+
+## Batch 2: definitions
+const M = [
+  { id: 'M21', file: D, pairs: [["if (pointer.kind === 'formal') return", "if (pointer.kind === 'formal' && github !== undefined) return"]], expect: ['a readable pointer wins, whatever GitHub says (GitHub not read)'], what: 'the pointer wins only once GitHub was read' },
+  { id: 'M22', file: D, pairs: [['dmg: github.dmg }', 'dmg: true }']], expect: [no('a formal release without its DMG'), un('a formal release without its DMG')], what: 'the DMG flag lost' },
+  { id: 'M23', file: D, pairs: [["if (github?.kind === 'formal') return", "if (github?.kind === 'formal' && pointer.kind === 'absent') return"]], expect: [un('a formal release'), un('a formal release without its DMG')], what: 'an unreadable pointer not falling through to GitHub' },
+  { id: 'M24', file: D, pairs: [["  if (github?.kind === 'pre') return { kind: 'test', version: github.version }\n", '']], expect: [no('only a pre-release'), un('only a pre-release')], what: 'pre-releases never offered' },
+  { id: 'M25', file: D, pairs: [["if (github?.kind === 'formal') return", "if (github?.kind === 'formal' && pointer.kind === 'unreadable') return"]], expect: [no('a formal release'), no('a formal release without its DMG')], what: 'an absent pointer not falling through to GitHub' },
+  { id: 'M26', file: D, pairs: [["  return { kind: 'list' }\n}\n\nconst fill", "  return { kind: 'formal-github', version: '0.0.0', dmg: false }\n}\n\nconst fill"]], expect: [no('no release'), no('GitHub unreadable'), no('GitHub not read'), un('no release'), un('GitHub unreadable'), un('GitHub not read')], what: 'a version guessed when nothing was read' },
+  { id: 'M27', file: D, pairs: [[HREF, 'const href = releasePage(state.version)']], expect: ['English: every link on GitHub, the download row with one button', 'the formal state from GitHub: every link on GitHub, one button'], what: 'the DMG never offered from GitHub' },
+  { id: 'M28', file: D, pairs: [[HREF, 'const href = githubDmg(state.version)']], expect: ['a release without its DMG: the buttons lead to its release page (Failure A8)'], what: 'a missing DMG offered directly' },
+  { id: 'M29', file: D, pairs: [['hero: github(fill(copy.formal.hero, state.version), href)', "hero: github(fill(copy.formal.hero, '0.2.0'), href)"]], expect: ['the version comes from the state, so another release needs no change (REQ-001/AC-05)'], what: 'a version constant in the label' },
+  { id: 'M30', file: R, pairs: [["  if (answer?.status === 404) return { kind: 'absent' }\n", '']], expect: ['no pointer yet: the host answers 404 with an HTML page'], what: 'a 404 not told from a failure' },
+  { id: 'M31', file: R, pairs: [[CATCH, '  } catch {\n    return { status: 404, body: undefined }\n  }']], expect: ['the pointer unreadable when the request fails (CORS refused, offline)', 'the pointer unreadable when the request is aborted'], what: 'a failed request read as no pointer' },
+  { id: 'M32', file: R, pairs: [["if (answer?.status === 404) return { kind: 'absent' }", "if (answer && answer.status !== 200) return { kind: 'absent' }"]], expect: ['the pointer unreadable when the host errs'], what: 'a server error read as no pointer' },
+  { id: 'M33', file: R, pairs: [[CATCH, '  } catch (e) {\n    if (e instanceof SyntaxError) throw e\n    return null\n  }']], expect: ['the pointer unreadable when the body is not JSON', 'GitHub’s releases unreadable when the body is not JSON'], what: 'a body that is not JSON escapes as an error' },
+  { id: 'M34', file: R, pairs: [["if (answer?.status !== 200 || !isObject(answer.body)) return { kind: 'unreadable' }", "if (answer?.status !== 200) return { kind: 'unreadable' }"]], expect: ['the pointer unreadable when the body is not an object'], what: 'a null body read as a pointer' },
+  { id: 'M35', file: R, pairs: [['const { version, files } = answer.body', "const { version = '0.2.0', files } = answer.body"]], expect: ['the pointer unreadable when no version'], what: 'a missing version guessed' },
+  { id: 'M36', file: R, pairs: [['const { version, files } = answer.body', "const { files } = answer.body\n  const version = typeof answer.body.version === 'string' ? answer.body.version.replace(/^v/, '') : answer.body.version"]], expect: ['the pointer unreadable when a version written with its v'], what: 'a version taken leniently' },
+  { id: 'M37', file: R, pairs: [[" && f['arch'] === 'arm64'", '']], expect: ['the pointer unreadable when no arm64 DMG'], what: 'any architecture accepted' },
+  { id: 'M38', file: R, pairs: [["f['name'] === dmgName(version) && ", '']], expect: ['the pointer unreadable when a DMG named for another version'], what: 'the DMG name not checked' },
+  { id: 'M39', file: R, pairs: [['const formal = newest(releases.filter((c) => !c.pre))', 'const top = newest(releases)\n  const formal = top && !top.pre ? top : undefined']], expect: ['a pre-release newer than the latest formal release: the formal release (Failure A4)'], what: 'the newest release offered, whatever its kind' },
+  { id: 'M40', file: R, pairs: [["return pre ? { kind: 'pre', version: pre.version } : { kind: 'none' }", "return pre ? { kind: 'pre', version: pre.version } : { kind: 'unreadable' }"]], expect: ['no release at all (Failure A1)'], what: 'an empty list read as unreadable' },
+  { id: 'M41', file: R, pairs: [["entry['draft'] !== false || ", ''], ['  if (Number.isNaN(published)) return null\n', '']], expect: ['a draft is ignored, however new (Failure A8)'], what: 'neither the draft flag nor the missing date checked (N18 removed only the flag)' },
+  { id: 'M42', file: R, pairs: [["const dmg = assets.some((a) => isObject(a) && a['name'] === dmgName(version) && a['state'] === 'uploaded')", 'const dmg = assets.length > 0']], expect: ['a formal release without the DMG is offered without it (Failure A8)'], what: 'any asset taken for the DMG' },
+  { id: 'M43', file: R, pairs: [[GH, "  if (answer === null) return { kind: 'unreadable' }\n  if (!Array.isArray(answer.body)) return { kind: 'none' }"]], expect: ['unreadable when the rate limit is spent (Failure A6)', 'GitHub’s releases unreadable when GitHub errs', 'GitHub’s releases unreadable when the body is not a list'], what: 'an answer that is not a list read as no release' },
+  { id: 'M44', file: R, pairs: [[GH, "  if (answer === null) return { kind: 'none' }\n  if (answer.status !== 200 || !Array.isArray(answer.body)) return { kind: 'unreadable' }"]], expect: ['GitHub’s releases unreadable when the request fails'], what: 'a failed request read as no release' },
+  { id: 'M46', file: A, pairs: [['      a.append(b.label)\n', '      a.append(b.label.toUpperCase())\n']], expect: ['zh: each state applies with the language’s own copy', 'en: each state applies with the language’s own copy'], what: 'the row’s labels altered on the way to the page' },
+  { id: 'M47', file: R, pairs: [['const isObject =', '// control\nconst isObject =']], expect: [], what: 'control: a harmless change must leave everything green' }
+]
+
+## Batch 2: run
+OK  M21 src/download.ts — the pointer wins only once GitHub was read (2/102 red)
+      ✗ deciding what to offer a readable pointer wins, whatever GitHub says (GitHub not read)
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'formal-r2', …(2) }
+      ✗ a readable pointer: the formal state from R2, and GitHub is never asked
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'formal-r2', …(2) }
+OK  M22 src/download.ts — the DMG flag lost (2/102 red)
+      ✗ deciding what to offer no pointer, and GitHub has a formal release without its DMG
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'formal-github', …(2) }
+      ✗ deciding what to offer an unreadable pointer, and GitHub has a formal release without its DMG
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'formal-github', …(2) }
+OK  M23 src/download.ts — an unreadable pointer not falling through to GitHub (2/102 red)
+      ✗ deciding what to offer an unreadable pointer, and GitHub has a formal release
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'formal-github', …(2) }
+      ✗ deciding what to offer an unreadable pointer, and GitHub has a formal release without its DMG
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'formal-github', …(2) }
+OK  M24 src/download.ts — pre-releases never offered (3/102 red)
+      ✗ deciding what to offer no pointer, and GitHub has only a pre-release
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'test', version: '0.1.0-beta' }
+      ✗ deciding what to offer an unreadable pointer, and GitHub has only a pre-release
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'test', version: '0.1.0-beta' }
+      ✗ no pointer, only pre-releases on GitHub: the test state, in the page’s language
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'test', version: '1.2.0-beta' }
+OK  M25 src/download.ts — an absent pointer not falling through to GitHub (2/102 red)
+      ✗ deciding what to offer no pointer, and GitHub has a formal release
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'formal-github', …(2) }
+      ✗ deciding what to offer no pointer, and GitHub has a formal release without its DMG
+          AssertionError: expected { kind: 'list' } to deeply equal { kind: 'formal-github', …(2) }
+OK  M26 src/download.ts — a version guessed when nothing was read (7/102 red)
+      ✗ deciding what to offer no pointer, and GitHub has no release
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'list' }
+      ✗ deciding what to offer no pointer, and GitHub has GitHub unreadable
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'list' }
+      ✗ deciding what to offer no pointer, and GitHub has GitHub not read
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'list' }
+      ✗ deciding what to offer an unreadable pointer, and GitHub has no release
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'list' }
+      ✗ deciding what to offer an unreadable pointer, and GitHub has GitHub unreadable
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'list' }
+      ✗ deciding what to offer an unreadable pointer, and GitHub has GitHub not read
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'list' }
+      ✗ neither source readable: the page stays as served, the release list
+          AssertionError: expected { kind: 'formal-github', …(2) } to deeply equal { kind: 'list' }
+OK  M27 src/download.ts — the DMG never offered from GitHub (3/102 red)
+      ✗ the formal state from GitHub English: every link on GitHub, the download row with one button
+          AssertionError: expected { …(4) } to deeply equal { …(4) }
+      ✗ every state in both languages the version comes from the state, so another release needs no change (REQ-001/AC-05)
+          AssertionError: expected 'https://github.com/aloong-planet/agen…' to be 'https://github.com/aloong-planet/agen…' // Object.is equality
+      ✗ a state applied to the served page the formal state from GitHub: every link on GitHub, one button
+          AssertionError: expected { …(4) } to deeply equal { …(4) }
+OK  M28 src/download.ts — a missing DMG offered directly (1/102 red)
+      ✗ the formal state from GitHub a release without its DMG: the buttons lead to its release page (Failure A8)
+          AssertionError: expected 'https://github.com/aloong-planet/agen…' to be 'https://github.com/aloong-planet/agen…' // Object.is equality
+OK  M29 src/download.ts — a version constant in the label (1/102 red)
+      ✗ every state in both languages the version comes from the state, so another release needs no change (REQ-001/AC-05)
+          AssertionError: expected '\u4e0b\u8f7d Agentshed 0.2.0' to contain '1.4.2'
+OK  M30 src/releases.ts — a 404 not told from a failure (1/102 red)
+      ✗ the pointer no pointer yet: the host answers 404 with an HTML page
+          AssertionError: expected { kind: 'unreadable' } to deeply equal { kind: 'absent' }
+OK  M31 src/releases.ts — a failed request read as no pointer (4/102 red)
+      ✗ the pointer unreadable when the request fails (CORS refused, offline)
+          AssertionError: expected { kind: 'absent' } to deeply equal { kind: 'unreadable' }
+      ✗ the pointer unreadable when the request is aborted
+          AssertionError: expected { kind: 'absent' } to deeply equal { kind: 'unreadable' }
+      ✗ the pointer unreadable when the body is not JSON
+          AssertionError: expected { kind: 'absent' } to deeply equal { kind: 'unreadable' }
+      ✗ the pointer a read that does not answer within the time limit is unreadable
+          AssertionError: expected { kind: 'absent' } to deeply equal { kind: 'unreadable' }
+OK  M32 src/releases.ts — a server error read as no pointer (1/102 red)
+      ✗ the pointer unreadable when the host errs
+          AssertionError: expected { kind: 'absent' } to deeply equal { kind: 'unreadable' }
+OK  M33 src/releases.ts — a body that is not JSON escapes as an error (2/102 red)
+      ✗ the pointer unreadable when the body is not JSON
+          SyntaxError: Unexpected token 'o', "not json" is not valid JSON
+      ✗ GitHub’s releases unreadable when the body is not JSON
+          SyntaxError: Unexpected token '<', "<html></html>" is not valid JSON
+OK  M34 src/releases.ts — a null body read as a pointer (1/102 red)
+      ✗ the pointer unreadable when the body is not an object
+          TypeError: Cannot destructure property 'version' of 'answer.body' as it is null.
+OK  M35 src/releases.ts — a missing version guessed (1/102 red)
+      ✗ the pointer unreadable when no version
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'unreadable' }
+OK  M36 src/releases.ts — a version taken leniently (1/102 red)
+      ✗ the pointer unreadable when a version written with its v
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'unreadable' }
+OK  M37 src/releases.ts — any architecture accepted (1/102 red)
+      ✗ the pointer unreadable when no arm64 DMG
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'unreadable' }
+OK  M38 src/releases.ts — the DMG name not checked (1/102 red)
+      ✗ the pointer unreadable when a DMG named for another version
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'unreadable' }
+OK  M39 src/releases.ts — the newest release offered, whatever its kind (1/102 red)
+      ✗ GitHub’s releases a pre-release newer than the latest formal release: the formal release (Failure A4)
+          AssertionError: expected { kind: 'pre', version: '1.2.0-beta' } to deeply equal { kind: 'formal', …(2) }
+OK  M40 src/releases.ts — an empty list read as unreadable (1/102 red)
+      ✗ GitHub’s releases no release at all (Failure A1)
+          AssertionError: expected { kind: 'unreadable' } to deeply equal { kind: 'none' }
+OK  M41 src/releases.ts — neither the draft flag nor the missing date checked (N18 removed only the flag) (1/102 red)
+      ✗ GitHub’s releases a draft is ignored, however new (Failure A8)
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'formal', …(2) }
+OK  M42 src/releases.ts — any asset taken for the DMG (2/102 red)
+      ✗ GitHub’s releases a formal release without the DMG is offered without it (Failure A8)
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'formal', …(2) }
+      ✗ GitHub’s releases a DMG whose upload has not finished does not count
+          AssertionError: expected { kind: 'formal', …(2) } to deeply equal { kind: 'formal', …(2) }
+OK  M43 src/releases.ts — an answer that is not a list read as no release (3/102 red)
+      ✗ GitHub’s releases unreadable when the rate limit is spent (Failure A6)
+          AssertionError: expected { kind: 'none' } to deeply equal { kind: 'unreadable' }
+      ✗ GitHub’s releases unreadable when GitHub errs
+          AssertionError: expected { kind: 'none' } to deeply equal { kind: 'unreadable' }
+      ✗ GitHub’s releases unreadable when the body is not a list
+          AssertionError: expected { kind: 'none' } to deeply equal { kind: 'unreadable' }
+OK  M44 src/releases.ts — a failed request read as no release (2/102 red)
+      ✗ GitHub’s releases unreadable when the body is not JSON
+          AssertionError: expected { kind: 'none' } to deeply equal { kind: 'unreadable' }
+      ✗ GitHub’s releases unreadable when the request fails
+          AssertionError: expected { kind: 'none' } to deeply equal { kind: 'unreadable' }
+OK  M46 src/scripts/apply-download.ts — the row’s labels altered on the way to the page (9/102 red)
+      ✗ a state applied to the served page the formal state from R2: the DMG from the download host in place, GitHub in a new tab
+          AssertionError: expected [ { text: 'DOWNLOAD', …(5) }, …(1) ] to deeply equal [ { text: 'Download', …(5) }, …(1) ]
+      ✗ a state applied to the served page the formal state from GitHub: every link on GitHub, one button
+          AssertionError: expected [ { text: 'DOWNLOAD', …(5) } ] to deeply equal [ { text: 'Download', …(5) } ]
+      ✗ a state applied to the served page the test state: the pill on the platform line, the note beneath it, the pill before the line
+          AssertionError: expected [ { …(6) } ] to deeply equal [ { …(6) } ]
+      ✗ a state applied to the served page zh: a later state replaces an earlier one in place, leaving nothing of it (Failure A7)
+          AssertionError: expected [ …(3) ] to deeply equal [ …(3) ]
+      ✗ a state applied to the served page en: a later state replaces an earlier one in place, leaving nothing of it (Failure A7)
+          AssertionError: expected [ …(3) ] to deeply equal [ …(3) ]
+      ✗ a state applied to the served page zh: each state applies with the language’s own copy
+          AssertionError: formal-r2: expected [ '\u4e0b\u8f7d', 'GITHUB' ] to deeply equal [ '\u4e0b\u8f7d', 'GitHub' ]
+      ✗ a state applied to the served page en: each state applies with the language’s own copy
+          AssertionError: formal-r2: expected [ 'DOWNLOAD', 'GITHUB' ] to deeply equal [ 'Download', 'GitHub' ]
+      ✗ a state applied to the served page zh: every string of the states’ copy is on the page once its state is applied
+          AssertionError: expected [ '\u4ece GitHub \u4e0b\u8f7d\u6d4b\u8bd5\u7248' ] to deeply equal []
+      ✗ a state applied to the served page en: every string of the states’ copy is on the page once its state is applied
+          AssertionError: expected [ Array(1) ] to deeply equal []
+OK  M47 src/releases.ts — control: a harmless change must leave everything green (0/102 red)
+EXIT=0
+
+## N11b: definition
+const M = [
+  { id: 'N11b', file: D, pairs: [['buttons: [github(copy.formal.download, href)] }', "buttons: locale === 'zh' ? [] : [github(copy.formal.download, href)] }"]], expect: ['the other language: the same shape in each state as in English'], what: 'N11 again, on the case rewritten in the post-implementation check: the Chinese formal-from-GitHub row loses its button' }
+]
+
+## N11b: run
+OK  N11b src/download.ts — N11 again, on the case rewritten in the post-implementation check: the Chinese formal-from-GitHub row loses its button (1/102 red)
+      ✗ every state in both languages the other language: the same shape in each state as in English
+          AssertionError: formal-github: expected { hero: [ …(3) ], pill: true, …(3) } to deeply equal { hero: [ …(3) ], pill: true, …(3) }
+
+## L1-L2: definitions
+const M = [
+  { id: 'L1', file: D, pairs: [['buttons: [github(copy.list.button, RELEASE_LIST)] }', 'buttons: [github(copy.list.button, `${RELEASE_LIST}/latest`)] }']], expect: ['the list state zh: both buttons lead to the release list, in a new tab', 'the list state en: both buttons lead to the release list, in a new tab'], what: 'the list branch rewritten in this ticket: its row leads elsewhere' },
+  { id: 'L2', file: D, pairs: [['hero: github(copy.list.hero, RELEASE_LIST)', "hero: github(fill(copy.formal.hero, '0.0.0'), RELEASE_LIST)"]], expect: ['the list state English copy is the spec’s', 'the list state zh: no version anywhere in the buttons, and every label is there', 'the list state en: no version anywhere in the buttons, and every label is there'], what: 'the list branch rewritten in this ticket: a version in its hero button' }
+]
+
+## L1-L2: run
+OK  L1 src/download.ts — the list branch rewritten in this ticket: its row leads elsewhere (4/102 red)
+      ✗ the list state zh: both buttons lead to the release list, in a new tab
+          AssertionError: expected { label: '\u524d\u5f80 GitHub \u4e0b\u8f7d', …(3) } to match object { …(3) }
+      ✗ the list state en: both buttons lead to the release list, in a new tab
+          AssertionError: expected { label: 'Download from GitHub', …(3) } to match object { …(3) }
+      ✗ the download as served: the list state zh: the hero button and the download section lead to the release list
+          AssertionError: expected [ [ '\u524d\u5f80 GitHub \u4e0b\u8f7d', …(2) ] ] to deeply equal [ [ '\u524d\u5f80 GitHub \u4e0b\u8f7d', …(2) ] ]
+      ✗ the download as served: the list state en: the hero button and the download section lead to the release list
+          AssertionError: expected [ [ 'Download from GitHub', …(2) ] ] to deeply equal [ [ 'Download from GitHub', …(2) ] ]
+OK  L2 src/download.ts — the list branch rewritten in this ticket: a version in its hero button (8/102 red)
+      ✗ the list state English copy is the spec’s
+          AssertionError: expected 'Download Agentshed 0.0.0' to be 'Download Agentshed from GitHub' // Object.is equality
+      ✗ the list state zh: no version anywhere in the buttons, and every label is there
+          AssertionError: expected '\u4e0b\u8f7d Agentshed 0.0.0' not to match /\d+\.\d+/
+      ✗ the list state en: no version anywhere in the buttons, and every label is there
+          AssertionError: expected 'Download Agentshed 0.0.0' not to match /\d+\.\d+/
+      ✗ the download as served: the list state zh: the hero button and the download section lead to the release list
+          AssertionError: expected '\u4e0b\u8f7d Agentshed 0.0.0' to be '\u524d\u5f80 GitHub \u4e0b\u8f7d Agentshed' // Object.is equality
+      ✗ the download as served: the list state en: the hero button and the download section lead to the release list
+          AssertionError: expected 'Download Agentshed 0.0.0' to be 'Download Agentshed from GitHub' // Object.is equality
+      ✗ the download as served: the list state the English list state reads as the spec’s
+          AssertionError: expected 'Download Agentshed 0.0.0' to be 'Download Agentshed from GitHub' // Object.is equality
+      ✗ two languages zh: every string of the language’s copy is on its page, but the copy of the states a read brings
+          AssertionError: expected [ '\u524d\u5f80 GitHub \u4e0b\u8f7d Agentshed' ] to deeply equal []
+      ✗ two languages en: every string of the language’s copy is on its page, but the copy of the states a read brings
+          AssertionError: expected [ 'Download Agentshed from GitHub' ] to deeply equal []
