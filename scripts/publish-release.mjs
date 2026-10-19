@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// The release workflow's publish step (mac-distribution::REQ-003, Failures C3, C5): publishes the GitHub release
-// for a tag from the DMGs the macOS gate job passed, all of them or none.
+// The release workflow's publish step (mac-distribution::REQ-001/AC-02, REQ-003, Failures C3, C5): publishes the
+// GitHub release for a tag from the DMGs the macOS gate job passed and the files the in-app updater reads (the ZIPs,
+// their blockmaps and the update metadata), all of them or none.
 //
 //   GITHUB_REF_NAME=v0.2.0 PRERELEASE=false GITHUB_REPOSITORY=<owner>/<repo> GH_TOKEN=… \
 //     node scripts/publish-release.mjs <artifact directory>
 //
-// The release is created as a draft, which only the repository's writers can see, with every DMG uploaded to it;
+// The release is created as a draft, which only the repository's writers can see, with every file uploaded to it;
 // each upload is checked against the gated file by its sha256 before the draft is made public in one step. So a
 // failed or partial upload leaves a draft behind and nothing public. A re-run deletes the drafts an earlier attempt
 // left for the tag and starts again, and refuses a tag whose release is already public, so a release never holds
@@ -15,15 +16,19 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { releaseFiles } from './lib/release-artifact.mjs'
+import { releaseFiles, updateFiles } from './lib/release-artifact.mjs'
 
 /**
- * Publishes the DMGs of the gate job's artifact, downloaded to `dir` (`<dir>/<version>/<files>`), as the release
- * of `tag`. `releases` is the release store (ghReleases below, or a
+ * Publishes the DMGs of the gate job's artifact, downloaded to `dir` (`<dir>/<version>/<files>`), with the files the
+ * in-app updater reads, as the release of `tag`. `releases` is the release store (ghReleases below, or a
  * stand-in): list, deleteDraft, createDraft, view and publish.
  */
 export function publishRelease({ dir, tag, prerelease, releases, log = console.log }) {
-  const { version, names, files } = releaseFiles(dir, tag)
+  const dmgs = releaseFiles(dir, tag)
+  const update = updateFiles(dir, tag, dmgs.names)
+  const { version } = dmgs
+  const names = [...dmgs.names, ...update.names]
+  const files = [...dmgs.files, ...update.files]
 
   const existing = releases.list().filter((release) => release.tagName === tag)
   if (existing.some((release) => !release.isDraft)) {

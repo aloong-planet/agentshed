@@ -188,11 +188,19 @@ test("the gate job's time limit leaves room for two submissions of up to 30 minu
   assert.ok(gate()['timeout-minutes'] >= 2 * 30 + 15, String(gate()['timeout-minutes']))
 })
 
-test("the packages and Apple's logs are kept with the run, and publishing takes exactly that artifact", () => {
+// The update files too (mac-distribution::REQ-001/AC-02; macos-signing.md §10): the updater reads the metadata,
+// downloads the ZIP, and uses the blockmap for a partial download
+test("the packages, the update files and Apple's logs are kept with the run, and publishing takes exactly that artifact", () => {
   const uploads = gate().steps.filter((step) => step.uses?.startsWith('actions/upload-artifact@'))
   const kept = uploads.find((step) => step.if === undefined) ?? assert.fail('no upload after a passing packaging')
   for (const step of packagingSteps()) assert.ok(indexOf(step) < indexOf(kept), step.name)
-  assert.deepEqual(kept.with.path.trim().split('\n').map((line) => line.trim()).sort(), ['release/*/*.dmg', 'release/*/*.notary-log.json'])
+  assert.deepEqual(kept.with.path.trim().split('\n').map((line) => line.trim()).sort(), [
+    'release/*/*-mac.yml',
+    'release/*/*.dmg',
+    'release/*/*.notary-log.json',
+    'release/*/*.zip',
+    'release/*/*.zip.blockmap'
+  ])
   assert.equal(kept.with['if-no-files-found'], 'error')
   // A failed gate keeps whatever logs Apple returned
   const failed = uploads.find((step) => /\bfailure\(\)/.test(step.if ?? '')) ?? assert.fail('no upload after a failure')

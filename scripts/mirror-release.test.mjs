@@ -102,6 +102,28 @@ test('the pointer is written last, naming the version and each file with its dow
   assert.deepEqual(bucket.pointerWrites, [['releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg']])
 })
 
+// The artifact also holds the files the in-app updater reads, which it reads from GitHub Releases only
+// (app-update::CON-002); R2 serves downloads, so only the DMGs go there and the pointer names only them. The set is
+// a real release packaging's (pnpm dist:mac:local, 2026-10-19, with the release profile's notary logs)
+test('the update files in the artifact stay off R2: only the DMGs are mirrored, and the pointer names only them', async (t) => {
+  const dir = artifactDir('0.2.0', [
+    'Agentshed-0.2.0-mac-arm64.dmg',
+    'Agentshed-0.2.0-mac-arm64.zip',
+    'Agentshed-0.2.0-mac-arm64.zip.blockmap',
+    'latest-mac.yml',
+    'Agentshed-0.2.0-mac-arm64.dmg.notary-log.json',
+    'Agentshed-0.2.0-mac-arm64.app.notary-log.json'
+  ])
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const bucket = bucketModel()
+  mirrorRelease({ dir, tag: 'v0.2.0', bucket, log: () => {} })
+  await pointRelease({ dir, tag: 'v0.2.0', host: HOST, bucket, probe: probeOf(bucket), sleep: async () => {}, log: () => {} })
+
+  assert.deepEqual([...bucket.objects.keys()].sort(), ['latest.json', 'releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg'])
+  const pointer = JSON.parse(bucket.objects.get('latest.json').bytes.toString('utf8'))
+  assert.deepEqual(pointer.files.map((file) => file.name), ['Agentshed-0.2.0-mac-arm64.dmg'])
+})
+
 test('a mirrored file the download host cannot serve leaves the pointer unwritten', async (t) => {
   const dir = artifactDir('0.2.0', ['Agentshed-0.2.0-mac-arm64.dmg', 'Agentshed-0.2.0-mac-x64.dmg'])
   t.after(() => rmSync(dir, { recursive: true, force: true }))

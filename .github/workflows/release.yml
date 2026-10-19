@@ -78,12 +78,17 @@ jobs:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: pnpm dist:mac:local
-      - name: Keep the packages and Apple's logs
+      # The update files with the DMGs: the updater reads the metadata, downloads the ZIP and uses its blockmap for a
+      # partial download (mac-distribution::REQ-001/AC-02)
+      - name: Keep the packages, the update files and Apple's logs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: agentshed-macos
           path: |
             release/*/*.dmg
+            release/*/*.zip
+            release/*/*.zip.blockmap
+            release/*/*-mac.yml
             release/*/*.notary-log.json
           if-no-files-found: error
       # A failed gate publishes nothing, and keeps whatever logs Apple returned (a rejection's log is in the job log)

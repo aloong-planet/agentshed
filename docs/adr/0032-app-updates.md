@@ -92,7 +92,8 @@ installed. No statement about the network request is shown.
 - Negative: macOS packages must include a ZIP, which the electron-scaffold packaging asset does not gate
   today. The asset has to be extended in skillshed (its own rule: change the asset, never the copy), and
   `macos-signing.md` requires the ZIP's submission and acceptance boundary to be derived anew rather than
-  copied from the DMG flow
+  copied from the DMG flow. (Done on 2026-10-19: the asset produces and gates the ZIP since skillshed's
+  070c4f2, and the project adopted that version; mac-distribution::REQ-001/AC-02.)
 - Neutral: the menu item, the switch and every update prompt are app copy, so they come in all six
   languages (ADR-0013)
 

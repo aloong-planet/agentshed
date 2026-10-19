@@ -4,8 +4,10 @@
 // order, what fails and with which message. They never contact Apple and never build an app: a green run here
 // says nothing about a real signature or a real notarization. Those are verified by real packaging runs.
 //
-// `main` runs real commands and is tested only for its argument and location checks: the hook path it derives and
-// the DMG gate's loop over the selected DMGs are covered only by a real release packaging run.
+// `main` runs real commands and is tested only for its argument and location checks and for the DMG gate checking the
+// artifact set before it runs any command: the hook path it derives and the DMG gate's loop over the selected DMGs
+// are covered only by a real release packaging run, which is also the only check of a real ZIP's extraction and of
+// the app inside it.
 const { test, describe, afterEach } = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -25,7 +27,17 @@ const CONFIG = {
   productName: PRODUCT,
   directories: { output: 'release/${version}' },
   mac: { notarize: false, target: [{ target: 'dmg', arch: ['universal', 'arm64', 'x64'] }] },
-  dmg: { artifactName: '${productName}-${version}-mac-${arch}.dmg' }
+  dmg: { artifactName: '${productName}-${version}-mac-${arch}.dmg', sign: true }
+}
+// The same project shipping electron-updater's ZIP too, configured as a real electron-builder 26.17.0 build accepts it
+const ZIP_CONFIG = {
+  ...CONFIG,
+  mac: {
+    notarize: false,
+    artifactName: '${productName}-${version}-mac-${arch}.${ext}',
+    target: [{ target: 'dmg', arch: ['universal', 'arm64', 'x64'] }, { target: 'zip', arch: ['universal', 'arm64', 'x64'] }]
+  },
+  dmg: { ...CONFIG.dmg, writeUpdateInfo: false }
 }
 
 // Shaped after real `security find-identity -v -p codesigning` output (hashes and names replaced)
@@ -100,16 +112,24 @@ const lipo = (bySubdir) => (command, args) => {
 }
 
 const dmgPath = (outputDir, arch) => path.join(outputDir, `${PRODUCT}-${VERSION}-mac-${arch}.dmg`)
+const zipPath = (outputDir, arch) => path.join(outputDir, `${PRODUCT}-${VERSION}-mac-${arch}.zip`)
 const appPath = (outputDir, subdir) => path.join(outputDir, subdir, `${PRODUCT}.app`)
 
 /**
  * A recording runner for one packaging build. Like the real builder, the apps and DMGs exist only once
- * electron-builder has run; it writes a DMG for every arch unless the arch is in `skipDmg`. codesign answers apps
- * with `appSignature` (or a per-subdir override) and DMGs with `dmgSignature`; `stapler validate` fails for apps
- * whose subdir is in `unstapled`.
+ * electron-builder has run; it writes a DMG for every arch unless the arch is in `skipDmg`, and with `zip` a ZIP
+ * unless the arch is in `skipZip`. codesign answers apps with `appSignature` (or a per-subdir override) and DMGs with
+ * `dmgSignature`; `stapler validate` fails for apps whose subdir is in `unstapled`.
+ *
+ * `ditto -x -k` extracts a ZIP the way a real one comes out: the app alone at the top, plus the files named in
+ * `zipExtras[arch]`, and a read-only directory inside the app when the arch is in `zipLocked`. The app extracted from
+ * an arch's ZIP is answered with `zipAppSignature[arch]` (default: signed correctly), and fails `stapler validate` when
+ * the arch is in `unstapledZip`. `extractions` lists every extraction.
  */
 function buildRunner(outputDir, opts = {}) {
   const commands = []
+  const extractions = []
+  const extractionOf = (target) => extractions.find((e) => target.startsWith(`${e.dir}${path.sep}`))
   const run = (command, args) => {
     commands.push([command, ...args].join(' '))
     if (command === 'lipo') return lipo(LIPO_ANSWERS)(command, args)
@@ -117,7 +137,30 @@ function buildRunner(outputDir, opts = {}) {
       makeApps(outputDir, BUILD_SUBDIRS)
       for (const arch of ARCHES) {
         if (!(opts.skipDmg ?? []).includes(arch)) fs.writeFileSync(dmgPath(outputDir, arch), 'new')
+        if (opts.zip && !(opts.skipZip ?? []).includes(arch)) fs.writeFileSync(zipPath(outputDir, arch), `zip for ${arch}`)
       }
+      return { stdout: '', stderr: '' }
+    }
+    if (command === 'ditto' && args[0] === '-x') {
+      const extraction = { arch: /-mac-([a-z0-9]+)\.zip$/.exec(args[2])[1], dir: args[3] }
+      extractions.push(extraction)
+      makeApps(extraction.dir, [''])
+      for (const name of opts.zipExtras?.[extraction.arch] ?? []) fs.writeFileSync(path.join(extraction.dir, name), '')
+      if ((opts.zipLocked ?? []).includes(extraction.arch)) {
+        // A read-only directory with a file in it, which makes removing the extraction throw
+        const locked = path.join(extraction.dir, `${PRODUCT}.app`, 'Contents', 'locked')
+        fs.mkdirSync(locked)
+        fs.writeFileSync(path.join(locked, 'file'), '')
+        fs.chmodSync(locked, 0o555)
+      }
+      return { stdout: '', stderr: '' }
+    }
+    const extracted = args.length > 0 ? extractionOf(args.at(-1)) : undefined
+    if (extracted && command === 'codesign' && args[0] === '--display') {
+      return { stdout: '', stderr: opts.zipAppSignature?.[extracted.arch] ?? SIGNED_DEVELOPER_ID }
+    }
+    if (extracted && command === 'xcrun' && args[0] === 'stapler' && args[1] === 'validate') {
+      if ((opts.unstapledZip ?? []).includes(extracted.arch)) throw new Error(`${args[2]} does not have a ticket stapled to it.`)
       return { stdout: '', stderr: '' }
     }
     if (command === 'codesign' && args[0] === '--display') {
@@ -131,11 +174,15 @@ function buildRunner(outputDir, opts = {}) {
     }
     return { stdout: '', stderr: '' }
   }
-  return { commands, run }
+  return { commands, run, extractions }
 }
 
-const pkg = (outputDir, run, profile, env = { CSC_LINK: 'base64-p12' }) =>
-  mac.packageMac({ profile, env, run, outputDir, productName: PRODUCT, version: VERSION, arches: ARCHES, hookPath: 'build/mac-packaging.cjs' })
+const pkg = (outputDir, run, profile, env = { CSC_LINK: 'base64-p12' }, zip = false) =>
+  mac.packageMac({ profile, env, run, outputDir, productName: PRODUCT, version: VERSION, arches: ARCHES, zip, hookPath: 'build/mac-packaging.cjs' })
+
+/** The commands with each extraction directory, whose name is random, shown as `<zip:arch>` */
+const withExtractions = (commands, extractions) =>
+  commands.map((c) => extractions.reduce((shown, e) => shown.split(e.dir).join(`<zip:${e.arch}>`), c))
 
 describe('configuration', () => {
   test('reads the DMG target architectures in config order', () => {
@@ -154,9 +201,40 @@ describe('configuration', () => {
 
   test('product name, version, output directory and arches come from the project files', () => {
     assert.deepEqual(mac.resolveLayout(CONFIG, JSON.stringify({ version: '9.8.7' })), {
-      productName: PRODUCT, version: '9.8.7', outputDir: 'release/9.8.7', arches: ARCHES
+      productName: PRODUCT, version: '9.8.7', outputDir: 'release/9.8.7', arches: ARCHES, zip: false
     })
   })
+
+  test('a zip target with the dmg target\'s arches opts the ZIP in, in whatever order it lists them', () => {
+    assert.deepEqual(mac.resolveLayout(ZIP_CONFIG, JSON.stringify({ version: '9.8.7' })), {
+      productName: PRODUCT, version: '9.8.7', outputDir: 'release/9.8.7', arches: ARCHES, zip: true
+    })
+    const reordered = structuredClone(ZIP_CONFIG)
+    reordered.mac.target[1].arch = ['x64', 'universal', 'arm64']
+    assert.equal(mac.resolveLayout(reordered, JSON.stringify({ version: '9.8.7' })).zip, true)
+  })
+
+  for (const [name, change, message] of [
+    ['a zip target for other arches', (c) => { c.mac.target[1].arch = ['arm64'] },
+      'the mac zip target must list the same arches as the dmg target: universal, arm64, x64 (found: arm64)'],
+    // A bare target name has no arch list, and must not slip past as "no ZIP"
+    ['a zip target without an arch list', (c) => { c.mac.target[1] = 'zip' },
+      'the mac zip target must list the same arches as the dmg target: universal, arm64, x64 (found: no arch list)'],
+    // electron-builder rejects a zip options block, so the ZIP is named by mac.artifactName
+    ['no mac.artifactName', (c) => { delete c.mac.artifactName },
+      'with the zip target, electron-builder.yml must set mac.artifactName: ${productName}-${version}-mac-${arch}.${ext} (found: nothing)'],
+    ['another mac.artifactName', (c) => { c.mac.artifactName = '${productName}-${version}-${arch}-mac.${ext}' },
+      'with the zip target, electron-builder.yml must set mac.artifactName: ${productName}-${version}-mac-${arch}.${ext} (found: ${productName}-${version}-${arch}-mac.${ext})'],
+    // The DMG gate staples each DMG after electron-builder hashed it, so a DMG entry in the update metadata would be stale
+    ['the DMG still written into the update metadata', (c) => { delete c.dmg.writeUpdateInfo },
+      'with the zip target, electron-builder.yml must set dmg.writeUpdateInfo: false (found: nothing)']
+  ]) {
+    test(`the ZIP opt-in is refused before building with ${name}`, () => {
+      const config = structuredClone(ZIP_CONFIG)
+      change(config)
+      assert.throws(() => mac.resolveLayout(config, JSON.stringify({ version: '1.0.0' })), { message })
+    })
+  }
 
   test('an output directory using a macro other than ${version} is refused rather than guessed', () => {
     const config = { ...CONFIG, directories: { output: 'release/${arch}/${version}' } }
@@ -167,7 +245,8 @@ describe('configuration', () => {
 
   test('the DMG name pattern is required, and the error says what to write', () => {
     // The default pattern drops the arch for the default architecture, so a file could not be mapped to its arch
-    const { dmg, ...withoutDmg } = CONFIG
+    const withoutDmg = structuredClone(CONFIG)
+    delete withoutDmg.dmg
     assert.throws(() => mac.resolveLayout(withoutDmg, JSON.stringify({ version: '1.0.0' })), {
       message: 'electron-builder.yml must set dmg.artifactName: ${productName}-${version}-mac-${arch}.dmg (found: nothing)'
     })
@@ -176,15 +255,33 @@ describe('configuration', () => {
     })
   })
 
+  test('the DMG must be signed, and the error says what to write', () => {
+    // Without dmg.sign electron-builder leaves the DMG unsigned, which the signature check would find only after the build
+    const unsigned = structuredClone(CONFIG)
+    delete unsigned.dmg.sign
+    assert.throws(() => mac.resolveLayout(unsigned, JSON.stringify({ version: '1.0.0' })), {
+      message: 'electron-builder.yml must set dmg.sign: true (found: nothing)'
+    })
+    assert.throws(() => mac.resolveLayout({ ...CONFIG, dmg: { ...CONFIG.dmg, sign: false } }, JSON.stringify({ version: '1.0.0' })), {
+      message: 'electron-builder.yml must set dmg.sign: true (found: false)'
+    })
+  })
+
   test('a config without productName is refused', () => {
-    const { productName, ...withoutName } = CONFIG
+    const withoutName = structuredClone(CONFIG)
+    delete withoutName.productName
     assert.throws(() => mac.resolveLayout(withoutName, JSON.stringify({ version: '1.0.0' })), { message: 'electron-builder.yml has no productName' })
   })
 
   test('js-yaml comes from electron-builder\'s dependency tree, and its absence is explained', () => {
     assert.equal(typeof mac.yamlParser().load, 'function')
-    const missing = () => { throw new Error("Cannot find module 'electron-builder/package.json'") }
-    assert.throws(() => mac.yamlParser(missing), /cannot load js-yaml through electron-builder .*is electron-builder installed\?/)
+    const notFound = new Error("Cannot find module 'electron-builder/package.json'")
+    const missing = () => { throw notFound }
+    assert.throws(() => mac.yamlParser(missing), (error) => {
+      assert.match(error.message, /cannot load js-yaml through electron-builder .*is electron-builder installed\?/)
+      assert.equal(error.cause, notFound)
+      return true
+    })
   })
 })
 
@@ -308,6 +405,127 @@ describe('one build, release profile', () => {
   })
 })
 
+describe('one build with the ZIP electron-updater installs from', () => {
+  test('local packaging checks the app inside each ZIP in a temporary extraction, which it removes, and asks for no ticket', () => {
+    const outputDir = tempDir()
+    const { commands, run, extractions } = buildRunner(outputDir, { zip: true })
+
+    const result = pkg(outputDir, run, 'local', undefined, true)
+
+    assert.deepEqual(result.zips, ARCHES.map((arch) => zipPath(outputDir, arch)))
+    assert.deepEqual(withExtractions(commands, extractions).filter((c) => !c.startsWith('lipo')), [
+      'electron-vite build',
+      'electron-builder --mac --publish never -c.mac.notarize=false',
+      ...['mac-universal', 'mac-arm64', 'mac'].flatMap((s) => [
+        `codesign --display --verbose=4 ${appPath(outputDir, s)}`,
+        `codesign --verify --deep --strict --verbose=2 ${appPath(outputDir, s)}`
+      ]),
+      ...ARCHES.flatMap((arch) => [`codesign --verify --verbose=4 ${dmgPath(outputDir, arch)}`, `codesign --display --verbose=4 ${dmgPath(outputDir, arch)}`]),
+      ...ARCHES.flatMap((arch) => [
+        `ditto -x -k ${zipPath(outputDir, arch)} <zip:${arch}>`,
+        `codesign --verify --deep --strict --verbose=2 <zip:${arch}>/${PRODUCT}.app`,
+        `codesign --display --verbose=4 <zip:${arch}>/${PRODUCT}.app`
+      ])
+    ])
+    assert.equal(extractions.length, ARCHES.length)
+    assert.deepEqual(extractions.filter((e) => fs.existsSync(e.dir)), [])
+  })
+
+  test('release packaging also requires the app inside each ZIP to carry its stapled ticket', () => {
+    const outputDir = tempDir()
+    const { commands, run, extractions } = buildRunner(outputDir, { zip: true })
+    pkg(outputDir, run, 'release', { CSC_LINK: 'base64-p12', ...APPLE_ENV }, true)
+    const shown = withExtractions(commands, extractions)
+    assert.deepEqual(shown.slice(shown.indexOf(`ditto -x -k ${zipPath(outputDir, ARCHES[0])} <zip:${ARCHES[0]}>`)), ARCHES.flatMap((arch) => [
+      `ditto -x -k ${zipPath(outputDir, arch)} <zip:${arch}>`,
+      `codesign --verify --deep --strict --verbose=2 <zip:${arch}>/${PRODUCT}.app`,
+      `codesign --display --verbose=4 <zip:${arch}>/${PRODUCT}.app`,
+      `xcrun stapler validate <zip:${arch}>/${PRODUCT}.app`
+    ]))
+  })
+
+  test('a ZIP whose app has no stapled ticket fails the release, even though the built app has one', () => {
+    const outputDir = tempDir()
+    const { run, extractions } = buildRunner(outputDir, { zip: true, unstapledZip: ['arm64'] })
+    assert.throws(() => pkg(outputDir, run, 'release', { CSC_LINK: 'base64-p12', ...APPLE_ENV }, true), (error) => {
+      const arm64 = extractions.find((e) => e.arch === 'arm64')
+      assert.equal(error.message, `${path.join(arm64.dir, `${PRODUCT}.app`)} does not have a ticket stapled to it.`)
+      return true
+    })
+    assert.deepEqual(extractions.filter((e) => fs.existsSync(e.dir)), [])
+  })
+
+  const ZIP_APP = `${PRODUCT}-${VERSION}-mac-arm64.zip's app`
+  for (const [name, signature, message] of [
+    ['no Developer ID Application authority', SIGNED_ADHOC, `${ZIP_APP} is not signed by a Developer ID Application identity`],
+    ['another Team ID', SIGNED_DEVELOPER_ID.replace('Example Dev (TEAM123456)', 'Someone Else (OTHERTEAM1)').replace('TeamIdentifier=TEAM123456', 'TeamIdentifier=OTHERTEAM1'),
+      `${ZIP_APP} Team ID does not match: expected TEAM123456`],
+    ['no secure timestamp', SIGNED_DEVELOPER_ID.split('\n').filter((line) => !line.startsWith('Timestamp=')).join('\n'), `${ZIP_APP} signature has no secure timestamp`]
+  ]) {
+    test(`a ZIP whose app has ${name} fails, even though the built app is signed correctly`, () => {
+      const outputDir = tempDir()
+      const { run } = buildRunner(outputDir, { zip: true, zipAppSignature: { arm64: signature } })
+      assert.throws(() => pkg(outputDir, run, 'local', undefined, true), { message })
+    })
+  }
+
+  for (const [outcome, signature, message] of [
+    ['passed', undefined, null],
+    ['failed', SIGNED_ADHOC, `${ZIP_APP} is not signed by a Developer ID Application identity`]
+  ]) {
+    test(`an extraction that cannot be fully removed leaves the outcome of a check that ${outcome} as it is`, () => {
+      const outputDir = tempDir()
+      const { run, extractions } = buildRunner(outputDir, { zip: true, zipLocked: ['arm64'], zipAppSignature: { arm64: signature } })
+      try {
+        if (message) assert.throws(() => pkg(outputDir, run, 'local', undefined, true), { message })
+        else assert.deepEqual(pkg(outputDir, run, 'local', undefined, true).zips, ARCHES.map((arch) => zipPath(outputDir, arch)))
+        // The removal did fail, so the case exercised what it is named for
+        assert.equal(fs.existsSync(extractions.find((e) => e.arch === 'arm64').dir), true)
+      } finally {
+        for (const { dir } of extractions) {
+          const locked = path.join(dir, `${PRODUCT}.app`, 'Contents', 'locked')
+          if (fs.existsSync(locked)) fs.chmodSync(locked, 0o755)
+          fs.rmSync(dir, { recursive: true, force: true })
+        }
+      }
+    })
+  }
+
+  test('a ZIP that holds more than the app fails', () => {
+    // electron-builder zips the app's directory, extra files included, when the config adds extraDistFiles
+    const outputDir = tempDir()
+    const { run } = buildRunner(outputDir, { zip: true, zipExtras: { arm64: ['README.txt'] } })
+    assert.throws(() => pkg(outputDir, run, 'local', undefined, true), {
+      message: `${PRODUCT}-${VERSION}-mac-arm64.zip must hold exactly ${PRODUCT}.app (found: ${PRODUCT}.app, README.txt)`
+    })
+  })
+
+  test('the ZIP is never written: its bytes and time are the builder\'s, and only the extraction names it', () => {
+    // The update metadata records each ZIP's hash, and the updater refuses a ZIP that no longer matches it
+    const outputDir = tempDir()
+    const { commands, run: inner } = buildRunner(outputDir, { zip: true })
+    const built = new Map()
+    const run = (command, args) => {
+      const result = inner(command, args)
+      if (command === 'electron-builder') for (const arch of ARCHES) built.set(arch, fs.statSync(zipPath(outputDir, arch)).mtimeMs)
+      return result
+    }
+    pkg(outputDir, run, 'release', { CSC_LINK: 'base64-p12', ...APPLE_ENV }, true)
+    for (const arch of ARCHES) {
+      const zip = zipPath(outputDir, arch)
+      assert.equal(fs.readFileSync(zip, 'utf8'), `zip for ${arch}`)
+      assert.equal(fs.statSync(zip).mtimeMs, built.get(arch))
+      assert.deepEqual(commands.filter((c) => c.includes(zip)).map((c) => c.split(' ').slice(0, 4).join(' ')), [`ditto -x -k ${zip}`])
+    }
+  })
+
+  test('fails when the builder left no ZIP for an arch', () => {
+    const outputDir = tempDir()
+    const { run } = buildRunner(outputDir, { zip: true, skipZip: ['x64'] })
+    assert.throws(() => pkg(outputDir, run, 'local', undefined, true), { message: `no ZIP for x64 after the build: ${zipPath(outputDir, 'x64')}` })
+  })
+})
+
 describe('a rebuild leaves nothing from an earlier run behind', () => {
   test('a DMG left over from an earlier run does not pass as this run\'s output', () => {
     const outputDir = tempDir()
@@ -332,6 +550,23 @@ describe('a rebuild leaves nothing from an earlier run behind', () => {
     }
     assert.deepEqual(seenAtBuild, ['mas-universal'])
   })
+
+  for (const [zip, expected] of [[true, []], [false, [`${PRODUCT}-${VERSION}-mac-arm64.zip`, 'latest-mac.yml', 'beta-mac.yml']]]) {
+    test(`${zip ? 'with the ZIP, leftover ZIPs and update metadata are cleared before the build' : 'DMG-only, ZIPs and update metadata are left as they are'}`, () => {
+      // A build that writes no update metadata (no publish provider) must not pass with an earlier run's
+      const outputDir = tempDir()
+      const leftovers = [zipPath(outputDir, 'arm64'), path.join(outputDir, 'latest-mac.yml'), path.join(outputDir, 'beta-mac.yml')]
+      for (const file of leftovers) fs.writeFileSync(file, 'stale')
+      let seenAtBuild = null
+      const { run: inner } = buildRunner(outputDir, { zip })
+      const run = (command, args) => {
+        if (command === 'electron-builder') seenAtBuild = leftovers.filter((file) => fs.existsSync(file)).map((file) => path.basename(file))
+        return inner(command, args)
+      }
+      pkg(outputDir, run, 'local', undefined, zip)
+      assert.deepEqual(seenAtBuild, expected)
+    })
+  }
 
   test('the notarization logs of the apps and DMGs being rebuilt are removed', () => {
     // A local package must never sit next to a log claiming it was notarized
@@ -438,6 +673,101 @@ describe('DMG gate: which DMGs', () => {
     fs.mkdirSync(path.join(mountPoint, `${PRODUCT}.app`))
     assert.equal(mac.findMountedApp(mountPoint, PRODUCT), path.join(mountPoint, `${PRODUCT}.app`))
     assert.throws(() => mac.findMountedApp(mountPoint, 'Other'), { message: `no Other.app in the mounted DMG: ${mountPoint}` })
+  })
+})
+
+// The fixture ZIPs hold `zip for <arch>`; their sha512 (base64, as electron-builder records it) and sizes are
+// literals computed with `openssl dgst -sha512 -binary | base64`, independent of the code under test
+const ZIP_HASHES = {
+  universal: { sha512: '6hZOTHhbK2X+c0E7xRwpMln3F3dRmAPU5Ltmlyb3dr5e5cdA2D+4KUer8/i+cVJ+6Lrll/bVo4Mre9Pywg2udA==', size: 17 },
+  arm64: { sha512: 'fAWqClNSK9Zs59XWpIm+5OMRft9t0dQY9C5Lb1PSAPzJcofS1+QxJ15ReSPkOccrtR+ugqYWYD9mJIwhF6XDFA==', size: 13 },
+  x64: { sha512: '8LHcHnGrljLe1uk90QzRJPUPMtzM/TUYtjspAsf0cycm/mNp0dBTHzdGiZYib+Umdz/9BiRljkNJtPXFz6DLAw==', size: 11 }
+}
+const zipEntry = (arch) => ({ url: `${PRODUCT}-${VERSION}-mac-${arch}.zip`, ...ZIP_HASHES[arch] })
+
+/** Update metadata shaped after a real latest-mac.yml written by electron-builder 26.17.0 */
+function metadataYaml({ version = VERSION, files = ARCHES.map(zipEntry) } = {}) {
+  return [
+    `version: ${version}`,
+    'files:',
+    ...files.flatMap(({ url, sha512, size }) => [`  - url: ${url}`, `    sha512: ${sha512}`, `    size: ${size}`]),
+    `path: ${files[0].url}`,
+    `sha512: ${files[0].sha512}`,
+    "releaseDate: '2026-10-19T02:55:56.093Z'"
+  ].join('\n') + '\n'
+}
+
+/**
+ * A version directory as a release packaging with the ZIP leaves it (the names a real build writes): the build
+ * directories, each arch's DMG, ZIP and ZIP blockmap, builder-debug.yml, and the update metadata files in `metadata`.
+ * `skipZip` leaves arches without a ZIP; `extra` adds files.
+ */
+function releaseOutput({ metadata = { 'latest-mac.yml': metadataYaml() }, skipZip = [], extra = {} } = {}) {
+  const outputDir = buildOutput(BUILD_SUBDIRS)
+  for (const arch of ARCHES) {
+    fs.writeFileSync(dmgPath(outputDir, arch), 'dmg')
+    if (skipZip.includes(arch)) continue
+    fs.writeFileSync(zipPath(outputDir, arch), `zip for ${arch}`)
+    fs.writeFileSync(`${zipPath(outputDir, arch)}.blockmap`, 'blockmap')
+  }
+  for (const [name, text] of Object.entries({ 'builder-debug.yml': 'arm64: {}\n', ...metadata, ...extra })) fs.writeFileSync(path.join(outputDir, name), text)
+  return outputDir
+}
+
+const ZIP_LAYOUT = { productName: PRODUCT, version: VERSION, arches: ARCHES, zip: true }
+
+describe('the artifact set the DMG gate runs on', () => {
+  test('with the ZIP: the DMGs and ZIPs in config order, once the one update metadata file vouches for exactly those ZIPs; nothing is written', () => {
+    const outputDir = releaseOutput()
+    const before = ARCHES.map((arch) => fs.statSync(zipPath(outputDir, arch)).mtimeMs)
+    assert.deepEqual(mac.checkArtifactSet(outputDir, ZIP_LAYOUT), {
+      dmgs: ARCHES.map((arch) => dmgPath(outputDir, arch)),
+      zips: ARCHES.map((arch) => zipPath(outputDir, arch)),
+      metadata: path.join(outputDir, 'latest-mac.yml')
+    })
+    assert.deepEqual(ARCHES.map((arch) => fs.readFileSync(zipPath(outputDir, arch), 'utf8')), ARCHES.map((arch) => `zip for ${arch}`))
+    assert.deepEqual(ARCHES.map((arch) => fs.statSync(zipPath(outputDir, arch)).mtimeMs), before)
+  })
+
+  const only = (...arches) => metadataYaml({ files: arches.map(zipEntry) })
+  for (const [name, setup, message] of [
+    ['a DMG is missing', { extra: {}, removeDmg: 'x64' }, 'missing DMG for x64: Demo-1.2.1-mac-x64.dmg'],
+    ['a ZIP is missing', { skipZip: ['x64'], metadata: { 'latest-mac.yml': only('universal', 'arm64') } }, 'missing ZIP for x64: Demo-1.2.1-mac-x64.zip'],
+    // electron-builder's default ZIP name puts the arch before "mac" (and drops it for the default arch)
+    ['a ZIP under electron-builder\'s default name is left over', { extra: { 'Demo-1.2.1-arm64-mac.zip': 'old' } }, 'unexpected ZIP: Demo-1.2.1-arm64-mac.zip'],
+    ['a ZIP of another version is left over', { extra: { 'Demo-1.2.0-mac-arm64.zip': 'old' } }, 'unexpected ZIP: Demo-1.2.0-mac-arm64.zip'],
+    ['there is no update metadata', { metadata: {} },
+      'no update metadata (*-mac.yml) in <dir>: electron-builder writes it only when a publish provider is configured or detected'],
+    // As electron-builder writes them for a formal version with generateUpdatesFilesForAllChannels on a generic provider
+    ['there are several update metadata files', { metadata: { 'latest-mac.yml': metadataYaml(), 'alpha-mac.yml': metadataYaml(), 'beta-mac.yml': metadataYaml() } },
+      'more than one update metadata file in <dir>: alpha-mac.yml, beta-mac.yml, latest-mac.yml'],
+    ['the update metadata is for another version', { metadata: { 'latest-mac.yml': metadataYaml({ version: '1.2.0' }) } },
+      'latest-mac.yml is for version 1.2.0, not 1.2.1'],
+    // As electron-builder writes it unless dmg.writeUpdateInfo is false
+    ['the update metadata lists a DMG', { metadata: { 'latest-mac.yml': metadataYaml({ files: [...ARCHES.map(zipEntry), { url: 'Demo-1.2.1-mac-arm64.dmg', sha512: ZIP_HASHES.arm64.sha512, size: 3 }] }) } },
+      'latest-mac.yml lists a file that is not one of this build\'s ZIPs: Demo-1.2.1-mac-arm64.dmg'],
+    ['the update metadata leaves a ZIP out', { metadata: { 'latest-mac.yml': only('universal', 'arm64') } }, 'latest-mac.yml does not list Demo-1.2.1-mac-x64.zip'],
+    ['the update metadata lists a ZIP twice', { metadata: { 'latest-mac.yml': only('universal', 'arm64', 'x64', 'arm64') } }, 'latest-mac.yml lists Demo-1.2.1-mac-arm64.zip 2 times'],
+    ['the update metadata records another size', { metadata: { 'latest-mac.yml': metadataYaml({ files: [zipEntry('universal'), { ...zipEntry('arm64'), size: 14 }, zipEntry('x64')] }) } },
+      'latest-mac.yml records size 14 for Demo-1.2.1-mac-arm64.zip, the file has 13 bytes'],
+    // The same size, another hash: what a ZIP rewritten after electron-builder hashed it looks like
+    ['the update metadata records another sha512', { metadata: { 'latest-mac.yml': metadataYaml({ files: [zipEntry('universal'), { ...zipEntry('arm64'), sha512: ZIP_HASHES.universal.sha512 }, zipEntry('x64')] }) } },
+      'latest-mac.yml records another sha512 for Demo-1.2.1-mac-arm64.zip than the file has']
+  ]) {
+    test(`fails before any submission when ${name}`, () => {
+      const outputDir = releaseOutput(setup)
+      if (setup.removeDmg) fs.rmSync(dmgPath(outputDir, setup.removeDmg))
+      assert.throws(() => mac.checkArtifactSet(outputDir, ZIP_LAYOUT), { message: message.replace('<dir>', outputDir) })
+    })
+  }
+
+  test('DMG-only: ZIPs and update metadata are not part of the set', () => {
+    const outputDir = releaseOutput({ metadata: {}, extra: { [`${PRODUCT}-${VERSION}-arm64-mac.zip`]: 'stray' } })
+    assert.deepEqual(mac.checkArtifactSet(outputDir, { ...ZIP_LAYOUT, zip: false }), {
+      dmgs: ARCHES.map((arch) => dmgPath(outputDir, arch)),
+      zips: [],
+      metadata: null
+    })
   })
 })
 
@@ -549,5 +879,18 @@ describe('command line', () => {
   test('outside the project root it says so instead of guessing', () => {
     const elsewhere = tempDir()
     assert.throws(() => mac.main(['local'], {}, elsewhere), { message: `run from the project root: no electron-builder.yml in ${elsewhere}` })
+  })
+
+  test('the DMG gate checks the artifact set before running any command', () => {
+    // Were any DMG gated first, the real hdiutil would fail on the fixture's fake DMG with another error
+    const root = tempDir()
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ version: VERSION }))
+    fs.writeFileSync(path.join(root, 'electron-builder.yml'), mac.yamlParser().dump(ZIP_CONFIG))
+    const outputDir = path.join(root, 'release', VERSION)
+    fs.mkdirSync(path.dirname(outputDir))
+    fs.renameSync(releaseOutput({ metadata: {} }), outputDir)
+    assert.throws(() => mac.main(['notarize-dmg'], APPLE_ENV, root), {
+      message: `no update metadata (*-mac.yml) in ${outputDir}: electron-builder writes it only when a publish provider is configured or detected`
+    })
   })
 })

@@ -1,0 +1,43 @@
+# Targeted test selection for #235 (step 4.6), 2026-10-19, on the uncommitted tree
+## changed files
+ M .github/workflows/release.yml
+ M build/mac-packaging.cjs
+ M build/mac-packaging.test.cjs
+ M electron-builder.yml
+ M eslint.config.js
+ M scripts/lib/release-artifact.mjs
+ M scripts/mirror-release.test.mjs
+ M scripts/publish-release.mjs
+ M scripts/publish-release.test.mjs
+ M scripts/release-workflow.test.mjs
+ M src/main/update-source.test.ts
+
+## 1. test files changed by this ticket
+build/mac-packaging.test.cjs
+scripts/mirror-release.test.mjs
+scripts/publish-release.test.mjs
+scripts/release-workflow.test.mjs
+src/main/update-source.test.ts
+
+## 2. test files importing a changed module (release-artifact, publish-release, mirror-release, mac-packaging, update-source)
+$ rg -l --hidden -g "*.test.*" -g "!node_modules" "release-artifact|publish-release|mirror-release|mac-packaging|update-source" .
+./build/mac-packaging.test.cjs
+./scripts/mirror-release.test.mjs
+./scripts/publish-release.test.mjs
+./scripts/release-workflow.test.mjs
+./src/main/update-source.test.ts
+
+## 3. test files reading a changed configuration file (electron-builder.yml, release.yml, eslint.config.js)
+$ rg -l --hidden -g "*.test.*" -g "!node_modules" "electron-builder\.yml|release\.yml|eslint\.config" .
+./build/mac-packaging.test.cjs
+./scripts/release-workflow.test.mjs
+./src/main/update-source.test.ts
+
+## control: the search reads the test files (count of test files it saw)
+      85
+
+## results (2026-10-19, on b51002e's tree before the commit)
+pnpm typecheck: exit 0
+pnpm lint: exit 1 at first, 149 errors all under site/ of the kind 'a type that could not be resolved': the worktree had no site/node_modules. After pnpm --dir site install --frozen-lockfile (as CI does before linting): exit 0
+pnpm test:scripts: ℹ tests 135 ℹ pass 135 ℹ fail 0 
+vitest src/main/update-source.test.ts:  Tests 9 passed (9)
