@@ -22,6 +22,12 @@ export const CMD = {
   /** Search this project's sessions: questions by default, switchable to full text (ticket 08; a coarse
    * range-read pass, no index built) */
   searchSessions: 'agentshed:search-sessions',
+  /** Global search: start reading every listed session's question texts into memory, or join the reading
+   * under way; resolves once they are read (ADR-0034). The page asks for it when it is shown */
+  readSearchQuestions: 'agentshed:read-search-questions',
+  /** Global search: the listed sessions of every project whose questions contain a keyword, every hit; waits
+   * for a reading under way */
+  globalSearch: 'agentshed:global-search',
   /** Read an artifact's markdown (only files the detail page listed, validated against the main process's
    * allow-list) */
   readArtifact: 'agentshed:read-artifact',

@@ -4,6 +4,7 @@ import { useDisplayClock } from './DisplayClock'
 import { hydrateDisplayQueries } from './display-queries'
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { invalidateOnSnapshot } from './query-client'
 import type { Snapshot } from '@shared/domain'
 import type { TrendSpan } from '@shared/trend'
 import { TrendSpanContext } from './TrendSpan'
@@ -126,9 +127,7 @@ export function App(): JSX.Element {
       liveSnapshot++
       setStartup('ready')
       setSnap(s)
-      for (const name of ['projectDetail', 'sessionPage', 'turnContent', 'artifactContent', 'skillContent', 'skillFiles']) {
-        void queryClient.invalidateQueries({ queryKey: [name] })
-      }
+      invalidateOnSnapshot(queryClient)
     })
     async function restore(): Promise<void> {
       const generation = liveSnapshot

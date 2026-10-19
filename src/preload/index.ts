@@ -15,14 +15,15 @@ import {
   type ListSkillFilesResult,
   type ReadSkillFileArgs
 } from '@shared/ipc'
-import type { CappedText, ProjectDetail, SearchResult, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
+import type { CappedText, GlobalSearchResult, ProjectDetail, SearchResult, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
 import {
   contractError,
   validateSnapshot,
   validateProjectDetail,
   validateSessionPage,
   validateSessionTurn,
-  validateSearchResult
+  validateSearchResult,
+  validateGlobalSearchResult
 } from '@shared/validate'
 import { parsePrefs } from '@shared/prefs'
 import {
@@ -168,6 +169,16 @@ const api = {
     const v = validateSearchResult(r)
     if (!v.ok) throw contractError('searchResult', v.failure)
     return r as SearchResult
+  },
+  // Global search (the same rule: validated at each end)
+  readSearchQuestions: async (): Promise<void> => {
+    await ipcRenderer.invoke(CMD.readSearchQuestions)
+  },
+  globalSearch: async (needle: string): Promise<GlobalSearchResult> => {
+    const r: unknown = await ipcRenderer.invoke(CMD.globalSearch, needle)
+    const v = validateGlobalSearchResult(r)
+    if (!v.ok) throw contractError('globalSearchResult', v.failure)
+    return r as GlobalSearchResult
   },
   readArtifact: (file: string): Promise<CappedText> =>
     ipcRenderer.invoke(CMD.readArtifact, file) as Promise<CappedText>,

@@ -15,7 +15,7 @@ import {
   type ListSkillFilesResult
 } from '@shared/ipc'
 import type { CappedText, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
-import { AGENT_SIDES, assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult } from '@shared/validate'
+import { AGENT_SIDES, assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult, assertGlobalSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { deriveStats } from '@shared/usage'
 import { scan, walkSessions } from './providers/scan'
@@ -23,6 +23,7 @@ import { readRanges } from './providers/range-read'
 import { grokQuestionTextFromSlice, questionTextAt } from './providers/question-index'
 import { turnBlocksFromText } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
+import { QuestionCorpus, corpusProjects } from './providers/question-corpus'
 import { readProjectDetail } from './providers/project-detail'
 import { CACHE_VERSION, TokenEngine, projectStatsFromRows } from './providers/token-stats'
 import { ParsePool } from './parse-pool'
@@ -101,6 +102,9 @@ let prefsStore: PrefsStore | null = null
 let updates: UpdateController | null = null
 let settingsChecks: SettingsChecks | null = null
 let tokenEngine: TokenEngine | null = null
+// Global search's question texts (ADR-0034): built on the page's first demand in a run, then kept up to date
+// after every scan; held in memory only
+let questionCorpus: QuestionCorpus | null = null
 let parsePool: ParsePool | null = null
 let archive: UsageArchive | null = null
 let perProjectStats = new Map<string, ProjectStats>()
@@ -161,7 +165,8 @@ const ARCHIVE_FORCE_ACCEPT = process.env['AGENTSHED_ARCHIVE_FORCE_ACCEPT'] === '
  * delay before a project-detail or session-page fetch resolves, letting e2e assert that a switch
  * holds the previous page instead of blanking it (project-detail T1, session-view P1, ADR-0028); the
  * same knob also covers listSkillFiles and readArtifact, letting e2e assert the widget-level query
- * layer's reopen-is-cached behaviour (issue #177). 0 in production. */
+ * layer's reopen-is-cached behaviour (issue #177), and holds each reading of global search's question
+ * texts, letting e2e assert the reading state (global-search REQ-002/AC-02). 0 in production. */
 const FETCH_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_FETCH_DELAY_MS'], 0)
 /** Test seam (the same family): an artificial delay before the renderer's initial getPrefs resolves,
  * letting e2e change a preference while that read is in flight and assert the read does not undo it
@@ -241,6 +246,9 @@ async function doScan(): Promise<Snapshot> {
       for (const [key, r] of savedReads) if ((r.kind === 'sessionPage' || r.kind === 'turnContent') && !sessionWhitelist.has(r.file)) savedReads.delete(key)
       persistDisplay()
       setStartupStatus('ready')
+      // Before the snapshot goes out, so the search the renderer sends on receiving it waits for these texts
+      // (global-search REQ-004); a corpus never asked for is not built
+      void questionCorpus?.refresh().catch((e: unknown) => console.error('[global-search] reading the question texts failed:', e))
       mainWindow?.webContents.send(EVT.snapshot, snap)
       return snap
     } catch (error) {
@@ -399,6 +407,18 @@ handle(CMD.searchSessions, async (_e, raw: unknown) => {
   const sessions = perProjectStats.get(mergeKey(a.path))?.sessions ?? []
   const r = await searchProjectSessions(tokenEngine, realRoots(), sessions, a.needle, a.fullText)
   assertSearchResult(r)
+  return r
+})
+handle(CMD.readSearchQuestions, async () => {
+  if (!questionCorpus) throw appError(ERR.engineNotReady)
+  await questionCorpus.load()
+})
+handle(CMD.globalSearch, async (_e, needle: unknown) => {
+  // The keyword's length limit is the project search's (global-search S4)
+  if (typeof needle !== 'string' || needle.length > 200) throw appError(ERR.badArgs, { channel: 'globalSearch', field: 'needle' })
+  if (!questionCorpus) throw appError(ERR.engineNotReady)
+  const r = await questionCorpus.search(needle)
+  assertGlobalSearchResult(r)
   return r
 })
 handle(CMD.readArtifact, async (_e, file: unknown) => {
@@ -655,6 +675,11 @@ void app.whenReady().then(() => {
   // 8 workers 7.4 s at 2.20 GB — the largest file alone bounds the time, so more workers mostly cost memory
   parsePool = new ParsePool(join(__dirname, 'parse-worker.js'), Math.min(4, Math.max(1, availableParallelism() - 1)))
   tokenEngine = new TokenEngine(app.getPath('userData'), parsePool)
+  // The listed set as it stands: the snapshot's projects, stale ones included, with each one's listed
+  // sessions — the restored ones until the first scan completes (global-search S2)
+  questionCorpus = new QuestionCorpus(tokenEngine, () => ({ roots: realRoots(), projects: corpusProjects(current?.projects ?? [], perProjectStats) }), {
+    pause: FETCH_DELAY_MS > 0 ? () => new Promise((r) => setTimeout(r, FETCH_DELAY_MS)) : undefined
+  })
   // The accounting stamp (ADR-0026): the application version covers combination-layer changes, the cache
   // structure version covers parser changes — together they identify the accounting code, so a lower
   // figure under the same stamp can only mean the data shrank

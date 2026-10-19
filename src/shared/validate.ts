@@ -321,6 +321,47 @@ export function assertSearchResult(v: unknown): void {
   if (!r.ok) throw contractError('searchResult', r.failure)
 }
 
+// ── The global search payload (the globalSearch channel) ──
+// The same rule as the other payloads: asserted at the main process's exit, validated again at the preload's
+// entry. A hit's text is a string, never null: an unreadable question cannot match.
+export function validateGlobalSearchResult(v: unknown): ValidateResult {
+  if (!isRecord(v)) return failType('globalSearch', 'object')
+  const sessions = v['sessions']
+  if (!Array.isArray(sessions)) return failType('globalSearch.sessions', 'array')
+  for (let n = 0; n < sessions.length; n++) {
+    const s: unknown = sessions[n]
+    const at = `globalSearch.sessions[${n}]`
+    if (!isRecord(s)) return failType(at, 'object')
+    const p = s['project']
+    if (!isRecord(p)) return failType(`${at}.project`, 'object')
+    if (typeof p['path'] !== 'string' || p['path'] === '') return failType(`${at}.project.path`, 'string(non-empty)')
+    if (typeof p['name'] !== 'string') return failType(`${at}.project.name`, 'string')
+    if (typeof p['stale'] !== 'boolean') return failType(`${at}.project.stale`, 'boolean')
+    if (typeof s['file'] !== 'string' || s['file'] === '') return failType(`${at}.file`, 'string(non-empty)')
+    if (!strOrNull(s['title'])) return failType(`${at}.title`, 'string|null')
+    if (typeof s['side'] !== 'string' || !AGENT_SIDES.has(s['side'])) return failEnum(`${at}.side`, s['side'])
+    if (typeof s['forkState'] !== 'string' || !FORK_STATES.has(s['forkState'])) return failEnum(`${at}.forkState`, s['forkState'])
+    if (s['at'] !== null && typeof s['at'] !== 'number') return failType(`${at}.at`, 'number|null')
+    const hits = s['hits']
+    if (!Array.isArray(hits)) return failType(`${at}.hits`, 'array')
+    for (let h = 0; h < hits.length; h++) {
+      const hit: unknown = hits[h]
+      const hat = `${at}.hits[${h}]`
+      if (!isRecord(hit)) return failType(hat, 'object')
+      if (typeof hit['i'] !== 'number') return failType(`${hat}.i`, 'number')
+      if (typeof hit['text'] !== 'string') return failType(`${hat}.text`, 'string')
+      if (hit['at'] !== null && typeof hit['at'] !== 'number') return failType(`${hat}.at`, 'number|null')
+    }
+  }
+  return { ok: true }
+}
+
+/** The main process's exit: as with assertSnapshot, a broken contract throws outright */
+export function assertGlobalSearchResult(v: unknown): void {
+  const r = validateGlobalSearchResult(v)
+  if (!r.ok) throw contractError('globalSearchResult', r.failure)
+}
+
 export function validateProjectStats(v: unknown): ValidateResult {
   if (!isRecord(v)) return failType('stats', 'object')
   const sessions = v['sessions']
