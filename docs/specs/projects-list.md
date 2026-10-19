@@ -143,6 +143,10 @@ and are never written back to any agent configuration.
   dismissed on resize, because it is being glanced at rather than operated.
 - C7 The dropdown, being operated rather than glanced at, **repositions** on resize instead of
   closing; it dismisses on scroll like any anchored layer.
+- C8 A project selected from outside the list — by a global search hit
+  ([global-search](global-search.md) global-search::US-002/AC-01) — has its row scrolled into view when
+  it is outside the list's visible part. The filters are left as they are, so a row they hide (a stale
+  project, by default) stays hidden.
 
 ## Startup restoration
 
@@ -211,4 +215,5 @@ pointer input by hit-testing (not attribute checks), and the in-place fill asser
   app — or an install made inside it — becomes visible at the next automatic scan rather than on
   demand.
 - Adding or removing project registrations from this app (the registries are read-only).
-- Cross-project content search.
+- Cross-project content search, beyond the session questions global search covers
+  ([global-search](global-search.md)).

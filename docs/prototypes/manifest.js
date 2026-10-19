@@ -21,6 +21,7 @@ window.PROTOTYPES = [
   { module: 'project-detail',type: 'ui',    id: 'detail',       name: '详情:装了什么',       path: 'project-detail/prototype-detail.html' },
   { module: 'project-detail',type: 'ui',    id: 'detail-stale-note', name: '详情:失效移除提示卡', path: 'project-detail/prototype-detail-stale-note.html' },
   { module: 'session-view',  type: 'ui',    id: 'session',      name: '会话页:提问索引与整轮展开', path: 'session-view/prototype-session.html' },
+  { module: 'global-search', type: 'ui',    id: 'search',       name: '全局搜索:跨项目搜提问', path: 'global-search/prototype-search.html' },
   { module: 'token-stats',   type: 'logic', id: 'scan-cache',   name: '增量扫描与刷新生命周期', path: 'token-stats/scan-cache/index.html' },
   { module: 'skill-install', type: 'ui',    id: 'install',      name: 'Agents·Skills 装卸交互', path: 'skill-install/prototype-install.html' },
   { module: 'skill-install', type: 'logic', id: 'install-flow', name: '装卸操作状态机',       path: 'skill-install/install-flow/index.html' },

@@ -453,6 +453,10 @@ as a cached visit under session-view::REQ-001)
 - P9 Turn contents and their freshness check use the query layer (ADR-0028/0029), retaining the
   existing in-turn states. Session search also uses the query layer, but its results are not
   persisted across restarts.
+- P10 A session opened directly from a global search hit has the two exits global-search::US-003
+  defines ([global-search](global-search.md)) in place of the single back control; a fork parent
+  reached from it keeps the single back control of P2/P3. The rest of this sequence applies, with the
+  global search page in the project page's place in P1 and P8.
 
 **Sequence E: export (dropped entirely by the user's ruling 2026-08-06, never implemented; the entries
 below are archived as a decision record and are no longer requirements)**
@@ -767,7 +771,8 @@ are untouched and must stay green.
 
 ## Out of Scope
 
-- Global (cross-project) session search — this round is within one project only.
+- Searching across projects — that is global search, a feature of its own ([global-search](global-search.md));
+  this spec's search is within one project.
 - Unregistered projects' sessions.
 - Editing, deleting or resuming session contents.
 - Codex's reasoning body (encrypted, impossible), Claude's truncated tool result originals (the sidecar

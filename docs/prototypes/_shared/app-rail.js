@@ -1,4 +1,4 @@
-// Shared: the app's navigation rail — Agents and Projects at the top, Settings in the bottom group — drawn
+// Shared: the app's navigation rail — Agents, Projects and Search at the top, Settings in the bottom group — drawn
 // the same on every app prototype page, as the app draws it on every screen. Each item carries data-goto to
 // that section's prototype, which the page's navigation helper follows (the prototype skill's
 // cross-prototype navigation); an item that leads to the page itself carries none and does nothing.
@@ -15,16 +15,18 @@
   const ITEMS = [
     { id: 'agents', icon: 'RobotFace', route: 'agents-page/agents' },
     { id: 'projects', icon: 'Folder', route: 'project-list/list' },
+    // The magnifier, picked 2026-10-19 over TextSearch and ScanSearch
+    { id: 'search', icon: 'Search', route: 'global-search/search' },
     { id: 'settings', icon: 'Settings', route: 'appearance/settings', bottom: true }
   ]
   // The rail labels
   const LABEL = {
-    zh: { agents: 'Agents', projects: 'Projects', settings: '设置' },
-    en: { agents: 'Agents', projects: 'Projects', settings: 'Settings' },
-    fr: { agents: 'Agents', projects: 'Projets', settings: 'Réglages' },
-    es: { agents: 'Agents', projects: 'Proyectos', settings: 'Ajustes' },
-    ru: { agents: 'Agents', projects: 'Проекты', settings: 'Настройки' },
-    ja: { agents: 'Agents', projects: 'Projects', settings: '設定' }
+    zh: { agents: 'Agents', projects: 'Projects', search: '搜索', settings: '设置' },
+    en: { agents: 'Agents', projects: 'Projects', search: 'Search', settings: 'Settings' },
+    fr: { agents: 'Agents', projects: 'Projets', search: 'Rechercher', settings: 'Réglages' },
+    es: { agents: 'Agents', projects: 'Proyectos', search: 'Buscar', settings: 'Ajustes' },
+    ru: { agents: 'Agents', projects: 'Проекты', search: 'Поиск', settings: 'Настройки' },
+    ja: { agents: 'Agents', projects: 'Projects', search: '検索', settings: '設定' }
   }
 
   function target(nav, item) {

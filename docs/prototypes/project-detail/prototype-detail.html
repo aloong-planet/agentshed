@@ -60,6 +60,8 @@
 <link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <link rel="stylesheet" href="../_shared/project-side.css">
+<!-- The sessions tab's search row and hits are a shared piece, drawn the same by global search -->
+<link rel="stylesheet" href="../_shared/session-hits.css">
 <!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
      references it -->
 <link rel="stylesheet" href="../_shared/trend-chart.css?v=linked-span-total">
@@ -176,11 +178,8 @@
   .note{font-size:11px;color:var(--text-2);margin:-6px 0 10px}
   .sub-list{padding:2px 14px 8px 36px;background:var(--bg);border-bottom:1px solid var(--line)}
   .sub-list .it{padding:6px 0;border-bottom:0}
-  /* The v3 sessions tab: a search row + the session list + hits grouped by session */
-  .sbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-  .sbar input{flex:1;min-width:0;padding:6px 11px;border:1px solid var(--line-strong);border-radius:7px;
-    background:var(--card);color:var(--text);font-size:12.5px;outline:none}
-  .sbar input:focus{border-color:var(--accent)}
+  /* The v3 sessions tab: a search row + the session list + hits grouped by session. The search row and the
+     hits are the shared session-hits piece; the scope toggle and the list rows are this page's own */
   .scope{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;flex:none}
   .scope span{padding:5px 11px;font-size:11.5px;color:var(--text-2);cursor:pointer}
   .scope span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
@@ -195,21 +194,6 @@
   .pill.forkq{border:1px dashed var(--risk-border);color:var(--risk-fg)}
   .pill.big{background:var(--line);color:var(--text-2)}
   .pill.clean{border:1px dotted var(--line-strong);color:var(--text-2)}
-  .shead{font-size:11.5px;color:var(--text-2);margin:0 2px 8px;display:flex;align-items:center;gap:10px}
-  .grp{background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:9px}
-  .grp .gh{display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid var(--line);cursor:pointer}
-  .grp .gh:hover{background:var(--accent-soft)}
-  .grp .gh .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-  .hit{display:flex;gap:9px;padding:5px 14px 5px 32px;cursor:pointer;font-variant-numeric:tabular-nums}
-  .hit:hover{background:var(--accent-soft)}
-  .hit .idx{width:20px;flex:none;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2)}
-  .hit .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hit .d{font-size:11px;color:var(--text-2);flex:none}
-  .hit .bd{font-size:10px;border-radius:4px;padding:0 5px;background:var(--line);color:var(--text-2);flex:none}
-  /* The search highlight is written as literals, not tokens, and changes with light/dark only; light/dark
-     comes from the settings prototype and the gallery's unified settings */
-  mark{background:#fff2a8;color:inherit;border-radius:2px;padding:0 1px}
-  html[data-demo-mode="dark"] mark{background:#4d451a;color:#f6e9a8}
 
 </style>
 <!-- Startup restore: keep the original page and its mock contents. The added bottom switches
@@ -268,7 +252,7 @@
         </div>
         <div class="note" data-i18n="ovNote">共 7 个会话 —— 全部与搜索见「会话」分栏。</div>
       </div>
-      <div data-p="sessions" style="display:none">
+      <div data-p="sessions" data-shared-block="session-hits" style="display:none">
         <div class="sbar">
           <input id="sq" placeholder="在本项目的 7 个会话里搜索…" data-i18n-ph="searchPlaceholder">
           <span class="scope" id="sscope"><span class="on" data-sc="q" data-i18n="scopeQuestions">搜提问</span><span data-sc="all" data-i18n="scopeFullText">全文</span></span>
@@ -456,14 +440,14 @@
       ovNote:'共 7 个会话 —— 全部与搜索见「会话」分栏。',
       searchPlaceholder:'在本项目的 7 个会话里搜索…', scopeQuestions:'搜提问', scopeFullText:'全文',
       sortNote:(order,n)=>`按<b>最近活动时间</b>${order} · ${n} 个会话`, descending:'倒序', ascending:'正序',
-      recentFirst:'最近在前', oldestFirst:'最早在前', questionCount:n=>`${n} 提问`,
-      forkUncertain:'剥离存疑', titleFromFirst:'标题取首条提问', titleCleaned:'标题已清洗',
+      questionCount:n=>`${n} 提问`,
+      titleFromFirst:'标题取首条提问', titleCleaned:'标题已清洗',
       sessionsFoot:'只列已注册项目的会话;subagent 与预热会话不单独入列,但 token 仍计入统计——故此处条数与 token 卡的分母不是同一个。',
       sessionsFoot2:'「最近活动」= 文件内最大时间戳——Codex 侧原先取首个时间戳,fork 会话会误报为重放时刻。',
       emptyTitle:'该项目还没有会话记录。', emptyHint:'Claude Code / Codex 在此目录下开过对话后会自动出现。',
       noHits:'没有命中。默认只搜提问,试试切到「全文」。',
       hitsFound:(h,s)=>`找到 <b>${h}</b> 条 · ${s} 个会话`, folded:n=>` · 已折叠 <b>${n}</b> 条 fork 重放副本`,
-      hitCount:n=>`${n} 条命中`, inBody:'正文',
+      inBody:'正文',
       secClaudeGlobal:'全局层 · Claude', secCodexGlobal:'全局层 · Codex',
       secPlugin:'插件内含 · 本项目有效启用(命名空间调用,只读无装卸)',
       shadowsGlobal:'遮蔽全局', shadowed:'被项目级遮蔽', shadows:'遮蔽同名',
@@ -498,15 +482,15 @@
       ovNote:'7 sessions in total — see the “Sessions” tab for all of them and for search.',
       searchPlaceholder:'Search across 7 sessions in this project…', scopeQuestions:'Search questions', scopeFullText:'Full text',
       sortNote:(order,n)=>`By <b>last activity</b>, ${order} · ${n} ${pl(n,'session','sessions')}`, descending:'newest first', ascending:'oldest first',
-      recentFirst:'Newest first', oldestFirst:'Oldest first', questionCount:n=>`${n} ${pl(n,'question','questions')}`,
-      forkUncertain:'uncertain strip', titleFromFirst:'Title from first question', titleCleaned:'Title cleaned',
+      questionCount:n=>`${n} ${pl(n,'question','questions')}`,
+      titleFromFirst:'Title from first question', titleCleaned:'Title cleaned',
       sessionsFoot:'Only sessions of registered projects are listed; subagent and warm-up sessions are not listed separately, though their tokens still count — so this count and the denominator of the token cards are not the same thing.',
       sessionsFoot2:'“Last activity” = the largest timestamp inside the file — the Codex side used to take the first timestamp, which misreported a forked session as the moment of the replay.',
       emptyTitle:'No session records in this project yet.', emptyHint:'They appear automatically once Claude Code / Codex has had a conversation in this directory.',
       noHits:'No hits. Only questions are searched by default — try switching to “Full text”.',
       hitsFound:(h,s)=>`Found <b>${h}</b> ${pl(h,'hit','hits')} · ${s} ${pl(s,'session','sessions')}`,
       folded:n=>` · <b>${n}</b> fork replay ${pl(n,'copy','copies')} folded away`,
-      hitCount:n=>`${n} ${pl(n,'hit','hits')}`, inBody:'Body',
+      inBody:'Body',
       secClaudeGlobal:'Global level · Claude', secCodexGlobal:'Global level · Codex',
       secPlugin:'Bundled in plugins · effectively enabled here (namespaced, read-only, no install/uninstall)',
       shadowsGlobal:'Shadows global', shadowed:'Shadowed by project level', shadows:'Shadows same name',
@@ -828,7 +812,7 @@
         ${folded?t.folded(folded):''}</span>${sordSeg()}</div>`+
       groups.map(([si,list])=>{ const x=SESS[si];
         return `<div class="grp"><div class="gh" ${GOTO}><span class="b ${x.b}" style="flex:none">${x.s}</span>
-          <span class="t">${esc2(x.t)}</span>${x.p(t)}<span class="d" style="font-size:11px;color:var(--text-2)">${t.hitCount(list.length)}</span></div>
+          <span class="t">${esc2(x.t)}</span>${x.p(t)}<span class="n">${t.hitCount(list.length)}</span></div>
           ${list.map(h=>`<div class="hit" ${GOTO}><span class="idx">${h.n}</span>
             <span class="t">${hl(h.q,k)}</span>${h.body?`<span class="bd">${t.inBody}</span>`:''}
             <span class="d">${h.d}</span></div>`).join('')}</div>`;

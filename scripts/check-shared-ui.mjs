@@ -67,6 +67,13 @@ const SHARED_BLOCKS = [
     containers: []
   },
   {
+    // A project's own session search and global search draw their search row and hits from one piece
+    id: 'session-hits',
+    label: 'session search hits',
+    assets: ['_shared/session-hits.css'],
+    containers: []
+  },
+  {
     // The app window's root styles live on this box, never on html or body (the candidates page reuses them)
     id: 'app-window',
     label: 'app window box',
@@ -599,7 +606,7 @@ const GLOBAL_RULES = [
       } catch (e) {
         return [`docs/prototypes/manifest.js does not evaluate: ${e.message}`]
       }
-      const ITEMS = ['agents', 'projects', 'settings']
+      const ITEMS = ['agents', 'projects', 'search', 'settings']
       for (const f of prototypeHtmls()) {
         const src = read(f) ?? ''
         const code = stripComments(src)

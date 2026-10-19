@@ -1,11 +1,13 @@
-/* Existing scanning appearance, shared by the four original pages. No page-shell styles. */
-.startup-hint{display:inline-flex;align-items:center;gap:6px;flex:1 1 0;min-width:0;overflow:hidden;
+/* Existing scanning appearance, shared by the four original pages. No page-shell styles.
+   .reading-hint is global search's reading of the question texts, shown in the same header slot with the
+   same look; startup-status.js leaves it alone (its label is a plain .lbl child, not [data-startup-label]). */
+.startup-hint,.reading-hint{display:inline-flex;align-items:center;gap:6px;flex:1 1 0;min-width:0;overflow:hidden;
   font-size:11.5px;font-weight:400;line-height:normal;color:var(--text-2)}
-.startup-hint > [data-icon]{display:inline-flex;flex:none;color:var(--accent)}
-.startup-hint svg{animation:startup-hint-spin 1.2s linear infinite}
-.startup-hint > [data-startup-label]{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.startup-hint > [data-icon],.reading-hint > [data-icon]{display:inline-flex;flex:none;color:var(--accent)}
+.startup-hint svg,.reading-hint svg{animation:startup-hint-spin 1.2s linear infinite}
+.startup-hint > [data-startup-label],.reading-hint > .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .startup-hint[data-state="fresh"]{visibility:hidden}
 .startup-hint[data-state="failed"] svg{animation:none}
 @keyframes startup-hint-spin{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){.startup-hint svg{animation:none}}
+@media(prefers-reduced-motion:reduce){.startup-hint svg,.reading-hint svg{animation:none}}
 
