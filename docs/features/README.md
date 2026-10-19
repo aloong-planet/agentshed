@@ -25,3 +25,4 @@ a product overview written for people.
 | [Appearance](appearance.md) | App-wide light/dark (follow system / light / dark) × theme (purple / mist blue / amber brown), the two independent |
 | [UI language](i18n.md) | The UI switches between six languages (menus, failure notices, dates and numbers included), following the system's preferred language by default |
 | [App updates](app-update.md) | New versions are found and downloaded in the background, and installed with one click or on quit |
+| [Landing page](landing-page.md) | The website that introduces Agentshed in Chinese and English and offers whichever release exists |

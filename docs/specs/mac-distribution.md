@@ -4,9 +4,6 @@
 > [ADR-0032](../adr/0032-app-updates.md) (why each release carries a ZIP) ·
 > [app-update](app-update.md) · [landing-page](landing-page.md) · electron-scaffold's macOS signing
 > policy (`macos-signing.md`), cited by section below
->
-> Pending: a notarized release of Agentshed is downloadable. Until one is there is no feature entry to
-> link.
 
 ## Problem Statement
 
@@ -332,6 +329,8 @@ not copy the policy.
 - Download statistics (deferred, ADR-0031 option 10).
 - The in-app updater itself ([app-update](app-update.md)), and the landing page
   ([landing-page](landing-page.md)).
+- A feature entry: the feature catalogue describes the app itself, and distribution is outside it. How to
+  get the app is told by the README and the landing page.
 
 ## Further Notes
 

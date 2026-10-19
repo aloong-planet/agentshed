@@ -1,11 +1,8 @@
 # Landing page
 
-> Related: [ADR-0031](../adr/0031-macos-release-line.md) · [mac-distribution](mac-distribution.md) (the
-> releases and the pointer it reads) · [app-update](app-update.md) (the update button its install steps
-> mention)
->
-> Pending: the landing page is live at `agentshed.aloongplanet.com`. Until it is there is no feature
-> entry to link.
+> Related: [features](../features/landing-page.md) · [ADR-0031](../adr/0031-macos-release-line.md) ·
+> [mac-distribution](mac-distribution.md) (the releases and the pointer it reads) ·
+> [app-update](app-update.md) (the update button its install steps mention)
 
 ## Problem Statement
 
