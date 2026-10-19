@@ -20,9 +20,6 @@
 //
 // Every icon slot in the renderer now comes from here. What is deliberately **not** an icon: the CC / CX /
 // CLAUDE CODE badges are text labels, and the middle dots in copy (`a · b`) are typographic separators.
-//
-// Icons still living inside the six language dictionaries are tracked separately (they are glued to copy,
-// so getting them out is an i18n change, not a rendering one).
 import type { JSX, ReactNode } from 'react'
 
 function Icon({
