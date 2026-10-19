@@ -67,9 +67,10 @@ The page is served by Cloudflare Pages at `agentshed.aloongplanet.com`. The Page
 | Root directory | `site` |
 | Build command | `pnpm install --frozen-lockfile && pnpm build` |
 | Build output directory | `dist` (relative to the root directory) |
-| `NODE_VERSION` | 22.22.0 or later: Astro 7 refuses an older Node |
+| Build watch path | `site/*`: a push that changes nothing under `site/` is skipped (Cloudflare still builds a push of more than 20 commits or 3000 files). The build reads nothing outside `site/`; a change that makes it depend on a file elsewhere must widen this path |
+| `NODE_VERSION` | 22.23.3, on production and preview. At least 22.22.2: Astro 7 refuses a Node older than 22.22.0, and the corepack in Pages' build image warns below 22.22.2 |
+| `PNPM_VERSION` | 9.12.3, on production and preview, so the build runs the site's pnpm rather than the build image's default pnpm 10 |
 
-The site uses pnpm 9 (`packageManager` in `package.json`); set `PNPM_VERSION` on the project if its build
-picks another. Connecting the project to this repository
+The site uses pnpm 9 (`packageManager` in `package.json`), hence `PNPM_VERSION`. Connecting the project to this repository
 requires the Cloudflare Workers & Pages GitHub App on the `aloong-planet` organization, with access to
 `agentshed` only.
