@@ -27,32 +27,30 @@
      shadow follows the icon's own outline (owner's call, 2026-10-18 — a shadow around the image's square box
      showed the transparent margin as a light tile).
 
-     演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条两组开关——
-     下载状态(有正式版 / 有正式版但 R2 读不到 / 仅测试版 / 两处都读不到)、系统明暗。真实来源:下载状态 = 访客浏览器能否读到
-     R2 上的正式版 latest 指针,读不到时能否从 GitHub 公开接口读到最新测试版;明暗 = 访客系统的
-     prefers-color-scheme。页面上没有这两个控件。
-     中 / EN 切换是设计本身(页头右上角),不属于演示基建。 -->
-<html lang="zh-CN" data-theme="light">
+     演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条切换下载状态(仅测试版 / 有正式版 /
+     有正式版但 R2 读不到 / 两处都读不到;四选一,分成两组以便窄屏一行放得下),它在页面上由什么决定写在演示条的
+     说明行里;页面上没有这个控件。
+     明暗跟随画廊统一设置所选,统一设置在这里代替访客系统的 prefers-color-scheme,本页不设明暗开关。
+     中 / EN 切换是设计本身(页头右上角),不属于演示基建,也不跟随统一设置里的界面语言:落地页只有中、英两种。
+     根样式写在 body 上:本页画的是一张网页而不是 app 窗口,body 上的底色、文字色与字体就是这张网页自己的根样式,
+     不是要挂到 app 窗口容器上的那种。 -->
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>原型 — 落地页</title>
+<link rel="stylesheet" href="../_shared/theme.css">
 <style>
-  /* The app's purple palette (theme.css, the shipped default), light and dark each declared */
-  html[data-theme="light"]{
-    --bg:#f7f8f9; --bg-soft:#f0f1f3; --card:#ffffff; --text:#37352f; --text-2:#787774;
-    --line:#e8eaed; --line-strong:#d9dce0;
-    --accent:#8a67ab; --accent-deep:#6b4f92; --accent-soft:#f0ebf6;
-    --warn-bg:#fdecdc; --warn-fg:#b3552f;
+  /* The page's own tokens, on top of the shared theme's purple palette (the default); light and dark each
+     declared */
+  html[data-demo-mode="light"]{
+    --bg-soft:#f0f1f3;
     --shot-a:#ece7f3; --shot-b:#f6f3fa;
     --shadow:0 18px 50px rgba(55,53,47,.16);
     --icon-shadow:0 18px 25px rgba(55,53,47,.18);
   }
-  html[data-theme="dark"]{
-    --bg:#18191b; --bg-soft:#1c1d20; --card:#1f2124; --text:#e6e6e5; --text-2:#9b9a97;
-    --line:#2a2c30; --line-strong:#34373c;
-    --accent:#a084c7; --accent-deep:#c9b3ec; --accent-soft:#2c2733;
-    --warn-bg:#3c2417; --warn-fg:#f0a884;
+  html[data-demo-mode="dark"]{
+    --bg-soft:#1c1d20;
     --shot-a:#26232d; --shot-b:#2e2a36;
     --shadow:0 18px 50px rgba(0,0,0,.55);
     --icon-shadow:0 18px 25px rgba(0,0,0,.55);
@@ -186,18 +184,11 @@
     .dl-row{flex-direction:column;align-items:stretch;gap:10px}
     .dl-actions .btn{flex:1;justify-content:center;white-space:normal;text-align:center}
   }
-
-  /* ── The demo harness (not part of the design) ── */
-  .demo-bar{position:fixed;bottom:14px;left:12px;right:12px;margin:0 auto;width:max-content;max-width:calc(100% - 24px);
-    z-index:90;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:7px 9px;padding:7px 12px;
-    border-radius:18px;background:#1c1c1e;color:#e8e8ea;font:11.5px -apple-system,system-ui,sans-serif;
-    box-shadow:0 6px 20px rgba(0,0,0,.38)}
-  .demo-bar .tag{font-weight:700;color:#8e8e93}
-  .demo-bar .vr{width:1px;height:16px;background:#3a3a3c}
-  .demo-bar select{background:#2c2c2e;color:#e8e8ea;border:1px solid #3a3a3c;border-radius:7px;padding:4px 8px;font:inherit}
 </style>
 <script src="../manifest.js"></script>
 <script src="../app-identity.js"></script>
+<script src="../dimensions.js"></script>
+<script src="../demo-dimensions.js" data-follow="mode"></script>
 </head>
 <body>
   <header>
@@ -212,21 +203,17 @@
   </header>
   <main id="page"></main>
 
-  <div class="demo-bar" data-demo-harness>
-    <span class="tag">演示 ·</span>
-    <label for="relSel">下载状态</label>
-    <select id="relSel">
-      <option value="beta">仅测试版 0.1.0-beta(首发时)</option>
-      <option value="formal">已有正式版 0.2.0</option>
-      <option value="formalGh">已有正式版 0.2.0,但 R2 读不到(取自 GitHub)</option>
-      <option value="unknown">两处都读不到(断网等)/ 脚本未执行</option>
-    </select>
-    <span class="vr"></span>
-    <label for="themeSel">系统明暗</label>
-    <select id="themeSel">
-      <option value="light">浅色</option>
-      <option value="dark">深色</option>
-    </select>
+  <div data-demo-harness id="demoBar">
+    <span class="dh-tag">Demo ·</span>
+    <div class="dh-group"><span class="dh-title">下载状态</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-rel="beta" aria-pressed="true">仅测试版 0.1.0-beta</button>
+      <button type="button" class="dh-opt" data-rel="formal" aria-pressed="false">有正式版 0.2.0</button>
+    </div></div>
+    <div class="dh-group"><span class="dh-title">读取失败</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-rel="formalGh" aria-pressed="false">有正式版,R2 读不到</button>
+      <button type="button" class="dh-opt" data-rel="unknown" aria-pressed="false">两处都读不到</button>
+    </div></div>
+    <p class="dh-note">下载状态在落地页上由访客浏览器能否读到 R2 上正式版的 latest 指针决定,读不到时看能否从 GitHub 公开接口读到正式版或测试版;首发时只有测试版;两处都读不到(断网等)也是页面脚本执行前的样子;页面上没有这个开关。</p>
   </div>
 
 <script>
@@ -428,7 +415,7 @@
         <b>验收</b>：① 切「下载状态」看三种首屏：仅测试版时按钮指向 GitHub 的测试版、标「测试版」并说明正式版未发布；
         有正式版时指向 R2 镜像（下载区另给 GitHub 兜底）；有正式版但 R2 读不到时同一外观、链接全在 GitHub（下载区只剩一个按钮）；
         两处都读不到时指向 GitHub 版本列表、不标版本号② 中 / EN 切换在右上角 ③ 窄屏（&lt;760px）单栏、导航收起
-        ④ 浅色 / 深色都看 ⑤ 截图是 2026-10-13 从打包后的应用实拍的，用的是你本机的真实数据（项目名、路径、用量、会话提问都会随页面公开）；
+        ④ 浅色 / 深色都看(在画廊的统一设置里切换) ⑤ 截图是 2026-10-13 从打包后的应用实拍的，用的是你本机的真实数据（项目名、路径、用量、会话提问都会随页面公开）；
         Hero 是整窗，功能区四张统一裁到该段相关的区域、同一放大倍数，切换时字号不变
         ⑥ 功能区往下滚：左侧四段文字随页面移动，右侧截图框停在原处，显示离它中线最近的那段；点左侧某段会滚到该段；窄屏没有固定框，每段文字下面直接跟自己的截图。<br>
         <b>已确认（2026-10-13）</b>：
@@ -491,8 +478,15 @@
   })
 
   document.querySelectorAll('.lang button').forEach((b) => { b.onclick = () => { lang = b.dataset.lang; render(); syncFeat() } })
-  document.getElementById('relSel').onchange = (e) => { rel = e.target.value; render(); syncFeat() }
-  document.getElementById('themeSel').onchange = (e) => { document.documentElement.dataset.theme = e.target.value }
+  // One choice of four, split over two groups so each fits on a phone-width line
+  document.getElementById('demoBar').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rel]')
+    if (!b) return
+    rel = b.dataset.rel
+    document.querySelectorAll('#demoBar [data-rel]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+    render()
+    syncFeat()
+  })
   render()
   syncFeat()
 </script>
