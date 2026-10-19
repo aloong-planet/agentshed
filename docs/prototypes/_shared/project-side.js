@@ -1,8 +1,7 @@
 // Shared: the Projects dimension's project column — search, the side filter, the stale toggle and its
-// counter, the project rows — drawn the same on every prototype page that shows it, as the app's
-// ProjectsPane draws it (src/renderer/src/ProjectsPane.tsx; the scanning state is its ProjectsSkeleton in
-// StartupSkeleton.tsx). The styles are generated from the app (project-side.css, sync-project-side.mjs),
-// and the one mock project list lives here, so every page shows the same projects.
+// counter, the project rows — drawn the same on every prototype page that shows it, with the startup
+// skeleton while the scan runs. The styles are project-side.css, and the one mock project list lives here,
+// so every page shows the same projects.
 //
 // Usage, right after the column element (it draws synchronously, so the page's own scripts find it drawn):
 //   <aside class="side" data-shared-block="project-side" data-side-selected="Transfer"></aside>
@@ -13,11 +12,11 @@
 //                         when clicked (on any other page such a row has nothing to open)
 //   data-side-show-stale  the stale toggle starts on (a page showing a stale project)
 //   data-side-state       "scanning" (the startup skeleton) or "empty" (a scan that found no project)
-// A row whose project has a prototype of its own opens it: inside the gallery it asks the gallery to
-// switch (under file:// a page cannot change the parent's hash itself), opened alone it goes to the file.
+// A row whose project has a prototype of its own carries data-goto to it, which the page's navigation helper
+// follows; the row of the project the page itself shows carries none.
 //   ProjectSide.setState(state)  "scanning" | "empty" | "loaded", for a page that demonstrates the states
 //   ProjectSide.onRender(fn)     calls fn(column) after every draw
-// The copy follows the page's language (demo-dimensions.js), in the app's words (src/shared/i18n).
+// The copy follows the page's language (demo-dimensions.js).
 ;(function () {
   // Most recent first, as the app sorts them. Transfer carries all three sides: the row where the name,
   // the stale slot, the activity and the count crowd the column hardest.
@@ -33,10 +32,9 @@
     { name: 'New project', path: '~/Projects/New project', sides: ['codex'], days: 60, stale: true },
     { name: 'fe', path: '~/tmp/fe', sides: ['codex'], days: 60, stale: true }
   ]
-  // Product names, identical in every language (ProjectsPane's SIDE_NAME)
+  // Product names, identical in every language
   const SIDE_NAME = { claude: 'Claude Code', codex: 'Codex', grok: 'Grok' }
   const plural = (l, n, forms) => forms[new Intl.PluralRules(l).select(n)] ?? forms.other
-  // projects.searchPlaceholder / filterAll / showStale / staleFiltered / noMatch / staleTag
   const COPY = {
     zh: { locale: 'zh-CN', search: '搜索项目…', all: '全部', showStale: '显示失效项目', staleFiltered: (n) => `已过滤 ${n} 个失效`, noMatch: '无匹配项目', staleTag: '失效' },
     en: { locale: 'en', search: 'Search projects…', all: 'All', showStale: 'Show stale projects', staleFiltered: (n) => `${n} stale ${plural('en', n, { one: 'project', other: 'projects' })} filtered out`, noMatch: 'No matching projects', staleTag: 'Stale' },
@@ -47,13 +45,13 @@
   }
   let lang = 'zh'
   const t = () => COPY[lang] || COPY.en
-  // = relativeDays (src/shared/format.ts): RelativeTimeFormat with numeric:'auto', months from 30 days
+  // Relative days: RelativeTimeFormat with numeric:'auto', months from 30 days
   function ago(days) {
     const rtf = new Intl.RelativeTimeFormat(t().locale, { numeric: 'auto' })
     return days < 30 ? rtf.format(-days, 'day') : rtf.format(-Math.floor(days / 30), 'month')
   }
-  // The surface FloatingBox gives every floating layer (src/renderer/src/FloatingBox.tsx); position:fixed
-  // is what carries the layer out of the list's overflow clipping
+  // The floating layers' surface; position:fixed is what carries a layer out of the list's overflow
+  // clipping
   const SURFACE = 'position:fixed;z-index:30;background:var(--card);border:1px solid var(--line-strong);' +
     'border-radius:9px;box-shadow:0 6px 22px var(--float-shadow);'
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -62,10 +60,6 @@
     const entry = (window.PROTOTYPES || []).find((p) => `${p.module}/${p.id}` === route)
     if (!entry) throw new Error(`project-side: "${route}" is not in manifest.js (is ../manifest.js included before this script?)`)
     return { route, href: `../${entry.path}`, here: location.pathname.endsWith(`/${entry.path}`) }
-  }
-  function open(route) {
-    if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: route }, '*')
-    else location.href = target(route).href
   }
 
   const columns = []
@@ -126,13 +120,13 @@
     c.el.querySelector('.dd-trigger').innerHTML = `<span>${esc(label(c.filter))}</span><span class="chev">${ICONS.ChevronDown(11)}</span>`
   }
 
-  // ── The rows (ProjectsPane's filter: side, then name or path, then stale) ──
+  // ── The rows (filtered by side, then name or path, then stale) ──
   function rows(c) {
     const { el } = c
     const list = el.querySelector('.list')
     const cnt = el.querySelector('.opts .cnt')
     if (c.state === 'scanning') {
-      // ProjectsSkeleton: name widths staggered like real names, one fixed shape on every launch
+      // The startup skeleton: name widths staggered like real names, one fixed shape on every launch
       list.innerHTML = [128, 96, 142, 88, 150, 104, 120, 134, 92].map((w, i) => {
         const d = `animation-delay:${(i % 6) * 0.12}s`
         return `<div class="row"><span class="nm"><span class="sk-line">​<span class="sk-ph" style="width:${w}px;height:10px;${d}"></span></span></span>` +
@@ -154,7 +148,7 @@
     list.innerHTML = visible.map((p) => {
       const link = p.route ? target(p.route) : null
       return `<div class="row${p.stale ? ' stale' : ''}${c.selected === p.name ? ' sel' : ''}" data-project="${esc(p.name)}" title="${esc(p.path)}"` +
-        `${link ? ` data-goto="${link.route}" data-goto-href="${link.href}"` : ''}>` +
+        `${link && !link.here ? ` data-goto="${link.route}" data-goto-href="${link.href}"` : ''}>` +
         `<span class="nm">${esc(p.name)}</span>` +
         `${p.stale ? `<span class="stale-tag">${esc(t().staleTag)}</span>` : ''}` +
         `<span class="meta">${esc(ago(p.days))}</span>` +
@@ -210,10 +204,8 @@
       }
       const row = e.target.closest('.row[data-project]')
       if (!row) return
-      // The page's own cross-prototype helper must not handle the same click a second time
-      e.stopPropagation()
+      // A row with a prototype of its own is followed by the page's navigation helper (its data-goto)
       const p = PROJECTS.find((x) => x.name === row.dataset.project)
-      if (p.route && !target(p.route).here) return open(p.route)
       if (c.browse && !p.route) {
         c.selected = p.name
         rows(c)

@@ -15,19 +15,24 @@
        不随排序变;已展开的轮次跨排序保持);「返回」跳回项目详情。
      mock 完整度:标 ★ 的轮次构造了完整入参/返回与 subagent 内部步骤,其余轮次只到
        「一句回答 + 工具行」——展开填充轮会看到说明,不是设计的一部分。
-     演示基建(非设计的一部分,勿实现):底部悬浮条
-       [演示·会话数据] 三态(Claude 主会话 / Codex fork / Codex fork·父会话缺失)——
+     演示基建(非设计的一部分,勿实现):底部悬浮条(data-demo-harness,独立于页面内容流),
+       各组在 app 里由什么决定写在条上的说明行:
+       「启动恢复」三档(扫描中 / 完成 / 失败,共享件 _shared/startup-status)——真实判定是这次启动
+         的扫描进度与结果;
+       「会话数据」三态(Claude 主会话 / Codex fork / Codex fork·父会话缺失)——
          真实判定来自被打开的会话本身(fork 前缀剥离依赖父文件是否在扫描集内);
-       [演示·取回状态] 三态(索引就绪 / 索引失效 / 单轮失败)——真实判定是取回前按
+       「取回状态」三态(索引就绪 / 索引失效 / 单轮失败)——真实判定是取回前按
          路径+mtime+size 签名校验一次,不符则只重建该文件索引;单轮读取失败只自伤该轮,
-         再点可重试。app 内均无此控件。
-       界面语言、明暗与配色跟随设置原型(appearance)所选,本页不设开关;本页画了中、英两种,
-       其他语言按英文显示并有提示;色值取共享主题 _shared/theme.css(由 app 的 theme.css 生成),
-       本页只为自己的 token 指明对应的 app token。
+         再点可重试;
+       「搜索定位」一个动作(跳到 05 并高亮)——app 里由从项目详情「会话」分栏点进一条搜索命中触发。
+       app 内均无此控件。
+       界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;本页画了中、英两种,
+       其他语言按英文显示并有提示;色值取共享主题 _shared/theme.css,风险横幅与警示块的底色、字色和
+       搜索定位的高亮色只本页用,写在本页、明暗各一套。app 窗口的根样式在共享件 _shared/app-window.css 里。
      状态补齐(2026-08-06,实现期回补经用户确认):① 取回中(首次取回的瞬时提示,
        已取回的轮再展开为即时);② 单轮失败(该轮显示错误,不连累其余轮次);
        ③ 空轮(没有正文回复的轮只出取回脚注,不造占位);④ 取回脚注含实际读取字节数。
-     语言:界面文案(含启动提示)随所选语言切换,英文取 app 字典(src/shared/i18n)对应 key 的值;
+     语言:界面文案(含启动提示)随所选语言切换;
        会话内容本身(标题、提问、回答、思考、工具与 subagent 的摘要/入参/返回)是 mock 数据,
        两种语言下原样显示;mock 边界说明(填充轮)与演示条只有中文。
      项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。 -->
@@ -36,13 +41,13 @@
 <meta charset="utf-8">
 <title>原型 — 会话页:提问索引与整轮展开</title>
 <link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <link rel="stylesheet" href="../_shared/project-side.css">
 <script src="../dimensions.js"></script>
 <script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
 <style>
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
-  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
   .head{padding:12px 20px 12px;border-bottom:1px solid var(--line);background:var(--card)}
   .back{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2);
@@ -62,7 +67,7 @@
     line-height:1.65;margin-bottom:10px;border:1px solid var(--line)}
   .banner .bi{flex:none}
   .banner.info{background:var(--accent-soft);border-color:var(--accent)}
-  /* No app token for these: the app's .banner.risk writes the same literals, with a dark set of its own */
+  /* Page-only colours, kept outside the shared theme tokens: a light set here and a dark set below */
   .banner.risk{background:#fdf3e3;border-color:#e0b483;color:#7a4d1c}
   html[data-demo-mode="dark"] .banner.risk{background:#33251a;border-color:#7a5330;color:#f0bd8c}
   .banner a{color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
@@ -135,8 +140,8 @@
   .step .sn{width:18px;flex:none;color:var(--text-2);font-family:ui-monospace,Menlo,monospace}
   .rt{padding:2px 0 2px 12px;border-left:2px solid var(--line-strong);margin:3px 0;color:var(--text-2)}
   /* Unrecoverable / truncated / encrypted: always labelled explicitly, never silently */
-  /* The border is --risk-border in both modes; the fill and the text have no app token (the app's .turn .warn
-     writes the same literals) */
+  /* The border is --risk-border in both modes; the fill and the text are page-only colours, with a dark set
+     below */
   .warn{border:1px dashed var(--risk-border);background:#fdf3e3;color:#7a4d1c;border-radius:6px;
     padding:6px 9px;font-size:11px;line-height:1.65;margin:6px 0}
   html[data-demo-mode="dark"] .warn{background:#33251a;color:#f0bd8c}
@@ -148,7 +153,7 @@
      to draw the eye
      (mark 同族,与 hover 的紫区分),脉冲后**焦点竖条常驻**——左缘 3px accent,
      不动布局、不与 hover/展开的背景撞;点击任意提问行即清除,离开页面自然清 */
-  /* A page token: the app scopes the same two values on .qlist .q, outside its theme tokens */
+  /* A page token, kept outside the shared theme tokens: a light and a dark value */
   :root{--locate-from:#fff2a8}
   html[data-demo-mode="dark"]{--locate-from:#4d451a}
   /* The highlight holds for 10s (the user's ruling, 2026-08-06): 8s steady, fading over the last 2s */
@@ -158,14 +163,6 @@
   .unknown{font-size:11px;color:var(--text-2);border:1px dotted var(--line-strong);
     border-radius:7px;padding:7px 10px;margin:8px 0;line-height:1.7}
   .note{font-size:11px;color:var(--text-2);line-height:1.7;margin:12px 2px 0}
-  /* ── The demo harness (not part of the design) ── */
-  .harness{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#22252a;
-    color:#c9ccd1;border-radius:999px;padding:5px 8px;display:flex;align-items:center;gap:6px;
-    font-size:11px;z-index:40;box-shadow:0 6px 20px rgba(0,0,0,.3)}
-  .harness .hl{color:#7f858d;padding:0 4px;white-space:nowrap}
-  .harness .hb{padding:3px 9px;border-radius:999px;cursor:pointer;color:#c9ccd1;white-space:nowrap}
-  .harness .hb.on{background:#4a4f57;color:#fff}
-  .harness .hsep{width:1px;height:14px;background:#3c4046;margin:0 3px}
 </style>
 <!-- Startup restore: keep the original page and its mock contents. The added bottom switches
      are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
@@ -176,6 +173,7 @@
 <script src="../_shared/icons.js"></script>
 </head>
 <body>
+<div class="app-window" data-shared-block="app-window">
   <nav class="rail" data-shared-block="app-rail" data-rail-current="projects"></nav>
   <script src="../_shared/app-rail.js"></script>
   <aside class="side" data-shared-block="project-side" data-side-selected="Transfer"></aside>
@@ -201,34 +199,39 @@
       <div class="note" id="foot"></div>
     </div>
   </div>
+</div>
 
   <!-- The demo harness: mock state switches, not part of the design and not to be implemented -->
-  <div class="harness" data-demo-harness>
+  <div data-demo-harness>
+    <span class="dh-tag">Demo ·</span>
     <span data-startup-controls></span>
-    <span class="hl">演示·会话数据</span>
-    <span class="hb on" data-ds="claude">Claude 主会话</span>
-    <span class="hb" data-ds="codex">Codex fork</span>
-    <span class="hb" data-ds="orphan">Codex fork·父会话缺失</span>
-    <span class="hsep"></span>
-    <span class="hl">演示·取回状态</span>
-    <span class="hb on" data-fs="ok">索引就绪</span>
-    <span class="hb" data-fs="stale">索引失效</span>
-    <span class="hb" data-fs="error">单轮失败</span>
-    <span class="hl">演示·搜索定位</span>
-    <span class="hb" data-locate="4">跳到 05 并高亮</span>
+    <div class="dh-group"><span class="dh-title">会话数据</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-ds="claude" aria-pressed="true">Claude 主会话</button>
+      <button type="button" class="dh-opt" data-ds="codex" aria-pressed="false">Codex fork</button>
+      <button type="button" class="dh-opt" data-ds="orphan" aria-pressed="false">Codex fork·父会话缺失</button>
+    </div></div>
+    <div class="dh-group"><span class="dh-title">取回状态</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-fs="ok" aria-pressed="true">索引就绪</button>
+      <button type="button" class="dh-opt" data-fs="stale" aria-pressed="false">索引失效</button>
+      <button type="button" class="dh-opt" data-fs="error" aria-pressed="false">单轮失败</button>
+    </div></div>
+    <div class="dh-group dh-actions"><span class="dh-title">搜索定位</span><div class="dh-acts">
+      <button type="button" class="dh-act" data-locate="4">跳到 05 并高亮</button>
+    </div></div>
+    <p class="dh-note">启动恢复各档在 app 里由这次启动的扫描进度与结果决定;app 内没有这个开关。</p>
+    <p class="dh-note">会话数据在 app 里由被打开的会话本身决定(fork 前缀能否确定剥离,取决于父会话文件是否在扫描集内);app 内没有这个开关。</p>
+    <p class="dh-note">取回状态在 app 里由取回前的一次签名校验(路径 + mtime + size)与该轮的读取结果决定:签名不符只重建该文件的索引,单轮读取失败只影响该轮、再点可重试;app 内没有这个开关。</p>
+    <p class="dh-note">搜索定位在 app 里由从项目详情「会话」分栏点进一条搜索命中触发;app 内没有这个按钮。</p>
   </div>
 
 <script>
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-  // ── UI copy in the two languages this page is drawn in. The English is the app dictionary's value under
-  // the matching key (src/shared/i18n/en.ts: session.* / turn.* / errors.*), with its ** and ` markup
-  // written as <b> and <code>. The zh side keeps this page's own wording, which in places predates the
-  // dictionary's (foot, truncNote, reasoningNote); the English of those follows the page's wording.
-  // The session content is mock data and is not in here. ──
+  // ── UI copy in the two languages this page is drawn in. The session content is mock data and is not in
+  // here. ──
   const pl = (n,one,other) => new Intl.PluralRules('en').select(n)==='one'?one:other;
   const EN_DAY = {'7月29日 周三':'Wed, July 29','7月30日 周四':'Thu, July 30',
-    '9月13日 周六':'Sat, September 13','9月14日 周日':'Sun, September 14'};  // the app's dayLabel('en')
+    '9月13日 周六':'Sat, September 13','9月14日 周日':'Sun, September 14'};  // the day groups' English labels
   const T = {
     zh:{
       back:p=>`返回 ${p} · 会话`,
@@ -801,13 +804,15 @@
     render(false);
   });
 
-  // The demo harness's switches
-  document.querySelector('[data-demo-harness]').addEventListener('click',e=>{
-    const b=e.target.closest('.hb'); if(!b) return;
+  // The demo harness's switches: the bar is built once, and the selected option of each group carries
+  // aria-pressed
+  const harness=document.querySelector('[data-demo-harness]');
+  harness.addEventListener('click',e=>{
+    const b=e.target.closest('button[data-ds],button[data-fs],button[data-locate]'); if(!b) return;
     if(b.dataset.ds){ cur=b.dataset.ds;
-      document.querySelectorAll('[data-ds]').forEach(x=>x.classList.toggle('on',x===b)); render(true) }
+      harness.querySelectorAll('[data-ds]').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); render(true) }
     if(b.dataset.fs){ fetchState=b.dataset.fs;
-      document.querySelectorAll('[data-fs]').forEach(x=>x.classList.toggle('on',x===b)) }
+      harness.querySelectorAll('[data-fs]').forEach(x=>x.setAttribute('aria-pressed',String(x===b))) }
     if(b.dataset.locate!==undefined){
       const row=document.querySelector(`[data-q="${b.dataset.locate}"]`);
       if(row){ row.scrollIntoView({block:'center',behavior:'smooth'});
@@ -841,8 +846,7 @@
   });
 </script>
 <script>
-  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
-  // navigates to the file directly
+  // Cross-prototype navigation: inside the gallery ask the parent page to switch; when opened alone, go to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;

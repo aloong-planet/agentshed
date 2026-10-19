@@ -2,11 +2,13 @@
 // skill template and copy it again). Scaffolding, not part of any design.
 //
 // A dimension is a product setting whose values the product's source defines as a list, such as the UI
-// language or the light/dark mode. Only the settings prototype sets them, from its own settings controls
-// (the prototype skill's UI.md, harness clause 5); every other page that follows a dimension shows the
-// value set there. The values are kept in localStorage, so they reach pages already open in another tab
-// or restored by Back, and survive reloads. A page that does not follow a dimension always sees that
-// dimension's default.
+// language or the light/dark mode. Two places set them (the prototype skill's UI.md, harness clause 5):
+// the settings prototype, from its own settings controls, sets any of them; the gallery's settings panel
+// sets the ones the registry marks `general: true` (the UI language and the light/dark mode). Both write
+// the same stored values, so a change made in either shows in the other and on every page that follows
+// the dimension. The values are kept in localStorage, so they reach pages already open in another tab,
+// in the gallery or restored by Back, and survive reloads. A page that does not follow a dimension always
+// sees that dimension's default.
 //
 // The project registers its dimensions in dimensions.js beside this file (window.DEMO_DIMENSIONS); a page
 // includes both in <head>, before any script of its own, and names the dimensions it follows:
@@ -14,20 +16,25 @@
 //   <script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
 // "language=zh,en" follows the language but says the page is drawn in those two values only: any other
 // value shows as the dimension's fallback (its registry `fallback`, else its default), and a note on the
-// page says so. The settings prototype includes the script without data-follow.
+// page says so. The two places that set values include the script with data-settings instead: they follow
+// every registered dimension, in all its values, and only they may call set.
 //
 // A followed dimension's value in effect is also set on the root element as data-demo-<id>, before the
 // page renders and on every change, so styles can select on it: html[data-demo-mode="dark"] { ... }
 //
-//   DemoDimensions.on(id, fn)          calls fn(value) now, and again whenever the value in effect changes
+//   DemoDimensions.on(id, fn)          calls fn(value) now, and again whenever the value in effect changes,
+//                                      whichever page changed it
 //   DemoDimensions.get(id)             the value in effect on this page
-//   DemoDimensions.set(values, state)  settings prototype only: the values in effect ({ id: value }), and
-//                                      the page's own state they were derived from
+//   DemoDimensions.set(values, state)  data-settings pages only: the values in effect ({ id: value }), and
+//                                      the settings prototype's own state they were derived from; the
+//                                      gallery leaves state out, which keeps the stored state as it was,
+//                                      and set({}, state) saves the state alone
 //   DemoDimensions.state()             the state last passed to set, or null; the settings prototype
 //                                      restores itself from it, so it reopens as the reader left it
 window.DemoDimensions = (() => {
   const DIMS = window.DEMO_DIMENSIONS || {}
   const KEY = 'proto-demo-dimensions'
+  const settings = document.currentScript?.hasAttribute('data-settings') ?? false
 
   function dim(id) {
     if (!DIMS[id]) throw new Error(`demo-dimensions: "${id}" is not registered in dimensions.js`)
@@ -35,6 +42,7 @@ window.DemoDimensions = (() => {
   }
   // { id: the values this page is drawn in }
   const drawn = {}
+  if (settings) for (const id of Object.keys(DIMS)) drawn[id] = DIMS[id].values
   for (const token of (document.currentScript?.dataset.follow || '').split(/\s+/).filter(Boolean)) {
     const [id, only] = token.split('=')
     drawn[id] = only ? only.split(',') : dim(id).values
@@ -74,8 +82,9 @@ window.DemoDimensions = (() => {
       // Marked as demo scaffolding; appended last, so a page's own harness stays the first one in the document
       noteEl.setAttribute('data-demo-harness', '')
       noteEl.setAttribute('role', 'status')
-      // all:initial first: pages style their own harness through [data-demo-harness] (centred, pinned to the
-      // bottom), and without it those rules would land on the note too and stretch it across the page
+      // all:initial first: older pages style their own harness through [data-demo-harness] (centred, pinned
+      // to the bottom) instead of leaving its look to demo-harness.js, and without it those rules would land
+      // on the note too and stretch it across the page
       noteEl.style.cssText = 'all:initial;display:block;position:fixed;top:10px;right:12px;z-index:2147483000;' +
         'padding:5px 11px;border-radius:999px;background:#1c1c1e;color:#e8e8ea;white-space:nowrap;' +
         'font:600 11.5px/1.4 -apple-system,system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3);pointer-events:none'
@@ -105,17 +114,19 @@ window.DemoDimensions = (() => {
   }
 
   function set(values, state) {
+    if (!settings) throw new Error('demo-dimensions: only a page that includes this script with data-settings may set values')
     for (const [id, v] of Object.entries(values)) {
       if (!dim(id).values.includes(v)) throw new Error(`demo-dimensions: "${v}" is not a value of "${id}"`)
     }
-    stored = { values: { ...stored.values, ...values }, state }
+    stored = { values: { ...stored.values, ...values }, state: state === undefined ? stored.state : state }
     try { localStorage.setItem(KEY, JSON.stringify(stored)) } catch {}
     notify()
   }
   const state = () => stored.state ?? null
 
-  // A page that is already open read the stored values once, so a change made on the settings prototype
-  // reaches it through the storage event; a page restored by Back missed those events while it was cached
+  // A page that is already open read the stored values once, so a change made on another page (the settings
+  // prototype, or the gallery around this page) reaches it through the storage event; a page restored by
+  // Back missed those events while it was cached
   function reload() { load(); notify() }
   window.addEventListener('storage', (e) => { if (e.key === KEY || e.key === null) reload() })
   window.addEventListener('pageshow', (e) => { if (e.persisted) reload() })

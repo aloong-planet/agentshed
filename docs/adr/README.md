@@ -26,7 +26,7 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0015](0015-structured-ipc-errors.md) | Failures cross IPC as an error code plus parameters; wording is left to the renderer | Accepted |
 | [0016](0016-no-natural-language-across-ipc.md) | The main process emits no user-facing natural language (not just failure text) | Accepted |
 | [0017](0017-repo-working-language-english.md) | Repository working language is English (comments, docs, test names, terminal output) | Accepted (scope extended by 0030) |
-| [0018](0018-icons-are-inline-svg-from-one-source.md) | Icons are inline SVG from a single source; the prototypes derive theirs from it | Accepted |
+| [0018](0018-icons-are-inline-svg-from-one-source.md) | Icons are inline SVG from a single source; the prototypes derive theirs from it | Accepted (prototype half superseded by 0033) |
 | [0019](0019-grok-as-third-agent-side.md) | Onboarding Grok as the third agent side (registry, compatibility rule, no cost, session identity) | Accepted |
 | [0020](0020-day-usage-keyed-by-side.md) | Daily usage is keyed by agent side, not by a field per side | Accepted |
 | [0021](0021-side-colour-follows-provider.md) | One colour per agent side, taken from that side's provider colour | Accepted |
@@ -41,3 +41,4 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0030](0030-message-language.md) | Commit messages and pull-request text follow the working language (hook + PR workflow; skipped when Chinese) | Accepted |
 | [0031](0031-macos-release-line.md) | A notarized macOS release line: CI on release tags, R2 mirror for formal releases, a Chinese and English landing page | Accepted |
 | [0032](0032-app-updates.md) | App updates from GitHub Releases, offered rather than pushed — the app's one outbound request | Accepted (download behaviour amended the same day) |
+| [0033](0033-prototypes-are-the-baseline.md) | The prototypes keep their own icons, tokens, styles and copy; the app follows them | Accepted |

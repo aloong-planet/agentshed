@@ -13,6 +13,8 @@
        只读、不参与遮蔽,ADR-0010)。详情页形态见 project-detail 原型。
      2026-08-15 追加(第三侧 Grok 接入):Token 分栏的模式条与图例各多一项;xAI 的分段色要在
        三套主题 × 明暗下都与橙/绿/蓝/灰分得开,且在薄分段上仍认得出。
+       2026-10-18 定稿(用户裁定):沿用共享主题 _shared/theme.css 的 --p-xai(浅 #ad98d0 / 深 #c9b3ec,即原候选
+       p10),演示条上的候选切换随之撤掉。
      v4(2026-08-20,token 概览重设计·方向 A):累计总量提到**页头**——一张宽卡,左侧大号总量,
        右侧一条细构成条(未命中输入/输出/cache 读),下方一行各侧拆解。三张侧卡随之**摘掉 token
        数字**,回归「这一侧装了什么」的职责(检测状态 + 项目/skills/subagents 数);并补上原型里
@@ -37,42 +39,42 @@
        只到 provider(四家厂商)且只存标量,不到模型;要做得先改数据层。本页的模型条是照"做成之后
        会是什么样"摆的 mock,不代表现在能算出来。
      2026-10-14:原「Agents 页启动骨架」原型并入本页——app 里两者也是同一位置的二选一:这次启动还没收到首个
-       快照时画骨架(AgentsSkeleton),收到后画正式内容。骨架回答的问题:①高保真镜像(静态文案真实渲染,数据位
+       快照时画骨架,收到后画正式内容。骨架回答的问题:①高保真镜像(静态文案真实渲染,数据位
        灰块微动效)在这一页长什么样;②「正在扫描」轻提示放在标题行内是否成立——完成时它消失不引起任何纵向位移
        (独占一行的提示消失时,下方所有内容会向上跳一次);③填充是否接近零跳变(演示条在骨架与其余三档间切换
-       对照)。骨架期间整块不可交互(tab / 时间窗卡都不可点),rail 照常。骨架照 app 的 AgentsSkeleton 摆:哪个数据位
-       放什么占位、多宽多高都与它一一对应,占位样式由 sync-startup-skeleton.mjs 从 app 的 theme.css 生成
-       (_shared/startup-skeleton.css)。骨架与正式内容共用本页的中英文案;
+       对照)。骨架期间整块不可交互(tab / 时间窗卡都不可点),rail 照常。骨架照 app 的 Agents 启动骨架摆:哪个数据位
+       放什么占位、多宽多高都与它一一对应,占位样式在共享件 _shared/startup-skeleton.css 里。骨架与正式内容共用本页的中英文案;
        原骨架页另画过的法、俄、西、日四种语言不再单独画出,与本页其余部分一样按英文显示并有提示。
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于
-       页面内容流)承载四组开关,按分栏出现——「演示·启动」四档常驻(骨架 / 扫描中 / 完成 / 失败,共享件
+       页面内容流)承载三组开关,按分栏出现——「启动」四档常驻(骨架 / 扫描中 / 完成 / 失败,共享件
        _shared/startup-status;真实判定 = 渲染器是否已收到首个快照与扫描的结果;选骨架时其余各组隐去,它们
-       演示的都是已载入的内容);「演示·用量」三态常驻(有数据 / 本日无用量 / 全空;
+       演示的都是已载入的内容);「用量」三态常驻(有数据 / 本日无用量 / 全空;
        第二态是最容易漏掉却最常见的那个:早上打开时本日为 0 而历史不为 0,形态与全空不同——侧卡仍报
-       已检测、其余三个窗口仍有数),Memory 分栏是 Codex 记忆四态,Token 分栏是 xAI 分段色三候选
-       (真实取值来自主题样式文件的 --p-xai,app 内无此开关)。
+       已检测、其余三个窗口仍有数;真实判定 = 本机记下的 token 用量);Memory 分栏是「Codex 记忆」四态
+       (真实判定 = config.toml features.memories × 目录内容)。每组的真实判定与「app 内无此开关」写在演示条的
+       说明行里。
        演示状态同时作用到趋势图:卡说本日 0 而图上今天那根柱还有高度,是自相矛盾的原型,教错东西。
-     界面语言、明暗与配色跟随设置原型(appearance)所选,本页不设开关;本页画了中、英两种,其他语言按英文
-       显示并有提示(启动提示与趋势图两个共享块各自跟随);色值取共享主题 _shared/theme.css(由 app 的
-       theme.css 生成)。评审注释、演示条与 mock 数据(名字、路径、描述、文件内容)不随语言切换。 -->
+     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;本页画了中、英两种,其他语言按英文
+       显示并有提示(启动提示与趋势图两个共享块各自跟随);两页及以上共用的文案取共享文案表 _shared/copy.js;
+       色值取共享主题 _shared/theme.css。app 窗口的根样式在共享件 _shared/app-window.css 里。评审注释、演示条与 mock 数据(名字、路径、描述、文件内容)不随语言切换。 -->
 <!-- The fourth total card follows the globally persisted 30 / 60 / 90 day choice; its amount comes from the same daily mock history as the chart. -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>原型 — Agents 全局页</title>
 <link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
      references it -->
 <link rel="stylesheet" href="../_shared/trend-chart.css?v=linked-span-total">
 <link rel="stylesheet" href="../_shared/totals-card.css">
-<!-- The startup skeleton's placeholders, generated from the app's theme.css -->
+<!-- The startup skeleton's placeholders (shared) -->
 <link rel="stylesheet" href="../_shared/startup-skeleton.css">
 <style>
   /* app token(含构成三段 --tc-*、侧徽章 --cl/cx/gk-*、语义 --ok/--warn-*)全部取自 _shared/theme.css,
-     本页不重定义任何 app token,故每套配色与明暗都与 app 一致 */
+     本页不重定义任何 app token,故每套配色与明暗都与其余原型页一致 */
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
-  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
   .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
   .head{padding:14px 22px 0;border-bottom:1px solid var(--line)}
   .h1{font-size:16px;font-weight:700;margin-bottom:10px}
@@ -161,30 +163,12 @@
   .sub-list{padding:2px 14px 8px 36px;background:var(--bg);border-bottom:1px solid var(--line)}
   .sub-list .it{padding:6px 0;border-bottom:0}
 
-  /* ── 启动骨架(app 的 AgentsSkeleton):这次启动还没收到首个快照时,画在正式内容的位置上 ──
-     占位、脉动、整块拒点与选中 tab 的压平都取自 _shared/startup-skeleton.css(由 app 的 theme.css 生成)。
+  /* ── Agents 启动骨架:这次启动还没收到首个快照时,画在正式内容的位置上 ──
+     占位、脉动、整块拒点与选中 tab 的压平都取自 _shared/startup-skeleton.css。
      本页只补两条:.main 自带 display:flex,会压过 hidden 属性的默认隐藏,故显式写回;分段控件的选中态压平
-     ——取值同 app 的 .sk-page .seg button.on,只是原型的分段控件用 span,生成的那条落不到这里。 */
+     ——共享件只压平选中的 tab,本页的分段控件用 span,要自己补这一条。 */
   .main[hidden]{display:none}
   .sk-page .seg span.on{background:transparent;color:var(--text-2);font-weight:400}
-  /* The demo harness: not part of the design — an independent floating layer that is never embedded in the
-     page content flow;
-     data-demo-harness 供模型/脚本过滤(prototype skill UI.md 演示基建条款) */
-  /* 居中用 left+right+margin:auto,不用 left:50%+translateX(-50%):后者对 fixed 元素来说可用宽度
-     只剩 50vw(未指定 right 时包含块从 left 量到视口右缘),开关一多就在半个视口里换行。
-     这里现在正好放得下,改掉是因为它是个会随内容增长而爆的写法。 */
-  .harness{position:fixed;bottom:14px;left:12px;right:12px;margin:0 auto;width:fit-content;z-index:60;
-    display:none;align-items:center;flex-wrap:wrap;row-gap:2px;gap:4px;background:#26262b;
-    border-radius:16px;padding:6px 14px;font-size:11px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
-  /* 间距走 padding 与 gap,不用 margin:width:fit-content 求 max-content 时不计子项 margin,
-     容器会按少算的宽度定形再把内容挤换行——"明明放得下却换行了"就是这么来的。 */
-  .harness .dl{color:#8a8a92;padding:0 3px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
-  /* 每加一组开关都要挂进这个选择器列表。漏掉时的表现不是报错,是那组 pill 继承页面正文色压在
-     深色条上——浅色模式下几乎看不见,而且没有选中高亮,看起来像"功能坏了"而不是"样式没接"。 */
-  .harness span[data-v],.harness span[data-x],.harness span[data-e]{padding:3px 9px;border-radius:999px;cursor:pointer;
-    color:#b8b8bf;white-space:nowrap}
-  .harness span[data-v]:hover,.harness span[data-x]:hover,.harness span[data-e]:hover{color:#fff}
-  .harness span[data-v].on,.harness span[data-x].on,.harness span[data-e].on{background:#4a4a52;color:#fff;font-weight:600}
 
 </style>
 <script src="../dimensions.js"></script>
@@ -196,8 +180,10 @@
 <script src="../manifest.js"></script>
 <script src="../app-identity.js"></script>
 <script src="../_shared/icons.js"></script>
+<script src="../_shared/copy.js"></script>
 </head>
 <body>
+<div class="app-window" data-shared-block="app-window">
   <nav class="rail" data-shared-block="app-rail" data-rail-current="agents"></nav>
   <script src="../_shared/app-rail.js"></script>
   <div class="main" id="pageMain">
@@ -263,7 +249,7 @@
         <div class="grp-t" data-i18n="memoryHint">按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件开抽屉</div>
         <div class="card" id="memlist"></div>
         <div id="memnote"></div>
-        <div class="note">Codex 记忆四种组合经底部悬浮演示条切换(原型基建,非功能):真实判定 = config.toml features.memories × 目录内容,app 内无此开关。文件内容按需读取,不进快照。</div>
+        <div class="note">文件内容按需读取,不进快照。</div>
       </div>
       <div data-p="plugins" style="display:none">
         <div class="grp-t" data-i18n="pluginsHint">按侧分组(不做跨侧同名合并) · Claude 组:user 层启用口径,逐条安装记录不合并,点条目展开内含组件</div>
@@ -307,7 +293,7 @@
       </div>
     </div>
   </div>
-  <!-- 启动骨架(app 的 AgentsSkeleton):演示条「骨架」一档用它换下上面的正式内容;数据位的占位在脚本里画 -->
+  <!-- Agents 启动骨架:演示条「骨架」一档用它换下上面的正式内容;数据位的占位在脚本里画 -->
   <div class="main sk-page" id="skMain" aria-hidden="true" hidden>
     <div class="head">
       <!-- 提示与标题同行:完成时它消失,不引起纵向位移(它不独占一行) -->
@@ -338,32 +324,53 @@
   </div>
   <div class="mask" id="dmask"></div>
   <div class="drawer" id="drawer"></div>
-  <!-- The demo harness floating layer: not part of the design, independent of the product page -->
-  <div class="harness" id="harness" data-demo-harness></div>
+</div>
+  <!-- The demo harness floating layer: not part of the design, independent of the product page. Built once;
+       the script below only moves aria-pressed and hidden: the Codex memory group shows on the Memory tab
+       only, and the skeleton leaves the startup group alone -->
+  <div data-demo-harness id="harness">
+    <span class="dh-tag">Demo ·</span>
+    <span data-startup-controls></span>
+    <div class="dh-group" id="demoUsage">
+      <span class="dh-title">用量</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-e="full" aria-pressed="true">有数据</button>
+        <button type="button" class="dh-opt" data-e="idle" aria-pressed="false">本日无用量</button>
+        <button type="button" class="dh-opt" data-e="none" aria-pressed="false">全空</button>
+      </div>
+    </div>
+    <div class="dh-group" id="demoCxmem" hidden>
+      <span class="dh-title">Codex 记忆</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-v="on-has" aria-pressed="true">开·有内容</button>
+        <button type="button" class="dh-opt" data-v="on-empty" aria-pressed="false">开·无内容</button>
+        <button type="button" class="dh-opt" data-v="off-empty" aria-pressed="false">关·无内容</button>
+        <button type="button" class="dh-opt" data-v="off-has" aria-pressed="false">关·遗留文件</button>
+      </div>
+    </div>
+    <p class="dh-note">启动各档在 app 里由渲染器是否已收到这次启动的首个快照、以及扫描的结果决定;app 内没有这个开关。</p>
+    <p class="dh-note" id="demoUsageNote">用量三态在 app 里由本机记下的 token 用量决定(有没有记录、本日有没有用量);app 内没有这个开关。</p>
+    <p class="dh-note" id="demoCxmemNote" hidden>Codex 记忆四态在 app 里由 Codex 的 config.toml features.memories 与记忆目录里的文件决定;app 内没有这个开关。</p>
+  </div>
 <script>
-// ── 界面文案:中、英两种(其他语言按英文显示,提示由 demo-dimensions.js 负责)。英文逐字取自 src/shared/i18n/en.ts
-//    里同一中文串所在 key 的值;原型文案与字典不逐字相同、或字典里没有的,按字典的语气补写(交付报告列出)。
-//    评审注释、演示条与 mock 数据(名字、路径、描述、文件内容)不进字典,不随语言切换。
+// ── 界面文案:中、英两种(其他语言按英文显示,提示由 demo-dimensions.js 负责)。两页及以上共用的条目取
+//    共享文案表 _shared/copy.js,这里只留本页独有的。
+//    评审注释、演示条与 mock 数据(名字、路径、描述、文件内容)不进文案表,不随语言切换。
 const plural = (n, one, other) => n === 1 ? one : other;
 const T = {
-  zh: {
-    winAll:'累计总量 · 全部历史', winAllShort:'累计总量', winToday:'本日', winD7:'近 7 天',
+  zh: { ...SharedCopy.zh,
+    winAll:'累计总量 · 全部历史', winToday:'本日', winD7:'近 7 天',
     winDays:(n)=>`近 ${n} 天`,
     detected:'已检测', undetected:'未检测',
     sideSummary:(p,s,a)=>`${p} 项目 · ${s} 全局 skills · ${a} ${plural(a,'subagent','subagents')}`,
-    compCacheRead:'cache 读', compUncached:'未命中输入', compOutput:'输出',
-    compTipCacheRead:(v)=>`${v} · 命中缓存、不必重算的输入`,
-    compTipUncached:(v)=>`${v} · 含 cache 写(仅 Claude 侧非零):都是这一轮真读进模型的输入`,
-    compTipOutput:(v)=>`${v} · 模型生成的 token`,
     byModel:'按模型拆分(跨项目;条形同用 provider 品牌色)', byModelIn:(title,win)=>`${title} · ${win}`,
     noModelUsage:'该窗口内没有模型用量',
-    tabCfg:'配置', trendPrefix:'近', trendSuffix:'天趋势', trendContext:'(本地时区 · 日粒度 · 跨全部项目)',
-    trendDays:'趋势天数', trendTotal:'合计',
+    trendContext:'(本地时区 · 日粒度 · 跨全部项目)',
     skillsHint:'合并单列 · 徽标=该侧是否存在 · 来源:全局库(可装卸)/ 插件(只读)',
-    sidesDiffer:'两侧有差异', pillSymlink:'软链', pillPlugin:'插件',
+    sidesDiffer:'两侧有差异',
     subagentsHint:'双端合并单列 · 同名一行(格式异构,不做内容 diff) · 点条目开抽屉看完整定义',
-    overridesBuiltin:'覆盖内置', parseFailed:'解析失败', unreadable:'不可读',
-    noDescription:'(无 description)', degraded:'降级条目', inherited:'—(继承)',
+    parseFailed:'解析失败', unreadable:'不可读',
+    noDescription:'(无 description)', degraded:'降级条目',
     errToml:'toml 解析失败(损坏或语法错误);Codex 本身也不会加载它。其余条目不受影响。',
     errUnreadable:'文件不可读(权限或 IO 异常)。条目保留不静默消失——静默消失会污染同名条目的遮蔽判定。',
     memoryHint:'按最近修改倒序 · 含失效/已隐藏(带徽标) · 点行展开文件列表,点文件开抽屉',
@@ -374,36 +381,31 @@ const T = {
     codexEmpty:'Codex 记忆已开启,暂无内容。',
     codexDisabled:'Codex 记忆功能未开启——可在 Codex 内用 /memories 命令,或「设置 → 个性化 → Enable memories」开启(实验性)。',
     pluginsHint:'按侧分组(不做跨侧同名合并) · Claude 组:user 层启用口径,逐条安装记录不合并,点条目展开内含组件',
-    enabled:'已启用', notEnabled:'未启用',
-    projectLost:'(项目已失联)', installRecords:(n)=>`${n} 条安装记录`,
-    secInstall:'安装记录', secSkills:'内含 skills(命名空间调用)', secMcp:'内含 MCP servers', secHooks:'内含 hooks(事件摘要)',
+    enabled:'已启用',
+    installRecords:(n)=>`${n} 条安装记录`,
+    secSkills:'内含 skills(命名空间调用)', secMcp:'内含 MCP servers', secHooks:'内含 hooks(事件摘要)',
     installMissing:'安装目录缺失(缓存已清理)——仅注册表记录可见,内含组件无法读取。',
-    cachedVersions:(n)=>`(${n} 个版本缓存)`, cacheOnly:'仅缓存枚举',
+    cachedVersions:(n)=>`(${n} 个版本缓存)`,
     cacheOnlySameName:'仅缓存枚举(与 Claude 组同名条目各自成行)',
     codexFoot:'Codex 组仅列缓存中存在的插件(名称/marketplace/版本);启用态与内含组件语义本期不建模。',
-    globalMcp:'全局 MCP', srcPlugin:'plugin 自带', mcpFromPlugin:'来自 chrome-devtools-mcp 插件',
+    globalMcp:'全局 MCP', mcpFromPlugin:'来自 chrome-devtools-mcp 插件',
     globalMcpServers:'(全局 mcpServers)', mcpEmpty:'当前为空——项目级 .mcp.json 的归属在项目详情',
     cfgClaudeMd:'全局 CLAUDE.md', cfgAgentsMd:'全局 AGENTS.md', cfgToml:'config.toml 摘要',
     tomlProjects:(n)=>`共 ${n} 条`, tomlMcp:(n)=>`${n} 段(只读摘要)`
   },
-  en: {
-    winAll:'Total · all history', winAllShort:'Total', winToday:'Today', winD7:'Last 7 days',
+  en: { ...SharedCopy.en,
+    winAll:'Total · all history', winToday:'Today', winD7:'Last 7 days',
     winDays:(n)=>`Last ${n} days`,
     detected:'Detected', undetected:'Not detected',
     sideSummary:(p,s,a)=>`${p} ${plural(p,'project','projects')} · ${s} global ${plural(s,'skill','skills')} · ${a} ${plural(a,'subagent','subagents')}`,
-    compCacheRead:'Cache reads', compUncached:'Uncached input', compOutput:'Generated output',
-    compTipCacheRead:(v)=>`${v} · input served from cache, never recomputed`,
-    compTipUncached:(v)=>`${v} · cache writes included (non-zero on the Claude side only): everything the model read afresh this turn`,
-    compTipOutput:(v)=>`${v} · tokens the model generated`,
     byModel:'By model (across projects; bars use the provider brand colours)', byModelIn:(title,win)=>`${title} · ${win}`,
     noModelUsage:'No model usage in this window',
-    tabCfg:'Config', trendPrefix:'Last', trendSuffix:'days’ trend', trendContext:'(local time zone · daily · across all projects)',
-    trendDays:'Trend days', trendTotal:'Total',
+    trendContext:'(local time zone · daily · across all projects)',
     skillsHint:'Merged into one list · badge = present on that side · source: global library (installable) / plugin (read-only)',
-    sidesDiffer:'Sides differ', pillSymlink:'symlink', pillPlugin:'Plugin',
+    sidesDiffer:'Sides differ',
     subagentsHint:'Both sides merged into one list · same name on one row (formats differ; no content diff) · click a row to open its full definition in a drawer',
-    overridesBuiltin:'Overrides built-in', parseFailed:'Parse failed', unreadable:'Unreadable',
-    noDescription:'(no description)', degraded:'Degraded entry', inherited:'— (inherited)',
+    parseFailed:'Parse failed', unreadable:'Unreadable',
+    noDescription:'(no description)', degraded:'Degraded entry',
     errToml:'Failed to parse the toml (corrupt or a syntax error); Codex itself will not load it either. Other entries are unaffected.',
     errUnreadable:'The file cannot be read (permissions or I/O error). The entry is kept rather than silently disappearing — a silent disappearance would corrupt the shadowing verdict for entries of the same name.',
     memoryHint:'Most recently modified first · includes stale/hidden (badged) · click a row for its files, click a file to open it in a drawer',
@@ -414,14 +416,14 @@ const T = {
     codexEmpty:'Codex memory is enabled but empty.',
     codexDisabled:'Codex memory is not enabled — turn it on with the /memories command inside Codex, or via Settings → Personalization → Enable memories (experimental).',
     pluginsHint:'Grouped by side (no cross-side merging by name) · Claude group: enablement basis is the user layer; install records are listed one by one, not merged; click a row to expand bundled components',
-    enabled:'Enabled', notEnabled:'Not enabled',
-    projectLost:' (project lost)', installRecords:(n)=>`${n} install ${plural(n,'record','records')}`,
-    secInstall:'Install records', secSkills:'Bundled skills (namespaced)', secMcp:'Bundled MCP servers', secHooks:'Bundled hooks (event summary)',
+    enabled:'Enabled',
+    installRecords:(n)=>`${n} install ${plural(n,'record','records')}`,
+    secSkills:'Bundled skills (namespaced)', secMcp:'Bundled MCP servers', secHooks:'Bundled hooks (event summary)',
     installMissing:'Install directory missing (cache cleaned up) — only the registry record is visible; bundled components cannot be read.',
-    cachedVersions:(n)=>`(${n} cached ${plural(n,'version','versions')})`, cacheOnly:'cache enumeration only',
+    cachedVersions:(n)=>`(${n} cached ${plural(n,'version','versions')})`,
     cacheOnlySameName:'cache enumeration only (an entry sharing a name with the Claude group keeps its own row)',
     codexFoot:'The Codex group lists only plugins present in the cache (name / marketplace / version); enablement state and bundled-component semantics are not modelled in this release.',
-    globalMcp:'Global MCP', srcPlugin:'bundled with plugin', mcpFromPlugin:'From the chrome-devtools-mcp plugin',
+    globalMcp:'Global MCP', mcpFromPlugin:'From the chrome-devtools-mcp plugin',
     globalMcpServers:'(global mcpServers)', mcpEmpty:'Currently empty — project-level .mcp.json belongs to the project details',
     cfgClaudeMd:'Global CLAUDE.md', cfgAgentsMd:'Global AGENTS.md', cfgToml:'config.toml summary',
     tomlProjects:(n)=>`${n} in total`, tomlMcp:(n)=>`${n} ${plural(n,'section','sections')} (read-only summary)`
@@ -686,57 +688,24 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
       <span class="pill ${p.on?'on':'off'}">${p.on?tr().enabled:tr().notEnabled}</span>
       <span class="ds">${p.why()}</span></div>`+(PLG_OPEN.has(i)?`<div class="exp">${p.exp()}</div>`:'')).join('');
   }
-  // xAI 候选色。四个都过了两道门槛:与四个数据色的最小色差 ≥25(否则同一根柱子里两段糊在一起),
-  // 与三套主题强调色的最小色差 ≥25(否则「这一侧是 Grok」和「这一项被选中」成了同一个颜色)。
-  // 被这两道筛掉的:靛蓝(贴 Google 蓝)、紫罗兰与梅子(贴紫主题强调色)、金(贴琥珀主题强调色)——
-  // 整片紫系出局都是栽在第二道上,而默认主题的强调色恰恰是紫。
-  // 注意:这些数字是本页还只内联 --accent、没有 --accent-deep 时量的,可信的是与 --accent 的比较
-  // (当时在页上量 accent-deep 拿到空值,会算出很大的假色差)。本页现在整套 token 取自 _shared/theme.css,
-  // 深色下 #c9b3ec 与 app 紫主题的 --accent-deep 逐字相同。
-  // 色系已定为 CC 夜间紫;剩下要挑的只是浅色下加深多少。深色一律用原值 #c9b3ec。
-  // 标签上的数字是该档对白卡片的对比度——既有四色的区间是 2.64–3.56,越靠近越不发虚,
-  // 但越深就越贴近紫主题的强调色(括号里那个),两者反向。玫红留作跨色系对照。
-  const XAI_CAND={
-    p06  :{l:'#b8a3db',d:'#c9b3ec',n:'2.26 (23.5)'},
-    p08  :{l:'#b39dd5',d:'#c9b3ec',n:'2.41 (21.4)'},
-    p10  :{l:'#ad98d0',d:'#c9b3ec',n:'2.57 (19.7)'},
-    p12  :{l:'#a893ca',d:'#c9b3ec',n:'2.73 (18.3)'},
-    rose :{l:'#c2528f',d:'#e58ac0',n:'玫红对照'}
-  };
-  let XAI='p10';   // 与样式表里 --p-xai 的当前取值保持一致
-  // 明暗取设置原型所选(demo-dimensions.js),不看系统
-  function applyXai(){
-    const dark=DemoDimensions.get('mode')==='dark';
-    document.documentElement.style.setProperty('--p-xai', XAI_CAND[XAI][dark?'d':'l']);
-  }
-  DemoDimensions.on('mode', applyXai);
-  function renderHarness(){
-    const on=document.querySelector('.tab.on')?.dataset.t, el=$('harness');
-    // 总量卡这一组常驻:它已移入页头,所有分栏都看得见,开关也就不该随分栏出现/消失
-    const de=(v,t)=>`<span data-e="${v}" class="${DEMO===v?'on':''}">${t}</span>`;
-    const totGrp=StartupStatus.controls()+`<span class="dl">演示·用量</span>`+de('full','有数据')+de('idle','本日无用量')+de('none','全空');
-    el.style.display='flex';
-    // 骨架期间只有启动这一组:其余各组演示的都是已载入的内容
-    if(!$('skMain').hidden){ el.innerHTML=StartupStatus.controls(); return }
-    if(on==='token'){
-      const seg=(v)=>`<span data-x="${v}" class="${XAI===v?'on':''}">${XAI_CAND[v].n}</span>`;
-      el.innerHTML=totGrp+`<span class="dl">演示·xAI 分段色</span>`+Object.keys(XAI_CAND).map(seg).join('');
-      return
-    }
-    if(on!=='memory'){ el.innerHTML=totGrp; return }
-    const seg=(v,l)=>`<span data-v="${v}" class="${CXMEM===v?'on':''}">${l}</span>`;
-    el.innerHTML=totGrp+`<span class="dl">演示·Codex 记忆</span>${seg('on-has','开·有内容')}${seg('on-empty','开·无内容')}${seg('off-empty','关·无内容')}${seg('off-has','关·遗留文件')}`;
+  // 演示条只建一次(标记在上方),这里只改 aria-pressed 与 hidden。
+  // 「用量」一组常驻:总量卡已移入页头,所有分栏都看得见,开关也就不该随分栏出现/消失;
+  // 「Codex 记忆」只在 Memory 分栏出现;骨架期间只有启动这一组:其余各组演示的都是已载入的内容
+  function syncHarness(){
+    const on=document.querySelector('#tabs .tab.on')?.dataset.t, sk=!$('skMain').hidden;
+    $('demoUsage').hidden=$('demoUsageNote').hidden=sk;
+    $('demoCxmem').hidden=$('demoCxmemNote').hidden=sk||on!=='memory';
+    $('harness').querySelectorAll('[data-e]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.e===DEMO)));
+    $('harness').querySelectorAll('[data-v]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===CXMEM)));
   }
   $('harness').addEventListener('click',e=>{
-    const em=e.target.dataset.e;
-    if(em!==undefined){ DEMO = em; applyRange(); renderHarness(); return }
-    const x=e.target.dataset.x;
-    if(x){ XAI=x; applyXai(); renderHarness(); return }
-    const v=e.target.dataset.v; if(!v)return;
-    CXMEM=v; renderMemory(); renderHarness();
+    const em=e.target.closest('[data-e]')?.dataset.e;
+    if(em!==undefined){ DEMO = em; applyRange(); syncHarness(); return }
+    const v=e.target.closest('[data-v]')?.dataset.v; if(!v)return;
+    CXMEM=v; renderMemory(); syncHarness();
   });
-  // ── 启动骨架的占位:与 app 的 AgentsSkeleton(src/renderer/src/StartupSkeleton.tsx)一一对应——哪个数据位、
-  //    多宽多高、错开多少都照它;改了那边,这里跟着改。宽度与柱高取固定数组、不随机,两次打开长得一样;宽度
+  // ── 启动骨架的占位:照 app 的 Agents 启动骨架画——哪个数据位、多宽多高、错开多少都与它一一对应;
+  //    此后以本页为准。宽度与柱高取固定数组、不随机,两次打开长得一样;宽度
   //    彼此错开,读作「长短不一的数会来」。文字行的占位一律 skLine:零宽空格撑出该行真实字体的行盒,与将要
   //    替换它的文字同高,换平台也不靠像素猜。模型行数是名义值,不承诺与载入后的行数一致 ──
   const skPh=(w,h,d)=>`<span class="sk-ph" style="width:${w}px;height:${h}px${d===undefined?'':`;animation-delay:${d}s`}"></span>`;
@@ -770,11 +739,10 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     const sk=state==='skeleton';
     $('skMain').hidden=!sk; $('pageMain').hidden=sk;
     if(sk) closeDrawer();
-    renderHarness();
+    syncHarness();
   }
-  // 初始就得渲染一次:默认落在 Token 分栏,而 harness 原先只服务 Memory 分栏,从来不需要初始化——
-  // 少了这行,候选条要先切走再切回 Token 才出现。登记骨架一档时即按当前状态画出演示条
-  applyXai(); StartupStatus.withSkeleton(showSkeleton);
+  // 登记骨架一档时即按当前状态对齐演示条
+  StartupStatus.withSkeleton(showSkeleton);
   document.querySelector('.body').addEventListener('click',e=>{
     const sa=e.target.closest('[data-sa]');
     if(sa){ SA=+sa.dataset.sa; MF=null; const a=SUBAGENTS[SA]; SIDE=a.cl?'c':'x'; openDrawer(saDrawerHtml()); return }
@@ -798,7 +766,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     const t=e.target.closest('.tab');if(!t||!t.dataset.t)return;
     document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.toggle('on',x===t));
     document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
-    closeDrawer(); renderHarness();
+    closeDrawer(); syncHarness();
   });
   // 两份 md 的正文是 mock 文件内容,不随语言变;config.toml 摘要是 app 拼出来的句子,随语言变
   let CFG='cl';
@@ -822,8 +790,9 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     if (SA !== null) drawer.innerHTML = saDrawerHtml();
     else if (MF !== null) drawer.innerHTML = mfDrawerHtml();
   });
-  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
-  // navigates to the file directly
+</script>
+<script>
+  // Cross-prototype navigation: inside the gallery ask the parent page to switch; when opened alone, go to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;
