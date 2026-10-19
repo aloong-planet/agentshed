@@ -2056,21 +2056,38 @@ body {
 }
 
 /* ── The session page (ticket 04; the prototype is session-view/prototype-session.html) ── */
+/* The exits row: the back control, or, for a session opened from a global search hit, back to the results and
+   on into the project (global-search US-003) — all three drawn as the prototype's exits */
+.exits {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 7px;
+  min-width: 0;
+}
 .sback {
   background: none;
   border: 0;
-  padding: 0 0 6px;
+  border-radius: 6px;
+  padding: 2px 7px 2px 4px;
   font: inherit;
   font-size: 12px;
   color: var(--text-2);
   cursor: pointer;
   /* flex rather than block: the chevron is a sibling of the copy now (it used to be a character glued to
      the front of the translated string, which meant six dictionaries each carried a copy of it). */
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.sback > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sback:hover {
+  background: var(--accent-soft);
   color: var(--accent);
 }
 .stitle {

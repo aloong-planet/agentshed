@@ -118,7 +118,7 @@ export function Settings({ size }: { size?: number }): JSX.Element {
   )
 }
 
-/** Lucide chevron-right — the expand indicator for a collapsed row — rotated 90° by CSS when open, so one icon carries both states */
+/** Lucide chevron-right — the expand indicator for a collapsed row — rotated 90° by CSS when open, so one icon carries both states; also the session page's way on into its project */
 export function ChevronRight({ size }: { size?: number }): JSX.Element {
   return (
     <Icon size={size}>
@@ -128,7 +128,7 @@ export function ChevronRight({ size }: { size?: number }): JSX.Element {
 }
 
 /** Lucide chevron-left — the back control in a pane header. Its mirror, ChevronRight, is the expand
- * indicator; this one is navigation, and the two never appear in the same slot. */
+ * indicator, and the way on into a project beside it on a session opened from global search. */
 export function ChevronLeft({ size }: { size?: number }): JSX.Element {
   return (
     <Icon size={size}>

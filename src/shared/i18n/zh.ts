@@ -287,6 +287,11 @@ export const zh = {
     fetchedNote: (ms: number, bytes: string) =>
       `按需取回 ${ms} ms · 只读本轮区间 ${bytes},与文件总大小无关`,
     back: (project: string) => `返回 ${project} · 会话`,
+    /** A session opened from a global search hit: its two exits, in place of the back control */
+    backToSearch: '返回搜索结果',
+    goToProject: (project: string) => `进入 ${project} · 会话`,
+    /** A stale project has no Sessions tab: the exit leads to its note page */
+    goToProjectStale: (project: string) => `进入 ${project}`,
     headMeta: (side: string, questions: number, tok: string, mb: string, ago: string) =>
       `${side} · ${questions} 提问 · ${tok} tok · ${mb} · 最后活动 ${ago}`,
     cannotOpen: (detail: string) => `会话打不开:${detail}`,

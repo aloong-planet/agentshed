@@ -209,6 +209,9 @@ export const es: Locale = {
     fetchedNote: (ms, bytes) =>
       `Recuperado bajo demanda en ${ms} ms · se leyó solo el rango de bytes de este turno, ${bytes}, con independencia del tamaño del archivo`,
     back: (project) => `Volver a ${project} · Sesiones`,
+    backToSearch: 'Volver a los resultados de búsqueda',
+    goToProject: (project) => `Ir a ${project} · Sesiones`,
+    goToProjectStale: (project) => `Ir a ${project}`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · ${questions} ${plural('es', questions, { one: 'pregunta', other: 'preguntas' })} · ${tok} tok · ${mb} · última actividad ${ago}`,
     cannotOpen: (detail) => `No se puede abrir la sesión: ${detail}`,
