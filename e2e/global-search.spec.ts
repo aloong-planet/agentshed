@@ -1,6 +1,7 @@
 // E2E: global search (docs/specs/global-search.md) under the built Electron app, over a fixture home — the
 // rail item and the page, typing and the grouped results, the reading state, a hit opening its session
-// inside its project, the page kept for the run, and the results following the data.
+// inside its project, the page kept for the run, the results following the data, and the session page's two
+// exits from a hit — back to the results as left, or on into the project.
 //
 // Known gaps, recorded rather than faked:
 //   - The untitled fallback (US-001/AC-06) is unreachable: every listed session has a title, since the

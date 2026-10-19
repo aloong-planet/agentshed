@@ -90,3 +90,69 @@ Every row above was processed; the three text changes made here (the spec's S7, 
 test review's method name) were re-read against their counterparts and produced no new row. The pre-delivery
 scope re-check (the ticket, the change, the runs, the current documents) found no further surface: the document
 sync checklist records it.
+
+## Ticket #272 — Global search: back to the results from a hit's session, or on into its project
+
+- Date: 2026-10-19
+- Scope: this ticket's change only (not the full-feature closeout)
+- Version: branch `feat/global-search-exits` on 5dfbf0d — 53e3ab3 (the capability declaration), 09966e1 (the
+  exits), 5bd38dd (the owner's refactors R-a and R-b), 7d8ea36 (the icon module's stale note) — with the
+  documentation of this step as committed for the ticket's PR
+- Languages in the searched files (counted by writing system: Latin, Han, Kana, Cyrillic, accented Latin):
+  `docs/features`, `docs/specs`, `docs/adr` and `CONTEXT.md` are English with a few Han, Cyrillic and accented
+  quotations; the six READMEs one language each (Han, Kana, Cyrillic and accented Latin present); the landing
+  page's dictionary Chinese and English; the app's dictionaries all six. Searches below carry a term per
+  language for the files that use it
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/global-search.md` status line and Pending note | what shipped: the exits and the return (US-003); not the keyboard entry | True: the note narrowed to US-004, its "until they do" sentence gone with the condition it described |
+| `docs/specs/global-search.md` J11 (new: long names and narrow windows) | the row's rules; the narrowing measurement | True; added from the confirmed prototype, awaiting the owner's confirmation with the PR (the coverage checklist's two-way audit records it) |
+| `docs/specs/global-search.md` Implementation Decisions, "The jump" (the origin) | App on 5bd38dd: the origin is part of the open session's value; going into the project is the back control's handler | True after the write-back |
+| `docs/specs/global-search.md` failure modes J1 (exits), J3–J7, J11 | tests and evidence | Each has a case (E3, E8, E9, E10) or, for J11, a measurement |
+| `docs/features/global-search.md`: the hit line no longer ends on the back control; the new exits line | the spec's US-003 and J11; the e2e cases | True; no claim about the keyboard entry |
+| `docs/features/session-view.md`, the session page line (the back button on one line; the two ways out from a global search hit) | session-view P10; the row's rules | True |
+| Dictionaries, six languages: `session.backToSearch`, `session.goToProject`, `session.goToProjectStale` | the spec's copy (US-003/AC-01, AC-03); each language's existing back control | True; `pnpm typecheck`, `check:i18n`, `check:ui` green |
+| `capabilities.toml`: `[red-green-mutation] enabled = false` | the capability registry (the ID, its shape, no precondition); the owner's answer | True; all nine registered IDs now declared |
+| Code comments: App (the open session's value, the shared handler, the lookup), SessionPane's `exits`, the row's style, the chevrons, the icon module's header | the code they sit on; ADR-0018 | True; the chevrons' old "never in the same slot" and the header's "tracked separately" are gone because they were no longer true |
+| The session page prototype (unchanged) ↔ the app | the exits row, its two controls and the single back control | Same: 94 computed values equal, light and dark, at rest and hovered ([measurements](evidence/ticket-272/measurements.md)); the one-line cut uses the prototype's own rules (no wrap, an ellipsis on the text) |
+
+### Stage 2: related declarations
+
+| Statement (unchanged file) | Its counterpart changed this round | Conclusion |
+|---|---|---|
+| `docs/specs/session-view.md` P10 | the exits | Now true (#271's section recorded it as not yet true) |
+| `docs/specs/session-view.md` P3 (returning lands on the Sessions section, a cached visit) | the way on into the project, which shares the back control's handler | True for both |
+| `docs/features/session-view.md`: "returning from a session page lands on the Sessions section" | both ways back | True |
+| `docs/features/global-search.md`: the Search item brings the page back as left | the exits' way back | True: the same page state (E8, E10) |
+| `docs/features/README.md`, `docs/specs/README.md` rows for both entries | the entries | True: the one-liners still describe them |
+| CONTEXT **Global search** ("going from a hit straight to that session inside its project") | the exits | True; the exits are interface wording, not a term |
+| CONTEXT invariant "a page switch is atomic and a revisit is instant" | the two exits | True: going into the project is the back control's transitioned move; the search page draws from its kept state at once |
+| ADR-0018 (icons inline, the back chevron a component) | the exits' chevrons; the icon module's header | True: both chevrons are icon components; the header no longer contradicts the ADR |
+| The six READMEs and the landing page's copy | the session header's controls | No statement about them: `rg -n -i "back to|go to|exit|\x{8FD4}\x{56DE}|\x{8FDB}\x{5165}|\x{623B}\x{308B}|retour|aller|volver|назад|перейти" README*.md site/src/i18n` — two lines, both "aller" inside other words ("taller", "installer") |
+| `AGENTS.md`'s pointer to `capabilities.toml` | the new entry | True: a pointer only; no document counts the declared IDs (`rg -n -i "capabilit" AGENTS.md CONTEXT.md docs`, outside the working records and prototypes: section headings and unrelated uses) |
+| Rule ↔ gate: copy in six languages | typecheck, `check:i18n` | The new keys exist in all six (typecheck fails otherwise): green |
+| Rule ↔ gate: no copy names a rail control verbatim or enumerates the sides | `pnpm check:ui` | The exits' copy does neither: green |
+
+### Stage 3: events
+
+| Event | Lines checked | Conclusion |
+|---|---|---|
+| An enumerable dimension's members changed | languages, sides, rail items: unchanged; the session header's controls are not a dimension any copy enumerates | None |
+| Pending notes in scope | `rg -n "Pending:" docs/specs/global-search.md docs/specs/session-view.md` — one line | Expired in part (US-003 shipped): narrowed in place to US-004 |
+| A rule written this round | the `red-green-mutation` declaration | Its source of truth is `capabilities.toml`, written there; nothing else restates it |
+| #271's case E3 changed (its arrival now asserts the exits) | #271's Current verification rows citing "e2e (going to a hit)" | Still true: the case keeps every #271 assertion and ran green on this branch |
+| The coverage checklist's units for #272 verified; J11 added | `checklist.md`: the mapping, Current verification and two-way audit | Rows added, with the version and the evidence |
+| An outside finding got an issue | [#281](https://github.com/aloong-planet/agentshed/issues/281) (the dark scrollbar) | Recorded in the code review; no document claims otherwise |
+
+### Found outside the change surface
+
+- The scrolling lists' scrollbar track in dark mode: [#281](https://github.com/aloong-planet/agentshed/issues/281).
+- The icon module's stale note: removed in this PR (7d8ea36), on the owner's decision.
+
+### Convergence
+
+Every row above was processed; the text changes made here (the spec's status, Pending note, J11 and the origin
+decision; the two feature entries) were re-read against their counterparts and produced no new row.
