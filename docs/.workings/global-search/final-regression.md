@@ -269,3 +269,74 @@ Every row above was processed. The text changes made here (the coverage checklis
 
 Every row above was processed; the text changes made here (the i18n spec's sentence) were re-read against the menu
 and produced no new row.
+
+## Closeout (#274) — the whole feature
+
+- Date: 2026-10-20
+- Scope: the whole of global search, from its spec (bedc384, #269) through #271 (#276), #272 (#282, follow-up #284)
+  and #273 (#286), and the records between them; this closeout's own edits included
+- Version: main at f4197bb (code b6c4a41's); the closeout branch's records on top
+- Languages in the searched files, counted by writing system: the specs, the feature entries, the ADR, the indexes and
+  `CONTEXT.md` are English with Han, Kana, Cyrillic or accented Latin only in quotations and language names; the six
+  READMEs one language each; the landing page's dictionary Chinese and English; the app's dictionaries all six; the
+  prototypes Chinese and English. Searches carry a term per language where a file uses it
+- Coverage: every coverage unit verified on the integrated version — the coverage checklist's Current verification,
+  "Closeout (#274)" block, 42 rows, on the gateway run [verify-290558d.log](evidence/closeout/verify-290558d.log)
+- Row set for stage 1: `git diff --name-only bedc384~1 HEAD -- docs CONTEXT.md 'README*' site/src src/shared/i18n
+  capabilities.toml AGENTS.md ':!docs/.workings'` — 31 files, plus `CONTEXT.md`'s edit in this closeout
+
+### Stage 1: changed declarations (the whole feature)
+
+| Declaration surface | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/global-search.md` | the integrated app and its tests (the coverage checklist's closeout block, 42 rows passed, three stated gaps); its status says every story shipped; no Pending note | True |
+| `docs/specs/session-view.md` (P10; Out of Scope's cross-project line) | US-003's exits and their e2e; global search as a feature of its own | True |
+| `docs/specs/projects-list.md` (C8; Out of Scope) | E3's scrolled, selected row; the session questions global search covers | True |
+| `docs/specs/appearance.md` D1 (`Dim = agents \| projects \| search \| settings`) | the renderer's dimension type | True |
+| `docs/specs/agents-overview.md`, `docs/specs/project-detail.md` (Out of Scope lines naming global search) | global search's scope: session questions only | True |
+| `docs/specs/i18n.md` (the application menu) | the installed menu; the custom menu's reason (corrected by #273) | True |
+| `docs/specs/README.md` row | the spec | True |
+| `docs/features/global-search.md` | the spec's user-visible layer: every capability line against a passed unit, its boundaries against the spec's accepted limits (S6, S8, S9, S10, J2, CON-001) | True; written by three tickets, it reads as one entry |
+| `docs/features/session-view.md`, `docs/features/projects-list.md`, `docs/features/i18n.md` | P10, C8, the menu's entries | True |
+| `docs/features/README.md` row | the entry | True |
+| ADR-0034 and `docs/adr/README.md` | Accepted on in-app evidence measured on 28c3c11's corpus code, which is unchanged since (`git diff 28c3c11 f4197bb -- src/main` touches the menu only); the spec cites it and does not restate its trade-off | True: the status stands |
+| `CONTEXT.md` **Global search**, **Session**, **Transfusion** | the shipped behaviour; the retired-terms note's "a future global search" — corrected in this closeout | True after the correction |
+| Dictionaries, six languages (the rail, the page, the exits, the menu item) and `counted-nouns.test` | CON-004: `pnpm typecheck`, `check:i18n`, `check:ui` exit 0 on the integrated code | True |
+| `capabilities.toml` (`mutation-testing`) | the capability registry | True |
+| Prototypes: the shared rail, copy, hits and startup-status pieces, the global search page, the session page (the exits), the project detail page, the manifest | the integrated app: the search page's screenshots (`evidence/closeout/`); the exits' 94 computed values (#272, the code unchanged since); the hit rows' alignment (#271) | Same |
+
+### Stage 2: related declarations (the whole feature)
+
+| Statement (unchanged in the change set) | Its counterpart | Conclusion |
+|---|---|---|
+| Feature, spec and ADR index rows | their files | True |
+| The six READMEs and the landing page: what the app does | global search shipped | No statement about it, and the landing page names its features as four steps, not as a full list; mentioning global search there is #279 |
+| Rule ↔ gate: copy in six languages; the rail label rule; the working language | typecheck, `check:i18n`, `check:ui`, `check:lang` | Green on the integrated code |
+| Rule ↔ gate: the accelerator is the item's alone | the menu unit and E12 | Held by tests |
+| A term translated by two tickets: "sessions" in the exits (#272) and the menu item (#273) | each dictionary's own word | The same word in each language |
+
+### Stage 3: events (the whole feature)
+
+| Event | Lines checked | Conclusion |
+|---|---|---|
+| The rail's dimensions grew from three to four | `rg -n -i "rail (has\|carries\|holds)\|three (rail\|dimension\|items)\|four (rail\|dimension\|items)\|third dimension\|fourth dimension\|top group" docs/features docs/specs docs/adr CONTEXT.md README*.md site/src src` — the spec's two lines only (US-001/AC-01, the renderer decision), both true | Done |
+| The menu's entries into the app grew by one | the UI language entry (updated by #273); the i18n spec (names it) | Done |
+| A capability ID renamed | `capabilities.toml` (replaced by #284) | Done |
+| Pending notes | `rg -n "Pending:" docs/specs` — app-update, landing-page and mac-distribution only, none about global search | None in scope |
+| New rules | none written to the repository; J11 is a spec boundary | — |
+| Work state | #271, #272, #273 closed with their items ticked; their document sync checklists have no open row (`rg -c "\| (Pending\|Waiting)"` over the three: exit 1); #274's rows done but the merge's | #274's merge Waiting |
+| Follow-ups opened during the feature | #278 (a stripped fork's title), #279 (the landing page), #281 (dark scrollbar tracks); #270 (a check:ui false count) is not global search's | Each has its issue |
+
+### Found outside the change surface
+
+- `CONTEXT.md`'s retired-terms note said cross-project retrieval belonged to "a future global search": rewritten in
+  place.
+
+### Closeout conclusion
+
+Global search is accepted as a whole on main at f4197bb: every coverage unit passed on the integrated version (the
+coverage checklist's closeout block), with three stated gaps — the untitled fallback is unreachable
+(US-001/AC-06), a reading failing as a whole has no end-to-end seam (S15's renderer side), and a first launch with no
+saved data has no case of its own (S2) — and the key press ⌘⇧F accepted by hand. ADR-0034 stays Accepted. The documents
+agree with what shipped; the one inconsistency found is corrected. Waiting: #274's merge, recorded by the closeout's
+implementer right after it.
