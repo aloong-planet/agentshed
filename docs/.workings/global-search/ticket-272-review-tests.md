@@ -583,3 +583,5 @@ Recorded by the main agent, 2026-10-20; the findings above are the sub-agent's a
 - G2: not run. The owner declared `mutation-testing` not enabled the same day (C1), and `/review-tests` says that with
   it not enabled no mutation testing is done; a red run made by removing a rule is one. When E11 goes red stays
   answered by reading, in the section above. The disposition of F1 is read as the case, not the red run.
+- The commits the check names were rebased onto main after #283 merged (1d82cfd, the same tree as 41f8a0d), each
+  keeping its tree: 5e667e9 → 3aa2a3e, db77a8e → 6627940, 33ff8dc → 7dc70da. The check holds for the rebased commits.

@@ -162,7 +162,8 @@ decision; the two feature entries) were re-read against their counterparts and p
 - Date: 2026-10-20
 - Scope: the follow-up's change only (not the full-feature closeout): the capability's ID, five e2e cases (E11 new;
   E3, E4, E8, E9), the spec's US-003/AC-01, the two feature entries' lines, and the records
-- Version: branch `test/global-search-exits-followup` on 41f8a0d (#283's head), the application code f0d7027's
+- Version: branch `test/global-search-exits-followup` on 41f8a0d (#283's head), rebased onto main at 1d82cfd (#283's
+  merge, the same tree) with each commit's tree unchanged (5e667e9 → 3aa2a3e, db77a8e → 6627940, 33ff8dc → 7dc70da); the application code f0d7027's
 - Languages in the searched files, counted by writing system: the two specs, the two feature entries, both indexes and
   `CONTEXT.md` have no Han, Kana or Cyrillic line; accented Latin in one line of the session-view spec, one of the
   features index and three of `CONTEXT.md`, all names or quotations. The searches below are English; a search over a

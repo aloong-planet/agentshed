@@ -21,9 +21,11 @@ Branch `feat/global-search-exits` from 5dfbf0d, in its own worktree.
 | 11 | Step 8: the feature entries (global search, session view); the regression report | `final-regression.md` #272 section | done: the two feature entries; `final-regression.md` #272 section |
 | 12 | Document sync; PR; stop for the owner | PR link | done: [#282](https://github.com/aloong-planet/agentshed/pull/282), CI green on f5ec41f; squash-merged on the owner's authorisation as f0d7027 (tree equal to the head), the remote branch deleted, #272 closed and its items ticked |
 | 13 | Independent post-implementation test check, on the owner's request after the merge | `ticket-272-review-tests.md`, its independent section | done 2026-10-20: run by a sub-agent that did not share this conversation; findings F1–F8, C1, C2; the owner's dispositions recorded; #272's two process items reopened |
-| 14 | Follow-up PR: the findings' cases, the spec's card-header wording, the capability ID, the record corrections | PR link | in progress: the steps below done on branch `test/global-search-exits-followup`; the PR waits for #283's merge, to be rebased onto it |
+| 14 | Follow-up PR: the findings' cases, the spec's card-header wording, the capability ID, the record corrections | PR link | in progress: the steps below done on branch `test/global-search-exits-followup`, rebased onto main after #283 merged as 1d82cfd; the PR is opened from it |
 
-Follow-up steps (2026-10-20), branch `test/global-search-exits-followup` from #283's head 41f8a0d, in its own worktree:
+Follow-up steps (2026-10-20), branch `test/global-search-exits-followup` from #283's head 41f8a0d, in its own worktree;
+rebased onto main once #283 merged as 1d82cfd, whose tree equals 41f8a0d's, so each commit kept its tree
+(5e667e9 → 3aa2a3e, db77a8e → 6627940, 33ff8dc → 7dc70da) and every run and review below holds for the rebased commits:
 
 | # | Task | Checkpoint | State |
 |---|---|---|---|
@@ -36,4 +38,4 @@ Follow-up steps (2026-10-20), branch `test/global-search-exits-followup` from #2
 | F-7 | Step 6: independent post-implementation check | `ticket-272-review-tests.md`, "Post-implementation check (follow-up, independent)" | done by a sub-agent; G1 done, G2 not run (mutation testing not enabled) |
 | F-8 | Spec write-back: US-003/AC-01 names a card's header (S29) | spec | done |
 | F-9 | Step 8: both feature lines; the regression report | `final-regression.md`, follow-up section | done |
-| F-10 | Document sync; rebase onto main after #283; PR; stop for the owner | PR link | pending |
+| F-10 | Document sync; rebase onto main after #283; PR; stop for the owner | PR link | in progress: rebased, trees compared commit by commit; the PR next |
