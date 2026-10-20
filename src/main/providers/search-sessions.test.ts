@@ -71,6 +71,32 @@ async function run(
   return searchProjectSessions(e, roots(), sessions, needle, fullText)
 }
 
+// A legacy Codex fork that replays its parent's one question and then asks its own: the replay is stripped
+// (spec B2), and the fork is titled by the question it asked
+function mkStrippedFork(): { PARENT: string; CHILD: string } {
+  const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+  mkdirSync(d, { recursive: true })
+  const q = (ts: string, m: string): string =>
+    JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })
+  const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
+    JSON.stringify({ timestamp: ts, type: 'session_meta', payload: { cwd: proj, id, ...extra } })
+  const PARENT = '019f0000-aaaa-7000-8000-000000000041'
+  const CHILD = '019f0000-bbbb-7000-8000-000000000042'
+  writeFileSync(
+    join(d, `rollout-${PARENT}.jsonl`),
+    [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'magicword in the parent session')].join('\n') + '\n'
+  )
+  writeFileSync(
+    join(d, `rollout-${CHILD}.jsonl`),
+    [
+      meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
+      q('2026-07-30T02:00:00Z', 'magicword in the parent session'), // A replay copy
+      q('2026-07-30T02:00:05Z', 'child new question')
+    ].join('\n') + '\n'
+  )
+  return { PARENT, CHILD }
+}
+
 describe('question mode (the default): searches questions only, with hits grouped by session', () => {
   it('hit groups, indices and text; a session with no hits gets no group; case-insensitive', async () => {
     mkClaude('a.jsonl', [uL('check the Notarize config for me'), aL('sure'), uL('a second, unrelated question')])
@@ -96,6 +122,12 @@ describe('question mode (the default): searches questions only, with hits groupe
     const r = await run('  ', false)
     expect(r.totalHits).toBe(0)
   })
+
+  it('a stripped Codex fork\'s card carries its own title — the first question left, as the list shows it — not the parent\'s replayed first question (#278)', async () => {
+    const { CHILD } = mkStrippedFork()
+    const r = await run('child new', false)
+    expect(r.groups.map((g) => [g.file.includes(CHILD), g.title])).toEqual([[true, 'child new question']])
+  })
 })
 
 describe('full-text mode: read whole and match, map hits to turns, fold anything outside the displayed range', () => {
@@ -118,26 +150,7 @@ describe('full-text mode: read whole and match, map hits to turns, fold anything
   })
 
   it('hits inside an already-stripped Codex fork prefix count as folded rather than masquerading as reachable hits (D3)', async () => {
-    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
-    mkdirSync(d, { recursive: true })
-    const q = (ts: string, m: string): string =>
-      JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })
-    const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
-      JSON.stringify({ timestamp: ts, type: 'session_meta', payload: { cwd: proj, id, ...extra } })
-    const PARENT = '019f0000-aaaa-7000-8000-000000000041'
-    const CHILD = '019f0000-bbbb-7000-8000-000000000042'
-    writeFileSync(
-      join(d, `rollout-${PARENT}.jsonl`),
-      [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'magicword in the parent session')].join('\n') + '\n'
-    )
-    writeFileSync(
-      join(d, `rollout-${CHILD}.jsonl`),
-      [
-        meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
-        q('2026-07-30T02:00:00Z', 'magicword in the parent session'), // A replay copy
-        q('2026-07-30T02:00:05Z', 'child new question')
-      ].join('\n') + '\n'
-    )
+    const { PARENT } = mkStrippedFork()
     const r = await run('magicword', true)
     // The parent session hits 1 real question; the child's replay copy is folded — the same sentence is not
     // reported once per generation of the fork chain
@@ -145,10 +158,6 @@ describe('full-text mode: read whole and match, map hits to turns, fold anything
     expect(r.folded).toBe(1)
     expect(r.groups).toHaveLength(1)
     expect(r.groups[0].file).toContain(PARENT)
-    // The fork's own card carries its own title — the first question left after the strip, as the list
-    // shows it — not the parent's replayed first question (#278)
-    const own = await run('child new', false)
-    expect(own.groups.map((g) => [g.file.includes(CHILD), g.title])).toEqual([[true, 'child new question']])
   })
 })
 
