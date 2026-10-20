@@ -15,7 +15,9 @@ sessions, one per row, with "how many questions I asked in this conversation".
   file — a question asked since you opened it appears on its own, while expansion, sort and day-group folding stay as they were. A rewritten question
   receives its corresponding answer, never an answer attached only by the old question number.
 - **Session page**: opened by clicking a session row (in the section or on the overview card) — at
-  the top are the back button, side badge, title and volume information (question count / tokens /
+  the top are the back button (on one line, a long project name cut short; a session opened from a
+  global search hit has two ways out there instead — back to the search results, or on into the
+  project), side badge, title and volume information (question count / tokens /
   file size / last activity), and the body is **every real question** of that conversation, one per
   row (index + question + that turn's tool and subagent counts + time). Every question is listed at
   once, with no pagination; a long question is ellipsised on its row, but that is display truncation

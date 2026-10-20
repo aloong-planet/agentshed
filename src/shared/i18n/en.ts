@@ -211,6 +211,9 @@ export const en: Locale = {
     fetchedNote: (ms, bytes) =>
       `Fetched on demand in ${ms} ms · read only this turn’s byte range, ${bytes} — independent of total file size`,
     back: (project) => `Back to ${project} · Sessions`,
+    backToSearch: 'Back to search results',
+    goToProject: (project) => `Go to ${project} · Sessions`,
+    goToProjectStale: (project) => `Go to ${project}`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · ${questions} ${plural('en', questions, { one: 'question', other: 'questions' })} · ${tok} tok · ${mb} · last active ${ago}`,
     cannotOpen: (detail) => `Cannot open this session: ${detail}`,

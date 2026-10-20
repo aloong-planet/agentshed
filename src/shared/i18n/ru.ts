@@ -205,6 +205,9 @@ export const ru: Locale = {
     fetchedNote: (ms, bytes) =>
       `Получено по требованию за ${ms} мс · прочитан только байтовый диапазон этого хода, ${bytes} — независимо от размера файла`,
     back: (project) => `Назад к ${project} · Сессии`,
+    backToSearch: 'Назад к результатам поиска',
+    goToProject: (project) => `Перейти к ${project} · Сессии`,
+    goToProjectStale: (project) => `Перейти к ${project}`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · вопросов: ${questions} · ${tok} tok · ${mb} · последняя активность ${ago}`,
     cannotOpen: (detail) => `Не удаётся открыть сессию: ${detail}`,

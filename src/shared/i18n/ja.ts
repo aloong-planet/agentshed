@@ -204,6 +204,9 @@ export const ja: Locale = {
     fetchedNote: (ms, bytes) =>
       `オンデマンド取得 ${ms} ms · このターンのバイト範囲 ${bytes} のみ読み取り（ファイル全体のサイズとは無関係）`,
     back: (project) => `${project} に戻る · セッション`,
+    backToSearch: '検索結果に戻る',
+    goToProject: (project) => `${project} を開く · セッション`,
+    goToProjectStale: (project) => `${project} を開く`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · 質問 ${questions} 件 · ${tok} tok · ${mb} · 最終アクティビティ ${ago}`,
     cannotOpen: (detail) => `セッションを開けません：${detail}`,

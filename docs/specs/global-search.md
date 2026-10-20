@@ -6,12 +6,10 @@
 > [ADR-0016](../adr/0016-no-natural-language-across-ipc.md) · [session-view](session-view.md) (the session
 > page a hit opens, and a project's own session search) · CONTEXT: **Global search**, **Session**,
 > **Project**, **Stale project**, **Transfusion**
-> Status: specified 2026-10-19 (prototype gate passed the same day); the page, its search and a hit's
-> jump into its project shipped 2026-10-19.
+> Status: specified 2026-10-19 (prototype gate passed the same day); the page, its search, a hit's jump
+> into its project, and the way back to the results or on into the project shipped 2026-10-19.
 >
-> Pending: a session opened from a hit offers the way back to the results and the way into its project
-> (global-search::US-003), and ⌘⇧F and the Edit menu's "Search Sessions…" open the page
-> (global-search::US-004). Until they do, a hit's session shows the single back control.
+> Pending: ⌘⇧F and the Edit menu's "Search Sessions…" open the page (global-search::US-004).
 
 ## Problem Statement
 
@@ -258,6 +256,8 @@ with plural forms through the existing plural rules; no string enumerates the ag
   the earlier page is kept when it arrives (session-view P8).
 - J10 Use ⌘⇧F on the session page or anywhere else: the search page as left, focus in the box
   (global-search::US-004/AC-01).
+- J11 A long project name, or a narrow window: the exits stay on one line, each cut with an ellipsis, as the
+  single back control in the same row is.
 
 **Sequence D: the data changes underneath**
 - D1 A session gains a question that matches while its results are on screen: after the next automatic
@@ -302,9 +302,10 @@ with plural forms through the existing plural rules; no string enumerates the ag
   next showing after a failure — and its box takes the focus, as the prototype's does.
 - **The jump**: one transitioned update switches the dimension to Projects, selects the project, and
   opens the session (with the question to locate, for a hit) — with the session page's data fetched
-  before the switch, so the search page holds until the session page can be drawn whole. The session page
-  learns that it was opened from a hit; that origin is dropped by the fork-parent jump, by going into the
-  project, and by any other session or project selection.
+  before the switch, so the search page holds until the session page can be drawn whole. The open session
+  carries whether it was opened from a hit, so replacing or leaving it drops that origin — the fork-parent
+  jump, going into the project, any other session or project selection — while the rail leaves it; going into
+  the project is the single back control's own move, to the project's Sessions tab.
 - **The application menu**: the Edit menu gains a separator and "Search Sessions…" with
   CmdOrCtrl+Shift+F; it reaches the renderer the way the Settings item does.
 - **Copy and icons**: dictionary entries in the six languages; the rail label is exempted in the

@@ -1,6 +1,7 @@
 // E2E: global search (docs/specs/global-search.md) under the built Electron app, over a fixture home — the
 // rail item and the page, typing and the grouped results, the reading state, a hit opening its session
-// inside its project, the page kept for the run, and the results following the data.
+// inside its project, the page kept for the run, the results following the data, and the session page's two
+// exits from a hit — back to the results as left, or on into the project.
 //
 // Known gaps, recorded rather than faked:
 //   - The untitled fallback (US-001/AC-06) is unreachable: every listed session has a title, since the
@@ -318,12 +319,12 @@ test('going to a hit: the search page holds, then Projects with the project sele
     await expect(sel.locator('.nm')).toHaveText('target-proj')
     await expect(sel).toBeInViewport()
     expect(await win.locator('.side .list').evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
-    // The session page at that question with the arrival highlight (D4); its single back control (#272 adds the exits)
+    // The session page at that question with the arrival highlight (D4); its two exits (US-003/AC-01)
     const located = win.locator('.qlist .q.located.focused')
     await expect(located).toHaveCount(1)
     await expect(located.locator('.txt')).toHaveText('xenon 37')
     await expect(located).toBeInViewport()
-    await expect(win.locator('.pane-head .sback')).toHaveText('Back to target-proj · Sessions')
+    await expect(exits(win)).toHaveText(['Back to search results', 'Go to target-proj · Sessions'])
 
     // The rail's Search item shows the page as left: keyword, sort, scroll position (US-003/AC-05)
     await searchItem(win).click()
@@ -352,7 +353,7 @@ test('going to a hit: the search page holds, then Projects with the project sele
 
     // The two sorts are independent (S12, CON-002): global search is on oldest first; the project's Sessions tab
     // still opens newest first, and changing it leaves global search's alone
-    await win.locator('.pane-head .sback').click()
+    await exits(win).nth(1).click()
     await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
     await expect(win.locator('.pane-body .grp-t .seg button.on')).toHaveText('Newest first')
     await win.locator('.pane-body .grp-t .seg button', { hasText: 'Oldest first' }).click()
@@ -461,6 +462,137 @@ test('during the startup scan the search runs over the restored sessions, and th
     await expect(win.locator('.gsearch .startup-display-hint')).toHaveAttribute('data-state', 'scanning')
     await expect(win.locator('.gsearch .startup-display-hint')).toHaveAttribute('data-state', 'ready', { timeout: 15000 })
     await expect(body(win).locator('.shead').first()).toContainText('Found 1 hit · 1 session · 1 project')
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
+// ── #272: the way back to the results from a hit's session, or on into its project (US-003, J3–J7) ──
+
+const exits = (win: Page) => win.locator('.pane-head .exits .sback')
+const LEFT = 'm15 18-6-6 6-6'
+const RIGHT = 'm9 18 6-6-6-6'
+
+/** From the search page, open the hit holding `text` and wait for its session page */
+async function openHit(win: Page, keyword: string, text: string): Promise<void> {
+  await searchItem(win).click()
+  await box(win).fill(keyword)
+  await body(win).locator('.hit', { hasText: text }).first().click()
+  await expect(win.locator('.qlist .q.located .txt')).toHaveText(text, { timeout: 15000 })
+}
+
+test('a session opened from a hit: back to the results as they were left, or on into its project', async () => {
+  const { home, files } = mkHome()
+  const l = await launch(home, { AGENTSHED_RESCAN_MS: '1500' })
+  const { win } = l
+  try {
+    await searchItem(win).click()
+    await box(win).fill('xenon')
+    await expect(body(win).locator('.hit')).toHaveCount(150, { timeout: 15000 })
+    await win.locator('.gsearch .shead .seg button', { hasText: 'Oldest first' }).click()
+    await body(win).evaluate((el) => { el.scrollTop = 400 })
+    // The row brought into view before the click, so the position the page is left at is measured, not raced
+    const row = body(win).locator('.hit', { hasText: 'xenon 37' })
+    await row.scrollIntoViewIfNeeded()
+    const left = await body(win).evaluate((el) => el.scrollTop)
+    expect(left).toBeGreaterThan(400)
+    await row.click()
+    await expect(win.locator('.qlist .q.located .txt')).toHaveText('xenon 37', { timeout: 15000 })
+
+    // One row of two exits where the back control sits: back to the results (left chevron), then into the
+    // project (right chevron) — US-003/AC-01, session-view P10
+    await expect(exits(win)).toHaveText(['Back to search results', 'Go to target-proj · Sessions'])
+    expect(await exits(win).evaluateAll((els) => els.map((e) => e.querySelector('path')?.getAttribute('d')))).toEqual([LEFT, RIGHT])
+    await win.screenshot({ path: 'e2e-out/global-search-exits-light.png' })
+    await win.emulateMedia({ colorScheme: 'dark' })
+    await win.screenshot({ path: 'e2e-out/global-search-exits-dark.png' })
+    await win.emulateMedia({ colorScheme: 'light' })
+
+    // A rescan while the session is on screen (J3): the session gains a matching question
+    appendQuestion(files.many, 'xenon newcomer')
+    await expect(win.locator('.qlist .q')).toHaveCount(151, { timeout: 15000 })
+
+    // Back to the results as they were left — keyword, sort, scroll — and current for the keyword (US-003/AC-02)
+    await exits(win).first().click()
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await expect(box(win)).toHaveValue('xenon')
+    await expect(win.locator('.gsearch .shead .seg button.on')).toHaveText('Oldest first')
+    await expect(body(win).locator('.hit')).toHaveCount(151)
+    await expect.poll(() => body(win).evaluate((el) => el.scrollTop)).toBe(left)
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
+test('on into the project: its Sessions tab, or a stale project\'s note; a session reached from there or through the fork banner has the single back control', async () => {
+  const { home } = mkHome()
+  const l = await launch(home)
+  const { win } = l
+  try {
+    // Into the project's Sessions tab (US-003/AC-03); a session opened there has the single back control (J4)
+    await openHit(win, 'notarize', 'How do I notarize the app?')
+    await exits(win).nth(1).click()
+    await expect(win.locator('.pane-head h1')).toHaveText('target-proj')
+    await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
+    await win.locator('.pane-body .card .se', { hasText: 'xenon 1' }).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('xenon 1')
+    await expect(win.locator('.pane-head .sback')).toHaveText(['Back to target-proj · Sessions'])
+
+    // A stale project: the exit reads "Go to <project>" and lands on its stale note page (US-003/AC-03)
+    await openHit(win, 'notarize', 'Notarize the stale build')
+    await expect(exits(win)).toHaveText(['Back to search results', 'Go to stale-proj'])
+    await exits(win).nth(1).click()
+    await expect(win.locator('.pane-head h1')).toHaveText('stale-proj')
+    await expect(win.locator('.pane-head .stale-tag')).toBeVisible()
+    await expect(win.locator('.pane-head .tabs')).toHaveCount(0)
+
+    // The fork parent through the banner: the single back control, which leads to the project's Sessions tab
+    // (US-003/AC-04, J5)
+    await openHit(win, 'notarize', 'Child asks to notarize the fork')
+    await expect(exits(win)).toHaveCount(2)
+    await win.locator('.banner a').click()
+    await expect(win.locator('.qlist .q .txt')).toHaveText(['Parent question about signing'])
+    await expect(win.locator('.pane-head .sback')).toHaveText(['Back to fork-proj · Sessions'])
+    await win.locator('.pane-head .sback').click()
+    await expect(win.locator('.pane-head h1')).toHaveText('fork-proj')
+    await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
+test('leaving the session for the search page and coming back keeps it with its exits; selecting another project replaces it (J6, J7)', async () => {
+  const { home } = mkHome()
+  const l = await launch(home)
+  const { win } = l
+  try {
+    await openHit(win, 'notarize', 'How do I notarize the app?')
+    // J7: to the search page, a new keyword, back to Projects — the session is still there with its two exits,
+    // and "Back to search results" shows the new results
+    await searchItem(win).click()
+    await box(win).fill('stale')
+    await expect(body(win).locator('.shead').first()).toContainText('Found 1 hit · 1 session · 1 project')
+    await win.locator('.rail .ri').nth(1).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('How do I notarize the app?')
+    await expect(exits(win)).toHaveText(['Back to search results', 'Go to target-proj · Sessions'])
+    await exits(win).first().click()
+    await expect(box(win)).toHaveValue('stale')
+    await expect(body(win).locator('.hit')).toHaveCount(1)
+
+    // J6: with the session on screen, another project selected in the list replaces it; the Search item still
+    // shows the page as left, and Projects then shows that project
+    await win.locator('.rail .ri').nth(1).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('How do I notarize the app?')
+    await win.locator('.side .row', { hasText: 'filler-01' }).click()
+    await expect(win.locator('.pane-head h1')).toHaveText('filler-01')
+    await searchItem(win).click()
+    await expect(box(win)).toHaveValue('stale')
+    await win.locator('.rail .ri').nth(1).click()
+    await expect(win.locator('.pane-head h1')).toHaveText('filler-01')
+    await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
     expect(l.errors).toEqual([])
   } finally {
     await close(l, home)
