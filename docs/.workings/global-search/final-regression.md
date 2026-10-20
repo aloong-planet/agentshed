@@ -338,5 +338,5 @@ Global search is accepted as a whole on main at f4197bb: every coverage unit pas
 coverage checklist's closeout block), with three stated gaps — the untitled fallback is unreachable
 (US-001/AC-06), a reading failing as a whole has no end-to-end seam (S15's renderer side), and a first launch with no
 saved data has no case of its own (S2) — and the key press ⌘⇧F accepted by hand. ADR-0034 stays Accepted. The documents
-agree with what shipped; the one inconsistency found is corrected. Waiting: #274's merge, recorded by the closeout's
-implementer right after it.
+agree with what shipped; the one inconsistency found is corrected. #274 merged as 389d264 on 2026-10-20 (#287), no code
+changed by it; the merge is recorded, and global search has no open item.
