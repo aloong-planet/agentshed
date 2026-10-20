@@ -730,12 +730,15 @@ async function menuAccelerators(app: ElectronApplication): Promise<string[]> {
   })
 }
 
-/** A chord with its modifiers in one spelling and order: Cmd, Command, CmdOrCtrl and CommandOrControl as one */
+/** A chord with its modifiers in one spelling and order: Cmd, Command, CmdOrCtrl, CommandOrControl, and Super and
+ * Meta (which Electron's accelerator documentation maps to Cmd on macOS) as one */
 const chord = (accelerator: string): string =>
   accelerator
     .split('+')
     .map((k) => k.toLowerCase())
-    .map((k) => (['cmd', 'command', 'cmdorctrl', 'commandorcontrol'].includes(k) ? 'cmd' : k === 'control' ? 'ctrl' : k === 'option' ? 'alt' : k))
+    .map((k) =>
+      ['cmd', 'command', 'cmdorctrl', 'commandorcontrol', 'super', 'meta'].includes(k) ? 'cmd' : k === 'control' ? 'ctrl' : k === 'option' ? 'alt' : k
+    )
     .sort()
     .join('+')
 
@@ -751,9 +754,13 @@ test('⌘⇧F through the application menu: from settings, a session page and th
     await win.waitForSelector('.rail')
     const item = 'enabled true | visible true | registerAccelerator true'
     expect(await editMenuTail(app)).toEqual(['separator', `searchSessions | Search Sessions… | CmdOrCtrl+Shift+F | ${item}`])
-    // The chord is the item's alone, however another entry might spell it
+    // The chord is the item's alone, however another entry might spell it: the fold itself first, then every
+    // accelerator installed — the roles' own included, as the undo role's shows
+    expect(chord('Shift+CommandOrControl+F')).toBe(chord('CmdOrCtrl+Shift+F'))
+    expect(chord('Super+Shift+F')).toBe(chord('CmdOrCtrl+Shift+F'))
+    expect(chord('Control+Command+F')).not.toBe(chord('CmdOrCtrl+Shift+F'))
     const accelerators = await menuAccelerators(app)
-    expect(accelerators.length).toBeGreaterThan(2)
+    expect(accelerators).toContain('undo | CommandOrControl+Z')
     expect(accelerators.filter((a) => chord(a.split(' | ')[1]) === chord('CmdOrCtrl+Shift+F'))).toEqual(['searchSessions | CmdOrCtrl+Shift+F'])
 
     // From settings, a keyword typed before: the page as left, its box focused (US-004/AC-01, J10)
@@ -799,7 +806,7 @@ test('⌘⇧F through the application menu: from settings, a session page and th
   }
 })
 
-test('Search Sessions… chosen while a hit\'s session is still on its way keeps the search page: the pending jump is dropped (US-004/AC-01)', async () => {
+test('Search Sessions… chosen while a hit\'s session is still on its way keeps the search page, and the session page is kept for later (US-004/AC-01, session-view P8 through P10)', async () => {
   const { home } = mkHome()
   const l = await launch(home, { AGENTSHED_FETCH_DELAY_MS: '1500' })
   const { app, win } = l
@@ -809,21 +816,28 @@ test('Search Sessions… chosen while a hit\'s session is still on its way keeps
     await searchItem(win).click()
     await box(win).fill('notarize')
     await expect(body(win).locator('.shead').first()).toContainText(NOTARIZE_HEADER, { timeout: 15000 })
-    // Left alone, a hit's jump lands once its session page has arrived, past the delay
+    // Left alone, a hit's jump lands once its session page has arrived, past the delay; how long it took sets the
+    // wait below
+    const clicked = Date.now()
     await body(win).locator('.hit', { hasText: 'Notarize the stale build' }).click()
     await expect(win.locator('.app')).toHaveClass(/dim-search/)
     await expect(win.locator('.pane-head .stitle')).toHaveText('Notarize the stale build', { timeout: 10000 })
+    const landing = Date.now() - clicked
 
     // A hit in a session not seen yet, and the item chosen while the search page holds: past the delay the search
     // page is still there, its box focused, and no session page was drawn
     await searchItem(win).click()
     await body(win).locator('.hit', { hasText: 'How do I notarize the app?' }).click()
     await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await expect(box(win)).not.toBeFocused()
     await clickSearchSessions(app)
-    await win.waitForTimeout(2500)
+    await win.waitForTimeout(landing + 1000)
     await expect(win.locator('.app')).toHaveClass(/dim-search/)
     await expect(box(win)).toBeFocused()
     await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
+    // The page that arrived meanwhile is kept: the same hit now opens at once (session-view P8)
+    await body(win).locator('.hit', { hasText: 'How do I notarize the app?' }).click()
+    await expect(win.locator('.pane-head .stitle')).toHaveText('How do I notarize the app?', { timeout: 700 })
     expect(l.errors).toEqual([])
   } finally {
     await close(l, home)
