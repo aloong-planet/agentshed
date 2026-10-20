@@ -99,7 +99,25 @@ still goes through the allow-listed session read. Nothing to report.
   returned shape is the same.
 - No bug found in the increment.
 
-### Refactor list (for the owner's decision)
+## Increment 2: tests only (F6, F7)
+
+Checked 2026-10-20 on 1c51f4d against 4dd8a6f: `token-stats.test.ts` only — a case driving the list's fallback
+through a parse runner that removes the fork's file once parsed (U8), an allow-list assertion in the pure-replay
+case (U6), and the header gap note narrowed. No product code changed (`git diff --stat 4dd8a6f 1c51f4d` lists the one
+test file).
+
+- Underlying premises: the case's comment says a rollout goes "deleted, or compressed by Codex" after its parse;
+  `CONTEXT.md` defines a cold rollout as one Codex compressed after seven days without writes, deleting the plain
+  file, and the spec's C4 note describes the plain path gone. The gap note's claim that a mismatch is rebuilt on the
+  calling thread rather than through the runner matches `codexEntry` (`token-stats.ts:566–570`).
+- Runnability: the runner awaits the real parse before removing the file, so the parse result is the one an
+  undisturbed build gets; the build then fails only the re-title read. Green: the fork is `stripped` with one
+  question and keeps "parent question one".
+- Security: nothing outside the case's temporary home is touched.
+- Consistency: the runner follows the out-of-order runner case's shape (`concurrency`, `run` calling
+  `runParseJob`); the fixture lines follow U1's. No bug; nothing for the refactor list.
+
+## Refactor list (for the owner's decision)
 
 | # | What | Why | Impact | Recommendation |
 |---|---|---|---|---|

@@ -22,6 +22,9 @@ artifacts; they are added here and declared on the ticket.
 | 11 | The findings: design review increment, F1's test red on fcdb6c7, the fix, then U5–U7 and U3 as its own case | the tests green | done: U4 red with "grandparent question" ([log](evidence/ticket-278/red-f1.log)); 4dd8a6f; typecheck and lint exit 0, the 5 files importing the engine 129 green ([log](evidence/ticket-278/targeted-4dd8a6f-unit.log)), the fork and global search e2e cases 18 green after a build ([log](evidence/ticket-278/targeted-4dd8a6f-e2e.log)); checklist updated |
 | 12 | Step 5 increment: `/review-code` on 4dd8a6f | `ticket-278-review-code.md` | done: no bug; R1 widened, R2 added, both recommended not done |
 | 13 | Full verification gateway | `pnpm verify` exit 0 | done on 4dd8a6f ([log](evidence/ticket-278/verify-4dd8a6f.log), [exit](evidence/ticket-278/verify-4dd8a6f.exit)) |
-| 14 | Step 6 on the increment, by a new independent sub-agent | `ticket-278-review-tests.md` | pending |
-| 15 | Spec final check; step 8 (the feature entry already says the title is the first question left after stripping) | the regression report | pending |
-| 16 | Document sync; PR; stop for the owner | PR link | pending |
+| 14 | Step 6 on the increment, by a new independent sub-agent | `ticket-278-review-tests.md` | done: two findings (F6, F7), both taken into #278; U4's written text run red against fcdb6c7's engine in a throwaway checkout ([log](evidence/ticket-278/red-f1-final.log)) |
+| 15 | F6 and F7: design review increment 2, U8 and U6's allow-list assertion, the gap note narrowed; targeted verification; `/review-code` increment 2 | the tests green | done: 1c51f4d; typecheck and lint exit 0, the 5 files importing the engine 130 green; code review: tests only, no bug |
+| 16 | Full verification gateway | `pnpm verify` exit 0 | done on 1c51f4d ([log](evidence/ticket-278/verify-1c51f4d.log), [exit](evidence/ticket-278/verify-1c51f4d.exit)) |
+| 17 | Step 6 on increment 2, by a new independent sub-agent | `ticket-278-review-tests.md` | pending |
+| 18 | Spec final check; step 8 (the feature entry already says the title is the first question left after stripping) | the regression report | pending |
+| 19 | Document sync; PR; stop for the owner | PR link | pending |

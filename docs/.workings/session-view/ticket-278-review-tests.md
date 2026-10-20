@@ -73,9 +73,11 @@ uncertainty) — the parent's title as A4 and B2 give it, which is the title the
 | U6 (changed per F3) | token-stats.test · a pure-replay fork is not listed, and its tokens still count | B2 (stripped empty) | the engine | the case's pair (the fork only replays); the fork's session questions after the build | resolves rather than rejecting; state `stripped`, no question, title "parent question one" — the title it was parsed with, as no question is left to re-title it from | the case's lines | none |
 | U7 (new; F4, added while writing U4's fix) | token-stats.test · when the parent's first question left cannot be read back, the banner keeps the title the parent was parsed with | B2 (a failed re-title read keeps the original title and hurts only that session); the stripped banner's parent title | the engine | U4's chain, built; then the parent's file deleted (the parent's cache entry is not checked against its file when the child's page opens); C's session questions | resolves; `forkParentTitle` "grandparent question", `forkParentFile` still P's file — literals | U4's lines, through a helper the two cases share | none |
 
-F4: the fallback a failed re-title read takes is driven by U7 through the parent's read. The session's own read
-stays undrivable — its signature is checked just before it, so it fails only when the file changes in between — and
-gets a gap note in `token-stats.test.ts`'s header.
+F4: the fallback a failed re-title read takes is driven by U7 through the parent's read on the session page, and by
+U8 (Increment 2) on the list. The session's own read on its page stays undrivable — a matching signature leads
+straight to it, and a mismatch is rebuilt on the calling thread rather than through the parse runner, so no seam
+sits in between — and gets a gap note in `token-stats.test.ts`'s header. Corrected after the second
+post-implementation check (F6), which found the list's read drivable.
 
 Red first: U4 reproduces F1's bug and must fail on fcdb6c7 at the `forkParentTitle` assertion, with "grandparent
 question", before the fix. U5, U3, D3 and U6 cover behaviour fcdb6c7 already has, so they are not required to be red
@@ -99,6 +101,33 @@ parent by anything but its parsed title.
   the stripped and kept questions, so none holds by construction; every expected value is a literal from the
   fixture; `forkParentTitle` is the live field the banner renders (`SessionPane.tsx`, both banners).
 - Dimension 4 (Resource reuse): a temporary home per case, as in both files; nothing expensive added.
+
+### Increment 2: the second post-implementation check's findings
+
+Checked 2026-10-20 on 4dd8a6f, before either test was written or changed. Source: findings F6 and F7 of the
+post-implementation check (increment) below, both taken into #278.
+
+| # | Test (file · case) | Spec units | Seam | Input that drives the branch | Assertion and where the expected value comes from | Fixture shape source | Expensive resources and provision |
+|---|---|---|---|---|---|---|---|
+| U8 (new; F6) | token-stats.test · when the line a stripped fork is re-titled from cannot be read back during the build, the list keeps the title it was parsed with | B2 (the re-title; a failed read keeps the original title and hurts only that title) | the engine, given a parse runner through its constructor — the seam the out-of-order runner case uses | U1's pair, no `thread_name`; a runner that runs the real parse and, once the fork's parse has returned, removes the fork's file: a rollout deleted, or compressed by Codex, while a scan runs | the build resolves, and the listed fork is `stripped` with one question, titled "parent question one" — literals | U1's lines | none |
+| U6 (changed again per F7) | token-stats.test · a pure-replay fork is not listed, and its tokens still count | B2 (stripped empty; the read allow-list keeps the pre-strip rule) | the engine | as before | as before, plus: the fork's file is on the build's read allow-list (`sessionFiles`) — the state in which the app can ask for its session questions | the case's lines | none |
+
+Neither reproduces a bug, so neither is required to be red first. When each goes red: U8 when the list's fallback
+gives anything but the parsed title (without the null check the title would be null) or the build rejects; U6's new
+assertion when the allow-list moves to the post-strip rule, which would leave its session-questions assertion
+guarding a page the app could no longer ask for.
+
+- Dimension 1 (Coverage): U8 drives the list's fallback (`retitleStripped`), which #278 rewrote; the session
+  questions' fallback is U7's. The gap note in `token-stats.test.ts`'s header narrows to the session's own read on
+  its page.
+- Dimension 2 (Case design): U8's runner calls the real parse (`runParseJob`) through the engine's public
+  constructor parameter and adds only the file's removal after it; it replaces none of the project's code, so it is
+  not the mocking red flag. The removal is a state the app reaches. U6 reads the allow-list from the build's own
+  result.
+- Dimension 3 (the three judged on the design): the parsed and the re-titled titles differ ("parent question one"
+  against "child new question"), so U8's title cannot hold by construction; expected values are literals; the
+  allow-list U6 reads is the one the app checks every session read against.
+- Dimension 4 (Resource reuse): a temporary home per case; the runner adds no resource.
 
 ## Post-implementation check
 
@@ -284,3 +313,172 @@ Decided 2026-10-20 by the implementing agent, on the recommendations above; all 
 | F5 | U3 made its own case, sharing the fork pair with the D3 case through a helper |
 | Outside: R1 | The code review's cost note now names the turn fetch among the callers that pay the read |
 | Outside: Stage 2 | `final-regression.md`'s Stage 2 row on the fork title rewritten once F1 is fixed |
+
+## Post-implementation check (increment)
+
+Checked 2026-10-20, independently of the agent that implemented #278: run by a new sub-agent that took no part in
+the design review, the implementation or the earlier post-implementation check. Ticket
+[#278](https://github.com/aloong-planet/agentshed/issues/278) · feature `session-view` · this record, as the ticket
+declares it. Implementation version: 4dd8a6f. The change under check is `git diff fcdb6c7 4dd8a6f -- src`
+(`token-stats.ts`, `token-stats.test.ts`, `search-sessions.test.ts`; 2ccbbb8 between them adds working records
+only), and the worktree's HEAD 53e9310 adds working records only (`git diff --quiet 4dd8a6f HEAD -- src e2e` exits
+0). Scope: the rows U3, U4, U5, U6, U7 and D3 of the Design review's increment, and the paths the change touches —
+the session questions' Codex branch, now `codexShown` (`token-stats.ts:682–729`), and the two callers of
+`strippedForkTitle` (`:742–761`).
+
+Inputs, and how each was checked:
+
+- Gateway: `pnpm verify` on 4dd8a6f, [log](evidence/ticket-278/verify-4dd8a6f.log) and
+  [exit](evidence/ticket-278/verify-4dd8a6f.exit) (`verify exit=0`; how that file was written is not recorded). The
+  `&&` chain ran to its last step (`SMOKE_OK`, line 587), consistent with it. 868 unit tests passed and 1 was
+  skipped by design (line 118): fcdb6c7's 864 plus the four new cases (U3 as its own case, U4, U5, U7);
+  `token-stats.test.ts` 98 (line 76), `search-sessions.test.ts` 9 (line 32). 148 e2e cases passed (line 580) after
+  one `electron-vite build` (lines 403–427).
+- Capability declaration, read with Python's `tomllib`: `[mutation-testing] enabled = false`.
+- Probes, all outside the worktree: a copy of the worktree's `src` (equal to it by `diff -rq`) with its config
+  files, `node_modules` linked and vitest's cache directory set outside the worktree; two probe files run there.
+  Before and after, the worktree's `git status --short --ignored` compared equal (`cmp`), and the digest of
+  `node_modules/.vite`'s file listing (mtime, size, path) was the same, `60c3c5c9…`. Their output is quoted where it
+  is used.
+- Real data, read only: the first line of each plain rollout in the Codex scan set (`~/.codex/sessions` and
+  `~/.codex/archived_sessions`: 356 `.jsonl` files; the 2018 `.jsonl.zst` files were not read).
+
+### Per-case consistency with the test design table
+
+| # | Written test | Seam · input · assertion and expected value · fixture · resources | Conclusion |
+|---|---|---|---|
+| U3 | `search-sessions.test.ts:126–130`, in the question-mode describe | the project search · `mkStrippedFork()` (lines 74–98), then `run('child new', false)` · `[[true, 'child new question']]`, a literal · the D3 pair through the shared helper · none | Matches. F5 is resolved: its own case, named as the row says |
+| D3 | `search-sessions.test.ts:152–161` | the project search · `mkStrippedFork()`, then `run('magicword', true)` · one hit, one folded, one group, the parent's · the helper writes the lines the case wrote inline, byte for byte (the diff) · none | Matches: the case is a1b04b5's D3 apart from the helper call, and the #278 title assertion has left it |
+| U4 | `token-stats.test.ts:1963–1972`; helper `mkStrippedForkChain`, 1934–1961 | the engine · the three generations as the row gives them, no `thread_name`; build, then `sessionQuestions(childFile)` on the same engine · P's listed title "parent new question" (1967); C `stripped`, `forkParentFile` P's file, `forkParentTitle` "parent new question" (1969–1971); literals · legacy `user_message` lines, as in the existing fork cases · none | Matches |
+| U5 | `token-stats.test.ts:1697–1719` | the engine · an orphan fork (parent id `…dead…099`, in no rollout), questions at 03:00:00.000, :00.300 and :30.000, no `thread_name` · listed `['uncertain', 1, 'orphan new question']` (1716), session questions the same (1718); literals · the banner case's orphan, with three questions · none | Matches |
+| U6 | `token-stats.test.ts:1727–1768`, assertion added at 1764–1767 | the engine · the pure-replay pair; build and `sessionQuestions` on one engine · resolves with `['stripped', 0, 'parent question one']`, a literal · the case's lines · none | Matches. F7 concerns the premise its comment states |
+| U7 | `token-stats.test.ts:1974–1982` | the engine · U4's chain through the shared helper, built; `rmSync(parentFile)` (1979); `sessionQuestions(childFile)` · resolves with `['stripped', parentFile, 'grandparent question']` (1981); literals · U4's lines · none | Matches; it also asserts the state, beyond the row |
+
+Header gap notes: `token-stats.test.ts` carries Gap (#158) and Gap (#278) (lines 7–15); `search-sessions.test.ts`
+needs none. Gap (#278) says the list's re-title failure cannot be driven; it can (F6).
+
+Red first: U4's red run ([log](evidence/ticket-278/red-f1.log)) failed at `forkParentTitle` with "grandparent
+question", as the design requires. It ran an earlier text of the case (its assertion at line 1927 of a 96-case
+file; the written one is at 1971 of 98, after the shared helper and the cases added since), so the written text was
+not observed red. By the code it fails the same way: fcdb6c7 gives `parent?.title`, P's parsed title, which for the
+written fixture is P's first question, "grandparent question". Not re-run: running the case against fcdb6c7's code
+changes the code under test, and `mutation-testing` is not enabled. U3, D3, U5, U6 and U7 are not required to be
+red first (the design's rule); U7 passes on fcdb6c7 too, where the parent is never re-titled.
+
+### Dimension 1: Coverage
+
+Conclusion: the rows cover what the increment names — the banner's parent title (U4 for the value; E1 asserts the
+banner renders the field, `app.spec.ts:1245`), the uncertain tier's re-title on both surfaces (U5), the page's
+guard on an empty strip (U6), the page's fallback on a failed read (U7), the search card on its own (U3), and D3
+unchanged. Two findings: F6, F7.
+
+- The branches 4dd8a6f adds, enumerated from `codexShown` and its two calls (`token-stats.ts:682–729`): a parent
+  that is itself a stripped fork titled from its first question (U4); a parent that is not a fork (the existing
+  banner case, 1896–1930, still gets "parent question one", its parsed title, through the new call); no parent (that
+  case's orphan, `null`); the parent's re-title read failing (U7). A parent with a `thread_name`, a parent stripped
+  empty and a parent in the uncertain tier each go through the lines that decide the session's own title — the
+  `!agg.titleFromThread` test (U2), the guard on `first` (U6), the length test (U5) — so each is a branch some case
+  drives; they need no case of their own for the parent. The switch to `agg.file` (`:726`) matters only for the
+  parent; U7 holds it, U4 does not (Dimension 3).
+- The re-title failure, caller by caller. `strippedForkTitle` returns null when the read fails (`:742–754`), and
+  each caller keeps the parsed title its own way: the session questions by `retitled ?? agg.title` (`:728`), driven
+  by U7 through the parent's call; the list by `retitleStripped`'s `if (title !== null)` (`:759`), which #278 wrote
+  (on a1b04b5 that function caught the failure itself) and which nothing drives. The header note and the increment's
+  F4 paragraph say the list's read cannot be driven, and the earlier check called it "Not drivable", but the build
+  parses through the engine's `ParseRunner` (the constructor parameter, `:390`, which production fills with the
+  parse pool, `index.ts:665`) and re-titles only after every parse (`:501–515`), so a runner can remove the file in
+  between. F6.
+- The session's own read on its page has no seam before it: on a signature mismatch `codexEntry` parses on the
+  calling thread with `runParseJob` (`:566–570`), not through the runner, and a matching signature leads straight to
+  the read. The gap note holds for that read.
+- U6's state matters in the app only because a fork stripped empty stays on the read allow-list (spec B2; the case's
+  comment says so). No case asserts that. F7.
+- Fixture shape: 355 of the 356 plain rollouts open with a millisecond timestamp (`…:SS.mmmZ`; the other's first
+  line is empty), the form U5's burst timestamps take. U4's and U7's three-generation chain follows the replay
+  mechanism — a fork copies its parent's history, so C replays P's replay of G's question and P's own — and is
+  reasoned, not sampled: no legacy rollout exists in today's data to take a chain from (the earlier check's
+  enumeration, not repeated). The line shapes are those verified against the two real forks of 2026-08-02
+  (`token-stats.test.ts:213–221`).
+
+### Dimension 2: Case design
+
+Conclusion: no implementation-coupling red flag; no finding.
+
+- `rg -n "vi\.mock|vi\.spyOn|vi\.fn|jest\.|as any|as unknown as|\.skip|\.only|test\.fixme|it\.todo|private"` over
+  both changed test files: no match (exit 1); `rg -c "expect\("` returns 236 and 25 on the same files, so they were
+  read.
+- Public calls only: `build`, `sessionQuestions`, `searchProjectSessions`. U7's setup removes a file on disk, a state
+  the app reaches: the parent deleted, or compressed by Codex so its plain path is gone (C4, P7), after the scan and
+  before the child's page opens.
+- Isolation: a temporary home per case in both files (`token-stats.test.ts:359–368`,
+  `search-sessions.test.ts:29–38`), and both helpers write only inside it. U3 and D3 now fail under their own
+  names, which removes the masking F5 described.
+
+### Dimension 3: False greens
+
+Conclusion: no false green found. Per the project capability declaration, `mutation-testing` is not enabled;
+mutation testing is skipped. When each test goes red, answered against the code under test and the source of its
+expected value:
+
+- U3: when the fork's card carries any other title (on a1b04b5 the parent's replayed "magicword in the parent
+  session", `red-unit.log:13–33`, with the same fixture and assertion, then inside D3), when the parent also returns
+  a group for "child new", or when no group returns. `g.file.includes(CHILD)` tells the two files apart.
+- D3: when the replay copy is reported as a reachable hit (two hits or two groups), when it is not counted as
+  folded, or when the group is not the parent's.
+- U4: when the banner names the parent by its parsed title (the failure above); when P's listed title is not
+  re-titled (1967); when C is not `stripped` or `forkParentFile` is not P's. It stays green if the parent's title is
+  read from the child's file: P's first question left lies at bytes 348–469 of both files, where C holds its replay
+  of "parent new question" (the lines before it have the same lengths in both files, computed from the fixture).
+- U7: when a failed read of the parent's line rejects the page (the catch in `strippedForkTitle`); when the fallback
+  gives anything but the parsed title; and when the parent's title is read from any file but the parent's own —
+  with P's file gone, a read of C's file at P's range would succeed with "parent new question". So U7 holds the
+  `agg.file` premise that U4 cannot.
+- U5: when the burst is not stripped (three questions, titled "replayed question one"), when either surface skips
+  the re-title in the uncertain tier ("replayed question one"), or when the state is not `uncertain`. Its gaps,
+  300 ms and 29.7 s, fall either side of `BURST_GAP_MS` = 1000 (`question-index.ts:56`, `:98`).
+- U6: when the session questions of a fork stripped empty reject (without the guard on `first`, `token-stats.ts:725`,
+  `undefined[0]` throws a TypeError), return questions, or carry any title but the parsed one.
+- Constant truth: every compared title differs between the generations, or between the stripped and the kept
+  questions; the tuple assertions on `listed?.…` fail when the session is missing. Tautology: every expected value is
+  a literal from the fixture. Stale path: `forkParentTitle` reaches the page payload (`index.ts:340`) and both
+  banners render it (`SessionPane.tsx:66`, `:69`, `:90`).
+- Conditional skips and assertions that may not run: none; every call is awaited, and no assertion sits in a
+  callback or a loop.
+- Browser assertions, gates and command-line checks: the increment adds none (`git diff --name-only 2ccbbb8
+  4dd8a6f` lists the three `src` files), so review-code's `false-greens.md` list has nothing to apply to.
+
+### Dimension 4: Resource reuse
+
+Conclusion: as the table states; no expensive resource is added, and none is built per case.
+
+- Unit: a temporary home and an engine per case, the pattern of both files. Counted from the full run: vitest names
+  each case over its 300 ms threshold under its file, and none of #278's is named (`token-stats.test.ts` names two
+  resume cases, 493 and 376 ms, lines 77–78; `search-sessions.test.ts` ran its 9 cases in 119 ms, line 32).
+- e2e: untouched by the increment; one `electron-vite build` before the 148 cases (lines 403–427).
+
+### Findings
+
+| # | Case or file | Dimension | What is wrong | Evidence | Recommended change |
+|---|---|---|---|---|---|
+| F6 | `token-stats.test.ts` header, Gap (#278) (lines 11–15); the increment's F4 paragraph; no case | Coverage | The list's fallback when a stripped fork's re-title read fails (`retitleStripped` keeping the parsed title, `token-stats.ts:759`, rewritten by #278) is drivable and undriven, and the gap note says it cannot be driven. U7 drives only the session questions' fallback. Dropping the null check would leave the listed fork with a null title (`SessionMeta.title` admits null, so the types do not catch it) and every test green; reasoned, not run | Probe, a runner wrapping `runParseJob` that removes the fork's file once it is parsed, over U1's pair: the build resolves and lists the fork `["stripped",1,"parent question one"]`; the same runner without the removal gives `["stripped","child new question"]`. The only test passing a runner (`token-stats.test.ts:2371`) removes nothing | A test design table row, reviewed before writing: the engine with such a runner (the seam the out-of-order runner case uses) over U1's pair; assert the build resolves and the listed fork is `stripped`, with one question, titled "parent question one". It goes red when the list's fallback gives anything but the parsed title or the build rejects. Narrow the header note and the F4 paragraph to the session's own read on its page, the one read with no seam before it |
+| F7 | token-stats.test · the pure-replay case (U6), lines 1764–1767 | Coverage | U6's state is reachable from the app only because a fork stripped empty stays on the read allow-list (spec B2, and the case's comment). No case asserts that, so narrowing the allow-list to the post-strip rule would turn nothing red, and U6 would then guard a page the app can no longer request | Probe on the pure-replay pair: `{"listed":false,"onAllowList":true}`. Search: of every Codex fork fixture in the test files (`forked_from_id` over `src` and `e2e`), only this case's is stripped empty, and no `sessionFiles` assertion names it (`token-stats.test.ts:740–748`, `2009–2038`) | Add `expect(r.sessionFiles.has(childFile)).toBe(true)` to the case, which already holds the build's result, and amend the U6 row (the assertion, and B2's allow-list rule among its spec units), then review it again. If it is kept out, say in the U6 row that its reachability rests on an unasserted rule, since nothing else records it |
+
+### Document sync this check creates
+
+For the owner; this check changed nothing but this section:
+
+- `ticket-278-doc-sync.md`: the disposition of F6 and F7 (table rows, cases and the header note), pending until
+  decided.
+- This record: the increment's F4 paragraph corrected for F6; the U6 row amended if F7 is taken.
+- `checklist.md`: a verification row for a case added for F6 or F7.
+- `ticket-278-tasks.md`, task 14: done once these findings are disposed of.
+
+### Dispositions (increment)
+
+Decided 2026-10-20 by the implementing agent, on the recommendations above; both taken into #278.
+
+| # | Disposition |
+|---|---|
+| F6 | U8 added (Increment 2 of the design review); the header gap note and the increment's F4 paragraph narrowed to the session questions' own read |
+| F7 | U6 asserts the fork stays on the read allow-list; its row amended in Increment 2 |
+| U4's red run on an earlier text | The written text run against fcdb6c7's engine in a throwaway checkout outside the worktree: it fails at `forkParentTitle` with "grandparent question", and U7 passes there ([log](evidence/ticket-278/red-f1-final.log)) |
