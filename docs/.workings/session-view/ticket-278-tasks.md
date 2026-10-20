@@ -25,6 +25,22 @@ artifacts; they are added here and declared on the ticket.
 | 14 | Step 6 on the increment, by a new independent sub-agent | `ticket-278-review-tests.md` | done: two findings (F6, F7), both taken into #278; U4's written text run red against fcdb6c7's engine in a throwaway checkout ([log](evidence/ticket-278/red-f1-final.log)) |
 | 15 | F6 and F7: design review increment 2, U8 and U6's allow-list assertion, the gap note narrowed; targeted verification; `/review-code` increment 2 | the tests green | done: 1c51f4d; typecheck and lint exit 0, the 5 files importing the engine 130 green; code review: tests only, no bug |
 | 16 | Full verification gateway | `pnpm verify` exit 0 | done on 1c51f4d ([log](evidence/ticket-278/verify-1c51f4d.log), [exit](evidence/ticket-278/verify-1c51f4d.exit)) |
-| 17 | Step 6 on increment 2, by a new independent sub-agent | `ticket-278-review-tests.md` | pending |
-| 18 | Spec final check; step 8 (the feature entry already says the title is the first question left after stripping) | the regression report | pending |
-| 19 | Document sync; PR; stop for the owner | PR link | pending |
+| 17 | Step 6 on increment 2, by a new independent sub-agent | `ticket-278-review-tests.md` | done: two findings (F8, F9), both disposed of: the gap note rewritten (fa8024a, comment only, [evidence](evidence/ticket-278/comment-only-after-1c51f4d.log)), the failed-read rule written into spec B2 (562ddc7) |
+| 18 | Spec final check | the table below | done |
+| 19 | Step 7: archive — spec written back (562ddc7); no ADR (no architectural decision); no new term for `CONTEXT.md`; a postmortem, as its root cause, why no test caught it and its defence are all known | `docs/postmortems/` | done |
+| 20 | Step 8 (`/features-catalog`): the documentation regression for #278's scope | `final-regression.md` | done: three stages, no feature entry needed an edit; the tracker's product acceptance gained the banner's and the list's items |
+| 21 | Document sync; PR; stop for the owner | PR link | pending |
+
+## Spec final check
+
+Checked 2026-10-20: spec 562ddc7 against the implementation at 1c51f4d (fa8024a after it changes a comment only).
+Read-only on the code.
+
+| Spec unit (quoted) | Implementation | Conclusion |
+|---|---|---|
+| A4: "take **the first real user message**; Codex prefers `thread_name`" | titles are parsed as before; a `thread_name` blocks the re-title (`!agg.titleFromThread` in the shared method and the scan) — U2 | Met |
+| B2: "Re-deriving the title after stripping applies only to sessions whose title comes from the first question" | the re-title runs only when the title did not come from `thread_name` and leading questions were stripped, in either tier that strips — U1, U5 | Met |
+| B2: "The re-derived title is the session's title wherever the session is named — the list and global search, its session page, a project's own session search, and the parent title on the banner of a fork of it" | the list and global search take the scan's re-title; the session page, the project search and the banner's parent title go through one engine method — U1, U3, U4, E1, E2 | Met |
+| B2: "where that read fails …, that surface keeps the title the session was parsed with, and nothing else is affected" | both callers of the shared read keep the parsed title on null — U7 (the banner), U8 (the list); the session's own call is the expression U7 drives (gap note) | Met |
+| Further Notes: "the stripped banner carries the parent session's title"; the risk banner, parent present, names it too | both banners render the parent title the engine gives — U4; E1 for the rendering | Met |
+| Out of scope: nothing changed beyond the title the engine hands out; the Claude and Grok branches and the payload's shape are untouched | `git diff a1b04b5 1c51f4d --stat -- src` lists `token-stats.ts` and two test files | No expansion |

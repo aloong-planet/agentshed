@@ -74,10 +74,11 @@ uncertainty) — the parent's title as A4 and B2 give it, which is the title the
 | U7 (new; F4, added while writing U4's fix) | token-stats.test · when the parent's first question left cannot be read back, the banner keeps the title the parent was parsed with | B2 (a failed re-title read keeps the original title and hurts only that session); the stripped banner's parent title | the engine | U4's chain, built; then the parent's file deleted (the parent's cache entry is not checked against its file when the child's page opens); C's session questions | resolves; `forkParentTitle` "grandparent question", `forkParentFile` still P's file — literals | U4's lines, through a helper the two cases share | none |
 
 F4: the fallback a failed re-title read takes is driven by U7 through the parent's read on the session page, and by
-U8 (Increment 2) on the list. The session's own read on its page stays undrivable — a matching signature leads
-straight to it, and a mismatch is rebuilt on the calling thread rather than through the parse runner, so no seam
-sits in between — and gets a gap note in `token-stats.test.ts`'s header. Corrected after the second
-post-implementation check (F6), which found the list's read drivable.
+U8 (Increment 2) on the list. The session's own read on its page has no case of its own: it can be driven, as the
+cache signature is mtime and size and a change keeping both fails the read, but its fallback is the expression U7
+drives, and both ways in rest on a state the app does not build itself (a pinned mtime) or one in which the page
+fails as a whole (no read permission); the gap note in `token-stats.test.ts`'s header says so. Corrected after the
+second and third post-implementation checks (F6, F8), which found the list's read and then this one drivable.
 
 Red first: U4 reproduces F1's bug and must fail on fcdb6c7 at the `forkParentTitle` assertion, with "grandparent
 question", before the fix. U5, U3, D3 and U6 cover behaviour fcdb6c7 already has, so they are not required to be red
@@ -482,3 +483,168 @@ Decided 2026-10-20 by the implementing agent, on the recommendations above; both
 | F6 | U8 added (Increment 2 of the design review); the header gap note and the increment's F4 paragraph narrowed to the session questions' own read |
 | F7 | U6 asserts the fork stays on the read allow-list; its row amended in Increment 2 |
 | U4's red run on an earlier text | The written text run against fcdb6c7's engine in a throwaway checkout outside the worktree: it fails at `forkParentTitle` with "grandparent question", and U7 passes there ([log](evidence/ticket-278/red-f1-final.log)) |
+
+## Post-implementation check (increment 2)
+
+Checked 2026-10-20, independently of the agent that implemented #278: run by a new sub-agent that took no part in
+the design review, the implementation or the two earlier post-implementation checks. Ticket
+[#278](https://github.com/aloong-planet/agentshed/issues/278) · feature `session-view` · this record, as the ticket
+declares it. Implementation version: 1c51f4d. The change under check is `git diff 4dd8a6f 1c51f4d -- src`, which
+touches `token-stats.test.ts` only (the header gap note, U8, U6's new assertion); 53e9310 between them and the
+worktree's HEAD ca16110 add working records only (`git diff --quiet 1c51f4d HEAD -- src e2e scripts package.json
+pnpm-lock.yaml vitest.config.ts playwright.config.ts electron.vite.config.ts` exits 0). Scope: rows U8 and U6 of
+the Design review's Increment 2, the test file's header gap notes, and the paths those rows and the narrowed note
+are about: the list's fallback (`retitleStripped`, `token-stats.ts:756–761`), the read allow-list's admission of a
+Codex rollout (`:485`, `:508`), and the session questions' re-title read on the session's own line (`:682`,
+`:724–728`).
+
+Inputs, and how each was checked:
+
+- Gateway: `pnpm verify` on 1c51f4d, [log](evidence/ticket-278/verify-1c51f4d.log) and
+  [exit](evidence/ticket-278/verify-1c51f4d.exit) (`verify exit=0`; how that file was written is not recorded). The
+  `&&` chain (line 3) ran to its last step (`SMOKE_OK`, line 588), consistent with it. The run started at 22:22:36
+  (line 120), after 1c51f4d was committed (22:21:32). 869 unit tests passed and 1 was skipped by design (line 119):
+  4dd8a6f's 868 plus U8; `token-stats.test.ts` 99 (line 101). 148 e2e cases passed (line 581) after one
+  `electron-vite build` (lines 403–428).
+- Capability declaration, read with Python's `tomllib`: `[mutation-testing] enabled = false`, a form the registry
+  admits.
+- Probes, all outside the worktree: a copy of the worktree's `src` (equal to it by `diff -rq`) with its
+  `package.json` and `tsconfig` files, `node_modules` linked and vite's cache directory set outside the worktree; one
+  probe file of five cases, and a run of `token-stats.test.ts` in the copy (99 passed) with the JSON reporter for
+  per-case durations. Before and after, the worktree's `git status --short --ignored` compared equal (`cmp`), and
+  the digest of `node_modules/.vite`'s file listing (mtime, size, path) was the same, `57e6b86f`. Their output is
+  quoted where it is used.
+- Real data, read only: the Codex scan set holds 2018 `.jsonl.zst` rollouts and 356 plain ones
+  (`~/.codex/sessions` 1961 and 355, `~/.codex/archived_sessions` 57 and 1), so a rollout compressed during a scan,
+  the state U8's runner stands in for, is current.
+
+### Per-case consistency with the test design table
+
+| # | Written test | Seam · input · assertion and expected value · fixture · resources | Conclusion |
+|---|---|---|---|
+| U8 | `token-stats.test.ts:1696–1720`, in "session titles and the listing rules" | the engine, given a `ParseRunner` through its constructor (1709–1717), the seam the out-of-order runner case uses (2399–2413) · U1's pair, no `thread_name`; the runner awaits the real `runParseJob`, then removes the fork's file when the job is the fork's (1712–1713) · `[forkState, questionCount, title]` of the listed fork equals `['stripped', 1, 'parent question one']` (1719), literals; the build is awaited, so a rejection fails the case · the pair is written inline, byte for byte U1's lines (1652–1654) apart from the two session ids · none | Matches |
+| U6 | `token-stats.test.ts:1754–1796`, assertion added at 1793 | the engine · the pure-replay pair; build and session questions on one engine · `r.sessionFiles.has(childFile)` is `true`, before the session questions are asked for; then `['stripped', 0, 'parent question one']` (1795) as before · the case's lines · none | Matches. `sessionFiles.has` is how the file's other allow-list cases assert (741, 2037–2038), and `sessionReadTarget`, the check the app runs, is the same `has` (`security.ts:183–189`) |
+
+Header gap notes: `token-stats.test.ts` carries Gap (#158) and Gap (#278) (lines 7–16). Gap (#278), narrowed per
+F6, says the session questions' re-title read on the session's own line cannot be driven; it can (F8).
+
+Red first: neither row reproduces a bug, so neither is required to be red first (the design's rule). U8's
+assertion tells its fallback from the re-title by the fixture alone. Probe, U8's pair with a runner that runs the
+real parse and removes nothing: `["stripped",1,"child new question"]`; with U8's runner:
+`{"listed":["stripped",1,"parent question one"],"childExists":false,"jobsMatchedChild":1}`. So U8 is green only
+because the fork's file is gone when the list is re-titled.
+
+### Dimension 1: Coverage
+
+Conclusion: U8 drives the list's fallback that F6 found undriven, and U6 now holds the allow-list premise F7
+named. Two findings: F8, F9.
+
+- The list's fallback. `build` runs every parse through the runner (`token-stats.ts:500–503`), then `combine` and
+  `retitleStripped` (513–515); U8's runner removes the fork's file between the two, so `strippedForkTitle`
+  (742–754) fails its read and returns null, and `if (title !== null)` (759) keeps the parsed title. The state is
+  one the app reaches: Codex compresses or deletes a rollout while a scan's parse pool runs (spec C4, P7).
+- The allow-list premise. A Codex rollout is admitted by `isRegistered(agg.projectKey) && (s.subagent ||
+  agg.listed)` (485), with `listed` from the parse, before the strip; U6's assertion goes red if admission moves
+  after the strip (spec B2, lines 204–207: "The read allow-list still follows the pre-strip rule").
+- The session questions' re-title read on the session's own line (Gap (#278)). The note says it is not driven
+  because "no seam sits in between and the read fails only when a writer changes the file then". The signature is
+  `mtimeMs:size` (`statOf`, 1185–1192), so any change that keeps both sends `sessionQuestions` straight from the
+  signature check (616–621) to `codexShown` and the read (682, 724–728), with no writer racing it. Probes on U1's
+  pair, each after a build on one engine: the fork's read permission removed (`chmod 000`; the signature compared
+  equal; uid 501): `{"resolved":["stripped",1,"parent question one"]}`; the line of the first question left
+  rewritten in place at the same length so it no longer parses, the mtime pinned before the build and again after
+  the rewrite: `{"sigEqual":true,"resolved":["stripped",1,"parent question one"]}`; nothing changed (control):
+  `["stripped",1,"child new question"]`. Both drive the fallback deterministically at the engine seam. The second
+  is also a state in which the app shows it: the page handler reads the question texts after the session questions
+  (`index.ts:317–327`), gives the unparseable line a placeholder ("A single bad line only hurts itself"), and
+  returns the title (334). Under the first, the handler's own range read fails, so the page goes to its error state
+  (P6) and the title is not shown. F8.
+- Traceability of the rule U8 asserts. U8's row (and U7's) cites "B2 (the re-title; a failed read keeps the
+  original title and hurts only that title)". B2's re-title bullet (spec lines 208–211) says only that re-deriving
+  applies to sessions titled from their first question; no sentence of the spec or the feature entry states what a
+  failed re-title read does (`rg -n -i "re-?titl|keeps? the (original|parsed|cached) title|title it was
+  parsed|degrad"` over both). The rule is the code's: a1b04b5's `retitleStripped` caught a failed read with "Keep
+  the original title", and `strippedForkTitle`'s comment says so today (`token-stats.ts:733–741`). The checklist
+  lists the rule as B2's source text (`checklist.md:17–18`), and its reverse audit says "no product behaviour beyond
+  the spec" (line 35). F9.
+- Fixture shape: U8 reuses U1's lines, whose shape is the one verified against the two real forks of 2026-08-02
+  (`token-stats.test.ts:214–222`); no legacy fork exists in today's data to re-sample (the first check's
+  enumeration, not repeated). U6's fixture is unchanged.
+
+### Dimension 2: Case design
+
+Conclusion: no implementation-coupling red flag; no finding.
+
+- `rg -n "vi\.mock|vi\.spyOn|vi\.fn|jest\.|as any|as unknown as|\.skip|\.only|test\.fixme|it\.todo|private"` over
+  `token-stats.test.ts`: no match (exit 1); `rg -c "expect\("` returns 238 on the same file (236 at 4dd8a6f, plus
+  U8's and U6's), so it was read.
+- U8's runner is the engine's public constructor parameter, which production fills with the parse pool
+  (`index.ts:665`); it calls the real `runParseJob` and adds only the file's removal, replacing none of the
+  project's code. The out-of-order runner case (2399–2406) passes the same seam.
+- U6 reads the allow-list from the build's own result, the set the app checks every session read against
+  (`index.ts:309–315`).
+- Isolation: a temporary home per case (`token-stats.test.ts:360–369`); U8 removes a file inside it, and the
+  `afterEach` removes the home.
+
+### Dimension 3: False greens
+
+Conclusion: no false green found. Per the project capability declaration, `mutation-testing` is not enabled;
+mutation testing is skipped. When each test goes red, answered against the code under test and the source of its
+expected value:
+
+- U8: when the list's fallback gives anything but the parsed title (without the null check at 759 the title is set
+  to null); when a failed read rejects the build (without the catch in `strippedForkTitle`, 751–753, the
+  `readRanges` rejection escapes); when the fork is not stripped, or not listed with one question. It stays green if
+  the list is never re-titled at all, which U1's listed-title assertion (1659) catches. If the runner's file
+  comparison ever stopped matching, nothing would be removed and the case would go red with "child new question"
+  (the probe above), so a silently skipped removal cannot pass.
+- U6's new assertion: when admission follows the post-strip rule, or the fork's path is not the one the scan
+  admits. A widened allow-list keeps it green; the unregistered-project cases (2052–2053, 2066) catch that.
+- Constant truth: the parsed and the re-titled titles differ ("parent question one" against "child new
+  question"); the tuple assertion fails when the fork is not listed. Tautology: every expected value is a literal
+  from the fixture. Stale path: the listed `SessionMeta.title` is what the list renders, and `sessionFiles` is what
+  `getSessionPage` checks.
+- Conditional skips and assertions that may not run: none. The build is awaited; the runner's removal is setup,
+  not an assertion; no assertion sits in a callback or a loop.
+- Browser assertions, gates and command-line checks: the change adds none (`git diff --name-only 4dd8a6f 1c51f4d
+  -- src e2e scripts package.json` lists `token-stats.test.ts` only), so review-code's `false-greens.md` list has
+  nothing to apply to.
+
+### Dimension 4: Resource reuse
+
+Conclusion: as the table states; no expensive resource is added, and none is built per case.
+
+- Unit: a temporary home and an engine per case, the pattern of the file. Counted from the full run: vitest names
+  each case over its 300 ms threshold under its file, and only the two resume cases are named (370 and 592 ms,
+  `verify-1c51f4d.log:102–103`); the file's 99 cases took 2527 ms (line 101). In the probe copy's JSON report U8
+  took 3.8 ms and U6 5.4 ms.
+- e2e: untouched by the change; one `electron-vite build` before the 148 cases (lines 403–428).
+
+### Findings
+
+| # | Case or file | Dimension | What is wrong | Evidence | Recommended change |
+|---|---|---|---|---|---|
+| F8 | `token-stats.test.ts` header, Gap (#278) (lines 11–16); the Design review's F4 paragraph; the F6 row of Dispositions (increment) | Coverage | The note says the re-title read on the session's own line cannot be driven, because nothing sits between the signature check and the read and only a racing writer can fail it. The signature is mtime and size only, so a change that keeps both fails the read deterministically at the engine seam, with no writer racing it. The increment check's Dimension 1 ("The gap note holds for that read") is contradicted too. This is the third time this fallback was judged undrivable: F4's "Not drivable", the list's read (F6), and now this read | The permission and in-place rewrite probes in Dimension 1, each `["stripped",1,"parent question one"]` against the control's "child new question" | Recommended: a test design table row, reviewed before writing. Use U1's pair with the fork's mtime pinned by `utimesSync` before the build, as the file's helpers do. After the build, rewrite the line of the first question left in place at the same length so it no longer parses, and pin the mtime again. Assert the session questions resolve with `['stripped', 1, 'parent question one']`; the case goes red when the session's own fallback gives anything but the parsed title, or rejects. This route works whatever user runs the tests, and the page shows the title in this state. The permission route needs a non-root user, and the page then goes to its error state. Then drop Gap (#278) and correct the F4 paragraph and the F6 disposition. If the case is kept out, rewrite the note: the read can be driven at this seam (by a change that keeps mtime and size, or by removing read permission); it is not driven because the fallback is the expression U7 drives through the parent's call; and give the condition for covering it |
+| F9 | the spec-unit cells of U8's and U7's rows; `checklist.md` rows 17–18 and the reverse audit (line 35) | Coverage | Both rows cite B2 for "a failed read keeps the original title"; the spec has no such sentence, since the rule is the code's and predates #278. The checklist lists it as B2's source text, and its reverse audit says every test traces to A4 or B2 with "no product behaviour beyond the spec", which U7 and U8 contradict | Spec lines 208–211 and the search in Dimension 1; a1b04b5's `retitleStripped` ("Keep the original title"); `token-stats.ts:733–741` | The owner decides, since the spec is the requirement authority. Recommended: write the rule into B2's re-title bullet as a decision written back from implementation: a failed read of that line keeps the title the session was parsed with, on every surface, and hurts only that title. The rows and the checklist then cite a sentence that exists. Otherwise amend the two rows' spec-unit cells, the checklist's rows 17–18 and its line 35 to name the code as the rule's source |
+
+### Document sync this check creates
+
+For the owner; this check changed nothing but this section:
+
+- `ticket-278-doc-sync.md`: the disposition of F8 and F9, pending until decided — for F8, a table row and a case, or
+  the note's rewrite; for F9, the spec sentence or the rows' amendment.
+- This record: the Design review's F4 paragraph and the F6 row of Dispositions (increment), after F8's
+  disposition; the spec units of rows U7 and U8, after F9's.
+- `docs/specs/session-view.md`, B2's re-title bullet, if F9's recommended change is taken.
+- `checklist.md`: rows 17–18 and the reverse audit (line 35) after F9; the session page's rows (14 and 24) for a
+  case added for F8.
+- `ticket-278-tasks.md`, task 17: done once these findings are disposed of.
+
+### Dispositions (increment 2)
+
+Decided 2026-10-20 by the implementing agent; both taken into #278.
+
+| # | Disposition |
+|---|---|
+| F8 | The check's alternative taken: the header note rewritten to say the read can be driven, how, and why it has no case (fa8024a, a comment-only change: [evidence](evidence/ticket-278/comment-only-after-1c51f4d.log)); the F4 paragraph corrected in place. No case added: the fallback is the expression U7 drives, and the in-place rewrite needs the mtime pinned by hand, a state the app's own signature exists to catch |
+| F9 | The rule written into spec B2's re-title bullet, with the rule it serves: the re-derived title is the session's title on every surface, and a failed read keeps the parsed title on that surface alone. U7's and U8's rows now cite a sentence that exists |
