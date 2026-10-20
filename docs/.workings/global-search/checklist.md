@@ -187,7 +187,8 @@ to the PR head 473dff0, whose code and tests are the ones those gateways ran.
 files, 399 cases). After the two independent checks' findings the tests changed and the application code did not:
 the rows below are versioned on the tests of cc5aefd, the global search spec file green there (13 cases), the gateway
 whole on it ([log](evidence/ticket-273/verify-cc5aefd.log)); the gateway on 2882abc's tests and on 2843aaf's ran green
-too ([cecebad](evidence/ticket-273/verify-cecebad.log), [2843aaf](evidence/ticket-273/verify-2843aaf.log)). The native menu is reached as the application menu's e2e reaches it — the installed item by its id
+too ([cecebad](evidence/ticket-273/verify-cecebad.log), [2843aaf](evidence/ticket-273/verify-2843aaf.log)). Merged
+by #286 as b6c4a41 on 2026-10-20, its tree identical to the PR head 28d56fc, whose code and tests are cc5aefd's. The native menu is reached as the application menu's e2e reaches it — the installed item by its id
 and its own click; the key press ⌘⇧F itself is not reached by the automation here (measured with the existing ⌘,
 item: [probe](evidence/ticket-273/probe-accel.spec.ts), [output](evidence/ticket-273/probe-accel-output.txt)).
 Mutation testing is not required (`mutation-testing` not enabled).
