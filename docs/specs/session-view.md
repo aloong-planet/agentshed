@@ -208,7 +208,11 @@ ruling on 2026-08-06, see Out of Scope).
   - **Re-deriving the title after stripping applies only to sessions whose title comes from the first
     question** (fixed 2026-08-05, from a retrospective review): `thread_name`'s priority
     (A4) is not invalidated by stripping, and the cache entry records the title's origin for this
-    purpose (CACHE_VERSION v9).
+    purpose (CACHE_VERSION v9). The re-derived title is the session's title wherever the session is
+    named — the list and global search, its session page, a project's own session search, and the
+    parent title on the banner of a fork of it — so they agree. The line it is re-derived from is read
+    back each time one of them is built; where that read fails (the file deleted or compressed since
+    the scan), that surface keeps the title the session was parsed with, and nothing else is affected.
   - **The display-side stripping happens in `combine`**, not in the parser: it needs the parent
     session's index, and the cache is per file, so the parser cannot reach the parent. It also does
     **not** reuse the token side's `start` — the metering rule is deduplication, the display rule is
