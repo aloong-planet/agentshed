@@ -48,6 +48,7 @@ All sources below are the owner's answers in the requirements conversation of 20
 | S27 "read 'Go to <project>' and land on the stale note card" | Confirmed and in force | global-search::US-003/AC-03 | — |
 | S27 "show a one-line 'search failed' notice" | Confirmed and in force | global-search::REQ-003/AC-01 | Retry on keyword change and after a rescan came from the option's description (REQ-003/AC-02) |
 | S28 reading hint takes the hint slot over the startup hint — stated in the delivery, not objected | Confirmed and in force | global-search::REQ-002/AC-02 | — |
+| S29 (2026-10-20, after #272's merge) "it counts: keep the two exits" — a session opened from a card's header keeps the exits, as shipped | Confirmed and in force | global-search::US-003/AC-01 | States the shipped behaviour; no code change |
 
 ## Spec → tickets → verification
 
@@ -70,7 +71,7 @@ item; #274 = the closeout. Links: [global-search spec](../../specs/global-search
 | global-search::US-002/AC-01 | Hit → Projects, project selected and scrolled into view, session at that question with the arrival highlight | #271: implementation and user-path acceptance | Test: e2e on a fixture with enough projects to put the target below the fold |
 | global-search::US-002/AC-02 | Card header opens the session without locating | #271 | Test: e2e |
 | global-search::US-002/AC-03 | Search page holds until the session page can be drawn; a saved page opens at once | #271 | Test: e2e under the injected fetch delay, sampled inside the window |
-| global-search::US-003/AC-01 | Two exits in one row: back to results (left chevron), then go to project · Sessions (right chevron) | #272: implementation and user-path acceptance | Test: e2e asserts order and targets; Evidence: screenshot |
+| global-search::US-003/AC-01 | Two exits in one row: back to results (left chevron), then go to project · Sessions (right chevron); a session opened by a hit row or by its card's header | #272: implementation and user-path acceptance | Test: e2e asserts order and targets, for a hit row, a card's header and a session that cannot be read; Evidence: screenshot |
 | global-search::US-003/AC-02 | Back to results: keyword, results, sort, scroll as left | #272 | Test: e2e scrolls, jumps, returns, compares scroll position and sort |
 | global-search::US-003/AC-03 | Go to project · Sessions; stale project: "Go to <project>" to the stale note page | #272 | Test: e2e for both, the stale one on a fixture with a stale project |
 | global-search::US-003/AC-04 | Single back control for a fork parent, after going into the project, and inside a project | #272 | Test: e2e follows the fork banner and the project path |
@@ -156,34 +157,42 @@ change) and the icon module's note (7d8ea36): `pnpm verify` exit 0, every case t
 The e2e cases are the global search spec's three #272 cases (named here by their test review's ids E8, E9, E10)
 and #271's E3, whose arrival now asserts the exits; the whole global search spec file ran green (10 cases), and
 the seven existing app-spec cases that use the session page's single back control ran green. Mutation testing is
-not required here (`red-green-mutation` not enabled); the mutations taken anyway are in the test review.
+not required here (`mutation-testing` not enabled; declared under the registry's former ID `red-green-mutation`
+until the follow-up); the mutations taken anyway are in the test review.
 Merged by #282 as f0d7027 on 2026-10-20, its tree identical to the PR head f5ec41f, whose code differs from
 7d8ea36's only by the e2e file's header comment.
 
+Follow-up (2026-10-20), after the independent test check: on branch `test/global-search-exits-followup`, whose
+application code is f0d7027's. E11 is new, E3, E4, E8 and E9 gain assertions; the global search spec file ran green
+(11 cases) and the gateway ran whole twice, the second time after E9's guard was amended (G1)
+([first](evidence/ticket-272/verify-followup.log), [second](evidence/ticket-272/verify-followup-2.log)). The rows
+below that name the follow-up are rewritten in place.
+
 | Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
 |---|---|---|---|
-| 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::US-003/AC-01; #272 | e2e E8 and E3: the two exits' texts in order and their chevrons' path data (left, right); screenshots light and dark, the row's 94 computed values equal to the prototype's ([measurements](evidence/ticket-272/measurements.md)) | Passed |
+| 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::US-003/AC-01; #272 | e2e E8 and E3: the two exits' texts in order and their chevrons' path data (left, right); screenshots light and dark, the row's 94 computed values equal to the prototype's ([measurements](evidence/ticket-272/measurements.md)). Follow-up (2026-10-20, spec with S29's wording): E3 asserts them on a session opened from a card's header, E4 on a session that cannot be read, whose first exit returns to the results | Passed |
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::US-003/AC-02; #272 | e2e E8: after oldest first, a scroll and a rescan that added a matching question while the session was on screen, "Back to search results" shows the same keyword, sort and scroll position, and 151 hits | Passed |
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::US-003/AC-03; #272, both forms | e2e E9: the second exit opens target-proj on its Sessions tab; a stale project's exit reads "Go to stale-proj" and opens the stale note page (its tag, no tabs) | Passed |
-| 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::US-003/AC-04; #272, the fork parent and after going into the project | e2e E9: a session opened in the Sessions tab after going into the project, and the fork parent through the banner, each show exactly the single back control; the parent's leads to fork-proj's Sessions tab | Passed |
+| 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::US-003/AC-04; #272, the fork parent and after going into the project | e2e E9: a session opened in the Sessions tab after going into the project, and the fork parent through the banner, each show exactly the single back control; the parent's leads to fork-proj's Sessions tab. Follow-up (2026-10-20): the parent opens with no located or focused question, the child's focused question shown as 01 first | Passed |
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::US-003/AC-04; #272 (regression), a session opened inside a project | the app spec's seven session-page cases that use the single back control (the overview card, the session page and back, the fork banner, a Grok session, opening through the query layer, a compressed session, leaving and coming back) | Passed |
-| 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::US-003/AC-05; #272, the path from a session page | e2e E8 (back to the results from the session) and E10 (the rail's Search from the session, then Projects, and again after another project is selected): the page as left each time | Passed |
+| 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::US-003/AC-05; #272, the path from a session page | e2e E3 (the rail's Search from a hit's session) and E10 (the rail's Search from the session, then Projects, and again after another project is selected): the page as left each time. E8 takes "Back to search results", not the rail, and is not counted here (corrected 2026-10-20 — F5) | Passed |
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::CON-004; #272 (the exits) | `pnpm typecheck`, `pnpm check:i18n`, `pnpm check:ui` exit 0 on the tree committed as 09966e1; the counted-noun, plural, distinctions, index, zh-script and stale-note copy tests green | Passed |
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search failure modes J1 (the exits), J3, J4, J5, J6, J7; #272 | e2e: J1 E3 and E8; J3 E8; J4 E9; J5 E9; J6 E10; J7 E10 | Passed |
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | session-view P10; #272 | by global-search::US-003/AC-01 and AC-04's rows above | Passed |
-| 2026-10-19 · spec as written back on `feat/global-search-exits`, merged as written in f0d7027 · impl 09966e1 | global-search failure modes J11; #272 | narrowing the window on real data: at 560 and 500 px both exits are cut (text narrower than its content), the last ends at the header's content edge, the row stays one line; at 640 px and wider nothing is cut ([output](evidence/ticket-272/narrow-output.txt), [screenshot](evidence/ticket-272/narrow-500.png)) | Reopened 2026-10-20: the measurement lowered the window's minimum to 200 px, below the main window's 800 px, and at 640 px and wider this data cut nothing, so it shows the rule in states users cannot reach (the independent test check, F1); not verified until the follow-up's case runs |
+| 2026-10-20 · spec f0d7027 · impl f0d7027, tests on the follow-up branch | global-search failure modes J11; #272 | e2e E11: a registered project with a 74-character hyphenated name, its hit at the main window's 800 px minimum — both exits, then the single back control on a session opened from that project, each one line box, cut with an ellipsis and inside the header, the exits on one top ([screenshot](evidence/ticket-272/global-search-exits-long.png)); green in both gateway runs. The earlier measurement, taken below the minimum ([output](evidence/ticket-272/narrow-output.txt)), is superseded (F1) | Passed |
 
 ## Two-way audit
 
 | Scope or finding | Sources and identifiers | Disposition and basis |
 |---|---|---|
-| Forward: every source in force above maps to a coverage unit | S01–S28 | Done 2026-10-19; superseded sources map to nothing |
+| Forward: every source in force above maps to a coverage unit | S01–S29 | Done 2026-10-19; S29 added and mapped 2026-10-20; superseded sources map to nothing |
 | Reverse: spec content without a source | global-search Failure modes S4 (as first written) | Removed the invented "the box takes at most 200 characters"; S4 now follows the existing IPC limit and the failure line |
 | Reverse: derived boundaries | global-search J6, J7 | Derived from S24/S25 (only the session opened from a hit has two exits; leaving that session drops them) and the existing navigation; no new obligation |
 | Reverse: added boundaries | global-search S15, S16 | Reading failing or still running when the page is left — derived from REQ-002/REQ-003; added at review |
 | Reverse: option-description sources | global-search::US-004/AC-01 (focus), global-search::REQ-003/AC-02 (retries) | Recorded as such above; not separately asked |
 | Code comments that call settings the rail's "third dimension" | SettingsPane header comment; the appearance e2e case's comment | Not documents: to be reworded when the rail gains search during implementation |
 | Prototype gate | global-search Further Notes | Every interface point listed with where it is drawn; four exemptions declared with reasons |
+| Reverse: a clarification after the merge | global-search::US-003/AC-01 (a card's header) | S29, the owner's answer of 2026-10-20 to the independent test check's F4; it states the shipped behaviour, so nothing outside the spec's wording changes |
 | Reverse: a boundary added during implementation | global-search Failure modes J11 | Added on #272's branch from the confirmed session page prototype, which draws the exits and the back control on one line, cut with an ellipsis; before #272 the app's back control wrapped. Kept: put to the owner in #272's review (#282), who authorised the merge as written (2026-10-20) |
 | Shared requirements in other specs | session-view P1, P4, P6, P8, D2a, D4; i18n application menu; projects-list C8 | Cited, not restated |
 | Ticket draft, forward: every coverage unit in scope has an owning ticket | the Spec → tickets table | Done 2026-10-19 by walking the spec's sections in order; no unit left without an owner |

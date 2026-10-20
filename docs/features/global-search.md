@@ -34,11 +34,12 @@ project.
   scrolled into view in the list, and the question carries the same arrival highlight a project search hit
   gives. Clicking a card's header opens the session without locating a question. The search page stays on
   screen until the session page is ready, and a session seen before opens at once
-- A session opened from a hit has two ways out where the back control usually sits: "Back to search results"
-  brings the search page back as you left it, and "Go to <project> · Sessions" opens the project on its
-  Sessions tab — "Go to <project>" for a stale project, onto its stale note. Both stay on one line, a long
-  name cut short. Leaving for the search page with the rail and coming back keeps them; the fork banner's
-  parent, or a session opened from the project, has the usual back control
+- A session opened from the results — a hit, or a card's header — has two ways out where the back control
+  usually sits: "Back to search results" brings the search page back as you left it, and "Go to <project> ·
+  Sessions" opens the project on its Sessions tab — "Go to <project>" for a stale project, onto its stale
+  note. Both stay on one line, a long name cut short. Leaving for the search page with the rail and coming
+  back keeps them; the fork banner's parent, or a session opened from the project, has the usual back
+  control
 - The Search item brings the page back as you left it — keyword, results, sort and scroll position — from
   anywhere in the app, for the rest of the run; after a restart the page starts empty
 - The results follow the data: after each automatic rescan they refresh in place, keeping the keyword,

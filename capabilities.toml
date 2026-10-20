@@ -24,7 +24,7 @@ enabled = true
 source = "playwright.config.ts"
 enforced-by = ["pnpm e2e"]
 
-[red-green-mutation]
+[mutation-testing]
 enabled = false
 
 [theming]
