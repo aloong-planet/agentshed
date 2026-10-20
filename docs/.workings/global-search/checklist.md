@@ -166,7 +166,8 @@ Follow-up (2026-10-20), after the independent test check: on branch `test/global
 application code is f0d7027's. E11 is new, E3, E4, E8 and E9 gain assertions; the global search spec file ran green
 (11 cases) and the gateway ran whole twice, the second time after E9's guard was amended (G1)
 ([first](evidence/ticket-272/verify-followup.log), [second](evidence/ticket-272/verify-followup-2.log)). The rows
-below that name the follow-up are rewritten in place.
+below that name the follow-up are rewritten in place. Merged by #284 as 84d5ae0 on 2026-10-20, its tree identical
+to the PR head 473dff0, whose code and tests are the ones those gateways ran.
 
 | Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
 |---|---|---|---|
