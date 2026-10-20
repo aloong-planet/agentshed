@@ -8,11 +8,12 @@
 // is taken before the parse, so the growth shows as a change on the next scan, needs a writer racing
 // the reader, which no test here controls. A read hook in eachJsonlLine would let a test append mid-read.
 //
-// Gap (#278): a stripped fork's re-title failing on its own line — the list and the session questions then
-// keep the title it was parsed with — is not driven here: the indexer keeps only lines with real text, and
-// the file was just parsed or its signature just checked, so that read fails only when a writer changes the
-// file in between, as in Gap (#158). The same fallback is driven through the parent's line (the banner case whose
-// parent's file is gone). A hook in the range reader would let a test fail the session's own read.
+// Gap (#278): the session questions' re-title failing on the session's own line — they then keep the title
+// it was parsed with — is not driven here: a matching signature leads straight to the read, and a mismatch is
+// rebuilt on the calling thread rather than through the parse runner, so no seam sits in between and the read
+// fails only when a writer changes the file then, as in Gap (#158). The same fallback is driven through the
+// parent's line (the banner case whose parent's file is gone), and the list's through a parse runner that
+// removes the file. A hook in the range reader would let a test fail the session's own read.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -1692,6 +1693,32 @@ describe('session titles and the listing rules', () => {
     expect((await e.sessionQuestions(roots(), childFile)).title).toBe('fork thread name')
   })
 
+  it('Codex: when the line a stripped fork is retitled from cannot be read back during the build, the list keeps the title it was parsed with', async () => {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const q = (ts: string, m: string): string =>
+      JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })
+    const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
+      JSON.stringify({ timestamp: ts, type: 'session_meta', payload: { cwd: proj, id, ...extra } })
+    const PARENT = '019f0000-aaaa-7000-8000-000000000071'
+    const CHILD = '019f0000-bbbb-7000-8000-000000000072'
+    writeFileSync(join(d, `rollout-${PARENT}.jsonl`), [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n')
+    const childFile = join(d, `rollout-${CHILD}.jsonl`)
+    writeFileSync(childFile, [meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }), q('2026-07-30T02:00:00Z', 'parent question one'), q('2026-07-30T02:00:05Z', 'child new question')].join('\n') + '\n')
+    // The fork's rollout goes (deleted, or compressed by Codex) after it is parsed and before the list is retitled
+    const removing: ParseRunner = {
+      concurrency: 1,
+      run: async (job) => {
+        const result = await runParseJob(job)
+        if (job.file === childFile) rmSync(childFile)
+        return result
+      }
+    }
+    const r = await new TokenEngine(join(dir, 'cache'), removing).build(roots(), [proj])
+    const child = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.file === childFile)
+    expect([child?.forkState, child?.questionCount, child?.title]).toEqual(['stripped', 1, 'parent question one'])
+  })
+
   // The uncertain tier strips too — here the burst heuristic, with the parent missing — and the re-title
   // follows the strip whatever the state (spec B2)
   it('Codex: an orphan fork whose opening burst is stripped is retitled to its first surviving question, on the list and on its page', async () => {
@@ -1763,6 +1790,7 @@ describe('session titles and the listing rules', () => {
     expect(p?.tokens.bySide.codex.total, 'not being listed does not mean the tokens are not counted').toBe(120)
     // Its file stays readable (the allow-list follows the pre-strip rule): its session questions resolve
     // with nothing left, and with no question left to re-title it from, it keeps the title it was parsed with
+    expect(r.sessionFiles.has(childFile)).toBe(true)
     const page = await e.sessionQuestions(roots(), childFile)
     expect([page.forkState, page.questions.length, page.title]).toEqual(['stripped', 0, 'parent question one'])
   })
