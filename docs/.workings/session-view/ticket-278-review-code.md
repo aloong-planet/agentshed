@@ -119,6 +119,8 @@ test file).
 
 ## Refactor list (for the owner's decision)
 
+Owner's decision, 2026-10-20, on #289 before its merge: neither R1 nor R2 is done.
+
 | # | What | Why | Impact | Recommendation |
 |---|---|---|---|---|
 | R1 | Read the re-title from the questions' own read rather than a second read | a cold stripped fork pays a second streaming pass on every call of its session questions: the session page, the turn fetch on each expansion (`index.ts:371`, which does not use the title), a project search over its project and each global search corpus pass; and, since F1, a fork whose parent is such a fork pays one for the parent's title | self-inflicted: that one session is slower; such forks are rare (none in this machine's data) | Do not: it would thread the title through the callers' reads for a case this rare |
