@@ -95,7 +95,7 @@ item; #274 = the closeout. Links: [global-search spec](../../specs/global-search
 | global-search Failure modes S1–S16 | Searching boundaries | #271 | Test: the providers, presentation and e2e cases above; S6/S7 providers unit |
 | global-search Failure modes J1, J2, J8, J9 | Jumping to a hit | #271 | Test: e2e; J8 with a removed fixture file |
 | global-search Failure modes J3–J7 | Returning and going on | #272 | Test: e2e |
-| global-search Failure modes J11 | A long project name or a narrow window: the exits on one line, each cut with an ellipsis, like the single back control in the row (added on #272's branch, 2026-10-19) | #272 | Evidence: computed widths of each exit's text against its box while the window narrows, on real data, plus a screenshot |
+| global-search Failure modes J11 | A long project name or a narrow window: the exits on one line, each cut with an ellipsis, like the single back control in the row (added on #272's branch, 2026-10-19) | #272 | Test: e2e at the main window's 800 px minimum with a long project name, for the two exits and the single back control (the owner's decision of 2026-10-20, after the independent test check) |
 | global-search Failure modes J10 | ⌘⇧F anywhere | #273 | Test: e2e |
 | global-search Failure modes D1–D4 | Data changing underneath | #271 | Test: e2e (D1, D4); providers unit (D2, D3) |
 | global-search Failure modes, introduced content | Plain-text rendering, no navigation | #271 | Test: e2e with a question containing HTML |
@@ -171,7 +171,7 @@ Merged by #282 as f0d7027 on 2026-10-20, its tree identical to the PR head f5ec4
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::CON-004; #272 (the exits) | `pnpm typecheck`, `pnpm check:i18n`, `pnpm check:ui` exit 0 on the tree committed as 09966e1; the counted-noun, plural, distinctions, index, zh-script and stale-note copy tests green | Passed |
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search failure modes J1 (the exits), J3, J4, J5, J6, J7; #272 | e2e: J1 E3 and E8; J3 E8; J4 E9; J5 E9; J6 E10; J7 E10 | Passed |
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | session-view P10; #272 | by global-search::US-003/AC-01 and AC-04's rows above | Passed |
-| 2026-10-19 · spec as written back on `feat/global-search-exits`, merged as written in f0d7027 · impl 09966e1 | global-search failure modes J11; #272 | narrowing the window on real data: at 560 and 500 px both exits are cut (text narrower than its content), the last ends at the header's content edge, the row stays one line; at 640 px and wider nothing is cut ([output](evidence/ticket-272/narrow-output.txt), [screenshot](evidence/ticket-272/narrow-500.png)) | Passed |
+| 2026-10-19 · spec as written back on `feat/global-search-exits`, merged as written in f0d7027 · impl 09966e1 | global-search failure modes J11; #272 | narrowing the window on real data: at 560 and 500 px both exits are cut (text narrower than its content), the last ends at the header's content edge, the row stays one line; at 640 px and wider nothing is cut ([output](evidence/ticket-272/narrow-output.txt), [screenshot](evidence/ticket-272/narrow-500.png)) | Reopened 2026-10-20: the measurement lowered the window's minimum to 200 px, below the main window's 800 px, and at 640 px and wider this data cut nothing, so it shows the rule in states users cannot reach (the independent test check, F1); not verified until the follow-up's case runs |
 
 ## Two-way audit
 
