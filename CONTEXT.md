@@ -720,9 +720,9 @@ _Avoid_: beta mode, insider track, update track
   support as "six languages" and enumerate them; do not use the shorthand.
 - **"Dual view / artifact aggregation" is retired (2026-07-30)**: aggregating artifacts by type
   across projects was ruled a false requirement — artifacts are in-project context documents and are
-  shown only within project detail. Cross-project retrieval belongs to a future global search; there
-  will be no aggregation page. Global search was ruled on 2026-10-19 for session questions only;
-  artifacts are still shown only within project detail.
+  shown only within project detail. Cross-project retrieval belongs to global search, not to an
+  aggregation page; global search (ruled 2026-10-19) searches session questions only, so artifacts are
+  still shown only within project detail.
 - **Codex same-name semantics differ per component and must not be extrapolated by analogy**
   (2026-08-01, both verified at source level): two same-name skills across layers **coexist**
   (`root_loader.rs` deduplicates by path only), whereas two same-name subagents **shadow at the

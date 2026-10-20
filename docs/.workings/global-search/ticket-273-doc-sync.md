@@ -11,7 +11,7 @@ coverage checklist: [checklist.md](checklist.md)
 | Correct the i18n spec's stale sentence on the application menu, found in the regression | [i18n spec](../../specs/i18n.md) | Done 2026-10-20: it no longer says there is no custom menu (03a5ba3) |
 | Record the actual verification of this ticket's units in the coverage checklist's Current verification, once they have run | [checklist](checklist.md) | Done 2026-10-20: #273's block, first on 2882abc, its rows now versioned on cc5aefd's tests with that gateway's log; AC-01 and J10 pass for the menu item's path, the key press itself recorded as not verified |
 | Record the key press's acceptance, or its standing as a stated gap, once the owner decides | [checklist](checklist.md), [#273](https://github.com/aloong-planet/agentshed/issues/273) | Done 2026-10-20: the owner chose a hand check and passed it (the steps and the reply are in the coverage checklist's AC-01 row); the AC-01 and J10 rows read passed. #273's acceptance line was not reworded: the owner did not ask for it, and the merge comment will say which mechanism each item rests on |
-| Record the merge: the merge commit in the coverage checklist's rows, and #273's acceptance items ticked on the issue | [checklist](checklist.md), [#273](https://github.com/aloong-planet/agentshed/issues/273) | Waiting: the merge. Followed up by this ticket's implementer right after it |
+| Record the merge: the merge commit in the coverage checklist's rows, and #273's acceptance items ticked on the issue | [checklist](checklist.md), [#273](https://github.com/aloong-planet/agentshed/issues/273) | Done 2026-10-20: #286 squash-merged on the owner's authorisation as b6c4a41, whose tree equals the PR head 28d56fc's; the merge closed #273; its 7 acceptance items ticked with [a comment](https://github.com/aloong-planet/agentshed/issues/273#issuecomment-6286913287) naming the evidence and the mechanism each rests on; recorded with the closeout's first commit |
 
 Pre-delivery scope re-check (2026-10-20): from the ticket (its product and process acceptance), the change (2882abc,
 cecebad, 03a5ba3, 2843aaf, cc5aefd and the records), the runs (three gateways, the probes) and the current documents —
@@ -21,5 +21,5 @@ ignored working-record directory listed with its ignored files shown. Found and 
 status, Pending note and focus request (a row of their own, done), the i18n spec's stale sentence (done), and the key
 press's acceptance (waiting for the owner). Items reopened: none stays open; the verification row was rewritten when
 the tests changed after the independent checks. No item is Pending; the two Waiting items name their event and who
-follows them up. Since then the key press's row is done (the owner's hand check), so one Waiting item remains:
-the merge.
+follows them up. Since then the key press's row is done (the owner's hand check), and the merge is recorded: #273
+has no open item.

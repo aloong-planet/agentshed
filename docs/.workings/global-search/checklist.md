@@ -187,7 +187,8 @@ to the PR head 473dff0, whose code and tests are the ones those gateways ran.
 files, 399 cases). After the two independent checks' findings the tests changed and the application code did not:
 the rows below are versioned on the tests of cc5aefd, the global search spec file green there (13 cases), the gateway
 whole on it ([log](evidence/ticket-273/verify-cc5aefd.log)); the gateway on 2882abc's tests and on 2843aaf's ran green
-too ([cecebad](evidence/ticket-273/verify-cecebad.log), [2843aaf](evidence/ticket-273/verify-2843aaf.log)). The native menu is reached as the application menu's e2e reaches it — the installed item by its id
+too ([cecebad](evidence/ticket-273/verify-cecebad.log), [2843aaf](evidence/ticket-273/verify-2843aaf.log)). Merged
+by #286 as b6c4a41 on 2026-10-20, its tree identical to the PR head 28d56fc, whose code and tests are cc5aefd's. The native menu is reached as the application menu's e2e reaches it — the installed item by its id
 and its own click; the key press ⌘⇧F itself is not reached by the automation here (measured with the existing ⌘,
 item: [probe](evidence/ticket-273/probe-accel.spec.ts), [output](evidence/ticket-273/probe-accel-output.txt)).
 Mutation testing is not required (`mutation-testing` not enabled).
@@ -199,6 +200,58 @@ Mutation testing is not required (`mutation-testing` not enabled).
 | 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc, tests cc5aefd | global-search::CON-004; #273 (the menu item) | `pnpm typecheck`, `pnpm check:i18n`, `pnpm check:ui` exit 0 on 2882abc's tree; the dictionary tests green | Passed |
 | 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc, tests cc5aefd | global-search failure modes J10; #273 | e2e E12, as US-004/AC-01's row; the key press by hand, as that row says | Passed: the menu item's path by e2e, the key press by hand |
 | 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc, tests cc5aefd | i18n application menu, the Edit menu entry; #273 | by US-004/AC-02's row | Passed |
+
+Closeout (#274), 2026-10-20: every unit verified together on the integrated version — main at f4197bb, whose code
+(`src`, `e2e`) is b6c4a41's, #273's merge. The gateway ran whole on the closeout branch's first commit 290558d, whose
+code is f4197bb's (`git diff --quiet origin/main HEAD -- src e2e scripts site package.json pnpm-lock.yaml` exit 0):
+`pnpm verify` exit 0 — 864 unit, 102 site and 148 e2e cases (the global search spec's 13 and the application
+menu's 6 among them), then smoke ([gateway](evidence/closeout/verify-290558d.log)). The integrated build's screenshots are under `evidence/closeout/`. Evidence
+taken by hand on an earlier version is reused only where the code it rests on has not changed since, as each row says.
+
+| Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
+|---|---|---|---|
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-001/AC-01; #271 | e2e "the global search page" (four rail items, Search third with its tooltip, selected) green in the [gateway](evidence/closeout/verify-290558d.log); the integrated build's screenshots ([results](evidence/closeout/global-search-results-light.png), [dark](evidence/closeout/global-search-results-dark.png)) | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-001/AC-02; #271 | the same e2e (results as typed, idle on clear and on spaces) and `question-corpus.test` (case beyond ASCII) green in the [gateway](evidence/closeout/verify-290558d.log) | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-001/AC-03; #271 | e2e "the global search page" (the placeholder's counts) and "nothing to search" (no number) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-001/AC-04; #271 | `global-search-groups.test` and the page's e2e (headings, folder icons, counts, path tooltips) green; the integrated screenshots | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-001/AC-05; #271 | `question-corpus.test` (a stale project searched) and the page's e2e (struck-through name, stale tag) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-001/AC-06; #271 | the page's e2e (badges, fork and uncertain-strip pills, hit counts, row numbers, every occurrence marked, relative times) green; the untitled fallback is unreachable, stated in the test file's header | Passed, one stated gap |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-001/AC-07; #271 | `global-search-groups.test` (both orders, both layers) and the page's e2e toggling the segment green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-001/AC-08; #271 | the page's e2e (the no-hit line) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-001/AC-09; #271 | `question-corpus.test` (600 hits) and the page's e2e (150 rows) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-002/AC-01; #271 | e2e "going to a hit" (Projects, the row selected and scrolled into view, the question located) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-002/AC-02; #271 | the same e2e (a card header opens without locating; it now also asserts the exits there) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-002/AC-03; #271 | the same e2e under the 1.5 s fetch delay (the search page held; a cached page within 0.7 s) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-003/AC-01; #272 | e2e E8, E3 (a card's header), E4 (a session that cannot be read) green; the exits' 94 computed values against the prototype (#272's [measurements](evidence/ticket-272/measurements.md)) still apply: neither the session page nor the stylesheet changed after f0d7027; the integrated [screenshots](evidence/closeout/global-search-exits-light.png), [dark](evidence/closeout/global-search-exits-dark.png) | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-003/AC-02; #272 | e2e E8 (keyword, sort, scroll and the rescan's new hit after the way back) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-003/AC-03; #272 | e2e E9 (the Sessions tab; a stale project's "Go to stale-proj" and its note page) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-003/AC-04; #272 | e2e E9 (the fork parent and a session opened in the project: the single back control; the parent opened without a located question) and the app spec's session-page cases green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-003/AC-05; #271 (rail, restart), #272 (from a session page) | e2e "the global search page" (through settings), "going to a hit" (the rail from a hit's session; empty after a relaunch) and E10 green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-004/AC-01; #273 | e2e E12 (from settings, a session page and the search page itself) and E13 (while a hit's session is on its way) green; the key press accepted by hand by the owner on 2026-10-20 on 8c85e9e, whose application code is the integrated version's (no `src` change after b6c4a41) | Passed: the item's path by e2e, the key press by hand |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::US-004/AC-02; #273 | `app-menu.test` (place, accelerator, copy in each language) and E12 (the installed item, its flags, the chord alone, its copy after a switch to French) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::REQ-001; #271 | `question-corpus.test` (what is searched) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::REQ-002/AC-01; #271 | e2e "reading the question texts" and `global-search-query.test` green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::REQ-002/AC-02; #271 | the same e2e under the 3 s delay (the hint in the slot, nothing in the results area) green; the integrated [reading screenshot](evidence/closeout/global-search-reading.png) | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::REQ-002/AC-03; #271 | `question-corpus.test` (a search reads no file) green; the in-app timing (#271's [measurements](evidence/ticket-271/measurements.md), ADR-0034's evidence) still applies: the corpus and its channels did not change after 28c3c11 (`git diff 28c3c11 f4197bb -- src/main` touches only the menu's two lines in `index.ts` and the menu template) | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::REQ-003/AC-01; #271 | the page's e2e (a 201-character keyword's failure line) and `global-search-query.test` green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::REQ-003/AC-02; #271 | the page's e2e (a new keyword searches again) and `global-search-query.test` (a rescan refetches a failed search) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::REQ-003/AC-03; #271 | `question-corpus.test` (a removed session left out) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::REQ-004/AC-01; #271 | e2e "the results follow the data" green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::REQ-004/AC-02; #271 | `question-corpus.test` (only changed and new sessions re-read) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::REQ-005; #271 | the page's e2e (no project column; the box in place after scrolling) green; the integrated [scrolled screenshots](evidence/closeout/global-search-scrolled-light.png) | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::REQ-006; #271 | e2e "nothing to search" and "the results follow the data" (D4) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::CON-001; #271 | `question-corpus.test` (the cache directory unchanged) and the relaunch e2e green; #271's in-app check of the app's files still applies for the reason given under REQ-002/AC-03 | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::CON-002; #271 | the project-search unit (`search-sessions.test`) and every app e2e case green; e2e "going to a hit" (the two sorts independent) | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::CON-003; #271 | `validate.test` green; validation at both ends unchanged | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search::CON-004; #271, #272, #273 | `pnpm typecheck`, `pnpm check:i18n`, `pnpm check:ui` exit 0 in the [gateway](evidence/closeout/verify-290558d.log) (the page and rail, the exits, the menu item) | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search failure modes S1–S16; #271 | as #271's row: each a case (S9, S10 by construction) green in the [gateway](evidence/closeout/verify-290558d.log); S15's renderer side and S2's first launch remain stated gaps | Passed, two stated gaps |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search failure modes J1–J11; #271 (J1, J2, J8, J9), #272 (J3–J7, J11), #273 (J10) | the global search spec's 13 cases green in the [gateway](evidence/closeout/verify-290558d.log) — J1 E3, E8; J2 E3; J3 E8; J4, J5 E9; J6, J7 E10; J8 E4; J9 E3; J10 E12, E13 and the owner's hand check; J11 E11 ([screenshot](evidence/closeout/global-search-exits-long.png)) | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search failure modes D1–D4; #271 | `question-corpus.test` (D1–D3) and e2e "the results follow the data" (D1, D4) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | global-search introduced content; #271 | the page's e2e (a question holding HTML shows its characters, no element) green | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | session-view P10; #272 | by US-003/AC-01 and AC-04's rows | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | projects-list C8; #271 | by US-002/AC-01 and J2 (E3) | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | appearance D1; #271 | by US-001/AC-01's row | Passed |
+| 2026-10-20 · spec f4197bb · impl f4197bb | i18n application menu, the Edit menu entry; #273 | by US-004/AC-02's row | Passed |
 
 ## Two-way audit
 
