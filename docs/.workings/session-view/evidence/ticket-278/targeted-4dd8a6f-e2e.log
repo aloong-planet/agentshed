@@ -1,0 +1,23 @@
+
+Running 18 tests using 1 worker
+
+  ✓   1 e2e/app.spec.ts:1038:1 › the session page: a fork session shows only the questions left after stripping (1.6s)
+  ✓   2 e2e/app.spec.ts:1231:1 › the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source (4.1s)
+  ✓   3 e2e/app.spec.ts:2125:1 › Skills view: expanding globally reads the package; a same-name pair in detail shows only the project level; plugin rows do not expand (4.8s)
+  ✓   4 e2e/app.spec.ts:3240:1 › the Agents page shows Grok's own global skills with the borrowing line, and installs one into a project (799ms)
+  ✓   5 e2e/app.spec.ts:3376:1 › the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip" (784ms)
+  ✓   6 e2e/global-search.spec.ts:149:1 › the global search page: the rail item, typing, results grouped by project, sorting, and every answer the results area gives (3.1s)
+  ✓   7 e2e/global-search.spec.ts:265:1 › reading the question texts: the header hint while it runs, nothing in the results area, then the results for the latest keyword (4.1s)
+  ✓   8 e2e/global-search.spec.ts:299:1 › going to a hit: the search page holds, then Projects with the project selected and in view and the session at that question; the page is kept for the run (9.6s)
+  ✓   9 e2e/global-search.spec.ts:389:1 › a hit whose session file is gone opens the session page to its own error, with no crash (J8) (1.1s)
+  ✓  10 e2e/global-search.spec.ts:413:1 › the results follow the data: a rescan brings a new hit in by transfusion; with every session gone, the no-session state (3.7s)
+  ✓  11 e2e/global-search.spec.ts:443:1 › nothing to search: the box stays, its placeholder names no number, and the page says so (REQ-006) (705ms)
+  ✓  12 e2e/global-search.spec.ts:461:1 › during the startup scan the search runs over the restored sessions, and the scan then keeps the results (S2) (7.6s)
+  ✓  13 e2e/global-search.spec.ts:497:1 › a session opened from a hit: back to the results as they were left, or on into its project (2.2s)
+  ✓  14 e2e/global-search.spec.ts:543:1 › on into the project: its Sessions tab, or a stale project's note; a session reached from there or through the fork banner has the single back control (1.5s)
+  ✓  15 e2e/global-search.spec.ts:585:1 › leaving the session for the search page and coming back keeps it with its exits; selecting another project replaces it (J6, J7) (1.6s)
+  ✓  16 e2e/global-search.spec.ts:654:1 › a long project name at the window's minimum width: the two exits, and the single back control, each stay on one line, cut with an ellipsis (J11) (1.3s)
+  ✓  17 e2e/global-search.spec.ts:745:1 › ⌘⇧F through the application menu: from settings, a session page and the search page itself, the page as left with the focus in its box; the item follows the language (US-004, J10) (1.3s)
+  ✓  18 e2e/global-search.spec.ts:809:1 › Search Sessions… chosen while a hit's session is still on its way keeps the search page, and the session page is kept for later (US-004/AC-01, session-view P8 through P10) (7.3s)
+
+  18 passed (57.6s)

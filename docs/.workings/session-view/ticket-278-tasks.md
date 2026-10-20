@@ -18,6 +18,10 @@ artifacts; they are added here and declared on the ticket.
 | 7 | Checklist sign-off | `checklist.md` | done |
 | 8 | Step 5: `/review-code` | `ticket-278-review-code.md` | done: no bug; R1 (a second read for a cold stripped fork) recommended not done |
 | 9 | Full verification gateway | `pnpm verify` exit 0 | done on fcdb6c7 ([log](evidence/ticket-278/verify-fcdb6c7.log)) |
-| 10 | Step 6: post-implementation check, by an independent sub-agent | `ticket-278-review-tests.md` | pending |
-| 11 | Spec final check; step 8 (the feature entry already says the title is the first question left after stripping) | the regression report | pending |
-| 12 | Document sync; PR; stop for the owner | PR link | pending |
+| 10 | Step 6: post-implementation check, by an independent sub-agent | `ticket-278-review-tests.md` | done: five findings (F1–F5), all taken into #278; dispositions in the record |
+| 11 | The findings: design review increment, F1's test red on fcdb6c7, the fix, then U5–U7 and U3 as its own case | the tests green | done: U4 red with "grandparent question" ([log](evidence/ticket-278/red-f1.log)); 4dd8a6f; typecheck and lint exit 0, the 5 files importing the engine 129 green ([log](evidence/ticket-278/targeted-4dd8a6f-unit.log)), the fork and global search e2e cases 18 green after a build ([log](evidence/ticket-278/targeted-4dd8a6f-e2e.log)); checklist updated |
+| 12 | Step 5 increment: `/review-code` on 4dd8a6f | `ticket-278-review-code.md` | done: no bug; R1 widened, R2 added, both recommended not done |
+| 13 | Full verification gateway | `pnpm verify` exit 0 | done on 4dd8a6f ([log](evidence/ticket-278/verify-4dd8a6f.log), [exit](evidence/ticket-278/verify-4dd8a6f.exit)) |
+| 14 | Step 6 on the increment, by a new independent sub-agent | `ticket-278-review-tests.md` | pending |
+| 15 | Spec final check; step 8 (the feature entry already says the title is the first question left after stripping) | the regression report | pending |
+| 16 | Document sync; PR; stop for the owner | PR link | pending |
