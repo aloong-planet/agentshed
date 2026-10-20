@@ -1,0 +1,57 @@
+
+ RUN  v2.1.9 /Users/loong_zhou/CascadeProjects/agentshed-wt/fork-title
+
+ ❯ src/main/providers/search-sessions.test.ts (8 tests | 1 failed | 7 skipped) 18ms
+   × full-text mode: read whole and match, map hits to turns, fold anything outside the displayed range > hits inside an already-stripped Codex fork prefix count as folded rather than masquerading as reachable hits (D3) 18ms
+     → expected [ [ true, …(1) ] ] to deeply equal [ [ true, 'child new question' ] ]
+ ❯ src/main/providers/token-stats.test.ts (95 tests | 1 failed | 93 skipped) 21ms
+   × session titles and the listing rules > Codex: a prefix-stripped legacy fork with no thread_name is retitled to its first surviving question (the replayed first question must not title it) 15ms
+     → expected 'parent question one' to be 'child new question' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/main/providers/search-sessions.test.ts > full-text mode: read whole and match, map hits to turns, fold anything outside the displayed range > hits inside an already-stripped Codex fork prefix count as folded rather than masquerading as reachable hits (D3)
+AssertionError: expected [ [ true, …(1) ] ] to deeply equal [ [ true, 'child new question' ] ]
+
+- Expected
++ Received
+
+  Array [
+    Array [
+      true,
+-     "child new question",
++     "magicword in the parent session",
+    ],
+  ]
+
+ ❯ src/main/providers/search-sessions.test.ts:151:70
+    149|     // shows it — not the parent's replayed first question (#278)
+    150|     const own = await run('child new', false)
+    151|     expect(own.groups.map((g) => [g.file.includes(CHILD), g.title])).t…
+       |                                                                      ^
+    152|   })
+    153| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/main/providers/token-stats.test.ts > session titles and the listing rules > Codex: a prefix-stripped legacy fork with no thread_name is retitled to its first surviving question (the replayed first question must not title it)
+AssertionError: expected 'parent question one' to be 'child new question' // Object.is equality
+
+Expected: "child new question"
+Received: "parent question one"
+
+ ❯ src/main/providers/token-stats.test.ts:1654:66
+    1652|     expect(child?.title).toBe('child new question')
+    1653|     // The session page and the project search take the title from her…
+    1654|     expect((await e.sessionQuestions(roots(), childFile)).title).toBe(…
+       |                                                                  ^
+    1655|   })
+    1656| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 1 passed | 100 skipped (103)
+   Start at  21:05:41
+   Duration  562ms (transform 243ms, setup 0ms, collect 552ms, tests 39ms, environment 0ms, prepare 151ms)
+
