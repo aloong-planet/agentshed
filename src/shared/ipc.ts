@@ -73,6 +73,8 @@ export const EVT = {
   /** The application menu triggered "Settings" (ticket 13): the same operation as the rail's settings entry, with
    * the renderer switching dimension */
   menuOpenSettings: 'agentshed:menu-open-settings',
+  /** The application menu triggered "Search Sessions…" (global-search US-004): the search page, its box focused */
+  menuOpenSearch: 'agentshed:menu-open-search',
   /** The main process pushes each step of the app update lifecycle (app-update) */
   updateState: 'agentshed:update-state',
   /** A one-off update event the renderer answers with a toast: a failed install (app-update::REQ-002/AC-03) */

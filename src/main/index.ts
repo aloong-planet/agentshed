@@ -556,7 +556,7 @@ function applyMenu(): void {
     Menu.buildFromTemplate(
       buildMenuTemplate(
         initialLanguage(),
-        { openSettings: send(EVT.menuOpenSettings), checkForUpdates: () => void menuCheck() },
+        { openSettings: send(EVT.menuOpenSettings), checkForUpdates: () => void menuCheck(), openSearch: send(EVT.menuOpenSearch) },
         updateChoice() !== null
       )
     )

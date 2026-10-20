@@ -205,12 +205,17 @@ const api = {
     checkedPrefs(await ipcRenderer.invoke(CMD.setMode, mode)),
   setAutoCheckUpdates: async (on: boolean): Promise<Prefs> =>
     checkedPrefs(await ipcRenderer.invoke(CMD.setAutoCheckUpdates, on)),
-  /** The application menu's two entry points (ticket 13): they behave identically to the same-named
-   * operations in the UI */
+  /** The application menu's entry points into the app (ticket 13; global-search US-004): they behave
+   * identically to the same-named operations in the UI */
   onMenuOpenSettings: (cb: () => void): (() => void) => {
     const l = (): void => cb()
     ipcRenderer.on(EVT.menuOpenSettings, l)
     return () => ipcRenderer.removeListener(EVT.menuOpenSettings, l)
+  },
+  onMenuOpenSearch: (cb: () => void): (() => void) => {
+    const l = (): void => cb()
+    ipcRenderer.on(EVT.menuOpenSearch, l)
+    return () => ipcRenderer.removeListener(EVT.menuOpenSearch, l)
   },
   /** The app update lifecycle (app-update): validated here as the other payloads are */
   getUpdateState: async (): Promise<UpdateState> => checkedUpdate(await ipcRenderer.invoke(CMD.getUpdateState)),

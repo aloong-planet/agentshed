@@ -76,7 +76,7 @@ item; #274 = the closeout. Links: [global-search spec](../../specs/global-search
 | global-search::US-003/AC-03 | Go to project · Sessions; stale project: "Go to <project>" to the stale note page | #272 | Test: e2e for both, the stale one on a fixture with a stale project |
 | global-search::US-003/AC-04 | Single back control for a fork parent, after going into the project, and inside a project | #272 | Test: e2e follows the fork banner and the project path |
 | global-search::US-003/AC-05 | Rail Search shows the page as left for the run; empty after a restart | #271: the rail and restart paths; #272: the path from a session page | Test: e2e (#271) leaves and returns through the rail and relaunches; e2e (#272) returns from a session page |
-| global-search::US-004/AC-01 | ⌘⇧F opens the page and focuses the box, from any page | #273: implementation and user-path acceptance | Test: e2e triggers the menu accelerator from settings and from a session page |
+| global-search::US-004/AC-01 | ⌘⇧F opens the page and focuses the box, from any page | #273: implementation and user-path acceptance | Test: e2e chooses the installed item (its own click) from settings, a session page and the search page itself, and while a hit's session is on its way, asserting the focused box; the key press itself by hand (not reachable by the automation here) |
 | global-search::US-004/AC-02 | Edit menu "Search Sessions…" with ⌘⇧F after a separator; copy follows the in-app language | #273 | Test: menu unit (structure and accelerator in each language); e2e clicks the item through the application menu |
 | global-search::REQ-001 | Listed sessions of every listed project, stale included; questions only | #271 | Test: providers unit on a fixture home (unregistered directory, warmup, subagent, stripped fork, cold rollout) |
 | global-search::REQ-002/AC-01 | Showing the page starts reading | #271 | Test: e2e (the reading channel is called on first show); providers unit (idempotent) |
@@ -97,7 +97,7 @@ item; #274 = the closeout. Links: [global-search spec](../../specs/global-search
 | global-search Failure modes J1, J2, J8, J9 | Jumping to a hit | #271 | Test: e2e; J8 with a removed fixture file |
 | global-search Failure modes J3–J7 | Returning and going on | #272 | Test: e2e |
 | global-search Failure modes J11 | A long project name or a narrow window: the exits on one line, each cut with an ellipsis, like the single back control in the row (added on #272's branch, 2026-10-19) | #272 | Test: e2e at the main window's 800 px minimum with a long project name, for the two exits and the single back control (the owner's decision of 2026-10-20, after the independent test check) |
-| global-search Failure modes J10 | ⌘⇧F anywhere | #273 | Test: e2e |
+| global-search Failure modes J10 | ⌘⇧F anywhere | #273 | Test: e2e through the installed item; the key press itself by hand |
 | global-search Failure modes D1–D4 | Data changing underneath | #271 | Test: e2e (D1, D4); providers unit (D2, D3) |
 | global-search Failure modes, introduced content | Plain-text rendering, no navigation | #271 | Test: e2e with a question containing HTML |
 | session-view P10 | Session from a hit has the two exits; fork parent single | #272 | Covered by global-search::US-003/AC-01, AC-04 |
@@ -180,6 +180,24 @@ below that name the follow-up are rewritten in place.
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search failure modes J1 (the exits), J3, J4, J5, J6, J7; #272 | e2e: J1 E3 and E8; J3 E8; J4 E9; J5 E9; J6 E10; J7 E10 | Passed |
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | session-view P10; #272 | by global-search::US-003/AC-01 and AC-04's rows above | Passed |
 | 2026-10-20 · spec f0d7027 · impl f0d7027, tests on the follow-up branch | global-search failure modes J11; #272 | e2e E11: a registered project with a 74-character hyphenated name, its hit at the main window's 800 px minimum — both exits, then the single back control on a session opened from that project, each one line box, cut with an ellipsis and inside the header, the exits on one top ([screenshot](evidence/ticket-272/global-search-exits-long.png)); green in both gateway runs. The earlier measurement, taken below the minimum ([output](evidence/ticket-272/narrow-output.txt)), is superseded (F1) | Passed |
+
+#273's rows: first verified on 2882abc, with the build made from that tree — the whole global search spec file green
+(12 cases), the application menu's e2e (6 cases), the menu unit and every unit test importing a changed module (27
+files, 399 cases). After the two independent checks' findings the tests changed and the application code did not:
+the rows below are versioned on the tests of cc5aefd, the global search spec file green there (13 cases), the gateway
+whole on it ([log](evidence/ticket-273/verify-cc5aefd.log)); the gateway on 2882abc's tests and on 2843aaf's ran green
+too ([cecebad](evidence/ticket-273/verify-cecebad.log), [2843aaf](evidence/ticket-273/verify-2843aaf.log)). The native menu is reached as the application menu's e2e reaches it — the installed item by its id
+and its own click; the key press ⌘⇧F itself is not reached by the automation here (measured with the existing ⌘,
+item: [probe](evidence/ticket-273/probe-accel.spec.ts), [output](evidence/ticket-273/probe-accel-output.txt)).
+Mutation testing is not required (`mutation-testing` not enabled).
+
+| Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
+|---|---|---|---|
+| 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc, tests cc5aefd | global-search::US-004/AC-01; #273, from settings, a session page and the search page itself | e2e E12: the installed item's click shows the search page with the keyword as left and its box focused, from settings, from a hit's session page, and on the search page itself after the sort switch took the focus (the sort as left); focus emulation through CDP. E13 (session-view P8 through P10): chosen while a hit's session is on its way — the hit's click having taken the focus from the box — the search page stays past the time a first jump in the same case took to land plus a second, its box focused, no session page drawn; the same hit then opens at once, its page kept. The key press: the key press itself accepted by hand by the owner on 2026-10-20 — a development build of 8c85e9e started for it with its own data directory over the owner's real sessions; the steps given: the Edit menu's item and its ⇧⌘F, ⇧⌘F from settings after a keyword, from a hit's session page, and on the search page after the sort switch took the focus; the owner's reply: "acceptance passed" (translated from the owner's Chinese) | Passed: the menu item's path by e2e, the key press by hand |
+| 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc, tests cc5aefd | global-search::US-004/AC-02; #273 | menu unit U1: in each language the Edit menu ends with the select-all role, a separator and the item (id `searchSessions`, `CmdOrCtrl+Shift+F`, the language's copy; English and French as literals; the six labels distinct; no other item with the accelerator); U2: the item calls the injected action; e2e E12: the installed Edit menu ends with the separator and "Search Sessions…" bound to ⌘⇧F, enabled, visible and with its accelerator registered; among every installed accelerator, the roles' own included (the undo role's asserted among them; [read](evidence/ticket-273/installed-menu-accelerators.txt) by [this probe](evidence/ticket-273/installed-menu-accelerators.spec.ts)), only the item's is the chord once spellings are normalised, the fold itself checked on literals; after a switch to French it reads "Rechercher dans les sessions…" and opens the page titled "Recherche" | Passed; which language macOS draws is the i18n spec's known gap |
+| 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc, tests cc5aefd | global-search::CON-004; #273 (the menu item) | `pnpm typecheck`, `pnpm check:i18n`, `pnpm check:ui` exit 0 on 2882abc's tree; the dictionary tests green | Passed |
+| 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc, tests cc5aefd | global-search failure modes J10; #273 | e2e E12, as US-004/AC-01's row; the key press by hand, as that row says | Passed: the menu item's path by e2e, the key press by hand |
+| 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc, tests cc5aefd | i18n application menu, the Edit menu entry; #273 | by US-004/AC-02's row | Passed |
 
 ## Two-way audit
 

@@ -11,6 +11,9 @@ project.
 ## Capabilities
 - A Search item sits in the rail directly below Projects; it opens the search page and stays
   marked while the page is shown
+- ⌘⇧F, or "Search Sessions…" at the bottom of the Edit menu, opens the search page from anywhere in the app
+  — settings and a session page included — as you left it, with the cursor in the box; on the search page
+  itself it puts the cursor back in the box
 - The box searches as you type, once typing pauses — no button, no Enter. It matches the questions of every
   listed session in every registered project, stale projects included; case is ignored for every letter,
   not only English ones. Its placeholder says how many sessions in how many projects are searched

@@ -49,7 +49,7 @@ export const ja: Locale = {
   menu: {
     about: 'Agentshed について', checkForUpdates: 'アップデートを確認…', hide: 'Agentshed を隠す', hideOthers: 'ほかを隠す',
     unhide: 'すべてを表示', quit: 'Agentshed を終了',
-    edit: '編集', undo: '取り消す', redo: 'やり直す', cut: 'カット', copy: 'コピー', paste: 'ペースト', selectAll: 'すべてを選択',
+    edit: '編集', undo: '取り消す', redo: 'やり直す', cut: 'カット', copy: 'コピー', paste: 'ペースト', selectAll: 'すべてを選択', searchSessions: 'セッションを検索…',
     view: '表示', reload: '再読み込み', toggleDevTools: '開発者ツール', resetZoom: '実際のサイズ',
     zoomIn: '拡大', zoomOut: '縮小', fullscreen: 'フルスクリーンにする',
     window: 'ウインドウ', minimize: 'しまう', close: '閉じる'

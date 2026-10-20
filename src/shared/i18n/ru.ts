@@ -50,7 +50,7 @@ export const ru: Locale = {
   menu: {
     about: 'О программе Agentshed', checkForUpdates: 'Проверить обновления…', hide: 'Скрыть Agentshed', hideOthers: 'Скрыть остальные',
     unhide: 'Показать все', quit: 'Завершить Agentshed',
-    edit: 'Правка', undo: 'Отменить', redo: 'Повторить', cut: 'Вырезать', copy: 'Копировать', paste: 'Вставить', selectAll: 'Выбрать все',
+    edit: 'Правка', undo: 'Отменить', redo: 'Повторить', cut: 'Вырезать', copy: 'Копировать', paste: 'Вставить', selectAll: 'Выбрать все', searchSessions: 'Поиск по сессиям…',
     view: 'Вид', reload: 'Перезагрузить', toggleDevTools: 'Инструменты разработчика', resetZoom: 'Фактический размер',
     zoomIn: 'Увеличить', zoomOut: 'Уменьшить', fullscreen: 'Перейти в полноэкранный режим',
     window: 'Окно', minimize: 'Свернуть', close: 'Закрыть'
