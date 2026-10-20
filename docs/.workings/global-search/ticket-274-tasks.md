@@ -14,4 +14,4 @@ The closeout of global search. Working record, not a requirement authority: the 
 | 6 | ADR-0034's status | the ADR | done: Accepted stands |
 | 7 | The full-feature regression | `final-regression.md` closeout section | done; CONTEXT's stale note corrected |
 | 8 | Code and test review records | `ticket-274-review-code.md`, `ticket-274-review-tests.md` | done: no code or test changed |
-| 9 | Document sync; PR; stop for the owner | PR link | in progress |
+| 9 | Document sync; PR; stop for the owner | PR link | done: [#287](https://github.com/aloong-planet/agentshed/pull/287), CI green on ac1a483; squash-merged on the owner's authorisation as 389d264 (tree equal to the head), the remote branch deleted, #274 closed and its items ticked |

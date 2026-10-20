@@ -207,6 +207,8 @@ code is f4197bb's (`git diff --quiet origin/main HEAD -- src e2e scripts site pa
 `pnpm verify` exit 0 — 864 unit, 102 site and 148 e2e cases (the global search spec's 13 and the application
 menu's 6 among them), then smoke ([gateway](evidence/closeout/verify-290558d.log)). The integrated build's screenshots are under `evidence/closeout/`. Evidence
 taken by hand on an earlier version is reused only where the code it rests on has not changed since, as each row says.
+Merged by #287 as 389d264 on 2026-10-20, its tree identical to the PR head ac1a483; it changed no code, so these rows
+hold for main at 389d264.
 
 | Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
 |---|---|---|---|
