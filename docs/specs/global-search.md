@@ -84,9 +84,10 @@ looking at it where it lives.
 As a user checking hits one after another, I want to return to the same results from the session I
 opened, or go on into its project, so that looking through hits does not mean searching again.
 
-- global-search::US-003/AC-01: A session opened directly from a global search hit shows, in its header
-  where the single back control otherwise sits, one row of two exits: first "Back to search results"
-  with a left chevron, then "Go to <project> · Sessions" with a right chevron.
+- global-search::US-003/AC-01: A session opened directly from a global search hit — by its row, or by its
+  session card's header (global-search::US-002/AC-02) — shows, in its header where the single back
+  control otherwise sits, one row of two exits: first "Back to search results" with a left chevron, then
+  "Go to <project> · Sessions" with a right chevron.
 - global-search::US-003/AC-02: "Back to search results" shows the global search page as it was left: the
   same keyword, results, sort and scroll position. The results are the current ones for that keyword
   (global-search::REQ-004).

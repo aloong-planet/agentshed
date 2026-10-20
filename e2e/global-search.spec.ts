@@ -1,7 +1,7 @@
 // E2E: global search (docs/specs/global-search.md) under the built Electron app, over a fixture home — the
 // rail item and the page, typing and the grouped results, the reading state, a hit opening its session
 // inside its project, the page kept for the run, the results following the data, and the session page's two
-// exits from a hit — back to the results as left, or on into the project.
+// exits from a hit — back to the results as left, or on into the project — each kept on one line.
 //
 // Known gaps, recorded rather than faked:
 //   - The untitled fallback (US-001/AC-06) is unreachable: every listed session has a title, since the
@@ -336,6 +336,8 @@ test('going to a hit: the search page holds, then Projects with the project sele
     await body(win).locator('.grp .gh').first().click()
     await expect(win.locator('.pane-head .stitle')).toHaveText('xenon 1', { timeout: 700 })
     await expect(win.locator('.qlist .q.located, .qlist .q.focused')).toHaveCount(0)
+    // A card header's session is opened from the results too: it has the two exits (US-003/AC-01)
+    await expect(exits(win)).toHaveText(['Back to search results', 'Go to target-proj · Sessions'])
 
     // Two hits clicked before the first page arrives: the later click wins, the earlier page is kept (J9)
     await searchItem(win).click()
@@ -390,6 +392,11 @@ test('a hit whose session file is gone opens the session page to its own error, 
     rmSync(files.twinA)
     await body(win).locator('.hit').first().click()
     await expect(win.locator('.pane-body .none')).toContainText('Cannot open this session')
+    // The way back is there on the error page too (US-003/AC-01), and leads to the results as left
+    await expect(exits(win)).toHaveText(['Back to search results', 'Go to twin · Sessions'])
+    await exits(win).first().click()
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await expect(box(win)).toHaveValue('twin')
     // The page's fetch is refused, which is the one handler error this case provokes
     expect(l.errors).toHaveLength(1)
     expect(l.errors[0]).toContain(ERR.sessionFileUnreadable)
@@ -505,7 +512,9 @@ test('a session opened from a hit: back to the results as they were left, or on 
     await expect(exits(win)).toHaveText(['Back to search results', 'Go to target-proj · Sessions'])
     expect(await exits(win).evaluateAll((els) => els.map((e) => e.querySelector('path')?.getAttribute('d')))).toEqual([LEFT, RIGHT])
     await win.screenshot({ path: 'e2e-out/global-search-exits-light.png' })
+    const lightExit = await exits(win).first().evaluate((el) => getComputedStyle(el).color)
     await win.emulateMedia({ colorScheme: 'dark' })
+    await expect.poll(() => exits(win).first().evaluate((el) => getComputedStyle(el).color)).not.toBe(lightExit)
     await win.screenshot({ path: 'e2e-out/global-search-exits-dark.png' })
     await win.emulateMedia({ colorScheme: 'light' })
 
@@ -552,8 +561,12 @@ test('on into the project: its Sessions tab, or a stale project\'s note; a sessi
     // (US-003/AC-04, J5)
     await openHit(win, 'notarize', 'Child asks to notarize the fork')
     await expect(exits(win)).toHaveCount(2)
+    // The child's located question is its first, so a focus carried into the parent would land on the parent's
+    // first question; the parent opens with none
+    await expect(win.locator('.qlist .q').first()).toHaveClass(/\bfocused\b/)
     await win.locator('.banner a').click()
     await expect(win.locator('.qlist .q .txt')).toHaveText(['Parent question about signing'])
+    await expect(win.locator('.qlist .q.located, .qlist .q.focused')).toHaveCount(0)
     await expect(win.locator('.pane-head .sback')).toHaveText(['Back to fork-proj · Sessions'])
     await win.locator('.pane-head .sback').click()
     await expect(win.locator('.pane-head h1')).toHaveText('fork-proj')
@@ -593,6 +606,78 @@ test('leaving the session for the search page and coming back keeps it with its 
     await win.locator('.rail .ri').nth(1).click()
     await expect(win.locator('.pane-head h1')).toHaveText('filler-01')
     await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
+/**
+ * Each control in the session page's exits row: its text's line boxes (counted as settings-updates.spec counts
+ * them), whether the text is cut and drawn with an ellipsis, and whether the control ends inside the header's
+ * content box; with how many tops the controls sit on
+ */
+async function exitsFit(win: Page): Promise<{ controls: { lines: number; cut: boolean; overflow: string; inside: boolean }[]; tops: number }> {
+  return win.evaluate(() => {
+    const lines = (el: Element): number => {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0).sort((a, b) => a.top - b.top)
+      let count = 0
+      let bottom = -Infinity
+      for (const r of rects) {
+        if (r.top >= bottom - 1) {
+          count++
+          bottom = r.bottom
+        } else bottom = Math.max(bottom, r.bottom)
+      }
+      return count
+    }
+    const head = document.querySelector('.pane-head') as HTMLElement
+    const contentRight = head.getBoundingClientRect().right - parseFloat(getComputedStyle(head).paddingRight)
+    const buttons = [...document.querySelectorAll('.pane-head .exits .sback')]
+    return {
+      controls: buttons.map((b) => {
+        const text = b.querySelector('span') as HTMLElement
+        return { lines: lines(text), cut: text.scrollWidth > text.clientWidth, overflow: getComputedStyle(text).textOverflow, inside: b.getBoundingClientRect().right <= contentRight + 0.5 }
+      }),
+      tops: new Set(buttons.map((b) => Math.round(b.getBoundingClientRect().top))).size
+    }
+  })
+}
+
+test('a long project name at the window\'s minimum width: the two exits, and the single back control, each stay on one line, cut with an ellipsis (J11)', async () => {
+  const { home } = mkHome()
+  // A registered project whose directory name is longer than the header can show, in the shape real directory
+  // names take; "quasar" is in no other fixture text
+  const name = 'a-project-with-a-rather-long-directory-name-kept-for-the-quarterly-reports'
+  const dir = join(home, 'work', name)
+  mkdirSync(dir, { recursive: true })
+  const registry = join(home, '.claude.json')
+  const config = JSON.parse(readFileSync(registry, 'utf8')) as { projects: Record<string, object> }
+  config.projects[dir] = {}
+  writeFileSync(registry, JSON.stringify(config))
+  claude(home, dir, 'long-1', ['quasar readings for the report'], 5)
+  const l = await launch(home)
+  const { win } = l
+  try {
+    // The narrowest window the app allows (its main window's minimum width)
+    await l.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(800, 700))
+    await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(800)
+
+    // The two exits: one row, each text on one line and cut, the row inside the header
+    await openHit(win, 'quasar', 'quasar readings for the report')
+    await expect(exits(win)).toHaveText(['Back to search results', `Go to ${name} · Sessions`])
+    const cut = { lines: 1, cut: true, overflow: 'ellipsis', inside: true }
+    await expect.poll(() => exitsFit(win)).toEqual({ controls: [cut, cut], tops: 1 })
+    await win.screenshot({ path: 'e2e-out/global-search-exits-long.png' })
+
+    // The single back control, on a session opened inside that project: the same
+    await exits(win).nth(1).click()
+    await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')
+    await win.locator('.pane-body .card .se', { hasText: 'quasar readings for the report' }).click()
+    await expect(win.locator('.pane-head .sback')).toHaveText([`Back to ${name} · Sessions`])
+    await expect.poll(() => exitsFit(win)).toEqual({ controls: [cut], tops: 1 })
     expect(l.errors).toEqual([])
   } finally {
     await close(l, home)

@@ -85,3 +85,47 @@ No bug. Two refactor candidates and two findings outside the change, below.
 |---|---|---|---|
 | O-1 | In windows the e2e launcher opens, the session list's scrollbar track stays light in dark mode — with dark emulated, and with dark set through `nativeTheme` as the app does; #271's dark screenshots show it too | Users in dark mode who show scroll bars always may see a light strip beside every scrolling list; whether a normal launch shows it is not checked | Open an issue: check under a normal launch with scroll bars always shown; if real, declare the colour scheme or style the scrollbars. **Decided: an issue — [#281](https://github.com/aloong-planet/agentshed/issues/281)** |
 | O-2 | The icon module's header still says icons glued to the dictionaries' copy are "tracked separately"; ADR-0018 records them removed or moved, and a scan of the six dictionaries finds no symbol glyph left, only arrows inside sentences and menu paths | A reader looks for a tracking item that does not exist | Delete that line, in this PR as its own commit (the file is already in the diff). **Decided: deleted in this PR — 7d8ea36** |
+
+## Follow-up: the independent test check's findings
+
+Checked 2026-10-20 on the follow-up's working tree (on 41f8a0d, uncommitted at review time): the e2e file (E3's,
+E4's, E8's and E9's new assertions, the J11 case E11 and its `exitsFit` helper), `capabilities.toml`'s ID, the
+spec's US-003/AC-01 and the two feature entries' lines. No application code changed.
+
+### Underlying premises
+
+- The fork child's located question is its first: the corpus numbers the questions shown after the strip from 1
+  (`question-corpus.ts`, `i: idx + 1` over the displayed questions), and E9's new guard asserts it in the run. The
+  session page's `focused` starts from the `focusQ` it is given and marks the question with that number in the same
+  render as the list (`SessionPane.tsx`); `located` is the pulse and goes when it ends. So the guard asserts
+  `focused`, and a focus carried into the parent would mark the parent's question 1 — the comment's causal claim
+  rests on both.
+- The main window's minimum width is 800 px (`src/main/index.ts`); E11 polls `innerWidth` to 800 after the resize.
+- The long name's shape: of the 61 projects in this machine's registry, the 6 with a name of 20 characters or more
+  are hyphenated (5) or hyphenated with a dot (1); the longest is 47. The fixture's 74-character hyphenated name is
+  that shape, longer. Counted by separator kind, no name printed.
+- New comments: each states a measured or read fact; none states an unverified cause.
+
+### Runnability
+
+The global search e2e file ran on a fresh build: 11 passed, among them E11 (the screenshot shows both exits cut on
+one line at 800 px, then the single back control). The window resize is Electron's own `setSize` on the main
+window, as app.spec's minimum-width cases do. No state or error path in the application changes; the tests close
+their app and remove their homes and userData as every case here does.
+
+### Security
+
+No application code; the tests write only to their own temporary directories, removed in `finally`. Nothing to
+report.
+
+### Consistency
+
+- Duplicated Code: `exitsFit`'s line count repeats settings-updates.spec's `lines`. Exempt: the e2e files keep their
+  helpers per file (this file's `launch` says it is app.spec's launcher), and there is no shared e2e module; a
+  shared one would be a change of its own.
+- The spec's US-003/AC-01 now names the card header, as the owner answered; US-003/AC-04's "the session opened
+  directly from a hit" reads with it, and session-view's P10 points at US-003's definition. Both feature entries
+  say "the results — a hit, or a card's header" or "the global search results" accordingly.
+- `capabilities.toml`: `[mutation-testing] enabled = false`, the registry's ID; the two scripts that read the file
+  (`check-message-lang.mjs`, `release-workflow.test.mjs`) read other IDs.
+- No bug; no refactor item.

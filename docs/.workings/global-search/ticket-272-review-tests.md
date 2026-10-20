@@ -19,9 +19,9 @@ Expected values are literals from that fixture and the copy table.
 
 | # | Test (file · case) | Spec units | Seam | Input that drives the branch | Assertion and where the expected value comes from | Fixture shape source | Expensive resources and provision |
 |---|---|---|---|---|---|---|---|
-| E8 | global-search.spec · the two exits | US-003/AC-01, AC-02, AC-05 (from a session page); J1; J3; P10; Evidence for AC-01 | e2e, `AGENTSHED_RESCAN_MS` | a keyword, oldest first and a scrolled list; a hit opened; a question appended to that session and a rescan while its page is on screen; then "Back to search results" | one row of two exits in that order — the texts "Back to search results" and "Go to target-proj · Sessions", a left then a right chevron (the icons' path data); after the return: the same keyword, sort and scroll position, and the new hit (151 rows); screenshots in light and dark | #271's home | one launch |
+| E8 | global-search.spec · the two exits | US-003/AC-01, AC-02; J1; J3; P10; Evidence for AC-01 (AC-05 dropped 2026-10-20: E8 takes "Back to search results", not the rail — F5) | e2e, `AGENTSHED_RESCAN_MS` | a keyword, oldest first and a scrolled list; a hit opened; a question appended to that session and a rescan while its page is on screen; then "Back to search results" | one row of two exits in that order — the texts "Back to search results" and "Go to target-proj · Sessions", a left then a right chevron (the icons' path data); after the return: the same keyword, sort and scroll position, and the new hit (151 rows); screenshots in light and dark | #271's home | one launch |
 | E9 | global-search.spec · on into the project | US-003/AC-03 (both forms); US-003/AC-04 (fork parent, after going into the project); J4; J5 | e2e | a hit in the target project, then the second exit, then another session from its Sessions tab; a hit in the stale project, then its second exit; the stripped fork's hit, then the banner's parent link, then its back control | the project's detail on its Sessions tab, and the single back control ("Back to target-proj · Sessions") on the next session; the stale exit reads "Go to stale-proj" and lands on the stale note page (its tag, no tabs); the parent page has the single back control, which leads to fork-proj's Sessions tab | #271's home | one launch |
-| E3 (#271's, changed) | global-search.spec · going to a hit | US-003/AC-01 (the jump's arrival), replacing #271's single back control there; S12 and CON-002's path into the Sessions tab | e2e | as #271 designed it; the step that reached the project's Sessions tab now takes the second exit, as a hit's session offers no single back control | on arrival, the two exits' texts in order, where #271 asserted "Back to target-proj · Sessions" (#271 shipped the single control until this ticket; the spec's Pending note said so); the rest as #271 designed it | #271's home | unchanged: one launch |
+| E3 (#271's, changed) | global-search.spec · going to a hit | US-003/AC-01 (the jump's arrival), replacing #271's single back control there; S12 and CON-002's path into the Sessions tab | e2e | as #271 designed it; the step that reached the project's Sessions tab now takes the second exit, as a hit's session offers no single back control | on arrival, the two exits' texts in order, where #271 asserted "Back to target-proj · Sessions" (#271 shipped the single control until this ticket; the spec's Pending note said so); the rest as #271 designed it | #271's home | two launches, as #271 designed it: the second is the restart under test (corrected 2026-10-20 — F6) |
 | E10 | global-search.spec · leaving and coming back while the session is open | J6; J7; US-003/AC-05 | e2e | a session from a hit on screen; the rail's Search, a new keyword, the rail's Projects; then another project clicked in the list, the rail's Search and Projects again | after the keyword change the session page is still there with its two exits, and "Back to search results" shows the new keyword's results; after another project is selected its page replaces the session, the Search item shows the page as left, and Projects shows that project rather than the session | #271's home | one launch |
 
 Added 2026-10-19 during the cycle, before the change was made (an incremental review of one row): E3 is #271's
@@ -45,7 +45,7 @@ The spec's failure modes this ticket owns, against the table: J1's exits E8 (and
 E10; J7 E10. US-003/AC-01 E8 and E3; AC-02 E8; AC-03 E9, both forms; AC-04 E9 for the fork parent and for a
 session opened after going into the project — "any session opened inside a project" is the existing single
 back control, held by the existing session page cases in the app spec, which click it by its "Back to" text;
-AC-05's session-page path E8 and E10. P10 is AC-01 and AC-04 together. CON-004's exits copy is held by the gates
+AC-05's session-page path E3 (the rail's Search from a hit's session) and E10 (corrected 2026-10-20 — F5). P10 is AC-01 and AC-04 together. CON-004's exits copy is held by the gates
 (`pnpm typecheck`, `pnpm check:i18n`, `pnpm check:ui`), not by a case. No gap; nothing is untestable, so no gap
 note is needed in the test file's header.
 
@@ -83,7 +83,9 @@ one.
 
 ### Dimension 4: Resource reuse
 
-The expensive resources are the build and an Electron launch (each over a second). The build happens once per
+The expensive resources: the build. An Electron launch was called one here too ("over a second"), but the
+gateway's log puts whole launching cases at 604–648 ms, under the 1 s threshold (corrected 2026-10-20 — F8); the
+conclusion below does not rest on it. The build happens once per
 `pnpm e2e`, by its script, before Playwright; each case launches the app once, through the spec file's existing
 `mkHome`, `launch` and `close` helpers, which every case in the file uses — the existing pattern, followed. A
 launch cannot be shared across cases: each case writes its own home and userData, and the app reads both at
@@ -348,3 +350,46 @@ Chinese); the findings above are the sub-agent's and are unchanged.
 - F2, F3, F5–F8: as recommended.
 - All of them in one follow-up PR, before #273. The previous section's statements are kept as its record, its
   second paragraph naming where this section supersedes them; the force-added log is this section's evidence.
+
+## Design review (follow-up)
+
+Checked 2026-10-20, before any test was written or changed. Implementation version: f0d7027 (main, #282's
+merge); the follow-up changes tests, records and the spec's wording only. Requirement source: the global-search spec
+(J11; US-003/AC-01 as clarified for a card's header, the owner's answer of 2026-10-20; J8; US-003/AC-04) and the
+independent check's findings F1–F7 above. Rows added or changed:
+
+| # | Test (file · case) | Spec units | Seam | Input that drives the branch | Assertion and where the expected value comes from | Fixture shape source | Expensive resources and provision |
+|---|---|---|---|---|---|---|---|
+| E11 (new) | global-search.spec · a long project name at the window's minimum width | J11; the single back control's one-line cut (session-view's feature entry: the back button on one line) | e2e; the window set to 800 × 700 through `BrowserWindow.setSize`, as app.spec's minimum-width cases do, polled until `innerWidth` is 800 | #271's home plus one registered project whose directory name is 74 characters, with one Claude session holding "quasar" (no other fixture text does); its hit opened at 800 px; then the second exit, and that session opened from the project's Sessions tab | for each exit's text, then the single back control's: one line box (a line count over its text's client rects, as settings-updates.spec counts lines), cut (`scrollWidth > clientWidth`), `text-overflow` `ellipsis`; the two exits on one top; each control's right edge inside the header's content box (the header's own rect minus its right padding) — literals and the header's own measurement | #271's home; the long name is shaped like this machine's registered directory names (hyphenated words; 61 registered, the longest 47 characters), made longer so that the single back control overflows too | one launch |
+| E9 (changed) | global-search.spec · on into the project | US-003/AC-04's fork parent; the regression point that the banner's jump opens the parent without a located question (F2) | e2e | as designed; the fork child opened from its hit, then the banner | before the banner, the child's located question is its first (the corpus numbers the questions shown after the strip from 1), so a focus carried over would locate the parent's first question; after it, no `.q.located` and no `.q.focused` | #271's home | one launch, unchanged |
+| E4 (#271's, changed) | global-search.spec · a hit whose file is gone | J8; US-003/AC-01 on a session that cannot be read (F3) | e2e | as #271 designed it, then the first exit | after the error line, the two exits' texts in order ("Back to search results", "Go to twin · Sessions"); after the first exit, the search page with the keyword "twin" | #271's home | one launch, unchanged |
+| E3 (#271's, changed again) | global-search.spec · going to a hit | US-002/AC-02's session has US-003/AC-01's exits (F4) | e2e | the card header's click, as #271 designed it | after it, the two exits' texts in order | #271's home | two launches, unchanged |
+| E8 (changed) | global-search.spec · the two exits | the dark evidence screenshot (F7) | e2e | `emulateMedia` dark | the first exit's computed colour polled until it differs from its light value, then the screenshot, as #271's first case waits on a card's background | #271's home | one launch, unchanged |
+
+### Dimension 1: Coverage
+
+J11 now has a case (E11), reaching both of its forms at once: a long name at the narrowest window the app allows.
+The three regression points without an assertion each gain one: the fork parent's locating (E9), the exits on a
+session that cannot be read (E4), and a card header's session (E3). E8's attribution to AC-05 is dropped; E3 and
+E10 hold AC-05. Each new assertion names the input that reaches it: E11's is the long name at 800 px; E9's is the
+banner from a session whose located question is its first; E4's is the removed file; E3's is the card header.
+Fixture: one project is added for E11 only, in its own home, so the counts the other cases assert are unchanged.
+
+### Dimension 2: Case design
+
+No red flag. The window is resized through Electron's window API, as a user resizing it would, and every other
+step is a click or a keystroke; nothing private is read, nothing is written around the window, no call is counted.
+
+### Dimension 3: False greens (the three judged on the design)
+
+- Constant truth: "cut" needs an overflow, which the 74-character name at 800 px makes; "one line" needs the
+  no-wrap rule, without which the text would wrap rather than cut, failing both; the located guard in E9 makes
+  the absence after the banner a change, not a starting state.
+- Tautology: every expected value is a literal or the header's own measured box.
+- Stale path: none; the assertions read the controls the page draws today.
+
+### Dimension 4: Resource reuse
+
+The build, once per `pnpm e2e`. E11 adds one launch through the file's `launch`, with its own home and userData,
+as every case here does; the changed cases add none.
+
