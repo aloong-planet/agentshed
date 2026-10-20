@@ -157,6 +157,8 @@ The e2e cases are the global search spec's three #272 cases (named here by their
 and #271's E3, whose arrival now asserts the exits; the whole global search spec file ran green (10 cases), and
 the seven existing app-spec cases that use the session page's single back control ran green. Mutation testing is
 not required here (`red-green-mutation` not enabled); the mutations taken anyway are in the test review.
+Merged by #282 as f0d7027 on 2026-10-20, its tree identical to the PR head f5ec41f, whose code differs from
+7d8ea36's only by the e2e file's header comment.
 
 | Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
 |---|---|---|---|
@@ -169,7 +171,7 @@ not required here (`red-green-mutation` not enabled); the mutations taken anyway
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search::CON-004; #272 (the exits) | `pnpm typecheck`, `pnpm check:i18n`, `pnpm check:ui` exit 0 on the tree committed as 09966e1; the counted-noun, plural, distinctions, index, zh-script and stale-note copy tests green | Passed |
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | global-search failure modes J1 (the exits), J3, J4, J5, J6, J7; #272 | e2e: J1 E3 and E8; J3 E8; J4 E9; J5 E9; J6 E10; J7 E10 | Passed |
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | session-view P10; #272 | by global-search::US-003/AC-01 and AC-04's rows above | Passed |
-| 2026-10-19 · spec as written back on `feat/global-search-exits` · impl 09966e1 | global-search failure modes J11; #272 | narrowing the window on real data: at 560 and 500 px both exits are cut (text narrower than its content), the last ends at the header's content edge, the row stays one line; at 640 px and wider nothing is cut ([output](evidence/ticket-272/narrow-output.txt), [screenshot](evidence/ticket-272/narrow-500.png)) | Passed |
+| 2026-10-19 · spec as written back on `feat/global-search-exits`, merged as written in f0d7027 · impl 09966e1 | global-search failure modes J11; #272 | narrowing the window on real data: at 560 and 500 px both exits are cut (text narrower than its content), the last ends at the header's content edge, the row stays one line; at 640 px and wider nothing is cut ([output](evidence/ticket-272/narrow-output.txt), [screenshot](evidence/ticket-272/narrow-500.png)) | Passed |
 
 ## Two-way audit
 
@@ -182,7 +184,7 @@ not required here (`red-green-mutation` not enabled); the mutations taken anyway
 | Reverse: option-description sources | global-search::US-004/AC-01 (focus), global-search::REQ-003/AC-02 (retries) | Recorded as such above; not separately asked |
 | Code comments that call settings the rail's "third dimension" | SettingsPane header comment; the appearance e2e case's comment | Not documents: to be reworded when the rail gains search during implementation |
 | Prototype gate | global-search Further Notes | Every interface point listed with where it is drawn; four exemptions declared with reasons |
-| Reverse: a boundary added during implementation | global-search Failure modes J11 | Added on #272's branch from the confirmed session page prototype, which draws the exits and the back control on one line, cut with an ellipsis; before #272 the app's back control wrapped. Awaiting the owner's confirmation in #272's review |
+| Reverse: a boundary added during implementation | global-search Failure modes J11 | Added on #272's branch from the confirmed session page prototype, which draws the exits and the back control on one line, cut with an ellipsis; before #272 the app's back control wrapped. Kept: put to the owner in #272's review (#282), who authorised the merge as written (2026-10-20) |
 | Shared requirements in other specs | session-view P1, P4, P6, P8, D2a, D4; i18n application menu; projects-list C8 | Cited, not restated |
 | Ticket draft, forward: every coverage unit in scope has an owning ticket | the Spec → tickets table | Done 2026-10-19 by walking the spec's sections in order; no unit left without an owner |
 | Ticket draft, reverse: every ticket criterion maps to a unit or a stated prerequisite | #271–#274 drafts | Technical prerequisites (the corpus, the two channels, the delay knob on the reading channel) support named units; no product criterion without a unit |

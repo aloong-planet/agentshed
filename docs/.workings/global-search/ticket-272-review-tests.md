@@ -97,6 +97,12 @@ the icon module's note (7d8ea36); the e2e file's header comment was updated afte
 comment-only (its comment-stripped TypeScript output identical, 30225 bytes; no code reads comments; lint
 green).
 
+This check was run by the implementing agent, in the conversation that wrote the tests, not by an independent
+reviewer. The `/implement` text loaded for this ticket did not ask for independence; the text reloaded at the
+merge (2026-10-20) has the post-implementation check handed to a sub-agent that does not inherit the
+implementation's conversation, or, where none can be started, this statement. Whether to run an independent
+check of these tests after the fact was put to the owner on 2026-10-20.
+
 ### The written cases against the test design table
 
 | # | Seam | Driving input | Assertions and expected values | Fixture | Resources | Conclusion |
