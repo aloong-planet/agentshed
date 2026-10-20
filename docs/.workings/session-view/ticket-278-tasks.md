@@ -29,7 +29,7 @@ artifacts; they are added here and declared on the ticket.
 | 18 | Spec final check | the table below | done |
 | 19 | Step 7: archive — spec written back (562ddc7); no ADR (no architectural decision); no new term for `CONTEXT.md`; a postmortem, as its root cause, why no test caught it and its defence are all known | `docs/postmortems/` | done |
 | 20 | Step 8 (`/features-catalog`): the documentation regression for #278's scope | `final-regression.md` | done: three stages, no feature entry needed an edit; the tracker's product acceptance gained the banner's and the list's items |
-| 21 | Document sync; PR; stop for the owner | PR link | pending |
+| 21 | Document sync; PR; stop for the owner | PR link | done: [#289](https://github.com/aloong-planet/agentshed/pull/289); the merge waits for the owner |
 
 ## Spec final check
 
