@@ -221,9 +221,9 @@ Recorded by the main agent, 2026-10-20; the findings above are the sub-agent's a
   "passed for the menu item's path; the key press itself not verified", and their planned verification names the item's
   click. Whether and how the key press is accepted by hand is put to the owner with the PR, as is #273's acceptance
   wording on GitHub, which the main agent does not reword on its own.
-- F2: done as a derived boundary, not a spec row. "Search Sessions…" opens the search page, and the jump rule
-  already says leaving for another page supersedes a pending jump; the item does what the rail's Search item does.
-  New case E13, below.
+- F2: done, with no spec row needed: session-view P8 read through P10 says a session left before its page has
+  arrived is not switched to, the global search page stays, and the page is kept for a later open; the item does what
+  the rail's Search item does. New case E13, below (its source corrected by the next check's F10).
 - F3: done. The installed item's `enabled`, `visible` and `registerAccelerator` are read and expected `true`.
 - F4: done. E12 compares a normalised chord over every accelerator of the installed menu; U1's comment says what it
   checks: the template's own strings.
@@ -236,8 +236,9 @@ Checked 2026-10-20, before the tests were changed. Implementation version: 03a5b
 | # | Test (file · case) | Spec units | Seam | Input that drives the branch | Assertion and where the expected value comes from | Fixture shape source | Expensive resources and provision |
 |---|---|---|---|---|---|---|---|
 | E12 (changed) | global-search.spec · ⌘⇧F through the application menu | as before; F3, F4, F5 | as before | as before; every accelerator of the installed menu read, submenus included | the installed item's tail also reads `enabled`, `visible` and `registerAccelerator`, each `true`; among every installed accelerator, normalised (Cmd, Command, CmdOrCtrl and CommandOrControl one token; modifiers sorted), only the item's is the chord; the keyword as left on all four arrivals — literals | #271's home | one launch, unchanged |
-| E13 (new) | global-search.spec · the item chosen while a hit's session is on its way | US-004/AC-01, a derived boundary: the item supersedes a pending jump, as the rail's Search item does under the jump rule (US-002/AC-03, J9's "the later click wins") | e2e; the item's own click; focus emulation; `AGENTSHED_FETCH_DELAY_MS` 1500 as the jump case uses | a hit left alone first, its jump landing past the delay (the jump happens once in the case); then a hit in another, unseen session, and the item chosen while the search page holds | the first jump lands on its session page; after the item, past the delay, the search page is still shown with its box focused and no session page — literals | #271's home | one launch |
+| E13 (new) | global-search.spec · the item chosen while a hit's session is on its way | US-004/AC-01 with session-view P8 read through P10: the pending switch is interrupted, the global search page stays, the session page is kept when it arrives (source corrected 2026-10-20 — F10) | e2e; the item's own click; focus emulation; `AGENTSHED_FETCH_DELAY_MS` 1500 as the jump case uses | a hit left alone first, its jump landing past the delay (the jump happens once in the case); then a hit in another, unseen session, and the item chosen while the search page holds | the first jump lands on its session page; after the item, past the delay, the search page is still shown with its box focused and no session page — literals | #271's home | one launch |
 | U1 (changed) | app-menu.test · "Search Sessions…" in the Edit menu | as before | as before | as before | the comment over the last check says what it compares: the template's own accelerator strings; the installed menu's normalised check is E12's | none | none |
+| Header (changed) | global-search.spec · its known-gaps note | — | — | — | the key press note gains its re-test condition (F1); added to this table 2026-10-20 — F11 | — | — |
 
 ### Dimension 1: Coverage
 
@@ -261,3 +262,175 @@ No red flag: the same seams as E12; the delay is the existing injected knob.
 
 E13 adds one launch through the file's `launch`; E12 and U1 add none.
 
+## Post-implementation check (increment after the post-implementation check)
+
+Checked 2026-10-20, independently of the implementing agent: run by a separate sub-agent that wrote none of the change
+and worked from the inputs alone (the global and project instructions, the capability declaration, the two specs, this
+record, `git diff 03a5ba3 2843aaf`, the gateway log). Implementation version checked: 2843aaf on
+`feat/global-search-shortcut`; HEAD 952c09f adds only the gateway log (`git diff --quiet 2843aaf HEAD -- src e2e
+package.json electron.vite.config.ts` exits 0). Ticket [#273](https://github.com/aloong-planet/agentshed/issues/273),
+feature `global-search`. Scope: the rows of "Design review (increment after the post-implementation check)" — E12
+(changed), E13 (new), U1 (its comment) — and the test file's header, against that table and F1–F5's dispositions; the
+full gateway run on 2843aaf ([log](evidence/ticket-273/verify-2843aaf.log): `pnpm verify`, the chain joined by `&&`,
+its last step ending `SMOKE_OK`).
+
+Read for this check: both specs whole, and session-view's sequence P (P1–P10); this record whole; the increment's diff
+whole (the e2e file, the menu unit, the coverage checklist, the document sync checklist, the task list, the final
+regression's #273 section, the new evidence file); `e2e/global-search.spec.ts`, `src/main/app-menu.ts`,
+`src/main/app-menu.test.ts`, `src/renderer/src/App.tsx` whole; `GlobalSearchPane.tsx`'s focus code, `SessionHits.tsx`'s
+rows, the fetch delay's sites in `src/main/index.ts`, `playwright.config.ts`, `e2e/global-setup.ts`; the gateway log
+whole. `docs/.workings` was listed with `git status --short --ignored`.
+
+Capability: per the project's capability declaration (`capabilities.toml`, read with a TOML parser),
+`mutation-testing` is not enabled, so mutation testing is skipped; each test's "when does it go red" is answered below
+against the code under test and the source of its expected values. `e2e-suite` is enabled (`pnpm e2e`). No change was
+made to the tree.
+
+Re-run here, on 2843aaf's tree: `pnpm exec vitest run src/main/app-menu.test.ts`, 10 passed; `pnpm e2e
+e2e/global-search.spec.ts` (built first; the bundles' names and sizes are the gateway's), 13 passed, exit 0, E12 1.2 s,
+E13 6.9 s. Measured with a scratch probe kept outside the tree, run against that build: it copies the spec file's
+launcher, fixture home and item click verbatim and launches as E13 does (`AGENTSHED_FETCH_DELAY_MS` 1500, focus
+emulation). It times the control jump from the hit click to the session's title; reads the focus before and after a
+hit click on the search page; times the item's click after a hit click on another unseen session (twin-a); and times
+the jump to E13's own session (t1, unseen until then) left alone. Output of three runs:
+
+```
+PROBE {"controlLanding":1841,"focusedBeforeHit":true,"afterHit":{"tag":"BUTTON","cls":"hit row-btn"},"boxFocusedAfterHit":false,"itemReturned":36,"e13SessionLanding":1827}
+PROBE {"controlLanding":1842,"focusedBeforeHit":true,"afterHit":{"tag":"BUTTON","cls":"hit row-btn"},"boxFocusedAfterHit":false,"itemReturned":40,"e13SessionLanding":1835}
+PROBE {"controlLanding":1846,"focusedBeforeHit":true,"afterHit":{"tag":"BUTTON","cls":"hit row-btn"},"boxFocusedAfterHit":false,"itemReturned":29,"e13SessionLanding":1839}
+```
+
+### The written tests against the test design table
+
+| # | Written as designed? |
+|---|---|
+| E12 | Yes: the tail reads `enabled`, `visible` and `registerAccelerator` from the installed item, each `true`, in the polled French read too; every accelerator of the installed menu is walked, submenus included; the fold covers the four Cmd spellings (and `control` to `ctrl`, `option` to `alt`, beyond the table), modifiers sorted, applied to both sides; the expected list names one id, a literal; the keyword is asserted on all four arrivals (lines 767, 775, 784, 795). One addition the table does not state: a guard that the walk found more than two accelerators (line 756). F6 |
+| E13 | Yes: the seam (the item's own click, focus emulation, the 1500 ms delay); the inputs (a control hit in the stale project, then a hit in t1, which nothing fetched before, and the item 29–40 ms after it, measured); the assertions (the control's title, then `dim-search`, the box focused and no `.pane-head .stitle` after a 2.5 s wait); the fixture (#271's home through `mkHome`); the resource (one launch) |
+| U1 | Yes: only the comment changed, and it says what the code compares — the template's own strings, over the top-level menus' submenus, which hold every item (the template nests no deeper) |
+| Header | Changed in this increment — F1's re-test condition (lines 15–17) — with no row in the increment's table, where the first design review gave the header one. F11 |
+
+### Dimension 1: Coverage
+
+- F1–F5 against the change: F1, the note's re-test condition is in, and the key press's hand acceptance stays the
+  owner's (the checklist's AC-01 and J10 rows conclude "passed for the menu item's path; the key press itself not
+  verified"); F2, E13 drives the item during a pending jump; F3, the three flags are read; F4, the installed menu is
+  compared with a normalised chord; F5, the keyword is asserted on all four arrivals.
+- Each claimed boundary names its input. E13's pending jump: a hit in a session no page of which exists in this run
+  (fresh userData, so no saved page; `openFromSearch` is the only caller of `fetchQuery` in `src/renderer/src` outside
+  tests), under `getSessionPage`'s 1500 ms delay (`src/main/index.ts:314`), and the item 29–40 ms after the hit click,
+  well inside the landing at 1.83–1.84 s (measured).
+- E13's expected value: the table derives it from US-004/AC-01 and "the jump rule (US-002/AC-03, J9's 'the later click
+  wins')", and F2's disposition says the jump rule already says leaving for another page supersedes a pending jump. The
+  global-search spec says neither; session-view P8 read through P10 does. F10.
+- The focus request is carried only where the page is already on screen: on a mount both the request's effect and
+  `autoFocus` run (`GlobalSearchPane.tsx:47–49, 87`), so arrivals one, two and four pass without the request. Arrival
+  three and E13 carry it; E13 without witnessing its precondition (F9).
+- The header's gaps: the key press note has its re-test condition; E13 adds no gap. Beyond F11, no finding.
+- Fixture: nothing new reads a data shape; #271's home is reused. No finding.
+
+### Dimension 2: Case design
+
+| Red flag | E12 (the added parts) | E13 | U1 |
+|---|---|---|---|
+| A project module replaced (`vi.mock`, `vi.spyOn`) | none | none | none |
+| A cast past visibility, or internal state written for setup | none: the installed `MenuItem`'s public properties | none: the delay is the existing injected knob | none |
+| Internal call count or order | none | none | none |
+| A side channel instead of the interface | the installed menu read through Electron's `Menu` API in the main process, as before | none: the page as drawn | none |
+| A state the public path cannot reach | none | the item's click without the event a real dispatch passes, as in E12; the flags F3 asked for are now read | none |
+
+Isolation: E13 has its own home and userData and closes them in `finally`. No finding in this dimension.
+
+### Dimension 3: False greens
+
+When each test goes red, for what this increment added or changed:
+
+- E12: also when the installed item is disabled, hidden or has its accelerator unregistered (read from the installed
+  item, so Electron's defaults are what is checked); when another installed entry's accelerator folds to the item's
+  chord; when the walk finds two accelerators or fewer; when the keyword is lost on arrival three (the page stays on
+  screen, so only the handler could clear it) or four (after a remount, from the page's kept state). Not seen: the walk
+  no longer reading the roles' defaults (F6); a chord spelled with a modifier the fold omits, or a fold that stopped
+  folding (F7).
+- E13: when the menu handler no longer drops the pending jump — it would land 1.83–1.84 s after the hit click, and the
+  check runs 2.5 s after the item, which returns 29–40 ms after the click: a margin of about 0.7 s on this machine,
+  not asserted (F8); when the item does not keep the search page; when the box is not focused after the item (the hit
+  click moved the focus to the hit's button, measured, not asserted: F9); when a session page is drawn; when the
+  control jump does not land within 10 s; on a handler error on stderr.
+- U1: unchanged; its comment now says what it compares.
+- Constant truth: E13's absence is anchored by the control, which makes the same observable (`.pane-head .stitle`)
+  appear once under the same delay, but not its timing (F8). E12's guard can be met without any role (F6).
+- Tautology: the expected values are literals; the fold is applied to both sides, so nothing in the case shows it
+  folding another spelling (F7).
+- Stale path, read timing: the flags and the accelerators are read from the running main process's installed menu;
+  the French tail is polled on the asserted expression itself, flags included. E13's read after a fixed wait is F8.
+- Conditional skip, assertions that may not run: none. An absent application menu gives an empty walk, which fails the
+  guard; `clickSearchSessions` throws when the item is missing.
+- Against review-code's false-greens list (E13 is a browser assertion): form two as in the earlier check — the item's
+  click stands in for the key press, stated in the header; form five (read too early) is F8; form nine (the object not
+  in the tool's range) is F6, the walk's reach over the roles not witnessed, and F7(b), the fold enumerating spellings
+  from a hand-made list. No gate or command-line check is introduced; the other forms do not apply.
+
+### Dimension 4: Resource reuse
+
+Counted from the gateway's full run and the re-run here:
+
+| Resource | Cost | Times built or loaded | Provided by | Against the table |
+|---|---|---|---|---|
+| The build (main, preload, renderer) | about 1.6 s (log lines 405–427) | once, before the 148 cases (and once before the 13 re-run here) | `pnpm e2e` | matches |
+| E13's app launch | under 1 s (a single-launch case took 648 ms in the re-run); E13's 6.9–7.0 s is its waits: the reading and the control jump under the 1.5 s delay, and the 2.5 s wait | once: one `launch(home, …)`, no relaunch (counted from the code) | the file's `launch`, per case with its own userData | matches |
+| `mkHome`'s fixture home | about 10 ms (the earlier check's measurement) | once per case | per case | not expensive |
+| E12's added reads; U1 | in-process reads; the unit file 4–13 ms | — | — | matches |
+
+No finding.
+
+### Findings
+
+| # | Dimension | Case or file | What is wrong | Evidence | Recommended change |
+|---|---|---|---|---|---|
+| F6 | False greens | E12, `menuAccelerators` and its guard (`e2e/global-search.spec.ts:756`) | The guard `accelerators.length > 2` is met by the template's three explicit accelerators alone (Settings, the item, the reload), so nothing in the case shows the walk reads the roles' default accelerators — the reach that U1's comment, the checklist's AC-02 row and the final regression's "the accelerator is the item's alone" row credit to it. Electron 43.2.0 exposes them today, so the check covers them now; were an upgrade to stop exposing them, "only the item's is the chord" would shrink to three entries and stay green | the guard; `src/main/app-menu.ts:56, 77, 86`; [the installed menu's read](evidence/ticket-273/installed-menu-accelerators.txt) (undo, redo, hide, quit … with their defaults) | Replace the guard with an assertion that names a role's default, a literal from that read — e.g. `expect(accelerators).toContain('undo \| CommandOrControl+Z')` — so the walk's reach over the roles is witnessed in every run. Low to medium |
+| F7 | False greens | E12, `chord` (`e2e/global-search.spec.ts:734–740`) | (a) The fold is applied to the expected chord and the installed ones alike, and no installed accelerator spells the chord another way, so the case never shows the fold folding: a fold that stopped folding (a spelling dropped from its list) keeps E12 green, and F4's concern returns unseen. (b) The list folds four Cmd spellings but not `Super` or `Meta`: this Electron's accelerator parser accepts `super` (its token table in `shell/common/keyboard_util.cc`, read from the strings of the Electron Framework binary in `node_modules/electron`), and Electron's accelerator documentation maps Super and Meta to Cmd on macOS (that mapping not verified here) | the function; the framework's strings | Add two literal self-checks to the case — `expect(chord('Shift+CommandOrControl+F')).toBe(chord('CmdOrCtrl+Shift+F'))`, `expect(chord('Control+Command+F')).not.toBe(chord('CmdOrCtrl+Shift+F'))` — and fold `super` and `meta` into `cmd`, or narrow the table's and the comments' wording to the spellings folded. Low |
+| F8 | False greens | E13, the read after `waitForTimeout(2500)` (line 823) | The absence is read 2.5 s after the item; the jump it guards against lands 1827–1839 ms after the hit click, and the item returns 29–40 ms after it: a margin of about 0.7 s on this machine. The control shows that a jump lands within 10 s, not when, so where landing takes more than about 2.5 s the case stays green with the drop removed. The design review's "its fixed wait is past the delay that made the first jump land" holds for the 1.5 s delay; the landing takes 1.84 s | the probe's output above; `src/main/index.ts:314`; `App.tsx:128–144, 220–224` | Time the control jump in the case (from its click to its title) and tie the wait to it — assert it landed well inside the wait (e.g. under 2 s), or wait the measured landing plus a margin — so the case's ability to go red is witnessed in every run. Low to medium |
+| F9 | False greens | E13, `toBeFocused` after the item (line 825) | The box holds the focus before the second hit click (the page remounted and its box took the focus); the case relies on that click moving the focus to the hit's button and does not assert it, as E12's arrival three does (line 781). Should a hit row stop taking the focus on a click, the assertion passes without the item's request | the probe: `focusedBeforeHit` true; after the click `BUTTON.hit row-btn`, the box not focused; `SessionHits.tsx:73` (a `<button>`) | `await expect(box(win)).not.toBeFocused()` right after the second hit click. Low |
+| F10 | Coverage | E13's row in the increment's table; F2's disposition; the checklist's US-004/AC-01 row | E13's expected value is sourced to "the jump rule (US-002/AC-03, J9)", and the disposition says the jump rule already says leaving supersedes a pending jump; the global-search spec says neither (US-002/AC-03 is the hold, J9 two hits, "The jump" the transition). The requirement is session-view P8 read through P10: "Opening a session and going back before its page has arrived: the pending switch is interrupted, the [global search] page stays, and the session page is kept when it arrives (a later open is P4)" | `docs/specs/global-search.md` US-002/AC-03, J9, "The jump"; `docs/specs/session-view.md` P8, P10 | Cite session-view P8 through P10 as E13's source in its row and in the checklist's AC-01 row, and correct the disposition's sentence. Optional: assert P8's other half on this path — after the wait, the t1 hit opens at once (the jump case's 700 ms bound). Low |
+| F11 | Coverage (the table against the written test) | the increment's test design table; the e2e file's header | The header changed in this increment (lines 15–17) with no row in the increment's table, where the first design review gave the header its own row | the diff; the two tables | Add a "Header (changed)" row to the increment's table. Low |
+| F12 | Coverage (the verification record) | `checklist.md` Current verification, #273's block (lines 184–198) | The rows for US-004/AC-01, AC-02 and J10 say "impl 2882abc" but describe E13 and E12's flags and walk, which exist only from 2843aaf; the block's "again after the post-implementation check's findings" names no commit and links no log, though the gateway log for 2843aaf is in the evidence directory | the rows; [verify-2843aaf.log](evidence/ticket-273/verify-2843aaf.log) | Version those rows on 2843aaf (or split them: 2882abc for what ran then, 2843aaf for E12's additions and E13) and link the log; until then the document sync checklist's "Record the actual verification…" row is not done on a valid basis and reopens. Low |
+| F13 | Coverage (the verification record) | `evidence/ticket-273/installed-menu-accelerators.txt` | The read the checklist and the final regression cite has no producer, build or date beside it, unlike the key press probe, kept with its output | the file: one `PROBE` line | Keep the probe that produced it, or a note of its command and build, beside the output. Low |
+| F14 | Coverage (the verification record) | `ticket-273-tasks.md` row 9 | Written in 2843aaf, it says the changes made for F2–F5 were "checked again independently" before any such check had run; this section is that check, with findings | the row; this section | Rewrite the row from this section's outcome (F6–F14 and their dispositions). Low |
+
+### Document sync these findings call for
+
+Not done by this check. F6–F9: the increment's table rows for E12 and E13, re-reviewed with the changed tests; for F6
+and F7, also the wording "the roles' own accelerators included" in U1's comment, the checklist's AC-02 row and the final
+regression's row ("the accelerator is the item's alone … Held by tests") until the walk's reach is witnessed. F10:
+E13's row, F2's disposition and the checklist's AC-01 row. F11: the table. F12: the checklist's #273 block, and the
+document sync checklist's verification row, reopened. F13: the evidence directory. F14: the task list.
+
+### Conclusion by dimension
+
+- Coverage: F1–F5 answered as dispositioned, F1's hand acceptance still the owner's; F10 (E13's requirement cited to
+  the wrong place), F11 (the header without a row), F12–F14 (the verification record).
+- Case design: no finding.
+- False greens: F6 and F8 (low to medium), F7 and F9 (low). No tautology beyond F7's symmetric fold, no stale path, no
+  silent skip, no unexecuted assertion.
+- Resource reuse: no finding; the counts in the full run match the table.
+
+### Dispositions (increment)
+
+Recorded by the main agent, 2026-10-20; the findings above are the sub-agent's and are unchanged. Done in cc5aefd
+(tests) and the records commit after it, each as the finding recommends:
+
+- F6: the guard is now `toContain('undo | CommandOrControl+Z')`, a role's own accelerator from the installed menu's
+  read, so the walk's reach over the roles is seen in every run.
+- F7: the fold takes Super and Meta too (as Electron's accelerator documentation maps them; the mapping is not
+  measured here), and E12 checks the fold on literals first: another spelling of the chord folds to it, Super+Shift+F
+  folds to it, and Control+Command+F does not.
+- F8: E13 times the first jump from its click to its title and waits that long plus a second.
+- F9: E13 asserts the box lost the focus to the hit's click before the item.
+- F10: E13's row and F2's disposition cite session-view P8 through P10, and E13 checks P8's other half: the same hit
+  then opens at once (the jump case's 700 ms bound).
+- F11: the increment's table has a header row.
+- F12: the coverage checklist's #273 rows are versioned on cc5aefd for the tests, with its gateway log linked.
+- F13: the probe that read the installed menu is kept beside its output.
+- F14: the task list's rows 8 and 9 are rewritten from what happened.
+
+These changes are the check's own recommendations applied as written; they were not checked independently again.
+The gateway ran whole on cc5aefd.

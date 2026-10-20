@@ -15,8 +15,8 @@ own worktree.
 | 5 | Targeted verification | lint; the tests that import the changed modules | done: lint exit 0; `rg -l --glob '*.test.ts' --glob '*.test.tsx' "@shared/i18n\|shared/i18n\|from './(zh\|en\|fr\|es\|ru\|ja\|types\|index)'\|app-menu\|@shared/ipc\|shared/ipc\|preload\|GlobalSearchPane\|from './App'" src scripts` — 27 files, 399 green; the application menu's e2e (6 green) |
 | 6 | Checklist sign-off of #273's units | Current verification | done: #273's block; AC-01 and J10 for the menu item's path, the key press a stated gap |
 | 7 | Step 5: `/review-code` | `ticket-273-review-code.md` | done: no bug, no refactor item; the key press note's unverified cause removed |
-| 8 | Full verification gateway | `pnpm verify` exit 0 | done on cecebad ([log](evidence/ticket-273/verify-cecebad.log)); again after the post-implementation check's test changes |
-| 9 | Step 6: `/review-tests`, post-implementation, by an independent sub-agent | `ticket-273-review-tests.md` | done on 03a5ba3: F1–F5; F2–F5 done, F1 to the owner; the changes they made checked again independently |
+| 8 | Full verification gateway | `pnpm verify` exit 0 | done on cecebad ([log](evidence/ticket-273/verify-cecebad.log)), on 2843aaf after the first check's findings ([log](evidence/ticket-273/verify-2843aaf.log)) and on cc5aefd after the second's ([log](evidence/ticket-273/verify-cc5aefd.log)) |
+| 9 | Step 6: `/review-tests`, post-implementation, by an independent sub-agent | `ticket-273-review-tests.md` | done on 03a5ba3 by a sub-agent: F1–F5; F2–F5 done (2843aaf), F1 to the owner. Those changes checked by a second independent sub-agent on 2843aaf: F6–F14, all done as recommended (cc5aefd and the records after it), not checked a third time |
 | 10 | Spec final check and write-back (step 7): the Pending note expires | spec | done: the note gone, the status and the focus request written (03a5ba3) |
 | 11 | Step 8: the feature entries (global search, UI language); the regression report | `final-regression.md` #273 section | done: both entries (03a5ba3); the regression's #273 section |
 | 12 | Document sync; PR; stop for the owner | PR link | pending |

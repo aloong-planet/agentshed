@@ -217,8 +217,8 @@ Every row above was processed. The text changes made here (the coverage checklis
 - Date: 2026-10-20
 - Scope: this ticket's change only (not the full-feature closeout)
 - Version: branch `feat/global-search-shortcut` on 84d5ae0 — 2882abc (the item, its path and the case), cecebad (the
-  key press note, the reviews), 03a5ba3 (the spec and the feature entries), and the tests and records after the
-  post-implementation check
+  key press note, the reviews), 03a5ba3 (the spec and the feature entries), 2843aaf and cc5aefd (the tests after the two
+  independent checks), and the records after them
 - Languages in the searched files, counted by writing system: the two specs and the two feature entries are English
   with Han, Cyrillic and Kana only in quotations or language names; the six READMEs one language each; the landing
   page's dictionary Chinese and English; the app's dictionaries all six. Searches below carry a term per language for
@@ -248,7 +248,7 @@ Every row above was processed. The text changes made here (the coverage checklis
 | CONTEXT **Global search** | the shortcut | True; no term changes |
 | ADR-0013 (a brand name not localised), the menu's first item | the template | True: unchanged |
 | Rule ↔ gate: the menu item's copy in six languages | typecheck (the dictionary's shape), `check:i18n` | Green; the key exists in all six |
-| Rule ↔ gate: the accelerator is the item's alone | U1 over the template's strings, E12 over the installed menu, normalised, the roles' own accelerators included ([read](evidence/ticket-273/installed-menu-accelerators.txt)) | Held by tests |
+| Rule ↔ gate: the accelerator is the item's alone | U1 over the template's strings, E12 over the installed menu, normalised — the fold checked on literals, the roles' own accelerators reached (the undo role's asserted; [read](evidence/ticket-273/installed-menu-accelerators.txt)) | Held by tests |
 
 ### Stage 3: events
 
