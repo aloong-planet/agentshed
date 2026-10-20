@@ -181,6 +181,21 @@ below that name the follow-up are rewritten in place.
 | 2026-10-19 · spec 5dfbf0d (main) · impl 09966e1 | session-view P10; #272 | by global-search::US-003/AC-01 and AC-04's rows above | Passed |
 | 2026-10-20 · spec f0d7027 · impl f0d7027, tests on the follow-up branch | global-search failure modes J11; #272 | e2e E11: a registered project with a 74-character hyphenated name, its hit at the main window's 800 px minimum — both exits, then the single back control on a session opened from that project, each one line box, cut with an ellipsis and inside the header, the exits on one top ([screenshot](evidence/ticket-272/global-search-exits-long.png)); green in both gateway runs. The earlier measurement, taken below the minimum ([output](evidence/ticket-272/narrow-output.txt)), is superseded (F1) | Passed |
 
+#273's rows: verified on 2882abc, with the build made from that tree; the whole global search spec file ran green
+(12 cases), the application menu's e2e (6 cases), the menu unit and every unit test importing a changed module (27
+files, 399 cases). The native menu is reached as the application menu's e2e reaches it — the installed item by its id
+and its own click; the key press ⌘⇧F itself is not reached by the automation here (measured with the existing ⌘,
+item: [probe](evidence/ticket-273/probe-accel.spec.ts), [output](evidence/ticket-273/probe-accel-output.txt)).
+Mutation testing is not required (`mutation-testing` not enabled).
+
+| Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
+|---|---|---|---|
+| 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc | global-search::US-004/AC-01; #273, from settings, a session page and the search page itself | e2e E12: the installed item's click shows the search page with the keyword as left and its box focused, from settings, from a hit's session page, and on the search page itself after the sort switch took the focus (the sort as left); focus emulation through CDP. The key press itself: stated gap above | Passed, the key press a stated gap |
+| 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc | global-search::US-004/AC-02; #273 | menu unit U1: in each language the Edit menu ends with the select-all role, a separator and the item (id `searchSessions`, `CmdOrCtrl+Shift+F`, the language's copy; English and French as literals; the six labels distinct; no other item with the accelerator); U2: the item calls the injected action; e2e E12: the installed Edit menu ends with the separator and "Search Sessions…" bound to ⌘⇧F, after a switch to French it reads "Rechercher dans les sessions…" and opens the page titled "Recherche" | Passed; which language macOS draws is the i18n spec's known gap |
+| 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc | global-search::CON-004; #273 (the menu item) | `pnpm typecheck`, `pnpm check:i18n`, `pnpm check:ui` exit 0 on 2882abc's tree; the dictionary tests green | Passed |
+| 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc | global-search failure modes J10; #273 | e2e E12, as US-004/AC-01's row | Passed |
+| 2026-10-20 · spec 84d5ae0 (main) · impl 2882abc | i18n application menu, the Edit menu entry; #273 | by US-004/AC-02's row | Passed |
+
 ## Two-way audit
 
 | Scope or finding | Sources and identifiers | Disposition and basis |

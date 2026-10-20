@@ -9,10 +9,10 @@
 //     indexers fall back to the file name.
 //   - A reading that fails as a whole (S15) has no seam in the running app; the results area's branch for it is
 //     the presentation unit's, the main side the corpus's.
-//   - The key press ⌘⇧F itself: macOS hands it to the application menu only for a key event the system
-//     delivered, and neither Playwright's key press nor webContents.sendInputEvent reaches the menu (measured
-//     2026-10-20 with the existing ⌘, item). The binding is asserted on the installed item, and the handler is
-//     run through the item's own click, as the application menu's e2e runs its items.
+//   - The key press ⌘⇧F itself: in the test's window neither Playwright's key press nor
+//     webContents.sendInputEvent reaches the application menu (measured 2026-10-20 with the existing ⌘, item).
+//     The binding is asserted on the installed item, and the handler is run through the item's own click, as the
+//     application menu's e2e runs its items.
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

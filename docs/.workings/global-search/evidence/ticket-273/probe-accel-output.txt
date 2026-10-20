@@ -1,0 +1,12 @@
+Downloading Electron binary...
+node_modules/.cache/electron-quiet/dist/Electron.app: replacing existing signature
+quiet-electron: copy ready (43.2.0)
+
+Running 2 tests using 1 worker
+
+PROBE playwright-keyboard: app dim-agents
+  ✓  1 e2e/zz-probe-accel.spec.ts:7:3 › probe: does playwright-keyboard reach the menu accelerator Cmd+, (6.0s)
+PROBE sendInputEvent: app dim-agents
+  ✓  2 e2e/zz-probe-accel.spec.ts:7:3 › probe: does sendInputEvent reach the menu accelerator Cmd+, (2.1s)
+
+  2 passed (9.8s)
