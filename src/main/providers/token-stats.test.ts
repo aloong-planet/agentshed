@@ -1645,10 +1645,13 @@ describe('session titles and the listing rules', () => {
     writeFileSync(join(d, `rollout-${PARENT}.jsonl`), [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n')
     const childFile = join(d, `rollout-${CHILD}.jsonl`)
     writeFileSync(childFile, [meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }), q('2026-07-30T02:00:00Z', 'parent question one'), q('2026-07-30T02:00:05Z', 'child new question')].join('\n') + '\n')
-    const r = await engine().build(roots(), [proj])
+    const e = engine()
+    const r = await e.build(roots(), [proj])
     const child = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.file === childFile)
     expect(child?.forkState).toBe('stripped')
     expect(child?.title).toBe('child new question')
+    // The session page and the project search take the title from here: the same one the list shows (#278)
+    expect((await e.sessionQuestions(roots(), childFile)).title).toBe('child new question')
   })
 
   it('Codex: a prefix-stripped fork with a thread_name keeps the thread_name as its title, not displaced by the first surviving question', async () => {
@@ -1664,8 +1667,9 @@ describe('session titles and the listing rules', () => {
       join(d, `rollout-${PARENT}.jsonl`),
       [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n'
     )
+    const childFile = join(d, `rollout-${CHILD}.jsonl`)
     writeFileSync(
-      join(d, `rollout-${CHILD}.jsonl`),
+      childFile,
       [
         meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
         q('2026-07-30T02:00:00Z', 'parent question one'), // a replay (timestamps rewritten, content identical)
@@ -1673,10 +1677,13 @@ describe('session titles and the listing rules', () => {
       ].join('\n') + '\n'
     )
     writeIndex([{ id: CHILD, name: 'fork thread name' }])
-    const r = await engine().build(roots(), [proj])
+    const e = engine()
+    const r = await e.build(roots(), [proj])
     const child = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.forkState === 'stripped')
     expect(child, 'a stripped child should be listed (it still has surviving questions)').toBeDefined()
     expect(child?.title, 'thread_name takes priority (A4) and a retitle must not displace it').toBe('fork thread name')
+    // The session page and the project search keep it too
+    expect((await e.sessionQuestions(roots(), childFile)).title).toBe('fork thread name')
   })
 
   // Ticket 03's retrospective review R3 (the user's ruling, 2026-08-05): a fork verified to have been

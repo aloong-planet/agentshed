@@ -145,6 +145,10 @@ describe('full-text mode: read whole and match, map hits to turns, fold anything
     expect(r.folded).toBe(1)
     expect(r.groups).toHaveLength(1)
     expect(r.groups[0].file).toContain(PARENT)
+    // The fork's own card carries its own title — the first question left after the strip, as the list
+    // shows it — not the parent's replayed first question (#278)
+    const own = await run('child new', false)
+    expect(own.groups.map((g) => [g.file.includes(CHILD), g.title])).toEqual([[true, 'child new question']])
   })
 })
 

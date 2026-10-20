@@ -1045,6 +1045,8 @@ test('the session page: a fork session shows only the questions left after strip
   const qs = win.locator('.qlist .q')
   await expect(qs).toHaveCount(1)
   await expect(qs.first().locator('.txt')).toHaveText('Child new question')
+  // Its title is the list's: the first question left after the strip, not the parent's replayed one (#278)
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Child new question')
   expect(l.errors).toEqual([])
   await close(l)
 })
@@ -1246,7 +1248,7 @@ test('the session page banner: a stripped fork gets info with the parent title c
   // Sampled inside the 600ms delay window, immediately after the click: the child page is still whole
   // (P2) — the banner link's target has not committed yet
   await expect(win.locator('.banner.info')).toContainText('Parent first question')
-  await expect(win.locator('.pane-head .stitle')).toHaveText('Parent first question')
+  await expect(win.locator('.pane-head .stitle')).toHaveText('Child new question')
   // The parent is not a fork: no banner at all
   await expect(win.locator('.banner')).toHaveCount(0)
 
