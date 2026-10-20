@@ -1,15 +1,18 @@
 // E2E: global search (docs/specs/global-search.md) under the built Electron app, over a fixture home — the
 // rail item and the page, typing and the grouped results, the reading state, a hit opening its session
-// inside its project, the page kept for the run, the results following the data, and the session page's two
-// exits from a hit — back to the results as left, or on into the project — each kept on one line.
+// inside its project, the page kept for the run, the results following the data, the session page's two
+// exits from a hit — back to the results as left, or on into the project — each kept on one line, and ⌘⇧F with
+// the Edit menu's "Search Sessions…" opening the page with the focus in its box.
 //
 // Known gaps, recorded rather than faked:
 //   - The untitled fallback (US-001/AC-06) is unreachable: every listed session has a title, since the
 //     indexers fall back to the file name.
 //   - A reading that fails as a whole (S15) has no seam in the running app; the results area's branch for it is
 //     the presentation unit's, the main side the corpus's.
-//   - Focus is not asserted (the window is not shown under AGENTSHED_NO_FOREGROUND, see app.spec.ts's
-//     launcher); the box's focus on arrival belongs to #273's shortcut.
+//   - The key press ⌘⇧F itself: macOS hands it to the application menu only for a key event the system
+//     delivered, and neither Playwright's key press nor webContents.sendInputEvent reaches the menu (measured
+//     2026-10-20 with the existing ⌘, item). The binding is asserted on the installed item, and the handler is
+//     run through the item's own click, as the application menu's e2e runs its items.
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -678,6 +681,80 @@ test('a long project name at the window\'s minimum width: the two exits, and the
     await win.locator('.pane-body .card .se', { hasText: 'quasar readings for the report' }).click()
     await expect(win.locator('.pane-head .sback')).toHaveText([`Back to ${name} · Sessions`])
     await expect.poll(() => exitsFit(win)).toEqual({ controls: [cut], tops: 1 })
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
+// ── #273: ⌘⇧F and the Edit menu's "Search Sessions…" (US-004, J10) ──
+
+/** Clicks "Search Sessions…" the way the menu does: its own click handler, in the main process */
+async function clickSearchSessions(app: ElectronApplication): Promise<void> {
+  await app.evaluate(({ Menu }) => {
+    const item = Menu.getApplicationMenu()?.getMenuItemById('searchSessions')
+    if (!item) throw new Error('no "Search Sessions…" item in the application menu')
+    // Electron types the item's click as a bare Function; it takes no argument the handler reads
+    ;(item.click as () => void)()
+  })
+}
+
+/** The installed Edit menu's last two entries: "separator", or the item's id, label and accelerator */
+async function editMenuTail(app: ElectronApplication): Promise<string[]> {
+  return app.evaluate(({ Menu }) =>
+    (Menu.getApplicationMenu()?.items[1]?.submenu?.items ?? [])
+      .slice(-2)
+      .map((i) => (i.type === 'separator' ? 'separator' : `${i.id} | ${i.label} | ${i.accelerator ?? ''}`))
+  )
+}
+
+test('⌘⇧F through the application menu: from settings, a session page and the search page itself, the page as left with the focus in its box; the item follows the language (US-004, J10)', async () => {
+  const { home } = mkHome()
+  const l = await launch(home)
+  const { app, win } = l
+  try {
+    // The test window is never shown: focus emulation lets it hold a real focus, as token-span.spec.ts does
+    const cdp = await win.context().newCDPSession(win)
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+    // The Edit menu ends with a separator and the item, bound to ⌘⇧F (US-004/AC-02)
+    await win.waitForSelector('.rail')
+    expect(await editMenuTail(app)).toEqual(['separator', 'searchSessions | Search Sessions… | CmdOrCtrl+Shift+F'])
+
+    // From settings, a keyword typed before: the page as left, its box focused (US-004/AC-01, J10)
+    await searchItem(win).click()
+    await box(win).fill('notarize')
+    await expect(body(win).locator('.shead').first()).toContainText(NOTARIZE_HEADER)
+    await win.locator('.ri.set').click()
+    await expect(win.locator('.app')).toHaveClass(/dim-settings/)
+    await clickSearchSessions(app)
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await expect(box(win)).toHaveValue('notarize')
+    await expect(box(win)).toBeFocused()
+
+    // From a hit's session page (J10)
+    await body(win).locator('.hit', { hasText: 'How do I notarize the app?' }).click()
+    await expect(win.locator('.qlist .q.located .txt')).toHaveText('How do I notarize the app?', { timeout: 15000 })
+    await clickSearchSessions(app)
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await expect(box(win)).toHaveValue('notarize')
+    await expect(box(win)).toBeFocused()
+
+    // On the search page itself, with the focus taken away by the sort switch: the box takes it back, and the page
+    // is otherwise as left
+    await win.locator('.gsearch .shead .seg button', { hasText: 'Oldest first' }).click()
+    await expect(box(win)).not.toBeFocused()
+    await clickSearchSessions(app)
+    await expect(box(win)).toBeFocused()
+    await expect(win.locator('.gsearch .shead .seg button.on')).toHaveText('Oldest first')
+
+    // The item follows the in-app language, and still opens the page (US-004/AC-02)
+    await win.locator('.ri.set').click()
+    await win.getByTestId('language-trigger').click()
+    await win.getByTestId('language-pop').locator('[data-lang="fr"]').click()
+    await expect.poll(async () => (await editMenuTail(app))[1]).toBe('searchSessions | Rechercher dans les sessions… | CmdOrCtrl+Shift+F')
+    await clickSearchSessions(app)
+    await expect(win.locator('.gsearch .pane-head h1')).toHaveText('Recherche')
+    await expect(box(win)).toBeFocused()
     expect(l.errors).toEqual([])
   } finally {
     await close(l, home)

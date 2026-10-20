@@ -68,7 +68,7 @@ export const zh = {
     unhide: '全部显示',
     quit: '退出 Agentshed',
     edit: '编辑',
-    undo: '撤销', redo: '重做', cut: '剪切', copy: '拷贝', paste: '粘贴', selectAll: '全选',
+    undo: '撤销', redo: '重做', cut: '剪切', copy: '拷贝', paste: '粘贴', selectAll: '全选', searchSessions: '搜索会话…',
     view: '显示',
     reload: '重新载入', toggleDevTools: '开发者工具', resetZoom: '实际大小',
     zoomIn: '放大', zoomOut: '缩小', fullscreen: '进入全屏幕',

@@ -26,12 +26,16 @@ const page: { keyword: string; order: SearchOrder; scrollTop: number; kept: Glob
 
 export function GlobalSearchPane({
   snap,
-  onOpen
+  onOpen,
+  focusRequest
 }: {
   /** null before the first snapshot of a first run: nothing is known to search yet */
   snap: Snapshot | null
   /** Open a hit's session inside its project; `q` locates a question, null opens the session without one */
   onOpen: (project: string, file: string, q: number | null) => void
+  /** Raised by the application menu's "Search Sessions…": the box takes the focus again, the page already on
+   * screen included, where its autofocus does not run (US-004/AC-01) */
+  focusRequest: number
 }): JSX.Element {
   const t = useDict()
   const [keyword, setKeyword] = useState(page.keyword)
@@ -39,6 +43,10 @@ export function GlobalSearchPane({
   const [debounced, setDebounced] = useState(page.keyword)
   const [order, setOrder] = useState<SearchOrder>(page.order)
   const body = useRef<HTMLDivElement>(null)
+  const box = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    box.current?.focus()
+  }, [focusRequest])
   useEffect(() => {
     const h = setTimeout(() => setDebounced(keyword), 200)
     return () => clearTimeout(h)
@@ -75,6 +83,7 @@ export function GlobalSearchPane({
         </div>
         <div className="sbar">
           <input
+            ref={box}
             autoFocus
             value={keyword}
             onChange={(e) => {

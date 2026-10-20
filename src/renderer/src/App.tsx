@@ -81,6 +81,9 @@ export function App(): JSX.Element {
   const [revealSelected, setRevealSelected] = useState(false)
   // The pending jump from a global search hit: a later click, or leaving the search page, supersedes it
   const jumpSeq = useRef(0)
+  // The application menu's "Search Sessions…" asks the search page's box for the focus: a request the page
+  // answers whether it mounts now or is already on screen (global-search US-004/AC-01)
+  const [searchFocus, setSearchFocus] = useState(0)
   const [theme, setTheme] = useState<AppearanceTheme>(DEFAULT_THEME)
   // The mode is only used to render the segmented control's selected state: the effective light/dark is
   // decided by the main process's themeSource,
@@ -207,17 +210,24 @@ export function App(): JSX.Element {
       }
     }
     void restore()
-    // The application menu's app entry point (ticket 13): it behaves exactly like the same-named
-    // operation on the rail, going through the same state and functions rather than a second set
+    // The application menu's entry points into the app (ticket 13; global-search US-004): each behaves exactly
+    // like the same-named operation on the rail, going through the same state and functions rather than a
+    // second set; "Search Sessions…" also asks the search page's box for the focus
     const offSettings = window.agentshed.onMenuOpenSettings(() => {
       jumpSeq.current++
       setDim('settings')
+    })
+    const offSearch = window.agentshed.onMenuOpenSearch(() => {
+      jumpSeq.current++
+      setDim('search')
+      setSearchFocus((n) => n + 1)
     })
     return () => {
       alive = false
       off()
       offStatus()
       offSettings()
+      offSearch()
     }
   }, [queryClient])
 
@@ -357,7 +367,7 @@ export function App(): JSX.Element {
               onAutoCheckUpdates={(on) => void onAutoCheckUpdates(on)}
             />
         ) : dim === 'search' ? (
-          <GlobalSearchPane snap={snap} onOpen={openFromSearch} />
+          <GlobalSearchPane snap={snap} onOpen={openFromSearch} focusRequest={searchFocus} />
         ) : dim === 'agents' ? (
           snap === null ? (
             <AgentsSkeleton />

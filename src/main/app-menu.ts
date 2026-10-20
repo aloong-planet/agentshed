@@ -24,9 +24,11 @@ export interface MenuActions {
   openSettings: () => void
   /** A manual update check whose outcome the app reports in a toast (app-update::US-003/AC-01) */
   checkForUpdates: () => void
+  /** Show the global search page with the focus in its box (global-search::US-004) */
+  openSearch: () => void
 }
 
-const NOOP: MenuActions = { openSettings: () => {}, checkForUpdates: () => {} }
+const NOOP: MenuActions = { openSettings: () => {}, checkForUpdates: () => {}, openSearch: () => {} }
 
 /**
  * The structure follows the standard macOS menu set; the copy comes from the dictionaries and follows
@@ -69,7 +71,10 @@ export function buildMenuTemplate(
         { label: m.cut, role: 'cut' },
         { label: m.copy, role: 'copy' },
         { label: m.paste, role: 'paste' },
-        { label: m.selectAll, role: 'selectAll' }
+        { label: m.selectAll, role: 'selectAll' },
+        { type: 'separator' },
+        // An entry into the app below the standard editing items (global-search::US-004/AC-02)
+        { id: 'searchSessions', label: m.searchSessions, accelerator: 'CmdOrCtrl+Shift+F', click: () => actions.openSearch() }
       ]
     },
     {

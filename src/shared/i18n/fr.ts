@@ -50,7 +50,7 @@ export const fr: Locale = {
   menu: {
     about: 'À propos d’Agentshed', checkForUpdates: 'Rechercher les mises à jour…', hide: 'Masquer Agentshed', hideOthers: 'Masquer les autres',
     unhide: 'Tout afficher', quit: 'Quitter Agentshed',
-    edit: 'Édition', undo: 'Annuler', redo: 'Rétablir', cut: 'Couper', copy: 'Copier', paste: 'Coller', selectAll: 'Tout sélectionner',
+    edit: 'Édition', undo: 'Annuler', redo: 'Rétablir', cut: 'Couper', copy: 'Copier', paste: 'Coller', selectAll: 'Tout sélectionner', searchSessions: 'Rechercher dans les sessions…',
     view: 'Présentation', reload: 'Recharger', toggleDevTools: 'Outils de développement', resetZoom: 'Taille réelle',
     zoomIn: 'Zoom avant', zoomOut: 'Zoom arrière', fullscreen: 'Passer en plein écran',
     window: 'Fenêtre', minimize: 'Réduire', close: 'Fermer'
