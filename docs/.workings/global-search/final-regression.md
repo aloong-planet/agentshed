@@ -231,7 +231,7 @@ Every row above was processed. The text changes made here (the coverage checklis
 | `docs/specs/global-search.md` status line; the Pending note | what shipped: every user story, US-004 with this ticket | True; the note's condition is gone with US-004 shipped, so the note is gone (no trace of it kept) |
 | `docs/specs/global-search.md` Implementation Decisions, the renderer: the box takes the focus on every showing and whenever the menu's item asks | `GlobalSearchPane`'s focus request and `autoFocus`; E12 | True |
 | `docs/specs/i18n.md`, the application menu: why the app installs a custom menu | the app's custom menu | True (the old sentence said there was none) |
-| `docs/features/global-search.md`: ⌘⇧F, or "Search Sessions…" at the bottom of the Edit menu, from anywhere, as left, the cursor in the box, the search page itself included | US-004/AC-01, AC-02, J10; E12, E13 | True for what can be checked; the key press itself is the stated gap (the feature line states the behaviour a user gets from the key, which the platform's accelerator gives) |
+| `docs/features/global-search.md`: ⌘⇧F, or "Search Sessions…" at the bottom of the Edit menu, from anywhere, as left, the cursor in the box, the search page itself included | US-004/AC-01, AC-02, J10; E12, E13 | True: the item's path by e2e; the key press accepted by hand by the owner on 2026-10-20 (the coverage checklist's US-004/AC-01 row) |
 | `docs/features/i18n.md`: the menu's entries into the app | the installed menu (E12) | True |
 | Dictionaries, six languages: `menu.searchSessions` | the prototype's Chinese and English; each dictionary's own wording for question search and sessions | True; `pnpm typecheck`, `check:i18n`, `check:ui` green |
 | Code comments: the template's action and item, the shared IPC name, the preload's and the App's notes on the menu's entry points (no count any more), the search page's focus request | the code | True |
@@ -257,7 +257,7 @@ Every row above was processed. The text changes made here (the coverage checklis
 | An enumerable dimension's members changed: the menu's entries into the app | statements naming them: `rg -n -uu "Check for Updates…\|⌘,\|Cmd\+,\|CmdOrCtrl\+," docs/features docs/specs docs/adr CONTEXT.md README*.md site/src` — the UI language entry (updated), the i18n spec (already names the item), app-update's two (about that item alone) | Done |
 | Pending notes in scope | `rg -n "Pending:" docs/specs/global-search.md docs/specs/i18n.md` | The global search spec's one note expired and is gone; none remains |
 | A rule written this round | none new | — |
-| Work state: #273 open until the merge; the key press's acceptance put to the owner | #273's document sync checklist | Two Waiting rows, each naming its event and who follows it up |
+| Work state: #273 open until the merge; the key press's acceptance put to the owner, then passed by hand | #273's document sync checklist | One Waiting row, the merge, naming who follows it up |
 | #271's and #272's cases in the e2e file unchanged | their Current verification rows | Still true: only the header and the new cases changed, plus E12, E13 |
 
 ### Found outside the change surface

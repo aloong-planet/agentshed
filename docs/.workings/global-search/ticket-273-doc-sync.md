@@ -10,7 +10,7 @@ coverage checklist: [checklist.md](checklist.md)
 | Bring the spec's status and Pending note up to what shipped, and write the focus request into the renderer's decision | [spec](../../specs/global-search.md) | Done 2026-10-20: the Pending note expired and is gone; the status says every user story has shipped; the box takes the focus whenever the menu's item asks (03a5ba3) |
 | Correct the i18n spec's stale sentence on the application menu, found in the regression | [i18n spec](../../specs/i18n.md) | Done 2026-10-20: it no longer says there is no custom menu (03a5ba3) |
 | Record the actual verification of this ticket's units in the coverage checklist's Current verification, once they have run | [checklist](checklist.md) | Done 2026-10-20: #273's block, first on 2882abc, its rows now versioned on cc5aefd's tests with that gateway's log; AC-01 and J10 pass for the menu item's path, the key press itself recorded as not verified |
-| Record the key press's acceptance, or its standing as a stated gap, once the owner decides | [checklist](checklist.md), [#273](https://github.com/aloong-planet/agentshed/issues/273) | Waiting: the owner's decision, asked with the PR. Followed up by this ticket's implementer: the checklist's AC-01 and J10 rows and, if the owner rewords it, #273's acceptance line |
+| Record the key press's acceptance, or its standing as a stated gap, once the owner decides | [checklist](checklist.md), [#273](https://github.com/aloong-planet/agentshed/issues/273) | Done 2026-10-20: the owner chose a hand check and passed it (the steps and the reply are in the coverage checklist's AC-01 row); the AC-01 and J10 rows read passed. #273's acceptance line was not reworded: the owner did not ask for it, and the merge comment will say which mechanism each item rests on |
 | Record the merge: the merge commit in the coverage checklist's rows, and #273's acceptance items ticked on the issue | [checklist](checklist.md), [#273](https://github.com/aloong-planet/agentshed/issues/273) | Waiting: the merge. Followed up by this ticket's implementer right after it |
 
 Pre-delivery scope re-check (2026-10-20): from the ticket (its product and process acceptance), the change (2882abc,
@@ -21,4 +21,5 @@ ignored working-record directory listed with its ignored files shown. Found and 
 status, Pending note and focus request (a row of their own, done), the i18n spec's stale sentence (done), and the key
 press's acceptance (waiting for the owner). Items reopened: none stays open; the verification row was rewritten when
 the tests changed after the independent checks. No item is Pending; the two Waiting items name their event and who
-follows them up.
+follows them up. Since then the key press's row is done (the owner's hand check), so one Waiting item remains:
+the merge.
