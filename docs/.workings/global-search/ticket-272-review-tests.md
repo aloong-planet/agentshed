@@ -361,7 +361,7 @@ independent check's findings F1–F7 above. Rows added or changed:
 | # | Test (file · case) | Spec units | Seam | Input that drives the branch | Assertion and where the expected value comes from | Fixture shape source | Expensive resources and provision |
 |---|---|---|---|---|---|---|---|
 | E11 (new) | global-search.spec · a long project name at the window's minimum width | J11; the single back control's one-line cut (session-view's feature entry: the back button on one line) | e2e; the window set to 800 × 700 through `BrowserWindow.setSize`, as app.spec's minimum-width cases do, polled until `innerWidth` is 800 | #271's home plus one registered project whose directory name is 74 characters, with one Claude session holding "quasar" (no other fixture text does); its hit opened at 800 px; then the second exit, and that session opened from the project's Sessions tab | for each exit's text, then the single back control's: one line box (a line count over its text's client rects, as settings-updates.spec counts lines), cut (`scrollWidth > clientWidth`), `text-overflow` `ellipsis`; the two exits on one top; each control's right edge inside the header's content box (the header's own rect minus its right padding) — literals and the header's own measurement | #271's home; the long name is shaped like this machine's registered directory names (hyphenated words; 61 registered, the longest 47 characters), made longer so that the single back control overflows too | one launch |
-| E9 (changed) | global-search.spec · on into the project | US-003/AC-04's fork parent; the regression point that the banner's jump opens the parent without a located question (F2) | e2e | as designed; the fork child opened from its hit, then the banner | before the banner, the child's located question is its first (the corpus numbers the questions shown after the strip from 1), so a focus carried over would locate the parent's first question; after it, no `.q.located` and no `.q.focused` | #271's home | one launch, unchanged |
+| E9 (changed) | global-search.spec · on into the project | US-003/AC-04's fork parent; the regression point that the banner's jump opens the parent without a located question (F2) | e2e | as designed; the fork child opened from its hit, then the banner | before the banner, the child's focused question is numbered 01 (the corpus numbers the questions shown after the strip from 1), asserted on its number rather than its row's position (corrected 2026-10-20 — G1), so a focus carried over would locate the parent's question 01; after it, no `.q.located` and no `.q.focused` | #271's home | one launch, unchanged |
 | E4 (#271's, changed) | global-search.spec · a hit whose file is gone | J8; US-003/AC-01 on a session that cannot be read (F3) | e2e | as #271 designed it, then the first exit | after the error line, the two exits' texts in order ("Back to search results", "Go to twin · Sessions"); after the first exit, the search page with the keyword "twin" | #271's home | one launch, unchanged |
 | E3 (#271's, changed again) | global-search.spec · going to a hit | US-002/AC-02's session has US-003/AC-01's exits (F4) | e2e | the card header's click, as #271 designed it | after it, the two exits' texts in order | #271's home | two launches, unchanged |
 | E8 (changed) | global-search.spec · the two exits | the dark evidence screenshot (F7) | e2e | `emulateMedia` dark | the first exit's computed colour polled until it differs from its light value, then the screenshot, as #271's first case waits on a card's background | #271's home | one launch, unchanged |
@@ -393,3 +393,193 @@ step is a click or a keystroke; nothing private is read, nothing is written arou
 The build, once per `pnpm e2e`. E11 adds one launch through the file's `launch`, with its own home and userData,
 as every case here does; the changed cases add none.
 
+## Post-implementation check (follow-up, independent)
+
+Checked 2026-10-20, independently of the implementing agent: run by a sub-agent that does not share the
+conversation that wrote the follow-up, with `/review-tests` loaded by the sub-agent itself. The sections above were
+read; their conclusions were not taken as given. Ticket: #272 (feature `global-search`), reopened for this
+follow-up; test review path: this record, the ticket's. Implementation version checked: db77a8e on
+`test/global-search-exits-followup` (5e667e9 before it), against 41f8a0d. The follow-up changes tests, the capability
+declaration, the spec's US-003/AC-01, two feature entries and records; the application code is f0d7027's
+(`git diff f0d7027 db77a8e -- src` is empty). Gateway: [verify-followup.log](evidence/ticket-272/verify-followup.log),
+`pnpm verify` exit 0 as reported (863 unit, 135 script, 102 site and 146 e2e cases, the e2e on one worker with no
+retries configured, then smoke). It ran on db77a8e's tree: the e2e file was last written at 13:50:34 and
+`capabilities.toml` at 13:53:24, before the run began (the unit stage at 13:54:46, the e2e build after it); the
+worktree is clean at db77a8e; and the log's case lines (144 to 649) are the file's. The gateway was not re-run for
+this check. Scope: the five rows of "Design review (follow-up)" and their lines in `e2e/global-search.spec.ts`, read
+against the global-search spec (US-002/AC-02, US-003, J8, J11), session-view (P2, P4, P10), the code under test
+(`SessionPane.tsx`, `App.tsx`, `GlobalSearchPane.tsx`'s card header, the `.exits`, `.sback` and pane rules in
+`theme.css`, the main window's minimum size in `src/main/index.ts`), the session page prototype's exits rules, and
+the J11 screenshot the gateway's run wrote (`e2e-out/global-search-exits-long.png`, ignored by the repository).
+
+### Capability declaration
+
+`capabilities.toml`, parsed with Python's `tomllib`, against the registry: the nine registered IDs are present and
+well formed (`macos-distribution` applies, `client-framework` being `"electron"`, and carries both profiles);
+`[mutation-testing] enabled = false` (5e667e9) is the registered form; no ID outside the registry remains. C1 and C2
+are settled. Per the project's capability declaration, `mutation-testing` is not enabled, so mutation testing is
+skipped in Dimension 3.
+
+### The written cases against the test design table
+
+| # | Seam | Driving input | Assertions and expected values | Fixture | Resources | Conclusion |
+|---|---|---|---|---|---|---|
+| E11 | as designed: `BrowserWindow.setSize(800, 700)` in the main process, `innerWidth` polled to 800 (the main window's `minWidth` is 800, `minHeight` 520) | as designed: the 74-character name registered in `.claude.json` before the launch, one session holding "quasar" (the word's only fixture use); its hit at 800 px; the second exit; that session from the Sessions tab | as designed, plus the exits' texts with the long name and the single back control's text; the expected object per control is a literal, the header's content edge the header's own measurement | #271's home plus that project | one launch | Consistent |
+| E9 (changed) | as designed | as designed | after the banner as designed (no `.located`, no `.focused`). Before it, the written guard is "the list's first row is `focused`", where the row says "the child's located question is its first" (its turn 1): under the default newest-first order the first row is the newest question, which is turn 1 only because the child shows one question | #271's home | one launch | Inconsistent in the guard (G1) |
+| E4 (changed) | as designed | as designed | as designed, plus `dim-search` on the app after the first exit. The comment's "leads to the results as left" is held for the keyword, as the row says; the rest of "as left" goes through the handler E8 holds | #271's home | one launch | Consistent |
+| E3 (changed again) | as designed | as designed | as designed | #271's home | two launches | Consistent |
+| E8 (changed) | as designed | as designed | as designed | #271's home | one launch | Consistent |
+
+Test file header: its description now says each exit is kept on one line; the three known-gap notes are #271's and
+still hold; the follow-up adds no gap note, and none of its units is untestable. No assertion was removed: the e2e
+diff adds lines and rewrites one header comment line.
+
+The previous check's findings, against db77a8e: C1 and C2 settled (above); F1 by E11, with G2 open on it; F2 by E9's
+assertion after the banner, stronger than recommended (`.focused` as well), with G1 on its guard; F3 by E4; F4 by E3,
+the spec's US-003/AC-01 and both feature entries; F5, F6 and F8 in the test design table and the design review's
+Dimensions 1 and 4, while the coverage checklist's AC-05 row still credits E8 (sync, below); F7 by E8.
+
+### Dimension 1: Coverage
+
+Conclusion: every unit the follow-up owns has a case reached by its input; no gap note is needed.
+
+| Unit | Case | Input that reaches it | Verdict |
+|---|---|---|---|
+| J11, a long project name | E11 | a registered project with a 74-character name; its hit and the second exit at 800 px | Covered: both exits, then the single back control |
+| J11, a narrow window | E11 | the same at 800 px, the narrowest the main window allows | Covered at its reachable bound; narrower is unreachable |
+| The single back control's one-line cut (session-view's feature entry) | E11 | the session opened from the long project's Sessions tab | Covered |
+| US-003/AC-01 for a card's header (US-002/AC-02) | E3 | the first card's header | Covered |
+| US-003/AC-01 on a session that cannot be read (J8) | E4 | the hit's file removed before the click | Covered, and the first exit returns to the page with its keyword |
+| The fork parent opens without a located question (US-003/AC-04's path, F2) | E9 | the banner, from the child opened at its hit | Covered; the guard's precondition is held at another seam (G1) |
+| US-003/AC-05 from a session page | E3, E10 | the rail's Search item | Covered; E8 no longer counted |
+| AC-01's dark evidence screenshot | E8 | `emulateMedia` dark | Waits for the dark colours |
+
+Not covered, and not a gap: the exits' layout in the five other languages — the rules (no wrap, an ellipsis,
+shrinking controls) do not depend on the language, and no-wrap holds for unspaced scripts too; widths under 800 px,
+which the window cannot reach.
+
+Fixture: E11 adds the one shape J11 depends on, a project name too long for the row. Its source, checked against
+this machine's registries with a script counting by kind (no name printed): Claude's registry holds 61 paths (55
+distinct names); the 6 paths whose names run to 20 characters or more are hyphenated (5) or hyphenated with a dot
+(1), the longest 47, as the design row says. Codex's registry adds 13 paths, the longest name 19 characters. Across
+both, of 62 distinct names, 31 are hyphenated, 3 hold a dot, 10 a capital letter, 1 a space, none a non-ASCII letter.
+What the cut depends on is a break opportunity in the text: the fixture's name has hyphens and the copy around it
+spaces, so a lost no-wrap rule shows as a wrap, as it would with the real names.
+
+Regression points: the follow-up changes no application code. The changed cases' later steps (E3's J9, J2 and sort
+steps; E4's error count; E9's parent back control) are unchanged and passed in the gateway's run; #271's coverage
+rows that cite E3 and E4 still hold, as their assertions are kept.
+
+### Dimension 2: Case design
+
+Conclusion: no red flag in E11 or in the changed lines; one observation, no finding.
+
+Each checked: no module of the project is replaced. Nothing private is read: `exitsFit` reads rendered geometry and
+computed style from the window, the e2e seam's surface. No internal state is written: `.claude.json` is the agent's
+registry, written before the launch as `mkHome` writes it, and the resize is Electron's window API on the main
+window, a state a user reaches by narrowing the window (`app.spec.ts` lines 4810 and 4843 resize the same way). No
+call count or order is asserted. Every state reached is reachable through the window. Each case has its own home
+and userData and removes both.
+
+Observation, no finding: the screenshot shows the first exit cut to "Back to s…" beside the long project exit. E11
+asserts that cut (`cut: true` for both exits), which is J11's "each cut with an ellipsis" and the confirmed
+prototype's rule: `docs/prototypes/session-view/prototype-session.html` gives the row and its controls the same
+flex, `min-width: 0`, no-wrap and ellipsis rules, so the overflow is shared in proportion to each control's width.
+No change recommended; should the owner prefer the first exit kept whole, that is a prototype and spec change, and
+E11's first `cut` changes with it.
+
+### Dimension 3: False greens
+
+Conclusion: no false green found; one guard does not hold its own precondition (G1), and the one red run F1
+recommended is not recorded (G2).
+
+Mutation testing: skipped, per the project's capability declaration (`mutation-testing` not enabled). When each case
+goes red, answered by reading the code at db77a8e (f0d7027's application code), not by running a mutation:
+
+- E11: `.sback` losing `white-space: nowrap` (the texts wrap at their spaces and hyphens: more than one line box,
+  and no horizontal overflow, so not cut); the span losing `overflow: hidden` (its automatic minimum width becomes
+  its text's, so it is not cut); `text-overflow: ellipsis` lost (`clip`); `.sback` losing `min-width: 0` (the
+  control keeps its text's width: not cut, and past the header's content edge); the row wrapping (`flex-wrap`, or a
+  block row: a second top); the name not reaching the copy (the texts); the span gone from a control
+  (`querySelector('span')` is null and the evaluation throws until the poll times out); an ancestor letting the
+  header grow to its content (nothing cut). Not red on: the row's height, other languages.
+- E9's changed lines: the banner's jump carrying the child's `focusQ` (the parent's question 1 would be drawn
+  `located focused` in its first render, as `SessionPageBody` initialises `focused` from the prop); the child
+  opening without a focused row (the guard).
+- E4's changed lines: the exits drawn only with a loaded page (they sit outside `result.ok` today); the first exit
+  not reaching the search page, or the page losing its keyword.
+- E3's changed line: the card header's open not marking the session as opened from search (it calls `onOpen` with
+  no question, through the same `openFromSearch`).
+- E8's changed lines: the dark appearance not recolouring the exits (the poll times out); otherwise evidence only.
+
+The forms, one by one. Constant truth: `cut` needs an overflow, which the 74-character name makes for all three
+controls at 800 px; the two exits' `tops: 1` needs the row not to wrap; for the single back control `tops` is 1 for
+any single control and carries nothing, while the rest of that object does; E9's absence follows a live `focused`
+row in the same case. Tautology: the expected objects are literals; the header's content edge measures the
+container, not the measured control; the exits' text uses the fixture's name, which the app reads from the
+registered path, so a path or another name shown fails it; E8 compares with its own light value measured before.
+Stale path: `.pane-head .exits .sback` is what `SessionPane` draws today for both forms. Conditional skip: no branch
+or early return in E11 or the changed lines. Assertions that may not run: every locator assertion and poll is
+awaited, and the expected arrays carry their lengths, so an empty query fails.
+
+Browser-assertion forms (review-code's false-greens list). Presence for effect: each new assertion reads texts,
+geometry or the page reached. Synthetic paths: the resize is the window's own, the clicks are real input. Reading
+too early: E11 polls the asserted expression itself; E9's absence is read once the parent's question is on screen,
+and the focus marks are drawn in that same render, so nothing later can add them; E8's dark screenshot now follows a
+poll on a computed colour (F7). Geometry: `scrollWidth > clientWidth` is asserted true, so a span sized to its
+content fails it rather than passes; the edge is compared through `getBoundingClientRect`, which an ancestor's
+`overflow: hidden` does not clip; the wrap dimension is read by line boxes, the counter `settings-updates.spec.ts`
+uses with a footnote that wraps as its control. An assertion that X does not happen: E11's "one line" and "inside"
+have never been seen failing in this case; the counter's sight of a wrap is shown by that control elsewhere, and
+F1's recommended single red run is not recorded (G2).
+
+### Dimension 4: Resource reuse
+
+Conclusion: as designed.
+
+Counted from the gateway's log: the e2e stage built once — one `electron-vite build`, its main (862 ms), preload
+(50 ms) and renderer (556 ms) bundles once each — before the 146 cases on one worker; the global setup prepares the
+quiet Electron copy once per Playwright run. The log prints nothing per launch, so launches are counted from the
+code: E11 one; E9, E4 and E8 one each; E3 two (its relaunch is the restart under test); all through the file's
+`launch`, and the count does not grow with the assertions in a case. A launch is not an expensive resource: cases
+that do little besides launching and closing take 626–697 ms whole in this log ("nothing to search" 661 ms, the app
+spec's cold start 676 ms). `mkHome`'s writes are under 1 s by the same log: the J8 case, with its home, a launch, a
+search and two clicks, takes 1.0 s whole.
+
+### Findings
+
+Numbered on from the previous check's F and C series.
+
+| # | Dimension | Case or file | What is wrong | Evidence | Recommended change |
+|---|---|---|---|---|---|
+| G1 | False greens (a guard), and the test design table | E9, `e2e/global-search.spec.ts` line 566 | The guard asserts that the list's first row is `focused`; the design row says the child's located question is its turn 1. Under the default newest-first order the first row is the newest question, turn 1 only because the child shows one. The absence after the banner can catch a carried focus only if that focus is 1: true today, and held at the providers seam (`question-corpus.test.ts` lines 228–230 number the stripped child's question 1), but not by this case | `SessionPane.tsx`: `focused` is the question number `focusQ` gives, and the list is newest first by default; the child's fixture file | Assert the number: `await expect(win.locator('.qlist .q.focused .idx')).toHaveText('01')` in place of the first-row check, with no launch added; or keep the check and write the reliance on the providers case into the design row. Recommended: the assertion, in this follow-up |
+| G2 | False greens (a disposition) | E11; the dispositions above | F1's recommendation, accepted "as recommended", ends "Show it red once by removing `white-space: nowrap` from `.sback`"; nothing records that run, or a decision to drop it. With `mutation-testing` not enabled the skill does not require it, and this check did not run it | `rg` over this feature's working records (ignored files included) and the two commit messages: no such run | Either run it once (build, E11 alone, the rule restored byte for byte with hashes compared) and record it as extra evidence, as the mutations on 09966e1 were; or record that the disposition did not include it, citing the capability. Recommended: run it — one build and one case, and the only run that would show this case's "one line" and "inside" failing |
+
+Sync obligations these findings and the follow-up leave, for the ticket's document sync checklist (not edited here).
+Documents read for them: this record, the code review record, the document sync checklist, the task list, the
+coverage checklist's and the regression report's lines that `rg` finds for J11, E8, AC-05 and the card header, both
+specs, the two feature entries, and CONTEXT.md, `docs/adr`, `docs/features` and `docs/specs` searched for the exits'
+wording; `docs/.workings` was listed with ignored files shown (only `startup-restore/`, which the follow-up does not
+touch). #271's, #273's and #274's records were left out: the follow-up changes none of their units. The cases
+passing does not bring these rows up to date:
+
+- The coverage checklist: J11's Current verification row still reads "Reopened … not verified until the follow-up's
+  case runs", though the case has run (the log's case 105); AC-05's row still credits E8 (F5); AC-01's mapping and
+  Current verification rows name neither the card header (E3) nor the error page (E4).
+- The regression report: its J11 rows still say the follow-up's case is to support J11, and the global-search
+  feature line this follow-up rewrote ("from the results — a hit, or a card's header") is not re-checked there; the
+  document sync checklist's follow-up row does not list the regression report.
+- The document sync checklist: the capability row is still Pending, though 5e667e9 made the declaration; the
+  coverage checklist's row and the follow-up row stay Pending until the above is done.
+- The J11 screenshot: the code review's follow-up cites it, but `e2e-out/` is ignored and every run overwrites it;
+  keep a copy under `evidence/ticket-272/` if it is to stay evidence, or cite the log's case 105 alone.
+- G1 and G2 add their own lines once settled.
+
+### Dispositions (follow-up)
+
+Recorded by the main agent, 2026-10-20; the findings above are the sub-agent's and are unchanged.
+
+- G1: done as recommended. E9's guard asserts the focused question's number, `01`; the design row says so.
+- G2: not run. The owner declared `mutation-testing` not enabled the same day (C1), and `/review-tests` says that with
+  it not enabled no mutation testing is done; a red run made by removing a rule is one. When E11 goes red stays
+  answered by reading, in the section above. The disposition of F1 is read as the case, not the red run.

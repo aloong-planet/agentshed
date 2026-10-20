@@ -21,4 +21,19 @@ Branch `feat/global-search-exits` from 5dfbf0d, in its own worktree.
 | 11 | Step 8: the feature entries (global search, session view); the regression report | `final-regression.md` #272 section | done: the two feature entries; `final-regression.md` #272 section |
 | 12 | Document sync; PR; stop for the owner | PR link | done: [#282](https://github.com/aloong-planet/agentshed/pull/282), CI green on f5ec41f; squash-merged on the owner's authorisation as f0d7027 (tree equal to the head), the remote branch deleted, #272 closed and its items ticked |
 | 13 | Independent post-implementation test check, on the owner's request after the merge | `ticket-272-review-tests.md`, its independent section | done 2026-10-20: run by a sub-agent that did not share this conversation; findings F1–F8, C1, C2; the owner's dispositions recorded; #272's two process items reopened |
-| 14 | Follow-up PR: the findings' cases, the spec's card-header wording, the capability ID, the record corrections | PR link | pending |
+| 14 | Follow-up PR: the findings' cases, the spec's card-header wording, the capability ID, the record corrections | PR link | in progress: the steps below done on branch `test/global-search-exits-followup`; the PR waits for #283's merge, to be rebased onto it |
+
+Follow-up steps (2026-10-20), branch `test/global-search-exits-followup` from #283's head 41f8a0d, in its own worktree:
+
+| # | Task | Checkpoint | State |
+|---|---|---|---|
+| F-1 | Admission check: no interface change (tests, the spec's wording for a shipped behaviour, the capability's ID), so no prototype and no `/ui-design` step | — | done |
+| F-2 | Test design review of the added and changed rows | `ticket-272-review-tests.md`, "Design review (follow-up)" | done; the earlier table's E3, E8 rows and launch time corrected |
+| F-3 | Cases: E11 (J11), E3, E4, E8, E9 | the global search file green | done: 11 green |
+| F-4 | Targeted verification | typecheck, lint | done: exit 0 (lint after installing the site's own dependencies in the new worktree) |
+| F-5 | Step 5: `/review-code` | `ticket-272-review-code.md`, follow-up section | done: no bug, no refactor item |
+| F-6 | Full verification gateway | `pnpm verify` exit 0 | done twice: before and after G1's guard ([first](evidence/ticket-272/verify-followup.log), [second](evidence/ticket-272/verify-followup-2.log)) |
+| F-7 | Step 6: independent post-implementation check | `ticket-272-review-tests.md`, "Post-implementation check (follow-up, independent)" | done by a sub-agent; G1 done, G2 not run (mutation testing not enabled) |
+| F-8 | Spec write-back: US-003/AC-01 names a card's header (S29) | spec | done |
+| F-9 | Step 8: both feature lines; the regression report | `final-regression.md`, follow-up section | done |
+| F-10 | Document sync; rebase onto main after #283; PR; stop for the owner | PR link | pending |

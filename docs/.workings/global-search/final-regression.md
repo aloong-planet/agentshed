@@ -109,13 +109,13 @@ sync checklist records it.
 | Declaration surface (changed this round) | Checked against | Conclusion |
 |---|---|---|
 | `docs/specs/global-search.md` status line and Pending note | what shipped: the exits and the return (US-003); not the keyboard entry | True: the note narrowed to US-004, its "until they do" sentence gone with the condition it described |
-| `docs/specs/global-search.md` J11 (new: long names and narrow windows) | the row's rules; the narrowing measurement | True by the row's rules; added from the confirmed prototype, and kept: the owner authorised the merge as written (2026-10-20; the coverage checklist's two-way audit records it). Its measurement no longer supports it: taken below the window's 800 px minimum (the independent test check, F1, 2026-10-20); the follow-up's case is to support it instead |
+| `docs/specs/global-search.md` J11 (new: long names and narrow windows) | the row's rules; the narrowing measurement | True by the row's rules; added from the confirmed prototype, and kept: the owner authorised the merge as written (2026-10-20; the coverage checklist's two-way audit records it). Its measurement no longer supports it: taken below the window's 800 px minimum (the independent test check, F1, 2026-10-20); the follow-up's case E11 supports it instead (the follow-up section below) |
 | `docs/specs/global-search.md` Implementation Decisions, "The jump" (the origin) | App on 5bd38dd: the origin is part of the open session's value; going into the project is the back control's handler | True after the write-back |
-| `docs/specs/global-search.md` failure modes J1 (exits), J3–J7, J11 | tests and evidence | Each has a case (E3, E8, E9, E10); J11's measurement was taken below the window's minimum and is reopened (2026-10-20, F1) |
+| `docs/specs/global-search.md` failure modes J1 (exits), J3–J7, J11 | tests and evidence | Each has a case (E3, E8, E9, E10); J11's measurement was taken below the window's minimum (2026-10-20, F1), and J11 now has the follow-up's case E11 |
 | `docs/features/global-search.md`: the hit line no longer ends on the back control; the new exits line | the spec's US-003 and J11; the e2e cases | True; no claim about the keyboard entry |
 | `docs/features/session-view.md`, the session page line (the back button on one line; the two ways out from a global search hit) | session-view P10; the row's rules | True |
 | Dictionaries, six languages: `session.backToSearch`, `session.goToProject`, `session.goToProjectStale` | the spec's copy (US-003/AC-01, AC-03); each language's existing back control | True; `pnpm typecheck`, `check:i18n`, `check:ui` green |
-| `capabilities.toml`: `[red-green-mutation] enabled = false` | the capability registry (the ID, its shape, no precondition); the owner's answer | True; all nine registered IDs now declared |
+| `capabilities.toml`: `[red-green-mutation] enabled = false` | the capability registry (the ID, its shape, no precondition); the owner's answer | True as written, but the registry had renamed the ID to `mutation-testing` two minutes before (the independent test check's C2, 2026-10-20); the follow-up replaced it, and the nine registered IDs are declared |
 | Code comments: App (the open session's value, the shared handler, the lookup), SessionPane's `exits`, the row's style, the chevrons, the icon module's header | the code they sit on; ADR-0018 | True; the chevrons' old "never in the same slot" and the header's "tracked separately" are gone because they were no longer true |
 | The session page prototype (unchanged) ↔ the app | the exits row, its two controls and the single back control | Same: 94 computed values equal, light and dark, at rest and hovered ([measurements](evidence/ticket-272/measurements.md)); the one-line cut uses the prototype's own rules (no wrap, an ellipsis on the text) |
 
@@ -142,7 +142,7 @@ sync checklist records it.
 |---|---|---|
 | An enumerable dimension's members changed | languages, sides, rail items: unchanged; the session header's controls are not a dimension any copy enumerates | None |
 | Pending notes in scope | `rg -n "Pending:" docs/specs/global-search.md docs/specs/session-view.md` — one line | Expired in part (US-003 shipped): narrowed in place to US-004 |
-| A rule written this round | the `red-green-mutation` declaration | Its source of truth is `capabilities.toml`, written there; nothing else restates it |
+| A rule written this round | the `red-green-mutation` declaration (since replaced by `mutation-testing`, the follow-up) | Its source of truth is `capabilities.toml`, written there; nothing else restates it |
 | #271's case E3 changed (its arrival now asserts the exits) | #271's Current verification rows citing "e2e (going to a hit)" | Still true: the case keeps every #271 assertion and ran green on this branch |
 | The coverage checklist's units for #272 verified; J11 added | `checklist.md`: the mapping, Current verification and two-way audit | Rows added, with the version and the evidence |
 | An outside finding got an issue | [#281](https://github.com/aloong-planet/agentshed/issues/281) (the dark scrollbar) | Recorded in the code review; no document claims otherwise |
@@ -156,3 +156,57 @@ sync checklist records it.
 
 Every row above was processed; the text changes made here (the spec's status, Pending note, J11 and the origin
 decision; the two feature entries) were re-read against their counterparts and produced no new row.
+
+## Ticket #272 follow-up — the independent test check's findings
+
+- Date: 2026-10-20
+- Scope: the follow-up's change only (not the full-feature closeout): the capability's ID, five e2e cases (E11 new;
+  E3, E4, E8, E9), the spec's US-003/AC-01, the two feature entries' lines, and the records
+- Version: branch `test/global-search-exits-followup` on 41f8a0d (#283's head), the application code f0d7027's
+- Languages in the searched files, counted by writing system: the two specs, the two feature entries, both indexes and
+  `CONTEXT.md` have no Han, Kana or Cyrillic line; accented Latin in one line of the session-view spec, one of the
+  features index and three of `CONTEXT.md`, all names or quotations. The searches below are English; a search over a
+  hidden directory (`docs/.workings`, `.github`) carries `--hidden`, as `rg` skips those even with `--no-ignore`
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/global-search.md` US-003/AC-01: a session opened by a hit row or by its card's header | the app: a card's header opens through the same path as a hit row, with no question (`onOpen(project, file, null)` beside `onOpenHit`); E3 | True |
+| `docs/specs/global-search.md` J11 | E11 at 800 px with a long name | True, now held by a case |
+| `docs/features/global-search.md`: "a session opened from the results — a hit, or a card's header — has two ways out" | the spec's US-003/AC-01, J11; E3, E11 | True |
+| `docs/features/session-view.md`: "a session opened from the global search results has two ways out there instead" | session-view P10, pointing at global-search US-003 | True |
+| `capabilities.toml`: `[mutation-testing] enabled = false` | the capability registry (the ID, its shape, no precondition); the owner's answer to C1 | True; the nine registered IDs declared, none outside the registry |
+| The e2e file's header ("each kept on one line") and the new comments | the cases they sit on | True |
+| The session page prototype ↔ the app | no interface change; the prototype's exits rules are the same no-wrap, ellipsis and shrink rules E11 asserts | Same |
+
+### Stage 2: related declarations
+
+| Statement (unchanged file) | Its counterpart changed this round | Conclusion |
+|---|---|---|
+| `docs/features/README.md`, Global search: "…and open a hit's session inside its project" | the exits line | True: the one-liner names no exits |
+| `docs/features/README.md`, Session view; `docs/specs/README.md` rows | the two feature lines; the spec | True: names and one-liners only |
+| The spec's US-002/AC-02 (a card's header opens without locating) | US-003/AC-01 now cites it | True |
+| The spec's US-003/AC-04 ("only the session opened directly from a hit has the two exits") | US-003/AC-01's clarification | True: AC-01 now says what "opened directly from a hit" covers |
+| The spec's J1, the end-to-end flow in Testing Decisions, the prototype gate's list | US-003/AC-01 | True |
+| `docs/specs/session-view.md` P10 | US-003/AC-01 | True: it points at US-003's definition |
+| The two prototypes' notes ("a session opened from a global search hit shows two exits") | US-003/AC-01 | True under AC-01's reading; the prototypes record the confirmed design and are not rewritten for a wording clarification |
+| CONTEXT **Global search** | the exits | True; no term changes |
+| The dictionaries, the six READMEs, the landing page's copy | which sessions have the exits | No statement about it: the copy is the controls' labels |
+| Rule ↔ gate: the declared capability IDs against the registry | `capabilities.toml` | No gate in the repository checks it (the registry lives with the skills); held by people — the skills that read the file, and an independent check like this one. C2 is what it cost: the ID stood unregistered for a day |
+| Rule ↔ gate: J11's one-line rule | E11 | Held by a case now, not a one-off measurement |
+
+### Stage 3: events
+
+| Event | Lines checked | Conclusion |
+|---|---|---|
+| An enumerable dimension's members changed | the declared capability IDs: one renamed, still nine; languages, sides and rail items unchanged. `rg -n --hidden --no-ignore "red-green-mutation"` over the worktree, outside `node_modules` and `.git`: hits only in `docs/.workings/global-search/` records, the control file among them (6 lines) | The records' current statements (the coverage checklist's #272 block, this report's #272 rows) rewritten; the dated ones left as their record |
+| Pending notes in scope | `rg -n "Pending:" docs/specs/global-search.md docs/specs/session-view.md` — one line, US-004 | Not expired by the follow-up |
+| A rule written this round | none new: evidence for a boundary taken where users can reach it is `/tdd`'s reachable-state rule | — |
+| Work state changes | #272 reopened, its two process items unticked; the follow-up's rows; the re-tick after the merge | The document sync checklist's Waiting row |
+| #271's cases E3 and E4 changed | #271's Current verification rows citing them | Still true: assertions added, none removed |
+
+### Convergence
+
+Every row above was processed. The text changes made here (the coverage checklist's ID wording, this report's three
+#272 rows) were re-read against their counterparts and produced no new row.

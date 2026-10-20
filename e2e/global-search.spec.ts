@@ -561,9 +561,9 @@ test('on into the project: its Sessions tab, or a stale project\'s note; a sessi
     // (US-003/AC-04, J5)
     await openHit(win, 'notarize', 'Child asks to notarize the fork')
     await expect(exits(win)).toHaveCount(2)
-    // The child's located question is its first, so a focus carried into the parent would land on the parent's
-    // first question; the parent opens with none
-    await expect(win.locator('.qlist .q').first()).toHaveClass(/\bfocused\b/)
+    // The child's located question is its question 01, so a focus carried into the parent would land on the
+    // parent's question 01; the parent opens with none
+    await expect(win.locator('.qlist .q.focused .idx')).toHaveText('01')
     await win.locator('.banner a').click()
     await expect(win.locator('.qlist .q .txt')).toHaveText(['Parent question about signing'])
     await expect(win.locator('.qlist .q.located, .qlist .q.focused')).toHaveCount(0)
