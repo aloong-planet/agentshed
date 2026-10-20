@@ -6,10 +6,7 @@
 > [ADR-0016](../adr/0016-no-natural-language-across-ipc.md) · [session-view](session-view.md) (the session
 > page a hit opens, and a project's own session search) · CONTEXT: **Global search**, **Session**,
 > **Project**, **Stale project**, **Transfusion**
-> Status: specified 2026-10-19 (prototype gate passed the same day); the page, its search, a hit's jump
-> into its project, and the way back to the results or on into the project shipped 2026-10-19.
->
-> Pending: ⌘⇧F and the Edit menu's "Search Sessions…" open the page (global-search::US-004).
+> Status: specified 2026-10-19 (prototype gate passed the same day); every user story below has shipped.
 
 ## Problem Statement
 
@@ -300,7 +297,8 @@ with plural forms through the existing plural rules; no string enumerates the ag
   so a rescan refreshes it by transfusion. While the next keyword's answer is on its way the previous one
   stays, highlighted with its own keyword, so the area never empties between keystrokes. The page asks the
   main process to start reading when it is shown — once per run when the reading succeeds, again on the
-  next showing after a failure — and its box takes the focus, as the prototype's does.
+  next showing after a failure — and its box takes the focus, as the prototype's does: on every showing, and
+  whenever the application menu's "Search Sessions…" asks for it, the page already on screen included.
 - **The jump**: one transitioned update switches the dimension to Projects, selects the project, and
   opens the session (with the question to locate, for a hit) — with the session page's data fetched
   before the switch, so the search page holds until the session page can be drawn whole. The open session
