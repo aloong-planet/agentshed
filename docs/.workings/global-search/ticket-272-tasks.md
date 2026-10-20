@@ -16,7 +16,9 @@ Branch `feat/global-search-exits` from 5dfbf0d, in its own worktree.
 | 6 | Checklist sign-off of #272's units | Current verification | done: #272's block in Current verification, on 09966e1 |
 | 7 | Step 5: `/review-code` | `ticket-272-review-code.md` | done: `ticket-272-review-code.md` — no bug; R-a and R-b done on the owner's decision (5bd38dd); O-1 → #281; O-2 fixed (7d8ea36) |
 | 8 | Full verification gateway | `pnpm verify` exit 0 | done: `pnpm verify` exit 0 on 7d8ea36 (863 unit, 102 site, 145 e2e, smoke OK); the e2e header comment after it shown comment-only |
-| 9 | Step 6: `/review-tests`, post-implementation | `ticket-272-review-tests.md` | done: `ticket-272-review-tests.md`, post-implementation check |
-| 10 | Spec final check and write-back (step 7): the Pending note narrows to US-004 | spec | done: status and Pending note (narrowed to US-004); J11 and the origin's wording written back, awaiting the owner's confirmation in the PR |
+| 9 | Step 6: `/review-tests`, post-implementation | `ticket-272-review-tests.md` | done: `ticket-272-review-tests.md`, post-implementation check, run by the implementing agent rather than independently (the record says why); an independent one followed (row 13) |
+| 10 | Spec final check and write-back (step 7): the Pending note narrows to US-004 | spec | done: status and Pending note (narrowed to US-004); J11 and the origin's wording written back and kept: put to the owner in the PR, who authorised the merge as written (2026-10-20) |
 | 11 | Step 8: the feature entries (global search, session view); the regression report | `final-regression.md` #272 section | done: the two feature entries; `final-regression.md` #272 section |
-| 12 | Document sync; PR; stop for the owner | PR link | pending |
+| 12 | Document sync; PR; stop for the owner | PR link | done: [#282](https://github.com/aloong-planet/agentshed/pull/282), CI green on f5ec41f; squash-merged on the owner's authorisation as f0d7027 (tree equal to the head), the remote branch deleted, #272 closed and its items ticked |
+| 13 | Independent post-implementation test check, on the owner's request after the merge | `ticket-272-review-tests.md`, its independent section | done 2026-10-20: run by a sub-agent that did not share this conversation; findings F1–F8, C1, C2; the owner's dispositions recorded; #272's two process items reopened |
+| 14 | Follow-up PR: the findings' cases, the spec's card-header wording, the capability ID, the record corrections | PR link | pending |

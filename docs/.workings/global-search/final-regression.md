@@ -109,9 +109,9 @@ sync checklist records it.
 | Declaration surface (changed this round) | Checked against | Conclusion |
 |---|---|---|
 | `docs/specs/global-search.md` status line and Pending note | what shipped: the exits and the return (US-003); not the keyboard entry | True: the note narrowed to US-004, its "until they do" sentence gone with the condition it described |
-| `docs/specs/global-search.md` J11 (new: long names and narrow windows) | the row's rules; the narrowing measurement | True; added from the confirmed prototype, awaiting the owner's confirmation with the PR (the coverage checklist's two-way audit records it) |
+| `docs/specs/global-search.md` J11 (new: long names and narrow windows) | the row's rules; the narrowing measurement | True by the row's rules; added from the confirmed prototype, and kept: the owner authorised the merge as written (2026-10-20; the coverage checklist's two-way audit records it). Its measurement no longer supports it: taken below the window's 800 px minimum (the independent test check, F1, 2026-10-20); the follow-up's case is to support it instead |
 | `docs/specs/global-search.md` Implementation Decisions, "The jump" (the origin) | App on 5bd38dd: the origin is part of the open session's value; going into the project is the back control's handler | True after the write-back |
-| `docs/specs/global-search.md` failure modes J1 (exits), J3–J7, J11 | tests and evidence | Each has a case (E3, E8, E9, E10) or, for J11, a measurement |
+| `docs/specs/global-search.md` failure modes J1 (exits), J3–J7, J11 | tests and evidence | Each has a case (E3, E8, E9, E10); J11's measurement was taken below the window's minimum and is reopened (2026-10-20, F1) |
 | `docs/features/global-search.md`: the hit line no longer ends on the back control; the new exits line | the spec's US-003 and J11; the e2e cases | True; no claim about the keyboard entry |
 | `docs/features/session-view.md`, the session page line (the back button on one line; the two ways out from a global search hit) | session-view P10; the row's rules | True |
 | Dictionaries, six languages: `session.backToSearch`, `session.goToProject`, `session.goToProjectStale` | the spec's copy (US-003/AC-01, AC-03); each language's existing back control | True; `pnpm typecheck`, `check:i18n`, `check:ui` green |
