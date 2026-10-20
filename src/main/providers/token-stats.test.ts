@@ -9,11 +9,13 @@
 // the reader, which no test here controls. A read hook in eachJsonlLine would let a test append mid-read.
 //
 // Gap (#278): the session questions' re-title failing on the session's own line — they then keep the title
-// it was parsed with — is not driven here: a matching signature leads straight to the read, and a mismatch is
-// rebuilt on the calling thread rather than through the parse runner, so no seam sits in between and the read
-// fails only when a writer changes the file then, as in Gap (#158). The same fallback is driven through the
-// parent's line (the banner case whose parent's file is gone), and the list's through a parse runner that
-// removes the file. A hook in the range reader would let a test fail the session's own read.
+// it was parsed with — has no case of its own. It could have one: the cache signature is mtime and size, so a
+// change that keeps both (the line rewritten in place at the same length with the mtime pinned, or read
+// permission removed) fails that read while the signature still matches. It has none because the fallback is
+// the expression the banner case whose parent's file is gone drives through the parent's call, and both ways
+// in rest on a state the app does not build itself (a pinned mtime) or one in which the page fails as a whole
+// (no read permission). The list's fallback is driven through a parse runner that removes the file. A case is
+// due if the session's own call stops sharing that expression.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
