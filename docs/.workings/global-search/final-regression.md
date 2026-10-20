@@ -211,3 +211,61 @@ decision; the two feature entries) were re-read against their counterparts and p
 
 Every row above was processed. The text changes made here (the coverage checklist's ID wording, this report's three
 #272 rows) were re-read against their counterparts and produced no new row.
+
+## Ticket #273 — Global search: ⌘⇧F and the Edit menu's Search Sessions…
+
+- Date: 2026-10-20
+- Scope: this ticket's change only (not the full-feature closeout)
+- Version: branch `feat/global-search-shortcut` on 84d5ae0 — 2882abc (the item, its path and the case), cecebad (the
+  key press note, the reviews), 03a5ba3 (the spec and the feature entries), and the tests and records after the
+  post-implementation check
+- Languages in the searched files, counted by writing system: the two specs and the two feature entries are English
+  with Han, Cyrillic and Kana only in quotations or language names; the six READMEs one language each; the landing
+  page's dictionary Chinese and English; the app's dictionaries all six. Searches below carry a term per language for
+  the files that use it
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/global-search.md` status line; the Pending note | what shipped: every user story, US-004 with this ticket | True; the note's condition is gone with US-004 shipped, so the note is gone (no trace of it kept) |
+| `docs/specs/global-search.md` Implementation Decisions, the renderer: the box takes the focus on every showing and whenever the menu's item asks | `GlobalSearchPane`'s focus request and `autoFocus`; E12 | True |
+| `docs/specs/i18n.md`, the application menu: why the app installs a custom menu | the app's custom menu | True (the old sentence said there was none) |
+| `docs/features/global-search.md`: ⌘⇧F, or "Search Sessions…" at the bottom of the Edit menu, from anywhere, as left, the cursor in the box, the search page itself included | US-004/AC-01, AC-02, J10; E12, E13 | True for what can be checked; the key press itself is the stated gap (the feature line states the behaviour a user gets from the key, which the platform's accelerator gives) |
+| `docs/features/i18n.md`: the menu's entries into the app | the installed menu (E12) | True |
+| Dictionaries, six languages: `menu.searchSessions` | the prototype's Chinese and English; each dictionary's own wording for question search and sessions | True; `pnpm typecheck`, `check:i18n`, `check:ui` green |
+| Code comments: the template's action and item, the shared IPC name, the preload's and the App's notes on the menu's entry points (no count any more), the search page's focus request | the code | True |
+| The e2e file's header: the key press note with its re-test condition; the focus note gone | E12, E13; the probe | True |
+| Prototypes ↔ app | the global search prototype's note that the Edit menu's item is not drawn there (a native menu, the spec's declared exemption) | Same; no interface drawn |
+
+### Stage 2: related declarations
+
+| Statement (unchanged file) | Its counterpart changed this round | Conclusion |
+|---|---|---|
+| `docs/features/README.md` Global search row; `docs/specs/README.md` rows | the entry, the spec | True: the one-liners name neither the shortcut nor the menu |
+| `docs/features/app-update.md`, `docs/specs/app-update.md`: "Check for Updates…" directly below "About Agentshed" | the menu's template | True: the item is in the Edit menu, the Agentshed menu unchanged |
+| The six READMEs and the landing page's copy: shortcuts | the new shortcut | No statement: `rg -n -uu "⌘\|⇧\|shortcut\|raccourci\|atajo\|<Japanese, Chinese and Russian words for shortcut>" README*.md site/src` — exit 1; control "Agentshed" hits the READMEs and `site/src/i18n/ui.ts` |
+| CONTEXT **Global search** | the shortcut | True; no term changes |
+| ADR-0013 (a brand name not localised), the menu's first item | the template | True: unchanged |
+| Rule ↔ gate: the menu item's copy in six languages | typecheck (the dictionary's shape), `check:i18n` | Green; the key exists in all six |
+| Rule ↔ gate: the accelerator is the item's alone | U1 over the template's strings, E12 over the installed menu, normalised, the roles' own accelerators included ([read](evidence/ticket-273/installed-menu-accelerators.txt)) | Held by tests |
+
+### Stage 3: events
+
+| Event | Lines checked | Conclusion |
+|---|---|---|
+| An enumerable dimension's members changed: the menu's entries into the app | statements naming them: `rg -n -uu "Check for Updates…\|⌘,\|Cmd\+,\|CmdOrCtrl\+," docs/features docs/specs docs/adr CONTEXT.md README*.md site/src` — the UI language entry (updated), the i18n spec (already names the item), app-update's two (about that item alone) | Done |
+| Pending notes in scope | `rg -n "Pending:" docs/specs/global-search.md docs/specs/i18n.md` | The global search spec's one note expired and is gone; none remains |
+| A rule written this round | none new | — |
+| Work state: #273 open until the merge; the key press's acceptance put to the owner | #273's document sync checklist | Two Waiting rows, each naming its event and who follows it up |
+| #271's and #272's cases in the e2e file unchanged | their Current verification rows | Still true: only the header and the new cases changed, plus E12, E13 |
+
+### Found outside the change surface
+
+- The i18n spec's sentence that there was no custom menu: corrected here, being in the application menu's own
+  section.
+
+### Convergence
+
+Every row above was processed; the text changes made here (the i18n spec's sentence) were re-read against the menu
+and produced no new row.

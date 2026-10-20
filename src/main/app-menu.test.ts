@@ -119,7 +119,8 @@ describe('buildMenuTemplate', () => {
     expect(editItems('en').at(-1)?.label).toBe('Search Sessions…')
     expect(editItems('fr').at(-1)?.label).toBe('Rechercher dans les sessions…')
     expect(new Set(LANGUAGES.map((l) => editItems(l).at(-1)?.label)).size).toBe(LANGUAGES.length)
-    // The shortcut is the item's alone: no other entry in the menu carries it
+    // No other entry in the template names the same accelerator string (the installed menu's check, with the
+    // chord normalised and the roles' own accelerators included, is the global search e2e's)
     const all = buildMenuTemplate('en').flatMap((m) => (Array.isArray(m.submenu) ? m.submenu : [])) as Item[]
     expect(all.filter((i) => i.accelerator === 'CmdOrCtrl+Shift+F').map((i) => i.id)).toEqual(['searchSessions'])
   })

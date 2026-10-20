@@ -12,7 +12,9 @@
 //   - The key press ⌘⇧F itself: in the test's window neither Playwright's key press nor
 //     webContents.sendInputEvent reaches the application menu (measured 2026-10-20 with the existing ⌘, item).
 //     The binding is asserted on the installed item, and the handler is run through the item's own click, as the
-//     application menu's e2e runs its items.
+//     application menu's e2e runs its items. Re-test: by hand, ⌘⇧F in a running app from settings, a session page
+//     and the search page itself shows the page with the cursor in the box; automate it once a key event reaches
+//     the menu in the test's window.
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -699,14 +701,43 @@ async function clickSearchSessions(app: ElectronApplication): Promise<void> {
   })
 }
 
-/** The installed Edit menu's last two entries: "separator", or the item's id, label and accelerator */
+/** The installed Edit menu's last two entries: "separator", or the item's id, label, accelerator and the three
+ * flags a click on the item's handler does not check */
 async function editMenuTail(app: ElectronApplication): Promise<string[]> {
   return app.evaluate(({ Menu }) =>
     (Menu.getApplicationMenu()?.items[1]?.submenu?.items ?? [])
       .slice(-2)
-      .map((i) => (i.type === 'separator' ? 'separator' : `${i.id} | ${i.label} | ${i.accelerator ?? ''}`))
+      .map((i) =>
+        i.type === 'separator'
+          ? 'separator'
+          : `${i.id} | ${i.label} | ${i.accelerator ?? ''} | enabled ${String(i.enabled)} | visible ${String(i.visible)} | registerAccelerator ${String(i.registerAccelerator)}`
+      )
   )
 }
+
+/** Every accelerator in the installed application menu, submenus included, as "id or role | accelerator" */
+async function menuAccelerators(app: ElectronApplication): Promise<string[]> {
+  return app.evaluate(({ Menu }) => {
+    const out: string[] = []
+    const walk = (items: Electron.MenuItem[]): void => {
+      for (const i of items) {
+        if (i.accelerator) out.push(`${i.id || i.role || i.label} | ${i.accelerator}`)
+        if (i.submenu) walk(i.submenu.items)
+      }
+    }
+    walk(Menu.getApplicationMenu()?.items ?? [])
+    return out
+  })
+}
+
+/** A chord with its modifiers in one spelling and order: Cmd, Command, CmdOrCtrl and CommandOrControl as one */
+const chord = (accelerator: string): string =>
+  accelerator
+    .split('+')
+    .map((k) => k.toLowerCase())
+    .map((k) => (['cmd', 'command', 'cmdorctrl', 'commandorcontrol'].includes(k) ? 'cmd' : k === 'control' ? 'ctrl' : k === 'option' ? 'alt' : k))
+    .sort()
+    .join('+')
 
 test('⌘⇧F through the application menu: from settings, a session page and the search page itself, the page as left with the focus in its box; the item follows the language (US-004, J10)', async () => {
   const { home } = mkHome()
@@ -718,7 +749,12 @@ test('⌘⇧F through the application menu: from settings, a session page and th
     await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
     // The Edit menu ends with a separator and the item, bound to ⌘⇧F (US-004/AC-02)
     await win.waitForSelector('.rail')
-    expect(await editMenuTail(app)).toEqual(['separator', 'searchSessions | Search Sessions… | CmdOrCtrl+Shift+F'])
+    const item = 'enabled true | visible true | registerAccelerator true'
+    expect(await editMenuTail(app)).toEqual(['separator', `searchSessions | Search Sessions… | CmdOrCtrl+Shift+F | ${item}`])
+    // The chord is the item's alone, however another entry might spell it
+    const accelerators = await menuAccelerators(app)
+    expect(accelerators.length).toBeGreaterThan(2)
+    expect(accelerators.filter((a) => chord(a.split(' | ')[1]) === chord('CmdOrCtrl+Shift+F'))).toEqual(['searchSessions | CmdOrCtrl+Shift+F'])
 
     // From settings, a keyword typed before: the page as left, its box focused (US-004/AC-01, J10)
     await searchItem(win).click()
@@ -745,16 +781,49 @@ test('⌘⇧F through the application menu: from settings, a session page and th
     await expect(box(win)).not.toBeFocused()
     await clickSearchSessions(app)
     await expect(box(win)).toBeFocused()
+    await expect(box(win)).toHaveValue('notarize')
     await expect(win.locator('.gsearch .shead .seg button.on')).toHaveText('Oldest first')
 
     // The item follows the in-app language, and still opens the page (US-004/AC-02)
     await win.locator('.ri.set').click()
     await win.getByTestId('language-trigger').click()
     await win.getByTestId('language-pop').locator('[data-lang="fr"]').click()
-    await expect.poll(async () => (await editMenuTail(app))[1]).toBe('searchSessions | Rechercher dans les sessions… | CmdOrCtrl+Shift+F')
+    await expect.poll(async () => (await editMenuTail(app))[1]).toBe(`searchSessions | Rechercher dans les sessions… | CmdOrCtrl+Shift+F | ${item}`)
     await clickSearchSessions(app)
     await expect(win.locator('.gsearch .pane-head h1')).toHaveText('Recherche')
     await expect(box(win)).toBeFocused()
+    await expect(box(win)).toHaveValue('notarize')
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
+
+test('Search Sessions… chosen while a hit\'s session is still on its way keeps the search page: the pending jump is dropped (US-004/AC-01)', async () => {
+  const { home } = mkHome()
+  const l = await launch(home, { AGENTSHED_FETCH_DELAY_MS: '1500' })
+  const { app, win } = l
+  try {
+    const cdp = await win.context().newCDPSession(win)
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+    await searchItem(win).click()
+    await box(win).fill('notarize')
+    await expect(body(win).locator('.shead').first()).toContainText(NOTARIZE_HEADER, { timeout: 15000 })
+    // Left alone, a hit's jump lands once its session page has arrived, past the delay
+    await body(win).locator('.hit', { hasText: 'Notarize the stale build' }).click()
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await expect(win.locator('.pane-head .stitle')).toHaveText('Notarize the stale build', { timeout: 10000 })
+
+    // A hit in a session not seen yet, and the item chosen while the search page holds: past the delay the search
+    // page is still there, its box focused, and no session page was drawn
+    await searchItem(win).click()
+    await body(win).locator('.hit', { hasText: 'How do I notarize the app?' }).click()
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await clickSearchSessions(app)
+    await win.waitForTimeout(2500)
+    await expect(win.locator('.app')).toHaveClass(/dim-search/)
+    await expect(box(win)).toBeFocused()
+    await expect(win.locator('.pane-head .stitle')).toHaveCount(0)
     expect(l.errors).toEqual([])
   } finally {
     await close(l, home)
