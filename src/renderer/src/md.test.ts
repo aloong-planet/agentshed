@@ -76,9 +76,11 @@ describe('renderMarkdown keeps written text', () => {
     expect(rendered('See [[pr-merge]](confirm-before-merging) here').querySelector('a')).toBeNull()
   })
 
-  it('a [[name]] alone stays text; inside code nothing changes', () => {
+  it('a [[name]] alone stays text; inside code spans and fences nothing changes', () => {
     expect(textOf('A [[note]] here')).toBe('A [[note]] here')
     expect(rendered('Code `[[x]](y)` stays').querySelector('code')?.textContent).toBe('[[x]](y)')
+    expect(rendered('A span `<slug>` here').querySelector('code')?.textContent).toBe('<slug>')
+    expect(rendered('```\n[[x]](y) <slug> <b>b</b>\n```').querySelector('pre code')?.textContent).toBe('[[x]](y) <slug> <b>b</b>\n')
   })
 
   it('an ordinary link is still a link', () => {

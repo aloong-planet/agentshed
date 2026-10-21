@@ -12,9 +12,11 @@
 // in the preview, so "the new file opens in preview" holds without the reset ever being exercised). Add a
 // case when a path to either appears — a hit list beside an open session, or a file switch from raw mode.
 // Also not driven: two reads in flight in one memory drawer (memory-view E2 — each read is keyed by its file,
-// so an earlier read lands under its own key; there is no per-file delay seam to order two reads), and a
-// language change while the drawer is open (E7 — copy follows the dictionary the language cases cover; the
-// file, mode and scroll survive because a language change remounts nothing in the drawer).
+// so an earlier read lands under its own key; add a case when a per-file read delay can be set to order two
+// reads), and a language change while the drawer is open (E7 — today the language changes only on the settings
+// page, which no drawer survives; add a case when it can change with a drawer open, such as from a menu).
+// Copy follows the dictionary the language cases cover; the file, mode and scroll would survive because a
+// language change remounts nothing in the drawer.
 import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
@@ -1981,6 +1983,20 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   writeFileSync(join(memDir, 'vanish.md'), 'Removed after the scan\n')
   // Past the 500,000-character read cap (Codex's consolidated memory files run to several hundred thousand)
   writeFileSync(join(memDir, 'big.md'), 'Line of the big memory file.\n'.repeat(18_000))
+  // Under the cap, in the shape of Codex's consolidated memory (headings, list items, long prose, file paths),
+  // with the wide elements a real one carries: a long prose line, an unbroken path, a wide code line, a wide
+  // table. Its last line sits past 300,000 characters, so a lower read cap would cut it (memory-view E5).
+  const prose = Array.from({ length: 150 }, (_, i) => `word${i}`).join(' ')
+  const widePath = `rollout_summaries/${'x'.repeat(300)}.md`
+  const wideCode = '```\nconst wide = "' + 'y'.repeat(400) + '"\n```'
+  const wideTable =
+    `| ${Array.from({ length: 12 }, (_, i) => `header-column-${i}`).join(' | ')} |\n|${'---|'.repeat(12)}\n` +
+    `| ${Array.from({ length: 12 }, () => 'cell').join(' | ')} |`
+  const items = Array.from({ length: 9_000 }, (_, i) => `- item ${i}: ${'z'.repeat(20)}`).join('\n')
+  writeFileSync(
+    join(memDir, 'wide.md'),
+    `# Task Group: wide\n\n${prose}\n\n${widePath}\n\n${wideCode}\n\n${wideTable}\n\n## Items\n\n${items}\n\nThe last line of the wide file.\n`
+  )
   // Codex's global memory: a top-level .md in its memories directory
   mkdirSync(join(home, '.codex', 'memories'), { recursive: true })
   writeFileSync(join(home, '.codex', 'memories', 'consolidated.md'), '# Consolidated\n\nCodex memory body\n')
@@ -2128,10 +2144,31 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   // AC-07: a file past the read cap ends with the truncation marker, in preview and in raw
   await memFile('big.md').click()
   await expect(fdBody).toHaveClass(/preview/)
-  expect((await fdBody.textContent())?.trim().endsWith('…(truncated)'), 'preview ends with the marker').toBe(true)
+  await expect(fdBody).toHaveText(/…\(truncated\)\s*$/)
   await fd.locator('.md-preview-seg button', { hasText: 'Raw' }).click()
-  expect((await fdBody.textContent())?.trim().endsWith('…(truncated)'), 'raw ends with the marker').toBe(true)
-  expect((await fd.boundingBox())?.width, 'a long file does not widen the drawer').toBeLessThanOrEqual(720)
+  await expect(fdBody).toHaveClass(/raw/)
+  await expect(fdBody).toHaveText(/…\(truncated\)\s*$/)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // E5: a large file under the cap renders in full; prose wraps; an unbroken path and a wide table scroll the
+  // body sideways and a wide code line scrolls its fence, so nothing wide is cut off by the drawer
+  await memFile('wide.md').click()
+  await expect(fdBody).toHaveClass(/preview/)
+  await expect(fdBody).toContainText('The last line of the wide file.')
+  const wide = await fdBody.evaluate((body) => {
+    const prose = [...body.querySelectorAll('p')].find((p) => p.textContent?.startsWith('word0 '))
+    const pre = body.querySelector('pre') as HTMLElement
+    body.scrollLeft = body.scrollWidth
+    pre.scrollLeft = pre.scrollWidth
+    return {
+      proseOverflow: prose ? prose.scrollWidth - prose.clientWidth : -1,
+      // A script can scroll an overflow:hidden box a reader cannot, so the scrolling style is read as well
+      bodyScroll: `${getComputedStyle(body).overflowX} ${body.scrollLeft > 0}`,
+      fenceScroll: `${getComputedStyle(pre).overflowX} ${pre.scrollLeft > 0}`
+    }
+  })
+  expect(wide.proseOverflow, 'the prose line wraps within the body').toBe(0)
+  expect(wide.bodyScroll, 'the body scrolls sideways to the unbroken path and the table').toBe('auto true')
+  expect(wide.fenceScroll, 'the fence scrolls sideways to its wide line').toBe('auto true')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // AC-01 for Codex's global memory: the placeholder owner and the Codex side
   await win.locator('.it.row-btn', { hasText: '(Codex global memory)' }).click()
@@ -2139,6 +2176,8 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(fd.locator('.d-title')).toHaveText('(Codex global memory)')
   await expect(fd.locator('.d-meta')).toHaveText('Codex · consolidated.md · today')
   await expect(fdBody).toContainText('Codex memory body')
+  await expect(fdBody).toHaveClass(/preview/)
+  await expect(fdBody.locator('h1')).toHaveText('Consolidated')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
   // (4) The demo detail page: F3's second half — enabled at the project layer; the Skills tab contains the

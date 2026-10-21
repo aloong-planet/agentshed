@@ -25,6 +25,8 @@ memory-view::CON-001; D6's "open a drawer" → memory-view::US-001/AC-05.
 | Owner, 2026-10-21, P3: read states inside the frame | Confirmed and in force | memory-view::US-001/AC-07 | Loading, failure, empty and truncation carried |
 | Owner, 2026-10-21, P4: a switched-to file opens in preview at the top | Confirmed and in force | memory-view::US-001/AC-05 | Carried |
 | Owner, 2026-10-21, P5: in project detail a topic's link to the main file opens it in the drawer; the main file's unlisted links show the toast | Confirmed and in force | memory-view::US-001/AC-05, D6 | Main file in project detail's listed files; D6 now names the toast |
+| Owner, 2026-10-21, D5 (after the independent test check): `[[…]]` is literal on every rendered surface, a remark written straight after it included | Confirmed and in force | memory-view::CON-002, memory-view::US-001/AC-04 | The remark case and every-surface reach carried |
+| Owner, 2026-10-21, D6: a tag-like `<name>` that is not an HTML element shows as written on every rendered surface; real HTML keeps rendering | Confirmed and in force | memory-view::CON-002 | Both branches carried, and the element-named placeholder exception stated |
 | Existing spec C8 / D2 / D6 (already-read body, caps, main-file links) | Background | E1, D2, D6 | Kept; the drawer obligations moved per the migration note |
 
 ## Spec → tickets → verification
@@ -40,10 +42,10 @@ memory-view::CON-001; D6's "open a drawer" → memory-view::US-001/AC-05.
 | memory-view::US-001/AC-07 | Loading / read failure / empty / truncation inside the frame, bar and switch stay | #294 | Test (e2e): delayed read → "Loading…"; a file removed after listing → "File cannot be read" with the switch present; empty file → "Empty file"; a 522,000-character file ends with `…(truncated)` in preview and raw |
 | memory-view::US-001/AC-08 | Esc, close button, overlay each close | #294 | Test (e2e): each of the three closes the drawer |
 | memory-view::CON-001 | One form with the skill file drawer: frame, preview frame, content rules; width min(720, 80%); bar fade | #294: implementation; regression for the skill and plugin drawers | Test (e2e): the memory drawer's width rule and the same computed frame and bar styles as the skill drawer; the skill drawer's existing tests stay green |
-| memory-view::CON-002 | Every rendered surface keeps `[[…]]` (with what follows) and non-element tags as written; real HTML still sanitised | #294: implementation in the one carrier; regression for every surface | Test (unit, the carrier): remark, alone, in code, ordinary link, placeholders inline and on their own line, `<b>`, `<script>`, `<input>`; e2e: the memory drawer shows both shapes |
+| memory-view::CON-002 | Every rendered surface keeps `[[…]]` (with what follows) and non-element tags as written; real HTML still sanitised | #294: implementation in the one carrier; regression for every surface | Test (unit, the carrier): remark, alone, in a code span and a fence, ordinary link, placeholders inline and on their own line, `<b>`, `<script>`, `<input>`; e2e: the memory drawer shows both shapes |
 | memory-view E1 | Restored body opens in preview | #294 | Test (e2e, startup restore): the saved body shows in the preview body |
 | memory-view E8 | The Subagents drawer keeps its form and min(680) width | #294: regression | Test (e2e): the existing width check, kept for the Subagents drawer |
-| memory-view E2, E4–E7 | Race, unclosed front matter, large files, content capabilities, language switch | #294 | E4: Test (unit, unclosed front matter → no card); E5: Test (the 522,000-character file in e2e: truncated, drawer width kept); E6: by construction (the shared carrier and link interception, tested); E2, E7: gaps recorded in the e2e file header with their reasons |
+| memory-view E2, E4–E7 | Race, unclosed front matter, large files, content capabilities, language switch | #294 | E4: Test (unit, unclosed front matter → no card); E5: Test (a 307,000-character file under the cap in e2e: rendered in full, prose wraps, the body and the fence scroll sideways — style and position both checked); E6: by construction (the shared carrier and link interception, tested); E2, E7: gaps recorded in the e2e file header with their reasons |
 
 ## Current verification
 

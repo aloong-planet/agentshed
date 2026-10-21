@@ -199,7 +199,9 @@ repeats what is already legible is noise.
 - D1b Frontmatter: a YAML header wrapped in `---` is split in the preview into a card of key-value
   rows (about 12.5px), with the body rendered after it.
 - D2 The preview goes through the same **markdown → sanitised HTML** pipeline as the artifact reader
-  (a single production exit; starting another unsanitised `dangerouslySetInnerHTML` is forbidden).
+  (a single production exit; starting another unsanitised `dangerouslySetInnerHTML` is forbidden). That
+  pipeline keeps `[[…]]` references and non-element `<name>` placeholders as written text
+  ([memory-view::CON-002](memory-view.md)).
 - D3 **Links** in the preview: the in-app / file allow-list and the destination of external http(s)
   links follow the existing "a rendered link must never navigate the whole window" invariant
   (CONTEXT); clicking inside a preview must not lose app state. Concretely (settled 2026-08-20): a
@@ -354,7 +356,9 @@ Matching the current behaviour of
   several sides; the depth > 2 notice in the expanded area; plugin rows expand on equal footing with
   on-disk rows (ADR-0012, 2026-08-07). **Flat** (finalised 2026-08-06): zero indentation, no inner
   card, no summary bar, with the header and file rows sharing a 14px baseline.
-- **Drawer**: the title = the skill name; the subtitle = level · side · path; the body full width.
+- **Drawer**: the title = the skill name; the subtitle = level · side · path; the body full width. Its
+  form is shared with the memory file drawer ([memory-view::CON-001](memory-view.md)): a change to
+  either drawer's frame or preview is a change to both, and a switched-to file starts at the top.
 - **Markdown preview**: only `.md` / `.markdown` / `.mdx` show "raw | preview" (preview by default);
   other types have no toggle and show raw only. YAML frontmatter is split into a key-value row card
   (about 12.5px), with the body rendered after it.

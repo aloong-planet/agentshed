@@ -167,8 +167,9 @@ Real HTML keeps rendering and is sanitised as before; a placeholder that shares 
 - E4 Front matter without its closing `---` is not front matter: no card, the text renders as Markdown
   (the skill drawer's rule, skills-view D1b).
 - E5 Large files (Codex's consolidated memory files run to several hundred thousand characters, under
-  the 500,000 cap): the preview renders them in full, long lines wrap, wide tables and code scroll
-  inside the body, and the drawer never widens past its width.
+  the 500,000 cap): the preview renders them in full; prose lines wrap; an unbroken token or a wide table
+  scrolls the body sideways and a wide code line scrolls inside its fence, so nothing is cut off; the
+  drawer never widens past its width.
 - E6 What a memory file's content can do to the host: links per memory-view::US-001/AC-05 and
   memory-view::US-001/AC-06; images, scripts and every other sanitised element behave exactly as in
   the rendered main file (D2), which already goes through the same carrier — the drawer adds no
@@ -224,9 +225,11 @@ normal read, an empty file and a file removed after the scan.
 
 memory-view::US-001 is tested end to end on the built app (the highest seam; prior art: the skills-view
 drawer test and the Memory section test in the e2e suite): a seeded home whose memory files carry the
-real shapes — front matter with a nested key, `[[name]]` references, and links to a sibling, to the main
-file, external and to an unlisted file. Link resolution itself stays covered by the shared link
-module's unit tests.
+real shapes — front matter with a nested key, `[[name]]` references with and without a remark written
+straight after them, `<slug>`-style placeholders, links to a sibling, to the main file, external and to an
+unlisted file, a Codex memory file, one past the read cap, and one large file under it with wide content.
+memory-view::CON-002 is tested at the one carrier (the shared renderer's unit tests). Link resolution
+itself stays covered by the shared link module's unit tests.
 
 ## Out of Scope
 

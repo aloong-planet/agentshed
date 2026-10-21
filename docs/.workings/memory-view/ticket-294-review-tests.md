@@ -32,10 +32,8 @@ memory-view::US-001/AC-01–AC-08, memory-view::CON-001, E1 and E8, and the proj
 Every acceptance item of memory-view::US-001 and memory-view::CON-001 has a row; E1 and E8 have rows. Not
 tested, with the reason recorded here and in the test file: E2 (two reads in flight — the read is keyed by
 file, so the earlier read lands in its own key; no deterministic trigger without a per-file delay seam), E5
-(a several-hundred-thousand-character fixture would only re-test the read cap; checked by hand over the
-owner's real Codex memory when the #279 screenshot is retaken), E7 (language switch while open — copy
-comes from the dictionary the language tests already cover). Truncation in AC-07 rides the existing read
-cap; no new fixture. Each row's input reaches its branch: E-A6's vanished file is removed after the scan
+(superseded: E5 is now tested by E-A13, see Increment 2), E7 (language switch while open — copy
+comes from the dictionary the language tests already cover). Truncation in AC-07 (superseded: tested by E-A12, see the increments). Each row's input reaches its branch: E-A6's vanished file is removed after the scan
 listed it, so the read itself fails; E-A9's main file appears only after the scan.
 Fixtures: the memory files follow the real shape (nested front matter, `[[name]]`, links to siblings and the
 index), not one invented from the spec.
@@ -80,6 +78,30 @@ changes while open has no product path that keeps the drawer open across a file 
 is reached only through AC-05's switch; E2 (two reads in flight) and E7 (language switch while open) stay
 untested, with their reasons there.
 
+### Increment 2 after the incremental check (2026-10-21)
+
+Rows revised or added for findings IC-1 to IC-4 and IC-6; reviewed before the tests change. E5's wording in the
+spec now follows a measurement on the built app (a 307,122-character file under the cap: drawer 720 px; body
+scrollWidth 2,058 over clientWidth 682 from an unbroken 300-character token and a 12-column table; a 400-character
+code line scrolls its fence, scrollWidth 2,384 over 648).
+
+| # | Spec item | Seam | Input that drives the branch | Assertion and expected-value source | Fixture shape source | Expensive resource |
+|---|---|---|---|---|---|---|
+| U4 (revised) | CON-002 | `renderMarkdown` | as before, without `[see [[x]]](u)` (never a link with or without the fix: marked allows one bracket level in link text), plus a fence holding `[[x]](y) <slug>` and a code span holding `<slug>` | the fence and the span show their text unchanged. Truth: CON-002's "inside code spans and fences nothing changes" | — | none |
+| E-A11 (revised) | US-001/AC-01, AC-02 for Codex | e2e, F3 launch | the Codex file | title and meta as before, and the body in preview with its heading rendered as a heading | as before | F3 launch |
+| E-A12 (revised) | US-001/AC-07 truncation | e2e, F3 launch | a 522,000-character file | retrying text assertions that the preview body ends with `…(truncated)`; the body's class is `raw` before the raw text is read, then the same ending. The width assertion is dropped: the drawer's width cannot follow content (fixed width, clipped overflow), so it could never go red | — | F3 launch |
+| E-A13 | E5 | e2e, F3 launch | a 307,000-character file under the cap in the real Codex shape (headings, list items, a prose line of about 1,100 characters, an unbroken 300-character path, a 400-character code line, a 12-column table), its last line marked | the last line is in the preview (a lower read cap would cut it); the prose paragraph does not overflow; the body can be scrolled sideways (scrollLeft moves) and so can the fence — content clipped by the drawer instead would leave both at 0. Truth: the cap (500,000), the measurement above | real Codex memory files: largest 344,228 characters, lines up to 1,061 | F3 launch |
+
+Gap notes (IC-6): the e2e header gives each remaining gap the condition for adding a case — E2 when a per-file
+read delay can be set; E7 when the interface language can change while a drawer stays open (today it changes only
+on the settings page, which a drawer does not survive).
+
+Conclusions for this increment's design, by dimension: Coverage — every revised row reaches its branch (E-A13's
+last line sits past 300,000 characters, below the cap; its sideways checks need content wider than the body,
+which the token and table provide); Case design — no mocks, all through the built app's UI or the one carrier;
+False greens — E-A12's dropped width check and IC-2's early reads are the two removed; Resource reuse — one more
+file in F3's fixture home, no launch added.
+
 ## Post-implementation check
 
 Date 2026-10-21 · implementation commit 81952cf (range 9b7bb13..81952cf) · ticket #294 · run by an independent
@@ -91,6 +113,9 @@ Skills view test (:2287), the plugin skill preview test (:2837) and the artifact
 
 Result: findings PC-1 to PC-9 go back to the main agent. PC-1 comes first: the gate log is tied to no version, and
 81952cf as committed fails `pnpm check:lang`. PC-2 is next: a real memory shape breaks AC-04 and no test sees it.
+
+Current status of PC-1 to PC-9 at f064a81: see "Incremental check (81952cf..f064a81)" at the end of this section; the
+findings below stand as written for 81952cf.
 
 ### Run evidence
 - Capability declaration, read with a TOML parser (`tomllib`): every registered ID is present and well formed, none
@@ -307,3 +332,309 @@ For the main agent, per implement/document-sync.md (not edited here):
 - [memory-view spec](../../specs/memory-view.md): Testing Decisions' list of real shapes, and AC-04 if PC-2 is
   resolved by narrowing it.
 - A fix that changes test code goes to an independent incremental check (/implement step 6).
+
+### Incremental check (81952cf..f064a81)
+
+Date 2026-10-21 · implementation commit f064a81 (range 81952cf..f064a81, one commit: "Keep written [[references]] and
+placeholders as text on every surface") · ticket #294 · run by an independent agent that did not inherit the
+implementation conversation · scope set by /review-tests' incremental clause (below). Outside that scope the first
+round's conclusions above (9b7bb13..81952cf) carry over.
+
+Result: PC-1, PC-2, PC-3, PC-5, PC-8 and PC-9 are resolved; PC-4 is resolved with a minor drift (IC-4); PC-6 is resolved
+for AC-07's truncation, but this record's wording for it is still pending (IC-5); PC-7 is partly resolved (IC-1, IC-6). New
+findings IC-1 to IC-6 go back to the main agent; IC-1 and IC-2 come first.
+
+#### Scope and the searches that set it
+- Tests the range changes: `git diff --name-only 81952cf..f064a81` lists 11 files, two of them tests —
+  `src/renderer/src/md.test.ts` (one case added to `renderMarkdown` at :53, a new `describe` with five cases at :72–102,
+  two file-local helpers `rendered` and `textOf`) and `e2e/app.spec.ts` (the header's gap notes :8–17; in the F3 test
+  :1907 the pitfalls.md fixture :1975, big.md :1985, the Codex memory :1987–1988, and assertions at :2069, :2078–2080,
+  :2129, :2132–2145, :2270–2281).
+- Tests that depend on changed test helper code: none. The test files are the 97 paths in `git ls-files -co
+  --exclude-standard` matching `\.(test|spec)\.(ts|tsx|mjs|cjs|js)$`. `rg -n "^export " e2e/app.spec.ts
+  src/renderer/src/md.test.ts` exits 1: neither file exports anything, and the two helpers are file-local. `rg -n -e
+  "app\.spec" -e "md\.test"` over the 97 gives 5 hits, all comments, no import. Among the 97, only `md.test.ts:5` imports
+  the changed product module `md.ts` (`rg "from ['\"](\./|\.\./)+([a-z/]*/)?md['\"]"`). Outside `docs/prototypes/`, no
+  test or script names `md-preview.js`, the prototype renderer: the one hit is `ticket-294-doc-sync.md:9`. Every other
+  surface that `md.ts` reaches ran in the full gate (148 e2e passed).
+- Test design table rows the range changes: in "Increment after the post-implementation check", U4, U5, E-A1
+  (revised), E-A6 (revised), E-A10 (revised), E-A11 and E-A12, and its coverage notes. The record's diff is one hunk,
+  `@@ -60,6 +60,250 @@`, all additions; lines 1–62, the original design review, are unchanged.
+
+#### Run evidence
+- Capability declaration, read with `tomllib`: every registered ID is present and well formed, none is unregistered, and
+  `macos-distribution` applies (`client-framework = "electron"`). Per the project capability declaration,
+  mutation-testing is not enabled; this item is skipped. "When does it go red" is answered under False greens for each
+  changed test, from the code under test and the expected-value source.
+- The handed log `t294-verify2.log` (this session's scratch directory) is a full `pnpm verify` at f064a81, handed in place
+  of a targeted verification log. It covers lint and every test, more than /implement's targeted run must contain.
+  Against /implement's log requirements:
+  - the version: `HEAD f064a813c0636af04edb4356401946ceb5cefaf8`, then an empty status block. The tree is clean, so no
+    file needs `git hash-object`.
+  - every command: pnpm echoes each step of the `&&` chain, from typecheck to smoke.
+  - the full output of each step.
+  - the exit code: `verify exit=0` on the last line. The chain stops at the first non-zero, and every step's output up
+    to `SMOKE_OK` is present.
+
+  Nothing is missing, and the version matches the end of the range. lint and e2e ran as `capabilities.toml`'s
+  `enforced-by` names them (`pnpm lint`, `pnpm e2e`). The log lives in a session scratch directory, so the lines these
+  conclusions rest on are kept here:
+  - `✓ src/renderer/src/md.test.ts (13 tests) 41ms` (line 119)
+  - `✓   47 e2e/app.spec.ts:1907:1 › F3 plus the new sections: … (12.9s)` (line 483)
+  - `148 passed (6.3m)` (line 586)
+  - `✓ Working language: 2558 line(s) of Chinese, each permitted by a stated rule` (line 370)
+  - one `electron-vite build`, emitting `index-D3enaMA1.js`, `index-vYm3GESa.css` and `main-DZ5R1KNi.js` (lines 408–433)
+- Run here, on the review objects only, at HEAD f064a81, with `git status --porcelain --untracked-files=all` empty before
+  and after:
+  - `pnpm -s exec vitest run src/renderer/src/md.test.ts`: 13 passed, exit 0.
+  - `pnpm -s build`: exit 0, with the same bundle names as the gate.
+  - `pnpm -s exec playwright test e2e/app.spec.ts:1907`: 1 passed (13.1 s), exit 0.
+- Whether the new inputs reach their branch, measured without touching the worktree. A scratch script ran each new input
+  through the pre-fix pipeline, as md.ts had it at 81952cf (marked 15.0.12's `marked.parse`, then DOMPurify with
+  `URI_ALLOW`). A scratch esbuild bundle of the shipped `md.ts`, with jsdom globals, ran the edge inputs. Pre-fix
+  results:
+  - `See [[pr-merge]](confirm-before-merging) here` renders as the text `See [pr-merge] here`, with a link `[pr-merge]`
+    pointing to `confirm-before-merging`.
+  - F3's `See [[other-note]](read-the-index-first) · …` renders a link `[other-note]`.
+  - `docs/.workings/<slug>/x.md` becomes `docs/.workings//x.md`.
+  - `Use <spec-slug>::US-001 and <id>` becomes `Use ::US-001 and`.
+  - `<slug>` alone renders as nothing.
+  - F3's placeholder line becomes `docs/.workings// and stay.`.
+  - `A [[note]] here` and the code span render unchanged.
+  - `[see [[x]]](u)` is plain text, not a link.
+
+  Shipped results:
+  - `[see [[x]]](u)` is the same plain text, not a link.
+  - `[see [x]](u)` is a link.
+  - `` `<slug>` `` and a fence holding `[[x]](y) <slug>` render unchanged.
+
+#### Coverage
+The written tests against the changed rows of the test design table (seam, driving input, assertion, expected-value
+source, fixture, resource):
+
+| Row | Written test | Result |
+|---|---|---|
+| U4 | md.test.ts "renderMarkdown keeps written text", five cases (:74–101) | Partly: every design input is there except `[see [[x]]](u)`. The row expects it to stay a link, but neither pipeline makes it one (measured: plain text in both), so the row is out of date rather than the test short (IC-3) |
+| U5 | md.test.ts :53 | Consistent |
+| E-A1 (revised) | F3 :1975, :2069, :2078–2080 | Consistent. The row's `[[pr-merge-needs-confirmation]](remark-without-spaces)` is written as `[[other-note]](read-the-index-first)`, the same shape: a remark with no spaces parses as a link target (measured) |
+| E-A6 (revised) | F3 :2129 | Consistent |
+| E-A10 (revised) | F3 :2270–2281; :2288 compares the skill drawer's whole frame, bar included, with it | Consistent |
+| E-A11 | F3 :1987–1988, :2140–2145 | Partly: title and meta are exact, as the row says, but "the body rendered" is asserted only as text being present, which raw mode also satisfies (IC-4) |
+| E-A12 | F3 :1985, :2132–2138 | Partly: the row says 510,000 characters, the test writes 522,000 (29 × 18,000, as the checklist says) (IC-4); the marker reads do not wait for the state they read (IC-2); this input cannot reach the row's E5 half (IC-1) |
+
+The spec's items against the tests, for the items this increment touches:
+- Covered now:
+  - AC-01's relative time (Claude and Codex), and AC-01's Codex form (title and side).
+  - AC-04 for the real shape.
+  - AC-07's truncation, in preview and raw, and the switch staying on a failed read.
+  - CON-001's bar fade, exactly.
+  - CON-002 for: the remark; a reference alone; a code span; placeholders inline and alone on a line; hyphenated names;
+    `<b>`, `<script>` and `<input>`.
+  - E4.
+- Not covered:
+  - E5 (IC-1).
+  - The fences half of CON-002's "inside code spans and fences nothing changes", and a placeholder inside code. The shipped
+    carrier leaves both unchanged (measured). The risk is low: the escape lives in the raw-HTML renderer, which code never
+    reaches, and the reference rule is inline-only. Folded into IC-3.
+
+Gap notes in the e2e header (:8–17):
+- The file drawer's mode reset (skill and memory files): has a reason and a condition for adding a case.
+- E2: has a reason (each read is keyed by its file; there is no per-file delay seam). The condition is only implied.
+- E7: has a reason, but no condition for adding a case (IC-6). The premise holds: `rg -n "key=\{[^}]*(lang|language|dict|locale)" src/renderer`
+  exits 1, so no element is keyed by the language.
+- E5: dropped from the notes in favour of a coverage claim the test does not back (IC-1).
+
+Fixtures against real data, by structure only. A scratch script read all 119 top-level `.md` files under
+`~/.claude/projects/*/memory/` and the 3 under `~/.codex/memories/`, whose directory also holds 4 subdirectories and 3
+non-`.md` files, unlisted per D5. The Codex files have:
+- no front matter, no table and no fence;
+- 749 headings;
+- 519 lines over 200 characters, the longest 1,061;
+- at most 344,228 characters, under the cap.
+
+How the fixtures compare:
+- E-A11: `# Consolidated\n\nCodex memory body\n` is enough for AC-01, which does not depend on the content.
+- E-A12: 18,000 lines of 28 characters goes past the cap and takes nothing of the real files' structure (IC-1).
+- E-A1: its two new shapes are the real ones (PC-2's `[[name]](remark)`, the `<slug>`-style placeholders).
+
+Conclusion: gaps — IC-1, IC-3, IC-4, IC-6.
+
+#### Case design
+The 90 added test lines hold no module replacement, spy, cast, call-count assertion, skip or fixed wait. `rg` over them
+for `launch\(`, `vi\.mock`, `vi\.spyOn`, `jest\.`, `as any`, `test\.skip`, `it\.skip`, `skip\(`, `toHaveBeenCalled` and
+`waitForTimeout` exits 1 for each pattern; so does the same search over the removed lines. Two exemptions, reviewed and
+accepted:
+- E-A10's probe (:2271–2280) appends a `div` to the open drawer, reads its computed background for `var(--bg)` and for
+  `var(--card)`, and removes it in the same evaluation. It is a measuring aid: it sets up no state the behaviour depends
+  on. It resolves the spec's "page ground" and "card" in the drawer's own cascade, as the theme's `--bg` and `--card`,
+  which are defined only on the theme roots (theme.css:6–171), so the comparison is between computed colours.
+- big.md and consolidated.md are written into the fixture home before launch, a state an agent produces.
+
+The big.md reads are one-shot and do not wait for the state they read, so the case is not reliably reproducible (IC-2).
+
+Conclusion: IC-2.
+
+#### False greens
+Per the project capability declaration, mutation-testing is not enabled; this item is skipped. When each changed test
+goes red:
+- U5: when an unclosed block becomes a card, or its lines are dropped. `.md-fm` is the card's class (md.ts:96), so the
+  selector is live, and a card would also split `name: unclosed` across two cells. This is a regression guard: the pre-fix
+  split also needed the closing fence.
+- U4, remark: on the pre-fix pipeline (measured above), and whenever the reference rule stops running before the link
+  rule.
+- U4, reference alone and code span: when the reference rule or the tag escape mangles a lone reference or reaches a code
+  span. Both were already text before the fix, so these are regression guards.
+- U4, ordinary link: when a link stops being one, for example if the reference rule's start hook swallows a `[`.
+- U4, placeholders: on the pre-fix pipeline, all three (measured); also when the element check is dropped, or the hyphen
+  rule. `<spec-slug>` is a valid custom-element name, so a `createElement` check alone would keep it as a tag and the
+  sanitiser would drop it.
+- U4, real HTML:
+  - `<b>`: when every tag is escaped.
+  - `<script>`: when it is kept, or shown as text.
+  - `<input>`: when it is escaped as text. Not when it is dropped, which "sanitised as before" allows.
+- E-A1: as in the first round, plus:
+  - the meta line, for a missing, absolute or wrong time (exact text). A run crossing local midnight between writing and
+    reading the file would read "yesterday", a spurious red.
+  - the reference and placeholder lines, on the pre-fix pipeline (measured): there they render a link `[other-note]`,
+    which the `a` filtered by "other-note" counts, and the remark and `<slug>` are gone.
+- E-A6: when the switch is tied to a successful read.
+- E-A10:
+  - Red for a reversed gradient: `--bg` and `--card` differ in every theme block (theme.css:6–7, 81–82, 95–96, 109–110,
+    157–158, 170–171; the bar's rule is theme.css:3050).
+  - Red for another token, direction or colour stop.
+  - Also red for an equivalent rewrite that drops the explicit `0%` and `100%`, since the serialisation changes. Such a
+    refactor would need the test touched; accepted.
+  - :2288's whole-frame equality carries the exact bar to the skill drawer.
+- E-A11: for another owner name, side, file name or time, or when the read fails or opens another file. Not when the file
+  opens in raw (IC-4).
+- E-A12:
+  - Red when the file is not cut (a cap above 522,000, or none), or when the marker is missing or reworded.
+  - Not red for a lower cap: the cut position is not asserted.
+  - The raw read goes red only if the click's re-render has committed before the read (IC-2).
+  - The width assertion cannot go red from content (IC-1).
+- Interface forms (review-code's false-greens list): all 8 added locator assertions are awaited. The three one-shot reads
+  (:2134, :2136, :2137) are IC-2 and IC-1. No exit code relied on here is read after a pipe.
+
+Conclusion: IC-1, an assertion that content cannot turn red; IC-2, reads that do not wait for their state. No always-true
+unit assertion, same-algorithm expectation or old-path assertion.
+
+#### Resource reuse
+Expensive resources: the e2e build and the built app's launches. From the handed log, there is one `electron-vite build`
+per `pnpm e2e` (lines 408–433). The log has no per-launch output, so launches are counted from the code: the range adds
+and removes no `launch(` (`rg` exits 1 over the added and over the removed lines). The new steps ride F3's one launch,
+12.9 s in the gate and 13.1 s here. The new unit cases need no expensive resource: 13 tests in 41 ms, with one jsdom
+environment per file. The 522,000-character file is one `writeFileSync` per F3 run, and the app reads it once. This
+matches the test design table.
+
+Conclusion: no finding.
+
+#### Findings
+- IC-1 — Coverage and False greens: E5 is claimed covered but is never reached (memory-view E5; the checklist's E5 row;
+  design row E-A12; the E5 part of PC-6 and PC-7).
+  - What E5 says: large files under the 500,000 cap render in full, long lines wrap, wide tables and code scroll inside
+    the body, and the drawer never widens.
+  - Why the input misses it: the only large-file input, big.md (e2e/app.spec.ts:1985), is 522,000 characters of
+    28-character lines. It is past the cap, so it never shows a large file in full, and it holds no long line, table or
+    code.
+  - Why the width check is inert: the assertion at :2137 (`width ≤ 720`) cannot go red from content. The drawer is
+    `position: fixed` (theme.css:1726) with an explicit width and `overflow: hidden` (theme.css:2980–2991), so
+    overflowing content is clipped rather than widening the drawer. It goes red only when the width rule changes, which
+    E-A10 already checks. This is review-code's false-greens form "an ancestor with overflow: hidden never reports
+    overflow".
+  - Impact: a lower read cap stays green; 300,000, for example, would cut the 344,228-character Codex file on this
+    machine. A wide table or long code line clipped by the drawer instead of scrolling inside the body also stays green.
+    And E5 left the e2e header's gap notes for a coverage claim the test does not back.
+  - Recommendation, one of two:
+    - Add an under-cap large file in the real shape: a few hundred thousand characters, with headings, lines of around
+      1,000 characters, and one long unbreakable code line or a wide table. Assert no marker, the file's last line
+      present, and the wide element scrolling inside the body (its scroll container's `scrollWidth` above
+      `clientWidth`) while the drawer keeps its rect.
+    - Or put E5 back in the header's gap notes with its reason and the condition for a case, and correct the
+      checklist's E5 row and row E-A12.
+
+    Optionally, pin the cut position as well: raw text of 500,000 characters plus the newline and the marker.
+  - Destination: this ticket.
+- IC-2 — Case design and False greens (the "read too early" form), e2e/app.spec.ts:2133–2136.
+  - The preview read can fail with no defect. The body already has class `preview` while the file is being read:
+    "Loading…" renders inside `.md-preview-body.preview` (FileDrawer.tsx:95–97, the state E-B1 asserts). So the wait at
+    :2133 does not wait for the text, and the one-shot `textContent()` at :2134 can run before big.md's read lands.
+  - The raw read can pass without raw being shown. After the Raw click, :2136 reads at once, without waiting for the
+    class `raw`. Preview and raw get the same text with the marker (MemoryView.tsx:228), so if the switch had not taken
+    effect the read would return the preview's text and stay green. It shows that raw ends with the marker only because
+    React commits the click's update before Playwright's next evaluation.
+  - Not seen in the gate run or in the run here.
+  - Impact: an intermittent red in F3, a 13-second test that carries most of US-001, and a raw check that rests on render
+    timing.
+  - Recommendation: wait on the asserted expression itself, with `await expect(fdBody).toHaveText(/…\(truncated\)\s*$/)`;
+    and add `await expect(fdBody).toHaveClass(/raw/)` before the raw check, as :2083 does for AC-03.
+  - Destination: this ticket.
+- IC-3 — Coverage: design row against test (U4; memory-view::CON-002).
+  - The row lists `[see [[x]]](u)` among the inputs where "real links still links". The test leaves it out, and the row
+    was not revised. Measured: marked 15.0.12 renders it as plain text with or without the fix, so as written it could
+    never go red. The row is out of date, not the test short.
+  - CON-002's "inside code spans and fences nothing changes" is tested only for a span (`[[x]](y)`). Neither a fence nor
+    a placeholder inside code is exercised; the shipped carrier leaves both unchanged (measured).
+  - Recommendation: revise U4. Either drop `[see [[x]]](u)`, or state its real outcome (it stays text as written) and
+    add it. Add a fence holding `[[x]](y) <slug>` and a span holding `<slug>`: cheap, and they pin "nothing changes"
+    against a future rewrite of the text before parsing.
+  - Destination: this record's test design table and md.test.ts.
+- IC-4 — Coverage: design rows against tests, minor.
+  - E-A11's row says "the body rendered", but :2144 asserts only `toContainText('Codex memory body')`, which raw mode
+    also satisfies. Asserting `toHaveClass(/preview/)` and the `# Consolidated` heading as an `h1` would match the row.
+  - E-A12's row says a 510,000-character file, but the test writes 522,000: `'Line of the big memory file.\n'` is 29
+    characters, × 18,000. The checklist has 522,000.
+  - Recommendation: align the rows with the tests, or the tests with the rows.
+  - Destination: this record and e2e/app.spec.ts.
+- IC-5 — Record maintenance (document-sync: an old status summary must be replaced, not kept beside the new one).
+  - This record's Design review still says, in its "Coverage" paragraph, "Not tested, with the reason recorded here and
+    in the test file: E2 …, E5 (… would only re-test the read cap …), E7" and "Truncation in AC-07 rides the existing read
+    cap; no new fixture". Both are now false: E-A12 exists, and E5 is claimed covered. The first round listed this
+    paragraph under its document sync obligations; the increment appended a section and left the paragraph as it was.
+  - The increment's design review ("Increment after the post-implementation check") also records no conclusion per
+    dimension (Coverage, Case design, Resource reuse, and the three False greens checks that can be judged from the
+    design), only the rows and a coverage note. "Not reviewed" and "reviewed, no finding" cannot be told apart, and IC-1
+    and IC-3 are design-level issues that review would have covered.
+  - Recommendation: replace the out-of-date paragraph with the current state. In the increment, say that its
+    per-dimension design conclusions were not written down and point to this check for them, rather than back-dating
+    them.
+  - Destination: this record.
+- IC-6 — Coverage: gap notes, minor (what remains of PC-7).
+  - The e2e header (:14–17) gives E7 a reason but no condition for adding a case, and leaves E2's condition implied
+    ("there is no per-file delay seam").
+  - Recommendation: state each condition. E2: when the read gains a per-file delay seam, or a test can otherwise order
+    two reads. E7: when anything in the drawer is keyed by the language, or a language change remounts it.
+  - Destination: this ticket.
+
+#### PC-1 to PC-9 at f064a81
+
+| Finding | Status | Evidence |
+|---|---|---|
+| PC-1 | Resolved | The handed gate log carries HEAD f064a81, a clean status, every command with its output, and `verify exit=0`. check:lang passed in that run with the working records tracked at f064a81: `git ls-files docs/.workings/memory-view` lists all five, and the gate scans `git ls-files --cached`. checklist.md's quotes are translated (diff hunk `@@ -15`) |
+| PC-2 | Resolved | The carrier keeps `[[…]]` and what follows it as text (md.ts:61–71) and escapes non-element tags (md.ts:73–86). U4 and E-A1 exercise the real shapes and are red on the pre-fix pipeline (measured). The spec's AC-04 and CON-002 carry the decision. The spec's Testing Decisions still lists the old shapes (obligation below) |
+| PC-3 | Resolved | `toHaveText('Claude · pitfalls.md · today')` (:2069) |
+| PC-4 | Resolved | A Codex global memory file is seeded and opened from the global Memory section; title and meta are exact (:2140–2144). The row's "body rendered" is not asserted (IC-4) |
+| PC-5 | Resolved | md.test.ts:53; the checklist's E4 row corrected |
+| PC-6 | Resolved for AC-07's truncation | big.md is past the cap; the marker is asserted in preview and raw (:2132–2136), with IC-2's timing caveat. The checklist's AC-07 row is corrected; this record's Design review wording is not (IC-5). The E5 part moves to IC-1 |
+| PC-7 | Partly resolved | The header names the file drawer's mode reset, E2 and E7 with reasons. E7 lacks a condition for a case and E2's is implied (IC-6). E5 left the notes for a claim the test does not back (IC-1) |
+| PC-8 | Resolved | `toBeVisible()` on the switch after vanish.md (:2129) |
+| PC-9 | Resolved | The bar is compared exactly with the gradient built from the computed `--bg` and `--card` (:2270–2281), and :2288 carries the comparison to the skill drawer |
+
+Observations from the first round: O-1 is unchanged, with no change recommended. O-2 became the owner's decision D6
+(memory-view::CON-002): placeholders now show as written, as U4 and E-A1 check.
+
+#### Document sync obligations
+For the main agent, per implement/document-sync.md (not edited here):
+- This record: the Design review's "Coverage" paragraph (IC-5), the rows U4, E-A11 and E-A12 (IC-3, IC-4), and the
+  increment's missing per-dimension conclusions (IC-5).
+- [checklist](checklist.md):
+  - the E5 row (IC-1);
+  - the CON-002 row: "in code" is a span only, while the spec says spans and fences (IC-3);
+  - "Current verification", which still reads "Not run yet" on 9b7bb13 although the gate passed at f064a81;
+  - "Source → spec", which has no row for the owner's decisions D5 and D6, now memory-view::CON-002 and the revised
+    AC-04.
+- [memory-view spec](../../specs/memory-view.md): Testing Decisions' list of real shapes still omits `[[name]](remark)`,
+  the placeholders, Codex's global memory and the over-cap file. This was pending from the first round.
+- [Task record](ticket-294-tasks.md): its verification sections stop at the first gate. The f064a81 gate and the place
+  its log is kept are not recorded, and that log sits in a session scratch directory. This section keeps the lines its
+  own conclusions rest on.
+- A fix that changes test code goes to another independent incremental check (/implement step 6).

@@ -71,3 +71,31 @@ Working record (not an authority: the spec, features, ADRs and CONTEXT.md say wh
 `pnpm verify > t294-verify.log 2>&1; echo "verify exit=$?"` → `verify exit=0`: unit 872 passed (1 opt-in skip), script and
 site tests 102 passed, check:ui / check:lang / check:i18n / check:nul passed, e2e 148 passed on a fresh build, smoke
 SMOKE_OK. Log kept at the scratch path of this session (not committed).
+
+## Full gate at f064a81 (2026-10-21)
+
+The log starts with `HEAD f064a813c0636af04edb4356401946ceb5cefaf8` and an empty porcelain status (clean tree);
+`verify exit=0`: unit 878 passed (1 opt-in skip), script and site tests 102 passed, check:ui / check:lang /
+check:i18n / check:nul passed, e2e 148 passed, smoke SMOKE_OK. The earlier run before 81952cf tested an
+uncommitted tree and, missing the force-added records, a language check that 81952cf then failed (PC-1).
+
+## After the incremental check (IC-1 to IC-6)
+
+E5 measured on the built app and reworded in the spec; tests revised per Increment 2 of the test review record;
+the sideways-scroll check proven by mutation (`overflow: hidden` on the body → "hidden true" against
+"auto true"; restored byte for byte, rebuilt).
+
+## Spec check before step 7 (2026-10-21, read-only over the code at f064a81 plus the uncommitted test revisions)
+
+Each item against the code: memory-view::US-001/AC-01 (owner title: GlobalMemoryTab `projectName ?? placeholder`,
+ProjectMemoryTab `projectName`; meta from the side's short name, file name and `fmtAgo`; bar and switch in
+FileDrawer) — met. AC-02 (shared carrier, front matter card, nested folding) — met. AC-03 — met (raw shows the
+text read, with the truncation marker AC-07 names). AC-04 and CON-002 (wikiRef extension; non-element tags escaped
+in the html renderer) — met. AC-05 (in-directory switch; readable list = the row's files / main file and topics;
+body keyed by file) — met. AC-06 (shared interception: external through the guard, anchors scroll, unlisted and
+other protocols toast) — met. AC-07 (loading, failure, empty, truncation inside the frame) — met. AC-08 — met.
+CON-001 (one component, one stylesheet, the width formula, the fade) — met. C7, C8, D2, D6 — met. E1–E8 — met;
+E2 and E7 by code reading (gaps recorded in the e2e header). Implementation Decisions (main-file entry, allow-list,
+saved-data fill-in) — met. Unrecorded scope: the skill drawer's switched file now also starts at the top and its
+close button centres its icon — both part of the one form CON-001 states; no other expansion. Nothing to
+reconcile with the owner.
