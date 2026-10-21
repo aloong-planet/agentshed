@@ -1,0 +1,17 @@
+mutation: T1-shell
+expected: red
+command: node scripts/check-lang.mjs
+exit: 1
+reach: docs/prototypes/index.html: marker present at line 212
+restore: docs/prototypes/index.html — byte-identical to the backup
+--- stdout
+
+--- stderr
+✗ Working language: found 1 problem(s)
+
+    docs/prototypes/index.html:212  <!-- \u{53D8}\u{5F02}\u{6807}\u{8BB0} -->
+    ↳ not permitted by: UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+
+The repository’s working language is English (ADR-0017). Translate the Chinese above, or, if it genuinely has to stay,
+widen a rule in scripts/check-lang.mjs — stating what shape of Chinese is permitted, and why. Never a line count:
+a count records what is true today, not why it is allowed.

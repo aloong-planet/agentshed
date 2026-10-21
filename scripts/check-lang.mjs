@@ -127,12 +127,31 @@ function citedOrLiteral(text, file) {
 }
 
 /**
+ * The prototype skill's templates copied in unchanged that the file type below would exempt: tooling
+ * although they are HTML and JS. `sync-mmd.mjs`, also a copy, needs no entry, because `.mjs` is not an
+ * exempt type. A template the skill adds is named here when it is copied in.
+ */
+const SKILL_TOOLING = [
+  'docs/prototypes/index.html',
+  'docs/prototypes/app-identity.js',
+  'docs/prototypes/demo-dimensions.js',
+  'docs/prototypes/demo-harness.js'
+]
+
+/**
  * A prototype is a mockup of a Chinese interface shown to a Chinese-reading reviewer, so both its content
  * and its annotations address that reader. The tooling living beside it is not a mockup and gets no
  * exemption — that is what keeps this a rule with teeth rather than a blanket pass on a directory.
+ *
+ * The file type only approximates that line. The skill's copies hold no mockup at all — the gallery shell
+ * lists and frames the prototypes, and the scripts beside it name the tab, set the demo dimensions and
+ * dock the harness — yet judged by their type they were exempt, so the gate never reported the Chinese the
+ * shell still carried. They are named here and checked like any other tooling. `manifest.js` and
+ * `dimensions.js` stay exempt: the names, questions and labels they carry address the reviewer, like a
+ * mockup's annotations.
  */
 function mockupOnly(text, file) {
-  if (/\.(html|mmd|css|js)$/.test(file)) return []
+  if (!SKILL_TOOLING.includes(file) && /\.(html|mmd|css|js)$/.test(file)) return []
   return text
     .split('\n')
     .map((line, i) => [i + 1, line])
