@@ -126,3 +126,13 @@ The log starts with `HEAD 67a31bce3ad79c940979e6ba84733a29c065eebc` and an empty
 unit 878 passed (1 opt-in skip), script and site tests 102, check:ui / check:lang / check:i18n / check:nul passed,
 e2e 148 passed, smoke SMOKE_OK. The changes after it are records only (the checklist's current verification, this
 log, the final regression's closing line); check:lang re-run on them before the commit.
+
+## Rebased onto main 4d21538 (2026-10-21)
+
+main gained #295 (the interface in Chinese and English only: the fr/es/ja/ru dictionaries deleted) and #225 (the
+language check for the prototype skill's copies). Conflicts: the four deleted dictionaries (this branch had removed
+`topicMeta` from them — main's deletion kept) and the postmortem index (both added a 2026-10-21 row — both kept, in
+order). Commit ids before → after: 81952cf → 6f950e9, f064a81 → 7d9d833, 8aa70e8 → 9d0936a, 67a31bc → 6d796a7,
+c8b4922 → 12e51ae. Evidence quoted above for the old ids (gate runs, mutations, the independent checks) was produced on
+the pre-rebase trees; the full gate re-run on the rebased tree is recorded below. After the rebase: typecheck exit 0,
+check:lang exit 0, no `topicMeta` left.

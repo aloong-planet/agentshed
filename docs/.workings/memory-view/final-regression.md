@@ -7,9 +7,10 @@ uncommitted step 6–8 changes on feat/memory-md-preview (tests after the increm
 docs). Spec: memory-view (US-001, CON-001, CON-002, sequence E, Implementation Decisions).
 
 Languages in scope (`rg -l "[\p{Han}]" docs/features docs/specs CONTEXT.md README.md docs/adr src/shared/i18n`):
-docs and CONTEXT are English apart from i18n and ADR quotations; the dictionaries hold six languages. Searches below
-ran in English and in Chinese (the Chinese words for drawer, preview and raw text — no hit in docs, README or the site's copy); dictionary statements were
-read by key in all six (`globalHint|topicsTitle|mainTitle`).
+docs and CONTEXT are English apart from i18n and ADR quotations; the dictionaries are Chinese and English (main
+retired the other four before this branch was rebased onto it — CONTEXT, "Six languages is retired"). Searches below
+ran in English and in Chinese (the Chinese words for drawer, preview and raw text — no hit in docs, README or the
+site's copy); dictionary statements were read by key in both (`globalHint|topicsTitle|mainTitle`).
 
 ### Stage 1: changed declarations
 
@@ -21,7 +22,7 @@ read by key in all six (`globalHint|topicsTitle|mainTitle`).
 | CONTEXT.md — display-copy invariant | display-data restore, ADR-0029 | Added: a field added to a saved type is filled in on restore when absent |
 | docs/specs/skills-view.md D2 and UI decisions | memory-view::CON-001, CON-002; the shared FileDrawer | Updated: the pipeline keeps written text; the drawer's form is shared with the memory drawer, and a switched-to file starts at the top |
 | docs/postmortems/2026-10-21-… and its index row | the review finding F1 and its fix | True |
-| Dictionaries (six) | the code | `memory.topicMeta` removed with its one reader; the remaining memory strings (`globalHint`, `mainTitle`, `topicsTitle`) still describe the behaviour |
+| Dictionaries (Chinese and English, after the rebase) | the code | `memory.topicMeta` removed with its one reader; the remaining memory strings (`globalHint`, `mainTitle`, `topicsTitle`) still describe the behaviour |
 | Prototypes (agents-page, project-detail, skills-view, plugins-view; `_shared/file-drawer.css`, `toast.*`, `md-preview.js`, `copy.js`) ↔ implementation | the built app | Consistent: the app's memory drawer was rendered from the build and compared with the prototype (title, meta with the side's short name, bar, switch, card, body); the frame is equal across the skill, plugin and memory drawers in both (computed styles, e2e and prototype checks); the rendering rule is in both renderers; the toast matches the app's |
 | ADR | — | None this round; ADR-0029's upgrade case is honoured (fill-in on restore) |
 

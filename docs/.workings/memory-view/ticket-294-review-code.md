@@ -57,7 +57,8 @@ an e2e step for each branch (in-directory, unlisted, external).
     the listed files → open it; unresolved → toast). Moving it into `FileDrawer` would mean a common file shape
     (`absPath` vs `file`). Escape surface: none. Suggested: not now — two call sites of ten lines each.
   - R2 Mysterious name: the shared drawer's copy (raw, preview, close, empty file) lives under `skills.*` keys
-    while the memory drawer uses it too. Renaming touches six dictionaries. Escape surface: none. Suggested:
+    while the memory drawer uses it too. Renaming touches the dictionaries (two since the rebase onto main's
+    Chinese-and-English change; six when this was written). Escape surface: none. Suggested:
     a separate task, or not at all.
 
 After F1 and F3 (premise and runnability findings) the security and consistency layers were scanned again: the
