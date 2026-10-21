@@ -35,7 +35,18 @@ Conclusion: two findings, corrected; one premise (the version through Apple) lef
 
 ## Runnability
 
-Filled in after the verification run and the gateway (below).
+- The version through Apple and every gate: the manual verification run 39232263252 on 5b63b16 was green (the app
+  accepted, `latest-mac.yml` matching `Agentshed-0.1.0-beta-mac-arm64.zip`, the DMG passed). Main was merged in
+  afterwards (c5f44b9, the owner's choice of 2026-10-21); the merge changed no packaging or release file
+  (`git diff 5b63b16 c5f44b9` over `electron-builder.yml`, `build/`, `.github/`, the release scripts and
+  `package.json`: empty), so that run still covers the packaging path. The app's content did change; the tag's run
+  repeats every gate on the merged commit.
+- The full gateway: red on 5b63b16 (the ready line wrapped in French and Japanese, resolved by #277's removal of those
+  languages); green on c5f44b9, `VERIFY_EXIT=0` (852 unit, 135 scripts, 102 site, 144 e2e including QR-001/AC-02 in
+  Chinese and English with the version `0.1.0-beta`, smoke): `evidence/ticket-239/gateway-c5f44b9.txt`.
+- No runtime state is added: a version string, copy and documents.
+
+Conclusion: no finding.
 
 ## Security
 

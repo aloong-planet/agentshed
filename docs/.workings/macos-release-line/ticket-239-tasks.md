@@ -29,6 +29,10 @@ cut from `origin/main` at bedc384 (no commits ahead when cut).
   recommended; change the row's layout; the owner's own copy). The owner chose to drop French, Spanish, Russian
   and Japanese from the app and from the READMEs, before the first release: [#277](https://github.com/aloong-planet/agentshed/issues/277),
   which blocks this ticket. So the four READMEs are returned to main's text here, and #277 removes them.
+- 2026-10-21, bringing #277 in: #277 merged as b3cb0f5 (#295). Asked whether rebasing and force-pushing this pushed
+  branch was risky; measured that nothing else builds on it (local equals remote, no PR, no other ref contains its
+  commits) and that a trial rebase stops on four README modify/delete conflicts while a trial merge of main is clean.
+  The owner chose the merge: main merged into this branch as c5f44b9, no history rewritten, no force push.
 
 ## Interface gate
 
@@ -44,9 +48,9 @@ landing page is not changed, only described.
 | 3 | The READMEs' download and install instructions (US-003/AC-01) | `check:lang` exit 0, and red under a planted Han word in README.en.md (line 15) | done for the Chinese and English READMEs (5b63b16); the French, Spanish, Russian and Japanese ones returned to main's text, since #277 removes them |
 | 4 | The landing-page feature entry and its index row; the specs' Pending notes; the specs index (the owner's decision) | the entry describes the spec's user-visible layer only | done: 5b63b16 |
 | 5 | Test design review | `ticket-239-review-tests.md`, design section | done |
-| 6 | Targeted checks, then the full gateway | `pnpm verify` exit 0 | red on 5b63b16: e2e `settings-updates.spec.ts:500` (QR-001/AC-02) in French and Japanese, the ready line on two lines; everything else green (831 unit, 135 scripts, 102 site, 133 of 135 e2e). Blocked by #277 |
+| 6 | Targeted checks, then the full gateway | `pnpm verify` exit 0 | red on 5b63b16: e2e `settings-updates.spec.ts:500` (QR-001/AC-02) in French and Japanese, the ready line on two lines. Blocked by #277, merged in as c5f44b9; green on c5f44b9: `VERIFY_EXIT=0` (`evidence/ticket-239/gateway-c5f44b9.txt`) |
 | 7 | The manual verification run on the branch (verify on): 0.1.0-beta through Apple and every gate, nothing published | the run green; its gate lines | done: run 39232263252 on 5b63b16, green in 5m48s: the app accepted (f06c2ae3-3db8-4de8-985a-20ab75e05611), `latest-mac.yml` matches `Agentshed-0.1.0-beta-mac-arm64.zip`, the DMG passed (64318467-f898-47d9-8629-881a4e7f8b3c) |
-| 8 | Step 5: `/review-code` | `ticket-239-review-code.md` | in progress: two document findings corrected; Runnability waits for the gateway |
+| 8 | Step 5: `/review-code` | `ticket-239-review-code.md` | done: two document findings corrected; Runnability filled in on c5f44b9 |
 | 9 | Step 6: `/review-tests` post-implementation check | the same record, second section | pending |
 | 10 | Spec final check, step 7, step 8 (`/features-catalog`: the landing-page entry) | `final-regression.md`, this ticket's section | pending |
 | 11 | Pull request; stop for the owner's merge confirmation and the confirmation to push the tag | PR link; CI | pending |
@@ -58,6 +62,11 @@ landing page is not changed, only described.
 | 17 | Records: the coverage checklist's #239 row, the document sync checklist, the issue's items | a records change | pending |
 
 ## Resuming after #277
+
+Followed on 2026-10-21 with a merge instead of the rebase planned below (the owner's choice, above): the two specs
+as #277 left them were re-read in the merged tree (mac-distribution::US-003/AC-01 now names both READMEs; the README
+decision says both languages), #239's issue text quotes the two READMEs, and the gateway re-runs from task 6.
+
 
 #277 changes the language set on main, and with it statements this ticket relies on: mac-distribution::US-003/AC-01
 and its README decision (six READMEs become two), the landing-page spec's CON-002, ADR-0013. When it is merged:
