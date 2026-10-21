@@ -1,0 +1,184 @@
+# Stage 3 sweep for #277 (the UI language dimension, six members to two), 2026-10-21, branch feat/two-languages at bd7d697 plus step 7 edits.
+# Script: one pattern per script the scope uses (Latin, Han, Cyrillic, Kana), over every tracked declaration surface; CJK in the output is escaped so this record carries none.
+# Classification of each hit: final-regression.md, ticket #277 section, Stage 3 row E1.
+
+# 400 files in scope
+## en: member names  /\b(French|Spanish|Russian|Japanese|Français|Español)\b/
+CONTEXT.md:718: Japanese, keeping the count at six with all of them left-to-right, and RTL outside the support
+docs/adr/0013-ui-language-set-and-i18n-scope.md:21: 1. **Take the six as Simplified Chinese / English / French / Russian / Spanish / Japanese, all LTR;
+docs/adr/0013-ui-language-set-and-i18n-scope.md:26: logic, and the target user base does not justify that investment; substituting Japanese keeps the
+docs/adr/0013-ui-language-set-and-i18n-scope.md:42: We choose **option 1**: we support Simplified Chinese, English, French, Russian, Spanish and
+docs/adr/0013-ui-language-set-and-i18n-scope.md:43: Japanese, all left-to-right, and this product makes no RTL commitment. The i18n scope is all
+docs/adr/0013-ui-language-set-and-i18n-scope.md:78: remove Arabic, add Japanese). Research evidence: a count of directional properties in `theme.css`
+docs/adr/0014-self-built-typed-i18n-layer.md:7: Six languages × roughly 400 copy keys (see ADR-0013), where Russian has four plural forms, French and
+docs/adr/0014-self-built-typed-i18n-layer.md:8: Spanish each have their own plural rules, and Japanese has no plural inflection. This repository's
+docs/adr/0030-message-language.md:44: 9. For a Japanese working language, skipping the check as for Chinese — rejected: the check tells
+docs/adr/0030-message-language.md:45: Chinese by code point, Japanese is written with Han characters too, and a silent skip would leave a
+docs/adr/0030-message-language.md:46: Japanese repository unchecked while looking checked. The check fails loudly instead.
+docs/adr/0030-message-language.md:61: → the check does not apply and says so; Japanese → the check fails as unsupported; not declared → the
+docs/adr/0035-ui-languages-chinese-and-english.md:8: ADR-0013 set six UI languages: Simplified Chinese, English, French, Spanish, Russian and Japanese.
+docs/adr/0035-ui-languages-chinese-and-english.md:12: `0.1.0-beta`, the "ready to install" line wrapped onto a second line in French and Japanese, which
+docs/adr/0035-ui-languages-chinese-and-english.md:28: 1. **Drop French, Spanish, Russian and Japanese from the app and from the READMEs, before the first
+docs/adr/0035-ui-languages-chinese-and-english.md:30: 2. Shorten the French and Japanese wording of the ready line — not chosen by the owner, who preferred
+docs/adr/0035-ui-languages-chinese-and-english.md:32: version `0.10.0-beta.12` Spanish and Russian wrap as well, so the fit had to be reopened for longer
+docs/adr/0035-ui-languages-chinese-and-english.md:56: lines) leave the codebase, with what each of them needed of its own (Russian's plural forms, French
+docs/adr/0035-ui-languages-chinese-and-english.md:57: and Japanese quotation marks)
+docs/adr/0035-ui-languages-chinese-and-english.md:60: - Negative: users whose system prefers French, Spanish, Russian or Japanese see the app in English
+docs/adr/README.md:46: | [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Chinese and English; French, Spanish, Russian and Japanese are dropped befor
+docs/features/i18n.md:45: - No other language is offered: a system that prefers neither Chinese nor English — French, Japanese
+docs/postmortems/2026-08-16-prototype-copy-blindspot.md:11: visible) — went red in **every** language: the row wrapped in all six, and Russian overflowed the
+docs/specs/i18n.md:69: The UI languages are Simplified Chinese and English (ADR-0035); French, Spanish, Russian and Japanese
+docs/specs/i18n.md:78: selector option and no code path for French, Spanish, Russian or Japanese remains.
+docs/specs/i18n.md:241: no migration step. No installation existed when French, Spanish, Russian and Japanese were removed;
+docs/specs/i18n.md:488: - **French, Spanish, Russian, Japanese, or any language beyond Chinese and English**: removed before
+e2e/app.spec.ts:2826: // Chinese and English both group as 12,345, so since ADR-0035 removed French (which grouped with a
+e2e/app.spec.ts:3809: // [ko, ja, zh, en]: Korean and Japanese are unsupported (ADR-0035), so it should carry on to Chinese — not
+e2e/app.spec.ts:3823: // French and Japanese were supported languages until ADR-0035; a system preferring them now gets English
+scripts/check-message-lang.mjs:17: //   - Japanese → unsupported, exits 1. Japanese is written with Han characters too, and this check tells
+scripts/check-message-lang.mjs:18: //     Chinese by code point, so it cannot separate the two; running it would reject correct Japanese.
+scripts/check-message-lang.mjs:71: '  Japanese is written with Han characters too, and the check tells Chinese by code point, so it would',
+scripts/check-message-lang.mjs:72: '  reject correct Japanese. A Japanese-aware check is needed before this gate can run here.'
+src/main/prefs-store.test.ts:135: // French, Spanish, Russian and Japanese were removed before the first release (ADR-0035), so only a
+src/shared/format.test.ts:5: // Russian's plural categories are easy to get wrong from intuition, and if the implementation and the
+src/shared/format.test.ts:15: // compared languages there went when French, Spanish, Russian and Japanese were removed (ADR-0035); bring
+src/shared/format.ts:41: * (Russian "5 дней назад" vs "1 день назад"), so concatenation is bound to be wrong. `numeric: 'auto'` lets
+src/shared/i18n/distinctions.test.ts:104: // reviewers each read a whole dictionary and all five missed the three defects this found (Japanese using
+src/shared/i18n/distinctions.test.ts:106: // French using “Aperçu” for both file preview and the Overview tab). Reading cannot establish a negative
+src/shared/i18n/index.test.ts:32: // French, Spanish, Russian and Japanese were removed before the first release (ADR-0035)
+src/shared/i18n/plural.ts:15: * categories differ enormously between languages (four forms in Russian, French using the singular for 0,
+src/shared/i18n/plural.ts:16: * no inflection in Japanese), so writing them by hand is bound to be wrong and cannot be exhaustive.
+(43 lines)
+## en: counts  /\b(six|five|seven)\b|six-language|seven-item|\b6 languages\b/i
+CONTEXT.md:93: The five kinds of document a project accumulates under the eight-step process: ADRs, `CONTEXT.md`,
+CONTEXT.md:187: A rollout Codex has compressed into a `.jsonl.zst` file after seven days without writes, deleting
+CONTEXT.md:201: _Avoid_: the six languages (the set before 2026-10-19); locale (too general)
+CONTEXT.md:543: every language at once. This was learnt three times in one round: `docs/features/` named six
+CONTEXT.md:544: controls by glyph and all six became lies when the icons became SVG; `notDetectedHint` pointed at
+CONTEXT.md:545: `↻` mid-sentence in six dictionaries; three code comments referred to pills by `⑂` / `⑂?`. Where
+CONTEXT.md:716: - **"The six official UN languages" is retired (2026-08-08)**: the requirement as originally stated
+CONTEXT.md:717: named the six official UN languages, which include Arabic; the ruling replaced Arabic with
+CONTEXT.md:718: Japanese, keeping the count at six with all of them left-to-right, and RTL outside the support
+CONTEXT.md:720: - **"Six languages" is retired (2026-10-19)**: the set ADR-0013 ruled was reduced to Simplified
+CONTEXT.md:722: reads "six languages" in the old sense; describe the current support by naming the two languages.
+docs/adr/0013-ui-language-set-and-i18n-scope.md:11: requirement as originally stated was "support the six official UN languages", but that set includes
+docs/adr/0013-ui-language-set-and-i18n-scope.md:16: cost of RTL exceeds that of the other five languages combined, so the language set and the scope have
+docs/adr/0013-ui-language-set-and-i18n-scope.md:21: 1. **Take the six as Simplified Chinese / English / French / Russian / Spanish / Japanese, all LTR;
+docs/adr/0013-ui-language-set-and-i18n-scope.md:24: 2. Take the six official UN languages literally (including Arabic) — rejected: RTL would require
+docs/adr/0013-ui-language-set-and-i18n-scope.md:27: count at six with everything left-to-right and reduces the RTL work to zero
+docs/adr/0013-ui-language-set-and-i18n-scope.md:31: 4. Translate all of `docs/` into six languages — rejected: 1925 lines of engineering artifacts × 6,
+docs/adr/0013-ui-language-set-and-i18n-scope.md:33: strictly in sync, so six copies would multiply the cross-regression cost by six and create a new
+docs/adr/0013-ui-language-set-and-i18n-scope.md:47: chosen manually, the system language maps to one of the six, falling back to English if it maps to
+docs/adr/0013-ui-language-set-and-i18n-scope.md:52: > terminal output. The reasoning above (option 4) was aimed at translating into *six* languages and
+docs/adr/0013-ui-language-set-and-i18n-scope.md:61: - Positive: all six languages are LTR, so the CSS needs no conversion to logical properties and the
+docs/adr/0013-ui-language-set-and-i18n-scope.md:67: - Negative: with the README in six languages, every adjustment to the product positioning has to be
+docs/adr/0013-ui-language-set-and-i18n-scope.md:68: made six times (acceptable: 5 lines, changed rarely)
+docs/adr/0014-self-built-typed-i18n-layer.md:7: Six languages × roughly 400 copy keys (see ADR-0013), where Russian has four plural forms, French and
+docs/adr/0014-self-built-typed-i18n-layer.md:17: 1. **Build a typed i18n layer: Chinese as the source language, the other five aligned to it entry by
+docs/adr/0014-self-built-typed-i18n-layer.md:35: Chinese is the source language and the single source of truth; the other five languages' copy objects
+docs/adr/0014-self-built-typed-i18n-layer.md:68: widened to `string`, dropping the readonly modifiers that `as const` adds. The other five languages
+docs/adr/0015-structured-ipc-errors.md:49: - Negative: every new kind of failure now requires a new error code and six translations, which is
+docs/adr/0017-repo-working-language-english.md:8: The product UI is now available in six languages, but **the repository itself is
+docs/adr/0017-repo-working-language-english.md:14: the docs lie". **That reasoning targeted translating into six languages.** It does not hold for
+docs/adr/0017-repo-working-language-english.md:25: terminal output all in English. The six README translations and the i18n dictionaries are
+docs/adr/0017-repo-working-language-english.md:35: 4. Keep both languages side by side — rejected for exactly the reason ADR-0013 rejected six
+docs/adr/0017-repo-working-language-english.md:44: **Not covered**: the six README translations (public-facing, already settled by ADR-0013) and
+docs/adr/0017-repo-working-language-english.md:72: by any automation — the same disease as the six-language product copy: a gate can prove
+docs/adr/0017-repo-working-language-english.md:85: ADR-0013's `docs/`-stays-Chinese clause lapses as of this ADR; its language set (six languages,
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:9: JSX — 15 distinct meanings across roughly 27 slots, plus five more glued to the front of copy inside
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:10: the six language dictionaries, plus two living only in CSS `content:` declarations.
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:16: six-language product.
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:73: converted where they were decoration (three of five), and moved into the component where they carry
+docs/adr/0021-side-colour-follows-provider.md:27: bearing in a way the badges are not. A stacked bar needs four or five mutually distinguishable
+docs/adr/0028-tanstack-query-as-the-renderer-query-layer.md:59: **Resolved 2026-09-13** (issue #177): all six named sites (a turn's contents, the session freshness
+docs/adr/0028-tanstack-query-as-the-renderer-query-layer.md:61: the query layer too; `rg` over `src/renderer` confirms none of the six IPC methods are called
+docs/adr/0028-tanstack-query-as-the-renderer-query-layer.md:63: one of the six and stays on its own effect.
+docs/adr/0028-tanstack-query-as-the-renderer-query-layer.md:66: showing meanwhile. The six widget-level sites migrated in #177 use plain `useQuery` instead — each
+docs/adr/0031-macos-release-line.md:7: Until now Agentshed had never been released. The repository is public and its six READMEs face users,
+docs/adr/0031-macos-release-line.md:38: 6. A landing page in all six languages — rejected by the owner in favour of Chinese and English, as
+docs/adr/0031-macos-release-line.md:39: Transfer's landing page does, for the smaller volume of copy. ADR-0013 includes the README in the six
+docs/adr/0031-macos-release-line.md:94: - Negative: nine secrets to keep — five for the certificate and Apple, held as organization secrets visible to
+docs/adr/0031-macos-release-line.md:97: - Negative: the landing page speaks two languages while the app speaks six
+docs/adr/0032-app-updates.md:46: six hours — rejected: four times the requests for little benefit to a local-first app
+docs/adr/0032-app-updates.md:97: - Neutral: the menu item, the switch and every update prompt are app copy, so they come in all six
+docs/adr/0034-global-search-question-corpus-in-memory.md:12: Codex compresses more rollouts after seven days. Typing with a 200 ms pause would start a new
+docs/adr/0034-global-search-question-corpus-in-memory.md:76: took 3.5–13.9 ms at the median of seven runs per keyword (the longest single run 59 ms; 2132 and 2430 hits for
+docs/adr/0035-ui-languages-chinese-and-english.md:8: ADR-0013 set six UI languages: Simplified Chinese, English, French, Spanish, Russian and Japanese.
+docs/adr/0035-ui-languages-chinese-and-english.md:53: - Positive: every fixed-width row is checked in two languages instead of six. Chinese and English fit the
+docs/adr/0035-ui-languages-chinese-and-english.md:55: - Positive: a new string is written twice rather than six times, and the four dictionaries (about 1,700
+docs/adr/0035-ui-languages-chinese-and-english.md:59: consequence "the landing page speaks two languages while the app speaks six"
+docs/adr/README.md:3: ADR conventions for this repository: MADR minimal, five sections (Context / Options / Decision /
+docs/adr/README.md:24: | [0013](0013-ui-language-set-and-i18n-scope.md) | UI language set and i18n scope boundary (six languages, all LTR, no RTL commitment) | Accepted (lan
+docs/features/app-icon.md:9: - The production application uses an icy cyan core and six matching luminous segments inside a dark
+docs/features/appearance.md:24: - Mode and theme do not affect each other: changing one leaves the other alone, and all six
+docs/features/project-detail.md:33: - Artifacts tab: the six kinds of artifact laid out flat in reverse chronological order, filterable
+docs/ops/mac-signing.md:40: | Output | `release/<version>/` (git-ignored; the five most recent versions are kept) |
+docs/ops/mac-signing.md:49: The five standard variables of policy §4: `CSC_LINK` and `CSC_KEY_PASSWORD` (the certificate, needed only
+docs/ops/mac-signing.md:141: The five variables above are **organization secrets** of `aloong-planet`, visible to selected repositories only —
+docs/postmortems/2026-08-16-prototype-copy-blindspot.md:8: survives the six UI languages in the 272px sidebar. It carried a live width readout for exactly
+docs/postmortems/2026-08-16-prototype-copy-blindspot.md:9: that, and the design was confirmed against it. During implementation, the six-language e2e —
+docs/postmortems/2026-08-16-prototype-copy-blindspot.md:11: visible) — went red in **every** language: the row wrapped in all six, and Russian overflowed the
+docs/postmortems/2026-08-16-prototype-copy-blindspot.md:18: hard-coded in Chinese, which happens to be the **shortest** of the six languages. So the readout
+docs/postmortems/README.md:13: | 2026-08-16 | [A prototype's width readout was blind to the copy it hard-coded](2026-08-16-prototype-copy-blindspot.md) (the filter row's six-languag
+docs/prototypes/app-icon/preview-v2.md:15: Use case: precise-object-edit. Edit the existing Agentshed macOS app icon; preserve its exact design, proportions, six spokes, six cyan luminous segme
+docs/prototypes/app-icon/preview-v2.md:19: Use case: precise-object-edit. Create the matching DEVELOPMENT color variant of Image 1, the already corrected Agentshed app icon. Image 1 is the edit
+docs/prototypes/app-icon/preview-v3.md:15: Use case: precise-object-edit. Edit ONLY the rounded-square backplate/casing color of this existing Agentshed production app icon. The user finds the 
+docs/prototypes/app-icon/preview-v3.md:19: Use case: precise-object-edit. Image 1 is the existing yellow DEVELOPMENT icon to edit. Image 2 is the new cyan production reference ONLY for the slig
+docs/prototypes/project-detail/prototype-detail.html:387: <!-- Six types, ordered by the top-down derivation chain: terminology → decisions → requirements → UI →
+docs/specs/app-icon.md:12: Use the approved reactor design: an evenly dark graphite-gray rounded square, six luminous segments separated by metal
+docs/specs/app-icon.md:28: - app-icon::REQ-003/AC-01: Both variants retain the approved graphite casing and six metal-separated
+docs/specs/i18n.md:376: - The overlay's shadow needs a new theme variable, which must be given a value in all six variable
+docs/specs/i18n.md:513: | The dynamics of following the system (following vs locked) | Covered, measured across seven system language configurations with a demo harness |
+docs/specs/landing-page.md:260: - **Both reads** give up after five seconds (Failure A5) and send no header that needs a CORS preflight.
+docs/specs/mac-distribution.md:169: Applies to: every log and every piece of command output. The five certificate and Apple secrets and
+docs/specs/mac-distribution.md:279: good, and the pointer `latest.json` at the bucket's root, cached for five minutes. The pointer is
+docs/specs/plugins-view.md:219: - A dedicated hooks section (a merged view of the five sources) — the hooks summary inside a plugin's
+docs/specs/project-detail.md:151: - B1 **Six artifact types**, displayed in a fixed order following the top-down derivation chain:
+docs/specs/project-detail.md:268: Following ADR-0002's dual seam: fixture unit tests at the providers layer cover recognising the six
+docs/specs/session-view.md:46: looking back is not cut off at the agent's seven-day line.
+docs/specs/session-view.md:803: - **Prototype gate: passed** (2026-08-02). All five UI points (session list / question list / expanded
+docs/specs/skills-view.md:81: to work out which of the five groups a name lives in before I can look for it.
+docs/specs/skills-view.md:243: - F1 **One** box narrows all five groups at once; there is no per-group box.
+docs/specs/skills-view.md:434: its own shape (one flat list; five groups with counts). The rule is a pure predicate in its own module,
+e2e/app-update.spec.ts:335: // Six theme states, six different accents: the circle recoloured with every switch
+e2e/app.spec.ts:419: test('all seven Agents page tabs render as they are switched through, with no errors', async () => {
+e2e/app.spec.ts:1433: // Codex compresses a rollout untouched for seven days and deletes the plain file (spec token-stats B12,
+e2e/app.spec.ts:2660: // interval here is the five-minute default, so no scan can be what makes this pass.
+e2e/app.spec.ts:3674: test('appearance: all six combinations of 3 themes × 2 effective light/dark hold', async () => {
+e2e/app.spec.ts:4275: // Skeleton up: real static structure (title, four window cards, three side cards, seven tabs)
+e2e/settings-updates.spec.ts:545: // Each measurement saw its own state: seven different texts, only the first empty
+scripts/check-shared-ui.mjs:384: // strings in six languages each still sent users to a button that no longer existed, and only a
+site/src/styles/global.css:9: values; the warning pair (--warn-bg, --warn-fg) marks the test version. Five tokens are the page's own
+src/main/prefs-store.test.ts:136: // development machine's file can still name one. The file has a real one's shape: all five fields
+src/main/providers/artifacts.test.ts:1: // Ticket 05: scanning the eight-step artifacts — recognising the six types (specs added 2026-08-01),
+src/main/providers/artifacts.test.ts:36: it('B2 specs is recognised by the same rules as the other five (docs/specs/*.md, README excluded)', () => {
+src/main/providers/artifacts.test.ts:43: it('recognises all six types, takes the first # heading as the title, orders globally by time descending, and excludes README', () => {
+src/main/providers/artifacts.ts:1: // Scanning the eight-step artifacts (ticket 05; specs was added on 2026-08-01, making six types), shown
+src/main/providers/cold-rollout.ts:1: // Cold rollouts (spec token-stats B12, session-view C2): Codex compresses a rollout untouched for seven
+src/main/providers/cold-rollout.ts:56: * and a cold rollout is never mid-write (Codex compresses only what was untouched for seven days), so a
+src/main/providers/token-stats.test.ts:726: // Codex compresses a rollout untouched for seven days into <name>.jsonl.zst and deletes the plain
+src/renderer/src/SkillSearch.tsx:4: // applies the rule to its own shape (one flat list; five groups with counts). Copying three lines of JSX
+src/renderer/src/TokenViz.tsx:18: // five digits do not read as a magnitude
+src/renderer/src/fmt-tok.test.ts:24: // The tier added this round: at billion-scale totals, M grows to five digits and stops reading as a
+src/renderer/src/skill-files-query.ts:37: * refetching (the one behavioural improvement this migration makes across all six read sites).
+src/renderer/src/skill-filter.ts:8: // share; their surrounding shapes (one flat list, one five groups with counts) do not generalise, so no
+src/renderer/src/theme.css:2078: the front of the translated string, which meant six dictionaries each carried a copy of it). */
+src/shared/domain.ts:606: * The six artifact types (the eight-step process's convention; tickets under .scratch are working
+src/shared/domain.ts:647: /** Artifacts (six types, most recent first) */
+src/shared/i18n/distinctions.test.ts:103: // carry their reasoning; this sweep is the completeness net over every pair of entries — five independent
+src/shared/i18n/distinctions.test.ts:104: // reviewers each read a whole dictionary and all five missed the three defects this found (Japanese using
+src/shared/i18n/distinctions.test.ts:155: // definition of a stale project ("still recorded in a registry, directory no longer on disk"). Five
+src/shared/i18n/distinctions.test.ts:170: // CONTEXT.md fixes the term as “artifact” — the five kinds of document a project accumulates. Rendering
+src/shared/validate.test.ts:403: it('admits all seven block shapes', () => {
+(120 lines)
+## zh: member names and counts  /\u516d\u79cd|\u516d\u8bed|\u516d\u95e8|\u5176\u4f59\u4e94|\u53e6\u5916\u4e94|\u4e94\u79cd\u8bed\u8a00|\u4e03\u9879|\u4e03\u4e2a\u9009\u9879|\u6cd5\u8bed|\u6cd5\u6587|\u897f\u73ed\u7259\u8bed|\u897f\u8bed|\u4fc4\u8bed|\u4fc4\u6587|\u65e5\u8bed|\u65e5\u6587|\u65e5\u672c\u8a9e/
+docs/prototypes/project-list/prototype-list.html:10: \u786c\u7f16\u7801\u4e2d\u6587(\u516d\u8bed\u6700\u77ed),\u5bbd\u5ea6\u8bfb\u6570\u5bf9\u8fd9\u4e24\u4e2a\u5360\u4f4d\u8005\u5931\u660e,\u786e\u8ba4\u56e0\u6b64\u9644\u7740\u5728\u4e00\u4e2a\u4ea7\u54c1\u91cc\u4e0d\u5b58\u5728\u7684\u72b6\u6001\u4e0a
+docs/prototypes/project-list/prototype-list.html:14: 2026-10-14:\u5931\u6548\u5f00\u5173 label \u4e0e\u5931\u6548\u8ba1\u6570\u5668\u6539\u4e3a\u753b\u5168\u516d\u79cd\u8bed\u8a00,\u5bbd\u5ea6\u8bfb\u6570\u4e0d\u518d\u5bf9\u5b83\u4eec\u5931\u660e;\u4f46 C5 \u7684\u6536\u7f29\u7701\u7565/
+(2 lines)
+## ru: any Cyrillic  /[Ѐ-ӿ]/
+src/main/providers/question-corpus.test.ts:286: claudeSession(alpha, 'cases', [{ q: 'Ébauche du plan' }, { q: 'ПРИВЕТ мир' }])
+src/main/providers/question-corpus.test.ts:290: expect(rows(await corpus.search('привет'))).toEqual([['cases.jsonl', 'alpha', false, [[2, 'ПРИВЕТ мир']]]])
+src/shared/format.ts:41: * (Russian "5 дней назад" vs "1 день назад"), so concatenation is bound to be wrong. `numeric: 'auto'` lets
+(3 lines)
+## ja: any Kana  /[\u3040-\u30ff]/
+src/renderer/src/skill-filter.test.ts:71: expect(matchesName('\u30b9\u30ad\u30eb-\u30c6\u30b9\u30c8', '\u30c6\u30b9\u30c8')).toBe(true)
+(1 lines)

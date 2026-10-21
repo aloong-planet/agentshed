@@ -246,15 +246,14 @@ const GLOBAL_RULES = [
     }
   },
   {
-    // "Any entry point can reach the other five" is a **decidable property**, so it is baked into a
-    // gate rather than left to the eye (the user's ruling, 2026-08-09). What it prevents: missing a link in the other files when adding a
-    // language or renaming one —
-    // nothing else would flag that kind of omission, and a reader only discovers it by clicking a dead
-    // link.
-    name: 'READMEs in six languages reach each other (any entry point leads to the other five)',
+    // "Each README reaches the other" is a **decidable property**, so it is baked into a gate rather than
+    // left to the eye (the user's ruling, 2026-08-09; i18n::CON-001). What it prevents: missing a link when
+    // adding a language or renaming a file — nothing else would flag that kind of omission, and a reader
+    // only discovers it by clicking a dead link.
+    name: 'the Chinese and English READMEs reach each other (i18n::CON-001)',
     check() {
       const bad = []
-      const FILES = ['README.md', 'README.en.md', 'README.fr.md', 'README.es.md', 'README.ru.md', 'README.ja.md']
+      const FILES = ['README.md', 'README.en.md']
       for (const f of FILES) {
         const src = read(f)
         if (src === null) {
@@ -313,8 +312,8 @@ const GLOBAL_RULES = [
   },
   {
     // CONTEXT invariant (settled 2026-08-16): user-facing copy never enumerates the agent sides as
-    // an exhaustive set — the side set grows, and an enumerated sentence becomes a lie in six
-    // languages at once on a surface no onboarding diff touches (it happened twice in one round).
+    // an exhaustive set — the side set grows, and an enumerated sentence becomes a lie in every
+    // language at once on a surface no onboarding diff touches (it happened twice in one round).
     // Copy whose surface genuinely judges only some sides today is allow-listed by dictionary key,
     // each entry carrying the reason and the ticket that retires it.
     name: 'dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)',
@@ -324,7 +323,7 @@ const GLOBAL_RULES = [
       // Side-COUNT words are the same rot family stated as a number ("both sides" lies the moment a
       // third arrives); one occurrence flags, unlike names which need two to look like a set
       const SIDE_COUNT_WORDS =
-        /两侧|both sides|both global|two sides|両サイド|どちらかの agent|ambos lados|ambas bibliotecas|los dos agents|les deux (?:côtés|bibliothèques|agents)|un des deux agents|обе стороны|обеих сторон|обе глобальные/i
+        /两侧|both sides|both global|two sides/i
       const ALLOWED = [
         {
           key: 'grokBorrowHint',
@@ -351,7 +350,7 @@ const GLOBAL_RULES = [
           why: "a statement about two specific sides' formats (Codex encrypted vs Claude thinking), true regardless of the side count"
         }
       ]
-      for (const lang of ['zh', 'en', 'fr', 'es', 'ru', 'ja']) {
+      for (const lang of ['zh', 'en']) {
         const f = `src/shared/i18n/${lang}.ts`
         const src = read(f)
         if (src === null) {
@@ -407,11 +406,15 @@ const GLOBAL_RULES = [
           why: 'an ordinary word that also names a registry key ("the projects key"); retires if the dimension is renamed to something distinctive'
         },
         {
+          key: 'search',
+          why: 'an ordinary verb or noun in every language, and the word the search boxes\' placeholders and the global search page\'s own title use; retires if the dimension is renamed to something distinctive'
+        },
+        {
           key: 'settings',
           why: 'an ordinary noun in every language (and part of an external product\'s menu path in the Codex memory hint); retires if the entry is renamed to something distinctive'
         }
       ]
-      for (const lang of ['zh', 'en', 'fr', 'es', 'ru', 'ja']) {
+      for (const lang of ['zh', 'en']) {
         const f = `src/shared/i18n/${lang}.ts`
         const src = read(f)
         if (src === null) {

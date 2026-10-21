@@ -1,9 +1,9 @@
 // The source language (Simplified Chinese) — the single source of truth for UI copy.
 //
 // This object is declared `as const`, which makes its **structure** — the key set, whether a value is a
-// string or a function, each function's signature, the nesting — the contract the other five languages
-// must satisfy; see the Dict mapping in ./types.ts.
-// New copy lands here first, and typecheck stays red until the other five follow: there is no "leave it
+// string or a function, each function's signature, the nesting — the contract English must satisfy;
+// see the Dict mapping in ./types.ts.
+// New copy lands here first, and typecheck stays red until English follows: there is no "leave it
 // blank for now".
 //
 // The **values** are Chinese because this is the source language; the comments are English like the rest of
@@ -22,6 +22,7 @@ export const zh = {
   rail: {
     agents: 'Agents',
     projects: 'Projects',
+    search: '搜索',
     settings: '设置'
   },
 
@@ -67,7 +68,7 @@ export const zh = {
     unhide: '全部显示',
     quit: '退出 Agentshed',
     edit: '编辑',
-    undo: '撤销', redo: '重做', cut: '剪切', copy: '拷贝', paste: '粘贴', selectAll: '全选',
+    undo: '撤销', redo: '重做', cut: '剪切', copy: '拷贝', paste: '粘贴', selectAll: '全选', searchSessions: '搜索会话…',
     view: '显示',
     reload: '重新载入', toggleDevTools: '开发者工具', resetZoom: '实际大小',
     zoomIn: '放大', zoomOut: '缩小', fullscreen: '进入全屏幕',
@@ -152,6 +153,21 @@ export const zh = {
     pickProject: '选择一个项目查看详情',
     waitingUpdate: '显示上次的数据，等待更新',
     scanning: '正在扫描各 agent 侧…'
+  },
+  /** Global search: the page's own copy (the sort words, hit counts and fork markers are the project search's) */
+  search: {
+    title: '搜索',
+    placeholder: (projects: number, sessions: number) => `在 ${projects} 个项目的 ${sessions} 个会话里搜提问…`,
+    placeholderNone: '搜提问…',
+    idle: '在所有项目的会话里搜你问过的话。',
+    idleSub: '点命中直接打开那个会话,定位到那条提问。',
+    reading: '正在读取各会话的提问…',
+    hitsFound: (hits: number, sessions: number, projects: number) => `找到 **${hits}** 条 · ${sessions} 个会话 · ${projects} 个项目`,
+    projectCounts: (sessions: number, hits: number) => `${sessions} 个会话 · ${hits} 条命中`,
+    noHits: (tab: string, fullText: string) => `没有命中。这里只搜提问;要搜回答与工具输出,进入项目后在「${tab}」分栏切到「${fullText}」。`,
+    failed: '这次搜索没能完成。修改关键词即可重试。',
+    noSessions: '还没有可搜索的会话。',
+    noSessionsSub: 'agent 在已注册的项目里开过对话后,这里就能搜到。'
   },
   /** Skills package preview and the file drawer (ticket 10) */
   skills: {
@@ -271,6 +287,11 @@ export const zh = {
     fetchedNote: (ms: number, bytes: string) =>
       `按需取回 ${ms} ms · 只读本轮区间 ${bytes},与文件总大小无关`,
     back: (project: string) => `返回 ${project} · 会话`,
+    /** A session opened from a global search hit: its two exits, in place of the back control */
+    backToSearch: '返回搜索结果',
+    goToProject: (project: string) => `进入 ${project} · 会话`,
+    /** A stale project has no Sessions tab: the exit leads to its note page */
+    goToProjectStale: (project: string) => `进入 ${project}`,
     headMeta: (side: string, questions: number, tok: string, mb: string, ago: string) =>
       `${side} · ${questions} 提问 · ${tok} tok · ${mb} · 最后活动 ${ago}`,
     cannotOpen: (detail: string) => `会话打不开:${detail}`,

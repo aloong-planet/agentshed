@@ -5,7 +5,7 @@
 // ── The division of labour with the type system (they do not overlap, which determines which one to
 // rely on when adding copy) ──
 //   **Missing translations** are caught by typecheck: the source language (zh) is the single truth and
-//   the other five align to it entry by entry in the type system,
+//   English aligns to it entry by entry in the type system,
 //   so one missing entry is TS2739 and one extra is TS2353. It governs "are the dictionaries internally
 //   complete".
 //   **Un-extracted copy** is caught by this gate: copy still written inside a component or the main
@@ -34,10 +34,10 @@ const CJK = /[\u4e00-\u9fff]/
  */
 const ALLOW = [
   {
-    // Removing it goes red: the six dictionaries **are** where the Chinese copy lives, so scanning them
+    // Removing it goes red: the dictionaries **are** where the Chinese copy lives, so scanning them
     // is scanning the source language itself
     match: (rel) => rel.startsWith('shared/i18n/'),
-    why: 'the six dictionaries themselves — the source language (zh) is Chinese by definition'
+    why: 'the dictionaries themselves — the source language (zh) is Chinese by definition'
   },
   {
     // Removing it goes red: tests contain Chinese assertions, fixtures and case names, none of which
@@ -78,7 +78,7 @@ if (hits.length) {
   console.error(`✗ Copy gate: found ${hits.length} Chinese literal(s) not in the dictionary\n`)
   for (const h of hits) console.error(`    src/${h.rel}:${h.n}  ${h.text}`)
   console.error(
-    '\nMove them into src/shared/i18n/zh.ts and fill in the other five languages ' +
+    '\nMove them into src/shared/i18n/zh.ts and fill in the English dictionary ' +
       '(typecheck catches any you miss).\n' +
       'If a hit is genuinely a developer log or test-only string, register it explicitly ' +
       'in the allow-list in scripts/check-i18n.mjs with a stated reason.'

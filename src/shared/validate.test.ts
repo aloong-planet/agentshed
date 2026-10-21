@@ -1,7 +1,7 @@
 // Seam 2 (the IPC contract): behavioural tests of snapshot schema validation — a good payload is admitted,
 // a bad one is refused with a path.
 import { describe, it, expect } from 'vitest'
-import { validateSnapshot, validateProjectStats, validateProjectDetail, validateSessionTurn, validateSearchResult } from './validate'
+import { validateSnapshot, validateProjectStats, validateProjectDetail, validateSessionTurn, validateSearchResult, validateGlobalSearchResult } from './validate'
 import { emptySnapshot, emptyTokenStats } from './domain'
 
 describe('validateSnapshot', () => {
@@ -468,5 +468,60 @@ describe('validateSearchResult (the search payload, ticket 08)', () => {
     const b2 = JSON.parse(JSON.stringify(ok)) as typeof ok
     ;(b2.groups[0] as unknown as Record<string, unknown>)['file'] = ''
     expect(validateSearchResult(b2).ok).toBe(false)
+  })
+})
+
+describe('validateGlobalSearchResult (the global search payload)', () => {
+  const ok = (): Record<string, unknown> => ({
+    sessions: [
+      {
+        project: { path: '/w/alpha', name: 'alpha', stale: false },
+        file: '/h/.claude/projects/-w-alpha/a1.jsonl',
+        title: 'first question',
+        side: 'claude',
+        forkState: 'none',
+        at: 1790000000000,
+        hits: [{ i: 1, text: 'first question', at: 1790000000000 }]
+      },
+      {
+        project: { path: '/w/gamma', name: 'gamma', stale: true },
+        file: '/h/.codex/sessions/r.jsonl.zst',
+        title: null,
+        side: 'codex',
+        forkState: 'uncertain',
+        at: null,
+        hits: [{ i: 3, text: 'third', at: null }]
+      }
+    ]
+  })
+  const failure = (mutate: (p: { sessions: Array<Record<string, unknown>> }) => void): unknown => {
+    const p = ok() as { sessions: Array<Record<string, unknown>> }
+    mutate(p)
+    const r = validateGlobalSearchResult(p)
+    return r.ok ? null : r.failure
+  }
+
+  it('admits a well-formed payload after the structured clone IPC applies, and an empty one', () => {
+    expect(validateGlobalSearchResult(structuredClone(ok())).ok).toBe(true)
+    expect(validateGlobalSearchResult({ sessions: [] }).ok).toBe(true)
+  })
+
+  it('refuses a malformed field and names its path', () => {
+    expect(validateGlobalSearchResult(null)).toEqual({ ok: false, failure: { kind: 'type', path: 'globalSearch', expect: 'object' } })
+    expect(validateGlobalSearchResult({})).toEqual({ ok: false, failure: { kind: 'type', path: 'globalSearch.sessions', expect: 'array' } })
+    expect(failure((p) => { (p.sessions[1].project as Record<string, unknown>).stale = 'yes' }))
+      .toEqual({ kind: 'type', path: 'globalSearch.sessions[1].project.stale', expect: 'boolean' })
+    expect(failure((p) => { p.sessions[0].project = null }))
+      .toEqual({ kind: 'type', path: 'globalSearch.sessions[0].project', expect: 'object' })
+    expect(failure((p) => { p.sessions[0].side = 'copilot' }))
+      .toEqual({ kind: 'enum', path: 'globalSearch.sessions[0].side', value: 'copilot' })
+    expect(failure((p) => { p.sessions[1].forkState = 'maybe' }))
+      .toEqual({ kind: 'enum', path: 'globalSearch.sessions[1].forkState', value: 'maybe' })
+    expect(failure((p) => { p.sessions[0].file = '' }))
+      .toEqual({ kind: 'type', path: 'globalSearch.sessions[0].file', expect: 'string(non-empty)' })
+    expect(failure((p) => { (p.sessions[0].hits as Array<Record<string, unknown>>)[0].text = null }))
+      .toEqual({ kind: 'type', path: 'globalSearch.sessions[0].hits[0].text', expect: 'string' })
+    expect(failure((p) => { (p.sessions[1].hits as Array<Record<string, unknown>>)[0].i = '3' }))
+      .toEqual({ kind: 'type', path: 'globalSearch.sessions[1].hits[0].i', expect: 'number' })
   })
 })

@@ -31,6 +31,6 @@ describe('noticeToast', () => {
   })
 
   it('the copy is the language passed in', () => {
-    expect(noticeToast({ code: 'menuCheck', outcome: { kind: 'failed' } }, dictOf('fr'), '0.1.0')).toEqual({ kind: 'err', text: 'Impossible de vérifier les mises à jour' })
+    expect(noticeToast({ code: 'menuCheck', outcome: { kind: 'failed' } }, dictOf('zh'), '0.1.0')).toEqual({ kind: 'err', text: '检查更新失败' })
   })
 })

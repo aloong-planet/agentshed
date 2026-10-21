@@ -1,9 +1,9 @@
 // The landing page's copy, in its two languages (landing-page::CON-002). Chinese is at `/`, English at `/en`.
 //
 // This dictionary is the site's own and is separate from the app's (src/shared/i18n/): the page is a front
-// door outside ADR-0013's scope, so it speaks two languages by choice, not six (ADR-0031 option 6). The copy
-// is the confirmed prototype's (2026-10-13). Both languages satisfy one type, so a key present in one and
-// missing in the other fails `astro check`.
+// door outside ADR-0013's scope, so its two languages are its own choice (ADR-0031 option 6); the app
+// speaks the same two (ADR-0035). The copy is the confirmed prototype's (2026-10-13). Both languages
+// satisfy one type, so a key present in one and missing in the other fails `astro check`.
 
 export const LOCALES = ['zh', 'en'] as const
 export type Locale = (typeof LOCALES)[number]

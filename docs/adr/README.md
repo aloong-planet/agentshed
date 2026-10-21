@@ -21,7 +21,7 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0010](0010-plugin-skills-in-effective-view.md) | Plugin-bundled skills join the effective view (namespace-isolated, filtered by enablement) | Accepted |
 | [0011](0011-question-index-in-token-cache.md) | The question index rides on the token metering cache (one cache, two readings) | Accepted |
 | [0012](0012-plugin-skill-preview-decoupled-from-enablement.md) | Plugin skill preview decoupled from enablement; Codex does not join the effective view | Accepted |
-| [0013](0013-ui-language-set-and-i18n-scope.md) | UI language set and i18n scope boundary (six languages, all LTR, no RTL commitment) | Accepted |
+| [0013](0013-ui-language-set-and-i18n-scope.md) | UI language set and i18n scope boundary (six languages, all LTR, no RTL commitment) | Accepted (language set superseded by 0035) |
 | [0014](0014-self-built-typed-i18n-layer.md) | Self-built typed i18n layer (general-purpose i18n frameworks rejected) | Accepted |
 | [0015](0015-structured-ipc-errors.md) | Failures cross IPC as an error code plus parameters; wording is left to the renderer | Accepted |
 | [0016](0016-no-natural-language-across-ipc.md) | The main process emits no user-facing natural language (not just failure text) | Accepted |
@@ -42,4 +42,5 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0031](0031-macos-release-line.md) | A notarized macOS release line: CI on release tags, R2 mirror for formal releases, a Chinese and English landing page | Accepted |
 | [0032](0032-app-updates.md) | App updates from GitHub Releases, offered rather than pushed — the app's one outbound request | Accepted (download behaviour amended the same day) |
 | [0033](0033-prototypes-are-the-baseline.md) | The prototypes keep their own icons, tokens, styles and copy; the app follows them | Accepted |
-| [0034](0034-global-search-question-corpus-in-memory.md) | Global search reads every project's question texts from main-process memory, warmed when its page opens | Proposed |
+| [0034](0034-global-search-question-corpus-in-memory.md) | Global search reads every project's question texts from main-process memory, warmed when its page opens | Accepted |
+| [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Chinese and English; French, Spanish, Russian and Japanese are dropped before the first release | Accepted |

@@ -5,12 +5,8 @@
 import { describe, expect, it } from 'vitest'
 import { zh } from './zh'
 import { en } from './en'
-import { fr } from './fr'
-import { ru } from './ru'
-import { es } from './es'
-import { ja } from './ja'
 
-const ALL = { zh, en, fr, ru, es, ja } as const
+const ALL = { zh, en } as const
 
 const slots = (s: string): number => s.split('{sides}').length - 1
 

@@ -1,5 +1,5 @@
 import { useDisplayClock } from './DisplayClock'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
 import type { Language } from '@shared/i18n'
 import { relativeDays } from '@shared/format'
@@ -9,7 +9,7 @@ import { FloatingBox } from './FloatingBox'
 import { useAnchorInvalidation } from './useAnchorInvalidation'
 
 /**
- * Side names in full — product names, identical in all six languages, so they live here rather than
+ * Side names in full — product names, identical in every language, so they live here rather than
  * in the dictionaries (the same rule as PROVIDER_LABEL's proper nouns).
  */
 const SIDE_NAME: Record<AgentSide, string> = { claude: 'Claude Code', codex: 'Codex', grok: 'Grok' }
@@ -43,11 +43,15 @@ interface Props {
   snap: Snapshot
   selected: string | null
   onSelect: (path: string) => void
+  /** The selection was made outside the list (a global search hit): scroll its row into view (C8) */
+  revealSelected?: boolean
+  /** Called once the row has been revealed, so the request is not repeated */
+  onRevealed?: () => void
   /** The detail area (filled in by ticket 03; currently a placeholder) */
   detail: React.ReactNode
 }
 
-export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.Element {
+export function ProjectsPane({ snap, selected, onSelect, revealSelected, onRevealed, detail }: Props): JSX.Element {
   const now = useDisplayClock()
   const t = useDict()
   const [kw, setKw] = useState('')
@@ -65,13 +69,29 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
     return { visible, staleFiltered }
   }, [snap, kw, sideFilter, showStale])
 
+  // A selection made outside the list scrolls its row into view when it is outside the visible part (C8). The
+  // filters are left as they are, so a row they hide stays hidden and there is nothing to scroll to.
+  const list = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (!revealSelected) return
+    const box = list.current
+    const row = box?.querySelector<HTMLElement>('.row.sel')
+    if (box && row) {
+      const r = row.getBoundingClientRect()
+      const b = box.getBoundingClientRect()
+      if (r.top < b.top) box.scrollTop -= b.top - r.top
+      else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom
+    }
+    onRevealed?.()
+  }, [revealSelected, onRevealed])
+
   return (
     <>
       <aside className="side">
         <div className="sh">
           {/* The icon is a sibling rather than part of the placeholder: an input's placeholder takes a
               string, so an SVG cannot live in it — and keeping it out is also what keeps it from being
-              carried into the six dictionaries along with the copy. */}
+              carried into every dictionary along with the copy. */}
           <div className="sh-field">
             <Search size={13} />
             <input
@@ -99,7 +119,7 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
             </span>
           )}
         </div>
-        <div className="list">
+        <div className="list" ref={list}>
           {visible.map((p) => (
             <Row key={p.path} p={p} now={now} selected={selected === p.path} onSelect={onSelect} />
           ))}
@@ -113,9 +133,9 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
 
 /**
  * Side filtering as a single-choice dropdown (spec C5): the row of controls has to stay readable
- * as sides are added, and in the narrowest supported sidebar the longest of the six UI languages
+ * as sides are added, and in the narrowest supported sidebar the longer of the two UI languages
  * must not push it out of the column. Only "All" varies with the language — the side names are
- * product names, identical in all six.
+ * product names, identical in both.
  *
  * Being operated rather than glanced at, it answers a resize by **repositioning** (spec C7) — the
  * user choosing a side has not changed their mind — while any scroll but the layer's own

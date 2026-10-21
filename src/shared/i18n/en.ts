@@ -9,6 +9,7 @@ export const en: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Projects',
+    search: 'Search',
     settings: 'Settings'
   },
 
@@ -49,7 +50,7 @@ export const en: Locale = {
   menu: {
     about: 'About Agentshed', checkForUpdates: 'Check for Updates…', hide: 'Hide Agentshed', hideOthers: 'Hide Others',
     unhide: 'Show All', quit: 'Quit Agentshed',
-    edit: 'Edit', undo: 'Undo', redo: 'Redo', cut: 'Cut', copy: 'Copy', paste: 'Paste', selectAll: 'Select All',
+    edit: 'Edit', undo: 'Undo', redo: 'Redo', cut: 'Cut', copy: 'Copy', paste: 'Paste', selectAll: 'Select All', searchSessions: 'Search Sessions…',
     view: 'View', reload: 'Reload', toggleDevTools: 'Developer Tools', resetZoom: 'Actual Size',
     zoomIn: 'Zoom In', zoomOut: 'Zoom Out', fullscreen: 'Enter Full Screen',
     window: 'Window', minimize: 'Minimize', close: 'Close'
@@ -107,6 +108,24 @@ export const en: Locale = {
     pickProject: 'Select a project to see its details',
     waitingUpdate: 'Showing previous data, waiting for an update',
     scanning: 'Scanning the agent sides…'
+  },
+  search: {
+    title: 'Search',
+    placeholder: (projects, sessions) =>
+      `Search the questions in ${sessions} ${plural('en', sessions, { one: 'session', other: 'sessions' })} across ${projects} ${plural('en', projects, { one: 'project', other: 'projects' })}…`,
+    placeholderNone: 'Search questions…',
+    idle: 'Search what you asked in every project’s sessions.',
+    idleSub: 'Click a hit to open that session at that question.',
+    reading: 'Reading the sessions’ questions…',
+    hitsFound: (hits, sessions, projects) =>
+      `Found **${hits}** ${plural('en', hits, { one: 'hit', other: 'hits' })} · ${sessions} ${plural('en', sessions, { one: 'session', other: 'sessions' })} · ${projects} ${plural('en', projects, { one: 'project', other: 'projects' })}`,
+    projectCounts: (sessions, hits) =>
+      `${sessions} ${plural('en', sessions, { one: 'session', other: 'sessions' })} · ${hits} ${plural('en', hits, { one: 'hit', other: 'hits' })}`,
+    noHits: (tab, fullText) =>
+      `No hits. Only questions are searched here — to search answers and tool output, open the project and switch its “${tab}” tab to “${fullText}”.`,
+    failed: 'This search could not be completed. Change the keyword to try again.',
+    noSessions: 'No sessions to search yet.',
+    noSessionsSub: 'Once an agent has had a conversation in a registered project, it can be searched here.'
   },
   skills: {
     searchPlaceholder: 'Search skills…',
@@ -192,6 +211,9 @@ export const en: Locale = {
     fetchedNote: (ms, bytes) =>
       `Fetched on demand in ${ms} ms · read only this turn’s byte range, ${bytes} — independent of total file size`,
     back: (project) => `Back to ${project} · Sessions`,
+    backToSearch: 'Back to search results',
+    goToProject: (project) => `Go to ${project} · Sessions`,
+    goToProjectStale: (project) => `Go to ${project}`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · ${questions} ${plural('en', questions, { one: 'question', other: 'questions' })} · ${tok} tok · ${mb} · last active ${ago}`,
     cannotOpen: (detail) => `Cannot open this session: ${detail}`,

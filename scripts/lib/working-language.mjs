@@ -7,9 +7,8 @@
 
 // Ideographs, CJK punctuation and fullwidth forms: U+4E00–U+9FFF, U+3000–U+303F, U+FF00–U+FFEF. The
 // punctuation range was added after a real miss: the fork banner hard-coded Chinese book-title marks in a
-// component, so all six UIs rendered one — including Japanese, whose own dictionary already quoted the same
-// title with the marks U+300E/U+300F — and the gate stayed green throughout, because U+300A sits below the
-// ideograph range.
+// component, so every UI language rendered one, and the gate stayed green throughout, because U+300A sits
+// below the ideograph range.
 export const CJK = /[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/
 export const CJK_G = new RegExp(CJK.source, 'g')
 

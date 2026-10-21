@@ -20,7 +20,7 @@
 //   parsing everything" cost structure.
 import { readRolloutWhole } from './cold-rollout'
 import type { SearchHit, SearchResult, SessionMeta } from '@shared/domain'
-import { grokQuestionTextFromSlice, questionTextAt, type QuestionRec } from './question-index'
+import { questionTextOfRange, type QuestionRec } from './question-index'
 import { readRangeBuffers } from './range-read'
 import { searchBytes } from './search-bytes'
 import type { TokenEngine } from './token-stats'
@@ -119,24 +119,11 @@ export async function searchProjectSessions(
     const parseQ = (idx: number): { text: string; at: number | null } | null => {
       const cached = qText.get(idx)
       if (cached) return cached
-      try {
-        const raw = bufs[idx].toString('utf8')
-        // A Grok question's range can span several chunk lines; the other sides stay one line
-        const text =
-          q.side === 'grok'
-            ? grokQuestionTextFromSlice(raw)
-            : ((): string | null => {
-                const obj: unknown = JSON.parse(raw.trim())
-                if (typeof obj !== 'object' || obj === null) return null
-                return questionTextAt(q.side, obj as Record<string, unknown>)
-              })()
-        if (text === null) return null
-        const v = { text, at: recs[idx][3] }
-        qText.set(idx, v)
-        return v
-      } catch {
-        return null
-      }
+      const text = questionTextOfRange(q.side, bufs[idx].toString('utf8'))
+      if (text === null) return null
+      const v = { text, at: recs[idx][3] }
+      qText.set(idx, v)
+      return v
     }
     for (let idx = 0; idx < recs.length; idx++) {
       if (searchBytes(bufs[idx], k).length === 0) continue

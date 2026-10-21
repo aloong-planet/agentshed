@@ -12,7 +12,7 @@
 //     a value in a stylesheet is not reachable from a unit test, and asserting the hex strings back
 //     would only restate the source.
 //   - G4 — that the whole-history card names its own span, so it is not misread as the chart's 30 days
-//     — is a copy fact. The dictionaries carry it and the type alignment keeps the six in step, but
+//     — is a copy fact. The dictionaries carry it and the type alignment keeps them in step, but
 //     nothing asserts the wording says what it means.
 import { describe, it, expect } from 'vitest'
 import { localDay } from './format'

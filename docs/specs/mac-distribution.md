@@ -22,8 +22,8 @@ both the `.app` and the DMG, gates every artifact, and publishes nothing unless 
 Every release, pre-releases included, is published on GitHub Releases, and the package carries what
 the in-app updater reads. Formal releases are also copied to the R2 bucket `agentshed-releases` behind
 a custom download host; the latest pointer is updated last, after every mirrored file has been checked
-reachable. The first release is the pre-release `v0.1.0-beta`, and the six READMEs gain download and
-install instructions with it.
+reachable. The first release is the pre-release `v0.1.0-beta`, and the two READMEs, Chinese and
+English, gain download and install instructions with it.
 
 ## User Stories
 
@@ -66,8 +66,8 @@ release never depends on my machine or on manual steps.
 As a visitor to the repository, I want the README to tell me how to download and install Agentshed, so
 that I do not have to build it.
 
-- mac-distribution::US-003/AC-01: All six READMEs gain download and install instructions, published
-  together with the first release.
+- mac-distribution::US-003/AC-01: Both READMEs, Chinese and English, gain download and install
+  instructions, published together with the first release.
 
 ## Functional Requirements
 
@@ -284,7 +284,7 @@ not copy the policy.
 - **Runbooks**: the project's macOS signing runbook (identity, secrets, naming, tiers, workflow
   pitfalls) and its R2 setup notes go under `docs/ops/`, updated in place. They hold this project's
   values and point to the policy rather than copying it.
-- **The README change** ships in the same change as the first release, in all six languages. The
+- **The README change** ships in the same change as the first release, in both languages. The
   instructions point to the landing page and to GitHub Releases, give the same requirements the landing
   page states (macOS 12 or later, Apple Silicon), say what the first launch shows, and tell users to
   drag the app to Applications. They name no version, so they need no edit at the next release.

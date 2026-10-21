@@ -11,8 +11,7 @@ describe('errorText', () => {
   it('renders the same code according to the current language', () => {
     const raw = wrap(encodeAppError({ code: ERR.engineNotReady, params: {} }))
     expect(errorText('zh', raw)).toBe('扫描引擎未就绪,请稍候再试')
-    expect(errorText('ja', raw)).toBe('スキャンエンジンの準備ができていません。少し待って再試行してください')
-    expect(errorText('ru', raw)).toContain('сканирования')
+    expect(errorText('en', raw)).toBe('The scan engine is not ready yet — please try again shortly')
   })
 
   it('a parameterised code interpolates its parameters into the wording', () => {
@@ -28,7 +27,7 @@ describe('errorText', () => {
     expect(errorText('zh', noField)).toBe('调用参数不合契约:setMode')
   })
 
-  it('**every code renders in all six languages into wording that is non-empty and does not contain the code itself**', () => {
+  it('**every code renders in both languages into wording that is non-empty and does not contain the code itself**', () => {
     // Typecheck catches a missing translation, but not "a placeholder string was filled in" or "the code
     // itself was used as the wording".
     // Iterating codes × languages is the only way to catch those two

@@ -12,28 +12,34 @@ describe('resolveLanguage', () => {
     // The two implementations agree exactly on a **single-element** list and only a multi-element one can
     // tell them apart,
     // so this has to use multi-element input or the assertion catches nothing.
-    expect(resolveLanguage(['ko', 'fr', 'en'])).toBe('fr')
-    expect(resolveLanguage(['pt-BR', 'ru', 'en'])).toBe('ru')
+    expect(resolveLanguage(['ko', 'ja', 'zh-Hans-CN', 'en'])).toBe('zh')
+    // The shape this development machine's macOS actually reports: a script subtag with a foreign region
+    expect(resolveLanguage(['ja-US', 'zh-Hans-US', 'en-US'])).toBe('zh')
+    expect(resolveLanguage(['fr-FR', 'en-GB'])).toBe('en')
   })
 
   it('region and script variants match on the primary subtag', () => {
     expect(resolveLanguage(['zh-Hans-CN'])).toBe('zh')
-    expect(resolveLanguage(['fr-CA'])).toBe('fr')
-    expect(resolveLanguage(['es-419'])).toBe('es')
     expect(resolveLanguage(['EN-GB'])).toBe('en')
+    // A removed language no longer matches, whatever its region (i18n::REQ-002/AC-02)
+    expect(resolveLanguage(['fr-CA'])).toBe('en')
   })
 
   it('an empty list / nothing supported / a null value → fall back to English', () => {
     expect(resolveLanguage([])).toBe('en')
     expect(resolveLanguage(['ko'])).toBe('en')
     expect(resolveLanguage(['pt-BR'])).toBe('en')
+    // French, Spanish, Russian and Japanese were removed before the first release (ADR-0035)
+    expect(resolveLanguage(['fr-FR'])).toBe('en')
+    expect(resolveLanguage(['ko-KR', 'ja-JP'])).toBe('en')
+    expect(resolveLanguage(['es-419', 'ru'])).toBe('en')
     expect(resolveLanguage(null)).toBe('en')
     expect(resolveLanguage(undefined)).toBe('en')
   })
 
   it('a non-string element in the list is skipped without crashing', () => {
     // The argument comes from a platform API, and a type declaration is no runtime guarantee
-    expect(resolveLanguage([null as unknown as string, 'fr'])).toBe('fr')
+    expect(resolveLanguage([null as unknown as string, 'zh'])).toBe('zh')
     expect(resolveLanguage([123 as unknown as string])).toBe('en')
   })
 })
@@ -43,13 +49,13 @@ describe('effectiveLanguage (preference → effective language)', () => {
     // "Follow system" is a policy and a specific language is a lock — that distinction is the pivot of the
   // whole model.
     // If an implementation missed the branch and always resolved from the system, all three below go red.
-    expect(effectiveLanguage('ja', ['fr-FR', 'en-US'])).toBe('ja')
-    expect(effectiveLanguage('ja', [])).toBe('ja')
-    expect(effectiveLanguage('ja', null)).toBe('ja')
+    expect(effectiveLanguage('zh', ['en-US'])).toBe('zh')
+    expect(effectiveLanguage('zh', [])).toBe('zh')
+    expect(effectiveLanguage('zh', null)).toBe('zh')
   })
 
   it('a follow-system preference resolves against the system list', () => {
-    expect(effectiveLanguage('system', ['ko-KR', 'fr-FR', 'en-US'])).toBe('fr')
+    expect(effectiveLanguage('system', ['ko-KR', 'ja-JP', 'zh-Hans-CN'])).toBe('zh')
     expect(effectiveLanguage('system', ['ko-KR'])).toBe('en')
     expect(effectiveLanguage('system', [])).toBe('en')
   })
@@ -58,12 +64,11 @@ describe('effectiveLanguage (preference → effective language)', () => {
 // `plural()` itself is tested in ./plural.test.ts, which deliberately avoids importing this module.
 
 describe('dictionary', () => {
-  it('all six languages are present with distinct native names', () => {
-    const names = LANGUAGES.map((l) => dictOf(l).languageName)
-    expect(names).toHaveLength(6)
-    // All distinct: copying one language file into another and forgetting to change languageName
-    // does not go red at typecheck (the type only requires string) — only this case does
-    expect(new Set(names).size).toBe(6)
+  it('the languages are Chinese and English, each with its own native name (ADR-0035)', () => {
+    expect(LANGUAGES).toEqual(['zh', 'en'])
+    // Distinct: copying one language file into another and forgetting to change languageName does not go
+    // red at typecheck (the type only requires string) — only this case does
+    expect(LANGUAGES.map((l) => dictOf(l).languageName)).toEqual(['简体中文', 'English'])
   })
 
   it('every language has an htmlLang usable as an Intl locale', () => {
@@ -96,9 +101,8 @@ describe('dictionary', () => {
   it('every language quotes a parent session title the same way in both places it appears', () => {
     // The fork banner and the uncertain-strip warning both name the parent session, and a user can see both
     // on the same screen. The quotation marks are part of the copy, so they belong to the language: `“ ”`
-    // in English, `« »` in French, `『 』` in Japanese. They were hard-coded as CJK `《 》` in SessionPane,
-    // which put Chinese book-title marks into all six UIs — and left Japanese quoting the *same* title two
-    // different ways, since ja.ts already used `『 』` in the warning.
+    // in English, `《 》` in Chinese. They were once hard-coded as `《 》` in SessionPane, which put
+    // Chinese book-title marks into every UI language.
     //
     // Comparing the two entries against each other rather than against a hard-coded table is what makes
     // this survive: it stays correct for a language added later, and it goes red on the drift itself.
@@ -119,10 +123,13 @@ describe('dictionary', () => {
     }
   })
 
-  it('isLanguage accepts only the six languages, case-sensitively', () => {
-    expect(isLanguage('fr')).toBe(true)
+  it('isLanguage accepts only Chinese and English, case-sensitively', () => {
+    expect(isLanguage('zh')).toBe(true)
+    expect(isLanguage('en')).toBe(true)
+    // The removed languages are no longer languages (i18n::REQ-001/AC-03)
+    for (const removed of ['fr', 'es', 'ru', 'ja']) expect(isLanguage(removed), removed).toBe(false)
     expect(isLanguage('ko')).toBe(false)
-    expect(isLanguage('FR')).toBe(false)
+    expect(isLanguage('EN')).toBe(false)
     expect(isLanguage('')).toBe(false)
     expect(isLanguage(null)).toBe(false)
     expect(isLanguage(undefined)).toBe(false)

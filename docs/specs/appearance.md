@@ -224,7 +224,7 @@ document by its headings)
 - **The section's closing explanation is plain text with no bold** (settled on 2026-08-08,
   a deliberate deviation from the prototype): the prototype bolded the words "follow system", but for a
   dictionary entry to carry inline markup the whole sentence would have to be split into three
-  fragment keys maintained in six languages — which conflicts with i18n's "rich text must not be
+  fragment keys maintained in every language — which conflicts with i18n's "rich text must not be
   assembled from fragment keys" convention and with ADR-0014's "the copy layer does not depend on
   React". Breaking the copy layer's shape for one decorative bold is not worth it; the paragraph
   already distinguishes the policy name from the prose with quotation marks.  

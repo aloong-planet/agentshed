@@ -1,0 +1,107 @@
+{
+ "results": [
+  {
+   "name": "M1 the fork parent keeps the origin",
+   "expect": "E9",
+   "exit": 1,
+   "failed": [
+    "528 on into the project: its Sessions tab, or a stale project's"
+   ],
+   "errorLines": [
+    "556:await expect(win.locator('.pane-head .sback')).toHaveText(['Back to fork-proj · Sessions'])"
+   ]
+  },
+  {
+   "name": "M2 a session opened in the project keeps the origin",
+   "expect": "E9",
+   "exit": 0,
+   "failed": [],
+   "errorLines": []
+  },
+  {
+   "name": "M3 the rail drops the origin",
+   "expect": "E10",
+   "exit": 1,
+   "failed": [
+    "566 leaving the session for the search page and coming back keep"
+   ],
+   "errorLines": [
+    "579:await expect(exits(win)).toHaveText(['Back to search results', 'Go to target-proj · Sessions'])"
+   ]
+  },
+  {
+   "name": "M4 no project is taken as stale",
+   "expect": "E9",
+   "exit": 1,
+   "failed": [
+    "528 on into the project: its Sessions tab, or a stale project's"
+   ],
+   "errorLines": [
+    "544:await expect(exits(win)).toHaveText(['Back to search results', 'Go to stale-proj'])"
+   ]
+  },
+  {
+   "name": "M5 back to the results goes to Projects",
+   "expect": "E8, E10",
+   "exit": 1,
+   "failed": [
+    "484 a session opened from a hit: back to the results as they wer",
+    "566 leaving the session for the search page and coming back keep"
+   ],
+   "errorLines": [
+    "517:await expect(win.locator('.app')).toHaveClass(/dim-search/)",
+    "581:await expect(box(win)).toHaveValue('stale')"
+   ]
+  },
+  {
+   "name": "M6 going into the project lands on its first tab",
+   "expect": "E9",
+   "exit": 1,
+   "failed": [
+    "528 on into the project: its Sessions tab, or a stale project's"
+   ],
+   "errorLines": [
+    "537:await expect(win.locator('.pane-head .tabs .tab.on')).toHaveText('Sessions')"
+   ]
+  },
+  {
+   "name": "M7 the back exit takes the right chevron",
+   "expect": "E8",
+   "exit": 1,
+   "failed": [
+    "484 a session opened from a hit: back to the results as they wer"
+   ],
+   "errorLines": [
+    "505:expect(await exits(win).evaluateAll((els) => els.map((e) => e.querySelector('path')?.getAttribute('d')))).toEqual([LEFT, RIGHT])"
+   ]
+  },
+  {
+   "name": "M8 the stale exit keeps \"· Sessions\"",
+   "expect": "E9",
+   "exit": 1,
+   "failed": [
+    "528 on into the project: its Sessions tab, or a stale project's"
+   ],
+   "errorLines": [
+    "544:await expect(exits(win)).toHaveText(['Back to search results', 'Go to stale-proj'])"
+   ]
+  },
+  {
+   "name": "M9 choosing a project keeps the origin (expected equivalent)",
+   "expect": "none (equivalent)",
+   "exit": 0,
+   "failed": [],
+   "errorLines": []
+  },
+  {
+   "name": "M10 going into the project keeps the origin (expected equivalent)",
+   "expect": "none (equivalent)",
+   "exit": 0,
+   "failed": [],
+   "errorLines": []
+  }
+ ],
+ "restored": true
+}
+final rebuild exit 0
+mutate exit=0

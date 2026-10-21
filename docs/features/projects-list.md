@@ -23,6 +23,9 @@ activity.
 - Clicking a project name opens its detail page; the selected row is marked by a deeper tint than
   the hover tint (no border ring), and adjacent rows stay visually separate even when a selected
   and a hovered row touch
+- A project selected from a global search hit has its row scrolled into view when it sits outside the
+  visible part of the list; the filters are not changed for it, so a stale project stays hidden unless
+  stale projects are shown
 - Scanning is automatic — there is no refresh control: the app rescans when the window regains focus
   (at most once a minute) and on a periodic backstop, and the list updates in place when a scan lands
 

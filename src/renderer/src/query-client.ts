@@ -19,3 +19,14 @@ export const queryClientOptions = {
 export function createQueryClient(): QueryClient {
   return new QueryClient(queryClientOptions)
 }
+
+/**
+ * Every automatic rescan marks these stale, so a page on screen refreshes by transfusion and one revisited
+ * later revalidates (the CONTEXT invariant "a page switch is atomic and a revisit is instant"); global search's
+ * results among them, which also retries a failed search (global-search REQ-003/AC-02, REQ-004/AC-01).
+ */
+export function invalidateOnSnapshot(client: QueryClient): void {
+  for (const name of ['projectDetail', 'sessionPage', 'turnContent', 'artifactContent', 'skillContent', 'skillFiles', 'globalSearch']) {
+    void client.invalidateQueries({ queryKey: [name] })
+  }
+}
