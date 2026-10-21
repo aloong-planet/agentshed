@@ -88,10 +88,43 @@ No new input or output path; the gate reads the repository's own files, as befor
   Chinese in one new tooling file, nothing else is affected, and today there is no such file (the hash
   check above). A predicate could replace the list: the four listed copies carry the header "copied from
   the prototype skill's template", and no other file under `docs/prototypes/` does (`sync-mmd.mjs`
-  words its header differently). But the skill does not
-  require that header, so keying the gate on it needs the skill to make it a rule first. Recommendation: a
-  separate issue, deciding in skillshed whether the header becomes a rule, and then switching the gate to
-  it.
+  words its header differently). But the skill does not require that header, so keying the gate on it
+  needs the skill to make it a rule first. Recommendation: a separate issue, deciding in skillshed whether
+  the header becomes a rule, and then switching the gate to it. **Decision (owner, 2026-10-21): a separate
+  issue, [#296](https://github.com/aloong-planet/agentshed/issues/296).** It also carries the step-6
+  check's observation O3: an entry that matches no file is never reported.
+
+## Second pass — the regression test (2026-10-21)
+
+- Version: 39f9763 plus the uncommitted `scripts/check-lang.test.mjs` and the `check:lang` script in
+  `package.json`, committed together with this section.
+- Scope: the new test file and the script change. The step-6 check's finding F1 led to them, and the owner
+  chose to add the test in this pull request. The gate itself is unchanged since the first pass.
+- **① Underlying premises — no finding.** Each statement in the new comments was checked against the gate's
+  code, and each held:
+  - The gate lists files with `git ls-files` in its working directory and reads them relative to it, so a
+    temporary repository controls the file set. Its imports resolve relative to the gate's own location:
+    the test runs it from a temporary directory and it loads `typescript`.
+  - A rule that matches no file is reported as dead. That is why every case needs the seeds.
+  - The permitted count counts only lines read from matched files. So 8 → 9 shows the file was read.
+- **② Runnability — no finding.**
+  - Each case removes its temporary repository in a `finally` block.
+  - The gate is spawned with `process.execPath`, and the exit code comes from `spawnSync`.
+  - The problem check `<file>:2 ` ends in a space, matching the gate's `<file>:<n>  <line>` format. So it
+    cannot match `:20`.
+  - `git add -A` needs no Git identity, since nothing is committed.
+  - Ten cases took 2.4 s.
+  - The test file holds no Chinese of its own: the gate's pattern finds 0 lines. In the repository's own run
+    the gate therefore skips it, and it does not need an exemption.
+- **③ Security — no finding.** The test writes only inside directories it creates under the system's
+  temporary directory, and it removes them.
+- **④ Consistency — one smell answered.** The structure follows `scripts/check-raw-nul.test.mjs`, and the
+  script follows `check:nul`, which runs its test before the gate.
+  - Smell baseline: duplicated code. Both gate tests carry a temporary-repository helper. Exempt: the
+    helpers differ in what they stage and what they seed. A shared helper for two small files is
+    speculative generality. The existing test keeps its helper inline, and this one does the same.
+  - The seeds tie the test to the gate's rule set. A changed rule fails the seeds-only case loudly, naming
+    the rule, so it cannot pass silently. The file's header and the design review record this.
 
 ## Outside this ticket (reported 2026-10-12; both still open on 2026-10-21)
 

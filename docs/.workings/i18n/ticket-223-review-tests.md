@@ -10,11 +10,80 @@
   ("mockup content but not the tooling beside it"; the predicates "verified to hold in both directions"). The
   spec's "Failure modes and boundaries" section has no row for the working-language gate.
 
-## Design review
+## Design review — 2026-10-21
 
-Not performed, in either round. No test file was added or changed, and no test design table was written
-before the verification below ran; the 2026-10-12 round gave "no unit seam" as the reason. This section
-records that absence. It is not a design review written after the fact. See findings F1 and F2.
+- Version: implementation starts from 39f9763 (this record as the step-6 check left it, plus the gateway's
+  runner). The design follows the owner's decision on F1, to add the regression test in this pull request.
+- Before this section, no design review had been performed in either round; the 2026-10-12 round gave "no
+  unit seam" as the reason, which F1 refutes. The cases reviewed in "Post-implementation check — 2026-10-21"
+  below are one-off mutation runs, not tests, and were not designed here.
+- Planned test file: `scripts/check-lang.test.mjs` (`node:test`), run by `pnpm check:lang` before the gate
+  itself, the way `pnpm check:nul` runs `scripts/check-raw-nul.test.mjs`. The gateway and CI both run
+  `pnpm check:lang`.
+- Seam: the gate's command line, `node scripts/check-lang.mjs`, run with a fresh temporary Git repository as
+  its working directory. The gate lists that directory's files with `git ls-files` and reads them relative to
+  it, so a test controls the whole file set without touching the repository. This is the seam
+  `scripts/check-raw-nul.test.mjs` uses for its sibling gate.
+- Fixture: every case starts from the same eight seed files, one per exemption rule, each holding one line of
+  Chinese that its rule permits. Without them the gate reports each rule that matches no file as dead, and
+  every run would exit 1. Measured on 39f9763: the seeds alone exit 0 with 8 permitted lines, one file per
+  rule. The Chinese is built from code points, so the test file itself holds none.
+
+### Test design table
+
+| Case | Covers | Driving input | Assertion and source of the expected value | Fixture shape | Expensive resource |
+|---|---|---|---|---|---|
+| T0 seeds only | the fixture itself: every rule matched, nothing else red | the eight seeds | exit 0, `8 line(s)`: one line per seed, counted by hand | the seeds | none |
+| R1–R4 a named copy | ticket #223 Fix 2 and Verification ("a Chinese string added to `index.html` turns `check:lang` red"); spec Further Notes, "not the tooling beside it"; this round's three copies | seeds plus one of `docs/prototypes/index.html`, `app-identity.js`, `demo-dimensions.js`, `demo-harness.js`, holding an English first line and a Chinese comment on line 2 | exit 1, `found 1 problem(s)`, the problem `docs/prototypes/<file>:2`, and the prototype rule's reason "the tooling beside it gets no exemption". The four paths come from the hash check of the skill's assets against every tracked file, not from `SKILL_TOOLING` | paths from the repository's file list; content one comment line, since the predicate decides by path and by line | none |
+| R5 `sync-mmd.mjs` | the gate's comment: the fifth copy needs no entry, because `.mjs` is not an exempt type | seeds plus `docs/prototypes/sync-mmd.mjs` with a Chinese comment on line 2 | as R1–R4 | as R1–R4 | none |
+| P1 a mockup page | ticket Verification ("one in a mockup page does not") | seeds plus `docs/prototypes/shell/prototype-app-shell.html` with a Chinese line | exit 0, `9 line(s)`: the seeds' 8 plus this line, which shows the file was read and the line permitted, not skipped | as R1–R4 | none |
+| P2 a logic page named `index.html` | the copies are named by path, not by basename | seeds plus `docs/prototypes/project-list/visibility/index.html` | as P1 | as R1–R4 | none |
+| P3 `manifest.js` | ticket Fix 2 ("`manifest.js` … stays exempt") | seeds plus `docs/prototypes/manifest.js` | as P1 | as R1–R4 | none |
+| P4 `dimensions.js` | this round's decision: the project's registry addresses the reviewer | seeds plus `docs/prototypes/dimensions.js` | as P1 | as R1–R4 | none |
+
+### Dimension 1 — Coverage
+
+- Every requirement of the ticket and the spec sentence has a row: red for the copies (R1–R4), green for a
+  mockup page and `manifest.js` (P1, P3), and growth inside the rule staying green (P1–P4, each one permitted
+  line more). P2 and P4 cover the two ways the narrowing could over-reach: matching by basename, and
+  catching the project's own registry beside the copies. The spec has no "Failure modes and boundaries" row
+  for the gate.
+- Driving input reaches the branch: a named path with a Chinese line is exactly the input that reaches the
+  narrowed branch of `mockupOnly`; any other exempt-type path under `docs/prototypes/` reaches the exemption.
+- Fixture shape: the predicate reads nothing but the path and whether a line holds Chinese, so file content
+  has no structure to get wrong. The paths are the real ones.
+- Gap, to note in the test file's header: a template the skill adds later is covered only once it is named in
+  both the gate and this test. That gap belongs to the refactor item the owner sent to a separate issue.
+
+### Dimension 2 — Case design
+
+- Each case builds its own temporary repository and removes it in a `finally` block, so cases are isolated and
+  can run in any order.
+- Each case runs the whole gate and asserts on its output, so it drives the real behaviour.
+- Implementation-coupling red flags, each checked: no module double; no private member or internal state
+  (the test cannot reach `SKILL_TOOLING` and does not try); no call-count assertion; no side channel (the
+  results come from the gate's own exit code and output); every state is one a contributor reaches by adding
+  a file.
+
+### Dimension 3 — False greens (judged from the design)
+
+- Constant assertions: none. Every expected value is exact (exit code, problem count, file and line,
+  permitted count), with no threshold to fill.
+- Tautology: none. The expected values are literals from the ticket, the spec and the hash check, never
+  recomputed from the gate.
+- Old path: none. `mockupOnly` and `SKILL_TOOLING` are the live code path, and each path in the table is a
+  live file in the repository.
+- When each case goes red: R1–R4 if an entry is dropped or misspelled or the narrowing is lost; R5 if `.mjs`
+  becomes an exempt type; P1–P4 if the narrowing over-reaches onto that path, or if the file stops being read;
+  T0 if a rule changes so that a seed no longer satisfies it, which also tells the author to update the seeds.
+
+### Dimension 4 — Resource reuse
+
+- No expensive resource: a gate run in a seeded temporary repository took 212–330 ms over three runs on
+  39f9763, and a temporary repository costs less. The gate run is the behaviour under test, so each case
+  runs it.
+- Existing practice: `scripts/check-raw-nul.test.mjs` builds a fresh temporary index per case. This test
+  follows it.
 
 ## Post-implementation check — 2026-10-21
 
@@ -160,6 +229,19 @@ Dimension 1.
 | F2 | No design review exists, and the skip is not recorded with a ground `/implement` accepts (it skips the design review only together with a TDD skip for lack of test value) | The case set was never reviewed before it ran | Settled with F1: a regression test gets a design review section with its implementation-start commit; if F1 is declined, record that decision and its ground here | This record |
 | F3 | The document sync checklist's pre-delivery scope re-check is dated 2026-10-12 and describes c149802 (the shell copy and the shell-only narrowing). Its statement that the Chinese-quoting raw evidence "stays untracked in `ticket-223-evidence/`" does not hold on this branch's worktree: those four files exist only in the main checkout's ignored `docs/.workings/i18n/ticket-223-evidence/` | Delivery could rest on a scope check of a change the pull request no longer makes, and a reader of the branch looks for evidence that is not there | Before delivery, redo the re-check for the 2026-10-21 scope, and state where those four files live (or that they are local to the main checkout); keep `logic-pages-vs-template.diff` reachable while #226 relies on it | `ticket-223-doc-sync.md` |
 | F4 | Pull request #225 (head still e9db914) carries the 2026-10-12 evidence: the shell copy, red first with five problems, M1–M5 at 2373 and 2374 permitted lines, the gallery render, and `pnpm verify` on f4d391d | Once this round is pushed, the description's evidence describes a change the pull request no longer contains | At delivery, replace the title and the evidence with this round's: the T, G and N runs at 2554 and 2555, the full gateway on 604e0ef, and F1's outcome | PR #225 description |
+
+Dispositions (2026-10-21, after the check above returned):
+
+- F1: the owner chose to add the test in this pull request. It is `scripts/check-lang.test.mjs`, run by
+  `pnpm check:lang`, designed in "Design review — 2026-10-21" above and reviewed in the code review's second
+  pass.
+- F2: settled with F1. The design review was written before the test, starting from 39f9763.
+- F3: the document sync checklist's scope re-check is redone for 2026-10-21, and it states where the four
+  untracked files live.
+- F4: the pull request's title and description are replaced with this round's at delivery.
+- O2: the runner is kept beside the log as `rerun-2026-10-21/run-gate.mjs`.
+- O3: carried by [#296](https://github.com/aloong-planet/agentshed/issues/296) with the code review's refactor
+  item.
 
 Observations, no change required this round:
 
