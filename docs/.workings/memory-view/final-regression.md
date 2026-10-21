@@ -50,4 +50,5 @@ read by key in all six (`globalHint|topicsTitle|mainTitle`).
 | Work status: #294 | the issue's process-acceptance items; the doc-sync list; the coverage checklist's current verification; #279's memory screenshot | The doc-sync list and checklist are updated in this round; the issue's items are ticked at delivery; #279's retake waits for this PR's merge |
 
 Queue empty; scope re-checked against the doc-sync list and the review records' document obligations (the
-checklist rows for D5/D6, E5 and CON-002; the spec's tested shapes; the task log's gate runs) — all handled.
+checklist rows for D5/D6, E5 and CON-002 and its current verification at 67a31bc; the spec's tested shapes; the task
+log's gate runs, including the one failed run on 8aa70e8) — all handled.

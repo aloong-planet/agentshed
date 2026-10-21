@@ -119,3 +119,10 @@ Both logs start with `HEAD 8aa70e8212c94add669f5298080814628e61bdef` and an empt
 IC-8 and IC-9's assertions revised and each shown able to fail by mutation (a 320,000 cap; a fixed-layout table capped
 at the body's width), restored byte for byte and rebuilt; IC-10's fixture comment corrected; IC-11 and IC-12 handled in
 the checklist and the test review record; the postmortem index row moved into date order; IC-7 recorded above.
+
+## Final full gate at 67a31bc (2026-10-21)
+
+The log starts with `HEAD 67a31bce3ad79c940979e6ba84733a29c065eebc` and an empty porcelain status; `verify exit=0`:
+unit 878 passed (1 opt-in skip), script and site tests 102, check:ui / check:lang / check:i18n / check:nul passed,
+e2e 148 passed, smoke SMOKE_OK. The changes after it are records only (the checklist's current verification, this
+log, the final regression's closing line); check:lang re-run on them before the commit.
