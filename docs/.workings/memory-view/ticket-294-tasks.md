@@ -152,3 +152,12 @@ project-detail main-file step: `expect(locator('.toast')).toBeVisible()` hit a s
 CI the run reached the older main-file step before it expired. Fixed in the test the way step (6d) already does:
 wait for earlier toasts to clear before the click that must raise a fresh one. Verified on CI (the local dev app was
 in use by the owner; a local e2e build would rewrite the output it runs from).
+
+## Owner's answers at delivery (2026-10-21) and the merge
+
+- "merge #298" — merged with this PR (#298), squash, remote branch deleted; #294 closes with it.
+- "create issue for the flaky restart test" — opened as #299 (`e2e/startup-restore.spec.ts:8`, the today card's
+  one-second rollover window).
+- The two refactor candidates in the code review (R1, R2) were not taken up; they stay undone.
+- CI on PR #298 passed at 1dfddff (e2e, typecheck + unit tests + shared-piece consistency, message language); lint
+  passed locally at the same commit.

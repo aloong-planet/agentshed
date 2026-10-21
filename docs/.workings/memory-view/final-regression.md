@@ -48,7 +48,7 @@ site's copy); dictionary statements were read by key in both (`globalHint|topics
 | A set changed: the memory file drawer joined the markdown render sites | CONTEXT's list (updated); appearance C4 and E (still true); `rg -n -i "render sites" docs CONTEXT.md` | Handled |
 | `Pending:` notes in scope | `rg -n "Pending:" docs/specs/memory-view.md docs/specs/skills-view.md docs/features/memory-view.md docs/features/skills-view.md CONTEXT.md docs/specs/appearance.md` → no output (exit 1) | None |
 | New general rules | memory-view::CON-001 and CON-002 (spec); the saved-field fill-in (CONTEXT invariant and postmortem); the one file-drawer form in the prototypes (shared block, registered) | Each has its authoritative home |
-| Work status: #294 | the issue's process-acceptance items; the doc-sync list; the coverage checklist's current verification; #279's memory screenshot | The doc-sync list and checklist are updated in this round; the issue's items are ticked at delivery; #279's retake waits for this PR's merge |
+| Work status: #294 | the issue's process-acceptance items; the doc-sync list; the coverage checklist's current verification; #279's memory screenshot | The doc-sync list and checklist are updated in this round; the issue's items are ticked at delivery; #279's retake is #279's work once this PR (#298) merges |
 
 Queue empty; scope re-checked against the doc-sync list and the review records' document obligations (the
 checklist rows for D5/D6, E5 and CON-002 and its current verification at 67a31bc; the spec's tested shapes; the task

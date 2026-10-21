@@ -10,4 +10,4 @@ Feature records: [checklist](checklist.md) · final regression: [final-regressio
 | Step 8: the feature catalogue says what the memory drawer and rendered documents now do | [memory-view features](../../features/memory-view.md) | Done — final-regression.md, Stage 1 |
 | Step 8: other declarations of the skill file drawer, the render sites and saved display data stay true | [skills-view spec](../../specs/skills-view.md), [CONTEXT.md](../../../CONTEXT.md), [appearance spec](../../specs/appearance.md), [postmortems](../../postmortems/README.md) | Done — final-regression.md, Stages 2 and 3 |
 | Step 8 report | [final-regression.md](final-regression.md) | Done (2026-10-21) |
-| After this PR merges: #279's memory screenshot is retaken over the new drawer | [#279](https://github.com/aloong-planet/agentshed/issues/279) | Waiting — the merge of this PR |
+| After this PR merges: #279's memory screenshot is retaken over the new drawer | [#279](https://github.com/aloong-planet/agentshed/issues/279) | Done — completed with the merge of this PR (#298): the trigger is met; the retake itself is #279's work (its task list, D24) |
