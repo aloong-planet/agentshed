@@ -33,6 +33,7 @@ const MUTATIONS = [
   { id: 'T2-app-identity', edits: [append('docs/prototypes/app-identity.js')], expect: 'red' },
   { id: 'T3-demo-dimensions', edits: [append('docs/prototypes/demo-dimensions.js')], expect: 'red' },
   { id: 'T4-demo-harness', edits: [append('docs/prototypes/demo-harness.js')], expect: 'red' },
+  { id: 'T5-sync-mmd', edits: [append('docs/prototypes/sync-mmd.mjs')], expect: 'red' },
   { id: 'G1-mockup-page', edits: [append('docs/prototypes/shell/prototype-app-shell.html')], expect: 'green' },
   { id: 'G2-logic-index', edits: [append('docs/prototypes/project-list/visibility/index.html')], expect: 'green' },
   { id: 'G3-manifest', edits: [append('docs/prototypes/manifest.js')], expect: 'green' },
@@ -40,6 +41,7 @@ const MUTATIONS = [
   { id: 'G5-shared-component', edits: [append('docs/prototypes/_shared/app-rail.js')], expect: 'green' },
   { id: 'N1-shell-without-narrowing', edits: [append('docs/prototypes/index.html'), dropNarrowing], expect: 'green' },
   { id: 'N2-app-identity-without-narrowing', edits: [append('docs/prototypes/app-identity.js'), dropNarrowing], expect: 'green' },
+  { id: 'N3-sync-mmd-without-narrowing', edits: [append('docs/prototypes/sync-mmd.mjs'), dropNarrowing], expect: 'red' },
   { id: 'final', edits: [], expect: 'green' }
 ]
 

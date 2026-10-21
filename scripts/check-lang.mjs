@@ -127,8 +127,9 @@ function citedOrLiteral(text, file) {
 }
 
 /**
- * The prototype skill's tooling, copied in unchanged from its templates: tooling although it is HTML and
- * JS. A template the skill adds is named here when it is copied in.
+ * The prototype skill's templates copied in unchanged that the file type below would exempt: tooling
+ * although they are HTML and JS. `sync-mmd.mjs`, also a copy, needs no entry, because `.mjs` is not an
+ * exempt type. A template the skill adds is named here when it is copied in.
  */
 const SKILL_TOOLING = [
   'docs/prototypes/index.html',

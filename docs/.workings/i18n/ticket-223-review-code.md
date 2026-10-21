@@ -1,87 +1,101 @@
 # Review — code (step 5), ticket aloong-planet/agentshed#223
 
-- Date: 2026-10-12
-- Version: branch `fix/gallery-shell-language`, commit c149802 (includes the review fix below)
-- Scope: `scripts/check-lang.mjs` (`mockupOnly` and the new `GALLERY_SHELL`), `docs/prototypes/index.html`
-  (replaced by a byte copy of the prototype skill's `gallery-template.html`, identical to skillshed
-  `origin/master`, last changed in `ad496fd`)
+- Date: 2026-10-21
+- Version: branch `fix/gallery-shell-language` at b164921, plus the review fix below (the `SKILL_TOOLING`
+  comment), committed together with this record. The branch carries main up to 9b7bb13 through the merge
+  commit 2cf3dea.
+- Scope: `scripts/check-lang.mjs` (`SKILL_TOOLING` and `mockupOnly`) and the merge. The pull request no
+  longer changes `docs/prototypes/index.html`: #249 and #264 had already copied the prototype skill's
+  current English template there, so the merge takes main's file, which is byte-identical to skillshed
+  `origin/master:prototype/gallery-template.html`.
 - Review path: tracker ticket without a feature checklist; artifacts under `docs/.workings/i18n/` with the
   `ticket-223-` prefix (code review, test review, document sync checklist). The slug follows
   `docs/specs/i18n.md`, whose Further Notes hold the working-language gate's exemption rules.
+- Earlier round: 2026-10-12, on c149802, which copied the template over the shell and named the shell
+  alone. Its conclusions about the shell copy no longer apply, since the pull request no longer makes that
+  copy. Its raw evidence stays at the top level of `ticket-223-evidence/` and describes c149802 only; this
+  round's evidence is in `ticket-223-evidence/rerun-2026-10-21/`.
 
 ## ① Underlying premises — one finding, fixed
 
-- "The shell differs from the template only in the five Chinese lines and comment wording": `diff`
-  against the template showed exactly that, and no logic difference. Holds; the copy is byte-identical
-  (`cmp`).
-- "`manifest.js` addresses the reviewer": its names are the sidebar entries and its questions are the
-  prototypes' questions (seen in the rendered gallery). Holds; it stays exempt, as the ticket asks.
-- **Finding (new comment overclaimed):** the first version of the comment said the file type tells a
-  mockup from tooling "everywhere but one place" and spoke of "five Chinese UI strings". The first is a
-  negative claim that a full enumeration refutes (see ④: the three logic pages and `vendor/`), and one of
-  the five lines is a comment, not a UI string. The comment now says only that the file type approximates
-  the line, and states the mechanism the red step showed (the shell was exempt, so the gate never reported
-  its Chinese). Self-harm only (a misleading comment); fixed.
+- "The prototype skill copies tooling files into `docs/prototypes/` unchanged." Checked against the skill's
+  asset list (`repo-scaffold/artifact-names.md`, seven `prototype/` assets) by hashing each asset at
+  skillshed `origin/master` and looking the hash up among every tracked file (`git ls-files -s`):
+  - byte-identical copies: `index.html` (from `gallery-template.html`), `app-identity.js`,
+    `demo-dimensions.js`, `demo-harness.js` and `sync-mmd.mjs`;
+  - no identical copy: `logic-page-template.html` and `logic-template.js`. The three logic pages are
+    filled-in copies of the first, which is #226.
+- "The gate exempted the three new copies by extension, as it had the shell." Holds: with the narrowing
+  removed, a Chinese line in `app-identity.js` passes (N2).
+- "`dimensions.js` addresses the reviewer." Its labels render in the gallery's settings panel
+  (`index.html:119`), and its fallback note renders on the pages (`demo-dimensions.js:76`). It is this
+  project's registry, not a skill asset, so it stays exempt with `manifest.js`.
+- **Finding (new comment overclaimed):** the first wording called the list "the prototype skill's
+  tooling, copied in unchanged", which `sync-mmd.mjs` (a fifth copy, not in the list) contradicts. The
+  comment now says the list holds the copies the file type would exempt, and that `sync-mmd.mjs` needs no
+  entry because `.mjs` is not an exempt type. That cause was confirmed by measurement: a Chinese line in
+  `sync-mmd.mjs` is red with the narrowing (T5) and without it (N3). Self-harm only (a misleading
+  comment); fixed.
 
 ## ② Runnability — no finding
 
-- Red first: with the predicate narrowed and the old shell in place, `check:lang` exited 1 with exactly
-  five problems, `docs/prototypes/index.html` lines 4, 51, 54, 55 and 83, and nothing else.
-- Green: after the copy, exit 0; the prototype rule covers 34 files (35 before, the shell no longer has
-  Chinese).
-- Mutations, each confirmed in the file before the run and restored from a copy (re-run on the final code):
+- The predicate compares the repository-relative paths `git ls-files` prints, like the file's other
+  exact-path rules; nothing else changed in how files are read or reported.
+- Mutations, run by `rerun-2026-10-21/mutate.mjs` on the merged tree. Each edit was confirmed in the file
+  before the run. The exit code was taken from `spawnSync`, and every touched file was restored byte for
+  byte from memory (no `git checkout`). The table is `rerun-2026-10-21/summary.md`:
 
   | Mutation | Expected | Result |
   |---|---|---|
-  | shell collapse-button title back to its old Chinese text | red | exit 1, one problem at `index.html:49`, the mutated line |
-  | Chinese comment appended to a mockup page (`shell/prototype-app-shell.html`) | green | exit 0, permitted lines 2373 → 2374 |
-  | Chinese comment appended to a logic page `project-list/visibility/index.html` (same basename as the shell) | green | exit 0, 2374 |
-  | Chinese comment appended to `manifest.js` | green | exit 0, 2374 |
-  | shell mutation again, with the `GALLERY_SHELL` exclusion removed from the predicate | green | exit 0, 2374 |
+  | baseline | green | exit 0, 2554 permitted lines |
+  | T1–T4: a Chinese comment line in `index.html`, `app-identity.js`, `demo-dimensions.js`, `demo-harness.js` | red | exit 1, one problem each, at the appended line |
+  | T5: the same in `sync-mmd.mjs` | red | exit 1, one problem, at the appended line |
+  | G1–G5: the same in a mockup page, the logic page `project-list/visibility/index.html` (same basename as the shell), `manifest.js`, `dimensions.js`, `_shared/app-rail.js` | green | exit 0, 2555 permitted lines each |
+  | N1, N2: T1 and T2 with the narrowing removed | green | exit 0, 2555 |
+  | N3: T5 with the narrowing removed | red | exit 1, at the appended line |
+  | final | green | exit 0, 2554 |
 
-  The 2374 count shows each green run read the mutated line and permitted it, rather than not scanning
-  the file. The last row shows the narrowing is what turns the first row red.
-- The gallery renders and works from `file://` (Chrome via Playwright): 16 sidebar entries for 16
-  manifest entries, every entry opens its page in the iframe with the item selected, button titles
-  `Collapse (S)` / `Expand (S)`, empty text `Select a prototype on the left`, folding with `S` shows the
-  expand button, no page errors. Screenshots were taken of the empty state, the first entry and the
-  folded state.
+  2555 against 2554 shows that each green run read the mutated line and permitted it, rather than skipping
+  the file. N1 and N2 show that the narrowing is what turns T1 and T2 red.
 
 ## ③ Security — no finding
 
-No new input or output path. The shell's `innerHTML` use of manifest fields is unchanged from before and
-reads only the repository's own manifest.
+No new input or output path; the gate reads the repository's own files, as before.
 
-## ④ Consistency — one finding, fixed; one class-level result
+## ④ Consistency — one class-level result; one item for the refactor list
 
-- **Finding (doc comment attached to the wrong declaration):** the constant was first placed between
-  `mockupOnly`'s JSDoc block and the function, so the block documented the constant. The constant now has
-  its own one-line doc above the block. Fixed.
-- Matching an exact path follows the file's existing rules (`README.md`, `scripts/check-shared-ui.mjs`).
-  A red on the shell prints the prototype rule's reason, "the tooling beside it gets no exemption", which
-  is the reason that applies.
+- Exact-path matching follows the file's existing rules (`README.md`, `scripts/check-shared-ui.mjs`). A red
+  on a named copy prints the prototype rule's reason, "the tooling beside it gets no exemption", which is
+  the reason that applies.
 - `docs/specs/i18n.md` Further Notes describe this exemption as "mockup content but not the tooling beside
-  it"; the change makes the gate match that sentence, so no spec text becomes false.
+  it"; the change makes the gate match that sentence for every verbatim copy, so no spec text becomes
+  false. The logic pages remain the known exception (#226).
 - Smell baseline: no hit.
-- **Class-level check** ("an exemption keyed on file type also exempts tooling of that type"). All 39
-  files under `docs/prototypes/` with an exempt extension were enumerated from
-  `git ls-files --cached --others --exclude-standard` and read (byte counts recorded):
-  - 33 are prototype content: 13 mockup pages, 8 shared mockup components in `_shared/`, the skills
-    fixture, `manifest.js`, and the logic prototypes' `logic.js`, `.mmd` and derived `model.mmd.js` files;
-  - 1 is the gallery shell, fixed here;
-  - 2 are third-party tooling (`vendor/marked.umd.js`, `vendor/mermaid.min.js`) with no Chinese; exempting
-    vendored code is right in effect, since it cannot be translated here;
-  - 3 hit: the logic pages `project-list/visibility/index.html`, `skill-install/install-flow/index.html`
-    and `token-stats/scan-cache/index.html` are filled-in copies of the skill's `logic-page-template.html`
-    and still carry its chrome in Chinese (header comment, "drive it yourself" heading, receipts, the stress
-    toggle and hint, the empty-diagram notice, the reset-view title, the unreachable tooltip prefix) beside
-    their Chinese prototype content. One file holds both, so no file-level predicate can separate them,
-    and the pages have diverged from the template, so they cannot be re-copied. Outside this ticket; see
-    below.
+- **Class-level check** ("an exemption keyed on file type also exempts tooling of that type"). All 52 files
+  under `docs/prototypes/` with an exempt extension were enumerated from
+  `git ls-files --cached --others --exclude-standard` and read, with Chinese line counts and byte counts
+  recorded (`rerun-2026-10-21/exempt-by-extension.tsv`):
+  - 4 are verbatim skill copies, now named;
+  - 2 are this project's registries addressing the reviewer (`manifest.js`, `dimensions.js`), exempt;
+  - 2 are third-party tooling (`vendor/marked.umd.js`, `vendor/mermaid.min.js`) with no Chinese;
+  - 41 are prototype content: 13 mockup pages, 17 shared mockup components in `_shared/`, the skills
+    fixture, and the logic prototypes' 3 `logic.js`, 4 `.mmd` and 3 derived `model.mmd.js` files;
+  - 3 are the logic pages, which hold the template's chrome and the prototype content in one file, so no
+    file-level predicate separates them. Unchanged since the earlier round; tracked in #226.
+- **Refactor item (not done; for the owner's decision):** `SKILL_TOOLING` is a list, so a template the
+  skill adds later is exempt again until someone names it here. The comment asks for that, but nothing
+  enforces it, and the failure is silent: the gate stays green. Impact: self-harm only. It can hide
+  Chinese in one new tooling file, nothing else is affected, and today there is no such file (the hash
+  check above). A predicate could replace the list: the four listed copies carry the header "copied from
+  the prototype skill's template", and no other file under `docs/prototypes/` does (`sync-mmd.mjs`
+  words its header differently). But the skill does not
+  require that header, so keying the gate on it needs the skill to make it a rule first. Recommendation: a
+  separate issue, deciding in skillshed whether the header becomes a rule, and then switching the gate to
+  it.
 
-## Outside this ticket (reported; the owner decided on 2026-10-12)
+## Outside this ticket (reported 2026-10-12; both still open on 2026-10-21)
 
 | Finding | Impact | Recommendation | Decision |
 |---|---|---|---|
-| Logic pages carry the logic template's chrome in Chinese (3 files) | Only the prototype reviewer sees it, when opening those three logic prototypes. `check:lang` cannot see it, so nothing will ever report it | A separate issue: rewrite the chrome strings to the template's current English wording and keep the prototype content as it is, with a render check of each page. Not in this PR, which would grow to three more hand-edited files | Separate issue: [#226](https://github.com/aloong-planet/agentshed/issues/226) |
+| Logic pages carry the logic template's chrome in Chinese (3 files) | Only the prototype reviewer sees it, when opening those three logic prototypes. `check:lang` cannot see it, so nothing will ever report it | A separate issue: rewrite the chrome strings to the template's current English wording and keep the prototype content as it is, with a render check of each page | Separate issue: [#226](https://github.com/aloong-planet/agentshed/issues/226) |
 | The gallery shell's fold controls use character icons (`⟨⟨`, `☰`); the logic template does too (`⌂`, `↺`) | Prototype tooling only, never the product. Both come from the skill templates, so a change belongs to skillshed, not to agentshed's copies | Do not change | Fix in the templates: [zhoulf1006/skillshed#16](https://github.com/zhoulf1006/skillshed/issues/16) |
