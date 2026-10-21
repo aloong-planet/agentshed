@@ -196,9 +196,9 @@ labels for data days (see ADR-0009).
 _Avoid_: non-zero day, active day
 
 **Supported language**:
-A language the app UI can be switched to. Enumerated: Simplified Chinese, English, French, Russian,
-Spanish, Japanese. All six are left-to-right; this product makes no RTL commitment (see ADR-0013).
-_Avoid_: the six official UN languages (this product's six exclude Arabic); locale (too general)
+A language the app UI can be switched to. Enumerated: Simplified Chinese and English (ADR-0035). Both
+are left-to-right; this product makes no RTL commitment (see ADR-0013).
+_Avoid_: the six languages (the set before 2026-10-19); locale (too general)
 
 **Language preference**:
 The value the user selects in settings, which is persisted. Either "follow system" or one specific
@@ -216,7 +216,7 @@ _Avoid_: default language
 
 **Source language**:
 Simplified Chinese; the single source of truth for UI copy. New copy is written in the source
-language first, and the other five are derived from it and aligned entry by entry — there is no
+language first, and English is derived from it and aligned entry by entry — there is no
 "temporarily blank" intermediate state. Strictly distinct from "effective language": the source
 language is where copy is **authored**, regardless of which language a user is looking at.
 _Avoid_: default language, primary language
@@ -567,7 +567,7 @@ _Avoid_: beta mode, insider track, update track
 - **User-facing copy never enumerates the agent sides as an exhaustive set (settled 2026-08-16)**:
   a sentence that means "all sides" says so side-count-neutrally ("the agent sides");
   naming one specific side is fine. Rationale: the side set grows, and an enumeration written into
-  copy is a sentence that becomes a lie the moment a side is added — silently, in six languages at
+  copy is a sentence that becomes a lie the moment a side is added — silently, in every language at
   once, on a surface no side-onboarding diff touches. It happened twice in one onboarding round
   (the totals card's "both sides", the scanning state's "Claude Code / Codex"), and the rule had
   already been written down — in a prototype comment, where it constrained nobody. Enforced by a
@@ -716,8 +716,10 @@ _Avoid_: beta mode, insider track, update track
 - **"The six official UN languages" is retired (2026-08-08)**: the requirement as originally stated
   named the six official UN languages, which include Arabic; the ruling replaced Arabic with
   Japanese, keeping the count at six with all of them left-to-right, and RTL outside the support
-  commitment (rationale and options in ADR-0013). From now on, describe this product's language
-  support as "six languages" and enumerate them; do not use the shorthand.
+  commitment (rationale and options in ADR-0013). Do not use the shorthand.
+- **"Six languages" is retired (2026-10-19)**: the set ADR-0013 ruled was reduced to Simplified
+  Chinese and English before the first release (ADR-0035). Spec and ADR text written before this date
+  reads "six languages" in the old sense; describe the current support by naming the two languages.
 - **"Dual view / artifact aggregation" is retired (2026-07-30)**: aggregating artifacts by type
   across projects was ruled a false requirement — artifacts are in-project context documents and are
   shown only within project detail. Cross-project retrieval belongs to global search, not to an

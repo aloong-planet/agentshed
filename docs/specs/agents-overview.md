@@ -56,7 +56,7 @@ see [appearance](appearance.md) (the rail's settings dimension).
   placeholder block in every data slot — card values, side figures and their secondary rows, the
   trend chart with its axis and legend, the per-model rows. A scanning hint (spinner + copy) sits
   **inline in the title row**. The hint copy no longer promises that nothing is shown before the
-  scan finishes — that sentence became false with this change and is rewritten in all six languages.
+  scan finishes — that sentence became false with this change and is rewritten in every language.
 - A4a The skeleton is non-interactive: time-window cards, tabs and every other control under the
   page header refuse pointer input, and nothing shows a hover or selected affordance beyond a muted
   default-tab marker. The rail stays live — settings, the projects dimension and refresh all work

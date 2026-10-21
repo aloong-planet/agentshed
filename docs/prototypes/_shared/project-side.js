@@ -37,11 +37,7 @@
   const plural = (l, n, forms) => forms[new Intl.PluralRules(l).select(n)] ?? forms.other
   const COPY = {
     zh: { locale: 'zh-CN', search: '搜索项目…', all: '全部', showStale: '显示失效项目', staleFiltered: (n) => `已过滤 ${n} 个失效`, noMatch: '无匹配项目', staleTag: '失效' },
-    en: { locale: 'en', search: 'Search projects…', all: 'All', showStale: 'Show stale projects', staleFiltered: (n) => `${n} stale ${plural('en', n, { one: 'project', other: 'projects' })} filtered out`, noMatch: 'No matching projects', staleTag: 'Stale' },
-    fr: { locale: 'fr', search: 'Rechercher des projets…', all: 'Tous', showStale: 'Afficher les projets obsolètes', staleFiltered: (n) => `${n} ${plural('fr', n, { one: 'projet obsolète filtré', other: 'projets obsolètes filtrés' })}`, noMatch: 'Aucun projet correspondant', staleTag: 'Obsolète' },
-    es: { locale: 'es', search: 'Buscar proyectos…', all: 'Todos', showStale: 'Mostrar proyectos obsoletos', staleFiltered: (n) => `${n} ${plural('es', n, { one: 'proyecto obsoleto excluido', other: 'proyectos obsoletos excluidos' })}`, noMatch: 'No hay proyectos coincidentes', staleTag: 'Obsoleto' },
-    ru: { locale: 'ru', search: 'Поиск проектов…', all: 'Все', showStale: 'Показывать устаревшие проекты', staleFiltered: (n) => `Отфильтровано ${n} ${plural('ru', n, { one: 'устаревший проект', few: 'устаревших проекта', many: 'устаревших проектов', other: 'устаревших проекта' })}`, noMatch: 'Нет подходящих проектов', staleTag: 'Устарел' },
-    ja: { locale: 'ja', search: 'プロジェクトを検索…', all: 'すべて', showStale: '失効したプロジェクトを表示', staleFiltered: (n) => `失効 ${n} 件を除外しました`, noMatch: '一致するプロジェクトがありません', staleTag: '失効' }
+    en: { locale: 'en', search: 'Search projects…', all: 'All', showStale: 'Show stale projects', staleFiltered: (n) => `${n} stale ${plural('en', n, { one: 'project', other: 'projects' })} filtered out`, noMatch: 'No matching projects', staleTag: 'Stale' }
   }
   let lang = 'zh'
   const t = () => COPY[lang] || COPY.en

@@ -22,11 +22,7 @@
   // The rail labels
   const LABEL = {
     zh: { agents: 'Agents', projects: 'Projects', search: '搜索', settings: '设置' },
-    en: { agents: 'Agents', projects: 'Projects', search: 'Search', settings: 'Settings' },
-    fr: { agents: 'Agents', projects: 'Projets', search: 'Rechercher', settings: 'Réglages' },
-    es: { agents: 'Agents', projects: 'Proyectos', search: 'Buscar', settings: 'Ajustes' },
-    ru: { agents: 'Agents', projects: 'Проекты', search: 'Поиск', settings: 'Настройки' },
-    ja: { agents: 'Agents', projects: 'Projects', search: '検索', settings: '設定' }
+    en: { agents: 'Agents', projects: 'Projects', search: 'Search', settings: 'Settings' }
   }
 
   function target(nav, item) {

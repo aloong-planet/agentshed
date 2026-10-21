@@ -175,8 +175,8 @@ separate repository (ADR-0031 option 7).
 ### landing-page::CON-002 Two languages (direct acceptance)
 
 Applies to: every page and string of the site. Chinese and English only, by choice and not by omission:
-the app speaks six languages, and the landing page is a front door outside ADR-0013's scope (ADR-0031
-option 6).
+the landing page is a front door outside ADR-0013's scope (ADR-0031 option 6). The app speaks the same
+two languages (ADR-0035).
 
 ### landing-page::CON-003 What the page reads (direct acceptance)
 
