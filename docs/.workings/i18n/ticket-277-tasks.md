@@ -34,7 +34,7 @@ confirmed by the owner on 2026-10-21. No other interface changes; the READMEs ar
 | 7 | Checklist verification of this ticket's units | `checklist.md`, current verification | done (targeted stage) |
 | 8 | Step 5: `/review-code` | `ticket-277-review-code.md` | done: two findings corrected, bd7d697 |
 | 9 | Full gateway `pnpm verify` | exit 0 | first run on 7c1b7d8 red at `check:lang` (the test review record quoted Chinese copy; fixed in bd7d697); second run on bd7d697 green: `VERIFY_EXIT=0`, 850 unit, 135 scripts, 102 site, 144 e2e, smoke ([gateway-bd7d697.txt](evidence/ticket-277/gateway-bd7d697.txt)); re-run before the PR, since step 7 and 8 edited documents the gates read |
-| 10 | Step 6: `/review-tests` post-implementation check, by an independent sub-agent | the same record, second section | pending |
+| 10 | Step 6: `/review-tests` post-implementation check, by an independent sub-agent | the same record, second section | done by an independent sub-agent on ac2a2e6: six findings, all handled in this ticket (rows U19, E18 and revised E3, E7, E8, E11); the fixes go back to the same reviewer for a check |
 | 11 | Spec final check; step 7 | spec matches the implementation | done: every unit implemented, nothing outside the spec but test and gate plumbing; step 7 added the Testing Decisions gap note and the postmortem; no new ADR or term |
 | 12 | Step 8: `/features-catalog` (the UI language entry and its index row) | `final-regression.md`, this ticket's section | done |
 | 13 | Document sync re-check; pull request; stop for the owner's merge confirmation | PR link; CI | pending |

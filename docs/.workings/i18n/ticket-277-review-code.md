@@ -102,5 +102,7 @@ Conclusion: no finding beyond the two above.
    Impact: an occasional false red in the gateway, nowhere else. Recommended: a small separate fix (assert the
    tooltip matches the slot's current value, or hold the first step). Home: not decided — raised to the owner with
    this delivery.
-2. The e2e case on the language-locking mechanism never injects the system languages it loops over; recorded in
-   [ticket-277-review-tests.md](ticket-277-review-tests.md), raised to the owner with this delivery.
+2. The e2e case on the language-locking mechanism never injects the system languages it loops over. The fix first
+   suggested (inject them and assert English) would not discriminate after this change, since both lists now
+   resolve to the pinned English (the post-implementation check, F1); the case is rewritten in this ticket instead
+   (row E18 of [ticket-277-review-tests.md](ticket-277-review-tests.md)).

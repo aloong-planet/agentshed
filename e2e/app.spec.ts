@@ -82,9 +82,8 @@ async function launch(
       AGENTSHED_HOME_OVERRIDE: home,
       // Test silencing: do not steal the foreground (the macOS accessory policy, see src/main/index.ts)
       AGENTSHED_NO_FOREGROUND: '1',
-      // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
-      // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
-// the tests
+      // Pin the test language to English: the UI language follows the system by default, and without pinning it
+      // every assertion locating by English copy would vary with the system language of whoever runs the tests
       AGENTSHED_SYSTEM_LANGUAGES: 'en-US',
       // Per-case seams (e.g. AGENTSHED_SCAN_DELAY_MS for the startup-skeleton cases) ride on top
       ...extraEnv
@@ -1576,9 +1575,8 @@ test('the archive: a seeded historical archive file → the trend includes an ar
       NODE_ENV: 'production',
       AGENTSHED_HOME_OVERRIDE: mkEmptyProjectHome(),
       AGENTSHED_NO_FOREGROUND: '1',
-      // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
-      // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
-// the tests
+      // Pin the test language to English: the UI language follows the system by default, and without pinning it
+      // every assertion locating by English copy would vary with the system language of whoever runs the tests
       AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
     }
   })
@@ -1971,9 +1969,8 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
       AGENTSHED_HOME_OVERRIDE: home,
       // Test silencing: do not steal the foreground (the macOS accessory policy, see src/main/index.ts)
       AGENTSHED_NO_FOREGROUND: '1',
-      // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
-      // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
-// the tests
+      // Pin the test language to English: the UI language follows the system by default, and without pinning it
+      // every assertion locating by English copy would vary with the system language of whoever runs the tests
       AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
     }
   })
@@ -2888,9 +2885,8 @@ test('automatic refresh: a new session appears on its own, and the detail page\'
       NODE_ENV: 'production',
       AGENTSHED_HOME_OVERRIDE: home,
       AGENTSHED_NO_FOREGROUND: '1',
-      // Pin the test language to Chinese: the UI language follows the system by default, and without pinning it
-      // every existing assertion locating by Chinese copy would vary with the system language of whoever runs
-// the tests
+      // Pin the test language to English: the UI language follows the system by default, and without pinning it
+      // every assertion locating by English copy would vary with the system language of whoever runs the tests
       AGENTSHED_SYSTEM_LANGUAGES: 'en-US',
       AGENTSHED_RESCAN_MS: '1500' // The E5 test seam: a shortened backstop interval drives the whole chain
     }
@@ -3851,7 +3847,7 @@ test('UI language: a stored preference naming a removed language reads as follow
   rmSync(l.userData, { recursive: true, force: true })
 })
 
-test('the language selector: three items including follow-system and the divider, with a switch applying immediately and persisting', async () => {
+test('the language selector: three items including follow-system and the divider, with a switch applying immediately', async () => {
   const l = await launchWithLangs('zh-Hans-CN')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -3963,22 +3959,24 @@ test('the language selector by keyboard: opening leaves the highlight on the cur
 // layout.
 
 test('i18n: the language-locking mechanism itself is reliable, unaffected by the development machine\'s system language', async () => {
-  // This guards **the premise of the other 40 e2e cases**: they locate by UI copy, while the language
-  // follows the system by default.
-  // If the pinning broke, the whole suite would collapse on a machine with a different system language —
-  // while staying green on a matching one, invisibly.
-  // So the same assertion runs under two injected system languages that **differ from each other and from
-  // the pinned one**, and the results must agree.
-  for (const sys of ['ko-KR,fr-FR', 'ja-JP,en-US']) {
-    const l = await launch(undefined, mkEmptyProjectHome())
-    const win = await l.app.firstWindow()
-    await win.waitForSelector('.rail')
-    // launch() pins AGENTSHED_SYSTEM_LANGUAGES to en-US internally, so this is always English
-    // regardless of sys
-    await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Settings')
-    await close(l)
-    void sys
-  }
+  // This guards **the premise of the other e2e cases**: they locate by UI copy, while the language follows
+  // the system by default, so launch() pins the system list to en-US. If the pinning broke, the whole suite
+  // would collapse on a machine with a different system language — while staying green on a matching one.
+  // Two launches: launch() as every case uses it, which must be English whatever this machine's language is,
+  // and launch() with a Chinese list injected, which must be Chinese. Were the injected list ignored, both
+  // would show the machine's own language, so one of the two goes red on any machine. (A launcher that
+  // dropped its own pin is still caught only where the machine's language is not English.)
+  const pinned = await launch(undefined, mkEmptyProjectHome())
+  let win = await pinned.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Settings')
+  await close(pinned)
+
+  const injected = await launch(undefined, mkEmptyProjectHome(), { AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN' })
+  win = await injected.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await expect(win.locator('.ri.set')).toHaveAttribute('title', '设置')
+  await close(injected)
 })
 
 test('i18n: both languages load, with the key nodes non-empty', async () => {
@@ -4041,15 +4039,12 @@ test('i18n: key layouts do not overflow horizontally in either language', async 
     await win.getByTestId('language-pop').locator(`[data-lang="${code}"]`).click()
     await expect(win.locator('.settings-h1')).not.toBeEmpty()
     const overflow = await win.evaluate(() => {
-      const doc = document.documentElement
-      // The page itself must not scroll horizontally
-      const pageOverflows = doc.scrollWidth > doc.clientWidth
-      // The settings page's fixed-width containers must not be burst by their content
+      // The settings page's fixed-width containers must not be burst by their content. The document itself is not
+      // measured: `body` hides horizontal overflow, so it never reports any (measured 2026-10-21)
       const boxes = [...document.querySelectorAll('.settings, .field, .settings-foot')]
-      const boxOverflows = boxes.filter((b) => b.scrollWidth > b.clientWidth + 1).length
-      return { pageOverflows, boxOverflows }
+      return { boxes: boxes.length, boxOverflows: boxes.filter((b) => b.scrollWidth > b.clientWidth + 1).length }
     })
-    expect(overflow.pageOverflows, `${code}: the page overflows horizontally`).toBe(false)
+    expect(overflow.boxes, `${code}: no settings container was found to measure`).toBeGreaterThan(0)
     expect(overflow.boxOverflows, `${code}: a fixed-width container was burst`).toBe(0)
   }
   expect(l.errors).toEqual([])
@@ -4120,10 +4115,15 @@ test('i18n: no label in the project-detail tab row or the skills rows wraps to a
           .map((e) => e.innerText.replace(/\s+/g, ' ').slice(0, 40))
       const q = (sel: string): HTMLElement[] => [...document.querySelectorAll(sel)] as HTMLElement[]
       return {
+        tabCount: q('.pane-head .tabs .tab').length,
+        pillCount: q('.pane-body .sk-head .pill').length,
         tabs: wraps(q('.pane-head .tabs .tab')),
         pills: wraps(q('.pane-body .sk-head .pill'))
       }
     })
+    // An empty set would pass the two assertions below with nothing measured
+    expect(wrapped.tabCount, `${code}: no tab was found to measure`).toBeGreaterThan(0)
+    expect(wrapped.pillCount, `${code}: no skills-row pill was found to measure`).toBeGreaterThan(0)
     expect(wrapped.tabs, `${code}: a tab label wrapped onto a second line`).toEqual([])
     expect(wrapped.pills, `${code}: a skills-row pill wrapped onto a second line`).toEqual([])
   }

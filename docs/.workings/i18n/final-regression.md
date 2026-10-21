@@ -18,7 +18,7 @@ index row.
 |---|---|---|
 | `docs/features/i18n.md` | spec (user-visible layer: REQ-001..003, the dropdown and format rows, Out of Scope), the implementation (three options, fallback, regional matching, English plurals), ADR-0035 | True. "Traditional Chinese shows Simplified Chinese" follows from matching the primary subtag (`zh-Hant-*` → `zh`); "0 sessions" from English's plural rule (measured by the plural test) |
 | `docs/features/README.md` (the UI language row) | the entry's overview | True |
-| `docs/specs/i18n.md` | the implementation (all units verified by the targeted run and the gateway), ADR-0035, CONTEXT, the confirmed prototype | True; the Testing Decisions gap note added in step 7 matches the format test's header. Every failure-mode row it changed has a test or a stated gap |
+| `docs/specs/i18n.md` | the implementation (all units verified by the targeted run and the gateway), ADR-0035, CONTEXT, the confirmed prototype | True; the Testing Decisions gap note added in step 7 matches the format test's header. Every failure-mode row it changed has a test or a stated gap — the failing system query of i18n::REQ-002/AC-02 had neither until the post-implementation check found it, and now has a unit test |
 | `docs/specs/app-update.md` (QR-001/AC-01, AC-02, the menu template test note) | the e2e QR-001/AC-02 cases in both languages; the menu unit tests | True |
 | `docs/specs/mac-distribution.md` (the README count) | i18n::CON-001 | True on main after this change; #239 implements its unit |
 | `docs/specs/global-search.md`, `skills-view.md`, `projects-list.md`, `agents-overview.md`, `appearance.md` | the language set | True (counts removed or made "both"/"every language") |

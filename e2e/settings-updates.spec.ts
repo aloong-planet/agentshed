@@ -505,6 +505,8 @@ test.describe('the labels and the result line stay on one line in every UI langu
       try {
         const win = await app.firstWindow()
         await openSettings(win)
+        // The seeded language is the one measured: were the seed ignored, this run would measure English
+        expect(await win.evaluate(() => document.documentElement.lang)).toBe(language === 'zh' ? 'zh-CN' : 'en')
         await launchCheckDone(win, f)
         const settings = () => win.evaluate(() => window.agentshed.getSettingsCheck())
         const phase = () => win.evaluate(() => window.agentshed.getUpdateState().then((s) => s.phase))
