@@ -22,33 +22,33 @@ interface Place {
   at: number
 }
 
-/** The elements a place is noted against, each under a key both pages share, innermost last */
+/** The elements a place is noted against, each under a key both pages share, innermost last. While the
+ *  showcase is displayed its block stands for the features section: how far the block has scrolled is the
+ *  current step. Its pinned part never does: that stays at one distance from the top wherever the visitor is
+ *  within the block, so it would bring every step back as the first (landing-page Failure C5). */
 function anchors(): [string, HTMLElement][] {
   const sections = [...document.querySelectorAll<HTMLElement>('main > [id], body > footer')].map(
     (el): [string, HTMLElement] => [el.id ? `#${el.id}` : 'footer', el]
   )
+  const showcase = [...document.querySelectorAll<HTMLElement>('.deck')].map((el): [string, HTMLElement] => ['showcase', el])
   const steps = [...document.querySelectorAll<HTMLElement>('.fs-step')].map((el, i): [string, HTMLElement] => [
     `step:${i}`,
     el
   ])
-  return [...sections, ...steps]
+  return [...sections, ...showcase, ...steps]
 }
 
-/** The element the visitor is looking at: the current step while the frame shows it, else the innermost
- *  element across the viewport's middle */
+/** The element the visitor is looking at: the innermost one across the viewport's middle. An element that is not
+ *  displayed (the showcase on a narrow screen, the stacked steps on a wide one) has an empty box at the top and
+ *  never crosses it */
 function lookedAt(): [string, HTMLElement] | undefined {
-  const all = anchors()
-  const frame = document.querySelector<HTMLElement>('.fs-panel')
-  const step = all.find(([key]) => key === `step:${currentStep()}`)
-  if (frame && getComputedStyle(frame).display !== 'none' && step) {
-    const r = step[1].getBoundingClientRect()
-    if (r.bottom > 0 && r.top < innerHeight) return step
-  }
   const middle = innerHeight / 2
-  return all.filter(([, el]) => {
-    const r = el.getBoundingClientRect()
-    return r.top <= middle && r.bottom > middle
-  }).pop()
+  return anchors()
+    .filter(([, el]) => {
+      const r = el.getBoundingClientRect()
+      return r.top <= middle && r.bottom > middle
+    })
+    .pop()
 }
 
 function note(to: string): void {

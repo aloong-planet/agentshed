@@ -241,6 +241,8 @@ since they never reach it (mac-distribution::CON-004).
   visitor is within it, so it cannot be what marks the visitor's place.
 - C6 A screen reader on a wide screen meets the current step only; the other steps are reached by
   scrolling (landing-page::REQ-004/AC-05).
+- C7 A visitor without scripts → the stacked steps show at every width, each with its screenshot: nothing
+  would turn the showcase, which would stay on its first step while its block scrolled by.
 
 **Sequence D: appearance**
 
@@ -295,9 +297,11 @@ since they never reach it (mac-distribution::CON-004).
   (landing-page::REQ-004/AC-07). An element rather than a scroll offset, because the two languages' texts
   wrap to different heights. The pinned showcase is never that element (Failure C5).
 - **The features section** is built as the prototype was: the showcase is pinned inside a block one
-  window tall plus 60% of a window for each further step. The current step is the distance scrolled past
-  the point where it pins, over 60% of the window's height, rounded and kept within the steps; it is
-  computed on scroll and on resize, throttled to animation frames. The steps' texts share one place, and
+  window tall plus 60% of a window for each further step; the turns are empty blocks after the pinned
+  part, so the number of steps sets the block's height. The current step is the distance scrolled past the
+  point where it pins, in turns, rounded and kept within the steps, both measured from the page; it is
+  computed on scroll and on resize, throttled to animation frames. Without scripts the stylesheet shows
+  the stacked steps in place of the showcase (Failure C7). The steps' texts share one place, and
   so do their screenshots; the others are hidden with visibility as well as opacity, since a transparent
   screenshot would still lie on top and take the pointer. The screenshot's width is capped by the
   window's height so that it stays whole. Below 760px the stacked steps replace the showcase.
