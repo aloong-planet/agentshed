@@ -15,6 +15,7 @@ are the test design table's in [ticket-279-review-tests.md](../../ticket-279-rev
 | [readme-check-plant.txt](readme-check-plant.txt) | REQ-007's built-site check failing when the English README's opening summary grows by a sentence, and the README restored byte for byte |
 | [prototype-vs-site.txt](prototype-vs-site.txt) | The features section's geometry two turns in, on the confirmed prototype and on the site, at 1280×800, 1440×900 and 1280×560 in both languages: identical to the tenth of a pixel |
 | [gateway-7af1220.txt](gateway-7af1220.txt) | The full verification gateway on 7af1220: the version, each step's output and exit code, `VERIFY_EXIT=0` |
+| [targeted-fixes.txt](targeted-fixes.txt) | The targeted verification of the fixes to the post-implementation check's findings (lint, the site's checks, the documentation gates, the measurement), with the version and each exit code, `TARGETED_EXIT=0` |
 
 ## By item
 

@@ -258,3 +258,119 @@ content, the measurement included, needs an incremental check.
 
 The fixes change the built-site test and the measurement's executable content, so an incremental check follows on
 the fix commit, with the targeted verification log of the fixes.
+
+## Post-implementation check, incremental: the fixes (7af1220..823a40e)
+
+2026-10-22. Implementation version: 823a40e (fix range 7af1220..823a40e). Run by the same independent sub-agent as the
+check above, which did not inherit the implementing session. Every dimension's conclusion outside the scope below
+carries over from the post-implementation check above (2026-10-21, on 7af1220).
+
+**Scope, by the incremental rule.**
+
+- Tests changed in the range (`git diff --name-only 7af1220 823a40e`): `site/test/built-site.test.ts` (B5 rewritten,
+  header), [measure.mjs](evidence/ticket-279/measure.mjs) (M3, M5, M6, the version it records) and the new
+  [shots-check.mjs](evidence/ticket-279/shots-check.mjs) (E1).
+- Tests that depend on test helper code changed in the range: none. `git diff --name-only 7af1220 823a40e --
+  site/test/build-site.ts site/test/fixtures site/vitest.config.ts` lists nothing. An `rg -n -uu` over all 103 tracked
+  test files (`git ls-files -- '*.test.*' '*.spec.*' 'site/test/*' 'e2e/*' 'scripts/*.test.mjs' 'build/*.test.cjs'`),
+  searching for the names of the files changed in the range, finds only comments about #238's evidence, fixtures that
+  tests write into temporary directories, seed strings in `check-lang.test.mjs`, and B5's own reads of the root
+  READMEs, which are unchanged in the range.
+- Rows of the Test design table changed in the range: B4, B5, M3, M5, M6 and the resources paragraph. E1's row is
+  unchanged, but its check (shots-check.mjs) is new.
+
+**Runtime evidence.** The fixes' targeted log is [targeted-fixes.txt](evidence/ticket-279/targeted-fixes.txt). It
+holds HEAD 7af1220 and 19 uncommitted files, each with its `git hash-object`, then each command with its full output
+and exit code, and `TARGETED_EXIT=0`. Against the fix range: the 19 files are exactly those the range changes, apart
+from the log itself. 18 hashes equal the blobs in 823a40e. The 19th is `results.json`, which the logged measurement
+rewrites as its last step; the committed `results.json` records the same HEAD and the same 19 entries, so log and
+results describe one run on 823a40e's tree. No finding on the log's form. Its scope lacks the E1 script's run (F10).
+My own runs, limited to the objects above:
+
+| Command | Exit | Result |
+|---|---|---|
+| `pnpm --dir site exec vitest run test/built-site.test.ts --reporter=verbose`, at 823a40e with a clean status | 0 | 32 of 32 passed, none skipped; B5 is now one exact-equality test per language, plus the English heading's literal |
+| `git diff --quiet 7af1220 823a40e -- site/public/shots docs/prototypes/landing-page/shots` | 0 | Both folders unchanged in the range, so the blob-by-blob comparison above (14 of 14 identical at 7af1220) still holds |
+
+### The changed tests against the changed rows
+
+| Row | Written at | Against the row |
+|---|---|---|
+| B4 | built-site.test.ts:176 (unchanged) | The amended row now carries the Chinese search-step assertion: as designed |
+| B5 | :202–227 | As designed: the opening paragraph is the first that neither starts with `#` nor links the other README, and must equal the bold heading with its full stop, the macOS sentence and the page's paragraph |
+| M3 | measure.mjs:154–179 | As designed: a sample 100ms (plus two frames) into each turn requires the incoming opacity strictly between 0 and 1 and the count, title and stage already where they end; `transition-property` only `opacity` or `opacity, visibility`; `transform` none |
+| M5 | :227–240 | As designed: the third stacked step at 400px and the install section at 1280px, each first placed at 40% of the window (checked), come back within 1px |
+| M6 | :252–269 | As designed: a scroll while narrow, then the step the new position gives and not 3; the height case the literal index 4 |
+| Resources paragraph | — | Matches the measured build (0.45s; 253ms in the targeted log) |
+| E1 (row unchanged) | shots-check.mjs | Now as the row says: bytes compared, sizes from the PNG header, output kept with its version |
+
+The test file's header names Failures C1–C3 and C5–C7: correct (F8 closed).
+
+### Dimension 1: Coverage
+
+The gaps F1–F4 are closed. landing-page::REQ-007 is now asserted word for word. The spec now says what the summary
+is, and readme-check-plant.txt shows the English test failing when the README's summary grows by a sentence, with
+the README restored (README.en.md is unchanged in the range). Failure C2's crossing of 760px now reaches a stale step:
+before narrowing the step is 3, and after the scroll while narrow the position gives 6 (index 5). landing-page::
+REQ-004/AC-07 is now measured away from the showcase, and AC-05's "in place" during the fade. No new gap; fixture
+shapes are unchanged.
+
+### Dimension 2: Case design
+
+The changed code mocks, spies on and calls nothing of the project. B5 reads the READMEs, the requirement's own
+source, from disk. The measurement's additions use browser-dispatched scrolling, real clicks and real viewport
+changes, and read rects and computed styles. shots-check.mjs reads files. No finding.
+
+### Dimension 3: False greens
+
+Per the project's capabilities, `mutation-testing` is not enabled; this item is skipped. When each changed check
+turns red:
+
+| Check | Turns red when | Stays green when |
+|---|---|---|
+| B5 | the README's opening paragraph and the bold heading, macOS sentence and page paragraph differ in any character, in either language; the README's opening paragraph moves, or links the other README; the page's heading is empty | — (shown red by the plant, the failing test being the English B5) |
+| M3, mid-turn | the incoming text or screenshot is not mid-fade 100ms in (no fade, or a read outside the fade: the sample checks its own timing); the count, title or stage stands elsewhere mid-fade than at the end (a slide by transform, position or animation) | — (recorded opacities 0.67–0.74, text and screenshot equal) |
+| M3, animated | any transitioned property besides opacity and visibility; any deck element transformed when settled | — |
+| M5, away from the showcase | the stacked step or the install section does not come back within 1px; the setup did not place it at 40% of the window | — |
+| M6, narrow and back | the step after widening is not the position's, or the position's step is still 3 | — (a page that never re-synced shows 3) |
+| M6, height | the step is not index 4, or the position under 600px does not give index 4 | — |
+| shots-check.mjs | a file differs, or exists in one folder only | neither folder holds a PNG: "0 file(s) compared" exits 0 (F11; the recorded output says 14) |
+
+Browser checks (review-code `false-greens.md`): the mid-turn sample asserts that it was read inside the fade (form
+five), and the new M5 cases assert their own setup. For a new check, a red has been shown only for B5. The others are
+answered above by reasoning, as mutation testing is not enabled. One observation, not a finding: in M6 the scroll
+"to one turn" while narrow ends, after widening, at a position past the showcase (index 5, both languages), because
+the browser moves the position when the stacked list disappears. The check computes its expectation from the actual
+position and requires it to differ from 3, so it still discriminates.
+
+### Dimension 4: Resource reuse
+
+Counted from the targeted log: `pnpm --dir site build` once for the measurement (observable: "2 page(s) built in
+253ms"), and one browser launch (its single `browser:` line). The built-site tests' global-setup build prints
+nothing at `logLevel: 'warn'`; it runs once per `vitest run` and is under the one-second bar. The new M5 cases open
+one context each. No finding.
+
+### Findings
+
+| # | Dimension | Where | Finding | Suggested handling |
+|---|---|---|---|---|
+| F10 | 3 (runtime evidence) | targeted-fixes.txt; shots-check.mjs | The new E1 script's run is not in the targeted log: no command line, no exit code. Its output file stands in, headed HEAD 7af1220 with no uncommitted files under the two folders. Both folders are unchanged in the range, so E1 holds at 823a40e | Low priority, in this ticket: the next time the evidence is regenerated, run shots-check.mjs inside a logged run so its exit code is kept. No further review needed, since the script would be unchanged |
+| F11 | 3 | shots-check.mjs:17, 33–36 | With no PNG in either folder it reports "0 file(s) compared, 0 not identical" and exits 0. The recorded run compared 14, so the evidence stands | Do not change now: the script serves this ticket's evidence only, and its output states the count. If it is ever reused, assert that the count is the expected one. No other home needed |
+| F12 | Document sync | evidence/ticket-279/README.md | Its file table does not list targeted-fixes.txt, the fixes' runtime evidence | Now, with the next evidence edit: add a row |
+
+### Document sync
+
+The incremental check changes no requirement or behaviour statement. The checklist's #279 rows for REQ-007,
+REQ-004/AC-07 and the Failures now match the tests (F1, F4, F9 closed). Its current-verification row is still
+pending in ticket-279-doc-sync.md, which says it is written once this check is done. F12 adds a row to the evidence
+README. F10 and F11 change no document's statement.
+
+### Handling of the incremental check's findings (implementing session, 2026-10-22)
+
+| # | Handling |
+|---|---|
+| F10 | Done in the final logged run before delivery: the full gateway, then the site's build, the measurement and `shots-check.mjs`, each with its command, exit code and output, in one log |
+| F11 | Left as it is, as the check suggests: the recorded run compared fourteen files, and the script is this ticket's evidence, not a reusable gate |
+| F12 | Done: the evidence README lists `targeted-fixes.txt` |
+
+No test's executable content changed in this handling, so no further incremental check.
