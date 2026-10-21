@@ -1983,9 +1983,10 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   writeFileSync(join(memDir, 'vanish.md'), 'Removed after the scan\n')
   // Past the 500,000-character read cap (Codex's consolidated memory files run to several hundred thousand)
   writeFileSync(join(memDir, 'big.md'), 'Line of the big memory file.\n'.repeat(18_000))
-  // Under the cap, in the shape of Codex's consolidated memory (headings, list items, long prose, file paths),
-  // with the wide elements a real one carries: a long prose line, an unbroken path, a wide code line, a wide
-  // table. Its last line sits past 300,000 characters, so a lower read cap would cut it (memory-view E5).
+  // Under the cap, in the shape of Codex's consolidated memory (headings, list items, a long prose line and an
+  // unbroken file path, as real ones carry), plus a wide code line and a wide table that no real memory file here
+  // has, so every wide branch of E5 is reached. Its last line sits past 300,000 characters, so a lower read cap
+  // would cut it (memory-view E5).
   const prose = Array.from({ length: 150 }, (_, i) => `word${i}`).join(' ')
   const widePath = `rollout_summaries/${'x'.repeat(300)}.md`
   const wideCode = '```\nconst wide = "' + 'y'.repeat(400) + '"\n```'
@@ -2147,7 +2148,9 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(fdBody).toHaveText(/…\(truncated\)\s*$/)
   await fd.locator('.md-preview-seg button', { hasText: 'Raw' }).click()
   await expect(fdBody).toHaveClass(/raw/)
-  await expect(fdBody).toHaveText(/…\(truncated\)\s*$/)
+  // The cap cuts the 29-character lines 11 characters into one (500,000 = 17,241 × 29 + 11), so the raw text
+  // ends "Line of the" right before the marker — this pins the cap itself, not only that a cut happened
+  await expect(fdBody).toHaveText(/Line of the\s*…\(truncated\)\s*$/)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // E5: a large file under the cap renders in full; prose wraps; an unbroken path and a wide table scroll the
   // body sideways and a wide code line scrolls its fence, so nothing wide is cut off by the drawer
@@ -2157,16 +2160,24 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   const wide = await fdBody.evaluate((body) => {
     const prose = [...body.querySelectorAll('p')].find((p) => p.textContent?.startsWith('word0 '))
     const pre = body.querySelector('pre') as HTMLElement
+    const table = body.querySelector('table') as HTMLElement
     body.scrollLeft = body.scrollWidth
     pre.scrollLeft = pre.scrollWidth
     return {
       proseOverflow: prose ? prose.scrollWidth - prose.clientWidth : -1,
+      // The table is judged on its own: the body's scroll width comes from the path, so it cannot show whether
+      // the table cuts its own columns off. A table wider than the body, hiding nothing inside its own box, is
+      // reached by the body's sideways scroll
+      tableWiderThanBody: table.getBoundingClientRect().width > body.clientWidth,
+      tableHidden: table.scrollWidth - table.clientWidth,
       // A script can scroll an overflow:hidden box a reader cannot, so the scrolling style is read as well
       bodyScroll: `${getComputedStyle(body).overflowX} ${body.scrollLeft > 0}`,
       fenceScroll: `${getComputedStyle(pre).overflowX} ${pre.scrollLeft > 0}`
     }
   })
   expect(wide.proseOverflow, 'the prose line wraps within the body').toBe(0)
+  expect(wide.tableWiderThanBody, 'the wide table keeps its width rather than squeezing into the body').toBe(true)
+  expect(wide.tableHidden, 'no column is cut off inside the table').toBeLessThanOrEqual(1)
   expect(wide.bodyScroll, 'the body scrolls sideways to the unbroken path and the table').toBe('auto true')
   expect(wide.fenceScroll, 'the fence scrolls sideways to its wide line').toBe('auto true')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })

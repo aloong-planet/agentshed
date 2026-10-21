@@ -99,3 +99,23 @@ E2 and E7 by code reading (gaps recorded in the e2e header). Implementation Deci
 saved-data fill-in) — met. Unrecorded scope: the skill drawer's switched file now also starts at the top and its
 close button centres its icon — both part of the one form CON-001 states; no other expansion. Nothing to
 reconcile with the owner.
+
+## Full gate at 8aa70e8, run twice (2026-10-21)
+
+Both logs start with `HEAD 8aa70e8212c94add669f5298080814628e61bdef` and an empty porcelain status.
+- First run: `verify exit=1`. Everything passed except one e2e step: `e2e/startup-restore.spec.ts:8` at line 72,
+  the "today" card expected `0` within 1,000 ms after the test moves the clock forward and read `2k` (2.7 s run).
+  This branch does not touch that step (the assertion dates from 3a6dca56; DisplayClock and the totals card are
+  unchanged here).
+- The same test alone, five times in a row on that build: 5 passed.
+- Second run, next on the same commit: `verify exit=0` — unit 878 passed (1 opt-in skip), script and site tests
+  102, check:ui / check:lang / check:i18n / check:nul passed, e2e 148 passed, smoke SMOKE_OK.
+- Handling: treated as a flaky step outside this ticket, raised with the owner for a ticket of its own (the
+  independent check's reading, inferred and not run: the app's display clock ticks on a real once-a-second timer
+  started before the test installs its fake clock, so the update races a 1,000 ms timeout).
+
+## After the third independent check (IC-7 to IC-12)
+
+IC-8 and IC-9's assertions revised and each shown able to fail by mutation (a 320,000 cap; a fixed-layout table capped
+at the body's width), restored byte for byte and rebuilt; IC-10's fixture comment corrected; IC-11 and IC-12 handled in
+the checklist and the test review record; the postmortem index row moved into date order; IC-7 recorded above.

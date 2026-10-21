@@ -61,7 +61,8 @@ the existing temp-directory fixtures.
 ### Increment after the post-implementation check (2026-10-21)
 
 Rows added or revised in response to findings PC-2 to PC-9, and to the owner's decisions D5 and D6
-(memory-view::CON-002). Reviewed before any of these tests is written.
+(memory-view::CON-002). Reviewed before any of these tests is written. Rows U4, E-A11 and E-A12 below are
+superseded by Increment 2 (and E-A12/E-A13 again by Increment 3); read them there.
 
 | # | Spec item | Seam | Input that drives the branch | Assertion and expected-value source | Fixture shape source | Expensive resource |
 |---|---|---|---|---|---|---|
@@ -77,6 +78,12 @@ Coverage notes (PC-7): the e2e file header records the gaps that remain — the 
 changes while open has no product path that keeps the drawer open across a file change other than a link, so it
 is reached only through AC-05's switch; E2 (two reads in flight) and E7 (language switch while open) stay
 untested, with their reasons there.
+
+Conclusions for this increment's design, by dimension (written after the fact, at Increment 3): Coverage — each row
+named the input that reaches its branch, but E-A12 claimed E5 with an input that cannot reach it and the truncation
+reads had no wait (IC-1, IC-2), and U4 kept a case that is never a link (IC-3); Case design — no mocks, all through
+the built app's UI or the one carrier; False greens — E-A12's width check could not go red (IC-1); Resource reuse —
+two files added to F3's fixture home, no launch added.
 
 ### Increment 2 after the incremental check (2026-10-21)
 
@@ -102,6 +109,20 @@ which the token and table provide); Case design — no mocks, all through the bu
 False greens — E-A12's dropped width check and IC-2's early reads are the two removed; Resource reuse — one more
 file in F3's fixture home, no launch added.
 
+### Increment 3 after the third check (2026-10-21)
+
+Rows revised for findings IC-8 to IC-10; reviewed before the tests changed. Both revised assertions were shown able
+to fail by mutation on the built app, restored byte for byte and rebuilt afterwards.
+
+| # | Spec item | Seam | Input that drives the branch | Assertion and expected-value source | Fixture shape source | Expensive resource |
+|---|---|---|---|---|---|---|
+| E-A12 (revised) | US-001/AC-07 truncation | e2e, F3 launch | the 522,000-character file of 29-character lines | the raw text ends `Line of the` right before `…(truncated)`: 500,000 = 17,241 × 29 + 11, so the cap itself is pinned, not only that a cut happened. Mutation: a 320,000 cap fails here | — | F3 launch |
+| E-A13 (revised) | E5 | e2e, F3 launch | the 307,149-character file; its wide code line and 12-column table are added shapes (no real memory file here has either), the path and prose line follow real ones | as before, plus the table judged on its own: wider than the body and hiding nothing inside its own box, so the body's sideways scroll reaches it. Mutation: a fixed-layout table capped at the body's width fails "keeps its width" | path and prose: real Codex memory; code line and table: added to reach the branch | F3 launch |
+
+Conclusions for this increment's design, by dimension: Coverage — the cap and the table are now each reached and
+checked; the fixture comment says which shapes are real and which are added (IC-10); Case design — unchanged, no
+mocks; False greens — the two assertions that could not fail now can (shown by mutation); Resource reuse — unchanged.
+
 ## Post-implementation check
 
 Date 2026-10-21 · implementation commit 81952cf (range 9b7bb13..81952cf) · ticket #294 · run by an independent
@@ -114,8 +135,8 @@ Skills view test (:2287), the plugin skill preview test (:2837) and the artifact
 Result: findings PC-1 to PC-9 go back to the main agent. PC-1 comes first: the gate log is tied to no version, and
 81952cf as committed fails `pnpm check:lang`. PC-2 is next: a real memory shape breaks AC-04 and no test sees it.
 
-Current status of PC-1 to PC-9 at f064a81: see "Incremental check (81952cf..f064a81)" at the end of this section; the
-findings below stand as written for 81952cf.
+Current status of PC-1 to PC-9: at f064a81 see "Incremental check (81952cf..f064a81)", at 8aa70e8 see "Incremental
+check (f064a81..8aa70e8)", both at the end of this section; the findings below stand as written for 81952cf.
 
 ### Run evidence
 - Capability declaration, read with a TOML parser (`tomllib`): every registered ID is present and well formed, none
@@ -343,6 +364,9 @@ round's conclusions above (9b7bb13..81952cf) carry over.
 Result: PC-1, PC-2, PC-3, PC-5, PC-8 and PC-9 are resolved; PC-4 is resolved with a minor drift (IC-4); PC-6 is resolved
 for AC-07's truncation, but this record's wording for it is still pending (IC-5); PC-7 is partly resolved (IC-1, IC-6). New
 findings IC-1 to IC-6 go back to the main agent; IC-1 and IC-2 come first.
+
+Current status of IC-1 to IC-6 at 8aa70e8: see "Incremental check (f064a81..8aa70e8)" below; the findings here stand as
+written for f064a81.
 
 #### Scope and the searches that set it
 - Tests the range changes: `git diff --name-only 81952cf..f064a81` lists 11 files, two of them tests —
@@ -638,3 +662,340 @@ For the main agent, per implement/document-sync.md (not edited here):
   its log is kept are not recorded, and that log sits in a session scratch directory. This section keeps the lines its
   own conclusions rest on.
 - A fix that changes test code goes to another independent incremental check (/implement step 6).
+
+### Incremental check (f064a81..8aa70e8)
+
+Date 2026-10-21 · implementation commit 8aa70e8 (range f064a81..8aa70e8, one commit: "Close the memory drawer's
+documentation and test gaps") · ticket #294 · run by an independent agent that did not inherit the implementation
+conversation · scope set by /review-tests' incremental clause (below). Outside that scope the earlier conclusions carry
+over: the first round's (9b7bb13..81952cf) and the first incremental check's (81952cf..f064a81).
+
+Result: IC-1, IC-2, IC-3, IC-4 and IC-6 are resolved; IC-5 is partly resolved (the rest is IC-12). PC-6 and PC-7 are now
+resolved as well. New findings IC-7 to IC-12 go back to the main agent. IC-7 (the gate went red once on this commit) and
+IC-8 (a false green on E5's table) come first. IC-9, IC-11 and IC-12 are second mentions, so each needs a decision now.
+
+#### Scope and the searches that set it
+- Tests the range changes: `git diff --name-only f064a81..8aa70e8` lists 13 files. Two are tests:
+  - `e2e/app.spec.ts`: the header's gap notes (:14–19); in the F3 test (:1909), the wide.md fixture (:1988–2001) and
+    the lines at :2150, :2152–2174 and :2182–2183 (`git blame` of the F3 region).
+  - `src/renderer/src/md.test.ts`: two expectations added to one case (:79, :82–83), and the case renamed.
+
+  The other 11 are documents.
+- Tests that depend on changed test helper code: none.
+  - The range adds or changes no helper. Every e2e hunk is inside F3 or the header comment, and the md.test.ts hunk is
+    inside one case.
+  - The test files are the 97 paths in `git ls-files -co --exclude-standard` matching
+    `\.(test|spec)\.(ts|tsx|mjs|cjs|js)$`.
+  - `rg -n "^export " e2e/app.spec.ts src/renderer/src/md.test.ts` exits 1.
+  - `rg -n -e 'app\.spec' -e 'md\.test'` over the 97 gives 5 hits, all comments.
+  - No test reads a document this range changes. `rg` over the 97 for the changed documents' names (`CONTEXT.md`,
+    `memory-view.md`, `skills-view.md`, `postmortems`, `final-regression`, `checklist.md`, `ticket-294`,
+    `features/memory-view`) gives 23 hits: comments, path strings in fixtures, or files written into a temporary home.
+- Test design table rows the range changes:
+  - "Increment 2 after the incremental check": U4 (revised), E-A11 (revised), E-A12 (revised), E-A13, its gap-notes
+    paragraph and its per-dimension conclusions.
+  - The Design review's "Coverage" paragraph: the E5 and truncation wording.
+
+  The record's other hunks add the first incremental check (81952cf..f064a81) and a status pointer.
+- Increment 2's own design review records a conclusion for each dimension. Its False greens line names the two checks
+  it removed, but none of the design-time checks of the new row E-A13; that is where IC-8 got through.
+
+#### Run evidence
+- Capability declaration, read with `tomllib`: every registered ID is present and well formed, none is unregistered, and
+  `macos-distribution` applies (`client-framework = "electron"`). Per the project capability declaration,
+  mutation-testing is not enabled; this item is skipped. "When does it go red" is answered under False greens for each
+  changed test, from the code under test and the expected-value source.
+- Two handed logs (this session's scratch directory), each a full `pnpm verify` at 8aa70e8. They were run one after the
+  other and handed in place of a targeted verification log:
+  - `t294-verify3.log`: `HEAD 8aa70e8212c94add669f5298080814628e61bdef`, then an empty status block. Every command is
+    echoed with its full output. Typecheck through check:nul pass. e2e reports `1 failed` and `147 passed (5.8m)`
+    (lines 614–616), and smoke is not reached. The last line is `verify exit=1`. The failure (lines 574, 587–612) is
+    `e2e/startup-restore.spec.ts:8` at :72: `.tot-c` nth(1) `.v` was expected to read "0" and read "2k" through its
+    1000 ms timeout.
+  - `t294-verify4.log`: the same HEAD and an empty status block, every step, `148 passed (5.9m)` (line 586), `SMOKE_OK`
+    (line 593) and `verify exit=0` (line 594).
+
+  Against /implement's log requirements (the version as HEAD and status, every command, the exit code, the full output),
+  both logs are complete. The tree is clean in both, so no file needs `git hash-object`, and the version is the end of
+  the range. Commit 8aa70e8 predates both runs: it was made at 19:59:19 +0800, and verify3's unit step began at 20:00:02.
+  The red is IC-7.
+
+  The logs live in a session scratch directory, so the lines these conclusions rest on are kept here:
+  - `✓ src/renderer/src/md.test.ts (13 tests) 41ms` (verify3 line 119) and `69ms` (verify4 line 119)
+  - `✓   47 e2e/app.spec.ts:1909:1 › F3 plus the new sections: … (12.9s)` (verify3 line 483) and `(12.8s)` (verify4
+    line 483)
+  - `✘  138 e2e/startup-restore.spec.ts:8:1 › restart restores … (2.7s)` (verify3 line 574) and `✓ … (26.4s)` (verify4
+    line 574)
+  - one `electron-vite build` per run, emitting `index-D3enaMA1.js`, `index-vYm3GESa.css` and `main-DZ5R1KNi.js`
+    (lines 408–433 of each)
+  - `✓ Working language: 2558 line(s) of Chinese, each permitted by a stated rule` (line 370 of each)
+- Run here on the review objects only, at HEAD 8aa70e8, with `git status --porcelain --untracked-files=all` empty before
+  and after:
+  - `pnpm -s build`: exit 0, with the same bundle names as the gate.
+  - `pnpm -s exec vitest run src/renderer/src/md.test.ts`: 13 passed, exit 0.
+  - `pnpm -s exec playwright test e2e/app.spec.ts:1909`: 1 passed (13.2 s), exit 0.
+
+  The restore test is not a review object of this increment and was not run here.
+- A measurement that leaves the worktree untouched: a scratch script launched the built app (the quiet Electron copy)
+  on a scratch home holding wide.md as F3 writes it, opened the file from the global Memory section and read the layout:
+  - the drawer is 720 px; the body's clientWidth is 682 and its scrollWidth 2,058, with `overflow-x: auto`;
+  - the prose paragraph is 650 over 650, in 12 line boxes;
+  - the path's paragraph has a text extent of 2,042 px, so the body's scroll width (2,058 = 2,042 + the 16 px padding)
+    comes from the path;
+  - the table is 1,486 px wide, with `overflow-x: hidden` on its own box (theme.css:1248–1257), automatic table
+    layout and no header cell clipped;
+  - the fence is 2,384 over 648, with `overflow-x: auto` and `white-space: pre`.
+
+  These match Increment 2's measurement. Sizes from the test's own expressions:
+  - wide.md is 307,149 characters, and its last line runs from 307,117 to 307,148;
+  - big.md is 522,000 characters. Cut at 500,000, its raw text ends with `Line of the`: 17,241 lines of 29 characters,
+    then 11 more.
+- Real data, read-only, by structure:
+  - the 3 top-level `.md` files of `~/.codex/memories/`: the largest has 344,228 characters, the longest line is 1,061,
+    the longest unbroken token 320; headings and list items throughout; no fence and no table;
+  - the 119 top-level `.md` files under `~/.claude/projects/*/memory/`: 4 have a fence, the longest fence line is 129;
+    1 has a table, of 2 columns; the longest token is 177.
+
+#### Coverage
+The written tests against the changed rows of the test design table (seam, driving input, assertion, expected-value
+source, fixture, resource):
+
+| Row | Written test | Result |
+|---|---|---|
+| U4 (revised) | md.test.ts :79–84: a span holding `<slug>` (:82) and a fence holding `[[x]](y) <slug> <b>b</b>` (:83); `[see [[x]]](u)` is absent from the file | Consistent. The fence also holds `<b>b</b>`, which only widens the row |
+| E-A11 (revised) | F3 :2177–2184: `toHaveClass(/preview/)` and the body's `h1` reading `Consolidated` | Consistent |
+| E-A12 (revised) | F3 :1987, :2148–2154: a retrying `toHaveText(/…\(truncated\)\s*$/)` in preview, `toHaveClass(/raw/)`, then the same text check in raw; the width check is gone | Consistent, at 522,000 characters as the row says |
+| E-A13 | F3 :1988–2001 (wide.md), :2155–2175 | Partly. The input, the last line, the prose and the fence match the row. The row's "the body can be scrolled sideways" holds through the path alone, and the test's claim for the table is not measured (IC-8). The row and the test comment call the wide code line and the table the real Codex shape, which they are not (IC-10) |
+| Gap notes (IC-6) | e2e header :14–19 | Consistent |
+
+The spec's items against the tests, for the items this increment touches:
+- Covered now:
+  - E5, in these parts: the file renders in full to its last line (for any cap of 307,148 or more); prose wraps; an
+    unbroken token scrolls the body; a wide code line scrolls its fence.
+  - E5's "the drawer never widens": content cannot widen a fixed drawer, and if the drawer took the content's width the
+    body would stop overflowing and the body check would go red. E-A10 checks the width rule itself.
+  - AC-01 and AC-02 for Codex's global memory.
+  - AC-07's truncation, in preview and raw.
+  - CON-002's "inside code spans and fences nothing changes", placeholders included.
+- Not covered:
+  - E5's "a wide table scrolls the body sideways … so nothing is cut off": the table can be cut off by its own box
+    without the test seeing it (IC-8).
+  - The read cap's value: it is pinned only to 307,148–521,999 (IC-9).
+
+Gap notes in the e2e header (:8–19): each remaining gap has a reason and a condition for adding a case:
+- the file drawer's mode reset;
+- E2, when a per-file read delay can be set;
+- E7, when the language can change with a drawer open. The premise holds: the language changes only through
+  `onLanguage` (App.tsx:292–300), which only SettingsPane receives (App.tsx:358–365), and the settings dimension replaces
+  the panes that hold the drawers.
+
+Fixtures against real data, by structure:
+- E-A13's headings, list items, 1,089-character prose line and 321-character path follow the real Codex files (longest
+  line 1,061, longest token 320).
+- The 415-character code line and the 12-column table have no counterpart in any real memory file here (IC-10).
+- So the fixture keeps real structure and is not wholly spec-derived; its stated source is what is wrong.
+
+Conclusion: gaps — IC-8, IC-9, IC-10.
+
+#### Case design
+The range adds 48 test lines and removes 7. `rg` over each set finds no hit for `launch\(`, `vi\.mock`, `vi\.spyOn`,
+`jest\.`, `as any`, `test\.skip`, `it\.skip`, `skip\(`, `toHaveBeenCalled` or `waitForTimeout`. Among the removed lines
+are the two one-shot `textContent()` reads (IC-2) and the `boundingBox` width check (IC-1).
+
+One exemption, reviewed and accepted: E-A13's evaluation sets `scrollLeft` on the body and on the fence and reads it back
+in the same evaluation. A reader reaches that state by scrolling sideways; this is the same kind of setup as E-A3's
+`scrollTop`. The evaluation also reads the computed `overflow-x`, since a script can scroll an `overflow: hidden` box
+that a reader cannot.
+
+The evaluation is a one-shot read, but it runs after the retrying wait for the file's last line. It reads the layout of
+that same committed render, and layout is computed on read, so no update falls between what is waited for and what is
+read. F3 passed in both handed runs and in the run here.
+
+Conclusion: no finding.
+
+#### False greens
+Per the project capability declaration, mutation-testing is not enabled; this item is skipped. When each changed test
+goes red:
+- U4, the span and the fence: when the placeholder escape or the reference rule reaches code. A rewrite of the source
+  before parsing would show `&lt;slug&gt;` or change `[[x]](y)`; rendering the fence's `<b>` would also turn it red.
+  Today code reaches neither rule: wikiRef is an inline tokenizer anchored on `^\[\[` (md.ts:61–71), and the escape lives
+  in the raw-HTML renderer (md.ts:79–86). These are regression guards.
+- E-A11: when the Codex file opens in raw or its body is not rendered (no `h1`), in addition to the first round's cases.
+- E-A12: when the file is not cut (a cap of 522,000 or more), when the marker is missing or reworded in either mode, or
+  when the raw switch does not take effect. Not for a lower cap (IC-9).
+- E-A13:
+  - the last line: for a cap below 307,148, or a render that stops early;
+  - the prose: when prose stops wrapping. The paragraph is block-sized (650 over 650), so a line that did not wrap
+    would report its overflow;
+  - the body: when the body cannot scroll sideways (`overflow-x` other than `auto`), or when the drawer clips the
+    content instead (the body would then be as wide as its content, and scrollLeft would stay 0);
+  - the fence: when it does not scroll (the body would take the line, and the fence's scrollLeft would stay 0), or
+    when it wraps;
+  - not when the table is cut off by its own box while the path still overflows, nor when the path wraps while the
+    table still overflows (IC-8);
+  - also red for an equivalent `overflow-x: scroll`. Accepted.
+- Interface forms (review-code's false-greens list):
+  - All 7 added locator assertions are awaited.
+  - The three plain `expect`s on the evaluation's result follow the awaited text wait, so this is not form five (a
+    read too early).
+  - The body check is form eight's "`overflow: hidden` never reports overflow", here on the table's own box (IC-8).
+
+Conclusion: IC-8, an aggregate measurement that one contributor satisfies alone. No always-true unit assertion,
+same-algorithm expectation or old-path assertion.
+
+#### Resource reuse
+Expensive resources: the e2e build and the built app's launches.
+- Each handed log has one `electron-vite build` per `pnpm e2e` (lines 408–433).
+- The range adds and removes no `launch(`: `rg` over the added and over the removed lines finds none.
+- The new step rides F3's one launch. F3 took 12.9 s and 12.8 s in the handed runs and 13.2 s here, against 12.9 s at
+  f064a81.
+- wide.md is one `writeFileSync` of 307,149 characters per F3 run, and the app reads it once.
+- The new unit expectations need no expensive resource: md.test.ts ran 13 tests in 41 ms and 69 ms.
+
+This matches the test design table.
+
+Conclusion: no finding.
+
+#### IC-1 to IC-6 at 8aa70e8
+
+| Finding | Status | Evidence |
+|---|---|---|
+| IC-1 | Resolved | E-A13 reaches E5 with an under-cap file whose last line sits past 300,000, and checks the body's and the fence's sideways scroll by style and by position. The inert width check is removed. The checklist's E5 row and Increment 2's E-A12 row match the test. Two residuals are new findings: the table's half of the body check (IC-8), and the cap's window, IC-1's optional part, still undecided (IC-9) |
+| IC-2 | Resolved | A retrying `toHaveText(/…\(truncated\)\s*$/)` in both modes (:2150, :2153), and `toHaveClass(/raw/)` before the raw check (:2152) |
+| IC-3 | Resolved | U4 revised: no `[see [[x]]](u)`; a span holding `<slug>` and a fence holding `[[x]](y) <slug>` added (md.test.ts:82–83). The checklist's CON-002 row names spans and fences |
+| IC-4 | Resolved | E-A11 asserts the preview class and the rendered `h1` (:2182–2183). Row E-A12 says 522,000 |
+| IC-5 | Partly resolved | The Design review's "Coverage" paragraph no longer says E5 and truncation are untested; it points to E-A13 and E-A12. The first increment still has no per-dimension conclusions and no sentence saying so (IC-12) |
+| IC-6 | Resolved | The e2e header gives E2 and E7 each a condition for adding a case (:14–17). E7's premise was checked (Coverage above) |
+
+PC-1 to PC-9 at 8aa70e8 stand as at f064a81, except PC-6 and PC-7, which are now resolved. PC-6's record wording is fixed
+and its E5 part is resolved through IC-1. For PC-7, E5 is covered, and E2 and E7 have their conditions. O-1 is unchanged.
+
+#### Findings
+- IC-7 — Run evidence: the gate went red once on this commit, and the red is recorded nowhere. This bears on every
+  conclusion drawn from the gate.
+  - What happened: verify3, the first run of 8aa70e8, failed `e2e/startup-restore.spec.ts:8` at :72 after 2.7 s.
+    `.tot-c` nth(1) `.v` read "2k" over 11 polls in its 1000 ms timeout, where "0" was expected. verify4, run next on
+    the same commit and the same clean tree, passed the test in 26.4 s. All 15 passes in this session's kept logs take
+    26.4–27.1 s, and verify3 holds the test's only failure among them.
+  - As far as code reading shows, it is not this ticket's change:
+    - the assertion dates from 3a6dca56 (2026-09-14, `git blame`);
+    - the ticket changes neither the clock (DisplayClock.tsx) nor the cards (TokenViz.tsx);
+    - the step runs on the first launch, before any restore.
+
+    E-C1's own step was not reached in verify3: it is the second launch's `previews(win, 500)` at :100. F3 passed in
+    both runs.
+  - Likely cause, inferred and not run here (the test is outside this increment's review objects):
+    - the renderer's clock ticks through a native `setInterval(tick, 1000)` started at mount (DisplayClock.tsx:9),
+      before the test's `win.clock.install`, so `fastForward(61_000)` does not fire it;
+    - the "0" therefore arrives only with the next real tick, which races the assertion's 1000 ms timeout with no
+      margin;
+    - other Agentshed instances were running on the machine (verify4's smoke step lists three).
+  - Also:
+    - The commit predates both runs, so no handed log shows the fix green before it was committed, which /implement
+      requires.
+    - The task record has no entry for either run.
+  - Impact: a gate red was cleared by a rerun with no diagnosis recorded. If the cause is as inferred, the case fails
+    whenever a tick lands late, in this gate and every later one.
+  - Recommendation:
+    - Record both runs and the red's disposition in the task record.
+    - File the flake as its own issue, in the repository's "Flaky e2e: …" form (#247, #254). The fix (a timeout longer
+      than one tick, or a tick driven after the install) is not this ticket's.
+  - Destination: the task record (this ticket). The flake has no persistent home yet: the owner decides between an issue
+    and dropping it.
+- IC-8 — False greens and Coverage: E-A13's body check cannot see the table (memory-view E5; row E-A13;
+  e2e/app.spec.ts:2155–2175).
+  - The comment and the assertion message say "the body scrolls sideways to the unbroken path and the table". As
+    measured, the body's scroll width (2,058) is the path's alone: its text extent is 2,042, plus the body's 16 px
+    padding. The table is 1,486 px wide: wider than the body (682), but inside the path's extent, so it adds nothing to
+    the measured value.
+  - So the check stays green in two cases:
+    - The table is cut off by its own box while the path still overflows. The table already carries `overflow: hidden`
+      (theme.css:1255), so any rule that bounds its width to the body's, such as a fixed table layout, would clip its
+      columns.
+    - The path wraps while the table still overflows. This is benign, though E5 says the token scrolls the body.
+  - Increment 2's design conclusion ("content wider than the body, which the token and table provide") assumed that both
+    contribute.
+  - Impact: E5's "a wide table scrolls the body sideways … so nothing is cut off" is claimed but not held.
+  - Recommendation, one of two:
+    - Check each wide element on its own:
+      - for the table, that its width exceeds the body's and that its own box clips nothing (`scrollWidth` not above
+        `clientWidth` for the table and for each header cell);
+      - for the path, that its text extent exceeds the body's width and lies within the body's scroll width.
+    - Or narrow the comment, the message and the row to the path, and record the table's half as a gap.
+  - Destination: this ticket (e2e/app.spec.ts, row E-A13).
+- IC-9 — Coverage, a second mention: the read cap is pinned only to 307,148–521,999 (memory-view D2, E5 and
+  US-001/AC-07; rows E-A12 and E-A13).
+  - E-A13's last line ends at 307,148 and big.md is 522,000 characters, so any cap in between passes both. A cap of
+    320,000, for example, would cut the 344,228-character Codex file on this machine, the very file E5 is about, and
+    nothing would go red. No unit test covers the channel's cap (PC-6).
+  - IC-1 offered pinning the cut position as optional, and no decision is recorded. This is its second mention, so it
+    needs a decision now.
+  - Recommendation, one of two:
+    - Pin the cut. At a 500,000 cut the raw text ends with `Line of the` and then the marker. A retrying
+      `toHaveText(/Line of the\s*…\(truncated\)\s*$/)` in raw pins the cap to within a character, with no new fixture.
+    - Or state in row E-A12 that the cap's value is not pinned, and why.
+  - Destination: this ticket (e2e/app.spec.ts:2153, row E-A12).
+- IC-10 — Coverage, minor: the fixture's stated provenance is wrong (row E-A13; e2e/app.spec.ts:1988–1990).
+  - The comment says wide.md carries "the wide elements a real one carries: a long prose line, an unbroken path, a wide
+    code line, a wide table". Row E-A13 calls the whole input "the real Codex shape".
+  - Real data says otherwise:
+    - The 3 Codex memory files hold no fence and no table. Across the 119 Claude memory files, the longest fence line is
+      129 characters and the widest table has 2 columns.
+    - The headings, the list items, the long prose line and the 321-character path follow real files (longest line
+      1,061, longest unbroken token 320).
+    - The 415-character code line and the 12-column table follow E5's wording.
+  - Why it matters: a fixture's independence from the spec is judged by its stated source. As written, a reader counts the
+    table and the fence as checked against real data.
+  - Recommendation: say which parts follow the real files and which follow E5. This is a comment change only, with no
+    change to what runs.
+  - Destination: this ticket (e2e/app.spec.ts, row E-A13).
+- IC-11 — Document sync, a second mention: the checklist's current verification (checklist.md:54; final-regression.md
+  :50 and :52–53).
+  - The row still reads "2026-10-21; spec uncommitted on 9b7bb13; no implementation yet … Not run yet … Unverified".
+    The first incremental check listed this row under its document sync obligations, and it has not changed.
+  - final-regression.md now says the checklist's current verification was updated in this round (Stage 3, "Work
+    status") and that the queue is "all handled". The row contradicts both.
+  - Recommendation:
+    - Write the current verification into the row: the gate at the delivered commit, and this record's checks. If the
+      row is meant to stay Unverified until the owner's acceptance, say so in the row instead.
+    - Either way, correct final-regression.md.
+    - This is the second mention, so it needs a decision now, not another deferral.
+  - Destination: checklist.md and final-regression.md (this ticket, before delivery).
+- IC-12 — Record maintenance, a second mention: what remains of IC-5.
+  - "Increment after the post-implementation check" (this record's Design review) still has no per-dimension design
+    conclusions, and no sentence saying they were not written down. IC-5 asked for that sentence, pointing to the
+    incremental check (81952cf..f064a81) for the conclusions.
+  - That increment's rows U4, E-A11 and E-A12 still read as current, with no pointer to Increment 2, which supersedes
+    them. E-A12 says "a 510,000-character memory file" and "the drawer keeps its width"; U4 still expects
+    `[see [[x]]](u)` to stay a link. The Design review's "Coverage" paragraph now carries such pointers; these rows do
+    not.
+  - Recommendation: add the sentence, and mark the three rows as superseded by Increment 2.
+  - Destination: this record.
+
+#### Document sync obligations
+For the main agent, per implement/document-sync.md. Nothing is edited here except two status pointers in this record:
+one in the Post-implementation check's opening, one in the previous incremental check's result.
+
+Scope checked for this increment:
+- the task-provided spec and this record;
+- the range's documents: docs/specs/memory-view.md, docs/specs/skills-view.md, docs/features/memory-view.md,
+  CONTEXT.md and docs/postmortems/;
+- all six files of docs/.workings/memory-view/ (`ls -la` and `rg -uu --files`: six files, none hidden, all tracked);
+- AGENTS.md, CLAUDE.md and README.md at the root, and the 35 files of docs/adr/. A search for `memory-view`, the new
+  row names, the fixture names and the fixture sizes found only the two index rows in docs/specs/README.md and
+  docs/features/README.md, which are unchanged and still true.
+
+Handled from the previous round:
+- the checklist's E5, CON-002 and Source → spec rows (D5, D6);
+- the spec's Testing Decisions list of tested shapes;
+- the f064a81 gate in the task record.
+
+Pending:
+- [checklist](checklist.md) "Current verification", and final-regression.md's claim about it (IC-11);
+- the [task record](ticket-294-tasks.md): the two runs at 8aa70e8 and the disposition of the red (IC-7);
+- this record: IC-12, and rows E-A12 and E-A13 if IC-8 to IC-10 change them;
+- the wide.md comment in e2e/app.spec.ts (IC-10);
+- outside this review's dimensions: docs/postmortems/README.md lists its rows by ascending date, but the new 2026-10-21
+  row (:16) sits above the 2026-10-20 row (:17). Recommendation: swap the two rows, at step 8's cross-check.
+
+A fix that changes test code goes to another independent incremental check (/implement step 6).
