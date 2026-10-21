@@ -451,7 +451,7 @@ Matching the current behaviour of
   follow the palette — and a single alpha cannot serve both, since one that reads on a light backdrop
   disappears on a dark one.
 - **New copy goes through the dictionaries**: the placeholder and the "no name matched" empty states are
-  user-visible strings, so they exist in all six languages. The empty state is a **new** string, not a
+  user-visible strings, so they exist in both languages. The empty state is a **new** string, not a
   reuse of the existing "library is empty" one (E5/F4) — reusing it would be cheaper and would lie.
 
 ## Testing Decisions

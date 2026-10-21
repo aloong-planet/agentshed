@@ -13,6 +13,7 @@
        其过滤行宽度结论仅对触发器有效。
      2026-10-14:失效开关 label 与失效计数器改为画全六种语言,宽度读数不再对它们失明;但 C5 的收缩省略/
        换行布局仍未搬入本原型,整行装不装得下以 spec C5 与 app 为准。
+     2026-10-21:界面语言减到中英(ADR-0035),本页与项目栏共享件只画这两种语言。
      2026-10-14:项目栏改为共享件 _shared/project-side.{js,css},行为照 app 的项目栏(搜索同时匹配名字与路径、失效计数只在有被过滤的失效项目时
        出现、行提示为路径、徽章固定 Bot 图标),mock 项目也只有这一份,各页看到的是同一批项目。数字前图标
        候选的对照条因此撤掉:app 已定 Bot。
@@ -27,7 +28,7 @@
      演示基建(非设计的一部分,勿实现):底部悬浮条(data-demo-harness,独立于页面内容流)承载「启动」一组
        (骨架 / 扫描中 / 完成 / 失败,共享件 _shared/startup-status;真实判定 = 渲染器是否已收到首个快照与
        扫描的结果,说明行写明)与过滤行宽度读数——app 内没有这些开关。
-     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;本页画了六种语言;
+     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;本页画了中英两种语言,即全部界面语言;
        色值取共享主题 _shared/theme.css。app 窗口的根样式在共享件 _shared/app-window.css 里。仍为中文的只有演示条。 -->
 <html lang="zh-CN">
 <head>
@@ -82,12 +83,11 @@
     <p class="dh-note" id="room"></p>
   </div>
 <script>
-  // 项目栏是共享件(_shared/project-side.js),本页只管右侧主区的引导语与演示条。引导语画了六种语言。
-  const PICK={zh:'选择一个项目查看详情',en:'Select a project to see its details',fr:'Sélectionnez un projet pour voir son détail',
-    es:'Selecciona un proyecto para ver su detalle',ru:'Выберите проект, чтобы увидеть детали',ja:'プロジェクトを選択すると詳細が表示されます'};
-  const HTML_LANG={zh:'zh-CN',en:'en',fr:'fr',es:'es',ru:'ru',ja:'ja'};
+  // 项目栏是共享件(_shared/project-side.js),本页只管右侧主区的引导语与演示条。引导语画了中英两种语言。
+  const PICK={zh:'选择一个项目查看详情',en:'Select a project to see its details'};
+  const HTML_LANG={zh:'zh-CN',en:'en'};
   // 演示基建(非设计的一部分,勿实现):启动各档(共享件把占位换成开关组),与过滤行宽度读数——项目栏每次
-  // 重绘后量,用来实测过滤行在六种语言下装不装得下(触发器宽 · 行的内容宽/可用宽)。
+  // 重绘后量,用来实测过滤行在两种语言下装不装得下(触发器宽 · 行的内容宽/可用宽)。
   // 演示条「骨架」一档:骨架与正式内容在同一位置二选一,与 app 一致(项目栏由共享件画它的骨架)
   let skeleton=false;
   StartupStatus.withSkeleton((state)=>{

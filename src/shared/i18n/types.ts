@@ -1,4 +1,4 @@
-// The dictionaries' type contract: the type the other five languages must satisfy, derived from the source
+// The dictionaries' type contract: the type English must satisfy, derived from the source
 // language's (zh) shape.
 //
 // It has to do two things that pull against each other:
@@ -27,6 +27,6 @@ export type Dict<T> = {
       : string
 }
 
-/** The type for the other five languages: the structure is locked to the source language and the values
+/** The type for English: the structure is locked to the source language and the values
  * are widened. Both a missing key and an extra one fail typecheck */
 export type Locale = Dict<typeof import('./zh').zh>

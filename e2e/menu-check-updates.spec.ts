@@ -215,8 +215,8 @@ test('the item follows a language switch at once; a toast already shown keeps it
     await clickMenuCheck(app)
     await expect(win.locator('.toast.ok')).toHaveText(`Agentshed is up to date (${version})`)
     await win.getByTestId('language-trigger').click()
-    await win.getByTestId('language-pop').locator('[data-lang="fr"]').click()
-    await expect.poll(async () => (await appMenu(app))[1]?.label).toBe('Rechercher les mises à jour…')
+    await win.getByTestId('language-pop').locator('[data-lang="zh"]').click()
+    await expect.poll(async () => (await appMenu(app))[1]?.label).toBe('检查更新…')
     // The update toast keeps its English; the language switch's own toast stacks under it
     await expect(win.locator('.toast')).toHaveCount(2)
     await expect(win.locator('.toast').first()).toHaveText(`Agentshed is up to date (${version})`)

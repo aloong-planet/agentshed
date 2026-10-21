@@ -1,7 +1,10 @@
 <!doctype html>
 <!-- A UI prototype · appearance: the settings page's two sections —
-     语言(跟随系统 + 六选一)/ 外观(模式:跟随系统·浅色·深色 × 配色:紫·雾蓝·琥珀褐)。
+     语言(跟随系统 + 二选一)/ 外观(模式:跟随系统·浅色·深色 × 配色:紫·雾蓝·琥珀褐)。
      两处「跟随系统」是同一个模型:偏好是策略,生效值由系统解析,系统变则界面变;选定具体值即锁定。
+
+     2026-10-21:界面语言减到简体中文与 English(ADR-0035),浮层只剩三项:跟随系统、分隔线、两种语言。
+       仍是下拉(所有者 2026-10-21 选定,不改分段控件);各项照旧左侧母语名、右侧英文名,选中项打勾。已确认(所有者 2026-10-21)。
 
      明暗:本原型在浏览器里跑、没有 Electron,只能用 JS 写 <html data-demo-mode> 来模拟切换。
      真代码不走这条路——Electron 的 nativeTheme.themeSource('system'|'light'|'dark')会直接
@@ -226,8 +229,8 @@
   /* ── Icons come from _shared/icons.js, the prototypes' one icon table, rather than copies on this page:
         two copies of one icon drift apart and nothing reports it. ── */
 
-  const LANGS = ['zh', 'en', 'fr', 'es', 'ru', 'ja']
-  /** The language selector's value domain = follow system + the six languages. 'system' is a preference
+  const LANGS = ['zh', 'en']
+  /** The language selector's value domain = follow system + the two languages. 'system' is a preference
      * value, not a language */
   const OPTIONS = ['system', ...LANGS]
   /** The appearance mode's value domain, structurally identical to language: 'system' is a policy while
@@ -264,66 +267,6 @@
       toastMode: (n) => `Appearance mode: ${n}`,
       toastLang: (n) => `Interface language switched to ${n}`,
       toastFollowSystem: (n) => `Now following the system · currently ${n}`,
-    },
-    fr: {
-      native: 'Français', english: 'French', htmlLang: 'fr',
-      settings: 'Réglages',
-      lead: 'Préférences propres à cette app. Elles s’appliquent à toute l’interface et ne sont jamais écrites dans votre configuration Claude ou Codex.',
-      secLang: 'Langue', ifaceLang: 'Langue de l’interface', followSystem: 'Suivre le système',
-      langFoot: 'Avec « Suivre le système », l’interface suit vos langues préférées macOS ; l’anglais est utilisé si aucune n’est prise en charge.',
-      secAppear: 'Apparence', modeLabel: 'Mode', paletteLabel: 'Palette',
-      light: 'Clair', dark: 'Sombre',
-      schemeNames: { purple: 'Violet', blue: 'Bleu brume', amber: 'Ambre' },
-      appearFoot: (b) => `Avec le mode « ${b('Suivre le système')} », le clair et le sombre suivent l’apparence macOS. La palette et le mode sont indépendants et se combinent librement ; Violet est utilisé par défaut. Les changements s’appliquent immédiatement à toute l’app, sans enregistrement.`,
-      toastScheme: (n) => `Palette basculée sur « ${n} »`,
-      toastMode: (n) => `Mode d’apparence : ${n}`,
-      toastLang: (n) => `Langue de l’interface changée pour ${n}`,
-      toastFollowSystem: (n) => `Suit désormais le système · actuellement ${n}`,
-    },
-    es: {
-      native: 'Español', english: 'Spanish', htmlLang: 'es',
-      settings: 'Ajustes',
-      lead: 'Preferencias exclusivas de esta app. Se aplican a toda la interfaz y nunca se escriben en tu configuración de Claude o Codex.',
-      secLang: 'Idioma', ifaceLang: 'Idioma de la interfaz', followSystem: 'Seguir el sistema',
-      langFoot: 'Con «Seguir el sistema», la interfaz sigue tus idiomas preferidos de macOS; se usa el inglés si ninguno es compatible.',
-      secAppear: 'Apariencia', modeLabel: 'Modo', paletteLabel: 'Paleta',
-      light: 'Claro', dark: 'Oscuro',
-      schemeNames: { purple: 'Violeta', blue: 'Azul niebla', amber: 'Ámbar' },
-      appearFoot: (b) => `Con el modo «${b('Seguir el sistema')}», el claro y el oscuro siguen la apariencia de macOS. La paleta y el modo son independientes y se combinan libremente; se usa Violeta si no eliges nada. Los cambios se aplican de inmediato en toda la app, sin necesidad de guardar.`,
-      toastScheme: (n) => `Paleta cambiada a «${n}»`,
-      toastMode: (n) => `Modo de apariencia: ${n}`,
-      toastLang: (n) => `Idioma de la interfaz cambiado a ${n}`,
-      toastFollowSystem: (n) => `Ahora sigue el sistema · actualmente ${n}`,
-    },
-    ru: {
-      native: 'Русский', english: 'Russian', htmlLang: 'ru',
-      settings: 'Настройки',
-      lead: 'Параметры только этого приложения. Они применяются ко всему интерфейсу и никогда не записываются в конфигурацию Claude или Codex.',
-      secLang: 'Язык', ifaceLang: 'Язык интерфейса', followSystem: 'Следовать системе',
-      langFoot: 'При выборе «Следовать системе» интерфейс следует предпочитаемым языкам macOS; если ни один из них не поддерживается, используется английский.',
-      secAppear: 'Оформление', modeLabel: 'Режим', paletteLabel: 'Палитра',
-      light: 'Светлый', dark: 'Тёмный',
-      schemeNames: { purple: 'Фиолетовая', blue: 'Туманно-синяя', amber: 'Янтарная' },
-      appearFoot: (b) => `Когда режим — «${b('Следовать системе')}», светлое и тёмное оформление следует настройкам macOS. Палитра и режим независимы и сочетаются свободно; без выбора используется фиолетовая. Изменения применяются сразу во всём приложении — сохранять не нужно.`,
-      toastScheme: (n) => `Палитра переключена на «${n}»`,
-      toastMode: (n) => `Режим оформления: ${n}`,
-      toastLang: (n) => `Язык интерфейса переключён на ${n}`,
-      toastFollowSystem: (n) => `Теперь следует системе · сейчас ${n}`,
-    },
-    ja: {
-      native: '日本語', english: 'Japanese', htmlLang: 'ja',
-      settings: '設定',
-      lead: 'この app 固有の設定です。インターフェース全体に適用され、Claude や Codex の設定には書き込まれません。',
-      secLang: '言語', ifaceLang: 'インターフェースの言語', followSystem: 'システムに従う',
-      langFoot: '「システムに従う」を選ぶと、インターフェースは macOS の優先言語に従います。いずれも対応していない場合は英語になります。',
-      secAppear: '外観', modeLabel: 'モード', paletteLabel: 'パレット',
-      light: 'ライト', dark: 'ダーク',
-      schemeNames: { purple: 'パープル', blue: 'ミストブルー', amber: 'アンバー' },
-      appearFoot: (b) => `モードを「${b('システムに従う')}」にすると、明暗は macOS の外観に従います。パレットと明暗は独立していて自由に組み合わせられます。未選択の場合はパープルです。変更は保存不要で app 全体にすぐ反映されます。`,
-      toastScheme: (n) => `パレットを「${n}」に切り替えました`,
-      toastMode: (n) => `外観モード：${n}`,
-      toastLang: (n) => `インターフェースの言語を ${n} に変更しました`,
-      toastFollowSystem: (n) => `システムに従う設定にしました · 現在は ${n}`,
     }
   }
 
@@ -356,65 +299,6 @@
       toastFound: (v) => `Version ${v} found — downloading in the background`,
       toastInstallFailed: 'Couldn’t install the update',
       installNow: 'Install now',
-    },
-    fr: {
-      sec: 'Mises à jour', auto: 'Rechercher les mises à jour automatiquement', on: 'Activé', off: 'Désactivé',
-      version: 'Version actuelle', checkNow: 'Vérifier maintenant', checking: 'Vérification…',
-      upToDate: 'Agentshed est à jour', failed: 'Impossible de vérifier les mises à jour',
-      found: (v) => `Téléchargement de la version ${v}`,
-      readyNote: (v) => `La version ${v} est prête à être installée`,
-      foot: 'Les nouvelles versions se téléchargent en arrière-plan. Quand l’une est prête, cliquez sur le bouton de mise à jour en bas à gauche pour l’installer et redémarrer ; sinon, elle s’installe quand vous quittez.',
-      devFoot: 'Les mises à jour ne sont pas vérifiées en exécution de développement (l’app n’est pas empaquetée).',
-      tipReady: 'Mise à jour disponible', tipDl: (n) => `Téléchargement de la mise à jour ${n} %`,
-      tipInstall: 'Installation de la mise à jour…',
-      toastUpToDate: (v) => `Agentshed est à jour (${v})`, toastFailed: 'Impossible de vérifier les mises à jour',
-      toastFound: (v) => `Version ${v} trouvée — téléchargement en arrière-plan`,
-      toastInstallFailed: 'Impossible d’installer la mise à jour',
-      installNow: 'Installer maintenant',
-    },
-    es: {
-      sec: 'Actualizaciones', auto: 'Buscar actualizaciones automáticamente', on: 'Activado', off: 'Desactivado',
-      version: 'Versión actual', checkNow: 'Comprobar ahora', checking: 'Comprobando…',
-      upToDate: 'Agentshed está actualizado', failed: 'No se pudo comprobar si hay actualizaciones',
-      found: (v) => `Descargando la versión ${v}`,
-      readyNote: (v) => `La versión ${v} está lista para instalarse`,
-      foot: 'Las versiones nuevas se descargan en segundo plano. Cuando una esté lista, haz clic en el botón de actualización abajo a la izquierda para instalarla y reiniciar; si no, se instala al salir.',
-      devFoot: 'Las actualizaciones no se comprueban en una ejecución de desarrollo (la app no está empaquetada).',
-      tipReady: 'Actualización disponible', tipDl: (n) => `Descargando actualización ${n} %`,
-      tipInstall: 'Instalando actualización…',
-      toastUpToDate: (v) => `Agentshed está actualizado (${v})`, toastFailed: 'No se pudo comprobar si hay actualizaciones',
-      toastFound: (v) => `Versión ${v} encontrada: descargando en segundo plano`,
-      toastInstallFailed: 'No se pudo instalar la actualización',
-      installNow: 'Instalar ahora',
-    },
-    ru: {
-      sec: 'Обновления', auto: 'Проверять обновления автоматически', on: 'Вкл.', off: 'Выкл.',
-      version: 'Текущая версия', checkNow: 'Проверить сейчас', checking: 'Проверка…',
-      upToDate: 'Установлена последняя версия', failed: 'Не удалось проверить обновления',
-      found: (v) => `Загружается версия ${v}`,
-      readyNote: (v) => `Версия ${v} готова к установке`,
-      foot: 'Новые версии загружаются в фоне. Когда обновление готово, нажмите кнопку обновления внизу слева, чтобы установить его и перезапустить приложение; иначе оно установится при выходе.',
-      devFoot: 'В режиме разработки (приложение не упаковано) обновления не проверяются.',
-      tipReady: 'Доступно обновление', tipDl: (n) => `Загрузка обновления: ${n}%`, tipInstall: 'Установка обновления…',
-      toastUpToDate: (v) => `Установлена последняя версия Agentshed (${v})`, toastFailed: 'Не удалось проверить обновления',
-      toastFound: (v) => `Найдена версия ${v} — загружается в фоне`,
-      toastInstallFailed: 'Не удалось установить обновление',
-      installNow: 'Установить сейчас',
-    },
-    ja: {
-      sec: 'アップデート', auto: 'アップデートを自動で確認', on: 'オン', off: 'オフ', version: '現在のバージョン',
-      checkNow: '今すぐ確認', checking: '確認中…', upToDate: '最新バージョンです',
-      failed: 'アップデートを確認できませんでした',
-      found: (v) => `バージョン ${v} をダウンロード中`,
-      readyNote: (v) => `バージョン ${v} をインストールできます`,
-      foot: '新しいバージョンはバックグラウンドでダウンロードされます。準備ができたら左下のアップデートボタンをクリックすると、インストールして再起動します。クリックしない場合は終了時にインストールされます。',
-      devFoot: '開発実行（パッケージ化されていない app）ではアップデートを確認しません。',
-      tipReady: 'アップデートがあります', tipDl: (n) => `アップデートをダウンロード中 ${n}%`,
-      tipInstall: 'アップデートをインストール中…',
-      toastUpToDate: (v) => `Agentshed は最新です（${v}）`, toastFailed: 'アップデートを確認できませんでした',
-      toastFound: (v) => `バージョン ${v} が見つかりました。バックグラウンドでダウンロードしています`,
-      toastInstallFailed: 'アップデートをインストールできませんでした',
-      installNow: '今すぐインストール',
     }
   }
 
@@ -900,7 +784,7 @@
           ③ 「后台下载失败」在下载中点：按钮直接消失，不给任何提示（照 Codex）
           ④ 菜单「检查更新…」三种结果用 toast；设置页「立即检查」结果就地显示在按钮左侧
           ⑤ 运行方式切到「开发运行」：开关与按钮不可用，说明换成开发运行的原因
-          ⑥ 切六种语言看提示与设置行在最长语言（俄 / 法）下是否挤压；3 配色 × 2 明暗看圆按钮与提示是否可辨
+          ⑥ 切两种语言看提示与设置行在较长的英文下是否挤压；3 配色 × 2 明暗看圆按钮与提示是否可辨
           ⑦ 「点击安装后」选「安装失败」，走完一轮再点按钮：错误 toast，按钮消失
           ⑧ 先在设置页「立即检查」得到「已是最新」，再把「下次检查返回」改成发现新版本、点「自动检查触发」：结果行跟着变成下载中 → 可安装
           ⑨ 可安装时点按钮（安装成功），或点演示条「退出再打开」：当前版本变成新版本号，结果行「已是最新版本」；没有更新时「退出再打开」则结果行清空
@@ -925,7 +809,7 @@
           ③ 外观压缩为一张卡两行（模式 / 配色），配色卡去掉了整句描述，只留色块 + 名称
           ④ 3 配色 × 2 明暗 = 6 种组合都要能看：浮层边框与投影、选中态、CC/CX 语义色均可辨
           ⑥ 色板取样随明暗切换——深色下三张卡应呈深色系，不再出现纯白色块
-          ⑤ 语言浮层不被设置页 overflow:auto 裁掉，键盘七项循环<br>
+          ⑤ 语言浮层不被设置页 overflow:auto 裁掉，键盘三项循环<br>
           <b>实现要点</b>：真代码用 Electron 的 <code>nativeTheme.themeSource</code>（官方三态：
           Follow OS / Light / Dark），它直接改变 <code>prefers-color-scheme</code> 的求值结果——
           现有 theme.css 的媒体查询<b>零改动</b>即生效，macOS 窗口边框与原生菜单也一并跟随。

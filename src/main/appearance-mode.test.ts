@@ -89,7 +89,7 @@ describe('the full path from preference to themeSource', () => {
     withStore((d) => {
       const s = new PrefsStore(d)
       s.setMode('dark')
-      s.setLanguage('ja')
+      s.setLanguage('zh')
       const nt = fakeNativeTheme()
       applyAppearanceMode(nt, new PrefsStore(d).get().mode)
       expect(nt.themeSource).toBe('dark')

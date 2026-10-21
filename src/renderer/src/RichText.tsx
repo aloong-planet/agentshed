@@ -13,7 +13,7 @@
 // two lightweight markers that this component parses at render time:
 //   `**bold**`  →  <b>
 //   `` `code` ``  →  <code>
-// One key per sentence, complete in all six languages, with the markers moving naturally with each
+// One key per sentence, complete in every language, with the markers moving naturally with each
 // language's word order — precisely what fragment keys cannot do.
 //
 // Nesting and links are deliberately **not** supported: this use needs only these two, and supporting

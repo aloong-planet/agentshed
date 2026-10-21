@@ -17,19 +17,19 @@ describe('PrefsStore', () => {
 
   it('restores a saved global trend span without losing other preferences', () => {
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify({
-      theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 60
+      theme: 'blue', language: 'en', mode: 'dark', trendSpan: 60
     }))
     expect(new PrefsStore(dir).get()).toEqual({
-      theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 60, autoCheckUpdates: true
+      theme: 'blue', language: 'en', mode: 'dark', trendSpan: 60, autoCheckUpdates: true
     })
   })
 
   it.each([undefined, null, '60', 45, 0])('invalid or absent span %s defaults only that field', (trendSpan) => {
     writeFileSync(join(dir, 'prefs.json'), JSON.stringify({
-      theme: 'amber', language: 'ja', mode: 'dark', trendSpan
+      theme: 'amber', language: 'zh', mode: 'dark', trendSpan
     }))
     expect(new PrefsStore(dir).get()).toEqual({
-      theme: 'amber', language: 'ja', mode: 'dark', trendSpan: 30, autoCheckUpdates: true
+      theme: 'amber', language: 'zh', mode: 'dark', trendSpan: 30, autoCheckUpdates: true
     })
   })
 
@@ -66,8 +66,8 @@ describe('PrefsStore', () => {
 
   it('setLanguage persists; "follow system" reads back as "follow system"', () => {
     const s = new PrefsStore(dir)
-    s.setLanguage('fr')
-    expect(new PrefsStore(dir).get().language).toBe('fr')
+    s.setLanguage('en')
+    expect(new PrefsStore(dir).get().language).toBe('en')
     // The key point: what is stored is the **preference**, not the resolution. If the implementation
     // persisted "follow system" as whatever language it resolved to,
     // this would read back 'zh' or 'en' and "follow system" would have degraded into a one-off snapshot
@@ -78,10 +78,10 @@ describe('PrefsStore', () => {
   it('changing one field leaves the others alone', () => {
     const s = new PrefsStore(dir)
     s.setTheme('amber')
-    s.setLanguage('ru')
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
+    s.setLanguage('en')
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'en', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
     s.setTheme('blue')
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ru', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'en', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
   })
 
   it('the two "follow system" settings, language and appearance mode, do not interfere', () => {
@@ -93,8 +93,8 @@ describe('PrefsStore', () => {
     // responsibility (see ticket 04's responsibility boundary)
     const s = new PrefsStore(dir)
     s.setMode('dark')
-    s.setLanguage('ja')
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark', trendSpan: 30, autoCheckUpdates: true })
+    s.setLanguage('zh')
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'zh', mode: 'dark', trendSpan: 30, autoCheckUpdates: true })
     // Changing the language leaves mode alone
     s.setLanguage('system')
     expect(new PrefsStore(dir).get().mode).toBe('dark')
@@ -115,9 +115,9 @@ describe('PrefsStore', () => {
     expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'system', mode: 'dark', trendSpan: 30, autoCheckUpdates: true })
     writeFileSync(
       join(dir, 'prefs.json'),
-      JSON.stringify({ theme: 'neon', language: 'ja', mode: 'dark' })
+      JSON.stringify({ theme: 'neon', language: 'zh', mode: 'dark' })
     )
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'ja', mode: 'dark', trendSpan: 30, autoCheckUpdates: true })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'purple', language: 'zh', mode: 'dark', trendSpan: 30, autoCheckUpdates: true })
   })
 
   it('an invalid mode degrades only mode, with the language and theme still read correctly', () => {
@@ -126,9 +126,16 @@ describe('PrefsStore', () => {
     // if the implementation reverted the whole thing, the user would lose two unrelated choices at once
     writeFileSync(
       join(dir, 'prefs.json'),
-      JSON.stringify({ theme: 'amber', language: 'ru', mode: 'auto' })
+      JSON.stringify({ theme: 'amber', language: 'en', mode: 'auto' })
     )
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'ru', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'en', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
+  })
+
+  it.each(['fr', 'es', 'ru', 'ja'])('a stored removed language %s reads as follow system, the other fields kept (i18n::REQ-003)', (language) => {
+    // French, Spanish, Russian and Japanese were removed before the first release (ADR-0035), so only a
+    // development machine's file can still name one. The file has a real one's shape: all five fields
+    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'blue', language, mode: 'dark', trendSpan: 90, autoCheckUpdates: false }))
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'system', mode: 'dark', trendSpan: 90, autoCheckUpdates: false })
   })
 
   it('a file holding only theme: keeps it and fills in the language and mode defaults', () => {
@@ -146,8 +153,8 @@ describe('PrefsStore', () => {
 
   it('a file holding theme + language: keeps both and fills in the mode default', () => {
     // Same point as above: this is field-level defaulting, not cross-version key compatibility
-    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'amber', language: 'fr' }))
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'fr', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
+    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'amber', language: 'en' }))
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'amber', language: 'en', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
   })
 
   it('setTheme persists and all three values read back', () => {
@@ -174,13 +181,13 @@ describe('PrefsStore', () => {
   it('a valid file reads back; after writing, the disk holds an object', () => {
     writeFileSync(
       join(dir, 'prefs.json'),
-      JSON.stringify({ theme: 'amber', language: 'ja', mode: 'light' }, null, 2)
+      JSON.stringify({ theme: 'amber', language: 'zh', mode: 'light' }, null, 2)
     )
     expect(new PrefsStore(dir).get().theme).toBe('amber')
     const s = new PrefsStore(dir)
     s.setTheme('blue')
     const raw = JSON.parse(readFileSync(join(dir, 'prefs.json'), 'utf8')) as Record<string, string>
-    expect(raw).toEqual({ theme: 'blue', language: 'ja', mode: 'light', trendSpan: 30, autoCheckUpdates: true })
+    expect(raw).toEqual({ theme: 'blue', language: 'zh', mode: 'light', trendSpan: 30, autoCheckUpdates: true })
   })
 
   it('the automatic-checks switch persists off and back on, leaving the other preferences alone (app-update::US-002/AC-02)', () => {
@@ -193,8 +200,8 @@ describe('PrefsStore', () => {
   })
 
   it.each(['false', 0, null, 'off'])('an invalid stored switch value %s falls back to on, alone (app-update::US-002/AC-02)', (autoCheckUpdates) => {
-    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 90, autoCheckUpdates }))
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'fr', mode: 'dark', trendSpan: 90, autoCheckUpdates: true })
+    writeFileSync(join(dir, 'prefs.json'), JSON.stringify({ theme: 'blue', language: 'en', mode: 'dark', trendSpan: 90, autoCheckUpdates }))
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'en', mode: 'dark', trendSpan: 90, autoCheckUpdates: true })
   })
 
   it('writes are atomic: no temporary file is left in the directory', () => {

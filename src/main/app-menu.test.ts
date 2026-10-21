@@ -3,7 +3,7 @@
 // **What can and cannot be tested was settled in the ticket**: the template is a pure function of
 // "language → menu structure", so its copy and structure are unit testable;
 // while **which language the menu actually displays is drawn by macOS and automation cannot reach it**.
-// "The build function returned French copy" must not be passed off as "the menu displays in French" —
+// "The build function returned Chinese copy" must not be passed off as "the menu displays in Chinese" —
 // the latter can only be accepted by hand.
 import { describe, it, expect } from 'vitest'
 import { LANGUAGES, dictOf } from '@shared/i18n'
@@ -13,7 +13,7 @@ const labels = (lang: Parameters<typeof buildMenuTemplate>[0]): string[] =>
   buildMenuTemplate(lang).map((m) => String(m.label ?? ''))
 
 describe('buildMenuTemplate', () => {
-  it('all six languages build a non-empty menu with the same number of top-level items', () => {
+  it('both languages build a non-empty menu with the same number of top-level items', () => {
     const counts = new Set(LANGUAGES.map((l) => buildMenuTemplate(l).length))
     expect(counts.size).toBe(1)
     for (const lang of LANGUAGES) expect(buildMenuTemplate(lang).length).toBeGreaterThan(0)
@@ -23,7 +23,6 @@ describe('buildMenuTemplate', () => {
     // Asserting only "there is a label" cannot distinguish a real dictionary lookup from hard-coded text;
     // languages have to be compared against each other
     expect(labels('zh')).not.toEqual(labels('en'))
-    expect(labels('ru')).not.toEqual(labels('ja'))
   })
 
   it('every top-level item\'s copy comes from the dictionaries, with no empty label', () => {
@@ -88,7 +87,7 @@ describe('buildMenuTemplate', () => {
 
   it('"Check for Updates…" sits directly below "About Agentshed", in the in-app language (app-update::REQ-005)', () => {
     expect(appItems('en')[1].label).toBe('Check for Updates…')
-    expect(appItems('fr')[1].label).toBe('Rechercher les mises à jour…')
+    expect(appItems('zh')[1].label).toBe('检查更新…')
     for (const lang of LANGUAGES) {
       const items = appItems(lang)
       expect(items[0].role, lang).toBe('about')
@@ -117,7 +116,7 @@ describe('buildMenuTemplate', () => {
       expect(item.label, lang).toBe(dictOf(lang).menu.searchSessions)
     }
     expect(editItems('en').at(-1)?.label).toBe('Search Sessions…')
-    expect(editItems('fr').at(-1)?.label).toBe('Rechercher dans les sessions…')
+    expect(editItems('zh').at(-1)?.label).toBe('搜索会话…')
     expect(new Set(LANGUAGES.map((l) => editItems(l).at(-1)?.label)).size).toBe(LANGUAGES.length)
     // No other entry in the template names the same accelerator string (the installed menu's check, with the
     // chord normalised and the roles' own accelerators included, is the global search e2e's)

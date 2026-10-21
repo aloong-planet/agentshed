@@ -6,16 +6,17 @@
        徽标,并给一句可复制的话让用户发给对应 agent,由 agent 自己删除(实测 Claude Code 会自行
        备份、保持文件合法并提示回写竞态;竞态的兜底是幂等重发)。
      问题:①提示卡长什么样——失效原因句开卡、影响说明、发给 agent 的一句话;②三侧全占/单侧时
-       原因句与提示句的徽标是否跟随;③六语文案在此宽度下的换行形态;④复制按钮的图标——已定稿
+       原因句与提示句的徽标是否跟随;③两种语言的文案在此宽度下的换行形态;④复制按钮的图标——已定稿
        (2026-08-23 选 Lucide copy)。
-     文案注:卡内全部文案是本页新写的文案(六语)。失效原因的表述用
+     文案注:卡内全部文案是本页新写的文案(中英两种)。失效原因的表述用
        "目录已不存在(被删除或移动)"——扫描只知道路径不存在,删除与移动无法区分,不得写死一种。
      真实判定来源:失效 = 扫描时该路径已不存在;卡中出现哪些侧 = 该项目记录在哪些 agent 侧;
        语言 = 设置里的语言偏好。app 内无本页 harness 的任何开关;记录侧一组的判定同时写在演示条的说明行里。
+     2026-10-21:界面语言减到中英(ADR-0035),卡内文案随之只留这两种。
      图标注:复制按钮用 Lucide copy(已定稿);全部图标来自 _shared/icons.js。
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness)——「记录侧」
        CC+CX+GK / 仅 CC / 仅 GK。界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关
-       (卡内文案画了全部六种语言);色值取共享主题 _shared/theme.css,
+       (卡内文案画了中英两种语言,即全部界面语言);色值取共享主题 _shared/theme.css,
        本页不自定义 app token。app 窗口的根样式在共享件 _shared/app-window.css 里。
      项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。 -->
 <html lang="zh-CN">
@@ -109,7 +110,7 @@
   </div>
 
 <script>
-// ── 卡内文案(六语,本页新写) ──
+// ── 卡内文案(中英,本页新写) ──
 const PATH = '/Users/you/Projects/removed-experiment-2025';
 const T = {
   zh:{back:'返回项目列表', stale:'失效',
@@ -123,31 +124,7 @@ const T = {
     fx:'Removing the records takes this row off the list; token totals and the trend are unaffected (the statistics are independent of the registries).',
     llmHow:(b)=>`Send this line to ${b} and let each of them delete it themselves:`,
     llmPrompt:(p)=>`My project "${p}" is stale (the directory no longer exists) — please remove its records from your configuration.`,
-    copied:'Copied' },
-  fr:{back:'Retour aux projets', stale:'Obsolète',
-    cause:(b)=>`Cause : le répertoire du projet n’existe plus (supprimé ou déplacé), alors que le registre ${b} l’enregistre encore.`,
-    fx:'Une fois les enregistrements supprimés, la ligne disparaît de la liste ; les totaux de tokens et la tendance ne changent pas (les statistiques sont indépendantes des registres).',
-    llmHow:(b)=>`Envoyez cette phrase à ${b} et laissez chacun supprimer l’enregistrement lui-même :`,
-    llmPrompt:(p)=>`Mon projet « ${p} » est obsolète (le répertoire n’existe plus) — merci de supprimer ses enregistrements de ta configuration.`,
-    copied:'Copié' },
-  ru:{back:'К списку проектов', stale:'Устарел',
-    cause:(b)=>`Причина: каталог проекта больше не существует (удалён или перемещён), но реестр ${b} всё ещё его записывает.`,
-    fx:'После удаления записей строка исчезнет из списка; итоги токенов и тренд не изменятся (статистика не зависит от реестров).',
-    llmHow:(b)=>`Отправьте эту фразу ${b} — пусть каждый сам удалит запись:`,
-    llmPrompt:(p)=>`Мой проект «${p}» устарел (каталога больше нет) — удали, пожалуйста, его записи из своей конфигурации.`,
-    copied:'Скопировано' },
-  es:{back:'Volver a proyectos', stale:'Obsoleto',
-    cause:(b)=>`Motivo: el directorio del proyecto ya no existe (borrado o movido), pero el registro de ${b} aún lo recuerda.`,
-    fx:'Al eliminar los registros, la fila desaparece de la lista; los totales de tokens y la tendencia no cambian (las estadísticas son independientes de los registros).',
-    llmHow:(b)=>`Envía esta frase a ${b} y deja que cada uno borre el registro él mismo:`,
-    llmPrompt:(p)=>`Mi proyecto «${p}» está obsoleto (el directorio ya no existe): elimina sus registros de tu configuración, por favor.`,
-    copied:'Copiado' },
-  ja:{back:'プロジェクト一覧へ', stale:'失効',
-    cause:(b)=>`失効の理由:プロジェクトのディレクトリが存在しません(削除または移動)。一方 ${b} のレジストリには記録が残っています。`,
-    fx:'記録を削除するとこの行はリストから消えます。トークン累計とトレンドは影響を受けません(統計はレジストリと独立)。',
-    llmHow:(b)=>`この一文を ${b} に送り、それぞれ自分で削除してもらいます:`,
-    llmPrompt:(p)=>`プロジェクト「${p}」は失効しています(ディレクトリが存在しません)。あなたの設定からその記録を削除してください。`,
-    copied:'コピーしました' }
+    copied:'Copied' }
 };
 // 图标已定稿(2026-08-23 选 Lucide copy),取自共享图标表 _shared/icons.js
 const COPY_SVG = ICONS.Copy(12);
@@ -172,7 +149,7 @@ function render(){
 }
 DemoDimensions.on('language', (v)=>{
   LANG = v;
-  document.documentElement.lang = {zh:'zh-CN',en:'en',fr:'fr',ru:'ru',es:'es',ja:'ja'}[v];
+  document.documentElement.lang = {zh:'zh-CN',en:'en'}[v];
   render();
 });
 

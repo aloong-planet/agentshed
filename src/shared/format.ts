@@ -7,7 +7,7 @@
 //
 // **Unit symbols (B / KB / MB / ms) are not translated**: they are notation rather than natural
 // language, handled the same way as type notation
-// (`string|null`) and provider names, and do not enter the six dictionaries.
+// (`string|null`) and provider names, and do not enter the dictionaries.
 import { dictOf, type Language } from './i18n'
 
 /**

@@ -186,7 +186,7 @@ renderer's dictionaries.
 ### global-search::CON-004 Copy in every supported language (direct acceptance)
 
 Applies to: every new string — the rail tooltip, the menu item, the page's title, placeholders, hints,
-counts, the reading hint, the failure line, the two exits. Each exists in all six supported languages,
+counts, the reading hint, the failure line, the two exits. Each exists in both supported languages,
 with plural forms through the existing plural rules; no string enumerates the agent sides as a set.
 
 ## Failure modes and boundaries
@@ -307,7 +307,7 @@ with plural forms through the existing plural rules; no string enumerates the ag
   the project is the single back control's own move, to the project's Sessions tab.
 - **The application menu**: the Edit menu gains a separator and "Search Sessions…" with
   CmdOrCtrl+Shift+F; it reaches the renderer the way the Settings item does.
-- **Copy and icons**: dictionary entries in the six languages; the rail label is exempted in the
+- **Copy and icons**: dictionary entries in both languages; the rail label is exempted in the
   shared-UI check's rail-label rule by its rail key, as the other rail labels are ordinary words; the
   magnifier and both chevrons are already in the icon module.
 
