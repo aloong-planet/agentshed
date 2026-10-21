@@ -136,3 +136,10 @@ order). Commit ids before → after: 81952cf → 6f950e9, f064a81 → 7d9d833, 8
 c8b4922 → 12e51ae. Evidence quoted above for the old ids (gate runs, mutations, the independent checks) was produced on
 the pre-rebase trees; the full gate re-run on the rebased tree is recorded below. After the rebase: typecheck exit 0,
 check:lang exit 0, no `topicMeta` left.
+
+## Final full gate on the rebased tree, 8d241d0 (2026-10-21)
+
+The log starts with `HEAD 8d241d06da02c05059b6768318d6687db460bda4` and an empty porcelain status; `verify exit=0`:
+unit 861 passed (1 opt-in skip; fewer than before because main removed the four other languages' tests), script and
+site tests 102, check:ui / check:lang / check:i18n / check:nul passed, e2e 144 passed, smoke SMOKE_OK. The change after
+it is records only (this entry and the checklist's current verification pointing at 8d241d0).
