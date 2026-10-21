@@ -1,0 +1,44 @@
+/* The startup skeleton's placeholders (.sk-ph / .sk-line / .sk-ph-deep / .sk-ph-bar), the pulse, .sk-page and
+   its muted .tab.on, kept by hand. Every rule is scoped under .sk-page, the skeleton's root. */
+.sk-page .sk-ph {
+  display: inline-block;
+  background: var(--line);
+  border-radius: 5px;
+  animation: sk-pulse 1.6s ease-in-out infinite;
+}
+.sk-page .sk-line {
+  white-space: nowrap;
+}
+.sk-page .sk-ph-deep {
+  background: var(--line-strong);
+}
+.sk-page .sk-ph-bar {
+  flex: 1;
+  background: var(--line);
+  border-radius: 2px 2px 0 0;
+  animation: sk-pulse 1.6s ease-in-out infinite;
+}
+@keyframes sk-pulse {
+0%, 100% {
+  opacity: 0.55;
+}
+50% {
+  opacity: 1;
+}
+}
+@media (prefers-reduced-motion: reduce) {
+.sk-page .sk-ph,
+.sk-page .sk-ph-bar {
+  animation: none;
+}
+}
+.sk-page {
+  pointer-events: none;
+}
+.sk-page .tab.on {
+  color: var(--text-2);
+  font-weight: 600;
+  background: var(--bg);
+  border-color: var(--line);
+  border-bottom-color: var(--bg);
+}

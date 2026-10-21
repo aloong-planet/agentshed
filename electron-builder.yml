@@ -17,6 +17,18 @@ files:
   - out
   - package.json
 
+# The release feed, declared for packaging: GitHub Releases of this repository, the feed the app reads (UPDATE_FEED
+# in src/main/update-source.ts; app-update::CON-002). electron-builder writes the update metadata (latest-mac.yml, the
+# file a GitHub feed's updater reads) and the app's app-update.yml only when it knows the provider. Undeclared, it
+# looks for package.json's `repository` (there is none) and for Travis's, AppVeyor's or CircleCI's variables (not
+# GitHub Actions'), then reads `.git/config` as a file, which a git worktree does not have: a packaging there wrote
+# no metadata and said nothing. Packaging passes `--publish never`, so nothing is uploaded from here; the release
+# workflow publishes.
+publish:
+  provider: github
+  owner: aloong-planet
+  repo: agentshed
+
 # Electron fuses (official Security Checklist #19): permanently close several privilege and debug channels
 # on the packaged build.
 # These switches take effect **at packaging time** only and do not affect dev; once closed, an attacker
@@ -37,15 +49,34 @@ electronFuses:
   # measured and work.
   grantFileProtocolExtraPrivileges: false
 
-# v1 ships macOS first as a local DMG (arm64). A local package is signed with the Developer ID Application
-# identity from the keychain and never notarised; `pnpm dist:mac:local` checks for that identity first, because
-# electron-builder skips signing without failing when it finds none, and Apple Silicon kills an unsigned build
-# at launch. Notarisation, a release line and more architectures are on the backlog.
+# macOS ships as one arm64 DMG (ADR-0031), with a ZIP of the same app for the in-app updater (ADR-0032). Both
+# packaging commands run through build/mac-packaging.cjs, the electron-scaffold packaging asset (copied
+# unmodified; docs/ops/mac-signing.md): `pnpm dist:mac:local` signs with the Developer ID Application identity and
+# never notarises, `pnpm dist:mac:release` also notarises and staples the .app before its DMG and ZIP are built,
+# then notarises and staples the DMG. The settings the asset requires are listed in its header, and it checks
+# them at run time before building.
 mac:
   icon: build/icon.icns
   target:
     - target: dmg
       arch: [arm64]
+    # The ZIP electron-updater installs from (macOS updates never install from the DMG), for the same arches
+    - target: zip
+      arch: [arm64]
+  # The ZIP's name: electron-builder takes no zip-specific options, so the mac-wide pattern names it
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
   # electron-builder notarises on its own whenever Apple credentials are in the environment; only an explicit
   # false turns that off.
   notarize: false
+  # The minimum the app declares, as the README and the landing page state (mac-distribution::REQ-001/AC-04)
+  minimumSystemVersion: '12.0'
+
+dmg:
+  # Required by the packaging asset: electron-builder's default name drops the arch of the default
+  # architecture, and every DMG has to map back to its arch
+  artifactName: ${productName}-${version}-mac-${arch}.dmg
+  # Sign the DMG itself with the Developer ID identity (electron-builder leaves DMGs unsigned otherwise); the
+  # asset fails a packaging whose DMG is unsigned, and the release profile notarizes this same file
+  sign: true
+  # The update metadata may list only the ZIPs: the DMG gate staples each DMG after electron-builder hashed it
+  writeUpdateInfo: false

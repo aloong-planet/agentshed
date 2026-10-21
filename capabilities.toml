@@ -1,12 +1,13 @@
 # Cross-skill project facts. IDs, types and field formats are defined by the repo-scaffold
 # skill's capability registry; read and write rules live in the global agent instructions.
 
+client-framework = "electron"
 working-language = "en"
 
 [i18n]
 enabled = true
-source = "src/shared/i18n/"
-enforced-by = ["pnpm typecheck", "pnpm check:i18n"]
+source = ["src/shared/i18n/", "site/src/i18n/"]
+enforced-by = ["pnpm typecheck", "pnpm check:i18n", "pnpm test:site"]
 
 [enumeration-wording-gate]
 enabled = true
@@ -23,10 +24,21 @@ enabled = true
 source = "playwright.config.ts"
 enforced-by = ["pnpm e2e"]
 
+[mutation-testing]
+enabled = false
+
 [theming]
 enabled = true
-source = "src/renderer/src/theme.css"
-enforced-by = ["pnpm check:ui"]
+source = ["src/renderer/src/theme.css", "site/src/styles/global.css"]
+enforced-by = ["pnpm check:ui", "pnpm test:site"]
 
 [macos-distribution]
-enabled = false
+enabled = true
+source = "docs/ops/mac-signing.md"
+enforced-by = ["pnpm dist:mac:release"]
+
+[macos-distribution.profiles.local]
+command = "pnpm dist:mac:local"
+
+[macos-distribution.profiles.release]
+command = "pnpm dist:mac:release"

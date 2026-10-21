@@ -1,0 +1,13 @@
+The gap note in token-stats.test.ts rewritten after 1c51f4d's gateway (F8); the conditions for keeping that gateway's result:
+
+1. Syntax tree without comments, by the TypeScript parser and printer (ast-without-comments.cjs beside this log):
+   $ node ast-without-comments.cjs node_modules/typescript <1c51f4d's token-stats.test.ts> src/main/providers/token-stats.test.ts
+   AST without comments: identical  (exit 0)
+   control, two different files: exit 1
+2. Nothing reads the comment at runtime: it is a file-header comment outside any function; JavaScript has no doctest.
+   $ rg -n "token-stats\.test" --glob '!docs/**' --glob '!node_modules/**' .   -> no match (exit 1)
+   The gates that read test files as text, run on the changed file:
+   $ pnpm check:lang  -> exit 0
+   $ pnpm check:i18n  -> exit 0
+   $ pnpm check:nul   -> exit 0
+3. $ pnpm lint  -> exit 0

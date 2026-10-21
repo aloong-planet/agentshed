@@ -1,0 +1,199 @@
+name: Release
+
+# The macOS release line (docs/specs/mac-distribution.md; the tiers, secrets and pitfalls are in
+# docs/ops/mac-signing.md). Four tiers, chosen by how the run was triggered:
+#   a formal tag (v0.2.0)              release packaging and every gate, then a GitHub release marked Latest, then
+#                                      the R2 mirror and, last, its latest.json (docs/ops/r2-setup.md)
+#   a pre-release tag (v0.1.0-beta.2)  the same, marked Pre-release
+#   a dispatch with `verify` on         the release packaging and every gate; the results stay with the run
+#   a dispatch with `verify` off        the local packaging (signed, never notarized); the results stay with the run
+# scripts/release-workflow.test.mjs guards the job graph and every condition below.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      verify:
+        description: Run the release packaging and every gate, keeping the results only as this run's artifacts
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  # The R2 mirror's download host (mac-distribution::REQ-004), its certificate checked from outside Cloudflare
+  # on 2026-10-17 (ADR-0031)
+  DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+
+jobs:
+  gate:
+    name: macOS packaging and gates
+    runs-on: macos-latest
+    timeout-minutes: 120
+    env:
+      # A secret cannot appear in a step's `if`, so the gate job turns each set of secrets into a boolean first
+      HAS_CSC: ${{ secrets.CSC_LINK != '' && secrets.CSC_KEY_PASSWORD != '' }}
+      HAS_APPLE: ${{ secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
+      # Which packaging runs. It grants no publishing: the publish job's own `if` reads the real event and ref
+      PROFILE: ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.verify)) && 'release' || 'local' }}
+    steps:
+      # Before anything is checked out or built: there is no unsigned build in any tier, and CSC_LINK is never
+      # passed on empty (electron-scaffold's macos-signing.md §4: electron-builder reads an empty one as a path)
+      - name: Require the Developer ID certificate
+        if: env.HAS_CSC != 'true'
+        run: |
+          echo "::error::The CSC_LINK and CSC_KEY_PASSWORD secrets (the Developer ID Application certificate as a base64 .p12, and its password) are not both set. Every macOS package is signed; set them for this repository and run again."
+          exit 1
+      - name: Require the Apple notarization credentials
+        if: env.PROFILE == 'release' && env.HAS_APPLE != 'true'
+        run: |
+          echo "::error::The release packaging notarizes the app and the DMG, but the APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID secrets are not all set. Set them for this repository and run again."
+          exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Before anything is submitted to Apple; it also refuses a version the PRERELEASE test below would misjudge
+      - name: Check the tag against the package version
+        if: github.event_name == 'push'
+        run: node scripts/release-tag.mjs
+      - name: Package (release profile)
+        if: env.PROFILE == 'release'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm dist:mac:release
+      - name: Package (local profile)
+        if: env.PROFILE == 'local'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: pnpm dist:mac:local
+      # The update files with the DMGs: the updater reads the metadata, downloads the ZIP and uses its blockmap for a
+      # partial download (mac-distribution::REQ-001/AC-02)
+      - name: Keep the packages, the update files and Apple's logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: agentshed-macos
+          path: |
+            release/*/*.dmg
+            release/*/*.zip
+            release/*/*.zip.blockmap
+            release/*/*-mac.yml
+            release/*/*.notary-log.json
+          if-no-files-found: error
+      # A failed gate publishes nothing, and keeps whatever logs Apple returned (a rejection's log is in the job log)
+      - name: Keep Apple's logs from a failed run
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: agentshed-macos-failed
+          path: release/*/*.notary-log.json
+          if-no-files-found: ignore
+
+  # The whole artifact set, once the gate job passed, as a draft made public in one step (scripts/publish-release.mjs)
+  publish:
+    name: publish the GitHub release
+    needs: gate
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      # Semver's pre-release: a `-` after the version, which the tag check makes exact (no build metadata)
+      PRERELEASE: ${{ contains(github.ref_name, '-') }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: agentshed-macos
+          path: artifact
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish-release.mjs artifact
+
+  # Formal releases only, by the real event and ref (CON-004): the DMGs to R2 under releases/v<version>/, after the
+  # GitHub release is public (scripts/mirror-release.mjs)
+  mirror:
+    name: mirror the release to R2
+    needs: [gate, publish]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HAS_R2: ${{ secrets.R2_ACCOUNT_ID != '' && secrets.R2_ACCESS_KEY_ID != '' && secrets.R2_SECRET_ACCESS_KEY != '' && secrets.R2_BUCKET != '' }}
+    steps:
+      # Fails rather than skips: a formal release without its mirror is a failed run (CON-003)
+      - name: Require the R2 credentials
+        if: env.HAS_R2 != 'true'
+        run: |
+          echo "::error::The R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET secrets are not all set. They are written by Terraform in aloong-planet/infra (docs/ops/r2-setup.md); apply it and run again."
+          exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: agentshed-macos
+          path: artifact
+      - name: Upload the DMGs to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: node scripts/mirror-release.mjs upload artifact
+
+  # Last: every mirrored file read back through the download host and checked against the gated file, then
+  # latest.json rewritten (REQ-003). After a failed mirror, re-running the failed jobs finishes the release (Failure C1)
+  pointer:
+    name: point latest at the release
+    needs: [gate, mirror]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HAS_R2: ${{ secrets.R2_ACCOUNT_ID != '' && secrets.R2_ACCESS_KEY_ID != '' && secrets.R2_SECRET_ACCESS_KEY != '' && secrets.R2_BUCKET != '' }}
+    steps:
+      # Fails rather than skips: a formal release without its mirror is a failed run (CON-003)
+      - name: Require the R2 credentials
+        if: env.HAS_R2 != 'true'
+        run: |
+          echo "::error::The R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET secrets are not all set. They are written by Terraform in aloong-planet/infra (docs/ops/r2-setup.md); apply it and run again."
+          exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: agentshed-macos
+          path: artifact
+      - name: Check every mirrored file, then rewrite latest.json
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: node scripts/mirror-release.mjs pointer artifact

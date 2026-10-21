@@ -1,0 +1,495 @@
+<!doctype html>
+<!-- A UI prototype · landing-page: Agentshed's download landing page (ADR-0031), the long-page form the
+     owner picked on 2026-10-12 ("L1", after Transfer's landing page): header → hero with the download →
+     features → install steps → download section → footer. Chinese and English only. The features scroll by
+     (owner's call, 2026-10-13): four text steps on the left move with the page, one screenshot frame on the
+     right stays put and shows the step nearest its middle, and clicking a step scrolls to it.
+
+     What it asks: does this page structure, and the three download states, read right? The page decides in the
+     visitor's browser, so a release never needs a site change (owner's calls, 2026-10-13):
+       · the R2 latest pointer reads → a formal release exists: the download goes to the R2 mirror, with GitHub as
+         the fallback link;
+       · no pointer on R2 (the first release is v0.1.0-beta, and R2 holds formal releases only), or the pointer
+         cannot be read (offline, blocked, malformed) → GitHub's public releases API is read instead: its latest
+         formal release if there is one (the formal state, every link on GitHub — this also covers the minutes
+         between a formal release and its pointer), else its newest pre-release, said plainly to be a test version;
+       · neither can be read → the download goes to GitHub's release list with no version named. The page's first
+         paint, before its script runs, is this state too.
+
+     Screenshots (shots/, 2026-10-13) are taken from the built app over the owner's own agent data, at the
+     owner's choice: 1280×800 window, light appearance, 2× pixels, one set per language. The hero keeps the whole
+     window. The four feature shots are cut, at the owner's choice, to the part of the window each step is about,
+     all to one size (920×517pt, 16:9) so the text keeps one size as the frame switches: about 0.7 of its size
+     in the app, against 0.5 for the whole window. 920pt is the narrowest that holds the token page's trend chart
+     and per-model figures whole. Each cut ends between list rows, and the token cut stops short of the
+     recent-sessions list, which would show the current conversation's title.
+     The app icon is the production artwork with its transparent exterior, the file the app itself ships; its
+     shadow follows the icon's own outline (owner's call, 2026-10-18 — a shadow around the image's square box
+     showed the transparent margin as a light tile).
+
+     演示基建(data-demo-harness,非设计的一部分,勿实现):底部悬浮条切换下载状态(仅测试版 / 有正式版 /
+     有正式版但 R2 读不到 / 两处都读不到;四选一,分成两组以便窄屏一行放得下),它在页面上由什么决定写在演示条的
+     说明行里;页面上没有这个控件。
+     明暗跟随画廊统一设置所选,统一设置在这里代替访客系统的 prefers-color-scheme,本页不设明暗开关。
+     中 / EN 切换是设计本身(页头右上角),不属于演示基建,也不跟随统一设置里的界面语言:落地页只有中、英两种。
+     根样式写在 body 上:本页画的是一张网页而不是 app 窗口,body 上的底色、文字色与字体就是这张网页自己的根样式,
+     不是要挂到 app 窗口容器上的那种。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 — 落地页</title>
+<link rel="stylesheet" href="../_shared/theme.css">
+<style>
+  /* The page's own tokens, on top of the shared theme's purple palette (the default); light and dark each
+     declared */
+  html[data-demo-mode="light"]{
+    --bg-soft:#f0f1f3;
+    --shot-a:#ece7f3; --shot-b:#f6f3fa;
+    --shadow:0 18px 50px rgba(55,53,47,.16);
+    --icon-shadow:0 18px 25px rgba(55,53,47,.18);
+  }
+  html[data-demo-mode="dark"]{
+    --bg-soft:#1c1d20;
+    --shot-a:#26232d; --shot-b:#2e2a36;
+    --shadow:0 18px 50px rgba(0,0,0,.55);
+    --icon-shadow:0 18px 25px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,"PingFang SC","Hiragino Sans",system-ui,sans-serif}
+  a{color:inherit}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* ── Header ── */
+  header{position:sticky;top:0;z-index:20;background:color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:22px;height:58px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;text-decoration:none}
+  .brand img{width:28px;height:28px;border-radius:7px}
+  nav.links{display:flex;gap:18px;margin-left:auto;font-size:14px;color:var(--text-2)}
+  nav.links a{text-decoration:none}
+  nav.links a:hover{color:var(--accent)}
+  .lang{display:inline-flex;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden}
+  .lang button{font:inherit;font-size:13px;padding:4px 10px;border:0;background:transparent;color:var(--text-2);cursor:pointer}
+  .lang button:hover{color:var(--text);background:var(--bg-soft)}
+  .lang button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+
+  /* ── Buttons ── */
+  .btn{display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:600;border-radius:10px;
+    padding:12px 22px;text-decoration:none;cursor:pointer;border:1px solid transparent;white-space:nowrap}
+  .btn-primary{background:var(--accent);color:var(--card)}
+  .btn-primary:hover{background:var(--accent-deep)}
+  .btn-ghost{border-color:var(--line-strong);background:var(--card);color:var(--text)}
+  .btn-ghost:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .btn-sm{padding:7px 16px;font-size:14px}
+  .pill{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;
+    background:var(--warn-bg);color:var(--warn-fg);vertical-align:middle}
+
+  /* ── Hero ── */
+  /* padding-block, not the padding shorthand: the shorthand zeroed the side gutter .wrap gives this element */
+  .hero{padding-block:72px 40px;text-align:center}
+  /* A drop shadow, not a box shadow: it follows the icon's outline, so the transparent margin round the artwork
+     stays invisible instead of reading as a tile */
+  .hero .icon{width:112px;height:112px;filter:drop-shadow(var(--icon-shadow))}
+  .hero h1{font-size:44px;line-height:1.15;margin:22px 0 12px;letter-spacing:-.01em}
+  .hero .lede{font-size:18px;color:var(--text-2);max-width:720px;margin:0 auto 28px}
+  .cta{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .cta .meta{font-size:13px;color:var(--text-2)}
+  .cta .beta-note{font-size:13px;color:var(--warn-fg);max-width:520px}
+  .cta .alt{font-size:13px;color:var(--text-2)}
+  .cta .alt a{color:var(--accent)}
+
+  /* A screenshot placeholder framed as an app window */
+  .shot{border:1px solid var(--line-strong);border-radius:14px;background:linear-gradient(135deg,var(--shot-a),var(--shot-b));
+    box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+  .shot .chrome{height:28px;display:flex;align-items:center;gap:6px;padding:0 12px;background:var(--card);border-bottom:1px solid var(--line)}
+  .shot .chrome i{width:10px;height:10px;border-radius:50%;background:var(--line-strong)}
+  /* The tags carry width and height so the space is held before an image loads: without them, switching
+     language swapped in unloaded screenshots, everything above collapsed and the page jumped a step */
+  .shot img{display:block;width:100%;height:auto}
+  .hero .shot{max-width:960px;margin:48px auto 0}
+
+  /* ── Sections ── */
+  section{padding:64px 0}
+  section.soft{background:var(--bg-soft)}
+  .sec-title{font-size:28px;text-align:center;margin-bottom:8px}
+  .sec-sub{color:var(--text-2);text-align:center;margin-bottom:36px}
+  /* Features scroll by: the text steps on the left move with the page while the screenshot frame on the right
+     stays put and shows the step whose text sits nearest its middle. Each step is about a third of a screen
+     tall, so the steps either side of the current one stay in view and the column reads as a list to pick
+     from (at 60vh only the current step was on screen). Phones lose the sticky frame and every step carries
+     its own screenshot. */
+  .fs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.9fr);gap:56px;align-items:start}
+  .fs-step{min-height:34vh;display:flex;align-items:center}
+  .fs-item{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:none;border:0;
+    border-left:3px solid var(--line);padding:8px 0 8px 20px;cursor:pointer}
+  .fs-item .fs-h{display:block;font-size:22px;font-weight:700;line-height:1.3;margin-bottom:10px;color:var(--text-2)}
+  .fs-item .fs-p{display:block;color:var(--text-2)}
+  .fs-item:hover{border-left-color:var(--line-strong)}
+  .fs-item:hover .fs-h{color:var(--text)}
+  /* After :hover, at the same specificity, so the current step keeps its accent while hovered */
+  .fs-item.on{border-left-color:var(--accent)}
+  .fs-item.on .fs-h{color:var(--text)}
+  .fs-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  /* Centred under the 58px header for a frame about 390px tall, and never tucked under the header */
+  .fs-panel{position:sticky;top:max(76px, calc(50vh - 164px))}
+  /* The four screenshots share one cell, so they must share one shape (16:9): a shorter one left a strip */
+  .fs-stack{display:grid}
+  /* visibility as well as opacity: a transparent screenshot would still lie on top and take the pointer */
+  .fs-stack img{grid-area:1/1;opacity:0;visibility:hidden;transition:opacity .3s, visibility 0s .3s}
+  .fs-stack img.on{opacity:1;visibility:visible;transition:opacity .3s}
+  .fs-step .m-shot{display:none}
+  @media (prefers-reduced-motion:reduce){ .fs-stack img, .fs-stack img.on{transition:none} }
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .step .n{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;
+    display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+  .step h4{font-size:16px;margin-bottom:6px}
+  .step p{color:var(--text-2);font-size:14px}
+
+  .dl{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 22px}
+  .dl-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 0;flex-wrap:wrap}
+  .dl-row + .dl-row{border-top:1px solid var(--line)}
+  .dl-label b{display:block}
+  .dl-label span{font-size:13px;color:var(--text-2)}
+  .dl-actions{display:flex;gap:10px}
+
+  footer{border-top:1px solid var(--line);padding:28px 0;color:var(--text-2);font-size:13px}
+  footer .wrap{display:flex;gap:18px;flex-wrap:wrap}
+  footer a{color:var(--text-2)}
+
+  .note{max-width:1080px;margin:0 auto 90px;padding:14px 18px;border:1px dashed var(--line-strong);border-radius:12px;
+    font-size:13px;color:var(--text-2);line-height:1.6}
+  .note b{color:var(--text)}
+
+  @media (max-width:760px){
+    .hero h1{font-size:32px}
+    .fs{grid-template-columns:1fr;gap:44px}
+    .fs-panel{display:none}
+    .fs-step{min-height:0;display:block}
+    /* Without a gap the next step's title sat right under the previous screenshot and read as its caption */
+    .fs-list{display:flex;flex-direction:column;gap:44px}
+    .fs-item{border-left:0;padding:0;cursor:default}
+    .fs-item .fs-h{color:var(--text)}
+    .fs-step .m-shot{display:flex;margin-top:18px}
+    .steps{grid-template-columns:1fr}
+    nav.links{display:none}
+    .lang{margin-left:auto}
+  }
+  /* Phones: the label takes its own line and the buttons share the full width below it, as on Transfer's
+     page. "Download the test version from GitHub" outgrew the card at 400px when it had to fit beside the
+     label (measured: 11px past the card's content edge). */
+  @media (max-width:560px){
+    .dl-row{flex-direction:column;align-items:stretch;gap:10px}
+    .dl-actions .btn{flex:1;justify-content:center;white-space:normal;text-align:center}
+  }
+</style>
+<script src="../manifest.js"></script>
+<script src="../app-identity.js"></script>
+<script src="../dimensions.js"></script>
+<script src="../demo-dimensions.js" data-follow="mode"></script>
+</head>
+<body>
+  <header>
+    <div class="wrap bar">
+      <a class="brand" href="#top"><img src="../../../build/icon.png" alt=""><span>Agentshed</span></a>
+      <nav class="links" id="navLinks"></nav>
+      <span class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="zh">中文</button>
+        <button type="button" data-lang="en">EN</button>
+      </span>
+    </div>
+  </header>
+  <main id="page"></main>
+
+  <div data-demo-harness id="demoBar">
+    <span class="dh-tag">Demo ·</span>
+    <div class="dh-group"><span class="dh-title">下载状态</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-rel="beta" aria-pressed="true">仅测试版 0.1.0-beta</button>
+      <button type="button" class="dh-opt" data-rel="formal" aria-pressed="false">有正式版 0.2.0</button>
+    </div></div>
+    <div class="dh-group"><span class="dh-title">读取失败</span><div class="dh-opts">
+      <button type="button" class="dh-opt" data-rel="formalGh" aria-pressed="false">有正式版,R2 读不到</button>
+      <button type="button" class="dh-opt" data-rel="unknown" aria-pressed="false">两处都读不到</button>
+    </div></div>
+    <p class="dh-note">下载状态在落地页上由访客浏览器能否读到 R2 上正式版的 latest 指针决定,读不到时看能否从 GitHub 公开接口读到正式版或测试版;首发时只有测试版;两处都读不到(断网等)也是页面脚本执行前的样子;页面上没有这个开关。</p>
+  </div>
+
+<script>
+  /** Lucide download, copied from lucide-static 1.55.0 */
+  const ICON_DOWNLOAD = (s) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>`
+
+  const REPO = 'https://github.com/aloong-planet/agentshed'
+  /** The download host, its certificate checked from outside Cloudflare on 2026-10-17 (ADR-0031) */
+  const DL_HOST = 'https://dl.agentshed.aloongplanet.com'
+  const RELEASES = {
+    beta: { formal: null, pre: '0.1.0-beta' },
+    formal: { formal: '0.2.0', pre: null },
+    formalGh: { formal: '0.2.0', pre: null, viaGithub: true },
+    unknown: { formal: null, pre: null },
+  }
+
+  const T = {
+    zh: {
+      htmlLang: 'zh-CN',
+      nav: ['功能', '安装', '下载', 'GitHub'],
+      title: '你的 coding agent 工具棚',
+      lede: '一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，烧了多少 token，攒下哪些文档；还能把全局 skill 装进任意项目。',
+      download: (v) => `下载 Agentshed ${v}`,
+      downloadBeta: (v) => `下载测试版 ${v}`,
+      testPill: '测试版',
+      meta: 'macOS 12 及以上 · Apple Silicon',
+      betaNote: '正式版尚未发布。测试版从 GitHub 下载，可能还有不稳定之处。',
+      allVersions: '在 GitHub 查看所有版本',
+      shotHero: 'Agentshed 的 Agents 总览',
+      featTitle: '一个应用，看清全部',
+      featSub: '它只读取你本机上 coding agent 留下的文件。',
+      feats: [
+        ['全局总览', '每个 coding agent 装了什么、一共烧了多少 token，打开就是全景。', 'overview', '所有 agent 侧的 skills 合并在一张表里'],
+        ['每个项目装了什么', 'skills、subagents、plugins、MCP 与配置，按项目实际生效的样子列出来。', 'project', '一个项目的 Skills 页'],
+        ['Token 用量与趋势', '按天、按项目、按模型拆开看，历史用量本地存档，不怕 agent 自己清理会话。', 'tokens', '一个项目的 token 总量、趋势与按模型拆分'],
+        ['会话回看', '按提问索引一次会话，点开整轮看工具调用与子任务，支持搜索。', 'session', '会话页：提问索引与展开的一整轮'],
+      ],
+      installTitle: '安装',
+      steps: [
+        ['下载 DMG', '下载适用于 Apple Silicon 的安装包。'],
+        ['拖进「应用程序」', '打开 DMG，把 Agentshed 拖到「应用程序」文件夹。'],
+        ['首次打开', 'macOS 会提示「Apple 已检查，未发现恶意软件」，点「打开」即可。之后有新版本时，应用左下角会出现更新按钮。'],
+      ],
+      dlTitle: '下载',
+      dlSub: (v) => `当前版本 ${v}`,
+      dlSubBeta: (v) => `当前只有测试版 ${v}`,
+      dlLabel: 'macOS · Apple Silicon',
+      dlLabelSub: 'macOS 12 及以上，M 系列芯片',
+      dlPrimary: '下载',
+      dlGithub: 'GitHub',
+      dlBeta: '从 GitHub 下载测试版',
+      downloadGithub: '前往 GitHub 下载 Agentshed',
+      dlSubUnknown: '暂时读不到版本信息，可前往 GitHub 下载',
+      dlGithubAll: '前往 GitHub 下载',
+      foot: ['GitHub', '版本发布', '© 2026 aloongplanet'],
+    },
+    en: {
+      htmlLang: 'en',
+      nav: ['Features', 'Install', 'Download', 'GitHub'],
+      title: 'The tool shed for your coding agents',
+      lede: 'See, across every project, which skills, plugins and MCP servers Claude Code, Codex and other coding agents have installed, how many tokens they burned and which documents they left — and install skills from your global library into any project.',
+      download: (v) => `Download Agentshed ${v}`,
+      downloadBeta: (v) => `Download test version ${v}`,
+      testPill: 'Test version',
+      meta: 'macOS 12 or later · Apple Silicon',
+      betaNote: 'No stable release yet. The test version downloads from GitHub and may still be rough in places.',
+      allVersions: 'See every version on GitHub',
+      shotHero: 'The Agents overview in Agentshed',
+      featTitle: 'One app, the whole picture',
+      featSub: 'It only reads the files your coding agents leave on your Mac.',
+      feats: [
+        ['The overview', 'What every coding agent has installed and how many tokens it has burned, as soon as you open it.', 'overview', 'Every agent side’s skills in one merged list'],
+        ['What each project has', 'Skills, subagents, plugins, MCP servers and configuration, listed as they actually take effect in that project.', 'project', 'A project’s Skills tab'],
+        ['Token usage and trends', 'Split by day, project and model, with history kept locally even after an agent cleans up its own sessions.', 'tokens', 'A project’s token totals, trend and per-model split'],
+        ['Sessions, revisited', 'Each session indexed by question; open a whole turn to see its tool calls and subagents, or search.', 'session', 'The session page: the question index with one whole turn open'],
+      ],
+      installTitle: 'Install',
+      steps: [
+        ['Download the DMG', 'Get the installer for Apple Silicon.'],
+        ['Drag to Applications', 'Open the DMG and drag Agentshed into your Applications folder.'],
+        ['Open it', 'macOS says “Apple checked it for malicious software and none was detected” — click Open. When a new version comes out, an update button appears at the bottom left of the app.'],
+      ],
+      dlTitle: 'Download',
+      dlSub: (v) => `Current version ${v}`,
+      dlSubBeta: (v) => `Only a test version so far: ${v}`,
+      dlLabel: 'macOS · Apple Silicon',
+      dlLabelSub: 'macOS 12 or later, M-series chips',
+      dlPrimary: 'Download',
+      dlGithub: 'GitHub',
+      dlBeta: 'Download the test version from GitHub',
+      downloadGithub: 'Download Agentshed from GitHub',
+      dlSubUnknown: 'Version details can’t be loaded right now — download from GitHub',
+      dlGithubAll: 'Download from GitHub',
+      foot: ['GitHub', 'Releases', '© 2026 aloongplanet'],
+    },
+  }
+
+  let lang = 'zh'
+  let rel = 'beta'
+  /** The feature step the screenshot frame shows; kept across re-renders so switching language keeps the place */
+  let feat = 0
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  const dmg = (v) => `Agentshed-${v}-mac-arm64.dmg`
+
+  function render() {
+    const d = T[lang]
+    const r = RELEASES[rel]
+    document.documentElement.lang = d.htmlLang
+    document.querySelectorAll('.lang button').forEach((b) => b.classList.toggle('on', b.dataset.lang === lang))
+    const anchors = ['#features', '#install', '#download', REPO]
+    document.getElementById('navLinks').innerHTML = d.nav.map((n, i) =>
+      `<a href="${anchors[i]}"${i === 3 ? ' target="_blank" rel="noopener"' : ''}>${esc(n)}</a>`).join('')
+
+    const githubDmg = r.formal && `${REPO}/releases/download/v${r.formal}/${dmg(r.formal)}`
+    // R2 unreadable but GitHub has a formal release: the same state, with every link on GitHub
+    const formalUrl = r.formal && (r.viaGithub ? githubDmg : `${DL_HOST}/releases/v${r.formal}/${dmg(r.formal)}`)
+    const betaUrl = r.pre && `${REPO}/releases/tag/v${r.pre}`
+    const listUrl = `${REPO}/releases`
+    const heroCta = r.formal
+      ? `<a class="btn btn-primary" href="${formalUrl}">${ICON_DOWNLOAD(18)} ${esc(d.download(r.formal))}</a>
+         <div class="meta">${esc(d.meta)}</div>
+         <div class="alt"><a href="${listUrl}" target="_blank" rel="noopener">${esc(d.allVersions)}</a></div>`
+      : r.pre
+        ? `<a class="btn btn-primary" href="${betaUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(18)} ${esc(d.downloadBeta(r.pre))}</a>
+           <div class="meta"><span class="pill">${esc(d.testPill)}</span> ${esc(d.meta)}</div>
+           <div class="beta-note">${esc(d.betaNote)}</div>`
+        // Neither source read: no version is named, since none is known
+        : `<a class="btn btn-primary" href="${listUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(18)} ${esc(d.downloadGithub)}</a>
+           <div class="meta">${esc(d.meta)}</div>`
+
+    const dlActions = r.formal
+      ? `<a class="btn btn-primary btn-sm" href="${formalUrl}">${ICON_DOWNLOAD(15)} ${esc(d.dlPrimary)}</a>${r.viaGithub ? '' : `
+         <a class="btn btn-ghost btn-sm" href="${githubDmg}" target="_blank" rel="noopener">${esc(d.dlGithub)}</a>`}`
+      : r.pre
+        ? `<a class="btn btn-primary btn-sm" href="${betaUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(15)} ${esc(d.dlBeta)}</a>`
+        : `<a class="btn btn-primary btn-sm" href="${listUrl}" target="_blank" rel="noopener">${ICON_DOWNLOAD(15)} ${esc(d.dlGithubAll)}</a>`
+    const dlSub = r.formal
+      ? esc(d.dlSub(r.formal))
+      : r.pre ? `<span class="pill">${esc(d.testPill)}</span> ${esc(d.dlSubBeta(r.pre))}` : esc(d.dlSubUnknown)
+
+    document.getElementById('page').innerHTML = `
+      <div class="hero wrap" id="top">
+        <img class="icon" src="../../../build/icon.png" alt="">
+        <h1>${esc(d.title)}</h1>
+        <p class="lede">${esc(d.lede)}</p>
+        <div class="cta">${heroCta}</div>
+        <div class="shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/hero-${lang}.png" width="2560" height="1536" alt="${esc(d.shotHero)}"></div>
+      </div>
+
+      <section class="soft" id="features">
+        <div class="wrap">
+          <h2 class="sec-title">${esc(d.featTitle)}</h2>
+          <p class="sec-sub">${esc(d.featSub)}</p>
+          <div class="fs">
+            <div class="fs-list">
+              ${d.feats.map(([h, p, img, alt], i) => `
+                <div class="fs-step">
+                  <button type="button" class="fs-item${i === feat ? ' on' : ''}" data-i="${i}"><span class="fs-h">${esc(h)}</span><span class="fs-p">${esc(p)}</span></button>
+                  <div class="shot m-shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/${img}-${lang}.png" width="1840" height="1035" alt="${esc(alt)}" loading="lazy"></div>
+                </div>`).join('')}
+            </div>
+            <div class="shot fs-panel"><div class="chrome"><i></i><i></i><i></i></div>
+              <div class="fs-stack">${d.feats.map(([, , img, alt], i) => `<img class="${i === feat ? 'on' : ''}" src="shots/${img}-${lang}.png" width="1840" height="1035" alt="${esc(alt)}">`).join('')}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="install">
+        <div class="wrap">
+          <h2 class="sec-title">${esc(d.installTitle)}</h2>
+          <p class="sec-sub"></p>
+          <div class="steps">
+            ${d.steps.map(([h, p], i) => `<div class="step"><div class="n">${i + 1}</div><h4>${esc(h)}</h4><p>${esc(p)}</p></div>`).join('')}
+          </div>
+        </div>
+      </section>
+
+      <section class="soft" id="download">
+        <div class="wrap">
+          <h2 class="sec-title">${esc(d.dlTitle)}</h2>
+          <p class="sec-sub">${dlSub}</p>
+          <div class="dl">
+            <div class="dl-row">
+              <div class="dl-label"><b>${esc(d.dlLabel)}</b><span>${esc(d.dlLabelSub)}</span></div>
+              <div class="dl-actions">${dlActions}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer><div class="wrap">
+        <a href="${REPO}" target="_blank" rel="noopener">${esc(d.foot[0])}</a>
+        <a href="${REPO}/releases" target="_blank" rel="noopener">${esc(d.foot[1])}</a>
+        <span>${esc(d.foot[2])}</span>
+      </div></footer>
+
+      <div class="note">
+        <b>验收</b>：① 切「下载状态」看三种首屏：仅测试版时按钮指向 GitHub 的测试版、标「测试版」并说明正式版未发布；
+        有正式版时指向 R2 镜像（下载区另给 GitHub 兜底）；有正式版但 R2 读不到时同一外观、链接全在 GitHub（下载区只剩一个按钮）；
+        两处都读不到时指向 GitHub 版本列表、不标版本号② 中 / EN 切换在右上角 ③ 窄屏（&lt;760px）单栏、导航收起
+        ④ 浅色 / 深色都看(在画廊的统一设置里切换) ⑤ 截图是 2026-10-13 从打包后的应用实拍的，用的是你本机的真实数据（项目名、路径、用量、会话提问都会随页面公开）；
+        Hero 是整窗，功能区四张统一裁到该段相关的区域、同一放大倍数，切换时字号不变
+        ⑥ 功能区往下滚：左侧四段文字随页面移动，右侧截图框停在原处，显示离它中线最近的那段；点左侧某段会滚到该段；窄屏没有固定框，每段文字下面直接跟自己的截图。<br>
+        <b>已确认（2026-10-13）</b>：
+        (a) 页面结构：Hero → 功能区（总览 / 项目 / Token / 会话，左文右图滚动联动）→ 安装三步 → 下载 → 页脚；
+        (b) 文案不把 agent 侧当全集列出（「Claude Code、Codex 等」），新增一侧时不用改；
+        (c) 保留功能区副标题「它只读取你本机上 coding agent 留下的文件」（落地页上的卖点，与应用内不写的「联网说明」是两回事）；
+        (d) 安装第 3 步提前告诉用户首次打开的系统提示是正常的，并提到左下角的更新按钮；
+        (e) 落地页在运行时读取 R2 上的正式版 latest 指针；没有指针或读不到时改读 GitHub 公开接口——有正式版取最新正式版，
+        没有才取最新测试版；发版时不用改站点；
+        (g) 功能区截图裁到该段相关的区域，统一放大倍数；截图可以公开。<br>
+        <b>2026-10-13 按你的答复加入，待看原型确认</b>：(h) 两处都读不到（断网等）时按钮指向 GitHub 版本列表、不标版本号，
+        页面脚本执行前的初始状态也是它；(i) R2 读不到但 GitHub 上有正式版时，按正式版显示、链接全在 GitHub（见验收 ①）。<br>
+        <b>已定</b>：(f) 下载域名为 dl.agentshed.aloongplanet.com，证书已于 2026-10-17 从 Cloudflare 外部检查通过（ADR-0031）。<br>
+        <b>演示基建</b>：底部悬浮条不是设计的一部分，勿实现。
+      </div>`
+  }
+
+  /** The sticky frame is hidden on phones, where every step shows its own screenshot */
+  const fsPanel = () => {
+    const p = document.querySelector('.fs-panel')
+    return p && getComputedStyle(p).display !== 'none' ? p : null
+  }
+  function showFeat(i) {
+    feat = i
+    document.querySelectorAll('.fs-item').forEach((b) => b.classList.toggle('on', Number(b.dataset.i) === i))
+    document.querySelectorAll('.fs-stack img').forEach((im, j) => im.classList.toggle('on', j === i))
+  }
+  /** The frame shows the step whose text sits nearest its middle */
+  function syncFeat() {
+    const panel = fsPanel()
+    if (!panel) return
+    const pr = panel.getBoundingClientRect()
+    const mid = pr.top + pr.height / 2
+    let best = feat
+    let dist = Infinity
+    document.querySelectorAll('.fs-item').forEach((b) => {
+      const r = b.getBoundingClientRect()
+      const d = Math.abs(r.top + r.height / 2 - mid)
+      if (d < dist) { dist = d; best = Number(b.dataset.i) }
+    })
+    if (best !== feat) showFeat(best)
+  }
+  let ticking = false
+  const onScroll = () => {
+    if (ticking) return
+    ticking = true
+    requestAnimationFrame(() => { ticking = false; syncFeat() })
+  }
+  addEventListener('scroll', onScroll, { passive: true })
+  addEventListener('resize', onScroll)
+  /** Clicking a step scrolls it level with the stuck frame's middle; the scroll itself then switches the screenshot */
+  document.getElementById('page').addEventListener('click', (e) => {
+    const b = e.target.closest('.fs-item')
+    const panel = fsPanel()
+    if (!b || !panel) return
+    const mid = parseFloat(getComputedStyle(panel).top) + panel.offsetHeight / 2
+    const r = b.getBoundingClientRect()
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
+    scrollTo({ top: scrollY + r.top + r.height / 2 - mid, behavior: smooth ? 'smooth' : 'auto' })
+  })
+
+  document.querySelectorAll('.lang button').forEach((b) => { b.onclick = () => { lang = b.dataset.lang; render(); syncFeat() } })
+  // One choice of four, split over two groups so each fits on a phone-width line
+  document.getElementById('demoBar').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rel]')
+    if (!b) return
+    rel = b.dataset.rel
+    document.querySelectorAll('#demoBar [data-rel]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+    render()
+    syncFeat()
+  })
+  render()
+  syncFeat()
+</script>
+<script src="../demo-harness.js"></script>
+</body>
+</html>

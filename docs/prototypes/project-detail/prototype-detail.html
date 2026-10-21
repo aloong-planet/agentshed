@@ -42,38 +42,36 @@
        (总量 8.5M 却 cache 48.2M,而 cache 是计入总量的)。现改为「其中 cache(ccusage 口径
        已计入总量)」,大数字取 cacheRead(与实现一致,此前误取读+写),各侧示例补上 Grok,
        并让四个字段恰好加总为总量(见 ADR-0023:Codex/Grok 不采集 cache 写)。
-     演示基建(非设计的一部分,勿实现):底部悬浮条 [演示·会话分栏] 两态
-       (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。 -->
+     演示基建(非设计的一部分,勿实现):底部悬浮条承载两组——「启动恢复」三档常驻(扫描中 / 完成 / 失败,
+       共享件 _shared/startup-status;真实判定 = 这次启动的扫描是否仍在进行与扫描的结果);「会话分栏」两态
+       (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。每组的真实判定与「app 内无此
+       开关」写在演示条的说明行里。
+     界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关:界面文案(含启动提示、趋势图、
+       token 概览卡)画了中、英两种,其他语言按英文显示并有提示;两页及以上共用的文案取共享文案表
+       _shared/copy.js;评审注解、演示条与 mock 数据保持原样。
+       色值取共享主题 _shared/theme.css,本页不自定义 app token。app 窗口的根样式在共享件 _shared/app-window.css 里。
+     项目栏是共享件 _shared/project-side.{js,css}(与列表页同一个项目栏、同一批 mock 项目;有原型的项目点击即进入)。 -->
 <!-- The fourth total card follows the globally persisted 30 / 60 / 90 day choice; its amount comes from the same daily mock history as the chart. -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>原型 — 项目详情:装了什么</title>
+<link rel="stylesheet" href="../_shared/theme.css">
+<link rel="stylesheet" href="../_shared/app-window.css">
+<link rel="stylesheet" href="../_shared/app-rail.css">
+<link rel="stylesheet" href="../_shared/project-side.css">
+<!-- The sessions tab's search row and hits are a shared piece, drawn the same by global search -->
+<link rel="stylesheet" href="../_shared/session-hits.css">
 <!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
      references it -->
 <link rel="stylesheet" href="../_shared/trend-chart.css?v=linked-span-total">
 <link rel="stylesheet" href="../_shared/totals-card.css">
 <style>
-  :root{--bg:#f7f8f9;--card:#fff;--text:#37352f;--text-2:#787774;--line:#e8eaed;
-    --line-strong:#d9dce0;--accent:#8a67ab;--accent-soft:#f0ebf6;
-    /* 构成三段:命中=蓝 / 未命中=黄 / 输出=绿(用户裁定 2026-08-21)。取值按离 provider
-       色板最远挑过——Google 已占蓝、OpenAI 已占绿,理由与实测 ΔE 见 _shared/totals-card.css */
-    --tc-rd:#2b8fd4;--tc-in:#dda32e;--tc-ou:#57a83e}
-  @media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#1f2124;--text:#e6e6e5;
-    --text-2:#9b9a97;--line:#2a2c30;--line-strong:#34373c;--accent:#a084c7;--accent-soft:#2c2733;
-    --tc-rd:#5fb0e8;--tc-in:#e6bd5c;--tc-ou:#7cc45f}}
+  /* Every app token — surfaces, text, lines, the accent family, the semantic and side colours, and the
+     composition's --tc-* (命中=蓝 / 未命中=黄 / 输出=绿, ruled 2026-08-21; the reasons are in
+     _shared/totals-card.css) — comes from _shared/theme.css for each palette and both modes. This page
+     defines none of them. */
   *{box-sizing:border-box;margin:0;font-family:-apple-system,"PingFang SC",sans-serif}
-  body{display:flex;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px}
-  .rail{width:48px;flex:none;background:var(--card);border-right:1px solid var(--line);
-    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px}
-  .rail .ri{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
-    justify-content:center;font-size:16px;cursor:pointer;color:var(--text-2)}
-  .rail .ri:hover{background:var(--accent-soft)}
-  .rail .ri.on{background:var(--accent-soft);color:var(--accent)}
-  .side{width:230px;flex:none;background:var(--card);border-right:1px solid var(--line);
-    display:flex;flex-direction:column;padding:10px 8px;gap:2px;color:var(--text-2)}
-  .row{padding:7px 10px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row.sel{background:var(--accent-soft);color:var(--text);outline:1px solid var(--accent)}
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
   .head{padding:14px 20px 0;border-bottom:1px solid var(--line)}
   .h1{display:flex;align-items:center;gap:9px}
@@ -82,10 +80,8 @@
   /* Claude 徽章取 Anthropic 品牌橙(--p-anthropic #d97757)的色相,不再是紫:ADR-0021 定的
      「一侧一色、取该侧 provider 色」当时只迁了 Grok,Claude 这半没做。L/C 与 cx/gk 两对同档,
      故 fg-on-bg 对比度也落在同一区间(明 4.50、暗 6.62,既有三对是 4.15–5.19 / 6.39–7.12)。 */
-  .b.c{background:#f9e2da;color:#a05239}.b.x{background:#dcefe4;color:#1f7a4d}
-  .b.g{background:#ece5f6;color:#6d4fa0}
-  @media (prefers-color-scheme:dark){.b.c{background:#4c2d21;color:#f8ac8f}.b.x{background:#1d3a2b;color:#7fd6a4}
-    .b.g{background:#332b47;color:#c9b3ec}}
+  .b.c{background:var(--cl-bg);color:var(--cl-fg)}.b.x{background:var(--cx-bg);color:var(--cx-fg)}
+  .b.g{background:var(--gk-bg);color:var(--gk-fg)}
   .path{font-size:11px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;margin:4px 0 10px}
   .tabs{display:flex;gap:2px}
   .tab{padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;color:var(--text-2);font-size:12.5px}
@@ -102,10 +98,9 @@
   .pill.glb{background:var(--line);color:var(--text-2)}
   .pill.prj{background:var(--accent-soft);color:var(--accent);font-weight:600}
   .pill.ln{border:1px dashed var(--line-strong);color:var(--text-2)}
-  .pill.shadow{background:#fff6b8;color:#5c5100}
+  .pill.shadow{background:var(--note-bg);color:var(--note-fg)}
   .pill.off{border:1px solid var(--line-strong);color:var(--text-2)}
-  .pill.on{background:#dcfce7;color:#166534}
-  @media (prefers-color-scheme:dark){.pill.shadow{background:#3a3316;color:#f0dd8a}.pill.on{background:#12301d;color:#86efac}}
+  .pill.on{background:var(--ok-bg);color:var(--ok-fg)}
   .it.shadowed .nm,.it.shadowed .ds{color:var(--text-2);opacity:.62}
   .src{font-size:10.5px;color:var(--text-2);font-family:ui-monospace,Menlo,monospace;flex:none}
   .cfg-switch{display:flex;gap:6px;margin-bottom:10px}
@@ -159,9 +154,8 @@
   /* The v2 component tabs (Subagents/Memory/Plugins expansions): the same form as the Agents page */
   .it.row-btn{cursor:pointer}
   .it.row-btn:hover{background:var(--accent-soft)}
-  .pill.warn{background:#fdecdc;color:#b3552f}
+  .pill.warn{background:var(--warn-bg);color:var(--warn-fg)}
   .pill.plg{border:1px solid var(--accent);color:var(--accent)}
-  @media (prefers-color-scheme:dark){.pill.warn{background:#3c2417;color:#f0a884}}
   /* The drawer width = min(a fixed width, 80% of the right-hand content area); the content area = the
      viewport minus the rail (48) minus the sidebar (230),
      窄窗时不再盖住整个内容区(2026-08-02 bug) */
@@ -184,11 +178,8 @@
   .note{font-size:11px;color:var(--text-2);margin:-6px 0 10px}
   .sub-list{padding:2px 14px 8px 36px;background:var(--bg);border-bottom:1px solid var(--line)}
   .sub-list .it{padding:6px 0;border-bottom:0}
-  /* The v3 sessions tab: a search row + the session list + hits grouped by session */
-  .sbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-  .sbar input{flex:1;min-width:0;padding:6px 11px;border:1px solid var(--line-strong);border-radius:7px;
-    background:var(--card);color:var(--text);font-size:12.5px;outline:none}
-  .sbar input:focus{border-color:var(--accent)}
+  /* The v3 sessions tab: a search row + the session list + hits grouped by session. The search row and the
+     hits are the shared session-hits piece; the scope toggle and the list rows are this page's own */
   .scope{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;flex:none}
   .scope span{padding:5px 11px;font-size:11.5px;color:var(--text-2);cursor:pointer}
   .scope span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
@@ -200,59 +191,39 @@
   .sess .n,.sess .tok,.sess .d{font-size:11px;color:var(--text-2);flex:none;text-align:right}
   .sess .n{width:56px}.sess .tok{width:48px}.sess .d{width:50px}
   .pill.fork{border:1px solid var(--line-strong);color:var(--text-2)}
-  .pill.forkq{border:1px dashed #d79a5b;color:#b3703a}
+  .pill.forkq{border:1px dashed var(--risk-border);color:var(--risk-fg)}
   .pill.big{background:var(--line);color:var(--text-2)}
   .pill.clean{border:1px dotted var(--line-strong);color:var(--text-2)}
-  @media (prefers-color-scheme:dark){.pill.forkq{border-color:#8a5f34;color:#f0bd8c}}
-  .shead{font-size:11.5px;color:var(--text-2);margin:0 2px 8px;display:flex;align-items:center;gap:10px}
-  .grp{background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:9px}
-  .grp .gh{display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid var(--line);cursor:pointer}
-  .grp .gh:hover{background:var(--accent-soft)}
-  .grp .gh .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-  .hit{display:flex;gap:9px;padding:5px 14px 5px 32px;cursor:pointer;font-variant-numeric:tabular-nums}
-  .hit:hover{background:var(--accent-soft)}
-  .hit .idx{width:20px;flex:none;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-2)}
-  .hit .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hit .d{font-size:11px;color:var(--text-2);flex:none}
-  .hit .bd{font-size:10px;border-radius:4px;padding:0 5px;background:var(--line);color:var(--text-2);flex:none}
-  mark{background:#fff2a8;color:inherit;border-radius:2px;padding:0 1px}
-  @media (prefers-color-scheme:dark){mark{background:#4d451a;color:#f6e9a8}}
-  /* The demo harness (not part of the design) */
-  .harness{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#22252a;
-    color:#c9ccd1;border-radius:999px;padding:5px 8px;display:none;align-items:center;gap:6px;
-    font-size:11px;z-index:40;box-shadow:0 6px 20px rgba(0,0,0,.3)}
-  .harness.on{display:flex}
-  .harness .hl{color:#7f858d;padding:0 4px;white-space:nowrap}
-  .harness .hb{padding:3px 9px;border-radius:999px;cursor:pointer;color:#c9ccd1;white-space:nowrap}
-  .harness .hb.on{background:#4a4f57;color:#fff}
 
 </style>
 <!-- Startup restore: keep the original page and its mock contents. The added bottom switches
      are demo scaffolding, not app controls. A real scan determines the status; nothing is persisted here. -->
 <link rel="stylesheet" href="../_shared/startup-status.css">
+<script src="../dimensions.js"></script>
+<script src="../demo-dimensions.js" data-follow="language=zh,en mode theme"></script>
 <script src="../_shared/startup-status.js"></script>
+<script src="../manifest.js"></script>
+<script src="../app-identity.js"></script>
+<script src="../_shared/icons.js"></script>
+<script src="../_shared/copy.js"></script>
 </head>
 <body>
-  <div class="rail">
-    <div class="ri" title="Agents(默认落地)" data-goto="agents-page/agents" data-goto-href="../agents-page/prototype-agents.html" data-icon="RobotFace" data-icon-size="17"></div>
-    <div class="ri on" title="Projects(回列表)" data-goto="project-list/list" data-goto-href="../project-list/prototype-list.html" data-icon="Folder" data-icon-size="17"></div>
-  </div>
-  <div class="side">
-    <div class="row">agentshed</div><div class="row">chatgpt-token</div>
-    <div class="row">openclaw-v3</div><div class="row sel">Transfer</div>
-    <div class="row">AI-Learning</div><div class="row">aloong-tools</div>
-  </div>
+<div class="app-window" data-shared-block="app-window">
+  <nav class="rail" data-shared-block="app-rail" data-rail-current="projects"></nav>
+  <script src="../_shared/app-rail.js"></script>
+  <aside class="side" data-shared-block="project-side" data-side-selected="Transfer"></aside>
+  <script src="../_shared/project-side.js"></script>
   <div class="main">
     <div class="head">
       <div class="h1"><b>Transfer</b><span class="b c">CLAUDE CODE</span><span class="b x">CODEX</span><span class="b g">GROK</span><span class="startup-hint" data-shared-block="startup-status" role="status"><span data-icon="RefreshCw" data-icon-size="12"></span><span data-startup-label>正在扫描各 agent 侧…</span></span></div>
       <div class="path">~/CascadeProjects/Transfer</div>
       <div class="tabs" id="tabs">
-        <span class="tab on" data-t="ov">概览</span><span class="tab" data-t="skills">Skills</span>
+        <span class="tab on" data-t="ov" data-i18n="tabOverview">概览</span><span class="tab" data-t="skills">Skills</span>
         <span class="tab" data-t="subagents">Subagents</span>
         <span class="tab" data-t="plugins">Plugins</span><span class="tab" data-t="mcp">MCP</span>
         <span class="tab" data-t="memory">Memory</span>
-        <span class="tab" data-t="sessions">会话</span>
-        <span class="tab" data-t="cfg">配置</span><span class="tab" data-t="arts">产物</span>
+        <span class="tab" data-t="sessions" data-i18n="tabSessions">会话</span>
+        <span class="tab" data-t="cfg" data-i18n="tabCfg">配置</span><span class="tab" data-t="arts" data-i18n="tabArts">产物</span>
       </div>
     </div>
     <div class="body">
@@ -261,9 +232,9 @@
         <!-- 与 Agents 页同一个共享视觉块:四张同宽卡 = 四个时间窗口 = 时间筛选器本身。
              点选哪张,下方趋势图(窗口外的日子压暗)与模型拆分就切到哪个窗口。项目级尺度。 -->
         <div data-shared-block="totals-card" id="ovTot"></div>
-        <!-- Global span proposal: inline choices, remembered across prototype pages and reloads. Chinese preview; other language layouts are not covered here. -->
-        <div class="grp-t trend-heading"><span class="trend-span-label">近 <span class="trend-span-options" id="ovspan" role="group" aria-label="趋势天数"></span> 天趋势</span><span>(本地时区 · 日粒度)</span>
-          <span class="seg" id="ovseg"><span class="on">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
+        <!-- Global span proposal: inline choices, remembered across prototype pages and reloads. Drawn in Chinese and English; any other language shows as English. -->
+        <div class="grp-t trend-heading"><span class="trend-span-label"><span data-i18n="trendPrefix">近</span> <span class="trend-span-options" id="ovspan" role="group" aria-label="趋势天数" data-i18n-aria="trendDays"></span> <span data-i18n="trendSuffix">天趋势</span></span><span data-i18n="trendContext">(本地时区 · 日粒度)</span>
+          <span class="seg" id="ovseg"><span class="on" data-i18n="trendTotal">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
         <div class="chart" id="ovchart" data-shared-block="trend-chart"></div>
         <div class="xaxis" id="ovxaxis"></div>
         <div class="legend" id="ovlegend"></div>
@@ -271,92 +242,92 @@
         <div class="models" id="ovmodels"></div>
         <!-- v3: no longer "metadata and no further" — the overview lists the 4 most recent and a row click goes
      straight to the session page; everything else is in the sessions tab -->
-        <div class="grp-t">最近会话(上限 5 条;subagent 与预热会话计 token 但不单独入列)</div>
+        <div class="grp-t"><span data-i18n="recentSessions">最近会话</span>(上限 5 条;subagent 与预热会话计 token 但不单独入列)</div>
         <div class="card">
-          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">MAS 上架支持:构建线与独立 bundle id</span><span class="tok">312k</span><span class="d">3天前</span></div>
-          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">屏幕录制权限 preflight 修复</span><span class="tok">188k</span><span class="d">5天前</span></div>
-          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b x" style="flex:none">CX</span><span class="t">迁移 Claude Code skills 到 Codex</span><span class="tok">96k</span><span class="d">9天前</span></div>
-          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">消息领域模型收敛为单一数据源</span><span class="tok">421k</span><span class="d">12天前</span></div>
-          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">会话导出格式讨论</span><span class="tok">22k</span><span class="d">14天前</span></div>
+          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">MAS 上架支持:构建线与独立 bundle id</span><span class="tok">312k</span><span class="d" data-ago="3">3天前</span></div>
+          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">屏幕录制权限 preflight 修复</span><span class="tok">188k</span><span class="d" data-ago="5">5天前</span></div>
+          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b x" style="flex:none">CX</span><span class="t">迁移 Claude Code skills 到 Codex</span><span class="tok">96k</span><span class="d" data-ago="9">9天前</span></div>
+          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">消息领域模型收敛为单一数据源</span><span class="tok">421k</span><span class="d" data-ago="12">12天前</span></div>
+          <div class="se" data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html" style="cursor:pointer"><span class="b c" style="flex:none">CC</span><span class="t">会话导出格式讨论</span><span class="tok">22k</span><span class="d" data-ago="14">14天前</span></div>
         </div>
-        <div class="note">共 7 个会话 —— 全部与搜索见「会话」分栏。</div>
+        <div class="note" data-i18n="ovNote">共 7 个会话 —— 全部与搜索见「会话」分栏。</div>
       </div>
-      <div data-p="sessions" style="display:none">
+      <div data-p="sessions" data-shared-block="session-hits" style="display:none">
         <div class="sbar">
-          <input id="sq" placeholder="在本项目的 7 个会话里搜索…">
-          <span class="scope" id="sscope"><span class="on" data-sc="q">搜提问</span><span data-sc="all">全文</span></span>
+          <input id="sq" placeholder="在本项目的 7 个会话里搜索…" data-i18n-ph="searchPlaceholder">
+          <span class="scope" id="sscope"><span class="on" data-sc="q" data-i18n="scopeQuestions">搜提问</span><span data-sc="all" data-i18n="scopeFullText">全文</span></span>
         </div>
         <div id="sres"></div>
       </div>
       <div data-p="skills" style="display:none">
-        <div class="grp-t">项目级 · .claude/skills(2)</div>
+        <div class="grp-t"><span data-i18n="secClaudeProject">项目级 · .claude/skills</span>(2)</div>
         <div class="card">
-          <div class="it"><span class="nm">ui-design</span><span class="pill prj">项目级</span>
+          <div class="it"><span class="nm">ui-design</span><span class="pill prj" data-i18n="pillProject">项目级</span>
             <span class="ds">项目专属 UI 走查规范</span></div>
-          <div class="it"><span class="nm">tdd</span><span class="pill prj">项目级</span><span class="pill shadow">遮蔽全局</span>
+          <div class="it"><span class="nm">tdd</span><span class="pill prj" data-i18n="pillProject">项目级</span><span class="pill shadow" data-i18n="shadowsGlobal">遮蔽全局</span>
             <span class="ds">红先于绿,覆盖来自 spec 失败模式节</span></div>
         </div>
-        <div class="grp-t">全局层 · Claude(4 / 26)</div>
+        <div class="grp-t"><span data-i18n="secClaudeGlobal">全局层 · Claude</span>(4 / 26)</div>
         <div class="card">
-          <div class="it shadowed"><span class="nm">tdd</span><span class="pill glb">全局</span><span class="pill shadow">被项目级遮蔽</span>
+          <div class="it shadowed"><span class="nm">tdd</span><span class="pill glb" data-i18n="pillGlobal">全局</span><span class="pill shadow" data-i18n="shadowed">被项目级遮蔽</span>
             <span class="ds">红先于绿(全局版)</span></div>
-          <div class="it"><span class="nm">review-code</span><span class="pill glb">全局</span>
+          <div class="it"><span class="nm">review-code</span><span class="pill glb" data-i18n="pillGlobal">全局</span>
             <span class="ds">四层法 review</span></div>
-          <div class="it"><span class="nm">grilling</span><span class="pill glb">全局</span>
+          <div class="it"><span class="nm">grilling</span><span class="pill glb" data-i18n="pillGlobal">全局</span>
             <span class="ds">按依赖分批的需求逼问</span></div>
-          <div class="it"><span class="nm">to-tickets</span><span class="pill glb">全局</span><span class="pill ln">软链</span>
+          <div class="it"><span class="nm">to-tickets</span><span class="pill glb" data-i18n="pillGlobal">全局</span><span class="pill ln" data-i18n="pillSymlink">软链</span>
             <span class="ds">切 tracer-bullet 纵切票</span></div>
         </div>
-        <div class="grp-t">全局层 · Codex(2 / 23)</div>
+        <div class="grp-t"><span data-i18n="secCodexGlobal">全局层 · Codex</span>(2 / 23)</div>
         <div class="card">
-          <div class="it"><span class="nm">decision-form</span><span class="pill glb">全局</span>
+          <div class="it"><span class="nm">decision-form</span><span class="pill glb" data-i18n="pillGlobal">全局</span>
             <span class="ds">批量决策外部表单</span></div>
-          <div class="it"><span class="nm">github-ops</span><span class="pill glb">全局</span><span class="pill ln">软链</span>
+          <div class="it"><span class="nm">github-ops</span><span class="pill glb" data-i18n="pillGlobal">全局</span><span class="pill ln" data-i18n="pillSymlink">软链</span>
             <span class="ds">GitHub 产出规范(无 AI 署名)</span></div>
         </div>
-        <div class="grp-t">插件内含 · 本项目有效启用(命名空间调用,只读无装卸)</div>
+        <div class="grp-t" data-i18n="secPlugin">插件内含 · 本项目有效启用(命名空间调用,只读无装卸)</div>
         <div class="card">
-          <div class="it"><span class="nm">superpowers:brainstorming</span><span class="pill plg">插件</span>
+          <div class="it"><span class="nm">superpowers:brainstorming</span><span class="pill plg" data-i18n="pillPlugin">插件</span>
             <span class="ds">Explores intent before implementation.</span></div>
-          <div class="it"><span class="nm">superpowers:test-driven-development</span><span class="pill plg">插件</span>
+          <div class="it"><span class="nm">superpowers:test-driven-development</span><span class="pill plg" data-i18n="pillPlugin">插件</span>
             <span class="ds">Red before green.</span></div>
         </div>
       </div>
       <div data-p="subagents" style="display:none">
-        <div class="grp-t">生效视图 · 两侧同名均为项目级遮蔽(subagents 语义;与 skills 的 Codex 同名共存相反) · 点条目开抽屉</div>
-        <div class="grp-t">项目级 · .claude/agents(1)</div>
+        <div class="grp-t" data-i18n="saHint">生效视图 · 两侧同名均为项目级遮蔽(subagents 语义;与 skills 的 Codex 同名共存相反) · 点条目开抽屉</div>
+        <div class="grp-t"><span data-i18n="secClaudeAgents">项目级 · .claude/agents</span>(1)</div>
         <div class="card">
           <div class="it row-btn" data-sa="0"><span class="nm">code-reviewer</span><span class="b c">CC</span>
-            <span class="pill prj">项目级</span><span class="pill shadow">遮蔽同名</span>
+            <span class="pill prj" data-i18n="pillProject">项目级</span><span class="pill shadow" data-i18n="shadows">遮蔽同名</span>
             <span class="ds">(项目定制版)只审 src/ 与 tests/,输出中文</span></div>
         </div>
-        <div class="grp-t">项目级 · .codex/agents(1)</div>
+        <div class="grp-t"><span data-i18n="secCodexAgents">项目级 · .codex/agents</span>(1)</div>
         <div class="card">
           <div class="it row-btn" data-sa="1"><span class="nm">explorer</span><span class="b x">CX</span>
-            <span class="pill prj">项目级</span><span class="pill warn">覆盖内置</span><span class="pill shadow">遮蔽同名</span>
+            <span class="pill prj" data-i18n="pillProject">项目级</span><span class="pill warn" data-i18n="overridesBuiltin">覆盖内置</span><span class="pill shadow" data-i18n="shadows">遮蔽同名</span>
             <span class="ds">项目级 explorer:覆盖内置,并遮蔽用户级同名(键取 toml name 字段)</span></div>
         </div>
-        <div class="grp-t">全局层 · Claude(3)</div>
+        <div class="grp-t"><span data-i18n="secClaudeGlobal">全局层 · Claude</span>(3)</div>
         <div class="card">
           <div class="it row-btn shadowed" data-sa="2"><span class="nm">code-reviewer</span><span class="b c">CC</span>
-            <span class="pill glb">全局</span><span class="pill shadow">被项目级遮蔽</span>
+            <span class="pill glb" data-i18n="pillGlobal">全局</span><span class="pill shadow" data-i18n="shadowed">被项目级遮蔽</span>
             <span class="ds">Expert code review specialist.(未生效)</span></div>
           <div class="it row-btn" data-sa="3"><span class="nm">debugger</span><span class="b c">CC</span>
-            <span class="pill glb">全局</span><span class="ds">Debugging specialist for errors, test failures…</span></div>
+            <span class="pill glb" data-i18n="pillGlobal">全局</span><span class="ds">Debugging specialist for errors, test failures…</span></div>
           <div class="it row-btn" data-sa="4"><span class="nm">docs-writer</span><span class="b c">CC</span>
-            <span class="pill glb">全局</span><span class="ds">Technical writer for API docs and guides.</span></div>
+            <span class="pill glb" data-i18n="pillGlobal">全局</span><span class="ds">Technical writer for API docs and guides.</span></div>
         </div>
-        <div class="grp-t">全局层 · Codex(2)</div>
+        <div class="grp-t"><span data-i18n="secCodexGlobal">全局层 · Codex</span>(2)</div>
         <div class="card">
           <div class="it row-btn shadowed" data-sa="5"><span class="nm">explorer</span><span class="b x">CX</span>
-            <span class="pill glb">全局</span><span class="pill shadow">被项目级遮蔽</span>
+            <span class="pill glb" data-i18n="pillGlobal">全局</span><span class="pill shadow" data-i18n="shadowed">被项目级遮蔽</span>
             <span class="ds">用户级 explorer(未生效)</span></div>
           <div class="it row-btn" data-sa="6"><span class="nm">code-reviewer</span><span class="b x">CX</span>
-            <span class="pill glb">全局</span><span class="ds">Expert code review specialist.(Codex 侧全局,与 Claude 侧各自成行)</span></div>
+            <span class="pill glb" data-i18n="pillGlobal">全局</span><span class="ds">Expert code review specialist.(Codex 侧全局,与 Claude 侧各自成行)</span></div>
         </div>
       </div>
       <div data-p="memory" style="display:none">
-        <div class="grp-t">MEMORY.md(自动记忆主文件,直接渲染——同配置 tab 模式)</div>
+        <div class="grp-t" data-i18n="memMainTitle">MEMORY.md(自动记忆主文件,直接渲染——同配置 tab 模式)</div>
         <!-- The real shape: the main file is an index whose entries are relative links to topics in the same
      directory -->
         <div class="md" id="memmain">
@@ -369,43 +340,43 @@
           </ul>
         </div>
         <div class="note">主文件里的相对链接指向同目录 topic 文件:点击在 app 内打开抽屉(不导航整窗);目标不存在时提示"目标不在可读范围";外部链接交系统浏览器。</div>
-        <div class="grp-t">Topic 文件(2) · 点击开抽屉查看</div>
+        <div class="grp-t" data-i18n="memTopicsTitle">Topic 文件(2) · 点击开抽屉查看</div>
         <div class="card">
           <div class="it row-btn" data-mt="0"><span class="nm" style="flex:1">pr-merge-needs-confirmation.md</span>
-            <span class="src">今天</span></div>
+            <span class="src" data-i18n="agoToday">今天</span></div>
           <div class="it row-btn" data-mt="1"><span class="nm" style="flex:1">shell-snapshot-vars-gotcha.md</span>
-            <span class="src">1周前</span></div>
+            <span class="src" data-i18n="agoWeek">1周前</span></div>
         </div>
         <div class="note">无记忆时显示空态;纯 Codex 侧项目提示「Memory 为 Claude 侧机制(Codex 记忆是全局的,见 Agents 页)」。文件内容按需读取,不进快照。</div>
       </div>
       <div data-p="plugins" style="display:none">
-        <div class="grp-t">按侧分组 · Claude 组:本项目有效启用集(local &gt; project &gt; user) · 点条目展开内含组件</div>
+        <div class="grp-t" data-i18n="plHint">按侧分组 · Claude 组:本项目有效启用集(local &gt; project &gt; user) · 点条目展开内含组件</div>
         <div class="grp-t"><span class="b c">CLAUDE CODE</span></div>
         <div class="card" id="plist">
           <div class="it row-btn" data-pg="0"><span class="nm">chrome-devtools-mcp@chrome-devtools-plugins</span>
-            <span class="src">v1.6.0</span><span class="pill on">启用</span>
-            <span class="ds">启用判定来自 user 层 · user</span></div>
+            <span class="src">v1.6.0</span><span class="pill on" data-i18n="enabledShort">启用</span>
+            <span class="ds" data-i18n="plVerdict0">启用判定来自 user 层 · user</span></div>
           <div class="it row-btn" data-pg="1"><span class="nm">superpowers@claude-plugins-official</span>
-            <span class="src">v6.2.0</span><span class="pill on">启用</span>
-            <span class="ds">启用判定来自 project 层 · project · Transfer</span></div>
+            <span class="src">v6.2.0</span><span class="pill on" data-i18n="enabledShort">启用</span>
+            <span class="ds" data-i18n="plVerdict1">启用判定来自 project 层 · project · Transfer</span></div>
           <div class="it row-btn" data-pg="2"><span class="nm">tdd-guard@community</span>
-            <span class="src">v2.4.1</span><span class="pill off">未启用</span>
-            <span class="ds">禁用判定来自 project 层(压过 user) · user / project · gone-proj(项目已失联) · 2 条安装记录</span></div>
+            <span class="src">v2.4.1</span><span class="pill off" data-i18n="notEnabled">未启用</span>
+            <span class="ds" data-i18n="plVerdict2">禁用判定来自 project 层(压过 user) · user / project · gone-proj(项目已失联) · 2 条安装记录</span></div>
         </div>
         <div class="grp-t"><span class="b x">CODEX</span>(缓存目录非空才显示本组)</div>
         <div class="card">
           <div class="it"><span class="nm">codex-helper@local</span><span class="src">v0.3.2</span>
-            <span class="ds">仅缓存枚举</span></div>
+            <span class="ds" data-i18n="cacheOnly">仅缓存枚举</span></div>
         </div>
-        <div class="note">Codex 组仅列缓存中存在的插件;启用态与内含组件语义本期不建模;Codex 插件为全局生效,无项目级启用语义。</div>
+        <div class="note" data-i18n="plFoot">Codex 组仅列缓存中存在的插件;启用态与内含组件语义本期不建模;Codex 插件为全局生效,无项目级启用语义。</div>
       </div>
       <div data-p="mcp" style="display:none">
-        <div class="grp-t">MCP Servers(按来源标注)</div>
+        <div class="grp-t" data-i18n="mcpTitle">MCP Servers(按来源标注)</div>
         <div class="card">
-          <div class="it"><span class="nm">chrome-devtools</span><span class="pill glb">plugin 自带</span>
-            <span class="ds">来自 chrome-devtools-mcp 插件</span><span class="src">Claude</span></div>
-          <div class="it"><span class="nm">figma</span><span class="pill prj">项目 .mcp.json</span>
-            <span class="ds">示意:项目级 MCP,受 enabled/disabled 开关控制</span><span class="src">Claude</span></div>
+          <div class="it"><span class="nm">chrome-devtools</span><span class="pill glb" data-i18n="srcPlugin">plugin 自带</span>
+            <span class="ds" data-i18n="mcpFromPlugin">来自 chrome-devtools-mcp 插件</span><span class="src">Claude</span></div>
+          <div class="it"><span class="nm">figma</span><span class="pill prj" data-i18n="srcProjectMcp">项目 .mcp.json</span>
+            <span class="ds" data-i18n="mcpProjectDs">示意:项目级 MCP,受 enabled/disabled 开关控制</span><span class="src">Claude</span></div>
           <div class="it"><span class="nm">node_repl</span><span class="pill glb">config.toml</span>
             <span class="ds">[mcp_servers.node_repl]</span><span class="src">Codex</span></div>
           <div class="it"><span class="nm">computer-use</span><span class="pill glb">config.toml</span>
@@ -415,13 +386,13 @@
       <div data-p="arts" style="display:none">
         <!-- Six types, ordered by the top-down derivation chain: terminology → decisions → requirements → UI →
      capabilities → lessons -->
-        <div class="chips" id="achips"><span class="on" data-c="全部">全部</span><span data-c="CONTEXT">CONTEXT.md</span><span data-c="ADR">ADR</span><span data-c="specs">specs</span><span data-c="prototypes">prototypes</span><span data-c="features">features</span><span data-c="postmortems">postmortems</span></div>
+        <div class="chips" id="achips"><span class="on" data-c="全部" data-i18n="filterAll">全部</span><span data-c="CONTEXT">CONTEXT.md</span><span data-c="ADR">ADR</span><span data-c="specs">specs</span><span data-c="prototypes">prototypes</span><span data-c="features">features</span><span data-c="postmortems">postmortems</span></div>
         <div class="alist" id="alist"></div>
         <div class="none" style="font-size:12px;padding:12px">非八步项目在此显示「未按约定沉淀」空态(不视为错误)</div>
       </div>
       <div data-p="cfg" style="display:none">
         <div class="cfg-switch" id="cfgs">
-          <span class="on">CLAUDE.md</span><span>AGENTS.md</span><span>settings 摘要</span>
+          <span class="on" data-cfg="claude">CLAUDE.md</span><span data-cfg="agents">AGENTS.md</span><span data-cfg="settings" data-i18n="settingsSummary">settings 摘要</span>
         </div>
         <div class="md" id="cfgbody">
           <h3># Transfer — 项目约定</h3>
@@ -436,25 +407,133 @@
   <div class="reader" id="areader"></div>
   <div class="mask" id="dmask"></div>
   <div class="drawer" id="drawer"></div>
-  <!-- The demo harness: mock state switches, not part of the design and not to be implemented; they appear
-     only in the sessions tab; startup switches remain available in every tab -->
-  <div class="harness" id="harness" data-demo-harness>
+</div>
+  <!-- The demo harness: mock state switches, not part of the design and not to be implemented; the session
+     switches appear only in the sessions tab; startup switches remain available in every tab -->
+  <div data-demo-harness id="harness">
+    <span class="dh-tag">Demo ·</span>
     <span data-startup-controls></span>
-    <span id="session-demo" style="display:none;align-items:center;gap:6px">
-    <span class="hl">演示·会话分栏</span>
-    <span class="hb on" data-se="has">有会话</span>
-    <span class="hb" data-se="empty">空态</span>
-    </span>
+    <div class="dh-group" id="session-demo" hidden>
+      <span class="dh-title">会话分栏</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-se="has" aria-pressed="true">有会话</button>
+        <button type="button" class="dh-opt" data-se="empty" aria-pressed="false">空态</button>
+      </div>
+    </div>
+    <p class="dh-note">启动恢复各档在 app 里由这次启动的扫描是否仍在进行、以及扫描的结果决定;app 内没有这个开关。</p>
+    <p class="dh-note" id="session-demo-note" hidden>会话分栏的有会话 / 空态在 app 里由该项目扫到的会话数决定;app 内没有这个开关。</p>
   </div>
-<script src="../_shared/icons.js"></script>
 <script src="../_shared/trend-chart.js?v=linked-span-total"></script>
 <script>
+  // ── 界面文案:画了中、英两种(其他语言按英文显示,提示由 demo-dimensions.js 给出)。两页及以上共用的条目
+  //    取共享文案表 _shared/copy.js,这里只留本页独有的。评审注解、演示条与 mock
+  //    数据(项目/skill/文件名、会话标题、描述、提问原文)不在此列,保持原样。 ──
+  const pl = (n, one, other) => n === 1 ? one : other
+  const T = {
+    zh: { ...SharedCopy.zh,
+      tabOverview:'概览', tabSessions:'会话', tabArts:'产物',
+      win:['累计总量 · 全部历史','本日','近 7 天'], winDays:d=>`近 ${d} 天`,
+      byModel:w=>`按模型拆分 · ${w}`, noModelInWindow:'该窗口内没有模型用量',
+      noUsageInWindow:'选中的时间窗口内没有用量',
+      trendContext:'(本地时区 · 日粒度)',
+      recentSessions:'最近会话', ago:n=>`${n}天前`, agoToday:'今天', agoWeek:'1周前',
+      ovNote:'共 7 个会话 —— 全部与搜索见「会话」分栏。',
+      searchPlaceholder:'在本项目的 7 个会话里搜索…', scopeQuestions:'搜提问', scopeFullText:'全文',
+      sortNote:(order,n)=>`按<b>最近活动时间</b>${order} · ${n} 个会话`, descending:'倒序', ascending:'正序',
+      questionCount:n=>`${n} 提问`,
+      titleFromFirst:'标题取首条提问', titleCleaned:'标题已清洗',
+      sessionsFoot:'只列已注册项目的会话;subagent 与预热会话不单独入列,但 token 仍计入统计——故此处条数与 token 卡的分母不是同一个。',
+      sessionsFoot2:'「最近活动」= 文件内最大时间戳——Codex 侧原先取首个时间戳,fork 会话会误报为重放时刻。',
+      emptyTitle:'该项目还没有会话记录。', emptyHint:'Claude Code / Codex 在此目录下开过对话后会自动出现。',
+      noHits:'没有命中。默认只搜提问,试试切到「全文」。',
+      hitsFound:(h,s)=>`找到 <b>${h}</b> 条 · ${s} 个会话`, folded:n=>` · 已折叠 <b>${n}</b> 条 fork 重放副本`,
+      inBody:'正文',
+      secClaudeGlobal:'全局层 · Claude', secCodexGlobal:'全局层 · Codex',
+      secPlugin:'插件内含 · 本项目有效启用(命名空间调用,只读无装卸)',
+      shadowsGlobal:'遮蔽全局', shadowed:'被项目级遮蔽', shadows:'遮蔽同名',
+      saHint:'生效视图 · 两侧同名均为项目级遮蔽(subagents 语义;与 skills 的 Codex 同名共存相反) · 点条目开抽屉',
+      secClaudeAgents:'项目级 · .claude/agents', secCodexAgents:'项目级 · .codex/agents',
+      saFl:{ shadows:'压过同名低层定义', builtin:'覆盖内置(default/worker/explorer 之一被替换);压过用户级同名',
+        shadowed:'被项目级定义遮蔽(未生效)' },
+      defaultSubagentModel:'—(default_subagent_model)',
+      memMainTitle:'MEMORY.md(自动记忆主文件,直接渲染——同配置 tab 模式)', memTopicsTitle:'Topic 文件(2) · 点击开抽屉查看',
+      topicMeta:a=>`topic 文件 · ${a}`, viaMain:' · 经主文件链接打开',
+      extLink:'外部链接', extOpen:'交系统浏览器打开(app 不导航)。', relLink:'相对链接',
+      outOfScope:'目标不在可读范围(文件不存在或未列入本项目产物/记忆)。',
+      plHint:'按侧分组 · Claude 组:本项目有效启用集(local > project > user) · 点条目展开内含组件',
+      enabledShort:'启用',
+      plVerdict0:'启用判定来自 user 层 · user', plVerdict1:'启用判定来自 project 层 · project · Transfer',
+      plVerdict2:'禁用判定来自 project 层(压过 user) · user / project · gone-proj(项目已失联) · 2 条安装记录',
+      plFoot:'Codex 组仅列缓存中存在的插件;启用态与内含组件语义本期不建模;Codex 插件为全局生效,无项目级启用语义。',
+      secBundledSkills:'内含 skills(命名空间调用)', secBundledMcp:'内含 MCP servers',
+      secBundledHooks:'内含 hooks(事件摘要)',
+      mcpTitle:'MCP Servers(按来源标注)', mcpFromPlugin:'来自 chrome-devtools-mcp 插件',
+      srcProjectMcp:'项目 .mcp.json', mcpProjectDs:'示意:项目级 MCP,受 enabled/disabled 开关控制',
+      filterAll:'全部', noArtifactsOfType:'该类无产物', settingsSummary:'settings 摘要'
+    },
+    en: { ...SharedCopy.en,
+      tabOverview:'Overview', tabSessions:'Sessions', tabArts:'Artifacts',
+      win:['Total · all history','Today','Last 7 days'], winDays:d=>`Last ${d} days`,
+      byModel:w=>`By model · ${w}`, noModelInWindow:'No model usage in this window',
+      noUsageInWindow:'No usage in the selected window',
+      trendContext:'(local time zone · daily)',
+      // Relative days in the words of Intl.RelativeTimeFormat with numeric:'auto'
+      recentSessions:'Recent sessions', ago:n=>n===0?'today':n===1?'yesterday':`${n} days ago`, agoToday:'today', agoWeek:'1 week ago',
+      ovNote:'7 sessions in total — see the “Sessions” tab for all of them and for search.',
+      searchPlaceholder:'Search across 7 sessions in this project…', scopeQuestions:'Search questions', scopeFullText:'Full text',
+      sortNote:(order,n)=>`By <b>last activity</b>, ${order} · ${n} ${pl(n,'session','sessions')}`, descending:'newest first', ascending:'oldest first',
+      questionCount:n=>`${n} ${pl(n,'question','questions')}`,
+      titleFromFirst:'Title from first question', titleCleaned:'Title cleaned',
+      sessionsFoot:'Only sessions of registered projects are listed; subagent and warm-up sessions are not listed separately, though their tokens still count — so this count and the denominator of the token cards are not the same thing.',
+      sessionsFoot2:'“Last activity” = the largest timestamp inside the file — the Codex side used to take the first timestamp, which misreported a forked session as the moment of the replay.',
+      emptyTitle:'No session records in this project yet.', emptyHint:'They appear automatically once Claude Code / Codex has had a conversation in this directory.',
+      noHits:'No hits. Only questions are searched by default — try switching to “Full text”.',
+      hitsFound:(h,s)=>`Found <b>${h}</b> ${pl(h,'hit','hits')} · ${s} ${pl(s,'session','sessions')}`,
+      folded:n=>` · <b>${n}</b> fork replay ${pl(n,'copy','copies')} folded away`,
+      inBody:'Body',
+      secClaudeGlobal:'Global level · Claude', secCodexGlobal:'Global level · Codex',
+      secPlugin:'Bundled in plugins · effectively enabled here (namespaced, read-only, no install/uninstall)',
+      shadowsGlobal:'Shadows global', shadowed:'Shadowed by project level', shadows:'Shadows same name',
+      saHint:'Effective view · a same name on both sides is shadowed at project level (subagent semantics; the opposite of Codex skills coexisting under one name) · click a row to open the drawer',
+      secClaudeAgents:'Project level · .claude/agents', secCodexAgents:'Project level · .codex/agents',
+      saFl:{ shadows:'overrides a lower-level definition of the same name',
+        builtin:'overrides a built-in (one of default/worker/explorer is replaced); overrides the user-level one of the same name',
+        shadowed:'shadowed by a project-level definition (not in effect)' },
+      defaultSubagentModel:'— (default_subagent_model)',
+      memMainTitle:'MEMORY.md (main automatic memory file, rendered directly — the same way as the Config tab)',
+      memTopicsTitle:'Topic files (2) · click to open in a drawer',
+      topicMeta:a=>`topic file · ${a}`, viaMain:' · opened via a link in the main file',
+      extLink:'External link', extOpen:'Opens in the system browser (the app does not navigate).', relLink:'Relative link',
+      outOfScope:'The target is outside the readable scope (the file does not exist or is not among this project’s artifacts / memory).',
+      plHint:'Grouped by side · Claude group: this project’s effective set (local > project > user) · click a row to expand bundled components',
+      enabledShort:'Enabled',
+      plVerdict0:'Enabled — decided by the user layer · user', plVerdict1:'Enabled — decided by the project layer · project · Transfer',
+      plVerdict2:'Disabled — decided by the project layer (overrides user) · user / project · gone-proj (project unreachable) · 2 install records',
+      plFoot:'The Codex group lists only plugins present in the cache; enabled state and bundled components are not modelled in this release; Codex plugins take effect globally, with no project-level enablement semantics.',
+      secBundledSkills:'Bundled skills (namespaced)', secBundledMcp:'Bundled MCP servers',
+      secBundledHooks:'Bundled hooks (event summary)',
+      mcpTitle:'MCP servers (labelled by source)', mcpFromPlugin:'From the chrome-devtools-mcp plugin',
+      srcProjectMcp:'project .mcp.json', mcpProjectDs:'Illustration: a project-level MCP, governed by its enabled/disabled switch',
+      filterAll:'All', noArtifactsOfType:'No artifacts of this type', settingsSummary:'settings summary'
+    }
+  }
+  // The value in effect now; DemoDimensions.on at the end of this script re-renders on every change
+  let LANG = DemoDimensions.get('language')
+  /** Static markup: data-i18n → text, data-i18n-ph → placeholder, data-i18n-aria → aria-label, data-ago → relative days */
+  function applyI18n(){
+    const t=T[LANG]
+    document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent=t[el.dataset.i18n] })
+    document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.placeholder=t[el.dataset.i18nPh] })
+    document.querySelectorAll('[data-i18n-aria]').forEach(el=>{ el.setAttribute('aria-label',t[el.dataset.i18nAria]) })
+    document.querySelectorAll('[data-ago]').forEach(el=>{ el.textContent=t.ago(+el.dataset.ago) })
+  }
+
   document.getElementById('tabs').addEventListener('click',e=>{
     const t=e.target.closest('.tab');if(!t||!t.dataset.t)return;
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
     document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
-    // The demo harness only appears in the relevant tabs
-    document.getElementById('session-demo').style.display=t.dataset.t==='sessions'?'flex':'none';
+    // The session switches, and their note, only appear in the sessions tab
+    document.getElementById('session-demo').hidden=document.getElementById('session-demo-note').hidden=t.dataset.t!=='sessions';
   });
   // The trend chart: rendered by the shared piece (the same source as the Agents page)
 
@@ -462,11 +541,13 @@
   // ── 概览的时间窗口:卡排本身就是筛选器,与 Agents 页同形态(项目级尺度的 mock) ──
   const OV_SIDES = [{cls:'c',name:'CLAUDE'},{cls:'x',name:'CODEX'},{cls:'g',name:'GROK'}]
   const OV_RANGES = [
-    { k:'累计总量 · 全部历史', days:null, side:[38500000, 15100000, 2200000] },
-    { k:'本日',               days:1,    side:[  412000,    96000,   21000] },
-    { k:'近 7 天',            days:7,    side:[ 2840000,   730000,  186000] },
-    { k:'近 30 天',           days:30,   side:[ 9600000,  3100000,  640000] }
+    { days:null, side:[38500000, 15100000, 2200000] },   // 累计总量 · 全部历史
+    { days:1,    side:[  412000,    96000,   21000] },   // 本日
+    { days:7,    side:[ 2840000,   730000,  186000] },   // 近 7 天
+    { days:30,   side:[ 9600000,  3100000,  640000] }    // 近 N 天(N 随全局趋势天数)
   ]
+  // 卡上的窗口名:前三张固定,第四张随全局趋势天数
+  const ovWin = i => i < 3 ? T[LANG].win[i] : T[LANG].winDays(OV_RANGES[3].days)
   // 每一列都与 OV_RANGES 的 side 对得上:同侧各模型之和 = 该侧在该窗口的总量
   const OV_MODELS = [
     { nm:'claude-fable-5', cls:'anthropic', v:[24000000, 236000, 1620000, 5480000] },
@@ -487,16 +568,16 @@
   /** 构成条:统计下方的独立元素,与各侧拆解是同一个数的两种切法 */
   function ovComp(G){
     if (!G) return ''
-    const c = OV_COMP[OV_R]
+    const c = OV_COMP[OV_R], t = T[LANG]
     const seg = (k,cls) => `<i class="${cls}" style="width:${(c[k]*100).toFixed(4)}%"></i>`
     const lg = (k,cls,label,dp,tip) =>
       `<span title="${tip.replace(/"/g,'&quot;')}"><i class="${cls}"></i>${label} <b>${(c[k]*100).toFixed(dp)}%</b></span>`
     return `<div class="comp-block">
         <div class="comp">${seg('rd','comp-rd')}${seg('in','comp-in')}${seg('ou','comp-ou')}</div>
         <div class="comp-lg">
-          ${lg('rd','comp-rd','cache 读',1,`${ovFmt(Math.round(G*c.rd))} · 命中缓存、不必重算的输入`)}
-          ${lg('in','comp-in','未命中输入',1,`${ovFmt(Math.round(G*c.in))} · 含 cache 写(仅 Claude 侧非零):都是这一轮真读进模型的输入`)}
-          ${lg('ou','comp-ou','输出',2,`${ovFmt(Math.round(G*c.ou))} · 模型生成的 token`)}
+          ${lg('rd','comp-rd',t.compCacheRead,1,t.compTipCacheRead(ovFmt(Math.round(G*c.rd))))}
+          ${lg('in','comp-in',t.compUncached,1,t.compTipUncached(ovFmt(Math.round(G*c.in))))}
+          ${lg('ou','comp-ou',t.compOutput,2,t.compTipOutput(ovFmt(Math.round(G*c.ou))))}
         </div>
       </div>`
   }
@@ -508,18 +589,19 @@
       `<div class="tot-row">${OV_RANGES.map((x,i)=>{
          const v = x.side.reduce((a,b)=>a+b,0)
          return `<button type="button" class="tot-c ${i===OV_R?'on':''} ${v?'':'zero'}" data-r="${i}">
-                   <div class="tot-k">${x.k}</div><div class="tot-v">${ovFmt(v)}</div></button>`
+                   <div class="tot-k">${ovWin(i)}</div><div class="tot-v">${ovFmt(v)}</div></button>`
        }).join('')}</div>${ovComp(tot)}
-       <div class="tot-sides">${tot === 0 ? '选中的时间窗口内没有用量'
+       <div class="tot-sides">${tot === 0 ? T[LANG].noUsageInWindow
          : OV_SIDES.map((s,i)=>`<span class="${r.side[i]?'':'off'}"><span class="b ${s.cls}">${s.name}</span><b>${ovFmt(r.side[i])}</b></span>`).join('')}</div>`
     const rows = OV_MODELS.map(m=>({nm:m.nm, cls:m.cls, v:m.v[OV_R]})).filter(m=>m.v>0)
     const max = Math.max(1, ...rows.map(m=>m.v))
-    document.getElementById('ovmTitle').textContent = `按模型拆分 · ${r.k.replace(' · 全部历史','')}`
+    // 全部历史那张只取「累计总量」,不带「· 全部历史」
+    document.getElementById('ovmTitle').textContent = T[LANG].byModel(OV_R === 0 ? T[LANG].winAllShort : ovWin(OV_R))
     document.getElementById('ovmodels').innerHTML = rows.length
       ? rows.map(m=>`<div class="m ${m.cls}"><span class="nm2">${m.nm}</span>
           <span class="tr"><i style="width:${(m.v/max*100).toFixed(1)}%"></i></span>
           <span class="num">${ovFmt(m.v)}</span></div>`).join('')
-      : `<div class="none">该窗口内没有模型用量</div>`
+      : `<div class="none">${T[LANG].noModelInWindow}</div>`
     ovTrend.setRange(r.days)
   }
   document.getElementById('ovTot').addEventListener('click', (e) => {
@@ -532,7 +614,6 @@
     { chart: 'ovchart', xaxis: 'ovxaxis', legend: 'ovlegend', seg: 'ovseg', span: 'ovspan' }, ovDays)
   const ovModelShares = OV_MODELS.map(m => m.v[3] / OV_RANGES[3].side[{anthropic:0, openai:1, xai:2}[m.cls]])
   TrendChartProto.watchSpan(span => {
-    OV_RANGES[3].k = `近 ${span} 天`
     OV_RANGES[3].days = span
     OV_RANGES[3].side = TrendChartProto.totalsFor(ovDays, span)
     OV_MODELS.forEach((m, i) => { m.v[3] = OV_RANGES[3].side[{anthropic:0, openai:1, xai:2}[m.cls]] * ovModelShares[i] })
@@ -557,7 +638,7 @@
     const list=ARTS.filter(a=>afilter==='全部'||a.ty===afilter);
     document.getElementById('alist').innerHTML=list.map(a=>
       `<div class="ai" data-at="${a.t}"><span class="t">${a.t}</span><span class="ty">${a.ty}</span><span class="d">${a.d}</span></div>`).join('')
-      ||'<div class="ai" style="cursor:default;color:var(--text-2)">该类无产物</div>';
+      ||`<div class="ai" style="cursor:default;color:var(--text-2)">${T[LANG].noArtifactsOfType}</div>`;
   }
   document.getElementById('achips').addEventListener('click',e=>{
     if(!e.target.dataset.c)return;
@@ -579,45 +660,52 @@
 
   // ── The v2 components: the Subagents/Memory drawers and the inline Plugins expansion (the same form as
   // the Agents page) ──
+  // lv = 层级(项目级/全局),side = 侧名(专名,不译);fl = 层级说明的键;kv 的值为 {k} 时取界面文案
+  const L=k=>({k}), val=v=>typeof v==='string'?v:T[LANG][v.k];
   const SUBAGENTS=[
-    {n:'code-reviewer',lv:'项目级 · Claude',fl:'压过同名低层定义',
-     kv:[['tools','Read, Grep, Glob, Bash'],['model','—(继承)']],
+    {n:'code-reviewer',lv:'project',side:'Claude',fl:'shadows',
+     kv:[['tools','Read, Grep, Glob, Bash'],['model',L('inherited')]],
      body:'You are a senior code reviewer for THIS repo.\n只审 src/ 与 tests/,输出中文。\n(项目级定制,mock 略)'},
-    {n:'explorer',lv:'项目级 · Codex',fl:'覆盖内置(default/worker/explorer 之一被替换);压过用户级同名',
+    {n:'explorer',lv:'project',side:'Codex',fl:'builtin',
      kv:[['model','—'],['sandbox_mode','read-only']],
      body:'Explore this repository conservatively…\n(项目级 toml;键取 name 字段,故文件名可任意)'},
-    {n:'code-reviewer',lv:'全局 · Claude',fl:'被项目级定义遮蔽(未生效)',
-     kv:[['tools','Read, Grep, Glob, Bash'],['model','—(继承)']],
+    {n:'code-reviewer',lv:'global',side:'Claude',fl:'shadowed',
+     kv:[['tools','Read, Grep, Glob, Bash'],['model',L('inherited')]],
      body:'You are a senior code reviewer ensuring high standards…(全局版原文)'},
-    {n:'debugger',lv:'全局 · Claude',fl:'',
-     kv:[['tools','Read, Edit, Bash, Grep, Glob'],['model','—(继承)']],
+    {n:'debugger',lv:'global',side:'Claude',fl:'',
+     kv:[['tools','Read, Edit, Bash, Grep, Glob'],['model',L('inherited')]],
      body:'You are an expert debugger…(mock 略)'},
-    {n:'docs-writer',lv:'全局 · Claude',fl:'',
+    {n:'docs-writer',lv:'global',side:'Claude',fl:'',
      kv:[['tools','Read, Write, Grep'],['model','claude-haiku-4-5']],
      body:'You write clear, concise technical documentation…(mock 略)'},
-    {n:'explorer',lv:'全局 · Codex',fl:'被项目级定义遮蔽(未生效)',
+    {n:'explorer',lv:'global',side:'Codex',fl:'shadowed',
      kv:[['model','—'],['sandbox_mode','read-only']],body:'(用户级 toml 原文,mock 略)'},
-    {n:'code-reviewer',lv:'全局 · Codex',fl:'',
-     kv:[['model','—(default_subagent_model)'],['sandbox_mode','—']],
+    {n:'code-reviewer',lv:'global',side:'Codex',fl:'',
+     kv:[['model',L('defaultSubagentModel')],['sandbox_mode','—']],
      body:'You are a senior code reviewer…(developer_instructions 三引号块)'}
   ];
   const MTOPICS=[
-    {f:'pr-merge-needs-confirmation.md',at:'今天',body:'# PR 合并需确认\n\n开 PR 即停,等用户确认后才准合并——开 PR 不构成合并授权。'},
-    {f:'shell-snapshot-vars-gotcha.md',at:'1周前',body:'# shell snapshot 环境变量坑\n\n…(mock 略)'}
+    {f:'pr-merge-needs-confirmation.md',at:'agoToday',body:'# PR 合并需确认\n\n开 PR 即停,等用户确认后才准合并——开 PR 不构成合并授权。'},
+    {f:'shell-snapshot-vars-gotcha.md',at:'agoWeek',body:'# shell snapshot 环境变量坑\n\n…(mock 略)'}
   ];
-  const PCONTENTS=[
-    '<div class="sect">安装记录</div><span class="chip">user</span>'+
-      '<div class="sect">内含 skills(命名空间调用)</div><span class="chip">chrome-devtools-mcp:a11y-debugging</span><span class="chip">chrome-devtools-mcp:troubleshooting</span><span class="chip">+4</span>'+
-      '<div class="sect">内含 MCP servers</div><span class="chip">chrome-devtools</span>',
-    '<div class="sect">安装记录</div><span class="chip">project · Transfer</span>'+
-      '<div class="sect">内含 skills(命名空间调用)</div><span class="chip">superpowers:brainstorming</span><span class="chip">superpowers:test-driven-development</span><span class="chip">+12</span>'+
-      '<div class="sect">内含 hooks(事件摘要)</div><span class="chip">SessionStart × 1</span>',
-    '<div class="sect">安装记录</div><span class="chip">user</span><span class="chip bad">project · gone-proj(项目已失联)</span>'+
-      '<div class="sect">内含 hooks(事件摘要)</div><span class="chip">PreToolUse × 2</span>'
-  ];
+  function pcontents(i){
+    const t=T[LANG];
+    return [
+      `<div class="sect">${t.secInstall}</div><span class="chip">user</span>`+
+        `<div class="sect">${t.secBundledSkills}</div><span class="chip">chrome-devtools-mcp:a11y-debugging</span><span class="chip">chrome-devtools-mcp:troubleshooting</span><span class="chip">+4</span>`+
+        `<div class="sect">${t.secBundledMcp}</div><span class="chip">chrome-devtools</span>`,
+      `<div class="sect">${t.secInstall}</div><span class="chip">project · Transfer</span>`+
+        `<div class="sect">${t.secBundledSkills}</div><span class="chip">superpowers:brainstorming</span><span class="chip">superpowers:test-driven-development</span><span class="chip">+12</span>`+
+        `<div class="sect">${t.secBundledHooks}</div><span class="chip">SessionStart × 1</span>`,
+      `<div class="sect">${t.secInstall}</div><span class="chip">user</span><span class="chip bad">project · gone-proj${t.projectLost}</span>`+
+        `<div class="sect">${t.secBundledHooks}</div><span class="chip">PreToolUse × 2</span>`
+    ][i];
+  }
   const dmask=document.getElementById('dmask'),drawer=document.getElementById('drawer');
-  function openDrawer(html){ dmask.style.display='block'; drawer.style.display='block'; drawer.innerHTML=html }
-  function closeDrawer(){ dmask.style.display='none'; drawer.style.display='none' }
+  // The drawer keeps the function that drew it, so a language change redraws what is open
+  let drawerHtml=null;
+  function openDrawer(fn){ drawerHtml=fn; dmask.style.display='block'; drawer.style.display='block'; drawer.innerHTML=fn() }
+  function closeDrawer(){ drawerHtml=null; dmask.style.display='none'; drawer.style.display='none' }
   dmask.onclick=closeDrawer;
   addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
   // Rendered markdown links are always intercepted and never allowed to navigate the whole window (all app
@@ -626,43 +714,44 @@
     const a=e.target.closest('.md a[href]');
     if(a){ e.preventDefault();
       const href=a.getAttribute('href');
-      if(/^https?:/.test(href)){ openDrawer(`<h2>外部链接</h2><div class="meta">${href}</div>
-        <div class="none">交系统浏览器打开(app 不导航)。</div>`); return }
+      if(/^https?:/.test(href)){ openDrawer(()=>`<h2>${T[LANG].extLink}</h2><div class="meta">${href}</div>
+        <div class="none">${T[LANG].extOpen}</div>`); return }
       const i=MTOPICS.findIndex(t=>t.f===href);
-      if(i<0){ openDrawer(`<h2>${href}</h2><div class="meta">相对链接</div>
-        <div class="none">目标不在可读范围(文件不存在或未列入本项目产物/记忆)。</div>`); return }
+      if(i<0){ openDrawer(()=>`<h2>${href}</h2><div class="meta">${T[LANG].relLink}</div>
+        <div class="none">${T[LANG].outOfScope}</div>`); return }
       const t=MTOPICS[i];
-      openDrawer(`<h2>${t.f}</h2><div class="meta">topic 文件 · ${t.at} · 经主文件链接打开</div><div class="raw">${t.body}</div>`);
+      openDrawer(()=>`<h2>${t.f}</h2><div class="meta">${T[LANG].topicMeta(T[LANG][t.at])}${T[LANG].viaMain}</div><div class="raw">${t.body}</div>`);
       return }
     const sa=e.target.closest('[data-sa]');
     if(sa){ const a=SUBAGENTS[+sa.dataset.sa];
-      openDrawer(`<h2>${a.n}</h2><div class="meta">${a.lv}${a.fl?' · '+a.fl:''}</div>
-        <div class="kv">${a.kv.map(([k,v])=>`<span class="k2">${k}</span><span>${v}</span>`).join('')}</div>
+      openDrawer(()=>`<h2>${a.n}</h2><div class="meta">${a.lv==='project'?T[LANG].pillProject:T[LANG].pillGlobal} · ${a.side}${a.fl?' · '+T[LANG].saFl[a.fl]:''}</div>
+        <div class="kv">${a.kv.map(([k,v])=>`<span class="k2">${k}</span><span>${val(v)}</span>`).join('')}</div>
         <div class="raw">${a.body}</div>`); return }
     const mt=e.target.closest('[data-mt]');
     if(mt){ const t=MTOPICS[+mt.dataset.mt];
-      openDrawer(`<h2>${t.f}</h2><div class="meta">topic 文件 · ${t.at}</div><div class="raw">${t.body}</div>`); return }
+      openDrawer(()=>`<h2>${t.f}</h2><div class="meta">${T[LANG].topicMeta(T[LANG][t.at])}</div><div class="raw">${t.body}</div>`); return }
     const pg=e.target.closest('[data-pg]');
     if(pg){ const i=+pg.dataset.pg, next=pg.nextElementSibling;
       if(next&&next.classList.contains('exp')){ next.remove(); return }
-      pg.insertAdjacentHTML('afterend',`<div class="exp">${PCONTENTS[i]}</div>`); return }
+      pg.insertAdjacentHTML('afterend',`<div class="exp">${pcontents(i)}</div>`); return }
   });
 
   // ── The v3 sessions tab: the list (most recent activity first) + search (questions by default, switchable
   // to full text) + hits grouped by session ──
   const GOTO='data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html"';
+  // d = 距今天数(按界面语言写成相对时间);p = 行内角标,随界面语言渲染
   const SESS=[
-    {b:'c',s:'CC',t:'MAS 上架支持:构建线与独立 bundle id',n:42,tok:'312k',d:'3天前',p:''},
-    {b:'c',s:'CC',t:'屏幕录制权限 preflight 修复',n:7,tok:'188k',d:'5天前',p:''},
-    {b:'x',s:'CX',t:'迁移 Claude Code skills 到 Codex',n:18,tok:'96k',d:'9天前',
-     p:`<span class="pill fork">${ICONS.GitFork(10)} fork</span>`},
-    {b:'x',s:'CX',t:'把 openclaw 的网关拆出来单独跑',n:24,tok:'140k',d:'10天前',
-     p:`<span class="pill forkq">${ICONS.GitFork(10)} 剥离存疑</span><span class="pill glb">标题取首条提问</span>`},
-    {b:'c',s:'CC',t:'消息领域模型收敛为单一数据源',n:96,tok:'421k',d:'12天前',
-     p:'<span class="pill big">133 MB</span>'},
-    {b:'c',s:'CC',t:'会话导出格式讨论',n:3,tok:'22k',d:'14天前',p:''},
-    {b:'c',s:'CC',t:'帮我把 CI 的缓存打开',n:11,tok:'61k',d:'21天前',
-     p:'<span class="pill clean">标题已清洗</span>'},
+    {b:'c',s:'CC',t:'MAS 上架支持:构建线与独立 bundle id',n:42,tok:'312k',d:3,p:()=>''},
+    {b:'c',s:'CC',t:'屏幕录制权限 preflight 修复',n:7,tok:'188k',d:5,p:()=>''},
+    {b:'x',s:'CX',t:'迁移 Claude Code skills 到 Codex',n:18,tok:'96k',d:9,
+     p:()=>`<span class="pill fork">${ICONS.GitFork(10)} fork</span>`},
+    {b:'x',s:'CX',t:'把 openclaw 的网关拆出来单独跑',n:24,tok:'140k',d:10,
+     p:t=>`<span class="pill forkq">${ICONS.GitFork(10)} ${t.forkUncertain}</span><span class="pill glb">${t.titleFromFirst}</span>`},
+    {b:'c',s:'CC',t:'消息领域模型收敛为单一数据源',n:96,tok:'421k',d:12,
+     p:()=>'<span class="pill big">133 MB</span>'},
+    {b:'c',s:'CC',t:'会话导出格式讨论',n:3,tok:'22k',d:14,p:()=>''},
+    {b:'c',s:'CC',t:'帮我把 CI 的缓存打开',n:11,tok:'61k',d:21,
+     p:t=>`<span class="pill clean">${t.titleCleaned}</span>`},
   ];
   // dup = a fork replay copy (54.7% of Codex bytes are these); body = a hit only in the answer body, visible
   // only in full-text scope
@@ -688,43 +777,44 @@
     {s:6,n:'02',q:'缓存打开之后 CI 会不会拿到旧的 node_modules',d:'06-30'},
   ];
   let sq='', scope='q', sempty=false, sorder='desc';   // desc=最近活动在前(spec A1 默认)
-  const sordSeg=()=>`<span class="seg" data-sord><span class="${sorder==='desc'?'on':''}" data-so="desc">最近在前</span>`+
-    `<span class="${sorder==='asc'?'on':''}" data-so="asc">最早在前</span></span>`;
+  const sordSeg=()=>`<span class="seg" data-sord><span class="${sorder==='desc'?'on':''}" data-so="desc">${T[LANG].recentFirst}</span>`+
+    `<span class="${sorder==='asc'?'on':''}" data-so="asc">${T[LANG].oldestFirst}</span></span>`;
   const hl=(s,k)=>!k?esc2(s):esc2(s).replace(new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),m=>`<mark>${m}</mark>`);
   const esc2=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
   function renderSessions(){
+    const t=T[LANG];
     const box=document.getElementById('sres'), bar=document.querySelector('.sbar');
     if(sempty){ bar.style.display='none';
-      box.innerHTML=`<div class="none">该项目还没有会话记录。<br>
-        <span style="font-size:11.5px">Claude Code / Codex 在此目录下开过对话后会自动出现。</span></div>`; return }
+      box.innerHTML=`<div class="none">${t.emptyTitle}<br>
+        <span style="font-size:11.5px">${t.emptyHint}</span></div>`; return }
     bar.style.display='flex';
     // SESS is stored in most-recent-activity order; ascending is the whole thing reversed (the sort only
     // changes the presentation order and no count)
     const list=sorder==='desc'?SESS:[...SESS].reverse();
     if(!sq.trim()){
-      box.innerHTML=`<div class="shead"><span>按<b>最近活动时间</b>${sorder==='desc'?'倒序':'正序'} · 7 个会话</span>${sordSeg()}</div>
+      box.innerHTML=`<div class="shead"><span>${t.sortNote(sorder==='desc'?t.descending:t.ascending, SESS.length)}</span>${sordSeg()}</div>
         <div class="card">${list.map(x=>
           `<div class="sess" ${GOTO}><span class="b ${x.b}" style="flex:none">${x.s}</span>
-            <span class="t">${esc2(x.t)}</span>${x.p}
-            <span class="n">${x.n} 提问</span><span class="tok">${x.tok}</span><span class="d">${x.d}</span></div>`).join('')}</div>
-        <div class="note">只列已注册项目的会话;subagent 与预热会话不单独入列,但 token 仍计入统计——故此处条数与 token 卡的分母不是同一个。<br>
-          「最近活动」= 文件内最大时间戳——Codex 侧原先取首个时间戳,fork 会话会误报为重放时刻。</div>`;
+            <span class="t">${esc2(x.t)}</span>${x.p(t)}
+            <span class="n">${t.questionCount(x.n)}</span><span class="tok">${x.tok}</span><span class="d">${t.ago(x.d)}</span></div>`).join('')}</div>
+        <div class="note">${t.sessionsFoot}<br>
+          ${t.sessionsFoot2}</div>`;
       return;
     }
     const k=sq.trim();
     const all=CORPUS.filter(c=>(scope==='all'||!c.body) && c.q.toLowerCase().includes(k.toLowerCase()));
     const hits=all.filter(c=>!c.dup), folded=all.length-hits.length;
-    if(!hits.length){ box.innerHTML=`<div class="shead"><span>没有命中。默认只搜提问,试试切到「全文」。</span></div>`; return }
+    if(!hits.length){ box.innerHTML=`<div class="shead"><span>${t.noHits}</span></div>`; return }
     const bys=new Map(); hits.forEach(h=>{ if(!bys.has(h.s))bys.set(h.s,[]); bys.get(h.s).push(h) });
     const groups=sorder==='desc'?[...bys]:[...bys].reverse();   // 命中分组同用一个排序
-    box.innerHTML=`<div class="shead"><span>找到 <b>${hits.length}</b> 条 · ${bys.size} 个会话
-        ${folded?` · 已折叠 <b>${folded}</b> 条 fork 重放副本`:''}</span>${sordSeg()}</div>`+
+    box.innerHTML=`<div class="shead"><span>${t.hitsFound(hits.length, bys.size)}
+        ${folded?t.folded(folded):''}</span>${sordSeg()}</div>`+
       groups.map(([si,list])=>{ const x=SESS[si];
         return `<div class="grp"><div class="gh" ${GOTO}><span class="b ${x.b}" style="flex:none">${x.s}</span>
-          <span class="t">${esc2(x.t)}</span>${x.p}<span class="d" style="font-size:11px;color:var(--text-2)">${list.length} 条命中</span></div>
+          <span class="t">${esc2(x.t)}</span>${x.p(t)}<span class="n">${t.hitCount(list.length)}</span></div>
           ${list.map(h=>`<div class="hit" ${GOTO}><span class="idx">${h.n}</span>
-            <span class="t">${hl(h.q,k)}</span>${h.body?'<span class="bd">正文</span>':''}
+            <span class="t">${hl(h.q,k)}</span>${h.body?`<span class="bd">${t.inBody}</span>`:''}
             <span class="d">${h.d}</span></div>`).join('')}</div>`;
       }).join('');
   }
@@ -741,24 +831,36 @@
   });
   document.getElementById('harness').addEventListener('click',e=>{
     const b=e.target.closest('[data-se]'); if(!b) return;
-    document.querySelectorAll('[data-se]').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('[data-se]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
     sempty=b.dataset.se==='empty'; renderSessions();
   });
   renderSessions();
 
+  // 配置分栏:按 data-cfg 认文件(文件名是数据,第三项的名字随界面语言)
+  let cfgSel='claude';
+  function renderCfg(){
+    document.getElementById('cfgbody').innerHTML=cfgSel==='claude'?'<h3># Transfer — 项目约定</h3><p>按内容的腐烂速度分类…(只读渲染)</p>'
+      :cfgSel==='agents'?'<h3># AGENTS.md</h3><p>Codex 侧项目说明…(只读渲染;不存在时显示"无")</p>'
+      :`<h3>${T[LANG].settingsSummary}</h3><p><code>enabledMcpjsonServers: [figma]</code><br><code>allowedTools: …</code>(从 ~/.claude.json 项目键提取的只读摘要)</p>`;
+  }
   document.getElementById('cfgs').addEventListener('click',e=>{
     if(e.target.tagName!=='SPAN')return;
     document.querySelectorAll('#cfgs span').forEach(x=>x.classList.toggle('on',x===e.target));
-    const b=document.getElementById('cfgbody');
-    const w=e.target.textContent;
-    b.innerHTML=w==='CLAUDE.md'?'<h3># Transfer — 项目约定</h3><p>按内容的腐烂速度分类…(只读渲染)</p>'
-      :w==='AGENTS.md'?'<h3># AGENTS.md</h3><p>Codex 侧项目说明…(只读渲染;不存在时显示"无")</p>'
-      :'<h3>settings 摘要</h3><p><code>enabledMcpjsonServers: [figma]</code><br><code>allowedTools: …</code>(从 ~/.claude.json 项目键提取的只读摘要)</p>';
+    cfgSel=e.target.dataset.cfg; renderCfg();
+  });
+
+  // 界面语言跟随设置原型所选:静态文案、各 JS 渲染块与已打开的抽屉、已展开的插件行一并重绘,状态不丢
+  DemoDimensions.on('language', v=>{
+    LANG=v;
+    document.documentElement.lang = v==='zh' ? 'zh-CN' : 'en';
+    applyI18n(); ovApply(); renderArts(); renderSessions();
+    document.querySelectorAll('#plist .exp').forEach(x=>{ x.innerHTML=pcontents(+x.previousElementSibling.dataset.pg) });
+    if(drawerHtml) drawer.innerHTML=drawerHtml();
+    if(cfgSel==='settings') renderCfg();
   });
 </script>
 <script>
-  // Cross-prototype navigation: inside the gallery it asks the parent page to switch; opened standalone it
-  // navigates to the file directly
+  // Cross-prototype navigation: inside the gallery ask the parent page to switch; when opened alone, go to the file directly
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-goto]');
     if (!el) return;
@@ -766,5 +868,6 @@
     else if (el.dataset.gotoHref) location.href = el.dataset.gotoHref;
   });
 </script>
+<script src="../demo-harness.js"></script>
 </body>
 </html>

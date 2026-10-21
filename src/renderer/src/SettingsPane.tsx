@@ -1,5 +1,6 @@
-// The settings third dimension · UI language + appearance (mode × theme), both applying app-wide.
-// The UI matches the prototype docs/prototypes/appearance/prototype-settings.html (confirmed 2026-08-08).
+// The settings dimension · UI language + appearance (mode × theme), both applying app-wide, and app
+// updates. The UI matches the prototype docs/prototypes/appearance/prototype-settings.html (confirmed
+// 2026-08-08; the updates section 2026-10-13).
 // The language section comes before appearance: it determines how the rest of the page reads.
 import { useEffect, useState, type JSX } from 'react'
 import {
@@ -10,6 +11,7 @@ import {
 } from '@shared/appearance'
 import { dictOf, type LanguagePreference } from '@shared/i18n'
 import { LanguageSelect } from './LanguageSelect'
+import { UpdatesSection } from './UpdatesSection'
 import { useLanguage } from './language'
 
 // Palette preview samples (--card / --accent-soft / --accent / --text), in **two sets** by effective
@@ -65,7 +67,9 @@ export function SettingsPane({
   mode,
   onMode,
   language,
-  onLanguage
+  onLanguage,
+  autoCheckUpdates,
+  onAutoCheckUpdates
 }: {
   theme: AppearanceTheme
   onTheme: (s: AppearanceTheme) => void
@@ -73,6 +77,8 @@ export function SettingsPane({
   onMode: (m: AppearanceMode) => void
   language: LanguagePreference
   onLanguage: (l: LanguagePreference) => void
+  autoCheckUpdates: boolean
+  onAutoCheckUpdates: (on: boolean) => void
 }): JSX.Element {
   // The language comes from context rather than being threaded down as a prop (the convergence after
   // ticket 05 introduced context; ticket 11 AC)
@@ -150,6 +156,8 @@ export function SettingsPane({
       {/* After compacting, the palette cards carry no description, and information such as "purple is
           the default" lands in this explanation */}
       <p className="settings-foot" data-testid="appearance-foot">{t.appearanceFoot}</p>
+
+      <UpdatesSection autoCheck={autoCheckUpdates} onAutoCheck={onAutoCheckUpdates} />
     </div>
   )
 }

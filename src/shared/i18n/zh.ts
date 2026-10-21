@@ -22,6 +22,7 @@ export const zh = {
   rail: {
     agents: 'Agents',
     projects: 'Projects',
+    search: '搜索',
     settings: '设置'
   },
 
@@ -41,19 +42,33 @@ export const zh = {
       '模式选「跟随系统」时,明暗随 macOS 外观变化;选浅色或深色即锁定,系统再变也不影响。主题与明暗彼此独立、可任意组合,未选择时用紫。切换后立即对整个 app 生效,无需保存。',
     themePurple: '紫',
     themeBlue: '雾蓝',
-    themeAmber: '琥珀褐'
+    themeAmber: '琥珀褐',
+    sectionUpdates: '更新',
+    autoCheckUpdates: '自动检查更新',
+    switchOn: '开',
+    switchOff: '关',
+    currentVersion: '当前版本',
+    checkNow: '立即检查',
+    installNow: '立即安装',
+    checking: '正在检查…',
+    upToDate: '已是最新版本',
+    checkFailed: '检查更新失败',
+    versionDownloading: (version: string) => `发现新版本 ${version}，正在下载`,
+    versionReady: (version: string) => `版本 ${version} 已下载，可以安装`,
+    updatesFoot: '有新版本时会在后台下载。下载完成后，点击左下角的更新按钮即可安装并重启；不点的话，退出时会自动安装。',
+    updatesDevFoot: '开发运行（未打包的 app）中不检查更新。'
   },
 
   /** The application menu (ticket 13). The application name Agentshed is the same in every language
    * (ADR-0013) */
   menu: {
-    about: '关于 Agentshed',
+    about: '关于 Agentshed', checkForUpdates: '检查更新…',
     hide: '隐藏 Agentshed',
     hideOthers: '隐藏其他',
     unhide: '全部显示',
     quit: '退出 Agentshed',
     edit: '编辑',
-    undo: '撤销', redo: '重做', cut: '剪切', copy: '拷贝', paste: '粘贴', selectAll: '全选',
+    undo: '撤销', redo: '重做', cut: '剪切', copy: '拷贝', paste: '粘贴', selectAll: '全选', searchSessions: '搜索会话…',
     view: '显示',
     reload: '重新载入', toggleDevTools: '开发者工具', resetZoom: '实际大小',
     zoomIn: '放大', zoomOut: '缩小', fullscreen: '进入全屏幕',
@@ -70,7 +85,19 @@ export const zh = {
     saveTrendSpanFailed: '保存趋势天数失败',
     saveThemeFailed: '保存主题失败',
     saveModeFailed: '保存外观模式失败',
-    saveLanguageFailed: '保存语言失败'
+    saveLanguageFailed: '保存语言失败',
+    saveAutoCheckUpdatesFailed: '保存自动检查更新设置失败'
+  },
+
+  /** App updates (app-update): the update button's hover text, which is also its accessible name, and the
+   * install-failure toast */
+  update: {
+    tipReady: '有可用更新',
+    tipDownloading: (percent: number) => `正在下载更新 ${percent}%`,
+    tipInstalling: '正在安装更新…',
+    installFailed: '无法安装更新',
+    toastUpToDate: (version: string) => `Agentshed 已是最新版本（${version}）`,
+    toastFound: (version: string) => `发现新版本 ${version}，正在后台下载`
   },
 
   /**
@@ -126,6 +153,21 @@ export const zh = {
     pickProject: '选择一个项目查看详情',
     waitingUpdate: '显示上次的数据，等待更新',
     scanning: '正在扫描各 agent 侧…'
+  },
+  /** Global search: the page's own copy (the sort words, hit counts and fork markers are the project search's) */
+  search: {
+    title: '搜索',
+    placeholder: (projects: number, sessions: number) => `在 ${projects} 个项目的 ${sessions} 个会话里搜提问…`,
+    placeholderNone: '搜提问…',
+    idle: '在所有项目的会话里搜你问过的话。',
+    idleSub: '点命中直接打开那个会话,定位到那条提问。',
+    reading: '正在读取各会话的提问…',
+    hitsFound: (hits: number, sessions: number, projects: number) => `找到 **${hits}** 条 · ${sessions} 个会话 · ${projects} 个项目`,
+    projectCounts: (sessions: number, hits: number) => `${sessions} 个会话 · ${hits} 条命中`,
+    noHits: (tab: string, fullText: string) => `没有命中。这里只搜提问;要搜回答与工具输出,进入项目后在「${tab}」分栏切到「${fullText}」。`,
+    failed: '这次搜索没能完成。修改关键词即可重试。',
+    noSessions: '还没有可搜索的会话。',
+    noSessionsSub: 'agent 在已注册的项目里开过对话后,这里就能搜到。'
   },
   /** Skills package preview and the file drawer (ticket 10) */
   skills: {
@@ -245,6 +287,11 @@ export const zh = {
     fetchedNote: (ms: number, bytes: string) =>
       `按需取回 ${ms} ms · 只读本轮区间 ${bytes},与文件总大小无关`,
     back: (project: string) => `返回 ${project} · 会话`,
+    /** A session opened from a global search hit: its two exits, in place of the back control */
+    backToSearch: '返回搜索结果',
+    goToProject: (project: string) => `进入 ${project} · 会话`,
+    /** A stale project has no Sessions tab: the exit leads to its note page */
+    goToProjectStale: (project: string) => `进入 ${project}`,
     headMeta: (side: string, questions: number, tok: string, mb: string, ago: string) =>
       `${side} · ${questions} 提问 · ${tok} tok · ${mb} · 最后活动 ${ago}`,
     cannotOpen: (detail: string) => `会话打不开:${detail}`,

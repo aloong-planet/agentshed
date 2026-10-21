@@ -22,18 +22,24 @@ import { dictOf, type Language } from '@shared/i18n'
 export interface MenuActions {
   /** Switch to the settings dimension (the same operation as the rail's settings entry) */
   openSettings: () => void
+  /** A manual update check whose outcome the app reports in a toast (app-update::US-003/AC-01) */
+  checkForUpdates: () => void
+  /** Show the global search page with the focus in its box (global-search::US-004) */
+  openSearch: () => void
 }
 
-const NOOP: MenuActions = { openSettings: () => {} }
+const NOOP: MenuActions = { openSettings: () => {}, checkForUpdates: () => {}, openSearch: () => {} }
 
 /**
  * The structure follows the standard macOS menu set; the copy comes from the dictionaries and follows
  * the **in-app** language rather than the system one.
  * The application name Agentshed is the same in every language (ADR-0013's scope boundary).
+ * `canCheckForUpdates` is false in a development run, which never checks (app-update::US-005/AC-02).
  */
 export function buildMenuTemplate(
   lang: Language,
-  actions: MenuActions = NOOP
+  actions: MenuActions = NOOP,
+  canCheckForUpdates = false
 ): MenuItemConstructorOptions[] {
   const t = dictOf(lang)
   const m = t.menu
@@ -42,6 +48,8 @@ export function buildMenuTemplate(
       label: 'Agentshed',
       submenu: [
         { label: m.about, role: 'about' },
+        // Directly below "About", where macOS apps put it (app-update::REQ-005)
+        { id: 'checkForUpdates', label: m.checkForUpdates, enabled: canCheckForUpdates, click: () => actions.checkForUpdates() },
         { type: 'separator' },
         // Settings goes in the application menu bound to Cmd+, — the standard macOS location, where
         // users will look for it
@@ -63,7 +71,10 @@ export function buildMenuTemplate(
         { label: m.cut, role: 'cut' },
         { label: m.copy, role: 'copy' },
         { label: m.paste, role: 'paste' },
-        { label: m.selectAll, role: 'selectAll' }
+        { label: m.selectAll, role: 'selectAll' },
+        { type: 'separator' },
+        // An entry into the app below the standard editing items (global-search::US-004/AC-02)
+        { id: 'searchSessions', label: m.searchSessions, accelerator: 'CmdOrCtrl+Shift+F', click: () => actions.openSearch() }
       ]
     },
     {

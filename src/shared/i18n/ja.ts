@@ -8,6 +8,7 @@ export const ja: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Projects',
+    search: '検索',
     settings: '設定'
   },
 
@@ -28,13 +29,27 @@ export const ja: Locale = {
       'モードを「システムに従う」にすると、明暗は macOS の外観に従います。ライトまたはダークを選ぶと固定され、システムが変わっても影響を受けません。テーマと明暗は独立していて自由に組み合わせられ、未選択の場合はパープルです。変更は保存不要で app 全体にすぐ反映されます。',
     themePurple: 'パープル',
     themeBlue: 'ミストブルー',
-    themeAmber: 'アンバー'
+    themeAmber: 'アンバー',
+    sectionUpdates: 'アップデート',
+    autoCheckUpdates: 'アップデートを自動で確認',
+    switchOn: 'オン',
+    switchOff: 'オフ',
+    currentVersion: '現在のバージョン',
+    checkNow: '今すぐ確認',
+    installNow: '今すぐインストール',
+    checking: '確認中…',
+    upToDate: '最新バージョンです',
+    checkFailed: 'アップデートを確認できませんでした',
+    versionDownloading: (version) => `バージョン ${version} をダウンロード中`,
+    versionReady: (version) => `バージョン ${version} をインストールできます`,
+    updatesFoot: '新しいバージョンはバックグラウンドでダウンロードされます。準備ができたら左下のアップデートボタンをクリックすると、インストールして再起動します。クリックしない場合は終了時にインストールされます。',
+    updatesDevFoot: '開発実行（パッケージ化されていない app）ではアップデートを確認しません。'
   },
 
   menu: {
-    about: 'Agentshed について', hide: 'Agentshed を隠す', hideOthers: 'ほかを隠す',
+    about: 'Agentshed について', checkForUpdates: 'アップデートを確認…', hide: 'Agentshed を隠す', hideOthers: 'ほかを隠す',
     unhide: 'すべてを表示', quit: 'Agentshed を終了',
-    edit: '編集', undo: '取り消す', redo: 'やり直す', cut: 'カット', copy: 'コピー', paste: 'ペースト', selectAll: 'すべてを選択',
+    edit: '編集', undo: '取り消す', redo: 'やり直す', cut: 'カット', copy: 'コピー', paste: 'ペースト', selectAll: 'すべてを選択', searchSessions: 'セッションを検索…',
     view: '表示', reload: '再読み込み', toggleDevTools: '開発者ツール', resetZoom: '実際のサイズ',
     zoomIn: '拡大', zoomOut: '縮小', fullscreen: 'フルスクリーンにする',
     window: 'ウインドウ', minimize: 'しまう', close: '閉じる'
@@ -46,7 +61,17 @@ export const ja: Locale = {
     saveTrendSpanFailed: '表示期間の保存に失敗しました',
     saveThemeFailed: 'テーマの保存に失敗しました',
     saveModeFailed: '外観モードの保存に失敗しました',
-    saveLanguageFailed: '言語の保存に失敗しました'
+    saveLanguageFailed: '言語の保存に失敗しました',
+    saveAutoCheckUpdatesFailed: 'アップデート自動確認の設定の保存に失敗しました'
+  },
+
+  update: {
+    tipReady: 'アップデートがあります',
+    tipDownloading: (percent: number) => `アップデートをダウンロード中 ${percent}%`,
+    tipInstalling: 'アップデートをインストール中…',
+    installFailed: 'アップデートをインストールできませんでした',
+    toastUpToDate: (version) => `Agentshed は最新です（${version}）`,
+    toastFound: (version) => `バージョン ${version} が見つかりました。バックグラウンドでダウンロードしています`
   },
 
   skillDeepHint: 'ベストプラクティスでは skill の参照深度は 2 未満です。この skill の見直しを検討してください',
@@ -80,6 +105,21 @@ export const ja: Locale = {
     pickProject: 'プロジェクトを選択すると詳細が表示されます',
     waitingUpdate: '前回のデータを表示中、更新を待っています',
     scanning: '各エージェントサイドをスキャン中…'
+  },
+  search: {
+    title: '検索',
+    placeholder: (projects, sessions) => `${projects} プロジェクト・${sessions} セッションの質問を検索…`,
+    placeholderNone: '質問を検索…',
+    idle: 'すべてのプロジェクトのセッションから、自分の質問を検索します。',
+    idleSub: 'ヒットをクリックすると、そのセッションのその質問を開きます。',
+    reading: '各セッションの質問を読み込み中…',
+    hitsFound: (hits, sessions, projects) => `**${hits}** 件 · ${sessions} セッション · ${projects} プロジェクト`,
+    projectCounts: (sessions, hits) => `${sessions} セッション · ${hits} 件`,
+    noHits: (tab, fullText) =>
+      `該当なし。ここでは質問のみを検索します。回答やツール出力を検索するには、プロジェクトを開いて「${tab}」タブを「${fullText}」に切り替えてください。`,
+    failed: 'この検索を完了できませんでした。キーワードを変更すると再試行します。',
+    noSessions: '検索できるセッションはまだありません。',
+    noSessionsSub: '登録済みのプロジェクトで agent が会話すると、ここで検索できるようになります。'
   },
   skills: {
     searchPlaceholder: 'skill を検索…',
@@ -164,6 +204,9 @@ export const ja: Locale = {
     fetchedNote: (ms, bytes) =>
       `オンデマンド取得 ${ms} ms · このターンのバイト範囲 ${bytes} のみ読み取り（ファイル全体のサイズとは無関係）`,
     back: (project) => `${project} に戻る · セッション`,
+    backToSearch: '検索結果に戻る',
+    goToProject: (project) => `${project} を開く · セッション`,
+    goToProjectStale: (project) => `${project} を開く`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · 質問 ${questions} 件 · ${tok} tok · ${mb} · 最終アクティビティ ${ago}`,
     cannotOpen: (detail) => `セッションを開けません：${detail}`,

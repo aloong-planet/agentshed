@@ -120,7 +120,8 @@ Its "last activity time" is **the largest timestamp inside the file** (same mean
 a separate pipeline from project activity, which uses mtime — see "Activity").
 The session page is **indexed primarily by question** (every real question listed once; fork replay
 prefixes and abandoned branches do not enter the trunk); clicking a question fetches that **turn** on
-demand. Searchable within a project (searches questions by default). The full specification is in
+demand. Searchable within a project (searches questions by default) and, by its questions only,
+across every project through global search. The full specification is in
 `docs/specs/session-view.md` (fully shipped 2026-08-06; the export feature was dropped).
 _Avoid_: chat log
 
@@ -137,6 +138,15 @@ is first — the answer determines whether the contract changes at all.
 That question is one for **specs, ADRs and code**. User-facing copy is free to say "search" — it is
 the word people look for, and the placeholder does say it.
 _Avoid_: treating the two as one mechanism because they share a visual form
+
+**Global search**:
+Searching the questions of every project's sessions at once, from a page of its own, and going from a
+hit straight to that session inside its project. "Every project" is the project list's set, stale
+projects included; a session in a directory that is not a project is not searched. It matches
+questions only — answers and tool output are reached through the project's own session search.
+"Global" here means across all projects; it has nothing to do with an agent side's global layer or
+the global library, and searching the global layer is not something this does.
+_Avoid_: cross-project search; session search (bare — a project's own search is a session search too)
 
 **Turn**:
 Everything recorded from one real question up to the next (assistant prose, tool calls and returns,
@@ -351,6 +361,24 @@ It is how an automatic rescan and a background revalidation reach a page; a tran
 empties the page first.
 _Avoid_: reload, refetch (they name the fetch, not what the page does with its result)
 
+**App update**:
+A newer version of Agentshed itself, published as a release and offered to an installed copy of the app.
+A rescan or a transfusion changes what the app shows; an app update changes the app (ADR-0032).
+_Avoid_: update (bare — in this product it also reads as a rescan or a transfusion), upgrade
+
+**Update check**:
+Asking the release source whether an app update exists for this installation's release channel. An
+**automatic** check runs on its own while the user has not turned automatic checks off, and its failure
+is silent; a **manual** check is one the user asked for, and it always reports its outcome — an app
+update found, already up to date, or the check failed.
+_Avoid_: refresh, sync, polling
+
+**Release channel**:
+Which releases an installation is offered. A formal-release installation is offered formal releases
+only; a pre-release installation is offered pre-releases and formal releases. The channel follows the
+version installed and is never chosen by the user.
+_Avoid_: beta mode, insider track, update track
+
 ## Invariants
 
 - **The decision layer of every host security guard must be a testable pure function (settled
@@ -524,13 +552,13 @@ _Avoid_: reload, refetch (they name the fetch, not what the page does with its r
   reader genuinely has to find it. **`pnpm check:ui` enforces the rail half of this**: a rail
   control's label appearing verbatim in any other copy fails the check, so deleting a control turns
   those sentences red instead of leaving them pointing at nothing. Its exemptions are by rail key
-  (today's three labels are ordinary words), which means a control with a distinctive label is
+  (today's four labels are ordinary words), which means a control with a distinctive label is
   covered by default — the case that actually rotted.
 
 - **`rail` is an internal term and must not appear in user-facing copy (settled 2026-08-15)**: the
   48px vertical strip of icon buttons down the left edge. The word is useful in code, comments and
   `docs/features/` and stays there — but a user has no way to learn it, because nothing in the
-  interface is labelled "rail" (its buttons' tooltips read Agents / Projects / Settings, and `rail`
+  interface is labelled "rail" (its buttons' tooltips read Agents / Projects / Search / Settings, and `rail`
   survives only as a CSS class name). Copy that needs to point at it describes
   the position instead ("at the bottom left"). Note that "sidebar" is **not** an alternative name for
   it: the project list beside it is the sidebar. This is the same failure as naming a control by its
@@ -655,6 +683,26 @@ _Avoid_: reload, refetch (they name the fetch, not what the page does with its r
   "the previous page holds" test red — confirmed by rebuilding without it and running that test,
   which stayed green. Do not write or trust such a mutation without re-measuring first.
 
+- **Agentshed's own code makes no outbound network request other than an update check and the download
+  of the app update it finds (settled 2026-10-12; download wording 2026-10-13)**: the product is
+  local-first — everything it shows is read from files on the user's machine — and updating is the one
+  deliberate exception (ADR-0032, as amended). While automatic checks are turned off, the app starts no
+  outbound request unless the user asks for a manual check. The one exception is a download already
+  under way when the switch is turned off, which is finished: the switch governs automatic checks only.
+  A link opened in the system browser is the browser's request, not the app's. A new feature that would
+  reach the network changes this invariant and needs its own decision; it is not an addition to the
+  update check. Checkable by searching the main process for network APIs and by the renderer's content
+  security policy, which allows no remote origin.
+
+- **A development run writes into the installed copy's userData (observed 2026-10-14)**: the
+  development name is `agentshed` and the packaged one `Agentshed`, and on macOS's default
+  case-insensitive volume the two are one directory — every file a run keeps there (preferences, the
+  display cache, the usage archive, the token cache, the version record) is shared by a working build
+  and the installed app. A record that must describe the installed copy alone is kept out of
+  development runs: the version record behind the post-update line is read and written only by a run
+  that checks for updates (app-update Implementation Decisions). A new userData file decides the same
+  question when it is added.
+
 ## Flagged ambiguities
 
 - **"Live day" is retired (2026-09-09)**: liveness was a property of a day, so a side whose
@@ -672,8 +720,9 @@ _Avoid_: reload, refetch (they name the fetch, not what the page does with its r
   support as "six languages" and enumerate them; do not use the shorthand.
 - **"Dual view / artifact aggregation" is retired (2026-07-30)**: aggregating artifacts by type
   across projects was ruled a false requirement — artifacts are in-project context documents and are
-  shown only within project detail. Cross-project retrieval belongs to a future global search; there
-  will be no aggregation page.
+  shown only within project detail. Cross-project retrieval belongs to global search, not to an
+  aggregation page; global search (ruled 2026-10-19) searches session questions only, so artifacts are
+  still shown only within project detail.
 - **Codex same-name semantics differ per component and must not be extrapolated by analogy**
   (2026-08-01, both verified at source level): two same-name skills across layers **coexist**
   (`root_loader.rs` deduplicates by path only), whereas two same-name subagents **shadow at the

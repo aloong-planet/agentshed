@@ -208,7 +208,11 @@ ruling on 2026-08-06, see Out of Scope).
   - **Re-deriving the title after stripping applies only to sessions whose title comes from the first
     question** (fixed 2026-08-05, from a retrospective review): `thread_name`'s priority
     (A4) is not invalidated by stripping, and the cache entry records the title's origin for this
-    purpose (CACHE_VERSION v9).
+    purpose (CACHE_VERSION v9). The re-derived title is the session's title wherever the session is
+    named — the list and global search, its session page, a project's own session search, and the
+    parent title on the banner of a fork of it — so they agree. The line it is re-derived from is read
+    back each time one of them is built; where that read fails (the file deleted or compressed since
+    the scan), that surface keeps the title the session was parsed with, and nothing else is affected.
   - **The display-side stripping happens in `combine`**, not in the parser: it needs the parent
     session's index, and the cache is per file, so the parser cannot reach the parent. It also does
     **not** reuse the token side's `start` — the metering rule is deduplication, the display rule is
@@ -453,6 +457,10 @@ as a cached visit under session-view::REQ-001)
 - P9 Turn contents and their freshness check use the query layer (ADR-0028/0029), retaining the
   existing in-turn states. Session search also uses the query layer, but its results are not
   persisted across restarts.
+- P10 A session opened directly from a global search hit has the two exits global-search::US-003
+  defines ([global-search](global-search.md)) in place of the single back control; a fork parent
+  reached from it keeps the single back control of P2/P3. The rest of this sequence applies, with the
+  global search page in the project page's place in P1 and P8.
 
 **Sequence E: export (dropped entirely by the user's ruling 2026-08-06, never implemented; the entries
 below are archived as a decision record and are no longer requirements)**
@@ -767,7 +775,8 @@ are untouched and must stay green.
 
 ## Out of Scope
 
-- Global (cross-project) session search — this round is within one project only.
+- Searching across projects — that is global search, a feature of its own ([global-search](global-search.md));
+  this spec's search is within one project.
 - Unregistered projects' sessions.
 - Editing, deleting or resuming session contents.
 - Codex's reasoning body (encrypted, impossible), Claude's truncated tool result originals (the sidecar

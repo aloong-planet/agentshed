@@ -1,0 +1,33 @@
+
+ RUN  v2.1.9 /Users/loong_zhou/CascadeProjects/agentshed-wt/fork-title
+
+stdout | src/main/providers/zz-probe-278.test.ts > probe #278: one title for a stripped fork
+PROBE listed="child new question" page="parent question one" forkState=stripped
+
+ ❯ src/main/providers/zz-probe-278.test.ts (1 test | 1 failed) 14ms
+   × probe #278: one title for a stripped fork 13ms
+     → expected 'parent question one' to be 'child new question' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/main/providers/zz-probe-278.test.ts > probe #278: one title for a stripped fork
+AssertionError: expected 'parent question one' to be 'child new question' // Object.is equality
+
+Expected: "child new question"
+Received: "parent question one"
+
+ ❯ src/main/providers/zz-probe-278.test.ts:31:24
+     29|     console.log(`PROBE listed=${JSON.stringify(listed?.title)} page=${…
+     30|     expect(listed?.title).toBe('child new question')
+     31|     expect(page.title).toBe(listed?.title)
+       |                        ^
+     32|   } finally {
+     33|     rmSync(dir, { recursive: true, force: true })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  21:01:14
+   Duration  505ms (transform 169ms, setup 0ms, collect 224ms, tests 14ms, environment 0ms, prepare 57ms)
+

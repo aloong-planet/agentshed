@@ -1,0 +1,3165 @@
+{
+  "base": "http://127.0.0.1:4399",
+  "at": "2026-10-18T11:58:54.843Z",
+  "results": [
+    {
+      "id": "QR-001 zh/light/400",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/light/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/light/400",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "h1",
+            24,
+            376
+          ],
+          [
+            ".lede",
+            24,
+            376
+          ],
+          [
+            ".cta a.btn",
+            63.6875,
+            336.3125
+          ],
+          [
+            ".cta .meta",
+            101.09375,
+            298.90625
+          ],
+          [
+            ".shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/light/400",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "none",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/light/400",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        376,
+        376
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/light/900",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/light/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            598.28125,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/light/900",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "h1",
+            24,
+            876
+          ],
+          [
+            ".lede",
+            90,
+            810
+          ],
+          [
+            ".cta a.btn",
+            313.6875,
+            586.3125
+          ],
+          [
+            ".cta .meta",
+            351.09375,
+            548.90625
+          ],
+          [
+            ".shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/light/900",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/light/900",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        876,
+        876
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/light/1280",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/light/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            788.28125,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/light/1280",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "h1",
+            124,
+            1156
+          ],
+          [
+            ".lede",
+            280,
+            1000
+          ],
+          [
+            ".cta a.btn",
+            503.6875,
+            776.3125
+          ],
+          [
+            ".cta .meta",
+            541.09375,
+            738.90625
+          ],
+          [
+            ".shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/light/1280",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/light/1280",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        1156,
+        1156
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/light/1440",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/light/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            868.28125,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/light/1440",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "h1",
+            204,
+            1236
+          ],
+          [
+            ".lede",
+            360,
+            1080
+          ],
+          [
+            ".cta a.btn",
+            583.6875,
+            856.3125
+          ],
+          [
+            ".cta .meta",
+            621.09375,
+            818.90625
+          ],
+          [
+            ".shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/light/1440",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/light/1440",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        1236,
+        1236
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/400",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/400",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "h1",
+            24,
+            376
+          ],
+          [
+            ".lede",
+            24,
+            376
+          ],
+          [
+            ".cta a.btn",
+            63.6875,
+            336.3125
+          ],
+          [
+            ".cta .meta",
+            101.09375,
+            298.90625
+          ],
+          [
+            ".shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/dark/400",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "none",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/dark/400",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        376,
+        376
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/900",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            598.28125,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/900",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "h1",
+            24,
+            876
+          ],
+          [
+            ".lede",
+            90,
+            810
+          ],
+          [
+            ".cta a.btn",
+            313.6875,
+            586.3125
+          ],
+          [
+            ".cta .meta",
+            351.09375,
+            548.90625
+          ],
+          [
+            ".shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/dark/900",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/dark/900",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        876,
+        876
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/1280",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            788.28125,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/1280",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "h1",
+            124,
+            1156
+          ],
+          [
+            ".lede",
+            280,
+            1000
+          ],
+          [
+            ".cta a.btn",
+            503.6875,
+            776.3125
+          ],
+          [
+            ".cta .meta",
+            541.09375,
+            738.90625
+          ],
+          [
+            ".shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/dark/1280",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/dark/1280",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        1156,
+        1156
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/1440",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            868.28125,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 zh/dark/1440",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "h1",
+            204,
+            1236
+          ],
+          [
+            ".lede",
+            360,
+            1080
+          ],
+          [
+            ".cta a.btn",
+            583.6875,
+            856.3125
+          ],
+          [
+            ".cta .meta",
+            621.09375,
+            818.90625
+          ],
+          [
+            ".shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/dark/1440",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh/dark/1440",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        1236,
+        1236
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/400",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/400",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "h1",
+            24,
+            376
+          ],
+          [
+            ".lede",
+            24,
+            376
+          ],
+          [
+            ".cta a.btn",
+            41.625,
+            358.375
+          ],
+          [
+            ".cta .meta",
+            98.796875,
+            301.203125
+          ],
+          [
+            ".shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/light/400",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "none",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/light/400",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        376,
+        376
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/900",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            557.09375,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/900",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "h1",
+            24,
+            876
+          ],
+          [
+            ".lede",
+            90,
+            810
+          ],
+          [
+            ".cta a.btn",
+            291.625,
+            608.375
+          ],
+          [
+            ".cta .meta",
+            348.796875,
+            551.203125
+          ],
+          [
+            ".shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/light/900",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/light/900",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        876,
+        876
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/1280",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            747.09375,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/1280",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "h1",
+            124,
+            1156
+          ],
+          [
+            ".lede",
+            280,
+            1000
+          ],
+          [
+            ".cta a.btn",
+            481.625,
+            798.375
+          ],
+          [
+            ".cta .meta",
+            538.796875,
+            741.203125
+          ],
+          [
+            ".shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/light/1280",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/light/1280",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        1156,
+        1156
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/1440",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            827.09375,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/light/1440",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "h1",
+            204,
+            1236
+          ],
+          [
+            ".lede",
+            360,
+            1080
+          ],
+          [
+            ".cta a.btn",
+            561.625,
+            878.375
+          ],
+          [
+            ".cta .meta",
+            618.796875,
+            821.203125
+          ],
+          [
+            ".shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/light/1440",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/light/1440",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        1236,
+        1236
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/400",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        400,
+        400
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/400",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            47,
+            353
+          ]
+        ],
+        "content": {
+          "left": 47,
+          "right": 353
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/400",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 376
+        },
+        "parts": [
+          [
+            "h1",
+            24,
+            376
+          ],
+          [
+            ".lede",
+            24,
+            376
+          ],
+          [
+            ".cta a.btn",
+            41.625,
+            358.375
+          ],
+          [
+            ".cta .meta",
+            98.796875,
+            301.203125
+          ],
+          [
+            ".shot",
+            24,
+            376
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/dark/400",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "none",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/dark/400",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        376,
+        376
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/900",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        900,
+        900
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/900",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            557.09375,
+            767
+          ]
+        ],
+        "content": {
+          "left": 133,
+          "right": 767
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/900",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 24,
+          "right": 876
+        },
+        "parts": [
+          [
+            "h1",
+            24,
+            876
+          ],
+          [
+            ".lede",
+            90,
+            810
+          ],
+          [
+            ".cta a.btn",
+            291.625,
+            608.375
+          ],
+          [
+            ".cta .meta",
+            348.796875,
+            551.203125
+          ],
+          [
+            ".shot",
+            24,
+            876
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/dark/900",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/dark/900",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        876,
+        876
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/1280",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        1280,
+        1280
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/1280",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            747.09375,
+            957
+          ]
+        ],
+        "content": {
+          "left": 323,
+          "right": 957
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/1280",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 124,
+          "right": 1156
+        },
+        "parts": [
+          [
+            "h1",
+            124,
+            1156
+          ],
+          [
+            ".lede",
+            280,
+            1000
+          ],
+          [
+            ".cta a.btn",
+            481.625,
+            798.375
+          ],
+          [
+            ".cta .meta",
+            538.796875,
+            741.203125
+          ],
+          [
+            ".shot",
+            160,
+            1120
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/dark/1280",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/dark/1280",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        1156,
+        1156
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/1440",
+      "what": "no sideways scroll (scrollWidth ≤ clientWidth)",
+      "actual": [
+        1440,
+        1440
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/1440",
+      "what": "every download button inside the card’s content box",
+      "actual": {
+        "buttons": [
+          [
+            827.09375,
+            1037
+          ]
+        ],
+        "content": {
+          "left": 403,
+          "right": 1037
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "QR-001 en/dark/1440",
+      "what": "hero keeps its side gutters: every part inside the hero’s content box, gutter ≥ 24px",
+      "actual": {
+        "heroContent": {
+          "left": 204,
+          "right": 1236
+        },
+        "parts": [
+          [
+            "h1",
+            204,
+            1236
+          ],
+          [
+            ".lede",
+            360,
+            1080
+          ],
+          [
+            ".cta a.btn",
+            561.625,
+            878.375
+          ],
+          [
+            ".cta .meta",
+            618.796875,
+            821.203125
+          ],
+          [
+            ".shot",
+            240,
+            1200
+          ]
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/dark/1440",
+      "what": "navigation hidden below 760px, shown above",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en/dark/1440",
+      "what": "toggle at the header’s right edge",
+      "actual": [
+        1236,
+        1236
+      ],
+      "pass": true
+    },
+    {
+      "id": "QR-001 control",
+      "what": "an element wider than the viewport is detected as sideways scroll",
+      "actual": true,
+      "pass": true
+    },
+    {
+      "id": "REQ-003 zh",
+      "what": "header at the top after scrolling 3000px",
+      "actual": [
+        2565,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-003 en",
+      "what": "header at the top after scrolling 3000px",
+      "actual": [
+        2638,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 zh/1280",
+      "what": "the frame shows the step nearest its middle at every sample",
+      "actual": [],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 zh/1280",
+      "what": "scrolling down visits the steps in order",
+      "actual": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 zh/1280",
+      "what": "the frame stays in place, under the header, centred in the space below it",
+      "actual": {
+        "samples": 23,
+        "stuckSamples": 14,
+        "stickyTop": 286,
+        "top": 286,
+        "middle": 480.28125,
+        "spaceMiddle": 479
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 zh/1280",
+      "what": "current step: accent bar and darker title; others grey",
+      "actual": {
+        "current": 1,
+        "styles": [
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          },
+          {
+            "bar": "rgb(138, 103, 171)",
+            "barWidth": "3px",
+            "title": "rgb(55, 53, 47)"
+          },
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          },
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 zh/1280",
+      "what": "hovered step: stronger grey bar, darker title",
+      "actual": {
+        "bar": "rgb(217, 220, 224)",
+        "title": "rgb(55, 53, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 zh/1280",
+      "what": "the current step keeps its accent bar while hovered",
+      "actual": {
+        "bar": "rgb(138, 103, 171)",
+        "title": "rgb(55, 53, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-03 zh/1280",
+      "what": "each step about a third of a screen tall",
+      "actual": [
+        0.34,
+        0.34,
+        0.34,
+        0.34
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-03 zh/1280",
+      "what": "with step 1 current, steps 0 and 2 at least partly in view below the header",
+      "actual": [
+        [
+          123.28125,
+          225.875
+        ],
+        [
+          735.28125,
+          837.875
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1280",
+      "what": "a click on each step makes it current and shows its screenshot",
+      "actual": [
+        {
+          "i": 0,
+          "current": 0,
+          "shown": 0,
+          "offset": -41.3,
+          "panelTop": 327.6,
+          "atStart": true,
+          "atEnd": false
+        },
+        {
+          "i": 1,
+          "current": 1,
+          "shown": 1,
+          "offset": 0.3,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 2,
+          "current": 2,
+          "shown": 2,
+          "offset": 0.3,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 3,
+          "current": 3,
+          "shown": 3,
+          "offset": 41.3,
+          "panelTop": 245,
+          "atStart": false,
+          "atEnd": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1280",
+      "what": "a click on the middle two steps leaves them level with the frame’s middle (±2px)",
+      "actual": [
+        {
+          "i": 1,
+          "current": 1,
+          "shown": 1,
+          "offset": 0.3,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 2,
+          "current": 2,
+          "shown": 2,
+          "offset": 0.3,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1280",
+      "what": "a click on the first and last steps: as close to the frame’s middle as the section allows (the frame at the section’s start or end)",
+      "actual": [
+        {
+          "i": 0,
+          "current": 0,
+          "shown": 0,
+          "offset": -41.3,
+          "panelTop": 327.6,
+          "atStart": true,
+          "atEnd": false
+        },
+        {
+          "i": 3,
+          "current": 3,
+          "shown": 3,
+          "offset": 41.3,
+          "panelTop": 245,
+          "atStart": false,
+          "atEnd": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1280",
+      "what": "click: the step level with the frame’s middle, the frame follows",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "offset": 0.296875
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1280",
+      "what": "keyboard focus (Shift+Tab to the previous step) shows a ring inside its own box (offset + width ≤ 0)",
+      "actual": {
+        "i": "1",
+        "visible": true,
+        "style": "solid",
+        "width": 2,
+        "offset": -2
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1280",
+      "what": "Enter on the focused step: level with the frame’s middle, the frame follows",
+      "actual": {
+        "current": 1,
+        "offset": 0.296875
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 zh/1280",
+      "what": "mid-switch both screenshots partly opaque (a cross-fade)",
+      "actual": [
+        0.0383439,
+        0.961656,
+        0,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 zh/1280",
+      "what": "after the switch: only the shown screenshot visible and hit by the pointer",
+      "actual": {
+        "transition": "0.3s",
+        "visibility": [
+          "visible",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        "opacity": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "hit": 0
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 zh/1280",
+      "what": "the accessibility tree of the frame holds the shown screenshot only",
+      "actual": [
+        "img \"\u6240\u6709 agent \u4fa7\u7684 skills \u5408\u5e76\u5728\u4e00\u5f20\u8868\u91cc\""
+      ],
+      "pass": true
+    },
+    {
+      "id": "Failure C2 zh/1280",
+      "what": "after narrowing below 760px and widening again, the current step is the nearest",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "nearest": 2,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -131.421875,
+          174.578125,
+          480.578125,
+          786.578125
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure C1 zh/1280",
+      "what": "after a jump away and back, the frame shows the nearest step",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "nearest": 2,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -131.421875,
+          174.578125,
+          480.578125,
+          786.578125
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure C1 zh/1280",
+      "what": "after a wheel scroll, the frame shows the nearest step",
+      "actual": {
+        "current": 3,
+        "shown": 3,
+        "nearest": 3,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -371.421875,
+          -65.421875,
+          240.578125,
+          546.578125
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 zh/1440",
+      "what": "the frame shows the step nearest its middle at every sample",
+      "actual": [],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 zh/1440",
+      "what": "scrolling down visits the steps in order",
+      "actual": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 zh/1440",
+      "what": "the frame stays in place, under the header, centred in the space below it",
+      "actual": {
+        "samples": 23,
+        "stuckSamples": 14,
+        "stickyTop": 286,
+        "top": 286,
+        "middle": 480.28125,
+        "spaceMiddle": 479
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 zh/1440",
+      "what": "current step: accent bar and darker title; others grey",
+      "actual": {
+        "current": 1,
+        "styles": [
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          },
+          {
+            "bar": "rgb(138, 103, 171)",
+            "barWidth": "3px",
+            "title": "rgb(55, 53, 47)"
+          },
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          },
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 zh/1440",
+      "what": "hovered step: stronger grey bar, darker title",
+      "actual": {
+        "bar": "rgb(217, 220, 224)",
+        "title": "rgb(55, 53, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 zh/1440",
+      "what": "the current step keeps its accent bar while hovered",
+      "actual": {
+        "bar": "rgb(138, 103, 171)",
+        "title": "rgb(55, 53, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-03 zh/1440",
+      "what": "each step about a third of a screen tall",
+      "actual": [
+        0.34,
+        0.34,
+        0.34,
+        0.34
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-03 zh/1440",
+      "what": "with step 1 current, steps 0 and 2 at least partly in view below the header",
+      "actual": [
+        [
+          123.28125,
+          225.875
+        ],
+        [
+          735.28125,
+          837.875
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1440",
+      "what": "a click on each step makes it current and shows its screenshot",
+      "actual": [
+        {
+          "i": 0,
+          "current": 0,
+          "shown": 0,
+          "offset": -41.3,
+          "panelTop": 327.6,
+          "atStart": true,
+          "atEnd": false
+        },
+        {
+          "i": 1,
+          "current": 1,
+          "shown": 1,
+          "offset": 0.3,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 2,
+          "current": 2,
+          "shown": 2,
+          "offset": 0.3,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 3,
+          "current": 3,
+          "shown": 3,
+          "offset": 41.3,
+          "panelTop": 245,
+          "atStart": false,
+          "atEnd": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1440",
+      "what": "a click on the middle two steps leaves them level with the frame’s middle (±2px)",
+      "actual": [
+        {
+          "i": 1,
+          "current": 1,
+          "shown": 1,
+          "offset": 0.3,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 2,
+          "current": 2,
+          "shown": 2,
+          "offset": 0.3,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1440",
+      "what": "a click on the first and last steps: as close to the frame’s middle as the section allows (the frame at the section’s start or end)",
+      "actual": [
+        {
+          "i": 0,
+          "current": 0,
+          "shown": 0,
+          "offset": -41.3,
+          "panelTop": 327.6,
+          "atStart": true,
+          "atEnd": false
+        },
+        {
+          "i": 3,
+          "current": 3,
+          "shown": 3,
+          "offset": 41.3,
+          "panelTop": 245,
+          "atStart": false,
+          "atEnd": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1440",
+      "what": "click: the step level with the frame’s middle, the frame follows",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "offset": 0.296875
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1440",
+      "what": "keyboard focus (Shift+Tab to the previous step) shows a ring inside its own box (offset + width ≤ 0)",
+      "actual": {
+        "i": "1",
+        "visible": true,
+        "style": "solid",
+        "width": 2,
+        "offset": -2
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 zh/1440",
+      "what": "Enter on the focused step: level with the frame’s middle, the frame follows",
+      "actual": {
+        "current": 1,
+        "offset": 0.296875
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 zh/1440",
+      "what": "mid-switch both screenshots partly opaque (a cross-fade)",
+      "actual": [
+        0.0383472,
+        0.961653,
+        0,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 zh/1440",
+      "what": "after the switch: only the shown screenshot visible and hit by the pointer",
+      "actual": {
+        "transition": "0.3s",
+        "visibility": [
+          "visible",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        "opacity": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "hit": 0
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 zh/1440",
+      "what": "the accessibility tree of the frame holds the shown screenshot only",
+      "actual": [
+        "img \"\u6240\u6709 agent \u4fa7\u7684 skills \u5408\u5e76\u5728\u4e00\u5f20\u8868\u91cc\""
+      ],
+      "pass": true
+    },
+    {
+      "id": "Failure C2 zh/1440",
+      "what": "after narrowing below 760px and widening again, the current step is the nearest",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "nearest": 2,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -131.421875,
+          174.578125,
+          480.578125,
+          786.578125
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure C1 zh/1440",
+      "what": "after a jump away and back, the frame shows the nearest step",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "nearest": 2,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -131.421875,
+          174.578125,
+          480.578125,
+          786.578125
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure C1 zh/1440",
+      "what": "after a wheel scroll, the frame shows the nearest step",
+      "actual": {
+        "current": 3,
+        "shown": 3,
+        "nearest": 3,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -371.421875,
+          -65.421875,
+          240.578125,
+          546.578125
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 en/1280",
+      "what": "the frame shows the step nearest its middle at every sample",
+      "actual": [],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 en/1280",
+      "what": "scrolling down visits the steps in order",
+      "actual": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 en/1280",
+      "what": "the frame stays in place, under the header, centred in the space below it",
+      "actual": {
+        "samples": 23,
+        "stuckSamples": 14,
+        "stickyTop": 286,
+        "top": 286,
+        "middle": 480.28125,
+        "spaceMiddle": 479
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 en/1280",
+      "what": "current step: accent bar and darker title; others grey",
+      "actual": {
+        "current": 1,
+        "styles": [
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          },
+          {
+            "bar": "rgb(138, 103, 171)",
+            "barWidth": "3px",
+            "title": "rgb(55, 53, 47)"
+          },
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          },
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 en/1280",
+      "what": "hovered step: stronger grey bar, darker title",
+      "actual": {
+        "bar": "rgb(217, 220, 224)",
+        "title": "rgb(55, 53, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 en/1280",
+      "what": "the current step keeps its accent bar while hovered",
+      "actual": {
+        "bar": "rgb(138, 103, 171)",
+        "title": "rgb(55, 53, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-03 en/1280",
+      "what": "each step about a third of a screen tall",
+      "actual": [
+        0.34,
+        0.34,
+        0.34,
+        0.34
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-03 en/1280",
+      "what": "with step 1 current, steps 0 and 2 at least partly in view below the header",
+      "actual": [
+        [
+          111.078125,
+          237.671875
+        ],
+        [
+          723.078125,
+          849.671875
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1280",
+      "what": "a click on each step makes it current and shows its screenshot",
+      "actual": [
+        {
+          "i": 0,
+          "current": 0,
+          "shown": 0,
+          "offset": -41.3,
+          "panelTop": 327.4,
+          "atStart": true,
+          "atEnd": false
+        },
+        {
+          "i": 1,
+          "current": 1,
+          "shown": 1,
+          "offset": 0.1,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 2,
+          "current": 2,
+          "shown": 2,
+          "offset": 0.1,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 3,
+          "current": 3,
+          "shown": 3,
+          "offset": 41.3,
+          "panelTop": 244.8,
+          "atStart": false,
+          "atEnd": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1280",
+      "what": "a click on the middle two steps leaves them level with the frame’s middle (±2px)",
+      "actual": [
+        {
+          "i": 1,
+          "current": 1,
+          "shown": 1,
+          "offset": 0.1,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 2,
+          "current": 2,
+          "shown": 2,
+          "offset": 0.1,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1280",
+      "what": "a click on the first and last steps: as close to the frame’s middle as the section allows (the frame at the section’s start or end)",
+      "actual": [
+        {
+          "i": 0,
+          "current": 0,
+          "shown": 0,
+          "offset": -41.3,
+          "panelTop": 327.4,
+          "atStart": true,
+          "atEnd": false
+        },
+        {
+          "i": 3,
+          "current": 3,
+          "shown": 3,
+          "offset": 41.3,
+          "panelTop": 244.8,
+          "atStart": false,
+          "atEnd": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1280",
+      "what": "click: the step level with the frame’s middle, the frame follows",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "offset": 0.09375
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1280",
+      "what": "keyboard focus (Shift+Tab to the previous step) shows a ring inside its own box (offset + width ≤ 0)",
+      "actual": {
+        "i": "1",
+        "visible": true,
+        "style": "solid",
+        "width": 2,
+        "offset": -2
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1280",
+      "what": "Enter on the focused step: level with the frame’s middle, the frame follows",
+      "actual": {
+        "current": 1,
+        "offset": 0.09375
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 en/1280",
+      "what": "mid-switch both screenshots partly opaque (a cross-fade)",
+      "actual": [
+        0.0383306,
+        0.961669,
+        0,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 en/1280",
+      "what": "after the switch: only the shown screenshot visible and hit by the pointer",
+      "actual": {
+        "transition": "0.3s",
+        "visibility": [
+          "visible",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        "opacity": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "hit": 0
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 en/1280",
+      "what": "the accessibility tree of the frame holds the shown screenshot only",
+      "actual": [
+        "img \"Every agent side’s skills in one merged list\""
+      ],
+      "pass": true
+    },
+    {
+      "id": "Failure C2 en/1280",
+      "what": "after narrowing below 760px and widening again, the current step is the nearest",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "nearest": 2,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -131.625,
+          174.375,
+          480.375,
+          786.375
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure C1 en/1280",
+      "what": "after a jump away and back, the frame shows the nearest step",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "nearest": 2,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -131.625,
+          174.375,
+          480.375,
+          786.375
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure C1 en/1280",
+      "what": "after a wheel scroll, the frame shows the nearest step",
+      "actual": {
+        "current": 3,
+        "shown": 3,
+        "nearest": 3,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -371.625,
+          -65.625,
+          240.375,
+          546.375
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 en/1440",
+      "what": "the frame shows the step nearest its middle at every sample",
+      "actual": [],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 en/1440",
+      "what": "scrolling down visits the steps in order",
+      "actual": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-01 en/1440",
+      "what": "the frame stays in place, under the header, centred in the space below it",
+      "actual": {
+        "samples": 23,
+        "stuckSamples": 14,
+        "stickyTop": 286,
+        "top": 286,
+        "middle": 480.28125,
+        "spaceMiddle": 479
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 en/1440",
+      "what": "current step: accent bar and darker title; others grey",
+      "actual": {
+        "current": 1,
+        "styles": [
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          },
+          {
+            "bar": "rgb(138, 103, 171)",
+            "barWidth": "3px",
+            "title": "rgb(55, 53, 47)"
+          },
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          },
+          {
+            "bar": "rgb(232, 234, 237)",
+            "barWidth": "3px",
+            "title": "rgb(120, 119, 116)"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 en/1440",
+      "what": "hovered step: stronger grey bar, darker title",
+      "actual": {
+        "bar": "rgb(217, 220, 224)",
+        "title": "rgb(55, 53, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-02 en/1440",
+      "what": "the current step keeps its accent bar while hovered",
+      "actual": {
+        "bar": "rgb(138, 103, 171)",
+        "title": "rgb(55, 53, 47)"
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-03 en/1440",
+      "what": "each step about a third of a screen tall",
+      "actual": [
+        0.34,
+        0.34,
+        0.34,
+        0.34
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-03 en/1440",
+      "what": "with step 1 current, steps 0 and 2 at least partly in view below the header",
+      "actual": [
+        [
+          111.078125,
+          237.671875
+        ],
+        [
+          723.078125,
+          849.671875
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1440",
+      "what": "a click on each step makes it current and shows its screenshot",
+      "actual": [
+        {
+          "i": 0,
+          "current": 0,
+          "shown": 0,
+          "offset": -41.3,
+          "panelTop": 327.4,
+          "atStart": true,
+          "atEnd": false
+        },
+        {
+          "i": 1,
+          "current": 1,
+          "shown": 1,
+          "offset": 0.1,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 2,
+          "current": 2,
+          "shown": 2,
+          "offset": 0.1,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 3,
+          "current": 3,
+          "shown": 3,
+          "offset": 41.3,
+          "panelTop": 244.8,
+          "atStart": false,
+          "atEnd": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1440",
+      "what": "a click on the middle two steps leaves them level with the frame’s middle (±2px)",
+      "actual": [
+        {
+          "i": 1,
+          "current": 1,
+          "shown": 1,
+          "offset": 0.1,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        },
+        {
+          "i": 2,
+          "current": 2,
+          "shown": 2,
+          "offset": 0.1,
+          "panelTop": 286,
+          "atStart": false,
+          "atEnd": false
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1440",
+      "what": "a click on the first and last steps: as close to the frame’s middle as the section allows (the frame at the section’s start or end)",
+      "actual": [
+        {
+          "i": 0,
+          "current": 0,
+          "shown": 0,
+          "offset": -41.3,
+          "panelTop": 327.4,
+          "atStart": true,
+          "atEnd": false
+        },
+        {
+          "i": 3,
+          "current": 3,
+          "shown": 3,
+          "offset": 41.3,
+          "panelTop": 244.8,
+          "atStart": false,
+          "atEnd": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1440",
+      "what": "click: the step level with the frame’s middle, the frame follows",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "offset": 0.09375
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1440",
+      "what": "keyboard focus (Shift+Tab to the previous step) shows a ring inside its own box (offset + width ≤ 0)",
+      "actual": {
+        "i": "1",
+        "visible": true,
+        "style": "solid",
+        "width": 2,
+        "offset": -2
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-04 en/1440",
+      "what": "Enter on the focused step: level with the frame’s middle, the frame follows",
+      "actual": {
+        "current": 1,
+        "offset": 0.09375
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 en/1440",
+      "what": "mid-switch both screenshots partly opaque (a cross-fade)",
+      "actual": [
+        0.0385177,
+        0.961482,
+        0,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 en/1440",
+      "what": "after the switch: only the shown screenshot visible and hit by the pointer",
+      "actual": {
+        "transition": "0.3s",
+        "visibility": [
+          "visible",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        "opacity": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "hit": 0
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 en/1440",
+      "what": "the accessibility tree of the frame holds the shown screenshot only",
+      "actual": [
+        "img \"Every agent side’s skills in one merged list\""
+      ],
+      "pass": true
+    },
+    {
+      "id": "Failure C2 en/1440",
+      "what": "after narrowing below 760px and widening again, the current step is the nearest",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "nearest": 2,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -131.625,
+          174.375,
+          480.375,
+          786.375
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure C1 en/1440",
+      "what": "after a jump away and back, the frame shows the nearest step",
+      "actual": {
+        "current": 2,
+        "shown": 2,
+        "nearest": 2,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -131.625,
+          174.375,
+          480.375,
+          786.375
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure C1 en/1440",
+      "what": "after a wheel scroll, the frame shows the nearest step",
+      "actual": {
+        "current": 3,
+        "shown": 3,
+        "nearest": 3,
+        "tie": false,
+        "panelTop": 286,
+        "panelMiddle": 480.28125,
+        "panelHeight": 388.5625,
+        "centres": [
+          -371.625,
+          -65.625,
+          240.375,
+          546.375
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-05 reduced motion",
+      "what": "no transition; the shown screenshot fully opaque at once",
+      "actual": {
+        "duration": [
+          "0s",
+          "0s",
+          "0s",
+          "0s"
+        ],
+        "opacity": [
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-06 zh",
+      "what": "no fixed frame; each screenshot under its text; a clear gap before the next title",
+      "actual": {
+        "panel": "none",
+        "under": [
+          18,
+          18,
+          18,
+          18
+        ],
+        "gaps": [
+          44,
+          44,
+          44
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-06 en",
+      "what": "no fixed frame; each screenshot under its text; a clear gap before the next title",
+      "actual": {
+        "panel": "none",
+        "under": [
+          18,
+          18,
+          18,
+          18
+        ],
+        "gaps": [
+          44,
+          44,
+          44
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-07 en→zh",
+      "what": "the same current step, the step at the same height",
+      "actual": {
+        "before": {
+          "current": 2,
+          "top": 327.375,
+          "scrollY": 1684
+        },
+        "after": {
+          "lang": "zh-CN",
+          "current": 2,
+          "top": 327.578125,
+          "scrollY": 1655
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-07 zh→en",
+      "what": "scrolled to the install section: the section at the same height",
+      "actual": [
+        199.578125,
+        199.375
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-07 zh→en",
+      "what": "the same current step, the step at the same height",
+      "actual": {
+        "before": {
+          "current": 2,
+          "top": 327.578125,
+          "scrollY": 1655
+        },
+        "after": {
+          "lang": "en",
+          "current": 2,
+          "top": 327.375,
+          "scrollY": 1684
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-07 en→zh",
+      "what": "scrolled to the install section: the section at the same height",
+      "actual": [
+        200.375,
+        200.578125
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-004/AC-07 en→zh at 400px",
+      "what": "the step under the viewport’s middle at the same height",
+      "actual": [
+        300.03125,
+        299.84375
+      ],
+      "pass": true
+    },
+    {
+      "id": "Failure C3 en/1280×560",
+      "what": "the current step’s text body visible below the header",
+      "actual": [
+        293.640625,
+        365.640625,
+        560
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-005/AC-03 zh/400",
+      "what": "every displayed screenshot holds its height before loading",
+      "actual": [
+        [
+          false,
+          210,
+          210
+        ],
+        [
+          false,
+          196.9,
+          196.9
+        ],
+        [
+          false,
+          196.9,
+          196.9
+        ],
+        [
+          false,
+          196.9,
+          196.9
+        ],
+        [
+          false,
+          196.9,
+          196.9
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-005/AC-03 zh/1280",
+      "what": "every displayed screenshot holds its height before loading",
+      "actual": [
+        [
+          false,
+          574.8,
+          574.8
+        ],
+        [
+          false,
+          358.6,
+          358.6
+        ],
+        [
+          false,
+          358.6,
+          358.6
+        ],
+        [
+          false,
+          358.6,
+          358.6
+        ],
+        [
+          false,
+          358.6,
+          358.6
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-005/AC-03 en/400",
+      "what": "every displayed screenshot holds its height before loading",
+      "actual": [
+        [
+          false,
+          210,
+          210
+        ],
+        [
+          false,
+          196.9,
+          196.9
+        ],
+        [
+          false,
+          196.9,
+          196.9
+        ],
+        [
+          false,
+          196.9,
+          196.9
+        ],
+        [
+          false,
+          196.9,
+          196.9
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-005/AC-03 en/1280",
+      "what": "every displayed screenshot holds its height before loading",
+      "actual": [
+        [
+          false,
+          574.8,
+          574.8
+        ],
+        [
+          false,
+          358.6,
+          358.6
+        ],
+        [
+          false,
+          358.6,
+          358.6
+        ],
+        [
+          false,
+          358.6,
+          358.6
+        ],
+        [
+          false,
+          358.6,
+          358.6
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-006 zh",
+      "what": "light: the app’s purple light values",
+      "actual": {
+        "bg": "rgb(247, 248, 249)",
+        "text": "rgb(55, 53, 47)",
+        "lede": "rgb(120, 119, 116)",
+        "button": "rgb(138, 103, 171)",
+        "shotFilter": "none",
+        "iconFilter": "drop-shadow(rgba(55, 53, 47, 0.18) 0px 18px 25px)",
+        "iconBoxShadow": "none",
+        "shotOpacity": "1"
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure D1 zh",
+      "what": "switching the system appearance recolours the page (no reload): the dark values",
+      "actual": {
+        "bg": "rgb(24, 25, 27)",
+        "text": "rgb(230, 230, 229)",
+        "lede": "rgb(155, 154, 151)",
+        "button": "rgb(160, 132, 199)",
+        "shotFilter": "none",
+        "iconFilter": "drop-shadow(rgba(0, 0, 0, 0.55) 0px 18px 25px)",
+        "iconBoxShadow": "none",
+        "shotOpacity": "1"
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 zh",
+      "what": "the hero icon: a drop shadow on its outline, no box shadow, light and dark values",
+      "actual": [
+        "drop-shadow(rgba(55, 53, 47, 0.18) 0px 18px 25px)",
+        "drop-shadow(rgba(0, 0, 0, 0.55) 0px 18px 25px)",
+        "none"
+      ],
+      "pass": true
+    },
+    {
+      "id": "Failure D1 zh",
+      "what": "the screenshots stay as taken (light) in dark: no filter, fully opaque",
+      "actual": [
+        "none",
+        "1"
+      ],
+      "pass": true
+    },
+    {
+      "id": "REQ-006 en",
+      "what": "light: the app’s purple light values",
+      "actual": {
+        "bg": "rgb(247, 248, 249)",
+        "text": "rgb(55, 53, 47)",
+        "lede": "rgb(120, 119, 116)",
+        "button": "rgb(138, 103, 171)",
+        "shotFilter": "none",
+        "iconFilter": "drop-shadow(rgba(55, 53, 47, 0.18) 0px 18px 25px)",
+        "iconBoxShadow": "none",
+        "shotOpacity": "1"
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure D1 en",
+      "what": "switching the system appearance recolours the page (no reload): the dark values",
+      "actual": {
+        "bg": "rgb(24, 25, 27)",
+        "text": "rgb(230, 230, 229)",
+        "lede": "rgb(155, 154, 151)",
+        "button": "rgb(160, 132, 199)",
+        "shotFilter": "none",
+        "iconFilter": "drop-shadow(rgba(0, 0, 0, 0.55) 0px 18px 25px)",
+        "iconBoxShadow": "none",
+        "shotOpacity": "1"
+      },
+      "pass": true
+    },
+    {
+      "id": "REQ-006 en",
+      "what": "the hero icon: a drop shadow on its outline, no box shadow, light and dark values",
+      "actual": [
+        "drop-shadow(rgba(55, 53, 47, 0.18) 0px 18px 25px)",
+        "drop-shadow(rgba(0, 0, 0, 0.55) 0px 18px 25px)",
+        "none"
+      ],
+      "pass": true
+    },
+    {
+      "id": "Failure D1 en",
+      "what": "the screenshots stay as taken (light) in dark: no filter, fully opaque",
+      "actual": [
+        "none",
+        "1"
+      ],
+      "pass": true
+    },
+    {
+      "id": "Failure B1",
+      "what": "a direct visit to /en/: English, the toggle on EN",
+      "actual": {
+        "lang": "en",
+        "on": "EN",
+        "current": "EN"
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure B2",
+      "what": "the navigation’s GitHub link opens the repository in a new tab",
+      "actual": "https://github.com/aloong-planet/agentshed",
+      "pass": true
+    },
+    {
+      "id": "Failure B2",
+      "what": "a section link scrolls within the page, to the section",
+      "actual": {
+        "url": "http://127.0.0.1:4399/en/#install",
+        "top": 49.375,
+        "atEnd": true
+      },
+      "pass": true
+    },
+    {
+      "id": "Failure B1",
+      "what": "toggling goes to the other language’s page",
+      "actual": [
+        "http://127.0.0.1:4399/",
+        "zh-CN"
+      ],
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "nav: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "title: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "lede: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "platform: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "hero shot: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "features title: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "features subtitle: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "features: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "install title: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "install steps: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "download title: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "download label: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "list state: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy zh",
+      "what": "footer: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "nav: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "title: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "lede: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "platform: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "hero shot: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "features title: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "features subtitle: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "features: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "install title: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "install steps: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "download title: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "download label: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "list state: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    },
+    {
+      "id": "copy en",
+      "what": "footer: the site’s copy equals the confirmed prototype’s",
+      "actual": "equal",
+      "pass": true
+    }
+  ]
+}

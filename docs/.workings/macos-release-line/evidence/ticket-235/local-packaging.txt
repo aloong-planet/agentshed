@@ -1,0 +1,88 @@
+# Two real local packagings for #235 (2026-10-19, this Mac, pnpm dist:mac:local, electron-builder 26.17.0),
+# in the git worktree agentshed-wt/update-zip, with the asset re-copied from skillshed 070c4f2.
+
+## Run 1: the zip target and the asset's two settings, no publish provider declared
+[mac] electron-vite build
+[mac] electron-builder --mac --publish never -c.mac.notarize=false
+  • signing         file=release/0.1.0/mac-arm64/Agentshed.app platform=darwin type=distribution identityName=Developer ID Application: Longfei Zhou (RHQ28XS7D9) identityHash=<hash> provisioningProfil
+  • skipped macOS notarization  reason=`notarize` options were set explicitly `false`
+  • building        target=macOS zip arch=arm64 file=release/0.1.0/Agentshed-0.1.0-mac-arm64.zip
+  • building        target=DMG arch=arm64 file=release/0.1.0/Agentshed-0.1.0-mac-arm64.dmg
+  • building block map  blockMapFile=release/0.1.0/Agentshed-0.1.0-mac-arm64.zip.blockmap
+[mac] local packaging done for arm64
+LOCAL_EXIT=0
+Its version directory (release/0.1.0), as listed then:
+  Agentshed-0.1.0-mac-arm64.dmg, Agentshed-0.1.0-mac-arm64.zip, Agentshed-0.1.0-mac-arm64.zip.blockmap, builder-debug.yml
+  -> no latest-mac.yml. electron-builder 26.17.0 detects the provider from package.json's repository (absent here),
+     CI variables, or <project>/.git/config (app-builder-lib/out/util/repositoryInfo.js, getGitUrlFromGitConfig);
+     a git worktree has a .git file, not a directory, so nothing was detected and no metadata was written, silently.
+
+## Run 2: the GitHub provider declared in electron-builder.yml (publish: github, aloong-planet/agentshed)
+[mac] electron-vite build
+[mac] electron-builder --mac --publish never -c.mac.notarize=false
+  • signing         file=release/0.1.0/mac-arm64/Agentshed.app platform=darwin type=distribution identityName=Developer ID Application: Longfei Zhou (RHQ28XS7D9) identityHash=<hash> provisioningProfil
+  • skipped macOS notarization  reason=`notarize` options were set explicitly `false`
+  • building        target=macOS zip arch=arm64 file=release/0.1.0/Agentshed-0.1.0-mac-arm64.zip
+  • building        target=DMG arch=arm64 file=release/0.1.0/Agentshed-0.1.0-mac-arm64.dmg
+  • building block map  blockMapFile=release/0.1.0/Agentshed-0.1.0-mac-arm64.zip.blockmap
+[mac] local packaging done for arm64
+LOCAL_EXIT=0
+
+$ ls -l release/0.1.0
+ 
+127813548 Agentshed-0.1.0-mac-arm64.dmg
+121299463 Agentshed-0.1.0-mac-arm64.zip
+127964 Agentshed-0.1.0-mac-arm64.zip.blockmap
+842 builder-debug.yml
+355 latest-mac.yml
+96 mac-arm64
+
+$ cat release/0.1.0/latest-mac.yml
+version: 0.1.0
+files:
+  - url: Agentshed-0.1.0-mac-arm64.zip
+    sha512: +TEYQoTTfeG8ABKoPvnYVnIZLc7IIx6Gd4tE9SwvfoPa5LoKRGInaru05EsF2NQFZUXkc6C3505XLW4tdX9mfg==
+    size: 121299463
+path: Agentshed-0.1.0-mac-arm64.zip
+sha512: +TEYQoTTfeG8ABKoPvnYVnIZLc7IIx6Gd4tE9SwvfoPa5LoKRGInaru05EsF2NQFZUXkc6C3505XLW4tdX9mfg==
+releaseDate: '2026-10-19T07:19:50.082Z'
+
+$ openssl dgst -sha512 -binary <zip> | base64; stat -f %z <zip>   (must equal the metadata above)
++TEYQoTTfeG8ABKoPvnYVnIZLc7IIx6Gd4tE9SwvfoPa5LoKRGInaru05EsF2NQFZUXkc6C3505XLW4tdX9mfg==
+121299463
+
+## The ZIP's app (policy §7), extracted to a temporary directory; the ZIP is not touched
+entries: Agentshed.app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper.app
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Agentshed Helper.app
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+--prepared:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/private<tmp>/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+<tmp>/Agentshed.app: valid on disk
+<tmp>/Agentshed.app: satisfies its Designated Requirement
+Authority=Developer ID Application: Longfei Zhou (RHQ28XS7D9)
+Timestamp=Oct 19, 2026 at 15:19:13
+TeamIdentifier=RHQ28XS7D9
+stapler: Agentshed.app does not have a ticket stapled to it.  (local profile: never notarized, by design)
+
+## app-update.yml written into the app (the provider electron-builder now knows)
+owner: aloong-planet
+repo: agentshed
+provider: github
+updaterCacheDirName: agentshed-updater
+
+## The asset's artifact-set check (checkArtifactSet, the first step of notarize-dmg) on this output
+passes: dmgs [ 'Agentshed-0.1.0-mac-arm64.dmg' ] zips [ 'Agentshed-0.1.0-mac-arm64.zip' ] metadata latest-mac.yml

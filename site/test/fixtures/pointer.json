@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0",
+  "files": [
+    {
+      "name": "Agentshed-0.2.0-mac-arm64.dmg",
+      "arch": "arm64",
+      "size": 1024,
+      "url": "https://dl.agentshed.aloongplanet.com/releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg"
+    }
+  ]
+}

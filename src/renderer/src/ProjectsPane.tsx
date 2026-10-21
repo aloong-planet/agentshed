@@ -1,5 +1,5 @@
 import { useDisplayClock } from './DisplayClock'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { AgentSide, ProjectEntry, Snapshot } from '@shared/domain'
 import type { Language } from '@shared/i18n'
 import { relativeDays } from '@shared/format'
@@ -43,11 +43,15 @@ interface Props {
   snap: Snapshot
   selected: string | null
   onSelect: (path: string) => void
+  /** The selection was made outside the list (a global search hit): scroll its row into view (C8) */
+  revealSelected?: boolean
+  /** Called once the row has been revealed, so the request is not repeated */
+  onRevealed?: () => void
   /** The detail area (filled in by ticket 03; currently a placeholder) */
   detail: React.ReactNode
 }
 
-export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.Element {
+export function ProjectsPane({ snap, selected, onSelect, revealSelected, onRevealed, detail }: Props): JSX.Element {
   const now = useDisplayClock()
   const t = useDict()
   const [kw, setKw] = useState('')
@@ -64,6 +68,22 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
     visible.sort((a, b) => (b.lastSessionAt ?? 0) - (a.lastSessionAt ?? 0))
     return { visible, staleFiltered }
   }, [snap, kw, sideFilter, showStale])
+
+  // A selection made outside the list scrolls its row into view when it is outside the visible part (C8). The
+  // filters are left as they are, so a row they hide stays hidden and there is nothing to scroll to.
+  const list = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (!revealSelected) return
+    const box = list.current
+    const row = box?.querySelector<HTMLElement>('.row.sel')
+    if (box && row) {
+      const r = row.getBoundingClientRect()
+      const b = box.getBoundingClientRect()
+      if (r.top < b.top) box.scrollTop -= b.top - r.top
+      else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom
+    }
+    onRevealed?.()
+  }, [revealSelected, onRevealed])
 
   return (
     <>
@@ -99,7 +119,7 @@ export function ProjectsPane({ snap, selected, onSelect, detail }: Props): JSX.E
             </span>
           )}
         </div>
-        <div className="list">
+        <div className="list" ref={list}>
           {visible.map((p) => (
             <Row key={p.path} p={p} now={now} selected={selected === p.path} onSelect={onSelect} />
           ))}

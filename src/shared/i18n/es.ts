@@ -9,6 +9,7 @@ export const es: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Proyectos',
+    search: 'Buscar',
     settings: 'Ajustes'
   },
 
@@ -29,13 +30,27 @@ export const es: Locale = {
       'Con el modo «Seguir el sistema», el claro y el oscuro siguen la apariencia de macOS; al elegir Claro u Oscuro el claro/oscuro queda fijado en esa elección aunque el sistema cambie después. El tema y el modo son independientes y se combinan libremente; se usa Violeta si no eliges nada. Los cambios se aplican de inmediato en toda la app, sin necesidad de guardar.',
     themePurple: 'Violeta',
     themeBlue: 'Azul niebla',
-    themeAmber: 'Ámbar'
+    themeAmber: 'Ámbar',
+    sectionUpdates: 'Actualizaciones',
+    autoCheckUpdates: 'Buscar actualizaciones automáticamente',
+    switchOn: 'Activado',
+    switchOff: 'Desactivado',
+    currentVersion: 'Versión actual',
+    checkNow: 'Comprobar ahora',
+    installNow: 'Instalar ahora',
+    checking: 'Comprobando…',
+    upToDate: 'Agentshed está actualizado',
+    checkFailed: 'No se pudo comprobar si hay actualizaciones',
+    versionDownloading: (version) => `Descargando la versión ${version}`,
+    versionReady: (version) => `La versión ${version} está lista para instalarse`,
+    updatesFoot: 'Las versiones nuevas se descargan en segundo plano. Cuando una esté lista, haz clic en el botón de actualización abajo a la izquierda para instalarla y reiniciar; si no, se instala al salir.',
+    updatesDevFoot: 'Las actualizaciones no se comprueban en una ejecución de desarrollo (la app no está empaquetada).'
   },
 
   menu: {
-    about: 'Acerca de Agentshed', hide: 'Ocultar Agentshed', hideOthers: 'Ocultar otros',
+    about: 'Acerca de Agentshed', checkForUpdates: 'Buscar actualizaciones…', hide: 'Ocultar Agentshed', hideOthers: 'Ocultar otros',
     unhide: 'Mostrar todo', quit: 'Salir de Agentshed',
-    edit: 'Edición', undo: 'Deshacer', redo: 'Rehacer', cut: 'Cortar', copy: 'Copiar', paste: 'Pegar', selectAll: 'Seleccionar todo',
+    edit: 'Edición', undo: 'Deshacer', redo: 'Rehacer', cut: 'Cortar', copy: 'Copiar', paste: 'Pegar', selectAll: 'Seleccionar todo', searchSessions: 'Buscar en las sesiones…',
     view: 'Visualización', reload: 'Recargar', toggleDevTools: 'Herramientas de desarrollo', resetZoom: 'Tamaño real',
     zoomIn: 'Acercar', zoomOut: 'Alejar', fullscreen: 'Entrar en pantalla completa',
     window: 'Ventana', minimize: 'Minimizar', close: 'Cerrar'
@@ -47,7 +62,17 @@ export const es: Locale = {
     saveTrendSpanFailed: 'No se pudo guardar el período',
     saveThemeFailed: 'No se pudo guardar el tema',
     saveModeFailed: 'No se pudo guardar el modo de apariencia',
-    saveLanguageFailed: 'No se pudo guardar el idioma'
+    saveLanguageFailed: 'No se pudo guardar el idioma',
+    saveAutoCheckUpdatesFailed: 'No se pudo guardar la búsqueda automática de actualizaciones'
+  },
+
+  update: {
+    tipReady: 'Actualización disponible',
+    tipDownloading: (percent: number) => `Descargando actualización ${percent} %`,
+    tipInstalling: 'Instalando actualización…',
+    installFailed: 'No se pudo instalar la actualización',
+    toastUpToDate: (version) => `Agentshed está actualizado (${version})`,
+    toastFound: (version) => `Versión ${version} encontrada: descargando en segundo plano`
   },
 
   skillDeepHint: 'La buena práctica es una profundidad de referencia de skill menor que 2: considera reestructurar este skill',
@@ -82,6 +107,24 @@ export const es: Locale = {
     pickProject: 'Selecciona un proyecto para ver su detalle',
     waitingUpdate: 'Se muestran los datos anteriores, a la espera de una actualización',
     scanning: 'Escaneando los lados de agente…'
+  },
+  search: {
+    title: 'Búsqueda',
+    placeholder: (projects, sessions) =>
+      `Buscar en las preguntas de ${sessions} ${plural('es', sessions, { one: 'sesión', other: 'sesiones' })} en ${projects} ${plural('es', projects, { one: 'proyecto', other: 'proyectos' })}…`,
+    placeholderNone: 'Buscar en las preguntas…',
+    idle: 'Busca lo que preguntaste en las sesiones de todos los proyectos.',
+    idleSub: 'Haz clic en un resultado para abrir esa sesión en esa pregunta.',
+    reading: 'Leyendo las preguntas de las sesiones…',
+    hitsFound: (hits, sessions, projects) =>
+      `**${hits}** ${plural('es', hits, { one: 'resultado', other: 'resultados' })} · ${sessions} ${plural('es', sessions, { one: 'sesión', other: 'sesiones' })} · ${projects} ${plural('es', projects, { one: 'proyecto', other: 'proyectos' })}`,
+    projectCounts: (sessions, hits) =>
+      `${sessions} ${plural('es', sessions, { one: 'sesión', other: 'sesiones' })} · ${hits} ${plural('es', hits, { one: 'resultado', other: 'resultados' })}`,
+    noHits: (tab, fullText) =>
+      `Sin resultados. Aquí solo se buscan las preguntas: para buscar en las respuestas y la salida de las herramientas, abre el proyecto y cambia su pestaña «${tab}» a «${fullText}».`,
+    failed: 'No se pudo completar esta búsqueda. Cambia la palabra clave para volver a intentarlo.',
+    noSessions: 'Aún no hay sesiones que buscar.',
+    noSessionsSub: 'Cuando un agente haya tenido una conversación en un proyecto registrado, podrá buscarse aquí.'
   },
   skills: {
     searchPlaceholder: 'Buscar skills…',
@@ -166,6 +209,9 @@ export const es: Locale = {
     fetchedNote: (ms, bytes) =>
       `Recuperado bajo demanda en ${ms} ms · se leyó solo el rango de bytes de este turno, ${bytes}, con independencia del tamaño del archivo`,
     back: (project) => `Volver a ${project} · Sesiones`,
+    backToSearch: 'Volver a los resultados de búsqueda',
+    goToProject: (project) => `Ir a ${project} · Sesiones`,
+    goToProjectStale: (project) => `Ir a ${project}`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · ${questions} ${plural('es', questions, { one: 'pregunta', other: 'preguntas' })} · ${tok} tok · ${mb} · última actividad ${ago}`,
     cannotOpen: (detail) => `No se puede abrir la sesión: ${detail}`,

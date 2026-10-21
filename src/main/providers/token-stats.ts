@@ -679,6 +679,31 @@ export class TokenEngine {
         forkParentFile: null
       }
     }
+    const shown = await this.codexShown(agg)
+    return {
+      side: 'codex',
+      questions: shown.questions,
+      forkState: shown.state,
+      title: shown.title,
+      at: agg.at,
+      forkPoints: 0,
+      // The parent is named as its own page and the list title it: a parent that is itself a stripped fork by
+      // its first question left, not by the question it replayed (#278)
+      forkParentTitle: shown.parent ? (await this.codexShown(shown.parent)).title : null,
+      forkParentFile: shown.parent?.file ?? null
+    }
+  }
+
+  /**
+   * A Codex session as its page shows it: its questions after the replay strip against its parent in the
+   * cache, and its title. A fork whose leading questions were stripped and whose title came from its first
+   * question takes the title of the first question left — the scan's re-title of the listed session, so the
+   * session page, the project search and the fork banner show the list's titles (spec B2); thread_name
+   * keeps priority (A4).
+   */
+  private async codexShown(
+    agg: CodexFileAgg
+  ): Promise<{ questions: QuestionRec[]; state: ForkState; title: string | null; parent: CodexFileAgg | undefined }> {
     let parent: CodexFileAgg | undefined
     if (agg.parentId) {
       for (const v of Object.values(this.cache.files)) {
@@ -695,41 +720,43 @@ export class TokenEngine {
       // A paginated child carries no replayed events (spec B2): nothing to strip, no check to fail
       agg.parentId !== null && !agg.paginated
     )
-    return {
-      side: 'codex',
-      questions: shown.questions,
-      forkState: shown.state,
-      title: agg.title,
-      at: agg.at,
-      forkPoints: 0,
-      forkParentTitle: parent?.title ?? null,
-      forkParentFile: parent?.file ?? null
-    }
+    const first = shown.questions[0]
+    const retitled =
+      !agg.titleFromThread && first && shown.questions.length < agg.questions.length
+        ? await strippedForkTitle(agg.file, first[0], first[1])
+        : null
+    return { questions: shown.questions, state: shown.state, title: retitled ?? agg.title, parent }
   }
 }
 
 
 /**
- * Read that line live by byte range and derive a new title. Runs only for Codex fork sessions whose
- * replay prefix was stripped,
- * of which there are very few (0 in this machine's real data), each reading a single line, so it adds
- * no meaningful scan cost.
- * A read failure keeps the original title — degradation only hurts itself: one session has a stale
- * title, without affecting other sessions or dragging down the scan.
+ * The title a stripped Codex fork takes from its first question left: that line read live by byte range,
+ * its real user text clipped as a title; null when the line cannot be read or holds no real text, and the
+ * caller then keeps the original title — degradation only hurts that one title.
+ * The scan's re-title of the listed session and the session questions behind the session page, the
+ * project search and the fork banner's parent title all use it, so every surface shows the same title
+ * (spec B2). It runs only for such forks, of which there are very few (0 in this machine's real data),
+ * each reading a single line, so it adds no meaningful cost.
  */
+async function strippedForkTitle(file: string, start: number, end: number): Promise<string | null> {
+  try {
+    // The shared range reader: a byte read on a plain rollout, one streaming pass on a cold one (spec C2)
+    const { texts } = await readRanges(file, [{ start, end }])
+    const obj: unknown = JSON.parse(texts[0])
+    const msg = (obj as Record<string, unknown>)?.['payload'] as Record<string, unknown> | undefined
+    const text = typeof msg?.['message'] === 'string' ? msg['message'] : null
+    const clean = text === null ? null : realUserText(text)
+    return clean === null ? null : clipTitle(clean)
+  } catch {
+    return null
+  }
+}
+
 async function retitleStripped(items: TokenBuildResult['retitle']): Promise<void> {
   for (const it of items) {
-    try {
-      // The shared range reader: a byte read on a plain rollout, one streaming pass on a cold one (spec C2)
-      const { texts } = await readRanges(it.file, [{ start: it.start, end: it.end }])
-      const obj: unknown = JSON.parse(texts[0])
-      const msg = (obj as Record<string, unknown>)?.['payload'] as Record<string, unknown> | undefined
-      const text = typeof msg?.['message'] === 'string' ? msg['message'] : null
-      const clean = text === null ? null : realUserText(text)
-      if (clean !== null) it.session.title = clipTitle(clean)
-    } catch {
-      // Keep the original title
-    }
+    const title = await strippedForkTitle(it.file, it.start, it.end)
+    if (title !== null) it.session.title = title
   }
 }
 

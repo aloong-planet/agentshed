@@ -1,13 +1,14 @@
 import type { StartupStatus } from '@shared/display-data'
 import { StartupHint, StartupContext } from './StartupHint'
 import { useDisplayClock } from './DisplayClock'
-import { hydrateDisplayQueries } from './display-queries'
+import { displayQuery, hydrateDisplayQueries } from './display-queries'
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { invalidateOnSnapshot } from './query-client'
 import type { Snapshot } from '@shared/domain'
 import type { TrendSpan } from '@shared/trend'
 import { TrendSpanContext } from './TrendSpan'
-import type { Prefs } from '@shared/prefs'
+import { DEFAULT_PREFS, type Prefs } from '@shared/prefs'
 import { backfillPrefs, type PrefKey } from './prefs-backfill'
 import { errorText } from '@shared/error-text'
 import { LanguageProvider } from './language'
@@ -23,11 +24,27 @@ import { AgentsPane } from './AgentsPane'
 import { AgentsSkeleton, ProjectsSkeleton } from './StartupSkeleton'
 import { DetailPane } from './DetailPane'
 import { SessionPane } from './SessionPane'
+import { GlobalSearchPane } from './GlobalSearchPane'
+import { fetchSessionPage, sessionPageQueryKey } from './session-page-query'
 import { SettingsPane } from './SettingsPane'
 import { Toasts, toast } from './Toast'
-import { Folder, MousePointerClick, RobotFace, Settings } from './icons'
+import { UpdateSlot } from './UpdateSlot'
+import { Folder, MousePointerClick, RobotFace, Search, Settings } from './icons'
 
-type Dim = 'agents' | 'projects' | 'settings'
+type Dim = 'agents' | 'projects' | 'search' | 'settings'
+
+/** The session on the project stage, with how it was opened: replacing or leaving it replaces both at once */
+type OpenSession = {
+  file: string
+  /** Ticket 08: going straight to a search hit — which question to locate when the page opens (from 1; null =
+   * no locating) */
+  focusQ: number | null
+  /** Opened directly from a global search hit, so its page offers the way back to the results and on into the
+   * project (global-search US-003). A session reached any other way — the fork banner's parent, a session
+   * opened inside a project — is a new value without it; the rail leaves the value alone, so leaving for the
+   * search page and coming back keeps the session with its exits (J7) */
+  fromSearch: boolean
+}
 
 function applyTheme(theme: AppearanceTheme): void {
   document.documentElement.dataset.theme = theme
@@ -55,13 +72,18 @@ export function App(): JSX.Element {
   const [, startPaneTransition] = useTransition()
   // Session page view state (ticket 04): when non-empty, the project detail area is replaced wholesale
   // by the session page; switching project exits it
-  const [openSession, setOpenSession] = useState<string | null>(null)
-  // Ticket 08: going straight to a search hit — which question to locate when the session page opens
-  // (from 1; null = no locating)
-  const [openFocusQ, setOpenFocusQ] = useState<number | null>(null)
+  const [openSession, setOpenSession] = useState<OpenSession | null>(null)
   // Returning from a session page lands on the "Sessions" section (the pane header's back control, "Back
   // to <project> · Sessions") rather than the overview
   const [backToSessions, setBackToSessions] = useState(false)
+  // A project selected from a global search hit has its row scrolled into view in the project list
+  // (projects-list C8); a one-shot request the list clears once it has done it
+  const [revealSelected, setRevealSelected] = useState(false)
+  // The pending jump from a global search hit: a later click, or leaving the search page, supersedes it
+  const jumpSeq = useRef(0)
+  // The application menu's "Search Sessions…" asks the search page's box for the focus: a request the page
+  // answers whether it mounts now or is already on screen (global-search US-004/AC-01)
+  const [searchFocus, setSearchFocus] = useState(0)
   const [theme, setTheme] = useState<AppearanceTheme>(DEFAULT_THEME)
   // The mode is only used to render the segmented control's selected state: the effective light/dark is
   // decided by the main process's themeSource,
@@ -77,6 +99,8 @@ export function App(): JSX.Element {
   // asynchronously is fine and does not affect the first frame
   const [langPref, setLangPref] = useState<LanguagePreference>('system')
   const [trendSpan, setTrendSpan] = useState<TrendSpan>(window.agentshed.initialTrendSpan)
+  // The automatic update checks switch (app-update::US-002); the main process reads the stored value itself
+  const [autoCheckUpdates, setAutoCheckUpdates] = useState<boolean>(DEFAULT_PREFS.autoCheckUpdates)
   const t = dictOf(lang)
   // Preferences the user has already changed by hand: the echo of the getPrefs call made at mount must
   // not overwrite them (#61).
@@ -85,17 +109,55 @@ export function App(): JSX.Element {
   // A live mirror of the preference states: the backfill happens inside an effect callback, and
   // that effect has an empty dependency list, so
   // its closure captured the values as of mount. The same use as cursorRef in LanguageSelect.
-  const prefsRef = useRef<Prefs>({ theme, language: langPref, mode, trendSpan })
+  const prefsRef = useRef<Prefs>({ theme, language: langPref, mode, trendSpan, autoCheckUpdates })
   useLayoutEffect(() => {
-    prefsRef.current = { theme, language: langPref, mode, trendSpan }
+    prefsRef.current = { theme, language: langPref, mode, trendSpan, autoCheckUpdates }
   })
+  /** A rail entry (or the application menu's equivalent): drops a pending jump from a search hit */
+  const navigate = (d: Dim): void => {
+    jumpSeq.current++
+    setDim(d)
+  }
+
+  /**
+   * Going from a global search hit to its session inside its project (global-search US-002): one
+   * transitioned update switches to Projects, selects the project and opens the session at the hit's
+   * question. The session page is fetched first, so the search page stays on screen until that page can be
+   * drawn whole; a session with a saved or cached page opens at once (US-002/AC-03, session-view P1, P4).
+   */
+  const openFromSearch = (project: string, file: string, q: number | null): void => {
+    const seq = ++jumpSeq.current
+    const go = (): void => {
+      if (seq !== jumpSeq.current) return // a later click won; its page is kept in the cache (P8)
+      startPaneTransition(() => {
+        setDim('projects')
+        setSelected(project)
+        setShownProject(project)
+        setOpenSession({ file, focusQ: q, fromSearch: true })
+        setBackToSessions(false)
+        setRevealSelected(true)
+      })
+    }
+    const page = displayQuery(queryClient, sessionPageQueryKey(file), () => fetchSessionPage(file))
+    if (queryClient.getQueryData(page.queryKey) !== undefined || page.initialData() !== undefined) go()
+    else void queryClient.fetchQuery(page).then(go, go)
+  }
+
   const selectProject = (p: string | null): void => {
     setSelected(p)
     startPaneTransition(() => {
       setShownProject(p)
       setOpenSession(null)
-      setOpenFocusQ(null)
       setBackToSessions(false)
+    })
+  }
+
+  /** Leaving the session page for its project's Sessions tab: the back control, and the way on into the
+   * project from a session opened from global search (global-search US-003/AC-03) */
+  const backToProject = (): void => {
+    startPaneTransition(() => {
+      setOpenSession(null)
+      setBackToSessions(true)
     })
   }
 
@@ -114,6 +176,7 @@ export function App(): JSX.Element {
       setLangPref(next.language)
       setMode(next.mode)
       setTrendSpan(next.trendSpan)
+      setAutoCheckUpdates(next.autoCheckUpdates)
     })
     let liveSnapshot = 0
     let liveStatus = false
@@ -122,9 +185,7 @@ export function App(): JSX.Element {
       liveSnapshot++
       setStartup('ready')
       setSnap(s)
-      for (const name of ['projectDetail', 'sessionPage', 'turnContent', 'artifactContent', 'skillContent', 'skillFiles']) {
-        void queryClient.invalidateQueries({ queryKey: [name] })
-      }
+      invalidateOnSnapshot(queryClient)
     })
     async function restore(): Promise<void> {
       const generation = liveSnapshot
@@ -149,16 +210,29 @@ export function App(): JSX.Element {
       }
     }
     void restore()
-    // The application menu's app entry point (ticket 13): it behaves exactly like the same-named
-    // operation on the rail, going through the same state and functions rather than a second set
-    const offSettings = window.agentshed.onMenuOpenSettings(() => setDim('settings'))
+    // The application menu's entry points into the app (ticket 13; global-search US-004): each behaves exactly
+    // like the same-named operation on the rail, going through the same state and functions rather than a
+    // second set; "Search Sessions…" also asks the search page's box for the focus
+    const offSettings = window.agentshed.onMenuOpenSettings(() => {
+      jumpSeq.current++
+      setDim('settings')
+    })
+    const offSearch = window.agentshed.onMenuOpenSearch(() => {
+      jumpSeq.current++
+      setDim('search')
+      setSearchFocus((n) => n + 1)
+    })
     return () => {
       alive = false
       off()
       offStatus()
       offSettings()
+      offSearch()
     }
   }, [queryClient])
+
+  // The project on the project stage, for its session page's name and stale flag
+  const shown = snap?.projects.find((p) => p.path === shownProject)
 
   async function onTrendSpan(span: TrendSpan): Promise<void> {
     touchedPrefs.current.add('trendSpan')
@@ -202,6 +276,19 @@ export function App(): JSX.Element {
     }
   }
 
+  async function onAutoCheckUpdates(on: boolean): Promise<void> {
+    // Takes effect at once, with no save button (app-update::REQ-003/AC-03): the main process reads the
+    // stored value at each automatic check. Optimistic, and the stored result then wins, as for the mode
+    touchedPrefs.current.add('autoCheckUpdates')
+    setAutoCheckUpdates(on)
+    try {
+      const p = await window.agentshed.setAutoCheckUpdates(on)
+      setAutoCheckUpdates(p.autoCheckUpdates)
+    } catch (e) {
+      toast('err', `${t.toast.saveAutoCheckUpdatesFailed}:${errorText(lang, e)}`)
+    }
+  }
+
   async function onLanguage(next: LanguagePreference): Promise<void> {
     // The effective language can be computed locally (the system language list arrives with the window),
     // so it is applied immediately and then persisted,
@@ -238,24 +325,34 @@ export function App(): JSX.Element {
         <button
           className={`ri ${dim === 'agents' ? 'on' : ''}`}
           title={t.rail.agents}
-          onClick={() => setDim('agents')}
+          onClick={() => navigate('agents')}
         >
           <RobotFace size={17} />
         </button>
         <button
           className={`ri ${dim === 'projects' ? 'on' : ''}`}
           title={t.rail.projects}
-          onClick={() => setDim('projects')}
+          onClick={() => navigate('projects')}
         >
           <Folder size={17} />
         </button>
         <button
-          className={`ri set ${dim === 'settings' ? 'on' : ''}`}
-          title={t.rail.settings}
-          onClick={() => setDim('settings')}
+          className={`ri ${dim === 'search' ? 'on' : ''}`}
+          title={t.rail.search}
+          onClick={() => navigate('search')}
         >
-          <Settings size={17} />
+          <Search size={17} />
         </button>
+        <div className="rail-bottom">
+          <UpdateSlot />
+          <button
+            className={`ri set ${dim === 'settings' ? 'on' : ''}`}
+            title={t.rail.settings}
+            onClick={() => navigate('settings')}
+          >
+            <Settings size={17} />
+          </button>
+        </div>
       </nav>
       <main className="stage">
         {dim === 'settings' ? (
@@ -266,7 +363,11 @@ export function App(): JSX.Element {
               onMode={(m) => void onMode(m)}
               language={langPref}
               onLanguage={(l) => void onLanguage(l)}
+              autoCheckUpdates={autoCheckUpdates}
+              onAutoCheckUpdates={(on) => void onAutoCheckUpdates(on)}
             />
+        ) : dim === 'search' ? (
+          <GlobalSearchPane snap={snap} onOpen={openFromSearch} focusRequest={searchFocus} />
         ) : dim === 'agents' ? (
           snap === null ? (
             <AgentsSkeleton />
@@ -280,6 +381,8 @@ export function App(): JSX.Element {
             snap={snap}
             selected={selected}
             onSelect={selectProject}
+            revealSelected={revealSelected}
+            onRevealed={() => setRevealSelected(false)}
             detail={
               // The detail slot's one Suspense boundary (ADR-0028): the slot is already revealed when a
               // switch happens, so the Transition around `shownProject` holds this boundary's last
@@ -288,23 +391,21 @@ export function App(): JSX.Element {
               <Suspense fallback={null}>
                 {shownProject && openSession ? (
                   <SessionPane
-                    file={openSession}
-                    focusQ={openFocusQ}
-                    projectName={snap.projects.find((p) => p.path === shownProject)?.name ?? shownProject}
+                    file={openSession.file}
+                    focusQ={openSession.focusQ}
+                    projectName={shown?.name ?? shownProject}
                     now={now}
-                    onBack={() => {
-                      startPaneTransition(() => {
-                        setOpenSession(null)
-                        setOpenFocusQ(null)
-                        setBackToSessions(true)
-                      })
-                    }}
+                    onBack={backToProject}
                     onOpenSession={(f) => {
                       startPaneTransition(() => {
-                        setOpenSession(f)
-                        setOpenFocusQ(null)
+                        setOpenSession({ file: f, focusQ: null, fromSearch: false })
                       })
                     }}
+                    exits={
+                      openSession.fromSearch
+                        ? { stale: shown?.stale ?? false, onBackToSearch: () => navigate('search'), onGoToProject: backToProject }
+                        : undefined
+                    }
                   />
                 ) : shownProject ? (
                   <DetailPane
@@ -313,8 +414,7 @@ export function App(): JSX.Element {
                     initialTab={backToSessions ? 'sessions' : undefined}
                     onOpenSession={(f, q) => {
                       startPaneTransition(() => {
-                        setOpenSession(f)
-                        setOpenFocusQ(q ?? null)
+                        setOpenSession({ file: f, focusQ: q ?? null, fromSearch: false })
                         setBackToSessions(false)
                       })
                     }}

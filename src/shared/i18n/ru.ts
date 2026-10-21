@@ -9,6 +9,7 @@ export const ru: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Проекты',
+    search: 'Поиск',
     settings: 'Настройки'
   },
 
@@ -29,13 +30,27 @@ export const ru: Locale = {
       'Когда режим — «Следовать системе», светлое и тёмное оформление следует оформлению macOS; выбор светлого или тёмного закрепляет светлое/тёмное за этим выбором, и последующие изменения системы на него не влияют. Тема и режим независимы и сочетаются свободно; без выбора используется фиолетовая. Изменения применяются сразу во всём приложении — сохранять не нужно.',
     themePurple: 'Фиолетовая',
     themeBlue: 'Туманно-синяя',
-    themeAmber: 'Янтарная'
+    themeAmber: 'Янтарная',
+    sectionUpdates: 'Обновления',
+    autoCheckUpdates: 'Проверять обновления автоматически',
+    switchOn: 'Вкл.',
+    switchOff: 'Выкл.',
+    currentVersion: 'Текущая версия',
+    checkNow: 'Проверить сейчас',
+    installNow: 'Установить сейчас',
+    checking: 'Проверка…',
+    upToDate: 'Установлена последняя версия',
+    checkFailed: 'Не удалось проверить обновления',
+    versionDownloading: (version) => `Загружается версия ${version}`,
+    versionReady: (version) => `Версия ${version} готова к установке`,
+    updatesFoot: 'Новые версии загружаются в фоне. Когда обновление готово, нажмите кнопку обновления внизу слева, чтобы установить его и перезапустить приложение; иначе оно установится при выходе.',
+    updatesDevFoot: 'В режиме разработки (приложение не упаковано) обновления не проверяются.'
   },
 
   menu: {
-    about: 'О программе Agentshed', hide: 'Скрыть Agentshed', hideOthers: 'Скрыть остальные',
+    about: 'О программе Agentshed', checkForUpdates: 'Проверить обновления…', hide: 'Скрыть Agentshed', hideOthers: 'Скрыть остальные',
     unhide: 'Показать все', quit: 'Завершить Agentshed',
-    edit: 'Правка', undo: 'Отменить', redo: 'Повторить', cut: 'Вырезать', copy: 'Копировать', paste: 'Вставить', selectAll: 'Выбрать все',
+    edit: 'Правка', undo: 'Отменить', redo: 'Повторить', cut: 'Вырезать', copy: 'Копировать', paste: 'Вставить', selectAll: 'Выбрать все', searchSessions: 'Поиск по сессиям…',
     view: 'Вид', reload: 'Перезагрузить', toggleDevTools: 'Инструменты разработчика', resetZoom: 'Фактический размер',
     zoomIn: 'Увеличить', zoomOut: 'Уменьшить', fullscreen: 'Перейти в полноэкранный режим',
     window: 'Окно', minimize: 'Свернуть', close: 'Закрыть'
@@ -47,7 +62,17 @@ export const ru: Locale = {
     saveTrendSpanFailed: 'Не удалось сохранить период',
     saveThemeFailed: 'Не удалось сохранить тему',
     saveModeFailed: 'Не удалось сохранить режим оформления',
-    saveLanguageFailed: 'Не удалось сохранить язык'
+    saveLanguageFailed: 'Не удалось сохранить язык',
+    saveAutoCheckUpdatesFailed: 'Не удалось сохранить настройку автоматической проверки обновлений'
+  },
+
+  update: {
+    tipReady: 'Доступно обновление',
+    tipDownloading: (percent: number) => `Загрузка обновления: ${percent}%`,
+    tipInstalling: 'Установка обновления…',
+    installFailed: 'Не удалось установить обновление',
+    toastUpToDate: (version) => `Установлена последняя версия Agentshed (${version})`,
+    toastFound: (version) => `Найдена версия ${version} — загружается в фоне`
   },
 
   skillDeepHint: 'По рекомендациям глубина ссылок skill должна быть меньше 2 — стоит переработать этот skill',
@@ -81,6 +106,21 @@ export const ru: Locale = {
     pickProject: 'Выберите проект, чтобы увидеть детали',
     waitingUpdate: 'Показаны предыдущие данные, ожидается обновление',
     scanning: 'Сканирование сторон агентов…'
+  },
+  search: {
+    title: 'Поиск',
+    placeholder: (projects, sessions) => `Поиск по вопросам · сессий: ${sessions} · проектов: ${projects}…`,
+    placeholderNone: 'Поиск по вопросам…',
+    idle: 'Ищите то, о чём вы спрашивали, в сессиях всех проектов.',
+    idleSub: 'Нажмите на совпадение, чтобы открыть эту сессию на этом вопросе.',
+    reading: 'Чтение вопросов из сессий…',
+    hitsFound: (hits, sessions, projects) => `Найдено: **${hits}** · сессий: ${sessions} · проектов: ${projects}`,
+    projectCounts: (sessions, hits) => `сессий: ${sessions} · совпадений: ${hits}`,
+    noHits: (tab, fullText) =>
+      `Совпадений нет. Здесь ищутся только вопросы — чтобы искать в ответах и выводе инструментов, откройте проект и переключите его вкладку «${tab}» на «${fullText}».`,
+    failed: 'Этот поиск не удалось выполнить. Измените ключевое слово, чтобы повторить.',
+    noSessions: 'Пока нет сессий для поиска.',
+    noSessionsSub: 'Когда агент проведёт разговор в зарегистрированном проекте, его можно будет найти здесь.'
   },
   skills: {
     searchPlaceholder: 'Поиск skill…',
@@ -165,6 +205,9 @@ export const ru: Locale = {
     fetchedNote: (ms, bytes) =>
       `Получено по требованию за ${ms} мс · прочитан только байтовый диапазон этого хода, ${bytes} — независимо от размера файла`,
     back: (project) => `Назад к ${project} · Сессии`,
+    backToSearch: 'Назад к результатам поиска',
+    goToProject: (project) => `Перейти к ${project} · Сессии`,
+    goToProjectStale: (project) => `Перейти к ${project}`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · вопросов: ${questions} · ${tok} tok · ${mb} · последняя активность ${ago}`,
     cannotOpen: (detail) => `Не удаётся открыть сессию: ${detail}`,

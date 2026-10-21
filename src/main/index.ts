@@ -2,7 +2,7 @@ import { ReadRegistry } from './read-registrations'
 import { DisplayStore } from './display-store'
 import { sourceIdentity, pageRevision, questionRevision, regularTarget } from './source-identity'
 import { emptyDisplayData, savedReadKey, type SavedRead, type StartupStatus } from '@shared/display-data'
-import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeImage, nativeTheme, protocol, session, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell } from 'electron'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -15,14 +15,15 @@ import {
   type ListSkillFilesResult
 } from '@shared/ipc'
 import type { CappedText, ProjectStats, SessionPage, SessionTurn, Snapshot } from '@shared/domain'
-import { AGENT_SIDES, assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult } from '@shared/validate'
+import { AGENT_SIDES, assertSnapshot, assertProjectDetail, assertSessionPage, assertSessionTurn, assertSearchResult, assertGlobalSearchResult } from '@shared/validate'
 import { mergeKey } from '@shared/path-key'
 import { deriveStats } from '@shared/usage'
 import { scan, walkSessions } from './providers/scan'
 import { readRanges } from './providers/range-read'
-import { grokQuestionTextFromSlice, questionTextAt } from './providers/question-index'
+import { questionTextOfRange } from './providers/question-index'
 import { turnBlocksFromText } from './providers/turn-content'
 import { searchProjectSessions } from './providers/search-sessions'
+import { QuestionCorpus, corpusProjects } from './providers/question-corpus'
 import { readProjectDetail } from './providers/project-detail'
 import { CACHE_VERSION, TokenEngine, projectStatsFromRows } from './providers/token-stats'
 import { ParsePool } from './parse-pool'
@@ -45,8 +46,13 @@ import { createPrefsHandlers } from './prefs-handlers'
 import { buildMenuTemplate } from './app-menu'
 import { ERR, appError } from '@shared/errors'
 import { effectiveLanguage, type Language } from '@shared/i18n'
-import { LANG_ARG, SYS_LANGS_ARG, TREND_SPAN_ARG } from '@shared/ipc'
+import { APP_VERSION_ARG, LANG_ARG, SEARCH_NEEDLE_MAX, SYS_LANGS_ARG, TREND_SPAN_ARG, UPDATES_ARG } from '@shared/ipc'
 import { DEFAULT_PREFS } from '@shared/prefs'
+import { IDLE_UPDATE, parseSettingsCheck, parseUpdateNotice, parseUpdateState, type CheckOutcome, type SettingsCheck, type UpdateNotice, type UpdateState } from '@shared/update'
+import { UpdateController } from './update-controller'
+import { SettingsChecks } from './settings-check'
+import { recordRunVersion } from './run-version'
+import { chooseUpdateSource, electronUpdateSource, scriptedUpdateSource } from './update-source'
 import { systemPreferredLanguages } from './system-language'
 import {
   listSkillPackageFiles,
@@ -93,7 +99,12 @@ if (QUIET) {
 
 let mainWindow: BrowserWindow | null = null
 let prefsStore: PrefsStore | null = null
+let updates: UpdateController | null = null
+let settingsChecks: SettingsChecks | null = null
 let tokenEngine: TokenEngine | null = null
+// Global search's question texts (ADR-0034): built on the page's first demand in a run, then kept up to date
+// after every scan; held in memory only
+let questionCorpus: QuestionCorpus | null = null
 let parsePool: ParsePool | null = null
 let archive: UsageArchive | null = null
 let perProjectStats = new Map<string, ProjectStats>()
@@ -154,7 +165,8 @@ const ARCHIVE_FORCE_ACCEPT = process.env['AGENTSHED_ARCHIVE_FORCE_ACCEPT'] === '
  * delay before a project-detail or session-page fetch resolves, letting e2e assert that a switch
  * holds the previous page instead of blanking it (project-detail T1, session-view P1, ADR-0028); the
  * same knob also covers listSkillFiles and readArtifact, letting e2e assert the widget-level query
- * layer's reopen-is-cached behaviour (issue #177). 0 in production. */
+ * layer's reopen-is-cached behaviour (issue #177), and holds each reading of global search's question
+ * texts, letting e2e assert the reading state (global-search REQ-002/AC-02). 0 in production. */
 const FETCH_DELAY_MS = rescanIntervalMs(process.env['AGENTSHED_FETCH_DELAY_MS'], 0)
 /** Test seam (the same family): an artificial delay before the renderer's initial getPrefs resolves,
  * letting e2e change a preference while that read is in flight and assert the read does not undo it
@@ -234,6 +246,9 @@ async function doScan(): Promise<Snapshot> {
       for (const [key, r] of savedReads) if ((r.kind === 'sessionPage' || r.kind === 'turnContent') && !sessionWhitelist.has(r.file)) savedReads.delete(key)
       persistDisplay()
       setStartupStatus('ready')
+      // Before the snapshot goes out, so the search the renderer sends on receiving it waits for these texts
+      // (global-search REQ-004); a corpus never asked for is not built
+      void questionCorpus?.refresh().catch((e: unknown) => console.error('[global-search] reading the question texts failed:', e))
       mainWindow?.webContents.send(EVT.snapshot, snap)
       return snap
     } catch (error) {
@@ -305,19 +320,7 @@ handle(CMD.getSessionPage, async (_e, raw: unknown) => {
   const questions = q.questions.map((rec, idx) => {
     // A single bad line only hurts itself: that entry shows a placeholder without affecting the other
     // questions or dragging down the page
-    let text: string | null = null
-    if (q.side === 'grok') {
-      // A Grok question's range can span several chunk lines (they concatenate raw), so the whole
-      // slice is derived at once rather than parsed as one line
-      text = grokQuestionTextFromSlice(texts[idx])
-    } else {
-      try {
-        const obj: unknown = JSON.parse(texts[idx].trim())
-        if (typeof obj === 'object' && obj !== null) text = questionTextAt(q.side, obj as Record<string, unknown>)
-      } catch {
-        text = null
-      }
-    }
+    const text = questionTextOfRange(q.side, texts[idx])
     // Unreadable means passing null: the wording belongs to the renderer (ticket 07), and the main
     // process emits no user-facing natural language
     return { revision: questionRevision(identity, file, rec[0], rec[1], texts[idx]), i: idx + 1, text, at: rec[3], tools: rec[4], subagents: rec[5] }
@@ -383,7 +386,7 @@ handle(CMD.getSessionTurn, async (_e, raw: unknown) => {
 handle(CMD.searchSessions, async (_e, raw: unknown) => {
   const a = raw as SearchSessionsArgs
   if (typeof a?.path !== 'string' || a.path === '') throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'path' })
-  if (typeof a?.needle !== 'string' || a.needle.length > 200)
+  if (typeof a?.needle !== 'string' || a.needle.length > SEARCH_NEEDLE_MAX)
     throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'needle' })
   if (typeof a?.fullText !== 'boolean') throw appError(ERR.badArgs, { channel: 'searchSessions', field: 'fullText' })
   if (!tokenEngine) throw appError(ERR.engineNotReady)
@@ -392,6 +395,18 @@ handle(CMD.searchSessions, async (_e, raw: unknown) => {
   const sessions = perProjectStats.get(mergeKey(a.path))?.sessions ?? []
   const r = await searchProjectSessions(tokenEngine, realRoots(), sessions, a.needle, a.fullText)
   assertSearchResult(r)
+  return r
+})
+handle(CMD.readSearchQuestions, async () => {
+  if (!questionCorpus) throw appError(ERR.engineNotReady)
+  await questionCorpus.load()
+})
+handle(CMD.globalSearch, async (_e, needle: unknown) => {
+  // The keyword's length limit is the project search's (global-search S4)
+  if (typeof needle !== 'string' || needle.length > SEARCH_NEEDLE_MAX) throw appError(ERR.badArgs, { channel: 'globalSearch', field: 'needle' })
+  if (!questionCorpus) throw appError(ERR.engineNotReady)
+  const r = await questionCorpus.search(needle)
+  assertGlobalSearchResult(r)
   return r
 })
 handle(CMD.readArtifact, async (_e, file: unknown) => {
@@ -523,6 +538,14 @@ handle(CMD.setLanguage, (_e, language: unknown) => {
 })
 handle(CMD.setTrendSpan, (_e, span: unknown) => prefsHandlers.setTrendSpan(span))
 handle(CMD.setMode, (_e, mode: unknown) => prefsHandlers.setMode(mode))
+// App updates (app-update): the controller owns the lifecycle; these only read it and pass on the click
+handle(CMD.getUpdateState, (): UpdateState => updates?.state() ?? IDLE_UPDATE)
+handle(CMD.installUpdate, () => {
+  updates?.install()
+})
+handle(CMD.checkForUpdates, (): Promise<CheckOutcome> => settingsChecks?.check() ?? Promise.resolve({ kind: 'unavailable' }))
+handle(CMD.getSettingsCheck, (): SettingsCheck => settingsChecks?.state() ?? { checking: false, outcome: null })
+handle(CMD.setAutoCheckUpdates, (_e, on: unknown) => prefsHandlers.setAutoCheckUpdates(on))
 const PRELOAD = join(__dirname, '../preload/index.cjs')
 
 /** Rebuild the application menu in the currently effective language; must be called again after a
@@ -531,9 +554,29 @@ function applyMenu(): void {
   const send = (channel: string) => (): void => mainWindow?.webContents.send(channel)
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(
-      buildMenuTemplate(initialLanguage(), { openSettings: send(EVT.menuOpenSettings) })
+      buildMenuTemplate(
+        initialLanguage(),
+        { openSettings: send(EVT.menuOpenSettings), checkForUpdates: () => void menuCheck(), openSearch: send(EVT.menuOpenSearch) },
+        updateChoice() !== null
+      )
     )
   )
+}
+
+/**
+ * "Check for Updates…" in the application menu (app-update::REQ-005): the main process's own check, which
+ * joins one in flight like any other (US-003/AC-05); its outcome, the update found or the update already in
+ * flight reaches the renderer as a notice, answered with a toast (US-003/AC-01, AC-04)
+ */
+async function menuCheck(): Promise<void> {
+  const outcome: CheckOutcome = await (updates?.check() ?? Promise.resolve({ kind: 'unavailable' }))
+  sendUpdateNotice({ code: 'menuCheck', outcome })
+}
+
+function sendUpdateNotice(notice: UpdateNotice): void {
+  // Exit validation, the same rule as every other payload (ADR-0001)
+  if (!parseUpdateNotice(notice)) throw appError(ERR.contractType, { path: 'updateNotice', expect: 'UpdateNotice' })
+  mainWindow?.webContents.send(EVT.updateNotice, notice)
 }
 
 /** The effective language at window creation = the preference + the system language list. The system is
@@ -565,7 +608,9 @@ function createWindow(): void {
       additionalArguments: [
         `${TREND_SPAN_ARG}${prefsHandlers.getPrefs().trendSpan}`,
         `${LANG_ARG}${initialLanguage()}`,
-        `${SYS_LANGS_ARG}${systemPreferredLanguages().join(',')}`
+        `${SYS_LANGS_ARG}${systemPreferredLanguages().join(',')}`,
+        `${APP_VERSION_ARG}${app.getVersion()}`,
+        `${UPDATES_ARG}${updateChoice() ? 1 : 0}`
       ]
     }
   })
@@ -618,6 +663,11 @@ void app.whenReady().then(() => {
   // 8 workers 7.4 s at 2.20 GB — the largest file alone bounds the time, so more workers mostly cost memory
   parsePool = new ParsePool(join(__dirname, 'parse-worker.js'), Math.min(4, Math.max(1, availableParallelism() - 1)))
   tokenEngine = new TokenEngine(app.getPath('userData'), parsePool)
+  // The listed set as it stands: the snapshot's projects, stale ones included, with each one's listed
+  // sessions — the restored ones until the first scan completes (global-search S2)
+  questionCorpus = new QuestionCorpus(tokenEngine, () => ({ roots: realRoots(), projects: corpusProjects(current?.projects ?? [], perProjectStats) }), {
+    pause: FETCH_DELAY_MS > 0 ? () => new Promise((r) => setTimeout(r, FETCH_DELAY_MS)) : undefined
+  })
   // The accounting stamp (ADR-0026): the application version covers combination-layer changes, the cache
   // structure version covers parser changes — together they identify the accounting code, so a lower
   // figure under the same stamp can only mean the data shrank
@@ -633,6 +683,7 @@ void app.whenReady().then(() => {
   createWindow()
   applyMenu()
   void doScan().catch((error: unknown) => console.error('[startup] scan failed:', error))
+  startUpdates()
   // Automatic snapshot refresh (token-stats sequence E) — since the manual control was removed
   // (2026-08-23) this is the **only** way a running window gets fresh data: focus (throttled) + a timed
   // backstop, both going through doScan, whose in-flight deduplication keeps two triggers that coincide
@@ -657,6 +708,53 @@ void app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+/**
+ * App updates (ADR-0032, as amended): one check at launch and one every 24 hours while the switch allows,
+ * a found update downloading in the background, and the lifecycle pushed to the renderer. A development
+ * run has no source and never checks; the e2e seam declares a scripted one (see chooseUpdateSource).
+ */
+function startUpdates(): void {
+  const choice = updateChoice()
+  const source = choice?.kind === 'scripted'
+    ? scriptedUpdateSource(choice.script)
+    : choice ? electronUpdateSource(app.getVersion()) : null
+  updates = new UpdateController({
+    source,
+    autoChecksOn: () => prefsStore?.get().autoCheckUpdates ?? DEFAULT_PREFS.autoCheckUpdates,
+    now: () => Date.now(),
+    setTimer: (fn, ms) => {
+      const timer = setTimeout(fn, ms)
+      return () => clearTimeout(timer)
+    },
+    publish: (state: UpdateState) => {
+      // Exit validation, the same rule as every other payload (ADR-0001)
+      if (!parseUpdateState(state)) throw appError(ERR.contractType, { path: 'updateState', expect: 'UpdateState' })
+      mainWindow?.webContents.send(EVT.updateState, state)
+      settingsChecks?.onUpdateState(state)
+    },
+    notify: sendUpdateNotice
+  })
+  settingsChecks = new SettingsChecks({
+    check: () => updates?.check() ?? Promise.resolve({ kind: 'unavailable' }),
+    publish: (state: SettingsCheck) => {
+      if (!parseSettingsCheck(state)) throw appError(ERR.contractType, { path: 'settingsCheck', expect: 'SettingsCheck' })
+      mainWindow?.webContents.send(EVT.settingsCheck, state)
+    },
+    // Only a run that checks for updates reads and writes the record: a development run's userData ("agentshed")
+    // and the installed copy's ("Agentshed") are one directory on macOS's default case-insensitive volume, and a
+    // working build's version must not stand in the installed copy's way
+    firstRunAfterUpdate: choice ? recordRunVersion(app.getPath('userData'), app.getVersion()) : false
+  })
+  updates.start()
+  // On waking from sleep, one check if one fell due meanwhile (app-update::REQ-006/AC-02)
+  powerMonitor.on('resume', () => updates?.wake())
+}
+
+/** Where this run's app updates come from, or null when it never checks (a development run) */
+function updateChoice(): ReturnType<typeof chooseUpdateSource> {
+  return chooseUpdateSource({ packaged: app.isPackaged, env: process.env })
+}
 
 app.on('window-all-closed', () => {
   // A catalogue-style tool has no background duties, so closing every window quits (macOS included)

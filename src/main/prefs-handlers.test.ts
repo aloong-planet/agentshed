@@ -61,9 +61,24 @@ describe('the preference handlers', () => {
       expect(codeOf(() => h.setTrendSpan(invalid))).toBe(ERR.invalidPref)
     }
     expect(new PrefsStore(dir).get()).toEqual({
-      theme: 'amber', language: 'ja', mode: 'dark', trendSpan: 30
+      theme: 'amber', language: 'ja', mode: 'dark', trendSpan: 30, autoCheckUpdates: true
     })
     expect(codeOf(() => createPrefsHandlers({ store: () => null, theme }).setTrendSpan(60)))
+      .toBe(ERR.prefsStoreNotReady)
+  })
+
+  it('setAutoCheckUpdates: a boolean persists at once and keeps the other fields; anything else throws (app-update::REQ-003/AC-03)', () => {
+    const h = handlers()
+    h.setTheme('blue')
+    expect(h.setAutoCheckUpdates(false).autoCheckUpdates).toBe(false)
+    expect(new PrefsStore(dir).get()).toEqual({ ...DEFAULT_PREFS, theme: 'blue', autoCheckUpdates: false })
+    expect(h.setAutoCheckUpdates(true).autoCheckUpdates).toBe(true)
+    expect(new PrefsStore(dir).get().autoCheckUpdates).toBe(true)
+    for (const invalid of ['false', 0, 1, null, undefined, {}]) {
+      expect(codeOf(() => h.setAutoCheckUpdates(invalid))).toBe(ERR.invalidPref)
+    }
+    expect(new PrefsStore(dir).get().autoCheckUpdates).toBe(true)
+    expect(codeOf(() => createPrefsHandlers({ store: () => null, theme }).setAutoCheckUpdates(false)))
       .toBe(ERR.prefsStoreNotReady)
   })
 
@@ -118,7 +133,7 @@ describe('the preference handlers', () => {
     expect(codeOf(() => handlers().setTheme('neon'))).toBe(ERR.invalidPref)
     expect(codeOf(() => handlers().setLanguage('ko'))).toBe(ERR.invalidPref)
     // An invalid call must leave no trace
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ja', mode: 'system', trendSpan: 30 })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ja', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
   })
 
   it('neither setTheme nor setLanguage touches themeSource', () => {

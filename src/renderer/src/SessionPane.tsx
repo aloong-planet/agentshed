@@ -104,7 +104,8 @@ export function SessionPane({
   projectName,
   now,
   onBack,
-  onOpenSession
+  onOpenSession,
+  exits
 }: {
   file: string
   /** Going straight to a search hit (ticket 08): after loading, scroll to the question row with that
@@ -117,6 +118,9 @@ export function SessionPane({
   /** The banner's jump to the parent session (App switches session); without it the parent title is
    * plain text */
   onOpenSession?: (file: string) => void
+  /** A session opened directly from a global search hit (global-search US-003): two exits in place of the
+   * back control — back to the results, then on into the project (its note page when it is stale) */
+  exits?: { stale: boolean; onBackToSearch: () => void; onGoToProject: () => void }
 }): JSX.Element {
   const t = useDict()
   const lang = useLanguage()
@@ -125,10 +129,25 @@ export function SessionPane({
   return (
     <div className="pane">
       <header className="pane-head">
-        <button className="sback" onClick={onBack}>
-          <ChevronLeft size={12} />
-          {t.session.back(projectName)}
-        </button>
+        <div className="exits">
+          {exits ? (
+            <>
+              <button className="sback" onClick={exits.onBackToSearch}>
+                <ChevronLeft size={12} />
+                <span>{t.session.backToSearch}</span>
+              </button>
+              <button className="sback" onClick={exits.onGoToProject}>
+                <ChevronRight size={12} />
+                <span>{exits.stale ? t.session.goToProjectStale(projectName) : t.session.goToProject(projectName)}</span>
+              </button>
+            </>
+          ) : (
+            <button className="sback" onClick={onBack}>
+              <ChevronLeft size={12} />
+              <span>{t.session.back(projectName)}</span>
+            </button>
+          )}
+        </div>
         {result.ok && (
           <>
             <div className="det-title">

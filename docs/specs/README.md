@@ -32,10 +32,14 @@ written for whoever is about to change that code.
 | [plugins-view](plugins-view.md) | [Plugins view](../features/plugins-view.md) |
 | [token-stats](token-stats.md) | [Token statistics](../features/token-stats.md) |
 | [session-view](session-view.md) | [Session view](../features/session-view.md) |
+| [global-search](global-search.md) | [Global search](../features/global-search.md) |
 | [i18n](i18n.md) | [UI language](../features/i18n.md) |
 | [skill-install](skill-install.md) | [Skills install](../features/skill-install.md) |
 | [skills-view](skills-view.md) | [Skills view](../features/skills-view.md) |
 | [appearance](appearance.md) | [Appearance](../features/appearance.md) |
+| [app-update](app-update.md) | [App updates](../features/app-update.md) |
+| [mac-distribution](mac-distribution.md) | macOS distribution (the feature entry is written with the first release) |
+| [landing-page](landing-page.md) | Landing page (the feature entry is written when the page goes live) |
 
 > Note on reconstruction: this directory was created on 2026-08-01 (when specs became persistent
 > artifacts). Specs for features predating that were discarded along with `.scratch/` and have been

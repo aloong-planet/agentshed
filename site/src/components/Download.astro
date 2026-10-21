@@ -1,0 +1,37 @@
+---
+// The download section (landing-page::REQ-002): a line under the title and one row for the one package,
+// rendered in the list state, like the hero's button.
+import { view } from '../download'
+import { ui, type Locale } from '../i18n/ui'
+import Icon from './Icon.astro'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const t = ui[locale]
+const { section } = view({ kind: 'list' }, locale)
+---
+
+<section class="section soft" id="download">
+  <div class="wrap">
+    <h2 class="sec-title">{t.download.title}</h2>
+    <p class="sec-sub">{section.line}</p>
+    <div class="dl">
+      <div class="dl-row">
+        <div class="dl-label"><b>{t.download.label}</b><span>{t.download.labelSub}</span></div>
+        <div class="dl-actions">
+          {
+            section.buttons.map((b) => (
+              <a class="btn btn-primary btn-sm" href={b.href} target={b.newTab ? '_blank' : undefined} rel={b.newTab ? 'noopener' : undefined}>
+                <Icon name="download" size={15} />
+                {b.label}
+              </a>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

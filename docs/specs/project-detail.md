@@ -302,7 +302,8 @@ main-process side of the knob is a one-line read and is not unit tested.
 - A token-history view for stale projects (accepted trade-off of the note-only page; the global
   totals still include them).
 - Cross-project artifact aggregation (ruled a false requirement, see CONTEXT.md's flagged
-  ambiguities; cross-project retrieval belongs to a future global search).
+  ambiguities). Global search ([global-search](global-search.md)) covers session questions only, not
+  artifacts.
 - Full-text search of artifact contents.
 - Persisting session search results or search state across restarts. Search already uses the query
   layer under ADR-0028, but is not a saved display-page or preview payload under ADR-0029.

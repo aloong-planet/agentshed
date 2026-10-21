@@ -1,0 +1,30 @@
+
+ RUN  v2.1.9 /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/t278-fcdb
+
+ ❯ src/main/providers/token-stats.test.ts (98 tests | 1 failed | 96 skipped) 23ms
+   × sessionQuestions (the session page service) > a fork of a stripped fork: the banner names the parent by the title the list gives it, not by its replayed first question (#278) 17ms
+     → expected 'grandparent question' to be 'parent new question' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/main/providers/token-stats.test.ts > sessionQuestions (the session page service) > a fork of a stripped fork: the banner names the parent by the title the list gives it, not by its replayed first question (#278)
+AssertionError: expected 'grandparent question' to be 'parent new question' // Object.is equality
+
+Expected: "parent new question"
+Received: "grandparent question"
+
+ ❯ src/main/providers/token-stats.test.ts:1971:35
+    1969|     expect(child.forkState).toBe('stripped')
+    1970|     expect(child.forkParentFile).toBe(parentFile)
+    1971|     expect(child.forkParentTitle).toBe('parent new question')
+       |                                   ^
+    1972|   })
+    1973| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed | 96 skipped (98)
+   Start at  22:19:22
+   Duration  502ms (transform 199ms, setup 0ms, collect 259ms, tests 23ms, environment 0ms, prepare 69ms)
+

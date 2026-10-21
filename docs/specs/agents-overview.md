@@ -231,7 +231,8 @@ the snapshot arrives (the same discipline as the project list's floating-layer a
 
 - Write operations on the global library / plugins / memories (the one write operation is installing
   a skill into a project).
-- Cross-component aggregate views and global search.
+- Cross-component aggregate views. Global search is a page of its own and covers session questions only
+  ([global-search](global-search.md)).
 - Live file watching (startup scan + the automatic rescans only).
 - A dedicated first-scan error state (A4d keeps the skeleton and lets the rescan triggers retry).
 - Making a first installation or a cleared user-data directory show history before its first scan: no saved display data exists in that case.

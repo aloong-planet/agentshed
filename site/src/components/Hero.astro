@@ -1,0 +1,34 @@
+---
+// The hero (landing-page::US-001/AC-01): the icon, the title, one paragraph, the download button with the
+// platform line, and a screenshot of the whole window. The button is rendered in the list state, which is
+// what the page offers until something tells it more (landing-page::REQ-001/AC-04).
+import { view } from '../download'
+import { ui, type Locale } from '../i18n/ui'
+import { HERO_SIZE, shotSrc } from '../shots'
+import Icon from './Icon.astro'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const t = ui[locale]
+const { hero } = view({ kind: 'list' }, locale)
+---
+
+<div class="hero wrap" id="top">
+  <img class="icon" src="/icon-256.png" width="256" height="256" alt="" />
+  <h1>{t.hero.title}</h1>
+  <p class="lede">{t.hero.lede}</p>
+  <div class="cta">
+    <a class="btn btn-primary" href={hero.href} target={hero.newTab ? '_blank' : undefined} rel={hero.newTab ? 'noopener' : undefined}>
+      <Icon name="download" size={18} />
+      {hero.label}
+    </a>
+    <div class="meta">{t.hero.platform}</div>
+  </div>
+  <div class="shot">
+    <div class="chrome"><i></i><i></i><i></i></div>
+    <img src={shotSrc('hero', locale)} width={HERO_SIZE.width} height={HERO_SIZE.height} alt={t.hero.shotAlt} />
+  </div>
+</div>

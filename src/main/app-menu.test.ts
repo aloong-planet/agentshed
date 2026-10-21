@@ -67,12 +67,61 @@ describe('buildMenuTemplate', () => {
     // Injected rather than operating on BrowserWindow inside the template: that would stop it being pure
     // and make it untestable
     const called: string[] = []
-    const tpl = buildMenuTemplate('zh', { openSettings: () => called.push('settings') })
+    const tpl = buildMenuTemplate('zh', {
+      openSettings: () => called.push('settings'),
+      checkForUpdates: () => called.push('updates'),
+      openSearch: () => called.push('search')
+    })
     const items = tpl.flatMap((m) => (Array.isArray(m.submenu) ? m.submenu : []))
     for (const i of items) {
       const click = (i as { click?: () => void }).click
       if (click) click()
     }
-    expect(called).toEqual(['settings'])
+    // "Check for Updates…" comes first, directly below "About"; "Search Sessions…" closes the Edit menu
+    expect(called).toEqual(['updates', 'settings', 'search'])
+  })
+
+  const appItems = (lang: Parameters<typeof buildMenuTemplate>[0], canCheck = false) => {
+    const sub = buildMenuTemplate(lang, undefined, canCheck)[0].submenu
+    return (Array.isArray(sub) ? sub : []) as Array<{ label?: string; role?: string; enabled?: boolean }>
+  }
+
+  it('"Check for Updates…" sits directly below "About Agentshed", in the in-app language (app-update::REQ-005)', () => {
+    expect(appItems('en')[1].label).toBe('Check for Updates…')
+    expect(appItems('fr')[1].label).toBe('Rechercher les mises à jour…')
+    for (const lang of LANGUAGES) {
+      const items = appItems(lang)
+      expect(items[0].role, lang).toBe('about')
+      expect(items[1].label, lang).toBe(dictOf(lang).menu.checkForUpdates)
+    }
+  })
+
+  it('it is disabled in a development run and enabled in a run that checks for updates (app-update::US-005/AC-02)', () => {
+    expect(appItems('en')[1].enabled).toBe(false)
+    expect(appItems('en', true)[1].enabled).toBe(true)
+  })
+
+  type Item = { label?: string; role?: string; id?: string; type?: string; accelerator?: string }
+  const editItems = (lang: Parameters<typeof buildMenuTemplate>[0]): Item[] => {
+    const sub = buildMenuTemplate(lang)[1].submenu
+    return Array.isArray(sub) ? sub : []
+  }
+
+  it('"Search Sessions…" closes the Edit menu after a separator, bound to ⌘⇧F, in the in-app language (global-search::US-004/AC-02)', () => {
+    for (const lang of LANGUAGES) {
+      const [selectAll, separator, item] = editItems(lang).slice(-3)
+      expect(selectAll.role, lang).toBe('selectAll')
+      expect(separator.type, lang).toBe('separator')
+      expect(item.id, lang).toBe('searchSessions')
+      expect(item.accelerator, lang).toBe('CmdOrCtrl+Shift+F')
+      expect(item.label, lang).toBe(dictOf(lang).menu.searchSessions)
+    }
+    expect(editItems('en').at(-1)?.label).toBe('Search Sessions…')
+    expect(editItems('fr').at(-1)?.label).toBe('Rechercher dans les sessions…')
+    expect(new Set(LANGUAGES.map((l) => editItems(l).at(-1)?.label)).size).toBe(LANGUAGES.length)
+    // No other entry in the template names the same accelerator string (the installed menu's check, with the
+    // chord normalised and the roles' own accelerators included, is the global search e2e's)
+    const all = buildMenuTemplate('en').flatMap((m) => (Array.isArray(m.submenu) ? m.submenu : [])) as Item[]
+    expect(all.filter((i) => i.accelerator === 'CmdOrCtrl+Shift+F').map((i) => i.id)).toEqual(['searchSessions'])
   })
 })

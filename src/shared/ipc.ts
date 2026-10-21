@@ -22,6 +22,12 @@ export const CMD = {
   /** Search this project's sessions: questions by default, switchable to full text (ticket 08; a coarse
    * range-read pass, no index built) */
   searchSessions: 'agentshed:search-sessions',
+  /** Global search: start reading every listed session's question texts into memory, or join the reading
+   * under way; resolves once they are read (ADR-0034). The page asks for it when it is shown */
+  readSearchQuestions: 'agentshed:read-search-questions',
+  /** Global search: the listed sessions of every project whose questions contain a keyword, every hit; waits
+   * for a reading under way */
+  globalSearch: 'agentshed:global-search',
   /** Read an artifact's markdown (only files the detail page listed, validated against the main process's
    * allow-list) */
   readArtifact: 'agentshed:read-artifact',
@@ -47,7 +53,17 @@ export const CMD = {
   /** Enumerate a package's previewable files when a skill is expanded (registering the allow-list) */
   listSkillFiles: 'agentshed:list-skill-files',
   /** Read the contents of a registered file inside a skill package */
-  readSkillFile: 'agentshed:read-skill-file'
+  readSkillFile: 'agentshed:read-skill-file',
+  /** The app update lifecycle as it stands, read on mount (app-update) */
+  getUpdateState: 'agentshed:get-update-state',
+  /** The user clicked to install the ready app update (app-update::US-001/AC-04) */
+  installUpdate: 'agentshed:install-update',
+  /** "Check now" in settings: the request is the settings surface's, and answers its outcome (app-update::US-003/AC-02) */
+  checkForUpdates: 'agentshed:check-for-updates',
+  /** Settings' check record as it stands, read on mount (app-update::REQ-004/AC-03) */
+  getSettingsCheck: 'agentshed:get-settings-check',
+  /** Set the automatic update checks switch (app-update::REQ-003/AC-03) */
+  setAutoCheckUpdates: 'agentshed:set-auto-check-updates'
 } as const
 
 export const EVT = {
@@ -57,6 +73,14 @@ export const EVT = {
   /** The application menu triggered "Settings" (ticket 13): the same operation as the rail's settings entry, with
    * the renderer switching dimension */
   menuOpenSettings: 'agentshed:menu-open-settings',
+  /** The application menu triggered "Search Sessions…" (global-search US-004): the search page, its box focused */
+  menuOpenSearch: 'agentshed:menu-open-search',
+  /** The main process pushes each step of the app update lifecycle (app-update) */
+  updateState: 'agentshed:update-state',
+  /** A one-off update event the renderer answers with a toast: a failed install (app-update::REQ-002/AC-03) */
+  updateNotice: 'agentshed:update-notice',
+  /** The main process pushes each change of settings' check record (app-update::REQ-004/AC-02) */
+  settingsCheck: 'agentshed:settings-check',
 } as const
 
 export interface SessionTurnArgs {
@@ -67,6 +91,10 @@ export interface SessionTurnArgs {
    * getSessionPage.questions) */
   i: number
 }
+
+/** The longest keyword either session search accepts — a project's own and global search; a longer one is refused
+ * at the IPC boundary as bad arguments */
+export const SEARCH_NEEDLE_MAX = 200
 
 export interface SearchSessionsArgs {
   /** The project path (the main process takes the session set from it; the renderer cannot supply file
@@ -138,7 +166,17 @@ export const TREND_SPAN_ARG = '--agentshed-trend-span='
  */
 export const SYS_LANGS_ARG = '--agentshed-system-languages='
 
+/** The running version, for settings' "Current version" (app-update::REQ-003/AC-01): fixed for the run */
+export const APP_VERSION_ARG = '--agentshed-app-version='
+
+/**
+ * Whether this run checks for app updates: `1` when packaged, or when the e2e seam declares an update
+ * source, `0` in a development run, where settings' update controls are unavailable (app-update::US-005/AC-02)
+ */
+export const UPDATES_ARG = '--agentshed-updates='
+
 export type { AppearanceMode, AppearanceTheme } from './appearance'
 export type { ErrorCode, ErrorParams } from './errors'
 export type { Prefs } from './prefs'
+export type { UpdateNotice, UpdateState } from './update'
 export type { Language, LanguagePreference } from './i18n'

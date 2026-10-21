@@ -1,6 +1,7 @@
 # ADR-0018: Icons are inline SVG from a single source, and the prototypes derive theirs from it
 
-- Status: Accepted (2026-08-15)
+- Status: Accepted (2026-08-15); the prototypes' half — `_shared/icons.js` generated from the icon module and
+  guarded by a `--cross` rule — is superseded by ADR-0033: the prototypes now keep their own icons
 
 ## Context
 

@@ -14,3 +14,8 @@ playwright-report/
 !CLAUDE.md
 # Screenshots taken as acceptance evidence during a run — reproducible from the suite, not sources
 e2e-out/
+# Per-machine environment files hold local credentials and are never committed
+.env*.local
+# Astro's generated types for the landing page (site/), rewritten on every build or check. Kept here
+# rather than in site/.gitignore, because the lint reads this file only
+.astro/

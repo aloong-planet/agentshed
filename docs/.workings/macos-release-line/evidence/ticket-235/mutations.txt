@@ -1,0 +1,83 @@
+# Mutations of #235's tests (2026-10-19, on the uncommitted tree that became b51002e). Each is a text replacement,
+# the named test file run, the failure required to name the case the mutation is meant to turn red (for P2, the
+# case label in the assertion message), the file restored byte for byte after; the worktree's status compared
+# before and after the run. One control must stay green.
+
+## definitions
+const M = [
+  { id: 'B1', file: ART, from: "readdirSync(versionDir).filter((name) => name.endsWith('.dmg')).sort()", to: "readdirSync(versionDir).filter((name) => name.endsWith('.dmg') || name.endsWith('.zip')).sort()", cmd: MIR, marker: 'the update files in the artifact stay off R2', what: 'the mirror takes the ZIP too (M1)' },
+  { id: 'B2', file: 'electron-builder.yml', from: '  owner: aloong-planet
+', to: '  owner: aloong
+', cmd: UNIT, marker: 'the packaging publishes where the app reads', what: 'the packaging publishes elsewhere than the app reads (U1)' },
+  { id: 'B3', file: ART, from: "  if (metadata.length === 0) throw new Error(`no update metadata (*-mac.yml) in ${versionDir}`)
+", to: '', cmd: PUB, marker: 'no update metadata', what: 'no check for a missing metadata file (P2)' },
+  { id: 'B4', file: ART, from: "  if (metadata.length > 1) throw new Error(`more than one update metadata file in ${versionDir}: ${metadata.join(', ')}`)
+", to: '', cmd: PUB, marker: 'two update metadata files', what: 'no check for a second metadata file (P2)' },
+  { id: 'B5', file: ART, from: "    if (!present.includes(zips[i])) throw new Error(`no ZIP for ${dmg}: ${zips[i]}`)
+", to: '', cmd: PUB, marker: 'no ZIP for the DMG', what: 'no check for a missing ZIP (P2)' },
+  { id: 'B6', file: ART, from: "    if (!present.includes(`${zips[i]}.blockmap`)) throw new Error(`no blockmap for ${zips[i]}`)
+", to: '', cmd: PUB, marker: 'no blockmap for the ZIP', what: 'no check for a missing blockmap (P2)' },
+  { id: 'B7', file: ART, from: "  if (stray.length > 0) throw new Error(`${stray.join(', ')} has no DMG of version ${version} beside it`)
+", to: '', cmd: PUB, marker: 'a ZIP of another version', what: 'no check for a ZIP of another version (P2)' },
+  { id: 'B8', file: 'scripts/publish-release.mjs', from: '  const names = [...dmgs.names, ...update.names]
+  const files = [...dmgs.files, ...update.files]', to: '  const names = dmgs.names
+  const files = dmgs.files', cmd: PUB, marker: 'the update files with the DMG', what: 'the update files not published (P1)' },
+  { id: 'B9', file: '.github/workflows/release.yml', from: '            release/*/*-mac.yml
+', to: '', cmd: WF, marker: 'the update files and Apple', what: 'the metadata not kept with the run (W1)' },
+  { id: 'B10', file: 'scripts/publish-release.mjs', from: "  if (missing.length > 0) throw new Error(`the draft of ${tag} does not hold the files sent: missing ${missing.join(', ')}`)
+", to: '', cmd: PUB, marker: 'the release holds fewer files than were sent', what: 'a lost upload not noticed (P3, the metadata lost)' },
+  { id: 'B11', file: ART, from: 'export function updateFiles(dir, tag, dmgs) {', to: '// control
+export function updateFiles(dir, tag, dmgs) {', cmd: PUB, marker: null, what: 'control: a harmless change' }
+]
+
+## run
+OK  B1 the mirror takes the ZIP too (M1) (exit 1)
+      ✖ the update files in the artifact stay off R2: only the DMGs are mirrored, and the pointer names only them (2.649834ms)
+      ✖ failing tests:
+      ✖ the update files in the artifact stay off R2: only the DMGs are mirrored, and the pointer names only them (2.649834ms)
+OK  B2 the packaging publishes elsewhere than the app reads (U1) (exit 1)
+      × updaterSettings > the packaging publishes where the app reads (mac-distribution::REQ-001/AC-02) 13ms
+OK  B3 no check for a missing metadata file (P2) (exit 1)
+      ✖ an artifact without every update file fails before the release store is touched (2.399792ms)
+      ✖ failing tests:
+      ✖ an artifact without every update file fails before the release store is touched (2.399792ms)
+OK  B4 no check for a second metadata file (P2) (exit 1)
+      ✖ an artifact without every update file fails before the release store is touched (4.573208ms)
+      ✖ failing tests:
+      ✖ an artifact without every update file fails before the release store is touched (4.573208ms)
+OK  B5 no check for a missing ZIP (P2) (exit 1)
+      ✖ an artifact without every update file fails before the release store is touched (5.823083ms)
+      ✖ failing tests:
+      ✖ an artifact without every update file fails before the release store is touched (5.823083ms)
+OK  B6 no check for a missing blockmap (P2) (exit 1)
+      ✖ an artifact without every update file fails before the release store is touched (6.577875ms)
+      ✖ failing tests:
+      ✖ an artifact without every update file fails before the release store is touched (6.577875ms)
+OK  B7 no check for a ZIP of another version (P2) (exit 1)
+      ✖ an artifact without every update file fails before the release store is touched (8.659333ms)
+      ✖ failing tests:
+      ✖ an artifact without every update file fails before the release store is touched (8.659333ms)
+OK  B8 the update files not published (P1) (exit 1)
+      ✖ a formal tag publishes the whole set once, the update files with the DMG, titled for a release, marked Latest (4.979417ms)
+      ✖ an earlier attempt's drafts for the tag are removed first, so only this run's files go public (2.979375ms)
+      ✖ an upload that did not land in full leaves nothing public (3.166416ms)
+      ✖ failing tests:
+OK  B9 the metadata not kept with the run (W1) (exit 1)
+      ✖ the packages, the update files and Apple's logs are kept with the run, and publishing takes exactly that artifact (0.901875ms)
+      ✖ failing tests:
+      ✖ the packages, the update files and Apple's logs are kept with the run, and publishing takes exactly that artifact (0.901875ms)
+OK  B10 a lost upload not noticed (P3, the metadata lost) (exit 1)
+      ✖ an upload that did not land in full leaves nothing public (3.620875ms)
+      ✖ failing tests:
+      ✖ the release holds fewer files than were sent (1.007125ms)
+OK  B11 control: a harmless change (exit 0)
+
+## B12, a mutation outside the design (post-implementation check)
+# The stray check no longer catching blockmaps:
+#   from: const stray = present.filter((name) => (name.endsWith('.zip') || name.endsWith('.zip.blockmap')) && !expected.includes(name))
+#   to:   const stray = present.filter((name) => name.endsWith('.zip') && !expected.includes(name))
+# First run: it survived (17 of 17 green): P2 had no stray blockmap. P2 gained 'a blockmap of another version'; then:
+real code: ℹ pass 17 ℹ fail 0 
+under the mutant: ℹ pass 16 ℹ fail 1 
+AssertionError [ERR_ASSERTION]: a blockmap of another version
+restored byte for byte (cmp)

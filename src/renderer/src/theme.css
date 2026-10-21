@@ -240,12 +240,61 @@ body {
   background: var(--accent-soft);
   color: var(--accent);
 }
-/* Settings is the rail's bottom group on its own: it inherited the auto top margin from the global
-   refresh button that used to sit above it (removed 2026-08-23) — without it the entry would ride up
-   under the dimension buttons */
-.rail .ri.set {
+/* The rail's bottom group: Settings, with the app update button directly above it while an update is in
+   flight (appearance D4, app-update::REQ-001/AC-01). The group, not Settings, takes the auto top margin
+   that Settings inherited from the removed global refresh button (2026-08-23), so the pair stays pinned
+   to the bottom together and Settings keeps its place whether or not the update button is there */
+.rail-bottom {
   margin-top: auto;
   margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── The app update button (app-update::REQ-001), Codex's rail form: a 36px rail slot holding a 24px
+   filled circle. The fill is the theme accent and the glyph takes the card colour, so it reads white on
+   the light themes' deep accents and dark on the dark themes' light accents. Only the ready state is a
+   button; downloading and installing are focusable for their message but cannot be clicked. ── */
+.rail .ri.upd {
+  cursor: default;
+}
+.rail button.ri.upd {
+  cursor: pointer;
+}
+.upd-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--card);
+}
+.upd-ring .track {
+  stroke: currentColor;
+  opacity: 0.35;
+}
+.upd-ring .arc {
+  stroke: currentColor;
+  transition: stroke-dashoffset 0.3s linear;
+}
+.upd-spin {
+  display: flex;
+  animation: upd-spin 1s linear infinite;
+}
+@keyframes upd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Under reduced motion the loader stands still (REQ-001/AC-02) */
+@media (prefers-reduced-motion: reduce) {
+  .upd-spin {
+    animation: none;
+  }
 }
 
 /* ── The settings page (appearance) ── */
@@ -2007,21 +2056,38 @@ body {
 }
 
 /* ── The session page (ticket 04; the prototype is session-view/prototype-session.html) ── */
+/* The exits row: the back control, or, for a session opened from a global search hit, back to the results and
+   on into the project (global-search US-003) — all three drawn as the prototype's exits */
+.exits {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 7px;
+  min-width: 0;
+}
 .sback {
   background: none;
   border: 0;
-  padding: 0 0 6px;
+  border-radius: 6px;
+  padding: 2px 7px 2px 4px;
   font: inherit;
   font-size: 12px;
   color: var(--text-2);
   cursor: pointer;
   /* flex rather than block: the chevron is a sibling of the copy now (it used to be a character glued to
      the front of the translated string, which meant six dictionaries each carried a copy of it). */
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.sback > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sback:hover {
+  background: var(--accent-soft);
   color: var(--accent);
 }
 .stitle {
@@ -2265,6 +2331,61 @@ mark {
     background: #4d451a;
     color: #f6e9a8;
   }
+}
+/* Global search (global-search spec, its prototype): the search box sits in the page header, and a project's
+   heading stands over that project's session cards — the cards and hit rows are the project search's own */
+.gsearch .pane-head .sbar {
+  margin-bottom: 12px;
+}
+.ph {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 18px 2px 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.shead + .ph {
+  margin-top: 4px;
+}
+.ph svg {
+  flex: none;
+  color: var(--text-2);
+}
+.ph .pn {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ph .pc {
+  flex: none;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-2);
+}
+/* A stale project reads as the project list draws it: struck through, with the stale tag */
+.ph.stale .pn {
+  color: var(--text-2);
+  text-decoration: line-through;
+}
+.ph .stale-tag {
+  font-weight: 400;
+}
+/* Before a keyword, and with nothing to search */
+.gs-note {
+  color: var(--text-2);
+  padding: 56px 20px;
+  text-align: center;
+  line-height: 1.7;
+}
+.gs-note .big {
+  color: var(--line-strong);
+  margin-bottom: 8px;
+}
+.gs-note .sub {
+  font-size: 11.5px;
 }
   /* Ticket 08: the search locating highlight (confirmed by the prototype on 2026-08-06) — on arrival a
      yellow pulse holds for 10s (8s steady, fading over the last 2s, in the same colour family as mark and
@@ -3057,6 +3178,62 @@ mark {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
+/* An unavailable segment (the updates switch in a development run, app-update::US-005/AC-02). The :hover
+   selector ties with `.seg-field button:not(.on):hover` and wins by coming after it, so an unavailable
+   segment never lights up under the pointer. */
+.seg-field button[aria-disabled='true'],
+.seg-field button[aria-disabled='true']:hover {
+  cursor: default;
+  color: var(--text-2);
+  opacity: 0.55;
+  background: transparent;
+}
+.seg-field button.on[aria-disabled='true'] {
+  background: var(--line);
+}
+/* The updates section's version row (app-update::REQ-003/AC-01): the running version beside the label, then
+   the result line and the one button. The button is the dialog button (.cfg-btn); its hover, focus and
+   unavailable states are scoped to this row, so the uninstall dialog's buttons — the danger one above all —
+   keep their own look. The unavailable rule ties with the hover rule and wins by coming after it. */
+.ver {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.ver-ctl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.chk-out {
+  font-size: 12px;
+  color: var(--text-2);
+}
+.chk-out.ok {
+  color: var(--ok-fg);
+}
+.chk-out.err {
+  color: var(--err-fg);
+}
+.ver-ctl .cfg-btn {
+  white-space: nowrap;
+  flex: none;
+}
+.ver-ctl .cfg-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.ver-ctl .cfg-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.ver-ctl .cfg-btn[aria-disabled='true'] {
+  cursor: default;
+  color: var(--text-2);
+  border-color: var(--line);
+  background: var(--bg);
+}
 .lang-trigger {
   display: flex;
   align-items: center;
@@ -3165,12 +3342,13 @@ mark {
 }
 
 /* Startup display status yields width to the existing title and never adds a row on refresh. */
-.startup-display-hint { flex: 1 1 0; min-width: 0; overflow: hidden; font-weight: 400; }
-.startup-display-hint > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.startup-display-hint svg { flex: none; }
+/* .reading-hint is global search's reading of the question texts, shown in the same header slot with the same look */
+.startup-display-hint, .reading-hint { flex: 1 1 0; min-width: 0; overflow: hidden; font-weight: 400; }
+.startup-display-hint > span, .reading-hint > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.startup-display-hint svg, .reading-hint svg { flex: none; }
 .startup-display-hint[data-state='ready'] { visibility: hidden; }
 .startup-display-hint[data-state='waiting'] svg { animation: none; }
-@media (prefers-reduced-motion: reduce) { .startup-display-hint svg { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .startup-display-hint svg, .reading-hint svg { animation: none; } }
 
 .startup-project-placeholder { height: 100%; display: flex; flex-direction: column; }
 .startup-project-heading { height: 44px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--line); }

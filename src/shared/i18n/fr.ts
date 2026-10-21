@@ -9,6 +9,7 @@ export const fr: Locale = {
   rail: {
     agents: 'Agents',
     projects: 'Projets',
+    search: 'Rechercher',
     settings: 'Réglages'
   },
 
@@ -29,13 +30,27 @@ export const fr: Locale = {
       'Avec le mode « Suivre le système », le clair et le sombre suivent l’apparence macOS ; choisir Clair ou Sombre fixe le clair/sombre sur ce choix, quelles que soient les modifications ultérieures du système. Le thème et le mode sont indépendants et se combinent librement ; Violet est utilisé par défaut. Les changements s’appliquent immédiatement à toute l’app, sans enregistrement.',
     themePurple: 'Violet',
     themeBlue: 'Bleu brume',
-    themeAmber: 'Ambre'
+    themeAmber: 'Ambre',
+    sectionUpdates: 'Mises à jour',
+    autoCheckUpdates: 'Rechercher les mises à jour automatiquement',
+    switchOn: 'Activé',
+    switchOff: 'Désactivé',
+    currentVersion: 'Version actuelle',
+    checkNow: 'Vérifier maintenant',
+    installNow: 'Installer maintenant',
+    checking: 'Vérification…',
+    upToDate: 'Agentshed est à jour',
+    checkFailed: 'Impossible de vérifier les mises à jour',
+    versionDownloading: (version) => `Téléchargement de la version ${version}`,
+    versionReady: (version) => `La version ${version} est prête à être installée`,
+    updatesFoot: 'Les nouvelles versions se téléchargent en arrière-plan. Quand l’une est prête, cliquez sur le bouton de mise à jour en bas à gauche pour l’installer et redémarrer ; sinon, elle s’installe quand vous quittez.',
+    updatesDevFoot: 'Les mises à jour ne sont pas vérifiées en exécution de développement (l’app n’est pas empaquetée).'
   },
 
   menu: {
-    about: 'À propos d’Agentshed', hide: 'Masquer Agentshed', hideOthers: 'Masquer les autres',
+    about: 'À propos d’Agentshed', checkForUpdates: 'Rechercher les mises à jour…', hide: 'Masquer Agentshed', hideOthers: 'Masquer les autres',
     unhide: 'Tout afficher', quit: 'Quitter Agentshed',
-    edit: 'Édition', undo: 'Annuler', redo: 'Rétablir', cut: 'Couper', copy: 'Copier', paste: 'Coller', selectAll: 'Tout sélectionner',
+    edit: 'Édition', undo: 'Annuler', redo: 'Rétablir', cut: 'Couper', copy: 'Copier', paste: 'Coller', selectAll: 'Tout sélectionner', searchSessions: 'Rechercher dans les sessions…',
     view: 'Présentation', reload: 'Recharger', toggleDevTools: 'Outils de développement', resetZoom: 'Taille réelle',
     zoomIn: 'Zoom avant', zoomOut: 'Zoom arrière', fullscreen: 'Passer en plein écran',
     window: 'Fenêtre', minimize: 'Réduire', close: 'Fermer'
@@ -47,7 +62,17 @@ export const fr: Locale = {
     saveTrendSpanFailed: 'Échec de l’enregistrement de la période',
     saveThemeFailed: 'Échec de l’enregistrement du thème',
     saveModeFailed: 'Échec de l’enregistrement du mode d’apparence',
-    saveLanguageFailed: 'Échec de l’enregistrement de la langue'
+    saveLanguageFailed: 'Échec de l’enregistrement de la langue',
+    saveAutoCheckUpdatesFailed: 'Échec de l’enregistrement de la vérification automatique des mises à jour'
+  },
+
+  update: {
+    tipReady: 'Mise à jour disponible',
+    tipDownloading: (percent: number) => `Téléchargement de la mise à jour ${percent} %`,
+    tipInstalling: 'Installation de la mise à jour…',
+    installFailed: 'Impossible d’installer la mise à jour',
+    toastUpToDate: (version) => `Agentshed est à jour (${version})`,
+    toastFound: (version) => `Version ${version} trouvée — téléchargement en arrière-plan`
   },
 
   skillDeepHint: 'La bonne pratique est une profondeur de référence de skill inférieure à 2 — envisagez de restructurer ce skill',
@@ -82,6 +107,24 @@ export const fr: Locale = {
     pickProject: 'Sélectionnez un projet pour voir son détail',
     waitingUpdate: 'Données précédentes affichées, en attente de mise à jour',
     scanning: 'Analyse des côtés agents…'
+  },
+  search: {
+    title: 'Recherche',
+    placeholder: (projects, sessions) =>
+      `Rechercher dans les questions de ${sessions} ${plural('fr', sessions, { one: 'session', other: 'sessions' })} sur ${projects} ${plural('fr', projects, { one: 'projet', other: 'projets' })}…`,
+    placeholderNone: 'Rechercher dans les questions…',
+    idle: 'Recherchez ce que vous avez demandé dans les sessions de tous les projets.',
+    idleSub: 'Cliquez sur un résultat pour ouvrir cette session à cette question.',
+    reading: 'Lecture des questions des sessions…',
+    hitsFound: (hits, sessions, projects) =>
+      `**${hits}** ${plural('fr', hits, { one: 'résultat', other: 'résultats' })} · ${sessions} ${plural('fr', sessions, { one: 'session', other: 'sessions' })} · ${projects} ${plural('fr', projects, { one: 'projet', other: 'projets' })}`,
+    projectCounts: (sessions, hits) =>
+      `${sessions} ${plural('fr', sessions, { one: 'session', other: 'sessions' })} · ${hits} ${plural('fr', hits, { one: 'résultat', other: 'résultats' })}`,
+    noHits: (tab, fullText) =>
+      `Aucun résultat. Seules les questions sont recherchées ici — pour chercher dans les réponses et les sorties d’outils, ouvrez le projet et passez son onglet « ${tab} » en « ${fullText} ».`,
+    failed: 'Cette recherche n’a pas pu aboutir. Modifiez le mot-clé pour réessayer.',
+    noSessions: 'Aucune session à rechercher pour le moment.',
+    noSessionsSub: 'Dès qu’un agent aura eu une conversation dans un projet enregistré, elle pourra être recherchée ici.'
   },
   skills: {
     searchPlaceholder: 'Rechercher un skill…',
@@ -166,6 +209,9 @@ export const fr: Locale = {
     fetchedNote: (ms, bytes) =>
       `Récupéré à la demande en ${ms} ms · lecture de la seule plage d’octets de ce tour, ${bytes} — indépendamment de la taille totale du fichier`,
     back: (project) => `Retour à ${project} · Sessions`,
+    backToSearch: 'Retour aux résultats de recherche',
+    goToProject: (project) => `Aller à ${project} · Sessions`,
+    goToProjectStale: (project) => `Aller à ${project}`,
     headMeta: (side, questions, tok, mb, ago) =>
       `${side} · ${questions} ${plural('fr', questions, { one: 'question', other: 'questions' })} · ${tok} tok · ${mb} · dernière activité ${ago}`,
     cannotOpen: (detail) => `Impossible d’ouvrir cette session : ${detail}`,

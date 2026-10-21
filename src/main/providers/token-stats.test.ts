@@ -7,6 +7,15 @@
 // Gap (#158): a file growing *while* it is being parsed is not driven here — that the cache signature
 // is taken before the parse, so the growth shows as a change on the next scan, needs a writer racing
 // the reader, which no test here controls. A read hook in eachJsonlLine would let a test append mid-read.
+//
+// Gap (#278): the session questions' re-title failing on the session's own line — they then keep the title
+// it was parsed with — has no case of its own. It could have one: the cache signature is mtime and size, so a
+// change that keeps both (the line rewritten in place at the same length with the mtime pinned, or read
+// permission removed) fails that read while the signature still matches. It has none because the fallback is
+// the expression the banner case whose parent's file is gone drives through the parent's call, and both ways
+// in rest on a state the app does not build itself (a pinned mtime) or one in which the page fails as a whole
+// (no read permission). The list's fallback is driven through a parse runner that removes the file. A case is
+// due if the session's own call stops sharing that expression.
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync, readdirSync, statSync, openSync, writeSync, closeSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -1645,10 +1654,13 @@ describe('session titles and the listing rules', () => {
     writeFileSync(join(d, `rollout-${PARENT}.jsonl`), [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n')
     const childFile = join(d, `rollout-${CHILD}.jsonl`)
     writeFileSync(childFile, [meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }), q('2026-07-30T02:00:00Z', 'parent question one'), q('2026-07-30T02:00:05Z', 'child new question')].join('\n') + '\n')
-    const r = await engine().build(roots(), [proj])
+    const e = engine()
+    const r = await e.build(roots(), [proj])
     const child = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.file === childFile)
     expect(child?.forkState).toBe('stripped')
     expect(child?.title).toBe('child new question')
+    // The session page and the project search take the title from here: the same one the list shows (#278)
+    expect((await e.sessionQuestions(roots(), childFile)).title).toBe('child new question')
   })
 
   it('Codex: a prefix-stripped fork with a thread_name keeps the thread_name as its title, not displaced by the first surviving question', async () => {
@@ -1664,8 +1676,9 @@ describe('session titles and the listing rules', () => {
       join(d, `rollout-${PARENT}.jsonl`),
       [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n'
     )
+    const childFile = join(d, `rollout-${CHILD}.jsonl`)
     writeFileSync(
-      join(d, `rollout-${CHILD}.jsonl`),
+      childFile,
       [
         meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }),
         q('2026-07-30T02:00:00Z', 'parent question one'), // a replay (timestamps rewritten, content identical)
@@ -1673,10 +1686,65 @@ describe('session titles and the listing rules', () => {
       ].join('\n') + '\n'
     )
     writeIndex([{ id: CHILD, name: 'fork thread name' }])
-    const r = await engine().build(roots(), [proj])
+    const e = engine()
+    const r = await e.build(roots(), [proj])
     const child = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.forkState === 'stripped')
     expect(child, 'a stripped child should be listed (it still has surviving questions)').toBeDefined()
     expect(child?.title, 'thread_name takes priority (A4) and a retitle must not displace it').toBe('fork thread name')
+    // The session page and the project search keep it too
+    expect((await e.sessionQuestions(roots(), childFile)).title).toBe('fork thread name')
+  })
+
+  it('Codex: when the line a stripped fork is retitled from cannot be read back during the build, the list keeps the title it was parsed with', async () => {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const q = (ts: string, m: string): string =>
+      JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })
+    const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
+      JSON.stringify({ timestamp: ts, type: 'session_meta', payload: { cwd: proj, id, ...extra } })
+    const PARENT = '019f0000-aaaa-7000-8000-000000000071'
+    const CHILD = '019f0000-bbbb-7000-8000-000000000072'
+    writeFileSync(join(d, `rollout-${PARENT}.jsonl`), [meta('2026-07-30T01:00:00Z', PARENT), q('2026-07-30T01:00:01Z', 'parent question one')].join('\n') + '\n')
+    const childFile = join(d, `rollout-${CHILD}.jsonl`)
+    writeFileSync(childFile, [meta('2026-07-30T02:00:00Z', CHILD, { forked_from_id: PARENT }), q('2026-07-30T02:00:00Z', 'parent question one'), q('2026-07-30T02:00:05Z', 'child new question')].join('\n') + '\n')
+    // The fork's rollout goes (deleted, or compressed by Codex) after it is parsed and before the list is retitled
+    const removing: ParseRunner = {
+      concurrency: 1,
+      run: async (job) => {
+        const result = await runParseJob(job)
+        if (job.file === childFile) rmSync(childFile)
+        return result
+      }
+    }
+    const r = await new TokenEngine(join(dir, 'cache'), removing).build(roots(), [proj])
+    const child = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.file === childFile)
+    expect([child?.forkState, child?.questionCount, child?.title]).toEqual(['stripped', 1, 'parent question one'])
+  })
+
+  // The uncertain tier strips too — here the burst heuristic, with the parent missing — and the re-title
+  // follows the strip whatever the state (spec B2)
+  it('Codex: an orphan fork whose opening burst is stripped is retitled to its first surviving question, on the list and on its page', async () => {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const q = (ts: string, m: string): string =>
+      JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })
+    const ORPHAN = '019f0000-cccc-7000-8000-000000000061'
+    const orphanFile = join(d, `rollout-${ORPHAN}.jsonl`)
+    writeFileSync(
+      orphanFile,
+      [
+        JSON.stringify({ timestamp: '2026-07-30T03:00:00Z', type: 'session_meta', payload: { cwd: proj, id: ORPHAN, forked_from_id: '019f0000-dead-7000-8000-000000000099' } }),
+        q('2026-07-30T03:00:00.000Z', 'replayed question one'), // written in one go: a burst
+        q('2026-07-30T03:00:00.300Z', 'replayed question two'),
+        q('2026-07-30T03:00:30.000Z', 'orphan new question') // a human's pace
+      ].join('\n') + '\n'
+    )
+    const e = engine()
+    const r = await e.build(roots(), [proj])
+    const listed = r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.file === orphanFile)
+    expect([listed?.forkState, listed?.questionCount, listed?.title]).toEqual(['uncertain', 1, 'orphan new question'])
+    const page = await e.sessionQuestions(roots(), orphanFile)
+    expect([page.forkState, page.questions.length, page.title]).toEqual(['uncertain', 1, 'orphan new question'])
   })
 
   // Ticket 03's retrospective review R3 (the user's ruling, 2026-08-05): a fork verified to have been
@@ -1716,11 +1784,17 @@ describe('session titles and the listing rules', () => {
         usage('2026-07-30T02:00:01Z', 100, 20)
       ].join('\n') + '\n'
     )
-    const r = await engine().build(roots(), [proj])
+    const e = engine()
+    const r = await e.build(roots(), [proj])
     const p = r.perProject.get(proj.toLowerCase())
     expect(p?.sessions.find((s) => s.file === childFile), 'a fork stripped empty should not be listed').toBeUndefined()
     expect(p?.sessions.filter((s) => s.side === 'codex'), 'the parent session is listed as usual').toHaveLength(1)
     expect(p?.tokens.bySide.codex.total, 'not being listed does not mean the tokens are not counted').toBe(120)
+    // Its file stays readable (the allow-list follows the pre-strip rule): its session questions resolve
+    // with nothing left, and with no question left to re-title it from, it keeps the title it was parsed with
+    expect(r.sessionFiles.has(childFile)).toBe(true)
+    const page = await e.sessionQuestions(roots(), childFile)
+    expect([page.forkState, page.questions.length, page.title]).toEqual(['stripped', 0, 'parent question one'])
   })
 })
 
@@ -1883,6 +1957,58 @@ describe('sessionQuestions (the session page service)', () => {
     expect(orphan.forkParentFile).toBeNull()
     // The Claude side has no parent concept and is always null; forkPoints is always 0 for Codex
     expect(child.forkPoints).toBe(0)
+  })
+
+  // Three legacy generations with no thread_name: the parent is itself a stripped fork, titled by its first
+  // question left ("parent new question") rather than the one it replayed ("grandparent question")
+  function mkStrippedForkChain(): { parentFile: string; childFile: string } {
+    const d = join(dir, '.codex', 'sessions', '2026', '07', '30')
+    mkdirSync(d, { recursive: true })
+    const q = (ts: string, m: string): string =>
+      JSON.stringify({ timestamp: ts, type: 'event_msg', payload: { type: 'user_message', message: m } })
+    const meta = (ts: string, id: string, extra: Record<string, unknown> = {}): string =>
+      JSON.stringify({ timestamp: ts, type: 'session_meta', payload: { cwd: proj, id, ...extra } })
+    const GRAND = '019f0000-aaaa-7000-8000-000000000051'
+    const PARENT = '019f0000-bbbb-7000-8000-000000000052'
+    const CHILD = '019f0000-cccc-7000-8000-000000000053'
+    const parentFile = join(d, `rollout-${PARENT}.jsonl`)
+    const childFile = join(d, `rollout-${CHILD}.jsonl`)
+    writeFileSync(join(d, `rollout-${GRAND}.jsonl`), [meta('2026-07-30T01:00:00Z', GRAND), q('2026-07-30T01:00:01Z', 'grandparent question')].join('\n') + '\n')
+    writeFileSync(
+      parentFile,
+      [meta('2026-07-30T02:00:00Z', PARENT, { forked_from_id: GRAND }), q('2026-07-30T02:00:00Z', 'grandparent question'), q('2026-07-30T02:00:05Z', 'parent new question')].join('\n') + '\n'
+    )
+    writeFileSync(
+      childFile,
+      [
+        meta('2026-07-30T03:00:00Z', CHILD, { forked_from_id: PARENT }),
+        q('2026-07-30T03:00:00Z', 'grandparent question'), // both replayed from the parent
+        q('2026-07-30T03:00:00Z', 'parent new question'),
+        q('2026-07-30T03:00:05Z', 'child new question')
+      ].join('\n') + '\n'
+    )
+    return { parentFile, childFile }
+  }
+
+  it('a fork of a stripped fork: the banner names the parent by the title the list gives it, not by its replayed first question (#278)', async () => {
+    const { parentFile, childFile } = mkStrippedForkChain()
+    const e = engine()
+    const r = await e.build(roots(), [proj])
+    expect(r.perProject.get(proj.toLowerCase())?.sessions.find((s) => s.file === parentFile)?.title).toBe('parent new question')
+    const child = await e.sessionQuestions(roots(), childFile)
+    expect(child.forkState).toBe('stripped')
+    expect(child.forkParentFile).toBe(parentFile)
+    expect(child.forkParentTitle).toBe('parent new question')
+  })
+
+  it('a fork of a stripped fork whose parent\'s line cannot be read back: the banner keeps the title the parent was parsed with, and the page still opens', async () => {
+    const { parentFile, childFile } = mkStrippedForkChain()
+    const e = engine()
+    await e.build(roots(), [proj])
+    // Gone after the scan: the child's page still finds the parent in the index, but the re-title read fails
+    rmSync(parentFile)
+    const child = await e.sessionQuestions(roots(), childFile)
+    expect([child.forkState, child.forkParentFile, child.forkParentTitle]).toEqual(['stripped', parentFile, 'grandparent question'])
   })
 
   it('present in the cache but the file has been deleted: an explicit error rather than a silent empty list (a spec failure path)', async () => {

@@ -1,0 +1,29 @@
+---
+// The three install steps (landing-page::US-004/AC-01). The third tells the visitor in advance what the
+// first launch shows, and where the update button will appear.
+import { ui, type Locale } from '../i18n/ui'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const t = ui[locale]
+---
+
+<section class="section" id="install">
+  <div class="wrap">
+    <h2 class="sec-title alone">{t.install.title}</h2>
+    <div class="steps">
+      {
+        t.install.steps.map((s, i) => (
+          <div class="step">
+            <div class="n">{i + 1}</div>
+            <h3>{s.title}</h3>
+            <p>{s.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

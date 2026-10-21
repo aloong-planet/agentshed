@@ -20,9 +20,6 @@
 //
 // Every icon slot in the renderer now comes from here. What is deliberately **not** an icon: the CC / CX /
 // CLAUDE CODE badges are text labels, and the middle dots in copy (`a · b`) are typographic separators.
-//
-// Icons still living inside the six language dictionaries are tracked separately (they are glued to copy,
-// so getting them out is an i18n change, not a rendering one).
 import type { JSX, ReactNode } from 'react'
 
 function Icon({
@@ -118,7 +115,7 @@ export function Settings({ size }: { size?: number }): JSX.Element {
   )
 }
 
-/** Lucide chevron-right — the expand indicator for a collapsed row — rotated 90° by CSS when open, so one icon carries both states */
+/** Lucide chevron-right — the expand indicator for a collapsed row — rotated 90° by CSS when open, so one icon carries both states; also the session page's way on into its project */
 export function ChevronRight({ size }: { size?: number }): JSX.Element {
   return (
     <Icon size={size}>
@@ -128,7 +125,7 @@ export function ChevronRight({ size }: { size?: number }): JSX.Element {
 }
 
 /** Lucide chevron-left — the back control in a pane header. Its mirror, ChevronRight, is the expand
- * indicator; this one is navigation, and the two never appear in the same slot. */
+ * indicator, and the way on into a project beside it on a session opened from global search. */
 export function ChevronLeft({ size }: { size?: number }): JSX.Element {
   return (
     <Icon size={size}>
@@ -262,3 +259,22 @@ export function MousePointerClick({ size }: { size?: number }): JSX.Element {
   )
 }
 
+/** Lucide download — the ready app update button (app-update::REQ-001/AC-02) */
+export function Download({ size }: { size?: number }): JSX.Element {
+  return (
+    <Icon size={size}>
+      <path d="M12 15V3" />
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="m7 10 5 5 5-5" />
+    </Icon>
+  )
+}
+
+/** Lucide loader-circle — an app update installing (app-update::REQ-001/AC-02) */
+export function LoaderCircle({ size }: { size?: number }): JSX.Element {
+  return (
+    <Icon size={size}>
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </Icon>
+  )
+}
