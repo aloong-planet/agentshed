@@ -2,6 +2,6 @@
 
 [简体中文](README.md) · [English](README.en.md) · **Français** · [Español](README.es.md) · [Русский](README.ru.md) · [日本語](README.ja.md)
 
-L’atelier de vos coding agents : une vue d’ensemble de Claude Code, Codex et Grok sur tous vos projets — quels skills / plugins / MCP chaque projet possède, combien de tokens il a consommés, quels documents il a accumulés ; et l’installation / désinstallation de skills depuis la bibliothèque globale vers n’importe quel projet.
+**L’atelier de vos coding agents.** Une application macOS qui montre, sur tous vos projets, ce que Claude Code, Codex et d’autres coding agents ont installé, combien de tokens ils ont consommé et ce que vous leur avez demandé, avec une recherche dans les sessions de tous les projets ; elle installe aussi des skills de votre bibliothèque globale dans n’importe quel projet. Elle lit les fichiers que vos agents laissent sur votre Mac et n’y écrit que lorsque vous installez ou désinstallez un skill ; elle ne se connecte au réseau que pour vérifier et télécharger ses mises à jour sur GitHub Releases. macOS 12 ou ultérieur, Apple Silicon.
 
-Application de bureau Electron. macOS d’abord, Windows ensuite. En cours de développement.
+La présentation complète est en anglais : [README.en.md](README.en.md). Site : [agentshed.aloongplanet.com](https://agentshed.aloongplanet.com). Licence : [MIT](LICENSE).
