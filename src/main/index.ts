@@ -295,7 +295,8 @@ handle(CMD.getProjectDetail, async (_e, path: unknown) => {
   // It covers the whole detail payload including the stats.sessions block (validateProjectDetail reuses
   // that validator internally).
   assertProjectDetail(detail)
-  readRegistry.replace({ owner: `project:${path}`, artifacts: [...detail.artifacts.map(a => a.file), ...detail.memory.topics.map(t => t.file)],
+  readRegistry.replace({ owner: `project:${path}`, artifacts: [...detail.artifacts.map(a => a.file), ...detail.memory.topics.map(t => t.file),
+    ...(detail.memory.mainFile !== null ? [detail.memory.mainFile.file] : [])],
     projects: [path], pluginRoots: detail.plugins.flatMap(p => p.installPath ? [p.installPath] : []), skillFiles: [] })
   for (const r of savedReads.values()) if (r.kind === 'skillFiles' && ((r.args.scope === 'project' && r.args.projectPath === path &&
     !detail.skills.some(skill => skill.level === 'project' && skill.name === r.args.name && skill.side === r.args.side)) ||

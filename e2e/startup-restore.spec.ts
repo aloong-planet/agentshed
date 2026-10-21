@@ -29,7 +29,8 @@ test('restart restores viewed project, questions and read answer before a new sc
   async function previews(win: Page, timeout = 5000): Promise<void> {
     await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
     await win.locator('.it.row-btn', { hasText: 'topic.md' }).click()
-    await expect(win.locator('.drawer .raw')).toContainText('Saved memory body', { timeout })
+    // A restored body opens in the memory file drawer's preview like a fresh read (memory-view E1)
+    await expect(win.locator('.file-drawer .md-preview-body.preview')).toContainText('Saved memory body', { timeout })
     await win.locator('.mask').click({ position: { x: 10, y: 10 } })
     await win.locator('.pane-head .tabs .tab', { hasText: 'Artifacts' }).click()
     await win.locator('.it.ai', { hasText: 'Saved artifact' }).click()
@@ -40,7 +41,7 @@ test('restart restores viewed project, questions and read answer before a new sc
     await row.locator('.sk-head').click()
     await expect(row.locator('.files button', { hasText: 'SKILL.md' })).toBeVisible({ timeout })
     await row.locator('.files button', { hasText: 'SKILL.md' }).click()
-    await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Saved skill body', { timeout })
+    await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Saved skill body', { timeout })
     await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   }
   let app: ElectronApplication | undefined

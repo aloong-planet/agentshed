@@ -82,3 +82,29 @@ it('isolates a saved page whose numeric data overflowed JSON without discarding 
   } }).replace('"OVERFLOW"', '1e400'))
   expect(new DisplayStore(root).get().reads.map(r => r.kind)).toEqual(['artifactContent'])
 })
+
+// A project detail saved by a version whose memory had no main-file entry (the installed app's own cache holds
+// `memory: { main, topics }`): it still restores, its main file not yet listed, until the live read replaces it
+// (ADR-0029's upgrade case; memory-view, Implementation Decisions). A malformed entry is still dropped.
+it('restores a project detail saved before its memory carried the main file entry', () => {
+  const root = dir()
+  const detail = (memory: Record<string, unknown>) => ({
+    path: '/p', skills: [], subagents: [], memory, plugins: [], mcp: [],
+    configs: { claudeMd: null, agentsMd: null, settingsSummary: null }, stats: null, artifacts: []
+  })
+  writeFileSync(join(root, 'display-cache.json'), JSON.stringify({ version: 1, data: {
+    ...emptyDisplayData(), reads: [
+      { kind: 'projectDetail', path: '/p', data: detail({
+        main: { text: 'Saved main body', truncated: false },
+        topics: [{ name: 't.md', file: '/m/t.md', mtimeMs: 1 }]
+      }) },
+      { kind: 'projectDetail', path: '/q', data: { ...detail({ main: null, mainFile: 7, topics: [] }), path: '/q' } }
+    ]
+  } }))
+  const reads = new DisplayStore(root).get().reads
+  expect(reads.map((r) => r.kind === 'projectDetail' && r.path)).toEqual(['/p'])
+  const restored = reads[0]
+  if (restored.kind !== 'projectDetail') throw new Error('expected the saved project detail')
+  expect(restored.data.memory.mainFile).toBeNull()
+  expect(restored.data.memory.main?.text).toBe('Saved main body')
+})

@@ -12,6 +12,9 @@
      深度>2 提示 / Codex 探测式。
      文件表与 prototype-skills-preview.html(skills-view)同构——演化时两处同步。
      共享块:md-preview(抽屉正文渲染)。
+     2026-10-21: the drawer's frame is the shared _shared/file-drawer.css — the one file-drawer form the skill file
+       drawer and the memory drawers draw too (the app opens a plugin's skill files in the skill file drawer). Its
+       width follows the content-area formula instead of 80vw; its preview bar takes the skill drawer's fade.
      界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关、无演示条;语言只画了中、英两种,
      其他语言按英文显示并有提示;评审注记(.sub 说明、页脚注、展开区里带 ADR 的注)不随语言变。
      色值取共享主题 _shared/theme.css,本页只为自己的 token(遮罩)给出明暗两值。
@@ -23,6 +26,7 @@
 <link rel="stylesheet" href="../_shared/theme.css">
 <link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
+<link rel="stylesheet" href="../_shared/file-drawer.css">
 <link rel="stylesheet" href="../_shared/md-preview.css">
 <style>
   /* Page tokens on top of the app's (_shared/theme.css). Only the mask is the page's own; it takes the
@@ -111,22 +115,8 @@
   .files .meta.lines{font-weight:600;color:var(--text)}
   .sk-tip{font-size:11.5px;color:var(--warn-fg);background:var(--warn-bg);
     border:1px solid var(--line-strong);border-radius:8px;padding:6px 10px;line-height:1.45;margin:8px 0 0}
-  /* The drawer (a simplified form matching the app's skill file drawer) */
+  /* The drawer's mask; the drawer itself is the shared file-drawer block */
   .mask{position:fixed;inset:0;background:var(--mask);z-index:10}
-  .drawer{position:fixed;top:0;right:0;bottom:0;z-index:11;width:min(720px,80vw);display:flex;flex-direction:column;
-    background:var(--card);border-left:1px solid var(--line-strong);box-shadow:-8px 0 24px rgba(0,0,0,.12)}
-  .drawer-close{position:absolute;top:12px;right:12px;z-index:2;width:32px;height:32px;border-radius:8px;
-    border:1px solid var(--line);background:var(--bg);color:var(--text-2);cursor:pointer;font-size:16px;line-height:1}
-  .drawer-close:hover{color:var(--accent);border-color:var(--accent)}
-  .d-top{flex:none;padding:16px 48px 12px 18px;border-bottom:1px solid var(--line)}
-  .d-title{font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;color:var(--accent);margin:0 0 4px}
-  .d-meta{font-size:12px;color:var(--text-2);line-height:1.45}
-  .d-body{flex:1;min-height:0;display:flex;padding:10px}
-  /* The drawer's markdown on the app's tokens. The heading steps are the app's (accent-deep → accent → --md-h3,
-     the ladder settled 2026-08-19 for every preview surface); h3 reads the app token --md-h3 directly, which a
-     page never redefines */
-  .md-preview{--md-h1:var(--accent-deep);--md-h2:var(--accent);--md-link:var(--accent);
-    border-color:var(--line);background:var(--card)}
 </style>
 <script src="../vendor/marked.umd.js"></script>
 <script src="../manifest.js"></script>
@@ -307,7 +297,7 @@
     const overlay=document.getElementById('overlay')
     const text=FILES[key].files[file]
     overlay.innerHTML = `<div class="mask" data-close></div>
-      <div class="drawer"><button class="drawer-close" data-close>${ICONS.X(15)}</button>
+      <div class="file-drawer" data-shared-block="file-drawer"><button class="drawer-close" data-close>${ICONS.X(15)}</button>
         <div class="d-top"><div class="d-title">${key}</div><div class="d-meta"></div></div>
         <div class="d-body"><div id="md-pane" data-shared-block="md-preview" style="flex:1;min-width:0;display:flex"></div></div></div>`
     // Repainted in place on a language change, so the raw/preview choice survives it (the shared block

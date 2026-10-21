@@ -1,13 +1,12 @@
 // The global Memory summary (spec: subagents-memory-plugin, sequence C):
 // metadata and the filename list enter the snapshot, contents do not (C8); the project registry is
 // authoritative (C5); Codex is probe-style (C6).
-// Known gaps: (1) the drawer read-failure path (a deleted file or an allow-list refusal → the UI reports
-// without crashing) is in the UI layer,
-//   not unit tested per ADR-0002, with e2e covering the normal read path and the failure branch tested by
-//   hand;
+// Known gaps: (1) the drawer's read paths are in the UI layer, not unit tested per ADR-0002; e2e covers the
+//   normal read, an empty file and a file removed after the scan, while an allow-list refusal is only reached
+//   by removing a registration (no product path refuses a listed file);
 //   (2) D4's empty-state copy for a Codex-only project is likewise UI layer.
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync, readFileSync } from 'node:fs'
+import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { scan } from './scan'
@@ -163,6 +162,36 @@ describe('project detail memory', () => {
     expect(detail.memory.main?.text).toContain('# Main file body')
     expect(detail.memory.topics.map((t) => t.name)).toEqual(['topic-a.md'])
     expect(JSON.stringify(detail.memory.topics)).not.toContain('topic body')
+  })
+
+  it('the main file\'s path rides beside its content, so a topic\'s link to it can open it in the drawer (spec memory-view, Implementation Decisions)', () => {
+    const pa = join(dir, 'proj-a')
+    mkdirSync(pa)
+    register([pa])
+    mkMemory(pa, {
+      'MEMORY.md': { body: '# Main file body', mtime: 1_000 },
+      'topic-a.md': { body: 'topic body', mtime: 2_000 }
+    })
+    const { memory } = readProjectDetail(roots(), pa)
+    // The path is the file the fixture wrote: reading it back gives that body, in the topics' directory
+    const main = memory.mainFile
+    if (main === null) throw new Error('expected the main file entry')
+    expect(main.name).toBe('MEMORY.md')
+    expect(readFileSync(main.file, 'utf8')).toBe('# Main file body')
+    expect(dirname(main.file)).toBe(dirname(memory.topics[0].file))
+    // The main file's own modification time, as the fixture set it (mkMemory sets it with new Date(mtime))
+    expect(main.mtimeMs).toBe(1_000)
+  })
+
+  it('no main file → its path is null, with topics or without any memory at all', () => {
+    const pa = join(dir, 'proj-a')
+    const pb = join(dir, 'proj-b')
+    mkdirSync(pa)
+    mkdirSync(pb)
+    register([pa, pb])
+    mkMemory(pa, { 'topic-a.md': { body: 'topic body', mtime: 2_000 } })
+    expect(readProjectDetail(roots(), pa).memory.mainFile).toBeNull()
+    expect(readProjectDetail(roots(), pb).memory.mainFile).toBeNull()
   })
 
   it('D1 no memory directory → main null and topics empty (the UI empty state)', () => {

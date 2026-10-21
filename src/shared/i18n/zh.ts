@@ -237,7 +237,6 @@ export const zh = {
     noMain: '无 MEMORY.md(仅 topic 文件)',
     topicsTitle: (n: number) => `Topic 文件(${n}) · 点击查看`,
     noTopics: '无 topic 文件',
-    topicMeta: (ago: string) => `topic 文件 · ${ago}`,
     unreadable: (detail: string) => `文件不可读:${detail}`,
     loading: '读取中…'
   },

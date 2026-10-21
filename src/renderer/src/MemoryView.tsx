@@ -3,16 +3,17 @@ import { useArtifactContentQuery } from './artifact-content-query'
 // The Memory section (spec: subagents-memory-plugin, sequences C/D).
 // The global summary: a row expands its file list inline and clicking a file opens a drawer; contents do
 // not enter the snapshot and are read on demand through the allow-listed channel (C8).
-import { useEffect, useState } from 'react'
-import type { MemoryFileMeta, MemorySummaryEntry, ProjectDetail, Snapshot } from '@shared/domain'
+import { useState } from 'react'
+import type { AgentSide, MemoryFileMeta, MemorySummaryEntry, ProjectDetail, Snapshot } from '@shared/domain'
 import { MarkdownBody } from './MarkdownBody'
+import { FileDrawer } from './FileDrawer'
 import { dirOf } from './md-links'
 import { toast } from './Toast'
 import { fmtAgo } from './ProjectsPane'
 import { errorText } from '@shared/error-text'
 import { appError } from '@shared/errors'
 import { useLanguage, useDict } from './language'
-import { SIDE_BADGE } from './side-badge'
+import { SIDE_BADGE, SIDE_SHORT_NAME } from './side-badge'
 
 /** C6's three states: not enabled → how to enable it; enabled but empty → nothing yet; has content → an
  * entry row (in the list) */
@@ -102,9 +103,12 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
       <CodexMemoryNote snap={snap} />
       {open && (
         <MemoryFileDrawer
-          title={open.file.name}
-          meta={`${open.entry.projectName ?? t.placeholder.codexGlobalMemory} · ${fmtAgo(lang, open.file.mtimeMs, now)}`}
-          file={open.file.file}
+          owner={open.entry.projectName ?? t.placeholder.codexGlobalMemory}
+          side={open.entry.side}
+          file={open.file}
+          files={open.entry.files}
+          now={now}
+          onOpenFile={(f) => setOpen({ entry: open.entry, file: f })}
           onClose={() => setOpen(null)}
         />
       )}
@@ -116,10 +120,12 @@ export function GlobalMemoryTab({ snap }: { snap: Snapshot }): JSX.Element {
  * Configuration tab) and topics open in a drawer (sequence D) */
 export function ProjectMemoryTab({
   detail,
+  projectName,
   hasClaudeSide,
   anchor
 }: {
   detail: ProjectDetail
+  projectName: string
   hasClaudeSide: boolean
   anchor: number
 }): JSX.Element {
@@ -132,8 +138,10 @@ export function ProjectMemoryTab({
       : detail.memory.main.truncated
         ? `${detail.memory.main.text}\n${t.placeholder.truncated}`
         : detail.memory.main.text
-  // The main file and topics share a directory; the topic paths are that directory's readable list
-  const mainDir = detail.memory.topics[0] ? dirOf(detail.memory.topics[0].file) : ''
+  // The main file and topics share a directory: together they are its readable list, for the main file's links
+  // and for the drawer's
+  const dirFiles = [...(detail.memory.mainFile ? [detail.memory.mainFile] : []), ...detail.memory.topics]
+  const mainDir = dirFiles[0] ? dirOf(dirFiles[0].file) : ''
   if (detail.memory.main === null && detail.memory.topics.length === 0) {
     return (
       <div className="none">
@@ -154,10 +162,10 @@ export function ProjectMemoryTab({
           text={mainText}
           links={{
             baseDir: mainDir,
-            readable: detail.memory.topics.map((t) => t.file),
+            readable: dirFiles.map((f) => f.file),
             onInternal: (file) => {
-              const t = detail.memory.topics.find((x) => x.file === file)
-              if (t) setOpen(t)
+              const f = dirFiles.find((x) => x.file === file)
+              if (f) setOpen(f)
             },
             onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
           }}
@@ -180,9 +188,12 @@ export function ProjectMemoryTab({
       )}
       {open && (
         <MemoryFileDrawer
-          title={open.name}
-          meta={t.memory.topicMeta(fmtAgo(lang, open.mtimeMs, anchor))}
-          file={open.file}
+          owner={projectName}
+          side="claude"
+          file={open}
+          files={dirFiles}
+          now={anchor}
+          onOpenFile={setOpen}
           onClose={() => setOpen(null)}
         />
       )}
@@ -190,45 +201,51 @@ export function ProjectMemoryTab({
   )
 }
 
-/** The file contents drawer: read on demand through the allow-listed channel; a read failure reports
- * inside the drawer without crashing (C8) */
+/** A memory file in the shared file drawer (spec memory-view::US-001): the memory's owner over side · file ·
+ * modification time, read on demand through the allow-listed channel (a read failure reports inside the drawer
+ * without crashing, C8); a link to another file of the same directory switches the drawer to it */
 export function MemoryFileDrawer({
-  title,
-  meta,
+  owner,
+  side,
   file,
+  files,
+  now,
+  onOpenFile,
   onClose
 }: {
-  title: string
-  meta: string
-  file: string
+  owner: string
+  side: AgentSide
+  file: MemoryFileMeta
+  /** The directory's listed files — the readable set for relative links (fail-closed beyond it) */
+  files: MemoryFileMeta[]
+  now: number
+  onOpenFile: (f: MemoryFileMeta) => void
   onClose: () => void
 }): JSX.Element {
   const lang = useLanguage()
   const t = useDict()
-  const { data } = useArtifactContentQuery(file)
-  const content = data?.ok ? (data.text.truncated ? `${data.text.text}\n${t.placeholder.truncated}` : data.text.text) : null
+  const { data } = useArtifactContentQuery(file.file)
+  const text = data?.ok ? (data.text.truncated ? `${data.text.text}\n${t.placeholder.truncated}` : data.text.text) : null
   const err = data?.ok === false ? t.memory.unreadable(errorText(lang, data.error)) : null
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
   return (
-    <>
-      <div className="mask" onClick={onClose} />
-      <div className="drawer">
-        <h2 className="mono">{title}</h2>
-        <div className="meta">{meta}</div>
-        {err !== null ? (
-          <div className="none">{err}</div>
-        ) : content === null ? (
-          <div className="none">{t.memory.loading}</div>
-        ) : (
-          <div className="raw mono">{content}</div>
-        )}
-      </div>
-    </>
+    <FileDrawer
+      title={owner}
+      meta={`${SIDE_SHORT_NAME[side]} · ${file.name} · ${fmtAgo(lang, file.mtimeMs, now)}`}
+      fileName={file.name}
+      fileKey={file.file}
+      text={text}
+      error={err}
+      loadingText={t.memory.loading}
+      links={{
+        baseDir: dirOf(file.file),
+        readable: files.map((f) => f.file),
+        onInternal: (target) => {
+          const f = files.find((x) => x.file === target)
+          if (f) onOpenFile(f)
+        },
+        onUnresolved: (code) => toast('err', errorText(lang, appError(code)))
+      }}
+      onClose={onClose}
+    />
   )
 }

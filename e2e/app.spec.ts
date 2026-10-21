@@ -7,9 +7,16 @@
 //
 // Known gaps, unreachable through the UI today and so not driven here: the session page's focus reset
 // when its focus prop changes without a remount (the page is keyed by file, and a hit always opens it
-// fresh), and the skill drawer's mode reset when its file changes while open (the drawer switches files
-// only from preview mode, through an in-package link). Add a case when a path to either appears — a hit
-// list beside an open session, or a file switch from raw mode.
+// fresh), and the file drawer's mode reset when its file changes while open — for skill and memory files
+// alike, since one component carries both (the drawer switches files only from preview mode, through a link
+// in the preview, so "the new file opens in preview" holds without the reset ever being exercised). Add a
+// case when a path to either appears — a hit list beside an open session, or a file switch from raw mode.
+// Also not driven: two reads in flight in one memory drawer (memory-view E2 — each read is keyed by its file,
+// so an earlier read lands under its own key; add a case when a per-file read delay can be set to order two
+// reads), and a language change while the drawer is open (E7 — today the language changes only on the settings
+// page, which no drawer survives; add a case when it can change with a drawer open, such as from a menu).
+// Copy follows the dictionary the language cases cover; the file, mode and scroll would survive because a
+// language change remounts nothing in the drawer.
 import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
@@ -1957,7 +1964,51 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
     join(home, '.claude', 'projects', enc, 'memory', 'MEMORY.md'),
     '# Memory main file\n- Key point A\n- [Pitfalls](pitfalls.md) valid relative link\n- [Deleted entry](gone.md) broken target\n\n## Ladder h2\n\nInline `probe` code.\n\n```\nfenced probe\n```\n\n| L | C | R |\n|:--|:-:|--:|\n| a1 | b1 | c1 |\n| a2 | b2 | c2 |\n\n### Ladder h3\n#### Ladder h4\n\n##### Ladder h5\n'
   )
-  writeFileSync(join(home, '.claude', 'projects', enc, 'memory', 'pitfalls.md'), '# Pitfalls\nUnique content B')
+  // A topic in the shape real memory files take (memory-view::US-001): front matter with a nested key, Why /
+  // How sections, a [[name]] reference, and links to a sibling, to the index, to an unlisted file and outside.
+  // The filler pushes the links below the fold, so following one starts from a scrolled body.
+  const memDir = join(home, '.claude', 'projects', enc, 'memory')
+  writeFileSync(
+    join(memDir, 'pitfalls.md'),
+    '---\nname: pitfalls\ndescription: Known traps in the demo project\nmetadata:\n  type: feedback\n---\n\n# Pitfalls\nUnique content B\n\n**Why:** a fixture for the memory drawer.\n\n**How to apply:**\n- first\n- second\n\n' +
+      Array.from({ length: 40 }, (_, i) => `Filler paragraph ${i + 1}.`).join('\n\n') +
+      '\n\nRecords go to docs/.workings/<slug>/ and stay.\n\nSee [[other-note]](read-the-index-first) · [the index](MEMORY.md) · [Second](second.md) · [Gone](gone.md) · [Docs](https://example.com/docs)\n'
+  )
+  // Long enough to scroll: a short file would sit at the top on its own, whether or not the drawer resets it
+  writeFileSync(
+    join(memDir, 'second.md'),
+    '# Second\nUnique content S\n\n' + Array.from({ length: 40 }, (_, i) => `Second filler ${i + 1}.`).join('\n\n') + '\n'
+  )
+  writeFileSync(join(memDir, 'empty.md'), '')
+  writeFileSync(join(memDir, 'vanish.md'), 'Removed after the scan\n')
+  // Past the 500,000-character read cap (Codex's consolidated memory files run to several hundred thousand)
+  writeFileSync(join(memDir, 'big.md'), 'Line of the big memory file.\n'.repeat(18_000))
+  // Under the cap, in the shape of Codex's consolidated memory (headings, list items, a long prose line and an
+  // unbroken file path, as real ones carry), plus a wide code line and a wide table that no real memory file here
+  // has, so every wide branch of E5 is reached. Its last line sits past 300,000 characters, so a lower read cap
+  // would cut it (memory-view E5).
+  const prose = Array.from({ length: 150 }, (_, i) => `word${i}`).join(' ')
+  const widePath = `rollout_summaries/${'x'.repeat(300)}.md`
+  const wideCode = '```\nconst wide = "' + 'y'.repeat(400) + '"\n```'
+  const wideTable =
+    `| ${Array.from({ length: 12 }, (_, i) => `header-column-${i}`).join(' | ')} |\n|${'---|'.repeat(12)}\n` +
+    `| ${Array.from({ length: 12 }, () => 'cell').join(' | ')} |`
+  const items = Array.from({ length: 9_000 }, (_, i) => `- item ${i}: ${'z'.repeat(20)}`).join('\n')
+  writeFileSync(
+    join(memDir, 'wide.md'),
+    `# Task Group: wide\n\n${prose}\n\n${widePath}\n\n${wideCode}\n\n${wideTable}\n\n## Items\n\n${items}\n\nThe last line of the wide file.\n`
+  )
+  // Codex's global memory: a top-level .md in its memories directory
+  mkdirSync(join(home, '.codex', 'memories'), { recursive: true })
+  writeFileSync(join(home, '.codex', 'memories', 'consolidated.md'), '# Consolidated\n\nCodex memory body\n')
+  // A second project with only a topic at launch: its main file is written after the first scan, so only the
+  // project's own read registration can admit it (memory-view, Implementation Decisions)
+  const late = join(home, 'late-proj')
+  mkdirSync(late, { recursive: true })
+  const lateMem = join(home, '.claude', 'projects', late.replace(/[^A-Za-z0-9]/g, '-'), 'memory')
+  mkdirSync(lateMem, { recursive: true })
+  writeFileSync(join(lateMem, 't.md'), '# T\n\n[the main file](MEMORY.md)\n')
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [demo]: {}, [late]: {} } }))
 
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
   const errors: string[] = []
@@ -1980,6 +2031,14 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   })
   const win = await app.firstWindow()
   const tab = (label: string) => win.locator('.pane-head .tabs .tab', { hasText: label })
+  await app.evaluate(({ shell }) => {
+    const opened: string[] = []
+    ;(globalThis as unknown as { __opened: string[] }).__opened = opened
+    shell.openExternal = (url: string) => {
+      opened.push(url)
+      return Promise.resolve()
+    }
+  })
 
   // (1) The Subagents tab: the same name on both sides merges onto one row, clicking it opens the drawer
   // directly, and the drawer switches sides
@@ -2004,13 +2063,133 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(win.locator('.exp-area')).toContainText('SessionStart × 1')
 
   // (3) Global Memory: a row expands its file list, and clicking a file reads it on demand through the
-  // allow-list into a drawer
+  // allow-list into the file drawer (memory-view::US-001)
   await tab('Memory').click()
   const memRow = win.locator('.it.row-btn', { hasText: 'demo-proj' })
   await memRow.click()
-  await win.locator('.sub-list .it.row-btn', { hasText: 'pitfalls.md' }).click()
-  await expect(win.locator('.drawer .raw')).toContainText('Unique content B')
+  const memFile = (name: string) => win.locator('.sub-list .it.row-btn', { hasText: name })
+  await expect(memFile('vanish.md')).toBeVisible()
+  rmSync(join(memDir, 'vanish.md')) // listed by the scan, gone before it is read
+  const fd = win.locator('.file-drawer')
+  const fdBody = fd.locator('.md-preview-body')
+  // second.md is read once first, so the link switch below lands on text that is already there: an unread file
+  // passes through "Loading…", which would put any body at the top by itself
+  await memFile('second.md').click()
+  await expect(fdBody).toContainText('Unique content S')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await memFile('pitfalls.md').click()
+  // AC-01: the memory's owner over side · file · time; the bar names the file and carries the switch
+  await expect(fd.locator('.d-title')).toHaveText('demo-proj')
+  await expect(fd.locator('.d-meta')).toHaveText('Claude · pitfalls.md · today')
+  await expect(fd.locator('.md-preview-name')).toHaveText('pitfalls.md')
+  // AC-02: preview by default, the front matter as a card with the nested key folded into its parent
+  await expect(fd.locator('.md-preview-seg button.on')).toHaveText('Preview')
+  await expect(fdBody).toHaveClass(/preview/)
+  await expect(fdBody).toContainText('Unique content B')
+  await expect(fd.locator('.md-fm-row', { hasText: 'metadata' }).locator('.md-fm-v')).toHaveText('type: feedback')
+  // AC-04 and CON-002: [[name]] stays text, with a remark written straight after it; a placeholder that is not
+  // an HTML element shows as written
+  await expect(fdBody).toContainText('[[other-note]](read-the-index-first)')
+  await expect(fdBody.locator('a', { hasText: 'other-note' })).toHaveCount(0)
+  await expect(fdBody).toContainText('Records go to docs/.workings/<slug>/ and stay.')
+  // AC-03: raw shows the file as written, front matter included; preview comes back
+  await fd.locator('.md-preview-seg button', { hasText: 'Raw' }).click()
+  await expect(fdBody).toHaveClass(/raw/)
+  expect(await fdBody.textContent()).toMatch(/^---\nname: pitfalls\n/)
+  await fd.locator('.md-preview-seg button', { hasText: 'Preview' }).click()
+  await expect(fd.locator('.md-fm')).toBeVisible()
+  // AC-06: a file the directory does not list → the error toast, the drawer stays on its file, the window does
+  // not navigate (the external link is checked at the end of this test, see (8))
+  const memUrl = win.url()
+  await fdBody.locator('a', { hasText: 'Gone' }).click()
+  await expect(win.locator('.toast.err')).toHaveText('The link target is outside the readable scope')
+  await expect(fd.locator('.md-preview-name')).toHaveText('pitfalls.md')
+  expect(win.url(), 'memory drawer links must not navigate').toBe(memUrl)
+  // AC-05: a sibling link (below the fold) switches the drawer: title stays, the new file in preview at the top
+  const scrolled = await fdBody.evaluate((el) => {
+    el.scrollTop = el.scrollHeight
+    return el.scrollTop
+  })
+  expect(scrolled, 'the links sit below the fold, so the body is scrolled when one is clicked').toBeGreaterThan(0)
+  await fdBody.locator('a', { hasText: 'Second' }).click()
+  await expect(fd.locator('.md-preview-name')).toHaveText('second.md')
+  await expect(fd.locator('.d-title')).toHaveText('demo-proj')
+  await expect(fd.locator('.d-meta')).toContainText('Claude · second.md · ')
+  await expect(fdBody).toContainText('Unique content S')
+  await expect(fdBody).toHaveClass(/preview/)
+  // The new file can scroll, so a top position is the drawer's reset rather than a short file's clamp
+  expect(await fdBody.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true)
+  expect(await fdBody.evaluate((el) => el.scrollTop)).toBe(0)
+  // AC-08: Esc closes
+  await win.keyboard.press('Escape')
+  await expect(fd).toHaveCount(0)
+  // AC-05: the index link opens the main file in the drawer
+  await memFile('pitfalls.md').click()
+  await fdBody.locator('a', { hasText: 'the index' }).click()
+  await expect(fd.locator('.md-preview-name')).toHaveText('MEMORY.md')
+  await expect(fdBody).toContainText('Key point A')
+  // AC-08: the close button closes
+  await fd.locator('.drawer-close').click()
+  await expect(fd).toHaveCount(0)
+  // AC-07: an empty file and a file gone since the scan report inside the frame, the bar staying
+  await memFile('empty.md').click()
+  await expect(fdBody).toHaveText('Empty file')
+  await expect(fd.locator('.md-preview-seg')).toBeVisible()
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // AC-08: the overlay closes
+  await expect(fd).toHaveCount(0)
+  await memFile('vanish.md').click()
+  await expect(fdBody).toContainText('File cannot be read')
+  await expect(fd.locator('.md-preview-name')).toHaveText('vanish.md')
+  await expect(fd.locator('.md-preview-seg')).toBeVisible()
   await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // The drawer covers the window centre, so click the visible mask on the left
+  // AC-07: a file past the read cap ends with the truncation marker, in preview and in raw
+  await memFile('big.md').click()
+  await expect(fdBody).toHaveClass(/preview/)
+  await expect(fdBody).toHaveText(/…\(truncated\)\s*$/)
+  await fd.locator('.md-preview-seg button', { hasText: 'Raw' }).click()
+  await expect(fdBody).toHaveClass(/raw/)
+  // The cap cuts the 29-character lines 11 characters into one (500,000 = 17,241 × 29 + 11), so the raw text
+  // ends "Line of the" right before the marker — this pins the cap itself, not only that a cut happened
+  await expect(fdBody).toHaveText(/Line of the\s*…\(truncated\)\s*$/)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // E5: a large file under the cap renders in full; prose wraps; an unbroken path and a wide table scroll the
+  // body sideways and a wide code line scrolls its fence, so nothing wide is cut off by the drawer
+  await memFile('wide.md').click()
+  await expect(fdBody).toHaveClass(/preview/)
+  await expect(fdBody).toContainText('The last line of the wide file.')
+  const wide = await fdBody.evaluate((body) => {
+    const prose = [...body.querySelectorAll('p')].find((p) => p.textContent?.startsWith('word0 '))
+    const pre = body.querySelector('pre') as HTMLElement
+    const table = body.querySelector('table') as HTMLElement
+    body.scrollLeft = body.scrollWidth
+    pre.scrollLeft = pre.scrollWidth
+    return {
+      proseOverflow: prose ? prose.scrollWidth - prose.clientWidth : -1,
+      // The table is judged on its own: the body's scroll width comes from the path, so it cannot show whether
+      // the table cuts its own columns off. A table wider than the body, hiding nothing inside its own box, is
+      // reached by the body's sideways scroll
+      tableWiderThanBody: table.getBoundingClientRect().width > body.clientWidth,
+      tableHidden: table.scrollWidth - table.clientWidth,
+      // A script can scroll an overflow:hidden box a reader cannot, so the scrolling style is read as well
+      bodyScroll: `${getComputedStyle(body).overflowX} ${body.scrollLeft > 0}`,
+      fenceScroll: `${getComputedStyle(pre).overflowX} ${pre.scrollLeft > 0}`
+    }
+  })
+  expect(wide.proseOverflow, 'the prose line wraps within the body').toBe(0)
+  expect(wide.tableWiderThanBody, 'the wide table keeps its width rather than squeezing into the body').toBe(true)
+  expect(wide.tableHidden, 'no column is cut off inside the table').toBeLessThanOrEqual(1)
+  expect(wide.bodyScroll, 'the body scrolls sideways to the unbroken path and the table').toBe('auto true')
+  expect(wide.fenceScroll, 'the fence scrolls sideways to its wide line').toBe('auto true')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // AC-01 for Codex's global memory: the placeholder owner and the Codex side
+  await win.locator('.it.row-btn', { hasText: '(Codex global memory)' }).click()
+  await memFile('consolidated.md').click()
+  await expect(fd.locator('.d-title')).toHaveText('(Codex global memory)')
+  await expect(fd.locator('.d-meta')).toHaveText('Codex · consolidated.md · today')
+  await expect(fdBody).toContainText('Codex memory body')
+  await expect(fdBody).toHaveClass(/preview/)
+  await expect(fdBody.locator('h1')).toHaveText('Consolidated')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
   // (4) The demo detail page: F3's second half — enabled at the project layer; the Skills tab contains the
   // plugin namespace entry (read-only)
@@ -2052,9 +2231,16 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   //     navigating.
   const urlBefore = win.url()
   await win.locator('.pane-body .md a', { hasText: 'Pitfalls' }).click()
-  await expect(win.locator('.drawer .raw')).toContainText('Unique content B')
+  await expect(fdBody).toContainText('Unique content B')
+  await expect(fd.locator('.d-title')).toHaveText('demo-proj')
   expect(win.url()).toBe(urlBefore)
+  // memory-view::US-001/AC-05 in project detail: the main file is among the directory's files
+  await fdBody.locator('a', { hasText: 'the index' }).click()
+  await expect(fd.locator('.md-preview-name')).toHaveText('MEMORY.md')
+  await expect(fdBody).toContainText('Key point A')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // The memory drawer's own out-of-scope link above raised a toast too; wait it out so the next one is fresh
+  await expect(win.locator('.toast')).toHaveCount(0)
   await win.locator('.pane-body .md a', { hasText: 'Deleted' }).click()
   await expect(win.locator('.toast')).toBeVisible()
   expect(win.url()).toBe(urlBefore)
@@ -2082,17 +2268,42 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(win.locator('.toast')).toBeVisible()
   expect(win.url(), 'out-of-scope config link must not navigate').toBe(urlBefore)
 
-  // (7) The drawer width = min(680, 80% of the right-hand content area): in a narrow window it must not
-  //     cover the whole content area (the 2026-08-02 bug).
-  //     A geometric check rather than reading the CSS declaration — a correct declaration with an unwired
-  //     variable would still cover it.
-  const drawerGeom = async (): Promise<{ pane: number; drawer: number; left: number; paneLeft: number }> =>
-    win.evaluate(() => {
-      const d = document.querySelector('.drawer') as HTMLElement
+  // (6e) A main file written after the scan: only the project's own read registration admits it, so a topic's
+  //      link to it opens it rather than reporting a refused read (memory-view, Implementation Decisions)
+  writeFileSync(join(lateMem, 'MEMORY.md'), '# Late main\n\nLate main body\n')
+  await win.locator('.side .row', { hasText: 'late-proj' }).click()
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
+  await expect(win.locator('.pane-body .md')).toContainText('Late main body')
+  await win.locator('.it.row-btn', { hasText: 't.md' }).click()
+  await fdBody.locator('a', { hasText: 'the main file' }).click()
+  await expect(fd.locator('.md-preview-name')).toHaveText('MEMORY.md')
+  await expect(fdBody).toContainText('Late main body')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  await win.locator('.side .row', { hasText: 'demo-proj' }).click()
+
+  // (7) Drawer widths: the memory file drawer takes the file drawer's rule, min(720, 80% of the right-hand
+  //     content area), and the Subagents drawer keeps its own, min(680, 80%) (memory-view::CON-001, E8). In a
+  //     narrow window neither covers the whole content area (the 2026-08-02 bug). A geometric check rather
+  //     than reading the CSS declaration — a correct declaration with an unwired variable would still cover it.
+  const drawerGeom = async (sel: string): Promise<{ pane: number; drawer: number; left: number; paneLeft: number }> =>
+    win.evaluate((s) => {
+      const d = document.querySelector(s) as HTMLElement
       const pane = document.querySelector('.stage .pane') as HTMLElement
       const dr = d.getBoundingClientRect()
       const pr = pane.getBoundingClientRect()
       return { pane: pr.width, drawer: dr.width, left: dr.left, paneLeft: pr.left }
+    }, sel)
+  // The frame the file drawer shares with the skill drawer (CON-001): the bar's fade and the title block
+  const frame = (): Promise<{ bar: string; title: string; close: string }> =>
+    win.evaluate(() => {
+      const cs = (sel: string) => getComputedStyle(document.querySelector(`.file-drawer ${sel}`) as HTMLElement)
+      const t = cs('.d-title')
+      const c = cs('.drawer-close')
+      return {
+        bar: cs('.md-preview-bar').backgroundImage,
+        title: `${t.fontSize} ${t.fontWeight} ${t.color}`,
+        close: `${c.width} ${c.height} ${c.display} ${c.placeItems}`
+      }
     })
   for (const [w, label] of [
     [1400, 'wide window'],
@@ -2101,13 +2312,55 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
     await win.setViewportSize({ width: w, height: 800 })
     await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
     await win.locator('.it.row-btn', { hasText: 'pitfalls.md' }).click()
-    const g = await drawerGeom()
-    expect(Math.abs(g.drawer - Math.min(680, g.pane * 0.8)), `${label}: the width rule`).toBeLessThan(2)
-    expect(g.left, `${label}: the drawer must not cover the whole content area`).toBeGreaterThan(g.paneLeft + 1)
+    const g = await drawerGeom('.file-drawer')
+    expect(Math.abs(g.drawer - Math.min(720, g.pane * 0.8)), `${label}: the memory drawer's width rule`).toBeLessThan(2)
+    expect(g.left, `${label}: the memory drawer must not cover the whole content area`).toBeGreaterThan(g.paneLeft + 1)
+    const memFrame = await frame()
+    // The fade's two ends resolved through a probe in the drawer, so the comparison is between computed colours
+    const fade = await win.evaluate(() => {
+      const probe = document.createElement('div')
+      document.querySelector('.file-drawer')?.appendChild(probe)
+      probe.style.background = 'var(--bg)'
+      const ground = getComputedStyle(probe).backgroundColor
+      probe.style.background = 'var(--card)'
+      const card = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return `linear-gradient(${ground} 0%, ${card} 100%)`
+    })
+    expect(memFrame.bar, `${label}: the bar fades from the ground into the card`).toBe(fade)
+    await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+    // The plugin skill drawer in the same window: the same frame
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()
+    const ns = win.locator('.sk', { hasText: 'superpowers:brainstorming' })
+    if (!(await ns.locator('.files button', { hasText: 'SKILL.md' }).isVisible())) await ns.locator('.sk-head').click()
+    await ns.locator('.files button', { hasText: 'SKILL.md' }).click()
+    expect(await frame(), `${label}: the memory drawer and the skill drawer share one frame`).toEqual(memFrame)
+    const gs = await drawerGeom('.file-drawer')
+    expect(Math.abs(gs.drawer - g.drawer), `${label}: both file drawers are the same width`).toBeLessThan(1)
+    await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+    // The Subagents drawer keeps its own width rule
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Subagents' }).click()
+    await win.locator('.it.row-btn', { hasText: 'code-reviewer' }).first().click()
+    const ga = await drawerGeom('.drawer:not(.file-drawer)')
+    expect(Math.abs(ga.drawer - Math.min(680, ga.pane * 0.8)), `${label}: the Subagents drawer's width rule`).toBeLessThan(2)
+    expect(ga.left, `${label}: the Subagents drawer must not cover the whole content area`).toBeGreaterThan(ga.paneLeft + 1)
     await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   }
 
-  expect(errors).toEqual([])
+  // (8) An external link in the memory drawer is handed to the system browser and the window does not navigate
+  //     (memory-view::US-001/AC-06). Last in the test: the main-process guard cancels the navigation the click
+  //     starts, and Playwright then waits on that navigation for every later step on this page.
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
+  await win.locator('.it.row-btn', { hasText: 'pitfalls.md' }).click()
+  await fdBody.locator('a', { hasText: 'Docs' }).click({ noWaitAfter: true })
+  await expect
+    .poll(() => app.evaluate(() => (globalThis as unknown as { __opened: string[] }).__opened))
+    .toEqual(['https://example.com/docs'])
+  expect(win.url(), 'an external memory link must not navigate the window').toBe(urlBefore)
+
+  // The one expected handler error: reading vanish.md, removed after the scan on purpose (AC-07). Electron logs
+  // every rejected IPC handler to stderr; anything else is still a failure.
+  expect(errors.filter((e) => !(e.includes("handler for 'agentshed:read-artifact'") && e.includes('vanish.md')))).toEqual([])
   await app.close()
   rmSync(userData, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })
@@ -2179,48 +2432,48 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(tdd.locator('.files-card')).toBeVisible()
   await expect(tdd.locator('.files-sum')).toHaveCount(0) // The summary moved onto the row, so the expanded area no longer repeats it
   await tdd.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-fm')).toContainText('Red before green')
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Global body A')
+  await expect(win.locator('.file-drawer .md-fm')).toContainText('Red before green')
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Global body A')
   // The drawer side of "one ladder, every surface" (spec appearance.md sequence E): the same
   // computed ladder the memory .md card asserts
-  const drawerLadder = await headingLadder(win, '.skill-drawer .md-preview-body.preview')
+  const drawerLadder = await headingLadder(win, '.file-drawer .md-preview-body.preview')
   expectLadder(drawerLadder, 'skill drawer preview')
-  expectCodeStyle(await codeStyle(win, '.skill-drawer .md-preview-body.preview'), 'skill drawer preview')
+  expectCodeStyle(await codeStyle(win, '.file-drawer .md-preview-body.preview'), 'skill drawer preview')
   expectTableStyle(
-    await tableStyle(win, '.skill-drawer .md-preview-body.preview'),
+    await tableStyle(win, '.file-drawer .md-preview-body.preview'),
     drawerLadder.h1.color,
     'skill drawer preview'
   )
-  expect(await listIndent(win, '.skill-drawer .md-preview-body.preview'), 'skill drawer preview: list indent').toBe('20px')
+  expect(await listIndent(win, '.file-drawer .md-preview-body.preview'), 'skill drawer preview: list indent').toBe('20px')
   // Link hover shares the card's semantics (spec appearance E7c): accent at rest, deep accent on
   // hover — the deep value cross-checked against h1, which the ladder pins to --accent-deep
-  const probeLink = win.locator('.skill-drawer .md-preview-body a', { hasText: 'Probe link' })
+  const probeLink = win.locator('.file-drawer .md-preview-body a', { hasText: 'Probe link' })
   const restColor = await probeLink.evaluate((el) => getComputedStyle(el).color)
   await probeLink.hover()
   const hoverColor = await probeLink.evaluate((el) => getComputedStyle(el).color)
   expect(hoverColor, 'skill drawer preview: link hover feedback').not.toBe(restColor)
   expect(hoverColor, 'skill drawer preview: hover lands on the deep accent').toBe(drawerLadder.h1.color)
   expect(
-    await contentLineHeight(win, '.skill-drawer .md-preview-body.preview'),
+    await contentLineHeight(win, '.file-drawer .md-preview-body.preview'),
     'skill drawer preview: line-height'
   ).toBeCloseTo(21.875, 1)
   // Links inside the drawer preview (skills-view spec D3): an in-package relative link switches the
   // drawer to that file, an out-of-scope one gets an explicit notice, and neither navigates the window
   const urlBeforeLinks = win.url()
-  await win.locator('.skill-drawer .md-preview-body a', { hasText: 'missing link' }).click()
+  await win.locator('.file-drawer .md-preview-body a', { hasText: 'missing link' }).click()
   await expect(win.locator('.toast')).toBeVisible()
   expect(win.url(), 'out-of-scope link must not navigate').toBe(urlBeforeLinks)
-  await win.locator('.skill-drawer .md-preview-body a', { hasText: 'run the script' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-name')).toHaveText('scripts/run.sh')
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Unique script B')
-  await expect(win.locator('.skill-drawer .md-preview-seg')).toHaveCount(0)
+  await win.locator('.file-drawer .md-preview-body a', { hasText: 'run the script' }).click()
+  await expect(win.locator('.file-drawer .md-preview-name')).toHaveText('scripts/run.sh')
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Unique script B')
+  await expect(win.locator('.file-drawer .md-preview-seg')).toHaveCount(0)
   expect(win.url(), 'internal link must not navigate').toBe(urlBeforeLinks)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // Clicking another text file in the package switches the content: non-markdown has no raw/preview toggle
   // and shows monospace raw only
   await tdd.locator('.files button', { hasText: 'scripts/run.sh' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Unique script B')
-  await expect(win.locator('.skill-drawer .md-preview-seg')).toHaveCount(0)
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Unique script B')
+  await expect(win.locator('.file-drawer .md-preview-seg')).toHaveCount(0)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
   // (1b) A symlinked skill whose target is outside the roots: the row carries the symlink badge, and
@@ -2229,7 +2482,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(linked.locator('.pill.ln')).toBeVisible()
   await linked.locator('.sk-head').click()
   await linked.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Symlink body E')
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Symlink body E')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
   // (2) The plugin namespace row: expands and previews on equal footing with an on-disk one (A4; ADR-0012
@@ -2238,7 +2491,7 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   await expect(plug.locator('.sk-meta')).toContainText('1 file')
   await plug.locator('.sk-head').click()
   await plug.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-fm')).toContainText('Ask before acting')
+  await expect(win.locator('.file-drawer .md-fm')).toContainText('Ask before acting')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await plug.locator('.sk-head').click() // Collapse, so it does not interfere with later locators
 
@@ -2257,13 +2510,13 @@ test('Skills view: expanding globally reads the package; a same-name pair in det
   ).toBeVisible()
   await detTdd.locator('.sk-head').click()
   await detTdd.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Project body C')
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Project body C')
 
   // (4) The drawer width reuses the chrome-w formula (capped at 720): in a narrow window it must not cover
   //     the whole content area (the same-origin regression point as the 2026-08-02 bug)
   await win.setViewportSize({ width: 900, height: 800 })
   const g = await win.evaluate(() => {
-    const d = (document.querySelector('.skill-drawer') as HTMLElement).getBoundingClientRect()
+    const d = (document.querySelector('.file-drawer') as HTMLElement).getBoundingClientRect()
     const p = (document.querySelector('.stage .pane') as HTMLElement).getBoundingClientRect()
     return { drawer: d.width, left: d.left, pane: p.width, paneLeft: p.left }
   })
@@ -2736,8 +2989,8 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   await expect(bRow.locator('.meta')).toContainText('1 file')
   await bRow.click()
   await spExp.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Plugin body A')
-  await expect(win.locator('.skill-drawer .d-meta')).toContainText('Plugin package')
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Plugin body A')
+  await expect(win.locator('.file-drawer .d-meta')).toContainText('Plugin package')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await spRow.click() // Collapse, so a later .files locator is not taken by this row's table
 
@@ -2746,7 +2999,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   const ctRow = win.locator('.psk', { hasText: 'content-tools:publish' })
   await ctRow.click()
   await win.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Readable while disabled B')
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Readable while disabled B')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await win.locator('.it.row-btn', { hasText: 'content-tools@local' }).click() // Collapse
 
@@ -2760,7 +3013,7 @@ test('previewing a plugin skill in place: the tab expands and reads the package;
   const cxPsk = win.locator('.psk', { hasText: 'documents:documents' })
   await cxPsk.click()
   await win.locator('.files button', { hasText: 'SKILL.md' }).click()
-  await expect(win.locator('.skill-drawer .md-preview-body')).toContainText('Codex body C')
+  await expect(win.locator('.file-drawer .md-preview-body')).toContainText('Codex body C')
 
   expect(l.errors).toEqual([])
   await close(l)
@@ -4753,6 +5006,10 @@ test('reopening an artifact (query layer): first open is slow, reopening it is i
   mkdirSync(proj, { recursive: true })
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
   writeFileSync(join(proj, 'CONTEXT.md'), '# Cached artifact\n\nbody\n')
+  // A memory topic read through the same delayed channel (memory-view::US-001/AC-07, the loading state)
+  const memDir = join(home, '.claude', 'projects', proj.replace(/[^A-Za-z0-9]/g, '-'), 'memory')
+  mkdirSync(memDir, { recursive: true })
+  writeFileSync(join(memDir, 'slow.md'), '---\nname: slow\n---\n\nSlow topic body\n')
   const l = await launch(undefined, home, { AGENTSHED_FETCH_DELAY_MS: '600' })
   const win = await l.app.firstWindow()
   await win.locator('.rail .ri').nth(1).click()
@@ -4768,6 +5025,18 @@ test('reopening an artifact (query layer): first open is slow, reopening it is i
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   await win.locator('.it.ai', { hasText: 'Cached artifact' }).click() // reopen — a cached visit
   await expect(win.locator('.reader .md')).toContainText('body', { timeout: 200 })
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+
+  // The memory file drawer while its file is read: "Loading…" inside the frame, the bar and switch already in
+  // place, then the preview (memory-view::US-001/AC-07)
+  await win.locator('.pane-head .tabs .tab', { hasText: 'Memory' }).click()
+  await win.locator('.it.row-btn', { hasText: 'slow.md' }).click()
+  const fd = win.locator('.file-drawer')
+  await expect(fd.locator('.md-preview-body')).toHaveText('Loading…', { timeout: 300 })
+  await expect(fd.locator('.md-preview-name')).toHaveText('slow.md')
+  await expect(fd.locator('.md-preview-seg')).toBeVisible()
+  await expect(fd.locator('.md-preview-body')).toContainText('Slow topic body')
+  await expect(fd.locator('.md-fm')).toContainText('slow')
 
   expect(l.errors).toEqual([])
   await close(l)

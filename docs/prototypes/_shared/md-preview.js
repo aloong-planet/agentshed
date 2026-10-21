@@ -3,7 +3,9 @@
 // API:
 //   MdPreview.isMarkdown(pathOrName) -> boolean
 //   MdPreview.render(md) -> html string
-//   MdPreview.mount(el, { name, text, mode? }) -> { set({name,text,mode?}), destroy() }
+//   MdPreview.mount(el, { name, text, mode?, notice? }) -> { set({name,text,mode?,notice?}), destroy() }
+//     notice: a string, or a function returning one in the page's current language, shown in the body in place
+//     of the text (a file still loading, or one that could not be read); null or absent shows the text.
 // A use site adds data-shared-block="md-preview" to its container.
 // Its copy follows the page's language when the page follows it (demo-dimensions.js), in the app's words;
 // it is drawn in Chinese and English, and any other language shows as English, as the app falls back to it.
@@ -110,6 +112,33 @@
     return `<div class="md-fm" aria-label="frontmatter">${rows}</div>`
   }
 
+  // Text an agent writes stays text, as on every rendered surface in the app: a [[…]] reference, with whatever
+  // follows it (so [[name]](remark) is not a link), and a tag-like <name> whose name is not an HTML element (a
+  // placeholder such as <slug>), which would otherwise vanish as an unknown element. Real HTML still renders.
+  const TAG = /<\/?([A-Za-z][A-Za-z0-9-]*)(?:\s[^<>]*)?\/?>/g
+  const isElementName = (name) => !name.includes('-') && !(document.createElement(name) instanceof HTMLUnknownElement)
+  let parser = null
+  function textKeepingParser(marked) {
+    if (!parser && marked && typeof marked.Marked === 'function') {
+      parser = new marked.Marked({
+        gfm: true,
+        breaks: false,
+        extensions: [{
+          name: 'wikiRef',
+          level: 'inline',
+          start: (src) => src.indexOf('[['),
+          tokenizer: (src) => {
+            const m = /^\[\[[^\]\n]+\]\]/.exec(src)
+            return m ? { type: 'wikiRef', raw: m[0] } : undefined
+          },
+          renderer: (token) => escapeHtml(token.raw)
+        }],
+        renderer: { html: (token) => token.text.replace(TAG, (tag, name) => (isElementName(name) ? tag : escapeHtml(tag))) }
+      })
+    }
+    return parser
+  }
+
   function render(md) {
     follow()
     const src = md == null ? '' : String(md)
@@ -117,7 +146,10 @@
     const marked = global.marked
     let html = null
     try {
-      if (marked && typeof marked.parse === 'function') {
+      const keeping = textKeepingParser(marked)
+      if (keeping) {
+        html = keeping.parse(body, { async: false })
+      } else if (marked && typeof marked.parse === 'function') {
         html = marked.parse(body, { async: false, gfm: true, breaks: false })
       } else if (marked && typeof marked === 'function') {
         html = marked(body)
@@ -143,6 +175,7 @@
     let name = (opts && opts.name) || ''
     let text = (opts && opts.text) != null ? String(opts.text) : ''
     let mode = opts && opts.mode === 'raw' ? 'raw' : 'preview'
+    let notice = (opts && opts.notice) || null
 
     // The skeleton is built once; switching raw/preview only changes the body and the button state, so a
     // full rebuild never swallows the click
@@ -188,7 +221,10 @@
 
       const showPreview = canPreview && mode === 'preview'
       body.className = 'md-preview-body ' + (showPreview ? 'preview' : 'raw')
-      if (text === '') {
+      const note = typeof notice === 'function' ? notice() : notice
+      if (note) {
+        body.innerHTML = `<div class="md-preview-empty">${escapeHtml(note)}</div>`
+      } else if (text === '') {
         body.innerHTML = `<div class="md-preview-empty">${t().empty}</div>`
       } else if (showPreview) {
         body.innerHTML = render(text)
@@ -223,6 +259,7 @@
         if (next.name != null) name = next.name
         if (next.text != null) text = String(next.text)
         if (next.mode === 'raw' || next.mode === 'preview') mode = next.mode
+        if ('notice' in next) notice = next.notice || null
         paint()
       },
       destroy() {

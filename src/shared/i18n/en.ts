@@ -171,7 +171,6 @@ export const en: Locale = {
     noMain: 'No MEMORY.md (topic files only)',
     topicsTitle: (n) => `Topic files (${n}) · click to view`,
     noTopics: 'No topic files',
-    topicMeta: (ago) => `topic file · ${ago}`,
     unreadable: (detail) => `File cannot be read: ${detail}`,
     loading: 'Loading…'
   },

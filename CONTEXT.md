@@ -453,9 +453,11 @@ _Avoid_: beta mode, insider track, update track
   but must not bypass them either.
 
 - **Rendered markdown goes through one carrier and one rule set on every surface (settled
-  2026-08-19, carrier settled 2026-08-20)**: all markdown render sites (the skill file drawer, the
-  memory/configuration document cards, the artifact reader) render through the shared MarkdownBody
-  component, which by construction applies the sanitising exit, the link interception above, and
+  2026-08-19, carrier settled 2026-08-20)**: all markdown render sites (the file drawer for skill and
+  memory files, the memory/configuration document cards, the artifact reader) render through the shared
+  MarkdownBody component, which by construction applies the sanitising exit, the link interception
+  above, the text it keeps as written (`[[…]]` references and non-element `<name>` placeholders,
+  memory-view::CON-002), and
   the single content rule set — the shape-layered heading ladder specified in the appearance spec's
   sequence E, the paper-style code rules (bordered inline pill, bordered fenced inset, no inner box
   on the code element inside a fence), the paper-style tables (framed, non-wrapping tinted header,
@@ -664,7 +666,9 @@ _Avoid_: beta mode, insider track, update track
   refreshed by transfusion; a visit without a saved page waits (holding the previous page).
   Saved page contents survive a full restart; navigation and expansion state do not.
   Display copies have their own format version and never feed accounting or archive updates
-  (ADR-0029). Previously read previews and answers are included; unread bodies are not prefetched.
+  (ADR-0029). Restoring a saved page runs the live contract, so a field added to a saved type is filled
+  in on restore when absent — or the first launch after the update drops every page saved before it
+  (as the project memory's main-file entry is filled in; postmortem 2026-10-21). Previously read previews and answers are included; unread bodies are not prefetched.
   Restored exact-path registrations are checked against current targets and replaced per owning
   scan/detail/enumeration. Every automatic rescan
   marks every cached page stale, and a change made from a page
