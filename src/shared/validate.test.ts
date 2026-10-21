@@ -181,7 +181,7 @@ function okDetail(): Record<string, unknown> {
         shadows: false, shadowed: false, overridesBuiltin: false
       }
     ],
-    memory: { main: null, topics: [{ name: 'a.md', file: '/Users/x/a.md', mtimeMs: 1 }] },
+    memory: { main: { text: '# Index', truncated: false }, mainFile: { name: 'MEMORY.md', file: '/Users/x/MEMORY.md', mtimeMs: 3 }, topics: [{ name: 'a.md', file: '/Users/x/a.md', mtimeMs: 1 }] },
     plugins: [
       {
         name: 'superpowers@official', version: '6.2.0', installPath: '/cache/sp', enabled: true, enabledFrom: 'project',
@@ -203,7 +203,7 @@ describe('validateProjectDetail — admitting (a false refusal stops the whole d
 
   it('admits the base state with every array empty (the norm for a new project or one with no components)', () => {
     const d = { ...okDetail(), skills: [], subagents: [], plugins: [], mcp: [], artifacts: [],
-      memory: { main: null, topics: [] } }
+      memory: { main: null, mainFile: null, topics: [] } }
     expect(validateProjectDetail(d).ok).toBe(true)
   })
 
@@ -273,6 +273,9 @@ describe('validateProjectDetail — refusing, and pointing at the field path', (
   it('a nullable field written as something other than string|null', () => {
     expect(errOf(bad((d) => { (d.configs as Record<string, unknown>).agentsMd = 42 }))).toContain('configs.agentsMd')
     expect(errOf(bad((d) => { (d.memory as Record<string, unknown>).main = {} }))).toContain('memory.main')
+    expect(errOf(bad((d) => { (d.memory as Record<string, unknown>).mainFile = 7 }))).toContain('memory.mainFile')
+    expect(errOf(bad((d) => { (d.memory as Record<string, unknown>).mainFile = '/Users/x/MEMORY.md' }))).toContain('memory.mainFile')
+    expect(errOf(bad((d) => { ((d.memory as Record<string, unknown>).mainFile as Record<string, unknown>).file = '' }))).toContain('memory.mainFile.file')
   })
 
   it('a missing nested structure', () => {

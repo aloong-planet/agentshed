@@ -68,6 +68,14 @@ export function validSavedRead(v: unknown): v is SavedRead {
   }
 }
 
+/** A project detail saved before its memory carried the main file's entry restores with none listed; the live
+ * read replaces it (ADR-0029's upgrade case; spec memory-view, Implementation Decisions). Only an absent field is
+ * filled in: a present but malformed one is left for validation to drop. */
+function upgradeSavedRead(v: unknown): unknown {
+  if (!object(v) || v.kind !== 'projectDetail' || !object(v.data) || !object(v.data.memory) || 'mainFile' in v.data.memory) return v
+  return { ...v, data: { ...v.data, memory: { ...v.data.memory, mainFile: null } } }
+}
+
 /** Independent entries degrade independently; corrupt envelope metadata is handled by the store. */
 export function parseDisplayData(v: unknown): DisplayData {
   const d = emptyDisplayData()
@@ -78,7 +86,7 @@ export function parseDisplayData(v: unknown): DisplayData {
   if (strings(v.sessionFiles)) d.sessionFiles = v.sessionFiles
   if (Array.isArray(v.registrations)) d.registrations = v.registrations.filter((r): r is RegistrationScope =>
     object(r) && path(r.owner) && ['artifacts', 'skillFiles', 'projects', 'pluginRoots'].every(k => strings(r[k])))
-  if (Array.isArray(v.reads)) d.reads = v.reads.filter(validSavedRead)
+  if (Array.isArray(v.reads)) d.reads = v.reads.map(upgradeSavedRead).filter(validSavedRead)
   // An answer only belongs to the saved question mapping that produced it.
   const pages = new Map(d.reads.flatMap(r => r.kind === 'sessionPage' ? [[r.file, r.data] as const] : []))
   d.reads = d.reads.filter(r => r.kind !== 'turnContent' ||

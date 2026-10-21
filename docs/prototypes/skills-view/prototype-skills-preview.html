@@ -6,6 +6,9 @@
      本页不设开关;语言只画了中、英两种,其他语言按英文显示并有提示;评审注记(.sub 说明、分区标题、配色说明)
      不随语言变。色值取共享主题 _shared/theme.css,本页只为自己的 token 指明
      对应的 app token。app 窗口的根样式在共享件 _shared/app-window.css 里。共享:md-preview。
+     2026-10-21: the drawer's frame moves into the shared _shared/file-drawer.css — the one file-drawer form the
+       plugin skill drawer and the memory drawers (Agents page, project detail) draw too. Its width now follows the
+       content-area formula, min(720px, 80% of the window minus the rail), instead of 94vw.
      2026-08-06 更新:①行密度对齐其它模块(视觉行高约 32px);②行不展示 description(已裁定);
      ③展开区新增「平铺」形式(默认)——不缩进、表格满宽,与旧「缩进卡片」可切换对比;
      ④包统计(文件数/大小,不含行数)上行内右侧,展开区撤销汇总条;⑤frontmatter 深浅随页面
@@ -28,41 +31,20 @@
 <link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <link rel="stylesheet" href="../_shared/md-preview.css">
+<link rel="stylesheet" href="../_shared/file-drawer.css">
 <style>
   /* Page tokens on top of the app's (_shared/theme.css). Each names the app token that plays the same role in
-     the app's skills view — expanded area, file drawer, markdown body and its tip — so every palette and
-     both modes come from the shared theme. Syntax colours have no app token (the app draws none). The drawer
-     shadow and the mask take the same alphas in both modes. */
+     the app's skills view — expanded area and its tip — so every palette and both modes come from the shared
+     theme. The mask takes the same alpha in both modes. The drawer and its markdown are the shared
+     file-drawer and md-preview blocks. */
   :root {
     --warn: var(--warn-fg);
     --warn-border: color-mix(in srgb, var(--warn-fg) 28%, var(--line));
     --tree-bg: var(--bg);
-    --top-grad-from: var(--card);
-    --drawer-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
     --gb-bg: var(--gk-bg); --gb-fg: var(--gk-fg);
-    --t-md-h1: var(--accent-deep);
-    --t-md-h2: var(--accent);
-    --t-md-h3: var(--md-h3);
-    --t-md-link: var(--accent);
-    --t-md-code-bg: var(--bg);
-    --t-md-code-border: var(--line);
-    --t-md-code-fg: var(--text);
-    --t-md-pre-comment: var(--text-2);
-    --t-md-pre-string: #2d7a4f;
-    --t-md-pre-kw: var(--accent-deep);
-    --t-md-quote: var(--text-2);
-    --t-md-quote-bar: var(--accent);
-    --t-md-quote-bg: var(--accent-soft);
-    --t-md-table-head: var(--accent-soft);
-    --t-md-th: var(--accent-deep);
-    --t-md-hr: var(--line-strong);
-    --t-md-raw-bg: var(--bg);
-    --t-md-bar-from: var(--bg);
     --mask: rgba(0, 0, 0, 0.35);
   }
   html[data-demo-mode="dark"] {
-    --drawer-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
-    --t-md-pre-string: #7dcea0;
     --mask: rgba(0, 0, 0, 0.35);
   }
 
@@ -187,63 +169,6 @@
   .mask{position:fixed;inset:0;background:var(--mask);backdrop-filter:blur(2px);z-index:20}
   .err{color:var(--warn);padding:14px;font-size:12.5px}
 
-  /* The drawer: read-only file detail (the file tree lives in the main list) */
-  .drawer{
-    position:fixed;top:0;right:0;bottom:0;z-index:21;width:min(720px,94vw);
-    display:flex;flex-direction:column;
-    background:var(--card);box-shadow:var(--drawer-shadow);
-    border-left:1px solid var(--line-strong);
-  }
-  .drawer-close{
-    position:absolute;top:12px;right:12px;z-index:2;
-    width:32px;height:32px;border-radius:8px;border:1px solid var(--line);
-    background:var(--bg);color:var(--text-2);cursor:pointer;font-size:16px;line-height:1;
-  }
-  .drawer-close:hover{color:var(--accent);border-color:var(--accent)}
-  .d-top{
-    flex:none;padding:16px 48px 12px 18px;
-    border-bottom:1px solid var(--line);
-    background:linear-gradient(180deg,var(--top-grad-from) 0%,var(--card) 100%);
-  }
-  .d-title{font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;color:var(--accent);margin:0 0 4px}
-  .d-meta{font-size:12px;color:var(--text-2);line-height:1.45}
-  .d-body{flex:1;min-height:0;display:flex;padding:10px}
-
-  .md-preview{
-    --md-h1: var(--t-md-h1);
-    --md-h2: var(--t-md-h2);
-    --md-link: var(--t-md-link);
-    --md-code-bg: var(--t-md-code-bg);
-    --md-code-border: var(--t-md-code-border);
-    --md-pre-comment: var(--t-md-pre-comment);
-    --md-pre-string: var(--t-md-pre-string);
-    --md-pre-kw: var(--t-md-pre-kw);
-    --md-quote: var(--t-md-quote);
-    --md-quote-bar: var(--t-md-quote-bar);
-    --md-table-head: var(--t-md-table-head);
-    --md-th: var(--t-md-th);
-    border-color: var(--line);
-    background: var(--card);
-  }
-  .md-preview-bar{
-    background: linear-gradient(180deg, var(--t-md-bar-from) 0%, var(--card) 100%);
-    border-bottom-color: var(--line);
-  }
-  .md-preview-bar .md-preview-name{ color: var(--t-md-h2); }
-  .md-preview-seg{ background: var(--bg); border-color: var(--line-strong); }
-  .md-preview-seg button.on{ color: var(--t-md-h1); }
-  .md-preview-body.raw{ background: var(--t-md-raw-bg); color: var(--text); }
-  .md-preview-body.preview{ background: var(--card); color: var(--text); }
-  .md-preview-body.preview h1{ border-bottom-color: var(--t-md-hr); }
-  .md-preview-body.preview code{ color: var(--t-md-code-fg); }
-  .md-preview-body.preview blockquote{
-    background: linear-gradient(90deg, var(--t-md-quote-bg) 0%, transparent 100%);
-  }
-  .md-preview-body.preview hr{
-    background: linear-gradient(90deg, transparent, var(--t-md-hr), transparent);
-  }
-  .md-preview-body.preview a{ color: var(--t-md-link); border-bottom-color: color-mix(in srgb, var(--t-md-link) 35%, transparent); }
-  .md-preview-body.preview strong{ color: var(--accent-deep); }
 </style>
 <script src="../vendor/marked.umd.js"></script>
 <script src="../manifest.js"></script>
@@ -454,7 +379,7 @@
 
     if (!pack || !pack.files || pack.files[file] == null) {
       overlay.innerHTML = `<div class="mask" data-close></div>
-        <div class="drawer"><button class="drawer-close" data-close>${ICONS.X(15)}</button>
+        <div class="file-drawer" data-shared-block="file-drawer"><button class="drawer-close" data-close>${ICONS.X(15)}</button>
         <div class="err">${tx().unreadable(skill, file)}</div></div>`
     } else {
       const text = pack.files[file]
@@ -466,7 +391,7 @@
       ].join(' · ')
       overlay.innerHTML = `
         <div class="mask" data-close></div>
-        <div class="drawer">
+        <div class="file-drawer" data-shared-block="file-drawer">
           <button class="drawer-close" data-close title="${tx().close}">${ICONS.X(15)}</button>
           <div class="d-top">
             <div class="d-title">${skill}</div>

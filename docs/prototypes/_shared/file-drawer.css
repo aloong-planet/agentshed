@@ -1,0 +1,89 @@
+/* Shared: the file drawer — the right-hand drawer that reads one file of a set (a skill package, a memory
+   directory): a title block saying what the set is and where the file sits, over the shared md-preview block
+   (the file's name, the raw / preview switch, the body). Every surface that opens such a file draws this one
+   form from this one sheet, so they cannot drift apart.
+   Mount: <div class="file-drawer" data-shared-block="file-drawer"> holding a .drawer-close button, a .d-top
+   (.d-title, .d-meta) and a .d-body with the md-preview block inside. The page draws its own mask, under
+   z-index 41. The chrome rules select by child combinator or by a class of their own, never by a bare element
+   name, so none of them reaches into the rendered markdown. */
+.file-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  /* min(a fixed width, 80% of the content area). The content area is the window minus the fixed columns on its
+     left: the rail alone (48), or the rail and the project sidebar (48 + 230) with data-beside="rail-side". A
+     width relative to the whole window would let a narrow window's drawer cover the content area entirely. */
+  --chrome-w: 48px;
+  width: min(720px, calc((100vw - var(--chrome-w)) * 0.8));
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-left: 1px solid var(--line-strong);
+  box-shadow: var(--file-drawer-shadow);
+}
+.file-drawer[data-beside="rail-side"] {
+  --chrome-w: 278px;
+}
+.file-drawer[hidden] {
+  display: none;
+}
+/* The shadow sits on the page under the drawer, so it changes with light and dark only; the two values are the
+   same on purpose */
+html {
+  --file-drawer-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+}
+html[data-demo-mode="dark"] {
+  --file-drawer-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+}
+.file-drawer > .drawer-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.file-drawer > .drawer-close:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.file-drawer > .d-top {
+  flex: none;
+  padding: 16px 48px 12px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.file-drawer .d-title {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 0 4px;
+}
+.file-drawer .d-meta {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.45;
+  word-break: break-all;
+}
+.file-drawer > .d-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: 10px;
+}
+/* The md-preview block's bar inside the drawer fades from the page ground into the card. Only the frame is
+   styled here: the rendered content keeps the one rule set every markdown surface shares (md-preview.css), so
+   nothing in this sheet reaches into the body. */
+.file-drawer .md-preview-bar {
+  background: linear-gradient(180deg, var(--bg) 0%, var(--card) 100%);
+}

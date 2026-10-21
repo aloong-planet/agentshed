@@ -163,6 +163,7 @@ function DetailPaneBody({
             {tab === 'memory' && (
               <ProjectMemoryTab
                 detail={result.detail}
+                projectName={entry.name}
                 hasClaudeSide={entry.sides.includes('claude')}
                 anchor={now}
               />

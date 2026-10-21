@@ -36,6 +36,18 @@ const SHARED_BLOCKS = [
     containers: []
   },
   {
+    id: 'file-drawer',
+    label: 'drawer reading one file of a skill package or a memory directory',
+    assets: ['_shared/file-drawer.css'],
+    containers: []
+  },
+  {
+    id: 'toast',
+    label: 'app toast notice',
+    assets: ['_shared/toast.css', '_shared/toast.js'],
+    containers: []
+  },
+  {
     id: 'trend-chart',
     label: 'provider stacked trend chart',
     /** Resources a page declaring it must reference */

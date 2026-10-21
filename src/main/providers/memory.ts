@@ -97,6 +97,7 @@ export function readMemorySummary(roots: ScanRoots, projects: ProjectEntry[]): M
 export function readProjectMemory(roots: ScanRoots, projectPath: string): ProjectMemory {
   const dir = join(roots.claudeHome, 'projects', encodeClaudeProjectDir(projectPath), 'memory')
   const files = listMdFiles(dir)
-  const main = files.some((f) => f.name === 'MEMORY.md') ? readCapped(join(dir, 'MEMORY.md')) : null
-  return { main, topics: files.filter((f) => f.name !== 'MEMORY.md') }
+  const mainFile = files.find((f) => f.name === 'MEMORY.md') ?? null
+  const main = mainFile !== null ? readCapped(mainFile.file) : null
+  return { main, mainFile, topics: files.filter((f) => f.name !== 'MEMORY.md') }
 }

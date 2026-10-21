@@ -47,7 +47,15 @@ window.SharedCopy = {
     recentFirst: '最近在前',
     oldestFirst: '最早在前',
     hitCount: (n) => `${n} 条命中`,
-    forkUncertain: '剥离存疑'
+    forkUncertain: '剥离存疑',
+    // The memory file drawer (Agents, project detail): its meta line, the body's read states, and the notices
+    // for links it does not open
+    memDrawerMeta: (side, file, ago) => `${side} · ${file} · ${ago}`,
+    memLoading: '读取中…',
+    memUnreadable: (detail) => `文件不可读:${detail}`,
+    memUnreadableDetail: '没有读取权限',
+    linkOutOfScope: '链接目标不在可读范围',
+    linkProtocolUnsupported: '不支持的链接协议'
   },
   en: {
     tabCfg: 'Config',
@@ -85,6 +93,12 @@ window.SharedCopy = {
     recentFirst: 'Newest first',
     oldestFirst: 'Oldest first',
     hitCount: (n) => `${n} ${n === 1 ? 'hit' : 'hits'}`,
-    forkUncertain: 'uncertain strip'
+    forkUncertain: 'uncertain strip',
+    memDrawerMeta: (side, file, ago) => `${side} · ${file} · ${ago}`,
+    memLoading: 'Loading…',
+    memUnreadable: (detail) => `File cannot be read: ${detail}`,
+    memUnreadableDetail: 'permission denied',
+    linkOutOfScope: 'The link target is outside the readable scope',
+    linkProtocolUnsupported: 'Unsupported link protocol'
   }
 }

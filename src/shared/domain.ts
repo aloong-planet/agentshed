@@ -592,6 +592,9 @@ export interface ProjectSubagentEntry {
 export interface ProjectMemory {
   /** MEMORY.md's contents (truncated when oversized); null when absent */
   main: CappedText | null
+  /** MEMORY.md's file entry, null when absent: its path joins the topics on the project's read allow-list, so a
+   * topic's link to the main file opens it in the memory file drawer (spec memory-view::US-001/AC-05) */
+  mainFile: MemoryFileMeta | null
   topics: MemoryFileMeta[]
 }
 

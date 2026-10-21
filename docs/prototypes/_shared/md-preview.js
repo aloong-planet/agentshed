@@ -3,7 +3,9 @@
 // API:
 //   MdPreview.isMarkdown(pathOrName) -> boolean
 //   MdPreview.render(md) -> html string
-//   MdPreview.mount(el, { name, text, mode? }) -> { set({name,text,mode?}), destroy() }
+//   MdPreview.mount(el, { name, text, mode?, notice? }) -> { set({name,text,mode?,notice?}), destroy() }
+//     notice: a string, or a function returning one in the page's current language, shown in the body in place
+//     of the text (a file still loading, or one that could not be read); null or absent shows the text.
 // A use site adds data-shared-block="md-preview" to its container.
 // Its copy follows the page's language when the page follows it (demo-dimensions.js), in the app's words;
 // it is drawn in Chinese and English, and any other language shows as English, as the app falls back to it.
@@ -143,6 +145,7 @@
     let name = (opts && opts.name) || ''
     let text = (opts && opts.text) != null ? String(opts.text) : ''
     let mode = opts && opts.mode === 'raw' ? 'raw' : 'preview'
+    let notice = (opts && opts.notice) || null
 
     // The skeleton is built once; switching raw/preview only changes the body and the button state, so a
     // full rebuild never swallows the click
@@ -188,7 +191,10 @@
 
       const showPreview = canPreview && mode === 'preview'
       body.className = 'md-preview-body ' + (showPreview ? 'preview' : 'raw')
-      if (text === '') {
+      const note = typeof notice === 'function' ? notice() : notice
+      if (note) {
+        body.innerHTML = `<div class="md-preview-empty">${escapeHtml(note)}</div>`
+      } else if (text === '') {
         body.innerHTML = `<div class="md-preview-empty">${t().empty}</div>`
       } else if (showPreview) {
         body.innerHTML = render(text)
@@ -223,6 +229,7 @@
         if (next.name != null) name = next.name
         if (next.text != null) text = String(next.text)
         if (next.mode === 'raw' || next.mode === 'preview') mode = next.mode
+        if ('notice' in next) notice = next.notice || null
         paint()
       },
       destroy() {

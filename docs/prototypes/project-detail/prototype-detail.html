@@ -42,9 +42,19 @@
        (总量 8.5M 却 cache 48.2M,而 cache 是计入总量的)。现改为「其中 cache(ccusage 口径
        已计入总量)」,大数字取 cacheRead(与实现一致,此前误取读+写),各侧示例补上 Grok,
        并让四个字段恰好加总为总量(见 ADR-0023:Codex/Grok 不采集 cache 写)。
+     2026-10-21 (the memory drawer previews Markdown): a topic file — clicked in the list, or reached by a link in the
+       rendered main file — opens in the file drawer, the same form as the skill file drawer and the Agents page's
+       memory drawer, drawn from the shared _shared/file-drawer.css: a close button, the project as the title with
+       the side, the file and its modified time under it, and the shared md-preview block — the file's name, the raw
+       / preview switch (preview by default), the body, front matter as a key-value card. A link to another file of
+       the memory directory, the main file included, switches the drawer to that file in preview; an external link
+       goes to the system browser (here, a new tab); anything else gets the app's error toast (shared
+       _shared/toast.css / toast.js), as a link in the main file does; [[name]] references stay plain text. The
+       body's read states (loading, could not read, empty file) show inside the same frame.
      演示基建(非设计的一部分,勿实现):底部悬浮条承载两组——「启动恢复」三档常驻(扫描中 / 完成 / 失败,
        共享件 _shared/startup-status;真实判定 = 这次启动的扫描是否仍在进行与扫描的结果);「会话分栏」两态
-       (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。每组的真实判定与「app 内无此
+       (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。「Memory file read」四态(read / loading /
+       could not read / empty;真实判定 = 读取抽屉所开文件的结果)仅在 Memory 分栏出现。每组的真实判定与「app 内无此
        开关」写在演示条的说明行里。
      界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关:界面文案(含启动提示、趋势图、
        token 概览卡)画了中、英两种,其他语言按英文显示并有提示;两页及以上共用的文案取共享文案表
@@ -62,6 +72,10 @@
 <link rel="stylesheet" href="../_shared/project-side.css">
 <!-- The sessions tab's search row and hits are a shared piece, drawn the same by global search -->
 <link rel="stylesheet" href="../_shared/session-hits.css">
+<!-- The memory file drawer: the shared file drawer around the shared md-preview block, and the app's toast -->
+<link rel="stylesheet" href="../_shared/md-preview.css">
+<link rel="stylesheet" href="../_shared/file-drawer.css">
+<link rel="stylesheet" href="../_shared/toast.css">
 <!-- The trend chart is a shared piece: changing _shared/trend-chart.{css,js} affects every prototype that
      references it -->
 <link rel="stylesheet" href="../_shared/trend-chart.css?v=linked-span-total">
@@ -206,6 +220,9 @@
 <script src="../app-identity.js"></script>
 <script src="../_shared/icons.js"></script>
 <script src="../_shared/copy.js"></script>
+<script src="../vendor/marked.umd.js"></script>
+<script src="../_shared/md-preview.js"></script>
+<script src="../_shared/toast.js"></script>
 </head>
 <body>
 <div class="app-window" data-shared-block="app-window">
@@ -407,6 +424,8 @@
   <div class="reader" id="areader"></div>
   <div class="mask" id="dmask"></div>
   <div class="drawer" id="drawer"></div>
+  <div class="file-drawer" id="mfDrawer" data-shared-block="file-drawer" data-beside="rail-side" hidden></div>
+  <div class="toasts" data-shared-block="toast"></div>
 </div>
   <!-- The demo harness: mock state switches, not part of the design and not to be implemented; the session
      switches appear only in the sessions tab; startup switches remain available in every tab -->
@@ -420,7 +439,17 @@
         <button type="button" class="dh-opt" data-se="empty" aria-pressed="false">空态</button>
       </div>
     </div>
+    <div class="dh-group" id="mfread-demo" hidden>
+      <span class="dh-title">Memory file read</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-r="ok" aria-pressed="true">read</button>
+        <button type="button" class="dh-opt" data-r="loading" aria-pressed="false">loading</button>
+        <button type="button" class="dh-opt" data-r="failed" aria-pressed="false">could not read</button>
+        <button type="button" class="dh-opt" data-r="empty" aria-pressed="false">empty file</button>
+      </div>
+    </div>
     <p class="dh-note">启动恢复各档在 app 里由这次启动的扫描是否仍在进行、以及扫描的结果决定;app 内没有这个开关。</p>
+    <p class="dh-note" id="mfread-demo-note" hidden>The memory file read states come from reading the file the drawer opens; they apply to every file here. The app has no such switch.</p>
     <p class="dh-note" id="session-demo-note" hidden>会话分栏的有会话 / 空态在 app 里由该项目扫到的会话数决定;app 内没有这个开关。</p>
   </div>
 <script src="../_shared/trend-chart.js?v=linked-span-total"></script>
@@ -457,9 +486,6 @@
         shadowed:'被项目级定义遮蔽(未生效)' },
       defaultSubagentModel:'—(default_subagent_model)',
       memMainTitle:'MEMORY.md(自动记忆主文件,直接渲染——同配置 tab 模式)', memTopicsTitle:'Topic 文件(2) · 点击开抽屉查看',
-      topicMeta:a=>`topic 文件 · ${a}`, viaMain:' · 经主文件链接打开',
-      extLink:'外部链接', extOpen:'交系统浏览器打开(app 不导航)。', relLink:'相对链接',
-      outOfScope:'目标不在可读范围(文件不存在或未列入本项目产物/记忆)。',
       plHint:'按侧分组 · Claude 组:本项目有效启用集(local > project > user) · 点条目展开内含组件',
       enabledShort:'启用',
       plVerdict0:'启用判定来自 user 层 · user', plVerdict1:'启用判定来自 project 层 · project · Transfer',
@@ -502,9 +528,6 @@
       defaultSubagentModel:'— (default_subagent_model)',
       memMainTitle:'MEMORY.md (main automatic memory file, rendered directly — the same way as the Config tab)',
       memTopicsTitle:'Topic files (2) · click to open in a drawer',
-      topicMeta:a=>`topic file · ${a}`, viaMain:' · opened via a link in the main file',
-      extLink:'External link', extOpen:'Opens in the system browser (the app does not navigate).', relLink:'Relative link',
-      outOfScope:'The target is outside the readable scope (the file does not exist or is not among this project’s artifacts / memory).',
       plHint:'Grouped by side · Claude group: this project’s effective set (local > project > user) · click a row to expand bundled components',
       enabledShort:'Enabled',
       plVerdict0:'Enabled — decided by the user layer · user', plVerdict1:'Enabled — decided by the project layer · project · Transfer',
@@ -534,6 +557,7 @@
     document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p===t.dataset.t?'':'none');
     // The session switches, and their note, only appear in the sessions tab
     document.getElementById('session-demo').hidden=document.getElementById('session-demo-note').hidden=t.dataset.t!=='sessions';
+    document.getElementById('mfread-demo').hidden=document.getElementById('mfread-demo-note').hidden=t.dataset.t!=='memory';
   });
   // The trend chart: rendered by the shared piece (the same source as the Agents page)
 
@@ -684,10 +708,16 @@
      kv:[['model',L('defaultSubagentModel')],['sandbox_mode','—']],
      body:'You are a senior code reviewer…(developer_instructions 三引号块)'}
   ];
+  // The memory directory's files in the shape of real ones: the main file (rendered above, and readable in the
+  // drawer when a topic links to it) and the topics — front matter with a nested metadata.type, Why / How to
+  // apply sections, [[name]] references, and links to a sibling, to the main file, external, and to a file the
+  // directory does not list
+  const MAIN_MD='# Memory Index\n\n- [开 PR 后等确认才合并](pr-merge-needs-confirmation.md) — 开 PR 不构成合并授权\n- [shell snapshot 环境变量坑](shell-snapshot-vars-gotcha.md) — 快照不带自定义变量\n- [已删除的条目](missing-file.md) — 目标不在可读范围的形态\n- [外部文档](https://code.claude.com/docs) — 外链交系统浏览器\n';
   const MTOPICS=[
-    {f:'pr-merge-needs-confirmation.md',at:'agoToday',body:'# PR 合并需确认\n\n开 PR 即停,等用户确认后才准合并——开 PR 不构成合并授权。'},
-    {f:'shell-snapshot-vars-gotcha.md',at:'agoWeek',body:'# shell snapshot 环境变量坑\n\n…(mock 略)'}
+    {f:'pr-merge-needs-confirmation.md',at:'agoToday',body:'---\nname: pr-merge-needs-confirmation\ndescription: 开 PR 不构成合并授权;用户确认后 squash 合并并删远程分支\nmetadata:\n  type: feedback\n---\n\n开 PR 即停,等用户在当轮明确说合并再执行。\n\n**Why:** CI 全绿只是合并的前置条件,不是批准。\n\n**How to apply:**\n- 开完 PR 停下,回报链接与 CI 状态\n- 用户确认后 `gh pr merge --squash --delete-branch`\n\n相关:[[shell-snapshot-vars-gotcha]] · [shell snapshot 环境变量坑](shell-snapshot-vars-gotcha.md) · 回到[索引](MEMORY.md) · [GitHub 文档](https://docs.github.com/en/pull-requests) · [旧笔记](old-notes.md)\n'},
+    {f:'shell-snapshot-vars-gotcha.md',at:'agoWeek',body:'---\nname: shell-snapshot-vars-gotcha\ndescription: shell 快照不带自定义环境变量\nmetadata:\n  type: project\n---\n\n每条命令都从快照起一个新 shell,`export` 过的变量下一条命令就没了。\n\n```sh\nFOO=1 pnpm build   # 写在同一条命令里\n```\n\n见 [[pr-merge-needs-confirmation]]。\n'}
   ];
+  const MDIR='/memory', MFILES=[{f:'MEMORY.md',at:'agoToday',body:MAIN_MD},...MTOPICS];
   function pcontents(i){
     const t=T[LANG];
     return [
@@ -705,31 +735,65 @@
   // The drawer keeps the function that drew it, so a language change redraws what is open
   let drawerHtml=null;
   function openDrawer(fn){ drawerHtml=fn; dmask.style.display='block'; drawer.style.display='block'; drawer.innerHTML=fn() }
-  function closeDrawer(){ drawerHtml=null; dmask.style.display='none'; drawer.style.display='none' }
+  function closeDrawer(){ drawerHtml=null; dmask.style.display='none'; drawer.style.display='none';
+    MF=null; if(mfCtl){ mfCtl.destroy(); mfCtl=null } mfDrawer.hidden=true; mfDrawer.innerHTML='' }
+  // ── The memory file drawer: the shared file-drawer form around the shared md-preview block. MF = the index in
+  //    MFILES open in it; MFREAD = the demo's read state, applied to every file ──
+  const mfDrawer=document.getElementById('mfDrawer'); let mfCtl=null, MF=null, MFREAD='ok';
+  const mfNotice=()=>MFREAD==='loading'?()=>T[LANG].memLoading:MFREAD==='failed'?()=>T[LANG].memUnreadable(T[LANG].memUnreadableDetail):null;
+  function paintMfChrome(){
+    const f=MFILES[MF];
+    mfDrawer.querySelector('.drawer-close').title=T[LANG].close;
+    mfDrawer.querySelector('.d-title').textContent='Transfer';
+    mfDrawer.querySelector('.d-meta').textContent=T[LANG].memDrawerMeta('Claude',f.f,T[LANG][f.at]);
+  }
+  // Opens a file, or switches the open drawer to another file of the directory: the new file starts in preview,
+  // scrolled to the top
+  function showMemFile(j){
+    if(drawerHtml){ drawerHtml=null; drawer.style.display='none' }
+    MF=j; const f=MFILES[j], next={name:f.f,text:MFREAD==='empty'?'':f.body,mode:'preview',notice:mfNotice()};
+    if(!mfCtl){
+      dmask.style.display='block'; mfDrawer.hidden=false;
+      mfDrawer.innerHTML=`<button type="button" class="drawer-close" data-mf-close>${ICONS.X(15)}</button>
+        <div class="d-top"><div class="d-title"></div><div class="d-meta"></div></div>
+        <div class="d-body"><div id="mfPane" data-shared-block="md-preview"></div></div>`;
+      mfCtl=MdPreview.mount(document.getElementById('mfPane'),next);
+    } else mfCtl.set(next);
+    paintMfChrome();
+    mfDrawer.querySelector('.md-preview-body').scrollTop=0;
+  }
+  /** Where a link in a memory file leads: the index of a file of the directory, or a notice. An external link is
+   * handed to the system browser (here, a new tab); an anchor scrolls; a relative link resolves against the
+   * directory (. and .. handled, the fragment dropped) and opens only a file the directory lists */
+  function followMemLink(e,a){
+    const href=a.getAttribute('href'); if(href.startsWith('#')) return;
+    e.preventDefault();
+    if(/^https?:\/\//i.test(href)){ window.open(href,'_blank','noopener'); return }
+    if(/^[a-z][a-z0-9+.-]*:/i.test(href)){ Toast.show('err',T[LANG].linkProtocolUnsupported); return }
+    const parts=MDIR.split('/');
+    for(const seg of href.split('#')[0].split('/')){ if(seg===''||seg==='.')continue; if(seg==='..')parts.pop(); else parts.push(seg) }
+    const j=MFILES.findIndex(f=>`${MDIR}/${f.f}`===parts.join('/'));
+    if(j<0){ Toast.show('err',T[LANG].linkOutOfScope); return }
+    showMemFile(j);
+  }
+  mfDrawer.addEventListener('click',e=>{
+    if(e.target.closest('[data-mf-close]')){ closeDrawer(); return }
+    const a=e.target.closest('.md-preview-body a[href]'); if(a) followMemLink(e,a);
+  });
   dmask.onclick=closeDrawer;
   addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
   // Rendered markdown links are always intercepted and never allowed to navigate the whole window (all app
     // state would be lost)
   document.querySelector('.body').addEventListener('click',e=>{
     const a=e.target.closest('.md a[href]');
-    if(a){ e.preventDefault();
-      const href=a.getAttribute('href');
-      if(/^https?:/.test(href)){ openDrawer(()=>`<h2>${T[LANG].extLink}</h2><div class="meta">${href}</div>
-        <div class="none">${T[LANG].extOpen}</div>`); return }
-      const i=MTOPICS.findIndex(t=>t.f===href);
-      if(i<0){ openDrawer(()=>`<h2>${href}</h2><div class="meta">${T[LANG].relLink}</div>
-        <div class="none">${T[LANG].outOfScope}</div>`); return }
-      const t=MTOPICS[i];
-      openDrawer(()=>`<h2>${t.f}</h2><div class="meta">${T[LANG].topicMeta(T[LANG][t.at])}${T[LANG].viaMain}</div><div class="raw">${t.body}</div>`);
-      return }
+    if(a){ followMemLink(e,a); return }
     const sa=e.target.closest('[data-sa]');
     if(sa){ const a=SUBAGENTS[+sa.dataset.sa];
       openDrawer(()=>`<h2>${a.n}</h2><div class="meta">${a.lv==='project'?T[LANG].pillProject:T[LANG].pillGlobal} · ${a.side}${a.fl?' · '+T[LANG].saFl[a.fl]:''}</div>
         <div class="kv">${a.kv.map(([k,v])=>`<span class="k2">${k}</span><span>${val(v)}</span>`).join('')}</div>
         <div class="raw">${a.body}</div>`); return }
     const mt=e.target.closest('[data-mt]');
-    if(mt){ const t=MTOPICS[+mt.dataset.mt];
-      openDrawer(()=>`<h2>${t.f}</h2><div class="meta">${T[LANG].topicMeta(T[LANG][t.at])}</div><div class="raw">${t.body}</div>`); return }
+    if(mt){ showMemFile(+mt.dataset.mt+1); return }
     const pg=e.target.closest('[data-pg]');
     if(pg){ const i=+pg.dataset.pg, next=pg.nextElementSibling;
       if(next&&next.classList.contains('exp')){ next.remove(); return }
@@ -830,6 +894,10 @@
     scope=e.target.dataset.sc; renderSessions();
   });
   document.getElementById('harness').addEventListener('click',e=>{
+    const r=e.target.closest('[data-r]');
+    if(r){ MFREAD=r.dataset.r;
+      document.querySelectorAll('[data-r]').forEach(x=>x.setAttribute('aria-pressed',String(x===r)));
+      if(MF!==null) showMemFile(MF); return }
     const b=e.target.closest('[data-se]'); if(!b) return;
     document.querySelectorAll('[data-se]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
     sempty=b.dataset.se==='empty'; renderSessions();
@@ -856,6 +924,7 @@
     applyI18n(); ovApply(); renderArts(); renderSessions();
     document.querySelectorAll('#plist .exp').forEach(x=>{ x.innerHTML=pcontents(+x.previousElementSibling.dataset.pg) });
     if(drawerHtml) drawer.innerHTML=drawerHtml();
+    if(MF!==null){ paintMfChrome(); mfCtl.set({}) }
     if(cfgSel==='settings') renderCfg();
   });
 </script>

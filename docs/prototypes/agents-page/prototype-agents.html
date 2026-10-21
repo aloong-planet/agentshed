@@ -45,13 +45,24 @@
        对照)。骨架期间整块不可交互(tab / 时间窗卡都不可点),rail 照常。骨架照 app 的 Agents 启动骨架摆:哪个数据位
        放什么占位、多宽多高都与它一一对应,占位样式在共享件 _shared/startup-skeleton.css 里。骨架与正式内容共用本页的中英文案;
        原骨架页另画过的法、俄、西、日四种语言不再单独画出,与本页其余部分一样按英文显示并有提示。
+     2026-10-21 (the memory drawer previews Markdown): a memory file opens in the file drawer — the same form as the
+       skill file drawer, drawn from the shared _shared/file-drawer.css: a close button, the memory's owner as the
+       title (the project, or the Codex global memory) with the side (its short name, as the skill drawer's meta has
+       it), the file and its modified time under it, and the
+       shared md-preview block — the file's name, the raw / preview switch (preview by default), the body. The front
+       matter shows as a key-value card (a nested key folds into its parent's value). A link to another file of the
+       same memory directory switches the drawer to that file, which opens in preview again; an external link goes
+       to the system browser (here, a new tab); anything else gets the app's error toast (shared _shared/toast.css /
+       toast.js); [[name]] references stay plain text. The body's read states (loading, could not read, empty file)
+       show inside the same frame. Mock file contents follow the shape of real memory files.
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于
        页面内容流)承载三组开关,按分栏出现——「启动」四档常驻(骨架 / 扫描中 / 完成 / 失败,共享件
        _shared/startup-status;真实判定 = 渲染器是否已收到首个快照与扫描的结果;选骨架时其余各组隐去,它们
        演示的都是已载入的内容);「用量」三态常驻(有数据 / 本日无用量 / 全空;
        第二态是最容易漏掉却最常见的那个:早上打开时本日为 0 而历史不为 0,形态与全空不同——侧卡仍报
        已检测、其余三个窗口仍有数;真实判定 = 本机记下的 token 用量);Memory 分栏是「Codex 记忆」四态
-       (真实判定 = config.toml features.memories × 目录内容)。每组的真实判定与「app 内无此开关」写在演示条的
+       (真实判定 = config.toml features.memories × 目录内容),以及「Memory file read」四态(read / loading / could not
+       read / empty;真实判定 = 读取该文件的结果)。每组的真实判定与「app 内无此开关」写在演示条的
        说明行里。
        演示状态同时作用到趋势图:卡说本日 0 而图上今天那根柱还有高度,是自相矛盾的原型,教错东西。
      界面语言、明暗与配色跟随设置原型(appearance)与画廊的统一设置所选,本页不设开关;本页画了中、英两种,其他语言按英文
@@ -71,6 +82,10 @@
 <link rel="stylesheet" href="../_shared/totals-card.css">
 <!-- The startup skeleton's placeholders (shared) -->
 <link rel="stylesheet" href="../_shared/startup-skeleton.css">
+<!-- The memory file drawer: the shared file drawer around the shared md-preview block, and the app's toast -->
+<link rel="stylesheet" href="../_shared/md-preview.css">
+<link rel="stylesheet" href="../_shared/file-drawer.css">
+<link rel="stylesheet" href="../_shared/toast.css">
 <style>
   /* app token(含构成三段 --tc-*、侧徽章 --cl/cx/gk-*、语义 --ok/--warn-*)全部取自 _shared/theme.css,
      本页不重定义任何 app token,故每套配色与明暗都与其余原型页一致 */
@@ -181,6 +196,9 @@
 <script src="../app-identity.js"></script>
 <script src="../_shared/icons.js"></script>
 <script src="../_shared/copy.js"></script>
+<script src="../vendor/marked.umd.js"></script>
+<script src="../_shared/md-preview.js"></script>
+<script src="../_shared/toast.js"></script>
 </head>
 <body>
 <div class="app-window" data-shared-block="app-window">
@@ -324,6 +342,8 @@
   </div>
   <div class="mask" id="dmask"></div>
   <div class="drawer" id="drawer"></div>
+  <div class="file-drawer" id="mfDrawer" data-shared-block="file-drawer" hidden></div>
+  <div class="toasts" data-shared-block="toast"></div>
 </div>
   <!-- The demo harness floating layer: not part of the design, independent of the product page. Built once;
        the script below only moves aria-pressed and hidden: the Codex memory group shows on the Memory tab
@@ -348,8 +368,18 @@
         <button type="button" class="dh-opt" data-v="off-has" aria-pressed="false">关·遗留文件</button>
       </div>
     </div>
+    <div class="dh-group" id="demoMfRead" hidden>
+      <span class="dh-title">Memory file read</span>
+      <div class="dh-opts">
+        <button type="button" class="dh-opt" data-r="ok" aria-pressed="true">read</button>
+        <button type="button" class="dh-opt" data-r="loading" aria-pressed="false">loading</button>
+        <button type="button" class="dh-opt" data-r="failed" aria-pressed="false">could not read</button>
+        <button type="button" class="dh-opt" data-r="empty" aria-pressed="false">empty file</button>
+      </div>
+    </div>
     <p class="dh-note">启动各档在 app 里由渲染器是否已收到这次启动的首个快照、以及扫描的结果决定;app 内没有这个开关。</p>
     <p class="dh-note" id="demoUsageNote">用量三态在 app 里由本机记下的 token 用量决定(有没有记录、本日有没有用量);app 内没有这个开关。</p>
+    <p class="dh-note" id="demoMfReadNote" hidden>The memory file read states come from reading the file the drawer opens; they apply to every file here. The app has no such switch.</p>
     <p class="dh-note" id="demoCxmemNote" hidden>Codex 记忆四态在 app 里由 Codex 的 config.toml features.memories 与记忆目录里的文件决定;app 内没有这个开关。</p>
   </div>
 <script>
@@ -599,11 +629,20 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     {n:'(broken.toml)',sides:'x',flag:'parseFailed',desc:null,err:'errToml'},
     {n:'locked',sides:'c',flag:'unreadable',desc:null,err:'errUnreadable'}
   ];
+  // Memory file contents in the shape of real ones: an index of links to its topics; topics with front matter
+  // (name / description / a nested metadata.type), Why / How to apply sections, [[name]] references and links of
+  // every kind — to a sibling, to the index, external, and to a file the directory does not list; Codex's
+  // consolidated memory with headings and file paths written as plain text
+  const MEM_INDEX='# Memory Index\n\n- [开 PR 后等确认才合并](pr-merge-needs-confirmation.md) — 开 PR 不构成合并授权\n- [验证网关退出码](verify-exit-code.md) — 管道与分号链两种吞码形态都禁\n';
+  const MEM_PR='---\nname: pr-merge-needs-confirmation\ndescription: 开 PR 不构成合并授权;用户确认后 squash 合并并删远程分支\nmetadata:\n  type: feedback\n---\n\n开 PR 即停,等用户在当轮明确说合并再执行。\n\n**Why:** CI 全绿只是合并的前置条件,不是批准;一次「看起来没问题」就合并,撤回要改默认分支的历史。\n\n**How to apply:**\n- 开完 PR 停下,回报链接与 CI 状态\n- 用户确认后 `gh pr merge --squash --delete-branch`\n- 上一轮的「合了吧」不覆盖这一轮的新 PR\n\n相关:[[verify-exit-code]] · [验证网关退出码](verify-exit-code.md) · 回到[索引](MEMORY.md) · [GitHub 文档](https://docs.github.com/en/pull-requests) · [旧笔记](old-notes.md)\n';
+  const MEM_EXIT='---\nname: verify-exit-code\ndescription: 验证网关的退出码不得被管道或分号链吞掉\nmetadata:\n  type: feedback\n---\n\n跑 `pnpm verify` 时,退出码必须直接挡住后续动作。\n\n## 两种吞码形态\n\n| 形态 | 例子 | 结果 |\n|---|---|---|\n| 管道 | `pnpm verify \\| tail` | 退出码是 tail 的 |\n| 分号链 | `pnpm verify; echo done` | 失败照样往下走 |\n\n```sh\npnpm verify > verify.log 2>&1; echo "exit=$?"\n```\n\n> 输出要截断就先写进文件,拿到退出码之后再读。\n\n见 [[pr-merge-needs-confirmation]]。\n';
+  const MEM_CODEX='# Task Group: release pipeline\n\nscope: How the release workflow signs, notarises and publishes the macOS build.\n\n## Task 1: Fix the notarisation step, success\n\n### rollout_summary_files\n\n- rollout_summaries/2026-07-26T09-12-40-release_notarise_fix.md (cwd=~/CascadeProjects/agentshed)\n\n### keywords\n\n- notarytool, stapler, Developer ID\n';
   // at = [数, 单位](h 小时 / d 天 / w 周 / mo 月),按当前语言拼成相对时间;codex 条目的名字是界面文案,不在 p 里
   const MEM=[
     {p:'agentshed',path:'~/CascadeProjects/agentshed',side:'c',main:true,topics:1,at:[2,'h'],
-     files:[{f:'MEMORY.md',at:[2,'h'],body:'# MEMORY\n\n- 用户偏好 pnpm;dev 模式勿重启。\n- 验证网关:pnpm verify。'},
-            {f:'pr-merge-needs-confirmation.md',at:[2,'h'],body:'# PR 合并需确认\n\n开 PR 即停,等确认后才准合并。'}]},
+     files:[{f:'MEMORY.md',at:[2,'h'],body:MEM_INDEX},
+            {f:'pr-merge-needs-confirmation.md',at:[2,'h'],body:MEM_PR},
+            {f:'verify-exit-code.md',at:[1,'d'],body:MEM_EXIT}]},
     {p:'Transfer',path:'~/CascadeProjects/Transfer',side:'c',main:false,topics:5,at:[3,'d'],
      files:[{f:'agentshed-project-naming.md',at:[3,'d'],body:'# 项目命名\n\nAgentDex → Agentshed…(mock 略)'},
             {f:'claude-shell-snapshot-vars-gotcha.md',at:[1,'w'],body:'(mock 略)'}]},
@@ -612,7 +651,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     {p:'practice-vpn',path:'~/practice/vpn',side:'c',hidden:true,main:true,topics:0,at:[1,'mo'],
      files:[{f:'MEMORY.md',at:[1,'mo'],body:'(mock 略)'}]},
     {p:null,path:'~/.codex/memories',side:'x',codex:true,main:null,topics:3,at:[5,'d'],
-     files:[{f:'2026-07-26-consolidated.md',at:[5,'d'],body:'(Codex 生成态记忆,mock 略)'}]}
+     files:[{f:'2026-07-26-consolidated.md',at:[5,'d'],body:MEM_CODEX}]}
   ];
   const memName = (m) => m.codex ? tr().codexGlobalMemory : m.p;
   const ago = (at) => tr().ago(...at);
@@ -639,7 +678,55 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
   const $=(id)=>document.getElementById(id);
   const dmask=$('dmask'), drawer=$('drawer');
   function openDrawer(html){ dmask.style.display='block'; drawer.style.display='block'; drawer.innerHTML=html }
-  function closeDrawer(){ dmask.style.display='none'; drawer.style.display='none'; SA=null; MF=null }
+  function closeDrawer(){ dmask.style.display='none'; drawer.style.display='none'; SA=null; MF=null;
+    if(mfCtl){ mfCtl.destroy(); mfCtl=null } mfDrawer.hidden=true; mfDrawer.innerHTML='' }
+  // ── The memory file drawer: the shared file-drawer form around the shared md-preview block. MF = [entry, file]
+  //    open in it; MFREAD = the demo's read state, applied to every file ──
+  const mfDrawer=$('mfDrawer'); let mfCtl=null, MFREAD='ok';
+  const SIDE_NAME={c:'Claude',x:'Codex'};
+  const memDir=(m)=>m.codex?m.path:`${m.path}/memory`;
+  const mfNotice=()=>MFREAD==='loading'?()=>tr().memLoading:MFREAD==='failed'?()=>tr().memUnreadable(tr().memUnreadableDetail):null;
+  function paintMfChrome(){
+    const [i,j]=MF, m=MEM[i], f=m.files[j];
+    mfDrawer.querySelector('.drawer-close').title=tr().close;
+    mfDrawer.querySelector('.d-title').textContent=memName(m);
+    mfDrawer.querySelector('.d-meta').textContent=tr().memDrawerMeta(SIDE_NAME[m.side],f.f,ago(f.at));
+  }
+  // Opens a file, or switches the open drawer to another file of the same directory: the new file starts in
+  // preview, scrolled to the top
+  function showMemFile(i,j){
+    MF=[i,j]; SA=null; const f=MEM[i].files[j], next={name:f.f,text:MFREAD==='empty'?'':f.body,mode:'preview',notice:mfNotice()};
+    if(!mfCtl){
+      dmask.style.display='block'; mfDrawer.hidden=false;
+      mfDrawer.innerHTML=`<button type="button" class="drawer-close" data-mf-close>${ICONS.X(15)}</button>
+        <div class="d-top"><div class="d-title"></div><div class="d-meta"></div></div>
+        <div class="d-body"><div id="mfPane" data-shared-block="md-preview"></div></div>`;
+      mfCtl=MdPreview.mount($('mfPane'),next);
+    } else mfCtl.set(next);
+    paintMfChrome();
+    mfDrawer.querySelector('.md-preview-body').scrollTop=0;
+  }
+  /** A relative link's target, resolved against the memory directory (. and .. handled, the fragment dropped) */
+  function resolveIn(dir,href){
+    const parts=dir.split('/');
+    for(const seg of href.split('#')[0].split('/')){ if(seg===''||seg==='.')continue; if(seg==='..')parts.pop(); else parts.push(seg) }
+    return parts.join('/');
+  }
+  // A link in the preview: to another file of this directory → the drawer switches to it; external → the system
+  // browser (here, a new tab); an anchor scrolls; any other protocol, or a file the directory does not list →
+  // the app's error toast
+  mfDrawer.addEventListener('click',e=>{
+    if(e.target.closest('[data-mf-close]')){ closeDrawer(); return }
+    const a=e.target.closest('.md-preview-body a[href]'); if(!a) return;
+    const href=a.getAttribute('href'); if(href.startsWith('#')) return;
+    e.preventDefault();
+    if(/^https?:\/\//i.test(href)){ window.open(href,'_blank','noopener'); return }
+    if(/^[a-z][a-z0-9+.-]*:/i.test(href)){ Toast.show('err',tr().linkProtocolUnsupported); return }
+    const [i]=MF, m=MEM[i], dir=memDir(m), target=resolveIn(dir,href);
+    const j=m.files.findIndex(f=>`${dir}/${f.f}`===target);
+    if(j<0){ Toast.show('err',tr().linkOutOfScope); return }
+    showMemFile(i,j);
+  });
   dmask.onclick=closeDrawer;
   addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
   const sideB=(s)=>(s.includes('c')?'<span class="b c">CC</span>':'<span class="b miss">—</span>')
@@ -663,10 +750,6 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
   function memFilesHtml(i){
     return `<div class="sub-list">${MEM[i].files.map((f,j)=>
       `<div class="it row-btn" data-mf="${i}-${j}"><span class="nm" style="flex:1">${f.f}</span><span class="src">${ago(f.at)}</span></div>`).join('')}</div>`;
-  }
-  function mfDrawerHtml(){
-    const [i,j]=MF, m=MEM[i], f=m.files[j];
-    return `<h2>${f.f}</h2><div class="meta">${memName(m)} · ${m.path}/memory · ${ago(f.at)}</div><div class="raw">${f.body}</div>`;
   }
   function renderMemory(){
     const showCx = CXMEM==='on-has'||CXMEM==='off-has';
@@ -695,12 +778,16 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     const on=document.querySelector('#tabs .tab.on')?.dataset.t, sk=!$('skMain').hidden;
     $('demoUsage').hidden=$('demoUsageNote').hidden=sk;
     $('demoCxmem').hidden=$('demoCxmemNote').hidden=sk||on!=='memory';
+    $('demoMfRead').hidden=$('demoMfReadNote').hidden=sk||on!=='memory';
+    $('harness').querySelectorAll('[data-r]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.r===MFREAD)));
     $('harness').querySelectorAll('[data-e]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.e===DEMO)));
     $('harness').querySelectorAll('[data-v]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===CXMEM)));
   }
   $('harness').addEventListener('click',e=>{
     const em=e.target.closest('[data-e]')?.dataset.e;
     if(em!==undefined){ DEMO = em; applyRange(); syncHarness(); return }
+    const r=e.target.closest('[data-r]')?.dataset.r;
+    if(r!==undefined){ MFREAD=r; if(MF!==null) showMemFile(...MF); syncHarness(); return }
     const v=e.target.closest('[data-v]')?.dataset.v; if(!v)return;
     CXMEM=v; renderMemory(); syncHarness();
   });
@@ -745,13 +832,13 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
   StartupStatus.withSkeleton(showSkeleton);
   document.querySelector('.body').addEventListener('click',e=>{
     const sa=e.target.closest('[data-sa]');
-    if(sa){ SA=+sa.dataset.sa; MF=null; const a=SUBAGENTS[SA]; SIDE=a.cl?'c':'x'; openDrawer(saDrawerHtml()); return }
+    if(sa){ closeDrawer(); SA=+sa.dataset.sa; const a=SUBAGENTS[SA]; SIDE=a.cl?'c':'x'; openDrawer(saDrawerHtml()); return }
     const mem=e.target.closest('[data-mem]');
     if(mem){ const i=+mem.dataset.mem;
       if(MEM_OPEN.has(i)) MEM_OPEN.delete(i); else MEM_OPEN.add(i);
       renderMemory(); return }
     const mf=e.target.closest('[data-mf]');
-    if(mf){ MF=mf.dataset.mf.split('-').map(Number); SA=null; openDrawer(mfDrawerHtml()); return }
+    if(mf){ const [i,j]=mf.dataset.mf.split('-').map(Number); showMemFile(i,j); return }
     const plg=e.target.closest('[data-plg]');
     if(plg){ const i=+plg.dataset.plg;
       if(PLG_OPEN.has(i)) PLG_OPEN.delete(i); else PLG_OPEN.add(i);
@@ -788,7 +875,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
     applyI18n(); renderTotals(); renderModels(); renderSubagents(); renderMemory(); renderPlugins(); renderSkeleton();
     if (CFG === 'toml') document.getElementById('cfgbody').innerHTML = tomlHtml();
     if (SA !== null) drawer.innerHTML = saDrawerHtml();
-    else if (MF !== null) drawer.innerHTML = mfDrawerHtml();
+    else if (MF !== null) { paintMfChrome(); mfCtl.set({}) }
   });
 </script>
 <script>

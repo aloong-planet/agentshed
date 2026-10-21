@@ -474,6 +474,13 @@ export function validateProjectDetail(v: unknown): ValidateResult {
   const mem = v['memory']
   if (!isRecord(mem)) return failType('detail.memory', 'object')
   if (mem['main'] !== null && !isCapped(mem['main'])) return failType('detail.memory.main', 'CappedText|null')
+  const mainFile = mem['mainFile']
+  if (mainFile !== null) {
+    if (!isRecord(mainFile)) return failType('detail.memory.mainFile', 'object|null')
+    if (!str(mainFile['name'])) return failType('detail.memory.mainFile.name', 'string')
+    if (typeof mainFile['file'] !== 'string' || mainFile['file'] === '') return failType('detail.memory.mainFile.file', 'string(non-empty)')
+    if (typeof mainFile['mtimeMs'] !== 'number') return failType('detail.memory.mainFile.mtimeMs', 'number')
+  }
   const topics = eachOf(mem['topics'], 'detail.memory.topics', (t, at) => {
     if (!str(t['name'])) return failType(`${at}.name`, 'string')
     if (typeof t['file'] !== 'string' || t['file'] === '') return failType(`${at}.file`, 'string(non-empty)')
