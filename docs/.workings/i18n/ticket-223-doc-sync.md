@@ -7,12 +7,13 @@ Scope checked on 2026-10-21, on the branch after merging main at 9b7bb13: `READM
 `CONTEXT.md`, `capabilities.toml`, `docs/` (features, specs, ADR, prototypes, agents), `docs/.workings/`
 (hidden and ignored files included), `scripts/`, `src/`, `.github/`. Search terms: `SKILL_TOOLING`,
 `GALLERY_SHELL`, `mockupOnly`, `gallery shell`, `tooling beside`, `prototypes/index.html`, `check-lang`,
-`check:lang`, `check-raw-nul.test`, `test:scripts`. Searched with `rg -uu`, which reads hidden and ignored files and does not skip binary files
-silently. Excluded: `node_modules/` and `.git/`.
+`check:lang`, `check-raw-nul.test`, `test:scripts`. Searched with `rg -uu -a`: `-uu` reads hidden and ignored files, and `-a` reads binary files, which
+`rg` otherwise skips silently (the same 97 files matched with and without it). Excluded: `node_modules/` and `.git/`.
 
 | Sync item and trigger | Documents | Status and notes |
 |---|---|---|
 | Declare this ticket's artifact paths; before the PR opens | [#223](https://github.com/aloong-planet/agentshed/issues/223) | Done — [comment](https://github.com/aloong-planet/agentshed/issues/223#issuecomment-6119569122) |
+| Replace PR #225's title and description with this round's change and evidence (the narrowing for four copies, the test, the second full gateway); before this round is pushed | [#225](https://github.com/aloong-planet/agentshed/pull/225) | Done — replaced on 2026-10-21 before the push, so that the message-language check runs once, on the final description |
 | Report the merge on the ticket (merge commit, and whether the merged tree equals the PR head), and close it; after #225 merges | [#223](https://github.com/aloong-planet/agentshed/issues/223) | Done — completes with #225's merge: `Closes #223` closes it, and the comment is the tracker write-back that follows the merge |
 
 Pre-delivery scope re-check (2026-10-21):
@@ -44,4 +45,5 @@ Pre-delivery scope re-check (2026-10-21):
 - Raw evidence that quotes Chinese stays untracked, because a tracked file there would itself fail the
   working-language gate: `red-before-copy.log`, `mutation-M1-shell-title.log`, `mutate.sh` and
   `logic-pages-vs-template.diff`, in `docs/.workings/i18n/ticket-223-evidence/` of the main checkout, where
-  `logic-pages-vs-template.diff` stays while #226 relies on it. This round's logs escape Chinese as `\u{XXXX}` instead, so they are committed.
+  `logic-pages-vs-template.diff` stays while #226 relies on it. This round's logs escape Chinese as `\u{XXXX}` instead, so they are committed with `git add -f`, the two
+  full gateway logs and the test-mutation logs in `rerun-2026-10-21/test-mutations/` included.

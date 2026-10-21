@@ -114,6 +114,10 @@ No new input or output path; the gate reads the repository's own files, as befor
     cannot match `:20`.
   - `git add -A` needs no Git identity, since nothing is committed.
   - Ten cases took 2.4 s.
+  - Seen red, after the incremental test check asked for it (its F9): four one-off mutations of the gate.
+    They removed the narrowing, misspelled an entry, named `manifest.js`, and made `.mjs` exempt. Each failed
+    exactly the tests written down for it beforehand, and the gate was restored byte for byte after each
+    (`ticket-223-evidence/rerun-2026-10-21/test-mutations/`).
   - The test file holds no Chinese of its own: the gate's pattern finds 0 lines. In the repository's own run
     the gate therefore skips it, and it does not need an exemption.
 - **③ Security — no finding.** The test writes only inside directories it creates under the system's

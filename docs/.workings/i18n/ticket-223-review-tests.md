@@ -35,7 +35,7 @@
 |---|---|---|---|---|---|
 | T0 seeds only | the fixture itself: every rule matched, nothing else red | the eight seeds | exit 0, `8 line(s)`: one line per seed, counted by hand | the seeds | none |
 | R1–R4 a named copy | ticket #223 Fix 2 and Verification ("a Chinese string added to `index.html` turns `check:lang` red"); spec Further Notes, "not the tooling beside it"; this round's three copies | seeds plus one of `docs/prototypes/index.html`, `app-identity.js`, `demo-dimensions.js`, `demo-harness.js`, holding an English first line and a Chinese comment on line 2 | exit 1, `found 1 problem(s)`, the problem `docs/prototypes/<file>:2`, and the prototype rule's reason "the tooling beside it gets no exemption". The four paths come from the hash check of the skill's assets against every tracked file, not from `SKILL_TOOLING` | paths from the repository's file list; content one comment line, since the predicate decides by path and by line | none |
-| R5 `sync-mmd.mjs` | the gate's comment: the fifth copy needs no entry, because `.mjs` is not an exempt type | seeds plus `docs/prototypes/sync-mmd.mjs` with a Chinese comment on line 2 | as R1–R4 | as R1–R4 | none |
+| R5 `sync-mmd.mjs` | the gate's comment: the fifth copy needs no entry, because `.mjs` is not an exempt type | seeds plus `docs/prototypes/sync-mmd.mjs` with a Chinese comment on line 2 | exit 1, `found 1 problem(s)`, the problem `docs/prototypes/sync-mmd.mjs:2`. The reason is not asserted: R5 guards the file type, and under `docs/prototypes/` the prototype rule is the only rule that can report the line (row revised for F5, below) | as R1–R4 | none |
 | P1 a mockup page | ticket Verification ("one in a mockup page does not") | seeds plus `docs/prototypes/shell/prototype-app-shell.html` with a Chinese line | exit 0, `9 line(s)`: the seeds' 8 plus this line, which shows the file was read and the line permitted, not skipped | as R1–R4 | none |
 | P2 a logic page named `index.html` | the copies are named by path, not by basename | seeds plus `docs/prototypes/project-list/visibility/index.html` | as P1 | as R1–R4 | none |
 | P3 `manifest.js` | ticket Fix 2 ("`manifest.js` … stays exempt") | seeds plus `docs/prototypes/manifest.js` | as P1 | as R1–R4 | none |
@@ -234,11 +234,15 @@ Dispositions (2026-10-21, after the check above returned):
 
 - F1: the owner chose to add the test in this pull request. It is `scripts/check-lang.test.mjs`, run by
   `pnpm check:lang`, designed in "Design review — 2026-10-21" above and reviewed in the code review's second
-  pass.
-- F2: settled with F1. The design review was written before the test, starting from 39f9763.
+  pass. Closed by the incremental check below: the test exists, `pnpm check:lang` runs it in the gateway and
+  in CI, and it covers the T and G cases. Its open points are F5 and F9 below.
+- F2: settled with F1. The design review was written before the test, starting from 39f9763. The repository
+  cannot show that order (gap V1 below).
 - F3: the document sync checklist's scope re-check is redone for 2026-10-21, and it states where the four
-  untracked files live.
-- F4: the pull request's title and description are replaced with this round's at delivery.
+  untracked files live. The redone re-check has two errors of its own, F7 and F8 below.
+- F4: the pull request's title and description are replaced with this round's at delivery. Still open on
+  2026-10-21: PR #225's head is e9db914 and its body is the 2026-10-12 evidence. No checklist row tracks it
+  (F10 below).
 - O2: the runner is kept beside the log as `rerun-2026-10-21/run-gate.mjs`.
 - O3: carried by [#296](https://github.com/aloong-planet/agentshed/issues/296) with the code review's refactor
   item.
@@ -246,7 +250,8 @@ Dispositions (2026-10-21, after the check above returned):
 Observations, no change required this round:
 
 - O1: `mutate.mjs` judges each case by its exit code alone, so attribution was checked by reading each red
-  log. A reuse of the script, or F1's test, should assert the problem's file and line as well.
+  log. A reuse of the script, or F1's test, should assert the problem's file and line as well. F1's test
+  does (`<file>:2 ` in R1–R5), so O1 is met for it.
 - O2: the full gateway log records each exit code but not the runner that wrote it. Keeping the runner beside
   the log, as `mutate.mjs` is kept, would let a reviewer confirm that no pipe was involved.
 - O3: an entry in `SKILL_TOOLING` that matches no file is not reported, unlike the gate's rules ("rule matches
@@ -266,6 +271,227 @@ Observations, no change required this round:
   check's findings, and none is missing. The sync obligations are F3 (the checklist) and F4 (the pull request
   description). A test added for F1 is recorded here; no authoritative document describes the gate's tests,
   so it adds no checklist item.
+
+## Post-implementation check — 2026-10-21, incremental (39f9763..217404a)
+
+- Version: branch `fix/gallery-shell-language` at 217404a, `git status` clean. The fix range 39f9763..217404a
+  is one commit, 217404a ("Keep the prototype exemption's narrowing under test"). The change as a whole is
+  e9db914..217404a; against main (`git diff 9b7bb13 217404a`) it adds `scripts/check-lang.test.mjs` and the
+  `check:lang` script in `package.json` to what the first post-implementation round reviewed.
+- Executed by an independent reviewer that did not inherit the implementation conversation and loaded
+  `/review-tests` itself, under its incremental-check clause. Ticket aloong-planet/agentshed#223; this
+  record's path is the one the ticket's artifact comment declares.
+- Capability declaration, read with smol-toml: every registered ID is present, with no unregistered ID or
+  field. Per the project capability declaration, `mutation-testing` is not enabled (`enabled = false`), so
+  mutation testing is skipped, and this check made no temporary edit. `lint` and `e2e-suite` are enabled.
+
+### Incremental scope
+
+1. `git diff --name-only 39f9763 217404a`: six files — `docs/.workings/i18n/ticket-223-doc-sync.md`,
+   `ticket-223-evidence/rerun-2026-10-21/targeted-test.log`, `ticket-223-review-code.md`,
+   `ticket-223-review-tests.md`, `package.json`, `scripts/check-lang.test.mjs`.
+2. Tests changed in the range, filtered with `\.test\.|\.spec\.|(^|/)e2e/|(^|/)test/`:
+   `scripts/check-lang.test.mjs` (new, 10 cases).
+3. Tests that depend on test helper code changed in the range: none. No shared setup, fixture or helper is
+   among the six files. Import search: every test file that `git ls-files --cached --others
+   --exclude-standard` lists under the same filter (102 files, 1,224,522 bytes, every one read) was searched
+   as whole text. `check-lang\.test`, `ticket-223` and `targeted-test`: 0 hits. `package\.json`: 4 hits, none
+   a helper import — `e2e/app.spec.ts:1611` and `e2e/token-span.spec.ts:228` read the repository's `version`,
+   which the range does not change, and `build/mac-packaging.test.cjs:887` and
+   `scripts/release-tag.test.mjs:37` write their own `package.json` in a temporary directory. `\.workings`: 1
+   hit, `e2e/startup-restore.spec.ts` writing screenshots under `docs/.workings/startup-restore/`.
+   `review-tests|review-code|doc-sync`: 4 hits, skill names used as fixture strings. Control:
+   `check-raw-nul\.mjs` hits `scripts/check-raw-nul.test.mjs`.
+4. Test design table rows changed in the range: all of "Design review — 2026-10-21" (T0, R1–R4, R5, P1–P4),
+   added by 217404a.
+
+Outside that scope, the conclusions of "Post-implementation check — 2026-10-21" (the first round, on 604e0ef)
+carry over unchanged for the mutation-run cases C0, T1–T5, G1–G5 and N1–N3, in all four dimensions.
+`git diff --stat 39f9763 217404a -- scripts/check-lang.mjs scripts/lib
+docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/mutate.mjs docs/prototypes` is empty: the gate, its
+library, the mutation script and the prototypes are as that round saw them.
+
+### Run evidence
+
+- Targeted verification, `rerun-2026-10-21/targeted-test.log`: it has every item the gateway's log rules
+  require (HEAD, `git status` with `git hash-object` per file, each command, the exit code from `spawnSync`
+  in `run-gate.mjs`, the full output). It runs typecheck, lint, `check:lang` (the 10 cases, then 2554
+  permitted lines) and `check:nul`, each exit 0. Its recorded version is not 217404a's (F6).
+- Full gateway, `rerun-2026-10-21/full-gateway-2.log`, read in full (676 lines): HEAD 217404a, status clean.
+  Every `pnpm verify` stage is its own command: typecheck, lint, test (869 passed, 1 skipped), test:scripts
+  (135), test:site (`astro check` 0 errors, 102 tests), check:ui, check:lang (the 10 cases pass, then 2554
+  permitted lines, prototype rule on 38 files), check:i18n, check:nul (8 tests, 744 files), e2e (148 passed)
+  and smoke. Each exits 0, and so does the whole. The log is not committed (F7).
+- This check's own run of the review object, for the "when does it go red" answers: `node --test
+  scripts/check-lang.test.mjs` on 217404a, `git status` empty before and after: 10 of 10 pass, 215–264 ms
+  each. Not kept; no conclusion rests on it alone.
+
+### Comparing the written test with the test design table
+
+| Row | Test lines | Seam, driving input, assertion, fixture, resource | Result |
+|---|---|---|---|
+| T0 | 54–58 | the gate's CLI in a fresh `git init` directory; the eight seeds (24–33); exit 0 and `Working language: 8 line(s)`; no resource | matches |
+| R1–R4 | 60–73 | seeds plus the named file; `withChinese` (36) writes an English or doctype first line and a Chinese comment on line 2; exit 1, `found 1 problem(s)`, `<file>:2 ` and the reason; the four paths are literals, not imported | matches |
+| R5 | 75–81 | as R1–R4, but the reason is not asserted, although the row's "as R1–R4" includes it | **does not match (F5)** |
+| P1–P4 | 84–95 | seeds plus the named file; exit 0 and `Working language: 9 line(s)` | matches |
+
+- Seam: every case spawns `process.execPath` on the gate's own file (`new URL('./check-lang.mjs',
+  import.meta.url)`), as designed.
+- Header gap note: line 5 carries the gap the design asked for ("a template the skill adds later … (#296)").
+- Order: the design review and the test landed together in 217404a, and the targeted log shows both
+  uncommitted at once, so the repository cannot show that the design came first (V1).
+
+### Dimension 1 — Coverage
+
+- Requirements to rows: ticket Verification ("a Chinese string added to `index.html` turns `check:lang` red,
+  while one in a mockup page does not") is R1 and P1; Fix 2 ("`manifest.js` … stay exempt") is P3; this
+  round's three copies are R2–R4 and the fifth copy is R5. The spec's "mockup content but not the tooling
+  beside it", verified in both directions, is the R rows (red) and the P rows (growth stays green, 8 → 9).
+  The spec's "Failure modes and boundaries" section has no row for the gate.
+- Driving input: in each R row the named path makes `SKILL_TOOLING.includes(file)` true, so `mockupOnly`
+  returns the Chinese line. In each P row the path is under `docs/prototypes/`, has an exempt type and is not
+  named, so it returns nothing.
+- Classes with no case, checked: shared mockup components (`_shared/`, the first round's G5), `.css` and
+  `.mmd`. On 217404a each class holds Chinese in the real tree, counted with the gate's `CJK` pattern over the
+  52 exempt-type files under `docs/prototypes/`: 16 HTML files (1610 lines), 4 `.mmd` (32), 3 of 10 `_shared/`
+  `.css` (35), 6 of 7 `_shared/` `.js` (54), 7 other `.js` (54), the 2 registries (20). If their exemption were
+  lost, the repository's own gate run, which `check:lang` runs right after the test, would go red. The four
+  named copies hold none (0 lines), and that is why they need the test. No gap, for as long as those files hold
+  Chinese.
+- Fixture shape: the nine case paths are real tracked paths (`git cat-file -e HEAD:<path>` for each). The seed
+  page `docs/prototypes/seed/prototype-seed.html` is invented and only has to be a mockup page. The predicate
+  decides by path and by whether a line holds Chinese, so one comment line does not narrow the coverage.
+
+### Dimension 2 — Case design
+
+- Isolation: each case makes its own `mkdtempSync` directory and removes it in `finally`, after the result is
+  captured. The cases can run in any order.
+- Drives the target: each case runs the whole gate process and asserts its exit code and output.
+- Implementation-coupling red flags, each checked: no module double (`node:test`, no `mock`); no private member
+  (the test cannot reach `SKILL_TOOLING` and lists literal paths); no call-count or call-order assertion; no
+  side channel (exit code, stdout and stderr only); no unreachable state (a repository holding these files is
+  one any contributor can make).
+- Assertion objects are right. R1–R4 depend on the reason's wording, which is the output the ticket asks to
+  name the rule.
+
+### Dimension 3 — False greens
+
+- Mutation testing is skipped (see the capability line above). When each test goes red, answered from the code
+  and the sources of the expected values:
+  - T0: a seed no longer satisfies its rule; a rule is added without a seed (it is dead, exit 1) or removed (a
+    seed becomes an unruled line); the permitted count changes; or the gate crashes (exit 1).
+  - R1–R4: the entry is dropped or misspelled, or the narrowing `!SKILL_TOOLING.includes(file) && ` is
+    removed. `mockupOnly` then returns nothing for that `.html` or `.js` file, the gate exits 0 (the first
+    round's N1 and N2 show this on the real tree), and `assert.equal(result.status, 1)` fails. Also red on a
+    second problem, a moved line number, or a changed reason.
+  - R5: `.mjs` becomes exempt (the type test widened to `m?js`, say), a second problem appears, or the line
+    moves. Not when the reporting rule changes (F5).
+  - P1–P4: the narrowing over-reaches, by basename (P2, `project-list/visibility/index.html`), by directory or
+    depth (P1 in a subdirectory, P3 and P4 at the top) or onto the registries (P3, P4); the `.html` or `.js`
+    exemption is lost; or the file stops being read (the count stays 8).
+- Unit-test forms, each checked: constant assertion — none (exact exit codes, counts and locations;
+  `found 1 problem\(s\)` cannot match 11, and `: 9 line` cannot match 19); tautology — none (the paths are
+  literals from the hash check, the counts are by hand); old path — none (the live gate file); silent
+  conditional skip — none (no environment branch, and a missing `git` throws); assertion that may not run —
+  none (synchronous `spawnSync`; the loops run over literal arrays of four, and each run lists 10 tests).
+- Environment: a fixture path git ignores (through a global excludes file, say) is left out of `git add -A`.
+  That turns T0 red (a dead rule), an R row red (exit 0) or a P row red (8 lines), never green.
+- Gate forms from `review-code/false-greens.md`, since `check:lang` itself changed (it runs the test first):
+  - Form 4, a changed gate never seen red: the targeted run, the full gateway and this check's run are all 10
+    of 10 green. The test was written after the narrowing, so no test-first red exists, and no record shows a
+    run against a mutated gate. The answers above are inference from the code and from N1–N3, not a run (F9).
+  - Form 6, a command that ran wrong: `node --test … && node scripts/check-lang.mjs` stops on a failing test
+    with a non-zero exit, as `check:nul` does; both logs take exit codes from `spawnSync`.
+  - Form 7, an exemption predicate: both directions are in the test — violations red with the rule named
+    (R1–R4; R5 without the name, F5), and growth inside the rule green (P1–P4).
+  - Form 9, the target inside the scan: the runner read the file (10 tests listed); the repository's gate
+    reads it and skips it as free of Chinese (2554 permitted lines, unchanged); `check:nul` scanned it (744
+    files).
+  - Forms 1 and 3: the P rows assert the permitted count, not exit 0 alone. Form 2: the gate runs on a real
+    repository, with no synthetic path. Forms 5 and 8: nothing asynchronous or geometric.
+
+### Dimension 4 — Resource reuse
+
+- No expensive resource, as the design table says, and the runtime count agrees. In the targeted log the ten
+  cases took 233.72–290.77 ms each (2.62 s in all); the full gateway shows 231.45–348.51 ms. Each case builds
+  one temporary repository and runs one gate process, which is the behaviour under test. Nothing reaches 1 s,
+  so there is nothing to count against the table.
+- Existing practice is followed: `scripts/check-raw-nul.test.mjs` builds its temporary repository inline per
+  case, and the code review's second pass exempts a shared helper.
+
+### Findings
+
+| # | Finding | Impact | Recommendation | Destination |
+|---|---|---|---|---|
+| F5 | R5 (`scripts/check-lang.test.mjs:75–81`) asserts exit 1, one problem and `docs/prototypes/sync-mmd.mjs:2 `, but not the prototype rule's reason, which its design row ("as R1–R4") includes | R5 stays green whichever rule reports the line. The requirement it guards, that the copy's Chinese is reported, stays pinned; only the attribution to the prototype rule that the table names is lost | Add `assert.ok(result.stderr.includes('the tooling beside it gets no exemption'), result.stderr)` to R5, which keeps the reviewed table (a test change, so another incremental check follows); or change the R5 row to exit 1, one problem, at `sync-mmd.mjs:2`, and review that row again | The owner: the test, or this record's design table |
+| F6 | The targeted log does not describe 217404a. It records HEAD 39f9763 with `scripts/check-lang.test.mjs` at blob a6fb23e and this record at bb6c48b, where 217404a commits b49ff5f and ceaca22. `ticket-223-review-code.md` and `ticket-223-doc-sync.md` are unmodified in the log but changed in 217404a, and `check:lang` and `check:nul` read them. Blob a6fb23e is not in the object store (`git cat-file -t a6fb23e` fails), and no record says what changed after the run | The "green before commit" evidence is for content that was not committed. No result here rests on it: `full-gateway-2.log` ran the same 10 cases, all passing, on 217404a with a clean status | Name `full-gateway-2.log` as the fix's verification of 217404a, and record what changed in the test after the targeted run. Next time, run the targeted verification after the last edit | The code review's second pass, or this record |
+| F7 | `rerun-2026-10-21/full-gateway.log` and `full-gateway-2.log` are ignored (`.gitignore:4:docs/.workings/`) and were never committed (`git log --all` on both paths is empty). This record rests on them, and `ticket-223-doc-sync.md` says "This round's logs escape Chinese as `\u{XXXX}` instead, so they are committed". Both hold 0 lines matching the gate's `CJK` pattern and 0 NUL bytes | When the worktree goes, the gateway evidence for both post-implementation rounds goes with it, while the checklist says it is in the repository | `git add -f` both logs in the next commit (as measured, they pass `check:lang` and `check:nul`); or correct the checklist sentence and say where they live | `ticket-223-evidence/rerun-2026-10-21/`, `ticket-223-doc-sync.md` |
+| F8 | The checklist's scope paragraph says `rg -uu` "does not skip binary files silently". It does: with ripgrep 14.1.1, a scratch file holding `check-lang` and a NUL byte is listed by `rg -uu -a -l` and not by `rg -uu -l`, both exit 0 | None this round: the checklist's ten search terms over the worktree (without `node_modules/` and `.git/`) list the same 91 files with and without `-a`. A later search that trusts the sentence can miss a file | Say `rg -uu -a`, and search with it | `ticket-223-doc-sync.md` |
+| F9 | The changed `check:lang` gate has not been seen red with the test in it (false-greens form 4). Every run is 10 of 10 green, the test was written after the narrowing, and neither the design review nor the code review's second pass records a mutated run | The regression guard that F1 asked for is credited, on inference only, with catching the defect #223 fixes | Run three one-off mutations of the gate against `node --test scripts/check-lang.test.mjs`, each with its expected red written first: remove the narrowing (R1–R4 red, the other six green); add `docs/prototypes/manifest.js` to `SKILL_TOOLING` (P3 red only); widen the type test to `m?js` (R5 red only). Confirm each edit in the file, restore byte for byte from a backup, and keep the logs under `rerun-2026-10-21/`. The alternative is to record that the test was not mutated and that the inference above stands | The owner; the evidence goes to `rerun-2026-10-21/` and the code review record |
+| F10 | F4's obligation, replacing PR #225's title and description at delivery, has no row in `ticket-223-doc-sync.md`; only this record's dispositions carry it. PR #225 is open at e9db914, and its body still gives the 2026-10-12 evidence (the shell copy, 2373 → 2374, `pnpm verify` on f4d391d) and does not mention the test | Delivery can go ahead with a description of a change the pull request no longer makes, and nothing in the checklist would stop it | Add a row, "Replace PR #225's title and description with this round's change and evidence (the narrowing for four copies, the test, `full-gateway-2.log`); at delivery", marked Waiting | `ticket-223-doc-sync.md` |
+
+Dispositions (2026-10-21, after the incremental check returned):
+
+- F5: the R5 row is revised to what the test asserts (exit 1, one problem, at `sync-mmd.mjs:2`), and the
+  test is unchanged. Re-review of the row: Dimension 1 is unchanged, since R5 covers the type and the type
+  decides the exit code and the problem line. Dimension 3 is answered the same way: R5 goes red when `.mjs`
+  becomes exempt (confirmed by M4 below). It also goes red when a second problem appears or the line moves.
+  Dimensions 2 and 4 are unchanged.
+- F6: the fix's verification on 217404a is `full-gateway-2.log` (clean status, the 10 cases green).
+  `targeted-test.log` ran before the last edits: one comment line in the test (the header's `(#296)`), the
+  `#296` decision and second pass in the code review record, the design review and dispositions here, and
+  the document sync checklist.
+- F7: both gateway logs are committed with this disposition (`git add -f`). Before staging, each was checked
+  for Chinese with the gate's pattern and for NUL bytes.
+- F8: the checklist now says `rg -uu -a`. Its terms were searched again with and without `-a`: the same 97
+  files either way.
+- F9: four one-off mutations of the gate against `node --test scripts/check-lang.test.mjs`, each with its
+  expected failing tests written first. The script and logs are in `rerun-2026-10-21/test-mutations/`
+  (`mutate-gate.mjs`, `summary.md`). Each edit was confirmed in the gate before the run, and the gate was
+  restored byte for byte after it:
+
+  | Mutation | Expected failing | Result |
+  |---|---|---|
+  | none | none | exit 0, 10 of 10 pass |
+  | M1: the narrowing removed | R1–R4 | exit 1, exactly R1–R4 fail, each on `status` 0 against 1 |
+  | M2: the `demo-harness.js` entry misspelled | R4 | exit 1, exactly R4 fails |
+  | M3: `manifest.js` added to `SKILL_TOOLING` | P3 | exit 1, exactly P3 fails, the gate reporting one problem |
+  | M4: the type test widened to `m?js` | R5 | exit 1, exactly R5 fails |
+
+- F10: the checklist has the row, marked Done: the title and description were replaced before this round was
+  pushed.
+- V1: stays a gap. The design review section names its starting commit, 39f9763, but the design and the test
+  were committed together.
+- O4: the targeted run's selection, recorded now. No test imports `scripts/check-lang.mjs`; the tests that
+  read `package.json` read only its `version`. Both points are from the incremental check's search above.
+
+### Observations, no change required
+
+- O4: the targeted run's commands do not include `e2e/app.spec.ts` and `e2e/token-span.spec.ts`, which read
+  `package.json`, a file the fix changes. They read only `version`, which it does not change, and
+  `full-gateway-2.log` ran them on 217404a (e2e, 148 passed). No record shows how the targeted run's tests were
+  selected; a later targeted run should record its selection search.
+
+### Verification gaps
+
+- V1: that the design review came before the test cannot be shown from the repository (see "Order" above).
+- The fix's targeted evidence is for a different version (F6), and the test has no red run (F9).
+
+### Document sync
+
+- Scope checked on 2026-10-21: the whole worktree except `node_modules/` (at every level) and `.git/`,
+  hidden and ignored files included, searched with `rg -uu -a` for `check:lang`, `check-lang` and
+  `node --test` (197 lines); the ticket; PR #225. Changed facts, from the range and its runs: `pnpm check:lang`
+  now runs `scripts/check-lang.test.mjs` before the gate, the exemption's narrowing has a regression test, and
+  the records and the targeted log were updated.
+- Result: the authoritative statements (`docs/specs/i18n.md:481`, ADR-0017 lines 59 and 70, ADR-0030 lines 9,
+  54, 58 and 108) describe the gate, not the script's composition, and `.github/workflows/ci.yml:43` runs
+  `pnpm check:lang`, which now includes the test. `docs/features/`, `CONTEXT.md`, `README*`, `AGENTS.md` and
+  `capabilities.toml` have no hit. No authoritative statement becomes false and none is missing. Other
+  features' working records that mention these commands describe their own runs.
+- Sync obligations from this check: F7, F8 and F10 in `ticket-223-doc-sync.md`; F6 and F7 in the evidence;
+  F5 in the test or this record; F9 in the evidence and the code review record. This check changed nothing
+  but this record.
 
 ## Earlier round (2026-10-12, c149802)
 

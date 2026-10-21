@@ -1,0 +1,92 @@
+date: 2026-10-21T12:30:40.420Z
+cwd: /Users/loong_zhou/CascadeProjects/agentshed-wt/gallery-shell
+git rev-parse HEAD: 217404aaf60a3b04999a64b145ddc273d2059bde
+git status --porcelain --untracked-files=all, with git hash-object of each file:
+  M  docs/.workings/i18n/ticket-223-doc-sync.md  6003186720e7f7c1e34467ad191bd0f79bb11894
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/full-gateway-2.log  cc3cabeb73f59aaae3bb9436d72b00e418bd3706
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/full-gateway.log  ef3cdd95673e7e2558c54d1a46f01885b7a63c2f
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/test-mutations/M1-narrowing-removed.log  26d7e1ec690ada805ba8efb794e1c335db3eaade
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/test-mutations/M2-entry-misspelled.log  493f4d4a99e8723a52306d74857e9f351bde6806
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/test-mutations/M3-manifest-named.log  f5a9655bc43659fc28e32541a8fbf977e1b0b355
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/test-mutations/M4-mjs-exempt.log  d6b328a40f7f5eed37f872d1dc097a49d6c4db87
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/test-mutations/mutate-gate.mjs  88d0362628bf9b9d4419aa7b1a8447974aa8ab5a
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/test-mutations/none.log  287886e80430bc1d752eee86ad6931ca1bd7fa44
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/test-mutations/summary.md  59a6a0c6921b787386cc1a424fd0c7e9295bb6e5
+  M  docs/.workings/i18n/ticket-223-review-code.md  40e2f662ff95e3975a3f582f69be0251e9c06e93
+  M  docs/.workings/i18n/ticket-223-review-tests.md  0d6461534496a5a83af591ab4613b51c47de5ab2
+
+==== command: pnpm lint
+==== exit: 0  (12.4s)
+---- stdout
+
+> agentshed@0.1.0 lint /Users/loong_zhou/CascadeProjects/agentshed-wt/gallery-shell
+> eslint . --max-warnings 0
+
+
+---- stderr
+
+==== command: pnpm check:lang
+==== exit: 0  (3.0s)
+---- stdout
+
+> agentshed@0.1.0 check:lang /Users/loong_zhou/CascadeProjects/agentshed-wt/gallery-shell
+> node --test scripts/check-lang.test.mjs && node scripts/check-lang.mjs
+
+✔ the seeds alone pass, one permitted line each (230.660417ms)
+✔ Chinese in the skill's copy docs/prototypes/index.html is reported like any other tooling (231.3035ms)
+✔ Chinese in the skill's copy docs/prototypes/app-identity.js is reported like any other tooling (226.465208ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-dimensions.js is reported like any other tooling (222.999125ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-harness.js is reported like any other tooling (226.940333ms)
+✔ Chinese in the skill's copy sync-mmd.mjs is reported, since .mjs is not an exempt type (226.137208ms)
+✔ Chinese stays permitted in a mockup page (229.37725ms)
+✔ Chinese stays permitted in a logic page that shares the gallery shell’s file name (226.607209ms)
+✔ Chinese stays permitted in the manifest, whose names and questions address the reviewer (227.690708ms)
+✔ Chinese stays permitted in the dimension registry, whose labels address the reviewer (292.912958ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2392.103917
+✓ Working language: 2554 line(s) of Chinese, each permitted by a stated rule
+    rule · 1 file(s) · side-count detection patterns quote the six languages they scan; pattern literals only, not prose
+    rule · 2 file(s) · the source-language and Japanese dictionaries — the values are the copy itself, while the comments are English like the rest of the repository
+    rule · 1 file(s) · the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English
+    rule · 10 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
+    rule · 3 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
+    rule · 38 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+    rule · 2 file(s) · the Chinese and Japanese READMEs — a localisation is written in the language it localises into
+    rule · 5 file(s) · the language switcher rows and the selector list — a language is named in its own script
+
+---- stderr
+
+==== command: pnpm check:nul
+==== exit: 0  (1.3s)
+---- stdout
+
+> agentshed@0.1.0 check:nul /Users/loong_zhou/CascadeProjects/agentshed-wt/gallery-shell
+> node --test scripts/check-raw-nul.test.mjs && node scripts/check-raw-nul.mjs
+
+✔ accepts real PNG and ICNS artwork under new filenames (201.259083ms)
+✔ rejects NUL-bearing source even alongside valid artwork (112.033083ms)
+✔ does not exempt unrecognised content in pretend.png (70.613ms)
+✔ does not exempt unrecognised content in pretend.icns (71.621542ms)
+✔ does not exempt unrecognised content in binary.dat (69.764875ms)
+✔ accepts searchable source with an escaped NUL (114.9525ms)
+✔ rejects a NUL in a new file that is not staged yet (114.154708ms)
+✔ does not scan a git-ignored file, such as build output (114.15375ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 917.107125
+✓ Raw NUL bytes: none in 753 file(s) (92 binary-format file(s) exempt by signature)
+
+---- stderr
+
+==== overall exit: 0
