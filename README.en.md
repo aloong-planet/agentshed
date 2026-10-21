@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · **English** · [Français](README.fr.md) · [Español](README.es.md) · [Русский](README.ru.md) · [日本語](README.ja.md)
 
-**The tool shed for your coding agents.** A macOS app. See, across every project, which skills, plugins and
+**Your coding agents, in full view.** A macOS app. See, across every project, which skills, plugins and
 MCP servers Claude Code, Codex and other coding agents have installed, what they remember and how many tokens
 they burned; revisit every session question by question, search what you asked across all of them, and install
 skills from your global library into any project.

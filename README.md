@@ -2,7 +2,7 @@
 
 **简体中文** · [English](README.en.md) · [Français](README.fr.md) · [Español](README.es.md) · [Русский](README.ru.md) · [日本語](README.ja.md)
 
-**你的 coding agent 工具棚。** 一个 macOS 应用。一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，记住了什么，烧了多少 token；每次会话按提问回看，所有项目一起搜索；还能把全局 skill 装进任意项目。
+**你的 coding agent，尽收眼底。** 一个 macOS 应用。一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，记住了什么，烧了多少 token；每次会话按提问回看，所有项目一起搜索；还能把全局 skill 装进任意项目。
 
 网站：[agentshed.aloongplanet.com](https://agentshed.aloongplanet.com)
 

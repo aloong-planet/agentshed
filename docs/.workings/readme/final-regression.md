@@ -12,6 +12,7 @@
 
 | Claim (README.en.md, and README.md the same) | Source | Conclusion |
 |---|---|---|
+| The tagline "Your coding agents, in full view" (the owner's choice of 2026-10-21, in place of "tool shed"; the website's heading takes the same) | the Agents overview: every agent side's global picture on one screen (`agents-overview.md` Overview) | True |
 | The opening summary, shared word for word with the website's hero paragraph (the owner's decision of 2026-10-21): which skills, plugins and MCP servers the agents installed, what they remember, how many tokens they burned; every session read question by question, a search across all of them, skills installed from the global library | the rows below for each part: plugins (`plugins-view.md`), memory (`memory-view.md`), tokens (`token-stats.md`), sessions (`session-view.md`), global search (`global-search.md`), skill install (`skill-install.md`) | True; the four short READMEs open with the same summary in their languages |
 | The Agents page opens first, one screen for every agent side | `docs/features/agents-overview.md` Overview ("the default landing page … onto one screen") | True |
 | Token totals for all history, today, the last 7 days and the last 30, 60 or 90 days | `token-stats.md:13–19` | True |
