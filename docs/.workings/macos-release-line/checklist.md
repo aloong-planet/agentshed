@@ -9,6 +9,11 @@ with uncommitted changes (the owner's confirmation of the revised prototypes, an
 below), committed with this checklist in the commit after it.
 Scope: first construction of all three features — every coverage unit of the three specs; plus the
 appearance and i18n units this round makes untrue (see "Legacy regression obligations").
+Increment of 2026-10-21 (#279, the landing page's memory and search steps): spec landing-page rewritten on
+fcf41bc with uncommitted changes; scope is the units it adds or changes and the regressions they touch, listed
+in the rows marked "#279" below. Not affected this round: landing-page::US-001/AC-02..AC-04, US-002, US-004,
+REQ-001, REQ-002, CON-001, CON-003 and Failures A1–A8, B1, B2, D1, E1 — the download decision, the states,
+the languages and the install steps, none of which the decisions D1–D28 touch.
 
 This is a work index, not a requirement authority. The tickets were published on 2026-10-14 as
 #230–#241, with the prerequisite zhoulf1006/skillshed#18 (drafted as #230–#241 and zhoulf1006/skillshed#18, in that order);
@@ -81,6 +86,25 @@ repository's working language. The answers' original wording is in the transcrip
 | ADR-0032 Context — the macOS updater needs a ZIP; the packaging asset gates only DMGs | Confirmed and in force | mac-distribution::REQ-001/AC-02, mac-distribution::CON-002 | Requires a skillshed asset change before update packages ship (Pending in the spec) |
 | ADR-0031 Neutral — electron-builder 26.17.0 | Confirmed and in force | mac-distribution::CON-005 | — |
 | CONTEXT invariant on outbound requests | Confirmed and in force | app-update::CON-001, app-update::US-002/AC-01 | Reworded 2026-10-13 to match the 14:21 answer |
+| #279, 2026-10-21 01:55 — global search as a step of its own (D1) | Confirmed and in force | landing-page::US-003/AC-01 | A step with its own screenshot of the search page |
+| #279, 01:55 — retake the hero in both languages so its rail shows Search (D2) | Confirmed and in force | landing-page::REQ-005/AC-02 | Approved for publication with the first revision (02:36, D10) |
+| #279, 01:55 — delete the expired Pending note, no feature entry (D3) | Superseded by a later decision (in part) | — | The note was removed on main by #297 (for #239), which also gave the landing page its feature entry; #279 updates that entry (D28) |
+| #279, 01:59 — the search step last, after the sessions step (D4) | Confirmed and in force | landing-page::US-003/AC-01 | — |
+| #279, 01:59 — the search step's copy names no shortcut (D5) | Confirmed and in force | landing-page::US-003/AC-02 | — |
+| #279, 01:59 — the sessions step's "or search" becomes search within the project (D6) | Confirmed and in force | landing-page::US-003/AC-02 | The copy itself is the confirmed prototype's |
+| #279, 01:59 — the search screenshot's keyword picked from candidates over the owner's data (D7) | Superseded by a later decision | — | Replaced by 14:19 (D26) |
+| #279, 02:24 — injected texts listed as questions: a ticket first, #279 waits (D8) | Superseded by a later decision (in part) | — | #290 stays the app's defect; #279's wait is lifted by D26 |
+| #279, 02:24 — a hit past the line's cut shows no highlight: a ticket after #290 (D9) | Background | — | #291, the app's defect; not a landing-page requirement |
+| #279, 02:36 — "confirmed" (the owner's word, in Chinese) for the first revision (D10) and the reference page's layout for the features section (D11) | Confirmed and in force | landing-page::REQ-004/AC-01, landing-page::REQ-004/AC-06 | Only the layout is taken: pinned under the header, a narrow text column, the screenshot large in the window frame; downloads stay in the hero and at the bottom |
+| #279, 02:39 — natural scrolling turns the steps; the app's purple; phones keep the stacked steps; no dots and no hint (D12–D15) | Confirmed and in force | landing-page::REQ-004/AC-01, landing-page::REQ-004/AC-06, landing-page::REQ-004/AC-08; landing-page::REQ-006 (palette) | The count reads "01 / 06" with the memory step (D15's "01 / 05" predates it) |
+| #279, 02:59 and 03:09 — only the layout, the text and the screenshot turning together; switching in place, since the slide made the screenshot jump (D12) | Confirmed and in force | landing-page::REQ-004/AC-05 | — |
+| #279, 03:17 — "prototype confirmed" (in Chinese) for the pinned section (D16); the description to change (D17) | Confirmed and in force | landing-page::REQ-004; landing-page::REQ-007 | — |
+| #279, 04:05 and 04:11 — the page's summary is the README's opening summary, without documents (D19); a memory step showing a file in the drawer (D20, D21) | Confirmed and in force | landing-page::REQ-007; landing-page::US-003/AC-01, landing-page::REQ-005/AC-02 | The step is third, after what each project has |
+| #279, 05:10 — the heading, "Your coding agents, in full view" and its Chinese counterpart, as the READMEs open (D23) | Confirmed and in force | landing-page::REQ-007 | — |
+| #279, 05:17 — the memory drawer previews Markdown first (D24) | Background | — | Delivered by #294 (#298); the memory screenshot shows the drawer's preview (landing-page::REQ-005/AC-02) |
+| #279, 14:11 — the memory screenshot over made-up data (D25) | Confirmed and in force | landing-page::REQ-005/AC-01; Failure E2 | Replaces D22 (the owner's data) |
+| #279, 14:19 — the search screenshot over made-up data, the same projects (D26) | Confirmed and in force | landing-page::REQ-005/AC-01; Failure E2 | Replaces D7 |
+| #279, 14:2x — "confirmed" (in Chinese) for the last revision (D27) | Confirmed and in force | landing-page::REQ-004, landing-page::REQ-005, landing-page::REQ-007, landing-page::US-003 | The prototype gate for every interface point of this increment |
 
 ## Spec → tickets → verification
 
@@ -253,6 +277,19 @@ asset's own tests.
 | landing-page Failures B1, B2, C1–C4, D1 | Languages, navigation, features section, appearance | #237 | Test: built-site check (link targets); Evidence: browser measurement |
 | landing-page Failure E1 | Only validated versions and URLs on the expected hosts | #238 | Test: unit (unexpected hosts rejected) |
 | landing-page Failure E2 | Real data in the shots by the owner's decision | — | Background |
+| landing-page::US-003/AC-01 (#279) | Six steps in order, each with its screenshot | #279: implementation and user-path acceptance | Test: built-site check (six steps in order in both languages, each with its screenshot); Evidence: browser |
+| landing-page::US-003/AC-02 (#279, new) | Sessions: within the project; search: across projects; no shortcut | #279 | Test: built-site check (the two steps' copy equal to the confirmed prototype's) |
+| landing-page::REQ-004/AC-01 (#279, changed) | Pinned showcase: narrow text column with the count, the screenshot large and whole; no dots, no hint | #279 | Evidence: browser measurement (geometry at 1280×800 and a short window, both languages) |
+| landing-page::REQ-004/AC-05 (#279, changed) | Text and screenshot cross-fade together in place; texts start on one line; instant under reduced motion; only the current step reachable | #279 | Evidence: browser measurement (positions across a turn, computed transitions, visibility, the pointer's target) |
+| landing-page::REQ-004/AC-06 (#279, regression) | Below 760px: stacked steps with a gap | #279 | Evidence: browser measurement at 400px |
+| landing-page::REQ-004/AC-07 (#279, regression) | A language switch keeps the step and the place, also while pinned (Failure C5) | #279 | Evidence: browser measurement (switch at each step) |
+| landing-page::REQ-004/AC-08 (#279, new) | Natural scroll; first step at the pin, the next each 60% of the window; before and after the showcase | #279 | Evidence: browser measurement (the step at a series of scroll positions; the wheel's default not prevented) |
+| landing-page::REQ-005/AC-01 (#279, changed) | Real data in the hero and four cuts; made-up data in memory and search | #279 | Evidence: the shots byte-identical to the confirmed prototype's |
+| landing-page::REQ-005/AC-02 (#279, changed) | Hero rail with Search; six cuts 16:9 at one zoom; the memory and search cuts' contents | #279 | Evidence: image dimensions and review |
+| landing-page::REQ-005/AC-03 (#279, regression) | Every shot's space held | #279 | Test: built-site check (declared sizes) |
+| landing-page::REQ-007 (#279, new) | Heading; the paragraph equal to the README's summary | #279 | Test: built-site check (the heading in both languages; the paragraph found word for word in the README of the same language) |
+| landing-page::US-001/AC-01, REQ-003, REQ-006, QR-001/AC-01, CON-002 (#279, regression) | Hero, structure, copy rules, layout across widths, two languages | #279 | Test: built-site check; Evidence: browser measurement at 400, 900, 1280 and 1440px |
+| landing-page Failures C1–C6, E2 (#279) | The features section's boundaries; what the shots show | #279 | Evidence: browser measurement (C1, C2, C3, C5); C4 with REQ-005/AC-03; C6 with REQ-004/AC-05; E2 with REQ-005/AC-01 |
 | appearance Failure D4 (legacy) | Settings at the rail's bottom anchor; the update button above it while in flight | #230 | Test: e2e geometry (with app-update Failure G1) |
 | i18n "The application menu" (legacy) | Settings and "Check for Updates…" as entry points | #232 | Test: menu template unit |
 | Spec headers' Pending notes (feature entries) | app-update: written with the behaviour; landing-page: with the page live; mac-distribution: no feature entry, since the catalogue leaves distribution out (owner, 2026-10-19), its Pending note resolved into Out of Scope | #230 (app-update); #239 (the other two) | Evidence: the landing-page entry, the specs index and mac-distribution's Out of Scope |
@@ -277,6 +314,7 @@ asset's own tests.
 | 2026-10-21; as above | #239's units after the merge: mac-distribution::US-001/AC-01..AC-03, US-002/AC-02, REQ-005, REQ-006's tag on the commit, landing-page::REQ-001/AC-05, CON-001's live deployment | Not run yet: they need the merge, the tag and the owner's Mac (tasks 12–16 of `ticket-239-tasks.md`) | Unverified (deferred acceptance) |
 | 2026-10-14; as above | Every unit mapped to #240 | Not run yet | Unverified |
 | 2026-10-14; as above | #241 (the cross-check of mac-distribution::REQ-001/AC-04, and the closeout) | Not run yet | Unverified |
+| 2026-10-21; spec landing-page on fcf41bc with uncommitted changes; no implementation yet | Every unit marked #279 | Not run yet | Unverified |
 
 ## Two-way audit
 
@@ -307,6 +345,11 @@ asset's own tests.
 | Finding: menu and settings checks in quick succession (app-update Failure D4) need both surfaces | app-update::US-003/AC-05 | #232 is blocked by #231 rather than only by #230 |
 | Finding: the first release must carry the updater, or its users could never update in place | app-update (whole); mac-distribution::REQ-006 | #239 is blocked by #232 (and so #230 and #231) and by #235 (the ZIP). Put to the owner with the breakdown |
 | Finding: the README points to the landing page, so the page goes live with the first release | mac-distribution::US-003/AC-01; landing-page header Pending | Launch, README and go-live are one ticket (#239): they are seen together |
+| #279 forward (2026-10-21): every source row marked #279 maps to a coverage unit, or is recorded as superseded or background | The #279 rows of "Source → spec" | Complete for D1–D28 (`ticket-279-tasks.md`) |
+| #279 reverse: every unit the increment adds or changes traces to a source | landing-page::US-003/AC-01, AC-02; REQ-004/AC-01, AC-05, AC-08; REQ-005/AC-01, AC-02; REQ-007; Failures C1–C6, E2 | Traced to D1–D27. Derived, each following from the confirmed form without changing it: Failure C2's window height (the step follows the scroll under the new height), C5 (the pinned showcase cannot mark the place on a language switch), C6 (a screen reader meets the current step only, as hidden steps are hidden from assistive technology), and REQ-004/AC-08's "before the showcase pins the first step, once past it the last" (the prototype's clamp). Reported to the owner with the spec |
+| #279 removed units: landing-page::REQ-004/AC-02 (the current step's bar and hover), AC-03 (steps a third of a screen tall), AC-04 (click or Enter scrolls a step to the frame) | D11, D12, D16, D27 | Removed with the clickable list they described: the confirmed form shows one step at a time and turns with the scroll. Recorded in the spec's Out of Scope ("Clicking or keying between the feature steps"). The IDs are not reused; AC-08 is the new scroll rule |
+| #279 conflict check: D3's "no feature entry" vs main's landing-page entry (#297) | D3; `docs/features/landing-page.md` | The merged entry stands (D28); #279's step 8 rewrites its features capability for six steps and the pinned showcase |
+| #279 prototype gate: every interface point of the increment | landing-page::REQ-004, REQ-005, REQ-007, US-003 | Visible in the landing prototype: the six steps and their copy, the count, the pinned showcase and its turn, the phone layout, the heading and paragraph, the six cuts and the hero; confirmed by the owner (D10, D16, D27) |
 | Derived during #234 (2026-10-18): the workflow tells a pre-release by a `-` after the version, exact only for a semver version without build metadata | mac-distribution Failure A6 (new); A2 | Derived to make A2 exact: a version with build metadata or not semver fails at the tag check, before Apple. Confirmed by the owner on 2026-10-18; owned by #234 |
 
 ### Legacy regression obligations

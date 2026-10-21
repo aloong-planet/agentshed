@@ -55,9 +55,12 @@ As a visitor, I want the page in Chinese or English, so that I can read it comfo
 As a visitor, I want to see the app's main views next to a short description of each, so that I know
 what I would get.
 
-- landing-page::US-003/AC-01: The features section presents four steps in order — the overview, what
-  each project has, token usage and trends, and sessions revisited — each with a screenshot of that
-  view (landing-page::REQ-004, landing-page::REQ-005).
+- landing-page::US-003/AC-01: The features section presents six steps in order — the overview, what
+  each project has, what the agents remember, token usage and trends, sessions revisited, and search
+  across projects — each with a screenshot of that view (landing-page::REQ-004, landing-page::REQ-005).
+- landing-page::US-003/AC-02: The sessions step speaks of searching within the project, and the search
+  step of searching what you asked across every project, so the two read as different features. The
+  search step names no keyboard shortcut.
 
 ### landing-page::US-004 Know what installing involves
 
@@ -112,36 +115,40 @@ the features section (title "One app, the whole picture", subtitle "It only read
 agents leave on your Mac."), the install section, the download section, and a footer with GitHub,
 Releases and the copyright line.
 
-### landing-page::REQ-004 The scroll-linked features section
+### landing-page::REQ-004 The pinned features section
 
-- landing-page::REQ-004/AC-01: On a wide screen the four text steps sit on the left and move with the
-  page. One screenshot frame on the right stays in place, centred under the header and never tucked
-  beneath it, and shows the step whose text is nearest its middle. Scrolling down visits the steps in
-  order.
-- landing-page::REQ-004/AC-02: The current step has an accent bar at its left and a darker title. The
-  other steps have grey titles. A hovered step shows a stronger grey bar and a darker title, and the
-  current step keeps its accent bar while hovered.
-- landing-page::REQ-004/AC-03: Each step is about a third of a screen tall, so the steps either side of
-  the current one stay at least partly in view and the column reads as a list to pick from.
-- landing-page::REQ-004/AC-04: Clicking a step, or pressing Enter on it, scrolls it level with the
-  frame's middle, and the frame follows. The first and last steps scroll as close to the frame's middle
-  as the section allows: the frame stays in place only within the section, so at those two it stands at
-  the section's start or end. Keyboard focus shows a ring inside the step's own box.
-- landing-page::REQ-004/AC-05: The frame's screenshots cross-fade, and switch at once under reduced
-  motion. Only the shown screenshot is visible to the pointer and to assistive technology.
-- landing-page::REQ-004/AC-06: Below 760px there is no fixed frame. Each step's own screenshot sits
-  under its text, with a clear gap before the next step's title.
+- landing-page::REQ-004/AC-01: On a wide screen the section pins a showcase under the header while the
+  page scrolls past it. A narrow column on the left shows the current step's number and the count of steps
+  (as "03 / 06"), its title and its text; the step's screenshot stands large on the right in the window
+  frame, whole under the header even in a short window. There are no progress dots and no hint to
+  scroll.
+- landing-page::REQ-004/AC-05: A step turns by cross-fading its text and its screenshot together, in
+  place: nothing moves, and every step's text starts on the same line. Under reduced motion the switch
+  is instant. Only the current step's text and screenshot are visible to the pointer and to assistive
+  technology.
+- landing-page::REQ-004/AC-06: Below 760px nothing is pinned. Each step's own screenshot sits under its
+  text, with a clear gap before the next step's title.
 - landing-page::REQ-004/AC-07: Switching language keeps the current step and the scroll position.
+- landing-page::REQ-004/AC-08: The page scrolls as usual and nothing captures the wheel. The first step
+  shows when the showcase pins, and each further 60% of the window's height scrolled turns to the next
+  step; scrolling back turns back. Before the showcase pins the first step shows, and once it has
+  scrolled past, the last.
 
 ### landing-page::REQ-005 The screenshots
 
-- landing-page::REQ-005/AC-01: The screenshots come from the built app over the owner's own agent data,
-  approved for publication by the owner on 2026-10-13. There is one set per language, taken in the light
-  appearance.
-- landing-page::REQ-005/AC-02: The hero screenshot is the whole window. Each feature screenshot is cut
-  to the part of the window its step is about. All four are the same size (16:9) at the same zoom, so
-  the text stays one size as the frame switches. Each cut ends between list rows, and the token cut
-  leaves out the recent-sessions list.
+- landing-page::REQ-005/AC-01: The hero screenshot and the overview, project, token and session
+  screenshots come from the built app over the owner's own agent data, approved for publication by the
+  owner (on 2026-10-13; the hero's retake on 2026-10-21). The memory and search screenshots come from the
+  built app over a made-up home whose projects, memory files and questions have the shape of real
+  ones, the same projects in both (the owner's choice, 2026-10-21). There is one set per language, taken
+  in the light appearance.
+- landing-page::REQ-005/AC-02: The hero screenshot is the whole window, its rail showing the Search
+  item. Each feature screenshot is cut to the part of the window its step is about. All six are the
+  same size (16:9) at the same zoom, so the text stays one size as the steps turn. Each cut ends between
+  list rows. The token cut leaves out the recent-sessions list. The memory cut shows a memory file open
+  in the drawer as rendered Markdown, over the Agents page's Memory section with that file's project
+  expanded, and ends between the drawer's lines too. The search cut starts at the search box and keeps
+  each row's hit count and time.
 - landing-page::REQ-005/AC-03: Every screenshot's space is held before it loads, so nothing jumps.
 
 ### landing-page::REQ-006 Copy (direct acceptance)
@@ -150,6 +157,12 @@ The copy is in Chinese and English only. Where the page refers to the agents Age
 examples without presenting them as the complete set ("Claude Code, Codex and other coding agents"),
 so a new agent side does not make it untrue. The page uses the app's own palette, in light and dark,
 following the visitor's system appearance.
+
+### landing-page::REQ-007 The hero's heading and summary (direct acceptance)
+
+The hero's heading is the README's opening line in the same language without its full stop ("Your
+coding agents, in full view" in English). Its paragraph is the README's opening summary in the same
+language, word for word.
 
 ## Quality Requirements
 
@@ -215,13 +228,19 @@ since they never reach it (mac-distribution::CON-004).
 
 **Sequence C: the features section**
 
-- C1 A fast scroll or a jump to the download section and back → the frame always shows the step nearest
-  its middle (landing-page::REQ-004/AC-01).
-- C2 Resizing across 760px → the layout switches between the fixed frame and stacked screenshots
-  without leaving a stale current step.
-- C3 A short window: the step above the current one may slide under the sticky header, as any scrolled
-  content does. Its text body stays visible.
+- C1 A fast scroll, or a jump to the download section and back → the showcase shows the step the scroll
+  position gives (landing-page::REQ-004/AC-08), never one left over from before the jump.
+- C2 Resizing across 760px, or changing the window's height → the layout switches between the pinned
+  showcase and the stacked steps, and the step shown follows the scroll position under the new height,
+  with no stale step.
+- C3 A short window → the screenshot shrinks so that the whole of it stays under the header
+  (landing-page::REQ-004/AC-01).
 - C4 Screenshots not yet loaded → their space is held (landing-page::REQ-005/AC-03).
+- C5 A language switch while the showcase is pinned → the other page shows the same step
+  (landing-page::REQ-004/AC-07). The pinned showcase stays at one distance from the top wherever the
+  visitor is within it, so it cannot be what marks the visitor's place.
+- C6 A screen reader on a wide screen meets the current step only; the other steps are reached by
+  scrolling (landing-page::REQ-004/AC-05).
 
 **Sequence D: appearance**
 
@@ -233,8 +252,9 @@ since they never reach it (mac-distribution::CON-004).
 - E1 The pointer and GitHub's answer are external data. Only validated version strings and URLs on the
   expected hosts (the download host and github.com) reach the page, rendered as text and as link
   targets. Release notes and other release text are never inserted into the page.
-- E2 The screenshots show real project names, paths, usage and session text by the owner's decision
-  (landing-page::REQ-005/AC-01). Retaking them is the only way to change what they show.
+- E2 The hero and the overview, project, token and session screenshots show real project names, paths,
+  usage and session text by the owner's decision; the memory and search screenshots show none of the
+  owner's data (landing-page::REQ-005/AC-01). Retaking them is the only way to change what they show.
 
 ## Implementation Decisions
 
@@ -273,10 +293,14 @@ since they never reach it (mac-distribution::CON-004).
   leaving, a script notes the element in view, its distance from the top of the window and the current
   step; the other page puts the same element back at the same distance and makes the same step current
   (landing-page::REQ-004/AC-07). An element rather than a scroll offset, because the two languages' texts
-  wrap to different heights.
-- **The features section** is built as the prototype was: a sticky frame, the nearest-to-middle rule
-  computed on scroll (throttled to animation frames), a click scrolling the step to the frame's middle,
-  and stacked screenshots below 760px.
+  wrap to different heights. The pinned showcase is never that element (Failure C5).
+- **The features section** is built as the prototype was: the showcase is pinned inside a block one
+  window tall plus 60% of a window for each further step. The current step is the distance scrolled past
+  the point where it pins, over 60% of the window's height, rounded and kept within the steps; it is
+  computed on scroll and on resize, throttled to animation frames. The steps' texts share one place, and
+  so do their screenshots; the others are hidden with visibility as well as opacity, since a transparent
+  screenshot would still lie on top and take the pointer. The screenshot's width is capped by the
+  window's height so that it stays whole. Below 760px the stacked steps replace the showcase.
 - **The screenshots** ship as static assets with their width and height declared.
 
 ## Testing Decisions
@@ -298,7 +322,7 @@ Beside them, for the parts the state function does not reach:
   unreadable.
 - **A state applied to the built page**: each state's view applied to a fresh copy of the served page,
   read back from the page; the requests the page's script makes, at the injected fetch (landing-page::CON-003).
-- **Evidence**: the features section's scroll and click behaviour, the four states' rendering, and
+- **Evidence**: the features section's scroll behaviour, the four states' rendering, and
   landing-page::QR-001 are measured in a browser, as they were on the prototype (geometry and computed
   styles, not pixels), and the measurement record is kept.
 
@@ -310,6 +334,8 @@ Prior art: Transfer's site tests for its download configuration, and the prototy
 - More than two languages (ADR-0031 option 6).
 - A copy of the page in mainland China (ADR-0031 option 8).
 - A version constant built into the site (rejected 2026-10-13 in favour of reading at run time).
+- Clicking or keying between the feature steps: the showcase shows one step at a time and turns with the
+  scroll (landing-page::REQ-004/AC-08).
 
 ## Further Notes
 
@@ -320,7 +346,11 @@ Prior art: Transfer's site tests for its download configuration, and the prototy
   formal-from-GitHub state (landing-page::REQ-002/AC-02). On 2026-10-18 the owner chose the app icon for
   the browser tab, and confirmed the revised prototype's hero icon: the real artwork, its shadow on its
   outline. On 2026-10-19 the owner confirmed the revised prototype's dark warning colours, brought to the
-  app's own (the test state's pill and note).
+  app's own (the test state's pill and note). On 2026-10-21 the owner confirmed the revised prototype:
+  a step for memory and one for search across projects, the sessions step's wording, the retaken hero,
+  the pinned features section (after the layout of a reference page the owner supplied; a slide between
+  steps was tried and dropped, since it made the screenshot jump), the heading and the README's summary
+  in the hero, and made-up data in the memory and search screenshots.
 
 - The download host is `dl.agentshed.aloongplanet.com` (mac-distribution::REQ-004), and the pointer is
   `latest.json` at its root; the pointer's shape is in mac-distribution's Implementation Decisions.
