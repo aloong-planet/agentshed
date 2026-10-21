@@ -32,8 +32,7 @@ describe('a dictionary is loadable on its own', () => {
   })
 
   it('a dictionary loaded on its own can still evaluate its plural forms', () => {
-    // Reaching a real plural() call through the dictionary, not just importing the module: the cycle bites
-    // at call time as well as load time.
+    // Reaching a real plural() call through the dictionary, not just importing the module.
     expect(en.projects.staleFiltered(1)).toBe('1 stale project filtered out')
     expect(en.projects.staleFiltered(2)).toBe('2 stale projects filtered out')
   })
