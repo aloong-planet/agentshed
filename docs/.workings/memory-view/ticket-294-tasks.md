@@ -143,3 +143,12 @@ The log starts with `HEAD 8d241d06da02c05059b6768318d6687db460bda4` and an empty
 unit 861 passed (1 opt-in skip; fewer than before because main removed the four other languages' tests), script and
 site tests 102, check:ui / check:lang / check:i18n / check:nul passed, e2e 144 passed, smoke SMOKE_OK. The change after
 it is records only (this entry and the checklist's current verification pointing at 8d241d0).
+
+## CI on PR #298 (2026-10-21)
+
+Run 39604221411 at 9c50231: typecheck, unit tests and the shared-piece check passed; e2e failed in the F3 test at the
+project-detail main-file step: `expect(locator('.toast')).toBeVisible()` hit a strict-mode violation — two identical
+"outside the readable scope" toasts. The global Memory step's own unlisted link raises a toast that lives 3.2 s; on
+CI the run reached the older main-file step before it expired. Fixed in the test the way step (6d) already does:
+wait for earlier toasts to clear before the click that must raise a fresh one. Verified on CI (the local dev app was
+in use by the owner; a local e2e build would rewrite the output it runs from).

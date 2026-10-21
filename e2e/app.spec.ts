@@ -2239,6 +2239,8 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await expect(fd.locator('.md-preview-name')).toHaveText('MEMORY.md')
   await expect(fdBody).toContainText('Key point A')
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // The memory drawer's own out-of-scope link above raised a toast too; wait it out so the next one is fresh
+  await expect(win.locator('.toast')).toHaveCount(0)
   await win.locator('.pane-body .md a', { hasText: 'Deleted' }).click()
   await expect(win.locator('.toast')).toBeVisible()
   expect(win.url()).toBe(urlBefore)
