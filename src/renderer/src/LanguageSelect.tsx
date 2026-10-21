@@ -1,5 +1,5 @@
-// The UI language selector: a label + a dropdown trigger, opening into a seven-item overlay (follow
-// system + six languages).
+// The UI language selector: a label + a dropdown trigger, opening into a three-item overlay (follow
+// system + the two languages).
 //
 // The overlay is positioned **fixed** and aligned to the trigger's rect: the settings page container is
 // overflow:auto,
@@ -180,7 +180,7 @@ export function LanguageSelect({
                     <Check />
                   </span>
                 </button>
-                {/* The divider: "follow system" is a policy and the six after it are values — different
+                {/* The divider: "follow system" is a policy and the languages after it are values — different
                     in kind */}
                 {o === 'system' && <div className="lang-sep" />}
               </div>

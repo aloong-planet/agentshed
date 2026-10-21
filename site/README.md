@@ -28,7 +28,7 @@ files), which is why CI installs the site's dependencies before linting.
 - `src/components/`: one component per section (`Hero`, `Features`, `Install`, `Download`), and `Icon.astro`,
   the page's icons as inline SVG copied from Lucide. A new icon goes there, never a character or an emoji.
 - `src/i18n/ui.ts`: every string of the page, in both languages. This dictionary is the site's own, separate
-  from the app's six-language one (`src/shared/i18n/`). New copy goes here, in both languages.
+  from the app's (`src/shared/i18n/`). New copy goes here, in both languages.
 - `src/styles/global.css`: the palette (the app's purple theme, light and dark, by the visitor's system
   appearance) and every rule of the page, interaction states included. Markup carries classes only.
 - `src/releases.ts`: the two things the page reads in the visitor's browser, the R2 latest pointer and GitHub's

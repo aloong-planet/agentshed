@@ -203,9 +203,9 @@ development run.
 Applies to: every string this feature adds — the menu item, the three tooltips, the settings section,
 both footnotes, every result line and every toast.
 
-- app-update::QR-001/AC-01: Every string exists in all six UI languages (ADR-0013) and passes the
-  dictionary gates.
-- app-update::QR-001/AC-02: Measured in each of the six languages at the settings page's width, the
+- app-update::QR-001/AC-01: Every string exists in both UI languages, Chinese and English (ADR-0035),
+  and passes the dictionary gates.
+- app-update::QR-001/AC-02: Measured in both languages at the settings page's width, the
   row labels and the result line each stay on one line beside their controls, for every state of the
   line.
 
@@ -442,7 +442,7 @@ Seams confirmed by the owner on 2026-10-13:
   isolated userData and asserts what the line and "Current version" show (app-update::REQ-004/AC-04,
   C7–C9). No update has to run for this.
 - **The IPC contract**: validation of the lifecycle payload and of the command arguments.
-- **The menu template**: unit tests on the pure function cover the item's position, copy in six
+- **The menu template**: unit tests on the pure function cover the item's position, copy in both
   languages and its disabled state when unpackaged. e2e clicks the item through the application menu the
   main process installed and reads its label after a language switch. What the native menu actually
   draws is accepted by hand — a known gap, as for the rest of the menu (i18n).

@@ -9,7 +9,7 @@ import { FloatingBox } from './FloatingBox'
 import { useAnchorInvalidation } from './useAnchorInvalidation'
 
 /**
- * Side names in full — product names, identical in all six languages, so they live here rather than
+ * Side names in full — product names, identical in every language, so they live here rather than
  * in the dictionaries (the same rule as PROVIDER_LABEL's proper nouns).
  */
 const SIDE_NAME: Record<AgentSide, string> = { claude: 'Claude Code', codex: 'Codex', grok: 'Grok' }
@@ -91,7 +91,7 @@ export function ProjectsPane({ snap, selected, onSelect, revealSelected, onRevea
         <div className="sh">
           {/* The icon is a sibling rather than part of the placeholder: an input's placeholder takes a
               string, so an SVG cannot live in it — and keeping it out is also what keeps it from being
-              carried into the six dictionaries along with the copy. */}
+              carried into every dictionary along with the copy. */}
           <div className="sh-field">
             <Search size={13} />
             <input
@@ -133,9 +133,9 @@ export function ProjectsPane({ snap, selected, onSelect, revealSelected, onRevea
 
 /**
  * Side filtering as a single-choice dropdown (spec C5): the row of controls has to stay readable
- * as sides are added, and in the narrowest supported sidebar the longest of the six UI languages
+ * as sides are added, and in the narrowest supported sidebar the longer of the two UI languages
  * must not push it out of the column. Only "All" varies with the language — the side names are
- * product names, identical in all six.
+ * product names, identical in both.
  *
  * Being operated rather than glanced at, it answers a resize by **repositioning** (spec C7) — the
  * user choosing a side has not changed their mind — while any scroll but the layer's own

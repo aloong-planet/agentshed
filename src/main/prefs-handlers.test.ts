@@ -51,7 +51,7 @@ describe('the preference handlers', () => {
   it('accepts only supported numeric spans and preserves unrelated fields on disk', () => {
     const h = handlers()
     h.setTheme('amber')
-    h.setLanguage('ja')
+    h.setLanguage('zh')
     h.setMode('dark')
     for (const span of [60, 90, 30]) {
       expect(h.setTrendSpan(span).trendSpan).toBe(span)
@@ -61,7 +61,7 @@ describe('the preference handlers', () => {
       expect(codeOf(() => h.setTrendSpan(invalid))).toBe(ERR.invalidPref)
     }
     expect(new PrefsStore(dir).get()).toEqual({
-      theme: 'amber', language: 'ja', mode: 'dark', trendSpan: 30, autoCheckUpdates: true
+      theme: 'amber', language: 'zh', mode: 'dark', trendSpan: 30, autoCheckUpdates: true
     })
     expect(codeOf(() => createPrefsHandlers({ store: () => null, theme }).setTrendSpan(60)))
       .toBe(ERR.prefsStoreNotReady)
@@ -129,17 +129,19 @@ describe('the preference handlers', () => {
 
   it('setTheme / setLanguage: a valid value persists and an invalid one throws', () => {
     expect(handlers().setTheme('blue').theme).toBe('blue')
-    expect(handlers().setLanguage('ja').language).toBe('ja')
+    expect(handlers().setLanguage('zh').language).toBe('zh')
     expect(codeOf(() => handlers().setTheme('neon'))).toBe(ERR.invalidPref)
     expect(codeOf(() => handlers().setLanguage('ko'))).toBe(ERR.invalidPref)
+    // A removed language is an invalid value like any other (i18n::REQ-001/AC-03)
+    for (const removed of ['fr', 'es', 'ru', 'ja']) expect(codeOf(() => handlers().setLanguage(removed)), removed).toBe(ERR.invalidPref)
     // An invalid call must leave no trace
-    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'ja', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
+    expect(new PrefsStore(dir).get()).toEqual({ theme: 'blue', language: 'zh', mode: 'system', trendSpan: 30, autoCheckUpdates: true })
   })
 
   it('neither setTheme nor setLanguage touches themeSource', () => {
     // "Language and light/dark do not interfere", realised at the handler layer
     handlers().setTheme('amber')
-    handlers().setLanguage('ru')
+    handlers().setLanguage('en')
     expect(theme.themeSource).toBe('system')
   })
 

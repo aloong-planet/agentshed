@@ -1,7 +1,8 @@
 # ADR-0013: UI language set and i18n scope boundary
 
 - Status: Accepted (2026-08-08). The "`docs/` stays Chinese-only" clause was **superseded by
-  ADR-0017** on 2026-08-09; the language set and the rest of the scope boundary remain in force.
+  ADR-0017** on 2026-08-09, and the language set by **ADR-0035** on 2026-10-21; the rest of the scope
+  boundary remains in force.
 
 ## Context
 
@@ -50,6 +51,10 @@ none.
 > repository's working language is now English, covering `docs/`, source comments, test names and
 > terminal output. The reasoning above (option 4) was aimed at translating into *six* languages and
 > does not apply to a single-language switch. Everything else in this ADR stands.
+
+> **Superseded in part (2026-10-21, ADR-0035)**: the UI languages are now Simplified Chinese and
+> English, and so are the READMEs. The scope boundary, the absence of an RTL commitment and the English
+> fallback stand.
 
 ## Consequences
 

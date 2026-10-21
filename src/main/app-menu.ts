@@ -14,8 +14,8 @@
 //
 // **A known test gap**: which language the menu **actually displays** is system-drawn by macOS and
 // automation cannot reach it.
-// What is testable is this function's copy and structure; "the build function returned French copy" must
-// not be passed off as "the menu displays in French".
+// What is testable is this function's copy and structure; "the build function returned Chinese copy" must
+// not be passed off as "the menu displays in Chinese".
 import type { MenuItemConstructorOptions } from 'electron'
 import { dictOf, type Language } from '@shared/i18n'
 

@@ -370,15 +370,15 @@ test('an open message follows a language switch at once (Failure G2)', async () 
     await win.getByTestId('language-trigger').click()
     const pop = win.getByTestId('language-pop')
     await expect(pop).toBeVisible()
-    // The pointer rests on the slot while the keyboard picks French in the open list
+    // The pointer rests on the slot while the keyboard picks Chinese in the open list
     await slot(win).hover()
     await expect(tip(win)).toHaveText('Downloading update 35%')
-    for (let i = 0; i < 8 && (await pop.locator('.lang-opt.cursor').getAttribute('data-lang')) !== 'fr'; i++) {
+    for (let i = 0; i < 8 && (await pop.locator('.lang-opt.cursor').getAttribute('data-lang')) !== 'zh'; i++) {
       await win.keyboard.press('ArrowDown')
     }
     await win.keyboard.press('Enter')
-    await expect(tip(win)).toHaveText('Téléchargement de la mise à jour 35 %')
-    await expect(slot(win)).toHaveAttribute('aria-label', 'Téléchargement de la mise à jour 35 %')
+    await expect(tip(win)).toHaveText('正在下载更新 35%')
+    await expect(slot(win)).toHaveAttribute('aria-label', '正在下载更新 35%')
   } finally {
     await app.close()
     cleanup(f)
