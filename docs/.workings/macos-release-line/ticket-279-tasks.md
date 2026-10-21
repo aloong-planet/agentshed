@@ -59,4 +59,26 @@ The landing page mentions global search. Working record, not a requirement autho
 | 1 | Step 1: facts and decisions | this record | done |
 | 2 | Screenshots: the hero retaken in both languages; the memory and search steps over a made-up home | the owner's approval (heroes) | done: heroes approved (D10); memory and search over made-up data (D25, D26), retaken on the build after #294 |
 | 3 | Step 2: the landing-page spec and its prototype (the memory and search steps, the copy, the screenshots, the pinned features section); the owner confirms the prototype | the confirmed prototype | in progress: the prototype confirmed (D10, D16, D27); the spec next |
-| 4 | Steps 4–8 (`/implement`, `/features-catalog`); PR; stop for the owner | PR link | pending |
+| 4 | Steps 4–7 (`/implement`): records declared on #279 and its document sync checklist; test design review; slices S1 (six steps, copy, screenshots), S2 (the pinned showcase), S3 (the language switch); code review; full gateway; independent test review; spec check | `ticket-279-review-*.md`, `evidence/ticket-279/` | in progress: implementation 7af1220, gateway `VERIFY_EXIT=0` (`evidence/ticket-279/gateway-7af1220.txt`); the independent test review running |
+| 5 | Step 8 (`/features-catalog`); PR; stop for the owner | `final-regression.md`, PR link | pending |
+
+## Targeted verification (step 4)
+
+The tests that read what this change touched, found by search rather than recalled: `rg -l "i18n/ui|shots|scripts/features|language-switch|Features|global.css|README" site/src site/test --glob '*.test.ts'` and `rg -l "palette|global.css" site/src --glob '*.test.ts'` list `site/test/built-site.test.ts`, `site/test/init-download.test.ts`, `site/test/apply-download.test.ts`, `site/src/download.test.ts` and `site/src/styles/palette.test.ts` — all in `pnpm test:site`, which passed (111 tests, `astro check` 0 errors), as did `eslint site` (exit 0). The browser measurement passed 230 of 230 on the build with the review's two refactorings (R1, R2).
+
+## Spec check before step 7 (2026-10-21, implementation 7af1220, spec as in 7af1220)
+
+| Unit | Spec text, in short | Implementation | Conclusion |
+|---|---|---|---|
+| landing-page::US-003/AC-01 | six steps in order, each with a screenshot | the dictionary's six steps, the shot list's six views, the showcase and the stacked steps (B1, B3) | Met |
+| landing-page::US-003/AC-02 | sessions: within the project; search: across projects; no shortcut | the two steps' copy (B4) | Met |
+| landing-page::REQ-004/AC-01 | pinned under the header; narrow column with "03 / 06", title, text; the screenshot large in the window frame, whole in a short window; no dots, no hint | the showcase's markup and styles (B2, M1) | Met |
+| landing-page::REQ-004/AC-05 | text and screenshot cross-fade together in place; one line; instant under reduced motion; only the current step reachable | the fade rules and visibility (M3) | Met |
+| landing-page::REQ-004/AC-06 | below 760px nothing pinned, stacked steps with a gap | the narrow rules (M4) | Met |
+| landing-page::REQ-004/AC-07 | a language switch keeps the step and the place | the switch marks the place by the showcase's block (M5, with its control) | Met |
+| landing-page::REQ-004/AC-08 | natural scroll; first step at the pin, a turn per 60% of the window; first before, last after | the features script (M2) | Met |
+| landing-page::REQ-005/AC-01..AC-03 | the screenshots' data, the hero's rail, six cuts at one size, space held | the fourteen shipped shots identical to the confirmed set (E1); declared sizes (B6) | Met |
+| landing-page::REQ-007 | the heading and paragraph equal to the README's opening line and summary | the dictionary's hero copy (B5); the browser tab's title and the page's description follow it | Met |
+| Failures C1–C7, E2 | the features section's boundaries | M1–M7, E1 | Met |
+
+Scope added without a spec line: none. The guard for a window with no height (review R1) leaves the step as it was; it changes nothing a visitor can see, so it needs no requirement. Deviations from the spec: none.

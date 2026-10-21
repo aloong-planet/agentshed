@@ -8,6 +8,7 @@
 // Writes results.json and the screenshots beside this file; exits non-zero if any measurement fails. Expected
 // colours are the app's (src/renderer/src/theme.css); expected steps are written out per scroll position, in units
 // of a turn (60% of the window's height, landing-page::REQ-004/AC-08).
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,6 +16,17 @@ import { chromium } from '@playwright/test'
 
 const BASE = process.env.SITE_URL ?? 'http://127.0.0.1:4399'
 const HERE = dirname(fileURLToPath(import.meta.url))
+const ROOT = join(HERE, '../../../../..')
+const git = (...args) => execFileSync('git', ['-C', ROOT, ...args], { encoding: 'utf8' }).trim()
+/** The version measured: the commit, and every file that differs from it with its content hash */
+const VERSION = {
+  head: git('rev-parse', 'HEAD'),
+  // Untrimmed: a status line starts with its two status columns, the first of which may be a space
+  uncommitted: execFileSync('git', ['-C', ROOT, 'status', '--porcelain', '--untracked-files=all'], { encoding: 'utf8' }).split('\n').filter(Boolean).map((line) => {
+    const file = line.slice(3)
+    try { return `${line.slice(0, 2)} ${file} ${git('hash-object', file)}` } catch { return `${line.slice(0, 2)} ${file} (deleted)` }
+  })
+}
 const SHOTS = join(HERE, 'screenshots')
 mkdirSync(SHOTS, { recursive: true })
 const PATH = { zh: '/', en: '/en/' }
@@ -29,7 +41,8 @@ function check(id, what, actual, pass) {
 }
 
 const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL ?? 'chrome' })
-console.log(`browser: ${browser.version()}`)
+const BROWSER_VERSION = browser.version()
+console.log(`browser: ${BROWSER_VERSION} · version measured: ${VERSION.head}, ${VERSION.uncommitted.length} file(s) uncommitted`)
 
 async function open(lang, { width = 1280, height = 800, colorScheme = 'light', reducedMotion = 'no-preference', javaScriptEnabled = true, noStorage = false } = {}) {
   const context = await browser.newContext({ viewport: { width, height }, colorScheme, reducedMotion, javaScriptEnabled })
@@ -132,17 +145,34 @@ for (const lang of ['zh', 'en']) {
         stage: [stage.left, stage.top, stage.width, stage.height],
         centreIsCurrent: centre?.closest('.deck-shot')?.classList.contains('on') ?? false,
         hidden,
-        transition: [getComputedStyle(on).transitionDuration, getComputedStyle(document.querySelector('.deck-shot.on')).transitionDuration]
+        transition: [getComputedStyle(on).transitionDuration, getComputedStyle(document.querySelector('.deck-shot.on')).transitionDuration],
+        animated: [...document.querySelectorAll('.deck-text, .deck-shot')].map((e) => getComputedStyle(e).transitionProperty),
+        transforms: [...document.querySelectorAll('.deck-text, .deck-shot')].map((e) => getComputedStyle(e).transform)
       }
+    })
+    // Mid-turn: the incoming step's opacity is between 0 and 1, and where its count, title and screenshot stand
+    const mid = () => page.evaluate(() => {
+      const on = document.querySelector('.deck-text.on')
+      const stage = document.querySelector('.deck-stage').getBoundingClientRect()
+      return { opacity: Number(getComputedStyle(on).opacity), shotOpacity: Number(getComputedStyle(document.querySelector('.deck-shot.on')).opacity), n: on.querySelector('.deck-n').getBoundingClientRect().top, h: on.querySelector('h3').getBoundingClientRect().top, stage: [stage.left, stage.top, stage.width, stage.height] }
     })
     let prev = null
     for (let k = 0; k <= 5; k++) {
+      let during = null
+      if (k > 0 && reducedMotion === 'no-preference') {
+        await page.evaluate((y) => scrollTo({ top: y, behavior: 'instant' }), at(g, k))
+        await frames(page, 2)
+        await page.waitForTimeout(100)
+        during = await mid()
+      }
       await scrollToY(page, at(g, k))
       const r = await read()
       if (reducedMotion === 'no-preference') {
         if (prev) {
           check(`M3-${lang}-place-${k}`, `turning to step ${k + 1}: the count, the title and the screenshot stay where they were`, [prev, r], Math.abs(r.n - prev.n) < 0.5 && Math.abs(r.h - prev.h) < 0.5 && r.stage.every((v, i) => Math.abs(v - prev.stage[i]) < 0.5))
+          check(`M3-${lang}-mid-${k}`, `mid-turn to step ${k + 1} the text and the screenshot are fading in, already where they end`, [during, r], during.opacity > 0 && during.opacity < 1 && during.shotOpacity > 0 && during.shotOpacity < 1 && Math.abs(during.n - r.n) < 0.5 && Math.abs(during.h - r.h) < 0.5 && during.stage.every((v, i) => Math.abs(v - r.stage[i]) < 0.5))
         }
+        check(`M3-${lang}-animated-${k}`, 'only opacity (and visibility, for the hidden) is animated; nothing is transformed', [r.animated, r.transforms], r.animated.every((t) => t === 'opacity' || t === 'opacity, visibility') && r.transforms.every((t) => t === 'none'))
         check(`M3-${lang}-hidden-${k}`, 'the five other texts and five other screenshots are hidden', r.hidden, r.hidden.length === 10 && r.hidden.every((v) => v === 'hidden'))
         check(`M3-${lang}-pointer-${k}`, 'the pointer at the stage reaches the current screenshot', r.centreIsCurrent, r.centreIsCurrent)
         check(`M3-${lang}-fade-${k}`, 'the text and the screenshot fade over 0.3s', r.transition, r.transition.every((t) => t.split(',')[0].trim() === '0.3s'))
@@ -194,6 +224,20 @@ for (const lang of ['zh', 'en']) {
     check(`M5-${lang}-control`, 'control: with session storage blocked the place is not kept, so the measurement above can fail', c, c.text !== 3)
     await context.close()
   }
+  // The switch away from the showcase: on a phone at a stacked step, and on a wide screen in the install section
+  for (const [where, width, selector] of [['stacked', 400, '.fs-list .fs-step:nth-child(3)'], ['install', 1280, '#install']]) {
+    const { context, page } = await open(lang, { width, height: 800 })
+    await page.evaluate((sel) => { const el = document.querySelector(sel); scrollTo({ top: el.getBoundingClientRect().top + scrollY - innerHeight * 0.4, behavior: 'instant' }) }, selector)
+    await settle(page)
+    const before = await page.evaluate((sel) => document.querySelector(sel).getBoundingClientRect().top, selector)
+    await page.click('header .lang a[data-switch-language]')
+    await page.waitForURL(BASE + PATH[OTHER[lang]])
+    await page.waitForLoadState('load')
+    await settle(page)
+    const after = await page.evaluate((sel) => document.querySelector(sel).getBoundingClientRect().top, selector)
+    check(`M5-${lang}-${where}`, `switching to ${OTHER[lang]} at ${width}px with ${selector} across the middle keeps it at the same distance from the top`, { before, after }, Math.abs(after - before) <= 1 && Math.abs(before - 800 * 0.4) <= 1)
+    await context.close()
+  }
 
   // ── M6: resizing leaves no stale step ──
   {
@@ -205,19 +249,23 @@ for (const lang of ['zh', 'en']) {
       const docTop = document.querySelector('.deck').getBoundingClientRect().top + scrollY
       return Math.min(5, Math.max(0, Math.round((scrollY - (docTop - 58)) / (0.6 * innerHeight))))
     }, g.deckDocTop)
+    // Narrow, scroll while the showcase is not displayed (so the script does not follow), then widen again
     await page.setViewportSize({ width: 700, height: 800 })
+    await settle(page)
+    await page.evaluate((y) => scrollTo({ top: y, behavior: 'instant' }), at(g, 1))
     await settle(page)
     await page.setViewportSize({ width: 1280, height: 800 })
     await settle(page)
     const c1 = await current(page)
     const e1 = await expectedStep()
-    check(`M6-${lang}-narrow-and-back`, 'after 1280 → 700 → 1280 the step is the one the position gives', { c1, e1 }, c1.text === e1 && c1.shot === e1)
+    check(`M6-${lang}-narrow-and-back`, 'after 1280 → 700, a scroll while narrow, and back to 1280, the step is the one the new position gives, not the one before', { c1, e1 }, c1.text === e1 && c1.shot === e1 && e1 !== 3)
+    // Three turns of 480px are 1440px; under a 600px window a turn is 360px, so the same position is four turns
     await scrollToY(page, at(g, 3))
     await page.setViewportSize({ width: 1280, height: 600 })
     await settle(page)
     const c2 = await current(page)
     const e2 = await expectedStep()
-    check(`M6-${lang}-height`, 'after 800 → 600 tall the step is the one the position gives under the new height', { c2, e2 }, c2.text === e2 && c2.shot === e2 && e2 !== 3)
+    check(`M6-${lang}-height`, 'after 800 → 600 tall at three turns, the fifth step: the same distance is four turns of the new height', { c2, e2 }, c2.text === 4 && c2.shot === 4 && e2 === 4)
     await context.close()
   }
 
@@ -261,6 +309,6 @@ for (const lang of ['zh', 'en']) {
 await browser.close()
 const failed = results.filter((r) => !r.pass)
 const escape = (s) => s.replace(/[\u0080-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`)
-writeFileSync(join(HERE, 'results.json'), escape(JSON.stringify({ base: BASE, total: results.length, failed: failed.length, results }, null, 1)) + '\n')
+writeFileSync(join(HERE, 'results.json'), escape(JSON.stringify({ base: BASE, version: VERSION, browser: BROWSER_VERSION, total: results.length, failed: failed.length, results }, null, 1)) + '\n')
 console.log(`${results.length} measurements, ${failed.length} failed`)
 process.exit(failed.length ? 1 : 0)

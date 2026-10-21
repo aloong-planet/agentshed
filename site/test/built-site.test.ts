@@ -4,7 +4,7 @@
 // gets (landing-page::REQ-001/AC-04).
 //
 // Not covered here, by the seam the owner chose: the features section's pinned showcase and how the scroll
-// turns its steps (landing-page::REQ-004, Failures C1–C7), the layout across widths (landing-page::QR-001), and
+// turns its steps (landing-page::REQ-004, Failures C1–C3 and C5–C7), the layout across widths (landing-page::QR-001), and
 // what the page looks like in light and dark (landing-page::REQ-006, Failure D1). They are measured in a browser
 // against the built site, and the measurement record is kept with the ticket's evidence; they would become tests
 // only with a browser seam in these tests.
@@ -207,26 +207,23 @@ describe('the hero and the READMEs', () => {
       .map((p) => p.replace(/\s+/g, ' ').trim())
   const README = { zh: readme('README.md'), en: readme('README.en.md') }
   const FULL_STOP = { zh: '\u3002', en: '.' }
-  /** The README's paragraph that holds the page's paragraph */
-  const summaryParagraph = (locale: (typeof LOCALES)[number]): string | undefined =>
-    README[locale].find((p) => p.includes(text(pages[locale].querySelector('.hero .lede'))))
+  /** The sentence between the README's opening line and its summary: Agentshed is a macOS app */
+  const MAC_APP = { zh: '\u4e00\u4e2a macOS \u5e94\u7528\u3002', en: 'A macOS app. ' }
 
-  test.each(LOCALES)('%s: the heading is the README’s opening line, without its full stop', (locale) => {
+  test.each(LOCALES)('%s: the README’s opening paragraph is the heading in bold, the macOS sentence and the hero’s paragraph, word for word', (locale) => {
     const heading = text(pages[locale].querySelector('.hero h1'))
+    const paragraph = text(pages[locale].querySelector('.hero .lede'))
     expect(heading.length).toBeGreaterThan(0)
-    // The README's opening paragraph starts with that line in bold, then goes on to the summary
-    const opening = `**${heading}${FULL_STOP[locale]}**`
-    expect(summaryParagraph(locale)?.slice(0, opening.length)).toBe(opening)
+    expect(paragraph.length).toBeGreaterThan(80)
+    // The opening paragraph: the first after the title and the line that links the other README
+    const opening = README[locale].find((p) => !p.startsWith('#') && !/\]\(README(\.en)?\.md\)/.test(p))
+    expect(opening).toBe(`**${heading}${FULL_STOP[locale]}** ${MAC_APP[locale]}${paragraph}`)
   })
 
   test('the English heading reads as the spec’s', () => {
     expect(text(pages.en.querySelector('.hero h1'))).toBe('Your coding agents, in full view')
   })
 
-  test.each(LOCALES)('%s: the paragraph is the README’s summary, word for word', (locale) => {
-    expect(text(pages[locale].querySelector('.hero .lede')).length).toBeGreaterThan(80)
-    expect(summaryParagraph(locale)).toBeDefined()
-  })
 })
 
 describe('screenshots and links', () => {

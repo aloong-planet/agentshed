@@ -1,6 +1,31 @@
 {
  "base": "http://127.0.0.1:4399",
- "total": 230,
+ "version": {
+  "head": "7af1220c43d1262d27d1c7f2af57699a6b699887",
+  "uncommitted": [
+   "M  docs/.workings/macos-release-line/checklist.md 2299abe30aad02685d230b4d17dc52e52bc96e55",
+   "M  docs/.workings/macos-release-line/evidence/ticket-279/README.md 62ed1ec56678ef8490a4a41bd9855675cf2f6e86",
+   "A  docs/.workings/macos-release-line/evidence/ticket-279/gateway-7af1220.txt 4e8d375adaf82ffc3beb19bca0ddbe5657249149",
+   "M  docs/.workings/macos-release-line/evidence/ticket-279/measure.mjs 7ce7a169c4cc905505b2c402bd7b565268c4ce5d",
+   "A  docs/.workings/macos-release-line/evidence/ticket-279/prototype-vs-site.txt 58a8d3c9f1bc3c99ac9bc48e823cc538a9c3dc21",
+   "A  docs/.workings/macos-release-line/evidence/ticket-279/readme-check-plant.txt 1dede885135311e0ad4c44140f7e80fc5b70bbae",
+   "M  docs/.workings/macos-release-line/evidence/ticket-279/results.json a53b77676ccd6096ae59199d7e23c4158466749b",
+   "A  docs/.workings/macos-release-line/evidence/ticket-279/shots-check.mjs b4dc589d39828c6259dbc038ab64e2b8dfe8f608",
+   "M  docs/.workings/macos-release-line/evidence/ticket-279/shots-check.txt 2f14c5333939c88ec2b69981c80264e96e916bf5",
+   "M  docs/.workings/macos-release-line/final-regression.md debd626735ffe8e9ace03587d7fdcbadb5585063",
+   "M  docs/.workings/macos-release-line/ticket-279-doc-sync.md f87c09176f0ad2cb6ea8a195fc19da1349ad4f3c",
+   "M  docs/.workings/macos-release-line/ticket-279-review-code.md 818f1a686527d3784e1c2c2f0fc5026573b709e3",
+   "M  docs/.workings/macos-release-line/ticket-279-review-tests.md 5a2baa6a48b318a3ee7c3592edeb90a32c08fc67",
+   "M  docs/.workings/macos-release-line/ticket-279-tasks.md 8d13a636eb80df61304906002e8d34ec7c0e69a1",
+   "M  docs/features/landing-page.md 8c291bc512a07aecda08359b69344a03b474bcf9",
+   "M  docs/prototypes/landing-page/prototype-landing.html 82424b946afd8243be250e30af1bf24e458b5ba2",
+   "M  docs/specs/landing-page.md 28462252c034eab1eb5e3080471b7cba5aa3b52d",
+   "M  site/README.md a76753545dab4a6cf49fd82daecba471a7727ab0",
+   "M  site/test/built-site.test.ts 89548cf6a26a5ef56f94c529b74fadfec508c0de"
+  ]
+ },
+ "browser": "155.0.8059.85",
+ "total": 256,
  "failed": 0,
  "results": [
   {
@@ -547,6 +572,41 @@
    "pass": true
   },
   {
+   "id": "M3-zh-animated-0",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
    "id": "M3-zh-hidden-0",
    "what": "the five other texts and five other screenshots are hidden",
    "actual": [
@@ -607,6 +667,34 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     },
     {
@@ -634,8 +722,145 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-mid-1",
+   "what": "mid-turn to step 2 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.741035,
+     "shotOpacity": 0.741035,
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-animated-1",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
    ],
    "pass": true
   },
@@ -700,6 +925,34 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     },
     {
@@ -727,8 +980,145 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-mid-2",
+   "what": "mid-turn to step 3 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666209,
+     "shotOpacity": 0.666209,
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-animated-2",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
    ],
    "pass": true
   },
@@ -793,6 +1183,34 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     },
     {
@@ -820,8 +1238,145 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-mid-3",
+   "what": "mid-turn to step 4 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666496,
+     "shotOpacity": 0.666496,
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-animated-3",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
    ],
    "pass": true
   },
@@ -886,6 +1441,34 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     },
     {
@@ -913,8 +1496,145 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-mid-4",
+   "what": "mid-turn to step 5 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666288,
+     "shotOpacity": 0.666288,
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-animated-4",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
    ],
    "pass": true
   },
@@ -979,6 +1699,34 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     },
     {
@@ -1006,8 +1754,145 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-mid-5",
+   "what": "mid-turn to step 6 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666575,
+     "shotOpacity": 0.666575,
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-animated-5",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
    ],
    "pass": true
   },
@@ -1243,23 +2128,41 @@
    "pass": true
   },
   {
+   "id": "M5-zh-stacked",
+   "what": "switching to en at 400px with .fs-list .fs-step:nth-child(3) across the middle keeps it at the same distance from the top",
+   "actual": {
+    "before": 320.109375,
+    "after": 320.09375
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-zh-install",
+   "what": "switching to en at 1280px with #install across the middle keeps it at the same distance from the top",
+   "actual": {
+    "before": 320.375,
+    "after": 320.171875
+   },
+   "pass": true
+  },
+  {
    "id": "M6-zh-narrow-and-back",
-   "what": "after 1280 \u2192 700 \u2192 1280 the step is the one the position gives",
+   "what": "after 1280 \u2192 700, a scroll while narrow, and back to 1280, the step is the one the new position gives, not the one before",
    "actual": {
     "c1": {
-     "text": 3,
-     "shot": 3,
+     "text": 5,
+     "shot": 5,
      "count": 6,
      "shots": 6,
-     "label": "04 / 06"
+     "label": "06 / 06"
     },
-    "e1": 3
+    "e1": 5
    },
    "pass": true
   },
   {
    "id": "M6-zh-height",
-   "what": "after 800 \u2192 600 tall the step is the one the position gives under the new height",
+   "what": "after 800 \u2192 600 tall at three turns, the fifth step: the same distance is four turns of the new height",
    "actual": {
     "c2": {
      "text": 4,
@@ -2089,6 +2992,41 @@
    "pass": true
   },
   {
+   "id": "M3-en-animated-0",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
    "id": "M3-en-hidden-0",
    "what": "the five other texts and five other screenshots are hidden",
    "actual": [
@@ -2149,6 +3087,34 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     },
     {
@@ -2176,8 +3142,145 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-mid-1",
+   "what": "mid-turn to step 2 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666244,
+     "shotOpacity": 0.666244,
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-animated-1",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
    ],
    "pass": true
   },
@@ -2242,6 +3345,34 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     },
     {
@@ -2269,8 +3400,145 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-mid-2",
+   "what": "mid-turn to step 3 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.66653,
+     "shotOpacity": 0.66653,
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-animated-2",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
    ],
    "pass": true
   },
@@ -2335,6 +3603,34 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     },
     {
@@ -2362,8 +3658,145 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-mid-3",
+   "what": "mid-turn to step 4 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666323,
+     "shotOpacity": 0.666323,
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-animated-3",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
    ],
    "pass": true
   },
@@ -2428,6 +3861,34 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     },
     {
@@ -2455,8 +3916,145 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-mid-4",
+   "what": "mid-turn to step 5 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666609,
+     "shotOpacity": 0.666609,
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-animated-4",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
    ],
    "pass": true
   },
@@ -2521,6 +4119,34 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     },
     {
@@ -2548,8 +4174,145 @@
      "transition": [
       "0.3s",
       "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
      ]
     }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-mid-5",
+   "what": "mid-turn to step 6 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666402,
+     "shotOpacity": 0.666402,
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-animated-5",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
    ],
    "pass": true
   },
@@ -2785,23 +4548,41 @@
    "pass": true
   },
   {
+   "id": "M5-en-stacked",
+   "what": "switching to zh at 400px with .fs-list .fs-step:nth-child(3) across the middle keeps it at the same distance from the top",
+   "actual": {
+    "before": 320.09375,
+    "after": 320.109375
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-en-install",
+   "what": "switching to zh at 1280px with #install across the middle keeps it at the same distance from the top",
+   "actual": {
+    "before": 320.171875,
+    "after": 320.375
+   },
+   "pass": true
+  },
+  {
    "id": "M6-en-narrow-and-back",
-   "what": "after 1280 \u2192 700 \u2192 1280 the step is the one the position gives",
+   "what": "after 1280 \u2192 700, a scroll while narrow, and back to 1280, the step is the one the new position gives, not the one before",
    "actual": {
     "c1": {
-     "text": 3,
-     "shot": 3,
+     "text": 5,
+     "shot": 5,
      "count": 6,
      "shots": 6,
-     "label": "04 / 06"
+     "label": "06 / 06"
     },
-    "e1": 3
+    "e1": 5
    },
    "pass": true
   },
   {
    "id": "M6-en-height",
-   "what": "after 800 \u2192 600 tall the step is the one the position gives under the new height",
+   "what": "after 800 \u2192 600 tall at three turns, the fifth step: the same distance is four turns of the new height",
    "actual": {
     "c2": {
      "text": 4,

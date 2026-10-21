@@ -53,6 +53,14 @@ No finding against existing invariants. Checked:
 - Smells: the steps are rendered twice (the showcase and the stacked steps). Exempt: the confirmed design shows
   one or the other by width and by scripting, as the prototype does, and both come from one list.
 
+## Character icons outside the change (`/ui-design`)
+
+None. The site's icon positions, enumerated from the components: the `Icon` component's one icon, Lucide
+"download", in the hero's button and the download section's; the app icon as an image in the header and the
+hero. No character stands in an icon position. A scan of `site/src` for arrow, symbol, dingbat and emoji code
+points (U+2190–U+2BFF, U+2700–U+27BF, U+1F000–U+1FAFF) finds only the box-drawing rules in the stylesheet's
+section comments.
+
 ## Refactoring list (for the owner's decision)
 
 | # | What | Why | Reach | Recommendation |

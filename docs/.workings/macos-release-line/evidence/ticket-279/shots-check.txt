@@ -1,6 +1,5 @@
-# landing-page::REQ-005/AC-01, AC-02 and Failure E2 — the site's screenshots against the confirmed prototype's
-# git rev-parse HEAD: 80f2968159d67589a25f6699536ad275cd564eac (site/public/shots/ uncommitted at this point)
-# command: for f in docs/prototypes/landing-page/shots/*.png; do cmp $f site/public/shots/$(basename $f); sips -g pixelWidth -g pixelHeight site/public/shots/$(basename $f); done
+# The site’s screenshots against the confirmed prototype’s, written by shots-check.mjs
+# HEAD: 7af1220c43d1262d27d1c7f2af57699a6b699887; uncommitted files under the two folders: none
 hero-en.png identical 2560x1536 91fdc522fc673e3cf309148f97e03f47b6bc7c3f9fee904e2c52a9f70e6bfd75
 hero-zh.png identical 2560x1536 ab9767df3e3027e925d5cdbb59a484a11d956c8fe0efb418e4b648abc6cf9534
 memory-en.png identical 1840x1035 b8daf0d622c96e039af50d0e9f432d21098bed150624d61ac2cb8e830106d9ce
@@ -15,4 +14,4 @@ session-en.png identical 1840x1035 ff6b6ebfbf54545f500f27dde3d44fccc5bbebd234200
 session-zh.png identical 1840x1035 58d6a4dea5531a998e788129c758e8f83a7e2958c1f432d6ee0414dde97b3a3a
 tokens-en.png identical 1840x1035 a693f95f31ab16e5c1c87398d21f7a03ae4001ed2731a55463817ca96f138699
 tokens-zh.png identical 1840x1035 434ad8c294527d82a8e95e6883c2761be611b0396db79837322755d66185dca9
-# files compared: 14; files in site/public/shots: 14
+# 14 file(s) compared, 0 not identical

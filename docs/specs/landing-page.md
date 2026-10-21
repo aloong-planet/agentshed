@@ -162,7 +162,8 @@ following the visitor's system appearance.
 
 The hero's heading is the README's opening line in the same language without its full stop ("Your
 coding agents, in full view" in English). Its paragraph is the README's opening summary in the same
-language, word for word.
+language, word for word: the rest of the README's opening paragraph after that line and the sentence that
+calls Agentshed a macOS app.
 
 ## Quality Requirements
 

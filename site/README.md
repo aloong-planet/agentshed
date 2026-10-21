@@ -36,12 +36,13 @@ files), which is why CI installs the site's dependencies before linting.
 - `src/download.ts`: the download state the two reads decide (formal from R2, formal from GitHub, test, or the
   list), and what each state's buttons say and where they lead. The page is served in the list state, which
   leads to GitHub's release list.
-- `src/scripts/`: the features section's scroll-linked frame (`features.ts`), the language switch that keeps
+- `src/scripts/`: the features section's pinned showcase, whose step follows the scroll (`features.ts`), the language switch that keeps
   the current step and scroll position (`language-switch.ts`), and the download script that reads, decides and
   shows the state in place (`download.ts`, applying it with `apply-download.ts`).
-- `src/shots.ts` and `public/shots/`: the screenshots, one set per language, approved for publication on
-  2026-10-13. They change only by retaking them from the app, at the same sizes (the hero 2560×1536, every
-  feature cut 1840×1035).
+- `src/shots.ts` and `public/shots/`: the screenshots, one set per language: the hero and four feature cuts
+  over the owner's data, approved for publication (2026-10-13; the hero's retake 2026-10-21), and the memory and
+  search cuts over made-up data. They change only by retaking them from the app, at the same sizes (the hero
+  2560×1536, every feature cut 1840×1035).
 - `public/icon-64.png`, `public/icon-256.png`: the app icon, scaled from `build/icon.png`:
   `sips -z 64 64 build/icon.png --out site/public/icon-64.png` (and 256 for the other), from the repository
   root.
@@ -50,9 +51,10 @@ files), which is why CI installs the site's dependencies before linting.
 
 - Unit tests sit next to the modules they test (`src/**/*.test.ts`).
 - `test/built-site.test.ts` checks the pages one fresh build produces: `test/build-site.ts` builds the site
-  into a new temporary directory once per test run, so the check never reads an old `dist/`. Its file header
-  says what it cannot see (scrolling, layout across widths, the two appearances), which is measured in a
-  browser instead.
+  into a new temporary directory once per test run, so the check never reads an old `dist/`. It also reads the
+  repository's two READMEs, since the hero's heading and paragraph must be their opening line and summary: a
+  change to either README's opening fails it until the site's copy follows. Its file header says what it cannot
+  see (scrolling, layout across widths, the two appearances), which is measured in a browser instead.
 - `test/apply-download.test.ts` and `test/init-download.test.ts` apply the download states to that build's
   pages, the second through the page's script with a fake network. The reads' tests answer through an injected
   fetch too, so no test reaches the network; `test/fixtures/` holds the answers they use: the pointer as the
