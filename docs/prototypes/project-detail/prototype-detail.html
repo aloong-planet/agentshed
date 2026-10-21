@@ -49,7 +49,8 @@
        / preview switch (preview by default), the body, front matter as a key-value card. A link to another file of
        the memory directory, the main file included, switches the drawer to that file in preview; an external link
        goes to the system browser (here, a new tab); anything else gets the app's error toast (shared
-       _shared/toast.css / toast.js), as a link in the main file does; [[name]] references stay plain text. The
+       _shared/toast.css / toast.js), as a link in the main file does; [[name]] references stay plain text, a remark
+       written straight after one included, and a placeholder like <slug> shows as written. The
        body's read states (loading, could not read, empty file) show inside the same frame.
      演示基建(非设计的一部分,勿实现):底部悬浮条承载两组——「启动恢复」三档常驻(扫描中 / 完成 / 失败,
        共享件 _shared/startup-status;真实判定 = 这次启动的扫描是否仍在进行与扫描的结果);「会话分栏」两态
@@ -714,7 +715,7 @@
   // directory does not list
   const MAIN_MD='# Memory Index\n\n- [开 PR 后等确认才合并](pr-merge-needs-confirmation.md) — 开 PR 不构成合并授权\n- [shell snapshot 环境变量坑](shell-snapshot-vars-gotcha.md) — 快照不带自定义变量\n- [已删除的条目](missing-file.md) — 目标不在可读范围的形态\n- [外部文档](https://code.claude.com/docs) — 外链交系统浏览器\n';
   const MTOPICS=[
-    {f:'pr-merge-needs-confirmation.md',at:'agoToday',body:'---\nname: pr-merge-needs-confirmation\ndescription: 开 PR 不构成合并授权;用户确认后 squash 合并并删远程分支\nmetadata:\n  type: feedback\n---\n\n开 PR 即停,等用户在当轮明确说合并再执行。\n\n**Why:** CI 全绿只是合并的前置条件,不是批准。\n\n**How to apply:**\n- 开完 PR 停下,回报链接与 CI 状态\n- 用户确认后 `gh pr merge --squash --delete-branch`\n\n相关:[[shell-snapshot-vars-gotcha]] · [shell snapshot 环境变量坑](shell-snapshot-vars-gotcha.md) · 回到[索引](MEMORY.md) · [GitHub 文档](https://docs.github.com/en/pull-requests) · [旧笔记](old-notes.md)\n'},
+    {f:'pr-merge-needs-confirmation.md',at:'agoToday',body:'---\nname: pr-merge-needs-confirmation\ndescription: 开 PR 不构成合并授权;用户确认后 squash 合并并删远程分支\nmetadata:\n  type: feedback\n---\n\n开 PR 即停,等用户在当轮明确说合并再执行。\n\n**Why:** CI 全绿只是合并的前置条件,不是批准。\n\n**How to apply:**\n- 开完 PR 停下,回报链接与 CI 状态\n- 用户确认后 `gh pr merge --squash --delete-branch`\n- 施工记录写进 docs/.workings/<slug>/,合并后保留\n\n相关:[[shell-snapshot-vars-gotcha]](快照坑) · [shell snapshot 环境变量坑](shell-snapshot-vars-gotcha.md) · 回到[索引](MEMORY.md) · [GitHub 文档](https://docs.github.com/en/pull-requests) · [旧笔记](old-notes.md)\n'},
     {f:'shell-snapshot-vars-gotcha.md',at:'agoWeek',body:'---\nname: shell-snapshot-vars-gotcha\ndescription: shell 快照不带自定义环境变量\nmetadata:\n  type: project\n---\n\n每条命令都从快照起一个新 shell,`export` 过的变量下一条命令就没了。\n\n```sh\nFOO=1 pnpm build   # 写在同一条命令里\n```\n\n见 [[pr-merge-needs-confirmation]]。\n'}
   ];
   const MDIR='/memory', MFILES=[{f:'MEMORY.md',at:'agoToday',body:MAIN_MD},...MTOPICS];

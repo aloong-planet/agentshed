@@ -57,7 +57,9 @@ section (a topic row, or a link in the rendered main file).
   are listed, D5), so the switch is always present.
 - memory-view::US-001/AC-03: The raw switch shows the file's text exactly as read, front matter
   included; switching back shows the preview again.
-- memory-view::US-001/AC-04: `[[name]]` references render as plain text, not as links.
+- memory-view::US-001/AC-04: `[[name]]` references render as plain text, not as links — including one
+  written straight before a parenthetical remark, `[[name]](remark)`, whose remark stays text too
+  (memory-view::CON-002).
 - memory-view::US-001/AC-05: In the preview, a relative link whose target resolves to a file listed for
   the same memory directory switches the drawer to that file: the title stays, the meta line and the
   bar name the new file, and the new file opens in preview, scrolled to the top. On the global page
@@ -83,6 +85,16 @@ they are one form — the same frame (width, close button, title block, padding)
 both. The form is the one confirmed on the prototype on 2026-10-21: the width is min(720px, 80% of the
 content area), and the preview bar fades from the page ground into the card. The two differ only in
 where the file is read from and in what the title block names.
+
+### memory-view::CON-002 What rendered text keeps (direct acceptance)
+
+Applies to every rendered-markdown surface — the file drawer, the main memory file, configuration
+documents and the artifact reader — since they share one carrier (CONTEXT: one carrier and one rule set).
+Two things an agent writes as text stay text: a `[[…]]` reference, with whatever follows it (so
+`[[name]](remark)` is not a link), and a tag-like `<name>` whose name is not an HTML element (placeholders
+such as `<slug>`, `<spec-slug>`, `<id>`), which shows as written instead of being dropped by the sanitiser.
+Real HTML keeps rendering and is sanitised as before; a placeholder that shares an element's name
+(`<input>`, `<p>`) is still taken as HTML. Inside code spans and fences nothing changes.
 
 ## Failure modes and boundaries
 

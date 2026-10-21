@@ -23,6 +23,8 @@ Working record (not an authority: the spec, features, ADRs and CONTEXT.md say wh
 | D2 | The drawer takes the skill file drawer's form: preview by default, front matter as a card, a switch to the raw text. |
 | D3 | A link to another file of the same memory directory switches the drawer to that file; external → system browser; anything else → the explicit notice. |
 | D4 | `[[name]]` references stay plain text. |
+| D5 | (2026-10-21, after the independent test check found `[[name]](remark)` rendering as a link) `[[…]]` is literal text on every rendered-markdown surface, and a remark written straight after it stays text too. |
+| D6 | (2026-10-21, same check: `<slug>`-style placeholders vanish in every preview; folded into this ticket) a tag-like `<name>` whose name is not an HTML element shows as written on every rendered-markdown surface; real HTML keeps rendering, so a placeholder named like an element (`<input>`, `<p>`) is still taken as HTML. |
 
 ## Prototype proposals — confirmed by the owner on 2026-10-21 ("confirm, continue")
 

@@ -62,3 +62,24 @@ an e2e step for each branch (in-directory, unlisted, external).
 
 After F1 and F3 (premise and runnability findings) the security and consistency layers were scanned again: the
 saved-data fill-in only adds a null for an absent key and admits no path; no new finding.
+
+## Increment after the post-implementation check (2026-10-21, uncommitted over 81952cf)
+
+Scope: the shared renderer keeps `[[…]]` and non-element tags as written text (memory-view::CON-002, owner
+decisions D5 and D6); the prototype renderer mirrors it; test changes for findings PC-2 to PC-9; the working
+records' Chinese quotes translated (PC-1).
+
+- Underlying premises — 1 finding, fixed: a new comment said a hyphenated tag name is "never in a file's prose"
+  (unverified); reworded to what the code decides. Verified: `[[name]](remark)` with a space-free remark parses
+  as a link on the committed renderer and as text on the fix (the new tests fail on the committed `md.ts` exactly
+  at the remark and the placeholder, and pass on the fix); `md.ts` is the app's one Markdown parse and one raw-HTML
+  exit (`rg "from 'marked'|marked\.parse|dangerouslySetInnerHTML" src` → `md.ts` and `MarkdownBody.tsx` only), so
+  the rules reach every surface. PC-1's cause: the language check was run before the working records were
+  force-added, so it never read them (the project's own memory of this trap was not followed); it now runs after
+  `git add -f` and exits 0.
+- Runnability — no finding: the parser is one module-level instance with the old defaults (GFM on, breaks off);
+  the tag check creates one element per tag seen; the prototype builds the same parser from its vendored marked.
+- Security — no finding: the change only escapes (`<` → `&lt;`) tags whose name is not an element; every element
+  still reaches the sanitiser as before (`<script>` stripped, `<b>` kept — both tested). Escaping cannot add markup.
+- Consistency — no finding: the rule lives in the one carrier, as CONTEXT's one-rule-set invariant requires; the
+  prototype's shared renderer carries the same rule, so prototype and app agree.

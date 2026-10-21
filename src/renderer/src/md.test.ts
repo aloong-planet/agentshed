@@ -49,4 +49,54 @@ describe('renderMarkdown', () => {
     expect(html).toContain('when_to_use')
     expect(html).toContain('<h1>')
   })
+
+  it('front matter opened with --- but never closed is not a card: its lines render as the body (memory-view E4)', () => {
+    const view = rendered('---\nname: unclosed\ndescription: never closed\n\nBody text')
+    expect(view.querySelector('.md-fm')).toBeNull()
+    expect(view.textContent).toContain('name: unclosed')
+    expect(view.textContent).toContain('Body text')
+  })
+})
+
+/** The rendered HTML as a DOM, so assertions read what a reader sees rather than the markup's spelling */
+function rendered(md: string): HTMLElement {
+  const host = document.createElement('div')
+  host.innerHTML = renderMarkdown(md)
+  return host
+}
+/** The rendered text a reader sees, without the newlines that separate block markup */
+const textOf = (md: string): string => (rendered(md).textContent ?? '').trim()
+
+// memory-view::CON-002: text an agent writes stays text on every rendered surface — a [[…]] reference with
+// whatever follows it, and a tag-like <name> whose name is not an HTML element. Shapes from real memory files.
+describe('renderMarkdown keeps written text', () => {
+  // A remark with no spaces — how Chinese prose writes one — is what makes it parse as a link destination
+  it('[[name]] straight before a remark is text, the remark included, not a link', () => {
+    expect(textOf('See [[pr-merge]](confirm-before-merging) here')).toBe('See [[pr-merge]](confirm-before-merging) here')
+    expect(rendered('See [[pr-merge]](confirm-before-merging) here').querySelector('a')).toBeNull()
+  })
+
+  it('a [[name]] alone stays text; inside code nothing changes', () => {
+    expect(textOf('A [[note]] here')).toBe('A [[note]] here')
+    expect(rendered('Code `[[x]](y)` stays').querySelector('code')?.textContent).toBe('[[x]](y)')
+  })
+
+  it('an ordinary link is still a link', () => {
+    const a = rendered('[text](https://example.com/t)').querySelector('a')
+    expect(a?.textContent).toBe('text')
+  })
+
+  it('a placeholder whose name is not an HTML element shows as written, inline and on a line of its own', () => {
+    expect(textOf('Records go to docs/.workings/<slug>/x.md')).toBe('Records go to docs/.workings/<slug>/x.md')
+    expect(textOf('Use <spec-slug>::US-001 and <id>')).toBe('Use <spec-slug>::US-001 and <id>')
+    expect(textOf('<slug>')).toBe('<slug>')
+  })
+
+  it('real HTML keeps rendering and is still sanitised; a placeholder named like an element is still taken as HTML', () => {
+    expect(rendered('<b>bold</b> text').querySelector('b')?.textContent).toBe('bold')
+    const scripted = rendered('hi\n\n<script>alert(1)</script>')
+    expect(scripted.querySelector('script')).toBeNull()
+    expect(scripted.textContent).not.toContain('alert(1)')
+    expect(rendered('Type <input> here').textContent).not.toContain('<input>')
+  })
 })

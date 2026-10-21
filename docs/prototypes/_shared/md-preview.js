@@ -112,6 +112,33 @@
     return `<div class="md-fm" aria-label="frontmatter">${rows}</div>`
   }
 
+  // Text an agent writes stays text, as on every rendered surface in the app: a [[…]] reference, with whatever
+  // follows it (so [[name]](remark) is not a link), and a tag-like <name> whose name is not an HTML element (a
+  // placeholder such as <slug>), which would otherwise vanish as an unknown element. Real HTML still renders.
+  const TAG = /<\/?([A-Za-z][A-Za-z0-9-]*)(?:\s[^<>]*)?\/?>/g
+  const isElementName = (name) => !name.includes('-') && !(document.createElement(name) instanceof HTMLUnknownElement)
+  let parser = null
+  function textKeepingParser(marked) {
+    if (!parser && marked && typeof marked.Marked === 'function') {
+      parser = new marked.Marked({
+        gfm: true,
+        breaks: false,
+        extensions: [{
+          name: 'wikiRef',
+          level: 'inline',
+          start: (src) => src.indexOf('[['),
+          tokenizer: (src) => {
+            const m = /^\[\[[^\]\n]+\]\]/.exec(src)
+            return m ? { type: 'wikiRef', raw: m[0] } : undefined
+          },
+          renderer: (token) => escapeHtml(token.raw)
+        }],
+        renderer: { html: (token) => token.text.replace(TAG, (tag, name) => (isElementName(name) ? tag : escapeHtml(tag))) }
+      })
+    }
+    return parser
+  }
+
   function render(md) {
     follow()
     const src = md == null ? '' : String(md)
@@ -119,7 +146,10 @@
     const marked = global.marked
     let html = null
     try {
-      if (marked && typeof marked.parse === 'function') {
+      const keeping = textKeepingParser(marked)
+      if (keeping) {
+        html = keeping.parse(body, { async: false })
+      } else if (marked && typeof marked.parse === 'function') {
         html = marked.parse(body, { async: false, gfm: true, breaks: false })
       } else if (marked && typeof marked === 'function') {
         html = marked(body)

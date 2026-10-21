@@ -53,7 +53,9 @@
        matter shows as a key-value card (a nested key folds into its parent's value). A link to another file of the
        same memory directory switches the drawer to that file, which opens in preview again; an external link goes
        to the system browser (here, a new tab); anything else gets the app's error toast (shared _shared/toast.css /
-       toast.js); [[name]] references stay plain text. The body's read states (loading, could not read, empty file)
+       toast.js); [[name]] references stay plain text, a remark written straight after one included, and a
+       placeholder like <slug> shows as written (the shared md-preview rule for every rendered surface). The body's
+       read states (loading, could not read, empty file)
        show inside the same frame. Mock file contents follow the shape of real memory files.
      演示基建(非设计的一部分,勿实现):底部悬浮演示条(data-demo-harness,独立于
        页面内容流)承载三组开关,按分栏出现——「启动」四档常驻(骨架 / 扫描中 / 完成 / 失败,共享件
@@ -634,7 +636,7 @@ renderTotals(); renderModels();   // 首帧:图还没挂,先把卡与模型条�
   // every kind — to a sibling, to the index, external, and to a file the directory does not list; Codex's
   // consolidated memory with headings and file paths written as plain text
   const MEM_INDEX='# Memory Index\n\n- [开 PR 后等确认才合并](pr-merge-needs-confirmation.md) — 开 PR 不构成合并授权\n- [验证网关退出码](verify-exit-code.md) — 管道与分号链两种吞码形态都禁\n';
-  const MEM_PR='---\nname: pr-merge-needs-confirmation\ndescription: 开 PR 不构成合并授权;用户确认后 squash 合并并删远程分支\nmetadata:\n  type: feedback\n---\n\n开 PR 即停,等用户在当轮明确说合并再执行。\n\n**Why:** CI 全绿只是合并的前置条件,不是批准;一次「看起来没问题」就合并,撤回要改默认分支的历史。\n\n**How to apply:**\n- 开完 PR 停下,回报链接与 CI 状态\n- 用户确认后 `gh pr merge --squash --delete-branch`\n- 上一轮的「合了吧」不覆盖这一轮的新 PR\n\n相关:[[verify-exit-code]] · [验证网关退出码](verify-exit-code.md) · 回到[索引](MEMORY.md) · [GitHub 文档](https://docs.github.com/en/pull-requests) · [旧笔记](old-notes.md)\n';
+  const MEM_PR='---\nname: pr-merge-needs-confirmation\ndescription: 开 PR 不构成合并授权;用户确认后 squash 合并并删远程分支\nmetadata:\n  type: feedback\n---\n\n开 PR 即停,等用户在当轮明确说合并再执行。\n\n**Why:** CI 全绿只是合并的前置条件,不是批准;一次「看起来没问题」就合并,撤回要改默认分支的历史。\n\n**How to apply:**\n- 开完 PR 停下,回报链接与 CI 状态\n- 用户确认后 `gh pr merge --squash --delete-branch`\n- 上一轮的「合了吧」不覆盖这一轮的新 PR\n- 施工记录写进 docs/.workings/<slug>/,合并后保留\n\n相关:[[verify-exit-code]](退出码别被吞) · [验证网关退出码](verify-exit-code.md) · 回到[索引](MEMORY.md) · [GitHub 文档](https://docs.github.com/en/pull-requests) · [旧笔记](old-notes.md)\n';
   const MEM_EXIT='---\nname: verify-exit-code\ndescription: 验证网关的退出码不得被管道或分号链吞掉\nmetadata:\n  type: feedback\n---\n\n跑 `pnpm verify` 时,退出码必须直接挡住后续动作。\n\n## 两种吞码形态\n\n| 形态 | 例子 | 结果 |\n|---|---|---|\n| 管道 | `pnpm verify \\| tail` | 退出码是 tail 的 |\n| 分号链 | `pnpm verify; echo done` | 失败照样往下走 |\n\n```sh\npnpm verify > verify.log 2>&1; echo "exit=$?"\n```\n\n> 输出要截断就先写进文件,拿到退出码之后再读。\n\n见 [[pr-merge-needs-confirmation]]。\n';
   const MEM_CODEX='# Task Group: release pipeline\n\nscope: How the release workflow signs, notarises and publishes the macOS build.\n\n## Task 1: Fix the notarisation step, success\n\n### rollout_summary_files\n\n- rollout_summaries/2026-07-26T09-12-40-release_notarise_fix.md (cwd=~/CascadeProjects/agentshed)\n\n### keywords\n\n- notarytool, stapler, Developer ID\n';
   // at = [数, 单位](h 小时 / d 天 / w 周 / mo 月),按当前语言拼成相对时间;codex 条目的名字是界面文案,不在 p 里

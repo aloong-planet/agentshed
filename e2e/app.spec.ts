@@ -7,9 +7,14 @@
 //
 // Known gaps, unreachable through the UI today and so not driven here: the session page's focus reset
 // when its focus prop changes without a remount (the page is keyed by file, and a hit always opens it
-// fresh), and the skill drawer's mode reset when its file changes while open (the drawer switches files
-// only from preview mode, through an in-package link). Add a case when a path to either appears — a hit
-// list beside an open session, or a file switch from raw mode.
+// fresh), and the file drawer's mode reset when its file changes while open — for skill and memory files
+// alike, since one component carries both (the drawer switches files only from preview mode, through a link
+// in the preview, so "the new file opens in preview" holds without the reset ever being exercised). Add a
+// case when a path to either appears — a hit list beside an open session, or a file switch from raw mode.
+// Also not driven: two reads in flight in one memory drawer (memory-view E2 — each read is keyed by its file,
+// so an earlier read lands under its own key; there is no per-file delay seam to order two reads), and a
+// language change while the drawer is open (E7 — copy follows the dictionary the language cases cover; the
+// file, mode and scroll survive because a language change remounts nothing in the drawer).
 import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
@@ -1965,7 +1970,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
     join(memDir, 'pitfalls.md'),
     '---\nname: pitfalls\ndescription: Known traps in the demo project\nmetadata:\n  type: feedback\n---\n\n# Pitfalls\nUnique content B\n\n**Why:** a fixture for the memory drawer.\n\n**How to apply:**\n- first\n- second\n\n' +
       Array.from({ length: 40 }, (_, i) => `Filler paragraph ${i + 1}.`).join('\n\n') +
-      '\n\nSee [[other-note]] · [the index](MEMORY.md) · [Second](second.md) · [Gone](gone.md) · [Docs](https://example.com/docs)\n'
+      '\n\nRecords go to docs/.workings/<slug>/ and stay.\n\nSee [[other-note]](read-the-index-first) · [the index](MEMORY.md) · [Second](second.md) · [Gone](gone.md) · [Docs](https://example.com/docs)\n'
   )
   // Long enough to scroll: a short file would sit at the top on its own, whether or not the drawer resets it
   writeFileSync(
@@ -1974,6 +1979,11 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   )
   writeFileSync(join(memDir, 'empty.md'), '')
   writeFileSync(join(memDir, 'vanish.md'), 'Removed after the scan\n')
+  // Past the 500,000-character read cap (Codex's consolidated memory files run to several hundred thousand)
+  writeFileSync(join(memDir, 'big.md'), 'Line of the big memory file.\n'.repeat(18_000))
+  // Codex's global memory: a top-level .md in its memories directory
+  mkdirSync(join(home, '.codex', 'memories'), { recursive: true })
+  writeFileSync(join(home, '.codex', 'memories', 'consolidated.md'), '# Consolidated\n\nCodex memory body\n')
   // A second project with only a topic at launch: its main file is written after the first scan, so only the
   // project's own read registration can admit it (memory-view, Implementation Decisions)
   const late = join(home, 'late-proj')
@@ -2053,16 +2063,18 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await memFile('pitfalls.md').click()
   // AC-01: the memory's owner over side · file · time; the bar names the file and carries the switch
   await expect(fd.locator('.d-title')).toHaveText('demo-proj')
-  await expect(fd.locator('.d-meta')).toContainText('Claude · pitfalls.md · ')
+  await expect(fd.locator('.d-meta')).toHaveText('Claude · pitfalls.md · today')
   await expect(fd.locator('.md-preview-name')).toHaveText('pitfalls.md')
   // AC-02: preview by default, the front matter as a card with the nested key folded into its parent
   await expect(fd.locator('.md-preview-seg button.on')).toHaveText('Preview')
   await expect(fdBody).toHaveClass(/preview/)
   await expect(fdBody).toContainText('Unique content B')
   await expect(fd.locator('.md-fm-row', { hasText: 'metadata' }).locator('.md-fm-v')).toHaveText('type: feedback')
-  // AC-04: [[name]] stays text
-  await expect(fdBody).toContainText('[[other-note]]')
+  // AC-04 and CON-002: [[name]] stays text, with a remark written straight after it; a placeholder that is not
+  // an HTML element shows as written
+  await expect(fdBody).toContainText('[[other-note]](read-the-index-first)')
   await expect(fdBody.locator('a', { hasText: 'other-note' })).toHaveCount(0)
+  await expect(fdBody).toContainText('Records go to docs/.workings/<slug>/ and stay.')
   // AC-03: raw shows the file as written, front matter included; preview comes back
   await fd.locator('.md-preview-seg button', { hasText: 'Raw' }).click()
   await expect(fdBody).toHaveClass(/raw/)
@@ -2111,7 +2123,23 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   await memFile('vanish.md').click()
   await expect(fdBody).toContainText('File cannot be read')
   await expect(fd.locator('.md-preview-name')).toHaveText('vanish.md')
+  await expect(fd.locator('.md-preview-seg')).toBeVisible()
   await win.locator('.mask').click({ position: { x: 10, y: 10 } }) // The drawer covers the window centre, so click the visible mask on the left
+  // AC-07: a file past the read cap ends with the truncation marker, in preview and in raw
+  await memFile('big.md').click()
+  await expect(fdBody).toHaveClass(/preview/)
+  expect((await fdBody.textContent())?.trim().endsWith('…(truncated)'), 'preview ends with the marker').toBe(true)
+  await fd.locator('.md-preview-seg button', { hasText: 'Raw' }).click()
+  expect((await fdBody.textContent())?.trim().endsWith('…(truncated)'), 'raw ends with the marker').toBe(true)
+  expect((await fd.boundingBox())?.width, 'a long file does not widen the drawer').toBeLessThanOrEqual(720)
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
+  // AC-01 for Codex's global memory: the placeholder owner and the Codex side
+  await win.locator('.it.row-btn', { hasText: '(Codex global memory)' }).click()
+  await memFile('consolidated.md').click()
+  await expect(fd.locator('.d-title')).toHaveText('(Codex global memory)')
+  await expect(fd.locator('.d-meta')).toHaveText('Codex · consolidated.md · today')
+  await expect(fdBody).toContainText('Codex memory body')
+  await win.locator('.mask').click({ position: { x: 10, y: 10 } })
 
   // (4) The demo detail page: F3's second half — enabled at the project layer; the Skills tab contains the
   // plugin namespace entry (read-only)
@@ -2236,7 +2264,18 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
     expect(Math.abs(g.drawer - Math.min(720, g.pane * 0.8)), `${label}: the memory drawer's width rule`).toBeLessThan(2)
     expect(g.left, `${label}: the memory drawer must not cover the whole content area`).toBeGreaterThan(g.paneLeft + 1)
     const memFrame = await frame()
-    expect(memFrame.bar, `${label}: the bar fades from the ground into the card`).toContain('linear-gradient')
+    // The fade's two ends resolved through a probe in the drawer, so the comparison is between computed colours
+    const fade = await win.evaluate(() => {
+      const probe = document.createElement('div')
+      document.querySelector('.file-drawer')?.appendChild(probe)
+      probe.style.background = 'var(--bg)'
+      const ground = getComputedStyle(probe).backgroundColor
+      probe.style.background = 'var(--card)'
+      const card = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return `linear-gradient(${ground} 0%, ${card} 100%)`
+    })
+    expect(memFrame.bar, `${label}: the bar fades from the ground into the card`).toBe(fade)
     await win.locator('.mask').click({ position: { x: 10, y: 10 } })
     // The plugin skill drawer in the same window: the same frame
     await win.locator('.pane-head .tabs .tab', { hasText: 'Skills' }).click()

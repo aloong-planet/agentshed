@@ -4,8 +4,11 @@
 // so ALLOWED_URI_REGEXP is extended explicitly; scripts, event attributes and javascript: are still
 // stripped by default.
 // skills-view: YAML frontmatter is split into a key-value card before the body is rendered.
+// memory-view::CON-002: text an agent writes stays text — a [[…]] reference with whatever follows it, and a
+// tag-like <name> whose name is not an HTML element (a placeholder such as <slug>), which the sanitiser would
+// otherwise drop together with the word.
 import DOMPurify from 'dompurify'
-import { marked } from 'marked'
+import { Marked, type TokenizerAndRendererExtension } from 'marked'
 
 const URI_ALLOW = /^(?:(?:https?|mailto|file|data):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i
 const MD_EXT = /\.(md|markdown|mdx)$/i
@@ -55,6 +58,33 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
+/** A [[…]] reference is text: matched before the link rule, so [[name]](remark) leaves the remark as text too */
+const wikiRef: TokenizerAndRendererExtension = {
+  name: 'wikiRef',
+  level: 'inline',
+  start: (src) => src.indexOf('[['),
+  tokenizer: (src) => {
+    const m = /^\[\[[^\]\n]+\]\]/.exec(src)
+    return m ? { type: 'wikiRef', raw: m[0] } : undefined
+  },
+  renderer: (token) => escapeHtml(token.raw)
+}
+
+const TAG = /<\/?([A-Za-z][A-Za-z0-9-]*)(?:\s[^<>]*)?\/?>/g
+/** An HTML element's name, as the document knows it; a hyphenated name (a custom element's form) counts as written text */
+function isHtmlElementName(name: string): boolean {
+  return !name.includes('-') && !(document.createElement(name) instanceof HTMLUnknownElement)
+}
+
+const parser = new Marked({
+  extensions: [wikiRef],
+  renderer: {
+    // Raw HTML passes through to the sanitiser as before, except a tag whose name is not an element: that is
+    // written text, so it is escaped to show as written
+    html: ({ text }) => text.replace(TAG, (tag: string, name: string) => (isHtmlElementName(name) ? tag : escapeHtml(tag)))
+  }
+})
+
 function renderFrontmatterHtml(fields: Array<{ key: string; value: string }>): string {
   const rows = fields
     .map(
@@ -68,7 +98,7 @@ function renderFrontmatterHtml(fields: Array<{ key: string; value: string }>): s
 
 export function renderMarkdown(md: string): string {
   const { fields, body } = splitFrontmatter(md)
-  const raw = marked.parse(body, { async: false })
+  const raw = parser.parse(body, { async: false })
   const bodyHtml = DOMPurify.sanitize(raw, { ALLOWED_URI_REGEXP: URI_ALLOW })
   return (fields && fields.length ? renderFrontmatterHtml(fields) : '') + bodyHtml
 }
