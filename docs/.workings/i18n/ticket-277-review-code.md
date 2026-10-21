@@ -24,10 +24,12 @@ Ticket: [#277 Reduce the app's interface languages to Chinese and English](https
 
 Findings:
 
-1. **The plural module's cycle guard had stopped catching the cycle (found while rewriting the test).** With the
+1. **The plural module's cycle guard never caught the cycle it names (found while rewriting the test).** With the
    cycle planted (`en.ts` importing `plural` from `./index`), the old assertions stayed green: since `plural()`
    takes the bare language code it reads no dictionary, so under vitest the undefined entry the cycle leaves is
-   never touched. Fixed in the rewritten test by asking the layer for the dictionary after `./en` has loaded;
+   never touched. The same plant at 5ca6477, the commit that added the guard together with the leaf module, also
+   stays green: the red it was written against came from `plural()` reading the dictionary, which that commit
+   removed (postmortem 2026-10-21). Fixed in the rewritten test by asking the layer for the dictionary after `./en` has loaded;
    measured red under the plant ("expected undefined"), green restored. A carried-over comment then still said
    "the cycle bites at call time as well as load time", which the same plant disproves (the plural calls passed);
    the causal clause is removed. Class-level check: this is the only test guarding a module-graph property

@@ -27,14 +27,14 @@ confirmed by the owner on 2026-10-21. No other interface changes; the READMEs ar
 |---|---|---|---|
 | 1 | Branch from the latest main | no commits ahead | done: 9b7bb13 |
 | 2 | Steps 1–2: facts, decisions, ADR-0035, CONTEXT, the specs, the prototypes | prototype confirmed; `check:lang`, `check:ui` exit 0 | done: c39db9d |
-| 3 | Ticket records and the checklist's ticket mapping; the artifact paths declared on #277 | the records exist | in progress |
-| 4 | Test design review | `ticket-277-review-tests.md`, design section | pending |
-| 5 | Vertical slices: the language set (unit), resolution (unit, e2e), a stored removed language (unit, e2e), the selector's three items (e2e), the READMEs and their gate, the other gates, the six-language loops in the remaining tests | red first where the slice adds behaviour; typecheck and the slice's tests green | pending |
-| 6 | Targeted checks: typecheck, lint, the tests found by search | exit 0 | pending |
-| 7 | Checklist verification of this ticket's units | `checklist.md`, current verification | pending |
-| 8 | Step 5: `/review-code` | `ticket-277-review-code.md` | pending |
-| 9 | Full gateway `pnpm verify` | exit 0 | pending |
+| 3 | Ticket records and the checklist's ticket mapping; the artifact paths declared on #277 | the records exist | done: the records, the checklist mapping, #277's records section |
+| 4 | Test design review | `ticket-277-review-tests.md`, design section | done (rows U8 and U18 revised during slice 1) |
+| 5 | Vertical slices: the language set (unit), resolution (unit, e2e), a stored removed language (unit, e2e), the selector's three items (e2e), the READMEs and their gate, the other gates, the six-language loops in the remaining tests | red first where the slice adds behaviour; typecheck and the slice's tests green | done: 7c1b7d8 (unit cases red before the change, green after; the README gate red under two planted breaks) |
+| 6 | Targeted checks: typecheck, lint, the tests found by search | exit 0 | done: typecheck, lint, `pnpm test` (850 passed) exit 0; the changed e2e cases 19 of 20, the one red an untouched case that passed 3 of 3 alone (`evidence/ticket-277/targeted-e2e.txt`) |
+| 7 | Checklist verification of this ticket's units | `checklist.md`, current verification | done (targeted stage) |
+| 8 | Step 5: `/review-code` | `ticket-277-review-code.md` | done: two findings corrected, bd7d697 |
+| 9 | Full gateway `pnpm verify` | exit 0 | first run on 7c1b7d8 red at `check:lang` (the test review record quoted Chinese copy; fixed in bd7d697); second run on bd7d697 green: `VERIFY_EXIT=0`, 850 unit, 135 scripts, 102 site, 144 e2e, smoke ([gateway-bd7d697.txt](evidence/ticket-277/gateway-bd7d697.txt)); re-run before the PR, since step 7 and 8 edited documents the gates read |
 | 10 | Step 6: `/review-tests` post-implementation check, by an independent sub-agent | the same record, second section | pending |
-| 11 | Spec final check; step 7 | spec matches the implementation | pending |
-| 12 | Step 8: `/features-catalog` (the UI language entry and its index row) | `final-regression.md`, this ticket's section | pending |
+| 11 | Spec final check; step 7 | spec matches the implementation | done: every unit implemented, nothing outside the spec but test and gate plumbing; step 7 added the Testing Decisions gap note and the postmortem; no new ADR or term |
+| 12 | Step 8: `/features-catalog` (the UI language entry and its index row) | `final-regression.md`, this ticket's section | done |
 | 13 | Document sync re-check; pull request; stop for the owner's merge confirmation | PR link; CI | pending |
