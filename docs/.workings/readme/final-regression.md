@@ -12,6 +12,7 @@
 
 | Claim (README.en.md, and README.md the same) | Source | Conclusion |
 |---|---|---|
+| The opening summary, shared word for word with the website's hero paragraph (the owner's decision of 2026-10-21): which skills, plugins and MCP servers the agents installed, what they remember, how many tokens they burned; every session read question by question, a search across all of them, skills installed from the global library | the rows below for each part: plugins (`plugins-view.md`), memory (`memory-view.md`), tokens (`token-stats.md`), sessions (`session-view.md`), global search (`global-search.md`), skill install (`skill-install.md`) | True; the four short READMEs open with the same summary in their languages |
 | The Agents page opens first, one screen for every agent side | `docs/features/agents-overview.md` Overview ("the default landing page … onto one screen") | True |
 | Token totals for all history, today, the last 7 days and the last 30, 60 or 90 days | `token-stats.md:13–19` | True |
 | The Agents page's sections: skills, subagents, plugins, MCP servers, memory and configuration | `agents-overview.md:21–35` | True |
@@ -44,7 +45,7 @@
 | Statement (unchanged file) | Its counterpart changed this round | Conclusion |
 |---|---|---|
 | `package.json`'s `license: MIT` | the new `LICENSE` | Now agree; before, the repository had no licence text |
-| The landing page's hero paragraph (`site/src/i18n/ui.ts`) | the READMEs' opening | Both name the agents as examples. The page's paragraph is reworded in #279 to add session review and global search; until it lands, the README says more than the page, and neither says anything false |
+| The landing page's hero paragraph (`site/src/i18n/ui.ts`) | the READMEs' opening summary | The same summary, by the owner's decision of 2026-10-21; #279 puts it on the page. Until #279 lands the page's older paragraph says less (no memory, session review or search), and nothing false |
 | The feature catalogue's index (`docs/features/README.md`) | the README's pointer to it | True |
 | #239's plan for the READMEs (download and install steps in all six, with the first release) | the new layout: two full READMEs, four short | Recorded on #239 for restating when it resumes |
 

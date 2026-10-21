@@ -2,9 +2,10 @@
 
 [简体中文](README.md) · **English** · [Français](README.fr.md) · [Español](README.es.md) · [Русский](README.ru.md) · [日本語](README.ja.md)
 
-**The tool shed for your coding agents.** A macOS app that shows, across every project, what Claude Code,
-Codex and other coding agents have installed, how many tokens they burned and what you asked them — and
-installs skills from your global library into any project.
+**The tool shed for your coding agents.** A macOS app. See, across every project, which skills, plugins and
+MCP servers Claude Code, Codex and other coding agents have installed, what they remember and how many tokens
+they burned; revisit every session question by question, search what you asked across all of them, and install
+skills from your global library into any project.
 
 Website: [agentshed.aloongplanet.com](https://agentshed.aloongplanet.com)
 
@@ -26,7 +27,7 @@ Website: [agentshed.aloongplanet.com](https://agentshed.aloongplanet.com)
 - A project's page shows what that project has as it actually takes effect there — skills, subagents,
   plugins, MCP servers, memory and configuration — the documents its agents produced, and its sessions.
 
-### Skills, subagents and plugins
+### Skills, subagents, plugins and memory
 
 - Filter a skills list by name, and expand a skill to read its package's files.
 - Install a skill from your global library into a project as a full copy, or uninstall a project's copy: the

@@ -2,7 +2,7 @@
 
 **简体中文** · [English](README.en.md) · [Français](README.fr.md) · [Español](README.es.md) · [Русский](README.ru.md) · [日本語](README.ja.md)
 
-**你的 coding agent 工具棚。** 一个 macOS 应用：一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了什么、烧了多少 token、你问过它们什么；还能把全局库里的 skill 装进任意项目。
+**你的 coding agent 工具棚。** 一个 macOS 应用。一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，记住了什么，烧了多少 token；每次会话按提问回看，所有项目一起搜索；还能把全局 skill 装进任意项目。
 
 网站：[agentshed.aloongplanet.com](https://agentshed.aloongplanet.com)
 
@@ -20,7 +20,7 @@
 - 任一 agent 侧登记过的项目都在一张列表里，一个目录算一个项目，按活跃时间排序。可以按名称或路径搜索，只看某一个 agent 侧，也可以显示或隐藏目录已不存在的项目。
 - 项目页列出这个项目实际生效的 skills、subagents、plugins、MCP 服务、记忆与配置，以及 agent 在项目里产出的文档和项目的会话。
 
-### Skills、subagents 与 plugins
+### Skills、subagents、plugins 与记忆
 
 - skills 列表可以按名称筛选，展开一个 skill 就能阅读包里的文件。
 - 把全局库里的 skill 整份复制装进某个项目，或卸载项目里的那份：删除前会列出要删的内容并请你确认。
