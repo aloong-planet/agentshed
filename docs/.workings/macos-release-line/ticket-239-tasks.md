@@ -11,8 +11,11 @@ cut from `origin/main` at bedc384 (no commits ahead when cut).
   landing page (`curl` of `https://agentshed.aloongplanet.com/` and `/en/`: 200, the list state's "download from
   GitHub" button), from the Pages project the site README's "Deploying" section describes.
 - No release and no tag exist (`gh api …/releases`: 0; `…/tags`: none). The package version is 0.1.0.
-- Nothing reads the package version but the tag check and the packaging (`rg` for `0.1.0` and for version reads:
-  the tests use literals; e2e reads the running version at run time).
+- The package version is read by the tag check, the packaging, and at run time through `app.getVersion()`: the
+  settings page's version row, the accounting stamp, the updater's channel and the run-version record; e2e reads the
+  running version at run time, and the unit tests use literals. (Corrected 2026-10-21: the first version of this line
+  said only the tag check and the packaging read it, and the settings version row is exactly where this version's
+  length showed — the post-implementation check found the omission.)
 - The Pages deploy guide the document sync checklist planned (`docs/ops/pages-deploy.md`) already exists as the site
   README's "Deploying (Cloudflare Pages)" section (#237, #266): no second copy.
 - The release steps followed: `github-ops` §4–§5, its release-note template, and electron-scaffold's
@@ -51,15 +54,15 @@ landing page is not changed, only described.
 | 6 | Targeted checks, then the full gateway | `pnpm verify` exit 0 | red on 5b63b16: e2e `settings-updates.spec.ts:500` (QR-001/AC-02) in French and Japanese, the ready line on two lines. Blocked by #277, merged in as c5f44b9; green on c5f44b9: `VERIFY_EXIT=0` (`evidence/ticket-239/gateway-c5f44b9.txt`) |
 | 7 | The manual verification run on the branch (verify on): 0.1.0-beta through Apple and every gate, nothing published | the run green; its gate lines | done: run 39232263252 on 5b63b16, green in 5m48s: the app accepted (f06c2ae3-3db8-4de8-985a-20ab75e05611), `latest-mac.yml` matches `Agentshed-0.1.0-beta-mac-arm64.zip`, the DMG passed (64318467-f898-47d9-8629-881a4e7f8b3c) |
 | 8 | Step 5: `/review-code` | `ticket-239-review-code.md` | done: two document findings corrected; Runnability filled in on c5f44b9 |
-| 9 | Step 6: `/review-tests` post-implementation check | the same record, second section | pending |
-| 10 | Spec final check, step 7, step 8 (`/features-catalog`: the landing-page entry) | `final-regression.md`, this ticket's section | pending |
-| 11 | Pull request; stop for the owner's merge confirmation and the confirmation to push the tag | PR link; CI | pending |
-| 12 | The tag `v0.1.0-beta` on the merged commit; the release run | the run green; a Pre-release, nothing on R2 | pending |
-| 13 | The downloaded artifacts checked independently (policy §7) | `evidence/ticket-239/` | pending |
+| 9 | Step 6: `/review-tests` post-implementation check, by an independent sub-agent | the same record, second section | done on 3064371: seven findings, handled in the records and the evidence (`tag-check.txt`, `check-lang-readme-plant.txt`, `live-page-before-tag.txt`); dispositions in the record |
+| 10 | Spec final check, step 7, step 8 (`/features-catalog`: the landing-page entry) | `final-regression.md`, this ticket's section | done: no departure from the spec; no new ADR, term or postmortem; the regression in `final-regression.md` |
+| 11 | Pull request; stop for the owner's merge confirmation and the confirmation to push the tag | PR link; CI | in progress: the last gateway on the delivery commit, then the PR |
+| 12 | The tag `v0.1.0-beta` on the merged commit; the release run | the run green; a Pre-release; nothing on R2, shown positively by the mirror and pointer jobs being skipped, with the download host's response headers beside the pointer's 404 | pending |
+| 13 | The downloaded artifacts checked independently (policy §7) | `evidence/ticket-239/`; the stapled tickets decided by `stapler validate` on the DMG and on the `.app` inside it and inside the ZIP. `spctl --assess` is itself an assessment of the build, so on the Mac that does task 16 it runs only after task 16's offline first launch; `stapler validate` and the signature checks, which do not assess, run first | pending |
 | 14 | The release note: drafted from the template, the summary from the owner | the published note | pending |
 | 15 | The live page offers v0.1.0-beta in the test state, unchanged (landing-page::REQ-001/AC-05) | a browser reading of the rendered page | pending |
-| 16 | The first launch from a browser download, online and offline (US-001/AC-01, AC-02) | screenshots | pending (needs the owner's Mac) |
-| 17 | Records: the coverage checklist's #239 row, the document sync checklist, the issue's items | a records change | pending |
+| 16 | The first launch from a browser download, online and offline (US-001/AC-01, AC-02) | screenshots. The offline launch must be that Mac's first assessment of this build: a fresh browser download, its quarantine attribute confirmed (`xattr`), the network off before the first open — otherwise a cached assessment could pass without the stapled ticket | pending (needs the owner's Mac) |
+| 17 | Records: the coverage checklist's #239 row, the document sync checklist, the issue's items | a records change | done before the tag (2026-10-21); the post-release rows follow the release events |
 
 ## Resuming after #277
 
