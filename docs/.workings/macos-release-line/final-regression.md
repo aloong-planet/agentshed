@@ -152,3 +152,52 @@ Queue empty after the pre-delivery scope re-check (see `ticket-231-doc-sync.md`)
 | The owner's native menu screenshot arrived (2026-10-14; app-update::REQ-005's Evidence) | the screenshot against the template's application submenu and REQ-005 ([evidence/ticket-232/](evidence/ticket-232/README.md)) | Agrees with both: the item directly below "About Agentshed", enabled, English as the interface language. Updated in place: the task list, the test review's gap and conclusion, the coverage row, the document sync checklist and the issue's REQ-005 box. Scope re-check: the specs' "accepted by hand — a known gap" (app-update Testing Decisions, i18n's known test gap) names the method, not a pending state, and stays true; no feature statement mentions the picture |
 
 Queue empty after the pre-delivery scope re-check (see `ticket-232-doc-sync.md`).
+
+## Ticket #239 — Launch v0.1.0-beta: the first pre-release, the live landing page and the README
+
+- Date: 2026-10-21
+- Scope: this ticket's change only, `git diff b3cb0f5 3064371` plus the records after it (not the full-feature
+  closeout, which is #241)
+- Version: branch `feat/launch-beta` at c5f44b9 (main merged in, the owner's choice of 2026-10-21) and the records
+  after it
+
+The two questions for the feature catalogue: **what became a lie** — nothing in an existing entry (no product
+behaviour changed; the landing page's live behaviour was already described by its spec, and the app's language
+entry is #277's); **what was missing** — the landing page, live since the owner's Pages action, had no entry: written,
+with its index row. mac-distribution gets none: the catalogue leaves distribution out (the owner's decision of
+2026-10-19), a rule the catalogue's README now states.
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/features/landing-page.md` (new) | the landing-page spec's user-visible layer (the language toggle, the sticky header, the hero, the three download states, the in-place change, the download section, the features walk, the install steps, the appearance, links); the live page read in Chrome before any tag (list state, both languages); ADR-0035 for "Chinese and English only" | True; every capability traces to a spec requirement verified by #237 and #238 in a browser, and the list state is the one the live page shows today |
+| `docs/features/README.md` (the index row; the content rule "distribution is not catalogued") | the entry; mac-distribution's Out of Scope; the specs index's exception | Agree |
+| `README.md`, `README.en.md` (the download and install section) | mac-distribution's README decision and US-003/AC-01; the landing page's install section; the packaged app's `LSMinimumSystemVersion` 12.0 | True: the same requirements (macOS 12 or later, Apple Silicon), the same three steps, no version named; checked element by element in the code review |
+| `docs/specs/mac-distribution.md` (the Pending note resolved into Out of Scope) | the to-spec rule for a Pending condition that became "decided not to" | Moved into Out of Scope with its reason and no timeline |
+| `docs/specs/landing-page.md` (the Pending note removed; the header's links) | the live page (200 at both addresses) and the new entry | True |
+| `docs/specs/README.md` (the one-to-one rule's exception; the two rows) | the features index; the two specs' headers | Agree |
+| `package.json` (`0.1.0-beta`) | the tag check (`tag-check.txt`); the runtime readers (the settings version row measured by the e2e QR-001/AC-02, green in both languages) | True |
+
+### Stage 2: related declarations
+
+| Relation | Rows | Conclusion |
+|---|---|---|
+| File ↔ its index row | features (landing-page row added); specs (mac-distribution and landing-page rows) | Agree |
+| Rule ↔ template and generated documents | the catalogue's content rule ("distribution is not catalogued") ↔ the catalogue README that states it, and the specs index's exception that cites it | The README states it in words a reader needs no skill to understand |
+| One fact ↔ its other statements: "macOS 12 or later, Apple Silicon" | both READMEs, the landing page's hero and install section, the mac-distribution spec, the packaged app's minimum | Agree |
+| One fact ↔ its other statements: "download from the landing page or GitHub Releases" | both READMEs' links; the landing page's list-state link (the releases page) | Agree; the links resolve (200) |
+| One fact ↔ its other statements: "the app speaks Chinese and English" | the landing-page entry's boundary; landing-page::CON-002; ADR-0035 | Agree |
+| Rule ↔ the gate that holds it: mac-distribution::US-003/AC-01 | `check:lang` | Holds `README.en.md`'s language only (red under a planted word, `check-lang-readme-plant.txt`); the Chinese README's rule cannot go red, and the instructions in both are held by the code review's README check — stated in the test review |
+
+### Stage 3: events
+
+| Event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed: the READMEs, six → two (#277, merged in) | #239's own files and records searched for six READMEs; #239's issue text | The checklist row and the issue's quotes say two; the records keep "six" only in dated decisions |
+| `Pending:` notes in scope | mac-distribution's ("a notarized release is downloadable"), landing-page's ("the page is live") | landing-page: due, the page is live — removed. mac-distribution: its condition turned into "decided not to" by the owner's decision — moved into Out of Scope |
+| New general rule: the feature catalogue leaves distribution out | its canonical home | The features-catalog skill already states it; the project's catalogue README now does too, so a reader of the project finds it |
+| Work state changed | #239 blocked by #277, merged in by a merge rather than a rebase; the issue's quotes; the tasks file; the coverage checklist; the document sync checklist | Each updated; listed in `ticket-239-doc-sync.md` |
+| The post-implementation test check's findings | seven findings: the design table's version readers and README scope, two coverage rows, two kept reds, two release-check plans | Records corrected; the evidence files added |
+
+Queue empty; the pre-delivery scope re-check is recorded in the document sync checklist.

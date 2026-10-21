@@ -1,0 +1,9 @@
+# The tag check as the release workflow runs it, at 3064371 (2026-10-21T12:05Z); package version 0.1.0-beta
+
+$ GITHUB_REF_NAME=v0.1.0-beta node scripts/release-tag.mjs
+[release] tag v0.1.0-beta releases version 0.1.0-beta
+(exit 0)
+
+$ GITHUB_REF_NAME=v0.1.0 node scripts/release-tag.mjs
+[release] the tag v0.1.0 does not match the package version 0.1.0-beta (its tag is v0.1.0-beta)
+(exit 1)
