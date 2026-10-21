@@ -59,17 +59,18 @@ other partially migrated specs; the obligations this round changes are the ID'd 
 
 | Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
 |---|---|---|---|
-| 2026-10-21; spec c39db9d; implementation: the uncommitted slice on c39db9d (targeted checks, before the code review and the full gateway) | i18n::REQ-001/AC-01; #277; settings page → language trigger | e2e "the language selector: three items including follow-system and the divider…": passed ([targeted-e2e.txt](evidence/ticket-277/targeted-e2e.txt)) | Passed at the targeted stage; the full gateway re-runs it |
-| as above | i18n::REQ-001/AC-02; #277 | `pnpm typecheck` exit 0; e2e "i18n: both languages load…": passed | Passed at the targeted stage |
-| as above | i18n::REQ-001/AC-03; #277 | `pnpm typecheck` exit 0; unit `isLanguage` and `setLanguage` reject the four codes (`pnpm test` exit 0, 850 passed); the search with its controls at the base commit ([removed-languages-search.txt](evidence/ticket-277/removed-languages-search.txt)): no dictionary, no code value, no native name remains | Passed at the targeted stage |
-| as above | i18n::REQ-002/AC-01; #277; first launch | unit `resolveLanguage` cases (red before the change, green after); e2e "UI language: following the system resolves against the whole list…": passed | Passed at the targeted stage |
-| as above | i18n::REQ-002/AC-02; #277; first launch | unit fallback cases (red before, green after); e2e "UI language: falls back to English when the system language is unsupported" on `fr-FR, ja-JP`: passed | Passed at the targeted stage |
-| as above | i18n::REQ-003; #277; launch with a stored `fr` | unit: the preference store reads each removed code as "follow system", other fields kept; e2e "UI language: a stored preference naming a removed language…": passed | Passed at the targeted stage |
-| as above | i18n::QR-001/AC-01; #277 | e2e side filter row, settings boxes, tab row and pills, trend span controls, each in both languages: passed | Passed at the targeted stage |
-| as above | i18n::CON-001; #277 | `pnpm check:ui` exit 0; red under two planted breaks (a missing link: exit 1; two bold entries: exit 1), restored identical; the four READMEs deleted in the diff | Passed at the targeted stage |
-| as above | app-update::QR-001/AC-01; #277 | `pnpm typecheck` exit 0, `pnpm check:i18n` exit 0 | Passed at the targeted stage |
-| as above | app-update::QR-001/AC-02; #277 | e2e "the labels and the result line stay on one line… › zh" and "› en": passed | Passed at the targeted stage |
-| as above | global-search::CON-004; #277 | `pnpm typecheck` exit 0 | Passed at the targeted stage |
+| 2026-10-21; spec c39db9d (with ac2a2e6's Testing Decisions note); implementation 833a6e3, the full gateway `pnpm verify` exit 0 ([gateway-833a6e3.txt](evidence/ticket-277/gateway-833a6e3.txt)) | i18n::REQ-001/AC-01; #277; settings page → language trigger | e2e "the language selector: three items including follow-system and the divider…": passed | Passed |
+| as above | i18n::REQ-001/AC-02; #277 | `pnpm typecheck` exit 0; e2e "i18n: both languages load…": passed | Passed |
+| as above | i18n::REQ-001/AC-03; #277 | `pnpm typecheck` exit 0; unit `isLanguage` and `setLanguage` reject the four codes (852 unit passed); the search with its controls at the base commit ([removed-languages-search.txt](evidence/ticket-277/removed-languages-search.txt)) | Passed |
+| as above | i18n::REQ-002/AC-01; #277; first launch | unit `resolveLanguage` cases (red before the change, green after); e2e "UI language: following the system resolves against the whole list…": passed | Passed |
+| as above | i18n::REQ-002/AC-02; #277; first launch, and a failing system query | unit fallback cases (red before, green after); unit `systemPreferredLanguages()` with the query failing gives `[]`, so English (red with the try/catch removed); e2e "UI language: falls back to English when the system language is unsupported" on `fr-FR, ja-JP`: passed | Passed |
+| as above | i18n::REQ-003; #277; launch with a stored `fr` | unit: the preference store reads each removed code as "follow system", other fields kept; e2e "UI language: a stored preference naming a removed language…": passed | Passed |
+| as above | i18n::QR-001/AC-01; #277 | e2e side filter row, settings boxes, tab row and pills (sets asserted non-empty), trend span controls, each in both languages: passed | Passed |
+| as above | i18n::CON-001; #277 | `pnpm check:ui` exit 0; red under two planted breaks (a missing link, two bold entries), restored identical; the four READMEs deleted in the diff | Passed |
+| as above | app-update::QR-001/AC-01; #277 | `pnpm typecheck` exit 0, `pnpm check:i18n` exit 0 | Passed |
+| as above | app-update::QR-001/AC-02; #277 | e2e "the labels and the result line stay on one line… › zh" and "› en", each asserting its seeded language first: passed | Passed |
+| as above | global-search::CON-004; #277 | `pnpm typecheck` exit 0 | Passed |
+| — | mac-distribution::US-003/AC-01; #239 | Not this ticket's verification | Unverified here; #239 verifies it |
 
 ## Two-way audit
 

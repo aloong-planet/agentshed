@@ -16,3 +16,11 @@ Ticket: [#277 Reduce the app's interface languages to Chinese and English](https
 | The records the post-implementation check corrected (its findings F1 and F2), when they were resolved | [ticket-277-review-tests.md](ticket-277-review-tests.md) design review's coverage lines and outside finding, [ticket-277-review-code.md](ticket-277-review-code.md) outside finding 2, [checklist.md](checklist.md) REQ-002/AC-02 row, [final-regression.md](final-regression.md) stage 1, [ticket-277-tasks.md](ticket-277-tasks.md) task 10 | Done: corrected with the fixes |
 | #239 realigns to the two-language main when it resumes: its branch is rebased, its tasks file's "Resuming after #277" section followed | #239's branch `feat/launch-beta` and its records under `docs/.workings/macos-release-line/` | Waiting: this ticket's merge, then #239's own work |
 | #277's acceptance items ticked on the tracker with the merge commit | [#277](https://github.com/aloong-planet/agentshed/issues/277) | Done: completed with this PR's merge; the tracker write-back follows the merge |
+
+**Pre-delivery scope re-check (2026-10-21, at 833a6e3):** the current state of every document this change touches
+was compared with what the change did — the specs (the i18n spec's units against the final tests, including the
+failing-query unit test added after the post-implementation check), the feature entry and index, ADR-0013/0035,
+CONTEXT, the prototypes, the READMEs, the site's notes, the postmortem, and the records (checklist current
+verification at 833a6e3, both review records, the tasks file). One difference found and fixed: the step 8 report did
+not list the e2e launch helpers' pin comment, corrected after step 8; it does now. No other missing or outdated
+item; nothing pending. The two waiting items name what they wait for.

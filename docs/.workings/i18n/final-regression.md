@@ -29,7 +29,7 @@ index row.
 | `docs/prototypes/` (settings page, dimension registry, project list, stale-note page, heading ladder, the shared rail, project column, startup status) | the implementation's selector (three options, divider, names, tick) | Consistent: the prototype was confirmed on 2026-10-21 and the e2e asserts the same three options in the same order |
 | `README.md`, `README.en.md` (switcher rows); the four READMEs removed | i18n::CON-001 | True; `pnpm check:ui` green, red under two planted breaks |
 | `site/README.md`, the site dictionary's header comment | ADR-0031, ADR-0035 | True |
-| `src/shared/i18n/zh.ts`, `types.ts`, `index.ts` comments; the renderer and shared comments that counted languages | the code | True |
+| `src/shared/i18n/zh.ts`, `types.ts`, `index.ts` comments; the renderer and shared comments that counted languages; the e2e launch helpers' pin comment (four copies, which said Chinese while pinning `en-US`, corrected in 727577b after the post-implementation check) | the code | True |
 | `docs/postmortems/2026-10-21-…md` and its index row | the measurements at bd7d697 and at 5ca6477 | True |
 
 ### Stage 2: related declarations
