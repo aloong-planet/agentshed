@@ -1,0 +1,88 @@
+date: 2026-10-21T08:29:32.778Z
+cwd: /Users/loong_zhou/CascadeProjects/agentshed-wt/gallery-shell
+git rev-parse HEAD: 2cf3dea608da99d7130e46ce148ed0ce74c64136
+git status --porcelain --untracked-files=all, with git hash-object of each file:
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/G1-mockup-page.log  77670f890e38b37474e34bc282cd1861485c36cd
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/G2-logic-index.log  e6aab13c86bdbb8e8398c235a270632365c24462
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/G3-manifest.log  e0506fa8094a8163a85aef2c577c327d68f45e8b
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/G4-dimensions.log  6019de8c159a986be495dbf2db022f4d7d4f5efd
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/G5-shared-component.log  72c7b837f14df8b1b3ffa148f4f464658a29051e
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/N1-shell-without-narrowing.log  0c828d61d27e3bb4a5f398add7813e294b41ec7a
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/N2-app-identity-without-narrowing.log  7da0d6dd93368c1d9a37aa9f1877b0f667ee8665
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/T1-shell.log  113388fa51b2c1226046376b0597899a6cf2168a
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/T2-app-identity.log  21c74ec014cdbe70715250213a59fab66206c868
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/T3-demo-dimensions.log  7ed0bdd18e3dab610dbd26a6b023bdb789fe4299
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/T4-demo-harness.log  bdc583e49ddc2139adf100dc482838bfb1479312
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/baseline.log  96aa04e12274f507edd4fde7db49c06ee41e47c5
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/final.log  4cf918fffff89abd7ddf79a3774de01ea8b4105c
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/mutate.mjs  7f4098171b9d8a0db9ddd35dc2b803a9a0e58e56
+  A  docs/.workings/i18n/ticket-223-evidence/rerun-2026-10-21/summary.md  12d589995cde2ea4754e5b1f747e7247810edaa3
+   M scripts/check-lang.mjs  240e8c914d301e01ac2ae500acd1dbc7e53a9778
+
+==== command: pnpm typecheck
+==== exit: 0  (2.1s)
+---- stdout
+
+> agentshed@0.1.0 typecheck /Users/loong_zhou/CascadeProjects/agentshed-wt/gallery-shell
+> tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json
+
+
+---- stderr
+
+==== command: pnpm lint
+==== exit: 0  (13.2s)
+---- stdout
+
+> agentshed@0.1.0 lint /Users/loong_zhou/CascadeProjects/agentshed-wt/gallery-shell
+> eslint . --max-warnings 0
+
+
+---- stderr
+
+==== command: pnpm check:lang
+==== exit: 0  (0.7s)
+---- stdout
+
+> agentshed@0.1.0 check:lang /Users/loong_zhou/CascadeProjects/agentshed-wt/gallery-shell
+> node scripts/check-lang.mjs
+
+✓ Working language: 2554 line(s) of Chinese, each permitted by a stated rule
+    rule · 1 file(s) · side-count detection patterns quote the six languages they scan; pattern literals only, not prose
+    rule · 2 file(s) · the source-language and Japanese dictionaries — the values are the copy itself, while the comments are English like the rest of the repository
+    rule · 1 file(s) · the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English
+    rule · 10 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
+    rule · 3 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
+    rule · 38 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+    rule · 2 file(s) · the Chinese and Japanese READMEs — a localisation is written in the language it localises into
+    rule · 5 file(s) · the language switcher rows and the selector list — a language is named in its own script
+
+---- stderr
+
+==== command: pnpm check:nul
+==== exit: 0  (1.4s)
+---- stdout
+
+> agentshed@0.1.0 check:nul /Users/loong_zhou/CascadeProjects/agentshed-wt/gallery-shell
+> node --test scripts/check-raw-nul.test.mjs && node scripts/check-raw-nul.mjs
+
+✔ accepts real PNG and ICNS artwork under new filenames (214.412209ms)
+✔ rejects NUL-bearing source even alongside valid artwork (120.513125ms)
+✔ does not exempt unrecognised content in pretend.png (79.165167ms)
+✔ does not exempt unrecognised content in pretend.icns (74.0735ms)
+✔ does not exempt unrecognised content in binary.dat (106.079834ms)
+✔ accepts searchable source with an escaped NUL (117.827583ms)
+✔ rejects a NUL in a new file that is not staged yet (118.168042ms)
+✔ does not scan a git-ignored file, such as build output (118.851583ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1003.570584
+✓ Raw NUL bytes: none in 737 file(s) (92 binary-format file(s) exempt by signature)
+
+---- stderr
+
+==== overall exit: 0

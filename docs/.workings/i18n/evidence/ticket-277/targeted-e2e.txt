@@ -1,0 +1,33 @@
+# Targeted e2e run, 2026-10-21, against a fresh electron-vite build of the uncommitted slice on c39db9d
+# Command: pnpm exec playwright test e2e/app.spec.ts e2e/settings-updates.spec.ts e2e/app-update.spec.ts e2e/global-search.spec.ts e2e/menu-check-updates.spec.ts -g "<the changed cases' titles>"
+
+[1/20] e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04)
+    Error: expect(locator).toHaveText(expected) failed
+[2/20] e2e/app-update.spec.ts:362:1 › an open message follows a language switch at once (Failure G2)
+[3/20] e2e/app.spec.ts:821:1 › the side filter row stays inside the sidebar column in both UI languages
+[4/20] e2e/app.spec.ts:2829:3 › skill file line counts follow the UI language's digit grouping [en-US] (#210)
+[5/20] e2e/app.spec.ts:3808:1 › UI language: following the system resolves against the whole list, and applies on the first frame
+[6/20] e2e/app.spec.ts:3822:1 › UI language: falls back to English when the system language is unsupported
+[7/20] e2e/app.spec.ts:3833:1 › UI language: a stored preference naming a removed language reads as follow system (i18n::REQ-003)
+[8/20] e2e/app.spec.ts:3854:1 › the language selector: three items including follow-system and the divider, with a switch applying immediately and persisting
+[9/20] e2e/app.spec.ts:3914:1 › the language selector by keyboard: opening leaves the highlight on the current selection rather than moving an extra step
+[10/20] e2e/app.spec.ts:3965:1 › i18n: the language-locking mechanism itself is reliable, unaffected by the development machine's system language
+[11/20] e2e/app.spec.ts:3984:1 › i18n: both languages load, with the key nodes non-empty
+[12/20] e2e/app.spec.ts:4010:1 › i18n: switching languages applies immediately, changing several areas at once
+[13/20] e2e/app.spec.ts:4032:1 › i18n: key layouts do not overflow horizontally in either language
+[14/20] e2e/app.spec.ts:4060:1 › i18n: no label in the project-detail tab row or the skills rows wraps to a second line
+[15/20] e2e/app.spec.ts:4871:1 › selectable trend span: localized controls fit both pages in light and dark at minimum width
+[16/20] e2e/global-search.spec.ts:745:1 › ⌘⇧F through the application menu: from settings, a session page and the search page itself, the page as left with the focus in its box; the item follows the language (US-004, J10)
+[17/20] e2e/menu-check-updates.spec.ts:206:1 › the item follows a language switch at once; a toast already shown keeps its language and stacks with the new one (G2, G6)
+[18/20] e2e/settings-updates.spec.ts:247:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2)
+[19/20] e2e/settings-updates.spec.ts:500:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh
+[20/20] e2e/settings-updates.spec.ts:500:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en
+  1 failed
+    e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) 
+  19 passed (56.5s)
+
+# The one failure is a case this change does not touch (matched by the title filter); rerun alone with --repeat-each 3:
+[1/3] e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04)
+[2/3] e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04)
+[3/3] e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04)
+  3 passed (10.1s)

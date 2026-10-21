@@ -5,7 +5,7 @@
 // different commands, or two different error codes. Collapsing them is not a style choice; it makes the UI
 // unable to say something it is required to say.
 //
-// This runs over all six languages rather than the ones that happened to be wrong, because the next
+// This runs over every language rather than the ones that happened to be wrong, because the next
 // language added will have the same temptation and nothing else would catch it.
 import { describe, it, expect } from 'vitest'
 import { LANGUAGES, dictOf } from './index'
@@ -78,8 +78,6 @@ const ACCEPTED_COLLAPSES: Array<{ a: string; b: string; why: string }> = [
     why: 'project level vs project — one concept, and the source language’s two words are a length choice, not a distinction'
   },
   { a: 'skills.srcProject', b: 'subagents.levelProject', why: 'as above' },
-  { a: 'skills.pillGlobal', b: 'detail.levelGlobal', why: 'global vs global layer — one concept' },
-  { a: 'subagents.levelGlobal', b: 'detail.levelGlobal', why: 'as above' },
   {
     a: 'skills.loading',
     b: 'memory.loading',
@@ -97,21 +95,7 @@ const ACCEPTED_COLLAPSES: Array<{ a: string; b: string; why: string }> = [
     b: 'detail.oldestFirst',
     why: 'the source language labels this control abstractly (ascending) in one view and concretely (oldest first) in the other; the concrete wording is the better button label in both. detail.ascending stays abstract because it is interpolated mid-sentence by sortNote'
   },
-  { a: 'session.descending', b: 'detail.recentFirst', why: 'as above' },
-  {
-    a: 'settings.switchOn',
-    b: 'plugins.enabled',
-    why: 'French only — “Activé” / “Désactivé” is both the usual label of an on/off switch and the word for an enabled state, and the updates switch turns automatic checks on, which is that state. The source language’s one-character on and off words are a length choice for a segmented control, not a second concept'
-  },
-  { a: 'settings.switchOn', b: 'plugins.enabledShort', why: 'as above' },
-  { a: 'settings.switchOn', b: 'detail.mcpEnabled', why: 'as above' },
-  { a: 'settings.switchOff', b: 'plugins.disabledShort', why: 'as above' },
-  { a: 'settings.switchOff', b: 'detail.mcpDisabled', why: 'as above' },
-  {
-    a: 'menu.undo',
-    b: 'detail.cancel',
-    why: 'French only — “Annuler” is Apple’s French for Undo in the Edit menu and the standard word on a Cancel button. Following the platform beats inventing a distinction French does not draw'
-  }
+  { a: 'session.descending', b: 'detail.recentFirst', why: 'as above' }
 ]
 
 describe('no language collapses a distinction the source language draws', () => {

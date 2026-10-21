@@ -6,22 +6,18 @@
 // ./types.ts.
 import { zh } from './zh'
 import { en } from './en'
-import { fr } from './fr'
-import { es } from './es'
-import { ru } from './ru'
-import { ja } from './ja'
 import type { Locale } from './types'
 
 export type { Locale } from './types'
 
-/** The supported UI languages. All left-to-right, with no RTL language (see ADR-0013) */
-export const LANGUAGES = ['zh', 'en', 'fr', 'es', 'ru', 'ja'] as const
+/** The supported UI languages: Chinese and English (ADR-0035), both left-to-right (ADR-0013) */
+export const LANGUAGES = ['zh', 'en'] as const
 export type Language = (typeof LANGUAGES)[number]
 
 /** The fallback when the system language is unsupported or detection fails */
 export const FALLBACK_LANGUAGE: Language = 'en'
 
-const DICTS: Record<Language, Locale> = { zh, en, fr, es, ru, ja }
+const DICTS: Record<Language, Locale> = { zh, en }
 
 export function dictOf(lang: Language): Locale {
   return DICTS[lang]
@@ -36,12 +32,12 @@ export function isLanguage(v: unknown): v is Language {
  *
  * The argument is what `app.getPreferredSystemLanguages()` returns: **a list in priority order**,
  * not a single locale. Two things are easy to get wrong as a result:
- *   1. **iterate the whole list** and take the first supported one — `['ko','fr','en']` must give French,
+ *   1. **iterate the whole list** and take the first supported one — `['ko','zh','en']` must give Chinese,
  *      not
  *      "the first entry is unsupported, so fall back to English". The two implementations agree on a
  *      single-element list and only
  *      a multi-element list can tell them apart, so the tests have to use multi-element input.
- *   2. a tag may carry a region or script subtag (`zh-Hans-CN`, `fr-CA`), so match on the **primary
+ *   2. a tag may carry a region or script subtag (`zh-Hans-CN`, `en-GB`), so match on the **primary
  *      subtag**.
  */
 export function resolveLanguage(preferred: readonly string[] | null | undefined): Language {

@@ -5,13 +5,13 @@ import { backfillPrefs, type PrefKey } from './prefs-backfill'
 
 const DEFAULTS: Prefs = { theme: 'purple', language: 'system', mode: 'system', trendSpan: 30, autoCheckUpdates: true }
 /** The values on disk (what the getPrefs call at mount read) */
-const ON_DISK: Prefs = { theme: 'blue', language: 'fr', mode: 'light', trendSpan: 60, autoCheckUpdates: false }
+const ON_DISK: Prefs = { theme: 'blue', language: 'en', mode: 'light', trendSpan: 60, autoCheckUpdates: false }
 const touched = (...keys: PrefKey[]): ReadonlySet<PrefKey> => new Set(keys)
 
 describe('backfillPrefs', () => {
   it('a late initial read preserves a newer span and backfills unrelated preferences', () => {
     expect(backfillPrefs({ ...DEFAULTS, trendSpan: 90 }, ON_DISK, touched('trendSpan'))).toEqual({
-      theme: 'blue', language: 'fr', mode: 'light', trendSpan: 90, autoCheckUpdates: false
+      theme: 'blue', language: 'en', mode: 'light', trendSpan: 90, autoCheckUpdates: false
     })
   })
 
@@ -39,13 +39,13 @@ describe('backfillPrefs', () => {
     const local: Prefs = { ...DEFAULTS, mode: 'dark', trendSpan: 90 }
     expect(backfillPrefs(local, ON_DISK, touched('mode'))).toEqual({
       theme: 'blue',
-      language: 'fr',
+      language: 'en',
       mode: 'dark', trendSpan: 60, autoCheckUpdates: false
     })
   })
 
   it('with all fields touched, none of the echo is taken', () => {
-    const local: Prefs = { theme: 'amber', language: 'ja', mode: 'dark', trendSpan: 90, autoCheckUpdates: true }
+    const local: Prefs = { theme: 'amber', language: 'zh', mode: 'dark', trendSpan: 90, autoCheckUpdates: true }
     expect(backfillPrefs(local, ON_DISK, touched('theme', 'language', 'mode', 'trendSpan', 'autoCheckUpdates'))).toEqual(local)
   })
 
@@ -53,7 +53,7 @@ describe('backfillPrefs', () => {
     const local: Prefs = { ...DEFAULTS, theme: 'amber' }
     expect(backfillPrefs(local, ON_DISK, touched('theme'))).toEqual({
       theme: 'amber',
-      language: 'fr',
+      language: 'en',
       mode: 'light', trendSpan: 60, autoCheckUpdates: false
     })
   })

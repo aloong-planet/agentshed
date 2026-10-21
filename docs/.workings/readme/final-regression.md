@@ -3,17 +3,18 @@
 ## Ticket #292 — the READMEs describe what the app does today
 
 - Date: 2026-10-21
-- Scope: #292's change only: the six READMEs and the new `LICENSE`, on branch `docs/readme` from 9b7bb13
-- Languages: the two full READMEs are Chinese and English and say the same thing; each claim below was checked in
-  both. The four short READMEs (French, Spanish, Russian, Japanese) repeat the opening, the reads/writes/network
-  line and the requirements, and were checked against the same sources
+- Scope: #292's change only: the Chinese and English READMEs and the new `LICENSE`, on branch `docs/readme` from
+  9b7bb13, with main merged in at 4d21538. The French, Spanish, Russian and Japanese READMEs this branch first wrote
+  are gone: main's #295 limited the interface to Chinese and English and deleted them, and the owner decided on
+  2026-10-21 that only the Chinese and English READMEs are needed
+- Languages: the two READMEs say the same thing; each claim below was checked in both
 
 ### Stage 1: changed declarations — each claim against its source
 
 | Claim (README.en.md, and README.md the same) | Source | Conclusion |
 |---|---|---|
 | The tagline "Your coding agents, in full view" (the owner's choice of 2026-10-21, in place of "tool shed"; the website's heading takes the same) | the Agents overview: every agent side's global picture on one screen (`agents-overview.md` Overview) | True |
-| The opening summary, shared word for word with the website's hero paragraph (the owner's decision of 2026-10-21): which skills, plugins and MCP servers the agents installed, what they remember, how many tokens they burned; every session read question by question, a search across all of them, skills installed from the global library | the rows below for each part: plugins (`plugins-view.md`), memory (`memory-view.md`), tokens (`token-stats.md`), sessions (`session-view.md`), global search (`global-search.md`), skill install (`skill-install.md`) | True; the four short READMEs open with the same summary in their languages |
+| The opening summary, shared word for word with the website's hero paragraph (the owner's decision of 2026-10-21): which skills, plugins and MCP servers the agents installed, what they remember, how many tokens they burned; every session read question by question, a search across all of them, skills installed from the global library | the rows below for each part: plugins (`plugins-view.md`), memory (`memory-view.md`), tokens (`token-stats.md`), sessions (`session-view.md`), global search (`global-search.md`), skill install (`skill-install.md`) | True |
 | The Agents page opens first, one screen for every agent side | `docs/features/agents-overview.md` Overview ("the default landing page … onto one screen") | True |
 | Token totals for all history, today, the last 7 days and the last 30, 60 or 90 days | `token-stats.md:13–19` | True |
 | The Agents page's sections: skills, subagents, plugins, MCP servers, memory and configuration | `agents-overview.md:21–35` | True |
@@ -35,11 +36,11 @@
 | Updates download in the background and install with one click or on quit | `app-update.md` Overview | True |
 | It reads the agents' files; writes to them only to install or uninstall a skill; never changes an agent's configuration | `project-detail.md:44–45` ("the product itself never writes to any agent's configuration"); `skill-install.md`; `appearance.md` ("Nothing is written to the agent configuration") | True |
 | Its one network use is the update check on GitHub Releases | `app-update.md:50–51`; the code: `electron-updater` from GitHub Releases is the app's only outgoing request, and the window's content policy allows the app itself and the local development server only | True |
-| macOS 12 or later, Apple Silicon | `docs/specs/mac-distribution.md` (REQ-001/AC-04, and its story for Apple Silicon users); the landing page's platform line | True |
+| Download and install (main's section, kept in place of this branch's requirements line): macOS 12 or later on an Apple Silicon Mac; the DMG from the website or GitHub Releases; drag into Applications; macOS asks once on first open | `docs/specs/mac-distribution.md` US-003/AC-01 (both READMEs carry it) and REQ-001/AC-04; written by #239 | True; the requirements line it replaces would have repeated its first sentence |
 | pnpm 9 and Node.js 22 | `package.json` (`packageManager: pnpm@9.12.3`); every workflow's `node-version: 22` | True |
 | What `pnpm verify` runs; the smoke run is of the app in development | `package.json`'s `verify`; `scripts/smoke.sh` (it starts `pnpm dev`) | True |
 | MIT licence | `package.json`'s `license`; the new `LICENSE` | True |
-| Agent sides named as examples, never as the complete set | every README: "and other", the Chinese and Japanese READMEs' own words for "and others", "et d'autres", "y otros", "и другие" | True; the old READMEs listed three sides as the whole set |
+| Agent sides named as examples, never as the complete set | both READMEs: "and other" / the Chinese words for "and others" | True; the old READMEs listed three sides as the whole set |
 
 ### Stage 2: related declarations
 
@@ -48,13 +49,13 @@
 | `package.json`'s `license: MIT` | the new `LICENSE` | Now agree; before, the repository had no licence text |
 | The landing page's hero paragraph (`site/src/i18n/ui.ts`) | the READMEs' opening summary | The same summary, by the owner's decision of 2026-10-21; #279 puts it on the page. Until #279 lands the page's older paragraph says less (no memory, session review or search), and nothing false |
 | The feature catalogue's index (`docs/features/README.md`) | the README's pointer to it | True |
-| #239's plan for the READMEs (download and install steps in all six, with the first release) | the new layout: two full READMEs, four short | Recorded on #239 for restating when it resumes |
+| #239's download and install section, already on main | the merged READMEs | Kept in both, in place of this branch's requirements section (mac-distribution::US-003/AC-01) |
 
 ### Stage 3: events
 
 | Event | Lines checked | Conclusion |
 |---|---|---|
-| An enumerable dimension | the READMEs name agent sides only as examples and give no number of interface languages | None changed; nothing here goes false when a side or a language is added or removed |
+| An enumerable dimension | the README set went from six to two (main's #295; the owner's decision of 2026-10-21); the language rows now name the two; the READMEs name agent sides only as examples and give no number of interface languages | Handled: both language rows link only to each other, which main's README check (the Chinese and English READMEs reach each other) verifies |
 | Pending notes | none in the READMEs | — |
 | A rule written this round | none | — |
 | Work state | #292 closes with the merge; #239's README item restated on #239 | Recorded in the document sync checklist |

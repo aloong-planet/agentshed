@@ -299,7 +299,7 @@ export function App(): JSX.Element {
     setLangPref(next)
     setLang(eff)
     applyLang(eff)
-    // The notice is written in the language **after** the switch, or switching to French would pop up a
+    // The notice is written in the language **after** the switch, or switching to English would pop up a
     // sentence in the previous language
     const nt = dictOf(eff)
     toast(

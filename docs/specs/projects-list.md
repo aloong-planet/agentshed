@@ -85,7 +85,7 @@ and are never written back to any agent configuration.
   the detail area shows the scanning hint centred **in place of** the pick-a-project empty state,
   because with nothing to pick yet that guidance would be false. The hint copy is one dictionary
   entry shared with the agents overview; its old parenthetical promised the pre-skeleton behaviour
-  and is rewritten in all six languages.
+  and is rewritten in every language.
 - A11 The skeleton is non-interactive: search, the side dropdown, the stale toggle and the
   placeholder rows all refuse input; the rail stays live (dimension switch, settings).
 - A12 The skeleton exists only while no live or restored snapshot is available; later scans keep the
@@ -131,9 +131,9 @@ and are never written back to any agent configuration.
   joins the in-flight scan rather than starting another.
 - C5 Side filtering is a **single-choice dropdown** defaulting to all sides, not one control per side:
   the row of controls has to stay readable as sides are added, and in the narrowest supported sidebar
-  the longest of the six UI languages must not push it out of the column. The row's occupants *can*
+  the longer of the two UI languages must not push it out of the column. The row's occupants *can*
   outgrow that column (found 2026-08-16: the prototype's width readout was blind to the stale toggle
-  and the stale counter, which it hard-coded in Chinese — the shortest of the six). Ruled the same
+  and the stale counter, which it hard-coded in Chinese — the shorter of the UI languages). Ruled the same
   day: the stale counter yields first, ellipsizing down to a floor with its full sentence on its
   title; the toggle label wraps onto a second text line only when its own natural width exceeds the
   column; nothing crosses the column's content edge.

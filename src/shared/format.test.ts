@@ -8,6 +8,12 @@
 // which characters it does not, that two languages differ),
 // and never hard-code Intl's output string: that string changes with the ICU version, and pinning it
 // would tie the test to a runtime version.
+//
+// **Gap (2026-10-21):** Chinese and English group digits alike (`1,234,567`) and order a month/day label
+// alike (`8/4`), measured that day. So for `formatCount` and `monthDay` no test can tell "follows the
+// language" from "one locale hard-coded" — and no user could see the difference either. The two tests that
+// compared languages there went when French, Spanish, Russian and Japanese were removed (ADR-0035); bring
+// them back when a language that groups or orders differently is added.
 import { describe, it, expect } from 'vitest'
 import { LANGUAGES } from './i18n'
 import { relativeDays, dayLabel, formatCount, formatBytes, monthDay } from './format'
@@ -33,14 +39,11 @@ describe('relativeDays (relative time)', () => {
   it('**different languages give different wording** — this guards against "Intl was wired up but the locale is hard-coded"', () => {
     // Asserting only "there is output" cannot distinguish real localisation from a hard-coded en;
     // languages have to be compared
-    const zh = relativeDays('zh', 5)
-    const ru = relativeDays('ru', 5)
-    const ja = relativeDays('ja', 5)
-    expect(new Set([zh, ru, ja]).size).toBe(3)
+    expect(relativeDays('zh', 5)).not.toBe(relativeDays('en', 5))
   })
 
   it('languages other than Chinese contain no Chinese characters', () => {
-    for (const lang of LANGUAGES.filter((l) => l !== 'zh' && l !== 'ja')) {
+    for (const lang of LANGUAGES.filter((l) => l !== 'zh')) {
       expect(relativeDays(lang, 5)).not.toMatch(/[一-龥]/)
     }
   })
@@ -64,8 +67,8 @@ describe('dayLabel (the date group label)', () => {
     expect(zh).not.toBe(en)
   })
 
-  it('languages other than Chinese and Japanese contain no Chinese weekday characters', () => {
-    for (const lang of LANGUAGES.filter((l) => l !== 'zh' && l !== 'ja')) {
+  it('languages other than Chinese contain no Chinese weekday characters', () => {
+    for (const lang of LANGUAGES.filter((l) => l !== 'zh')) {
       expect(dayLabel(lang, D)).not.toMatch(/周[日一二三四五六]/)
     }
   })
@@ -73,18 +76,11 @@ describe('dayLabel (the date group label)', () => {
   it('the label is stable for the same day within one language (grouping uses it as the key)', () => {
     // dayGroups uses the label as the grouping key, and an unstable label would split one day into two
     // groups
-    expect(dayLabel('fr', D)).toBe(dayLabel('fr', D + 1000))
+    expect(dayLabel('en', D)).toBe(dayLabel('en', D + 1000))
   })
 })
 
 describe('formatCount (number grouping)', () => {
-  it('the grouping separator changes with the language', () => {
-    // English 1,234 / French a narrow space / Russian a space — only "they are not all the same" is
-    // asserted
-    const all = LANGUAGES.map((l) => formatCount(l, 1234567))
-    expect(new Set(all).size).toBeGreaterThan(1)
-  })
-
   it('every language\'s output contains each digit', () => {
     for (const lang of LANGUAGES) {
       const s = formatCount(lang, 1234567)
@@ -117,15 +113,6 @@ describe('formatBytes (byte sizes)', () => {
 })
 
 describe('monthDay (the axis label\'s month/day)', () => {
-  it('the order changes with the language rather than being fixed to one country\'s', () => {
-    // American 8/4 and continental 04/08 are **the same day in different orders** — asserting "it contains
-    // 8 and 4" cannot tell them apart,
-    // so different languages' outputs have to be compared for a real difference
-    const en = monthDay('en', 8, 4)
-    const fr = monthDay('fr', 8, 4)
-    expect(en).not.toBe(fr)
-  })
-
   it('the output contains only the month and day, with no year', () => {
     // The implementation fabricates a 2001 date purely to obtain the order; a year leaking into the output
     // would lengthen the axis label and crowd out its neighbours

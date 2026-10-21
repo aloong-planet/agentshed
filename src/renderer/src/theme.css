@@ -3334,7 +3334,7 @@ mark {
 .lang-opt.on .n {
   color: var(--accent-deep);
 }
-  /* The divider: "follow system" is a policy and the six after it are values — different in kind */
+  /* The divider: "follow system" is a policy and the languages after it are values — different in kind */
 .lang-sep {
   height: 1px;
   background: var(--line);

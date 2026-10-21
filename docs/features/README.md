@@ -7,7 +7,8 @@ a product overview written for people.
 - Future plans belong in the roadmap; history in git / release notes; implementation and decisions in
   docs/adr.
 - Content rules: user-visible behaviour only, zero implementation detail; terminology comes from
-  CONTEXT.md.
+  CONTEXT.md. Distribution is not catalogued: how the app is packaged, signed and published, and so how to
+  install it, is told by the README.
 
 | Feature | In one line |
 |---|---|
@@ -24,5 +25,6 @@ a product overview written for people.
 | [Skills install](skill-install.md) | Install and uninstall skills from the global library for a given project, guarded throughout |
 | [Skills view](skills-view.md) | Filter either skills list by name, and expand to preview a package's files and contents (no cross-side diff) |
 | [Appearance](appearance.md) | App-wide light/dark (follow system / light / dark) × theme (purple / mist blue / amber brown), the two independent |
-| [UI language](i18n.md) | The UI switches between six languages (menus, failure notices, dates and numbers included), following the system's preferred language by default |
+| [UI language](i18n.md) | The UI switches between Chinese and English (menus, failure notices, dates and numbers included), following the system's preferred language by default |
 | [App updates](app-update.md) | New versions are found and downloaded in the background, and installed with one click or on quit |
+| [Landing page](landing-page.md) | The website that introduces Agentshed in Chinese and English and offers whichever release exists |

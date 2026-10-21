@@ -1,6 +1,6 @@
 # Agentshed
 
-**简体中文** · [English](README.en.md) · [Français](README.fr.md) · [Español](README.es.md) · [Русский](README.ru.md) · [日本語](README.ja.md)
+**简体中文** · [English](README.en.md)
 
 **你的 coding agent，尽收眼底。** 一个 macOS 应用。一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，记住了什么，烧了多少 token；每次会话按提问回看，所有项目一起搜索；还能把全局 skill 装进任意项目。
 
@@ -55,9 +55,13 @@
 - 只有你在项目里安装或卸载 skill 时它才会写入这些文件，从不改动任何 agent 的配置。
 - 它唯一的联网行为，是向 GitHub Releases 检查并下载应用的新版本。你的项目和会话的任何内容都不会离开你的 Mac。
 
-## 运行要求
+## 下载与安装
 
-macOS 12 及以上，Apple Silicon。
+需要 macOS 12 及以上、Apple Silicon(M 系列芯片)的 Mac。
+
+1. 从 [Agentshed 官网](https://agentshed.aloongplanet.com/) 或 [GitHub Releases](https://github.com/aloong-planet/agentshed/releases) 下载 DMG。
+2. 打开 DMG,把 Agentshed 拖进「应用程序」文件夹。
+3. 从「应用程序」打开 Agentshed。第一次打开时,macOS 会询问一次是否打开这个从互联网下载的 App,并注明 Apple 已检查过它、未发现恶意软件;点「打开」即可。
 
 ## 开发
 

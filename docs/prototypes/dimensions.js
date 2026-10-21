@@ -9,7 +9,7 @@
 // start on Follow system, so those two default to the dimension's fallback, or its first value where it
 // has none; the palette starts on purple.
 window.DEMO_DIMENSIONS = {
-  language: { label: '界面语言', default: 'en', fallback: 'en', values: ['zh', 'en', 'fr', 'es', 'ru', 'ja'], general: true },
+  language: { label: '界面语言', default: 'en', fallback: 'en', values: ['zh', 'en'], general: true },
   mode: { label: '明暗', default: 'light', values: ['light', 'dark'], general: true },
   theme: { label: '配色', default: 'purple', values: ['purple', 'blue', 'amber'] }
 }

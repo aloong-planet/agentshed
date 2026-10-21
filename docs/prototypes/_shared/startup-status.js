@@ -1,5 +1,5 @@
 // Display mock only. The existing page fixtures and interactions are left intact.
-// The scanning and the failure copy, in six languages, are the prototypes' own.
+// The scanning and the failure copy, in Chinese and English, are the prototypes' own.
 //
 // The startup states, as the app has them: before this launch's first snapshot the page is its startup
 // skeleton; once data is there (restored from the last run), the title row's hint reads scanning, then
@@ -10,13 +10,8 @@
 //   .startup-hint            every one on the page shows the current state (the skeleton has its own)
 //   [data-startup-scanning]  always reads the scanning copy (a skeleton's centred hint)
 window.StartupStatus=(() => {
-  const scanning={zh:'正在扫描各 agent 侧…',en:'Scanning the agent sides…',
-    fr:'Analyse des côtés agents…',es:'Escaneando los lados de agente…',
-    ru:'Сканирование сторон агентов…',ja:'各エージェントサイドをスキャン中…'};
-  const failed={zh:'显示上次的数据，等待更新',en:'Showing previous data, waiting for an update',
-    fr:'Données précédentes affichées, en attente de mise à jour',
-    es:'Se muestran los datos anteriores, a la espera de una actualización',
-    ru:'Показаны предыдущие данные, ожидается обновление',ja:'前回のデータを表示中、更新を待っています'};
+  const scanning={zh:'正在扫描各 agent 侧…',en:'Scanning the agent sides…'};
+  const failed={zh:'显示上次的数据，等待更新',en:'Showing previous data, waiting for an update'};
   let state='restored',language='zh',skeleton=false;
   const listeners=[];
   // The demo bar's startup group, in the dock script's markup; the page's dh-note says where the states

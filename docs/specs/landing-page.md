@@ -1,11 +1,8 @@
 # Landing page
 
-> Related: [ADR-0031](../adr/0031-macos-release-line.md) · [mac-distribution](mac-distribution.md) (the
-> releases and the pointer it reads) · [app-update](app-update.md) (the update button its install steps
-> mention)
->
-> Pending: the landing page is live at `agentshed.aloongplanet.com`. Until it is there is no feature
-> entry to link.
+> Related: [features](../features/landing-page.md) · [ADR-0031](../adr/0031-macos-release-line.md) ·
+> [mac-distribution](mac-distribution.md) (the releases and the pointer it reads) ·
+> [app-update](app-update.md) (the update button its install steps mention)
 
 ## Problem Statement
 
@@ -175,8 +172,8 @@ separate repository (ADR-0031 option 7).
 ### landing-page::CON-002 Two languages (direct acceptance)
 
 Applies to: every page and string of the site. Chinese and English only, by choice and not by omission:
-the app speaks six languages, and the landing page is a front door outside ADR-0013's scope (ADR-0031
-option 6).
+the landing page is a front door outside ADR-0013's scope (ADR-0031 option 6). The app speaks the same
+two languages (ADR-0035).
 
 ### landing-page::CON-003 What the page reads (direct acceptance)
 

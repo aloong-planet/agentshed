@@ -1,9 +1,9 @@
 // The source language (Simplified Chinese) — the single source of truth for UI copy.
 //
 // This object is declared `as const`, which makes its **structure** — the key set, whether a value is a
-// string or a function, each function's signature, the nesting — the contract the other five languages
-// must satisfy; see the Dict mapping in ./types.ts.
-// New copy lands here first, and typecheck stays red until the other five follow: there is no "leave it
+// string or a function, each function's signature, the nesting — the contract English must satisfy;
+// see the Dict mapping in ./types.ts.
+// New copy lands here first, and typecheck stays red until English follows: there is no "leave it
 // blank for now".
 //
 // The **values** are Chinese because this is the source language; the comments are English like the rest of
