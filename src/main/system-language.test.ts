@@ -6,6 +6,7 @@
 // module's try. That throw stands in for a platform query that fails; what the case asserts is that it
 // degrades to an empty list, which the resolution layer turns into English.
 import { describe, it, expect, afterEach } from 'vitest'
+import { app } from 'electron'
 import { effectiveLanguage } from '@shared/i18n'
 import { systemPreferredLanguages } from './system-language'
 
@@ -28,6 +29,9 @@ describe('systemPreferredLanguages', () => {
   })
 
   it('a platform query that fails gives an empty list, and so English, without throwing', () => {
+    // The premise: the stub exports no `app`, so the probe throws. Were the stub to grow one, this case would stop
+    // reaching the catch, and this line says so
+    expect(app).toBeUndefined()
     delete process.env[KEY]
     expect(systemPreferredLanguages()).toEqual([])
     expect(effectiveLanguage('system', systemPreferredLanguages())).toBe('en')

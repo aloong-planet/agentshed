@@ -59,9 +59,9 @@ e2e case launches its own app with its own user data directory, as every existin
 | E15 | The menu item follows a switch; toasts keep their language (menu-check-updates.spec, changed) | app-update G2, G6 | switch to `zh` | the Chinese "Check for Updates…" label | — | No |
 | E16 | Line counts group digits (app.spec, the `fr-FR` case removed) | i18n failure modes: number formats | `en-US` only | `12,345` | — | Not applicable: the French case would now resolve to English and repeat the first |
 | E17 | A stored removed language on a Chinese system (app.spec, new) | i18n::REQ-003 | a seeded preference file with `language: 'fr'`, system `zh-Hans-CN` | the rail's Settings title in Chinese; the trigger shows the Chinese "follow system" and the Chinese native name; no toast; no main-process error | The real five-field preference shape | Yes: French today |
-| U19 | The system language read: the override's forms, and a failing platform query giving `[]` (system-language.test, new; added after the post-implementation check, F2) | i18n::REQ-002/AC-02 | `AGENTSHED_SYSTEM_LANGUAGES` set to `'zh-Hans-CN, en-US'`, to `' , '` and to `''`; then deleted, so the probe runs — under vitest `electron` is the empty stub, `app` is undefined and the probe throws inside the try | `['zh-Hans-CN', 'en-US']`, `[]`, `[]`; with the variable deleted `[]`, and `effectiveLanguage('system', …)` `'en'`: literals from the spec | The stub is the project's own unit-test electron (its header documents the undefined imports); the throw it causes stands in for a platform query that fails | Yes, measured: with the try/catch removed the failing-query case throws |
+| U19 | The system language read: the override's forms, and a failing platform query giving `[]` (system-language.test, new; added after the post-implementation check, F2) | i18n::REQ-002/AC-02 | `AGENTSHED_SYSTEM_LANGUAGES` set to `'zh-Hans-CN, en-US'`, to `' , '` and to `''`; then deleted, so the probe runs — under vitest `electron` is the empty stub, `app` is undefined and the probe throws inside the try | `['zh-Hans-CN', 'en-US']`, `[]`, `[]`; with the variable deleted `[]`, and `effectiveLanguage('system', …)` `'en'`: literals from the spec; and the premise pinned first — the stub's `app` is undefined (added after the re-check, F7), so the case cannot pass without reaching the catch | The stub is the project's own unit-test electron (its header documents the undefined imports); the throw it causes stands in for a platform query that fails | Yes, measured: with the try/catch removed the failing-query case throws |
 | E18 | The language-locking mechanism (app.spec, rewritten after the post-implementation check, F1) | i18n Testing Decisions (the pinned language) | `launch()` as every case uses it; then `launch()` with `AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'` in its extra environment | the rail's Settings title in English, then in Chinese | — | Not required (not a bug reproduction); if the main process ignored the injected list, the two launches would show the same platform language, so one of the two assertions fails on any machine |
-| E3, E7, E8, E11 (revised after the post-implementation check) | E3: the title no longer claims persistence (F4); E7: the page-level overflow half removed, the box half kept (F5); E8: the pill and tab sets asserted non-empty before measuring (F6); E11: each language's run asserts `<html lang>` is the seeded language before measuring (F3) | as before | as before | as before, plus E8's non-empty counts and E11's `zh-CN` / `en` | — | No: guards tightened |
+| E3, E7, E8, E11 (revised after the post-implementation check) | E3: the title no longer claims persistence (F4); E7: the page-level overflow half removed, the box half kept (F5); E8: the pill and tab sets asserted non-empty before measuring (F6); E11: each language's run asserts `<html lang>` is the seeded language before measuring (F3) | as before | as before | as before, plus E7's and E8's non-empty counts and E11's `zh-CN` / `en` | — | No: guards tightened |
 | G1 | The README rule over two files (check-shared-ui) | i18n::CON-001 | `README.md`, `README.en.md` | exit 1 with a planted missing link, exit 0 restored | — | Shown by the planted break |
 
 Seeding a preference file needs an optional argument on the app spec's `launchWithLangs` helper, which writes
@@ -358,3 +358,63 @@ reviewed there before the tests were changed:
 | F4 | E3: "and persisting" dropped from the title; persistence stays with the store's unit case |
 | F5 | E7: the page half removed |
 | F6 | E8: non-empty assertions before measuring |
+
+### Re-check of the fixes (727577b)
+
+- Date: 2026-10-21
+- Ticket: #277
+- Implementation version: 727577b; range ac2a2e6..727577b — `e2e/app.spec.ts`, `e2e/settings-updates.spec.ts`, the new
+  `src/main/system-language.test.ts`, and the records
+- Scope: the rows the fixes add or revise (U19, E18; E3, E7, E8, E11), and the records the six findings named
+- Gateway: `pnpm verify` on 727577b, `VERIFY_EXIT=0` as reported by the main agent; this check read the run's full log
+  (kept outside the repository): 75 test files and 852 unit tests passed (`system-language.test.ts`, 2 tests), 135
+  script tests, 102 site tests, 144 e2e, smoke OK. Its summary is `evidence/ticket-277/gateway-727577b.txt` (see R2)
+- Performed by the same independent sub-agent as the check above
+
+Mutation testing: by the project's capability declaration, `mutation-testing` is not enabled, so it is skipped. The
+implementer's two planted breaks (U19 with the try/catch removed, E18 with the override ignored) are recorded in the
+disposition above; the answers below come from reading the code under test.
+
+| Row | Written as, against the table | Goes red when |
+|---|---|---|
+| U19 | `src/main/system-language.test.ts`, two cases: the override forms `'zh-Hans-CN, en-US'`, `' , '`, `''`, then the variable deleted. Matches the row, literals included; the variable is restored in `afterEach` | the override stops trimming or dropping empty entries; or the try/catch is removed (the stub's undefined `app` then throws out of the call) or the catch returns anything but `[]`. Its precondition is not pinned: F7 |
+| E18 | `e2e/app.spec.ts`, the locking case: `launch()` as is, then `launch()` with `AGENTSHED_SYSTEM_LANGUAGES: 'zh-Hans-CN'` in `extraEnv`; English, then Chinese rail title. Matches the row | the main process ignores the injected list: both launches show the platform's own language, so one assertion fails on any machine (on this English Mac, the second). A launcher dropping its own pin is caught only on a non-English machine, as the case states |
+| E3 | the title without "and persisting". Matches | unchanged from the check above |
+| E7 | the page half removed; the box half kept; a new `boxes > 0` assertion. The table's revised-rows entry does not mention that assertion: T1 | a settings box overflows horizontally (the probe above showed `.settings` and `.field` firing), or no box is found |
+| E8 | `tabCount` and `pillCount` asserted above zero before the wrap checks. Matches | a tab or pill shows more than one line box, or either set is empty |
+| E11 | `<html lang>` asserted as `zh-CN` / `en` after settings open, before measuring. Matches | the seeded language does not render (the `zh` run reads `en` with the system pinned to `en-US`); the `en` run cannot tell, English being the pinned default, which F3 did not ask of it |
+
+- Coverage: U19 reaches the catch of i18n::REQ-002/AC-02 through the variable deleted and the empty stub; E18 reaches
+  both the pinned and the injected path; E11 now shows the seeded language reached the measurement. The residual gap of
+  E18 is stated at the case, as E16's is. F1–F4 closed.
+- Case design: no implementation-coupling flag in the three changed files (`rg` for `vi.mock`, `vi.spyOn`, `vi.doMock`,
+  `vi.stubGlobal`, `jest.mock`: no hit). U19's stub is the existing global alias of the third-party `electron` package
+  in `vitest.config.ts`, not a mock of project code, and the test introduces no new seam. No finding.
+- False greens: F5 and F6 closed (the page half is gone; both sets are asserted non-empty). One new finding, F7.
+- Resource reuse: in the 727577b run `electron-vite build` ran once, three bundles once each, before the 144 e2e
+  cases; E18 still launches twice (1.6 s), now with different inputs; U19 ran in 2 ms. No finding.
+
+Findings, handed back as before (to-dos with no persistent home beyond this record; the owner decides):
+
+| # | Impact | Recommended |
+|---|---|---|
+| F7 | U19's failing-query case reaches the catch only because the stub exports no `app`. If the stub ever gained an `app` whose `getPreferredSystemLanguages()` returned `[]`, the case would stay green without reaching the catch, and nothing would say so | Low; in this PR: pin the precondition in that case — import `app` from `electron` and assert it is `undefined` before calling, so a stub that grows an `app` turns the case red |
+| T1 | The test design table's revised-rows entry (E3, E7, E8, E11) omits E7's new `boxes > 0` assertion | Trivial; add it to that entry's assertion column |
+| R1 | `checklist.md`'s "Current verification" still records only the targeted stage; its REQ-002/AC-02 row does not include U19, now part of that row's planned verification | Low; at the pre-delivery scope re-check (task 13), update the rows to the 727577b gateway, U19 included |
+| R2 | `evidence/ticket-277/gateway-727577b.txt` is untracked: `docs/.workings/` is in `.gitignore` (`git check-ignore` names line 4), so it will not reach the pull request unless added with `git add -f`. No record references it, and task 9 still says "re-run before the PR" | In this PR: `git add -f` the file (checked: no CJK, no NUL) and run `pnpm check:lang` after adding it; point task 9 at it |
+
+The records the six findings named, checked at 727577b:
+
+| Record | State |
+|---|---|
+| The design review's Coverage line on the failing query (F2) | Corrected: now maps the failing query to U19 and says the first version was wrong |
+| The design review's Coverage line on the header gaps (F1) | Corrected: the locking case is no longer listed as a header gap, with the reason |
+| The design review's "Finding outside this ticket's change" (F1) | Corrected: the first fix's flaw stated, resolved by E18 |
+| The code review's second outside finding (F1) | Corrected the same way |
+| `checklist.md`, REQ-002/AC-02 planned verification (F2) | Corrected: U19 added. Its current-verification row is not (R1) |
+| `final-regression.md`, Stage 1 on the i18n spec (F2) | Corrected |
+| `ticket-277-tasks.md`, task 10 | Updated: done on ac2a2e6, fixes sent back for this re-check |
+| `ticket-277-doc-sync.md` | A row added for these corrections, marked done; this re-check is its verification |
+
+Conclusion: the fixes close F1–F6 as recommended; the records they named are corrected. Four new items, all small: F7,
+T1, R1 and R2.
