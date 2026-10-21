@@ -24,7 +24,7 @@ describe('RichText', () => {
   })
 
   it('emphasis holds at the start, middle and end of a sentence', () => {
-    // This case is why the component exists: the six languages order words differently, so the emphasis
+    // This case is why the component exists: the languages order words differently, so the emphasis
     // moves with them.
     // An implementation assuming the marker is always in the middle (a fixed three-way split, say) would
     // miss the start and end

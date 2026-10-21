@@ -38,6 +38,39 @@ other partially migrated specs; the obligations this round changes are the ID'd 
 | The existing i18n spec row "A fixed-width container in a verbose language: no truncation, no overflow and no wrapping onto a second line" | Confirmed and in force (existing requirement) | i18n::QR-001/AC-01 | Promoted to an ID'd unit with its scope ("Applies to") written out; the criterion is unchanged, measured in both languages |
 | global-search::CON-004 "Each exists in all six supported languages" | Superseded by a later decision (ADR-0035) | global-search::CON-004 | Now "both supported languages"; identity kept |
 
+## Spec → tickets → verification
+
+| Spec coverage unit and link | Source text and conditions | Owning ticket and role | Planned verification and boundary |
+|---|---|---|---|
+| i18n::REQ-001/AC-01 | The selector offers three options: "follow system" first, a divider, then Simplified Chinese and English, each named in its own script with its English name beside it | #277: implementation and user-path acceptance | Test (e2e): on the settings page, open the language trigger; the overlay holds three options in that order, one divider after the first, each language's native and English names |
+| i18n::REQ-001/AC-02 | Every piece of UI copy exists in both languages | #277: implementation | Gate: `pnpm typecheck` (the English dictionary is typed entry by entry against Chinese); Test (e2e): switching to each language fills the settings title, section titles and rail tooltips |
+| i18n::REQ-001/AC-03 | Nothing in the app is in, or names, a removed language | #277: implementation | Gate: `pnpm typecheck` (the language type has two members, so a removed code fails wherever a language is required); Test (unit): `isLanguage` and `setLanguage` reject `fr`, `es`, `ru`, `ja`; Evidence: a repository search for the four dictionaries, the four codes as language values and their native names, command and output recorded |
+| i18n::REQ-002/AC-01 | The first entry whose primary subtag is Chinese or English decides, wherever it sits in the list | #277: implementation and user-path acceptance | Test (unit): `resolveLanguage` on `[ja-JP, zh-Hans-CN, en-US]` and `[fr-FR, en-GB]`; Test (e2e): launched with the system list `ko-KR, ja-JP, zh-Hans-CN, en-US`, the UI is Chinese on the first frame |
+| i18n::REQ-002/AC-02 | No Chinese or English entry, an empty list or a failing query gives English, without an error | #277: implementation and user-path acceptance | Test (unit): `resolveLanguage` on `[fr-FR]`, `[ko-KR, ja-JP]`, `[]`, `null`; Test (e2e): launched with `fr-FR, ja-JP`, the UI is English. The failing query is existing coverage, unchanged |
+| i18n::REQ-003 | A stored preference naming a removed language reads as "follow system", the other preferences kept, no notice | #277: implementation and user-path acceptance | Test (unit): the preference store reads a file whose language is each of `fr`, `es`, `ru`, `ja` as "follow system" with the theme and mode kept; Test (e2e): a seeded preference file with `fr`, launched on a Chinese system, shows the Chinese UI with the trigger on "follow system" and no error notice |
+| i18n::QR-001/AC-01 | Measured in both languages, no label or line in a fixed-width container truncates, overflows or wraps | #277: verification in both languages | Test (e2e): the sidebar's filter row, the settings page's boxes, the project tab row and skills pills, and the trend span controls, each measured in Chinese and in English |
+| i18n::CON-001 | The READMEs are `README.md` and `README.en.md`, no other localisation, each switcher row linking both with one bold entry | #277: implementation | Gate: `pnpm check:ui`'s README rule over the two files, shown red by a mutation (a link removed); Evidence: the four files deleted in the diff |
+| app-update::QR-001/AC-01 | Every string exists in both UI languages and passes the dictionary gates | #277: the language count | Gate: `pnpm typecheck`, `pnpm check:i18n` |
+| app-update::QR-001/AC-02 | Measured in both languages, the labels and the result line stay on one line for every state of the line | #277: the language count | Test (e2e): the settings-updates case QR-001/AC-02, run in Chinese and in English |
+| mac-distribution::US-003/AC-01 | Both READMEs gain download and install instructions with the first release | #239: implementation (this ticket changes the count only) | Verified by #239; not in this ticket's verification |
+| global-search::CON-004 | Each new string exists in both supported languages | #277: the language count | Gate: `pnpm typecheck` |
+
+## Current verification
+
+| Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
+|---|---|---|---|
+| 2026-10-21; spec c39db9d; implementation: the uncommitted slice on c39db9d (targeted checks, before the code review and the full gateway) | i18n::REQ-001/AC-01; #277; settings page → language trigger | e2e "the language selector: three items including follow-system and the divider…": passed ([targeted-e2e.txt](evidence/ticket-277/targeted-e2e.txt)) | Passed at the targeted stage; the full gateway re-runs it |
+| as above | i18n::REQ-001/AC-02; #277 | `pnpm typecheck` exit 0; e2e "i18n: both languages load…": passed | Passed at the targeted stage |
+| as above | i18n::REQ-001/AC-03; #277 | `pnpm typecheck` exit 0; unit `isLanguage` and `setLanguage` reject the four codes (`pnpm test` exit 0, 850 passed); the search with its controls at the base commit ([removed-languages-search.txt](evidence/ticket-277/removed-languages-search.txt)): no dictionary, no code value, no native name remains | Passed at the targeted stage |
+| as above | i18n::REQ-002/AC-01; #277; first launch | unit `resolveLanguage` cases (red before the change, green after); e2e "UI language: following the system resolves against the whole list…": passed | Passed at the targeted stage |
+| as above | i18n::REQ-002/AC-02; #277; first launch | unit fallback cases (red before, green after); e2e "UI language: falls back to English when the system language is unsupported" on `fr-FR, ja-JP`: passed | Passed at the targeted stage |
+| as above | i18n::REQ-003; #277; launch with a stored `fr` | unit: the preference store reads each removed code as "follow system", other fields kept; e2e "UI language: a stored preference naming a removed language…": passed | Passed at the targeted stage |
+| as above | i18n::QR-001/AC-01; #277 | e2e side filter row, settings boxes, tab row and pills, trend span controls, each in both languages: passed | Passed at the targeted stage |
+| as above | i18n::CON-001; #277 | `pnpm check:ui` exit 0; red under two planted breaks (a missing link: exit 1; two bold entries: exit 1), restored identical; the four READMEs deleted in the diff | Passed at the targeted stage |
+| as above | app-update::QR-001/AC-01; #277 | `pnpm typecheck` exit 0, `pnpm check:i18n` exit 0 | Passed at the targeted stage |
+| as above | app-update::QR-001/AC-02; #277 | e2e "the labels and the result line stay on one line… › zh" and "› en": passed | Passed at the targeted stage |
+| as above | global-search::CON-004; #277 | `pnpm typecheck` exit 0 | Passed at the targeted stage |
+
 ## Two-way audit
 
 | Scope or finding | Sources and identifiers | Disposition and basis |
@@ -48,3 +81,5 @@ other partially migrated specs; the obligations this round changes are the ID'd 
 | Decisions in conflict | i18n spec vs ADR-0013 | ADR-0013's language set is superseded by ADR-0035, which keeps its scope boundary; the spec cites both, so no conflict remains |
 | Prototype gate, interface point by point | The language selector's overlay (three items) | Covered by the settings prototype, revised and confirmed by the owner on 2026-10-21 (answer "Confirm"). The rest of the settings page is unchanged. The READMEs are documents, not app interface (the same exception mac-distribution states). The prototype gallery's language dimension is prototype tooling |
 | Failure modes by the user's operation sequence | First launch on a Japanese or French system; a list with Chinese after an unsupported entry; a development machine whose stored preference is French, then opening the selector; keyboard cycling; following the system while it changes | Each has a row or a unit: REQ-002/AC-01..AC-02, REQ-003 (the selector then shows "follow system" selected, since the preference reads as it), the dropdown table's cycling row, and the unchanged dynamics table |
+| Spec → ticket, forward | Every unit in this round's scope | Each has an owning ticket: #277 for all but mac-distribution::US-003/AC-01, which #239 implements and verifies (this ticket only changes its count). landing-page::CON-002 changes its rationale only and has no verification here |
+| Ticket → spec, reverse | #277's acceptance criteria (draft, in the issue body) | Each maps to a unit above, except the documentation criterion ("state the two-language set, with no trace of the six"), which is process: step 8's report |

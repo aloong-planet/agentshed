@@ -24,5 +24,5 @@ a product overview written for people.
 | [Skills install](skill-install.md) | Install and uninstall skills from the global library for a given project, guarded throughout |
 | [Skills view](skills-view.md) | Filter either skills list by name, and expand to preview a package's files and contents (no cross-side diff) |
 | [Appearance](appearance.md) | App-wide light/dark (follow system / light / dark) × theme (purple / mist blue / amber brown), the two independent |
-| [UI language](i18n.md) | The UI switches between six languages (menus, failure notices, dates and numbers included), following the system's preferred language by default |
+| [UI language](i18n.md) | The UI switches between Chinese and English (menus, failure notices, dates and numbers included), following the system's preferred language by default |
 | [App updates](app-update.md) | New versions are found and downloaded in the background, and installed with one click or on quit |

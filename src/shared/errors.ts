@@ -15,7 +15,7 @@
 // message,
 // and decoding extracts them from **the wrapped** string by the marker.
 
-/** The error code enum. A new failure path must be registered here with all six languages' wording —
+/** The error code enum. A new failure path must be registered here with every language's wording —
  * missing one fails typecheck */
 export const ERR = {
   /** The call arguments do not meet the contract (a programming error; params.channel is required,

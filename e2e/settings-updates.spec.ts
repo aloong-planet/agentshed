@@ -261,10 +261,10 @@ test('the line survives leaving settings mid-check and follows a language switch
     await openSettings(win)
     await expect(line(win)).toHaveText('You’re up to date')
     await win.getByTestId('language-trigger').click()
-    await win.getByTestId('language-pop').locator('[data-lang="fr"]').click()
-    await expect(win.locator('.settings-sec-t').nth(2)).toHaveText('Mises à jour')
-    await expect(line(win)).toHaveText('Agentshed est à jour')
-    await expect(action(win)).toHaveText('Vérifier maintenant')
+    await win.getByTestId('language-pop').locator('[data-lang="zh"]').click()
+    await expect(win.locator('.settings-sec-t').nth(2)).toHaveText('更新')
+    await expect(line(win)).toHaveText('已是最新版本')
+    await expect(action(win)).toHaveText('立即检查')
     await app.close()
     app = await launch(f)
     win = await app.firstWindow()
@@ -496,7 +496,7 @@ async function layout(win: Page): Promise<{ labels: number[]; line: number; butt
 }
 
 test.describe('the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02)', () => {
-  for (const language of ['zh', 'en', 'fr', 'es', 'ru', 'ja'] as const) {
+  for (const language of ['zh', 'en'] as const) {
     test(language, async () => {
       const f = fixture()
       writeFileSync(join(f.userData, 'prefs.json'), JSON.stringify({ language }))

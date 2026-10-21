@@ -818,12 +818,12 @@ test('a real window resize with a scrolled list does not close the side dropdown
 // Ticket grok-side/#123 (spec C5): in the narrowest supported sidebar the filter row must hold its
 // longest occupants in every UI language — the longest side name on the trigger, the stale toggle,
 // and the "filtered N stale" counter all at once.
-test('the side filter row stays inside the sidebar column in all six UI languages', async () => {
+test('the side filter row stays inside the sidebar column in both UI languages', async () => {
   const l = await launchWithLangs('zh-Hans-CN', mkThreeSideHome())
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
 
-  for (const code of ['zh', 'en', 'fr', 'es', 'ru', 'ja']) {
+  for (const code of ['zh', 'en']) {
     await win.locator('.ri.set').click()
     await win.getByTestId('language-trigger').click()
     await win.getByTestId('language-pop').locator(`[data-lang="${code}"]`).click()
@@ -838,7 +838,7 @@ test('the side filter row stays inside the sidebar column in all six UI language
     // The prototype's width readout was blind to two of the row's three occupants (its toggle
     // label and counter were hard-coded Chinese), so this state overflowed the column in the
     // longer languages. Ruled 2026-08-16: the counter ellipsizes under squeeze, full sentence on
-    // its title; the toggle label may still wrap onto a second text line in fr/ru (accepted).
+    // its title; the toggle label may still wrap onto a second text line (accepted).
     // Pinned here: no horizontal overflow, nothing past the column edge, and the counter still
     // present — squeezed, not squeezed out — with the whole sentence in the title.
     const m = await win.evaluate(() => {
@@ -2822,9 +2822,10 @@ test('a skill package removed after the scan: the file table shows the toast\'s 
 })
 
 // The file table's line counts group digits the way the UI language does, like every other count. The
-// expected strings are literals, not Intl output, so the test does not share the formatter it checks;
-// French groups with a narrow no-break space (U+202F).
-for (const [system, expected] of [['en-US', '12,345'], ['fr-FR', '12 345']] as const) {
+// expected strings are literals, not Intl output, so the test does not share the formatter it checks.
+// Chinese and English both group as 12,345, so since ADR-0035 removed French (which grouped with a
+// narrow no-break space) one case is left: it shows grouping happens, not that it follows the language.
+for (const [system, expected] of [['en-US', '12,345']] as const) {
   test(`skill file line counts follow the UI language's digit grouping [${system}] (#210)`, async () => {
     const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-home-'))
     const demo = join(home, 'demo-proj')
@@ -3779,8 +3780,10 @@ test('appearance: all six combinations of 3 themes × 2 effective light/dark hol
  * this hatch the only way
  * to verify it would be a human repeatedly changing system settings.
  */
-async function launchWithLangs(sysLangs: string, homeOverride?: string): Promise<Launched> {
+async function launchWithLangs(sysLangs: string, homeOverride?: string, prefs?: object): Promise<Launched> {
   const userData = mkdtempSync(join(tmpdir(), 'agentshed-e2e-'))
+  // A preference file seeded before launch, as an earlier run would have left it
+  if (prefs) writeFileSync(join(userData, 'prefs.json'), JSON.stringify(prefs))
   const home = homeOverride ?? mkEmptyProjectHome()
   const errors: string[] = []
   const app = await electron.launch({
@@ -3803,21 +3806,23 @@ async function launchWithLangs(sysLangs: string, homeOverride?: string): Promise
 }
 
 test('UI language: following the system resolves against the whole list, and applies on the first frame', async () => {
-  // [ko, fr, en]: Korean is unsupported, so it should carry on to French — not fall back to English because
-  // the first entry missed.
+  // [ko, ja, zh, en]: Korean and Japanese are unsupported (ADR-0035), so it should carry on to Chinese — not
+  // fall back to English because the first entry missed (i18n::REQ-002/AC-01).
   // A single-element list cannot tell the two implementations apart, so this has to use several.
-  const l = await launchWithLangs('ko-KR,fr-FR,en-US')
+  const l = await launchWithLangs('ko-KR,ja-JP,zh-Hans-CN,en-US')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
-  // The default preference is "follow system", so the UI should be French
-  await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Réglages')
-  expect(await win.evaluate(() => document.documentElement.lang)).toBe('fr')
+  // The default preference is "follow system", so the UI should be Chinese
+  await expect(win.locator('.ri.set')).toHaveAttribute('title', '设置')
+  expect(await win.evaluate(() => document.documentElement.lang)).toBe('zh-CN')
   await l.app.close()
   rmSync(l.userData, { recursive: true, force: true })
 })
 
 test('UI language: falls back to English when the system language is unsupported', async () => {
-  const l = await launchWithLangs('ko-KR')
+  // French and Japanese were supported languages until ADR-0035; a system preferring them now gets English
+  // (i18n::REQ-002/AC-02)
+  const l = await launchWithLangs('fr-FR,ja-JP')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
   await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Settings')
@@ -3825,7 +3830,28 @@ test('UI language: falls back to English when the system language is unsupported
   rmSync(l.userData, { recursive: true, force: true })
 })
 
-test('the language selector: seven items including follow-system and the divider, with a switch applying immediately and persisting', async () => {
+test('UI language: a stored preference naming a removed language reads as follow system (i18n::REQ-003)', async () => {
+  // A development machine's preference file can still hold `fr` from a build before ADR-0035. It is an
+  // invalid value now, so the language follows the system — Chinese here — with no notice, and the other
+  // preferences keep their stored values. The file has a real one's shape.
+  const l = await launchWithLangs('zh-Hans-CN', undefined, {
+    theme: 'blue', language: 'fr', mode: 'light', trendSpan: 90, autoCheckUpdates: true
+  })
+  const win = await l.app.firstWindow()
+  await win.waitForSelector('.rail')
+  await expect(win.locator('.ri.set')).toHaveAttribute('title', '设置')
+  await expect(win.locator('html')).toHaveAttribute('data-theme', 'blue')
+  await win.locator('.ri.set').click()
+  const trig = win.getByTestId('language-trigger')
+  await expect(trig).toContainText('跟随系统')
+  await expect(trig).toContainText('简体中文')
+  await expect(win.locator('.toast')).toHaveCount(0)
+  expect(l.errors).toEqual([])
+  await l.app.close()
+  rmSync(l.userData, { recursive: true, force: true })
+})
+
+test('the language selector: three items including follow-system and the divider, with a switch applying immediately and persisting', async () => {
   const l = await launchWithLangs('zh-Hans-CN')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
@@ -3845,11 +3871,18 @@ test('the language selector: seven items including follow-system and the divider
 
   await trig.click()
   const pop = win.getByTestId('language-pop')
-  await expect(pop.locator('.lang-opt')).toHaveCount(7)
+  // Follow system, then the two languages (i18n::REQ-001/AC-01)
+  await expect(pop.locator('.lang-opt')).toHaveCount(3)
   await expect(pop.locator('.lang-sep')).toHaveCount(1)
   // The first item is a policy showing the resolved language; it is not "a language"
   await expect(pop.locator('.lang-opt').first()).toContainText('跟随系统')
   await expect(pop.locator('.lang-opt').first()).toContainText('简体中文')
+  // Each language in its own script, with its English name beside it
+  await expect(pop.locator('.lang-opt').nth(1)).toHaveAttribute('data-lang', 'zh')
+  await expect(pop.locator('.lang-opt').nth(1)).toContainText('简体中文')
+  await expect(pop.locator('.lang-opt').nth(1)).toContainText('Chinese (Simplified)')
+  await expect(pop.locator('.lang-opt').nth(2)).toHaveAttribute('data-lang', 'en')
+  await expect(pop.locator('.lang-opt').nth(2)).toContainText('English')
 
   // The overlay is not clipped by the settings page's overflow:auto: hit tests at all four corners and the
   // centre, since an attribute existing does not count
@@ -3867,11 +3900,11 @@ test('the language selector: seven items including follow-system and the divider
   })
   expect(visible).toBe(true)
 
-  // Switch to Japanese: the whole page changes language immediately, sidebar tooltips included
-  await pop.locator('[data-lang="ja"]').click()
-  await expect(win.locator('.settings-h1')).toHaveText('設定')
-  await expect(win.locator('.ri.set')).toHaveAttribute('title', '設定')
-  expect(await win.evaluate(() => document.documentElement.lang)).toBe('ja')
+  // Switch to English: the whole page changes language immediately, sidebar tooltips included
+  await pop.locator('[data-lang="en"]').click()
+  await expect(win.locator('.settings-h1')).toHaveText('Settings')
+  await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Settings')
+  expect(await win.evaluate(() => document.documentElement.lang)).toBe('en')
 
   expect(l.errors).toEqual([])
   await l.app.close()
@@ -3890,8 +3923,8 @@ test('the language selector by keyboard: opening leaves the highlight on the cur
   // assertion could not tell them apart
   const trig = win.getByTestId('language-trigger')
   await trig.click()
-  await win.getByTestId('language-pop').locator('[data-lang="ru"]').click()
-  await expect(win.locator('.settings-h1')).toHaveText('Настройки')
+  await win.getByTestId('language-pop').locator('[data-lang="en"]').click()
+  await expect(win.locator('.settings-h1')).toHaveText('Settings')
 
   // Move the mouse away before testing the keyboard: the previous step selected with the mouse and the
   // pointer is still where the overlay was,
@@ -3903,20 +3936,20 @@ test('the language selector by keyboard: opening leaves the highlight on the cur
   await win.keyboard.press('ArrowDown')
   const pop = win.getByTestId('language-pop')
   await expect(pop).toBeVisible()
-  // Russian's index in OPTIONS is 5 (system + zh en fr es ru)
-  await expect(pop.locator('.lang-opt.cursor')).toHaveAttribute('data-lang', 'ru')
+  // English's index in OPTIONS is 2 (system + zh en)
+  await expect(pop.locator('.lang-opt.cursor')).toHaveAttribute('data-lang', 'en')
 
-  // ↑ one step to Spanish, then Enter to select
+  // ↑ one step to Chinese, then Enter to select
   await win.keyboard.press('ArrowUp')
-  await expect(pop.locator('.lang-opt.cursor')).toHaveAttribute('data-lang', 'es')
+  await expect(pop.locator('.lang-opt.cursor')).toHaveAttribute('data-lang', 'zh')
   await win.keyboard.press('Enter')
-  await expect(win.locator('.settings-h1')).toHaveText('Ajustes')
+  await expect(win.locator('.settings-h1')).toHaveText('设置')
 
   // Esc closes without changing the language
   await trig.click()
   await win.keyboard.press('Escape')
   await expect(win.getByTestId('language-pop')).toHaveCount(0)
-  await expect(win.locator('.settings-h1')).toHaveText('Ajustes')
+  await expect(win.locator('.settings-h1')).toHaveText('设置')
 
   expect(l.errors).toEqual([])
   await l.app.close()
@@ -3926,8 +3959,8 @@ test('the language selector by keyboard: opening leaves the highlight on the cur
 // ── Dedicated i18n cases (ticket 14) ─────────────────────────────────
 // The division of labour with the existing cases: the existing e2e pins the language and guards
 // **behaviour**; these guard
-// **i18n itself** — a switch taking effect, all six languages loading, and the longest language not
-// bursting the layout.
+// **i18n itself** — a switch taking effect, both languages loading, and neither language bursting the
+// layout.
 
 test('i18n: the language-locking mechanism itself is reliable, unaffected by the development machine\'s system language', async () => {
   // This guards **the premise of the other 40 e2e cases**: they locate by UI copy, while the language
@@ -3948,7 +3981,7 @@ test('i18n: the language-locking mechanism itself is reliable, unaffected by the
   }
 })
 
-test('i18n: all six languages load, with the key nodes non-empty', async () => {
+test('i18n: both languages load, with the key nodes non-empty', async () => {
   // Not overlapping with typecheck: typecheck guarantees the keys are complete, and this guarantees **a
   // value really is obtained at runtime** —
   // for instance, if one language's dictionary failed to import entirely, the keys would be complete while
@@ -3958,7 +3991,7 @@ test('i18n: all six languages load, with the key nodes non-empty', async () => {
   await win.waitForSelector('.rail')
   await win.locator('.ri.set').click()
   const trig = win.getByTestId('language-trigger')
-  for (const code of ['en', 'fr', 'es', 'ru', 'ja', 'zh']) {
+  for (const code of ['en', 'zh']) {
     await trig.click()
     await win.getByTestId('language-pop').locator(`[data-lang="${code}"]`).click()
     // The key nodes: the page title, the sidebar tooltips, and the settings page's two section titles
@@ -3985,7 +4018,7 @@ test('i18n: switching languages applies immediately, changing several areas at o
     sec: await win.locator('.settings-sec-t').first().textContent()
   }
   await win.getByTestId('language-trigger').click()
-  await win.getByTestId('language-pop').locator('[data-lang="fr"]').click()
+  await win.getByTestId('language-pop').locator('[data-lang="en"]').click()
   // **Assert three areas together**: asserting one cannot distinguish "the whole page changed language" from
   // "only this one place is wired to the dictionaries"
   await expect(win.locator('.settings-h1')).not.toHaveText(before.title ?? '')
@@ -3996,15 +4029,14 @@ test('i18n: switching languages applies immediately, changing several areas at o
   rmSync(l.userData, { recursive: true, force: true })
 })
 
-test('i18n: key layouts do not overflow horizontally in the longest language (both French/Russian prose and Japanese labels are checked)', async () => {
-  // The ticket names **two classes** to cover: French and Russian are longest for prose, and Japanese is
-  // longest for labels (full-width).
-  // Testing one class would miss the other — they burst different containers.
+test('i18n: key layouts do not overflow horizontally in either language', async () => {
+  // Both languages are measured rather than the one assumed longest: which language is longer differs
+  // between short labels and prose, and the two burst different containers (i18n::QR-001/AC-01).
   const l = await launchWithLangs('zh-Hans-CN')
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
   await win.locator('.ri.set').click()
-  for (const code of ['fr', 'ru', 'ja']) {
+  for (const code of ['zh', 'en']) {
     await win.getByTestId('language-trigger').click()
     await win.getByTestId('language-pop').locator(`[data-lang="${code}"]`).click()
     await expect(win.locator('.settings-h1')).not.toBeEmpty()
@@ -4058,9 +4090,9 @@ test('i18n: no label in the project-detail tab row or the skills rows wraps to a
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
 
-  // Japanese is checked alongside the three long-prose languages because full-width labels grow differently
-  // from long words — the same reason the settings test covers both classes.
-  for (const code of ['fr', 'es', 'ru', 'ja']) {
+  // Both languages: full-width Chinese labels grow differently from long English words — the same reason
+  // the settings test measures both (i18n::QR-001/AC-01).
+  for (const code of ['zh', 'en']) {
     await win.locator('.ri.set').click()
     await win.getByTestId('language-trigger').click()
     await win.getByTestId('language-pop').locator(`[data-lang="${code}"]`).click()
@@ -4844,10 +4876,7 @@ test('selectable trend span: localized controls fit both pages in light and dark
     await win.waitForSelector('.rail')
     await l.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(800, 700))
     await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(800)
-    const names = [
-      ['zh', '趋势天数'], ['en', 'Trend days'], ['fr', 'Nombre de jours de la tendance'],
-      ['es', 'Días de la tendencia'], ['ru', 'Количество дней на графике'], ['ja', '推移の日数']
-    ]
+    const names = [['zh', '趋势天数'], ['en', 'Trend days']]
     for (const [lang, name] of names) {
       for (const mode of ['light', 'dark']) {
         for (const theme of ['purple', 'blue', 'amber']) {
@@ -4898,7 +4927,7 @@ test('selectable trend span: localized controls fit both pages in light and dark
           expect(style.rects[1].right).toBeLessThan(style.rects[2].left)
           await expect(selected).toHaveCSS('color', style.accent)
           await expect(win.locator('.tot-c').nth(3).locator('.k')).not.toContainText('30')
-          if (theme === 'purple' && (lang === 'zh' || lang === 'ru')) {
+          if (theme === 'purple') {
             await expect(win.locator('.toast')).toHaveCount(0)
             await win.screenshot({ path: testInfo.outputPath(`trend-${lang}-${mode}-${page}.png`) })
           }
