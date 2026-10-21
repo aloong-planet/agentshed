@@ -3,7 +3,8 @@
 Artifacts: [code review](ticket-223-review-code.md) · [test review](ticket-223-review-tests.md) · this checklist ·
 raw evidence in [`ticket-223-evidence/`](ticket-223-evidence/) (this round's in
 [`rerun-2026-10-21/`](ticket-223-evidence/rerun-2026-10-21/)).
-Scope checked on 2026-10-21, on the branch after merging main at 9b7bb13: `README*`, `AGENTS.md`,
+Scope checked on 2026-10-21, on the branch after merging main at 9b7bb13, and again after merging main at
+b3cb0f5 (#295): `README*`, `AGENTS.md`,
 `CONTEXT.md`, `capabilities.toml`, `docs/` (features, specs, ADR, prototypes, agents), `docs/.workings/`
 (hidden and ignored files included), `scripts/`, `src/`, `.github/`. Search terms: `SKILL_TOOLING`,
 `GALLERY_SHELL`, `mockupOnly`, `gallery shell`, `tooling beside`, `prototypes/index.html`, `check-lang`,
@@ -13,10 +14,16 @@ Scope checked on 2026-10-21, on the branch after merging main at 9b7bb13: `READM
 | Sync item and trigger | Documents | Status and notes |
 |---|---|---|
 | Declare this ticket's artifact paths; before the PR opens | [#223](https://github.com/aloong-planet/agentshed/issues/223) | Done — [comment](https://github.com/aloong-planet/agentshed/issues/223#issuecomment-6119569122) |
-| Replace PR #225's title and description with this round's change and evidence (the narrowing for four copies, the test, the second full gateway); before this round is pushed | [#225](https://github.com/aloong-planet/agentshed/pull/225) | Done — replaced on 2026-10-21 before the push, so that the message-language check runs once, on the final description |
+| Replace PR #225's title and description with this round's change and evidence (the narrowing for four copies, the test, the full gateway on the final merge of main); before this round is pushed | [#225](https://github.com/aloong-planet/agentshed/pull/225) | Done — replaced on 2026-10-21 before the push, so that the message-language check runs once, on the final description |
 | Report the merge on the ticket (merge commit, and whether the merged tree equals the PR head), and close it; after #225 merges | [#223](https://github.com/aloong-planet/agentshed/issues/223) | Done — completes with #225's merge: `Closes #223` closes it, and the comment is the tracker write-back that follows the merge |
 
 Pre-delivery scope re-check (2026-10-21):
+
+- Merging main at b3cb0f5 brought in #295 (two interface languages). Its gate changes narrow other rules'
+  matches and leave `SKILL_TOOLING` and `mockupOnly` byte for byte as they were. The four named copies and
+  `sync-mmd.mjs` are still identical to the skill's templates. `dimensions.js` still carries Chinese labels for
+  the reviewer. The spec sentences this checklist relies on are still in `docs/specs/i18n.md` Further Notes.
+  The full gateway ran again on the merge, 5a01bce: `rerun-2026-10-21/full-gateway-3.log`, every stage exit 0.
 
 - The merge took main's `docs/prototypes/index.html`, so this pull request no longer changes it. The
   2026-10-12 statements about copying the template, and the evidence for them at the top level of
