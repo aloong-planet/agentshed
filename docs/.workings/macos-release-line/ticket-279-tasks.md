@@ -59,8 +59,8 @@ The landing page mentions global search. Working record, not a requirement autho
 | 1 | Step 1: facts and decisions | this record | done |
 | 2 | Screenshots: the hero retaken in both languages; the memory and search steps over a made-up home | the owner's approval (heroes) | done: heroes approved (D10); memory and search over made-up data (D25, D26), retaken on the build after #294 |
 | 3 | Step 2: the landing-page spec and its prototype (the memory and search steps, the copy, the screenshots, the pinned features section); the owner confirms the prototype | the confirmed prototype | in progress: the prototype confirmed (D10, D16, D27); the spec next |
-| 4 | Steps 4–7 (`/implement`): records declared on #279 and its document sync checklist; test design review; slices S1 (six steps, copy, screenshots), S2 (the pinned showcase), S3 (the language switch); code review; full gateway; independent test review; spec check | `ticket-279-review-*.md`, `evidence/ticket-279/` | in progress: implementation 7af1220, gateway `VERIFY_EXIT=0` (`evidence/ticket-279/gateway-7af1220.txt`); the independent test review running |
-| 5 | Step 8 (`/features-catalog`); PR; stop for the owner | `final-regression.md`, PR link | pending |
+| 4 | Steps 4–7 (`/implement`): records declared on #279 and its document sync checklist; test design review; slices S1 (six steps, copy, screenshots), S2 (the pinned showcase), S3 (the language switch); code review; full gateway; independent test review; spec check | `ticket-279-review-*.md`, `evidence/ticket-279/` | done: implementation 7af1220; the independent test check's nine findings fixed in 823a40e and its incremental check's three handled in b59009a; the final run on b59009a `VERIFY_EXIT=0`, `EVIDENCE_EXIT=0` (`evidence/ticket-279/gateway-b59009a.txt`) |
+| 5 | Step 8 (`/features-catalog`); PR; stop for the owner | `final-regression.md`, PR link | step 8 done (the #279 section of `final-regression.md`); the PR next |
 
 ## Targeted verification (step 4)
 

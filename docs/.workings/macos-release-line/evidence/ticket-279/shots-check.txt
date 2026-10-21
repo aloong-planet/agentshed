@@ -1,5 +1,5 @@
 # The site’s screenshots against the confirmed prototype’s, written by shots-check.mjs
-# HEAD: 7af1220c43d1262d27d1c7f2af57699a6b699887; uncommitted files under the two folders: none
+# HEAD: b59009a4d12700eed2017ccabf10b5669fb54b83; uncommitted files under the two folders: none
 hero-en.png identical 2560x1536 91fdc522fc673e3cf309148f97e03f47b6bc7c3f9fee904e2c52a9f70e6bfd75
 hero-zh.png identical 2560x1536 ab9767df3e3027e925d5cdbb59a484a11d956c8fe0efb418e4b648abc6cf9534
 memory-en.png identical 1840x1035 b8daf0d622c96e039af50d0e9f432d21098bed150624d61ac2cb8e830106d9ce

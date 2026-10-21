@@ -1,28 +1,8 @@
 {
  "base": "http://127.0.0.1:4399",
  "version": {
-  "head": "7af1220c43d1262d27d1c7f2af57699a6b699887",
-  "uncommitted": [
-   "M  docs/.workings/macos-release-line/checklist.md 2299abe30aad02685d230b4d17dc52e52bc96e55",
-   "M  docs/.workings/macos-release-line/evidence/ticket-279/README.md 62ed1ec56678ef8490a4a41bd9855675cf2f6e86",
-   "A  docs/.workings/macos-release-line/evidence/ticket-279/gateway-7af1220.txt 4e8d375adaf82ffc3beb19bca0ddbe5657249149",
-   "M  docs/.workings/macos-release-line/evidence/ticket-279/measure.mjs 7ce7a169c4cc905505b2c402bd7b565268c4ce5d",
-   "A  docs/.workings/macos-release-line/evidence/ticket-279/prototype-vs-site.txt 58a8d3c9f1bc3c99ac9bc48e823cc538a9c3dc21",
-   "A  docs/.workings/macos-release-line/evidence/ticket-279/readme-check-plant.txt 1dede885135311e0ad4c44140f7e80fc5b70bbae",
-   "M  docs/.workings/macos-release-line/evidence/ticket-279/results.json a53b77676ccd6096ae59199d7e23c4158466749b",
-   "A  docs/.workings/macos-release-line/evidence/ticket-279/shots-check.mjs b4dc589d39828c6259dbc038ab64e2b8dfe8f608",
-   "M  docs/.workings/macos-release-line/evidence/ticket-279/shots-check.txt 2f14c5333939c88ec2b69981c80264e96e916bf5",
-   "M  docs/.workings/macos-release-line/final-regression.md debd626735ffe8e9ace03587d7fdcbadb5585063",
-   "M  docs/.workings/macos-release-line/ticket-279-doc-sync.md f87c09176f0ad2cb6ea8a195fc19da1349ad4f3c",
-   "M  docs/.workings/macos-release-line/ticket-279-review-code.md 818f1a686527d3784e1c2c2f0fc5026573b709e3",
-   "M  docs/.workings/macos-release-line/ticket-279-review-tests.md 5a2baa6a48b318a3ee7c3592edeb90a32c08fc67",
-   "M  docs/.workings/macos-release-line/ticket-279-tasks.md 8d13a636eb80df61304906002e8d34ec7c0e69a1",
-   "M  docs/features/landing-page.md 8c291bc512a07aecda08359b69344a03b474bcf9",
-   "M  docs/prototypes/landing-page/prototype-landing.html 82424b946afd8243be250e30af1bf24e458b5ba2",
-   "M  docs/specs/landing-page.md 28462252c034eab1eb5e3080471b7cba5aa3b52d",
-   "M  site/README.md a76753545dab4a6cf49fd82daecba471a7727ab0",
-   "M  site/test/built-site.test.ts 89548cf6a26a5ef56f94c529b74fadfec508c0de"
-  ]
+  "head": "b59009a4d12700eed2017ccabf10b5669fb54b83",
+  "uncommitted": []
  },
  "browser": "155.0.8059.85",
  "total": 256,
@@ -760,8 +740,8 @@
    "what": "mid-turn to step 2 the text and the screenshot are fading in, already where they end",
    "actual": [
     {
-     "opacity": 0.741035,
-     "shotOpacity": 0.741035,
+     "opacity": 0.666476,
+     "shotOpacity": 0.666476,
      "n": 368.796875,
      "h": 392.796875,
      "stage": [
@@ -1018,8 +998,8 @@
    "what": "mid-turn to step 3 the text and the screenshot are fading in, already where they end",
    "actual": [
     {
-     "opacity": 0.666209,
-     "shotOpacity": 0.666209,
+     "opacity": 0.575916,
+     "shotOpacity": 0.575916,
      "n": 368.796875,
      "h": 392.796875,
      "stage": [
@@ -1276,8 +1256,8 @@
    "what": "mid-turn to step 4 the text and the screenshot are fading in, already where they end",
    "actual": [
     {
-     "opacity": 0.666496,
-     "shotOpacity": 0.666496,
+     "opacity": 0.576058,
+     "shotOpacity": 0.576058,
      "n": 368.796875,
      "h": 392.796875,
      "stage": [
@@ -1534,8 +1514,8 @@
    "what": "mid-turn to step 5 the text and the screenshot are fading in, already where they end",
    "actual": [
     {
-     "opacity": 0.666288,
-     "shotOpacity": 0.666288,
+     "opacity": 0.666347,
+     "shotOpacity": 0.666347,
      "n": 368.796875,
      "h": 392.796875,
      "stage": [
@@ -1792,8 +1772,8 @@
    "what": "mid-turn to step 6 the text and the screenshot are fading in, already where they end",
    "actual": [
     {
-     "opacity": 0.666575,
-     "shotOpacity": 0.666575,
+     "opacity": 0.575761,
+     "shotOpacity": 0.575761,
      "n": 368.796875,
      "h": 392.796875,
      "stage": [
@@ -3180,8 +3160,8 @@
    "what": "mid-turn to step 2 the text and the screenshot are fading in, already where they end",
    "actual": [
     {
-     "opacity": 0.666244,
-     "shotOpacity": 0.666244,
+     "opacity": 0.575892,
+     "shotOpacity": 0.575892,
      "n": 326.609375,
      "h": 350.609375,
      "stage": [
@@ -3438,8 +3418,8 @@
    "what": "mid-turn to step 3 the text and the screenshot are fading in, already where they end",
    "actual": [
     {
-     "opacity": 0.66653,
-     "shotOpacity": 0.66653,
+     "opacity": 0.666535,
+     "shotOpacity": 0.666535,
      "n": 326.609375,
      "h": 350.609375,
      "stage": [
@@ -3696,8 +3676,8 @@
    "what": "mid-turn to step 4 the text and the screenshot are fading in, already where they end",
    "actual": [
     {
-     "opacity": 0.666323,
-     "shotOpacity": 0.666323,
+     "opacity": 0.666328,
+     "shotOpacity": 0.666328,
      "n": 326.609375,
      "h": 350.609375,
      "stage": [
@@ -3954,8 +3934,8 @@
    "what": "mid-turn to step 5 the text and the screenshot are fading in, already where they end",
    "actual": [
     {
-     "opacity": 0.666609,
-     "shotOpacity": 0.666609,
+     "opacity": 0.576332,
+     "shotOpacity": 0.576332,
      "n": 326.609375,
      "h": 350.609375,
      "stage": [
@@ -4212,8 +4192,8 @@
    "what": "mid-turn to step 6 the text and the screenshot are fading in, already where they end",
    "actual": [
     {
-     "opacity": 0.666402,
-     "shotOpacity": 0.666402,
+     "opacity": 0.576082,
+     "shotOpacity": 0.576082,
      "n": 326.609375,
      "h": 350.609375,
      "stage": [
