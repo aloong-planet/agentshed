@@ -608,3 +608,91 @@ above says.
 | Checklist | The a448fbc row is no longer recorded as verified: CI on ubuntu failed the case with that e2e code. A new row stays unverified until the full run and CI on ubuntu |
 
 This changes the e2e case's executable content again, so the incremental check runs on its commit, then the full gateway, then CI.
+
+## Post-implementation check, incremental (fix commit 3b14f11, H1 and H2)
+
+2026-10-22. Implementation version: 3b14f11 (fix range 967f682..3b14f11). Ticket #291. Run by an independent agent
+that did not inherit the implementing session. Specs as committed in 3b14f11, unchanged in this range (the working
+tree was clean). For E6 and E7, this round's conclusions replace those of the 967f682 round.
+
+Scope, by the incremental rules:
+
+- Tests changed in the range: the e2e hit-row case only, in three places.
+  - The fourth question says "on-duty" instead of "on-call".
+  - E7's first leg reads the whole row list instead of counting rows.
+  - E6 checks that its canvas took the row's font.
+- Tests depending on test helper code changed in the range: none. All three hunks lie inside the hit-row test
+  body, and no product module changed.
+- Test design table rows changed in the range: E6 and E7.
+- The fourth question is shared, so its readers were re-checked by computation: the keyword is still 108
+  characters in; E6's expected text and row 4's first 30 characters (E1) are unchanged; "call" and
+  "quokka question" each hit the far question only; "quokka" still hits four questions and the long keyword one.
+- Elsewhere, every conclusion carries over from the 967f682 round.
+
+Run evidence:
+
+- The targeted verification log, [targeted-fixes-h.txt](evidence/ticket-291/targeted-fixes-h.txt):
+  - It records HEAD 967f682 and 5 uncommitted files, each with its `git hash-object`. Every hash equals the blob in
+    3b14f11, and the only file of the range it omits is the log itself, so it ran on 3b14f11's content.
+  - Each command appears with its exit code and full output, and the log ends `TARGETED_EXIT=0`. On macOS it ran
+    lint, typecheck, the renderer unit tests, one build, and the whole of `e2e/global-search.spec.ts` (14 passed).
+- No test was run in this round: the log and the plants below answer every question in scope.
+- Mutation testing: per the project's capabilities `mutation-testing` is not enabled, so it is skipped and no
+  temporary change was made. The implementing session's plants
+  ([e2e-plants-h1-h2.txt](evidence/ticket-291/e2e-plants-h1-h2.txt), run on 3b14f11's e2e blob `a8f81d0`) serve as
+  evidence of red:
+  - plant A (a 10px ellipsis) fails at line 995, E6's final poll;
+  - plant B (a moved start kept through a change of key) fails at line 920, E7's return poll.
+
+### Each changed test against the test design table
+
+| Test | Matches the table? | Note |
+|---|---|---|
+| E6 | Yes | The canvas check is in the row ("the canvas checked to have taken that font") |
+| E7 | Yes | "call" is in the far question only (computed), and the whole list is read |
+
+### Dimension 1: Coverage (incremental scope)
+
+The rework leaves coverage as the 967f682 round found it. E7's single-hit premise holds again. No finding.
+
+### Dimension 2: Case design (incremental scope)
+
+No module doubles (`rg` exit 1). The new canvas check reads values the page already measured. No finding.
+
+### Dimension 3: False greens (incremental scope)
+
+| Test | Red when | Expected value from |
+|---|---|---|
+| E7, first leg | "call" yields anything but the far question's row, whole and in view. That includes a second hit, the H1 drift, since a list of two does not equal `[FAR]`. The previous keyword's state cannot satisfy it, because its single row is the CJK question's | A literal list |
+| E7, return leg | As before: shown under plant B (line 920) | A literal |
+| E6, canvas check | The canvas rejects the font. A rejected font leaves Chrome's default `10px sans-serif`, which does not contain the row's `13px` (by reading; the macOS run shows an accepted font containing it) | The row's computed size |
+| E6, sizing | As in the 967f682 round; plant A fails at line 995 | A literal |
+
+H1's shape, a count that the previous keyword's results can satisfy, was checked across every count assertion in the
+case:
+- Method: every `fill`, `toHaveCount`, page switch and resize from line 874 to the case's end, listed with `awk`.
+- Results:
+  - Lines 895, 907, 923, 936, 950 and 957 each follow a keyword whose results have another count, or the case's
+    first keyword.
+  - Line 921 counts the identity marker after the row-0 poll has read the new results.
+  - Line 972 counts the search page's kept results for the keyword it holds, which is what it means to count.
+- None has the shape. The other cases in the file lie outside this incremental scope; the implementing session's
+  enumeration of them was not re-checked here.
+
+A residual, not a finding: the canvas check keys on the size alone. It would pass a rejected font only if the row's
+size were the canvas default's 10px, and the row is 13px.
+
+### Dimension 4: Resource reuse (incremental scope)
+
+The targeted log shows one `electron-vite build`. The range adds no `launch(` call. No finding.
+
+### Findings (incremental, 3b14f11)
+
+None. H1 and H2 are resolved as above.
+
+Document sync, from this range's facts: the checklist no longer records a448fbc as verified (CI on ubuntu failed the
+case with that e2e code). Its new row for the current implementation stays unverified until the full gateway and CI
+on ubuntu. Rows E6 and E7 match the tests. My 967f682 round's document-sync note is resolved.
+
+Still open, not a test finding: the full gateway and CI on ubuntu run on this code before delivery, as the handling
+above says. The reworked E6 has not yet run on ubuntu.
