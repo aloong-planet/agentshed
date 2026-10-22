@@ -285,75 +285,42 @@ a {
   margin-bottom: 36px;
 }
 
-/* Features scroll by: the text steps on the left move with the page while the screenshot frame on the right
-   stays put and shows the step whose text sits nearest its middle. Each step is about a third of a screen
-   tall, so the steps either side of the current one stay in view and the column reads as a list to pick
-   from (at 60vh only the current step was on screen). Phones lose the sticky frame and every step carries
-   its own screenshot. */
-.fs {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr);
-  gap: 56px;
-  align-items: start;
+/* Features (the owner's calls of 2026-10-21, after the layout of a reference page the owner supplied): on a wide
+   screen the section pins a showcase under the header while the page scrolls past it — a narrow column with the
+   current step's count, title and text, the step's screenshot large on the right. Each turn of scrolling (60% of
+   the window's height) brings the next step: its text and screenshot fade in where the current ones fade out,
+   together and in place. The page scrolls as usual; nothing captures the wheel. Phones, and pages without
+   scripts, get the stacked steps instead, each with its own screenshot. */
+.deck {
+  position: relative;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 24px;
 }
-.fs-step {
-  min-height: 34vh;
-  display: flex;
+/* Pinned under the 58px header while the turns after it scroll by, so the block is the pinned part plus one
+   turn for each further step */
+.deck-pin {
+  position: sticky;
+  top: 58px;
+  height: calc(100svh - 58px);
+  display: grid;
+  grid-template-columns: minmax(0, 0.36fr) minmax(0, 1fr);
+  gap: 40px;
   align-items: center;
 }
-.fs-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-left: 3px solid var(--line);
-  padding: 8px 0 8px 20px;
-  cursor: pointer;
+.deck-turn {
+  height: 60svh;
 }
-.fs-item .fs-h {
-  display: block;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.3;
-  margin-bottom: 10px;
-  color: var(--text-2);
-}
-.fs-item .fs-p {
-  display: block;
-  color: var(--text-2);
-}
-.fs-item:hover {
-  border-left-color: var(--line-strong);
-}
-.fs-item:hover .fs-h {
-  color: var(--text);
-}
-/* After :hover, at the same specificity, so the current step keeps its accent while hovered */
-.fs-item.on {
-  border-left-color: var(--accent);
-}
-.fs-item.on .fs-h {
-  color: var(--text);
-}
-/* The focus ring is drawn inside the step's own box (a negative offset), never outside it */
-.fs-item:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-/* Centred under the 58px header for a frame about 390px tall, and never tucked under the header */
-.fs-panel {
-  position: sticky;
-  top: max(76px, calc(50vh - 164px));
-}
-/* The four screenshots share one cell, so they must share one shape (16:9): a shorter one left a strip */
-.fs-stack {
+/* The steps' texts share one cell, and so do their screenshots: one of each shows, and the others are hidden from
+   the pointer and from assistive technology. They only fade, never move — a slide up made the screenshot jump —
+   and the text and the screenshot fade with the same timing, so they switch as one. visibility as well as
+   opacity: a transparent screenshot would still lie on top and take the pointer. */
+.deck-copy,
+.deck-stage {
   display: grid;
 }
-/* visibility as well as opacity: a transparent screenshot would still lie on top and take the pointer */
-.fs-stack img {
+.deck-text,
+.deck-shot {
   grid-area: 1/1;
   opacity: 0;
   visibility: hidden;
@@ -361,18 +328,74 @@ a {
     opacity 0.3s,
     visibility 0s 0.3s;
 }
-.fs-stack img.on {
+.deck-text.on,
+.deck-shot.on {
   opacity: 1;
   visibility: visible;
   transition: opacity 0.3s;
 }
-.fs-step .m-shot {
+/* Every step's text starts on the same line, so the count and the title stay put as the steps switch; the column,
+   as tall as the longest text, is what sits centred beside the screenshot */
+.deck-text {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.deck-n {
+  font:
+    12px/1 ui-monospace,
+    'SF Mono',
+    Menlo,
+    monospace;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+}
+.deck-text h3 {
+  font-size: 28px;
+  line-height: 1.3;
+}
+.deck-text p {
+  color: var(--text-2);
+}
+/* The width is capped so a short window still holds the whole screenshot under the header */
+.deck-stage {
+  width: 100%;
+  max-width: calc((100svh - 190px) * 16 / 9);
+  justify-self: center;
+}
+.fs-list {
   display: none;
 }
+.fs-step .fs-h {
+  font-size: 22px;
+  line-height: 1.3;
+  margin-bottom: 10px;
+}
+.fs-step .fs-p {
+  color: var(--text-2);
+}
+.fs-step .m-shot {
+  margin-top: 18px;
+}
 @media (prefers-reduced-motion: reduce) {
-  .fs-stack img,
-  .fs-stack img.on {
+  .deck-text,
+  .deck-shot,
+  .deck-text.on,
+  .deck-shot.on {
     transition: none;
+  }
+}
+/* Without scripts nothing turns the showcase, which would stay on its first step while its block scrolled by:
+   the stacked steps show instead, at every width */
+@media (scripting: none) {
+  .deck {
+    display: none;
+  }
+  .fs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 44px;
   }
 }
 
@@ -458,34 +481,14 @@ a {
   .hero h1 {
     font-size: 32px;
   }
-  .fs {
-    grid-template-columns: 1fr;
-    gap: 44px;
-  }
-  .fs-panel {
+  .deck {
     display: none;
-  }
-  .fs-step {
-    min-height: 0;
-    display: block;
   }
   /* Without a gap the next step's title sat right under the previous screenshot and read as its caption */
   .fs-list {
     display: flex;
     flex-direction: column;
     gap: 44px;
-  }
-  .fs-item {
-    border-left: 0;
-    padding: 0;
-    cursor: default;
-  }
-  .fs-item .fs-h {
-    color: var(--text);
-  }
-  .fs-step .m-shot {
-    display: flex;
-    margin-top: 18px;
   }
   .steps {
     grid-template-columns: 1fr;

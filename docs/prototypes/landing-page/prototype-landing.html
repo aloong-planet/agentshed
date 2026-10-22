@@ -1,9 +1,24 @@
 <!doctype html>
 <!-- A UI prototype · landing-page: Agentshed's download landing page (ADR-0031), the long-page form the
      owner picked on 2026-10-12 ("L1", after Transfer's landing page): header → hero with the download →
-     features → install steps → download section → footer. Chinese and English only. The features scroll by
-     (owner's call, 2026-10-13): four text steps on the left move with the page, one screenshot frame on the
-     right stays put and shows the step nearest its middle, and clicking a step scrolls to it.
+     features → install steps → download section → footer. Chinese and English only. The features (owner's calls,
+     2026-10-13, reworked 2026-10-21 after the layout of a reference page the owner supplied, "vertical card stack"):
+     on a wide screen the section pins a showcase under the header while the page scrolls by — the current step's
+     text in a narrow column on the left with its count ("01 / 06"), its screenshot large on a wider right, in the
+     page's own window frame. Each stretch of ordinary scrolling turns to the next step: the text and the
+     screenshot cross-fade in place together, nothing moving (nothing captures the wheel either). A slide up and
+     in from below was tried first and dropped the same day, at the owner's call: it made the screenshot jump.
+     The reference's cards stacked in depth were tried and dropped the same day, at the owner's call: only its
+     layout is taken, not its cards, dots, scroll hint, colours, web font or download button. Phones keep the
+     stacked steps. The downloads stay in the hero and at the bottom.
+
+     Global search (owner's calls, 2026-10-21, before this page changed; the structure is decided, so no text
+     options were drawn): a fifth step, last, after the sessions step, with its own screenshot of the search page;
+     its copy names no shortcut. The sessions step's "search" becomes search within the project, so the two steps
+     do not read as one feature. The hero is retaken so its rail shows the Search item.
+     Memory (owner's calls, 2026-10-21): a step of its own, third, after what each project has, showing a memory
+     file open in the drawer over the Agents page's Memory section. The hero paragraph is the README's opening
+     summary, word for word, and names plugins and memory.
 
      What it asks: does this page structure, and the three download states, read right? The page decides in the
      visitor's browser, so a release never needs a site change (owner's calls, 2026-10-13):
@@ -18,11 +33,20 @@
 
      Screenshots (shots/, 2026-10-13) are taken from the built app over the owner's own agent data, at the
      owner's choice: 1280×800 window, light appearance, 2× pixels, one set per language. The hero keeps the whole
-     window. The four feature shots are cut, at the owner's choice, to the part of the window each step is about,
-     all to one size (920×517pt, 16:9) so the text keeps one size as the frame switches: about 0.7 of its size
+     window. The feature shots are cut, at the owner's choice, to the part of the window each step is about,
+     all to one size (920×517pt, 16:9) so the text keeps one size as the steps turn: about 0.7 of its size
      in the app, against 0.5 for the whole window. 920pt is the narrowest that holds the token page's trend chart
      and per-model figures whole. Each cut ends between list rows, and the token cut stops short of the
      recent-sessions list, which would show the current conversation's title.
+     The search page is cut from a window narrowed to 984pt wide, so its pane reflows into the 920pt cut and each
+     row keeps its hit count and time; the cut starts at the search box. It is taken over a made-up home of
+     projects and questions, the same projects as the memory screenshot, not over the owner's data (owner's call,
+     2026-10-21). The retaken heroes are published with the owner's approval.
+     The memory screenshot is cut the same way from a 984pt window, the drawer open over the dimmed list with a
+     memory file shown as rendered Markdown: a project with a few memory files is expanded, so other projects stay
+     in view, and the cut ends between rows of the list and between lines of the drawer. It is taken over a
+     made-up home whose projects and memory files have the real files' shape, not over the owner's data (owner's
+     call, 2026-10-21).
      The app icon is the production artwork with its transparent exterior, the file the app itself ships; its
      shadow follows the icon's own outline (owner's call, 2026-10-18 — a shadow around the image's square box
      showed the transparent margin as a light tile).
@@ -114,32 +138,37 @@
   section.soft{background:var(--bg-soft)}
   .sec-title{font-size:28px;text-align:center;margin-bottom:8px}
   .sec-sub{color:var(--text-2);text-align:center;margin-bottom:36px}
-  /* Features scroll by: the text steps on the left move with the page while the screenshot frame on the right
-     stays put and shows the step whose text sits nearest its middle. Each step is about a third of a screen
-     tall, so the steps either side of the current one stay in view and the column reads as a list to pick
-     from (at 60vh only the current step was on screen). Phones lose the sticky frame and every step carries
-     its own screenshot. */
-  .fs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.9fr);gap:56px;align-items:start}
-  .fs-step{min-height:34vh;display:flex;align-items:center}
-  .fs-item{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:none;border:0;
-    border-left:3px solid var(--line);padding:8px 0 8px 20px;cursor:pointer}
-  .fs-item .fs-h{display:block;font-size:22px;font-weight:700;line-height:1.3;margin-bottom:10px;color:var(--text-2)}
-  .fs-item .fs-p{display:block;color:var(--text-2)}
-  .fs-item:hover{border-left-color:var(--line-strong)}
-  .fs-item:hover .fs-h{color:var(--text)}
-  /* After :hover, at the same specificity, so the current step keeps its accent while hovered */
-  .fs-item.on{border-left-color:var(--accent)}
-  .fs-item.on .fs-h{color:var(--text)}
-  .fs-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-  /* Centred under the 58px header for a frame about 390px tall, and never tucked under the header */
-  .fs-panel{position:sticky;top:max(76px, calc(50vh - 164px))}
-  /* The four screenshots share one cell, so they must share one shape (16:9): a shorter one left a strip */
-  .fs-stack{display:grid}
-  /* visibility as well as opacity: a transparent screenshot would still lie on top and take the pointer */
-  .fs-stack img{grid-area:1/1;opacity:0;visibility:hidden;transition:opacity .3s, visibility 0s .3s}
-  .fs-stack img.on{opacity:1;visibility:visible;transition:opacity .3s}
-  .fs-step .m-shot{display:none}
-  @media (prefers-reduced-motion:reduce){ .fs-stack img, .fs-stack img.on{transition:none} }
+  /* Features (owner's calls, 2026-10-21, after the layout of a reference page the owner supplied): on a wide
+     screen the section pins a showcase under the header while the page scrolls past it — a narrow column on the
+     left with the current step's text and its count, the step's screenshot large on the right. Each 60% of a
+     screen of scrolling turns to the next step: its text and screenshot fade in where the current ones fade out,
+     together and in place. The page scrolls as usual; nothing captures the wheel. Phones keep the stacked steps,
+     each with its own screenshot. */
+  .deck{position:relative;max-width:1240px;margin:0 auto;padding:0 24px;
+    height:calc(100svh - 58px + (var(--n) - 1) * 60svh)}
+  /* Pinned under the 58px header for as long as the deck scrolls by */
+  .deck-pin{position:sticky;top:58px;height:calc(100svh - 58px);display:grid;
+    grid-template-columns:minmax(0,.36fr) minmax(0,1fr);gap:40px;align-items:center}
+  /* The steps' texts share one cell, and so do their screenshots: one of each shows, and the others are hidden
+     from the pointer and from assistive technology. They only fade, never move — a slide up made the screenshot
+     jump — and the text and the screenshot fade with the same timing, so they switch as one. visibility as well
+     as opacity: a transparent screenshot would still lie on top and take the pointer. */
+  .deck-copy, .deck-stage{display:grid}
+  .deck-text, .deck-shot{grid-area:1/1;opacity:0;visibility:hidden;transition:opacity .3s, visibility 0s .3s}
+  .deck-text.on, .deck-shot.on{opacity:1;visibility:visible;transition:opacity .3s}
+  @media (prefers-reduced-motion:reduce){ .deck-text, .deck-shot, .deck-text.on, .deck-shot.on{transition:none} }
+  /* Every step's text starts on the same line, so the count and the title stay put as the steps switch; the
+     column, as tall as the longest text, is what sits centred beside the screenshot */
+  .deck-text{align-self:start;display:flex;flex-direction:column;gap:12px}
+  .deck-n{font:12px/1 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.06em;color:var(--text-2)}
+  .deck-text h3{font-size:28px;line-height:1.3}
+  .deck-text p{color:var(--text-2)}
+  /* The width is capped so a short window still holds the whole screenshot under the header */
+  .deck-stage{width:100%;max-width:calc((100svh - 190px) * 16 / 9);justify-self:center}
+  .fs-list{display:none}
+  .fs-step .fs-h{font-size:22px;line-height:1.3;margin-bottom:10px}
+  .fs-step .fs-p{color:var(--text-2)}
+  .fs-step .m-shot{margin-top:18px}
 
   .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
   .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
@@ -165,14 +194,9 @@
 
   @media (max-width:760px){
     .hero h1{font-size:32px}
-    .fs{grid-template-columns:1fr;gap:44px}
-    .fs-panel{display:none}
-    .fs-step{min-height:0;display:block}
+    .deck{display:none}
     /* Without a gap the next step's title sat right under the previous screenshot and read as its caption */
     .fs-list{display:flex;flex-direction:column;gap:44px}
-    .fs-item{border-left:0;padding:0;cursor:default}
-    .fs-item .fs-h{color:var(--text)}
-    .fs-step .m-shot{display:flex;margin-top:18px}
     .steps{grid-template-columns:1fr}
     nav.links{display:none}
     .lang{margin-left:auto}
@@ -234,8 +258,8 @@
     zh: {
       htmlLang: 'zh-CN',
       nav: ['功能', '安装', '下载', 'GitHub'],
-      title: '你的 coding agent 工具棚',
-      lede: '一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，烧了多少 token，攒下哪些文档；还能把全局 skill 装进任意项目。',
+      title: '你的 coding agent，尽收眼底',
+      lede: '一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，记住了什么，烧了多少 token；每次会话按提问回看，所有项目一起搜索；还能把全局 skill 装进任意项目。',
       download: (v) => `下载 Agentshed ${v}`,
       downloadBeta: (v) => `下载测试版 ${v}`,
       testPill: '测试版',
@@ -248,8 +272,10 @@
       feats: [
         ['全局总览', '每个 coding agent 装了什么、一共烧了多少 token，打开就是全景。', 'overview', '所有 agent 侧的 skills 合并在一张表里'],
         ['每个项目装了什么', 'skills、subagents、plugins、MCP 与配置，按项目实际生效的样子列出来。', 'project', '一个项目的 Skills 页'],
+        ['agent 记住了什么', '每个项目里 agent 跨会话记住的内容，在全局页按项目汇总，点开一份就在抽屉里读全文。', 'memory', 'Agents 页的记忆分页，抽屉里打开了一份记忆'],
         ['Token 用量与趋势', '按天、按项目、按模型拆开看，历史用量本地存档，不怕 agent 自己清理会话。', 'tokens', '一个项目的 token 总量、趋势与按模型拆分'],
-        ['会话回看', '按提问索引一次会话，点开整轮看工具调用与子任务，支持搜索。', 'session', '会话页：提问索引与展开的一整轮'],
+        ['会话回看', '按提问索引一次会话，点开整轮看工具调用与子任务，也能在项目内搜索。', 'session', '会话页：提问索引与展开的一整轮'],
+        ['全局搜索', '在所有项目的会话里搜你问过的话，按项目分组列出，点开一条直接回到那次提问。', 'search', '全局搜索页：按项目分组的命中'],
       ],
       installTitle: '安装',
       steps: [
@@ -273,8 +299,8 @@
     en: {
       htmlLang: 'en',
       nav: ['Features', 'Install', 'Download', 'GitHub'],
-      title: 'The tool shed for your coding agents',
-      lede: 'See, across every project, which skills, plugins and MCP servers Claude Code, Codex and other coding agents have installed, how many tokens they burned and which documents they left — and install skills from your global library into any project.',
+      title: 'Your coding agents, in full view',
+      lede: 'See, across every project, which skills, plugins and MCP servers Claude Code, Codex and other coding agents have installed, what they remember and how many tokens they burned; revisit every session question by question, search what you asked across all of them, and install skills from your global library into any project.',
       download: (v) => `Download Agentshed ${v}`,
       downloadBeta: (v) => `Download test version ${v}`,
       testPill: 'Test version',
@@ -287,8 +313,10 @@
       feats: [
         ['The overview', 'What every coding agent has installed and how many tokens it has burned, as soon as you open it.', 'overview', 'Every agent side’s skills in one merged list'],
         ['What each project has', 'Skills, subagents, plugins, MCP servers and configuration, listed as they actually take effect in that project.', 'project', 'A project’s Skills tab'],
+        ['What the agents remember', 'What the agents have remembered about each project across sessions, gathered by project on one page; open a file to read it in full in a drawer.', 'memory', 'The Agents page’s Memory section, one memory file open in a drawer'],
         ['Token usage and trends', 'Split by day, project and model, with history kept locally even after an agent cleans up its own sessions.', 'tokens', 'A project’s token totals, trend and per-model split'],
-        ['Sessions, revisited', 'Each session indexed by question; open a whole turn to see its tool calls and subagents, or search.', 'session', 'The session page: the question index with one whole turn open'],
+        ['Sessions, revisited', 'Each session indexed by question; open a whole turn to see its tool calls and subagents, or search within the project.', 'session', 'The session page: the question index with one whole turn open'],
+        ['Search across projects', 'Find what you asked in any project’s sessions, grouped by project, and open a hit right at that question.', 'search', 'The search page: hits grouped by project'],
       ],
       installTitle: 'Install',
       steps: [
@@ -313,7 +341,7 @@
 
   let lang = 'zh'
   let rel = 'beta'
-  /** The feature step the screenshot frame shows; kept across re-renders so switching language keeps the place */
+  /** The feature step the deck shows; kept across re-renders so switching language keeps the place */
   let feat = 0
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   const dmg = (v) => `Agentshed-${v}-mac-arm64.dmg`
@@ -367,17 +395,27 @@
         <div class="wrap">
           <h2 class="sec-title">${esc(d.featTitle)}</h2>
           <p class="sec-sub">${esc(d.featSub)}</p>
-          <div class="fs">
-            <div class="fs-list">
-              ${d.feats.map(([h, p, img, alt], i) => `
-                <div class="fs-step">
-                  <button type="button" class="fs-item${i === feat ? ' on' : ''}" data-i="${i}"><span class="fs-h">${esc(h)}</span><span class="fs-p">${esc(p)}</span></button>
-                  <div class="shot m-shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/${img}-${lang}.png" width="1840" height="1035" alt="${esc(alt)}" loading="lazy"></div>
-                </div>`).join('')}
+        </div>
+        <div class="deck" style="--n:${d.feats.length}">
+          <div class="deck-pin">
+            <div class="deck-copy">
+              ${d.feats.map(([h, p], i) => `
+                <div class="deck-text${turn(i)}"><span class="deck-n">${String(i + 1).padStart(2, '0')} / ${String(d.feats.length).padStart(2, '0')}</span><h3>${esc(h)}</h3><p>${esc(p)}</p></div>`).join('')}
             </div>
-            <div class="shot fs-panel"><div class="chrome"><i></i><i></i><i></i></div>
-              <div class="fs-stack">${d.feats.map(([, , img, alt], i) => `<img class="${i === feat ? 'on' : ''}" src="shots/${img}-${lang}.png" width="1840" height="1035" alt="${esc(alt)}">`).join('')}</div>
+            <div class="deck-stage">
+              ${d.feats.map(([, , img, alt], i) => `
+                <div class="shot deck-shot${turn(i)}"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/${img}-${lang}.png" width="1840" height="1035" alt="${esc(alt)}"></div>`).join('')}
             </div>
+          </div>
+        </div>
+        <div class="wrap">
+          <div class="fs-list">
+            ${d.feats.map(([h, p, img, alt]) => `
+              <div class="fs-step">
+                <h3 class="fs-h">${esc(h)}</h3>
+                <p class="fs-p">${esc(p)}</p>
+                <div class="shot m-shot"><div class="chrome"><i></i><i></i><i></i></div><img src="shots/${img}-${lang}.png" width="1840" height="1035" alt="${esc(alt)}" loading="lazy"></div>
+              </div>`).join('')}
           </div>
         </div>
       </section>
@@ -415,11 +453,13 @@
         <b>验收</b>：① 切「下载状态」看三种首屏：仅测试版时按钮指向 GitHub 的测试版、标「测试版」并说明正式版未发布；
         有正式版时指向 R2 镜像（下载区另给 GitHub 兜底）；有正式版但 R2 读不到时同一外观、链接全在 GitHub（下载区只剩一个按钮）；
         两处都读不到时指向 GitHub 版本列表、不标版本号② 中 / EN 切换在右上角 ③ 窄屏（&lt;760px）单栏、导航收起
-        ④ 浅色 / 深色都看(在画廊的统一设置里切换) ⑤ 截图是 2026-10-13 从打包后的应用实拍的，用的是你本机的真实数据（项目名、路径、用量、会话提问都会随页面公开）；
-        Hero 是整窗，功能区四张统一裁到该段相关的区域、同一放大倍数，切换时字号不变
-        ⑥ 功能区往下滚：左侧四段文字随页面移动，右侧截图框停在原处，显示离它中线最近的那段；点左侧某段会滚到该段；窄屏没有固定框，每段文字下面直接跟自己的截图。<br>
+        ④ 浅色 / 深色都看(在画廊的统一设置里切换) ⑤ 截图都从打包后的应用实拍：Hero 与总览、项目、Token、会话四段用的是你本机的真实数据
+        （项目名、路径、用量、会话提问都会随页面公开），记忆与全局搜索两段用的是虚构数据（同一套虚构项目）；
+        Hero 是整窗，功能区六张统一裁到该段相关的区域、同一放大倍数，切换时字号不变
+        ⑥ 功能区往下滚：功能区停在页头下方，左侧窄栏只显示当前一段的文字和「01 / 06」，右侧是这一段的大截图；每滚过约六成屏，
+        这一段的文字和截图在原地一起淡出、下一段的一起淡入（约 0.3 秒），不上下移动；页面照常滚动，不接管滚轮；窄屏不停住，每段文字下面直接跟自己的截图。<br>
         <b>已确认（2026-10-13）</b>：
-        (a) 页面结构：Hero → 功能区（总览 / 项目 / Token / 会话，左文右图滚动联动）→ 安装三步 → 下载 → 页脚；
+        (a) 页面结构：Hero → 功能区（总览 / 项目 / Token / 会话，左文右图滚动联动；后加的两段见 j、p，展现形式见 n）→ 安装三步 → 下载 → 页脚；
         (b) 文案不把 agent 侧当全集列出（「Claude Code、Codex 等」），新增一侧时不用改；
         (c) 保留功能区副标题「它只读取你本机上 coding agent 留下的文件」（落地页上的卖点，与应用内不写的「联网说明」是两回事）；
         (d) 安装第 3 步提前告诉用户首次打开的系统提示是正常的，并提到左下角的更新按钮；
@@ -428,56 +468,44 @@
         (g) 功能区截图裁到该段相关的区域，统一放大倍数；截图可以公开。<br>
         <b>2026-10-13 按你的答复加入，待看原型确认</b>：(h) 两处都读不到（断网等）时按钮指向 GitHub 版本列表、不标版本号，
         页面脚本执行前的初始状态也是它；(i) R2 读不到但 GitHub 上有正式版时，按正式版显示、链接全在 GitHub（见验收 ①）。<br>
+        <b>已确认（2026-10-21）</b>：(j) 功能区新增「全局搜索」一段，排在会话回看之后，文案不写快捷键；
+        (k) 会话回看一段的「支持搜索」改为「也能在项目内搜索」；(l) Hero 重拍（侧栏里有了搜索项），中英两张已批准公开；
+        (n) 功能区只参考你给的参考页「竖排卡片堆叠」的布局：钉在页头下方，左栏窄、只显示当前一段和段数，右侧一张大截图（原来的窗口框，
+        不要层叠卡片）；自然滚动换段，文字和截图在原地一起淡入淡出；沿用紫色调，不要圆点和提示句；窄屏保持竖排；下载仍在 Hero 和页面下方。<br>
+        <b>已确认（2026-10-21，后加的一版）</b>：
+        (o) Hero 的介绍段与 README 开头的概括一字不差（你选定的那版），补上 plugins 与记忆、会话回看与跨项目搜索，仍以「Claude Code、Codex 等」举例；
+        (q) 首屏大标题与 README 开头不再用「工具棚」，改为你选定的「你的 coding agent，尽收眼底」/「Your coding agents, in full view」；
+        (p) 功能区第三段「agent 记住了什么」，排在「每个项目装了什么」之后（功能区因此共六段）：截图是 Agents 页的记忆分页，
+        展开 notes-app、抽屉里以 Markdown 预览打开 release-flow.md，用的是虚构数据；
+        (m) 全局搜索一段的截图也用虚构数据（与记忆截图同一套虚构项目），不再等 #290。<br>
         <b>已定</b>：(f) 下载域名为 dl.agentshed.aloongplanet.com，证书已于 2026-10-17 从 Cloudflare 外部检查通过（ADR-0031）。<br>
         <b>演示基建</b>：底部悬浮条不是设计的一部分，勿实现。
       </div>`
   }
 
-  /** The sticky frame is hidden on phones, where every step shows its own screenshot */
-  const fsPanel = () => {
-    const p = document.querySelector('.fs-panel')
-    return p && getComputedStyle(p).display !== 'none' ? p : null
-  }
-  function showFeat(i) {
-    feat = i
-    document.querySelectorAll('.fs-item').forEach((b) => b.classList.toggle('on', Number(b.dataset.i) === i))
-    document.querySelectorAll('.fs-stack img').forEach((im, j) => im.classList.toggle('on', j === i))
-  }
-  /** The frame shows the step whose text sits nearest its middle */
-  function syncFeat() {
-    const panel = fsPanel()
-    if (!panel) return
-    const pr = panel.getBoundingClientRect()
-    const mid = pr.top + pr.height / 2
-    let best = feat
-    let dist = Infinity
-    document.querySelectorAll('.fs-item').forEach((b) => {
-      const r = b.getBoundingClientRect()
-      const d = Math.abs(r.top + r.height / 2 - mid)
-      if (d < dist) { dist = d; best = Number(b.dataset.i) }
+  /** The current step's text and screenshot show */
+  const turn = (i) => (i === feat ? ' on' : '')
+  /** The deck follows the scroll: the next step each 60% of a screen, from when it pins under the header */
+  function syncDeck() {
+    const deck = document.querySelector('.deck')
+    if (!deck || getComputedStyle(deck).display === 'none') return
+    const n = deck.querySelectorAll('.deck-text').length
+    const scrolled = 58 - deck.getBoundingClientRect().top
+    feat = Math.min(n - 1, Math.max(0, Math.round(scrolled / (innerHeight * 0.6))))
+    deck.querySelectorAll('.deck-text, .deck-shot').forEach((el) => {
+      el.classList.toggle('on', [...el.parentElement.children].indexOf(el) === feat)
     })
-    if (best !== feat) showFeat(best)
   }
   let ticking = false
   const onScroll = () => {
     if (ticking) return
     ticking = true
-    requestAnimationFrame(() => { ticking = false; syncFeat() })
+    requestAnimationFrame(() => { ticking = false; syncDeck() })
   }
   addEventListener('scroll', onScroll, { passive: true })
   addEventListener('resize', onScroll)
-  /** Clicking a step scrolls it level with the stuck frame's middle; the scroll itself then switches the screenshot */
-  document.getElementById('page').addEventListener('click', (e) => {
-    const b = e.target.closest('.fs-item')
-    const panel = fsPanel()
-    if (!b || !panel) return
-    const mid = parseFloat(getComputedStyle(panel).top) + panel.offsetHeight / 2
-    const r = b.getBoundingClientRect()
-    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
-    scrollTo({ top: scrollY + r.top + r.height / 2 - mid, behavior: smooth ? 'smooth' : 'auto' })
-  })
 
-  document.querySelectorAll('.lang button').forEach((b) => { b.onclick = () => { lang = b.dataset.lang; render(); syncFeat() } })
+  document.querySelectorAll('.lang button').forEach((b) => { b.onclick = () => { lang = b.dataset.lang; render(); syncDeck() } })
   // One choice of four, split over two groups so each fits on a phone-width line
   document.getElementById('demoBar').addEventListener('click', (e) => {
     const b = e.target.closest('[data-rel]')
@@ -485,10 +513,10 @@
     rel = b.dataset.rel
     document.querySelectorAll('#demoBar [data-rel]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
     render()
-    syncFeat()
+    syncDeck()
   })
   render()
-  syncFeat()
+  syncDeck()
 </script>
 <script src="../demo-harness.js"></script>
 </body>

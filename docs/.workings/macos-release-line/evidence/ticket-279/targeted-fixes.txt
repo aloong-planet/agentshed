@@ -1,0 +1,186 @@
+# Targeted verification — #279, the fixes to the post-implementation check's findings
+date: 2026-10-21T15:59:11Z
+git rev-parse HEAD: 7af1220c43d1262d27d1c7f2af57699a6b699887
+git status --porcelain --untracked-files=all:
+  M  docs/.workings/macos-release-line/checklist.md 2299abe30aad02685d230b4d17dc52e52bc96e55
+  M  docs/.workings/macos-release-line/evidence/ticket-279/README.md 62ed1ec56678ef8490a4a41bd9855675cf2f6e86
+  A  docs/.workings/macos-release-line/evidence/ticket-279/gateway-7af1220.txt 4e8d375adaf82ffc3beb19bca0ddbe5657249149
+  M  docs/.workings/macos-release-line/evidence/ticket-279/measure.mjs 7ce7a169c4cc905505b2c402bd7b565268c4ce5d
+  A  docs/.workings/macos-release-line/evidence/ticket-279/prototype-vs-site.txt 58a8d3c9f1bc3c99ac9bc48e823cc538a9c3dc21
+  A  docs/.workings/macos-release-line/evidence/ticket-279/readme-check-plant.txt 1dede885135311e0ad4c44140f7e80fc5b70bbae
+  M  docs/.workings/macos-release-line/evidence/ticket-279/results.json a53b77676ccd6096ae59199d7e23c4158466749b
+  A  docs/.workings/macos-release-line/evidence/ticket-279/shots-check.mjs b4dc589d39828c6259dbc038ab64e2b8dfe8f608
+  M  docs/.workings/macos-release-line/evidence/ticket-279/shots-check.txt 2f14c5333939c88ec2b69981c80264e96e916bf5
+  M  docs/.workings/macos-release-line/final-regression.md debd626735ffe8e9ace03587d7fdcbadb5585063
+  M  docs/.workings/macos-release-line/ticket-279-doc-sync.md f87c09176f0ad2cb6ea8a195fc19da1349ad4f3c
+  M  docs/.workings/macos-release-line/ticket-279-review-code.md 818f1a686527d3784e1c2c2f0fc5026573b709e3
+  M  docs/.workings/macos-release-line/ticket-279-review-tests.md 5a2baa6a48b318a3ee7c3592edeb90a32c08fc67
+  M  docs/.workings/macos-release-line/ticket-279-tasks.md 8d13a636eb80df61304906002e8d34ec7c0e69a1
+  M  docs/features/landing-page.md 8c291bc512a07aecda08359b69344a03b474bcf9
+  M  docs/prototypes/landing-page/prototype-landing.html 82424b946afd8243be250e30af1bf24e458b5ba2
+  M  docs/specs/landing-page.md 28462252c034eab1eb5e3080471b7cba5aa3b52d
+  M  site/README.md a76753545dab4a6cf49fd82daecba471a7727ab0
+  M  site/test/built-site.test.ts 89548cf6a26a5ef56f94c529b74fadfec508c0de
+(end of status)
+
+## pnpm lint
+
+> agentshed@0.1.0-beta lint /Users/loong_zhou/CascadeProjects/agentshed-wt/landing-search
+> eslint . --max-warnings 0
+
+## exit code of pnpm lint: 0
+
+## pnpm test:site
+
+> agentshed@0.1.0-beta test:site /Users/loong_zhou/CascadeProjects/agentshed-wt/landing-search
+> pnpm --dir site check && pnpm --dir site test
+
+
+> agentshed-site@0.0.0 check /Users/loong_zhou/CascadeProjects/agentshed-wt/landing-search/site
+> astro check
+
+23:59:26 [vite] Re-optimizing dependencies because vite config has changed
+23:59:26 [types] Generated 73ms
+23:59:26 [check] Getting diagnostics for Astro files in /Users/loong_zhou/CascadeProjects/agentshed-wt/landing-search/site...
+Result (27 files): 
+- 0 errors
+- 0 warnings
+- 0 hints
+
+
+> agentshed-site@0.0.0 test /Users/loong_zhou/CascadeProjects/agentshed-wt/landing-search/site
+> vitest run
+
+
+ RUN  v5.0.5 /Users/loong_zhou/CascadeProjects/agentshed-wt/landing-search/site
+
+
+ Test Files  7 passed (7)
+      Tests  109 passed (109)
+   Start at  23:59:29
+   Duration  1.50s (import 72%, tests 26%, transform 1%, worker 1%)
+
+## exit code of pnpm test:site: 0
+
+## pnpm check:lang
+
+> agentshed@0.1.0-beta check:lang /Users/loong_zhou/CascadeProjects/agentshed-wt/landing-search
+> node --test scripts/check-lang.test.mjs && node scripts/check-lang.mjs
+
+✔ the seeds alone pass, one permitted line each (240.606083ms)
+✔ Chinese in the skill's copy docs/prototypes/index.html is reported like any other tooling (234.503375ms)
+✔ Chinese in the skill's copy docs/prototypes/app-identity.js is reported like any other tooling (227.550292ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-dimensions.js is reported like any other tooling (227.769166ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-harness.js is reported like any other tooling (234.38425ms)
+✔ Chinese in the skill's copy sync-mmd.mjs is reported, since .mjs is not an exempt type (232.48875ms)
+✔ Chinese stays permitted in a mockup page (234.195958ms)
+✔ Chinese stays permitted in a logic page that shares the gallery shell’s file name (237.112958ms)
+✔ Chinese stays permitted in the manifest, whose names and questions address the reviewer (237.421041ms)
+✔ Chinese stays permitted in the dimension registry, whose labels address the reviewer (238.075084ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2398.188667
+✓ Working language: 2316 line(s) of Chinese, each permitted by a stated rule
+    rule · 1 file(s) · side-count detection patterns quote the languages they scan; pattern literals only, not prose
+    rule · 1 file(s) · the source-language dictionary — the values are the copy itself, while the comments are English like the rest of the repository
+    rule · 1 file(s) · the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English
+    rule · 16 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
+    rule · 3 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
+    rule · 38 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+    rule · 1 file(s) · the Chinese README — a localisation is written in the language it localises into
+    rule · 2 file(s) · the language switcher rows and the selector list — a language is named in its own script
+## exit code of pnpm check:lang: 0
+
+## pnpm check:nul
+
+> agentshed@0.1.0-beta check:nul /Users/loong_zhou/CascadeProjects/agentshed-wt/landing-search
+> node --test scripts/check-raw-nul.test.mjs && node scripts/check-raw-nul.mjs
+
+✔ accepts real PNG and ICNS artwork under new filenames (213.990542ms)
+✔ rejects NUL-bearing source even alongside valid artwork (122.182334ms)
+✔ does not exempt unrecognised content in pretend.png (75.502875ms)
+✔ does not exempt unrecognised content in pretend.icns (74.269167ms)
+✔ does not exempt unrecognised content in binary.dat (78.364875ms)
+✔ accepts searchable source with an escaped NUL (120.713667ms)
+✔ rejects a NUL in a new file that is not staged yet (120.157959ms)
+✔ does not scan a git-ignored file, such as build output (122.6455ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 983.213792
+✓ Raw NUL bytes: none in 818 file(s) (110 binary-format file(s) exempt by signature)
+## exit code of pnpm check:nul: 0
+
+## pnpm check:ui
+
+> agentshed@0.1.0-beta check:ui /Users/loong_zhou/CascadeProjects/agentshed-wt/landing-search
+> node scripts/check-shared-ui.mjs
+
+✓ shared block startup-status (startup restoration scanning hint) — all 5 usage site(s) compliant
+✓ shared block file-drawer (drawer reading one file of a skill package or a memory directory) — all 4 usage site(s) compliant
+✓ shared block toast (app toast notice) — all 2 usage site(s) compliant
+✓ shared block trend-chart (provider stacked trend chart) — all 2 usage site(s) compliant
+✓ shared block app-rail (app navigation rail) — all 11 usage site(s) compliant
+✓ shared block project-side (project column) — all 5 usage site(s) compliant
+✓ shared block session-hits (session search hits) — all 2 usage site(s) compliant
+✓ shared block app-window (app window box) — all 11 usage site(s) compliant
+✓ persistent documents must not reference ticket numbers (they outlive the tickets)
+✓ the Chinese and English READMEs reach each other (i18n::CON-001)
+✓ settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)
+✓ dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)
+✓ dictionary copy must not name a rail control verbatim (a sentence outlives the control)
+✓ provider brand colours must not be hard-coded in components (use CSS variables)
+✓ components must not hard-code theme accent colours (use the --accent family)
+✓ side chip labels have one source: no hardcoded CLAUDE CODE / CODEX / GROK literal outside side-badge.ts
+✓ every chart container in a prototype must declare its shared block (otherwise consistency cannot be checked)
+✓ demo dimensions are set on the settings prototype alone and followed elsewhere (dimensions.js + demo-dimensions.js)
+✓ pages that follow the mode or theme take the app tokens from _shared/theme.css and never the system appearance
+✓ prototype pages draw the shared app rail, never their own
+✓ every prototype tab names its app (manifest.js PROTOTYPE_APP + app-identity.js)
+✓ prototype pages draw the shared project column, never their own
+
+Shared-UI consistency check passed
+## exit code of pnpm check:ui: 0
+
+## pnpm --dir site build
+
+> agentshed-site@0.0.0 build /Users/loong_zhou/CascadeProjects/agentshed-wt/landing-search/site
+> astro build
+
+23:59:37 [vite] Re-optimizing dependencies because vite config has changed
+23:59:37 [types] Generated 65ms
+23:59:37 [build] output: "static"
+23:59:37 [build] mode: "static"
+23:59:37 [build] directory: /Users/loong_zhou/CascadeProjects/agentshed-wt/landing-search/site/dist/
+23:59:37 [build] Collecting build info...
+23:59:37 [build] ✓ Completed in 94ms.
+23:59:37 [build] Building static entrypoints...
+23:59:37 [vite] ✓ built in 87ms
+23:59:37 [vite] ✓ built in 20ms
+23:59:37 [build] Rearranging server assets...
+
+ generating static routes 
+23:59:37   ├─ /en/index.html (+9ms) 
+23:59:37   ├─ /index.html (+3ms) 
+23:59:37 ✓ Completed in 24ms.
+
+23:59:37 [build] ✓ Completed in 156ms.
+23:59:37 [build] 2 page(s) built in 253ms
+23:59:37 [build] Complete!
+## exit code of pnpm --dir site build: 0
+
+## node docs/.workings/macos-release-line/evidence/ticket-279/measure.mjs
+browser: 155.0.8059.85 · version measured: 7af1220c43d1262d27d1c7f2af57699a6b699887, 19 file(s) uncommitted
+256 measurements, 0 failed
+## exit code of node docs/.workings/macos-release-line/evidence/ticket-279/measure.mjs: 0
+
+TARGETED_EXIT=0

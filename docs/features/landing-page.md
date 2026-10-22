@@ -12,8 +12,9 @@ explains the install, and always offers whichever release exists, without being 
   of the header switches between them and keeps the visitor where they were on the page
 - The header stays at the top while scrolling: the app's icon and name, links to the Features, Install
   and Download sections and to GitHub (hidden on narrow screens), and the language toggle
-- The hero shows the app icon, a one-paragraph description, the download button with "macOS 12 or later
-  · Apple Silicon" beneath it, and a screenshot of the whole app window
+- The hero shows the app icon, the README's opening line as its heading and its summary as the paragraph,
+  the download button with "macOS 12 or later · Apple Silicon" beneath it, and a screenshot of the whole app
+  window
 - The download button offers the release that exists:
   - when a stable version exists, "Download Agentshed <version>" downloads its disk image directly, with
     a link to every version on GitHub beneath it
@@ -26,11 +27,13 @@ explains the install, and always offers whichever release exists, without being 
   hero sees nothing move
 - The download section at the end of the page makes the same offer: the current version with its
   download, the test version with its "Test version" pill, or a button to the list on GitHub
-- The features section walks through four of the app's views — the overview, what each project has,
-  token usage and trends, and sessions revisited — each with a screenshot. On a wide screen one
-  screenshot frame stays in place and shows the step nearest its middle as the page scrolls; clicking a
-  step, or pressing Enter on it, brings that step to the frame. On a narrow screen each step's screenshot
-  sits under its text
+- The features section walks through six of the app's views — the overview, what each project has, what
+  the agents remember, token usage and trends, sessions revisited, and search across projects — each with a
+  screenshot. On a wide screen the section stays pinned under the header while the page scrolls past it,
+  showing one step at a time: its count ("03 / 06"), title and text on the left, its screenshot large on the
+  right. Scrolling on turns to the next step, the text and the screenshot fading in place together;
+  scrolling back turns back. On a narrow screen, or with scripts turned off, each step's screenshot sits
+  under its text
 - The install section gives three steps: download the disk image for Apple Silicon, drag Agentshed into
   Applications, open it. It says that macOS will report Apple found no malicious software, that clicking
   Open is enough, and that an update button appears in the app when a new version comes out
@@ -44,4 +47,5 @@ explains the install, and always offers whichever release exists, without being 
 - When a stable version exists, a newer test version is not offered on the page; it is reached through
   the link to every version on GitHub
 - No release notes and no download counts are shown
+- The feature steps turn with the scroll only; there is nothing to click between them
 - The screenshots are real screenshots of the app; they change only when they are retaken

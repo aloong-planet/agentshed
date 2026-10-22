@@ -2,7 +2,7 @@
 //
 // This dictionary is the site's own and is separate from the app's (src/shared/i18n/): the page is a front
 // door outside ADR-0013's scope, so its two languages are its own choice (ADR-0031 option 6); the app
-// speaks the same two (ADR-0035). The copy is the confirmed prototype's (2026-10-13). Both languages
+// speaks the same two (ADR-0035). The copy is the confirmed prototype's (2026-10-13, revised 2026-10-21). Both languages
 // satisfy one type, so a key present in one and missing in the other fails `astro check`.
 
 export const LOCALES = ['zh', 'en'] as const
@@ -44,7 +44,7 @@ export interface Dictionary {
   features: {
     title: string
     subtitle: string
-    steps: readonly [FeatureStep, FeatureStep, FeatureStep, FeatureStep]
+    steps: readonly [FeatureStep, FeatureStep, FeatureStep, FeatureStep, FeatureStep, FeatureStep]
   }
   install: { title: string; steps: readonly [InstallStep, InstallStep, InstallStep] }
   download: {
@@ -65,8 +65,8 @@ const zh: Dictionary = {
   nav: { features: '功能', install: '安装', download: '下载', github: 'GitHub' },
   language: '语言',
   hero: {
-    title: '你的 coding agent 工具棚',
-    lede: '一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，烧了多少 token，攒下哪些文档；还能把全局 skill 装进任意项目。',
+    title: '你的 coding agent，尽收眼底',
+    lede: '一处看清 Claude Code、Codex 等 coding agent 在每个项目里装了哪些 skills、plugins 与 MCP，记住了什么，烧了多少 token；每次会话按提问回看，所有项目一起搜索；还能把全局 skill 装进任意项目。',
     platform: 'macOS 12 及以上 · Apple Silicon',
     shotAlt: 'Agentshed 的 Agents 总览'
   },
@@ -85,14 +85,24 @@ const zh: Dictionary = {
         alt: '一个项目的 Skills 页'
       },
       {
+        title: 'agent 记住了什么',
+        body: '每个项目里 agent 跨会话记住的内容，在全局页按项目汇总，点开一份就在抽屉里读全文。',
+        alt: 'Agents 页的记忆分页，抽屉里打开了一份记忆'
+      },
+      {
         title: 'Token 用量与趋势',
         body: '按天、按项目、按模型拆开看，历史用量本地存档，不怕 agent 自己清理会话。',
         alt: '一个项目的 token 总量、趋势与按模型拆分'
       },
       {
         title: '会话回看',
-        body: '按提问索引一次会话，点开整轮看工具调用与子任务，支持搜索。',
+        body: '按提问索引一次会话，点开整轮看工具调用与子任务，也能在项目内搜索。',
         alt: '会话页：提问索引与展开的一整轮'
+      },
+      {
+        title: '全局搜索',
+        body: '在所有项目的会话里搜你问过的话，按项目分组列出，点开一条直接回到那次提问。',
+        alt: '全局搜索页：按项目分组的命中'
       }
     ]
   },
@@ -138,8 +148,8 @@ const en: Dictionary = {
   nav: { features: 'Features', install: 'Install', download: 'Download', github: 'GitHub' },
   language: 'Language',
   hero: {
-    title: 'The tool shed for your coding agents',
-    lede: 'See, across every project, which skills, plugins and MCP servers Claude Code, Codex and other coding agents have installed, how many tokens they burned and which documents they left — and install skills from your global library into any project.',
+    title: 'Your coding agents, in full view',
+    lede: 'See, across every project, which skills, plugins and MCP servers Claude Code, Codex and other coding agents have installed, what they remember and how many tokens they burned; revisit every session question by question, search what you asked across all of them, and install skills from your global library into any project.',
     platform: 'macOS 12 or later · Apple Silicon',
     shotAlt: 'The Agents overview in Agentshed'
   },
@@ -158,14 +168,24 @@ const en: Dictionary = {
         alt: 'A project’s Skills tab'
       },
       {
+        title: 'What the agents remember',
+        body: 'What the agents have remembered about each project across sessions, gathered by project on one page; open a file to read it in full in a drawer.',
+        alt: 'The Agents page’s Memory section, one memory file open in a drawer'
+      },
+      {
         title: 'Token usage and trends',
         body: 'Split by day, project and model, with history kept locally even after an agent cleans up its own sessions.',
         alt: 'A project’s token totals, trend and per-model split'
       },
       {
         title: 'Sessions, revisited',
-        body: 'Each session indexed by question; open a whole turn to see its tool calls and subagents, or search.',
+        body: 'Each session indexed by question; open a whole turn to see its tool calls and subagents, or search within the project.',
         alt: 'The session page: the question index with one whole turn open'
+      },
+      {
+        title: 'Search across projects',
+        body: 'Find what you asked in any project’s sessions, grouped by project, and open a hit right at that question.',
+        alt: 'The search page: hits grouped by project'
       }
     ]
   },

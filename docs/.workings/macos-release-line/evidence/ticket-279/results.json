@@ -1,0 +1,4852 @@
+{
+ "base": "http://127.0.0.1:4399",
+ "version": {
+  "head": "b59009a4d12700eed2017ccabf10b5669fb54b83",
+  "uncommitted": []
+ },
+ "browser": "155.0.8059.85",
+ "total": 256,
+ "failed": 0,
+ "results": [
+  {
+   "id": "M1-zh-800-pinned-0",
+   "what": "at 0 turns the showcase is pinned at the header",
+   "actual": [
+    58.375,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-children-0",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-narrow-0",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    847.0625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-whole-0",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    176.703125,
+    369.171875,
+    682.046875,
+    59,
+    800
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-pinned-2.5",
+   "what": "at 2.5 turns the showcase is pinned at the header",
+   "actual": [
+    58,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-children-2.5",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-narrow-2.5",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    847.0625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-whole-2.5",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    176.328125,
+    368.796875,
+    681.671875,
+    59,
+    800
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-pinned-5",
+   "what": "at 5 turns the showcase is pinned at the header",
+   "actual": [
+    58,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-children-5",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-narrow-5",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    847.0625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-whole-5",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    176.328125,
+    368.796875,
+    681.671875,
+    59,
+    800
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-800-count",
+   "what": "the third step carries \"03 / 06\"",
+   "actual": {
+    "text": 2,
+    "shot": 2,
+    "count": 6,
+    "shots": 6,
+    "label": "03 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-pinned-0",
+   "what": "at 0 turns the showcase is pinned at the header",
+   "actual": [
+    58.375,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-children-0",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-narrow-0",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    657.765625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-whole-0",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    109.9375,
+    249.171875,
+    508.796875,
+    59,
+    560
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-pinned-2.5",
+   "what": "at 2.5 turns the showcase is pinned at the header",
+   "actual": [
+    58,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-children-2.5",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-narrow-2.5",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    657.765625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-whole-2.5",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    109.5625,
+    248.796875,
+    508.421875,
+    59,
+    560
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-pinned-5",
+   "what": "at 5 turns the showcase is pinned at the header",
+   "actual": [
+    58,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-children-5",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-narrow-5",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    657.765625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-whole-5",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    109.5625,
+    248.796875,
+    508.421875,
+    59,
+    560
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-zh-560-count",
+   "what": "the third step carries \"03 / 06\"",
+   "actual": {
+    "text": 2,
+    "shot": 2,
+    "count": 6,
+    "shots": 6,
+    "label": "03 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh--1.5",
+   "what": "at -1.5 turns the step is 1, text and screenshot together",
+   "actual": {
+    "text": 0,
+    "shot": 0,
+    "count": 6,
+    "shots": 6,
+    "label": "01 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh--0.4",
+   "what": "at -0.4 turns the step is 1, text and screenshot together",
+   "actual": {
+    "text": 0,
+    "shot": 0,
+    "count": 6,
+    "shots": 6,
+    "label": "01 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-0",
+   "what": "at 0 turns the step is 1, text and screenshot together",
+   "actual": {
+    "text": 0,
+    "shot": 0,
+    "count": 6,
+    "shots": 6,
+    "label": "01 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-0.4",
+   "what": "at 0.4 turns the step is 1, text and screenshot together",
+   "actual": {
+    "text": 0,
+    "shot": 0,
+    "count": 6,
+    "shots": 6,
+    "label": "01 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-0.6",
+   "what": "at 0.6 turns the step is 2, text and screenshot together",
+   "actual": {
+    "text": 1,
+    "shot": 1,
+    "count": 6,
+    "shots": 6,
+    "label": "02 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-1",
+   "what": "at 1 turns the step is 2, text and screenshot together",
+   "actual": {
+    "text": 1,
+    "shot": 1,
+    "count": 6,
+    "shots": 6,
+    "label": "02 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-1.4",
+   "what": "at 1.4 turns the step is 2, text and screenshot together",
+   "actual": {
+    "text": 1,
+    "shot": 1,
+    "count": 6,
+    "shots": 6,
+    "label": "02 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-1.6",
+   "what": "at 1.6 turns the step is 3, text and screenshot together",
+   "actual": {
+    "text": 2,
+    "shot": 2,
+    "count": 6,
+    "shots": 6,
+    "label": "03 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-2",
+   "what": "at 2 turns the step is 3, text and screenshot together",
+   "actual": {
+    "text": 2,
+    "shot": 2,
+    "count": 6,
+    "shots": 6,
+    "label": "03 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-2.4",
+   "what": "at 2.4 turns the step is 3, text and screenshot together",
+   "actual": {
+    "text": 2,
+    "shot": 2,
+    "count": 6,
+    "shots": 6,
+    "label": "03 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-2.6",
+   "what": "at 2.6 turns the step is 4, text and screenshot together",
+   "actual": {
+    "text": 3,
+    "shot": 3,
+    "count": 6,
+    "shots": 6,
+    "label": "04 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-3",
+   "what": "at 3 turns the step is 4, text and screenshot together",
+   "actual": {
+    "text": 3,
+    "shot": 3,
+    "count": 6,
+    "shots": 6,
+    "label": "04 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-3.4",
+   "what": "at 3.4 turns the step is 4, text and screenshot together",
+   "actual": {
+    "text": 3,
+    "shot": 3,
+    "count": 6,
+    "shots": 6,
+    "label": "04 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-3.6",
+   "what": "at 3.6 turns the step is 5, text and screenshot together",
+   "actual": {
+    "text": 4,
+    "shot": 4,
+    "count": 6,
+    "shots": 6,
+    "label": "05 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-4",
+   "what": "at 4 turns the step is 5, text and screenshot together",
+   "actual": {
+    "text": 4,
+    "shot": 4,
+    "count": 6,
+    "shots": 6,
+    "label": "05 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-4.4",
+   "what": "at 4.4 turns the step is 5, text and screenshot together",
+   "actual": {
+    "text": 4,
+    "shot": 4,
+    "count": 6,
+    "shots": 6,
+    "label": "05 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-4.6",
+   "what": "at 4.6 turns the step is 6, text and screenshot together",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-5",
+   "what": "at 5 turns the step is 6, text and screenshot together",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-5.4",
+   "what": "at 5.4 turns the step is 6, text and screenshot together",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-6",
+   "what": "at 6 turns the step is 6, text and screenshot together",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-8",
+   "what": "at 8 turns the step is 6, text and screenshot together",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-jump-down",
+   "what": "past the showcase, the last step",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-jump-back",
+   "what": "jumping back to one turn shows the second step, nothing left over",
+   "actual": {
+    "text": 1,
+    "shot": 1,
+    "count": 6,
+    "shots": 6,
+    "label": "02 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-zh-wheel",
+   "what": "a 300px wheel over the showcase scrolls the page by 300px",
+   "actual": [
+    1821,
+    2121
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-animated-0",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-hidden-0",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-pointer-0",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-zh-fade-0",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-place-1",
+   "what": "turning to step 2: the count, the title and the screenshot stay where they were",
+   "actual": [
+    {
+     "n": 369.171875,
+     "h": 393.171875,
+     "stage": [
+      388.9375,
+      176.703125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-mid-1",
+   "what": "mid-turn to step 2 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666476,
+     "shotOpacity": 0.666476,
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-animated-1",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-hidden-1",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-pointer-1",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-zh-fade-1",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-place-2",
+   "what": "turning to step 3: the count, the title and the screenshot stay where they were",
+   "actual": [
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-mid-2",
+   "what": "mid-turn to step 3 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.575916,
+     "shotOpacity": 0.575916,
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-animated-2",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-hidden-2",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-pointer-2",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-zh-fade-2",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-place-3",
+   "what": "turning to step 4: the count, the title and the screenshot stay where they were",
+   "actual": [
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-mid-3",
+   "what": "mid-turn to step 4 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.576058,
+     "shotOpacity": 0.576058,
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-animated-3",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-hidden-3",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-pointer-3",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-zh-fade-3",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-place-4",
+   "what": "turning to step 5: the count, the title and the screenshot stay where they were",
+   "actual": [
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-mid-4",
+   "what": "mid-turn to step 5 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666347,
+     "shotOpacity": 0.666347,
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-animated-4",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-hidden-4",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-pointer-4",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-zh-fade-4",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-place-5",
+   "what": "turning to step 6: the count, the title and the screenshot stay where they were",
+   "actual": [
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-mid-5",
+   "what": "mid-turn to step 6 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.575761,
+     "shotOpacity": 0.575761,
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 368.796875,
+     "h": 392.796875,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-animated-5",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-hidden-5",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-pointer-5",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-zh-fade-5",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-reduced-0",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-reduced-1",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-reduced-2",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-reduced-3",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-reduced-4",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-zh-reduced-5",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M4-zh-layout",
+   "what": "no showcase; six stacked steps, each with its screenshot",
+   "actual": {
+    "deck": "none",
+    "list": "flex",
+    "steps": 6,
+    "shots": [
+     "flex",
+     "flex",
+     "flex",
+     "flex",
+     "flex",
+     "flex"
+    ],
+    "gaps": [
+     44,
+     44,
+     44,
+     44,
+     44
+    ]
+   },
+   "pass": true
+  },
+  {
+   "id": "M4-zh-gaps",
+   "what": "at least 44px between a screenshot and the next title",
+   "actual": [
+    44,
+    44,
+    44,
+    44,
+    44
+   ],
+   "pass": true
+  },
+  {
+   "id": "M5-zh-0",
+   "what": "switching to en at step 1 keeps the step and the showcase's place",
+   "actual": {
+    "before": 10.375,
+    "after": 10.171875,
+    "c": {
+     "text": 0,
+     "shot": 0,
+     "count": 6,
+     "shots": 6,
+     "label": "01 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-zh-1",
+   "what": "switching to en at step 2 keeps the step and the showcase's place",
+   "actual": {
+    "before": -469.625,
+    "after": -469.828125,
+    "c": {
+     "text": 1,
+     "shot": 1,
+     "count": 6,
+     "shots": 6,
+     "label": "02 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-zh-2",
+   "what": "switching to en at step 3 keeps the step and the showcase's place",
+   "actual": {
+    "before": -949.625,
+    "after": -949.828125,
+    "c": {
+     "text": 2,
+     "shot": 2,
+     "count": 6,
+     "shots": 6,
+     "label": "03 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-zh-3",
+   "what": "switching to en at step 4 keeps the step and the showcase's place",
+   "actual": {
+    "before": -1429.625,
+    "after": -1429.828125,
+    "c": {
+     "text": 3,
+     "shot": 3,
+     "count": 6,
+     "shots": 6,
+     "label": "04 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-zh-4",
+   "what": "switching to en at step 5 keeps the step and the showcase's place",
+   "actual": {
+    "before": -1909.625,
+    "after": -1909.828125,
+    "c": {
+     "text": 4,
+     "shot": 4,
+     "count": 6,
+     "shots": 6,
+     "label": "05 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-zh-5",
+   "what": "switching to en at step 6 keeps the step and the showcase's place",
+   "actual": {
+    "before": -2389.625,
+    "after": -2389.828125,
+    "c": {
+     "text": 5,
+     "shot": 5,
+     "count": 6,
+     "shots": 6,
+     "label": "06 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-zh-control",
+   "what": "control: with session storage blocked the place is not kept, so the measurement above can fail",
+   "actual": {
+    "text": 0,
+    "shot": 0,
+    "count": 6,
+    "shots": 6,
+    "label": "01 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-zh-stacked",
+   "what": "switching to en at 400px with .fs-list .fs-step:nth-child(3) across the middle keeps it at the same distance from the top",
+   "actual": {
+    "before": 320.109375,
+    "after": 320.09375
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-zh-install",
+   "what": "switching to en at 1280px with #install across the middle keeps it at the same distance from the top",
+   "actual": {
+    "before": 320.375,
+    "after": 320.171875
+   },
+   "pass": true
+  },
+  {
+   "id": "M6-zh-narrow-and-back",
+   "what": "after 1280 \u2192 700, a scroll while narrow, and back to 1280, the step is the one the new position gives, not the one before",
+   "actual": {
+    "c1": {
+     "text": 5,
+     "shot": 5,
+     "count": 6,
+     "shots": 6,
+     "label": "06 / 06"
+    },
+    "e1": 5
+   },
+   "pass": true
+  },
+  {
+   "id": "M6-zh-height",
+   "what": "after 800 \u2192 600 tall at three turns, the fifth step: the same distance is four turns of the new height",
+   "actual": {
+    "c2": {
+     "text": 4,
+     "shot": 4,
+     "count": 6,
+     "shots": 6,
+     "label": "05 / 06"
+    },
+    "e2": 4
+   },
+   "pass": true
+  },
+  {
+   "id": "M7-zh",
+   "what": "at 1280 without scripts the showcase is hidden and the six stacked steps show with their screenshots",
+   "actual": {
+    "deckVisible": false,
+    "listVisible": true,
+    "shotsVisible": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-400-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    400,
+    400
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-400-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    24,
+    24
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-400-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 400,
+    "clientW": 400,
+    "ledeLeft": 24,
+    "ledeRight": 24,
+    "h": "rgb(55, 53, 47)",
+    "p": "rgb(120, 119, 116)",
+    "wide": false
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-900-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    900,
+    900
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-900-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    90,
+    90
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-900-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 900,
+    "clientW": 900,
+    "ledeLeft": 90,
+    "ledeRight": 90,
+    "h": "rgb(55, 53, 47)",
+    "p": "rgb(120, 119, 116)",
+    "wide": true
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-1280-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    1280,
+    1280
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-1280-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    280,
+    280
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-1280-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 1280,
+    "clientW": 1280,
+    "ledeLeft": 280,
+    "ledeRight": 280,
+    "h": "rgb(55, 53, 47)",
+    "p": "rgb(120, 119, 116)",
+    "wide": true
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-1440-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    1440,
+    1440
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-1440-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    360,
+    360
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-light-1440-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 1440,
+    "clientW": 1440,
+    "ledeLeft": 360,
+    "ledeRight": 360,
+    "h": "rgb(55, 53, 47)",
+    "p": "rgb(120, 119, 116)",
+    "wide": true
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-400-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    400,
+    400
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-400-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    24,
+    24
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-400-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 400,
+    "clientW": 400,
+    "ledeLeft": 24,
+    "ledeRight": 24,
+    "h": "rgb(230, 230, 229)",
+    "p": "rgb(155, 154, 151)",
+    "wide": false
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-900-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    900,
+    900
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-900-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    90,
+    90
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-900-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 900,
+    "clientW": 900,
+    "ledeLeft": 90,
+    "ledeRight": 90,
+    "h": "rgb(230, 230, 229)",
+    "p": "rgb(155, 154, 151)",
+    "wide": true
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-1280-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    1280,
+    1280
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-1280-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    280,
+    280
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-1280-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 1280,
+    "clientW": 1280,
+    "ledeLeft": 280,
+    "ledeRight": 280,
+    "h": "rgb(230, 230, 229)",
+    "p": "rgb(155, 154, 151)",
+    "wide": true
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-1440-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    1440,
+    1440
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-1440-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    360,
+    360
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-zh-dark-1440-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 1440,
+    "clientW": 1440,
+    "ledeLeft": 360,
+    "ledeRight": 360,
+    "h": "rgb(230, 230, 229)",
+    "p": "rgb(155, 154, 151)",
+    "wide": true
+   },
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-pinned-0",
+   "what": "at 0 turns the showcase is pinned at the header",
+   "actual": [
+    58.171875,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-children-0",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-narrow-0",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    847.0625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-whole-0",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    176.5,
+    326.78125,
+    681.84375,
+    59,
+    800
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-pinned-2.5",
+   "what": "at 2.5 turns the showcase is pinned at the header",
+   "actual": [
+    58,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-children-2.5",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-narrow-2.5",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    847.0625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-whole-2.5",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    176.328125,
+    326.609375,
+    681.671875,
+    59,
+    800
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-pinned-5",
+   "what": "at 5 turns the showcase is pinned at the header",
+   "actual": [
+    58,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-children-5",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-narrow-5",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    847.0625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-whole-5",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    176.328125,
+    326.609375,
+    681.671875,
+    59,
+    800
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-800-count",
+   "what": "the third step carries \"03 / 06\"",
+   "actual": {
+    "text": 2,
+    "shot": 2,
+    "count": 6,
+    "shots": 6,
+    "label": "03 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-pinned-0",
+   "what": "at 0 turns the showcase is pinned at the header",
+   "actual": [
+    58.171875,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-children-0",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-narrow-0",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    657.765625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-whole-0",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    109.734375,
+    206.78125,
+    508.59375,
+    59,
+    560
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-pinned-2.5",
+   "what": "at 2.5 turns the showcase is pinned at the header",
+   "actual": [
+    58,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-children-2.5",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-narrow-2.5",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    657.765625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-whole-2.5",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    109.5625,
+    206.609375,
+    508.421875,
+    59,
+    560
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-pinned-5",
+   "what": "at 5 turns the showcase is pinned at the header",
+   "actual": [
+    58,
+    59
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-children-5",
+   "what": "the showcase holds the text column and the screenshot stage, nothing else",
+   "actual": [
+    "deck-copy",
+    "deck-stage"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-narrow-5",
+   "what": "the text column is narrower than half the screenshot",
+   "actual": [
+    304.9375,
+    657.765625
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-whole-5",
+   "what": "the screenshot and the text are whole below the header",
+   "actual": [
+    109.5625,
+    206.609375,
+    508.421875,
+    59,
+    560
+   ],
+   "pass": true
+  },
+  {
+   "id": "M1-en-560-count",
+   "what": "the third step carries \"03 / 06\"",
+   "actual": {
+    "text": 2,
+    "shot": 2,
+    "count": 6,
+    "shots": 6,
+    "label": "03 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en--1.5",
+   "what": "at -1.5 turns the step is 1, text and screenshot together",
+   "actual": {
+    "text": 0,
+    "shot": 0,
+    "count": 6,
+    "shots": 6,
+    "label": "01 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en--0.4",
+   "what": "at -0.4 turns the step is 1, text and screenshot together",
+   "actual": {
+    "text": 0,
+    "shot": 0,
+    "count": 6,
+    "shots": 6,
+    "label": "01 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-0",
+   "what": "at 0 turns the step is 1, text and screenshot together",
+   "actual": {
+    "text": 0,
+    "shot": 0,
+    "count": 6,
+    "shots": 6,
+    "label": "01 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-0.4",
+   "what": "at 0.4 turns the step is 1, text and screenshot together",
+   "actual": {
+    "text": 0,
+    "shot": 0,
+    "count": 6,
+    "shots": 6,
+    "label": "01 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-0.6",
+   "what": "at 0.6 turns the step is 2, text and screenshot together",
+   "actual": {
+    "text": 1,
+    "shot": 1,
+    "count": 6,
+    "shots": 6,
+    "label": "02 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-1",
+   "what": "at 1 turns the step is 2, text and screenshot together",
+   "actual": {
+    "text": 1,
+    "shot": 1,
+    "count": 6,
+    "shots": 6,
+    "label": "02 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-1.4",
+   "what": "at 1.4 turns the step is 2, text and screenshot together",
+   "actual": {
+    "text": 1,
+    "shot": 1,
+    "count": 6,
+    "shots": 6,
+    "label": "02 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-1.6",
+   "what": "at 1.6 turns the step is 3, text and screenshot together",
+   "actual": {
+    "text": 2,
+    "shot": 2,
+    "count": 6,
+    "shots": 6,
+    "label": "03 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-2",
+   "what": "at 2 turns the step is 3, text and screenshot together",
+   "actual": {
+    "text": 2,
+    "shot": 2,
+    "count": 6,
+    "shots": 6,
+    "label": "03 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-2.4",
+   "what": "at 2.4 turns the step is 3, text and screenshot together",
+   "actual": {
+    "text": 2,
+    "shot": 2,
+    "count": 6,
+    "shots": 6,
+    "label": "03 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-2.6",
+   "what": "at 2.6 turns the step is 4, text and screenshot together",
+   "actual": {
+    "text": 3,
+    "shot": 3,
+    "count": 6,
+    "shots": 6,
+    "label": "04 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-3",
+   "what": "at 3 turns the step is 4, text and screenshot together",
+   "actual": {
+    "text": 3,
+    "shot": 3,
+    "count": 6,
+    "shots": 6,
+    "label": "04 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-3.4",
+   "what": "at 3.4 turns the step is 4, text and screenshot together",
+   "actual": {
+    "text": 3,
+    "shot": 3,
+    "count": 6,
+    "shots": 6,
+    "label": "04 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-3.6",
+   "what": "at 3.6 turns the step is 5, text and screenshot together",
+   "actual": {
+    "text": 4,
+    "shot": 4,
+    "count": 6,
+    "shots": 6,
+    "label": "05 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-4",
+   "what": "at 4 turns the step is 5, text and screenshot together",
+   "actual": {
+    "text": 4,
+    "shot": 4,
+    "count": 6,
+    "shots": 6,
+    "label": "05 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-4.4",
+   "what": "at 4.4 turns the step is 5, text and screenshot together",
+   "actual": {
+    "text": 4,
+    "shot": 4,
+    "count": 6,
+    "shots": 6,
+    "label": "05 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-4.6",
+   "what": "at 4.6 turns the step is 6, text and screenshot together",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-5",
+   "what": "at 5 turns the step is 6, text and screenshot together",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-5.4",
+   "what": "at 5.4 turns the step is 6, text and screenshot together",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-6",
+   "what": "at 6 turns the step is 6, text and screenshot together",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-8",
+   "what": "at 8 turns the step is 6, text and screenshot together",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-jump-down",
+   "what": "past the showcase, the last step",
+   "actual": {
+    "text": 5,
+    "shot": 5,
+    "count": 6,
+    "shots": 6,
+    "label": "06 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-jump-back",
+   "what": "jumping back to one turn shows the second step, nothing left over",
+   "actual": {
+    "text": 1,
+    "shot": 1,
+    "count": 6,
+    "shots": 6,
+    "label": "02 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M2-en-wheel",
+   "what": "a 300px wheel over the showcase scrolls the page by 300px",
+   "actual": [
+    1850,
+    2150
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-animated-0",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-hidden-0",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-pointer-0",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-en-fade-0",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-place-1",
+   "what": "turning to step 2: the count, the title and the screenshot stay where they were",
+   "actual": [
+    {
+     "n": 326.78125,
+     "h": 350.78125,
+     "stage": [
+      388.9375,
+      176.5,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-mid-1",
+   "what": "mid-turn to step 2 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.575892,
+     "shotOpacity": 0.575892,
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-animated-1",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-hidden-1",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-pointer-1",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-en-fade-1",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-place-2",
+   "what": "turning to step 3: the count, the title and the screenshot stay where they were",
+   "actual": [
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-mid-2",
+   "what": "mid-turn to step 3 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666535,
+     "shotOpacity": 0.666535,
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-animated-2",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-hidden-2",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-pointer-2",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-en-fade-2",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-place-3",
+   "what": "turning to step 4: the count, the title and the screenshot stay where they were",
+   "actual": [
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-mid-3",
+   "what": "mid-turn to step 4 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.666328,
+     "shotOpacity": 0.666328,
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-animated-3",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-hidden-3",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-pointer-3",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-en-fade-3",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-place-4",
+   "what": "turning to step 5: the count, the title and the screenshot stay where they were",
+   "actual": [
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-mid-4",
+   "what": "mid-turn to step 5 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.576332,
+     "shotOpacity": 0.576332,
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-animated-4",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-hidden-4",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-pointer-4",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-en-fade-4",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-place-5",
+   "what": "turning to step 6: the count, the title and the screenshot stay where they were",
+   "actual": [
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-mid-5",
+   "what": "mid-turn to step 6 the text and the screenshot are fading in, already where they end",
+   "actual": [
+    {
+     "opacity": 0.576082,
+     "shotOpacity": 0.576082,
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ]
+    },
+    {
+     "n": 326.609375,
+     "h": 350.609375,
+     "stage": [
+      388.9375,
+      176.328125,
+      847.0625,
+      505.34375
+     ],
+     "centreIsCurrent": true,
+     "hidden": [
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden",
+      "hidden"
+     ],
+     "transition": [
+      "0.3s",
+      "0.3s"
+     ],
+     "animated": [
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity, visibility",
+      "opacity"
+     ],
+     "transforms": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+     ]
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-animated-5",
+   "what": "only opacity (and visibility, for the hidden) is animated; nothing is transformed",
+   "actual": [
+    [
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity, visibility",
+     "opacity"
+    ],
+    [
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none",
+     "none"
+    ]
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-hidden-5",
+   "what": "the five other texts and five other screenshots are hidden",
+   "actual": [
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden",
+    "hidden"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-pointer-5",
+   "what": "the pointer at the stage reaches the current screenshot",
+   "actual": true,
+   "pass": true
+  },
+  {
+   "id": "M3-en-fade-5",
+   "what": "the text and the screenshot fade over 0.3s",
+   "actual": [
+    "0.3s",
+    "0.3s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-reduced-0",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-reduced-1",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-reduced-2",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-reduced-3",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-reduced-4",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M3-en-reduced-5",
+   "what": "under reduced motion the switch is instant",
+   "actual": [
+    "0s",
+    "0s"
+   ],
+   "pass": true
+  },
+  {
+   "id": "M4-en-layout",
+   "what": "no showcase; six stacked steps, each with its screenshot",
+   "actual": {
+    "deck": "none",
+    "list": "flex",
+    "steps": 6,
+    "shots": [
+     "flex",
+     "flex",
+     "flex",
+     "flex",
+     "flex",
+     "flex"
+    ],
+    "gaps": [
+     44,
+     44,
+     44,
+     44,
+     44
+    ]
+   },
+   "pass": true
+  },
+  {
+   "id": "M4-en-gaps",
+   "what": "at least 44px between a screenshot and the next title",
+   "actual": [
+    44,
+    44,
+    44,
+    44,
+    44
+   ],
+   "pass": true
+  },
+  {
+   "id": "M5-en-0",
+   "what": "switching to zh at step 1 keeps the step and the showcase's place",
+   "actual": {
+    "before": 10.171875,
+    "after": 10.375,
+    "c": {
+     "text": 0,
+     "shot": 0,
+     "count": 6,
+     "shots": 6,
+     "label": "01 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-en-1",
+   "what": "switching to zh at step 2 keeps the step and the showcase's place",
+   "actual": {
+    "before": -469.828125,
+    "after": -469.625,
+    "c": {
+     "text": 1,
+     "shot": 1,
+     "count": 6,
+     "shots": 6,
+     "label": "02 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-en-2",
+   "what": "switching to zh at step 3 keeps the step and the showcase's place",
+   "actual": {
+    "before": -949.828125,
+    "after": -949.625,
+    "c": {
+     "text": 2,
+     "shot": 2,
+     "count": 6,
+     "shots": 6,
+     "label": "03 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-en-3",
+   "what": "switching to zh at step 4 keeps the step and the showcase's place",
+   "actual": {
+    "before": -1429.828125,
+    "after": -1429.625,
+    "c": {
+     "text": 3,
+     "shot": 3,
+     "count": 6,
+     "shots": 6,
+     "label": "04 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-en-4",
+   "what": "switching to zh at step 5 keeps the step and the showcase's place",
+   "actual": {
+    "before": -1909.828125,
+    "after": -1909.625,
+    "c": {
+     "text": 4,
+     "shot": 4,
+     "count": 6,
+     "shots": 6,
+     "label": "05 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-en-5",
+   "what": "switching to zh at step 6 keeps the step and the showcase's place",
+   "actual": {
+    "before": -2389.828125,
+    "after": -2389.625,
+    "c": {
+     "text": 5,
+     "shot": 5,
+     "count": 6,
+     "shots": 6,
+     "label": "06 / 06"
+    }
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-en-control",
+   "what": "control: with session storage blocked the place is not kept, so the measurement above can fail",
+   "actual": {
+    "text": 0,
+    "shot": 0,
+    "count": 6,
+    "shots": 6,
+    "label": "01 / 06"
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-en-stacked",
+   "what": "switching to zh at 400px with .fs-list .fs-step:nth-child(3) across the middle keeps it at the same distance from the top",
+   "actual": {
+    "before": 320.09375,
+    "after": 320.109375
+   },
+   "pass": true
+  },
+  {
+   "id": "M5-en-install",
+   "what": "switching to zh at 1280px with #install across the middle keeps it at the same distance from the top",
+   "actual": {
+    "before": 320.171875,
+    "after": 320.375
+   },
+   "pass": true
+  },
+  {
+   "id": "M6-en-narrow-and-back",
+   "what": "after 1280 \u2192 700, a scroll while narrow, and back to 1280, the step is the one the new position gives, not the one before",
+   "actual": {
+    "c1": {
+     "text": 5,
+     "shot": 5,
+     "count": 6,
+     "shots": 6,
+     "label": "06 / 06"
+    },
+    "e1": 5
+   },
+   "pass": true
+  },
+  {
+   "id": "M6-en-height",
+   "what": "after 800 \u2192 600 tall at three turns, the fifth step: the same distance is four turns of the new height",
+   "actual": {
+    "c2": {
+     "text": 4,
+     "shot": 4,
+     "count": 6,
+     "shots": 6,
+     "label": "05 / 06"
+    },
+    "e2": 4
+   },
+   "pass": true
+  },
+  {
+   "id": "M7-en",
+   "what": "at 1280 without scripts the showcase is hidden and the six stacked steps show with their screenshots",
+   "actual": {
+    "deckVisible": false,
+    "listVisible": true,
+    "shotsVisible": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-400-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    400,
+    400
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-400-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    24,
+    24
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-400-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 400,
+    "clientW": 400,
+    "ledeLeft": 24,
+    "ledeRight": 24,
+    "h": "rgb(55, 53, 47)",
+    "p": "rgb(120, 119, 116)",
+    "wide": false
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-900-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    900,
+    900
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-900-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    90,
+    90
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-900-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 900,
+    "clientW": 900,
+    "ledeLeft": 90,
+    "ledeRight": 90,
+    "h": "rgb(55, 53, 47)",
+    "p": "rgb(120, 119, 116)",
+    "wide": true
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-1280-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    1280,
+    1280
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-1280-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    280,
+    280
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-1280-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 1280,
+    "clientW": 1280,
+    "ledeLeft": 280,
+    "ledeRight": 280,
+    "h": "rgb(55, 53, 47)",
+    "p": "rgb(120, 119, 116)",
+    "wide": true
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-1440-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    1440,
+    1440
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-1440-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    360,
+    360
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-light-1440-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 1440,
+    "clientW": 1440,
+    "ledeLeft": 360,
+    "ledeRight": 360,
+    "h": "rgb(55, 53, 47)",
+    "p": "rgb(120, 119, 116)",
+    "wide": true
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-400-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    400,
+    400
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-400-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    24,
+    24
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-400-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 400,
+    "clientW": 400,
+    "ledeLeft": 24,
+    "ledeRight": 24,
+    "h": "rgb(230, 230, 229)",
+    "p": "rgb(155, 154, 151)",
+    "wide": false
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-900-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    900,
+    900
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-900-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    90,
+    90
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-900-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 900,
+    "clientW": 900,
+    "ledeLeft": 90,
+    "ledeRight": 90,
+    "h": "rgb(230, 230, 229)",
+    "p": "rgb(155, 154, 151)",
+    "wide": true
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-1280-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    1280,
+    1280
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-1280-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    280,
+    280
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-1280-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 1280,
+    "clientW": 1280,
+    "ledeLeft": 280,
+    "ledeRight": 280,
+    "h": "rgb(230, 230, 229)",
+    "p": "rgb(155, 154, 151)",
+    "wide": true
+   },
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-1440-sideways",
+   "what": "no sideways scroll",
+   "actual": [
+    1440,
+    1440
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-1440-gutters",
+   "what": "the hero keeps its side gutters",
+   "actual": [
+    360,
+    360
+   ],
+   "pass": true
+  },
+  {
+   "id": "M8-en-dark-1440-colours",
+   "what": "the steps\u2019 title and text in the palette\u2019s text colours",
+   "actual": {
+    "scrollW": 1440,
+    "clientW": 1440,
+    "ledeLeft": 360,
+    "ledeRight": 360,
+    "h": "rgb(230, 230, 229)",
+    "p": "rgb(155, 154, 151)",
+    "wide": true
+   },
+   "pass": true
+  }
+ ]
+}

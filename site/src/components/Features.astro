@@ -1,7 +1,10 @@
 ---
-// The scroll-linked features section (landing-page::REQ-004): four text steps on the left, one screenshot
-// frame on the right showing the step nearest its middle. Below 760px the frame goes and every step carries
-// its own screenshot. As served, the first step is the current one; the script picks the nearest once it runs.
+// The features section (landing-page::REQ-004). On a wide screen a showcase is pinned under the header while the
+// page scrolls past it: the current step's count, title and text in a narrow column, its screenshot large on the
+// right, and the scroll turns the steps (src/scripts/features.ts). The showcase's block is one window tall plus
+// one turn for each further step; the turns are empty blocks after the pinned part, so the number of steps sets
+// the block's height with no style in the markup. Below 760px, and without scripts, the stacked steps show
+// instead, each with its own screenshot. As served, the first step is the current one.
 import { ui, type Locale } from '../i18n/ui'
 import { FEATURE_SHOTS, FEATURE_SIZE, shotSrc } from '../shots'
 
@@ -12,39 +15,56 @@ interface Props {
 const { locale } = Astro.props
 const t = ui[locale]
 const steps = t.features.steps.map((step, i) => ({ ...step, i, src: shotSrc(FEATURE_SHOTS[i]!, locale) }))
+const twoDigits = (n: number): string => String(n).padStart(2, '0')
+/** The step's number and the count of steps, as "03 / 06" */
+const count = (i: number): string => `${twoDigits(i + 1)} / ${twoDigits(steps.length)}`
 ---
 
 <section class="section soft" id="features">
   <div class="wrap">
     <h2 class="sec-title">{t.features.title}</h2>
     <p class="sec-sub">{t.features.subtitle}</p>
-    <div class="fs">
-      <div class="fs-list">
+  </div>
+  <div class="deck">
+    <div class="deck-pin">
+      <div class="deck-copy">
         {
           steps.map((s) => (
-            <div class="fs-step">
-              <button type="button" class:list={['fs-item', { on: s.i === 0 }]} data-i={s.i}>
-                <span class="fs-h">{s.title}</span>
-                <span class="fs-p">{s.body}</span>
-              </button>
-              <div class="shot m-shot">
-                <div class="chrome"><i></i><i></i><i></i></div>
-                <img src={s.src} width={FEATURE_SIZE.width} height={FEATURE_SIZE.height} alt={s.alt} loading="lazy" />
-              </div>
+            <div class:list={['deck-text', { on: s.i === 0 }]}>
+              <span class="deck-n">{count(s.i)}</span>
+              <h3>{s.title}</h3>
+              <p>{s.body}</p>
             </div>
           ))
         }
       </div>
-      <div class="shot fs-panel">
-        <div class="chrome"><i></i><i></i><i></i></div>
-        <div class="fs-stack">
-          {
-            steps.map((s) => (
-              <img class:list={{ on: s.i === 0 }} src={s.src} width={FEATURE_SIZE.width} height={FEATURE_SIZE.height} alt={s.alt} />
-            ))
-          }
-        </div>
+      <div class="deck-stage">
+        {
+          steps.map((s) => (
+            <div class:list={['shot', 'deck-shot', { on: s.i === 0 }]}>
+              <div class="chrome"><i></i><i></i><i></i></div>
+              <img src={s.src} width={FEATURE_SIZE.width} height={FEATURE_SIZE.height} alt={s.alt} />
+            </div>
+          ))
+        }
       </div>
+    </div>
+    {steps.slice(1).map(() => <div class="deck-turn" aria-hidden="true" />)}
+  </div>
+  <div class="wrap">
+    <div class="fs-list">
+      {
+        steps.map((s) => (
+          <div class="fs-step">
+            <h3 class="fs-h">{s.title}</h3>
+            <p class="fs-p">{s.body}</p>
+            <div class="shot m-shot">
+              <div class="chrome"><i></i><i></i><i></i></div>
+              <img src={s.src} width={FEATURE_SIZE.width} height={FEATURE_SIZE.height} alt={s.alt} loading="lazy" />
+            </div>
+          </div>
+        ))
+      }
     </div>
   </div>
 </section>

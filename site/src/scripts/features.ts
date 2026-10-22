@@ -1,46 +1,43 @@
 // The features section's behaviour (landing-page::REQ-004), as in the confirmed prototype.
 //
-// On a wide screen the frame shows the step whose text sits nearest the frame's middle, recomputed on every
-// scroll and resize (at most once per animation frame). Clicking a step, or pressing Enter on it (it is a
-// button), scrolls it level with the frame's middle; the scroll then switches the screenshot. Below 760px the
-// frame is not displayed and none of this applies: each step shows its own screenshot.
+// On a wide screen the showcase is pinned under the header while its block scrolls by: the block is the pinned
+// part followed by one turn (an empty block, 60% of the window's height) for each further step. The current step
+// is how far the block has scrolled past the point where it pins, counted in turns, rounded, and kept within the
+// steps (landing-page::REQ-004/AC-08); it is recomputed on every scroll and resize, at most once per animation
+// frame. The page scrolls as usual: nothing here listens to the wheel. Below 760px, and without scripts, the
+// showcase is not displayed and none of this applies: the stacked steps show instead.
 
-/** The frame, or null while it is not displayed (narrow screens) */
-function framePanel(): HTMLElement | null {
-  const panel = document.querySelector<HTMLElement>('.fs-panel')
-  return panel && getComputedStyle(panel).display !== 'none' ? panel : null
+/** The showcase's block, or null while it is not displayed (narrow screens) */
+function deck(): HTMLElement | null {
+  const block = document.querySelector<HTMLElement>('.deck')
+  return block && getComputedStyle(block).display !== 'none' ? block : null
 }
 
-const items = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.fs-item')]
+const texts = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.deck-text')]
 
 /** The current step's index */
 export function currentStep(): number {
-  return Math.max(0, items().findIndex((b) => b.classList.contains('on')))
+  return Math.max(0, texts().findIndex((t) => t.classList.contains('on')))
 }
 
-/** Make step i the current one: its accent bar, and its screenshot in the frame */
+/** Make step i the current one: its text and its screenshot show */
 export function showStep(i: number): void {
-  items().forEach((b, j) => b.classList.toggle('on', j === i))
-  document.querySelectorAll('.fs-stack img').forEach((img, j) => img.classList.toggle('on', j === i))
+  texts().forEach((t, j) => t.classList.toggle('on', j === i))
+  document.querySelectorAll('.deck-shot').forEach((s, j) => s.classList.toggle('on', j === i))
 }
 
-/** Show the step whose text sits nearest the frame's middle */
+/** Show the step the scroll position gives */
 export function syncStep(): void {
-  const panel = framePanel()
-  if (!panel) return
-  const r = panel.getBoundingClientRect()
-  const middle = r.top + r.height / 2
-  let best = currentStep()
-  let distance = Infinity
-  items().forEach((b, i) => {
-    const br = b.getBoundingClientRect()
-    const d = Math.abs(br.top + br.height / 2 - middle)
-    if (d < distance) {
-      distance = d
-      best = i
-    }
-  })
-  if (best !== currentStep()) showStep(best)
+  const block = deck()
+  const pin = block?.querySelector<HTMLElement>('.deck-pin')
+  const turn = block?.querySelector<HTMLElement>('.deck-turn')
+  // A window with no height (minimised) has turns of no length: the step stays as it was until the next resize
+  if (!block || !pin || !turn || turn.offsetHeight === 0) return
+  // Measured from the page itself, so the script and the stylesheet cannot disagree on the pin point or a turn
+  const scrolled = parseFloat(getComputedStyle(pin).top) - block.getBoundingClientRect().top
+  const last = texts().length - 1
+  const step = Math.min(last, Math.max(0, Math.round(scrolled / turn.offsetHeight)))
+  if (step !== currentStep()) showStep(step)
 }
 
 export function initFeatures(): void {
@@ -55,17 +52,5 @@ export function initFeatures(): void {
   }
   addEventListener('scroll', onScroll, { passive: true })
   addEventListener('resize', onScroll)
-
-  document.querySelector('.fs-list')?.addEventListener('click', (e) => {
-    const item = (e.target as Element).closest('.fs-item')
-    const panel = framePanel()
-    if (!item || !panel) return
-    // The frame's middle where it sticks, not where it happens to be while the section scrolls into view
-    const middle = parseFloat(getComputedStyle(panel).top) + panel.offsetHeight / 2
-    const r = item.getBoundingClientRect()
-    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
-    scrollTo({ top: scrollY + r.top + r.height / 2 - middle, behavior: smooth ? 'smooth' : 'auto' })
-  })
-
   syncStep()
 }

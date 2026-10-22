@@ -201,3 +201,52 @@ with its index row. mac-distribution gets none: the catalogue leaves distributio
 | The post-implementation test check's findings | seven findings: the design table's version readers and README scope, two coverage rows, two kept reds, two release-check plans | Records corrected; the evidence files added |
 
 Queue empty; the pre-delivery scope re-check is recorded in the document sync checklist.
+
+## Ticket #279 — The landing page's memory and search steps, and its pinned features section
+
+- Date: 2026-10-21
+- Scope: this ticket's change only, `git diff fcf41bc` on branch `feat/landing-global-search` (80f2968, the spec,
+  prototype and records; 7af1220, the implementation; the step 8 edits after it)
+- Version: 7af1220 and the documentation edits after it (no code changed after the gateway)
+
+The two questions for the feature catalogue: **what became a lie** — the landing page's entry said the features
+section walks through four views, with a frame that shows the step nearest its middle and steps to click: rewritten
+for six views in a pinned showcase that the scroll turns, with "nothing to click between them" among its
+boundaries; its hero line now says the heading and paragraph are the README's. **What was missing** — the memory and
+search steps, and what a narrow screen or a page without scripts shows: both now in the entry.
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/landing-page.md` (US-003, REQ-004, REQ-005, REQ-007, Sequence C, E2, the implementation decisions, Out of Scope, Further Notes) | the implementation at 7af1220, unit by unit (`ticket-279-tasks.md`, "Spec check before step 7"); every failure item of Sequence C and E2 against a test or a measurement (`ticket-279-review-tests.md`, dimension 1) | True: the final implementation, with C7 and the built form written back; every failure item covered |
+| `docs/features/landing-page.md` (the hero line, the features capability, the new boundary) | the spec's user-visible layer: US-003/AC-01, AC-02, REQ-004/AC-01, AC-05, AC-06, AC-08, REQ-007, Failure C7, Out of Scope ("Clicking or keying between the feature steps") | Agree; nothing in the entry the spec lacks, and every visible change is there |
+| ADRs | — | Row set empty: no decision of this round meets the ADR bar (a page layout, easy to reverse); ADR-0031 is not contradicted |
+| `CONTEXT.md` | the words this round uses (showcase, step, turn) | Unchanged: the landing page is not part of the app's vocabulary, and no term of CONTEXT is used differently |
+| The prototype (`docs/prototypes/landing-page/`) ↔ the site | copy item by item (ui.ts against the prototype's six steps and hero); the fourteen screenshots ([shots-check.txt](evidence/ticket-279/shots-check.txt)); the features section's geometry at three window sizes in both languages ([prototype-vs-site.txt](evidence/ticket-279/prototype-vs-site.txt)) | Identical. Differences that a visitor cannot see: the block's height comes from empty turn blocks rather than a custom property; without scripts the site shows the stacked steps (Failure C7, a boundary the prototype does not draw) |
+| The prototype's own notes (the header comment and the acceptance note) | the decisions D1–D28 (`ticket-279-tasks.md`) | True after one fix: confirmed item (a) pointed to the search step as "the fifth"; it now points to the two later steps |
+| `site/src/i18n/ui.ts` (the dictionary, a declaration surface) | the prototype's copy; the READMEs' opening line and summary (built-site check B5) | Agree |
+| `site/README.md` (the scripts' description, the screenshots' provenance, what the built-site check reads) | `features.ts`, `shots.ts`, the built-site check | True |
+
+### Stage 2: related declarations
+
+| Relation | Rows | Conclusion |
+|---|---|---|
+| File ↔ its index row | `docs/features/README.md` (Landing page: "introduces Agentshed in Chinese and English and offers whichever release exists"); `docs/specs/README.md` (landing-page) | Both rows still true; unchanged |
+| Rule ↔ template and generated documents | — | Row set empty: no rule or template changed this round |
+| One fact ↔ its other statements: the app's summary | `README.md`, `README.en.md` (opening line and summary) ↔ the hero; the page's description and browser tab title | Agree (B5; both read from the hero copy) |
+| One fact ↔ its other statements: the features section's six views | the spec (US-003/AC-01), the entry, the dictionary, the shot list, the prototype | Agree |
+| One fact ↔ its other statements: the screenshots' provenance | the spec (REQ-005/AC-01, E2), `shots.ts`'s header, the site's README, the prototype's notes, the evidence | Agree: the hero and four cuts over the owner's data, the memory and search cuts over made-up data |
+| One fact ↔ its other statements: the language switch keeps the visitor's place | the entry's language capability; REQ-004/AC-07 | Still true (M5, with its control) |
+| Rule ↔ the gate that holds it: REQ-007 (the hero is the README's opening) | the built-site check B5, in `pnpm test:site`, which `pnpm verify` and CI run | Held for both languages; a change to either README's opening without the site's copy fails it. The site README now tells maintainers so |
+| Rule ↔ the gate that holds it: "the steps are not counted or listed wrongly elsewhere" | `check:ui`, the project's enumeration-wording gate: its rules as its own run lists them (`evidence/ticket-279/gateway-7af1220.txt`, the `check:ui` step) | Its enumeration rule covers the app dictionary's agent sides; none of its rules reads the landing page's step count, so that is held by hand: Stage 3's search |
+
+### Stage 3: events
+
+| Event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed: the feature steps, four → six | Scripts in the searched files, counted first: Han and Latin in the specs, features, `site/src`, `site/test`, both READMEs, the prototype and its manifest; Latin only in `site/README.md` and `CONTEXT.md`. English: `rg -n -i "\b(four\|4\|five\|5)\b[^.\|]{0,40}\b(steps?\|views?\|screenshots?\|shots\|cuts?\|feature)"`; Chinese: the same search for a 4 or a 5 followed by the Chinese words for section, step, view, screenshot and item; listings by name: `rg -n -i "sessions revisited\|sessions, revisited\|token usage and trends"` and the same titles in Chinese. Parallel structures: the shot list and the dictionary's steps (the type requires six; B1 checks every source), the prototype's step array, the fourteen shots | Every count and listing says six, except two correct "four"s (the four cuts over real data) and the prototype's stale pointer, fixed (Stage 1) |
+| `Pending:` notes in scope | `rg -n "Pending" docs/specs/landing-page.md docs/features/landing-page.md`: no output (#297 resolved the spec's only note) | Row set empty |
+| New general rules this round | the hero repeats the README's opening line and summary; without scripts the stacked steps show; the pinned showcase never marks the language switch's place | Each has its canonical home in the spec (REQ-007; Failure C7; the language-toggle implementation decision and Failure C5), and REQ-007 a test |
+| The post-implementation test check's findings (F1–F9, `ticket-279-review-tests.md`) | REQ-007's wording (F1); the checklist's REQ-007, AC-07 and Failures rows (F1, F4, F9); the test design table (F1–F5); the evidence README and records (F2–F7, F9); the test file's header (F8) | Each fixed in place; REQ-007's new sentence states the summary the owner chose (2026-10-21), so the spec gains precision, not scope; the entry's hero line ("the README's opening line as its heading and its summary as the paragraph") stays true |
+| Work state changed | #279's issue (its records and acceptance items, declared 2026-10-21); #290's note that #279 waited for it (rewritten); the coverage checklist's #279 rows and current verification; the document sync checklist; the task list; records of other rounds that mention #279 (`docs/.workings/readme/final-regression.md`, `docs/.workings/global-search/final-regression.md`, `ticket-271-*`, `docs/.workings/memory-view/*`), found with `rg -uu -n "#279"` | Updated where they state this ticket's current state; the other rounds' dated records say what was true then ("until #279 lands"), which this change resolves without making them false: kept |
