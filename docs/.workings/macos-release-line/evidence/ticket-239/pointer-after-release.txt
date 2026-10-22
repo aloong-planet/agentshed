@@ -1,0 +1,23 @@
+# The R2 pointer after v0.1.0-beta's release run (taken 2026-10-22T09:34:56Z): the mirror and pointer jobs were skipped; the pointer read at the download host
+attempts: 1
+## response headers
+HTTP/2 404 
+date: Thu, 22 Oct 2026 09:35:01 GMT
+content-type: text/html
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+server: cloudflare
+cf-cache-status: DYNAMIC
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=dkbXFHb1LdsYO2p%2Bb4Y2C0rGdJA3sU3n0ckDEbVbLLOkxsS8O29ykrCGpq73neRXzYBdpM1fjFrbDyYNSIjpOASVdiizYTBmiiHxHzikO66boR8EPynRI61a%2FxM4VN5AoYdUiRlY6rN0VO1aUJ2QJQ%3D%3D"}]}
+cf-ray: a4e7827069fcdc1e-SEA
+
+## body (27150 bytes)
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="https://www.cloudflare.com/favicon.ico" />
+    <title>Not Found</title>
+    <style>
+      body {
+        font-family: system-

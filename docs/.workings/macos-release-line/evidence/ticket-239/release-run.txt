@@ -1,0 +1,626 @@
+# The v0.1.0-beta tag's release run: run 39755502301 on 7dc0c22 (tag object 225d1fe), 2026-10-22
+# Jobs (gh run view 39755502301 --json jobs):
+run: completed success
+macOS packaging and gates: completed success 2026-10-22T09:27:04Z 2026-10-22T09:33:42Z
+publish the GitHub release: completed success 2026-10-22T09:33:44Z 2026-10-22T09:34:08Z
+point latest at the release: completed skipped 2026-10-22T09:34:09Z 2026-10-22T09:34:09Z
+mirror the release to R2: completed skipped 2026-10-22T09:34:09Z 2026-10-22T09:34:08Z
+# The mirror and pointer jobs report skipped: their condition admits only a tag without a suffix
+
+# The gate job's log, whole (job 119746354974)
+macOS packaging and gates	Set up job	﻿2026-10-22T09:27:04.6072000Z Current runner version: '2.338.0'
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6129600Z ##[group]Runner Image Provisioner
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6131290Z Hosted Compute Agent
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6132370Z Version: 20261012.601
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6133550Z Commit: f3dc54e1fb89da6852db922499a0233137369e1d
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6134930Z Build Date: 2026-10-12T17:48:21Z
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6136200Z Worker ID: {2ed897e4-afe7-49f9-ac07-a41173219621}
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6138840Z Region: westus
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6139340Z Cloud: MacCloud
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6139960Z ##[endgroup]
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6141770Z ##[group]Operating System
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6142280Z macOS
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6142660Z 26.6.2
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6143140Z 25G83
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6143730Z ##[endgroup]
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6144170Z ##[group]Runner Image
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6144680Z Image: macos-26-arm64
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6145440Z Version: 20261013.0424.1
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6147960Z Included Software: https://github.com/actions/runner-images/blob/macos-26-arm64/20261013.0424/images/macos/macos-26-arm64-Readme.md
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6151660Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-26-arm64%2F20261013.0424
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6153650Z ##[endgroup]
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6155730Z ##[group]GITHUB_TOKEN Permissions
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6160400Z Contents: read
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6161470Z Metadata: read
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6162460Z ##[endgroup]
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6166440Z Secret source: Actions
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6168190Z Cache mode: write
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6169480Z Prepare workflow directory
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6787010Z Prepare all required actions
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.6841640Z Getting action download info
+macOS packaging and gates	Set up job	2026-10-22T09:27:04.8679580Z Download action repository 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+macOS packaging and gates	Set up job	2026-10-22T09:27:05.1094630Z Download action repository 'pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1' (SHA:b906affcce14559ad1aafd4ab0e942779e9f58b1)
+macOS packaging and gates	Set up job	2026-10-22T09:27:06.1557530Z Download action repository 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+macOS packaging and gates	Set up job	2026-10-22T09:27:06.3152920Z Download action repository 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+macOS packaging and gates	Set up job	2026-10-22T09:27:06.6016100Z Complete job name: macOS packaging and gates
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	﻿2026-10-22T09:27:06.6840620Z ##[group]Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6841460Z with:
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6841830Z   persist-credentials: false
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6842290Z   repository: aloong-planet/agentshed
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6845840Z   token: ***
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6846250Z   ssh-strict: true
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6846640Z   ssh-user: git
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6846990Z   clean: true
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6847400Z   sparse-checkout-cone-mode: true
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6847870Z   fetch-depth: 1
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6848280Z   fetch-tags: false
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6848670Z   show-progress: true
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6849160Z   lfs: false
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6849490Z   submodules: false
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6849850Z   set-safe-directory: true
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6850300Z   allow-unsafe-pr-checkout: false
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6851180Z env:
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6851610Z   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6852090Z   HAS_CSC: true
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6852430Z   HAS_APPLE: true
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6852830Z   PROFILE: release
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:06.6911560Z ##[endgroup]
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.2885040Z Syncing repository: aloong-planet/agentshed
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.2888070Z ##[group]Getting Git version info
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.2889530Z Working directory is '/Users/runner/work/agentshed/agentshed'
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.2890910Z [command]/opt/homebrew/bin/git version
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3237570Z git version 2.56.0
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3256420Z ##[endgroup]
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3264390Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/3231e698-6e57-4241-a07c-a1ab97544a04/.gitconfig'
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3277320Z Temporarily overriding HOME='/Users/runner/work/_temp/3231e698-6e57-4241-a07c-a1ab97544a04' before making global git config changes
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3292260Z Adding repository directory to the temporary git global config as a safe directory
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3294450Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/agentshed/agentshed
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3468820Z Deleting the contents of '/Users/runner/work/agentshed/agentshed'
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3473580Z ##[group]Initializing the repository
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3476670Z [command]/opt/homebrew/bin/git init /Users/runner/work/agentshed/agentshed
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3867510Z hint: Using 'master' as the name for the initial branch. This default branch name
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3873340Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3877230Z hint: to use in all of your new repositories, which will suppress this warning,
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3879250Z hint: call:
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3880150Z hint:
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3881230Z hint: 	git config --global init.defaultBranch <name>
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3882620Z hint:
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3883970Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3886050Z hint: 'development'. The just-created branch can be renamed via this command:
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3888500Z hint:
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3889520Z hint: 	git branch -m <name>
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3890410Z hint:
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3891800Z hint: Disable this message with "git config set advice.defaultBranchName false"
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3894140Z Initialized empty Git repository in /Users/runner/work/agentshed/agentshed/.git/
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.3903900Z [command]/opt/homebrew/bin/git remote add origin https://github.com/aloong-planet/agentshed
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.4014750Z ##[endgroup]
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.4017690Z ##[group]Disabling automatic garbage collection
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.4020460Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.4124590Z ##[endgroup]
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.4127280Z ##[group]Setting up auth
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.4130660Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.4220540Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.5831190Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.5899700Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.7415280Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:07.8242820Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:08.0068110Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:08.0164340Z ##[endgroup]
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:08.0165930Z ##[group]Fetching the repository
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:08.0179610Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +7dc0c2274647c5614d086f911deb5adb55172f4c:refs/tags/v0.1.0-beta
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:10.9934930Z From https://github.com/aloong-planet/agentshed
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:10.9936260Z  * [new ref]         7dc0c2274647c5614d086f911deb5adb55172f4c -> v0.1.0-beta
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.0112150Z ##[endgroup]
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.0112860Z ##[group]Determining the checkout info
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.0113570Z ##[endgroup]
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.0114450Z [command]/opt/homebrew/bin/git sparse-checkout disable
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.0151950Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.0384250Z ##[group]Checking out the ref
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.0385910Z [command]/opt/homebrew/bin/git checkout --progress --force refs/tags/v0.1.0-beta
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.4400310Z HEAD is now at 7dc0c22 Keep a search hit row's keyword in view (#302)
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.4456110Z ##[endgroup]
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.4578550Z [command]/opt/homebrew/bin/git log -1 --format=%H
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.4715360Z 7dc0c2274647c5614d086f911deb5adb55172f4c
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.4741980Z ##[group]Removing auth
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.4750010Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.4960570Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.6261480Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.6343350Z http.https://github.com/.extraheader
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.6349370Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.6426800Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.7595890Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.7667700Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+macOS packaging and gates	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:27:11.9476070Z ##[endgroup]
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	﻿2026-10-22T09:27:11.9654560Z ##[group]Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9654920Z with:
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9655100Z   dest: ~/setup-pnpm
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9655320Z   run_install: null
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9655480Z   cache: false
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9655650Z   cache_dependency_path: pnpm-lock.yaml
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9655900Z   package_json_file: package.json
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9656130Z   standalone: false
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9656320Z env:
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9656660Z   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9657100Z   HAS_CSC: true
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9657260Z   HAS_APPLE: true
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9657460Z   PROFILE: release
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:11.9657650Z ##[endgroup]
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:12.2196400Z ##[group]Running self-installer...
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:12.7453630Z (node:1303) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:12.7455060Z (Use `node --trace-deprecation ...` to show where the warning was created)
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:12.9907620Z Progress: resolved 1, reused 0, downloaded 0, added 0
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:12.9994140Z Packages: +1
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:12.9995800Z +
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:13.9893400Z Progress: resolved 1, reused 0, downloaded 1, added 0
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:14.1570030Z Progress: resolved 1, reused 0, downloaded 1, added 1, done
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:14.2248230Z 
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:14.2287530Z dependencies:
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:14.2357670Z + pnpm 9.12.3 (12.14.0 is available)
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:14.2359180Z 
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:14.2359960Z Done in 1.7s
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:14.3001070Z ##[endgroup]
+macOS packaging and gates	Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:27:14.3103690Z Installation Completed!
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	﻿2026-10-22T09:27:14.3296800Z ##[group]Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3297140Z with:
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3297280Z   node-version: 22
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3297440Z   cache: pnpm
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3297590Z   always-auth: false
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3297760Z   check-latest: false
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3300240Z   token: ***
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3311060Z env:
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3311410Z   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3312390Z   HAS_CSC: true
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3313040Z   HAS_APPLE: true
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3313250Z   PROFILE: release
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3313510Z   PNPM_HOME: /Users/runner/setup-pnpm/node_modules/.bin
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.3313830Z ##[endgroup]
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.4956410Z Found in cache @ /Users/runner/hostedtoolcache/node/22.23.3/arm64
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.4960260Z (node:1310) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.4962320Z ##[group]Environment details
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:14.4963370Z (Use `node --trace-deprecation ...` to show where the warning was created)
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:15.0274910Z node: v22.23.3
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:15.0314220Z npm: 10.9.9
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:15.0314980Z yarn: 1.22.22
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:15.0315760Z ##[endgroup]
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:15.0317140Z [command]/Users/runner/setup-pnpm/node_modules/.bin/pnpm store path --silent
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:15.3741360Z /Users/runner/setup-pnpm/node_modules/.bin/store/v3
+macOS packaging and gates	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:27:15.4518250Z pnpm cache is not found
+macOS packaging and gates	Run pnpm install --frozen-lockfile	﻿2026-10-22T09:27:15.4617830Z ##[group]Run pnpm install --frozen-lockfile
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:15.4618290Z ^[[36;1mpnpm install --frozen-lockfile^[[0m
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:15.4662350Z shell: /bin/bash -e {0}
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:15.4662540Z env:
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:15.4662840Z   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:15.4663120Z   HAS_CSC: true
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:15.4663310Z   HAS_APPLE: true
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:15.4663510Z   PROFILE: release
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:15.4663720Z   PNPM_HOME: /Users/runner/setup-pnpm/node_modules/.bin
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:15.4663980Z ##[endgroup]
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:16.0090530Z Lockfile is up to date, resolution step is skipped
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:16.0341210Z Progress: resolved 1, reused 0, downloaded 0, added 0
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:16.0915510Z Packages: +502
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:16.1017010Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:17.0335680Z Progress: resolved 502, reused 0, downloaded 35, added 22
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:18.0365650Z Progress: resolved 502, reused 0, downloaded 137, added 123
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:19.0462690Z Progress: resolved 502, reused 0, downloaded 225, added 211
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:20.0541520Z Progress: resolved 502, reused 0, downloaded 284, added 270
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:21.0537560Z Progress: resolved 502, reused 0, downloaded 351, added 338
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:22.0559050Z Progress: resolved 502, reused 0, downloaded 401, added 387
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:23.0520130Z Progress: resolved 502, reused 0, downloaded 446, added 431
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:23.5924440Z Progress: resolved 502, reused 0, downloaded 502, added 502, done
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:23.7743610Z .../esbuild@0.21.5/node_modules/esbuild postinstall$ node install.js
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:23.7835490Z .../node_modules/electron-winstaller install$ node ./script/select-7z-arch.js
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:23.8756290Z .../node_modules/electron-winstaller install: Selecting 7-Zip for arch arm64
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:23.8856700Z .../node_modules/electron-winstaller install: Done
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:23.9564170Z .../esbuild@0.21.5/node_modules/esbuild postinstall: Done
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2384000Z 
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2387190Z dependencies:
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2481300Z + @tanstack/react-query 5.102.8
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2484360Z + dompurify 3.4.12
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2485860Z + electron-updater 6.8.9
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2489820Z + marked 15.0.12
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2492800Z + react 18.3.1
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2599070Z + react-dom 18.3.1
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2652040Z + semver 7.8.5
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2652600Z + smol-toml 1.7.1
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2656560Z 
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2657080Z devDependencies:
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2657630Z + @actions/expressions 0.3.61
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2671090Z + @eslint/js 10.0.1
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2671660Z + @playwright/test 1.62.0
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2672190Z + @types/node 22.20.1
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2679160Z + @types/react 18.3.31
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2686850Z + @types/react-dom 18.3.7
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2687390Z + @types/semver 7.8.0
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2687680Z + @vitejs/plugin-react 4.7.0
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2688040Z + electron 43.2.0
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2688430Z + electron-builder 26.17.0
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2688780Z + electron-vite 2.3.0
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2689040Z + esbuild 0.21.5
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2689340Z + eslint 10.12.0
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2714910Z + eslint-plugin-react-hooks 7.1.1
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2719770Z + globals 17.13.0
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2720450Z + husky 9.1.7
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2721080Z + jsdom 30.0.1
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2721760Z + typescript 5.9.3
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2726100Z + typescript-eslint 8.71.1
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2732500Z + vite 5.4.21
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2733180Z + vitest 2.1.9
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.2733570Z 
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.3668830Z 
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.3753720Z > agentshed@0.1.0-beta prepare /Users/runner/work/agentshed/agentshed
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.3755210Z > husky
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.3755370Z 
+macOS packaging and gates	Run pnpm install --frozen-lockfile	2026-10-22T09:27:24.5699420Z Done in 9s
+macOS packaging and gates	Check the tag against the package version	﻿2026-10-22T09:27:24.6061170Z ##[group]Run node scripts/release-tag.mjs
+macOS packaging and gates	Check the tag against the package version	2026-10-22T09:27:24.6061690Z ^[[36;1mnode scripts/release-tag.mjs^[[0m
+macOS packaging and gates	Check the tag against the package version	2026-10-22T09:27:24.6108720Z shell: /bin/bash -e {0}
+macOS packaging and gates	Check the tag against the package version	2026-10-22T09:27:24.6108960Z env:
+macOS packaging and gates	Check the tag against the package version	2026-10-22T09:27:24.6109190Z   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+macOS packaging and gates	Check the tag against the package version	2026-10-22T09:27:24.6109460Z   HAS_CSC: true
+macOS packaging and gates	Check the tag against the package version	2026-10-22T09:27:24.6109620Z   HAS_APPLE: true
+macOS packaging and gates	Check the tag against the package version	2026-10-22T09:27:24.6109910Z   PROFILE: release
+macOS packaging and gates	Check the tag against the package version	2026-10-22T09:27:24.6110300Z   PNPM_HOME: /Users/runner/setup-pnpm/node_modules/.bin
+macOS packaging and gates	Check the tag against the package version	2026-10-22T09:27:24.6110700Z ##[endgroup]
+macOS packaging and gates	Check the tag against the package version	2026-10-22T09:27:24.7588450Z [release] tag v0.1.0-beta releases version 0.1.0-beta
+macOS packaging and gates	Package (release profile)	﻿2026-10-22T09:27:24.7687700Z ##[group]Run pnpm dist:mac:release
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7688050Z ^[[36;1mpnpm dist:mac:release^[[0m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7725870Z shell: /bin/bash -e {0}
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7726140Z env:
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7726410Z   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7726770Z   HAS_CSC: true
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7727000Z   HAS_APPLE: true
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7727220Z   PROFILE: release
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7727520Z   PNPM_HOME: /Users/runner/setup-pnpm/node_modules/.bin
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7746490Z   CSC_LINK: ***
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7746750Z   CSC_KEY_PASSWORD: ***
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7746980Z   APPLE_ID: ***
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7747250Z   APPLE_APP_SPECIFIC_PASSWORD: ***
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7747510Z   APPLE_TEAM_ID: ***
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:24.7747750Z ##[endgroup]
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:25.2634710Z 
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:25.2736410Z > agentshed@0.1.0-beta dist:mac:release /Users/runner/work/agentshed/agentshed
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:25.2838190Z > node build/mac-packaging.cjs release && node build/mac-packaging.cjs notarize-dmg
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:25.2949530Z 
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:25.4017330Z [mac] electron-vite build
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:26.0134500Z ^[[36mvite v5.4.21 ^[[32mbuilding SSR bundle for production...^[[36m^[[39m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:26.0882410Z transforming...
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.3711470Z ^[[32m✓^[[39m 547 modules transformed.
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.5129780Z rendering chunks...
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.5886550Z ^[[2mout/main/^[[22m^[[36mparse-worker.js                 ^[[39m^[[1m^[[2m  0.40 kB^[[22m^[[1m^[[22m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.5898110Z ^[[2mout/main/^[[22m^[[2mchunks/^[[22m^[[36mtoken-stats-Y_GCWB5i.js  ^[[39m^[[1m^[[2m122.21 kB^[[22m^[[1m^[[22m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.5898950Z ^[[2mout/main/^[[22m^[[36mindex.js                        ^[[39m^[[1m^[[2m211.93 kB^[[22m^[[1m^[[22m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.5899800Z ^[[2mout/main/^[[22m^[[2mchunks/^[[22m^[[36mmain-DZ5R1KNi.js         ^[[39m^[[1m^[[33m513.19 kB^[[39m^[[22m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.5901910Z ^[[32m✓ built in 1.54s^[[39m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.5925890Z ^[[36mvite v5.4.21 ^[[32mbuilding SSR bundle for production...^[[36m^[[39m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.5967840Z transforming...
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.6522780Z ^[[32m✓^[[39m 17 modules transformed.
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.6571740Z rendering chunks...
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.6580740Z ^[[2mout/preload/^[[22m^[[36mindex.cjs  ^[[39m^[[1m^[[2m49.77 kB^[[22m^[[1m^[[22m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.6581670Z ^[[32m✓ built in 66ms^[[39m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.6601250Z ^[[36mvite v5.4.21 ^[[32mbuilding for production...^[[36m^[[39m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:27.6731010Z transforming...
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:28.5057440Z ^[[32m✓^[[39m 147 modules transformed.
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:28.6959740Z rendering chunks...
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:28.7272040Z ^[[2m../../out/renderer/^[[22m^[[32mindex.html                 ^[[39m^[[1m^[[2m  0.40 kB^[[22m^[[1m^[[22m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:28.7275130Z ^[[2m../../out/renderer/^[[22m^[[2massets/^[[22m^[[35mindex-COanwWAT.css  ^[[39m^[[1m^[[2m 83.56 kB^[[22m^[[1m^[[22m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:28.7276550Z ^[[2m../../out/renderer/^[[22m^[[2massets/^[[22m^[[36mindex-CPw4TZbb.js   ^[[39m^[[1m^[[33m688.41 kB^[[39m^[[22m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:28.7280450Z ^[[32m✓ built in 1.07s^[[39m
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:28.7708390Z [mac] electron-builder --mac --publish never -c.mac.notarize=false -c.afterSign=build/mac-packaging.cjs
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:29.5137030Z   • electron-builder  version=26.17.0 os=25.6.0
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:29.5217420Z   • loaded configuration  file=/Users/runner/work/agentshed/agentshed/electron-builder.yml
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:29.5228970Z   • author is missed in the package.json  appPackageFile=/Users/runner/work/agentshed/agentshed/package.json
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:30.0878410Z   • executing @electron/rebuild  electronVersion=43.2.0 arch=arm64 buildFromSource=false workspaceRoot=/Users/runner/work/agentshed/agentshed projectDir=./ appDir=./
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:30.0879610Z   • installing native dependencies  arch=arm64
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:30.3032730Z   • completed installing native dependencies
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:30.3075500Z   • packaging       platform=darwin arch=arm64 electron=43.2.0 appOutDir=release/0.1.0-beta/mac-arm64
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:30.7051850Z   • downloaded      label=electron progress=100%
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:34.1308430Z   • downloaded electron zip extracted successfully  output=/Users/runner/work/agentshed/agentshed/release/0.1.0-beta/mac-arm64
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:34.1489570Z   • searching for node modules  pm=pnpm searchDir=/Users/runner/work/agentshed/agentshed
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:36.6068170Z   • executing @electron/fuses  electronPath=release/0.1.0-beta/mac-arm64/Agentshed.app
+macOS packaging and gates	Package (release profile)	2026-10-22T09:27:37.7577030Z   • signing         file=release/0.1.0-beta/mac-arm64/Agentshed.app platform=darwin type=distribution identityName=Developer ID Application: Longfei Zhou (***) identityHash=A4AE5D22EBFAA2ECCEC7794C30B739F54AA61576 provisioningProfile=none
+macOS packaging and gates	Package (release profile)	2026-10-22T09:29:36.3879120Z   • skipped macOS notarization  reason=`notarize` options were set explicitly `false`
+macOS packaging and gates	Package (release profile)	2026-10-22T09:29:39.4867090Z [mac] notarizing arm64: /Users/runner/work/agentshed/agentshed/release/0.1.0-beta/mac-arm64/Agentshed.app
+macOS packaging and gates	Package (release profile)	2026-10-22T09:30:54.1316180Z [mac] accepted arm64 (submission: de55b0de-cdc4-4a8c-afae-c60cfa4b7fef)
+macOS packaging and gates	Package (release profile)	2026-10-22T09:30:54.1460640Z   • building        target=macOS zip arch=arm64 file=release/0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip
+macOS packaging and gates	Package (release profile)	2026-10-22T09:30:54.1515830Z   • building        target=DMG arch=arm64 file=release/0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.dmg
+macOS packaging and gates	Package (release profile)	2026-10-22T09:30:54.3790780Z   • downloaded      label=7zip-darwin-arm64.tar.gz progress=100%
+macOS packaging and gates	Package (release profile)	2026-10-22T09:30:54.3994690Z   • downloaded      label=dmgbuild-bundle-arm64-75c8a6c.tar.gz progress=100%
+macOS packaging and gates	Package (release profile)	2026-10-22T09:31:55.1948940Z   • building block map  blockMapFile=release/0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip.blockmap
+macOS packaging and gates	Package (release profile)	2026-10-22T09:32:05.2428700Z [mac] release packaging done for arm64
+macOS packaging and gates	Package (release profile)	2026-10-22T09:32:05.5458140Z [mac] latest-mac.yml matches Agentshed-0.1.0-beta-mac-arm64.zip
+macOS packaging and gates	Package (release profile)	2026-10-22T09:32:05.5548610Z [mac] gating /Users/runner/work/agentshed/agentshed/release/0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.dmg
+macOS packaging and gates	Package (release profile)	2026-10-22T09:33:20.5651980Z [mac] passed /Users/runner/work/agentshed/agentshed/release/0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.dmg (submission: 2cba1560-66b8-49ad-82fa-5daf3747d29a)
+macOS packaging and gates	Package (release profile)	2026-10-22T09:33:20.5751550Z [mac] all arm64 DMGs passed: 2cba1560-66b8-49ad-82fa-5daf3747d29a
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	﻿2026-10-22T09:33:20.7280610Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7280970Z with:
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7281120Z   name: agentshed-macos
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7454450Z   path: release/*/*.dmg
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	release/*/*.zip
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	release/*/*.zip.blockmap
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	release/*/*-mac.yml
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	release/*/*.notary-log.json
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7455000Z   if-no-files-found: error
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7455200Z   compression-level: 6
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7455370Z   overwrite: false
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7455540Z   include-hidden-files: false
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7455740Z env:
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7455950Z   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7456240Z   HAS_CSC: true
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7456430Z   HAS_APPLE: true
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7456700Z   PROFILE: release
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7456960Z   PNPM_HOME: /Users/runner/setup-pnpm/node_modules/.bin
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:20.7457230Z ##[endgroup]
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:21.5594800Z (node:23681) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:21.5595890Z (Use `node --trace-deprecation ...` to show where the warning was created)
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:21.5764150Z With the provided path, there will be 6 files uploaded
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:21.5770920Z Artifact name is valid!
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:21.5772250Z Root directory input is valid!
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:21.7936940Z Beginning upload of artifact content to blob storage
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:22.2232030Z (node:23681) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:22.4299590Z Uploaded bytes 8388608
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:22.6796550Z Uploaded bytes 16777216
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:22.9418910Z Uploaded bytes 25165824
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:23.3388150Z Uploaded bytes 33554432
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:23.6075770Z Uploaded bytes 41943040
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:23.8137390Z Uploaded bytes 50331648
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:24.0632650Z Uploaded bytes 58720256
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:24.2793090Z Uploaded bytes 67108864
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:24.5700320Z Uploaded bytes 75497472
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:24.7550040Z Uploaded bytes 83886080
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:24.9815280Z Uploaded bytes 92274688
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:25.2705840Z Uploaded bytes 100663296
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:25.5841760Z Uploaded bytes 109051904
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:25.7366450Z Uploaded bytes 117440512
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:26.0875850Z Uploaded bytes 125829120
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:26.3074660Z Uploaded bytes 134217728
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:26.6191200Z Uploaded bytes 142606336
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:26.8530480Z Uploaded bytes 150994944
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:27.1368720Z Uploaded bytes 159383552
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:27.4523560Z Uploaded bytes 167772160
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:27.5991210Z Uploaded bytes 176160768
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:27.8894120Z Uploaded bytes 184549376
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:28.2017440Z Uploaded bytes 192937984
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:28.4126800Z Uploaded bytes 201326592
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:28.8075360Z Uploaded bytes 209715200
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:29.1007910Z Uploaded bytes 218103808
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:29.3355980Z Uploaded bytes 226492416
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:29.5886920Z Uploaded bytes 234881024
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:29.8055970Z Uploaded bytes 243269632
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:29.9566970Z Uploaded bytes 248493174
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:29.9733320Z Finished uploading artifact content to blob storage!
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:29.9735780Z SHA256 digest of uploaded artifact zip is 4bac53664a431f16058904782b209f5502fcd48b2e41cc7e1b23bb555e70854f
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:29.9736930Z Finalizing artifact upload
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:30.4106080Z Artifact agentshed-macos.zip successfully finalized. Artifact ID 12415652882
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:30.4111180Z Artifact agentshed-macos has been successfully uploaded! Final size is 248493174 bytes. Artifact ID is 12415652882
+macOS packaging and gates	Keep the packages, the update files and Apple's logs	2026-10-22T09:33:30.4148220Z Artifact download URL: https://github.com/aloong-planet/agentshed/actions/runs/39755502301/artifacts/12415652882
+macOS packaging and gates	Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	﻿2026-10-22T09:33:30.4419610Z Post job cleanup.
+macOS packaging and gates	Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:30.5956530Z (node:23967) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+macOS packaging and gates	Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:30.5957530Z (Use `node --trace-deprecation ...` to show where the warning was created)
+macOS packaging and gates	Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:30.6203780Z [command]/opt/homebrew/bin/gtar --posix -cf cache.tzst --exclude cache.tzst -P -C /Users/runner/work/agentshed/agentshed --files-from manifest.txt --delay-directory-restore --use-compress-program zstdmt
+macOS packaging and gates	Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:35.9409380Z (node:23967) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+macOS packaging and gates	Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:36.9381670Z Sent 59902507 of 59902507 (100.0%), 57.0 MBs/sec
+macOS packaging and gates	Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:37.3316810Z Cache saved with the key: node-cache-macOS-arm64-pnpm-3874736b10e811cc446450c06083ab36eb446328ab25dc1114bd7b04c154a6eb
+macOS packaging and gates	Post Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	﻿2026-10-22T09:33:37.3600090Z Post job cleanup.
+macOS packaging and gates	Post Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1	2026-10-22T09:33:37.5464280Z Pruning is unnecessary.
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	﻿2026-10-22T09:33:37.5593100Z Post job cleanup.
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.7016740Z [command]/opt/homebrew/bin/git version
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.7341700Z git version 2.56.0
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.7361850Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/02cd1267-2c16-4806-8d27-7390731b281f/.gitconfig'
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.7370100Z Temporarily overriding HOME='/Users/runner/work/_temp/02cd1267-2c16-4806-8d27-7390731b281f' before making global git config changes
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.7371060Z Adding repository directory to the temporary git global config as a safe directory
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.7374740Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/agentshed/agentshed
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.7498940Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.7569110Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.8476170Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.8542270Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.9503550Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+macOS packaging and gates	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:37.9569440Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+macOS packaging and gates	Complete job	﻿2026-10-22T09:33:38.0532160Z Cleaning up orphan processes
+macOS packaging and gates	Complete job	2026-10-22T09:33:41.0940540Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262, actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02, pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
+# The publish job's log, whole (job 119749294309)
+publish the GitHub release	Set up job	﻿2026-10-22T09:33:45.4550379Z Current runner version: '2.338.0'
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4574420Z ##[group]Runner Image Provisioner
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4575307Z Hosted Compute Agent
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4575848Z Version: 20261012.601
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4576451Z Commit: f3dc54e1fb89da6852db922499a0233137369e1d
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4577191Z Build Date: 2026-10-12T17:48:21Z
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4577825Z Worker ID: {62cf5ce9-e7e1-4371-9eff-c7da7d100e69}
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4578489Z Region: centralus
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4579155Z Cloud: Azure
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4579695Z ##[endgroup]
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4580939Z ##[group]Operating System
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4581494Z Ubuntu
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4582001Z 24.04.5
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4582472Z LTS
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4583012Z ##[endgroup]
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4583587Z ##[group]Runner Image
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4584108Z Image: ubuntu-24.04
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4584700Z Version: 20261012.334.1
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4585673Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261012.334/images/ubuntu/Ubuntu2404-Readme.md
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4587692Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261012.334
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4588540Z ##[endgroup]
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4589722Z ##[group]GITHUB_TOKEN Permissions
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4591781Z Contents: write
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4592399Z Metadata: read
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4592901Z ##[endgroup]
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4595114Z Secret source: Actions
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4596012Z Cache mode: write
+publish the GitHub release	Set up job	2026-10-22T09:33:45.4596700Z Prepare workflow directory
+publish the GitHub release	Set up job	2026-10-22T09:33:45.5079542Z Prepare all required actions
+publish the GitHub release	Set up job	2026-10-22T09:33:45.5126108Z Getting action download info
+publish the GitHub release	Set up job	2026-10-22T09:33:45.7761924Z Download action repository 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+publish the GitHub release	Set up job	2026-10-22T09:33:45.8508971Z Download action repository 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+publish the GitHub release	Set up job	2026-10-22T09:33:45.9582252Z Download action repository 'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093' (SHA:d3f86a106a0bac45b974a628896c90dbdf5c8093)
+publish the GitHub release	Set up job	2026-10-22T09:33:46.5593731Z Complete job name: publish the GitHub release
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	﻿2026-10-22T09:33:46.6202498Z ##[group]Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6203467Z with:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6204049Z   persist-credentials: false
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6204644Z   repository: aloong-planet/agentshed
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6208377Z   token: ***
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6208892Z   ssh-strict: true
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6209532Z   ssh-user: git
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6210058Z   clean: true
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6210558Z   sparse-checkout-cone-mode: true
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6211140Z   fetch-depth: 1
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6211698Z   fetch-tags: false
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6212185Z   show-progress: true
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6212716Z   lfs: false
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6213176Z   submodules: false
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6213688Z   set-safe-directory: true
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6214310Z   allow-unsafe-pr-checkout: false
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6215022Z env:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6215585Z   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6216266Z   PRERELEASE: true
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.6216748Z ##[endgroup]
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7135770Z Syncing repository: aloong-planet/agentshed
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7138597Z ##[group]Getting Git version info
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7140095Z Working directory is '/home/runner/work/agentshed/agentshed'
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7142028Z [command]/usr/bin/git version
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7178889Z git version 2.55.0
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7196534Z ##[endgroup]
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7208116Z Temporarily overriding HOME='/home/runner/work/_temp/6fc43fc0-e3dd-4755-ab95-56f42c78af86' before making global git config changes
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7210824Z Adding repository directory to the temporary git global config as a safe directory
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7212789Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentshed/agentshed
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7257831Z Deleting the contents of '/home/runner/work/agentshed/agentshed'
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7260860Z ##[group]Initializing the repository
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7265730Z [command]/usr/bin/git init /home/runner/work/agentshed/agentshed
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7369135Z hint: Using 'master' as the name for the initial branch. This default branch name
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7371223Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7373323Z hint: to use in all of your new repositories, which will suppress this warning,
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7374871Z hint: call:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7375711Z hint:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7376847Z hint: 	git config --global init.defaultBranch <name>
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7378035Z hint:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7379267Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7380962Z hint: 'development'. The just-created branch can be renamed via this command:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7382333Z hint:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7383270Z hint: 	git branch -m <name>
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7384217Z hint:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7385720Z hint: Disable this message with "git config set advice.defaultBranchName false"
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7387650Z Initialized empty Git repository in /home/runner/work/agentshed/agentshed/.git/
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7392498Z [command]/usr/bin/git remote add origin https://github.com/aloong-planet/agentshed
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7428131Z ##[endgroup]
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7430033Z ##[group]Disabling automatic garbage collection
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7431009Z [command]/usr/bin/git config --local gc.auto 0
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7454668Z ##[endgroup]
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7456577Z ##[group]Setting up auth
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7459250Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7490669Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7815468Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.7842253Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.8027897Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.8055974Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.8223539Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.8257119Z ##[endgroup]
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.8258566Z ##[group]Fetching the repository
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:46.8266134Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +7dc0c2274647c5614d086f911deb5adb55172f4c:refs/tags/v0.1.0-beta
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.5854410Z From https://github.com/aloong-planet/agentshed
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.5855531Z  * [new ref]         7dc0c2274647c5614d086f911deb5adb55172f4c -> v0.1.0-beta
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.5858252Z ##[endgroup]
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.5859292Z ##[group]Determining the checkout info
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.5860426Z ##[endgroup]
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.5866601Z [command]/usr/bin/git sparse-checkout disable
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.5911154Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.5935180Z ##[group]Checking out the ref
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.5937923Z [command]/usr/bin/git checkout --progress --force refs/tags/v0.1.0-beta
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7428001Z Note: switching to 'refs/tags/v0.1.0-beta'.
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7428742Z 
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7429263Z You are in 'detached HEAD' state. You can look around, make experimental
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7429891Z changes and commit them, and you can discard any commits you make in this
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7430849Z state without impacting any branches by switching back to a branch.
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7431135Z 
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7431467Z If you want to create a new branch to retain commits you create, you may
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7432004Z do so (now or later) by using -c with the switch command. Example:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7432290Z 
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7432488Z   git switch -c <new-branch-name>
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7432798Z 
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7432989Z Or undo this operation with:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7433264Z 
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7433451Z   git switch -
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7433731Z 
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7434125Z Turn off this advice by setting config variable advice.detachedHead to false
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7434600Z 
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7434902Z HEAD is now at 7dc0c22 Keep a search hit row's keyword in view (#302)
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7438266Z ##[endgroup]
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7475724Z [command]/usr/bin/git log -1 --format=%H
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7495969Z 7dc0c2274647c5614d086f911deb5adb55172f4c
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7503292Z ##[group]Removing auth
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7506917Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7530765Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7692533Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7711675Z http.https://github.com/.extraheader
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7716887Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7742776Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7908680Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.7932481Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+publish the GitHub release	Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:33:48.8084904Z ##[endgroup]
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	﻿2026-10-22T09:33:48.8303279Z ##[group]Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.8303754Z with:
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.8304103Z   node-version: 22
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.8304423Z   always-auth: false
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.8305137Z   check-latest: false
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.8307406Z   token: ***
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.8307714Z env:
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.8308104Z   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.8308518Z   PRERELEASE: true
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.8308889Z ##[endgroup]
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.9507315Z Found in cache @ /opt/hostedtoolcache/node/22.23.3/x64
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.9511041Z (node:2196) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.9511809Z (Use `node --trace-deprecation ...` to show where the warning was created)
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:48.9513452Z ##[group]Environment details
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:49.3093578Z node: v22.23.3
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:49.3094042Z npm: 10.9.9
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:49.3094534Z yarn: 1.22.22
+publish the GitHub release	Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:33:49.3095505Z ##[endgroup]
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	﻿2026-10-22T09:33:49.3213641Z ##[group]Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.3214063Z with:
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.3214325Z   name: agentshed-macos
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.3214658Z   path: artifact
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.3214942Z   merge-multiple: false
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.3215238Z   repository: aloong-planet/agentshed
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.3215556Z   run-id: 39755502301
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.3215793Z env:
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.3216125Z   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.3216470Z   PRERELEASE: true
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.3216723Z ##[endgroup]
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.4504277Z Downloading single artifact
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.4621784Z (node:2227) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.4622871Z (Use `node --trace-deprecation ...` to show where the warning was created)
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.6238454Z Preparing to download the following artifacts:
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.6240041Z - agentshed-macos (ID: 12415652882, Size: 248493174, Expected Digest: sha256:4bac53664a431f16058904782b209f5502fcd48b2e41cc7e1b23bb555e70854f)
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.8133761Z Redirecting to blob download url: https://productionresultssa11.blob.core.windows.net/actions-results/578ae6b0-6a55-8b72-8c9f-f962a5f7bf40/workflow-job-run-242be3df-62ef-5de6-838f-cc2ce58e2b7d/artifacts/f6151f79bc8849464ca69cba19d0fc3211a74d56b17a34163663a32c02e3ef7c.zip
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:49.8135019Z Starting download of artifact to: /home/runner/work/agentshed/agentshed/artifact
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:50.0785331Z (node:2227) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:54.5845442Z SHA256 digest of downloaded artifact is 4bac53664a431f16058904782b209f5502fcd48b2e41cc7e1b23bb555e70854f
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:54.5846870Z Artifact download completed successfully.
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:54.5870734Z Total of 1 artifact(s) downloaded
+publish the GitHub release	Run actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093	2026-10-22T09:33:54.5871511Z Download artifact has finished successfully
+publish the GitHub release	Publish	﻿2026-10-22T09:33:54.5995194Z ##[group]Run node scripts/publish-release.mjs artifact
+publish the GitHub release	Publish	2026-10-22T09:33:54.5995803Z ^[[36;1mnode scripts/publish-release.mjs artifact^[[0m
+publish the GitHub release	Publish	2026-10-22T09:33:54.6177733Z shell: /usr/bin/bash -e {0}
+publish the GitHub release	Publish	2026-10-22T09:33:54.6178167Z env:
+publish the GitHub release	Publish	2026-10-22T09:33:54.6178488Z   DOWNLOAD_HOST: https://dl.agentshed.aloongplanet.com
+publish the GitHub release	Publish	2026-10-22T09:33:54.6178845Z   PRERELEASE: true
+publish the GitHub release	Publish	2026-10-22T09:33:54.6181250Z   GH_TOKEN: ***
+publish the GitHub release	Publish	2026-10-22T09:33:54.6181522Z ##[endgroup]
+publish the GitHub release	Publish	2026-10-22T09:33:55.3995329Z [release] uploading Agentshed-0.1.0-beta-mac-arm64.dmg, Agentshed-0.1.0-beta-mac-arm64.zip, Agentshed-0.1.0-beta-mac-arm64.zip.blockmap, latest-mac.yml to a draft of v0.1.0-beta
+publish the GitHub release	Publish	2026-10-22T09:34:06.7090085Z [release] published v0.1.0-beta (pre-release) with Agentshed-0.1.0-beta-mac-arm64.dmg, Agentshed-0.1.0-beta-mac-arm64.zip, Agentshed-0.1.0-beta-mac-arm64.zip.blockmap, latest-mac.yml
+publish the GitHub release	Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	﻿2026-10-22T09:34:06.7272069Z Post job cleanup.
+publish the GitHub release	Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:34:06.8418912Z (node:2283) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+publish the GitHub release	Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020	2026-10-22T09:34:06.8420210Z (Use `node --trace-deprecation ...` to show where the warning was created)
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	﻿2026-10-22T09:34:06.8614768Z Post job cleanup.
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:34:06.9499215Z [command]/usr/bin/git version
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:34:06.9537975Z git version 2.55.0
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:34:06.9573719Z Temporarily overriding HOME='/home/runner/work/_temp/91614f40-6b7e-4649-8abb-0481011eebd8' before making global git config changes
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:34:06.9575256Z Adding repository directory to the temporary git global config as a safe directory
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:34:06.9579541Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentshed/agentshed
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:34:06.9623543Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:34:06.9656763Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:34:06.9870905Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:34:06.9904636Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:34:07.0111472Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+publish the GitHub release	Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262	2026-10-22T09:34:07.0153752Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+publish the GitHub release	Complete job	﻿2026-10-22T09:34:07.0633697Z Cleaning up orphan processes
+publish the GitHub release	Complete job	2026-10-22T09:34:07.0869946Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262, actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093, actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

@@ -125,7 +125,8 @@ were verified independently (`macos-signing.md` §7, §10).
 ### mac-distribution::REQ-006 The first release (direct acceptance)
 
 The first release is `v0.1.0-beta`, a pre-release. The package version is changed to `0.1.0-beta`
-first, and the tag is made on that commit.
+first, through a merged pull request; the tag is then made on a commit of `main` that carries that
+version, which need not be the commit that changed it.
 
 ## Constraints
 

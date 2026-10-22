@@ -36,6 +36,18 @@ cut from `origin/main` at bedc384 (no commits ahead when cut).
   branch was risky; measured that nothing else builds on it (local equals remote, no PR, no other ref contains its
   commits) and that a trial rebase stops on four README modify/delete conflicts while a trial merge of main is clean.
   The owner chose the merge: main merged into this branch as c5f44b9, no history rewritten, no force push.
+- 2026-10-22, where the tag goes: #297 merged the version change as fbe4339, and five merges followed (#298, #293,
+  #300, #301 and #302: the memory preview, the READMEs and licence, the landing page, an ADR, the search rows).
+  Asked with four options (main's head 7dc0c22, recommended; fbe4339, REQ-006's letter; a verification run first;
+  not yet); the owner chose main's head, and with it the confirmation to push the tag. REQ-006 and the runbook's tag
+  rule are reworded to "a commit of main that carries the version".
+- 2026-10-22, the release note: Chinese then English (asked with three options: both, Chinese first, recommended;
+  Chinese only; English only), and the proposed summary confirmed as written.
+- 2026-10-22, the first launch: the owner downloaded the DMG and opened it online before the planned offline order
+  could be followed, so this Mac had assessed the build. The owner confirmed the notice's wording (US-001/AC-01) and
+  chose to settle AC-02 by its stapled-ticket evidence now and to run its user path, the offline first launch, with
+  the next pre-release (#240), whose new build this Mac will not have assessed (asked with three options: that,
+  recommended; another Mac now; the ticket evidence alone).
 
 ## Interface gate
 
@@ -57,12 +69,12 @@ landing page is not changed, only described.
 | 9 | Step 6: `/review-tests` post-implementation check, by an independent sub-agent | the same record, second section | done on 3064371: seven findings, handled in the records and the evidence (`tag-check.txt`, `check-lang-readme-plant.txt`, `live-page-before-tag.txt`); dispositions in the record |
 | 10 | Spec final check, step 7, step 8 (`/features-catalog`: the landing-page entry) | `final-regression.md`, this ticket's section | done: no departure from the spec; no new ADR, term or postmortem; the regression in `final-regression.md` |
 | 11 | Pull request; stop for the owner's merge confirmation and the confirmation to push the tag | PR link; CI | in progress: the last gateway green on 9183669, bound to its commit and a clean tree (`evidence/ticket-239/gateway-9183669.txt`); the commit after it adds that evidence only, with `check:ui`, `check:lang` and `check:nul` passing on it; then the PR |
-| 12 | The tag `v0.1.0-beta` on the merged commit; the release run | the run green; a Pre-release; nothing on R2, shown positively by the mirror and pointer jobs being skipped, with the download host's response headers beside the pointer's 404 | pending |
-| 13 | The downloaded artifacts checked independently (policy §7) | `evidence/ticket-239/`; the stapled tickets decided by `stapler validate` on the DMG and on the `.app` inside it and inside the ZIP. `spctl --assess` is itself an assessment of the build, so on the Mac that does task 16 it runs only after task 16's offline first launch; `stapler validate` and the signature checks, which do not assess, run first | pending |
-| 14 | The release note: drafted from the template, the summary from the owner | the published note | pending |
-| 15 | The live page offers v0.1.0-beta in the test state, unchanged (landing-page::REQ-001/AC-05) | a browser reading of the rendered page | pending |
-| 16 | The first launch from a browser download, online and offline (US-001/AC-01, AC-02) | screenshots. The offline launch must be that Mac's first assessment of this build: a fresh browser download, its quarantine attribute confirmed (`xattr`), the network off before the first open — otherwise a cached assessment could pass without the stapled ticket | pending (needs the owner's Mac) |
-| 17 | Records: the coverage checklist's #239 row, the document sync checklist, the issue's items | a records change | done before the tag (2026-10-21); the post-release rows follow the release events |
+| 12 | The tag `v0.1.0-beta` on the merged commit; the release run | the run green; a Pre-release; nothing on R2, shown positively by the mirror and pointer jobs being skipped, with the download host's response headers beside the pointer's 404 | done: the tag on main's 7dc0c22 (the owner's choice, above), run 39755502301 green: the app accepted (de55b0de-cdc4-4a8c-afae-c60cfa4b7fef), the DMG passed (2cba1560-66b8-49ad-82fa-5daf3747d29a), published as a Pre-release; the mirror and pointer jobs skipped, the pointer 404 from Cloudflare (`evidence/ticket-239/release-run.txt`, `pointer-after-release.txt`) |
+| 13 | The downloaded artifacts checked independently (policy §7) | `evidence/ticket-239/`; the stapled tickets decided by `stapler validate` on the DMG and on the `.app` inside it and inside the ZIP. `spctl --assess` is itself an assessment of the build, so on the Mac that does task 16 it runs only after task 16's offline first launch; `stapler validate` and the signature checks, which do not assess, run first | done: every file's size and sha256 equal to GitHub's; the DMG's image, Developer ID signature, team, timestamp and stapled ticket; the app in the DMG and in the ZIP stapled, valid deep and strict; minimum 12.0; fuses 7/7; the metadata equal to the ZIP (`artifact-check.txt` and its script). `spctl` ran after the owner's first launch: accepted, Notarized Developer ID (`first-launch.txt`) |
+| 14 | The release note: drafted from the template, the summary from the owner | the published note | done: Chinese then English, the summary confirmed by the owner, published on the release and read back identical |
+| 15 | The live page offers v0.1.0-beta in the test state, unchanged (landing-page::REQ-001/AC-05) | a browser reading of the rendered page | done: both languages read in Chrome after the script, the test state leading to the release; the served HTML byte-identical before and after (`live-page-after-release.txt`) |
+| 16 | The first launch from a browser download, online and offline (US-001/AC-01, AC-02) | screenshots. The offline launch must be that Mac's first assessment of this build: a fresh browser download, its quarantine attribute confirmed (`xattr`), the network off before the first open — otherwise a cached assessment could pass without the stapled ticket | done in part: the online first launch (AC-01) by the owner, the notice's wording confirmed by the owner, Gatekeeper's prompt and approval in syspolicyd's log, no screenshot (`first-launch.txt`); the offline first launch (AC-02's user path) deferred to the next pre-release (#240), the owner's decision above |
+| 17 | Records: the coverage checklist's #239 row, the document sync checklist, the issue's items | a records change | done before the tag (2026-10-21); the post-release records, REQ-006's and the runbook's rewording, and the evidence in a pull request after the release (2026-10-22); the issue's items ticked but AC-02, which waits for #240 |
 
 ## Resuming after #277
 
