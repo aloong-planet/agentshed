@@ -59,6 +59,9 @@ project.
 - A session marked uncertain strip may hit on a few replayed questions at its start that its parent also
   hits
 - A question written over several lines is matched as it is shown, its line breaks read as spaces
+- Text an agent tool wrote into a session as if you had typed it (the summary after a context
+  compaction, a message from a subagent or another session) is searched like any question, so it can
+  appear among the hits; a long compaction summary matches many keywords
 - A hit in a stale project selects the project, but the project list hides stale projects by default, so
   its row is not on screen unless stale projects are shown
 - The question texts are kept in memory for the run and never saved; reading them in costs a moment the

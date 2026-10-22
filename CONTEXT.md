@@ -119,7 +119,9 @@ session**, and does not enter the list — but its tokens still count, the same 
 Its "last activity time" is **the largest timestamp inside the file** (same meaning on every side;
 a separate pipeline from project activity, which uses mtime — see "Activity").
 The session page is **indexed primarily by question** (every real question listed once; fork replay
-prefixes and abandoned branches do not enter the trunk); clicking a question fetches that **turn** on
+prefixes and abandoned branches do not enter the trunk). A real question is any user entry the noise
+rules do not strip, including text an agent tool writes into the session as the user, such as the
+summary after a context compaction or a message from another session (ADR-0036); clicking a question fetches that **turn** on
 demand. Searchable within a project (searches questions by default) and, by its questions only,
 across every project through global search. The full specification is in
 `docs/specs/session-view.md` (fully shipped 2026-08-06; the export feature was dropped).

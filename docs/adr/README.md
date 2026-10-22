@@ -44,3 +44,4 @@ hard to reverse, baffling without context, and a real trade-off.
 | [0033](0033-prototypes-are-the-baseline.md) | The prototypes keep their own icons, tokens, styles and copy; the app follows them | Accepted |
 | [0034](0034-global-search-question-corpus-in-memory.md) | Global search reads every project's question texts from main-process memory, warmed when its page opens | Accepted |
 | [0035](0035-ui-languages-chinese-and-english.md) | The UI languages are Chinese and English; French, Spanish, Russian and Japanese are dropped before the first release | Accepted |
+| [0036](0036-injected-text-stays-a-question.md) | Text the agent tools write into a session as the user (compaction summaries, messages between agents, Codex's ambient state) stays a question | Accepted |
