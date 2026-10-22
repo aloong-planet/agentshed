@@ -31,8 +31,8 @@ once and walks every phase in that one run, as the file's other cases do. The un
 | E2 | A project's Sessions tab: the same | session-view::REQ-002/AC-01, AC-02 | The same project, its Sessions tab, the same keyword | As E1 | As E1 | The same launch |
 | E3 | A resize judges the rows again | session-view::REQ-002/AC-04; failure item "the window is resized" | A question with the keyword 66 characters in: in view at a wide window, past the cut at the narrowest (800px). The moved row is awaited at 800px before the window widens (amended after the post-implementation check, F1: the tab draws its results 200ms after typing, so the first draft widened fresh rows that had never moved) | At 800px the row is moved and its keyword in view; widened to 1400px, the row starts with its own first words again. Shown red under a fault that keeps a moved row's start through a width change (`evidence/ticket-291/e2e-plants-f1-f3.txt`) | As E1 | The same launch |
 | E4 | A long keyword in a narrow row starts at the keyword | session-view::REQ-002/AC-03 | At 800px, a keyword of 40 characters that lies 108 characters (86 until CI on Linux, below) into its question | The row's text starts with an ellipsis and the keyword (a literal), and the keyword lies wholly in view | As E1 | The same launch |
-| E6 | A keyword ending under the ellipsis is out of view (added at the code review, 2026-10-22: the row measured the ellipsis with a canvas in the computed `font` shorthand, which the app reports empty, so it measured 10px against the real 13px) | session-view::REQ-002/AC-02 ("under the ellipsis") | Global search, the window sized so that the fourth question's highlight box (padding included, which is what is judged) ends 1.5px less than the ellipsis's width before the row's right edge — inside the real ellipsis by 1.5px, outside one measured 3px short (13px as 10px on macOS) — computed from the unmoved row's box, the highlight's own box and the ellipsis measured on a canvas given the row's font, a method neither the component nor the helper uses (amended after the post-implementation check, F3: sizing from the text's end left about 0.5px of margin; and after CI on Linux: the offset was a literal 11.5px for macOS's 13px ellipsis, and the window it needed sat 4px above the 800px minimum on macOS and below it on Linux, so the keyword now lies 22 characters further in and the width must fall within 800–1100px) | The row is moved (its text starts with an ellipsis) and its keyword is in view by a DOM-measured ellipsis. Red before the fix, and again under a planted 10px ellipsis after the amendment (`evidence/ticket-291/e2e-plants-f1-f3.txt`; after the CI rework, `evidence/ticket-291/e2e-plant-ci-e6.txt`) | As E1 | The same launch |
-| E7 | A new keyword on the same row judges it again, both ways | session-view::REQ-002/AC-04 ("the rows are drawn anew"); post-implementation check F4 | In global search, "call" (28 characters into the far question, in view), then "quokka question" (far in, the same single hit), then "call" again; the row marked before the second keyword. The return keyword lies past 20 characters, so a row that kept its moved start would show a window (amended after the incremental check, G1: the first draft returned through "planning", 19 characters in, which no window can cut) | The row keeps its beginning, moves, and returns to its beginning, and the marked row is still the one shown (so it was judged again, not drawn fresh). Shown red under a stuck-start fault (`evidence/ticket-291/e2e-plant-g1.txt`) | As E1 | The same launch |
+| E6 | A keyword ending under the ellipsis is out of view (added at the code review, 2026-10-22: the row measured the ellipsis with a canvas in the computed `font` shorthand, which the app reports empty, so it measured 10px against the real 13px) | session-view::REQ-002/AC-02 ("under the ellipsis") | Global search, the window sized so that the fourth question's highlight box (padding included, which is what is judged) ends 1.5px less than the ellipsis's width before the row's right edge — inside the real ellipsis by 1.5px, outside one measured 3px short (13px as 10px on macOS) — computed from the unmoved row's box, the highlight's own box and the ellipsis measured on a canvas given the row's font, a method neither the component nor the helper uses, the canvas checked to have taken that font (a canvas rejecting it keeps a 10px default; H2) (amended after the post-implementation check, F3: sizing from the text's end left about 0.5px of margin; and after CI on Linux: the offset was a literal 11.5px for macOS's 13px ellipsis, and the window it needed sat 4px above the 800px minimum on macOS and below it on Linux, so the keyword now lies 22 characters further in and the width must fall within 800–1100px) | The row is moved (its text starts with an ellipsis) and its keyword is in view by a DOM-measured ellipsis. Red before the fix, and again under a planted 10px ellipsis after the amendment (`evidence/ticket-291/e2e-plants-f1-f3.txt`; after the CI rework, `evidence/ticket-291/e2e-plant-ci-e6.txt`) | As E1 | The same launch |
+| E7 | A new keyword on the same row judges it again, both ways | session-view::REQ-002/AC-04 ("the rows are drawn anew"); post-implementation check F4 | In global search, "call" (28 characters into the far question, in view, and in no other question — after the incremental check's H1 the fourth question says "on-duty", not "on-call"), its whole row list read so the previous keyword's single row cannot answer for it, then "quokka question" (far in, the same single hit), then "call" again; the row marked before the second keyword. The return keyword lies past 20 characters, so a row that kept its moved start would show a window (amended after the incremental check, G1: the first draft returned through "planning", 19 characters in, which no window can cut) | The row keeps its beginning, moves, and returns to its beginning, and the marked row is still the one shown (so it was judged again, not drawn fresh). Shown red under a stuck-start fault (`evidence/ticket-291/e2e-plant-g1.txt`) | As E1 | The same launch |
 | E8 | A question in a real one's shape | REQ-002/AC-02; post-implementation check F6 (most real questions hold CJK, many line breaks and runs of spaces) | A CJK question with a line break and a run of spaces before its keyword, about 100 characters in | The row as global search shows it (the break and the spaces read as one space) starts 20 characters before the keyword, those characters counted on the text as shown: a literal written as escapes | Shaped from the real corpus's measured shapes | The same launch |
 | E5 | A page shown again draws its rows anew and judges them | Failure item "a page or tab left and shown again" (the item's first sentence, a row with no width, is unreachable in the app and stated as a gap in the file header: F2) | Global search's results drawn, then the Projects page shown and the Search page brought back | The far row still starts 20 characters before its keyword, its keyword in view | As E1 | The same launch |
 
@@ -499,3 +499,112 @@ Not a test finding, carried over: the full gateway log is for b295fdb, so the ga
 | C1 | **E6 assumed macOS's font**: CI's e2e job on ubuntu failed at E6's own guard, the window it needed being 768px, below the app's 800px minimum ([ci-e2e-linux-e6.txt](evidence/ticket-291/ci-e2e-linux-e6.txt)). On macOS that window was 804px, 4px above the minimum, and the offset was a literal 11.5px for macOS's 13px ellipsis. This was the platform gap the incremental check noted ("E6's pixel geometry has still only run on macOS") | Fixed: the long keyword lies 22 characters further in (the 20 characters before it unchanged, so E4's and E6's expected texts hold), taking the window to 938px on macOS and about 890px by CI's measurement on ubuntu ([e6-geometry.txt](evidence/ticket-291/e6-geometry.txt)); the offset is 1.5px less than an ellipsis measured on a canvas given the row's font, a method distinct from the component's and the helper's, so the independent anchor stays; the window must fall within 800–1100px, with the measurements in the failure message. Shown red under the planted 10px ellipsis again ([e2e-plant-ci-e6.txt](evidence/ticket-291/e2e-plant-ci-e6.txt)). Rows E4 and E6 amended, and the e2e header's gap statement |
 
 This changes the e2e case's executable content, so the incremental check runs on its commit, and the full gateway runs again before the push.
+
+## Post-implementation check, incremental (fix commit 967f682, after CI on Linux)
+
+2026-10-22. Implementation version: 967f682 (fix range a448fbc..967f682; cee1da3 inside it changes records only).
+Ticket #291. Run by an independent agent that did not inherit the implementing session. Specs as committed in
+967f682 (the working tree was clean).
+
+Scope, by the incremental rules:
+
+- Tests changed in the range: the e2e case "a hit row keeps its keyword in view…". The fixture's fourth question
+  gains "the on-call handover" (the keyword now 108 characters in), E6 is reworked, and the header's gap statement is
+  reworded.
+- Tests depending on test helper code changed in the range: none. `git diff -U0 a448fbc 967f682 --
+  e2e/global-search.spec.ts` gives six hunks: the header (line 23) and five inside the hit-row test body. No product
+  module changed in the range.
+- Test design table rows changed in the range: E4 and E6.
+- The fourth question is shared, so every phase reading it was re-checked: E1 (its first 30 characters are
+  unchanged), E3 (the row stays in view at 800px), E4, E6 and E7. That re-check found H1.
+- Elsewhere, every conclusion carries over from the d09280c round.
+
+Run evidence:
+
+- The targeted verification log, [targeted-fix-c1.txt](evidence/ticket-291/targeted-fix-c1.txt):
+  - It records HEAD cee1da3 and 8 uncommitted files, each with its `git hash-object`. Every hash equals the blob in
+    967f682 (`git rev-parse 967f682:<path>`, file by file), and the only file of cee1da3..967f682 it omits is the log
+    itself, so it ran on 967f682's content.
+  - Each command appears with its exit code and full output, and the log ends `TARGETED_EXIT=0`. It ran on macOS:
+    lint, typecheck, the renderer unit tests, one build, and the whole of `e2e/global-search.spec.ts` (14 passed).
+- The latest full gateway is [gateway-a448fbc.txt](evidence/ticket-291/gateway-a448fbc.txt) (`VERIFY_EXIT=0`), which
+  predates this change. CI's failed e2e log is [ci-e2e-linux-e6.txt](evidence/ticket-291/ci-e2e-linux-e6.txt): at
+  cee1da3 E6's guard failed on ubuntu with 768 against the 800 minimum.
+- The reviewed case at 967f682, rebuilt: `pnpm exec electron-vite build` exit 0;
+  `DEBUG=pw:api pnpm exec playwright test e2e/global-search.spec.ts -g "keeps its keyword"` exit 0, kept as
+  [review-tests-incremental-c1-e2e.txt](evidence/ticket-291/review-tests-incremental-c1-e2e.txt).
+- Mutation testing: per the project's capabilities `mutation-testing` is not enabled, so it is skipped and no
+  temporary change was made. The implementing session's plant A ([e2e-plant-ci-e6.txt](evidence/ticket-291/e2e-plant-ci-e6.txt),
+  run on the 967f682 e2e blob `81e3625`) serves as evidence of red.
+
+### Each changed test against the test design table
+
+| Test | Matches the table? | Note |
+|---|---|---|
+| E4 | Yes | 108 characters in. The text from the keyword is unchanged, so the literal holds (computed) |
+| E6 | Yes | The offset is the canvas-measured ellipsis less 1.5px, and the window must lie within 800–1100px. The expected text still starts 20 characters before the keyword (computed) |
+| E7 (row unchanged) | No longer | "call" now also hits the fourth question ("on-call"), so "the same single hit" and the comment's premise no longer hold (H1) |
+
+The header's statement of the oracle's independence matches the rework: the highlight is left 1–2px inside the
+canvas ellipsis (1.5 ±0.5 from rounding).
+
+### Dimension 1: Coverage (incremental scope)
+
+E6 still covers AC-02's "under the ellipsis", now sized from what the run measures, as the spec's amended Testing
+Decisions require. E7's coverage stands (H1 concerns its count check, not its legs). No gap is left unstated. No
+finding.
+
+### Dimension 2: Case design (incremental scope)
+
+- No module doubles (`rg` exit 1; control: `expect` matches 236 times).
+- E6's canvas is created in the page only to measure, and writes nothing to the app. No finding.
+
+### Dimension 3: False greens (incremental scope)
+
+| Test | Red when | Expected value from |
+|---|---|---|
+| E6 | The product judges the highlight in view while it lies 1–2px inside the ellipsis, i.e. it measures the ellipsis 1.5px or more short. Plant A (10px against macOS's 13px) fails at line 991 ([e2e-plant-ci-e6.txt](evidence/ticket-291/e2e-plant-ci-e6.txt)). Also red, loudly, when the window it needs falls outside 800–1100px | A literal; the window from the run's measurements |
+| E7, first `toHaveCount(1)` | **Never, in practice (H1)**. The box still holds "wombat", whose results are one row, so the count is met before the "call" results arrive: it succeeds 1ms after the fill, while the next poll waits about 360ms for them (the run's log, output lines 75–91) | — |
+| E7, legs and marker | As in the d09280c round. The far question is still first and keeps its row key (`1-q-0`) through all three keywords, so a kept moved start still shows a window on the return. Not re-shown under plant B at this blob; this is by reading | Literals |
+
+By form: H1 is a read too early (false-greens form 5), and it has been in E7 since E7 was added at 676557e. My two
+earlier incremental rounds called E7's reads sound and missed it. They also recorded "call" as the far question's
+alone, which held until this range. No other form applies.
+
+Platform: E6 has now run on ubuntu only at cee1da3 (failed); the reworked E6 has not yet run there.
+
+### Dimension 4: Resource reuse (incremental scope)
+
+The targeted log shows one `electron-vite build`. My run shows one `electron.launch` and one
+`electronApplication.close`, and the range adds no `launch(` call. No finding.
+
+### Findings (incremental, 967f682)
+
+Handed back to the main agent; none was fixed here.
+
+| # | Finding | Where | Suggested handling |
+|---|---|---|---|
+| H1 | **E7's single-hit premise broke unnoticed, because its count check reads the previous keyword's results**. "the on-call handover" in the reworked fourth question makes "call" hit two questions, the far one and the fourth. Row E7 still says "the same single hit", and the comment at lines 910–912 still presumes the far question. The `toHaveCount(1)` after the first `fill('call')` (line 914) did not notice: it is met by the single "wombat" row before the "call" results arrive (output line 85 of the run's log, 1ms after the fill). E7's legs still hold, since the far question comes first and its row persists, so this is not yet a false green of E7's purpose. The count check, though, has never been able to fail | `e2e/global-search.spec.ts:884` (the fourth question), `:914` (the count); table row E7 | Now, recommended. First, a filler without "call" and of the same length, such as "on-duty", so E6's geometry is untouched and E7's premise holds. Second, make the count wait for the new results: poll the whole row list to `[FAR]` (text and in view), or assert the count after row 0 reads `FAR`. The second also guards against the same drift later |
+| H2 | **E6's canvas does not confirm that it took the font**. A canvas given a font string it rejects keeps its default `10px sans-serif`. That is the very failure the code review fixed in the component. If that happened, the offset would come from the default font's ellipsis (10px on macOS), the highlight would sit 8–9px from the edge, and a product measuring 10px would move the row too, so E6 would pass under the bug. The string is valid today (style, weight, size and family are never blank), and on macOS the canvas and the probe agree at 13px ([e6-geometry.txt](evidence/ticket-291/e6-geometry.txt)), so nothing passes falsely now; ubuntu is unmeasured | `e2e/global-search.spec.ts`, E6's measurement | Recommended, cheap: assert that the canvas accepted the font (its `font` names the row's size), or that the canvas and probe ellipses agree within 1px. Either check fails loudly instead of weakening E6 |
+
+Document sync, from this range's facts:
+
+- The spec's Testing Decisions sentence (window sizes from the run's measurements, never from one platform's font)
+  and rows E4 and E6 match the rework.
+- Pending, for the main agent: the checklist's current-verification row for #291, written in cee1da3, reads
+  "Verified on #291's paths" for a448fbc. CI then failed the hit-row case on ubuntu with the same e2e code, and
+  967f682 changes it. The row should record that failure and stay unverified until the new full gateway and a green
+  CI run.
+
+Not a test finding: the full gateway (a448fbc) predates this range, so it runs again before the push, as the handling
+above says.
+
+### Handling of the incremental check's findings after CI (implementing session, 2026-10-22)
+
+| # | Handling |
+|---|---|
+| H1 | Fixed: the fourth question says "on-duty" (the same length, so E6's geometry holds), and "call" is in the far question only again (computed over all five). E7 reads the whole row list, `[{ text: FAR, inView: true }]`, instead of counting rows, so the single row "wombat" left cannot answer for it. The other count checks in the case, enumerated (lines 895, 907, 921, 923, 936, 950, 957, 972 at 967f682): each follows the case's first keyword, or a keyword whose results had another count, or no keyword change at all; the other cases' counts after a keyword change wait on the header naming the new count first (lines 236–237, 602–608) or follow their first keyword: none has the shape. Under the stuck-start fault the case fails first at E7's return leg (`evidence/ticket-291/e2e-plants-h1-h2.txt`). Row E7 amended |
+| H2 | Fixed: E6 asserts that the canvas's font names the row's font size; a rejected font leaves the canvas's 10px default, which does not. That this check can fail is by reading, not run. Under the planted 10px ellipsis E6 still fails (same evidence file). Row E6 amended |
+| Checklist | The a448fbc row is no longer recorded as verified: CI on ubuntu failed the case with that e2e code. A new row stays unverified until the full run and CI on ubuntu |
+
+This changes the e2e case's executable content again, so the incremental check runs on its commit, then the full gateway, then CI.

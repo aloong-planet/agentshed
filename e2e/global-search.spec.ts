@@ -881,7 +881,7 @@ test('a hit row keeps its keyword in view: 20 characters before a far keyword, t
   const NEAR = 'quokka at the very start of a short question'
   const MID = 'A middle-length question that mentions the zebu herd and then the quokka once more'
   const LONG_KEY = 'quokka-routing-table-for-the-narrow-rows'
-  const WITH_LONG_KEY = `Notes on the deployment window, the on-call handover and the rollback rules for the cluster, then later the ${LONG_KEY} entry`
+  const WITH_LONG_KEY = `Notes on the deployment window, the on-duty handover and the rollback rules for the cluster, then later the ${LONG_KEY} entry`
   // A question in a real one's shape (most real questions hold CJK, many line breaks and runs of spaces): its
   // keyword, its own, about 100 characters in
   const CJK = '\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\n   \u7136\u540e\u770b wombat \u7684\u95ee\u9898'
@@ -909,10 +909,10 @@ test('a hit row keeps its keyword in view: 20 characters before a far keyword, t
 
     // A new keyword on the same row judges it again, both ways: the row stays mounted (its mark survives) while a
     // keyword in view leaves it at its beginning and one far in moves it (E7). "call" lies 28 characters in, so a row
-    // that kept its moved start would show a 20-character window rather than its beginning
+    // that kept its moved start would show a 20-character window rather than its beginning. The whole list is read,
+    // so the single row the previous keyword left cannot answer for this one
     await box(win).fill('call')
-    await expect(body(win).locator('.hit')).toHaveCount(1)
-    await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: FAR, inView: true })
+    await expect.poll(async () => await hitRows(body(win))).toEqual([{ text: FAR, inView: true }])
     await body(win).locator('.hit').first().evaluate((el) => { el.setAttribute('data-e2e-same-row', '1') })
     await box(win).fill('quokka question')
     await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: '…g call, and now the quokka question itself', inView: true })
@@ -980,9 +980,13 @@ test('a hit row keeps its keyword in view: 20 characters before a far keyword, t
         markEnd: (el.querySelector('mark') as HTMLElement).getBoundingClientRect().right - box.left,
         boxW: box.width,
         winW: window.innerWidth,
-        ellipsis: ctx.measureText('\u2026').width
+        ellipsis: ctx.measureText('\u2026').width,
+        canvasFont: ctx.font,
+        fontSize: cs.fontSize
       }
     })
+    // A canvas that rejects a font keeps its default 10px one, the very fault E6 guards against
+    expect(m.canvasFont, "the canvas took the row's font").toContain(m.fontSize)
     const width = Math.round(m.winW - m.boxW + m.markEnd + m.ellipsis - 1.5)
     expect(width, `the window E6 needs (${JSON.stringify(m)}) lies within the app's range`).toBeGreaterThanOrEqual(800)
     expect(width, `the window E6 needs (${JSON.stringify(m)}) lies within the app's range`).toBeLessThan(1100)
