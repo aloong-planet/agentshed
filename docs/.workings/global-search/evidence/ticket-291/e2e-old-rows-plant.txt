@@ -1,0 +1,33 @@
+# The hit-row e2e case (session-view::REQ-002) fails when question rows are drawn the old way: the whole text, never moved
+# HEAD 4ed5ec27906959f50eb483ba61801fcc9b91c3f6; src/renderer/src/SessionHits.tsx uncommitted at 7219c93bb978049f022c887b895f34a60b650393 before and after
+# The script's line about what the built renderer holds is a loose text match and proves nothing; the failing run is the evidence
+# Script:
+#   // Draw question rows the old way (the whole text, never moved), rebuild, run the hit-row case, restore byte for byte
+#   import { readFileSync, writeFileSync } from 'node:fs'
+#   import { execSync } from 'node:child_process'
+#   const f = 'src/renderer/src/SessionHits.tsx'
+#   const orig = readFileSync(f)
+#   const s = orig.toString('utf8')
+#   const a = '<HitText text={h.text} needle={needle} />'
+#   if (s.split(a).length !== 2) throw new Error('anchor not unique')
+#   let code = 0
+#   try {
+#     writeFileSync(f, s.replace(a, '<span className="t"><Highlight text={h.text} needle={needle} /></span>'))
+#     execSync('pnpm -s exec electron-vite build', { stdio: 'ignore' })
+#     console.log('planted and built; the built renderer still holds HitText:', /hitWindow|before.*at/.test(execSync('cat out/renderer/assets/*.js').toString()) ? 'yes (the function is still bundled)' : 'no')
+#     try { execSync('pnpm -s exec playwright test e2e/global-search.spec.ts -g "keeps its keyword"', { stdio: 'pipe' }) } catch (e) { code = e.status; console.log(e.stdout.toString().split('\n').filter((l) => /Expected|Received|✘|failed|passed|Error:/.test(l)).slice(0, 12).join('\n')) }
+#   } finally {
+#     writeFileSync(f, orig)
+#   }
+#   console.log('exit with the plant:', code, '· restored byte for byte:', Buffer.compare(readFileSync(f), orig) === 0)
+#   execSync('pnpm -s exec electron-vite build', { stdio: 'ignore' })
+#   console.log('rebuilt from the restored source')
+# Output:
+planted and built; the built renderer still holds HitText: yes (the function is still bundled)
+  ✘  1 e2e/global-search.spec.ts:867:1 › a hit row keeps its keyword in view: 20 characters before a far keyword, the keyword itself when that does not fit, judged again on a resize and when shown again — in global search and in a project's Sessions tab (session-view::REQ-002) (5.9s)
+    Error: expect(received).toEqual(expected) // deep equality
+    - Expected  - 2
+    + Received  + 2
+  1 failed
+exit with the plant: 1 · restored byte for byte: true
+rebuilt from the restored source

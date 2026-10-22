@@ -1,7 +1,9 @@
 // A session's search hits, drawn the same by a project's own session search and by global search (the
 // prototypes' shared session-hits piece): the card header naming the session, then one row per hit.
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { AgentSide, ForkState } from '@shared/domain'
 import { useDisplayClock } from './DisplayClock'
+import { hitWindow } from './hit-window'
 import { useDict, useLanguage } from './language'
 import { fmtAgo } from './ProjectsPane'
 import { SIDE_BADGE } from './side-badge'
@@ -23,6 +25,78 @@ export function Highlight({ text, needle }: { text: string; needle: string }): J
   }
   parts.push(<span key="tail">{text.slice(from)}</span>)
   return <>{parts}</>
+}
+
+/** The width of an ellipsis in a font, measured once per font */
+const ellipsisWidths = new Map<string, number>()
+function ellipsisWidth(font: string): number {
+  let w = ellipsisWidths.get(font)
+  if (w === undefined) {
+    const ctx = document.createElement('canvas').getContext('2d')
+    if (!ctx) return 0
+    ctx.font = font
+    w = ctx.measureText('…').width
+    ellipsisWidths.set(font, w)
+  }
+  return w
+}
+
+/** Whether the first marked occurrence lies wholly in view: when the line overflows, its end shows the ellipsis
+ *  rather than text, so the visible text stops short of it */
+function firstMarkInView(el: HTMLElement): boolean {
+  const mark = el.querySelector('mark')
+  if (!mark) return true
+  const box = el.getBoundingClientRect()
+  const end = el.scrollWidth > el.clientWidth ? box.right - ellipsisWidth(getComputedStyle(el).font) : box.right
+  const r = mark.getBoundingClientRect()
+  return r.left >= box.left - 0.5 && r.right <= end + 0.5
+}
+
+type Start = 'full' | 'before' | 'at'
+
+/**
+ * A question hit's text (session-view::REQ-002): drawn from the question's beginning; when the first occurrence of
+ * the keyword is not wholly in view, it starts 20 characters before it, or at it when even that does not show it.
+ * Judged by laying the row out before it is painted, and again, from the beginning, whenever its width changes
+ * (a hidden row has none, so it is judged once shown).
+ */
+function HitText({ text, needle }: { text: string; needle: string }): JSX.Element {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [width, setWidth] = useState(0)
+  const candidates = useMemo(() => hitWindow(text, needle), [text, needle])
+  const key = `${width}|${needle}|${text}`
+  const [judged, setJudged] = useState<{ key: string; start: Start; done: boolean }>({ key, start: 'full', done: false })
+  const current = judged.key === key ? judged : { key, start: 'full' as Start, done: false }
+
+  // The row's width, read before its first paint and followed afterwards
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    setWidth(Math.round(el.getBoundingClientRect().width))
+    const ro = new ResizeObserver(([e]) => setWidth(Math.round(e.contentRect.width)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (current.done || !el || el.clientWidth === 0) return
+    const next: Start | null = firstMarkInView(el)
+      ? null
+      : current.start === 'full'
+        ? candidates.before !== null ? 'before' : candidates.at !== null ? 'at' : null
+        : current.start === 'before' && candidates.at !== null ? 'at' : null
+    setJudged(next === null ? { key, start: current.start, done: true } : { key, start: next, done: false })
+    // Each step changes the drawn text, so the next one runs after it is laid out; a new width, keyword or text
+    // starts again from the beginning
+  }, [current.done, current.start, candidates, key])
+
+  const shown = current.start === 'before' ? candidates.before : current.start === 'at' ? candidates.at : text
+  return (
+    <span className="t" ref={ref}>
+      <Highlight text={shown ?? text} needle={needle} />
+    </span>
+  )
 }
 
 /**
@@ -72,9 +146,13 @@ export function SessionHitCard({
       {hits.map((h, hi) => (
         <button className="hit row-btn" key={`${h.i}-${h.inBody ? 'b' : 'q'}-${hi}`} onClick={() => onOpenHit(h.i)}>
           <span className="idx">{String(h.i).padStart(2, '0')}</span>
-          <span className="t">
-            <Highlight text={h.text} needle={needle} />
-          </span>
+          {h.inBody ? (
+            <span className="t">
+              <Highlight text={h.text} needle={needle} />
+            </span>
+          ) : (
+            <HitText text={h.text} needle={needle} />
+          )}
           {h.inBody && <span className="bd">{t.detail.inBody}</span>}
           <span className="d">{fmtAgo(lang, h.at, now)}</span>
         </button>

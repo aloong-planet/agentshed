@@ -843,3 +843,91 @@ test('Search Sessions… chosen while a hit\'s session is still on its way keeps
     await close(l, home)
   }
 })
+
+/** A hit row's text, and whether its first highlighted occurrence lies wholly in view: inside the text box, and
+ *  short of the ellipsis when the row overflows (the ellipsis measured in the row's own font) */
+async function hitRows(scope: ReturnType<Page['locator']>): Promise<{ text: string; inView: boolean }[]> {
+  return scope.locator('.hit .t').evaluateAll((els) =>
+    els.map((el) => {
+      const mark = el.querySelector('mark')
+      const box = el.getBoundingClientRect()
+      const probe = document.createElement('span')
+      probe.textContent = '…'
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap'
+      el.appendChild(probe)
+      const ellipsis = probe.getBoundingClientRect().width
+      probe.remove()
+      const end = el.scrollWidth > el.clientWidth ? box.right - ellipsis : box.right
+      const r = mark?.getBoundingClientRect()
+      return { text: el.textContent ?? '', inView: !!r && r.left >= box.left - 0.5 && r.right <= end + 0.5 }
+    })
+  )
+}
+
+test('a hit row keeps its keyword in view: 20 characters before a far keyword, the keyword itself when that does not fit, judged again on a resize and when shown again — in global search and in a project\'s Sessions tab (session-view::REQ-002)', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gs-rows-'))
+  const dir = join(home, 'work', 'rows-proj')
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [dir]: {} } }))
+  // The keyword 216 characters in; at the start; 66 characters in; and a 40-character keyword 86 characters in
+  const FAR = 'Background for the planning call, '.repeat(6) + 'and now the quokka question itself'
+  const NEAR = 'quokka at the very start of a short question'
+  const MID = 'A middle-length question that mentions the zebu herd and then the quokka once more'
+  const LONG_KEY = 'quokka-routing-table-for-the-narrow-rows'
+  const WITH_LONG_KEY = `Notes on the deployment window and the rollback rules for the cluster, then later the ${LONG_KEY} entry`
+  claude(home, dir, 'rows-1', [FAR, NEAR, MID, WITH_LONG_KEY], 1)
+  const l = await launch(home)
+  const { win } = l
+  try {
+    // Global search at the window's default size (E1)
+    await searchItem(win).click()
+    await box(win).fill('quokka')
+    await expect(body(win).locator('.hit')).toHaveCount(4)
+    await expect.poll(async () => (await hitRows(body(win))).map((r) => [r.text.slice(0, 30), r.inView])).toEqual([
+      ['…g call, and now the quokka qu', true],
+      [NEAR.slice(0, 30), true],
+      [MID.slice(0, 30), true],
+      [WITH_LONG_KEY.slice(0, 30), true]
+    ])
+    await win.screenshot({ path: 'e2e-out/hit-rows-global-search.png' })
+
+    // Left for another page and shown again: the rows are drawn anew and judged anew (E5)
+    await win.locator('.rail .ri').nth(1).click()
+    await searchItem(win).click()
+    await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: expect.stringMatching(/^…g call, and now the quokka question itself/), inView: true })
+
+    // A project's own Sessions tab, by question (E2)
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row').first().click()
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+    await win.locator('.sbar input').fill('quokka')
+    const tab = win.locator('.pane-body')
+    await expect(tab.locator('.hit')).toHaveCount(4)
+    await expect.poll(async () => (await hitRows(tab)).slice(0, 2).map((r) => [r.text.slice(0, 30), r.inView])).toEqual([
+      ['…g call, and now the quokka qu', true],
+      [NEAR.slice(0, 30), true]
+    ])
+
+    // The narrowest window the app allows: the middle question's keyword falls past the cut, and its row moves (E3)
+    await l.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(800, 700))
+    await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(800)
+    await expect.poll(async () => (await hitRows(tab))[2]).toEqual({ text: '…u herd and then the quokka once more', inView: true })
+    expect((await hitRows(tab)).every((r) => r.inView)).toBe(true)
+
+    // A 40-character keyword: 20 characters before it do not fit beside it, so the row starts at the keyword (E4)
+    await win.locator('.sbar input').fill(LONG_KEY)
+    await expect(tab.locator('.hit')).toHaveCount(1)
+    await expect.poll(async () => (await hitRows(tab))[0]).toEqual({ text: `…${LONG_KEY} entry`, inView: true })
+    await win.screenshot({ path: 'e2e-out/hit-rows-long-keyword-800.png' })
+
+    // Widened again: the middle question's row returns to its own beginning (E3)
+    await win.locator('.sbar input').fill('quokka')
+    await l.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1400, 900))
+    await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(1400)
+    await expect.poll(async () => (await hitRows(tab))[2]).toEqual({ text: MID, inView: true })
+    expect((await hitRows(tab))[1].text).toBe(NEAR)
+    expect(l.errors).toEqual([])
+  } finally {
+    await close(l, home)
+  }
+})
