@@ -270,7 +270,7 @@ hold for main at 389d264.
 | 2026-10-20 · spec f4197bb · impl f4197bb | projects-list C8; #271 | by US-002/AC-01 and J2 (E3) | Passed |
 | 2026-10-20 · spec f4197bb · impl f4197bb | appearance D1; #271 | by US-001/AC-01's row | Passed |
 | 2026-10-20 · spec f4197bb · impl f4197bb | i18n application menu, the Edit menu entry; #273 | by US-004/AC-02's row | Passed |
-| 2026-10-22 · spec 5ff1db7 with uncommitted changes · no implementation yet | Every unit marked #291 | Not run yet | Unverified |
+| 2026-10-22 · spec and implementation a448fbc (branch fix/search-hit-highlight on 7fe0186) · the final run on its clean tree ([gateway-a448fbc.txt](evidence/ticket-291/gateway-a448fbc.txt)) | Every unit marked #291, on #291's paths | `VERIFY_EXIT=0`: 867 unit (U1–U6 among them), the script tests, the site, the gates, 145 e2e (the hit-row case E1–E8 among them), smoke OK. Each e2e step that guards a fault was shown red under it: rows drawn the old way (`e2e-old-rows-plant.txt`), the 10px ellipsis before and after the fix (`e6-ellipsis.txt`, `e2e-plants-f1-f3.txt`), a moved start kept through a width or keyword change (`e2e-plants-f1-f3.txt`, `e2e-plant-g1.txt`). Test review: design review, post-implementation check and two incremental checks in [ticket-291-review-tests.md](ticket-291-review-tests.md), every finding handled. Not verified: a row with no width yet, unreachable in the app (a stated gap in the e2e file's header) | Verified on #291's paths, but for the stated gap |
 
 ## Two-way audit
 
