@@ -71,7 +71,10 @@
 <link rel="stylesheet" href="../_shared/app-window.css">
 <link rel="stylesheet" href="../_shared/app-rail.css">
 <link rel="stylesheet" href="../_shared/project-side.css">
-<!-- The sessions tab's search row and hits are a shared piece, drawn the same by global search -->
+<!-- The sessions tab's search row and hits are a shared piece, drawn the same by global search. A question hit
+     row starts at the question's beginning; when the first occurrence of the keyword would fall past the line's
+     cut, it starts 20 characters before it, after an ellipsis (owner's calls, 2026-10-22; the notarize sample has
+     such a question). A full-text hit's snippet is already cut around its keyword and is drawn as it is -->
 <link rel="stylesheet" href="../_shared/session-hits.css">
 <!-- The memory file drawer: the shared file drawer around the shared md-preview block, and the app's toast -->
 <link rel="stylesheet" href="../_shared/md-preview.css">
@@ -221,6 +224,7 @@
 <script src="../app-identity.js"></script>
 <script src="../_shared/icons.js"></script>
 <script src="../_shared/copy.js"></script>
+<script src="../_shared/session-hits.js"></script>
 <script src="../vendor/marked.umd.js"></script>
 <script src="../_shared/md-preview.js"></script>
 <script src="../_shared/toast.js"></script>
@@ -827,6 +831,7 @@
     {s:0,n:'04',q:'沙箱权限为啥报错?entitlements 里 network.client 已经打开了',d:'15:02'},
     {s:0,n:'05',q:'帮我把 notarize 脚本改成两条线各自一份',d:'15:40'},
     {s:0,n:'09',q:'notarize 失败了,看下日志',d:'16:22'},
+    {s:0,n:'14',q:'接着上午那段被压缩的对话:MAS 线和 DMG 线已经拆开,两个 bundle id 的 entitlements 也各自整理过了,network.client 打开后沙箱的报错查过是旧描述文件;现在剩下 notarize 通过之后 stapler 报 Record not found,是该等苹果同步还是换 notarytool 的 --wait',d:'17:05'},
     {s:0,n:'04',q:'(回答正文)notarization 与 App Store 审核是两条互斥路径,MAS 线不触发',d:'15:05',body:1},
     {s:1,n:'03',q:'权限弹窗为啥不出来?TCC 那边要先 preflight 一次',d:'07-24'},
     {s:1,n:'11',q:'签名和 notarize 分两步跑会不会有问题',d:'07-24'},
@@ -879,10 +884,12 @@
         return `<div class="grp"><div class="gh" ${GOTO}><span class="b ${x.b}" style="flex:none">${x.s}</span>
           <span class="t">${esc2(x.t)}</span>${x.p(t)}<span class="n">${t.hitCount(list.length)}</span></div>
           ${list.map(h=>`<div class="hit" ${GOTO}><span class="idx">${h.n}</span>
-            <span class="t">${hl(h.q,k)}</span>${h.body?`<span class="bd">${t.inBody}</span>`:''}
+            ${h.body?`<span class="t">${hl(h.q,k)}</span>`:SessionHits.text(h.q,k)}${h.body?`<span class="bd">${t.inBody}</span>`:''}
             <span class="d">${h.d}</span></div>`).join('')}</div>`;
       }).join('');
+    SessionHits.fit(box);
   }
+  SessionHits.watch(document.getElementById('sres'));
   document.getElementById('sq').addEventListener('input',e=>{ sq=e.target.value; renderSessions() });
   document.getElementById('sres').addEventListener('click',e=>{
     const so=e.target.closest('[data-so]'); if(!so) return;

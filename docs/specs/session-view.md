@@ -606,6 +606,37 @@ below are archived as a decision record and are no longer requirements)**
   unmounting, promote it to a view-prefs module. **The cost**: it survives switching projects too — the
   sort is a way of looking, not a property of a project.
 
+## Search hit rows
+
+### session-view::REQ-002 A hit row keeps its keyword in view
+
+Applies to: the question hit rows that a project's session search and global search share
+([global-search::US-001/AC-06](global-search.md)). A full-text hit's snippet is already cut around its
+keyword (20 characters before it, 60 after) and is drawn as it is. Characters are counted as written: one
+outside the basic plane, such as an emoji, counts as one.
+
+- session-view::REQ-002/AC-01: A hit row draws its question on one line from the beginning, cut with an
+  ellipsis where it overflows, with every occurrence of the keyword highlighted. A row whose first occurrence
+  is wholly in view is drawn so.
+- session-view::REQ-002/AC-02: When the first occurrence would not be wholly in view — past the cut, or under
+  the ellipsis — the row starts 20 characters before it, after a leading ellipsis.
+- session-view::REQ-002/AC-03: When even that does not show the first occurrence whole (a long keyword in a
+  narrow row), the row starts at the occurrence itself, after the leading ellipsis.
+- session-view::REQ-002/AC-04: Whether the occurrence is in view is judged at the row's width, and judged
+  again, from the question's beginning, whenever that width changes or the rows are drawn anew.
+
+### Failure modes and boundaries: hit rows
+
+- The keyword opens the question: the row is drawn from the beginning, whatever its width.
+- Several occurrences: the first decides where the row starts; every occurrence in view is highlighted.
+- The window is resized, or the results are drawn anew (another keystroke, the sort switched, a rescan's
+  results): every row is judged again (session-view::REQ-002/AC-04), so a row widened enough to show its
+  keyword returns to the question's beginning.
+- Rows drawn while hidden (the Sessions tab not yet shown) have no width: they are judged once they are
+  shown.
+- The question holds markup or markdown: the row shows its characters, as before; moving the start never
+  cuts a character in two.
+
 ## Cross-restart page restoration
 
 ### session-view::REQ-001 Restore successful session pages
@@ -773,6 +804,15 @@ too): with the delay in force, clicking a session row leaves the sessions list o
 inside the delay window) and then shows the session page; back returns the project page at once;
 reopening the session shows its questions before the delay could have elapsed. The turn fetch cases
 are untouched and must stay green.
+
+The hit rows (session-view::REQ-002) are asserted at the e2e seam, since only a laid-out row can say
+whether its keyword is in view: a fixture question whose keyword lies past the cut, searched in a
+project's Sessions tab and in global search, its first highlighted occurrence wholly inside the row's text
+box and short of the ellipsis; a row whose keyword is already in view keeps its beginning; at the app's
+minimum width, a keyword too long for 20 characters before it starts the row; a resize judges the rows
+again. Where a moved row starts is a pure function of the question and the keyword, unit-tested in the
+renderer: characters outside the basic plane counted once, the keyword at the start, several
+occurrences.
 
 ## Out of Scope
 

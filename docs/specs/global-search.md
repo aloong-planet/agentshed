@@ -51,7 +51,8 @@ so that I can find the session without guessing its project.
   untitled fallback where it has none), the fork marker or the uncertain-strip marker where the session
   carries one, and the session's hit count. Under it, one row per matching question: the question's
   original turn number in the session, the question on one line with every occurrence of the keyword
-  highlighted, and the question's time as a relative time.
+  highlighted and the first kept in view ([session-view::REQ-002](session-view.md)), and the question's time
+  as a relative time.
 - global-search::US-001/AC-07: Above the results a header line gives the hit, session and project counts,
   with a newest-first / oldest-first segment. Newest first (the default) orders projects by their most
   recently active matching session and the sessions inside a project by their own last activity; oldest
@@ -211,7 +212,9 @@ with plural forms through the existing plural rules; no string enumerates the ag
   parsing (a project's own search misses them in their escaped form, session-view D4). A question written
   over several lines is matched as the session page shows it, its line breaks as spaces, so the words either
   side of a break match with a space between them; the box itself takes no line break.
-- S8 A long question or title is cut with an ellipsis on its line; its full text is on the session page.
+- S8 A long question or title is cut with an ellipsis on its line; its full text is on the session page. A
+  question whose keyword would fall past the cut starts shortly before it instead
+  ([session-view::REQ-002](session-view.md)).
   A question written over several lines shows on one line.
 - S9 A session marked uncertain strip may carry a few replayed questions at its start
   ([session-view](session-view.md) B2), so the same sentence can hit in it and in its parent.
