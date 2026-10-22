@@ -612,8 +612,9 @@ below are archived as a decision record and are no longer requirements)**
 
 Applies to: the question hit rows that a project's session search and global search share
 ([global-search::US-001/AC-06](global-search.md)). A full-text hit's snippet is already cut around its
-keyword (20 characters before it, 60 after) and is drawn as it is. Characters are counted as written: one
-outside the basic plane, such as an emoji, counts as one.
+keyword (20 characters before it, 60 after) and is drawn as it is. Characters are counted on the question as
+the row shows it, where its line breaks and runs of spaces already read as one space (a question's text is
+normalised so when it is indexed), each as one: one outside the basic plane, such as an emoji, too.
 
 - session-view::REQ-002/AC-01: A hit row draws its question on one line from the beginning, cut with an
   ellipsis where it overflows, with every occurrence of the keyword highlighted. A row whose first occurrence
@@ -632,8 +633,8 @@ outside the basic plane, such as an emoji, counts as one.
 - The window is resized, or the results are drawn anew (another keystroke, the sort switched, a rescan's
   results): every row is judged again (session-view::REQ-002/AC-04), so a row widened enough to show its
   keyword returns to the question's beginning.
-- Rows drawn while hidden (the Sessions tab not yet shown) have no width: they are judged once they are
-  shown.
+- A row with no width yet is judged once it has one. The search page and the Sessions tab are drawn only
+  while shown; left and shown again, they draw their rows anew, and the rows are judged anew.
 - The question holds markup or markdown: the row shows its characters, as before; moving the start never
   cuts a character in two.
 
@@ -679,6 +680,12 @@ unchanged; export remains outside scope.
 
 ## Implementation Decisions
 
+- **Judging a hit row** (session-view::REQ-002): by laying the row out before it is painted — the whole
+  question first, then the 20-character window, then the keyword, each step after the previous one is
+  laid out — and from the beginning again when the row's width, text or keyword changes. Where a moved
+  row starts is one pure function of the question and the keyword. The ellipsis's width is measured on a
+  hidden probe in the row, once per font: the computed `font` shorthand cannot serve, since the row's
+  tabular figures leave it empty.
 - **Restored answer identity** (ADR-0029): each displayed question carries a fingerprint of its
   source file identity, byte position and raw question record. Turn queries key by that fingerprint
   as well as path and ordinal. A read validates the selected question and its answer in one range

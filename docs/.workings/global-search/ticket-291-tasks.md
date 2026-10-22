@@ -41,4 +41,18 @@ from `origin/main` at 5ff1db7 (no commits ahead when cut).
 |---|---|---|---|
 | 1 | Step 1: facts and decisions | this record | done |
 | 2 | Step 2: the prototypes (both pages' hit rows, a long question in their data) and the specs; the owner confirms the prototype | the confirmed prototype | prototype confirmed (D5); measured in Chrome at 1280, 1000 and 800px and after a resize, every row's first occurrence in view, rows already in view unchanged, the long-keyword fallback at 800px; the specs next |
-| 3 | Steps 4–8 (`/implement`, `/features-catalog`); PR; stop for the owner | PR link | pending |
+| 3 | Steps 4–7 (`/implement`): records declared on #291 and its document sync checklist; test design review; slices S1 (where a moved row starts, U1–U6) and S2 (the row judged by layout, E1–E5); code review (a bug fixed red-first, E6); full gateway; independent test review; spec check | `ticket-291-review-*.md`, `evidence/ticket-291/` | in progress: b295fdb, gateway `VERIFY_EXIT=0` (`evidence/ticket-291/gateway-b295fdb.txt`); the independent test review running |
+| 4 | Step 8 (`/features-catalog`); PR; stop for the owner | `final-regression.md`, PR link | pending |
+
+## Spec check before step 7 (2026-10-22, implementation b295fdb)
+
+| Unit | Spec text, in short | Implementation | Conclusion |
+|---|---|---|---|
+| session-view::REQ-002/AC-01 | from the beginning on one line, every occurrence highlighted; a row whose first occurrence is in view drawn so | the hit text starts whole and stays so when its first mark is in view (E1's near row, E2) | Met |
+| session-view::REQ-002/AC-02 | not wholly in view (past the cut or under the ellipsis) → 20 characters before it, after an ellipsis | the 20-character window (U1, E1, E2, E6) | Met |
+| session-view::REQ-002/AC-03 | when even that does not show it → at the occurrence | the keyword start (U2, U4, E4) | Met |
+| session-view::REQ-002/AC-04 | judged at the row's width, again when the width changes or the rows are drawn anew | the row's observer and the key of width, keyword and text (E3, E5) | Met |
+| session-view hit-row failure items | the keyword at the start; several occurrences; a resize or a new drawing; a row without a width; markup | U3, U6, E3, the zero-width guard, U5 and the existing markup case | Met; the item about rows drawn hidden was untrue for the app (the search page and the Sessions tab unmount when left) and is rewritten: a row without a width is judged once it has one, and a page shown again draws and judges its rows anew |
+| global-search::US-001/AC-06, S8 | the global search row keeps its first occurrence in view | the same component (E1, E5, E6) | Met |
+
+Scope added without a spec line: none. Written back: the failure item above; an implementation decision on how a row is judged and why the ellipsis is measured on a probe; and, after the independent test check's real-shaped question (F6), that characters are counted on the question as shown — a question's line breaks and runs of spaces are already one space when it is indexed (`realUserText`), for both searches.

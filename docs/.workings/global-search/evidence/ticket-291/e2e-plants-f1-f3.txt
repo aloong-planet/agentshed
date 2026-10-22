@@ -1,0 +1,47 @@
+# The reworked hit-row case under two planted faults (post-implementation check F1, F3): each built and run, then restored byte for byte
+# HEAD b295fdbd525a3af9a1b225f8892120e2b2ab7aea; e2e/global-search.spec.ts at ff787ac89588040906a7ebd4b8da6250a04fd686 (uncommitted); SessionHits.tsx as committed
+# Script:
+#   // Two plants in SessionHits.tsx, each built and run against the hit-row case, then restored byte for byte:
+#   //   A — the ellipsis taken as 10px (the bug the code review fixed): E6 must fail
+#   //   B — a width change keeps a moved row where it was instead of judging it from the beginning: E3's widening must fail
+#   import { readFileSync, writeFileSync } from 'node:fs'
+#   import { execSync } from 'node:child_process'
+#   const f = 'src/renderer/src/SessionHits.tsx'
+#   const orig = readFileSync(f)
+#   const src = orig.toString('utf8')
+#   const plants = {
+#     A: ['box.right - ellipsisWidth(el) : box.right', 'box.right - 10 : box.right'],
+#     B: ["const current = judged.key === key ? judged : { key, start: 'full' as Start, done: false }", 'const current = judged.key === key ? judged : { key, start: judged.start, done: false }']
+#   }
+#   try {
+#     for (const [name, [a, b]] of Object.entries(plants)) {
+#       if (src.split(a).length !== 2) throw new Error(`plant ${name}: anchor not unique`)
+#       writeFileSync(f, src.replace(a, b))
+#       execSync('pnpm -s exec electron-vite build', { stdio: 'ignore' })
+#       let out = ''
+#       let code = 0
+#       try { out = execSync('pnpm -s exec playwright test e2e/global-search.spec.ts -g "keeps its keyword"', { stdio: 'pipe' }).toString() } catch (e) { code = e.status; out = e.stdout.toString() }
+#       const at = out.split('\n').find((l) => /^\s+> \d+ \|/.test(l)) ?? '(no failing line)'
+#       const diff = out.split('\n').filter((l) => /^\s+[-+]\s+"text"|^\s+[-+]\s+"inView"/.test(l)).join('\n')
+#       console.log(`plant ${name}: exit ${code}\n  failing line: ${at.trim()}\n${diff}`)
+#       writeFileSync(f, orig)
+#     }
+#   } finally {
+#     writeFileSync(f, orig)
+#   }
+#   console.log('restored byte for byte:', Buffer.compare(readFileSync(f), orig) === 0)
+#   execSync('pnpm -s exec electron-vite build', { stdio: 'ignore' })
+#   console.log('rebuilt from the restored source')
+# Output:
+plant A: exit 1
+  failing line: > 977 |     await expect.poll(async () => (await hitRows(body(win)))[3]).toEqual({ text: '…ter, then later the quokka-routing-table-for-the-narrow-rows entry', inView: true })
+    -   "inView": true,
+    -   "text": "…ter, then later the quokka-routing-table-for-the-narrow-rows entry",
+    +   "inView": false,
+    +   "text": "Notes on the deployment window and the rollback rules for the cluster, then later the quokka-routing-table-for-the-narrow-rows entry",
+plant B: exit 1
+  failing line: > 959 |     await expect.poll(async () => (await hitRows(tab))[2]).toEqual({ text: MID, inView: true })
+    -   "text": "A middle-length question that mentions the zebu herd and then the quokka once more",
+    +   "text": "…u herd and then the quokka once more",
+restored byte for byte: true
+rebuilt from the restored source

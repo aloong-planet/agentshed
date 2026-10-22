@@ -340,3 +340,46 @@ coverage checklist's closeout block), with three stated gaps — the untitled fa
 saved data has no case of its own (S2) — and the key press ⌘⇧F accepted by hand. ADR-0034 stays Accepted. The documents
 agree with what shipped; the one inconsistency found is corrected. #274 merged as 389d264 on 2026-10-20 (#287), no code
 changed by it; the merge is recorded, and global search has no open item.
+
+## Ticket #291 — A search hit row keeps its keyword in view
+
+- Date: 2026-10-22
+- Scope: this ticket's change only, `git diff 7fe0186` on branch `fix/search-hit-highlight` (d41964a, the specs,
+  prototype and records; f8b7ca8, the implementation; b295fdb, the code review's fix; the step 7 and step 8 edits
+  after it)
+- Version: b295fdb and the documentation edits after it
+
+The two questions for the feature catalogue: **what became a lie** — nothing: both entries said a hit row shows
+the question on one line with the keyword highlighted, which stays true. **What was missing** — what a row does
+when its keyword lies too far in to be seen: added to both entries.
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/session-view.md` (REQ-002, its failure items, the implementation decision, Testing Decisions) | the implementation at b295fdb, unit by unit (`ticket-291-tasks.md`, "Spec check before step 7"); every failure item against a test | True after the spec check: the item about rows drawn while hidden was untrue for the app and is rewritten; the judging and the ellipsis measurement are an implementation decision |
+| `docs/specs/global-search.md` (US-001/AC-06, S8) | the global search rows (E1, E5, E6) | True; both point to session-view::REQ-002 |
+| `docs/features/session-view.md`, `docs/features/global-search.md` | session-view::REQ-002/AC-01..AC-04 | Agree: the start, the window, the keyword fallback and the resize; nothing the spec lacks |
+| ADRs | — | Row set empty: no decision of this round meets the ADR bar |
+| `CONTEXT.md` | the words used (hit row, keyword, cut, ellipsis) | Unchanged: no new term; "real question" (ADR-0036) is not touched |
+| The prototypes ↔ the app | the shared piece `_shared/session-hits.js` against `SessionHits.tsx`: the same three steps, the same 20 characters, the same keyword fallback, judged again on a width change; the full-text snippet drawn as before in both | Agree. The app measures the ellipsis on a probe in the row; the prototype on a probe too |
+
+### Stage 2: related declarations
+
+| Relation | Rows | Conclusion |
+|---|---|---|
+| File ↔ its index row | `docs/features/README.md` (Session view; Global search), `docs/specs/README.md` | Both rows still true; unchanged |
+| Rule ↔ template and generated documents | — | Row set empty: no rule or template changed |
+| One fact ↔ its other statements: a full-text snippet's window (20 characters before, 60 after) | session-view D2's landed note, REQ-002's applies-to line, the code (`search-sessions.ts`) | Agree |
+| One fact ↔ its other statements: a hit row is one line, cut with an ellipsis | session-view D2a's corollary ("display-layer truncation"), global-search S8, REQ-002/AC-01 | Agree: the row is still cut by the stylesheet; only its start moves |
+| Rule ↔ the gate that holds it: the shared hit-row piece | `check:ui`'s session-hits block, now with `_shared/session-hits.js` among its assets | Both prototype pages declare the block and reference both assets (the check passes) |
+
+### Stage 3: events
+
+| Event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed | — | Row set empty: no enumerable dimension changed |
+| `Pending:` notes in scope | `rg -n "Pending" docs/specs/session-view.md docs/specs/global-search.md docs/features/session-view.md docs/features/global-search.md`: no output | Row set empty |
+| New general rules this round | a hit row keeps its keyword in view; the computed `font` shorthand is empty under tabular figures, so an ellipsis is measured on a probe | The first is session-view::REQ-002; the second is in the spec's implementation decision and the code comment beside the measurement |
+| Work state changed | #291's issue (its decision, records and acceptance items); the coverage checklist's #291 rows; the document sync checklist; the task list; records of other rounds that mention #291 (`docs/.workings/macos-release-line/ticket-279-tasks.md` D9 and its checklist row), found with `rg -uu -n "#291"` | Updated where they state this ticket's state; the #279 records are dated and say what was decided then: kept |
+| The independent test check's findings | to be recorded when it reports | Open |

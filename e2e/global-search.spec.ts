@@ -15,6 +15,12 @@
 //     application menu's e2e runs its items. Re-test: by hand, ⌘⇧F in a running app from settings, a session page
 //     and the search page itself shows the page with the cursor in the box; automate it once a key event reaches
 //     the menu in the test's window.
+//   - A hit row with no width yet (session-view's hit-row failure item) is unreachable: the search page and the
+//     Sessions tab unmount when left, and no hit row is mounted hidden. Re-test once a page keeps hit rows mounted
+//     while hidden: show it and assert its rows are judged.
+//   - The hit-row case's "in view" measure lays out an ellipsis probe in the row and compares overflow, as the
+//     component does, so a mis-measured ellipsis common to both would not show; its independent anchor is the
+//     window sized from the highlight's own box (the keyword left 11–12px from the edge, inside a 13px ellipsis).
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -875,7 +881,10 @@ test('a hit row keeps its keyword in view: 20 characters before a far keyword, t
   const MID = 'A middle-length question that mentions the zebu herd and then the quokka once more'
   const LONG_KEY = 'quokka-routing-table-for-the-narrow-rows'
   const WITH_LONG_KEY = `Notes on the deployment window and the rollback rules for the cluster, then later the ${LONG_KEY} entry`
-  claude(home, dir, 'rows-1', [FAR, NEAR, MID, WITH_LONG_KEY], 1)
+  // A question in a real one's shape (most real questions hold CJK, many line breaks and runs of spaces): its
+  // keyword, its own, about 100 characters in
+  const CJK = '\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\n   \u7136\u540e\u770b wombat \u7684\u95ee\u9898'
+  claude(home, dir, 'rows-1', [FAR, NEAR, MID, WITH_LONG_KEY, CJK], 1)
   const l = await launch(home)
   const { win } = l
   try {
@@ -890,6 +899,26 @@ test('a hit row keeps its keyword in view: 20 characters before a far keyword, t
       [WITH_LONG_KEY.slice(0, 30), true]
     ])
     await win.screenshot({ path: 'e2e-out/hit-rows-global-search.png' })
+
+    // A question in a real one's shape: global search shows it on one line, its line break and run of spaces read as
+    // one space, and the 20 characters before the keyword are counted on the text as shown (E8)
+    await box(win).fill('wombat')
+    await expect(body(win).locator('.hit')).toHaveCount(1)
+    await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: '\u2026\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c \u7136\u540e\u770b wombat \u7684\u95ee\u9898', inView: true })
+
+    // A new keyword on the same row judges it again, both ways: the row stays mounted (its mark survives) while a
+    // keyword in view leaves it at its beginning and one far in moves it (E7)
+    await box(win).fill('planning')
+    await expect(body(win).locator('.hit')).toHaveCount(1)
+    await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: FAR, inView: true })
+    await body(win).locator('.hit').first().evaluate((el) => { el.setAttribute('data-e2e-same-row', '1') })
+    await box(win).fill('quokka question')
+    await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: '…g call, and now the quokka question itself', inView: true })
+    await box(win).fill('planning')
+    await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: FAR, inView: true })
+    await expect(body(win).locator('.hit[data-e2e-same-row="1"]')).toHaveCount(1)
+    await box(win).fill('quokka')
+    await expect(body(win).locator('.hit')).toHaveCount(4)
 
     // Left for another page and shown again: the rows are drawn anew and judged anew (E5)
     await win.locator('.rail .ri').nth(1).click()
@@ -920,29 +949,28 @@ test('a hit row keeps its keyword in view: 20 characters before a far keyword, t
     await expect.poll(async () => (await hitRows(tab))[0]).toEqual({ text: `…${LONG_KEY} entry`, inView: true })
     await win.screenshot({ path: 'e2e-out/hit-rows-long-keyword-800.png' })
 
-    // Widened again: the middle question's row returns to its own beginning (E3)
+    // Widened again: the middle question's row, moved at 800px, returns to its own beginning (E3). The tab draws
+    // its results a moment after typing, so the moved row is awaited at 800px before the window widens
     await win.locator('.sbar input').fill('quokka')
+    await expect(tab.locator('.hit')).toHaveCount(4)
+    await expect.poll(async () => (await hitRows(tab))[2]).toEqual({ text: '…u herd and then the quokka once more', inView: true })
     await l.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1400, 900))
     await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(1400)
     await expect.poll(async () => (await hitRows(tab))[2]).toEqual({ text: MID, inView: true })
     expect((await hitRows(tab))[1].text).toBe(NEAR)
 
     // A keyword ending under the ellipsis is out of view (E6). In global search, size the window so that the fourth
-    // question's keyword ends 11.5px before its row's right edge: inside the ellipsis (13px in this font), so the row
-    // has to move. The text box grows one pixel per pixel of window, so the width follows from one measurement
+    // question's highlight (its box, padding included, which is what is judged) ends 11.5px before its row's right
+    // edge: inside the ellipsis (13px in this font) by 1.5px, outside a 10px one by 1.5px, so the row has to move.
+    // The text box grows one pixel per pixel of window, so the width follows from one measurement of the row unmoved
     await searchItem(win).click()
     await expect(body(win).locator('.hit')).toHaveCount(4)
-    const KEY_END = WITH_LONG_KEY.indexOf('quokka') + 'quokka'.length
-    const m = await body(win).locator('.hit .t').nth(3).evaluate((el, upToKey) => {
-      const probe = document.createElement('span')
-      probe.textContent = upToKey
-      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap'
-      el.appendChild(probe)
-      const textW = probe.getBoundingClientRect().width
-      probe.remove()
-      return { textW, boxW: el.getBoundingClientRect().width, winW: window.innerWidth }
-    }, WITH_LONG_KEY.slice(0, KEY_END))
-    const width = Math.round(m.winW - m.boxW + m.textW + 11.5)
+    await expect.poll(async () => (await hitRows(body(win)))[3]).toEqual({ text: WITH_LONG_KEY, inView: true })
+    const m = await body(win).locator('.hit .t').nth(3).evaluate((el) => {
+      const box = el.getBoundingClientRect()
+      return { markEnd: (el.querySelector('mark') as HTMLElement).getBoundingClientRect().right - box.left, boxW: box.width, winW: window.innerWidth }
+    })
+    const width = Math.round(m.winW - m.boxW + m.markEnd + 11.5)
     expect(width).toBeGreaterThanOrEqual(800)
     await l.app.evaluate(({ BrowserWindow }, w) => BrowserWindow.getAllWindows()[0].setSize(w, 900), width)
     await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(width)

@@ -25,7 +25,9 @@ project.
   name is struck through and tagged stale. Under each heading, one card per session
 - A session card shows the side badge, the title, the fork or uncertain-strip marker where the session
   carries one, and its hit count; each hit row shows the question's number in its session, the question on
-  one line with every occurrence of the keyword highlighted, and when it was asked
+  one line with every occurrence of the keyword highlighted, and when it was asked. When the keyword lies too
+  far into a long question to be seen, the row starts shortly before it, after an ellipsis, as a project's
+  own search does
 - A header line counts the hits, sessions and projects, with a Newest first / Oldest first switch:
   projects are ordered by their most recently active matching session and sessions by their own last
   activity, and Oldest first reverses both; hits inside a session stay in question order

@@ -37,9 +37,10 @@ No finding: the row's text is still drawn as text through the existing highlight
 ## Consistency
 
 No finding against existing invariants. The full-text body hit keeps the existing highlight; the prototypes'
-shared piece does the same steps, so the app follows the confirmed prototype. Smells: none in the new code; the
-e2e helper measures "in view" on its own (a DOM probe), independently of the component, which is what a test
-oracle should do.
+shared piece does the same steps, so the app follows the confirmed prototype. Smells: none in the new code. The e2e
+helper's "in view" is its own code but the component's method (an ellipsis probe and an overflow test), so it is
+not an independent oracle for the ellipsis's width; E6's sizing from the highlight's box is (corrected after the
+independent test check, F7).
 
 ## Refactoring list (for the owner's decision)
 

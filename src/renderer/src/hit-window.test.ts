@@ -28,8 +28,9 @@ describe('hitWindow', () => {
 
   it('counts a character outside the basic plane once and never cuts one in two', () => {
     const smile = String.fromCodePoint(0x1f600)
-    const { before, at } = hitWindow(`${smile.repeat(25)}quokka`, 'quokka')
-    expect(before).toBe(`…${smile.repeat(20)}quokka`)
+    // 25 emoji and a space: counting code units, the 20-before cut would land inside an emoji
+    const { before, at } = hitWindow(`${smile.repeat(25)} quokka`, 'quokka')
+    expect(before).toBe(`…${smile.repeat(19)} quokka`)
     expect(at).toBe('…quokka')
     expect(before).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/)
   })

@@ -119,7 +119,7 @@ item; #274 = the closeout. Links: [global-search spec](../../specs/global-search
 | session-view::REQ-002/AC-02 (#291) | Not wholly in view → 20 characters before it, after an ellipsis | #291 | Test: e2e (the first highlight inside the row short of the ellipsis); unit (where the row starts, in characters) |
 | session-view::REQ-002/AC-03 (#291) | A long keyword in a narrow row → the row starts at the keyword | #291 | Test: e2e at the app's minimum width |
 | session-view::REQ-002/AC-04 (#291) | Judged at the row's width; again when the width changes or the rows are drawn anew | #291 | Test: e2e (a resize) |
-| session-view hit-row failure items (#291) | The keyword opens the question; several occurrences; a resize or a new drawing; rows drawn while hidden; markup | #291 | Test: unit (the start, several occurrences, characters outside the basic plane); e2e (resize, the hidden Sessions tab shown) |
+| session-view hit-row failure items (#291) | The keyword opens the question; several occurrences; a resize or a new drawing; a row without a width yet, a page shown again; markup | #291 | Test: unit (the start, several occurrences, characters outside the basic plane); e2e (resize, the search page shown again) |
 | global-search::US-001/AC-06, S8 (#291, amended) | The row's keyword kept in view, by reference | #291 | Covered by session-view::REQ-002's rows |
 
 ## Current verification
@@ -290,6 +290,6 @@ hold for main at 389d264.
 | Ticket draft, reverse: every ticket criterion maps to a unit or a stated prerequisite | #271–#274 drafts | Technical prerequisites (the corpus, the two channels, the delay knob on the reading channel) support named units; no product criterion without a unit |
 | Cut through one screen? | #271 / #272 | Ruled 2026-10-19 (owner): #271 ships the jump, so a hit opens its session with the existing single back control; #272 adds the two exits and the return. No screen is split, and every merged state of main is coherent |
 | #291 forward: S30–S34 map to coverage units | S30–S34 | Done 2026-10-22 |
-| #291 reverse: units without a source | session-view hit-row failure items | Derived from S30–S33 without changing them: the keyword at the start (no move), several occurrences (the first decides), a resize or a new drawing (S30's "judged at the row's width"), rows drawn hidden (no width yet), markup (the existing plain-text rule). Reported to the owner with the spec |
+| #291 reverse: units without a source | session-view hit-row failure items | Derived from S30–S33 without changing them: the keyword at the start (no move), several occurrences (the first decides), a resize or a new drawing (S30's "judged at the row's width"), a row without a width yet and a page shown again (written first as "rows drawn while hidden", which the app never does: corrected at the spec check), markup (the existing plain-text rule). Reported to the owner with the spec |
 | #291 placement: one primary definition for a shared row | session-view::REQ-002; global-search::US-001/AC-06, S8 | The row is the project search's own, which global search reuses: its rule lives in session-view, and global search refers to it |
 | #291 prototype gate | the global search page and the project page's Sessions tab, through the shared hit-row piece | Confirmed 2026-10-22 (S34); measured in Chrome at 1280, 1000 and 800px and after a resize |
