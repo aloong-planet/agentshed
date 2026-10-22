@@ -405,3 +405,89 @@ Not test findings:
 | G2 | Fixed: the design review's stale sentences corrected in place, each marked as superseded with what replaced it |
 
 The checklist's planned verification names the no-width item as a stated gap; its current verification is written after the final full run. This handling changes E7's executable content, so the incremental check runs once more on its commit.
+
+## Post-implementation check, incremental (fix commit d09280c)
+
+2026-10-22. Implementation version: d09280c (fix range 676557e..d09280c). Ticket #291. Run by an independent agent
+that did not inherit the implementing session. Specs as committed in d09280c (the working tree was clean). For E7,
+this round's conclusions replace those of the 676557e round.
+
+Scope, by the incremental rules:
+
+- Tests changed in the range: the e2e case "a hit row keeps its keyword in view…", in E7 only. Its keyword in view
+  is now "call" instead of "planning", on both legs, and its comment explains why.
+- Tests depending on test helper code changed in the range: none. Commands and results:
+  - `git diff -U0 676557e d09280c -- e2e/global-search.spec.ts`: two hunks, at lines 910–912 and 918, both inside
+    the hit-row test body (E7). No shared helper changed.
+  - `rg -n -uu -e "from '\./hit-window'" -e "hit-window'" src e2e scripts site/src`: `SessionHits.tsx:6` and
+    `hit-window.test.ts:6`. `hit-window.ts` changed in a comment only, and the targeted log's renderer bundle is
+    still `index-CPw4TZbb.js`.
+- Test design table rows changed in the range: E7. Outside the rows, the design review's dimensions 1, 3 and 4 were
+  corrected in place (G2).
+- Outside this scope, every conclusion carries over from the 676557e round, and through it from the b295fdb round.
+
+Run evidence:
+
+- The targeted verification log, [targeted-fixes-g.txt](evidence/ticket-291/targeted-fixes-g.txt):
+  - It records HEAD 676557e and 8 uncommitted files, each with its `git hash-object`. Every hash equals the blob in
+    d09280c (`git rev-parse d09280c:<path>`, file by file), and the only file of the range it omits is the log
+    itself, so it ran on d09280c's content.
+  - Each command appears with its exit code and full output, and the log ends `TARGETED_EXIT=0`.
+  - It ran lint, typecheck, the renderer unit tests, one build, the whole of `e2e/global-search.spec.ts` (14 passed,
+    the hit-row case among them), check:lang, check:nul and check:ui.
+- No test was run in this round: the log covers the changed case, and the plant below answers when it turns red.
+- Mutation testing: per the project's capabilities `mutation-testing` is not enabled, so it is skipped and no
+  temporary change was made. The implementing session's plant ([e2e-plant-g1.txt](evidence/ticket-291/e2e-plant-g1.txt),
+  run on the e2e blob `299563c`, which is d09280c's, and restored byte for byte) serves as evidence of red.
+
+### Each changed test against the test design table
+
+| Test | Matches the table? | Note |
+|---|---|---|
+| E7 | Yes | "call" lies 28 characters into the far question and is the only question to hold it (computed over the case's five questions); "quokka question" likewise hits only that question |
+
+### Dimension 1: Coverage (incremental scope)
+
+G1 is resolved. E7 now covers a keyword change on a mounted row in both directions, and the return leg can fail.
+The checklist's planned verification names "a new keyword on a mounted row", and names the row with no width as a
+stated gap. No finding.
+
+### Dimension 2: Case design (incremental scope)
+
+No module doubles in the changed file (`rg` exit 1). E7's identity marker is unchanged and exempt as before. No
+finding.
+
+### Dimension 3: False greens (incremental scope)
+
+| Test | Red when | Expected value from |
+|---|---|---|
+| E7, first leg | A keyword change does not judge the persisting row again: the row stays whole with "quokka question" out of view | A literal |
+| E7, return leg | A keyword change keeps the row's moved start, or does not judge it again. "call" lies past 20 characters, so a kept start shows that keyword's 20-before window (`…nd for the planning call, …`) instead of the whole question. Shown under plant B, which now fails first at E7's return poll (line 919) | A literal |
+| E7, marker | The row is drawn anew across the two keystrokes | The marker's presence |
+
+Each poll reads the asserted expression. No transient state equals the whole question except the judged result, so a
+read taken too early fails rather than passes. No other form applies. No finding.
+
+### Dimension 4: Resource reuse (incremental scope)
+
+The targeted log shows one `electron-vite build` (a single build heading, with its three outputs). The range adds no
+`launch(` call, so the case keeps its one launch. No finding.
+
+### Findings (incremental, d09280c)
+
+None.
+
+- G1 is resolved, as above.
+- G2 is resolved. The design review's dimension 1 now names E7 for a keyword change and E5 for a page shown again,
+  and lists the two stated gaps. Dimensions 3 and 4 read E1–E8. Each superseded sentence is marked as such.
+- My previous round's note on the wording "normalised … when it is indexed" is resolved. The spec now says "whenever
+  it is read, by the same function the index uses", and the comment in `hit-window.ts` says "whenever it is read".
+
+Document sync, from this range's changes only:
+
+- The spec, the checklist's planned verification and the ticket's document sync checklist match the changes. The
+  spec write-back and the features entries are Done, and the checklist row stays Pending until its current
+  verification is written after the final full run.
+
+Not a test finding, carried over: the full gateway log is for b295fdb, so the gateway is re-run before delivery, as
+`/implement` requires.
