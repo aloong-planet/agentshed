@@ -70,7 +70,7 @@ sessions, one per row, with "how many questions I asked in this conversation".
   the question is the human message the agent recorded, the prose is the agent's message; a session
   whose only user-side content is the agent's injected context (instructions, environment,
   plugin recommendations) has no question and is not listed, while its tokens still count
-- The question count counts only **what a human asked**: tool results fed back in, a subagent's own
+- The question count counts the **user's messages**: tool results fed back in, a subagent's own
   transcript, and noise messages do not count; nor do questions on **the branch abandoned** after an
   edit and rerun — only "how this conversation finally went" is counted
 - A forked session (branched from another and continued) replays the parent's history at its start.
@@ -131,3 +131,7 @@ sessions, one per row, with "how many questions I asked in this conversation".
   the parent outside scan scope the replayed span cannot be checked entry by entry, and the only
   available judgement is "were these written at almost the same moment". This is a deliberate
   trade-off — the other direction silently drops real questions, and that is invisible
+- Text an agent tool writes into a session as if you had typed it is shown as a question: the summary
+  written after a context compaction, a message from a subagent or another session, Codex's own
+  context blocks. It is listed and counted, titles the session when it comes first, and is found by
+  the search

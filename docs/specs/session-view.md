@@ -144,7 +144,8 @@ ruling on 2026-08-06, see Out of Scope).
   2026-09-10 over every rollout: 1317 of 1367 paginated rollouts carry it. Its harness-injected
   shapes were enumerated on 2026-09-11 (330 of 8285 items, all pure, none mixed with a human
   sentence): the guardian's transcript preamble, a task notification, a delegation block — three
-  prefix families the shared stripping removes, beside the Claude shapes. `response_item/message` is
+  prefix families the shared stripping removes, beside the Claude shapes. Text a tool injects as a user
+  entry in any other shape is listed as a question (ADR-0036). `response_item/message` is
   **never** a question source: it mixes in `<environment_context>` / AGENTS.md injected content, and
   every paginated rollout without a user-message item holds exactly one such message made of
   injected parts only (29 of 29, 2026-09-11) — such a session has no question, is not listed (A3a)
@@ -797,6 +798,9 @@ are untouched and must stay green.
 - Persisting session search results or search state across restarts (P9).
 - A pending indicator on the clicked row while a first open is in flight: a new visible state that
   needs a prototype.
+- Stripping text the agent tools write into a session as user entries beyond the shapes A4 and B1 name:
+  a compaction summary, a message from a subagent or another session, Codex's ambient UI state, its
+  file lists and its question replies are titled, counted, listed and searched as questions (ADR-0036).
 
 ## Further Notes
 
