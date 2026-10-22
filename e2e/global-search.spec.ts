@@ -864,7 +864,7 @@ async function hitRows(scope: ReturnType<Page['locator']>): Promise<{ text: stri
   )
 }
 
-test('a hit row keeps its keyword in view: 20 characters before a far keyword, the keyword itself when that does not fit, judged again on a resize and when shown again — in global search and in a project\'s Sessions tab (session-view::REQ-002)', async () => {
+test('a hit row keeps its keyword in view: 20 characters before a far keyword, the keyword itself when that does not fit, a keyword under the ellipsis counted out of view, judged again on a resize and when shown again — in global search and in a project\'s Sessions tab (session-view::REQ-002)', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-gs-rows-'))
   const dir = join(home, 'work', 'rows-proj')
   mkdirSync(dir, { recursive: true })
@@ -926,6 +926,27 @@ test('a hit row keeps its keyword in view: 20 characters before a far keyword, t
     await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(1400)
     await expect.poll(async () => (await hitRows(tab))[2]).toEqual({ text: MID, inView: true })
     expect((await hitRows(tab))[1].text).toBe(NEAR)
+
+    // A keyword ending under the ellipsis is out of view (E6). In global search, size the window so that the fourth
+    // question's keyword ends 11.5px before its row's right edge: inside the ellipsis (13px in this font), so the row
+    // has to move. The text box grows one pixel per pixel of window, so the width follows from one measurement
+    await searchItem(win).click()
+    await expect(body(win).locator('.hit')).toHaveCount(4)
+    const KEY_END = WITH_LONG_KEY.indexOf('quokka') + 'quokka'.length
+    const m = await body(win).locator('.hit .t').nth(3).evaluate((el, upToKey) => {
+      const probe = document.createElement('span')
+      probe.textContent = upToKey
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap'
+      el.appendChild(probe)
+      const textW = probe.getBoundingClientRect().width
+      probe.remove()
+      return { textW, boxW: el.getBoundingClientRect().width, winW: window.innerWidth }
+    }, WITH_LONG_KEY.slice(0, KEY_END))
+    const width = Math.round(m.winW - m.boxW + m.textW + 11.5)
+    expect(width).toBeGreaterThanOrEqual(800)
+    await l.app.evaluate(({ BrowserWindow }, w) => BrowserWindow.getAllWindows()[0].setSize(w, 900), width)
+    await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(width)
+    await expect.poll(async () => (await hitRows(body(win)))[3]).toEqual({ text: '…ter, then later the quokka-routing-table-for-the-narrow-rows entry', inView: true })
     expect(l.errors).toEqual([])
   } finally {
     await close(l, home)

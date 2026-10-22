@@ -27,15 +27,21 @@ export function Highlight({ text, needle }: { text: string; needle: string }): J
   return <>{parts}</>
 }
 
-/** The width of an ellipsis in a font, measured once per font */
+/** The width of the line's ellipsis in this element's font, measured once per font. Measured on a probe laid out in
+ *  the element itself: the computed `font` shorthand can be empty (a font-variant the shorthand cannot express
+ *  blanks it), and a canvas given an empty font measures in its own default font */
 const ellipsisWidths = new Map<string, number>()
-function ellipsisWidth(font: string): number {
+function ellipsisWidth(el: HTMLElement): number {
+  const cs = getComputedStyle(el)
+  const font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
   let w = ellipsisWidths.get(font)
   if (w === undefined) {
-    const ctx = document.createElement('canvas').getContext('2d')
-    if (!ctx) return 0
-    ctx.font = font
-    w = ctx.measureText('…').width
+    const probe = document.createElement('span')
+    probe.textContent = '…'
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap'
+    el.appendChild(probe)
+    w = probe.getBoundingClientRect().width
+    probe.remove()
     ellipsisWidths.set(font, w)
   }
   return w
@@ -47,7 +53,7 @@ function firstMarkInView(el: HTMLElement): boolean {
   const mark = el.querySelector('mark')
   if (!mark) return true
   const box = el.getBoundingClientRect()
-  const end = el.scrollWidth > el.clientWidth ? box.right - ellipsisWidth(getComputedStyle(el).font) : box.right
+  const end = el.scrollWidth > el.clientWidth ? box.right - ellipsisWidth(el) : box.right
   const r = mark.getBoundingClientRect()
   return r.left >= box.left - 0.5 && r.right <= end + 0.5
 }
