@@ -17,6 +17,10 @@
        - questions only, no full-text toggle; the placeholder says how many sessions in how many projects are
          searched (with nothing to search it names no number), and the no-hits line points to the project's
          Sessions tab for full text;
+       - a hit row shows the question on one line from its beginning, every occurrence of the keyword marked;
+         when the first occurrence would fall past the line's cut, the row starts 20 characters before it,
+         after an ellipsis, judged at the row's width and again when it changes (owner's calls, 2026-10-22; the
+         notarize sample has such a question, with others whose keyword is already in view);
        - search as you type; while the question texts are still being read, the header's hint slot says so
          and the results area shows nothing — the results appear once the reading is done (owner's ruling,
          2026-10-19: no "searching" state in the results area). The reading hint takes the slot over the
@@ -88,6 +92,7 @@
 <script src="../app-identity.js"></script>
 <script src="../_shared/icons.js"></script>
 <script src="../_shared/copy.js"></script>
+<script src="../_shared/session-hits.js"></script>
 </head>
 <body>
 <div class="app-window" data-shared-block="app-window">
@@ -207,6 +212,7 @@
     { s:1, i:4, q:'沙箱权限为啥报错?entitlements 里 network.client 已经打开了', d:3 },
     { s:1, i:5, q:'帮我把 notarize 脚本改成两条线各自一份', d:3 },
     { s:1, i:9, q:'notarize 失败了,看下日志', d:3 },
+    { s:1, i:15, q:'这段接着上一段被压缩的对话继续:前面定了 MAS 上架拆成两条构建线、两个 bundle id 各自一份 entitlements,network.client 打开后沙箱报错也查过了,是旧的描述文件没删干净,DMG 那条线的签名身份也换成了团队证书;现在剩下的是 notarize 通过之后 stapler 一直报 Record not found,要不要改用 notarytool 的 --wait', d:3 },
     { s:1, i:12, q:'notarize 通过了但 stapler 报 Record not found,是不是要等苹果那边同步?先别重试,把 xcrun notarytool log 的完整输出贴给我,我想看是哪一个二进制没签上', d:3 },
     { s:2, i:3, q:'权限弹窗为啥不出来?TCC 那边要先 preflight 一次', d:5 },
     { s:2, i:11, q:'签名和 notarize 分两步跑会不会有问题', d:5 },
@@ -227,7 +233,6 @@
   let kw = '', order = 'desc', loading = false, noData = false, failed = false
   const GOTO = 'data-goto="session-view/session" data-goto-href="../session-view/prototype-session.html"'
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c])
-  const hl = (s, k) => esc(s).replace(new RegExp(esc(k).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), (m) => `<mark>${m}</mark>`)
   const seg = () => `<span class="seg" data-sord><span class="${order === 'desc' ? 'on' : ''}" data-so="desc">${t().recentFirst}</span>` +
     `<span class="${order === 'asc' ? 'on' : ''}" data-so="asc">${t().oldestFirst}</span></span>`
 
@@ -274,14 +279,16 @@
             return `<div class="grp"><div class="gh" ${GOTO}>` +
               `<span class="b ${x.b}">${x.s}</span><span class="t">${esc(x.t)}</span>${pill}<span class="n">${t().hitCount(hs.length)}</span></div>` +
               hs.map((h) => `<div class="hit" ${GOTO}><span class="idx">${String(h.i).padStart(2, '0')}</span>` +
-                `<span class="t">${hl(h.q, k)}</span><span class="d">${ago(h.d)}</span></div>`).join('') + `</div>`
+                `${SessionHits.text(h.q, k)}<span class="d">${ago(h.d)}</span></div>`).join('') + `</div>`
           }).join('')
       }).join('')
+    SessionHits.fit(box)
   }
 
   function applyI18n() {
     document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t()[el.dataset.i18n] })
   }
+  SessionHits.watch(document.getElementById('res'))
   document.getElementById('q').addEventListener('input', (e) => { kw = e.target.value; render() })
   // The sort segment sits in the results header: keep its click off the session rows below it
   document.getElementById('res').addEventListener('click', (e) => {

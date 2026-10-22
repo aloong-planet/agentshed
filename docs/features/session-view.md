@@ -98,6 +98,9 @@ sessions, one per row, with "how many questions I asked in this conversation".
 - **Hits are grouped by session**: the group header is the session (side badge, title, fork status)
   and inside it are the matching questions and highlighted snippets; it answers "in which
   conversation" first and "which line" second. Body hits carry a "body" marker and a context snippet
+- **A question hit always shows its keyword**: the row shows the question on one line from its start; when
+  the keyword lies too far in to be seen, the row starts shortly before it, after an ellipsis (or at the
+  keyword itself when a long keyword leaves no room), and it is judged again when the window changes size
 - **Clicking a hit goes straight to** that question in that session: the session page opens scrolled
   into position, the row holds a yellow highlight for about 10 seconds before fading, and a purple
   bar stays at the left edge to mark "this is the row you jumped to", disappearing when any question

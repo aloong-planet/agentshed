@@ -8,6 +8,11 @@ appearance (D1, entry point) and i18n (the application menu)
 
 All sources below are the owner's answers in the requirements conversation of 2026-10-19, translated from the owner's Chinese (the repository's working language is English).
 
+Increment of 2026-10-22 (#291, a hit row keeps its keyword in view): sources S30–S34, the owner's answers of
+2026-10-22; specs session-view (REQ-002, its failure items, Testing Decisions) and global-search (US-001/AC-06,
+S8) rewritten on 5ff1db7 with uncommitted changes. Not affected this round: every other unit of both specs (the
+search, the jump and the way back, the reading, the menu): the row's text is the only thing that changes.
+
 ## Source → spec
 
 | Source anchor and supporting text | Source disposition | Spec coverage unit | Semantic check |
@@ -49,6 +54,11 @@ All sources below are the owner's answers in the requirements conversation of 20
 | S27 "show a one-line 'search failed' notice" | Confirmed and in force | global-search::REQ-003/AC-01 | Retry on keyword change and after a rescan came from the option's description (REQ-003/AC-02) |
 | S28 reading hint takes the hint slot over the startup hint — stated in the delivery, not objected | Confirmed and in force | global-search::REQ-002/AC-02 | — |
 | S29 (2026-10-20, after #272's merge) "it counts: keep the two exits" — a session opened from a card's header keeps the exits, as shipped | Confirmed and in force | global-search::US-003/AC-01 | States the shipped behaviour; no code change |
+| S30 (#291, 2026-10-22) "move the window only when it cannot be seen": a row starts at the question's beginning and moves only when the first occurrence would not be visible, judged at the row's width | Confirmed and in force | session-view::REQ-002/AC-01, AC-02, AC-04 | — |
+| S31 (#291) "change both": a project's own question search and global search; full-text snippets unchanged | Confirmed and in force | session-view::REQ-002 (applies to), global-search::US-001/AC-06 | — |
+| S32 (#291) "20 characters before the keyword" | Confirmed and in force | session-view::REQ-002/AC-02 | Counted as characters written (a character outside the basic plane counts once): derived so that a cut never splits a character |
+| S33 (#291) "confirmed, including the narrow window": a long keyword in a narrow row starts the row at the keyword | Confirmed and in force | session-view::REQ-002/AC-03 | Proposed with the prototype as a boundary of S32 |
+| S34 (#291) the prototype confirmed | Confirmed and in force | session-view::REQ-002; global-search::US-001/AC-06, S8 | The prototype gate for every interface point of the increment |
 
 ## Spec → tickets → verification
 
@@ -105,6 +115,12 @@ item; #274 = the closeout. Links: [global-search spec](../../specs/global-search
 | appearance D1 | Dim includes search | #271 | Covered by global-search::US-001/AC-01 |
 | i18n application menu | Edit menu entry | #273 | Covered by global-search::US-004/AC-02 |
 | Full-feature acceptance and documentation regression | All of the above together | #274: closeout | Evidence: final-regression.md |
+| session-view::REQ-002/AC-01 (#291) | A row from the beginning, every occurrence highlighted; a row whose first occurrence is in view drawn so | #291: implementation and user-path acceptance | Test: e2e (a project's Sessions tab and global search) |
+| session-view::REQ-002/AC-02 (#291) | Not wholly in view → 20 characters before it, after an ellipsis | #291 | Test: e2e (the first highlight inside the row short of the ellipsis); unit (where the row starts, in characters) |
+| session-view::REQ-002/AC-03 (#291) | A long keyword in a narrow row → the row starts at the keyword | #291 | Test: e2e at the app's minimum width |
+| session-view::REQ-002/AC-04 (#291) | Judged at the row's width; again when the width changes or the rows are drawn anew | #291 | Test: e2e (a resize) |
+| session-view hit-row failure items (#291) | The keyword opens the question; several occurrences; a resize or a new drawing; a row without a width yet, a page shown again; markup | #291 | Test: unit (the start, several occurrences, characters outside the basic plane); e2e (resize, a new keyword on a mounted row, the search page shown again). A row without a width yet is unreachable in the app: a stated gap in the e2e file's header, not verified |
+| global-search::US-001/AC-06, S8 (#291, amended) | The row's keyword kept in view, by reference | #291 | Covered by session-view::REQ-002's rows |
 
 ## Current verification
 
@@ -254,6 +270,8 @@ hold for main at 389d264.
 | 2026-10-20 · spec f4197bb · impl f4197bb | projects-list C8; #271 | by US-002/AC-01 and J2 (E3) | Passed |
 | 2026-10-20 · spec f4197bb · impl f4197bb | appearance D1; #271 | by US-001/AC-01's row | Passed |
 | 2026-10-20 · spec f4197bb · impl f4197bb | i18n application menu, the Edit menu entry; #273 | by US-004/AC-02's row | Passed |
+| 2026-10-22 · spec and implementation a448fbc (branch fix/search-hit-highlight on 7fe0186) · the final run on its clean tree ([gateway-a448fbc.txt](evidence/ticket-291/gateway-a448fbc.txt)) | Every unit marked #291, on #291's paths | `VERIFY_EXIT=0`: 867 unit (U1–U6 among them), the script tests, the site, the gates, 145 e2e (the hit-row case E1–E8 among them), smoke OK. Each e2e step that guards a fault was shown red under it: rows drawn the old way (`e2e-old-rows-plant.txt`), the 10px ellipsis before and after the fix (`e6-ellipsis.txt`, `e2e-plants-f1-f3.txt`), a moved start kept through a width or keyword change (`e2e-plants-f1-f3.txt`, `e2e-plant-g1.txt`). Test review: design review, post-implementation check and two incremental checks in [ticket-291-review-tests.md](ticket-291-review-tests.md), every finding handled. Not verified: a row with no width yet, unreachable in the app (a stated gap in the e2e file's header) | Not verified: CI's e2e on ubuntu (PR #302 at cee1da3, the same e2e code) failed the hit-row case at E6, whose window was sized from macOS's font ([ci-e2e-linux-e6.txt](evidence/ticket-291/ci-e2e-linux-e6.txt)); the macOS run alone does not verify the case |
+| 2026-10-22 · spec and implementation 93cd213 (branch fix/search-hit-highlight on 7fe0186), after the E6 rework and the incremental check's H1–H2 · the full run on its clean tree ([gateway-93cd213.txt](evidence/ticket-291/gateway-93cd213.txt)); on ubuntu, PR #302's required CI checks on the pushed head | Every unit marked #291, on #291's paths | macOS: `VERIFY_EXIT=0`: 867 unit (U1–U6 among them), the script tests, the site, the gates, 145 e2e (the hit-row case E1–E8 among them), smoke OK. Each fault-guarding e2e step shown red under its fault on this e2e code (`e2e-plants-h1-h2.txt`; earlier ones listed in the a448fbc row). Ubuntu: CI green at 33cd854 (run 39743367439, the same code as 93cd213; the hit-row case among 145 passed). Not verified: a row with no width yet, unreachable in the app (a stated gap in the e2e file's header) | Verified on macOS and ubuntu on #291's paths, but for the stated gap |
 
 ## Two-way audit
 
@@ -272,3 +290,7 @@ hold for main at 389d264.
 | Ticket draft, forward: every coverage unit in scope has an owning ticket | the Spec → tickets table | Done 2026-10-19 by walking the spec's sections in order; no unit left without an owner |
 | Ticket draft, reverse: every ticket criterion maps to a unit or a stated prerequisite | #271–#274 drafts | Technical prerequisites (the corpus, the two channels, the delay knob on the reading channel) support named units; no product criterion without a unit |
 | Cut through one screen? | #271 / #272 | Ruled 2026-10-19 (owner): #271 ships the jump, so a hit opens its session with the existing single back control; #272 adds the two exits and the return. No screen is split, and every merged state of main is coherent |
+| #291 forward: S30–S34 map to coverage units | S30–S34 | Done 2026-10-22 |
+| #291 reverse: units without a source | session-view hit-row failure items | Derived from S30–S33 without changing them: the keyword at the start (no move), several occurrences (the first decides), a resize or a new drawing (S30's "judged at the row's width"), a row without a width yet and a page shown again (written first as "rows drawn while hidden", which the app never does: corrected at the spec check), markup (the existing plain-text rule). Reported to the owner with the spec |
+| #291 placement: one primary definition for a shared row | session-view::REQ-002; global-search::US-001/AC-06, S8 | The row is the project search's own, which global search reuses: its rule lives in session-view, and global search refers to it |
+| #291 prototype gate | the global search page and the project page's Sessions tab, through the shared hit-row piece | Confirmed 2026-10-22 (S34); measured in Chrome at 1280, 1000 and 800px and after a resize |

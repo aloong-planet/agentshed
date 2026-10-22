@@ -1,0 +1,39 @@
+# E7's return leg under the stuck-start fault (incremental check G1): built and run, then restored byte for byte
+# HEAD 676557ea639ed96582e99430ced8d6fa4faf399d; e2e/global-search.spec.ts at 299563c3cf3568148ea6461462fabc070993206b (uncommitted)
+# Script:
+#   // Two plants in SessionHits.tsx, each built and run against the hit-row case, then restored byte for byte:
+#   //   B — a new width or keyword keeps a moved row's start instead of judging it from the beginning: E7's return leg must now fail first
+#   import { readFileSync, writeFileSync } from 'node:fs'
+#   import { execSync } from 'node:child_process'
+#   const f = 'src/renderer/src/SessionHits.tsx'
+#   const orig = readFileSync(f)
+#   const src = orig.toString('utf8')
+#   const plants = {
+#     B: ["const current = judged.key === key ? judged : { key, start: 'full' as Start, done: false }", 'const current = judged.key === key ? judged : { key, start: judged.start, done: false }']
+#   }
+#   try {
+#     for (const [name, [a, b]] of Object.entries(plants)) {
+#       if (src.split(a).length !== 2) throw new Error(`plant ${name}: anchor not unique`)
+#       writeFileSync(f, src.replace(a, b))
+#       execSync('pnpm -s exec electron-vite build', { stdio: 'ignore' })
+#       let out = ''
+#       let code = 0
+#       try { out = execSync('pnpm -s exec playwright test e2e/global-search.spec.ts -g "keeps its keyword"', { stdio: 'pipe' }).toString() } catch (e) { code = e.status; out = e.stdout.toString() }
+#       const at = out.split('\n').find((l) => /^\s+> \d+ \|/.test(l)) ?? '(no failing line)'
+#       const diff = out.split('\n').filter((l) => /^\s+[-+]\s+"text"|^\s+[-+]\s+"inView"/.test(l)).join('\n')
+#       console.log(`plant ${name}: exit ${code}\n  failing line: ${at.trim()}\n${diff}`)
+#       writeFileSync(f, orig)
+#     }
+#   } finally {
+#     writeFileSync(f, orig)
+#   }
+#   console.log('restored byte for byte:', Buffer.compare(readFileSync(f), orig) === 0)
+#   execSync('pnpm -s exec electron-vite build', { stdio: 'ignore' })
+#   console.log('rebuilt from the restored source')
+# Output:
+plant B: exit 1
+  failing line: > 919 |     await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: FAR, inView: true })
+    -   "text": "Background for the planning call, Background for the planning call, Background for the planning call, Background for the planning call, Background for the planning call, Background for the planning call, and now the quokka question itself",
+    +   "text": "…nd for the planning call, Background for the planning call, Background for the planning call, Background for the planning call, Background for the planning call, Background for the planning call, and now the quokka question itself",
+restored byte for byte: true
+rebuilt from the restored source

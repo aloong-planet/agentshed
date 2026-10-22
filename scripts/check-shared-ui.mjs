@@ -82,7 +82,7 @@ const SHARED_BLOCKS = [
     // A project's own session search and global search draw their search row and hits from one piece
     id: 'session-hits',
     label: 'session search hits',
-    assets: ['_shared/session-hits.css'],
+    assets: ['_shared/session-hits.css', '_shared/session-hits.js'],
     containers: []
   },
   {

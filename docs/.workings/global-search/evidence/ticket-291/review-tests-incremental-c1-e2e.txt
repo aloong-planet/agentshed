@@ -1,0 +1,344 @@
+# The hit-row e2e case at 967f682, run with Playwright's API log (incremental test check on the E6 rework, 2026-10-22)
+# Tree: 967f682, clean (git status --porcelain --untracked-files=all prints nothing)
+# Commands, each exit code taken directly (no pipe):
+#   pnpm exec electron-vite build                               -> exit 0 (renderer bundle index-CPw4TZbb.js)
+#   DEBUG=pw:api pnpm exec playwright test e2e/global-search.spec.ts -g "keeps its keyword"   -> exit 0
+# Read for E7's count check (output lines 75-91, i.e. lines 86-102 of this file): the box still holds "wombat", whose
+# results are one row; fill("call") returns, and toHaveCount(1) succeeds 1ms later (output 85), before the "call"
+# results arrive: the poll on row 0 that follows needs about 360ms (output 86-91). One electron.launch and one
+# electronApplication.close for the case.
+# Full output follows.
+
+
+Running 1 test using 1 worker
+
+  pw:api => electron.launch started +0ms
+  pw:api <= electron.launch succeeded +220ms
+  pw:api   "commit" event fired +282ms
+  pw:api   "commit" event fired +7ms
+  pw:api   navigated to "app://bundle/index.html" +0ms
+  pw:api <= electronApplication.firstWindow succeeded +1ms
+  pw:api => locator.click started +1ms
+  pw:api waiting for locator('.rail .ri').nth(2) +1ms
+  pw:api   "domcontentloaded" event fired +23ms
+  pw:api   "load" event fired +0ms
+  pw:api   locator resolved to <button class="ri " title="Search">…</button> +24ms
+  pw:api attempting click action +4ms
+  pw:api   waiting for element to be visible, enabled and stable +0ms
+  pw:api   element is visible, enabled and stable +25ms
+  pw:api   scrolling into view if needed +0ms
+  pw:api   done scrolling +0ms
+  pw:api   performing click action +3ms
+  pw:api   click action done +8ms
+  pw:api   waiting for scheduled navigations to finish +0ms
+  pw:api   navigations have finished +1ms
+  pw:api <= locator.click succeeded +0ms
+  pw:api => locator.fill started +1ms
+  pw:api waiting for locator('.gsearch .sbar input') +0ms
+  pw:api   locator resolved to <input value="" placeholder="Search the questions in 1 session across 1 project…"/> +4ms
+  pw:api   fill("quokka") +1ms
+  pw:api attempting fill action +0ms
+  pw:api   waiting for element to be visible, enabled and editable +0ms
+  pw:api <= locator.fill succeeded +4ms
+  pw:api => expect.toHaveCount started +3ms
+  pw:api Expect "toHaveCount" with timeout 5000ms +0ms
+  pw:api waiting for locator('.gsearch .pane-body').locator('.hit') +0ms
+  pw:api   locator resolved to 0 elements +3ms
+  pw:api   unexpected value "0" +0ms
+  pw:api   locator resolved to 0 elements +22ms
+  pw:api   unexpected value "0" +0ms
+  pw:api   locator resolved to 0 elements +53ms
+  pw:api   unexpected value "0" +0ms
+  pw:api   locator resolved to 0 elements +102ms
+  pw:api   unexpected value "0" +0ms
+  pw:api   locator resolved to 4 elements +103ms
+  pw:api <= expect.toHaveCount succeeded +0ms
+  pw:api => locator.evaluateAll started +2ms
+  pw:api <= locator.evaluateAll succeeded +19ms
+  pw:api => page.screenshot started +2ms
+  pw:api taking page screenshot +0ms
+  pw:api waiting for fonts to load... +3ms
+  pw:api fonts loaded +1ms
+  pw:api <= page.screenshot succeeded +49ms
+  pw:api => locator.fill started +2ms
+  pw:api waiting for locator('.gsearch .sbar input') +0ms
+  pw:api   locator resolved to <input value="quokka" placeholder="Search the questions in 1 session across 1 project…"/> +2ms
+  pw:api   fill("wombat") +0ms
+  pw:api attempting fill action +0ms
+  pw:api   waiting for element to be visible, enabled and editable +0ms
+  pw:api <= locator.fill succeeded +2ms
+  pw:api => expect.toHaveCount started +1ms
+  pw:api Expect "toHaveCount" with timeout 5000ms +0ms
+  pw:api waiting for locator('.gsearch .pane-body').locator('.hit') +0ms
+  pw:api   locator resolved to 4 elements +2ms
+  pw:api   unexpected value "4" +1ms
+  pw:api   locator resolved to 4 elements +22ms
+  pw:api   unexpected value "4" +0ms
+  pw:api   "networkidle" event fired +26ms
+  pw:api   locator resolved to 4 elements +26ms
+  pw:api   unexpected value "4" +0ms
+  pw:api   locator resolved to 4 elements +102ms
+  pw:api   unexpected value "4" +0ms
+  pw:api   locator resolved to 1 element +101ms
+  pw:api <= expect.toHaveCount succeeded +0ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +2ms
+  pw:api => locator.fill started +1ms
+  pw:api waiting for locator('.gsearch .sbar input') +0ms
+  pw:api   locator resolved to <input value="wombat" placeholder="Search the questions in 1 session across 1 project…"/> +2ms
+  pw:api   fill("call") +0ms
+  pw:api attempting fill action +0ms
+  pw:api   waiting for element to be visible, enabled and editable +0ms
+  pw:api <= locator.fill succeeded +3ms
+  pw:api => expect.toHaveCount started +0ms
+  pw:api Expect "toHaveCount" with timeout 5000ms +1ms
+  pw:api waiting for locator('.gsearch .pane-body').locator('.hit') +0ms
+  pw:api <= expect.toHaveCount succeeded +1ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +3ms
+  pw:api => locator.evaluateAll started +105ms
+  pw:api <= locator.evaluateAll succeeded +2ms
+  pw:api => locator.evaluateAll started +253ms
+  pw:api <= locator.evaluateAll succeeded +3ms
+  pw:api => locator.evaluate started +1ms
+  pw:api waiting for locator('.gsearch .pane-body').locator('.hit').first() +1ms
+  pw:api   locator resolved to visible <button class="hit row-btn">…</button> +2ms
+  pw:api <= locator.evaluate succeeded +4ms
+  pw:api => locator.fill started +1ms
+  pw:api waiting for locator('.gsearch .sbar input') +0ms
+  pw:api   locator resolved to <input value="call" placeholder="Search the questions in 1 session across 1 project…"/> +2ms
+  pw:api   fill("quokka question") +0ms
+  pw:api attempting fill action +0ms
+  pw:api   waiting for element to be visible, enabled and editable +1ms
+  pw:api <= locator.fill succeeded +1ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +2ms
+  pw:api => locator.evaluateAll started +103ms
+  pw:api <= locator.evaluateAll succeeded +3ms
+  pw:api => locator.evaluateAll started +253ms
+  pw:api <= locator.evaluateAll succeeded +3ms
+  pw:api => locator.fill started +1ms
+  pw:api waiting for locator('.gsearch .sbar input') +0ms
+  pw:api   locator resolved to <input value="quokka question" placeholder="Search the questions in 1 session across 1 project…"/> +2ms
+  pw:api   fill("call") +0ms
+  pw:api attempting fill action +0ms
+  pw:api   waiting for element to be visible, enabled and editable +0ms
+  pw:api <= locator.fill succeeded +3ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +3ms
+  pw:api => locator.evaluateAll started +103ms
+  pw:api <= locator.evaluateAll succeeded +9ms
+  pw:api => locator.evaluateAll started +253ms
+  pw:api <= locator.evaluateAll succeeded +3ms
+  pw:api => expect.toHaveCount started +2ms
+  pw:api Expect "toHaveCount" with timeout 5000ms +0ms
+  pw:api waiting for locator('.gsearch .pane-body').locator('.hit[data-e2e-same-row="1"]') +0ms
+  pw:api <= expect.toHaveCount succeeded +1ms
+  pw:api => locator.fill started +1ms
+  pw:api waiting for locator('.gsearch .sbar input') +0ms
+  pw:api   locator resolved to <input value="call" placeholder="Search the questions in 1 session across 1 project…"/> +2ms
+  pw:api   fill("quokka") +1ms
+  pw:api attempting fill action +0ms
+  pw:api   waiting for element to be visible, enabled and editable +0ms
+  pw:api <= locator.fill succeeded +3ms
+  pw:api => expect.toHaveCount started +1ms
+  pw:api Expect "toHaveCount" with timeout 5000ms +0ms
+  pw:api waiting for locator('.gsearch .pane-body').locator('.hit') +0ms
+  pw:api   locator resolved to 2 elements +4ms
+  pw:api   unexpected value "2" +0ms
+  pw:api   locator resolved to 2 elements +22ms
+  pw:api   unexpected value "2" +0ms
+  pw:api   locator resolved to 2 elements +53ms
+  pw:api   unexpected value "2" +0ms
+  pw:api   locator resolved to 2 elements +102ms
+  pw:api   unexpected value "2" +0ms
+  pw:api   locator resolved to 4 elements +102ms
+  pw:api <= expect.toHaveCount succeeded +0ms
+  pw:api => locator.click started +1ms
+  pw:api waiting for locator('.rail .ri').nth(1) +0ms
+  pw:api   locator resolved to <button class="ri " title="Projects">…</button> +1ms
+  pw:api attempting click action +1ms
+  pw:api   waiting for element to be visible, enabled and stable +0ms
+  pw:api   element is visible, enabled and stable +13ms
+  pw:api   scrolling into view if needed +0ms
+  pw:api   done scrolling +1ms
+  pw:api   performing click action +1ms
+  pw:api   click action done +5ms
+  pw:api   waiting for scheduled navigations to finish +0ms
+  pw:api   navigations have finished +0ms
+  pw:api <= locator.click succeeded +0ms
+  pw:api => locator.click started +1ms
+  pw:api waiting for locator('.rail .ri').nth(2) +0ms
+  pw:api   locator resolved to <button class="ri " title="Search">…</button> +2ms
+  pw:api attempting click action +0ms
+  pw:api   waiting for element to be visible, enabled and stable +0ms
+  pw:api   element is visible, enabled and stable +17ms
+  pw:api   scrolling into view if needed +0ms
+  pw:api   done scrolling +0ms
+  pw:api   performing click action +2ms
+  pw:api   click action done +4ms
+  pw:api   waiting for scheduled navigations to finish +0ms
+  pw:api   navigations have finished +0ms
+  pw:api <= locator.click succeeded +0ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +3ms
+  pw:api => locator.click started +1ms
+  pw:api waiting for locator('.rail .ri').nth(1) +0ms
+  pw:api   locator resolved to <button class="ri " title="Projects">…</button> +1ms
+  pw:api attempting click action +1ms
+  pw:api   waiting for element to be visible, enabled and stable +0ms
+  pw:api   element is visible, enabled and stable +14ms
+  pw:api   scrolling into view if needed +0ms
+  pw:api   done scrolling +2ms
+  pw:api   performing click action +1ms
+  pw:api   click action done +4ms
+  pw:api   waiting for scheduled navigations to finish +0ms
+  pw:api   navigations have finished +0ms
+  pw:api <= locator.click succeeded +0ms
+  pw:api => locator.click started +1ms
+  pw:api waiting for locator('.side .row').first() +0ms
+  pw:api   locator resolved to <div class="row  " title="/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/agentshed-e2e-gs-rows-eIM2wS/work/rows-proj">…</div> +2ms
+  pw:api attempting click action +0ms
+  pw:api   waiting for element to be visible, enabled and stable +0ms
+  pw:api   element is visible, enabled and stable +13ms
+  pw:api   scrolling into view if needed +0ms
+  pw:api   done scrolling +1ms
+  pw:api   performing click action +1ms
+  pw:api   click action done +2ms
+  pw:api   waiting for scheduled navigations to finish +0ms
+  pw:api   navigations have finished +1ms
+  pw:api <= locator.click succeeded +0ms
+  pw:api => locator.click started +1ms
+  pw:api waiting for locator('.pane-head .tabs .tab').filter({ hasText: 'Sessions' }) +0ms
+  pw:api   locator resolved to <button class="tab ">Sessions</button> +27ms
+  pw:api attempting click action +1ms
+  pw:api   waiting for element to be visible, enabled and stable +0ms
+  pw:api   element is visible, enabled and stable +16ms
+  pw:api   scrolling into view if needed +0ms
+  pw:api   done scrolling +0ms
+  pw:api   performing click action +2ms
+  pw:api   click action done +3ms
+  pw:api   waiting for scheduled navigations to finish +0ms
+  pw:api   navigations have finished +0ms
+  pw:api <= locator.click succeeded +0ms
+  pw:api => locator.fill started +1ms
+  pw:api waiting for locator('.sbar input') +0ms
+  pw:api   locator resolved to <input value="" placeholder="Search across 1 session in this project…"/> +1ms
+  pw:api   fill("quokka") +1ms
+  pw:api attempting fill action +0ms
+  pw:api   waiting for element to be visible, enabled and editable +0ms
+  pw:api <= locator.fill succeeded +3ms
+  pw:api => expect.toHaveCount started +0ms
+  pw:api Expect "toHaveCount" with timeout 5000ms +1ms
+  pw:api waiting for locator('.pane-body').locator('.hit') +0ms
+  pw:api   locator resolved to 0 elements +1ms
+  pw:api   unexpected value "0" +0ms
+  pw:api   locator resolved to 0 elements +22ms
+  pw:api   unexpected value "0" +0ms
+  pw:api   locator resolved to 0 elements +52ms
+  pw:api   unexpected value "0" +0ms
+  pw:api   locator resolved to 0 elements +102ms
+  pw:api   unexpected value "0" +0ms
+  pw:api   locator resolved to 4 elements +102ms
+  pw:api <= expect.toHaveCount succeeded +0ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +2ms
+  pw:api => electronApplication.evaluate started +1ms
+  pw:api <= electronApplication.evaluate succeeded +5ms
+  pw:api => page.evaluate started +1ms
+  pw:api <= page.evaluate succeeded +1ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +3ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +2ms
+  pw:api => locator.fill started +1ms
+  pw:api waiting for locator('.sbar input') +0ms
+  pw:api   locator resolved to <input value="quokka" placeholder="Search across 1 session in this project…"/> +2ms
+  pw:api   fill("quokka-routing-table-for-the-narrow-rows") +1ms
+  pw:api attempting fill action +0ms
+  pw:api   waiting for element to be visible, enabled and editable +0ms
+  pw:api <= locator.fill succeeded +2ms
+  pw:api => expect.toHaveCount started +1ms
+  pw:api Expect "toHaveCount" with timeout 5000ms +0ms
+  pw:api waiting for locator('.pane-body').locator('.hit') +0ms
+  pw:api   locator resolved to 4 elements +2ms
+  pw:api   unexpected value "4" +0ms
+  pw:api   locator resolved to 4 elements +23ms
+  pw:api   unexpected value "4" +0ms
+  pw:api   locator resolved to 4 elements +56ms
+  pw:api   unexpected value "4" +0ms
+  pw:api   locator resolved to 4 elements +102ms
+  pw:api   unexpected value "4" +0ms
+  pw:api   locator resolved to 1 element +103ms
+  pw:api <= expect.toHaveCount succeeded +0ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +1ms
+  pw:api => page.screenshot started +2ms
+  pw:api taking page screenshot +0ms
+  pw:api waiting for fonts to load... +3ms
+  pw:api fonts loaded +0ms
+  pw:api <= page.screenshot succeeded +43ms
+  pw:api => locator.fill started +1ms
+  pw:api waiting for locator('.sbar input') +0ms
+  pw:api   locator resolved to <input value="quokka-routing-table-for-the-narrow-rows" placeholder="Search across 1 session in this project…"/> +1ms
+  pw:api   fill("quokka") +1ms
+  pw:api attempting fill action +0ms
+  pw:api   waiting for element to be visible, enabled and editable +0ms
+  pw:api <= locator.fill succeeded +2ms
+  pw:api => expect.toHaveCount started +1ms
+  pw:api Expect "toHaveCount" with timeout 5000ms +0ms
+  pw:api waiting for locator('.pane-body').locator('.hit') +0ms
+  pw:api   locator resolved to 1 element +2ms
+  pw:api   unexpected value "1" +0ms
+  pw:api   locator resolved to 1 element +22ms
+  pw:api   unexpected value "1" +0ms
+  pw:api   locator resolved to 1 element +53ms
+  pw:api   unexpected value "1" +0ms
+  pw:api   locator resolved to 1 element +102ms
+  pw:api   unexpected value "1" +0ms
+  pw:api   locator resolved to 4 elements +102ms
+  pw:api <= expect.toHaveCount succeeded +0ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +3ms
+  pw:api => electronApplication.evaluate started +1ms
+  pw:api <= electronApplication.evaluate succeeded +4ms
+  pw:api => page.evaluate started +1ms
+  pw:api <= page.evaluate succeeded +1ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +2ms
+  pw:api => locator.evaluateAll started +2ms
+  pw:api <= locator.evaluateAll succeeded +2ms
+  pw:api => locator.click started +1ms
+  pw:api waiting for locator('.rail .ri').nth(2) +0ms
+  pw:api   locator resolved to <button class="ri " title="Search">…</button> +1ms
+  pw:api attempting click action +2ms
+  pw:api   waiting for element to be visible, enabled and stable +0ms
+  pw:api   element is visible, enabled and stable +17ms
+  pw:api   scrolling into view if needed +0ms
+  pw:api   done scrolling +0ms
+  pw:api   performing click action +1ms
+  pw:api   click action done +4ms
+  pw:api   waiting for scheduled navigations to finish +0ms
+  pw:api   navigations have finished +0ms
+  pw:api <= locator.click succeeded +0ms
+  pw:api => expect.toHaveCount started +1ms
+  pw:api Expect "toHaveCount" with timeout 5000ms +0ms
+  pw:api waiting for locator('.gsearch .pane-body').locator('.hit') +0ms
+  pw:api <= expect.toHaveCount succeeded +1ms
+  pw:api => locator.evaluateAll started +1ms
+  pw:api <= locator.evaluateAll succeeded +3ms
+  pw:api => locator.evaluate started +0ms
+  pw:api waiting for locator('.gsearch .pane-body').locator('.hit .t').nth(3) +1ms
+  pw:api   locator resolved to visible <span class="t">…</span> +1ms
+  pw:api <= locator.evaluate succeeded +3ms
+  pw:api => electronApplication.evaluate started +1ms
+  pw:api <= electronApplication.evaluate succeeded +6ms
+  pw:api => page.evaluate started +1ms
+  pw:api <= page.evaluate succeeded +1ms
+  pw:api => locator.evaluateAll started +2ms
+  pw:api <= locator.evaluateAll succeeded +3ms
+  pw:api => electronApplication.close started +2ms
+  pw:api <= electronApplication.close succeeded +48ms
+  ✓  1 e2e/global-search.spec.ts:874:1 › a hit row keeps its keyword in view: 20 characters before a far keyword, the keyword itself when that does not fit, a keyword under the ellipsis counted out of view, judged again on a resize and when shown again — in global search and in a project's Sessions tab (session-view::REQ-002) (3.9s)
+
+  1 passed (4.2s)
