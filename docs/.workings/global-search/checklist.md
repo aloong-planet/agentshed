@@ -119,7 +119,7 @@ item; #274 = the closeout. Links: [global-search spec](../../specs/global-search
 | session-view::REQ-002/AC-02 (#291) | Not wholly in view → 20 characters before it, after an ellipsis | #291 | Test: e2e (the first highlight inside the row short of the ellipsis); unit (where the row starts, in characters) |
 | session-view::REQ-002/AC-03 (#291) | A long keyword in a narrow row → the row starts at the keyword | #291 | Test: e2e at the app's minimum width |
 | session-view::REQ-002/AC-04 (#291) | Judged at the row's width; again when the width changes or the rows are drawn anew | #291 | Test: e2e (a resize) |
-| session-view hit-row failure items (#291) | The keyword opens the question; several occurrences; a resize or a new drawing; a row without a width yet, a page shown again; markup | #291 | Test: unit (the start, several occurrences, characters outside the basic plane); e2e (resize, the search page shown again) |
+| session-view hit-row failure items (#291) | The keyword opens the question; several occurrences; a resize or a new drawing; a row without a width yet, a page shown again; markup | #291 | Test: unit (the start, several occurrences, characters outside the basic plane); e2e (resize, a new keyword on a mounted row, the search page shown again). A row without a width yet is unreachable in the app: a stated gap in the e2e file's header, not verified |
 | global-search::US-001/AC-06, S8 (#291, amended) | The row's keyword kept in view, by reference | #291 | Covered by session-view::REQ-002's rows |
 
 ## Current verification

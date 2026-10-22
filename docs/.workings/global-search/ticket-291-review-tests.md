@@ -32,7 +32,7 @@ once and walks every phase in that one run, as the file's other cases do. The un
 | E3 | A resize judges the rows again | session-view::REQ-002/AC-04; failure item "the window is resized" | A question with the keyword 66 characters in: in view at a wide window, past the cut at the narrowest (800px). The moved row is awaited at 800px before the window widens (amended after the post-implementation check, F1: the tab draws its results 200ms after typing, so the first draft widened fresh rows that had never moved) | At 800px the row is moved and its keyword in view; widened to 1400px, the row starts with its own first words again. Shown red under a fault that keeps a moved row's start through a width change (`evidence/ticket-291/e2e-plants-f1-f3.txt`) | As E1 | The same launch |
 | E4 | A long keyword in a narrow row starts at the keyword | session-view::REQ-002/AC-03 | At 800px, a keyword of 40 characters that lies 86 characters into its question | The row's text starts with an ellipsis and the keyword (a literal), and the keyword lies wholly in view | As E1 | The same launch |
 | E6 | A keyword ending under the ellipsis is out of view (added at the code review, 2026-10-22: the row measured the ellipsis with a canvas in the computed `font` shorthand, which the app reports empty, so it measured 10px against the real 13px) | session-view::REQ-002/AC-02 ("under the ellipsis") | Global search, the window sized so that the fourth question's highlight box (padding included, which is what is judged) ends 11.5px before the row's right edge — inside the real ellipsis by 1.5px, outside a 10px one by 1.5px — computed from the unmoved row's box and the highlight's own box (amended after the post-implementation check, F3: sizing from the text's end left about 0.5px of margin) | The row is moved (its text starts with an ellipsis) and its keyword is in view by a DOM-measured ellipsis. Red before the fix, and again under a planted 10px ellipsis after the amendment (`evidence/ticket-291/e2e-plants-f1-f3.txt`) | As E1 | The same launch |
-| E7 | A new keyword on the same row judges it again, both ways | session-view::REQ-002/AC-04 ("the rows are drawn anew"); post-implementation check F4 | In global search, "planning" (in view in the far question), then "quokka question" (far in, the same single hit), then "planning" again; the row marked before the second keyword | The row keeps its beginning, moves, and returns to its beginning, and the marked row is still the one shown (so it was judged again, not drawn fresh) | As E1 | The same launch |
+| E7 | A new keyword on the same row judges it again, both ways | session-view::REQ-002/AC-04 ("the rows are drawn anew"); post-implementation check F4 | In global search, "call" (28 characters into the far question, in view), then "quokka question" (far in, the same single hit), then "call" again; the row marked before the second keyword. The return keyword lies past 20 characters, so a row that kept its moved start would show a window (amended after the incremental check, G1: the first draft returned through "planning", 19 characters in, which no window can cut) | The row keeps its beginning, moves, and returns to its beginning, and the marked row is still the one shown (so it was judged again, not drawn fresh). Shown red under a stuck-start fault (`evidence/ticket-291/e2e-plant-g1.txt`) | As E1 | The same launch |
 | E8 | A question in a real one's shape | REQ-002/AC-02; post-implementation check F6 (most real questions hold CJK, many line breaks and runs of spaces) | A CJK question with a line break and a run of spaces before its keyword, about 100 characters in | The row as global search shows it (the break and the spaces read as one space) starts 20 characters before the keyword, those characters counted on the text as shown: a literal written as escapes | Shaped from the real corpus's measured shapes | The same launch |
 | E5 | A page shown again draws its rows anew and judges them | Failure item "a page or tab left and shown again" (the item's first sentence, a row with no width, is unreachable in the app and stated as a gap in the file header: F2) | Global search's results drawn, then the Projects page shown and the Search page brought back | The far row still starts 20 characters before its keyword, its keyword in view | As E1 | The same launch |
 
@@ -40,10 +40,14 @@ once and walks every phase in that one run, as the file's other cases do. The un
 
 Against REQ-002 and its failure items, one row each: AC-01 (E1, E2, U3), AC-02 (U1, E1, E2), AC-03 (U2, U4, E4),
 AC-04 (E3); "the keyword opens the question" (U3, E1's near row); "several occurrences" (U6); "the window is
-resized, or the results are drawn anew" (E3; a new keystroke is every E case's own typing); "rows drawn while
-hidden" (E5); "markup … never cuts a character in two" (U5; markup itself stays covered by the existing case
+resized, or the results are drawn anew" (E3; a new keyword on a row that stays mounted is E7 — superseded wording
+"a new keystroke is every E case's own typing", corrected after the post-implementation check: a keystroke that
+changes the hits mounts fresh rows); "a page or tab left and shown again" (E5 — superseded wording "rows drawn while
+hidden": the item's first sentence, a row with no width, is a stated gap in the e2e file's header); "markup … never cuts a character in two" (U5; markup itself stays covered by the existing case
 that types into a row holding HTML). global-search::US-001/AC-06 and S8 by E1. The full-text snippet, unchanged, keeps
-its existing case. No gap to state in a file header.
+its existing case. Gaps stated in the e2e file's header: a row with no width yet, and the in-view measure's shared
+method (superseded wording "No gap to state in a file header", corrected after the post-implementation check's F2
+and F7).
 
 ### Dimension 2: Case design
 
@@ -53,7 +57,7 @@ the project is mocked, no internal state is written. No finding.
 
 ### Dimension 3: False greens (by design)
 
-- **Always-true assertions**: E1–E5 assert the row's text against a literal start, not only that the keyword is
+- **Always-true assertions**: E1–E8 (E1–E5 when this was first written) assert the row's text against a literal start, not only that the keyword is
   visible, so a row the code never moved but that happens to show its keyword cannot pass as moved, and a row
   moved when it should not be fails the near-row check. "In view" is measured against the text box's visible
   end, the ellipsis's width taken off when the row overflows, so a keyword under the ellipsis fails it.
@@ -67,7 +71,7 @@ the project is mocked, no internal state is written. No finding.
 
 ### Dimension 4: Resource reuse
 
-One app launch serves E1–E5, as the file's cases each launch once; the unit tests need nothing built. No finding.
+One app launch serves E1–E8 (E1–E5 when this was first written), as the file's cases each launch once; the unit tests need nothing built. No finding.
 
 ## Post-implementation check
 
@@ -142,9 +146,12 @@ from 5441 session files, counts only):
 - No fixture takes the real shape (F6).
 
 Reading the code against those shapes finds no defect:
-- A line break or a run of spaces counts as written but shows as one space under `white-space: nowrap`, so a moved
-  row can show fewer than 20 visible characters of context. That agrees with "counted as written", and the keyword
-  stays in view.
+- Line breaks and runs of spaces (corrected at the incremental check, 2026-10-22). This bullet first said they reach
+  the row as written, on the unverified premise that a hit's text is the raw question, and F6's suggestion below
+  repeats it ("20 characters as written"). They do not reach the row as written. Every question text passes through
+  `realUserText`, which collapses each run of whitespace, line breaks included, to one space
+  (`src/main/providers/session-title.ts:26-27, 36`). The row is given the question as shown and the window counts on
+  that, which is what E8 asserts.
 - A CJK character is about twice as wide, so at narrow widths the 20-character window gives way to the keyword start
   for short keywords too, as AC-03's wording allows. Not measured.
 - A window starting between a base character and its VS16 shows only an invisible selector.
@@ -248,3 +255,153 @@ check:lang read documents. The gateway log covers b295fdb only, so the gateway i
 | F8 | Fixed: U4, E4 and E6 reworded |
 
 The fixes change the unit test and the e2e case, so an incremental check follows on the fix commit, with the targeted verification log of the fixes.
+
+## Post-implementation check, incremental (fix commit 676557e)
+
+2026-10-22. Implementation version: 676557e (fix range b295fdb..676557e). Ticket #291. Run by an independent agent
+that did not inherit the implementing session. Specs as committed in 676557e (the working tree was clean).
+
+Scope, by the incremental rules:
+
+- Tests changed in the range: `src/renderer/src/hit-window.test.ts` (U5) and the e2e case "a hit row keeps its
+  keyword in view…". In that case the fixture gains a fifth question, E3's widening and E6 are reworked, E7 and E8
+  are added, and the file header gains two known gaps.
+- Tests depending on test helper code changed in the range: none. Commands and results:
+  - `git diff -U0 b295fdb 676557e -- e2e/global-search.spec.ts | rg '^@@'`: seven hunks, the header comment (line 17)
+    and six inside the hit-row test body. No shared helper changed (`launch`, `claude`, `close`, `hitRows`,
+    `mkHome`, the locators).
+  - `rg -n -uu -e "from '\./hit-window'" -e "hit-window'" src e2e scripts site/src`: `hit-window.test.ts:6` and
+    `SessionHits.tsx:6`. The product module changed in a comment only; the renderer bundle hash is still
+    `index-CPw4TZbb.js`.
+  - `rg -n -uu -e 'global-search\.spec' -e 'hit-window\.test' src e2e scripts site playwright.config.ts
+    vitest.config.*`: only `scripts/check-lang.mjs:227`, a path rule from #295, not an import.
+- Test design table rows changed in the range: U4, U5, E3, E4, E5 and E6 amended, E7 and E8 added, and the design
+  review's dimension 3 note.
+- Outside this scope, every dimension's conclusion carries over from the first post-implementation check (b295fdb).
+  The changed case's unchanged phases (E1, E2, E3's narrowing, E4, E5) were re-read in their new context. The fifth
+  question holds no "quokka", so E1 and E2 still see four rows, and E5 now starts after E7's last `fill('quokka')`
+  with four rows. Their first-round conclusions stand.
+
+Run evidence:
+
+- The targeted verification log, [targeted-fixes.txt](evidence/ticket-291/targeted-fixes.txt):
+  - It records HEAD b295fdb and 15 uncommitted files, each with its `git hash-object`. Every hash equals the blob in
+    676557e (`git rev-parse 676557e:<path>`, file by file), and the only file of the range it omits is the log
+    itself, so it ran on 676557e's content.
+  - Each command appears with its exit code and full output, and the log ends `TARGETED_EXIT=0`, so it carries
+    every item `/implement` asks of such a log.
+  - It ran lint, typecheck, the renderer unit tests (`hit-window.test.ts`: 6 passed), one build, the whole of
+    `e2e/global-search.spec.ts` (14 passed, the hit-row case among them), check:lang, check:nul and check:ui.
+- The reviewed tests only, at 676557e: the unit file exit 0 (6 passed); the build exit 0; the e2e case with
+  `DEBUG=pw:api` exit 0, kept as [review-tests-incremental-e2e.txt](evidence/ticket-291/review-tests-incremental-e2e.txt).
+- Mutation testing: per the project's capabilities `mutation-testing` is not enabled, so it is skipped and no
+  temporary change was made. The implementing session's plants ([e2e-plants-f1-f3.txt](evidence/ticket-291/e2e-plants-f1-f3.txt),
+  run on the committed e2e file `ff787ac` and restored byte for byte) serve below as evidence of red.
+
+### Each changed test against the test design table
+
+| Test | Matches the table? | Note |
+|---|---|---|
+| U4 | Yes | 13 characters in |
+| U5 | Yes | 25 emoji and a space; a code-unit cut would start at code unit 31, inside an emoji (computed) |
+| E3 | Yes | The moved row is read at 800px before the widening: the run's log shows the order |
+| E4 | Yes | 86 characters in |
+| E6 | Yes | Sized from the highlight's own box in the unmoved row |
+| E7 | Yes | Its return leg proves less than the row claims (G1) |
+| E8 | Yes | The keyword 101 characters into the shown text (104 into the raw) |
+| E5 | Yes | Points at the failure item's second sentence |
+
+File header: the two new known gaps state what F2 and F7 asked for: the row with no width, with its re-test
+condition, and the shared "in view" measure, with E6 as its anchor. Stale text outside the rows: the design review's
+dimension 1 and dimension 4 (G2).
+
+### Dimension 1: Coverage (incremental scope)
+
+- F1: AC-04's widening now reaches a moved row (E3). Plant B (a width change keeps a moved start) fails at E3's
+  widening poll, line 959.
+- F2: the row with no width is a stated gap; E5 covers the failure item's second sentence.
+- F4: E7's first leg reaches a row that persists across a keystroke and moves it. The marker on its `.hit` button
+  survives, so the row was not drawn anew. The return leg is G1.
+- F5: U5's input now reaches a code-unit cut inside a character.
+- F6: E8 takes the corpus's dominant shape: CJK, a line break and a run of spaces before the keyword. It shows that
+  the row is given the question as shown (normalised by `realUserText`), and the spec's "Applies to" now says so. My
+  first round's statement to the contrary is corrected in place above.
+- No gap in this scope is left unstated.
+
+### Dimension 2: Case design (incremental scope)
+
+- No module doubles in either file (`rg` exit 1; control: `expect` matches 11 and 235 times).
+- E7 sets a `data-e2e-same-row` attribute on the app's `.hit` button. It is an identity marker that nothing in the
+  app reads, React leaves it alone because it does not manage that attribute, and no behaviour depends on it.
+  Exempt for that reason.
+- E6 and E8 read geometry and text through the DOM. E8's question goes through the file's `claude` writer, written
+  as `\u` escapes. No finding.
+
+### Dimension 3: False greens (incremental scope)
+
+| Test | Red when | Expected value from |
+|---|---|---|
+| U5 | Characters are counted in code units: the literal (19 emoji and the space) differs, and the no-lone-surrogate line now fails on its own, since that cut starts at code unit 31, inside an emoji (computed) | A literal |
+| E3, widening | A moved row keeps its start through a widening, as under plant B (failing line 959). The moved state at 800px is asserted first, so a row drawn fresh at 1400px can no longer pass | A literal |
+| E6 | The product counts the ellipsis narrower than the highlight's offset of 11–12px (11.5, ±0.5 from rounding the window width). With a 10px measure the row stays unmoved with 1.5–2.5px to spare (plant A, failing line 977); the fixed 13px measure moves it with 0.5–1.5px to spare after the 0.5px tolerance | A literal |
+| E7, first leg | A keyword change does not judge the persisting row again (for instance the keyword left out of the judging key, or the candidates not recomputed): the row stays whole with "quokka question" out of view | A literal |
+| E7, return leg | Only under faults the first leg already catches. Under plant B (the moved start kept through a change of key) it passes, because "planning" lies 19 characters in: there is no 20-before window, so the row falls back to its whole text. Plant B passed all of E7 and failed first at line 959 (G1) | A literal |
+| E7, marker | The row is drawn anew across the two keystrokes | The marker's presence |
+| E8 | The window is counted on anything but the text as shown, or the row is not moved. The literal equals a hand computation on the normalised text and differs from one on the raw text (computed) | A literal, written as escapes |
+
+By form:
+- Always true: none left; F5's line now has a red condition of its own.
+- Tautology: none new. E8's literal can be reproduced by hand from the spec's rule and `realUserText`, without
+  `hitWindow`.
+- Stale path: none.
+- Conditional skip: none. E6 throws if the row has no mark.
+- Unexecuted assertion: none.
+
+UI forms:
+- Form 4: red is shown for E3's widening and for E6 after the rework. E7 and E8 were not shown red; E7's first leg
+  has a red condition by reading, and G1 concerns its return leg.
+- Form 5: each new poll reads the asserted expression, and E3's widening now polls the moved state before resizing.
+- Platform, carried over: this case's pixel geometry (E6's 11.5px against a 13px ellipsis) has run on macOS only;
+  CI's ubuntu job is its first run elsewhere.
+
+### Dimension 4: Resource reuse (incremental scope)
+
+The targeted log shows one `electron-vite build` for its run. It does not log launches. My run of the case at
+676557e shows one `electron.launch` and one `electronApplication.close`, and the range adds no `launch(` call, so E7
+and E8 share the case's one launch, as their rows say. No finding.
+
+### Findings (incremental)
+
+Handed back to the main agent; none was fixed here.
+
+| # | Finding | Where | Suggested handling |
+|---|---|---|---|
+| G1 | **E7's return leg cannot fail under the fault it is there for**. Row E7 says the row "returns to its beginning … so it was judged again". A row that kept its moved start through the keyword change would still read whole, because the in-view keyword ("planning") lies 19 characters in: it has no 20-before window, and the row falls back to its whole text. Plant B, which keeps the start through any change of key, passed all of E7 and was caught only by E3's widening (line 959). A fault specific to keyword changes would pass every case | `e2e/global-search.spec.ts:917-918`; table row E7 | Now, recommended: return to an in-view keyword more than 20 characters in, such as "call" (28 characters into the far question, the only question that holds it). A kept moved start would then show that keyword's 20-before window and fail. Otherwise reword row E7 so the return leg is not claimed as a check of judging again |
+| G2 | **Stale statements in the design review section contradict the current table and file header**. Dimension 1 still says "rows drawn while hidden (E5)", "a new keystroke is every E case's own typing" and "No gap to state in a file header"; dimension 4 says "One app launch serves E1–E5" | This record: the design review's dimensions 1 and 4 | Now: replace them in place, or mark them as superseded by the post-implementation checks |
+
+Document sync, from the range's changes only. The spec's "Applies to" and failure items match the tests: counting
+on the text as shown, the row with no width, a page shown again. Still open for the scope re-check before delivery:
+
+- The checklist's planned verification for the hit-row failure items does not name the row with no width as a
+  stated gap. Its current-verification row for #291 still reads "Not run yet"; when it is brought up to date, the
+  no-width item is recorded as a stated gap, not as verified.
+- The ticket's document sync checklist, unchanged in this range, still lists the spec write-back and the features
+  entries as pending, though 676557e carries both.
+
+Not test findings:
+
+- Carried over: the full gateway log is for b295fdb, and this range changes tests and a product comment, so the
+  gateway is re-run before delivery, as `/implement` requires.
+- The spec's "Applies to" and the comment in `hit-window.ts` say the text "is normalised so when it is indexed".
+  The text a row is given is normalised when it is read (`questionTextOfRange` → `questionTextAt` → `realUserText`,
+  `question-index.ts:283`), by the same function the indexer applies (`question-index.ts:480`). The substance holds;
+  only the wording is loose.
+
+### Handling of the incremental check's findings (implementing session, 2026-10-22)
+
+| # | Handling |
+|---|---|
+| G1 | Fixed: E7 returns through "call", 28 characters in; under the stuck-start fault the case now fails first at E7's return leg (`evidence/ticket-291/e2e-plant-g1.txt`). Row E7 amended |
+| G2 | Fixed: the design review's stale sentences corrected in place, each marked as superseded with what replaced it |
+
+The checklist's planned verification names the no-width item as a stated gap; its current verification is written after the final full run. This handling changes E7's executable content, so the incremental check runs once more on its commit.

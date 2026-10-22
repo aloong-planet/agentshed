@@ -614,7 +614,7 @@ Applies to: the question hit rows that a project's session search and global sea
 ([global-search::US-001/AC-06](global-search.md)). A full-text hit's snippet is already cut around its
 keyword (20 characters before it, 60 after) and is drawn as it is. Characters are counted on the question as
 the row shows it, where its line breaks and runs of spaces already read as one space (a question's text is
-normalised so when it is indexed), each as one: one outside the basic plane, such as an emoji, too.
+normalised so whenever it is read, by the same function the index uses), each as one: one outside the basic plane, such as an emoji, too.
 
 - session-view::REQ-002/AC-01: A hit row draws its question on one line from the beginning, cut with an
   ellipsis where it overflows, with every occurrence of the keyword highlighted. A row whose first occurrence

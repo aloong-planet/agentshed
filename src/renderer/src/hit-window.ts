@@ -1,6 +1,6 @@
 // Where a hit row starts when its keyword would be out of view (session-view::REQ-002). Characters are counted on
 // the text the row is given, which is the question as shown (its line breaks and runs of spaces already one space
-// when it was indexed), each as one — one outside the basic plane, such as an emoji, too — so a moved start never
+// whenever it is read), each as one — one outside the basic plane, such as an emoji, too — so a moved start never
 // cuts one in two. Which text a row shows is decided by laying it out (SessionHits.tsx); this only says what the
 // candidates are.
 

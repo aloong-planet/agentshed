@@ -907,14 +907,15 @@ test('a hit row keeps its keyword in view: 20 characters before a far keyword, t
     await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: '\u2026\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c \u7136\u540e\u770b wombat \u7684\u95ee\u9898', inView: true })
 
     // A new keyword on the same row judges it again, both ways: the row stays mounted (its mark survives) while a
-    // keyword in view leaves it at its beginning and one far in moves it (E7)
-    await box(win).fill('planning')
+    // keyword in view leaves it at its beginning and one far in moves it (E7). "call" lies 28 characters in, so a row
+    // that kept its moved start would show a 20-character window rather than its beginning
+    await box(win).fill('call')
     await expect(body(win).locator('.hit')).toHaveCount(1)
     await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: FAR, inView: true })
     await body(win).locator('.hit').first().evaluate((el) => { el.setAttribute('data-e2e-same-row', '1') })
     await box(win).fill('quokka question')
     await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: '…g call, and now the quokka question itself', inView: true })
-    await box(win).fill('planning')
+    await box(win).fill('call')
     await expect.poll(async () => (await hitRows(body(win)))[0]).toEqual({ text: FAR, inView: true })
     await expect(body(win).locator('.hit[data-e2e-same-row="1"]')).toHaveCount(1)
     await box(win).fill('quokka')
