@@ -817,9 +817,11 @@ whether its keyword is in view: a fixture question whose keyword lies past the c
 project's Sessions tab and in global search, its first highlighted occurrence wholly inside the row's text
 box and short of the ellipsis; a row whose keyword is already in view keeps its beginning; at the app's
 minimum width, a keyword too long for 20 characters before it starts the row; a resize judges the rows
-again. Where a moved row starts is a pure function of the question and the keyword, unit-tested in the
-renderer: characters outside the basic plane counted once, the keyword at the start, several
-occurrences.
+again. A window size such a case needs is computed from what the run measures (the row's box, the
+highlight's box, the ellipsis), with room on either side of the window's range, never from one platform's
+font: CI lays the rows out in another. Where a moved row starts is a pure function of the question and the
+keyword, unit-tested in the renderer: characters outside the basic plane counted once, the keyword at the
+start, several occurrences.
 
 ## Out of Scope
 

@@ -42,7 +42,7 @@ from `origin/main` at 5ff1db7 (no commits ahead when cut).
 | 1 | Step 1: facts and decisions | this record | done |
 | 2 | Step 2: the prototypes (both pages' hit rows, a long question in their data) and the specs; the owner confirms the prototype | the confirmed prototype | prototype confirmed (D5); measured in Chrome at 1280, 1000 and 800px and after a resize, every row's first occurrence in view, rows already in view unchanged, the long-keyword fallback at 800px; the specs next |
 | 3 | Steps 4–7 (`/implement`): records declared on #291 and its document sync checklist; test design review; slices S1 (where a moved row starts, U1–U6) and S2 (the row judged by layout, E1–E5); code review (a bug fixed red-first, E6); full gateway; independent test review; spec check | `ticket-291-review-*.md`, `evidence/ticket-291/` | done: the independent test check's F1–F8 fixed in 676557e and its incremental check's G1–G2 in d09280c; the final run on a448fbc `VERIFY_EXIT=0` (`evidence/ticket-291/gateway-a448fbc.txt`) |
-| 4 | Step 8 (`/features-catalog`); PR; stop for the owner | `final-regression.md`, PR link | step 8 done (the #291 section of `final-regression.md`); the PR next |
+| 4 | Step 8 (`/features-catalog`); PR; stop for the owner | `final-regression.md`, PR link | step 8 done (the #291 section of `final-regression.md`); PR #302 opened; the owner said merge, but CI's e2e on ubuntu failed E6 (C1 in `ticket-291-review-tests.md`), so no merge: E6 reworked, its incremental check and a full run next, then CI and the owner's confirmation |
 
 ## Spec check before step 7 (2026-10-22, implementation b295fdb)
 

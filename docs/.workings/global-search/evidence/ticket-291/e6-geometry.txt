@@ -1,0 +1,6 @@
+# E6's geometry on macOS, measured with a throwaway spec (the case's helpers and fixture shape, the fourth question with two hits), deleted after each run
+# Before (the question as at cee1da3, the ellipsis taken as 13px):
+E6GEOM {"markLeft":519.46875,"markEnd":565.0078125,"boxW":872.8046875,"winW":1100,"ell":13,"font":"13px -apple-system, \"PingFang SC\", \"Microsoft YaHei\", sans-serif"} width=804
+# After (22 characters more before the keyword; the ellipsis measured on a canvas given the row's font, and on the DOM probe for comparison):
+E6GEOM {"markEnd":698.9453125,"boxW":872.8046875,"winW":1100,"canvasEll":13,"probeEll":13} width=938
+# CI's failure gives the same sum on ubuntu at cee1da3 as 768, so the text there is narrower; the 134px the longer question adds on macOS moves it to about 890px

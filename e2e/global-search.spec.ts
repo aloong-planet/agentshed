@@ -20,7 +20,8 @@
 //     while hidden: show it and assert its rows are judged.
 //   - The hit-row case's "in view" measure lays out an ellipsis probe in the row and compares overflow, as the
 //     component does, so a mis-measured ellipsis common to both would not show; its independent anchor is the
-//     window sized from the highlight's own box (the keyword left 11–12px from the edge, inside a 13px ellipsis).
+//     window sized from the highlight's own box and an ellipsis measured another way, on a canvas given the row's
+//     font (the highlight left 1–2px inside that ellipsis from the edge).
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -875,12 +876,12 @@ test('a hit row keeps its keyword in view: 20 characters before a far keyword, t
   const dir = join(home, 'work', 'rows-proj')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [dir]: {} } }))
-  // The keyword 216 characters in; at the start; 66 characters in; and a 40-character keyword 86 characters in
+  // The keyword 216 characters in; at the start; 66 characters in; and a 40-character keyword 108 characters in
   const FAR = 'Background for the planning call, '.repeat(6) + 'and now the quokka question itself'
   const NEAR = 'quokka at the very start of a short question'
   const MID = 'A middle-length question that mentions the zebu herd and then the quokka once more'
   const LONG_KEY = 'quokka-routing-table-for-the-narrow-rows'
-  const WITH_LONG_KEY = `Notes on the deployment window and the rollback rules for the cluster, then later the ${LONG_KEY} entry`
+  const WITH_LONG_KEY = `Notes on the deployment window, the on-call handover and the rollback rules for the cluster, then later the ${LONG_KEY} entry`
   // A question in a real one's shape (most real questions hold CJK, many line breaks and runs of spaces): its
   // keyword, its own, about 100 characters in
   const CJK = '\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\u5148\u628a\u6784\u5efa\u811a\u672c\u62c6\u6210\u4e24\u6761\u7ebf\uff0c\n   \u7136\u540e\u770b wombat \u7684\u95ee\u9898'
@@ -961,18 +962,30 @@ test('a hit row keeps its keyword in view: 20 characters before a far keyword, t
     expect((await hitRows(tab))[1].text).toBe(NEAR)
 
     // A keyword ending under the ellipsis is out of view (E6). In global search, size the window so that the fourth
-    // question's highlight (its box, padding included, which is what is judged) ends 11.5px before its row's right
-    // edge: inside the ellipsis (13px in this font) by 1.5px, outside a 10px one by 1.5px, so the row has to move.
-    // The text box grows one pixel per pixel of window, so the width follows from one measurement of the row unmoved
+    // question's highlight (its box, padding included, which is what is judged) ends 1.5px less than the ellipsis's
+    // width before its row's right edge: inside the ellipsis by 1.5px, so the row has to move, and outside an
+    // ellipsis measured 3px short (13px measured as 10px in this font on macOS). The ellipsis is measured on a
+    // canvas given the row's font, not as the component and the helper measure it. The text box grows one pixel per
+    // pixel of window, so the width follows from one measurement of the row unmoved; the keyword lies far enough in
+    // that the width falls well inside the window's range (800px up to the 1100px it opens at) whatever the font
     await searchItem(win).click()
     await expect(body(win).locator('.hit')).toHaveCount(4)
     await expect.poll(async () => (await hitRows(body(win)))[3]).toEqual({ text: WITH_LONG_KEY, inView: true })
     const m = await body(win).locator('.hit .t').nth(3).evaluate((el) => {
       const box = el.getBoundingClientRect()
-      return { markEnd: (el.querySelector('mark') as HTMLElement).getBoundingClientRect().right - box.left, boxW: box.width, winW: window.innerWidth }
+      const cs = getComputedStyle(el)
+      const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D
+      ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
+      return {
+        markEnd: (el.querySelector('mark') as HTMLElement).getBoundingClientRect().right - box.left,
+        boxW: box.width,
+        winW: window.innerWidth,
+        ellipsis: ctx.measureText('\u2026').width
+      }
     })
-    const width = Math.round(m.winW - m.boxW + m.markEnd + 11.5)
-    expect(width).toBeGreaterThanOrEqual(800)
+    const width = Math.round(m.winW - m.boxW + m.markEnd + m.ellipsis - 1.5)
+    expect(width, `the window E6 needs (${JSON.stringify(m)}) lies within the app's range`).toBeGreaterThanOrEqual(800)
+    expect(width, `the window E6 needs (${JSON.stringify(m)}) lies within the app's range`).toBeLessThan(1100)
     await l.app.evaluate(({ BrowserWindow }, w) => BrowserWindow.getAllWindows()[0].setSize(w, 900), width)
     await expect.poll(() => win.evaluate(() => window.innerWidth)).toBe(width)
     await expect.poll(async () => (await hitRows(body(win)))[3]).toEqual({ text: '…ter, then later the quokka-routing-table-for-the-narrow-rows entry', inView: true })
