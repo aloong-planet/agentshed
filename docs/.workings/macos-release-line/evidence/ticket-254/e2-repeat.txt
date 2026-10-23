@@ -1,0 +1,12 @@
+# #254 the changed failed-download case, five times, 2026-10-23, macOS, on the build with the hold
+# command: pnpm -s exec playwright test e2e/app-update.spec.ts -g "a failed automatic check and a failed background download" --repeat-each=5
+
+Running 5 tests using 1 worker
+
+  ✓  1 e2e/app-update.spec.ts:269:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (2.1s)
+  ✓  2 e2e/app-update.spec.ts:269:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (2.1s)
+  ✓  3 e2e/app-update.spec.ts:269:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (2.1s)
+  ✓  4 e2e/app-update.spec.ts:269:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (2.1s)
+  ✓  5 e2e/app-update.spec.ts:269:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (2.1s)
+
+  5 passed (11.9s)

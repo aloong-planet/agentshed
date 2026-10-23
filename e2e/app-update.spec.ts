@@ -159,7 +159,9 @@ test('a launch check that finds an update shows the download in the rail at once
 
 test('an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04)', async () => {
   const f = fixture()
-  script(f, { check: 'found', version: '9.9.0', steps: [0, 20, 40, 60], stepMs: 700, download: 'hold' })
+  const download = { check: 'found', version: '9.9.0', steps: [0, 20, 40, 60], stepMs: 100, download: 'hold' }
+  // Held at 0 until the message is open, however late the window shows
+  script(f, { ...download, holdFirstStep: true })
   const app = await launch(f)
   try {
     const win = await app.firstWindow()
@@ -172,6 +174,7 @@ test('an open message follows the progress of the download and stays anchored to
     })
     const first = await where()
     // Still open, the message moves on with the download, in the same place
+    script(f, download)
     await expect(tip(win)).toHaveText('Downloading update 60%', { timeout: 5000 })
     expect(await where()).toEqual(first)
   } finally {
@@ -275,10 +278,13 @@ test('a failed automatic check and a failed background download show nothing (RE
     await expect(win.locator('.toast')).toHaveCount(0)
     await app.close()
 
-    script(f, { check: 'found', version: '9.9.0', steps: [0, 30], stepMs: 400, download: 'fail' })
+    const failing = { check: 'found', version: '9.9.0', steps: [0, 30], stepMs: 100, download: 'fail' }
+    // Held at its first step until the slot has been seen, however late the window shows
+    script(f, { ...failing, holdFirstStep: true })
     app = await launch(f)
     win = await app.firstWindow()
     await expect(slot(win)).toBeVisible()
+    script(f, failing)
     await expect(slot(win)).toHaveCount(0, { timeout: 5000 })
     await expect(win.locator('.toast')).toHaveCount(0)
     await app.close()

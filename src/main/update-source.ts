@@ -142,7 +142,10 @@ export function electronUpdateSource(currentVersion: string): UpdateSource {
  * check answers, and appends each request to `<script>.log` so a test can count them. Script fields:
  * `check` ("upToDate" | "fail" | "found"), `version`, `checkMs` (how long a check stays in flight),
  * `steps` (the progress values a download reports), `stepMs`, `download` ("complete" | "fail" | "hold"),
- * and `install` ("fail" | "hold"). A scripted install never installs anything.
+ * `holdFirstStep` and `install` ("fail" | "hold"). A scripted install never installs anything.
+ * With `holdFirstStep`, the download reports its first step and stays there for as long as the script still
+ * says so, and a test rewrites the script to let it move on. The steps otherwise run on a timer started at the
+ * check, which at launch is while the window is still loading: a case that must see a step holds it.
  */
 export function scriptedUpdateSource(script: string): UpdateSource {
   interface Script {
@@ -152,11 +155,20 @@ export function scriptedUpdateSource(script: string): UpdateSource {
     steps?: number[]
     stepMs?: number
     download?: 'complete' | 'fail' | 'hold'
+    holdFirstStep?: boolean
     install?: 'fail' | 'hold'
   }
   const read = (): Script => JSON.parse(readFileSync(script, 'utf8')) as Script
   const record = (what: 'check' | 'install'): void => appendFileSync(`${script}.log`, `${what}\n`)
   const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+  // A script that cannot be read is one a test is rewriting: the next read sees it whole
+  const holding = (): boolean => {
+    try {
+      return read().holdFirstStep === true
+    } catch {
+      return true
+    }
+  }
   return {
     async check(onProgress): Promise<FoundUpdate | null> {
       record('check')
@@ -166,9 +178,14 @@ export function scriptedUpdateSource(script: string): UpdateSource {
       if (s.check !== 'found') throw new Error('scripted check failure')
       let cancelled = false
       const downloaded = (async () => {
-        for (const step of s.steps ?? [0, 100]) {
+        for (const [i, step] of (s.steps ?? [0, 100]).entries()) {
           if (cancelled) throw new Error('scripted download cancelled')
           onProgress(step)
+          // Only a download whose own script asked for the hold waits; the script as it is now says when to let go
+          while (i === 0 && s.holdFirstStep === true && holding()) {
+            if (cancelled) throw new Error('scripted download cancelled')
+            await wait(50)
+          }
           await wait(s.stepMs ?? 0)
         }
         if (s.download === 'fail') throw new Error('scripted download failure')
