@@ -368,7 +368,10 @@ recommended handling is in "Out of Scope".
   light track in dark; declaring a dark `color-scheme` turns that track dark but keeps its 15px and the
   track; the standard `scrollbar-width: thin` with `scrollbar-color` gives a transparent track but an
   11px gutter the engine sets, with no hover state; the drawn scrollbar is exactly as specified. A drawn
-  scrollbar replaces macOS's overlay one, which is why the thumb does not hide when idle (F1).
+  scrollbar replaces macOS's overlay one, which is why the thumb does not hide when idle (F1): in Chromium's
+  source, an element with scrollbar pseudo-element styles gets a custom scrollbar, which is never an overlay
+  one, whatever the platform uses (read 2026-10-23 on Chromium's main branch; the e2e window is the classic case,
+  and no overlay Mac was measured).
 - The corner needs its own rule: left out, it stays a light square where two scrollbars meet.
 
 ## Testing Decisions

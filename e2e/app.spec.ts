@@ -1898,6 +1898,89 @@ function expectCodeStyle(c: Awaited<ReturnType<typeof codeStyle>>, label: string
   expect(c.inlineBorder, `${label}: inline code pill border`).toBe('1px')
 }
 
+type Win = Awaited<ReturnType<ElectronApplication['firstWindow']>>
+type Rgb = [number, number, number]
+
+/** One pixel of the window as drawn, at a CSS position. A scrollbar is no element, so its colour has no computed
+ * style to read: the window is captured around the point (at the device's scale) and the capture decoded in the
+ * page, where a canvas gives RGBA whatever the platform's bitmap order */
+async function pixelAt(win: Win, x: number, y: number): Promise<Rgb> {
+  const png = await win.screenshot({ clip: { x: Math.floor(x), y: Math.floor(y), width: 1, height: 1 } })
+  return win.evaluate(async (b64) => {
+    const img = new Image()
+    img.src = `data:image/png;base64,${b64}`
+    await img.decode()
+    const c = document.createElement('canvas')
+    c.width = img.naturalWidth
+    c.height = img.naturalHeight
+    const ctx = c.getContext('2d') as CanvasRenderingContext2D
+    ctx.drawImage(img, 0, 0)
+    const d = ctx.getImageData(Math.floor(img.naturalWidth / 2), Math.floor(img.naturalHeight / 2), 1, 1).data
+    return [d[0], d[1], d[2]] as [number, number, number]
+  }, png.toString('base64'))
+}
+
+/** The colour an area paints beneath its content: the first painted background up its ancestors */
+async function paintedBackground(area: ReturnType<Win['locator']>): Promise<Rgb> {
+  return area.evaluate((node) => {
+    for (let n: Element | null = node; n; n = n.parentElement) {
+      const c = getComputedStyle(n).backgroundColor
+      if (!/rgba\(.*,\s*0\)$/.test(c) && c !== 'transparent') {
+        return (c.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number) as [number, number, number]
+      }
+    }
+    return [] as unknown as [number, number, number]
+  })
+}
+
+/** A scrolling area's vertical scrollbar, measured: how far its content overflows, how wide the scrollbar is (the
+ * box less the client area less the borders), the column the scrollbar occupies, where its thumb is at the current
+ * scroll position, and the colour the area paints beneath it (the first painted background up its ancestors) */
+async function scrollArea(win: Win, selector: string): Promise<{
+  overflow: number
+  width: number
+  columnX: number
+  thumbY: number
+  trackY: number
+  background: Rgb
+}> {
+  return win.locator(selector).evaluate((node) => {
+    const el = node as HTMLElement
+    const cs = getComputedStyle(el)
+    const r = el.getBoundingClientRect()
+    const bl = parseFloat(cs.borderLeftWidth)
+    const br = parseFloat(cs.borderRightWidth)
+    const bt = parseFloat(cs.borderTopWidth)
+    const bb = parseFloat(cs.borderBottomWidth)
+    const width = el.offsetWidth - el.clientWidth - bl - br
+    const top = r.top + bt
+    const thumbLength = (el.clientHeight * el.clientHeight) / el.scrollHeight
+    const thumbTop = top + (el.scrollTop / el.scrollHeight) * el.clientHeight
+    return {
+      overflow: el.scrollHeight - el.clientHeight,
+      width,
+      columnX: r.right - br - width / 2,
+      thumbY: thumbTop + thumbLength / 2,
+      // Below the thumb when it sits at the top, on the empty part of the scrollbar's column
+      trackY: r.bottom - bb - 3
+    }
+  }).then(async (measured) => ({ ...measured, background: await paintedBackground(win.locator(selector)) }))
+}
+
+/** A colour for a failure message */
+function rgb(c: Rgb): string {
+  return c.join(',')
+}
+
+function near(got: Rgb, want: Rgb, tolerance = 2): boolean {
+  return got.every((v, i) => Math.abs(v - want[i]) <= tolerance)
+}
+
+/** A colour at the given opacity laid over a background: the expected thumb, from the spec's literal values */
+function over(channel: 0 | 255, alpha: number, background: Rgb): Rgb {
+  return background.map((b) => Math.round(b * (1 - alpha) + channel * alpha)) as Rgb
+}
+
 /**
  * The v2 components (Subagents/Memory/Plugins): with a seeded fixture home (injected through
  * AGENTSHED_HOME_OVERRIDE),
@@ -2215,22 +2298,15 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   expect(bars.preHorizontal, "the fence's sideways scrollbar is 6px tall").toBe(6)
   // The corner is read in dark: an uncleared corner is a white square, which on the light body's white is no
   // different from the background, so a light reading could not fail
-  const bodyBackground = (): Promise<string> => fdBody.evaluate((node) => {
-    for (let n: Element | null = node; n; n = n.parentElement) {
-      const c = getComputedStyle(n).backgroundColor
-      if (!/rgba\(.*,\s*0\)$/.test(c) && c !== 'transparent') return c
-    }
-    return ''
-  })
-  const lightBody = await bodyBackground()
+  const lightBody = await paintedBackground(fdBody)
   await win.emulateMedia({ colorScheme: 'dark' })
-  await expect.poll(bodyBackground).not.toBe(lightBody)
-  const darkBody = (await bodyBackground()).match(/\d+(\.\d+)?/g)?.slice(0, 3).map(Number) as [number, number, number]
+  await expect.poll(() => paintedBackground(fdBody)).not.toEqual(lightBody)
+  const darkBody = await paintedBackground(fdBody)
   const corner = await pixelAt(win, bars.cornerX, bars.cornerY)
   await fdBody.screenshot({ path: 'e2e-out/scrollbars-drawer-dark.png' })
   expect(near(corner, darkBody), `the corner shows the body's dark background ${rgb(darkBody)}, got ${rgb(corner)}`).toBe(true)
   await win.emulateMedia({ colorScheme: 'light' })
-  await expect.poll(bodyBackground).toBe(lightBody)
+  await expect.poll(() => paintedBackground(fdBody)).toEqual(lightBody)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // AC-01 for Codex's global memory: the placeholder owner and the Codex side
   await win.locator('.it.row-btn', { hasText: '(Codex global memory)' }).click()
@@ -4070,83 +4146,6 @@ test('appearance: all six combinations of 3 themes × 2 effective light/dark hol
   expect(l.errors).toEqual([])
   await close(l)
 })
-
-type Win = Awaited<ReturnType<ElectronApplication['firstWindow']>>
-type Rgb = [number, number, number]
-
-/** One pixel of the window as drawn, at a CSS position. A scrollbar is no element, so its colour has no computed
- * style to read: the window is captured around the point (at the device's scale) and the capture decoded in the
- * page, where a canvas gives RGBA whatever the platform's bitmap order */
-async function pixelAt(win: Win, x: number, y: number): Promise<Rgb> {
-  const png = await win.screenshot({ clip: { x: Math.floor(x), y: Math.floor(y), width: 1, height: 1 } })
-  return win.evaluate(async (b64) => {
-    const img = new Image()
-    img.src = `data:image/png;base64,${b64}`
-    await img.decode()
-    const c = document.createElement('canvas')
-    c.width = img.naturalWidth
-    c.height = img.naturalHeight
-    const ctx = c.getContext('2d') as CanvasRenderingContext2D
-    ctx.drawImage(img, 0, 0)
-    const d = ctx.getImageData(Math.floor(img.naturalWidth / 2), Math.floor(img.naturalHeight / 2), 1, 1).data
-    return [d[0], d[1], d[2]] as [number, number, number]
-  }, png.toString('base64'))
-}
-
-/** A scrolling area's vertical scrollbar, measured: how far its content overflows, how wide the scrollbar is (the
- * box less the client area less the borders), the column the scrollbar occupies, where its thumb is at the current
- * scroll position, and the colour the area paints beneath it (the first painted background up its ancestors) */
-async function scrollArea(win: Win, selector: string): Promise<{
-  overflow: number
-  width: number
-  columnX: number
-  thumbY: number
-  trackY: number
-  background: Rgb
-}> {
-  return win.locator(selector).evaluate((node) => {
-    const el = node as HTMLElement
-    const cs = getComputedStyle(el)
-    const r = el.getBoundingClientRect()
-    const bl = parseFloat(cs.borderLeftWidth)
-    const br = parseFloat(cs.borderRightWidth)
-    const bt = parseFloat(cs.borderTopWidth)
-    const bb = parseFloat(cs.borderBottomWidth)
-    const width = el.offsetWidth - el.clientWidth - bl - br
-    const top = r.top + bt
-    const thumbLength = (el.clientHeight * el.clientHeight) / el.scrollHeight
-    const thumbTop = top + (el.scrollTop / el.scrollHeight) * el.clientHeight
-    let bg = 'rgba(0, 0, 0, 0)'
-    for (let n: Element | null = el; n; n = n.parentElement) {
-      const c = getComputedStyle(n).backgroundColor
-      if (!/rgba\(.*,\s*0\)$/.test(c) && c !== 'transparent') { bg = c; break }
-    }
-    const [rr, gg, bbb] = (bg.match(/\d+(\.\d+)?/g) ?? []).map(Number)
-    return {
-      overflow: el.scrollHeight - el.clientHeight,
-      width,
-      columnX: r.right - br - width / 2,
-      thumbY: thumbTop + thumbLength / 2,
-      // Below the thumb when it sits at the top, on the empty part of the scrollbar's column
-      trackY: r.bottom - bb - 3,
-      background: [rr, gg, bbb] as [number, number, number]
-    }
-  })
-}
-
-/** A colour for a failure message */
-function rgb(c: Rgb): string {
-  return c.join(',')
-}
-
-function near(got: Rgb, want: Rgb, tolerance = 2): boolean {
-  return got.every((v, i) => Math.abs(v - want[i]) <= tolerance)
-}
-
-/** A colour at the given opacity laid over a background: the expected thumb, from the spec's literal values */
-function over(channel: 0 | 255, alpha: number, background: Rgb): Rgb {
-  return background.map((b) => Math.round(b * (1 - alpha) + channel * alpha)) as Rgb
-}
 
 /**
  * Scrollbars (spec appearance.md, appearance::REQ-001 and sequence F), on the project list: 40 projects overflow it

@@ -204,9 +204,10 @@ body {
 }
 
 /* Scrollbars (appearance::REQ-001): every scrolling area draws a 6px thumb with rounded ends on no track, shown
-   whenever its content overflows. A drawn scrollbar replaces macOS's own — the classic one, whose track stays light
-   beside a dark list, and the overlay one, which hides when idle — so it is the same with a mouse or a trackpad,
-   whatever macOS's setting. The corner where two scrollbars meet is cleared too, or it stays a light square. */
+   whenever its content overflows. Chromium never draws a styled scrollbar as an overlay one, so this replaces both of
+   macOS's own — the classic one, whose track stays light beside a dark list, and the overlay one, which hides when
+   idle — and is the same with a mouse or a trackpad, whatever macOS's setting. The corner where two scrollbars meet
+   is cleared too, or it stays a light square. */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
