@@ -16,6 +16,7 @@ this checklist are added for the current work only.
 | Record the actual verification of this ticket's units, as they run | [checklist](checklist.md), current verification | Done: the delivered version's row, the final run on 764addb (`evidence/ticket-281/gateway-764addb.txt`) |
 | Step 8 report | [final-regression.md](final-regression.md) (new for this feature's records) | Done: the #281 section, three stages (2026-10-23) |
 | Declare this ticket's artifacts and process acceptance on the issue | [#281](https://github.com/aloong-planet/agentshed/issues/281) | Done: 2026-10-23 |
+| Tick #281's items and name the merge commit, on this pull request's merge | [#281](https://github.com/aloong-planet/agentshed/issues/281) | Done with the merge of #304, which the owner confirmed on 2026-10-23 to follow a green CI; after it, the tracker only |
 
 **Pre-delivery scope re-check (2026-10-23):** the scrollbars as implemented compared with every document this ticket
 touches — the appearance spec (requirement, failure items, decisions, testing, out of scope, notes), the appearance

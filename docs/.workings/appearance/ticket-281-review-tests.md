@@ -292,7 +292,8 @@ classic 15), 0 under `WhenScrolling`, 15 under `Always`, 0 under `Automatic`; on
 - **F1, F2 (T1)**: driven by S10 on macOS. The case's comment saying a test cannot set them is corrected.
 - **T5**: an app launch is not an expensive resource here (0.6–0.7s); the conclusions do not change.
 - **T6** (the 40-project builder copied from the #122 case): one builder now serves the scrollbar cases; the #122
-  case keeps its own copy, outside this change. Left for the owner to keep or drop as a note.
+  case keeps its own copy, outside this change. The owner's decision (2026-10-23): left as it is, no ticket — a drifted
+  copy would fail loudly, not pass.
 
 ### Shown red (`evidence/ticket-281/e2e-plants-d-e.txt`)
 
