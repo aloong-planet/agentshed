@@ -49,3 +49,8 @@ No finding: text only.
   paired), run on a copy of `docs/prototypes`, turns that page's tooltip check red alone and in the gallery,
   and no other page's. The copy lacked `build/icon.png`, which the pages load from outside the directory, so
   every page's console check also failed on the missing icon; the runs on the full tree do not show it.
+- Judged, no change (raised by the post-implementation check as O1): each `logic.js`'s `legal()` gives, before any
+  entry, a reason that opens with the Chinese for "empty state:" and goes on in the page's own words ("no project
+  yet, enter first" and the like), where the template reads "empty state: no entity yet, enter first". Each page
+  rewrote the whole sentence, so it is one of the reasons each page wrote, which the owner's decision keeps as
+  they are.

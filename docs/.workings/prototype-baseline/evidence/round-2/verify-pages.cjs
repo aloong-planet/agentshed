@@ -57,6 +57,18 @@ async function driveLogic(t, diagrams, where) {
   check(`${where}: after entry, a status`, status !== '—', status);
   const highlighted = await q(() => document.querySelectorAll('.dg svg g.node.cur').length);
   check(`${where}: the current state highlighted on a diagram`, highlighted >= 1, highlighted);
+  // Every entry button: each starts its own entry (a status of its own) with an empty receipt
+  const entries = await q(() => [...document.querySelectorAll('[data-new]')].map((b) => b.dataset.new));
+  const entryStatus = [];
+  for (const e of entries) {
+    await t.click(`[data-new="${e}"]`);
+    const st = await q(() => document.getElementById('v-status').textContent);
+    const rc = await receipt();
+    entryStatus.push(st);
+    check(`${where}: entry button "${e}": a status, no event dispatched yet`, st !== '—' && rc === 'No event dispatched yet', `${st} | ${rc}`);
+  }
+  check(`${where}: each entry button gives its own status`, entries.length >= 2 && new Set(entryStatus).size === entries.length, JSON.stringify(entryStatus));
+  await t.click('[data-new]');   // back to the first entry for the checks below
   // A greyed-out event: the unreachable tooltip; stress mode lifts it with the forced prefix
   const grey = await q(() => { const b = document.querySelector('[data-act][aria-disabled="true"]'); return b && { act: b.dataset.act, tip: b.dataset.tip }; });
   check(`${where}: an unreachable event carries the Unreachable prefix`, !!grey && grey.tip.startsWith('Unreachable: '), JSON.stringify(grey));
