@@ -82,8 +82,8 @@ a trailing up-right arrow after the cross-prototype link "install interaction de
 hint row, and after "project detail" in a heading note on the install page. Both are reader aids that jump to another
 prototype, not app interface. The other hits are arrows, multiplication and minus signs inside copy and mock tool
 output, or sit in comments. No repository-wide icon audit is claimed. Recommendation: leave them (prototype reader
-aids; the template-level character icons are already aloong-planet/skillshed#16). They have no home in this
-repository; the owner decides at delivery.
+aids; the template-level character icons are already aloong-planet/skillshed#16). The owner decided on 2026-10-23
+to leave them as they are.
 
 Review fixes, executed: the two header notes above, and item 9's values.
 
