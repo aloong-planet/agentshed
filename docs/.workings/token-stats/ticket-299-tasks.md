@@ -45,8 +45,8 @@ requirement authority: the requirement the step checks is token-stats::REQ-001/A
 | 3 | Test design review | `ticket-299-review-tests.md`, Design review | done |
 | 4 | Slice: the rollover step waits for the tick | the held loop green with the case's window; the case repeated | done: the held loop green 5 of 5 with the step as changed, the restore file green five times (`evidence/ticket-299/after-change.txt`); a display clock stretched to a minute turns the step red (`evidence/ticket-299/plant-clock-stretched.txt`) |
 | 5 | Code review | `ticket-299-review-code.md` | done: no finding; the comment's facts measured |
-| 6 | Full gateway | `evidence/ticket-299/gateway-<commit>.txt` | |
-| 7 | Independent post-implementation test check | `ticket-299-review-tests.md` | |
+| 6 | Full gateway | `evidence/ticket-299/gateway-251e3f7.txt` | done: `VERIFY_EXIT=0` on the clean tree of 251e3f7 (867 unit, 109 site, 148 e2e, smoke OK) |
+| 7 | Independent post-implementation test check | `ticket-299-review-tests.md` | handed to an independent agent on 1349d76 up to the commit that records the gateway run |
 | 8 | Step 7 (nothing in the spec changes: no time is specified) and step 8 | `final-regression.md` | |
 | 9 | PR; stop for the owner | PR link | |
 
