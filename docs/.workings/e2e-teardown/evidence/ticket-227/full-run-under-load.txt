@@ -1,0 +1,1284 @@
+# #227 the whole e2e suite under load, 2026-10-23/24, macOS (10 cores), on 24807a5 (the helper as delivered): pnpm e2e with N busy processes beside it (stress.sh), the 1-minute load average sampled every 30 s
+# Summary:
+#   4 busy:  load 9-14 (mean 11.8),   154 passed in 5.5 min, no close reached the bound
+#   8 busy:  load 19-34 (mean 25.5),  154 passed in 6.0 min, no close reached the bound
+#   10 busy: load up to 257 (mean 195), 154 passed in 33.5 min, 164 closes reached the bound and their groups were killed, exit 0
+#   12 busy: load up to 268,          154 passed in 33.9 min, the closes killed as above; then Playwright's own worker teardown exceeded 60 s after the last case, outside any case (exit 1); not seen at 10 busy under the same load
+
+## 4 busy processes
+24807a5 Test the bounded teardown's real kill, and record the rule in CONTEXT
+loaded full e2e exit=0
+### load samples
+23:48  up 10 days, 23:10, 11 users, load averages: 9.38 42.81 111.95
+23:49  up 10 days, 23:11, 11 users, load averages: 12.25 40.22 108.61
+23:49  up 10 days, 23:11, 11 users, load averages: 12.51 37.66 105.31
+23:50  up 10 days, 23:12, 11 users, load averages: 13.43 35.45 102.17
+23:50  up 10 days, 23:12, 11 users, load averages: 14.47 33.67 99.21
+23:51  up 10 days, 23:13, 11 users, load averages: 11.61 31.15 96.03
+23:51  up 10 days, 23:13, 11 users, load averages: 11.78 29.32 93.12
+23:52  up 10 days, 23:14, 11 users, load averages: 12.53 27.77 90.34
+23:52  up 10 days, 23:14, 11 users, load averages: 11.66 26.10 87.57
+23:53  up 10 days, 23:15, 11 users, load averages: 10.50 24.46 84.84
+23:53  up 10 days, 23:15, 11 users, load averages: 9.30 22.85 82.17
+23:54  up 10 days, 23:16, 11 users, load averages: 12.68 22.28 79.90
+### the run
+
+> agentshed@0.1.0-beta e2e /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-227
+> electron-vite build && playwright test
+
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 547 modules transformed.
+rendering chunks...
+out/main/parse-worker.js                   0.40 kB
+out/main/chunks/token-stats-Y_GCWB5i.js  122.21 kB
+out/main/index.js                        211.93 kB
+out/main/chunks/main-DZ5R1KNi.js         513.19 kB
+✓ built in 931ms
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 17 modules transformed.
+rendering chunks...
+out/preload/index.cjs  49.77 kB
+✓ built in 45ms
+vite v5.4.21 building for production...
+transforming...
+✓ 147 modules transformed.
+rendering chunks...
+../../out/renderer/index.html                   0.40 kB
+../../out/renderer/assets/index-D-ZQl5TO.css   84.75 kB
+../../out/renderer/assets/index-CwhfPdBv.js   688.41 kB
+✓ built in 561ms
+
+Running 154 tests using 1 worker
+
+  ✓    1 e2e/app-update.spec.ts:87:1 › with no update in flight the slot takes no space; an update in flight sits directly above Settings, which keeps its place (REQ-001/AC-01, US-001/AC-06, appearance D4) (1.4s)
+  ✓    2 e2e/app-update.spec.ts:123:1 › a launch check that finds an update shows the download in the rail at once, with no dialog; the slot cannot be clicked while downloading (US-001/AC-01, REQ-001/AC-02–AC-04) (1.1s)
+  ✓    3 e2e/app-update.spec.ts:161:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (3.0s)
+  ✓    4 e2e/app-update.spec.ts:184:1 › the finished download becomes the ready button; clicking it installs once and shows the spinner (US-001/AC-03, AC-04, REQ-001/AC-03, Failure C10) (1.1s)
+  ✓    5 e2e/app-update.spec.ts:213:1 › a failed install after the click shows the error toast, stacked with any other, and the button goes (REQ-002/AC-03, Failure G6) (804ms)
+  ✓    6 e2e/app-update.spec.ts:236:1 › an open message goes with the button, so the button comes back without it (REQ-001/AC-04) (729ms)
+  ✓    7 e2e/app-update.spec.ts:267:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (2.5s)
+  ✓    8 e2e/app-update.spec.ts:291:1 › the circle, its glyph and the message stay distinguishable in every theme, light and dark, and recolour with a switch (REQ-001/AC-05, Failure G3) (1.1s)
+  ✓    9 e2e/app-update.spec.ts:344:1 › the installing loader spins, and stands still under reduced motion (REQ-001/AC-02) (674ms)
+  ✓   10 e2e/app-update.spec.ts:363:1 › an open message follows a language switch at once (Failure G2) (700ms)
+  ✓   11 e2e/app-update.spec.ts:389:1 › with automatic checks turned off the launch makes no request (US-002/AC-01) (2.1s)
+  ✓   12 e2e/app-update.spec.ts:406:1 › a second instance launched while an update is ready exits, and the running one keeps the update (Failure G5) (802ms)
+  ✓   13 e2e/app.spec.ts:378:1 › cold start: the Agents page is the default landing, both summary cards render, and the main process reports no errors (647ms)
+  ✓   14 e2e/app.spec.ts:398:1 › an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors (628ms)
+  ✓   15 e2e/app.spec.ts:427:1 › all seven Agents page tabs render as they are switched through, with no errors (805ms)
+  ✓   16 e2e/app.spec.ts:449:1 › switching to Projects: rows appear when there are projects, and the detail tabs switch once one is selected (898ms)
+  ✓   17 e2e/app.spec.ts:468:1 › switching to Projects: the sidebar shows its empty state when there are no projects at all (689ms)
+  ✓   18 e2e/app.spec.ts:509:1 › the project list row: a side-count badge, with hovering naming the sides in full (798ms)
+  ✓   19 e2e/app.spec.ts:597:1 › a Grok-only project opens its detail page without errors (884ms)
+  ✓   20 e2e/app.spec.ts:631:1 › a stale project opens as the note page: card only, chips per recording side, copy feedback, and both staleness flips (1.3s)
+  ✓   21 e2e/app.spec.ts:701:1 › the side filter dropdown: narrows to one side, dismisses on scroll, and survives a resize (1.3s)
+  ✓   22 e2e/app.spec.ts:788:1 › a real window resize with a scrolled list does not close the side dropdown (#122) (715ms)
+  ✓   23 e2e/app.spec.ts:829:1 › the side filter row stays inside the sidebar column in both UI languages (1.1s)
+  ✓   24 e2e/app.spec.ts:886:1 › the sessions section: sessions are listed, the sort switches, and warmup sessions are not listed (814ms)
+  ✓   25 e2e/app.spec.ts:930:1 › the sessions section: each row shows that session's real question count (787ms)
+  ✓   26 e2e/app.spec.ts:953:1 › the sessions section: the sort choice is remembered after switching away (860ms)
+  ✓   27 e2e/app.spec.ts:976:1 › the sessions section: a project with no sessions shows an empty state, and the overview session card clicks through to this section (752ms)
+  ✓   28 e2e/app.spec.ts:989:1 › one click on the overview session card goes straight to the session page (761ms)
+  ✓   29 e2e/app.spec.ts:1005:1 › the session page: every question is listed with complete fields, and back returns to the sessions section (849ms)
+  ✓   30 e2e/app.spec.ts:1046:1 › the session page: a fork session shows only the questions left after stripping (807ms)
+  ✓   31 e2e/app.spec.ts:1068:1 › the IPC surface: a path outside the allow-list is refused over the real channel, and the error carries no file content (690ms)
+  ✓   32 e2e/app.spec.ts:1112:1 › the session page: a long question's single-line truncation happens only in the display layer, with the full text in the DOM (835ms)
+  ✓   33 e2e/app.spec.ts:1150:1 › the session page: everything collapsed by default; clicking a question expands the whole turn with its fetch footnote, and clicking again collapses it (863ms)
+  ✓   34 e2e/app.spec.ts:1187:1 › the session page: day groups collapse; descending reverses both the groups and their contents while the numbers stay; expansion survives a sort change (955ms)
+  ✓   35 e2e/app.spec.ts:1239:1 › the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source (4.0s)
+  ✓   36 e2e/app.spec.ts:1280:1 › the session page: after the file is appended to (so the signature mismatches), clicking a question still fetches the correct whole turn (861ms)
+  ✓   37 e2e/app.spec.ts:1312:1 › session page rich content (Claude): the thinking, tool and subagent blocks are collapsed by default and expand to the full text with their labels (939ms)
+  ✓   38 e2e/app.spec.ts:1361:1 › session page rich content (Codex): the encrypted-reasoning label, tool pairing, the unattributable spawn label, and traces of unknown events (883ms)
+  ✓   39 e2e/app.spec.ts:1399:1 › session page (Codex, paginated format): the session is listed by its completed-item question, opens, and its turn shows the agent-message prose with no unknown trace (831ms)
+  ✓   40 e2e/app.spec.ts:1440:1 › session page (Codex, cold rollout): a .jsonl.zst session is listed, counted, opens and expands like a plain one (843ms)
+  ✓   41 e2e/app.spec.ts:1476:1 › session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question (1.5s)
+  ✓   42 e2e/app.spec.ts:1527:1 › overlapping automatic rescans are deduplicated: the page stays coherent and the main process reports no errors (722ms)
+  ✓   43 e2e/app.spec.ts:1547:1 › the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors (673ms)
+  ✓   44 e2e/app.spec.ts:1605:1 › the archive retains a past day whose live figure fell under the same stamp (ADR-0026): the retained figure shows on both pages, with no hatching, while the archived-only day still hatches (767ms)
+  ✓   45 e2e/app.spec.ts:1672:1 › the trend chart is stacked bars: segmented by provider within a bar, and switching to a single side leaves only that side's provider segments (685ms)
+  ✓   46 e2e/app.spec.ts:1702:1 › the provider brand colours apply: the segments and the legend match, with their own values in light and dark (695ms)
+  ✓   47 e2e/app.spec.ts:1992:1 › F3 plus the new sections: a project-scope plugin displays correctly both ways; the Subagents and Memory drawers work end to end (13.0s)
+  ✓   48 e2e/app.spec.ts:2504:1 › Skills view: expanding globally reads the package; a same-name pair in detail shows only the project level; plugin rows do not expand (5.0s)
+  ✓   49 e2e/app.spec.ts:2670:1 › filtering the skills lists by name, and revealing a truncated name on hover (1.2s)
+  ✓   50 e2e/app.spec.ts:2862:1 › a filter keyword survives a refresh, and is cleared by leaving the section or switching project (1.3s)
+  ✓   51 e2e/app.spec.ts:2942:1 › the install-to popover sits next to its button, and its targets can be clicked (1.2s)
+  ✓   52 e2e/app.spec.ts:3054:1 › previewing a plugin skill in place: the tab expands and reads the package; a disabled plugin is readable; a missing one is greyed out; the Codex group (1.1s)
+  ✓   53 e2e/app.spec.ts:3153:1 › a skill package removed after the scan: the file table shows the toast's wording in both skill lists (#209) (833ms)
+  ✓   54 e2e/app.spec.ts:3208:3 › skill file line counts follow the UI language's digit grouping [en-US] (#210) (783ms)
+  ✓   55 e2e/app.spec.ts:3239:1 › automatic refresh: a new session appears on its own, and the detail page's expansion state survives it (5.0s)
+  ✓   56 e2e/app.spec.ts:3341:3 › the trend chart [Agents page · Token tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (967ms)
+  ✓   57 e2e/app.spec.ts:3341:3 › the trend chart [project detail · Overview tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (1.1s)
+  ✓   58 e2e/app.spec.ts:3445:1 › a newly adopted side: the thin xAI segment survives, and Grok mode labels only its data days (983ms)
+  ✓   59 e2e/app.spec.ts:3545:1 › three sides on one day segment together, and one project mixes all three sides' sessions by time (845ms)
+  ✓   60 e2e/app.spec.ts:3619:1 › the Agents page shows Grok's own global skills with the borrowing line, and installs one into a project (746ms)
+  ✓   61 e2e/app.spec.ts:3666:1 › a Grok session opens end to end: list, questions, an on-demand turn, search, and the allow-list boundary (1.2s)
+  ✓   62 e2e/app.spec.ts:3755:1 › the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip" (842ms)
+  ✓   63 e2e/app.spec.ts:3798:1 › settings: the three appearance choices change data-theme, and entering and leaving settings keeps the selected project (1.6s)
+  ✓   64 e2e/app.spec.ts:3851:1 › project list: selection is a deeper wash with no ring, and adjacent rows keep a 1px gap (706ms)
+  ✓   65 e2e/app.spec.ts:3967:1 › appearance: one card with two rows (mode + theme); the theme cards keep only a swatch and a name (691ms)
+  ✓   66 e2e/app.spec.ts:3995:1 › appearance mode: locking light or dark changes the effective light/dark, and the palette samples follow (764ms)
+  ✓   67 e2e/app.spec.ts:4052:1 › appearance: all six combinations of 3 themes × 2 effective light/dark hold (930ms)
+  ✓   68 e2e/app.spec.ts:4184:1 › scrollbars: every scrolling area draws a 6px thumb on no track, in light and in dark (appearance::REQ-001) (1.3s)
+  ✓   69 e2e/app.spec.ts:4257:1 › scrollbars: the thumb darkens under the pointer, in light and in dark (appearance::REQ-001/AC-05) (926ms)
+  ✓   70 e2e/app.spec.ts:4299:1 › scrollbars: the same 6px scrollbar whether macOS draws overlay or classic ones (appearance F1, F2) (1.6s)
+  ✓   71 e2e/app.spec.ts:4366:1 › UI language: following the system resolves against the whole list, and applies on the first frame (660ms)
+  ✓   72 e2e/app.spec.ts:4380:1 › UI language: falls back to English when the system language is unsupported (673ms)
+  ✓   73 e2e/app.spec.ts:4391:1 › UI language: a stored preference naming a removed language reads as follow system (i18n::REQ-003) (721ms)
+  ✓   74 e2e/app.spec.ts:4412:1 › the language selector: three items including follow-system and the divider, with a switch applying immediately (795ms)
+  ✓   75 e2e/app.spec.ts:4472:1 › the language selector by keyboard: opening leaves the highlight on the current selection rather than moving an extra step (812ms)
+  ✓   76 e2e/app.spec.ts:4523:1 › i18n: the language-locking mechanism itself is reliable, unaffected by the development machine's system language (1.5s)
+  ✓   77 e2e/app.spec.ts:4544:1 › i18n: both languages load, with the key nodes non-empty (779ms)
+  ✓   78 e2e/app.spec.ts:4570:1 › i18n: switching languages applies immediately, changing several areas at once (722ms)
+  ✓   79 e2e/app.spec.ts:4592:1 › i18n: key layouts do not overflow horizontally in either language (756ms)
+  ✓   80 e2e/app.spec.ts:4617:1 › i18n: no label in the project-detail tab row or the skills rows wraps to a second line (978ms)
+  ✓   81 e2e/app.spec.ts:4698:1 › the time window drives all four regions at once: side figures, composition, model rows and the dimmed span (1.1s)
+  ✓   82 e2e/app.spec.ts:4832:1 › startup skeleton: agents page shows placeholders, refuses input, fills in place (4.8s)
+  ✓   83 e2e/app.spec.ts:4910:1 › startup skeleton: projects dimension shows placeholder rows and fills in place (4.6s)
+  ✓   84 e2e/app.spec.ts:4978:1 › project switch (query layer): the highlight moves at once and the pane holds the previous project until the next detail arrives (2.4s)
+  ✓   85 e2e/app.spec.ts:5014:1 › project switch (query layer): rapid A → B → C never shows B, and B is still cached afterwards (2.4s)
+  ✓   86 e2e/app.spec.ts:5048:1 › opening a session (query layer): the project page holds until the session page arrives, and reopening it is instant (2.4s)
+  ✓   87 e2e/app.spec.ts:5077:1 › opening a session then returning to the project before it arrives (query layer): the project page stays, no error, and the interrupted fetch is cached (2.3s)
+  ✓   88 e2e/app.spec.ts:5107:1 › an automatic rescan refreshes an open session page by transfusion (query layer): the question list follows the file while expansion and sort survive (1.0s)
+  ✓   89 e2e/app.spec.ts:5147:1 › opening a session whose file was removed after the scan (query layer): the page shows its own error, no crash (806ms)
+  ✓   90 e2e/app.spec.ts:5171:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓   91 e2e/app.spec.ts:5222:1 › leaving a project for a session page and coming back (query layer closeout): the project page is a cached visit landing on Sessions, then revalidates by transfusion (4.1s)
+  ✓   92 e2e/app.spec.ts:5266:1 › opening an artifact whose file was removed after the scan (query layer): a toast surfaces the failure, no overlay, no crash (756ms)
+  ✓   93 e2e/app.spec.ts:5288:1 › reopening a skill file table (query layer): first expand is slow, reopening it is instant (1.6s)
+  ✓   94 e2e/app.spec.ts:5312:1 › reopening an artifact (query layer): first open is slow, reopening it is instant (3.3s)
+  ✓   95 e2e/app.spec.ts:5357:3 › selectable trend span [Agents page · Token tab]: history, independent filters, tabs and refresh (1.9s)
+  ✓   96 e2e/app.spec.ts:5357:3 › selectable trend span [project detail · Overview tab]: history, independent filters, tabs and refresh (2.0s)
+  ✓   97 e2e/app.spec.ts:5449:1 › selectable trend span: localized controls fit both pages in light and dark at minimum width (11.0s)
+  ✓   98 e2e/close-app.spec.ts:46:1 › a close that finishes within the bound returns, kills nothing and reports nothing (23ms)
+  ✓   99 e2e/close-app.spec.ts:57:1 › a close that outlasts the bound kills the app's process group, reports and notes it, and returns once the close has settled (254ms)
+  ✓  100 e2e/close-app.spec.ts:72:1 › a group already gone when the bound passes is no error, and nothing is reported or noted (253ms)
+  ✓  101 e2e/close-app.spec.ts:89:1 › the default killer ends a real process group whose member still holds the pipes (204ms)
+  ✓  102 e2e/close-app.spec.ts:112:1 › a close past the bound with no process to kill is an error (102ms)
+  ✓  103 e2e/close-app.spec.ts:118:1 › a kill that fails for another reason than a group already gone is an error (101ms)
+  ✓  104 e2e/global-search.spec.ts:157:1 › the global search page: the rail item, typing, results grouped by project, sorting, and every answer the results area gives (3.0s)
+  ✓  105 e2e/global-search.spec.ts:273:1 › reading the question texts: the header hint while it runs, nothing in the results area, then the results for the latest keyword (4.0s)
+  ✓  106 e2e/global-search.spec.ts:307:1 › going to a hit: the search page holds, then Projects with the project selected and in view and the session at that question; the page is kept for the run (9.5s)
+  ✓  107 e2e/global-search.spec.ts:397:1 › a hit whose session file is gone opens the session page to its own error, with no crash (J8) (1.1s)
+  ✓  108 e2e/global-search.spec.ts:421:1 › the results follow the data: a rescan brings a new hit in by transfusion; with every session gone, the no-session state (3.8s)
+  ✓  109 e2e/global-search.spec.ts:451:1 › nothing to search: the box stays, its placeholder names no number, and the page says so (REQ-006) (752ms)
+  ✓  110 e2e/global-search.spec.ts:469:1 › during the startup scan the search runs over the restored sessions, and the scan then keeps the results (S2) (7.5s)
+  ✓  111 e2e/global-search.spec.ts:505:1 › a session opened from a hit: back to the results as they were left, or on into its project (2.2s)
+  ✓  112 e2e/global-search.spec.ts:551:1 › on into the project: its Sessions tab, or a stale project's note; a session reached from there or through the fork banner has the single back control (1.5s)
+  ✓  113 e2e/global-search.spec.ts:593:1 › leaving the session for the search page and coming back keeps it with its exits; selecting another project replaces it (J6, J7) (1.6s)
+  ✓  114 e2e/global-search.spec.ts:662:1 › a long project name at the window's minimum width: the two exits, and the single back control, each stay on one line, cut with an ellipsis (J11) (1.2s)
+  ✓  115 e2e/global-search.spec.ts:753:1 › ⌘⇧F through the application menu: from settings, a session page and the search page itself, the page as left with the focus in its box; the item follows the language (US-004, J10) (1.2s)
+  ✓  116 e2e/global-search.spec.ts:817:1 › Search Sessions… chosen while a hit's session is still on its way keeps the search page, and the session page is kept for later (US-004/AC-01, session-view P8 through P10) (7.3s)
+  ✓  117 e2e/global-search.spec.ts:875:1 › a hit row keeps its keyword in view: 20 characters before a far keyword, the keyword itself when that does not fit, a keyword under the ellipsis counted out of view, judged again on a resize and when shown again — in global search and in a project's Sessions tab (session-view::REQ-002) (4.1s)
+  ✓  118 e2e/menu-check-updates.spec.ts:96:1 › the item sits directly below "About" and reports up to date, a failure, and a malformed answer as a failure (REQ-005, US-003/AC-01, A6) (898ms)
+  ✓  119 e2e/menu-check-updates.spec.ts:126:1 › a menu check that finds an update starts the download, and a failed download adds no second toast (US-003/AC-03, B2) (2.9s)
+  ✓  120 e2e/menu-check-updates.spec.ts:148:1 › a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04) (3.0s)
+  ✓  121 e2e/menu-check-updates.spec.ts:173:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) (4.3s)
+  ✓  122 e2e/menu-check-updates.spec.ts:207:1 › the item follows a language switch at once; a toast already shown keeps its language and stacks with the new one (G2, G6) (758ms)
+  ✓  123 e2e/menu-check-updates.spec.ts:230:1 › a development run disables the item, and a click on it reports nothing (US-005/AC-02) (1.4s)
+  ✓  124 e2e/settings-updates.spec.ts:82:1 › settings gains "Updates" third, one card with the switch and the version row, and its footnote (REQ-003/AC-01, AC-02, US-002/AC-02) (742ms)
+  ✓  125 e2e/settings-updates.spec.ts:112:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) (2.6s)
+  ✓  126 e2e/settings-updates.spec.ts:149:1 › a settings check that finds an update starts the download: the line and the rail follow it, and "Check now" is unavailable (US-003/AC-02, AC-03, REQ-004/AC-01) (1.2s)
+  ✓  127 e2e/settings-updates.spec.ts:172:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) (3.1s)
+  ✓  128 e2e/settings-updates.spec.ts:205:1 › an install from "Install now" that fails: the error toast, "Check now" available again and an empty line (REQ-002/AC-03, C11) (726ms)
+  ✓  129 e2e/settings-updates.spec.ts:225:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2) (3.0s)
+  ✓  130 e2e/settings-updates.spec.ts:248:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) (5.1s)
+  ✓  131 e2e/settings-updates.spec.ts:281:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) (3.0s)
+  ✓  132 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an older recorded version (717ms)
+  ✓  133 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › the same version (1.2s)
+  ✓  134 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a newer recorded version (the version went down) (635ms)
+  ✓  135 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › no record (a fresh installation) (672ms)
+  ✓  136 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an unreadable record (667ms)
+  ✓  137 e2e/settings-updates.spec.ts:336:3 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a still newer release found at that launch shows its download instead, and a settings check replaces the line (C7) (1.4s)
+  ✓  138 e2e/settings-updates.spec.ts:363:1 › a development run: the switch and the button are unavailable, the footnote says why, and nothing is asked (US-005/AC-02) (1.2s)
+  ✓  139 e2e/settings-updates.spec.ts:390:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › a change is stored at once and survives a restart; with it off the launch makes no request (4.5s)
+  ✓  140 e2e/settings-updates.spec.ts:420:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5) (3.0s)
+  ✓  141 e2e/settings-updates.spec.ts:439:1 › the first launch after an update restores the saved display like any other launch (G4) (1.4s)
+  ✓  142 e2e/settings-updates.spec.ts:501:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh (5.6s)
+  ✓  143 e2e/settings-updates.spec.ts:501:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en (5.6s)
+  ✓  144 e2e/startup-restore.spec.ts:9:1 › restart restores viewed project, questions and read answer before a new scan finishes (26.5s)
+  ✓  145 e2e/startup-restore.spec.ts:150:1 › a failed startup scan keeps the saved display and retries automatically with a stopped status (9.7s)
+  ✓  146 e2e/token-span.spec.ts:64:1 › a theme chosen while the initial preference read is in flight survives that read landing (6.0s)
+  ✓  147 e2e/token-span.spec.ts:82:1 › global span defaults an older or invalid preference without resetting valid appearance and language (2.7s)
+  ✓  148 e2e/token-span.spec.ts:106:1 › global span links exact totals and active breakdowns on both entries, and survives full restarts (6.0s)
+  ✓  149 e2e/token-span.spec.ts:175:3 › global span 30: saved preference survives an unusable display cache and skeleton fill (4.0s)
+  ✓  150 e2e/token-span.spec.ts:175:3 › global span 60: saved preference survives an unusable display cache and skeleton fill (4.0s)
+  ✓  151 e2e/token-span.spec.ts:175:3 › global span 90: saved preference survives an unusable display cache and skeleton fill (4.0s)
+  ✓  152 e2e/token-span.spec.ts:196:1 › global span save failure keeps live views consistent and reopens the last successful value (1.5s)
+  ✓  153 e2e/token-span.spec.ts:226:1 › global span includes archived and retained older rows in both charts and fourth cards (886ms)
+  ✓  154 e2e/token-span.spec.ts:254:1 › global span numeric choices support keyboard activation and retain every card and side identity (4.4s)
+
+  154 passed (5.5m)
+
+## 8 busy processes
+24807a5 Test the bounded teardown's real kill, and record the rule in CONTEXT
+loaded full e2e exit=0
+### load samples
+23:54  up 10 days, 23:16, 11 users, load averages: 9.96 20.57 76.95
+23:55  up 10 days, 23:17, 11 users, load averages: 19.20 21.80 75.45
+23:55  up 10 days, 23:17, 11 users, load averages: 33.63 25.16 74.81
+23:56  up 10 days, 23:18, 11 users, load averages: 30.88 25.27 73.13
+23:56  up 10 days, 23:18, 11 users, load averages: 33.23 26.18 71.79
+23:57  up 10 days, 23:19, 11 users, load averages: 30.05 26.20 70.22
+23:57  up 10 days, 23:19, 11 users, load averages: 30.23 26.75 68.90
+23:58  up 10 days, 23:20, 11 users, load averages: 31.83 27.13 67.56
+23:58  up 10 days, 23:20, 11 users, load averages: 24.75 25.88 65.70
+23:59  up 10 days, 23:21, 11 users, load averages: 27.34 26.32 64.48
+23:59  up 10 days, 23:21, 11 users, load averages: 21.25 24.93 62.66
+ 0:00  up 10 days, 23:22, 11 users, load averages: 19.88 24.22 61.08
+ 0:00  up 10 days, 23:22, 11 users, load averages: 18.97 23.62 59.59
+### the run
+
+> agentshed@0.1.0-beta e2e /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-227
+> electron-vite build && playwright test
+
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 547 modules transformed.
+rendering chunks...
+out/main/parse-worker.js                   0.40 kB
+out/main/chunks/token-stats-Y_GCWB5i.js  122.21 kB
+out/main/index.js                        211.93 kB
+out/main/chunks/main-DZ5R1KNi.js         513.19 kB
+✓ built in 1.24s
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 17 modules transformed.
+rendering chunks...
+out/preload/index.cjs  49.77 kB
+✓ built in 54ms
+vite v5.4.21 building for production...
+transforming...
+✓ 147 modules transformed.
+rendering chunks...
+../../out/renderer/index.html                   0.40 kB
+../../out/renderer/assets/index-D-ZQl5TO.css   84.75 kB
+../../out/renderer/assets/index-CwhfPdBv.js   688.41 kB
+✓ built in 662ms
+
+Running 154 tests using 1 worker
+
+  ✓    1 e2e/app-update.spec.ts:87:1 › with no update in flight the slot takes no space; an update in flight sits directly above Settings, which keeps its place (REQ-001/AC-01, US-001/AC-06, appearance D4) (2.1s)
+  ✓    2 e2e/app-update.spec.ts:123:1 › a launch check that finds an update shows the download in the rail at once, with no dialog; the slot cannot be clicked while downloading (US-001/AC-01, REQ-001/AC-02–AC-04) (1.4s)
+  ✓    3 e2e/app-update.spec.ts:161:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (3.2s)
+  ✓    4 e2e/app-update.spec.ts:184:1 › the finished download becomes the ready button; clicking it installs once and shows the spinner (US-001/AC-03, AC-04, REQ-001/AC-03, Failure C10) (1.2s)
+  ✓    5 e2e/app-update.spec.ts:213:1 › a failed install after the click shows the error toast, stacked with any other, and the button goes (REQ-002/AC-03, Failure G6) (952ms)
+  ✓    6 e2e/app-update.spec.ts:236:1 › an open message goes with the button, so the button comes back without it (REQ-001/AC-04) (862ms)
+  ✓    7 e2e/app-update.spec.ts:267:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (3.0s)
+  ✓    8 e2e/app-update.spec.ts:291:1 › the circle, its glyph and the message stay distinguishable in every theme, light and dark, and recolour with a switch (REQ-001/AC-05, Failure G3) (1.5s)
+  ✓    9 e2e/app-update.spec.ts:344:1 › the installing loader spins, and stands still under reduced motion (REQ-001/AC-02) (925ms)
+  ✓   10 e2e/app-update.spec.ts:363:1 › an open message follows a language switch at once (Failure G2) (1.0s)
+  ✓   11 e2e/app-update.spec.ts:389:1 › with automatic checks turned off the launch makes no request (US-002/AC-01) (2.3s)
+  ✓   12 e2e/app-update.spec.ts:406:1 › a second instance launched while an update is ready exits, and the running one keeps the update (Failure G5) (1.1s)
+  ✓   13 e2e/app.spec.ts:378:1 › cold start: the Agents page is the default landing, both summary cards render, and the main process reports no errors (958ms)
+  ✓   14 e2e/app.spec.ts:398:1 › an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors (905ms)
+  ✓   15 e2e/app.spec.ts:427:1 › all seven Agents page tabs render as they are switched through, with no errors (1.4s)
+  ✓   16 e2e/app.spec.ts:449:1 › switching to Projects: rows appear when there are projects, and the detail tabs switch once one is selected (1.3s)
+  ✓   17 e2e/app.spec.ts:468:1 › switching to Projects: the sidebar shows its empty state when there are no projects at all (744ms)
+  ✓   18 e2e/app.spec.ts:509:1 › the project list row: a side-count badge, with hovering naming the sides in full (1.2s)
+  ✓   19 e2e/app.spec.ts:597:1 › a Grok-only project opens its detail page without errors (1.3s)
+  ✓   20 e2e/app.spec.ts:631:1 › a stale project opens as the note page: card only, chips per recording side, copy feedback, and both staleness flips (1.4s)
+  ✓   21 e2e/app.spec.ts:701:1 › the side filter dropdown: narrows to one side, dismisses on scroll, and survives a resize (1.5s)
+  ✓   22 e2e/app.spec.ts:788:1 › a real window resize with a scrolled list does not close the side dropdown (#122) (790ms)
+  ✓   23 e2e/app.spec.ts:829:1 › the side filter row stays inside the sidebar column in both UI languages (1.4s)
+  ✓   24 e2e/app.spec.ts:886:1 › the sessions section: sessions are listed, the sort switches, and warmup sessions are not listed (890ms)
+  ✓   25 e2e/app.spec.ts:930:1 › the sessions section: each row shows that session's real question count (1.0s)
+  ✓   26 e2e/app.spec.ts:953:1 › the sessions section: the sort choice is remembered after switching away (1.2s)
+  ✓   27 e2e/app.spec.ts:976:1 › the sessions section: a project with no sessions shows an empty state, and the overview session card clicks through to this section (1.6s)
+  ✓   28 e2e/app.spec.ts:989:1 › one click on the overview session card goes straight to the session page (1.2s)
+  ✓   29 e2e/app.spec.ts:1005:1 › the session page: every question is listed with complete fields, and back returns to the sessions section (1.0s)
+  ✓   30 e2e/app.spec.ts:1046:1 › the session page: a fork session shows only the questions left after stripping (968ms)
+  ✓   31 e2e/app.spec.ts:1068:1 › the IPC surface: a path outside the allow-list is refused over the real channel, and the error carries no file content (897ms)
+  ✓   32 e2e/app.spec.ts:1112:1 › the session page: a long question's single-line truncation happens only in the display layer, with the full text in the DOM (1.2s)
+  ✓   33 e2e/app.spec.ts:1150:1 › the session page: everything collapsed by default; clicking a question expands the whole turn with its fetch footnote, and clicking again collapses it (1.1s)
+  ✓   34 e2e/app.spec.ts:1187:1 › the session page: day groups collapse; descending reverses both the groups and their contents while the numbers stay; expansion survives a sort change (1.1s)
+  ✓   35 e2e/app.spec.ts:1239:1 › the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source (4.2s)
+  ✓   36 e2e/app.spec.ts:1280:1 › the session page: after the file is appended to (so the signature mismatches), clicking a question still fetches the correct whole turn (1.1s)
+  ✓   37 e2e/app.spec.ts:1312:1 › session page rich content (Claude): the thinking, tool and subagent blocks are collapsed by default and expand to the full text with their labels (1.1s)
+  ✓   38 e2e/app.spec.ts:1361:1 › session page rich content (Codex): the encrypted-reasoning label, tool pairing, the unattributable spawn label, and traces of unknown events (1.2s)
+  ✓   39 e2e/app.spec.ts:1399:1 › session page (Codex, paginated format): the session is listed by its completed-item question, opens, and its turn shows the agent-message prose with no unknown trace (1.2s)
+  ✓   40 e2e/app.spec.ts:1440:1 › session page (Codex, cold rollout): a .jsonl.zst session is listed, counted, opens and expands like a plain one (1.0s)
+  ✓   41 e2e/app.spec.ts:1476:1 › session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question (1.7s)
+  ✓   42 e2e/app.spec.ts:1527:1 › overlapping automatic rescans are deduplicated: the page stays coherent and the main process reports no errors (786ms)
+  ✓   43 e2e/app.spec.ts:1547:1 › the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors (744ms)
+  ✓   44 e2e/app.spec.ts:1605:1 › the archive retains a past day whose live figure fell under the same stamp (ADR-0026): the retained figure shows on both pages, with no hatching, while the archived-only day still hatches (867ms)
+  ✓   45 e2e/app.spec.ts:1672:1 › the trend chart is stacked bars: segmented by provider within a bar, and switching to a single side leaves only that side's provider segments (862ms)
+  ✓   46 e2e/app.spec.ts:1702:1 › the provider brand colours apply: the segments and the legend match, with their own values in light and dark (822ms)
+  ✓   47 e2e/app.spec.ts:1992:1 › F3 plus the new sections: a project-scope plugin displays correctly both ways; the Subagents and Memory drawers work end to end (13.3s)
+  ✓   48 e2e/app.spec.ts:2504:1 › Skills view: expanding globally reads the package; a same-name pair in detail shows only the project level; plugin rows do not expand (4.7s)
+  ✓   49 e2e/app.spec.ts:2670:1 › filtering the skills lists by name, and revealing a truncated name on hover (1.5s)
+  ✓   50 e2e/app.spec.ts:2862:1 › a filter keyword survives a refresh, and is cleared by leaving the section or switching project (1.4s)
+  ✓   51 e2e/app.spec.ts:2942:1 › the install-to popover sits next to its button, and its targets can be clicked (1.3s)
+  ✓   52 e2e/app.spec.ts:3054:1 › previewing a plugin skill in place: the tab expands and reads the package; a disabled plugin is readable; a missing one is greyed out; the Codex group (1.2s)
+  ✓   53 e2e/app.spec.ts:3153:1 › a skill package removed after the scan: the file table shows the toast's wording in both skill lists (#209) (840ms)
+  ✓   54 e2e/app.spec.ts:3208:3 › skill file line counts follow the UI language's digit grouping [en-US] (#210) (828ms)
+  ✓   55 e2e/app.spec.ts:3239:1 › automatic refresh: a new session appears on its own, and the detail page's expansion state survives it (4.9s)
+  ✓   56 e2e/app.spec.ts:3341:3 › the trend chart [Agents page · Token tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (908ms)
+  ✓   57 e2e/app.spec.ts:3341:3 › the trend chart [project detail · Overview tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (984ms)
+  ✓   58 e2e/app.spec.ts:3445:1 › a newly adopted side: the thin xAI segment survives, and Grok mode labels only its data days (832ms)
+  ✓   59 e2e/app.spec.ts:3545:1 › three sides on one day segment together, and one project mixes all three sides' sessions by time (996ms)
+  ✓   60 e2e/app.spec.ts:3619:1 › the Agents page shows Grok's own global skills with the borrowing line, and installs one into a project (1.4s)
+  ✓   61 e2e/app.spec.ts:3666:1 › a Grok session opens end to end: list, questions, an on-demand turn, search, and the allow-list boundary (1.4s)
+  ✓   62 e2e/app.spec.ts:3755:1 › the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip" (968ms)
+  ✓   63 e2e/app.spec.ts:3798:1 › settings: the three appearance choices change data-theme, and entering and leaving settings keeps the selected project (1.8s)
+  ✓   64 e2e/app.spec.ts:3851:1 › project list: selection is a deeper wash with no ring, and adjacent rows keep a 1px gap (773ms)
+  ✓   65 e2e/app.spec.ts:3967:1 › appearance: one card with two rows (mode + theme); the theme cards keep only a swatch and a name (844ms)
+  ✓   66 e2e/app.spec.ts:3995:1 › appearance mode: locking light or dark changes the effective light/dark, and the palette samples follow (856ms)
+  ✓   67 e2e/app.spec.ts:4052:1 › appearance: all six combinations of 3 themes × 2 effective light/dark hold (1.1s)
+  ✓   68 e2e/app.spec.ts:4184:1 › scrollbars: every scrolling area draws a 6px thumb on no track, in light and in dark (appearance::REQ-001) (1.4s)
+  ✓   69 e2e/app.spec.ts:4257:1 › scrollbars: the thumb darkens under the pointer, in light and in dark (appearance::REQ-001/AC-05) (1.1s)
+  ✓   70 e2e/app.spec.ts:4299:1 › scrollbars: the same 6px scrollbar whether macOS draws overlay or classic ones (appearance F1, F2) (1.8s)
+  ✓   71 e2e/app.spec.ts:4366:1 › UI language: following the system resolves against the whole list, and applies on the first frame (766ms)
+  ✓   72 e2e/app.spec.ts:4380:1 › UI language: falls back to English when the system language is unsupported (704ms)
+  ✓   73 e2e/app.spec.ts:4391:1 › UI language: a stored preference naming a removed language reads as follow system (i18n::REQ-003) (811ms)
+  ✓   74 e2e/app.spec.ts:4412:1 › the language selector: three items including follow-system and the divider, with a switch applying immediately (938ms)
+  ✓   75 e2e/app.spec.ts:4472:1 › the language selector by keyboard: opening leaves the highlight on the current selection rather than moving an extra step (922ms)
+  ✓   76 e2e/app.spec.ts:4523:1 › i18n: the language-locking mechanism itself is reliable, unaffected by the development machine's system language (1.5s)
+  ✓   77 e2e/app.spec.ts:4544:1 › i18n: both languages load, with the key nodes non-empty (952ms)
+  ✓   78 e2e/app.spec.ts:4570:1 › i18n: switching languages applies immediately, changing several areas at once (853ms)
+  ✓   79 e2e/app.spec.ts:4592:1 › i18n: key layouts do not overflow horizontally in either language (971ms)
+  ✓   80 e2e/app.spec.ts:4617:1 › i18n: no label in the project-detail tab row or the skills rows wraps to a second line (1.3s)
+  ✓   81 e2e/app.spec.ts:4698:1 › the time window drives all four regions at once: side figures, composition, model rows and the dimmed span (1.1s)
+  ✓   82 e2e/app.spec.ts:4832:1 › startup skeleton: agents page shows placeholders, refuses input, fills in place (4.9s)
+  ✓   83 e2e/app.spec.ts:4910:1 › startup skeleton: projects dimension shows placeholder rows and fills in place (5.2s)
+  ✓   84 e2e/app.spec.ts:4978:1 › project switch (query layer): the highlight moves at once and the pane holds the previous project until the next detail arrives (2.5s)
+  ✓   85 e2e/app.spec.ts:5014:1 › project switch (query layer): rapid A → B → C never shows B, and B is still cached afterwards (2.6s)
+  ✓   86 e2e/app.spec.ts:5048:1 › opening a session (query layer): the project page holds until the session page arrives, and reopening it is instant (2.6s)
+  ✓   87 e2e/app.spec.ts:5077:1 › opening a session then returning to the project before it arrives (query layer): the project page stays, no error, and the interrupted fetch is cached (2.5s)
+  ✓   88 e2e/app.spec.ts:5107:1 › an automatic rescan refreshes an open session page by transfusion (query layer): the question list follows the file while expansion and sort survive (1.2s)
+  ✓   89 e2e/app.spec.ts:5147:1 › opening a session whose file was removed after the scan (query layer): the page shows its own error, no crash (916ms)
+  ✓   90 e2e/app.spec.ts:5171:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓   91 e2e/app.spec.ts:5222:1 › leaving a project for a session page and coming back (query layer closeout): the project page is a cached visit landing on Sessions, then revalidates by transfusion (4.3s)
+  ✓   92 e2e/app.spec.ts:5266:1 › opening an artifact whose file was removed after the scan (query layer): a toast surfaces the failure, no overlay, no crash (891ms)
+  ✓   93 e2e/app.spec.ts:5288:1 › reopening a skill file table (query layer): first expand is slow, reopening it is instant (1.7s)
+  ✓   94 e2e/app.spec.ts:5312:1 › reopening an artifact (query layer): first open is slow, reopening it is instant (3.4s)
+  ✓   95 e2e/app.spec.ts:5357:3 › selectable trend span [Agents page · Token tab]: history, independent filters, tabs and refresh (2.2s)
+  ✓   96 e2e/app.spec.ts:5357:3 › selectable trend span [project detail · Overview tab]: history, independent filters, tabs and refresh (2.4s)
+  ✓   97 e2e/app.spec.ts:5449:1 › selectable trend span: localized controls fit both pages in light and dark at minimum width (13.0s)
+  ✓   98 e2e/close-app.spec.ts:46:1 › a close that finishes within the bound returns, kills nothing and reports nothing (23ms)
+  ✓   99 e2e/close-app.spec.ts:57:1 › a close that outlasts the bound kills the app's process group, reports and notes it, and returns once the close has settled (256ms)
+  ✓  100 e2e/close-app.spec.ts:72:1 › a group already gone when the bound passes is no error, and nothing is reported or noted (255ms)
+  ✓  101 e2e/close-app.spec.ts:89:1 › the default killer ends a real process group whose member still holds the pipes (206ms)
+  ✓  102 e2e/close-app.spec.ts:112:1 › a close past the bound with no process to kill is an error (102ms)
+  ✓  103 e2e/close-app.spec.ts:118:1 › a kill that fails for another reason than a group already gone is an error (100ms)
+  ✓  104 e2e/global-search.spec.ts:157:1 › the global search page: the rail item, typing, results grouped by project, sorting, and every answer the results area gives (3.4s)
+  ✓  105 e2e/global-search.spec.ts:273:1 › reading the question texts: the header hint while it runs, nothing in the results area, then the results for the latest keyword (4.3s)
+  ✓  106 e2e/global-search.spec.ts:307:1 › going to a hit: the search page holds, then Projects with the project selected and in view and the session at that question; the page is kept for the run (10.0s)
+  ✓  107 e2e/global-search.spec.ts:397:1 › a hit whose session file is gone opens the session page to its own error, with no crash (J8) (1.2s)
+  ✓  108 e2e/global-search.spec.ts:421:1 › the results follow the data: a rescan brings a new hit in by transfusion; with every session gone, the no-session state (3.9s)
+  ✓  109 e2e/global-search.spec.ts:451:1 › nothing to search: the box stays, its placeholder names no number, and the page says so (REQ-006) (867ms)
+  ✓  110 e2e/global-search.spec.ts:469:1 › during the startup scan the search runs over the restored sessions, and the scan then keeps the results (S2) (7.7s)
+  ✓  111 e2e/global-search.spec.ts:505:1 › a session opened from a hit: back to the results as they were left, or on into its project (2.6s)
+  ✓  112 e2e/global-search.spec.ts:551:1 › on into the project: its Sessions tab, or a stale project's note; a session reached from there or through the fork banner has the single back control (1.7s)
+  ✓  113 e2e/global-search.spec.ts:593:1 › leaving the session for the search page and coming back keeps it with its exits; selecting another project replaces it (J6, J7) (1.7s)
+  ✓  114 e2e/global-search.spec.ts:662:1 › a long project name at the window's minimum width: the two exits, and the single back control, each stay on one line, cut with an ellipsis (J11) (1.4s)
+  ✓  115 e2e/global-search.spec.ts:753:1 › ⌘⇧F through the application menu: from settings, a session page and the search page itself, the page as left with the focus in its box; the item follows the language (US-004, J10) (1.3s)
+  ✓  116 e2e/global-search.spec.ts:817:1 › Search Sessions… chosen while a hit's session is still on its way keeps the search page, and the session page is kept for later (US-004/AC-01, session-view P8 through P10) (7.5s)
+  ✓  117 e2e/global-search.spec.ts:875:1 › a hit row keeps its keyword in view: 20 characters before a far keyword, the keyword itself when that does not fit, a keyword under the ellipsis counted out of view, judged again on a resize and when shown again — in global search and in a project's Sessions tab (session-view::REQ-002) (4.3s)
+  ✓  118 e2e/menu-check-updates.spec.ts:96:1 › the item sits directly below "About" and reports up to date, a failure, and a malformed answer as a failure (REQ-005, US-003/AC-01, A6) (851ms)
+  ✓  119 e2e/menu-check-updates.spec.ts:126:1 › a menu check that finds an update starts the download, and a failed download adds no second toast (US-003/AC-03, B2) (3.0s)
+  ✓  120 e2e/menu-check-updates.spec.ts:148:1 › a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04) (3.2s)
+  ✓  121 e2e/menu-check-updates.spec.ts:173:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) (4.5s)
+  ✓  122 e2e/menu-check-updates.spec.ts:207:1 › the item follows a language switch at once; a toast already shown keeps its language and stacks with the new one (G2, G6) (795ms)
+  ✓  123 e2e/menu-check-updates.spec.ts:230:1 › a development run disables the item, and a click on it reports nothing (US-005/AC-02) (1.6s)
+  ✓  124 e2e/settings-updates.spec.ts:82:1 › settings gains "Updates" third, one card with the switch and the version row, and its footnote (REQ-003/AC-01, AC-02, US-002/AC-02) (897ms)
+  ✓  125 e2e/settings-updates.spec.ts:112:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) (2.7s)
+  ✓  126 e2e/settings-updates.spec.ts:149:1 › a settings check that finds an update starts the download: the line and the rail follow it, and "Check now" is unavailable (US-003/AC-02, AC-03, REQ-004/AC-01) (1.4s)
+  ✓  127 e2e/settings-updates.spec.ts:172:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) (3.3s)
+  ✓  128 e2e/settings-updates.spec.ts:205:1 › an install from "Install now" that fails: the error toast, "Check now" available again and an empty line (REQ-002/AC-03, C11) (866ms)
+  ✓  129 e2e/settings-updates.spec.ts:225:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2) (3.1s)
+  ✓  130 e2e/settings-updates.spec.ts:248:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) (5.5s)
+  ✓  131 e2e/settings-updates.spec.ts:281:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) (3.2s)
+  ✓  132 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an older recorded version (862ms)
+  ✓  133 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › the same version (1.5s)
+  ✓  134 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a newer recorded version (the version went down) (873ms)
+  ✓  135 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › no record (a fresh installation) (1.0s)
+  ✓  136 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an unreadable record (760ms)
+  ✓  137 e2e/settings-updates.spec.ts:336:3 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a still newer release found at that launch shows its download instead, and a settings check replaces the line (C7) (1.6s)
+  ✓  138 e2e/settings-updates.spec.ts:363:1 › a development run: the switch and the button are unavailable, the footnote says why, and nothing is asked (US-005/AC-02) (1.3s)
+  ✓  139 e2e/settings-updates.spec.ts:390:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › a change is stored at once and survives a restart; with it off the launch makes no request (4.7s)
+  ✓  140 e2e/settings-updates.spec.ts:420:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5) (3.1s)
+  ✓  141 e2e/settings-updates.spec.ts:439:1 › the first launch after an update restores the saved display like any other launch (G4) (1.6s)
+  ✓  142 e2e/settings-updates.spec.ts:501:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh (5.7s)
+  ✓  143 e2e/settings-updates.spec.ts:501:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en (5.8s)
+  ✓  144 e2e/startup-restore.spec.ts:9:1 › restart restores viewed project, questions and read answer before a new scan finishes (27.1s)
+  ✓  145 e2e/startup-restore.spec.ts:150:1 › a failed startup scan keeps the saved display and retries automatically with a stopped status (10.1s)
+  ✓  146 e2e/token-span.spec.ts:64:1 › a theme chosen while the initial preference read is in flight survives that read landing (5.8s)
+  ✓  147 e2e/token-span.spec.ts:82:1 › global span defaults an older or invalid preference without resetting valid appearance and language (3.4s)
+  ✓  148 e2e/token-span.spec.ts:106:1 › global span links exact totals and active breakdowns on both entries, and survives full restarts (6.5s)
+  ✓  149 e2e/token-span.spec.ts:175:3 › global span 30: saved preference survives an unusable display cache and skeleton fill (3.6s)
+  ✓  150 e2e/token-span.spec.ts:175:3 › global span 60: saved preference survives an unusable display cache and skeleton fill (3.6s)
+  ✓  151 e2e/token-span.spec.ts:175:3 › global span 90: saved preference survives an unusable display cache and skeleton fill (3.7s)
+  ✓  152 e2e/token-span.spec.ts:196:1 › global span save failure keeps live views consistent and reopens the last successful value (1.6s)
+  ✓  153 e2e/token-span.spec.ts:226:1 › global span includes archived and retained older rows in both charts and fourth cards (953ms)
+  ✓  154 e2e/token-span.spec.ts:254:1 › global span numeric choices support keyboard activation and retain every card and side identity (6.6s)
+
+  154 passed (6.0m)
+/private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/flaky/stress.sh: line 10: 64394 Terminated: 15          node -e 'for(;;){}'
+
+## 10 busy processes
+24807a5 Test the bounded teardown's real kill, and record the rule in CONTEXT
+loaded full e2e exit=0
+### load samples
+ 0:02  up 10 days, 23:24, 11 users, load averages: 9.80 19.40 54.17
+ 0:03  up 10 days, 23:24, 11 users, load averages: 60.93 30.66 57.03
+ 0:03  up 10 days, 23:25, 11 users, load averages: 110.35 45.37 61.44
+ 0:04  up 10 days, 23:25, 11 users, load averages: 134.95 57.66 65.34
+ 0:04  up 10 days, 23:26, 11 users, load averages: 151.89 69.18 69.26
+ 0:05  up 10 days, 23:26, 11 users, load averages: 159.92 78.99 72.80
+ 0:05  up 10 days, 23:27, 11 users, load averages: 159.09 86.71 75.83
+ 0:06  up 10 days, 23:27, 11 users, load averages: 153.81 92.34 78.25
+ 0:06  up 10 days, 23:28, 11 users, load averages: 167.58 101.46 82.03
+ 0:07  up 10 days, 23:28, 11 users, load averages: 170.74 108.66 85.32
+ 0:07  up 10 days, 23:29, 11 users, load averages: 181.29 117.24 89.25
+ 0:08  up 10 days, 23:29, 11 users, load averages: 180.43 123.16 92.36
+ 0:08  up 10 days, 23:30, 11 users, load averages: 185.84 129.88 95.86
+ 0:09  up 10 days, 23:30, 11 users, load averages: 184.33 134.78 98.81
+ 0:09  up 10 days, 23:31, 11 users, load averages: 191.74 141.26 102.40
+ 0:10  up 10 days, 23:31, 11 users, load averages: 192.13 146.38 105.61
+ 0:10  up 10 days, 23:32, 11 users, load averages: 195.98 151.71 108.96
+ 0:11  up 10 days, 23:32, 11 users, load averages: 196.91 156.25 112.09
+ 0:11  up 10 days, 23:33, 11 users, load averages: 204.00 161.94 115.68
+ 0:12  up 10 days, 23:33, 11 users, load averages: 208.61 167.05 119.14
+ 0:12  up 10 days, 23:34, 11 users, load averages: 213.32 171.94 122.55
+ 0:13  up 10 days, 23:34, 11 users, load averages: 223.94 178.51 126.65
+ 0:13  up 10 days, 23:35, 11 users, load averages: 232.21 184.86 130.75
+ 0:14  up 10 days, 23:35, 11 users, load averages: 229.78 188.66 133.99
+ 0:14  up 10 days, 23:36, 11 users, load averages: 243.11 195.77 138.46
+ 0:15  up 10 days, 23:36, 11 users, load averages: 252.80 202.72 142.97
+ 0:15  up 10 days, 23:37, 11 users, load averages: 243.74 205.61 146.10
+ 0:16  up 10 days, 23:37, 11 users, load averages: 225.19 204.69 147.83
+ 0:16  up 10 days, 23:38, 11 users, load averages: 221.97 205.82 150.20
+ 0:17  up 10 days, 23:38, 11 users, load averages: 215.71 205.83 152.13
+ 0:17  up 10 days, 23:39, 11 users, load averages: 221.92 208.26 154.87
+ 0:18  up 10 days, 23:39, 11 users, load averages: 219.04 208.81 156.92
+ 0:18  up 10 days, 23:40, 11 users, load averages: 211.31 207.91 158.39
+ 0:19  up 10 days, 23:40, 11 users, load averages: 213.16 208.77 160.42
+ 0:19  up 10 days, 23:41, 11 users, load averages: 215.18 209.81 162.48
+ 0:20  up 10 days, 23:41, 11 users, load averages: 215.73 210.50 164.37
+ 0:20  up 10 days, 23:42, 11 users, load averages: 213.93 210.60 166.01
+ 0:21  up 10 days, 23:42, 11 users, load averages: 213.27 210.75 167.60
+ 0:21  up 10 days, 23:43, 11 users, load averages: 220.14 212.76 169.83
+ 0:22  up 10 days, 23:43, 11 users, load averages: 210.19 210.98 170.67
+ 0:22  up 10 days, 23:44, 11 users, load averages: 214.53 211.79 172.34
+ 0:23  up 10 days, 23:44, 11 users, load averages: 215.75 212.47 173.97
+ 0:23  up 10 days, 23:45, 11 users, load averages: 217.47 213.29 175.60
+ 0:24  up 10 days, 23:45, 11 users, load averages: 222.45 214.92 177.50
+ 0:24  up 10 days, 23:46, 11 users, load averages: 224.04 215.92 179.15
+ 0:25  up 10 days, 23:46, 11 users, load averages: 220.90 215.93 180.43
+ 0:25  up 10 days, 23:47, 11 users, load averages: 229.88 218.71 182.67
+ 0:26  up 10 days, 23:47, 11 users, load averages: 228.87 219.42 184.17
+ 0:26  up 10 days, 23:48, 11 users, load averages: 230.79 220.71 185.85
+ 0:27  up 10 days, 23:48, 11 users, load averages: 242.68 224.38 188.38
+ 0:27  up 10 days, 23:49, 11 users, load averages: 249.18 227.85 190.89
+ 0:28  up 10 days, 23:49, 11 users, load averages: 255.21 231.68 193.58
+ 0:28  up 10 days, 23:50, 11 users, load averages: 256.73 234.29 195.84
+ 0:29  up 10 days, 23:50, 11 users, load averages: 252.42 235.49 197.62
+ 0:29  up 10 days, 23:51, 11 users, load averages: 248.68 236.25 199.20
+ 0:30  up 10 days, 23:51, 11 users, load averages: 200.30 225.87 196.74
+ 0:30  up 10 days, 23:52, 11 users, load averages: 179.45 218.28 194.99
+ 0:31  up 10 days, 23:52, 11 users, load averages: 169.34 212.18 193.58
+ 0:31  up 10 days, 23:53, 11 users, load averages: 171.09 208.42 192.86
+ 0:32  up 10 days, 23:53, 11 users, load averages: 168.10 204.07 191.82
+ 0:32  up 10 days, 23:54, 11 users, load averages: 155.68 197.92 190.03
+ 0:33  up 10 days, 23:54, 11 users, load averages: 138.61 189.57 187.26
+ 0:33  up 10 days, 23:55, 11 users, load averages: 133.32 183.59 185.19
+ 0:34  up 10 days, 23:55, 11 users, load averages: 131.55 178.67 183.36
+ 0:34  up 10 days, 23:56, 11 users, load averages: 138.33 175.95 182.22
+ 0:35  up 10 days, 23:56, 11 users, load averages: 166.56 179.02 183.10
+ 0:35  up 10 days, 23:57, 11 users, load averages: 161.81 177.02 182.25
+ 0:36  up 10 days, 23:57, 11 users, load averages: 171.78 178.18 182.50
+### the run
+
+> agentshed@0.1.0-beta e2e /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-227
+> electron-vite build && playwright test
+
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 547 modules transformed.
+rendering chunks...
+out/main/parse-worker.js                   0.40 kB
+out/main/chunks/token-stats-Y_GCWB5i.js  122.21 kB
+out/main/index.js                        211.93 kB
+out/main/chunks/main-DZ5R1KNi.js         513.19 kB
+✓ built in 1.43s
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 17 modules transformed.
+rendering chunks...
+out/preload/index.cjs  49.77 kB
+✓ built in 75ms
+vite v5.4.21 building for production...
+transforming...
+✓ 147 modules transformed.
+rendering chunks...
+../../out/renderer/index.html                   0.40 kB
+../../out/renderer/assets/index-D-ZQl5TO.css   84.75 kB
+../../out/renderer/assets/index-CwhfPdBv.js   688.41 kB
+✓ built in 882ms
+
+Running 154 tests using 1 worker
+
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 78497) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 78731) was killed
+  ✓    1 e2e/app-update.spec.ts:87:1 › with no update in flight the slot takes no space; an update in flight sits directly above Settings, which keeps its place (REQ-001/AC-01, US-001/AC-06, appearance D4) (21.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 78984) was killed
+  ✓    2 e2e/app-update.spec.ts:123:1 › a launch check that finds an update shows the download in the rail at once, with no dialog; the slot cannot be clicked while downloading (US-001/AC-01, REQ-001/AC-02–AC-04) (11.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 79206) was killed
+  ✓    3 e2e/app-update.spec.ts:161:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (12.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 79528) was killed
+  ✓    4 e2e/app-update.spec.ts:184:1 › the finished download becomes the ready button; clicking it installs once and shows the spinner (US-001/AC-03, AC-04, REQ-001/AC-03, Failure C10) (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 79709) was killed
+  ✓    5 e2e/app-update.spec.ts:213:1 › a failed install after the click shows the error toast, stacked with any other, and the button goes (REQ-002/AC-03, Failure G6) (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 80020) was killed
+  ✓    6 e2e/app-update.spec.ts:236:1 › an open message goes with the button, so the button comes back without it (REQ-001/AC-04) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 80229) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 80463) was killed
+  ✓    7 e2e/app-update.spec.ts:267:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (22.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 80666) was killed
+  ✓    8 e2e/app-update.spec.ts:291:1 › the circle, its glyph and the message stay distinguishable in every theme, light and dark, and recolour with a switch (REQ-001/AC-05, Failure G3) (11.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 80904) was killed
+  ✓    9 e2e/app-update.spec.ts:344:1 › the installing loader spins, and stands still under reduced motion (REQ-001/AC-02) (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 81117) was killed
+  ✓   10 e2e/app-update.spec.ts:363:1 › an open message follows a language switch at once (Failure G2) (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 81293) was killed
+  ✓   11 e2e/app-update.spec.ts:389:1 › with automatic checks turned off the launch makes no request (US-002/AC-01) (12.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 81530) was killed
+  ✓   12 e2e/app-update.spec.ts:406:1 › a second instance launched while an update is ready exits, and the running one keeps the update (Failure G5) (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 81710) was killed
+  ✓   13 e2e/app.spec.ts:378:1 › cold start: the Agents page is the default landing, both summary cards render, and the main process reports no errors (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 81932) was killed
+  ✓   14 e2e/app.spec.ts:398:1 › an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors (10.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 82078) was killed
+  ✓   15 e2e/app.spec.ts:427:1 › all seven Agents page tabs render as they are switched through, with no errors (11.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 82347) was killed
+  ✓   16 e2e/app.spec.ts:449:1 › switching to Projects: rows appear when there are projects, and the detail tabs switch once one is selected (11.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 82511) was killed
+  ✓   17 e2e/app.spec.ts:468:1 › switching to Projects: the sidebar shows its empty state when there are no projects at all (10.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 82734) was killed
+  ✓   18 e2e/app.spec.ts:509:1 › the project list row: a side-count badge, with hovering naming the sides in full (11.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 82907) was killed
+  ✓   19 e2e/app.spec.ts:597:1 › a Grok-only project opens its detail page without errors (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 83125) was killed
+  ✓   20 e2e/app.spec.ts:631:1 › a stale project opens as the note page: card only, chips per recording side, copy feedback, and both staleness flips (11.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 83413) was killed
+  ✓   21 e2e/app.spec.ts:701:1 › the side filter dropdown: narrows to one side, dismisses on scroll, and survives a resize (11.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 83670) was killed
+  ✓   22 e2e/app.spec.ts:788:1 › a real window resize with a scrolled list does not close the side dropdown (#122) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 83853) was killed
+  ✓   23 e2e/app.spec.ts:829:1 › the side filter row stays inside the sidebar column in both UI languages (11.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 84123) was killed
+  ✓   24 e2e/app.spec.ts:886:1 › the sessions section: sessions are listed, the sort switches, and warmup sessions are not listed (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 84437) was killed
+  ✓   25 e2e/app.spec.ts:930:1 › the sessions section: each row shows that session's real question count (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 84630) was killed
+  ✓   26 e2e/app.spec.ts:953:1 › the sessions section: the sort choice is remembered after switching away (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 84900) was killed
+  ✓   27 e2e/app.spec.ts:976:1 › the sessions section: a project with no sessions shows an empty state, and the overview session card clicks through to this section (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 85134) was killed
+  ✓   28 e2e/app.spec.ts:989:1 › one click on the overview session card goes straight to the session page (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 85370) was killed
+  ✓   29 e2e/app.spec.ts:1005:1 › the session page: every question is listed with complete fields, and back returns to the sessions section (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 85589) was killed
+  ✓   30 e2e/app.spec.ts:1046:1 › the session page: a fork session shows only the questions left after stripping (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 85832) was killed
+  ✓   31 e2e/app.spec.ts:1068:1 › the IPC surface: a path outside the allow-list is refused over the real channel, and the error carries no file content (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 86031) was killed
+  ✓   32 e2e/app.spec.ts:1112:1 › the session page: a long question's single-line truncation happens only in the display layer, with the full text in the DOM (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 86293) was killed
+  ✓   33 e2e/app.spec.ts:1150:1 › the session page: everything collapsed by default; clicking a question expands the whole turn with its fetch footnote, and clicking again collapses it (11.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 86508) was killed
+  ✓   34 e2e/app.spec.ts:1187:1 › the session page: day groups collapse; descending reverses both the groups and their contents while the numbers stay; expansion survives a sort change (11.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 86848) was killed
+  ✓   35 e2e/app.spec.ts:1239:1 › the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source (14.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 87087) was killed
+  ✓   36 e2e/app.spec.ts:1280:1 › the session page: after the file is appended to (so the signature mismatches), clicking a question still fetches the correct whole turn (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 87325) was killed
+  ✓   37 e2e/app.spec.ts:1312:1 › session page rich content (Claude): the thinking, tool and subagent blocks are collapsed by default and expand to the full text with their labels (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 87509) was killed
+  ✓   38 e2e/app.spec.ts:1361:1 › session page rich content (Codex): the encrypted-reasoning label, tool pairing, the unattributable spawn label, and traces of unknown events (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 87775) was killed
+  ✓   39 e2e/app.spec.ts:1399:1 › session page (Codex, paginated format): the session is listed by its completed-item question, opens, and its turn shows the agent-message prose with no unknown trace (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 87985) was killed
+  ✓   40 e2e/app.spec.ts:1440:1 › session page (Codex, cold rollout): a .jsonl.zst session is listed, counted, opens and expands like a plain one (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 88203) was killed
+  ✓   41 e2e/app.spec.ts:1476:1 › session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question (11.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 88439) was killed
+  ✓   42 e2e/app.spec.ts:1527:1 › overlapping automatic rescans are deduplicated: the page stays coherent and the main process reports no errors (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 88679) was killed
+  ✓   43 e2e/app.spec.ts:1547:1 › the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 88891) was killed
+  ✓   44 e2e/app.spec.ts:1605:1 › the archive retains a past day whose live figure fell under the same stamp (ADR-0026): the retained figure shows on both pages, with no hatching, while the archived-only day still hatches (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 89079) was killed
+  ✓   45 e2e/app.spec.ts:1672:1 › the trend chart is stacked bars: segmented by provider within a bar, and switching to a single side leaves only that side's provider segments (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 89332) was killed
+  ✓   46 e2e/app.spec.ts:1702:1 › the provider brand colours apply: the segments and the legend match, with their own values in light and dark (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 89482) was killed
+  ✓   47 e2e/app.spec.ts:1992:1 › F3 plus the new sections: a project-scope plugin displays correctly both ways; the Subagents and Memory drawers work end to end (24.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 89988) was killed
+  ✓   48 e2e/app.spec.ts:2504:1 › Skills view: expanding globally reads the package; a same-name pair in detail shows only the project level; plugin rows do not expand (14.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 90294) was killed
+  ✓   49 e2e/app.spec.ts:2670:1 › filtering the skills lists by name, and revealing a truncated name on hover (11.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 90462) was killed
+  ✓   50 e2e/app.spec.ts:2862:1 › a filter keyword survives a refresh, and is cleared by leaving the section or switching project (11.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 90741) was killed
+  ✓   51 e2e/app.spec.ts:2942:1 › the install-to popover sits next to its button, and its targets can be clicked (11.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 90890) was killed
+  ✓   52 e2e/app.spec.ts:3054:1 › previewing a plugin skill in place: the tab expands and reads the package; a disabled plugin is readable; a missing one is greyed out; the Codex group (11.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 91166) was killed
+  ✓   53 e2e/app.spec.ts:3153:1 › a skill package removed after the scan: the file table shows the toast's wording in both skill lists (#209) (11.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 91387) was killed
+  ✓   54 e2e/app.spec.ts:3208:3 › skill file line counts follow the UI language's digit grouping [en-US] (#210) (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 91602) was killed
+  ✓   55 e2e/app.spec.ts:3239:1 › automatic refresh: a new session appears on its own, and the detail page's expansion state survives it (15.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 91924) was killed
+  ✓   56 e2e/app.spec.ts:3341:3 › the trend chart [Agents page · Token tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 92087) was killed
+  ✓   57 e2e/app.spec.ts:3341:3 › the trend chart [project detail · Overview tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 92344) was killed
+  ✓   58 e2e/app.spec.ts:3445:1 › a newly adopted side: the thin xAI segment survives, and Grok mode labels only its data days (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 92561) was killed
+  ✓   59 e2e/app.spec.ts:3545:1 › three sides on one day segment together, and one project mixes all three sides' sessions by time (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 92767) was killed
+  ✓   60 e2e/app.spec.ts:3619:1 › the Agents page shows Grok's own global skills with the borrowing line, and installs one into a project (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 92977) was killed
+  ✓   61 e2e/app.spec.ts:3666:1 › a Grok session opens end to end: list, questions, an on-demand turn, search, and the allow-list boundary (11.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 93204) was killed
+  ✓   62 e2e/app.spec.ts:3755:1 › the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip" (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 93430) was killed
+  ✓   63 e2e/app.spec.ts:3798:1 › settings: the three appearance choices change data-theme, and entering and leaving settings keeps the selected project (11.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 93602) was killed
+  ✓   64 e2e/app.spec.ts:3851:1 › project list: selection is a deeper wash with no ring, and adjacent rows keep a 1px gap (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 93884) was killed
+  ✓   65 e2e/app.spec.ts:3967:1 › appearance: one card with two rows (mode + theme); the theme cards keep only a swatch and a name (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 94058) was killed
+  ✓   66 e2e/app.spec.ts:3995:1 › appearance mode: locking light or dark changes the effective light/dark, and the palette samples follow (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 94320) was killed
+  ✓   67 e2e/app.spec.ts:4052:1 › appearance: all six combinations of 3 themes × 2 effective light/dark hold (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 94519) was killed
+  ✓   68 e2e/app.spec.ts:4184:1 › scrollbars: every scrolling area draws a 6px thumb on no track, in light and in dark (appearance::REQ-001) (11.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 94743) was killed
+  ✓   69 e2e/app.spec.ts:4257:1 › scrollbars: the thumb darkens under the pointer, in light and in dark (appearance::REQ-001/AC-05) (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 94994) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 95242) was killed
+  ✓   70 e2e/app.spec.ts:4299:1 › scrollbars: the same 6px scrollbar whether macOS draws overlay or classic ones (appearance F1, F2) (21.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 95391) was killed
+  ✓   71 e2e/app.spec.ts:4366:1 › UI language: following the system resolves against the whole list, and applies on the first frame (10.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 95641) was killed
+  ✓   72 e2e/app.spec.ts:4380:1 › UI language: falls back to English when the system language is unsupported (10.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 95783) was killed
+  ✓   73 e2e/app.spec.ts:4391:1 › UI language: a stored preference naming a removed language reads as follow system (i18n::REQ-003) (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 96033) was killed
+  ✓   74 e2e/app.spec.ts:4412:1 › the language selector: three items including follow-system and the divider, with a switch applying immediately (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 96214) was killed
+  ✓   75 e2e/app.spec.ts:4472:1 › the language selector by keyboard: opening leaves the highlight on the current selection rather than moving an extra step (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 96462) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 96634) was killed
+  ✓   76 e2e/app.spec.ts:4523:1 › i18n: the language-locking mechanism itself is reliable, unaffected by the development machine's system language (21.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 96842) was killed
+  ✓   77 e2e/app.spec.ts:4544:1 › i18n: both languages load, with the key nodes non-empty (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 97030) was killed
+  ✓   78 e2e/app.spec.ts:4570:1 › i18n: switching languages applies immediately, changing several areas at once (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 97262) was killed
+  ✓   79 e2e/app.spec.ts:4592:1 › i18n: key layouts do not overflow horizontally in either language (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 97401) was killed
+  ✓   80 e2e/app.spec.ts:4617:1 › i18n: no label in the project-detail tab row or the skills rows wraps to a second line (11.1s)
+  ✓   81 e2e/app.spec.ts:4698:1 › the time window drives all four regions at once: side figures, composition, model rows and the dimmed span (1.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 97676) was killed
+  ✓   82 e2e/app.spec.ts:4832:1 › startup skeleton: agents page shows placeholders, refuses input, fills in place (14.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 97875) was killed
+  ✓   83 e2e/app.spec.ts:4910:1 › startup skeleton: projects dimension shows placeholder rows and fills in place (14.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 98207) was killed
+  ✓   84 e2e/app.spec.ts:4978:1 › project switch (query layer): the highlight moves at once and the pane holds the previous project until the next detail arrives (12.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 98404) was killed
+  ✓   85 e2e/app.spec.ts:5014:1 › project switch (query layer): rapid A → B → C never shows B, and B is still cached afterwards (12.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 98644) was killed
+  ✓   86 e2e/app.spec.ts:5048:1 › opening a session (query layer): the project page holds until the session page arrives, and reopening it is instant (12.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 98847) was killed
+  ✓   87 e2e/app.spec.ts:5077:1 › opening a session then returning to the project before it arrives (query layer): the project page stays, no error, and the interrupted fetch is cached (12.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 99095) was killed
+  ✓   88 e2e/app.spec.ts:5107:1 › an automatic rescan refreshes an open session page by transfusion (query layer): the question list follows the file while expansion and sort survive (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 99309) was killed
+  ✓   89 e2e/app.spec.ts:5147:1 › opening a session whose file was removed after the scan (query layer): the page shows its own error, no crash (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 99487) was killed
+  ✓   90 e2e/app.spec.ts:5171:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (11.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 99659) was killed
+  ✓   91 e2e/app.spec.ts:5222:1 › leaving a project for a session page and coming back (query layer closeout): the project page is a cached visit landing on Sessions, then revalidates by transfusion (14.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 99910) was killed
+  ✓   92 e2e/app.spec.ts:5266:1 › opening an artifact whose file was removed after the scan (query layer): a toast surfaces the failure, no overlay, no crash (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 204) was killed
+  ✓   93 e2e/app.spec.ts:5288:1 › reopening a skill file table (query layer): first expand is slow, reopening it is instant (11.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 460) was killed
+  ✓   94 e2e/app.spec.ts:5312:1 › reopening an artifact (query layer): first open is slow, reopening it is instant (13.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 877) was killed
+  ✓   95 e2e/app.spec.ts:5357:3 › selectable trend span [Agents page · Token tab]: history, independent filters, tabs and refresh (12.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 1109) was killed
+  ✓   96 e2e/app.spec.ts:5357:3 › selectable trend span [project detail · Overview tab]: history, independent filters, tabs and refresh (12.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 1359) was killed
+  ✓   97 e2e/app.spec.ts:5449:1 › selectable trend span: localized controls fit both pages in light and dark at minimum width (23.3s)
+  ✓   98 e2e/close-app.spec.ts:46:1 › a close that finishes within the bound returns, kills nothing and reports nothing (23ms)
+  ✓   99 e2e/close-app.spec.ts:57:1 › a close that outlasts the bound kills the app's process group, reports and notes it, and returns once the close has settled (258ms)
+  ✓  100 e2e/close-app.spec.ts:72:1 › a group already gone when the bound passes is no error, and nothing is reported or noted (265ms)
+  ✓  101 e2e/close-app.spec.ts:89:1 › the default killer ends a real process group whose member still holds the pipes (217ms)
+  ✓  102 e2e/close-app.spec.ts:112:1 › a close past the bound with no process to kill is an error (102ms)
+  ✓  103 e2e/close-app.spec.ts:118:1 › a kill that fails for another reason than a group already gone is an error (102ms)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 1795) was killed
+  ✓  104 e2e/global-search.spec.ts:157:1 › the global search page: the rail item, typing, results grouped by project, sorting, and every answer the results area gives (13.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 2049) was killed
+  ✓  105 e2e/global-search.spec.ts:273:1 › reading the question texts: the header hint while it runs, nothing in the results area, then the results for the latest keyword (14.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 2357) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 2728) was killed
+  ✓  106 e2e/global-search.spec.ts:307:1 › going to a hit: the search page holds, then Projects with the project selected and in view and the session at that question; the page is kept for the run (30.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 2872) was killed
+  ✓  107 e2e/global-search.spec.ts:397:1 › a hit whose session file is gone opens the session page to its own error, with no crash (J8) (11.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 3124) was killed
+  ✓  108 e2e/global-search.spec.ts:421:1 › the results follow the data: a rescan brings a new hit in by transfusion; with every session gone, the no-session state (13.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 3414) was killed
+  ✓  109 e2e/global-search.spec.ts:451:1 › nothing to search: the box stays, its placeholder names no number, and the page says so (REQ-006) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 3621) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 3892) was killed
+  ✓  110 e2e/global-search.spec.ts:469:1 › during the startup scan the search runs over the restored sessions, and the scan then keeps the results (S2) (27.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 4147) was killed
+  ✓  111 e2e/global-search.spec.ts:505:1 › a session opened from a hit: back to the results as they were left, or on into its project (12.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 4395) was killed
+  ✓  112 e2e/global-search.spec.ts:551:1 › on into the project: its Sessions tab, or a stale project's note; a session reached from there or through the fork banner has the single back control (11.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 4605) was killed
+  ✓  113 e2e/global-search.spec.ts:593:1 › leaving the session for the search page and coming back keeps it with its exits; selecting another project replaces it (J6, J7) (11.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 5310) was killed
+  ✓  114 e2e/global-search.spec.ts:662:1 › a long project name at the window's minimum width: the two exits, and the single back control, each stay on one line, cut with an ellipsis (J11) (11.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 5667) was killed
+  ✓  115 e2e/global-search.spec.ts:753:1 › ⌘⇧F through the application menu: from settings, a session page and the search page itself, the page as left with the focus in its box; the item follows the language (US-004, J10) (11.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 5852) was killed
+  ✓  116 e2e/global-search.spec.ts:817:1 › Search Sessions… chosen while a hit's session is still on its way keeps the search page, and the session page is kept for later (US-004/AC-01, session-view P8 through P10) (17.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 6131) was killed
+  ✓  117 e2e/global-search.spec.ts:875:1 › a hit row keeps its keyword in view: 20 characters before a far keyword, the keyword itself when that does not fit, a keyword under the ellipsis counted out of view, judged again on a resize and when shown again — in global search and in a project's Sessions tab (session-view::REQ-002) (14.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 6412) was killed
+  ✓  118 e2e/menu-check-updates.spec.ts:96:1 › the item sits directly below "About" and reports up to date, a failure, and a malformed answer as a failure (REQ-005, US-003/AC-01, A6) (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 6646) was killed
+  ✓  119 e2e/menu-check-updates.spec.ts:126:1 › a menu check that finds an update starts the download, and a failed download adds no second toast (US-003/AC-03, B2) (12.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 6905) was killed
+  ✓  120 e2e/menu-check-updates.spec.ts:148:1 › a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04) (13.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 7147) was killed
+  ✓  121 e2e/menu-check-updates.spec.ts:173:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) (14.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 7356) was killed
+  ✓  122 e2e/menu-check-updates.spec.ts:207:1 › the item follows a language switch at once; a toast already shown keeps its language and stacks with the new one (G2, G6) (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 7607) was killed
+  ✓  123 e2e/menu-check-updates.spec.ts:230:1 › a development run disables the item, and a click on it reports nothing (US-005/AC-02) (11.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 7832) was killed
+  ✓  124 e2e/settings-updates.spec.ts:82:1 › settings gains "Updates" third, one card with the switch and the version row, and its footnote (REQ-003/AC-01, AC-02, US-002/AC-02) (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 8044) was killed
+  ✓  125 e2e/settings-updates.spec.ts:112:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) (12.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 8335) was killed
+  ✓  126 e2e/settings-updates.spec.ts:149:1 › a settings check that finds an update starts the download: the line and the rail follow it, and "Check now" is unavailable (US-003/AC-02, AC-03, REQ-004/AC-01) (11.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 8543) was killed
+  ✓  127 e2e/settings-updates.spec.ts:172:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) (13.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 8846) was killed
+  ✓  128 e2e/settings-updates.spec.ts:205:1 › an install from "Install now" that fails: the error toast, "Check now" available again and an empty line (REQ-002/AC-03, C11) (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 9084) was killed
+  ✓  129 e2e/settings-updates.spec.ts:225:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2) (13.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 9360) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 9580) was killed
+  ✓  130 e2e/settings-updates.spec.ts:248:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) (25.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 9831) was killed
+  ✓  131 e2e/settings-updates.spec.ts:281:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) (13.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 10036) was killed
+  ✓  132 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an older recorded version (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 10245) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 10522) was killed
+  ✓  133 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › the same version (21.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 10890) was killed
+  ✓  134 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a newer recorded version (the version went down) (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 11306) was killed
+  ✓  135 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › no record (a fresh installation) (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 11988) was killed
+  ✓  136 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an unreadable record (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 12612) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 12844) was killed
+  ✓  137 e2e/settings-updates.spec.ts:336:3 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a still newer release found at that launch shows its download instead, and a settings check replaces the line (C7) (21.6s)
+  ✓  138 e2e/settings-updates.spec.ts:363:1 › a development run: the switch and the button are unavailable, the footnote says why, and nothing is asked (US-005/AC-02) (9.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 13212) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 13447) was killed
+  ✓  139 e2e/settings-updates.spec.ts:390:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › a change is stored at once and survives a restart; with it off the launch makes no request (24.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 13671) was killed
+  ✓  140 e2e/settings-updates.spec.ts:420:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5) (13.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 13879) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 14093) was killed
+  ✓  141 e2e/settings-updates.spec.ts:439:1 › the first launch after an update restores the saved display like any other launch (G4) (21.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 14295) was killed
+  ✓  142 e2e/settings-updates.spec.ts:501:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh (15.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 14594) was killed
+  ✓  143 e2e/settings-updates.spec.ts:501:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en (15.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 14848) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 15127) was killed
+  ✓  144 e2e/startup-restore.spec.ts:9:1 › restart restores viewed project, questions and read answer before a new scan finishes (46.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 15784) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 16025) was killed
+  ✓  145 e2e/startup-restore.spec.ts:150:1 › a failed startup scan keeps the saved display and retries automatically with a stopped status (29.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 16374) was killed
+  ✓  146 e2e/token-span.spec.ts:64:1 › a theme chosen while the initial preference read is in flight survives that read landing (16.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 16738) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 16936) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 17166) was killed
+  ✓  147 e2e/token-span.spec.ts:82:1 › global span defaults an older or invalid preference without resetting valid appearance and language (32.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 17395) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 17597) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 17927) was killed
+  ✓  148 e2e/token-span.spec.ts:106:1 › global span links exact totals and active breakdowns on both entries, and survives full restarts (36.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 18124) was killed
+  ✓  149 e2e/token-span.spec.ts:175:3 › global span 30: saved preference survives an unusable display cache and skeleton fill (13.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 18434) was killed
+  ✓  150 e2e/token-span.spec.ts:175:3 › global span 60: saved preference survives an unusable display cache and skeleton fill (13.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 18735) was killed
+  ✓  151 e2e/token-span.spec.ts:175:3 › global span 90: saved preference survives an unusable display cache and skeleton fill (13.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 19044) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 19211) was killed
+  ✓  152 e2e/token-span.spec.ts:196:1 › global span save failure keeps live views consistent and reopens the last successful value (21.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 19444) was killed
+  ✓  153 e2e/token-span.spec.ts:226:1 › global span includes archived and retained older rows in both charts and fourth cards (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 19723) was killed
+  ✓  154 e2e/token-span.spec.ts:254:1 › global span numeric choices support keyboard activation and retain every card and side identity (16.6s)
+
+  Slow test file: e2e/app.spec.ts (16.7m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  154 passed (33.5m)
+
+## 12 busy processes
+24807a5 Test the bounded teardown's real kill, and record the rule in CONTEXT
+loaded full e2e exit=1
+### load samples
+23:05  up 10 days, 22:27, 11 users, load averages: 5.78 5.41 8.50
+23:05  up 10 days, 22:27, 11 users, load averages: 54.72 17.11 12.62
+23:06  up 10 days, 22:28, 11 users, load averages: 98.42 31.51 18.01
+23:06  up 10 days, 22:28, 11 users, load averages: 111.57 41.03 21.92
+23:07  up 10 days, 22:29, 11 users, load averages: 134.64 53.53 27.12
+23:07  up 10 days, 22:29, 11 users, load averages: 147.86 64.46 32.00
+23:08  up 10 days, 22:30, 11 users, load averages: 164.40 76.41 37.45
+23:08  up 10 days, 22:30, 11 users, load averages: 158.74 83.26 41.27
+23:09  up 10 days, 22:31, 11 users, load averages: 168.85 92.99 46.26
+23:09  up 10 days, 22:31, 11 users, load averages: 172.42 101.20 50.86
+23:10  up 10 days, 22:32, 11 users, load averages: 180.55 109.86 55.73
+23:10  up 10 days, 22:32, 11 users, load averages: 183.40 117.33 60.31
+23:11  up 10 days, 22:33, 11 users, load averages: 180.32 122.75 64.24
+23:11  up 10 days, 22:33, 11 users, load averages: 194.76 131.66 69.50
+23:12  up 10 days, 22:34, 11 users, load averages: 199.70 138.76 74.22
+23:12  up 10 days, 22:34, 11 users, load averages: 230.55 152.26 81.36
+23:13  up 10 days, 22:35, 11 users, load averages: 238.12 161.52 87.17
+23:13  up 10 days, 22:35, 11 users, load averages: 224.04 165.58 91.22
+23:14  up 10 days, 22:36, 11 users, load averages: 218.04 169.79 95.33
+23:14  up 10 days, 22:36, 11 users, load averages: 218.94 174.53 99.62
+23:15  up 10 days, 22:37, 11 users, load averages: 193.26 172.88 101.64
+23:15  up 10 days, 22:37, 11 users, load averages: 186.59 173.10 104.18
+23:16  up 10 days, 22:38, 11 users, load averages: 188.15 174.74 107.16
+23:16  up 10 days, 22:38, 11 users, load averages: 208.55 180.77 111.67
+23:17  up 10 days, 22:39, 11 users, load averages: 212.88 184.52 115.43
+23:17  up 10 days, 22:39, 11 users, load averages: 208.08 186.00 118.36
+23:18  up 10 days, 22:40, 11 users, load averages: 211.54 188.91 121.75
+23:18  up 10 days, 22:40, 11 users, load averages: 207.58 189.97 124.45
+23:19  up 10 days, 22:41, 11 users, load averages: 214.11 193.15 127.87
+23:19  up 10 days, 22:41, 11 users, load averages: 203.39 192.56 129.92
+23:20  up 10 days, 22:42, 11 users, load averages: 208.97 194.92 132.94
+23:20  up 10 days, 22:42, 11 users, load averages: 213.51 197.39 135.98
+23:21  up 10 days, 22:43, 11 users, load averages: 219.28 200.35 139.18
+23:21  up 10 days, 22:43, 11 users, load averages: 228.62 204.43 142.78
+23:22  up 10 days, 22:44, 11 users, load averages: 234.24 208.15 146.27
+23:22  up 10 days, 22:44, 11 users, load averages: 236.89 211.17 149.50
+23:23  up 10 days, 22:45, 11 users, load averages: 251.08 217.10 153.79
+23:23  up 10 days, 22:45, 11 users, load averages: 239.48 217.29 156.03
+23:24  up 10 days, 22:46, 11 users, load averages: 242.94 220.32 159.26
+23:24  up 10 days, 22:46, 11 users, load averages: 253.92 225.08 163.09
+23:25  up 10 days, 22:47, 11 users, load averages: 253.38 227.69 166.19
+23:25  up 10 days, 22:47, 11 users, load averages: 245.15 228.29 168.54
+23:26  up 10 days, 22:48, 11 users, load averages: 238.78 228.39 170.65
+23:26  up 10 days, 22:48, 11 users, load averages: 224.25 225.89 171.74
+23:27  up 10 days, 22:49, 11 users, load averages: 218.47 224.17 172.99
+23:27  up 10 days, 22:49, 11 users, load averages: 218.44 223.65 174.57
+23:28  up 10 days, 22:50, 11 users, load averages: 212.60 221.47 175.47
+23:28  up 10 days, 22:50, 11 users, load averages: 213.30 220.71 176.78
+23:29  up 10 days, 22:51, 11 users, load averages: 215.73 220.52 178.23
+23:29  up 10 days, 22:51, 11 users, load averages: 211.40 219.06 179.16
+23:30  up 10 days, 22:52, 11 users, load averages: 217.67 219.87 180.84
+23:30  up 10 days, 22:52, 11 users, load averages: 215.90 219.24 181.96
+23:31  up 10 days, 22:53, 11 users, load averages: 221.07 220.10 183.56
+23:31  up 10 days, 22:53, 11 users, load averages: 211.54 217.80 183.99
+23:32  up 10 days, 22:54, 11 users, load averages: 205.08 215.94 184.50
+23:32  up 10 days, 22:54, 11 users, load averages: 203.89 214.55 185.08
+23:33  up 10 days, 22:55, 11 users, load averages: 245.28 223.28 189.25
+23:33  up 10 days, 22:55, 11 users, load averages: 247.55 225.64 191.26
+23:34  up 10 days, 22:56, 11 users, load averages: 263.18 231.32 194.50
+23:34  up 10 days, 22:56, 11 users, load averages: 261.46 234.13 196.81
+23:35  up 10 days, 22:57, 11 users, load averages: 267.93 238.20 199.57
+23:35  up 10 days, 22:57, 11 users, load averages: 261.41 239.62 201.43
+23:36  up 10 days, 22:58, 11 users, load averages: 251.58 239.19 202.59
+23:36  up 10 days, 22:58, 11 users, load averages: 259.67 242.32 204.99
+23:37  up 10 days, 22:59, 11 users, load averages: 256.42 243.26 206.63
+23:37  up 10 days, 22:59, 11 users, load averages: 251.86 243.56 208.01
+23:38  up 10 days, 23 hrs, 11 users, load averages: 251.68 244.16 209.45
+23:38  up 10 days, 23 hrs, 11 users, load averages: 231.67 239.87 209.09
+### the run
+
+> agentshed@0.1.0-beta e2e /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-227
+> electron-vite build && playwright test
+
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 547 modules transformed.
+rendering chunks...
+out/main/parse-worker.js                   0.40 kB
+out/main/chunks/token-stats-Y_GCWB5i.js  122.21 kB
+out/main/index.js                        211.93 kB
+out/main/chunks/main-DZ5R1KNi.js         513.19 kB
+✓ built in 1.65s
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 17 modules transformed.
+rendering chunks...
+out/preload/index.cjs  49.77 kB
+✓ built in 52ms
+vite v5.4.21 building for production...
+transforming...
+✓ 147 modules transformed.
+rendering chunks...
+../../out/renderer/index.html                   0.40 kB
+../../out/renderer/assets/index-D-ZQl5TO.css   84.75 kB
+../../out/renderer/assets/index-CwhfPdBv.js   688.41 kB
+✓ built in 952ms
+
+Running 154 tests using 1 worker
+
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 82754) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 83425) was killed
+  ✓    1 e2e/app-update.spec.ts:87:1 › with no update in flight the slot takes no space; an update in flight sits directly above Settings, which keeps its place (REQ-001/AC-01, US-001/AC-06, appearance D4) (21.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 83636) was killed
+  ✓    2 e2e/app-update.spec.ts:123:1 › a launch check that finds an update shows the download in the rail at once, with no dialog; the slot cannot be clicked while downloading (US-001/AC-01, REQ-001/AC-02–AC-04) (11.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 83849) was killed
+  ✓    3 e2e/app-update.spec.ts:161:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (13.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 84203) was killed
+  ✓    4 e2e/app-update.spec.ts:184:1 › the finished download becomes the ready button; clicking it installs once and shows the spinner (US-001/AC-03, AC-04, REQ-001/AC-03, Failure C10) (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 84530) was killed
+  ✓    5 e2e/app-update.spec.ts:213:1 › a failed install after the click shows the error toast, stacked with any other, and the button goes (REQ-002/AC-03, Failure G6) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 84702) was killed
+  ✓    6 e2e/app-update.spec.ts:236:1 › an open message goes with the button, so the button comes back without it (REQ-001/AC-04) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 84932) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 85151) was killed
+  ✓    7 e2e/app-update.spec.ts:267:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (22.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 85328) was killed
+  ✓    8 e2e/app-update.spec.ts:291:1 › the circle, its glyph and the message stay distinguishable in every theme, light and dark, and recolour with a switch (REQ-001/AC-05, Failure G3) (11.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 85590) was killed
+  ✓    9 e2e/app-update.spec.ts:344:1 › the installing loader spins, and stands still under reduced motion (REQ-001/AC-02) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 85801) was killed
+  ✓   10 e2e/app-update.spec.ts:363:1 › an open message follows a language switch at once (Failure G2) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 86034) was killed
+  ✓   11 e2e/app-update.spec.ts:389:1 › with automatic checks turned off the launch makes no request (US-002/AC-01) (12.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 86218) was killed
+  ✓   12 e2e/app-update.spec.ts:406:1 › a second instance launched while an update is ready exits, and the running one keeps the update (Failure G5) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 86411) was killed
+  ✓   13 e2e/app.spec.ts:378:1 › cold start: the Agents page is the default landing, both summary cards render, and the main process reports no errors (10.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 86636) was killed
+  ✓   14 e2e/app.spec.ts:398:1 › an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors (10.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 86795) was killed
+  ✓   15 e2e/app.spec.ts:427:1 › all seven Agents page tabs render as they are switched through, with no errors (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 87019) was killed
+  ✓   16 e2e/app.spec.ts:449:1 › switching to Projects: rows appear when there are projects, and the detail tabs switch once one is selected (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 87205) was killed
+  ✓   17 e2e/app.spec.ts:468:1 › switching to Projects: the sidebar shows its empty state when there are no projects at all (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 87439) was killed
+  ✓   18 e2e/app.spec.ts:509:1 › the project list row: a side-count badge, with hovering naming the sides in full (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 87659) was killed
+  ✓   19 e2e/app.spec.ts:597:1 › a Grok-only project opens its detail page without errors (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 87858) was killed
+  ✓   20 e2e/app.spec.ts:631:1 › a stale project opens as the note page: card only, chips per recording side, copy feedback, and both staleness flips (11.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 88043) was killed
+  ✓   21 e2e/app.spec.ts:701:1 › the side filter dropdown: narrows to one side, dismisses on scroll, and survives a resize (11.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 88245) was killed
+  ✓   22 e2e/app.spec.ts:788:1 › a real window resize with a scrolled list does not close the side dropdown (#122) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 88949) was killed
+  ✓   23 e2e/app.spec.ts:829:1 › the side filter row stays inside the sidebar column in both UI languages (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 89465) was killed
+  ✓   24 e2e/app.spec.ts:886:1 › the sessions section: sessions are listed, the sort switches, and warmup sessions are not listed (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 90264) was killed
+  ✓   25 e2e/app.spec.ts:930:1 › the sessions section: each row shows that session's real question count (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 90844) was killed
+  ✓   26 e2e/app.spec.ts:953:1 › the sessions section: the sort choice is remembered after switching away (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 91078) was killed
+  ✓   27 e2e/app.spec.ts:976:1 › the sessions section: a project with no sessions shows an empty state, and the overview session card clicks through to this section (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 91627) was killed
+  ✓   28 e2e/app.spec.ts:989:1 › one click on the overview session card goes straight to the session page (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 92485) was killed
+  ✓   29 e2e/app.spec.ts:1005:1 › the session page: every question is listed with complete fields, and back returns to the sessions section (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 93359) was killed
+  ✓   30 e2e/app.spec.ts:1046:1 › the session page: a fork session shows only the questions left after stripping (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 93842) was killed
+  ✓   31 e2e/app.spec.ts:1068:1 › the IPC surface: a path outside the allow-list is refused over the real channel, and the error carries no file content (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 94067) was killed
+  ✓   32 e2e/app.spec.ts:1112:1 › the session page: a long question's single-line truncation happens only in the display layer, with the full text in the DOM (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 94899) was killed
+  ✓   33 e2e/app.spec.ts:1150:1 › the session page: everything collapsed by default; clicking a question expands the whole turn with its fetch footnote, and clicking again collapses it (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 95451) was killed
+  ✓   34 e2e/app.spec.ts:1187:1 › the session page: day groups collapse; descending reverses both the groups and their contents while the numbers stay; expansion survives a sort change (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 95745) was killed
+  ✓   35 e2e/app.spec.ts:1239:1 › the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source (14.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 96783) was killed
+  ✓   36 e2e/app.spec.ts:1280:1 › the session page: after the file is appended to (so the signature mismatches), clicking a question still fetches the correct whole turn (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 97027) was killed
+  ✓   37 e2e/app.spec.ts:1312:1 › session page rich content (Claude): the thinking, tool and subagent blocks are collapsed by default and expand to the full text with their labels (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 98076) was killed
+  ✓   38 e2e/app.spec.ts:1361:1 › session page rich content (Codex): the encrypted-reasoning label, tool pairing, the unattributable spawn label, and traces of unknown events (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 98664) was killed
+  ✓   39 e2e/app.spec.ts:1399:1 › session page (Codex, paginated format): the session is listed by its completed-item question, opens, and its turn shows the agent-message prose with no unknown trace (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 99043) was killed
+  ✓   40 e2e/app.spec.ts:1440:1 › session page (Codex, cold rollout): a .jsonl.zst session is listed, counted, opens and expands like a plain one (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 99185) was killed
+  ✓   41 e2e/app.spec.ts:1476:1 › session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question (11.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 99450) was killed
+  ✓   42 e2e/app.spec.ts:1527:1 › overlapping automatic rescans are deduplicated: the page stays coherent and the main process reports no errors (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 99682) was killed
+  ✓   43 e2e/app.spec.ts:1547:1 › the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors (10.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 99877) was killed
+  ✓   44 e2e/app.spec.ts:1605:1 › the archive retains a past day whose live figure fell under the same stamp (ADR-0026): the retained figure shows on both pages, with no hatching, while the archived-only day still hatches (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 438) was killed
+  ✓   45 e2e/app.spec.ts:1672:1 › the trend chart is stacked bars: segmented by provider within a bar, and switching to a single side leaves only that side's provider segments (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 807) was killed
+  ✓   46 e2e/app.spec.ts:1702:1 › the provider brand colours apply: the segments and the legend match, with their own values in light and dark (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 1014) was killed
+  ✓   47 e2e/app.spec.ts:1992:1 › F3 plus the new sections: a project-scope plugin displays correctly both ways; the Subagents and Memory drawers work end to end (23.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 1500) was killed
+  ✓   48 e2e/app.spec.ts:2504:1 › Skills view: expanding globally reads the package; a same-name pair in detail shows only the project level; plugin rows do not expand (14.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 1781) was killed
+  ✓   49 e2e/app.spec.ts:2670:1 › filtering the skills lists by name, and revealing a truncated name on hover (11.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 2000) was killed
+  ✓   50 e2e/app.spec.ts:2862:1 › a filter keyword survives a refresh, and is cleared by leaving the section or switching project (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 2234) was killed
+  ✓   51 e2e/app.spec.ts:2942:1 › the install-to popover sits next to its button, and its targets can be clicked (11.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 2488) was killed
+  ✓   52 e2e/app.spec.ts:3054:1 › previewing a plugin skill in place: the tab expands and reads the package; a disabled plugin is readable; a missing one is greyed out; the Codex group (11.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 2702) was killed
+  ✓   53 e2e/app.spec.ts:3153:1 › a skill package removed after the scan: the file table shows the toast's wording in both skill lists (#209) (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 2885) was killed
+  ✓   54 e2e/app.spec.ts:3208:3 › skill file line counts follow the UI language's digit grouping [en-US] (#210) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 3123) was killed
+  ✓   55 e2e/app.spec.ts:3239:1 › automatic refresh: a new session appears on its own, and the detail page's expansion state survives it (14.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 3414) was killed
+  ✓   56 e2e/app.spec.ts:3341:3 › the trend chart [Agents page · Token tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 3596) was killed
+  ✓   57 e2e/app.spec.ts:3341:3 › the trend chart [project detail · Overview tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 3828) was killed
+  ✓   58 e2e/app.spec.ts:3445:1 › a newly adopted side: the thin xAI segment survives, and Grok mode labels only its data days (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 3995) was killed
+  ✓   59 e2e/app.spec.ts:3545:1 › three sides on one day segment together, and one project mixes all three sides' sessions by time (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 4250) was killed
+  ✓   60 e2e/app.spec.ts:3619:1 › the Agents page shows Grok's own global skills with the borrowing line, and installs one into a project (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 4412) was killed
+  ✓   61 e2e/app.spec.ts:3666:1 › a Grok session opens end to end: list, questions, an on-demand turn, search, and the allow-list boundary (11.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 4649) was killed
+  ✓   62 e2e/app.spec.ts:3755:1 › the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip" (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 4853) was killed
+  ✓   63 e2e/app.spec.ts:3798:1 › settings: the three appearance choices change data-theme, and entering and leaving settings keeps the selected project (11.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 5021) was killed
+  ✓   64 e2e/app.spec.ts:3851:1 › project list: selection is a deeper wash with no ring, and adjacent rows keep a 1px gap (10.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 5277) was killed
+  ✓   65 e2e/app.spec.ts:3967:1 › appearance: one card with two rows (mode + theme); the theme cards keep only a swatch and a name (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 5455) was killed
+  ✓   66 e2e/app.spec.ts:3995:1 › appearance mode: locking light or dark changes the effective light/dark, and the palette samples follow (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 5643) was killed
+  ✓   67 e2e/app.spec.ts:4052:1 › appearance: all six combinations of 3 themes × 2 effective light/dark hold (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 5891) was killed
+  ✓   68 e2e/app.spec.ts:4184:1 › scrollbars: every scrolling area draws a 6px thumb on no track, in light and in dark (appearance::REQ-001) (11.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 6128) was killed
+  ✓   69 e2e/app.spec.ts:4257:1 › scrollbars: the thumb darkens under the pointer, in light and in dark (appearance::REQ-001/AC-05) (10.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 6286) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 6561) was killed
+  ✓   70 e2e/app.spec.ts:4299:1 › scrollbars: the same 6px scrollbar whether macOS draws overlay or classic ones (appearance F1, F2) (21.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 6754) was killed
+  ✓   71 e2e/app.spec.ts:4366:1 › UI language: following the system resolves against the whole list, and applies on the first frame (10.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 6922) was killed
+  ✓   72 e2e/app.spec.ts:4380:1 › UI language: falls back to English when the system language is unsupported (10.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 7169) was killed
+  ✓   73 e2e/app.spec.ts:4391:1 › UI language: a stored preference naming a removed language reads as follow system (i18n::REQ-003) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 7326) was killed
+  ✓   74 e2e/app.spec.ts:4412:1 › the language selector: three items including follow-system and the divider, with a switch applying immediately (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 7539) was killed
+  ✓   75 e2e/app.spec.ts:4472:1 › the language selector by keyboard: opening leaves the highlight on the current selection rather than moving an extra step (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 7769) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 7926) was killed
+  ✓   76 e2e/app.spec.ts:4523:1 › i18n: the language-locking mechanism itself is reliable, unaffected by the development machine's system language (21.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 8158) was killed
+  ✓   77 e2e/app.spec.ts:4544:1 › i18n: both languages load, with the key nodes non-empty (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 8323) was killed
+  ✓   78 e2e/app.spec.ts:4570:1 › i18n: switching languages applies immediately, changing several areas at once (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 8534) was killed
+  ✓   79 e2e/app.spec.ts:4592:1 › i18n: key layouts do not overflow horizontally in either language (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 8740) was killed
+  ✓   80 e2e/app.spec.ts:4617:1 › i18n: no label in the project-detail tab row or the skills rows wraps to a second line (11.0s)
+  ✓   81 e2e/app.spec.ts:4698:1 › the time window drives all four regions at once: side figures, composition, model rows and the dimmed span (1.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 8974) was killed
+  ✓   82 e2e/app.spec.ts:4832:1 › startup skeleton: agents page shows placeholders, refuses input, fills in place (14.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 9257) was killed
+  ✓   83 e2e/app.spec.ts:4910:1 › startup skeleton: projects dimension shows placeholder rows and fills in place (14.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 9491) was killed
+  ✓   84 e2e/app.spec.ts:4978:1 › project switch (query layer): the highlight moves at once and the pane holds the previous project until the next detail arrives (12.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 9696) was killed
+  ✓   85 e2e/app.spec.ts:5014:1 › project switch (query layer): rapid A → B → C never shows B, and B is still cached afterwards (12.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 9974) was killed
+  ✓   86 e2e/app.spec.ts:5048:1 › opening a session (query layer): the project page holds until the session page arrives, and reopening it is instant (12.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 10205) was killed
+  ✓   87 e2e/app.spec.ts:5077:1 › opening a session then returning to the project before it arrives (query layer): the project page stays, no error, and the interrupted fetch is cached (12.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 10386) was killed
+  ✓   88 e2e/app.spec.ts:5107:1 › an automatic rescan refreshes an open session page by transfusion (query layer): the question list follows the file while expansion and sort survive (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 10622) was killed
+  ✓   89 e2e/app.spec.ts:5147:1 › opening a session whose file was removed after the scan (query layer): the page shows its own error, no crash (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 10825) was killed
+  ✓   90 e2e/app.spec.ts:5171:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (11.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 10992) was killed
+  ✓   91 e2e/app.spec.ts:5222:1 › leaving a project for a session page and coming back (query layer closeout): the project page is a cached visit landing on Sessions, then revalidates by transfusion (14.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 11264) was killed
+  ✓   92 e2e/app.spec.ts:5266:1 › opening an artifact whose file was removed after the scan (query layer): a toast surfaces the failure, no overlay, no crash (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 11484) was killed
+  ✓   93 e2e/app.spec.ts:5288:1 › reopening a skill file table (query layer): first expand is slow, reopening it is instant (11.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 11645) was killed
+  ✓   94 e2e/app.spec.ts:5312:1 › reopening an artifact (query layer): first open is slow, reopening it is instant (13.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 11901) was killed
+  ✓   95 e2e/app.spec.ts:5357:3 › selectable trend span [Agents page · Token tab]: history, independent filters, tabs and refresh (12.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 12117) was killed
+  ✓   96 e2e/app.spec.ts:5357:3 › selectable trend span [project detail · Overview tab]: history, independent filters, tabs and refresh (12.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 12348) was killed
+  ✓   97 e2e/app.spec.ts:5449:1 › selectable trend span: localized controls fit both pages in light and dark at minimum width (22.2s)
+  ✓   98 e2e/close-app.spec.ts:46:1 › a close that finishes within the bound returns, kills nothing and reports nothing (24ms)
+  ✓   99 e2e/close-app.spec.ts:57:1 › a close that outlasts the bound kills the app's process group, reports and notes it, and returns once the close has settled (258ms)
+  ✓  100 e2e/close-app.spec.ts:72:1 › a group already gone when the bound passes is no error, and nothing is reported or noted (256ms)
+  ✓  101 e2e/close-app.spec.ts:89:1 › the default killer ends a real process group whose member still holds the pipes (206ms)
+  ✓  102 e2e/close-app.spec.ts:112:1 › a close past the bound with no process to kill is an error (100ms)
+  ✓  103 e2e/close-app.spec.ts:118:1 › a kill that fails for another reason than a group already gone is an error (101ms)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 12779) was killed
+  ✓  104 e2e/global-search.spec.ts:157:1 › the global search page: the rail item, typing, results grouped by project, sorting, and every answer the results area gives (13.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 13037) was killed
+  ✓  105 e2e/global-search.spec.ts:273:1 › reading the question texts: the header hint while it runs, nothing in the results area, then the results for the latest keyword (14.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 13301) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 13624) was killed
+  ✓  106 e2e/global-search.spec.ts:307:1 › going to a hit: the search page holds, then Projects with the project selected and in view and the session at that question; the page is kept for the run (29.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 13784) was killed
+  ✓  107 e2e/global-search.spec.ts:397:1 › a hit whose session file is gone opens the session page to its own error, with no crash (J8) (11.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 13985) was killed
+  ✓  108 e2e/global-search.spec.ts:421:1 › the results follow the data: a rescan brings a new hit in by transfusion; with every session gone, the no-session state (13.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 14208) was killed
+  ✓  109 e2e/global-search.spec.ts:451:1 › nothing to search: the box stays, its placeholder names no number, and the page says so (REQ-006) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 14420) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 14621) was killed
+  ✓  110 e2e/global-search.spec.ts:469:1 › during the startup scan the search runs over the restored sessions, and the scan then keeps the results (S2) (27.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 14909) was killed
+  ✓  111 e2e/global-search.spec.ts:505:1 › a session opened from a hit: back to the results as they were left, or on into its project (12.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 15135) was killed
+  ✓  112 e2e/global-search.spec.ts:551:1 › on into the project: its Sessions tab, or a stale project's note; a session reached from there or through the fork banner has the single back control (11.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 15341) was killed
+  ✓  113 e2e/global-search.spec.ts:593:1 › leaving the session for the search page and coming back keeps it with its exits; selecting another project replaces it (J6, J7) (11.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 16100) was killed
+  ✓  114 e2e/global-search.spec.ts:662:1 › a long project name at the window's minimum width: the two exits, and the single back control, each stay on one line, cut with an ellipsis (J11) (11.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 16402) was killed
+  ✓  115 e2e/global-search.spec.ts:753:1 › ⌘⇧F through the application menu: from settings, a session page and the search page itself, the page as left with the focus in its box; the item follows the language (US-004, J10) (11.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 16630) was killed
+  ✓  116 e2e/global-search.spec.ts:817:1 › Search Sessions… chosen while a hit's session is still on its way keeps the search page, and the session page is kept for later (US-004/AC-01, session-view P8 through P10) (17.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 17078) was killed
+  ✓  117 e2e/global-search.spec.ts:875:1 › a hit row keeps its keyword in view: 20 characters before a far keyword, the keyword itself when that does not fit, a keyword under the ellipsis counted out of view, judged again on a resize and when shown again — in global search and in a project's Sessions tab (session-view::REQ-002) (14.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 17473) was killed
+  ✓  118 e2e/menu-check-updates.spec.ts:96:1 › the item sits directly below "About" and reports up to date, a failure, and a malformed answer as a failure (REQ-005, US-003/AC-01, A6) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 17703) was killed
+  ✓  119 e2e/menu-check-updates.spec.ts:126:1 › a menu check that finds an update starts the download, and a failed download adds no second toast (US-003/AC-03, B2) (12.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 17935) was killed
+  ✓  120 e2e/menu-check-updates.spec.ts:148:1 › a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04) (13.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 18120) was killed
+  ✓  121 e2e/menu-check-updates.spec.ts:173:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) (14.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 18399) was killed
+  ✓  122 e2e/menu-check-updates.spec.ts:207:1 › the item follows a language switch at once; a toast already shown keeps its language and stacks with the new one (G2, G6) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 18630) was killed
+  ✓  123 e2e/menu-check-updates.spec.ts:230:1 › a development run disables the item, and a click on it reports nothing (US-005/AC-02) (11.4s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 18815) was killed
+  ✓  124 e2e/settings-updates.spec.ts:82:1 › settings gains "Updates" third, one card with the switch and the version row, and its footnote (REQ-003/AC-01, AC-02, US-002/AC-02) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 19008) was killed
+  ✓  125 e2e/settings-updates.spec.ts:112:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) (12.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 19234) was killed
+  ✓  126 e2e/settings-updates.spec.ts:149:1 › a settings check that finds an update starts the download: the line and the rail follow it, and "Check now" is unavailable (US-003/AC-02, AC-03, REQ-004/AC-01) (11.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 19393) was killed
+  ✓  127 e2e/settings-updates.spec.ts:172:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) (13.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 19673) was killed
+  ✓  128 e2e/settings-updates.spec.ts:205:1 › an install from "Install now" that fails: the error toast, "Check now" available again and an empty line (REQ-002/AC-03, C11) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 19842) was killed
+  ✓  129 e2e/settings-updates.spec.ts:225:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2) (13.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 20058) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 20319) was killed
+  ✓  130 e2e/settings-updates.spec.ts:248:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) (25.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 20547) was killed
+  ✓  131 e2e/settings-updates.spec.ts:281:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) (13.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 20743) was killed
+  ✓  132 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an older recorded version (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 20959) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 21133) was killed
+  ✓  133 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › the same version (21.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 21314) was killed
+  ✓  134 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a newer recorded version (the version went down) (10.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 21544) was killed
+  ✓  135 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › no record (a fresh installation) (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 21680) was killed
+  ✓  136 e2e/settings-updates.spec.ts:309:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an unreadable record (10.7s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 21909) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 22061) was killed
+  ✓  137 e2e/settings-updates.spec.ts:336:3 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a still newer release found at that launch shows its download instead, and a settings check replaces the line (C7) (21.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 22275) was killed
+  ✓  138 e2e/settings-updates.spec.ts:363:1 › a development run: the switch and the button are unavailable, the footnote says why, and nothing is asked (US-005/AC-02) (11.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 22470) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 22659) was killed
+  ✓  139 e2e/settings-updates.spec.ts:390:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › a change is stored at once and survives a restart; with it off the launch makes no request (24.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 22927) was killed
+  ✓  140 e2e/settings-updates.spec.ts:420:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5) (13.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 23194) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 23399) was killed
+  ✓  141 e2e/settings-updates.spec.ts:439:1 › the first launch after an update restores the saved display like any other launch (G4) (21.3s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 23559) was killed
+  ✓  142 e2e/settings-updates.spec.ts:501:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh (15.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 23843) was killed
+  ✓  143 e2e/settings-updates.spec.ts:501:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en (15.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 24162) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 24436) was killed
+  ✓  144 e2e/startup-restore.spec.ts:9:1 › restart restores viewed project, questions and read answer before a new scan finishes (46.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 25356) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 25691) was killed
+  ✓  145 e2e/startup-restore.spec.ts:150:1 › a failed startup scan keeps the saved display and retries automatically with a stopped status (29.6s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 26262) was killed
+  ✓  146 e2e/token-span.spec.ts:64:1 › a theme chosen while the initial preference read is in flight survives that read landing (16.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 26721) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 26926) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 27098) was killed
+  ✓  147 e2e/token-span.spec.ts:82:1 › global span defaults an older or invalid preference without resetting valid appearance and language (32.2s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 27328) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 27498) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 27739) was killed
+  ✓  148 e2e/token-span.spec.ts:106:1 › global span links exact totals and active breakdowns on both entries, and survives full restarts (36.1s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 27946) was killed
+  ✓  149 e2e/token-span.spec.ts:175:3 › global span 30: saved preference survives an unusable display cache and skeleton fill (13.9s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 28180) was killed
+  ✓  150 e2e/token-span.spec.ts:175:3 › global span 60: saved preference survives an unusable display cache and skeleton fill (14.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 28467) was killed
+  ✓  151 e2e/token-span.spec.ts:175:3 › global span 90: saved preference survives an unusable display cache and skeleton fill (14.0s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 29069) was killed
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 29445) was killed
+  ✓  152 e2e/token-span.spec.ts:196:1 › global span save failure keeps live views consistent and reopens the last successful value (21.5s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 29653) was killed
+  ✓  153 e2e/token-span.spec.ts:226:1 › global span includes archived and retained older rows in both charts and fourth cards (10.8s)
+[e2e teardown] app.close() had not finished after 10000 ms; the app's process group (pid 29921) was killed
+  ✓  154 e2e/token-span.spec.ts:254:1 › global span numeric choices support keyboard activation and retain every card and side identity (15.4s)
+Worker teardown timeout of 60000ms exceeded.
+
+Failed worker ran 154 tests, last 10 tests were:
+e2e/startup-restore.spec.ts:150:1 › a failed startup scan keeps the saved display and retries automatically with a stopped status
+e2e/token-span.spec.ts:64:1 › a theme chosen while the initial preference read is in flight survives that read landing
+e2e/token-span.spec.ts:82:1 › global span defaults an older or invalid preference without resetting valid appearance and language
+e2e/token-span.spec.ts:106:1 › global span links exact totals and active breakdowns on both entries, and survives full restarts
+e2e/token-span.spec.ts:175:3 › global span 30: saved preference survives an unusable display cache and skeleton fill
+e2e/token-span.spec.ts:175:3 › global span 60: saved preference survives an unusable display cache and skeleton fill
+e2e/token-span.spec.ts:175:3 › global span 90: saved preference survives an unusable display cache and skeleton fill
+e2e/token-span.spec.ts:196:1 › global span save failure keeps live views consistent and reopens the last successful value
+e2e/token-span.spec.ts:226:1 › global span includes archived and retained older rows in both charts and fourth cards
+e2e/token-span.spec.ts:254:1 › global span numeric choices support keyboard activation and retain every card and side identity
+
+  Slow test file: e2e/app.spec.ts (16.5m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  154 passed (33.9m)
+  1 error was not a part of any test, see above for details
+ ELIFECYCLE  Command failed with exit code 1.

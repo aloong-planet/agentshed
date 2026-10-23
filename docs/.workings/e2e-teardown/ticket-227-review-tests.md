@@ -260,4 +260,4 @@ them synced:
 | F6 | The test file's header names its gap: Electron's native shutdown under load is not reproduced there, with where the loaded runs are |
 | F7 | The design table's rows match the written cases; the case design states why asserting the injected killer's call is right (it stands for the operating system's signal) |
 | F8 | The stand-in's pid is 2^30, which no process group can have |
-| F9 | The trace: not added (D3 in the task list). The full run under load: run after this commit, recorded in the task list |
+| F9 | The trace: not added (D3 in the task list). The full run under load, on 24807a5: all 154 cases passed at every load tried, from 9–14 to over 250, with closes ended at the bound once the load ran away; one Playwright worker-teardown timeout after the last case at the highest load (`evidence/ticket-227/full-run-under-load.txt`; task 5e) |
