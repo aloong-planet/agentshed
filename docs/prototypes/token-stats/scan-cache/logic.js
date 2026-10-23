@@ -35,7 +35,7 @@ function initial(warm, total) {
  * @returns {ScanState}
  */
 function reduce(s, a) {
-  const deny = (why) => ({ ...s, illegal: `${a.type} 被忽略:${why}` });
+  const deny = (why) => ({ ...s, illegal: `${a.type} ignored: ${why}` });
   const ok = (patch) => ({ ...s, illegal: null, ...patch });
 
   if (TERMINAL.has(s.status)) return deny('app 已退出(终态)');
@@ -64,7 +64,7 @@ function reduce(s, a) {
     case 'app_quit':
       return ok({ status: 'quit' });
     default:
-      return deny('未知事件');
+      return deny('unknown event');
   }
 }
 
@@ -89,7 +89,7 @@ function legal(s) {
     if (s === null) { out[a.type] = { legal: false, why: '空态:先启动 app' }; continue; }
     const next = reduce(s, a);
     out[a.type] = next.illegal
-      ? { legal: false, why: next.illegal.replace(/^\S+ 被忽略:/, '') }
+      ? { legal: false, why: next.illegal.replace(/^\S+ ignored: /, '') }
       : { legal: true, why: null };
   }
   return out;

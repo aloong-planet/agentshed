@@ -1,8 +1,8 @@
 <!doctype html>
 <!-- A logic prototype page  · instantiated from the prototype skill's
      logic-page-template.html.
-     图源:install-flow.mmd → sync-mmd.mjs → model.mmd.js。
-     CSS 与画布/置灰/气泡机制来自模板,勿改。 -->
+     Diagram source: install-flow.mmd → sync-mmd.mjs → model.mmd.js.
+     The CSS and the canvas, greying and tooltip mechanics come from the template; do not change them. -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -97,19 +97,19 @@
     而不是靠 UI 记得把按钮藏起来。</div>
   <div id="dgs"></div>
 
-  <h4>亲手驾驶(点按钮驱动状态机)</h4>
+  <h4>Drive it yourself (click buttons to drive the state machine)</h4>
   <div class="drive">
     <div class="st">
       <div class="st-row"><span class="k">status</span><span id="v-status" class="badge">—</span></div>
       <div class="st-row"><span class="k">操作</span><span id="v-kind" class="val nil">—</span></div>
       <div class="st-row"><span class="k">终局说明</span><span id="v-note" class="val nil">—</span></div>
     </div>
-    <div id="v-illegal" class="illegal idle">尚未派发事件</div>
+    <div id="v-illegal" class="illegal idle">No event dispatched yet</div>
     <div class="acts">
       <div class="grp"><span class="grp-t">入场</span>
         <button data-new="install">发起安装(tdd → agentshed)</button>
         <button data-new="uninstall">发起卸载(项目级副本)</button>
-        <button id="btn-reset" class="ghost">↺ 清空</button>
+        <button id="btn-reset" class="ghost">↺ Reset</button>
       </div>
       <div class="grp"><span class="grp-t">校验</span>
         <button data-act="target_ok">校验通过</button>
@@ -126,8 +126,8 @@
         <button data-act="delete_done">删除完成</button>
       </div>
     </div>
-    <label class="stress"><input type="checkbox" id="stress"><span>压测模式:解除置灰,允许强行派发非法事件(验证 reducer 防线真的挡得住)</span></label>
-    <p class="hint">按钮的可用性由 <code class="inl">legal(state)</code> 从模型派生——置灰即"当前状态不可达",悬停看原因。图上高亮的是当前状态。</p>
+    <label class="stress"><input type="checkbox" id="stress"><span>Stress mode: lift the greying and allow forcing illegal events (to verify that the reducer's defence really holds)</span></label>
+    <p class="hint">Button availability is derived from the model by <code class="inl">legal(state)</code> — greyed out means "unreachable from the current state"; hover to see why. The highlighted node on the diagram is the current state.</p>
   </div>
 
 <script src="../../vendor/mermaid.min.js"></script>
@@ -137,7 +137,7 @@
   const host = document.getElementById('dgs');
   const packs = Object.values(window.MERMAID_SOURCES || {}).flat();
   (async () => {
-    if (!packs.length) { host.innerHTML = '<div class="hint">无图源:目录内没有 .mmd 或未跑 sync-mmd.mjs。</div>'; return; }
+    if (!packs.length) { host.innerHTML = '<div class="hint">No diagram source: the directory has no .mmd, or sync-mmd.mjs has not been run.</div>'; return; }
     let i = 0;
     for (const d of packs) {
       const h = document.createElement('h4'); h.textContent = d.title;
@@ -176,7 +176,7 @@
     const natW = svg.viewBox.baseVal.width, natH = svg.viewBox.baseVal.height;
     svg.style.maxWidth = 'none'; svg.style.width = natW + 'px'; svg.style.height = natH + 'px';
     box.classList.add('pan');
-    box.insertAdjacentHTML('beforeend', '<button class="rst" title="重置视图(双击画布同效)">⌂</button>');
+    box.insertAdjacentHTML('beforeend', '<button class="rst" title="Reset view (same as double-clicking the canvas)">⌂</button>');
     let s = 1, tx = 0, ty = 0, dragging = false, sx = 0, sy = 0;
     const apply = () => { svg.style.transform = `translate(${tx}px,${ty}px) scale(${s})`; };
     const fit = () => {
@@ -234,7 +234,7 @@
         els.status.className = 'badge empty';
         els.kind.textContent = '—'; els.kind.className = 'val nil';
         els.note.textContent = '—'; els.note.className = 'val nil';
-        els.illegal.textContent = '空态:点入场按钮开始';
+        els.illegal.textContent = 'Empty state: click an entry button to start';
         els.illegal.className = 'illegal idle';
         applyReachability(); highlight(null); return;
       }
@@ -249,10 +249,10 @@
         els.illegal.textContent = '⚠ ' + state.illegal;
         els.illegal.className = 'illegal bad';
       } else if (lastEvent) {
-        els.illegal.innerHTML = '已派发 <span class="ev">' + lastEvent + '</span> → ' + state.status;
+        els.illegal.innerHTML = 'Dispatched <span class="ev">' + lastEvent + '</span> → ' + state.status;
         els.illegal.className = 'illegal ok';
       } else {
-        els.illegal.textContent = '尚未派发事件';
+        els.illegal.textContent = 'No event dispatched yet';
         els.illegal.className = 'illegal idle';
       }
       applyReachability(); highlight(state.status);
@@ -265,7 +265,7 @@
         var info = perm[b.getAttribute('data-act')] || { legal: true, why: null };
         b.setAttribute('aria-disabled', String(!info.legal && !stress));
         if (info.legal) b.removeAttribute('data-tip');
-        else b.setAttribute('data-tip', (stress ? '压测:强行派发 — ' : '不可达:') + (info.why || ''));
+        else b.setAttribute('data-tip', (stress ? 'Stress: forced dispatch — ' : 'Unreachable: ') + (info.why || ''));
       });
     }
 
