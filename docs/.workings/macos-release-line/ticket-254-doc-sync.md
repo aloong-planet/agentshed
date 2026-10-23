@@ -11,4 +11,10 @@ download at 0%). Records: [task list](ticket-254-tasks.md) · [test review](tick
 | The scripted source's doc comment names the new fields and what they are for (the e2e file header describes the seam without listing fields, and stays true) | `src/main/update-source.ts` | Done — in the implementation commits (22c8ce6, 98b2208) |
 | The rule a future case needs: a "does not appear" check retried longer than the thing lives can never be red; it reads against a later ordered event or counts once (the test check's F6) | [CONTEXT.md](../../../CONTEXT.md), Invariants | Done — written at step 7 |
 | Step 8 report: this change alters no user-visible behaviour (the two questions), and the cross-regression of what it touched | [final-regression.md](final-regression.md) | Done — the #254 section, three stages (2026-10-23); `docs/features/` unchanged |
-| #254's acceptance items ticked and a comment naming the merge commit; done with the merge of this ticket's PR, then the tracker only | [#254](https://github.com/aloong-planet/agentshed/issues/254) | Waiting: the PR and the owner's merge |
+| #254's acceptance items ticked and a comment naming the merge commit; done with the merge of this ticket's PR, then the tracker only | [#254](https://github.com/aloong-planet/agentshed/issues/254) | Done — with the merge of #307, which needs the owner's confirmation; after it, the tracker only: the items ticked, and a comment naming the merge commit and how its tree compares with the PR head (main gained #305 after this branch was cut) |
+
+Pre-delivery scope re-check (2026-10-23, on the branch's head): the app-update spec's Testing Decisions, CONTEXT's new
+invariant, the coverage checklists (app-update's units and i18n::REQ-003's read), the feature entry (unchanged, still
+true), the scripted source's doc comment and the e2e files' headers agree with what the change does at 98b2208; the
+records (tasks, both test reviews, the code review, step 8) and the evidence, CI's repeated run included, are current.
+No item missing, none stale. Waiting for the owner: the merge of #307; then the tracker only.
