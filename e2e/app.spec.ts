@@ -4288,7 +4288,8 @@ test('scrollbars: the same 6px scrollbar whether macOS draws overlay or classic 
     const list = await scrollArea(win, '.side .list')
     expect(list.overflow, 'the list must overflow').toBeGreaterThan(0)
     expect(list.width, `${setting}: the list's scrollbar is the app's 6px one`).toBe(6)
-    // The thumb is shown while nothing scrolls, the pointer away: an overlay scrollbar would have faded
+    // The thumb is painted at rest, the pointer away and nothing scrolled; the 6px above is what rules out an overlay
+    // scrollbar, which takes no width
     await win.mouse.move(5, 5)
     const thumb = await pixelAt(win, list.columnX, list.thumbY)
     expect(near(thumb, over(0, 0.25, list.background)),

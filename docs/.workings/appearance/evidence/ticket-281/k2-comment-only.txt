@@ -1,0 +1,31 @@
+# K2: the change to e2e/app.spec.ts after db00779 is a comment only — the two versions printed without comments by TypeScript's own parser and printer
+$ git diff db00779 -- e2e/app.spec.ts
+diff --git a/e2e/app.spec.ts b/e2e/app.spec.ts
+index 54c7118..00f8002 100644
+--- a/e2e/app.spec.ts
++++ b/e2e/app.spec.ts
+@@ -4288,7 +4288,8 @@ test('scrollbars: the same 6px scrollbar whether macOS draws overlay or classic
+     const list = await scrollArea(win, '.side .list')
+     expect(list.overflow, 'the list must overflow').toBeGreaterThan(0)
+     expect(list.width, `${setting}: the list's scrollbar is the app's 6px one`).toBe(6)
+-    // The thumb is shown while nothing scrolls, the pointer away: an overlay scrollbar would have faded
++    // The thumb is painted at rest, the pointer away and nothing scrolled; the 6px above is what rules out an overlay
++    // scrollbar, which takes no width
+     await win.mouse.move(5, 5)
+     const thumb = await pixelAt(win, list.columnX, list.thumbY)
+     expect(near(thumb, over(0, 0.25, list.background)),
+$ node ast-compare.cjs <db00779's e2e/app.spec.ts> e2e/app.spec.ts
+printed lengths 225677 and 225677; identical without comments: true
+exit 0
+# The comment is read by no tool but lint; lint follows in the gateway. No docstring is read at run time (a TypeScript test file has none).
+# The script:
+#   // Compare two TypeScript files' syntax with every comment dropped: print each without comments and compare the text
+#   const ts = require('/Users/loong_zhou/CascadeProjects/agentshed-wt/scrollbars/node_modules/typescript')
+#   const fs = require('fs')
+#   const print = (file) => {
+#     const sf = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+#     return ts.createPrinter({ removeComments: true }).printFile(sf)
+#   }
+#   const [a, b] = process.argv.slice(2).map(print)
+#   console.log(`printed lengths ${a.length} and ${b.length}; identical without comments: ${a === b}`)
+#   process.exit(a === b ? 0 : 1)

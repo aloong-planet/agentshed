@@ -274,7 +274,7 @@ What the findings oblige, for the main agent to apply (this check edited only th
 
 | # | Covers | Seam | Input that drives the target branch | Asserted object and expected value's source | Fixture shape source | Expensive resource and how it is provided |
 |---|---|---|---|---|---|---|
-| S10 (new, T1) | appearance F1, F2 | e2e, the running app, macOS only (an explicit skip elsewhere, naming why) | Two launches, each with a per-process `-AppleShowScrollBars` argument: `WhenScrolling` (the overlay scrollbar) and `Always` (the classic one); the 40-project home | First, that the setting reached the app: a control block given the standard `scrollbar-width: thin`, which makes Chromium draw the platform's own scrollbar for it, measures 0 under `WhenScrolling` and above 0 under `Always`. Then the project list's scrollbar is 6 under both. Expected: the spec's 6px whatever the platform draws | The 40-project home, from one builder shared with S1 | Two launches; a launch measures 0.6–0.7s in the gateway, so it is not an expensive resource (T5) |
+| S10 (new, T1) | appearance F1, F2 | e2e, the running app, macOS only (an explicit skip elsewhere, naming why) | Two launches, each with a per-process `-AppleShowScrollBars` argument: `WhenScrolling` (the overlay scrollbar) and `Always` (the classic one); the 40-project home | First, that the setting reached the app: a control block given the standard `scrollbar-width: thin`, which makes Chromium draw the platform's own scrollbar for it, measures 0 under `WhenScrolling` and above 0 under `Always`. Then the project list's scrollbar is 6 under both, and, the pointer away and nothing scrolled, its thumb's centre is black at 25% over the list's background (the spec's light value, blended in the test). Expected: the spec's 6px whatever the platform draws. Re-reviewed with the idle reading added (the incremental check's I1 and K1) | The 40-project home, from one builder shared with S1 | Two launches; a launch measures 0.6–0.7s in the gateway, so it is not an expensive resource (T5) |
 | S9 (changed, T4) | appearance::REQ-001/AC-04 (not the theme), C2 | e2e, the existing six-combination case | Its three themes × two appearances | The two thumb tokens read in each state, beside the float shadow it already reads: one light value, one dark value, the two different. Kept: the one-off `theme-vars` reading as evidence | — | That case's launch, no new one |
 | S6 (unchanged, T3) | appearance F6 | — | — | Keyboard scrolling is not driven, and is left out on purpose: like the wheel step, a keyboard step could fail only if the list stopped scrolling at all, which the click, drag and wheel steps already guard; the drawing does not reach the keyboard path | — | — |
 
@@ -474,11 +474,120 @@ What the findings oblige, for the main agent to apply (this check edited only th
 - Independently of these findings: the full gateway must be re-run before delivery (/implement), since the tests
   changed after 7211ff3.
 
-### Handling of the incremental check's findings (implementing session, 2026-10-23)
+## Handling of the incremental check's findings (implementing session, 2026-10-23)
 
 | # | Handling |
 |---|---|
-| I1 | S10 now reads the idle thumb in both launches, the pointer away: black at 25% over the list's background, so the overlay style's fading is excluded by a reading, not by inference. The case's comment states why macOS's automatic setting needs no launch: it resolves to overlay with only a trackpad and classic with a mouse, and the probe measured it at 0, the overlay style (`overlay-probe.txt`) |
+| I1 | S10 now reads the idle thumb in both launches, the pointer away: black at 25% over the list's background, so the thumb is shown painted at rest under both styles; what rules out an overlay scrollbar is the 6px width, which an overlay one would not take (corrected after the second incremental check's K2). The case's comment states why macOS's automatic setting needs no launch: it resolves to overlay with only a trackpad and classic with a mouse, and the probe measured it at 0, the overlay style (`overlay-probe.txt`) |
 | I2 | The design review section's stale statements amended in place, each pointing here: the S9 and S1 rows, the Coverage paragraph's F1, F2, F6 and F7, the resource wording |
 
 Shown red: an invisible light thumb fails at the `WhenScrolling` launch's idle-thumb reading, the width still 6 (`evidence/ticket-281/e2e-plant-f.txt`). I1 changes the e2e file's executable content, so the incremental check runs once more on its commit.
+
+## Post-implementation check — second incremental, on the I1 and I2 fix
+
+2026-10-23. Ticket: [#281](https://github.com/aloong-planet/agentshed/issues/281), feature `appearance`. Fix range:
+b0bcfac..db00779. Implementation version: db00779. Run by the same independent subagent, which did not inherit the
+implementation conversation.
+
+Run evidence: the fix's targeted verification ([targeted-fixes-i.txt](evidence/ticket-281/targeted-fixes-i.txt)). It
+records b0bcfac plus three modified files with their `git hash-object`, and all three equal db00779's blobs:
+`e2e/app.spec.ts` 54c7118, the checklist 301aee9, this record d28d2be. db00779 adds only evidence files on top (plant
+F's and this log), none of which a test reads. The log has every command, its full output and its exit code: lint,
+typecheck, the site tests, one build, all 84 cases of `e2e/app.spec.ts`, and the three checks, all 0, with
+`TARGETED_EXIT=0`. No finding.
+
+The full gateway ([gateway-7211ff3.txt](evidence/ticket-281/gateway-7211ff3.txt)) still predates both fixes and must be
+re-run before delivery (/implement). This check did not re-run it and ran no test.
+
+### Incremental scope and how it was found
+
+- Code changed: `git diff --stat b0bcfac db00779 -- src e2e scripts playwright.config.ts package.json` lists only
+  `e2e/app.spec.ts` (8 insertions, 1 deletion).
+- Where in that file: `git diff -U0 b0bcfac db00779 -- e2e/app.spec.ts` has two hunks, both inside S10:
+  - `+4265,3`, in S10's doc comment (`:4260–4268`);
+  - `+4291,5`, the idle-thumb read in S10's body (`:4269–4299`).
+- No helper changed: `pixelAt`, `scrollArea`, `near`, `over` and `rgb` are only called. So no other test depends on the
+  change, and the only test in scope is S10.
+- Rows of the test design table changed in the range: the S1 row's resource note, the S9 row's pointer, and the Design
+  review's Coverage and Resource reuse paragraphs (I2). The S10 row, whose test changed, was not changed: K1.
+- Carried over: every other test and helper, from the previous incremental round (at b0bcfac) and the first round (at
+  7211ff3).
+
+### Test design table against the written tests (incremental)
+
+| Row | Result |
+|---|---|
+| S10 | Does not match. The test now reads the idle thumb in both launches: the pointer moved away, then the thumb's centre is compared with black at 25% over the list's background. The design row (handling section, "S10 (new, T1)") still lists only the control block and the 6px, so the table no longer describes the test: K1 |
+| S1, S9 (I2 amendments) | Consistent with the tests; the amendments only point to later sections |
+
+### Coverage
+
+Conclusion: I1 and I2 are handled; one record finding (K1).
+
+- F1: the thumb is now read at rest under both of macOS's styles, so its user-visible point is read, not inferred, for
+  the moment of the read. That the thumb stays shown over time is K2.
+- F2: the comment and the checklist now say why Automatic needs no launch: it resolves to one of the two driven styles,
+  and the probe measured it as overlay.
+- I2: the Design review's stale statements (S1's resource, S9, F1, F2, F6, F7, and the resource paragraph) are now
+  marked as superseded, with pointers. S10 has no row in the main table, but the Coverage paragraph points to the S10
+  row in the handling section, which follows the S8 precedent. Accepted.
+
+### Case design
+
+Conclusion: no red flag. The idle read moves the pointer to (5, 5), outside the list; nothing in S10 had put the pointer
+over the thumb. It reuses the measured `columnX` and `thumbY`; nothing has scrolled, so the thumb is still at the top. It
+asserts through the same pixel helpers as S3.
+
+### False greens
+
+Per the project capability declaration, mutation-testing is not enabled, so mutation testing is skipped.
+
+| Assertion | Goes red when | Seen red |
+|---|---|---|
+| S10, idle thumb = black 25%, both launches (`:4294–4295`) | The thumb is not painted at rest under that style (a transparent or missing token, or a rule that leaves it unpainted), or the light token is off by more than 2 | Yes, plant F at the `WhenScrolling` launch: 255 against 191. Plant F's failing line (`:4295`) is the current line of the assertion, so it reached its target. Under `Always`, reasoned from the same mechanism |
+
+Under `Always` in light, the platform's classic thumb (about 193) would sit inside the tolerance of 191, as recorded for
+S3. But the 6px assertion just before it already rules out the platform's scrollbar, so this is no false green.
+
+§5 (reading too early): the read comes moments after the window is resized and the list first overflows. So it shows
+the thumb painted at rest at that moment, not that it stays so. It is the width that excludes the overlay style: an
+overlay scrollbar takes no width, so the 6px assertion fails first. Inference: an overlay scrollbar that had just
+appeared on that change might not yet have faded at the read. So the comment "an overlay scrollbar would have faded"
+and the handling note "the overlay style's fading is excluded by a reading, not by inference" give the read credit for
+something the width does: K2. The case's verdict is sound either way; only what the read claims is overstated.
+
+### Resource reuse
+
+Conclusion: no finding. Counted from the targeted run: one `electron-vite build` (log lines 56–80) before the 84 cases.
+S10 still makes two launches, now 1.6s in all (line 142). The read adds no launch.
+
+### Findings
+
+| # | Dimension | Location | Finding | Suggested handling |
+|---|---|---|---|---|
+| K1 | Coverage (record) | The S10 design row ("S10 (new, T1)", in "Handling of the post-implementation check's findings"); "Handling of the incremental check's findings", nested as an H3 under the previous review section | The test gained the idle-thumb read, but its design row did not. The skill asks for the design table to be changed and re-reviewed before a case's design changes; here the table still describes the earlier test. Also, the handling for I1 and I2 sits as an H3 inside the previous review's section, so it reads as part of that review's report. The first handling section was a section of its own | Now, documents only (no re-check needed): add the idle read to the S10 row's asserted object (both launches, pointer away, black at 25% from the spec's light alpha blended in the test) and note that it was re-reviewed. Promote the handling heading to an H2, like the first handling section |
+| K2 | False greens (wording) | The comment at `e2e/app.spec.ts:4291` ("an overlay scrollbar would have faded"); the I1 handling row ("excluded by a reading, not by inference") | The read shows the thumb painted at rest at one moment, right after the list first overflows. The width is what excludes the overlay style. Reading persistence would need a delayed second read | Now: reword both. Say the read shows the thumb painted at rest, and that the 6px excludes the overlay style. This is a comment-only change, so no re-check is needed once /implement's syntax-tree comparison shows only the comment changed. A delayed second read (the suite already waits a set time for "does not happen" checks, such as `app.spec.ts:5065`) is not recommended: no known mechanism fades a scrollbar that keeps its gutter |
+
+### Document sync (incremental)
+
+Scope checked:
+
+- The fix's diff for the test file and the checklist.
+- This record's diff: the Design review's amendments and the new handling rows.
+- Plant F's evidence and the targeted log, each read in full.
+
+The checklist's F1/F2 row now names the idle read and plant F, and says why Automatic needs no launch. It describes the
+read accurately ("in both, the idle thumb black at 25% over the list, the pointer away").
+
+What the findings oblige, for the main agent to apply (this check edited only this section):
+
+- K1: the S10 design row, and the heading level of "Handling of the incremental check's findings".
+- K2: the comment at `e2e/app.spec.ts:4291` and the I1 handling row.
+- Both are documents and comments only. The full gateway is still to be re-run before delivery.
+
+## Handling of the second incremental check's findings (implementing session, 2026-10-23)
+
+| # | Handling |
+|---|---|
+| K1 | The S10 design row now lists the idle reading and says it was re-reviewed; the earlier handling heading is promoted to the same level as the first, so it no longer reads as part of a review |
+| K2 | The case's comment and the I1 handling row reworded: the reading shows the thumb painted at rest, the 6px rules out overlay. Comment only: the syntax trees without comments match (`evidence/ticket-281/k2-comment-only.txt`), so no further check |
