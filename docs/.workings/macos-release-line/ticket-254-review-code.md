@@ -1,7 +1,8 @@
 # Code review — #254
 
-Ticket: [#254](https://github.com/aloong-planet/agentshed/issues/254). Date 2026-10-23. Implementation: 38a16df on
-`fix/app-update-e2e-first-step` (from 1349d76), plus the doc comment's wording fixed in this review. Scope: the
+Ticket: [#254](https://github.com/aloong-planet/agentshed/issues/254). Date 2026-10-23. Implementation: 22c8ce6 on
+`fix/app-update-e2e-first-step` (from 1349d76). The review read the change as first committed and folded its one fix,
+the doc comment's wording, into that unpushed commit. Scope: the
 scripted update source's `holdFirstStep` (`src/main/update-source.ts`), its four unit cases, and the two app-update e2e
 cases that take it.
 
