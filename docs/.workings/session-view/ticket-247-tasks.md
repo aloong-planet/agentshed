@@ -20,6 +20,12 @@ requirement authority: the requirement the case checks is session-view P6 and P7
   (`rg -n "\[parse-pool\]|console\.(error|warn)" src/main --glob '!*.test.*'`), and Electron logs a handler's thrown
   error as "Error occurred in handler for '<channel>'".
 
+## Decisions
+
+| # | Decision | Answer |
+|---|---|---|
+| D1 | The cause stayed unknown after the loops above | Merge the failure's message and close #247 as not reproducible, keeping this record (the owner's answer on 2026-10-23, "merge this part and close the ticket", in Chinese). The issue's second item, the cause found and fixed, is not met; a later failure of the case prints the line, and a new ticket starts from it |
+
 ## Tasks
 
 | # | Task | Checkpoint | State |
@@ -27,10 +33,10 @@ requirement authority: the requirement the case checks is session-view P6 and P7
 | 1 | Records declared on #247 and its document sync checklist | `ticket-247-doc-sync.md`, the issue body | done |
 | 2 | Test design review | `ticket-247-review-tests.md`, Design review | done (for the first change) |
 | 3 | The failure names the chunk (the issue's first item): the assertion carries it; a planted non-matching line shows in the message | the planted run's failure message | done: the planted line, written at every automatic rescan, turns the case red with the line in the message (`evidence/ticket-247/plant-line.txt`); written once a second after startup it was never collected, since the case reads its chunks about 1 s after launch |
-| 4 | Feedback loop: reproduce the failure and read the chunk, locally (repeated, under load) or on CI | the chunk's text | locally not reproduced: 40 runs, 40 under 8 busy processes, and an overloaded run whose only failures were timeouts (`loop-under-load.txt`); the fetch-delay seam and a probe that removes the file inside a page request give only the two expected codes (`loop-attempts.txt`). Next: CI, repeated |
-| 5 | The cause fixed, in the case or the app | a regression check red before the fix | |
-| 6 | Code review, full gateway, independent test check, step 7, step 8 | the records | |
-| 7 | CI: the case repeated (the issue's third item) | a throwaway branch's run, recorded | |
+| 4 | Feedback loop: reproduce the failure and read the chunk, locally (repeated, under load) or on CI | the chunk's text | not reproduced. Locally: 40 runs, 40 under 8 busy processes, and an overloaded run whose only failures were timeouts (`loop-under-load.txt`); the fetch-delay seam and a probe that removes the file inside a page request give only the two expected codes (`loop-attempts.txt`). On CI (ubuntu): 40 runs, 40 passed (draft PR #306, run 39972027006, `ci-repeat-39972027006.txt`) |
+| 5 | The cause fixed, in the case or the app | a regression check red before the fix | not done: the cause was not found (D1) |
+| 6 | Code review, full gateway, independent test check, step 7, step 8 | the records | code review done (`ticket-247-review-code.md`, no finding); full gateway on 78a05d0 `VERIFY_EXIT=0` (867 unit, 109 site, 148 e2e, smoke OK; `evidence/ticket-247/gateway-78a05d0.txt`); the independent test check handed over; step 8 next |
+| 7 | CI: the case repeated (the issue's third item) | a throwaway branch's run, recorded | done: 40 passed (task 4) |
 | 8 | PR; stop for the owner | PR link | |
 
 ## What the loops ruled out (2026-10-23)
