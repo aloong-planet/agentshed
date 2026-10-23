@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- A UI prototype · spec docs/specs/session-view.md: the session page (after opening a session).
-     问题:① 提问作为主索引、单行密排在真实长度(42/24/18 条)下是否真的可扫;
+     问题:① 提问作为主索引、单行密排在真实长度(42/26/18 条)下是否真的可扫;
        ② 点提问就地展开整轮(思考/正文/工具折叠/subagent)的层次是否清楚不糊;
        ③ 两侧完整度不对等与不可还原部分的标注是否够显眼(不能假装一致、不能谎称完整);
        ④ ~~导出入口位置~~(2026-08-06 用户裁定废弃导出功能,原型已同步移除)。
@@ -87,7 +87,7 @@
   .banner.risk{background:#fdf3e3;border-color:#e0b483;color:#7a4d1c}
   html[data-demo-mode="dark"] .banner.risk{background:#33251a;border-color:#7a5330;color:#f0bd8c}
   .banner a{color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-  .body{flex:1;overflow:auto;padding:14px 20px 90px}
+  .body{flex:1;overflow:auto;padding:14px 20px}
   .grp-t{font-size:11px;color:var(--text-2);margin:2px 0 8px;letter-spacing:.5px}
   /* The list header row: the count + collapse/expand all + ascending/descending */
   .qbar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
@@ -594,10 +594,10 @@
     ]
   };
 
-  // ── A Codex fork with a missing parent: 24 questions across two days ──
+  // ── A Codex fork with a missing parent: 26 questions across two days ──
   const ORPHAN = {
     badge:'x', side:'CX', title:'把 openclaw 的网关拆出来单独跑',
-    meta:{side:'Codex',q:24,tok:'140k',mb:'4.6 MB',ago:10,noThread:true},
+    meta:{side:'Codex',q:26,tok:'140k',mb:'4.6 MB',ago:10,noThread:true},
     banners:[{k:'risk',i:'GitFork',t:c=>c.stripUncertainOrphan}],
     qs:[
       {n:'01',d:'9月13日 周六',t:'20:04',tools:5,subs:0,
@@ -683,6 +683,7 @@
   let cur='claude', fetchState='ok', order='desc'; // 默认倒序(2026-08-06 用户裁定)
   let origin='project';            // where the session was opened from: a project, or global search
   const loaded=new Set();          // 已取回过的轮次(索引失效只在首次取回时重建)
+  const fetchingTurns=new Map();   // turns not fetched yet: 'fetching' | 'rebuilding' while the fetch runs, 'failed' after
   const openTurns=new Set();       // 已展开的轮次(跨排序切换保持)
   const foldedDays=new Set();      // 已折叠的日期分组
 
@@ -732,6 +733,14 @@
     return `${(q.turn||liteTurn(q)).map(blockHtml).join('')}
       <div class="fetched">${t().fetchedNote(3,'1.2 KB')}</div>`;
   }
+  // An open turn's body as its fetch stands, so that a redraw draws the same thing: the content once fetched;
+  // before that, the fetch in progress or its error
+  function turnBody(i){
+    const key=cur+':'+i, s=fetchingTurns.get(key);
+    if(loaded.has(key)) return turnHtml(DATA[cur].qs[i]);
+    if(s==='failed') return `<div class="rebuild">${t().turnFailed(t().sessionFileUnreadable)}</div>`;
+    return `<div class="rebuild">${s==='rebuilding'?t().rebuilding:t().fetching}</div>`;
+  }
 
   function dayGroups(qs){
     const days=[]; qs.forEach((q,i)=>{
@@ -743,7 +752,7 @@
   }
   function render(reset){
     const d=DATA[cur];
-    if(reset){ loaded.clear(); openTurns.clear(); foldedDays.clear() }
+    if(reset){ loaded.clear(); fetchingTurns.clear(); openTurns.clear(); foldedDays.clear() }
     document.getElementById('hbadge').className='b '+d.badge;
     document.getElementById('hbadge').textContent=d.side;
     document.getElementById('htitle').textContent=d.title;
@@ -777,7 +786,7 @@
             ${q.tools?`<span class="c">${q.tools} ${ICONS.Terminal(11)}</span>`:`<span class="c" style="opacity:.45">0 ${ICONS.Terminal(11)}</span>`}
             ${q.subs?`<span class="c">${q.subs} ${ICONS.Bot(11)}</span>`:''}
             <span class="tm">${q.t}</span></div>
-          <div class="turn${on?' on':''}" data-turn="${i}">${on?turnHtml(q):''}</div>`;
+          <div class="turn${on?' on':''}" data-turn="${i}">${on?turnBody(i):''}</div>`;
         }).join('')}</div></div>`).join('');
     if(reset) document.querySelector('.body').scrollTop=0;
   }
@@ -803,24 +812,26 @@
     const key=cur+':'+i;
     // An already-fetched turn: re-expanding is instant (the data stays in memory and collapsing does not lose
       // it)
-    if(loaded.has(key)){ box.innerHTML=turnHtml(DATA[cur].qs[i]); return }
+    if(loaded.has(key)){ box.innerHTML=turnBody(i); return }
+    // The fetch ends into the turn's box as it is by then: a redraw while the fetch ran has replaced the box
+    const settle=ok=>{ ok?(loaded.add(key),fetchingTurns.delete(key)):fetchingTurns.set(key,'failed');
+      if(key===cur+':'+i&&openTurns.has(i)) document.querySelector(`[data-turn="${i}"]`).innerHTML=turnBody(i) };
     if(fetchState==='error'){
       // A single turn's failure only hurts itself: that turn shows an error without affecting the others; it is
       // not marked loaded, so clicking again retries
-      box.innerHTML=`<div class="rebuild">${t().fetching}</div>`;
-      setTimeout(()=>{ box.innerHTML=
-        `<div class="rebuild">${t().turnFailed(t().sessionFileUnreadable)}</div>` },350);
+      fetchingTurns.set(key,'fetching'); box.innerHTML=turnBody(i);
+      setTimeout(()=>settle(false),350);
       return;
     }
     if(fetchState==='stale'){
-      box.innerHTML=`<div class="rebuild">${t().rebuilding}</div>`;
-      setTimeout(()=>{ loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]); },900);
+      fetchingTurns.set(key,'rebuilding'); box.innerHTML=turnBody(i);
+      setTimeout(()=>settle(true),900);
       return;
     }
     // The index is ready: the first fetch still makes one real round trip — a momentary "fetching…" and then
       // the content
-    box.innerHTML=`<div class="rebuild">${t().fetching}</div>`;
-    setTimeout(()=>{ loaded.add(key); box.innerHTML=turnHtml(DATA[cur].qs[i]); },350);
+    fetchingTurns.set(key,'fetching'); box.innerHTML=turnBody(i);
+    setTimeout(()=>settle(true),350);
   });
 
   // Ascending/descending: only the presentation order changes, leaving the numbers and any expanded turns

@@ -15,8 +15,16 @@ not on main; they stay reachable through #264.
 Scope: everything under `docs/prototypes/` that #251 names, `scripts/check-shared-ui.mjs`, the `check:ui`
 script, and the documents that describe the derived-file arrangement (ADR-0018 and the ADR index).
 
+Second round, begun 2026-10-23 on source commit 1349d76 (origin/main): #250's remaining items (1–3 and 5–9)
+and [#226](https://github.com/aloong-planet/agentshed/issues/226), one branch and one PR. The requirement sources
+are the bodies and comments of #250 and #226, with no spec. For items 1–3 the owner's comment on #250 settles
+the app's values as design; for item 9 the owner chose on 2026-10-23, after screenshots of the three places,
+to bring all three in line (each list area's bottom padding equals its top: 18px on the Skills and Plugins
+previews, 14px on the session page). Scope of this round: the touched prototype pages under
+`docs/prototypes/` and these work records.
+
 This is a work index, not a requirement authority. The units below are #251's items and its "Done when"
-lines; each names the tier that backs it.
+lines, then #250's items and #226's fix and verification lines; each names the tier that backs it.
 
 ## Source → verification
 
@@ -41,6 +49,18 @@ lines; each names the tier that backs it.
 | 251::R1 | Code review refactor list, executed (owner, 2026-10-18): a demo bar does not cover the rail's items at its default place | Evidence: rail probe on every page with a bar, alone and in the gallery, at 1280 and 1440; the dock copy byte-equal to its master |
 | 251::R2 | Same list: toasts stand at the prototypes' toast position, not at a height chosen for a demo bar | Evidence: toast probe over every toast in the prototypes |
 | 250::4 | #250 item 4: the skills and plugins previews in dark take drawer shadow 0.12 and mask 0.35, as in light; their comments stop presenting the dark values as a correction | Evidence: token probe, three palettes × light and dark; drawer opened in dark |
+| 250::1 | #250 item 1: the install page's "Install to…" picker takes the shadow `0 6px 22px` | Evidence: picker opened by a click, computed `box-shadow` read |
+| 250::2 | #250 item 2: the stale-note page's title tag takes 9.5px, padding `0 4px`, radius 3, opacity 0.8 | Evidence: computed style of the tag |
+| 250::3 | #250 item 3: the Agents page's drawer mask takes alpha 0.35 | Evidence: drawer opened by a click, computed mask background |
+| 250::5 | #250 item 5: on the session page a failed turn keeps its error through a redraw (sort, collapse all, language change) | Evidence: browser probe — single-turn failure, a turn expanded, then each redraw; the probe run on the base page too, where it must fail |
+| 250::6 | #250 item 6: the orphan session's question count agrees with its list (26) | Evidence: the meta line and the list header read in the browser |
+| 250::7 | #250 item 7: the detail page's header lists every group the demo bar carries | Evidence: header text against the bar's groups |
+| 250::8 | #250 item 8: the dead `.m.x .tr i` rule is gone from the Agents and detail pages | Evidence: search over docs/prototypes, command and output; model bars render unchanged |
+| 250::9 | #250 item 9 (owner, 2026-10-23): the Skills and Plugins previews' list area pads its bottom 18px, the session page's 14px | Evidence: computed `padding-bottom` of each list area |
+| 250::done | #250 "Done when": every page touched opens with no script errors; `pnpm check:ui` passes | Evidence: browser run over every touched page alone and in the gallery; Gate: `pnpm check:ui` exit 0 |
+| 226::1 | #226 Fix: each logic page's template chrome reads the template's current English wording; prototype content (page title, question, state and button labels) stays as it is | Evidence: `diff` of each page against the skill's `logic-page-template.html`; every Chinese line left listed by kind |
+| 226::2 | #226 Verification: each page renders in the gallery and its driving panel works — entry buttons, an event, reset, stress mode, the reset-view button | Evidence: browser drive of each page, alone and in the gallery |
+| 226::3 | #226 Verification: `pnpm check:lang` passes | Gate: `pnpm check:lang` exit 0 |
 
 ## Current verification
 
@@ -66,6 +86,8 @@ lines; each names the tier that backs it.
 | same | 251::R2 | The three toasts in the prototypes all stand at 18px; on the settings page the toast lies over the bar's last note line only (1280 and 1440) | Verified |
 | same | 250::4 | Both previews: mask 0.35 and drawer shadow 0.12 in all six palette × mode states (before: 0.5 and 0.45 in dark); drawers opened by clicks in dark render those values; the comments no longer mention the app's values | Verified |
 | same | all units | 48 snapshots against 7a193af: text identical, pixels identical but for 2 antialiasing pixels; check:ui, check:lang, check:nul exit 0 | Verified |
+| 2026-10-23; 1349d76 | 250::1, 250::2, 250::3, 250::5, 250::6, 250::7, 250::8, 250::9, 250::done | Not run yet | Unverified |
+| 2026-10-23; 1349d76 | 226::1, 226::2, 226::3 | Not run yet | Unverified |
 
 ## Two-way audit
 
@@ -73,3 +95,6 @@ lines; each names the tier that backs it.
 |---|---|---|
 | Every #251 item has a row above; item 4 has nothing left to verify | #251 items 1–14, Done when | Mapped |
 | The code review's refactor list and #250 item 4 joined this round by the owner's decision of 2026-10-18; #250's other items stay out | 251::R1, 251::R2, 250::4 | Mapped |
+| Second round: every #250 item still open has a row (1–3, 5–9) and so does its "Done when"; item 4 stays verified above. Each item was rechecked on 1349d76 before the work: items 1, 2, 3, 5, 6, 8 and 9 still hold as written; item 7 was mostly fixed by #264 (the header gained the startup group) and #298 added the memory-read group, but the header still says the bar carries two groups where it carries three | #250 items 1–9, Done when | Mapped; item 7's row covers the residual count |
+| Second round: #226's fix and its three verification lines each have a row; the logic pages' `.mmd` files and `logic.js` are not named by #226 and stay out | #226 Fix, Verification | Mapped |
+| #226 lists the page title as prototype content. The `<title>` keeps its Chinese "Prototype — " prefix, which every prototype page's tab title uses, so the gallery's tabs stay uniform | #226 Fix | Kept as content; listed by kind under 226::1 |
