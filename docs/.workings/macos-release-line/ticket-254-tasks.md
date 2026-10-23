@@ -42,8 +42,8 @@ the requirements are [the app-update spec](../../specs/app-update.md); the cover
 | 3 | Test design review | `ticket-254-review-tests.md`, Design review | done |
 | 4 | Slices: S1 the scripted source holds at its first step (unit); S2 the issue's case takes the hold (e2e); S3 the failed-download case takes the hold (e2e) | targeted runs, the late-observer loop green, the planted fault red | done: U1–U4 red then green (U4 added when reading the staged change: the hold now waits only for a download whose own script asked for it); both late-observer loops red on the old cases and green on the held ones, and the planted fault red at the 60% read — all three run before U4's guard, which changes only downloads without the field, so the old cases then ran exactly as on main; targeted run `evidence/ticket-254/targeted.txt` (`TARGETED_EXIT=0`) |
 | 5 | Code review | `ticket-254-review-code.md` | done: one wording fix (the doc comment); the hold's premises measured (a half-written script, teardown while held); no refactoring |
-| 6 | Full gateway | `evidence/ticket-254/gateway-<commit>.txt` | |
-| 7 | Independent post-implementation test check | `ticket-254-review-tests.md` | |
+| 6 | Full gateway | `evidence/ticket-254/gateway-43451fa.txt` | done: `VERIFY_EXIT=0` on the clean tree of 43451fa (871 unit, 109 site, 148 e2e, smoke OK) |
+| 7 | Independent post-implementation test check | `ticket-254-review-tests.md` | handed to an independent agent on 1349d76..43451fa |
 | 8 | Spec check, step 7 write-back (the spec's Testing Decisions name the hold), step 8 | `final-regression.md` | |
 | 9 | CI: the two cases repeated | a throwaway branch's run, recorded | |
 | 10 | PR; stop for the owner | PR link | |
