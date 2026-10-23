@@ -1,0 +1,71 @@
+# #254 planted fault, 2026-10-23, macOS: the open message's text fixed at 0% while downloading (src/renderer/src/UpdateSlot.tsx, the tip's span); rebuilt, the changed case run, the file restored byte for byte and rebuilt
+# expected: red at the case's 60% read
+
+## the plant script
+// Plant: the open message no longer follows the progress (its text fixed at 0% while downloading).
+// Replaces one exact occurrence, rebuilds, runs the case, then restores the file byte for byte and rebuilds.
+import { readFileSync, writeFileSync } from 'node:fs'
+import { execSync, spawnSync } from 'node:child_process'
+const file = 'src/renderer/src/UpdateSlot.tsx'
+const original = readFileSync(file)
+const text = original.toString('utf8')
+const from = `<span data-testid="update-tip" aria-hidden="true">\n        {label}\n      </span>`
+const to = `<span data-testid="update-tip" aria-hidden="true">\n        {phase === 'downloading' ? t.tipDownloading(0) : label}\n      </span>`
+if (text.split(from).length !== 2) { console.error('PLANT: expected exactly one occurrence'); process.exit(3) }
+let code = 0
+try {
+  writeFileSync(file, text.replace(from, to))
+  console.log('PLANT applied; the tip line now reads:', readFileSync(file, 'utf8').split('\n').find((l) => l.includes('tipDownloading(0)'))?.trim())
+  execSync('pnpm -s build', { stdio: 'ignore' })
+  console.log('PLANT in the build:', execSync('grep -c "tipDownloading(0)" out/renderer/assets/*.js || true').toString().trim())
+  const r = spawnSync('pnpm', ['-s', 'exec', 'playwright', 'test', 'e2e/app-update.spec.ts', '-g', 'an open message follows the progress'], { encoding: 'utf8' })
+  code = r.status ?? 1
+  console.log(r.stdout, r.stderr)
+} finally {
+  writeFileSync(file, original)
+  console.log('RESTORED byte-identical:', Buffer.compare(readFileSync(file), original) === 0)
+  execSync('pnpm -s build', { stdio: 'ignore' })
+}
+console.log('PLANTED RUN EXIT', code)
+
+## its output
+PLANT applied; the tip line now reads: {phase === 'downloading' ? t.tipDownloading(0) : label}
+PLANT in the build: 1
+
+Running 1 test using 1 worker
+
+  ✘  1 e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (5.8s)
+
+
+  1) e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-tip')
+    Expected: "Downloading update 60%"
+    Received: "Downloading update 0%"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-tip')
+        14 × locator resolved to <span aria-hidden="true" data-testid="update-tip">Downloading update 0%</span>
+           - unexpected value "Downloading update 0%"
+
+
+      176 |     // Still open, the message moves on with the download, in the same place
+      177 |     script(f, download)
+    > 178 |     await expect(tip(win)).toHaveText('Downloading update 60%', { timeout: 5000 })
+          |                            ^
+      179 |     expect(await where()).toEqual(first)
+      180 |   } finally {
+      181 |     await app.close()
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/app-update.spec.ts:178:28
+
+    Error Context: test-results/app-update-an-open-message-d5599--to-the-slot-REQ-001-AC-04-/error-context.md
+
+  1 failed
+    e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) 
+ 
+RESTORED byte-identical: true
+PLANTED RUN EXIT 1

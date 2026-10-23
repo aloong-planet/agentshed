@@ -52,6 +52,36 @@ function requests(f: Fixture): string[] {
   const log = `${f.script}.log`
   return existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter(Boolean) : []
 }
+/** Clicks "Check for Updates…" the way the menu does: its own click handler, in the main process */
+async function clickMenuCheck(app: ElectronApplication): Promise<void> {
+  await app.evaluate(({ Menu }) => {
+    const item = Menu.getApplicationMenu()?.getMenuItemById('checkForUpdates')
+    if (!item) throw new Error('no "Check for Updates…" item in the application menu')
+    // Electron types the item's click as a bare Function; it takes no argument the handler reads
+    ;(item.click as () => void)()
+  })
+}
+/** Records every toast that appears from now on, whatever its lifetime, as "kind: text" */
+async function recordToasts(win: Page): Promise<() => Promise<string[]>> {
+  // The host is the app's own, mounted with the window's first render
+  await win.waitForSelector('.toasts', { state: 'attached' })
+  await win.evaluate(() => {
+    const seen: string[] = []
+    ;(window as unknown as { __toasts: string[] }).__toasts = seen
+    const host = document.querySelector('.toasts')
+    if (!host) throw new Error('no toast host')
+    new MutationObserver((records) => {
+      for (const r of records) {
+        for (const n of r.addedNodes) {
+          if (n instanceof HTMLElement && n.classList.contains('toast')) {
+            seen.push(`${n.classList.contains('err') ? 'err' : 'ok'}: ${n.textContent ?? ''}`)
+          }
+        }
+      }
+    }).observe(host, { childList: true })
+  })
+  return () => win.evaluate(() => [...(window as unknown as { __toasts: string[] }).__toasts])
+}
 
 const FOUND_HOLDING = { check: 'found', version: '9.9.0', steps: [0, 35], stepMs: 50, download: 'hold' }
 const FOUND_READY = { check: 'found', version: '9.9.0', steps: [0, 60, 100], stepMs: 30, download: 'complete', install: 'hold' }
@@ -159,7 +189,9 @@ test('a launch check that finds an update shows the download in the rail at once
 
 test('an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04)', async () => {
   const f = fixture()
-  script(f, { check: 'found', version: '9.9.0', steps: [0, 20, 40, 60], stepMs: 700, download: 'hold' })
+  const download = { check: 'found', version: '9.9.0', steps: [0, 20, 40, 60], stepMs: 100, download: 'hold' }
+  // Held at 0 until the message is open, however late the window shows
+  script(f, { ...download, holdFirstStep: true })
   const app = await launch(f)
   try {
     const win = await app.firstWindow()
@@ -172,6 +204,7 @@ test('an open message follows the progress of the download and stays anchored to
     })
     const first = await where()
     // Still open, the message moves on with the download, in the same place
+    script(f, download)
     await expect(tip(win)).toHaveText('Downloading update 60%', { timeout: 5000 })
     expect(await where()).toEqual(first)
   } finally {
@@ -266,21 +299,39 @@ test('an open message goes with the button, so the button comes back without it 
 test('a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02)', async () => {
   const f = fixture()
   try {
-    script(f, { check: 'fail' })
+    // Notices reach the window in order, so any a failure sent come before a later menu check's own: that one alone
+    // means the failure said nothing. A retried "no toast" would wait out a toast's 3.2 s and pass
+    const saidNothing = async (app: ElectronApplication, toasts: () => Promise<string[]>): Promise<void> => {
+      const version = await app.evaluate(({ app }) => app.getVersion())
+      script(f, { check: 'upToDate' })
+      await clickMenuCheck(app)
+      await expect.poll(toasts).toEqual([`ok: Agentshed is up to date (${version})`])
+    }
+
+    // Held in flight until the window listens: a launch check that answered at once would be answered before it
+    // does, and a notice it sent would never show
+    script(f, { check: 'fail', holdCheck: true })
     let app = await launch(f)
     let win = await app.firstWindow()
+    let toasts = await recordToasts(win)
+    // The request is made and held; once let go it fails, and the lifecycle is idle again
     await expect.poll(() => requests(f)).toEqual(['check'])
-    await win.waitForTimeout(500)
+    script(f, { check: 'fail' })
+    await expect.poll(() => win.evaluate(() => window.agentshed.getUpdateState().then((s) => s.phase))).toBe('idle')
     await expect(slot(win)).toHaveCount(0)
-    await expect(win.locator('.toast')).toHaveCount(0)
+    await saidNothing(app, toasts)
     await app.close()
 
-    script(f, { check: 'found', version: '9.9.0', steps: [0, 30], stepMs: 400, download: 'fail' })
+    const failing = { check: 'found', version: '9.9.0', steps: [0, 30], stepMs: 100, download: 'fail' }
+    // Held at its first step until the slot has been seen, however late the window shows
+    script(f, { ...failing, holdFirstStep: true })
     app = await launch(f)
     win = await app.firstWindow()
+    toasts = await recordToasts(win)
     await expect(slot(win)).toBeVisible()
+    script(f, failing)
     await expect(slot(win)).toHaveCount(0, { timeout: 5000 })
-    await expect(win.locator('.toast')).toHaveCount(0)
+    await saidNothing(app, toasts)
     await app.close()
   } finally {
     cleanup(f)

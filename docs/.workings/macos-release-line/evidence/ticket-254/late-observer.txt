@@ -1,0 +1,157 @@
+# #254 late-observer loop, 2026-10-23, macOS, on the build with the scripted source's hold (uncommitted, on 1349d76)
+# A throwaway copy of the case (e2e/zz-diag-254.spec.ts, deleted before any commit) waits DIAG_LATE_MS before its first read, as a window that shows after the download has moved on.
+# old = the case as on main (no hold, stepMs 700); new = the case with the hold (stepMs 100, released after the tip's first place is read).
+# command: DIAG_VARIANT=<old|new> DIAG_LATE_MS=3000 pnpm -s exec playwright test e2e/zz-diag-254.spec.ts --repeat-each=3
+
+## the throwaway case
+// DIAG-254: throwaway feedback loop for #254, deleted before any commit. DIAG_VARIANT=old runs the case as it
+// stands on main; =new runs it with the hold. DIAG_LATE_MS waits that long before the case's first read, as a
+// window that shows after the download has moved on.
+import type {} from '../src/renderer/src/env'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { test, expect, _electron as electron, type Page } from '@playwright/test'
+
+const VARIANT = process.env.DIAG_VARIANT ?? 'old'
+const LATE_MS = Number(process.env.DIAG_LATE_MS ?? '0')
+const slot = (win: Page) => win.getByTestId('update-slot')
+const tip = (win: Page) => win.getByTestId('update-tip')
+
+test(`DIAG-254 ${VARIANT} case, first read ${LATE_MS}ms late`, async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-update-home-'))
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-update-data-'))
+  const script = join(home, 'update.json')
+  const download = VARIANT === 'old'
+    ? { check: 'found', version: '9.9.0', steps: [0, 20, 40, 60], stepMs: 700, download: 'hold' }
+    : { check: 'found', version: '9.9.0', steps: [0, 20, 40, 60], stepMs: 100, download: 'hold' }
+  writeFileSync(script, JSON.stringify(VARIANT === 'old' ? download : { ...download, holdFirstStep: true }))
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    env: { ...(process.env as Record<string, string>), NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US', AGENTSHED_UPDATE_SCRIPT: script }
+  })
+  try {
+    const win = await app.firstWindow()
+    await win.waitForTimeout(LATE_MS)
+    await expect(slot(win)).toHaveAttribute('aria-valuenow', '0')
+    await slot(win).hover()
+    await expect(tip(win)).toHaveText('Downloading update 0%')
+    const where = async () => tip(win).evaluate((el) => {
+      const r = (el.parentElement as HTMLElement).getBoundingClientRect()
+      return { x: r.x, centre: r.y + r.height / 2 }
+    })
+    const first = await where()
+    if (VARIANT !== 'old') writeFileSync(script, JSON.stringify(download))
+    await expect(tip(win)).toHaveText('Downloading update 60%', { timeout: 5000 })
+    expect(await where()).toEqual(first)
+  } finally {
+    await app.close()
+    rmSync(home, { recursive: true, force: true })
+    rmSync(userData, { recursive: true, force: true })
+  }
+})
+
+## old, 3000 ms late (exit 1)
+
+Running 3 tests using 1 worker
+
+  ✘  1 e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 old case, first read 3000ms late (8.6s)
+  ✘  2 e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 old case, first read 3000ms late (8.6s)
+  ✘  3 e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 old case, first read 3000ms late (8.6s)
+
+
+  1) e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 old case, first read 3000ms late ──────────────────────
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('update-slot')
+    Expected: "0"
+    Received: "60"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" with timeout 5000ms
+      - waiting for getByTestId('update-slot')
+        14 × locator resolved to <span tabindex="0" class="ri upd" aria-valuemin="0" role="progressbar" aria-valuenow="60" aria-valuemax="100" data-testid="update-slot" aria-label="Downloading update 60%">…</span>
+           - unexpected value "60"
+
+
+      28 |     const win = await app.firstWindow()
+      29 |     await win.waitForTimeout(LATE_MS)
+    > 30 |     await expect(slot(win)).toHaveAttribute('aria-valuenow', '0')
+         |                             ^
+      31 |     await slot(win).hover()
+      32 |     await expect(tip(win)).toHaveText('Downloading update 0%')
+      33 |     const where = async () => tip(win).evaluate((el) => {
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/zz-diag-254.spec.ts:30:29
+
+    Error Context: test-results/zz-diag-254-DIAG-254-old-case-first-read-3000ms-late/error-context.md
+
+  2) e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 old case, first read 3000ms late ──────────────────────
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('update-slot')
+    Expected: "0"
+    Received: "60"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" with timeout 5000ms
+      - waiting for getByTestId('update-slot')
+        14 × locator resolved to <span tabindex="0" class="ri upd" aria-valuemin="0" role="progressbar" aria-valuenow="60" aria-valuemax="100" data-testid="update-slot" aria-label="Downloading update 60%">…</span>
+           - unexpected value "60"
+
+
+      28 |     const win = await app.firstWindow()
+      29 |     await win.waitForTimeout(LATE_MS)
+    > 30 |     await expect(slot(win)).toHaveAttribute('aria-valuenow', '0')
+         |                             ^
+      31 |     await slot(win).hover()
+      32 |     await expect(tip(win)).toHaveText('Downloading update 0%')
+      33 |     const where = async () => tip(win).evaluate((el) => {
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/zz-diag-254.spec.ts:30:29
+
+    Error Context: test-results/zz-diag-254-DIAG-254-old-case-first-read-3000ms-late-repeat1/error-context.md
+
+  3) e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 old case, first read 3000ms late ──────────────────────
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('update-slot')
+    Expected: "0"
+    Received: "60"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" with timeout 5000ms
+      - waiting for getByTestId('update-slot')
+        14 × locator resolved to <span tabindex="0" class="ri upd" aria-valuemin="0" role="progressbar" aria-valuenow="60" aria-valuemax="100" data-testid="update-slot" aria-label="Downloading update 60%">…</span>
+           - unexpected value "60"
+
+
+      28 |     const win = await app.firstWindow()
+      29 |     await win.waitForTimeout(LATE_MS)
+    > 30 |     await expect(slot(win)).toHaveAttribute('aria-valuenow', '0')
+         |                             ^
+      31 |     await slot(win).hover()
+      32 |     await expect(tip(win)).toHaveText('Downloading update 0%')
+      33 |     const where = async () => tip(win).evaluate((el) => {
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/zz-diag-254.spec.ts:30:29
+
+    Error Context: test-results/zz-diag-254-DIAG-254-old-case-first-read-3000ms-late-repeat2/error-context.md
+
+  3 failed
+    e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 old case, first read 3000ms late ───────────────────────
+    e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 old case, first read 3000ms late ───────────────────────
+    e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 old case, first read 3000ms late ───────────────────────
+
+## new, 3000 ms late (exit 0)
+
+Running 3 tests using 1 worker
+
+  ✓  1 e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 new case, first read 3000ms late (4.5s)
+  ✓  2 e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 new case, first read 3000ms late (4.5s)
+  ✓  3 e2e/zz-diag-254.spec.ts:15:1 › DIAG-254 new case, first read 3000ms late (4.5s)
+
+  3 passed (14.3s)

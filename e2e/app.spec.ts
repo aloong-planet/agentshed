@@ -4402,7 +4402,9 @@ test('UI language: a stored preference naming a removed language reads as follow
   const trig = win.getByTestId('language-trigger')
   await expect(trig).toContainText('跟随系统')
   await expect(trig).toContainText('简体中文')
-  await expect(win.locator('.toast')).toHaveCount(0)
+  // Counted once, not retried: a retried "no toast" waits out a toast's 3.2 s and then passes. A notice shown at
+  // startup is still on screen here
+  expect(await win.locator('.toast').count()).toBe(0)
   expect(l.errors).toEqual([])
   await l.app.close()
   rmSync(l.userData, { recursive: true, force: true })

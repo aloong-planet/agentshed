@@ -1,0 +1,112 @@
+# #254, 2026-10-23, macOS: plant P3 (a failed check sends a notice at once). First the case's first launch with its read counted once (E2a as first written): green, 3 of 3
+# command: node plant-check-notice.mjs e2e/app-update.spec.ts -g "a failed automatic check and a failed background download" --repeat-each=3
+
+## plant-check-notice.mjs
+// Plant P3: a failed check sends a notice at once (the install failure's notice), as a regression of
+// app-update::REQ-002/AC-01 would. Replaces one exact occurrence, rebuilds, runs the given Playwright arguments, then
+// restores the file byte for byte and rebuilds. Usage: node plant-notice.mjs <playwright args...>
+import { readFileSync, writeFileSync } from 'node:fs'
+import { execSync, spawnSync } from 'node:child_process'
+const file = 'src/main/update-controller.ts'
+const original = readFileSync(file)
+const text = original.toString('utf8')
+const from = `      // by the surface that asked, from this outcome
+      this.set(IDLE_UPDATE)
+      return { kind: 'failed' }`
+const to = `      // by the surface that asked, from this outcome
+      this.set(IDLE_UPDATE)
+      this.deps.notify({ code: 'installFailed' })
+      return { kind: 'failed' }`
+if (text.split(from).length !== 2) { console.error('PLANT: expected exactly one occurrence'); process.exit(3) }
+let code = 0
+try {
+  writeFileSync(file, text.replace(from, to))
+  console.log('PLANT applied:', readFileSync(file, 'utf8').split('\n').find((l, i, all) => l.includes("notify({ code: 'installFailed' })") && all[i - 1]?.includes('this.set(IDLE_UPDATE)'))?.trim())
+  execSync('pnpm -s build', { stdio: 'ignore' })
+  console.log('PLANT in the build (installFailed occurrences; 7 without the plant):', execSync("grep -o 'installFailed' out/main/index.js | wc -l").toString().trim())
+  const r = spawnSync('pnpm', ['-s', 'exec', 'playwright', 'test', ...process.argv.slice(2)], { encoding: 'utf8' })
+  code = r.status ?? 1
+  console.log(r.stdout, r.stderr)
+} finally {
+  writeFileSync(file, original)
+  console.log('RESTORED byte-identical:', Buffer.compare(readFileSync(file), original) === 0)
+  execSync('pnpm -s build', { stdio: 'ignore' })
+}
+console.log('PLANTED RUN EXIT', code)
+
+## the case under P3
+PLANT applied: this.deps.notify({ code: 'installFailed' })
+PLANT in the build (installFailed occurrences; 7 without the plant): 8
+
+Running 3 tests using 1 worker
+
+  ✓  1 e2e/app-update.spec.ts:299:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (2.3s)
+  ✓  2 e2e/app-update.spec.ts:299:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (2.2s)
+  ✓  3 e2e/app-update.spec.ts:299:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (2.3s)
+
+  3 passed (7.8s)
+ 
+RESTORED byte-identical: true
+PLANTED RUN EXIT 0
+
+# Then a throwaway case (e2e/zz-diag-254d.spec.ts, deleted before any commit): a failed launch check whose request takes 0 ms or 2,000 ms, toasts counted 500 ms after it answers, under P3
+## the throwaway case
+// DIAG-254: throwaway, deleted before any commit. A failed automatic check at launch whose request takes DIAG_CHECK_MS:
+// how many toasts show, counted once at 2.5 s after the request starts
+import type {} from '../src/renderer/src/env'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { test, expect, _electron as electron } from '@playwright/test'
+
+const CHECK_MS = Number(process.env.DIAG_CHECK_MS ?? '0')
+test(`DIAG-254 failed launch check taking ${CHECK_MS}ms`, async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-update-home-'))
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-update-data-'))
+  const script = join(home, 'update.json')
+  writeFileSync(script, JSON.stringify({ check: 'fail', checkMs: CHECK_MS }))
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    env: { ...(process.env as Record<string, string>), NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US', AGENTSHED_UPDATE_SCRIPT: script }
+  })
+  try {
+    const win = await app.firstWindow()
+    await expect.poll(() => existsSync(`${script}.log`) && readFileSync(`${script}.log`, 'utf8').includes('check')).toBe(true)
+    await win.waitForTimeout(CHECK_MS + 500)
+    console.log(`[DIAG-254] check taking ${CHECK_MS}ms: toasts on screen ${await win.locator('.toast').count()}: ${JSON.stringify(await win.locator('.toast').allTextContents())}`)
+  } finally {
+    await app.close()
+    rmSync(home, { recursive: true, force: true })
+    rmSync(userData, { recursive: true, force: true })
+  }
+})
+
+## its runs (plant-check-notice-diag.sh)
+PLANT applied: this.deps.notify({ code: 'installFailed' })
+PLANT in the build (installFailed occurrences; 7 without the plant): 8
+
+Running 2 tests using 1 worker
+
+[DIAG-254] check taking 0ms: toasts on screen 0: []
+  ✓  1 e2e/zz-diag-254d.spec.ts:10:1 › DIAG-254 failed launch check taking 0ms (1.2s)
+[DIAG-254] check taking 0ms: toasts on screen 0: []
+  ✓  2 e2e/zz-diag-254d.spec.ts:10:1 › DIAG-254 failed launch check taking 0ms (1.2s)
+
+  2 passed (3.2s)
+ 
+RESTORED byte-identical: true
+PLANTED RUN EXIT 0
+PLANT applied: this.deps.notify({ code: 'installFailed' })
+PLANT in the build (installFailed occurrences; 7 without the plant): 8
+
+Running 2 tests using 1 worker
+
+[DIAG-254] check taking 2000ms: toasts on screen 1: ["Couldn’t install the update"]
+  ✓  1 e2e/zz-diag-254d.spec.ts:10:1 › DIAG-254 failed launch check taking 2000ms (3.3s)
+[DIAG-254] check taking 2000ms: toasts on screen 1: ["Couldn’t install the update"]
+  ✓  2 e2e/zz-diag-254d.spec.ts:10:1 › DIAG-254 failed launch check taking 2000ms (3.3s)
+
+  2 passed (7.5s)
+ 
+RESTORED byte-identical: true
+PLANTED RUN EXIT 0
