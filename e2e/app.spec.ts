@@ -4264,6 +4264,38 @@ test('scrollbars: every scrolling area draws a 6px thumb on no track, in light a
   await close(l)
 })
 
+// DIAG-281 (temporary, removed with the fix): how this platform draws the thumb under a pointer
+test('zz diag-281: the thumb under the pointer on this platform', async () => {
+  const l = await launch(undefined, manyProjectsHome())
+  const win = await l.app.firstWindow()
+  await win.setViewportSize({ width: 1000, height: 600 })
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.side .row')).toHaveCount(40)
+  const a = await scrollArea(win, '.side .list')
+  const out: Record<string, unknown> = { platform: process.platform, area: a }
+  await win.mouse.move(5, 5)
+  out.rest = rgb(await pixelAt(win, a.columnX, a.thumbY))
+  out.hit = await win.evaluate(([x, y]) => document.elementFromPoint(x, y)?.className ?? null, [a.columnX, a.thumbY])
+  await win.mouse.move(a.columnX - 40, a.thumbY)
+  out.rowUnderPointerBg = await win.evaluate(([x, y]) => {
+    const row = document.elementFromPoint(x, y)?.closest('.row')
+    return row ? getComputedStyle(row).backgroundColor : null
+  }, [a.columnX - 40, a.thumbY])
+  await win.mouse.move(a.columnX, a.thumbY, { steps: 5 })
+  await win.waitForTimeout(500)
+  out.hovered = rgb(await pixelAt(win, a.columnX, a.thumbY))
+  out.listMatchesHover = await win.locator('.side .list').evaluate((el) => el.matches(':hover'))
+  await win.mouse.move(a.columnX, a.thumbY + 1)
+  await win.waitForTimeout(500)
+  out.hoveredAfterAnotherMove = rgb(await pixelAt(win, a.columnX, a.thumbY))
+  await win.mouse.down()
+  await win.waitForTimeout(300)
+  out.pressed = rgb(await pixelAt(win, a.columnX, a.thumbY + 1))
+  await win.mouse.up()
+  console.log('DIAG-281 ' + JSON.stringify(out))
+  await close(l)
+})
+
 /**
  * The same scrollbar under both of macOS's styles (appearance F1, F2): the app is launched with a per-process
  * `-AppleShowScrollBars` argument, which macOS reads for that process only, leaving the machine's setting alone —
