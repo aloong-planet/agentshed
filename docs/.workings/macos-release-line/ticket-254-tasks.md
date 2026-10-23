@@ -51,7 +51,7 @@ the requirements are [the app-update spec](../../specs/app-update.md); the cover
 | 6 | Full gateway | `evidence/ticket-254/gateway-98b2208.txt` | 98b2208: `VERIFY_EXIT=0` on its clean tree (873 unit, 109 site, 148 e2e in 4.8 min, smoke OK). The run on 43451fa was overtaken by the increment |
 | 7 | Independent post-implementation test check | `ticket-254-review-tests.md` | done: the first round on 1349d76..e4a86dd (F1, F2), the incremental check on e4a86dd..9233d96 (F3–F6), every finding handled; no test, code or data change required by the incremental check |
 | 8 | Spec check, step 7 write-back (the spec's Testing Decisions name the holds; CONTEXT's invariant; the checklists' rows), step 8 | `final-regression.md` | done: spec check and step 7 (below); step 8, the #254 section of `final-regression.md` |
-| 9 | CI: the two cases repeated | a throwaway branch's run, recorded | |
+| 9 | CI: the changed cases repeated (the issue's second item) | a throwaway branch's run, recorded | done: draft PR #306 (never merged), run 39972027006 on ubuntu with this branch at e17151e: every case of the three update files ten times, 380 passed, and the removed-language case ten times (`evidence/ticket-254/ci-repeat-39972027006.txt`) |
 | 10 | PR; stop for the owner | PR link | |
 
 ## Targeted verification (step 4)
