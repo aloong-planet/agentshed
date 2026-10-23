@@ -8,6 +8,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { closeApp } from './close-app'
 
 interface Fixture {
   home: string
@@ -117,7 +118,7 @@ test('the item sits directly below "About" and reports up to date, a failure, an
     expect(requests(f)).toEqual(['check', 'check', 'check', 'check'])
     await expect(win.getByTestId('update-slot')).toHaveCount(0)
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -139,7 +140,7 @@ test('a menu check that finds an update starts the download, and a failed downlo
     await win.waitForTimeout(800)
     expect(await toasts()).toEqual(['ok: Version 9.9.0 found — downloading in the background'])
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -164,7 +165,7 @@ test('a menu check while an update downloads, is ready or installs reports that 
     // Only the launch check and the click's install reached the source
     expect(requests(f)).toEqual(['check', 'install'])
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -198,7 +199,7 @@ test('menu and settings checks in quick succession join into one request, each s
     await expect.poll(toasts).toEqual([`ok: Agentshed is up to date (${version})`, 'err: Couldn’t check for updates'])
     expect(requests(f)).toEqual(['check', 'check', 'check'])
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -221,7 +222,7 @@ test('the item follows a language switch at once; a toast already shown keeps it
     await expect(win.locator('.toast')).toHaveCount(2)
     await expect(win.locator('.toast').first()).toHaveText(`Agentshed is up to date (${version})`)
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -239,7 +240,7 @@ test('a development run disables the item, and a click on it reports nothing (US
     await win.waitForTimeout(800)
     expect(await toasts()).toEqual([])
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })

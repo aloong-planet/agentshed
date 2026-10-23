@@ -26,6 +26,7 @@ import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { closeApp } from './close-app'
 import { ERR } from '../src/shared/errors'
 
 interface Launched {
@@ -143,7 +144,7 @@ function mkHome(): { home: string; files: Record<string, string>; paths: Record<
 }
 
 async function close(l: Launched, ...dirs: string[]): Promise<void> {
-  await l.app.close()
+  await closeApp(l.app)
   for (const d of [l.userData, ...dirs]) rmSync(d, { recursive: true, force: true })
 }
 
@@ -381,7 +382,7 @@ test('going to a hit: the search page holds, then Projects with the project sele
     expect(l.errors).toEqual([])
 
     // After a restart the page starts empty (US-003/AC-05, CON-001)
-    await l.app.close()
+    await closeApp(l.app)
     l = await launch(home, {}, l.userData)
     win = l.win
     await searchItem(win).click()
@@ -470,7 +471,7 @@ test('during the startup scan the search runs over the restored sessions, and th
   const first = await launch(home)
   await expect(first.win.locator('.pane-head h1')).toHaveText('Agents')
   await expect(first.win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready', { timeout: 15000 })
-  await first.app.close()
+  await closeApp(first.app)
   const l = await launch(home, { AGENTSHED_SCAN_DELAY_MS: '6000' }, first.userData)
   const { win } = l
   try {

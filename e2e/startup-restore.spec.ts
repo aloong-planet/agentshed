@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, symlinkSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { closeApp } from './close-app'
 
 test('restart restores viewed project, questions and read answer before a new scan finishes', async () => {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-restore-home-'))
@@ -84,7 +85,7 @@ test('restart restores viewed project, questions and read answer before a new sc
     }
     expect(await win.evaluate(() => window.agentshed.getSnapshot().then(s => s.scannedAt))).toBe(observedAt)
     await cdp.detach()
-    await app.close()
+    await closeApp(app)
     writeFileSync(join(userData, 'token-cache.json'), JSON.stringify({ version: -1 }))
     const skillBody = readFileSync(join(skill, 'SKILL.md'), 'utf8')
     unlinkSync(join(skill, 'SKILL.md'))
@@ -140,7 +141,7 @@ test('restart restores viewed project, questions and read answer before a new sc
     await win.screenshot({ path: 'docs/.workings/startup-restore/session-dark.png' })
 
   } finally {
-    await app?.close().catch(() => {})
+    if (app) await closeApp(app).catch(() => {})
     rmSync(home, { recursive: true, force: true })
     rmSync(userData, { recursive: true, force: true })
   }
@@ -162,7 +163,7 @@ test('a failed startup scan keeps the saved display and retries automatically wi
     await win.locator('.trend-span-options').getByRole('button', { name: '60', exact: true }).click()
     await win.locator('.rail .ri').nth(1).click()
     await expect(win.locator('.side .row')).toHaveCount(1)
-    await app.close()
+    await closeApp(app)
     app = await launch({ AGENTSHED_SCAN_FAILURES: '2', AGENTSHED_SCAN_DELAY_MS: '500', AGENTSHED_RESCAN_MS: '4000' })
     win = await app.firstWindow()
     await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'waiting', { timeout: 2000 })
@@ -177,7 +178,7 @@ test('a failed startup scan keeps the saved display and retries automatically wi
     await expect(win.locator('.side .row')).toHaveCount(2, { timeout: 12000 })
     await expect(win.locator('.startup-display-hint')).toHaveAttribute('data-state', 'ready')
   } finally {
-    await app?.close().catch(() => {})
+    if (app) await closeApp(app).catch(() => {})
     rmSync(home, { recursive: true, force: true })
     rmSync(userData, { recursive: true, force: true })
   }

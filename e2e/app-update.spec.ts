@@ -11,6 +11,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { closeApp } from './close-app'
 
 interface Fixture {
   home: string
@@ -93,7 +94,7 @@ test('with no update in flight the slot takes no space; an update in flight sits
     await expect(win.locator('.rail .ri')).toHaveCount(4)
     await expect(slot(win)).toHaveCount(0)
     const idle = { agents: await box(win, '.rail .ri >> nth=0'), projects: await box(win, '.rail .ri >> nth=1'), search: await box(win, '.rail .ri >> nth=2'), settings: await anchored(win, '.ri.set') }
-    await app.close()
+    await closeApp(app)
 
     script(f, FOUND_HOLDING)
     app = await launch(f)
@@ -113,7 +114,7 @@ test('with no update in flight the slot takes no space; an update in flight sits
     expect([s.width, s.height]).toEqual([36, 36])
     expect(s.x).toBe(settings.x)
     expect(settings.y - (s.y + s.height)).toBe(6)
-    await app.close()
+    await closeApp(app)
   } finally {
     cleanup(f)
   }
@@ -152,7 +153,7 @@ test('a launch check that finds an update shows the download in the rail at once
     await win.waitForTimeout(300)
     expect(requests(f)).toEqual(['check'])
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -175,7 +176,7 @@ test('an open message follows the progress of the download and stays anchored to
     await expect(tip(win)).toHaveText('Downloading update 60%', { timeout: 5000 })
     expect(await where()).toEqual(first)
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -204,7 +205,7 @@ test('the finished download becomes the ready button; clicking it installs once 
     await slot(win).hover()
     await expect(tip(win)).toHaveText('Installing update…')
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -227,7 +228,7 @@ test('a failed install after the click shows the error toast, stacked with any o
     await expect(win.locator('.toast')).toHaveCount(2)
     await expect(slot(win)).toHaveCount(0)
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -258,7 +259,7 @@ test('an open message goes with the button, so the button comes back without it 
     await expect(slot(win)).toHaveAttribute('role', 'progressbar')
     await expect(tip(win)).toHaveCount(0)
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -273,7 +274,7 @@ test('a failed automatic check and a failed background download show nothing (RE
     await win.waitForTimeout(500)
     await expect(slot(win)).toHaveCount(0)
     await expect(win.locator('.toast')).toHaveCount(0)
-    await app.close()
+    await closeApp(app)
 
     script(f, { check: 'found', version: '9.9.0', steps: [0, 30], stepMs: 400, download: 'fail' })
     app = await launch(f)
@@ -281,7 +282,7 @@ test('a failed automatic check and a failed background download show nothing (RE
     await expect(slot(win)).toBeVisible()
     await expect(slot(win)).toHaveCount(0, { timeout: 5000 })
     await expect(win.locator('.toast')).toHaveCount(0)
-    await app.close()
+    await closeApp(app)
   } finally {
     cleanup(f)
   }
@@ -335,7 +336,7 @@ test('the circle, its glyph and the message stay distinguishable in every theme,
     // Six theme states, six different accents: the circle recoloured with every switch
     expect(accents.size).toBe(6)
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -354,7 +355,7 @@ test('the installing loader spins, and stands still under reduced motion (REQ-00
     await win.emulateMedia({ reducedMotion: 'reduce' })
     expect(await spin.evaluate((el) => getComputedStyle(el).animationName)).toBe('none')
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -380,7 +381,7 @@ test('an open message follows a language switch at once (Failure G2)', async () 
     await expect(tip(win)).toHaveText('正在下载更新 35%')
     await expect(slot(win)).toHaveAttribute('aria-label', '正在下载更新 35%')
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -397,7 +398,7 @@ test('with automatic checks turned off the launch makes no request (US-002/AC-01
     expect(requests(f)).toEqual([])
     await expect(slot(win)).toHaveCount(0)
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -429,7 +430,7 @@ test('a second instance launched while an update is ready exits, and the running
     await expect(slot(win)).toHaveAttribute('aria-label', 'Update available')
     expect(requests(f)).toEqual(['check'])
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
