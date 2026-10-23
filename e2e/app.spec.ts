@@ -4262,7 +4262,9 @@ test('scrollbars: every scrolling area draws a 6px thumb on no track, in light a
  * `-AppleShowScrollBars` argument, which macOS reads for that process only, leaving the machine's setting alone —
  * `WhenScrolling` gives the overlay scrollbar a trackpad-only Mac draws, `Always` the classic one. A control block given
  * the standard `scrollbar-width` makes Chromium draw the platform's own scrollbar for it, which shows the argument took
- * effect (0 wide when overlay, wider when classic); the project list keeps its 6px scrollbar under both.
+ * effect (0 wide when overlay, wider when classic); the project list keeps its 6px scrollbar under both, its thumb in
+ * view with nothing scrolling. macOS's third setting, automatic, resolves to one of these two (overlay with only a
+ * trackpad, classic with a mouse), so it needs no launch of its own.
  */
 test('scrollbars: the same 6px scrollbar whether macOS draws overlay or classic ones (appearance F1, F2)', async () => {
   test.skip(process.platform !== 'darwin', 'the -AppleShowScrollBars argument is read by macOS only')
@@ -4286,6 +4288,11 @@ test('scrollbars: the same 6px scrollbar whether macOS draws overlay or classic 
     const list = await scrollArea(win, '.side .list')
     expect(list.overflow, 'the list must overflow').toBeGreaterThan(0)
     expect(list.width, `${setting}: the list's scrollbar is the app's 6px one`).toBe(6)
+    // The thumb is shown while nothing scrolls, the pointer away: an overlay scrollbar would have faded
+    await win.mouse.move(5, 5)
+    const thumb = await pixelAt(win, list.columnX, list.thumbY)
+    expect(near(thumb, over(0, 0.25, list.background)),
+      `${setting}: the idle thumb is black at 25% over ${rgb(list.background)}, got ${rgb(thumb)}`).toBe(true)
     expect(l.errors).toEqual([])
     await close(l)
   }

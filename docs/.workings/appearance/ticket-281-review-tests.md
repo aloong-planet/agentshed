@@ -12,7 +12,7 @@ appearance::REQ-001 and sequence F.
 
 | # | Covers | Seam | Input that drives the target branch | Asserted object and expected value's source | Fixture shape source | Expensive resource and how it is provided |
 |---|---|---|---|---|---|---|
-| S1 | appearance::REQ-001/AC-01, AC-03 (shown while idle); #281's strip | e2e, the running app's project list | 40 registered projects at a 1000×600 viewport, so the list overflows; nothing scrolled | The list overflows (scroll height above client height, asserted first), then its width less its client width less its borders = 6. Expected: the spec's 6px. Red today: the e2e window draws a 15px classic scrollbar | The 40-project home of the #122 case (registered project directories, the form `.claude.json` takes): the rows are what matter, not their contents | One app launch for S1–S7, on the build `pnpm e2e` makes once |
+| S1 | appearance::REQ-001/AC-01, AC-03 (shown while idle); #281's strip | e2e, the running app's project list | 40 registered projects at a 1000×600 viewport, so the list overflows; nothing scrolled | The list overflows (scroll height above client height, asserted first), then its width less its client width less its borders = 6. Expected: the spec's 6px. Red today: the e2e window draws a 15px classic scrollbar | The 40-project home of the #122 case (registered project directories, the form `.claude.json` takes): the rows are what matter, not their contents | One app launch for S1–S7, on the build `pnpm e2e` makes once (a launch is 0.6–0.7s, not an expensive resource: corrected below) |
 | S2 | appearance::REQ-001/AC-02 (no track), light | the same | S1's state | A pixel in the scrollbar's column below the thumb, read from a capture of the window, equals the list's own background (the first painted background up its ancestors, read from computed styles), within 2 per channel. Expected: the spec's "the surface beneath shows through". Red today: the classic track is a lighter grey than the list | the same | the same launch |
 | S3 | appearance::REQ-001/AC-04, light | the same | S1's state | A pixel at the thumb's centre equals black at 25% laid over the list's background, within 2. Expected: the spec's literal alpha, blended by hand in the test, not read from the stylesheet | the same | the same launch |
 | S4 | appearance::REQ-001/AC-05, light | the same | The pointer moved onto the thumb | The same pixel equals black at 40% over the background; polled on the pixel itself (false-greens §5) | the same | the same launch |
@@ -20,15 +20,16 @@ appearance::REQ-001 and sequence F.
 | S6 | appearance F6 | the same | A wheel turn over the list; a press on the thumb dragged down; a click in the scrollbar's column below the thumb | Each moves the list's scroll position down from where it was. Expected: the spec's "behave as before" — the platform's scrolling, not a value of ours | the same | the same launch |
 | S7 | appearance::REQ-001/AC-03 (none when the content fits), F5 | the same | The viewport made taller than the 40 rows need, then short again | Tall: no overflow and a 0 width difference; short again: overflow and 6 | the same | the same launch |
 | S8 | appearance::REQ-001/AC-01 (horizontal, 6px tall), AC-02 (the corner), F3, F8 (a drawer, rendered markdown) | e2e, the memory drawer's preview of the wide file, inside the existing case that already opens it | The wide file: a long unbroken path and a wide table make the drawer's body scroll both ways; a wide code line makes its fence scroll sideways | The body's two scrollbars measure 6 and 6, the fence's horizontal one 6; the corner square's innermost pixel equals the body's background, read in dark (amended during implementation, below) | The existing wide-file fixture, shaped on Codex's consolidated memory (memory-view E5) | That case's launch, no new one |
-| S9 | appearance::REQ-001/AC-04 (not the theme), C2 | `theme-vars` over the theme stylesheet (the ui-design tool), Evidence | The six theme × appearance states | The two thumb tokens resolve in every state, differ between light and dark, and do not differ across the themes | — | One headless Chrome run, outside the suite |
+| S9 | appearance::REQ-001/AC-04 (not the theme), C2 | `theme-vars` over the theme stylesheet (the ui-design tool), Evidence; since the post-implementation check, also the six-combination e2e case in every run (S9 changed, in the handling section below) | The six theme × appearance states | The two thumb tokens resolve in every state, differ between light and dark, and do not differ across the themes | — | One headless Chrome run, outside the suite |
 
 ### Coverage
 
 Against appearance::REQ-001 and sequence F: AC-01 (S1, S8), AC-02 (S2, S5, S8), AC-03 (S1, S7), AC-04 (S3, S5, S9),
 AC-05 (S4, S5); F1 is the e2e window's classic case — a trackpad-only Mac's overlay case is not automatable here (the
-test machine's input devices decide it), stated as a gap in the e2e file; F2 (macOS's setting) likewise, a gap; F3 (S8);
-F4 (S5 for light/dark, S9 for the theme); F5 (S7); F6 (S6); F7 by the full e2e suite (the one-line labels, the
-hit-row cut and the side filter row run at the new width); F8 (S8 for the drawer and rendered markdown; that every
+test machine's input devices decide it), stated as a gap in the e2e file; F2 (macOS's setting) likewise, a gap
+(superseded: both are driven by S10 since the post-implementation check, below); F3 (S8);
+F4 (S5 for light/dark, S9 for the theme); F5 (S7); F6 (S6; keyboard scrolling left out, below); F7 by the full
+e2e suite (superseded: held by construction, none of those layouts sits beside a drawn scrollbar, below); F8 (S8 for the drawer and rendered markdown; that every
 other surface takes the rule is the code review's to read, the rule naming no surface). AC-01's rounded ends are not
 asserted: a 3px radius on a 6px thumb is a few antialiased pixels, and a pixel test of it would test the antialiasing;
 the capture saved by S5 shows it (Evidence). Fixture: the project rows' shape does not reach the scrollbar's drawing;
@@ -59,7 +60,7 @@ scale; the helper converts the CSS position by the image's own scale. No finding
 
 ### Resource reuse
 
-The expensive resources are the app build (made once by `pnpm e2e`) and an app launch (over a second). S1–S7 take one
+The expensive resource is the app build (made once by `pnpm e2e`); an app launch was counted as one too, but measures 0.6–0.7s (corrected below). S1–S7 take one
 launch, S8 takes the existing case's, so the suite gains one launch. Existing setups searched: the 40-project home of
 the #122 case (reused, as a shape), the memory case's wide file (reused as is). No finding.
 
@@ -300,3 +301,184 @@ classic 15), 0 under `WhenScrolling`, 15 under `Always`, 0 under `Automatic`; on
 - S9's six-state assertion under a theme block declaring its own light thumb: fails at "one light thumb in every theme".
 Restored byte for byte and rebuilt after each. The changes touch the e2e file's executable content, so an incremental
 check follows on their commit.
+
+## Post-implementation check — incremental, on the fix
+
+2026-10-23. Ticket: [#281](https://github.com/aloong-planet/agentshed/issues/281), feature `appearance`. Fix range:
+be791fe..b0bcfac. Implementation version: b0bcfac. Run by the same independent subagent as the first round, which did
+not inherit the implementation conversation.
+
+Run evidence: the fix's targeted verification ([targeted-fixes-t.txt](evidence/ticket-281/targeted-fixes-t.txt)). Its
+recorded version is be791fe plus four modified files, each with its `git hash-object`. All four equal b0bcfac's blobs:
+`e2e/app.spec.ts` 51fc6ae, the spec 04b0092, the checklist 84b94e9, this record 64e6d85. b0bcfac adds only three
+evidence files on top, none of which a test reads. The log has every command, its full output and its exit code: lint,
+typecheck, the site tests, one build, all 84 cases of `e2e/app.spec.ts`, and the three checks, all 0, with
+`TARGETED_EXIT=0`. No finding.
+
+The latest full gateway, [gateway-7211ff3.txt](evidence/ticket-281/gateway-7211ff3.txt), predates the fix. Per
+/implement it must be re-run before delivery. This check did not re-run it and ran no test.
+
+### Incremental scope and how it was found
+
+- Code changed in the range: `git diff --stat be791fe b0bcfac -- src e2e scripts playwright.config.ts package.json`
+  lists only `e2e/app.spec.ts` (62 insertions, 10 deletions). The changed tests:
+  - the scrollbar case: its fixture moved into a helper, and its comment changed;
+  - the new macOS styles case (S10, `e2e/app.spec.ts:4267`);
+  - the six-combination case, which now also reads the thumb tokens (S9, `e2e/app.spec.ts:4051`).
+- Changed helpers: `launch` gains a trailing `extraArgs` parameter that defaults to `[]`, and `manyProjectsHome` is new.
+- Who imports the e2e file: `rg -n "app\.spec" e2e src scripts playwright.config.ts` finds no import, only comments and
+  `check-lang`'s fixture path strings, so the dependents all sit in `e2e/app.spec.ts`.
+- Who calls `launch`: a scan of the file for calls to the helper, excluding `electron.launch(` and comment lines, finds
+  66 calls in 65 source tests. Their argument counts: 45 pass two, 20 pass three, and one passes four (S10,
+  `:4270`).
+  - For the 64 tests that pass three or fewer, the launch arguments are unchanged: `...extraArgs` spreads an empty
+    array.
+  - The memory case launches Electron directly, so it does not depend on the helper.
+- Who calls `manyProjectsHome`: `rg -n "manyProjectsHome\(" e2e` finds its definition (`:4165`), the scrollbar case
+  (`:4184`) and S10 (`:4270`).
+- Rows of the test design table changed in the range: S10 (new), S9 (changed) and the S6 note on keyboard scrolling,
+  all in the handling section above.
+- Carried over from the first round (the "Post-implementation check" section above, at 7211ff3): the memory case's
+  scrollbar block, and the helpers `pixelAt`, `paintedBackground`, `scrollArea`, `near` and `over`. The fix did not
+  touch them.
+
+### Test design table against the written tests (incremental)
+
+| Row | Result |
+|---|---|
+| S10 | Matches. macOS only, through an explicit, named `test.skip`. Two launches, one with `-AppleShowScrollBars WhenScrolling` and one with `Always`, each on a fresh 40-project home from the shared builder. Each launch asserts a control block with `scrollbar-width: thin` (0 for the overlay launch, above 0 for the classic one), then the list's overflow, then its 6px, then no main-process error |
+| S9 | Matches. The two tokens are read as one `rest / hover` string in each of the six states, beside the float shadow. The case asserts six states, one light value, one dark value, and that the two differ; the light value also may not have an empty half. The six states are entered through the mode control and the theme control, as before. The `theme-vars` reading is kept as evidence |
+| S6 note | Matches: no keyboard step, and the reason is stated |
+| Scrollbar case (S1–S7) | Its behaviour is unchanged: the builder's code moved verbatim into `manyProjectsHome` (same prefix, same 40 directories, same `.claude.json`). Its comment no longer says a test cannot set macOS's style |
+| The 64 other `launch` callers | No rows in this ticket's table; their launch arguments are unchanged (above) |
+
+Gap notes (Dimension 1): the first round's T1 asked for the overlay gap to be noted in the file head. That is no longer
+needed: F1 and F2 are now driven on macOS, and S10 states in its skip reason why it does not run on other platforms.
+
+### Coverage
+
+Conclusion: T1–T4 handled. One finding about what S10's coverage rests on (I1), and one about stale statements in this
+record (I2).
+
+- F1, F2: S10 reaches both of macOS's styles in the app's own process.
+  - It reads the list's width under each. A 6px gutter under the overlay style shows that Chromium did not draw the
+    styled scrollbar as an overlay one, which would take no width.
+  - It does not read the thumb at rest under the overlay style. That is F1's user-visible claim (the thumb does not
+    hide when idle), which therefore rests on the inference that only overlay scrollbars fade.
+  - F2 names three settings, but S10 drives two. Automatic resolves to one of those two styles (the probe read it as
+    overlay), so the two launches cover every style the app can meet, but nothing states this. Both points: I1.
+- F4's theme half and C2: S9 now guards the tokens in every run (plant E).
+- F6: the reason for leaving keyboard scrolling out is now recorded, in the checklist and in the S6 note.
+- F7: the checklist now says "by construction", names the layouts that read their own boxes, and says no layout beside a
+  drawn scrollbar is driven. The handling section says the same.
+- The 64 other `launch` callers: unaffected.
+
+### Case design
+
+Conclusion: no red flag.
+
+- S10's control block is a measuring instrument, not state under test. The test appends it with fixed positioning,
+  measures it and removes it before the list is read, so it takes no part in the list's layout. It plays the same role
+  as the canvas `pixelAt` uses.
+- The setting goes through the launcher's public arguments.
+- The skip is Playwright's explicit one, with its reason.
+- Each launch has its own userData and home, both removed by `close`.
+- S9 reads the computed tokens in the same way the case already reads the float shadow.
+- The `launch` change is a defaulted trailing parameter: no existing caller's arguments change.
+
+### False greens
+
+Per the project capability declaration, mutation-testing is not enabled, so mutation testing is skipped. When each new
+or changed assertion goes red:
+
+| Assertion | Goes red when | Seen red |
+|---|---|---|
+| S10, control 0 under `WhenScrolling` (`:4284`) | That launch's platform style is classic: the argument is ignored and the machine has a mouse | No; the probe shows the style switching (`overlay-probe.txt`: 0 under `WhenScrolling` and 15 under `Always` on a build without the rule) |
+| S10, control above 0 under `Always` (`:4285`) | That launch's platform style is overlay: the argument is ignored on a trackpad-only machine | No; same probe. Between them, the two controls make the case fail loudly if the argument stops working on either kind of machine, rather than quietly testing one style twice |
+| S10, list overflows (`:4287`) | Precondition | Not needed |
+| S10, list 6 (`:4288`) | The rule is missing (the platform's overlay scrollbar measures 0, and its classic one 15) or the width is wrong | Yes, plant D at the `WhenScrolling` launch. Under `Always`, reasoned from the first round's red first (15) |
+| S9, six states (`:4152`) | A state is not read | Not needed |
+| S9, one light value (`:4155`) | A theme block declares its own light thumb or hover | Yes, plant E |
+| S9, one dark value (`:4156`) | A theme's dark block declares its own | No; reasoned, the same mechanism as plant E |
+| S9, light differs from dark (`:4157`) | The dark declaration is missing (the light one is inherited) or equal | No; reasoned |
+| S9, no empty half (`:4158`) | A light token resolves empty; the case's existing resolution check catches this first | No; reasoned |
+
+Form list:
+
+- Always-true: each S10 control and the list's overflow are asserted before the width.
+- Tautology: none. The expected 6 comes from the spec. S9's expectations are structural (one value per appearance), not
+  recomputed from the stylesheet.
+- Old path: S9 asserts the tokens, which is what C2 states. A theme rule written directly on the scrollbar
+  pseudo-element would bypass the tokens and pass. The same holds for every token-guarded neutral colour in that case
+  (the float shadow too), and the scrollbar case draws only the default theme. Recorded as what the guard does not
+  catch; no change recommended.
+- Silent skip: none. S10's skip is explicit and named, so CI's ubuntu run reports it as skipped. F1 and F2 are
+  therefore verified only in macOS runs (the local gateway), as the checklist says.
+- Assertions that might not run: S10's `if (overlay) … else …` asserts in both branches. Everything is awaited.
+
+UI assertions (`false-greens.md`): §9, S10's control reads the platform style in the same document and process as the
+list, so it observes the style the list is drawn under.
+
+S10's comment says the control "shows the argument took effect". Strictly, each control shows the style in effect for
+its launch, whatever caused it; the pair shows the argument works. Either way the state under test is reached, so the
+conclusion holds.
+
+Environment note, not a finding: the probe found this Mac in the overlay style later the same day, where the first
+red-first run had found it classic. So in the scrollbar case, which assertion carries the absence of the rule depends
+on the machine.
+
+- On a classic-style machine, the track assertions catch it (a painted track).
+- On an overlay-style machine there is no platform track, but the width (0), the thumb at rest (the background) and the
+  click below the thumb still catch it.
+
+The case goes red without the rule either way.
+
+### Resource reuse
+
+Conclusion: no finding. Counted from the targeted run:
+
+- One `electron-vite build` (log lines 57–81) precedes the 84 cases.
+- S10 makes two launches in 1.4s in all (line 143), about 0.7s each, so a launch is not an expensive resource (T5).
+  The launches are separate because the setting is per process: different arguments give a different app.
+- S9 adds no launch (853ms, line 141).
+- The scrollbar case still launches once (1.2s, line 142).
+- `manyProjectsHome` builds a fresh home per launch: 40 empty directories, not an expensive resource.
+
+### Findings
+
+| # | Dimension | Location | Finding | Suggested handling |
+|---|---|---|---|---|
+| I1 | Coverage | S10, `e2e/app.spec.ts:4267–4292`; the handling section's S10 row; [checklist](checklist.md) F1/F2 rows ("Verified on macOS") | Under the overlay style, S10 asserts the gutter only. F1's user-visible point, that the thumb stays shown while nothing scrolls, is not read; it rests on the inference that only overlay scrollbars fade (the code review's source reading). F2 names three settings and S10 drives two; that Automatic resolves to one of the two styles is not stated | Now: in the `WhenScrolling` launch, with the pointer away, read the thumb's centre against black at 25% over the list's background. This uses existing helpers and no extra launch; it goes red if a styled scrollbar were faded at rest. Then state in the S10 row and the checklist why Automatic needs no launch of its own. Alternative: state both inferences in the S10 row and the checklist instead of adding the read |
+| I2 | Coverage (record) | This record's "Design review": the test design table's S9 row (Evidence outside the suite), no S10 row, the Coverage paragraph (F1 "not automatable here … stated as a gap in the e2e file", F2 "likewise, a gap", "F7 by the full e2e suite (… run at the new width)", F6 with no keyboard note), and the Resource reuse paragraph ("an app launch (over a second)") | The corrections sit only in the later handling section, so the test design table and its coverage still carry the superseded statements beside them. This goes against the document-sync rule that the old summary of the same scope is replaced, not followed by a conflicting one, and against this table's own precedent for S8 ("amended during implementation, below") | Now, documents only (no re-check needed): amend the S9 row, add the S10 row, and correct the Coverage and Resource reuse lines in place, each with a pointer to the handling section. The first-round "Post-implementation check" section stays as it is, as the original report of that review |
+
+### Document sync (incremental)
+
+Scope checked:
+
+- The fix's diff for the tests, the spec and the checklist.
+- This record's handling section.
+- The new evidence files `overlay-probe.txt`, `e2e-plants-d-e.txt` and `targeted-fixes-t.txt`, each read in full. Plant
+  D's failing line (`:4288`) and plant E's (`:4155`) are the current lines of the assertions they target, so each plant
+  reached its target.
+- The latest gateway log, for its version.
+
+The spec's Implementation Decisions and Testing Decisions now describe S10 and S9 as written. The checklist's F1/F2, F6,
+F7 and C2/B5 rows were updated in place.
+
+What the findings oblige, for the main agent to apply (this check edited only this section):
+
+- I1: S10, if the read is added; the handling section's S10 row; the checklist's F1/F2 rows. Adding the read changes
+  S10's executable content, so a further incremental check would follow. Stating the inferences instead is
+  documents-only.
+- I2: this record's design table, Coverage and Resource reuse lines in the Design review section.
+- Independently of these findings: the full gateway must be re-run before delivery (/implement), since the tests
+  changed after 7211ff3.
+
+### Handling of the incremental check's findings (implementing session, 2026-10-23)
+
+| # | Handling |
+|---|---|
+| I1 | S10 now reads the idle thumb in both launches, the pointer away: black at 25% over the list's background, so the overlay style's fading is excluded by a reading, not by inference. The case's comment states why macOS's automatic setting needs no launch: it resolves to overlay with only a trackpad and classic with a mouse, and the probe measured it at 0, the overlay style (`overlay-probe.txt`) |
+| I2 | The design review section's stale statements amended in place, each pointing here: the S9 and S1 rows, the Coverage paragraph's F1, F2, F6 and F7, the resource wording |
+
+Shown red: an invisible light thumb fails at the `WhenScrolling` launch's idle-thumb reading, the width still 6 (`evidence/ticket-281/e2e-plant-f.txt`). I1 changes the e2e file's executable content, so the incremental check runs once more on its commit.
