@@ -116,13 +116,15 @@ test('"Check now" shows checking with the button unavailable, then up to date or
     const win = await app.firstWindow()
     await openSettings(win)
     await launchCheckDone(win, f)
-    script(f, { check: 'upToDate', checkMs: 1500 })
+    // Held in flight until the click below has been made
+    script(f, { check: 'upToDate', holdCheck: true })
     await action(win).click()
     await expect(line(win)).toHaveText('Checking…')
     await expect(action(win)).toHaveAttribute('aria-disabled', 'true')
     // A click while its own check runs asks nothing more. Forced: Playwright waits for an aria-disabled
     // control to become available, which would land the click after the check
     await action(win).click({ force: true })
+    script(f, { check: 'upToDate' })
     await expect(line(win)).toHaveText('You’re up to date')
     await expect(line(win)).toHaveClass(/\bok\b/)
     await expect(action(win)).toHaveAttribute('aria-disabled', 'false')
@@ -170,7 +172,9 @@ test('a settings check that finds an update starts the download: the line and th
 
 test('the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004)', async () => {
   const f = fixture()
-  script(f, { check: 'found', version: '9.9.0', steps: [0, 40, 80, 100], stepMs: 600, download: 'complete', install: 'hold' })
+  const found = { check: 'found', version: '9.9.0', steps: [0, 40, 80, 100], stepMs: 50, download: 'complete', install: 'hold' }
+  // Held at its first step until the downloading button has been taken, however late the window shows
+  script(f, { ...found, holdFirstStep: true })
   const app = await launch(f)
   try {
     const win = await app.firstWindow()
@@ -179,6 +183,7 @@ test('the download finishing turns the same button into "Install now"; it instal
     await expect(action(win)).toHaveText('Check now')
     await expect(action(win)).toHaveAttribute('aria-disabled', 'true')
     const button = await action(win).elementHandle()
+    script(f, found)
     await expect(line(win)).toHaveText('Version 9.9.0 is ready to install', { timeout: 10_000 })
     await expect(line(win)).toHaveClass(/\bok\b/)
     await expect(action(win)).toHaveText('Install now')
@@ -231,9 +236,12 @@ test('a settings "up to date", then an automatic check finds an update: the line
     await launchCheckDone(win, f)
     await action(win).click()
     await expect(line(win)).toHaveText('You’re up to date')
-    script(f, { check: 'found', version: '9.9.0', steps: [0, 20, 40], stepMs: 700, download: 'fail' })
+    const failing = { check: 'found', version: '9.9.0', steps: [0, 20, 40], stepMs: 50, download: 'fail' }
+    // Held at its first step until the line has shown the download
+    script(f, { ...failing, holdFirstStep: true })
     await wakeAfterADay(app)
     await expect(line(win)).toHaveText('Version 9.9.0 is downloading')
+    script(f, failing)
     await expect(line(win)).toHaveText('', { timeout: 10_000 })
     await expect(win.getByTestId('update-slot')).toHaveCount(0)
     await expect(action(win)).toHaveAttribute('aria-disabled', 'false')
@@ -252,11 +260,13 @@ test('the line survives leaving settings mid-check and follows a language switch
     let win = await app.firstWindow()
     await openSettings(win)
     await launchCheckDone(win, f)
-    script(f, { check: 'upToDate', checkMs: 1500 })
+    // Held in flight until settings has been left
+    script(f, { check: 'upToDate', holdCheck: true })
     await action(win).click()
     await expect(line(win)).toHaveText('Checking…')
     await win.locator('.rail .ri').nth(0).click()
     await expect(win.getByTestId('updates-field')).toHaveCount(0)
+    script(f, { check: 'upToDate' })
     await expect.poll(() => win.evaluate(() => window.agentshed.getSettingsCheck())).toEqual({ checking: false, outcome: 'upToDate' })
     await openSettings(win)
     await expect(line(win)).toHaveText('You’re up to date')
@@ -279,7 +289,8 @@ test('the line survives leaving settings mid-check and follows a language switch
 
 test('a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3)', async () => {
   const f = fixture()
-  script(f, { check: 'upToDate', checkMs: 2500 })
+  // The launch check held in flight until the settings check has joined it, however late the window shows
+  script(f, { check: 'upToDate', holdCheck: true })
   const app = await launch(f)
   try {
     const win = await app.firstWindow()
@@ -289,6 +300,7 @@ test('a settings check during the launch check joins it: one request, its outcom
     await expect(action(win)).toHaveAttribute('aria-disabled', 'false')
     await action(win).click()
     await expect(line(win)).toHaveText('Checking…')
+    script(f, { check: 'upToDate' })
     await expect(line(win)).toHaveText('You’re up to date', { timeout: 10_000 })
     expect(requests(f)).toEqual(['check'])
   } finally {
@@ -418,7 +430,9 @@ test.describe('the automatic-checks switch (US-002, REQ-003/AC-03)', () => {
 
   test('turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5)', async () => {
     const f = fixture()
-    script(f, { check: 'found', version: '9.9.0', steps: [0, 30, 60, 100], stepMs: 600, download: 'complete', install: 'hold' })
+    const found = { check: 'found', version: '9.9.0', steps: [0, 30, 60, 100], stepMs: 50, download: 'complete', install: 'hold' }
+    // Held at its first step until the switch is off, so it is turned off during the download
+    script(f, { ...found, holdFirstStep: true })
     const app = await launch(f)
     try {
       const win = await app.firstWindow()
@@ -426,6 +440,7 @@ test.describe('the automatic-checks switch (US-002, REQ-003/AC-03)', () => {
       await expect(line(win)).toHaveText('Version 9.9.0 is downloading')
       await option(win, 'off').click()
       await expect.poll(() => storedPrefs(f)['autoCheckUpdates']).toBe(false)
+      script(f, found)
       await expect(line(win)).toHaveText('Version 9.9.0 is ready to install', { timeout: 10_000 })
       await expect(win.getByTestId('update-slot')).toHaveAttribute('aria-label', 'Update available')
     } finally {
@@ -521,10 +536,12 @@ test.describe('the labels and the result line stay on one line in every UI langu
         }
         await measure('empty')
 
-        script(f, { check: 'upToDate', checkMs: 1500 })
+        // Each passing state held until it is measured
+        script(f, { check: 'upToDate', holdCheck: true })
         await action(win).click()
         await expect.poll(settings).toEqual({ checking: true, outcome: null })
         await measure('checking')
+        script(f, { check: 'upToDate' })
         await expect.poll(settings).toEqual({ checking: false, outcome: 'upToDate' })
         await measure('upToDate')
 
@@ -534,10 +551,12 @@ test.describe('the labels and the result line stay on one line in every UI langu
         await measure('failed')
 
         // A long but valid version, for the widest form of the two version lines
-        script(f, { check: 'found', version: '10.10.10-beta.12', steps: [0, 50, 100], stepMs: 900, download: 'complete', install: 'hold' })
+        const found = { check: 'found', version: '10.10.10-beta.12', steps: [0, 50, 100], stepMs: 50, download: 'complete', install: 'hold' }
+        script(f, { ...found, holdFirstStep: true })
         await action(win).click()
         await expect.poll(phase).toBe('downloading')
         await measure('downloading')
+        script(f, found)
         await expect.poll(phase, { timeout: 10_000 }).toBe('ready')
         await measure('ready')
         await action(win).click()

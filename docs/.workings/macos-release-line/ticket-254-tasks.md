@@ -25,6 +25,9 @@ the requirements are [the app-update spec](../../specs/app-update.md); the cover
     `:149`, `settings-updates.spec.ts:173`, `:234`, `:421`, `:537`. Margins estimated from their scripts and the
     measured window appearance, not measured one by one.
   - The rest hold their last step (`download: 'hold'`) or wait only for the end state: no race.
+  - Not classified in this first pass, though the search matched them: six cases that must act while a check is in
+    flight, the check answering `checkMs` (1.5–2.5 s) after it was asked (`rg -n "checkMs" e2e`). Found while changing
+    one of them; they take the check's hold (test review, rows E8, E10–E13).
 
 ## Decision (implementing agent, 2026-10-23)
 
@@ -32,6 +35,8 @@ the requirements are [the app-update spec](../../specs/app-update.md); the cover
 |---|---|---|
 | D1 | How the case stops depending on how fast the window appears (the issue's two leads) | A new script field, `holdFirstStep`: the download reports its first step and stays there while the script still says so; the case rewrites the script to let it go. Reading whatever step shows and asserting it moves on only widens the margin: a window later than the last step still fails |
 | D2 | Which cases take the hold | The issue's case and `app-update.spec.ts:278`, the two whose margin is inside the window's normal appearance time. The six with wider margins are reported with a recommendation; the owner decides |
+| D3 | The six with wider margins, and the post-implementation check's F2 (a "no toast" read at an instant) | Handled in this change: the owner's answer on 2026-10-23, "into #254's PR" (in Chinese), against a recommendation of a ticket of their own. The same class then took in the six timed checks and every "no toast" read that can never be red (test review, Coverage) |
+| D4 | #299's restore windows (500 ms and 1 s after the restart) | Not changed, no ticket: the owner's answer on 2026-10-23, "leave them, and no ticket" (in Chinese). Recorded in #299's test review |
 
 ## Tasks
 
@@ -41,9 +46,10 @@ the requirements are [the app-update spec](../../specs/app-update.md); the cover
 | 2 | Records declared on #254 and its document sync checklist | `ticket-254-doc-sync.md`, the issue body | done |
 | 3 | Test design review | `ticket-254-review-tests.md`, Design review | done |
 | 4 | Slices: S1 the scripted source holds at its first step (unit); S2 the issue's case takes the hold (e2e); S3 the failed-download case takes the hold (e2e) | targeted runs, the late-observer loop green, the planted fault red | done: U1–U4 red then green (U4 added when reading the staged change: the hold now waits only for a download whose own script asked for it); both late-observer loops red on the old cases and green on the held ones, and the planted fault red at the 60% read — all three run before U4's guard, which changes only downloads without the field, so the old cases then ran exactly as on main; targeted run `evidence/ticket-254/targeted.txt` (`TARGETED_EXIT=0`) |
-| 5 | Code review | `ticket-254-review-code.md` | done: one wording fix (the doc comment); the hold's premises measured (a half-written script, teardown while held); no refactoring |
-| 6 | Full gateway | `evidence/ticket-254/gateway-43451fa.txt` | done: `VERIFY_EXIT=0` on the clean tree of 43451fa (871 unit, 109 site, 148 e2e, smoke OK) |
-| 7 | Independent post-implementation test check | `ticket-254-review-tests.md` | handed to an independent agent on 1349d76..43451fa |
+| 4b | After the owner's decision D3: the six timed downloads, the six timed checks (the check's hold, U5, U6), and every "no toast" read that could not be red (E2, E2a, E3, E9) | the plants P1–P5 as expected; targeted run | done: `ticket-254-review-tests.md`, Handling; `evidence/ticket-254/targeted-2.txt` (`TARGETED_EXIT=0`) |
+| 5 | Code review | `ticket-254-review-code.md` | done for 22c8ce6: one wording fix (the doc comment); the hold's premises measured (a half-written script, teardown while held); no refactoring. The increment after D3: done, its premises measured (a launch check's notice before the window listens, a window's requests in order); no refactoring |
+| 6 | Full gateway | `evidence/ticket-254/gateway-<commit>.txt` | 43451fa: `VERIFY_EXIT=0` (871 unit, 109 site, 148 e2e, smoke OK), overtaken by the increment; to run again |
+| 7 | Independent post-implementation test check | `ticket-254-review-tests.md` | first round done on 1349d76..e4a86dd (F1, F2 handled); an incremental check of the increment to follow |
 | 8 | Spec check, step 7 write-back (the spec's Testing Decisions name the hold), step 8 | `final-regression.md` | |
 | 9 | CI: the two cases repeated | a throwaway branch's run, recorded | |
 | 10 | PR; stop for the owner | PR link | |

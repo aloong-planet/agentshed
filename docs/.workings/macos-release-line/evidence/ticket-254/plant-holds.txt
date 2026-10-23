@@ -1,0 +1,852 @@
+# #254, 2026-10-23, macOS: the three update e2e files under the hold plants, on the change before its commit
+# P1: holdCheck and holdFirstStep ignored. P5: every step at once, the holds intact. P1b: both.
+# commands: node plant-no-hold.mjs | plant-instant-steps.mjs | plant-no-hold-instant.mjs e2e/app-update.spec.ts e2e/menu-check-updates.spec.ts e2e/settings-updates.spec.ts
+# Each plant reached the build: holdFirstStep is named on 1 line of out/main/index.js unplanted and 0 with the hold loops made dead (the bundler drops them); stepMs appears 1 time unplanted and 0 with steps at once (plant-instant-check.mjs)
+
+## plant-no-hold.mjs
+// Plant P1: the scripted source ignores holdCheck and holdFirstStep (each guard made false). Rebuilds, runs the given
+// Playwright arguments, then restores the file byte for byte and rebuilds. Usage: node plant-no-hold.mjs <args...>
+import { readFileSync, writeFileSync } from 'node:fs'
+import { execSync, spawnSync } from 'node:child_process'
+const file = 'src/main/update-source.ts'
+const original = readFileSync(file)
+const text = original.toString('utf8')
+const pairs = [
+  ["while (s.holdCheck === true && holding('holdCheck'))", "while (false && s.holdCheck === true && holding('holdCheck'))"],
+  ["while (i === 0 && s.holdFirstStep === true && holding('holdFirstStep'))", "while (false && i === 0 && s.holdFirstStep === true && holding('holdFirstStep'))"]
+]
+for (const [from] of pairs) if (text.split(from).length !== 2) { console.error('PLANT: expected exactly one occurrence of', from); process.exit(3) }
+let code = 0
+try {
+  writeFileSync(file, pairs.reduce((t, [from, to]) => t.replace(from, to), text))
+  console.log('PLANT applied:', readFileSync(file, 'utf8').split('\n').filter((l) => l.includes('while (false &&')).map((l) => l.trim()).join(' | '))
+  execSync('pnpm -s build', { stdio: 'ignore' })
+  console.log('PLANT in the build (while (false &&, or the loops dropped):', execSync("grep -c 'holdFirstStep' out/main/index.js || true").toString().trim(), 'lines naming holdFirstStep')
+  const r = spawnSync('pnpm', ['-s', 'exec', 'playwright', 'test', ...process.argv.slice(2)], { encoding: 'utf8' })
+  code = r.status ?? 1
+  console.log(r.stdout, r.stderr)
+} finally {
+  writeFileSync(file, original)
+  console.log('RESTORED byte-identical:', Buffer.compare(readFileSync(file), original) === 0)
+  execSync('pnpm -s build', { stdio: 'ignore' })
+}
+console.log('PLANTED RUN EXIT', code)
+
+## plant-instant-steps.mjs
+// Plant P5: every scripted step runs at once (stepMs taken as 0), the holds intact. Rebuilds, runs the given
+// Playwright arguments, then restores the file byte for byte and rebuilds. Usage: node plant-no-hold.mjs <args...>
+import { readFileSync, writeFileSync } from 'node:fs'
+import { execSync, spawnSync } from 'node:child_process'
+const file = 'src/main/update-source.ts'
+const original = readFileSync(file)
+const text = original.toString('utf8')
+const pairs = [
+  ["          await wait(s.stepMs ?? 0)", "          await wait(0)"]
+]
+for (const [from] of pairs) if (text.split(from).length !== 2) { console.error('PLANT: expected exactly one occurrence of', from); process.exit(3) }
+let code = 0
+try {
+  writeFileSync(file, pairs.reduce((t, [from, to]) => t.replace(from, to), text))
+  console.log('PLANT applied:', readFileSync(file, 'utf8').split('\n').filter((l) => l.includes('await wait(0)')).map((l) => l.trim()).join(' | '))
+  execSync('pnpm -s build', { stdio: 'ignore' })
+  console.log('PLANT in the build (while (false &&, or the loops dropped):', execSync("grep -c 'holdFirstStep' out/main/index.js || true").toString().trim(), 'lines naming holdFirstStep')
+  const r = spawnSync('pnpm', ['-s', 'exec', 'playwright', 'test', ...process.argv.slice(2)], { encoding: 'utf8' })
+  code = r.status ?? 1
+  console.log(r.stdout, r.stderr)
+} finally {
+  writeFileSync(file, original)
+  console.log('RESTORED byte-identical:', Buffer.compare(readFileSync(file), original) === 0)
+  execSync('pnpm -s build', { stdio: 'ignore' })
+}
+console.log('PLANTED RUN EXIT', code)
+
+## plant-no-hold-instant.mjs
+// Plant P1b: the scripted source ignores holdCheck and holdFirstStep (each guard made false), and every step runs at once. Rebuilds, runs the given
+// Playwright arguments, then restores the file byte for byte and rebuilds. Usage: node plant-no-hold.mjs <args...>
+import { readFileSync, writeFileSync } from 'node:fs'
+import { execSync, spawnSync } from 'node:child_process'
+const file = 'src/main/update-source.ts'
+const original = readFileSync(file)
+const text = original.toString('utf8')
+const pairs = [
+  ["while (s.holdCheck === true && holding('holdCheck'))", "while (false && s.holdCheck === true && holding('holdCheck'))"],
+  ["while (i === 0 && s.holdFirstStep === true && holding('holdFirstStep'))", "while (false && i === 0 && s.holdFirstStep === true && holding('holdFirstStep'))"],
+  ["          await wait(s.stepMs ?? 0)", "          await wait(0)"]
+]
+for (const [from] of pairs) if (text.split(from).length !== 2) { console.error('PLANT: expected exactly one occurrence of', from); process.exit(3) }
+let code = 0
+try {
+  writeFileSync(file, pairs.reduce((t, [from, to]) => t.replace(from, to), text))
+  console.log('PLANT applied:', readFileSync(file, 'utf8').split('\n').filter((l) => l.includes('while (false &&') || l.includes('await wait(0)')).map((l) => l.trim()).join(' | '))
+  execSync('pnpm -s build', { stdio: 'ignore' })
+  console.log('PLANT in the build (while (false &&, or the loops dropped):', execSync("grep -c 'holdFirstStep' out/main/index.js || true").toString().trim(), 'lines naming holdFirstStep')
+  const r = spawnSync('pnpm', ['-s', 'exec', 'playwright', 'test', ...process.argv.slice(2)], { encoding: 'utf8' })
+  code = r.status ?? 1
+  console.log(r.stdout, r.stderr)
+} finally {
+  writeFileSync(file, original)
+  console.log('RESTORED byte-identical:', Buffer.compare(readFileSync(file), original) === 0)
+  execSync('pnpm -s build', { stdio: 'ignore' })
+}
+console.log('PLANTED RUN EXIT', code)
+
+## plant-instant-check.mjs
+import { readFileSync, writeFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
+const file = 'src/main/update-source.ts'
+const original = readFileSync(file)
+try {
+  writeFileSync(file, original.toString('utf8').replace('          await wait(s.stepMs ?? 0)', '          await wait(0)'))
+  execSync('pnpm -s build', { stdio: 'ignore' })
+  console.log('stepMs in the planted build:', execSync("grep -o 'stepMs' out/main/index.js | wc -l").toString().trim())
+} finally {
+  writeFileSync(file, original)
+  console.log('RESTORED byte-identical:', Buffer.compare(readFileSync(file), original) === 0)
+  execSync('pnpm -s build', { stdio: 'ignore' })
+}
+
+## P1 run
+PLANT applied: while (false && s.holdCheck === true && holding('holdCheck')) await wait(50) | while (false && i === 0 && s.holdFirstStep === true && holding('holdFirstStep')) {
+PLANT in the build (while (false &&, or the loops dropped): 0 lines naming holdFirstStep
+
+Running 38 tests using 1 worker
+
+  ✓   1 e2e/app-update.spec.ts:116:1 › with no update in flight the slot takes no space; an update in flight sits directly above Settings, which keeps its place (REQ-001/AC-01, US-001/AC-06, appearance D4) (1.8s)
+  ✓   2 e2e/app-update.spec.ts:152:1 › a launch check that finds an update shows the download in the rail at once, with no dialog; the slot cannot be clicked while downloading (US-001/AC-01, REQ-001/AC-02–AC-04) (1.3s)
+  ✘   3 e2e/app-update.spec.ts:190:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (5.7s)
+  ✓   4 e2e/app-update.spec.ts:216:1 › the finished download becomes the ready button; clicking it installs once and shows the spinner (US-001/AC-03, AC-04, REQ-001/AC-03, Failure C10) (1.3s)
+  ✓   5 e2e/app-update.spec.ts:245:1 › a failed install after the click shows the error toast, stacked with any other, and the button goes (REQ-002/AC-03, Failure G6) (941ms)
+  ✓   6 e2e/app-update.spec.ts:268:1 › an open message goes with the button, so the button comes back without it (REQ-001/AC-04) (962ms)
+  ✓   7 e2e/app-update.spec.ts:299:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (1.8s)
+  ✓   8 e2e/app-update.spec.ts:341:1 › the circle, its glyph and the message stay distinguishable in every theme, light and dark, and recolour with a switch (REQ-001/AC-05, Failure G3) (1.5s)
+  ✓   9 e2e/app-update.spec.ts:394:1 › the installing loader spins, and stands still under reduced motion (REQ-001/AC-02) (1.3s)
+  ✓  10 e2e/app-update.spec.ts:413:1 › an open message follows a language switch at once (Failure G2) (2.5s)
+  ✓  11 e2e/app-update.spec.ts:439:1 › with automatic checks turned off the launch makes no request (US-002/AC-01) (3.1s)
+  ✓  12 e2e/app-update.spec.ts:456:1 › a second instance launched while an update is ready exits, and the running one keeps the update (Failure G5) (975ms)
+  ✓  13 e2e/menu-check-updates.spec.ts:95:1 › the item sits directly below "About" and reports up to date, a failure, and a malformed answer as a failure (REQ-005, US-003/AC-01, A6) (1.1s)
+  ✓  14 e2e/menu-check-updates.spec.ts:125:1 › a menu check that finds an update starts the download, and a failed download adds no second toast (US-003/AC-03, B2) (1.1s)
+  ✓  15 e2e/menu-check-updates.spec.ts:153:1 › a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04) (958ms)
+  ✘  16 e2e/menu-check-updates.spec.ts:181:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) (5.9s)
+  ✓  17 e2e/menu-check-updates.spec.ts:220:1 › the item follows a language switch at once; a toast already shown keeps its language and stacks with the new one (G2, G6) (1.0s)
+  ✓  18 e2e/menu-check-updates.spec.ts:243:1 › a development run disables the item, and a click on it reports nothing (US-005/AC-02) (1.6s)
+  ✓  19 e2e/settings-updates.spec.ts:81:1 › settings gains "Updates" third, one card with the switch and the version row, and its footnote (REQ-003/AC-01, AC-02, US-002/AC-02) (943ms)
+  ✘  20 e2e/settings-updates.spec.ts:111:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) (5.9s)
+  ✓  21 e2e/settings-updates.spec.ts:150:1 › a settings check that finds an update starts the download: the line and the rail follow it, and "Check now" is unavailable (US-003/AC-02, AC-03, REQ-004/AC-01) (1.4s)
+  ✘  22 e2e/settings-updates.spec.ts:173:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) (5.9s)
+  ✓  23 e2e/settings-updates.spec.ts:209:1 › an install from "Install now" that fails: the error toast, "Check now" available again and an empty line (REQ-002/AC-03, C11) (934ms)
+  ✓  24 e2e/settings-updates.spec.ts:229:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2) (1.0s)
+  ✘  25 e2e/settings-updates.spec.ts:255:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) (5.9s)
+  ✘  26 e2e/settings-updates.spec.ts:290:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) (6.0s)
+  ✓  27 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an older recorded version (871ms)
+  ✓  28 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › the same version (1.5s)
+  ✓  29 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a newer recorded version (the version went down) (839ms)
+  ✓  30 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › no record (a fresh installation) (874ms)
+  ✓  31 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an unreadable record (957ms)
+  ✓  32 e2e/settings-updates.spec.ts:347:3 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a still newer release found at that launch shows its download instead, and a settings check replaces the line (C7) (1.7s)
+  ✓  33 e2e/settings-updates.spec.ts:374:1 › a development run: the switch and the button are unavailable, the footnote says why, and nothing is asked (US-005/AC-02) (1.3s)
+  ✓  34 e2e/settings-updates.spec.ts:401:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › a change is stored at once and survives a restart; with it off the launch makes no request (4.7s)
+  ✓  35 e2e/settings-updates.spec.ts:431:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5) (841ms)
+  ✓  36 e2e/settings-updates.spec.ts:453:1 › the first launch after an update restores the saved display like any other launch (G4) (1.6s)
+  ✘  37 e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh (5.7s)
+  ✘  38 e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en (5.7s)
+
+
+  1) e2e/app-update.spec.ts:190:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('update-slot')
+    Expected: "0"
+    Received: "60"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" with timeout 5000ms
+      - waiting for getByTestId('update-slot')
+        2 × locator resolved to <span tabindex="0" class="ri upd" aria-valuemin="0" role="progressbar" aria-valuenow="20" aria-valuemax="100" data-testid="update-slot" aria-label="Downloading update 20%">…</span>
+          - unexpected value "20"
+        - locator resolved to <span tabindex="0" class="ri upd" aria-valuemin="0" role="progressbar" aria-valuenow="40" aria-valuemax="100" data-testid="update-slot" aria-label="Downloading update 40%">…</span>
+        - unexpected value "40"
+        11 × locator resolved to <span tabindex="0" class="ri upd" aria-valuemin="0" role="progressbar" aria-valuenow="60" aria-valuemax="100" data-testid="update-slot" aria-label="Downloading update 60%">…</span>
+           - unexpected value "60"
+
+
+      196 |   try {
+      197 |     const win = await app.firstWindow()
+    > 198 |     await expect(slot(win)).toHaveAttribute('aria-valuenow', '0')
+          |                             ^
+      199 |     await slot(win).hover()
+      200 |     await expect(tip(win)).toHaveText('Downloading update 0%')
+      201 |     const where = async () => tip(win).evaluate((el) => {
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/app-update.spec.ts:198:29
+
+    Error Context: test-results/app-update-an-open-message-d5599--to-the-slot-REQ-001-AC-04-/error-context.md
+
+  2) e2e/menu-check-updates.spec.ts:181:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Checking…"
+    Received: "You’re up to date"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out ok" data-testid="update-line">You’re up to date</span>
+           - unexpected value "You’re up to date"
+
+
+      194 |     script(f, { check: 'upToDate', holdCheck: true })
+      195 |     await win.getByTestId('version-action').click()
+    > 196 |     await expect(win.getByTestId('update-line')).toHaveText('Checking…')
+          |                                                  ^
+      197 |     await clickMenuCheck(app)
+      198 |     script(f, { check: 'upToDate' })
+      199 |     await expect(win.getByTestId('update-line')).toHaveText('You’re up to date')
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/menu-check-updates.spec.ts:196:50
+
+    Error Context: test-results/menu-check-updates-menu-an-f1e99-s-own-form-D4-US-003-AC-05-/error-context.md
+
+  3) e2e/settings-updates.spec.ts:111:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Checking…"
+    Received: "You’re up to date"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out ok" data-testid="update-line">You’re up to date</span>
+           - unexpected value "You’re up to date"
+
+
+      120 |     script(f, { check: 'upToDate', holdCheck: true })
+      121 |     await action(win).click()
+    > 122 |     await expect(line(win)).toHaveText('Checking…')
+          |                             ^
+      123 |     await expect(action(win)).toHaveAttribute('aria-disabled', 'true')
+      124 |     // A click while its own check runs asks nothing more. Forced: Playwright waits for an aria-disabled
+      125 |     // control to become available, which would land the click after the check
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:122:29
+
+    Error Context: test-results/settings-updates--Check-no-51c16-failure-US-003-AC-02-D2-A6-/error-context.md
+
+  4) e2e/settings-updates.spec.ts:173:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Version 9.9.0 is downloading"
+    Received: "Version 9.9.0 is ready to install"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out ok" data-testid="update-line">Version 9.9.0 is ready to install</span>
+           - unexpected value "Version 9.9.0 is ready to install"
+
+
+      180 |     const win = await app.firstWindow()
+      181 |     await openSettings(win)
+    > 182 |     await expect(line(win)).toHaveText('Version 9.9.0 is downloading')
+          |                             ^
+      183 |     await expect(action(win)).toHaveText('Check now')
+      184 |     await expect(action(win)).toHaveAttribute('aria-disabled', 'true')
+      185 |     const button = await action(win).elementHandle()
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:182:29
+
+    Error Context: test-results/settings-updates-the-downl-e5e54--003-AC-04-C10-C11-CON-004-/error-context.md
+
+  5) e2e/settings-updates.spec.ts:255:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Checking…"
+    Received: "You’re up to date"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out ok" data-testid="update-line">You’re up to date</span>
+           - unexpected value "You’re up to date"
+
+
+      264 |     script(f, { check: 'upToDate', holdCheck: true })
+      265 |     await action(win).click()
+    > 266 |     await expect(line(win)).toHaveText('Checking…')
+          |                             ^
+      267 |     await win.locator('.rail .ri').nth(0).click()
+      268 |     await expect(win.getByTestId('updates-field')).toHaveCount(0)
+      269 |     script(f, { check: 'upToDate' })
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:266:29
+
+    Error Context: test-results/settings-updates-the-line--10a87--empty-REQ-004-AC-03-D6-G2-/error-context.md
+
+  6) e2e/settings-updates.spec.ts:290:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Checking…"
+    Received: "You’re up to date"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out ok" data-testid="update-line">You’re up to date</span>
+           - unexpected value "You’re up to date"
+
+
+      300 |     await expect(action(win)).toHaveAttribute('aria-disabled', 'false')
+      301 |     await action(win).click()
+    > 302 |     await expect(line(win)).toHaveText('Checking…')
+          |                             ^
+      303 |     script(f, { check: 'upToDate' })
+      304 |     await expect(line(win)).toHaveText('You’re up to date', { timeout: 10_000 })
+      305 |     expect(requests(f)).toEqual(['check'])
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:302:29
+
+    Error Context: test-results/settings-updates-a-setting-e4126-e-reported-US-003-AC-05-D3-/error-context.md
+
+  7) e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+    -   "checking": true,
+    -   "outcome": null,
+    +   "checking": false,
+    +   "outcome": "upToDate",
+      }
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      540 |         script(f, { check: 'upToDate', holdCheck: true })
+      541 |         await action(win).click()
+    > 542 |         await expect.poll(settings).toEqual({ checking: true, outcome: null })
+          |                                     ^
+      543 |         await measure('checking')
+      544 |         script(f, { check: 'upToDate' })
+      545 |         await expect.poll(settings).toEqual({ checking: false, outcome: 'upToDate' })
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:542:37
+
+    Error Context: test-results/settings-updates-the-label-ce43e-of-the-line-QR-001-AC-02-zh/error-context.md
+
+  8) e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+    -   "checking": true,
+    -   "outcome": null,
+    +   "checking": false,
+    +   "outcome": "upToDate",
+      }
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      540 |         script(f, { check: 'upToDate', holdCheck: true })
+      541 |         await action(win).click()
+    > 542 |         await expect.poll(settings).toEqual({ checking: true, outcome: null })
+          |                                     ^
+      543 |         await measure('checking')
+      544 |         script(f, { check: 'upToDate' })
+      545 |         await expect.poll(settings).toEqual({ checking: false, outcome: 'upToDate' })
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:542:37
+
+    Error Context: test-results/settings-updates-the-label-3cfd9-of-the-line-QR-001-AC-02-en/error-context.md
+
+  8 failed
+    e2e/app-update.spec.ts:190:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) 
+    e2e/menu-check-updates.spec.ts:181:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) 
+    e2e/settings-updates.spec.ts:111:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) 
+    e2e/settings-updates.spec.ts:173:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) 
+    e2e/settings-updates.spec.ts:255:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) 
+    e2e/settings-updates.spec.ts:290:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) 
+    e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh 
+    e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en 
+  30 passed (1.5m)
+ 
+RESTORED byte-identical: true
+PLANTED RUN EXIT 1
+
+## P5 run
+PLANT applied: await wait(0)
+PLANT in the build (while (false &&, or the loops dropped): 1 lines naming holdFirstStep
+
+Running 38 tests using 1 worker
+
+  ✓   1 e2e/app-update.spec.ts:116:1 › with no update in flight the slot takes no space; an update in flight sits directly above Settings, which keeps its place (REQ-001/AC-01, US-001/AC-06, appearance D4) (1.8s)
+  ✓   2 e2e/app-update.spec.ts:152:1 › a launch check that finds an update shows the download in the rail at once, with no dialog; the slot cannot be clicked while downloading (US-001/AC-01, REQ-001/AC-02–AC-04) (1.2s)
+  ✓   3 e2e/app-update.spec.ts:190:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (873ms)
+  ✓   4 e2e/app-update.spec.ts:216:1 › the finished download becomes the ready button; clicking it installs once and shows the spinner (US-001/AC-03, AC-04, REQ-001/AC-03, Failure C10) (1.2s)
+  ✓   5 e2e/app-update.spec.ts:245:1 › a failed install after the click shows the error toast, stacked with any other, and the button goes (REQ-002/AC-03, Failure G6) (898ms)
+  ✓   6 e2e/app-update.spec.ts:268:1 › an open message goes with the button, so the button comes back without it (REQ-001/AC-04) (966ms)
+  ✓   7 e2e/app-update.spec.ts:299:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (1.9s)
+  ✓   8 e2e/app-update.spec.ts:341:1 › the circle, its glyph and the message stay distinguishable in every theme, light and dark, and recolour with a switch (REQ-001/AC-05, Failure G3) (1.4s)
+  ✓   9 e2e/app-update.spec.ts:394:1 › the installing loader spins, and stands still under reduced motion (REQ-001/AC-02) (994ms)
+  ✓  10 e2e/app-update.spec.ts:413:1 › an open message follows a language switch at once (Failure G2) (962ms)
+  ✓  11 e2e/app-update.spec.ts:439:1 › with automatic checks turned off the launch makes no request (US-002/AC-01) (2.3s)
+  ✓  12 e2e/app-update.spec.ts:456:1 › a second instance launched while an update is ready exits, and the running one keeps the update (Failure G5) (1.1s)
+  ✓  13 e2e/menu-check-updates.spec.ts:95:1 › the item sits directly below "About" and reports up to date, a failure, and a malformed answer as a failure (REQ-005, US-003/AC-01, A6) (832ms)
+  ✓  14 e2e/menu-check-updates.spec.ts:125:1 › a menu check that finds an update starts the download, and a failed download adds no second toast (US-003/AC-03, B2) (956ms)
+  ✓  15 e2e/menu-check-updates.spec.ts:153:1 › a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04) (916ms)
+  ✓  16 e2e/menu-check-updates.spec.ts:181:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) (1.0s)
+  ✓  17 e2e/menu-check-updates.spec.ts:220:1 › the item follows a language switch at once; a toast already shown keeps its language and stacks with the new one (G2, G6) (830ms)
+  ✓  18 e2e/menu-check-updates.spec.ts:243:1 › a development run disables the item, and a click on it reports nothing (US-005/AC-02) (1.6s)
+  ✓  19 e2e/settings-updates.spec.ts:81:1 › settings gains "Updates" third, one card with the switch and the version row, and its footnote (REQ-003/AC-01, AC-02, US-002/AC-02) (935ms)
+  ✓  20 e2e/settings-updates.spec.ts:111:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) (995ms)
+  ✓  21 e2e/settings-updates.spec.ts:150:1 › a settings check that finds an update starts the download: the line and the rail follow it, and "Check now" is unavailable (US-003/AC-02, AC-03, REQ-004/AC-01) (1.6s)
+  ✓  22 e2e/settings-updates.spec.ts:173:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) (953ms)
+  ✓  23 e2e/settings-updates.spec.ts:209:1 › an install from "Install now" that fails: the error toast, "Check now" available again and an empty line (REQ-002/AC-03, C11) (899ms)
+  ✓  24 e2e/settings-updates.spec.ts:229:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2) (1.0s)
+  ✓  25 e2e/settings-updates.spec.ts:255:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) (1.8s)
+  ✓  26 e2e/settings-updates.spec.ts:290:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) (823ms)
+  ✓  27 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an older recorded version (860ms)
+  ✓  28 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › the same version (1.4s)
+  ✓  29 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a newer recorded version (the version went down) (870ms)
+  ✓  30 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › no record (a fresh installation) (807ms)
+  ✓  31 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an unreadable record (789ms)
+  ✓  32 e2e/settings-updates.spec.ts:347:3 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a still newer release found at that launch shows its download instead, and a settings check replaces the line (C7) (1.6s)
+  ✓  33 e2e/settings-updates.spec.ts:374:1 › a development run: the switch and the button are unavailable, the footnote says why, and nothing is asked (US-005/AC-02) (1.3s)
+  ✓  34 e2e/settings-updates.spec.ts:401:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › a change is stored at once and survives a restart; with it off the launch makes no request (4.7s)
+  ✓  35 e2e/settings-updates.spec.ts:431:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5) (894ms)
+  ✓  36 e2e/settings-updates.spec.ts:453:1 › the first launch after an update restores the saved display like any other launch (G4) (1.7s)
+  ✓  37 e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh (1.2s)
+  ✓  38 e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en (1.1s)
+
+  38 passed (48.6s)
+ 
+RESTORED byte-identical: true
+PLANTED RUN EXIT 0
+
+## P1b run
+PLANT applied: while (false && s.holdCheck === true && holding('holdCheck')) await wait(50) | while (false && i === 0 && s.holdFirstStep === true && holding('holdFirstStep')) { | await wait(0)
+PLANT in the build (while (false &&, or the loops dropped): 0 lines naming holdFirstStep
+
+Running 38 tests using 1 worker
+
+  ✓   1 e2e/app-update.spec.ts:116:1 › with no update in flight the slot takes no space; an update in flight sits directly above Settings, which keeps its place (REQ-001/AC-01, US-001/AC-06, appearance D4) (1.5s)
+  ✓   2 e2e/app-update.spec.ts:152:1 › a launch check that finds an update shows the download in the rail at once, with no dialog; the slot cannot be clicked while downloading (US-001/AC-01, REQ-001/AC-02–AC-04) (1.1s)
+  ✘   3 e2e/app-update.spec.ts:190:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (5.6s)
+  ✓   4 e2e/app-update.spec.ts:216:1 › the finished download becomes the ready button; clicking it installs once and shows the spinner (US-001/AC-03, AC-04, REQ-001/AC-03, Failure C10) (1.1s)
+  ✓   5 e2e/app-update.spec.ts:245:1 › a failed install after the click shows the error toast, stacked with any other, and the button goes (REQ-002/AC-03, Failure G6) (807ms)
+  ✓   6 e2e/app-update.spec.ts:268:1 › an open message goes with the button, so the button comes back without it (REQ-001/AC-04) (751ms)
+  ✘   7 e2e/app-update.spec.ts:299:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (6.4s)
+  ✓   8 e2e/app-update.spec.ts:341:1 › the circle, its glyph and the message stay distinguishable in every theme, light and dark, and recolour with a switch (REQ-001/AC-05, Failure G3) (1.2s)
+  ✓   9 e2e/app-update.spec.ts:394:1 › the installing loader spins, and stands still under reduced motion (REQ-001/AC-02) (729ms)
+  ✓  10 e2e/app-update.spec.ts:413:1 › an open message follows a language switch at once (Failure G2) (764ms)
+  ✓  11 e2e/app-update.spec.ts:439:1 › with automatic checks turned off the launch makes no request (US-002/AC-01) (2.5s)
+  ✓  12 e2e/app-update.spec.ts:456:1 › a second instance launched while an update is ready exits, and the running one keeps the update (Failure G5) (4.0s)
+  ✓  13 e2e/menu-check-updates.spec.ts:95:1 › the item sits directly below "About" and reports up to date, a failure, and a malformed answer as a failure (REQ-005, US-003/AC-01, A6) (2.1s)
+  ✘  14 e2e/menu-check-updates.spec.ts:125:1 › a menu check that finds an update starts the download, and a failed download adds no second toast (US-003/AC-03, B2) (6.0s)
+  ✘  15 e2e/menu-check-updates.spec.ts:153:1 › a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04) (5.6s)
+  ✘  16 e2e/menu-check-updates.spec.ts:181:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) (5.9s)
+  ✓  17 e2e/menu-check-updates.spec.ts:220:1 › the item follows a language switch at once; a toast already shown keeps its language and stacks with the new one (G2, G6) (2.3s)
+  ✓  18 e2e/menu-check-updates.spec.ts:243:1 › a development run disables the item, and a click on it reports nothing (US-005/AC-02) (1.7s)
+  ✓  19 e2e/settings-updates.spec.ts:81:1 › settings gains "Updates" third, one card with the switch and the version row, and its footnote (REQ-003/AC-01, AC-02, US-002/AC-02) (918ms)
+  ✘  20 e2e/settings-updates.spec.ts:111:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) (6.1s)
+  ✓  21 e2e/settings-updates.spec.ts:150:1 › a settings check that finds an update starts the download: the line and the rail follow it, and "Check now" is unavailable (US-003/AC-02, AC-03, REQ-004/AC-01) (1.6s)
+  ✘  22 e2e/settings-updates.spec.ts:173:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) (6.0s)
+  ✓  23 e2e/settings-updates.spec.ts:209:1 › an install from "Install now" that fails: the error toast, "Check now" available again and an empty line (REQ-002/AC-03, C11) (1.0s)
+  ✘  24 e2e/settings-updates.spec.ts:229:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2) (6.0s)
+  ✘  25 e2e/settings-updates.spec.ts:255:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) (5.9s)
+  ✘  26 e2e/settings-updates.spec.ts:290:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) (5.8s)
+  ✓  27 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an older recorded version (713ms)
+  ✓  28 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › the same version (1.2s)
+  ✓  29 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a newer recorded version (the version went down) (743ms)
+  ✓  30 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › no record (a fresh installation) (662ms)
+  ✓  31 e2e/settings-updates.spec.ts:320:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an unreadable record (688ms)
+  ✓  32 e2e/settings-updates.spec.ts:347:3 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a still newer release found at that launch shows its download instead, and a settings check replaces the line (C7) (1.3s)
+  ✓  33 e2e/settings-updates.spec.ts:374:1 › a development run: the switch and the button are unavailable, the footnote says why, and nothing is asked (US-005/AC-02) (1.2s)
+  ✓  34 e2e/settings-updates.spec.ts:401:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › a change is stored at once and survives a restart; with it off the launch makes no request (4.3s)
+  ✘  35 e2e/settings-updates.spec.ts:431:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5) (5.7s)
+  ✓  36 e2e/settings-updates.spec.ts:453:1 › the first launch after an update restores the saved display like any other launch (G4) (1.4s)
+  ✘  37 e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh (5.6s)
+  ✘  38 e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en (5.6s)
+
+
+  1) e2e/app-update.spec.ts:190:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('update-slot')
+    Expected: "0"
+    Received: "60"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" with timeout 5000ms
+      - waiting for getByTestId('update-slot')
+        14 × locator resolved to <span tabindex="0" class="ri upd" aria-valuemin="0" role="progressbar" aria-valuenow="60" aria-valuemax="100" data-testid="update-slot" aria-label="Downloading update 60%">…</span>
+           - unexpected value "60"
+
+
+      196 |   try {
+      197 |     const win = await app.firstWindow()
+    > 198 |     await expect(slot(win)).toHaveAttribute('aria-valuenow', '0')
+          |                             ^
+      199 |     await slot(win).hover()
+      200 |     await expect(tip(win)).toHaveText('Downloading update 0%')
+      201 |     const where = async () => tip(win).evaluate((el) => {
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/app-update.spec.ts:198:29
+
+    Error Context: test-results/app-update-an-open-message-d5599--to-the-slot-REQ-001-AC-04-/error-context.md
+
+  2) e2e/app-update.spec.ts:299:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('update-slot')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('update-slot')
+
+
+      329 |     win = await app.firstWindow()
+      330 |     toasts = await recordToasts(win)
+    > 331 |     await expect(slot(win)).toBeVisible()
+          |                             ^
+      332 |     script(f, failing)
+      333 |     await expect(slot(win)).toHaveCount(0, { timeout: 5000 })
+      334 |     await saidNothing(app, toasts)
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/app-update.spec.ts:331:29
+
+    Error Context: test-results/app-update-a-failed-automa-19b2e-othing-REQ-002-AC-01-AC-02-/error-context.md
+
+  3) e2e/menu-check-updates.spec.ts:125:1 › a menu check that finds an update starts the download, and a failed download adds no second toast (US-003/AC-03, B2) 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator: getByTestId('update-slot')
+    Expected: "progressbar"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveAttribute" with timeout 5000ms
+      - waiting for getByTestId('update-slot')
+
+
+      136 |     await clickMenuCheck(app)
+      137 |     await expect.poll(toasts).toEqual(['ok: Version 9.9.0 found — downloading in the background'])
+    > 138 |     await expect(win.getByTestId('update-slot')).toHaveAttribute('role', 'progressbar')
+          |                                                  ^
+      139 |     script(f, failing)
+      140 |     // The download fails: the button goes, and nothing more is said. Notices reach the window in order, so any the
+      141 |     // failure sent come before a later menu check's own
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/menu-check-updates.spec.ts:138:50
+
+    Error Context: test-results/menu-check-updates-a-menu--3f00d-cond-toast-US-003-AC-03-B2-/error-context.md
+
+  4) e2e/menu-check-updates.spec.ts:153:1 › a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04) 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('update-slot')
+    Expected: "progressbar"
+    Received: ""
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" with timeout 5000ms
+      - waiting for getByTestId('update-slot')
+        14 × locator resolved to <button type="button" class="ri upd" data-testid="update-slot" aria-label="Update available">…</button>
+           - unexpected value "null"
+
+
+      159 |   try {
+      160 |     const win = await app.firstWindow()
+    > 161 |     await expect(win.getByTestId('update-slot')).toHaveAttribute('role', 'progressbar')
+          |                                                  ^
+      162 |     const toasts = await recordToasts(win)
+      163 |     await clickMenuCheck(app)
+      164 |     await expect.poll(toasts).toEqual(['ok: Version 9.9.0 found — downloading in the background'])
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/menu-check-updates.spec.ts:161:50
+
+    Error Context: test-results/menu-check-updates-a-menu--b10f2-es-no-request-US-003-AC-04-/error-context.md
+
+  5) e2e/menu-check-updates.spec.ts:181:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Checking…"
+    Received: "You’re up to date"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out ok" data-testid="update-line">You’re up to date</span>
+           - unexpected value "You’re up to date"
+
+
+      194 |     script(f, { check: 'upToDate', holdCheck: true })
+      195 |     await win.getByTestId('version-action').click()
+    > 196 |     await expect(win.getByTestId('update-line')).toHaveText('Checking…')
+          |                                                  ^
+      197 |     await clickMenuCheck(app)
+      198 |     script(f, { check: 'upToDate' })
+      199 |     await expect(win.getByTestId('update-line')).toHaveText('You’re up to date')
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/menu-check-updates.spec.ts:196:50
+
+    Error Context: test-results/menu-check-updates-menu-an-f1e99-s-own-form-D4-US-003-AC-05-/error-context.md
+
+  6) e2e/settings-updates.spec.ts:111:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Checking…"
+    Received: "You’re up to date"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out ok" data-testid="update-line">You’re up to date</span>
+           - unexpected value "You’re up to date"
+
+
+      120 |     script(f, { check: 'upToDate', holdCheck: true })
+      121 |     await action(win).click()
+    > 122 |     await expect(line(win)).toHaveText('Checking…')
+          |                             ^
+      123 |     await expect(action(win)).toHaveAttribute('aria-disabled', 'true')
+      124 |     // A click while its own check runs asks nothing more. Forced: Playwright waits for an aria-disabled
+      125 |     // control to become available, which would land the click after the check
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:122:29
+
+    Error Context: test-results/settings-updates--Check-no-51c16-failure-US-003-AC-02-D2-A6-/error-context.md
+
+  7) e2e/settings-updates.spec.ts:173:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Version 9.9.0 is downloading"
+    Received: "Version 9.9.0 is ready to install"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out ok" data-testid="update-line">Version 9.9.0 is ready to install</span>
+           - unexpected value "Version 9.9.0 is ready to install"
+
+
+      180 |     const win = await app.firstWindow()
+      181 |     await openSettings(win)
+    > 182 |     await expect(line(win)).toHaveText('Version 9.9.0 is downloading')
+          |                             ^
+      183 |     await expect(action(win)).toHaveText('Check now')
+      184 |     await expect(action(win)).toHaveAttribute('aria-disabled', 'true')
+      185 |     const button = await action(win).elementHandle()
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:182:29
+
+    Error Context: test-results/settings-updates-the-downl-e5e54--003-AC-04-C10-C11-CON-004-/error-context.md
+
+  8) e2e/settings-updates.spec.ts:229:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Version 9.9.0 is downloading"
+    Received: ""
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out " data-testid="update-line"></span>
+           - unexpected value ""
+
+
+      241 |     script(f, { ...failing, holdFirstStep: true })
+      242 |     await wakeAfterADay(app)
+    > 243 |     await expect(line(win)).toHaveText('Version 9.9.0 is downloading')
+          |                             ^
+      244 |     script(f, failing)
+      245 |     await expect(line(win)).toHaveText('', { timeout: 10_000 })
+      246 |     await expect(win.getByTestId('update-slot')).toHaveCount(0)
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:243:29
+
+    Error Context: test-results/settings-updates-a-setting-d5a38--empty-REQ-004-AC-02-D5-B2-/error-context.md
+
+  9) e2e/settings-updates.spec.ts:255:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Checking…"
+    Received: "You’re up to date"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out ok" data-testid="update-line">You’re up to date</span>
+           - unexpected value "You’re up to date"
+
+
+      264 |     script(f, { check: 'upToDate', holdCheck: true })
+      265 |     await action(win).click()
+    > 266 |     await expect(line(win)).toHaveText('Checking…')
+          |                             ^
+      267 |     await win.locator('.rail .ri').nth(0).click()
+      268 |     await expect(win.getByTestId('updates-field')).toHaveCount(0)
+      269 |     script(f, { check: 'upToDate' })
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:266:29
+
+    Error Context: test-results/settings-updates-the-line--10a87--empty-REQ-004-AC-03-D6-G2-/error-context.md
+
+  10) e2e/settings-updates.spec.ts:290:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Checking…"
+    Received: "You’re up to date"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out ok" data-testid="update-line">You’re up to date</span>
+           - unexpected value "You’re up to date"
+
+
+      300 |     await expect(action(win)).toHaveAttribute('aria-disabled', 'false')
+      301 |     await action(win).click()
+    > 302 |     await expect(line(win)).toHaveText('Checking…')
+          |                             ^
+      303 |     script(f, { check: 'upToDate' })
+      304 |     await expect(line(win)).toHaveText('You’re up to date', { timeout: 10_000 })
+      305 |     expect(requests(f)).toEqual(['check'])
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:302:29
+
+    Error Context: test-results/settings-updates-a-setting-e4126-e-reported-US-003-AC-05-D3-/error-context.md
+
+  11) e2e/settings-updates.spec.ts:431:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5) 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('update-line')
+    Expected: "Version 9.9.0 is downloading"
+    Received: "Version 9.9.0 is ready to install"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for getByTestId('update-line')
+        14 × locator resolved to <span role="status" class="chk-out ok" data-testid="update-line">Version 9.9.0 is ready to install</span>
+           - unexpected value "Version 9.9.0 is ready to install"
+
+
+      438 |       const win = await app.firstWindow()
+      439 |       await openSettings(win)
+    > 440 |       await expect(line(win)).toHaveText('Version 9.9.0 is downloading')
+          |                               ^
+      441 |       await option(win, 'off').click()
+      442 |       await expect.poll(() => storedPrefs(f)['autoCheckUpdates']).toBe(false)
+      443 |       script(f, found)
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:440:31
+
+    Error Context: test-results/settings-updates-the-autom-022c0-ady-update-US-002-AC-03-B5-/error-context.md
+
+  12) e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+    -   "checking": true,
+    -   "outcome": null,
+    +   "checking": false,
+    +   "outcome": "upToDate",
+      }
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      540 |         script(f, { check: 'upToDate', holdCheck: true })
+      541 |         await action(win).click()
+    > 542 |         await expect.poll(settings).toEqual({ checking: true, outcome: null })
+          |                                     ^
+      543 |         await measure('checking')
+      544 |         script(f, { check: 'upToDate' })
+      545 |         await expect.poll(settings).toEqual({ checking: false, outcome: 'upToDate' })
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:542:37
+
+    Error Context: test-results/settings-updates-the-label-ce43e-of-the-line-QR-001-AC-02-zh/error-context.md
+
+  13) e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+    -   "checking": true,
+    -   "outcome": null,
+    +   "checking": false,
+    +   "outcome": "upToDate",
+      }
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      540 |         script(f, { check: 'upToDate', holdCheck: true })
+      541 |         await action(win).click()
+    > 542 |         await expect.poll(settings).toEqual({ checking: true, outcome: null })
+          |                                     ^
+      543 |         await measure('checking')
+      544 |         script(f, { check: 'upToDate' })
+      545 |         await expect.poll(settings).toEqual({ checking: false, outcome: 'upToDate' })
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254/e2e/settings-updates.spec.ts:542:37
+
+    Error Context: test-results/settings-updates-the-label-3cfd9-of-the-line-QR-001-AC-02-en/error-context.md
+
+  13 failed
+    e2e/app-update.spec.ts:190:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) 
+    e2e/app-update.spec.ts:299:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) 
+    e2e/menu-check-updates.spec.ts:125:1 › a menu check that finds an update starts the download, and a failed download adds no second toast (US-003/AC-03, B2) 
+    e2e/menu-check-updates.spec.ts:153:1 › a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04) 
+    e2e/menu-check-updates.spec.ts:181:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) 
+    e2e/settings-updates.spec.ts:111:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) 
+    e2e/settings-updates.spec.ts:173:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) 
+    e2e/settings-updates.spec.ts:229:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2) 
+    e2e/settings-updates.spec.ts:255:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) 
+    e2e/settings-updates.spec.ts:290:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) 
+    e2e/settings-updates.spec.ts:431:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5) 
+    e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh 
+    e2e/settings-updates.spec.ts:515:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en 
+  25 passed (2.0m)
+ 
+RESTORED byte-identical: true
+PLANTED RUN EXIT 1
