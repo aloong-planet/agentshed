@@ -370,8 +370,9 @@ recommended handling is in "Out of Scope".
   11px gutter the engine sets, with no hover state; the drawn scrollbar is exactly as specified. A drawn
   scrollbar replaces macOS's overlay one, which is why the thumb does not hide when idle (F1): in Chromium's
   source, an element with scrollbar pseudo-element styles gets a custom scrollbar, which is never an overlay
-  one, whatever the platform uses (read 2026-10-23 on Chromium's main branch; the e2e window is the classic case,
-  and no overlay Mac was measured).
+  one, whatever the platform uses (read 2026-10-23 on Chromium's main branch), and measured: launched with
+  macOS's per-process scroll bar setting at "when scrolling" (the overlay style) and at "always", the app's list
+  keeps its 6px scrollbar.
 - The corner needs its own rule: left out, it stays a light square where two scrollbars meet.
 
 ## Testing Decisions
@@ -417,14 +418,17 @@ recommended handling is in "Out of Scope".
 - **Code styling (E7b)**: the same two surfaces assert the fence's border and paper inset, the
   absence of an inner box on the code element inside the fence, and the inline pill's border.
 - **Scrollbars (appearance::REQ-001)**: e2e, on a list that overflows in the running app, in light and
-  dark. The width is geometry: the area's width less its client width, 6px — the e2e window draws a
-  15px classic scrollbar without the rule, so the measure tells the two apart. The colours are not
+  dark. The width is geometry: the area's width less its client width, 6px — without the rule the
+  platform's scrollbar measures 0 (overlay) or 15 (classic), so the measure tells them apart. The colours are not
   readable through computed styles (a scrollbar is no element), so they are read from a capture of the
   window: a pixel beside the thumb equals the area's own background (no track), and a pixel inside the
   thumb equals the thumb colour laid over that background, at rest and under the pointer. Reading a
   few pixels at measured positions is not the screenshot comparison ruled out above. Dark goes
   through the colour-scheme emulation, as the other dark cases do. The two thumb tokens' variation —
-  light and dark differ, the three themes do not — is checked across all six states.
+  light and dark differ, the three themes do not — is asserted across all six states in the six-combination
+  case. macOS's two styles (F1, F2) are driven by launching the app with a per-process
+  `-AppleShowScrollBars` argument, which macOS reads for that process only; a control block given the
+  standard `scrollbar-width` draws the platform's own scrollbar and shows which style took effect.
 
 ## Out of Scope
 

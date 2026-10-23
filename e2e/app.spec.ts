@@ -77,12 +77,13 @@ interface Launched {
 async function launch(
   cacheContent: string | undefined,
   home: string,
-  extraEnv?: Record<string, string>
+  extraEnv?: Record<string, string>,
+  extraArgs: string[] = []
 ): Promise<Launched> {
   const userData = makeUserData(cacheContent)
   const errors: string[] = []
   const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
+    args: ['.', `--user-data-dir=${userData}`, ...extraArgs],
     env: {
       ...process.env,
       NODE_ENV: 'production',
@@ -4064,6 +4065,7 @@ test('appearance: all six combinations of 3 themes × 2 effective light/dark hol
    * to maintain. See the delivery notes for that trade-off.
    */
   const floatShadowByState = new Map<string, string>()
+  const scrollThumbByState = new Map<string, string>()
 
   for (const mode of ['light', 'dark'] as const) {
     await win.locator(`[data-mode-option="${mode}"]`).click()
@@ -4108,6 +4110,7 @@ test('appearance: all six combinations of 3 themes × 2 effective light/dark hol
           declaredCount: declared.size,
           unresolved: [...declared].filter((n) => cs.getPropertyValue(n).trim() === ''),
           floatShadow: cs.getPropertyValue('--float-shadow').trim(),
+          scrollThumb: `${cs.getPropertyValue('--scroll-thumb').trim()} / ${cs.getPropertyValue('--scroll-thumb-hover').trim()}`,
           bodyBg: body.backgroundColor,
           bodyFg: body.color
         }
@@ -4124,6 +4127,7 @@ test('appearance: all six combinations of 3 themes × 2 effective light/dark hol
       // mutation — deleting the dark definition of a variable leaves this green.
       expect(vars.unresolved).toEqual([])
       floatShadowByState.set(`${theme}/${mode}`, vars.floatShadow)
+      scrollThumbByState.set(`${theme}/${mode}`, vars.scrollThumb)
       // The foreground and background are distinguishable (otherwise this combination gives invisible text)
       expect(Math.abs(luminance(vars.bodyBg) - luminance(vars.bodyFg))).toBeGreaterThan(0.3)
     }
@@ -4143,17 +4147,22 @@ test('appearance: all six combinations of 3 themes × 2 effective light/dark hol
   expect([...lightShadows][0]).not.toBe([...darkShadows][0])
   expect([...lightShadows][0]).not.toBe('')
 
+  // The scrollbar thumb and its hover shade likewise (appearance::REQ-001/AC-04, C2): a neutral grey laid over the
+  // surface, one value per appearance, the same in every theme
+  expect(scrollThumbByState.size).toBe(6)
+  const lightThumbs = new Set([...scrollThumbByState].filter(([k]) => k.endsWith('/light')).map(([, v]) => v))
+  const darkThumbs = new Set([...scrollThumbByState].filter(([k]) => k.endsWith('/dark')).map(([, v]) => v))
+  expect([...lightThumbs], 'one light thumb in every theme').toHaveLength(1)
+  expect([...darkThumbs], 'one dark thumb in every theme').toHaveLength(1)
+  expect([...lightThumbs][0]).not.toBe([...darkThumbs][0])
+  expect([...lightThumbs][0]).not.toMatch(/^ \/ |\/ $/)
+
   expect(l.errors).toEqual([])
   await close(l)
 })
 
-/**
- * Scrollbars (spec appearance.md, appearance::REQ-001 and sequence F), on the project list: 40 projects overflow it
- * at this window size. The e2e window draws macOS's classic scrollbar (a 15px gutter with a track), which is what the
- * app replaces; a trackpad-only Mac's overlay scrollbar (F1) and macOS's "Show scroll bars" setting (F2) depend on the
- * machine's input devices and settings, which a test cannot set — accepted by hand.
- */
-test('scrollbars: every scrolling area draws a 6px thumb on no track, in light and in dark (appearance::REQ-001)', async () => {
+/** A home with 40 registered projects: enough rows to overflow the project list at a 1000×600 window */
+function manyProjectsHome(): string {
   const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-scroll-'))
   const projects: Record<string, object> = {}
   for (let i = 0; i < 40; i++) {
@@ -4162,8 +4171,17 @@ test('scrollbars: every scrolling area draws a 6px thumb on no track, in light a
     projects[p] = {}
   }
   writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects }))
+  return home
+}
 
-  const l = await launch(undefined, home)
+/**
+ * Scrollbars (spec appearance.md, appearance::REQ-001 and sequence F), on the project list: 40 projects overflow it
+ * at this window size. Which scrollbar macOS itself would draw here depends on the machine (its setting and whether a
+ * mouse is attached: the overlay one or the classic 15px one with a track); the app draws its own either way, and the
+ * next case drives both of macOS's styles.
+ */
+test('scrollbars: every scrolling area draws a 6px thumb on no track, in light and in dark (appearance::REQ-001)', async () => {
+  const l = await launch(undefined, manyProjectsHome())
   const win = await l.app.firstWindow()
   await win.setViewportSize({ width: 1000, height: 600 })
   await win.locator('.rail .ri').nth(1).click()
@@ -4237,6 +4255,40 @@ test('scrollbars: every scrolling area draws a 6px thumb on no track, in light a
 
   expect(l.errors).toEqual([])
   await close(l)
+})
+
+/**
+ * The same scrollbar under both of macOS's styles (appearance F1, F2): the app is launched with a per-process
+ * `-AppleShowScrollBars` argument, which macOS reads for that process only, leaving the machine's setting alone —
+ * `WhenScrolling` gives the overlay scrollbar a trackpad-only Mac draws, `Always` the classic one. A control block given
+ * the standard `scrollbar-width` makes Chromium draw the platform's own scrollbar for it, which shows the argument took
+ * effect (0 wide when overlay, wider when classic); the project list keeps its 6px scrollbar under both.
+ */
+test('scrollbars: the same 6px scrollbar whether macOS draws overlay or classic ones (appearance F1, F2)', async () => {
+  test.skip(process.platform !== 'darwin', 'the -AppleShowScrollBars argument is read by macOS only')
+  for (const [setting, overlay] of [['WhenScrolling', true], ['Always', false]] as const) {
+    const l = await launch(undefined, manyProjectsHome(), undefined, ['-AppleShowScrollBars', setting])
+    const win = await l.app.firstWindow()
+    await win.setViewportSize({ width: 1000, height: 600 })
+    await win.locator('.rail .ri').nth(1).click()
+    await expect(win.locator('.side .row')).toHaveCount(40)
+    const platform = await win.evaluate(() => {
+      const d = document.createElement('div')
+      d.style.cssText = 'position:fixed;left:400px;top:100px;width:200px;height:200px;overflow:auto;scrollbar-width:thin'
+      d.innerHTML = '<div style="height:1200px"></div>'
+      document.body.appendChild(d)
+      const width = d.offsetWidth - d.clientWidth
+      d.remove()
+      return width
+    })
+    if (overlay) expect(platform, `${setting}: the platform's own scrollbar is an overlay one`).toBe(0)
+    else expect(platform, `${setting}: the platform's own scrollbar is a classic one`).toBeGreaterThan(0)
+    const list = await scrollArea(win, '.side .list')
+    expect(list.overflow, 'the list must overflow').toBeGreaterThan(0)
+    expect(list.width, `${setting}: the list's scrollbar is the app's 6px one`).toBe(6)
+    expect(l.errors).toEqual([])
+    await close(l)
+  }
 })
 
 /**
