@@ -63,8 +63,24 @@ jobs:
       # hand-writing apt package names
       # (which drift with the ubuntu version, e.g. libasound2 → libasound2t64)
       - run: pnpm exec playwright install-deps chromium
-      # Electron needs a display server; -a picks a free display number automatically
-      - run: xvfb-run -a pnpm e2e
+      # Throwaway branch, never merged: the cases #227, #247, #254 and #299 changed, each run repeatedly on this runner.
+      # Every step runs whatever the one before it did, so each issue gets its own result.
+      - run: pnpm exec electron-vite build
+      - name: '#247 the Codex-compressed session case, 40 times'
+        if: ${{ !cancelled() }}
+        run: xvfb-run -a pnpm exec playwright test e2e/app.spec.ts -g "Codex compresses while cached" --repeat-each=40
+      - name: '#227 the startup-skeleton cases, 20 times'
+        if: ${{ !cancelled() }}
+        run: xvfb-run -a pnpm exec playwright test e2e/app.spec.ts -g "startup skeleton" --repeat-each=20
+      - name: '#299 the restore case, 10 times'
+        if: ${{ !cancelled() }}
+        run: xvfb-run -a pnpm exec playwright test e2e/startup-restore.spec.ts -g "restart restores viewed project" --repeat-each=10
+      - name: '#254 every app-update, menu-check and settings-update case, 10 times'
+        if: ${{ !cancelled() }}
+        run: xvfb-run -a pnpm exec playwright test e2e/app-update.spec.ts e2e/menu-check-updates.spec.ts e2e/settings-updates.spec.ts --repeat-each=10
+      - name: '#254 the removed-language case and #227 the bounded teardown, 10 times'
+        if: ${{ !cancelled() }}
+        run: xvfb-run -a pnpm exec playwright test e2e/app.spec.ts e2e/close-app.spec.ts -g "removed language|the bound" --repeat-each=10
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
