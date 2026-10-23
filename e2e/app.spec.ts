@@ -5205,7 +5205,8 @@ test('a session whose file Codex compresses while cached (query layer): the open
   await expect(win.locator('.pane-body .none')).toContainText('Cannot open this session')
   expect(l.errors.length).toBeGreaterThan(0)
   for (const e of l.errors) {
-    expect(e.includes(ERR.sessionFileUnreadable) || e.includes(ERR.sessionNotWhitelisted)).toBe(true)
+    // The chunk itself is the message: a failure says which line broke it
+    expect(e.includes(ERR.sessionFileUnreadable) || e.includes(ERR.sessionNotWhitelisted), `a collected stderr chunk carries neither code:\n${e}`).toBe(true)
   }
 
   // The session reappears in the list under its compressed identity (same title, a new file) and
