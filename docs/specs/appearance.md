@@ -22,6 +22,9 @@ default purple** and add reading-oriented themes such as **mist blue and amber b
 must apply to **the whole app** (rail, lists, detail, drawers, the future skill preview and so on)
 rather than being a partial skin.
 
+The scrolling areas drew the platform's default scrollbar: wide, with a track that stays light beside
+dark lists in dark mode, out of keeping with the app's restrained chrome.
+
 ## Solution
 
 Adopt **option B**:
@@ -41,6 +44,8 @@ Adopt **option B**:
 - The final look = `f(theme, effective light/dark)`.  
 - **The whole app** references CSS variables only; hard-coding a theme's colours inside a component
   is forbidden. Semantic colours (CC/CX, provider, ok/err) do not change hue with the theme.
+- **Scrollbars**: every scrolling area draws a slim neutral-grey thumb on no track
+  (appearance::REQ-001).
 
 ## User Stories
 
@@ -62,6 +67,24 @@ Adopt **option B**:
 6. As a user reading a rendered markdown file (SKILL.md, memory, CLAUDE.md), I want every heading
    level to be visually distinct — in particular h3 vs h4 — so that I can scan the document's
    structure without counting `#`s in the raw view.
+
+## Functional Requirements
+
+### appearance::REQ-001 Scrollbars
+
+Every scrolling area in the app, vertical and horizontal, draws its own slim scrollbar rather than the
+platform's.
+
+- appearance::REQ-001/AC-01: The scrollbar is 6px wide (6px tall for a horizontal one), and its thumb
+  has rounded ends (a 3px radius).
+- appearance::REQ-001/AC-02: There is no track: beside the thumb, and in the corner where a vertical and
+  a horizontal scrollbar meet, the surface beneath shows through.
+- appearance::REQ-001/AC-03: The thumb is shown whenever the area's content overflows, also while
+  nothing scrolls; an area whose content fits shows no scrollbar.
+- appearance::REQ-001/AC-04: The thumb is a neutral grey that follows the effective light/dark and not
+  the theme: in light, black at 25% opacity; in dark, white at 22%.
+- appearance::REQ-001/AC-05: The thumb darkens under the pointer: in light, black at 40%; in dark,
+  white at 36%.
 
 ## Failure modes and boundaries
 
@@ -112,6 +135,7 @@ Adopt **option B**:
 - C2 **Does not follow the theme** (semantic / data colours; may have light/dark, identical across
   the three themes):  
   - the CC/CX side badge tokens  
+  - the scrollbar thumb and its hover shade (appearance::REQ-001/AC-04, AC-05)  
   - the provider `--p-*`  
   - `--ok-*` / `--err-*` / warn semantics (brightness may be nudged where it clashes with a theme's
     paper feel, but the hue is not bound to the theme)  
@@ -203,6 +227,30 @@ document by its headings)
   the rendered body. Chrome headings are scoped with a child combinator (or a dedicated class);
   the same applies to any future container that starts hosting markdown.
 
+**Sequence F: scrollbars** (the user scrolls any list, page, drawer or code block, with a mouse or a
+trackpad, in light or dark)
+
+- F1 A Mac with a mouse connected, where macOS would draw a classic scrollbar with a track, and a
+  trackpad-only Mac, where it would draw an overlay scrollbar that hides when idle: both show the same
+  6px thumb on no track, shown whenever the content overflows (appearance::REQ-001/AC-01..AC-03).
+- F2 macOS's "Show scroll bars" setting (automatically, when scrolling, always) does not change the
+  scrollbar the app draws.
+- F3 An area that scrolls both ways (a wide table, a long code block): two 6px scrollbars, and their
+  meeting corner shows the surface beneath (appearance::REQ-001/AC-02).
+- F4 Switching light/dark, by the mode control or by the system while following it, recolours every
+  visible thumb at once, with no reload (sequence B); switching the theme leaves the thumbs as they are
+  (appearance::REQ-001/AC-04, C2).
+- F5 Content that grows past its area (a rescan adds rows, a turn is expanded) gains a scrollbar, and
+  content that shrinks back loses it, with no other change to the area (appearance::REQ-001/AC-03).
+- F6 Dragging the thumb, clicking beside it where the track was, and wheel or keyboard scrolling behave
+  as before; only the drawing changed.
+- F7 The narrower scrollbar takes 6px where the classic one took 15px and the overlay one took none:
+  layouts that measure their width (one-line labels, the cut of a search hit row, the session list's
+  columns) keep their rules at the new width.
+- F8 A scrolling area inside rendered markdown (a fenced code block, a wide table) and inside the file
+  drawer and the overlays draws the same scrollbar: the rule covers the whole app, with no surface keeping
+  the platform's.
+
 **Cross-cutting**
 
 - R1 Prefs: stored in the main process with IPC `getPrefs` / `setTheme` / `setMode` (one setter per
@@ -245,6 +293,12 @@ document by its headings)
   on wrapped headings, and the dual-track form jumps too hard for this app's restraint. Values in
   sequence E. Before this, the two surfaces disagreed (the drawer used UA sizes with h1 ≈ 2em; the
   document card flattened h1/h2/h3 to one size) and h4–h6 had no rules at all on either.
+- **Scrollbars** (settled 2026-10-23 on the prototype): a 6px thumb with 3px rounded ends, on no track,
+  shown whenever the content overflows, in a neutral grey that follows light and dark but not the
+  theme, darker under the pointer — values in appearance::REQ-001. Chosen over 8px, over the engine's
+  own thin scrollbar (an 11px gutter it sets itself, with no hover shade), over showing the thumb only
+  while the pointer is over its area, over keeping the platform's scrollbar for all but the longest
+  lists, and over taking the theme's accent.
 
 ## Implementation Decisions
 
@@ -305,6 +359,18 @@ and excluding `theme.css` itself, the whole of git history proves no code has ev
 — they are **dead code**. Adopting the `nativeTheme` approach leaves them still untriggered. The
 recommended handling is in "Out of Scope".
 
+### Scrollbars are drawn by the app
+
+- Every element's scrollbar is drawn through WebKit's scrollbar pseudo-elements, from the theme
+  stylesheet, with no per-component rule: the scrollbar, the track, the corner, the thumb and its hover
+  state. The thumb's two colours are tokens with a light and a dark declaration and none per theme (C2).
+- Measured in the app's Electron 43 window (2026-10-23): with no rule, a 15px classic scrollbar with a
+  light track in dark; declaring a dark `color-scheme` turns that track dark but keeps its 15px and the
+  track; the standard `scrollbar-width: thin` with `scrollbar-color` gives a transparent track but an
+  11px gutter the engine sets, with no hover state; the drawn scrollbar is exactly as specified. A drawn
+  scrollbar replaces macOS's overlay one, which is why the thumb does not hide when idle (F1).
+- The corner needs its own rule: left out, it stays a light square where two scrollbars meet.
+
 ## Testing Decisions
 
 - Prefs: `theme` defaults to `purple`, `mode` defaults to `system`; three-value read/write, and
@@ -347,6 +413,15 @@ recommended handling is in "Out of Scope".
   it is the same technique the light/dark cases already use on the body background.
 - **Code styling (E7b)**: the same two surfaces assert the fence's border and paper inset, the
   absence of an inner box on the code element inside the fence, and the inline pill's border.
+- **Scrollbars (appearance::REQ-001)**: e2e, on a list that overflows in the running app, in light and
+  dark. The width is geometry: the area's width less its client width, 6px — the e2e window draws a
+  15px classic scrollbar without the rule, so the measure tells the two apart. The colours are not
+  readable through computed styles (a scrollbar is no element), so they are read from a capture of the
+  window: a pixel beside the thumb equals the area's own background (no track), and a pixel inside the
+  thumb equals the thumb colour laid over that background, at rest and under the pointer. Reading a
+  few pixels at measured positions is not the screenshot comparison ruled out above. Dark goes
+  through the colour-scheme emulation, as the other dark cases do. The two thumb tokens' variation —
+  light and dark differ, the three themes do not — is checked across all six states.
 
 ## Out of Scope
 
@@ -354,6 +429,12 @@ recommended handling is in "Out of Scope".
 - Switching light/dark automatically by time (sunrise/sunset or a schedule).  
 - Changing the provider brand colours, or binding CC/CX into the theme.  
 - Coupling with skill business logic (only tokens are shared).  
+- **A thumb that shows only while scrolling**, as macOS's overlay scrollbars do: a drawn scrollbar
+  cannot hide on its own, and showing it on scroll would take a script on every scrolling area; the
+  thumb shows whenever the content overflows instead (appearance::REQ-001/AC-03).  
+- **Native form controls in dark** (the platform's own pickers and inputs): declaring a colour scheme
+  is not part of the scrollbar change.  
+- **The landing page's scrollbars**: the site is a project of its own.  
 - **Cleaning up the 4 sets of dead `:root[data-theme]` rules in `theme.css`**: the evidence is
   conclusive (see the implementation decisions), but deleting them touches four non-adjacent regions
   of `theme.css` and does not overlap this change surface (the settings page + the main process's
@@ -379,6 +460,9 @@ recommended handling is in "Out of Scope".
   "purple is the default" moved into the section's closing explanation; palette samples following the
   effective light/dark. The conclusions are inlined into "UI decisions"; persistent documents do not
   carry pointers to prototype paths.  
+- **Prototype gate (scrollbars): passed** (2026-10-23). Confirmed on every app page of the prototypes,
+  in light and dark: the 6px thumb on no track, always shown on overflow, the neutral grey and its hover
+  shade. The conclusions are inlined into appearance::REQ-001 and "UI decisions".  
 - 3 themes × 2 effective light/dark = **6 states** to test by hand, plus the following/locking matrix
   of 3 modes × 2 system appearances.  
 - The prototype simulated light/dark switching with `data-theme` because of its carrier's limits (there

@@ -50,6 +50,8 @@
   --tc-rd: #2b8fd4;
   --tc-in: #dda32e;
   --tc-ou: #57a83e;
+  --scroll-thumb: rgba(0,0,0,0.25);
+  --scroll-thumb-hover: rgba(0,0,0,0.4);
 }
 html[data-demo-theme="blue"] {
   --bg: #f6f5f3;
@@ -120,6 +122,8 @@ html[data-demo-mode="dark"] {
   --tc-rd: #5fb0e8;
   --tc-in: #e6bd5c;
   --tc-ou: #7cc45f;
+  --scroll-thumb: rgba(255,255,255,0.22);
+  --scroll-thumb-hover: rgba(255,255,255,0.36);
 }
 html[data-demo-mode="dark"][data-demo-theme="blue"] {
   --bg: #16181c;

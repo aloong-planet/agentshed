@@ -17,3 +17,29 @@
   height: 100vh;
   overflow: hidden;
 }
+
+/* Every scrolling area in the app draws a 6px thumb, rounded, in a neutral grey that follows light and dark but
+   not the theme, on no track, shown whenever its content overflows (the owner's decision of 2026-10-23). The corner
+   where a vertical and a horizontal scrollbar meet is cleared too, or it stays a light square. A drawn scrollbar
+   replaces macOS's overlay one, so the thumb stays in view when idle: always shown is the choice. Candidates cells
+   take the rule too, since each draws a piece of the app window. */
+.app-window ::-webkit-scrollbar,
+.candidate-cell ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.app-window ::-webkit-scrollbar-track,
+.app-window ::-webkit-scrollbar-corner,
+.candidate-cell ::-webkit-scrollbar-track,
+.candidate-cell ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.app-window ::-webkit-scrollbar-thumb,
+.candidate-cell ::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 3px;
+}
+.app-window ::-webkit-scrollbar-thumb:hover,
+.candidate-cell ::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
