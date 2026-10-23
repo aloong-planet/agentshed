@@ -435,7 +435,11 @@ Seams confirmed by the owner on 2026-10-13:
   `AGENTSHED_*` test seams and never set in production. It lets Playwright drive found → downloading →
   ready → install, from either button and including the install failure, and assert the rail button,
   its tooltip text and geometry, the settings section and line, and the toasts. It also stands in for
-  "packaged" for the update feature only, so the settings controls can be exercised under test.
+  "packaged" for the update feature only, so the settings controls can be exercised under test. It can
+  hold a check in flight, and a download at its first step, until the case lets it go; a case that must
+  see a check in flight or a download's step holds it. Unheld, both run on timers started at the check,
+  and at launch the check runs while the window is still loading: a step can pass before the window
+  shows, and a notice the launch check sends arrives before the window listens and never shows.
 - **The preferences store**: the switch's default, persistence and per-field fallback, following the
   existing preference cases.
 - **The post-update line**: e2e seeds an older, equal, newer or missing recorded version in the

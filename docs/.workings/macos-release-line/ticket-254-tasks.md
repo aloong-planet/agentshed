@@ -49,8 +49,8 @@ the requirements are [the app-update spec](../../specs/app-update.md); the cover
 | 4b | After the owner's decision D3: the six timed downloads, the six timed checks (the check's hold, U5, U6), and every "no toast" read that could not be red (E2, E2a, E3, E9) | the plants P1–P5 as expected; targeted run | done: `ticket-254-review-tests.md`, Handling; `evidence/ticket-254/targeted-2.txt` (`TARGETED_EXIT=0`) |
 | 5 | Code review | `ticket-254-review-code.md` | done for 22c8ce6: one wording fix (the doc comment); the hold's premises measured (a half-written script, teardown while held); no refactoring. The increment after D3: done, its premises measured (a launch check's notice before the window listens, a window's requests in order); no refactoring |
 | 6 | Full gateway | `evidence/ticket-254/gateway-98b2208.txt` | 98b2208: `VERIFY_EXIT=0` on its clean tree (873 unit, 109 site, 148 e2e in 4.8 min, smoke OK). The run on 43451fa was overtaken by the increment |
-| 7 | Independent post-implementation test check | `ticket-254-review-tests.md` | first round done on 1349d76..e4a86dd (F1, F2 handled); the incremental check of e4a86dd..98b2208 handed to the same independent agent |
-| 8 | Spec check, step 7 write-back (the spec's Testing Decisions name the hold), step 8 | `final-regression.md` | |
+| 7 | Independent post-implementation test check | `ticket-254-review-tests.md` | done: the first round on 1349d76..e4a86dd (F1, F2), the incremental check on e4a86dd..9233d96 (F3–F6), every finding handled; no test, code or data change required by the incremental check |
+| 8 | Spec check, step 7 write-back (the spec's Testing Decisions name the holds; CONTEXT's invariant; the checklists' rows), step 8 | `final-regression.md` | done: spec check and step 7 (below); step 8, the #254 section of `final-regression.md` |
 | 9 | CI: the two cases repeated | a throwaway branch's run, recorded | |
 | 10 | PR; stop for the owner | PR link | |
 
@@ -61,3 +61,13 @@ scripts` lists `src/main/index.ts` (the entry, no test) and `src/main/update-sou
 "AGENTSHED_UPDATE_SCRIPT" e2e` lists `e2e/app-update.spec.ts`, `e2e/menu-check-updates.spec.ts` and
 `e2e/settings-updates.spec.ts`, every e2e that goes through the scripted source. All of them, with typecheck, lint and a
 fresh build, passed (`evidence/ticket-254/targeted.txt`: 13 unit tests, 38 e2e, `TARGETED_EXIT=0`).
+
+## Spec check before step 7 (2026-10-23, implementation 98b2208, spec as on the branch)
+
+| Unit | Spec text, in short | Implementation | Conclusion |
+|---|---|---|---|
+| app-update::REQ-001/AC-04 and the other units of the 13 changed cases | as before | no product behaviour changed: only the scripted source (a test seam, never set in production) and the cases | Met, unchanged |
+| Testing Decisions, the scripted source | "lets Playwright drive found → downloading → ready → install …" | gains the check's and the first step's holds | Written back (step 7) |
+| i18n::REQ-003 | a removed stored language reads as follow system, with no notice | unchanged; its e2e read now able to fail | Met, unchanged |
+
+Scope added without a spec line: the two hold fields, now in the spec's Testing Decisions. Deviations from the spec: none.

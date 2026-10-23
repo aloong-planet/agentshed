@@ -2,6 +2,7 @@
 # P1: holdCheck and holdFirstStep ignored. P5: every step at once, the holds intact. P1b: both.
 # commands: node plant-no-hold.mjs | plant-instant-steps.mjs | plant-no-hold-instant.mjs e2e/app-update.spec.ts e2e/menu-check-updates.spec.ts e2e/settings-updates.spec.ts
 # Each plant reached the build: holdFirstStep is named on 1 line of out/main/index.js unplanted and 0 with the hold loops made dead (the bundler drops them); stepMs appears 1 time unplanted and 0 with steps at once (plant-instant-check.mjs)
+# plant-instant-check.mjs's output (printed when it ran, 2026-10-23): 'stepMs in the unplanted build: 1', 'stepMs in the planted build: 0', 'RESTORED byte-identical: true', 'stepMs after restore: 1'. P1b, which uses the same replacement, also shows it reached the build: five more cases red than under P1
 
 ## plant-no-hold.mjs
 // Plant P1: the scripted source ignores holdCheck and holdFirstStep (each guard made false). Rebuilds, runs the given
