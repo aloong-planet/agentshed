@@ -31,7 +31,7 @@ function initial(missing) {
  * @returns {ProjState}
  */
 function reduce(s, a) {
-  const deny = (why) => ({ ...s, illegal: `${a.type} 被忽略:${why}` });
+  const deny = (why) => ({ ...s, illegal: `${a.type} ignored: ${why}` });
   const ok = (status) => ({ status, illegal: null });
 
   if (TERMINAL.has(s.status)) return deny('已从注册表移除(终态),该项目不再存在');
@@ -46,7 +46,7 @@ function reduce(s, a) {
     case 'registry_removed':
       return ok('removed');
     default:
-      return deny('未知事件');
+      return deny('unknown event');
   }
 }
 
@@ -70,7 +70,7 @@ function legal(s) {
     if (s === null) { out[a.type] = { legal: false, why: '空态:还没有项目,先入场' }; continue; }
     const next = reduce(s, a);
     out[a.type] = next.illegal
-      ? { legal: false, why: next.illegal.replace(/^\S+ 被忽略:/, '') }
+      ? { legal: false, why: next.illegal.replace(/^\S+ ignored: /, '') }
       : { legal: true, why: null };
   }
   return out;

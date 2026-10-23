@@ -8,11 +8,11 @@ are what proves each step done. Coverage rows: `226::*` in [checklist.md](checkl
 | # | Task | Checkpoint | State |
 |---|---|---|---|
 | 1 | Diff the three pages against the skill's `logic-page-template.html` on the base commit 1349d76 and list the chrome strings | diff per page | done: header comment, drive heading, the two receipts and the empty-state receipt, reset button, stress toggle and hint, empty-diagram notice, reset-view title, the two tooltip prefixes — the list #226 gives |
-| 2 | Test design review (`/review-tests`) | `ticket-226-review-tests.md` | pending |
-| 3 | Rewrite each page's chrome to the template's English wording; keep the prototype content | diff per page; remaining Chinese lines by kind | pending |
-| 4 | Drive each page alone and in the gallery: entry buttons, an event, reset, stress mode, reset-view | browser run, no page error | pending |
-| 5 | `pnpm check:lang` | exit code | pending |
-| 6 | Step 5: `/review-code` | `ticket-226-review-code.md` | pending |
+| 2 | Test design review (`/review-tests`) | `ticket-226-review-tests.md` | skipped with TDD: prototypes carry no tests (the prototype skill: "no tests"); the driving probe in the coverage checklist proves the change, red on the base page. The post-implementation check (task 8) still runs |
+| 3 | Rewrite each page's chrome to the template's English wording; keep the prototype content | diff per page; remaining Chinese lines by kind | done in dbd90fc: chrome rewritten; the Chinese lines left are page title, question, state field labels, group and button labels, and two field renderings |
+| 4 | Drive each page alone and in the gallery: entry buttons, an event, reset, stress mode, reset-view | browser run, no page error | done: all three pages alone and in the gallery, no page or console error |
+| 5 | `pnpm check:lang` | exit code | done: exit 0 |
+| 6 | Step 5: `/review-code` | `ticket-226-review-code.md` | done: no bug; the class-level check found the same chrome in each `logic.js`; the owner added it on 2026-10-23, fixed in the review commit |
 | 7 | Full verification gateway (shared with #250) | `pnpm verify` log | pending |
 | 8 | Step 6: `/review-tests` post-implementation check, independent agent | `ticket-226-review-tests.md` | pending |
 | 9 | Final check against #226 and archive (step 7) | checklist rows `226::*` | pending |

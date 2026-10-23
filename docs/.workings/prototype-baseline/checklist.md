@@ -61,6 +61,8 @@ lines, then #250's items and #226's fix and verification lines; each names the t
 | 226::1 | #226 Fix: each logic page's template chrome reads the template's current English wording; prototype content (page title, question, state and button labels) stays as it is | Evidence: `diff` of each page against the skill's `logic-page-template.html`; every Chinese line left listed by kind |
 | 226::2 | #226 Verification: each page renders in the gallery and its driving panel works — entry buttons, an event, reset, stress mode, the reset-view button | Evidence: browser drive of each page, alone and in the gallery |
 | 226::3 | #226 Verification: `pnpm check:lang` passes | Gate: `pnpm check:lang` exit 0 |
+| 226::R1 | Code review, owner's decision of 2026-10-23: each logic page's `logic.js` takes the English chrome of the skill's `logic-template.js` — the rejection prefix with its regex, and the unknown-event reason; the reasons each page wrote stay as they are | Evidence: driving probe — tooltip reasons without the prefix, a forced illegal event's receipt; a mutation that unpairs one regex turns its check red |
+| 250::R1 | Code review, item 7's class: the Agents page's header says the bar carries four groups; the global-search page's header names its search-request group | Evidence: each harness page's header against its bar's groups |
 
 ## Current verification
 
@@ -87,7 +89,7 @@ lines, then #250's items and #226's fix and verification lines; each names the t
 | same | 250::4 | Both previews: mask 0.35 and drawer shadow 0.12 in all six palette × mode states (before: 0.5 and 0.45 in dark); drawers opened by clicks in dark render those values; the comments no longer mention the app's values | Verified |
 | same | all units | 48 snapshots against 7a193af: text identical, pixels identical but for 2 antialiasing pixels; check:ui, check:lang, check:nul exit 0 | Verified |
 | 2026-10-23; 1349d76 | 250::1, 250::2, 250::3, 250::5, 250::6, 250::7, 250::8, 250::9, 250::done | Not run yet | Unverified |
-| 2026-10-23; 1349d76 | 226::1, 226::2, 226::3 | Not run yet | Unverified |
+| 2026-10-23; 1349d76 | 226::1, 226::2, 226::3, 226::R1, 250::R1 | Not run yet | Unverified |
 
 ## Two-way audit
 
@@ -96,5 +98,6 @@ lines, then #250's items and #226's fix and verification lines; each names the t
 | Every #251 item has a row above; item 4 has nothing left to verify | #251 items 1–14, Done when | Mapped |
 | The code review's refactor list and #250 item 4 joined this round by the owner's decision of 2026-10-18; #250's other items stay out | 251::R1, 251::R2, 250::4 | Mapped |
 | Second round: every #250 item still open has a row (1–3, 5–9) and so does its "Done when"; item 4 stays verified above. Each item was rechecked on 1349d76 before the work: items 1, 2, 3, 5, 6, 8 and 9 still hold as written; item 7 was mostly fixed by #264 (the header gained the startup group) and #298 added the memory-read group, but the header still says the bar carries two groups where it carries three | #250 items 1–9, Done when | Mapped; item 7's row covers the residual count |
-| Second round: #226's fix and its three verification lines each have a row; the logic pages' `.mmd` files and `logic.js` are not named by #226 and stay out | #226 Fix, Verification | Mapped |
+| Second round: #226's fix and its three verification lines each have a row. #226 names only the pages; the code review found the same template chrome in each `logic.js`, on the same receipt bar, and the owner added it on 2026-10-23 (226::R1). The `.mmd` files and `model.mmd.js` carry only diagram titles, which are content | #226 Fix, Verification; code review | Mapped |
+| Second round: the code review's class-level check of item 7 found two more header notes out of step with their bars, fixed in this round (250::R1) | #250 item 7; code review | Mapped |
 | #226 lists the page title as prototype content. The `<title>` keeps its Chinese "Prototype — " prefix, which every prototype page's tab title uses, so the gallery's tabs stay uniform | #226 Fix | Kept as content; listed by kind under 226::1 |
