@@ -44,6 +44,8 @@ cut).
 | 3 | Test design review | `ticket-227-review-tests.md`, Design review | done (H2 amended for the group kill, H3 added from the code review) |
 | 4 | Slices: S1 the helper (bounded close, kill, note); S2 every teardown through it; the loop under load again | the helper's cases red then green; the loop's closes bounded | done: H2 red against an unbounded close, then green (`helper-cases-first.txt`); the loop with a main-only kill still had closes of 28–69 s and two timeouts (`after-main-kill.txt`), so the helper kills the group: H2 red against the main-only kill, then green, and the loop seven of seven with every close at 10.0 s (`after-group-kill.txt`); 72 sites moved, none left; targeted run `targeted.txt` (150 e2e, `TARGETED_EXIT=0`, on the change before H3) |
 | 5 | Code review | `ticket-227-review-code.md` | done: H3 (a group already gone) fixed red first; the header's claim narrowed to what was measured |
-| 5b | Full gateway, independent test check, step 7 (CONTEXT's invariant), step 8 | the records | |
+| 5b | Full gateway | `evidence/ticket-227/gateway-580b426.txt` | done: `VERIFY_EXIT=0` on the clean tree of 580b426 (867 unit, 109 site, 151 e2e, smoke OK); the only kill noted is the helper's own stand-in case |
+| 5c | Independent post-implementation test check | `ticket-227-review-tests.md` | handed to an independent agent on 1349d76 up to the commit that records the gateway run |
+| 5d | Step 7 (CONTEXT's invariant), step 8 | the records, `final-regression.md` | |
 | 6 | CI: the case repeated | a throwaway branch's run, recorded | |
 | 7 | PR; stop for the owner | PR link | |
