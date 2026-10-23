@@ -592,3 +592,27 @@ What the findings oblige, for the main agent to apply (this check edited only th
 |---|---|
 | K1 | The S10 design row now lists the idle reading and says it was re-reviewed; the earlier handling heading is promoted to the same level as the first, so it no longer reads as part of a review |
 | K2 | The case's comment and the I1 handling row reworded: the reading shows the thumb painted at rest, the 6px rules out overlay. Comment only: the syntax trees without comments match (`evidence/ticket-281/k2-comment-only.txt`), so no further check |
+
+## CI on ubuntu: the hover readings (implementing session, 2026-10-23)
+
+CI's e2e on ubuntu failed the light hover reading, twice (`evidence/ticket-281/ci-hover-linux.txt`; a second run with the
+pointer brought in steps). A temporary diagnostic case logged, on each platform
+(`evidence/ticket-281/ci-diag-linux.txt`):
+
+- **macOS**: the thumb 191 at rest, 153 under the pointer (black at 40% over white); the list matches `:hover`.
+- **ubuntu**: the thumb 191 at rest; the point under the pointer hits the list, and a row beside it takes its hover
+  background (`rgb(240, 235, 246)`), so synthetic pointer moves reach the page. With the pointer on the thumb, the list
+  does not match `:hover`, and the thumb stays at 191 under a stepped approach, a further move and a press alike.
+
+So on ubuntu, Chromium does not take a scrollbar under a synthetic pointer as hovered. The mechanism is unmeasured; a
+likely one is that scrollbar input is handled on the compositor thread on Linux and Windows and not on macOS. The app
+ships for macOS, where the shade is read.
+
+### Design change, re-reviewed before the tests changed
+
+| # | Covers | Seam | Input that drives the target branch | Asserted object and expected value's source | Fixture shape source | Expensive resource and how it is provided |
+|---|---|---|---|---|---|---|
+| S4 and S5's hover readings, moved to S11 | appearance::REQ-001/AC-05 | e2e, the running app, macOS only (an explicit skip elsewhere, naming the measured reason) | The 40-project home; the pointer brought in steps from the list onto the thumb, in light, then in dark emulation | The thumb's centre: black at 40% over the list's background in light, white at 36% in dark; the poll returns the pixel read when it does not match, so a failure shows its colour | The 40-project home | One launch (0.6–0.7s) |
+
+S1–S3, S5's other readings, S6 and S7 stay in the scrollbar case on every platform; ubuntu now runs them past the point
+where the hover reading stopped it.

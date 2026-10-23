@@ -4202,15 +4202,6 @@ test('scrollbars: every scrolling area draws a 6px thumb on no track, in light a
   const lightThumb = await pixelAt(win, light.columnX, light.thumbY)
   expect.soft(lightThumb, 'the thumb is sampled, not the track').not.toEqual(lightTrack)
   expect.soft(near(lightThumb, over(0, 0.25, light.background)), `the thumb is black at 25% over ${rgb(light.background)}, got ${rgb(lightThumb)}`).toBe(true)
-  // AC-05: under the pointer, black at 40%. The pointer comes in from the list in steps, as a hand would, and the
-  // poll reports the pixel it read
-  await win.mouse.move(light.columnX - 40, light.thumbY)
-  await win.mouse.move(light.columnX, light.thumbY, { steps: 5 })
-  await expect.poll(async () => {
-    const got = await pixelAt(win, light.columnX, light.thumbY)
-    return { black40: near(got, over(0, 0.4, light.background)), got: rgb(got) }
-  }, 'under the pointer the thumb is black at 40%').toEqual({ black40: true, got: expect.any(String) })
-  await win.mouse.move(5, 5)
   await win.locator('.side').screenshot({ path: 'e2e-out/scrollbars-list-light.png' })
 
   // In dark (#281: a light strip beside a dark list), with no reload
@@ -4222,13 +4213,6 @@ test('scrollbars: every scrolling area draws a 6px thumb on no track, in light a
   expect.soft(near(darkTrack, dark.background), `the track shows the list's dark background ${rgb(dark.background)}, got ${rgb(darkTrack)}`).toBe(true)
   const darkThumb = await pixelAt(win, dark.columnX, dark.thumbY)
   expect.soft(near(darkThumb, over(255, 0.22, dark.background)), `the thumb is white at 22% over ${rgb(dark.background)}, got ${rgb(darkThumb)}`).toBe(true)
-  await win.mouse.move(dark.columnX - 40, dark.thumbY)
-  await win.mouse.move(dark.columnX, dark.thumbY, { steps: 5 })
-  await expect.poll(async () => {
-    const got = await pixelAt(win, dark.columnX, dark.thumbY)
-    return { white36: near(got, over(255, 0.36, dark.background)), got: rgb(got) }
-  }, 'under the pointer the thumb is white at 36%').toEqual({ white36: true, got: expect.any(String) })
-  await win.mouse.move(5, 5)
   await win.locator('.side').screenshot({ path: 'e2e-out/scrollbars-list-dark.png' })
 
   // F6: scrolling behaves as before — a click where the track was pages down, the thumb drags, the wheel turns
@@ -4264,35 +4248,41 @@ test('scrollbars: every scrolling area draws a 6px thumb on no track, in light a
   await close(l)
 })
 
-// DIAG-281 (temporary, removed with the fix): how this platform draws the thumb under a pointer
-test('zz diag-281: the thumb under the pointer on this platform', async () => {
+/**
+ * The thumb darkens under the pointer (appearance::REQ-001/AC-05), on macOS, where the app ships. On CI's ubuntu
+ * (measured 2026-10-23), a synthetic pointer on the thumb reaches the page — a row beside it takes its hover — but
+ * Chromium does not take the scrollbar as hovered: the list does not match :hover and the thumb keeps its resting shade.
+ */
+test('scrollbars: the thumb darkens under the pointer, in light and in dark (appearance::REQ-001/AC-05)', async () => {
+  test.skip(process.platform !== 'darwin', 'on ubuntu, Chromium leaves a scrollbar under a synthetic pointer unhovered (measured); the app ships for macOS')
   const l = await launch(undefined, manyProjectsHome())
   const win = await l.app.firstWindow()
   await win.setViewportSize({ width: 1000, height: 600 })
   await win.locator('.rail .ri').nth(1).click()
   await expect(win.locator('.side .row')).toHaveCount(40)
-  const a = await scrollArea(win, '.side .list')
-  const out: Record<string, unknown> = { platform: process.platform, area: a }
+  const LIST = '.side .list'
+  // The pointer comes in from the list in steps, as a hand would; the poll returns the pixel read when it is not the
+  // expected one, so a failure shows its colour
+  const underPointer = async (channel: 0 | 255, alpha: number): Promise<string> => {
+    const a = await scrollArea(win, LIST)
+    await win.mouse.move(5, 5)
+    await win.mouse.move(a.columnX - 40, a.thumbY)
+    await win.mouse.move(a.columnX, a.thumbY, { steps: 5 })
+    let read = ''
+    await expect.poll(async () => {
+      const got = await pixelAt(win, a.columnX, a.thumbY)
+      read = rgb(got)
+      return near(got, over(channel, alpha, a.background)) ? 'expected' : read
+    }).toBe('expected')
+    return read
+  }
+  await underPointer(0, 0.4)
   await win.mouse.move(5, 5)
-  out.rest = rgb(await pixelAt(win, a.columnX, a.thumbY))
-  out.hit = await win.evaluate(([x, y]) => document.elementFromPoint(x, y)?.className ?? null, [a.columnX, a.thumbY])
-  await win.mouse.move(a.columnX - 40, a.thumbY)
-  out.rowUnderPointerBg = await win.evaluate(([x, y]) => {
-    const row = document.elementFromPoint(x, y)?.closest('.row')
-    return row ? getComputedStyle(row).backgroundColor : null
-  }, [a.columnX - 40, a.thumbY])
-  await win.mouse.move(a.columnX, a.thumbY, { steps: 5 })
-  await win.waitForTimeout(500)
-  out.hovered = rgb(await pixelAt(win, a.columnX, a.thumbY))
-  out.listMatchesHover = await win.locator('.side .list').evaluate((el) => el.matches(':hover'))
-  await win.mouse.move(a.columnX, a.thumbY + 1)
-  await win.waitForTimeout(500)
-  out.hoveredAfterAnotherMove = rgb(await pixelAt(win, a.columnX, a.thumbY))
-  await win.mouse.down()
-  await win.waitForTimeout(300)
-  out.pressed = rgb(await pixelAt(win, a.columnX, a.thumbY + 1))
-  await win.mouse.up()
-  console.log('DIAG-281 ' + JSON.stringify(out))
+  const light = await paintedBackground(win.locator(LIST))
+  await win.emulateMedia({ colorScheme: 'dark' })
+  await expect.poll(() => paintedBackground(win.locator(LIST))).not.toEqual(light)
+  await underPointer(255, 0.36)
+  expect(l.errors).toEqual([])
   await close(l)
 })
 

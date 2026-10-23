@@ -1,0 +1,5 @@
+plant B2_no_hover: exit 1
+  errors: ["Error: expect(received).toBe(expected) // Object.is equality"]
+  failing lines: ["> 4276 |     }).toBe('expected')"]
+restored byte for byte: true
+rebuilt from the restored source
