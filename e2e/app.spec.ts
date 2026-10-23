@@ -4202,10 +4202,14 @@ test('scrollbars: every scrolling area draws a 6px thumb on no track, in light a
   const lightThumb = await pixelAt(win, light.columnX, light.thumbY)
   expect.soft(lightThumb, 'the thumb is sampled, not the track').not.toEqual(lightTrack)
   expect.soft(near(lightThumb, over(0, 0.25, light.background)), `the thumb is black at 25% over ${rgb(light.background)}, got ${rgb(lightThumb)}`).toBe(true)
-  // AC-05: under the pointer, black at 40%
-  await win.mouse.move(light.columnX, light.thumbY)
-  await expect.poll(async () => near(await pixelAt(win, light.columnX, light.thumbY), over(0, 0.4, light.background)),
-    'under the pointer the thumb is black at 40%').toBe(true)
+  // AC-05: under the pointer, black at 40%. The pointer comes in from the list in steps, as a hand would, and the
+  // poll reports the pixel it read
+  await win.mouse.move(light.columnX - 40, light.thumbY)
+  await win.mouse.move(light.columnX, light.thumbY, { steps: 5 })
+  await expect.poll(async () => {
+    const got = await pixelAt(win, light.columnX, light.thumbY)
+    return { black40: near(got, over(0, 0.4, light.background)), got: rgb(got) }
+  }, 'under the pointer the thumb is black at 40%').toEqual({ black40: true, got: expect.any(String) })
   await win.mouse.move(5, 5)
   await win.locator('.side').screenshot({ path: 'e2e-out/scrollbars-list-light.png' })
 
@@ -4218,9 +4222,12 @@ test('scrollbars: every scrolling area draws a 6px thumb on no track, in light a
   expect.soft(near(darkTrack, dark.background), `the track shows the list's dark background ${rgb(dark.background)}, got ${rgb(darkTrack)}`).toBe(true)
   const darkThumb = await pixelAt(win, dark.columnX, dark.thumbY)
   expect.soft(near(darkThumb, over(255, 0.22, dark.background)), `the thumb is white at 22% over ${rgb(dark.background)}, got ${rgb(darkThumb)}`).toBe(true)
-  await win.mouse.move(dark.columnX, dark.thumbY)
-  await expect.poll(async () => near(await pixelAt(win, dark.columnX, dark.thumbY), over(255, 0.36, dark.background)),
-    'under the pointer the thumb is white at 36%').toBe(true)
+  await win.mouse.move(dark.columnX - 40, dark.thumbY)
+  await win.mouse.move(dark.columnX, dark.thumbY, { steps: 5 })
+  await expect.poll(async () => {
+    const got = await pixelAt(win, dark.columnX, dark.thumbY)
+    return { white36: near(got, over(255, 0.36, dark.background)), got: rgb(got) }
+  }, 'under the pointer the thumb is white at 36%').toEqual({ white36: true, got: expect.any(String) })
   await win.mouse.move(5, 5)
   await win.locator('.side').screenshot({ path: 'e2e-out/scrollbars-list-dark.png' })
 
