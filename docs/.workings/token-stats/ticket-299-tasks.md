@@ -46,8 +46,8 @@ requirement authority: the requirement the step checks is token-stats::REQ-001/A
 | 4 | Slice: the rollover step waits for the tick | the held loop green with the case's window; the case repeated | done: the held loop green 5 of 5 with the step as changed, the restore file green five times (`evidence/ticket-299/after-change.txt`); a display clock stretched to a minute turns the step red (`evidence/ticket-299/plant-clock-stretched.txt`) |
 | 5 | Code review | `ticket-299-review-code.md` | done: no finding; the comment's facts measured |
 | 6 | Full gateway | `evidence/ticket-299/gateway-251e3f7.txt` | done: `VERIFY_EXIT=0` on the clean tree of 251e3f7 (867 unit, 109 site, 148 e2e, smoke OK) |
-| 7 | Independent post-implementation test check | `ticket-299-review-tests.md` | handed to an independent agent on 1349d76 up to the commit that records the gateway run |
-| 8 | Step 7 (nothing in the spec changes: no time is specified) and step 8 | `final-regression.md` | |
+| 7 | Independent post-implementation test check | `ticket-299-review-tests.md` | done: two record findings (F1, F2), handled; no test, code or data change required |
+| 8 | Spec check, step 7 (the spec's requirement unchanged: no time is specified; REQ-001 gains the fake-clock note), step 8 | `final-regression.md` | done: below, and the #299 section of `final-regression.md` |
 | 9 | PR; stop for the owner | PR link | |
 
 ## Targeted verification (step 4)
@@ -56,3 +56,12 @@ The tests that read what this change touched, found by search rather than recall
 `e2e/startup-restore.spec.ts`, with no product code, config or data changed, so the targeted set is that file
 (`git diff --name-only` lists it alone). It passed five times over (`evidence/ticket-299/after-change.txt`, 10 of 10), and
 typecheck and lint pass on it (`evidence/ticket-299/targeted.txt`).
+
+## Spec check before step 7 (2026-10-23, implementation 251e3f7, spec as on the branch)
+
+| Unit | Spec text, in short | Implementation | Conclusion |
+|---|---|---|---|
+| token-stats::REQ-001/AC-02 | crossing midnight or changing time zone must not split the definition of today | unchanged; its e2e step waits for the display clock's tick | Met, unchanged |
+
+Scope added without a spec line: none (the fake-clock note is a testing fact, written beside the display clock's test
+note). Deviations from the spec: none.

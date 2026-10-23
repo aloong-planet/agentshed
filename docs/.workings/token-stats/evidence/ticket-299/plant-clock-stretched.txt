@@ -1,5 +1,7 @@
 # #299, 2026-10-23, macOS: planted fault — the display clock's interval stretched to a minute, so it does not tick within the step's window; rebuilt, the restore case run, the file restored byte for byte and rebuilt
 # expected: red at the rollover step
+# Note added after the post-implementation check (F1): the in-run line 'PLANT in the build (count of the stretched interval): 0' reads 0 because its pattern has no space after the comma while the bundle keeps one ('setInterval(tick, 6e4)'), and the pipe into wc hid grep's no-match status. Reach is shown by plant-299-check.mjs below, which applies the same replacement on a second build: 'setInterval(tick, 6e4)'.
+# Without the plant the bundle reads 'setInterval(tick, 1e3)': read from out/renderer/assets/*.js after the restore (2026-10-23), and by the check from the gateway's own build (out/renderer/assets/index-CwhfPdBv.js).
 
 ## plant-299.mjs
 // Plant: the display clock no longer ticks within the step's window (its interval stretched to a minute).
