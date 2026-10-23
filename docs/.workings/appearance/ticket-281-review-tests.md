@@ -15,8 +15,8 @@ appearance::REQ-001 and sequence F.
 | S1 | appearance::REQ-001/AC-01, AC-03 (shown while idle); #281's strip | e2e, the running app's project list | 40 registered projects at a 1000×600 viewport, so the list overflows; nothing scrolled | The list overflows (scroll height above client height, asserted first), then its width less its client width less its borders = 6. Expected: the spec's 6px. Red today: the e2e window draws a 15px classic scrollbar | The 40-project home of the #122 case (registered project directories, the form `.claude.json` takes): the rows are what matter, not their contents | One app launch for S1–S7, on the build `pnpm e2e` makes once (a launch is 0.6–0.7s, not an expensive resource: corrected below) |
 | S2 | appearance::REQ-001/AC-02 (no track), light | the same | S1's state | A pixel in the scrollbar's column below the thumb, read from a capture of the window, equals the list's own background (the first painted background up its ancestors, read from computed styles), within 2 per channel. Expected: the spec's "the surface beneath shows through". Red today: the classic track is a lighter grey than the list | the same | the same launch |
 | S3 | appearance::REQ-001/AC-04, light | the same | S1's state | A pixel at the thumb's centre equals black at 25% laid over the list's background, within 2. Expected: the spec's literal alpha, blended by hand in the test, not read from the stylesheet | the same | the same launch |
-| S4 | appearance::REQ-001/AC-05, light | the same | The pointer moved onto the thumb | The same pixel equals black at 40% over the background; polled on the pixel itself (false-greens §5) | the same | the same launch |
-| S5 | appearance::REQ-001/AC-02, AC-04, AC-05 in dark; sequence F4 | the same | The page's colour scheme emulated dark, with no reload; the list's background polled until it is the dark one | S2–S4 again with white at 22% and 36% over the dark background. Red today, and #281's own symptom: the light track beside a dark list | the same | the same launch |
+| S4 | appearance::REQ-001/AC-05, light | the same | The pointer moved onto the thumb | The same pixel equals black at 40% over the background; polled on the pixel itself (false-greens §5) (its reading moved to S11, macOS only, after CI on ubuntu: see "CI on ubuntu: the hover readings") | the same | the same launch |
+| S5 | appearance::REQ-001/AC-02, AC-04, AC-05 in dark; sequence F4 | the same | The page's colour scheme emulated dark, with no reload; the list's background polled until it is the dark one | S2–S4 again with white at 22% and 36% over the dark background. Red today, and #281's own symptom: the light track beside a dark list (its hover reading moved to S11, macOS only, after CI on ubuntu: see "CI on ubuntu: the hover readings"; its track and thumb readings stay here) | the same | the same launch |
 | S6 | appearance F6 | the same | A wheel turn over the list; a press on the thumb dragged down; a click in the scrollbar's column below the thumb | Each moves the list's scroll position down from where it was. Expected: the spec's "behave as before" — the platform's scrolling, not a value of ours | the same | the same launch |
 | S7 | appearance::REQ-001/AC-03 (none when the content fits), F5 | the same | The viewport made taller than the 40 rows need, then short again | Tall: no overflow and a 0 width difference; short again: overflow and 6 | the same | the same launch |
 | S8 | appearance::REQ-001/AC-01 (horizontal, 6px tall), AC-02 (the corner), F3, F8 (a drawer, rendered markdown) | e2e, the memory drawer's preview of the wide file, inside the existing case that already opens it | The wide file: a long unbroken path and a wide table make the drawer's body scroll both ways; a wide code line makes its fence scroll sideways | The body's two scrollbars measure 6 and 6, the fence's horizontal one 6; the corner square's innermost pixel equals the body's background, read in dark (amended during implementation, below) | The existing wide-file fixture, shaped on Codex's consolidated memory (memory-view E5) | That case's launch, no new one |
@@ -596,8 +596,8 @@ What the findings oblige, for the main agent to apply (this check edited only th
 ## CI on ubuntu: the hover readings (implementing session, 2026-10-23)
 
 CI's e2e on ubuntu failed the light hover reading, twice (`evidence/ticket-281/ci-hover-linux.txt`; a second run with the
-pointer brought in steps). A temporary diagnostic case logged, on each platform
-(`evidence/ticket-281/ci-diag-linux.txt`):
+pointer brought in steps). A temporary diagnostic case logged, on each platform (`evidence/ticket-281/diag-macos.txt`,
+`evidence/ticket-281/ci-diag-linux.txt`):
 
 - **macOS**: the thumb 191 at rest, 153 under the pointer (black at 40% over white); the list matches `:hover`.
 - **ubuntu**: the thumb 191 at rest; the point under the pointer hits the list, and a row beside it takes its hover
@@ -614,5 +614,143 @@ ships for macOS, where the shade is read.
 |---|---|---|---|---|---|---|
 | S4 and S5's hover readings, moved to S11 | appearance::REQ-001/AC-05 | e2e, the running app, macOS only (an explicit skip elsewhere, naming the measured reason) | The 40-project home; the pointer brought in steps from the list onto the thumb, in light, then in dark emulation | The thumb's centre: black at 40% over the list's background in light, white at 36% in dark; the poll returns the pixel read when it does not match, so a failure shows its colour | The 40-project home | One launch (0.6–0.7s) |
 
-S1–S3, S5's other readings, S6 and S7 stay in the scrollbar case on every platform; ubuntu now runs them past the point
-where the hover reading stopped it.
+S1–S3, S5's other readings, S6 and S7 stay in the scrollbar case on every platform. CI on c57a9a2
+(`evidence/ticket-281/ci-ubuntu-c57a9a2.txt`): the scrollbar case passes on ubuntu, its dark readings, the click below
+the thumb, the drag and the wheel, and the tall and short windows run there for the first time; the two macOS-only
+cases skip by name; 146 passed, 2 skipped.
+
+## Post-implementation check — third incremental, on the hover fix
+
+2026-10-23. Ticket: [#281](https://github.com/aloong-planet/agentshed/issues/281), feature `appearance`. Fix range:
+29353e3..c57a9a2. Implementation version: c57a9a2. Run by the same independent subagent, which did not inherit the
+implementation conversation.
+
+Run evidence:
+
+- The targeted log ([targeted-hover-macos.txt](evidence/ticket-281/targeted-hover-macos.txt)) records 7604855 plus four
+  staged files with their `git hash-object`. All four equal c57a9a2's blobs: `e2e/app.spec.ts` a720f3b, this record
+  72a8efd, `ci-diag-linux.txt` 6e4da29, `e2e-plant-b2.txt` 0b7d5ed. Every command shows its full output and an exit
+  code of 0, with `TARGETED_EXIT=0`: lint, typecheck, the site tests, one build, all 85 cases of `e2e/app.spec.ts` (the
+  new hover case among them, line 143), and the three checks. No finding.
+- The latest full gateway ([gateway-764addb.txt](evidence/ticket-281/gateway-764addb.txt)) is valid for 764addb (a clean
+  tree, `VERIFY_EXIT=0`). But `e2e/app.spec.ts` changed after it, so per /implement it must be re-run before delivery.
+  This check did not re-run it and ran no test.
+- CI's ubuntu runs: [ci-hover-linux.txt](evidence/ticket-281/ci-hover-linux.txt) (at the one-move version) and
+  [ci-diag-linux.txt](evidence/ticket-281/ci-diag-linux.txt) (at 7604855, the stepped version plus the diagnostic).
+  - Both fail only at the light hover poll, a hard assertion, which stopped the case there.
+  - No soft failure is listed before it, so on ubuntu the list's 6px, its track and the thumb at rest all passed. This
+    settles the first round's environment note for those three readings.
+  - S5's dark readings, S6 and S7 have not yet run on ubuntu.
+
+### Incremental scope and how it was found
+
+- Code changed: `git diff --stat 29353e3 c57a9a2 -- src e2e scripts playwright.config.ts package.json
+  electron-builder.yml` lists only `e2e/app.spec.ts` (38 insertions, 9 deletions).
+- Where: `git diff -U0` has three hunks.
+  - `-4205,5` and `-4221,4` remove S4's and S5's hover readings from the scrollbar case.
+  - `+4251,38` adds the new hover case (S11, `e2e/app.spec.ts:4256–4287`).
+- No helper changed. S11 calls `launch`, `manyProjectsHome`, `scrollArea`, `pixelAt`, `paintedBackground`, `near`,
+  `over` and `rgb` unchanged. The only tests in scope are therefore the scrollbar case and S11.
+- The temporary diagnostic, added in 7604855, is fully removed: `rg -n "zz diag|DIAG-281|diag-281" e2e` exits 1 with no
+  match.
+- Rows of the test design table changed: the "S4 and S5's hover readings, moved to S11" row. The Design review's own S4
+  and S5 rows are unchanged: N1.
+- Carried over from the earlier rounds: every other test and helper.
+
+### Test design table against the written tests (incremental)
+
+| Row | Result |
+|---|---|
+| S11 | Matches the new row. macOS only, through an explicit skip naming the measured reason. One launch on the 40-project home. The pointer is brought in from a row onto the thumb in five steps. The poll reads the asserted pixel and returns it when it does not match: black at 40% in light, white at 36% after dark emulation, with dark entered by polling the list's background until it changes |
+| Scrollbar case | The hover readings are gone and every other reading is unchanged (light at rest, dark width, track and thumb, S6, S7) |
+| S4, S5 (Design review) | Still describe the hover readings as part of the S1–S7 launch on every platform: N1 |
+
+### Coverage
+
+Conclusion: AC-05 is still covered, now on macOS only. The skip on other platforms is explicit and gives a reason that
+was measured (the ubuntu diagnostic: the row's hover changes, so the synthetic pointer reaches the page; the list does
+not match `:hover`; the thumb stays at 191). The app ships for macOS only: `electron-builder.yml` has a `mac` target and
+no `linux` or `win` one.
+
+Two record findings and one document finding:
+
+- N1: the Design review's S4 and S5 rows still describe the old readings.
+- N2: two statements in the "CI on ubuntu" section rest on evidence that is not there.
+- N3: documents that still describe the old coverage and version.
+
+### Case design
+
+Conclusion: no red flag.
+
+- The pointer comes in through the page's own input path (Playwright's mouse) in steps.
+- The skip comes before the launch, so ubuntu pays nothing for it.
+- Each part of the case runs only after its precondition is reached: the 40 rows, then the dark background.
+- `underPointer` returns `read`, and no caller uses it. Harmless.
+
+### False greens
+
+Per the project capability declaration, mutation-testing is not enabled, so mutation testing is skipped.
+
+| Assertion | Goes red when | Seen red |
+|---|---|---|
+| S11, light hover (`:4276`, first call) | No hover rule, a wrong light hover token, or the pointer is not taken as over the thumb (as on ubuntu) | Yes. Plant B2 (no hover rule) failed at `:4276`, the current line of that poll, so the plant reached its target. On ubuntu, CI went red at the same reading twice |
+| S11, dark hover (`:4276`, second call) | A missing or wrong dark hover token (a missing one inherits black at 40%: about 19 against 112), or no hover rule | No. Plant B2 stopped at the light call; reasoned |
+
+- Form list: no always-true assertion (the hover shade differs from the resting one by about 38 per channel in light and
+  32 in dark). No tautology (the alphas come from the spec). No silent skip (the skip is explicit and named). Every poll
+  is awaited.
+- §5: the poll expression is the asserted pixel.
+- §2: the ubuntu failure was met by changing the environment the case runs in (skipping where Chromium does not take the
+  scrollbar as hovered), not by moving to a synthetic DOM event or loosening the assertion. A real hover on ubuntu is
+  neither shipped nor tested, and the skip reason says why.
+
+No false green found.
+
+### Resource reuse
+
+Conclusion: no finding.
+
+- The targeted run made one build (log lines 57–81).
+- S11 adds one launch on macOS (1.0s in all, line 143). It is a separate case because a platform condition inside the
+  scrollbar case would be an assertion block that runs only sometimes.
+- On ubuntu it skips before launching.
+
+### Findings
+
+| # | Dimension | Location | Finding | Suggested handling |
+|---|---|---|---|---|
+| N1 | Coverage (record) | This record's Design review table, the S4 and S5 rows | Their hover readings moved to S11 (macOS only, its own launch), but the rows still say they run in the S1–S7 launch on every platform. The new row sits only in the later section. This is the same stale-statement form I2 found, and its handling marked rows in place | Now, documents only: annotate S4's row, and the hover part of S5's row, as moved to S11, macOS only, with a pointer to "CI on ubuntu: the hover readings" |
+| N2 | Coverage (evidence) | The "CI on ubuntu" section: the macOS bullet and its closing sentence | (a) The macOS readings ("191 at rest, 153 under the pointer; the list matches `:hover`") cite `ci-diag-linux.txt`, which holds only the ubuntu output; no macOS diagnostic output is saved anywhere (`rg -uu "DIAG-281\|listMatchesHover\|153,153" docs/.workings/appearance` finds only the ubuntu line). (b) "ubuntu now runs them past the point where the hover reading stopped it" states a CI result that does not exist yet. S6's click and drag on the scrollbar go through the same synthetic-pointer path that left the hover unregistered on ubuntu, so they are where a further ubuntu failure is likeliest (inference) | Now: for (a), either save the macOS diagnostic output, or cite S11's macOS pass (`targeted-hover-macos.txt` line 143) for the shade and drop the unevidenced `:hover` clause. For (b), reword it as pending, and record CI's result on c57a9a2 when it lands. If S6 fails there, decide from that run's evidence and say so, rather than skip silently |
+| N3 | Coverage (documents) | [checklist](checklist.md): the AC-05 row ("Test: e2e, the same pixel with the pointer on the thumb") and the delivered-version row (764addb, "Verified on macOS at the delivered version", "the pixel reads run for the first time" on ubuntu); [doc-sync checklist](ticket-281-doc-sync.md) row "Record the actual verification…" marked Done on 764addb; spec Testing Decisions (`docs/specs/appearance.md`, the scrollbars bullet: "at rest and under the pointer") | AC-05 is now read on macOS only, with a measured reason, and the F1/F2 row already states this kind of limit; the AC-05 row and the spec do not. The delivered-version row and its Done mark rest on 764addb, which the e2e changes have overtaken | Now: add "macOS only, an explicit skip elsewhere, measured reason" to the AC-05 row, and to the spec's Testing Decisions as a known test gap on other platforms. Reopen the delivered-version row and the doc-sync "Done" (document-sync: a completed item whose ground has lapsed is reopened), and redo both after the full gateway re-run on the new head and CI's ubuntu run |
+
+### Document sync (incremental)
+
+Scope checked:
+
+- The range's diff for the test file, and the net diff against 29353e3.
+- 7604855's diagnostic and 50b6021's stepped approach.
+- This record's new section.
+- `ci-hover-linux.txt`, `ci-diag-linux.txt`, `e2e-plant-b2.txt` and `targeted-hover-macos.txt`, each read in full.
+- The 764addb gateway's version and results.
+- `electron-builder.yml`'s targets.
+- The checklist, the doc-sync checklist, `final-regression.md`, the features entry and the spec, searched for
+  statements on hover, AC-05 and 764addb. The features entry's "darker under the pointer" stays true for the shipped
+  macOS app.
+
+What the findings oblige, for the main agent to apply (this check edited only this section):
+
+- N1: this record's S4 and S5 rows.
+- N2: this record's "CI on ubuntu" section, plus either a saved macOS diagnostic or a changed citation.
+- N3: the checklist's AC-05 and delivered-version rows; the doc-sync checklist's verification row; the spec's Testing
+  Decisions.
+
+All three are documents only, so no further check is needed. The full gateway must be re-run on the new head before
+delivery, and CI's ubuntu run on c57a9a2 decides the remaining ubuntu readings.
+
+## Handling of the third incremental check's findings (implementing session, 2026-10-23)
+
+| # | Handling |
+|---|---|
+| N1 | The design review's S4 and S5 rows say their hover readings moved to S11, with a pointer to the CI section |
+| N2 | (a) The macOS diagnostic output saved (`diag-macos.txt`) and cited. (b) CI's run on c57a9a2 landed green and is recorded, the scrollbar case passing on ubuntu, S6's click and drag among it (`ci-ubuntu-c57a9a2.txt`) |
+| N3 | The checklist's AC-05 row and the spec's Testing Decisions state the platform limit; the delivered-version row and its Done mark reopened, redone after the full gateway on the new head |

@@ -432,7 +432,10 @@ recommended handling is in "Out of Scope".
   light and dark differ, the three themes do not — is asserted across all six states in the six-combination
   case. macOS's two styles (F1, F2) are driven by launching the app with a per-process
   `-AppleShowScrollBars` argument, which macOS reads for that process only; a control block given the
-  standard `scrollbar-width` draws the platform's own scrollbar and shows which style took effect.
+  standard `scrollbar-width` draws the platform's own scrollbar and shows which style took effect. The
+  hover shade (appearance::REQ-001/AC-05) is read on macOS only, where the app ships: on ubuntu, where CI
+  runs e2e, a synthetic pointer on the thumb reaches the page but Chromium does not take the scrollbar as
+  hovered (measured 2026-10-23), so that case skips there by name.
 
 ## Out of Scope
 

@@ -1,0 +1,653 @@
+# CI's e2e job on c57a9a2 (run 39919957395, job 120302511159), whole: the scrollbar case passes on ubuntu, the two macOS-only cases skip by name
+e2e(Electron)	Set up job	﻿2026-10-23T07:45:51.7592529Z Current runner version: '2.338.0'
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7629252Z ##[group]Runner Image Provisioner
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7630672Z Hosted Compute Agent
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7631810Z Version: 20261012.601
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7632888Z Commit: f3dc54e1fb89da6852db922499a0233137369e1d
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7634219Z Build Date: 2026-10-12T17:48:21Z
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7635654Z Worker ID: {94646ebf-08f8-4f15-82dd-78d16cb5734e}
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7637009Z Region: eastus
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7637908Z Cloud: Azure
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7638780Z ##[endgroup]
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7641106Z ##[group]Operating System
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7642140Z Ubuntu
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7643083Z 24.04.5
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7643943Z LTS
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7644915Z ##[endgroup]
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7646149Z ##[group]Runner Image
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7647117Z Image: ubuntu-24.04
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7648162Z Version: 20261012.334.1
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7650003Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261012.334/images/ubuntu/Ubuntu2404-Readme.md
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7652987Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261012.334
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7654616Z ##[endgroup]
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7657062Z ##[group]GITHUB_TOKEN Permissions
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7659791Z Contents: read
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7660767Z Metadata: read
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7661689Z Packages: read
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7662817Z ##[endgroup]
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7666122Z Secret source: Actions
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7667735Z Cache mode: write
+e2e(Electron)	Set up job	2026-10-23T07:45:51.7668811Z Prepare workflow directory
+e2e(Electron)	Set up job	2026-10-23T07:45:51.8159209Z Prepare all required actions
+e2e(Electron)	Set up job	2026-10-23T07:45:51.8231614Z Getting action download info
+e2e(Electron)	Set up job	2026-10-23T07:45:52.0592995Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+e2e(Electron)	Set up job	2026-10-23T07:45:52.1607835Z Download action repository 'pnpm/action-setup@v4' (SHA:b906affcce14559ad1aafd4ab0e942779e9f58b1)
+e2e(Electron)	Set up job	2026-10-23T07:45:52.3552824Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+e2e(Electron)	Set up job	2026-10-23T07:45:52.4410824Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+e2e(Electron)	Set up job	2026-10-23T07:45:52.6540832Z Complete job name: e2e(Electron)
+e2e(Electron)	Run actions/checkout@v4	﻿2026-10-23T07:45:52.7374111Z ##[group]Run actions/checkout@v4
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7375765Z with:
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7376402Z   repository: aloong-planet/agentshed
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7380315Z   token: ***
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7380901Z   ssh-strict: true
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7381438Z   ssh-user: git
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7382076Z   persist-credentials: true
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7382724Z   clean: true
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7383333Z   sparse-checkout-cone-mode: true
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7384003Z   fetch-depth: 1
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7384524Z   fetch-tags: false
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7385142Z   show-progress: true
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7386040Z   lfs: false
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7386623Z   submodules: false
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7387233Z   set-safe-directory: true
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7387869Z   allow-unsafe-pr-checkout: false
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.7388924Z ##[endgroup]
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8613310Z Syncing repository: aloong-planet/agentshed
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8616671Z ##[group]Getting Git version info
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8618134Z Working directory is '/home/runner/work/agentshed/agentshed'
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8620261Z [command]/usr/bin/git version
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8709331Z git version 2.55.0
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8745777Z ##[endgroup]
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8766551Z Temporarily overriding HOME='/home/runner/work/_temp/3f33648e-1ee9-4963-9b69-31955f160a04' before making global git config changes
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8769679Z Adding repository directory to the temporary git global config as a safe directory
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8776463Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentshed/agentshed
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8846702Z Deleting the contents of '/home/runner/work/agentshed/agentshed'
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8851651Z ##[group]Initializing the repository
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8853124Z [command]/usr/bin/git init /home/runner/work/agentshed/agentshed
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8976718Z hint: Using 'master' as the name for the initial branch. This default branch name
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8978548Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8979766Z hint: to use in all of your new repositories, which will suppress this warning,
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8980770Z hint: call:
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8981617Z hint:
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8982350Z hint: 	git config --global init.defaultBranch <name>
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8983170Z hint:
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8983895Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8985105Z hint: 'development'. The just-created branch can be renamed via this command:
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8986280Z hint:
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8986925Z hint: 	git branch -m <name>
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8987638Z hint:
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8988926Z hint: Disable this message with "git config set advice.defaultBranchName false"
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.8991248Z Initialized empty Git repository in /home/runner/work/agentshed/agentshed/.git/
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9003879Z [command]/usr/bin/git remote add origin https://github.com/aloong-planet/agentshed
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9060884Z ##[endgroup]
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9062690Z ##[group]Disabling automatic garbage collection
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9065975Z [command]/usr/bin/git config --local gc.auto 0
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9103059Z ##[endgroup]
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9104914Z ##[group]Setting up auth
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9113976Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9206297Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9603691Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9643426Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9882017Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:52.9921878Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:53.0158279Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:53.0203145Z ##[endgroup]
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:53.0204787Z ##[group]Fetching the repository
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:53.0215675Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d5e82adfb18936947b32ddd90e3f4f6fd9e412c4:refs/remotes/pull/304/merge
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.3062434Z From https://github.com/aloong-planet/agentshed
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.3064183Z  * [new ref]         d5e82adfb18936947b32ddd90e3f4f6fd9e412c4 -> pull/304/merge
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.3069250Z ##[endgroup]
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.3071272Z ##[group]Determining the checkout info
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.3073158Z ##[endgroup]
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.3077132Z [command]/usr/bin/git sparse-checkout disable
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.3143222Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.3181261Z ##[group]Checking out the ref
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.3184314Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/304/merge
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4774148Z Note: switching to 'refs/remotes/pull/304/merge'.
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4775577Z 
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4776634Z You are in 'detached HEAD' state. You can look around, make experimental
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4778532Z changes and commit them, and you can discard any commits you make in this
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4780350Z state without impacting any branches by switching back to a branch.
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4781716Z 
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4782436Z If you want to create a new branch to retain commits you create, you may
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4784442Z do so (now or later) by using -c with the switch command. Example:
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4785712Z 
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4786120Z   git switch -c <new-branch-name>
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4786883Z 
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4787440Z Or undo this operation with:
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4788506Z 
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4789108Z   git switch -
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4790046Z 
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4791192Z Turn off this advice by setting config variable advice.detachedHead to false
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4792534Z 
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4794134Z HEAD is now at d5e82ad Merge c57a9a29ab8a46ee3ce5a0d921754e724ee4f20c into fc3fbeb9c0fad3ade28a07ae542ea96b230ded4f
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4799968Z ##[endgroup]
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4842126Z [command]/usr/bin/git log -1 --format=%H
+e2e(Electron)	Run actions/checkout@v4	2026-10-23T07:45:54.4872016Z d5e82adfb18936947b32ddd90e3f4f6fd9e412c4
+e2e(Electron)	Run pnpm/action-setup@v4	﻿2026-10-23T07:45:54.5207894Z ##[group]Run pnpm/action-setup@v4
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:54.5209119Z with:
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:54.5209900Z   dest: ~/setup-pnpm
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:54.5210786Z   run_install: null
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:54.5211632Z   cache: false
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:54.5212525Z   cache_dependency_path: pnpm-lock.yaml
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:54.5213725Z   package_json_file: package.json
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:54.5214792Z   standalone: false
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:54.5215835Z ##[endgroup]
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:54.6776369Z ##[group]Running self-installer...
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.1220413Z (node:2372) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.1223080Z (Use `node --trace-deprecation ...` to show where the warning was created)
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.2669514Z Progress: resolved 1, reused 0, downloaded 0, added 0
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.2797686Z Packages: +1
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.2798976Z +
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.6597000Z Progress: resolved 1, reused 0, downloaded 1, added 1, done
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.7009218Z 
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.7009981Z dependencies:
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.7010830Z + pnpm 9.12.3 (12.15.0 is available)
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.7011282Z 
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.7039436Z Done in 821ms
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.7297412Z ##[endgroup]
+e2e(Electron)	Run pnpm/action-setup@v4	2026-10-23T07:45:55.7326421Z Installation Completed!
+e2e(Electron)	Run actions/setup-node@v4	﻿2026-10-23T07:45:55.7544848Z ##[group]Run actions/setup-node@v4
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.7545507Z with:
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.7545776Z   node-version: 22
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.7545988Z   cache: pnpm
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.7546189Z   always-auth: false
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.7546409Z   check-latest: false
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.7548808Z   token: ***
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.7549014Z env:
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.7549281Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.7549600Z ##[endgroup]
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.9056343Z Found in cache @ /opt/hostedtoolcache/node/22.23.3/x64
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.9060812Z (node:2386) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.9061863Z (Use `node --trace-deprecation ...` to show where the warning was created)
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:55.9064709Z ##[group]Environment details
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:56.3335945Z node: v22.23.3
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:56.3336880Z npm: 10.9.9
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:56.3337351Z yarn: 1.22.22
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:56.3338186Z ##[endgroup]
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:56.3364527Z [command]/home/runner/setup-pnpm/node_modules/.bin/pnpm store path --silent
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:56.7707209Z /home/runner/setup-pnpm/node_modules/.bin/store/v3
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:56.8611629Z Cache hit for: node-cache-Linux-x64-pnpm-3874736b10e811cc446450c06083ab36eb446328ab25dc1114bd7b04c154a6eb
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:56.8728428Z (node:2386) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:57.2827837Z Received 60802965 of 60802965 (100.0%), 158.4 MBs/sec
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:57.2829560Z Cache Size: ~58 MB (60802965 B)
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:57.2956841Z [command]/usr/bin/tar -xf /home/runner/work/_temp/30c52a54-ce79-48db-bd5c-e14a5b44f32a/cache.tzst -P -C /home/runner/work/agentshed/agentshed --use-compress-program unzstd
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:58.1690833Z Cache restored successfully
+e2e(Electron)	Run actions/setup-node@v4	2026-10-23T07:45:58.1722493Z Cache restored from key: node-cache-Linux-x64-pnpm-3874736b10e811cc446450c06083ab36eb446328ab25dc1114bd7b04c154a6eb
+e2e(Electron)	Run pnpm install --frozen-lockfile	﻿2026-10-23T07:45:58.1922227Z ##[group]Run pnpm install --frozen-lockfile
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:45:58.1922676Z ^[[36;1mpnpm install --frozen-lockfile^[[0m
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:45:58.2190096Z shell: /usr/bin/bash -e {0}
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:45:58.2190456Z env:
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:45:58.2190771Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:45:58.2191165Z ##[endgroup]
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:45:58.7132773Z Lockfile is up to date, resolution step is skipped
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:45:58.7553139Z Progress: resolved 1, reused 0, downloaded 0, added 0
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:45:58.8587497Z Packages: +501
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:45:58.8606435Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:45:59.5294989Z Progress: resolved 501, reused 501, downloaded 0, added 501, done
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0145517Z 
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0146267Z dependencies:
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0146867Z + @tanstack/react-query 5.102.8
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0147374Z + dompurify 3.4.12
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0147829Z + electron-updater 6.8.9
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0148250Z + marked 15.0.12
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0148737Z + react 18.3.1
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0149113Z + react-dom 18.3.1
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0149494Z + semver 7.8.5
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0149891Z + smol-toml 1.7.1
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0150110Z 
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0150278Z devDependencies:
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0150700Z + @actions/expressions 0.3.61
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0151176Z + @eslint/js 10.0.1
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0151596Z + @playwright/test 1.62.0
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0152041Z + @types/node 22.20.1
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0152451Z + @types/react 18.3.31
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0152891Z + @types/react-dom 18.3.7
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0153312Z + @types/semver 7.8.0
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0153566Z + @vitejs/plugin-react 4.7.0
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0153832Z + electron 43.2.0
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0154076Z + electron-builder 26.17.0
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0154339Z + electron-vite 2.3.0
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0154595Z + esbuild 0.21.5
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0154811Z + eslint 10.12.0
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0155084Z + eslint-plugin-react-hooks 7.1.1
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0155632Z + globals 17.13.0
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0155861Z + husky 9.1.7
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0156068Z + jsdom 30.0.1
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0156375Z + typescript 5.9.3
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0156896Z + typescript-eslint 8.71.1
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0157323Z + vite 5.4.21
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0157670Z + vitest 2.1.9
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.0157868Z 
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.1012465Z 
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.1013626Z > agentshed@0.1.0-beta prepare /home/runner/work/agentshed/agentshed
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.1014340Z > husky
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.1014541Z 
+e2e(Electron)	Run pnpm install --frozen-lockfile	2026-10-23T07:46:00.1491161Z Done in 1.8s
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	﻿2026-10-23T07:46:00.1806598Z ##[group]Run pnpm exec playwright install-deps chromium
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:00.1807116Z ^[[36;1mpnpm exec playwright install-deps chromium^[[0m
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:00.1873311Z shell: /usr/bin/bash -e {0}
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:00.1873617Z env:
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:00.1873941Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:00.1874305Z ##[endgroup]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.1468733Z Installing dependencies...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.1596324Z Switching to root user to install dependencies...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.2622295Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.2875516Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.3076884Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.3093933Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.3152398Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.3195158Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.3776962Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [12.4 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.3912929Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [640 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.4010318Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [576 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.4967450Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1400 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.5057395Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [310 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.5099859Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1706 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.5156342Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [342 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.5232648Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1805 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.5338099Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [411 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.6328861Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1146 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.6408549Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [231 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.6430216Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1222 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.6506328Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [246 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.6948857Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1713 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:01.7069153Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [392 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:05.0611944Z Fetched 12.5 MB in 1s (9590 kB/s)
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.0884662Z Reading package lists...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.1125894Z Reading package lists...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.3629430Z Building dependency tree...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.3638120Z Reading state information...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5544283Z libasound2t64 is already the newest version (1.2.11-1ubuntu0.3).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5545910Z libasound2t64 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5546728Z libatk-bridge2.0-0t64 is already the newest version (2.52.0-1build1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5547459Z libatk-bridge2.0-0t64 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5548166Z libatk1.0-0t64 is already the newest version (2.52.0-1build1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5548791Z libatk1.0-0t64 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5549445Z libatspi2.0-0t64 is already the newest version (2.52.0-1build1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5550088Z libatspi2.0-0t64 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5550705Z libcairo2 is already the newest version (1.18.0-3build1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5551498Z libcairo2 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5552258Z libcups2t64 is already the newest version (2.4.7-1.2ubuntu7.14).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5553339Z libcups2t64 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5553857Z libdbus-1-3 is already the newest version (1.14.10-4ubuntu4.1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5554349Z libdbus-1-3 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5554877Z libdrm2 is already the newest version (2.4.125-1ubuntu0.1~24.04.2).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5555760Z libdrm2 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5556287Z libgbm1 is already the newest version (25.2.8-0ubuntu0.24.04.4).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5556785Z libgbm1 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5557277Z libnspr4 is already the newest version (2:4.35-1.1build1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5557752Z libnspr4 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5558272Z libpango-1.0-0 is already the newest version (1.52.1+ds-1build1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5558903Z libpango-1.0-0 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5559691Z libx11-6 is already the newest version (2:1.8.7-1ubuntu0.1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5560393Z libx11-6 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5560872Z libxcb1 is already the newest version (1.15-1ubuntu2).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5561323Z libxcb1 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5561771Z libxcomposite1 is already the newest version (1:0.4.5-1build3).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5562412Z libxcomposite1 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5562848Z libxdamage1 is already the newest version (1:1.1.6-1build1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5563250Z libxdamage1 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5563655Z libxext6 is already the newest version (2:1.3.4-1build2).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5564037Z libxext6 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5564433Z libxfixes3 is already the newest version (1:6.0.0-2build1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5564927Z libxfixes3 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5565611Z libxkbcommon0 is already the newest version (1.6.0-1build1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5566028Z libxkbcommon0 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5566449Z libxrandr2 is already the newest version (2:1.5.2-2build1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5566951Z libxrandr2 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5567443Z fonts-noto-color-emoji is already the newest version (2.047-0ubuntu0.24.04.1).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5568018Z libfontconfig1 is already the newest version (2.15.0-1.1ubuntu2).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5568444Z libfontconfig1 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5568896Z libfreetype6 is already the newest version (2.13.2+dfsg-1ubuntu0.2).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5569329Z libfreetype6 set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5569756Z fonts-liberation is already the newest version (1:2.1.5-3).
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5570174Z fonts-liberation set to manually installed.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5570576Z The following additional packages will be installed:
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5571131Z   gir1.2-glib-2.0 libglib2.0-bin libglib2.0-data libnss3-tools
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5571554Z   xfonts-encodings xfonts-utils xserver-common
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5571880Z Suggested packages:
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5572119Z   low-memory-monitor
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5572356Z Recommended packages:
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5572660Z   fonts-ipafont-mincho fonts-tlwg-loma xfonts-base
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5807844Z The following NEW packages will be installed:
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5808681Z   fonts-freefont-ttf fonts-ipafont-gothic fonts-tlwg-loma-otf fonts-unifont
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5817849Z   fonts-wqy-zenhei xfonts-cyrillic xfonts-encodings xfonts-scalable
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5818394Z   xfonts-utils
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5823430Z The following packages will be upgraded:
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5825831Z   gir1.2-glib-2.0 libglib2.0-0t64 libglib2.0-bin libglib2.0-data libnss3
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.5831416Z   libnss3-tools xserver-common xvfb
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.6008201Z 8 upgraded, 9 newly installed, 0 to remove and 91 not upgraded.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.6009046Z Need to get 25.9 MB of archives.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.6009855Z After this operation, 79.5 MB of additional disk space will be used.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.6010596Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.6351097Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-ipafont-gothic all 00303-21ubuntu1 [3513 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.6730593Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libglib2.0-data all 2.80.0-6ubuntu3.10 [50.2 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.6914602Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libglib2.0-bin amd64 2.80.0-6ubuntu3.10 [97.9 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.7082224Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gir1.2-glib-2.0 amd64 2.80.0-6ubuntu3.10 [183 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.7241965Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libglib2.0-0t64 amd64 2.80.0-6ubuntu3.10 [1548 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.7494529Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 fonts-freefont-ttf all 20211204+svn4273-2 [5641 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.7979964Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-tlwg-loma-otf all 1:0.7.3-1 [107 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.8138840Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-unifont all 1:15.1.01-1build1 [2993 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.8500837Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-wqy-zenhei all 0.9.45-8 [7472 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.9122106Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libnss3 amd64 2:3.98-1ubuntu0.3 [1445 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.9460233Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libnss3-tools amd64 2:3.98-1ubuntu0.3 [615 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.9644780Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-encodings all 1:1.0.5-0ubuntu2 [578 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.9836616Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-utils amd64 1:7.7+6build3 [94.4 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:06.9997060Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 xfonts-cyrillic all 1:1.0.5+nmu1 [384 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.0179518Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-scalable all 1:1.0.3-1.3 [304 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.0346718Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 xserver-common all 2:21.1.12-1ubuntu1.9 [35.0 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.0574133Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 xvfb amd64 2:21.1.12-1ubuntu1.9 [877 kB]
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3375500Z Fetched 25.9 MB in 0s (54.9 MB/s)
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3608900Z Selecting previously unselected package fonts-ipafont-gothic.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3897772Z (Reading database ... 
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3898215Z (Reading database ... 5%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3898517Z (Reading database ... 10%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3898803Z (Reading database ... 15%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3899083Z (Reading database ... 20%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3899820Z (Reading database ... 25%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3900120Z (Reading database ... 30%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3900553Z (Reading database ... 35%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3901064Z (Reading database ... 40%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3901521Z (Reading database ... 45%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3901807Z (Reading database ... 50%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.3939731Z (Reading database ... 55%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.4477936Z (Reading database ... 60%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.6479357Z (Reading database ... 65%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.8332947Z (Reading database ... 70%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:07.9956963Z (Reading database ... 75%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.1030024Z (Reading database ... 80%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.2037396Z (Reading database ... 85%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.3177449Z (Reading database ... 90%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.4097088Z (Reading database ... 95%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.4097614Z (Reading database ... 100%
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.4098281Z (Reading database ... 203540 files and directories currently installed.)
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.4144605Z Preparing to unpack .../00-fonts-ipafont-gothic_00303-21ubuntu1_all.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.4242423Z Unpacking fonts-ipafont-gothic (00303-21ubuntu1) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.6728906Z Preparing to unpack .../01-libglib2.0-data_2.80.0-6ubuntu3.10_all.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.6748203Z Unpacking libglib2.0-data (2.80.0-6ubuntu3.10) over (2.80.0-6ubuntu3.9) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.7114832Z Preparing to unpack .../02-libglib2.0-bin_2.80.0-6ubuntu3.10_amd64.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.7133280Z Unpacking libglib2.0-bin (2.80.0-6ubuntu3.10) over (2.80.0-6ubuntu3.9) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.7641638Z Preparing to unpack .../03-gir1.2-glib-2.0_2.80.0-6ubuntu3.10_amd64.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.7660638Z Unpacking gir1.2-glib-2.0:amd64 (2.80.0-6ubuntu3.10) over (2.80.0-6ubuntu3.9) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.8090401Z Preparing to unpack .../04-libglib2.0-0t64_2.80.0-6ubuntu3.10_amd64.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.8168116Z Unpacking libglib2.0-0t64:amd64 (2.80.0-6ubuntu3.10) over (2.80.0-6ubuntu3.9) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.8620717Z Selecting previously unselected package fonts-freefont-ttf.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.8762037Z Preparing to unpack .../05-fonts-freefont-ttf_20211204+svn4273-2_all.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.8769396Z Unpacking fonts-freefont-ttf (20211204+svn4273-2) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.9584167Z Selecting previously unselected package fonts-tlwg-loma-otf.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.9714770Z Preparing to unpack .../06-fonts-tlwg-loma-otf_1%3a0.7.3-1_all.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.9721039Z Unpacking fonts-tlwg-loma-otf (1:0.7.3-1) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:08.9979233Z Selecting previously unselected package fonts-unifont.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.0110858Z Preparing to unpack .../07-fonts-unifont_1%3a15.1.01-1build1_all.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.0118113Z Unpacking fonts-unifont (1:15.1.01-1build1) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.1189556Z Selecting previously unselected package fonts-wqy-zenhei.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.1321646Z Preparing to unpack .../08-fonts-wqy-zenhei_0.9.45-8_all.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.1424386Z Unpacking fonts-wqy-zenhei (0.9.45-8) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.6302358Z Preparing to unpack .../09-libnss3_2%3a3.98-1ubuntu0.3_amd64.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.6324127Z Unpacking libnss3:amd64 (2:3.98-1ubuntu0.3) over (2:3.98-1ubuntu0.2) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.6944792Z Preparing to unpack .../10-libnss3-tools_2%3a3.98-1ubuntu0.3_amd64.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.6963970Z Unpacking libnss3-tools (2:3.98-1ubuntu0.3) over (2:3.98-1ubuntu0.2) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.7392728Z Selecting previously unselected package xfonts-encodings.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.7529810Z Preparing to unpack .../11-xfonts-encodings_1%3a1.0.5-0ubuntu2_all.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.7537552Z Unpacking xfonts-encodings (1:1.0.5-0ubuntu2) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.7853282Z Selecting previously unselected package xfonts-utils.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.7990011Z Preparing to unpack .../12-xfonts-utils_1%3a7.7+6build3_amd64.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.7998370Z Unpacking xfonts-utils (1:7.7+6build3) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.8329381Z Selecting previously unselected package xfonts-cyrillic.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.8465033Z Preparing to unpack .../13-xfonts-cyrillic_1%3a1.0.5+nmu1_all.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.8474694Z Unpacking xfonts-cyrillic (1:1.0.5+nmu1) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.8856655Z Selecting previously unselected package xfonts-scalable.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.8991331Z Preparing to unpack .../14-xfonts-scalable_1%3a1.0.3-1.3_all.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.9000393Z Unpacking xfonts-scalable (1:1.0.3-1.3) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.9664082Z Preparing to unpack .../15-xserver-common_2%3a21.1.12-1ubuntu1.9_all.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:09.9706615Z Unpacking xserver-common (2:21.1.12-1ubuntu1.9) over (2:21.1.12-1ubuntu1.8) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.0081684Z Preparing to unpack .../16-xvfb_2%3a21.1.12-1ubuntu1.9_amd64.deb ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.0104671Z Unpacking xvfb (2:21.1.12-1ubuntu1.9) over (2:21.1.12-1ubuntu1.8) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.0692388Z Setting up fonts-wqy-zenhei (0.9.45-8) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.0815990Z Setting up fonts-freefont-ttf (20211204+svn4273-2) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.0832517Z Setting up libnss3:amd64 (2:3.98-1ubuntu0.3) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.0851104Z Setting up libglib2.0-0t64:amd64 (2.80.0-6ubuntu3.10) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.0996703Z Setting up libglib2.0-data (2.80.0-6ubuntu3.10) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1013187Z Setting up fonts-tlwg-loma-otf (1:0.7.3-1) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1032254Z Setting up xfonts-encodings (1:1.0.5-0ubuntu2) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1050118Z Setting up gir1.2-glib-2.0:amd64 (2.80.0-6ubuntu3.10) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1069972Z Setting up fonts-ipafont-gothic (00303-21ubuntu1) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1138012Z update-alternatives: using /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf to provide /usr/share/fonts/truetype/fonts-japanese-gothic.ttf (fonts-japanese-gothic.ttf) in auto mode
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1160339Z Setting up xserver-common (2:21.1.12-1ubuntu1.9) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1178970Z Setting up libnss3-tools (2:3.98-1ubuntu0.3) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1197864Z Setting up fonts-unifont (1:15.1.01-1build1) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1216395Z Setting up xvfb (2:21.1.12-1ubuntu1.9) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1233004Z Setting up libglib2.0-bin (2.80.0-6ubuntu3.10) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1250640Z Setting up xfonts-utils (1:7.7+6build3) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1295230Z Setting up xfonts-cyrillic (1:1.0.5+nmu1) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1607362Z Setting up xfonts-scalable (1:1.0.3-1.3) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.1900514Z Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.2284465Z Processing triggers for man-db (2.12.0-4build2) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.2313279Z Not building database; man-db/auto-update is not 'true'.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.2328370Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.8909022Z 
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.8909948Z Running kernel seems to be up-to-date.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.8910322Z 
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.8910476Z Restarting services...
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:10.9391340Z  systemctl restart packagekit.service php8.3-fpm.service polkit.service udisks2.service
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:11.0877793Z 
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:11.0878744Z Service restarts being deferred:
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:11.0879432Z  systemctl restart ModemManager.service
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:11.0907092Z  systemctl restart networkd-dispatcher.service
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:11.0907925Z 
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:11.0908472Z No containers need to be restarted.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:11.0908856Z 
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:11.0909206Z No user sessions are running outdated binaries.
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:11.0909602Z 
+e2e(Electron)	Run pnpm exec playwright install-deps chromium	2026-10-23T07:46:11.0910133Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+e2e(Electron)	Run xvfb-run -a pnpm e2e	﻿2026-10-23T07:46:12.4418106Z ##[group]Run xvfb-run -a pnpm e2e
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:12.4418473Z ^[[36;1mxvfb-run -a pnpm e2e^[[0m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:12.4483934Z shell: /usr/bin/bash -e {0}
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:12.4484236Z env:
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:12.4484500Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:12.4484833Z ##[endgroup]
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:12.9409524Z 
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:12.9410478Z > agentshed@0.1.0-beta e2e /home/runner/work/agentshed/agentshed
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:12.9411131Z > electron-vite build && playwright test
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:12.9411386Z 
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:13.3120977Z ^[[36mvite v5.4.21 ^[[32mbuilding SSR bundle for production...^[[36m^[[39m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:13.3712356Z transforming...
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.0682603Z ^[[32m✓^[[39m 547 modules transformed.
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.2466507Z rendering chunks...
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.3320401Z ^[[2mout/main/^[[22m^[[36mparse-worker.js                 ^[[39m^[[1m^[[2m  0.40 kB^[[22m^[[1m^[[22m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.3321592Z ^[[2mout/main/^[[22m^[[2mchunks/^[[22m^[[36mtoken-stats-Y_GCWB5i.js  ^[[39m^[[1m^[[2m122.21 kB^[[22m^[[1m^[[22m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.3322668Z ^[[2mout/main/^[[22m^[[36mindex.js                        ^[[39m^[[1m^[[2m211.93 kB^[[22m^[[1m^[[22m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.3323859Z ^[[2mout/main/^[[22m^[[2mchunks/^[[22m^[[36mmain-DZ5R1KNi.js         ^[[39m^[[1m^[[33m513.19 kB^[[39m^[[22m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.3324584Z ^[[32m✓ built in 2.00s^[[39m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.3356594Z ^[[36mvite v5.4.21 ^[[32mbuilding SSR bundle for production...^[[36m^[[39m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.3403059Z transforming...
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.4224747Z ^[[32m✓^[[39m 17 modules transformed.
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.4384998Z rendering chunks...
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.4398717Z ^[[2mout/preload/^[[22m^[[36mindex.cjs  ^[[39m^[[1m^[[2m49.77 kB^[[22m^[[1m^[[22m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.4399442Z ^[[32m✓ built in 104ms^[[39m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.4430389Z ^[[36mvite v5.4.21 ^[[32mbuilding for production...^[[36m^[[39m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:15.4589330Z transforming...
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:16.4458231Z ^[[32m✓^[[39m 147 modules transformed.
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:16.6124710Z rendering chunks...
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:16.6228673Z ^[[2m../../out/renderer/^[[22m^[[32mindex.html                 ^[[39m^[[1m^[[2m  0.40 kB^[[22m^[[1m^[[22m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:16.6230634Z ^[[2m../../out/renderer/^[[22m^[[2massets/^[[22m^[[35mindex-D-ZQl5TO.css  ^[[39m^[[1m^[[2m 84.75 kB^[[22m^[[1m^[[22m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:16.6232165Z ^[[2m../../out/renderer/^[[22m^[[2massets/^[[22m^[[36mindex-CwhfPdBv.js   ^[[39m^[[1m^[[33m688.41 kB^[[39m^[[22m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:16.6233042Z ^[[32m✓ built in 1.18s^[[39m
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:17.5661057Z Downloading Electron binary...
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:20.2978923Z 
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:20.2979636Z Running 148 tests using 1 worker
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:20.2980367Z 
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:22.5265541Z   ✓    1 e2e/app-update.spec.ts:86:1 › with no update in flight the slot takes no space; an update in flight sits directly above Settings, which keeps its place (REQ-001/AC-01, US-001/AC-06, appearance D4) (1.7s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:23.5940324Z   ✓    2 e2e/app-update.spec.ts:122:1 › a launch check that finds an update shows the download in the rail at once, with no dialog; the slot cannot be clicked while downloading (US-001/AC-01, REQ-001/AC-02–AC-04) (1.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:26.5739664Z   ✓    3 e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (3.0s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:27.8979448Z   ✓    4 e2e/app-update.spec.ts:183:1 › the finished download becomes the ready button; clicking it installs once and shows the spinner (US-001/AC-03, AC-04, REQ-001/AC-03, Failure C10) (1.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:28.6709664Z   ✓    5 e2e/app-update.spec.ts:212:1 › a failed install after the click shows the error toast, stacked with any other, and the button goes (REQ-002/AC-03, Failure G6) (764ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:29.3937396Z   ✓    6 e2e/app-update.spec.ts:235:1 › an open message goes with the button, so the button comes back without it (REQ-001/AC-04) (714ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:31.6802027Z   ✓    7 e2e/app-update.spec.ts:266:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (2.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:33.0948351Z   ✓    8 e2e/app-update.spec.ts:290:1 › the circle, its glyph and the message stay distinguishable in every theme, light and dark, and recolour with a switch (REQ-001/AC-05, Failure G3) (1.4s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:33.7669604Z   ✓    9 e2e/app-update.spec.ts:343:1 › the installing loader spins, and stands still under reduced motion (REQ-001/AC-02) (663ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:34.5326153Z   ✓   10 e2e/app-update.spec.ts:362:1 › an open message follows a language switch at once (Failure G2) (756ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:36.5703985Z   ✓   11 e2e/app-update.spec.ts:388:1 › with automatic checks turned off the launch makes no request (US-002/AC-01) (2.0s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:37.2863487Z   ✓   12 e2e/app-update.spec.ts:405:1 › a second instance launched while an update is ready exits, and the running one keeps the update (Failure G5) (707ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:38.0256497Z   ✓   13 e2e/app.spec.ts:377:1 › cold start: the Agents page is the default landing, both summary cards render, and the main process reports no errors (632ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:38.6175540Z   ✓   14 e2e/app.spec.ts:397:1 › an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors (584ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:39.5849376Z   ✓   15 e2e/app.spec.ts:426:1 › all seven Agents page tabs render as they are switched through, with no errors (957ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:40.6663089Z   ✓   16 e2e/app.spec.ts:448:1 › switching to Projects: rows appear when there are projects, and the detail tabs switch once one is selected (1.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:41.2475105Z   ✓   17 e2e/app.spec.ts:467:1 › switching to Projects: the sidebar shows its empty state when there are no projects at all (573ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:42.1724663Z   ✓   18 e2e/app.spec.ts:508:1 › the project list row: a side-count badge, with hovering naming the sides in full (915ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:43.2588572Z   ✓   19 e2e/app.spec.ts:596:1 › a Grok-only project opens its detail page without errors (1.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:44.6344599Z   ✓   20 e2e/app.spec.ts:630:1 › a stale project opens as the note page: card only, chips per recording side, copy feedback, and both staleness flips (1.4s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:45.9884594Z   ✓   21 e2e/app.spec.ts:700:1 › the side filter dropdown: narrows to one side, dismisses on scroll, and survives a resize (1.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:46.6886157Z   ✓   22 e2e/app.spec.ts:787:1 › a real window resize with a scrolled list does not close the side dropdown (#122) (690ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:47.9216961Z   ✓   23 e2e/app.spec.ts:828:1 › the side filter row stays inside the sidebar column in both UI languages (1.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:48.7238549Z   ✓   24 e2e/app.spec.ts:885:1 › the sessions section: sessions are listed, the sort switches, and warmup sessions are not listed (794ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:49.4951202Z   ✓   25 e2e/app.spec.ts:929:1 › the sessions section: each row shows that session's real question count (763ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:50.3845858Z   ✓   26 e2e/app.spec.ts:952:1 › the sessions section: the sort choice is remembered after switching away (881ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:51.0722591Z   ✓   27 e2e/app.spec.ts:975:1 › the sessions section: a project with no sessions shows an empty state, and the overview session card clicks through to this section (678ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:51.8761090Z   ✓   28 e2e/app.spec.ts:988:1 › one click on the overview session card goes straight to the session page (795ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:52.7733312Z   ✓   29 e2e/app.spec.ts:1004:1 › the session page: every question is listed with complete fields, and back returns to the sessions section (889ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:53.6286358Z   ✓   30 e2e/app.spec.ts:1045:1 › the session page: a fork session shows only the questions left after stripping (846ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:54.3268034Z   ✓   31 e2e/app.spec.ts:1067:1 › the IPC surface: a path outside the allow-list is refused over the real channel, and the error carries no file content (690ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:55.1639655Z   ✓   32 e2e/app.spec.ts:1111:1 › the session page: a long question's single-line truncation happens only in the display layer, with the full text in the DOM (828ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:56.1314842Z   ✓   33 e2e/app.spec.ts:1149:1 › the session page: everything collapsed by default; clicking a question expands the whole turn with its fetch footnote, and clicking again collapses it (959ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:46:57.2281184Z   ✓   34 e2e/app.spec.ts:1186:1 › the session page: day groups collapse; descending reverses both the groups and their contents while the numbers stay; expansion survives a sort change (1.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:01.2731472Z   ✓   35 e2e/app.spec.ts:1238:1 › the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source (4.0s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:02.1475113Z   ✓   36 e2e/app.spec.ts:1279:1 › the session page: after the file is appended to (so the signature mismatches), clicking a question still fetches the correct whole turn (865ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:03.2316798Z   ✓   37 e2e/app.spec.ts:1311:1 › session page rich content (Claude): the thinking, tool and subagent blocks are collapsed by default and expand to the full text with their labels (1.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:04.2852411Z   ✓   38 e2e/app.spec.ts:1360:1 › session page rich content (Codex): the encrypted-reasoning label, tool pairing, the unattributable spawn label, and traces of unknown events (1.0s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:05.1642132Z   ✓   39 e2e/app.spec.ts:1398:1 › session page (Codex, paginated format): the session is listed by its completed-item question, opens, and its turn shows the agent-message prose with no unknown trace (869ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:06.1357927Z   ✓   40 e2e/app.spec.ts:1439:1 › session page (Codex, cold rollout): a .jsonl.zst session is listed, counted, opens and expands like a plain one (960ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:07.7963933Z   ✓   41 e2e/app.spec.ts:1475:1 › session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question (1.7s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:08.4567082Z   ✓   42 e2e/app.spec.ts:1526:1 › overlapping automatic rescans are deduplicated: the page stays coherent and the main process reports no errors (652ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:09.0347951Z   ✓   43 e2e/app.spec.ts:1546:1 › the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors (569ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:09.8218180Z   ✓   44 e2e/app.spec.ts:1604:1 › the archive retains a past day whose live figure fell under the same stamp (ADR-0026): the retained figure shows on both pages, with no hatching, while the archived-only day still hatches (779ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:10.5626545Z   ✓   45 e2e/app.spec.ts:1671:1 › the trend chart is stacked bars: segmented by provider within a bar, and switching to a single side leaves only that side's provider segments (733ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:11.2520870Z   ✓   46 e2e/app.spec.ts:1701:1 › the provider brand colours apply: the segments and the legend match, with their own values in light and dark (681ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:20.6671292Z   ✓   47 e2e/app.spec.ts:1991:1 › F3 plus the new sections: a project-scope plugin displays correctly both ways; the Subagents and Memory drawers work end to end (9.4s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:25.3630948Z   ✓   48 e2e/app.spec.ts:2503:1 › Skills view: expanding globally reads the package; a same-name pair in detail shows only the project level; plugin rows do not expand (4.7s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:26.8734407Z   ✓   49 e2e/app.spec.ts:2669:1 › filtering the skills lists by name, and revealing a truncated name on hover (1.5s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:28.0946044Z   ✓   50 e2e/app.spec.ts:2861:1 › a filter keyword survives a refresh, and is cleared by leaving the section or switching project (1.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:29.3300724Z   ✓   51 e2e/app.spec.ts:2941:1 › the install-to popover sits next to its button, and its targets can be clicked (1.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:30.6808242Z   ✓   52 e2e/app.spec.ts:3053:1 › previewing a plugin skill in place: the tab expands and reads the package; a disabled plugin is readable; a missing one is greyed out; the Codex group (1.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:31.5326299Z   ✓   53 e2e/app.spec.ts:3152:1 › a skill package removed after the scan: the file table shows the toast's wording in both skill lists (#209) (843ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:32.2465129Z   ✓   54 e2e/app.spec.ts:3207:3 › skill file line counts follow the UI language's digit grouping [en-US] (#210) (703ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:37.1321375Z   ✓   55 e2e/app.spec.ts:3238:1 › automatic refresh: a new session appears on its own, and the detail page's expansion state survives it (4.9s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:37.9514928Z   ✓   56 e2e/app.spec.ts:3340:3 › the trend chart [Agents page · Token tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (808ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:38.8188807Z   ✓   57 e2e/app.spec.ts:3340:3 › the trend chart [project detail · Overview tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor (856ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:39.5506679Z   ✓   58 e2e/app.spec.ts:3444:1 › a newly adopted side: the thin xAI segment survives, and Grok mode labels only its data days (723ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:40.4682629Z   ✓   59 e2e/app.spec.ts:3544:1 › three sides on one day segment together, and one project mixes all three sides' sessions by time (909ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:41.2367363Z   ✓   60 e2e/app.spec.ts:3618:1 › the Agents page shows Grok's own global skills with the borrowing line, and installs one into a project (758ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:42.5985838Z   ✓   61 e2e/app.spec.ts:3665:1 › a Grok session opens end to end: list, questions, an on-demand turn, search, and the allow-list boundary (1.4s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:43.4105118Z   ✓   62 e2e/app.spec.ts:3754:1 › the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip" (803ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:45.0603875Z   ✓   63 e2e/app.spec.ts:3797:1 › settings: the three appearance choices change data-theme, and entering and leaving settings keeps the selected project (1.6s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:45.7340616Z   ✓   64 e2e/app.spec.ts:3850:1 › project list: selection is a deeper wash with no ring, and adjacent rows keep a 1px gap (665ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:46.3868454Z   ✓   65 e2e/app.spec.ts:3966:1 › appearance: one card with two rows (mode + theme); the theme cards keep only a swatch and a name (644ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:47.2148331Z   ✓   66 e2e/app.spec.ts:3994:1 › appearance mode: locking light or dark changes the effective light/dark, and the palette samples follow (820ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:48.2768103Z   ✓   67 e2e/app.spec.ts:4051:1 › appearance: all six combinations of 3 themes × 2 effective light/dark hold (1.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:49.8080542Z   ✓   68 e2e/app.spec.ts:4183:1 › scrollbars: every scrolling area draws a 6px thumb on no track, in light and in dark (appearance::REQ-001) (1.5s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:49.8181083Z   -   69 e2e/app.spec.ts:4256:1 › scrollbars: the thumb darkens under the pointer, in light and in dark (appearance::REQ-001/AC-05)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:49.8263024Z   -   70 e2e/app.spec.ts:4298:1 › scrollbars: the same 6px scrollbar whether macOS draws overlay or classic ones (appearance F1, F2)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:50.4301386Z   ✓   71 e2e/app.spec.ts:4365:1 › UI language: following the system resolves against the whole list, and applies on the first frame (596ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:51.0124683Z   ✓   72 e2e/app.spec.ts:4379:1 › UI language: falls back to English when the system language is unsupported (574ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:51.6887408Z   ✓   73 e2e/app.spec.ts:4390:1 › UI language: a stored preference naming a removed language reads as follow system (i18n::REQ-003) (668ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:52.4721522Z   ✓   74 e2e/app.spec.ts:4411:1 › the language selector: three items including follow-system and the divider, with a switch applying immediately (774ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:53.3254107Z   ✓   75 e2e/app.spec.ts:4471:1 › the language selector by keyboard: opening leaves the highlight on the current selection rather than moving an extra step (845ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:54.5407730Z   ✓   76 e2e/app.spec.ts:4522:1 › i18n: the language-locking mechanism itself is reliable, unaffected by the development machine's system language (1.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:55.3854893Z   ✓   77 e2e/app.spec.ts:4543:1 › i18n: both languages load, with the key nodes non-empty (835ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:56.1205541Z   ✓   78 e2e/app.spec.ts:4569:1 › i18n: switching languages applies immediately, changing several areas at once (727ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:56.9516219Z   ✓   79 e2e/app.spec.ts:4591:1 › i18n: key layouts do not overflow horizontally in either language (823ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:58.1789128Z   ✓   80 e2e/app.spec.ts:4616:1 › i18n: no label in the project-detail tab row or the skills rows wraps to a second line (1.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:47:59.3580274Z   ✓   81 e2e/app.spec.ts:4697:1 › the time window drives all four regions at once: side figures, composition, model rows and the dimmed span (1.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:04.0403720Z   ✓   82 e2e/app.spec.ts:4831:1 › startup skeleton: agents page shows placeholders, refuses input, fills in place (4.7s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:08.5407159Z   ✓   83 e2e/app.spec.ts:4909:1 › startup skeleton: projects dimension shows placeholder rows and fills in place (4.5s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:10.9201805Z   ✓   84 e2e/app.spec.ts:4977:1 › project switch (query layer): the highlight moves at once and the pane holds the previous project until the next detail arrives (2.4s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:13.2625628Z   ✓   85 e2e/app.spec.ts:5013:1 › project switch (query layer): rapid A → B → C never shows B, and B is still cached afterwards (2.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:15.7329457Z   ✓   86 e2e/app.spec.ts:5047:1 › opening a session (query layer): the project page holds until the session page arrives, and reopening it is instant (2.5s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:18.0850919Z   ✓   87 e2e/app.spec.ts:5076:1 › opening a session then returning to the project before it arrives (query layer): the project page stays, no error, and the interrupted fetch is cached (2.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:19.2382918Z   ✓   88 e2e/app.spec.ts:5106:1 › an automatic rescan refreshes an open session page by transfusion (query layer): the question list follows the file while expansion and sort survive (1.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:20.0712854Z   ✓   89 e2e/app.spec.ts:5146:1 › opening a session whose file was removed after the scan (query layer): the page shows its own error, no crash (824ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:21.4234242Z   ✓   90 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:25.6152060Z   ✓   91 e2e/app.spec.ts:5221:1 › leaving a project for a session page and coming back (query layer closeout): the project page is a cached visit landing on Sessions, then revalidates by transfusion (4.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:26.3736372Z   ✓   92 e2e/app.spec.ts:5265:1 › opening an artifact whose file was removed after the scan (query layer): a toast surfaces the failure, no overlay, no crash (750ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:27.8908710Z   ✓   93 e2e/app.spec.ts:5287:1 › reopening a skill file table (query layer): first expand is slow, reopening it is instant (1.5s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:31.0999118Z   ✓   94 e2e/app.spec.ts:5311:1 › reopening an artifact (query layer): first open is slow, reopening it is instant (3.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:32.8080055Z   ✓   95 e2e/app.spec.ts:5356:3 › selectable trend span [Agents page · Token tab]: history, independent filters, tabs and refresh (1.7s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:34.5491265Z   ✓   96 e2e/app.spec.ts:5356:3 › selectable trend span [project detail · Overview tab]: history, independent filters, tabs and refresh (1.7s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:48.1372246Z   ✓   97 e2e/app.spec.ts:5448:1 › selectable trend span: localized controls fit both pages in light and dark at minimum width (13.6s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:51.2820457Z   ✓   98 e2e/global-search.spec.ts:156:1 › the global search page: the rail item, typing, results grouped by project, sorting, and every answer the results area gives (3.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:48:55.2841835Z   ✓   99 e2e/global-search.spec.ts:272:1 › reading the question texts: the header hint while it runs, nothing in the results area, then the results for the latest keyword (4.0s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:05.0999908Z   ✓  100 e2e/global-search.spec.ts:306:1 › going to a hit: the search page holds, then Projects with the project selected and in view and the session at that question; the page is kept for the run (9.8s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:06.1591486Z   ✓  101 e2e/global-search.spec.ts:396:1 › a hit whose session file is gone opens the session page to its own error, with no crash (J8) (1.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:09.9242922Z   ✓  102 e2e/global-search.spec.ts:420:1 › the results follow the data: a rescan brings a new hit in by transfusion; with every session gone, the no-session state (3.8s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:10.4763127Z   ✓  103 e2e/global-search.spec.ts:450:1 › nothing to search: the box stays, its placeholder names no number, and the page says so (REQ-006) (544ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:17.6999580Z   ✓  104 e2e/global-search.spec.ts:468:1 › during the startup scan the search runs over the restored sessions, and the scan then keeps the results (S2) (7.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:20.0222694Z   ✓  105 e2e/global-search.spec.ts:504:1 › a session opened from a hit: back to the results as they were left, or on into its project (2.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:21.6689388Z   ✓  106 e2e/global-search.spec.ts:550:1 › on into the project: its Sessions tab, or a stale project's note; a session reached from there or through the fork banner has the single back control (1.6s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:23.3496790Z   ✓  107 e2e/global-search.spec.ts:592:1 › leaving the session for the search page and coming back keeps it with its exits; selecting another project replaces it (J6, J7) (1.7s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:24.5840116Z   ✓  108 e2e/global-search.spec.ts:661:1 › a long project name at the window's minimum width: the two exits, and the single back control, each stay on one line, cut with an ellipsis (J11) (1.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:25.9506056Z   ✓  109 e2e/global-search.spec.ts:752:1 › ⌘⇧F through the application menu: from settings, a session page and the search page itself, the page as left with the focus in its box; the item follows the language (US-004, J10) (1.4s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:33.2462552Z   ✓  110 e2e/global-search.spec.ts:816:1 › Search Sessions… chosen while a hit's session is still on its way keeps the search page, and the session page is kept for later (US-004/AC-01, session-view P8 through P10) (7.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:37.3066544Z   ✓  111 e2e/global-search.spec.ts:874:1 › a hit row keeps its keyword in view: 20 characters before a far keyword, the keyword itself when that does not fit, a keyword under the ellipsis counted out of view, judged again on a resize and when shown again — in global search and in a project's Sessions tab (session-view::REQ-002) (4.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:37.9730819Z   ✓  112 e2e/menu-check-updates.spec.ts:95:1 › the item sits directly below "About" and reports up to date, a failure, and a malformed answer as a failure (REQ-005, US-003/AC-01, A6) (652ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:40.6069564Z   ✓  113 e2e/menu-check-updates.spec.ts:125:1 › a menu check that finds an update starts the download, and a failed download adds no second toast (US-003/AC-03, B2) (2.6s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:43.5372918Z   ✓  114 e2e/menu-check-updates.spec.ts:147:1 › a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04) (2.9s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:47.8054610Z   ✓  115 e2e/menu-check-updates.spec.ts:172:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) (4.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:48.4842256Z   ✓  116 e2e/menu-check-updates.spec.ts:206:1 › the item follows a language switch at once; a toast already shown keeps its language and stacks with the new one (G2, G6) (671ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:49.8239997Z   ✓  117 e2e/menu-check-updates.spec.ts:229:1 › a development run disables the item, and a click on it reports nothing (US-005/AC-02) (1.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:50.4312965Z   ✓  118 e2e/settings-updates.spec.ts:81:1 › settings gains "Updates" third, one card with the switch and the version row, and its footnote (REQ-003/AC-01, AC-02, US-002/AC-02) (587ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:52.9616467Z   ✓  119 e2e/settings-updates.spec.ts:111:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) (2.5s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:54.0990490Z   ✓  120 e2e/settings-updates.spec.ts:148:1 › a settings check that finds an update starts the download: the line and the rail follow it, and "Check now" is unavailable (US-003/AC-02, AC-03, REQ-004/AC-01) (1.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:57.0347561Z   ✓  121 e2e/settings-updates.spec.ts:171:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) (2.9s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:49:57.6292485Z   ✓  122 e2e/settings-updates.spec.ts:204:1 › an install from "Install now" that fails: the error toast, "Check now" available again and an empty line (REQ-002/AC-03, C11) (586ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:00.5293774Z   ✓  123 e2e/settings-updates.spec.ts:224:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2) (2.9s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:05.6536760Z   ✓  124 e2e/settings-updates.spec.ts:247:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) (5.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:08.5760261Z   ✓  125 e2e/settings-updates.spec.ts:280:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) (2.9s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:09.1362859Z   ✓  126 e2e/settings-updates.spec.ts:308:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an older recorded version (552ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:10.0501971Z   ✓  127 e2e/settings-updates.spec.ts:308:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › the same version (904ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:10.6303192Z   ✓  128 e2e/settings-updates.spec.ts:308:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a newer recorded version (the version went down) (573ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:11.2000369Z   ✓  129 e2e/settings-updates.spec.ts:308:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › no record (a fresh installation) (561ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:11.7659861Z   ✓  130 e2e/settings-updates.spec.ts:308:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an unreadable record (557ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:12.9528470Z   ✓  131 e2e/settings-updates.spec.ts:335:3 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a still newer release found at that launch shows its download instead, and a settings check replaces the line (C7) (1.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:14.0250214Z   ✓  132 e2e/settings-updates.spec.ts:362:1 › a development run: the switch and the button are unavailable, the footnote says why, and nothing is asked (US-005/AC-02) (1.1s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:18.2079234Z   ✓  133 e2e/settings-updates.spec.ts:389:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › a change is stored at once and survives a restart; with it off the launch makes no request (4.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:21.1263790Z   ✓  134 e2e/settings-updates.spec.ts:419:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5) (2.9s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:22.3030625Z   ✓  135 e2e/settings-updates.spec.ts:438:1 › the first launch after an update restores the saved display like any other launch (G4) (1.2s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:27.8518476Z   ✓  136 e2e/settings-updates.spec.ts:500:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh (5.5s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:50:33.4236041Z   ✓  137 e2e/settings-updates.spec.ts:500:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en (5.6s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:00.0011790Z   ✓  138 e2e/startup-restore.spec.ts:8:1 › restart restores viewed project, questions and read answer before a new scan finishes (26.6s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:09.3996123Z   ✓  139 e2e/startup-restore.spec.ts:149:1 › a failed startup scan keeps the saved display and retries automatically with a stopped status (9.4s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:15.3686673Z   ✓  140 e2e/token-span.spec.ts:63:1 › a theme chosen while the initial preference read is in flight survives that read landing (6.0s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:17.6697096Z   ✓  141 e2e/token-span.spec.ts:81:1 › global span defaults an older or invalid preference without resetting valid appearance and language (2.3s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:23.2430300Z   ✓  142 e2e/token-span.spec.ts:105:1 › global span links exact totals and active breakdowns on both entries, and survives full restarts (5.6s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:26.6644894Z   ✓  143 e2e/token-span.spec.ts:174:3 › global span 30: saved preference survives an unusable display cache and skeleton fill (3.4s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:30.0830834Z   ✓  144 e2e/token-span.spec.ts:174:3 › global span 60: saved preference survives an unusable display cache and skeleton fill (3.4s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:33.5177482Z   ✓  145 e2e/token-span.spec.ts:174:3 › global span 90: saved preference survives an unusable display cache and skeleton fill (3.4s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:34.8879794Z   ✓  146 e2e/token-span.spec.ts:195:1 › global span save failure keeps live views consistent and reopens the last successful value (1.4s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:35.7156215Z   ✓  147 e2e/token-span.spec.ts:225:1 › global span includes archived and retained older rows in both charts and fourth cards (819ms)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:42.6994557Z   ✓  148 e2e/token-span.spec.ts:253:1 › global span numeric choices support keyboard activation and retain every card and side identity (7.0s)
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:42.7624373Z 
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:42.7630984Z   2 skipped
+e2e(Electron)	Run xvfb-run -a pnpm e2e	2026-10-23T07:51:42.7631464Z   146 passed (5.4m)
+e2e(Electron)	Post Run actions/setup-node@v4	﻿2026-10-23T07:51:42.8020561Z Post job cleanup.
+e2e(Electron)	Post Run actions/setup-node@v4	2026-10-23T07:51:42.9330548Z (node:16418) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+e2e(Electron)	Post Run actions/setup-node@v4	2026-10-23T07:51:42.9332068Z (Use `node --trace-deprecation ...` to show where the warning was created)
+e2e(Electron)	Post Run actions/setup-node@v4	2026-10-23T07:51:42.9335839Z Cache hit occurred on the primary key node-cache-Linux-x64-pnpm-3874736b10e811cc446450c06083ab36eb446328ab25dc1114bd7b04c154a6eb, not saving cache.
+e2e(Electron)	Post Run pnpm/action-setup@v4	﻿2026-10-23T07:51:42.9452717Z Post job cleanup.
+e2e(Electron)	Post Run pnpm/action-setup@v4	2026-10-23T07:51:43.1018441Z Pruning is unnecessary.
+e2e(Electron)	Post Run actions/checkout@v4	﻿2026-10-23T07:51:43.1273224Z Post job cleanup.
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.2400079Z [command]/usr/bin/git version
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.2446412Z git version 2.55.0
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.2495635Z Temporarily overriding HOME='/home/runner/work/_temp/c9d107ed-e35d-4bcf-a4ff-4849f34fbdff' before making global git config changes
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.2499605Z Adding repository directory to the temporary git global config as a safe directory
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.2503463Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentshed/agentshed
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.2607240Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.2618200Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.2972189Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.3016589Z http.https://github.com/.extraheader
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.3036201Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.3085751Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.3465755Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+e2e(Electron)	Post Run actions/checkout@v4	2026-10-23T07:51:43.3515586Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+e2e(Electron)	Complete job	﻿2026-10-23T07:51:43.3944099Z Cleaning up orphan processes
+e2e(Electron)	Complete job	2026-10-23T07:51:43.4338236Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, pnpm/action-setup@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
