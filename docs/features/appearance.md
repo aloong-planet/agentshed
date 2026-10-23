@@ -39,6 +39,10 @@ configuration.
 - Tables render as tables everywhere: a bordered frame with clear column separators, a tinted and
   centred header row that never wraps, striped rows, and column alignment written in the markdown
   (`:-:` / `--:`) is respected in the body — previously they showed as bare unstyled text columns
+- Scrollbars are slim everywhere — lists, pages, drawers, code blocks and wide tables: a narrow grey
+  thumb with no track behind it, shown whenever there is more to scroll and darker under the pointer.
+  It suits light and dark alike (no light strip beside a dark list), stays the same in every theme, and
+  looks the same with a mouse or a trackpad
 
 ## Boundaries and non-goals
 - The CC/CX side badges and the provider chart's brand colours are unaffected (semantic colours do
@@ -46,3 +50,5 @@ configuration.
 - Nothing is written to the Claude / Codex configuration
 - Light/dark does not switch automatically by time of day (no sunrise/sunset, no schedule)
 - No custom colours, and no fourth theme
+- Scrollbars do not fade out when idle, as macOS's own can on a trackpad: the thumb stays in view
+  whenever there is more to scroll

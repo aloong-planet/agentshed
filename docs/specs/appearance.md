@@ -130,8 +130,9 @@ platform's.
 
 - C1 **Follows the theme** (each theme has its own light/dark table):  
   `--bg/--card/--text/--text-2/--line/--line-strong/--accent/--accent-soft/--accent-deep`  
-  and the rendered-markdown third-step heading colour `--md-h3` (a lighter step of the accent family;
-  light and dark are declared explicitly for every theme even where values coincide).  
+  the rendered-markdown third-step heading colour `--md-h3` (a lighter step of the accent family;
+  light and dark are declared explicitly for every theme even where values coincide), and the
+  selection wash `--accent-soft-deep` (one step deeper than `--accent-soft`).  
 - C2 **Does not follow the theme** (semantic / data colours; may have light/dark, identical across
   the three themes):  
   - the CC/CX side badge tokens  
@@ -374,6 +375,9 @@ recommended handling is in "Out of Scope".
   macOS's per-process scroll bar setting at "when scrolling" (the overlay style) and at "always", the app's list
   keeps its 6px scrollbar.
 - The corner needs its own rule: left out, it stays a light square where two scrollbars meet.
+- No element sets the standard `scrollbar-width` or `scrollbar-color`: Chromium then ignores the
+  pseudo-element rule for that element and draws the platform's scrollbar instead (the e2e's control block
+  uses exactly this to show the platform's style).
 
 ## Testing Decisions
 
