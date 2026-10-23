@@ -33,6 +33,7 @@ cut).
 | # | Decision | Answer |
 |---|---|---|
 | D1 | How far the bounded teardown reaches | Every e2e teardown, through one shared helper (the owner's answer on 2026-10-23, "all 67", in Chinese, the recommended answer; the full listing found 72, the same class). The first module shared across e2e files: a new convention, chosen with the scope |
+| D3 | The issue's first proposal, keeping a trace or the main process's output for a failed case | Not added (implementing agent): it was a means to pin the stuck step, which the reproduction and the probes pinned (`probes.txt`); the bound's warning names the bound and the pid, which is the visibility the issue asked for. A trace of an Electron app adds recording to every case for a failure the helper now ends |
 | D2 | The bound | 10 s (implementing agent): a normal close takes under 0.2 s, and a case's 60 s budget keeps room for its body under load. On the bound the process is killed (SIGKILL), the case is annotated and a warning printed, so a slow close is visible instead of eating the budget |
 
 ## Tasks
@@ -42,10 +43,10 @@ cut).
 | 1 | Feedback loop: reproduce the timeout and pin the stuck step | `evidence/ticket-227/reproduction.txt`, `probes.txt` | done |
 | 2 | Records declared on #227 and its document sync checklist | `ticket-227-doc-sync.md`, the issue body | done |
 | 3 | Test design review | `ticket-227-review-tests.md`, Design review | done (H2 amended for the group kill, H3 added from the code review) |
-| 4 | Slices: S1 the helper (bounded close, kill, note); S2 every teardown through it; the loop under load again | the helper's cases red then green; the loop's closes bounded | done: H2 red against an unbounded close, then green (`helper-cases-first.txt`); the loop with a main-only kill still had closes of 28–69 s and two timeouts (`after-main-kill.txt`), so the helper kills the group: H2 red against the main-only kill, then green, and the loop seven of seven with every close at 10.0 s (`after-group-kill.txt`); 72 sites moved, none left; targeted run `targeted.txt` (150 e2e, `TARGETED_EXIT=0`, on the change before H3) |
+| 4 | Slices: S1 the helper (bounded close, kill, note); S2 every teardown through it; the loop under load again | the helper's cases red then green; the loop's closes bounded | done: H2 red against an unbounded close, then green (`helper-cases-first.txt`); the loop with a main-only kill still had closes of 28–69 s and two timeouts (`after-main-kill.txt`), so the helper kills the group, and the loop passes seven of seven with every close at 10.0 s (`after-group-kill.txt`). (The H2 red recorded then, `TypeError: app.process(...).kill is not a function`, came from the stand-in losing its `kill`, not from a main-only kill; after the post-implementation check H4 is the case that a main-only kill turns red, `plant-helper.txt`); 72 sites moved, none left; targeted run `targeted.txt` (150 e2e, `TARGETED_EXIT=0`, on the change before H3) |
 | 5 | Code review | `ticket-227-review-code.md` | done: H3 (a group already gone) fixed red first; the header's claim narrowed to what was measured |
 | 5b | Full gateway | `evidence/ticket-227/gateway-580b426.txt` | done: `VERIFY_EXIT=0` on the clean tree of 580b426 (867 unit, 109 site, 151 e2e, smoke OK); the only kill noted is the helper's own stand-in case |
-| 5c | Independent post-implementation test check | `ticket-227-review-tests.md` | handed to an independent agent on 1349d76 up to the commit that records the gateway run |
+| 5c | Independent post-implementation test check | `ticket-227-review-tests.md` | done: nine findings (F1–F9), handled (the record's handling section): H4–H6 added, H1–H3 sharpened, the report sink injected; planted faults on the helper each red where expected (`plant-helper.txt`); targeted run `targeted-2.txt` (`TARGETED_EXIT=0`). An incremental check follows |
 | 5d | Step 7 (CONTEXT's invariant), step 8 | the records, `final-regression.md` | |
 | 6 | CI: the case repeated | a throwaway branch's run, recorded | |
 | 7 | PR; stop for the owner | PR link | |

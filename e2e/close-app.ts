@@ -21,9 +21,18 @@ function killGroupOf(pid: number): void {
   process.kill(-pid, 'SIGKILL')
 }
 
+/** Where a kill is reported: the list reporter shows no annotations, so the warning is what a run's reader sees */
+function warn(note: string): void {
+  console.warn(`[e2e teardown] ${note}`)
+}
+
 export async function closeApp(
   app: ClosableApp,
-  { boundMs = CLOSE_BOUND_MS, killGroup = killGroupOf }: { boundMs?: number; killGroup?: (pid: number) => void } = {}
+  {
+    boundMs = CLOSE_BOUND_MS,
+    killGroup = killGroupOf,
+    report = warn
+  }: { boundMs?: number; killGroup?: (pid: number) => void; report?: (note: string) => void } = {}
 ): Promise<void> {
   const closed = app.close()
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -45,7 +54,7 @@ export async function closeApp(
   }
   const note = `app.close() had not finished after ${boundMs} ms; the app's process group (pid ${pid}) was killed`
   test.info().annotations.push({ type: 'teardown', description: note })
-  console.warn(`[e2e teardown] ${note}`)
+  report(note)
   // Playwright's close settles once the group's pipes have closed
   await closed
 }

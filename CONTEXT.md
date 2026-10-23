@@ -690,6 +690,14 @@ _Avoid_: beta mode, insider track, update track
   "the previous page holds" test red — confirmed by rebuilding without it and running that test,
   which stayed green. Do not write or trust such a mutation without re-measuring first.
 
+- **An e2e case closes its app through the shared bounded teardown (settled 2026-10-23)**: under CPU load the app's
+  own quit takes milliseconds, but Electron's native shutdown after it can take minutes, and Playwright waits for the
+  process and its pipes with no bound, so a case timed out in its teardown (#227). Every case closes through `closeApp`
+  (`e2e/close-app.ts`): past 10 s it kills the app's process group — the main process alone is not enough, since the
+  rest of the group keeps the pipes open — notes it on the case and prints a warning. The trade-off: a quit that hangs
+  no longer fails a case; it shows only as that warning, so a warning on an unloaded run is a defect to look into, not
+  noise. A new launch site closes through the helper rather than `app.close()`.
+
 - **Agentshed's own code makes no outbound network request other than an update check and the download
   of the app update it finds (settled 2026-10-12; download wording 2026-10-13)**: the product is
   local-first — everything it shows is read from files on the user's machine — and updating is the one
