@@ -49,7 +49,7 @@ requirement authority: the requirement the step checks is token-stats::REQ-001/A
 | 7 | Independent post-implementation test check | `ticket-299-review-tests.md` | done: two record findings (F1, F2), handled; no test, code or data change required |
 | 8 | Spec check, step 7 (the spec's requirement unchanged: no time is specified; REQ-001 gains the fake-clock note), step 8 | `final-regression.md` | done: below, and the #299 section of `final-regression.md` |
 | 8b | CI: the restore case repeated | a throwaway branch's run, recorded | done: draft PR #306 (never merged), run 39972027006 on ubuntu with this branch at 15772f2: the restore case ten times, 10 passed (`evidence/ticket-299/ci-repeat-39972027006.txt`) |
-| 9 | PR; stop for the owner | PR link | |
+| 9 | PR; stop for the owner | PR link | done: #308, waiting for the owner |
 
 ## Targeted verification (step 4)
 
