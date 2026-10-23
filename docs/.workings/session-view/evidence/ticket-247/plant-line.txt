@@ -1,0 +1,128 @@
+# #247 first item, 2026-10-23, macOS: a planted stderr line the launcher collects and that carries neither code, written at every automatic rescan; the case red, its message naming the line
+# command: node plant-247-line.mjs e2e/app.spec.ts -g "a session whose file Codex compresses while cached"
+# A first version wrote the line once, 1 s after startup: the case passed, since it reads its collected chunks about 1 s after launch (diag below: what reaches the launcher, and what the case collected)
+
+## plant-247-line.mjs (final)
+// Plant for #247's first item: the main process writes one stderr line the launcher collects (it matches its filter)
+// but that carries neither expected code, at every automatic rescan (every 250 ms in the case). Replaces one exact occurrence, rebuilds, runs the
+// given Playwright arguments, then restores the file byte for byte and rebuilds. Usage: node plant-247-line.mjs <args...>
+import { readFileSync, writeFileSync } from 'node:fs'
+import { execSync, spawnSync } from 'node:child_process'
+const file = 'src/main/index.ts'
+const original = readFileSync(file)
+const text = original.toString('utf8')
+const from = '  const autoScan = (): void => {\n'
+const to = "  const autoScan = (): void => {\n    console.error('TypeError: a planted line for #247, neither code')\n"
+if (text.split(from).length !== 2) { console.error('PLANT: expected exactly one occurrence'); process.exit(3) }
+let code = 0
+try {
+  writeFileSync(file, text.replace(from, to))
+  console.log('PLANT applied:', readFileSync(file, 'utf8').split('\n').find((l) => l.includes('a planted line for #247'))?.trim())
+  execSync('pnpm -s build', { stdio: 'ignore' })
+  console.log('PLANT in the build:', execSync("grep -o 'a planted line for #247' out/main/index.js | wc -l").toString().trim())
+  const r = spawnSync('pnpm', ['-s', 'exec', 'playwright', 'test', ...process.argv.slice(2)], { encoding: 'utf8' })
+  code = r.status ?? 1
+  console.log(r.stdout, r.stderr)
+} finally {
+  writeFileSync(file, original)
+  console.log('RESTORED byte-identical:', Buffer.compare(readFileSync(file), original) === 0)
+  execSync('pnpm -s build', { stdio: 'ignore' })
+}
+console.log('PLANTED RUN EXIT', code)
+
+## its run
+PLANT applied: console.error('TypeError: a planted line for #247, neither code')
+PLANT in the build: 1
+
+Running 1 test using 1 worker
+
+  ✘  1 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (983ms)
+
+
+  1) e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity 
+
+    Error: a collected stderr chunk carries neither code:
+    TypeError: a planted line for #247, neither code
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      5205 |   for (const e of l.errors) {
+      5206 |     // The chunk itself is the message: a failure says which line broke it
+    > 5207 |     expect(e.includes(ERR.sessionFileUnreadable) || e.includes(ERR.sessionNotWhitelisted), `a collected stderr chunk carries neither code:\n${e}`).toBe(true)
+           |                                                                                                                                                    ^
+      5208 |   }
+      5209 |
+      5210 |   // The session reappears in the list under its compressed identity (same title, a new file) and
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-247/e2e/app.spec.ts:5207:148
+
+    Error Context: test-results/app-a-session-whose-file-C-58b7f-der-its-compressed-identity/error-context.md
+
+  1 failed
+    e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity 
+ 
+RESTORED byte-identical: true
+PLANTED RUN EXIT 1
+
+## the first version's diag: every stderr/stdout chunk in 3 s (throwaway e2e/zz-diag-247.spec.ts)
+// DIAG-247: throwaway, deleted before any commit. What reaches the launcher from the main process's stderr and stdout
+// in the first 3 s, chunk by chunk.
+import type {} from '../src/renderer/src/env'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { test, _electron as electron } from '@playwright/test'
+
+test('DIAG-247 stderr chunks', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-diag-home-'))
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-diag-data-'))
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    env: { ...(process.env as Record<string, string>), NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US' }
+  })
+  const chunks: string[] = []
+  app.process().stderr?.on('data', (b: Buffer) => chunks.push(`stderr: ${JSON.stringify(b.toString())}`))
+  app.process().stdout?.on('data', (b: Buffer) => chunks.push(`stdout: ${JSON.stringify(b.toString())}`))
+  try {
+    const win = await app.firstWindow()
+    await win.waitForTimeout(3000)
+    await app.evaluate(() => { console.error('TypeError: written by console.error inside app.evaluate') })
+    await win.waitForTimeout(300)
+  } finally {
+    await app.close()
+    console.log(`[DIAG-247] ${chunks.length} chunk(s):\n${chunks.join('\n')}`)
+    rmSync(home, { recursive: true, force: true })
+    rmSync(userData, { recursive: true, force: true })
+  }
+})
+PLANT applied: setTimeout(() => console.error('TypeError: a planted line for #247, neither code'), 1000)
+PLANT in the build: 1
+
+Running 1 test using 1 worker
+
+[DIAG-247] 3 chunk(s):
+stderr: "TypeError: a planted line for #247, neither code\n"
+stderr: "TypeError: written by console.error inside app.evaluate\n"
+stderr: "Debugger ending on ws://127.0.0.1:56920/9300d4ad-fc02-4105-a40d-6ee6dbbca364\nFor help, see: https://nodejs.org/learn/getting-started/debugging\n"
+  ✓  1 e2e/zz-diag-247.spec.ts:9:1 › DIAG-247 stderr chunks (3.9s)
+
+  1 passed (4.3s)
+ 
+RESTORED byte-identical: true
+PLANTED RUN EXIT 0
+
+## what the case collected under the first version (a temporary log line in the case, removed)
+PLANT applied: setTimeout(() => console.error('TypeError: a planted line for #247, neither code'), 1000)
+PLANT in the build: 1
+
+Running 1 test using 1 worker
+
+[DIAG-247] collected at 1792759242432: ["Error occurred in handler for 'agentshed:get-session-page': Error: agentshed-error:{\"code\":\"session-not-whitelisted\",\"params\":{}}\n    at appError \u001b[90m(file:///Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-247/\u001b[39mout/main/chunks/token-stats-Y_GCWB5i.js:94:10\u001b[90m)\u001b[39m\n    at \u001b[90mfile:///Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-247/\u001b[39mout/main/index.js:4949:20\n    at \u001b[90mfile:///Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-247/\u001b[39mout/main/index.js:4917:12\n\u001b[90m    at Session.<anonymous> (node:electron/js2c/browser_init:2:120546)\u001b[39m\n\u001b[90m    at Session.emit (node:events:509:28)\u001b[39m"]
+  ✓  1 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+
+  1 passed (1.9s)
+ 
+RESTORED byte-identical: true
+PLANTED RUN EXIT 0
