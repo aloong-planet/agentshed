@@ -69,7 +69,10 @@ test('restart restores viewed project, questions and read answer before a new sc
     const observedAt = await win.evaluate(() => window.agentshed.getSnapshot().then(s => s.scannedAt))
     await win.clock.install({ time: new Date('2030-01-01T00:30:00Z') })
     await win.clock.fastForward(61_000)
-    await expect(win.locator('.tot-c').nth(1).locator('.v')).toHaveText('0', { timeout: 1000 })
+    // The display clock's once-a-second timer was set before this fake clock, so it keeps real time: the card turns
+    // at its next real tick, up to a second after the jump, and then renders. Only the display clock reads the wall
+    // clock and no scan comes within the window, so the card can only turn through it.
+    await expect(win.locator('.tot-c').nth(1).locator('.v')).toHaveText('0')
     const cdp = await win.context().newCDPSession(win)
     await win.locator('.tot-c').nth(1).click()
     for (const [timezoneId, day] of [['Pacific/Honolulu', '2029-12-31'], ['Asia/Shanghai', '2030-01-01']]) {

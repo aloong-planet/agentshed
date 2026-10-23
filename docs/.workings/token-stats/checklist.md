@@ -351,3 +351,12 @@ This supersedes the dot-spacing acceptance recorded above, without changing the 
 The live shared control, theme CSS and both prototype mounts implement the new form. The actual dev
 window was inspected after HMR and shows compact slashes with the saved 90-day choice highlighted.
 Existing behavioral regression results are recorded in slash-style.md.
+
+## Current verification
+
+Started 2026-10-23 for #299: this checklist's earlier rounds record their verification as dated history above; this
+table holds the current conclusion for the units a later change re-verifies.
+
+| Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
+|---|---|---|---|
+| 2026-10-23; spec token-stats as written back on branch fix/today-card-rollover-window (REQ-001's note on the fake clock in e2e); implementation 251e3f7, the full gateway `VERIFY_EXIT=0` ([gateway-251e3f7.txt](evidence/ticket-299/gateway-251e3f7.txt)) | token-stats::REQ-001/AC-02; #299; the startup-restore journey's midnight step (`e2e/startup-restore.spec.ts`) | The step now waits for the display clock's next real tick: it passes in the gateway and five times over, and with the page's main thread held 700 ms before the tick ([after-change.txt](evidence/ticket-299/after-change.txt)); it goes red when the display clock does not tick within its window ([plant-clock-stretched.txt](evidence/ticket-299/plant-clock-stretched.txt)) | Passed |
