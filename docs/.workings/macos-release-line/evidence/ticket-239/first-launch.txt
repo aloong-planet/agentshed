@@ -1,0 +1,35 @@
+# Task 13's deferred spctl assessments and the first launch's traces on this Mac (taken 2026-10-22T09:52:12Z)
+## downloaded DMG sha256: cc0ba37950e17fedd62f10a81e3baca312c86749ca4be29456eeefc6d6a75f66 (the release's digest: cc0ba37950e17fedd62f10a81e3baca312c86749ca4be29456eeefc6d6a75f66)
+## quarantine: DMG 0381;6ad9db56;Chrome;DB8CFCF2-2DA9-4394-A72C-55791AAB937E; installed app 03c1;6ad9db56;Chrome;DB8CFCF2-2DA9-4394-A72C-55791AAB937E
+
+## spctl --assess --type open --context context:primary-signature --verbose=4 <downloaded DMG>
+/Users/loong_zhou/Downloads/Agentshed-0.1.0-beta-mac-arm64.dmg: accepted
+source=Notarized Developer ID
+## exit code: 0
+
+## spctl --assess --type execute --verbose=4 /Applications/Agentshed.app
+/Applications/Agentshed.app: accepted
+source=Notarized Developer ID
+## exit code: 0
+
+## xcrun stapler validate /Applications/Agentshed.app
+Processing: /Applications/Agentshed.app
+The validate action worked!
+## exit code: 0
+
+## codesign --verify --deep --strict --verbose=2 /Applications/Agentshed.app (rerun without a pipe; its last two lines)
+/Applications/Agentshed.app: valid on disk
+/Applications/Agentshed.app: satisfies its Designated Requirement
+## exit code: 0
+
+# syspolicyd's log for Agentshed, 17:44–17:53 local (/usr/bin/log show --predicate 'process == "syspolicyd" AND eventMessage CONTAINS[c] "agentshed"' --info --debug)
+Timestamp                       Thread     Type        Activity             PID    TTL  
+2026-10-22 17:46:19.062619+0800 0x38212f0  Info        0x0                  522    0    syspolicyd: [com.apple.syspolicy.exec:default] scan finished, waking up any waiters: PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-22 17:46:19.062642+0800 0x3824039  Default     0x0                  522    0    syspolicyd: [com.apple.syspolicy.exec:default] GK evaluateScanResult: 0, PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com), 1, 0, 1, 0, 4, 4, 1
+2026-10-22 17:46:19.066406+0800 0x3824039  Default     0x0                  522    0    syspolicyd: [com.apple.syspolicy.exec:default] Prompt shown (5, 0), waiting for response: PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-22 17:46:20.918823+0800 0x3824039  Default     0x0                  522    0    syspolicyd: [com.apple.syspolicy.exec:default] Marked application as user approved: 1, PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-22 17:46:20.919242+0800 0x3824039  Info        0x0                  522    0    syspolicyd: [com.apple.syspolicy.exec:default] Skipping registration as it was already registered: PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-22 17:46:20.949876+0800 0x3824039  Default     0x0                  522    0    syspolicyd: [com.apple.syspolicy.exec:default] Created provenance data for target: TA(da308f333b894942, 2), PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+2026-10-22 17:46:20.949972+0800 0x3824039  Default     0x0                  522    0    syspolicyd: [com.apple.syspolicy.exec:default] Wrote provenance data on target: TA(da308f333b894942, 2), PST: (path: 1b32d2d759aa5962), (team: RHQ28XS7D9), (id: agentshed.aloong.com), (bundle_id: agentshed.aloong.com)
+
+# The owner's report (2026-10-22): the DMG was downloaded in Chrome and opened from it before the planned offline order could be followed; everything worked, and the first-launch notice said Apple checked it for malicious software and found none. No screenshot was taken.

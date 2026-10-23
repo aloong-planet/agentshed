@@ -1,0 +1,277 @@
+# Task 13 of #239: the published v0.1.0-beta artifacts, checked independently
+date: 2026-10-22T09:35:00Z
+macOS: 26.0.1 (arm64); Xcode tools: /Library/Developer/CommandLineTools/usr/bin/stapler
+spctl is not run here (see the header): it follows task 16's offline first launch
+
+## the release as GitHub reports it
+## exit code: 0
+{
+ "name": "v0.1.0-beta",
+ "tag_name": "v0.1.0-beta",
+ "target_commitish": "main",
+ "prerelease": true,
+ "draft": false,
+ "published_at": "2026-10-22T09:34:05Z"
+}
+asset Agentshed-0.1.0-beta-mac-arm64.dmg size=127736335 digest=sha256:cc0ba37950e17fedd62f10a81e3baca312c86749ca4be29456eeefc6d6a75f66
+asset Agentshed-0.1.0-beta-mac-arm64.zip size=121249114 digest=sha256:845dd43cbdfa7794f0be84f479f617efa41824e0d4c07e8a887486518c6d15f7
+asset Agentshed-0.1.0-beta-mac-arm64.zip.blockmap size=127800 digest=sha256:577d1b57b610bd57931e4fe7781292894e61644b9fdf6ec279428a9628acab0f
+asset latest-mac.yml size=370 digest=sha256:65bcbbb4b981a2e0270fc0e4d406603222477d84b332dd574d768ad9a88ae96f
+ASSERT ok: the release holds exactly the four expected files
+ASSERT ok: the release is public, marked Pre-release, titled v0.1.0-beta
+
+## downloads (resumed until the size GitHub reports; then sha256 against GitHub's digest)
+ASSERT ok: Agentshed-0.1.0-beta-mac-arm64.dmg: 127736335 bytes, after 1 attempt(s)
+ASSERT ok: Agentshed-0.1.0-beta-mac-arm64.dmg: sha256 cc0ba37950e17fedd62f10a81e3baca312c86749ca4be29456eeefc6d6a75f66 equals GitHub's digest
+ASSERT ok: Agentshed-0.1.0-beta-mac-arm64.zip: 121249114 bytes, after 1 attempt(s)
+ASSERT ok: Agentshed-0.1.0-beta-mac-arm64.zip: sha256 845dd43cbdfa7794f0be84f479f617efa41824e0d4c07e8a887486518c6d15f7 equals GitHub's digest
+ASSERT ok: Agentshed-0.1.0-beta-mac-arm64.zip.blockmap: 127800 bytes, after 1 attempt(s)
+ASSERT ok: Agentshed-0.1.0-beta-mac-arm64.zip.blockmap: sha256 577d1b57b610bd57931e4fe7781292894e61644b9fdf6ec279428a9628acab0f equals GitHub's digest
+ASSERT ok: latest-mac.yml: 370 bytes, after 1 attempt(s)
+ASSERT ok: latest-mac.yml: sha256 65bcbbb4b981a2e0270fc0e4d406603222477d84b332dd574d768ad9a88ae96f equals GitHub's digest
+
+# The DMG
+
+## DMG: image integrity: hdiutil verify /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/Agentshed-0.1.0-beta-mac-arm64.dmg
+Checksumming Protective Master Boot Record (MBR : 0)…
+Protective Master Boot Record (MBR :: verified   CRC32 $2DCA7D5A
+Checksumming GPT Header (Primary GPT Header : 1)…
+ GPT Header (Primary GPT Header : 1): verified   CRC32 $582C9E86
+Checksumming GPT Partition Data (Primary GPT Table : 2)…
+GPT Partition Data (Primary GPT Tabl: verified   CRC32 $D0FD22CB
+Checksumming  (Apple_Free : 3)…
+                    (Apple_Free : 3): verified   CRC32 $00000000
+Checksumming disk image (Apple_HFS : 4)…
+          disk image (Apple_HFS : 4): verified   CRC32 $E3F0DC5A
+Checksumming  (Apple_Free : 5)…
+                    (Apple_Free : 5): verified   CRC32 $00000000
+Checksumming GPT Partition Data (Backup GPT Table : 6)…
+GPT Partition Data (Backup GPT Table: verified   CRC32 $D0FD22CB
+Checksumming GPT Header (Backup GPT Header : 7)…
+  GPT Header (Backup GPT Header : 7): verified   CRC32 $6FE13F2E
+verified   CRC32 $72753830
+hdiutil: verify: checksum of "/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/Agentshed-0.1.0-beta-mac-arm64.dmg" is VALID
+## exit code: 0
+
+## DMG: signature: codesign --verify --verbose=4 /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/Agentshed-0.1.0-beta-mac-arm64.dmg
+/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/Agentshed-0.1.0-beta-mac-arm64.dmg: valid on disk
+/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/Agentshed-0.1.0-beta-mac-arm64.dmg: satisfies its Designated Requirement
+## exit code: 0
+
+## signature of DMG: codesign --display --verbose=4 /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/Agentshed-0.1.0-beta-mac-arm64.dmg
+Executable=/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/Agentshed-0.1.0-beta-mac-arm64.dmg
+Identifier=Agentshed-0.1.0-beta-mac-arm64
+Format=disk image
+CodeDirectory v=20200 size=318 flags=0x0(none) hashes=1+6 location=embedded
+Hash type=sha256 size=32
+CandidateCDHash sha256=1e1257e6590c0be87f885c93a76ffa4cd2017cc8
+CandidateCDHashFull sha256=1e1257e6590c0be87f885c93a76ffa4cd2017cc820b1af090f9fd225fa67ee6f
+Hash choices=sha256
+CMSDigest=1e1257e6590c0be87f885c93a76ffa4cd2017cc820b1af090f9fd225fa67ee6f
+CMSDigestType=2
+Page size=none
+CDHash=1e1257e6590c0be87f885c93a76ffa4cd2017cc8
+Signature size=8975
+Authority=Developer ID Application: Longfei Zhou (RHQ28XS7D9)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 22, 2026 at 17:31:30
+Notarization Ticket=stapled
+Info.plist=not bound
+TeamIdentifier=RHQ28XS7D9
+Sealed Resources=none
+Internal requirements count=1 size=192
+## exit code: 0
+ASSERT ok: DMG: Authority is 'Developer ID Application: Longfei Zhou (RHQ28XS7D9)'
+ASSERT ok: DMG: TeamIdentifier is RHQ28XS7D9
+ASSERT ok: DMG: Timestamp is 'Oct 22, 2026 at 17:31:30'
+
+## DMG: its own stapled ticket: xcrun stapler validate /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/Agentshed-0.1.0-beta-mac-arm64.dmg
+Processing: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/Agentshed-0.1.0-beta-mac-arm64.dmg
+The validate action worked!
+## exit code: 0
+
+# The app inside the DMG
+
+## DMG: mounted read-only, hidden from Finder: hdiutil attach -readonly -nobrowse -mountpoint /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0 /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/Agentshed-0.1.0-beta-mac-arm64.dmg
+expected   CRC32 $72753830
+/dev/disk11         	GUID_partition_scheme          	
+/dev/disk11s1       	Apple_HFS                      	/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0
+## exit code: 0
+volume contents:
+total 3864
+-rw-r--r--  1 loong_zhou  staff    37298 Oct 22 17:31 .background.tiff
+-rw-r--r--  1 loong_zhou  staff    16388 Oct 22 17:31 .DS_Store
+-rw-r--r--  1 loong_zhou  staff  1911483 Oct 22 17:31 .VolumeIcon.icns
+drwxr-xr-x  3 loong_zhou  staff      102 Oct 22 17:27 Agentshed.app
+lrwxr-xr-x  1 loong_zhou  staff       13 Oct 22 17:31 Applications -> /Applications
+ASSERT ok: the volume holds exactly one app, Agentshed.app
+ASSERT ok: the volume links to /Applications (US-001/AC-04)
+
+## DMG app: its own stapled ticket: xcrun stapler validate /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app
+Processing: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app
+The validate action worked!
+## exit code: 0
+
+## DMG app: signature, deep and strict: codesign --verify --deep --strict --verbose=2 /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Agentshed Helper.app
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Agentshed Helper.app
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app: valid on disk
+/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app: satisfies its Designated Requirement
+## exit code: 0
+
+## signature of DMG app: codesign --display --verbose=4 /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app
+Executable=/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app/Contents/MacOS/Agentshed
+Identifier=agentshed.aloong.com
+Format=app bundle with Mach-O thin (arm64)
+CodeDirectory v=20500 size=448 flags=0x10000(runtime) hashes=3+7 location=embedded
+VersionPlatform=1
+VersionMin=786432
+VersionSDK=1704960
+Hash type=sha256 size=32
+CandidateCDHash sha256=93cc81731ebf215da53330e9e1bef70acdc7b228
+CandidateCDHashFull sha256=93cc81731ebf215da53330e9e1bef70acdc7b2286f047cb6d2795fdc7c22a190
+Hash choices=sha256
+CMSDigest=93cc81731ebf215da53330e9e1bef70acdc7b2286f047cb6d2795fdc7c22a190
+CMSDigestType=2
+Executable Segment base=0
+Executable Segment limit=16384
+Executable Segment flags=0x1
+Page size=16384
+CDHash=93cc81731ebf215da53330e9e1bef70acdc7b228
+Signature size=8974
+Authority=Developer ID Application: Longfei Zhou (RHQ28XS7D9)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 22, 2026 at 17:29:36
+Notarization Ticket=stapled
+Info.plist entries=32
+TeamIdentifier=RHQ28XS7D9
+Runtime Version=26.4.0
+Sealed Resources version=2 rules=13 files=13
+Internal requirements count=1 size=180
+## exit code: 0
+ASSERT ok: DMG app: Authority is 'Developer ID Application: Longfei Zhou (RHQ28XS7D9)'
+ASSERT ok: DMG app: TeamIdentifier is RHQ28XS7D9
+ASSERT ok: DMG app: Timestamp is 'Oct 22, 2026 at 17:29:36'
+ASSERT ok: DMG app: LSMinimumSystemVersion is 12.0
+ASSERT ok: DMG app: CFBundleShortVersionString is 0.1.0-beta
+
+## DMG app: Electron fuses: node /Users/loong_zhou/CascadeProjects/agentshed-wt/release-beta/scripts/check-fuses.mjs /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0/Agentshed.app
+✓ runAsNode = DISABLED
+✓ nodeOptions = DISABLED
+✓ nodeCliInspect = DISABLED
+✓ onlyLoadAppFromAsar = ENABLED
+✓ cookieEncryption = ENABLED
+✓ asarIntegrity = ENABLED
+✓ fileProtocolPrivileges = DISABLED
+
+Fuses check passed
+## exit code: 0
+
+## DMG: detached: hdiutil detach /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.PTHCuxxNM0
+"disk11" ejected.
+## exit code: 0
+
+# The app inside the ZIP (the ZIP itself is never written to)
+
+## ZIP: extracted: ditto -x -k /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/Agentshed-0.1.0-beta-mac-arm64.zip /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out
+## exit code: 0
+ASSERT ok: the ZIP holds exactly Agentshed.app
+
+## ZIP app: its own stapled ticket: xcrun stapler validate /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app
+Processing: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app
+The validate action worked!
+## exit code: 0
+
+## ZIP app: signature, deep and strict: codesign --verify --deep --strict --verbose=2 /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Agentshed Helper (Plugin).app
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Agentshed Helper (Renderer).app
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Agentshed Helper (GPU).app
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Agentshed Helper.app
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Agentshed Helper.app
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+--prepared:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app: valid on disk
+/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app: satisfies its Designated Requirement
+## exit code: 0
+
+## signature of ZIP app: codesign --display --verbose=4 /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app
+Executable=/private/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.i0TSwFJ0lR/zip-out/Agentshed.app/Contents/MacOS/Agentshed
+Identifier=agentshed.aloong.com
+Format=app bundle with Mach-O thin (arm64)
+CodeDirectory v=20500 size=448 flags=0x10000(runtime) hashes=3+7 location=embedded
+VersionPlatform=1
+VersionMin=786432
+VersionSDK=1704960
+Hash type=sha256 size=32
+CandidateCDHash sha256=93cc81731ebf215da53330e9e1bef70acdc7b228
+CandidateCDHashFull sha256=93cc81731ebf215da53330e9e1bef70acdc7b2286f047cb6d2795fdc7c22a190
+Hash choices=sha256
+CMSDigest=93cc81731ebf215da53330e9e1bef70acdc7b2286f047cb6d2795fdc7c22a190
+CMSDigestType=2
+Executable Segment base=0
+Executable Segment limit=16384
+Executable Segment flags=0x1
+Page size=16384
+CDHash=93cc81731ebf215da53330e9e1bef70acdc7b228
+Signature size=8974
+Authority=Developer ID Application: Longfei Zhou (RHQ28XS7D9)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 22, 2026 at 17:29:36
+Notarization Ticket=stapled
+Info.plist entries=32
+TeamIdentifier=RHQ28XS7D9
+Runtime Version=26.4.0
+Sealed Resources version=2 rules=13 files=13
+Internal requirements count=1 size=180
+## exit code: 0
+ASSERT ok: ZIP app: Authority is 'Developer ID Application: Longfei Zhou (RHQ28XS7D9)'
+ASSERT ok: ZIP app: TeamIdentifier is RHQ28XS7D9
+ASSERT ok: ZIP app: Timestamp is 'Oct 22, 2026 at 17:29:36'
+ASSERT ok: ZIP app: CFBundleShortVersionString is 0.1.0-beta
+
+# The update metadata against the published ZIP
+version: 0.1.0-beta
+files:
+  - url: Agentshed-0.1.0-beta-mac-arm64.zip
+    sha512: gmn+hP8T+SaoKnJfMrk/pfKpTeYxznx0zoZ5ft0Nxpzuxm/gpzouI2uv4EOOpN+Ij660wVjrh3Q0NgKiOBJyHQ==
+    size: 121249114
+path: Agentshed-0.1.0-beta-mac-arm64.zip
+sha512: gmn+hP8T+SaoKnJfMrk/pfKpTeYxznx0zoZ5ft0Nxpzuxm/gpzouI2uv4EOOpN+Ij660wVjrh3Q0NgKiOBJyHQ==
+releaseDate: '2026-10-22T09:32:01.304Z'
+ASSERT ok: metadata version is '0.1.0-beta'
+ASSERT ok: metadata lists exactly the ZIP: ['Agentshed-0.1.0-beta-mac-arm64.zip']
+ASSERT ok: metadata's sha512 for the ZIP equals the published ZIP's (gmn+hP8T+SaoKnJf…)
+ASSERT ok: metadata's size for the ZIP equals the published ZIP's (121249114)
+ASSERT ok: metadata's top-level path and sha512 name the same ZIP
+
+CHECK_EXIT=0

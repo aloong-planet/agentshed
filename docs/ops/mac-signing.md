@@ -110,8 +110,8 @@ the mirror and pointer jobs then copy the release to R2 and rewrite its `latest.
 
 - **The verification switch is the `verify` input.** Add `--ref <branch>` to run a branch's version of the
   workflow. GitHub dispatches only a workflow whose file is on `main`, and then runs the file at the given ref.
-- **A pushed tag is a public release.** Make the tag only on the commit on `main` that sets `package.json`'s
-  version (the version change goes through a pull request; github-ops §5). The gate job fails before packaging
+- **A pushed tag is a public release.** Make the tag only on a commit on `main` whose `package.json` carries the
+  tag's version, after the version change is merged (the version change goes through a pull request; github-ops §5). The gate job fails before packaging
   when the tag is not `v` + that version, or when the version is not semver or carries build metadata
   (`scripts/release-tag.mjs`). A suffix after the version makes the release a pre-release, whatever the suffix
   says.

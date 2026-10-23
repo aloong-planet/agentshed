@@ -202,6 +202,36 @@ with its index row. mac-distribution gets none: the catalogue leaves distributio
 
 Queue empty; the pre-delivery scope re-check is recorded in the document sync checklist.
 
+### After the release (2026-10-22)
+
+- Scope: the records pull request after `v0.1.0-beta` was published from main's 7dc0c22 — REQ-006's and the
+  runbook's rewording, and the release events
+- Version: branch `docs/release-beta-records` on 7dc0c22
+
+The two questions for the feature catalogue: **what became a lie** — nothing: the landing-page entry describes the
+three download states, and the live page now shows the test state it describes; **what was missing** — nothing: a
+release is not a product behaviour, and distribution is not catalogued.
+
+| Stage 1: declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/mac-distribution.md` REQ-006 ("a commit of main that carries that version") | the owner's decision; the tag on 7dc0c22, whose `package.json` says 0.1.0-beta; the tag check, which compares only the tag and the version (`release-run.txt`) | True |
+| `docs/ops/mac-signing.md`, "A pushed tag is a public release" | the same | True |
+
+| Stage 2: relation | Rows | Conclusion |
+|---|---|---|
+| One fact ↔ its other statements: where a release tag goes | REQ-006; mac-distribution Failure A5 ("tags only after the version change is merged"); the runbook; the checklist's REQ-006 row | Agree after the rewording; A5 already said "after the version change is merged" |
+| One fact ↔ its other statements: "download from the landing page or GitHub Releases" | both READMEs; the landing page's hero (now the test state, leading to the release) | Agree; the release page and the DMG resolve |
+| One fact ↔ its other statements: "notarized by Apple" | the release note; both READMEs' install steps; the landing page's install section | Agree; the note's claim follows the gates and the independent check |
+
+| Stage 3: event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed: releases, none → one pre-release | statements about there being no release, searched in English and Chinese across `docs/` (records excluded), `CONTEXT.md`, the READMEs and `site/` (`rg` for "no release", "first release", "0.1.0-beta" and their Chinese forms) | Each still true: the ones about the first release name `v0.1.0-beta`; "the mirror and pointer jobs have not run" holds (they were skipped); the landing-page failure A1 is a boundary, not a claim about now |
+| `Pending:` notes in scope | app-update's ("two releases exist") | Not due: one release exists |
+| Work state changed | #239's issue items; #240 (now unblocked, and carrying AC-02's user path); the coverage checklist; the document sync checklist; the tasks file | Updated here; the issues after the merge |
+| A deferred acceptance | mac-distribution::US-001/AC-02's user path | Recorded with its trigger, method, verifier and evidence place in the checklist; carried to #240 |
+
+Queue empty; the post-release scope re-check is recorded in the document sync checklist.
+
 ## Ticket #279 — The landing page's memory and search steps, and its pinned features section
 
 - Date: 2026-10-21
