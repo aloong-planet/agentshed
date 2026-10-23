@@ -1,0 +1,11 @@
+plant A_corner_painted: exit 0
+  errors: []
+  failing lines: []
+plant B_no_hover: exit 1
+  errors: ["Error: under the pointer the thumb is black at 40%"]
+  failing lines: ["> 4176 |     'under the pointer the thumb is black at 40%').toBe(true)"]
+plant C_dark_thumb_wrong: exit 1
+  errors: ["Error: the thumb is white at 22% over 31,33,36, got 143,144,146"]
+  failing lines: ["> 4187 |   expect.soft(near(darkThumb, over(255, 0.22, dark.background)), `the thumb is white at 22% over ${dark.background}, got ${darkThumb}`).toBe(true)"]
+restored byte for byte: true
+rebuilt from the restored source

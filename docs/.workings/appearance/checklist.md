@@ -42,7 +42,11 @@ nativeTheme decisions — the change adds a drawing rule and two tokens and chan
 
 | Check date, spec and implementation commits | Coverage unit, ticket and path | Actual result and evidence | Current conclusion |
 |---|---|---|---|
-| 2026-10-23; spec fc3fbeb with uncommitted changes; no implementation yet | Every unit above; #281 | Not run yet | Unverified |
+| 2026-10-23; spec 5f376ad; implementation uncommitted on 5f376ad (`theme.css`, `e2e/app.spec.ts`), before the code review | appearance::REQ-001/AC-01..AC-05; #281 | The targeted run green (`evidence/ticket-281/targeted-implementation-2.txt`: lint, typecheck, the site tests, the build, all 83 cases of `e2e/app.spec.ts`, the three checks): the list's scrollbar 6px, its track the list's background, the thumb black at 25% and 40% under the pointer, white at 22% and 36% in dark; the drawer's two scrollbars and the fence's 6px, the corner clear in dark. Red first on the unfixed code (`e2e-red-first.txt`); planted faults caught (`e2e-plants.txt`, `e2e-plant-corner-dark.txt`). The rounded ends: the captures (`scrollbars-list-light.png`, `scrollbars-list-dark.png`) | Verified at this version; the full gateway after the code review decides the delivered one |
+| 2026-10-23; as above | appearance C2 (the thumb tokens), B5 | `theme-vars` over the theme stylesheet (`theme-vars.txt`): the two thumb tokens vary with the appearance only; every variable resolves in all six states | Verified |
+| 2026-10-23; as above | appearance F3, F4, F5, F6, F8 | F3 and F8: the drawer's both-way body and its fence (the memory case, `scrollbars-drawer-dark.png`); F4: light and dark read on one page with no reload, the themes by `theme-vars`; F5: the tall and short windows; F6: a click below the thumb, a drag and the wheel each scroll the list. That every other surface takes the rule: the code review's reading of the rule | Verified, but for the code review's part |
+| 2026-10-23; as above | appearance F1, F2 | The e2e window is the classic case (a mouse's); a trackpad-only Mac's overlay case and macOS's "Show scroll bars" setting are not settable by a test — stated in the e2e case's comment | Classic case verified; the overlay case and the setting by construction (a drawn scrollbar replaces both), unverified by test |
+| 2026-10-23; as above | appearance F7 | The full e2e suite at the gateway | Not run yet |
 
 ## Two-way audit
 
