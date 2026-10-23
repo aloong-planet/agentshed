@@ -1,0 +1,8 @@
+plant D_no_width_rule: exit 1
+  errors: ["Error: WhenScrolling: the list's scrollbar is the app's 6px one"]
+  failing lines: ["> 4288 |     expect(list.width, `${setting}: the list's scrollbar is the app's 6px one`).toBe(6)"]
+plant E_theme_declares_thumb: exit 1
+  errors: ["Error: one light thumb in every theme"]
+  failing lines: ["> 4155 |   expect([...lightThumbs], 'one light thumb in every theme').toHaveLength(1)"]
+restored byte for byte: true
+rebuilt from the restored source

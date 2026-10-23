@@ -75,6 +75,10 @@
   --tc-rd: #2b8fd4;
   --tc-in: #dda32e;
   --tc-ou: #57a83e;
+  /* The scrollbar thumb at rest and under the pointer (appearance::REQ-001): a neutral grey laid over whatever
+     surface scrolls, so it follows light and dark and not the theme (C2) */
+  --scroll-thumb: rgba(0, 0, 0, 0.25);
+  --scroll-thumb-hover: rgba(0, 0, 0, 0.4);
 }
 /* Mist blue · light */
 html[data-theme='blue'] {
@@ -152,6 +156,8 @@ html[data-theme='amber'] {
     --tc-rd: #5fb0e8;
     --tc-in: #e6bd5c;
     --tc-ou: #7cc45f;
+    --scroll-thumb: rgba(255, 255, 255, 0.22);
+    --scroll-thumb-hover: rgba(255, 255, 255, 0.36);
   }
   html[data-theme='blue'] {
     --bg: #16181c;
@@ -195,6 +201,27 @@ body {
   color: var(--text);
   font-size: 13px;
   overflow: hidden;
+}
+
+/* Scrollbars (appearance::REQ-001): every scrolling area draws a 6px thumb with rounded ends on no track, shown
+   whenever its content overflows. Chromium never draws a styled scrollbar as an overlay one, so this replaces both of
+   macOS's own — the classic one, whose track stays light beside a dark list, and the overlay one, which hides when
+   idle — and is the same with a mouse or a trackpad, whatever macOS's setting. The corner where two scrollbars meet
+   is cleared too, or it stays a light square. */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
 }
 
 /* ── The layout skeleton: rail + content ── */

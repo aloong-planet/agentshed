@@ -77,12 +77,13 @@ interface Launched {
 async function launch(
   cacheContent: string | undefined,
   home: string,
-  extraEnv?: Record<string, string>
+  extraEnv?: Record<string, string>,
+  extraArgs: string[] = []
 ): Promise<Launched> {
   const userData = makeUserData(cacheContent)
   const errors: string[] = []
   const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
+    args: ['.', `--user-data-dir=${userData}`, ...extraArgs],
     env: {
       ...process.env,
       NODE_ENV: 'production',
@@ -1898,6 +1899,89 @@ function expectCodeStyle(c: Awaited<ReturnType<typeof codeStyle>>, label: string
   expect(c.inlineBorder, `${label}: inline code pill border`).toBe('1px')
 }
 
+type Win = Awaited<ReturnType<ElectronApplication['firstWindow']>>
+type Rgb = [number, number, number]
+
+/** One pixel of the window as drawn, at a CSS position. A scrollbar is no element, so its colour has no computed
+ * style to read: the window is captured around the point (at the device's scale) and the capture decoded in the
+ * page, where a canvas gives RGBA whatever the platform's bitmap order */
+async function pixelAt(win: Win, x: number, y: number): Promise<Rgb> {
+  const png = await win.screenshot({ clip: { x: Math.floor(x), y: Math.floor(y), width: 1, height: 1 } })
+  return win.evaluate(async (b64) => {
+    const img = new Image()
+    img.src = `data:image/png;base64,${b64}`
+    await img.decode()
+    const c = document.createElement('canvas')
+    c.width = img.naturalWidth
+    c.height = img.naturalHeight
+    const ctx = c.getContext('2d') as CanvasRenderingContext2D
+    ctx.drawImage(img, 0, 0)
+    const d = ctx.getImageData(Math.floor(img.naturalWidth / 2), Math.floor(img.naturalHeight / 2), 1, 1).data
+    return [d[0], d[1], d[2]] as [number, number, number]
+  }, png.toString('base64'))
+}
+
+/** The colour an area paints beneath its content: the first painted background up its ancestors */
+async function paintedBackground(area: ReturnType<Win['locator']>): Promise<Rgb> {
+  return area.evaluate((node) => {
+    for (let n: Element | null = node; n; n = n.parentElement) {
+      const c = getComputedStyle(n).backgroundColor
+      if (!/rgba\(.*,\s*0\)$/.test(c) && c !== 'transparent') {
+        return (c.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number) as [number, number, number]
+      }
+    }
+    return [] as unknown as [number, number, number]
+  })
+}
+
+/** A scrolling area's vertical scrollbar, measured: how far its content overflows, how wide the scrollbar is (the
+ * box less the client area less the borders), the column the scrollbar occupies, where its thumb is at the current
+ * scroll position, and the colour the area paints beneath it (the first painted background up its ancestors) */
+async function scrollArea(win: Win, selector: string): Promise<{
+  overflow: number
+  width: number
+  columnX: number
+  thumbY: number
+  trackY: number
+  background: Rgb
+}> {
+  return win.locator(selector).evaluate((node) => {
+    const el = node as HTMLElement
+    const cs = getComputedStyle(el)
+    const r = el.getBoundingClientRect()
+    const bl = parseFloat(cs.borderLeftWidth)
+    const br = parseFloat(cs.borderRightWidth)
+    const bt = parseFloat(cs.borderTopWidth)
+    const bb = parseFloat(cs.borderBottomWidth)
+    const width = el.offsetWidth - el.clientWidth - bl - br
+    const top = r.top + bt
+    const thumbLength = (el.clientHeight * el.clientHeight) / el.scrollHeight
+    const thumbTop = top + (el.scrollTop / el.scrollHeight) * el.clientHeight
+    return {
+      overflow: el.scrollHeight - el.clientHeight,
+      width,
+      columnX: r.right - br - width / 2,
+      thumbY: thumbTop + thumbLength / 2,
+      // Below the thumb when it sits at the top, on the empty part of the scrollbar's column
+      trackY: r.bottom - bb - 3
+    }
+  }).then(async (measured) => ({ ...measured, background: await paintedBackground(win.locator(selector)) }))
+}
+
+/** A colour for a failure message */
+function rgb(c: Rgb): string {
+  return c.join(',')
+}
+
+function near(got: Rgb, want: Rgb, tolerance = 2): boolean {
+  return got.every((v, i) => Math.abs(v - want[i]) <= tolerance)
+}
+
+/** A colour at the given opacity laid over a background: the expected thumb, from the spec's literal values */
+function over(channel: 0 | 255, alpha: number, background: Rgb): Rgb {
+  return background.map((b) => Math.round(b * (1 - alpha) + channel * alpha)) as Rgb
+}
+
 /**
  * The v2 components (Subagents/Memory/Plugins): with a seeded fixture home (injected through
  * AGENTSHED_HOME_OVERRIDE),
@@ -2180,6 +2264,50 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   expect(wide.tableHidden, 'no column is cut off inside the table').toBeLessThanOrEqual(1)
   expect(wide.bodyScroll, 'the body scrolls sideways to the unbroken path and the table').toBe('auto true')
   expect(wide.fenceScroll, 'the fence scrolls sideways to its wide line').toBe('auto true')
+  // appearance::REQ-001 in a drawer and in rendered markdown (F3, F8): the body scrolls both ways, so it draws two
+  // 6px scrollbars and clears the corner where they meet; the fence draws its own 6px sideways one
+  const bars = await fdBody.evaluate((node) => {
+    const body = node as HTMLElement
+    const pre = body.querySelector('pre') as HTMLElement
+    const sides = (el: HTMLElement): { x: number; y: number } => {
+      const cs = getComputedStyle(el)
+      return {
+        x: parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth),
+        y: parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth)
+      }
+    }
+    const b = sides(body)
+    const p = sides(pre)
+    const r = body.getBoundingClientRect()
+    const cs = getComputedStyle(body)
+    return {
+      bodyBothWays: body.scrollHeight > body.clientHeight && body.scrollWidth > body.clientWidth,
+      bodyVertical: body.offsetWidth - body.clientWidth - b.x,
+      bodyHorizontal: body.offsetHeight - body.clientHeight - b.y,
+      preSideways: pre.scrollWidth > pre.clientWidth,
+      preHorizontal: pre.offsetHeight - pre.clientHeight - p.y,
+      // The corner square's innermost pixel: the drawer's rounded corner curves across the square's outer part,
+      // where a pixel reads the border's line, not the corner
+      cornerX: r.right - parseFloat(cs.borderRightWidth) - 5.5,
+      cornerY: r.bottom - parseFloat(cs.borderBottomWidth) - 5.5
+    }
+  })
+  expect(bars.bodyBothWays, 'the wide file scrolls the body both ways, or there is no corner to read').toBe(true)
+  expect(bars.bodyVertical, "the body's vertical scrollbar is 6px wide").toBe(6)
+  expect(bars.bodyHorizontal, "the body's horizontal scrollbar is 6px tall").toBe(6)
+  expect(bars.preSideways).toBe(true)
+  expect(bars.preHorizontal, "the fence's sideways scrollbar is 6px tall").toBe(6)
+  // The corner is read in dark: an uncleared corner is a white square, which on the light body's white is no
+  // different from the background, so a light reading could not fail
+  const lightBody = await paintedBackground(fdBody)
+  await win.emulateMedia({ colorScheme: 'dark' })
+  await expect.poll(() => paintedBackground(fdBody)).not.toEqual(lightBody)
+  const darkBody = await paintedBackground(fdBody)
+  const corner = await pixelAt(win, bars.cornerX, bars.cornerY)
+  await fdBody.screenshot({ path: 'e2e-out/scrollbars-drawer-dark.png' })
+  expect(near(corner, darkBody), `the corner shows the body's dark background ${rgb(darkBody)}, got ${rgb(corner)}`).toBe(true)
+  await win.emulateMedia({ colorScheme: 'light' })
+  await expect.poll(() => paintedBackground(fdBody)).toEqual(lightBody)
   await win.locator('.mask').click({ position: { x: 10, y: 10 } })
   // AC-01 for Codex's global memory: the placeholder owner and the Codex side
   await win.locator('.it.row-btn', { hasText: '(Codex global memory)' }).click()
@@ -3937,6 +4065,7 @@ test('appearance: all six combinations of 3 themes × 2 effective light/dark hol
    * to maintain. See the delivery notes for that trade-off.
    */
   const floatShadowByState = new Map<string, string>()
+  const scrollThumbByState = new Map<string, string>()
 
   for (const mode of ['light', 'dark'] as const) {
     await win.locator(`[data-mode-option="${mode}"]`).click()
@@ -3981,6 +4110,7 @@ test('appearance: all six combinations of 3 themes × 2 effective light/dark hol
           declaredCount: declared.size,
           unresolved: [...declared].filter((n) => cs.getPropertyValue(n).trim() === ''),
           floatShadow: cs.getPropertyValue('--float-shadow').trim(),
+          scrollThumb: `${cs.getPropertyValue('--scroll-thumb').trim()} / ${cs.getPropertyValue('--scroll-thumb-hover').trim()}`,
           bodyBg: body.backgroundColor,
           bodyFg: body.color
         }
@@ -3997,6 +4127,7 @@ test('appearance: all six combinations of 3 themes × 2 effective light/dark hol
       // mutation — deleting the dark definition of a variable leaves this green.
       expect(vars.unresolved).toEqual([])
       floatShadowByState.set(`${theme}/${mode}`, vars.floatShadow)
+      scrollThumbByState.set(`${theme}/${mode}`, vars.scrollThumb)
       // The foreground and background are distinguishable (otherwise this combination gives invisible text)
       expect(Math.abs(luminance(vars.bodyBg) - luminance(vars.bodyFg))).toBeGreaterThan(0.3)
     }
@@ -4016,8 +4147,185 @@ test('appearance: all six combinations of 3 themes × 2 effective light/dark hol
   expect([...lightShadows][0]).not.toBe([...darkShadows][0])
   expect([...lightShadows][0]).not.toBe('')
 
+  // The scrollbar thumb and its hover shade likewise (appearance::REQ-001/AC-04, C2): a neutral grey laid over the
+  // surface, one value per appearance, the same in every theme
+  expect(scrollThumbByState.size).toBe(6)
+  const lightThumbs = new Set([...scrollThumbByState].filter(([k]) => k.endsWith('/light')).map(([, v]) => v))
+  const darkThumbs = new Set([...scrollThumbByState].filter(([k]) => k.endsWith('/dark')).map(([, v]) => v))
+  expect([...lightThumbs], 'one light thumb in every theme').toHaveLength(1)
+  expect([...darkThumbs], 'one dark thumb in every theme').toHaveLength(1)
+  expect([...lightThumbs][0]).not.toBe([...darkThumbs][0])
+  expect([...lightThumbs][0]).not.toMatch(/^ \/ |\/ $/)
+
   expect(l.errors).toEqual([])
   await close(l)
+})
+
+/** A home with 40 registered projects: enough rows to overflow the project list at a 1000×600 window */
+function manyProjectsHome(): string {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-e2e-scroll-'))
+  const projects: Record<string, object> = {}
+  for (let i = 0; i < 40; i++) {
+    const p = join(home, `proj-${String(i).padStart(2, '0')}`)
+    mkdirSync(p, { recursive: true })
+    projects[p] = {}
+  }
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects }))
+  return home
+}
+
+/**
+ * Scrollbars (spec appearance.md, appearance::REQ-001 and sequence F), on the project list: 40 projects overflow it
+ * at this window size. Which scrollbar macOS itself would draw here depends on the machine (its setting and whether a
+ * mouse is attached: the overlay one or the classic 15px one with a track); the app draws its own either way, and the
+ * next case drives both of macOS's styles.
+ */
+test('scrollbars: every scrolling area draws a 6px thumb on no track, in light and in dark (appearance::REQ-001)', async () => {
+  const l = await launch(undefined, manyProjectsHome())
+  const win = await l.app.firstWindow()
+  await win.setViewportSize({ width: 1000, height: 600 })
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.side .row')).toHaveCount(40)
+  const LIST = '.side .list'
+
+  // AC-01, AC-03: the list overflows with nothing scrolled, and its scrollbar is 6px wide
+  const light = await scrollArea(win, LIST)
+  expect(light.overflow, 'the list must overflow, or its scrollbar width measures 0 whatever the rule').toBeGreaterThan(0)
+  // Soft from here: each part of the drawing reports on its own
+  expect.soft(light.width, 'the scrollbar is 6px wide').toBe(6)
+  // AC-02: no track — below the thumb, the scrollbar's column shows the list's own background
+  // The pointer away from the list first, so the thumb is read at rest
+  await win.mouse.move(5, 5)
+  const lightTrack = await pixelAt(win, light.columnX, light.trackY)
+  expect.soft(near(lightTrack, light.background), `the track shows the list's background ${rgb(light.background)}, got ${rgb(lightTrack)}`).toBe(true)
+  // AC-04: the thumb is black at 25% over that background, and it is where it was measured (not the track's colour)
+  const lightThumb = await pixelAt(win, light.columnX, light.thumbY)
+  expect.soft(lightThumb, 'the thumb is sampled, not the track').not.toEqual(lightTrack)
+  expect.soft(near(lightThumb, over(0, 0.25, light.background)), `the thumb is black at 25% over ${rgb(light.background)}, got ${rgb(lightThumb)}`).toBe(true)
+  await win.locator('.side').screenshot({ path: 'e2e-out/scrollbars-list-light.png' })
+
+  // In dark (#281: a light strip beside a dark list), with no reload
+  await win.emulateMedia({ colorScheme: 'dark' })
+  await expect.poll(async () => (await scrollArea(win, LIST)).background).not.toEqual(light.background)
+  const dark = await scrollArea(win, LIST)
+  expect.soft(dark.width, 'the scrollbar is 6px wide in dark').toBe(6)
+  const darkTrack = await pixelAt(win, dark.columnX, dark.trackY)
+  expect.soft(near(darkTrack, dark.background), `the track shows the list's dark background ${rgb(dark.background)}, got ${rgb(darkTrack)}`).toBe(true)
+  const darkThumb = await pixelAt(win, dark.columnX, dark.thumbY)
+  expect.soft(near(darkThumb, over(255, 0.22, dark.background)), `the thumb is white at 22% over ${rgb(dark.background)}, got ${rgb(darkThumb)}`).toBe(true)
+  await win.locator('.side').screenshot({ path: 'e2e-out/scrollbars-list-dark.png' })
+
+  // F6: scrolling behaves as before — a click where the track was pages down, the thumb drags, the wheel turns
+  const scrollTop = (): Promise<number> => win.locator(LIST).evaluate((el) => el.scrollTop)
+  const toTop = (): Promise<number> => win.locator(LIST).evaluate((el) => { el.scrollTop = 0; return el.scrollTop })
+  expect(await toTop()).toBe(0)
+  let at = await scrollArea(win, LIST)
+  await win.mouse.click(at.columnX, at.trackY)
+  await expect.poll(scrollTop, 'a click below the thumb pages the list down').toBeGreaterThan(0)
+  expect(await toTop()).toBe(0)
+  at = await scrollArea(win, LIST)
+  await win.mouse.move(at.columnX, at.thumbY)
+  await win.mouse.down()
+  await win.mouse.move(at.columnX, at.thumbY + 40, { steps: 4 })
+  await win.mouse.up()
+  await expect.poll(scrollTop, 'dragging the thumb scrolls the list').toBeGreaterThan(0)
+  expect(await toTop()).toBe(0)
+  await win.mouse.move(at.columnX - 60, at.thumbY)
+  await win.mouse.wheel(0, 200)
+  await expect.poll(scrollTop, 'the wheel scrolls the list').toBeGreaterThan(0)
+  await win.mouse.move(5, 5)
+
+  // AC-03, F5: a window tall enough for all 40 rows leaves the list nothing to scroll, and no scrollbar takes room;
+  // made short again, the list overflows and the scrollbar is back
+  await win.setViewportSize({ width: 1000, height: 1800 })
+  await expect.poll(async () => (await scrollArea(win, LIST)).overflow, 'the 40 rows fit a tall window').toBe(0)
+  expect((await scrollArea(win, LIST)).width, 'no scrollbar when the content fits').toBe(0)
+  await win.setViewportSize({ width: 1000, height: 600 })
+  await expect.poll(async () => (await scrollArea(win, LIST)).overflow).toBeGreaterThan(0)
+  expect((await scrollArea(win, LIST)).width, 'the scrollbar is back once the list overflows').toBe(6)
+
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/**
+ * The thumb darkens under the pointer (appearance::REQ-001/AC-05), on macOS, where the app ships. On CI's ubuntu
+ * (measured 2026-10-23), a synthetic pointer on the thumb reaches the page — a row beside it takes its hover — but
+ * Chromium does not take the scrollbar as hovered: the list does not match :hover and the thumb keeps its resting shade.
+ */
+test('scrollbars: the thumb darkens under the pointer, in light and in dark (appearance::REQ-001/AC-05)', async () => {
+  test.skip(process.platform !== 'darwin', 'on ubuntu, Chromium leaves a scrollbar under a synthetic pointer unhovered (measured); the app ships for macOS')
+  const l = await launch(undefined, manyProjectsHome())
+  const win = await l.app.firstWindow()
+  await win.setViewportSize({ width: 1000, height: 600 })
+  await win.locator('.rail .ri').nth(1).click()
+  await expect(win.locator('.side .row')).toHaveCount(40)
+  const LIST = '.side .list'
+  // The pointer comes in from the list in steps, as a hand would; the poll returns the pixel read when it is not the
+  // expected one, so a failure shows its colour
+  const underPointer = async (channel: 0 | 255, alpha: number): Promise<string> => {
+    const a = await scrollArea(win, LIST)
+    await win.mouse.move(5, 5)
+    await win.mouse.move(a.columnX - 40, a.thumbY)
+    await win.mouse.move(a.columnX, a.thumbY, { steps: 5 })
+    let read = ''
+    await expect.poll(async () => {
+      const got = await pixelAt(win, a.columnX, a.thumbY)
+      read = rgb(got)
+      return near(got, over(channel, alpha, a.background)) ? 'expected' : read
+    }).toBe('expected')
+    return read
+  }
+  await underPointer(0, 0.4)
+  await win.mouse.move(5, 5)
+  const light = await paintedBackground(win.locator(LIST))
+  await win.emulateMedia({ colorScheme: 'dark' })
+  await expect.poll(() => paintedBackground(win.locator(LIST))).not.toEqual(light)
+  await underPointer(255, 0.36)
+  expect(l.errors).toEqual([])
+  await close(l)
+})
+
+/**
+ * The same scrollbar under both of macOS's styles (appearance F1, F2): the app is launched with a per-process
+ * `-AppleShowScrollBars` argument, which macOS reads for that process only, leaving the machine's setting alone —
+ * `WhenScrolling` gives the overlay scrollbar a trackpad-only Mac draws, `Always` the classic one. A control block given
+ * the standard `scrollbar-width` makes Chromium draw the platform's own scrollbar for it, which shows the argument took
+ * effect (0 wide when overlay, wider when classic); the project list keeps its 6px scrollbar under both, its thumb in
+ * view with nothing scrolling. macOS's third setting, automatic, resolves to one of these two (overlay with only a
+ * trackpad, classic with a mouse), so it needs no launch of its own.
+ */
+test('scrollbars: the same 6px scrollbar whether macOS draws overlay or classic ones (appearance F1, F2)', async () => {
+  test.skip(process.platform !== 'darwin', 'the -AppleShowScrollBars argument is read by macOS only')
+  for (const [setting, overlay] of [['WhenScrolling', true], ['Always', false]] as const) {
+    const l = await launch(undefined, manyProjectsHome(), undefined, ['-AppleShowScrollBars', setting])
+    const win = await l.app.firstWindow()
+    await win.setViewportSize({ width: 1000, height: 600 })
+    await win.locator('.rail .ri').nth(1).click()
+    await expect(win.locator('.side .row')).toHaveCount(40)
+    const platform = await win.evaluate(() => {
+      const d = document.createElement('div')
+      d.style.cssText = 'position:fixed;left:400px;top:100px;width:200px;height:200px;overflow:auto;scrollbar-width:thin'
+      d.innerHTML = '<div style="height:1200px"></div>'
+      document.body.appendChild(d)
+      const width = d.offsetWidth - d.clientWidth
+      d.remove()
+      return width
+    })
+    if (overlay) expect(platform, `${setting}: the platform's own scrollbar is an overlay one`).toBe(0)
+    else expect(platform, `${setting}: the platform's own scrollbar is a classic one`).toBeGreaterThan(0)
+    const list = await scrollArea(win, '.side .list')
+    expect(list.overflow, 'the list must overflow').toBeGreaterThan(0)
+    expect(list.width, `${setting}: the list's scrollbar is the app's 6px one`).toBe(6)
+    // The thumb is painted at rest, the pointer away and nothing scrolled; the 6px above is what rules out an overlay
+    // scrollbar, which takes no width
+    await win.mouse.move(5, 5)
+    const thumb = await pixelAt(win, list.columnX, list.thumbY)
+    expect(near(thumb, over(0, 0.25, list.background)),
+      `${setting}: the idle thumb is black at 25% over ${rgb(list.background)}, got ${rgb(thumb)}`).toBe(true)
+    expect(l.errors).toEqual([])
+    await close(l)
+  }
 })
 
 /**

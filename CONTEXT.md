@@ -336,12 +336,13 @@ not a count — decides where it has to be defined. Which class it is follows fr
 is its relationship to the surface it sits on?
 
 - **theme-varying** — it *constitutes* the surface or the text on it (page background, card, text,
-  lines, accent). Defined per theme × per appearance. Currently 9 variables.
+  lines, accent). Defined per theme × per appearance. Currently 11 variables (measured 2026-10-23).
 - **appearance-varying** — it sits *on* a surface and must stay legible against it (shadows, status
-  backgrounds, badge fills). One value per appearance, shared across themes. Currently 20.
+  backgrounds, badge fills, the scrollbar thumb). One value per appearance, shared across themes.
+  Currently 28 (measured 2026-10-23).
 - **static** — it is an opaque block carrying its own ground (a destructive button, a callout), so no
-  surrounding surface applies. One value throughout. Currently 4. The name follows Primer and
-  Material, which both use *static* for exactly this.
+  surrounding surface applies. One value throughout. Currently 4 (measured 2026-10-23). The name
+  follows Primer and Material, which both use *static* for exactly this.
 
 Verified by measuring, never by counting definitions: switch through every theme × appearance and
 read the resolved values — the class predicts which of them must differ and which must match. A
