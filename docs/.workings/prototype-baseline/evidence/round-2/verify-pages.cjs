@@ -1,5 +1,8 @@
 // #250 items 1–3, 6, 8, 9 and "Done when"; #226's driving-panel checks. Every touched page alone and in the gallery.
 // Usage: node verify-pages.cjs <prototypes root>   (exit 1 when any check fails)
+// Gap: the logic modules' unknown-event reason ("unknown event") has no button that reaches it, so no check here
+// drives it; it is checked by the diff against the prototype skill's logic-template.js. Test it here if a logic page
+// gains a button whose event has no reducer case.
 const { chromium } = require('/Users/loong_zhou/CascadeProjects/agentshed-wt/proto-fixes/node_modules/@playwright/test');
 const ROOT = process.argv[2].replace(/\/$/, '') + '/';
 let failed = 0;
@@ -57,15 +60,26 @@ async function driveLogic(t, diagrams, where) {
   check(`${where}: after entry, a status`, status !== '—', status);
   const highlighted = await q(() => document.querySelectorAll('.dg svg g.node.cur').length);
   check(`${where}: the current state highlighted on a diagram`, highlighted >= 1, highlighted);
-  // Every entry button: each starts its own entry (a status of its own) with an empty receipt
+  // Every entry button, from the empty state and again after an event: each starts its own entry (a status of its
+  // own) and clears the receipt
   const entries = await q(() => [...document.querySelectorAll('[data-new]')].map((b) => b.dataset.new));
   const entryStatus = [];
+  const statusNow = () => q(() => document.getElementById('v-status').textContent);
   for (const e of entries) {
+    await t.click('#btn-reset');
     await t.click(`[data-new="${e}"]`);
-    const st = await q(() => document.getElementById('v-status').textContent);
+    const st = await statusNow();
     const rc = await receipt();
     entryStatus.push(st);
-    check(`${where}: entry button "${e}": a status, no event dispatched yet`, st !== '—' && rc === 'No event dispatched yet', `${st} | ${rc}`);
+    check(`${where}: entry button "${e}" from the empty state: a status, no event dispatched yet`, st !== '—' && rc === 'No event dispatched yet', `${st} | ${rc}`);
+    const ev = await q(() => document.querySelector('[data-act][aria-disabled="false"]')?.dataset.act);
+    if (ev) await t.click(`[data-act="${ev}"]`);
+    const mid = await receipt();
+    await t.click(`[data-new="${e}"]`);
+    const again = await receipt();
+    const st2 = await statusNow();
+    check(`${where}: entry button "${e}" after an event: back to its entry, receipt cleared`,
+      !!ev && mid.startsWith('Dispatched ') && again === 'No event dispatched yet' && st2 === st, `${ev} | ${mid} | ${again} | ${st2}`);
   }
   check(`${where}: each entry button gives its own status`, entries.length >= 2 && new Set(entryStatus).size === entries.length, JSON.stringify(entryStatus));
   await t.click('[data-new]');   // back to the first entry for the checks below
