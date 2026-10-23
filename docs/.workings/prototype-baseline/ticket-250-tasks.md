@@ -17,7 +17,7 @@ done. Coverage rows: `250::*` in [checklist.md](checklist.md).
 | 7 | Item 9: list-area padding 16px at top and bottom on the three pages | computed padding | done: 18 / 18 / 14px in dbd90fc (bottom equal to top); the owner then chose 16px top and bottom once the review found the app and the other pages at 16px, done in the follow-up commit; computed 16px / 16px on all three |
 | 8 | Every touched page opens with no script error, alone and in the gallery; `pnpm check:ui` | browser run; exit code | done: every touched page with no page or console error alone and in the gallery; check:ui exit 0 |
 | 9 | Step 5: `/review-code` | `ticket-250-review-code.md` | done: no bug; class-level checks found two more header notes out of step (Agents count, global-search group), fixed in the review commit |
-| 10 | Full verification gateway | `pnpm verify` log | pending |
+| 10 | Full verification gateway | `pnpm verify` log | done: `pnpm verify` step by step on 21a8958 with a clean tree, every exit code 0 (`evidence/round-2/gate-21a8958.log`) |
 | 11 | Step 6: `/review-tests` post-implementation check, independent agent | `ticket-250-review-tests.md` | pending |
 | 12 | Final check against #250 and archive (step 7) | checklist rows `250::*` | pending |
 | 13 | Step 8 judgement and document sync; PR; stop for the owner | `ticket-250-doc-sync.md`; PR link | pending |

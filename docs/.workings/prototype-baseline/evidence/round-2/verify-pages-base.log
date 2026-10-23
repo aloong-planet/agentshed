@@ -1,0 +1,166 @@
+PASS  alone agents-page/prototype-agents.html: loaded
+FAIL  alone 250::3 drawer mask shown, alpha 0.35  — block rgba(0, 0, 0, 0.32)
+INFO  alone agents-page/prototype-agents.html model bars: m anthropic=rgb(217, 119, 87); m anthropic=rgb(217, 119, 87); m anthropic=rgb(217, 119, 87); m openai=rgb(16, 163, 127); m openai=rgb(16, 163, 127); m xai=rgb(173, 152, 208); m xai=rgb(173, 152, 208)
+PASS  alone agents-page/prototype-agents.html: no script errors  — 
+PASS  alone project-detail/prototype-detail.html: loaded
+INFO  alone project-detail/prototype-detail.html model bars: m anthropic=rgb(217, 119, 87); m anthropic=rgb(217, 119, 87); m openai=rgb(16, 163, 127); m xai=rgb(173, 152, 208)
+PASS  alone project-detail/prototype-detail.html: no script errors  — 
+PASS  alone project-detail/prototype-detail-stale-note.html: loaded
+FAIL  alone 250::2 title stale tag 9.5px, padding 0 4px, radius 3, opacity 0.8  — 10px 1px 5px 1px 5px 4px 1
+PASS  alone project-detail/prototype-detail-stale-note.html: no script errors  — 
+PASS  alone session-view/prototype-session.html: loaded
+FAIL  alone 250::6 orphan session: 26 in the meta and the list  — Codex · 24 questions · 140k tok · 4.6 MB · last active 10 days ago · no thread_name, title taken from the first question | Questions (main line) · 26 questions · 2 days
+FAIL  alone 250::9 session-view/prototype-session.html list area padding 16px top and bottom  — 90px (top 14px)
+PASS  alone session-view/prototype-session.html: no script errors  — 
+PASS  alone skill-install/prototype-install.html: loaded
+FAIL  alone 250::1 picker shadow 0 6px 22px  — rgba(0, 0, 0, 0.18) 0px 8px 26px 0px
+PASS  alone skill-install/prototype-install.html: no script errors  — 
+PASS  alone skills-view/prototype-skills-preview.html: loaded
+FAIL  alone 250::9 skills-view/prototype-skills-preview.html list area padding 16px top and bottom  — 100px (top 18px)
+PASS  alone skills-view/prototype-skills-preview.html: no script errors  — 
+PASS  alone plugins-view/prototype-plugin-skill-preview.html: loaded
+FAIL  alone 250::9 plugins-view/prototype-plugin-skill-preview.html list area padding 16px top and bottom  — 100px (top 18px)
+PASS  alone plugins-view/prototype-plugin-skill-preview.html: no script errors  — 
+PASS  alone global-search/prototype-search.html: loaded
+PASS  alone global-search/prototype-search.html: no script errors  — 
+PASS  alone project-list/visibility/index.html: loaded
+PASS  alone project-list/visibility/index.html: diagrams rendered as svg
+FAIL  alone project-list/visibility/index.html: drive heading
+FAIL  alone project-list/visibility/index.html: empty-state receipt  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  alone project-list/visibility/index.html: reset button
+FAIL  alone project-list/visibility/index.html: stress label
+FAIL  alone project-list/visibility/index.html: hint
+FAIL  alone project-list/visibility/index.html: after entry, no event dispatched yet  — \u5C1A\u672A\u6D3E\u53D1\u4E8B\u4EF6
+PASS  alone project-list/visibility/index.html: after entry, a status  — normal
+PASS  alone project-list/visibility/index.html: the current state highlighted on a diagram  — 1
+FAIL  alone project-list/visibility/index.html: an unreachable event carries the Unreachable prefix  — {"act":"scan_restored","tip":"\u4E0D\u53EF\u8FBE:\u76EE\u5F55\u672C\u5C31\u5B58\u5728,\u6062\u590D\u4FE1\u53F7\u65E0\u6548\u679C"}
+FAIL  alone project-list/visibility/index.html: stress mode lifts it, forced prefix  — {"dis":"false","tip":"\u538B\u6D4B:\u5F3A\u884C\u6D3E\u53D1 — \u76EE\u5F55\u672C\u5C31\u5B58\u5728,\u6062\u590D\u4FE1\u53F7\u65E0\u6548\u679C"}
+PASS  alone project-list/visibility/index.html: the tooltip's reason carries no rejection prefix  — {"act":"scan_restored","tip":"\u4E0D\u53EF\u8FBE:\u76EE\u5F55\u672C\u5C31\u5B58\u5728,\u6062\u590D\u4FE1\u53F7\u65E0\u6548\u679C"}
+FAIL  alone project-list/visibility/index.html: a forced illegal event's receipt  — {"cls":"illegal bad","text":"⚠ scan_restored \u88AB\u5FFD\u7565:\u76EE\u5F55\u672C\u5C31\u5B58\u5728,\u6062\u590D\u4FE1\u53F7\u65E0\u6548\u679C"}
+FAIL  alone project-list/visibility/index.html: a legal event's receipt  — \u5DF2\u6D3E\u53D1 scan_missing → stale
+FAIL  alone project-list/visibility/index.html: reset returns to the empty state  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  alone project-list/visibility/index.html: reset-view title  — \u91CD\u7F6E\u89C6\u56FE(\u53CC\u51FB\u753B\u5E03\u540C\u6548)
+PASS  alone project-list/visibility/index.html: reset view restores the fit after a pan  — translate(14px, 144.978px) scale(0.642975) | translate(74px, 174.978px) scale(0.642975) | translate(14px, 144.978px) scale(0.642975)
+PASS  alone project-list/visibility/index.html: no script errors  — 
+PASS  alone skill-install/install-flow/index.html: loaded
+PASS  alone skill-install/install-flow/index.html: diagrams rendered as svg
+FAIL  alone skill-install/install-flow/index.html: drive heading
+FAIL  alone skill-install/install-flow/index.html: empty-state receipt  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  alone skill-install/install-flow/index.html: reset button
+FAIL  alone skill-install/install-flow/index.html: stress label
+FAIL  alone skill-install/install-flow/index.html: hint
+FAIL  alone skill-install/install-flow/index.html: after entry, no event dispatched yet  — \u5C1A\u672A\u6D3E\u53D1\u4E8B\u4EF6
+PASS  alone skill-install/install-flow/index.html: after entry, a status  — validating
+PASS  alone skill-install/install-flow/index.html: the current state highlighted on a diagram  — 1
+FAIL  alone skill-install/install-flow/index.html: an unreachable event carries the Unreachable prefix  — {"act":"copy_ok","tip":"\u4E0D\u53EF\u8FBE:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u590D\u5236"}
+FAIL  alone skill-install/install-flow/index.html: stress mode lifts it, forced prefix  — {"dis":"false","tip":"\u538B\u6D4B:\u5F3A\u884C\u6D3E\u53D1 — \u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u590D\u5236"}
+PASS  alone skill-install/install-flow/index.html: the tooltip's reason carries no rejection prefix  — {"act":"copy_ok","tip":"\u4E0D\u53EF\u8FBE:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u590D\u5236"}
+FAIL  alone skill-install/install-flow/index.html: a forced illegal event's receipt  — {"cls":"illegal bad","text":"⚠ copy_ok \u88AB\u5FFD\u7565:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u590D\u5236"}
+FAIL  alone skill-install/install-flow/index.html: a legal event's receipt  — \u5DF2\u6D3E\u53D1 target_ok → copying
+FAIL  alone skill-install/install-flow/index.html: reset returns to the empty state  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  alone skill-install/install-flow/index.html: reset-view title  — \u91CD\u7F6E\u89C6\u56FE(\u53CC\u51FB\u753B\u5E03\u540C\u6548)
+PASS  alone skill-install/install-flow/index.html: reset view restores the fit after a pan  — translate(18.3144px, 14px) scale(0.548017) | translate(78.3144px, 44px) scale(0.548017) | translate(18.3144px, 14px) scale(0.548017)
+PASS  alone skill-install/install-flow/index.html: no script errors  — 
+PASS  alone token-stats/scan-cache/index.html: loaded
+PASS  alone token-stats/scan-cache/index.html: diagrams rendered as svg
+FAIL  alone token-stats/scan-cache/index.html: drive heading
+FAIL  alone token-stats/scan-cache/index.html: empty-state receipt  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  alone token-stats/scan-cache/index.html: reset button
+FAIL  alone token-stats/scan-cache/index.html: stress label
+FAIL  alone token-stats/scan-cache/index.html: hint
+FAIL  alone token-stats/scan-cache/index.html: after entry, no event dispatched yet  — \u5C1A\u672A\u6D3E\u53D1\u4E8B\u4EF6
+PASS  alone token-stats/scan-cache/index.html: after entry, a status  — idle  (\u51B7\u542F\u52A8)
+PASS  alone token-stats/scan-cache/index.html: the current state highlighted on a diagram  — 1
+FAIL  alone token-stats/scan-cache/index.html: an unreachable event carries the Unreachable prefix  — {"act":"batch_done","tip":"\u4E0D\u53EF\u8FBE:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u626B\u63CF"}
+FAIL  alone token-stats/scan-cache/index.html: stress mode lifts it, forced prefix  — {"dis":"false","tip":"\u538B\u6D4B:\u5F3A\u884C\u6D3E\u53D1 — \u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u626B\u63CF"}
+PASS  alone token-stats/scan-cache/index.html: the tooltip's reason carries no rejection prefix  — {"act":"batch_done","tip":"\u4E0D\u53EF\u8FBE:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u626B\u63CF"}
+FAIL  alone token-stats/scan-cache/index.html: a forced illegal event's receipt  — {"cls":"illegal bad","text":"⚠ batch_done \u88AB\u5FFD\u7565:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u626B\u63CF"}
+FAIL  alone token-stats/scan-cache/index.html: a legal event's receipt  — \u5DF2\u6D3E\u53D1 refresh → scanning
+FAIL  alone token-stats/scan-cache/index.html: reset returns to the empty state  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  alone token-stats/scan-cache/index.html: reset-view title  — \u91CD\u7F6E\u89C6\u56FE(\u53CC\u51FB\u753B\u5E03\u540C\u6548)
+PASS  alone token-stats/scan-cache/index.html: reset view restores the fit after a pan  — translate(14px, 105.761px) scale(0.572586) | translate(74px, 135.761px) scale(0.572586) | translate(14px, 105.761px) scale(0.572586)
+PASS  alone token-stats/scan-cache/index.html: no script errors  — 
+PASS  gallery agents-page/prototype-agents.html: loaded
+FAIL  gallery 250::3 drawer mask shown, alpha 0.35  — block rgba(0, 0, 0, 0.32)
+INFO  gallery agents-page/prototype-agents.html model bars: m anthropic=rgb(217, 119, 87); m anthropic=rgb(217, 119, 87); m anthropic=rgb(217, 119, 87); m openai=rgb(16, 163, 127); m openai=rgb(16, 163, 127); m xai=rgb(173, 152, 208); m xai=rgb(173, 152, 208)
+PASS  gallery agents-page/prototype-agents.html: no script errors  — 
+PASS  gallery project-detail/prototype-detail.html: loaded
+INFO  gallery project-detail/prototype-detail.html model bars: m anthropic=rgb(217, 119, 87); m anthropic=rgb(217, 119, 87); m openai=rgb(16, 163, 127); m xai=rgb(173, 152, 208)
+PASS  gallery project-detail/prototype-detail.html: no script errors  — 
+PASS  gallery project-detail/prototype-detail-stale-note.html: loaded
+FAIL  gallery 250::2 title stale tag 9.5px, padding 0 4px, radius 3, opacity 0.8  — 10px 1px 5px 1px 5px 4px 1
+PASS  gallery project-detail/prototype-detail-stale-note.html: no script errors  — 
+PASS  gallery session-view/prototype-session.html: loaded
+FAIL  gallery 250::6 orphan session: 26 in the meta and the list  — Codex · 24 questions · 140k tok · 4.6 MB · last active 10 days ago · no thread_name, title taken from the first question | Questions (main line) · 26 questions · 2 days
+FAIL  gallery 250::9 session-view/prototype-session.html list area padding 16px top and bottom  — 90px (top 14px)
+PASS  gallery session-view/prototype-session.html: no script errors  — 
+PASS  gallery skill-install/prototype-install.html: loaded
+FAIL  gallery 250::1 picker shadow 0 6px 22px  — rgba(0, 0, 0, 0.18) 0px 8px 26px 0px
+PASS  gallery skill-install/prototype-install.html: no script errors  — 
+PASS  gallery skills-view/prototype-skills-preview.html: loaded
+FAIL  gallery 250::9 skills-view/prototype-skills-preview.html list area padding 16px top and bottom  — 100px (top 18px)
+PASS  gallery skills-view/prototype-skills-preview.html: no script errors  — 
+PASS  gallery plugins-view/prototype-plugin-skill-preview.html: loaded
+FAIL  gallery 250::9 plugins-view/prototype-plugin-skill-preview.html list area padding 16px top and bottom  — 100px (top 18px)
+PASS  gallery plugins-view/prototype-plugin-skill-preview.html: no script errors  — 
+PASS  gallery global-search/prototype-search.html: loaded
+PASS  gallery global-search/prototype-search.html: no script errors  — 
+INFO  gallery global-search/prototype-search.html console errors: Blocked autofocusing on a <input> element in a cross-origin subframe.
+PASS  gallery project-list/visibility/index.html: loaded
+PASS  gallery project-list/visibility/index.html: diagrams rendered as svg
+FAIL  gallery project-list/visibility/index.html: drive heading
+FAIL  gallery project-list/visibility/index.html: empty-state receipt  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  gallery project-list/visibility/index.html: reset button
+FAIL  gallery project-list/visibility/index.html: stress label
+FAIL  gallery project-list/visibility/index.html: hint
+FAIL  gallery project-list/visibility/index.html: after entry, no event dispatched yet  — \u5C1A\u672A\u6D3E\u53D1\u4E8B\u4EF6
+PASS  gallery project-list/visibility/index.html: after entry, a status  — normal
+PASS  gallery project-list/visibility/index.html: the current state highlighted on a diagram  — 1
+FAIL  gallery project-list/visibility/index.html: an unreachable event carries the Unreachable prefix  — {"act":"scan_restored","tip":"\u4E0D\u53EF\u8FBE:\u76EE\u5F55\u672C\u5C31\u5B58\u5728,\u6062\u590D\u4FE1\u53F7\u65E0\u6548\u679C"}
+FAIL  gallery project-list/visibility/index.html: stress mode lifts it, forced prefix  — {"dis":"false","tip":"\u538B\u6D4B:\u5F3A\u884C\u6D3E\u53D1 — \u76EE\u5F55\u672C\u5C31\u5B58\u5728,\u6062\u590D\u4FE1\u53F7\u65E0\u6548\u679C"}
+PASS  gallery project-list/visibility/index.html: the tooltip's reason carries no rejection prefix  — {"act":"scan_restored","tip":"\u4E0D\u53EF\u8FBE:\u76EE\u5F55\u672C\u5C31\u5B58\u5728,\u6062\u590D\u4FE1\u53F7\u65E0\u6548\u679C"}
+FAIL  gallery project-list/visibility/index.html: a forced illegal event's receipt  — {"cls":"illegal bad","text":"⚠ scan_restored \u88AB\u5FFD\u7565:\u76EE\u5F55\u672C\u5C31\u5B58\u5728,\u6062\u590D\u4FE1\u53F7\u65E0\u6548\u679C"}
+FAIL  gallery project-list/visibility/index.html: a legal event's receipt  — \u5DF2\u6D3E\u53D1 scan_missing → stale
+FAIL  gallery project-list/visibility/index.html: reset returns to the empty state  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  gallery project-list/visibility/index.html: reset-view title  — \u91CD\u7F6E\u89C6\u56FE(\u53CC\u51FB\u753B\u5E03\u540C\u6548)
+PASS  gallery project-list/visibility/index.html: reset view restores the fit after a pan  — translate(14px, 144.978px) scale(0.642975) | translate(74px, 174.978px) scale(0.642975) | translate(14px, 144.978px) scale(0.642975)
+PASS  gallery project-list/visibility/index.html: no script errors  — 
+PASS  gallery skill-install/install-flow/index.html: loaded
+PASS  gallery skill-install/install-flow/index.html: diagrams rendered as svg
+FAIL  gallery skill-install/install-flow/index.html: drive heading
+FAIL  gallery skill-install/install-flow/index.html: empty-state receipt  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  gallery skill-install/install-flow/index.html: reset button
+FAIL  gallery skill-install/install-flow/index.html: stress label
+FAIL  gallery skill-install/install-flow/index.html: hint
+FAIL  gallery skill-install/install-flow/index.html: after entry, no event dispatched yet  — \u5C1A\u672A\u6D3E\u53D1\u4E8B\u4EF6
+PASS  gallery skill-install/install-flow/index.html: after entry, a status  — validating
+PASS  gallery skill-install/install-flow/index.html: the current state highlighted on a diagram  — 1
+FAIL  gallery skill-install/install-flow/index.html: an unreachable event carries the Unreachable prefix  — {"act":"copy_ok","tip":"\u4E0D\u53EF\u8FBE:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u590D\u5236"}
+FAIL  gallery skill-install/install-flow/index.html: stress mode lifts it, forced prefix  — {"dis":"false","tip":"\u538B\u6D4B:\u5F3A\u884C\u6D3E\u53D1 — \u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u590D\u5236"}
+PASS  gallery skill-install/install-flow/index.html: the tooltip's reason carries no rejection prefix  — {"act":"copy_ok","tip":"\u4E0D\u53EF\u8FBE:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u590D\u5236"}
+FAIL  gallery skill-install/install-flow/index.html: a forced illegal event's receipt  — {"cls":"illegal bad","text":"⚠ copy_ok \u88AB\u5FFD\u7565:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u590D\u5236"}
+FAIL  gallery skill-install/install-flow/index.html: a legal event's receipt  — \u5DF2\u6D3E\u53D1 target_ok → copying
+FAIL  gallery skill-install/install-flow/index.html: reset returns to the empty state  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  gallery skill-install/install-flow/index.html: reset-view title  — \u91CD\u7F6E\u89C6\u56FE(\u53CC\u51FB\u753B\u5E03\u540C\u6548)
+PASS  gallery skill-install/install-flow/index.html: reset view restores the fit after a pan  — translate(18.3144px, 14px) scale(0.548017) | translate(78.3144px, 44px) scale(0.548017) | translate(18.3144px, 14px) scale(0.548017)
+PASS  gallery skill-install/install-flow/index.html: no script errors  — 
+PASS  gallery token-stats/scan-cache/index.html: loaded
+PASS  gallery token-stats/scan-cache/index.html: diagrams rendered as svg
+FAIL  gallery token-stats/scan-cache/index.html: drive heading
+FAIL  gallery token-stats/scan-cache/index.html: empty-state receipt  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  gallery token-stats/scan-cache/index.html: reset button
+FAIL  gallery token-stats/scan-cache/index.html: stress label
+FAIL  gallery token-stats/scan-cache/index.html: hint
+FAIL  gallery token-stats/scan-cache/index.html: after entry, no event dispatched yet  — \u5C1A\u672A\u6D3E\u53D1\u4E8B\u4EF6
+PASS  gallery token-stats/scan-cache/index.html: after entry, a status  — idle  (\u51B7\u542F\u52A8)
+PASS  gallery token-stats/scan-cache/index.html: the current state highlighted on a diagram  — 1
+FAIL  gallery token-stats/scan-cache/index.html: an unreachable event carries the Unreachable prefix  — {"act":"batch_done","tip":"\u4E0D\u53EF\u8FBE:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u626B\u63CF"}
+FAIL  gallery token-stats/scan-cache/index.html: stress mode lifts it, forced prefix  — {"dis":"false","tip":"\u538B\u6D4B:\u5F3A\u884C\u6D3E\u53D1 — \u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u626B\u63CF"}
+PASS  gallery token-stats/scan-cache/index.html: the tooltip's reason carries no rejection prefix  — {"act":"batch_done","tip":"\u4E0D\u53EF\u8FBE:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u626B\u63CF"}
+FAIL  gallery token-stats/scan-cache/index.html: a forced illegal event's receipt  — {"cls":"illegal bad","text":"⚠ batch_done \u88AB\u5FFD\u7565:\u6CA1\u6709\u8FDB\u884C\u4E2D\u7684\u626B\u63CF"}
+FAIL  gallery token-stats/scan-cache/index.html: a legal event's receipt  — \u5DF2\u6D3E\u53D1 refresh → scanning
+FAIL  gallery token-stats/scan-cache/index.html: reset returns to the empty state  — \u7A7A\u6001:\u70B9\u5165\u573A\u6309\u94AE\u5F00\u59CB
+FAIL  gallery token-stats/scan-cache/index.html: reset-view title  — \u91CD\u7F6E\u89C6\u56FE(\u53CC\u51FB\u753B\u5E03\u540C\u6548)
+PASS  gallery token-stats/scan-cache/index.html: reset view restores the fit after a pan  — translate(14px, 105.761px) scale(0.572586) | translate(74px, 135.761px) scale(0.572586) | translate(14px, 105.761px) scale(0.572586)
+PASS  gallery token-stats/scan-cache/index.html: no script errors  — 
+86 check(s) failed

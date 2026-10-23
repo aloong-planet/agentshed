@@ -13,7 +13,7 @@ are what proves each step done. Coverage rows: `226::*` in [checklist.md](checkl
 | 4 | Drive each page alone and in the gallery: entry buttons, an event, reset, stress mode, reset-view | browser run, no page error | done: all three pages alone and in the gallery, no page or console error |
 | 5 | `pnpm check:lang` | exit code | done: exit 0 |
 | 6 | Step 5: `/review-code` | `ticket-226-review-code.md` | done: no bug; the class-level check found the same chrome in each `logic.js`; the owner added it on 2026-10-23, fixed in the review commit |
-| 7 | Full verification gateway (shared with #250) | `pnpm verify` log | pending |
+| 7 | Full verification gateway (shared with #250) | `pnpm verify` log | done: the same run, `evidence/round-2/gate-21a8958.log` |
 | 8 | Step 6: `/review-tests` post-implementation check, independent agent | `ticket-226-review-tests.md` | pending |
 | 9 | Final check against #226 and archive (step 7) | checklist rows `226::*` | pending |
 | 10 | Step 8 judgement and document sync; PR; stop for the owner | `ticket-226-doc-sync.md`; PR link | pending |
