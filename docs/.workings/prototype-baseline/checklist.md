@@ -19,8 +19,9 @@ Second round, begun 2026-10-23 on source commit 1349d76 (origin/main): #250's re
 and [#226](https://github.com/aloong-planet/agentshed/issues/226), one branch and one PR. The requirement sources
 are the bodies and comments of #250 and #226, with no spec. For items 1–3 the owner's comment on #250 settles
 the app's values as design; for item 9 the owner chose on 2026-10-23, after screenshots of the three places,
-to bring all three in line (each list area's bottom padding equals its top: 18px on the Skills and Plugins
-previews, 14px on the session page). Scope of this round: the touched prototype pages under
+to bring all three in line, first as each list area's bottom equal to its top (18px on the Skills and Plugins
+previews, 14px on the session page); the code review then found that the other pages and the app's list areas
+pad 16px, and the owner settled the three on 16px at top and bottom the same day. Scope of this round: the touched prototype pages under
 `docs/prototypes/` and these work records.
 
 This is a work index, not a requirement authority. The units below are #251's items and its "Done when"
@@ -56,7 +57,7 @@ lines, then #250's items and #226's fix and verification lines; each names the t
 | 250::6 | #250 item 6: the orphan session's question count agrees with its list (26) | Evidence: the meta line and the list header read in the browser |
 | 250::7 | #250 item 7: the detail page's header lists every group the demo bar carries | Evidence: header text against the bar's groups |
 | 250::8 | #250 item 8: the dead `.m.x .tr i` rule is gone from the Agents and detail pages | Evidence: search over docs/prototypes, command and output; model bars render unchanged |
-| 250::9 | #250 item 9 (owner, 2026-10-23): the Skills and Plugins previews' list area pads its bottom 18px, the session page's 14px | Evidence: computed `padding-bottom` of each list area |
+| 250::9 | #250 item 9 (owner, 2026-10-23): the list areas of the Skills and Plugins previews and the session page pad 16px at top and bottom, as the other pages do | Evidence: computed `padding-top` and `padding-bottom` of each list area |
 | 250::done | #250 "Done when": every page touched opens with no script errors; `pnpm check:ui` passes | Evidence: browser run over every touched page alone and in the gallery; Gate: `pnpm check:ui` exit 0 |
 | 226::1 | #226 Fix: each logic page's template chrome reads the template's current English wording; prototype content (page title, question, state and button labels) stays as it is | Evidence: `diff` of each page against the skill's `logic-page-template.html`; every Chinese line left listed by kind |
 | 226::2 | #226 Verification: each page renders in the gallery and its driving panel works — entry buttons, an event, reset, stress mode, the reset-view button | Evidence: browser drive of each page, alone and in the gallery |

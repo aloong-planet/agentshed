@@ -66,6 +66,16 @@ No finding: no input, file or network surface; the strings written into the turn
     from state.
   - Bottom padding kept for a demo bar (item 9's class): every page's list area — all other pages pad 14–16px.
 
-Review fixes, executed: the two header notes above.
+- Judged against the app (a fact for the owner's decision, not a comparison the prototypes depend on): the
+  app draws the session page and the detail and Agents tabs inside one pane body padded `16px 22px`, and four of
+  the other prototype pages pad 16px at the top, while the Skills and Plugins previews pad 18px and the session
+  page 14px. Item 9 as first done made those three 18 / 18 / 14px at both ends. Put to the owner, who settled
+  16px at top and bottom on all three (the sides unchanged).
+- Judged, no change: in the gallery the global-search page logs a console message, "Blocked autofocusing on a
+  <input> element in a cross-origin subframe". It comes from the search box's `autofocus` inside the gallery's
+  `file://` frame, which Chrome treats as cross-origin; the page has it on the base commit too, opened alone it
+  focuses, and it is not a script error. This round touched only that page's header comment.
+
+Review fixes, executed: the two header notes above, and item 9's values.
 
 Refactor list: none for #250.
