@@ -1,0 +1,76 @@
+# #227 the loop with the first helper (the main pid killed at the 10 s bound), 2026-10-23, macOS: the throwaway copy rebuilt from the changed case (e2e/zz-diag-227.spec.ts), seven runs under 16 busy processes
+# command: stress.sh 16 pnpm -s exec playwright test e2e/zz-diag-227.spec.ts --repeat-each=7, the load sampled every 20 s
+
+      errors.push(t.trim())
+    }
+  })
+  return { app, errors, userData, home }
+}
+
+async function close(l: Launched): Promise<void> {
+  const tc = Date.now()
+  await closeApp(l.app)
+  console.log(`[DIAG-227] close took ${Date.now() - tc} ms`)
+  rmSync(l.userData, { recursive: true, force: true })
+  if (l.home) rmSync(l.home, { recursive: true, force: true })
+}
+
+22:09  up 10 days, 21:31, 11 users, load averages: 39.16 14.16 28.28
+22:09  up 10 days, 21:31, 11 users, load averages: 74.20 23.60 31.33
+22:10  up 10 days, 21:31, 11 users, load averages: 106.47 34.24 34.97
+22:10  up 10 days, 21:32, 11 users, load averages: 136.08 45.60 39.02
+22:10  up 10 days, 21:32, 11 users, load averages: 134.79 51.25 41.21
+22:11  up 10 days, 21:32, 11 users, load averages: 140.05 57.74 43.76
+
+Running 7 tests using 1 worker
+
+[DIAG-227] body done 5283 ms after launch
+[e2e teardown] app.close() had not finished after 10000 ms; the process (pid 58980) was killed
+[DIAG-227] close took 10012 ms
+  ✓  1 e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown (15.3s)
+[DIAG-227] body done 4791 ms after launch
+[e2e teardown] app.close() had not finished after 10000 ms; the process (pid 59718) was killed
+[DIAG-227] close took 10015 ms
+  ✓  2 e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown (14.8s)
+[DIAG-227] body done 4910 ms after launch
+[e2e teardown] app.close() had not finished after 10000 ms; the process (pid 60040) was killed
+  ✘  3 e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown (1.0m)
+[DIAG-227] close took 69242 ms
+[DIAG-227] body done 4805 ms after launch
+[e2e teardown] app.close() had not finished after 10000 ms; the process (pid 63521) was killed
+[DIAG-227] close took 28181 ms
+  ✓  4 e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown (33.0s)
+[DIAG-227] body done 5238 ms after launch
+[e2e teardown] app.close() had not finished after 10000 ms; the process (pid 64249) was killed
+  ✘  5 e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown (1.0m)
+Worker teardown timeout of 60000ms exceeded.
+
+Failed worker ran 1 test:
+e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown
+[DIAG-227] body done 5466 ms after launch
+[e2e teardown] app.close() had not finished after 10000 ms; the process (pid 67217) was killed
+[DIAG-227] close took 40337 ms
+  ✓  6 e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown (45.8s)
+[DIAG-227] body done 4825 ms after launch
+[e2e teardown] app.close() had not finished after 10000 ms; the process (pid 68231) was killed
+[DIAG-227] close took 10028 ms
+  ✓  7 e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown (14.8s)
+
+
+  1) e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown ────────────
+
+    Test timeout of 60000ms exceeded.
+
+    Error Context: test-results/zz-diag-227-DIAG-227-startup-skeleton-timed-bounded-teardown-repeat2/error-context.md
+
+  2) e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown ────────────
+
+    Test timeout of 60000ms exceeded.
+
+    Error Context: test-results/zz-diag-227-DIAG-227-startup-skeleton-timed-bounded-teardown-repeat4/error-context.md
+
+  2 failed
+    e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown ─────────────
+    e2e/zz-diag-227.spec.ts:381:1 › DIAG-227 startup skeleton, timed, bounded teardown ─────────────
+  5 passed (5.4m)
+  1 error was not a part of any test, see above for details

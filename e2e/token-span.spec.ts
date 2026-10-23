@@ -8,6 +8,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { closeApp } from './close-app'
 
 function day(ago: number): string {
   const date = new Date()
@@ -75,7 +76,7 @@ test('a theme chosen while the initial preference read is in flight survives tha
     await expect(win.getByTestId('language-trigger')).not.toContainText('Follow', { timeout: 10000 })
     await expect(win.locator('html')).toHaveAttribute('data-theme', 'amber')
     await expect(win.locator('[data-theme-option="amber"]')).toHaveAttribute('aria-checked', 'true')
-  } finally { await app.close(); cleanup(f) }
+  } finally { await closeApp(app); cleanup(f) }
 })
 
 test('global span defaults an older or invalid preference without resetting valid appearance and language', async () => {
@@ -98,7 +99,7 @@ test('global span defaults an older or invalid preference without resetting vali
       await expect.poll(() => readPrefs(f.userData)).toEqual({
         theme: 'blue', language: 'en', mode: 'dark', trendSpan: 60, autoCheckUpdates: true
       })
-    } finally { await app.close(); cleanup(f) }
+    } finally { await closeApp(app); cleanup(f) }
   }
 })
 
@@ -145,7 +146,7 @@ test('global span links exact totals and active breakdowns on both entries, and 
     // Consecutive user events, followed by a real quit; the acknowledged final value is the persisted one.
     for (const span of [30, 90, 30, 60]) await choice(win, span).click()
     await expect.poll(() => readPrefs(f.userData).trendSpan).toBe(60)
-    await app.close()
+    await closeApp(app)
     app = await launch(f, { AGENTSHED_SCAN_DELAY_MS: '3000' })
     win = await app.firstWindow()
     await checkSpan(win, 60, '144')
@@ -157,7 +158,7 @@ test('global span links exact totals and active breakdowns on both entries, and 
     expect((await win.locator('.chart').boundingBox())?.y).toBe(before?.y)
     await choice(win, 90).click()
     await expect.poll(() => readPrefs(f.userData).trendSpan).toBe(90)
-    await app.close()
+    await closeApp(app)
     app = await launch(f, { AGENTSHED_SCAN_DELAY_MS: '3000' })
     win = await app.firstWindow()
     await checkSpan(win, 90, '246')
@@ -165,7 +166,7 @@ test('global span links exact totals and active breakdowns on both entries, and 
     await win.locator('.side .row', { hasText: 'alpha' }).click()
     await checkSpan(win, 90, '78')
   } finally {
-    await app?.close().catch(() => {})
+    if (app) await closeApp(app).catch(() => {})
     cleanup(f)
   }
 })
@@ -188,7 +189,7 @@ for (const [span, cache] of [[30, undefined], [60, 'broken'], [90, '{"version":-
       await checkSpan(win, span, span === 30 ? '62' : span === 60 ? '144' : '246')
       expect((await win.locator('.trend-span-options').boundingBox())?.y).toBe(before?.y)
       await expect(win.locator('html')).toHaveAttribute('data-theme', 'blue')
-    } finally { await app.close(); cleanup(f) }
+    } finally { await closeApp(app); cleanup(f) }
   })
 }
 
@@ -215,11 +216,11 @@ test('global span save failure keeps live views consistent and reopens the last 
     expect(readFileSync(join(f.home, '.claude.json'), 'utf8')).toBe(configBefore)
     expect(readPrefs(f.userData).trendSpan).toBe(60)
     rmSync(blocked, { recursive: true })
-    await app.close()
+    await closeApp(app)
     app = await launch(f)
     win = await app.firstWindow()
     await checkSpan(win, 60, '144')
-  } finally { await app?.close().catch(() => {}); cleanup(f) }
+  } finally { if (app) await closeApp(app).catch(() => {}); cleanup(f) }
 })
 
 test('global span includes archived and retained older rows in both charts and fourth cards', async () => {
@@ -247,7 +248,7 @@ test('global span includes archived and retained older rows in both charts and f
     await win.locator('.side .row', { hasText: 'beta' }).click()
     await checkSpan(win, 90, '268')
     await expect(win.locator(`.col[data-day="${day(85)}"] .sp`)).toHaveCSS('background-image', /repeating-linear-gradient/)
-  } finally { await app.close(); cleanup(f) }
+  } finally { await closeApp(app); cleanup(f) }
 })
 
 test('global span numeric choices support keyboard activation and retain every card and side identity', async () => {
@@ -287,5 +288,5 @@ test('global span numeric choices support keyboard activation and retain every c
       }
     }
     await cdp.detach()
-  } finally { await app.close(); cleanup(f) }
+  } finally { await closeApp(app); cleanup(f) }
 })

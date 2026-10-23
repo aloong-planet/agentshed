@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { closeApp } from './close-app'
 
 interface Fixture {
   home: string
@@ -103,7 +104,7 @@ test('settings gains "Updates" third, one card with the switch and the version r
       'New versions download in the background. When one is ready, click the update button at the bottom left to install it and restart; otherwise it installs when you quit.'
     )
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -142,7 +143,7 @@ test('"Check now" shows checking with the button unavailable, then up to date or
     await expect(win.getByTestId('update-slot')).toHaveCount(0)
     await expect(action(win)).toHaveAttribute('aria-disabled', 'false')
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -165,7 +166,7 @@ test('a settings check that finds an update starts the download: the line and th
     await win.waitForTimeout(500)
     expect(requests(f)).toEqual(['check', 'check'])
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -201,7 +202,7 @@ test('the download finishing turns the same button into "Install now"; it instal
     await win.getByTestId('update-slot').click({ force: true })
     await expect.poll(() => requests(f)).toEqual(['check', 'install'])
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -221,7 +222,7 @@ test('an install from "Install now" that fails: the error toast, "Check now" ava
     await expect(line(win)).toHaveText('')
     await expect(win.getByTestId('update-slot')).toHaveCount(0)
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -247,7 +248,7 @@ test('a settings "up to date", then an automatic check finds an update: the line
     await expect(action(win)).toHaveAttribute('aria-disabled', 'false')
     expect(requests(f)).toEqual(['check', 'check', 'check'])
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -275,14 +276,14 @@ test('the line survives leaving settings mid-check and follows a language switch
     await expect(win.locator('.settings-sec-t').nth(2)).toHaveText('更新')
     await expect(line(win)).toHaveText('已是最新版本')
     await expect(action(win)).toHaveText('立即检查')
-    await app.close()
+    await closeApp(app)
     app = await launch(f)
     win = await app.firstWindow()
     await openSettings(win)
     await launchCheckDone(win, f)
     await expect(line(win)).toHaveText('')
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -304,7 +305,7 @@ test('a settings check during the launch check joins it: one request, its outcom
     await expect(line(win)).toHaveText('You’re up to date', { timeout: 10_000 })
     expect(requests(f)).toEqual(['check'])
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -323,7 +324,7 @@ test.describe('the first run after the version went up (REQ-004/AC-04, C7–C9)'
       if (content === null) {
         const probe = await launch(f)
         const running = await probe.evaluate(({ app }) => app.getVersion())
-        await probe.close()
+        await closeApp(probe)
         seedRecordedVersion(f, JSON.stringify({ version: running }))
       } else if (content !== undefined) seedRecordedVersion(f, content)
       const app = await launch(f)
@@ -338,7 +339,7 @@ test.describe('the first run after the version went up (REQ-004/AC-04, C7–C9)'
         // The run records its own version for the next
         expect(JSON.parse(readFileSync(join(f.userData, 'last-run-version.json'), 'utf8'))).toEqual({ version: running })
       } finally {
-        await app.close()
+        await closeApp(app)
         cleanup(f)
       }
     })
@@ -353,7 +354,7 @@ test.describe('the first run after the version went up (REQ-004/AC-04, C7–C9)'
       let win = await app.firstWindow()
       await openSettings(win)
       await expect(line(win)).toHaveText('Version 9.9.0 is downloading')
-      await app.close()
+      await closeApp(app)
       seedRecordedVersion(f, JSON.stringify({ version: '0.0.1' }))
       script(f, { check: 'upToDate' })
       app = await launch(f)
@@ -365,7 +366,7 @@ test.describe('the first run after the version went up (REQ-004/AC-04, C7–C9)'
       await action(win).click()
       await expect(line(win)).toHaveText('Couldn’t check for updates')
     } finally {
-      await app.close()
+      await closeApp(app)
       cleanup(f)
     }
   })
@@ -392,7 +393,7 @@ test('a development run: the switch and the button are unavailable, the footnote
     expect(JSON.parse(readFileSync(join(f.userData, 'last-run-version.json'), 'utf8'))).toEqual({ version: '0.0.1' })
     expect(requests(f)).toEqual([])
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -409,7 +410,7 @@ test.describe('the automatic-checks switch (US-002, REQ-003/AC-03)', () => {
       await option(win, 'off').click()
       await expect(option(win, 'off')).toHaveAttribute('aria-checked', 'true')
       await expect.poll(() => storedPrefs(f)['autoCheckUpdates']).toBe(false)
-      await app.close()
+      await closeApp(app)
       app = await launch(f)
       win = await app.firstWindow()
       await openSettings(win)
@@ -423,7 +424,7 @@ test.describe('the automatic-checks switch (US-002, REQ-003/AC-03)', () => {
       await win.waitForTimeout(1500)
       expect(requests(f)).toEqual(['check'])
     } finally {
-      await app.close()
+      await closeApp(app)
       cleanup(f)
     }
   })
@@ -444,7 +445,7 @@ test.describe('the automatic-checks switch (US-002, REQ-003/AC-03)', () => {
       await expect(line(win)).toHaveText('Version 9.9.0 is ready to install', { timeout: 10_000 })
       await expect(win.getByTestId('update-slot')).toHaveAttribute('aria-label', 'Update available')
     } finally {
-      await app.close()
+      await closeApp(app)
       cleanup(f)
     }
   })
@@ -461,7 +462,7 @@ test('the first launch after an update restores the saved display like any other
     let win = await app.firstWindow()
     await win.locator('.rail .ri').nth(1).click()
     await expect(win.locator('.side .row', { hasText: 'g4-project' })).toBeVisible()
-    await app.close()
+    await closeApp(app)
     seedRecordedVersion(f, JSON.stringify({ version: '0.0.1' }))
     // The scan is held back, so what shows is the restored display
     app = await launch(f, { env: { AGENTSHED_SCAN_DELAY_MS: '20000' } })
@@ -471,7 +472,7 @@ test('the first launch after an update restores the saved display like any other
     await openSettings(win)
     await expect(line(win)).toHaveText('You’re up to date')
   } finally {
-    await app.close()
+    await closeApp(app)
     cleanup(f)
   }
 })
@@ -573,7 +574,7 @@ test.describe('the labels and the result line stay on one line in every UI langu
           expect(m.foot, `${language} ${state}: the control (appearance footnote) wraps`).toBeGreaterThan(1)
         }
       } finally {
-        await app.close()
+        await closeApp(app)
         cleanup(f)
       }
     })

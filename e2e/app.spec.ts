@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os'
 import { zstdCompressSync } from 'node:zlib'
 import { join } from 'node:path'
 import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
+import { closeApp } from './close-app'
 import { ERR } from '../src/shared/errors'
 
 /** Each case gets its own userData with no cross-contamination; a cache file can be seeded */
@@ -117,7 +118,7 @@ async function launch(
 }
 
 async function close(l: Launched): Promise<void> {
-  await l.app.close()
+  await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
   if (l.home) rmSync(l.home, { recursive: true, force: true })
 }
@@ -873,7 +874,7 @@ test('the side filter row stays inside the sidebar column in both UI languages',
   }
 
   expect(l.errors).toEqual([])
-  await l.app.close()
+  await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
   rmSync(l.home!, { recursive: true, force: true })
 })
@@ -1597,7 +1598,7 @@ test('the archive: a seeded historical archive file → the trend includes an ar
   // The archive note appears (that day's source file is absent → it counts toward archivedDays)
   await expect(win.locator('.arch-note')).toBeVisible()
   expect(errors).toEqual([])
-  await app.close()
+  await closeApp(app)
   rmSync(userData, { recursive: true, force: true })
 })
 
@@ -1663,7 +1664,7 @@ test('the archive retains a past day whose live figure fell under the same stamp
   await expect(projBar).toHaveAttribute('data-tip', /Anthropic\s+5\.0M/)
   await expect(projBar).not.toHaveClass(/\barch\b/)
   expect(errors).toEqual([])
-  await app.close()
+  await closeApp(app)
   rmSync(userData, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })
 })
@@ -2489,7 +2490,7 @@ test('F3 plus the new sections: a project-scope plugin displays correctly both w
   // The one expected handler error: reading vanish.md, removed after the scan on purpose (AC-07). Electron logs
   // every rejected IPC handler to stderr; anything else is still a failure.
   expect(errors.filter((e) => !(e.includes("handler for 'agentshed:read-artifact'") && e.includes('vanish.md')))).toEqual([])
-  await app.close()
+  await closeApp(app)
   rmSync(userData, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })
 })
@@ -3305,7 +3306,7 @@ test('automatic refresh: a new session appears on its own, and the detail page\'
     .toBe(true)
 
   expect(errors).toEqual([])
-  await app.close()
+  await closeApp(app)
   rmSync(userData, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })
 })
@@ -4372,7 +4373,7 @@ test('UI language: following the system resolves against the whole list, and app
   // The default preference is "follow system", so the UI should be Chinese
   await expect(win.locator('.ri.set')).toHaveAttribute('title', '设置')
   expect(await win.evaluate(() => document.documentElement.lang)).toBe('zh-CN')
-  await l.app.close()
+  await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
 })
 
@@ -4383,7 +4384,7 @@ test('UI language: falls back to English when the system language is unsupported
   const win = await l.app.firstWindow()
   await win.waitForSelector('.rail')
   await expect(win.locator('.ri.set')).toHaveAttribute('title', 'Settings')
-  await l.app.close()
+  await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
 })
 
@@ -4406,7 +4407,7 @@ test('UI language: a stored preference naming a removed language reads as follow
   // startup is still on screen here
   expect(await win.locator('.toast').count()).toBe(0)
   expect(l.errors).toEqual([])
-  await l.app.close()
+  await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
 })
 
@@ -4466,7 +4467,7 @@ test('the language selector: three items including follow-system and the divider
   expect(await win.evaluate(() => document.documentElement.lang)).toBe('en')
 
   expect(l.errors).toEqual([])
-  await l.app.close()
+  await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
 })
 
@@ -4511,7 +4512,7 @@ test('the language selector by keyboard: opening leaves the highlight on the cur
   await expect(win.locator('.settings-h1')).toHaveText('设置')
 
   expect(l.errors).toEqual([])
-  await l.app.close()
+  await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
 })
 
@@ -4564,7 +4565,7 @@ test('i18n: both languages load, with the key nodes non-empty', async () => {
     expect(await win.evaluate(() => document.documentElement.lang)).not.toBe('')
   }
   expect(l.errors).toEqual([])
-  await l.app.close()
+  await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
 })
 
@@ -4586,7 +4587,7 @@ test('i18n: switching languages applies immediately, changing several areas at o
   await expect(win.locator('.ri.set')).not.toHaveAttribute('title', before.rail ?? '')
   await expect(win.locator('.settings-sec-t').first()).not.toHaveText(before.sec ?? '')
   expect(l.errors).toEqual([])
-  await l.app.close()
+  await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
 })
 
@@ -4611,7 +4612,7 @@ test('i18n: key layouts do not overflow horizontally in either language', async 
     expect(overflow.boxOverflows, `${code}: a fixed-width container was burst`).toBe(0)
   }
   expect(l.errors).toEqual([])
-  await l.app.close()
+  await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
 })
 
@@ -4691,7 +4692,7 @@ test('i18n: no label in the project-detail tab row or the skills rows wraps to a
     expect(wrapped.pills, `${code}: a skills-row pill wrapped onto a second line`).toEqual([])
   }
   expect(l.errors).toEqual([])
-  await l.app.close()
+  await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })
 })
