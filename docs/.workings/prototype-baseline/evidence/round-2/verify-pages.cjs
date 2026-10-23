@@ -3,6 +3,9 @@
 // Gap: the logic modules' unknown-event reason ("unknown event") has no button that reaches it, so no check here
 // drives it; it is checked by the diff against the prototype skill's logic-template.js. Test it here if a logic page
 // gains a button whose event has no reducer case.
+// Gap: the logic pages' empty-diagram notice ("No diagram source: ...") renders only when a page has no diagram source,
+// so no check here reaches it; it is checked by the diff against logic-page-template.html. It renders on a copy of a
+// logic page without its model.mmd.js, where it can be tested.
 const { chromium } = require('/Users/loong_zhou/CascadeProjects/agentshed-wt/proto-fixes/node_modules/@playwright/test');
 const ROOT = process.argv[2].replace(/\/$/, '') + '/';
 let failed = 0;

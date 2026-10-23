@@ -76,6 +76,15 @@ No finding: no input, file or network surface; the strings written into the turn
   `file://` frame, which Chrome treats as cross-origin; the page has it on the base commit too, opened alone it
   focuses, and it is not a script error. This round touched only that page's header comment.
 
+Character icons outside the change (`/ui-design` section 2), over the eight touched UI pages: a scan for arrow,
+symbol, geometric-shape, dingbat and emoji code points, each hit judged by its place. Two stand where an icon would:
+a trailing up-right arrow after the cross-prototype link "install interaction demo" in the Agents page's Skills tab
+hint row, and after "project detail" in a heading note on the install page. Both are reader aids that jump to another
+prototype, not app interface. The other hits are arrows, multiplication and minus signs inside copy and mock tool
+output, or sit in comments. No repository-wide icon audit is claimed. Recommendation: leave them (prototype reader
+aids; the template-level character icons are already aloong-planet/skillshed#16). They have no home in this
+repository; the owner decides at delivery.
+
 Review fixes, executed: the two header notes above, and item 9's values.
 
 Refactor list: none for #250.

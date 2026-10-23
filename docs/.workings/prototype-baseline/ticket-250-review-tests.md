@@ -24,7 +24,8 @@ re-read for this record. The checks below were made after implementation, on the
 
 Round 1: checked 2026-10-23 by an independent agent on the commit range 1349d76..21a8958 (21a8958 is the
 implementation; 0bb5a11 after it adds only work records and evidence), after the full verification gateway passed.
-The probe change that followed (0565012) has its own incremental check at the end of this section.
+The probe changes that followed have their own incremental checks at the end of this section, first 0565012, then
+4c5f473.
 
 Handover evidence:
 - Gateway log [`evidence/round-2/gate-21a8958.log`](evidence/round-2/gate-21a8958.log): HEAD
@@ -123,8 +124,8 @@ checked. One probe-session-fail run took 12.1s.
 |---|---|---|---|
 | T250-1: row 250::done counts 9 UI pages; there are 8 | Coverage, last row | Correct the count in [checklist.md](checklist.md) now, as a document sync item of this ticket ([ticket-250-doc-sync.md](ticket-250-doc-sync.md)), pending until done | Resolved in cc6a9fd: row 250::done reads "8 UI pages, 3 logic pages", and the sync item is marked done |
 
-No coverage gap, false green or resource finding is left open for #250 (round 1; the incremental check below
-adds none). Document sync arising from this check,
+No coverage gap, false green or resource finding is left open for #250 (round 1; the incremental checks below
+add none). Document sync arising from this check,
 for the main agent: the checklist correction above and, once this check is closed, task 11 of
 [ticket-250-tasks.md](ticket-250-tasks.md). Files read for this check: the coverage checklist, the #250 task list,
 document sync checklist and code review record, the #251 test review (format), every file in
@@ -183,3 +184,57 @@ No #250 finding. T250-1 is resolved (table above). Document sync, for the main a
 [ticket-250-tasks.md](ticket-250-tasks.md) can note this check's outcome (no #250 finding); row 250::done of
 [checklist.md](checklist.md) stays true with the directed run. The document search and its scope are in the #226
 record.
+
+### Incremental check: the entry-button fix 4c5f473
+
+Checked 2026-10-23 by an independent agent with a fresh context, at HEAD ee91769 with a clean tree, on the fix
+range cc6a9fd..4c5f473 (in git's notation the one commit 4c5f473; ee91769 after it adds only the directed
+verification log, checklist rows and a document sync status). The scope searches, the handover evidence and the
+#226 side are recorded in [ticket-226-review-tests.md](ticket-226-review-tests.md) under the same heading; this
+section holds what concerns #250.
+
+Scope, by the incremental clause: the change is the entry-button loop in `verify-pages.cjs`'s `driveLogic` (probe
+lines 63 to 85), which runs only on the three logic pages, and three header comment lines about a #226 gap. Of
+#250's checks it reaches each logic page's "no script errors" (part of 250::done), alone and in the gallery,
+since that check now also sees the loop's reset, event and entry clicks. No other test changed, nothing imports
+the probe or the new runner `directed.sh` (whole-worktree searches with two tools, in the #226 record), and the
+test design table is empty with no row changed. Carried over from round 1 (post-implementation check,
+1349d76..21a8958): every UI-page check, `probe-session-fail.cjs`, the readings and searches for 250::7, 250::R1
+and 250::8, and resource use; from the first incremental check (0565012): its judgement on the logic pages'
+script-error checks, extended below.
+
+Evidence: [`evidence/round-2/directed-4c5f473.log`](evidence/round-2/directed-4c5f473.log) at HEAD 4c5f473 with an
+empty status, its base tree and substitutions stated in its header, each command with its full output and exit
+code; the gateway log `gate-21a8958.log` carried over (HEAD 21a8958, clean, eleven commands, every exit code 0;
+nothing outside `docs/.workings/` has changed since). With the entry-button lines set aside, the implementation
+run equals round 1's `verify-pages-after.log` except the six distinctness lines added in 0565012, so every #250
+check reads what it read in round 1. The item 5 probe passes 16 of 16 after and fails 7 on the base, as before.
+
+#### Coverage
+
+250::done: the eight UI pages and the three logic pages each open alone and in the gallery with no script error;
+the logic pages' six "no script errors" checks pass after the loop's added clicks (and on the base). Covered, no
+change to round 1's judgement.
+
+#### Case design
+
+No #250 check changed; round 1's judgement stands.
+
+#### False greens
+
+Per the project capability declaration, `mutation-testing` is not enabled; mutation testing is skipped. "When
+would it be red" for the logic pages' "no script errors": when a `pageerror` event reaches the page or its
+gallery frame during the run, now including the loop's reset, event and entry clicks. The directed log's throw
+run, with the committed probe, shows the mechanism again: an error thrown in the session page fails that page's
+check alone and in the gallery and no other check, and the mutated copy differs from the pages in the one inserted
+line (the log's reach count, and a `diff -r` in this check). Round 1's other answers stand.
+
+#### Resource reuse
+
+The change adds clicks only; no test resource is added. Carried over from round 1.
+
+#### Findings and document sync
+
+No #250 finding. Document sync, for the main agent: task 11 of [ticket-250-tasks.md](ticket-250-tasks.md) can note
+that the second incremental check found nothing new for #250; row 250::done of [checklist.md](checklist.md)
+stays true with `directed-4c5f473.log`. The document search and its scope are in the #226 record.

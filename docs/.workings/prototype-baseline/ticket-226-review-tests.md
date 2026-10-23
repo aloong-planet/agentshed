@@ -20,9 +20,9 @@ below were made after implementation, on the probe as written.
 
 Round 1: checked 2026-10-23 by an independent agent on the commit range 1349d76..21a8958 (21a8958 is the
 implementation; 0bb5a11 after it adds only work records and evidence), after the full verification gateway passed.
-The probe change that followed (0565012) has its own incremental check at the end of this section; for the
-logic-page part of `verify-pages.cjs` that check is the current one, and round 1's judgements below are
-annotated where it changes them.
+The probe changes that followed have their own incremental checks at the end of this section, first 0565012,
+then 4c5f473; for the logic-page part of `verify-pages.cjs` the check of 4c5f473 is the current one, and the
+earlier judgements are annotated where a later check changes them.
 
 Handover evidence:
 - Gateway log [`evidence/round-2/gate-21a8958.log`](evidence/round-2/gate-21a8958.log): HEAD 21a8958 (full hash in
@@ -40,9 +40,9 @@ Handover evidence:
 | Unit | Verification | Red on 1349d76 | Judgement |
 |---|---|---|---|
 | 226::1 | eleven chrome checks per page, alone and in the gallery: drive heading, empty-state receipt, reset button, stress label, hint, receipt after an entry, unreachable prefix, forced prefix, legal receipt, receipt after reset, reset-view title; the diff for the header comment and the empty-diagram notice, which a normal load never renders | yes, all eleven on each page | covered. The expected strings were checked against the skill's canonical `logic-page-template.html`: each is the template's wording (its lines 112, 122, 128, 139, 140, 191, 252, 273, 276, 293), and the empty-diagram notice in the diff is its line 150 verbatim. Every line with Chinese left in the three directories after the change was enumerated: page titles and headings, questions, state field labels, group and button labels, install-flow's operation field and scan-cache's cold/warm note in the pages; the reasons each page wrote and visibility's "visible in" values in `logic.js`; diagram titles and labels in the `.mmd` and `model.mmd.js` files. All are prototype content by #226's own list (see O1 for one reason's label) |
-| 226::2 | the same probe: diagrams rendered (1, 1, 2 SVGs), an entry button, the current state highlighted, an unreachable event's tooltip, stress mode, a forced event, a legal event, reset, reset view after a pan; no script errors | the behaviour checks pass on the base as well (behaviour unchanged) | covered, except that only the first entry button of each page is clicked (T226-3). Since 0565012 every entry button is clicked; what that shows is judged in the incremental check (T226-4) |
+| 226::2 | the same probe: diagrams rendered (1, 1, 2 SVGs), an entry button, the current state highlighted, an unreachable event's tooltip, stress mode, a forced event, a legal event, reset, reset view after a pan; no script errors | the behaviour checks pass on the base as well (behaviour unchanged) | covered, except that only the first entry button of each page is clicked (T226-3). Since 0565012 every entry button is clicked; what that shows is judged in the incremental check (T226-4). Since 4c5f473 each is clicked from the empty state and again after an event (second incremental check) |
 | 226::3 | `pnpm check:lang` in the gateway | — | covered: exit 0 |
-| 226::R1 | tooltip reason without a prefix; a forced illegal event's receipt; the regex mutation log | the forced receipt fails on the base | covered for the prefix and its regex; the unknown-event reason is not driven (T226-2); the mutation log's provenance (T226-1). Since cc6a9fd the row rests on `directed-0565012.log` (incremental check) |
+| 226::R1 | tooltip reason without a prefix; a forced illegal event's receipt; the regex mutation log | the forced receipt fails on the base | covered for the prefix and its regex; the unknown-event reason is not driven (T226-2); the mutation log's provenance (T226-1). Since cc6a9fd the row rests on `directed-0565012.log` (incremental check), since ee91769 on `directed-4c5f473.log` (second incremental check) |
 
 Fixture source: nothing here reads data produced elsewhere; the real-sample fixture rule does not apply.
 
@@ -91,7 +91,7 @@ the one-second threshold.
 |---|---|---|---|
 | T226-1: the regex mutation log comes from an earlier probe version on a pre-21a8958 tree, and row 226::R1, dated against 21a8958, cites it without saying so | False greens | Now: state the log's provenance in row 226::R1 (earlier probe version; logic pages equal to 21a8958 by the diff above) and rest the tooltip check's "when red" on the committed code as read here. Rerunning the mutation is not required: the project does not enable mutation testing | Resolved: the mutation was rerun with the committed probe on a copy of the implementation's pages (`directed-0565012.log`), and row 226::R1 rests on that run and names the old log as an earlier version's. What the new log does not record is T226-5 |
 | T226-2: the unknown-event reason, part of 226::R1, has no trigger on the page (every button's action type has its own reducer case, checked on all three pages) and is not mentioned in row 226::R1 | Coverage | Now: record in row 226::R1 that this string is verified by the diff only (`deny('unknown event')` in each `logic.js`, the wording of `logic-template.js` line 50), and why no probe drives it. Calling `StateMachine.reduce` with an invented type would be a synthetic path | Resolved in row 226::R1. The probe's own header does not note the gap: T226-6 |
-| T226-3: #226's verification names "entry buttons"; the probe clicks the first entry button of each page only (row 226::2 says "an entry button", which is accurate) | Coverage | Recommended now: let the probe click every `[data-new]` button, check the receipt and a status after each, and rerun alone and in the gallery (one loop). Otherwise record in row 226::2 why the second button is not driven (the same handler; only `initial()`'s argument differs, and this range does not touch it) | Addressed in 0565012: every `[data-new]` button is clicked. The per-button check cannot tell a working button from a dead one in the sequence it runs in: T226-4 |
+| T226-3: #226's verification names "entry buttons"; the probe clicks the first entry button of each page only (row 226::2 says "an entry button", which is accurate) | Coverage | Recommended now: let the probe click every `[data-new]` button, check the receipt and a status after each, and rerun alone and in the gallery (one loop). Otherwise record in row 226::2 why the second button is not driven (the same handler; only `initial()`'s argument differs, and this range does not touch it) | Addressed in 0565012: every `[data-new]` button is clicked. The per-button check cannot tell a working button from a dead one in the sequence it runs in: T226-4, resolved in 4c5f473 (second incremental check) |
 
 Observations handed to the main agent, outside the test findings:
 - O1: each `logic.js` gives, in `legal()`'s null branch (no entry yet), a page-written reason that begins with the
@@ -119,7 +119,9 @@ document sync checklist and code review record, every file in `evidence/round-2/
 before this record.
 
 Status of that document sync at the incremental check (2026-10-23): the checklist rows were rewritten in cc6a9fd
-and the sync item is marked done; row 226::2 needs one more change (T226-4).
+and the sync item is marked done; row 226::2 needs one more change (T226-4). At the second incremental check
+(2026-10-23): row 226::2 was rewritten again in ee91769 on `directed-4c5f473.log`; one citation in it is left
+(T226-8).
 
 ### Incremental check: the probe change 0565012
 
@@ -209,6 +211,10 @@ render()`) and the source of its expected value:
   its cold or warm note). Were two entries ever to share a status text, the check would go red wrongly, not
   green. This check, with "after entry, a status" for the first button, is what shows that each button starts
   an entry.
+- Annotation (second incremental check, 4c5f473): both readings above are superseded. Each entry is now clicked
+  from the empty state, so a dead button leaves the empty dash, which differs from the other button's status:
+  the distinctness check no longer goes red for a dead button, and the per-button check from the empty state
+  does instead. See that check below.
 - The later `driveLogic` checks and the logic pages' "no script errors": the same values as in round 1 (log
   comparison above), so round 1's answers stand. The tooltip check's red is now shown with the committed probe:
   under the regex mutation, which the log shows reached one line of visibility's `logic.js`, only visibility's
@@ -230,11 +236,11 @@ directed log has no load or launch output to count from; by the code, Chrome is 
 
 #### Findings and document sync
 
-| Finding | Basis | Recommended disposition |
-|---|---|---|
-| T226-4: the per-button entry check cannot go red for a dead button or for a receipt that is not cleared, because both of its halves already hold before each click; row 226::2 of the checklist and the 0565012 commit message present "each starts its own entry with an empty receipt" as verified | False greens | Now, in the probe: start each entry click from a state the click has to change. Recommended: dispatch a legal event first (the receipt then reads "Dispatched ..."), then click the entry button and keep the check, which then goes red for a dead button and for an uncleared receipt (clicking reset before each entry is the lighter variant; it catches a dead button only). This changes the probe's executable content: rerun the directed verification (green on the implementation, red on the base for the wording), then a further incremental check, as `/implement` step 6 requires. If the probe is kept as it is: correct row 226::2 instead, saying that the distinct statuses show each button starts an entry, that the per-button check shows the receipt's wording, and that an entry after an event is not driven |
-| T226-5: the directed log does not say which code its base and mutated runs tested: no base commit, no mutation text; the runner script `directed.sh` that holds both (`git archive 1349d76`; the two substitutions) lives only in the session's temporary directory | Handover evidence | Now: keep `directed.sh` beside the log in `evidence/round-2/`, or write the base commit and the two substitutions into the log's header, and cite it from row 226::R1 and the 0565012 row of the checklist. Records only; no further check |
-| T226-6: the probe's header does not note its known gap, the unknown-event reason, which no button reaches (it is recorded only in checklist row 226::R1) | Coverage | Now: add a header line to `verify-pages.cjs`: the unknown-event reason (`deny('unknown event')`) has no trigger on the pages, since every button's event has a reducer case, so it is checked by the diff; re-test when a page gains an event without one. Comment only: per `/implement` step 6, the judgement that the executable content is unchanged goes into the work record, and no further check is needed. It can ride with T226-4's probe change |
+| Finding | Basis | Recommended disposition | Status (second incremental check, 2026-10-23, at ee91769) |
+|---|---|---|---|
+| T226-4: the per-button entry check cannot go red for a dead button or for a receipt that is not cleared, because both of its halves already hold before each click; row 226::2 of the checklist and the 0565012 commit message present "each starts its own entry with an empty receipt" as verified | False greens | Now, in the probe: start each entry click from a state the click has to change. Recommended: dispatch a legal event first (the receipt then reads "Dispatched ..."), then click the entry button and keep the check, which then goes red for a dead button and for an uncleared receipt (clicking reset before each entry is the lighter variant; it catches a dead button only). This changes the probe's executable content: rerun the directed verification (green on the implementation, red on the base for the wording), then a further incremental check, as `/implement` step 6 requires. If the probe is kept as it is: correct row 226::2 instead, saying that the distinct statuses show each button starts an entry, that the per-button check shows the receipt's wording, and that an entry after an event is not driven | Resolved in 4c5f473: each entry button is clicked after reset and again after a legal event; the dead-entry and kept-receipt runs turn exactly the matching checks red. Row 226::2 rewritten in ee91769, with one citation left (T226-8) |
+| T226-5: the directed log does not say which code its base and mutated runs tested: no base commit, no mutation text; the runner script `directed.sh` that holds both (`git archive 1349d76`; the two substitutions) lives only in the session's temporary directory | Handover evidence | Now: keep `directed.sh` beside the log in `evidence/round-2/`, or write the base commit and the two substitutions into the log's header, and cite it from row 226::R1 and the 0565012 row of the checklist. Records only; no further check | Resolved in 4c5f473 and ee91769: `directed.sh` is kept in `evidence/round-2/`, `directed-4c5f473.log` states the base tree and the five substitutions in its header, and rows 226::R1 and the run row cite it |
+| T226-6: the probe's header does not note its known gap, the unknown-event reason, which no button reaches (it is recorded only in checklist row 226::R1) | Coverage | Now: add a header line to `verify-pages.cjs`: the unknown-event reason (`deny('unknown event')`) has no trigger on the pages, since every button's event has a reducer case, so it is checked by the diff; re-test when a page gains an event without one. Comment only: per `/implement` step 6, the judgement that the executable content is unchanged goes into the work record, and no further check is needed. It can ride with T226-4's probe change | Resolved in 4c5f473 (probe lines 3 to 5). The header leaves out the other string checked by the diff only: T226-7 |
 
 Document sync, for the main agent. Facts taken from 0565012 and its directed run; scope per the document-sync
 rules: all 23 files of `docs/.workings/prototype-baseline/` (each tracked; `find -type f` and `rg -uu --files`
@@ -258,3 +264,180 @@ header and exit codes, `verify-pages-after.log` and `verify-pages-base.log` (com
 directed runs), the eslint configuration's ignore block, the visibility page's script and the three pages' entry
 handlers, and the bodies and comments of #226 and #250. Both test review paths were read in full before this
 section was added.
+
+### Incremental check: the entry-button fix 4c5f473
+
+Checked 2026-10-23 by an independent agent with a fresh context, at HEAD ee91769 with a clean tree. The fix range
+handed over, cc6a9fd..4c5f473, is in git's notation the one commit 4c5f473; ee91769 after it adds only the
+directed verification log, the checklist rows resting on it and a document sync status, read here as evidence.
+Nothing outside `docs/.workings/` has changed since the gateway commit (`git diff --stat 21a8958 4c5f473 --
+. ':(exclude)docs/.workings'`: empty), so the pages are those of 21a8958.
+
+Scope, by the incremental clause:
+- Tests changed in the range: `git diff --name-only cc6a9fd 4c5f473` lists seven files, all under
+  `docs/.workings/prototype-baseline/`. Executable: `evidence/round-2/verify-pages.cjs` (the entry-button loop in
+  `driveLogic`, probe lines 63 to 85, and three header lines, 3 to 5) and the new runner `evidence/round-2/directed.sh`.
+  The runner is no test: it produces the directed log, so it is judged under the handover evidence below. The
+  probe change reaches, on each logic page alone and in the gallery (6 runs each): the check "from the empty
+  state" for each of the two entry buttons (check A, 12 runs), the check "after an event" for each (check B, 12
+  runs), the distinctness check (its code is unchanged, its input is now the status read after a click from the
+  empty state), every `driveLogic` check after the loop, and the page's "no script errors".
+- Tests that depend on changed helper code: none. Nothing imports the probe or the runner:
+  `rg -uu --text -l` and `/usr/bin/grep -r -a -l -E` over the whole worktree, for `verify-pages`, `directed\.sh` and
+  `probe-session-fail`, list the same files with both tools, all in `docs/.workings/prototype-baseline/`: the
+  checklist, the two directed logs, `directed.sh`, the probe itself for its own name (the positive control),
+  both test review records, and for `directed.sh` also the #226 document sync checklist. `rg` here is a shell
+  function whose definition passes its arguments to the bundled rg unchanged; `rg -uu --files .` and
+  `find . -type f` both list 33413 files.
+- Rows of the test design table changed in the range: none. The table is empty, and the hunks the range makes in
+  the two test review records touch neither design review section.
+- Carried over from round 1 (post-implementation check, 1349d76..21a8958): 226::1, 226::3, the resource
+  measurements, and everything in [ticket-250-review-tests.md](ticket-250-review-tests.md) outside the logic
+  pages. Carried over from the first incremental check (0565012): the judgements on the `driveLogic` checks after
+  the loop and on 226::R1's tooltip check, both of which read the same values now (below).
+
+Handover evidence:
+- Directed verification log [`evidence/round-2/directed-4c5f473.log`](evidence/round-2/directed-4c5f473.log):
+  HEAD 4c5f473, the end of the fix range, with an empty status (no file needs a hash); a header naming the base
+  tree (`git archive 1349d76`) and the five substitutions; one independent reach line per mutation (a grep count
+  on the mutated file); twelve commands, each with its full output and its exit code, taken without a pipe in
+  `directed.sh` (`"$@" >> "$LOG" 2>&1` then `local code=$?`). Nothing the gateway section asks of a log is
+  missing, and the version matches the handed range. The header and command lines are the committed
+  `directed.sh`'s own echo and `run` lines. The scratch trees the log names still exist: the base copy equals a
+  fresh `git archive 1349d76 docs/prototypes build/icon.png` (`diff -r` exit 0, 80 files; icon `cmp` equal), and
+  each mutated copy differs from the worktree's pages in exactly the one line its header names (`diff -r`), with
+  `build/icon.png` equal.
+- Counted from the directed log: lint, check:lang and check:nul exit 0; the probe on the implementation 190 PASS,
+  0 FAIL, exit 0; on the base 80 PASS, 110 FAIL, exit 1 (86 checks outside the entry-button checks, plus all 24
+  entry-button checks, whose receipts are Chinese there); regex 2 FAIL (visibility's tooltip check, alone and in
+  the gallery); throw 2 FAIL (the session page's "no script errors", alone and in the gallery); dead entry 4 FAIL
+  (visibility's two checks for the button "missing", alone and in the gallery); kept receipt 4 FAIL (install-flow's
+  check B for both buttons, alone and in the gallery); same entry 2 FAIL (visibility's distinctness check, alone and
+  in the gallery); each of those five exit 1, and no other check fails in any of them; the item 5 probe 16 of 16
+  after, 9 PASS and 7 FAIL on the base.
+- Against the earlier logs: with the entry-button lines set aside, the implementation, base, regex and throw runs
+  each equal their counterparts in `directed-0565012.log` line for line (`diff` exit 0), and the implementation
+  run equals round 1's `verify-pages-after.log` except the six distinctness lines that 0565012 added. So every
+  check outside the loop reads what it read before.
+- Reproduction: the committed probe rerun on the worktree's pages at ee91769 gives exit 0 and 190 PASS, equal line
+  for line to the log's implementation run once the log's escaped code points are decoded.
+- Full verification gateway log: `gate-21a8958.log`, carried over as the most recent full run (HEAD 21a8958, a
+  clean status, eleven commands, every exit code 0). The range changes only work records. The gateway steps that
+  read them, check:lang and check:nul, are rerun in the directed log with exit 0, and lint too; no other test reads
+  this directory (a search for `.workings` outside `docs/.workings/`, `node_modules/` and `.git/` finds only e2e
+  screenshot paths into another directory and test strings).
+
+#### Coverage
+
+| Unit | Verification after 4c5f473 | Judgement |
+|---|---|---|
+| 226::2, entry buttons | each `[data-new]` button clicked after reset (check A) and again after the first enabled event (check B), on every page alone and in the gallery | T226-4 resolved: a dead button and an entry that keeps the receipt each turn their checks red. An entry clicked straight after another entry is not checked on its own; it is the same handler as an entry after an event, which check B covers. Row 226::2 cites the older run for one clause (T226-8) |
+| 226::R1 | rests on `directed-4c5f473.log` with the base tree and the substitution stated (T226-5 resolved); the unknown-event reason by the diff, named in the probe's header (T226-6 resolved) | covered. The header leaves out the empty-diagram notice, the other string the probe never renders (T226-7) |
+| 250::done, the three logic pages | "no script errors" after the loop's added clicks | judged in [ticket-250-review-tests.md](ticket-250-review-tests.md): no finding |
+
+Test file header, as the Coverage dimension asks: lines 3 to 5 name the unknown-event reason as checked by the diff, with the
+condition to test it in the probe. Round 1 found a second chrome string verified by the diff only, the
+empty-diagram notice, which renders only when a page has no diagram source (each page's script, for example
+visibility's line 133); the header does not name it: T226-7.
+
+Fixture source: unchanged; the pages render their own mock data.
+
+#### Case design
+
+The loop clicks reset, the entry button, the first `[data-act]` whose `aria-disabled` is `"false"`, and the entry
+button again, each with a real Playwright click, and reads the status badge and the receipt. Reset is setup made
+through the page's own button. No module is replaced, no state is written, nothing is asserted about calls. Each
+page and mode still has a fresh context, and the click back to the first entry hands the later checks their old
+start state (log comparison above). No red flag.
+
+#### False greens
+
+Per the project capability declaration (read with a TOML parser: `[mutation-testing]` with `enabled = false`, a
+form the registry allows), mutation testing is not enabled and is skipped. The directed log's mutation runs are
+the main agent's evidence, read as such. Each check's "when would it be red", against each page's handlers
+(entry: `lastEvent = null; state = SM.initial(...); render()`; reset: `lastEvent = null; state = null; render()`;
+the null branch of `render()` writes the empty dash and the empty-state receipt) and the template's wording as
+the expected values:
+- Check A, "from the empty state" (12 runs): before the click, reset leaves the dash and the empty-state receipt,
+  so both halves change across a working click. Red when the click starts no entry (the dead-entry run: both
+  halves red, for that button only), or when the entry's receipt wording differs from the template's (the base
+  run). Not red for an entry that keeps an earlier receipt, since reset has just cleared it; that is check B's job
+  (the kept-receipt run leaves check A green, as expected). Its red for a dead button rests on reset having
+  emptied the state; reset is checked on its own ("reset returns to the empty state"), and check B catches a dead
+  button whatever reset does.
+- Check B, "after an event" (12 runs), four conjuncts: `!!ev` is red when no event is enabled after the entry, so
+  the check cannot pass with nothing dispatched (the dead-entry run, where `ev` is undefined); `mid` starting
+  "Dispatched " shows that the state before the second click differs from the expected outcome; `again` equal to
+  "No event dispatched yet" is red when the entry keeps the receipt (the kept-receipt run: install-flow's two
+  buttons only) or when the button does nothing; `st2 === st` is red when the entry does not replace the state.
+  No run isolates that last conjunct; its red is by reading: in all six page-and-button cases the event moves the
+  status away from the entry's own (the receipts end in stale, normal, copying, deleting, scanning and scanning,
+  against normal, stale, validating, confirming and the two idle statuses), so a kept state would differ. Judged,
+  no change: the check does not assert that precondition; were a page's first enabled event ever to leave the
+  status as it was, that conjunct would hold trivially while the receipt conjunct still discriminated. `st` is the
+  page's own status from the empty state, so this conjunct shows that an entry does not depend on what came
+  before, not which status it gives; which button gives which status is not asserted, as before, and the log's
+  details show the mapping the buttons name (ok to normal, missing to stale, install to validating, uninstall to
+  confirming, cold and warm to idle with their notes).
+- Distinctness, "each entry button gives its own status" (6 runs): red when fewer than two entry buttons are found
+  (which also keeps the loop from running zero times unnoticed) or when two buttons give one status (the
+  same-entry run: visibility only). No longer red for a dead button, which now leaves the dash (the dead-entry run
+  shows it passing with normal and the dash); check A covers that case. This supersedes the first incremental
+  check's reading.
+- The later `driveLogic` checks and the logic pages' "no script errors": the same values as before (log comparison
+  above), so the earlier answers stand; "no script errors" now also covers the loop's reset, event and entry
+  clicks.
+- Read against review-code's false-greens forms for browser checks: no existence standing in for effect (form
+  one), both halves of check A now change across the click; no synthetic path (form two), all clicks are real; no
+  check left never red (form four): check A, check B's guard and receipt conjunct, and the distinctness check are
+  each red in a run whose mutation is shown to have reached its page by evidence independent of the probe (the
+  log's grep counts, and this check's `diff -r` of each copy), while the status conjunct is red by reading, as
+  above; no early read (form five), the handlers run synchronously inside each click; no command error taken for
+  data (form six): the exit codes are taken without a pipe, and the expected red runs are judged by where they
+  fail, not by exit code alone: each fails only on its target checks, and the base run reads the base pages'
+  Chinese chrome, so no run is red for a missing tree; the object is reached (form nine), the gallery runs read
+  each page's frame.
+
+#### Resource reuse
+
+No test resource is added: the change adds clicks inside page contexts that already exist. The directed log has no
+load or launch output to count from; by the code, Chrome is launched once per run (probe line 124) and one context
+is opened per page and mode (22 per run, `open()` at line 28), as in round 1, whose measurements (0.7s per launch,
+0.2 to 0.3s per context) stay under the one-second threshold. Carried over from round 1.
+
+#### Findings and document sync
+
+| Finding | Basis | Recommended disposition |
+|---|---|---|
+| T226-7: the probe's header, rewritten in this range to name its gaps, names the unknown-event reason but not the empty-diagram notice ("No diagram source: ..."), which round 1 found checked by the diff only (row 226::1 of this record): it renders only when a page has no diagram source, which the three pages always have | Coverage | Now, comment only: add the notice to the header's gap note, saying that it is checked by the diff against `logic-page-template.html` and that a copy of a page without its `model.mmd.js` renders it, where it can be tested if its wording changes. Per `/implement` step 6 the judgement that the executable content is unchanged goes into the work record, and no further check is needed. Alternative: drive it in `directed.sh` on such a copy |
+| T226-8: row 226::2 of [checklist.md](checklist.md), rewritten in ee91769 for the probe as extended in 0565012 and 4c5f473, cites `verify-pages-after.log` for "no script error". That log is round 1's run of the earlier probe, which clicked only the first entry button and made none of the reset, event and entry clicks the loop now makes; "no script errors" after those clicks passes in the implementation run of `directed-4c5f473.log` (and in this check's rerun) | Coverage | Now, records only: cite `directed-4c5f473.log` for that clause (the other checks the row names read the same values in both logs, so either citation holds for them). No further check |
+
+Document sync, for the main agent. Facts taken from 4c5f473 and its directed run. Scope per the document-sync
+rules: all 25 files of `docs/.workings/prototype-baseline/` (`find -type f`, `rg -uu --files` and `git ls-files`
+each list 25), and the whole worktree, `node_modules` and `.git` left out (the probe-name search above covered
+them), searched with `rg -uu --text -l` for `directed-4c5f473`, `directed-0565012`, `T226-<n>`, `T250-<n>`,
+`prototype-baseline` and `entry button`. Every hit is in that directory, except "entry button" in the three logic
+pages, which is their own receipt chrome. So the root documents (`AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, both
+READMEs), `docs/specs`, `docs/features`, `docs/adr` and `docs/agents` state none of these facts; `docs/prototypes`
+is otherwise left out because the range changes no page. Results:
+- [checklist.md](checklist.md): the 4c5f473 run row (190; 110 as 86 plus 24; five mutations, each red only on its
+  target; 16 and 7; lint, check:lang, check:nul) matches the log; row 226::R1 matches it; row 226::2 matches it
+  for the entry-button checks, with T226-8 on one citation. Row 226::1's "the twelfth check that fails there"
+  describes round 1's base run, which it is dated against; the current base run's extra failures are stated in
+  the run row.
+- [ticket-226-doc-sync.md](ticket-226-doc-sync.md): the item for T226-4 to T226-6 is done for those three. Its
+  wording that rows 226::2 and 226::R1 rest on the new run holds except the clause in T226-8. T226-7 and T226-8
+  need their own item, pending until done.
+- [ticket-226-tasks.md](ticket-226-tasks.md), task 8: it says the fix goes to another incremental check; its state
+  needs this check's outcome once the findings are handled.
+- [ticket-226-review-code.md](ticket-226-review-code.md), Consistency: its rerun statement cites
+  `directed-0565012.log` and stays true as dated; the newer log shows the same result for the regex mutation.
+- O2, the template's unguarded `highlight(state.status)`, is now raised for the third time with no decision
+  recorded: for the main agent to put to the user (file it in the skill's repository, or drop it); this
+  repository has no home for it.
+
+Files read for this check: both test review records in full, the coverage checklist, both tickets' task lists and
+document sync checklists, both code review records, the probe and `directed.sh` in full, `directed-4c5f473.log` in
+full, the gateway log's header and exit codes, the bodies and comments of #226 and #250, the visibility page's
+script and the three pages' entry, event and reset handlers, the project capability declaration (parsed with
+Python's `tomllib`) and the capability registry.
