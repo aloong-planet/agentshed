@@ -69,6 +69,12 @@ describe('scriptedUpdateSource', () => {
   afterEach(() => rmSync(dir, { recursive: true, force: true }))
   const write = (v: object): void => writeFileSync(script, JSON.stringify(v))
   const requests = (): string[] => readFileSync(`${script}.log`, 'utf8').trim().split('\n')
+  /** Whether a check or a download has settled within `ms` */
+  const within = (p: Promise<unknown> | undefined, ms: number): Promise<'settled' | 'pending'> =>
+    Promise.race([
+      (p ?? Promise.resolve()).then(() => 'settled' as const, () => 'settled' as const),
+      new Promise<'pending'>((r) => setTimeout(() => r('pending'), ms))
+    ])
 
   it('answers each check from the script as it stands, and records every request', async () => {
     const source = scriptedUpdateSource(script)
@@ -77,6 +83,25 @@ describe('scriptedUpdateSource', () => {
     write({ check: 'fail' })
     await expect(source.check(() => {})).rejects.toThrow()
     expect(requests()).toEqual(['check', 'check'])
+  })
+
+  it('a check can stay in flight while the script says so, and answers once the script no longer holds it', async () => {
+    const source = scriptedUpdateSource(script)
+    write({ check: 'upToDate', holdCheck: true })
+    const checking = source.check(() => {})
+    expect(await within(checking, 150)).toBe('pending')
+    write({ check: 'upToDate' })
+    expect(await within(checking, 1000)).toBe('settled')
+    expect(await checking).toBeNull()
+  })
+
+  it('a check whose own script did not ask for the hold is not held by a later script that does', async () => {
+    const source = scriptedUpdateSource(script)
+    write({ check: 'upToDate', checkMs: 100 })
+    const checking = source.check(() => {})
+    await new Promise((r) => setTimeout(r, 20))
+    write({ check: 'upToDate', holdCheck: true })
+    expect(await within(checking, 1000)).toBe('settled')
   })
 
   it('a found update reports its progress steps, then completes or fails as scripted', async () => {
@@ -90,6 +115,56 @@ describe('scriptedUpdateSource', () => {
     write({ check: 'found', version: '9.9.0', steps: [0, 30], stepMs: 5, download: 'fail' })
     const failing = await source.check(() => {})
     await expect(failing?.downloaded).rejects.toThrow()
+  })
+
+  it('a found update can hold at its first step, and moves on once the script no longer holds it', async () => {
+    const source = scriptedUpdateSource(script)
+    const download = { check: 'found', version: '9.9.0', steps: [0, 40, 100], stepMs: 5, download: 'complete' }
+    write({ ...download, holdFirstStep: true })
+    const seen: number[] = []
+    const found = await source.check((p) => seen.push(p))
+    expect(await within(found?.downloaded, 150)).toBe('pending')
+    expect(seen).toEqual([0])
+    write(download)
+    expect(await within(found?.downloaded, 1000)).toBe('settled')
+    await found?.downloaded
+    expect(seen).toEqual([0, 40, 100])
+  })
+
+  it('a held download stays held while its script cannot be read, as when a test is rewriting it', async () => {
+    const source = scriptedUpdateSource(script)
+    const download = { check: 'found', version: '9.9.0', steps: [0, 40, 100], stepMs: 5, download: 'complete' }
+    write({ ...download, holdFirstStep: true })
+    const seen: number[] = []
+    const found = await source.check((p) => seen.push(p))
+    writeFileSync(script, '{"check":"fou')
+    expect(await within(found?.downloaded, 150)).toBe('pending')
+    expect(seen).toEqual([0])
+    write(download)
+    await found?.downloaded
+    expect(seen).toEqual([0, 40, 100])
+  })
+
+  it('a download whose own script did not ask for the hold is not held by a later script that does', async () => {
+    const source = scriptedUpdateSource(script)
+    const download = { check: 'found', version: '9.9.0', checkMs: 100, steps: [0, 40, 100], stepMs: 5, download: 'complete' }
+    write(download)
+    const seen: number[] = []
+    const checking = source.check((p) => seen.push(p))
+    await new Promise((r) => setTimeout(r, 20))
+    write({ ...download, holdFirstStep: true })
+    const found = await checking
+    expect(await within(found?.downloaded, 1000)).toBe('settled')
+    expect(seen).toEqual([0, 40, 100])
+  })
+
+  it('a held download that is cancelled fails', async () => {
+    const source = scriptedUpdateSource(script)
+    write({ check: 'found', version: '9.9.0', steps: [0, 40, 100], stepMs: 5, download: 'complete', holdFirstStep: true })
+    const found = await source.check(() => {})
+    found?.cancel()
+    expect(await within(found?.downloaded, 500)).toBe('settled')
+    await expect(found?.downloaded).rejects.toThrow('cancelled')
   })
 
   it('an install records itself and then fails, or holds, as scripted', async () => {

@@ -1,0 +1,118 @@
+# Targeted verification — #254, the scripted download's first-step hold (only for a download whose own script asks for it) and the two app-update cases that take it
+date: 2026-10-23T11:02:12Z
+git rev-parse HEAD: 1349d76da900f0d324df435d78b2f82eccfb4622
+git status --porcelain --untracked-files=all:
+  A  docs/.workings/macos-release-line/evidence/ticket-254/diag-before.txt e99517ec0e4fc1d1da0b6558d5cd4923ffd80d3f
+  A  docs/.workings/macos-release-line/evidence/ticket-254/e1-repeat.txt 5ba8819d20663b89396b262a4a6fe8cc0e897eb4
+  A  docs/.workings/macos-release-line/evidence/ticket-254/e2-repeat.txt 5dbdce28763d869390c78c152a3e701f850d36f9
+  A  docs/.workings/macos-release-line/evidence/ticket-254/late-observer-failed-download.txt 77af778692d33d2f75edac66b4d96b1fb5f035f8
+  A  docs/.workings/macos-release-line/evidence/ticket-254/late-observer.txt 31803f8c70f7283ae58777d4026e2439be4ea6ec
+  A  docs/.workings/macos-release-line/evidence/ticket-254/plant-tip-frozen.txt 9c7fe426eec11d79d001bde2f89ef8ed2e12e1dc
+  A  docs/.workings/macos-release-line/ticket-254-doc-sync.md 54c4b86613b9fd5e0c67737026eb03590e7dd598
+  AM docs/.workings/macos-release-line/ticket-254-review-tests.md acbde2292fd8ddfc4c01791803deac15b690db30
+  A  docs/.workings/macos-release-line/ticket-254-tasks.md a2ad1ac2c6c14f44bfeccd3acdfbb0994233d800
+  M  e2e/app-update.spec.ts 8c0176697354908b0b64b784bac1b5c959589c3e
+  MM src/main/update-source.test.ts ffc64db989ae7a3b09486fe6ccb088e9acd5a373
+  MM src/main/update-source.ts 0edd90a5de8feba3ac4eb133c1c7760b38c31c1d
+(end of status)
+
+## pnpm typecheck
+
+> agentshed@0.1.0-beta typecheck /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254
+> tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json
+
+## exit code of pnpm typecheck: 0
+
+## pnpm lint
+
+> agentshed@0.1.0-beta lint /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254
+> eslint . --max-warnings 0
+
+## exit code of pnpm lint: 0
+
+## pnpm exec vitest run src/main/update-source.test.ts
+
+ RUN  v2.1.9 /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-254
+
+ ✓ src/main/update-source.test.ts (13 tests) 620ms
+
+ Test Files  1 passed (1)
+      Tests  13 passed (13)
+   Start at  19:02:27
+   Duration  903ms (transform 33ms, setup 0ms, collect 33ms, tests 620ms, environment 0ms, prepare 74ms)
+
+## exit code of pnpm exec vitest run src/main/update-source.test.ts: 0
+
+## pnpm exec electron-vite build
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 547 modules transformed.
+rendering chunks...
+out/main/parse-worker.js                   0.40 kB
+out/main/chunks/token-stats-Y_GCWB5i.js  122.21 kB
+out/main/index.js                        212.25 kB
+out/main/chunks/main-DZ5R1KNi.js         513.19 kB
+✓ built in 890ms
+vite v5.4.21 building SSR bundle for production...
+transforming...
+✓ 17 modules transformed.
+rendering chunks...
+out/preload/index.cjs  49.77 kB
+✓ built in 42ms
+vite v5.4.21 building for production...
+transforming...
+✓ 147 modules transformed.
+rendering chunks...
+../../out/renderer/index.html                   0.40 kB
+../../out/renderer/assets/index-D-ZQl5TO.css   84.75 kB
+../../out/renderer/assets/index-CwhfPdBv.js   688.41 kB
+✓ built in 557ms
+## exit code of pnpm exec electron-vite build: 0
+
+## pnpm exec playwright test e2e/app-update.spec.ts e2e/menu-check-updates.spec.ts e2e/settings-updates.spec.ts
+
+Running 38 tests using 1 worker
+
+  ✓   1 e2e/app-update.spec.ts:86:1 › with no update in flight the slot takes no space; an update in flight sits directly above Settings, which keeps its place (REQ-001/AC-01, US-001/AC-06, appearance D4) (1.5s)
+  ✓   2 e2e/app-update.spec.ts:122:1 › a launch check that finds an update shows the download in the rail at once, with no dialog; the slot cannot be clicked while downloading (US-001/AC-01, REQ-001/AC-02–AC-04) (1.1s)
+  ✓   3 e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (1.5s)
+  ✓   4 e2e/app-update.spec.ts:186:1 › the finished download becomes the ready button; clicking it installs once and shows the spinner (US-001/AC-03, AC-04, REQ-001/AC-03, Failure C10) (1.1s)
+  ✓   5 e2e/app-update.spec.ts:215:1 › a failed install after the click shows the error toast, stacked with any other, and the button goes (REQ-002/AC-03, Failure G6) (803ms)
+  ✓   6 e2e/app-update.spec.ts:238:1 › an open message goes with the button, so the button comes back without it (REQ-001/AC-04) (800ms)
+  ✓   7 e2e/app-update.spec.ts:269:1 › a failed automatic check and a failed background download show nothing (REQ-002/AC-01, AC-02) (2.1s)
+  ✓   8 e2e/app-update.spec.ts:296:1 › the circle, its glyph and the message stay distinguishable in every theme, light and dark, and recolour with a switch (REQ-001/AC-05, Failure G3) (1.2s)
+  ✓   9 e2e/app-update.spec.ts:349:1 › the installing loader spins, and stands still under reduced motion (REQ-001/AC-02) (764ms)
+  ✓  10 e2e/app-update.spec.ts:368:1 › an open message follows a language switch at once (Failure G2) (822ms)
+  ✓  11 e2e/app-update.spec.ts:394:1 › with automatic checks turned off the launch makes no request (US-002/AC-01) (2.1s)
+  ✓  12 e2e/app-update.spec.ts:411:1 › a second instance launched while an update is ready exits, and the running one keeps the update (Failure G5) (865ms)
+  ✓  13 e2e/menu-check-updates.spec.ts:95:1 › the item sits directly below "About" and reports up to date, a failure, and a malformed answer as a failure (REQ-005, US-003/AC-01, A6) (926ms)
+  ✓  14 e2e/menu-check-updates.spec.ts:125:1 › a menu check that finds an update starts the download, and a failed download adds no second toast (US-003/AC-03, B2) (2.9s)
+  ✓  15 e2e/menu-check-updates.spec.ts:147:1 › a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04) (3.1s)
+  ✓  16 e2e/menu-check-updates.spec.ts:172:1 › menu and settings checks in quick succession join into one request, each surface reporting in its own form (D4, US-003/AC-05) (4.4s)
+  ✓  17 e2e/menu-check-updates.spec.ts:206:1 › the item follows a language switch at once; a toast already shown keeps its language and stacks with the new one (G2, G6) (822ms)
+  ✓  18 e2e/menu-check-updates.spec.ts:229:1 › a development run disables the item, and a click on it reports nothing (US-005/AC-02) (1.5s)
+  ✓  19 e2e/settings-updates.spec.ts:81:1 › settings gains "Updates" third, one card with the switch and the version row, and its footnote (REQ-003/AC-01, AC-02, US-002/AC-02) (754ms)
+  ✓  20 e2e/settings-updates.spec.ts:111:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6) (2.6s)
+  ✓  21 e2e/settings-updates.spec.ts:148:1 › a settings check that finds an update starts the download: the line and the rail follow it, and "Check now" is unavailable (US-003/AC-02, AC-03, REQ-004/AC-01) (1.3s)
+  ✓  22 e2e/settings-updates.spec.ts:171:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004) (3.1s)
+  ✓  23 e2e/settings-updates.spec.ts:204:1 › an install from "Install now" that fails: the error toast, "Check now" available again and an empty line (REQ-002/AC-03, C11) (730ms)
+  ✓  24 e2e/settings-updates.spec.ts:224:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2) (3.0s)
+  ✓  25 e2e/settings-updates.spec.ts:247:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2) (5.3s)
+  ✓  26 e2e/settings-updates.spec.ts:280:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3) (3.1s)
+  ✓  27 e2e/settings-updates.spec.ts:308:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an older recorded version (712ms)
+  ✓  28 e2e/settings-updates.spec.ts:308:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › the same version (1.3s)
+  ✓  29 e2e/settings-updates.spec.ts:308:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a newer recorded version (the version went down) (772ms)
+  ✓  30 e2e/settings-updates.spec.ts:308:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › no record (a fresh installation) (819ms)
+  ✓  31 e2e/settings-updates.spec.ts:308:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an unreadable record (731ms)
+  ✓  32 e2e/settings-updates.spec.ts:335:3 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a still newer release found at that launch shows its download instead, and a settings check replaces the line (C7) (1.6s)
+  ✓  33 e2e/settings-updates.spec.ts:362:1 › a development run: the switch and the button are unavailable, the footnote says why, and nothing is asked (US-005/AC-02) (1.3s)
+  ✓  34 e2e/settings-updates.spec.ts:389:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › a change is stored at once and survives a restart; with it off the launch makes no request (4.4s)
+  ✓  35 e2e/settings-updates.spec.ts:419:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5) (3.1s)
+  ✓  36 e2e/settings-updates.spec.ts:438:1 › the first launch after an update restores the saved display like any other launch (G4) (1.5s)
+  ✓  37 e2e/settings-updates.spec.ts:500:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh (5.6s)
+  ✓  38 e2e/settings-updates.spec.ts:500:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en (5.7s)
+
+  38 passed (1.3m)
+## exit code of pnpm exec playwright test e2e/app-update.spec.ts e2e/menu-check-updates.spec.ts e2e/settings-updates.spec.ts: 0
+
+TARGETED_EXIT=0

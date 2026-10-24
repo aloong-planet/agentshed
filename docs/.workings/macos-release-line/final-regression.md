@@ -280,3 +280,51 @@ search steps, and what a narrow screen or a page without scripts shows: both now
 | New general rules this round | the hero repeats the README's opening line and summary; without scripts the stacked steps show; the pinned showcase never marks the language switch's place | Each has its canonical home in the spec (REQ-007; Failure C7; the language-toggle implementation decision and Failure C5), and REQ-007 a test |
 | The post-implementation test check's findings (F1–F9, `ticket-279-review-tests.md`) | REQ-007's wording (F1); the checklist's REQ-007, AC-07 and Failures rows (F1, F4, F9); the test design table (F1–F5); the evidence README and records (F2–F7, F9); the test file's header (F8) | Each fixed in place; REQ-007's new sentence states the summary the owner chose (2026-10-21), so the spec gains precision, not scope; the entry's hero line ("the README's opening line as its heading and its summary as the paragraph") stays true |
 | Work state changed | #279's issue (its records and acceptance items, declared 2026-10-21); #290's note that #279 waited for it (rewritten); the coverage checklist's #279 rows and current verification; the document sync checklist; the task list; records of other rounds that mention #279 (`docs/.workings/readme/final-regression.md`, `docs/.workings/global-search/final-regression.md`, `ticket-271-*`, `docs/.workings/memory-view/*`), found with `rg -uu -n "#279"` | Updated where they state this ticket's current state; the other rounds' dated records say what was true then ("until #279 lands"), which this change resolves without making them false: kept |
+
+## Ticket #254 — Flaky e2e: the app-update case expects to read the download at 0%
+
+- Date: 2026-10-23
+- Scope: this ticket's change only, `git diff 1349d76` on branch `fix/app-update-e2e-first-step` (22c8ce6 the hold and
+  the issue's case; 98b2208 the class after the owner's decision D3; the records and the step 7 write-backs after it)
+- Version: 98b2208 for code and tests (the full gateway ran on it); the commits after it change documents only
+
+The two questions for the feature catalogue: **what became a lie** — nothing. The change is to the e2e cases and to the
+scripted update source, a test seam the app never uses unless `AGENTSHED_UPDATE_SCRIPT` is set; the app-update entry's
+sentences, among them "A check that fails, and a download that fails, show nothing", describe the same behaviour and
+are now checked by reads that can fail. **What was missing** — nothing: no user-visible behaviour was added or changed.
+So `docs/features/` is unchanged.
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/app-update.md`, Testing Decisions: the scripted source's holds and why a case holds | `src/main/update-source.ts` at 98b2208 (the guards and the poll); the measurements: a step passing before the window shows (`evidence/ticket-254/diag-before.txt`), a launch check's notice not showing when answered at once (`plant-check-notice.txt`) | True |
+| `docs/specs/app-update.md`, the rest | the implementation (`ticket-254-tasks.md`, "Spec check before step 7") | Unchanged and true: no product behaviour changed |
+| `CONTEXT.md`, the new invariant on "does not appear" checks | `Toast.tsx:23` (3.2 s); Playwright's default expect timeout (no `expect` in `playwright.config.ts`: 5 s); the planted toasts (`plant-notice-old-e2.txt`, `plant-startup-toast.txt`); the words "notice" and "toast" as the spec and CONTEXT use them | True; the same words as the spec (a notice, answered with a toast) |
+| `src/main/update-source.ts`'s doc comment (the fields and what each hold is for) | the code beneath it; the measurements above | True |
+| The e2e files' comments (`app-update.spec.ts`, `menu-check-updates.spec.ts`, `settings-updates.spec.ts`, `app.spec.ts`) | the cases' code; `src/main/index.ts:571`–`:580` (the menu's check, the one notice channel); `ipc-order.txt` (a window's requests in order) | True |
+| ADRs | — | Row set empty: the change makes no decision that meets the ADR bar (a test seam's fields, easy to reverse) |
+| The prototype | — | Row set empty: no interface change |
+| The coverage checklists (`checklist.md`, `../i18n/checklist.md`), the current-verification rows added | `gateway-98b2208.txt` and the plant evidence they cite | True |
+
+### Stage 2: related declarations
+
+| Relation | Rows | Conclusion |
+|---|---|---|
+| File ↔ its index row | `docs/specs/README.md` (app-update), `docs/features/README.md` (App updates) | Both rows still true; unchanged |
+| Rule ↔ template and generated documents | — | Row set empty: no rule or template changed |
+| One fact ↔ its other statements: what the scripted source does | the spec's Testing Decisions (changed), the source's doc comment (changed), the headers of `app-update.spec.ts`, `menu-check-updates.spec.ts` and `settings-updates.spec.ts` ("reads its script at every request", "every request logged"), `ticket-230-*` (dated records of the seam's creation) | The headers stay true (they list no fields; the holds read the script too); the dated records describe what was built then: kept |
+| One fact ↔ its other statements: the toast's lifetime | `Toast.tsx:23`, CONTEXT's new invariant (`rg -n "3\.2 ?s\|3200\|3,200" docs/specs docs/features CONTEXT.md src/renderer/src/Toast.tsx`: these two, and global-search's unrelated 3.2 s read time) | Agree |
+| One fact ↔ its other statements: REQ-002/AC-01, AC-02 ("show nothing") | the entry's line 42, the spec, the coverage checklist's planned verification rows | Agree; the checklist's current verification now cites a read that can fail |
+| One fact ↔ its other statements: i18n::REQ-003's "with no notice" | the i18n checklist's row of 2026-10-21, which credited the retried read | Its conclusion stays true; the new row says the read could not fail then and can now |
+| Rule ↔ the gate that holds it: "does not appear" checks | no gate reads e2e assertions | Held by people: the CONTEXT invariant states it; a lint rule over `toHaveCount(0)` would also flag the deliberate waits-out, so no gate is proposed |
+
+### Stage 3: events
+
+| Event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed: the scripted source's script fields (two added) | every listing of the fields: `rg -n "checkMs\|stepMs\|holdFirstStep\|holdCheck" docs src e2e --glob '!docs/.workings/**'` finds the doc comment (lists them all) and the cases that use them; the spec lists none by name. Scripts in the searched files: no Han characters in the spec, features, CONTEXT or the source; the e2e files' Chinese is copy under test (the update line and menu labels) | The one listing is complete |
+| `Pending:` notes in scope | `rg -n "Pending:" docs/specs/app-update.md docs/specs/i18n.md CONTEXT.md`: one, app-update's "two releases exist, so an installation of the first has been updated to the second" | Not due: one release exists |
+| New general rules this round | a case that must see a check in flight or a step holds it; a "does not appear" check reads against a later ordered event or counts once | Canonical homes: the spec's Testing Decisions, and CONTEXT's invariant |
+| The post-implementation checks' findings (F1–F6, `ticket-254-review-tests.md`) | the test design table, the records' line numbers, the evidence headers, the document sync checklist, CONTEXT | Each handled in place (the record's handling sections) |
+| Work state changed | #254's issue (its records and process acceptance, declared 2026-10-23); the coverage checklists; the document sync checklist; the task list; other records that mention #254 (`rg -uu -n "#254" docs README.md README.en.md CONTEXT.md`: `ticket-234-*` and `memory-view/ticket-294-review-tests.md`, dated notes that the issue was opened) | Updated where they state this ticket's current state; the dated notes stay true: kept |

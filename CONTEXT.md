@@ -690,6 +690,15 @@ _Avoid_: beta mode, insider track, update track
   "the previous page holds" test red — confirmed by rebuilding without it and running that test,
   which stayed green. Do not write or trust such a mutation without re-measuring first.
 
+- **A "does not appear" check can never be red if it is retried for longer than the thing lives (settled
+  2026-10-23)**: a retried negative assertion — `toHaveCount(0)`, `not.toBeVisible()` — waits until its
+  condition holds, so a toast or any element that appears and goes by itself within the timeout passes
+  it anyway. A toast lives 3.2 s and Playwright retries for 5 s: a planted toast on a failure path, and
+  one at startup, passed two such checks every time (#254). A check that something did not appear reads
+  against a later event that arrives in order behind it (a later notice on the same channel), or counts
+  once at a point where the thing would still be on screen. A retried negative read is right only for
+  waiting a thing out on purpose, before a new one or a screenshot.
+
 - **Agentshed's own code makes no outbound network request other than an update check and the download
   of the app update it finds (settled 2026-10-12; download wording 2026-10-13)**: the product is
   local-first — everything it shows is read from files on the user's machine — and updating is the one

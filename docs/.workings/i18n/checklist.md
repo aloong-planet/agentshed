@@ -71,6 +71,7 @@ other partially migrated specs; the obligations this round changes are the ID'd 
 | as above | app-update::QR-001/AC-02; #277 | e2e "the labels and the result line stay on one line… › zh" and "› en", each asserting its seeded language first: passed | Passed |
 | as above | global-search::CON-004; #277 | `pnpm typecheck` exit 0 | Passed |
 | — | mac-distribution::US-003/AC-01; #239 | Not this ticket's verification | Unverified here; #239 verifies it |
+| 2026-10-23; spec i18n unchanged; implementation 98b2208 (branch fix/app-update-e2e-first-step), the full gateway `VERIFY_EXIT=0` ([gateway-98b2208.txt](../macos-release-line/evidence/ticket-254/gateway-98b2208.txt)) | i18n::REQ-003's "with no notice"; #254 (feature macos-release-line); launch with a stored `fr` | The row above credits the e2e's "no notice" read, which was a retried `toHaveCount(0)` and could not be red for a startup toast: a planted one passed it three times of three. Now counted once: red three of three under that toast, and passing in the gateway ([plant-startup-toast.txt](../macos-release-line/evidence/ticket-254/plant-startup-toast.txt)) | Passed |
 
 ## Two-way audit
 
