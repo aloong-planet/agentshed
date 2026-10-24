@@ -10,7 +10,6 @@
 // only with a browser seam in these tests.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { JSDOM } from 'jsdom'
 import { beforeAll, describe, expect, inject, test } from 'vitest'
 import { ui } from '../src/i18n/ui'
@@ -134,6 +133,10 @@ describe('the sections', () => {
     expect(hero?.querySelector('.shot img')?.getAttribute('src')).toBe(`/shots/hero-${locale}.png`)
   })
 
+  test('the English heading reads as the spec’s', () => {
+    expect(text(pages.en.querySelector('.hero h1'))).toBe('Your coding agents, in full view')
+  })
+
   test.each(LOCALES)('%s: six feature steps in order, in the showcase and stacked, each with its own screenshot', (locale) => {
     const features = pages[locale].getElementById('features')
     const views = ['overview', 'project', 'memory', 'tokens', 'session', 'search'].map((v) => `/shots/${v}-${locale}.png`)
@@ -197,33 +200,6 @@ describe('the sections', () => {
     expect(open).toMatch(/click Open/)
     expect(open).toMatch(/update button appears at the bottom left/)
   })
-})
-
-describe('the hero and the READMEs', () => {
-  /** A README at the repository's root, as its paragraphs (blank-line separated), line breaks read as spaces */
-  const readme = (file: string): string[] =>
-    readFileSync(fileURLToPath(new URL(`../../${file}`, import.meta.url)), 'utf8')
-      .split(/\n\s*\n/)
-      .map((p) => p.replace(/\s+/g, ' ').trim())
-  const README = { zh: readme('README.md'), en: readme('README.en.md') }
-  const FULL_STOP = { zh: '\u3002', en: '.' }
-  /** The sentence between the README's opening line and its summary: Agentshed is a macOS app */
-  const MAC_APP = { zh: '\u4e00\u4e2a macOS \u5e94\u7528\u3002', en: 'A macOS app. ' }
-
-  test.each(LOCALES)('%s: the README’s opening paragraph is the heading in bold, the macOS sentence and the hero’s paragraph, word for word', (locale) => {
-    const heading = text(pages[locale].querySelector('.hero h1'))
-    const paragraph = text(pages[locale].querySelector('.hero .lede'))
-    expect(heading.length).toBeGreaterThan(0)
-    expect(paragraph.length).toBeGreaterThan(80)
-    // The opening paragraph: the first after the title and the line that links the other README
-    const opening = README[locale].find((p) => !p.startsWith('#') && !/\]\(README(\.en)?\.md\)/.test(p))
-    expect(opening).toBe(`**${heading}${FULL_STOP[locale]}** ${MAC_APP[locale]}${paragraph}`)
-  })
-
-  test('the English heading reads as the spec’s', () => {
-    expect(text(pages.en.querySelector('.hero h1'))).toBe('Your coding agents, in full view')
-  })
-
 })
 
 describe('screenshots and links', () => {

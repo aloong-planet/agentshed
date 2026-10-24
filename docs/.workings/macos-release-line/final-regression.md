@@ -328,3 +328,51 @@ So `docs/features/` is unchanged.
 | New general rules this round | a case that must see a check in flight or a step holds it; a "does not appear" check reads against a later ordered event or counts once | Canonical homes: the spec's Testing Decisions, and CONTEXT's invariant |
 | The post-implementation checks' findings (F1–F6, `ticket-254-review-tests.md`) | the test design table, the records' line numbers, the evidence headers, the document sync checklist, CONTEXT | Each handled in place (the record's handling sections) |
 | Work state changed | #254's issue (its records and process acceptance, declared 2026-10-23); the coverage checklists; the document sync checklist; the task list; other records that mention #254 (`rg -uu -n "#254" docs README.md README.en.md CONTEXT.md`: `ticket-234-*` and `memory-view/ticket-294-review-tests.md`, dated notes that the issue was opened) | Updated where they state this ticket's current state; the dated notes stay true: kept |
+
+## 2026-10-24 — The hero need not match the README (landing-page::REQ-007 narrowed; no ticket)
+
+- Date: 2026-10-24
+- Scope: this change only, `git diff 544f21f` on branch `test/drop-readme-hero-check`: the owner dropped the hero's tie
+  to the README (`checklist.md`, the source row of 2026-10-24); REQ-007 keeps the heading, the tie goes to Out of Scope,
+  and the built-site check's README case is deleted
+- Version: 544f21f with this change's edits, committed together; the site tests and lint ran on it
+  (`evidence/readme-tie-2026-10-24/site-and-lint.txt`), the language, shared-UI and NUL checks on the final tree
+  (`evidence/readme-tie-2026-10-24/checks.txt`)
+
+The two questions for the feature catalogue: **what became a lie** — the entry's hero line, "the README's opening line
+as its heading and its summary as the paragraph": still true of today's page, but it states a tie the spec no longer
+has, so a later README change would make it false with nothing to notice; rewritten to the spec's words (a title and a
+one-paragraph description). **What was missing** — nothing: the page shows what it showed.
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/landing-page.md`, REQ-007 (now the heading only) and Out of Scope (the tie) | the built page's English heading (the built-site case, passing); the owner's decision (the checklist's source row) | True |
+| `docs/specs/landing-page.md`, the rest | the change: no copy, structure or behaviour touched | Unchanged and true. Further Notes' "the heading and the README's summary in the hero", confirmed on 2026-10-21, is a dated record of that confirmation: kept |
+| `docs/features/landing-page.md`, the hero line | the spec's US-001/AC-01 (icon, title, one-paragraph description, the button with the platform line, the whole window) and REQ-007 | True; spec and entry agree, and the entry states nothing the spec lacks |
+| `site/test/built-site.test.ts` (the README case deleted; the English heading case moved into the sections group) | the spec's REQ-007; the test file's header (it names what the check cannot see; no README) | True |
+| `site/README.md`, the note on the built-site check | the test file: it reads no README now | True |
+| The landing prototype's two notes (the header comment's Memory paragraph; decision (o) in the confirmed list) | the spec's REQ-007 and Out of Scope | Marked no longer in force where the conclusion was made; the page's copy and interface are unchanged, so the prototype still matches the page |
+| ADRs | — | Row set empty: dropping a copy tie is not a decision that meets the ADR bar (easy to reverse, no alternatives weighed) |
+| `CONTEXT.md` | `git grep -n -i readme -- CONTEXT.md`: no output | Row set empty: no term or invariant names the tie |
+| `checklist.md` (header, the D19 and D23 rows, the new source row, REQ-007's planned verification, the #279 current-verification row, the new current-verification row, the two-way audit row) | `evidence/readme-tie-2026-10-24/` | True |
+
+### Stage 2: related declarations
+
+| Relation | Rows | Conclusion |
+|---|---|---|
+| File ↔ its index row | `docs/features/README.md` (Landing page: "The website that introduces Agentshed in Chinese and English and offers whichever release exists"); `docs/specs/README.md` (landing-page) | Both still true; unchanged |
+| Rule ↔ template and generated documents | — | Row set empty: no rule or template changed |
+| One fact ↔ its other statements: the hero repeats the README | `git grep -n -i readme -- docs site scripts .github CONTEXT.md AGENTS.md package.json site/package.json` (529 lines); scripts in those files: Han in `docs/`, `site/` and `scripts/`, Latin everywhere, so the Chinese side searched too, for the Chinese words for a readme (`git grep -n -P '(*UTF)\x{81EA}\x{8FF0}\|\x{8BF4}\x{660E}\x{6587}\x{4EF6}'`: no output; the same form finds the Chinese word for the hero in the prototype, so it reads Han text; the Chinese statements write "README" as is, and the search above found the prototype's decision (o)). Current statements: the spec, the features entry, `site/README.md`, the prototype's two notes — all changed (stage 1). The rest are dated records: #279's tasks, test and code reviews and its final regression above, `../readme/final-regression.md`, the evidence of #279 | The dated records describe what was decided and checked then: kept |
+| One fact ↔ its other statements: the English heading's text | the spec's REQ-007, the built-site case, `site/src/i18n/ui.ts`, `README.en.md`'s opening line | Agree: all read "Your coding agents, in full view" |
+| Rule ↔ the gate that holds it: REQ-007 | the built-site case "the English heading reads as the spec’s", in `pnpm test:site`, which `pnpm verify` and CI run | Held. The dropped tie has no gate left, by the owner's decision. `check:ui` still reads the READMEs, for i18n::CON-001 (each README links the other), which this change does not touch |
+
+### Stage 3: events
+
+| Event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed | — | Row set empty: no languages, platforms or agents added or removed |
+| `Pending:` notes in scope | `grep -n "Pending:" docs/specs/landing-page.md`: no output | Row set empty |
+| New general rules this round | none: a rule was dropped, not made | Row set empty |
+| A requirement narrowed with the owner's approval | landing-page::REQ-007; the checklist's source, planned-verification, current-verification and audit rows | Recorded in the checklist (removal mapping in its two-way audit); no ID retired or reused |
