@@ -490,6 +490,9 @@ The display copy follows [agents-overview::CON-001](agents-overview.md); it neve
 figures into archive merging. A stale copy containing no rows for the new day shows the computed
 empty-day result while its startup scan indicator remains visible, then receives the live rows.
 Reuse the existing injected-clock aggregation seam and the restart fixture's before/after day data.
+In e2e the page's fake clock is installed after the page has mounted, so the display clock's
+once-a-second timer, set at mount, keeps real time and reads the fake time at its next real tick: a
+step that crosses midnight waits for that tick and the render after it, not for a fixed second.
 G2/G3/G6/G7/G11/G13, D1/D10, C10/C11/C20 and E2–E4 are in-scope regressions; parser formulae and
 archive retention policy are not changed by this feature.
 

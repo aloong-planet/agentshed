@@ -1,0 +1,22 @@
+# Targeted verification — #299, the rollover step waits Playwright's default window
+date: 2026-10-23T12:31:03Z
+git rev-parse HEAD: 1349d76da900f0d324df435d78b2f82eccfb4622
+git status --porcelain --untracked-files=all:
+   M e2e/startup-restore.spec.ts 34ab50860f3aec9334cad6b4735a8b3be57bae53
+(end of status)
+
+## pnpm typecheck
+
+> agentshed@0.1.0-beta typecheck /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-299
+> tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json
+
+## exit code of pnpm typecheck: 0
+
+## pnpm lint
+
+> agentshed@0.1.0-beta lint /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-299
+> eslint . --max-warnings 0
+
+## exit code of pnpm lint: 0
+
+TARGETED_EXIT=0
