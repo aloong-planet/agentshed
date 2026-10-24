@@ -34,6 +34,7 @@ cut).
 |---|---|---|
 | D1 | How far the bounded teardown reaches | Every e2e teardown, through one shared helper (the owner's answer on 2026-10-23, "all 67", in Chinese, the recommended answer; the full listing found 72, the same class). The first module shared across e2e files: a new convention, chosen with the scope |
 | D3 | The issue's first proposal, keeping a trace or the main process's output for a failed case | Not added (implementing agent): it was a means to pin the stuck step, which the reproduction and the probes pinned (`probes.txt`); the bound's warning names the bound and the pid, which is the visibility the issue asked for. A trace of an Electron app adds recording to every case for a failure the helper now ends |
+| D4 | The 12-busy run's exit 1 after every case passed (G6) | No ticket; noted in the PR's description and #227's closing comment (the owner's answer on 2026-10-24, "no ticket, note it in the PR", in Chinese, the recommended answer) |
 | D2 | The bound | 10 s (implementing agent): a normal close takes under 0.2 s, and a case's 60 s budget keeps room for its body under load. On the bound the process is killed (SIGKILL), the case is annotated and a warning printed, so a slow close is visible instead of eating the budget |
 
 ## Tasks

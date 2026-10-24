@@ -448,7 +448,7 @@ Waiting item for G7 (the PR's CI). A fix passing its tests does not mark any of 
 | G3 | The H4 row and the Resource reuse section updated (design review, "Incremental review of H2–H4"); a group leaves `started` on its parent's `close` event, so `afterEach` signals only a group not seen closing |
 | G4 | H2 and H3 assert a flag the stand-in sets when its close settles, instead of elapsed time; dropping either wait turns its case red (`plant-helper-2.txt`) |
 | G5 | `targeted-3.txt` records the retrieval for this change: no file names the changed test file except the type checker's build cache (`tsconfig.node.tsbuildinfo`), and a control search lists the helper's seven importers. For `targeted-2.txt`: the helper did not change between it and f2d71e4, whose gateway ran those seven files |
-| G6 | Waiting for the owner's decision, ticket or drop (asked 2026-10-24) |
+| G6 | The owner decided on 2026-10-24: no ticket, a note in the PR's description and #227's closing comment (D4 in the task list) |
 | G7 | A Waiting item in the document sync checklist: the PR's CI e2e job on ubuntu is H4–H6's first run on Linux |
 
 Targeted verification of these changes: `evidence/ticket-227/targeted-3.txt` (typecheck, lint, the retrieval, the helper's six cases five times over: 30 passed; `TARGETED_EXIT=0`). An incremental check of the commit follows.
