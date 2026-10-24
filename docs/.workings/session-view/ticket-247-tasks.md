@@ -37,7 +37,7 @@ requirement authority: the requirement the case checks is session-view P6 and P7
 | 5 | The cause fixed, in the case or the app | a regression check red before the fix | not done: the cause was not found (D1) |
 | 6 | Code review, full gateway, independent test check, step 7, step 8 | the records | code review done (`ticket-247-review-code.md`, no finding); full gateway on 78a05d0 `VERIFY_EXIT=0` (867 unit, 109 site, 148 e2e, smoke OK; `evidence/ticket-247/gateway-78a05d0.txt`); the independent test check done (`ticket-247-review-tests.md`: F1 the owner's choice B, F2 the gates run at the delivered commit, F3 the note narrowed); step 7: the spec, CONTEXT and ADRs unchanged (no cause, no product change); step 8 done (`final-regression.md`, #247 section) |
 | 7 | CI: the case repeated (the issue's third item) | a throwaway branch's run, recorded | done: 40 passed (task 4) |
-| 8 | PR; stop for the owner | PR link | |
+| 8 | PR; stop for the owner | PR link | [#310](https://github.com/aloong-planet/agentshed/pull/310), opened 2026-10-24 ("Refs #247": the issue is closed by hand as not planned after the merge); waiting for the owner's merge |
 
 ## What the loops ruled out (2026-10-23)
 
