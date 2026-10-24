@@ -60,7 +60,7 @@ Running 40 tests using 1 worker
   40 passed (1.1m)
 /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/flaky/stress.sh: line 10: 10340 Terminated: 15          node -e 'for(;;){}'
 
-## 24 busy processes, 40 runs planned: load averages reached 251; stopped after 10 (6 passed, 4 hit the 60 s test timeout — overload, not the issue's symptom; no chunk without a code was collected)
+## 24 busy processes, 40 runs planned: load averages reached 251; stopped after 10 (6 passed, so in those 6 every chunk collected before the check carried a code; 4 hit the 60 s test timeout — overload, not the issue's symptom; the run was stopped before their details printed, so whether they reached the check is not shown. Note narrowed after the post-implementation check, F3)
 
 Running 40 tests using 1 worker
 
