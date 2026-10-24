@@ -1,0 +1,81 @@
+# Targeted verification — #227, after the third incremental check (K1, H7)
+date: 2026-10-24T03:55:09Z
+git rev-parse HEAD: 3da7bd140ab0eb414aa3a5fd3ba0f09fb220d1f5
+git status --porcelain --untracked-files=all:
+  MM docs/.workings/e2e-teardown/ticket-227-review-tests.md 38c25c9e4b148b8da8f8b0c67485c34c32547326
+   M e2e/close-app.spec.ts 7d10a913557f4514ef40e60fe7f0ac4cc5397811
+(end of status)
+
+## pnpm typecheck
+
+> agentshed@0.1.0-beta typecheck /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-227
+> tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json
+
+## exit code of pnpm typecheck: 0
+
+## pnpm lint
+
+> agentshed@0.1.0-beta lint /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-227
+> eslint . --max-warnings 0
+
+## exit code of pnpm lint: 0
+
+## grep -rlI --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.git --exclude-dir=out --exclude-dir=dist -e 'close-app.spec' .
+./tsconfig.node.tsbuildinfo
+## exit code of grep -rlI --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.git --exclude-dir=out --exclude-dir=dist -e 'close-app.spec' .: 0
+
+## grep -rlI --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.git -e 'close-app' e2e playwright.config.ts package.json scripts
+e2e/app.spec.ts
+e2e/close-app.spec.ts
+e2e/menu-check-updates.spec.ts
+e2e/global-search.spec.ts
+e2e/app-update.spec.ts
+e2e/settings-updates.spec.ts
+e2e/startup-restore.spec.ts
+e2e/token-span.spec.ts
+## exit code of grep -rlI --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.git -e 'close-app' e2e playwright.config.ts package.json scripts: 0
+
+## pnpm -s exec playwright test e2e/close-app.spec.ts --repeat-each=5
+
+Running 35 tests using 1 worker
+
+  ✓   1 e2e/close-app.spec.ts:52:1 › a close that finishes within the bound returns, kills nothing and reports nothing (25ms)
+  ✓   2 e2e/close-app.spec.ts:63:1 › a close that outlasts the bound kills the app's process group, reports and notes it, and returns once the close has settled (258ms)
+  ✓   3 e2e/close-app.spec.ts:77:1 › a group already gone when the bound passes is no error, and nothing is reported or noted (259ms)
+  ✓   4 e2e/close-app.spec.ts:93:1 › the default killer ends a real process group whose member still holds the pipes, and the warning is printed (250ms)
+  ✓   5 e2e/close-app.spec.ts:136:1 › a close that finishes just inside the bound is not killed, reported or noted (403ms)
+  ✓   6 e2e/close-app.spec.ts:146:1 › a close past the bound with no process to kill is an error (105ms)
+  ✓   7 e2e/close-app.spec.ts:152:1 › a kill that fails for another reason than a group already gone is an error (101ms)
+  ✓   8 e2e/close-app.spec.ts:52:1 › a close that finishes within the bound returns, kills nothing and reports nothing (25ms)
+  ✓   9 e2e/close-app.spec.ts:63:1 › a close that outlasts the bound kills the app's process group, reports and notes it, and returns once the close has settled (256ms)
+  ✓  10 e2e/close-app.spec.ts:77:1 › a group already gone when the bound passes is no error, and nothing is reported or noted (257ms)
+  ✓  11 e2e/close-app.spec.ts:93:1 › the default killer ends a real process group whose member still holds the pipes, and the warning is printed (245ms)
+  ✓  12 e2e/close-app.spec.ts:136:1 › a close that finishes just inside the bound is not killed, reported or noted (407ms)
+  ✓  13 e2e/close-app.spec.ts:146:1 › a close past the bound with no process to kill is an error (103ms)
+  ✓  14 e2e/close-app.spec.ts:152:1 › a kill that fails for another reason than a group already gone is an error (103ms)
+  ✓  15 e2e/close-app.spec.ts:52:1 › a close that finishes within the bound returns, kills nothing and reports nothing (26ms)
+  ✓  16 e2e/close-app.spec.ts:63:1 › a close that outlasts the bound kills the app's process group, reports and notes it, and returns once the close has settled (256ms)
+  ✓  17 e2e/close-app.spec.ts:77:1 › a group already gone when the bound passes is no error, and nothing is reported or noted (255ms)
+  ✓  18 e2e/close-app.spec.ts:93:1 › the default killer ends a real process group whose member still holds the pipes, and the warning is printed (243ms)
+  ✓  19 e2e/close-app.spec.ts:136:1 › a close that finishes just inside the bound is not killed, reported or noted (403ms)
+  ✓  20 e2e/close-app.spec.ts:146:1 › a close past the bound with no process to kill is an error (103ms)
+  ✓  21 e2e/close-app.spec.ts:152:1 › a kill that fails for another reason than a group already gone is an error (102ms)
+  ✓  22 e2e/close-app.spec.ts:52:1 › a close that finishes within the bound returns, kills nothing and reports nothing (25ms)
+  ✓  23 e2e/close-app.spec.ts:63:1 › a close that outlasts the bound kills the app's process group, reports and notes it, and returns once the close has settled (256ms)
+  ✓  24 e2e/close-app.spec.ts:77:1 › a group already gone when the bound passes is no error, and nothing is reported or noted (256ms)
+  ✓  25 e2e/close-app.spec.ts:93:1 › the default killer ends a real process group whose member still holds the pipes, and the warning is printed (238ms)
+  ✓  26 e2e/close-app.spec.ts:136:1 › a close that finishes just inside the bound is not killed, reported or noted (402ms)
+  ✓  27 e2e/close-app.spec.ts:146:1 › a close past the bound with no process to kill is an error (104ms)
+  ✓  28 e2e/close-app.spec.ts:152:1 › a kill that fails for another reason than a group already gone is an error (102ms)
+  ✓  29 e2e/close-app.spec.ts:52:1 › a close that finishes within the bound returns, kills nothing and reports nothing (27ms)
+  ✓  30 e2e/close-app.spec.ts:63:1 › a close that outlasts the bound kills the app's process group, reports and notes it, and returns once the close has settled (256ms)
+  ✓  31 e2e/close-app.spec.ts:77:1 › a group already gone when the bound passes is no error, and nothing is reported or noted (256ms)
+  ✓  32 e2e/close-app.spec.ts:93:1 › the default killer ends a real process group whose member still holds the pipes, and the warning is printed (238ms)
+  ✓  33 e2e/close-app.spec.ts:136:1 › a close that finishes just inside the bound is not killed, reported or noted (403ms)
+  ✓  34 e2e/close-app.spec.ts:146:1 › a close past the bound with no process to kill is an error (104ms)
+  ✓  35 e2e/close-app.spec.ts:152:1 › a kill that fails for another reason than a group already gone is an error (103ms)
+
+  35 passed (8.6s)
+## exit code of pnpm -s exec playwright test e2e/close-app.spec.ts --repeat-each=5: 0
+
+TARGETED_EXIT=0

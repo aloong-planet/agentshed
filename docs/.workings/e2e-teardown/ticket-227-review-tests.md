@@ -17,6 +17,7 @@ declaration, mutation-testing is not enabled, so it is skipped; each test's "whe
 | H2 | as H1, new (amended twice: below, and after the post-implementation check): a close that outlasts the bound kills the app's process group, reports and notes it, and returns only once the close has settled | as H1 | as H1 | a `close()` that settles 150 ms after the killer is called (as Playwright's does once the group's pipes close); a bound of 100 ms | the killer called once, with the stand-in's pid; the sink called once with a note naming the bound; one annotation of type `teardown`; the call returns only once the stand-in's close has settled (a flag the stand-in sets), and within 1.5 s. Values: the inputs and the helper's documented note | as H1 | none |
 | H3 | as H1, new (added from the code review; amended after the post-implementation check): a group already gone when the bound passes is no error, and nothing is reported or noted | as H1 | as H1 | a `close()` that settles 150 ms after the killer is called; a killer that then throws as `process.kill` does for a group that no longer exists (`code: 'ESRCH'`); a bound of 100 ms | the killer called with the stand-in's pid; the call returns without an error, only once the close has settled (the flag); the sink not called; no annotation added. Values: the inputs | as H1 | none |
 | H4 | e2e, new (from the post-implementation check, F1; amended after the incremental check, G1–G3): the default killer ends a real process group whose member still holds the pipes, and the default report prints the warning | as H1 | as H1, with the default killer and the default report, on processes the case starts itself; `console.warn` captured for the case and restored | a detached node parent with piped stdio that starts a child inheriting its stdout and then prints a line; the case waits for that line, so the child exists before the bound starts; the stand-in's `close()` settles on the parent's `close` event (as Playwright's launcher does); a bound of 200 ms | the call returns within 3 s; the parent ended by SIGKILL; one warning starting `[e2e teardown]` naming the bound. Killing the parent alone leaves the child holding the pipe, so `close` never comes and the case times out. Values: the inputs; the parent's exit signal from Node | two node processes the case spawns; an `afterEach` hook kills any group a case started that has not closed, since a timed-out case never reaches a `finally` | two node processes, started and ended by the case (about 100 ms) |
+| H7 | as H1, new (from the third incremental check, K1): a close that finishes just inside the bound is not killed — the kill never comes before the bound | as H1 | as H1 | a `close()` that resolves after 400 ms; a bound of 500 ms. A timer firing at any fraction of the bound below 0.8 kills before the close | the killer and the sink never called; the case's annotations unchanged; the stand-in's close settled on return (the flag). No clock reading: the two timers run on the same loop in the order they fall due. Values: the inputs | as H1 | none |
 | H5 | as H1, new (F5): a close past the bound with no pid to kill is an error | as H1 | as H1 | `process()` without a pid; a `close()` that never settles; a bound of 100 ms | the call rejects naming the missing process; the killer not called. Values: the helper's documented error | as H1 | none |
 | H6 | as H1, new (F5): a kill that fails for another reason than a group already gone is an error | as H1 | as H1 | a killer that throws `code: 'EPERM'`; a bound of 100 ms | the call rejects with that error. Values: the input | as H1 | none |
 | E* | e2e, changed: every teardown in the seven e2e files (72 sites) awaits the helper instead of `app.close()` | — (the harness) | the app through its real teardown | each case as before | each case's own assertions, unchanged; a teardown that finishes in time behaves exactly as before | as before | as before: no launch added or removed |
@@ -43,6 +44,12 @@ only; the stand-in's pid 2^30 makes a bypassed injection end in ESRCH rather tha
 Incremental review of H2–H4 (2026-10-24, after the incremental post-implementation check, G1–G4, before changing the
 tests): H4 now keeps the default report and captures the warning, and waits for the parent's line before the bound
 starts; H2 and H3 assert a settled flag rather than elapsed time; the rows above say so.
+
+Incremental review of H7 (2026-10-24, after the third incremental check, K1, before writing it): H2's old elapsed-time
+check also held the kill to no earlier than the bound, which the settled flag dropped; H7 holds it with a close that
+finishes at 80% of the bound, which an early kill would cut. Coverage: the bound's lower side, the one boundary value
+the cases lacked. Case design: as H1, no clock. False greens: H7 goes red when the helper's timer fires before 400 ms of a
+500 ms bound. Resource reuse: none.
 
 ### Coverage
 
@@ -437,7 +444,7 @@ Waiting item for G7 (the PR's CI). A fix passing its tests does not mark any of 
 | # | Handling |
 |---|---|
 | G1 | H4 keeps the default report and captures `console.warn` for its duration, restored in a `finally`; it asserts one warning starting `[e2e teardown]` that names the bound. A silent default report turns H4 red (`evidence/ticket-227/plant-helper-2.txt`) |
-| G2 | The parent prints a line once its child has spawned, and H4 waits for that line before calling the helper. A main-only kill fails H4 at its 3 s check (`plant-helper-2.txt`) |
+| G2 | The parent prints a line once its child has spawned, and H4 waits for that line before calling the helper. A main-only kill fails H4: the case times out at 5 s, and its 3 s check then fails as well once the `afterEach` hook has ended the group and released the close (`plant-helper-2.txt`; wording corrected after the third incremental check, K2) |
 | G3 | The H4 row and the Resource reuse section updated (design review, "Incremental review of H2–H4"); a group leaves `started` on its parent's `close` event, so `afterEach` signals only a group not seen closing |
 | G4 | H2 and H3 assert a flag the stand-in sets when its close settles, instead of elapsed time; dropping either wait turns its case red (`plant-helper-2.txt`) |
 | G5 | `targeted-3.txt` records the retrieval for this change: no file names the changed test file except the type checker's build cache (`tsconfig.node.tsbuildinfo`), and a control search lists the helper's seven importers. For `targeted-2.txt`: the helper did not change between it and f2d71e4, whose gateway ran those seven files |
@@ -445,3 +452,138 @@ Waiting item for G7 (the PR's CI). A fix passing its tests does not mark any of 
 | G7 | A Waiting item in the document sync checklist: the PR's CI e2e job on ubuntu is H4–H6's first run on Linux |
 
 Targeted verification of these changes: `evidence/ticket-227/targeted-3.txt` (typecheck, lint, the retrieval, the helper's six cases five times over: 30 passed; `TARGETED_EXIT=0`). An incremental check of the commit follows.
+
+## Post-implementation check, incremental (2026-10-24, 3da7bd1; fix range 76b23b6..3da7bd1)
+
+Performed by the same independent agent as the earlier rounds, which did not inherit the implementing conversation.
+Ticket: #227. Mutation testing: per the project capability declaration, mutation-testing is not enabled; this item is
+skipped. The planted faults in `plant-helper-2.txt` were the implementing session's; this check reads them as evidence
+only.
+
+### Scope, as retrieved
+
+- Changed in the range (`git diff --name-status 76b23b6..3da7bd1`): `e2e/close-app.spec.ts`, which holds H1-H6 and their
+  stand-in; work records and evidence under `docs/.workings/e2e-teardown/`. The helper `e2e/close-app.ts` is unchanged
+  (blob 6f3400b at both ends), so no test depends on changed helper code, and the seven E* files are out of scope.
+- Files naming the changed test file (`rg -uu -l "close-app\.spec"`, `node_modules/`, `out/` and `docs/.workings/`
+  excluded): only `tsconfig.node.tsbuildinfo`, the type checker's cache. Control: the same search for
+  `from './close-app'` lists `close-app.spec.ts` and the seven E* files. Test data changed: none.
+- Rows of the test design table changed in the range: H2, H3 and H4 amended; H1, H5, H6 and E* unchanged.
+- Carried over: the E* conclusions from the first round (2026-10-23, 580b426) and the previous incremental round
+  (2026-10-24, 76b23b6); the conclusions on H1, H5 and H6 from the previous incremental round, their code being unchanged.
+
+### Run evidence
+
+- Targeted log [targeted-3.txt](evidence/ticket-227/targeted-3.txt): HEAD 76b23b6 with `close-app.spec.ts` cb397a7 in the
+  tree, the blob 3da7bd1 committed; typecheck and lint exit 0; the retrieval; the six cases five times, 30 passed,
+  `TARGETED_EXIT=0`. Its two retrieval commands end in `; echo "... $?"`, so the exit code logged for them is the echo's;
+  grep's own code is printed in their output (0 for both). They are retrievals, not gates.
+- Full gateway [gateway-f2d71e4.txt](evidence/ticket-227/gateway-f2d71e4.txt), the latest full run: it predates this
+  range's change to `close-app.spec.ts`, the only code difference between f2d71e4 and 3da7bd1 (`git diff --stat f2d71e4
+  3da7bd1` outside `docs/.workings/`). As the incremental rule says, it stands as the full-run evidence here, and the
+  gateway is run again before delivery, since a test changed after it.
+- This check ran the helper's six cases five times: 30 passed; no process of H4's shape before or after
+  (`pgrep -fl`: none); the tree clean.
+
+### Test design table against the written tests (changed rows)
+
+| # | Matches the row | Notes |
+|---|---|---|
+| H2 | yes | `settled()` true on return, the call within 1.5 s, killed `[2^30]`, one report and one `teardown` annotation naming 100 ms; no elapsed-time lower bound any more (K1) |
+| H3 | yes | killed `[2^30]`, `settled()` true, no report, no annotation; no timing |
+| H4 | yes | default killer and default report; waits for the parent's "child running" line (printed on the child's `spawn` event) before the 200 ms bound; `console.warn` captured and restored in a `finally`; within 3 s, exit by SIGKILL, one warning matching `^\[e2e teardown\] .*200 ms`; the group leaves `started` on the parent's `close`, so `afterEach` signals only a group not seen closing |
+
+Test file header (`close-app.spec.ts:1-6`): updated for H4's default report; the gap note stands.
+
+### The previous round's findings, as handled
+
+| # | Verified |
+|---|---|
+| G1 | yes: H4 runs the default `report`; the planted silent default fails H4 at the warning assertion (`plant-helper-2.txt`, line 133) |
+| G2 | yes: H4 waits for the child before the bound. The planted main-only kill fails H4 by its 5 s test timeout; the 3 s check then fails as well (4965 ms), once the `afterEach` hook has ended the group and released the close. The handling row's "fails H4 at its 3 s check" names the second failure only (K2) |
+| G3 | yes: the H4 row, the Resource reuse section and the `started` bookkeeping |
+| G4 | yes for the waits: dropping either wait fails H2 or H3 at its `settled()` assertion (lines 70, 88). But the elapsed-time bound it replaced also pinned the bound's lower edge, and that is now unchecked (K1) |
+| G5 | yes: `targeted-3.txt` records the retrieval with a control; the note on `targeted-2.txt` holds (the helper did not change between it and f2d71e4) |
+| G6 | in the checklist, Pending the owner's decision (asked 2026-10-24) |
+| G7 | in the checklist, Waiting on the PR's CI |
+
+### Coverage
+
+Finding K1. Each changed row's input reaches its branch, and H4's precondition, a child holding the pipes when the kill
+comes, is now waited for. Missing: the boundary value of the bound itself; no case has a close that settles shortly
+before the bound (K1).
+
+### Case design
+
+No finding. No project module is mocked. Replacing `console.warn` in H4 touches a Node global, not a project module, and
+it is restored in a `finally`; if H4 times out, the `finally` never runs, and the replaced `console.warn` stays only in a
+worker Playwright replaces after a failure.
+
+### False greens
+
+Finding K1. When each changed case goes red, from the helper's code:
+
+- H2: no kill (5 s timeout), another pid, no wait for the settled close (`settled()` false), no report, no annotation,
+  or a wait of 1.5 s or more. It stays green for a kill that comes before the bound (K1).
+- H3: ESRCH fails the case, is reported or noted, the killer is never reached, or the helper returns before the close
+  settles.
+- H4: a kill of less than the group (5 s timeout), a signal other than SIGKILL, a silent default report, or a warning
+  without the prefix or the bound.
+
+The planted-fault log now keeps the failure messages: each red falls on the line that asserts the planted behaviour
+(133, then 131 after the timeout, 70, 88), each replacement was asserted to occur exactly once, and the file was restored
+byte for byte.
+
+### Resource reuse
+
+No finding. Counted from the targeted log: five H4 process groups in 30 cases, no app launch, no build.
+
+### Findings
+
+- **K1 (low-medium) - a kill before the bound is no longer caught.** In the previous version, H2's
+  `took >= 100 + SETTLE_MS` checked two things: the wait for the settled close, and that the kill came no earlier than
+  the bound. The flag kept the first and dropped the second. My G4 suggestion named only the first; that omission is
+  mine. Now a helper whose timer fires at a fraction of the bound (say `boundMs / 10`) passes all six:
+  - H1: its 20 ms close beats a 50 ms timer, so nothing is killed.
+  - H2 and H3: they kill at 10 ms and settle; nothing checks when the kill came.
+  - H4: it kills at 20 ms, and the warning still names 200 ms.
+
+  Only a kill at once is caught (by H1). Suggested handling: add the boundary case. A close settling at about 80% of
+  the bound (for example 400 ms of a 500 ms bound) must return with nothing killed, reported or noted, and `settled()`
+  true. This needs no clock lower bound. The alternative is for H2's injected killer to record when it was called,
+  asserted to be no earlier than the bound minus a small tolerance (say 90 ms of 100). Either way, through the design
+  table and the design review.
+- **K2 (low, wording) - G2's handling row names the second failure.** "A main-only kill fails H4 at its 3 s check":
+  `plant-helper-2.txt` shows the 5 s test timeout first, and the 3 s check failing only after the `afterEach` hook ended
+  the group. Suggested handling: correct the row.
+
+### Document sync
+
+Facts changed in the range: H2-H4's assertions and H4's set-up (the design rows and the Resource reuse section match);
+the `started` bookkeeping (the H4 row says so); G6 and G7 (the checklist has both). `CONTEXT.md` and the helper's header
+are untouched by the range and still match the helper. New sync items from this round, none in the document sync
+checklist yet: the design table and this record for K1 (when the case or assertion is added), and K2's wording; the task
+list should note that the full gateway is run again before delivery, as `close-app.spec.ts` changed after f2d71e4. A fix
+passing its tests does not mark any of them synced.
+
+### Commands (this round)
+
+| Command | Exit code |
+|---|---|
+| `git status`, `git log --oneline 76b23b6..HEAD`, `git show --stat` of 3da7bd1 | 0 |
+| `git diff 76b23b6..3da7bd1 -- e2e/close-app.spec.ts`; the records' diff (to a file) | 0; 0 |
+| `git rev-parse` / `git hash-object` for the spec and the helper; `git diff --name-status 76b23b6..3da7bd1` | 0 |
+| `git diff --stat f2d71e4 3da7bd1 -- . ':(exclude)docs/.workings'` | 0 |
+| `rg -uu -l "close-app\.spec"` and the control `rg -uu -l "from '\./close-app'"` (exclusions as above) | 0; 0 |
+| `pgrep -fl` for H4's process shape, before and after the run | 1; 1 (none) |
+| `pnpm -s exec playwright test e2e/close-app.spec.ts --repeat-each=5` (output to a file) | 0 (30 passed) |
+| `git add -f` this record, then `pnpm check:lang` (output to a file), twice | 0; 0 |
+
+## Handling of the third incremental check's findings (implementing session, 2026-10-24)
+
+| # | Handling |
+|---|---|
+| K1 | New H7 (design row and its incremental review above): a close that finishes at 400 ms of a 500 ms bound returns with nothing killed, reported or noted, and settled. A timer at a tenth or at 70% of the bound turns H7 red, and only H7 (`evidence/ticket-227/plant-helper-3.txt`) |
+| K2 | G2's handling row corrected: the planted main-only kill fails H4 by its 5 s timeout first, then its 3 s check |
+
+Targeted verification: `evidence/ticket-227/targeted-4.txt` (typecheck, lint, the retrieval as before, the helper's seven cases five times over: 35 passed; `TARGETED_EXIT=0`). The full gateway is re-run on this commit before delivery.

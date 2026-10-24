@@ -133,6 +133,16 @@ test('the default killer ends a real process group whose member still holds the 
   expect(warnings).toEqual([expect.stringMatching(/^\[e2e teardown\] .*200 ms/)])
 })
 
+test('a close that finishes just inside the bound is not killed, reported or noted', async () => {
+  const { killed, reported, app, killGroup, report, settled } = standIn(400)
+  const notes = test.info().annotations.length
+  await closeApp(app, { boundMs: 500, killGroup, report })
+  expect(killed).toEqual([])
+  expect(reported).toEqual([])
+  expect(test.info().annotations).toHaveLength(notes)
+  expect(settled()).toBe(true)
+})
+
 test('a close past the bound with no process to kill is an error', async () => {
   const { killed, app, killGroup, report } = standIn('onKill', null)
   await expect(closeApp(app, { boundMs: 100, killGroup, report })).rejects.toThrow('no process to kill')
