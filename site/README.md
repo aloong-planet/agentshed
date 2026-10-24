@@ -51,10 +51,9 @@ files), which is why CI installs the site's dependencies before linting.
 
 - Unit tests sit next to the modules they test (`src/**/*.test.ts`).
 - `test/built-site.test.ts` checks the pages one fresh build produces: `test/build-site.ts` builds the site
-  into a new temporary directory once per test run, so the check never reads an old `dist/`. It also reads the
-  repository's two READMEs, since the hero's heading and paragraph must be their opening line and summary: a
-  change to either README's opening fails it until the site's copy follows. Its file header says what it cannot
-  see (scrolling, layout across widths, the two appearances), which is measured in a browser instead.
+  into a new temporary directory once per test run, so the check never reads an old `dist/`. Its file header
+  says what it cannot see (scrolling, layout across widths, the two appearances), which is measured in a browser
+  instead.
 - `test/apply-download.test.ts` and `test/init-download.test.ts` apply the download states to that build's
   pages, the second through the page's script with a fake network. The reads' tests answer through an injected
   fetch too, so no test reaches the network; `test/fixtures/` holds the answers they use: the pointer as the

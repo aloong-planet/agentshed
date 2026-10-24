@@ -12,9 +12,8 @@ explains the install, and always offers whichever release exists, without being 
   of the header switches between them and keeps the visitor where they were on the page
 - The header stays at the top while scrolling: the app's icon and name, links to the Features, Install
   and Download sections and to GitHub (hidden on narrow screens), and the language toggle
-- The hero shows the app icon, the README's opening line as its heading and its summary as the paragraph,
-  the download button with "macOS 12 or later · Apple Silicon" beneath it, and a screenshot of the whole app
-  window
+- The hero shows the app icon, a title and a one-paragraph description, the download button with
+  "macOS 12 or later · Apple Silicon" beneath it, and a screenshot of the whole app window
 - The download button offers the release that exists:
   - when a stable version exists, "Download Agentshed <version>" downloads its disk image directly, with
     a link to every version on GitHub beneath it

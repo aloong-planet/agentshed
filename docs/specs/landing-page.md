@@ -158,12 +158,9 @@ examples without presenting them as the complete set ("Claude Code, Codex and ot
 so a new agent side does not make it untrue. The page uses the app's own palette, in light and dark,
 following the visitor's system appearance.
 
-### landing-page::REQ-007 The hero's heading and summary (direct acceptance)
+### landing-page::REQ-007 The hero's heading (direct acceptance)
 
-The hero's heading is the README's opening line in the same language without its full stop ("Your
-coding agents, in full view" in English). Its paragraph is the README's opening summary in the same
-language, word for word: the rest of the README's opening paragraph after that line and the sentence that
-calls Agentshed a macOS app.
+The hero's heading is "Your coding agents, in full view" in English.
 
 ## Quality Requirements
 
@@ -341,6 +338,8 @@ Prior art: Transfer's site tests for its download configuration, and the prototy
 - A version constant built into the site (rejected 2026-10-13 in favour of reading at run time).
 - Clicking or keying between the feature steps: the showcase shows one step at a time and turns with the
   scroll (landing-page::REQ-004/AC-08).
+- Keeping the hero's heading and paragraph word for word the same as the README's opening (dropped
+  2026-10-24: the owner does not need the two to match).
 
 ## Further Notes
 
