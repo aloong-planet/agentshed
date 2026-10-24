@@ -1,0 +1,84 @@
+# Planted faults on e2e/close-app.ts after the third incremental check's finding K1, 2026-10-24, on the test file with H7 added (uncommitted at the time; the helper itself unchanged, git hash-object 6f3400b).
+# Script: one fault at a time (each replacement asserted to occur exactly once), the helper's seven cases run, the file restored byte for byte in a finally; the script's full output follows.
+
+== kill at a tenth of the bound: exit 1
+
+Running 7 tests using 1 worker
+
+  ✓  1 e2e/close-app.spec.ts:52:1 › a close that finishes within the bound returns, kills nothing and reports nothing (25ms)
+  ✓  2 e2e/close-app.spec.ts:63:1 › a close that outlasts the bound kills the app's process group, reports and notes it, and returns once the close has settled (166ms)
+  ✓  3 e2e/close-app.spec.ts:77:1 › a group already gone when the bound passes is no error, and nothing is reported or noted (164ms)
+  ✓  4 e2e/close-app.spec.ts:93:1 › the default killer ends a real process group whose member still holds the pipes, and the warning is printed (60ms)
+  ✘  5 e2e/close-app.spec.ts:136:1 › a close that finishes just inside the bound is not killed, reported or noted (207ms)
+  ✓  6 e2e/close-app.spec.ts:146:1 › a close past the bound with no process to kill is an error (13ms)
+  ✓  7 e2e/close-app.spec.ts:152:1 › a kill that fails for another reason than a group already gone is an error (13ms)
+
+
+  1) e2e/close-app.spec.ts:136:1 › a close that finishes just inside the bound is not killed, reported or noted 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   1073741824,
+    + ]
+
+      138 |   const notes = test.info().annotations.length
+      139 |   await closeApp(app, { boundMs: 500, killGroup, report })
+    > 140 |   expect(killed).toEqual([])
+          |                  ^
+      141 |   expect(reported).toEqual([])
+      142 |   expect(test.info().annotations).toHaveLength(notes)
+      143 |   expect(settled()).toBe(true)
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-227/e2e/close-app.spec.ts:140:18
+
+    Error Context: test-results/close-app-a-close-that-fin-7d4d4-ot-killed-reported-or-noted/error-context.md
+
+  1 failed
+    e2e/close-app.spec.ts:136:1 › a close that finishes just inside the bound is not killed, reported or noted 
+  6 passed (1.3s)
+
+== kill at 70% of the bound: exit 1
+
+Running 7 tests using 1 worker
+
+  ✓  1 e2e/close-app.spec.ts:52:1 › a close that finishes within the bound returns, kills nothing and reports nothing (27ms)
+  ✓  2 e2e/close-app.spec.ts:63:1 › a close that outlasts the bound kills the app's process group, reports and notes it, and returns once the close has settled (226ms)
+  ✓  3 e2e/close-app.spec.ts:77:1 › a group already gone when the bound passes is no error, and nothing is reported or noted (226ms)
+  ✓  4 e2e/close-app.spec.ts:93:1 › the default killer ends a real process group whose member still holds the pipes, and the warning is printed (186ms)
+  ✘  5 e2e/close-app.spec.ts:136:1 › a close that finishes just inside the bound is not killed, reported or noted (404ms)
+  ✓  6 e2e/close-app.spec.ts:146:1 › a close past the bound with no process to kill is an error (74ms)
+  ✓  7 e2e/close-app.spec.ts:152:1 › a kill that fails for another reason than a group already gone is an error (72ms)
+
+
+  1) e2e/close-app.spec.ts:136:1 › a close that finishes just inside the bound is not killed, reported or noted 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   1073741824,
+    + ]
+
+      138 |   const notes = test.info().annotations.length
+      139 |   await closeApp(app, { boundMs: 500, killGroup, report })
+    > 140 |   expect(killed).toEqual([])
+          |                  ^
+      141 |   expect(reported).toEqual([])
+      142 |   expect(test.info().annotations).toHaveLength(notes)
+      143 |   expect(settled()).toBe(true)
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-227/e2e/close-app.spec.ts:140:18
+
+    Error Context: test-results/close-app-a-close-that-fin-7d4d4-ot-killed-reported-or-noted/error-context.md
+
+  1 failed
+    e2e/close-app.spec.ts:136:1 › a close that finishes just inside the bound is not killed, reported or noted 
+  6 passed (1.9s)
+
+RESTORED byte-identical: true

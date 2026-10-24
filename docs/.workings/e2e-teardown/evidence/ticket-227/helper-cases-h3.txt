@@ -1,0 +1,47 @@
+# #227 H3, 2026-10-23: red against the helper without the ESRCH handling, then all three cases green three times
+
+Running 3 tests using 1 worker
+
+  ✓  1 e2e/close-app.spec.ts:23:1 › a close that finishes within the bound returns, kills nothing and notes nothing (25ms)
+[e2e teardown] app.close() had not finished after 100 ms; the app's process group (pid 4242) was killed
+  ✓  2 e2e/close-app.spec.ts:33:1 › a close that outlasts the bound kills the app's process group, notes it on the case, and returns once it is gone (103ms)
+  ✘  3 e2e/close-app.spec.ts:47:1 › a group already gone when the bound passes is no error, and nothing is noted (103ms)
+
+
+  1) e2e/close-app.spec.ts:47:1 › a group already gone when the bound passes is no error, and nothing is noted 
+
+    Error: kill ESRCH
+
+      51 |   const goneAlready = (pid: number): void => {
+      52 |     killGroup(pid)
+    > 53 |     throw Object.assign(new Error('kill ESRCH'), { code: 'ESRCH' })
+         |                         ^
+      54 |   }
+      55 |   await closeApp(app, { boundMs: 100, killGroup: goneAlready })
+      56 |   expect(test.info().annotations).toHaveLength(notes)
+        at killGroup (/Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-227/e2e/close-app.spec.ts:53:25)
+        at closeApp (/Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-227/e2e/close-app.ts:38:3)
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-227/e2e/close-app.spec.ts:55:3
+
+    Error Context: test-results/close-app-a-group-already--3f1b2--error-and-nothing-is-noted/error-context.md
+
+  1 failed
+    e2e/close-app.spec.ts:47:1 › a group already gone when the bound passes is no error, and nothing is noted 
+  2 passed (621ms)
+
+Running 9 tests using 1 worker
+
+  ✓  1 e2e/close-app.spec.ts:23:1 › a close that finishes within the bound returns, kills nothing and notes nothing (26ms)
+[e2e teardown] app.close() had not finished after 100 ms; the app's process group (pid 4242) was killed
+  ✓  2 e2e/close-app.spec.ts:33:1 › a close that outlasts the bound kills the app's process group, notes it on the case, and returns once it is gone (104ms)
+  ✓  3 e2e/close-app.spec.ts:47:1 › a group already gone when the bound passes is no error, and nothing is noted (102ms)
+  ✓  4 e2e/close-app.spec.ts:23:1 › a close that finishes within the bound returns, kills nothing and notes nothing (25ms)
+[e2e teardown] app.close() had not finished after 100 ms; the app's process group (pid 4242) was killed
+  ✓  5 e2e/close-app.spec.ts:33:1 › a close that outlasts the bound kills the app's process group, notes it on the case, and returns once it is gone (103ms)
+  ✓  6 e2e/close-app.spec.ts:47:1 › a group already gone when the bound passes is no error, and nothing is noted (102ms)
+  ✓  7 e2e/close-app.spec.ts:23:1 › a close that finishes within the bound returns, kills nothing and notes nothing (25ms)
+[e2e teardown] app.close() had not finished after 100 ms; the app's process group (pid 4242) was killed
+  ✓  8 e2e/close-app.spec.ts:33:1 › a close that outlasts the bound kills the app's process group, notes it on the case, and returns once it is gone (103ms)
+  ✓  9 e2e/close-app.spec.ts:47:1 › a group already gone when the bound passes is no error, and nothing is noted (102ms)
+
+  9 passed (1.6s)
