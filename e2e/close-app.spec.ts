@@ -1,7 +1,7 @@
 // The bounded teardown every e2e case closes its app through (close-app.ts, #227). H1–H3, H5 and H6 launch no app: a
 // stand-in for Playwright's application object, the only part of it the helper reads, with the group killer and the
 // report sink injected — the killer stands for the operating system's signal, the sink for the terminal. H4 runs the
-// default killer on a process group the case starts itself.
+// default killer and the default report on a process group the case starts itself, capturing the warning.
 // Gap, with its condition: Electron's native shutdown under load, the reason for the bound, is not reproduced here; it
 // needs a loaded machine (docs/.workings/e2e-teardown/evidence/ticket-227/, the runs under busy processes).
 import { spawn } from 'node:child_process'
@@ -13,7 +13,8 @@ const NO_SUCH_PID = 2 ** 30
 /** How long after the kill the stand-in's close settles, as Playwright's does once the group's pipes have closed */
 const SETTLE_MS = 150
 
-/** Process groups a case started; ended after every case, since a case that times out never reaches a finally */
+/** Process groups a case started and has not seen close; ended after every case, since a case that times out never
+ *  reaches a finally */
 const started: number[] = []
 test.afterEach(() => {
   for (const pid of started.splice(0)) {
@@ -26,10 +27,15 @@ test.afterEach(() => {
 function standIn(closeAfterMs: number | 'onKill', pid: number | null = NO_SUCH_PID) {
   const killed: number[] = []
   const reported: string[] = []
+  let settled = false
   let release = (): void => {}
   const closed = new Promise<void>((resolve) => {
-    release = () => setTimeout(resolve, SETTLE_MS)
-    if (closeAfterMs !== 'onKill') setTimeout(resolve, closeAfterMs)
+    const settle = (): void => {
+      settled = true
+      resolve()
+    }
+    release = () => setTimeout(settle, SETTLE_MS)
+    if (closeAfterMs !== 'onKill') setTimeout(settle, closeAfterMs)
   })
   const app = { close: () => closed, process: () => ({ pid: pid ?? undefined }) }
   /** Records the group it would kill, so no real process is signalled, and lets the stand-in's close settle */
@@ -40,7 +46,7 @@ function standIn(closeAfterMs: number | 'onKill', pid: number | null = NO_SUCH_P
   const report = (note: string): void => {
     reported.push(note)
   }
-  return { killed, reported, app, killGroup, report }
+  return { killed, reported, app, killGroup, report, settled: () => settled }
 }
 
 test('a close that finishes within the bound returns, kills nothing and reports nothing', async () => {
@@ -56,13 +62,12 @@ test('a close that finishes within the bound returns, kills nothing and reports 
 
 test('a close that outlasts the bound kills the app\'s process group, reports and notes it, and returns once the close has settled', async () => {
   test.setTimeout(5000)
-  const { killed, reported, app, killGroup, report } = standIn('onKill')
+  const { killed, reported, app, killGroup, report, settled } = standIn('onKill')
   const t0 = Date.now()
   await closeApp(app, { boundMs: 100, killGroup, report })
-  const took = Date.now() - t0
+  expect(Date.now() - t0).toBeLessThan(1500)
   expect(killed).toEqual([NO_SUCH_PID])
-  expect(took).toBeGreaterThanOrEqual(100 + SETTLE_MS)
-  expect(took).toBeLessThan(1500)
+  expect(settled()).toBe(true)
   expect(reported).toEqual([expect.stringContaining('100 ms')])
   expect(test.info().annotations.filter((a) => a.type === 'teardown')).toEqual([
     { type: 'teardown', description: expect.stringContaining('100 ms') }
@@ -71,42 +76,61 @@ test('a close that outlasts the bound kills the app\'s process group, reports an
 
 test('a group already gone when the bound passes is no error, and nothing is reported or noted', async () => {
   test.setTimeout(5000)
-  const { killed, reported, app, killGroup, report } = standIn('onKill')
+  const { killed, reported, app, killGroup, report, settled } = standIn('onKill')
   const notes = test.info().annotations.length
   // As process.kill throws for a group that no longer exists
   const goneAlready = (pid: number): void => {
     killGroup(pid)
     throw Object.assign(new Error('kill ESRCH'), { code: 'ESRCH' })
   }
-  const t0 = Date.now()
   await closeApp(app, { boundMs: 100, killGroup: goneAlready, report })
-  expect(Date.now() - t0).toBeGreaterThanOrEqual(100 + SETTLE_MS)
   expect(killed).toEqual([NO_SUCH_PID])
+  expect(settled()).toBe(true)
   expect(reported).toEqual([])
   expect(test.info().annotations).toHaveLength(notes)
 })
 
-test('the default killer ends a real process group whose member still holds the pipes', async () => {
+test('the default killer ends a real process group whose member still holds the pipes, and the warning is printed', async () => {
   test.setTimeout(5000)
   // A detached parent with piped output, as Playwright launches the app, and a child that inherits that output and
-  // keeps running, as the app's helper processes do
+  // keeps running, as the app's helper processes do; the parent says so once the child is running
   const parent = spawn(
     process.execPath,
-    ['-e', "require('child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: ['ignore', 'inherit', 'inherit'] }); setInterval(() => {}, 1000)"],
+    ['-e', "require('child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: ['ignore', 'inherit', 'inherit'] }).once('spawn', () => console.log('child running')); setInterval(() => {}, 1000)"],
     { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }
   )
-  if (parent.pid !== undefined) started.push(parent.pid)
-  parent.stdout.resume()
+  const pid = parent.pid
+  if (pid !== undefined) started.push(pid)
   parent.stderr.resume()
+  const childRunning = new Promise<void>((resolve) => {
+    parent.stdout.on('data', (chunk: Buffer) => {
+      if (chunk.toString().includes('child running')) resolve()
+    })
+  })
   const exited = new Promise<NodeJS.Signals | null>((resolve) => parent.once('exit', (_code, signal) => resolve(signal)))
   // Playwright's close settles on the child process's close event: its exit, and its pipes closed
-  const closed = new Promise<void>((resolve) => parent.once('close', () => resolve()))
-  const { reported, report } = standIn('onKill')
+  const closed = new Promise<void>((resolve) =>
+    parent.once('close', () => {
+      const at = started.indexOf(pid ?? -1)
+      if (at >= 0) started.splice(at, 1)
+      resolve()
+    })
+  )
+  await childRunning
+  const warnings: string[] = []
+  const warn = console.warn
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args.join(' '))
+  }
   const t0 = Date.now()
-  await closeApp({ close: () => closed, process: () => ({ pid: parent.pid }) }, { boundMs: 200, report })
+  try {
+    await closeApp({ close: () => closed, process: () => ({ pid }) }, { boundMs: 200 })
+  } finally {
+    console.warn = warn
+  }
   expect(Date.now() - t0).toBeLessThan(3000)
   expect(await exited).toBe('SIGKILL')
-  expect(reported).toHaveLength(1)
+  expect(warnings).toEqual([expect.stringMatching(/^\[e2e teardown\] .*200 ms/)])
 })
 
 test('a close past the bound with no process to kill is an error', async () => {
