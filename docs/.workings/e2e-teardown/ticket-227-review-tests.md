@@ -87,7 +87,7 @@ the cases lacked. Case design: as H1, no clock. False greens: H7 goes red when t
 
 ### Resource reuse
 
-- H1–H3, H5 and H6 launch nothing; H4 starts two node processes and ends them, its `afterEach` covering a timeout. The
+- H1–H3 and H5–H7 launch nothing; H4 starts two node processes and ends them, its `afterEach` covering a timeout. The
   72 sites add no launch.
 
 ## Post-implementation check (2026-10-23, 580b426; commit range 1349d76..0e6d642)
@@ -587,3 +587,116 @@ passing its tests does not mark any of them synced.
 | K2 | G2's handling row corrected: the planted main-only kill fails H4 by its 5 s timeout first, then its 3 s check |
 
 Targeted verification: `evidence/ticket-227/targeted-4.txt` (typecheck, lint, the retrieval as before, the helper's seven cases five times over: 35 passed; `TARGETED_EXIT=0`). The full gateway is re-run on this commit before delivery.
+
+## Post-implementation check, incremental (2026-10-24, 3be7524; fix range 3da7bd1..3be7524)
+
+Performed by the same independent agent as the earlier rounds, which did not inherit the implementing conversation.
+Ticket: #227. Mutation testing: per the project capability declaration, mutation-testing is not enabled; this item is
+skipped. The planted faults in `plant-helper-3.txt` were the implementing session's; this check reads them as evidence
+only.
+
+### Scope, as retrieved
+
+- Changed in the range (`git diff --name-status 3da7bd1..3be7524`): `e2e/close-app.spec.ts` (H7 added; H1-H6 unchanged);
+  work records and evidence under `docs/.workings/e2e-teardown/`. The helper `e2e/close-app.ts` is unchanged (blob
+  6f3400b), so no test depends on changed helper code, and the seven E* files are out of scope.
+- Files naming the changed test file (`rg -uu -l "close-app\.spec"`, `node_modules/`, `out/` and `docs/.workings/`
+  excluded): only `tsconfig.node.tsbuildinfo`. Control: `from './close-app'` occurs once in each of the eight files
+  (`close-app.spec.ts` and the seven E* files). Test data changed: none.
+- Rows of the test design table changed in the range: H7 added; no other row changed.
+- Carried over: H1-H6 from the previous round (2026-10-24, 3da7bd1), their code unchanged; E* from the first round
+  (2026-10-23, 580b426) and the incremental round of 2026-10-24 on 76b23b6.
+
+### Run evidence
+
+- Targeted log [targeted-4.txt](evidence/ticket-227/targeted-4.txt): HEAD 3da7bd1 with `close-app.spec.ts` 7d10a91 in the
+  tree, the blob 3be7524 committed; typecheck and lint exit 0; the retrieval, each grep's own exit code logged directly
+  (0, 0); the seven cases five times, 35 passed, `TARGETED_EXIT=0`.
+- Full gateway: the latest completed run, [gateway-f2d71e4.txt](evidence/ticket-227/gateway-f2d71e4.txt), predates the
+  changes to `close-app.spec.ts` since f2d71e4 (`git diff --stat f2d71e4 3be7524` outside `docs/.workings/`: that file
+  only). The gateway on 3be7524 was running in this worktree during the check (its log had reached `pnpm e2e`, 155 cases)
+  and is not used here. This section was written and staged only after that run had passed its file-scanning gates
+  (`check:lang`, `check:i18n`, `check:nul`), so that it does not change what those gates read.
+- This check ran the seven cases five times with `--output` in a scratch folder, so as not to touch the `test-results/`
+  of the gateway's e2e then running in the same worktree: 35 passed; no process of H4's shape before or after
+  (`pgrep -fl`: none); the tree clean.
+
+### Test design table against the written tests (the changed row)
+
+| # | Matches the row | Notes |
+|---|---|---|
+| H7 | yes | `standIn(400)`, bound 500 ms, killer and sink injected; asserts `killed` and `reported` empty, the annotations unchanged and `settled()` true; no clock reading |
+
+Test file header (`close-app.spec.ts:1-4`): its list of the stand-in cases, "H1–H3, H5 and H6", leaves out H7 (L1).
+
+### The previous round's findings, as handled
+
+| # | Verified |
+|---|---|
+| K1 | yes: H7 is the boundary case. A timer at a tenth or at 70% of the bound fails H7 alone, at `expect(killed).toEqual([])` (line 140; `plant-helper-3.txt`, killed `[1073741824]`, the stand-in's pid); H1-H6 stay green under both, which confirms that H7 is the only guard of the bound's lower side |
+| K2 | yes: G2's handling row now names the 5 s timeout first, then the 3 s check |
+
+### Coverage
+
+Finding L1 (wording only). H7's input, a close at 80% of the bound, reaches the branch it claims: an early timer wins the
+race and kills, a correct timer loses to the close. What is left uncovered is a kill between 80% and 100% of the bound,
+and the H7 row states this ("below 0.8"); it is the margin the timers need.
+
+### Case design
+
+No finding. H7 is a stand-in case like H1: no project module mocked, no process signalled (pid 2^30), no shared state.
+
+### False greens
+
+No finding. H7 goes red when the helper kills before 400 ms of a 500 ms bound (`killed` not empty), reports or notes
+without a kill, or returns before the close settles (`settled()` false). It is not timing-fragile under load:
+- The close's timer is created before the bound's, and falls due 100 ms earlier.
+- If both are overdue at once, Node runs expired timers in the order they fall due and drains promise callbacks after
+  each one. The close's resolution therefore reaches the race, and the bound's timer is cleared, before the bound's
+  callback can run.
+
+A helper that waited the whole bound regardless of the close would pass H7, but H1 catches it (`took < 500`).
+
+### Resource reuse
+
+No finding. H7 launches nothing (about 400 ms per run). Counted from the targeted log: five H4 process groups in 35 cases,
+no app launch, no build.
+
+### Findings
+
+- **L1 (low, wording) - two lists of the cases leave out H7.**
+  - `close-app.spec.ts:1` says "H1–H3, H5 and H6 launch no app: a stand-in ... with the group killer and the report
+    sink injected"; H7 is one of those.
+  - The design review's Resource reuse section ("H1–H3, H5 and H6 launch nothing; H4 starts two node processes") also
+    leaves out H7.
+
+  Suggested handling: add H7 to both. Changing the header comment is a test-file change, so it goes with the delivery
+  gateway's rules: a comment-only change needs the syntax-tree comparison recorded, or the full run again.
+
+### Document sync
+
+Facts changed in the range: H7 (its design row and incremental review match the code; L1 for the two lists); K2's
+wording (corrected); the task list's 5h (states H7, K2, the targeted run and the gateway re-run on the delivered commit).
+`CONTEXT.md`, the helper and its header are untouched by the range. New sync items from this round, none in the document
+sync checklist yet: L1's two lists. The full gateway on 3be7524, still running at the time of this check, remains
+the delivery gate. A fix passing its tests does not mark anything synced.
+
+### Commands (this round)
+
+| Command | Exit code |
+|---|---|
+| `git log --oneline 3da7bd1..HEAD`, `git show --stat` of 3be7524, `git diff --name-status 3da7bd1..3be7524` | 0 |
+| `git diff 3da7bd1..3be7524` of the test file, the task list and this record (the last to a file) | 0 |
+| `git rev-parse` / `git hash-object` for the spec and the helper; `git diff --stat f2d71e4 3be7524 -- . ':(exclude)docs/.workings'` | 0; 0 |
+| `rg -uu -l "close-app\.spec"`; the control `rg -uu -c "from '\./close-app'"` (exclusions as above) | 0; 0 |
+| `rg -n "^## \|Running [0-9]+ tests\|passed\|VERIFY_EXIT"` over the running gateway's log, to see its stage | 0 |
+| reading `scripts/quiet-electron.sh` (the global setup's copy is a no-op once made) | 0 |
+| `pgrep -fl` for H4's process shape, before and after the run | 1; 1 (none) |
+| `pnpm -s exec playwright test e2e/close-app.spec.ts --repeat-each=5 --output=<scratch>` (output to a file) | 0 (35 passed) |
+| `git add -f` this record, then `pnpm check:lang` (output to a file), twice | 0; 0 |
+
+## Handling of the fourth incremental check's finding (implementing session, 2026-10-24)
+
+| # | Handling |
+|---|---|
+| L1 | H7 added to both lists: the test file's header and the design review's Resource reuse section. The header is a comment, so the full gateway on 3be7524 (`evidence/ticket-227/gateway-3be7524.txt`, `VERIFY_EXIT=0`) stands for the changed file: the syntax trees with comments removed are identical, the comment is read by no tool but lint, and lint passes (`evidence/ticket-227/comment-only.txt`). No test's executable content changed, so no further check follows |

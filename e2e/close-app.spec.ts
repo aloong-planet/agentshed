@@ -1,4 +1,4 @@
-// The bounded teardown every e2e case closes its app through (close-app.ts, #227). H1–H3, H5 and H6 launch no app: a
+// The bounded teardown every e2e case closes its app through (close-app.ts, #227). H1–H3 and H5–H7 launch no app: a
 // stand-in for Playwright's application object, the only part of it the helper reads, with the group killer and the
 // report sink injected — the killer stands for the operating system's signal, the sink for the terminal. H4 runs the
 // default killer and the default report on a process group the case starts itself, capturing the warning.
