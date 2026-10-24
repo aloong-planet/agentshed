@@ -1,0 +1,220 @@
+# #247 feedback loop attempts, 2026-10-23, macOS, built at 1349d76 with the case's message change
+
+## the case 40 times (pnpm -s exec playwright test e2e/app.spec.ts -g "a session whose file Codex compresses while cached" --repeat-each=40)
+
+Running 40 tests using 1 worker
+
+  ✓   1 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓   2 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓   3 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓   4 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓   5 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓   6 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓   7 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.1s)
+  ✓   8 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓   9 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  10 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  11 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  12 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  13 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  14 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  15 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  16 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.1s)
+  ✓  17 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  18 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  19 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  20 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  21 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  22 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  23 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  24 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  25 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  26 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  27 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  28 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  29 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  30 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  31 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  32 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  33 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  34 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  35 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  36 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.3s)
+  ✓  37 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  38 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.4s)
+  ✓  39 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+  ✓  40 e2e/app.spec.ts:5170:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity (1.2s)
+
+  40 passed (1.0m)
+
+## a throwaway copy of the case with AGENTSHED_FETCH_DELAY_MS=600, every collected chunk printed (5 runs): every chunk carried session-not-whitelisted; two runs failed at the later reopen, the delay seam's own artefact (a rescan faster than the fetch delay keeps resetting the query, as the case's neighbour notes)
+
+Running 5 tests using 1 worker
+
+[DIAG-247] collected: ["Error occurred in handler for 'agentshed:get-session-page': Error: agentshed-error:{\"code\":\"session-not-whitelisted\",\"params\":{}}"]
+  ✘  1 e2e/zz-diag-247.spec.ts:378:1 › DIAG-247 compressed while a page request is in flight: the open page errors after the next scan, and it reappears under its compressed identity (8.0s)
+[DIAG-247] collected: ["Error occurred in handler for 'agentshed:get-session-page': Error: agentshed-error:{\"code\":\"session-not-whitelisted\",\"params\":{}}"]
+  ✓  2 e2e/zz-diag-247.spec.ts:378:1 › DIAG-247 compressed while a page request is in flight: the open page errors after the next scan, and it reappears under its compressed identity (3.5s)
+[DIAG-247] collected: ["Error occurred in handler for 'agentshed:get-session-page': Error: agentshed-error:{\"code\":\"session-not-whitelisted\",\"params\":{}}"]
+  ✘  3 e2e/zz-diag-247.spec.ts:378:1 › DIAG-247 compressed while a page request is in flight: the open page errors after the next scan, and it reappears under its compressed identity (7.5s)
+[DIAG-247] collected: ["Error occurred in handler for 'agentshed:get-session-page': Error: agentshed-error:{\"code\":\"session-not-whitelisted\",\"params\":{}}"]
+  ✓  4 e2e/zz-diag-247.spec.ts:378:1 › DIAG-247 compressed while a page request is in flight: the open page errors after the next scan, and it reappears under its compressed identity (3.5s)
+[DIAG-247] collected: ["Error occurred in handler for 'agentshed:get-session-page': Error: agentshed-error:{\"code\":\"session-not-whitelisted\",\"params\":{}}"]
+  ✓  5 e2e/zz-diag-247.spec.ts:378:1 › DIAG-247 compressed while a page request is in flight: the open page errors after the next scan, and it reappears under its compressed identity (3.5s)
+
+
+  1) e2e/zz-diag-247.spec.ts:378:1 › DIAG-247 compressed while a page request is in flight: the open page errors after the next scan, and it reappears under its compressed identity 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator: locator('.pane-head .stitle')
+    Expected: "Soon compressed question"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for locator('.pane-head .stitle')
+
+
+      422 |   await expect(win.locator('.pane-body .card .se', { hasText: 'Soon compressed question' })).toHaveCount(1)
+      423 |   await win.locator('.pane-body .card .se', { hasText: 'Soon compressed question' }).click()
+    > 424 |   await expect(win.locator('.pane-head .stitle')).toHaveText('Soon compressed question')
+          |                                                   ^
+      425 |   await win.locator('.qlist .q', { hasText: 'Soon compressed question' }).click()
+      426 |   await expect(win.locator('.turn .ans')).toContainText('Answered before compression.')
+      427 |
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-247/e2e/zz-diag-247.spec.ts:424:51
+
+    Error Context: test-results/zz-diag-247-DIAG-247-compr-5ee7a-der-its-compressed-identity/error-context.md
+
+  2) e2e/zz-diag-247.spec.ts:378:1 › DIAG-247 compressed while a page request is in flight: the open page errors after the next scan, and it reappears under its compressed identity 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator: locator('.pane-head .stitle')
+    Expected: "Soon compressed question"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for locator('.pane-head .stitle')
+
+
+      422 |   await expect(win.locator('.pane-body .card .se', { hasText: 'Soon compressed question' })).toHaveCount(1)
+      423 |   await win.locator('.pane-body .card .se', { hasText: 'Soon compressed question' }).click()
+    > 424 |   await expect(win.locator('.pane-head .stitle')).toHaveText('Soon compressed question')
+          |                                                   ^
+      425 |   await win.locator('.qlist .q', { hasText: 'Soon compressed question' }).click()
+      426 |   await expect(win.locator('.turn .ans')).toContainText('Answered before compression.')
+      427 |
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-247/e2e/zz-diag-247.spec.ts:424:51
+
+    Error Context: test-results/zz-diag-247-DIAG-247-compr-5ee7a-der-its-compressed-identity-repeat2/error-context.md
+
+  2 failed
+    e2e/zz-diag-247.spec.ts:378:1 › DIAG-247 compressed while a page request is in flight: the open page errors after the next scan, and it reappears under its compressed identity 
+    e2e/zz-diag-247.spec.ts:378:1 › DIAG-247 compressed while a page request is in flight: the open page errors after the next scan, and it reappears under its compressed identity 
+  3 passed (27.6s)
+
+## probe: the session-page handler paused after its reads (probe-247.mjs, instrumentation, restored), the file compressed and removed inside the pause (throwaway e2e/zz-diag-247.spec.ts)
+// Probe for #247 (instrumentation, not a fix): the session-page handler pauses for DIAG_247_PROBE_MS right after its
+// reads, before its last checks, so a test can remove the file inside the request. Rebuilds, runs the given Playwright
+// arguments, then restores the file byte for byte and rebuilds. Usage: node probe-247.mjs <args...>
+import { readFileSync, writeFileSync } from 'node:fs'
+import { execSync, spawnSync } from 'node:child_process'
+const file = 'src/main/index.ts'
+const original = readFileSync(file)
+const text = original.toString('utf8')
+const from = "  const { texts } = await readRanges(file, q.questions.map((r) => ({ start: r[0], end: r[1] })))\n"
+const to = from + "  if (process.env.DIAG_247_PROBE_MS) { console.log('[DIAG-247] paused after the reads'); await new Promise((r) => setTimeout(r, Number(process.env.DIAG_247_PROBE_MS))) }\n"
+if (text.split(from).length !== 2) { console.error('PROBE: expected exactly one occurrence'); process.exit(3) }
+let code = 0
+try {
+  writeFileSync(file, text.replace(from, to))
+  execSync('pnpm -s build', { stdio: 'ignore' })
+  console.log('PROBE in the build:', execSync("grep -o 'paused after the reads' out/main/index.js | wc -l").toString().trim())
+  const r = spawnSync('pnpm', ['-s', 'exec', 'playwright', 'test', ...process.argv.slice(2)], { encoding: 'utf8' })
+  code = r.status ?? 1
+  console.log(r.stdout, r.stderr)
+} finally {
+  writeFileSync(file, original)
+  console.log('RESTORED byte-identical:', Buffer.compare(readFileSync(file), original) === 0)
+  execSync('pnpm -s build', { stdio: 'ignore' })
+}
+console.log('PROBED RUN EXIT', code)
+// DIAG-247: throwaway, deleted before any commit. A Codex session's page is requested; while the handler is paused
+// after its reads (the probe), the plain rollout is compressed and removed as Codex does. Prints every stderr chunk.
+import type {} from '../src/renderer/src/env'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { zstdCompressSync } from 'node:zlib'
+import { test, expect, _electron as electron } from '@playwright/test'
+
+test('DIAG-247 the file removed inside a page request', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-diag-home-'))
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-diag-data-'))
+  const proj = join(home, 'demo-proj')
+  mkdirSync(proj)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const sdir = join(home, '.codex', 'sessions', '2026', '07', '30')
+  mkdirSync(sdir, { recursive: true })
+  const at = new Date(Date.now() - 86_400_000).toISOString()
+  const item = (type: string, extra: Record<string, unknown>): string =>
+    JSON.stringify({ timestamp: at, ordinal: 9, type: 'event_msg', payload: { type: 'item_completed', thread_id: 't', turn_id: 'u', item: { type, id: 'i', ...extra }, started_at_ms: 1, completed_at_ms: 1 } })
+  const lines = [
+    JSON.stringify({ timestamp: at, ordinal: 0, type: 'session_meta', payload: { cwd: proj, id: '019fb0c0-4444-7af3-af7d-8505cedf1ec2' } }),
+    JSON.stringify({ timestamp: at, ordinal: 1, type: 'turn_context', payload: { model: 'gpt-5.6-sol', cwd: proj } }),
+    item('UserMessage', { content: [{ type: 'text', text: 'Soon compressed question', text_elements: [] }] }),
+    item('AgentMessage', { content: [{ type: 'Text', text: 'Answered before compression.' }], phase: 'final_answer' })
+  ]
+  const plain = join(sdir, 'rollout-019fb0c0-4444-7af3-af7d-8505cedf1ec2.jsonl')
+  writeFileSync(plain, lines.join('\n') + '\n')
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${userData}`],
+    env: { ...(process.env as Record<string, string>), NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US', DIAG_247_PROBE_MS: '1500' }
+  })
+  const chunks: string[] = []
+  app.process().stderr?.on('data', (b: Buffer) => chunks.push(`stderr: ${b.toString().split('\n')[0]}`))
+  app.process().stdout?.on('data', (b: Buffer) => { if (b.toString().includes('DIAG-247')) chunks.push(`stdout: ${b.toString().trim()}`) })
+  try {
+    const win = await app.firstWindow()
+    await win.locator('.rail .ri').nth(1).click()
+    await win.locator('.side .row').first().click()
+    await win.locator('.pane-head .tabs .tab', { hasText: 'Sessions' }).click()
+    await win.locator('.pane-body .card .se', { hasText: 'Soon compressed question' }).click()
+    await expect.poll(() => chunks.some((c) => c.includes('paused after the reads'))).toBe(true)
+    writeFileSync(plain + '.zst', zstdCompressSync(Buffer.from(lines.join('\n') + '\n')))
+    rmSync(plain, { force: true })
+    await win.waitForTimeout(2500)
+    console.log(`[DIAG-247] page shows: ${await win.locator('.pane-body').innerText().then((t) => t.slice(0, 120).replace(/\n/g, ' | '))}`)
+  } finally {
+    await app.close()
+    console.log(`[DIAG-247] ${chunks.length} chunk(s):\n${chunks.join('\n')}`)
+    rmSync(home, { recursive: true, force: true })
+    rmSync(userData, { recursive: true, force: true })
+  }
+})
+PROBE in the build: 1
+
+Running 2 tests using 1 worker
+
+[DIAG-247] page shows: Cannot open this session: The session file can no longer be read (moved or deleted?)
+[DIAG-247] 3 chunk(s):
+stdout: [DIAG-247] paused after the reads
+stderr: Error occurred in handler for 'agentshed:get-session-page': Error: agentshed-error:{"code":"session-file-unreadable","params":{}}
+stderr: Debugger ending on ws://127.0.0.1:58507/08339d39-4f66-49df-b500-222fe332364b
+  ✓  1 e2e/zz-diag-247.spec.ts:10:1 › DIAG-247 the file removed inside a page request (3.3s)
+[DIAG-247] page shows: Cannot open this session: The session file can no longer be read (moved or deleted?)
+[DIAG-247] 3 chunk(s):
+stdout: [DIAG-247] paused after the reads
+stderr: Error occurred in handler for 'agentshed:get-session-page': Error: agentshed-error:{"code":"session-file-unreadable","params":{}}
+stderr: Debugger ending on ws://127.0.0.1:58528/d6c90f76-0f3b-444b-8330-dd2aa97fb976
+  ✓  2 e2e/zz-diag-247.spec.ts:10:1 › DIAG-247 the file removed inside a page request (3.4s)
+
+  2 passed (7.3s)
+ 
+RESTORED byte-identical: true
+PROBED RUN EXIT 0
