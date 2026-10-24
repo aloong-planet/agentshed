@@ -690,6 +690,15 @@ _Avoid_: beta mode, insider track, update track
   "the previous page holds" test red — confirmed by rebuilding without it and running that test,
   which stayed green. Do not write or trust such a mutation without re-measuring first.
 
+- **A "does not appear" check can never be red if it is retried for longer than the thing lives (settled
+  2026-10-23)**: a retried negative assertion — `toHaveCount(0)`, `not.toBeVisible()` — waits until its
+  condition holds, so a toast or any element that appears and goes by itself within the timeout passes
+  it anyway. A toast lives 3.2 s and Playwright retries for 5 s: a planted toast on a failure path, and
+  one at startup, passed two such checks every time (#254). A check that something did not appear reads
+  against a later event that arrives in order behind it (a later notice on the same channel), or counts
+  once at a point where the thing would still be on screen. A retried negative read is right only for
+  waiting a thing out on purpose, before a new one or a screenshot.
+
 - **An e2e case closes its app through the shared bounded teardown (settled 2026-10-23)**: under CPU load the app's
   own quit takes milliseconds, but Electron's native shutdown after it can take minutes, and Playwright waits for the
   process and its pipes with no bound, so a case timed out in its teardown (#227). Every case closes through `closeApp`

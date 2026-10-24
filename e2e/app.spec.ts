@@ -4403,7 +4403,9 @@ test('UI language: a stored preference naming a removed language reads as follow
   const trig = win.getByTestId('language-trigger')
   await expect(trig).toContainText('跟随系统')
   await expect(trig).toContainText('简体中文')
-  await expect(win.locator('.toast')).toHaveCount(0)
+  // Counted once, not retried: a retried "no toast" waits out a toast's 3.2 s and then passes. A notice shown at
+  // startup is still on screen here
+  expect(await win.locator('.toast').count()).toBe(0)
   expect(l.errors).toEqual([])
   await closeApp(l.app)
   rmSync(l.userData, { recursive: true, force: true })
@@ -5204,7 +5206,8 @@ test('a session whose file Codex compresses while cached (query layer): the open
   await expect(win.locator('.pane-body .none')).toContainText('Cannot open this session')
   expect(l.errors.length).toBeGreaterThan(0)
   for (const e of l.errors) {
-    expect(e.includes(ERR.sessionFileUnreadable) || e.includes(ERR.sessionNotWhitelisted)).toBe(true)
+    // The chunk itself is the message: a failure says which line broke it
+    expect(e.includes(ERR.sessionFileUnreadable) || e.includes(ERR.sessionNotWhitelisted), `a collected stderr chunk carries neither code:\n${e}`).toBe(true)
   }
 
   // The session reappears in the list under its compressed identity (same title, a new file) and

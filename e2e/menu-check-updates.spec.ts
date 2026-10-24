@@ -131,14 +131,20 @@ test('a menu check that finds an update starts the download, and a failed downlo
     const win = await app.firstWindow()
     await launchCheckDone(win, f)
     const toasts = await recordToasts(win)
-    script(f, { check: 'found', version: '9.9.0', steps: [0, 20, 40], stepMs: 400, download: 'fail' })
+    const failing = { check: 'found', version: '9.9.0', steps: [0, 20, 40], stepMs: 50, download: 'fail' }
+    // Held at its first step until the progress bar has been seen
+    script(f, { ...failing, holdFirstStep: true })
     await clickMenuCheck(app)
     await expect.poll(toasts).toEqual(['ok: Version 9.9.0 found — downloading in the background'])
     await expect(win.getByTestId('update-slot')).toHaveAttribute('role', 'progressbar')
-    // The download fails: the button goes, and nothing more is said
+    script(f, failing)
+    // The download fails: the button goes, and nothing more is said. Notices reach the window in order, so any the
+    // failure sent come before a later menu check's own
     await expect(win.getByTestId('update-slot')).toHaveCount(0, { timeout: 10_000 })
-    await win.waitForTimeout(800)
-    expect(await toasts()).toEqual(['ok: Version 9.9.0 found — downloading in the background'])
+    const version = await app.evaluate(({ app }) => app.getVersion())
+    script(f, { check: 'upToDate' })
+    await clickMenuCheck(app)
+    await expect.poll(toasts).toEqual(['ok: Version 9.9.0 found — downloading in the background', `ok: Agentshed is up to date (${version})`])
   } finally {
     await closeApp(app)
     cleanup(f)
@@ -147,7 +153,9 @@ test('a menu check that finds an update starts the download, and a failed downlo
 
 test('a menu check while an update downloads, is ready or installs reports that state and makes no request (US-003/AC-04)', async () => {
   const f = fixture()
-  script(f, { check: 'found', version: '9.9.0', steps: [0, 40, 80, 100], stepMs: 600, download: 'complete', install: 'hold' })
+  const found = { check: 'found', version: '9.9.0', steps: [0, 40, 80, 100], stepMs: 50, download: 'complete', install: 'hold' }
+  // Held at its first step until the menu check has asked while it downloads, however late the window shows
+  script(f, { ...found, holdFirstStep: true })
   const app = await launch(f)
   try {
     const win = await app.firstWindow()
@@ -155,6 +163,7 @@ test('a menu check while an update downloads, is ready or installs reports that 
     const toasts = await recordToasts(win)
     await clickMenuCheck(app)
     await expect.poll(toasts).toEqual(['ok: Version 9.9.0 found — downloading in the background'])
+    script(f, found)
     await expect(win.getByTestId('update-slot')).toHaveAttribute('aria-label', 'Update available', { timeout: 10_000 })
     await clickMenuCheck(app)
     await expect.poll(async () => (await toasts()).at(-1)).toBe('ok: Version 9.9.0 is ready to install')
@@ -181,20 +190,25 @@ test('menu and settings checks in quick succession join into one request, each s
     const toasts = await recordToasts(win)
     const version = await app.evaluate(({ app }) => app.getVersion())
 
-    // Settings first, then the menu
-    script(f, { check: 'upToDate', checkMs: 1500 })
+    // Settings first, then the menu; the check held in flight until the menu has asked (its click runs in the main
+    // process, so it has asked once the evaluation returns)
+    script(f, { check: 'upToDate', holdCheck: true })
     await win.getByTestId('version-action').click()
     await expect(win.getByTestId('update-line')).toHaveText('Checking…')
     await clickMenuCheck(app)
+    script(f, { check: 'upToDate' })
     await expect(win.getByTestId('update-line')).toHaveText('You’re up to date')
     await expect.poll(toasts).toEqual([`ok: Agentshed is up to date (${version})`])
     expect(requests(f)).toEqual(['check', 'check'])
 
-    // The menu first, then settings
-    script(f, { check: 'fail', checkMs: 1500 })
+    // The menu first, then settings; the check held in flight until settings has asked. The window's requests reach
+    // the main process in order, so once a later one is answered, the click's own has arrived
+    script(f, { check: 'fail', holdCheck: true })
     await clickMenuCheck(app)
     await expect.poll(() => win.evaluate(() => window.agentshed.getUpdateState().then((s) => s.phase))).toBe('checking')
     await win.getByTestId('version-action').click()
+    await win.evaluate(() => window.agentshed.getSettingsCheck())
+    script(f, { check: 'fail' })
     await expect(win.getByTestId('update-line')).toHaveText('Couldn’t check for updates')
     await expect.poll(toasts).toEqual([`ok: Agentshed is up to date (${version})`, 'err: Couldn’t check for updates'])
     expect(requests(f)).toEqual(['check', 'check', 'check'])

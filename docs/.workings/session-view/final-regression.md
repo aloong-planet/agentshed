@@ -61,3 +61,60 @@ work state) and changed nothing further.
 Pre-delivery scope re-check: the current statements of the spec, the feature entries, the coverage checklist and
 the task list were compared with what #278 changed and what its runs produced (the gateways on 4dd8a6f and 1c51f4d,
 the targeted runs, the red runs); no missing item, and no done item resting on evidence that no longer holds.
+
+## Ticket #247 — the Codex-compressed session case collects a stderr chunk without the expected error code
+
+- Date: 2026-10-24
+- Scope: #247's change only, per ticket (not a closeout): `git diff 1349d76` on branch `fix/codex-compressed-stderr`:
+  one assertion in `e2e/app.spec.ts` that now carries the collected chunk as its message, and the records
+- Version: 78a05d0 for code and tests (the full gateway ran on it, `evidence/ticket-247/gateway-78a05d0.txt`); the
+  commits after it change records only, and the two repository-wide gates were run again at the delivered commit
+  (`evidence/ticket-247/gates-at-delivery.txt`)
+- Languages in the searched files: the session-view spec and feature entry and `CONTEXT.md` hold no Han characters; of
+  the feature entries only `docs/features/i18n.md` does (4, copy under test), and it is not in this ticket's scope, so
+  the searches below are English
+
+The two questions for the feature catalogue: **what became a lie** — nothing. The change is a test's failure message;
+no product code changed (`git diff --stat 1349d76 -- src` is empty). **What was missing** — nothing: no user-visible
+behaviour was added or changed. So `docs/features/` is unchanged. The cause was not found, so nothing in the spec, the
+coverage checklist or `CONTEXT.md` changes (D1 in `ticket-247-tasks.md`).
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `e2e/app.spec.ts`, the new comment "The chunk itself is the message: a failure says which line broke it" | the assertion beneath it (its message is the chunk); the planted run (`evidence/ticket-247/plant-line.txt`: the planted line is the failure's message) | True for every chunk the loop checks; which chunks it checks is D1's limit |
+| Spec, features, `CONTEXT.md`, ADRs, prototype | — | Row set empty: none changed; no cause was found to write down |
+
+### Stage 2: related declarations
+
+| Statement (unchanged file) | Its counterpart changed this round | Conclusion |
+|---|---|---|
+| Spec P6 (a failure on a first open shows the page's error state) and P7 (a file Codex compressed while its page was cached: P6 from the next snapshot, then the session reappears under its compressed identity) | the case's stderr assertion, now with a message | True, unchanged: the case's steps and what it asserts about the page are the same |
+| `docs/features/session-view.md`, lines 119–121 (a page left open while Codex compresses its file shows an error, and the session reappears under its compressed form) | the same | True, unchanged |
+| `checklist.md` | the same | It has no P6 or P7 row, and the assertion's meaning did not change, so no current-verification row is owed by this change |
+| The issue's acceptance items | the change and the runs | Item 1 met (`plant-line.txt`); item 3 met (CI, 40 of 40, `ci-repeat-39972027006.txt`); item 2 not met, by the owner's decision D1: the issue is closed as not planned after the merge, with the reason |
+| What the stderr check covers ↔ what guards it | no gate reads e2e assertions | Held by the case; its limit is written in D1 and the issue's closing comment |
+
+### Stage 3: events
+
+| Event | Lines checked | Conclusion |
+|---|---|---|
+| An enumerable dimension changed | `git diff --stat 1349d76 -- src` is empty; the e2e change adds no case | None |
+| Pending notes in scope | `rg -n 'Pending:' docs/specs/session-view.md CONTEXT.md`: none (exit 1) | None |
+| A rule written this round | none: the change is a message on one assertion | No new general rule needing a home |
+| A defect left unfixed | #247: the cause not found after the loops (`loop-attempts.txt`, `loop-under-load.txt`) and the CI repeat; the owner's decision to close it as not reproducible | Recorded in D1; #247 closes as not planned after the merge with a comment carrying D1's limit |
+| The review findings (the code review, none; the post-implementation check F1–F3) | the task list, the evidence notes, the document sync checklist | Each handled in place (the review record's handling section) |
+| Work state | #247's issue (records and process acceptance declared); the document sync checklist; the task list; other records naming #247 (`rg -uu -l '#247' docs README.md README.en.md CONTEXT.md`: this folder's records and evidence, and two mentions of #247 as an example of a flaky-case ticket in `../memory-view/ticket-294-review-tests.md` and `../macos-release-line/ticket-234-review-code.md`, dated) | Updated where they state this ticket's current state; the dated mentions stay true: kept |
+
+### Convergence
+
+Every row above was processed. Text changed by the regression: none beyond the records this ticket already changes.
+
+Pre-delivery scope re-check (2026-10-24): the change's facts — the assertion's message, the loops, the CI repeat, the
+owner's decisions — against the task list, the reviews, the document sync checklist and this report. Differences found
+and handled: the document sync checklist's first row, which waited on the cause ("whatever the cause turns out to be",
+targeting the checklist's verification for P6 and P7), no longer applies — the cause was not found and the issue is
+closed as not reproducible (D1), and `checklist.md` has no P6 or P7 row to update — so it is removed from the current
+items, not marked done; D1's sentence on what a later failure prints, narrowed to the chunks the check reads (F1).
+

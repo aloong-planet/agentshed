@@ -1,0 +1,12 @@
+# #254 the changed case, five times, 2026-10-23, macOS, on the build with the hold
+# command: pnpm -s exec playwright test e2e/app-update.spec.ts -g "an open message follows the progress" --repeat-each=5
+
+Running 5 tests using 1 worker
+
+  ✓  1 e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (1.6s)
+  ✓  2 e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (1.6s)
+  ✓  3 e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (1.5s)
+  ✓  4 e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (1.6s)
+  ✓  5 e2e/app-update.spec.ts:160:1 › an open message follows the progress of the download and stays anchored to the slot (REQ-001/AC-04) (1.6s)
+
+  5 passed (9.3s)

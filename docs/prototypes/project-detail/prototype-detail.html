@@ -52,7 +52,7 @@
        _shared/toast.css / toast.js), as a link in the main file does; [[name]] references stay plain text, a remark
        written straight after one included, and a placeholder like <slug> shows as written. The
        body's read states (loading, could not read, empty file) show inside the same frame.
-     演示基建(非设计的一部分,勿实现):底部悬浮条承载两组——「启动恢复」三档常驻(扫描中 / 完成 / 失败,
+     演示基建(非设计的一部分,勿实现):底部悬浮条承载三组——「启动恢复」三档常驻(扫描中 / 完成 / 失败,
        共享件 _shared/startup-status;真实判定 = 这次启动的扫描是否仍在进行与扫描的结果);「会话分栏」两态
        (有会话 / 空态)——真实判定来自该项目扫到的会话数;仅在会话分栏出现。「Memory file read」四态(read / loading /
        could not read / empty;真实判定 = 读取抽屉所开文件的结果)仅在 Memory 分栏出现。每组的真实判定与「app 内无此
@@ -162,7 +162,6 @@
   .m .nm2{width:140px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;flex:none}
   .m .tr{flex:1;height:7px;background:var(--line);border-radius:4px;overflow:hidden}
   .m .tr i{display:block;height:100%;background:var(--accent)}
-  .m.x .tr i{background:#3ba272}
   .m .num{width:64px;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--text-2)}
   .se{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid var(--line)}
   .se:first-child{border-top:0}

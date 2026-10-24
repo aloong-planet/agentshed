@@ -1,0 +1,74 @@
+# Repository-wide gates at the delivered tree — #247 (the post-implementation check's F2): every record staged, so both gates read them
+date: 2026-10-24T05:47:58Z
+git rev-parse HEAD: d6e80fdb2103a68212975a8ad77117f6539f6e61
+git status --porcelain --untracked-files=all:
+  M  docs/.workings/session-view/evidence/ticket-247/loop-under-load.txt c87a95e46f3ed2672b8af611bfd902729c4ded29
+  M  docs/.workings/session-view/final-regression.md 14e8e6c6e5e12b9c89d3a270d928743e50ff4adf
+  M  docs/.workings/session-view/ticket-247-doc-sync.md b7336d5866e2cdc45faea2aaec91c6d42e77f4c8
+  M  docs/.workings/session-view/ticket-247-review-tests.md 162f59015d7cc5ef9f01d6fb3a95a2e8470818fc
+  M  docs/.workings/session-view/ticket-247-tasks.md 24b1382fe39601535b35281ea2c69f31747144c3
+(end of status)
+
+## git ls-files --cached -- docs/.workings/session-view | wc -l
+      31
+## exit code of git ls-files --cached -- docs/.workings/session-view | wc -l: 0
+
+## pnpm check:lang
+
+> agentshed@0.1.0-beta check:lang /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-247
+> node --test scripts/check-lang.test.mjs && node scripts/check-lang.mjs
+
+✔ the seeds alone pass, one permitted line each (233.697708ms)
+✔ Chinese in the skill's copy docs/prototypes/index.html is reported like any other tooling (226.838334ms)
+✔ Chinese in the skill's copy docs/prototypes/app-identity.js is reported like any other tooling (225.619708ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-dimensions.js is reported like any other tooling (224.778208ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-harness.js is reported like any other tooling (232.02525ms)
+✔ Chinese in the skill's copy sync-mmd.mjs is reported, since .mjs is not an exempt type (229.46525ms)
+✔ Chinese stays permitted in a mockup page (226.0075ms)
+✔ Chinese stays permitted in a logic page that shares the gallery shell’s file name (229.206ms)
+✔ Chinese stays permitted in the manifest, whose names and questions address the reviewer (239.269833ms)
+✔ Chinese stays permitted in the dimension registry, whose labels address the reviewer (230.680833ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2346.761958
+✓ Working language: 2318 line(s) of Chinese, each permitted by a stated rule
+    rule · 1 file(s) · side-count detection patterns quote the languages they scan; pattern literals only, not prose
+    rule · 1 file(s) · the source-language dictionary — the values are the copy itself, while the comments are English like the rest of the repository
+    rule · 1 file(s) · the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English
+    rule · 16 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
+    rule · 3 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
+    rule · 38 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+    rule · 1 file(s) · the Chinese README — a localisation is written in the language it localises into
+    rule · 2 file(s) · the language switcher rows and the selector list — a language is named in its own script
+## exit code of pnpm check:lang: 0
+
+## pnpm check:nul
+
+> agentshed@0.1.0-beta check:nul /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-247
+> node --test scripts/check-raw-nul.test.mjs && node scripts/check-raw-nul.mjs
+
+✔ accepts real PNG and ICNS artwork under new filenames (206.583916ms)
+✔ rejects NUL-bearing source even alongside valid artwork (112.85925ms)
+✔ does not exempt unrecognised content in pretend.png (72.013041ms)
+✔ does not exempt unrecognised content in pretend.icns (77.907042ms)
+✔ does not exempt unrecognised content in binary.dat (70.729ms)
+✔ accepts searchable source with an escaped NUL (117.33325ms)
+✔ rejects a NUL in a new file that is not staged yet (115.149417ms)
+✔ does not scan a git-ignored file, such as build output (117.012625ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 940.863959
+✓ Raw NUL bytes: none in 902 file(s) (120 binary-format file(s) exempt by signature)
+## exit code of pnpm check:nul: 0
+
+TARGETED_EXIT=0

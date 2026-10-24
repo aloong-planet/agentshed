@@ -1,0 +1,423 @@
+# #299 feedback loop, 2026-10-23, macOS, built at 1349d76
+# A throwaway copy of the startup-restore case's rollover step (e2e/zz-diag-299.spec.ts, deleted before any commit): today's card shows 2k, the page's clock is installed at 2030-01-01T00:30Z and fast-forwarded 61 s, and the card must read 0.
+# Knobs: DIAG_POLL (Node-side 10 ms polling of the card), DIAG_PRE_MS / DIAG_MID_MS (a pause before / after the install), DIAG_RATE (CDP CPU throttling), DIAG_HOLD (the page's main thread held through the debugger from 600 ms after the fast-forward for 700 ms), DIAG_TIMEOUT (the step's window; the case uses 1000).
+# The copy gained its knobs as the loop was built; each defaults to off, so this final file reproduces every run below with that run's own settings.
+# The first DIAG_PRE_MS/DIAG_MID_MS attempt (not kept) never set the variables (zsh does not split an unquoted string); the runs below set them one by one.
+
+## the throwaway case
+// DIAG-299: throwaway feedback loop for #299, deleted before any commit. The startup-restore case's rollover step
+// alone: today's card shows 2k, the page's clock is installed at 00:30 and fast-forwarded past a minute, and the card
+// must read 0. DIAG_RATE throttles the page's CPU (CDP), DIAG_TIMEOUT is the step's window (the case uses 1000).
+import type {} from '../src/renderer/src/env'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { test, expect, _electron as electron } from '@playwright/test'
+
+const RATE = Number(process.env.DIAG_RATE ?? '1')
+const TIMEOUT = Number(process.env.DIAG_TIMEOUT ?? '1000')
+
+test(`DIAG-299 rollover, CPU x${RATE}, window ${TIMEOUT}ms`, async () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentshed-restore-home-'))
+  const userData = mkdtempSync(join(tmpdir(), 'agentshed-restore-data-'))
+  const proj = join(home, 'restore-project')
+  mkdirSync(proj)
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ projects: { [proj]: {} } }))
+  const cdir = join(home, '.claude', 'projects', proj.replace(/[^a-zA-Z0-9]/g, '-'))
+  mkdirSync(cdir, { recursive: true })
+  const timestamp = new Date().toISOString()
+  writeFileSync(join(cdir, 'saved.jsonl'), [
+    { type: 'user', timestamp, message: { role: 'user', content: 'Saved question' } },
+    { type: 'assistant', timestamp, message: { model: 'claude-fable-5', content: [{ type: 'text', text: 'Saved answer' }], usage: { input_tokens: 1200, output_tokens: 300, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
+  ].map(x => JSON.stringify(x)).join('\n') + '\n')
+  const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`], env: {
+    ...process.env, NODE_ENV: 'production', AGENTSHED_HOME_OVERRIDE: home, AGENTSHED_NO_FOREGROUND: '1', AGENTSHED_SYSTEM_LANGUAGES: 'en-US'
+  } })
+  try {
+    const win = await app.firstWindow()
+    await win.locator('.rail .ri').nth(0).click()
+    await expect(win.locator('.tot-c').nth(1)).toContainText('2k')
+    const cdp = await win.context().newCDPSession(win)
+    if (RATE > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: RATE })
+    await new Promise((r) => setTimeout(r, Number(process.env.DIAG_PRE_MS ?? '0')))
+    await win.clock.install({ time: new Date('2030-01-01T00:30:00Z') })
+    await new Promise((r) => setTimeout(r, Number(process.env.DIAG_MID_MS ?? '0')))
+    await win.clock.fastForward(61_000)
+    const t0 = Date.now()
+    if (process.env.DIAG_HOLD) {
+      // Hold the page's main thread through the debugger from 600 ms after the fast-forward for 700 ms, as a
+      // loaded machine would: the display clock's tick, due about 900 ms after, runs late
+      await cdp.send('Debugger.enable')
+      setTimeout(() => {
+        void cdp.send('Debugger.pause').then(() => new Promise((r) => setTimeout(r, 700))).then(() => cdp.send('Debugger.resume')).catch(() => {})
+      }, 600)
+    }
+    if (process.env.DIAG_POLL) {
+      // Node-side polling every 10 ms (real timers), independent of how Playwright's assertion retries
+      const card = win.locator('.tot-c').nth(1).locator('.v')
+      let text = await card.textContent()
+      while (text !== '0' && Date.now() - t0 < 10_000) { await new Promise((r) => setTimeout(r, 10)); text = await card.textContent() }
+      console.log(`[DIAG-299] node poll: card read ${text} ${Date.now() - t0}ms after the fast-forward`)
+    }
+    try {
+      await expect(win.locator('.tot-c').nth(1).locator('.v')).toHaveText('0', { timeout: TIMEOUT })
+    } finally {
+      console.log(`[DIAG-299] CPU x${RATE}: card read ${await win.locator('.tot-c').nth(1).locator('.v').textContent()} ${Date.now() - t0}ms after the fast-forward`)
+    }
+    await cdp.detach()
+  } finally {
+    await app.close()
+    rmSync(home, { recursive: true, force: true })
+    rmSync(userData, { recursive: true, force: true })
+  }
+})
+
+## d299-measure
+# DIAG_RATE=1 DIAG_TIMEOUT=10000 --repeat-each=10
+Downloading Electron binary...
+node_modules/.cache/electron-quiet/dist/Electron.app: replacing existing signature
+quiet-electron: copy ready (43.2.0)
+
+Running 10 tests using 1 worker
+
+[DIAG-299] CPU x1: card read 0 1306ms after the fast-forward
+  ✓   1 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (6.1s)
+[DIAG-299] CPU x1: card read 0 1302ms after the fast-forward
+  ✓   2 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (2.1s)
+[DIAG-299] CPU x1: card read 0 1309ms after the fast-forward
+  ✓   3 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (2.1s)
+[DIAG-299] CPU x1: card read 0 1306ms after the fast-forward
+  ✓   4 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (2.1s)
+[DIAG-299] CPU x1: card read 0 1297ms after the fast-forward
+  ✓   5 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (2.0s)
+[DIAG-299] CPU x1: card read 0 1304ms after the fast-forward
+  ✓   6 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (2.1s)
+[DIAG-299] CPU x1: card read 0 1299ms after the fast-forward
+  ✓   7 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (2.1s)
+[DIAG-299] CPU x1: card read 0 1304ms after the fast-forward
+  ✓   8 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (2.1s)
+[DIAG-299] CPU x1: card read 0 1307ms after the fast-forward
+  ✓   9 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (2.1s)
+[DIAG-299] CPU x1: card read 0 1303ms after the fast-forward
+  ✓  10 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (2.2s)
+
+  10 passed (29.4s)
+
+## d299-poll
+# DIAG_POLL=1 DIAG_TIMEOUT=10000 --repeat-each=10
+
+Running 10 tests using 1 worker
+
+[DIAG-299] node poll: card read 0 902ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 908ms after the fast-forward
+  ✓   1 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 900ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 907ms after the fast-forward
+  ✓   2 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 913ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 918ms after the fast-forward
+  ✓   3 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 922ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 928ms after the fast-forward
+  ✓   4 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 912ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 918ms after the fast-forward
+  ✓   5 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 912ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 916ms after the fast-forward
+  ✓   6 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 918ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 924ms after the fast-forward
+  ✓   7 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 908ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 914ms after the fast-forward
+  ✓   8 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 922ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 927ms after the fast-forward
+  ✓   9 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 921ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 926ms after the fast-forward
+  ✓  10 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+
+  10 passed (20.0s)
+
+## d299-pre300
+# DIAG_PRE_MS=300 DIAG_POLL=1 DIAG_TIMEOUT=10000 --repeat-each=3
+
+Running 3 tests using 1 worker
+
+[DIAG-299] node poll: card read 0 661ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 665ms after the fast-forward
+  ✓  1 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 605ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 609ms after the fast-forward
+  ✓  2 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 613ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 618ms after the fast-forward
+  ✓  3 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+
+  3 passed (6.0s)
+
+## d299-pre600
+# DIAG_PRE_MS=600 DIAG_POLL=1 DIAG_TIMEOUT=10000 --repeat-each=3
+
+Running 3 tests using 1 worker
+
+[DIAG-299] node poll: card read 0 297ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 302ms after the fast-forward
+  ✓  1 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 330ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 335ms after the fast-forward
+  ✓  2 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 300ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 306ms after the fast-forward
+  ✓  3 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+
+  3 passed (6.0s)
+
+## d299-mid300
+# DIAG_MID_MS=300 DIAG_POLL=1 DIAG_TIMEOUT=10000 --repeat-each=3
+
+Running 3 tests using 1 worker
+
+[DIAG-299] node poll: card read 0 607ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 612ms after the fast-forward
+  ✓  1 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 614ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 620ms after the fast-forward
+  ✓  2 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 617ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 622ms after the fast-forward
+  ✓  3 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+
+  3 passed (6.0s)
+
+## d299-mid600
+# DIAG_MID_MS=600 DIAG_POLL=1 DIAG_TIMEOUT=10000 --repeat-each=3
+
+Running 3 tests using 1 worker
+
+[DIAG-299] node poll: card read 0 310ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 316ms after the fast-forward
+  ✓  1 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 318ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 324ms after the fast-forward
+  ✓  2 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+[DIAG-299] node poll: card read 0 293ms after the fast-forward
+[DIAG-299] CPU x1: card read 0 298ms after the fast-forward
+  ✓  3 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 10000ms (1.7s)
+
+  3 passed (6.0s)
+
+## d299-red
+# DIAG_RATE=6 DIAG_TIMEOUT=1000 --repeat-each=3
+
+Running 3 tests using 1 worker
+
+[DIAG-299] CPU x6: card read 0 966ms after the fast-forward
+  ✓  1 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x6, window 1000ms (1.8s)
+[DIAG-299] CPU x6: card read 0 977ms after the fast-forward
+  ✓  2 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x6, window 1000ms (1.8s)
+[DIAG-299] CPU x6: card read 0 885ms after the fast-forward
+  ✓  3 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x6, window 1000ms (1.8s)
+
+  3 passed (6.3s)
+
+## d299-red20
+# DIAG_RATE=20 DIAG_TIMEOUT=1000 --repeat-each=3
+
+Running 3 tests using 1 worker
+
+[DIAG-299] CPU x20: card read 0 931ms after the fast-forward
+  ✓  1 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x20, window 1000ms (1.9s)
+[DIAG-299] CPU x20: card read 0 923ms after the fast-forward
+  ✓  2 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x20, window 1000ms (1.8s)
+[DIAG-299] CPU x20: card read 0 929ms after the fast-forward
+  ✓  3 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x20, window 1000ms (1.9s)
+
+  3 passed (6.5s)
+
+## d299-red-phase
+# DIAG_PRE_MS=950 DIAG_TIMEOUT=1000 --repeat-each=3
+
+Running 3 tests using 1 worker
+
+[DIAG-299] CPU x1: card read 0 10ms after the fast-forward
+  ✓  1 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms (1.7s)
+[DIAG-299] CPU x1: card read 0 1007ms after the fast-forward
+  ✘  2 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms (2.7s)
+[DIAG-299] CPU x1: card read 0 1008ms after the fast-forward
+  ✘  3 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms (2.7s)
+
+
+  1) e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms ───────────────────────
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  locator('.tot-c').nth(1).locator('.v')
+    Expected: "0"
+    Received: "2k"
+    Timeout:  1000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 1000ms
+      - waiting for locator('.tot-c').nth(1).locator('.v')
+        11 × locator resolved to <div class="v">2k</div>
+           - unexpected value "2k"
+
+
+      46 |     }
+      47 |     try {
+    > 48 |       await expect(win.locator('.tot-c').nth(1).locator('.v')).toHaveText('0', { timeout: TIMEOUT })
+         |                                                                ^
+      49 |     } finally {
+      50 |       console.log(`[DIAG-299] CPU x${RATE}: card read ${await win.locator('.tot-c').nth(1).locator('.v').textContent()} ${Date.now() - t0}ms after the fast-forward`)
+      51 |     }
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-299/e2e/zz-diag-299.spec.ts:48:64
+
+    Error Context: test-results/zz-diag-299-DIAG-299-rollover-CPU-x1-window-1000ms-repeat1/error-context.md
+
+  2) e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms ───────────────────────
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  locator('.tot-c').nth(1).locator('.v')
+    Expected: "0"
+    Received: "2k"
+    Timeout:  1000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 1000ms
+      - waiting for locator('.tot-c').nth(1).locator('.v')
+        11 × locator resolved to <div class="v">2k</div>
+           - unexpected value "2k"
+
+
+      46 |     }
+      47 |     try {
+    > 48 |       await expect(win.locator('.tot-c').nth(1).locator('.v')).toHaveText('0', { timeout: TIMEOUT })
+         |                                                                ^
+      49 |     } finally {
+      50 |       console.log(`[DIAG-299] CPU x${RATE}: card read ${await win.locator('.tot-c').nth(1).locator('.v').textContent()} ${Date.now() - t0}ms after the fast-forward`)
+      51 |     }
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-299/e2e/zz-diag-299.spec.ts:48:64
+
+    Error Context: test-results/zz-diag-299-DIAG-299-rollover-CPU-x1-window-1000ms-repeat2/error-context.md
+
+  2 failed
+    e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms ────────────────────────
+    e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms ────────────────────────
+  1 passed (8.1s)
+
+## d299-hold-1000
+# DIAG_HOLD=1 DIAG_TIMEOUT=1000 --repeat-each=3
+
+Running 3 tests using 1 worker
+
+[DIAG-299] CPU x1: card read 2k 1352ms after the fast-forward
+  ✘  1 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms (2.2s)
+[DIAG-299] CPU x1: card read 2k 1344ms after the fast-forward
+  ✘  2 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms (2.1s)
+[DIAG-299] CPU x1: card read 2k 1347ms after the fast-forward
+  ✘  3 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms (2.1s)
+
+
+  1) e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms ───────────────────────
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  locator('.tot-c').nth(1).locator('.v')
+    Expected: "0"
+    Received: "2k"
+    Timeout:  1000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 1000ms
+      - waiting for locator('.tot-c').nth(1).locator('.v')
+        7 × locator resolved to <div class="v">2k</div>
+          - unexpected value "2k"
+
+
+      54 |     }
+      55 |     try {
+    > 56 |       await expect(win.locator('.tot-c').nth(1).locator('.v')).toHaveText('0', { timeout: TIMEOUT })
+         |                                                                ^
+      57 |     } finally {
+      58 |       console.log(`[DIAG-299] CPU x${RATE}: card read ${await win.locator('.tot-c').nth(1).locator('.v').textContent()} ${Date.now() - t0}ms after the fast-forward`)
+      59 |     }
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-299/e2e/zz-diag-299.spec.ts:56:64
+
+    Error Context: test-results/zz-diag-299-DIAG-299-rollover-CPU-x1-window-1000ms/error-context.md
+
+  2) e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms ───────────────────────
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  locator('.tot-c').nth(1).locator('.v')
+    Expected: "0"
+    Received: "2k"
+    Timeout:  1000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 1000ms
+      - waiting for locator('.tot-c').nth(1).locator('.v')
+        8 × locator resolved to <div class="v">2k</div>
+          - unexpected value "2k"
+
+
+      54 |     }
+      55 |     try {
+    > 56 |       await expect(win.locator('.tot-c').nth(1).locator('.v')).toHaveText('0', { timeout: TIMEOUT })
+         |                                                                ^
+      57 |     } finally {
+      58 |       console.log(`[DIAG-299] CPU x${RATE}: card read ${await win.locator('.tot-c').nth(1).locator('.v').textContent()} ${Date.now() - t0}ms after the fast-forward`)
+      59 |     }
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-299/e2e/zz-diag-299.spec.ts:56:64
+
+    Error Context: test-results/zz-diag-299-DIAG-299-rollover-CPU-x1-window-1000ms-repeat1/error-context.md
+
+  3) e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms ───────────────────────
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  locator('.tot-c').nth(1).locator('.v')
+    Expected: "0"
+    Received: "2k"
+    Timeout:  1000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 1000ms
+      - waiting for locator('.tot-c').nth(1).locator('.v')
+        8 × locator resolved to <div class="v">2k</div>
+          - unexpected value "2k"
+
+
+      54 |     }
+      55 |     try {
+    > 56 |       await expect(win.locator('.tot-c').nth(1).locator('.v')).toHaveText('0', { timeout: TIMEOUT })
+         |                                                                ^
+      57 |     } finally {
+      58 |       console.log(`[DIAG-299] CPU x${RATE}: card read ${await win.locator('.tot-c').nth(1).locator('.v').textContent()} ${Date.now() - t0}ms after the fast-forward`)
+      59 |     }
+        at /Users/loong_zhou/CascadeProjects/agentshed-wt/flaky-299/e2e/zz-diag-299.spec.ts:56:64
+
+    Error Context: test-results/zz-diag-299-DIAG-299-rollover-CPU-x1-window-1000ms-repeat2/error-context.md
+
+  3 failed
+    e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms ────────────────────────
+    e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms ────────────────────────
+    e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 1000ms ────────────────────────
+
+## d299-hold-5000
+# DIAG_HOLD=1 DIAG_TIMEOUT=5000 --repeat-each=3
+
+Running 3 tests using 1 worker
+
+[DIAG-299] CPU x1: card read 0 1850ms after the fast-forward
+  ✓  1 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 5000ms (2.6s)
+[DIAG-299] CPU x1: card read 0 1852ms after the fast-forward
+  ✓  2 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 5000ms (2.7s)
+[DIAG-299] CPU x1: card read 0 1853ms after the fast-forward
+  ✓  3 e2e/zz-diag-299.spec.ts:13:1 › DIAG-299 rollover, CPU x1, window 5000ms (2.6s)
+
+  3 passed (8.8s)

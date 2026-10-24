@@ -171,3 +171,43 @@ The queue is resolved for this visual amendment; this is not a new whole-feature
 | Prototype confirmation | Applied the approved selected underline. No new options, Pending resolution or global rule. |
 
 Scope complete: one CSS property, corresponding approved prototype, current requirement and feature copy.
+
+## Ticket #299 — Flaky e2e: startup restore's today card misses its one-second rollover window under load
+
+- Date: 2026-10-23
+- Scope: this ticket's change only, `git diff 1349d76` on branch `fix/today-card-rollover-window` (251e3f7 the step and
+  its records; the records and the step 7 write-back after it)
+- Version: 251e3f7 for the test (the full gateway ran on it); the commits after it change documents only
+
+The two questions for the feature catalogue: **what became a lie** — nothing; only an e2e step's window changed, and
+the token-stats entry's sentence on crossing midnight ("including across midnight and time-zone changes") describes the
+same behaviour. **What was missing** — nothing. `docs/features/` is unchanged.
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `docs/specs/token-stats.md`, REQ-001's note on the fake clock in e2e | `DisplayClock.tsx:9` (the timer set at mount); the measurements (`evidence/ticket-299/feedback-loop.txt`: the turn moves with a pause before or after the install, so a real timer drives it) | True |
+| The step's comment in `e2e/startup-restore.spec.ts` | the same; the renderer's only wall-clock reads (`DisplayClock.tsx:6`, `:8`); the rescan's 300 s default (`src/main/index.ts:703`) | True |
+| ADRs, CONTEXT, the prototype | — | Row sets empty: no decision, term or interface change |
+| The coverage checklist's new current-verification row | `gateway-251e3f7.txt`, `after-change.txt`, `plant-clock-stretched.txt` | True |
+
+### Stage 2: related declarations
+
+| Relation | Rows | Conclusion |
+|---|---|---|
+| File ↔ its index row | `docs/specs/README.md` (token-stats), `docs/features/README.md` (the token statistics entry) | Unchanged and true |
+| Rule ↔ template and generated documents | — | Row set empty |
+| One fact ↔ its other statements: the step's window | every statement of a one-second turn (`rg -uu -n -i "within (a\|one) second\|1,000 ms\|1000 ?ms" docs/specs docs/features CONTEXT.md`) | None states a time for the turn |
+| One fact ↔ its other statements: the display clock ticks once a second | `DisplayClock.tsx`, the spec's REQ-001 note | Agree |
+| Rule ↔ the gate that holds it | — | Row set empty: no rule this round is gate-held |
+
+### Stage 3: events
+
+| Event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed | — | Row set empty: no enumerable set changed |
+| `Pending:` notes in scope | `rg -n "Pending:" docs/specs/token-stats.md`: none | Row set empty |
+| New general rules this round | a page timer created before Playwright's fake clock keeps real time | Canonical home: the spec's REQ-001 note |
+| The owner's decision on the case's other short windows (D2 in the task list) | the test review's Coverage; the task list | Recorded in both |
+| Work state changed | #299's issue (its records and process acceptance, declared 2026-10-23); the coverage checklist; the document sync checklist; the task list; other records that mention #299 (`rg -uu -n "#299" docs CONTEXT.md`: `memory-view/ticket-294-tasks.md:159`, a dated note that the issue was opened) | Updated where they state this ticket's current state; the dated note stays true: kept |
