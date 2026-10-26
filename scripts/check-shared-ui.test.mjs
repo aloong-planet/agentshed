@@ -13,9 +13,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repo = fileURLToPath(new URL('..', import.meta.url))
@@ -107,6 +107,14 @@ const NAMED_IN_A_COMMENT = {
   'docs/prototypes/project-list/prototype-list.html': '_shared/project-side.js'
 }
 
+/** A plant or a file change must land in the tree's copied part: everything else in the tree links to the repository,
+ * so a change there would write the repository's own file */
+function assertInCopy(root, path) {
+  const file = join(root, path)
+  const real = realpathSync(existsSync(file) ? file : dirname(file))
+  assert.ok(real.startsWith(realpathSync(root) + sep), `${path}: not in the tree's copied part (docs/prototypes/, src/) — a change there would write the repository`)
+}
+
 /** Run the gate on a planted copy; returns its exit code and output */
 function runGate() {
   const root = mkdtempSync(join(tmpdir(), 'agentshed-shared-ui-'))
@@ -119,6 +127,7 @@ function runGate() {
     mkdirSync(join(root, 'scripts'))
     cpSync(join(repo, 'scripts/check-shared-ui.mjs'), join(root, 'scripts/check-shared-ui.mjs'))
     for (const [path, swaps] of Object.entries(PLANTS)) {
+      assertInCopy(root, path)
       const file = join(root, path)
       let text = readFileSync(file, 'utf8')
       for (const [from, to] of swaps) {
@@ -130,6 +139,7 @@ function runGate() {
       writeFileSync(file, text)
     }
     for (const [path, content] of Object.entries(FILES)) {
+      assertInCopy(root, path)
       if (content === null) rmSync(join(root, path))
       else writeFileSync(join(root, path), content, { flag: 'wx' })
     }

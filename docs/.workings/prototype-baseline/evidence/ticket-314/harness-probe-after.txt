@@ -1,0 +1,15 @@
+# The same probe with the guard (2026-10-26; HEAD b23997e with the guard uncommitted, test 0934b8b6ddc2)
+$ diff <the test> <the probe copy>
+100c100,102
+<   'docs/prototypes/_shared/startup-skeleton.css': null
+---
+>   'docs/prototypes/_shared/startup-skeleton.css': null,
+>   // probe: a file under a linked directory
+>   'docs/adr/zz-harness-probe.md': 'probe\n'
+$ node --test <copy>/scripts/check-shared-ui.test.mjs
+exit=1
+AssertionError [ERR_ASSERTION]: docs/adr/zz-harness-probe.md: not in the tree's copied part (docs/prototypes/, src/) — a change there would write the repository
+ℹ pass 0
+ℹ fail 1
+$ ls -A <scratch>/docs/adr (where the probe lands through the link)
+(end of listing)

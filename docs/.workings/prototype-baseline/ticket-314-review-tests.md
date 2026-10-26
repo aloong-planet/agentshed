@@ -88,3 +88,21 @@ grows by `src/` (1.9 MB). No other test builds a tree of the prototypes (`rg -n 
 ### Findings
 
 None.
+
+### Incremental review — the code review's finding 1 (2026-10-26; implementation at b23997e)
+
+Recorded after the guard was written, not before (the order slip is noted in the code review); reviewed here as if
+before. No case changes; the set-up gains one assertion.
+
+| # | Test | Unit | Input that drives the branch | Assertion and where the expected value comes from | Fixture shape | Expensive resource |
+|---|---|---|---|---|---|---|
+| Set-up (changed) | every plant and file change lands in the tree's copied part | all (the harness's safety) | each `PLANTS` and `FILES` path, resolved with `realpathSync` (the file, or its directory for a file to add) | the resolved path lies inside the temporary tree; otherwise the run stops with `<path>: not in the tree's copied part (docs/prototypes/, src/) — a change there would write the repository`. Expected: a path the tree links resolves into the repository | the test's own plants | as G0 |
+
+Coverage: the guard has two outcomes. Inside the copy: every current plant (23 cases green, `green-2.txt`). Outside:
+a probe entry under `docs/adr/`, in a scratch tree, stops the run at that path and writes nothing
+(`harness-probe-after.txt`); without the guard the same entry lands through the link with every case green
+(`harness-probe-before.txt`). The probe is not a permanent case: driving it in the test would need a tree whose linked
+part is scratch, which the test's own tree is not.
+
+False greens: the assertion runs before each write, so a plant cannot write first and fail after. Resource reuse:
+unchanged. Findings: none.

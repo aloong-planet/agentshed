@@ -1,0 +1,15 @@
+# The harness writing through a link, before the guard (2026-10-26; the test at HEAD b23997e, 371e062ddbab)
+$ diff <the test> <the probe copy>
+100c100,102
+<   'docs/prototypes/_shared/startup-skeleton.css': null
+---
+>   'docs/prototypes/_shared/startup-skeleton.css': null,
+>   // probe: a file under a linked directory
+>   'docs/adr/zz-harness-probe.md': 'probe\n'
+$ node --test <copy>/scripts/check-shared-ui.test.mjs
+exit=0
+ℹ pass 23
+ℹ fail 0
+$ ls -A <scratch>/docs/adr (where the probe lands through the link)
+zz-harness-probe.md
+(end of listing)
