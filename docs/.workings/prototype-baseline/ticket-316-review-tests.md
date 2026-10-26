@@ -77,7 +77,7 @@ renamed (`SIDE_LONG_NAME`, `SIDE_BRIEF_NAME`, `SIDE_TAG_LABEL`); in `index.ts`, 
 | X4 | `LANGUAGES` renamed | 316::9 | as named | `src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it` | as X1 | as X0 |
 | X5, X6 | the themes and the default renamed | 316::9 | as named | `src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it`; `… DEFAULT_THEME is missing or empty — the default theme comes from it` | as X1 | as X0 |
 | X7 | `ITEMS` emptied | 316::9 | `const ITEMS = [], OLD_ITEMS = [` | `docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it`. Drives the empty branch, X1–X6 the missing one | an empty array literal | as X0 |
-| X8, X9 | the colour families renamed away | 316::9 | the two global patterns on `theme.css` | `src/renderer/src/theme.css: no --p-* value — the brand colours come from them`; `src/renderer/src/theme.css: no --accent family value — the accent colours come from them` | the sheet with its names changed | as X0 |
+| X8, X9 | the colour families renamed away | 316::9 | the two global patterns on `theme.css` | `src/renderer/src/theme.css: no --p-* value — the provider colours come from them` (renamed from "the brand colours" after step 8's search: CONTEXT avoids the term); `src/renderer/src/theme.css: no --accent family value — the accent colours come from them` | the sheet with its names changed | as X0 |
 | X10 | no README at the root | 316::9 | both copied READMEs removed | `no README*.md at the root — the README rule reads them` | — | as X0 |
 
 The existing cases are unchanged; T3's plant on `theme.css` and the plants of this round on the same file are swaps on

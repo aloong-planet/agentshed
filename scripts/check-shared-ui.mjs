@@ -326,7 +326,7 @@ function themeHexValues(prefix, what) {
   if (values.size === 0) SOURCE_PROBLEMS.push(`src/renderer/src/theme.css: no ${prefix === '--p-' ? '--p-*' : `${prefix} family`} value — ${what}`)
   return [...values]
 }
-const BRAND_COLOURS = themeHexValues('--p-', 'the brand colours come from them')
+const PROVIDER_COLOURS = themeHexValues('--p-', 'the provider colours come from them')
 const ACCENT_COLOURS = themeHexValues('--accent', 'the accent colours come from them')
 
 /** The READMEs: every README*.md at the root */
@@ -464,7 +464,7 @@ const GLOBAL_RULES = [
     // an exhaustive set — the side set grows, and an enumerated sentence becomes a lie in every
     // language at once on a surface no onboarding diff touches (it happened twice in one round).
     // Copy whose surface genuinely judges only some sides today is allow-listed by dictionary key,
-    // each entry carrying the reason and the ticket that retires it.
+    // each entry carrying the reason it may name them.
     name: 'dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)',
     check() {
       const bad = []
@@ -598,13 +598,13 @@ const GLOBAL_RULES = [
     }
   },
   {
-    // The provider colours are every --p-* value in theme.css, light and dark (BRAND_COLOURS)
-    name: 'provider brand colours must not be hard-coded in components (use CSS variables)',
+    // The provider colours are every --p-* value in theme.css, light and dark (PROVIDER_COLOURS)
+    name: 'provider colours must not be hard-coded in components (use CSS variables)',
     check() {
       const bad = []
       for (const f of rendererSources()) {
         const src = (read(f) ?? '').toLowerCase()
-        for (const c of BRAND_COLOURS) if (src.includes(c)) bad.push(`${f}: hard-coded ${c}`)
+        for (const c of PROVIDER_COLOURS) if (src.includes(c)) bad.push(`${f}: hard-coded ${c}`)
       }
       return bad
     }

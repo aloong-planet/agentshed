@@ -577,8 +577,8 @@ _Avoid_: beta mode, insider track, update track
   (the totals card's "both sides", the scanning state's "Claude Code / Codex"), and the rule had
   already been written down — in a prototype comment, where it constrained nobody. Enforced by a
   shared-UI check over the dictionaries; copy that must enumerate (because its surface genuinely
-  judges only those sides today) is allow-listed there by dictionary key with the reason and the
-  ticket that retires it.
+  judges only those sides today) is allow-listed there by dictionary key with the reason it may name
+  them.
 
 - **Non-printing characters are written as escapes in source, never as raw bytes (settled
   2026-08-13)**: `\x00` rather than a literal NUL. Identical at runtime; the difference is that a raw

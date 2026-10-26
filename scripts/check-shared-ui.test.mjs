@@ -479,7 +479,7 @@ for (const line of [
   'src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it',
   'src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it',
   'docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it',
-  'src/renderer/src/theme.css: no --p-* value — the brand colours come from them',
+  'src/renderer/src/theme.css: no --p-* value — the provider colours come from them',
   'src/renderer/src/theme.css: no --accent family value — the accent colours come from them',
   'no README*.md at the root — the README rule reads them'
 ]) {

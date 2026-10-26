@@ -95,3 +95,18 @@ Rescan of ③ and ④, findings 1 and 2 being in the fact layers: ③ — no fin
 new input. ④ — no finding: `elementsOf` and `entriesOf` name what they return; `mirrored`'s one check now serves every
 list, which removes the side names' own copy of it; `appSources` keeps its existing stop while `rendererSources` throws
 on a missing directory, as the accent and chip rules did before this change. Refactor list unchanged.
+
+### Found after the review, at step 8's searches (2026-10-26)
+
+4. **New names use a term the glossary avoids** (④, class). CONTEXT's **Side colour** entry avoids "brand colour"
+   ("these are ours, not the vendors'"); this change named its list `BRAND_COLOURS` and its report "the brand colours
+   come from them", and kept the provider colour rule's name "provider brand colours". Class check: every `_Avoid_`
+   term in CONTEXT (46 entries) against the lines this change adds to `scripts/`: "brand colour" in those three places;
+   `Locale` (the dictionaries' own type name, copied from `en.ts`) and `symlinkSync` (the file system's call, not a
+   project install) are not the avoided senses. Fix: `PROVIDER_COLOURS`, "the provider colours come from them", the
+   rule named "provider colours must not be hard-coded in components"; X8's expected line follows.
+5. **The side-enumeration rule's comment, and CONTEXT's invariant, describe a field the allow-list lost** (①, missed
+   in the review's comment check, which took only the comments this change wrote). Both say each allow-listed key
+   carries "the ticket that retires it"; the entries named #126 when written (63a6c23) and name spec agents-overview G2
+   or nothing since (98b56ef, `git log -S`). Fix: "each entry carrying the reason it may name them", in the comment
+   and in `CONTEXT.md:580`.

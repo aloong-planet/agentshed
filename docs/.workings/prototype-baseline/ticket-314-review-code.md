@@ -70,7 +70,8 @@ tree's copies (finding 1).
   keys and the rail rule's `EXEMPT` keys — are not checked against the dictionaries, so an entry for a removed key
   would exempt a future key of the same name. Impact: one copy check skipped for that future key. Recommendation: no
   change — both lists name long-standing keys, and a stale entry needs a later key reusing the exact name to bite.
-  Reported to the owner with the delivery; no persistent home unless the owner wants a ticket.
+  Reported to the owner with the delivery. The owner's decision (2026-10-26): no change for these two; the gate's
+  lists that mirror a set the product grows went to #316.
 
 Refactor list: none.
 
