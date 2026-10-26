@@ -71,6 +71,13 @@ gate and its test.
 | 5 | Targeted verification | `evidence/ticket-316/targeted*.txt` | done: `targeted-2.txt` — typecheck, lint, `check:ui` (54 cases, then the gate) and `check-lang`'s test (the search's one other test naming the gate) each exit 0. `targeted.txt`, the first run, failed lint on `site/` files only: the new worktree had not installed `site/`'s own dependencies |
 | 6 | Code review | `ticket-316-review-code.md` | done: findings 1 (a comment naming a cause that is not one), 2 (a source member the reader cannot read dropped in silence; seven lists) and 3 (the renderer rules reading only the directory's top level; two listings), fixed with cases U1–U3 and Sub, red first on e7d6f5a; targeted again, `targeted-3.txt`. Found at step 8's searches: findings 4 (new names using the glossary's avoided "brand colour") and 5 (the allow-list's "ticket that retires it", in the gate's comment and CONTEXT), fixed; `targeted-4.txt` |
 | 7 | Full gateway | `evidence/ticket-316/gateway-*.txt` | b03fc6e: `VERIFY_EXIT=0` on a clean tree (`gateway-b03fc6e.txt`); rerun after findings 4 and 5 |
-| 8 | Independent post-implementation test check | `ticket-316-review-tests.md` | |
+| 8 | Independent post-implementation test check | `ticket-316-review-tests.md` | first round on e926e38..723db11: findings 1 (no renderer `.ts` planted), 2 (`package.json` undriven by the ticket-number rule's cases) and 3 (an absent source file undriven), handled by cases Ts, Pk and a third tree (Y0–Y9) — a third tree rather than the finding's suggestion, which would have left X0's swatch stop undriven; finding 4 (the plant list) fixed in the record by the check. Each new case red on a changed copy of the gate (`red-first-4.txt`) |
 | 9 | Source check, archive, write-back, step 8 | `final-regression.md` | |
 | 10 | PR; CI; stop for the owner | PR link | |
+
+Self-check of the post-implementation check's fixes (2026-10-27), items 6 and 7: `red-first-4.txt` keeps its commands,
+the gate's hash equal to HEAD's, the test's hash with the test uncommitted, the scripts it ran (`mutate.py` in full;
+`mutant-run.sh` as recorded in `mutants.txt`, changed to copy `package.json`, the change stated in the file), and each
+run's verdict lines; the worktree was checked unchanged around the mutant runs. The records follow: the design increment
+and the self-check in `ticket-316-review-tests.md`, item 1 in `ticket-316-review-code.md`, this list. The coverage
+checklist's current verification is written with the delivery head's gateway. No finding.

@@ -110,3 +110,7 @@ on a missing directory, as the accent and chip rules did before this change. Ref
    carries "the ticket that retires it"; the entries named #126 when written (63a6c23) and name spec agents-overview G2
    or nothing since (98b56ef, `git log -S`). Fix: "each entry carrying the reason it may name them", in the comment
    and in `CONTEXT.md:580`.
+
+Self-check before handing over the fixes for the post-implementation check's findings 1–3 (2026-10-27), item 1: no
+product code changed; the gate is HEAD's (723db11), the fixes are test cases only (`evidence/ticket-316/red-first-4.txt`
+records its hash equal to HEAD's).

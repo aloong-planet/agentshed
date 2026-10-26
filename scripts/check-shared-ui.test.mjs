@@ -8,8 +8,9 @@
 // docs/prototypes/, src/ and the root's READMEs, an empty docs/.workings, and symbolic links to everything else. The
 // prototypes must be copied: the gate walks them with readdirSync's file types, where a link to a directory is not a
 // directory, and a linked page would be skipped. The rest is copied so a plant never writes the repository's own file.
-// Two trees: the planted one, and one whose sources are renamed or emptied — they cannot share a tree, since one adds a
-// member to a source the other renames.
+// Three trees: the planted one; one whose sources' declarations are renamed or emptied; and one whose source files are
+// gone. They cannot share a tree: the first adds a member to a source the second renames, and the second keeps theme.css,
+// without which the swatch rule stops before the check its missing themes reach.
 //
 // Not driven here: the gate's check that every key of its block-specific table is a shared block. Driving it needs a
 // block renamed across the pages, which would undo the trend-chart cases in the same run; it was run once on a copy of
@@ -138,6 +139,8 @@ const PLANTS = {
     ["import { TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'\n", "import { TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'\nconst PLANTED = ['#ad98d0', '#fa520f', '#7a9dc4', '#eef2f7']\n"]
   ],
   'src/renderer/src/TokenViz.tsx': [["import { useTrendSpan } from './TrendSpan'\n", "import { useTrendSpan } from './TrendSpan'\nconst PLANTED_DARK = '#e8916f'\n"]],
+  // A provider colour in a .ts module, which the rules list beside the .tsx files
+  'src/renderer/src/skill-content-query.ts': [["import { displayQuery } from './display-queries'\n", "import { displayQuery } from './display-queries'\nconst PLANTED = '#d97757'\n"]],
   // A side added; copy naming it beside another side; its chip label hard-coded
   'src/renderer/src/side-badge.ts': [
     // The full name a constant the gate cannot read; the short name below still names the side
@@ -150,8 +153,9 @@ const PLANTS = {
   'src/renderer/src/StartupHint.tsx': [["import { RefreshCw } from './icons'\n", "import { RefreshCw } from './icons'\nconst PLANTED_CHIP = 'GEMINI'\n"]],
   // A language added (its dictionary in FILES), and a member the gate cannot read
   'src/shared/i18n/index.ts': [["export const LANGUAGES = ['zh', 'en'] as const", "export const LANGUAGES = ['zh', 'en', 'fr', ...EXTRA_LANGUAGES] as const"]],
-  // A ticket number in the English README
-  'README.en.md': [['# Agentshed\n', '# Agentshed\n\nSee ticket 12.\n']]
+  // A ticket number in the English README, and one in the package manifest's prose
+  'README.en.md': [['# Agentshed\n', '# Agentshed\n\nSee ticket 12.\n']],
+  'package.json': [['  "description": "', '  "description": "See ticket 12. ']]
 }
 
 /** Files added (with their content) or removed (null), keyed by their path from the root */
@@ -194,8 +198,17 @@ const MISSING_PLANTS = {
 }
 const MISSING_FILES = { 'README.md': null, 'README.en.md': null }
 
+/** The third tree: every file a mirrored list is read from, gone (the READMEs' absence is the second tree's) */
+const ABSENT_FILES = {
+  'src/renderer/src/side-badge.ts': null,
+  'src/shared/i18n/index.ts': null,
+  'src/shared/appearance.ts': null,
+  'docs/prototypes/_shared/app-rail.js': null,
+  'src/renderer/src/theme.css': null
+}
+
 /** Copied into the tree, or made an empty directory there; everything else is a link to the repository */
-const COPIED = ['docs/prototypes', 'src', 'README.md', 'README.en.md']
+const COPIED = ['docs/prototypes', 'src', 'README.md', 'README.en.md', 'package.json']
 const EMPTY = ['docs/.workings']
 
 /** Pages whose own comment, not a plant, must still name the asset once its real reference is gone, or the case plants
@@ -263,6 +276,8 @@ const problems = problemsOf(run.out)
 const reported = (line) => problems.includes(line)
 const missing = runGate(MISSING_PLANTS, MISSING_FILES)
 const missingProblems = problemsOf(missing.out)
+const absent = runGate({}, ABSENT_FILES)
+const absentProblems = problemsOf(absent.out)
 
 /** Lines a plant causes in a file it does not touch: a new README is reported by the ones that do not link it, and the
  * swatch rule's messages carry no path */
@@ -465,13 +480,22 @@ test("a component in a subdirectory of the renderer's source is checked", () => 
   assert.ok(reported('src/renderer/src/panes/Planted.tsx: <TrendChart> is missing archivedDays'), run.out)
 })
 
+test('a provider colour in a renderer .ts module is reported', () => {
+  assert.ok(reported('src/renderer/src/skill-content-query.ts: hard-coded #d97757'), run.out)
+})
+
+test('a ticket number in package.json is reported', () => {
+  assert.ok(reported('package.json:4 references "ticket 12" — use a date or an ADR number'), run.out)
+})
+
 test('the run on missing sources fails, after every rule has run', () => {
   assert.equal(missing.status, 1, missing.out)
   // The summary comes after the last rule: a rule that threw on a missing source would leave the rest unrun
   assert.match(missing.out, /\nShared-UI check failed: \d+ problem\(s\)\./, missing.out)
 })
 
-for (const line of [
+/** What each source reports when its declaration, or its whole file, is gone */
+const SOURCE_LINES = [
   'src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it',
   'src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it',
   'src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it',
@@ -482,8 +506,22 @@ for (const line of [
   'src/renderer/src/theme.css: no --p-* value — the provider colours come from them',
   'src/renderer/src/theme.css: no --accent family value — the accent colours come from them',
   'no README*.md at the root — the README rule reads them'
-]) {
+]
+
+for (const line of SOURCE_LINES) {
   test(`a missing source is reported: ${line}`, () => {
     assert.ok(missingProblems.includes(line), missing.out)
+  })
+}
+
+test('the run on absent source files fails, after every rule has run', () => {
+  assert.equal(absent.status, 1, absent.out)
+  assert.match(absent.out, /\nShared-UI check failed: \d+ problem\(s\)\./, absent.out)
+})
+
+// The READMEs' absence is the second tree's: the other nine sources, each read from a file that is not there
+for (const line of SOURCE_LINES.filter((l) => !l.startsWith('no README'))) {
+  test(`an absent source file is reported: ${line}`, () => {
+    assert.ok(absentProblems.includes(line), absent.out)
   })
 }

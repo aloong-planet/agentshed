@@ -1,0 +1,163 @@
+# Targeted verification after the post-implementation check's fixes (2026-10-27)
+git rev-parse HEAD: 723db11dedd62eb8519eb4446587f5f6deb3a9a6
+git status --porcelain --untracked-files=all (with git hash-object):
+M docs/.workings/prototype-baseline/ticket-316-review-code.md ef4aaca791148869796963bcb78742d3eb5a68eb
+M docs/.workings/prototype-baseline/ticket-316-review-tests.md 938932b193b71daad32d51eaa495a30fa8854687
+M docs/.workings/prototype-baseline/ticket-316-tasks.md f85b5fea3171a375ceaa2579f100b36aba17e314
+M scripts/check-shared-ui.test.mjs fd223dcf5ecd49a84326e6bf4880c8f5b3ea2277
+(end of status; the evidence files written by this run are not listed, being ignored until added)
+
+$ git grep -n -e check-shared-ui -e check:ui -- "*.test.*" "*.spec.*" e2e scripts package.json   # tests that run the changed test or gate
+package.json:22:    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:scripts && pnpm test:site && pnpm check:ui && pnpm check:lang && pnpm check:i18n && pnpm check:nul && pnpm e2e && pnpm smoke",
+package.json:24:    "check:ui": "node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs",
+scripts/check-lang.mjs:199:    match: (f) => f === 'scripts/check-shared-ui.mjs',
+scripts/check-lang.test.mjs:25:  'scripts/check-shared-ui.mjs': `const side = /${CN}/\n`,
+scripts/check-shared-ui.mjs:690:          bad.push(`scripts/check-shared-ui.mjs: COMMON_LIBRARIES lists ${lib}, but _shared has no ${lib}.css or ${lib}.js`)
+scripts/check-shared-ui.mjs:694:        if (!SHARED_BLOCKS.some((b) => b.id === id)) bad.push(`scripts/check-shared-ui.mjs: BLOCK_CONTRACTS has an entry for ${id}, which is no shared block`)
+scripts/check-shared-ui.test.mjs:244:    cpSync(join(repo, 'scripts/check-shared-ui.mjs'), join(root, 'scripts/check-shared-ui.mjs'))
+scripts/check-shared-ui.test.mjs:266:    const r = spawnSync(process.execPath, [join(root, 'scripts/check-shared-ui.mjs')], { encoding: 'utf8' })
+scripts/check-shared-ui.test.mjs:290:  const planted = [...Object.keys(PLANTS), ...Object.keys(FILES), 'scripts/check-shared-ui.mjs']
+scripts/check-shared-ui.test.mjs:390:  assert.ok(reported('scripts/check-shared-ui.mjs: COMMON_LIBRARIES lists startup-skeleton, but _shared has no startup-skeleton.css or startup-skeleton.js'), run.out)
+grep-exit=0
+
+$ pnpm lint
+
+> agentshed@0.1.0-beta lint /Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-316
+> eslint . --max-warnings 0
+
+LINT_EXIT=0
+
+$ pnpm check:ui
+
+> agentshed@0.1.0-beta check:ui /Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-316
+> node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs
+
+✔ the planted run fails, and only on what was planted (0.877083ms)
+✔ a page without its asset's link is reported, though its comment names the asset (0.06275ms)
+✔ a page without its asset's script is reported, though a script comment names the asset (0.062291ms)
+✔ a page without its asset's script is reported, though a comment after code on the same line names the asset (0.054583ms)
+✔ a // inside a string is not a comment: the code after it on the line is read (0.064542ms)
+✔ a // inside a regular expression is not a comment: the code after it on the line is read (0.057084ms)
+✔ a /* inside a string opens no comment: the code after it is read (0.046292ms)
+✔ a template's line that starts with // is read (0.12775ms)
+✔ a declaration left only in a comment does not declare the block (0.067542ms)
+✔ a mount point's id left only in a comment does not count (0.137ms)
+✔ an asset named in a comment on a page that does not declare its block is not reported (0.078042ms)
+✔ a tab identity script left only in a comment does not count (0.046667ms)
+✔ a chart without its own declaration is reported, though its page declares the block on another chart (0.03525ms)
+✔ a chart whose declaration is only in a comment is reported (0.030584ms)
+✔ a chart written in a script template is judged as well (0.027208ms)
+✔ a declaration that names no shared block is reported (0.028417ms)
+✔ an empty declaration is reported (0.0275ms)
+✔ a block known only by its files is checked: totals-card's stylesheet removed (0.049417ms)
+✔ a block known only by its files is checked: md-preview's stylesheet removed, its declaration in a script template (0.035791ms)
+✔ a new shared stylesheet is a block: a page linking it without a declaration is reported (0.028583ms)
+✔ a file added to a block joins its contract: a page declaring the block without referencing the file is reported (0.026334ms)
+✔ trend-chart's style invariant is still checked (0.026791ms)
+✔ trend-chart's style invariant is still checked in the app's sheet (0.0255ms)
+✔ trend-chart's app component is still checked for its required prop (0.029791ms)
+✔ a common library with no file in _shared is reported (0.025208ms)
+✔ a provider colour is reported in any renderer file, --p-xai included (0.042375ms)
+✔ a provider colour's dark value is reported (0.024875ms)
+✔ a provider colour added to theme.css is reported without changing the gate (0.034ms)
+✔ dark blue's accent is reported (0.026291ms)
+✔ a value of the accent family other than --accent is reported (0.03125ms)
+✔ the settings page's swatches are not reported by the accent rule (0.042209ms)
+✔ a theme added is checked: its swatch row against its theme.css block (0.02825ms)
+✔ a side added is counted in copy that names it beside another side (0.0255ms)
+✔ a side added has its chip label checked (0.024916ms)
+✔ a language added has its dictionary checked for side enumerations (0.039667ms)
+✔ a language added has its dictionary checked for rail controls named verbatim (0.027875ms)
+✔ a README added is reported by the READMEs that do not link it (0.034625ms)
+✔ a link to a README that is not at the root is reported (0.032125ms)
+✔ a rail item added has its route on a page checked (0.028542ms)
+✔ a ticket number in the English README is reported (0.028208ms)
+✔ a ticket number in a new docs/ directory is reported (0.038916ms)
+✔ a ticket number in a new document at the root is reported (0.337375ms)
+✔ a ticket number in the construction records is not reported (0.066166ms)
+✔ a source array with a member the gate cannot read is reported (0.034125ms)
+✔ a source record with a member the gate cannot read is reported (0.026583ms)
+✔ a source record with a spread member is reported (0.024917ms)
+✔ a component in a subdirectory of the renderer's source is checked (0.025959ms)
+✔ a provider colour in a renderer .ts module is reported (0.024375ms)
+✔ a ticket number in package.json is reported (0.023666ms)
+✔ the run on missing sources fails, after every rule has run (0.156792ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.03025ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.017ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.016458ms)
+✔ a missing source is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.016708ms)
+✔ a missing source is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.015958ms)
+✔ a missing source is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.016125ms)
+✔ a missing source is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.015792ms)
+✔ a missing source is reported: src/renderer/src/theme.css: no --p-* value — the provider colours come from them (0.015667ms)
+✔ a missing source is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.018375ms)
+✔ a missing source is reported: no README*.md at the root — the README rule reads them (0.024291ms)
+✔ the run on absent source files fails, after every rule has run (0.029ms)
+✔ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.023209ms)
+✔ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.016625ms)
+✔ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.028625ms)
+✔ an absent source file is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.016209ms)
+✔ an absent source file is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.022958ms)
+✔ an absent source file is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.016083ms)
+✔ an absent source file is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.019541ms)
+✔ an absent source file is reported: src/renderer/src/theme.css: no --p-* value — the provider colours come from them (0.034208ms)
+✔ an absent source file is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.022208ms)
+ℹ tests 70
+ℹ suites 0
+ℹ pass 70
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5483.9975
+✓ shared block app-rail — all 11 usage site(s) compliant
+✓ shared block app-window — all 11 usage site(s) compliant
+✓ shared block file-drawer — all 4 usage site(s) compliant
+✓ shared block md-preview — all 5 usage site(s) compliant
+✓ shared block project-side — all 5 usage site(s) compliant
+✓ shared block session-hits — all 2 usage site(s) compliant
+✓ shared block startup-status — all 5 usage site(s) compliant
+✓ shared block toast — all 2 usage site(s) compliant
+✓ shared block totals-card — all 2 usage site(s) compliant
+✓ shared block trend-chart — all 2 usage site(s) compliant
+✓ every list the checks mirror from the product is read from a source that names its members
+✓ persistent documents must not reference ticket numbers (they outlive the tickets)
+✓ every README links every other, and none links a README that is not there (i18n::CON-001)
+✓ settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)
+✓ dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)
+✓ dictionary copy must not name a rail control verbatim (a sentence outlives the control)
+✓ provider colours must not be hard-coded in components (use CSS variables)
+✓ components must not hard-code theme accent colours (use the --accent family)
+✓ side chip labels have one source: no hard-coded SIDE_CHIP_LABEL label outside side-badge.ts
+✓ every chart container in a prototype declares its own shared block (otherwise consistency cannot be checked)
+✓ every declaration on a prototype page names a shared block (a _shared/<id>.css or .js that is not a common library)
+✓ the gate's common libraries and block contracts name files and blocks that exist
+✓ demo dimensions are set on the settings prototype alone and followed elsewhere (dimensions.js + demo-dimensions.js)
+✓ pages that follow the mode or theme take the app tokens from _shared/theme.css and never the system appearance
+✓ prototype pages draw the shared app rail, never their own
+✓ every prototype tab names its app (manifest.js PROTOTYPE_APP + app-identity.js)
+✓ prototype pages draw the shared project column, never their own
+
+Shared-UI consistency check passed
+CHECK_UI_EXIT=0
+
+$ node --test scripts/check-lang.test.mjs
+✔ the seeds alone pass, one permitted line each (228.522041ms)
+✔ Chinese in the skill's copy docs/prototypes/index.html is reported like any other tooling (221.926709ms)
+✔ Chinese in the skill's copy docs/prototypes/app-identity.js is reported like any other tooling (221.518166ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-dimensions.js is reported like any other tooling (220.030375ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-harness.js is reported like any other tooling (224.401166ms)
+✔ Chinese in the skill's copy sync-mmd.mjs is reported, since .mjs is not an exempt type (219.30025ms)
+✔ Chinese stays permitted in a mockup page (224.864209ms)
+✔ Chinese stays permitted in a logic page that shares the gallery shell’s file name (225.288959ms)
+✔ Chinese stays permitted in the manifest, whose names and questions address the reviewer (221.806084ms)
+✔ Chinese stays permitted in the dimension registry, whose labels address the reviewer (223.983583ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2281.675167
+CHECK_LANG_TEST_EXIT=0
