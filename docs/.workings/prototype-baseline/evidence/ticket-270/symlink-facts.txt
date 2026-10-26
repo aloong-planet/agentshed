@@ -1,0 +1,4 @@
+# How readdir reports a link to a directory, and what rmSync removes (node v24.19.0, Darwin)
+$ node -e '<a tree holding a symbolic link to a directory; readdir withFileTypes; rmSync the tree>'
+readdir withFileTypes: linked isDirectory=false isSymbolicLink=true
+after rmSync(tree): the link target still exists: true

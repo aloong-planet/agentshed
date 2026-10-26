@@ -1,0 +1,25 @@
+# #270 feedback loop on main (ef5e4cb), before any fix
+
+## P1 global search page without its app-window.css link (its header comment names the file)
+planted: docs/prototypes/global-search/prototype-search.html lost "<link rel=\"stylesheet\" href=\"../_shared/app-window.css\">"; occurrences left 0
+$ node scripts/check-shared-ui.mjs   → exit 0
+  ✓ shared block project-side (project column) — all 5 usage site(s) compliant
+  ✓ shared block app-window (app window box) — all 11 usage site(s) compliant
+reports "declares app-window but does not reference _shared/app-window.css": no
+restored: sha256 equal to the original (b73ca19cbd10)
+
+## P2 project list page without its project-side.js script (a script comment names the file)
+planted: docs/prototypes/project-list/prototype-list.html lost "<script src=\"../_shared/project-side.js\"></script>"; occurrences left 0
+$ node scripts/check-shared-ui.mjs   → exit 1
+  ✓ shared block project-side (project column) — all 5 usage site(s) compliant
+  ✓ shared block app-window (app window box) — all 11 usage site(s) compliant
+  ✗ prototype pages draw the shared project column, never their own
+      docs/prototypes/project-list/prototype-list.html: includes project-side.js before the column it draws
+      docs/prototypes/project-list/prototype-list.html: needs manifest.js included before project-side.js
+      docs/prototypes/project-list/prototype-list.html: needs _shared/icons.js included before project-side.js
+reports "declares project-side but does not reference _shared/project-side.js": no
+restored: sha256 equal to the original (de79dbf521ac)
+
+PLANTS_NOT_CAUGHT=2
+node $S/plant.mjs $W  2.58s user 0.38s system 128% cpu 2.301 total
+exit=1

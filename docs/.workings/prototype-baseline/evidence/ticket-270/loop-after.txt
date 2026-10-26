@@ -1,0 +1,27 @@
+# #270 feedback loop after the fix
+git hash-object scripts/check-shared-ui.mjs: 30cc5cd1e0b291adfa7bea0bf0cae3228daf4859
+
+## P1 global search page without its app-window.css link (its header comment names the file)
+planted: docs/prototypes/global-search/prototype-search.html lost "<link rel=\"stylesheet\" href=\"../_shared/app-window.css\">"; occurrences left 0
+$ node scripts/check-shared-ui.mjs   → exit 1
+  ✓ shared block project-side (project column) — all 5 usage site(s) compliant
+  ✗ shared block app-window (app window box)
+      docs/prototypes/global-search/prototype-search.html: declares app-window but does not reference _shared/app-window.css
+reports "declares app-window but does not reference _shared/app-window.css": yes
+restored: sha256 equal to the original (b73ca19cbd10)
+
+## P2 project list page without its project-side.js script (a script comment names the file)
+planted: docs/prototypes/project-list/prototype-list.html lost "<script src=\"../_shared/project-side.js\"></script>"; occurrences left 0
+$ node scripts/check-shared-ui.mjs   → exit 1
+  ✓ shared block app-window (app window box) — all 11 usage site(s) compliant
+  ✗ shared block project-side (project column)
+      docs/prototypes/project-list/prototype-list.html: declares project-side but does not reference _shared/project-side.js
+  ✗ prototype pages draw the shared project column, never their own
+      docs/prototypes/project-list/prototype-list.html: includes project-side.js before the column it draws
+      docs/prototypes/project-list/prototype-list.html: needs manifest.js included before project-side.js
+      docs/prototypes/project-list/prototype-list.html: needs _shared/icons.js included before project-side.js
+reports "declares project-side but does not reference _shared/project-side.js": yes
+restored: sha256 equal to the original (de79dbf521ac)
+
+PLANTS_NOT_CAUGHT=0
+exit=0

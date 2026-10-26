@@ -682,7 +682,8 @@ const GLOBAL_RULES = [
         if (!existsSync(join(ROOT, 'docs/prototypes', app.icon))) bad.push(`manifest.js: PROTOTYPE_APP.icon "${app.icon}" does not exist (relative to docs/prototypes/)`)
       } else if (app.icon !== null) bad.push('manifest.js: PROTOTYPE_APP.icon must be a path or null')
       for (const f of prototypeHtmls(true)) {
-        const html = read(f)
+        // Without comments: a commented-out script tag, icon link or title is not on the page
+        const html = stripComments(read(f))
         const head = html.slice(0, html.search(/<\/head>/i) >>> 0)
         const up = '../'.repeat(f.split('/').length - 3)
         const at = (name) => head.search(new RegExp(`<script\\s+src="${up.replace(/\./g, '\\.')}${name.replace('.', '\\.')}"`))
@@ -791,23 +792,24 @@ function checkBlock(block) {
   const problems = []
   const users = []
 
-  // (1) A prototype page declaring the block: it must reference the resources and have the mount points
+  // (1) A prototype page declaring the block: it must reference the resources and have the mount points. Read
+  // without comments: a comment naming an asset, a declaration or a mount point is none of them
   for (const f of prototypeHtmls()) {
-    const src = read(f) ?? ''
-    if (!src.includes(`data-shared-block="${block.id}"`)) {
+    const code = stripComments(read(f) ?? '')
+    if (!code.includes(`data-shared-block="${block.id}"`)) {
       // The reverse check: referencing the resources without declaring → a missing declaration, leaving
       // consistency unverifiable
-      if (block.assets.some((a) => src.includes(a))) {
+      if (block.assets.some((a) => code.includes(a))) {
         problems.push(`${f}: references ${block.id} assets without declaring data-shared-block="${block.id}"`)
       }
       continue
     }
     users.push(f)
     for (const a of block.assets) {
-      if (!src.includes(a)) problems.push(`${f}: declares ${block.id} but does not reference ${a}`)
+      if (!code.includes(a)) problems.push(`${f}: declares ${block.id} but does not reference ${a}`)
     }
     for (const c of block.containers) {
-      if (!new RegExp(`id="[^"]*${c}[^"]*"`).test(src)) {
+      if (!new RegExp(`id="[^"]*${c}[^"]*"`).test(code)) {
         problems.push(`${f}: declares ${block.id} but is missing the ${c} mount point`)
       }
     }

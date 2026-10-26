@@ -24,8 +24,13 @@ previews, 14px on the session page); the code review then found that the other p
 pad 16px, and the owner settled the three on 16px at top and bottom the same day. Scope of this round: the touched prototype pages under
 `docs/prototypes/` and these work records.
 
+Third round, begun 2026-10-26 on source commit ef5e4cb (origin/main): [#270](https://github.com/aloong-planet/agentshed/issues/270),
+one branch and one PR. The requirement source is #270's body, with no spec. Scope: `scripts/check-shared-ui.mjs`, a new
+test of it, the `check:ui` script, and these work records; no prototype page changes.
+
 This is a work index, not a requirement authority. The units below are #251's items and its "Done when"
-lines, then #250's items and #226's fix and verification lines; each names the tier that backs it.
+lines, then #250's items and #226's fix and verification lines, then #270's acceptance lines; each names the tier that
+backs it.
 
 ## Source → verification
 
@@ -64,6 +69,9 @@ lines, then #250's items and #226's fix and verification lines; each names the t
 | 226::3 | #226 Verification: `pnpm check:lang` passes | Gate: `pnpm check:lang` exit 0 |
 | 226::R1 | Code review, owner's decision of 2026-10-23: each logic page's `logic.js` takes the English chrome of the skill's `logic-template.js` — the rejection prefix with its regex, and the unknown-event reason; the reasons each page wrote stay as they are | Evidence: driving probe — tooltip reasons without the prefix, a forced illegal event's receipt; a mutation that unpairs one regex turns its check red |
 | 250::R1 | Code review, item 7's class: the Agents page's header says the bar carries four groups; the global-search page's header names its search-request group | Evidence: each harness page's header against its bar's groups |
+| 270::1 | #270 Acceptance: removing a page's real reference to any shared block's asset turns `pnpm check:ui` red, whether or not a comment on that page names the asset | Test: `scripts/check-shared-ui.test.mjs` on a copy of the prototypes — the issue's two mutations (the global search page without its `app-window.css` link, the project list page without its `project-side.js` script, each page's comment naming the file), each reported as "declares … but does not reference …"; red first on the unfixed gate |
+| 270::2 | #270 Acceptance: the check stays green on main | Gate: `pnpm check:ui` exit 0 |
+| 270::R1 | The same defect elsewhere in the gate (decision D1 in `ticket-270-tasks.md`): the shared-block check's declaration and mount-point searches and its reverse check, and the tab identity rule's `<head>` searches, read no comment | Test: the same file — a declaration moved into a comment, a mount-point id moved into a comment, an asset named in a comment on a page that does not declare the block (no report), and the tab identity script commented out; red first on the unfixed gate |
 
 ## Current verification
 
@@ -112,3 +120,4 @@ lines, then #250's items and #226's fix and verification lines; each names the t
 | Second round: #226's fix and its three verification lines each have a row. #226 names only the pages; the code review found the same template chrome in each `logic.js`, on the same receipt bar, and the owner added it on 2026-10-23 (226::R1). The `.mmd` files and `model.mmd.js` carry only diagram titles, which are content | #226 Fix, Verification; code review | Mapped |
 | Second round: the code review's class-level check of item 7 found two more header notes out of step with their bars, fixed in this round (250::R1) | #250 item 7; code review | Mapped |
 | #226 lists the page title as prototype content. The `<title>` keeps its Chinese "Prototype — " prefix, which every prototype page's tab title uses, so the gallery's tabs stay uniform | #226 Fix | Kept as content; listed by kind under 226::1 |
+| Third round: #270's two acceptance lines each have a row (270::1, 270::2). The class-level check of the defect found the same raw-text search in the shared-block check's other searches and in the tab identity rule (270::R1, decision D1). The chart container rule's count — every declaration on the page against its chart containers — is a different defect, reported to the owner and not in this round | #270 Acceptance; `ticket-270-tasks.md` | Mapped |
