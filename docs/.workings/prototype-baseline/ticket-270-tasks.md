@@ -52,7 +52,7 @@ Branch `fix/check-ui-comment-refs`, in its own worktree, cut from `origin/main` 
 | 6 | Full gateway | `evidence/ticket-270/gateway-*.txt` | d9b0208, e53f6d0, 020e082 and 8e9ddf4: each `VERIFY_EXIT=0` on its clean tree; the last, on the final code and test: 873 unit, 137 script, 107 site, `check:ui` 12 cases, 155 e2e, smoke OK |
 | 7 | Independent post-implementation test check | `ticket-270-review-tests.md` | first round on ef5e4cb..30a2fee: findings 1 (A's and B's comments unpinned) and 2 (a `//` after code still counted), both handled (D3); incremental on 30a2fee..e53f6d0: finding 3 (the block and whole-line patterns still ran over scripts), handled; incremental on e53f6d0..020e082: finding 4 (the regular-expression shape undriven), handled by case K; incremental on 020e082..8e9ddf4: finding 5 (a record overstated what two evidence files hold), handled in the records only, so no further check is due |
 | 8 | Source check, write-back (`checklist.md`; any statement of what `check:ui` runs), step 8 | `final-regression.md` | done: the source check below; the checklist's current verification; step 8, `final-regression.md` (new in this work directory) |
-| 9 | PR; CI; stop for the owner | PR link | |
+| 9 | PR; CI; stop for the owner | PR link | #313 opened; CI's runs on its head are the pull request's checks, linked in #270's comment after the merge |
 
 Self-check of the findings' fix (2026-10-26), items 6 and 7: the new evidence can read otherwise — `red-first-2.txt`
 (G red), `naive-h.txt` (H red), `pin-guard.txt` (the set-up assertion failing) each show the failing form, and
