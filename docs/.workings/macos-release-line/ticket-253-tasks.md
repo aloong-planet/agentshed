@@ -68,8 +68,8 @@ release line's requirements are [the mac-distribution spec](../../specs/mac-dist
 | 6 | Full gateway | `evidence/ticket-253/gateway-2e9d247.txt` | 2e9d247: `VERIFY_EXIT=0` on its clean tree (873 unit, 137 script tests, 107 site, 155 e2e in 4.9 min, smoke OK, actionlint 0 errors) |
 | 7 | Independent post-implementation test check | `ticket-253-review-tests.md` | done on 9685ccf..008b71f: no finding; no fix, so no incremental check |
 | 8 | Spec check, step 7 write-back (`CONTEXT.md`, the runbook, the checklist's rows), step 8 | `final-regression.md` | done: the spec check below; `CONTEXT.md` and the runbook written with the implementation commit; the checklist's current-verification row; step 8, the #253 section of `final-regression.md` |
-| 9 | Runs on the upgraded actions: CI on the pull request; a manual `release.yml` run with the switch off, its artifact downloaded | run links, `evidence/ticket-253/` | The manual run done: 40265409861 on 008b71f, green; pnpm switched to 9.12.3; the artifact downloaded, its digest equal to the upload's (`evidence/ticket-253/manual-run.txt`). CI: on the pull request |
-| 10 | PR; stop for the owner | PR link | |
+| 9 | Runs on the upgraded actions: CI on the pull request; a manual `release.yml` run with the switch off, its artifact downloaded | run links, `evidence/ticket-253/` | The manual run done: 40265409861 on 008b71f, green; pnpm switched to 9.12.3; the artifact downloaded, its digest equal to the upload's (`evidence/ticket-253/manual-run.txt`). CI: the checks on #312's head, linked in #253's comment after the merge |
+| 10 | PR; stop for the owner | PR link | done: #312, waiting for the owner |
 
 ## Targeted verification (step 4)
 
