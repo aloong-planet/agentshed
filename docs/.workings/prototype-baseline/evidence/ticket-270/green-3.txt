@@ -1,0 +1,65 @@
+# #270 after finding 3 (one pass: HTML comments in markup, the parser in scripts, CSS comments in style blocks)
+git rev-parse HEAD: e53f6d06e2053a86ab7ed1d8e93e8cb88248707e
+git hash-object scripts/check-shared-ui.mjs: c6800a98a8cacd7572799e02cb9d0cf5298766b9
+git hash-object scripts/check-shared-ui.test.mjs: 1522ebbbbe9c7002464bfbb79404651e7cc314c7
+
+$ node --test scripts/check-shared-ui.test.mjs
+✔ the planted run fails, and only on the planted pages (1.375833ms)
+✔ a page without its asset's link is reported, though its comment names the asset (0.122042ms)
+✔ a page without its asset's script is reported, though a script comment names the asset (0.068ms)
+✔ a page without its asset's script is reported, though a comment after code on the same line names the asset (0.464167ms)
+✔ a // inside a string is not a comment: the code after it on the line is read (0.097375ms)
+✔ a /* inside a string opens no comment: the code after it is read (0.067708ms)
+✔ a template's line that starts with // is read (0.062667ms)
+✔ a declaration left only in a comment does not declare the block (0.056625ms)
+✔ a mount point's id left only in a comment does not count (0.133916ms)
+✔ an asset named in a comment on a page that does not declare its block is not reported (0.178875ms)
+✔ a tab identity script left only in a comment does not count (0.080417ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2618.376708
+exit=0
+
+$ node scripts/check-shared-ui.mjs
+✓ shared block startup-status (startup restoration scanning hint) — all 5 usage site(s) compliant
+✓ shared block file-drawer (drawer reading one file of a skill package or a memory directory) — all 4 usage site(s) compliant
+✓ shared block toast (app toast notice) — all 2 usage site(s) compliant
+✓ shared block trend-chart (provider stacked trend chart) — all 2 usage site(s) compliant
+✓ shared block app-rail (app navigation rail) — all 11 usage site(s) compliant
+✓ shared block project-side (project column) — all 5 usage site(s) compliant
+✓ shared block session-hits (session search hits) — all 2 usage site(s) compliant
+✓ shared block app-window (app window box) — all 11 usage site(s) compliant
+✓ persistent documents must not reference ticket numbers (they outlive the tickets)
+✓ the Chinese and English READMEs reach each other (i18n::CON-001)
+✓ settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)
+✓ dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)
+✓ dictionary copy must not name a rail control verbatim (a sentence outlives the control)
+✓ provider brand colours must not be hard-coded in components (use CSS variables)
+✓ components must not hard-code theme accent colours (use the --accent family)
+✓ side chip labels have one source: no hardcoded CLAUDE CODE / CODEX / GROK literal outside side-badge.ts
+✓ every chart container in a prototype must declare its shared block (otherwise consistency cannot be checked)
+✓ demo dimensions are set on the settings prototype alone and followed elsewhere (dimensions.js + demo-dimensions.js)
+✓ pages that follow the mode or theme take the app tokens from _shared/theme.css and never the system appearance
+✓ prototype pages draw the shared app rail, never their own
+✓ every prototype tab names its app (manifest.js PROTOTYPE_APP + app-identity.js)
+✓ prototype pages draw the shared project column, never their own
+
+Shared-UI consistency check passed
+exit=0
+
+# closing tags with a space before > on the pages (the pattern's \s* in </script >):
+$ grep -rEc '</(script|style)\s+>' docs/prototypes --include='*.html' | grep -v ':0'
+(none listed: no page has one)
+
+# the gate's run time, three runs (/usr/bin/time -p, real s):
+1.94 1.95 2.60 
+
+# the timing above ran under a load average near 11; the three versions interleaved, three runs each, same load (/usr/bin/time -p, real s):
+ef5e4cb (main) gate: 1.30 1.04 1.05 
+e53f6d0 gate: 1.58 1.58 1.65 
+this gate: 1.60 1.60 1.63 

@@ -24,8 +24,13 @@ previews, 14px on the session page); the code review then found that the other p
 pad 16px, and the owner settled the three on 16px at top and bottom the same day. Scope of this round: the touched prototype pages under
 `docs/prototypes/` and these work records.
 
+Third round, begun 2026-10-26 on source commit ef5e4cb (origin/main): [#270](https://github.com/aloong-planet/agentshed/issues/270),
+one branch and one PR. The requirement source is #270's body, with no spec. Scope: `scripts/check-shared-ui.mjs`, a new
+test of it, the `check:ui` script, and these work records; no prototype page changes.
+
 This is a work index, not a requirement authority. The units below are #251's items and its "Done when"
-lines, then #250's items and #226's fix and verification lines; each names the tier that backs it.
+lines, then #250's items and #226's fix and verification lines, then #270's acceptance lines; each names the tier that
+backs it.
 
 ## Source → verification
 
@@ -64,6 +69,9 @@ lines, then #250's items and #226's fix and verification lines; each names the t
 | 226::3 | #226 Verification: `pnpm check:lang` passes | Gate: `pnpm check:lang` exit 0 |
 | 226::R1 | Code review, owner's decision of 2026-10-23: each logic page's `logic.js` takes the English chrome of the skill's `logic-template.js` — the rejection prefix with its regex, and the unknown-event reason; the reasons each page wrote stay as they are | Evidence: driving probe — tooltip reasons without the prefix, a forced illegal event's receipt; a mutation that unpairs one regex turns its check red |
 | 250::R1 | Code review, item 7's class: the Agents page's header says the bar carries four groups; the global-search page's header names its search-request group | Evidence: each harness page's header against its bar's groups |
+| 270::1 | #270 Acceptance: removing a page's real reference to any shared block's asset turns `pnpm check:ui` red, whether or not a comment on that page names the asset | Test: `scripts/check-shared-ui.test.mjs` on a copy of the prototypes — the issue's two mutations (the global search page without its `app-window.css` link, the project list page without its `project-side.js` script, each page's comment naming the file), each reported as "declares … but does not reference …"; and, by the owner's decision of 2026-10-26 (D3), the same with a `//` comment after code on the same line (the shell page without its `app-rail.js` script); red first on the unfixed gate; each page's comment pinned by the set-up |
+| 270::2 | #270 Acceptance: the check stays green on main | Gate: `pnpm check:ui` exit 0 |
+| 270::R1 | The same defect elsewhere in the gate (decision D1 in `ticket-270-tasks.md`): the shared-block check's declaration and mount-point searches and its reverse check, and the tab identity rule's `<head>` searches, read no comment | Test: the same file — a declaration moved into a comment, a mount-point id moved into a comment, an asset named in a comment on a page that does not declare the block (no report), and the tab identity script commented out; red first on the unfixed gate. With D3: a `//` inside a string does not end the line (the theme rule still reads `prefers-color-scheme` after a URL), red under a stripping that ends a line at any `//`; a `/*` inside a string opens no comment, and a template's line starting with `//` stays (both red on the gate before the one-pass stripping); a `//` inside a regular expression keeps the code after it (red under a stripping by the TypeScript scanner alone) |
 
 ## Current verification
 
@@ -101,6 +109,10 @@ lines, then #250's items and #226's fix and verification lines; each names the t
 | 2026-10-23; 4c5f473 (probe extended twice since 21a8958; pages as in 21a8958) | 226::2, 226::R1 and every probe-backed unit | `directed-4c5f473.log` with its script `directed.sh` beside it, committed probes: 190 checks pass on the implementation; on the base commit exactly the changed checks fail (110: the 86 of the first run, plus the 24 entry-button checks, whose receipt is Chinese there); five mutations (regex unpaired, a thrown error, a dead entry button, an entry keeping the receipt, two buttons with one entry) each turn only their target checks red; the item 5 probe 16 of 16 after, 7 failing on the base; lint, check:lang, check:nul exit 0. Supersedes `directed-0565012.log`, kept as the run the first incremental check read | Verified |
 | 2026-10-23; 05ecf6f (final; pages as in 21a8958) | all second-round units | `pnpm verify`, each step on its own, with a clean tree: typecheck, lint, test (867 passed, 1 skipped), test:scripts, test:site (109), check:ui, check:lang, check:i18n, check:nul, e2e (148 passed), smoke — every exit code 0 (`gate-05ecf6f.log`) | Verified |
 | 2026-10-23; 21a8958 | all second-round units | `pnpm verify`, each step on its own, on 21a8958 with a clean tree: typecheck, lint, test (867 passed, 1 skipped), test:scripts, test:site (109), check:ui, check:lang, check:i18n, check:nul, e2e (148 passed), smoke — every exit code 0 (`gate-21a8958.log`) | Verified |
+| 2026-10-26; source #270's body; implementation 8e9ddf4 (branch fix/check-ui-comment-refs on ef5e4cb) | 270::1 | `scripts/check-shared-ui.test.mjs` in `pnpm check:ui`: A and B (the issue's two mutations) and G (the same with a `//` comment after code) report "declares … but does not reference …"; red first on the unfixed gate (`evidence/ticket-270/red-first.txt`) and, for G, on d9b0208's gate (`red-first-2.txt`); the feedback loop reports both of the issue's mutations after the fix, the pages restored byte for byte (`loop-after.txt`); A's and B's comments pinned by the set-up (`pin-guard.txt`) | Verified |
+| same | 270::2 | `pnpm check:ui` exit 0 on main's prototypes, in the full gateway at 8e9ddf4 (`gateway-8e9ddf4.txt`) | Verified |
+| same | 270::R1 | C, D, E, F (a declaration, a mount point, the reverse check, the tab identity) red first on the unfixed gate (`red-first.txt`); H, I, J, K (what D3 keeps: a `//` and a `/*` in strings, a template line starting with `//`, a `//` in a regular expression) red under the strippings they guard against (`naive-h.txt`, `red-first-3.txt`, `scanner-k.txt`); all twelve cases green (`green-4.txt`) | Verified |
+| same | all third-round units | `pnpm verify`, each step on its own, on 8e9ddf4 with a clean tree: typecheck, lint, test (873 passed, 1 skipped), test:scripts (137), test:site (107), check:ui (12 cases, then the gate), check:lang, check:i18n, check:nul, e2e (155 passed), smoke — every exit code 0 (`gateway-8e9ddf4.txt`) | Verified |
 
 ## Two-way audit
 
@@ -112,3 +124,4 @@ lines, then #250's items and #226's fix and verification lines; each names the t
 | Second round: #226's fix and its three verification lines each have a row. #226 names only the pages; the code review found the same template chrome in each `logic.js`, on the same receipt bar, and the owner added it on 2026-10-23 (226::R1). The `.mmd` files and `model.mmd.js` carry only diagram titles, which are content | #226 Fix, Verification; code review | Mapped |
 | Second round: the code review's class-level check of item 7 found two more header notes out of step with their bars, fixed in this round (250::R1) | #250 item 7; code review | Mapped |
 | #226 lists the page title as prototype content. The `<title>` keeps its Chinese "Prototype — " prefix, which every prototype page's tab title uses, so the gallery's tabs stay uniform | #226 Fix | Kept as content; listed by kind under 226::1 |
+| Third round: #270's two acceptance lines each have a row (270::1, 270::2). The class-level check of the defect found the same raw-text search in the shared-block check's other searches and in the tab identity rule (270::R1, decision D1). The chart container rule's count — every declaration on the page against its chart containers — is a different defect, reported to the owner and not in this round | #270 Acceptance; `ticket-270-tasks.md` | Mapped |

@@ -1,0 +1,39 @@
+# Finding 1's guard: the test on a copy whose global search page no longer names app-window.css in its comment
+$ grep -c _shared/app-window.css <copied page>   (1: the link only)
+1
+$ node --test <copy>/scripts/check-shared-ui.test.mjs
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: global-search/prototype-search.html: no comment names _shared/app-window.css any more — plant one, or this case tests nothing
+    at runGate (file:///private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/i270/pin-repo/scripts/check-shared-ui.test.mjs:70:14)
+    at file:///private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/i270/pin-repo/scripts/check-shared-ui.test.mjs:80:13
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.19.0
+✖ /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/i270/pin-repo/scripts/check-shared-ui.test.mjs (110.954208ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 116.944417
+
+✖ failing tests:
+
+test at ../../../../private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/i270/pin-repo/scripts/check-shared-ui.test.mjs:1:1
+✖ /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/i270/pin-repo/scripts/check-shared-ui.test.mjs (110.954208ms)
+  'test failed'
+exit=1

@@ -1,0 +1,90 @@
+# #270 step 8 searches, run on d9b0208 on 2026-10-26T08:08:40Z
+== tracked text files in scope (git grep -I: binaries skipped):      146; tracked files in all:      166
+== text files with Han characters:
+  README.en.md: 1
+  README.md: 49
+  docs/adr/0015-structured-ipc-errors.md: 1
+  docs/adr/0017-repo-working-language-english.md: 1
+  docs/features/i18n.md: 1
+  docs/prototypes/_shared/app-rail.js: 1
+  docs/prototypes/_shared/copy.js: 41
+  docs/prototypes/_shared/md-preview.css: 1
+  docs/prototypes/_shared/md-preview.js: 1
+  docs/prototypes/_shared/project-side.js: 1
+  docs/prototypes/_shared/startup-status.js: 4
+  docs/prototypes/_shared/totals-card.css: 31
+  docs/prototypes/_shared/trend-chart.css: 3
+  docs/prototypes/_shared/trend-chart.js: 7
+  docs/prototypes/agents-page/prototype-agents.html: 228
+  docs/prototypes/appearance/prototype-settings.html: 134
+  docs/prototypes/dimensions.js: 4
+  docs/prototypes/global-search/prototype-search.html: 60
+  docs/prototypes/landing-page/prototype-landing.html: 78
+  docs/prototypes/manifest.js: 16
+  docs/prototypes/md-preview/prototype-heading-ladder.html: 74
+  docs/prototypes/plugins-view/prototype-plugin-skill-preview.html: 44
+  docs/prototypes/project-detail/prototype-detail-stale-note.html: 44
+  docs/prototypes/project-detail/prototype-detail.html: 264
+  docs/prototypes/project-list/prototype-list.html: 44
+  docs/prototypes/project-list/visibility/index.html: 16
+  docs/prototypes/project-list/visibility/logic.js: 7
+  docs/prototypes/project-list/visibility/model.mmd.js: 2
+  docs/prototypes/project-list/visibility/visibility.mmd: 5
+  docs/prototypes/session-view/prototype-session.html: 356
+  docs/prototypes/shell/prototype-app-shell.html: 32
+  docs/prototypes/skill-install/install-flow/index.html: 22
+  docs/prototypes/skill-install/install-flow/install-flow.mmd: 10
+  docs/prototypes/skill-install/install-flow/logic.js: 16
+  docs/prototypes/skill-install/install-flow/model.mmd.js: 2
+  docs/prototypes/skill-install/prototype-install.html: 38
+  docs/prototypes/skills-view/prototype-skills-preview.html: 108
+  docs/prototypes/skills-view/skill-packages-fixture.js: 4
+  docs/prototypes/token-stats/scan-cache/index.html: 20
+  docs/prototypes/token-stats/scan-cache/lifecycle.mmd: 7
+  docs/prototypes/token-stats/scan-cache/logic.js: 10
+  docs/prototypes/token-stats/scan-cache/model.mmd.js: 4
+  docs/prototypes/token-stats/scan-cache/pipeline.mmd: 10
+  docs/specs/i18n.md: 9
+
+== check:ui, check-shared-ui, the shared-UI check (English):
+$ git grep -n -i -E "check:ui|check-shared-ui|shared-ui (consistency )?check|shared ui check|shared-block check" -- <scope>
+.github/workflows/ci.yml:43:      - run: pnpm check:ui
+CONTEXT.md:557:  reader genuinely has to find it. **`pnpm check:ui` enforces the rail half of this**: a rail
+CONTEXT.md:579:  shared-UI check over the dictionaries; copy that must enumerate (because its surface genuinely
+capabilities.toml:14:source = "scripts/check-shared-ui.mjs"
+capabilities.toml:15:enforced-by = ["pnpm check:ui"]
+capabilities.toml:33:enforced-by = ["pnpm check:ui", "pnpm test:site"]
+docs/adr/0009-trend-xaxis-data-days.md:53:  importing from `src` impossible, so consistency is backstopped by `check:ui` and the confirmation
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:57:checked by a `--cross` rule in `check-shared-ui.mjs` that fails when it drifts.
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:62:  docs/prototypes/sync-icons.mjs`. Forgetting the second step fails `pnpm check:ui --cross` rather
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:79:- `src/renderer/src/icons.tsx`, `docs/prototypes/sync-icons.mjs`, `scripts/check-shared-ui.mjs`
+docs/adr/0033-prototypes-are-the-baseline.md:4:  `check:ui --cross` rule that guarded them)
+docs/adr/0033-prototypes-are-the-baseline.md:10:placeholders were generated from the app's `theme.css`, and `check:ui --cross` failed whenever a generated
+docs/adr/0033-prototypes-are-the-baseline.md:34:`check:ui` compares no prototype with the app: the `--cross` tier is gone with its prototype-versus-app
+docs/adr/0033-prototypes-are-the-baseline.md:49:  `check:ui` does not go red because a prototype is ahead of the app.
+docs/adr/0033-prototypes-are-the-baseline.md:50:- Positive: `check:ui` has one tier. What it reports is a defect wherever it runs, so there is no "expected
+docs/adr/0033-prototypes-are-the-baseline.md:67:- `scripts/check-shared-ui.mjs` (the single tier) and `docs/prototypes/_shared/`.
+docs/specs/global-search.md:314:  shared-UI check's rail-label rule by its rail key, as the other rail labels are ordinary words; the
+docs/specs/i18n.md:480:"Each README reaches the other" is a **decidable property** and is baked into `check:ui`
+package.json:22:    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:scripts && pnpm test:site && pnpm check:ui && pnpm check:lang && pnpm check:i18n && pnpm check:nul && pnpm e2e && pnpm smoke",
+package.json:24:    "check:ui": "node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs",
+exit=0
+
+== how a page declares or references a shared block, in the documents (English):
+$ git grep -n -i -E "data-shared-block|references? (the |its )?(shared )?(block|asset)" -- docs/specs docs/features docs/adr CONTEXT.md AGENTS.md README.md README.en.md site/README.md
+exit=1
+
+== the same in Chinese, in the documents with Han (gate, shared block, reference, comment):
+$ git grep -n -P "(*UTF)\x{5171}\x{4EAB}\x{5757}|\x{5171}\x{4EAB}\x{4EF6}|\x{95E8}\x{7981}|\x{6CE8}\x{91CA}" -- README.md README.en.md docs/adr/0015-structured-ipc-errors.md docs/adr/0017-repo-working-language-english.md docs/features/i18n.md docs/specs/i18n.md
+exit=1
+control: the Chinese word for download in README.md
+README.md:5
+exit=0
+
+== Chinese in the prototypes: the word for a gate (U+95E8 U+7981), files and line counts
+$ git grep -c -P "(*UTF)\x{95E8}\x{7981}" -- docs/prototypes
+docs/prototypes/skills-view/skill-packages-fixture.js:1
+exit=0
+(skill-packages-fixture.js is the skills preview's mock package content, a copy of a skill's text: no statement about this repository's gate)
+control: files in the prototypes with the Chinese word for a shared piece (U+5171 U+4EAB U+4EF6):
+      10
