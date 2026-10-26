@@ -1,0 +1,55 @@
+# EXDEV repro: the site's tests with TMPDIR on another filesystem, then with the default
+site unchanged from main: $ git diff --stat 9685ccf -- site
+(empty above)
+
+## TMPDIR=/private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/i253/exdev/mnt (a mounted disk image: another filesystem)
+$ TMPDIR=<mnt>/ pnpm --dir site test
+
+> agentshed-site@0.0.0 test /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253/site
+> vitest run
+
+
+ RUN  v5.0.5 /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253/site
+
+No test files found, exiting with code 1
+
+include: src/**/*.test.ts, test/**/*.test.ts
+exclude:  **/node_modules/**, **/.git/**
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: EXDEV: cross-device link not permitted, rename '/Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253/site/.astro/.prerender/_astro/Base.Dhixzggo.css' -> '/private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/i253/exdev/mnt/agentshed-site-n08Pg0/_astro/Base.Dhixzggo.css'
+ ❯ Object.rename node:internal/fs/promises:842:10
+ ❯ ssrMoveAssets node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/static-build.js:359:3
+ ❯ BasicMinimalPluginContext.handler node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/static-build.js:160:7
+ ❯ Object.buildApp node_modules/.pnpm/vite@8.3.4_@types+node@22.20.5_yaml@2.9.1/node_modules/vite/dist/node/chunks/node.js:35131:5
+ ❯ buildEnvironments node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/static-build.js:263:2
+ ❯ viteBuild node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/static-build.js:72:28
+ ❯ AstroBuilder.build node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/index.js:172:33
+ ❯ AstroBuilder.run node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/index.js:217:4
+ ❯ runBuild node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/index.js:60:2
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -18, code: 'EXDEV', syscall: 'rename', path: '/Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253/site/.astro/.prerender/_astro/Base.Dhixzggo.css', dest: '/private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/i253/exdev/mnt/agentshed-site-n08Pg0/_astro/Base.Dhixzggo.css' }
+
+
+
+ ELIFECYCLE  Test failed. See above for more details.
+exit=1
+
+## the default TMPDIR (/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/), same filesystem as the worktree
+$ pnpm --dir site test
+
+> agentshed-site@0.0.0 test /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253/site
+> vitest run
+
+
+ RUN  v5.0.5 /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253/site
+
+
+ Test Files  7 passed (7)
+      Tests  107 passed (107)
+   Start at  12:06:27
+   Duration  1.34s (import 74%, tests 23%, transform 2%, worker 1%)
+
+exit=0

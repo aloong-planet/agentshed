@@ -1,0 +1,352 @@
+# Targeted verification — #253
+date: 2026-10-26T03:30:01Z
+HEAD: 9685ccfcb7410f4e40b9995ff228ff2251b47fdf
+working tree (git status --porcelain --untracked-files=all, with git hash-object):
+  M .github/workflows/ci.yml bc96681f9ed393e5e6fd2acfea7a7991e0d0e64a
+  M .github/workflows/message-language.yml ef055a0340b7f9533522395f4e8deb612505a565
+  M .github/workflows/release.yml 12f94752986cf23178cacaac1576f91d427e96ed
+  A docs/.workings/macos-release-line/evidence/ticket-253/actions-and-targets.txt b77a9a558c009058692ba528591e91114393322a
+  A docs/.workings/macos-release-line/evidence/ticket-253/red-first.txt f81c30c9fc0cfbaf82bf7d78c64c309dbd81a14c
+  A docs/.workings/macos-release-line/evidence/ticket-253/release-notes/notes-checkout.md a6dca2b51d1803235d7f549c75f08e27e0a174a4
+  A docs/.workings/macos-release-line/evidence/ticket-253/release-notes/notes-download.md a36dd5161031a6d80a577438c2ddb8de7f292ac9
+  A docs/.workings/macos-release-line/evidence/ticket-253/release-notes/notes-pnpm.md bd240c2027138be81a0ce0b6cdd9a55ee0f6c495
+  A docs/.workings/macos-release-line/evidence/ticket-253/release-notes/notes-setup-node.md ea220bea0d46ca95d8763cfab43876fcf33d3151
+  A docs/.workings/macos-release-line/evidence/ticket-253/release-notes/notes-upload.md 7592931274166680c986dd0fddc44d6188bad64c
+  AM docs/.workings/macos-release-line/evidence/ticket-253/targeted.txt eeaa3db0c4c7cd3ebf32dab1a6ff38295aeb54e9
+  A docs/.workings/macos-release-line/ticket-253-doc-sync.md cbd4bb7695679560d4b3892468065c2dd7bd04a1
+  A docs/.workings/macos-release-line/ticket-253-review-tests.md ac5c8da724c32441c7545e99f63d3a9b5d6fe89b
+  A docs/.workings/macos-release-line/ticket-253-tasks.md aad36c89d3defb123af9c12ead102ca9d0e2cbfe
+  M package.json 4bbec9f4cf80f044ebfb5902a3875644762acd79
+  M scripts/release-workflow.test.mjs 0ca146dc4d7eb7eba04913f9f8beb14acfee5bb6
+  A scripts/workflow-actions.test.mjs b7502acdf2a9ff1d888641f76a454c4eba0833bf
+
+## Which tests read what this change touched (search, not recall)
+$ grep -rln --include='*.test.*' -e 'workflows' -e 'release.yml' -e 'ci.yml' -e 'message-language' scripts build src e2e site/test
+scripts/release-workflow.test.mjs
+scripts/workflow-actions.test.mjs
+exit=0
+$ grep -rln --include='*.test.*' -e 'package.json' scripts build src e2e site/test
+scripts/release-tag.test.mjs
+build/mac-packaging.test.cjs
+exit=0
+control (a file known to read release.yml must be listed above): scripts/release-workflow.test.mjs
+
+$ node --test scripts/workflow-actions.test.mjs
+✔ every action in every workflow is pinned to a full commit (0.567875ms)
+✔ each action's line names its release in a comment, and the lines account for every action (0.591125ms)
+✔ an action is at one commit, and a commit names one release, in every workflow (0.315625ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 68.442416
+exit=0
+
+$ pnpm test:scripts
+
+> agentshed@0.1.0-beta test:scripts /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253
+> node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/publish-release.test.mjs scripts/mirror-release.test.mjs scripts/release-workflow.test.mjs scripts/workflow-actions.test.mjs
+
+[mac] could not remove the temporary extraction /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-2SVGh5: ENOTEMPTY, Directory not empty: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-2SVGh5 '/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-2SVGh5'
+[mac] could not remove the temporary extraction /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-IGBdbu: ENOTEMPTY, Directory not empty: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-IGBdbu '/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-IGBdbu'
+▶ configuration
+  ✔ reads the DMG target architectures in config order (0.913208ms)
+  ✔ fails on no dmg target (0.269542ms)
+  ✔ fails on an unknown arch (0.115209ms)
+  ✔ fails on an arch listed twice (0.085375ms)
+  ✔ product name, version, output directory and arches come from the project files (0.2435ms)
+  ✔ a zip target with the dmg target's arches opts the ZIP in, in whatever order it lists them (0.174708ms)
+  ✔ the ZIP opt-in is refused before building with a zip target for other arches (0.109666ms)
+  ✔ the ZIP opt-in is refused before building with a zip target without an arch list (0.08075ms)
+  ✔ the ZIP opt-in is refused before building with no mac.artifactName (0.080416ms)
+  ✔ the ZIP opt-in is refused before building with another mac.artifactName (0.1155ms)
+  ✔ the ZIP opt-in is refused before building with the DMG still written into the update metadata (0.075166ms)
+  ✔ an output directory using a macro other than ${version} is refused rather than guessed (0.083458ms)
+  ✔ the DMG name pattern is required, and the error says what to write (0.099625ms)
+  ✔ the DMG must be signed, and the error says what to write (0.094709ms)
+  ✔ a config without productName is refused (0.072458ms)
+  ✔ js-yaml comes from electron-builder's dependency tree, and its absence is explained (7.605ms)
+✔ configuration (11.048291ms)
+▶ certificate source check
+  ✔ a Developer ID Application identity in the keychain is accepted (0.230667ms)
+  ✔ no Developer ID Application identity fails with the install hint (0.118792ms)
+  ✔ CSC_LINK is accepted without reading the keychain, since the builder imports it (0.061333ms)
+  ✔ an empty CSC_LINK does not count as a certificate (0.068458ms)
+✔ certificate source check (0.577625ms)
+▶ locating the built apps
+  ✔ identifies each app by its binary architectures, whatever its directory is called (5.173792ms)
+  ✔ fails when nothing has been built (0.427333ms)
+  ✔ fails when an arch is missing (3.227958ms)
+  ✔ fails when a binary has unexpected architectures (6.522375ms)
+  ✔ fails when a crashed universal build left its arm64 temp app behind (4.037208ms)
+  ✔ fails on a leftover app for an arch the config no longer lists (3.293958ms)
+✔ locating the built apps (22.886583ms)
+▶ one build, local profile
+  ✔ builds the apps and DMGs in one builder call with notarization off and no hook, then checks every signature (5.372ms)
+  ✔ fails before building anything when there is no certificate (0.435541ms)
+  ✔ fails on an ad-hoc signature instead of shipping it (4.351167ms)
+  ✔ fails on an App Store signature instead of shipping it (3.926833ms)
+  ✔ fails when the builder left no DMG for an arch (3.620667ms)
+  ✔ fails when a DMG is signed by a different team from the app inside it (6.75325ms)
+✔ one build, local profile (24.681459ms)
+▶ one build, release profile
+  ✔ adds this file as the afterSign hook to the same builder call, and confirms every app carries its ticket (6.992125ms)
+  ✔ refuses to build without every Apple credential (0.441708ms)
+  ✔ fails when an app came out of the build without a stapled ticket (the hook did not run on it) (3.728625ms)
+✔ one build, release profile (11.281208ms)
+▶ one build with the ZIP electron-updater installs from
+  ✔ local packaging checks the app inside each ZIP in a temporary extraction, which it removes, and asks for no ticket (7.073667ms)
+  ✔ release packaging also requires the app inside each ZIP to carry its stapled ticket (6.834333ms)
+  ✔ a ZIP whose app has no stapled ticket fails the release, even though the built app has one (6.897292ms)
+  ✔ a ZIP whose app has no Developer ID Application authority fails, even though the built app is signed correctly (5.957208ms)
+  ✔ a ZIP whose app has another Team ID fails, even though the built app is signed correctly (5.9965ms)
+  ✔ a ZIP whose app has no secure timestamp fails, even though the built app is signed correctly (6.36225ms)
+  ✔ an extraction that cannot be fully removed leaves the outcome of a check that passed as it is (7.446542ms)
+  ✔ an extraction that cannot be fully removed leaves the outcome of a check that failed as it is (6.559916ms)
+  ✔ a ZIP that holds more than the app fails (5.4105ms)
+  ✔ the ZIP is never written: its bytes and time are the builder's, and only the extraction names it (7.423292ms)
+  ✔ fails when the builder left no ZIP for an arch (5.315083ms)
+✔ one build with the ZIP electron-updater installs from (71.707916ms)
+▶ a rebuild leaves nothing from an earlier run behind
+  ✔ a DMG left over from an earlier run does not pass as this run's output (4.141291ms)
+  ✔ build output directories from an earlier run are cleared before the build, so a leftover app never reaches the hook (8.400667ms)
+  ✔ with the ZIP, leftover ZIPs and update metadata are cleared before the build (7.593209ms)
+  ✔ DMG-only, ZIPs and update metadata are left as they are (4.82975ms)
+  ✔ the notarization logs of the apps and DMGs being rebuilt are removed (4.164041ms)
+✔ a rebuild leaves nothing from an earlier run behind (29.326334ms)
+▶ afterSign hook: notarize each signed app before its DMG is built
+  ✔ zips, submits, keeps the log, staples and validates the app it is called for (4.148917ms)
+  ✔ does nothing for a Mac App Store build (0.917416ms)
+  ✔ fails without every Apple credential instead of skipping (2.214417ms)
+  ✔ a rejected app fails the build with the original error, unstapled (2.257875ms)
+✔ afterSign hook: notarize each signed app before its DMG is built (9.620958ms)
+▶ DMG gate: which DMGs
+  ✔ selects exactly the expected DMG for each configured arch, in config order (0.17125ms)
+  ✔ a missing DMG fails before any submission (0.075875ms)
+  ✔ a leftover DMG (another version, another name) fails rather than slipping past (0.072584ms)
+  ✔ the app inside a mounted DMG is looked up by the product name (0.508666ms)
+✔ DMG gate: which DMGs (0.891ms)
+▶ the artifact set the DMG gate runs on
+  ✔ with the ZIP: the DMGs and ZIPs in config order, once the one update metadata file vouches for exactly those ZIPs; nothing is written (7.304208ms)
+  ✔ fails before any submission when a DMG is missing (7.796334ms)
+  ✔ fails before any submission when a ZIP is missing (3.627917ms)
+  ✔ fails before any submission when a ZIP under electron-builder's default name is left over (6.204167ms)
+  ✔ fails before any submission when a ZIP of another version is left over (4.700333ms)
+  ✔ fails before any submission when there is no update metadata (5.168916ms)
+  ✔ fails before any submission when there are several update metadata files (4.753625ms)
+  ✔ fails before any submission when the update metadata is for another version (5.642416ms)
+  ✔ fails before any submission when the update metadata lists a DMG (6.184625ms)
+  ✔ fails before any submission when the update metadata leaves a ZIP out (4.678375ms)
+  ✔ fails before any submission when the update metadata lists a ZIP twice (5.138166ms)
+  ✔ fails before any submission when the update metadata records another size (4.281208ms)
+  ✔ fails before any submission when the update metadata records another sha512 (5.337292ms)
+  ✔ DMG-only: ZIPs and update metadata are not part of the set (4.208042ms)
+✔ the artifact set the DMG gate runs on (75.415917ms)
+▶ DMG gate: signature and Apple results
+  ✔ accepts a Developer ID Application DMG with the right Team ID and a secure timestamp (0.130083ms)
+  ✔ refuses a DMG with no Developer ID Application authority (0.06275ms)
+  ✔ refuses a DMG with another Team ID (0.038334ms)
+  ✔ refuses a DMG with the timestamp turned off (0.036917ms)
+  ✔ an Accepted log must belong to this submission and carry no error (0.1245ms)
+  ✔ a submission must be Accepted with an id, and malformed output never passes (0.103709ms)
+✔ DMG gate: signature and Apple results (0.570375ms)
+▶ DMG gate: one DMG
+  ✔ runs verify → submit → log → staple → Gatekeeper → the app inside, then detaches and removes the mount point (0.273542ms)
+  ✔ a DMG without a secure timestamp fails before it is submitted (0.101834ms)
+  ✔ a rejection fetches the log for diagnosis but throws the original error (0.107ms)
+  ✔ a failure inside the mounted image still detaches (forcing if needed), and cleanup never hides the cause (0.132458ms)
+✔ DMG gate: one DMG (0.663125ms)
+▶ command line
+  ✔ an unknown subcommand prints the usage (0.12575ms)
+  ✔ outside the project root it says so instead of guessing (0.247083ms)
+  ✔ the DMG gate checks the artifact set before running any command (6.890292ms)
+✔ command line (7.319167ms)
+✔ a formal release's DMGs go to releases/v<version>/ with immutable caching, and nothing else is written (3.071292ms)
+✔ the pointer is written last, naming the version and each file with its download URL (2.097292ms)
+✔ the update files in the artifact stay off R2: only the DMGs are mirrored, and the pointer names only them (4.175333ms)
+✔ a mirrored file the download host cannot serve leaves the pointer unwritten (2.345916ms)
+✔ a file the download host serves with other bytes than the gated file leaves the pointer unwritten (2.131875ms)
+✔ a file the download host misses once is read again after a pause, and then the pointer is written (2.5205ms)
+✔ an upload that fails partway fails the mirror (2.01ms)
+✔ the aws-cli adapter copies each object with its headers to the bucket on the R2 endpoint (1.0975ms)
+[mirror] uploaded releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg
+[mirror] https://dl.agentshed.aloongplanet.com/releases/v0.2.0/Agentshed-0.2.0-mac-arm64.dmg serves the gated file (38 bytes, sha256 fbde74630a7f47b9198ec75012154b1ecc506123c7c3b17b0024ec4e0751a4a8)
+[mirror] latest.json now points at 0.2.0
+✔ the HTTP probe reports the status, and the size and sha256 of the bytes it read (26.0955ms)
+✔ the entry point refuses a missing setting or an unknown step before any command (0.375875ms)
+✔ the entry point uploads to the bucket on the account endpoint, and points at the download host (4.309292ms)
+✔ a pre-release tag is refused before the bucket or the download host is touched (1.109875ms)
+[release] uploading Agentshed-0.2.0-mac-arm64.dmg, Agentshed-0.2.0-mac-arm64.zip, Agentshed-0.2.0-mac-arm64.zip.blockmap, latest-mac.yml to a draft of v0.2.0
+[release] published v0.2.0 (Latest) with Agentshed-0.2.0-mac-arm64.dmg, Agentshed-0.2.0-mac-arm64.zip, Agentshed-0.2.0-mac-arm64.zip.blockmap, latest-mac.yml
+[release] uploading Agentshed-0.2.0-mac-arm64.dmg, Agentshed-0.2.0-mac-arm64.zip, Agentshed-0.2.0-mac-arm64.zip.blockmap, latest-mac.yml to a draft of v0.2.0
+[release] published v0.2.0 (pre-release) with Agentshed-0.2.0-mac-arm64.dmg, Agentshed-0.2.0-mac-arm64.zip, Agentshed-0.2.0-mac-arm64.zip.blockmap, latest-mac.yml
+✔ a formal tag publishes the whole set once, the update files with the DMG, titled for a release, marked Latest (6.752333ms)
+✔ a pre-release tag after a formal release is published as a pre-release, and Latest stays on the formal one (3.833291ms)
+✔ a tag whose release is already public is refused, and nothing is created or deleted (2.788958ms)
+✔ an earlier attempt's drafts for the tag are removed first, so only this run's files go public (4.116166ms)
+▶ an upload that did not land in full leaves nothing public
+  ✔ the release holds fewer files than were sent (0.857625ms)
+  ✔ the create command fails after one upload (0.419292ms)
+✔ an upload that did not land in full leaves nothing public (5.904042ms)
+✔ a file whose stored bytes differ from the gated file leaves nothing public (4.472208ms)
+✔ an artifact with no DMG, with another version's directory, or with a DMG of another version fails before the release store is touched (2.494208ms)
+✔ an artifact without every update file fails before the release store is touched (14.622833ms)
+✔ a formal release that does not end up Latest fails the run where it can be seen (2.448833ms)
+✔ a release another run made public while this one uploaded is left alone, and this run publishes nothing (2.615292ms)
+✔ the GitHub CLI adapter sends each operation as the gh command that performs it (0.236833ms)
+✔ the adapter reads gh's JSON into the fields publishing checks (0.112125ms)
+✔ a failed gh command fails the operation that sent it (0.100209ms)
+✔ the entry point refuses an environment it cannot classify, before any gh command (0.199375ms)
+✔ the classification in the environment reaches gh: "false" publishes Latest, "true" a pre-release (4.872209ms)
+✔ a tag matching the package version passes and gives the version (0.515083ms)
+✔ a tag that differs from the package version fails, naming the tag the version needs (0.245125ms)
+✔ a version with build metadata, or one that is not semver, is refused even when the tag matches (0.107709ms)
+✔ the command passes a matching tag, and fails with both versions on a mismatch or with no tag (143.5795ms)
+✔ the workflow runs on a v* tag push and on a manual dispatch with the verify switch, and on nothing else (0.927916ms)
+✔ the tier follows the trigger: every tag and a dispatch with the switch run the release profile, any other dispatch the local one (5.724042ms)
+✔ publishing runs only on a tag push, after the gate job passed; a manual run cannot reach it under any input (0.593292ms)
+✔ publishing marks every suffixed tag a pre-release, -beta.2 included, and a plain version formal (0.238333ms)
+✔ a missing certificate fails every tier at once, naming the secrets, before anything is checked out or built (19.547333ms)
+✔ missing Apple credentials fail the release tiers before packaging, and leave the local tier alone (12.004875ms)
+✔ a tag push checks the tag against the package version before packaging; a dispatch does not (0.725917ms)
+✔ the gate job's time limit leaves room for two submissions of up to 30 minutes and the build (0.168792ms)
+✔ the packages, the update files and Apple's logs are kept with the run, and publishing takes exactly that artifact (0.296875ms)
+✔ credentials reach only the packaging steps and the two R2 steps, the local packaging never gets Apple credentials, and no run block interpolates (0.889917ms)
+✔ after a failed requirement nothing else runs: no later step in the gate job overrides the stop with a status function (0.311167ms)
+✔ the mirror and the pointer run for a formal tag push only: never for a pre-release, a dispatch or a pull request (0.649041ms)
+✔ the mirror follows the published GitHub release, and the pointer follows the mirror; a failed job before them skips them (0.119375ms)
+✔ a missing R2 credential fails the mirror and the pointer first, naming the four secrets (CON-003) (16.484042ms)
+✔ the mirror and the pointer read the gate job's artifact and the download host the certificate check settled (0.155458ms)
+✔ every action in every workflow is pinned to a full commit (0.612375ms)
+✔ each action's line names its release in a comment, and the lines account for every action (0.643083ms)
+✔ an action is at one commit, and a commit names one release, in every workflow (0.342042ms)
+ℹ tests 137
+ℹ suites 13
+ℹ pass 137
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 335.080959
+exit=0
+
+$ /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/i253/actionlint/actionlint -version
+1.7.12
+installed by downloading from release page
+built with go1.26.1 compiler for darwin/arm64
+exit=0
+
+$ /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/i253/actionlint/actionlint -no-color -verbose .github/workflows/ci.yml .github/workflows/message-language.yml .github/workflows/release.yml
+verbose: Linting 3 files
+verbose: Linting .github/workflows/release.yml
+verbose: Using project at /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253
+verbose: Linting .github/workflows/message-language.yml
+verbose: Using project at /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253
+verbose: Linting .github/workflows/ci.yml
+verbose: Using project at /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253
+verbose: Found 0 parse errors in 0 ms for .github/workflows/ci.yml
+verbose: Found 0 parse errors in 0 ms for .github/workflows/release.yml
+verbose: Found 0 parse errors in 0 ms for .github/workflows/message-language.yml
+verbose: Rule "shellcheck" was disabled: exec: "shellcheck": executable file not found in $PATH
+verbose: Rule "shellcheck" was disabled: exec: "shellcheck": executable file not found in $PATH
+verbose: Found total 0 errors in 4 ms for .github/workflows/ci.yml
+verbose: Found total 0 errors in 4 ms for .github/workflows/release.yml
+verbose: Rule "shellcheck" was disabled: exec: "shellcheck": executable file not found in $PATH
+verbose: Found total 0 errors in 5 ms for .github/workflows/message-language.yml
+verbose: Found 0 errors in 3 files
+exit=0
+
+## actionlint shown able to fail: a copy of ci.yml with one key misspelt (a misspelt key, timeout-minute, added to both jobs)
+$ diff .github/workflows/ci.yml <planted copy>
+18a19
+>     timeout-minute: 30
+53a55
+>     timeout-minute: 30
+diff exit=1
+$ actionlint -no-color <planted copy>   (expected: exit 1, unexpected key "timeout-minute")
+../../../../../var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.NRgYh3UJHM/.github/workflows/ci.yml:19:5: unexpected key "timeout-minute" for "job" section. expected one of "concurrency", "container", "continue-on-error", "defaults", "env", "environment", "if", "name", "needs", "outputs", "permissions", "runs-on", "secrets", "services", "snapshot", "steps", "strategy", "timeout-minutes", "uses", "with" [syntax-check]
+   |
+19 |     timeout-minute: 30
+   |     ^~~~~~~~~~~~~~~
+../../../../../var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/tmp.NRgYh3UJHM/.github/workflows/ci.yml:55:5: unexpected key "timeout-minute" for "job" section. expected one of "concurrency", "container", "continue-on-error", "defaults", "env", "environment", "if", "name", "needs", "outputs", "permissions", "runs-on", "secrets", "services", "snapshot", "steps", "strategy", "timeout-minutes", "uses", "with" [syntax-check]
+   |
+55 |     timeout-minute: 30
+   |     ^~~~~~~~~~~~~~~
+exit=1
+
+$ pnpm typecheck
+
+> agentshed@0.1.0-beta typecheck /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253
+> tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json
+
+exit=0
+
+$ pnpm lint
+
+> agentshed@0.1.0-beta lint /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253
+> eslint . --max-warnings 0
+
+exit=0
+
+$ pnpm check:lang
+
+> agentshed@0.1.0-beta check:lang /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253
+> node --test scripts/check-lang.test.mjs && node scripts/check-lang.mjs
+
+✔ the seeds alone pass, one permitted line each (239.064583ms)
+✔ Chinese in the skill's copy docs/prototypes/index.html is reported like any other tooling (231.733042ms)
+✔ Chinese in the skill's copy docs/prototypes/app-identity.js is reported like any other tooling (229.818ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-dimensions.js is reported like any other tooling (227.286959ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-harness.js is reported like any other tooling (230.59075ms)
+✔ Chinese in the skill's copy sync-mmd.mjs is reported, since .mjs is not an exempt type (228.410625ms)
+✔ Chinese stays permitted in a mockup page (230.735958ms)
+✔ Chinese stays permitted in a logic page that shares the gallery shell’s file name (225.916917ms)
+✔ Chinese stays permitted in the manifest, whose names and questions address the reviewer (233.367375ms)
+✔ Chinese stays permitted in the dimension registry, whose labels address the reviewer (227.934458ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2364.059833
+✓ Working language: 2270 line(s) of Chinese, each permitted by a stated rule
+    rule · 1 file(s) · side-count detection patterns quote the languages they scan; pattern literals only, not prose
+    rule · 1 file(s) · the source-language dictionary — the values are the copy itself, while the comments are English like the rest of the repository
+    rule · 1 file(s) · the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English
+    rule · 16 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
+    rule · 3 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
+    rule · 38 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+    rule · 1 file(s) · the Chinese README — a localisation is written in the language it localises into
+    rule · 2 file(s) · the language switcher rows and the selector list — a language is named in its own script
+exit=0
+
+$ pnpm check:nul
+
+> agentshed@0.1.0-beta check:nul /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253
+> node --test scripts/check-raw-nul.test.mjs && node scripts/check-raw-nul.mjs
+
+✔ accepts real PNG and ICNS artwork under new filenames (209.822667ms)
+✔ rejects NUL-bearing source even alongside valid artwork (115.978833ms)
+✔ does not exempt unrecognised content in pretend.png (74.310708ms)
+✔ does not exempt unrecognised content in pretend.icns (67.635ms)
+✔ does not exempt unrecognised content in binary.dat (70.932167ms)
+✔ accepts searchable source with an escaped NUL (115.632166ms)
+✔ rejects a NUL in a new file that is not staged yet (116.949167ms)
+✔ does not scan a git-ignored file, such as build output (114.349625ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 934.068084
+✓ Raw NUL bytes: none in 1001 file(s) (120 binary-format file(s) exempt by signature)
+exit=0
+
+TARGETED_EXIT=0

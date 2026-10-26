@@ -131,8 +131,9 @@ the mirror and pointer jobs then copy the release to R2 and rewrite its `latest.
 - **Time limits.** The gate job has 120 minutes: Apple takes 2–30 minutes per submission, and the release profile
   submits twice. The publish job has 15.
 - **Actions.** Every action is pinned to a full commit, with its version in a comment: the gate job holds the
-  certificate and Apple's credentials, and the publish job can write releases. Update one by its new release's
-  commit. `ci.yml` uses tags.
+  certificate and Apple's credentials, and the publish job can write releases. The other workflows are pinned the same
+  way, at the same commits (`CONTEXT.md`'s invariant; `scripts/workflow-actions.test.mjs` checks every workflow file).
+  Update an action by its new release's commit, in every workflow at once.
 - **Tests.** `scripts/release-workflow.test.mjs` evaluates the workflow's conditions (`pnpm test:scripts`, which
   CI's checks job and `pnpm verify` run). A change to a condition goes red there before any tag finds it.
 
