@@ -5,8 +5,8 @@
 // from where its members are defined, so a member added there is checked, and a source it cannot read is reported.
 //
 // The gate takes its root from its own location, so the tree holds a copy of the gate under scripts/, real copies of
-// docs/prototypes/, src/ and the root's READMEs, an empty docs/.workings, and symbolic links to everything else. The
-// prototypes must be copied: the gate walks them with readdirSync's file types, where a link to a directory is not a
+// docs/prototypes/, src/, the root's READMEs and package.json, an empty docs/.workings, and symbolic links to everything
+// else. The prototypes must be copied: the gate walks them with readdirSync's file types, where a link to a directory is not a
 // directory, and a linked page would be skipped. The rest is copied so a plant never writes the repository's own file.
 // Three trees: the planted one; one whose sources' declarations are renamed or emptied; and one whose source files are
 // gone. They cannot share a tree: the first adds a member to a source the second renames, and the second keeps theme.css,

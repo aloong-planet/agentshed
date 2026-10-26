@@ -23,7 +23,9 @@ cases plant, and links to the rest. Harness changes:
   exactly once. The second tree renames every `--p-*` and `--accent*` name in `theme.css` this way.
 - **Two trees.** `runGate(plants, files)` builds and runs one tree; the file runs it twice — the planted tree (the
   existing plants and this round's) and the missing-sources tree (sources renamed or emptied). The two cannot share a
-  tree: one adds a member to a source the other renames.
+  tree: one adds a member to a source the other renames. Since the design increment of 2026-10-27 the file runs it a
+  third time, on the absent-sources tree (Y0–Y9; why a third tree, there) — brought here by the post-implementation
+  check's incremental round, finding 6.
 
 Red first: the test changes first and runs on the gate at e926e38 (`evidence/ticket-316/red-first.txt`); the gate after.
 
@@ -86,12 +88,13 @@ distinct strings.
 ### Coverage
 
 #316's criteria, each against its cases: 316::1 — B1 (the reported gap), B2 (dark values), B3 (a member added at the
-source); the renderer's `.ts` files, none (reopened: post-implementation check, finding 1). 316::2 — A1 (the reported gap), A2 (the family), A3 (the exclusion kept). 316::3 — Th1, and G0 for the
+source); the renderer's `.ts` files, Ts (reopened by the post-implementation check's finding 1, closed by Ts). 316::2 — A1 (the reported gap), A2 (the family), A3 (the exclusion kept). 316::3 — Th1, and G0 for the
 existing themes' selectors. 316::4 — S1, S2. 316::5 — Lg1, Lg2 (both rules on the new dictionary). 316::6 — R1, R2.
 316::7 — Ra1. 316::8 — K1 (the reported gap), K2 (a new directory), K3 (a new root file), K4 (the exclusion);
-`package.json`, none (reopened: post-implementation check, finding 2). 316::9 — X1–X10, every derived source: its
-missing branch (X1–X6) and its empty branch (X7, X8–X10); a source file that is absent, none (reopened:
-post-implementation check, finding 3). 316::10 is the gate on main.
+`package.json`, Pk (reopened by the post-implementation check's finding 2, closed by Pk). 316::9 — X1–X10, every
+derived source: its missing branch (X1–X6) and its empty branch (X7, X8–X10); a source file that is absent, Y0–Y9
+(reopened by the post-implementation check's finding 3, closed by Y0–Y9). 316::10 is the gate on main. (The three
+closures brought here by the post-implementation check's incremental round, finding 6.)
 
 Not driven, by reasoning: the ticket-number rule's directory walk is not a derived list — an empty `docs/` is a state
 of the repository, not a source that failed to read, and `package.json` and the root's files stay in scope; the
@@ -122,7 +125,8 @@ Two expensive resources, both built by `runGate`: the planted tree with its gate
 its gate run. Each is built once per run of the file, at module level, and shared by every case on it; they differ in
 their plants, so neither can stand in for the other (the existing harness's precedent, extended). The current file takes
 4.7 s for one tree (2026-10-26); the second adds one copy and one gate run. Nothing clears either resource between
-cases.
+cases. A third, the absent-sources tree with its gate run, since the design increment of 2026-10-27 (reviewed there),
+is built and shared the same way (brought here by the post-implementation check's incremental round, finding 6).
 
 ### Findings
 
@@ -162,7 +166,7 @@ reuse — the same planted tree.
 | Ts | a provider colour in a renderer `.ts` module | 316::1 (D4; finding 1) | on the planted tree, `src/renderer/src/skill-content-query.ts` gains `const PLANTED = '#d97757'` after its `./display-queries` import (a colour the old list had, in a file none of its rules searched: only the file type is new) | `src/renderer/src/skill-content-query.ts: hard-coded #d97757`; red when `rendererSources` drops `.ts`, which the accent and chip rules list through too | a module of the renderer's own, holding no other plant | as G0 |
 | Pk | a ticket number in `package.json` | 316::8 (D6; finding 2) | `package.json` joins the copied files; on the planted tree its `description` (line 4) opens with `See ticket 12. ` | `package.json:4 references "ticket 12" — use a date or an ADR number`; red when the rule's list drops `package.json` | the manifest's own prose field | as G0 |
 | Y0 | the absent-sources run fails, after every rule has run | 316::9 (finding 3) | a third tree: `FILES` removes `side-badge.ts`, `src/shared/i18n/index.ts`, `src/shared/appearance.ts`, `_shared/app-rail.js` and `src/renderer/src/theme.css` — every file a mirrored list is read from but the READMEs, whose absence X10 drives | exit 1 and the summary line, as X0: a reader that throws on a missing file stops the gate before any rule | — | the absent-sources tree, built and run once per file run, shared by Y0–Y9 |
-| Y1–Y9 | each source absent as a file | 316::9 (finding 3) | as Y0 | the lines X1–X9 assert, word for word: a file that is not there is reported as its declaration's absence is (`constValue`'s and `themeHexValues`' paths for an unreadable file, which no tree reached) | as X1–X9 | as Y0 |
+| Y1–Y9 | each source absent as a file | 316::9 (finding 3) | as Y0 | the lines X1–X9 assert, word for word: a file that is not there is reported as its declaration's absence is (`constValue`'s and `themeHexValues`' paths for an unreadable file, which no tree reached) | the five source files themselves, removed (X1–X9 edit their declarations instead; corrected by the post-implementation check's incremental round) | as Y0 |
 
 Why a third tree rather than removing `index.ts` and `theme.css` on the second, as finding 3 suggests: X0 drives the
 swatch rule's stop on a missing theme list, which is reached only while `theme.css` can be read — with it removed, the
@@ -194,7 +198,7 @@ Self-check before handing the fixes for the post-implementation check's findings
 
 No finding.
 
-## Post-implementation check (2026-10-27, implementation 723db11, range e926e38..723db11)
+## Post-implementation check (2026-10-27; first round: implementation 723db11, range e926e38..723db11; incremental round: implementation 6b5aecc, fix range 723db11..6b5aecc)
 
 Ticket [#316](https://github.com/aloong-planet/agentshed/issues/316); an independent check, first round. Its objects are
 the 34 cases this change wrote or changed — G0, B1–B3, A1–A3, Th1, S1, S2, Lg1, Lg2, R1, R2, Ra1, K1–K4, U1–U3, Sub,
@@ -398,6 +402,168 @@ Owed by the findings:
   and the branch does not yet hold (`git status --ignored` lists it); it is kept by committing it with `git add -f`
   beside this record, as `gateway-b03fc6e.txt` was.
 
+### Incremental round (2026-10-27, implementation 6b5aecc, fix range 723db11..6b5aecc)
+
+Ticket [#316](https://github.com/aloong-planet/agentshed/issues/316); the incremental check of the fixes for the first
+round's findings 1–3, within the change range e926e38..6b5aecc on `fix/check-ui-derived-lists`. Requirement source:
+#316's body, read again with `gh issue view 316 -R aloong-planet/agentshed` on 2026-10-27. Run evidence:
+[targeted-5.txt](evidence/ticket-316/targeted-5.txt) for this round's objects; [gateway-723db11.txt](evidence/ticket-316/gateway-723db11.txt),
+checked in the first round, for what is carried; this round ran the test file once, to count builds (Resource reuse),
+and made no full run. Whatever this round does not name below is carried from the first round (723db11).
+
+#### Objects
+
+- Tests changed in the range (`git diff 723db11..6b5aecc -- scripts/check-shared-ui.test.mjs`): new — Ts, Pk, Y0 and
+  Y1–Y9; changed — X1–X10, whose loop now runs over `SOURCE_LINES` (the ten literals of the loop at 723db11 and
+  `SOURCE_LINES` at 6b5aecc, read out by a script and compared: identical, in the same order); and the header's
+  paragraph on the trees.
+- Test helper code changed in the range: `PLANTS` (two plants), `COPIED` (`package.json`), `ABSENT_FILES` with the
+  third module-level `runGate` call, and `SOURCE_LINES`. Who depends on it:
+  `git grep -n -e "check-shared-ui.test" -e COPIED -e runGate -e ABSENT_FILES -e SOURCE_LINES -e absentProblems -e missingProblems 6b5aecc`
+  — 392 lines; outside `docs/.workings/` (records and evidence) only `package.json:24` (`check:ui` runs the test),
+  line 3 of the 2026-10-26 postmortem (names the file) and the test itself, so no other test imports them. Inside the
+  test, a script over its 53 `test(` call sites finds each reading exactly one tree's output — 49 the planted tree, 2
+  the missing-sources tree (X0, and X1–X10's loop), 2 the absent-sources tree (Y0, and Y1–Y9's loop) — and every tree is
+  built by `runGate` from `COPIED`. So all 70 cases are objects; the 58 the first round checked come in through the
+  harness.
+- Rows of the test design table changed in the range (`git diff 723db11..6b5aecc --` this record): the plant list's
+  `side-badge.ts` and `index.ts` entries (the first round's finding 4), the design review's coverage paragraph (marked
+  "reopened" then), and the design increment's rows Ts, Pk, Y0 and Y1–Y9.
+
+#### Run evidence
+
+`targeted-5.txt`, against the full gateway's log requirements: the version is `git rev-parse HEAD` 723db11 with four
+modified files and their `git hash-object`; each equals that file's blob at 6b5aecc (`git rev-parse 6b5aecc:<path>`:
+the test fd223dc, `ticket-316-review-code.md` ef4aaca, this record 938932b, `ticket-316-tasks.md` f85b5fe). The other
+files 723db11..6b5aecc changes are three evidence files it adds, ignored when the run was made and so not listed:
+`targeted-5.txt` (the run's own) and the older `gateway-723db11.txt` and `red-first-4.txt`, which no command of the run
+reads — `git grep` reads tracked files, ESLint skips ignored files and `docs/` (`eslint.config.js:32–39`), the test's
+trees hold an empty `docs/.workings` and the gate's walk skips hidden directories, and `check-lang`'s test builds its
+own repository (`check-lang.test.mjs:40–48`). So the run read 6b5aecc's files. Each command is logged with its full
+output and its exit code (`grep-exit`, `LINT_EXIT`, `CHECK_UI_EXIT`, `CHECK_LANG_TEST_EXIT`, all 0); `check:ui` ran
+70 cases, 70 passed, then the gate passed on the repository (316::10 at 6b5aecc). No finding. `gateway-723db11.txt`
+precedes the fix, which changed the test: by the full gateway's rule a full run on the delivery head is owed before
+delivery (not a finding; the task list's self-check plans the coverage checklist on "the delivery head's gateway").
+
+#### Coverage
+
+The rows changed in the range, against the test at 6b5aecc:
+
+- Ts — `skill-content-query.ts:2` is the `./display-queries` import, once in the file; `#d97757` is light
+  `--p-anthropic` (`theme.css:60`), its only occurrence in the sheet, so the accent rule adds no line; the module
+  holds no other plant. Matches the row.
+- Pk — `package.json:4` is the `description`, and `  "description": "` occurs once; `package.json` is in `COPIED`.
+  Matches the row.
+- Y0 — `ABSENT_FILES` removes five files, and they are every file a mirrored list is read from:
+  `grep -n -E "SOURCE_PROBLEMS\.push|constValue\(|elementsOf\(|entriesOf\(|themeHexValues\(|mirrored\(" scripts/check-shared-ui.mjs`
+  finds the readers taking `side-badge.ts` (three lists), `index.ts`, `appearance.ts` (two), `app-rail.js` and
+  `theme.css` (two), and the root's listing for the READMEs (X10's). The row's "`FILES` removes" names `runGate`'s
+  file-change argument, as the second tree's plant line does. Matches the row.
+- Y1–Y9 — the test asserts `SOURCE_LINES` without the README line: X1–X9's nine lines, as the row says. Its
+  fixture-shape cell said "as X1–X9"; the fixture is the five files removed, not their declarations edited. Corrected
+  in the table, and the row reviewed again as a design review: Coverage — each source file's absence, through
+  `constValue`'s null stop and `themeHexValues`' fallback; Case design — real files removed, as moving a source
+  removes it; False greens — nine literal lines, red as below; Resource reuse — the third tree. Not a finding: the
+  fixture is still the repository's own files, so no conclusion changes.
+- The plant list's `side-badge.ts` and `index.ts` entries — the test's lines 147, 149–150 and 155; the first round
+  reviewed the rows reading them (S1, Lg1, Lg2), which stand.
+
+The 58 cases the first round checked meet the fix in two ways: `package.json` is a real copy in all three trees, and
+the planted tree carries two more plants. G0's planted paths gain `package.json` and `skill-content-query.ts`, so
+lines starting with them pass G0; on main those files are answered for by the gate's run on the repository
+(`check:ui`'s second command; `targeted-5.txt`: passed). The absence cases (A3, K4, the toast comment's) look for
+prefixes neither new plant produces; in the missing-sources tree `package.json` is the repository's, which the ticket
+rule reads clean. Their rows, and the first round's conclusions on them, stand.
+
+The members the first round found undriven: 316::1 (D4) a `.ts` file — Ts; 316::8 `package.json` — Pk; 316::9 a
+source file absent — Y0–Y9. With these, every member in the first round's criteria table has a case.
+
+The test file's header: the two gaps it notes still hold (the gate is unchanged in the range — `git diff --quiet
+723db11 6b5aecc -- scripts/check-shared-ui.mjs`: 0 — so `:638` and `:694` as the first round read them), and the new
+paragraph on three trees is true (with `theme.css` absent the swatch rule returns "cannot read" at `:431`, before its
+stop at `:434`). Its sentence on what the tree copies is not (finding 5). The design review's statements of coverage
+and of the trees had not been brought to the fix (finding 6, fixed in this record).
+
+#### Case design
+
+No finding. Ts and Pk each plant one line into a file as it stands; the module holds no other plant, and `package.json`
+only this one. The third tree removes files, as moving a source does; it is built once at import, and Y0–Y9 read only
+its output. No case reads the gate's internals or builds a state a developer's edit could not.
+
+#### False greens
+
+By the project capability declaration, mutation-testing is not enabled; mutation testing is skipped. Each object's
+"when does it go red", against the gate at 6b5aecc (blob 5cd748f, as at 723db11). The expected values are literals —
+the planted value inside the rule's message (`:390`, `:607`), or a source's line (`:270`, `:326`) — not recomputed.
+
+| Case | Goes red when | Evidence |
+|---|---|---|
+| Ts | the renderer listing (`rendererSources`, `:339–343`) drops `.ts` — the listing the accent and chip rules read too; with it dropped, Ts is the only case red | `red-first-4.txt`, ts-dropped |
+| Pk | the ticket-number rule's files drop `package.json` (`:368–373`) | `red-first-4.txt`, package-json-dropped |
+| Y0 | the absent-sources run exits other than 1, or a reader throws on an absent file as the gate loads, so no rule runs and the summary is never printed | `red-first-4.txt`, const-value-no-null-stop and theme-css-no-fallback |
+| Y1–Y9 | the matching source's absent file is not reported in those words. Under the two changed copies all ten absent-tree cases go red together, the throw coming before any output; one source's own path going wrong (a fallback for `DEFAULT_THEME` when its file is absent, say) turns its line alone red | as Y0; reasoning for the single line |
+| X1–X10 | as the first round: only the list's name changed | first round |
+| G0 | as the first round, with the two new plants' files among the planted paths | first round |
+| the other 47 planted-tree cases | as the first round | first round |
+
+`red-first-4.txt` records the gate's hash 5cd748f, equal to HEAD's at 723db11 and to 6b5aecc's (`git rev-parse
+6b5aecc:scripts/check-shared-ui.mjs`), and the test fd223dc, 6b5aecc's; each `diff` falls on the mutated line (`:341`,
+`:371–372`, `:238`, `:323`), so each changed copy reached the code it names; ts-dropped and package-json-dropped each
+leave 69 of 70 green, the other two 60.
+
+The forms for gates and command-line checks (review-code's false-greens list), on the new cases: form four — each was
+seen red on a changed gate (above); form six — a gate that does not start leaves `absent.status` null, which Y0
+refuses, and an empty `absentProblems` turns Y1–Y9 red; form nine — `package.json` is a real file in the tree
+(`COPIED`) and in the repository, and `skill-content-query.ts` sits in the copied `src/`; form seven — no exemption is
+added, and G0's allowance grows by two planted paths under the predicate it already had. No finding.
+
+#### Resource reuse
+
+Three expensive resources, as the table names them: the planted, missing-sources and absent-sources trees, each with its
+gate run. `targeted-5.txt` gives no output per build (only the file's `duration_ms 5483.9975`), so the count comes from
+this round's run of its objects — the whole file, all 70 cases being objects — on 6b5aecc with a clean tree (node
+v24.19.0; no `electron-vite` running): `node --import <scratchpad>/count-builds.mjs --test scripts/check-shared-ui.test.mjs`,
+the preload printed in the first round's Resource reuse, unchanged. Output: `tests 70`, `pass 70`, exit 0, and
+
+```
+[count-builds] build 1 at +4ms: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/agentshed-shared-ui-9jcr5V
+[count-builds] gate run 1 at +116ms, 1700ms, exit 1
+[count-builds] build 2 at +1848ms: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/agentshed-shared-ui-pFLpsz
+[count-builds] gate run 2 at +1903ms, 1504ms, exit 1
+[count-builds] build 3 at +3431ms: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/agentshed-shared-ui-hfGZKI
+[count-builds] gate run 3 at +3492ms, 1516ms, exit 1
+```
+
+Afterwards `git status --porcelain --untracked-files=all` was empty and no `agentshed-shared-ui-*` directory was left.
+Each tree is built and run once per test process, by the three module-level `runGate` calls, as the table says; no count
+grows with the cases. The third cannot stand in for either other: the first plants into the files it removes, and the
+second must keep `theme.css` for X0. No case clears or releases a tree — each is removed inside `runGate` before any case
+runs, and the cases read strings — so the order of the cases does not bear on the count. No finding.
+
+#### Document sync
+
+Changed facts, from the range and `targeted-5.txt`: the cases Ts, Pk and Y0–Y9 on a third tree; `package.json` copied
+into every tree; the first round's findings 1–3 answered. Scope: the task inputs (#316's body, this record, the two
+ranges, both logs); the work directory `docs/.workings/prototype-baseline/`, listed with hidden entries (`ls -la`) and
+ignored files (`git status --ignored --untracked-files=all --porcelain -- docs/.workings`: only the three e2e
+screenshots in `docs/.workings/startup-restore/`, none in the work directory) — `ticket-316-tasks.md`,
+`ticket-316-review-code.md`, `ticket-316-doc-sync.md`, `checklist.md`'s fifth round, `final-regression.md` (no #316
+section: `grep -n -E '316|Fifth'`, exit 1) and `evidence/ticket-316/`; the test file's header; the root's current
+statements; and every file naming the gate outside `node_modules/`, `out/`, `.git/` and `docs/.workings/`
+(`rg -uu -e check-shared-ui -e check:ui`: 27 lines, the same files as the first round).
+
+- The test file's header: finding 5.
+- This record: finding 6, fixed here; findings 1–3 below carry their disposition.
+- `checklist.md`: 316::1, 316::8 and 316::9 have no current verification yet (the coverage checklist row of
+  `ticket-316-doc-sync.md` is Pending, its runs to come with the delivery head's gateway); when written, it cites Ts, Pk
+  and Y0–Y9 — owed from the first round, still open.
+- `ticket-316-tasks.md` (task 8, the self-check) and `ticket-316-review-code.md` (the self-check: no product code
+  changed) state the fix as it is: the gate is unchanged in the range.
+- The 2026-10-26 postmortem tells the harness of that day ("What happened"), not the current one: unaffected.
+- The first round's owed item, keeping `gateway-723db11.txt`: done, committed in 6b5aecc.
+
+No new item for the document sync checklist.
+
 ### Findings
 
 1. **No case plants into a renderer `.ts` file** (Coverage; a regression that would go unseen; 316::1, D4).
@@ -408,13 +574,15 @@ Owed by the findings:
    `src/renderer/src/` (44 `.ts` files with the tests, beside 35 `.tsx`) drop out of the listing all three rules read — for the provider rule,
    the half of D4's widening that is new. Recommended: now, in this PR — a provider colour planted in a renderer `.ts`
    module that holds no other plant, asserting `src/renderer/src/<file>.ts: hard-coded <value>`; the listing is shared,
-   so the one case drives it for all three rules.
+   so the one case drives it for all three rules. Disposition: closed by Ts (6b5aecc), checked in the incremental
+   round.
 2. **No case drives the ticket-number rule's `package.json`** (Coverage; a regression that would go unseen; 316::8,
    D6). This change rewrote the rule's list to the root's `.md` files plus `'package.json'`. K1–K4 drive the root
    listing, the `docs/` walk and its exclusion; nothing plants in `package.json`, a link in the tree. Drop
    `'package.json'` from the list and every case stays green, yet its `description` is prose a ticket number can be
    written into. Recommended: now — `package.json` copied into the planted tree, a ticket number planted in its
-   `description`, asserting `package.json:<line> references "ticket 12" — use a date or an ADR number`.
+   `description`, asserting `package.json:<line> references "ticket 12" — use a date or an ADR number`. Disposition:
+   closed by Pk (6b5aecc), checked in the incremental round.
 3. **No case drives a source file that is absent** (Coverage; a regression that would go unseen; 316::9). The cases
    drive a declaration absent from a file that exists (X1–X6), an empty one (X7–X9), no README at all (X10) and an
    unreadable member (U1–U3). A source file that is gone — `side-badge.ts` moved into a subdirectory, say, which this
@@ -427,9 +595,29 @@ Owed by the findings:
    missing-sources tree, one source read through `constValue` removed instead of its declaration renamed (e.g.
    `src/shared/i18n/index.ts`: X4's line then comes through the absent file, while X1–X3, X5 and X6 keep the absent
    declaration), and `theme.css` removed instead of its variables renamed (X8's and X9's lines are unchanged: the same
-   `values.size === 0` branch, then reached through `?? ''`).
+   `values.size === 0` branch, then reached through `?? ''`). Disposition: closed by Y0–Y9 on a third tree (6b5aecc),
+   not the suggestion — which would have left X0's swatch stop undriven (the design increment of 2026-10-27); checked
+   in the incremental round.
 4. **The plant list above the test design table misstated two plants** (Coverage; an untrue record). It gave
    `gemini: 'Gemini'` in `SIDE_FULL_NAME` and `'fr'` alone in `LANGUAGES`; the test has `gemini: GEMINI_FULL_NAME`
    there and `...EXTRA_SHORT_NAMES` in `SIDE_SHORT_NAME` (U2, U3), and `'fr', ...EXTRA_LANGUAGES` (U1). As written, the
    list had S1 run through the full-name table, which it has not done since U2. Fixed in this record: the plant list
    corrected, and S1, Lg1 and Lg2 reviewed again (Coverage, above).
+
+Incremental round (6b5aecc):
+
+5. **The test file's header says `package.json` is a link** (Coverage; an untrue record: the test file's header). Its
+   lines 7–8 say the tree holds "real copies of docs/prototypes/, src/ and the root's READMEs, an empty docs/.workings,
+   and symbolic links to everything else". Since 6b5aecc `COPIED` holds `package.json`, a real copy in all three trees,
+   and Pk plants into it — the copy is what lets that plant pass `assertInCopy` without writing the repository's own
+   file. Whoever reads the header to learn where a plant may land, or why `package.json` is in `COPIED`, is told the
+   opposite. Recommended: now, in this PR — name `package.json` among the real copies in that sentence; its home is the
+   test file's header. Disposition: fixed in the header (`package.json` named among the real copies); a comment-only
+   change — the syntax tree without comments is unchanged, no tool reads the comment, lint passes
+   (`evidence/ticket-316/comment-only.txt`) — so no further round.
+6. **The design review still described the test as it was before the fix** (Coverage; an untrue record: this record).
+   Its coverage paragraph said no case drives the renderer's `.ts` files, `package.json` or an absent source file
+   ("none (reopened …)") after Ts, Pk and Y0–Y9 were added; its harness said two trees, `runGate` run twice; its
+   Resource reuse, two expensive resources. The first round listed bringing the coverage paragraph to the new cases as
+   owed with them. Fixed in this record: each statement updated in place and marked with this round, and findings 1–3
+   given their disposition.

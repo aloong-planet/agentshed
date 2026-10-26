@@ -1,0 +1,42 @@
+# The incremental check's finding 5: a comment-only change to the test, against the reuse conditions (2026-10-27)
+HEAD: 6b5aeccb766d2bab0570ba7df805e8a8fc9ae228; test dd9dae1dbcb644d9d6f15d70676dfaef067149fa (uncommitted)
+
+$ git diff -- scripts/check-shared-ui.test.mjs
+diff --git a/scripts/check-shared-ui.test.mjs b/scripts/check-shared-ui.test.mjs
+index fd223dc..dd9dae1 100644
+--- a/scripts/check-shared-ui.test.mjs
++++ b/scripts/check-shared-ui.test.mjs
+@@ -5,8 +5,8 @@
+ // from where its members are defined, so a member added there is checked, and a source it cannot read is reported.
+ //
+ // The gate takes its root from its own location, so the tree holds a copy of the gate under scripts/, real copies of
+-// docs/prototypes/, src/ and the root's READMEs, an empty docs/.workings, and symbolic links to everything else. The
+-// prototypes must be copied: the gate walks them with readdirSync's file types, where a link to a directory is not a
++// docs/prototypes/, src/, the root's READMEs and package.json, an empty docs/.workings, and symbolic links to everything
++// else. The prototypes must be copied: the gate walks them with readdirSync's file types, where a link to a directory is not a
+ // directory, and a linked page would be skipped. The rest is copied so a plant never writes the repository's own file.
+ // Three trees: the planted one; one whose sources' declarations are renamed or emptied; and one whose source files are
+ // gone. They cannot share a tree: the first adds a member to a source the second renames, and the second keeps theme.css,
+
+## (1) the syntax tree without comments, before and after, printed by the TypeScript printer with removeComments
+equal without comments: true ; printed lengths 26448 26448
+NODE_EXIT=0
+
+## (1) does any tool read this comment? the only readers of the test file's text
+$ git grep -n -e "check-shared-ui.test" -- . ":!docs/.workings"
+docs/postmortems/2026-10-26-a-scratch-copy-that-was-a-link.md:3:**Date**: 2026-10-26 · **Surface**: the shared-UI gate's test (`scripts/check-shared-ui.test.mjs`) and the scratch
+package.json:24:    "check:ui": "node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs",
+grep-exit=0
+
+## (2) docstrings read at run time: JavaScript has none; Function.prototype.toString or a read of the file's own text
+$ git grep -n -e "toString()" -e "import.meta.url" -- scripts/check-shared-ui.test.mjs
+scripts/check-shared-ui.test.mjs:27:const repo = fileURLToPath(new URL('..', import.meta.url))
+grep-exit=0
+
+## (3) lint
+$ pnpm lint
+
+> agentshed@0.1.0-beta lint /Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-316
+> eslint . --max-warnings 0
+
+LINT_EXIT=0

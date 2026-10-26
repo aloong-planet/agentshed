@@ -71,8 +71,8 @@ gate and its test.
 | 5 | Targeted verification | `evidence/ticket-316/targeted*.txt` | done: `targeted-2.txt` — typecheck, lint, `check:ui` (54 cases, then the gate) and `check-lang`'s test (the search's one other test naming the gate) each exit 0. `targeted.txt`, the first run, failed lint on `site/` files only: the new worktree had not installed `site/`'s own dependencies |
 | 6 | Code review | `ticket-316-review-code.md` | done: findings 1 (a comment naming a cause that is not one), 2 (a source member the reader cannot read dropped in silence; seven lists) and 3 (the renderer rules reading only the directory's top level; two listings), fixed with cases U1–U3 and Sub, red first on e7d6f5a; targeted again, `targeted-3.txt`. Found at step 8's searches: findings 4 (new names using the glossary's avoided "brand colour") and 5 (the allow-list's "ticket that retires it", in the gate's comment and CONTEXT), fixed; `targeted-4.txt` |
 | 7 | Full gateway | `evidence/ticket-316/gateway-*.txt` | b03fc6e: `VERIFY_EXIT=0` on a clean tree (`gateway-b03fc6e.txt`); rerun after findings 4 and 5 |
-| 8 | Independent post-implementation test check | `ticket-316-review-tests.md` | first round on e926e38..723db11: findings 1 (no renderer `.ts` planted), 2 (`package.json` undriven by the ticket-number rule's cases) and 3 (an absent source file undriven), handled by cases Ts, Pk and a third tree (Y0–Y9) — a third tree rather than the finding's suggestion, which would have left X0's swatch stop undriven; finding 4 (the plant list) fixed in the record by the check. Each new case red on a changed copy of the gate (`red-first-4.txt`) |
-| 9 | Source check, archive, write-back, step 8 | `final-regression.md` | |
+| 8 | Independent post-implementation test check | `ticket-316-review-tests.md` | first round on e926e38..723db11: findings 1 (no renderer `.ts` planted), 2 (`package.json` undriven by the ticket-number rule's cases) and 3 (an absent source file undriven), handled by cases Ts, Pk and a third tree (Y0–Y9) — a third tree rather than the finding's suggestion, which would have left X0's swatch stop undriven; finding 4 (the plant list) fixed in the record by the check. Each new case red on a changed copy of the gate (`red-first-4.txt`). Incremental on 723db11..6b5aecc: findings 5 (the test's header called `package.json` a link) and 6 (the design review describing the test before the fix, fixed in the record by the check); 5 fixed in the header, a comment-only change by the reuse conditions' (1)–(3) (`comment-only.txt`), so step 6 is closed |
+| 9 | Source check, archive, write-back, step 8 | `final-regression.md` | done: the source check below; no ADR, no new term, no postmortem (no failure reached a commit); CONTEXT's side-enumeration sentence fixed (finding 5); the checklist's current verification; step 8, the #316 section of `final-regression.md` |
 | 10 | PR; CI; stop for the owner | PR link | |
 
 Self-check of the post-implementation check's fixes (2026-10-27), items 6 and 7: `red-first-4.txt` keeps its commands,
@@ -81,3 +81,26 @@ the gate's hash equal to HEAD's, the test's hash with the test uncommitted, the 
 run's verdict lines; the worktree was checked unchanged around the mutant runs. The records follow: the design increment
 and the self-check in `ticket-316-review-tests.md`, item 1 in `ticket-316-review-code.md`, this list. The coverage
 checklist's current verification is written with the delivery head's gateway. No finding.
+
+## Source check before step 7 (2026-10-27, implementation 6b5aecc, against #316's body)
+
+| Line of the issue | Implementation | Conclusion |
+|---|---|---|
+| Decision: the side names and chip labels from `SIDE_FULL_NAME`, `SIDE_SHORT_NAME`, `SIDE_CHIP_LABEL` | `SIDE_NAME_ENTRIES`, `SIDE_NAMES`, `CHIP_LABELS` (S1, S2, X1–X3, Y1–Y3, U2, U3) | Met |
+| Decision: the languages from `LANGUAGES`, each dictionary at `src/shared/i18n/<language>.ts` | `DICTIONARIES`, read by both dictionary rules (Lg1, Lg2, X4, Y4, U1) | Met |
+| Decision: the READMEs from the root's `README*.md` | `READMES` (R1, X10); and D9, a link to a README not at the root (R2) | Met |
+| Decision: the rail items from `ITEMS` in `_shared/app-rail.js` | `RAIL_ITEMS` (Ra1, X7, Y7) | Met |
+| Decision: the swatch rule's themes from `APPEARANCE_THEMES`, `DEFAULT_THEME` as `:root` | `THEMES`, `DEFAULT_THEME`, `THEME_SELECTORS` (Th1; G0 for the existing three; X5, X6, Y5, Y6) | Met |
+| Decision: the provider colours from every `--p-*` value, light and dark | `PROVIDER_COLOURS` (B1–B3, X8, Y8) | Met |
+| Decision: the accent colours from the whole `--accent` family, every theme, light and dark | `ACCENT_COLOURS` (A1, A2, X9, Y9) | Met |
+| Decision: the provider colour rule searches every `.ts` and `.tsx` in `src/renderer/src/` | `rendererSources()`, with subdirectories (B1, Ts, Sub) | Met |
+| Decision: the ticket-number rule scans `docs/` but `.workings`, every root `.md`, `package.json` | the rule's list and walk (K1–K4, Pk) | Met |
+| Kept by hand: `ALLOWED`, `EXEMPT`, `COMMON_LIBRARIES`, `BLOCK_CONTRACTS`, the side-count words, the swatch variables, the project column's states | unchanged in the gate (the diff touches none of their entries) | Met |
+| 316::1 – 316::9 | the cases above, each red where it guards (`red-first*.txt`, `mutants.txt`) | Met |
+| 316::10 | `pnpm check:ui` exit 0 on the repository (the gateways) | Met |
+
+Scope beyond the issue's text, each traced to a decision or a finding: the README link check (D9, from the test design);
+a member the reader cannot read reported (the code review's finding 2, within 316::9's "a source it cannot read");
+the renderer's subdirectories read, by the colour and chip rules and `<TrendChart>`'s prop check (the code review's
+finding 3, within D4's "every `.ts` and `.tsx`"); the provider colour rule renamed and the allow-list sentence fixed in
+the gate and CONTEXT (findings 4 and 5). Not an ADR, no new term. Deviations: none.

@@ -1,0 +1,76 @@
+# Step 8 searches for #316 (2026-10-26, HEAD 723db11)
+scope: docs/specs docs/features docs/adr docs/ops docs/agents docs/prototypes docs/postmortems CONTEXT.md AGENTS.md CLAUDE.md README.md README.en.md site/README.md .github capabilities.toml package.json
+tracked files in scope: 180; with Han: 101; with Latin: 180
+
+## English
+
+$ git grep -nIiE check:ui|check-shared-ui|shared-ui check|shared ui check|shared-UI consistency -- docs/specs docs/features docs/adr docs/ops docs/agents docs/prototypes docs/postmortems CONTEXT.md AGENTS.md CLAUDE.md README.md README.en.md site/README.md .github capabilities.toml package.json
+.github/workflows/ci.yml:43:      - run: pnpm check:ui
+CONTEXT.md:557:  reader genuinely has to find it. **`pnpm check:ui` enforces the rail half of this**: a rail
+CONTEXT.md:579:  shared-UI check over the dictionaries; copy that must enumerate (because its surface genuinely
+capabilities.toml:14:source = "scripts/check-shared-ui.mjs"
+capabilities.toml:15:enforced-by = ["pnpm check:ui"]
+capabilities.toml:33:enforced-by = ["pnpm check:ui", "pnpm test:site"]
+docs/adr/0009-trend-xaxis-data-days.md:53:  importing from `src` impossible, so consistency is backstopped by `check:ui` and the confirmation
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:57:checked by a `--cross` rule in `check-shared-ui.mjs` that fails when it drifts.
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:62:  docs/prototypes/sync-icons.mjs`. Forgetting the second step fails `pnpm check:ui --cross` rather
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:79:- `src/renderer/src/icons.tsx`, `docs/prototypes/sync-icons.mjs`, `scripts/check-shared-ui.mjs`
+docs/adr/0033-prototypes-are-the-baseline.md:4:  `check:ui --cross` rule that guarded them)
+docs/adr/0033-prototypes-are-the-baseline.md:10:placeholders were generated from the app's `theme.css`, and `check:ui --cross` failed whenever a generated
+docs/adr/0033-prototypes-are-the-baseline.md:34:`check:ui` compares no prototype with the app: the `--cross` tier is gone with its prototype-versus-app
+docs/adr/0033-prototypes-are-the-baseline.md:49:  `check:ui` does not go red because a prototype is ahead of the app.
+docs/adr/0033-prototypes-are-the-baseline.md:50:- Positive: `check:ui` has one tier. What it reports is a defect wherever it runs, so there is no "expected
+docs/adr/0033-prototypes-are-the-baseline.md:67:- `scripts/check-shared-ui.mjs` (the single tier) and `docs/prototypes/_shared/`.
+docs/postmortems/2026-10-26-a-scratch-copy-that-was-a-link.md:3:**Date**: 2026-10-26 · **Surface**: the shared-UI gate's test (`scripts/check-shared-ui.test.mjs`) and the scratch
+docs/specs/global-search.md:314:  shared-UI check's rail-label rule by its rail key, as the other rail labels are ordinary words; the
+docs/specs/i18n.md:480:"Each README reaches the other" is a **decidable property** and is baked into `check:ui`
+package.json:22:    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:scripts && pnpm test:site && pnpm check:ui && pnpm check:lang && pnpm check:i18n && pnpm check:nul && pnpm e2e && pnpm smoke",
+package.json:24:    "check:ui": "node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs",
+(exit 0)
+
+$ git grep -nIiE hard-?coded (colou?r|accent|brand|provider)|brand colou?r|provider colou?r|accent colou?r|--accent family|chip label|SIDE_CHIP_LABEL|ticket number|reach(es)? (each|the) other|each README|READMEs? (link|reach)|rail label|rail item -- docs/specs docs/features docs/adr docs/ops docs/agents docs/prototypes docs/postmortems CONTEXT.md AGENTS.md CLAUDE.md README.md README.en.md site/README.md .github capabilities.toml package.json
+CONTEXT.md:260:_Avoid_: badge colour (names one of its uses), brand colour (these are ours, not the vendors')
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:42:elements are copied from an icon library; no whole `<svg>` tags pasted in, no hard-coded colours on
+docs/adr/0021-side-colour-follows-provider.md:1:# ADR-0021: One colour per agent side, taken from that side's provider colour
+docs/adr/0021-side-colour-follows-provider.md:20:1. **One colour per side, taken from that side's provider colour** — badges, dots and chart segments
+docs/adr/0021-side-colour-follows-provider.md:26:3. Unify the other way, onto the badge palette — rejected: the chart's provider colours are load
+docs/adr/0021-side-colour-follows-provider.md:34:is the provider colour that side's models resolve to. Grok's is derived from the retired Claude badge
+docs/adr/0024-composition-colours-overlap-the-provider-palette.md:37:inside the range the provider colours themselves occupy, so the bar reads as part of the same
+docs/adr/0024-composition-colours-overlap-the-provider-palette.md:58:  changes the interface rather than the data. This is the same class the provider colours and the side
+docs/adr/0033-prototypes-are-the-baseline.md:35:checks, while the checks of the app's own code (copy rules, hard-coded colours, side chips, the app side of
+docs/adr/README.md:32:| [0021](0021-side-colour-follows-provider.md) | One colour per agent side, taken from that side's provider colour | Accepted |
+docs/features/appearance.md:48:- The CC/CX side badges and the provider chart's brand colours are unaffected (semantic colours do
+docs/prototypes/_shared/app-rail.js:22:  // The rail labels
+docs/prototypes/_shared/trend-chart.css:4:/* The provider colours (--p-*) are the app's tokens from _shared/theme.css, which every page using this
+docs/prototypes/_shared/trend-chart.css:121:/* The per-model breakdown bars use the same provider brand colours */
+docs/prototypes/agents-page/prototype-agents.html:432:    byModel:'By model (across projects; bars use the provider brand colours)', byModelIn:(title,win)=>`${title} · ${win}`,
+docs/prototypes/global-search/prototype-search.html:45:     Settled picks (2026-10-19): the rail item's icon is Search (the magnifier), picked over TextSearch and
+docs/specs/app-update.md:120:  theme's accent colour, with its glyph in the card colour: a progress ring showing the download's
+docs/specs/appearance.md:444:- Changing the provider brand colours, or binding CC/CX into the theme.  
+docs/specs/global-search.md:313:- **Copy and icons**: dictionary entries in both languages; the rail label is exempted in the
+docs/specs/global-search.md:314:  shared-UI check's rail-label rule by its rail key, as the other rail labels are ordinary words; the
+docs/specs/global-search.md:332:4. **e2e (Playwright under Electron, fixture home)**: the rail item → type → grouped results → click a
+docs/specs/i18n.md:287:  `e.code = …` never reaches the other side; and the message is wrapped in an
+docs/specs/i18n.md:480:"Each README reaches the other" is a **decidable property** and is baked into `check:ui`
+docs/specs/i18n.md:481:(i18n::CON-001): each README is verified to link to the other, with exactly one bold entry in the
+docs/specs/project-detail.md:190:  display order, and the chip labels (missing one produces either "scanned but not shown" or "shown
+docs/specs/token-stats.md:515:  anticipated; the chart logic does not change. The side's identifying colour is that provider colour
+docs/specs/token-stats.md:521:  small bold text rather than the raw provider colour, so its pair is derived at the lightness and
+(exit 0)
+
+$ git grep -nIiE allow-?list(ed)?.{0,40}(dictionary|ticket)|ticket that retires -- docs/specs docs/features docs/adr docs/ops docs/agents docs/prototypes docs/postmortems CONTEXT.md AGENTS.md CLAUDE.md README.md README.en.md site/README.md .github capabilities.toml package.json
+CONTEXT.md:580:  judges only those sides today) is allow-listed there by dictionary key with the reason it may name
+(exit 0)
+
+## Chinese (code points): gate, hard-coded, brand colour, accent colour, ticket number, side label, inter-link, check
+
+$ git grep -nIP (*UTF)\x{95E8}\x{7981} -- docs/specs docs/features docs/adr docs/ops docs/agents docs/prototypes docs/postmortems CONTEXT.md AGENTS.md CLAUDE.md README.md README.en.md site/README.md .github capabilities.toml package.json | cut -d: -f1,2
+docs/prototypes/skills-view/skill-packages-fixture.js:4
+(exit 0)
+
+$ git grep -nIP (*UTF)\x{786C}\x{7F16}\x{7801}|\x{54C1}\x{724C}\x{8272}|\x{5F3A}\x{8C03}\x{8272}|\x{7968}\x{53F7}|\x{4FA7}\x{6807}\x{7B7E}|\x{4E92}\x{94FE} -- docs/specs docs/features docs/adr docs/ops docs/agents docs/prototypes docs/postmortems CONTEXT.md AGENTS.md CLAUDE.md README.md README.en.md site/README.md .github capabilities.toml package.json | cut -d: -f1,2
+docs/prototypes/agents-page/prototype-agents.html:397
+docs/prototypes/appearance/prototype-settings.html:793
+docs/prototypes/project-list/prototype-list.html:10
+docs/prototypes/skills-view/skill-packages-fixture.js:4
+(exit 0)

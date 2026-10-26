@@ -105,3 +105,55 @@ spec for this work; the requirement source is #314's body.
 | New general rules this round | none: the rule the gate now enforces — a shared block lives at `_shared/<block name>.{css,js}` and each use site declares it — is the prototype skill's (UI.md), its authoritative home; the common-library list is the gate's own data, checked against the files | Row set empty |
 | The review findings | the code review's finding 1 (the harness could write the repository through its links), fixed with the copy guard; the post-implementation check's findings 1–3 (the app sheet's invariant, the class token match, an empty declaration undriven), handled by T3, M1's second token, N2; the incremental check on 6664a7e..78ff2f5, no finding; the write-through during the first probe, recorded in the code review and the postmortem | Handled in the records |
 | Work state changed | #314's body (rewritten with the decisions); the coverage checklist's fourth round, and its third-round audit row, which said the chart rule's count was reported to the owner (now: opened as #314); this ticket's document sync checklist; other records naming #314 (`rg -uu -l '#314' docs README.md README.en.md CONTEXT.md`) | Updated where they state current state |
+
+## Ticket #316 — check:ui's hand-kept lists leave new themes, sides, languages and colours unchecked
+
+- Date: 2026-10-26
+- Scope: this ticket's change only, `git diff e926e38` on branch `fix/check-ui-derived-lists`: `scripts/check-shared-ui.mjs`
+  (the mirrored lists read from their sources and the rule reporting a source it cannot read; the provider colour,
+  accent, chip, dictionary, README, ticket-number, rail and swatch rules reading them; the renderer's files read with
+  their subdirectories), `scripts/check-shared-ui.test.mjs` (three trees, copied READMEs and `package.json`, an empty
+  `docs/.workings`, global plants), `CONTEXT.md` (the side-enumeration invariant's allow-list sentence), #316's body (rewritten with the
+  owner's decisions), the coverage checklist's fifth round, #314's records naming the owner's decision, and this
+  ticket's records
+- Version: 6b5aecc for the gate and the test's cases (the last executable change; the test's header changed after it, a
+  comment-only change, `evidence/ticket-316/comment-only.txt`); the full gateway on the delivery head is named in the
+  coverage checklist's current verification
+
+The two questions for the feature catalogue: **what became a lie** — nothing. The change is to a repository gate, its
+test and one glossary sentence about that gate; no product code changed (`git diff --stat e926e38 -- src site
+docs/prototypes` is empty). **What was missing** — nothing: no user-visible behaviour was added or changed. So
+`docs/features/` is unchanged. There is no spec for this work; the requirement source is #316's body.
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `scripts/check-shared-ui.mjs`, the header's new paragraph (what a check mirrors is read from where its members are defined; a source it cannot read is reported) | the mirrored lists' section and the rule for `SOURCE_PROBLEMS`; X0–X10, U1–U3 | True |
+| The mirrored lists' section: its lead comment and the doc comments of `constValue` (nested declarations; an object's spread or shorthand member kept as unreadable), `mirrored` (a member it cannot take is reported), `SIDE_NAMES` (a side counts once, its one pattern), `THEME_SELECTORS` (the default in `:root`), `themeHexValues` (hex only; another notation not searched), `READMES`, `rendererSources` (subdirectories included) | the code; Ra1, X7 (nested `ITEMS`), U1–U3, Th1 and G0 (the default's mapping, `mutants.txt` default-not-root), Sub | True |
+| The rules' comments and names: the mirrored lists' rule; the ticket-number rule (root `.md`, `package.json`, `docs/` but `.workings`, through the walk's hidden-entry skip); the README rule (every README links every other; a link to one not there); the swatch rule's stop; the side-enumeration rule (the allow-list carries the reason an entry may name the sides); the dictionaries; the provider colour and accent rules; the chip rule; the rail rule's items | each rule's code; K1–K4 (`mutants.txt` ticket-walk-hidden), R1, R2, X0 (swatch-no-stop), S1, Lg1, Lg2, B1–B3, A1–A3, S2, Ra1; the allow-list entries' own `why` texts (a spec condition or none) | True |
+| `scripts/check-shared-ui.test.mjs`, its header (what is copied and why, `package.json` included; the three trees; what is not driven) and its comments on the plants, `MISSING_PLANTS`, `ABSENT_FILES`, `COPIED`/`EMPTY` and the copy guard | the cases; the runs in `evidence/ticket-316/` | True |
+| `CONTEXT.md:579–581` (side-enumeration invariant: "allow-listed there by dictionary key with the reason it may name them") | the gate's `ALLOWED` entries | True (it said "and the ticket that retires it", a field the entries lost when #126 was replaced by spec references; review finding 5) |
+| `checklist.md`: the fifth round's paragraph, units 316::1–316::10, their current verification, the audit row | #316's body; the evidence named in each row | True (current verification on the delivery head's gateway) |
+| #314's records: `ticket-314-review-code.md` ④ and `ticket-314-doc-sync.md`'s pre-delivery note | the owner's decision of 2026-10-26 (in the conversation, recorded in #316's body: no stale-key check for `ALLOWED` and `EXEMPT`) | True |
+| #316's body (Decisions, Acceptance criteria) | the implementation: each decision and each criterion's cases (`ticket-316-tasks.md`, source check) | True |
+| Specs, features, ADRs, the prototype gallery | — | Row set empty: none changed. Not an ADR: reading a gate's lists from their sources is easy to reverse; the decisions are recorded in #316 and the task list. No new term |
+
+### Stage 2: related declarations
+
+| Relation | Rows | Conclusion |
+|---|---|---|
+| File ↔ its index row | — | Row set empty: no file added or renamed in `docs/specs`, `docs/features`, `docs/adr`, `docs/postmortems` or the gallery's manifest |
+| Rule ↔ template and generated documents | — | Row set empty: no rule or template changed |
+| One fact ↔ its other statements: what `check:ui` checks and where its lists come from | the scope `docs/specs docs/features docs/adr docs/ops docs/agents docs/prototypes docs/postmortems CONTEXT.md AGENTS.md CLAUDE.md README.md README.en.md site/README.md .github capabilities.toml package.json` (180 tracked files; Han in 101, Latin in all), searched in English for the gate's names, the changed rules' subjects (hard-coded, provider, brand and accent colours, the `--accent` family, chip labels, ticket numbers, the READMEs' links, rail labels and items) and the allow-list, and in Chinese for the words for a gate, hard-coded, brand colour, accent colour, ticket number, side label and inter-link (`evidence/ticket-316/step8-searches.txt`). Statements about the gate: `ci.yml:43` runs it; `CONTEXT.md:557` (the rail-label rule, over the dictionaries now read from `LANGUAGES`) and `:579` (fixed, stage 1); `capabilities.toml:14–15` (the enumeration-wording gate's source) and `:33` (theming); ADR-0009:53, ADR-0018:57/62/79 (the `--cross` rule, superseded by ADR-0033), ADR-0033:34–35, :49–50, :67; the global-search spec:313–314 (the rail-label exemption by key); the i18n spec:478–485 (the READMEs' reachability). The i18n spec says a link missed "when adding a language or renaming a file" is caught: true now without changing the gate, which was not so for a new README before. The Chinese hits are prototype copy and a skill fixture, none about the gate | Agree: every statement stays true |
+| Rule ↔ the gate that holds it: a list a check mirrors is read from its source; a source it cannot read is reported; the provider and accent colours are not hard-coded in any renderer file; every root `.md`, `package.json` and document under `docs/` but `.workings` names no ticket; every README links every other | `scripts/check-shared-ui.test.mjs` in `pnpm check:ui`, which `pnpm verify` and CI run: each case red first on the unfixed gate (`red-first.txt`, `red-first-2.txt`, `red-first-3.txt`), eight changed copies of the gate each turning exactly their cases red (`mutants.txt`) | Held, for the forms the cases name. Held by people: appearance's "hard-coding a theme's colours inside a component is forbidden" (the appearance spec) beyond the accent family — neutral tokens (`--bg`, `--card`, `--text`) share values with ordinary colours, so a search for them would report code that is not using a theme's colour; a provider or accent colour written in another notation than hex (the gate's comment says so) |
+
+### Stage 3: events
+
+| Event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed | none in the product: no side, language, theme, colour or rail item was added or removed (`git diff --stat e926e38 -- src docs/prototypes` is empty). What grew is the gate's reading of them (provider colours 3 → 10 values, accent 6 → 24, the provider rule's files 3 → 79, the ticket-number scope by the root's `.md` files, `docs/ops` and `docs/agents`); the searches above found no statement listing or counting those sets | Row set empty after the scan |
+| `Pending:` notes in scope | no spec in scope; `grep -c "^> Pending:" CONTEXT.md`: 0 | Row set empty |
+| New general rules this round | none: the decisions read this gate's lists from their sources and bind `check:ui`, whose header states them; the CONTEXT invariant on copy that enumerates sides is unchanged in substance | Row set empty |
+| The review findings | the code review's findings 1–5 (a comment naming a non-cause; a source member read in silence as absent, seven lists; the renderer rules reading only the top level, two listings; new names in an avoided term; the allow-list's lost ticket field, in the gate and CONTEXT), each fixed; the test review's post-implementation findings 1–6 (a renderer `.ts`, `package.json` and an absent source file undriven, handled by Ts, Pk and a third tree; the record's plant list and design review, fixed in the record; the test header calling `package.json` a link, fixed) | Handled in the records |
+| Work state changed | #316's body (rewritten with the decisions); the coverage checklist's fifth round; #314's records that left the gate's other lists to the owner (now naming the decision and #316); this ticket's document sync checklist | Updated where they state current state |
