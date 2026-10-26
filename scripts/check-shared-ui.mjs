@@ -231,14 +231,14 @@ function stripJsComments(code) {
   return out + code.slice(at)
 }
 
-/** A page's code with comments removed: comments may describe the wiring, only markup and code count. HTML comments
- * and block comments by pattern, an inline script's JS comments by the parser (stripJsComments) */
+/** A page's code with comments removed: comments may describe the wiring, only markup and code count. One pass over the
+ * page, each comment removed by the rules of where it stands: an HTML comment in the markup, an inline script's JS
+ * comments by the parser (stripJsComments), a style block's CSS comments. A comment-like sequence anywhere else — a
+ * `/*` in a script's string, a `//` in the markup's text — is not a comment there and stays */
 const stripComments = (src) =>
-  src
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/(<script\b[^>]*>)([\s\S]*?)(<\/script>)/gi, (_, open, body, close) => open + stripJsComments(body) + close)
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '')
+  src.replace(/<!--[\s\S]*?-->|(<(script|style)\b[^>]*>)([\s\S]*?)(<\/\2\s*>)/gi, (comment, open, tag, body, close) =>
+    open === undefined ? '' : open + (tag.toLowerCase() === 'script' ? stripJsComments(body) : stripCssComments(body)) + close
+  )
 
 /** Evaluate the registry the way a page does: a script that assigns window.DEMO_DIMENSIONS */
 function loadDimensions() {
@@ -623,7 +623,7 @@ const GLOBAL_RULES = [
         if (code.includes('prefers-color-scheme')) bad.push(`${f}: follows the mode but still styles by prefers-color-scheme`)
         for (const h of links) {
           const css = read(join(dirname(f), h))
-          if (css !== null && stripComments(css).includes('prefers-color-scheme')) {
+          if (css !== null && stripCssComments(css).includes('prefers-color-scheme')) {
             bad.push(`${f}: follows the mode but links ${h}, which styles by prefers-color-scheme`)
           }
         }

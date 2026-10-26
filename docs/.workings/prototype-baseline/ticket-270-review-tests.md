@@ -46,8 +46,9 @@ Fixtures: the real pages, their real comments for A and B; the planted comments 
 
 One tree, one run: each plant is on its own page and block, so no plant can produce or hide another's message, and G0
 pins every reported problem to a planted page. A plant whose target string does not occur exactly once fails the test
-at set-up, and so does a page of A, B or G whose comment no longer names its asset (added after the post-implementation
-check's finding 1), so a page edited later cannot turn a case into a no-op.
+at set-up, and so does a page of A or B whose own comment no longer names its asset (added after the post-implementation
+check's finding 1), so a page edited later cannot turn a case into a no-op. G's comment is its own plant, held by the
+plant-once check.
 
 ### False greens (design-level)
 
@@ -79,7 +80,7 @@ Changed rows and two new ones; the rest of the table stands.
 |---|---|---|---|---|---|---|
 | A (changed) | as before | 270::1 | as before; and, once the link is removed, the set-up asserts the page still names `_shared/app-window.css` — the removed tag was its one occurrence outside comments, so only the comment can name it — and fails with a message to plant a comment if not | as before | as before | as before |
 | B (changed) | as before | 270::1 | as before; the set-up asserts the page still names `_shared/project-side.js` once the script is removed | as before | as before | as before |
-| G (new) | a page without its asset's script, a `//` comment after code naming the asset | 270::1 (finding 2; decision D3) | in `shell/prototype-app-shell.html`, remove `  <script src="../_shared/app-rail.js"></script>` and append ` // the rail is drawn by ../_shared/app-rail.js` to the line `  let lang='zh';` in its inline script; the set-up asserts the page still names the asset | the line `docs/prototypes/shell/prototype-app-shell.html: declares app-rail but does not reference _shared/app-rail.js`; red on the gate at d9b0208, which keeps a trailing `//` comment | the page's own inline script, a comment in the form 37 of the pages' lines use | as G0 |
+| G (new) | a page without its asset's script, a `//` comment after code naming the asset | 270::1 (finding 2; decision D3) | in `shell/prototype-app-shell.html`, remove `  <script src="../_shared/app-rail.js"></script>` and append ` // the rail is drawn by ../_shared/app-rail.js` to the line `  let lang='zh';` in its inline script (both strings held by the plant-once check) | the line `docs/prototypes/shell/prototype-app-shell.html: declares app-rail but does not reference _shared/app-rail.js`; red on the gate at d9b0208, which keeps a trailing `//` comment | the page's own inline script, a comment in the form 37 of the pages' lines use | as G0 |
 | H (new) | a `//` inside a string does not end the line | 270::R1 (decision D3: what the stripping must keep) | in `session-view/prototype-session.html`, after the line that defines `esc` in its first inline script, add `  const docsUrl = 'https://example.test/'; const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')` — the page follows the mode | the line `docs/prototypes/session-view/prototype-session.html: follows the mode but still styles by prefers-color-scheme`. A stripping that took the string's `//` for a comment would remove the rest of the line, and the line would not appear | as G | as G0 |
 
 G0 now also holds G's and H's pages among the planted ones (the shell page already was, for E).
@@ -90,15 +91,15 @@ it. It cannot be red on the gate at d9b0208 (which removes only whole-line `//` 
 red under a stripping that ends a line at any `//`, which the slice shows once on a scratch copy.
 
 False greens: G is red first on the current gate. H's absence of red there is by design, stated above; its red is
-shown under the naive stripping it guards against. The set-up assertion of A, B and G makes a page edit that drops
-the comment fail the file at once instead of leaving a case that plants nothing.
+shown under the naive stripping it guards against. The set-up assertion of A and B makes a page edit that drops the
+page's own comment fail the file at once instead of leaving a case that plants nothing; G's comment is planted.
 
 Resource reuse: unchanged, one tree and one gate run per file run.
 
 Findings: none.
 
 Self-check before handing the fix over (2026-10-26), items 2 to 5:
-- Assertions written or changed: G and H each assert one exact line; the set-up assertion of A, B and G (the page still
+- Assertions written or changed: G and H each assert one exact line; the set-up assertion of A and B (the page still
   names its asset) — checked against the false-green forms: each can fail, each was seen failing (G on the gate at
   d9b0208, `evidence/ticket-270/red-first-2.txt`; H under a stripping that ends a line at any `//`, `naive-h.txt`; the
   set-up assertion on a copy whose global search comment no longer names the file, `pin-guard.txt`).
@@ -111,6 +112,40 @@ Self-check before handing the fix over (2026-10-26), items 2 to 5:
   inside a string), and by every rule that reads pages, since `check:ui` passes on main (`green-2.txt`).
 - Test data: the plants of G and H use forms the pages use (38 trailing `//` comments today; URLs in strings).
 - Shared helpers changed: none outside the gate and its test.
+
+### Incremental review — the incremental check's finding 3 (2026-10-26, before changing the test; implementation at e53f6d0)
+
+Two new rows; the rest stands. Both read through the theme rule, which flags a mode-following page whose code holds
+`prefers-color-scheme`, so a stripping that removes code shows as the line missing.
+
+| # | Test | Unit | Input that drives the branch | Assertion and where the expected value comes from | Fixture shape | Expensive resource |
+|---|---|---|---|---|---|---|
+| I (new) | a `/*` inside a string does not open a comment | 270::R1 (decision D3: what the stripping must keep) | in `plugins-view/prototype-plugin-skill-preview.html` (follows the mode), after `  let lang = DemoDimensions.get('language')` in its first inline script, add `  const globs = ['ideas/*.md', window.matchMedia('(prefers-color-scheme: dark)'), 'src/**/*.ts']` — a glob string holding `/*`, code, then a glob holding `*/`, the forms of the pages' mock content | the line `docs/prototypes/plugins-view/prototype-plugin-skill-preview.html: follows the mode but still styles by prefers-color-scheme`; red on the gate at e53f6d0, whose block-comment pattern runs over script bodies | the page's own inline script; glob strings as the session and plugins pages' mock content writes them | as G0 |
+| J (new) | a template line starting with `//` stays | 270::R1 (D3) | in `skill-install/prototype-install.html` (follows the mode), before `  const T={` in its first inline script, add a template literal whose second line is `// prefers-color-scheme is how the app reads the system appearance` | the line `docs/prototypes/skill-install/prototype-install.html: follows the mode but still styles by prefers-color-scheme`; red on the gate at e53f6d0, whose whole-line `//` pattern runs over script bodies | a template literal in the page's own inline script | as G0 |
+
+G0 now also holds I's and J's pages among the planted ones.
+
+Coverage: with H, the three shapes D3 keeps are each driven — a `//` mid-line in a string (H), a `/*` in a string (I), a
+template line that starts with `//` (J). The regular-expression shape (`/^https?:\/\//i`, on two pages) stays covered by
+`check:ui` passing on main, where the parser keeps it whole (the incremental check's Coverage).
+
+False greens: I and J are red first on the gate at e53f6d0; each asserts one exact line.
+
+Resource reuse: unchanged.
+
+Findings: none.
+
+Self-check before handing the fix over (2026-10-26), items 2 to 5:
+- Assertions written: I and J, one exact line each, both red on the gate at e53f6d0 (`red-first-3.txt`), green after
+  (`green-3.txt`).
+- Function changed: `stripComments`, now one pattern with three outcomes — an HTML comment removed (driven by A, C, D,
+  F), a script body through the parser (B, G, H, I, J), a style body through `stripCssComments` (E). Its closing-tag
+  pattern allows a space before `>`; no page has one (`green-3.txt`), so that variant is not driven. The theme rule's
+  linked CSS files now go through `stripCssComments`: for CSS, the same removal as before (block comments; CSS has
+  neither HTML nor `//` comments), and `check:ui` passes on main.
+- Test data: I's globs are the forms the session and plugins pages' mock content writes; J's template is a form the
+  pages' scripts use.
+- Shared helpers changed: none; `NAMED_IN_A_COMMENT` lost the shell page, whose comment is G's plant.
 
 ## Post-implementation check (2026-10-26, implementation d9b0208, range ef5e4cb..30a2fee; ticket #270)
 
@@ -294,3 +329,234 @@ Either way it belongs to this ticket's PR.
   trailing comments in today's pages, none overlapping ([comment-ranges.txt](evidence/ticket-270/comment-ranges.txt)).
   The gate's run time rose from about 1.05 s to 1.6 s (same file).
 - Both change the test's executable content, so an incremental check of the fix follows.
+
+## Post-implementation check, incremental (2026-10-26, implementation e53f6d0, fix range 30a2fee..e53f6d0; whole change ef5e4cb..e53f6d0; ticket #270)
+
+Scope: the fix of findings 1 and 2, under the incremental clause. Evidence read: the handed targeted log
+`evidence/ticket-270/targeted-2.txt`, and `red-first-2.txt`, `naive-h.txt`, `pin-guard.txt`, `green-2.txt` and
+`comment-ranges.txt` with its script `ranges.mjs` beside it. The handed gateway log `gateway-d9b0208.txt` is d9b0208's
+(`VERIFY_EXIT=0`, assessed in the first post-implementation check) and is no evidence for e53f6d0. No test was rerun:
+the run results below come from those logs. The probes behind finding 3 ran in a scratch directory outside the
+repository, on the gate's own `stripJsComments` and `stripComments` taken from the file by text (from
+`function stripJsComments(code)` to the doc comment before `loadDimensions`), and wrote no repository file.
+`capabilities.toml` is unchanged since ef5e4cb (`git diff --stat ef5e4cb e53f6d0 -- capabilities.toml`: empty); read
+again with `tomllib` and checked against the repo-scaffold registry: the nine registered IDs present in their registered
+shapes, none extra. By the project capability declaration, mutation-testing is not enabled, so mutation testing is
+skipped; each case's "when does it go red" is answered below from the code, the evidence and the expected values'
+sources.
+
+### Objects under review
+
+The fix range changes two files outside the records, the gate and its test (`git diff --name-status 30a2fee e53f6d0`;
+the rest are records and evidence under `docs/.workings/`). Tests depending on what the range changed, searched over
+every test file in the repository, ignored and hidden files included (103 files match the globs):
+
+```
+$ rg -uu -n --glob '!node_modules/**' --glob '!**/node_modules/**' --glob '!.git/**' --glob '!out/**' --glob '!site/dist/**' \
+    --glob '*.{test,spec}.{mjs,cjs,js,ts,tsx,mts}' -e 'check-shared-ui' -e 'ranges\.mjs' -e 'NAMED_IN_A_COMMENT' -e 'stripJsComments' -e 'stripComments' .
+./scripts/check-shared-ui.test.mjs:46:const NAMED_IN_A_COMMENT = {
+./scripts/check-shared-ui.test.mjs:61:    cpSync(join(repo, 'scripts/check-shared-ui.mjs'), join(root, 'scripts/check-shared-ui.mjs'))
+./scripts/check-shared-ui.test.mjs:69:      const asset = NAMED_IN_A_COMMENT[page]
+./scripts/check-shared-ui.test.mjs:73:    const r = spawnSync(process.execPath, [join(root, 'scripts/check-shared-ui.mjs')], { encoding: 'utf8' })
+./scripts/check-lang.test.mjs:25:  'scripts/check-shared-ui.mjs': `const side = /${CN}/\n`,
+```
+
+`check-lang.test.mjs` only names the path as a seed file it writes, with its own content, into a fresh repository (its
+`SEEDS`); it reads neither the gate nor the test. The fix changes no shared helper or fixture outside the test file (no
+prototype page changes in the range). So the objects are:
+- all nine cases of `scripts/check-shared-ui.test.mjs`: G and H are new, and every case reads the one run whose set-up
+  changed (the plant table, now with two more plants on the shell page and one on the session page, and the new set-up
+  assertion);
+- the Test design table rows changed in the range: A and B (changed), G and H (new), and the G0 note.
+
+Carried over from the first post-implementation check (d9b0208, range ef5e4cb..30a2fee): the gateway log's
+assessment; C, D, E and F's design rows and fixture shapes (their plants and assertions are unchanged); the harness
+facts (links, copy, clean-up, a set-up failure failing the file); the resource's clearing and ordering conclusion.
+
+### Targeted log
+
+| Requirement (full-verification-gate) | In the log |
+|---|---|
+| Version | HEAD `30a2fee7…` and the porcelain status with a hash per listed file: the gate `bdcdc379…`, the test `b7aa88bb…`, `comment-ranges.txt`, `ranges.mjs`, this record and the task list |
+| Every command, with its full output | the search for tests reading what changed (the same two test files as above), `pnpm check:ui`, the two tests that read `package.json`, `pnpm lint`, `pnpm check:lang`, `pnpm check:nul` |
+| Exit codes taken without a pipe | `exit=0` after each, then `TARGETED_EXIT=0`. As with the gateway log, the log does not show how they were taken; each output agrees with its code (pass counts with no failure; lint prints nothing, its success form) |
+| Version against the handed range | at e53f6d0 the gate and the test are the logged blobs (`git rev-parse e53f6d0:<path>`), and so are `comment-ranges.txt` and `ranges.mjs`. Differing at e53f6d0: `checklist.md`, `ticket-270-review-code.md`, this record and the task list, changed after the run; `green-2.txt`, `naive-h.txt`, `pin-guard.txt`, `red-first-2.txt` and the log itself, written after the run (file times 16:38:50 local, the run at 16:37:59) and added with the commit. None is read by the test: it copies `docs/prototypes/` and the gate, and the gate's document walks cover `docs/specs`, `docs/adr`, `docs/features`, `docs/postmortems` and `docs/prototypes` with `CONTEXT.md`, `README.md` and `package.json`. `check:lang` and `check:nul` read them at e53f6d0; the nine hold 0 CJK characters and 0 NUL bytes (scanned at e53f6d0), so those results stand there |
+
+The log is usable evidence for e53f6d0 for the objects under review.
+
+### Written test against the Test design table
+
+| # | Seam and driving input | Assertion and expected value's source | Fixture | Resource | Result |
+|---|---|---|---|---|---|
+| G0 | gate CLI on the planted tree, now seven planted pages | as before; `planted` is `Object.keys(PLANTS)`, which holds the session and shell pages | copied pages | `runGate()` once, at module load | Matches the note |
+| A | the link line removed; `NAMED_IN_A_COMMENT` then requires the page to contain `_shared/app-window.css` | exact line, literal | the real page and its HTML comment (`global-search/prototype-search.html:55`) | as G0 | Matches |
+| B | the script line removed; the page must still contain `_shared/project-side.js` | exact line, literal | the real `//` line in an inline script (`project-list/prototype-list.html:86`) | as G0 | Matches |
+| G | `  <script src="../_shared/app-rail.js"></script>\n` removed; ` // the rail is drawn by ../_shared/app-rail.js` appended to `  let lang='zh';` (shell page line 82, inside the inline script of lines 73–104); the set-up assertion for the page | exact line, literal | the page's own inline script | as G0 | Matches. The set-up assertion is vacuous for G: the comment it looks for is the test's own plant, so it holds whenever the plant applies. What keeps G from becoming a no-op is the plant-once check on both strings; the design's "the set-up assertion of A, B and G" overstates G's share, and its conclusion holds |
+| H | after the `esc` line (session page line 253, the first inline script), a line holding `'https://example.test/'` and then `prefers-color-scheme` in a string | exact line, literal | a URL in a string, the form of the landing page's two URL strings | as G0 | Matches |
+| C, D, E, F | plants and assertions unchanged; the set-up they read changed | as before | as before | as G0 | Matches; E's shell page now also carries G's plants (Case design) |
+
+### Coverage
+
+No spec; the units are `270::*` in [checklist.md](checklist.md).
+
+| Unit | Driven by | Result |
+|---|---|---|
+| 270::1 | A (HTML comment), B (whole-line `//`), G (`//` after code, decision D3); A's and B's comments pinned by the set-up, G's planted; G red on d9b0208's gate | Covered |
+| 270::2 | the gate step of `pnpm check:ui` on the fixed gate: "Shared-UI consistency check passed", exit 0 (`targeted-2.txt`, lines 53–77) | Covered |
+| 270::R1 | C, D, E, F as before; D3's keep rule only by H, a `//` mid-line in a string | The class-level searches covered; D3's keep rule for that one shape only: finding 3 |
+
+Comment forms against real data, with the parser. Removed: HTML comments and `/* */` by pattern over the whole page,
+every JS comment inside an inline script by the parser, and whole-line `//` by pattern over the whole page. The parser
+finds 355 ranges in the pages' inline scripts, 38 after code (G's form), none nested (`comment-ranges.txt`). The pages
+hold no JSDoc tag (0 tag nodes); a JSDoc tag with a `//` after its type is the form a probe found to give a nested
+range, so the `pos < at` branch stays unreached on real data, as the self-check says. What must stay (D3): 7 literals
+hold `//` (the landing page's two URL strings, the regular expression `/^https?:\/\//i` on agents-page and
+project-detail, and Markdown fixture strings), and each is kept whole: the parser never takes a literal for a comment,
+and the regular expressions and URL strings were checked directly. 4 strings hold `/*`, glob paths in mock content
+(session-view three, plugins-view one); the block-comment pattern opens a comment at each, and only the absence of a
+later `*/` keeps it from removing code (finding 3). The one non-JS script (`type="text/x-fixture"`, Markdown, on
+md-preview's heading ladder page) comes out of the parser unchanged. On all 17 pages `stripComments` today equals a
+reference stripping (HTML comments; each inline script's JS comments by the parser; CSS comments only inside
+`<style>`), so main is unaffected now.
+
+Fixtures: G's trailing comment copies the form of the 38; H's URL string the landing page's. Both are shapes taken from
+real pages, independent of the issue's text. The real-data shape the plants do not take, a `/*` inside a string, is
+finding 3.
+
+Test file header: unchanged, no gap declared. The fix adds no path without a behaviour trigger: the `pos < at` branch
+can be planted (above), so it is no untestable gap, and no page takes its form. Finding 3's handling decides whether
+the header must state a limit.
+
+### Case design
+
+- Public seam and reachable plants, as before: G and H are page edits a contributor can make, read through the gate's
+  output and exit code.
+- Independence of the plants: the shell page now carries E's plant (a `/* */` naming `toast.css`: the toast block's
+  reverse check) and G's (the `app-rail.js` script removed and named in a trailing comment: the app-rail block).
+  Different blocks: G's plant names no toast asset and E's no app-rail asset, and G's other messages on the page (the
+  rail rule's ordering lines) fall to G0's planted pages. The design's "each plant is on its own page and block" no
+  longer holds for this page; its conclusion holds. H's plant is alone on the session page and names no asset.
+- Isolation, clean-up, and a set-up failure failing the file: as before. The new set-up assertion throws inside
+  `runGate`, so the file fails at load with its message (`pin-guard.txt`, exit 1).
+
+### False greens
+
+| Form | Check |
+|---|---|
+| Constant truth | G and H each assert one exact line; the set-up assertion is constant for G (above) and is not counted as G's guard |
+| Tautology | the expected lines are literals, not computed by the gate's code |
+| Stale path | the test copies the working tree's gate, the parser step included |
+| Silent skip on a condition | none |
+| Assertion that may not run | synchronous cases, no callbacks |
+| A new gate never seen red (false-greens form four) | G: red on d9b0208's gate, the plant shown reached apart from G's assertion: the app-rail block reports "all 11 usage site(s) compliant" while the rail rule's ordering lines on the shell page ("includes app-rail.js before the rail it draws", which a search returning -1 produces) show the script tag gone (`red-first-2.txt`). H: red under a copy whose `stripJsComments` ends a line at any `//`, the mutation shown reached: the theme rule passes in that run, its session line gone (`naive-h.txt`). The set-up assertion: red on a copy whose global search page names the file only in the link (`grep -c`: 1), `pin-guard.txt` |
+| The check's own command wrong | the problem parse `/^ {4}\S/` unchanged; a parser exception would print `    at …` lines, which G0 rejects |
+| Target outside the check's scope | the plants are in the copied pages; G's line sits inside an inline script, which the parser step reads |
+
+When does each go red:
+
+| # | Goes red when |
+|---|---|
+| G0 | the gate exits other than 1, reports nothing, or reports a problem on a page outside the seven planted ones |
+| A | the declaring page's asset search reads HTML comments again; the file fails at load if the page's comment stops naming `_shared/app-window.css` |
+| B | the same search counts the whole-line `//` comment again, which needs both the parser step and the whole-line pattern to stop removing it, so B does not single out the parser step (G does); the file fails at load if the comment stops naming the script |
+| G | the parser step stops removing a `//` after code, or the block check stops reading through `stripComments` |
+| H | the stripping removes code after a `//` inside a string, the theme rule stops reading the page's code, or the session page stops following the mode. It does not go red for a `/*` inside a string or a template line starting with `//` (finding 3) |
+| C, D, E, F | as in the first post-implementation check; the parser step touches neither HTML comments nor `<style>` |
+
+### Resource reuse
+
+- Unchanged: one tree (a copy of `docs/prototypes/`) and one gate run per file run, built by `runGate()` at module
+  load; G and H add plants, not resources.
+- Runtime count, from the targeted log: the file ran once (in `pnpm check:ui`, lines 31–52); the nine cases took
+  0.049–0.498 ms each and the file 2128 ms: one build, outside the cases. This agrees with the table.
+- Cost: 1393–2128 ms per run of the nine-case file across the four recorded runs (`naive-h.txt`, `red-first-2.txt`,
+  `green-2.txt`, the targeted log); the gate alone 1.04–1.40 s before the parser step and 1.58–1.61 s after
+  (`comment-ranges.txt`). Building once per file stands.
+- No case clears or releases the resource, so no ordering question arises.
+
+### Document sync
+
+Facts this check establishes: the incremental check is done on e53f6d0 (range 30a2fee..e53f6d0) with finding 3, and
+findings 1 and 2's handling is verified (the set-up assertion shown failing, G red first, H red under the naive
+stripping). Files checked: the task inputs (#270's body, `checklist.md`, this record, the targeted and gateway logs);
+this work directory's #270 files (`ticket-270-tasks.md`, `ticket-270-doc-sync.md`, `ticket-270-review-code.md`, and
+`evidence/ticket-270/`); and the repository through
+`rg -uu -l -e check-shared-ui -e check:ui -e stripComments -e stripJsComments`, hidden and ignored files included,
+excluding `node_modules`, `site/node_modules`, `out`, `site/dist` and `.git` (dependencies and build output): 120
+files. Outside `docs/.workings/` they are the same twelve as in the first round. Other tickets' records under
+`docs/.workings/` are left out: each records its own round.
+
+- No permanent document describes how the gate treats comments or what its test holds (their lines name the gate, its
+  tiers, CI's step and single rules), so the fix makes none of them untrue.
+- `checklist.md`: the 270::1 and 270::R1 rows match the test as written (G with the pinned comments; H). 270::R1's row
+  must follow finding 3's handling. There is still no current-verification row for `270::*`; the document sync
+  checklist's first item (Pending) covers it, and that row must carry this round's outcome.
+- `ticket-270-tasks.md`: D3's "a `//` inside a string, a template or a regular expression stays" is untrue of the gate
+  as written for a template line starting with `//` (finding 3); task 7's state is the main agent's to update.
+- `ticket-270-review-code.md`, the second layer's Consistency: "The block-comment and whole-line `//` patterns stay, for
+  `<style>` blocks and the CSS files the theme rule reads": they also run over inline script bodies (finding 3).
+- `ticket-270-doc-sync.md`: no new item; its four items stay Pending.
+- Handling finding 3 by (a) adds a Test design table row, which must be reviewed under the design review's increment
+  rule before the test changes.
+
+### Findings
+
+**3. The stripping still removes code inside inline scripts: a `/*` in a string opens a block comment, and a template
+line starting with `//` is cut.** Kind: a defect against decision D3 and the stripping's contract (its doc comment:
+"comments may describe the wiring, only markup and code count"); also a regression that would be missed, since D3's
+keep rule is driven for one shape only (H: a `//` mid-line in a string).
+After the parser step, `stripComments` still applies `/\/\*[\s\S]*?\*\//g` and `/^\s*\/\/.*$/gm` to the whole page,
+inline script bodies included (`scripts/check-shared-ui.mjs:240-241`). So:
+- A `/*` inside a JS string starts a "comment" that runs to the next `*/` anywhere later in the page, across scripts
+  and markup. The parser step lets the span run further than before, since a real JS block comment, already removed,
+  no longer ends it. Real data: four strings on two pages hold `/*`, glob paths in mock content (session-view:
+  `tool-results/*.txt` twice and `.github/workflows/*.yml`; plugins-view: `ideas/*.md`). No `*/` survives after them
+  today, so nothing is removed on main (Coverage). Probe on the real session page: one mock Glob line in the page's own
+  form, `const mockGlob = 'Glob  src/**/*.ts → …'` (a `**/` glob holds `*/`), put at the start of the last inline
+  script, cuts about 39,200 characters of inline script code from what every rule reads (`stripComments` output
+  52,850 characters before, 13,658 after the 46-character line); with
+  `const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')` placed after the page's first `/*` string
+  (line 284), the theme rule's input holds `prefers-color-scheme` without the Glob line and does not with it, so a
+  mode-following page styling by the system appearance passes. A synthetic probe shows the span also takes markup
+  between scripts, a `data-shared-block` declaration included; with the block's asset tags inside the span too, the
+  block check skips the page, and a later removal of a real reference there is not reported (#270's acceptance).
+- A template literal's line that starts with `//` is removed with the rest of the line (probe), though D3 says "a `//`
+  inside a string, a template or a regular expression stays". No page has such a line today.
+Why it belongs to this change: the two patterns predate #270 (ef5e4cb has the same three patterns), but this change
+routes the shared-block check's four searches and the tab identity rule through `stripComments` (D1), and D3 rebuilt
+the function around what must stay; H's row is the case for that keep rule and covers the mid-line string only. The
+regular-expression form of the rule holds on real pages (Coverage) without a case driving it either.
+Impact: every rule that reads a page without comments (the shared-block searches, tab identity, demo dimensions,
+theme, rail and column ordering) silently loses the code in the span; the next glob with `**/` written into a page's
+mock content after one of the four strings opens it, on the session page among others.
+Records affected: D3's wording in `ticket-270-tasks.md` (the template clause), the code review's consistency note
+quoted under Document sync, and the fix commit's message ("a // inside a string, a template or a regular expression
+stays").
+Recommended handling:
+- (a), recommended, now in this ticket: apply the block-comment and whole-line `//` patterns only outside inline script
+  bodies (the parser has already removed those bodies' comments; the patterns stay for `<style>` and the CSS files the
+  theme rule reads), which stays within D3 as worded ("HTML and CSS comments as before"). Add a case that plants, on a
+  page that follows the mode, a `prefers-color-scheme` line between a string holding `/*` and a later string holding
+  `*/` (the glob forms the pages use), red on e53f6d0's gate; enter its row in the Test design table and review it
+  under the increment rule first.
+- (b): state both shapes as a limit in the test header, 270::R1's checklist row and D3's wording, citing the owner's
+  decision.
+
+Either way it belongs to this ticket's PR.
+
+### Handling (main agent, 2026-10-26)
+
+- Finding 3: handled by (a), within decision D3 as worded ("HTML and CSS comments as before"). `stripComments` is now
+  one pass over the page: an HTML comment in the markup is removed, an inline script's body goes to the parser, a style
+  block's body loses its CSS comments, and nothing else is touched — so a `/*` in a script's string and a template line
+  starting with `//` stay. The theme rule reads a linked CSS file through `stripCssComments`, its only non-page input.
+  New cases I (a `/*` in a string, then code, then a `*/` in a string) and J (a template line starting with `//`), red
+  on the gate at e53f6d0 ([red-first-3.txt](evidence/ticket-270/red-first-3.txt)); all eleven cases pass after and
+  `check:ui` passes on main ([green-3.txt](evidence/ticket-270/green-3.txt)).
+- The note under G's row (the set-up assertion is vacuous for G): `NAMED_IN_A_COMMENT` no longer lists the shell page,
+  and the design review's rows and sentences that counted G's assertion now credit the plant-once check.
+- Records the finding named: D3's wording is true of the gate now; the code review's consistency note is rewritten;
+  e53f6d0's message ("a // inside a string, a template or a regular expression stays") was not true of that commit for
+  a template line starting with `//` — the commit cannot be reworded without rewriting pushed history, and the gate
+  after this fix makes it true; this handling records the difference.
+- The fix changes the test's executable content, so a further incremental check follows.

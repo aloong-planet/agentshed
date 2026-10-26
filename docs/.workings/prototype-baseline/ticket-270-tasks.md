@@ -37,7 +37,7 @@ Branch `fix/check-ui-comment-refs`, in its own worktree, cut from `origin/main` 
 | # | Decision | Answer and reason |
 |---|---|---|
 | D1 | Which searches stop reading comments | All four searches of the shared-block check (the issue's fix covers its asset references; the declaration and mount-point searches are the same check reading the same raw text) and the tab identity rule's `<head>` searches: one defect, in one file, each a few characters to change (the class-level rule of the code review). The chart container rule is left as it is: its comment handling is moot while it counts every declaration, and making it match each chart to its own declaration would turn the Agents page red on `skChart` — a separate defect and a change to a prototype page, reported to the owner with a recommendation |
-| D3 | The post-implementation check's finding 2: a `//` comment after code on the same line still counted, since `stripComments` removes only whole-line `//` comments (the pages use the form on at least 37 lines; none names an asset today) | Fixed here: the owner's answer on 2026-10-26, "fix it too (recommended)" (in Chinese). Inside a page's inline `<script>`, every JS comment is removed by the TypeScript parser's comment ranges, so a `//` after code goes and a `//` inside a string, a template or a regular expression stays; HTML and CSS comments as before. `stripComments` serves every rule that reads a page without comments, so all of them gain it |
+| D3 | The post-implementation check's finding 2: a `//` comment after code on the same line still counted, since `stripComments` removes only whole-line `//` comments (the pages use the form on at least 37 lines; none names an asset today) | Fixed here: the owner's answer on 2026-10-26, "fix it too (recommended)" (in Chinese). Inside a page's inline `<script>`, every JS comment is removed by the TypeScript parser's comment ranges, so a `//` after code goes and a `//` inside a string, a template or a regular expression stays; HTML and CSS comments as before, each only where it stands (the incremental check's finding 3: one pass, HTML comments in the markup, CSS comments in style blocks). `stripComments` serves every rule that reads a page without comments, so all of them gain it |
 | D2 | How the fix is held | A test of the gate's own command line on a copy of the prototypes (`scripts/check-shared-ui.test.mjs`), run by `pnpm check:ui` before the gate, as `check:lang` and `check:nul` run their tests; the issue's two mutations are cases of it |
 
 ## Tasks
@@ -59,3 +59,9 @@ Self-check of the findings' fix (2026-10-26), items 6 and 7: the new evidence ca
 `green-2.txt` the passing one; each keeps its command and whole output, with the versions it ran on. The records
 follow: the design review's increment and Case design sentence, the test review's handling, the code review's second
 layer, this list (D3), and the checklist's 270::1 and 270::R1 rows. No finding.
+
+Self-check of finding 3's fix (2026-10-26), items 6 and 7: `red-first-3.txt` (I and J red) and `green-3.txt` (all
+eleven green, the gate on main, the timing) each keep their commands and whole output, with the versions they ran on;
+the first timing in `green-3.txt` ran under a high load and the interleaved one after it is the comparison used. The
+records follow: the design review's increment (I, J) and its corrections for G, the test review's handling, the code
+review's consistency note, D3's wording, and the checklist's 270::R1 row. No finding.

@@ -26,6 +26,15 @@ const PLANTS = {
     // An asset named in a comment on a page that does not declare its block
     ['<style>\n', "<style>\n/* the toasts' styles live in ../_shared/toast.css */\n"]
   ],
+  // A /* inside a string opens no comment: the code after it still counts
+  'plugins-view/prototype-plugin-skill-preview.html': [
+    [
+      "  let lang = DemoDimensions.get('language')\n",
+      "  let lang = DemoDimensions.get('language')\n  const globs = ['ideas/*.md', window.matchMedia('(prefers-color-scheme: dark)'), 'src/**/*.ts']\n"
+    ]
+  ],
+  // A template's line that starts with // is template text, not a comment
+  'skill-install/prototype-install.html': [['  const T={\n', '  const note = `\n// prefers-color-scheme is how the app reads the system appearance\n`\n  const T={\n']],
   // A // inside a string is no comment: the code after it on the line still counts
   'session-view/prototype-session.html': [
     [
@@ -42,11 +51,11 @@ const PLANTS = {
   'skills-view/prototype-skills-preview.html': [['<script src="../app-identity.js"></script>', '<!-- <script src="../app-identity.js"></script> -->']]
 }
 
-/** Pages whose case needs a comment still naming the asset once its real reference is gone, or the case plants nothing */
+/** Pages whose own comment, not a plant, must still name the asset once its real reference is gone, or the case plants
+ * nothing */
 const NAMED_IN_A_COMMENT = {
   'global-search/prototype-search.html': '_shared/app-window.css',
-  'project-list/prototype-list.html': '_shared/project-side.js',
-  'shell/prototype-app-shell.html': '_shared/app-rail.js'
+  'project-list/prototype-list.html': '_shared/project-side.js'
 }
 
 /** Run the gate on a planted copy; returns its exit code and output */
@@ -102,6 +111,14 @@ test("a page without its asset's script is reported, though a comment after code
 
 test('a // inside a string is not a comment: the code after it on the line is read', () => {
   assert.ok(reported('docs/prototypes/session-view/prototype-session.html: follows the mode but still styles by prefers-color-scheme'), run.out)
+})
+
+test('a /* inside a string opens no comment: the code after it is read', () => {
+  assert.ok(reported('docs/prototypes/plugins-view/prototype-plugin-skill-preview.html: follows the mode but still styles by prefers-color-scheme'), run.out)
+})
+
+test("a template's line that starts with // is read", () => {
+  assert.ok(reported('docs/prototypes/skill-install/prototype-install.html: follows the mode but still styles by prefers-color-scheme'), run.out)
 })
 
 test('a declaration left only in a comment does not declare the block', () => {

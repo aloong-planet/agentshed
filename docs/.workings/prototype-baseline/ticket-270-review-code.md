@@ -90,11 +90,17 @@ No finding: gate code, reading the repository's own pages.
 
 ### Consistency
 
-- `stripComments` serves six call sites; each now reads inline scripts without their JS comments, which is the rule's
-  intent for all of them (its doc comment: only markup and code count). The block-comment and whole-line `//` patterns
-  stay, for `<style>` blocks and the CSS files the theme rule reads.
+- `stripComments` serves the page reads of six call sites; each now reads inline scripts without their JS comments,
+  which is the rule's intent for all of them (its doc comment: only markup and code count). After the incremental test
+  check's finding 3 it is one pass: HTML comments in the markup, the parser in scripts, CSS comments in style blocks,
+  nothing elsewhere; the theme rule's linked CSS files go through `stripCssComments`.
 - Smells: none. The `pos < at` guard is defensive, unreached on today's pages (the test review's self-check).
 
 ### Refactoring list
 
 None.
+
+Self-check before handing over finding 3's fix (2026-10-26), item 1: the gate against D3 as worded — a `//` after
+code goes; a `//` or `/*` inside a string, a template or a regular expression stays, with the code after it (cases
+G–J); HTML comments in the markup and CSS comments in style blocks as before. The gate's run time is unchanged by this
+fix (about 1.6 s, against 1.05 s on main; interleaved runs under one load, `green-3.txt`).
