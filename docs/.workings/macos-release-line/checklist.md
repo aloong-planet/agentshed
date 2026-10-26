@@ -21,6 +21,8 @@ three specs — no copy, structure or behaviour of the page changes, and the her
 Increment of 2026-10-26 (#253, the workflows' actions at their current majors): no spec changes; scope is the
 release workflow's units, run again on the upgraded actions (the row marked "#253"). Not affected: every other unit —
 no condition, job, step order, artifact or credential of the workflow changes, only the commit each action runs at.
+With it (the owner's decision of 2026-10-26), the site tests' global setup builds on the site's own filesystem, for
+CI's ubuntu-26.04 runners; no unit changes, the built-site check reading the same build.
 
 This is a work index, not a requirement authority. The tickets were published on 2026-10-14 as
 #230–#241, with the prerequisite zhoulf1006/skillshed#18 (drafted as #230–#241 and zhoulf1006/skillshed#18, in that order);

@@ -94,3 +94,37 @@ docs/.workings/macos-release-line/ticket-253-review-tests.md
 docs/.workings/macos-release-line/ticket-253-doc-sync.md
 docs/.workings/macos-release-line/ticket-240-doc-sync.md
 exit=0
+
+## Added for D5 (the site tests on ubuntu-26.04), run on b0ac644 on 2026-10-26T05:51:25Z
+
+## Statements of where and how the site tests build
+$ git grep -n -i -E "tmpdir|temporary director|temp dir|fresh build|build-site|globalSetup|global setup" -- site docs/specs docs/features docs/adr CONTEXT.md README.md README.en.md package.json .github ":!site/pnpm-lock.yaml"
+.github/workflows/ci.yml:41:      # The site's type check, its unit tests and the built-site check (on a fresh build)
+README.en.md:91:              # checks, the end-to-end tests on a fresh build, and a smoke run of the app in development
+docs/specs/landing-page.md:316:  declares its size. It reads a fresh build made for the run, never a previous one.
+site/README.md:53:- `test/built-site.test.ts` checks the pages one fresh build produces: `test/build-site.ts` builds the site
+site/README.md:54:  into a new temporary directory once per test run, so the check never reads an old `dist/`. Its file header
+site/test/apply-download.test.ts:2:// pages come from the run's fresh build, and each case gets its own DOM, since applying a view writes to it.
+site/test/build-site.ts:1:// Vitest global setup: one fresh build of the site per test run, into a new temporary directory.
+site/test/build-site.ts:7:// The directory is made under the site's own node_modules/.cache, not the operating system's temporary directory:
+site/test/build-site.ts:9:// than the site, as the temporary directory is on GitHub's ubuntu-26.04 runners.
+site/vitest.config.ts:8:    globalSetup: ['test/build-site.ts']
+exit=0
+
+## Statements naming the runner OS or the temporary directory
+$ git grep -n -i -E "ubuntu|24\.04|26\.04|tmpfs|/tmp\b|temporary director" -- <the scope above, with site/test>
+.github/workflows/ci.yml:18:    runs-on: ubuntu-latest
+.github/workflows/ci.yml:48:  # e2e drives a real Electron. It runs on ubuntu rather than macos: what e2e asserts — the whole IPC chain,
+.github/workflows/ci.yml:54:    runs-on: ubuntu-latest
+.github/workflows/ci.yml:65:      # (which drift with the ubuntu version, e.g. libasound2 → libasound2t64)
+.github/workflows/message-language.yml:18:    runs-on: ubuntu-latest
+.github/workflows/release.yml:108:    runs-on: ubuntu-latest
+.github/workflows/release.yml:137:    runs-on: ubuntu-latest
+.github/workflows/release.yml:172:    runs-on: ubuntu-latest
+docs/ops/mac-signing.md:101:gate job runs on `macos-latest`. The publish job runs on `ubuntu-latest` and needs the gate job. For formal tags,
+docs/specs/appearance.md:436:  hover shade (appearance::REQ-001/AC-05) is read on macOS only, where the app ships: on ubuntu, where CI
+site/README.md:54:  into a new temporary directory once per test run, so the check never reads an old `dist/`. Its file header
+site/test/build-site.ts:1:// Vitest global setup: one fresh build of the site per test run, into a new temporary directory.
+site/test/build-site.ts:7:// The directory is made under the site's own node_modules/.cache, not the operating system's temporary directory:
+site/test/build-site.ts:9:// than the site, as the temporary directory is on GitHub's ubuntu-26.04 runners.
+exit=0
