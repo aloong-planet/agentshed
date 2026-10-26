@@ -63,7 +63,7 @@ with no visible effect (`/to-spec`'s prototype gate) applies, so no prototype ro
 | 7 | Full gateway | `evidence/ticket-314/gateway-*.txt` | 4f5607a, then 78ff2f5 after the post-implementation check's cases: each `VERIFY_EXIT=0` on a clean tree; the last on the final code and test: 873 unit, 137 script, 107 site, `check:ui` 25 cases then the gate, 155 e2e, smoke OK. The delivery head c751e33, which adds the postmortem the gate's ticket-number rule reads: `VERIFY_EXIT=0` on a clean tree, the same counts (`gateway-c751e33.txt`) |
 | 8 | Independent post-implementation test check | `ticket-314-review-tests.md` | first round on a40c926..6664a7e: findings 1 (the app sheet's invariant undriven), 2 (the class token match undriven) and 3 (an empty declaration undriven), all handled by cases (T3, M1's second token, N2); incremental on 6664a7e..78ff2f5: no finding, so step 6 is closed |
 | 9 | Source check, archive, write-back, step 8 | `final-regression.md` | done: the source check below; the postmortem `docs/postmortems/2026-10-26-a-scratch-copy-that-was-a-link.md` (root cause, why nothing caught it, the guard — the three conditions for one); the checklist's current verification; step 8, the #314 section of `final-regression.md` |
-| 10 | PR; CI; stop for the owner | PR link | the PR opens from c751e33 plus this records commit |
+| 10 | PR; CI; stop for the owner | PR link | #315 opened; CI's runs on its head are the pull request's checks, linked in #314's comment after the merge |
 
 Self-check of the post-implementation check's fixes (2026-10-26), items 6 and 7: `red-first-2.txt`, `token-match.txt`,
 `nonempty-declaration.txt` and `contracts-empty-2.txt` each keep their commands, the gate copy's change by `diff`, the
