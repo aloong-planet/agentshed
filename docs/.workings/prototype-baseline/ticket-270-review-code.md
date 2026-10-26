@@ -102,5 +102,9 @@ None.
 
 Self-check before handing over finding 3's fix (2026-10-26), item 1: the gate against D3 as worded — a `//` after
 code goes; a `//` or `/*` inside a string, a template or a regular expression stays, with the code after it (cases
-G–J); HTML comments in the markup and CSS comments in style blocks as before. The gate's run time is unchanged by this
+G–J drive the string and template shapes; K, added after the second incremental check's finding 4, the regular
+expression); HTML comments in the markup and CSS comments in style blocks as before. The gate's run time is unchanged by this
 fix (about 1.6 s, against 1.05 s on main; interleaved runs under one load, `green-3.txt`).
+
+Self-check before handing over finding 4's fix (2026-10-26), item 1: the change is a test case only; the gate is
+unchanged, and K drives D3's regular-expression shape against it.

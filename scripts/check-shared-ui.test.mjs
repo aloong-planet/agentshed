@@ -35,6 +35,13 @@ const PLANTS = {
   ],
   // A template's line that starts with // is template text, not a comment
   'skill-install/prototype-install.html': [['  const T={\n', '  const note = `\n// prefers-color-scheme is how the app reads the system appearance\n`\n  const T={\n']],
+  // A // inside a regular expression is no comment either (the pages' own URL test)
+  'project-detail/prototype-detail-stale-note.html': [
+    [
+      "const PATH = '/Users/you/Projects/removed-experiment-2025';\n",
+      "const PATH = '/Users/you/Projects/removed-experiment-2025';\nconst isUrl = (u) => /^https?:\\/\\//i.test(u); const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')\n"
+    ]
+  ],
   // A // inside a string is no comment: the code after it on the line still counts
   'session-view/prototype-session.html': [
     [
@@ -111,6 +118,10 @@ test("a page without its asset's script is reported, though a comment after code
 
 test('a // inside a string is not a comment: the code after it on the line is read', () => {
   assert.ok(reported('docs/prototypes/session-view/prototype-session.html: follows the mode but still styles by prefers-color-scheme'), run.out)
+})
+
+test('a // inside a regular expression is not a comment: the code after it on the line is read', () => {
+  assert.ok(reported('docs/prototypes/project-detail/prototype-detail-stale-note.html: follows the mode but still styles by prefers-color-scheme'), run.out)
 })
 
 test('a /* inside a string opens no comment: the code after it is read', () => {

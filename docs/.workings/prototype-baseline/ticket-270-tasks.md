@@ -50,7 +50,7 @@ Branch `fix/check-ui-comment-refs`, in its own worktree, cut from `origin/main` 
 | 4 | Slice: the test red on the unfixed gate, then the fix, then green; the feedback loop again | the test's red run, the green run, `loop-after.txt` | done: six cases red on ef5e4cb's gate, all green after (`red-first.txt`, `green.txt`); the loop's two plants reported (`loop-after.txt`); targeted run `targeted.txt` |
 | 5 | Code review | `ticket-270-review-code.md` | done: no finding; the class-level enumeration (decision D1); a second layer for D3's parser stripping |
 | 6 | Full gateway | `evidence/ticket-270/gateway-*.txt` | d9b0208: `VERIFY_EXIT=0` (873 unit, 137 script, 107 site, `check:ui` 7 cases, 155 e2e, smoke OK); rerun before delivery after D3 |
-| 7 | Independent post-implementation test check | `ticket-270-review-tests.md` | first round on ef5e4cb..30a2fee: findings 1 (A's and B's comments unpinned) and 2 (a `//` after code still counted), both handled (D3); the incremental check of the fix follows |
+| 7 | Independent post-implementation test check | `ticket-270-review-tests.md` | first round on ef5e4cb..30a2fee: findings 1 (A's and B's comments unpinned) and 2 (a `//` after code still counted), both handled (D3); incremental on 30a2fee..e53f6d0: finding 3 (the block and whole-line patterns still ran over scripts), handled; incremental on e53f6d0..020e082: finding 4 (the regular-expression shape undriven), handled by case K; a further incremental check of that case follows |
 | 8 | Source check, write-back (`checklist.md`; any statement of what `check:ui` runs), step 8 | `final-regression.md` | |
 | 9 | PR; CI; stop for the owner | PR link | |
 
@@ -65,3 +65,8 @@ eleven green, the gate on main, the timing) each keep their commands and whole o
 the first timing in `green-3.txt` ran under a high load and the interleaved one after it is the comparison used. The
 records follow: the design review's increment (I, J) and its corrections for G, the test review's handling, the code
 review's consistency note, D3's wording, and the checklist's 270::R1 row. No finding.
+
+Self-check of finding 4's fix (2026-10-26), items 6 and 7: `green-4.txt` and `scanner-k.txt` keep their commands,
+versions and whole output, and `scanner-k.txt` shows its copy's change by `diff`. The records follow: the design
+review's increment (K), the increment's Coverage sentences, the code review's self-check, the test review's handling,
+this list, and the checklist's 270::R1 row. No finding.
