@@ -61,8 +61,9 @@ unchanged. There is no spec for this work; the requirement source is #270's body
   #314's body (rewritten with the owner's decisions), the postmortem `docs/postmortems/2026-10-26-a-scratch-copy-that-was-a-link.md`
   with its index row, the coverage checklist's fourth round, and this ticket's records
 - Version: 78ff2f5 for code and tests (the full gateway ran on it, `evidence/ticket-314/gateway-78ff2f5.txt`; the earlier
-  run on 4f5607a, before the post-implementation check's cases, is kept beside it); the delivery head adds the
-  postmortem and the records, and the gateway reruns there because the gate's ticket-number rule reads the postmortem
+  run on 4f5607a, before the post-implementation check's cases, is kept beside it); the delivery head c751e33 adds the
+  postmortem and the records, and the full gateway passed there too (`gateway-c751e33.txt`), the gate's ticket-number
+  rule reading the postmortem
 
 The two questions for the feature catalogue: **what became a lie** — nothing. The change is to a repository gate,
 its test, and two prototype pages that gain an attribute no style or script reads (`md-preview.js` already set the
@@ -83,7 +84,7 @@ spec for this work; the requirement source is #314's body.
 | The two pages: the Agents page's skeleton note above `#skChart` ("the gray bars are the chart container's children, laid out like the real bars") and the heading-ladder page's header ("shared: md-preview") | the pages after the change | True: neither speaks of declarations; both stay accurate |
 | `checklist.md`: the fourth round's paragraph, units 314::1–314::6, their current verification, the two-way audit row | #314's body; the evidence named in each row | True (current verification at 78ff2f5) |
 | #314's body (Decisions, Acceptance criteria) | the implementation: each decision D1–D7 and each criterion's case or gate (`ticket-314-tasks.md`, source check) | True |
-| `docs/postmortems/2026-10-26-a-scratch-copy-that-was-a-link.md` (what happened, why nothing caught it, what was done) | the code review's finding 1 and its record of the write-through; `harness-probe-before.txt`, `-after.txt`; the guard in the test; `cpSync`'s behaviour on a linked source (a link copied as a link, the probe's first run) | True. It names no ticket: the gate's ticket-number rule passes with it staged (`pnpm check:ui` exit 0), and again in the full gateway on the delivery head |
+| `docs/postmortems/2026-10-26-a-scratch-copy-that-was-a-link.md` (what happened, why nothing caught it, what was done) | the code review's finding 1 and its record of the write-through; `harness-probe-before.txt`, `-after.txt`; the guard in the test; `cpSync`'s behaviour on a linked source (a link copied as a link, the probe's first run) | True. It names no ticket: the gate's ticket-number rule passes with it staged (`pnpm check:ui` exit 0), and again in the full gateway on the delivery head (`gateway-c751e33.txt`) |
 | Specs, features, ADRs, `CONTEXT.md`, the prototype gallery | — | Row set empty: none changed. Not an ADR: deriving the blocks from their files is a change to a check, easy to reverse; the owner's decision is recorded in #314 and the task list. No new term |
 
 ### Stage 2: related declarations

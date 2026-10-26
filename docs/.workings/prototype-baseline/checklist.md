@@ -131,6 +131,7 @@ the tier that backs it.
 | same | 314::5 | L1 reported, red first on a40c926's gate; the block-specific table's renamed key reported by the gate (`contracts-stale-key.txt`) | Verified |
 | same | 314::6 | `pnpm check:ui` exit 0 on the pages, in the full gateway at 78ff2f5 (`gateway-78ff2f5.txt`) | Verified |
 | same | all fourth-round units | `pnpm verify`, each step on its own, on 78ff2f5 with a clean tree: typecheck, lint, test (873 passed, 1 skipped), test:scripts (137), test:site (107), check:ui (25 cases, then the gate), check:lang, check:i18n, check:nul, e2e (155 passed), smoke — every exit code 0 (`gateway-78ff2f5.txt`) | Verified |
+| 2026-10-26; delivery head c751e33 (78ff2f5 plus the postmortem and the records) | all fourth-round units | `pnpm verify` on c751e33 with a clean tree, the same steps and counts, every exit code 0; the ticket-number rule reads the new postmortem (`gateway-c751e33.txt`) | Verified |
 
 ## Two-way audit
 
