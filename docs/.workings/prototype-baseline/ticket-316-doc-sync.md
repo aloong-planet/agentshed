@@ -7,7 +7,7 @@ coverage checklist: [checklist.md](checklist.md) · final regression: [final-reg
 
 | Sync item and trigger | Documents | Status and notes |
 |---|---|---|
-| The coverage checklist: a fifth round for #316 — its units `316::1`–`316::10` from the body's acceptance criteria, and their current verification once run | [checklist.md](checklist.md) | Pending — the units and the audit row are written; current verification waits for the runs |
+| The coverage checklist: a fifth round for #316 — its units `316::1`–`316::10` from the body's acceptance criteria, and their current verification once run | [checklist.md](checklist.md) | Done — the units 316::1–316::10 with the post-implementation check's cases, their current verification at 6b5aecc and on the delivery head a904c05's gateway, the audit row |
 | Statements of what the changed rules check and where their lists come from, once they derive them (the gate's comments; any document that lists the brand or accent colours, the themes, the sides, the languages, the READMEs, the rail items or the ticket-number rule's scope) | `scripts/check-shared-ui.mjs`, `scripts/check-shared-ui.test.mjs`, `CONTEXT.md`, and whatever a search finds | Done — the gate's and the test's comments changed with the code (step 8, stage 1); the search found no document listing the colours, themes, sides, languages, READMEs, rail items or the ticket-number scope, and every statement about the gate stays true; CONTEXT's side-enumeration sentence fixed (step 8, stage 2, `evidence/ticket-316/step8-searches.txt`) |
 | #314's records that left the gate's other hand-kept lists to the owner: the owner decided on 2026-10-26 (no check for `ALLOWED` and `EXEMPT`; the lists that mirror a growing set went to #316) | [ticket-314-review-code.md](ticket-314-review-code.md) ④, [ticket-314-doc-sync.md](ticket-314-doc-sync.md) (pre-delivery re-check) | Done — both name the owner's decision and #316 |
 | Step 8 report: the two questions (no user-visible behaviour changes: the gate and its test) and the cross-regression of what this change touched | [final-regression.md](final-regression.md) | Done — the #316 section, three stages (2026-10-27); `docs/features/` unchanged |
@@ -18,4 +18,5 @@ and what its runs produced — the gate's mirrored lists and the rule reporting 
 test's 70 cases on three trees with their red runs and twelve changed copies of the gate, two full gateways (b03fc6e,
 723db11) — against #316's body, the coverage checklist's fifth round (units, audit row), the task list (D1–D9, the source
 check), both reviews with every finding's handling, #314's records and step 8. Added in this check: none. The
-coverage checklist's row waits for its current verification, written with the delivery head's gateway.
+coverage checklist's row was closed with the delivery head a904c05's gateway (`VERIFY_EXIT=0`). No item is Pending;
+the one Done with the merge is the tracker write-back after it.
