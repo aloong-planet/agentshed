@@ -1,0 +1,44 @@
+# EXDEV after the fix: the site's tests with TMPDIR on another filesystem, then with the default
+$ git diff --stat f340555 -- site
+ site/test/build-site.ts | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+$ df <mnt> site (two filesystems)
+Filesystem on
+/dev/disk13s1 /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/i253/exdev/mnt
+/dev/disk3s5 /System/Volumes/Data
+
+## TMPDIR=<mnt>/ (another filesystem)
+$ TMPDIR=<mnt>/ pnpm --dir site test
+
+> agentshed-site@0.0.0 test /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253/site
+> vitest run
+
+
+ RUN  v5.0.5 /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253/site
+
+
+ Test Files  7 passed (7)
+      Tests  107 passed (107)
+   Start at  13:44:45
+   Duration  1.86s (import 75%, tests 23%, transform 2%, worker 1%)
+
+exit=0
+$ ls site/node_modules/.cache (after the run: the build's directory removed)
+
+## the default TMPDIR
+$ pnpm --dir site test
+
+> agentshed-site@0.0.0 test /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253/site
+> vitest run
+
+
+ RUN  v5.0.5 /Users/loong_zhou/CascadeProjects/agentshed-wt/actions-253/site
+
+
+ Test Files  7 passed (7)
+      Tests  107 passed (107)
+   Start at  13:44:47
+   Duration  1.20s (import 64%, tests 33%, transform 2%, worker 1%)
+
+exit=0
+$ ls site/node_modules/.cache

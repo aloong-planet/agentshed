@@ -74,3 +74,53 @@ Scope: `git diff 9685ccf` — the three workflows' 24 `uses` lines moved to the 
 ### Refactoring list
 
 None.
+
+## Layered review — S3, the site tests' build on the site's filesystem (2026-10-26, on f340555, uncommitted)
+
+Scope: `git diff f340555 -- site`: `site/test/build-site.ts`, the site tests' global setup, builds into a new
+directory under `site/node_modules/.cache/` instead of `os.tmpdir()` (the owner's decision D5). No product code.
+
+### Underlying premises
+
+- **Why the build failed on CI**: Astro's build moves the built assets into `outDir` with `fs.rename`
+  (`ssrMoveAssets`, astro 7.4.0, `dist/core/build/static-build.js:359`, in CI's stack trace), and a rename across
+  filesystems fails with EXDEV. CI's run 40266512391 ran on ubuntu-26.04, where it renamed from
+  `/home/runner/work/…/site/.astro/.prerender/` to `/tmp/agentshed-site-…/` and failed; main's last green run
+  (40087613957) ran on ubuntu-24.04. Measured, not read: the same failure locally with `TMPDIR` on a mounted disk image,
+  none with the default (`evidence/ticket-253/exdev-repro.txt`). The new comment states this cause; it is the one
+  measured.
+- **"No test files found"** in the failing run is a consequence, not a second fault: it appears with the EXDEV and goes
+  with it (the same run after the fix reports 107 tests, `evidence/ticket-253/exdev-after-fix.txt`).
+- `site/node_modules/.cache` is on the site's filesystem (it is inside the site's directory); `node_modules/` is
+  ignored by git (`.gitignore:1`), so the gates that read `git ls-files --others --exclude-standard` never see a build
+  there.
+
+### Runnability
+
+- With `TMPDIR` on another filesystem: 7 files, 107 tests pass; with the default, the same; after each run the
+  build's directory is gone (`exdev-after-fix.txt`). `pnpm test:site`, `pnpm lint`, the language and NUL checks pass
+  (`evidence/ticket-253/targeted-2.txt`).
+- `mkdirSync(…, { recursive: true })` makes `.cache` when absent and is a no-op when present; `mkdtempSync` gives each
+  run its own directory, so two runs at once do not share one. A run killed before its teardown leaves its directory
+  behind, ignored by git and the gates, as a leftover under `/tmp` was before.
+
+### Security
+
+Test-only code; nothing is read from outside the repository or written outside the site's directory. No finding.
+
+### Consistency
+
+- **Class-level check: other code that moves files into the operating system's temporary directory from elsewhere.**
+  Every file that uses the temporary directory (`git grep -l -E "tmpdir\(|os\.tmpdir|mkdtemp" -- src scripts e2e site
+  build`: 47 files) was searched for a rename, move or copy: four hits. The two in `e2e/` are `mouse.move`; the
+  packaging asset's test (`build/mac-packaging.test.cjs:891`) and the token engine's test
+  (`src/main/providers/token-stats.test.ts:2336`) rename within one temporary directory, and both passed on CI's
+  ubuntu-26.04 run (the checks job's `pnpm test` and `pnpm test:scripts`). Other instances affected: none.
+- The statements of the build: the file's header ("into a new temporary directory"), `site/README.md:53`–`:54`
+  ("builds the site into a new temporary directory once per test run"), `ci.yml:41` ("on a fresh build") and the
+  landing-page spec ("a fresh build made for the run") — each still true.
+- Smells: none on the changed lines.
+
+### Refactoring list
+
+None.

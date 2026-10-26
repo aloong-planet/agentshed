@@ -55,6 +55,7 @@ release line's requirements are [the mac-distribution spec](../../specs/mac-dist
 | D2 | Whether `message-language.yml` is upgraded here | In this change: the owner's answer on 2026-10-26, "upgrade it too (recommended)" (in Chinese). Its actions are the same version 4 actions. The issue body was rewritten on 2026-10-26 to name three workflows and the pinning rule |
 | D3 | pnpm/action-setup or its successor `pnpm/setup` | pnpm/action-setup v6, its current major: `pnpm/setup` needs pnpm 11 or newer and the project is on pnpm 9.12.3. A fact, not a choice: moving pnpm is out of this ticket |
 | D4 | Where the pinning rule is held | A static test of every workflow file in `.github/workflows/`, enumerated from the directory so a new workflow is covered; it replaces `release-workflow.test.mjs`'s release-only case, so the rule is checked in one place. The rule's statement: `CONTEXT.md`'s invariants, and the release runbook's "Actions" bullet |
+| D5 | CI red on #312's head at `pnpm test:site` (run 40266512391): `ubuntu-latest` moved from ubuntu-24.04 (main's last run, 2026-10-24) to ubuntu-26.04, where the temporary directory is on another filesystem than the workspace, and the site tests' global setup builds into `os.tmpdir()`, so Astro's rename of the built assets fails with EXDEV. Not caused by the upgrade: the site is unchanged from `main`, and a local run with `TMPDIR` on a mounted disk image gives the same two errors, the default `TMPDIR` none (`evidence/ticket-253/exdev-repro.txt`) | The fix goes into #312: the owner's answer on 2026-10-26, "fold the same fix into #312" (in Chinese), against a recommendation of a ticket and pull request of its own. The global setup builds into a new directory under the site's own `node_modules/.cache`, on the site's filesystem whatever the temporary directory is; the issue body names this addition |
 
 ## Tasks
 
@@ -69,7 +70,8 @@ release line's requirements are [the mac-distribution spec](../../specs/mac-dist
 | 7 | Independent post-implementation test check | `ticket-253-review-tests.md` | done on 9685ccf..008b71f: no finding; no fix, so no incremental check |
 | 8 | Spec check, step 7 write-back (`CONTEXT.md`, the runbook, the checklist's rows), step 8 | `final-regression.md` | done: the spec check below; `CONTEXT.md` and the runbook written with the implementation commit; the checklist's current-verification row; step 8, the #253 section of `final-regression.md` |
 | 9 | Runs on the upgraded actions: CI on the pull request; a manual `release.yml` run with the switch off, its artifact downloaded | run links, `evidence/ticket-253/` | The manual run done: 40265409861 on 008b71f, green; pnpm switched to 9.12.3; the artifact downloaded, its digest equal to the upload's (`evidence/ticket-253/manual-run.txt`). CI: the checks on #312's head, linked in #253's comment after the merge |
-| 10 | PR; stop for the owner | PR link | done: #312, waiting for the owner |
+| 10 | PR; stop for the owner | PR link | #312 opened; CI red at `pnpm test:site` (D5) |
+| 11 | D5: the site tests' build on the site's filesystem — design review increment, the fix, the repro red then green, code review, full gateway, incremental test check, step 8, CI | `ticket-253-review-tests.md`, `ticket-253-review-code.md`, `evidence/ticket-253/` | |
 
 ## Targeted verification (step 4)
 

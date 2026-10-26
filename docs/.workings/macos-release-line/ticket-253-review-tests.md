@@ -76,6 +76,32 @@ repository.
 
 None.
 
+### Incremental review — S3, the site tests' build on the site's filesystem (2026-10-26, before changing it; implementation starts from f340555)
+
+The owner's decision D5 (`ticket-253-tasks.md`) folds into this change the fix for CI's red at `pnpm test:site` on
+ubuntu-26.04. It changes the site tests' shared set-up, so the row is reviewed here before the change.
+
+| # | Test | Spec item | Seam | Input that drives the branch | Assertion and where the expected value comes from | Fixture shape | Expensive resource |
+|---|---|---|---|---|---|---|---|
+| S3 | the site tests' global setup, changed (`site/test/build-site.ts`): it builds the site into a new directory under the site's own `node_modules/.cache/` instead of the operating system's temporary directory | landing-page Testing Decisions (the built-site check "reads a fresh build made for the run, never a previous one"); D5 | Vitest's global setup, one build per run provided to the tests as `builtSite` (unchanged) | a temporary directory on another filesystem than the site: CI's ubuntu-26.04 runner; locally, `TMPDIR` on a mounted disk image | the site's existing tests (7 files, 107 tests) run and pass with that `TMPDIR`; before the fix the same run fails with EXDEV and runs no test (`evidence/ticket-253/exdev-repro.txt`). Expected values: the tests' own, unchanged | the site's own sources | the site build, a few seconds: once per run in the global setup, as before; its directory removed when the run ends |
+
+Coverage: the boundary is where the temporary directory lies — on the site's filesystem (this Mac's default) or on
+another (CI's ubuntu-26.04; the mounted image). Both are run. A local run with the default `TMPDIR` cannot catch a
+revert to the temporary directory; CI's `pnpm test:site` on ubuntu-26.04 does, at the real seam, and the mounted-image
+run does on demand. No new case: an assertion that the output lies under the site's root would hold the set-up's
+choice, not the failure, and a revert that kept the build on one filesystem would be harmless.
+
+Case design: the cases are unchanged and read the build through `builtSite`, as before.
+
+False greens: the red's form is a run that tests nothing and exits 1 ("No test files found" after the set-up's
+EXDEV), so it cannot pass silently. After the fix, the run's count must read 107 tests, not merely exit 0.
+
+Resource reuse: one build per run, unchanged. A run killed before its teardown leaves its directory under
+`site/node_modules/.cache/`, which git and the repository's gates ignore (`git check-ignore -v`: `.gitignore:1`
+`node_modules/`); the next run makes a new one.
+
+Findings: none.
+
 ## Post-implementation check (2026-10-26, #253, implementation 9685ccf..008b71f; the code checked is 2e9d247's)
 
 Scope: the tests this change writes or changes — `scripts/workflow-actions.test.mjs` (W1–W3, new, blob 902295e) and
