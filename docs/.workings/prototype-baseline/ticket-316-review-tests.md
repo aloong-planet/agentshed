@@ -136,3 +136,18 @@ when any rule throws on the second tree; Resource reuse — the same tree.
 
 Not driven, recorded in the test's header: the chip rule's stop when it reads no label. Without it, the rule's pattern
 would match empty string literals in an already-red run, adding lines but changing no verdict.
+
+### Design increment (2026-10-26, the code review's findings 2 and 3)
+
+| # | Test | Unit | Input that drives the branch | Assertion and where the expected value comes from | Fixture shape | Expensive resource |
+|---|---|---|---|---|---|---|
+| U1 | a source array with a member the reader cannot read | 316::9 (finding 2) | on the planted tree, `LANGUAGES` becomes `['zh', 'en', 'fr', ...EXTRA_LANGUAGES] as const` (Lg1 and Lg2 still read `fr`) | `src/shared/i18n/index.ts: LANGUAGES has a member this script cannot read — the dictionaries come from it`; red first on e7d6f5a, which drops the spread in silence | a spread, the commonest way an array literal stops being a literal | as G0 |
+| U2 | a source record with a member the reader cannot read | 316::9 (finding 2) | on the planted tree, `SIDE_FULL_NAME`'s new side is `gemini: GEMINI_FULL_NAME` (an identifier); S1 still finds `Gemini` through `SIDE_SHORT_NAME` | `src/renderer/src/side-badge.ts: SIDE_FULL_NAME has a member this script cannot read — the side names come from it`; red first on e7d6f5a | a record value that names a constant | as G0 |
+| Sub | a component in a new subdirectory of the renderer's source | 316::1 (finding 3; D4, every `.ts` and `.tsx`) and 314::4 (the app component's prop) | `FILES` adds `src/renderer/src/panes/Planted.tsx`, holding `'#10a37f'` (a provider colour the old list had, so only the file's place is new) and `<TrendChart days={days} />` | `src/renderer/src/panes/Planted.tsx: hard-coded #10a37f` and `src/renderer/src/panes/Planted.tsx: <TrendChart> is missing archivedDays`; both red first on e7d6f5a, whose listings stop at the top level | a component file in the form of the renderer's own | as G0 |
+
+| U3 | a source record with a spread member | 316::9 (finding 2: the fix also counts an object's spread or shorthand member, which the reader had skipped) | on the planted tree, `SIDE_SHORT_NAME` gains `...EXTRA_SHORT_NAMES` after the new side | `src/renderer/src/side-badge.ts: SIDE_SHORT_NAME has a member this script cannot read — the side names come from it`; red on e7d6f5a | an object spread | as G0 |
+
+Reviewed on these rows: Coverage — U1 and U2 drive the reader's two shapes (array, record), U3 the record's member that
+is not a property, and every mirrored list goes through the one check they drive; Sub drives both listings the finding names. Case design — whole lines as
+literals, plants a developer could write. False greens — each red when its branch goes (the e7d6f5a runs). Resource
+reuse — the same planted tree.

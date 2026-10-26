@@ -140,14 +140,16 @@ const PLANTS = {
   'src/renderer/src/TokenViz.tsx': [["import { useTrendSpan } from './TrendSpan'\n", "import { useTrendSpan } from './TrendSpan'\nconst PLANTED_DARK = '#e8916f'\n"]],
   // A side added; copy naming it beside another side; its chip label hard-coded
   'src/renderer/src/side-badge.ts': [
-    ["  claude: 'Claude Code',\n  codex: 'Codex',\n  grok: 'Grok'\n}", "  claude: 'Claude Code',\n  codex: 'Codex',\n  grok: 'Grok',\n  gemini: 'Gemini'\n}"],
-    ["  claude: 'Claude',\n  codex: 'Codex',\n  grok: 'Grok'\n}", "  claude: 'Claude',\n  codex: 'Codex',\n  grok: 'Grok',\n  gemini: 'Gemini'\n}"],
+    // The full name a constant the gate cannot read; the short name below still names the side
+    ["  claude: 'Claude Code',\n  codex: 'Codex',\n  grok: 'Grok'\n}", "  claude: 'Claude Code',\n  codex: 'Codex',\n  grok: 'Grok',\n  gemini: GEMINI_FULL_NAME\n}"],
+    // ...and a spread the gate cannot read
+    ["  claude: 'Claude',\n  codex: 'Codex',\n  grok: 'Grok'\n}", "  claude: 'Claude',\n  codex: 'Codex',\n  grok: 'Grok',\n  gemini: 'Gemini',\n  ...EXTRA_SHORT_NAMES\n}"],
     ["  grok: 'GROK'\n}", "  grok: 'GROK',\n  gemini: 'GEMINI'\n}"]
   ],
   'src/shared/i18n/en.ts': [['export const en: Locale = {\n', "export const en: Locale = {\n  plantedSides: 'Works with Codex and Gemini',\n"]],
   'src/renderer/src/StartupHint.tsx': [["import { RefreshCw } from './icons'\n", "import { RefreshCw } from './icons'\nconst PLANTED_CHIP = 'GEMINI'\n"]],
-  // A language added (its dictionary in FILES)
-  'src/shared/i18n/index.ts': [["export const LANGUAGES = ['zh', 'en'] as const", "export const LANGUAGES = ['zh', 'en', 'fr'] as const"]],
+  // A language added (its dictionary in FILES), and a member the gate cannot read
+  'src/shared/i18n/index.ts': [["export const LANGUAGES = ['zh', 'en'] as const", "export const LANGUAGES = ['zh', 'en', 'fr', ...EXTRA_LANGUAGES] as const"]],
   // A ticket number in the English README
   'README.en.md': [['# Agentshed\n', '# Agentshed\n\nSee ticket 12.\n']]
 }
@@ -167,7 +169,9 @@ const FILES = {
   // Ticket numbers: in a new root document, in a new docs/ directory, and in the construction records
   'HANDBOOK.md': 'See ticket 12.\n',
   'docs/guides/notes.md': 'See ticket 12.\n',
-  'docs/.workings/notes/notes.md': 'See ticket 12.\n'
+  'docs/.workings/notes/notes.md': 'See ticket 12.\n',
+  // A component in a new subdirectory: a provider colour, and a <TrendChart> without its required prop
+  'src/renderer/src/panes/Planted.tsx': "const PLANTED = '#10a37f'\nexport const Planted = ({ days }) => <TrendChart days={days} />\n"
 }
 
 /** The second tree: every source the gate derives a list from, renamed away or emptied */
@@ -442,6 +446,23 @@ test('a ticket number in a new document at the root is reported', () => {
 
 test('a ticket number in the construction records is not reported', () => {
   assert.ok(!problems.some((p) => p.startsWith('docs/.workings/')), run.out)
+})
+
+test('a source array with a member the gate cannot read is reported', () => {
+  assert.ok(reported('src/shared/i18n/index.ts: LANGUAGES has a member this script cannot read — the dictionaries come from it'), run.out)
+})
+
+test('a source record with a member the gate cannot read is reported', () => {
+  assert.ok(reported('src/renderer/src/side-badge.ts: SIDE_FULL_NAME has a member this script cannot read — the side names come from it'), run.out)
+})
+
+test('a source record with a spread member is reported', () => {
+  assert.ok(reported('src/renderer/src/side-badge.ts: SIDE_SHORT_NAME has a member this script cannot read — the side names come from it'), run.out)
+})
+
+test("a component in a subdirectory of the renderer's source is checked", () => {
+  assert.ok(reported('src/renderer/src/panes/Planted.tsx: hard-coded #10a37f'), run.out)
+  assert.ok(reported('src/renderer/src/panes/Planted.tsx: <TrendChart> is missing archivedDays'), run.out)
 })
 
 test('the run on missing sources fails, after every rule has run', () => {

@@ -230,7 +230,9 @@ const SOURCE_PROBLEMS = []
 
 /** The literal value of a `const <name> = …` in a .ts or .js source, read with the TypeScript parser and nested
  * declarations included (app-rail.js keeps its items inside a function): strings, arrays and objects of them, an
- * `as const` or type annotation set aside; undefined when the file or the declaration is not there */
+ * `as const` or type annotation set aside; undefined when the file or the declaration is not there, and for any part
+ * that is not such a literal — an object's spread or shorthand member is kept as an entry whose value is undefined,
+ * so it counts as a member that could not be read */
 function constValue(path, name) {
   const src = read(path)
   if (src === null) return undefined
@@ -249,7 +251,10 @@ function constValue(path, name) {
     if (ts.isArrayLiteralExpression(n)) return n.elements.map(literal)
     if (ts.isObjectLiteralExpression(n)) {
       const out = {}
-      for (const p of n.properties) if (ts.isPropertyAssignment(p)) out[p.name.getText(sf).replace(/^['"]|['"]$/g, '')] = literal(p.initializer)
+      n.properties.forEach((p, i) => {
+        if (ts.isPropertyAssignment(p)) out[p.name.getText(sf).replace(/^['"]|['"]$/g, '')] = literal(p.initializer)
+        else out[`(member ${i})`] = undefined
+      })
       return out
     }
     return undefined
@@ -257,47 +262,63 @@ function constValue(path, name) {
   return literal(init)
 }
 
-/** A mirrored list from a source constant, reduced by `pick` to the strings it names; an empty result is reported */
-function mirrored(path, name, what, pick) {
-  const value = constValue(path, name)
-  const list = value === undefined ? [] : pick(value).filter((v) => typeof v === 'string' && v !== '')
-  if (list.length === 0) SOURCE_PROBLEMS.push(`${path}: ${name} is missing or empty — ${what}`)
-  return list
+/** A mirrored list's members as read from `path`'s `name`, each a string, or a [key, string] pair when `valueOf` takes
+ * the string out of it. Reported when there is none, and when a member is not a literal the reader can take (a spread,
+ * a constant's name): leaving it out would check the rest and say nothing of it */
+function mirrored(path, name, what, members, valueOf = (m) => m) {
+  const taken = members.filter((m) => typeof valueOf(m) === 'string' && valueOf(m) !== '')
+  if (taken.length === 0) SOURCE_PROBLEMS.push(`${path}: ${name} is missing or empty — ${what}`)
+  else if (taken.length < members.length) SOURCE_PROBLEMS.push(`${path}: ${name} has a member this script cannot read — ${what}`)
+  return taken
 }
-const listOf = (v) => (Array.isArray(v) ? v : [])
-const recordEntries = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.entries(v).filter(([, s]) => typeof s === 'string') : [])
+/** An array constant's elements, and a record constant's entries (none when it is not that shape) */
+const elementsOf = (path, name) => {
+  const v = constValue(path, name)
+  return Array.isArray(v) ? v : []
+}
+const entriesOf = (path, name) => {
+  const v = constValue(path, name)
+  return v && typeof v === 'object' && !Array.isArray(v) ? Object.entries(v) : []
+}
 
 /** Every side's names in copy — its full and its short display name — from side-badge.ts */
 const SIDE_BADGE = 'src/renderer/src/side-badge.ts'
-const SIDE_NAME_ENTRIES = ['SIDE_FULL_NAME', 'SIDE_SHORT_NAME'].map((name) => {
-  const entries = recordEntries(constValue(SIDE_BADGE, name))
-  if (entries.length === 0) SOURCE_PROBLEMS.push(`${SIDE_BADGE}: ${name} is missing or empty — the side names come from it`)
-  return entries
-})
+const SIDE_NAME_ENTRIES = ['SIDE_FULL_NAME', 'SIDE_SHORT_NAME'].map((name) =>
+  mirrored(SIDE_BADGE, name, 'the side names come from it', entriesOf(SIDE_BADGE, name), ([, n]) => n)
+)
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-/** One pattern per side, matching any of its names (the longest first, so "Claude Code" is one name, not two) */
+/** One pattern per side, matching any of its names: a string naming a side twice ("Claude Code", "Claude") counts it
+ * once */
 const SIDE_NAMES = [...new Set(SIDE_NAME_ENTRIES.flat().map(([side]) => side))].map((side) => {
-  const names = [...new Set(SIDE_NAME_ENTRIES.flat().filter(([s]) => s === side).map(([, n]) => n))].sort((a, b) => b.length - a.length)
+  const names = [...new Set(SIDE_NAME_ENTRIES.flat().filter(([s]) => s === side).map(([, n]) => n))]
   return new RegExp(names.map(escapeRegExp).join('|'))
 })
 /** The uppercase chip labels, from side-badge.ts */
-const CHIP_LABELS = mirrored(SIDE_BADGE, 'SIDE_CHIP_LABEL', 'the chip labels come from it', (v) => recordEntries(v).map(([, s]) => s))
+const CHIP_LABELS = mirrored(SIDE_BADGE, 'SIDE_CHIP_LABEL', 'the chip labels come from it', entriesOf(SIDE_BADGE, 'SIDE_CHIP_LABEL'), ([, l]) => l).map(([, l]) => l)
 
 /** The dictionaries the copy rules read: one per supported language */
-const DICTIONARIES = mirrored('src/shared/i18n/index.ts', 'LANGUAGES', 'the dictionaries come from it', listOf).map((lang) => `src/shared/i18n/${lang}.ts`)
+const DICTIONARIES = mirrored('src/shared/i18n/index.ts', 'LANGUAGES', 'the dictionaries come from it', elementsOf('src/shared/i18n/index.ts', 'LANGUAGES')).map(
+  (lang) => `src/shared/i18n/${lang}.ts`
+)
 
 /** The themes' selectors in theme.css: the default theme's values sit in :root, every other theme's under its
  * data-theme (the light and dark blocks share one set of selectors). Null when either source is missing */
-const THEMES = mirrored('src/shared/appearance.ts', 'APPEARANCE_THEMES', 'the themes come from it', listOf)
-const DEFAULT_THEME = mirrored('src/shared/appearance.ts', 'DEFAULT_THEME', 'the default theme comes from it', (v) => [v])[0]
+const THEMES = mirrored('src/shared/appearance.ts', 'APPEARANCE_THEMES', 'the themes come from it', elementsOf('src/shared/appearance.ts', 'APPEARANCE_THEMES'))
+const DEFAULT_THEME = mirrored('src/shared/appearance.ts', 'DEFAULT_THEME', 'the default theme comes from it', [constValue('src/shared/appearance.ts', 'DEFAULT_THEME')])[0]
 const THEME_SELECTORS =
   THEMES.length && DEFAULT_THEME ? Object.fromEntries(THEMES.map((t) => [t, t === DEFAULT_THEME ? ':root' : `html[data-theme='${t}']`])) : null
 
 /** The rail's items, from the shared rail's own list */
-const RAIL_ITEMS = mirrored('docs/prototypes/_shared/app-rail.js', 'ITEMS', 'the rail items come from it', (v) => listOf(v).map((item) => item?.id))
+const RAIL_ITEMS = mirrored(
+  'docs/prototypes/_shared/app-rail.js',
+  'ITEMS',
+  'the rail items come from it',
+  elementsOf('docs/prototypes/_shared/app-rail.js', 'ITEMS').map((item) => item?.id)
+)
 
 /** Every hex value theme.css gives a variable whose name starts with `prefix`, in any theme and either mode. Only hex
- * values: a component holding var(--x) is using a token, and searching for it would report that */
+ * values: a var(--x) value would report every component that uses that token. A colour written in another notation
+ * is not searched for */
 function themeHexValues(prefix, what) {
   const css = stripCssComments(read('src/renderer/src/theme.css') ?? '')
   const values = new Set()
@@ -314,10 +335,11 @@ const READMES = readdirSync(ROOT)
   .sort()
 if (READMES.length === 0) SOURCE_PROBLEMS.push('no README*.md at the root — the README rule reads them')
 
-/** Every .ts and .tsx directly in the renderer's source (the code-side rules' scope) */
+/** Every .ts and .tsx in the renderer's source, its subdirectories included (the code-side rules' scope) */
 const rendererSources = () =>
-  readdirSync(join(ROOT, 'src/renderer/src'))
+  readdirSync(join(ROOT, 'src/renderer/src'), { recursive: true })
     .filter((name) => name.endsWith('.ts') || name.endsWith('.tsx'))
+    .sort()
     .map((name) => `src/renderer/src/${name}`)
 
 /** Global rules: constraints independent of any particular block */
@@ -994,13 +1016,10 @@ function checkBlock(block) {
   return { problems, users }
 }
 
-/** Every tsx on the app side (a new use site is included automatically, with no script change) */
+/** Every tsx on the app side, subdirectories included (a new use site is included automatically, with no script change) */
 function appSources() {
-  const base = join(ROOT, 'src/renderer/src')
-  if (!existsSync(base)) return []
-  return readdirSync(base)
-    .filter((n) => n.endsWith('.tsx'))
-    .map((n) => join('src/renderer/src', n))
+  if (!existsSync(join(ROOT, 'src/renderer/src'))) return []
+  return rendererSources().filter((f) => f.endsWith('.tsx'))
 }
 
 let failed = 0

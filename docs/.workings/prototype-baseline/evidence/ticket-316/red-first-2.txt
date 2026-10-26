@@ -1,0 +1,363 @@
+# Red first for the code review's findings 2 and 3: the new cases on e7d6f5a's gate (2026-10-26)
+HEAD: e7d6f5aedb578b63336d92d099778e98b00dfe65; gate 167bfa630b0d418bd0950a7befc87f97877bfaa5 = HEAD's 167bfa630b0d418bd0950a7befc87f97877bfaa5; test 64d620d5e669630f0e9393b7f5a9e552b341670e (uncommitted)
+command: node --test scripts/check-shared-ui.test.mjs
+
+✔ the planted run fails, and only on what was planted (1.415167ms)
+✔ a page without its asset's link is reported, though its comment names the asset (0.081291ms)
+✔ a page without its asset's script is reported, though a script comment names the asset (0.064417ms)
+✔ a page without its asset's script is reported, though a comment after code on the same line names the asset (0.061375ms)
+✔ a // inside a string is not a comment: the code after it on the line is read (0.056458ms)
+✔ a // inside a regular expression is not a comment: the code after it on the line is read (0.051541ms)
+✔ a /* inside a string opens no comment: the code after it is read (0.055292ms)
+✔ a template's line that starts with // is read (0.050541ms)
+✔ a declaration left only in a comment does not declare the block (0.134459ms)
+✔ a mount point's id left only in a comment does not count (0.115375ms)
+✔ an asset named in a comment on a page that does not declare its block is not reported (0.072084ms)
+✔ a tab identity script left only in a comment does not count (0.048333ms)
+✔ a chart without its own declaration is reported, though its page declares the block on another chart (0.0395ms)
+✔ a chart whose declaration is only in a comment is reported (0.032125ms)
+✔ a chart written in a script template is judged as well (0.035833ms)
+✔ a declaration that names no shared block is reported (0.063875ms)
+✔ an empty declaration is reported (0.048584ms)
+✔ a block known only by its files is checked: totals-card's stylesheet removed (0.030334ms)
+✔ a block known only by its files is checked: md-preview's stylesheet removed, its declaration in a script template (0.026958ms)
+✔ a new shared stylesheet is a block: a page linking it without a declaration is reported (0.033708ms)
+✔ a file added to a block joins its contract: a page declaring the block without referencing the file is reported (0.031041ms)
+✔ trend-chart's style invariant is still checked (0.031625ms)
+✔ trend-chart's style invariant is still checked in the app's sheet (0.039625ms)
+✔ trend-chart's app component is still checked for its required prop (0.0265ms)
+✔ a common library with no file in _shared is reported (0.027875ms)
+✔ a provider colour is reported in any renderer file, --p-xai included (0.032834ms)
+✔ a provider colour's dark value is reported (0.02775ms)
+✔ a provider colour added to theme.css is reported without changing the gate (0.029375ms)
+✔ dark blue's accent is reported (0.041666ms)
+✔ a value of the accent family other than --accent is reported (0.033666ms)
+✔ the settings page's swatches are not reported by the accent rule (0.040916ms)
+✔ a theme added is checked: its swatch row against its theme.css block (0.039ms)
+✔ a side added is counted in copy that names it beside another side (0.027708ms)
+✔ a side added has its chip label checked (0.029042ms)
+✔ a language added has its dictionary checked for side enumerations (0.035458ms)
+✔ a language added has its dictionary checked for rail controls named verbatim (0.145209ms)
+✔ a README added is reported by the READMEs that do not link it (0.064208ms)
+✔ a link to a README that is not at the root is reported (0.036208ms)
+✔ a rail item added has its route on a page checked (0.034125ms)
+✔ a ticket number in the English README is reported (0.064583ms)
+✔ a ticket number in a new docs/ directory is reported (0.04675ms)
+✔ a ticket number in a new document at the root is reported (0.052666ms)
+✔ a ticket number in the construction records is not reported (0.053833ms)
+✖ a source array with a member the gate cannot read is reported (0.42975ms)
+✖ a source record with a member the gate cannot read is reported (0.073833ms)
+✖ a component in a subdirectory of the renderer's source is checked (0.064041ms)
+✔ the run on missing sources fails, after every rule has run (0.128292ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.02575ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.017417ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.019583ms)
+✔ a missing source is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.021625ms)
+✔ a missing source is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.016084ms)
+✔ a missing source is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.015166ms)
+✔ a missing source is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.020167ms)
+✔ a missing source is reported: src/renderer/src/theme.css: no --p-* value — the brand colours come from them (0.015417ms)
+✔ a missing source is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.027625ms)
+✔ a missing source is reported: no README*.md at the root — the README rule reads them (0.018542ms)
+ℹ tests 57
+ℹ suites 0
+ℹ pass 54
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4128.550959
+
+✖ failing tests:
+
+test at scripts/check-shared-ui.test.mjs:450:1
+✖ a source array with a member the gate cannot read is reported (0.42975ms)
+  AssertionError [ERR_ASSERTION]: ✓ shared block file-drawer — all 4 usage site(s) compliant
+  ✓ shared block session-hits — all 2 usage site(s) compliant
+  ✓ shared block startup-status — all 5 usage site(s) compliant
+  ✓ shared block toast — all 2 usage site(s) compliant
+  ✓ every list the checks mirror from the product is read from a source that names its members
+  ✓ demo dimensions are set on the settings prototype alone and followed elsewhere (dimensions.js + demo-dimensions.js)
+  ✗ shared block app-rail
+      docs/prototypes/shell/prototype-app-shell.html: declares app-rail but does not reference _shared/app-rail.js
+  ✗ shared block app-window
+      docs/prototypes/global-search/prototype-search.html: declares app-window but does not reference _shared/app-window.css
+  ✗ shared block md-preview
+      docs/prototypes/skills-view/prototype-skills-preview.html: declares md-preview but does not reference _shared/md-preview.css
+  ✗ shared block project-side
+      docs/prototypes/project-list/prototype-list.html: declares project-side but does not reference _shared/project-side.js
+  ✗ shared block side-note
+      docs/prototypes/global-search/prototype-search.html: references side-note assets without declaring data-shared-block="side-note"
+  ✗ shared block totals-card
+      docs/prototypes/agents-page/prototype-agents.html: declares totals-card but does not reference _shared/totals-card.js
+      docs/prototypes/project-detail/prototype-detail.html: declares totals-card but does not reference _shared/totals-card.css
+      docs/prototypes/project-detail/prototype-detail.html: declares totals-card but does not reference _shared/totals-card.js
+  ✗ shared block trend-chart
+      docs/prototypes/agents-page/prototype-agents.html: references trend-chart assets without declaring data-shared-block="trend-chart"
+      docs/prototypes/project-detail/prototype-detail.html: declares trend-chart but is missing the xaxis mount point
+      docs/prototypes/_shared/trend-chart.css: .col violates an invariant (clipping the bar cuts off the tooltip pseudo-element positioned outside it)
+      src/renderer/src/theme.css: .col violates an invariant (clipping the bar cuts off the tooltip pseudo-element positioned outside it)
+      src/renderer/src/DetailPane.tsx: <TrendChart> is missing archivedDays
+  ✗ persistent documents must not reference ticket numbers (they outlive the tickets)
+      HANDBOOK.md:1 references "ticket 12" — use a date or an ADR number
+      README.en.md:3 references "ticket 12" — use a date or an ADR number
+      docs/guides/notes.md:1 references "ticket 12" — use a date or an ADR number
+  ✗ every README links every other, and none links a README that is not there (i18n::CON-001)
+      README.en.md: no link to README.fr.md
+      README.fr.md: links README.de.md, which is not at the root
+      README.md: no link to README.fr.md
+  ✗ settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)
+      light.green swatch 3 (--accent): theme.css=#2e7d32, swatch table=#2e7d33
+  ✗ dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)
+      src/shared/i18n/en.ts:5 enumerates 2 side names in copy: 'Works with Codex and Gemini'
+      src/shared/i18n/fr.ts:7 enumerates 2 side names in copy: 'Claude Code et Codex'
+  ✗ dictionary copy must not name a rail control verbatim (a sentence outlives the control)
+      src/shared/i18n/fr.ts:6 copy names the rail control "Actualiser" (rail.refresh) verbatim: 'Cliquez sur Actualiser'
+  ✗ provider brand colours must not be hard-coded in components (use CSS variables)
+      src/renderer/src/TokenViz.tsx: hard-coded #e8916f
+      src/renderer/src/TrendSpan.tsx: hard-coded #ad98d0
+      src/renderer/src/TrendSpan.tsx: hard-coded #fa520f
+  ✗ components must not hard-code theme accent colours (use the --accent family)
+      src/renderer/src/TrendSpan.tsx: hard-coded theme colour #eef2f7
+      src/renderer/src/TrendSpan.tsx: hard-coded theme colour #7a9dc4
+  ✗ side chip labels have one source: no hard-coded SIDE_CHIP_LABEL label outside side-badge.ts
+      src/renderer/src/StartupHint.tsx: hardcoded chip label GEMINI — look it up in SIDE_CHIP_LABEL
+  ✗ every chart container in a prototype declares its own shared block (otherwise consistency cannot be checked)
+      docs/prototypes/agents-page/prototype-agents.html: chart container #chart declares no shared block
+      docs/prototypes/agents-page/prototype-agents.html: chart container #skChart declares no shared block
+      docs/prototypes/project-detail/prototype-detail.html: chart container #ovchart2 declares no shared block
+      docs/prototypes/project-detail/prototype-detail.html: chart container #ovchart3 declares no shared block
+      docs/prototypes/project-detail/prototype-detail.html: chart container #ovchart4 declares no shared block
+  ✗ every declaration on a prototype page names a shared block (a _shared/<id>.css or .js that is not a common library)
+      docs/prototypes/project-list/prototype-list.html: data-shared-block="pie-chart" names no shared block
+      docs/prototypes/project-list/prototype-list.html: data-shared-block="" names no shared block
+  ✗ the gate's common libraries and block contracts name files and blocks that exist
+      scripts/check-shared-ui.mjs: COMMON_LIBRARIES lists startup-skeleton, but _shared has no startup-skeleton.css or startup-skeleton.js
+  ✗ pages that follow the mode or theme take the app tokens from _shared/theme.css and never the system appearance
+      docs/prototypes/plugins-view/prototype-plugin-skill-preview.html: follows the mode but still styles by prefers-color-scheme
+      docs/prototypes/project-detail/prototype-detail-stale-note.html: follows the mode but still styles by prefers-color-scheme
+      docs/prototypes/session-view/prototype-session.html: follows the mode but still styles by prefers-color-scheme
+      docs/prototypes/skill-install/prototype-install.html: follows the mode but still styles by prefers-color-scheme
+  ✗ prototype pages draw the shared app rail, never their own
+      docs/prototypes/plugins-view/prototype-plugin-skill-preview.html: data-rail-logs="nowhere/missing" is not in manifest.js
+      docs/prototypes/shell/prototype-app-shell.html: includes app-rail.js before the rail it draws
+      docs/prototypes/shell/prototype-app-shell.html: needs manifest.js included before app-rail.js
+      docs/prototypes/shell/prototype-app-shell.html: needs _shared/icons.js included before app-rail.js
+  ✗ every prototype tab names its app (manifest.js PROTOTYPE_APP + app-identity.js)
+      docs/prototypes/skills-view/prototype-skills-preview.html: does not include ../app-identity.js in <head>
+  ✗ prototype pages draw the shared project column, never their own
+      docs/prototypes/project-list/prototype-list.html: includes project-side.js before the column it draws
+      docs/prototypes/project-list/prototype-list.html: needs manifest.js included before project-side.js
+      docs/prototypes/project-list/prototype-list.html: needs _shared/icons.js included before project-side.js
+  
+  Shared-UI check failed: 49 problem(s). Each one means something that should have been updated wasn't.
+  
+      at TestContext.<anonymous> (file:///Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-316/scripts/check-shared-ui.test.mjs:451:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at scripts/check-shared-ui.test.mjs:454:1
+✖ a source record with a member the gate cannot read is reported (0.073833ms)
+  AssertionError [ERR_ASSERTION]: ✓ shared block file-drawer — all 4 usage site(s) compliant
+  ✓ shared block session-hits — all 2 usage site(s) compliant
+  ✓ shared block startup-status — all 5 usage site(s) compliant
+  ✓ shared block toast — all 2 usage site(s) compliant
+  ✓ every list the checks mirror from the product is read from a source that names its members
+  ✓ demo dimensions are set on the settings prototype alone and followed elsewhere (dimensions.js + demo-dimensions.js)
+  ✗ shared block app-rail
+      docs/prototypes/shell/prototype-app-shell.html: declares app-rail but does not reference _shared/app-rail.js
+  ✗ shared block app-window
+      docs/prototypes/global-search/prototype-search.html: declares app-window but does not reference _shared/app-window.css
+  ✗ shared block md-preview
+      docs/prototypes/skills-view/prototype-skills-preview.html: declares md-preview but does not reference _shared/md-preview.css
+  ✗ shared block project-side
+      docs/prototypes/project-list/prototype-list.html: declares project-side but does not reference _shared/project-side.js
+  ✗ shared block side-note
+      docs/prototypes/global-search/prototype-search.html: references side-note assets without declaring data-shared-block="side-note"
+  ✗ shared block totals-card
+      docs/prototypes/agents-page/prototype-agents.html: declares totals-card but does not reference _shared/totals-card.js
+      docs/prototypes/project-detail/prototype-detail.html: declares totals-card but does not reference _shared/totals-card.css
+      docs/prototypes/project-detail/prototype-detail.html: declares totals-card but does not reference _shared/totals-card.js
+  ✗ shared block trend-chart
+      docs/prototypes/agents-page/prototype-agents.html: references trend-chart assets without declaring data-shared-block="trend-chart"
+      docs/prototypes/project-detail/prototype-detail.html: declares trend-chart but is missing the xaxis mount point
+      docs/prototypes/_shared/trend-chart.css: .col violates an invariant (clipping the bar cuts off the tooltip pseudo-element positioned outside it)
+      src/renderer/src/theme.css: .col violates an invariant (clipping the bar cuts off the tooltip pseudo-element positioned outside it)
+      src/renderer/src/DetailPane.tsx: <TrendChart> is missing archivedDays
+  ✗ persistent documents must not reference ticket numbers (they outlive the tickets)
+      HANDBOOK.md:1 references "ticket 12" — use a date or an ADR number
+      README.en.md:3 references "ticket 12" — use a date or an ADR number
+      docs/guides/notes.md:1 references "ticket 12" — use a date or an ADR number
+  ✗ every README links every other, and none links a README that is not there (i18n::CON-001)
+      README.en.md: no link to README.fr.md
+      README.fr.md: links README.de.md, which is not at the root
+      README.md: no link to README.fr.md
+  ✗ settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)
+      light.green swatch 3 (--accent): theme.css=#2e7d32, swatch table=#2e7d33
+  ✗ dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)
+      src/shared/i18n/en.ts:5 enumerates 2 side names in copy: 'Works with Codex and Gemini'
+      src/shared/i18n/fr.ts:7 enumerates 2 side names in copy: 'Claude Code et Codex'
+  ✗ dictionary copy must not name a rail control verbatim (a sentence outlives the control)
+      src/shared/i18n/fr.ts:6 copy names the rail control "Actualiser" (rail.refresh) verbatim: 'Cliquez sur Actualiser'
+  ✗ provider brand colours must not be hard-coded in components (use CSS variables)
+      src/renderer/src/TokenViz.tsx: hard-coded #e8916f
+      src/renderer/src/TrendSpan.tsx: hard-coded #ad98d0
+      src/renderer/src/TrendSpan.tsx: hard-coded #fa520f
+  ✗ components must not hard-code theme accent colours (use the --accent family)
+      src/renderer/src/TrendSpan.tsx: hard-coded theme colour #eef2f7
+      src/renderer/src/TrendSpan.tsx: hard-coded theme colour #7a9dc4
+  ✗ side chip labels have one source: no hard-coded SIDE_CHIP_LABEL label outside side-badge.ts
+      src/renderer/src/StartupHint.tsx: hardcoded chip label GEMINI — look it up in SIDE_CHIP_LABEL
+  ✗ every chart container in a prototype declares its own shared block (otherwise consistency cannot be checked)
+      docs/prototypes/agents-page/prototype-agents.html: chart container #chart declares no shared block
+      docs/prototypes/agents-page/prototype-agents.html: chart container #skChart declares no shared block
+      docs/prototypes/project-detail/prototype-detail.html: chart container #ovchart2 declares no shared block
+      docs/prototypes/project-detail/prototype-detail.html: chart container #ovchart3 declares no shared block
+      docs/prototypes/project-detail/prototype-detail.html: chart container #ovchart4 declares no shared block
+  ✗ every declaration on a prototype page names a shared block (a _shared/<id>.css or .js that is not a common library)
+      docs/prototypes/project-list/prototype-list.html: data-shared-block="pie-chart" names no shared block
+      docs/prototypes/project-list/prototype-list.html: data-shared-block="" names no shared block
+  ✗ the gate's common libraries and block contracts name files and blocks that exist
+      scripts/check-shared-ui.mjs: COMMON_LIBRARIES lists startup-skeleton, but _shared has no startup-skeleton.css or startup-skeleton.js
+  ✗ pages that follow the mode or theme take the app tokens from _shared/theme.css and never the system appearance
+      docs/prototypes/plugins-view/prototype-plugin-skill-preview.html: follows the mode but still styles by prefers-color-scheme
+      docs/prototypes/project-detail/prototype-detail-stale-note.html: follows the mode but still styles by prefers-color-scheme
+      docs/prototypes/session-view/prototype-session.html: follows the mode but still styles by prefers-color-scheme
+      docs/prototypes/skill-install/prototype-install.html: follows the mode but still styles by prefers-color-scheme
+  ✗ prototype pages draw the shared app rail, never their own
+      docs/prototypes/plugins-view/prototype-plugin-skill-preview.html: data-rail-logs="nowhere/missing" is not in manifest.js
+      docs/prototypes/shell/prototype-app-shell.html: includes app-rail.js before the rail it draws
+      docs/prototypes/shell/prototype-app-shell.html: needs manifest.js included before app-rail.js
+      docs/prototypes/shell/prototype-app-shell.html: needs _shared/icons.js included before app-rail.js
+  ✗ every prototype tab names its app (manifest.js PROTOTYPE_APP + app-identity.js)
+      docs/prototypes/skills-view/prototype-skills-preview.html: does not include ../app-identity.js in <head>
+  ✗ prototype pages draw the shared project column, never their own
+      docs/prototypes/project-list/prototype-list.html: includes project-side.js before the column it draws
+      docs/prototypes/project-list/prototype-list.html: needs manifest.js included before project-side.js
+      docs/prototypes/project-list/prototype-list.html: needs _shared/icons.js included before project-side.js
+  
+  Shared-UI check failed: 49 problem(s). Each one means something that should have been updated wasn't.
+  
+      at TestContext.<anonymous> (file:///Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-316/scripts/check-shared-ui.test.mjs:455:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at scripts/check-shared-ui.test.mjs:458:1
+✖ a component in a subdirectory of the renderer's source is checked (0.064041ms)
+  AssertionError [ERR_ASSERTION]: ✓ shared block file-drawer — all 4 usage site(s) compliant
+  ✓ shared block session-hits — all 2 usage site(s) compliant
+  ✓ shared block startup-status — all 5 usage site(s) compliant
+  ✓ shared block toast — all 2 usage site(s) compliant
+  ✓ every list the checks mirror from the product is read from a source that names its members
+  ✓ demo dimensions are set on the settings prototype alone and followed elsewhere (dimensions.js + demo-dimensions.js)
+  ✗ shared block app-rail
+      docs/prototypes/shell/prototype-app-shell.html: declares app-rail but does not reference _shared/app-rail.js
+  ✗ shared block app-window
+      docs/prototypes/global-search/prototype-search.html: declares app-window but does not reference _shared/app-window.css
+  ✗ shared block md-preview
+      docs/prototypes/skills-view/prototype-skills-preview.html: declares md-preview but does not reference _shared/md-preview.css
+  ✗ shared block project-side
+      docs/prototypes/project-list/prototype-list.html: declares project-side but does not reference _shared/project-side.js
+  ✗ shared block side-note
+      docs/prototypes/global-search/prototype-search.html: references side-note assets without declaring data-shared-block="side-note"
+  ✗ shared block totals-card
+      docs/prototypes/agents-page/prototype-agents.html: declares totals-card but does not reference _shared/totals-card.js
+      docs/prototypes/project-detail/prototype-detail.html: declares totals-card but does not reference _shared/totals-card.css
+      docs/prototypes/project-detail/prototype-detail.html: declares totals-card but does not reference _shared/totals-card.js
+  ✗ shared block trend-chart
+      docs/prototypes/agents-page/prototype-agents.html: references trend-chart assets without declaring data-shared-block="trend-chart"
+      docs/prototypes/project-detail/prototype-detail.html: declares trend-chart but is missing the xaxis mount point
+      docs/prototypes/_shared/trend-chart.css: .col violates an invariant (clipping the bar cuts off the tooltip pseudo-element positioned outside it)
+      src/renderer/src/theme.css: .col violates an invariant (clipping the bar cuts off the tooltip pseudo-element positioned outside it)
+      src/renderer/src/DetailPane.tsx: <TrendChart> is missing archivedDays
+  ✗ persistent documents must not reference ticket numbers (they outlive the tickets)
+      HANDBOOK.md:1 references "ticket 12" — use a date or an ADR number
+      README.en.md:3 references "ticket 12" — use a date or an ADR number
+      docs/guides/notes.md:1 references "ticket 12" — use a date or an ADR number
+  ✗ every README links every other, and none links a README that is not there (i18n::CON-001)
+      README.en.md: no link to README.fr.md
+      README.fr.md: links README.de.md, which is not at the root
+      README.md: no link to README.fr.md
+  ✗ settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)
+      light.green swatch 3 (--accent): theme.css=#2e7d32, swatch table=#2e7d33
+  ✗ dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)
+      src/shared/i18n/en.ts:5 enumerates 2 side names in copy: 'Works with Codex and Gemini'
+      src/shared/i18n/fr.ts:7 enumerates 2 side names in copy: 'Claude Code et Codex'
+  ✗ dictionary copy must not name a rail control verbatim (a sentence outlives the control)
+      src/shared/i18n/fr.ts:6 copy names the rail control "Actualiser" (rail.refresh) verbatim: 'Cliquez sur Actualiser'
+  ✗ provider brand colours must not be hard-coded in components (use CSS variables)
+      src/renderer/src/TokenViz.tsx: hard-coded #e8916f
+      src/renderer/src/TrendSpan.tsx: hard-coded #ad98d0
+      src/renderer/src/TrendSpan.tsx: hard-coded #fa520f
+  ✗ components must not hard-code theme accent colours (use the --accent family)
+      src/renderer/src/TrendSpan.tsx: hard-coded theme colour #eef2f7
+      src/renderer/src/TrendSpan.tsx: hard-coded theme colour #7a9dc4
+  ✗ side chip labels have one source: no hard-coded SIDE_CHIP_LABEL label outside side-badge.ts
+      src/renderer/src/StartupHint.tsx: hardcoded chip label GEMINI — look it up in SIDE_CHIP_LABEL
+  ✗ every chart container in a prototype declares its own shared block (otherwise consistency cannot be checked)
+      docs/prototypes/agents-page/prototype-agents.html: chart container #chart declares no shared block
+      docs/prototypes/agents-page/prototype-agents.html: chart container #skChart declares no shared block
+      docs/prototypes/project-detail/prototype-detail.html: chart container #ovchart2 declares no shared block
+      docs/prototypes/project-detail/prototype-detail.html: chart container #ovchart3 declares no shared block
+      docs/prototypes/project-detail/prototype-detail.html: chart container #ovchart4 declares no shared block
+  ✗ every declaration on a prototype page names a shared block (a _shared/<id>.css or .js that is not a common library)
+      docs/prototypes/project-list/prototype-list.html: data-shared-block="pie-chart" names no shared block
+      docs/prototypes/project-list/prototype-list.html: data-shared-block="" names no shared block
+  ✗ the gate's common libraries and block contracts name files and blocks that exist
+      scripts/check-shared-ui.mjs: COMMON_LIBRARIES lists startup-skeleton, but _shared has no startup-skeleton.css or startup-skeleton.js
+  ✗ pages that follow the mode or theme take the app tokens from _shared/theme.css and never the system appearance
+      docs/prototypes/plugins-view/prototype-plugin-skill-preview.html: follows the mode but still styles by prefers-color-scheme
+      docs/prototypes/project-detail/prototype-detail-stale-note.html: follows the mode but still styles by prefers-color-scheme
+      docs/prototypes/session-view/prototype-session.html: follows the mode but still styles by prefers-color-scheme
+      docs/prototypes/skill-install/prototype-install.html: follows the mode but still styles by prefers-color-scheme
+  ✗ prototype pages draw the shared app rail, never their own
+      docs/prototypes/plugins-view/prototype-plugin-skill-preview.html: data-rail-logs="nowhere/missing" is not in manifest.js
+      docs/prototypes/shell/prototype-app-shell.html: includes app-rail.js before the rail it draws
+      docs/prototypes/shell/prototype-app-shell.html: needs manifest.js included before app-rail.js
+      docs/prototypes/shell/prototype-app-shell.html: needs _shared/icons.js included before app-rail.js
+  ✗ every prototype tab names its app (manifest.js PROTOTYPE_APP + app-identity.js)
+      docs/prototypes/skills-view/prototype-skills-preview.html: does not include ../app-identity.js in <head>
+  ✗ prototype pages draw the shared project column, never their own
+      docs/prototypes/project-list/prototype-list.html: includes project-side.js before the column it draws
+      docs/prototypes/project-list/prototype-list.html: needs manifest.js included before project-side.js
+      docs/prototypes/project-list/prototype-list.html: needs _shared/icons.js included before project-side.js
+  
+  Shared-UI check failed: 49 problem(s). Each one means something that should have been updated wasn't.
+  
+      at TestContext.<anonymous> (file:///Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-316/scripts/check-shared-ui.test.mjs:459:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+TEST_EXIT=1

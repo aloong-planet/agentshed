@@ -69,7 +69,7 @@ gate and its test.
 | 3 | Test design review | `ticket-316-review-tests.md`, Design review | done: no finding; one increment (X0 asserts the run completes), reviewed there |
 | 4 | Slice: the new cases red on the unfixed gate; the gate derived; all green | the red and green runs in `evidence/ticket-316/` | done: the 26 cases for missing behaviour red on e926e38's gate, A3, K4 and X0 green there by design, the existing 25 green (`red-first.txt`); all 54 green after, and the gate green on the repository (`green.txt`, before X0's increment; `targeted-2.txt` after it); eight changed copies of the gate each turn exactly the cases the design table names red (`mutants.txt`) |
 | 5 | Targeted verification | `evidence/ticket-316/targeted*.txt` | done: `targeted-2.txt` — typecheck, lint, `check:ui` (54 cases, then the gate) and `check-lang`'s test (the search's one other test naming the gate) each exit 0. `targeted.txt`, the first run, failed lint on `site/` files only: the new worktree had not installed `site/`'s own dependencies |
-| 6 | Code review | `ticket-316-review-code.md` | |
+| 6 | Code review | `ticket-316-review-code.md` | done: findings 1 (a comment naming a cause that is not one), 2 (a source member the reader cannot read dropped in silence; seven lists) and 3 (the renderer rules reading only the directory's top level; two listings), fixed with cases U1–U3 and Sub, red first on e7d6f5a; targeted again, `targeted-3.txt` |
 | 7 | Full gateway | `evidence/ticket-316/gateway-*.txt` | |
 | 8 | Independent post-implementation test check | `ticket-316-review-tests.md` | |
 | 9 | Source check, archive, write-back, step 8 | `final-regression.md` | |
