@@ -1,0 +1,146 @@
+# Step 8 searches — #314 (2026-10-26; HEAD 78ff2f5 with step 7's and step 8's records uncommitted)
+Scope: docs/specs docs/features docs/adr docs/ops docs/agents docs/prototypes CONTEXT.md AGENTS.md README.md README.en.md site/README.md .github capabilities.toml package.json
+Excluded from the term searches: prototype pages and _shared/ (their own markup and headers, read in Stage 1 where
+changed), vendor/ (third-party minified code). Searches whose hits can hold Chinese text print per-file counts (-c);
+Chinese terms are written as code points, so this file stays in the working language.
+
+$ git ls-files -- <scope> | wc -l
+     166
+$ files with Han (perl \p{Han}); files with Latin letters
+      15
+     166
+
+$ git grep -n -i -F "SHARED_BLOCKS" -- <scope> <exclusions>
+exit=1
+
+$ git grep -n -i -F "shared block" -- <scope> <exclusions>
+docs/adr/0033-prototypes-are-the-baseline.md:36:the shared blocks) run on every invocation.
+exit=0
+
+$ git grep -n -i -F "shared-block" -- <scope> <exclusions>
+exit=1
+
+$ git grep -n -i -F "data-shared-block" -- <scope> <exclusions>
+exit=1
+
+$ git grep -n -i -F "check-shared-ui" -- <scope> <exclusions>
+capabilities.toml:14:source = "scripts/check-shared-ui.mjs"
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:57:checked by a `--cross` rule in `check-shared-ui.mjs` that fails when it drifts.
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:79:- `src/renderer/src/icons.tsx`, `docs/prototypes/sync-icons.mjs`, `scripts/check-shared-ui.mjs`
+docs/adr/0033-prototypes-are-the-baseline.md:67:- `scripts/check-shared-ui.mjs` (the single tier) and `docs/prototypes/_shared/`.
+package.json:24:    "check:ui": "node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs",
+exit=0
+
+$ git grep -n -i -F "check:ui" -- <scope> <exclusions>
+.github/workflows/ci.yml:43:      - run: pnpm check:ui
+CONTEXT.md:557:  reader genuinely has to find it. **`pnpm check:ui` enforces the rail half of this**: a rail
+capabilities.toml:15:enforced-by = ["pnpm check:ui"]
+capabilities.toml:33:enforced-by = ["pnpm check:ui", "pnpm test:site"]
+docs/adr/0009-trend-xaxis-data-days.md:53:  importing from `src` impossible, so consistency is backstopped by `check:ui` and the confirmation
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:62:  docs/prototypes/sync-icons.mjs`. Forgetting the second step fails `pnpm check:ui --cross` rather
+docs/adr/0033-prototypes-are-the-baseline.md:4:  `check:ui --cross` rule that guarded them)
+docs/adr/0033-prototypes-are-the-baseline.md:10:placeholders were generated from the app's `theme.css`, and `check:ui --cross` failed whenever a generated
+docs/adr/0033-prototypes-are-the-baseline.md:34:`check:ui` compares no prototype with the app: the `--cross` tier is gone with its prototype-versus-app
+docs/adr/0033-prototypes-are-the-baseline.md:49:  `check:ui` does not go red because a prototype is ahead of the app.
+docs/adr/0033-prototypes-are-the-baseline.md:50:- Positive: `check:ui` has one tier. What it reports is a defect wherever it runs, so there is no "expected
+docs/specs/i18n.md:480:"Each README reaches the other" is a **decidable property** and is baked into `check:ui`
+package.json:22:    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:scripts && pnpm test:site && pnpm check:ui && pnpm check:lang && pnpm check:i18n && pnpm check:nul && pnpm e2e && pnpm smoke",
+package.json:24:    "check:ui": "node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs",
+exit=0
+
+$ git grep -n -i -F "COMMON_LIBRARIES" -- <scope> <exclusions>
+exit=1
+
+$ git grep -n -i -F "BLOCK_CONTRACTS" -- <scope> <exclusions>
+exit=1
+
+$ git grep -c -i -F "registry" -- <scope> <exclusions>
+CONTEXT.md:4
+capabilities.toml:1
+docs/adr/0005-token-ccusage-alignment.md:2
+docs/adr/0016-no-natural-language-across-ipc.md:1
+docs/adr/0019-grok-as-third-agent-side.md:8
+docs/adr/0022-remove-manual-hiding.md:1
+docs/adr/0026-archive-retention-by-accounting-stamp.md:1
+docs/adr/README.md:1
+docs/features/agents-overview.md:1
+docs/features/projects-list.md:4
+docs/features/token-stats.md:1
+docs/prototypes/demo-dimensions.js:2
+docs/prototypes/dimensions.js:1
+docs/prototypes/index.html:1
+docs/prototypes/manifest.js:2
+docs/prototypes/project-list/visibility/logic.js:4
+docs/prototypes/project-list/visibility/model.mmd.js:1
+docs/prototypes/project-list/visibility/visibility.mmd:2
+docs/specs/agents-overview.md:2
+docs/specs/global-search.md:3
+docs/specs/memory-view.md:4
+docs/specs/project-detail.md:6
+docs/specs/projects-list.md:14
+docs/specs/token-stats.md:1
+exit=0
+
+$ git grep -c -P "(*UTF)\x{5171}\x{4EAB}\x{5757}" -- <scope> <exclusions>   (the Chinese word for shared block)
+exit=1
+
+$ git grep -c -P "(*UTF)\x{5171}\x{4EAB}\x{89C6}\x{89C9}\x{5757}" -- <scope> <exclusions>   (the Chinese word for shared visual block)
+exit=1
+
+$ git grep -c -P "(*UTF)\x{5171}\x{4EAB}\x{4EF6}" -- <scope> <exclusions>   (the Chinese word for shared piece)
+exit=1
+
+$ git grep -c -P "(*UTF)\x{767B}\x{8BB0}\x{8868}" -- <scope> <exclusions>   (the Chinese word for registry (kept by hand))
+exit=1
+
+$ git grep -c -P "(*UTF)\x{6CE8}\x{518C}\x{8868}" -- <scope> <exclusions>   (the Chinese word for registry (register))
+docs/prototypes/project-list/visibility/logic.js:1
+docs/prototypes/project-list/visibility/model.mmd.js:1
+docs/prototypes/project-list/visibility/visibility.mmd:2
+docs/prototypes/skills-view/skill-packages-fixture.js:1
+exit=0
+
+$ git grep -c -P "(*UTF)\x{95E8}\x{7981}" -- <scope> <exclusions>   (the Chinese word for gate)
+docs/prototypes/skills-view/skill-packages-fixture.js:1
+exit=0
+
+$ lines naming two or more block ids: git grep -c -E "(app-rail|app-window|file-drawer|md-preview|project-side|session-hits|startup-status|toast|totals-card|trend-chart).*(app-rail|app-window|file-drawer|md-preview|project-side|session-hits|startup-status|toast|totals-card|trend-chart)" -- <scope> <exclusions>
+CONTEXT.md:1
+docs/prototypes/manifest.js:1
+docs/specs/app-update.md:2
+docs/specs/plugins-view.md:1
+docs/specs/skills-view.md:1
+exit=0
+
+$ counts of blocks, English: git grep -n -i -E "\b(eight|nine|ten|[0-9]+) (shared )?(visual )?(blocks|pieces)\b" -- <scope> (vendor excluded)
+docs/adr/0013-ui-language-set-and-i18n-scope.md:9:The product was previously hard-coded in Chinese throughout (about 370 pieces of copy in the
+exit=0
+
+$ counts of blocks, Chinese: a numeral (digits or U+4E00..U+5341 numerals), an optional measure word U+4E2A, then the word for a shared block, piece or visual block: git grep -c -P ... -- <scope> (vendor excluded)
+docs/prototypes/project-detail/prototype-detail.html:1
+exit=0
+
+$ control, a term the scope must contain: git grep -c -F "trend-chart" -- docs/adr
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:1
+exit=0
+
+$ grep -n "Pending:" CONTEXT.md
+exit=1
+
+$ git diff --stat a40c926 -- src site
+exit=0
+
+$ rg -uu -l "#314" docs README.md README.en.md CONTEXT.md   (run under zsh, where rg is the shell function wrapping Claude Code's bundled ripgrep; bash has no rg)
+docs/prototypes/vendor/mermaid.min.js
+docs/.workings/prototype-baseline/ticket-314-doc-sync.md
+docs/.workings/prototype-baseline/checklist.md
+docs/.workings/prototype-baseline/ticket-314-review-tests.md
+docs/.workings/prototype-baseline/ticket-314-tasks.md
+docs/.workings/prototype-baseline/ticket-314-review-code.md
+docs/.workings/prototype-baseline/final-regression.md
+docs/.workings/prototype-baseline/evidence/ticket-314/targeted.txt
+docs/.workings/prototype-baseline/evidence/ticket-314/gateway-78ff2f5.txt
+docs/.workings/prototype-baseline/evidence/ticket-314/targeted-3.txt
+docs/.workings/prototype-baseline/evidence/ticket-314/gateway-4f5607a.txt
+docs/.workings/prototype-baseline/evidence/ticket-314/targeted-2.txt
+exit=0

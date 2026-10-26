@@ -46,8 +46,8 @@ test `scripts/check-shared-ui.test.mjs`, and the two pages' declarations.
   green (`harness-probe-before.txt`); with the guard, the run stops at that path and nothing lands
   (`harness-probe-after.txt`). The 23 cases pass with the guard (`green-2.txt`).
 - **What went wrong while showing it.** The first probe tree linked `docs/prototypes/` and `src/` directly; the
-  harness's `cpSync` copied those links as links, so all 15 plants of that run were written into this worktree's
-  pages, shared files and `DetailPane.tsx` (one file deleted, two added). The guard, run next, refused exactly that
+  harness's `cpSync` copied those links as links, so that run's plants were written into this worktree, in fifteen
+  files: ten pages, `trend-chart.css` and `DetailPane.tsx` changed, one file deleted, two added. The guard, run next, refused exactly that
   linked copy, which is how it was found. Before restoring, each affected path was compared with HEAD's content plus
   its plant (a script built from the test's own `PLANTS` and `FILES`): all fifteen equal, no other change in the tree
   but the guard. Restored byte for byte from HEAD; the tree then held only the guard. The probes were then rerun on

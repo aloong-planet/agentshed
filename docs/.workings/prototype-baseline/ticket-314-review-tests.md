@@ -373,3 +373,238 @@ which judges no declaration. Add its row under the increment rule first. Home: t
   and asserts the empty id's line; red on a40c926 and under a non-empty declaration pattern. The checklist's 314::2
   row names it.
 - The fixes change the test's executable content, so an incremental check follows.
+
+## Post-implementation check, incremental (2026-10-26, implementation 78ff2f5, fix range 6664a7e..78ff2f5; whole change a40c926..78ff2f5; ticket #314)
+
+Scope: the fix of findings 1 to 3, under the incremental clause. Evidence read: the handed targeted log
+`evidence/ticket-314/targeted-3.txt`, and beside it the five runs the fix adds — `red-first-2.txt`, `token-match.txt`,
+`nonempty-declaration.txt`, `contracts-empty-2.txt`, `green-3.txt` — each in full (the ten failure bodies of
+`red-first-2.txt` are one run's output, identical but for the last one's closing `exit=1`, compared by script). The
+handed gateway log `gateway-4f5607a.txt` is 4f5607a's, assessed in the first round, and is no evidence for the fix: the
+test's executable content changed after it, so by the full-verification-gate rule a new full run is due before
+delivery; this check rests on none of it. No test was run by this check: every run result below comes from those logs;
+the rest comes from the code, the pages and the searches named where they are used. `capabilities.toml` is unchanged in
+the whole change (`git log --oneline a40c926..78ff2f5 -- capabilities.toml`: empty); read again with `tomllib` and
+checked against the repo-scaffold registry: the nine registered IDs present in their registered shapes, none extra,
+`macos-distribution`'s precondition holding (`client-framework = "electron"`) and both its profiles present. By the
+project capability declaration, mutation-testing is not enabled, so mutation testing is skipped; each case's "when does
+it go red" is answered below from the code, the evidence and the expected values' sources. The cases assert a gate's
+output, so the review-code false-greens list is applied with the unit-test forms.
+
+### Objects under review
+
+The fix range changes one file outside the records, the test (`git diff --name-status 6664a7e 78ff2f5`: the test;
+`checklist.md`, `ticket-314-review-code.md`, `ticket-314-tasks.md`, this record, and six files under
+`evidence/ticket-314/`). The gate, the pages and the app's source are unchanged
+(`git diff --quiet 6664a7e 78ff2f5 -- scripts/check-shared-ui.mjs docs/prototypes src`: exit 0). The test's hunks
+(`git diff 6664a7e 78ff2f5 -- scripts/check-shared-ui.test.mjs`): three `PLANTS` entries (N2's on the project list
+page, M1's second class token on the detail page, T3's on `src/renderer/src/theme.css`) and two new cases (N2, T3); the
+header and the harness functions are untouched. Tests depending on what the range changed, searched over every test file
+in the repository, ignored and hidden files included (103 files match the globs):
+
+```
+$ rg -uu -n --glob '!**/node_modules/**' --glob '!.git/**' --glob '!out/**' --glob '!site/dist/**' \
+    --glob '*.{test,spec}.{mjs,cjs,js,ts,tsx,mts,cts,jsx}' -e 'check-shared-ui' -e 'PLANTS' -e 'runGate' \
+    -e 'assertInCopy' -e 'NAMED_IN_A_COMMENT' .
+./scripts/check-shared-ui.test.mjs:24:const PLANTS = {
+./scripts/check-shared-ui.test.mjs:113:const NAMED_IN_A_COMMENT = {
+./scripts/check-shared-ui.test.mjs:120:function assertInCopy(root, path) {
+./scripts/check-shared-ui.test.mjs:127:function runGate() {
+./scripts/check-shared-ui.test.mjs:136:    cpSync(join(repo, 'scripts/check-shared-ui.mjs'), join(root, 'scripts/check-shared-ui.mjs'))
+./scripts/check-shared-ui.test.mjs:137:    for (const [path, swaps] of Object.entries(PLANTS)) {
+./scripts/check-shared-ui.test.mjs:138:      assertInCopy(root, path)
+./scripts/check-shared-ui.test.mjs:145:      const asset = NAMED_IN_A_COMMENT[path]
+./scripts/check-shared-ui.test.mjs:150:      assertInCopy(root, path)
+./scripts/check-shared-ui.test.mjs:154:    const r = spawnSync(process.execPath, [join(root, 'scripts/check-shared-ui.mjs')], { encoding: 'utf8' })
+./scripts/check-shared-ui.test.mjs:161:const run = runGate()
+./scripts/check-shared-ui.test.mjs:169:  const planted = [...Object.keys(PLANTS), ...Object.keys(FILES), 'scripts/check-shared-ui.mjs']
+./scripts/check-shared-ui.test.mjs:269:  assert.ok(reported('scripts/check-shared-ui.mjs: COMMON_LIBRARIES lists startup-skeleton, but _shared has no startup-skeleton.css or startup-skeleton.js'), run.out)
+./scripts/check-lang.test.mjs:25:  'scripts/check-shared-ui.mjs': `const side = /${CN}/\n`,
+```
+
+The test file has no `export` statement and no `module.exports` (`rg -n -e '^export' -e 'module\.exports'` on it: no
+match) and imports only Node's built-in modules (lines 13–19), so no other file can share its set-up;
+`check-lang.test.mjs` names the gate's path only as a seed it writes into a fresh repository, as in the earlier rounds.
+Outside `docs/.workings/`, only `package.json:24` names the test (`rg -uu -n -e 'check-shared-ui\.test'` with the same
+exclusions and `docs/.workings/`). Inside the file, every case reads the one run (`run`, `problems`, `reported`) that
+`runGate()` builds from `PLANTS`, which the range changed. So the objects are:
+- all 25 cases of `scripts/check-shared-ui.test.mjs`: M1's plant changed, N2 and T3 are new, and the other 22 read a run
+  whose set-up gained N2's and T3's plants and M1's token;
+- the Test design table rows changed in the range: the increment "the post-implementation check's findings 1 to 3" —
+  M1 (changed), N2 (new), T3 (new) — with its corrected Coverage and Case design sentences and the self-check under it.
+  The record's earlier sections are unchanged in the range (`git diff -U0 6664a7e 78ff2f5 -- <this record>`: one hunk,
+  lines added after line 108).
+
+Carried over from the first round (4f5607a, range a40c926..6664a7e): the gateway log's assessment; the harness facts
+(the copies and links, the guard, clean-up, a set-up failure failing the file); the rows, fixture shapes, red-first
+evidence and "when does it go red" of G0, A–K, M2, M3, N1, P1–P4, T1, T2, L1 and the set-up guard; the stale-key
+Evidence for 314::5; the boundary rows not named below; the resource's size and its clearing and ordering conclusion.
+
+### Targeted log
+
+| Requirement (full-verification-gate) | In the log |
+|---|---|
+| Version | `HEAD: 6664a7ec…` and the porcelain status (`git status --porcelain --untracked-files=all`, named in the header, no pathspec) with a `git hash-object` per listed file: `checklist.md` `a4c118c5…`, `ticket-314-review-code.md` `73651d5d…`, this record `0eb37644…`, `ticket-314-tasks.md` `bec64579…`, the test `86dcae1c…` |
+| Every command, with its full output | the searches for tests reading what changed (over `scripts build src e2e site/test`), `pnpm typecheck`, `pnpm check:ui`, `pnpm lint`, `pnpm check:lang`, `pnpm check:nul` |
+| Exit codes taken without a pipe | `exit=0` after each, then `TARGETED_EXIT=0` (line 189) |
+| Version against the handed range | each listed blob equals the file at 78ff2f5 (`git rev-parse 78ff2f5:<path>`, all five equal). `git diff --name-status 6664a7e 78ff2f5` lists those five plus six evidence files: `targeted-3.txt`, the run's own output, and the five runs above. Those five are absent from the listing because `docs/.workings/` is ignored (`.gitignore:4`, by `git check-ignore --no-index -v`) and `git status` lists no ignored file; no command of the run reads them (the test copies `docs/prototypes/` and `src/`; the gate reads those, four other `docs/` directories and root files; `check:lang` and `check:nul` list files with `--exclude-standard`; ESLint ignores `docs/`). No ignored file lies where the test or the gate reads (`git status --porcelain --ignored --untracked-files=all -- docs/specs docs/adr docs/features docs/postmortems docs/prototypes src scripts CONTEXT.md README.md README.en.md package.json`: empty; control, the same without paths: 34666 ignored entries). At 78ff2f5 the six files are tracked, so `check:lang` and `check:nul` read them there: 0 CJK characters and 0 NUL bytes in each (scanned; control: 4986 in `prototype-agents.html`, same scan), so the log's results stand for them |
+
+The log's form is the one #270's last incremental check settled (`ticket-270-review-tests.md`, its "Targeted log"): the
+`HEAD:` value printed without its command and the exit codes' capture not shown are not missing items, since each
+`exit=` follows a command printed without a pipe whose own output shows the same result (25 passes with no failure and
+the gate's "passed" line for `check:ui`; the empty success form for typecheck and lint). The log is usable evidence for
+78ff2f5 for the objects under review.
+
+The five runs beside it name the test as `test dc82349342ef` and the gate as `gate d23a16115def`. Those are the files'
+plain SHA-1 (`shasum -a 1`), not their git blob ids, and they equal the committed test's and gate's (`shasum -a 1` at
+78ff2f5: `dc82349342ef…`, `d23a16115def…`), so each run is of the committed test. `red-first-2.txt`'s gate copy is
+a40c926's exactly: its recorded `diff`, applied with `patch` to the gate at 78ff2f5, gives a file byte-equal to
+`git show a40c926:scripts/check-shared-ui.mjs`. Noted for the next reader, who will not find `dc82349342ef` among git's
+objects; no conclusion depends on the scheme.
+
+### Written test against the Test design table
+
+| # | Seam and driving input | Assertion and expected value's source | Fixture | Resource | Result |
+|---|---|---|---|---|---|
+| M1 | `#ovchart2` added after `#ovchart` as `<div class="chart wide" id="ovchart2"></div>` (line 79, the swap it shares with M2) | unchanged: exact line, literal (lines 217–219) | a class list of two tokens; the pages' three charts are `class="chart"` alone (`grep -rn -E 'class="[^"]*\bchart\b[^"]*"' docs/prototypes --include='*.html'`), class lists of several tokens their common form (first round) | as G0 | Matches |
+| N2 | ` data-shared-block=""` added to `<b>Agentshed</b>` (line 35), in the project list page's top bar (`prototype-list.html:73`, markup; the line N1's plant also changes, applied before it; each string occurs once) | exact line, literal: the declaration rule's message with the empty id (lines 233–235) | the page's own element; no page has an empty declaration (`grep -rnF 'data-shared-block=""' docs/prototypes`: exit 1), so the value is a planted boundary | as G0 | Matches |
+| T3 | in `src/renderer/src/theme.css`, the comment line `     the rounded corner is carried by the topmost segment instead */` and the `  overflow: visible;` after it become the same with `overflow: hidden;` (lines 93–98). The anchor is the sheet's line 1481, inside `.col { … }` (1474–1484), the sheet's only `.col {` rule; the bare declaration occurs at 1482 and 2560 | exact line, literal: the invariant's message as the gate holds it, with the app sheet's path (lines 260–262) | the app sheet's own rule | as G0 | Matches |
+| G0 | the planted paths now include `src/renderer/src/theme.css`; T3's line starts with it, N2's with the project list page's | as before | — | `runGate()` once, at module load | Matches |
+| the other 21 | plants and assertions unchanged | as before | as before | as G0 | Matches |
+
+The increment's claims against the evidence. M1 "shown once on a copy of the gate whose match is the whole value":
+`token-match.txt` changes line 524 to `cls[1] !== 'chart'`; M1 alone is red (24 pass, 1 fail, at its assertion, test
+line 218), and its output lacks `#ovchart2` while `#chart`, `#skChart`, `#ovchart3` and `#ovchart4` stay. N2 "red on
+a40c926", "shown once on a copy whose declaration pattern requires a non-empty value": `red-first-2.txt` (N2 among the
+ten red) and `nonempty-declaration.txt` (line 541 to `[^"]+`; N2 alone red, at test line 234; the `""` line gone,
+`pie-chart`'s kept). T3 "green on a40c926 by design, red on the copy with the block-specific table emptied":
+`red-first-2.txt` line 183, its line present in that run's output; `contracts-empty-2.txt`, D, T1, T3 and T2 red and
+only they (21 pass). The self-check's "ten red: the nine of the first red run and N2": M1–M3, N1, N2, P1–P4 and L1
+(`red-first-2.txt`, lines 173–185). The corrected Coverage and Case design sentences agree with the test.
+
+Test file header (Dimension: Coverage): unchanged in the range (lines 1–12; the first hunk starts at line 30). It states
+one gap, the block-specific table's stale key, still 314::5's Evidence; the fix leaves no gap by choice, each of
+findings 1–3 being driven by a case.
+
+### Coverage
+
+No spec; the units are `314::*` in [checklist.md](checklist.md), from #314's acceptance criteria.
+
+| Unit | Driven by | Result |
+|---|---|---|
+| 314::1 | M1 (now a two-token class), M2, M3; each absent on a40c926's gate (`red-first-2.txt`) | Covered; the token match is driven (finding 2 closed) |
+| 314::2 | N1 (an unknown non-empty id) and N2 (an empty id), each absent on a40c926's gate | Covered; both kinds of value that name no block are driven (finding 3 closed) |
+| 314::3 | P1–P4 as in the first round; red again on a40c926's gate in `red-first-2.txt` | Covered |
+| 314::4 | D, T1 (the prototypes' sheet), T3 (the app's sheet), T2; the four red, and only they, under the emptied table (`contracts-empty-2.txt`) | Covered: both sheets of the invariant (finding 1 closed) |
+| 314::5 | L1, red again on a40c926's gate, and the stale-key Evidence as before | Covered |
+| 314::6 | the gate step of `pnpm check:ui` at the fix: md-preview 5 usage sites, trend-chart 2, the chart and declaration rules passing, exit 0 (`targeted-3.txt`, lines 94–122); the gate and the pages are unchanged in the range | Covered |
+
+The boundary rows the first round left undriven, now:
+
+| Rule and input | Driven | If the code changed |
+|---|---|---|
+| chart rule: `chart` among other class tokens | M1 | a whole-value comparison turns M1 alone red (`token-match.txt`); a literal `class="chart"` search misses `class="chart wide"` the same way |
+| declaration rule: an empty value | N2 | `[^"]+` turns N2 alone red (`nonempty-declaration.txt`) |
+| the invariant in the app's sheet | T3 | dropping the app sheet from `files`, or reading only the first file, removes T3's line, whose only producer is `check-shared-ui.mjs:863` |
+| chart rule: `data-shared-block=""` on a chart | no | the chart rule (`[^"]+`, line 525) reports the chart, and the declaration rule reports `""`, which N2 now pins: loud either way |
+
+Fixtures: M1's token list and T3's rule are the repository's own forms; N2's empty value is a planted boundary on the
+page's own element. They are independent of #314's text.
+
+Conclusion (Coverage): findings 1–3 are closed by T3, M1's token and N2; no new gap.
+
+### Case design
+
+- Public seam and reachable plants: a second class token, an empty attribute and a `.col` declaration in the app's
+  sheet are edits a contributor can make, read through the gate's output and exit code.
+- Independence: each new asserted line has a subject only its plant produces — `#ovchart2` (M1); the empty id on the
+  project list page (N2; no page has one, and the declaration rule passes on the unplanted pages, `targeted-3.txt`
+  line 113); the app sheet's `.col` (T3; the gate reports none on the unplanted sheet, line 103). Each of the three
+  messages has one producer in the gate (`grep -n` over its 918 lines: lines 527, 542, 863). N2's element is no chart,
+  so only the declaration rule can report it. T3's file is planted by T3 alone, and the swatch rule, which also reads
+  `theme.css`, passes in the planted runs (`token-match.txt`, line 52). N1 and N2 change the same line of the page;
+  each plant string still occurs once (the set-up asserts it, and the run is green).
+- The full planted output at the fix: `token-match.txt` and `nonempty-declaration.txt` each list 31 problems, each
+  lacking only its mutated line, so the unmutated run reports 32, every one on a planted path (G0 green,
+  `targeted-3.txt`).
+- Isolation, clean-up and a set-up failure failing the file: carried over.
+
+Conclusion (Case design): no finding.
+
+### False greens
+
+| Form | Check |
+|---|---|
+| Constant truth | M1, N2 and T3 each assert one exact line |
+| Tautology | the expected lines are literals, not computed by the gate's code |
+| Stale path | the test copies the working tree's gate, the one `pnpm check:ui` runs |
+| Silent skip on a condition | none; T3's plant, like every plant, fails the file at load unless its anchor occurs exactly once |
+| Assertion that may not run | synchronous cases, no callbacks |
+| Presence for effect; command that cannot tell | each case asserts its own report line, not the exit code or the presence of output |
+| A new case never seen red (false-greens form four) | M1 red alone under the whole-value class match (`token-match.txt`); N2 red on a40c926's gate (`red-first-2.txt`) and alone under `[^"]+` (`nonempty-declaration.txt`); T3 red under the emptied table with D, T1 and T2 (`contracts-empty-2.txt`), green on a40c926's gate by design. Each failure lies at its own assertion (test lines 218, 234, 261), and the run's output in the failure message shows the reach apart from the assertion: the mutated line gone, its neighbours kept. Each mutated copy differs from the gate by the one `diff` it records; the copies ran in a scratch directory, and the worktree is clean |
+| The check's own command wrong | the problem parse `/^ {4}\S/` unchanged |
+| Target outside the check's scope | `src/` is a real copy, so T3's plant reaches the copied sheet; the guard let it through (the run is green, no set-up throw) |
+
+When does each go red:
+
+| # | Goes red when |
+|---|---|
+| M1 | the chart rule judges a page rather than each chart (a40c926's count), or matches the class by its whole value or by a literal `class="chart"` |
+| N2 | an empty declaration stops being reported: the declaration pattern requires a non-empty value, or the rule skips an empty id; and on a40c926's gate, which has no declaration rule |
+| T3 | the table stops reaching trend-chart's `cssInvariants` (`contracts-empty-2.txt`), the app sheet leaves `files`, the loop reads only the first file, or the selector or pattern changes; the file fails at load if the anchor changes |
+| T1 | as in the first round, without its exception there: the app sheet leaving `files` is now T3's |
+| G0 | as in the first round; the planted paths gained the app sheet |
+| the others | as in the first round |
+
+Conclusion (False greens): no false green.
+
+### Resource reuse
+
+- Unchanged: one tree (copies of `docs/prototypes/` and `src/`) and one gate run per file run, built by `runGate()` at
+  module load; the fix adds plants, not a resource, and leaves the tree's size as it was (T3 edits a copied file).
+- Runtime count, from the targeted log: the file ran once (in `pnpm check:ui`, lines 56–93); the 25 cases took
+  0.0237–0.593 ms each and the file 1636 ms: one build, outside the cases. This agrees with the table.
+- Cost: 1631–1753 ms per file run across the fix's six runs (`targeted-3.txt`, `green-3.txt`, `token-match.txt`,
+  `nonempty-declaration.txt`, `contracts-empty-2.txt`, and `red-first-2.txt` on a40c926's gate). Building once per file
+  run stands.
+- No case clears or releases the resource, so no ordering question arises.
+
+Conclusion (Resource reuse): no finding.
+
+### Document sync
+
+Facts this check establishes: the incremental check is done on 78ff2f5 (range 6664a7e..78ff2f5) with no finding;
+findings 1–3 are closed by T3, M1's token and N2, as the handling says; the targeted log is usable evidence for 78ff2f5
+for the test. Files checked: the task inputs (#314's body by `gh issue view`, `checklist.md`, this record,
+`targeted-3.txt`, `gateway-4f5607a.txt`); this work directory's #314 files (`ticket-314-tasks.md`,
+`ticket-314-doc-sync.md`, `ticket-314-review-code.md`, and `evidence/ticket-314/`: 16 files, the six this range adds
+read as above, the other ten unchanged in the range); `final-regression.md`, read by its path: no #314 section yet (the
+document sync checklist's fourth item, Pending); and the repository through `rg -uu -l -e check-shared-ui -e check:ui`,
+hidden and ignored files included, excluding `node_modules` at any depth, `out`, `site/dist` and `.git` (dependencies
+and build output): 151 files, the first round's 145 and the six evidence files, outside `docs/.workings/` the same
+twelve. Other tickets' records under `docs/.workings/` are left out: each records its own round.
+
+- No permanent document describes the gate's test or its cases (first round), and the range changes none of them; the
+  new plants make none of them untrue.
+- `checklist.md`: the planned verification of 314::1 (a two-token class), 314::2 (an empty declaration) and 314::4 (the
+  plant in both sheets, green on the unfixed gate) matches the test and the runs. The current-verification row for
+  `314::*` still reads "Not run yet"; the document sync checklist's first item (Pending) covers it, and that row must
+  carry both rounds' outcomes.
+- `ticket-314-tasks.md`: task 8's state matches the first round and its handling, and must carry this round's outcome
+  when step 6 closes. Task 7's row is 4f5607a's gateway, true as dated; the next full run, due because the test's
+  executable content changed after it, must replace it. The self-check of the fixes (each run keeps its commands, the
+  copy's change by `diff`, the test's hash and HEAD, and its whole output; `green-3.txt` its versions) matches the files:
+  the commands write the scratch paths as placeholders, the real paths showing in the failure output, and the hash is
+  the content's SHA-1 (Targeted log above).
+- `ticket-314-review-code.md`: the new self-check ("no product code changed; the gate is unchanged") is accurate (the
+  `git diff --quiet` above). Its earlier "23 cases" statements are dated to b23997e and 4f5607a and stay true there.
+- This record: the increment's rows and sentences and the handling are accurate as checked above. The design review's
+  Coverage paragraph ("314::4 — D, T1, T2") stays as written: it is that review's original report, corrected by the
+  increment rather than rewritten, as the document-sync rule on original evidence asks.
+- `ticket-314-doc-sync.md`: no new item; its five items stay Pending.
+- #314's body: its Test lines name the least each criterion needs (cases for 314::1, a declaration of a block with no
+  file for 314::2, a plant on `.col` for 314::4); the added cases make none of them untrue.
+
+### Findings
+
+None.

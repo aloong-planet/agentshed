@@ -60,9 +60,9 @@ with no visible effect (`/to-spec`'s prototype gate) applies, so no prototype ro
 | 4 | Slice: the new cases red on the unfixed gate; the gate and the two pages changed; all green | the red and green runs in `evidence/ticket-314/` | done: the nine new cases for missing behaviour red on a40c926's gate with the new pages, T1, T2, C and G0 green there (`red-first.txt`); all 23 green after, and the gate green on the pages (`green.txt`); the table emptied turns exactly D, T1 and T2 red (`contracts-empty.txt`); a renamed table key is reported (`contracts-stale-key.txt`) |
 | 5 | Targeted verification | `evidence/ticket-314/targeted*.txt` | done: `targeted.txt`, `TARGETED_EXIT=0`, and the artifacts test the search found (it only names a prototype page in its own fixtures) |
 | 6 | Code review | `ticket-314-review-code.md` | done: finding 1 (the harness could write the repository through its links), fixed by a guard; shown failing first on a scratch tree; the first attempt at showing it wrote the worktree, verified and restored (recorded there); targeted again, `targeted-2.txt` |
-| 7 | Full gateway | `evidence/ticket-314/gateway-*.txt` | 4f5607a: `VERIFY_EXIT=0` on a clean tree (873 unit, 137 script, 107 site, `check:ui` 23 cases then the gate, 155 e2e, smoke OK) |
-| 8 | Independent post-implementation test check | `ticket-314-review-tests.md` | first round on a40c926..6664a7e: findings 1 (the app sheet's invariant undriven), 2 (the class token match undriven) and 3 (an empty declaration undriven), all handled by cases (T3, M1's second token, N2); the incremental check follows |
-| 9 | Source check, write-back, step 8 | `final-regression.md` | |
+| 7 | Full gateway | `evidence/ticket-314/gateway-*.txt` | 4f5607a, then 78ff2f5 after the post-implementation check's cases: each `VERIFY_EXIT=0` on a clean tree; the last on the final code and test: 873 unit, 137 script, 107 site, `check:ui` 25 cases then the gate, 155 e2e, smoke OK. A run on the delivery head follows, since the postmortem added there is read by the gate's ticket-number rule |
+| 8 | Independent post-implementation test check | `ticket-314-review-tests.md` | first round on a40c926..6664a7e: findings 1 (the app sheet's invariant undriven), 2 (the class token match undriven) and 3 (an empty declaration undriven), all handled by cases (T3, M1's second token, N2); incremental on 6664a7e..78ff2f5: no finding, so step 6 is closed |
+| 9 | Source check, archive, write-back, step 8 | `final-regression.md` | done: the source check below; the postmortem `docs/postmortems/2026-10-26-a-scratch-copy-that-was-a-link.md` (root cause, why nothing caught it, the guard — the three conditions for one); the checklist's current verification; step 8, the #314 section of `final-regression.md` |
 | 10 | PR; CI; stop for the owner | PR link | |
 
 Self-check of the post-implementation check's fixes (2026-10-26), items 6 and 7: `red-first-2.txt`, `token-match.txt`,
@@ -71,3 +71,20 @@ test's hash and HEAD with the test uncommitted, and their whole output; `green-3
 output. The worktree was checked clean after each scratch run (only the test and the record changed). The records
 follow: the design increment, the test review's handling, the code review's self-check, this list, and the
 checklist's 314::1, 314::2 and 314::4 rows. No finding.
+
+## Source check before step 7 (2026-10-26, implementation 78ff2f5, against #314's body)
+
+| Line of the issue | Implementation | Conclusion |
+|---|---|---|
+| Decision: `#skChart` declares `trend-chart` | `prototype-agents.html:336` | Met |
+| Decision: a chart's declaration names a shared block | the chart rule asks for a declaration on each chart; the declaration rule checks every declaration's value | Met |
+| Decision: the unlisted blocks are fixed here | totals-card and md-preview checked (P1, P2; the gate lists them with 2 and 5 usage sites) | Met |
+| Decision: every declaration names a shared block | the declaration rule (N1, N2) | Met |
+| Decision: a block's contract comes from its files; the four common libraries apart; a table for what names cannot give | `sharedBlocks`, `COMMON_LIBRARIES`, `BLOCK_CONTRACTS` (P3, P4, D, T1–T3, L1) | Met |
+| Decision: md-preview declared on the heading-ladder page's mount | `prototype-heading-ladder.html:172` | Met |
+| "Neither page renders differently" | no style or script selects on the two declarations; `md-preview.js` sets the same attribute at run time (facts above) | Met |
+| 314::1 – 314::5 | the test's cases, each red where it guards (`red-first.txt`, `red-first-2.txt`, `token-match.txt`, `nonempty-declaration.txt`, `contracts-empty-2.txt`); 314::5's Evidence, `contracts-stale-key.txt` | Met |
+| 314::6 | `pnpm check:ui` exit 0 on the pages (`gateway-78ff2f5.txt`) | Met |
+
+Scope beyond the issue's text: the test copies `src/` (so T2 and T3 can plant the app's source), and its copy guard
+(the code review's finding 1). Not an ADR, no new term. Deviations: none.
