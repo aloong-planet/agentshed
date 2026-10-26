@@ -19,6 +19,11 @@
 // app side of the shared blocks' style invariants and required props. Every check runs every time. None
 // compares the prototypes with the app: the prototypes are the baseline the app is built from (ADR-0033),
 // so a page that differs from the app is not wrong on that account.
+//
+// What a check mirrors from the product — the colours, the themes, the sides, the languages, the READMEs, the
+// rail items, the documents the ticket-number rule reads — is read from where its members are defined (the
+// mirrored lists below), so a member added there is checked without changing this script, and a source this
+// script cannot read is reported rather than leaving its check to look at nothing.
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -78,13 +83,6 @@ const SHARED_BLOCKS = sharedBlocks()
 
 /** The sampling rule: the swatches take these four variables left to right, and the order is the meaning */
 const SWATCH_VARS = ['card', 'accent-soft', 'accent', 'text']
-/** The three themes' selectors in theme.css (the light and dark blocks share one set of
- * selectors) */
-const THEME_SELECTORS = {
-  purple: ':root',
-  blue: "html[data-theme='blue']",
-  amber: "html[data-theme='amber']"
-}
 
 const stripCssComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '')
 
@@ -223,18 +221,134 @@ function loadDimensions() {
   return sandbox.window.DEMO_DIMENSIONS ?? null
 }
 
+// ── The mirrored lists ──
+// Each list a check mirrors from the product is read from where its members are defined, so adding a member there
+// is enough for the check to cover it. A source that is not there, or names nothing, goes into SOURCE_PROBLEMS, which
+// a rule reports: the check that would have used it then looks at nothing, and only that report says so.
+
+const SOURCE_PROBLEMS = []
+
+/** The literal value of a `const <name> = …` in a .ts or .js source, read with the TypeScript parser and nested
+ * declarations included (app-rail.js keeps its items inside a function): strings, arrays and objects of them, an
+ * `as const` or type annotation set aside; undefined when the file or the declaration is not there */
+function constValue(path, name) {
+  const src = read(path)
+  if (src === null) return undefined
+  const sf = ts.createSourceFile(path, src, ts.ScriptTarget.Latest, true, path.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JS)
+  let init
+  const visit = (node) => {
+    if (init) return
+    if (ts.isVariableDeclaration(node) && node.name.getText(sf) === name && node.initializer) init = node.initializer
+    else ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  const literal = (n) => {
+    while (n && (ts.isAsExpression(n) || ts.isSatisfiesExpression(n) || ts.isParenthesizedExpression(n))) n = n.expression
+    if (!n) return undefined
+    if (ts.isStringLiteralLike(n)) return n.text
+    if (ts.isArrayLiteralExpression(n)) return n.elements.map(literal)
+    if (ts.isObjectLiteralExpression(n)) {
+      const out = {}
+      for (const p of n.properties) if (ts.isPropertyAssignment(p)) out[p.name.getText(sf).replace(/^['"]|['"]$/g, '')] = literal(p.initializer)
+      return out
+    }
+    return undefined
+  }
+  return literal(init)
+}
+
+/** A mirrored list from a source constant, reduced by `pick` to the strings it names; an empty result is reported */
+function mirrored(path, name, what, pick) {
+  const value = constValue(path, name)
+  const list = value === undefined ? [] : pick(value).filter((v) => typeof v === 'string' && v !== '')
+  if (list.length === 0) SOURCE_PROBLEMS.push(`${path}: ${name} is missing or empty — ${what}`)
+  return list
+}
+const listOf = (v) => (Array.isArray(v) ? v : [])
+const recordEntries = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.entries(v).filter(([, s]) => typeof s === 'string') : [])
+
+/** Every side's names in copy — its full and its short display name — from side-badge.ts */
+const SIDE_BADGE = 'src/renderer/src/side-badge.ts'
+const SIDE_NAME_ENTRIES = ['SIDE_FULL_NAME', 'SIDE_SHORT_NAME'].map((name) => {
+  const entries = recordEntries(constValue(SIDE_BADGE, name))
+  if (entries.length === 0) SOURCE_PROBLEMS.push(`${SIDE_BADGE}: ${name} is missing or empty — the side names come from it`)
+  return entries
+})
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** One pattern per side, matching any of its names (the longest first, so "Claude Code" is one name, not two) */
+const SIDE_NAMES = [...new Set(SIDE_NAME_ENTRIES.flat().map(([side]) => side))].map((side) => {
+  const names = [...new Set(SIDE_NAME_ENTRIES.flat().filter(([s]) => s === side).map(([, n]) => n))].sort((a, b) => b.length - a.length)
+  return new RegExp(names.map(escapeRegExp).join('|'))
+})
+/** The uppercase chip labels, from side-badge.ts */
+const CHIP_LABELS = mirrored(SIDE_BADGE, 'SIDE_CHIP_LABEL', 'the chip labels come from it', (v) => recordEntries(v).map(([, s]) => s))
+
+/** The dictionaries the copy rules read: one per supported language */
+const DICTIONARIES = mirrored('src/shared/i18n/index.ts', 'LANGUAGES', 'the dictionaries come from it', listOf).map((lang) => `src/shared/i18n/${lang}.ts`)
+
+/** The themes' selectors in theme.css: the default theme's values sit in :root, every other theme's under its
+ * data-theme (the light and dark blocks share one set of selectors). Null when either source is missing */
+const THEMES = mirrored('src/shared/appearance.ts', 'APPEARANCE_THEMES', 'the themes come from it', listOf)
+const DEFAULT_THEME = mirrored('src/shared/appearance.ts', 'DEFAULT_THEME', 'the default theme comes from it', (v) => [v])[0]
+const THEME_SELECTORS =
+  THEMES.length && DEFAULT_THEME ? Object.fromEntries(THEMES.map((t) => [t, t === DEFAULT_THEME ? ':root' : `html[data-theme='${t}']`])) : null
+
+/** The rail's items, from the shared rail's own list */
+const RAIL_ITEMS = mirrored('docs/prototypes/_shared/app-rail.js', 'ITEMS', 'the rail items come from it', (v) => listOf(v).map((item) => item?.id))
+
+/** Every hex value theme.css gives a variable whose name starts with `prefix`, in any theme and either mode. Only hex
+ * values: a component holding var(--x) is using a token, and searching for it would report that */
+function themeHexValues(prefix, what) {
+  const css = stripCssComments(read('src/renderer/src/theme.css') ?? '')
+  const values = new Set()
+  for (const m of css.matchAll(new RegExp(`${escapeRegExp(prefix)}[\\w-]*\\s*:\\s*(#[0-9a-fA-F]{3,8})\\s*;`, 'g'))) values.add(m[1].toLowerCase())
+  if (values.size === 0) SOURCE_PROBLEMS.push(`src/renderer/src/theme.css: no ${prefix === '--p-' ? '--p-*' : `${prefix} family`} value — ${what}`)
+  return [...values]
+}
+const BRAND_COLOURS = themeHexValues('--p-', 'the brand colours come from them')
+const ACCENT_COLOURS = themeHexValues('--accent', 'the accent colours come from them')
+
+/** The READMEs: every README*.md at the root */
+const READMES = readdirSync(ROOT)
+  .filter((name) => /^README.*\.md$/.test(name))
+  .sort()
+if (READMES.length === 0) SOURCE_PROBLEMS.push('no README*.md at the root — the README rule reads them')
+
+/** Every .ts and .tsx directly in the renderer's source (the code-side rules' scope) */
+const rendererSources = () =>
+  readdirSync(join(ROOT, 'src/renderer/src'))
+    .filter((name) => name.endsWith('.ts') || name.endsWith('.tsx'))
+    .map((name) => `src/renderer/src/${name}`)
+
 /** Global rules: constraints independent of any particular block */
 const GLOBAL_RULES = [
+  {
+    // The rule that speaks for the mirrored lists above: without it, a source renamed or emptied would leave its
+    // check reading nothing, and green
+    name: 'every list the checks mirror from the product is read from a source that names its members',
+    check() {
+      return SOURCE_PROBLEMS
+    }
+  },
   {
     // A ticket lives in a tracker, gets closed and cleaned up; a spec is written before its tickets
     // exist and outlives them, so a ticket number in a persistent document is a pointer guaranteed
     // to dangle — the reader who follows it finds nothing. Provenance that must survive goes in as
     // a date or an ADR number. Source comments are deliberately out of scope: there a ticket number
     // is construction context that lives and dies with the code it annotates.
+    //
+    // The persistent documents are every .md at the root, package.json, and every document under docs/ apart from
+    // the construction records in docs/.workings, which name their tickets by design. The walk skips hidden entries,
+    // as it always has, and that is what leaves docs/.workings out; a new directory under docs/ is read as it appears.
     name: 'persistent documents must not reference ticket numbers (they outlive the tickets)',
     check() {
       const bad = []
-      const files = ['CONTEXT.md', 'README.md', 'package.json']
+      const files = [
+        ...readdirSync(ROOT)
+          .filter((name) => name.endsWith('.md'))
+          .sort(),
+        'package.json'
+      ]
       const walk = (dir) => {
         const abs = join(ROOT, dir)
         if (!existsSync(abs)) return
@@ -245,7 +359,7 @@ const GLOBAL_RULES = [
           else if (/\.(md|html|js)$/.test(e.name)) files.push(rel)
         }
       }
-      for (const d of ['docs/specs', 'docs/adr', 'docs/features', 'docs/postmortems', 'docs/prototypes']) walk(d)
+      walk('docs')
       for (const f of files) {
         const src = read(f)
         if (src === null) continue
@@ -262,20 +376,19 @@ const GLOBAL_RULES = [
     // left to the eye (the user's ruling, 2026-08-09; i18n::CON-001). What it prevents: missing a link when
     // adding a language or renaming a file — nothing else would flag that kind of omission, and a reader
     // only discovers it by clicking a dead link.
-    name: 'the Chinese and English READMEs reach each other (i18n::CON-001)',
+    //
+    // The READMEs are the root's README*.md files (READMES), so a new one is checked as it appears. A link to a
+    // README that is not there is reported too: that is how a removed README still shows, through the links to it.
+    name: 'every README links every other, and none links a README that is not there (i18n::CON-001)',
     check() {
       const bad = []
-      const FILES = ['README.md', 'README.en.md']
-      for (const f of FILES) {
-        const src = read(f)
-        if (src === null) {
-          bad.push(`missing ${f}`)
-          continue
-        }
+      for (const f of READMES) {
+        const src = read(f) ?? ''
         const linked = new Set([...src.matchAll(/\]\((README[^)]*\.md)\)/g)].map((m) => m[1]))
-        for (const other of FILES) {
+        for (const other of READMES) {
           if (other !== f && !linked.has(other)) bad.push(`${f}: no link to ${other}`)
         }
+        for (const target of linked) if (!READMES.includes(target)) bad.push(`${f}: links ${target}, which is not at the root`)
         // The current language should be the **only** bold entry: zero = the reader cannot tell which one
         // they are on, more than one = a copy-paste that missed an edit
         const nav = src.split('\n').find((l) => l.includes('README.en.md') || l.includes('README.md)')) ?? ''
@@ -295,6 +408,8 @@ const GLOBAL_RULES = [
       // switch itself off the moment a file is renamed
       if (cssRaw === null) return ['cannot read src/renderer/src/theme.css']
       if (tsx === null) return ['cannot read src/renderer/src/SettingsPane.tsx']
+      // Without the themes there is nothing to compare; the mirrored lists' rule reports the source
+      if (THEME_SELECTORS === null) return []
       const { light, dark } = splitByColorScheme(stripCssComments(cssRaw))
       for (const [mode, part] of [['light', light], ['dark', dark]]) {
         for (const [theme, selector] of Object.entries(THEME_SELECTORS)) {
@@ -331,7 +446,7 @@ const GLOBAL_RULES = [
     name: 'dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)',
     check() {
       const bad = []
-      const SIDE_NAMES = [/Claude(?: Code)?/, /Codex/, /Grok/]
+      // The side names (SIDE_NAMES) and the dictionaries (DICTIONARIES) are mirrored lists
       // Side-COUNT words are the same rot family stated as a number ("both sides" lies the moment a
       // third arrives); one occurrence flags, unlike names which need two to look like a set
       const SIDE_COUNT_WORDS =
@@ -362,8 +477,7 @@ const GLOBAL_RULES = [
           why: "a statement about two specific sides' formats (Codex encrypted vs Claude thinking), true regardless of the side count"
         }
       ]
-      for (const lang of ['zh', 'en']) {
-        const f = `src/shared/i18n/${lang}.ts`
+      for (const f of DICTIONARIES) {
         const src = read(f)
         if (src === null) {
           bad.push(`cannot read ${f}`)
@@ -426,8 +540,8 @@ const GLOBAL_RULES = [
           why: 'an ordinary noun in every language (and part of an external product\'s menu path in the Codex memory hint); retires if the entry is renamed to something distinctive'
         }
       ]
-      for (const lang of ['zh', 'en']) {
-        const f = `src/shared/i18n/${lang}.ts`
+      // The dictionaries are a mirrored list (DICTIONARIES)
+      for (const f of DICTIONARIES) {
         const src = read(f)
         if (src === null) {
           bad.push(`cannot read ${f}`)
@@ -462,31 +576,28 @@ const GLOBAL_RULES = [
     }
   },
   {
+    // The provider colours are every --p-* value in theme.css, light and dark (BRAND_COLOURS)
     name: 'provider brand colours must not be hard-coded in components (use CSS variables)',
     check() {
       const bad = []
-      const BRAND = ['#d97757', '#10a37f', '#4285f4']
-      for (const f of ['src/renderer/src/TokenViz.tsx', 'src/renderer/src/DetailPane.tsx', 'src/renderer/src/AgentsPane.tsx']) {
+      for (const f of rendererSources()) {
         const src = (read(f) ?? '').toLowerCase()
-        for (const c of BRAND) if (src.includes(c)) bad.push(`${f}: hard-coded ${c}`)
+        for (const c of BRAND_COLOURS) if (src.includes(c)) bad.push(`${f}: hard-coded ${c}`)
       }
       return bad
     }
   },
   {
     // appearance C3: components bind only to tokens; the settings page's swatches deliberately show each
-    // theme's sample colours, so they are excluded.
+    // theme's sample colours, so they are excluded. The accent colours are every value of the --accent family in
+    // theme.css, in every theme and mode (ACCENT_COLOURS).
     name: 'components must not hard-code theme accent colours (use the --accent family)',
     check() {
       const bad = []
-      const THEME = ['#8a67ab', '#a084c7', '#4a6fa5', '#3a5a88', '#6b5220', '#c4a46a']
-      const dir = join(ROOT, 'src/renderer/src')
-      for (const name of readdirSync(dir)) {
-        if (!name.endsWith('.tsx') && !name.endsWith('.ts')) continue
-        if (name === 'SettingsPane.tsx') continue
-        const f = `src/renderer/src/${name}`
+      for (const f of rendererSources()) {
+        if (f.endsWith('/SettingsPane.tsx')) continue
         const src = (read(f) ?? '').toLowerCase()
-        for (const c of THEME) if (src.includes(c)) bad.push(`${f}: hard-coded theme colour ${c}`)
+        for (const c of ACCENT_COLOURS) if (src.includes(c)) bad.push(`${f}: hard-coded theme colour ${c}`)
       }
       return bad
     }
@@ -496,17 +607,18 @@ const GLOBAL_RULES = [
     // SIDE_CHIP_LABEL and maps over SIDE_ORDER, which is what lets a new side appear by construction.
     // A re-hardcoded label would compile and render happily and nothing else would notice — this rule
     // makes the convention mechanical. Exclusion: side-badge.ts is the Record's own definition, the one
-    // legal spelling site; it retires only if the chip labels ever move out of that module.
-    name: 'side chip labels have one source: no hardcoded CLAUDE CODE / CODEX / GROK literal outside side-badge.ts',
+    // legal spelling site; it retires only if the chip labels ever move out of that module. The labels are
+    // SIDE_CHIP_LABEL's own (CHIP_LABELS), so a new side's label is checked as it is added.
+    name: 'side chip labels have one source: no hard-coded SIDE_CHIP_LABEL label outside side-badge.ts',
     check() {
       const bad = []
-      const CHIP = /['"`>](CLAUDE CODE|CODEX|GROK)['"`<]/
-      const dir = join(ROOT, 'src/renderer/src')
-      for (const name of readdirSync(dir)) {
-        if (!name.endsWith('.tsx') && !name.endsWith('.ts')) continue
-        if (name === 'side-badge.ts' || name.includes('.test.')) continue
-        const m = (read(`src/renderer/src/${name}`) ?? '').match(CHIP)
-        if (m) bad.push(`src/renderer/src/${name}: hardcoded chip label ${m[1]} — look it up in SIDE_CHIP_LABEL`)
+      // With no labels the pattern would match any empty string literal; the mirrored lists' rule reports the source
+      if (CHIP_LABELS.length === 0) return bad
+      const CHIP = new RegExp(`['"\`>](${CHIP_LABELS.map(escapeRegExp).join('|')})['"\`<]`)
+      for (const f of rendererSources()) {
+        if (f.endsWith('/side-badge.ts') || f.includes('.test.')) continue
+        const m = (read(f) ?? '').match(CHIP)
+        if (m) bad.push(`${f}: hardcoded chip label ${m[1]} — look it up in SIDE_CHIP_LABEL`)
       }
       return bad
     }
@@ -656,7 +768,8 @@ const GLOBAL_RULES = [
       } catch (e) {
         return [`docs/prototypes/manifest.js does not evaluate: ${e.message}`]
       }
-      const ITEMS = ['agents', 'projects', 'search', 'settings']
+      // The rail's items are its own list in app-rail.js (RAIL_ITEMS)
+      const ITEMS = RAIL_ITEMS
       for (const f of prototypeHtmls()) {
         const src = read(f) ?? ''
         const code = stripComments(src)

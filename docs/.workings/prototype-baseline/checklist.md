@@ -33,9 +33,14 @@ one branch and one PR. The requirement source is #314's body as rewritten on 202
 that day (D1–D7 in `ticket-314-tasks.md`), with no spec. Scope: `scripts/check-shared-ui.mjs`, its test, the Agents page
 and the heading-ladder page (one attribute each), and these work records.
 
+Fifth round, begun 2026-10-26 on source commit e926e38 (origin/main): [#316](https://github.com/aloong-planet/agentshed/issues/316),
+one branch and one PR. The requirement source is #316's body as rewritten on 2026-10-26 with the owner's decisions of
+that day (D1–D6 in `ticket-316-tasks.md`), with no spec. Scope: `scripts/check-shared-ui.mjs`, its test, and these work
+records.
+
 This is a work index, not a requirement authority. The units below are #251's items and its "Done when"
-lines, then #250's items and #226's fix and verification lines, then #270's acceptance lines, then #314's acceptance criteria; each names
-the tier that backs it.
+lines, then #250's items and #226's fix and verification lines, then #270's acceptance lines, then #314's and #316's
+acceptance criteria; each names the tier that backs it.
 
 ## Source → verification
 
@@ -83,6 +88,16 @@ the tier that backs it.
 | 314::4 | #314: trend-chart's mount points, `.col` style invariant (the prototypes' and the app's sheets) and `<TrendChart>`'s `archivedDays` still hold | Test: the same file — the existing mount-point case, `overflow: hidden` planted on `.col` in the prototypes' sheet and in the app's, a `<TrendChart>` without `archivedDays` in the app's source (regression cases, green on the unfixed gate too, where the behaviour exists) |
 | 314::5 | #314: a listed common library with no file, or a block-specific entry keyed by an id that is no shared block, turns `pnpm check:ui` red | Test: the same file, a common library's file removed; Evidence: one run on a copy of the gate with the block-specific entry's key renamed |
 | 314::6 | #314: the Agents skeleton chart declares `trend-chart`, the heading-ladder page declares `md-preview`, and `pnpm check:ui` stays green on main | Gate: `pnpm check:ui` exit 0 |
+| 316::1 | #316: the brand colour rule takes every `--p-*` value in `theme.css`, light and dark, and searches every `.ts` and `.tsx` in `src/renderer/src/` | Test: `scripts/check-shared-ui.test.mjs` — `--p-xai`'s value hard-coded in a file outside the three the rule searched; a `--p-*` variable added to `theme.css`, its value hard-coded in a component; red first on the unfixed gate |
+| 316::2 | #316: the accent rule takes every value of the `--accent` family in every theme, light and dark; `SettingsPane.tsx` stays excluded | Test: the same file — dark blue's `--accent` and an `--accent-soft` value hard-coded; red first on the unfixed gate |
+| 316::3 | #316: the swatch rule checks every theme in `APPEARANCE_THEMES`, the default against `:root`, every other against `html[data-theme='<id>']` | Test: the same file — a theme added, whose swatch row disagrees with its `theme.css` block |
+| 316::4 | #316: a side added to `side-badge.ts` is covered by the side-enumeration rule and the chip label rule | Test: the same file — a side added; copy naming it beside another side; its chip label hard-coded |
+| 316::5 | #316: both dictionary rules read every dictionary `LANGUAGES` names | Test: the same file — a language added with its dictionary, which enumerates sides and names a rail control |
+| 316::6 | #316: the README rule reads every `README*.md` at the root | Test: the same file — a README added that the others do not link |
+| 316::7 | #316: the rail rule checks the routes of every item in `ITEMS` | Test: the same file — an item added; a page sends it to a route not in `manifest.js` |
+| 316::8 | #316: the ticket-number rule scans every document under `docs/` except `docs/.workings/`, every `.md` at the root, and `package.json` | Test: the same file — a ticket number in `README.en.md` and in a new `docs/` directory reported, one in `docs/.workings/` not |
+| 316::9 | #316: a source the gate derives from that it cannot read, or that yields no member, turns `pnpm check:ui` red | Test: the same file — each source renamed or emptied, each reported |
+| 316::10 | #316: `pnpm check:ui` stays green on main | Gate: `pnpm check:ui` exit 0 |
 
 ## Current verification
 
@@ -145,3 +160,4 @@ the tier that backs it.
 | #226 lists the page title as prototype content. The `<title>` keeps its Chinese "Prototype — " prefix, which every prototype page's tab title uses, so the gallery's tabs stay uniform | #226 Fix | Kept as content; listed by kind under 226::1 |
 | Third round: #270's two acceptance lines each have a row (270::1, 270::2). The class-level check of the defect found the same raw-text search in the shared-block check's other searches and in the tab identity rule (270::R1, decision D1). The chart container rule's count — every declaration on the page against its chart containers — is a different defect, reported to the owner and not in this round (opened as #314, the fourth round) | #270 Acceptance; `ticket-270-tasks.md` | Mapped |
 | Fourth round: #314's six acceptance criteria each have a row (314::1–314::6). They carry the owner's decisions of 2026-10-26: the unlisted blocks, the general rule and the file-derived contract (D3–D5) widen #314's first text, and the body was rewritten with them before the work | #314 Acceptance criteria and Decisions; `ticket-314-tasks.md` | Mapped |
+| Fifth round: #316's ten acceptance criteria each have a row (316::1–316::10). Each decision of 2026-10-26 (D1–D6) is backed by one of them; 316::9 carries the convention every derived list needs (D7), and was in the body before the work. The lists kept by hand are named in the body and have no row | #316 Acceptance criteria and Decisions; `ticket-316-tasks.md` | Mapped |
