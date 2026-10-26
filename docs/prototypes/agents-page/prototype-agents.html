@@ -333,7 +333,7 @@
       <div class="grp-t trend-heading"><span class="trend-span-label"><span data-i18n="trendPrefix">近</span> <span class="trend-span-options" id="skTspan" role="group" aria-label="趋势天数" data-i18n-aria="trendDays"></span> <span data-i18n="trendSuffix">天趋势</span></span><span data-i18n="trendContext">(本地时区 · 日粒度 · 跨全部项目)</span>
         <span class="seg"><span class="on" data-i18n="trendTotal">合计</span><span>Claude</span><span>Codex</span><span>Grok</span></span></div>
       <!-- 灰柱直接是图表容器的子项,与真实的柱子同样排布 -->
-      <div class="chart" id="skChart"></div>
+      <div class="chart" id="skChart" data-shared-block="trend-chart"></div>
       <!-- x 轴与图例也要占位:载入后这两行会出现,骨架不预留的话填充时下方内容会跳一次 -->
       <div class="xaxis"><span class="sk-ph" style="width:420px;height:9px"></span></div>
       <div class="legend" id="skLegend"></div>

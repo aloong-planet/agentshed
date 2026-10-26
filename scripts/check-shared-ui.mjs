@@ -9,9 +9,11 @@
 // so one page can hold several kinds of chart (trend / pie / line …), each declaring its own id without
 // interfering.
 //
-// Adding a kind of shared block = one more entry in SHARED_BLOCKS; adding a use site = the declaration
-// attribute on the page.
-// Neither requires changing this script's logic.
+// A shared block is known by its files: _shared/<id>.css and _shared/<id>.js are block <id>'s assets, apart from
+// the common libraries (COMMON_LIBRARIES), which pages share without being a visual block. Adding a kind of shared
+// block = adding its files; adding a use site = the declaration attribute on the page. Neither requires changing
+// this script; only what a file name cannot say about a block (its mount points, style invariants, app component)
+// goes in BLOCK_CONTRACTS.
 //
 // It also carries checks on the app's own code: the copy rules, hard-coded colours, the side chips, and the
 // app side of the shared blocks' style invariants and required props. Every check runs every time. None
@@ -27,31 +29,12 @@ import { JSDOM } from 'jsdom'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (p) => (existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), 'utf8') : null)
 
-/** The shared block registry: each entry describes one reusable visual block and its contract */
-const SHARED_BLOCKS = [
-  {
-    id: 'startup-status',
-    label: 'startup restoration scanning hint',
-    assets: ['_shared/startup-status.css', '_shared/startup-status.js'],
-    containers: []
-  },
-  {
-    id: 'file-drawer',
-    label: 'drawer reading one file of a skill package or a memory directory',
-    assets: ['_shared/file-drawer.css'],
-    containers: []
-  },
-  {
-    id: 'toast',
-    label: 'app toast notice',
-    assets: ['_shared/toast.css', '_shared/toast.js'],
-    containers: []
-  },
-  {
-    id: 'trend-chart',
-    label: 'provider stacked trend chart',
-    /** Resources a page declaring it must reference */
-    assets: ['_shared/trend-chart.css', '_shared/trend-chart.js'],
+/** The files in _shared/ that pages share without being a visual block: no page declares them */
+const COMMON_LIBRARIES = ['copy', 'icons', 'startup-skeleton', 'theme']
+
+/** What a block's file names cannot give, keyed by block id */
+const BLOCK_CONTRACTS = {
+  'trend-chart': {
     /** Mount points a page declaring it must have (appearing as an id attribute) */
     containers: ['xaxis', 'legend'],
     /** That block's style invariants: selector → declarations that must not appear (with the reason) */
@@ -65,34 +48,22 @@ const SHARED_BLOCKS = [
     ],
     /** The corresponding component on the app side, and its required props */
     appComponent: { name: 'TrendChart', requiredProps: ['archivedDays'] }
-  },
-  {
-    id: 'app-rail',
-    label: 'app navigation rail',
-    assets: ['_shared/app-rail.css', '_shared/app-rail.js'],
-    containers: []
-  },
-  {
-    id: 'project-side',
-    label: 'project column',
-    assets: ['_shared/project-side.css', '_shared/project-side.js'],
-    containers: []
-  },
-  {
-    // A project's own session search and global search draw their search row and hits from one piece
-    id: 'session-hits',
-    label: 'session search hits',
-    assets: ['_shared/session-hits.css', '_shared/session-hits.js'],
-    containers: []
-  },
-  {
-    // The app window's root styles live on this box, never on html or body (the candidates page reuses them)
-    id: 'app-window',
-    label: 'app window box',
-    assets: ['_shared/app-window.css'],
-    containers: []
   }
-]
+}
+
+/** The shared blocks, from their files: each _shared/<id>.css or .js that is not a common library is an asset of
+ * block <id>, which a page declaring the block must reference */
+function sharedBlocks() {
+  const dir = join(ROOT, 'docs/prototypes/_shared')
+  const assets = new Map()
+  for (const name of existsSync(dir) ? readdirSync(dir).sort() : []) {
+    const m = name.match(/^(.+)\.(css|js)$/)
+    if (!m || COMMON_LIBRARIES.includes(m[1])) continue
+    assets.set(m[1], [...(assets.get(m[1]) ?? []), `_shared/${name}`])
+  }
+  return [...assets].map(([id, files]) => ({ id, assets: files, containers: [], ...BLOCK_CONTRACTS[id] }))
+}
+const SHARED_BLOCKS = sharedBlocks()
 
 // ── Consistency between the settings page's palette samples and theme.css (issue #59) ──
 // The settings page's three theme cards each draw 4 swatches, sampling --card / --accent-soft /
@@ -239,6 +210,9 @@ const stripComments = (src) =>
   src.replace(/<!--[\s\S]*?-->|(<(script|style)\b[^>]*>)([\s\S]*?)(<\/\2\s*>)/gi, (comment, open, tag, body, close) =>
     open === undefined ? '' : open + (tag.toLowerCase() === 'script' ? stripJsComments(body) : stripCssComments(body)) + close
   )
+
+/** An opening tag, its attribute values quoted or bare (a `>` inside a quoted value does not end it) */
+const OPEN_TAG = /<[a-zA-Z][\w-]*(?:\s+[^\s=>"'/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"']+))?)*\s*\/?>/g
 
 /** Evaluate the registry the way a page does: a script that assigns window.DEMO_DIMENSIONS */
 function loadDimensions() {
@@ -538,17 +512,52 @@ const GLOBAL_RULES = [
     }
   },
   {
-    name: 'every chart container in a prototype must declare its shared block (otherwise consistency cannot be checked)',
+    // Each chart answers for itself: a chart without its own declaration is outside every block's check, however many
+    // other blocks its page declares. Read as text without comments rather than through JSDOM, so a chart written in a
+    // script template is judged as well
+    name: 'every chart container in a prototype declares its own shared block (otherwise consistency cannot be checked)',
     check() {
       const bad = []
       for (const f of prototypeHtmls()) {
-        const src = read(f) ?? ''
-        const charts = (src.match(/class="[^"]*\bchart\b[^"]*"/g) ?? []).length
-        if (charts === 0) continue
-        const declared = (src.match(/data-shared-block="[^"]+"/g) ?? []).length
-        if (declared < charts) {
-          bad.push(`${f}: ${charts} chart container(s) but only ${declared} declare data-shared-block`)
+        for (const [tag] of stripComments(read(f) ?? '').matchAll(OPEN_TAG)) {
+          const cls = tag.match(/\sclass="([^"]*)"/)
+          if (!cls || !cls[1].split(/\s+/).includes('chart')) continue
+          if (/\sdata-shared-block="[^"]+"/.test(tag)) continue
+          const id = tag.match(/\sid="([^"]*)"/)
+          bad.push(`${f}: chart container ${id ? `#${id[1]}` : tag} declares no shared block`)
         }
+      }
+      return bad
+    }
+  },
+  {
+    // A declaration naming no block is checked by nothing, and reads as if it were
+    name: 'every declaration on a prototype page names a shared block (a _shared/<id>.css or .js that is not a common library)',
+    check() {
+      const ids = new Set(SHARED_BLOCKS.map((b) => b.id))
+      const bad = []
+      for (const f of prototypeHtmls()) {
+        const unknown = new Set()
+        for (const m of stripComments(read(f) ?? '').matchAll(/data-shared-block="([^"]*)"/g)) if (!ids.has(m[1])) unknown.add(m[1])
+        for (const id of unknown) bad.push(`${f}: data-shared-block="${id}" names no shared block`)
+      }
+      return bad
+    }
+  },
+  {
+    // The two hand-kept lists: a stale entry would silently exempt a future file, or silently drop a block's checks
+    name: "the gate's common libraries and block contracts name files and blocks that exist",
+    check() {
+      const dir = join(ROOT, 'docs/prototypes/_shared')
+      const names = existsSync(dir) ? readdirSync(dir) : []
+      const bad = []
+      for (const lib of COMMON_LIBRARIES) {
+        if (!names.includes(`${lib}.css`) && !names.includes(`${lib}.js`)) {
+          bad.push(`scripts/check-shared-ui.mjs: COMMON_LIBRARIES lists ${lib}, but _shared has no ${lib}.css or ${lib}.js`)
+        }
+      }
+      for (const id of Object.keys(BLOCK_CONTRACTS)) {
+        if (!SHARED_BLOCKS.some((b) => b.id === id)) bad.push(`scripts/check-shared-ui.mjs: BLOCK_CONTRACTS has an entry for ${id}, which is no shared block`)
       }
       return bad
     }
@@ -886,10 +895,10 @@ for (const block of SHARED_BLOCKS) {
   const { problems, users } = checkBlock(block)
   if (problems.length) {
     failed += problems.length
-    console.error(`✗ shared block ${block.id} (${block.label})`)
+    console.error(`✗ shared block ${block.id}`)
     for (const p of problems) console.error(`    ${p}`)
   } else {
-    console.log(`✓ shared block ${block.id} (${block.label}) — all ${users.length} usage site(s) compliant`)
+    console.log(`✓ shared block ${block.id} — all ${users.length} usage site(s) compliant`)
   }
 }
 for (const r of GLOBAL_RULES) {

@@ -1,0 +1,34 @@
+# Green with the guard (2026-10-26; HEAD b23997e with the guard uncommitted, test 0934b8b6ddc2, gate d23a16115def)
+$ node --test scripts/check-shared-ui.test.mjs
+✔ the planted run fails, and only on what was planted (0.576333ms)
+✔ a page without its asset's link is reported, though its comment names the asset (0.069917ms)
+✔ a page without its asset's script is reported, though a script comment names the asset (0.060625ms)
+✔ a page without its asset's script is reported, though a comment after code on the same line names the asset (0.048459ms)
+✔ a // inside a string is not a comment: the code after it on the line is read (0.060084ms)
+✔ a // inside a regular expression is not a comment: the code after it on the line is read (0.050958ms)
+✔ a /* inside a string opens no comment: the code after it is read (0.046584ms)
+✔ a template's line that starts with // is read (0.04325ms)
+✔ a declaration left only in a comment does not declare the block (0.055167ms)
+✔ a mount point's id left only in a comment does not count (0.0965ms)
+✔ an asset named in a comment on a page that does not declare its block is not reported (0.068875ms)
+✔ a tab identity script left only in a comment does not count (0.043708ms)
+✔ a chart without its own declaration is reported, though its page declares the block on another chart (0.04725ms)
+✔ a chart whose declaration is only in a comment is reported (0.044666ms)
+✔ a chart written in a script template is judged as well (0.043291ms)
+✔ a declaration that names no shared block is reported (0.031833ms)
+✔ a block known only by its files is checked: totals-card's stylesheet removed (0.027458ms)
+✔ a block known only by its files is checked: md-preview's stylesheet removed, its declaration in a script template (0.0525ms)
+✔ a new shared stylesheet is a block: a page linking it without a declaration is reported (0.062ms)
+✔ a file added to a block joins its contract: a page declaring the block without referencing the file is reported (0.276292ms)
+✔ trend-chart's style invariant is still checked (0.04075ms)
+✔ trend-chart's app component is still checked for its required prop (0.029792ms)
+✔ a common library with no file in _shared is reported (0.026042ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1742.966
+exit=0

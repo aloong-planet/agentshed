@@ -28,9 +28,14 @@ Third round, begun 2026-10-26 on source commit ef5e4cb (origin/main): [#270](htt
 one branch and one PR. The requirement source is #270's body, with no spec. Scope: `scripts/check-shared-ui.mjs`, a new
 test of it, the `check:ui` script, and these work records; no prototype page changes.
 
+Fourth round, begun 2026-10-26 on source commit a40c926 (origin/main): [#314](https://github.com/aloong-planet/agentshed/issues/314),
+one branch and one PR. The requirement source is #314's body as rewritten on 2026-10-26 with the owner's decisions of
+that day (D1–D7 in `ticket-314-tasks.md`), with no spec. Scope: `scripts/check-shared-ui.mjs`, its test, the Agents page
+and the heading-ladder page (one attribute each), and these work records.
+
 This is a work index, not a requirement authority. The units below are #251's items and its "Done when"
-lines, then #250's items and #226's fix and verification lines, then #270's acceptance lines; each names the tier that
-backs it.
+lines, then #250's items and #226's fix and verification lines, then #270's acceptance lines, then #314's acceptance criteria; each names
+the tier that backs it.
 
 ## Source → verification
 
@@ -72,6 +77,12 @@ backs it.
 | 270::1 | #270 Acceptance: removing a page's real reference to any shared block's asset turns `pnpm check:ui` red, whether or not a comment on that page names the asset | Test: `scripts/check-shared-ui.test.mjs` on a copy of the prototypes — the issue's two mutations (the global search page without its `app-window.css` link, the project list page without its `project-side.js` script, each page's comment naming the file), each reported as "declares … but does not reference …"; and, by the owner's decision of 2026-10-26 (D3), the same with a `//` comment after code on the same line (the shell page without its `app-rail.js` script); red first on the unfixed gate; each page's comment pinned by the set-up |
 | 270::2 | #270 Acceptance: the check stays green on main | Gate: `pnpm check:ui` exit 0 |
 | 270::R1 | The same defect elsewhere in the gate (decision D1 in `ticket-270-tasks.md`): the shared-block check's declaration and mount-point searches and its reverse check, and the tab identity rule's `<head>` searches, read no comment | Test: the same file — a declaration moved into a comment, a mount-point id moved into a comment, an asset named in a comment on a page that does not declare the block (no report), and the tab identity script commented out; red first on the unfixed gate. With D3: a `//` inside a string does not end the line (the theme rule still reads `prefers-color-scheme` after a URL), red under a stripping that ends a line at any `//`; a `/*` inside a string opens no comment, and a template's line starting with `//` stays (both red on the gate before the one-pass stripping); a `//` inside a regular expression keeps the code after it (red under a stripping by the TypeScript scanner alone) |
+| 314::1 | #314: every chart container in a prototype page carries its own declaration; a chart without one turns `pnpm check:ui` red whatever other blocks the page declares, and a declaration in a comment does not count | Test: `scripts/check-shared-ui.test.mjs`, on the project detail page, which declares `trend-chart` on its own chart: a second chart without a declaration (its class a list of two tokens), and a chart whose declaration is only in a comment; each reported by its id; red first on the unfixed gate; a chart in a script template too |
+| 314::2 | #314: every `data-shared-block` value on a prototype page names a shared block; any other value turns `pnpm check:ui` red | Test: the same file, a declaration of a block with no shared file, and an empty declaration; red first on the unfixed gate |
+| 314::3 | #314: a block's contract comes from its files — a page declaring a block references each of its `_shared/<id>.css` and `.js`, a page referencing one declares the block | Test: the same file — totals-card's stylesheet removed, md-preview's stylesheet removed (its declaration in a script template), a new shared stylesheet linked without a declaration, a script added to totals-card that its pages lack; each red first on the unfixed gate |
+| 314::4 | #314: trend-chart's mount points, `.col` style invariant (the prototypes' and the app's sheets) and `<TrendChart>`'s `archivedDays` still hold | Test: the same file — the existing mount-point case, `overflow: hidden` planted on `.col` in the prototypes' sheet and in the app's, a `<TrendChart>` without `archivedDays` in the app's source (regression cases, green on the unfixed gate too, where the behaviour exists) |
+| 314::5 | #314: a listed common library with no file, or a block-specific entry keyed by an id that is no shared block, turns `pnpm check:ui` red | Test: the same file, a common library's file removed; Evidence: one run on a copy of the gate with the block-specific entry's key renamed |
+| 314::6 | #314: the Agents skeleton chart declares `trend-chart`, the heading-ladder page declares `md-preview`, and `pnpm check:ui` stays green on main | Gate: `pnpm check:ui` exit 0 |
 
 ## Current verification
 
@@ -113,6 +124,14 @@ backs it.
 | same | 270::2 | `pnpm check:ui` exit 0 on main's prototypes, in the full gateway at 8e9ddf4 (`gateway-8e9ddf4.txt`) | Verified |
 | same | 270::R1 | C, D, E, F (a declaration, a mount point, the reverse check, the tab identity) red first on the unfixed gate (`red-first.txt`); H, I, J, K (what D3 keeps: a `//` and a `/*` in strings, a template line starting with `//`, a `//` in a regular expression) red under the strippings they guard against (`naive-h.txt`, `red-first-3.txt`, `scanner-k.txt`); all twelve cases green (`green-4.txt`) | Verified |
 | same | all third-round units | `pnpm verify`, each step on its own, on 8e9ddf4 with a clean tree: typecheck, lint, test (873 passed, 1 skipped), test:scripts (137), test:site (107), check:ui (12 cases, then the gate), check:lang, check:i18n, check:nul, e2e (155 passed), smoke — every exit code 0 (`gateway-8e9ddf4.txt`) | Verified |
+| 2026-10-26; source #314's body; implementation 78ff2f5 (branch fix/check-ui-block-contracts on a40c926) | 314::1 | M1 (its class two tokens), M2, M3 report their charts by id; red first on a40c926's gate (`evidence/ticket-314/red-first.txt`, `red-first-2.txt`); M1 alone red under a whole-value class comparison (`token-match.txt`); green (`green-3.txt`) | Verified |
+| same | 314::2 | N1 (an unknown id) and N2 (an empty one) reported; red first on a40c926's gate; N2 alone red under a non-empty declaration pattern (`nonempty-declaration.txt`) | Verified |
+| same | 314::3 | P1, P2 (totals-card's and md-preview's stylesheets), P3 (a new shared stylesheet), P4 (a script added to totals-card) reported; red first on a40c926's gate | Verified |
+| same | 314::4 | D, T1 (the prototypes' sheet), T3 (the app's sheet), T2 (`archivedDays`) reported; all four red with the block-specific table emptied (`contracts-empty-2.txt`), green on a40c926 by design | Verified |
+| same | 314::5 | L1 reported, red first on a40c926's gate; the block-specific table's renamed key reported by the gate (`contracts-stale-key.txt`) | Verified |
+| same | 314::6 | `pnpm check:ui` exit 0 on the pages, in the full gateway at 78ff2f5 (`gateway-78ff2f5.txt`) | Verified |
+| same | all fourth-round units | `pnpm verify`, each step on its own, on 78ff2f5 with a clean tree: typecheck, lint, test (873 passed, 1 skipped), test:scripts (137), test:site (107), check:ui (25 cases, then the gate), check:lang, check:i18n, check:nul, e2e (155 passed), smoke — every exit code 0 (`gateway-78ff2f5.txt`) | Verified |
+| 2026-10-26; delivery head c751e33 (78ff2f5 plus the postmortem and the records) | all fourth-round units | `pnpm verify` on c751e33 with a clean tree, the same steps and counts, every exit code 0; the ticket-number rule reads the new postmortem (`gateway-c751e33.txt`) | Verified |
 
 ## Two-way audit
 
@@ -124,4 +143,5 @@ backs it.
 | Second round: #226's fix and its three verification lines each have a row. #226 names only the pages; the code review found the same template chrome in each `logic.js`, on the same receipt bar, and the owner added it on 2026-10-23 (226::R1). The `.mmd` files and `model.mmd.js` carry only diagram titles, which are content | #226 Fix, Verification; code review | Mapped |
 | Second round: the code review's class-level check of item 7 found two more header notes out of step with their bars, fixed in this round (250::R1) | #250 item 7; code review | Mapped |
 | #226 lists the page title as prototype content. The `<title>` keeps its Chinese "Prototype — " prefix, which every prototype page's tab title uses, so the gallery's tabs stay uniform | #226 Fix | Kept as content; listed by kind under 226::1 |
-| Third round: #270's two acceptance lines each have a row (270::1, 270::2). The class-level check of the defect found the same raw-text search in the shared-block check's other searches and in the tab identity rule (270::R1, decision D1). The chart container rule's count — every declaration on the page against its chart containers — is a different defect, reported to the owner and not in this round | #270 Acceptance; `ticket-270-tasks.md` | Mapped |
+| Third round: #270's two acceptance lines each have a row (270::1, 270::2). The class-level check of the defect found the same raw-text search in the shared-block check's other searches and in the tab identity rule (270::R1, decision D1). The chart container rule's count — every declaration on the page against its chart containers — is a different defect, reported to the owner and not in this round (opened as #314, the fourth round) | #270 Acceptance; `ticket-270-tasks.md` | Mapped |
+| Fourth round: #314's six acceptance criteria each have a row (314::1–314::6). They carry the owner's decisions of 2026-10-26: the unlisted blocks, the general rule and the file-derived contract (D3–D5) widen #314's first text, and the body was rewritten with them before the work | #314 Acceptance criteria and Decisions; `ticket-314-tasks.md` | Mapped |
