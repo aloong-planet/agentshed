@@ -376,3 +376,55 @@ one-paragraph description). **What was missing** — nothing: the page shows wha
 | `Pending:` notes in scope | `grep -n "Pending:" docs/specs/landing-page.md`: no output | Row set empty |
 | New general rules this round | none: a rule was dropped, not made | Row set empty |
 | A requirement narrowed with the owner's approval | landing-page::REQ-007; the checklist's source, planned-verification, current-verification and audit rows | Recorded in the checklist (removal mapping in its two-way audit); no ID retired or reused |
+
+## Ticket #253 — Upgrade the GitHub Actions in the three workflows to their current majors
+
+- Date: 2026-10-26
+- Scope: this ticket's change only, `git diff 9685ccf` on branch `chore/actions-current-majors`: the three workflows'
+  action pins and one comment in `ci.yml`, `scripts/workflow-actions.test.mjs` (new), the release workflow test's
+  pinning case removed, `pnpm test:scripts`, the `CONTEXT.md` invariant, the release runbook's "Actions" bullet, the
+  coverage checklist's rows, #240's document sync checklist (one follow-up row), and this ticket's records
+- Version: 2e9d247 for code, workflows and tests (the full gateway ran on it,
+  `evidence/ticket-253/gateway-2e9d247.txt`); the commits after it change records and evidence only
+
+The two questions for the feature catalogue: **what became a lie** — nothing. The change is to the repository's
+workflows and a static test; no product code changed (`git diff --stat 9685ccf -- src site` is empty), and the app
+and the landing page behave as before. Distribution is outside the catalogue by the owner's choice (the specs index;
+mac-distribution's Out of Scope). **What was missing** — nothing: no user-visible behaviour was added or changed. So
+`docs/features/` is unchanged.
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| The three workflows' version comments (`# v7.0.1` and the rest, 24 lines) | each comment's commit resolved from that release's tag in the action's own repository (`evidence/ticket-253/actions-and-targets.txt`); the static test's third case (one commit names one release) | True |
+| `ci.yml`, the comment on `pnpm test:scripts` | `package.json`'s `test:scripts` (the packaging asset's tests, the release scripts' and workflow's tests, and `workflow-actions.test.mjs`) | True |
+| `scripts/workflow-actions.test.mjs`, its header (the rule, the two reasons, the gap) | the release workflow's gate job `env` and publish job `permissions`; the ruleset on `main` (20237985: CI's two jobs and the message-language job required); the cases beneath it | True after the code review's P1 (the required checks named in full) |
+| `scripts/release-workflow.test.mjs`, its header | its cases after the pinning case's removal: the header never listed pinning | True |
+| `CONTEXT.md`, the invariant "Every action in every workflow runs at a full commit, with its release in a comment" | the three workflows at 2e9d247; the static test; the ruleset; the owner's decisions (2026-10-18 for `release.yml`, 2026-10-26 for the other two) | True |
+| `docs/ops/mac-signing.md`, CI, "Actions" | the workflows; the static test; the `CONTEXT.md` invariant | True; "`ci.yml` uses tags" removed |
+| `docs/ops/mac-signing.md`, CI, "Tests" (unchanged line, re-read since its neighbour changed) | `scripts/release-workflow.test.mjs` still evaluates the conditions; `pnpm test:scripts` runs it | True |
+| `checklist.md`: the increment line, the "#253, regression" row and its current-verification row | the workflow's units in the spec; the gateway log; the manual run's evidence (`evidence/ticket-253/manual-run.txt`) | True; the tag tier's download stays Waiting, as the row says |
+| `ticket-240-doc-sync.md`, the follow-up row | #253's third acceptance item; the checklist's #253 row | True |
+| Specs, ADRs, features, prototypes | — | Row set empty: none changed. The spec's Testing Decisions ("The workflow conditions get a static test …") still describe `release-workflow.test.mjs`, which keeps every condition case; the pinning rule is a repository rule, not a release-line requirement, so its home is `CONTEXT.md`, not the spec. Not an ADR: easy to reverse, with its one trade-off (manual upgrades) stated in the invariant |
+
+### Stage 2: related declarations
+
+| Relation | Rows | Conclusion |
+|---|---|---|
+| File ↔ its index row | — | Row set empty: no file added or renamed in `docs/specs`, `docs/features` or `docs/adr`; `CONTEXT.md` has no index |
+| Rule ↔ template and generated documents | — | Row set empty: no rule or template changed |
+| One fact ↔ its other statements: which workflows are pinned, and to what | the scope `docs/specs docs/features docs/adr docs/ops docs/agents CONTEXT.md AGENTS.md README.md README.en.md site/README.md .github capabilities.toml package.json` (86 tracked files), searched for action names, `@v<n>`, "pinned", "full commit", "uses tags" and "moving tag" (`evidence/ticket-253/step8-searches.txt`): the invariant and the runbook's bullet (both changed); every other "pinned" is another sense (the landing page's showcase, chart labels, a test's language). Scripts in the scope: Han in six files (`README.md`, `README.en.md`, ADR-0015, ADR-0017, i18n's spec and entry), so the Chinese words for a workflow, for pinning or a fixed commit, and "Actions" were searched there: no output; the control, the Chinese word for download in `README.md`, matched 5 lines | Agree |
+| One fact ↔ its other statements: the workflows and their number | the same scope, searched for "two/three/both/every/all/each workflow(s)" and the three file names: the invariant, the runbook's bullet and its table (`release.yml` by name), `docs/ops/r2-setup.md:52` (`release.yml`'s two jobs) | Agree; nothing counts the workflows |
+| One fact ↔ its other statements: what `pnpm test:scripts` runs | `git grep -n 'test:scripts'` over tracked files: `ci.yml` (changed), `docs/ops/mac-signing.md:18` and `:136`, each naming one file it runs | Agree (the code review's C1) |
+| Rule ↔ the gate that holds it: every action at a full commit with its release in a comment, one commit per action | `scripts/workflow-actions.test.mjs` in `pnpm test:scripts`, which `pnpm verify` and CI's checks job run; seen red on `main`'s workflows (`evidence/ticket-253/red-first.txt`) | Held for the form. Not covered, and held by people (stated in the invariant and the test's header): which release a commit is, and whether it is the current major |
+
+### Stage 3: events
+
+| Event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed: the workflows the pinning rule covers (one → three) | statements that list which workflows are pinned: the stage-2 search; the runbook's "`ci.yml` uses tags" was the one, now rewritten | True |
+| `Pending:` notes in scope | `grep -n "Pending:" docs/specs/mac-distribution.md CONTEXT.md docs/ops/mac-signing.md`: no output (exit 1), the three files read (340, 768 and 160 lines, `evidence/ticket-253/step8-searches.txt`) | Row set empty |
+| New general rules this round | every action in every workflow at a full commit with its release in a comment, at one commit across workflows | Canonical home: `CONTEXT.md`'s invariant; the runbook points to it; the static test holds its form |
+| The review findings: the code review's P1 and C1; the post-implementation check (no finding, `ticket-253-review-tests.md`) | the test's header, `ci.yml`'s comment, the records | Each handled in place (the records) |
+| Work state changed | #253's issue (body rewritten on 2026-10-26: three workflows, the pinning rule, the records); the coverage checklist; this ticket's document sync checklist; #240's (the third item's follow-up); other records naming #253 (`rg -uu -l '#253' docs README.md README.en.md CONTEXT.md`: `ticket-234-review-code.md` and `ticket-234-tasks.md`, dated notes that the ticket was opened and blocked by #239) | Updated where they state this ticket's current state; the dated notes stay true: kept. #239's blocking item is met (the run of `v0.1.0-beta`), stated in #253's body |

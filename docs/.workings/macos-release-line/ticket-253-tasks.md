@@ -62,11 +62,43 @@ release line's requirements are [the mac-distribution spec](../../specs/mac-dist
 |---|---|---|---|
 | 1 | Facts: the current releases and commits, the release notes, the blocker | `evidence/ticket-253/` | done |
 | 2 | Records declared on #253 and its document sync checklist | `ticket-253-doc-sync.md`, the issue body | done: the issue body rewritten on 2026-10-26 (records, three workflows, the pinning rule) |
-| 3 | Test design review | `ticket-253-review-tests.md`, Design review | |
-| 4 | Slices: S1 the static test of every workflow; S2 the three workflows on the targets | the static test red on `main`'s workflows, green after; actionlint | |
-| 5 | Code review | `ticket-253-review-code.md` | |
-| 6 | Full gateway | `evidence/ticket-253/gateway-*.txt` | |
-| 7 | Independent post-implementation test check | `ticket-253-review-tests.md` | |
-| 8 | Spec check, step 7 write-back (`CONTEXT.md`, the runbook, the checklist's rows), step 8 | `final-regression.md` | |
-| 9 | Runs on the upgraded actions: CI on the pull request; a manual `release.yml` run with the switch off, its artifact downloaded | run links, `evidence/ticket-253/` | |
+| 3 | Test design review | `ticket-253-review-tests.md`, Design review | done: no finding; W3's row revised while writing it (the record's incremental note) |
+| 4 | Slices: S1 the static test of every workflow; S2 the three workflows on the targets | the static test red on `main`'s workflows, green after; actionlint | done: the three cases red on `main`'s workflows, each at its own assertion (`evidence/ticket-253/red-first.txt`); green after S2; actionlint 0 errors on the three files and shown able to fail (`evidence/ticket-253/targeted.txt`, `TARGETED_EXIT=0`) |
+| 5 | Code review | `ticket-253-review-code.md` | done: P1 (a cause in the new test's header stated wider than the ruleset) and C1 (`ci.yml`'s comment on `test:scripts`), both fixed before the commit; no refactoring |
+| 6 | Full gateway | `evidence/ticket-253/gateway-2e9d247.txt` | 2e9d247: `VERIFY_EXIT=0` on its clean tree (873 unit, 137 script tests, 107 site, 155 e2e in 4.9 min, smoke OK, actionlint 0 errors) |
+| 7 | Independent post-implementation test check | `ticket-253-review-tests.md` | done on 9685ccf..008b71f: no finding; no fix, so no incremental check |
+| 8 | Spec check, step 7 write-back (`CONTEXT.md`, the runbook, the checklist's rows), step 8 | `final-regression.md` | done: the spec check below; `CONTEXT.md` and the runbook written with the implementation commit; the checklist's current-verification row; step 8, the #253 section of `final-regression.md` |
+| 9 | Runs on the upgraded actions: CI on the pull request; a manual `release.yml` run with the switch off, its artifact downloaded | run links, `evidence/ticket-253/` | The manual run done: 40265409861 on 008b71f, green; pnpm switched to 9.12.3; the artifact downloaded, its digest equal to the upload's (`evidence/ticket-253/manual-run.txt`). CI: on the pull request |
 | 10 | PR; stop for the owner | PR link | |
+
+## Targeted verification (step 4)
+
+The tests that read what this change touched, found by search rather than recalled (`evidence/ticket-253/targeted.txt`):
+the workflows are read by `scripts/release-workflow.test.mjs` and the new `scripts/workflow-actions.test.mjs`;
+`package.json` by `scripts/release-tag.test.mjs` and `build/mac-packaging.test.cjs`. All four are in `pnpm test:scripts`,
+which passed (137), with typecheck, lint, the language and NUL checks, and actionlint. No product code changed, so no
+unit or e2e test reads the change.
+
+## Spec check before step 7 (2026-10-26, implementation 2e9d247, spec as on `main`)
+
+| Unit | Spec text, in short | Implementation | Conclusion |
+|---|---|---|---|
+| mac-distribution::REQ-002, US-002/AC-02, AC-03, AC-05, REQ-001/AC-03, REQ-003, CON-003 | the tiers, the gates, the kept artifacts and logs, the publication, the fail-closed credentials | `release.yml`'s jobs, conditions, steps and inputs unchanged; only each action's commit moved. The static workflow test's condition cases pass unchanged; the manual run without the switch took the local tier on the new actions | Met, unchanged |
+| Testing Decisions, "The workflow conditions get a static test …" | a static test of the conditions, a regression guard only | `release-workflow.test.mjs` keeps every condition case; its pinning case moved to the new test of every workflow | True |
+| Implementation Decisions, "A release workflow …" | the gate, publish, mirror and pointer jobs | unchanged | True |
+
+Scope added without a spec line: the static test of every workflow and the rule it holds — a repository rule, stated in
+`CONTEXT.md`'s invariants rather than in a feature's spec. Deviations from the spec: none.
+
+## Deferred acceptance
+
+#253's third item — the publish job's download step on download-artifact v8 — runs only on a tag push. Arrangement, as
+the ticket states it ("Waiting: the next release tag"), written by the owner's choice when the ticket was cut
+(2026-10-18) and kept in the body rewritten on 2026-10-26:
+
+- Trigger: the next release tag's run (the next pre-release, #240, is the one planned).
+- Verifier: whoever cuts that tag.
+- Method: the publish job's "Download" step and the publish step after it pass, reading the gate job's artifact.
+- Evidence: the run's link on #253 (its item ticked when it passed) and a current-verification row in
+  [checklist.md](checklist.md) against the "#253, regression" row; the follow-up is listed in
+  [ticket-240-doc-sync.md](ticket-240-doc-sync.md).
