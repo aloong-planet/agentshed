@@ -60,7 +60,7 @@ with no visible effect (`/to-spec`'s prototype gate) applies, so no prototype ro
 | 4 | Slice: the new cases red on the unfixed gate; the gate and the two pages changed; all green | the red and green runs in `evidence/ticket-314/` | done: the nine new cases for missing behaviour red on a40c926's gate with the new pages, T1, T2, C and G0 green there (`red-first.txt`); all 23 green after, and the gate green on the pages (`green.txt`); the table emptied turns exactly D, T1 and T2 red (`contracts-empty.txt`); a renamed table key is reported (`contracts-stale-key.txt`) |
 | 5 | Targeted verification | `evidence/ticket-314/targeted*.txt` | done: `targeted.txt`, `TARGETED_EXIT=0`, and the artifacts test the search found (it only names a prototype page in its own fixtures) |
 | 6 | Code review | `ticket-314-review-code.md` | done: finding 1 (the harness could write the repository through its links), fixed by a guard; shown failing first on a scratch tree; the first attempt at showing it wrote the worktree, verified and restored (recorded there); targeted again, `targeted-2.txt` |
-| 7 | Full gateway | `evidence/ticket-314/gateway-*.txt` | |
+| 7 | Full gateway | `evidence/ticket-314/gateway-*.txt` | 4f5607a: `VERIFY_EXIT=0` on a clean tree (873 unit, 137 script, 107 site, `check:ui` 23 cases then the gate, 155 e2e, smoke OK) |
 | 8 | Independent post-implementation test check | `ticket-314-review-tests.md` | |
 | 9 | Source check, write-back, step 8 | `final-regression.md` | |
 | 10 | PR; CI; stop for the owner | PR link | |
