@@ -210,9 +210,35 @@ function pageDimensions(code) {
   return { tag, follows, sets: code.includes('DemoDimensions.set(') }
 }
 
-/** A page's code with comments removed: comments may describe the wiring, only markup and code count */
+/** An inline script's code without its JS comments. The parser finds them, so a `//` after code on the same line is a
+ * comment, and a `//` inside a string, a template or a regular expression is not */
+function stripJsComments(code) {
+  const sf = ts.createSourceFile('inline.js', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+  const comments = new Map()
+  const visit = (node) => {
+    const around = [...(ts.getLeadingCommentRanges(code, node.getFullStart()) ?? []), ...(ts.getTrailingCommentRanges(code, node.getEnd()) ?? [])]
+    for (const r of around) comments.set(r.pos, r.end)
+    for (const child of node.getChildren(sf)) visit(child)
+  }
+  visit(sf)
+  let out = ''
+  let at = 0
+  for (const [pos, end] of [...comments].sort((a, b) => a[0] - b[0])) {
+    if (pos < at) continue
+    out += code.slice(at, pos)
+    at = end
+  }
+  return out + code.slice(at)
+}
+
+/** A page's code with comments removed: comments may describe the wiring, only markup and code count. HTML comments
+ * and block comments by pattern, an inline script's JS comments by the parser (stripJsComments) */
 const stripComments = (src) =>
-  src.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  src
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/(<script\b[^>]*>)([\s\S]*?)(<\/script>)/gi, (_, open, body, close) => open + stripJsComments(body) + close)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
 
 /** Evaluate the registry the way a page does: a script that assigns window.DEMO_DIMENSIONS */
 function loadDimensions() {

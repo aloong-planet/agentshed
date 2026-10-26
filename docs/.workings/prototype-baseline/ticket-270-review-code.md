@@ -61,3 +61,40 @@ repository through links and never writes through them (the plants write to the 
 ### Refactoring list
 
 None.
+
+## Layered review — the parser's comment stripping (2026-10-26, decision D3, on 30a2fee, uncommitted)
+
+Scope: `stripJsComments` (new) and the step of `stripComments` that applies it to each inline `<script>`; the test's
+cases G and H and its set-up assertion (reviewed in the test review).
+
+### Underlying premises
+
+- The parser's comment ranges are where the comments are: `ts.getLeadingCommentRanges` and `getTrailingCommentRanges`
+  at every node of the parsed script, the way TypeScript itself attaches trivia. On today's pages they find 355 ranges
+  in 33 inline scripts, 38 of them after code on the same line, none overlapping (`evidence/ticket-270/comment-ranges.txt`).
+  A `//` inside a string is not trivia, so it stays: case H, red under a stripping that ends a line at any `//`.
+- Self-check before handing the fix over, item 1 (the change against its requirement): #270's acceptance — removing a
+  page's real reference goes red "whether or not a comment on that page names the asset". With the fix, the comment
+  forms the pages use are each removed: HTML, `/* */`, a whole-line `//`, a `//` after code (cases A–G).
+
+### Runnability
+
+- `check:ui` passes on main with the parser in every rule that reads pages without comments (`green-2.txt`); its run
+  time rose from about 1.05 s to 1.6 s, each page's scripts being parsed once per such rule (`comment-ranges.txt`).
+- An inline script the parser cannot fully parse still yields a tree, and its comment ranges; a `</script>` inside a
+  string ends the match early, as it ends the script in a browser.
+
+### Security
+
+No finding: gate code, reading the repository's own pages.
+
+### Consistency
+
+- `stripComments` serves six call sites; each now reads inline scripts without their JS comments, which is the rule's
+  intent for all of them (its doc comment: only markup and code count). The block-comment and whole-line `//` patterns
+  stay, for `<style>` blocks and the CSS files the theme rule reads.
+- Smells: none. The `pos < at` guard is defensive, unreached on today's pages (the test review's self-check).
+
+### Refactoring list
+
+None.

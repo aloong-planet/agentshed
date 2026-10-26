@@ -19,15 +19,34 @@ const PLANTS = {
   // The issue's two mutations: each page's comment names the asset whose real reference goes
   'global-search/prototype-search.html': [['<link rel="stylesheet" href="../_shared/app-window.css">\n', '']],
   'project-list/prototype-list.html': [['  <script src="../_shared/project-side.js"></script>\n', '']],
+  // The same with a comment after code on the same line
+  'shell/prototype-app-shell.html': [
+    ['  <script src="../_shared/app-rail.js"></script>\n', ''],
+    ["  let lang='zh';\n", "  let lang='zh'; // the rail is drawn by ../_shared/app-rail.js\n"],
+    // An asset named in a comment on a page that does not declare its block
+    ['<style>\n', "<style>\n/* the toasts' styles live in ../_shared/toast.css */\n"]
+  ],
+  // A // inside a string is no comment: the code after it on the line still counts
+  'session-view/prototype-session.html': [
+    [
+      "  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n",
+      "  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n  const docsUrl = 'https://example.test/'; const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')\n"
+    ]
+  ],
   // A declaration and a mount point that survive only in a comment
   'agents-page/prototype-agents.html': [
     ['<div class="chart" id="chart" data-shared-block="trend-chart"></div>', '<!-- data-shared-block="trend-chart" --><div class="chart" id="chart"></div>']
   ],
   'project-detail/prototype-detail.html': [['<div class="xaxis" id="ovxaxis"></div>', '<!-- id="ovxaxis" --><div class="xaxis"></div>']],
-  // An asset named in a comment on a page that does not declare its block
-  'shell/prototype-app-shell.html': [['<style>\n', "<style>\n/* the toasts' styles live in ../_shared/toast.css */\n"]],
   // The tab identity script, commented out
   'skills-view/prototype-skills-preview.html': [['<script src="../app-identity.js"></script>', '<!-- <script src="../app-identity.js"></script> -->']]
+}
+
+/** Pages whose case needs a comment still naming the asset once its real reference is gone, or the case plants nothing */
+const NAMED_IN_A_COMMENT = {
+  'global-search/prototype-search.html': '_shared/app-window.css',
+  'project-list/prototype-list.html': '_shared/project-side.js',
+  'shell/prototype-app-shell.html': '_shared/app-rail.js'
 }
 
 /** Run the gate on a planted copy; returns its exit code and output */
@@ -47,6 +66,8 @@ function runGate() {
         assert.equal(html.split(from).length, 2, `${page}: the planted string must occur exactly once: ${from}`)
         html = html.replace(from, to)
       }
+      const asset = NAMED_IN_A_COMMENT[page]
+      assert.ok(!asset || html.includes(asset), `${page}: no comment names ${asset} any more — plant one, or this case tests nothing`)
       writeFileSync(file, html)
     }
     const r = spawnSync(process.execPath, [join(root, 'scripts/check-shared-ui.mjs')], { encoding: 'utf8' })
@@ -73,6 +94,14 @@ test("a page without its asset's link is reported, though its comment names the 
 
 test("a page without its asset's script is reported, though a script comment names the asset", () => {
   assert.ok(reported('docs/prototypes/project-list/prototype-list.html: declares project-side but does not reference _shared/project-side.js'), run.out)
+})
+
+test("a page without its asset's script is reported, though a comment after code on the same line names the asset", () => {
+  assert.ok(reported('docs/prototypes/shell/prototype-app-shell.html: declares app-rail but does not reference _shared/app-rail.js'), run.out)
+})
+
+test('a // inside a string is not a comment: the code after it on the line is read', () => {
+  assert.ok(reported('docs/prototypes/session-view/prototype-session.html: follows the mode but still styles by prefers-color-scheme'), run.out)
 })
 
 test('a declaration left only in a comment does not declare the block', () => {

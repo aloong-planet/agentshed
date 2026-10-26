@@ -1,0 +1,273 @@
+# Targeted verification — #270
+date: 2026-10-26T08:37:59Z
+HEAD: 30a2fee78cc93be6e46fe76502795cfbf58463da
+working tree (git status --porcelain --untracked-files=all, with git hash-object):
+  A  docs/.workings/prototype-baseline/evidence/ticket-270/comment-ranges.txt 3389aab5fb3ff52440809533688dd8658f1c133d
+  A  docs/.workings/prototype-baseline/evidence/ticket-270/ranges.mjs 99ee8cf2b8071337e84607c8766a20ad4ec82122
+  M  docs/.workings/prototype-baseline/ticket-270-review-tests.md 1e8c3248dc64dba4764026119bd1ed654bbe21e7
+  M  docs/.workings/prototype-baseline/ticket-270-tasks.md 6067fec2b03f9b5deeb767583483cfcde61f3729
+   M scripts/check-shared-ui.mjs bdcdc3791fc50f9767bb65d8117f7cbf298ce02f
+   M scripts/check-shared-ui.test.mjs b7aa88bbc294c288d45ae0c9957a88e9310fad1c
+
+## Which tests read what this change touched (search, not recall)
+$ grep -rln --include='*.test.*' -e 'check-shared-ui' scripts build src e2e site/test
+scripts/check-lang.test.mjs
+scripts/check-shared-ui.test.mjs
+exit=0
+$ grep -rln --include='*.test.*' -e 'package.json' scripts build src e2e site/test
+scripts/release-tag.test.mjs
+build/mac-packaging.test.cjs
+exit=0
+$ grep -rn -e 'check:ui' -e 'check-shared-ui' .github scripts package.json
+.github/workflows/ci.yml:43:      - run: pnpm check:ui
+scripts/check-lang.mjs:199:    match: (f) => f === 'scripts/check-shared-ui.mjs',
+scripts/check-lang.test.mjs:25:  'scripts/check-shared-ui.mjs': `const side = /${CN}/\n`,
+scripts/check-shared-ui.test.mjs:61:    cpSync(join(repo, 'scripts/check-shared-ui.mjs'), join(root, 'scripts/check-shared-ui.mjs'))
+scripts/check-shared-ui.test.mjs:73:    const r = spawnSync(process.execPath, [join(root, 'scripts/check-shared-ui.mjs')], { encoding: 'utf8' })
+package.json:22:    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:scripts && pnpm test:site && pnpm check:ui && pnpm check:lang && pnpm check:i18n && pnpm check:nul && pnpm e2e && pnpm smoke",
+package.json:24:    "check:ui": "node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs",
+exit=0
+
+$ pnpm check:ui
+
+> agentshed@0.1.0-beta check:ui /Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-270
+> node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs
+
+✔ the planted run fails, and only on the planted pages (0.497791ms)
+✔ a page without its asset's link is reported, though its comment names the asset (0.069417ms)
+✔ a page without its asset's script is reported, though a script comment names the asset (0.053833ms)
+✔ a page without its asset's script is reported, though a comment after code on the same line names the asset (0.051583ms)
+✔ a // inside a string is not a comment: the code after it on the line is read (0.056833ms)
+✔ a declaration left only in a comment does not declare the block (0.048917ms)
+✔ a mount point's id left only in a comment does not count (0.051042ms)
+✔ an asset named in a comment on a page that does not declare its block is not reported (0.266792ms)
+✔ a tab identity script left only in a comment does not count (0.069084ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2127.893833
+✓ shared block startup-status (startup restoration scanning hint) — all 5 usage site(s) compliant
+✓ shared block file-drawer (drawer reading one file of a skill package or a memory directory) — all 4 usage site(s) compliant
+✓ shared block toast (app toast notice) — all 2 usage site(s) compliant
+✓ shared block trend-chart (provider stacked trend chart) — all 2 usage site(s) compliant
+✓ shared block app-rail (app navigation rail) — all 11 usage site(s) compliant
+✓ shared block project-side (project column) — all 5 usage site(s) compliant
+✓ shared block session-hits (session search hits) — all 2 usage site(s) compliant
+✓ shared block app-window (app window box) — all 11 usage site(s) compliant
+✓ persistent documents must not reference ticket numbers (they outlive the tickets)
+✓ the Chinese and English READMEs reach each other (i18n::CON-001)
+✓ settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)
+✓ dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)
+✓ dictionary copy must not name a rail control verbatim (a sentence outlives the control)
+✓ provider brand colours must not be hard-coded in components (use CSS variables)
+✓ components must not hard-code theme accent colours (use the --accent family)
+✓ side chip labels have one source: no hardcoded CLAUDE CODE / CODEX / GROK literal outside side-badge.ts
+✓ every chart container in a prototype must declare its shared block (otherwise consistency cannot be checked)
+✓ demo dimensions are set on the settings prototype alone and followed elsewhere (dimensions.js + demo-dimensions.js)
+✓ pages that follow the mode or theme take the app tokens from _shared/theme.css and never the system appearance
+✓ prototype pages draw the shared app rail, never their own
+✓ every prototype tab names its app (manifest.js PROTOTYPE_APP + app-identity.js)
+✓ prototype pages draw the shared project column, never their own
+
+Shared-UI consistency check passed
+exit=0
+
+$ node --test scripts/release-tag.test.mjs build/mac-packaging.test.cjs
+[mac] could not remove the temporary extraction /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-BGcJ8s: ENOTEMPTY, Directory not empty: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-BGcJ8s '/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-BGcJ8s'
+[mac] could not remove the temporary extraction /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-0Znk89: ENOTEMPTY, Directory not empty: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-0Znk89 '/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/mac-zip-0Znk89'
+▶ configuration
+  ✔ reads the DMG target architectures in config order (1.326375ms)
+  ✔ fails on no dmg target (0.313542ms)
+  ✔ fails on an unknown arch (0.131625ms)
+  ✔ fails on an arch listed twice (0.082125ms)
+  ✔ product name, version, output directory and arches come from the project files (0.271959ms)
+  ✔ a zip target with the dmg target's arches opts the ZIP in, in whatever order it lists them (0.190042ms)
+  ✔ the ZIP opt-in is refused before building with a zip target for other arches (0.130417ms)
+  ✔ the ZIP opt-in is refused before building with a zip target without an arch list (0.094875ms)
+  ✔ the ZIP opt-in is refused before building with no mac.artifactName (0.085542ms)
+  ✔ the ZIP opt-in is refused before building with another mac.artifactName (0.118875ms)
+  ✔ the ZIP opt-in is refused before building with the DMG still written into the update metadata (0.083125ms)
+  ✔ an output directory using a macro other than ${version} is refused rather than guessed (0.088541ms)
+  ✔ the DMG name pattern is required, and the error says what to write (0.111292ms)
+  ✔ the DMG must be signed, and the error says what to write (0.093959ms)
+  ✔ a config without productName is refused (0.080792ms)
+  ✔ js-yaml comes from electron-builder's dependency tree, and its absence is explained (18.324375ms)
+✔ configuration (22.419125ms)
+▶ certificate source check
+  ✔ a Developer ID Application identity in the keychain is accepted (0.23675ms)
+  ✔ no Developer ID Application identity fails with the install hint (0.111125ms)
+  ✔ CSC_LINK is accepted without reading the keychain, since the builder imports it (0.049833ms)
+  ✔ an empty CSC_LINK does not count as a certificate (0.060916ms)
+✔ certificate source check (0.559833ms)
+▶ locating the built apps
+  ✔ identifies each app by its binary architectures, whatever its directory is called (3.495416ms)
+  ✔ fails when nothing has been built (0.492875ms)
+  ✔ fails when an arch is missing (2.53775ms)
+  ✔ fails when a binary has unexpected architectures (4.325417ms)
+  ✔ fails when a crashed universal build left its arm64 temp app behind (4.080792ms)
+  ✔ fails on a leftover app for an arch the config no longer lists (2.436208ms)
+✔ locating the built apps (17.711541ms)
+▶ one build, local profile
+  ✔ builds the apps and DMGs in one builder call with notarization off and no hook, then checks every signature (4.237583ms)
+  ✔ fails before building anything when there is no certificate (0.42125ms)
+  ✔ fails on an ad-hoc signature instead of shipping it (4.092084ms)
+  ✔ fails on an App Store signature instead of shipping it (3.188792ms)
+  ✔ fails when the builder left no DMG for an arch (3.422125ms)
+  ✔ fails when a DMG is signed by a different team from the app inside it (5.998709ms)
+✔ one build, local profile (21.608292ms)
+▶ one build, release profile
+  ✔ adds this file as the afterSign hook to the same builder call, and confirms every app carries its ticket (4.93275ms)
+  ✔ refuses to build without every Apple credential (0.369166ms)
+  ✔ fails when an app came out of the build without a stapled ticket (the hook did not run on it) (3.727042ms)
+✔ one build, release profile (9.166042ms)
+▶ one build with the ZIP electron-updater installs from
+  ✔ local packaging checks the app inside each ZIP in a temporary extraction, which it removes, and asks for no ticket (8.266583ms)
+  ✔ release packaging also requires the app inside each ZIP to carry its stapled ticket (8.668917ms)
+  ✔ a ZIP whose app has no stapled ticket fails the release, even though the built app has one (7.191292ms)
+  ✔ a ZIP whose app has no Developer ID Application authority fails, even though the built app is signed correctly (6.289833ms)
+  ✔ a ZIP whose app has another Team ID fails, even though the built app is signed correctly (6.464333ms)
+  ✔ a ZIP whose app has no secure timestamp fails, even though the built app is signed correctly (6.056792ms)
+  ✔ an extraction that cannot be fully removed leaves the outcome of a check that passed as it is (9.690875ms)
+  ✔ an extraction that cannot be fully removed leaves the outcome of a check that failed as it is (7.776625ms)
+  ✔ a ZIP that holds more than the app fails (6.87925ms)
+  ✔ the ZIP is never written: its bytes and time are the builder's, and only the extraction names it (8.653958ms)
+  ✔ fails when the builder left no ZIP for an arch (6.375917ms)
+✔ one build with the ZIP electron-updater installs from (82.915792ms)
+▶ a rebuild leaves nothing from an earlier run behind
+  ✔ a DMG left over from an earlier run does not pass as this run's output (3.869084ms)
+  ✔ build output directories from an earlier run are cleared before the build, so a leftover app never reaches the hook (7.480916ms)
+  ✔ with the ZIP, leftover ZIPs and update metadata are cleared before the build (7.596125ms)
+  ✔ DMG-only, ZIPs and update metadata are left as they are (4.460291ms)
+  ✔ the notarization logs of the apps and DMGs being rebuilt are removed (4.26375ms)
+✔ a rebuild leaves nothing from an earlier run behind (27.895041ms)
+▶ afterSign hook: notarize each signed app before its DMG is built
+  ✔ zips, submits, keeps the log, staples and validates the app it is called for (3.6375ms)
+  ✔ does nothing for a Mac App Store build (1.44675ms)
+  ✔ fails without every Apple credential instead of skipping (2.56375ms)
+  ✔ a rejected app fails the build with the original error, unstapled (3.259084ms)
+✔ afterSign hook: notarize each signed app before its DMG is built (11.029709ms)
+▶ DMG gate: which DMGs
+  ✔ selects exactly the expected DMG for each configured arch, in config order (0.201042ms)
+  ✔ a missing DMG fails before any submission (0.074666ms)
+  ✔ a leftover DMG (another version, another name) fails rather than slipping past (0.07475ms)
+  ✔ the app inside a mounted DMG is looked up by the product name (0.3895ms)
+✔ DMG gate: which DMGs (0.806083ms)
+▶ the artifact set the DMG gate runs on
+  ✔ with the ZIP: the DMGs and ZIPs in config order, once the one update metadata file vouches for exactly those ZIPs; nothing is written (8.285833ms)
+  ✔ fails before any submission when a DMG is missing (5.170666ms)
+  ✔ fails before any submission when a ZIP is missing (9.122916ms)
+  ✔ fails before any submission when a ZIP under electron-builder's default name is left over (4.426542ms)
+  ✔ fails before any submission when a ZIP of another version is left over (4.784458ms)
+  ✔ fails before any submission when there is no update metadata (5.032792ms)
+  ✔ fails before any submission when there are several update metadata files (5.453291ms)
+  ✔ fails before any submission when the update metadata is for another version (5.24175ms)
+  ✔ fails before any submission when the update metadata lists a DMG (4.484208ms)
+  ✔ fails before any submission when the update metadata leaves a ZIP out (5.058291ms)
+  ✔ fails before any submission when the update metadata lists a ZIP twice (5.273417ms)
+  ✔ fails before any submission when the update metadata records another size (4.43475ms)
+  ✔ fails before any submission when the update metadata records another sha512 (5.186584ms)
+  ✔ DMG-only: ZIPs and update metadata are not part of the set (4.415625ms)
+✔ the artifact set the DMG gate runs on (77.027708ms)
+▶ DMG gate: signature and Apple results
+  ✔ accepts a Developer ID Application DMG with the right Team ID and a secure timestamp (0.192291ms)
+  ✔ refuses a DMG with no Developer ID Application authority (0.076208ms)
+  ✔ refuses a DMG with another Team ID (0.042792ms)
+  ✔ refuses a DMG with the timestamp turned off (0.040833ms)
+  ✔ an Accepted log must belong to this submission and carry no error (0.153167ms)
+  ✔ a submission must be Accepted with an id, and malformed output never passes (0.203542ms)
+✔ DMG gate: signature and Apple results (0.837084ms)
+▶ DMG gate: one DMG
+  ✔ runs verify → submit → log → staple → Gatekeeper → the app inside, then detaches and removes the mount point (0.408292ms)
+  ✔ a DMG without a secure timestamp fails before it is submitted (0.140542ms)
+  ✔ a rejection fetches the log for diagnosis but throws the original error (0.125166ms)
+  ✔ a failure inside the mounted image still detaches (forcing if needed), and cleanup never hides the cause (0.155584ms)
+✔ DMG gate: one DMG (0.908583ms)
+▶ command line
+  ✔ an unknown subcommand prints the usage (0.172625ms)
+  ✔ outside the project root it says so instead of guessing (0.4465ms)
+  ✔ the DMG gate checks the artifact set before running any command (8.919541ms)
+✔ command line (9.617958ms)
+✔ a tag matching the package version passes and gives the version (0.554166ms)
+✔ a tag that differs from the package version fails, naming the tag the version needs (0.2475ms)
+✔ a version with build metadata, or one that is not semver, is refused even when the tag matches (0.100709ms)
+✔ the command passes a matching tag, and fails with both versions on a mismatch or with no tag (152.449333ms)
+ℹ tests 90
+ℹ suites 13
+ℹ pass 90
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 354.086083
+exit=0
+
+$ pnpm lint
+
+> agentshed@0.1.0-beta lint /Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-270
+> eslint . --max-warnings 0
+
+exit=0
+
+$ pnpm check:lang
+
+> agentshed@0.1.0-beta check:lang /Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-270
+> node --test scripts/check-lang.test.mjs && node scripts/check-lang.mjs
+
+✔ the seeds alone pass, one permitted line each (267.443875ms)
+✔ Chinese in the skill's copy docs/prototypes/index.html is reported like any other tooling (245.618875ms)
+✔ Chinese in the skill's copy docs/prototypes/app-identity.js is reported like any other tooling (259.145875ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-dimensions.js is reported like any other tooling (252.917625ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-harness.js is reported like any other tooling (251.3965ms)
+✔ Chinese in the skill's copy sync-mmd.mjs is reported, since .mjs is not an exempt type (286.066042ms)
+✔ Chinese stays permitted in a mockup page (393.883916ms)
+✔ Chinese stays permitted in a logic page that shares the gallery shell’s file name (245.703791ms)
+✔ Chinese stays permitted in the manifest, whose names and questions address the reviewer (233.561584ms)
+✔ Chinese stays permitted in the dimension registry, whose labels address the reviewer (239.866083ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2729.775792
+✓ Working language: 2270 line(s) of Chinese, each permitted by a stated rule
+    rule · 1 file(s) · side-count detection patterns quote the languages they scan; pattern literals only, not prose
+    rule · 1 file(s) · the source-language dictionary — the values are the copy itself, while the comments are English like the rest of the repository
+    rule · 1 file(s) · the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English
+    rule · 16 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
+    rule · 3 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
+    rule · 38 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+    rule · 1 file(s) · the Chinese README — a localisation is written in the language it localises into
+    rule · 2 file(s) · the language switcher rows and the selector list — a language is named in its own script
+exit=0
+
+$ pnpm check:nul
+
+> agentshed@0.1.0-beta check:nul /Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-270
+> node --test scripts/check-raw-nul.test.mjs && node scripts/check-raw-nul.mjs
+
+✔ accepts real PNG and ICNS artwork under new filenames (220.312541ms)
+✔ rejects NUL-bearing source even alongside valid artwork (136.393125ms)
+✔ does not exempt unrecognised content in pretend.png (75.317875ms)
+✔ does not exempt unrecognised content in pretend.icns (72.59ms)
+✔ does not exempt unrecognised content in binary.dat (80.65075ms)
+✔ accepts searchable source with an escaped NUL (119.00275ms)
+✔ rejects a NUL in a new file that is not staged yet (128.7965ms)
+✔ does not scan a git-ignored file, such as build output (116.55025ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1003.565541
+✓ Raw NUL bytes: none in 1026 file(s) (120 binary-format file(s) exempt by signature)
+exit=0
+
+TARGETED_EXIT=0

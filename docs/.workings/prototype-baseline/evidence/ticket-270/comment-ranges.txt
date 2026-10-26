@@ -1,0 +1,7 @@
+# The parser's comment ranges on today's pages (node v24.19.0, typescript 5.9.3)
+$ node ranges.mjs   (kept beside this file)
+pages 17, inline scripts with code 33, comment ranges 355, starting inside an earlier one 0, after code on their line 38
+
+# The gate's run time, three runs each (/usr/bin/time -p, real seconds)
+d9b0208's gate: 1.40 1.04 1.05 
+with the parser: 1.58 1.61 1.59 
