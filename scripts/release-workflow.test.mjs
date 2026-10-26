@@ -216,14 +216,6 @@ test("the packages, the update files and Apple's logs are kept with the run, and
   assert.equal(run.env.GH_TOKEN, '${{ github.token }}')
 })
 
-// The gate job holds the signing certificate and Apple's credentials, and publishing can write releases: every
-// action runs at a reviewed commit, never at a tag that can move (the owner's decision, 2026-10-18)
-test('every action is pinned to a full commit', () => {
-  const uses = [...strings(workflow)].filter(({ path }) => path.endsWith('.uses'))
-  assert.ok(uses.length >= 6)
-  for (const { path, value } of uses) assert.match(value, /^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/, path)
-})
-
 /** Every string in the parsed workflow, with the path that leads to it */
 function* strings(value, path = []) {
   if (typeof value === 'string') yield { path: path.join('.'), value }

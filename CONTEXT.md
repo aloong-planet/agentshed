@@ -707,6 +707,15 @@ _Avoid_: beta mode, insider track, update track
   no longer fails a case; it shows only as that warning, so a warning on an unloaded run is a defect to look into, not
   noise. A new launch site closes through the helper rather than `app.close()`.
 
+- **Every action in every workflow runs at a full commit, with its release in a comment (settled 2026-10-26)**: a
+  tag can be moved to other code, and the workflows hold what must not run moved code — the release workflow the
+  signing certificate, Apple's credentials and write access to releases (2026-10-18), and the CI and message-language
+  jobs the checks a pull request needs to merge into `main` (#253). An action is written
+  `owner/repo@<40-hex commit> # v<x.y.z>`, at the same commit in every workflow that uses it; an upgrade resolves the
+  release's tag to its commit in the action's own repository and moves every workflow together.
+  `scripts/workflow-actions.test.mjs` holds the form for every file in `.github/workflows/`; which release a commit is,
+  and whether it is the current major, no offline check can tell.
+
 - **Agentshed's own code makes no outbound network request other than an update check and the download
   of the app update it finds (settled 2026-10-12; download wording 2026-10-13)**: the product is
   local-first — everything it shows is read from files on the user's machine — and updating is the one

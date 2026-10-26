@@ -18,6 +18,9 @@ Change of 2026-10-24 (the owner: the hero need not match the README): spec landi
 with uncommitted changes, committed with this checklist; scope is landing-page::REQ-007, narrowed to the
 heading, and the built-site check's case that held the dropped part. Not affected: every other unit of the
 three specs — no copy, structure or behaviour of the page changes, and the hero still reads as before.
+Increment of 2026-10-26 (#253, the workflows' actions at their current majors): no spec changes; scope is the
+release workflow's units, run again on the upgraded actions (the row marked "#253"). Not affected: every other unit —
+no condition, job, step order, artifact or credential of the workflow changes, only the commit each action runs at.
 
 This is a work index, not a requirement authority. The tickets were published on 2026-10-14 as
 #230–#241, with the prerequisite zhoulf1006/skillshed#18 (drafted as #230–#241 and zhoulf1006/skillshed#18, in that order);
@@ -295,6 +298,7 @@ asset's own tests.
 | landing-page::REQ-007 (#279, new; narrowed 2026-10-24) | The English heading | #279; narrowed without a ticket (2026-10-24) | Test: built-site check (the English heading equal to the spec's text) |
 | landing-page::US-001/AC-01, REQ-003, REQ-006, QR-001/AC-01, CON-002 (#279, regression) | Hero, structure, copy rules, layout across widths, two languages | #279 | Test: built-site check; Evidence: browser measurement at 400, 900, 1280 and 1440px |
 | landing-page Failures C1–C7, E2 (#279) | The features section's boundaries; what the shots show | #279 | Evidence: browser measurement (C1, C2, C3, C5, C7); C4 with REQ-005/AC-03; C6 with REQ-004/AC-05; E2 with REQ-005/AC-01 |
+| mac-distribution::REQ-002, US-002/AC-02, AC-03, AC-05, REQ-001/AC-03, REQ-003, CON-003 (#253, regression) | The tiers, the gates, the kept artifacts and logs, the publication and the fail-closed credentials, unchanged, on the actions' current majors | #253: the regression run on the upgraded actions | Test: the static workflow test (every case unchanged); Evidence: a manual run without the switch (checkout, pnpm/action-setup, setup-node, the local packaging and upload-artifact on the targets; its artifact downloaded); the publish job's download step on download-artifact v8 at the next release tag's run (Waiting: the next release tag, whoever cuts it) |
 | appearance Failure D4 (legacy) | Settings at the rail's bottom anchor; the update button above it while in flight | #230 | Test: e2e geometry (with app-update Failure G1) |
 | i18n "The application menu" (legacy) | Settings and "Check for Updates…" as entry points | #232 | Test: menu template unit |
 | Spec headers' Pending notes (feature entries) | app-update: written with the behaviour; landing-page: with the page live; mac-distribution: no feature entry, since the catalogue leaves distribution out (owner, 2026-10-19), its Pending note resolved into Out of Scope | #230 (app-update); #239 (the other two) | Evidence: the landing-page entry, the specs index and mac-distribution's Out of Scope |
