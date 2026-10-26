@@ -61,6 +61,13 @@ with no visible effect (`/to-spec`'s prototype gate) applies, so no prototype ro
 | 5 | Targeted verification | `evidence/ticket-314/targeted*.txt` | done: `targeted.txt`, `TARGETED_EXIT=0`, and the artifacts test the search found (it only names a prototype page in its own fixtures) |
 | 6 | Code review | `ticket-314-review-code.md` | done: finding 1 (the harness could write the repository through its links), fixed by a guard; shown failing first on a scratch tree; the first attempt at showing it wrote the worktree, verified and restored (recorded there); targeted again, `targeted-2.txt` |
 | 7 | Full gateway | `evidence/ticket-314/gateway-*.txt` | 4f5607a: `VERIFY_EXIT=0` on a clean tree (873 unit, 137 script, 107 site, `check:ui` 23 cases then the gate, 155 e2e, smoke OK) |
-| 8 | Independent post-implementation test check | `ticket-314-review-tests.md` | |
+| 8 | Independent post-implementation test check | `ticket-314-review-tests.md` | first round on a40c926..6664a7e: findings 1 (the app sheet's invariant undriven), 2 (the class token match undriven) and 3 (an empty declaration undriven), all handled by cases (T3, M1's second token, N2); the incremental check follows |
 | 9 | Source check, write-back, step 8 | `final-regression.md` | |
 | 10 | PR; CI; stop for the owner | PR link | |
+
+Self-check of the post-implementation check's fixes (2026-10-26), items 6 and 7: `red-first-2.txt`, `token-match.txt`,
+`nonempty-declaration.txt` and `contracts-empty-2.txt` each keep their commands, the gate copy's change by `diff`, the
+test's hash and HEAD with the test uncommitted, and their whole output; `green-3.txt` keeps its versions and whole
+output. The worktree was checked clean after each scratch run (only the test and the record changed). The records
+follow: the design increment, the test review's handling, the code review's self-check, this list, and the
+checklist's 314::1, 314::2 and 314::4 rows. No finding.

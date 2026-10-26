@@ -77,3 +77,6 @@ Refactor list: none.
 Self-check before handing finding 1's fix over (2026-10-26), item 1: the guard is a set-up assertion in the test; the
 gate is unchanged. The order slip: the guard was written before the test design table recorded it; the increment is
 recorded in `ticket-314-review-tests.md` and reviewed there.
+
+Self-check before handing over the post-implementation check's fixes (2026-10-26), item 1: no product code changed;
+the gate is unchanged (`green-3.txt` records it equal to HEAD's), the fixes are test cases only.

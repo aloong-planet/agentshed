@@ -106,3 +106,270 @@ part is scratch, which the test's own tree is not.
 
 False greens: the assertion runs before each write, so a plant cannot write first and fail after. Resource reuse:
 unchanged. Findings: none.
+
+### Incremental review — the post-implementation check's findings 1 to 3 (2026-10-26, before changing the test; implementation at 6664a7e)
+
+| # | Test | Unit | Input that drives the branch | Assertion and where the expected value comes from | Fixture shape | Expensive resource |
+|---|---|---|---|---|---|---|
+| M1 (changed) | a chart without its own declaration, written with a second class token | 314::1 (decision D8: the class is matched by its token) | as before, the planted element now `<div class="chart wide" id="ovchart2"></div>` | unchanged: `… prototype-detail.html: chart container #ovchart2 declares no shared block`. A rule comparing the whole class value, or searching for a literal `class="chart"`, would miss it; shown once on a copy of the gate whose match is the whole value. M2 and M3 keep the single token, so both forms are driven | a class list of several tokens, the pages' common form | as G0 |
+| N2 (new) | an empty declaration | 314::2 ("any other value turns `pnpm check:ui` red") | in `project-list/prototype-list.html`, add ` data-shared-block=""` to the `<b>Agentshed</b>` in the top bar (not a chart) | `docs/prototypes/project-list/prototype-list.html: data-shared-block="" names no shared block`; red on a40c926, which judges no declaration; shown once on a copy whose declaration pattern requires a non-empty value | the page's markup | as G0 |
+| T3 (new) | trend-chart's style invariant in the app's sheet | 314::4 (the app's half of the invariant) | in `src/renderer/src/theme.css`, the `.col` rule's `overflow: visible;`, anchored on the comment line before it (the bare declaration occurs twice in the sheet), becomes `overflow: hidden;` | `src/renderer/src/theme.css: .col violates an invariant (clipping the bar cuts off the tooltip pseudo-element positioned outside it)`. As T1: green on a40c926 by design, red on the copy with the block-specific table emptied | the app sheet's own rule | as G0 |
+
+Coverage, corrected: 314::4 — D, T1 (the prototypes' sheet), T3 (the app's sheet), T2. 314::1 — M1 now also drives the
+token match. 314::2 — N1 and N2 (an unknown id, an empty one). Case design: N2 is on the project list page beside N1 and
+B, its line distinct; T3's file is planted only by it. Resource reuse: unchanged. Findings: none.
+
+Self-check before handing the fix over (2026-10-26), items 2 to 5: the assertions written are N2's and T3's, one exact
+line each; M1's assertion is unchanged. Each was seen red where it guards: N2 on a40c926's gate (`red-first-2.txt`,
+ten red: the nine of the first red run and N2) and alone under a declaration pattern requiring a non-empty value
+(`nonempty-declaration.txt`); M1 alone under a whole-value class comparison (`token-match.txt`); T3, with D, T1 and T2,
+under the emptied table (`contracts-empty-2.txt`); T3 passes on a40c926 by design. No function changed; the plants use
+the pages' and the app sheet's own forms; no shared helper changed. All 25 green (`green-3.txt`).
+
+## Post-implementation check (2026-10-26, implementation 4f5607a, range a40c926..6664a7e; ticket #314)
+
+Scope: the test this change writes, `scripts/check-shared-ui.test.mjs` at 4f5607a — 23 cases: the eleven new ones (M1–M3,
+N1, P1–P4, T1, T2, L1), G0 and C changed, the ten others (A, B, D–K) re-keyed — with the harness's `src/` copy, its
+root-keyed `PLANTS` and `FILES`, and the set-up guard, against the Test design table above and its increment. First
+round; no fix range. 6664a7e adds only the gateway log and task 7's row in `ticket-314-tasks.md`; the gate, its test and
+the pages are byte-equal at 4f5607a and 6664a7e (`git diff --name-status 4f5607a 6664a7e`). Evidence read: the handed
+full gateway log `evidence/ticket-314/gateway-4f5607a.txt`, and beside it `red-first.txt`, `green.txt`, `green-2.txt`,
+`contracts-empty.txt`, `contracts-stale-key.txt`, `harness-probe-before.txt`, `harness-probe-after.txt`, `targeted.txt`
+and `targeted-2.txt`. No test was run by this check: every run result below comes from those logs; the rest comes from
+the code, the pages and the searches named where they are used. `capabilities.toml` was read with a TOML parser
+(`tomllib`) and checked against the repo-scaffold registry: all nine registered IDs present in their registered shapes,
+none extra (`macos-distribution` applies, `client-framework` being `"electron"`, and carries both profiles). By the
+project capability declaration, mutation-testing is not enabled, so mutation testing is skipped; each case's "when does
+it go red" is answered below from the code and its expected value's source.
+
+### Gateway log
+
+| Requirement (full-verification-gate) | In the log |
+|---|---|
+| Version: `git rev-parse HEAD`, porcelain status, a hash per listed file | `4f5607a8a3a0…` (line 3); status empty (lines 4–5), so no file to hash |
+| Every command, with its full output | the `pnpm verify` steps in `package.json`'s order, each on its own: typecheck, lint, test, test:scripts, test:site, check:ui, check:lang, check:i18n, check:nul, e2e, smoke. Lint and e2e run as the `lint` and `e2e-suite` declarations' `enforced-by` say |
+| Exit codes taken without a pipe | every step 0, then `VERIFY_EXIT=0` (line 691). The log does not show how the codes were taken; each step's output agrees with its code (pass counts with no failure; typecheck and lint print nothing, their success form; smoke's `Killed: 9` is the script ending its own dev parent, followed by `SMOKE_OK`) |
+| Version against the handed range | `git diff --name-status 4f5607a 6664a7e`: the log itself added (the run's own output) and task 7's row in `ticket-314-tasks.md` changed. Neither is read by the test (it copies `docs/prototypes/` and `src/`; the gate reads those, the ticket-number rule's four `docs/` directories and root files, never `docs/.workings/`), by ESLint (it ignores `docs/`) or by `check:i18n` (it walks `src/`). `check:lang` and `check:nul` list `git ls-files --cached --others --exclude-standard`, so they read both at 6664a7e; both files hold 0 CJK characters (control: 4799 in `prototype-agents.html`, same scan) and 0 NUL bytes, so their results stand there |
+
+The log is usable evidence for 6664a7e.
+
+### Written test against the Test design table
+
+| # | Seam and driving input | Assertion and expected value's source | Fixture | Resource | Result |
+|---|---|---|---|---|---|
+| G0 | gate CLI on the planted tree | `status === 1`; `problems.length > 0`; each problem starts with a `PLANTS` or `FILES` path or `scripts/check-shared-ui.mjs:` (test lines 157–163) | copied repository files | `runGate()` once, at module load | Matches |
+| C | both trend-chart declarations on the Agents page moved into comments (lines 67–70) | exact line, literal | the page's own markup | as G0 | Matches |
+| M1 | `#ovchart2` added after `#ovchart` (lines 75–78, one swap with M2) | exact line, literal | the page's chart markup | as G0 | Matches |
+| M2 | `<!-- data-shared-block="trend-chart" -->` then `#ovchart3`, same swap | exact line, literal | markup and comment forms | as G0 | Matches |
+| M3 | a string holding `#ovchart4`'s markup after `const pl = …` (line 80), inside the page's inline script (`prototype-detail.html:460–937`, the line at 464) | exact line, literal | markup in a script string | as G0 | Matches |
+| N1 | ` data-shared-block="pie-chart"` on the project list's top bar (line 34) | exact line, literal | the page's markup | as G0 | Matches |
+| P1 | the detail page's `totals-card.css` link removed (line 82) | exact line, literal (`checkBlock`'s message) | the page's own link | as G0 | Matches |
+| P2 | the skills preview's `md-preview.css` link removed (line 87); its declaration stays in the script template at `prototype-skills-preview.html:401`, inside the inline script at 224–783 | exact line, literal | the page's own link and declaration | as G0 | Matches |
+| P3 | `FILES` adds `_shared/side-note.css` (line 97); the search page links it after the theme link (line 29) | exact line, literal | `_shared/*.css` form; the page's link form | as G0 | Matches |
+| P4 | `FILES` adds `_shared/totals-card.js` (line 98) | the Agents page's line, literal | `_shared/*.js` form | as G0 | Matches |
+| T1 | `.col`'s `overflow: visible;` becomes `hidden` in `_shared/trend-chart.css` (line 90; the string occurs once, in `.col` at `:40–48`) | exact line, literal (the invariant's message as the gate holds it) | the sheet's own rule | as G0 | Matches; finding 1 is what it leaves out |
+| T2 | `archivedDays={snap.archivedDays}` removed from `DetailPane.tsx` (line 91) | exact line, literal | the app's own use site | as G0 | Matches |
+| L1 | `FILES` removes `_shared/startup-skeleton.css` (line 100) | exact line, literal | the repository's own library | as G0 | Matches |
+| Set-up (changed) | `assertInCopy` before each `PLANTS` and `FILES` write (lines 112–116, 130, 142) | the resolved path lies under the tree's real path, else the run stops with the designed message | the test's own paths | as G0 | Matches |
+
+The ten other cases changed only in their plants' keys, as the design says (`git diff a40c926 6664a7e --
+scripts/check-shared-ui.test.mjs`); their pages gained other cases' swaps (A's page P3's, B's N1's, D's M1–M3 and P1's,
+F's P2's), whose lines name other subjects. Test file header (Dimension: Coverage): it states the approach, why
+`docs/prototypes/` and `src/` are copied, and one gap — the block-specific table's stale-key check, run once on a copy of
+the gate — which is 314::5's Evidence (`contracts-stale-key.txt`). It states no gap for the app's sheet (finding 1).
+
+### Coverage
+
+No spec; the units are `314::*` in [checklist.md](checklist.md), from #314's acceptance criteria.
+
+| Unit | Driven by | Result |
+|---|---|---|
+| 314::1 | M1 (a chart without a declaration on a page declaring trend-chart on its own chart, among other blocks), M2 (a declaration only in a comment), M3 (a chart in a script template); each line absent on a40c926's gate (`red-first.txt`, lines 27–29) | Covered for charts whose class is `chart` alone; finding 2 |
+| 314::2 | N1 (`pie-chart`), absent on a40c926's gate (`red-first.txt`, line 30) | Covered for a non-empty unknown id; finding 3 |
+| 314::3 | P1 and P2 (the two blocks never listed; P2's declaration in a script template), P3 (a new block, reverse check), P4 (a block gaining a file); each absent on a40c926's gate (lines 31–34) | Covered |
+| 314::4 | D (mount point `xaxis`), T1 (the invariant in the prototypes' sheet), T2 (`<TrendChart>`'s prop); D, T1 and T2 red, and only they, on a copy of the gate with an empty block-specific table (`contracts-empty.txt`) | The prototypes' half of the invariant only; finding 1 |
+| 314::5 | L1, absent on a40c926's gate (line 37); the stale key by Evidence, as the criterion says: `contracts-stale-key.txt`, the gate alone on the worktree's files with the key renamed — exit 1, its one problem `BLOCK_CONTRACTS has an entry for trend-charts, which is no shared block`, while trend-chart, losing its contract, passes as an ordinary block | Covered |
+| 314::6 | the two attributes (`git diff a40c926 6664a7e -- docs/prototypes`); the gate step of `check:ui` at 4f5607a: md-preview 5 usage sites, trend-chart 2, the chart rule passing, exit 0 (gateway lines 390–418) | Covered |
+
+Boundary and empty inputs of the two new rules, each against a case:
+
+| Rule and input | Driven | If the code changed |
+|---|---|---|
+| chart rule: `class="chart"` alone | M1–M3, C | — |
+| chart rule: `chart` among other class tokens | no | whole-value or literal matching keeps every case green (finding 2) |
+| chart rule: `chart` inside another token (`chart-note`) | no | a regression to `\bchart\b` reports a non-chart, on main as soon as such a class exists (loud); no page has one (`rg -uu -o 'class="[^"]*chart[^"]*"' docs/prototypes`: three matches, all `class="chart"`), so the design's reasoning holds |
+| chart rule: a declaration naming an unknown block | N1's path | the declaration rule reports it |
+| chart rule: `data-shared-block=""` on a chart | no | the declaration rule reports `""` as well (loud while the code finding 3 names holds) |
+| declaration rule: an unknown non-empty id | N1 | — |
+| declaration rule: an empty value | no | `[^"]*` changed to `[^"]+` keeps every case green (finding 3) |
+| declaration rule: a common library's id | N1's path | `sharedBlocks` never yields a library, so it is unknown; a derivation that yielded libraries would report every page linking `theme.css` (loud) |
+
+The mount points: `legend`, the second entry, is not planted; #314's test line for them is "the existing mount-point
+case", so one entry is the owner's chosen coverage. `<TrendChart>`'s other use site (`AgentsPane.tsx:111`) is not
+planted either; the criterion names the prop, not the sites.
+
+Fixtures: every plant is a real page, sheet or source file, each in a form the repository already uses; the gate reads
+the two added files for their names only (and P3's sheet for `prefers-color-scheme`, which it lacks). They are
+independent of #314's text.
+
+Conclusion (Coverage): three gaps, findings 1–3; otherwise each criterion's cases are written, and the cases for
+missing behaviour were each seen red before the fix.
+
+### Case design
+
+- Public seam: the gate's command line; the cases read its output and exit code only. Every planted state is an edit a
+  contributor can make to a page, a sheet, the app's source or `_shared/`; none is unreachable.
+- Isolation: one temporary tree per file run, removed in `finally`; the cases share only the captured output, which
+  none changes.
+- Independence of the plants: the full planted output (`contracts-empty.txt`, lines 60–113: the same run but for D, T1
+  and T2's lines) shows every problem on a planted path, and each asserted line's subject (a chart id, a block and its
+  file, a path) produced by one plant only. P1 removes the detail page's `totals-card.css` link, which no other case
+  uses; L1 removes a file no rule reads for existence.
+- Set-up failure: a plant not found exactly once, a lost comment, or a path outside the copy throws at module load;
+  `harness-probe-after.txt` shows such a throw failing the file, exit 1 (`pass 0`, `fail 1`).
+
+Conclusion (Case design): no finding.
+
+### False greens
+
+| Form | Check |
+|---|---|
+| Constant truth | each case asserts one exact line (E: the absence of one prefix); G0 asserts exit 1 and a non-empty problem list before its loop |
+| Tautology | the expected lines are literals, not computed by the gate's code |
+| Stale path | the test copies the working tree's gate, the one `pnpm check:ui` runs (`package.json:24`) |
+| Silent skip on a condition | none; a set-up failure fails the file (Case design) |
+| Assertion that may not run | synchronous cases, no callbacks; G0's loop is guarded |
+| Presence for effect (gate) | specific report lines and the exit code, not the presence of output |
+| Synthetic path | the real CLI on real copies |
+| Command that cannot tell | exit 1 alone cannot (about 30 problems in one run); every case asserts its own line |
+| A new or changed gate never seen red | the test on a40c926's gate with the new pages: the nine cases for missing behaviour red, each at its own assertion, exit 1 (`red-first.txt`); T1, T2 and D red on the empty-table copy (`contracts-empty.txt`); the gate step alone red with a renamed key (`contracts-stale-key.txt`, exit 1), so each of `check:ui`'s two steps was seen red alone. Plants reached: after the fix every planted subject's line appears, and only its plant produces it |
+| The check's own command wrong | the parse `/^ {4}\S/` matches the gate's `    ${p}` print for blocks and rules alike (seen in `contracts-empty.txt`) |
+| Target outside the check's scope | `docs/prototypes/` and `src/` are real copies (`cpSync`), so the gate's `readdirSync` walks and the plants reach them; the guard keeps plants out of the linked rest |
+| Exemption list (false-greens form 7) | `COMMON_LIBRARIES` names files exempt from being blocks. A declared block cannot be listed silently: its declarations would then name no block (the declaration rule); a stale entry is red (L1). Listing a never-declared shared file silences its reverse check — the owner's choice of a named list (D5, D7), not a behaviour #314 makes red; no finding |
+
+When does each go red:
+
+| # | Goes red when |
+|---|---|
+| G0 | the gate exits other than 1, reports nothing, or reports on a path nobody planted (a rule misfiring on an unplanted page, a library derived as a block, a crash's `    at …` lines) |
+| A, B, G | the declaring page's asset search reads comments again (A's and B's comments pinned by `NAMED_IN_A_COMMENT`, G's planted) |
+| H, I, J, K | the comment stripping cuts code after a `//` or `/*` in a string, a template line starting with `//`, or a `//` in a regular expression |
+| C | the declaration search in `checkBlock` counts a commented declaration; the file fails at set-up if `#skChart` loses its declaration (its plant string would be gone) |
+| D | the block-specific table stops reaching trend-chart's `containers` (`contracts-empty.txt`), or the mount-point search reads comments |
+| E | the reverse check counts a comment naming an asset (C asserts the same message template in full, so a rewording turns C red first) |
+| F | the tab identity rule reads `<head>` with comments |
+| M1 | the chart rule judges a page rather than each chart (a40c926's count passes the page) |
+| M2 | a declaration outside the chart's own tag is credited to it: a page-level count (a40c926's) or a search around the tag. Dropping `stripComments` from the chart rule alone would not turn it red: `<!--` is no opening tag, so the commented attribute never joins `#ovchart3`'s tag. In that rule `stripComments` keeps a commented-out chart from being judged, which no page has and no case drives; a regression there is a false red, loud |
+| M3 | the chart rule reads markup only (a DOM parse misses the string) |
+| N1 | a declaration of an unknown non-empty id stops being reported |
+| P1, P2 | the contract stops coming from `_shared/` for the blocks never listed (P2 also: md-preview's script-template declaration stops counting, which turns its line into the reverse check's) |
+| P3 | a new `_shared/*.css` is not a block |
+| P4 | a block's added `.js` is not among its assets |
+| T1 | the table stops reaching trend-chart's `cssInvariants`, or the prototypes' sheet leaves `files`, or the selector or pattern changes. Not when the app's sheet leaves `files` (finding 1) |
+| T2 | the table stops reaching `appComponent`, or `DetailPane.tsx` stops being scanned, or the prop leaves `requiredProps` |
+| L1 | `COMMON_LIBRARIES` stops being checked against `_shared/` |
+| Set-up guard | a path resolves outside the copy: the run stops (`harness-probe-after.txt`); without the guard the same probe lands through the link with every case green (`harness-probe-before.txt`) |
+
+Conclusion (False greens): no false green; where a case cannot go red for a behaviour #314 names, that is findings 1–3.
+
+### Resource reuse
+
+- The resource: the tree (copies of `docs/prototypes/`, 16 MB, and `src/`, 1.9 MB, by `du -sh`) and one gate run, built
+  by `runGate()` once at module load; the cases read `run` and `problems`.
+- Runtime count, from the gateway log: the file ran once in the whole run (`check:ui`, lines 357–389; `test:scripts`
+  lists other files, line 138). The 23 cases took 0.031–0.588 ms each, the file 1834 ms: one build, outside the cases,
+  as the table says.
+- Cost: 1743–1998 ms per file run across the seven recorded runs (gateway, `red-first.txt`, `green.txt`, `green-2.txt`,
+  `contracts-empty.txt`, `targeted.txt`, `targeted-2.txt`), of which the gate alone is 1.57–1.61 s (code review ②).
+  Building once per file run stands.
+- No case clears or releases the resource (the tree is removed before the cases run; `run` is never changed), so no
+  ordering question arises. No seam is missing: the gate is a process, and the test builds its input once. No other
+  test builds a tree of the prototypes or copies `src/`: `rg -n "mkdtempSync|spawnSync|cpSync" scripts --glob
+  '*.test.mjs'` (the other files build git repositories or release directories per case), and `rg -uu -l -e
+  check-shared-ui -e docs/prototypes` over every `*.test.*` and `*.spec.*` file outside dependencies and build output
+  (this test, `check-lang.test.mjs`'s seeds, `artifacts.test.ts`'s own fixture names).
+
+Conclusion (Resource reuse): no finding.
+
+### Document sync
+
+Facts this check establishes: the post-implementation check is done on 4f5607a (range a40c926..6664a7e) with findings
+1–3; the gateway log is usable evidence for 6664a7e; the test's measured cost. Files checked: the task inputs (#314's
+body by `gh issue view`, `checklist.md`, this record, the gateway log); this work directory's #314 files
+(`ticket-314-tasks.md`, `ticket-314-doc-sync.md`, `ticket-314-review-code.md`, all ten files in `evidence/ticket-314/`);
+and the repository through `rg -uu -l -e check-shared-ui -e check:ui`, hidden and ignored files included, excluding
+`node_modules` at any depth, `out`, `site/dist` and `.git` (dependencies and build output): 145 files. Outside
+`docs/.workings/` they are `ci.yml`, `CONTEXT.md`, `capabilities.toml`, `package.json`, the gate, its test,
+`check-lang.mjs` and its test, `docs/specs/i18n.md`, ADR-0009, ADR-0018 and ADR-0033. Other tickets' records under
+`docs/.workings/` are left out: each records its own round.
+
+- No permanent document describes the gate's test, its cases, or how the gate knows a block (their lines name the
+  `--cross` history, the single tier, the rail and README rules, CI's step, the capability declaration and the language
+  gate's exemption for the gate's file), so this check changes none of them. How the gate knows a block is the document
+  sync checklist's second item, Pending until step 8.
+- `checklist.md`'s current-verification row for `314::*` still reads "Not run yet"; the checklist's first item
+  (Pending) covers it, and that row must carry this check's outcome and the handling of findings 1–3. Findings 1–3 also
+  change what the planned-verification cells of 314::4, 314::1 and 314::2 say, whichever way they are handled.
+- The design review's Coverage paragraph ("314::4 — D, T1, T2") claims the criterion whole; finding 1's handling
+  corrects it.
+- Task 8 in `ticket-314-tasks.md` and #314's "Test review" acceptance item are the main agent's to update.
+- The code review's statements about the test (23 cases; the guard; the probes; an empty declaration reported as an
+  unknown block) agree with the code and the evidence; the last is the code finding 3 says no case drives.
+- Handling findings 1–3 adds or changes rows of the Test design table (a new row beside T1, M1, a new row beside N1);
+  those rows must be reviewed under the design review's increment rule before the test changes, and the test file
+  header must state any gap left by choice. No new item for the document sync checklist: the rows these findings touch
+  are its first item's and this record's.
+
+### Findings
+
+**1. The app's half of trend-chart's `.col` invariant is not driven.** Kind: a regression that would be missed; also an
+inaccurate record (the design review's Coverage "314::4 — D, T1, T2"; the test file header states no such gap).
+314::4 reads "its `.col` style invariant (in the prototypes' sheet and the app's)". The gate keeps both sheets in
+`BLOCK_CONTRACTS['trend-chart'].cssInvariants[0].files` (`check-shared-ui.mjs:43`). T1 plants only
+`docs/prototypes/_shared/trend-chart.css` and asserts that file's line; no case touches `.col` in
+`src/renderer/src/theme.css` (`:1474–1482`). Deleting the app's entry from `files`, or a rewrite that reads only the
+first file, keeps all 23 cases and the gate on main green. Impact: the check that guards the shipped app's tooltip can
+leave `check:ui` with nothing red; the e2e tooltip cases (gateway lines 577–578) would catch a clipped tooltip in the
+app, but not the gate losing its check, which is what 314::4 is about. Recommended: now, in this ticket's PR — a case
+that plants `overflow: hidden` in the app's `.col` and asserts `src/renderer/src/theme.css: .col violates an invariant
+(clipping the bar cuts off the tooltip pseudo-element positioned outside it)`. The bare `  overflow: visible;` occurs
+twice in `theme.css` (`:1482`, `:2560`), so anchor the plant on the comment line before `:1482`; `src/` is a real copy
+now, so the plant writes only the tree. As T1, it passes on a40c926 by design; its red can be shown on the empty-table
+copy as T1's was. Add its row under the increment rule first, and correct the Coverage paragraph and 314::4's checklist
+row. Home: this ticket's PR.
+
+**2. The chart rule's class-token match is not driven: every planted chart is `class="chart"` alone.** Kind: a
+regression that would be missed.
+314::1 covers every chart container, which #314 defines as a container with the `chart` class; the rule matches the
+class by its token (`cls[1].split(/\s+/).includes('chart')`, `check-shared-ui.mjs:524`, decision D8), as a40c926's
+`\bchart\b` did inside a class list. M1–M3 and C plant only `class="chart"`, the form of all three charts on the pages,
+while class lists of several tokens are the pages' common form (on 35 lines of the Agents page alone,
+`rg -c 'class="[^" ]+ [^"]*"'`). A rewrite to whole-value comparison or to a literal `class="chart"` search keeps all
+23 cases and the gate on main green; a later chart written with a second class (a skeleton variant, say) and no
+declaration would then pass — the defect #314 is about. Recommended: now — give one planted chart a second token, such
+as M1's `<div class="chart wide" id="ovchart2">`, its asserted line unchanged, so both forms are driven (M2 and M3 keep
+the single token). Update M1's row under the increment rule first. Home: this ticket's PR.
+
+**3. An empty declaration, `data-shared-block=""`, is not driven.** Kind: a regression that would be missed.
+314::2: every `data-shared-block` value names a shared block, and "any other value turns `pnpm check:ui` red"; #314's
+gap reads "A declaration that names no block at all is not reported either". The declaration rule matches
+`data-shared-block="([^"]*)"` (`check-shared-ui.mjs:541`), so `""` is reported as naming no block (the code review notes
+it); N1 plants only a non-empty id. The chart rule just above matches `[^"]+` (`:525`), so aligning the declaration rule
+to it — a natural tidy-up — lets an empty declaration on any element but a chart pass, with all 23 cases and the gate on
+main green (no page has one: `rg -uu 'data-shared-block=""' docs/prototypes`, no match). Recommended: now — plant an
+empty declaration on an element that is not a chart (on the project list page beside N1, for example) and assert
+`docs/prototypes/project-list/prototype-list.html: data-shared-block="" names no shared block`; it is red on a40c926,
+which judges no declaration. Add its row under the increment rule first. Home: this ticket's PR.
+
+### Handling (main agent, 2026-10-26)
+
+- Finding 1: handled as recommended. Case T3 plants `overflow: hidden` in the app sheet's `.col` rule, anchored on the
+  comment line before it, and asserts the app sheet's line. The design review's Coverage is corrected in the increment
+  above; the checklist's 314::4 row names T3.
+- Finding 2: handled as recommended. M1's planted chart is `class="chart wide"`; M2 and M3 keep the single token. A copy
+  of the gate comparing the whole class value turns M1 alone red (`token-match.txt`). The checklist's 314::1 row says
+  both forms are driven.
+- Finding 3: handled as recommended. Case N2 plants `data-shared-block=""` on the project list page's `<b>Agentshed</b>`
+  and asserts the empty id's line; red on a40c926 and under a non-empty declaration pattern. The checklist's 314::2
+  row names it.
+- The fixes change the test's executable content, so an incremental check follows.

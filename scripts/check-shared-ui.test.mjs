@@ -30,8 +30,9 @@ const PLANTS = {
   ],
   'docs/prototypes/project-list/prototype-list.html': [
     ['  <script src="../_shared/project-side.js"></script>\n', ''],
-    // A declaration that names no block
-    ['<div class="topbar" style="gap:12px">', '<div class="topbar" style="gap:12px" data-shared-block="pie-chart">']
+    // A declaration that names no block, and an empty one
+    ['<div class="topbar" style="gap:12px">', '<div class="topbar" style="gap:12px" data-shared-block="pie-chart">'],
+    ['<b>Agentshed</b>', '<b data-shared-block="">Agentshed</b>']
   ],
   // The same with a comment after code on the same line
   'docs/prototypes/shell/prototype-app-shell.html': [
@@ -71,10 +72,11 @@ const PLANTS = {
   'docs/prototypes/project-detail/prototype-detail.html': [
     // A mount point that survives only in a comment
     ['<div class="xaxis" id="ovxaxis"></div>', '<!-- id="ovxaxis" --><div class="xaxis"></div>'],
-    // Charts beside one that declares trend-chart: one without a declaration, one whose declaration is in a comment
+    // Charts beside one that declares trend-chart: one without a declaration (its class a list of two tokens), one whose
+    // declaration is in a comment
     [
       '<div class="chart" id="ovchart" data-shared-block="trend-chart"></div>',
-      '<div class="chart" id="ovchart" data-shared-block="trend-chart"></div><div class="chart" id="ovchart2"></div><!-- data-shared-block="trend-chart" --><div class="chart" id="ovchart3"></div>'
+      '<div class="chart" id="ovchart" data-shared-block="trend-chart"></div><div class="chart wide" id="ovchart2"></div><!-- data-shared-block="trend-chart" --><div class="chart" id="ovchart3"></div>'
     ],
     // A chart written in a script template
     ['  const pl = (n, one, other) => n === 1 ? one : other\n', '  const pl = (n, one, other) => n === 1 ? one : other\n  const extraChart = \'<div class="chart" id="ovchart4"></div>\'\n'],
@@ -88,6 +90,12 @@ const PLANTS = {
   ],
   // What trend-chart's file names cannot say: its style invariant, and its app component's required prop
   'docs/prototypes/_shared/trend-chart.css': [['  overflow: visible;\n', '  overflow: hidden;\n']],
+  'src/renderer/src/theme.css': [
+    [
+      '     the rounded corner is carried by the topmost segment instead */\n  overflow: visible;\n',
+      '     the rounded corner is carried by the topmost segment instead */\n  overflow: hidden;\n'
+    ]
+  ],
   'src/renderer/src/DetailPane.tsx': [['        archivedDays={snap.archivedDays}\n', '']]
 }
 
@@ -222,6 +230,10 @@ test('a declaration that names no shared block is reported', () => {
   assert.ok(reported('docs/prototypes/project-list/prototype-list.html: data-shared-block="pie-chart" names no shared block'), run.out)
 })
 
+test('an empty declaration is reported', () => {
+  assert.ok(reported('docs/prototypes/project-list/prototype-list.html: data-shared-block="" names no shared block'), run.out)
+})
+
 test("a block known only by its files is checked: totals-card's stylesheet removed", () => {
   assert.ok(reported('docs/prototypes/project-detail/prototype-detail.html: declares totals-card but does not reference _shared/totals-card.css'), run.out)
 })
@@ -243,6 +255,10 @@ test("trend-chart's style invariant is still checked", () => {
     reported('docs/prototypes/_shared/trend-chart.css: .col violates an invariant (clipping the bar cuts off the tooltip pseudo-element positioned outside it)'),
     run.out
   )
+})
+
+test("trend-chart's style invariant is still checked in the app's sheet", () => {
+  assert.ok(reported('src/renderer/src/theme.css: .col violates an invariant (clipping the bar cuts off the tooltip pseudo-element positioned outside it)'), run.out)
 })
 
 test("trend-chart's app component is still checked for its required prop", () => {
