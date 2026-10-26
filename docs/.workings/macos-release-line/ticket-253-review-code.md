@@ -90,15 +90,18 @@ directory under `site/node_modules/.cache/` instead of `os.tmpdir()` (the owner'
   none with the default (`evidence/ticket-253/exdev-repro.txt`). The new comment states this cause; it is the one
   measured.
 - **"No test files found"** in the failing run is a consequence, not a second fault: it appears with the EXDEV and goes
-  with it (the same run after the fix reports 107 tests, `evidence/ticket-253/exdev-after-fix.txt`).
+  with it (after the fix the same command reports 107 tests: `evidence/ticket-253/exdev-after-fix-bb0a7f9.txt`, run on
+  bb0a7f9 with its version list, and CI's run 40277001845 on bb0a7f9, `evidence/ticket-253/ci-312.txt`).
 - `site/node_modules/.cache` is on the site's filesystem (it is inside the site's directory); `node_modules/` is
   ignored by git (`.gitignore:1`), so the gates that read `git ls-files --others --exclude-standard` never see a build
   there.
 
 ### Runnability
 
-- With `TMPDIR` on another filesystem: 7 files, 107 tests pass; with the default, the same; after each run the
-  build's directory is gone (`exdev-after-fix.txt`). `pnpm test:site`, `pnpm lint`, the language and NUL checks pass
+- With `TMPDIR` on another filesystem: 7 files, 107 tests pass, on bb0a7f9 (`exdev-after-fix-bb0a7f9.txt`, its version
+  list: HEAD bb0a7f9, `site/test/build-site.ts` at HEAD's blob 4e5d613), and on CI's ubuntu-26.04 (run 40277001845,
+  `ci-312.txt`); with the default, the same; after each run the build's directory is gone. The first after-fix run,
+  `exdev-after-fix.txt`, names its code by a diffstat only (the incremental test check's F1); it is kept as it was. `pnpm test:site`, `pnpm lint`, the language and NUL checks pass
   (`evidence/ticket-253/targeted-2.txt`).
 - `mkdirSync(…, { recursive: true })` makes `.cache` when absent and is a no-op when present; `mkdtempSync` gives each
   run its own directory, so two runs at once do not share one. A run killed before its teardown leaves its directory
@@ -124,3 +127,6 @@ Test-only code; nothing is read from outside the repository or written outside t
 ### Refactoring list
 
 None.
+
+Self-check before handing over the incremental test check's F1 fix (2026-10-26), item 1: the fix changes no product
+code (records and evidence only), so it does not apply.

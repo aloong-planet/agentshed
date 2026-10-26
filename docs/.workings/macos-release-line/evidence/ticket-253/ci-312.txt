@@ -1,0 +1,99 @@
+# #253 — CI on pull request #312
+
+## f340555: red at pnpm test:site (watch-ci.sh, exit 1)
+Anchored to HEAD f340555 (repo=aloong-planet/agentshed, every 30s)...
+Runs for f340555:
+  40266512391  CI (pull_request)
+  40266512358  Message language (pull_request)
+
+== Message language (pull_request) run 40266512358: conclusion=success
+✓ message language (PR title, body, commits) in 24s (ID 121389992849)
+== CI (pull_request) run 40266512391: conclusion=failure
+X typecheck + unit tests + shared-piece consistency in 1m17s (ID 121390244597)
+✓ e2e(Electron) in 5m29s (ID 121390244801)
+
+### The runner images: main's last green run 40087613957 (9685ccf, 2026-10-24) and this run
+2026-10-24T10:52:14.4999068Z Version: 20261012.601
+2026-10-24T10:52:14.5005342Z Image: ubuntu-24.04
+2026-10-24T10:52:14.5005705Z Version: 20261012.334.1
+2026-10-26T03:57:33.4510490Z Version: 20261021.618
+2026-10-26T03:57:33.4526674Z Image: ubuntu-26.04
+2026-10-26T03:57:33.4527641Z Version: 20261012.163.1
+
+### The failing step, in full (gh run view 40266512391 --job 121390244597 --log, the test:site step)
+﻿2026-10-26T03:58:39.1103387Z ##[group]Run pnpm test:site
+2026-10-26T03:58:39.1103709Z pnpm test:site
+2026-10-26T03:58:39.1164968Z shell: /usr/bin/bash -e {0}
+2026-10-26T03:58:39.1165261Z env:
+2026-10-26T03:58:39.1165533Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-26T03:58:39.1165894Z ##[endgroup]
+2026-10-26T03:58:39.5665391Z 
+2026-10-26T03:58:39.5666323Z > agentshed@0.1.0-beta test:site /home/runner/work/agentshed/agentshed
+2026-10-26T03:58:39.5667436Z > pnpm --dir site check && pnpm --dir site test
+2026-10-26T03:58:39.5667736Z 
+2026-10-26T03:58:39.9994745Z 
+2026-10-26T03:58:39.9995668Z > agentshed-site@0.0.0 check /home/runner/work/agentshed/agentshed/site
+2026-10-26T03:58:39.9996304Z > astro check
+2026-10-26T03:58:39.9996479Z 
+2026-10-26T03:58:41.5543098Z 03:58:41 [types] Generated 112ms
+2026-10-26T03:58:41.5609338Z 03:58:41 [check] Getting diagnostics for Astro files in /home/runner/work/agentshed/agentshed/site...
+2026-10-26T03:58:45.4750777Z Result (27 files): 
+2026-10-26T03:58:45.4751844Z - 0 errors
+2026-10-26T03:58:45.4752739Z - 0 warnings
+2026-10-26T03:58:45.4754089Z - 0 hints
+2026-10-26T03:58:45.4756394Z 
+2026-10-26T03:58:45.9626213Z 
+2026-10-26T03:58:45.9627301Z > agentshed-site@0.0.0 test /home/runner/work/agentshed/agentshed/site
+2026-10-26T03:58:45.9628343Z > vitest run
+2026-10-26T03:58:45.9628608Z 
+2026-10-26T03:58:46.2983363Z 
+2026-10-26T03:58:46.2987930Z  RUN  v5.0.5 /home/runner/work/agentshed/agentshed/site
+2026-10-26T03:58:46.2988736Z 
+2026-10-26T03:58:47.4402609Z No test files found, exiting with code 1
+2026-10-26T03:58:47.4403174Z 
+2026-10-26T03:58:47.4404132Z include: src/**/*.test.ts, test/**/*.test.ts
+2026-10-26T03:58:47.4405483Z exclude:  **/node_modules/**, **/.git/**
+2026-10-26T03:58:47.4406162Z 
+2026-10-26T03:58:47.4455778Z 
+2026-10-26T03:58:47.4457050Z ⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+2026-10-26T03:58:47.4461117Z Error: EXDEV: cross-device link not permitted, rename '/home/runner/work/agentshed/agentshed/site/.astro/.prerender/_astro/Base.Dhixzggo.css' -> '/tmp/agentshed-site-JPfdY0/_astro/Base.Dhixzggo.css'
+2026-10-26T03:58:47.4464467Z  ❯ Object.rename node:internal/fs/promises:784:10
+2026-10-26T03:58:47.4467257Z  ❯ ssrMoveAssets node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/static-build.js:359:3
+2026-10-26T03:58:47.4470693Z  ❯ BasicMinimalPluginContext.handler node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/static-build.js:160:7
+2026-10-26T03:58:47.4473401Z  ❯ Object.buildApp node_modules/.pnpm/vite@8.3.4_@types+node@22.20.5_yaml@2.9.1/node_modules/vite/dist/node/chunks/node.js:35131:5
+2026-10-26T03:58:47.4475958Z  ❯ buildEnvironments node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/static-build.js:263:2
+2026-10-26T03:58:47.4477645Z  ❯ viteBuild node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/static-build.js:72:28
+2026-10-26T03:58:47.4479385Z  ❯ AstroBuilder.build node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/index.js:172:33
+2026-10-26T03:58:47.4480760Z  ❯ AstroBuilder.run node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/index.js:217:4
+2026-10-26T03:58:47.4482009Z  ❯ runBuild node_modules/.pnpm/astro@7.4.0_@types+node@22.20.5_yaml@2.9.1/node_modules/astro/dist/core/build/index.js:60:2
+2026-10-26T03:58:47.4482560Z 
+2026-10-26T03:58:47.4482816Z ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+2026-10-26T03:58:47.4484499Z Serialized Error: { errno: -18, code: 'EXDEV', syscall: 'rename', path: '/home/runner/work/agentshed/agentshed/site/.astro/.prerender/_astro/Base.Dhixzggo.css', dest: '/tmp/agentshed-site-JPfdY0/_astro/Base.Dhixzggo.css' }
+2026-10-26T03:58:47.4485752Z 
+2026-10-26T03:58:47.4485760Z 
+2026-10-26T03:58:47.4485765Z 
+2026-10-26T03:58:47.4809809Z  ELIFECYCLE  Test failed. See above for more details.
+2026-10-26T03:58:47.5070450Z  ELIFECYCLE  Command failed with exit code 1.
+2026-10-26T03:58:47.5328029Z ##[error]Process completed with exit code 1.
+
+## bb0a7f9 (the site fix): green (watch-ci.sh; the first watch ended on a TLS handshake timeout of its own, exit 2, and was run again)
+Anchored to HEAD bb0a7f9 (repo=aloong-planet/agentshed, every 30s)...
+Runs for bb0a7f9:
+  40277001845  CI (pull_request)
+  40277001868  Message language (pull_request)
+
+== Message language (pull_request) run 40277001868: conclusion=success
+✓ message language (PR title, body, commits) in 19s (ID 121421754043)
+== CI (pull_request) run 40277001845: conclusion=success
+✓ e2e(Electron) in 5m16s (ID 121421753707)
+✓ typecheck + unit tests + shared-piece consistency in 1m2s (ID 121421753947)
+
+### The checks job on bb0a7f9: its image, and the unit, script and site suites' counts
+2026-10-26T05:56:55.7486326Z Image: ubuntu-26.04
+2026-10-26T05:57:41.3328901Z  Test Files  76 passed | 1 skipped (77)
+2026-10-26T05:57:41.3329916Z       Tests  873 passed | 1 skipped (874)
+2026-10-26T05:57:41.6303585Z > node --test build/mac-packaging.test.cjs scripts/release-tag.test.mjs scripts/publish-release.test.mjs scripts/mirror-release.test.mjs scripts/release-workflow.test.mjs scripts/workflow-actions.test.mjs
+2026-10-26T05:57:41.9833864Z # Subtest: every action in every workflow is pinned to a full commit
+2026-10-26T05:57:41.9834149Z ok 60 - every action in every workflow is pinned to a full commit
+2026-10-26T05:57:48.6398023Z  Test Files  7 passed (7)
+2026-10-26T05:57:48.6398889Z       Tests  107 passed (107)

@@ -15,10 +15,11 @@ Ticket: [#253 Upgrade the GitHub Actions in the three workflows to their current
 | Step 8 report: the two questions (no user-visible behaviour changes) and the cross-regression of what this change touched | [final-regression.md](final-regression.md) | Done — the #253 section, three stages (2026-10-26); `docs/features/` unchanged |
 | #253's first two acceptance items ticked and a comment naming the merge commit; done with the merge of this ticket's PR, then the tracker only. The issue stays open for its third item | [#253](https://github.com/aloong-planet/agentshed/issues/253) | Done — with the merge of #312, which needs the owner's confirmation; after it, the tracker only: the first two items ticked, and a comment naming the merge commit, how its tree compares with the PR head, and the CI runs on that head |
 
-Pre-delivery scope re-check (2026-10-26, on the branch at b0ac644 with this round's record edits): what the change does
-and what its runs produced — the pins and their release comments, the new test and the removed case, the comment on
-`pnpm test:scripts`, the site tests' build location (D5), the two gateways, the manual run and its artifact, CI's red on
-the runner image — against `CONTEXT.md`'s invariant, the runbook's
-"Actions" and "Tests" bullets, the coverage checklist's increment line, regression row and current-verification row,
-#240's follow-up row, the issue body (rewritten on 2026-10-26), the task list, both reviews and step 8. No item missing,
-none stale. CI's runs on #312's head are the pull request's checks; their links go into #253's comment after the merge.
+Pre-delivery scope re-check (2026-10-26, on the branch at bb0a7f9 with this round's record and evidence edits): what
+the change does and what its runs produced — the pins and their release comments, the new test and the removed case,
+the comment on `pnpm test:scripts`, the site tests' build location (D5), the two gateways, the manual run and its
+artifact, CI's red on f340555 and green on bb0a7f9 (`evidence/ticket-253/ci-312.txt`), the versioned rerun on another
+filesystem, and the incremental test check's F1 — against `CONTEXT.md`'s invariant, the runbook's "Actions" and
+"Tests" bullets, the site README and the landing-page spec's Testing Decisions, the coverage checklist's increment
+line, regression row and current-verification row, #240's follow-up row, the issue body (rewritten and extended on
+2026-10-26), the task list, both reviews and step 8. No item missing, none stale.

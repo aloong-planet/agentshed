@@ -71,7 +71,13 @@ release line's requirements are [the mac-distribution spec](../../specs/mac-dist
 | 8 | Spec check, step 7 write-back (`CONTEXT.md`, the runbook, the checklist's rows), step 8 | `final-regression.md` | done: the spec check below; `CONTEXT.md` and the runbook written with the implementation commit; the checklist's current-verification row; step 8, the #253 section of `final-regression.md` |
 | 9 | Runs on the upgraded actions: CI on the pull request; a manual `release.yml` run with the switch off, its artifact downloaded | run links, `evidence/ticket-253/` | The manual run done: 40265409861 on 008b71f, green; pnpm switched to 9.12.3; the artifact downloaded, its digest equal to the upload's (`evidence/ticket-253/manual-run.txt`). CI: the checks on #312's head, linked in #253's comment after the merge |
 | 10 | PR; stop for the owner | PR link | #312 opened; CI red at `pnpm test:site` (D5) |
-| 11 | D5: the site tests' build on the site's filesystem — design review increment, the fix, the repro red then green, code review, full gateway, incremental test check, step 8, CI | `ticket-253-review-tests.md`, `ticket-253-review-code.md`, `evidence/ticket-253/` | |
+| 11 | D5: the site tests' build on the site's filesystem — design review increment, the fix, the repro red then green, code review, full gateway, incremental test check, step 8, CI | `ticket-253-review-tests.md`, `ticket-253-review-code.md`, `evidence/ticket-253/` | done: the design review increment (no finding); b0ac644 the fix, red before and green after with `TMPDIR` on another filesystem (`exdev-repro.txt`, `exdev-after-fix-bb0a7f9.txt`); the code review (no finding; the class searched); the full gateway on b0ac644 `VERIFY_EXIT=0`; CI on bb0a7f9 green, on ubuntu-26.04 with 107 site tests (`ci-312.txt`); the incremental test check on f340555..bb0a7f9, F1 (evidence bound to no version) handled in the records and evidence only, so no further check; step 8 extended |
+
+Self-check of F1's fix (2026-10-26), items 6 and 7: the new evidence's readings can change — `exdev-after-fix-bb0a7f9.txt`
+would read EXDEV and exit 1 with the old set-up, as `exdev-repro.txt` does with the same command — and its command,
+version list and output are kept whole; `ci-312.txt` is the watcher's output and the job log's lines, by the runs'
+IDs, with the commit each ran on. The records that cited the unversioned run now cite these (the test review's
+handling of F1); the task list, the document sync checklist and step 8 state this round's result. No finding.
 
 ## Targeted verification (step 4)
 
