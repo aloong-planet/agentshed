@@ -819,3 +819,229 @@ Either way it belongs to this ticket's PR.
   increment's Coverage sentences (K drives the regular-expression shape; main passing showed only that it is kept)
   and the code review's self-check (G–J for the string and template shapes, K for the regular expression).
 - The fix changes the test's executable content, so a further incremental check follows.
+
+## Post-implementation check, incremental (2026-10-26, implementation 8e9ddf4, fix range 020e082..8e9ddf4; whole change ef5e4cb..8e9ddf4; ticket #270)
+
+Scope: the fix of finding 4, under the incremental clause. Evidence read: the handed targeted log
+`evidence/ticket-270/targeted-4.txt`, and `green-4.txt` and `scanner-k.txt` beside it. The handed gateway log
+`gateway-d9b0208.txt` is d9b0208's (assessed in the first post-implementation check; unchanged since 30a2fee,
+`git diff --stat 30a2fee 8e9ddf4 -- <it>` empty) and is no evidence for 8e9ddf4; a newer full run is not among the
+materials. No test was rerun: the run results below come from those logs. One probe ran in a scratch directory outside
+the repository: the stripping functions of the gate at 8e9ddf4 taken from the file by text (the `stripCssComments`
+line, and from the doc comment before `stripJsComments` to the one before `loadDimensions`), and the scanner-only
+`stripJsComments` as `scanner-k.txt`'s diff writes it, each run on the stale-note page with and without K's committed
+plant strings; it wrote no repository file. `capabilities.toml` is unchanged since ef5e4cb
+(`git diff --stat ef5e4cb 8e9ddf4 -- capabilities.toml`: empty); read again with `tomllib` and checked against the
+repo-scaffold registry: the nine registered IDs present in their registered shapes, none extra, and
+`macos-distribution`'s precondition holds (`client-framework = "electron"`). By the project capability declaration,
+mutation-testing is not enabled, so mutation testing is skipped; each case's "when does it go red" is answered below
+from the code, the evidence and the expected values' sources. K is an assertion of a gate's test, so the review-code
+false-greens list is applied with the unit-test forms.
+
+### Objects under review
+
+The fix range changes one file outside the records, the test (`git diff --name-status 020e082 8e9ddf4`: the test, and
+seven records and evidence files under `docs/.workings/`). The gate is unchanged (blob `c6800a98…` at both ends), and
+so are the pages, `package.json` and `capabilities.toml`
+(`git diff --stat 020e082 8e9ddf4 -- docs/prototypes scripts/check-shared-ui.mjs package.json capabilities.toml`:
+empty). Tests depending on what the range changed, searched over every test file in the repository, ignored and hidden
+files included (103 files match the globs):
+
+```
+$ rg -uu -n --glob '!node_modules/**' --glob '!**/node_modules/**' --glob '!.git/**' --glob '!out/**' --glob '!site/dist/**' \
+    --glob '*.{test,spec}.{mjs,cjs,js,ts,tsx,mts,cts,jsx}' -e 'check-shared-ui' -e 'NAMED_IN_A_COMMENT' -e 'PLANTS' \
+    -e 'runGate' -e 'prototype-detail-stale-note' .
+./scripts/check-shared-ui.test.mjs:18:const PLANTS = {
+./scripts/check-shared-ui.test.mjs:39:  'project-detail/prototype-detail-stale-note.html': [
+./scripts/check-shared-ui.test.mjs:63:const NAMED_IN_A_COMMENT = {
+./scripts/check-shared-ui.test.mjs:69:function runGate() {
+./scripts/check-shared-ui.test.mjs:77:    cpSync(join(repo, 'scripts/check-shared-ui.mjs'), join(root, 'scripts/check-shared-ui.mjs'))
+./scripts/check-shared-ui.test.mjs:78:    for (const [page, swaps] of Object.entries(PLANTS)) {
+./scripts/check-shared-ui.test.mjs:85:      const asset = NAMED_IN_A_COMMENT[page]
+./scripts/check-shared-ui.test.mjs:89:    const r = spawnSync(process.execPath, [join(root, 'scripts/check-shared-ui.mjs')], { encoding: 'utf8' })
+./scripts/check-shared-ui.test.mjs:96:const run = runGate()
+./scripts/check-shared-ui.test.mjs:103:  const planted = Object.keys(PLANTS).map((page) => `docs/prototypes/${page}`)
+./scripts/check-shared-ui.test.mjs:124:  assert.ok(reported('docs/prototypes/project-detail/prototype-detail-stale-note.html: follows the mode but still styles by prefers-color-scheme'), run.out)
+./scripts/check-lang.test.mjs:25:  'scripts/check-shared-ui.mjs': `const side = /${CN}/\n`,
+```
+
+The test file has no `export` statement and no `module.exports` (`rg -n -e '^export' -e 'module\.exports'` on it: no
+match), so no file can import its plant table or `runGate`; `check-lang.test.mjs` names the gate's path only as a seed
+it writes into a fresh repository, as in the earlier rounds. The stale-note page, K's new fixture, is named by no other
+test (outside `docs/.workings/`, its path appears only in this test and in `docs/prototypes/manifest.js`). So the
+objects are:
+- all twelve cases of `scripts/check-shared-ui.test.mjs`: K is new, and every case reads the one run whose set-up
+  gained K's plant;
+- the Test design table rows changed in the range: K (new), the G0 note under it, and the finding-3 increment's
+  Coverage sentences (rewritten).
+
+Carried over from the first post-implementation check (d9b0208, range ef5e4cb..30a2fee): the gateway log's assessment;
+the harness facts (links, copy, clean-up, a set-up failure failing the file); C, D, E and F's rows and fixture shapes.
+From the first incremental check (e53f6d0, range 30a2fee..e53f6d0): A, B and H's rows and fixture shapes, the set-up
+assertion seen failing (`pin-guard.txt`), G's and H's red-first evidence, and the resource's clearing and ordering
+conclusion. From the second incremental check (020e082, range e53f6d0..020e082): G, I and J's rows and fixture
+shapes, I's and J's red-first evidence, the real-data facts of the one pass (scripts, literals, sheets), and its
+byte-equal output against e53f6d0's stripping on all 17 pages.
+
+### Targeted log
+
+| Requirement (full-verification-gate) | In the log |
+|---|---|
+| Version | `HEAD: 020e0820…` and the porcelain status (`git status --porcelain --untracked-files=all`, named in the header, no pathspec) with a hash per listed file: the test `695ec141…`, `green-4.txt`, `scanner-k.txt`, `checklist.md`, `ticket-270-review-code.md`, `ticket-270-tasks.md` and this record |
+| Every command, with its full output | the searches for tests reading what changed (the same two test files as above, over `scripts build src e2e site/test`), `pnpm check:ui`, the two tests that read `package.json`, `pnpm lint`, `pnpm check:lang`, `pnpm check:nul` |
+| Exit codes taken without a pipe | `exit=0` after each, then `TARGETED_EXIT=0` |
+| Version against the handed range | every listed blob equals the file at 8e9ddf4 (`git rev-parse 8e9ddf4:<path>`), and `git diff --name-status 020e082 8e9ddf4` lists those seven files plus `targeted-4.txt`, the run's own output (its date line 17:21:07 local; committed with the fix at 17:21:41). So the log ran on 8e9ddf4's tree exactly. `check:lang` and `check:nul` at 8e9ddf4 also read the log: 0 CJK characters and 0 NUL bytes in its 19,070 bytes (scanned) |
+
+Two notes on the logs' form have been carried since the first round without a decision: the `HEAD:` line prints its
+value without its command (noted in the second incremental check), and the log does not show how the exit codes were
+taken (each round). Decided here, for logs of this form: neither is a missing item. The HEAD value is labelled and
+checked against the repository (8e9ddf4's parent); its command takes no path argument, which is what printing a
+version command guards against (a pathspec that hides files from the listing), and the status command, which could
+take one, is printed with its arguments. Each `exit=` follows a command printed without a pipe, and each command's own
+output shows the same result (pass counts with no failure, the gate's "passed" line, lint's empty success form), so no
+code stands alone. A log whose form changes, or a command whose output cannot show its result, is judged anew.
+
+The log is usable evidence for 8e9ddf4 for the objects under review.
+
+### Written test against the Test design table
+
+| # | Seam and driving input | Assertion and expected value's source | Fixture | Resource | Result |
+|---|---|---|---|---|---|
+| K | in `project-detail/prototype-detail-stale-note.html` (`data-follow="language mode theme"`, line 72), after `const PATH = '/Users/you/Projects/removed-experiment-2025';\n` (line 114, inside the page's first inline script, lines 112–174), the line `const isUrl = (u) => /^https?:\/\//i.test(u); const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')` (the test's string escapes give exactly this text, probe) | exact line, literal: the theme rule's message for the page | the pages' own literal (`agents-page/prototype-agents.html:724`, `project-detail/prototype-detail.html:775`; `rg -F` over `docs/prototypes/` finds these two and no other), in the page's own inline script | as G0 | Matches |
+| G0 | ten planted pages (`Object.keys(PLANTS)`), K's among them. D's page and K's share the `project-detail/prototype-detail` stem; the prefix check appends `:`, so neither page's lines pass as the other's | as before | copied pages | `runGate()` once, at module load | Matches the note |
+| A–J | plants and assertions unchanged; the run they read gained one plant on a page none of them uses | as before | as before | as G0 | Matches |
+
+The finding-3 increment's rewritten Coverage sentences (H, I and J for three shapes of what must stay; K for the
+regular expression; main passing showed only that the two literals are kept) agree with the test as written.
+
+### Coverage
+
+No spec; the units are `270::*` in [checklist.md](checklist.md), from #270's acceptance and decisions D1 and D3.
+
+| Unit | Driven by | Result |
+|---|---|---|
+| 270::1 | A, B, G as in the second incremental check; the range does not touch them | Covered |
+| 270::2 | the gate step of `pnpm check:ui` on 8e9ddf4: "Shared-UI consistency check passed", exit 0 (`targeted-4.txt`, lines 57–81); the gate and the pages are unchanged in the range | Covered |
+| 270::R1 | C, D, E, F as before. D3's keep rule ("a `//` inside a string, a template or a regular expression stays"): H (a string), J (a template line starting with `//`), K (a regular expression); I adds finding 3's `/*` in a string | Covered: every shape D3 names is driven |
+
+Real data against K: the literal is the pages' own. Its context differs: on the pages it follows `if(`, in K it follows
+`=>`. Both are regular-expression positions to the parser, and the scanner alone cuts both (the second incremental
+check's probe on the two page lines; this round's probe on K's line), so the difference changes no outcome. The code
+after the literal is planted, as H's is: on the pages nothing a rule reads follows the literal (finding 4), so a
+planted reader of `prefers-color-scheme` is what makes the cut visible.
+
+Fixtures: K's literal is a real-sample shape, independent of D3's text; the line around it is a planted boundary, as
+for H, I and J.
+
+Test file header: unchanged (lines 1–6), no gap declared. The fix adds no path without a behaviour trigger.
+
+### Case design
+
+- Public seam and reachable plant, as before: a URL test followed by code on one line of a page's script is a page edit
+  a contributor can make, read through the gate's output and exit code.
+- Independence: K is alone on the stale-note page, and its line names no asset, block, mount point or script tag, so
+  its one message is the theme rule's line for its page; the theme rule judges each page alone. In `scanner-k.txt` the
+  planted run reports 15 problems, every one on another planted page; with K's line read, the run still passes G0
+  (`targeted-4.txt`).
+- Location: K's plant lies inside the page's first inline script (probe: the one-pass pattern's match around it is the
+  `<script>` block of lines 112–174, the first with a body). As for I and J, this is what lets K go red: in the
+  markup's text the one pass would keep the line whatever the script stripping did. The anchor is a JS statement of
+  that script, and the plant-once check fails the file if it changes.
+- Isolation, clean-up and a set-up failure failing the file: carried over.
+
+### False greens
+
+| Form | Check |
+|---|---|
+| Constant truth | K asserts one exact line. The unplanted stale-note page holds no `prefers-color-scheme` after stripping (probe), and the gate step on main reports nothing for it (`targeted-4.txt`), so the line comes from K's plant alone |
+| Tautology | the expected line is a literal, not computed by the gate's code |
+| Stale path | the test copies the working tree's gate; the theme rule is live (it runs in the gate step) |
+| Silent skip on a condition | none |
+| Assertion that may not run | synchronous case, no callback |
+| Presence for effect; command that cannot tell | K asserts its page's own report line, not the exit code or the presence of output |
+| A new gate never seen red (false-greens form four) | K cannot be red on the gate (it guards what the parser keeps); it is green there (`targeted-4.txt`, `green-4.txt`) and red under the copy whose `stripJsComments` uses the TypeScript scanner alone (`scanner-k.txt`, exit 1, failing at its own assertion, test line 124; the other eleven green). Reach, apart from K's assertion: the probe shows the scanner-only stripping cutting K's line after `/^https?:\/\` and leaving no `prefers-color-scheme` on the page, while the gate's keeps the line whole; and the run's output in `scanner-k.txt` lists the theme rule's lines for the other three planted mode pages and not this one. The file records no HEAD or hash; its versions are fixed by its content: the diff's left side is byte-equal to the gate's lines 216–231 at 8e9ddf4 (020e082's gate, compared); I and J green rule out e53f6d0's gate, where they are red whatever `stripJsComments` does (its block and whole-line patterns, `red-first-3.txt`); the failing case is K at test lines 123–124, the twelve cases in the committed order; and `green-4.txt`, written in the same second by file time (17:21:07, the targeted log's date line too), records HEAD 020e082, the gate unchanged and the test `695ec141…`. So it backs K's red for the committed test and gate; how the task list describes it is finding 5 |
+| The check's own command wrong | the problem parse `/^ {4}\S/` unchanged |
+| Target outside the check's scope | the plant lies in the inline script the parser step reads (Case design) |
+
+When does each go red:
+
+| # | Goes red when |
+|---|---|
+| G0 | the gate exits other than 1, reports nothing, or reports a problem on a page outside the ten planted ones |
+| K | the stripping of a script takes the `//` inside a regular-expression literal for a comment and cuts the rest of the line: a tokenizer without the parser's context (the scanner alone, `scanner-k.txt`), or a pattern that knows strings and templates but not regular expressions (the literal's `\//` holds a `//` outside any quote); or H's theme conditions, for the stale-note page; the file fails at load if the anchor line changes. H, I and J stay green under the scanner alone (`scanner-k.txt`), so K is the only case for that regression |
+| A–J | as in the second incremental check |
+
+### Resource reuse
+
+- Unchanged: one tree (a copy of `docs/prototypes/`) and one gate run per file run, built by `runGate()` at module
+  load; K adds a plant, not a resource.
+- Runtime count, from the targeted log: the file ran once (in `pnpm check:ui`, lines 32–56); the twelve cases took
+  0.0455–0.779 ms each and the file 1585 ms: one build, outside the cases. This agrees with the table.
+- Cost: 1585 ms (`targeted-4.txt`) and 1784 ms (`green-4.txt`) per run of the twelve-case file on the gate; 1129 ms
+  under the scanner-only copy, which is not the gate. Building once per file stands.
+- No case clears or releases the resource, K included, so no ordering question arises.
+
+### Document sync
+
+Facts this check establishes: the incremental check is done on 8e9ddf4 (range 020e082..8e9ddf4) with finding 5, and
+finding 4's handling is verified (K matches its row, green on the gate, red under the scanner alone with the reach
+shown apart from its assertion; the two records the finding named are rewritten and accurate). Files checked: the task
+inputs (#270's body by `gh issue view`, `checklist.md`, this record, `targeted-4.txt`, `gateway-d9b0208.txt`); this
+work directory's #270 files (`ticket-270-tasks.md`, `ticket-270-doc-sync.md`, `ticket-270-review-code.md`, and
+`evidence/ticket-270/`: 21 files, the three this range adds read in full, the other 18 unchanged in the range);
+`final-regression.md`, checked by its path: not there yet (the document sync checklist's third item, Pending); and the
+repository through `rg -uu -l -e check-shared-ui -e check:ui -e stripComments -e stripJsComments -e stripCssComments`,
+hidden and ignored files included, excluding `node_modules`, `site/node_modules`, `out`, `site/dist` and `.git`
+(dependencies and build output): 126 files, outside `docs/.workings/` the same twelve as in the earlier rounds, whose
+matching lines were read; and `rg -uu -n -e prototype-detail-stale-note` outside `docs/.workings/`: the test and
+`manifest.js` only. Other tickets' records under `docs/.workings/` are left out: each records its own round.
+
+- No permanent document describes what the gate's test holds (their lines name the gate, its tier, CI's step and
+  single rules), so the new case makes none of them untrue.
+- `checklist.md`: 270::R1 now names the regular-expression shape and its red under the scanner alone, which matches K
+  and `scanner-k.txt`; 270::1 and 270::2 are unchanged and match. There is still no current-verification row for
+  `270::*`; the document sync checklist's first item (Pending) covers it, and that row must carry this round's outcome.
+- `ticket-270-tasks.md`: task 7 now carries findings 3 and 4 and their handling, accurately. Task 3 still lists only
+  the first increment (rows A, B; new G, H); under the second incremental check's settlement it must carry the
+  increments for I and J and for K when step 6 closes. The self-check of finding 4's fix: finding 5.
+- `ticket-270-review-code.md`: the rewritten self-check of finding 3's fix credits K with the regular expression and
+  "G–J" with the string and template shapes. Each shape it credits is driven (H, I, J; G drives the sentence's first
+  clause, a `//` after code). Not counted: wording, with no shape credited that no case drives. The self-check of
+  finding 4's fix ("a test case only; the gate is unchanged") is accurate (the gate's blob is the same at both ends).
+- This record: K's row, the G0 note, the rewritten Coverage sentences and finding 4's handling are accurate as checked
+  above.
+- `ticket-270-doc-sync.md`: no new item; its four items stay Pending.
+- Handling finding 5 changes a record sentence only, no Test design table row.
+
+### Findings
+
+**5. The task list says `scanner-k.txt` keeps its versions; it records none, and writes its commands with
+placeholders.** Kind: an inaccurate record.
+- `ticket-270-tasks.md`, the self-check of finding 4's fix: "`green-4.txt` and `scanner-k.txt` keep their commands,
+  versions and whole output". `scanner-k.txt` has no HEAD line and no hash of the copied gate or test; its commands
+  read `diff <the gate> <the scanner copy>` and `node --test <copy>/scripts/check-shared-ui.test.mjs (the test
+  unchanged)`. Its versions follow only by inference from its content and from `green-4.txt` (False greens above), the
+  check this round had to rebuild; the conclusion it backs, K red under the scanner alone, stands.
+- Impact: a reader taking the sentence at its word skips that inference, and a copy that differed from the committed
+  test or gate would show nowhere in the file. The same words stand in the self-check of findings 1 and 2's fix for
+  `naive-h.txt` and `pin-guard.txt` ("with the versions it ran on"), outside this range; neither file records a
+  version either.
+- Recommended: now, in this ticket: rewrite the sentence to what the file holds (the copy's change by `diff`, the test
+  said unchanged, no version line; its versions fixed by its content and by `green-4.txt`, written in the same second
+  by file time, as this record's False greens shows), and correct the earlier sentence for `naive-h.txt` and
+  `pin-guard.txt` in the same edit to what those files hold. The raw files stay as they are. No rerun is needed for
+  `scanner-k.txt`, whose versions this round fixed from its content; for the two earlier files only the sentence is in
+  question here, and the first incremental check's use of them is carried over.
+
+It belongs to this ticket's PR.
+
+### Handling (main agent, 2026-10-26)
+
+- Finding 5: handled as recommended. The task list's two self-check sentences now say what the files hold:
+  `red-first-2.txt`, `green-2.txt` and `green-4.txt` record their versions; `naive-h.txt`, `pin-guard.txt` and
+  `scanner-k.txt` record none, write their scratch paths as placeholders, and show what differs from the committed
+  files, so their versions follow from their content and from the runs beside them. The evidence files are unchanged.
+- The fix changes records only — no test's executable content and no data a test reads — so, by the step's rule, no
+  further incremental check is due. Self-check, items 6 and 7: the corrected sentences match the files (read again);
+  no other record repeats the overstated words (`grep -n "versions it ran on\|keep their commands," docs/.workings/prototype-baseline/*.md`
+  after the edit lists only finding 5's own quotations of the old words and this line). No finding.
