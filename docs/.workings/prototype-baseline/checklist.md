@@ -175,6 +175,7 @@ lines, then #250's items and #226's fix and verification lines, then #270's acce
 | same | 296::3 | `rg -n` for `SKILL_TOOLING` and the five copies' names over `scripts/check-lang.mjs`: exit 1; the same search over e4c9589's gate hits seven lines (`no-list.txt`) | Verified |
 | same | 296::4 | `cmp` with the skill's `sync-mmd.mjs` at 3db94ce: exit 0; each of the five copies identical to its master, and the five the only files under `docs/prototypes/` holding the marker; the re-copied script runs and regenerates the three diagram files unchanged (`copy-check.txt`, `targeted.txt`) | Verified |
 | same | 296::5 | `pnpm check:lang` exit 0 on the repository, 2270 permitted lines (`targeted.txt`) | Verified |
+| 2026-10-27; test a32cd16 (the post-implementation check's findings 1 and 2; the gate unchanged since df9fdcf) | 296::1, 296::2 | Added: two copies whose marker sits on a later line of the header (a `//` run, a block comment running on past it), reported; a script whose `//` header ends at code, one that opens with code and one of comments only, each without the marker in its first comment, permitted. 17 of 17 passing in `pnpm check:lang` (`targeted-fix-1.txt`, run on the change just before it was committed, as its version list shows); each added case red under the one change to the gate it guards, and no other case (`increment-mutants.txt`) | Verified |
 
 ## Two-way audit
 
