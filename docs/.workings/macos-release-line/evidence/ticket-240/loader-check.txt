@@ -1,0 +1,165 @@
+# D9: the default loader in an installed copy of this code, before the tag (2026-10-27/28, UTC times below)
+#
+# A local package of branch feat/update-to-next-beta at fa809ba, built with `pnpm dist:mac:local` at the version
+# 0.0.9-beta (package.json changed for the build only and restored byte for byte: sha256 c133c51a... before and
+# after), copied to a scratch folder and run once from its binary, its console kept. The installed v0.1.0-beta had
+# been quit by the owner, and neither the updater's cache nor Squirrel.Mac's state existed. The build found
+# v0.1.0-beta on the real feed (the loader's updater half), downloaded it, and Squirrel.Mac staged it, the native
+# updater's update-downloaded heard (its native half); the rail then showed the ready button
+# (loader-check-rail.png, a crop of the screen at 16:07Z to the app's rail). Quitting it then installed v0.1.0-beta
+# into the scratch copy on quit, with no relaunch. The scratch copy was deleted afterwards.
+
+## The run
+# D9 loader check, started 2026-10-27T16:05:55Z; branch HEAD fa809ba3d11527ab17c004cfa8b023bc3a2dc28c
+$ pgrep -fl '/Applications/Agentshed.app/Contents/MacOS/Agentshed'
+(exit 1: the installed v0.1.0-beta is not running when 1)
+$ ls ~/Library/Caches/agentshed-updater ~/Library/Caches/agentshed.aloong.com.ShipIt (before)
+ls: /Users/loong_zhou/Library/Caches/agentshed-updater: No such file or directory
+ls: /Users/loong_zhou/Library/Caches/agentshed.aloong.com.ShipIt: No such file or directory
+$ ditto release/0.0.9-beta/mac-arm64/Agentshed.app -> /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/loader-check/Agentshed.app
+version: 0.0.9-beta
+$ codesign --display --verbose=2 (the copy)
+Identifier=agentshed.aloong.com
+Authority=Developer ID Application: Longfei Zhou (RHQ28XS7D9)
+Authority=Developer ID Certification Authority
+Timestamp=Oct 28, 2026 at 00:05:01
+TeamIdentifier=RHQ28XS7D9
+$ codesign -d -r- (its designated requirement)
+designated => identifier "agentshed.aloong.com" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = RHQ28XS7D9
+$ cat Contents/Resources/app-update.yml
+owner: aloong-planet
+repo: agentshed
+provider: github
+updaterCacheDirName: agentshed-updater
+$ grep the bundled main process for the loader's two imports
+   1 import("electron")
+
+$ /private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/loader-check/Agentshed.app/Contents/MacOS/Agentshed  (console to app-console.log), launched 16:05:56Z
+pid 24342
+staged: 'nativeUpdater.update-downloaded' seen at 16:06:36Z
+
+# electron-updater's and the app's console lines about the update (/private/tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/loader-check/app-console.log, grep -n -i 'update\|download\|squirrel\|error')
+1:Checking for update
+3:Downloading update from Agentshed-0.1.0-beta-mac-arm64.zip
+8:updater cache dir: /Users/loong_zhou/Library/Caches/agentshed-updater
+9:Unable to locate previous update.zip for differential download (is this first install?), falling back to full download
+10:New version 0.1.0-beta has been downloaded to /Users/loong_zhou/Library/Caches/agentshed-updater/pending/Agentshed-0.1.0-beta-mac-arm64.zip
+11:Creating proxy server for native Squirrel.Mac (fileToProxy=https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip)
+12:Proxy server for native Squirrel.Mac is created (fileToProxy=https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip)
+13:Proxy server for native Squirrel.Mac is starting to listen (fileToProxy=https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip)
+14:Proxy server for native Squirrel.Mac is listening (address=http://127.0.0.1:62042, fileToProxy=https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip)
+16:ERROR: Unrecognized attribute string flag '?' in attribute string "T@"NSString",?,R,C" for property debugDescription
+17:ERROR: Unrecognized attribute string flag '?' in attribute string "T@"NSString",?,R,C" for property debugDescription
+19:/44a93cddac331f18e2ecee68b98f512dfe61b1423e702dc894da663184338cde0d856e6f288be2ad24114e3367f721bd306f511b2912c67bb0d3b3a046679e8b.zip requested by Squirrel.Mac, pipe /Users/loong_zhou/Library/Caches/agentshed-updater/pending/Agentshed-0.1.0-beta-mac-arm64.zip
+20:2026-10-28 00:06:35.192 Agentshed[24342:89009685] Download completed to: file:///Users/loong_zhou/Library/Caches/agentshed.aloong.com.ShipIt/update.c2YlWFE/44a93cddac331f18e2ecee68b98f512dfe61b1423e702dc894da663184338cde0d856e6f288be2ad24114e3367f721bd306f511b2912c67bb0d3b3a046679e8b.zip
+21:ERROR: Unrecognized attribute string flag '?' in attribute string "T@"NSString",?,R,C" for property debugDescription
+22:ERROR: Unrecognized attribute string flag '?' in attribute string "T@"NSString",?,R,C" for property debugDescription
+23:nativeUpdater.update-downloaded
+
+$ ls -laR ~/Library/Caches/agentshed-updater (after)
+total 236816
+drwxr-xr-x@   4 loong_zhou  staff        128 Oct 28 00:06 .
+drwx------  373 loong_zhou  staff      11936 Oct 28 00:06 ..
+drwxr-xr-x@   4 loong_zhou  staff        128 Oct 28 00:06 pending
+-rw-r--r--@   1 loong_zhou  staff  121249114 Oct 28 00:06 update.zip
+
+/Users/loong_zhou/Library/Caches/agentshed-updater/pending:
+total 262248
+drwxr-xr-x@ 4 loong_zhou  staff        128 Oct 28 00:06 .
+drwxr-xr-x@ 4 loong_zhou  staff        128 Oct 28 00:06 ..
+-rw-r--r--@ 1 loong_zhou  staff  121249114 Oct 28 00:06 Agentshed-0.1.0-beta-mac-arm64.zip
+-rw-r--r--@ 1 loong_zhou  staff        180 Oct 28 00:06 update-info.json
+$ ls -la ~/Library/Caches/agentshed.aloong.com.ShipIt (after)
+total 16
+drwxr-xr-x@   6 loong_zhou  staff    192 Oct 28 00:06 .
+drwx------  373 loong_zhou  staff  11936 Oct 28 00:06 ..
+-rw-r--r--    1 loong_zhou  staff    317 Oct 28 00:06 ShipIt_stderr.log
+-rw-r--r--    1 loong_zhou  staff      0 Oct 28 00:06 ShipIt_stdout.log
+-rw-r--r--@   1 loong_zhou  staff    403 Oct 28 00:06 ShipItState.plist
+drwx------@   3 loong_zhou  staff     96 Oct 28 00:06 update.c2YlWFE
+$ plutil -p /Users/loong_zhou/Library/Caches/agentshed.aloong.com.ShipIt/ShipItState.plist
+{
+  "bundleIdentifier" => "agentshed.aloong.com"
+  "launchAfterInstallation" => false
+  "targetBundleURL" => "file:///tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/loader-check/Agentshed.app/"
+  "updateBundleURL" => "file:///Users/loong_zhou/Library/Caches/agentshed.aloong.com.ShipIt/update.c2YlWFE/Agentshed.app/"
+  "useUpdateBundleName" => true
+}
+$ the staged bundle's version
+/Users/loong_zhou/Library/Caches/agentshed.aloong.com.ShipIt/update.c2YlWFE/Agentshed.app: 0.1.0-beta
+app still running: yes (pid 24342)
+# finished 2026-10-27T16:06:36Z
+
+## The app's whole console (app-console.log)
+Checking for update
+Found version 0.1.0-beta (url: Agentshed-0.1.0-beta-mac-arm64.zip)
+Downloading update from Agentshed-0.1.0-beta-mac-arm64.zip
+Checking for macOS Rosetta environment
+Checked for macOS Rosetta environment (isRosetta=false)
+Checking for arm64 in uname
+Checked 'uname -a': arm64=true
+updater cache dir: /Users/loong_zhou/Library/Caches/agentshed-updater
+Unable to locate previous update.zip for differential download (is this first install?), falling back to full download
+New version 0.1.0-beta has been downloaded to /Users/loong_zhou/Library/Caches/agentshed-updater/pending/Agentshed-0.1.0-beta-mac-arm64.zip
+Creating proxy server for native Squirrel.Mac (fileToProxy=https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip)
+Proxy server for native Squirrel.Mac is created (fileToProxy=https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip)
+Proxy server for native Squirrel.Mac is starting to listen (fileToProxy=https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip)
+Proxy server for native Squirrel.Mac is listening (address=http://127.0.0.1:62042, fileToProxy=https://github.com/aloong-planet/agentshed/releases/download/v0.1.0-beta/Agentshed-0.1.0-beta-mac-arm64.zip)
+/ requested
+ERROR: Unrecognized attribute string flag '?' in attribute string "T@"NSString",?,R,C" for property debugDescription
+ERROR: Unrecognized attribute string flag '?' in attribute string "T@"NSString",?,R,C" for property debugDescription
+/44a93cddac331f18e2ecee68b98f512dfe61b1423e702dc894da663184338cde0d856e6f288be2ad24114e3367f721bd306f511b2912c67bb0d3b3a046679e8b.zip requested
+/44a93cddac331f18e2ecee68b98f512dfe61b1423e702dc894da663184338cde0d856e6f288be2ad24114e3367f721bd306f511b2912c67bb0d3b3a046679e8b.zip requested by Squirrel.Mac, pipe /Users/loong_zhou/Library/Caches/agentshed-updater/pending/Agentshed-0.1.0-beta-mac-arm64.zip
+2026-10-28 00:06:35.192 Agentshed[24342:89009685] Download completed to: file:///Users/loong_zhou/Library/Caches/agentshed.aloong.com.ShipIt/update.c2YlWFE/44a93cddac331f18e2ecee68b98f512dfe61b1423e702dc894da663184338cde0d856e6f288be2ad24114e3367f721bd306f511b2912c67bb0d3b3a046679e8b.zip
+ERROR: Unrecognized attribute string flag '?' in attribute string "T@"NSString",?,R,C" for property debugDescription
+ERROR: Unrecognized attribute string flag '?' in attribute string "T@"NSString",?,R,C" for property debugDescription
+nativeUpdater.update-downloaded
+
+## The quit
+# Quit of the 0.0.9-beta build with the update ready (install on quit), 16:07:59Z
+$ osascript -e 'quit app id "agentshed.aloong.com"'
+(exit 0)
+16:08:04Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:08:09Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:08:14Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:08:19Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:08:24Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:08:29Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:08:34Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:08:39Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:08:44Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:08:49Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:08:54Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:08:59Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:09:04Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:09:09Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:09:15Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:09:20Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:09:25Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+16:09:30Z Agentshed main processes: 0; the copy's version: 0.1.0-beta
+$ pgrep -fl Agentshed (after 90 s)
+(exit 1)
+$ cat ~/Library/Caches/agentshed.aloong.com.ShipIt/ShipIt_stderr.log
+2026-10-28 00:06:36.257 ShipIt[26643:89009825] Detected this as an install request
+ERROR: Unrecognized attribute string flag '?' in attribute string "T@"NSString",?,R,C" for property debugDescription
+ERROR: Unrecognized attribute string flag '?' in attribute string "T@"NSString",?,R,C" for property debugDescription
+2026-10-28 00:07:59.438 ShipIt[26643:89009827] Beginning installation
+2026-10-28 00:08:01.457 ShipIt[26643:89023779] Moving bundle from file:///tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/loader-check/Agentshed.app/ to file:///var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/agentshed.aloong.com.ShipIt.UQRhnLzy/Agentshed.app
+2026-10-28 00:08:01.458 ShipIt[26643:89023779] Moving bundles directly as SquirrelMacEnableDirectContentsWrite is disabled for app: agentshed.aloong.com.ShipIt
+2026-10-28 00:08:01.458 ShipIt[26643:89023779] Moved bundle contents from file:///tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/loader-check/Agentshed.app/ to file:///var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/agentshed.aloong.com.ShipIt.UQRhnLzy/Agentshed.app
+2026-10-28 00:08:01.458 ShipIt[26643:89023779] Moving bundle from file:///var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/agentshed.aloong.com.ShipIt.F2mXGJSd/Agentshed.app to file:///tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/loader-check/Agentshed.app/
+2026-10-28 00:08:01.458 ShipIt[26643:89023779] Moving bundles directly as SquirrelMacEnableDirectContentsWrite is disabled for app: agentshed.aloong.com.ShipIt
+2026-10-28 00:08:01.458 ShipIt[26643:89023779] Moved bundle contents from file:///var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/agentshed.aloong.com.ShipIt.F2mXGJSd/Agentshed.app to file:///tmp/claude-501/-Users-loong-zhou-CascadeProjects-agentshed/eae65b7a-08c8-4c5c-a13e-78c8c90575c6/scratchpad/loader-check/Agentshed.app/
+2026-10-28 00:08:01.510 ShipIt[26643:89023779] Couldn't remove owned bundle at location file:///var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/agentshed.aloong.com.ShipIt.F2mXGJSd/Agentshed.app, error NSError { domain: NSCocoaErrorDomain, code: 4, description: "“Agentshed.app” couldn’t be removed.", failureReason: "The file doesn’t exist.", underlying error: NSError { domain: NSPOSIXErrorDomain, code: 2, description: "The operation couldn’t be completed. No such file or directory" }, userInfo: {
+    NSFilePath = "/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/agentshed.aloong.com.ShipIt.F2mXGJSd/Agentshed.app";
+    NSURL = "file:///var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/agentshed.aloong.com.ShipIt.F2mXGJSd/Agentshed.app";
+    NSUserStringVariant =     (
+        Remove
+    );
+} }
+2026-10-28 00:08:01.573 ShipIt[26643:89023779] Installation completed successfully
+2026-10-28 00:08:01.574 ShipIt[26643:89023779] ShipIt quitting
+$ codesign --verify --deep --strict the copy, and its version
+(exit 0)
+0.1.0-beta
+$ the app's console after the quit (lines from 24 on)

@@ -1,7 +1,8 @@
 // The update sources: which one a run uses, the production updater's settings, the scripted source e2e drives,
 // and the installed copy's wait for Squirrel.Mac to stage the package, with electron-updater's updater and
 // Electron's native updater injected as fakes (unit tests never load Electron). Gaps, each with its condition:
-// the adapter's check against GitHub is accepted by evidence from a packaged run; the restart into the new
+// the adapter's check against GitHub, and the default loader every case here replaces, are accepted by evidence
+// from a packaged build of this code that found, downloaded and staged a real release; the restart into the new
 // version, install on quit without relaunch, the system updater's signature check on a real package (H2) and
 // channel selection for a pre-release installation are accepted by evidence once an installation of one release
 // has updated to the next; the display-cache flush on the install's quit (Failure C1) cannot be seen there, since

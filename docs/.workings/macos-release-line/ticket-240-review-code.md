@@ -115,7 +115,13 @@ Conclusion: no finding.
   updater is still loaded once (`loaded ??=`) and the native updater read per found update, as before.
 - Every path of `electronUpdateSource` is now driven by a case (T1–T9) and each case turns red under a mutation of the
   path it guards, the others staying green (`evidence/ticket-240/adapter-mutants.txt`: nine mutations, the file
-  restored byte for byte after each). The default loader itself is the packaged run's: the release's routes run it.
+  restored byte for byte after each). The default loader itself runs only in an installed copy of this code, so it is shown by a locally packaged build
+  of this branch finding, downloading and staging a real release before the tag (D9, task 9b). The release's routes do
+  not run it: they are updates made by `v0.1.0-beta`, whose adapter predates the seam. (Corrected after the incremental
+  test check's finding 4: this sentence first said the routes run it.) Run on 2026-10-27 (`evidence/ticket-240/loader-check.txt`):
+  a local package of fa809ba at 0.0.9-beta found `v0.1.0-beta` on the real feed, downloaded it, and Squirrel.Mac staged
+  it; the rail showed the ready button, so both halves of the loader resolved to working updaters. Quitting it then
+  installed the update on quit, with no relaunch.
 
 Conclusion: no finding.
 

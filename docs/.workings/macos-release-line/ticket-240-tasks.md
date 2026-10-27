@@ -64,6 +64,15 @@ D7 and D8 after the post-implementation check's finding 1, put to the owner with
   rejection at install, and the owner chose this wording on that correction (over leaving the rejection at install out
   of the spec). Both times over changing the code to make every rejection an install failure.
 
+D9 after the incremental check's finding 4, which showed that the fix's default loader runs in no test and in none
+of #240's evidence (the routes are updates made by `v0.1.0-beta`, whose adapter predates the seam):
+
+- D9 Before the tag, a locally packaged build of this branch at the version 0.0.9-beta (the version changed for the
+  build only, never committed) runs once on this Mac and finds, downloads and stages `v0.1.0-beta` on the real feed,
+  running both halves of the loader; the running `v0.1.0-beta` is quit first, as D2 already asks before the tag (over
+  recording the loader as a gap, its updater half shown after route 1's restart and its native half at the next
+  pre-release).
+
 ## Interface gate
 
 No interface changes. The version row shows a different value, which is data, not a new form; the ready line's width
@@ -82,7 +91,8 @@ at the new length is QR-001/AC-02's subject, checked by the gateway's e2e.
 | 7 | Step 5: `/review-code` | `ticket-240-review-code.md` | done on fa428ee: no finding; a second round for the fix of task 9a |
 | 8 | The gateway run before the test check | `pnpm verify` exit 0 | done on 2992ad5: `VERIFY_EXIT=0` (`evidence/ticket-240/pre-review-2992ad5.txt`) |
 | 9 | Step 6: `/review-tests` post-implementation check, by an independent sub-agent | the same record, second section | done on 2992ad5: findings 1–3 (the staging wait untested and H2 against the Implementation Decisions; C1's reading; `update-source.test.ts`'s header) |
-| 9a | The fix: D7's seam and T1–T4, D8's H2 and the Testing Decisions, C1's design row, the test header; the self-check; the targeted run; the code review's second round; the incremental check by a new sub-agent | `staging-mutants.txt`; the targeted log; both review records | in progress |
+| 9a | The fix: D7's seam and T1–T9, D8's H2, C4 and the Testing Decisions, C1's design row, the test header; the self-check; the targeted run; the code review's second round; the incremental check by a new sub-agent | `adapter-mutants.txt`, `targeted-fix.txt`, `change-scope-fix.txt`; both review records | done: committed as fa809ba; the incremental check's findings 4 (the default loader shown by nothing) and 5 (a stale sentence) handled with D9 (task 9b) and in place |
+| 9b | D9: the local build at 0.0.9-beta (`release/0.0.9-beta/`, `package.json` restored after the build); `v0.1.0-beta` quit by the owner; the build launched once: the update found, downloaded and staged (its log, electron-updater's cache, Squirrel.Mac's state); the build removed after | `evidence/ticket-240/loader-check.txt` | done 2026-10-27 16:05–16:09Z: `v0.1.0-beta` found, downloaded (121 MB) and staged within 40 s, the native `update-downloaded` heard, the ready button shown (`loader-check-rail.png`); quit then installed it into the scratch copy, no relaunch in 90 s; the copy and the build deleted |
 | 10 | Spec final check, step 7, step 8 (`/features-catalog`) | `final-regression.md`, this ticket's section | pending |
 | 11 | Full gateway; pull request; stop for the owner's merge confirmation | PR link; CI | pending |
 | 12 | On the owner's confirmation, with `v0.1.0-beta` quit: the tag `v0.1.0-beta.2` on a main commit carrying the version; the release run | the run green; a Pre-release; the mirror and pointer jobs skipped; the publish job's download step on download-artifact v8 (#253) | pending |
