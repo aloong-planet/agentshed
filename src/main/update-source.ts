@@ -44,7 +44,7 @@ export function chooseUpdateSource(run: { packaged: boolean; env: Record<string,
 }
 
 /** The slice of electron-updater's AppUpdater this adapter uses */
-interface Updater {
+export interface Updater {
   autoDownload: boolean
   autoInstallOnAppQuit: boolean
   allowDowngrade: boolean
@@ -64,7 +64,7 @@ interface Updater {
 }
 
 /** The slice of Electron's native autoUpdater (Squirrel.Mac) the adapter listens to */
-interface NativeUpdater {
+export interface NativeUpdater {
   once(event: 'update-downloaded' | 'error', listener: (...args: unknown[]) => void): unknown
   removeListener(event: 'update-downloaded' | 'error', listener: (...args: unknown[]) => void): unknown
 }
@@ -91,16 +91,29 @@ function staged(u: Updater, native: NativeUpdater): Promise<void> {
   })
 }
 
+/** Where the installed copy's source gets its two updaters; a unit test passes fakes of both */
+export interface UpdaterLoad {
+  updater(): Promise<Updater>
+  native(): Promise<NativeUpdater>
+}
+
+const loadElectronUpdaters: UpdaterLoad = {
+  updater: () =>
+    import('electron-updater').then(
+      (m) => (m as unknown as { default?: { autoUpdater: Updater }; autoUpdater?: Updater }).default?.autoUpdater ?? (m as unknown as { autoUpdater: Updater }).autoUpdater
+    ),
+  native: () => import('electron').then((m) => m.autoUpdater as unknown as NativeUpdater)
+}
+
 /**
  * electron-updater in an installed copy. Loaded on first use, so that nothing in an unpackaged run ever
  * constructs it.
  */
-export function electronUpdateSource(currentVersion: string): UpdateSource {
+export function electronUpdateSource(currentVersion: string, load: UpdaterLoad = loadElectronUpdaters): UpdateSource {
   let onProgress: (percent: number) => void = () => {}
   let loaded: Promise<Updater> | null = null
   const updater = (): Promise<Updater> => {
-    loaded ??= import('electron-updater').then((m) => {
-      const u = (m as unknown as { default?: { autoUpdater: Updater }; autoUpdater?: Updater }).default?.autoUpdater ?? (m as unknown as { autoUpdater: Updater }).autoUpdater
+    loaded ??= load.updater().then((u) => {
       Object.assign(u, updaterSettings(currentVersion))
       u.setFeedURL(UPDATE_FEED)
       u.on('download-progress', (info) => onProgress(info.percent))
@@ -114,7 +127,7 @@ export function electronUpdateSource(currentVersion: string): UpdateSource {
       const u = await updater()
       const result = await u.checkForUpdates()
       if (!result?.isUpdateAvailable || !result.downloadPromise) return null
-      const native = (await import('electron')).autoUpdater as unknown as NativeUpdater
+      const native = await load.native()
       return {
         version: result.updateInfo.version,
         downloaded: result.downloadPromise.then(() => staged(u, native)),

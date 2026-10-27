@@ -433,3 +433,61 @@ mac-distribution's Out of Scope). **What was missing** — nothing: no user-visi
 | New general rules this round | every action in every workflow at a full commit with its release in a comment, at one commit across workflows | Canonical home: `CONTEXT.md`'s invariant; the runbook points to it; the static test holds its form |
 | The review findings: the code review's P1 and C1; the post-implementation check (no finding, `ticket-253-review-tests.md`); D5's code review (no finding) and its incremental test check (F1: the after-fix evidence bound to no version, the CI runs not kept) | the test's header, `ci.yml`'s comment, the records, the evidence | Each handled in place (the records); F1 by keeping the CI runs (`ci-312.txt`) and a versioned rerun (`exdev-after-fix-bb0a7f9.txt`) |
 | Work state changed | #253's issue (body rewritten on 2026-10-26: three workflows, the pinning rule, the records; D5's addition the same day); the coverage checklist; this ticket's document sync checklist; #240's (the third item's follow-up); other records naming #253 (`rg -uu -l '#253' docs README.md README.en.md CONTEXT.md`: `ticket-234-review-code.md` and `ticket-234-tasks.md`, dated notes that the ticket was opened and blocked by #239) | Updated where they state this ticket's current state; the dated notes stay true: kept. #239's blocking item is met (the run of `v0.1.0-beta`), stated in #253's body |
+
+## Ticket #240 — Update an installed pre-release to the next one
+
+- Date: 2026-10-28
+- Scope: this ticket's change before the tag, `git diff 2cb6b4f` on branch `feat/update-to-next-beta`: `package.json`'s
+  version (0.1.0-beta.2); after the post-implementation check, the installed copy's update source with an injectable
+  loader and its unit tests (D7), the app-update spec's H2, C4 and Testing Decisions (D5, D7, D8), the test file's
+  header (D9's evidence); the coverage checklist's round; this ticket's records. The release `v0.1.0-beta.2` and the
+  real update path come after the merge and the tag; their events are written back in this ticket's records pull
+  request, as a section after this one
+- Version: fa428ee for the version change, fa809ba for the source, its tests and the spec, caf6195 for the header and
+  the records (the full run before the pull request reads the final tree)
+
+The two questions for the feature catalogue: **what became a lie** — nothing. The version is not a behaviour; the
+source's change keeps what it does (the loader is the code it replaced, moved, and D9 ran it in a packaged build); the
+spec's H2 and C4 now say what the app already did. `docs/features/app-update.md` says only that "a failed install
+after the click shows an error notice", true of C4's remaining causes, and says nothing of signatures. **What was
+missing** — nothing: no user-visible behaviour was added or changed. So `docs/features/` is unchanged; the entry is
+checked against the real update path after the routes (the document sync checklist's row).
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `package.json`, `"version": "0.1.0-beta.2"` | the tag check (`evidence/ticket-240/tag-check.txt`); the runtime readers: the settings version row and the ready line, measured by e2e app-update::QR-001/AC-02 in Chinese and English on a build of this tree (`targeted.txt`, `pre-review-2992ad5.txt`); the verification run's artifacts, named for the version (`verification-run.txt`) | True |
+| `docs/specs/app-update.md`, Failure H2 (two checks; a rejection while staging a failed download; one at install, after the app has quit, not installed and nothing shown) and C4 (no rejected signature among its causes) | `update-source.ts`'s staging wait; electron-updater 6.8.9's `MacUpdater`; Squirrel.Mac's `SQRLUpdater.m` (the staging check) and `SQRLInstaller.m` (the check in ShipIt before the installed app is moved); T2, and the local build's staging (`loader-check.txt`) | True |
+| `docs/specs/app-update.md`, Testing Decisions: the installed copy's source as a seam, and the formal channel's condition | `update-source.test.ts`'s T1–T9, each red under its mutation (`adapter-mutants.txt`); D5 | True |
+| `src/main/update-source.ts`, `UpdaterLoad`'s comment; `staged()`'s comment, unchanged, re-read | the code; H2 as rewritten | True |
+| `src/main/update-source.test.ts`, the header (each gap with its condition) | D5, D7–D9; `loader-check.txt` for the loader and the adapter's check; the routes still to run for the restart, install on quit, the real package's signature check and the pre-release channel; the code for the flush and a rejection at install | True |
+| `checklist.md`: the round's line, US-004/AC-01's and H2's rows, the current-verification rows for #240 (the version change, AC-01 Waiting, D9, the rest after the tag) and for #253's release profile | the owner's decisions; the evidence files named in each row | True |
+| `ticket-240-doc-sync.md` | the coverage checklist; the task list | True |
+| ADRs, features, prototypes, `CONTEXT.md`, the READMEs, the site | — | Row set empty: none changed |
+
+### Stage 2: related declarations
+
+| Relation | Rows | Conclusion |
+|---|---|---|
+| File ↔ its index row | — | Row set empty: no file added or renamed in `docs/specs`, `docs/features` or `docs/adr` |
+| Rule ↔ template and generated documents | — | Row set empty: no rule or template changed |
+| One fact ↔ its other statements: the app's version, and which releases exist | the scope `docs/specs docs/features docs/adr docs/ops docs/agents docs/postmortems CONTEXT.md AGENTS.md README.md README.en.md site/README.md site/src src/shared/i18n .github capabilities.toml package.json` (131 tracked files; eleven hold Chinese), searched for `0.1.0`, "beta", "test version" and "current version", and in the eleven files for the Chinese words for version, test version, pre-release and preview (`evidence/ticket-240/step8-searches.txt`). Every statement naming `v0.1.0-beta` says it is the first release or is an example; the version row and the landing page's "Only a test version so far: {version}" and its Chinese form take the version at run time | Agree; no statement names the current version as 0.1.0-beta |
+| One fact ↔ its other statements: what a rejected update package does | the same scope, searched for "signature", "reject", "staged/staging/Squirrel" and "install fail(ed)/Couldn't install", and in the eleven files for the Chinese words for signature, install failure and cannot install (`step8-searches.txt`, the part added after the fix): H2 and C4 (changed), the Implementation Decision "Ready means the update can install" and REQ-002/AC-03 (the toast for a failed install after the click), the feature entry's "a failed install after the click shows an error notice", the two dictionaries' "Couldn't install the update"; outside the scope, `staged()`'s comment, the test file's header and the checklist's H2 row | Agree: every place that says what a rejected signature does says the same; the toast stays C4's, for causes before the app quits |
+| One fact ↔ its other statements: when channel selection on real releases is verifiable | the spec's Testing Decisions (changed); the checklist's US-004/AC-01 rows; the test file's header; #241's list of formal-release evidence (rewritten on 2026-10-27); #240's item | Agree, but for #240's item, rewritten with the pull request (its document sync row) |
+| One fact ↔ its other statements: the update source's test seams | the spec's Testing Decisions (the update source, the installed copy's source, the scripted source); `update-source.test.ts`; `update-controller.test.ts`'s fake source; the e2e files' headers | Agree |
+| Rule ↔ the gate that holds it: a release tag is `v` + the package version, on a main commit carrying it | the tag check (`scripts/release-tag.mjs`), run by the gate job before packaging; red for `v0.1.0-beta` and `v0.1.0-beta.1` on this version (`tag-check.txt`) | Held for the version; "on main" is held by people (mac-distribution Failure A5, the runbook) |
+
+### Stage 3: events
+
+| Event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed | — | Row set empty before the tag: the releases stay one until the tag is pushed (the records pull request takes it) |
+| `Pending:` notes in scope | `git grep -n "Pending:"` over the three specs, `CONTEXT.md` and the two runbooks (2216 lines, `step8-searches.txt`): app-update's "two releases exist, so an installation of the first has been updated to the second" | Not due: one release exists. Waiting on routes 1 and 2 (`ticket-240-doc-sync.md`) |
+| New general rules this round | — | Row set empty: D1–D9 are this ticket's choices, in the task list; the spec carries the ones that describe the product (H2, C4, the seam) |
+| Work state changed: app-update::US-004/AC-01's real-release evidence moved out of #240 | the checklist's rows (changed); #241 (rewritten 2026-10-27); #240's item | #240's item rewritten with the pull request |
+| Work state changed: the release profile notarized on #253's upgraded actions; the source's staging wait now tested, and its loader run on a packaged build | #253's current-verification row ("the release profile's notarization on the new actions … the next tag runs it"); #230's row and review, which left the staging wait to #240's evidence | A current-verification row for the verification run 40522427267 and one for D9; #230's records are dated and stay as they are; the publish job's download step still waits for the tag |
+| The review findings | the code review (none, then a second round with none); the post-implementation test check's findings 1–3 and the incremental check's 4–5 | Each handled: D7–D9, the spec, the records (`ticket-240-review-tests.md`, its dispositions) |
+| Two owner questions asked on unchecked facts: D6 on REQ-002/AC-03 covering a rejected package, and D8's first answer on a rejection at install giving C4's toast | the questions' texts against the code and Squirrel.Mac's source | Each corrected and asked again with the fact checked (D6 → D7 and D8; D8 revised); the task list says so |
+
+Queue empty; the pre-delivery scope re-check is recorded in the document sync checklist.

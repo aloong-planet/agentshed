@@ -1,16 +1,23 @@
-// The update sources: which one a run uses, the production updater's settings, and the scripted source e2e
-// drives. The production adapter's calls into electron-updater are not reachable here (unit tests never load
-// Electron). Gap, with its condition: the adapter's check against GitHub is accepted by evidence from a
-// packaged run; its wait for Squirrel.Mac to stage the package, the restart into the new version (with the
-// display-cache flush on the way out, Failure C1), install on quit without relaunch, a package the system
-// rejects (H2) and channel selection on real releases are accepted once two releases exist (app-update
-// Testing Decisions).
+// The update sources: which one a run uses, the production updater's settings, the scripted source e2e drives,
+// and the installed copy's wait for Squirrel.Mac to stage the package, with electron-updater's updater and
+// Electron's native updater injected as fakes (unit tests never load Electron). Gaps, each with its condition:
+// the adapter's check against GitHub, and the default loader every case here replaces, are accepted by evidence
+// from a packaged build of this code that found, downloaded and staged a real release; the restart into the new
+// version, install on quit without relaunch, the system updater's signature check on a real package (H2) and
+// channel selection for a pre-release installation are accepted by evidence once an installation of one release
+// has updated to the next; the display-cache flush on the install's quit (Failure C1) cannot be seen there, since
+// a save is written at once and nothing is pending at a click, and rests on the quit path the install takes; a
+// package the system updater rejects at install, after the app has quit, is left to Squirrel.Mac, which keeps the
+// version in place, and no test of the app reaches it (H2); channel selection for a formal installation waits for
+// a pre-release published after the first formal release (app-update Testing Decisions).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { EventEmitter } from 'node:events'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { UPDATE_FEED, chooseUpdateSource, scriptedUpdateSource, updaterSettings } from './update-source'
+import { UPDATE_FEED, chooseUpdateSource, electronUpdateSource, scriptedUpdateSource, updaterSettings, type NativeUpdater, type Updater } from './update-source'
+import type { UpdateSource } from './update-controller'
 
 describe('updaterSettings', () => {
   it('downloads at once, installs on quit, never downgrades', () => {
@@ -183,5 +190,133 @@ describe('scriptedUpdateSource', () => {
     await expect(source.check(() => {})).rejects.toThrow()
     writeFileSync(script, '{not json')
     await expect(source.check(() => {})).rejects.toThrow()
+  })
+})
+
+describe('electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected', () => {
+  /** Electron's native autoUpdater: Squirrel.Mac says update-downloaded once it has checked and staged the package */
+  const nativeUpdater = (): EventEmitter & NativeUpdater => new EventEmitter() as EventEmitter & NativeUpdater
+  /**
+   * electron-updater's MacUpdater as far as the source reaches it: a check that finds 0.1.0-beta.2 (Failure E1), or
+   * nothing newer, with a download the case settles and a cancellation token; its own events; and the flag MacUpdater
+   * sets when the native updater says update-downloaded
+   */
+  const macUpdater = (native: EventEmitter, found = true) => {
+    let download = { resolve: (): void => {}, reject: (_e: Error): void => {} }
+    const downloaded = new Promise<string[]>((resolve, reject) => (download = { resolve: () => resolve([]), reject }))
+    const token = { cancelled: false, cancel: (): void => void (token.cancelled = true) }
+    const events = new EventEmitter()
+    const updater: Updater = {
+      autoDownload: false,
+      autoInstallOnAppQuit: false,
+      allowDowngrade: true,
+      allowPrerelease: false,
+      squirrelDownloadedUpdate: false,
+      setFeedURL: () => {},
+      checkForUpdates: () =>
+        Promise.resolve(
+          found
+            ? { isUpdateAvailable: true, updateInfo: { version: '0.1.0-beta.2' }, downloadPromise: downloaded, cancellationToken: token }
+            : { isUpdateAvailable: false, updateInfo: { version: '0.1.0-beta' }, downloadPromise: null }
+        ),
+      quitAndInstall: () => {},
+      on: (event, listener) => events.on(event, listener),
+      once: (event, listener) => events.once(event, listener)
+    }
+    native.on('update-downloaded', () => (updater.squirrelDownloadedUpdate = true))
+    native.on('error', () => {})
+    return { updater, download, token, events }
+  }
+  /** The installed copy's source, running 0.1.0-beta, over the two fakes */
+  const installedSource = (updater: Updater, native: NativeUpdater): UpdateSource =>
+    electronUpdateSource('0.1.0-beta', { updater: () => Promise.resolve(updater), native: () => Promise.resolve(native) })
+  /** Whether a download has settled within `ms` */
+  const within = (p: Promise<unknown> | undefined, ms: number): Promise<'settled' | 'pending'> =>
+    Promise.race([
+      (p ?? Promise.resolve()).then(() => 'settled' as const, () => 'settled' as const),
+      new Promise<'pending'>((r) => setTimeout(() => r('pending'), ms))
+    ])
+
+  it('a found update is not ready until Squirrel.Mac has staged it', async () => {
+    const native = nativeUpdater()
+    const { updater, download } = macUpdater(native)
+    const found = await installedSource(updater, native).check(() => {})
+    expect(found?.version).toBe('0.1.0-beta.2')
+    download.resolve()
+    expect(await within(found?.downloaded, 50)).toBe('pending')
+    native.emit('update-downloaded')
+    expect(await within(found?.downloaded, 1000)).toBe('settled')
+    await found?.downloaded
+  })
+
+  it('a package Squirrel.Mac rejects while staging it is a failed download', async () => {
+    const native = nativeUpdater()
+    const { updater, download } = macUpdater(native)
+    const found = await installedSource(updater, native).check(() => {})
+    download.resolve()
+    expect(await within(found?.downloaded, 50)).toBe('pending')
+    // Squirrel.Mac's own message for a package whose signature does not match the running app's
+    native.emit('error', new Error('Code signature at URL file:///update/Agentshed.app did not pass validation'))
+    await expect(found?.downloaded).rejects.toThrow('did not pass validation')
+  })
+
+  it('a package Squirrel.Mac staged before electron-updater reports the download done is ready at once', async () => {
+    const native = nativeUpdater()
+    const { updater, download } = macUpdater(native)
+    const found = await installedSource(updater, native).check(() => {})
+    native.emit('update-downloaded')
+    download.resolve()
+    expect(await within(found?.downloaded, 1000)).toBe('settled')
+    await found?.downloaded
+  })
+
+  it('a download that fails before Squirrel.Mac has the package is a failed download', async () => {
+    const native = nativeUpdater()
+    const { updater, download } = macUpdater(native)
+    const found = await installedSource(updater, native).check(() => {})
+    download.reject(new Error('net::ERR_CONNECTION_RESET'))
+    await expect(found?.downloaded).rejects.toThrow('ERR_CONNECTION_RESET')
+  })
+
+  it('a check that finds no newer version answers up to date', async () => {
+    const native = nativeUpdater()
+    const { updater } = macUpdater(native, false)
+    expect(await installedSource(updater, native).check(() => {})).toBeNull()
+  })
+
+  it("the download's progress reaches the one who asked for the check", async () => {
+    const native = nativeUpdater()
+    const { updater, events } = macUpdater(native)
+    const seen: number[] = []
+    await installedSource(updater, native).check((percent) => seen.push(percent))
+    events.emit('download-progress', { percent: 42.5 })
+    expect(seen).toEqual([42.5])
+  })
+
+  it('an error the updater reports after the click is a failed install', async () => {
+    const native = nativeUpdater()
+    const { updater, events } = macUpdater(native)
+    const installing = installedSource(updater, native).install()
+    expect(await within(installing, 50)).toBe('pending')
+    events.emit('error', new Error('Could not write the update request'))
+    await expect(installing).rejects.toThrow('Could not write the update request')
+  })
+
+  it('a quitAndInstall that throws is a failed install', async () => {
+    const native = nativeUpdater()
+    const { updater } = macUpdater(native)
+    updater.quitAndInstall = () => {
+      throw new Error("No update available, can't quit and install")
+    }
+    await expect(installedSource(updater, native).install()).rejects.toThrow("can't quit and install")
+  })
+
+  it("dropping a found update cancels electron-updater's download", async () => {
+    const native = nativeUpdater()
+    const { updater, token } = macUpdater(native)
+    const found = await installedSource(updater, native).check(() => {})
+    expect(token.cancelled).toBe(false)
+    found?.cancel()
+    expect(token.cancelled).toBe(true)
   })
 })

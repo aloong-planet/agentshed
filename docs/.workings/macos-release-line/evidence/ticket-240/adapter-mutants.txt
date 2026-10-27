@@ -1,0 +1,187 @@
+file /Users/loong_zhou/CascadeProjects/agentshed-wt/update-240/src/main/update-source.ts
+original sha256 ee9287649b0aaffc90e621155e24a0150c5be643a1e7858465f68990827d64cb
+
+== M1 ready as soon as electron-updater reports the download done (no staging wait)
+   replace: downloaded: result.downloadPromise.then(() => staged(u, native)),
+   with:    downloaded: result.downloadPromise.then(() => undefined),
+   occurrences of the target: 1
+   mutation landed in the file: true
+   × src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a found update is not ready until Squirrel.Mac has staged it
+   × src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac rejects while staging it is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac staged before electron-updater reports the download done is ready at once
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a download that fails before Squirrel.Mac has the package is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a check that finds no newer version answers up to date
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > the download's progress reaches the one who asked for the check
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > an error the updater reports after the click is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a quitAndInstall that throws is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > dropping a found update cancels electron-updater's download
+   Tests  2 failed | 22 passed (24)
+   ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+   FAIL  src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a found update is not ready until Squirrel.Mac has staged it
+   FAIL  src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac rejects while staging it is a failed download
+   vitest exit 1
+   restored, sha256 ee9287649b0aaffc90e621155e24a0150c5be643a1e7858465f68990827d64cb (equal to the original)
+
+== M2 a package already staged is not taken as ready (the flag ignored)
+   replace: if (u.squirrelDownloadedUpdate) return Promise.resolve()
+   with:    if (false) return Promise.resolve()
+   occurrences of the target: 1
+   mutation landed in the file: true
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a found update is not ready until Squirrel.Mac has staged it
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac rejects while staging it is a failed download
+   × src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac staged before electron-updater reports the download done is ready at once 1005ms
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a download that fails before Squirrel.Mac has the package is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a check that finds no newer version answers up to date
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > the download's progress reaches the one who asked for the check
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > an error the updater reports after the click is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a quitAndInstall that throws is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > dropping a found update cancels electron-updater's download
+   Tests  1 failed | 23 passed (24)
+   ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+   FAIL  src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac staged before electron-updater reports the download done is ready at once
+   vitest exit 1
+   restored, sha256 ee9287649b0aaffc90e621155e24a0150c5be643a1e7858465f68990827d64cb (equal to the original)
+
+== M3 a native error while staging is not heard
+   replace: native.once('error', fail)
+   with:    void fail
+   occurrences of the target: 1
+   mutation landed in the file: true
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a found update is not ready until Squirrel.Mac has staged it
+   × src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac rejects while staging it is a failed download 5003ms
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac staged before electron-updater reports the download done is ready at once
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a download that fails before Squirrel.Mac has the package is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a check that finds no newer version answers up to date
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > the download's progress reaches the one who asked for the check
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > an error the updater reports after the click is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a quitAndInstall that throws is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > dropping a found update cancels electron-updater's download
+   Tests  1 failed | 23 passed (24)
+   ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+   FAIL  src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac rejects while staging it is a failed download
+   vitest exit 1
+   restored, sha256 ee9287649b0aaffc90e621155e24a0150c5be643a1e7858465f68990827d64cb (equal to the original)
+
+== M4 a failed download is swallowed before the wait
+   replace: downloaded: result.downloadPromise.then(() => staged(u, native)),
+   with:    downloaded: result.downloadPromise.catch(() => undefined).then(() => staged(u, native)),
+   occurrences of the target: 1
+   mutation landed in the file: true
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a found update is not ready until Squirrel.Mac has staged it
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac rejects while staging it is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac staged before electron-updater reports the download done is ready at once
+   × src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a download that fails before Squirrel.Mac has the package is a failed download 5005ms
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a check that finds no newer version answers up to date
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > the download's progress reaches the one who asked for the check
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > an error the updater reports after the click is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a quitAndInstall that throws is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > dropping a found update cancels electron-updater's download
+   Tests  1 failed | 23 passed (24)
+   ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+   FAIL  src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a download that fails before Squirrel.Mac has the package is a failed download
+   vitest exit 1
+   restored, sha256 ee9287649b0aaffc90e621155e24a0150c5be643a1e7858465f68990827d64cb (equal to the original)
+
+== M5 an answer with no newer version is taken as found
+   replace: if (!result?.isUpdateAvailable || !result.downloadPromise) return null
+   with:    if (!result) return null
+   occurrences of the target: 1
+   mutation landed in the file: true
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a found update is not ready until Squirrel.Mac has staged it
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac rejects while staging it is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac staged before electron-updater reports the download done is ready at once
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a download that fails before Squirrel.Mac has the package is a failed download
+   × src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a check that finds no newer version answers up to date
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > the download's progress reaches the one who asked for the check
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > an error the updater reports after the click is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a quitAndInstall that throws is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > dropping a found update cancels electron-updater's download
+   Tests  1 failed | 23 passed (24)
+   ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+   FAIL  src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a check that finds no newer version answers up to date
+   vitest exit 1
+   restored, sha256 ee9287649b0aaffc90e621155e24a0150c5be643a1e7858465f68990827d64cb (equal to the original)
+
+== M6 the download progress is not passed on
+   replace: u.on('download-progress', (info) => onProgress(info.percent))
+   with:    u.on('download-progress', () => {})
+   occurrences of the target: 1
+   mutation landed in the file: true
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a found update is not ready until Squirrel.Mac has staged it
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac rejects while staging it is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac staged before electron-updater reports the download done is ready at once
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a download that fails before Squirrel.Mac has the package is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a check that finds no newer version answers up to date
+   × src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > the download's progress reaches the one who asked for the check
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > an error the updater reports after the click is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a quitAndInstall that throws is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > dropping a found update cancels electron-updater's download
+   Tests  1 failed | 23 passed (24)
+   ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+   FAIL  src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > the download's progress reaches the one who asked for the check
+   vitest exit 1
+   restored, sha256 ee9287649b0aaffc90e621155e24a0150c5be643a1e7858465f68990827d64cb (equal to the original)
+
+== M7 an error the updater reports after the click is not heard
+   replace: u.once('error', reject)
+   with:    void reject
+   occurrences of the target: 1
+   mutation landed in the file: true
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a found update is not ready until Squirrel.Mac has staged it
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac rejects while staging it is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac staged before electron-updater reports the download done is ready at once
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a download that fails before Squirrel.Mac has the package is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a check that finds no newer version answers up to date
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > the download's progress reaches the one who asked for the check
+   × src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > an error the updater reports after the click is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a quitAndInstall that throws is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > dropping a found update cancels electron-updater's download
+   Tests  1 failed | 23 passed (24)
+   ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+   FAIL  src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > an error the updater reports after the click is a failed install
+   vitest exit 1
+   restored, sha256 ee9287649b0aaffc90e621155e24a0150c5be643a1e7858465f68990827d64cb (equal to the original)
+
+== M8 a quitAndInstall that throws is swallowed
+   replace: reject(error instanceof Error ? error : new Error(String(error)))
+        }
+      })
+   with:    void error
+        }
+      })
+   occurrences of the target: 1
+   mutation landed in the file: true
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a found update is not ready until Squirrel.Mac has staged it
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac rejects while staging it is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac staged before electron-updater reports the download done is ready at once
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a download that fails before Squirrel.Mac has the package is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a check that finds no newer version answers up to date
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > the download's progress reaches the one who asked for the check
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > an error the updater reports after the click is a failed install
+   × src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a quitAndInstall that throws is a failed install 5013ms
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > dropping a found update cancels electron-updater's download
+   Tests  1 failed | 23 passed (24)
+   ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+   FAIL  src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a quitAndInstall that throws is a failed install
+   vitest exit 1
+   restored, sha256 ee9287649b0aaffc90e621155e24a0150c5be643a1e7858465f68990827d64cb (equal to the original)
+
+== M9 dropping a found update does not cancel the download
+   replace: cancel: () => result.cancellationToken?.cancel()
+   with:    cancel: () => {}
+   occurrences of the target: 1
+   mutation landed in the file: true
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a found update is not ready until Squirrel.Mac has staged it
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac rejects while staging it is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a package Squirrel.Mac staged before electron-updater reports the download done is ready at once
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a download that fails before Squirrel.Mac has the package is a failed download
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a check that finds no newer version answers up to date
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > the download's progress reaches the one who asked for the check
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > an error the updater reports after the click is a failed install
+   ✓ src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > a quitAndInstall that throws is a failed install
+   × src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > dropping a found update cancels electron-updater's download
+   Tests  1 failed | 23 passed (24)
+   ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+   FAIL  src/main/update-source.test.ts > electronUpdateSource: the installed copy over electron-updater and Squirrel.Mac, both injected > dropping a found update cancels electron-updater's download
+   vitest exit 1
+   restored, sha256 ee9287649b0aaffc90e621155e24a0150c5be643a1e7858465f68990827d64cb (equal to the original)
