@@ -90,3 +90,6 @@ since df9fdcf.
 
 Item 1 for the second fix (the incremental check's findings 3 and 4, with D15 and D16 from its self-check): not
 applicable. It changes `scripts/check-lang.test.mjs` only; `scripts/check-lang.mjs` is unchanged since df9fdcf.
+
+Item 1 for the third fix (the second incremental check's finding 5): not applicable. It changes
+`scripts/check-lang.test.mjs` only; `scripts/check-lang.mjs` is unchanged since df9fdcf.

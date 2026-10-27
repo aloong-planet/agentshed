@@ -192,6 +192,18 @@ for (const [what, file, text] of [
     `// The prototype registry (a hard rule: add or remove an entry whenever a prototype is created or deleted)\n// ${CN}\n\n` +
       "// The gallery shell (index.html) is copied from the prototype skill's template\nwindow.PROTOTYPES = []\n"
   ],
+  // The line that ends a // run is not part of the comment, so a marker on it does not count; nor on a first line of code
+  [
+    'a script whose // header ends at a code line that quotes the marker',
+    'docs/prototypes/dimensions.js',
+    `// The demo dimensions every prototype page shares\n// ${CN}\n` +
+      "window.DEMO_DIMENSIONS = {} // the gallery shell is copied from the prototype skill's template\n"
+  ],
+  [
+    'a script whose first line is code that quotes the marker',
+    'docs/prototypes/_shared/notes.js',
+    `window.NOTES = ['${CN}'] // ` + "the skill's copies say they are copied from the prototype skill's template\n"
+  ],
   // No marker at all: the first comment runs to the end of the file, which has no newline after it
   ['a script of comments only, without the marker', 'docs/prototypes/_shared/placeholder.js', `// Placeholder\n// ${CN}`]
 ]) {

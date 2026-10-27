@@ -33,6 +33,8 @@ in a fresh Git repository. "Copy header" below means a first comment carrying th
 | D14 (same, finding 4) | 296::2, a blank line ends a `//` first comment | `docs/prototypes/manifest.js`: a `//` header holding a Chinese line, a blank line, a `//` comment quoting the marker, then code; the run ending at the blank line | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the Chinese line | The real `manifest.js` (a `//` header over lines 1–8, a blank line, a second `//` comment before any code) | None |
 | D15 (added by the self-check after findings 3 and 4) | 296::1, a block header recognised whatever the doctype's case and the comment's indent | `docs/prototypes/shell.html`: `<!DOCTYPE html>` in upper case, then an indented `<!--` header carrying the marker, then a Chinese comment on line 3; the case-blind doctype skip and the trimmed first line | Exit 1, one problem, `…shell.html:3 ` and the reason | Designed: HTML allows either case and any indent (no copy has either today) | None |
 | D16 (same) | 296::1, an indented `//` run read on past its first line | `docs/prototypes/demo-indented.js`: two indented `//` lines, the marker on the second, then an indented Chinese `//` line 3; the trimmed test for a `//` line | Exit 1, one problem, `…demo-indented.js:3 ` and the reason | Designed: a header indented inside its file (no copy has one today) | None |
+| D17 (added for the second incremental check's finding 5) | 296::2, the line that ends a `//` run is not part of the first comment, so a marker on it does not count | `docs/prototypes/dimensions.js`: a `//` header holding a Chinese line, then a line of code with a trailing comment quoting the marker; the run-end test made before the marker test | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the Chinese line | The real `dimensions.js` (a `//` header meeting `window.DEMO_DIMENSIONS = {` on line 11), its code line given a trailing comment | None |
+| D18 (same) | 296::2, a first line of code is no comment, so a marker on it does not count | `docs/prototypes/_shared/notes.js`: line 1 code holding a Chinese string and a trailing comment quoting the marker; the same test on the first line | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus line 1 | Designed: as D10, the marker moved onto the code line | None |
 
 Kept unchanged: "the seeds alone pass" (every rule alive), "sync-mmd.mjs is reported, since .mjs is not an exempt
 type", and the four permitted cases (a mockup page, a logic page named `index.html`, `manifest.js`,
@@ -172,6 +174,35 @@ the task list):
   (`evidence/ticket-296/increment-mutants-2.txt`). No always-true assertion, tautology, stale path or skip.
 - Item 4, the data: D12, D13 and D14 take the real files' shapes (the stylesheets' multi-line first comments, the
   manifest's blank line); D15 and D16 are designed, no copy having either shape.
+- Item 5: no shared helper changes; not applicable.
+
+### Third increment, after the second incremental check (2026-10-27, on 5852bf6)
+
+Rows D17 and D18 above, added for the second incremental check's finding 5, each reviewed before it was written:
+
+- Coverage: inside the read's loop the two forms test in opposite orders. A block comment tests the marker before its
+  closing token, since its closing line is part of it; D1, D3 and D15 carry the marker on that line. A `//` run tests
+  that a line is still a `//` line before the marker, since the line that ends it is not part of it; D17 puts the
+  marker on a code line that ends a run, and D18 on a first line of code. The second increment's claim that "each
+  closing condition of the first comment is driven in each of its forms" counted conditions and not this order; with
+  D17 and D18 the order is driven in both forms.
+- Case design: each row runs through `check()` and asserts exit 0 and the permitted count.
+- False greens, from the design: D17 and D18 are red if the marker is tested before the run-end test, or if the two
+  exits are folded into one test after the marker (either makes the file a copy and reports its Chinese line, exit 1),
+  and if the file is not read (8). Every expected value comes from the fixture: the seeds' 8 plus one.
+- Resource reuse: each row is one more `check()` call, about 230 ms; no expensive resource.
+
+Findings: none.
+
+Self-check of this fix (items 2–5; item 1 in the code review record, items 6 and 7 in the task list):
+
+- Item 3, the read's conditions and now the order between them, against a case: every condition as the second
+  increment's self-check lists it, plus the order of the run-end and marker tests in a `//` run, D17 and D18, and the
+  order of the marker and closing-token tests in a block, D1, D3, D15. The `#!` and doctype skips run before the first
+  line is read, and only in that order can both precede a comment; no other pair of tests depends on its order.
+- Item 2: D17 and D18 assert exit 0 and nine permitted lines; each is red under the swapped order and under the folded
+  test (`evidence/ticket-296/increment-mutants-3.txt`). No always-true assertion, tautology, stale path or skip.
+- Item 4: D17 takes `dimensions.js`'s real shape; D18 is designed, no file opening with code carrying the marker.
 - Item 5: no shared helper changes; not applicable.
 
 ## Post-implementation check
