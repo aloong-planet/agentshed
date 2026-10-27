@@ -45,9 +45,9 @@ configuration.
   looks the same with a mouse or a trackpad
 
 ## Boundaries and non-goals
-- The CC/CX side badges and the provider chart's brand colours are unaffected (semantic colours do
+- The side badges and the provider chart's colours are unaffected (semantic colours do
   not change hue with the theme)
-- Nothing is written to the Claude / Codex configuration
+- Nothing is written to the agent configuration
 - Light/dark does not switch automatically by time of day (no sunrise/sunset, no schedule)
 - No custom colours, and no fourth theme
 - Scrollbars do not fade out when idle, as macOS's own can on a trackpad: the thumb stays in view

@@ -105,3 +105,113 @@ spec for this work; the requirement source is #314's body.
 | New general rules this round | none: the rule the gate now enforces — a shared block lives at `_shared/<block name>.{css,js}` and each use site declares it — is the prototype skill's (UI.md), its authoritative home; the common-library list is the gate's own data, checked against the files | Row set empty |
 | The review findings | the code review's finding 1 (the harness could write the repository through its links), fixed with the copy guard; the post-implementation check's findings 1–3 (the app sheet's invariant, the class token match, an empty declaration undriven), handled by T3, M1's second token, N2; the incremental check on 6664a7e..78ff2f5, no finding; the write-through during the first probe, recorded in the code review and the postmortem | Handled in the records |
 | Work state changed | #314's body (rewritten with the decisions); the coverage checklist's fourth round, and its third-round audit row, which said the chart rule's count was reported to the owner (now: opened as #314); this ticket's document sync checklist; other records naming #314 (`rg -uu -l '#314' docs README.md README.en.md CONTEXT.md`) | Updated where they state current state |
+
+## Ticket #316 — check:ui's hand-kept lists leave new themes, sides, languages and colours unchecked
+
+- Date: 2026-10-26
+- Scope: this ticket's change only, `git diff e926e38` on branch `fix/check-ui-derived-lists`: `scripts/check-shared-ui.mjs`
+  (the mirrored lists read from their sources and the rule reporting a source it cannot read; the provider colour,
+  accent, chip, dictionary, README, ticket-number, rail and swatch rules reading them; the renderer's files read with
+  their subdirectories), `scripts/check-shared-ui.test.mjs` (three trees, copied READMEs and `package.json`, an empty
+  `docs/.workings`, global plants), `CONTEXT.md` (the side-enumeration invariant's allow-list sentence), #316's body (rewritten with the
+  owner's decisions), the coverage checklist's fifth round, #314's records naming the owner's decision, and this
+  ticket's records
+- Version: 6b5aecc for the gate and the test's cases (the last executable change; the test's header changed after it, a
+  comment-only change, `evidence/ticket-316/comment-only.txt`); the full gateway on the delivery head is named in the
+  coverage checklist's current verification
+
+The two questions for the feature catalogue: **what became a lie** — nothing. The change is to a repository gate, its
+test and one glossary sentence about that gate; no product code changed (`git diff --stat e926e38 -- src site
+docs/prototypes` is empty). **What was missing** — nothing: no user-visible behaviour was added or changed. So
+`docs/features/` is unchanged. There is no spec for this work; the requirement source is #316's body.
+
+### Stage 1: changed declarations
+
+| Declaration surface (changed this round) | Checked against | Conclusion |
+|---|---|---|
+| `scripts/check-shared-ui.mjs`, the header's new paragraph (what a check mirrors is read from where its members are defined; a source it cannot read is reported) | the mirrored lists' section and the rule for `SOURCE_PROBLEMS`; X0–X10, U1–U3 | True |
+| The mirrored lists' section: its lead comment and the doc comments of `constValue` (nested declarations; an object's spread or shorthand member kept as unreadable), `mirrored` (a member it cannot take is reported), `SIDE_NAMES` (a side counts once, its one pattern), `THEME_SELECTORS` (the default in `:root`), `themeHexValues` (hex only; another notation not searched), `READMES`, `rendererSources` (subdirectories included) | the code; Ra1, X7 (nested `ITEMS`), U1–U3, Th1 and G0 (the default's mapping, `mutants.txt` default-not-root), Sub | True |
+| The rules' comments and names: the mirrored lists' rule; the ticket-number rule (root `.md`, `package.json`, `docs/` but `.workings`, through the walk's hidden-entry skip); the README rule (every README links every other; a link to one not there); the swatch rule's stop; the side-enumeration rule (the allow-list carries the reason an entry may name the sides); the dictionaries; the provider colour and accent rules; the chip rule; the rail rule's items | each rule's code; K1–K4 (`mutants.txt` ticket-walk-hidden), R1, R2, X0 (swatch-no-stop), S1, Lg1, Lg2, B1–B3, A1–A3, S2, Ra1; the allow-list entries' own `why` texts (a spec condition or none) | True |
+| `scripts/check-shared-ui.test.mjs`, its header (what is copied and why, `package.json` included; the three trees; what is not driven) and its comments on the plants, `MISSING_PLANTS`, `ABSENT_FILES`, `COPIED`/`EMPTY` and the copy guard | the cases; the runs in `evidence/ticket-316/` | True |
+| `CONTEXT.md:579–581` (side-enumeration invariant: "allow-listed there by dictionary key with the reason it may name them") | the gate's `ALLOWED` entries | True (it said "and the ticket that retires it", a field the entries lost when #126 was replaced by spec references; review finding 5) |
+| `checklist.md`: the fifth round's paragraph, units 316::1–316::10, their current verification, the audit row | #316's body; the evidence named in each row | True (current verification on the delivery head's gateway) |
+| #314's records: `ticket-314-review-code.md` ④ and `ticket-314-doc-sync.md`'s pre-delivery note | the owner's decision of 2026-10-26 (in the conversation, recorded in #316's body: no stale-key check for `ALLOWED` and `EXEMPT`) | True |
+| #316's body (Decisions, Acceptance criteria) | the implementation: each decision and each criterion's cases (`ticket-316-tasks.md`, source check) | True |
+| Specs, features, ADRs, the prototype gallery | — | Row set empty: none changed. Not an ADR: reading a gate's lists from their sources is easy to reverse; the decisions are recorded in #316 and the task list. No new term |
+
+### Stage 2: related declarations
+
+| Relation | Rows | Conclusion |
+|---|---|---|
+| File ↔ its index row | — | Row set empty: no file added or renamed in `docs/specs`, `docs/features`, `docs/adr`, `docs/postmortems` or the gallery's manifest |
+| Rule ↔ template and generated documents | — | Row set empty: no rule or template changed |
+| One fact ↔ its other statements: what `check:ui` checks and where its lists come from | the scope `docs/specs docs/features docs/adr docs/ops docs/agents docs/prototypes docs/postmortems CONTEXT.md AGENTS.md CLAUDE.md README.md README.en.md site/README.md .github capabilities.toml package.json` (180 tracked files; Han in 101, Latin in all), searched in English for the gate's names, the changed rules' subjects (hard-coded, provider, brand and accent colours, the `--accent` family, chip labels, ticket numbers, the READMEs' links, rail labels and items) and the allow-list, and in Chinese for the words for a gate, hard-coded, brand colour, accent colour, ticket number, side label and inter-link (`evidence/ticket-316/step8-searches.txt`). Statements about the gate: `ci.yml:43` runs it; `CONTEXT.md:557` (the rail-label rule, over the dictionaries now read from `LANGUAGES`) and `:579` (fixed, stage 1); `capabilities.toml:14–15` (the enumeration-wording gate's source) and `:33` (theming); ADR-0009:53, ADR-0018:57/62/79 (the `--cross` rule, superseded by ADR-0033), ADR-0033:34–35, :49–50, :67; the global-search spec:313–314 (the rail-label exemption by key); the i18n spec:478–485 (the READMEs' reachability). The i18n spec says a link missed "when adding a language or renaming a file" is caught: true now without changing the gate, which was not so for a new README before. The Chinese hits are prototype copy and a skill fixture, none about the gate | Agree: every statement stays true |
+| Rule ↔ the gate that holds it: a list a check mirrors is read from its source; a source it cannot read is reported; the provider and accent colours are not hard-coded in any renderer file; every root `.md`, `package.json` and document under `docs/` but `.workings` names no ticket; every README links every other | `scripts/check-shared-ui.test.mjs` in `pnpm check:ui`, which `pnpm verify` and CI run: each case red first on the unfixed gate (`red-first.txt`, `red-first-2.txt`, `red-first-3.txt`), eight changed copies of the gate each turning exactly their cases red (`mutants.txt`) | Held, for the forms the cases name. Held by people: appearance's "hard-coding a theme's colours inside a component is forbidden" (the appearance spec) beyond the accent family — neutral tokens (`--bg`, `--card`, `--text`) share values with ordinary colours, so a search for them would report code that is not using a theme's colour; a provider or accent colour written in another notation than hex (the gate's comment says so) |
+
+### Stage 3: events
+
+| Event | Rows and how they were derived | Conclusion |
+|---|---|---|
+| A dimension's members changed | none in the product: no side, language, theme, colour or rail item was added or removed (`git diff --stat e926e38 -- src docs/prototypes` is empty). What grew is the gate's reading of them (provider colours 3 → 10 values, accent 6 → 24, the provider rule's files 3 → 79, the ticket-number scope by the root's `.md` files, `docs/ops` and `docs/agents`); the searches above found no statement listing or counting those sets | Row set empty after the scan |
+| `Pending:` notes in scope | no spec in scope; `grep -c "^> Pending:" CONTEXT.md`: 0 | Row set empty |
+| New general rules this round | none: the decisions read this gate's lists from their sources and bind `check:ui`, whose header states them; the CONTEXT invariant on copy that enumerates sides is unchanged in substance | Row set empty |
+| The review findings | the code review's findings 1–5 (a comment naming a non-cause; a source member read in silence as absent, seven lists; the renderer rules reading only the top level, two listings; new names in an avoided term; the allow-list's lost ticket field, in the gate and CONTEXT), each fixed; the test review's post-implementation findings 1–6 (a renderer `.ts`, `package.json` and an absent source file undriven, handled by Ts, Pk and a third tree; the record's plant list and design review, fixed in the record; the test header calling `package.json` a link, fixed) | Handled in the records |
+| Work state changed | #316's body (rewritten with the decisions); the coverage checklist's fifth round; #314's records that left the gate's other lists to the owner (now naming the decision and #316); this ticket's document sync checklist | Updated where they state current state |
+
+### Follow-up 2026-10-27: wording the owner asked for
+
+- Date: 2026-10-27
+- Scope: commit 5074243 on the same branch, asked for by the owner after the PR was opened (the avoided term "brand
+  colour", and `package.json`'s description, changed now): `theme.css`'s comment over the `--p-*` values, the
+  prototypes' trend chart stylesheet's comment, the appearance feature page's and spec's boundary lines, the agents
+  prototype's by-model label in both languages, one e2e case's name, a comment in check:ui's test, and `package.json`'s
+  description
+- Version: 5074243; full gateway `evidence/ticket-316/gateway-5074243.txt`
+
+The two questions: **what became a lie** — nothing; the changed lines say the same thing in the glossary's word, and the
+description no longer lists the sides as the whole set. **What was missing** — nothing: no behaviour changed.
+
+| Stage | Rows | Conclusion |
+|---|---|---|
+| 1, changed declarations | `theme.css:59` and `_shared/trend-chart.css:121` (the rules under each comment use the `--p-*` values); `docs/features/appearance.md:48` and `docs/specs/appearance.md:444` (the provider colours do not follow the theme: `theme.css` sets the `--p-*` values only in `:root` and the dark block, never under `data-theme`); the agents prototype's `byModel` in Chinese and English (its bars use `--p-*`; the Chinese label says "provider" followed by the character for colour, `\x{8272}`, as five other prototype files do: `rg -c 'provider \x{8272}' docs/prototypes`); the e2e case reading `--p-anthropic`, `--p-openai` and `--p-google`; the test comment naming the provider colour rule (the rule's name in the gate); `package.json`'s description (Claude Code, Codex "and other coding agents", as `README.en.md`'s opening sentence says) | True. The two boundary lines still say CC/CX where they mean every side badge: finding A |
+| 2, one fact ↔ its other statements: the avoided term, and copy listing the sides | `rg -n -i -uu 'brand[ -]?colou?r'` outside `docs/.workings` and dependencies: only CONTEXT's _Avoid_ line (`CONTEXT.md:260`) remains; the Chinese term, `rg -n -uu '\x{54c1}\x{724c}\x{8272}'`, finds nothing (exit 1; the same pattern counts 1 in the agents prototype at 5074243^). `rg -i '\bbrand'` found one more use of the old name, the test's comment (fixed in the commit); the other hits mean a product name or the site header's `.brand`, not a colour. Sides listed on user-facing surfaces outside the dictionaries (`docs/features`, the READMEs, `site/src`, `package.json`): `projects-list.md:6` lists Claude Code, Codex and Grok as the whole set (finding B); `features/README.md:19` and `subagents-view.md` say "both sides", true because the subagents view reads two sides (`subagents.ts` has no Grok reader); `token-stats.md:28` names sides for their own accounting | Agree, but for findings A and B |
+| 3, events | no dimension's members changed; no `Pending:` note touched; no new general rule. Earlier evidence files name the renamed e2e case by its old title; they record past runs and stay as they are | Row set empty |
+
+Findings raised with the owner (the owner decided on 2026-10-27 to fix both in this PR, without a full gateway; done
+in 16bd99f, below):
+
+- **A — "CC/CX" where every side badge is meant**: the appearance spec at 46, 63, 138 and 444, and the feature page at 48.
+  The Grok badge does not follow the theme either (`--gk-*` sits beside `--cl-*` and `--cx-*` in `:root` and the dark
+  block only), so these lines leave it out. The spec's line 463 records what the prototype gate confirmed on 2026-08-06,
+  before the Grok side, and stays. Recommendation: say "the side badges" in one small change.
+- **B — `docs/features/projects-list.md:6`** lists the three sides as the whole set ("each agent side's own registry —
+  Claude Code, Codex and Grok"), which turns false when a side is added. Recommendation: drop the list; the sentence
+  already says "each agent side".
+
+#### The owner's decision: findings A and B fixed (16bd99f)
+
+- Scope: commit 16bd99f: the appearance spec at 46, 63, 138 and 444 and the feature page at 48 say "the side badges";
+  the appearance and language feature pages' "Nothing is written to the Claude / Codex configuration" (appearance:50,
+  i18n:52, the same defect in the same boundary lists) says "the agent configuration", as the appearance spec's line
+  100 does; the project list's feature page drops its list of the sides
+- Version: 16bd99f. **No full gateway: the owner waived it** (2026-10-27: fix them together, without the full gateway). The gates that read
+  these documents ran on a clean tree, each exit 0: `check:ui` (its 70 cases, then the gate), `check:lang`, `check:i18n`
+  (`evidence/ticket-316/targeted-16bd99f.txt`). The change is to four Markdown documents only (`git diff --stat
+  9d50dc5 16bd99f` in the same log)
+
+| Stage | Rows | Conclusion |
+|---|---|---|
+| 1, changed declarations | each changed line against `theme.css` (every side badge's `--cl-*`, `--cx-*`, `--gk-*` set only in `:root` and the dark block); against the appearance spec's line 100 for the configuration; the project list's sentence against itself ("each agent side") | True |
+| 2, one fact ↔ its other statements: copy naming some or all sides | `rg -n -i 'claude ?(code)? ?(/\|and\|or) ?codex\|CC ?/ ?CX\|codex,? (and\|or\|/) grok\|both (agent )?sides\|two sides\|either side\|three sides' docs/features docs/specs README.md README.en.md package.json`, 64 lines in 22 files before the fix. Besides the eight fixed lines, the four files changed hold the spec's line 463 (a dated record, kept) and `projects-list.md:19` (finding C); the other files, finding C | Agree within the changed lines; the rest is finding C |
+| 3, events | none | Row set empty |
+
+Finding left for the owner (no persistent home until decided):
+
+- **C — other lines that name sides, not judged**: the search above leaves 55 lines in 19 files once the fixed lines and
+  the spec's line 463 are set aside. Most name the sides a feature really reads (the subagents and plugins views and parts of the session view are two-sided; the token
+  statistics spec's "all three sides" lines are dated measurements). Judging each needs the feature's sides checked in
+  code, which this change did not do. Lines that look like the same defect and need that check: `agents-overview.md:26`
+  and `:30` (the Claude and Codex sides' subagents and MCP servers), `specs/project-detail.md:17` ("both sides'
+  global configuration"), `specs/skill-install.md:10`, `:24`, `:53` (two sides), and two that list every side
+  literally, `projects-list.md:19` (the side dropdown's options) and `session-view.md:64` (the badges CC/CX/GK).
+  Recommendation: one small ticket that checks each feature's sides and rewrites what is wrong.

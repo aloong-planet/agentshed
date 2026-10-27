@@ -56,7 +56,7 @@
      foreground letter-for-letter --p-xai's dark value */
   --gk-bg: #ece5f5;
   --gk-fg: #7a63a0;
-  /* Provider brand colours (data colours, independent of the UI accent --accent) */
+  /* Provider colours (data colours, independent of the UI accent --accent) */
   --p-anthropic: #d97757;
   --p-openai: #10a37f;
   --p-google: #4285f4;

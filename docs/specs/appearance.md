@@ -43,7 +43,7 @@ Adopt **option B**:
   actually renders; it is not persisted itself (what is persisted is `mode`).  
 - The final look = `f(theme, effective light/dark)`.  
 - **The whole app** references CSS variables only; hard-coding a theme's colours inside a component
-  is forbidden. Semantic colours (CC/CX, provider, ok/err) do not change hue with the theme.
+  is forbidden. Semantic colours (the side badges, provider, ok/err) do not change hue with the theme.
 - **Scrollbars**: every scrolling area draws a slim neutral-grey thumb on no track
   (appearance::REQ-001).
 
@@ -60,7 +60,7 @@ Adopt **option B**:
 3c. As someone who has locked light or dark, I want later system appearance changes not to affect the
    app, so that my choice is not quietly overruled by the system.  
 3d. As a user, I want to be able to select "follow system" again, so that locking is reversible.  
-4. As a user, I want the side badges (CC/CX) and the provider chart colours not to jump around with
+4. As a user, I want the side badges and the provider chart colours not to jump around with
    the theme, so that semantic colours stay recognisable.  
 5. As a developer, I want a new UI to bind only to token names, so that adding a theme does not
    require changing components.  
@@ -135,7 +135,7 @@ platform's.
   selection wash `--accent-soft-deep` (one step deeper than `--accent-soft`).  
 - C2 **Does not follow the theme** (semantic / data colours; may have light/dark, identical across
   the three themes):  
-  - the CC/CX side badge tokens  
+  - the side badge tokens  
   - the scrollbar thumb and its hover shade (appearance::REQ-001/AC-04, AC-05)  
   - the provider `--p-*`  
   - `--ok-*` / `--err-*` / warn semantics (brightness may be nudged where it clashes with a theme's
@@ -441,7 +441,7 @@ recommended handling is in "Out of Scope".
 
 - A fourth theme, custom colours, a theme marketplace.  
 - Switching light/dark automatically by time (sunrise/sunset or a schedule).  
-- Changing the provider brand colours, or binding CC/CX into the theme.  
+- Changing the provider colours, or binding the side badges into the theme.  
 - Coupling with skill business logic (only tokens are shared).  
 - **A thumb that shows only while scrolling**, as macOS's overlay scrollbars do: a drawn scrollbar
   cannot hide on its own, and showing it on scroll would take a script on every scrolling area; the

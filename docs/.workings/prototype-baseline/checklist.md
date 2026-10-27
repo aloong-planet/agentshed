@@ -33,9 +33,14 @@ one branch and one PR. The requirement source is #314's body as rewritten on 202
 that day (D1–D7 in `ticket-314-tasks.md`), with no spec. Scope: `scripts/check-shared-ui.mjs`, its test, the Agents page
 and the heading-ladder page (one attribute each), and these work records.
 
+Fifth round, begun 2026-10-26 on source commit e926e38 (origin/main): [#316](https://github.com/aloong-planet/agentshed/issues/316),
+one branch and one PR. The requirement source is #316's body as rewritten on 2026-10-26 with the owner's decisions of
+that day (D1–D6 in `ticket-316-tasks.md`), with no spec. Scope: `scripts/check-shared-ui.mjs`, its test, and these work
+records.
+
 This is a work index, not a requirement authority. The units below are #251's items and its "Done when"
-lines, then #250's items and #226's fix and verification lines, then #270's acceptance lines, then #314's acceptance criteria; each names
-the tier that backs it.
+lines, then #250's items and #226's fix and verification lines, then #270's acceptance lines, then #314's and #316's
+acceptance criteria; each names the tier that backs it.
 
 ## Source → verification
 
@@ -83,6 +88,16 @@ the tier that backs it.
 | 314::4 | #314: trend-chart's mount points, `.col` style invariant (the prototypes' and the app's sheets) and `<TrendChart>`'s `archivedDays` still hold | Test: the same file — the existing mount-point case, `overflow: hidden` planted on `.col` in the prototypes' sheet and in the app's, a `<TrendChart>` without `archivedDays` in the app's source (regression cases, green on the unfixed gate too, where the behaviour exists) |
 | 314::5 | #314: a listed common library with no file, or a block-specific entry keyed by an id that is no shared block, turns `pnpm check:ui` red | Test: the same file, a common library's file removed; Evidence: one run on a copy of the gate with the block-specific entry's key renamed |
 | 314::6 | #314: the Agents skeleton chart declares `trend-chart`, the heading-ladder page declares `md-preview`, and `pnpm check:ui` stays green on main | Gate: `pnpm check:ui` exit 0 |
+| 316::1 | #316: the brand colour rule takes every `--p-*` value in `theme.css`, light and dark, and searches every `.ts` and `.tsx` in `src/renderer/src/` | Test: `scripts/check-shared-ui.test.mjs` — `--p-xai`'s value hard-coded in a file outside the three the rule searched; a `--p-*` variable added to `theme.css`, its value hard-coded in a component; red first on the unfixed gate |
+| 316::2 | #316: the accent rule takes every value of the `--accent` family in every theme, light and dark; `SettingsPane.tsx` stays excluded | Test: the same file — dark blue's `--accent` and an `--accent-soft` value hard-coded; red first on the unfixed gate |
+| 316::3 | #316: the swatch rule checks every theme in `APPEARANCE_THEMES`, the default against `:root`, every other against `html[data-theme='<id>']` | Test: the same file — a theme added, whose swatch row disagrees with its `theme.css` block |
+| 316::4 | #316: a side added to `side-badge.ts` is covered by the side-enumeration rule and the chip label rule | Test: the same file — a side added; copy naming it beside another side; its chip label hard-coded |
+| 316::5 | #316: both dictionary rules read every dictionary `LANGUAGES` names | Test: the same file — a language added with its dictionary, which enumerates sides and names a rail control |
+| 316::6 | #316: the README rule reads every `README*.md` at the root | Test: the same file — a README added that the others do not link |
+| 316::7 | #316: the rail rule checks the routes of every item in `ITEMS` | Test: the same file — an item added; a page sends it to a route not in `manifest.js` |
+| 316::8 | #316: the ticket-number rule scans every document under `docs/` except `docs/.workings/`, every `.md` at the root, and `package.json` | Test: the same file — a ticket number in `README.en.md` and in a new `docs/` directory reported, one in `docs/.workings/` not |
+| 316::9 | #316: a source the gate derives from that it cannot read, or that yields no member, turns `pnpm check:ui` red | Test: the same file — each source renamed or emptied, each reported |
+| 316::10 | #316: `pnpm check:ui` stays green on main | Gate: `pnpm check:ui` exit 0 |
 
 ## Current verification
 
@@ -132,6 +147,19 @@ the tier that backs it.
 | same | 314::6 | `pnpm check:ui` exit 0 on the pages, in the full gateway at 78ff2f5 (`gateway-78ff2f5.txt`) | Verified |
 | same | all fourth-round units | `pnpm verify`, each step on its own, on 78ff2f5 with a clean tree: typecheck, lint, test (873 passed, 1 skipped), test:scripts (137), test:site (107), check:ui (25 cases, then the gate), check:lang, check:i18n, check:nul, e2e (155 passed), smoke — every exit code 0 (`gateway-78ff2f5.txt`) | Verified |
 | 2026-10-26; delivery head c751e33 (78ff2f5 plus the postmortem and the records) | all fourth-round units | `pnpm verify` on c751e33 with a clean tree, the same steps and counts, every exit code 0; the ticket-number rule reads the new postmortem (`gateway-c751e33.txt`) | Verified |
+| 2026-10-27; source #316's body; implementation 6b5aecc (the last executable change; branch fix/check-ui-derived-lists on e926e38) | 316::1 | B1 (`--p-xai` in a file the rule did not search), B2 (a dark value), B3 (a variable added to `theme.css`), Ts (a `.ts` module), Sub (a subdirectory) reported; B1–B3 red first on e926e38 (`evidence/ticket-316/red-first.txt`), Sub on e7d6f5a (`red-first-2.txt`); a copy deriving light values only turns B2 alone red (`mutants.txt`), one listing `.tsx` only turns Ts alone red (`red-first-4.txt`) | Verified |
+| same | 316::2 | A1 (dark blue's `--accent`), A2 (an `--accent-soft` value) reported, red first on e926e38; A3 (the settings page not reported) red when the exclusion goes, A2 when only `--accent` is read (`mutants.txt`) | Verified |
+| same | 316::3 | Th1 (a theme added, its swatch row one digit off its `theme.css` block) reported, red first on e926e38; the default's `:root` held by G0 (`mutants.txt`, default-not-root) | Verified |
+| same | 316::4 | S1 (a side added, named beside another in copy) and S2 (its chip label hard-coded) reported, red first on e926e38 | Verified |
+| same | 316::5 | Lg1 (side enumeration) and Lg2 (a rail control named) in a new language's dictionary reported, red first on e926e38 | Verified |
+| same | 316::6 | R1 (the READMEs not linking a new one) and R2 (a link to a README not at the root) reported, red first on e926e38; R2 red without the link check (`mutants.txt`) | Verified |
+| same | 316::7 | Ra1 (a new rail item's route sent nowhere) reported, red first on e926e38 | Verified |
+| same | 316::8 | K1 (`README.en.md`), K2 (a new `docs/` directory), K3 (a new root `.md`), Pk (`package.json`) reported; K4 (`docs/.workings`) not; K1–K3 red first on e926e38, K4 red when the walk enters hidden directories (`mutants.txt`), Pk when the rule drops `package.json` (`red-first-4.txt`) | Verified |
+| same | 316::9 | X1–X10 (each declaration renamed or emptied, no README), U1–U3 (a member the reader cannot take), Y1–Y9 (each source file removed) reported, and X0 and Y0 (the gate runs every rule): X1–X10 red first on e926e38, U1–U3 on e7d6f5a (`red-first-2.txt`, `red-first-3.txt`); each red when its path goes (`mutants.txt`: sources-silent, swatch-no-stop; `red-first-4.txt`: each reader's handling of a missing file) | Verified |
+| same | 316::10 | `pnpm check:ui` exit 0 on the repository, in the full gateway at a904c05 (`gateway-a904c05.txt`) | Verified |
+| 2026-10-27; delivery head a904c05 (6b5aecc plus the test's header, a comment-only change, and the records) | all fifth-round units | `pnpm verify`, each step on its own, on a904c05 with a clean tree: typecheck, lint, test (873 passed, 1 skipped), test:scripts (137), test:site (107), check:ui (70 cases, then the gate), check:lang, check:i18n, check:nul, e2e (155 passed), smoke — every exit code 0 (`gateway-a904c05.txt`); the earlier gateways at b03fc6e and 723db11 the same way | Verified |
+| 2026-10-27; delivery head 5074243 (a904c05 plus the owner's wording fixes: comments, two documents' boundary lines, a prototype label, an e2e case's name, `package.json`'s description) | all fifth-round units | `pnpm verify`, each step on its own, on 5074243 with a clean tree: the same steps and counts, every exit code 0; the ticket-number rule reads the changed `package.json` and documents (`gateway-5074243.txt`) | Verified |
+| 2026-10-27; 16bd99f (9d50dc5 plus four documents' side wording, at the owner's decision; the owner waived the full gateway) | 316::10 | `pnpm check:ui` (70 cases, then the gate), `check:lang` and `check:i18n`, each exit 0 on 16bd99f with a clean tree (`targeted-16bd99f.txt`); the other units' cases and code are unchanged since 5074243 | Verified |
 
 ## Two-way audit
 
@@ -145,3 +173,4 @@ the tier that backs it.
 | #226 lists the page title as prototype content. The `<title>` keeps its Chinese "Prototype — " prefix, which every prototype page's tab title uses, so the gallery's tabs stay uniform | #226 Fix | Kept as content; listed by kind under 226::1 |
 | Third round: #270's two acceptance lines each have a row (270::1, 270::2). The class-level check of the defect found the same raw-text search in the shared-block check's other searches and in the tab identity rule (270::R1, decision D1). The chart container rule's count — every declaration on the page against its chart containers — is a different defect, reported to the owner and not in this round (opened as #314, the fourth round) | #270 Acceptance; `ticket-270-tasks.md` | Mapped |
 | Fourth round: #314's six acceptance criteria each have a row (314::1–314::6). They carry the owner's decisions of 2026-10-26: the unlisted blocks, the general rule and the file-derived contract (D3–D5) widen #314's first text, and the body was rewritten with them before the work | #314 Acceptance criteria and Decisions; `ticket-314-tasks.md` | Mapped |
+| Fifth round: #316's ten acceptance criteria each have a row (316::1–316::10). Each decision of 2026-10-26 (D1–D6) is backed by one of them; 316::9 carries the convention every derived list needs (D7), and was in the body before the work. The lists kept by hand are named in the body and have no row | #316 Acceptance criteria and Decisions; `ticket-316-tasks.md` | Mapped |

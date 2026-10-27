@@ -1,0 +1,124 @@
+# The post-implementation check's findings 1–3: the new cases on gates that lack what they drive (2026-10-27)
+HEAD: 723db11dedd62eb8519eb4446587f5f6deb3a9a6; gate 5cd748fd9ae3346db1bde12e5d2bfaeb91c37ee3 = HEAD's 5cd748fd9ae3346db1bde12e5d2bfaeb91c37ee3; test fd223dcf5ecd49a84326e6bf4880c8f5b3ea2277 (uncommitted)
+
+## The test on HEAD's gate (the behaviour exists: all green expected)
+TEST_EXIT=0
+ℹ tests 70
+ℹ pass 70
+ℹ fail 0
+
+## Each new case on a changed copy of HEAD's gate, the test unchanged (mutant-run.sh and mutate.py as in mutants.txt, with package.json copied too and four more mutations)
+----- mutate.py
+import sys
+name, src, dst = sys.argv[1:4]
+text = open(src, encoding='utf-8').read()
+M = {
+  'accent-alone': [("${escapeRegExp(prefix)}[\\\\w-]*\\\\s*:", "${escapeRegExp(prefix)}${prefix === '--accent' ? '' : '[\\\\w-]*'}\\\\s*:")],
+  'brand-light-only': [("const css = stripCssComments(read('src/renderer/src/theme.css') ?? '')", "const css = prefix === '--p-' ? splitByColorScheme(stripCssComments(read('src/renderer/src/theme.css') ?? '')).light : stripCssComments(read('src/renderer/src/theme.css') ?? '')")],
+  'settings-not-excluded': [("        if (f.endsWith('/SettingsPane.tsx')) continue\n", "")],
+  'ticket-walk-hidden': [("          if (e.name === 'vendor' || e.name.startsWith('.')) continue\n          const rel = `${dir}/${e.name}`", "          if (e.name === 'vendor') continue\n          const rel = `${dir}/${e.name}`")],
+  'default-not-root': [("t === DEFAULT_THEME ? ':root' : `html[data-theme='${t}']`", "`html[data-theme='${t}']`")],
+  'readme-links-unchecked': [("        for (const target of linked) if (!READMES.includes(target)) bad.push(`${f}: links ${target}, which is not at the root`)\n", "")],
+  'sources-silent': [("      return SOURCE_PROBLEMS\n", "      return []\n")],
+  'swatch-no-stop': [("      if (THEME_SELECTORS === null) return []\n", "")],
+  'ts-dropped': [(".filter((name) => name.endsWith('.ts') || name.endsWith('.tsx'))\n    .sort()", ".filter((name) => name.endsWith('.tsx'))\n    .sort()")],
+  'package-json-dropped': [("          .sort(),\n        'package.json'\n      ]", "          .sort()\n      ]")],
+  'const-value-no-null-stop': [("  const src = read(path)\n  if (src === null) return undefined\n", "  const src = read(path)\n")],
+  'theme-css-no-fallback': [("  const css = stripCssComments(read('src/renderer/src/theme.css') ?? '')", "  const css = stripCssComments(read('src/renderer/src/theme.css'))")],
+}
+for old, new in M[name]:
+  n = text.count(old)
+  assert n >= 1, f'{name}: not found: {old!r}'
+  text = text.replace(old, new, 1)
+open(dst, 'w', encoding='utf-8').write(text)
+
+===== ts-dropped
+$ diff <the gate> <the changed copy>   # mutation: ts-dropped
+341c341
+<     .filter((name) => name.endsWith('.ts') || name.endsWith('.tsx'))
+---
+>     .filter((name) => name.endsWith('.tsx'))
+$ node --test <copy>/scripts/check-shared-ui.test.mjs (the test unchanged)
+exit=1
+✖ a provider colour in a renderer .ts module is reported (1.561959ms)
+ℹ tests 70
+ℹ pass 69
+ℹ fail 1
+✖ a provider colour in a renderer .ts module is reported (1.561959ms)
+
+===== package-json-dropped
+$ diff <the gate> <the changed copy>   # mutation: package-json-dropped
+371,372c371
+<           .sort(),
+<         'package.json'
+---
+>           .sort()
+$ node --test <copy>/scripts/check-shared-ui.test.mjs (the test unchanged)
+exit=1
+✖ a ticket number in package.json is reported (0.502958ms)
+ℹ tests 70
+ℹ pass 69
+ℹ fail 1
+✖ a ticket number in package.json is reported (0.502958ms)
+
+===== const-value-no-null-stop
+$ diff <the gate> <the changed copy>   # mutation: const-value-no-null-stop
+238d237
+<   if (src === null) return undefined
+$ node --test <copy>/scripts/check-shared-ui.test.mjs (the test unchanged)
+exit=1
+✖ the run on absent source files fails, after every rule has run (0.354459ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.069333ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.045084ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.04025ms)
+✖ an absent source file is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.040667ms)
+✖ an absent source file is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.038875ms)
+✖ an absent source file is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.050666ms)
+✖ an absent source file is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.038708ms)
+✖ an absent source file is reported: src/renderer/src/theme.css: no --p-* value — the provider colours come from them (0.050541ms)
+✖ an absent source file is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.065375ms)
+ℹ tests 70
+ℹ pass 60
+ℹ fail 10
+✖ the run on absent source files fails, after every rule has run (0.354459ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.069333ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.045084ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.04025ms)
+✖ an absent source file is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.040667ms)
+✖ an absent source file is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.038875ms)
+✖ an absent source file is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.050666ms)
+✖ an absent source file is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.038708ms)
+✖ an absent source file is reported: src/renderer/src/theme.css: no --p-* value — the provider colours come from them (0.050541ms)
+✖ an absent source file is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.065375ms)
+
+===== theme-css-no-fallback
+$ diff <the gate> <the changed copy>   # mutation: theme-css-no-fallback
+323c323
+<   const css = stripCssComments(read('src/renderer/src/theme.css') ?? '')
+---
+>   const css = stripCssComments(read('src/renderer/src/theme.css'))
+$ node --test <copy>/scripts/check-shared-ui.test.mjs (the test unchanged)
+exit=1
+✖ the run on absent source files fails, after every rule has run (0.338833ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.066667ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.043875ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.03975ms)
+✖ an absent source file is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.040083ms)
+✖ an absent source file is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.038708ms)
+✖ an absent source file is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.052ms)
+✖ an absent source file is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.040667ms)
+✖ an absent source file is reported: src/renderer/src/theme.css: no --p-* value — the provider colours come from them (0.049167ms)
+✖ an absent source file is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.053625ms)
+ℹ tests 70
+ℹ pass 60
+ℹ fail 10
+✖ the run on absent source files fails, after every rule has run (0.338833ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.066667ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.043875ms)
+✖ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.03975ms)
+✖ an absent source file is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.040083ms)
+✖ an absent source file is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.038708ms)
+✖ an absent source file is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.052ms)
+✖ an absent source file is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.040667ms)
+✖ an absent source file is reported: src/renderer/src/theme.css: no --p-* value — the provider colours come from them (0.049167ms)
+✖ an absent source file is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.053625ms)

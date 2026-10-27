@@ -20,4 +20,5 @@ green runs, the copy guard and its probes, the write-through and its restoration
 body, the coverage checklist's fourth round (units, current verification, audit rows), the task list (D1–D9, the
 source check), both reviews with every finding's handling, the postmortem and its index, and step 8. Added in this
 check: the postmortem item above. No other item missing, none stale. The two hand-kept lists elsewhere in the gate
-(`ALLOWED`, `EXEMPT`) are reported to the owner with the delivery, recommended as no change (the code review, ④).
+(`ALLOWED`, `EXEMPT`) were reported to the owner with the delivery, recommended as no change (the code review, ④);
+the owner kept them as they are on 2026-10-26 and opened #316 for the gate's lists that mirror a set the product grows.

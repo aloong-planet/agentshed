@@ -1,0 +1,100 @@
+# Green after the code review's fixes (2026-10-26)
+HEAD: e7d6f5aedb578b63336d92d099778e98b00dfe65; gate e4365b5e16d3e2c091b55cd276ce008770ff571e, test 64d620d5e669630f0e9393b7f5a9e552b341670e, both uncommitted
+command: node --test scripts/check-shared-ui.test.mjs; node scripts/check-shared-ui.mjs
+
+✔ the planted run fails, and only on what was planted (1.429042ms)
+✔ a page without its asset's link is reported, though its comment names the asset (0.083458ms)
+✔ a page without its asset's script is reported, though a script comment names the asset (0.064167ms)
+✔ a page without its asset's script is reported, though a comment after code on the same line names the asset (0.053542ms)
+✔ a // inside a string is not a comment: the code after it on the line is read (0.05725ms)
+✔ a // inside a regular expression is not a comment: the code after it on the line is read (0.051625ms)
+✔ a /* inside a string opens no comment: the code after it is read (0.045916ms)
+✔ a template's line that starts with // is read (0.05125ms)
+✔ a declaration left only in a comment does not declare the block (0.078417ms)
+✔ a mount point's id left only in a comment does not count (0.093917ms)
+✔ an asset named in a comment on a page that does not declare its block is not reported (0.067708ms)
+✔ a tab identity script left only in a comment does not count (0.040458ms)
+✔ a chart without its own declaration is reported, though its page declares the block on another chart (0.035458ms)
+✔ a chart whose declaration is only in a comment is reported (0.026916ms)
+✔ a chart written in a script template is judged as well (0.025084ms)
+✔ a declaration that names no shared block is reported (0.033334ms)
+✔ an empty declaration is reported (0.038959ms)
+✔ a block known only by its files is checked: totals-card's stylesheet removed (0.030292ms)
+✔ a block known only by its files is checked: md-preview's stylesheet removed, its declaration in a script template (0.039459ms)
+✔ a new shared stylesheet is a block: a page linking it without a declaration is reported (0.039208ms)
+✔ a file added to a block joins its contract: a page declaring the block without referencing the file is reported (0.033667ms)
+✔ trend-chart's style invariant is still checked (0.032042ms)
+✔ trend-chart's style invariant is still checked in the app's sheet (0.024291ms)
+✔ trend-chart's app component is still checked for its required prop (0.026291ms)
+✔ a common library with no file in _shared is reported (0.027833ms)
+✔ a provider colour is reported in any renderer file, --p-xai included (0.023208ms)
+✔ a provider colour's dark value is reported (0.023541ms)
+✔ a provider colour added to theme.css is reported without changing the gate (0.02825ms)
+✔ dark blue's accent is reported (0.031791ms)
+✔ a value of the accent family other than --accent is reported (0.03875ms)
+✔ the settings page's swatches are not reported by the accent rule (0.041375ms)
+✔ a theme added is checked: its swatch row against its theme.css block (0.027666ms)
+✔ a side added is counted in copy that names it beside another side (0.031083ms)
+✔ a side added has its chip label checked (0.030792ms)
+✔ a language added has its dictionary checked for side enumerations (0.030458ms)
+✔ a language added has its dictionary checked for rail controls named verbatim (0.330416ms)
+✔ a README added is reported by the READMEs that do not link it (0.037292ms)
+✔ a link to a README that is not at the root is reported (0.0315ms)
+✔ a rail item added has its route on a page checked (0.028875ms)
+✔ a ticket number in the English README is reported (0.027833ms)
+✔ a ticket number in a new docs/ directory is reported (0.027292ms)
+✔ a ticket number in a new document at the root is reported (0.030041ms)
+✔ a ticket number in the construction records is not reported (0.052875ms)
+✔ a source array with a member the gate cannot read is reported (0.041042ms)
+✔ a source record with a member the gate cannot read is reported (0.027583ms)
+✔ a component in a subdirectory of the renderer's source is checked (0.026625ms)
+✔ the run on missing sources fails, after every rule has run (0.128417ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.028ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.016292ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.020542ms)
+✔ a missing source is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.015416ms)
+✔ a missing source is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.015666ms)
+✔ a missing source is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.023125ms)
+✔ a missing source is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.014959ms)
+✔ a missing source is reported: src/renderer/src/theme.css: no --p-* value — the brand colours come from them (0.014708ms)
+✔ a missing source is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.016417ms)
+✔ a missing source is reported: no README*.md at the root — the README rule reads them (0.017166ms)
+ℹ tests 57
+ℹ suites 0
+ℹ pass 57
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4102.906875
+TEST_EXIT=0
+✓ shared block app-rail — all 11 usage site(s) compliant
+✓ shared block app-window — all 11 usage site(s) compliant
+✓ shared block file-drawer — all 4 usage site(s) compliant
+✓ shared block md-preview — all 5 usage site(s) compliant
+✓ shared block project-side — all 5 usage site(s) compliant
+✓ shared block session-hits — all 2 usage site(s) compliant
+✓ shared block startup-status — all 5 usage site(s) compliant
+✓ shared block toast — all 2 usage site(s) compliant
+✓ shared block totals-card — all 2 usage site(s) compliant
+✓ shared block trend-chart — all 2 usage site(s) compliant
+✓ every list the checks mirror from the product is read from a source that names its members
+✓ persistent documents must not reference ticket numbers (they outlive the tickets)
+✓ every README links every other, and none links a README that is not there (i18n::CON-001)
+✓ settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)
+✓ dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)
+✓ dictionary copy must not name a rail control verbatim (a sentence outlives the control)
+✓ provider brand colours must not be hard-coded in components (use CSS variables)
+✓ components must not hard-code theme accent colours (use the --accent family)
+✓ side chip labels have one source: no hard-coded SIDE_CHIP_LABEL label outside side-badge.ts
+✓ every chart container in a prototype declares its own shared block (otherwise consistency cannot be checked)
+✓ every declaration on a prototype page names a shared block (a _shared/<id>.css or .js that is not a common library)
+✓ the gate's common libraries and block contracts name files and blocks that exist
+✓ demo dimensions are set on the settings prototype alone and followed elsewhere (dimensions.js + demo-dimensions.js)
+✓ pages that follow the mode or theme take the app tokens from _shared/theme.css and never the system appearance
+✓ prototype pages draw the shared app rail, never their own
+✓ every prototype tab names its app (manifest.js PROTOTYPE_APP + app-identity.js)
+✓ prototype pages draw the shared project column, never their own
+
+Shared-UI consistency check passed
+GATE_EXIT=0

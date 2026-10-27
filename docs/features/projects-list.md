@@ -3,7 +3,7 @@
 > Related decisions: ADR-0019 (what a registry is, per side) · ADR-0021 (side colour)
 
 ## Overview
-Projects are scattered across each agent side's own registry — Claude Code, Codex and Grok — so
+Projects are scattered across each agent side's own registry, so
 "see all the projects I have" means digging through as many sets of configuration as there are
 sides. This list takes the union of every side's registry, one directory to one project, sorted by
 activity.
