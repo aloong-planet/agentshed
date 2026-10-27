@@ -128,12 +128,15 @@ function citedOrLiteral(text, file) {
 
 /**
  * The marker the prototype skill writes into every file it copies into a project verbatim, on one line of the
- * file's first comment (the skill's rule, in its SKILL.md under its files). The templates it has filled in with
- * a prototype's own content carry none.
+ * file's first comment (the skill's rule, in its SKILL.md under its files). The templates a prototype fills in
+ * with its own content carry none.
  */
 const SKILL_COPY_MARKER = "copied from the prototype skill's template"
 
-/** Whether the file's first comment, after a leading `#!` line and `<!doctype>` line, carries the marker on one line */
+/**
+ * Whether the file's first comment carries the marker on one line, skipping a leading `#!` line and a
+ * `<!doctype>` line where the file has them
+ */
 function isSkillCopy(text) {
   const lines = text.split('\n')
   let i = 0
