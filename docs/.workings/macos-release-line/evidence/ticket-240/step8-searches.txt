@@ -200,3 +200,232 @@ $ wc -l of the same files (each read in full by git grep)
     2216 total
 
 # Characters from U+2E80 up are written as \x{hex} escapes, so this record holds no Chinese (check:lang).
+
+# Added after the post-implementation check's fix (HEAD caf6195, 2026-10-28): statements on what a rejected package does, and on the staging wait
+
+$ git grep -n -i -E 'signature' -- <scope>
+docs/adr/0011-question-index-in-token-cache.md:12:per-file incremental cache keyed by a (path, mtime, size) signature (`token-cache.json`). Where does
+docs/adr/0011-question-index-in-token-cache.md:17:1. **Ride along inside the token cache's `FileAgg` (chosen)**: one cache, one signature, one scan
+docs/adr/0011-question-index-in-token-cache.md:19:2. A separate index cache file — rejected: two caches with two signatures drift (the same file
+docs/adr/0011-question-index-in-token-cache.md:48:- Good: two readings from one scan pass, with a single point of signature invalidation; the session
+docs/adr/0014-self-built-typed-i18n-layer.md:67:property — functions keep their original signature, nested objects recurse, and everything else is
+docs/adr/0019-grok-as-third-agent-side.md:41:   size)` cache signature, the read allow-list, byte-range turn fetching, and search — are all
+docs/adr/0019-grok-as-third-agent-side.md:43:   the signature silently stops detecting change, and the other three would each need redefining in
+docs/agents/issue-tracker.md:16:- **No AI signatures** anywhere on the tracker (titles, bodies, comments), per the repository's
+docs/ops/electron-security.md:16:| 1 | Only load secure content | **Not applicable** | The renderer loads no remote content. The app's one outbound request is the main process's update check and the download it finds, over HTTPS to GitHub Releases (ADR-0032); the package is applied only after the system updater checks its signature |
+docs/ops/mac-signing.md:72:spctl --assess --type open --context context:primary-signature --verbose=4 "$DMG"   # release only
+docs/ops/mac-signing.md:95:A local package passes the signature lines and fails the `stapler` and `spctl --type open` lines: it is never
+docs/postmortems/2026-08-02-guards-that-were-not-there.md:20:but **how one field is computed** — the signature still hits, the shape is still valid,
+docs/postmortems/2026-08-04-smoke-silent-lock-exit.md:21:Reproduction: start a `pnpm dev` by hand first, then run smoke — every signature reproduces exactly
+docs/postmortems/2026-10-20-a-title-re-derived-where-it-was-listed.md:54:window — a signature that turned out to be mtime and size, a build that turned out to parse through an injectable
+docs/specs/app-icon.md:70:The raw-NUL gate recognises PNG/ICNS binary signatures together with their extensions. CLI regression
+docs/specs/app-update.md:284:  and the next check downloads again (app-update::REQ-002/AC-03). A signature the system rejects is
+docs/specs/app-update.md:367:- H2 The downloaded package is applied by the system updater, which checks its code signature against
+docs/specs/mac-distribution.md:81:  release's channel. The ZIP holds exactly the one `.app`, and that `.app` passes the same signature
+docs/specs/mac-distribution.md:202:  architecture; signature identity, Team ID or timestamp wrong; ticket not stapled; Gatekeeper refuses
+docs/specs/mac-distribution.md:204:- B4 The ZIP's `.app` lacks its ticket or signature: the release fails like a DMG failure
+docs/specs/session-view.md:280:- C4 An invalid index (the file was appended to or rewritten, so the signature does not match) →
+docs/specs/session-view.md:282:  **Landed (2026-08-04)**: `engine.sessionQuestions` compares the signature on every fetch
+docs/specs/session-view.md:296:  chain have an empty body** (only a signature placeholder) — measured, **neither side's thinking or
+docs/specs/session-view.md:696:  by a `path + mtime + size` signature. Fetching streams the byte range.
+docs/specs/session-view.md:732:  2. Changing **how a field in `FileAgg` is computed** (added 2026-08-02): the signature still hits
+docs/specs/session-view.md:766:  and the search change nothing above it. The read allow-list, the index signature and the cache key
+docs/specs/token-stats.md:560:- **Cache**: incremental by file signature; **a structure change must bump the version number at the
+docs/specs/token-stats.md:562:  recomputes. The signature is read before a file is parsed, so a file that grows while it is read
+src/shared/i18n/en.ts:208:    rebuilding: 'Index signature mismatch (the file was appended to or rewritten) → rebuilding the index for **this file only**…',
+src/shared/i18n/types.ts:12:// Dict rewrites property by property: functions keep their signature, nested objects recurse, and
+src/shared/i18n/zh.ts:4:// string or a function, each function's signature, the nesting — the contract English must satisfy;
+(exit 0)
+
+$ git grep -n -i -E 'reject' -- <scope>
+.github/workflows/release.yml:94:      # A failed gate publishes nothing, and keeps whatever logs Apple returned (a rejection's log is in the job log)
+docs/adr/0001-ipc-contract-single-source.md:17:2. Bring in a schema library such as zod — rejected: the surface to validate is one snapshot and a
+docs/adr/0001-ipc-contract-single-source.md:19:3. Rely on TypeScript types alone with no runtime validation — rejected: IPC crosses the type
+docs/adr/0002-dual-seam-testing.md:9:2. The data layer as the single seam — rejected: the user explicitly required the contract layer to
+docs/adr/0002-dual-seam-testing.md:11:3. Playwright end-to-end as the primary approach — rejected: heavy, brittle and slow; with a wide
+docs/adr/0003-token-accounting.md:20:2. Have the totals follow the list filters (hidden projects excluded) — rejected: hiding a project
+docs/adr/0003-token-accounting.md:23:3. Count cache reads as consumption — rejected: cache reads are of a different order of magnitude
+docs/adr/0004-skill-install-by-copy.md:1:# ADR-0004: Skills install by copy (symlinks rejected)
+docs/adr/0004-skill-install-by-copy.md:15:2. Land as symlinks — rejected: editing follows the symlink through into the global library or the
+docs/adr/0004-skill-install-by-copy.md:18:3. `cpSync` straight to the target name — rejected: an interrupted copy leaves a half-finished
+docs/adr/0005-token-ccusage-alignment.md:28:3. Replicate every detail of ccusage (dual XDG roots, `CLAUDE_CONFIG_DIR`, rejecting null fields,
+docs/adr/0006-codex-usage-accounting.md:31:2. Take the last `total_token_usage` as the session total — rejected: sessions spanning midnight
+docs/adr/0006-codex-usage-accounting.md:33:3. Sum per-turn `last` values but skip fork stripping — rejected: measured 4.6× over-count on
+docs/adr/0007-usage-archive.md:19:2. Just raise `cleanupPeriodDays` and skip the archive — rejected: that only defers the problem, and
+docs/adr/0007-usage-archive.md:22:3. Copy the session files into the app's own directory — rejected: it duplicates the same disk
+docs/adr/0007-usage-archive.md:24:4. Store day × side only (the most minimal) — rejected (user's ruling): granularity can be
+docs/adr/0008-trend-by-provider.md:17:2. Segment by model — rejected: measured on this machine there are 9 models spanning 5 orders of
+docs/adr/0008-trend-by-provider.md:21:3. Segment by agent side (Claude Code / Codex) — rejected: a side is a tool and a provider is a model
+docs/adr/0008-trend-by-provider.md:25:4. No segmentation (stay single-colour) — rejected: does not meet the requirement
+docs/adr/0009-trend-xaxis-data-days.md:20:2. Two staggered rows of M/D (Highcharts `staggerLines`) — rejected: the strongest at preserving all
+docs/adr/0009-trend-xaxis-data-days.md:24:3. M/D at 45° (the Highcharts / matplotlib classic fallback) — rejected: its unique advantage is that
+docs/adr/0009-trend-xaxis-data-days.md:28:4. Evenly spaced labels with empty days filled in (always labelling first and last) — rejected: the
+docs/adr/0009-trend-xaxis-data-days.md:32:5. Keep labelling every 5th slot — rejected: that is the original defect itself
+docs/adr/0010-plugin-skills-in-effective-view.md:17:2. Show them only inside the expanded Plugins section and leave the Skills section as is — rejected:
+docs/adr/0010-plugin-skills-in-effective-view.md:21:3. Join them *and* let them take part in shadowing — rejected: the official semantics are namespaced
+docs/adr/0011-question-index-in-token-cache.md:19:2. A separate index cache file — rejected: two caches with two signatures drift (the same file
+docs/adr/0011-question-index-in-token-cache.md:23:3. No cache — scan on demand when the session page opens — rejected: the session list needs
+docs/adr/0012-plugin-skill-preview-decoupled-from-enablement.md:24:2. Align Codex fully with Claude (join the Skills section + enablement) — rejected: it would require
+docs/adr/0012-plugin-skill-preview-decoupled-from-enablement.md:28:3. Only enabled plugins' skills can be previewed (consistent with G1) — rejected: it shuts out the
+docs/adr/0012-plugin-skill-preview-decoupled-from-enablement.md:31:4. Click through to the row in the Skills section (the requirement's literal wording) — rejected:
+docs/adr/0013-ui-language-set-and-i18n-scope.md:24:2. Take the six official UN languages literally (including Arabic) — rejected: RTL would require
+docs/adr/0013-ui-language-set-and-i18n-scope.md:28:3. Include Arabic but translate text only, without RTL — rejected: Arabic text stuffed into an LTR
+docs/adr/0013-ui-language-set-and-i18n-scope.md:31:4. Translate all of `docs/` into six languages — rejected: 1925 lines of engineering artifacts × 6,
+docs/adr/0014-self-built-typed-i18n-layer.md:1:# ADR-0014: Self-built typed i18n layer (general-purpose i18n frameworks rejected)
+docs/adr/0014-self-built-typed-i18n-layer.md:19:2. i18next 26.3.6 + react-i18next 17.0.11 — rejected: keys are string literals, and by default a
+docs/adr/0014-self-built-typed-i18n-layer.md:24:3. Lingui 6.6.0 — rejected: compile-time macro extraction and ICU plurals are genuinely a good fit,
+docs/adr/0014-self-built-typed-i18n-layer.md:29:4. react-intl 10.1.20 — rejected: the same key-string problem as option 2, and ICU syntax is no more
+docs/adr/0015-structured-ipc-errors.md:21:   `validate.ts` in their original wording — rejected: diagnostics also bubble to the UI through
+docs/adr/0015-structured-ipc-errors.md:25:3. Standardise error copy on English and keep it out of i18n — rejected: it downgrades Chinese users
+docs/adr/0015-structured-ipc-errors.md:28:4. Build a "Chinese sentence → per-language wording" map on the renderer side — rejected: that makes
+docs/adr/0016-no-natural-language-across-ipc.md:34:2. Expand ADR-0015's Decision section — rejected: that changes the applicability of an **accepted**
+docs/adr/0016-no-natural-language-across-ipc.md:38:   rejected: the main process would then have to hold the current UI language and re-read it on every
+docs/adr/0016-no-natural-language-across-ipc.md:40:4. Handle only the `error` data fields (the class most like 0015) and leave the rest — rejected: the
+docs/adr/0017-repo-working-language-english.md:28:2. Change terminal output only, leave the rest Chinese — rejected: this was actually implemented on
+docs/adr/0017-repo-working-language-english.md:32:3. Change `docs/` only, leave comments Chinese — rejected: comments carry **causes**, docs carry
+docs/adr/0017-repo-working-language-english.md:35:4. Keep both languages side by side — rejected for exactly the reason ADR-0013 rejected six
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:30:   Rejected on the second problem: two hand-kept lists of the same thing are equal only for as long as
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:33:2. **Runtime dependency on an icon package in both places.** Rejected: the prototypes are zero-build,
+docs/adr/0018-icons-are-inline-svg-from-one-source.md:80:- The closing rationale of the rejected equivalence-gate proposal, for the checkable/undecidable boundary
+docs/adr/0019-grok-as-third-agent-side.md:21:2. Registry = the session store's directory names — rejected: the names are percent-encoded absolute
+docs/adr/0019-grok-as-third-agent-side.md:26:   the cost of the rejection is that such a project does not appear in the list, which is exactly how
+docs/adr/0019-grok-as-third-agent-side.md:28:3. Compatibility-borrowed components shown inside Grok's own lists — rejected: Grok loads
+docs/adr/0019-grok-as-third-agent-side.md:31:   rejected because every Claude entry would then appear twice (26 skills on this machine become 52
+docs/adr/0019-grok-as-third-agent-side.md:34:4. Read the per-turn cost — rejected: `turn_completed.usage` carries `costUsdTicks`, which is real
+docs/adr/0019-grok-as-third-agent-side.md:35:   billing data rather than an estimate, so discarding it is a real loss. It was rejected because
+docs/adr/0019-grok-as-third-agent-side.md:39:5. Session identity = the session directory — rejected: it is the more honest reading (a Grok session
+docs/adr/0020-day-usage-keyed-by-side.md:17:2. Add a third literal field `grok: number` — rejected: the smallest edit, and consistent with what
+docs/adr/0020-day-usage-keyed-by-side.md:21:3. Index sparsely, `Partial<Record<AgentSide, number>>`, matching `byProvider` — rejected: the two
+docs/adr/0021-side-colour-follows-provider.md:23:2. Keep the two palettes separate — rejected: it is defensible in principle (a side is a tool, a
+docs/adr/0021-side-colour-follows-provider.md:26:3. Unify the other way, onto the badge palette — rejected: the chart's provider colours are load
+docs/adr/0021-side-colour-follows-provider.md:53:- Neutral, and a tension worth naming: ADR-0008 rejected segmenting the chart by agent side precisely
+docs/adr/0022-remove-manual-hiding.md:25:   rejected: it preserves a capability whose demand has not shown up, and buys that by adding an
+docs/adr/0022-remove-manual-hiding.md:28:3. Keep it as is and live with the collision — rejected: the 37px reservation is load-bearing for
+docs/adr/0022-remove-manual-hiding.md:50:- Neutral: ADR-0003 rejected "have the totals follow the list filters" on the grounds that hiding a
+docs/adr/0023-no-cache-write-on-codex-and-grok.md:39:2. Drop the term from the total but keep parsing the field — rejected: the four fields would then no
+docs/adr/0023-no-cache-write-on-codex-and-grok.md:42:3. Subtract it from input as well, so a non-zero field would be handled "correctly" — rejected: it
+docs/adr/0023-no-cache-write-on-codex-and-grok.md:46:4. Leave the code as it is and document the hazard — rejected: a latent double-count that no test can
+docs/adr/0024-composition-colours-overlap-the-provider-palette.md:25:2. Sequential single-hue ramp — rejected by the user; it was the previous version
+docs/adr/0024-composition-colours-overlap-the-provider-palette.md:27:   rejected on measurement: an unconstrained search for maximum ΔE returns olive `#bba600`, lime
+docs/adr/0025-usage-rows-are-the-renderer-contract.md:26:2. Keep the projections and add a fourth pre-aggregated field per window — rejected: four windows ×
+docs/adr/0025-usage-rows-are-the-renderer-contract.md:30:3. Keep the projections and add the missing dimensions to each — rejected: it multiplies the
+docs/adr/0025-usage-rows-are-the-renderer-contract.md:39:contract was measured against its own blast radius and rejected: some fifty existing assertions and
+docs/adr/0026-archive-retention-by-accounting-stamp.md:25:   percentage) — rejected: magnitude cannot tell a correction from a loss; a 30% fix and a 30% loss
+docs/adr/0026-archive-retention-by-accounting-stamp.md:27:3. Keep overwriting and rely on recovering superseded values afterwards — rejected: every upstream
+docs/adr/0026-archive-retention-by-accounting-stamp.md:29:4. Version every row on every change, the scan day included — rejected: the scan day's rows change
+docs/adr/0026-archive-retention-by-accounting-stamp.md:32:5. Dated backups of the whole archive file — rejected: the interface cannot mark which day was
+docs/adr/0026-archive-retention-by-accounting-stamp.md:36:   hide behind another's growth — rejected: a project whose rows move to a new key (a registry
+docs/adr/0027-codex-usage-records.md:30:2. Stay on the usage event with the cumulative rule (ccusage's reading) — rejected: it demonstrably
+docs/adr/0027-codex-usage-records.md:34:3. Usage records only, discarding the event everywhere — rejected: 1032 rollouts have no record, and
+docs/adr/0027-codex-usage-records.md:37:4. The thread's running total from the last record as the session figure — rejected: it survives
+docs/adr/0027-codex-usage-records.md:40:5. The boundary by timestamp rather than line order — rejected: identical selection on every
+docs/adr/0027-codex-usage-records.md:43:6. Comparing both sources per response and taking the larger — rejected: an accounting rule that
+docs/adr/0028-tanstack-query-as-the-renderer-query-layer.md:27:   rejected: the upgrade is its own blast radius (the 19 types drop the global `JSX` namespace —
+docs/adr/0028-tanstack-query-as-the-renderer-query-layer.md:35:4. Keep the previous payload in state and key the subtree by path, without Suspense — rejected: not
+docs/adr/0029-startup-display-persistence.md:18:   cache has no question index, and session opening rejects with sessionNotIndexed.
+docs/adr/0029-startup-display-persistence.md:21:4. Couple the saved display data to the accounting stamp — rejected in the requirements discussion:
+docs/adr/0029-startup-display-persistence.md:64:that sessionQuestions rejects a file absent from that map. The real Electron restart scenario verifies saved details, read previews and answers before a held
+docs/adr/0030-message-language.md:25:   writing rule tells agents which language to use; a `commit-msg` hook rejects a message at commit
+docs/adr/0030-message-language.md:28:2. Writing rule only — rejected: that is the state that let 17 Chinese subjects through after ADR-0017.
+docs/adr/0030-message-language.md:29:3. Hook only — rejected: `git commit --no-verify` bypasses any local hook, and nothing would notice.
+docs/adr/0030-message-language.md:30:4. CI only — rejected: feedback arrives after the commit is made and pushed, and CI is the layer most
+docs/adr/0030-message-language.md:33:5. A hook installed by setting `core.hooksPath` to a committed directory, with no dependency — rejected:
+docs/adr/0030-message-language.md:37:6. simple-git-hooks — rejected: it writes into `.git/hooks`, which git ignores entirely once a
+docs/adr/0030-message-language.md:41:8. Checking issues with a workflow on `issues` events — rejected: GitHub cannot stop an issue from being
+docs/adr/0030-message-language.md:44:9. For a Japanese working language, skipping the check as for Chinese — rejected: the check tells
+docs/adr/0030-message-language.md:97:  otherwise can reject that one commit. Inferring `auto` reliably is not possible from inside the hook.
+docs/adr/0031-macos-release-line.md:25:2. Release builds on the developer's machine only, uploaded by hand — rejected: a release would depend
+docs/adr/0031-macos-release-line.md:28:   instead of R2 or alongside it — rejected: no existing pipeline, traffic billing or a server whose
+docs/adr/0031-macos-release-line.md:32:   rejected: it contradicts `macos-signing.md` §5 as written ("only on formal-release events"). That
+docs/adr/0031-macos-release-line.md:36:5. Sharing Transfer's bucket under a prefix — rejected: one token would write both projects' installers,
+docs/adr/0031-macos-release-line.md:38:6. A landing page in all six languages — rejected by the owner in favour of Chinese and English, as
+docs/adr/0031-macos-release-line.md:42:7. The landing page as one static HTML file, or in its own repository — rejected: a single file
+docs/adr/0031-macos-release-line.md:45:8. A second copy of the landing page on the Aliyun ECS with the ICP filing number — rejected: it speeds up
+docs/adr/0031-macos-release-line.md:52:11. Releasing the first version as a formal release (`v0.1.0` or `v1.0.0`) — rejected: only a real release
+docs/adr/0032-app-updates.md:29:2. Reading the R2 mirror (a generic provider) — rejected: the mirror holds formal releases only
+docs/adr/0032-app-updates.md:31:3. Downloading in the background and then prompting to restart — rejected by the owner: an update is
+docs/adr/0032-app-updates.md:33:4. Downloading and installing silently — rejected: the user would not know the app changed, the least
+docs/adr/0032-app-updates.md:35:5. Automatic checks off by default — rejected: most users would never turn them on, and the mechanism
+docs/adr/0032-app-updates.md:37:6. Automatic checks always on, with no switch — rejected: a user who wants the app never to reach the
+docs/adr/0032-app-updates.md:39:7. Installing immediately once a download completes — rejected: it restarts the app at a moment the user
+docs/adr/0032-app-updates.md:40:   did not choose. Waiting for a restart click with no install on quit — rejected: an ignored prompt would
+docs/adr/0032-app-updates.md:42:8. Formal releases only, for everyone — rejected: the first release is a pre-release (ADR-0031), so its
+docs/adr/0032-app-updates.md:43:   users would get no fixes until the first formal release. A user-chosen channel — rejected: one more
+docs/adr/0032-app-updates.md:45:9. Checking at launch only — rejected: a copy left running for days would not see a new release. Every
+docs/adr/0032-app-updates.md:46:   six hours — rejected: four times the requests for little benefit to a local-first app
+docs/adr/0032-app-updates.md:49:11. A manual check in settings only, or none — rejected: the application menu is where macOS users look
+docs/adr/0032-app-updates.md:51:12. Leaving updates out of the release line — rejected by the owner; updates ship with it
+docs/adr/0032-app-updates.md:66:> rejected, is chosen in place of option 1's "announce, download on request". A small update button
+docs/adr/0033-prototypes-are-the-baseline.md:25:   `--cross` tier checks that they are current — rejected: it copies in the wrong direction once the
+docs/adr/0034-global-search-question-corpus-in-memory.md:22:2. The same in-memory texts, loaded by the first search rather than by opening the page — rejected
+docs/adr/0034-global-search-question-corpus-in-memory.md:26:   rejected: about 3.2 s per search and growing, which would push the box to search on Enter
+docs/adr/0034-global-search-question-corpus-in-memory.md:28:4. Persist question texts in the accounting and question-index cache — rejected by D2a's original
+docs/adr/0035-ui-languages-chinese-and-english.md:36:4. Drop the four languages after `v0.1.0-beta` — rejected by the owner: installations would exist by then,
+docs/adr/0035-ui-languages-chinese-and-english.md:38:5. Keep the four READMEs while the app drops the languages — rejected by the owner: the README is inside
+docs/adr/0036-injected-text-stays-a-question.md:30:   shape wraps them (a paste, a request after a file list) — rejected by the owner after looking at a real
+docs/adr/0036-injected-text-stays-a-question.md:34:   Codex's ambient state and the rest) — offered as the recommendation and rejected by the owner: all of it is
+docs/adr/README.md:15:| [0004](0004-skill-install-by-copy.md) | Skills install by copy (symlinks rejected) | Accepted |
+docs/adr/README.md:25:| [0014](0014-self-built-typed-i18n-layer.md) | Self-built typed i18n layer (general-purpose i18n frameworks rejected) | Accepted |
+docs/ops/mac-signing.md:120:  A failed gate job uploads whatever logs Apple returned as `agentshed-macos-failed`; the log of a rejection is also
+docs/postmortems/2026-07-30-cache-version-crash.md:41:  process's stderr has no `Error occurred in handler` / `UnhandledPromiseRejection` / `TypeError`.
+docs/specs/agents-overview.md:147:  a directory with the existing package containment rules. Reject missing, invalid or replaced
+docs/specs/app-icon.md:72:rejected. Stage new assets before the final gateway so Git-index-based checks include them.
+docs/specs/app-update.md:225:never from the R2 mirror (ADR-0032 option 2, rejected). The mirror holds formal releases only, and the
+docs/specs/app-update.md:284:  and the next check downloads again (app-update::REQ-002/AC-03). A signature the system rejects is
+docs/specs/app-update.md:368:  the running app, twice. A package it rejects while staging it is a failed download (B2): the ready
+docs/specs/app-update.md:369:  button never appears. One it rejects at install, after the click, when the app has already quit, is not
+docs/specs/app-update.md:381:  reports the download done only when it is staged, so a package the system updater rejects is a failed
+docs/specs/app-update.md:439:  stage the package — not ready before it has, a rejection while staging a failed download (Failure H2),
+docs/specs/landing-page.md:338:- A version constant built into the site (rejected 2026-10-13 in favour of reading at run time).
+docs/specs/mac-distribution.md:158:pointer (`macos-signing.md` §5; ADR-0031 option 4, rejected).
+docs/specs/plugins-view.md:201:   Codex skills); a bad payload is rejected.
+docs/specs/project-detail.md:103:- T10 Fetch failure on a first visit (the IPC call rejects): the switch completes to the existing
+docs/specs/project-detail.md:172:  going through `artifact-content-query`'s result wrapper rather than an unhandled rejection.
+docs/specs/project-detail.md:260:  clipboard API rejects under automation — measured, not assumed — and the OS clipboard is
+docs/specs/session-view.md:266:  bound. The whole-file design was rejected on that measurement. A truncated cold rollout never
+docs/specs/session-view.md:483:  prefix lookalikes, encoding variants and NFD variants are all rejected because the strings are not
+docs/specs/session-view.md:515:  Rejected: a second-level two-column layout (rail 48 + project sidebar 230 + session list 240 leaves
+docs/specs/session-view.md:754:  and other kinds extended by 07; the IPC boundary validates against a kind allow-list and rejects
+docs/specs/skill-install.md:3:> Related: [features](../features/skill-install.md) · ADR-0004 (land by copy, symlinks rejected) · ADR-0002 (dual seam)
+docs/specs/subagents-view.md:87:  refreshes in place without closing; Esc and clicking the overlay are equivalent). Rejected:
+docs/specs/token-stats.md:258:  the same past day is accepted. The per-project comparison that would catch it was rejected in
+site/src/releases.test.ts:6:// Not covered here: what a browser does with CORS and with the time limit. A rejected fetch stands for both;
+site/src/releases.test.ts:35:    Promise.reject(error)
+site/src/releases.test.ts:101:      new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))))
+src/shared/i18n/types.ts:7://      so annotating the English dictionary with `typeof zh` directly would reject `'English'` for not
+(exit 0)
+
+$ git grep -n -i -E 'staged|staging|Squirrel' -- <scope>
+docs/adr/0030-message-language.md:39:7. lefthook — deferred: its parallel commands and staged-file runs are not needed for one hook.
+docs/adr/0030-message-language.md:40:   Reopen when a second hook is added, especially one that runs on staged files only.
+docs/specs/app-update.md:368:  the running app, twice. A package it rejects while staging it is a failed download (B2): the ready
+docs/specs/app-update.md:380:  system updater has fetched the package, before that updater has checked and staged it; the source
+docs/specs/app-update.md:381:  reports the download done only when it is staged, so a package the system updater rejects is a failed
+docs/specs/app-update.md:439:  stage the package — not ready before it has, a rejection while staging a failed download (Failure H2),
+docs/specs/app-update.md:440:  ready at once when it staged first — and a failed download.
+(exit 0)
+
+$ git grep -n -i -E 'install fail|failed install|Couldn.t install' -- <scope>
+docs/features/app-update.md:43:  tries again. A failed install after the click shows an error notice, and a later check downloads the
+docs/specs/app-update.md:79:  once the download or the install fails.
+docs/specs/app-update.md:139:- app-update::REQ-002/AC-03: A failed install after the user clicked to install — the ready button or
+docs/specs/app-update.md:140:  "Install now" in settings — shows an error toast, "Couldn't install the update". The button goes, and
+docs/specs/app-update.md:283:- C4 The install fails after the click (a full disk, changed permissions): error toast, the button goes,
+docs/specs/app-update.md:408:  as a one-off **update notice** — the channel a failed install also uses — and the renderer answers
+docs/specs/app-update.md:443:  ready → install, from either button and including the install failure, and assert the rail button,
+src/shared/i18n/distinctions.test.ts:31:    why: 'an uninstall failure and a skill-delete failure are separate error codes; rendering them identically defeats the structured-error protocol (ADR-0015)',
+src/shared/i18n/en.ts:308:    uninstallFailed: (detail) => `Uninstall failed: ${detail}`,
+(exit 0)
+
+# Chinese, over the 11 files that hold ideographs: signature, install failure, cannot install
+
+$ git grep -n -F '\x{7b7e}\x{540d}' -- <the 11 files>
+src/shared/i18n/zh.ts:284:    rebuilding: '\x{7d22}\x{5f15}\x{7b7e}\x{540d}\x{4e0d}\x{7b26}(\x{6587}\x{4ef6}\x{88ab}\x{8ffd}\x{52a0}\x{6216}\x{91cd}\x{5199})→ \x{6b63}\x{5728}**\x{53ea}\x{91cd}\x{5efa}\x{8be5}\x{6587}\x{4ef6}**\x{7684}\x{7d22}\x{5f15}…',
+(exit 0)
+
+$ git grep -n -F '\x{5b89}\x{88c5}\x{5931}\x{8d25}' -- <the 11 files>
+(exit 1)
+
+$ git grep -n -F '\x{65e0}\x{6cd5}\x{5b89}\x{88c5}' -- <the 11 files>
+src/shared/i18n/zh.ts:98:    installFailed: '\x{65e0}\x{6cd5}\x{5b89}\x{88c5}\x{66f4}\x{65b0}',
+(exit 0)
