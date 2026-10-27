@@ -7,7 +7,7 @@ coverage checklist: [checklist.md](checklist.md) · records: [task list](ticket-
 
 | Sync item and trigger | Documents | Status and notes |
 |---|---|---|
-| Record the version change's verification (the tag check, the targeted checks, the verification run, the gateway) in the coverage checklist's Current verification, once they have run | [checklist](checklist.md) | Pending: the runs are under way |
+| Record the version change's verification (the tag check, the targeted checks, the verification run, the gateway) in the coverage checklist's Current verification, once they have run | [checklist](checklist.md) | Done: the rows of 2026-10-27 for the version change (the full gateway on 49de99a), for #253's release profile (run 40522427267) and for D9 (`loader-check.txt`) |
 | Move app-update::US-004/AC-01's real-release observation to a pre-release published after the first formal release (the owner's D5 of 2026-10-27), with its trigger, verifier, method and evidence place, where the other formal-release evidence waits | [checklist](checklist.md) (the unit's row and Current verification), [#240](https://github.com/aloong-planet/agentshed/issues/240) (its item), [#241](https://github.com/aloong-planet/agentshed/issues/241) (its list of formal-release evidence) | Done: the checklist's rows; #241's list (2026-10-27) and #240's item (2026-10-28) rewritten and read back |
 | Step 8 report for this change before the tag: the two questions and the cross-regression of what it touched | [final-regression.md](final-regression.md) | Done: the #240 section, three stages (2026-10-28); `docs/features/` unchanged |
 | The app-update spec after the post-implementation check: Failure H2 and C4 as the owner decided (D8), the Testing Decisions' seam for the installed copy's source (D7) and the formal channel's condition (D5) | [app-update spec](../../specs/app-update.md) | Done in this change: H2, C4 and the Testing Decisions rewritten; checked against `update-source.ts`, electron-updater 6.8.9 and Squirrel.Mac's source ([code review](ticket-240-review-code.md), second round) |
@@ -19,3 +19,13 @@ coverage checklist: [checklist.md](checklist.md) · records: [task list](ticket-
 | #239's deferred mac-distribution::US-001/AC-02: its user path, the offline first launch, recorded against #239's item and the checklist's AC-02 rows | [#239](https://github.com/aloong-planet/agentshed/issues/239), [checklist](checklist.md) | Waiting: the offline first launch (task 14); the records pull request, then #239's item |
 | #253's third acceptance item, once this ticket's pre-release tag has run: the publish job's download step, on download-artifact v8 since #253, passed or not — the run linked on #253 (its item ticked when it passed), and a Current verification row against the checklist's "#253, regression" row | [#253](https://github.com/aloong-planet/agentshed/issues/253), [checklist](checklist.md) | Waiting: this ticket's pre-release tag run (added by #253, 2026-10-26) |
 | The release runbook's statements about a pre-release tag's run, checked against what this release's run shows | [mac-signing runbook](../../ops/mac-signing.md) | Waiting: the tag's run (task 12) |
+
+Pre-delivery scope re-check (2026-10-28, on the branch at 49de99a and its records): what the change does and what its
+runs produced — the version 0.1.0-beta.2 with its tag check, targeted run and verification run; the installed copy's
+source with its loader and nine unit tests, each red under its mutation; the spec's H2, C4 and Testing Decisions; the
+test file's header; D9's run of a local package on the real feed; the run before the test check and the full gateway —
+against #240's body (rewritten 2026-10-28), the owner's decisions D1–D9, the coverage checklist's round (units, current
+verification, the moved AC-01), the task list, both reviews with every finding's handling (the code review's two rounds
+with none; the test check's findings 1–5), step 8's report, #241 and #253's carried items. Added in this check: none.
+No item is Pending; the Waiting ones name the tag's run or the owner's Mac (tasks 12–18) and are followed up in this
+ticket's records pull request.
