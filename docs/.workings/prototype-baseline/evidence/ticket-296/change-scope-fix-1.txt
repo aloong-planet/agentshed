@@ -1,0 +1,8 @@
+# Does the fix for the test review's findings 1 and 2 change what the tests run? (post-implementation-check.md: change-scope.mjs against the commit before the fix)
+$ node ~/.claude/skills/implement/change-scope.mjs --base 645c866
+inert   docs/.workings/prototype-baseline/ticket-296-review-code.md
+inert   docs/.workings/prototype-baseline/ticket-296-review-tests.md
+inert   docs/.workings/prototype-baseline/ticket-296-tasks.md
+changed scripts/check-lang.test.mjs  (code changed)
+verdict: run (4 files differ from the base)
+EXIT=1

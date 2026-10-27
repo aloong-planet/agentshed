@@ -1,0 +1,107 @@
+# The test with D12-D16 and D9 renamed, against nine changed copies of the gate, one per condition of the first-comment read (scratch directories; the worktree untouched). Base: the branch at 7c4ebc5 plus the uncommitted test change
+$ node --test scripts/check-lang.test.mjs   # the branch's own gate
+ℹ tests 22
+ℹ pass 22
+ℹ fail 0
+
+## mutation first-line-only: diff against the branch's gate
+151c151
+<     if (end !== null && lines[i].includes(end)) return false
+---
+>     return false // mutation: read the first comment's first line only
+$ node --test scripts/check-lang.test.mjs
+✖ Chinese in a JS copy whose marker is on the second line of its header is reported: the copy is recognised by its header (240.499ms)
+✖ Chinese in an HTML copy whose header runs on past the marker line is reported: the copy is recognised by its header (224.17375ms)
+✖ Chinese in a CSS copy whose block header runs on past the marker line is reported: the copy is recognised by its header (226.915458ms)
+✖ Chinese in a JS copy whose // header is indented, the marker on its second line is reported: the copy is recognised by its header (248.727791ms)
+ℹ tests 22
+ℹ pass 18
+ℹ fail 4
+
+## mutation no-run-end: diff against the branch's gate
+149d148
+<     if (end === null && !lines[i].trim().startsWith('//')) return false
+$ node --test scripts/check-lang.test.mjs
+✖ Chinese stays permitted in a script whose // header ends at code, the marker quoted after it (245.023833ms)
+✖ Chinese stays permitted in a script that opens with code, the marker quoted after it (238.93075ms)
+✖ Chinese stays permitted in a script whose // header ends at a blank line, the marker quoted after it, as the manifest is laid out (229.0455ms)
+ℹ tests 22
+ℹ pass 19
+ℹ fail 3
+
+## mutation end-of-file-is-copy: diff against the branch's gate
+153c153
+<   return false
+---
+>   return true // mutation
+$ node --test scripts/check-lang.test.mjs
+✖ Chinese stays permitted in a script of comments only, without the marker (232.933542ms)
+ℹ tests 22
+ℹ pass 21
+ℹ fail 1
+
+## mutation block-token-opening: diff against the branch's gate
+147c147
+<   const end = first.startsWith('<!--') ? '-->' : first.startsWith('/*') ? '*/' : null
+---
+>   const end = first.startsWith('<!--') ? '-->' : first.startsWith('/*') ? '/*' : null
+$ node --test scripts/check-lang.test.mjs
+✖ Chinese in a CSS copy whose block header runs on past the marker line is reported: the copy is recognised by its header (232.411958ms)
+ℹ tests 22
+ℹ pass 21
+ℹ fail 1
+
+## mutation block-token-never: diff against the branch's gate
+147c147
+<   const end = first.startsWith('<!--') ? '-->' : first.startsWith('/*') ? '*/' : null
+---
+>   const end = first.startsWith('<!--') ? '-->' : first.startsWith('/*') ? 'NO-CLOSING-TOKEN' : null
+$ node --test scripts/check-lang.test.mjs
+✖ Chinese stays permitted in a stylesheet whose /* header closes without the marker, the marker quoted after it (371.561708ms)
+ℹ tests 22
+ℹ pass 21
+ℹ fail 1
+
+## mutation blank-line-continues: diff against the branch's gate
+149c149
+<     if (end === null && !lines[i].trim().startsWith('//')) return false
+---
+>     if (end === null && lines[i].trim() !== '' && !lines[i].trim().startsWith('//')) return false
+$ node --test scripts/check-lang.test.mjs
+✖ Chinese stays permitted in a script whose // header ends at a blank line, the marker quoted after it, as the manifest is laid out (241.950709ms)
+ℹ tests 22
+ℹ pass 21
+ℹ fail 1
+
+## mutation doctype-case-sensitive: diff against the branch's gate
+144c144
+<   if (/^<!doctype/i.test(lines[i] ?? '')) i++
+---
+>   if (/^<!doctype/.test(lines[i] ?? '')) i++
+$ node --test scripts/check-lang.test.mjs
+✖ Chinese in an HTML copy behind an upper-case doctype, its header indented is reported: the copy is recognised by its header (253.286959ms)
+ℹ tests 22
+ℹ pass 21
+ℹ fail 1
+
+## mutation first-no-trim: diff against the branch's gate
+145c145
+<   const first = (lines[i] ?? '').trim()
+---
+>   const first = lines[i] ?? ''
+$ node --test scripts/check-lang.test.mjs
+✖ Chinese in an HTML copy behind an upper-case doctype, its header indented is reported: the copy is recognised by its header (237.751417ms)
+ℹ tests 22
+ℹ pass 21
+ℹ fail 1
+
+## mutation inner-no-trim: diff against the branch's gate
+149c149
+<     if (end === null && !lines[i].trim().startsWith('//')) return false
+---
+>     if (end === null && !lines[i].startsWith('//')) return false
+$ node --test scripts/check-lang.test.mjs
+✖ Chinese in a JS copy whose // header is indented, the marker on its second line is reported: the copy is recognised by its header (229.070083ms)
+ℹ tests 22
+ℹ pass 21
+ℹ fail 1

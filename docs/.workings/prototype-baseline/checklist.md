@@ -38,9 +38,14 @@ one branch and one PR. The requirement source is #316's body as rewritten on 202
 that day (D1–D6 in `ticket-316-tasks.md`), with no spec. Scope: `scripts/check-shared-ui.mjs`, its test, and these work
 records.
 
+Sixth round, begun 2026-10-27 on source commit e4c9589 (origin/main): [#296](https://github.com/aloong-planet/agentshed/issues/296),
+one branch and one PR. The requirement source is #296's body with the owner's decisions of 2026-10-27 and the
+acceptance criteria added that day, with no spec; its first step was done in skillshed (aloong-planet/skillshed#25).
+Scope: `scripts/check-lang.mjs`, its test, the re-copied `docs/prototypes/sync-mmd.mjs`, and these work records.
+
 This is a work index, not a requirement authority. The units below are #251's items and its "Done when"
-lines, then #250's items and #226's fix and verification lines, then #270's acceptance lines, then #314's and #316's
-acceptance criteria; each names the tier that backs it.
+lines, then #250's items and #226's fix and verification lines, then #270's acceptance lines, then #314's, #316's and
+#296's acceptance criteria; each names the tier that backs it.
 
 ## Source → verification
 
@@ -98,6 +103,11 @@ acceptance criteria; each names the tier that backs it.
 | 316::8 | #316: the ticket-number rule scans every document under `docs/` except `docs/.workings/`, every `.md` at the root, and `package.json` | Test: the same file — a ticket number in `README.en.md` and in a new `docs/` directory reported, one in `docs/.workings/` not |
 | 316::9 | #316: a source the gate derives from that it cannot read, or that yields no member, turns `pnpm check:ui` red | Test: the same file — each source renamed or emptied, each reported |
 | 316::10 | #316: `pnpm check:ui` stays green on main | Gate: `pnpm check:ui` exit 0 |
+| 296::1 | #296: a file under `docs/prototypes/` whose first comment carries the marker is checked like any other tooling, whatever it is called, a copy the gate was never told about included | Test: `scripts/check-lang.test.mjs` — Chinese in an HTML copy behind its doctype, a JS copy, a CSS copy, a JS copy behind a `#!` line and a copy under a name no list held, each reported; the last red first on e4c9589's gate |
+| 296::2 | #296: mockups, logic pages, `manifest.js` and `dimensions.js` stay exempt, and so does a page that mentions the marker below its first comment | Test: the same file — the four permitted cases and the boundary page |
+| 296::3 | #296: the gate names no copy; `SKILL_TOOLING` is gone | Evidence: a search of `scripts/check-lang.mjs` for the list and the copies' names, with the gate before the change as its control |
+| 296::4 | #296: `docs/prototypes/sync-mmd.mjs` is the skill's current copy, carrying the marker | Evidence: `cmp` against the skill's file at skillshed 3db94ce |
+| 296::5 | #296: `pnpm check:lang` stays green on main | Gate: `pnpm check:lang` exit 0 |
 
 ## Current verification
 
@@ -160,6 +170,15 @@ acceptance criteria; each names the tier that backs it.
 | 2026-10-27; delivery head a904c05 (6b5aecc plus the test's header, a comment-only change, and the records) | all fifth-round units | `pnpm verify`, each step on its own, on a904c05 with a clean tree: typecheck, lint, test (873 passed, 1 skipped), test:scripts (137), test:site (107), check:ui (70 cases, then the gate), check:lang, check:i18n, check:nul, e2e (155 passed), smoke — every exit code 0 (`gateway-a904c05.txt`); the earlier gateways at b03fc6e and 723db11 the same way | Verified |
 | 2026-10-27; delivery head 5074243 (a904c05 plus the owner's wording fixes: comments, two documents' boundary lines, a prototype label, an e2e case's name, `package.json`'s description) | all fifth-round units | `pnpm verify`, each step on its own, on 5074243 with a clean tree: the same steps and counts, every exit code 0; the ticket-number rule reads the changed `package.json` and documents (`gateway-5074243.txt`) | Verified |
 | 2026-10-27; 16bd99f (9d50dc5 plus four documents' side wording, at the owner's decision; the owner waived the full gateway) | 316::10 | `pnpm check:ui` (70 cases, then the gate), `check:lang` and `check:i18n`, each exit 0 on 16bd99f with a clean tree (`targeted-16bd99f.txt`); the other units' cases and code are unchanged since 5074243 | Verified |
+| 2026-10-27; source #296's body; implementation 446bad8 (branch fix/check-lang-copy-marker on e4c9589; the targeted runs read the change just before it was committed, unchanged, as their logs' diff stat shows) | 296::1 | The five copy cases reported at their line, by the prototype rule (`evidence/ticket-296/targeted.txt`, 12 of 12 passing); the new name's case red first on e4c9589's gate, which counted its line as permitted (`red-first.txt`); on that gate the CSS, the new-name and the `#!` cases fail and the two cases using a listed name pass (`base-run.txt`) | Verified |
+| same | 296::2 | The four permitted cases and the boundary page pass, each at nine permitted lines (`targeted.txt`) | Verified |
+| same | 296::3 | `rg -n` for `SKILL_TOOLING` and the five copies' names over `scripts/check-lang.mjs`: exit 1; the same search over e4c9589's gate hits seven lines (`no-list.txt`) | Verified |
+| same | 296::4 | `cmp` with the skill's `sync-mmd.mjs` at 3db94ce: exit 0; each of the five copies identical to its master, and the five the only files under `docs/prototypes/` holding the marker; the re-copied script runs and regenerates the three diagram files unchanged (`copy-check.txt`, `targeted.txt`) | Verified |
+| same | 296::5 | `pnpm check:lang` exit 0 on the repository, 2270 permitted lines (`targeted.txt`) | Verified |
+| 2026-10-27; test a32cd16 (the post-implementation check's findings 1 and 2; the gate unchanged since df9fdcf) | 296::1, 296::2 | Added: two copies whose marker sits on a later line of the header (a `//` run, a block comment running on past it), reported; a script whose `//` header ends at code, one that opens with code and one of comments only, each without the marker in its first comment, permitted. 17 of 17 passing in `pnpm check:lang` (`targeted-fix-1.txt`, run on the change just before it was committed, as its version list shows); each added case red under the one change to the gate it guards, and no other case (`increment-mutants.txt`) | Verified |
+| 2026-10-27; test 70f1f3d (the incremental check's findings 3 and 4; the gate unchanged since df9fdcf) | 296::1, 296::2 | Added: a CSS copy whose block header runs on past the marker line, an HTML copy behind an upper-case doctype with an indented header and an indented `//` header, each reported; a stylesheet whose header closes without the marker and a script laid out as the manifest is (a blank line ending its header), permitted; the code-ended header's case renamed to `dimensions.js`, its real source. 22 of 22 passing in `pnpm check:lang` (`targeted-fix-2.txt`, its test blob equal to 70f1f3d's); nine changed copies of the gate, one per condition of the first-comment read, each turn only their cases red (`increment-mutants-2.txt`) | Verified |
+| 2026-10-27; test 9137bc6 (the second incremental check's finding 5; the gate unchanged since df9fdcf) | 296::2 | Added: a script whose `//` header ends at a code line quoting the marker, and one whose first line is such code, both permitted: a marker on the line that ends a `//` run, or on a first line of code, does not count. 24 of 24 passing in `pnpm check:lang` (`targeted-fix-3.txt`, its test blob equal to 9137bc6's); eleven changed copies of the gate, the read's nine conditions and the order of its tests, each turn only their cases red (`increment-mutants-3.txt`) | Verified |
+| 2026-10-27; delivery head 1342fba (the gate at df9fdcf, the test at 9137bc6, the copy at 446bad8, plus the records) | all sixth-round units | `pnpm verify`, each step on its own, on 1342fba with a clean tree: typecheck, lint, test (873 passed, 1 skipped), test:scripts (137), test:site (107), check:ui (70 cases, then the gate), check:lang (24 cases, then the gate: 2270 permitted lines, 296::5), check:i18n, check:nul (8 cases, then the gate), e2e (155 passed), smoke — every exit code 0 (`gateway-1342fba.txt`) | Verified |
 
 ## Two-way audit
 
@@ -174,3 +193,4 @@ acceptance criteria; each names the tier that backs it.
 | Third round: #270's two acceptance lines each have a row (270::1, 270::2). The class-level check of the defect found the same raw-text search in the shared-block check's other searches and in the tab identity rule (270::R1, decision D1). The chart container rule's count — every declaration on the page against its chart containers — is a different defect, reported to the owner and not in this round (opened as #314, the fourth round) | #270 Acceptance; `ticket-270-tasks.md` | Mapped |
 | Fourth round: #314's six acceptance criteria each have a row (314::1–314::6). They carry the owner's decisions of 2026-10-26: the unlisted blocks, the general rule and the file-derived contract (D3–D5) widen #314's first text, and the body was rewritten with them before the work | #314 Acceptance criteria and Decisions; `ticket-314-tasks.md` | Mapped |
 | Fifth round: #316's ten acceptance criteria each have a row (316::1–316::10). Each decision of 2026-10-26 (D1–D6) is backed by one of them; 316::9 carries the convention every derived list needs (D7), and was in the body before the work. The lists kept by hand are named in the body and have no row | #316 Acceptance criteria and Decisions; `ticket-316-tasks.md` | Mapped |
+| Sixth round: #296's five acceptance criteria each have a row (296::1–296::5). They carry the body's steps 2 and 3 and the owner's decisions of 2026-10-27; step 1 was done and verified in skillshed (#25), outside this repository. The body's alternative (keep the list, report a dead entry) was not chosen and has no row | #296 Possible fix, Decisions and Acceptance criteria; `ticket-296-tasks.md` | Mapped |

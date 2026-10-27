@@ -1,8 +1,7 @@
 // Exercise the working-language gate's CLI in real temporary Git repositories, as check-raw-nul.test.mjs does
-// for its sibling gate. Covers the prototype exemption: the prototype skill's verbatim copies are checked like
-// any other tooling, while mockups and this project's own registries stay exempt.
-//
-// Gap: a template the skill adds later is covered only once it is named both in the gate and here (#296).
+// for its sibling gate. Covers the prototype exemption: the prototype skill's verbatim copies, recognised by the
+// marker in their first comment whatever they are called, are checked like any other tooling, while mockups and
+// this project's own registries stay exempt.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -35,6 +34,11 @@ const SEEDS = {
 /** A file of the given type whose second line is a Chinese comment */
 const withChinese = (file) => (file.endsWith('.html') ? `<!doctype html>\n<!-- ${CN} -->\n` : `// English\n// ${CN}\n`)
 
+/** The prototype skill's copy header as `docs/prototypes/demo-harness.js` carries it: two comment lines, the marker on the first */
+const JS_COPY_HEADER =
+  "// Demo harness dock (copied from the prototype skill's template; do not edit by hand — change the skill\n" +
+  '// template and copy it again). Scaffolding, not part of any design.\n'
+
 /** Run the gate on the seeds plus `files`, all staged in a fresh repository */
 function check(files = {}) {
   const cwd = mkdtempSync(join(tmpdir(), 'agentshed-lang-gate-'))
@@ -57,17 +61,78 @@ test('the seeds alone pass, one permitted line each', () => {
   assert.match(result.stdout, /Working language: 8 line\(s\)/)
 })
 
-for (const file of [
-  'docs/prototypes/index.html',
-  'docs/prototypes/app-identity.js',
-  'docs/prototypes/demo-dimensions.js',
-  'docs/prototypes/demo-harness.js'
+// Each copy's Chinese sits on the line given; the shapes are the real copies' headers where one exists
+for (const [what, file, text, line] of [
+  [
+    'an HTML copy (its header after the doctype)',
+    'docs/prototypes/index.html',
+    "<!doctype html>\n<!-- Prototype gallery shell (copied from the prototype skill's template; do not edit by hand — change the skill template and copy it again). -->\n" +
+      `<!-- ${CN} -->\n`,
+    3
+  ],
+  ['a JS copy (its header two comment lines)', 'docs/prototypes/demo-harness.js', `${JS_COPY_HEADER}// ${CN}\n`, 3],
+  [
+    'a CSS copy (its header a block comment)',
+    'docs/prototypes/demo-dock.css',
+    `/* Demo dock styles (copied from the prototype skill's template; do not edit by hand) */\n/* ${CN} */\n`,
+    2
+  ],
+  ['a copy under a name no list ever held', 'docs/prototypes/demo-notes.js', `${JS_COPY_HEADER}// ${CN}\n`, 3],
+  [
+    'a JS copy behind a #! line',
+    'docs/prototypes/demo-tool.js',
+    "#!/usr/bin/env node\n// Diagram sync (copied from the prototype skill's template; do not edit by hand)\n" + `// ${CN}\n`,
+    3
+  ],
+  // The headers are hand-wrapped prose, so a reworded title moves the marker onto a later line of the same comment
+  [
+    'a JS copy whose marker is on the second line of its header',
+    'docs/prototypes/demo-strip.js',
+    '// Demo strip: the bar along the bottom of each prototype page, its title reworded so that the marker\n' +
+      "// falls on the next line (copied from the prototype skill's template; do not edit by hand)\n" +
+      `// ${CN}\n`,
+    3
+  ],
+  [
+    'an HTML copy whose header runs on past the marker line',
+    'docs/prototypes/index.html',
+    '<!doctype html>\n<!-- Prototype gallery shell, its title on a line of its own\n' +
+      "     (copied from the prototype skill's template; do not edit by hand — change the skill template and copy it again).\n" +
+      '     Depends on manifest.js in the same directory. -->\n' +
+      `<!-- ${CN} -->\n`,
+    5
+  ],
+  [
+    'a CSS copy whose block header runs on past the marker line',
+    'docs/prototypes/demo-panel.css',
+    '/* Demo panel styles, its title reworded so that the marker\n' +
+      "   falls on the next line (copied from the prototype skill's template; do not edit by hand).\n" +
+      '   Scaffolding, not part of any design. */\n' +
+      `/* ${CN} */\n`,
+    4
+  ],
+  // HTML allows a doctype in either case and an indented comment; an indented // run is still one run
+  [
+    'an HTML copy behind an upper-case doctype, its header indented',
+    'docs/prototypes/shell.html',
+    "<!DOCTYPE html>\n  <!-- Prototype gallery shell (copied from the prototype skill's template; do not edit by hand) -->\n" +
+      `<!-- ${CN} -->\n`,
+    3
+  ],
+  [
+    'a JS copy whose // header is indented, the marker on its second line',
+    'docs/prototypes/demo-indented.js',
+    '  // Demo tool, its header indented inside the file\n' +
+      "  // (copied from the prototype skill's template; do not edit by hand)\n" +
+      `  // ${CN}\n`,
+    3
+  ]
 ]) {
-  test(`Chinese in the skill's copy ${file} is reported like any other tooling`, () => {
-    const result = check({ [file]: withChinese(file) })
+  test(`Chinese in ${what} is reported: the copy is recognised by its header`, () => {
+    const result = check({ [file]: text })
     assert.equal(result.status, 1, result.stdout)
     assert.match(result.stderr, /found 1 problem\(s\)/)
-    assert.ok(result.stderr.includes(`${file}:2 `), result.stderr)
+    assert.ok(result.stderr.includes(`${file}:${line} `), result.stderr)
     assert.ok(result.stderr.includes('the tooling beside it gets no exemption'), result.stderr)
   })
 }
@@ -89,6 +154,61 @@ for (const [file, what] of [
 ]) {
   test(`Chinese stays permitted in ${what}`, () => {
     const result = check({ [file]: withChinese(file) })
+    assert.equal(result.status, 0, result.stderr)
+    assert.match(result.stdout, /Working language: 9 line\(s\)/)
+  })
+}
+
+// The marker counts only inside the first comment: each file below lacks it there and stays on the mockup side
+for (const [what, file, text] of [
+  [
+    'a mockup page that quotes the marker below its first comment',
+    'docs/prototypes/notes/prototype-notes.html',
+    '<!doctype html>\n<!-- Notes on the gallery -->\n' +
+      "<!-- The shell says it is copied from the prototype skill's template -->\n" +
+      `<p>${CN}</p>\n`
+  ],
+  [
+    'a script whose // header ends at code, the marker quoted after it',
+    'docs/prototypes/dimensions.js',
+    `// The demo dimensions every prototype page shares\n// ${CN}\nwindow.DEMO_DIMENSIONS = {}\n` +
+      "// The gallery shell is copied from the prototype skill's template\n"
+  ],
+  [
+    'a script that opens with code, the marker quoted after it',
+    'docs/prototypes/_shared/notes.js',
+    `window.NOTES = ['${CN}']\n` + "// The skill's copies say they are copied from the prototype skill's template\n"
+  ],
+  [
+    'a stylesheet whose /* header closes without the marker, the marker quoted after it',
+    'docs/prototypes/_shared/panel.css',
+    '/* Panel styles, kept by hand: the baseline the app follows,\n   not checked against the app. */\n' +
+      "/* The gallery shell is copied from the prototype skill's template */\n" +
+      `.panel::after { content: '${CN}' }\n`
+  ],
+  [
+    'a script whose // header ends at a blank line, the marker quoted after it, as the manifest is laid out',
+    'docs/prototypes/manifest.js',
+    `// The prototype registry (a hard rule: add or remove an entry whenever a prototype is created or deleted)\n// ${CN}\n\n` +
+      "// The gallery shell (index.html) is copied from the prototype skill's template\nwindow.PROTOTYPES = []\n"
+  ],
+  // The line that ends a // run is not part of the comment, so a marker on it does not count; nor on a first line of code
+  [
+    'a script whose // header ends at a code line that quotes the marker',
+    'docs/prototypes/dimensions.js',
+    `// The demo dimensions every prototype page shares\n// ${CN}\n` +
+      "window.DEMO_DIMENSIONS = {} // the gallery shell is copied from the prototype skill's template\n"
+  ],
+  [
+    'a script whose first line is code that quotes the marker',
+    'docs/prototypes/_shared/notes.js',
+    `window.NOTES = ['${CN}'] // ` + "the skill's copies say they are copied from the prototype skill's template\n"
+  ],
+  // No marker at all: the first comment runs to the end of the file, which has no newline after it
+  ['a script of comments only, without the marker', 'docs/prototypes/_shared/placeholder.js', `// Placeholder\n// ${CN}`]
+]) {
+  test(`Chinese stays permitted in ${what}`, () => {
+    const result = check({ [file]: text })
     assert.equal(result.status, 0, result.stderr)
     assert.match(result.stdout, /Working language: 9 line\(s\)/)
   })

@@ -127,16 +127,31 @@ function citedOrLiteral(text, file) {
 }
 
 /**
- * The prototype skill's templates copied in unchanged that the file type below would exempt: tooling
- * although they are HTML and JS. `sync-mmd.mjs`, also a copy, needs no entry, because `.mjs` is not an
- * exempt type. A template the skill adds is named here when it is copied in.
+ * The marker the prototype skill writes into every file it copies into a project verbatim, on one line of the
+ * file's first comment (the skill's rule, in its SKILL.md under its files). The templates a prototype fills in
+ * with its own content carry none.
  */
-const SKILL_TOOLING = [
-  'docs/prototypes/index.html',
-  'docs/prototypes/app-identity.js',
-  'docs/prototypes/demo-dimensions.js',
-  'docs/prototypes/demo-harness.js'
-]
+const SKILL_COPY_MARKER = "copied from the prototype skill's template"
+
+/**
+ * Whether the file's first comment carries the marker on one line, skipping a leading `#!` line and a
+ * `<!doctype>` line where the file has them
+ */
+function isSkillCopy(text) {
+  const lines = text.split('\n')
+  let i = 0
+  if (/^#!/.test(lines[i] ?? '')) i++
+  if (/^<!doctype/i.test(lines[i] ?? '')) i++
+  const first = (lines[i] ?? '').trim()
+  // A block comment runs to its closing token; a run of `//` lines ends at the first line that is not one
+  const end = first.startsWith('<!--') ? '-->' : first.startsWith('/*') ? '*/' : null
+  for (; i < lines.length; i++) {
+    if (end === null && !lines[i].trim().startsWith('//')) return false
+    if (lines[i].includes(SKILL_COPY_MARKER)) return true
+    if (end !== null && lines[i].includes(end)) return false
+  }
+  return false
+}
 
 /**
  * A prototype is a mockup of a Chinese interface shown to a Chinese-reading reviewer, so both its content
@@ -146,12 +161,13 @@ const SKILL_TOOLING = [
  * The file type only approximates that line. The skill's copies hold no mockup at all — the gallery shell
  * lists and frames the prototypes, and the scripts beside it name the tab, set the demo dimensions and
  * dock the harness — yet judged by their type they were exempt, so the gate never reported the Chinese the
- * shell still carried. They are named here and checked like any other tooling. `manifest.js` and
- * `dimensions.js` stay exempt: the names, questions and labels they carry address the reviewer, like a
- * mockup's annotations.
+ * shell still carried. They are recognised by the skill's marker and checked like any other tooling, whatever
+ * they are called: a list of their names missed every copy the skill added or renamed until someone updated
+ * it. `manifest.js` and `dimensions.js` stay exempt: the names, questions and labels they carry address the
+ * reviewer, like a mockup's annotations.
  */
 function mockupOnly(text, file) {
-  if (!SKILL_TOOLING.includes(file) && /\.(html|mmd|css|js)$/.test(file)) return []
+  if (/\.(html|mmd|css|js)$/.test(file) && !isSkillCopy(text)) return []
   return text
     .split('\n')
     .map((line, i) => [i + 1, line])
