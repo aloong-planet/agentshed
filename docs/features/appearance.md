@@ -45,7 +45,7 @@ configuration.
   looks the same with a mouse or a trackpad
 
 ## Boundaries and non-goals
-- The CC/CX side badges and the provider chart's brand colours are unaffected (semantic colours do
+- The CC/CX side badges and the provider chart's colours are unaffected (semantic colours do
   not change hue with the theme)
 - Nothing is written to the Claude / Codex configuration
 - Light/dark does not switch automatically by time of day (no sunrise/sunset, no schedule)

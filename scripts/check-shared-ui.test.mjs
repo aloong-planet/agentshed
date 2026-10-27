@@ -134,7 +134,7 @@ const PLANTS = {
   ],
   'src/renderer/src/DetailPane.tsx': [['        archivedDays={snap.archivedDays}\n', '']],
   // Hard-coded colours: --p-xai (light), the new provider colour, dark blue's --accent and blue's light --accent-soft in a
-  // file the brand rule did not search; a dark provider colour in one it did
+  // file the provider colour rule did not search; a dark provider colour in one it did
   'src/renderer/src/TrendSpan.tsx': [
     ["import { TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'\n", "import { TREND_WINDOW_DAYS, type TrendSpan } from '@shared/trend'\nconst PLANTED = ['#ad98d0', '#fa520f', '#7a9dc4', '#eef2f7']\n"]
   ],

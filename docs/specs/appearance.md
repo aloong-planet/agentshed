@@ -441,7 +441,7 @@ recommended handling is in "Out of Scope".
 
 - A fourth theme, custom colours, a theme marketplace.  
 - Switching light/dark automatically by time (sunrise/sunset or a schedule).  
-- Changing the provider brand colours, or binding CC/CX into the theme.  
+- Changing the provider colours, or binding CC/CX into the theme.  
 - Coupling with skill business logic (only tokens are shared).  
 - **A thumb that shows only while scrolling**, as macOS's overlay scrollbars do: a drawn scrollbar
   cannot hide on its own, and showing it on scroll would take a script on every scrolling area; the

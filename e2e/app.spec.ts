@@ -1699,7 +1699,7 @@ test('the trend chart is stacked bars: segmented by provider within a bar, and s
   await close(l)
 })
 
-test('the provider brand colours apply: the segments and the legend match, with their own values in light and dark', async () => {
+test('the provider colours apply: the segments and the legend match, with their own values in light and dark', async () => {
   const l = await launch(undefined, mkUsageHome())
   const win = await l.app.firstWindow()
   const read = async (): Promise<Record<string, string>> =>

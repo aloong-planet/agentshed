@@ -118,7 +118,7 @@
 .legend .sw.xai       { background: var(--p-xai) }
 .legend .sw.other     { background: var(--p-other) }
 .legend .lg-note { margin-left: auto }
-/* The per-model breakdown bars use the same provider brand colours */
+/* The per-model breakdown bars use the same provider colours */
 .m.anthropic .tr i { background: var(--p-anthropic) }
 .m.openai .tr i    { background: var(--p-openai) }
 .m.google .tr i    { background: var(--p-google) }
