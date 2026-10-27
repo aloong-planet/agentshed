@@ -1,0 +1,169 @@
+# Targeted gates at 16bd99f (#316, documents only; the owner waived the full gateway on 2026-10-27)
+git rev-parse HEAD: 16bd99f3c14d335e10a6d6f855d0b8ddbbac5bde
+git status --porcelain --untracked-files=all:
+(end of status)
+git diff --stat 9d50dc5 HEAD:
+ docs/features/appearance.md    | 4 ++--
+ docs/features/i18n.md          | 2 +-
+ docs/features/projects-list.md | 2 +-
+ docs/specs/appearance.md       | 8 ++++----
+ 4 files changed, 8 insertions(+), 8 deletions(-)
+
+## pnpm check:ui
+
+> agentshed@0.1.0-beta check:ui /Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-316
+> node --test scripts/check-shared-ui.test.mjs && node scripts/check-shared-ui.mjs
+
+✔ the planted run fails, and only on what was planted (0.91325ms)
+✔ a page without its asset's link is reported, though its comment names the asset (0.071958ms)
+✔ a page without its asset's script is reported, though a script comment names the asset (0.064292ms)
+✔ a page without its asset's script is reported, though a comment after code on the same line names the asset (0.055ms)
+✔ a // inside a string is not a comment: the code after it on the line is read (0.061708ms)
+✔ a // inside a regular expression is not a comment: the code after it on the line is read (0.057042ms)
+✔ a /* inside a string opens no comment: the code after it is read (0.041708ms)
+✔ a template's line that starts with // is read (0.037625ms)
+✔ a declaration left only in a comment does not declare the block (0.476834ms)
+✔ a mount point's id left only in a comment does not count (0.151ms)
+✔ an asset named in a comment on a page that does not declare its block is not reported (0.09175ms)
+✔ a tab identity script left only in a comment does not count (0.045375ms)
+✔ a chart without its own declaration is reported, though its page declares the block on another chart (0.033875ms)
+✔ a chart whose declaration is only in a comment is reported (0.037625ms)
+✔ a chart written in a script template is judged as well (0.042458ms)
+✔ a declaration that names no shared block is reported (0.035125ms)
+✔ an empty declaration is reported (0.02625ms)
+✔ a block known only by its files is checked: totals-card's stylesheet removed (0.0255ms)
+✔ a block known only by its files is checked: md-preview's stylesheet removed, its declaration in a script template (0.025917ms)
+✔ a new shared stylesheet is a block: a page linking it without a declaration is reported (0.029292ms)
+✔ a file added to a block joins its contract: a page declaring the block without referencing the file is reported (0.024375ms)
+✔ trend-chart's style invariant is still checked (0.029166ms)
+✔ trend-chart's style invariant is still checked in the app's sheet (0.029666ms)
+✔ trend-chart's app component is still checked for its required prop (0.030042ms)
+✔ a common library with no file in _shared is reported (0.062125ms)
+✔ a provider colour is reported in any renderer file, --p-xai included (0.051083ms)
+✔ a provider colour's dark value is reported (0.034458ms)
+✔ a provider colour added to theme.css is reported without changing the gate (0.03525ms)
+✔ dark blue's accent is reported (0.02825ms)
+✔ a value of the accent family other than --accent is reported (0.033833ms)
+✔ the settings page's swatches are not reported by the accent rule (0.043708ms)
+✔ a theme added is checked: its swatch row against its theme.css block (0.027542ms)
+✔ a side added is counted in copy that names it beside another side (0.024083ms)
+✔ a side added has its chip label checked (0.024084ms)
+✔ a language added has its dictionary checked for side enumerations (0.027708ms)
+✔ a language added has its dictionary checked for rail controls named verbatim (0.028458ms)
+✔ a README added is reported by the READMEs that do not link it (0.044833ms)
+✔ a link to a README that is not at the root is reported (0.032458ms)
+✔ a rail item added has its route on a page checked (0.024708ms)
+✔ a ticket number in the English README is reported (0.02325ms)
+✔ a ticket number in a new docs/ directory is reported (0.037458ms)
+✔ a ticket number in a new document at the root is reported (0.024792ms)
+✔ a ticket number in the construction records is not reported (0.112542ms)
+✔ a source array with a member the gate cannot read is reported (0.054875ms)
+✔ a source record with a member the gate cannot read is reported (0.030083ms)
+✔ a source record with a spread member is reported (0.024833ms)
+✔ a component in a subdirectory of the renderer's source is checked (0.042375ms)
+✔ a provider colour in a renderer .ts module is reported (0.024042ms)
+✔ a ticket number in package.json is reported (0.027792ms)
+✔ the run on missing sources fails, after every rule has run (0.184875ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.047959ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.019583ms)
+✔ a missing source is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.018084ms)
+✔ a missing source is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.019625ms)
+✔ a missing source is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.016667ms)
+✔ a missing source is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.0165ms)
+✔ a missing source is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.016959ms)
+✔ a missing source is reported: src/renderer/src/theme.css: no --p-* value — the provider colours come from them (0.023875ms)
+✔ a missing source is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.019ms)
+✔ a missing source is reported: no README*.md at the root — the README rule reads them (0.022083ms)
+✔ the run on absent source files fails, after every rule has run (0.066833ms)
+✔ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_FULL_NAME is missing or empty — the side names come from it (0.069875ms)
+✔ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_SHORT_NAME is missing or empty — the side names come from it (0.020875ms)
+✔ an absent source file is reported: src/renderer/src/side-badge.ts: SIDE_CHIP_LABEL is missing or empty — the chip labels come from it (0.069958ms)
+✔ an absent source file is reported: src/shared/i18n/index.ts: LANGUAGES is missing or empty — the dictionaries come from it (0.053542ms)
+✔ an absent source file is reported: src/shared/appearance.ts: APPEARANCE_THEMES is missing or empty — the themes come from it (0.036833ms)
+✔ an absent source file is reported: src/shared/appearance.ts: DEFAULT_THEME is missing or empty — the default theme comes from it (0.053542ms)
+✔ an absent source file is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.028541ms)
+✔ an absent source file is reported: src/renderer/src/theme.css: no --p-* value — the provider colours come from them (0.027042ms)
+✔ an absent source file is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.043917ms)
+ℹ tests 70
+ℹ suites 0
+ℹ pass 70
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6189.357042
+✓ shared block app-rail — all 11 usage site(s) compliant
+✓ shared block app-window — all 11 usage site(s) compliant
+✓ shared block file-drawer — all 4 usage site(s) compliant
+✓ shared block md-preview — all 5 usage site(s) compliant
+✓ shared block project-side — all 5 usage site(s) compliant
+✓ shared block session-hits — all 2 usage site(s) compliant
+✓ shared block startup-status — all 5 usage site(s) compliant
+✓ shared block toast — all 2 usage site(s) compliant
+✓ shared block totals-card — all 2 usage site(s) compliant
+✓ shared block trend-chart — all 2 usage site(s) compliant
+✓ every list the checks mirror from the product is read from a source that names its members
+✓ persistent documents must not reference ticket numbers (they outlive the tickets)
+✓ every README links every other, and none links a README that is not there (i18n::CON-001)
+✓ settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)
+✓ dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)
+✓ dictionary copy must not name a rail control verbatim (a sentence outlives the control)
+✓ provider colours must not be hard-coded in components (use CSS variables)
+✓ components must not hard-code theme accent colours (use the --accent family)
+✓ side chip labels have one source: no hard-coded SIDE_CHIP_LABEL label outside side-badge.ts
+✓ every chart container in a prototype declares its own shared block (otherwise consistency cannot be checked)
+✓ every declaration on a prototype page names a shared block (a _shared/<id>.css or .js that is not a common library)
+✓ the gate's common libraries and block contracts name files and blocks that exist
+✓ demo dimensions are set on the settings prototype alone and followed elsewhere (dimensions.js + demo-dimensions.js)
+✓ pages that follow the mode or theme take the app tokens from _shared/theme.css and never the system appearance
+✓ prototype pages draw the shared app rail, never their own
+✓ every prototype tab names its app (manifest.js PROTOTYPE_APP + app-identity.js)
+✓ prototype pages draw the shared project column, never their own
+
+Shared-UI consistency check passed
+## exit code of pnpm check:ui: 0
+
+## pnpm check:lang
+
+> agentshed@0.1.0-beta check:lang /Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-316
+> node --test scripts/check-lang.test.mjs && node scripts/check-lang.mjs
+
+✔ the seeds alone pass, one permitted line each (247.6725ms)
+✔ Chinese in the skill's copy docs/prototypes/index.html is reported like any other tooling (259.835833ms)
+✔ Chinese in the skill's copy docs/prototypes/app-identity.js is reported like any other tooling (257.353375ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-dimensions.js is reported like any other tooling (276.962ms)
+✔ Chinese in the skill's copy docs/prototypes/demo-harness.js is reported like any other tooling (245.856875ms)
+✔ Chinese in the skill's copy sync-mmd.mjs is reported, since .mjs is not an exempt type (233.731375ms)
+✔ Chinese stays permitted in a mockup page (237.896375ms)
+✔ Chinese stays permitted in a logic page that shares the gallery shell’s file name (240.927666ms)
+✔ Chinese stays permitted in the manifest, whose names and questions address the reviewer (236.25925ms)
+✔ Chinese stays permitted in the dimension registry, whose labels address the reviewer (235.694584ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2525.886791
+✓ Working language: 2270 line(s) of Chinese, each permitted by a stated rule
+    rule · 1 file(s) · side-count detection patterns quote the languages they scan; pattern literals only, not prose
+    rule · 1 file(s) · the source-language dictionary — the values are the copy itself, while the comments are English like the rest of the repository
+    rule · 1 file(s) · the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English
+    rule · 16 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
+    rule · 3 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
+    rule · 38 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+    rule · 1 file(s) · the Chinese README — a localisation is written in the language it localises into
+    rule · 2 file(s) · the language switcher rows and the selector list — a language is named in its own script
+## exit code of pnpm check:lang: 0
+
+## pnpm check:i18n
+
+> agentshed@0.1.0-beta check:i18n /Users/loong_zhou/CascadeProjects/agentshed-wt/check-ui-316
+> node scripts/check-i18n.mjs
+
+✓ Copy gate: no Chinese literals outside the dictionary
+    allow-list · the dictionaries themselves — the source language (zh) is Chinese by definition
+    allow-list · test files — case names, fixtures and assertions never reach the product UI
+## exit code of pnpm check:i18n: 0
+TARGETED_EXIT=0

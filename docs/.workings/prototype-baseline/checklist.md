@@ -159,6 +159,7 @@ acceptance criteria; each names the tier that backs it.
 | same | 316::10 | `pnpm check:ui` exit 0 on the repository, in the full gateway at a904c05 (`gateway-a904c05.txt`) | Verified |
 | 2026-10-27; delivery head a904c05 (6b5aecc plus the test's header, a comment-only change, and the records) | all fifth-round units | `pnpm verify`, each step on its own, on a904c05 with a clean tree: typecheck, lint, test (873 passed, 1 skipped), test:scripts (137), test:site (107), check:ui (70 cases, then the gate), check:lang, check:i18n, check:nul, e2e (155 passed), smoke — every exit code 0 (`gateway-a904c05.txt`); the earlier gateways at b03fc6e and 723db11 the same way | Verified |
 | 2026-10-27; delivery head 5074243 (a904c05 plus the owner's wording fixes: comments, two documents' boundary lines, a prototype label, an e2e case's name, `package.json`'s description) | all fifth-round units | `pnpm verify`, each step on its own, on 5074243 with a clean tree: the same steps and counts, every exit code 0; the ticket-number rule reads the changed `package.json` and documents (`gateway-5074243.txt`) | Verified |
+| 2026-10-27; 16bd99f (9d50dc5 plus four documents' side wording, at the owner's decision; the owner waived the full gateway) | 316::10 | `pnpm check:ui` (70 cases, then the gate), `check:lang` and `check:i18n`, each exit 0 on 16bd99f with a clean tree (`targeted-16bd99f.txt`); the other units' cases and code are unchanged since 5074243 | Verified |
 
 ## Two-way audit
 

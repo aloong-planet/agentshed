@@ -177,7 +177,8 @@ description no longer lists the sides as the whole set. **What was missing** —
 | 2, one fact ↔ its other statements: the avoided term, and copy listing the sides | `rg -n -i -uu 'brand[ -]?colou?r'` outside `docs/.workings` and dependencies: only CONTEXT's _Avoid_ line (`CONTEXT.md:260`) remains; the Chinese term, `rg -n -uu '\x{54c1}\x{724c}\x{8272}'`, finds nothing (exit 1; the same pattern counts 1 in the agents prototype at 5074243^). `rg -i '\bbrand'` found one more use of the old name, the test's comment (fixed in the commit); the other hits mean a product name or the site header's `.brand`, not a colour. Sides listed on user-facing surfaces outside the dictionaries (`docs/features`, the READMEs, `site/src`, `package.json`): `projects-list.md:6` lists Claude Code, Codex and Grok as the whole set (finding B); `features/README.md:19` and `subagents-view.md` say "both sides", true because the subagents view reads two sides (`subagents.ts` has no Grok reader); `token-stats.md:28` names sides for their own accounting | Agree, but for findings A and B |
 | 3, events | no dimension's members changed; no `Pending:` note touched; no new general rule. Earlier evidence files name the renamed e2e case by its old title; they record past runs and stay as they are | Row set empty |
 
-Findings left for the owner (no persistent home until decided):
+Findings raised with the owner (the owner decided on 2026-10-27 to fix both in this PR, without a full gateway; done
+in 16bd99f, below):
 
 - **A — "CC/CX" where every side badge is meant**: the appearance spec at 46, 63, 138 and 444, and the feature page at 48.
   The Grok badge does not follow the theme either (`--gk-*` sits beside `--cl-*` and `--cx-*` in `:root` and the dark
@@ -186,3 +187,31 @@ Findings left for the owner (no persistent home until decided):
 - **B — `docs/features/projects-list.md:6`** lists the three sides as the whole set ("each agent side's own registry —
   Claude Code, Codex and Grok"), which turns false when a side is added. Recommendation: drop the list; the sentence
   already says "each agent side".
+
+#### The owner's decision: findings A and B fixed (16bd99f)
+
+- Scope: commit 16bd99f: the appearance spec at 46, 63, 138 and 444 and the feature page at 48 say "the side badges";
+  the appearance and language feature pages' "Nothing is written to the Claude / Codex configuration" (appearance:50,
+  i18n:52, the same defect in the same boundary lists) says "the agent configuration", as the appearance spec's line
+  100 does; the project list's feature page drops its list of the sides
+- Version: 16bd99f. **No full gateway: the owner waived it** (2026-10-27: fix them together, without the full gateway). The gates that read
+  these documents ran on a clean tree, each exit 0: `check:ui` (its 70 cases, then the gate), `check:lang`, `check:i18n`
+  (`evidence/ticket-316/targeted-16bd99f.txt`). The change is to four Markdown documents only (`git diff --stat
+  9d50dc5 16bd99f` in the same log)
+
+| Stage | Rows | Conclusion |
+|---|---|---|
+| 1, changed declarations | each changed line against `theme.css` (every side badge's `--cl-*`, `--cx-*`, `--gk-*` set only in `:root` and the dark block); against the appearance spec's line 100 for the configuration; the project list's sentence against itself ("each agent side") | True |
+| 2, one fact ↔ its other statements: copy naming some or all sides | `rg -n -i 'claude ?(code)? ?(/\|and\|or) ?codex\|CC ?/ ?CX\|codex,? (and\|or\|/) grok\|both (agent )?sides\|two sides\|either side\|three sides' docs/features docs/specs README.md README.en.md package.json`, 64 lines in 22 files before the fix. Besides the eight fixed lines, the four files changed hold the spec's line 463 (a dated record, kept) and `projects-list.md:19` (finding C); the other files, finding C | Agree within the changed lines; the rest is finding C |
+| 3, events | none | Row set empty |
+
+Finding left for the owner (no persistent home until decided):
+
+- **C — other lines that name sides, not judged**: the search above leaves 55 lines in 19 files once the fixed lines and
+  the spec's line 463 are set aside. Most name the sides a feature really reads (the subagents and plugins views and parts of the session view are two-sided; the token
+  statistics spec's "all three sides" lines are dated measurements). Judging each needs the feature's sides checked in
+  code, which this change did not do. Lines that look like the same defect and need that check: `agents-overview.md:26`
+  and `:30` (the Claude and Codex sides' subagents and MCP servers), `specs/project-detail.md:17` ("both sides'
+  global configuration"), `specs/skill-install.md:10`, `:24`, `:53` (two sides), and two that list every side
+  literally, `projects-list.md:19` (the side dropdown's options) and `session-view.md:64` (the badges CC/CX/GK).
+  Recommendation: one small ticket that checks each feature's sides and rewrites what is wrong.
