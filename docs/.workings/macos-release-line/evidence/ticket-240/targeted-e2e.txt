@@ -1,0 +1,120 @@
+node_modules/.cache/electron-quiet/dist/Electron.app: replacing existing signature
+quiet-electron: copy ready (43.2.0)
+
+Running 114 tests using 1 worker
+
+[1/114] e2e/app.spec.ts:378:1 › cold start: the Agents page is the default landing, both summary cards render, and the main process reports no errors
+[2/114] e2e/app.spec.ts:398:1 › an old-format cache does not crash at startup (a production crash regression): the snapshot still renders and the main process reports no errors
+[3/114] e2e/app.spec.ts:427:1 › all seven Agents page tabs render as they are switched through, with no errors
+[4/114] e2e/app.spec.ts:449:1 › switching to Projects: rows appear when there are projects, and the detail tabs switch once one is selected
+[5/114] e2e/app.spec.ts:468:1 › switching to Projects: the sidebar shows its empty state when there are no projects at all
+[6/114] e2e/app.spec.ts:509:1 › the project list row: a side-count badge, with hovering naming the sides in full
+[7/114] e2e/app.spec.ts:597:1 › a Grok-only project opens its detail page without errors
+[8/114] e2e/app.spec.ts:631:1 › a stale project opens as the note page: card only, chips per recording side, copy feedback, and both staleness flips
+[9/114] e2e/app.spec.ts:701:1 › the side filter dropdown: narrows to one side, dismisses on scroll, and survives a resize
+[10/114] e2e/app.spec.ts:788:1 › a real window resize with a scrolled list does not close the side dropdown (#122)
+[11/114] e2e/app.spec.ts:829:1 › the side filter row stays inside the sidebar column in both UI languages
+[12/114] e2e/app.spec.ts:886:1 › the sessions section: sessions are listed, the sort switches, and warmup sessions are not listed
+[13/114] e2e/app.spec.ts:930:1 › the sessions section: each row shows that session's real question count
+[14/114] e2e/app.spec.ts:953:1 › the sessions section: the sort choice is remembered after switching away
+[15/114] e2e/app.spec.ts:976:1 › the sessions section: a project with no sessions shows an empty state, and the overview session card clicks through to this section
+[16/114] e2e/app.spec.ts:989:1 › one click on the overview session card goes straight to the session page
+[17/114] e2e/app.spec.ts:1005:1 › the session page: every question is listed with complete fields, and back returns to the sessions section
+[18/114] e2e/app.spec.ts:1046:1 › the session page: a fork session shows only the questions left after stripping
+[19/114] e2e/app.spec.ts:1068:1 › the IPC surface: a path outside the allow-list is refused over the real channel, and the error carries no file content
+[20/114] e2e/app.spec.ts:1112:1 › the session page: a long question's single-line truncation happens only in the display layer, with the full text in the DOM
+[21/114] e2e/app.spec.ts:1150:1 › the session page: everything collapsed by default; clicking a question expands the whole turn with its fetch footnote, and clicking again collapses it
+[22/114] e2e/app.spec.ts:1187:1 › the session page: day groups collapse; descending reverses both the groups and their contents while the numbers stay; expansion survives a sort change
+[23/114] e2e/app.spec.ts:1239:1 › the session page banner: a stripped fork gets info with the parent title clicking through; a missing parent gets risk and says to check against the source
+[24/114] e2e/app.spec.ts:1280:1 › the session page: after the file is appended to (so the signature mismatches), clicking a question still fetches the correct whole turn
+[25/114] e2e/app.spec.ts:1312:1 › session page rich content (Claude): the thinking, tool and subagent blocks are collapsed by default and expand to the full text with their labels
+[26/114] e2e/app.spec.ts:1361:1 › session page rich content (Codex): the encrypted-reasoning label, tool pairing, the unattributable spawn label, and traces of unknown events
+[27/114] e2e/app.spec.ts:1399:1 › session page (Codex, paginated format): the session is listed by its completed-item question, opens, and its turn shows the agent-message prose with no unknown trace
+[28/114] e2e/app.spec.ts:1440:1 › session page (Codex, cold rollout): a .jsonl.zst session is listed, counted, opens and expands like a plain one
+[29/114] e2e/app.spec.ts:1476:1 › session search: questions by default with hits grouped; a body word only hits after switching to full text; clicking a hit goes straight to that question
+[30/114] e2e/app.spec.ts:1527:1 › overlapping automatic rescans are deduplicated: the page stays coherent and the main process reports no errors
+[31/114] e2e/app.spec.ts:1547:1 › the archive: a seeded historical archive file → the trend includes an archived span with a note, and the main process reports no errors
+[32/114] e2e/app.spec.ts:1605:1 › the archive retains a past day whose live figure fell under the same stamp (ADR-0026): the retained figure shows on both pages, with no hatching, while the archived-only day still hatches
+[33/114] e2e/app.spec.ts:1672:1 › the trend chart is stacked bars: segmented by provider within a bar, and switching to a single side leaves only that side's provider segments
+[34/114] e2e/app.spec.ts:1702:1 › the provider colours apply: the segments and the legend match, with their own values in light and dark
+[35/114] e2e/app.spec.ts:1992:1 › F3 plus the new sections: a project-scope plugin displays correctly both ways; the Subagents and Memory drawers work end to end
+[36/114] e2e/app.spec.ts:2504:1 › Skills view: expanding globally reads the package; a same-name pair in detail shows only the project level; plugin rows do not expand
+[37/114] e2e/app.spec.ts:2670:1 › filtering the skills lists by name, and revealing a truncated name on hover
+[38/114] e2e/app.spec.ts:2862:1 › a filter keyword survives a refresh, and is cleared by leaving the section or switching project
+[39/114] e2e/app.spec.ts:2942:1 › the install-to popover sits next to its button, and its targets can be clicked
+[40/114] e2e/app.spec.ts:3054:1 › previewing a plugin skill in place: the tab expands and reads the package; a disabled plugin is readable; a missing one is greyed out; the Codex group
+[41/114] e2e/app.spec.ts:3153:1 › a skill package removed after the scan: the file table shows the toast's wording in both skill lists (#209)
+[42/114] e2e/app.spec.ts:3208:3 › skill file line counts follow the UI language's digit grouping [en-US] (#210)
+[43/114] e2e/app.spec.ts:3239:1 › automatic refresh: a new session appears on its own, and the detail page's expansion state survives it
+[44/114] e2e/app.spec.ts:3341:3 › the trend chart [Agents page · Token tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor
+[45/114] e2e/app.spec.ts:3341:3 › the trend chart [project detail · Overview tab]: the date axis is in place and the hover tooltip is not clipped by an ancestor
+[46/114] e2e/app.spec.ts:3445:1 › a newly adopted side: the thin xAI segment survives, and Grok mode labels only its data days
+[47/114] e2e/app.spec.ts:3545:1 › three sides on one day segment together, and one project mixes all three sides' sessions by time
+[48/114] e2e/app.spec.ts:3619:1 › the Agents page shows Grok's own global skills with the borrowing line, and installs one into a project
+[49/114] e2e/app.spec.ts:3666:1 › a Grok session opens end to end: list, questions, an on-demand turn, search, and the allow-list boundary
+[50/114] e2e/app.spec.ts:3755:1 › the sessions section: a fork session has its replay prefix stripped and is marked "fork"; one with a missing parent is marked "uncertain strip"
+[51/114] e2e/app.spec.ts:3798:1 › settings: the three appearance choices change data-theme, and entering and leaving settings keeps the selected project
+[52/114] e2e/app.spec.ts:3851:1 › project list: selection is a deeper wash with no ring, and adjacent rows keep a 1px gap
+[53/114] e2e/app.spec.ts:3967:1 › appearance: one card with two rows (mode + theme); the theme cards keep only a swatch and a name
+[54/114] e2e/app.spec.ts:3995:1 › appearance mode: locking light or dark changes the effective light/dark, and the palette samples follow
+[55/114] e2e/app.spec.ts:4052:1 › appearance: all six combinations of 3 themes × 2 effective light/dark hold
+[56/114] e2e/app.spec.ts:4184:1 › scrollbars: every scrolling area draws a 6px thumb on no track, in light and in dark (appearance::REQ-001)
+[57/114] e2e/app.spec.ts:4257:1 › scrollbars: the thumb darkens under the pointer, in light and in dark (appearance::REQ-001/AC-05)
+[58/114] e2e/app.spec.ts:4299:1 › scrollbars: the same 6px scrollbar whether macOS draws overlay or classic ones (appearance F1, F2)
+[59/114] e2e/app.spec.ts:4366:1 › UI language: following the system resolves against the whole list, and applies on the first frame
+[60/114] e2e/app.spec.ts:4380:1 › UI language: falls back to English when the system language is unsupported
+[61/114] e2e/app.spec.ts:4391:1 › UI language: a stored preference naming a removed language reads as follow system (i18n::REQ-003)
+[62/114] e2e/app.spec.ts:4414:1 › the language selector: three items including follow-system and the divider, with a switch applying immediately
+[63/114] e2e/app.spec.ts:4474:1 › the language selector by keyboard: opening leaves the highlight on the current selection rather than moving an extra step
+[64/114] e2e/app.spec.ts:4525:1 › i18n: the language-locking mechanism itself is reliable, unaffected by the development machine's system language
+[65/114] e2e/app.spec.ts:4546:1 › i18n: both languages load, with the key nodes non-empty
+[66/114] e2e/app.spec.ts:4572:1 › i18n: switching languages applies immediately, changing several areas at once
+[67/114] e2e/app.spec.ts:4594:1 › i18n: key layouts do not overflow horizontally in either language
+[68/114] e2e/app.spec.ts:4619:1 › i18n: no label in the project-detail tab row or the skills rows wraps to a second line
+[69/114] e2e/app.spec.ts:4700:1 › the time window drives all four regions at once: side figures, composition, model rows and the dimmed span
+[70/114] e2e/app.spec.ts:4834:1 › startup skeleton: agents page shows placeholders, refuses input, fills in place
+[71/114] e2e/app.spec.ts:4912:1 › startup skeleton: projects dimension shows placeholder rows and fills in place
+[72/114] e2e/app.spec.ts:4980:1 › project switch (query layer): the highlight moves at once and the pane holds the previous project until the next detail arrives
+[73/114] e2e/app.spec.ts:5016:1 › project switch (query layer): rapid A → B → C never shows B, and B is still cached afterwards
+[74/114] e2e/app.spec.ts:5050:1 › opening a session (query layer): the project page holds until the session page arrives, and reopening it is instant
+[75/114] e2e/app.spec.ts:5079:1 › opening a session then returning to the project before it arrives (query layer): the project page stays, no error, and the interrupted fetch is cached
+[76/114] e2e/app.spec.ts:5109:1 › an automatic rescan refreshes an open session page by transfusion (query layer): the question list follows the file while expansion and sort survive
+[77/114] e2e/app.spec.ts:5149:1 › opening a session whose file was removed after the scan (query layer): the page shows its own error, no crash
+[78/114] e2e/app.spec.ts:5173:1 › a session whose file Codex compresses while cached (query layer): the open page errors after the next scan, and it reappears under its compressed identity
+[79/114] e2e/app.spec.ts:5225:1 › leaving a project for a session page and coming back (query layer closeout): the project page is a cached visit landing on Sessions, then revalidates by transfusion
+[80/114] e2e/app.spec.ts:5269:1 › opening an artifact whose file was removed after the scan (query layer): a toast surfaces the failure, no overlay, no crash
+[81/114] e2e/app.spec.ts:5291:1 › reopening a skill file table (query layer): first expand is slow, reopening it is instant
+[82/114] e2e/app.spec.ts:5315:1 › reopening an artifact (query layer): first open is slow, reopening it is instant
+[83/114] e2e/app.spec.ts:5360:3 › selectable trend span [Agents page · Token tab]: history, independent filters, tabs and refresh
+[84/114] e2e/app.spec.ts:5360:3 › selectable trend span [project detail · Overview tab]: history, independent filters, tabs and refresh
+[85/114] e2e/app.spec.ts:5452:1 › selectable trend span: localized controls fit both pages in light and dark at minimum width
+[86/114] e2e/settings-updates.spec.ts:82:1 › settings gains "Updates" third, one card with the switch and the version row, and its footnote (REQ-003/AC-01, AC-02, US-002/AC-02)
+[87/114] e2e/settings-updates.spec.ts:112:1 › "Check now" shows checking with the button unavailable, then up to date or the failure; a malformed answer is a failure (US-003/AC-02, D2, A6)
+[88/114] e2e/settings-updates.spec.ts:151:1 › a settings check that finds an update starts the download: the line and the rail follow it, and "Check now" is unavailable (US-003/AC-02, AC-03, REQ-004/AC-01)
+[89/114] e2e/settings-updates.spec.ts:174:1 › the download finishing turns the same button into "Install now"; it installs once, then stays unavailable while installing (REQ-003/AC-04, C10, C11, CON-004)
+[90/114] e2e/settings-updates.spec.ts:210:1 › an install from "Install now" that fails: the error toast, "Check now" available again and an empty line (REQ-002/AC-03, C11)
+[91/114] e2e/settings-updates.spec.ts:230:1 › a settings "up to date", then an automatic check finds an update: the line follows it, and after a failed download it is empty (REQ-004/AC-02, D5, B2)
+[92/114] e2e/settings-updates.spec.ts:256:1 › the line survives leaving settings mid-check and follows a language switch; a restart starts empty (REQ-004/AC-03, D6, G2)
+[93/114] e2e/settings-updates.spec.ts:291:1 › a settings check during the launch check joins it: one request, its outcome reported (US-003/AC-05, D3)
+[94/114] e2e/settings-updates.spec.ts:321:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an older recorded version
+[95/114] e2e/settings-updates.spec.ts:321:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › the same version
+[96/114] e2e/settings-updates.spec.ts:321:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a newer recorded version (the version went down)
+[97/114] e2e/settings-updates.spec.ts:321:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › no record (a fresh installation)
+[98/114] e2e/settings-updates.spec.ts:321:5 › the first run after the version went up (REQ-004/AC-04, C7–C9) › an unreadable record
+[99/114] e2e/settings-updates.spec.ts:348:3 › the first run after the version went up (REQ-004/AC-04, C7–C9) › a still newer release found at that launch shows its download instead, and a settings check replaces the line (C7)
+[100/114] e2e/settings-updates.spec.ts:375:1 › a development run: the switch and the button are unavailable, the footnote says why, and nothing is asked (US-005/AC-02)
+[101/114] e2e/settings-updates.spec.ts:402:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › a change is stored at once and survives a restart; with it off the launch makes no request
+[102/114] e2e/settings-updates.spec.ts:432:3 › the automatic-checks switch (US-002, REQ-003/AC-03) › turning it off during a download neither cancels it nor discards the ready update (US-002/AC-03, B5)
+[103/114] e2e/settings-updates.spec.ts:454:1 › the first launch after an update restores the saved display like any other launch (G4)
+[104/114] e2e/settings-updates.spec.ts:516:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › zh
+[105/114] e2e/settings-updates.spec.ts:516:5 › the labels and the result line stay on one line in every UI language and every state of the line (QR-001/AC-02) › en
+[106/114] e2e/token-span.spec.ts:64:1 › a theme chosen while the initial preference read is in flight survives that read landing
+[107/114] e2e/token-span.spec.ts:82:1 › global span defaults an older or invalid preference without resetting valid appearance and language
+[108/114] e2e/token-span.spec.ts:106:1 › global span links exact totals and active breakdowns on both entries, and survives full restarts
+[109/114] e2e/token-span.spec.ts:175:3 › global span 30: saved preference survives an unusable display cache and skeleton fill
+[110/114] e2e/token-span.spec.ts:175:3 › global span 60: saved preference survives an unusable display cache and skeleton fill
+[111/114] e2e/token-span.spec.ts:175:3 › global span 90: saved preference survives an unusable display cache and skeleton fill
+[112/114] e2e/token-span.spec.ts:196:1 › global span save failure keeps live views consistent and reopens the last successful value
+[113/114] e2e/token-span.spec.ts:226:1 › global span includes archived and retained older rows in both charts and fourth cards
+[114/114] e2e/token-span.spec.ts:254:1 › global span numeric choices support keyboard activation and retain every card and side identity
+  114 passed (3.2m)

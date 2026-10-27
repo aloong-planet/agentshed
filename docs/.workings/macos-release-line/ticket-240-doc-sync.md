@@ -1,11 +1,18 @@
 # Document sync checklist — #240
 
 Ticket: [#240 Update an installed pre-release to the next one](https://github.com/aloong-planet/agentshed/issues/240) · feature `macos-release-line` ·
-coverage checklist: [checklist.md](checklist.md)
+coverage checklist: [checklist.md](checklist.md) · records: [task list](ticket-240-tasks.md) ·
+[test review](ticket-240-review-tests.md) · [code review](ticket-240-review-code.md) · final regression:
+[final-regression.md](final-regression.md)
 
 | Sync item and trigger | Documents | Status and notes |
 |---|---|---|
-| Rewrite the app-update spec's Testing Pending note once an installation of the first release has updated to the second | [app-update spec](../../specs/app-update.md) | Pending: not started |
-| Check the app-update feature entry against the real update path | [app-update](../../features/app-update.md) | Pending: not started |
-| Record the actual verification of this ticket's units in the coverage checklist's Current verification, once they have run | [checklist](checklist.md) | Pending: not started |
+| Record the version change's verification (the tag check, the targeted checks, the verification run, the gateway) in the coverage checklist's Current verification, once they have run | [checklist](checklist.md) | Pending: the runs are under way |
+| Move app-update::US-004/AC-01's real-release observation to the first formal release (the owner's decision of 2026-10-27), with its trigger, verifier, method and evidence place, where the other formal-release evidence waits | [checklist](checklist.md) (the unit's row and Current verification), [#240](https://github.com/aloong-planet/agentshed/issues/240) (its item), [#241](https://github.com/aloong-planet/agentshed/issues/241) (its list of formal-release evidence) | Pending: not started |
+| Step 8 report for the version change: the two questions and the cross-regression of what it touched | [final-regression.md](final-regression.md) | Pending: not started |
+| Rewrite the app-update spec's Testing Pending note once an installation of the first release has updated to the second | [app-update spec](../../specs/app-update.md) | Waiting: routes 1 and 2 on the owner's Mac (tasks 16–17), after the tag; followed up in this ticket's records pull request |
+| Check the app-update feature entry against the real update path | [app-update](../../features/app-update.md) | Waiting: routes 1 and 2 (tasks 16–17); the records pull request |
+| Record the actual verification of this ticket's units in the coverage checklist's Current verification, once they have run, and step 8's events for the release | [checklist](checklist.md), [final-regression.md](final-regression.md) | Waiting: the tag's run and tasks 13–18; the records pull request |
+| #239's deferred mac-distribution::US-001/AC-02: its user path, the offline first launch, recorded against #239's item and the checklist's AC-02 rows | [#239](https://github.com/aloong-planet/agentshed/issues/239), [checklist](checklist.md) | Waiting: the offline first launch (task 14); the records pull request, then #239's item |
 | #253's third acceptance item, once this ticket's pre-release tag has run: the publish job's download step, on download-artifact v8 since #253, passed or not — the run linked on #253 (its item ticked when it passed), and a Current verification row against the checklist's "#253, regression" row | [#253](https://github.com/aloong-planet/agentshed/issues/253), [checklist](checklist.md) | Waiting: this ticket's pre-release tag run (added by #253, 2026-10-26) |
+| The release runbook's statements about a pre-release tag's run, checked against what this release's run shows | [mac-signing runbook](../../ops/mac-signing.md) | Waiting: the tag's run (task 12) |
