@@ -34,8 +34,8 @@ directory `prototype-baseline`, where the gate tickets without a spec keep their
 | 4 | The test: copies by shape, a new copy, the boundary page, the header's gap line (296::1, 296::2) | the new copy's case red first on e4c9589's gate | Done in 446bad8 — `red-first.txt`, `base-run.txt` |
 | 5 | Targeted verification | lint, typecheck, `check:lang`, `check:ui`, the sync script; the search for tests that read the changed files | Done — `TARGETED_EXIT=0` (`targeted.txt`; the search in `targeted-search.txt`) |
 | 6 | Checklist sign-off, sixth round | `checklist.md` | Done — 296::1–296::5 verified at 446bad8, each by its tier; the gateway's rows follow task 8 |
-| 7 | Code review (`/review-code`) | `ticket-296-review-code.md` | Pending |
-| 8 | Gateway, the run before the test check | log under `evidence/ticket-296/` | Pending |
+| 7 | Code review (`/review-code`) | `ticket-296-review-code.md` | Done — F1, F2 (two comments) fixed in df9fdcf; no other finding |
+| 8 | Gateway, the run before the test check | log under `evidence/ticket-296/` | Done — `pre-review-f4c20b8.txt`, `VERIFY_EXIT=0` without `pnpm e2e` (no e2e case file in the targeted list); a first run stopped at smoke for want of the Electron binary in the new worktree (`pre-review-f4c20b8-no-electron.txt`) |
 | 9 | Post-implementation test check (`/review-tests`, independent subagent) | `ticket-296-review-tests.md` | Pending |
 | 10 | Spec check (no spec: against #296's body) and step 7 archive | this file, `checklist.md` | Pending |
 | 11 | Step 8 (`/features-catalog`) | `final-regression.md`, #296 section | Pending |
