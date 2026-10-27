@@ -47,9 +47,14 @@ Conclusion: no finding.
 - Failure paths: a failed gate publishes nothing (mac-distribution::US-002/AC-03), unchanged; a tag naming another
   version fails before Apple (Failure A1, the tag check above).
 
-Verification run: pending.
+Verification run 40522427267 on fa428ee (`evidence/ticket-240/verification-run.txt`): green. The release profile at
+0.1.0-beta.2 on #253's action commits: the app signed by the Developer ID identity and accepted by Apple
+(71518ddc-b78d-4f0b-b7fc-f02c86fafedd), the ZIP and the DMG named for the version, `latest-mac.yml` matching the ZIP,
+the DMG notarized, stapled and gated (a2fc4974-c091-4940-9257-0a6c6f37e267), six files kept; the publish, mirror and
+pointer jobs skipped. This is the release profile's first notarization on the upgraded actions, which #253 left to the
+next tag; the tag's own run still has to show the publish job's download step.
 
-Conclusion: no finding so far; the verification run is the open item.
+Conclusion: no finding.
 
 ## Security
 
@@ -73,3 +78,60 @@ Conclusion: no finding.
 ## Refactoring list
 
 None.
+
+## Second round: the fix for the post-implementation check (2026-10-27)
+
+- Version: the working tree on 2992ad5 before the fix's commit (`git diff 2992ad5 -- src docs/specs`)
+- Scope: `src/main/update-source.ts` (the installed copy's source takes its two updaters from an injectable `load`,
+  defaulting to the dynamic imports it made before; `Updater` and `NativeUpdater` exported for the test),
+  `src/main/update-source.test.ts` (T1–T9 and the header), and the app-update spec (H2, C4, the Testing Decisions),
+  from the owner's decisions D7 and D8
+- The self-check's item 1 (the fix's product code against the spec, sentence by sentence) is this round's
+  Underlying premises and Consistency
+
+### Underlying premises
+
+- The default loader is the code it replaces, moved: the same expression for electron-updater's `autoUpdater`
+  (default export first), and `autoUpdater` from `electron` (`git diff 2992ad5 -- src/main/update-source.ts`). Both are
+  still called only inside `check()` and `install()`, so an unpackaged run still constructs neither.
+- The fakes' behaviour is the real one's, read 2026-10-27: electron-updater 6.8.9's `MacUpdater` sets
+  `squirrelDownloadedUpdate` on the native `update-downloaded` and forwards the native `error` (`MacUpdater.js` 14–26);
+  its `UpdateCheckResult` (`types.d.ts` 26–33). Squirrel.Mac checks a package against the running app's signature
+  when it stages it (`SQRLUpdater.m`, `verifyUpdate:fromBundle:`, on GitHub's master), and again in ShipIt after the app
+  has quit, before it moves the installed app aside (`SQRLInstaller.m`, `installRequest:` validates at 356 and acquires
+  the target at 377). The staging message is in Electron 43.2.0's own Squirrel framework (`strings`); the installer's
+  order was read on master, not on the copy Electron bundles.
+- New statements that claim a cause, each checked: the test header's "a save is written at once and nothing is pending
+  at a click" (`display-store.ts` 26–33: a 0 ms timer per save; the quit flush writes only a dirty store); its
+  "Squirrel.Mac … keeps the version in place" and the spec's H2 (the installer validates before it moves the app). The
+  spec's C4 no longer gives a rejected signature as a cause of the toast: a rejection at install happens after the app
+  has quit.
+
+Conclusion: no finding.
+
+### Runnability
+
+- Production passes no `load`, so `index.ts`'s `electronUpdateSource(app.getVersion())` runs the default loader; the
+  updater is still loaded once (`loaded ??=`) and the native updater read per found update, as before.
+- Every path of `electronUpdateSource` is now driven by a case (T1–T9) and each case turns red under a mutation of the
+  path it guards, the others staying green (`evidence/ticket-240/adapter-mutants.txt`: nine mutations, the file
+  restored byte for byte after each). The default loader itself is the packaged run's: the release's routes run it.
+
+Conclusion: no finding.
+
+### Security
+
+The seam is an optional parameter of a function only `index.ts` calls, which passes nothing; no input reaches it.
+
+Conclusion: no finding.
+
+### Consistency
+
+- The spec now says what the code does: H2 (two checks; a rejection while staging a failed download), C4 (no
+  rejected signature), the Implementation Decision "Ready means the update can install" (unchanged, now consistent
+  with H2), and the Testing Decisions' new seam. `docs/features/app-update.md` says only that "a failed install after
+  the click shows an error notice", true of C4's remaining causes.
+- The smells baseline on the touched code: the exported `Updater` and `NativeUpdater` serve the test, a real consumer,
+  not speculative generality; `UpdaterLoad` names what it is. No other smell.
+
+Conclusion: no finding.

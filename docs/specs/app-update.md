@@ -280,8 +280,9 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   with no relaunch (app-update::US-001/AC-05, app-update::CON-004).
 - C3 Ready, and the app is force-quit or crashes: nothing is installed. The next launch's check finds
   the update again and makes it ready again, possibly from the cached download.
-- C4 The install fails after the click (a full disk, changed permissions, a signature the system
-  rejects): error toast, the button goes, and the next check downloads again (app-update::REQ-002/AC-03).
+- C4 The install fails after the click (a full disk, changed permissions): error toast, the button goes,
+  and the next check downloads again (app-update::REQ-002/AC-03). A signature the system rejects is
+  Failure H2.
 - C5 A newer release is published while an update is ready: automatic checks do not look until the
   ready update is installed (app-update::REQ-006/AC-03). After the restart, the next check offers the
   newer one.
@@ -364,7 +365,9 @@ Install on quit happens only on a quit the user made, and never relaunches the a
   renderer, and it is rendered as text. Release notes, links and HTML from the release are not shown
   anywhere in the app, so they open no new surface.
 - H2 The downloaded package is applied by the system updater, which checks its code signature against
-  the running app. A package the system rejects is an install failure (C4), never a partial install.
+  the running app, twice. A package it rejects while staging it is a failed download (B2): the ready
+  button never appears. One it rejects at install, after the click, when the app has already quit, is not
+  installed: the version in place stays, and the app, closed by then, shows nothing.
 
 ## Implementation Decisions
 
@@ -431,6 +434,10 @@ Seams confirmed by the owner on 2026-10-13:
 - **The update source**: unit tests drive the controller with a fake source, covering every transition
   in the table, gating by the switch, the packaged flag and the lifecycle, deduplication of concurrent
   checks, the schedule (with injected time), and every failure path.
+- **The installed copy's source** (confirmed by the owner on 2026-10-27): unit tests inject fakes of
+  electron-updater's updater and Electron's native updater, and cover the wait for the system updater to
+  stage the package — not ready before it has, a rejection while staging a failed download (Failure H2),
+  ready at once when it staged first — and a failed download.
 - **An environment-injected scripted source for e2e**, in the same family as the existing
   `AGENTSHED_*` test seams and never set in production. It lets Playwright drive found → downloading →
   ready → install, from either button and including the install failure, and assert the rail button,
@@ -452,7 +459,8 @@ Seams confirmed by the owner on 2026-10-13:
   draws is accepted by hand — a known gap, as for the rest of the menu (i18n).
 - **Not automatable, accepted by evidence**: the real electron-updater ↔ GitHub ↔ system-updater path,
   channel selection on real releases, and install on quit. These are first verifiable once two
-  releases exist.
+  releases exist; channel selection for a formal-release installation, once a pre-release is published
+  after a formal release (Failure E3).
 
   > Pending: two releases exist, so an installation of the first has been updated to the second.
 

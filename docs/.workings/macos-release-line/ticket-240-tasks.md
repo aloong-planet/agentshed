@@ -31,22 +31,38 @@ mac-distribution::US-001/AC-02. Branch `feat/update-to-next-beta`, in the worktr
 
 ## Owner decisions (2026-10-27)
 
-Asked in two batches, each with a recommended answer; every recommendation was chosen:
+Asked with a recommended answer each; every recommendation was chosen. D1–D6 before the work, in two batches:
 
-- The version is 0.1.0-beta.2 (the spec's Failure E1 and the runbook's example), over 0.1.0-beta.1 and 0.2.0-beta.
-- The running `v0.1.0-beta` is quit before the tag is pushed, so its 24-hour check cannot find the release before the
-  offline first launch, nor install it on an unplanned quit (over turning automatic checks off, or leaving it).
-- The offline first launch comes first, before any update, with the app dragged from the DMG into a folder of its own
-  rather than Applications, then deleted; `/Applications` keeps `v0.1.0-beta` for the updates (over dragging into
+- D1 The version is 0.1.0-beta.2 (the spec's Failure E1 and the runbook's example), over 0.1.0-beta.1 and 0.2.0-beta.
+- D2 The running `v0.1.0-beta` is quit before the tag is pushed, so its 24-hour check cannot find the release before
+  the offline first launch, nor install it on an unplanned quit (over turning automatic checks off, or leaving it).
+- D3 The offline first launch comes first, before any update, with the app dragged from the DMG into a folder of its
+  own rather than Applications, then deleted; `/Applications` keeps `v0.1.0-beta` for the updates (over dragging into
   Applications and restoring a backup, and over doing it after the updates, when the updated app's launch may already
   have been this Mac's assessment of the build).
-- Both install routes run on this release: the ready button first, then, with `v0.1.0-beta` restored from a
+- D4 Both install routes run on this release: the ready button first, then, with `v0.1.0-beta` restored from a
   byte-for-byte copy, install on quit (over the ready button only).
-- app-update::US-004/AC-01 on real releases waits for the first formal release, with the other evidence that needs one
-  (#241); its guarantee stays #230's unit test (over checking a local formal-version build against the feed now).
-- Failure H2's real-path evidence is the real installs' signature check: the release's app checked against the
-  installed app's designated requirement, which is what the system updater checks, and the updater's logs; the
-  rejection branch stays on app-update::REQ-002/AC-03's test (over the test alone).
+- D5 app-update::US-004/AC-01 on real releases waits for a pre-release published after the first formal release, with
+  the other evidence that needs a formal release (#241); its guarantee stays #230's unit test (over checking a local
+  formal-version build against the feed now).
+- D6 Failure H2's real-path evidence is the real installs' signature check: the release's app checked against the
+  installed app's designated requirement, which is what the system updater checks, and the updater's logs (over the
+  test alone). The question said the rejection branch stayed on app-update::REQ-002/AC-03's test; the
+  post-implementation check found that untrue (its finding 1), and D7 and D8 followed.
+
+D7 and D8 after the post-implementation check's finding 1, put to the owner with that correction:
+
+- D7 The installed copy's wait for Squirrel.Mac to stage the package gets unit tests in this ticket, through an
+  injection seam for electron-updater's updater and Electron's native updater, which the owner confirmed with this
+  answer (over recording it as a gap with a follow-up ticket, or as a standing gap).
+- D8 The spec's Failure H2 is rewritten to match the Implementation Decisions and what Squirrel.Mac does: the system
+  updater checks the signature twice; a package rejected while staging is a failed download (B2), the ready button
+  never shown; one rejected at install, after the click with the app already quit, is not installed, the version in
+  place stays, and nothing is shown. C4 no longer lists a rejected signature among its causes. The code is unchanged.
+  First answered as "rejected at install, an install failure (C4)"; Squirrel.Mac's source (`SQRLUpdater.m`'s staging
+  check, `SQRLInstaller.m`'s check in ShipIt after the app quits, `ShipIt-main.m`) showed that no toast can follow a
+  rejection at install, and the owner chose this wording on that correction (over leaving the rejection at install out
+  of the spec). Both times over changing the code to make every rejection an install failure.
 
 ## Interface gate
 
@@ -59,13 +75,14 @@ at the new length is QR-001/AC-02's subject, checked by the gateway's e2e.
 |---|---|---|---|
 | 1 | Branch from the latest main | no commits ahead | done: 2cb6b4f |
 | 2 | The package version 0.1.0-beta.2 | the tag check accepts `v0.1.0-beta.2` and refuses `v0.1.0-beta` and `v0.1.0-beta.1` | done (`evidence/ticket-240/tag-check.txt`) |
-| 3 | Test design review | `ticket-240-review-tests.md`, design section | in progress |
-| 4 | Targeted checks | typecheck, lint, the tests that read the version | pending |
-| 5 | The manual verification run on the branch (verify on): 0.1.0-beta.2 through Apple on the upgraded actions, nothing published | the run green; its gate lines | pending |
-| 6 | Coverage checklist sign-off for the change | `checklist.md` | pending |
-| 7 | Step 5: `/review-code` | `ticket-240-review-code.md` | pending |
-| 8 | The gateway run before the test check | `pnpm verify` exit 0 | pending |
-| 9 | Step 6: `/review-tests` post-implementation check, by an independent sub-agent | the same record, second section | pending |
+| 3 | Test design review | `ticket-240-review-tests.md`, design section | done; its increment for the staging wait's cases (T1–T4) after task 9 |
+| 4 | Targeted checks | typecheck, lint, the tests that read the version | done: `TARGETED_EXIT=0` (`evidence/ticket-240/targeted.txt`) |
+| 5 | The manual verification run on the branch (verify on): 0.1.0-beta.2 through Apple on the upgraded actions, nothing published | the run green; its gate lines | done: run 40522427267 on fa428ee, green (`evidence/ticket-240/verification-run.txt`) |
+| 6 | Coverage checklist sign-off for the change | `checklist.md` | done: the version change passed its targeted run; every other unit after the tag; US-004/AC-01 Waiting (D5) |
+| 7 | Step 5: `/review-code` | `ticket-240-review-code.md` | done on fa428ee: no finding; a second round for the fix of task 9a |
+| 8 | The gateway run before the test check | `pnpm verify` exit 0 | done on 2992ad5: `VERIFY_EXIT=0` (`evidence/ticket-240/pre-review-2992ad5.txt`) |
+| 9 | Step 6: `/review-tests` post-implementation check, by an independent sub-agent | the same record, second section | done on 2992ad5: findings 1–3 (the staging wait untested and H2 against the Implementation Decisions; C1's reading; `update-source.test.ts`'s header) |
+| 9a | The fix: D7's seam and T1–T4, D8's H2 and the Testing Decisions, C1's design row, the test header; the self-check; the targeted run; the code review's second round; the incremental check by a new sub-agent | `staging-mutants.txt`; the targeted log; both review records | in progress |
 | 10 | Spec final check, step 7, step 8 (`/features-catalog`) | `final-regression.md`, this ticket's section | pending |
 | 11 | Full gateway; pull request; stop for the owner's merge confirmation | PR link; CI | pending |
 | 12 | On the owner's confirmation, with `v0.1.0-beta` quit: the tag `v0.1.0-beta.2` on a main commit carrying the version; the release run | the run green; a Pre-release; the mirror and pointer jobs skipped; the publish job's download step on download-artifact v8 (#253) | pending |
@@ -77,3 +94,15 @@ at the new length is QR-001/AC-02's subject, checked by the gateway's e2e.
 | 18 | Failure H2: the release's app against the installed app's designated requirement; the updater's logs from both installs | `evidence/ticket-240/` | pending |
 | 19 | The release note: drafted from the template after tasks 12–13, the summary from the owner | the published note | pending |
 | 20 | Records after the release: the coverage checklist's current verification, the app-update spec's Testing Pending note, the document sync checklist, step 8's events; #239's AC-02, #253's third item, #240's items | a records pull request, merged on the owner's confirmation | pending |
+
+## Self-check of the fix for the post-implementation check (items 6 and 7)
+
+- Item 6, the fix's evidence: `evidence/ticket-240/adapter-mutants.txt` prints, for each of nine mutations of
+  `electronUpdateSource`, the text replaced, that it occurred once and landed, the cases that ran with the ones that
+  failed, and the file's sha256 restored to the original's after each. Each reading can change: every mutation turns
+  its own case red and no other. An earlier run of the first four, against the test file before increment 2, was
+  replaced by this one rather than kept beside it.
+- Item 7, the records the fix touches: the design review's coverage rows for C1 and H2 corrected in place and its two
+  increments (T1–T4, T5–T9); the test review's disposition; the code review's second round; the coverage checklist's
+  H2 row; the document sync checklist's rows for the spec and the test header; D6–D8 in this file. The test file's
+  header states its gaps with their conditions.
