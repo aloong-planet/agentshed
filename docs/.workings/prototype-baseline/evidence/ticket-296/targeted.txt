@@ -1,0 +1,108 @@
+# Targeted verification (2026-10-27): branch fix/check-lang-copy-marker at e4c9589 plus the uncommitted change below
+ docs/prototypes/sync-mmd.mjs |  6 +++--
+ scripts/check-lang.mjs       | 39 ++++++++++++++++++++----------
+ scripts/check-lang.test.mjs  | 57 ++++++++++++++++++++++++++++++++++----------
+ 3 files changed, 75 insertions(+), 27 deletions(-)
+A first run of pnpm lint failed with 151 errors, all in site/, every one an unresolved type: site/ has its own dependencies, not yet installed in this new worktree. After pnpm --dir site install --frozen-lockfile, the whole run below.
+
+$ pnpm lint
+
+> agentshed@0.1.0-beta lint /Users/loong_zhou/CascadeProjects/agentshed-wt/check-lang-296
+> eslint . --max-warnings 0
+
+STEP_EXIT(pnpm lint)=0
+
+$ pnpm typecheck
+
+> agentshed@0.1.0-beta typecheck /Users/loong_zhou/CascadeProjects/agentshed-wt/check-lang-296
+> tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json
+
+STEP_EXIT(pnpm typecheck)=0
+
+$ pnpm check:lang
+
+> agentshed@0.1.0-beta check:lang /Users/loong_zhou/CascadeProjects/agentshed-wt/check-lang-296
+> node --test scripts/check-lang.test.mjs && node scripts/check-lang.mjs
+
+✔ the seeds alone pass, one permitted line each (252.56375ms)
+✔ Chinese in an HTML copy (its header after the doctype) is reported: the copy is recognised by its header (240.407667ms)
+✔ Chinese in a JS copy (its header two comment lines) is reported: the copy is recognised by its header (241.639458ms)
+✔ Chinese in a CSS copy (its header a block comment) is reported: the copy is recognised by its header (227.308292ms)
+✔ Chinese in a copy under a name no list ever held is reported: the copy is recognised by its header (233.838416ms)
+✔ Chinese in a JS copy behind a #! line is reported: the copy is recognised by its header (233.124291ms)
+✔ Chinese in the skill's copy sync-mmd.mjs is reported, since .mjs is not an exempt type (240.269666ms)
+✔ Chinese stays permitted in a mockup page (237.116958ms)
+✔ Chinese stays permitted in a logic page that shares the gallery shell’s file name (245.561416ms)
+✔ Chinese stays permitted in the manifest, whose names and questions address the reviewer (237.138125ms)
+✔ Chinese stays permitted in the dimension registry, whose labels address the reviewer (229.371416ms)
+✔ Chinese stays permitted in a mockup page that quotes the marker below its first comment (232.591ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2903.885041
+✓ Working language: 2270 line(s) of Chinese, each permitted by a stated rule
+    rule · 1 file(s) · side-count detection patterns quote the languages they scan; pattern literals only, not prose
+    rule · 1 file(s) · the source-language dictionary — the values are the copy itself, while the comments are English like the rest of the repository
+    rule · 1 file(s) · the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English
+    rule · 16 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
+    rule · 3 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
+    rule · 38 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+    rule · 1 file(s) · the Chinese README — a localisation is written in the language it localises into
+    rule · 2 file(s) · the language switcher rows and the selector list — a language is named in its own script
+STEP_EXIT(pnpm check:lang)=0
+
+$ pnpm check:ui
+✔ an absent source file is reported: docs/prototypes/_shared/app-rail.js: ITEMS is missing or empty — the rail items come from it (0.035875ms)
+✔ an absent source file is reported: src/renderer/src/theme.css: no --p-* value — the provider colours come from them (0.027583ms)
+✔ an absent source file is reported: src/renderer/src/theme.css: no --accent family value — the accent colours come from them (0.016583ms)
+ℹ tests 70
+ℹ suites 0
+ℹ pass 70
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5591.491792
+✓ shared block app-rail — all 11 usage site(s) compliant
+✓ shared block app-window — all 11 usage site(s) compliant
+✓ shared block file-drawer — all 4 usage site(s) compliant
+✓ shared block md-preview — all 5 usage site(s) compliant
+✓ shared block project-side — all 5 usage site(s) compliant
+✓ shared block session-hits — all 2 usage site(s) compliant
+✓ shared block startup-status — all 5 usage site(s) compliant
+✓ shared block toast — all 2 usage site(s) compliant
+✓ shared block totals-card — all 2 usage site(s) compliant
+✓ shared block trend-chart — all 2 usage site(s) compliant
+✓ every list the checks mirror from the product is read from a source that names its members
+✓ persistent documents must not reference ticket numbers (they outlive the tickets)
+✓ every README links every other, and none links a README that is not there (i18n::CON-001)
+✓ settings palette swatches match theme.css variables (changing a theme colour must update the swatch table)
+✓ dictionary copy must not enumerate agent sides as an exhaustive set (CONTEXT invariant)
+✓ dictionary copy must not name a rail control verbatim (a sentence outlives the control)
+✓ provider colours must not be hard-coded in components (use CSS variables)
+✓ components must not hard-code theme accent colours (use the --accent family)
+✓ side chip labels have one source: no hard-coded SIDE_CHIP_LABEL label outside side-badge.ts
+✓ every chart container in a prototype declares its own shared block (otherwise consistency cannot be checked)
+✓ every declaration on a prototype page names a shared block (a _shared/<id>.css or .js that is not a common library)
+✓ the gate's common libraries and block contracts name files and blocks that exist
+✓ demo dimensions are set on the settings prototype alone and followed elsewhere (dimensions.js + demo-dimensions.js)
+✓ pages that follow the mode or theme take the app tokens from _shared/theme.css and never the system appearance
+✓ prototype pages draw the shared app rail, never their own
+✓ every prototype tab names its app (manifest.js PROTOTYPE_APP + app-identity.js)
+✓ prototype pages draw the shared project column, never their own
+
+Shared-UI consistency check passed
+STEP_EXIT(pnpm check:ui)=0
+
+$ node docs/prototypes/sync-mmd.mjs && git status --porcelain -- docs/prototypes
+sync: project-list/visibility ← visibility.mmd
+sync: skill-install/install-flow ← install-flow.mmd
+sync: token-stats/scan-cache ← lifecycle.mmd, pipeline.mmd
+STEP_EXIT(sync-mmd)=0
+ M docs/prototypes/sync-mmd.mjs
+
+TARGETED_EXIT=0

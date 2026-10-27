@@ -1,0 +1,46 @@
+# Red first: the new case on the gate as it is on e4c9589 (scripts/check-lang.mjs unchanged; git diff --stat below)
+$ git rev-parse --short HEAD; git diff --stat
+e4c9589
+ scripts/check-lang.test.mjs | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+$ node --test --test-name-pattern='name no list ever held' scripts/check-lang.test.mjs
+✖ Chinese in a copy under a name no list ever held is reported, recognised by its header (274.463958ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 328.697458
+
+✖ failing tests:
+
+test at scripts/check-lang.test.mjs:80:1
+✖ Chinese in a copy under a name no list ever held is reported, recognised by its header (274.463958ms)
+  AssertionError [ERR_ASSERTION]: ✓ Working language: 9 line(s) of Chinese, each permitted by a stated rule
+      rule · 1 file(s) · side-count detection patterns quote the languages they scan; pattern literals only, not prose
+      rule · 1 file(s) · the source-language dictionary — the values are the copy itself, while the comments are English like the rest of the repository
+      rule · 1 file(s) · the landing page’s two-language dictionary (landing-page::CON-002) — the Chinese values are the page’s copy, while the comments are English
+      rule · 1 file(s) · code that asserts against, or explains, Chinese copy — the Chinese is the thing under test or the thing being quoted, never prose
+      rule · 1 file(s) · documents quoting Chinese values, patterns and superseded code as evidence
+      rule · 2 file(s) · UI prototypes — the mockup shows a Chinese interface to a Chinese-reading reviewer; the tooling beside it gets no exemption
+      rule · 1 file(s) · the Chinese README — a localisation is written in the language it localises into
+      rule · 1 file(s) · the language switcher rows and the selector list — a language is named in its own script
+  
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/loong_zhou/CascadeProjects/agentshed-wt/check-lang-296/scripts/check-lang.test.mjs:83:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+EXIT=1
