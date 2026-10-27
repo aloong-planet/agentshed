@@ -157,3 +157,32 @@ docs/prototypes` is empty). **What was missing** — nothing: no user-visible be
 | New general rules this round | none: the decisions read this gate's lists from their sources and bind `check:ui`, whose header states them; the CONTEXT invariant on copy that enumerates sides is unchanged in substance | Row set empty |
 | The review findings | the code review's findings 1–5 (a comment naming a non-cause; a source member read in silence as absent, seven lists; the renderer rules reading only the top level, two listings; new names in an avoided term; the allow-list's lost ticket field, in the gate and CONTEXT), each fixed; the test review's post-implementation findings 1–6 (a renderer `.ts`, `package.json` and an absent source file undriven, handled by Ts, Pk and a third tree; the record's plant list and design review, fixed in the record; the test header calling `package.json` a link, fixed) | Handled in the records |
 | Work state changed | #316's body (rewritten with the decisions); the coverage checklist's fifth round; #314's records that left the gate's other lists to the owner (now naming the decision and #316); this ticket's document sync checklist | Updated where they state current state |
+
+### Follow-up 2026-10-27: wording the owner asked for
+
+- Date: 2026-10-27
+- Scope: commit 5074243 on the same branch, asked for by the owner after the PR was opened (the avoided term "brand
+  colour", and `package.json`'s description, changed now): `theme.css`'s comment over the `--p-*` values, the
+  prototypes' trend chart stylesheet's comment, the appearance feature page's and spec's boundary lines, the agents
+  prototype's by-model label in both languages, one e2e case's name, a comment in check:ui's test, and `package.json`'s
+  description
+- Version: 5074243; full gateway `evidence/ticket-316/gateway-5074243.txt`
+
+The two questions: **what became a lie** — nothing; the changed lines say the same thing in the glossary's word, and the
+description no longer lists the sides as the whole set. **What was missing** — nothing: no behaviour changed.
+
+| Stage | Rows | Conclusion |
+|---|---|---|
+| 1, changed declarations | `theme.css:59` and `_shared/trend-chart.css:121` (the rules under each comment use the `--p-*` values); `docs/features/appearance.md:48` and `docs/specs/appearance.md:444` (the provider colours do not follow the theme: `theme.css` sets the `--p-*` values only in `:root` and the dark block, never under `data-theme`); the agents prototype's `byModel` in Chinese and English (its bars use `--p-*`; the Chinese label says "provider" followed by the character for colour, `\x{8272}`, as five other prototype files do: `rg -c 'provider \x{8272}' docs/prototypes`); the e2e case reading `--p-anthropic`, `--p-openai` and `--p-google`; the test comment naming the provider colour rule (the rule's name in the gate); `package.json`'s description (Claude Code, Codex "and other coding agents", as `README.en.md`'s opening sentence says) | True. The two boundary lines still say CC/CX where they mean every side badge: finding A |
+| 2, one fact ↔ its other statements: the avoided term, and copy listing the sides | `rg -n -i -uu 'brand[ -]?colou?r'` outside `docs/.workings` and dependencies: only CONTEXT's _Avoid_ line (`CONTEXT.md:260`) remains; the Chinese term, `rg -n -uu '\x{54c1}\x{724c}\x{8272}'`, finds nothing (exit 1; the same pattern counts 1 in the agents prototype at 5074243^). `rg -i '\bbrand'` found one more use of the old name, the test's comment (fixed in the commit); the other hits mean a product name or the site header's `.brand`, not a colour. Sides listed on user-facing surfaces outside the dictionaries (`docs/features`, the READMEs, `site/src`, `package.json`): `projects-list.md:6` lists Claude Code, Codex and Grok as the whole set (finding B); `features/README.md:19` and `subagents-view.md` say "both sides", true because the subagents view reads two sides (`subagents.ts` has no Grok reader); `token-stats.md:28` names sides for their own accounting | Agree, but for findings A and B |
+| 3, events | no dimension's members changed; no `Pending:` note touched; no new general rule. Earlier evidence files name the renamed e2e case by its old title; they record past runs and stay as they are | Row set empty |
+
+Findings left for the owner (no persistent home until decided):
+
+- **A — "CC/CX" where every side badge is meant**: the appearance spec at 46, 63, 138 and 444, and the feature page at 48.
+  The Grok badge does not follow the theme either (`--gk-*` sits beside `--cl-*` and `--cx-*` in `:root` and the dark
+  block only), so these lines leave it out. The spec's line 463 records what the prototype gate confirmed on 2026-08-06,
+  before the Grok side, and stays. Recommendation: say "the side badges" in one small change.
+- **B — `docs/features/projects-list.md:6`** lists the three sides as the whole set ("each agent side's own registry —
+  Claude Code, Codex and Grok"), which turns false when a side is added. Recommendation: drop the list; the sentence
+  already says "each agent side".
