@@ -101,6 +101,31 @@ for (const [what, file, text, line] of [
       '     Depends on manifest.js in the same directory. -->\n' +
       `<!-- ${CN} -->\n`,
     5
+  ],
+  [
+    'a CSS copy whose block header runs on past the marker line',
+    'docs/prototypes/demo-panel.css',
+    '/* Demo panel styles, its title reworded so that the marker\n' +
+      "   falls on the next line (copied from the prototype skill's template; do not edit by hand).\n" +
+      '   Scaffolding, not part of any design. */\n' +
+      `/* ${CN} */\n`,
+    4
+  ],
+  // HTML allows a doctype in either case and an indented comment; an indented // run is still one run
+  [
+    'an HTML copy behind an upper-case doctype, its header indented',
+    'docs/prototypes/shell.html',
+    "<!DOCTYPE html>\n  <!-- Prototype gallery shell (copied from the prototype skill's template; do not edit by hand) -->\n" +
+      `<!-- ${CN} -->\n`,
+    3
+  ],
+  [
+    'a JS copy whose // header is indented, the marker on its second line',
+    'docs/prototypes/demo-indented.js',
+    '  // Demo tool, its header indented inside the file\n' +
+      "  // (copied from the prototype skill's template; do not edit by hand)\n" +
+      `  // ${CN}\n`,
+    3
   ]
 ]) {
   test(`Chinese in ${what} is reported: the copy is recognised by its header`, () => {
@@ -145,14 +170,27 @@ for (const [what, file, text] of [
   ],
   [
     'a script whose // header ends at code, the marker quoted after it',
-    'docs/prototypes/manifest.js',
-    `// Prototype registry\n// ${CN}\nwindow.PROTOTYPES = []\n` +
+    'docs/prototypes/dimensions.js',
+    `// The demo dimensions every prototype page shares\n// ${CN}\nwindow.DEMO_DIMENSIONS = {}\n` +
       "// The gallery shell is copied from the prototype skill's template\n"
   ],
   [
     'a script that opens with code, the marker quoted after it',
     'docs/prototypes/_shared/notes.js',
     `window.NOTES = ['${CN}']\n` + "// The skill's copies say they are copied from the prototype skill's template\n"
+  ],
+  [
+    'a stylesheet whose /* header closes without the marker, the marker quoted after it',
+    'docs/prototypes/_shared/panel.css',
+    '/* Panel styles, kept by hand: the baseline the app follows,\n   not checked against the app. */\n' +
+      "/* The gallery shell is copied from the prototype skill's template */\n" +
+      `.panel::after { content: '${CN}' }\n`
+  ],
+  [
+    'a script whose // header ends at a blank line, the marker quoted after it, as the manifest is laid out',
+    'docs/prototypes/manifest.js',
+    `// The prototype registry (a hard rule: add or remove an entry whenever a prototype is created or deleted)\n// ${CN}\n\n` +
+      "// The gallery shell (index.html) is copied from the prototype skill's template\nwindow.PROTOTYPES = []\n"
   ],
   // No marker at all: the first comment runs to the end of the file, which has no newline after it
   ['a script of comments only, without the marker', 'docs/prototypes/_shared/placeholder.js', `// Placeholder\n// ${CN}`]

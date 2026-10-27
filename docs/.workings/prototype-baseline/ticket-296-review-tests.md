@@ -25,9 +25,14 @@ in a fresh Git repository. "Copy header" below means a first comment carrying th
 | D6 (new) | 296::2, the boundary | `docs/prototypes/notes/prototype-notes.html`: doctype, a first comment without the marker, a second comment quoting it, a Chinese `<p>` on line 4; the first-comment read stopping at the first comment | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the fixture's one Chinese line | Designed: a mockup page shaped like the real ones (doctype, header comment, content) | None |
 | D7 (added after the post-implementation check, finding 1) | 296::1, the marker on a later line of a `//` first comment | `docs/prototypes/demo-strip.js`: a `//` run whose first line is a reworded title and whose second line carries the marker, then a Chinese `//` line 3; the read going on past the run's first line | Exit 1, one problem, `…demo-strip.js:3 ` and the reason; line 3 from the fixture | The real copies' hand-wrapped headers (`app-identity.js` wraps mid-sentence), the title reworded so the marker falls on line 2 | None |
 | D8 (same, finding 1) | 296::1, the marker on a later line of a block first comment that runs on past it | `docs/prototypes/index.html`: doctype, a `<!--` comment whose title line holds no marker, the marker on its next line, a further line ending in `-->`; a Chinese comment on line 5; the read going on past the opening line and stopping only at the closing token | Exit 1, one problem, `docs/prototypes/index.html:5 ` and the reason; line 5 from the fixture | The real gallery shell's header (a `<!--` comment running on for several lines), its title moved onto a line of its own | None |
-| D9 (same, finding 2) | 296::2, a `//` first comment ends at the first line that is not one | `docs/prototypes/manifest.js`: a `//` run holding a Chinese line, a line of code, then a `//` comment quoting the marker; the run ending at the code | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the Chinese line | The real `manifest.js` (a `//` header, then `window.PROTOTYPES = …`), with a later comment that mentions the shell's marker | None |
+| D9 (same, finding 2; file and source corrected for finding 4) | 296::2, a `//` first comment ends at a line of code | `docs/prototypes/dimensions.js`: a `//` run holding a Chinese line, a line of code, then a `//` comment quoting the marker; the run ending at the code | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the Chinese line | The real `dimensions.js` (a `//` header meeting `window.DEMO_DIMENSIONS = …` on line 11), with a later comment that mentions the shell's marker | None |
 | D10 (same, finding 2) | 296::2, a file that opens with code is no copy | `docs/prototypes/_shared/notes.js`: line 1 code holding a Chinese string, line 2 a `//` comment quoting the marker; the first line not being a comment | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the line-1 Chinese | Designed: the shape of `vendor/mermaid.min.js`, the one file under `docs/prototypes/` that opens with code | None |
 | D11 (added by the self-check after findings 1 and 2) | 296::2, a first comment that runs to the end of the file without the marker is no copy | `docs/prototypes/_shared/placeholder.js`: two `//` lines, the second Chinese, and no newline at the end; the read reaching the end of the file | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the Chinese line | Designed: a file of comments only, as a placeholder script would be | None |
+| D12 (added for the incremental check's finding 3) | 296::1, the marker on a later line of a `/*` first comment that closes on a later line still | `docs/prototypes/demo-panel.css`: a `/*` comment whose title line holds no marker, the marker on line 2, a third line ending in `*/`; a Chinese comment on line 4; the read going on past the opening line to `*/` | Exit 1, one problem, `…demo-panel.css:4 ` and the reason; line 4 from the fixture | The real stylesheets' first comments (`_shared/theme.css`: a `/*` comment over nine lines), its title reworded so the marker falls on line 2 | None |
+| D13 (same, finding 3) | 296::2, a `/*` first comment ends at `*/` | `docs/prototypes/_shared/panel.css`: a two-line `/*` comment without the marker, then a comment quoting it, then a rule whose `content` is Chinese on line 4; the read stopping at `*/` | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus line 4 | The real stylesheets' multi-line first comments | None |
+| D14 (same, finding 4) | 296::2, a blank line ends a `//` first comment | `docs/prototypes/manifest.js`: a `//` header holding a Chinese line, a blank line, a `//` comment quoting the marker, then code; the run ending at the blank line | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the Chinese line | The real `manifest.js` (a `//` header over lines 1–8, a blank line, a second `//` comment before any code) | None |
+| D15 (added by the self-check after findings 3 and 4) | 296::1, a block header recognised whatever the doctype's case and the comment's indent | `docs/prototypes/shell.html`: `<!DOCTYPE html>` in upper case, then an indented `<!--` header carrying the marker, then a Chinese comment on line 3; the case-blind doctype skip and the trimmed first line | Exit 1, one problem, `…shell.html:3 ` and the reason | Designed: HTML allows either case and any indent (no copy has either today) | None |
+| D16 (same) | 296::1, an indented `//` run read on past its first line | `docs/prototypes/demo-indented.js`: two indented `//` lines, the marker on the second, then an indented Chinese `//` line 3; the trimmed test for a `//` line | Exit 1, one problem, `…demo-indented.js:3 ` and the reason | Designed: a header indented inside its file (no copy has one today) | None |
 
 Kept unchanged: "the seeds alone pass" (every rule alive), "sync-mmd.mjs is reported, since .mjs is not an exempt
 type", and the four permitted cases (a mockup page, a logic page named `index.html`, `manifest.js`,
@@ -45,7 +50,10 @@ backed by evidence, not by this test. The gate reads files the skill writes, so 
 D5 after them) take the real copies' header shapes; D3 and D6 are designed, there being no real sample.
 
 Conclusion: complete for 296::1 and 296::2. Reopened on 2026-10-27 by the post-implementation check, findings 1 and
-2: two details of the first-comment read are driven by no case.
+2: two details of the first-comment read are driven by no case. D7–D11 (the increment below) drive what those
+findings named, except the `/*` form of finding 1. Reopened again on 2026-10-27 by the incremental check (in the
+post-implementation check below), findings 3 and 4: a `/*` first comment's closing token, and a blank line ending a
+`//` first comment, are driven by no case.
 
 ### Dimension 2: Case design
 
@@ -88,9 +96,10 @@ below, each reviewed before it was written:
 - Coverage: D7 and D8 drive the read going on past the first comment's first line, in a `//` run and in a block
   comment that runs on past the marker line (finding 1); D9 drives the end of a `//` run at a line of code and D10 a
   file whose first line is code (finding 2); D11 drives the read reaching the end of the file inside the first
-  comment. Each row names the input that reaches its line of `isSkillCopy`. With
-  them every line of the function is driven by a case whose verdict would change without it. No gap goes into the
-  test's header.
+  comment. Each row names the input that reaches its line of `isSkillCopy`. This claimed that with them every line of
+  the function is driven by a case whose verdict would change without it; counted by line it missed that the `/*`
+  closing token and a blank line ending a `//` run were driven by none (the incremental check's findings 3 and 4, covered
+  by the second increment below). No gap goes into the test's header.
 - Case design: each row runs through `check()` and asserts the exit status and the reported line, or the permitted
   count.
 - False greens, from the design: D7 and D8 are red if the read stops at the comment's first line (no marker found,
@@ -115,13 +124,53 @@ code review record, items 6 and 7 in the task list):
 - Item 3, every branch and exit of `isSkillCopy` (unchanged by the fix) against a case: the `#!` skip D5; the doctype
   skip D1 and D8; a `<!--` comment D1, D8, D6; a `/*` comment D3; a `//` run D2, D4, D5, D7, D9; a `//` run ending at
   a line that is not one, or a first line that is code, D9 and D10; the marker found D1–D5, D7, D8; a block comment's
-  closing token D6; the end of the file reached inside the first comment — no case, until this self-check added D11,
+  closing token, `-->` D6 and D8, `*/` D12 and D13; a blank line ending a `//` run D14; the end of the file reached inside the first comment — no case, until this self-check added D11,
   reviewed above as an increment: without it, that exit could return true and a comment-only file would be checked as
   tooling, a loud false red against 296::2 of the same kind as finding 2.
 - Item 4, the new cases' data: D7, D8 and D9 take the real headers' shapes (a wrapped title, the gallery shell's
-  running comment, the manifest's header before its code); D10 and D11 are designed, there being no real sample of
-  either shape among the copies.
+  running comment, `dimensions.js`'s header meeting code; corrected for the incremental check's finding 4, which found
+  this item naming the manifest's header); D10 and D11 are designed, there being no real sample of either shape among
+  the copies.
 - Item 5: the fix changes no shared helper (`check()`, `SEEDS`, `JS_COPY_HEADER` are unchanged); not applicable.
+
+### Second increment, after the incremental check (2026-10-27, on 7c4ebc5)
+
+Rows D12–D14 above, and D9's file and source, changed for the incremental check's findings 3 and 4, each reviewed
+before it was written:
+
+- Coverage: D12 drives the read going on past a `/*` comment's first line to `*/` on a later line, and D13 its
+  stopping at `*/` without the marker (finding 3); D14 drives a blank line ending a `//` run, in the real manifest's
+  shape (finding 4). D9 keeps its input and assertion and takes the file name of its real source, `dimensions.js`.
+  With them each closing condition of the first comment is driven in each of its forms: `-->` (D6, D8), `*/` (D12,
+  D13), a `//` run's end at code (D9, D10), at a blank line (D14), and at the end of the file (D11); and the marker is
+  read past the first line in all three forms (D7, D8, D12).
+- Case design: each row runs through `check()` and asserts the exit status and the reported line, or the permitted
+  count.
+- False greens, from the design: D12 is red if the `/*` read stops at its first line, or if its closing token matches
+  the opening line (the file stays exempt, exit 0); D13 is red if the `/*` read does not stop at `*/` (the marker on
+  line 3 is reached, line 4 reported); D14 is red if a blank line does not end a `//` run (the marker on line 4 is
+  reached, line 2 reported). Every expected value comes from the fixture: a line number, or the seeds' 8 plus one.
+- Resource reuse: each row is one more `check()` call, about 230 ms; no expensive resource.
+
+Findings: none.
+
+Self-check of this fix before it goes back for review (items 2–5; item 1 in the code review record, items 6 and 7 in
+the task list):
+
+- Item 3, enumerated by condition rather than by line this time, every test and normalisation in `isSkillCopy`
+  against a case: the `#!` skip D5; the doctype skip D1, D8, and its blindness to case — none, so D15 is added; the
+  first line's trim — none, so D15 indents its header; `<!--` read to `-->` D1, D8 and stopping there D6; `/*` read to
+  `*/` D12 and stopping there D13, D3 on one line; a `//` run read on D2, D4, D5, D7, its lines' trim — none, so D16
+  indents a run; a `//` run ending at code D9, D10, at a blank line D14, at the end of the file D11; the marker found
+  D1–D5, D7, D8, D12, D15, D16. D15 and D16 are reviewed as part of this increment: each is red without the condition
+  it drives (the doctype taken as a first line that is no comment, or an indented opener or `//` line not read), the
+  file then exempt and exit 0; their expected lines come from the fixtures.
+- Item 2, each new assertion against the false-green forms: D12–D16 assert the exit status with the reported line and
+  the rule's reason, or nine permitted lines; each is red under the change it guards, on changed copies of the gate
+  (`evidence/ticket-296/increment-mutants-2.txt`). No always-true assertion, tautology, stale path or skip.
+- Item 4, the data: D12, D13 and D14 take the real files' shapes (the stylesheets' multi-line first comments, the
+  manifest's blank line); D15 and D16 are designed, no copy having either shape.
+- Item 5: no shared helper changes; not applicable.
 
 ## Post-implementation check
 
@@ -295,7 +344,9 @@ Owed by the findings:
    skill's check still passes such a copy, while a gate reading the first line only would exempt it again in silence —
    #296's own failure. Recommended: now, in this PR — two rows in the copy loop, a `//` run and a block comment, each
    carrying the marker on its second line, the block one in the real gallery shell's shape (a `<!--` comment that runs
-   on past its marker line), each asserting the Chinese line after the header is reported. Disposition: open.
+   on past its marker line), each asserting the Chinese line after the header is reported. Disposition (2026-10-27,
+   incremental check): fixed for a `//` run and a `<!--` comment by D7 and D8 in a32cd16; its `/*` form is still
+   undriven and continues as finding 3.
 2. **No case drives the end of a `//` first comment, or a file that opens with code** (Dimension 1; a regression that
    would go unseen; 296::2 and the owner's decision). `check-lang.mjs:149` ends the first comment at the first line
    that is not a `//` line, which also makes a file opening with code no copy. Every case reaching `isSkillCopy` gives
@@ -308,4 +359,223 @@ Owed by the findings:
    in it reported: a false red against 296::2, loud rather than silent, but a spec behaviour no case would catch going
    wrong. Recommended: now, in this PR — a permitted case,
    e.g. `docs/prototypes/manifest.js` with a `//` first comment holding a Chinese line, then code, then a `//` comment
-   quoting the marker, asserting exit 0 and `Working language: 9 line(s)`. Disposition: open.
+   quoting the marker, asserting exit 0 and `Working language: 9 line(s)`. Disposition (2026-10-27, incremental
+   check): fixed by D9 and D10 in a32cd16, with D11 adding the end of the file; D9's fixture is not the real
+   `manifest.js`'s shape, whose first comment ends at a blank line, which is finding 4.
+
+### Incremental check of the fix (2026-10-27, 645c866..7c4ebc5)
+
+Date 2026-10-27; ticket [#296](https://github.com/aloong-planet/agentshed/issues/296) (feature `prototype-baseline`);
+second round of the post-implementation check, an independent incremental check under `/implement` step 6. Whole change
+e4c9589..7c4ebc5 on `fix/check-lang-copy-marker`; the fix under check is 645c866..7c4ebc5: a32cd16 adds D7–D11 to
+`scripts/check-lang.test.mjs` (blob b09aefc) with their records and evidence, and 7c4ebc5 adds one row to
+`checklist.md`. `scripts/check-lang.mjs` is unchanged since df9fdcf (`git log -- scripts/check-lang.mjs`). Requirement
+source: #296's body (296::1–296::5 and the owner's decisions) and its comment, read with
+`gh issue view 296 -R aloong-planet/agentshed` (and `--comments`) on 2026-10-27; for what a first comment is, the
+owner's rule as skillshed implements it, `leadingComment` in `scripts/check-prototype-copies.mjs` at 3db94ce (a `//` run
+ends at the first line that is not a `//` line; a `<!--` or `/*` comment runs to `-->` or `*/`). Run evidence:
+[targeted-fix-1.txt](evidence/ticket-296/targeted-fix-1.txt) only. This check ran no gateway, full run or test and no
+changed copy of the gate. It changed no file but this record: this section, and in place the design review's coverage
+conclusion and the dispositions of findings 1 and 2.
+
+**Objects, and how they were found.**
+
+- Tests the range changes: `git diff 645c866..7c4ebc5 -- scripts/` touches `scripts/check-lang.test.mjs` only. It adds
+  two entries to the copy loop (D7, D8; the loop's body is unchanged, so D1–D5 run as before) and moves the boundary
+  page's case (D6), its fixture and assertions unchanged, into a new loop of permitted files with D9, D10 and D11.
+- Tests that depend on test helper code the range changes: none. The diff leaves `check()`, `SEEDS`, `withChinese` and
+  `JS_COPY_HEADER` untouched, and no test reads a file the range changes. `git diff --name-only 645c866..7c4ebc5` lists
+  the test and seven files under `docs/.workings/prototype-baseline/`.
+  `rg -uu -n -F -g '!**/node_modules/**' -g '!out/**' -g '!.git/**' -g '!docs/.workings/**' -e check-lang.test -e check-lang.mjs -e ticket-296 -e evidence/ticket-296 -e prototype-baseline .`
+  hits `package.json:25` (the `check:lang` script: the control that the search reads the tree), the gate itself, the
+  test's own line 13 (the path of the gate it runs), comments in four other scripts and tests (`check-raw-nul.mjs`,
+  `lib/working-language.mjs`, `check-message-lang.mjs`, `zh-script.test.ts`) and two documents (`docs/specs/i18n.md`,
+  ADR-0017). None of them imports or reads a file the range changes. The same search for `-e .workings` hits
+  `.gitignore`, a comment in `check-shared-ui.mjs`, strings in two prototype pages, and these tests:
+  `check-shared-ui.test.mjs` (its own fixture tree, with an empty `docs/.workings`), `startup-restore.spec.ts`
+  (screenshots written to another feature's directory), and comments or strings in `workflow-actions.test.mjs`,
+  `close-app.spec.ts`, `md.test.ts` and `app.spec.ts`. None of them reads this work directory.
+- Test design table rows the range changes: D7–D11, all added. No other row changed (`git diff 645c866..7c4ebc5` of
+  this record).
+
+Outside these objects, every dimension's conclusion is carried over from the first round (on 3757e36).
+
+**The targeted log**, against the full gateway's log requirements. `git rev-parse HEAD` gives 645c866, and
+`git status --porcelain --untracked-files=all` lists four modified files, each with its hash. Each hash equals that
+file's blob at a32cd16 and at 7c4ebc5 (`git rev-parse a32cd16:<file>` and `7c4ebc5:<file>`), so the run read the test
+exactly as committed. 7c4ebc5's one `checklist.md` row is read by no test, since the test runs the gate in temporary
+repositories. The repository gate in the log read the checklist before that row was added. The row holds no Chinese:
+`rg -c '\p{Han}'` over the diff exits 1, and the control, `src/shared/i18n/zh.ts`, gives 358. The full gateway before
+delivery covers that row. Both commands (`pnpm lint`, `pnpm check:lang`) are logged with their full output and their
+own exit codes, both 0, and `VERIFY_EXIT=0`. The work directory is ignored (`.gitignore:4`), so
+`increment-mutants.txt` is not in the status, although it was on disk before the run (written at 17:30 local; the run
+started at 09:31:33Z, 17:31:33 local). No step reads it: ESLint ignores `docs/` (`eslint.config.js:39`), the gate lists
+files with `--exclude-standard`, and the test runs in temporary repositories. The log meets every requirement and
+matches the range; no finding.
+
+#### Dimension 1: Coverage
+
+**The test design table against the test, for the objects:**
+
+| Row | Written as the table says | Notes |
+|---|---|---|
+| D6 | Yes: fixture and assertions unchanged, now an entry of the permitted loop | — |
+| D7 | Yes: `demo-strip.js`, a `//` run with the marker on its second line, a Chinese `//` line 3; asserts exit 1, `found 1 problem(s)`, `…demo-strip.js:3 ` and the rule's reason | The real `app-identity.js` wraps its header mid-sentence (`do not edit by` / `hand — …`, lines 1–2) |
+| D8 | Yes: doctype, a `<!--` title line without the marker, the marker on line 3, `-->` on line 4, Chinese on line 5; the same four assertions | The real `index.html`'s first comment runs over lines 2–7 |
+| D9 | The test is as the table says, but the row's fixture source is not | The real `manifest.js` ends its first comment at a blank line (line 9), followed by a second `//` comment: finding 4 |
+| D10 | Yes | Of the `.js` files under `docs/prototypes/`, only `vendor/mermaid.min.js` opens with code (the four `.mmd` files open with `%%`) |
+| D11 | Yes. The missing final newline is what takes the read to the end of the file: with one, the empty last line ends the run at `:149` | No real file ends inside its first comment, and all 56 end with a newline |
+
+**The first-comment read, by form, against the cases and the real files.** The real files were surveyed by a
+read-only node script that re-implements `isSkillCopy`'s read (`check-lang.mjs:140–154`). It ran over the 56 `.html`,
+`.mmd`, `.css` and `.js` files under `docs/prototypes/` that `git ls-files --cached --others --exclude-standard` lists,
+the same count as the first round's.
+
+| Form | The read goes on past the first line (296::1) | The read ends without the marker (296::2) | Real files |
+|---|---|---|---|
+| `<!--` | D8 | at `-->`: D6 | 17 pages; every first comment spans several lines (16 close on lines 5–72; `index.html` carries the marker on line 2) |
+| `//` | D7 | at code on the first line: D10; at code on a later line: D9; at a blank line: **none** (finding 4); at the end of the file: D11 | 20 scripts: 3 copies, 13 whose run ends at code (`dimensions.js` on line 11, `_shared/toast.js` on line 3), 4 whose run ends at a blank line (`manifest.js` and the three `logic.js`) |
+| `/*` | **none** (finding 3) | at `*/`: **none** (finding 3) | 14 (12 stylesheets, `_shared/session-hits.js`, `vendor/marked.umd.js`); every first comment spans more than one line, closing on lines 2–14 (`_shared/theme.css`: line 9) |
+
+**Gaps in the test's header.** None are noted. The increment says none is owed. Findings 3 and 4 each owe a case, or
+a gap note with the condition for driving it.
+
+Conclusion: incomplete, findings 3 and 4. Findings 1 and 2 are fixed as recommended: D7 and D8 drive the marker on a
+later line of a `//` and a `<!--` first comment, and D9 and D10 drive the end of a `//` run at code and a first line of
+code. Finding 1's `/*` form is left, and continues as finding 3.
+
+#### Dimension 2: Case design
+
+D6–D11 each build their own repository through `check()` and run the real CLI once. Each asserts the exit status and
+the reported file and line with `found 1 problem(s)`, or exit 0 and the permitted count. None reads the gate's
+internals, and none builds a state that a commit could not hold. D8 uses D1's file name, but in its own repository.
+
+Conclusion: no finding.
+
+#### Dimension 3: False greens
+
+Per the project capability declaration (`capabilities.toml`, read with Python's `tomllib`), `mutation-testing` is not
+enabled; mutation testing is skipped. Each object's "when does it go red" is answered below, against the gate at
+df9fdcf and each expected value's source. Every expected value is a literal: a line number fixed by the fixture, the
+seeds' 8 plus the fixture's one line, or the prototype rule's reason typed in the test.
+
+| Case | Goes red when |
+|---|---|
+| D6 | the block read runs past `-->` (`:151`): line 3's quote then makes the file a copy and line 4 is reported; or the file is not read (8) |
+| D7 | the `//` read stops at the run's first line (no marker found, the file exempt, exit 0); or the `//` branch is not taken (`:147`, `:149`) |
+| D8 | the block read stops at its opening line, whether by reading only the first line or by a closing token that matches that line (`:151`); or the doctype line is not skipped (`:144`) |
+| D9 | a `//` run does not end at a later line that is not a `//` line (`:149`): the marker on line 4 is then reached and line 2 reported; or the file is not read (8) |
+| D10 | a first line of code does not end the read (`:149`, on its first line): the marker on line 2 is then reached and line 1 reported |
+| D11 | reaching the end of the file inside the first comment counts as a copy (`:153`): line 2 is then reported |
+
+The implementer's evidence agrees with this table: in `increment-mutants.txt`, three changed copies of the gate, each
+diff printed at `:151`, `:149` and `:153` as the gate has those lines today, turn exactly D7 and D8, D9 and D10, and
+D11 red. This check ran none of them.
+
+Forms: no always-true assertion (each line number, and the count of 9, needs the fixture's own Chinese line; an unread
+file gives 8); no tautology (literals, as above); no stale path (the live CLI); no conditional skip; every assertion
+runs (the cases are synchronous; the objects' two loops run over literal arrays of seven and four entries; the log
+names all 17 cases). No case answers two details. Replacing the `/*` closing token (`'*/'`, `:147`) with any other string leaves all
+17 green (finding 3). So does letting a blank line continue a `//` run (finding 4).
+
+The forms for gates and command-line checks (review-code's false-greens list): the range adds no gate or check. Its
+command-line evidence is `increment-mutants.txt`, which checklist row 178 cites. Form four: each mutation's diff
+against the branch's gate is printed, which is independent proof that it landed, and the red falls on the targeted
+cases and no other. Form six: every run's excerpt keeps `tests 17` with its pass and fail counts, so a run that did not
+start would show.
+
+Conclusion: no false green. The undriven details are findings 3 and 4.
+
+#### Dimension 4: Resource reuse
+
+The table names no expensive resource for D7–D11. The targeted log confirms it: all 17 cases ran, 220.7–242.7 ms each
+(`duration_ms 4011.262792`), each building one temporary repository and one gate process inside its own `check()`. No
+resource reaches the one-second bar. Nothing is shared or cleared, so the order of the cases bears on no count.
+
+Conclusion: no finding.
+
+#### Document sync
+
+The facts that changed, from the range and its targeted run: D7–D11 added and D6 moved, 17 of 17 passing; findings 1
+and 2 fixed (but for finding 1's `/*` form); findings 3 and 4 opened. Scope checked:
+
+- the task inputs: #296's body and comment, this record, the range, and the targeted log;
+- the work directory, listed with hidden entries (`ls -la`) and ignored files. `git status --porcelain --ignored`
+  shows only `.husky/_/`, `node_modules/`, `out/`, `site/.astro/`, `site/node_modules/` and two `tsbuildinfo` files,
+  and `git ls-files -o -i --exclude-standard -- docs/.workings` lists nothing, so every file there is tracked;
+- `ticket-296-tasks.md`, `ticket-296-doc-sync.md`, `ticket-296-review-code.md`, and `checklist.md` (rows 106–107, 178);
+- `final-regression.md`, which has no #296 section (task 11);
+- the test file's header;
+- every file naming the test or the ticket:
+  `rg -uu -n -F -g '!**/node_modules/**' -g '!out/**' -g '!.git/**' -e check-lang.test -e '#296' -e '296::' .`
+  gives 251 lines. Outside this work directory they are `package.json` and the records of other tickets (the gate's
+  earlier #223 under `docs/.workings/i18n/`, and gateway logs). Inside it, besides #296's own files, they are other
+  tickets' records and logs (#250, #270, #314, #316, round 2). None of them states this test's current coverage.
+
+What the first round owed, now:
+
+- D7–D11 are in the test design table, reviewed as an increment.
+- The design review's coverage conclusion had not been brought up to date. It is now, in place, by this check.
+- `checklist.md` row 178 records the added cases as Verified, on `targeted-fix-1.txt` and `increment-mutants.txt`. That
+  stands: it states what those cases do. Rows 106–107 name the cases each unit started with, and contradict nothing.
+- The document sync checklist's coverage row is Pending, as it should be.
+- Task 9 of `ticket-296-tasks.md` reads "the incremental check follows". It needs this round's result.
+
+Owed by findings 3 and 4:
+
+- each added case's row in the test design table, reviewed as a design increment before it is written;
+- the increment's claims corrected (finding 3), and D9's fixture source corrected, along with the self-check's
+  item 4 (finding 4);
+- `checklist.md`'s current verification for 296::1 and 296::2 citing the added cases;
+- task 9 recording this round.
+
+For any case the owner declines: the gap and its condition go into the test's header, and that unit's current
+verification names the gap. Until then the coverage row of `ticket-296-doc-sync.md` stays Pending.
+
+#### Findings
+
+3. **No case drives a `/*` first comment past its first line or to its closing token** (Dimension 1; a regression that
+   would go unseen; 296::1 and 296::2, the owner's decision; the rest of finding 1). For a `/*` first comment the read
+   goes on to `*/` (`check-lang.mjs:147`, `:151`), as skillshed's `leadingComment` does. The only `/*` case is D3,
+   whose one-line header carries the marker, so the read returns at `:150` before the token is ever compared. Replace
+   `'*/'` with any other string and all 17 cases stay green. Two kinds of change go unseen:
+   - A token that matches the opening line (`'/*'`, `'*'`) silently exempts a `/*` copy whose marker sits on a later
+     line. That is #296's own failure, and finding 1's form for the CSS copy that 296::1 names.
+   - A token that never matches reads a `/*` mockup on past its first comment. A later quote of the marker then makes
+     the file a copy, and every Chinese line in it is reported: a false red against 296::2.
+
+   The real shape is the multi-line one. All 14 `/*`-headed files under `docs/prototypes/` close their first comment
+   on line 2 or later (`_shared/theme.css`: line 9), while D3 is designed as one line.
+
+   The increment's claims, "every line of the function is driven by a case whose verdict would change without it" and
+   (item 3) "a block comment's closing token D6", count lines and branches, a unit at which `-->` and `*/` look like
+   one. Only `-->` is driven: by D6 on the closing side and by D8 on the reading side.
+
+   Recommended: now, in this PR. Add two rows, the `/*` counterparts of D8 and D6, both in the real shape (a `/*`
+   comment over several lines):
+   - a CSS copy whose header carries the marker on its second line and closes on a later line, asserting the Chinese
+     line after it is reported;
+   - a stylesheet whose first comment closes without the marker, followed by a comment quoting it, asserting exit 0 and
+     `Working language: 9 line(s)`.
+
+   With them the increment's two claims hold; any row the owner declines leaves those claims to be corrected.
+   Disposition: open.
+
+4. **D9 does not have the real `manifest.js`'s shape, and a blank line ending a `//` first comment is driven by no
+   case** (Dimension 1; an untrue record, and a regression that would go unseen; 296::2).
+   - The record: D9's row gives its source as "the real `manifest.js` (a `//` header, then `window.PROTOTYPES = …`)",
+     and the self-check's item 4 as "the manifest's header before its code". The real file's `//` header runs over
+     lines 1–8, line 9 is blank, and a second `//` comment follows (lines 10 onwards, describing `app-identity.js`)
+     before any code. D9's code-ended run is a real shape too, but that of 13 other scripts, such as `dimensions.js`,
+     whose header meets code on line 11.
+   - The coverage: the blank line is what ends the first comment of `manifest.js`, the file 296::2 names, and of the
+     three `logic.js` modules. Skillshed's `leadingComment` ends a run there as well. Change `:149` so that a blank line
+     does not end a `//` run (say `lines[i].trim() !== '' && …`), and all 17 cases stay green. D9's run ends at code,
+     D10's first line is code, D11 has no blank line, and the other `//` cases find the marker before any blank line
+     or hold none at all. A mention of the marker in the manifest's second comment would then make it a copy, with
+     every Chinese name and question in it reported: finding 2's false red, in the shape the real file has.
+
+   Recommended: now, in this PR. Add one permitted case in the real `manifest.js`'s shape: a `//` header holding a
+   Chinese line, a blank line, then a `//` comment quoting the marker, asserting exit 0 and
+   `Working language: 9 line(s)`. Correct D9's fixture source to a script whose header ends at code (`dimensions.js`),
+   and the self-check's item 4 with it, reviewed as a design increment. Disposition: open.

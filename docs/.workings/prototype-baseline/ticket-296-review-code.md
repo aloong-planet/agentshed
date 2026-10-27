@@ -87,3 +87,6 @@ No finding. No refactor item.
 Item 1 (product code the fix changes, against the criteria it implements): not applicable. The fix for the test
 review's findings 1 and 2 adds cases to `scripts/check-lang.test.mjs` only; `scripts/check-lang.mjs` is unchanged
 since df9fdcf.
+
+Item 1 for the second fix (the incremental check's findings 3 and 4, with D15 and D16 from its self-check): not
+applicable. It changes `scripts/check-lang.test.mjs` only; `scripts/check-lang.mjs` is unchanged since df9fdcf.

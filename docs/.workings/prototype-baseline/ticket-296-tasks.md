@@ -36,7 +36,7 @@ directory `prototype-baseline`, where the gate tickets without a spec keep their
 | 6 | Checklist sign-off, sixth round | `checklist.md` | Done — 296::1–296::5 verified at 446bad8, each by its tier; the gateway's rows follow task 8 |
 | 7 | Code review (`/review-code`) | `ticket-296-review-code.md` | Done — F1, F2 (two comments) fixed in df9fdcf; no other finding |
 | 8 | Gateway, the run before the test check | log under `evidence/ticket-296/` | Done — `pre-review-f4c20b8.txt`, `VERIFY_EXIT=0` without `pnpm e2e` (no e2e case file in the targeted list); a first run stopped at smoke for want of the Electron binary in the new worktree (`pre-review-f4c20b8-no-electron.txt`) |
-| 9 | Post-implementation test check (`/review-tests`, independent subagent) | `ticket-296-review-tests.md` | Pending — first round (on 3757e36): findings 1 (the marker below a first comment's first line undriven) and 2 (the end of a `//` first comment, and a file opening with code, undriven); fixed by cases D7–D10, and D11 from the self-check, reviewed as a design increment; the incremental check follows |
+| 9 | Post-implementation test check (`/review-tests`, independent subagent) | `ticket-296-review-tests.md` | Pending — first round (on 3757e36): findings 1 (the marker below a first comment's first line undriven) and 2 (the end of a `//` first comment, and a file opening with code, undriven); fixed by cases D7–D10, and D11 from the self-check, reviewed as a design increment. Incremental check (on 7c4ebc5): findings 3 (a `/*` first comment past its first line and to `*/` undriven) and 4 (D9's source untrue, a blank line ending a `//` run undriven); fixed by D12–D14 and D9 renamed, and D15–D16 from the self-check (a doctype's case, indented headers); a further incremental check follows |
 | 10 | Spec check (no spec: against #296's body) and step 7 archive | this file, `checklist.md` | Pending |
 | 11 | Step 8 (`/features-catalog`) | `final-regression.md`, #296 section | Pending |
 | 12 | Full gateway and delivery | log; PR | Pending |
@@ -51,3 +51,14 @@ directory `prototype-baseline`, where the gate tickets without a spec keep their
   self-check (`ticket-296-review-tests.md`); the test's header states no gap and owes none; the coverage checklist's
   current verification for 296::1 and 296::2 names the added cases after the fix's targeted run; the document sync
   checklist's coverage row stays Pending until the gateway's rows.
+
+## Self-check of the second fix (items 6 and 7)
+
+- Item 6: `evidence/ticket-296/increment-mutants-2.txt` prints each of nine changed copies' diffs against the branch's
+  gate, one per condition of the first-comment read, with the test's whole result under each; every copy turns its
+  target cases red and no other, and all 22 cases pass on the branch's gate. `increment-mutants.txt` stays as the
+  evidence the incremental check read.
+- Item 7: the test design table gains D12–D16, D9's file and source are corrected, the first increment's coverage
+  claim and the self-check's items 3 and 4 are corrected in place (`ticket-296-review-tests.md`); the test's header owes
+  no gap; the coverage checklist's current verification for 296::1 and 296::2 names the added cases after this fix's
+  targeted run; the document sync checklist's coverage row stays Pending.
