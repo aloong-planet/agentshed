@@ -83,6 +83,24 @@ for (const [what, file, text, line] of [
     'docs/prototypes/demo-tool.js',
     "#!/usr/bin/env node\n// Diagram sync (copied from the prototype skill's template; do not edit by hand)\n" + `// ${CN}\n`,
     3
+  ],
+  // The headers are hand-wrapped prose, so a reworded title moves the marker onto a later line of the same comment
+  [
+    'a JS copy whose marker is on the second line of its header',
+    'docs/prototypes/demo-strip.js',
+    '// Demo strip: the bar along the bottom of each prototype page, its title reworded so that the marker\n' +
+      "// falls on the next line (copied from the prototype skill's template; do not edit by hand)\n" +
+      `// ${CN}\n`,
+    3
+  ],
+  [
+    'an HTML copy whose header runs on past the marker line',
+    'docs/prototypes/index.html',
+    '<!doctype html>\n<!-- Prototype gallery shell, its title on a line of its own\n' +
+      "     (copied from the prototype skill's template; do not edit by hand — change the skill template and copy it again).\n" +
+      '     Depends on manifest.js in the same directory. -->\n' +
+      `<!-- ${CN} -->\n`,
+    5
   ]
 ]) {
   test(`Chinese in ${what} is reported: the copy is recognised by its header`, () => {
@@ -116,13 +134,32 @@ for (const [file, what] of [
   })
 }
 
-test('Chinese stays permitted in a mockup page that quotes the marker below its first comment', () => {
-  const file = 'docs/prototypes/notes/prototype-notes.html'
-  const text =
+// The marker counts only inside the first comment: each file below lacks it there and stays on the mockup side
+for (const [what, file, text] of [
+  [
+    'a mockup page that quotes the marker below its first comment',
+    'docs/prototypes/notes/prototype-notes.html',
     '<!doctype html>\n<!-- Notes on the gallery -->\n' +
-    "<!-- The shell says it is copied from the prototype skill's template -->\n" +
-    `<p>${CN}</p>\n`
-  const result = check({ [file]: text })
-  assert.equal(result.status, 0, result.stderr)
-  assert.match(result.stdout, /Working language: 9 line\(s\)/)
-})
+      "<!-- The shell says it is copied from the prototype skill's template -->\n" +
+      `<p>${CN}</p>\n`
+  ],
+  [
+    'a script whose // header ends at code, the marker quoted after it',
+    'docs/prototypes/manifest.js',
+    `// Prototype registry\n// ${CN}\nwindow.PROTOTYPES = []\n` +
+      "// The gallery shell is copied from the prototype skill's template\n"
+  ],
+  [
+    'a script that opens with code, the marker quoted after it',
+    'docs/prototypes/_shared/notes.js',
+    `window.NOTES = ['${CN}']\n` + "// The skill's copies say they are copied from the prototype skill's template\n"
+  ],
+  // No marker at all: the first comment runs to the end of the file, which has no newline after it
+  ['a script of comments only, without the marker', 'docs/prototypes/_shared/placeholder.js', `// Placeholder\n// ${CN}`]
+]) {
+  test(`Chinese stays permitted in ${what}`, () => {
+    const result = check({ [file]: text })
+    assert.equal(result.status, 0, result.stderr)
+    assert.match(result.stdout, /Working language: 9 line\(s\)/)
+  })
+}

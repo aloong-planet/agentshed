@@ -23,6 +23,11 @@ in a fresh Git repository. "Copy header" below means a first comment carrying th
 | D4 (new, the ticket's case) | 296::1, a copy under a name no list held | `docs/prototypes/demo-notes.js`, marked as D2, Chinese on line 3 | Exit 1, one problem, `…demo-notes.js:3 `; red first on e4c9589's gate, which exempts the file by its type | The real `demo-harness.js` header under a new name | None |
 | D5 (new) | 296::1, a JS copy behind a `#!` line | `docs/prototypes/demo-tool.js`: `#!/usr/bin/env node`, a `//` copy header, a Chinese `//` line 3; the `#!` skip | Exit 1, one problem, `…demo-tool.js:3 `; as D1 | The skill's `sync-mmd.mjs` header under a `.js` name | None |
 | D6 (new) | 296::2, the boundary | `docs/prototypes/notes/prototype-notes.html`: doctype, a first comment without the marker, a second comment quoting it, a Chinese `<p>` on line 4; the first-comment read stopping at the first comment | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the fixture's one Chinese line | Designed: a mockup page shaped like the real ones (doctype, header comment, content) | None |
+| D7 (added after the post-implementation check, finding 1) | 296::1, the marker on a later line of a `//` first comment | `docs/prototypes/demo-strip.js`: a `//` run whose first line is a reworded title and whose second line carries the marker, then a Chinese `//` line 3; the read going on past the run's first line | Exit 1, one problem, `…demo-strip.js:3 ` and the reason; line 3 from the fixture | The real copies' hand-wrapped headers (`app-identity.js` wraps mid-sentence), the title reworded so the marker falls on line 2 | None |
+| D8 (same, finding 1) | 296::1, the marker on a later line of a block first comment that runs on past it | `docs/prototypes/index.html`: doctype, a `<!--` comment whose title line holds no marker, the marker on its next line, a further line ending in `-->`; a Chinese comment on line 5; the read going on past the opening line and stopping only at the closing token | Exit 1, one problem, `docs/prototypes/index.html:5 ` and the reason; line 5 from the fixture | The real gallery shell's header (a `<!--` comment running on for several lines), its title moved onto a line of its own | None |
+| D9 (same, finding 2) | 296::2, a `//` first comment ends at the first line that is not one | `docs/prototypes/manifest.js`: a `//` run holding a Chinese line, a line of code, then a `//` comment quoting the marker; the run ending at the code | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the Chinese line | The real `manifest.js` (a `//` header, then `window.PROTOTYPES = …`), with a later comment that mentions the shell's marker | None |
+| D10 (same, finding 2) | 296::2, a file that opens with code is no copy | `docs/prototypes/_shared/notes.js`: line 1 code holding a Chinese string, line 2 a `//` comment quoting the marker; the first line not being a comment | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the line-1 Chinese | Designed: the shape of `vendor/mermaid.min.js`, the one file under `docs/prototypes/` that opens with code | None |
+| D11 (added by the self-check after findings 1 and 2) | 296::2, a first comment that runs to the end of the file without the marker is no copy | `docs/prototypes/_shared/placeholder.js`: two `//` lines, the second Chinese, and no newline at the end; the read reaching the end of the file | Exit 0, `Working language: 9 line(s)`: the seeds' 8 plus the Chinese line | Designed: a file of comments only, as a placeholder script would be | None |
 
 Kept unchanged: "the seeds alone pass" (every rule alive), "sync-mmd.mjs is reported, since .mjs is not an exempt
 type", and the four permitted cases (a mockup page, a logic page named `index.html`, `manifest.js`,
@@ -74,6 +79,49 @@ Conclusion: no finding.
 ### Findings
 
 None.
+
+### Increment after the post-implementation check (2026-10-27, on 645c866)
+
+Rows D7–D10 above, added for the post-implementation check's findings 1 and 2, and D11, added by the self-check
+below, each reviewed before it was written:
+
+- Coverage: D7 and D8 drive the read going on past the first comment's first line, in a `//` run and in a block
+  comment that runs on past the marker line (finding 1); D9 drives the end of a `//` run at a line of code and D10 a
+  file whose first line is code (finding 2); D11 drives the read reaching the end of the file inside the first
+  comment. Each row names the input that reaches its line of `isSkillCopy`. With
+  them every line of the function is driven by a case whose verdict would change without it. No gap goes into the
+  test's header.
+- Case design: each row runs through `check()` and asserts the exit status and the reported line, or the permitted
+  count.
+- False greens, from the design: D7 and D8 are red if the read stops at the comment's first line (no marker found,
+  the file stays exempt, exit 0); D9 is red if a `//` run does not end at code (the marker on line 4 is reached, the
+  Chinese line reported, exit 1); D10 is red if the first line is not tested for being a comment (the marker on line 2
+  is reached, exit 1); D11 is red if reaching the end of the file inside the first comment counts as a copy (its
+  Chinese line reported, exit 1). Every expected value comes from the fixture: a line number, or the seeds' 8 plus one.
+- Resource reuse: each row is one more `check()` call, about 230 ms; no expensive resource.
+
+Findings: none.
+
+Self-check of the fix before it goes back for review (items 2–5 of the post-implementation step; item 1 is in the
+code review record, items 6 and 7 in the task list):
+
+- Item 2, each new assertion against the false-green forms: D7 and D8 assert exit 1, the reported line and the
+  rule's reason; D9–D11 assert exit 0 and nine permitted lines, which a file left unread (eight) also fails. Each is
+  red under the change it guards, shown on three changed copies of the gate (`evidence/ticket-296/increment-mutants.txt`:
+  reading the first comment's first line only turns D7 and D8 alone red; dropping the end of a `//` run turns D9 and
+  D10 alone red; counting the end of the file inside the first comment as a copy turns D11 alone red), with all 17
+  cases green on the branch's gate. No always-true assertion, no tautology, no stale path, no skip, every assertion
+  runs. A second round of this self-check, after D11, found nothing.
+- Item 3, every branch and exit of `isSkillCopy` (unchanged by the fix) against a case: the `#!` skip D5; the doctype
+  skip D1 and D8; a `<!--` comment D1, D8, D6; a `/*` comment D3; a `//` run D2, D4, D5, D7, D9; a `//` run ending at
+  a line that is not one, or a first line that is code, D9 and D10; the marker found D1–D5, D7, D8; a block comment's
+  closing token D6; the end of the file reached inside the first comment — no case, until this self-check added D11,
+  reviewed above as an increment: without it, that exit could return true and a comment-only file would be checked as
+  tooling, a loud false red against 296::2 of the same kind as finding 2.
+- Item 4, the new cases' data: D7, D8 and D9 take the real headers' shapes (a wrapped title, the gallery shell's
+  running comment, the manifest's header before its code); D10 and D11 are designed, there being no real sample of
+  either shape among the copies.
+- Item 5: the fix changes no shared helper (`check()`, `SEEDS`, `JS_COPY_HEADER` are unchanged); not applicable.
 
 ## Post-implementation check
 

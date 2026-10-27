@@ -81,3 +81,9 @@ No finding.
   - The other entries of the baseline list: no hit in the code this change touched.
 
 No finding. No refactor item.
+
+## Self-check of the fix after the post-implementation check
+
+Item 1 (product code the fix changes, against the criteria it implements): not applicable. The fix for the test
+review's findings 1 and 2 adds cases to `scripts/check-lang.test.mjs` only; `scripts/check-lang.mjs` is unchanged
+since df9fdcf.
