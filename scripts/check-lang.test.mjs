@@ -1,8 +1,7 @@
 // Exercise the working-language gate's CLI in real temporary Git repositories, as check-raw-nul.test.mjs does
-// for its sibling gate. Covers the prototype exemption: the prototype skill's verbatim copies are checked like
-// any other tooling, while mockups and this project's own registries stay exempt.
-//
-// Gap: a template the skill adds later is covered only once it is named both in the gate and here (#296).
+// for its sibling gate. Covers the prototype exemption: the prototype skill's verbatim copies, recognised by the
+// marker in their first comment whatever they are called, are checked like any other tooling, while mockups and
+// this project's own registries stay exempt.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -35,6 +34,11 @@ const SEEDS = {
 /** A file of the given type whose second line is a Chinese comment */
 const withChinese = (file) => (file.endsWith('.html') ? `<!doctype html>\n<!-- ${CN} -->\n` : `// English\n// ${CN}\n`)
 
+/** The prototype skill's copy header as `docs/prototypes/demo-harness.js` carries it: two comment lines, the marker on the first */
+const JS_COPY_HEADER =
+  "// Demo harness dock (copied from the prototype skill's template; do not edit by hand — change the skill\n" +
+  '// template and copy it again). Scaffolding, not part of any design.\n'
+
 /** Run the gate on the seeds plus `files`, all staged in a fresh repository */
 function check(files = {}) {
   const cwd = mkdtempSync(join(tmpdir(), 'agentshed-lang-gate-'))
@@ -57,17 +61,35 @@ test('the seeds alone pass, one permitted line each', () => {
   assert.match(result.stdout, /Working language: 8 line\(s\)/)
 })
 
-for (const file of [
-  'docs/prototypes/index.html',
-  'docs/prototypes/app-identity.js',
-  'docs/prototypes/demo-dimensions.js',
-  'docs/prototypes/demo-harness.js'
+// Each copy's Chinese sits on the line given; the shapes are the real copies' headers where one exists
+for (const [what, file, text, line] of [
+  [
+    'an HTML copy (its header after the doctype)',
+    'docs/prototypes/index.html',
+    "<!doctype html>\n<!-- Prototype gallery shell (copied from the prototype skill's template; do not edit by hand — change the skill template and copy it again). -->\n" +
+      `<!-- ${CN} -->\n`,
+    3
+  ],
+  ['a JS copy (its header two comment lines)', 'docs/prototypes/demo-harness.js', `${JS_COPY_HEADER}// ${CN}\n`, 3],
+  [
+    'a CSS copy (its header a block comment)',
+    'docs/prototypes/demo-dock.css',
+    `/* Demo dock styles (copied from the prototype skill's template; do not edit by hand) */\n/* ${CN} */\n`,
+    2
+  ],
+  ['a copy under a name no list ever held', 'docs/prototypes/demo-notes.js', `${JS_COPY_HEADER}// ${CN}\n`, 3],
+  [
+    'a JS copy behind a #! line',
+    'docs/prototypes/demo-tool.js',
+    "#!/usr/bin/env node\n// Diagram sync (copied from the prototype skill's template; do not edit by hand)\n" + `// ${CN}\n`,
+    3
+  ]
 ]) {
-  test(`Chinese in the skill's copy ${file} is reported like any other tooling`, () => {
-    const result = check({ [file]: withChinese(file) })
+  test(`Chinese in ${what} is reported: the copy is recognised by its header`, () => {
+    const result = check({ [file]: text })
     assert.equal(result.status, 1, result.stdout)
     assert.match(result.stderr, /found 1 problem\(s\)/)
-    assert.ok(result.stderr.includes(`${file}:2 `), result.stderr)
+    assert.ok(result.stderr.includes(`${file}:${line} `), result.stderr)
     assert.ok(result.stderr.includes('the tooling beside it gets no exemption'), result.stderr)
   })
 }
@@ -93,3 +115,14 @@ for (const [file, what] of [
     assert.match(result.stdout, /Working language: 9 line\(s\)/)
   })
 }
+
+test('Chinese stays permitted in a mockup page that quotes the marker below its first comment', () => {
+  const file = 'docs/prototypes/notes/prototype-notes.html'
+  const text =
+    '<!doctype html>\n<!-- Notes on the gallery -->\n' +
+    "<!-- The shell says it is copied from the prototype skill's template -->\n" +
+    `<p>${CN}</p>\n`
+  const result = check({ [file]: text })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stdout, /Working language: 9 line\(s\)/)
+})

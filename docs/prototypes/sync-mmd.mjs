@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// Gallery infrastructure (the canonical copy lives in the prototype skill directory; the project holds a copied instance):
-// scans the *.mmd files in each prototype directory below this one (one diagram per file; the first line may be `%% title: Title`)
+// Diagram sync (copied from the prototype skill's template; do not edit by hand — change the skill
+// template and copy it again). Scaffolding, not part of any design.
+//
+// Scans the *.mmd files in each prototype directory below this one (one diagram per file; the first line may be `%% title: Title`)
 // and generates model.mmd.js for every directory that has .mmd files (a derived file; do not edit it by hand).
 // After changing a .mmd, rerun: node docs/prototypes/sync-mmd.mjs
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
