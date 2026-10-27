@@ -57,7 +57,8 @@ findings named, except the `/*` form of finding 1. Reopened again on 2026-10-27 
 post-implementation check below), findings 3 and 4: a `/*` first comment's closing token, and a blank line ending a
 `//` first comment, are driven by no case. D12–D16 (the second increment below) drive what those findings named.
 Reopened a third time on 2026-10-27 by the second incremental check, finding 5: no case puts the marker on the line
-that ends a `//` first comment, or on a first line that is no comment, where it must not count.
+that ends a `//` first comment, or on a first line that is no comment, where it must not count. D17 and D18 (the third
+increment below) drive what that finding named, as the third incremental check found.
 
 ### Dimension 2: Case design
 
@@ -846,4 +847,195 @@ names the gap. Until then the coverage row of `ticket-296-doc-sync.md` stays Pen
    Recommended: now, in this PR. Add one permitted case in the real `dimensions.js`'s shape: a `//` header holding a
    Chinese line, ended by a line of code that carries a trailing comment quoting the marker (for instance
    `window.DEMO_DIMENSIONS = {} // the gallery shell is copied from the prototype skill's template`). Assert exit 0
-   and `Working language: 9 line(s)`. Review its row as a design increment before it is written. Disposition: open.
+   and `Working language: 9 line(s)`. Review its row as a design increment before it is written. Disposition
+   (2026-10-27, third incremental check): fixed in 9137bc6, by D17 as recommended (the real `dimensions.js`'s shape,
+   its header ended by a code line quoting the marker) and by D18 for the finding's other half (a first line of code
+   quoting the marker), both reviewed as the third increment.
+
+### Third incremental check of the fix (2026-10-27, 5852bf6..242381c)
+
+Date 2026-10-27; ticket [#296](https://github.com/aloong-planet/agentshed/issues/296) (feature `prototype-baseline`);
+fourth round of the post-implementation check, an independent incremental check under `/implement` step 6. Whole
+change e4c9589..242381c on `fix/check-lang-copy-marker`; the fix under check is 5852bf6..242381c. 9137bc6 changes
+`scripts/check-lang.test.mjs` (blob 4d9f78b to d42cf73) in one hunk (`git diff -U0`: after old line 194, new lines
+195–206): a comment and two entries, D17 and D18, in the second permitted loop's literal array. It also adds the
+records (the test design table's rows D17 and D18, the third increment and its self-check, item 1 in the code review
+record, task 9 and the third fix's self-check in the task list) and three evidence files (`targeted-fix-3.txt`,
+`increment-mutants-3.txt`, `change-scope-fix-3.txt`). 242381c adds one row (180) to `checklist.md`.
+`scripts/check-lang.mjs` is unchanged since df9fdcf (`git diff --stat df9fdcf..242381c -- scripts/check-lang.mjs` is
+empty). Requirement source: #296's body (296::1–296::5 and the owner's decisions) and its comment, read with
+`gh issue view 296 -R aloong-planet/agentshed` (and `--comments`) on 2026-10-27; for what a first comment is, the
+owner's rule as skillshed implements it, `leadingComment` in `scripts/check-prototype-copies.mjs` at 3db94ce (lines
+29–47, read with `git show` from the skills clone). Run evidence: [targeted-fix-3.txt](evidence/ticket-296/targeted-fix-3.txt)
+only; the handed-over `pre-review-f4c20b8.txt` was checked by the first round and runs neither of this round's objects.
+This check ran no gateway, full run or test, and no changed copy of the gate. Its surveys of the real prototype files
+only read them (a node script kept in the session's scratch directory, and two one-off reads), and the worktree's
+status after them is empty. It changed no file but this record: this section, and in place the design review's
+coverage conclusion and finding 5's disposition.
+
+**Objects, and how they were found.**
+
+- Tests the range changes: `git diff --name-only 5852bf6..242381c` lists `scripts/check-lang.test.mjs` and seven files
+  under `docs/.workings/prototype-baseline/`. The test's one hunk lies inside the literal array the second permitted
+  loop runs over (lines 163–209). The loop's body is unchanged, so the other cases run as before. Objects: D17 and D18.
+- Tests that depend on test helper code the range changes: none. The hunk leaves lines 13–56 untouched (`gate`, `CN`,
+  `CHINESE_NAME`, `SEEDS`, `withChinese`, `JS_COPY_HEADER`, `check()`).
+  `rg -uu -n -F -g '!**/node_modules/**' -g '!out/**' -g '!.git/**' -g '!docs/.workings/**' -e check-lang.test -e check-lang.mjs -e ticket-296 -e evidence/ticket-296 -e prototype-baseline -e checklist.md -e increment-mutants -e targeted-fix -e change-scope-fix .`
+  gives 12 lines (exit 0), the same 12 as the third round's search without the last three patterns: `package.json:25`
+  (the `check:lang` script, the control that the search reads the tree), the test's line 13 (the path of the gate it
+  runs), the gate's lines 255 and 327, comments in `check-message-lang.mjs`, `lib/working-language.mjs`,
+  `check-raw-nul.mjs` (two) and `zh-script.test.ts`, and `docs/specs/i18n.md:547` and ADR-0017 (two). None of them
+  imports or reads a file the range changes. `rg -uu -l -F` with the same exclusions and `-e .workings` lists the same
+  ten files as the third round. The range changes none of them, and the third round's reading of each stands: none
+  reads this work directory.
+- Test design table rows the range changes: D17 and D18, added (`git diff 5852bf6..242381c` of this record: two table
+  lines, both added). No other row changed.
+
+Outside these objects, every dimension's conclusion is carried over from the first round (on 3757e36), the second (on
+7c4ebc5) and the third (on e389e28).
+
+**The targeted log**, against the full gateway's log requirements. `git rev-parse HEAD` gives 5852bf6, and
+`git status --porcelain --untracked-files=all` lists four modified files, each with its hash. Each hash equals that
+file's blob at 9137bc6 and at 242381c (`git rev-parse 9137bc6:<file>` and `242381c:<file>`), so the run read the test
+(d42cf73) exactly as committed. Both commands (`pnpm lint`, `pnpm check:lang`) are logged with their full output and
+their own exit codes, both 0, and `VERIFY_EXIT=0`. The three evidence files 9137bc6 adds are not in the status, the
+work directory being ignored (`.gitignore:4`). `increment-mutants-3.txt` was on disk before the run (written at
+10:11:09Z; the run started at 10:11:25Z). No step reads it: ESLint ignores `docs/` (`eslint.config.js:39`), the gate
+lists files with `--exclude-standard` (`check-lang.mjs:284`), and the test runs in temporary repositories.
+`targeted-fix-3.txt` is the log itself (last written at 10:11:48.19Z), and `change-scope-fix-3.txt` was written 0.78 s
+after it. 242381c's `checklist.md` row is read by no test, and the repository gate in the log read the checklist before
+that row was added. The row holds no Chinese: `rg -c '\p{Han}'` over the whole range's diff (27,229 bytes, no binary
+entry) exits 1, and the control, `src/shared/i18n/zh.ts`, gives 358. The full gateway before delivery covers that row.
+The log meets every requirement and matches the range; no finding.
+
+#### Dimension 1: Coverage
+
+**The test design table against the test, for the objects:**
+
+| Row | Written as the table says | Notes |
+|---|---|---|
+| D17 | Yes: `docs/prototypes/dimensions.js`, a `//` header holding a Chinese line 2, then line 3 `window.DEMO_DIMENSIONS = {} // the gallery shell is copied from the prototype skill's template`; asserts exit 0 and `Working language: 9 line(s)` | The real `dimensions.js`: a `//` header over lines 1–10, `window.DEMO_DIMENSIONS = {` on line 11. The trailing comment is the designed part, as the row says |
+| D18 | Yes: `docs/prototypes/_shared/notes.js`, line 1 code holding a Chinese string and a trailing comment quoting the marker; asserts exit 0 and the count of 9 | Designed, as the row says |
+
+**Real samples.** A read-only node script re-ran `isSkillCopy`'s read over the 56 `.html`, `.mmd`, `.css` and `.js`
+files under `docs/prototypes/` that `git ls-files --cached --others --exclude-standard -- docs/prototypes` lists (80
+files in all; 4,429,872 bytes read), the same count as the earlier rounds'. Five open with a line that is no comment
+after the skips: the four `.mmd` diagrams (`%%`) and `vendor/mermaid.min.js`. The marker is in four files
+(`app-identity.js`, `demo-dimensions.js` and `demo-harness.js` on line 1, `index.html` on line 2), each on a line of its
+first comment. None carries it on a line that ends a `//` run or on a first line that is no comment. So D18 has no real
+sample to take, and D17 takes `dimensions.js`'s shape with the marker added, as their rows say.
+
+**Finding 5's detail, against the cases.** Inside the read's loop, a `//` run tests that a line is still a `//` line
+(`check-lang.mjs:149`) before the marker (`:150`), since the line that ends the run is not part of the comment. D17 puts
+the marker on a code line that ends a run, and D18 on a first line of code. Skillshed's `leadingComment` finds no marker
+in either file's first comment: lines 1–2 for D17, no line for D18 (3db94ce, lines 37–38). With the block order driven
+by D1, D3 and D15 (the third round), the order of the marker test against each exit is now driven in both forms.
+
+The third increment's self-check (item 3) says that no other pair of tests depends on its order, beyond the two skips.
+Checked pair by pair against `isSkillCopy` (`:143–151`):
+
+- The `<!--` and `/*` openers cannot both start one trimmed line.
+- The run-end test (`:149`) and the closing-token test (`:151`) exclude each other on `end`.
+- The marker test against each of them is driven by D17 and D18, and by D1, D3 and D15.
+- The two skips (`:143`, `:144`) give a different result only on a file that opens with both a `#!` line and a doctype,
+  in either order. Skillshed skips them in the same order (lines 33–34). None of the 56 files has a `#!` line on its
+  first or second line (the control, `sync-mmd.mjs`, a `.mjs` file outside the exempt types, has one on line 1). A page
+  and a script cannot usefully hold both lines, so no case owes it.
+
+The claim holds.
+
+**Gaps in the test's header.** None are noted, and none is owed.
+
+Conclusion: complete for the objects. Finding 5 is fixed: D17 as recommended, in the real `dimensions.js`'s shape, and
+D18 for the finding's other half, a first line of code.
+
+#### Dimension 2: Case design
+
+D17 and D18 each build their own repository through `check()` and run the real CLI once. Each asserts exit 0 and the
+permitted count. Neither reads the gate's internals, and each fixture is a file a commit can hold. D17 reuses the file
+name of D9 and of a kept permitted case (`dimensions.js`), and D18 that of D10 (`_shared/notes.js`), each in its own
+repository.
+
+Conclusion: no finding.
+
+#### Dimension 3: False greens
+
+Per the project capability declaration (`capabilities.toml`, read with Python's `tomllib`: `[mutation-testing]` with
+`enabled = false`, the section form the capability registry defines for it), `mutation-testing` is not enabled;
+mutation testing is skipped. Each object's "when does it go red" is answered below, against the gate at df9fdcf
+(`isSkillCopy`, `check-lang.mjs:140–154`) and each expected value's source. Every expected value is a literal: the
+seeds' 8 plus the fixture's one Chinese line.
+
+| Case | Goes red when |
+|---|---|
+| D17 | the marker is tested before the run-end test (`:150` before `:149`), or the two exits are folded into one test after the marker, or a `//` run does not end at a line that is not a `//` line (`:149`). Line 3's marker is then reached, the file is a copy and line 2 is reported, exit 1. Also if a marker anywhere in the file made a copy, or if the file is not read (8) |
+| D18 | the same changes, met on the first line: the marker on line 1 is reached before the line is found to be no comment, the file is a copy and line 1 is reported, exit 1; or the file is not read (8) |
+
+D17 and D18 each hold what no earlier case held. Under the swapped order or the folded exits, D9 (a code line without
+the marker) and D10 (a first line of code without it) stay green, since the line that ends their read holds no marker.
+D17 and D18 do not.
+
+The implementer's evidence agrees with this table. `increment-mutants-3.txt` prints eleven changed copies' diffs
+against the branch's gate. The swapped order and the folded exits each turn exactly D17 and D18 red. Dropping the
+run-end test turns D9, D10, D14, D17 and D18 red. The other eight copies turn red the cases the third round's table
+gives, with D17 and D18 green. This check ran none of them.
+
+Forms: no always-true assertion (the count of 9 needs the fixture's own Chinese line permitted; an unread file gives 8,
+and a copy exits 1); no tautology (literals); no stale path (the live CLI); no conditional skip; every assertion runs
+(the cases are synchronous; the second permitted loop runs over a literal array of eight entries; the log names all 24
+cases, both objects among them).
+
+The forms for gates and command-line checks (review-code's false-greens list): the range adds no gate or check. Its
+command-line evidence is `increment-mutants-3.txt`, which checklist row 180 and the task list's third self-check cite,
+and `change-scope-fix-3.txt`. Form four: each mutation's diff against the branch's gate is printed, which is independent
+proof that it landed. The branch's own gate passes all 24 first, and the red falls on the targeted cases and no other.
+Form six: every run keeps `tests 24` with its pass and fail counts, so a run that did not start would show.
+`change-scope-fix-3.txt` prints its exit code, 1, and its verdict to run the tests. No skip rests on it, and the
+targeted log ran them.
+
+Conclusion: no false green.
+
+#### Dimension 4: Resource reuse
+
+The table names no expensive resource for D17 or D18. The targeted log confirms it: all 24 cases ran, 233.3–274.1 ms
+each (D17 247.4 ms, D18 250.0 ms; `duration_ms 6090.897458`), each building one temporary repository and one gate
+process inside its own `check()`. No resource reaches the one-second bar. Nothing is shared or cleared, so the order of
+the cases bears on no count.
+
+Conclusion: no finding.
+
+#### Document sync
+
+The facts that changed, from the range and its targeted run: D17 and D18 added, 24 of 24 passing; finding 5 fixed.
+Scope checked:
+
+- the task inputs: #296's body and comment, this record, the range, and the targeted log;
+- the work directory, listed with hidden entries (`ls -la`) and ignored files. `git status --porcelain --ignored`
+  shows only `.husky/_/`, `node_modules/`, `out/`, `site/.astro/`, `site/node_modules/` and two `tsbuildinfo` files,
+  and `git ls-files -o -i --exclude-standard -- docs/.workings` lists nothing, so every file there is tracked;
+- `ticket-296-tasks.md`, `ticket-296-doc-sync.md`, `ticket-296-review-code.md`, and `checklist.md` (rows 106–107,
+  173–180);
+- `final-regression.md`, which has no #296 section (`grep -c 296` gives 0, exit 1; the control `#270` gives 4; task 11);
+- the test file's header;
+- every file naming the test or the ticket:
+  `rg -uu -n -F -g '!**/node_modules/**' -g '!out/**' -g '!.git/**' -e check-lang.test -e '#296' -e '296::' .`
+  gives 326 lines. Outside this work directory they are `package.json` and the records of other tickets: the gate's
+  earlier #223 under `docs/.workings/i18n/`, and other features' gateway and targeted logs. Inside it, besides #296's
+  own files, they are other tickets' records and logs (#250, #270, #314, #316, round 2). None of them states this
+  test's current coverage.
+
+What the third round owed, now:
+
+- D17 and D18 are in the test design table, reviewed as the third increment, which brings the second increment's claim
+  that "each closing condition of the first comment is driven in each of its forms" to them.
+- `checklist.md` row 180 records the added cases as Verified for 296::2, on `targeted-fix-3.txt` and
+  `increment-mutants-3.txt`. That stands: its test blob, its count of 24 and its eleven changed copies match the
+  evidence. Rows 106–107 name the cases each unit started with, and contradict nothing.
+- The design review's coverage conclusion, and finding 5's disposition, are brought up to date in place by this check.
+- The document sync checklist's coverage row is Pending, as it should be, with the gateway's rows still to come.
+- Task 9 of `ticket-296-tasks.md` reads "a further incremental check follows". It needs this round's result: no
+  finding.
+
+#### Findings
+
+None.
