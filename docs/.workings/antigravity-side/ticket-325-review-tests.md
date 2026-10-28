@@ -127,6 +127,21 @@ Self-check of the round-1 fixes (implement post-implementation check, items 2–
 
 No finding from the self-check.
 
+Increment for round 2's finding 7 (2026-10-29; row written and reviewed before the test):
+
+| # | Test (planned name) | Spec coverage | Seam | Input that drives the target branch | Assertion object · expected value source | Fixture shape | Expensive resource |
+|---|---|---|---|---|---|---|---|
+| E4 (changed again) | two sides' plugins bundling one skill name … — on a home where agy is not detected | plugins-view settled ("shows whenever the side is detected or has a plugin"); agents-overview REQ-003 boundary ("shows whenever the side is detected or lists a server") | E | E4's home loses `~/.gemini/antigravity-cli` (agy not detected) and gains a global `mcp_config.json` server, keeping its plugin under `~/.gemini/config` | the side card reads "Not detected"; the Plugins tab draws agy's group with its row; the MCP tab draws agy's group with the server's row (the detected-and-empty sentence stays read by R2) · the two settled sentences (finding 7) | `~/.gemini/config` without the CLI's data root: the shared configuration agy's other products keep too (research row "shared configuration directory") | E4's launch |
+
+Self-check of the round-2 fix (items 2–5; 2026-10-29, before its targeted run): item 2 — the two new reads are exact
+lists under the Antigravity heading's adjacent card, so a hidden group (no heading), another row or an empty card is red;
+each was turned red by a reversible renderer mutation on a fresh build, at exactly its line
+([ticket-325-r2-mutations.log](ticket-325-r2-mutations.log): M7 hides the plugin group whenever agy is undetected, M8
+the MCP group), the files restored byte for byte; the card's "Not detected" read is the precondition, positive. Item 3:
+no function changed (tests only). Item 4: the home keeps the sample shapes (a plugin directory and a global
+`mcp_config.json` under `~/.gemini/config`), only without the CLI's data root — a state agy's other products leave.
+Item 5: no shared helper changed (E4 builds its own home). No finding.
+
 E2 and E3 run in one launch (the same fixture, default rescan interval); E1 needs a short rescan interval for its last
 step, so it launches separately. Both launches use one fixture builder.
 
@@ -414,4 +429,214 @@ first in the design review's increment table, then the cases:
 
 The document sync items each finding named (final-regression.md's Stage 1 rows and its "Dictionaries" row, the
 checklist's #325 rows) were corrected in the same change.
+
+## Post-implementation check — round 2 (incremental)
+
+Date 2026-10-29 · implementation version `99e35ee` (branch `feat/antigravity-components`) · ticket
+[#325](https://github.com/aloong-planet/agentshed/issues/325) (feature slug `antigravity-side`) · incremental check of
+the fix range `79dcd57..99e35ee` (one commit, 99e35ee: round 1's fixes) · independent sub-agent. Every conclusion
+outside this round's scope is carried over from round 1 (the "Post-implementation check" section above, at `79dcd57`).
+
+Project capability declaration: `capabilities.toml` is unchanged in the range (`git diff --quiet 79dcd57 99e35ee --
+capabilities.toml`, exit 0). Parsed with Python's `tomllib`: `mutation-testing` is `enabled = false`, and `e2e-suite`
+and `lint` are enabled. Round 1's registry check carries over.
+
+### Scope
+
+Search commands and their results:
+
+- Changed tests and helpers: `git diff -U0 79dcd57..99e35ee -- e2e src scripts | rg "^@@"` gives 17 hunks in two files.
+  `e2e/app.spec.ts`: #322's case "an Antigravity-registered project…" (R2), `mkAgyComponentsHome`, E1, E4, E5, E2 + E3.
+  `src/main/providers/antigravity-components.test.ts`: the header, U3, U39 (new), U38 (new), U30, U35–U37 (new).
+  `git diff --name-only 79dcd57 99e35ee` shows that every other changed file is under `docs/`. No product code or
+  shared test module changed.
+- Tests that depend on a changed helper: the only changed helper is the module-local `mkAgyComponentsHome`.
+  `rg -n --hidden --no-ignore -g '!node_modules' -g '!out' -g '!.git' "mkAgyComponentsHome" .` finds its definition
+  (:855) and two users, E1 (:928) and E2 + E3 (:1180), both already in scope. Neither changed test file exports anything
+  (`rg -n "^export "` over both files: exit 1), and no file imports either one:
+  `rg -n --hidden --no-ignore -g '!node_modules' -g '!out' -g '!.git' -g '!docs'
+  "(from|import\()\s*['\"][^'\"]*(app\.spec|antigravity-components\.test)['\"]" .` exits 1. As a control, the same
+  pattern for `./scan` finds 12 files.
+- Rows of the test design table changed in the range: the increment table (U3, U30, U35–U39, E1, E2, E4, E5, R2).
+
+### Run evidence
+
+All results come from the handed-over [ticket-325-targeted-r1.log](ticket-325-targeted-r1.log). This check ran no test.
+The log has every item the gate requires: `git rev-parse HEAD` = `79dcd577…`; `git status --porcelain
+--untracked-files=all` lists 13 modified files, each with its `git hash-object`; each command has its exit code and
+full output.
+
+Version against the range: I compared each listed hash with `git rev-parse 99e35ee:<path>`. Twelve of thirteen match,
+including both test files (`b04f81b…`, `7bd8b25…`) and the four specs. `ticket-325-worklog.md` differs (log `39f9941…`,
+commit `3b8cc34…`): it was edited after the run and before the commit. It is under `docs/`, which ESLint ignores
+(`eslint.config.js:39`) and no test reads, so the run tested 99e35ee's code and tests. The three logs that 99e35ee adds
+were not in the version list: they were ignored under `docs/.workings/` at run time, and the targeted log is the run's
+own output. They are equally inert.
+
+The importer search: its echoed command shows `\x27` where the script (`t325/importers.sh` in the session scratchpad,
+read for this check) passes `'`. Its control found 11 files, so its empty result is real.
+
+Results for this round's tests: the components suite passed 38 of 38 with none skipped, so U17's root skip did not
+fire. e2e #9 (R2), #11 (E1), #12 (E4), #13 (E5) and #14 (E2 + E3) passed on the build made in the same `&&` chain
+(`electron-vite build && playwright test e2e/app.spec.ts`, exit 0).
+
+### Written tests against the test design table
+
+| Row | Written test | Agreement |
+|---|---|---|
+| U3 (changed) | `antigravity-components.test.ts` :154 | As designed: installing `y` for Antigravity alone lands `SKILL.md` and `cli-only.md`. The name now matches what the case drives (round 1 finding 6b) |
+| U39 | :173 | As designed; the preview's and the install's file lists are asserted exactly |
+| U38 | :369 | As designed |
+| U30 (changed) | :536 | As designed; the MCP entry is asserted whole (`disabled: false` included) |
+| U35 | :590 | As designed; read through `scan` alone (`snapshot.global.antigravityPlugins`), which calls `readAntigravityPlugins` — the row names both |
+| U36, U37 | :603, :617 | As designed; U37 asserts the whole list, with the file-named agent beside the front-matter-named one |
+| Header | lines 6–8 | The two gap lines round 1 asked for; both checked true (Coverage) |
+| R2 (changed) | `e2e/app.spec.ts` :736 | As designed; comment corrected |
+| E1 (changed) | :927 | As designed: the eight key-value cells exactly |
+| E2 (changed) | :1179 (with E3) | As designed: `transfer`'s two definitions copy the F3 case's Claude and Codex shapes (:2669, :2674); headings exact and ordered |
+| E4 (changed) | :1055 | As designed. The case also reads agy's pill "Enabled" and the Antigravity MCP group's empty sentence, which the row's assertion column leaves out (the disposition lists the sentence); no conclusion depends on this |
+| E5 (changed) | :1128 | As designed |
+
+### Dimension conclusions
+
+- **Coverage**:
+  - Test file header: both gap lines are true. The stale-target refusal is `install.test.ts:78` ("a stale project is
+    refused"), through `installSkill`, which `installSkillToProject` calls for each landing (`install.ts:92`). The
+    multi-folder conversations are token-stats::REQ-003/AC-08, credited to #323 (checklist line 78).
+  - The changed rows' claimed coverage, checked against the spec text: plugins-view "Settled during implementation";
+    subagents-view's Antigravity boundaries and its "Project detail's layout"; agents-overview's Antigravity
+    boundaries; project-detail::REQ-002's boundary; skills-view::REQ-001/AC-01; skill-install::REQ-001/AC-05. A named
+    input drives each claim, except the second half of the two visibility rules (finding 7). Round 1's coverage table
+    paraphrased those rules as "the group when detected", which left out "or has a plugin" / "or lists a server". The
+    fix followed that paraphrase.
+  - Fixture shapes: the Claude manifest's `mcpServers` (U30, E4) matches `global.test.ts:153`. E2's definitions match
+    the F3 case's. U35, U37 and U39 keep the samples' structures. U36's values are invented to tell the settled rule
+    from its alternatives, as the record states.
+  - The spec rewrites in the range change side-count wording only (agents-overview A1–A3, plugins-view story 7, E9 and
+    H's heading, skills-view A9, subagents-view's Solution, stories 1 and 3, and A1). They add no statement a test
+    must drive.
+
+- **Case design**:
+  - Every new providers case goes through an exported reader (`scan`, `readAntigravityPlugins`,
+    `readGlobalSubagents`, `resolveSkillRoot` + `listSkillPackageFiles`, `installSkillToProject`) over its own
+    temporary tree.
+  - Every input is a file state the public path reads: a manifest naming another name; `enabled` values a user can
+    write into `config.json` (agy was not observed to write them); an agent file without front matter; a skills entry
+    without a SKILL.md; a plugin agy holds no record of.
+  - The e2e changes read rendered text and badges in the built app, each case on its own home.
+  - No finding.
+
+- **False greens**: per the project capability declaration, `mutation-testing` is not enabled, so this check skips
+  mutation testing. The answers below come from the code. For the providers cases they agree with the main agent's six
+  reversible mutations ([ticket-325-r1-mutations.log](ticket-325-r1-mutations.log)). This check made no mutation.
+
+  | Test | Goes red when |
+  |---|---|
+  | U3 | an Antigravity-only install takes any copy but the CLI directory's (that copy's listing names `cli-only.md`), or the preview resolves another copy |
+  | U39 | the list stops skipping an entry without a SKILL.md (the CLI entry would win with no description), or the preview or install source is the first existing entry whether or not it holds a SKILL.md (M5: the preview lists `notes.md`, the install is refused) |
+  | U38 | both definitions are listed, or the later one wins (M4) |
+  | U30 | the two sides' plugin entries merge or cross; Claude's plugin server has no plugin, the full `name@marketplace` (M6), another source, or a disabled flag |
+  | U35 | the row, the record lookup (M2) or either namespace follows the manifest's `name` instead of the directory's |
+  | U36 | anything but an explicit false reads as disabled: truthiness, `== false` (0), or "absent or true only" (M1) |
+  | U37 | the file-name fallback changes (M3), or a definition without front matter is dropped |
+  | R2 | with agy detected and empty, either Antigravity group is hidden or says something else; the project page draws the MCP group without servers |
+  | E1 | the drawer's Antigravity rows change in number, order, key or value, including Claude's "— (inherited)" in the model slot |
+  | E2 + E3 | round 1's conditions; a project-level heading names another directory, or a group is missing, reordered or miscounted |
+  | E4 | the agents page draws any note for a plugin without a marketplace; Claude's plugin server row lacks the note or names `flutter@official`; the project page shows anything but the bare "In effect globally"; the pill or the empty sentence changes |
+  | E5 | either Antigravity group is drawn on a home without agy |
+
+  - U38 and directory order: no fixture can catch `subagents.ts:134`'s `.sort()` being removed, because Node's
+    listing is already in byte order on this machine. I measured it with scratchpad scripts: names written in reverse
+    and in mixed case (`A2, B, Z, a, m, zz`) came back in byte order, an order a case-insensitive APFS volume does not
+    produce on its own. That premise concerns the runtime, so it falls under the environment exclusion. No finding.
+  - E5's anchor: `.grp-t:has(.badge.cl)` is not specific to a tab, because the Plugins and the MCP tab each have one.
+    On its own it cannot prove that the MCP tab has rendered. It is enough because AgentsPane's tab button calls
+    `setTab` directly. In App.tsx, `useTransition` wraps only pane, project and session switches. React 18.3 commits a
+    discrete update like this one before the click returns. If the tab switch ever moves into a transition, the MCP
+    read needs its own anchor (the MCP heading's text).
+  - The absence reads catch a drawn group: R2's and E4's `.grp-t:has(.badge.ag)` reads show the badge inside
+    `.pane-body` on the agents page, and E2's project MCP read lists agy's servers under the same
+    `AntigravityMcpGroup` heading.
+  - Browser forms (`false-greens.md`): the exact text reads poll the expression they assert. The two one-shot absence
+    reads (R2's project page and E5) follow a positive read. No case uses synthetic events or geometry.
+  - No finding.
+
+- **Resource reuse**:
+  - The build ran once: the log has one `electron-vite build` (main, preload and renderer once each).
+  - There are five launches, one per case in scope: R2 :738, E1 :930 (rescan 500 ms), E4 :1080, E5 :1138 and E2 + E3
+    :1181. This matches the table, and the increment adds none. Launches print nothing (round 1), so I counted them in
+    the code. Run times: #9 1.0 s, #11 1.5 s, #12 953 ms, #13 841 ms, #14 11.3 s.
+  - The providers cases each build their own temporary tree in `beforeEach` (38 cases in 141 ms).
+  - The run covered every case in scope, and none clears a process-shared resource, so collection order decides
+    nothing.
+  - No finding.
+
+### Findings
+
+7. **One half of the Antigravity groups' visibility rules is never tested: agy not detected, but a plugin or a server
+   exists** (missed regression).
+   - Spec:
+     - plugins-view "Settled during implementation": "The group shows whenever the side is detected or has a plugin".
+     - agents-overview's Antigravity boundaries: "The MCP section's Antigravity group shows whenever the side is
+       detected or lists a server".
+   - Code:
+     - `PluginsView.tsx:179` hides the plugin group only when agy is not detected and has no plugins (`!detected &&
+       plugins.length === 0`).
+     - `McpServers.tsx:32` hides the MCP group when it has no servers and is on a project page or agy is not detected
+       (`servers.length === 0 && (onProjectPage || !detected)`).
+   - The state is reachable:
+     - Detection is `~/.gemini/antigravity-cli` existing (`antigravity.ts:67`, `roots.ts:16`).
+     - Plugins and the global MCP file are read from `~/.gemini/config` either way. U35 scans a home without
+       `antigravity-cli` and gets both the plugin and its server.
+   - Untested:
+     - Every e2e home that holds agy content also creates `antigravity-cli` (`rg -n -i gemini e2e/`: :719, :818,
+       :867, :1078, :1469).
+     - The tests cover three combinations: detected and empty (R2), detected with content (E1, E2, E4), and undetected
+       and empty (E5).
+     - No test covers undetected with a plugin or a server. If either group hid whenever agy is undetected (dropping
+       `&& plugins.length === 0`, or the MCP group's `servers.length === 0 &&`), every test would stay green.
+     - This conclusion is reasoned from the code; no mutation was run.
+   - Recommended now: one e2e read of both groups drawn, on a home whose agy configuration holds a plugin and a global
+     server but has no `~/.gemini/antigravity-cli`. E4's home is the nearest:
+     - It already opens both tabs on both pages.
+     - Its `antigravity-cli` directory exists only to make agy detected.
+     - The detected-and-empty sentence it reads is also read by R2.
+     - Dropping the directory and adding one global server would make E4 this case.
+   - Document sync: final-regression.md's Stage 1 rows "plugins-view spec ↔ implementation" ("group visibility")
+     and "agents-overview spec ↔ implementation" ("the MCP boundaries") mark these rules True. Their evidence (E5,
+     #322's case, E4) covers three of the four combinations; add the new read once it is written. The checklist's
+     rows only claim what is tested ("no group without agy") and need no change.
+
+### Document sync
+
+Checked for this round's facts. The range changes tests, the components file's header, one e2e fixture home, side-count
+wording in four specs and the features index, and the working records. It changes no product behaviour.
+
+- This record: the increment table and the self-check, against the written tests (table above).
+- The test file header and the comments beside every changed e2e case: true.
+- `docs/.workings/antigravity-side/`, enumerated whole: `find -mindepth 1` lists 21 entries, none hidden. All 21 are
+  tracked, and `git status --porcelain --ignored` shows nothing ignored. Three files carry uncommitted edits from
+  parallel work, seen at 06:38–06:41 and outside the range:
+  - `checklist.md`: version notes.
+  - `final-regression.md`: version notes.
+  - `ticket-325-worklog.md`: a table of findings outside this ticket's change.
+- `checklist.md`'s #325 rows: they cite U35–U39 and the new e2e reads accurately.
+- `final-regression.md`'s #325 Stage 1 rows: true, except the two that finding 7 names.
+- `ticket-325-doc-sync.md`: its "Cross regression … step 8" row is Done. It rests on those two rows, so it needs
+  rechecking with finding 7.
+- `ticket-325-review-code.md`'s item-1 line ("change no product code"): true for the range.
+- `ticket-325-worklog.md`'s T6 and T7 lines: they match the targeted log (38 and 92 passed, every command exit 0, no
+  importer).
+- The six specs' Testing Decisions: unchanged in the range and still true.
+
+Excluded: `docs/features/` pages, CONTEXT.md, ADRs and the READMEs, because the range changes no behaviour (the
+features index row is wording). Also excluded is the GitHub ticket, whose acceptance boxes the orchestrator ticks at
+delivery.
+
+### Disposition of round 2 (main agent, 2026-10-29)
+
+The hand-back's one title matches finding 7. Fixed in E4 (row "E4 (changed again)" in the design review's increment,
+written first): the home has no `~/.gemini/antigravity-cli`, keeps its plugin and gains a global server; the case reads
+"Not detected", agy's plugin group with its row and agy's MCP group with the server's row. The detected-and-empty
+sentence E4 read before stays read by #322's case (R2). final-regression.md's two Stage 1 rows were corrected with it.
 

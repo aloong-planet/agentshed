@@ -1,0 +1,52 @@
+# Reversible renderer mutations against round 2's E4 reads (#325), 2026-10-29
+# Each mutation applied alone, a fresh electron-vite build, E4 run, the file restored byte for byte in finally (never
+# via git). The failing line is the read each mutation targets.
+
+$ node mutate-r2.mjs
+M7 plugin group hidden whenever agy is not detected: build exit=0 built=true e2e exit=1
+   Error: expect(locator).toHaveText(expected) failed
+   failing line: > 1111 |   await expect(win.locator('.pane-body .grp-t:has(.badge.ag) + .card .nm')).toHaveText(['flutter'])
+   restored byte-identical=true
+M8 MCP group hidden whenever agy is not detected: build exit=0 built=true e2e exit=1
+   Error: expect(locator).toHaveText(expected) failed
+   failing line: > 1119 |   await expect(win.locator('.pane-body .grp-t:has(.badge.ag) + .card .nm')).toHaveText(['sqlite-explorer'])
+   restored byte-identical=true
+
+## The script (mutate-r2.mjs)
+```js
+// Reversible renderer mutations for round 2's E4 reads (#325): each applied alone, a fresh build, E4 run, the file
+// restored byte for byte in finally (never via git).
+import { readFileSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+const W = '/Users/loong_zhou/CascadeProjects/agentshed-wt-325'
+const muts = [
+  ['M7 plugin group hidden whenever agy is not detected', 'src/renderer/src/PluginsView.tsx',
+    'if (!snap.sides.antigravity.detected && plugins.length === 0) return null',
+    'if (!snap.sides.antigravity.detected) return null'],
+  ['M8 MCP group hidden whenever agy is not detected', 'src/renderer/src/McpServers.tsx',
+    'if (servers.length === 0 && (onProjectPage || !snap.sides.antigravity.detected)) return null',
+    'if (!snap.sides.antigravity.detected || (servers.length === 0 && onProjectPage)) return null']
+]
+for (const [label, rel, from, to] of muts) {
+  const file = `${W}/${rel}`
+  const orig = readFileSync(file)
+  const text = orig.toString('utf8')
+  const n = text.split(from).length - 1
+  if (n !== 1) { console.log(`${label}: SKIPPED, anchor found ${n} times`); continue }
+  try {
+    writeFileSync(file, text.replace(from, () => to))
+    const b = spawnSync('pnpm', ['exec', 'electron-vite', 'build'], { cwd: W, encoding: 'utf8' })
+    const built = readFileSync(`${W}/out/renderer/index.html`, 'utf8').length > 0
+    const r = spawnSync('pnpm', ['exec', 'playwright', 'test', 'e2e/app.spec.ts', '-g', "two sides' plugins bundling"], { cwd: W, encoding: 'utf8' })
+    const out = r.stdout + r.stderr
+    const err = (out.match(/Error: [^\n]*/) ?? ['(none)'])[0]
+    const at = (out.match(/^\s*> (\d+) \|.*$/m) ?? ['(none)'])[0].trim()
+    console.log(`${label}: build exit=${b.status} built=${built} e2e exit=${r.status}`)
+    console.log(`   ${err}`)
+    console.log(`   failing line: ${at}`)
+  } finally {
+    writeFileSync(file, orig)
+  }
+  console.log(`   restored byte-identical=${Buffer.compare(readFileSync(file), orig) === 0}`)
+}
+```

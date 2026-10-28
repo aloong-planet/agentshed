@@ -198,3 +198,4 @@ settled boundaries; project-detail REQ-002's MCP group visibility.
 
 Not applicable: the fixes for the post-implementation check's six findings (round 1, 2026-10-29) change no product
 code — tests, the e2e fixture home and the records only.
+The same holds for round 2's fix (finding 7): E4's home and reads only.

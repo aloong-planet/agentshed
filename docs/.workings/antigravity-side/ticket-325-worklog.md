@@ -102,8 +102,26 @@ No point without a prototype. Deviations from a prototype's form are recorded in
   change-scope exit=1
   ```
 
-  Both test files are `changed`, so the fix is committed and handed to an independent sub-agent for the incremental
-  check
+  Both test files are `changed`, so the fix is committed (99e35ee) and handed to an independent sub-agent for the
+  incremental check. Round 2 (range 79dcd57..99e35ee) handed back one finding (7: the groups' visibility without agy
+  detected but with content); fixed in E4 (design row first), each new read turned red by a renderer mutation on a fresh
+  build ([ticket-325-r2-mutations.log](ticket-325-r2-mutations.log)); the regression and checklist rows corrected.
+  Its targeted run: [ticket-325-targeted-r2.log](ticket-325-targeted-r2.log) — typecheck, lint, all of `e2e/app.spec.ts`
+  on a fresh build (92 passed), every command exit 0; no test imports the changed test file. Change scope against
+  99e35ee (`node ~/.claude/skills/implement/change-scope.mjs --base 99e35ee`, the fix uncommitted):
+
+  ```
+  inert   docs/.workings/antigravity-side/checklist.md
+  inert   docs/.workings/antigravity-side/final-regression.md
+  inert   docs/.workings/antigravity-side/ticket-325-review-code.md
+  inert   docs/.workings/antigravity-side/ticket-325-review-tests.md
+  inert   docs/.workings/antigravity-side/ticket-325-worklog.md
+  changed e2e/app.spec.ts  (code changed)
+  verdict: run (6 files differ from the base)
+  change-scope exit=1
+  ```
+
+  The e2e file is `changed`, so the fix is committed and handed to an independent sub-agent for round 3
 - [ ] T8 Spec reconciliation (read-only on code), write-backs
 - [ ] T9 Archive: decisions, CONTEXT, features (`/features-catalog`), doc sync, checklist rows
 - [ ] T10 Full verification gate, final run; commit
@@ -187,3 +205,15 @@ skill-landing.test.ts`, D = `src/main/display-store.test.ts`), E1/E2 = the two n
 | project-detail::REQ-002/AC-04 (#325's part) | E2 Skills, Subagents, Plugins | done |
 
 No unit is missing or partial; the gate timing rules leave nothing post-delivery for this ticket. Proceed to step 5.
+
+## Findings outside this ticket's change (2026-10-29)
+
+None has a durable home in the repository; each is reported to the owner to decide (a ticket, or drop).
+
+| Finding | Impact | Recommendation |
+|---|---|---|
+| `scripts/check-shared-ui.mjs` exempts a dictionary line when an allow-listed key sits on the *previous* line (`prev.includes(...)`, line 515), meant for a wrapped value; any key following an allow-listed one is exempt too. It hid `subagents.globalHint`'s "Both sides…" behind `noneGlobal`'s exemption until this ticket removed that exemption | The side-enumeration gate can stay green over a new enumeration placed after an allow-listed key | Another task: exempt the continuation only when the previous line opens the same key's value without closing it; add a red case for the neighbour |
+| Project detail's Skills section never lists Grok's skills (neither `.grok/skills` nor Grok's global library; before this ticket only Claude's and Codex's were read there) | A Grok skill installed into a project does not appear on that project's page | Another task, with a prototype check (a new group) |
+| The app has no `.bdg` rule, so a row's side badges touch; every confirmed prototype draws `.bdg{display:flex;gap:3px}` (agents page, skills preview, install) | A visual deviation from the prototypes on every badge row, older than this ticket | Another task: add the rule to `theme.css`, verify each badge row by screenshot and the e2e geometry cases |
+| Three existing cases skip under root with a silent `return` (`plugins.test.ts:321`, `subagents.test.ts:134`, `:149`) instead of an explicit skip | Run as root, they report green without asserting | Another task: `it.skipIf(process.getuid?.() === 0)`, as this ticket's unreadable-file case does |
+| From the code review's refactoring list: project detail's skill row key collides for two enabled Claude plugins of one bare name; `PROJECT_AGENTS_DIR` restates the reader's directories; the picker's tags are not refreshed by a rescan while open; front matter is read by a hand subset of YAML | Self-only or Claude-only edge cases (details in [ticket-325-review-code.md](ticket-325-review-code.md)) | As listed there: do not do, or fold into a later change of the same code |
