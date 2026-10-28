@@ -698,8 +698,11 @@ _Avoid_: beta mode, insider track, update track
   Saved page contents survive a full restart; navigation and expansion state do not.
   Display copies have their own format version and never feed accounting or archive updates
   (ADR-0029). Restoring a saved page runs the live contract, so a field added to a saved type is filled
-  in on restore when absent — or the first launch after the update drops every page saved before it
-  (as the project memory's main-file entry is filled in; postmortem 2026-10-21). Previously read previews and answers are included; unread bodies are not prefetched.
+  in on restore when absent, and one whose shape changes is converted from the old shape — or the first
+  launch after the update drops every page saved before it (as the project memory's main-file entry is
+  filled in; as the configuration files were given their paths, 2026-10-29; postmortem 2026-10-21). A
+  conversion that needs a fact the saved copy lacks takes it from the main process, never invents it
+  (the snapshot's global configuration files take their paths from its roots). Previously read previews and answers are included; unread bodies are not prefetched.
   Restored exact-path registrations are checked against current targets and replaced per owning
   scan/detail/enumeration. Every automatic rescan
   marks every cached page stale, and a change made from a page
