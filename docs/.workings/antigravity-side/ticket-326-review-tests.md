@@ -411,3 +411,91 @@ Carried over from the first round's "Differences seen": both are written back in
 edits. project-detail's Testing Decisions now say the configuration entries are asserted over any project, and both
 specs declare the unreadable slot's prototype exemption. ticket-326-doc-sync.md row 2 marks them done. They are not
 yet in a commit, so at 8493010 the two records still run ahead of the specs.
+
+### Incremental check (8493010..84f0b76)
+
+Date: 2026-10-29 · ticket: #326 (aloong-planet/agentshed) · fix range: 8493010..84f0b76 (one commit, 84f0b76, for
+Finding 2) · handed over by `/implement` step 6 · run evidence:
+[ticket-326-fix2-verification.log](ticket-326-fix2-verification.log). Everything outside the scope below carries
+over: the T4a conclusions from the incremental check a9c382f..8493010 where this one does not restate them, and the
+rest from the first round (Post-implementation check above, at a9c382f).
+
+#### Scope and the searches that set it
+
+- Files the range changes outside `docs/`: `git diff --name-only 8493010..84f0b76 -- . ':!docs'` gives
+  `src/main/display-store.test.ts` only (exit 0). Its diff adds one saved detail (`/w/s`) and its expectation to the
+  case at `:117` (T4a), and rewrites that case's comment. No shared test code changes.
+- Tests depending on the changed file: the same `grep -rna … -e 'display-store\.test'` over `src e2e scripts build
+  site` and the three configs plus `package.json` (exit 0) finds only the comment at `e2e/app.spec.ts:5682`; the file
+  exports nothing (`grep -nE '^\s*export\b'`, exit 1). No dependant.
+- Test design table rows the range changes: the table sections of the two commits' records, diffed, differ in row T4a
+  only.
+
+Objects of this check: the T4a case and the T4a row.
+
+#### Run evidence
+
+- Version: `git rev-parse HEAD` 8493010 plus eight modified files with their `git hash-object`. The two that 84f0b76
+  commits match its blobs (`display-store.test.ts` 469f9a0, this record 1640c49). The other six are uncommitted
+  Markdown (CONTEXT.md, both specs, both features pages, ticket-326-doc-sync.md), inert by
+  ticket-326-fix2-change-scope.log. 84f0b76 also adds two logs the version list does not name:
+  ticket-326-fix1-change-scope.log (ignored before the run, so not listed by `git status`) and this run's own log;
+  both inert. Every file a test reads is as in 84f0b76. Matches the range.
+- The dependants search ran this time (`grep`, exit 0, the same single comment; exports, exit 1).
+- Commands: typecheck (exit 0), lint (exit 0), `pnpm vitest run src/main/display-store.test.ts` (exit 0; 11 tests
+  passed), each with its full output. No finding.
+
+#### Per-case consistency with the test design table
+
+| # | Written test | Against the revised row |
+|---|---|---|
+| T4a | `display-store.test.ts:117` | Matches: `/w/p` both files (distinct texts and `truncated`), `/w/r` AGENTS.md only, `/w/s` CLAUDE.md only with a string summary, `/w/q` malformed; restored paths `['/w/p', '/w/r', '/w/s']`; three `configs` literals, `/w/s` with `agentsMd: null`; the summary absent. The row's counts (3, 3, 3, 18 of 27) match this machine's cache, counted again at 01:33 (written 01:31:38); so does the case's comment |
+
+#### Coverage
+
+Each present-file combination the real cache holds is now a detail of its own, and each field's absent half is
+asserted: `claudeMd: null` on `/w/r`, `agentsMd: null` on `/w/s`. "Neither file" (18 of 27) is restored, not
+asserted, by the memory case at `:89`. A conversion that is right for each field on its own is right for that
+combination too, since the two fields are converted independently. Finding 2 is resolved. No finding.
+
+#### Case design
+
+Unchanged: the cache file is written at the filesystem boundary and read back through `DisplayStore`. No finding.
+
+#### False greens
+
+Mutation testing is skipped (the `mutation-testing` capability is not enabled). Besides everything the previous
+check listed for T4a, the case now goes red when a saved absent AGENTS.md comes back as
+`{ file: '<project>/AGENTS.md', content: null }`, because `/w/s` expects the literal `null`. It also goes red when
+`/w/s`'s string summary survives. No finding.
+
+#### Resource reuse
+
+Counted from the targeted log: `display-store.test.ts`, 11 tests in 16 ms; no build and no launch. T4a uses a
+temporary directory. No expensive resource; as designed. No finding.
+
+#### Findings
+
+None. Finding 2 is resolved: an absent saved AGENTS.md is asserted absent (`/w/s`), and the T4a row's counts are
+corrected.
+
+#### Document sync this check creates
+
+Scope as before, re-listed at 01:33. Since the last check, the working directory adds
+ticket-326-fix2-verification.log and ticket-326-fix2-change-scope.log (both read), and final-regression.md and
+ticket-326-decisions.md were edited (searched for restore-evidence statements, and the matching lines read).
+
+The fact this range changes is that T4a asserts an absent saved AGENTS.md. The statements the previous check named
+now agree with the test:
+
+- this record's T4a row (counts and input);
+- final-regression.md:27 ("true at this round's commits");
+- ticket-326-decisions.md's step-6 notes (Finding 2 fixed in 84f0b76).
+
+checklist.md:154 ("`display-store.test.ts` (both saved shapes restore) — passed | Verified") is now backed by the
+whole T4a case. Its stamp, "implementation d0c68d7", predates that case. Handling: re-stamp it with 84f0b76 when the
+row is checked again before delivery (document-sync.md: a conclusion carries the version it applies to). Home: that
+row.
+
+The spec, CONTEXT and features edits are still uncommitted at 84f0b76; they will go in with the documentation commit
+that final-regression.md names.
